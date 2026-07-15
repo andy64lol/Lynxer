@@ -22,8 +22,8 @@ void main(){
 ### Option A — System-wide (`make install`)
 
 ```bash
-git clone <repo-url>
-cd lynxer-repo
+git clone https://github.com/andy64lol/Lynxer.git
+cd Lynxer
 
 # installs to /usr/local/bin/lynxer  (may need sudo)
 make install
@@ -32,13 +32,7 @@ make install
 make install PREFIX=~/.local
 ```
 
-### Option B — pip editable install (recommended for development)
-
-```bash
-pip install -e .
-```
-
-### Option C — run straight from the repo (no install)
+### Option B — run straight from the repo (no install)
 
 ```bash
 python -m lynxer examples/example.lynx
@@ -49,9 +43,7 @@ python lynxer/shell.py examples/example.lynx
 ### Uninstall
 
 ```bash
-make uninstall
-# or
-pip uninstall lynxer
+make uninstall # may need sudo
 ```
 
 ---
