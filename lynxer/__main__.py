@@ -9,7 +9,7 @@ if _parent not in sys.path:
 
 from lynxer.lynxer import run  # noqa: E402
 
-VERSION = "0.1.0"
+VERSION = "0.1.1"
 
 HELP = """\
 Lynxer {version} — a statically-flavoured, C-style scripting language.

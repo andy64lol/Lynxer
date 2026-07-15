@@ -11,6 +11,19 @@ STDLIB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "stdlib")
 LETTERS = string.ascii_letters
 LETTERS_DIGITS = LETTERS + DIGITS
 
+_cython_inline_fn = None
+
+
+def _get_cython_inline():
+    """Lazily import Cython's inline compiler (needs setuptools' distutils shim)."""
+    global _cython_inline_fn
+    if _cython_inline_fn is None:
+        import setuptools  # noqa: F401 — patches distutils for Cython on py3.12+
+        from Cython.Build.Inline import cython_inline
+
+        _cython_inline_fn = cython_inline
+    return _cython_inline_fn
+
 # errors
 
 
@@ -123,17 +136,26 @@ TT_RBRACE = "RBRACE"
 TT_SEMICOLON = "SEMICOLON"
 TT_COMMA = "COMMA"
 TT_DOT = "DOT"
+TT_PLUSEQ = "PLUSEQ"
+TT_MINUSEQ = "MINUSEQ"
+TT_AMP = "AMP"
+TT_PIPE = "PIPE"
+TT_CARET = "CARET"
+TT_TILDE = "TILDE"
+TT_SHL = "SHL"
+TT_SHR = "SHR"
 TT_RAWPY_BLOCK = "RAWPY_BLOCK"
+TT_RAWPYX_BLOCK = "RAWPYX_BLOCK"
 TT_EOF = "EOF"
 
-TYPE_KEYWORDS = ["int", "float", "str", "bool"]
+TYPE_KEYWORDS = ["int", "float", "str", "bool", "any"]
 
 KEYWORDS = [
-    "int", "float", "str", "bool",
+    "int", "float", "str", "bool", "any",
     "void", "def", "const",
     "if", "else", "while", "for",
     "return", "import",
-    "true", "false",
+    "true", "false", "none",
     "and", "or", "not", "is",
 ]
 
@@ -202,17 +224,47 @@ class Lexer:
             elif self.current_char in LETTERS or self.current_char == "_":
                 tok = self.make_identifier()
                 tokens.append(tok)
-                if tok.type == TT_IDENTIFIER and tok.value == "rawpy":
-                    block_tok = self._try_consume_rawpy_block(tok.pos_start)
+                if tok.type == TT_IDENTIFIER and tok.value == "rawPy":
+                    block_tok = self._try_consume_brace_block(
+                        tok.pos_start, TT_RAWPY_BLOCK
+                    )
+                    if block_tok is not None:
+                        tokens.append(block_tok)
+                elif tok.type == TT_IDENTIFIER and tok.value == "rawPyx":
+                    block_tok = self._try_consume_brace_block(
+                        tok.pos_start, TT_RAWPYX_BLOCK
+                    )
                     if block_tok is not None:
                         tokens.append(block_tok)
             elif self.current_char == '"':
                 tokens.append(self.make_string())
             elif self.current_char == "+":
-                tokens.append(Token(TT_PLUS, pos_start=self.pos))
+                pos_start = self.pos.copy()
                 self.advance()
+                if self.current_char == "=":
+                    self.advance()
+                    tokens.append(Token(TT_PLUSEQ, pos_start=pos_start, pos_end=self.pos))
+                else:
+                    tokens.append(Token(TT_PLUS, pos_start=pos_start, pos_end=self.pos))
             elif self.current_char == "-":
-                tokens.append(Token(TT_MINUS, pos_start=self.pos))
+                pos_start = self.pos.copy()
+                self.advance()
+                if self.current_char == "=":
+                    self.advance()
+                    tokens.append(Token(TT_MINUSEQ, pos_start=pos_start, pos_end=self.pos))
+                else:
+                    tokens.append(Token(TT_MINUS, pos_start=pos_start, pos_end=self.pos))
+            elif self.current_char == "&":
+                tokens.append(Token(TT_AMP, pos_start=self.pos))
+                self.advance()
+            elif self.current_char == "|":
+                tokens.append(Token(TT_PIPE, pos_start=self.pos))
+                self.advance()
+            elif self.current_char == "^":
+                tokens.append(Token(TT_CARET, pos_start=self.pos))
+                self.advance()
+            elif self.current_char == "~":
+                tokens.append(Token(TT_TILDE, pos_start=self.pos))
                 self.advance()
             elif self.current_char == "*":
                 tokens.append(Token(TT_MUL, pos_start=self.pos))
@@ -322,6 +374,9 @@ class Lexer:
         if self.current_char == "=":
             self.advance()
             tok_type = TT_LTE
+        elif self.current_char == "<":
+            self.advance()
+            tok_type = TT_SHL
         return Token(tok_type, pos_start=pos_start, pos_end=self.pos)
 
     def make_greater_than(self):
@@ -331,6 +386,9 @@ class Lexer:
         if self.current_char == "=":
             self.advance()
             tok_type = TT_GTE
+        elif self.current_char == ">":
+            self.advance()
+            tok_type = TT_SHR
         return Token(tok_type, pos_start=pos_start, pos_end=self.pos)
 
     def skip_single_comment(self):
@@ -351,7 +409,7 @@ class Lexer:
                 break
             self.advance()
 
-    def _try_consume_rawpy_block(self, pos_start):
+    def _try_consume_brace_block(self, pos_start, token_type):
         text = self.text
         n = len(text)
         i = self.pos.idx
@@ -391,7 +449,7 @@ class Lexer:
                 code += self.current_char
             self.advance()
 
-        return Token(TT_RAWPY_BLOCK, code, pos_start, self.pos)
+        return Token(token_type, code, pos_start, self.pos)
 
 
 # nodes
@@ -415,6 +473,13 @@ class BoolNode:
     def __init__(self, tok):
         self.tok = tok
         self.value = tok.value == "true"
+        self.pos_start = self.tok.pos_start
+        self.pos_end = self.tok.pos_end
+
+
+class NoneNode:
+    def __init__(self, tok):
+        self.tok = tok
         self.pos_start = self.tok.pos_start
         self.pos_end = self.tok.pos_end
 
@@ -546,6 +611,13 @@ class RawPyBlockNode:
         self.pos_end = pos_end
 
 
+class RawPyxBlockNode:
+    def __init__(self, code, pos_start, pos_end):
+        self.code = code
+        self.pos_start = pos_start
+        self.pos_end = pos_end
+
+
 class ProgramNode:
     def __init__(self, setup_func, globals_list, main_func, pos_start, pos_end):
         self.setup_func = setup_func
@@ -660,12 +732,7 @@ class Parser:
                     if res.error:
                         return res
                     globals_list.append(node)
-            elif self.current_tok.matches(TT_KEYWORD, "const"):
-                node = res.register(self.parse_const_decl())
-                if res.error:
-                    return res
-                globals_list.append(node)
-            elif self.is_type_keyword():
+            elif self.current_tok.matches(TT_KEYWORD, "const") or self.is_type_keyword():
                 return res.failure(
                     InvalidSyntaxError(
                         self.current_tok.pos_start,
@@ -680,8 +747,8 @@ class Parser:
                         self.current_tok.pos_start,
                         self.current_tok.pos_end,
                         f"Executable code is not allowed outside of a function. "
-                        f"Only 'void' function definitions and 'const' declarations are permitted at the top level. "
-                        f"Put all logic inside a function such as 'void main(){{}}'",
+                        f"Only 'void' function definitions are permitted at the top level. "
+                        f"Put globals in setup() and logic in a function such as 'void main(){{}}'",
                     )
                 )
 
@@ -892,7 +959,7 @@ class Parser:
             next_tok = self.peek(1)
 
             if (
-                self.current_tok.value == "rawpy"
+                self.current_tok.value == "rawPy"
                 and next_tok
                 and next_tok.type == TT_RAWPY_BLOCK
             ):
@@ -904,7 +971,20 @@ class Parser:
                 self.advance()
                 return res.success(RawPyBlockNode(code, pos_start, pos_end))
 
-            if next_tok and next_tok.type == TT_EQ:
+            if (
+                self.current_tok.value == "rawPyx"
+                and next_tok
+                and next_tok.type == TT_RAWPYX_BLOCK
+            ):
+                res.register_advancement()
+                self.advance()
+                code = self.current_tok.value
+                pos_end = self.current_tok.pos_end.copy()
+                res.register_advancement()
+                self.advance()
+                return res.success(RawPyxBlockNode(code, pos_start, pos_end))
+
+            if next_tok and next_tok.type in (TT_EQ, TT_PLUSEQ, TT_MINUSEQ):
                 node = res.register(self.parse_assign())
                 if res.error:
                     return res
@@ -1034,6 +1114,8 @@ class Parser:
         name_tok = self.current_tok
         res.register_advancement()
         self.advance()
+
+        op_tok = self.current_tok
         res.register_advancement()
         self.advance()
 
@@ -1049,6 +1131,11 @@ class Parser:
             )
         res.register_advancement()
         self.advance()
+
+        if op_tok.type == TT_PLUSEQ:
+            value = BinOpNode(VarAccessNode(name_tok), Token(TT_PLUS), value)
+        elif op_tok.type == TT_MINUSEQ:
+            value = BinOpNode(VarAccessNode(name_tok), Token(TT_MINUS), value)
 
         return res.success(VarAssignNode(name_tok, value))
 
@@ -1421,7 +1508,7 @@ class Parser:
 
     def parse_comp_expr(self):
         res = ParseResult()
-        left = res.register(self.parse_arith_expr())
+        left = res.register(self.parse_bitwise_or_expr())
         if res.error:
             return res
 
@@ -1436,7 +1523,7 @@ class Parser:
             self.advance()
             res.register_advancement()
             self.advance()
-            right = res.register(self.parse_arith_expr())
+            right = res.register(self.parse_bitwise_or_expr())
             if res.error:
                 return res
             return res.success(BinOpNode(left, op_tok, right))
@@ -1445,7 +1532,7 @@ class Parser:
             op_tok = self.current_tok
             res.register_advancement()
             self.advance()
-            right = res.register(self.parse_arith_expr())
+            right = res.register(self.parse_bitwise_or_expr())
             if res.error:
                 return res
             return res.success(BinOpNode(left, op_tok, right))
@@ -1454,11 +1541,71 @@ class Parser:
             op_tok = self.current_tok
             res.register_advancement()
             self.advance()
-            right = res.register(self.parse_arith_expr())
+            right = res.register(self.parse_bitwise_or_expr())
             if res.error:
                 return res
             return res.success(BinOpNode(left, op_tok, right))
 
+        return res.success(left)
+
+    def parse_bitwise_or_expr(self):
+        res = ParseResult()
+        left = res.register(self.parse_bitwise_xor_expr())
+        if res.error:
+            return res
+        while self.current_tok.type == TT_PIPE:
+            op_tok = self.current_tok
+            res.register_advancement()
+            self.advance()
+            right = res.register(self.parse_bitwise_xor_expr())
+            if res.error:
+                return res
+            left = BinOpNode(left, op_tok, right)
+        return res.success(left)
+
+    def parse_bitwise_xor_expr(self):
+        res = ParseResult()
+        left = res.register(self.parse_bitwise_and_expr())
+        if res.error:
+            return res
+        while self.current_tok.type == TT_CARET:
+            op_tok = self.current_tok
+            res.register_advancement()
+            self.advance()
+            right = res.register(self.parse_bitwise_and_expr())
+            if res.error:
+                return res
+            left = BinOpNode(left, op_tok, right)
+        return res.success(left)
+
+    def parse_bitwise_and_expr(self):
+        res = ParseResult()
+        left = res.register(self.parse_shift_expr())
+        if res.error:
+            return res
+        while self.current_tok.type == TT_AMP:
+            op_tok = self.current_tok
+            res.register_advancement()
+            self.advance()
+            right = res.register(self.parse_shift_expr())
+            if res.error:
+                return res
+            left = BinOpNode(left, op_tok, right)
+        return res.success(left)
+
+    def parse_shift_expr(self):
+        res = ParseResult()
+        left = res.register(self.parse_arith_expr())
+        if res.error:
+            return res
+        while self.current_tok.type in (TT_SHL, TT_SHR):
+            op_tok = self.current_tok
+            res.register_advancement()
+            self.advance()
+            right = res.register(self.parse_arith_expr())
+            if res.error:
+                return res
+            left = BinOpNode(left, op_tok, right)
         return res.success(left)
 
     def parse_arith_expr(self):
@@ -1499,7 +1646,7 @@ class Parser:
         res = ParseResult()
         tok = self.current_tok
 
-        if tok.type in (TT_PLUS, TT_MINUS):
+        if tok.type in (TT_PLUS, TT_MINUS, TT_TILDE):
             res.register_advancement()
             self.advance()
             factor = res.register(self.parse_factor())
@@ -1588,6 +1735,11 @@ class Parser:
             self.advance()
             return res.success(BoolNode(tok))
 
+        elif tok.matches(TT_KEYWORD, "none"):
+            res.register_advancement()
+            self.advance()
+            return res.success(NoneNode(tok))
+
         elif tok.type == TT_IDENTIFIER:
             res.register_advancement()
             self.advance()
@@ -1613,7 +1765,7 @@ class Parser:
             InvalidSyntaxError(
                 tok.pos_start,
                 tok.pos_end,
-                "Expected int, float, str, bool, identifier, or '('",
+                "Expected int, float, str, bool, none, identifier, or '('",
             )
         )
 
@@ -1722,6 +1874,24 @@ class Value:
     def notted(self):
         return None, self.illegal_operation()
 
+    def bit_anded_by(self, other):
+        return None, self.illegal_operation(other)
+
+    def bit_ored_by(self, other):
+        return None, self.illegal_operation(other)
+
+    def bit_xored_by(self, other):
+        return None, self.illegal_operation(other)
+
+    def bit_notted(self):
+        return None, self.illegal_operation()
+
+    def shifted_left_by(self, other):
+        return None, self.illegal_operation(other)
+
+    def shifted_right_by(self, other):
+        return None, self.illegal_operation(other)
+
     def execute(self, args):
         return RTResult().failure(self.illegal_operation())
 
@@ -1742,9 +1912,10 @@ class Number(Value):
     false: ClassVar["Number"]
     true: ClassVar["Number"]
 
-    def __init__(self, value):
+    def __init__(self, value, is_bool=False):
         super().__init__()
         self.value = value
+        self.is_bool = is_bool
 
     def added_to(self, other):
         if isinstance(other, Number):
@@ -1781,61 +1952,101 @@ class Number(Value):
 
     def get_comparison_eq(self, other):
         if isinstance(other, Number):
-            return Number(int(self.value == other.value)).set_context(
+            return Number(int(self.value == other.value), is_bool=True).set_context(
                 self.context
             ), None
         return None, Value.illegal_operation(self, other)
 
     def get_comparison_ne(self, other):
         if isinstance(other, Number):
-            return Number(int(self.value != other.value)).set_context(
+            return Number(int(self.value != other.value), is_bool=True).set_context(
                 self.context
             ), None
         return None, Value.illegal_operation(self, other)
 
     def get_comparison_lt(self, other):
         if isinstance(other, Number):
-            return Number(int(self.value < other.value)).set_context(self.context), None
+            return Number(int(self.value < other.value), is_bool=True).set_context(self.context), None
         return None, Value.illegal_operation(self, other)
 
     def get_comparison_gt(self, other):
         if isinstance(other, Number):
-            return Number(int(self.value > other.value)).set_context(self.context), None
+            return Number(int(self.value > other.value), is_bool=True).set_context(self.context), None
         return None, Value.illegal_operation(self, other)
 
     def get_comparison_lte(self, other):
         if isinstance(other, Number):
-            return Number(int(self.value <= other.value)).set_context(
+            return Number(int(self.value <= other.value), is_bool=True).set_context(
                 self.context
             ), None
         return None, Value.illegal_operation(self, other)
 
     def get_comparison_gte(self, other):
         if isinstance(other, Number):
-            return Number(int(self.value >= other.value)).set_context(
+            return Number(int(self.value >= other.value), is_bool=True).set_context(
                 self.context
             ), None
         return None, Value.illegal_operation(self, other)
 
     def anded_by(self, other):
         if isinstance(other, Number):
-            return Number(int(self.value and other.value)).set_context(
+            return Number(int(self.value and other.value), is_bool=True).set_context(
                 self.context
             ), None
         return None, Value.illegal_operation(self, other)
 
     def ored_by(self, other):
         if isinstance(other, Number):
-            return Number(int(self.value or other.value)).set_context(
+            return Number(int(self.value or other.value), is_bool=True).set_context(
                 self.context
             ), None
         return None, Value.illegal_operation(self, other)
 
     def notted(self):
-        return Number(1 if self.value == 0 else 0).set_context(self.context), None
+        return Number(1 if self.value == 0 else 0, is_bool=True).set_context(
+            self.context
+        ), None
+
+    def bit_anded_by(self, other):
+        if isinstance(other, Number):
+            return Number(int(self.value) & int(other.value)).set_context(
+                self.context
+            ), None
+        return None, Value.illegal_operation(self, other)
+
+    def bit_ored_by(self, other):
+        if isinstance(other, Number):
+            return Number(int(self.value) | int(other.value)).set_context(
+                self.context
+            ), None
+        return None, Value.illegal_operation(self, other)
+
+    def bit_xored_by(self, other):
+        if isinstance(other, Number):
+            return Number(int(self.value) ^ int(other.value)).set_context(
+                self.context
+            ), None
+        return None, Value.illegal_operation(self, other)
+
+    def bit_notted(self):
+        return Number(~int(self.value)).set_context(self.context), None
+
+    def shifted_left_by(self, other):
+        if isinstance(other, Number):
+            return Number(int(self.value) << int(other.value)).set_context(
+                self.context
+            ), None
+        return None, Value.illegal_operation(self, other)
+
+    def shifted_right_by(self, other):
+        if isinstance(other, Number):
+            return Number(int(self.value) >> int(other.value)).set_context(
+                self.context
+            ), None
+        return None, Value.illegal_operation(self, other)
 
     def copy(self):
-        c = Number(self.value)
+        c = Number(self.value, is_bool=self.is_bool)
         c.set_pos(self.pos_start, self.pos_end)
         c.set_context(self.context)
         return c
@@ -1854,8 +2065,8 @@ class Number(Value):
 
 
 Number.null = Number(0)
-Number.false = Number(0)
-Number.true = Number(1)
+Number.false = Number(0, is_bool=True)
+Number.true = Number(1, is_bool=True)
 
 
 class String(Value):
@@ -1870,14 +2081,14 @@ class String(Value):
 
     def get_comparison_eq(self, other):
         if isinstance(other, String):
-            return Number(int(self.value == other.value)).set_context(
+            return Number(int(self.value == other.value), is_bool=True).set_context(
                 self.context
             ), None
         return None, Value.illegal_operation(self, other)
 
     def get_comparison_ne(self, other):
         if isinstance(other, String):
-            return Number(int(self.value != other.value)).set_context(
+            return Number(int(self.value != other.value), is_bool=True).set_context(
                 self.context
             ), None
         return None, Value.illegal_operation(self, other)
@@ -1896,6 +2107,90 @@ class String(Value):
 
     def __repr__(self):
         return f'"{self.value}"'
+
+
+class Null(Value):
+    def __init__(self):
+        super().__init__()
+
+    def get_comparison_eq(self, other):
+        return Number(int(isinstance(other, Null)), is_bool=True).set_context(self.context), None
+
+    def get_comparison_ne(self, other):
+        return Number(int(not isinstance(other, Null)), is_bool=True).set_context(
+            self.context
+        ), None
+
+    def is_true(self):
+        return False
+
+    def copy(self):
+        c = Null()
+        c.set_pos(self.pos_start, self.pos_end)
+        c.set_context(self.context)
+        return c
+
+    def __str__(self):
+        return "none"
+
+    def __repr__(self):
+        return "none"
+
+
+class List(Value):
+    def __init__(self, elements):
+        super().__init__()
+        self.elements = elements
+
+    def added_to(self, other):
+        if isinstance(other, List):
+            return List(self.elements + other.elements).set_context(
+                self.context
+            ), None
+        return None, Value.illegal_operation(self, other)
+
+    def is_true(self):
+        return len(self.elements) > 0
+
+    def copy(self):
+        c = List(list(self.elements))
+        c.set_pos(self.pos_start, self.pos_end)
+        c.set_context(self.context)
+        return c
+
+    def __str__(self):
+        return "[" + ", ".join(str(e) for e in self.elements) + "]"
+
+    def __repr__(self):
+        return self.__str__()
+
+
+def value_type_name(v):
+    if isinstance(v, Null):
+        return "none"
+    if isinstance(v, Number):
+        if v.is_bool:
+            return "bool"
+        return "float" if isinstance(v.value, float) else "int"
+    if isinstance(v, String):
+        return "str"
+    if isinstance(v, List):
+        return "list"
+    if isinstance(v, (Function, BuiltInFunction)):
+        return "function"
+    return "any"
+
+
+NUMERIC_TYPES = {"int", "float"}
+
+
+def type_matches(declared_type, value):
+    if declared_type in (None, "any"):
+        return True
+    actual = value_type_name(value)
+    if declared_type in NUMERIC_TYPES:
+        return actual in NUMERIC_TYPES
+    return actual == declared_type
 
 
 class BaseFunction(Value):
@@ -1930,34 +2225,53 @@ class BaseFunction(Value):
             )
         return res.success(None)
 
-    def populate_args(self, arg_names, args, exec_ctx):
+    def populate_args(self, arg_names, args, exec_ctx, arg_types=None):
         for i in range(len(args)):
             arg_name = arg_names[i]
             arg_value = args[i]
+            arg_type = arg_types[i] if arg_types else None
+            if not type_matches(arg_type, arg_value):
+                return RTResult().failure(
+                    RTError(
+                        self.pos_start,
+                        self.pos_end,
+                        f"Argument '{arg_name}' of '{self.name}' expects '{arg_type}' "
+                        f"but got a '{value_type_name(arg_value)}' value",
+                        exec_ctx,
+                    )
+                )
             arg_value.set_context(exec_ctx)
-            exec_ctx.symbol_table.set(arg_name, arg_value)
+            exec_ctx.symbol_table.set(arg_name, arg_value, decl_type=arg_type)
+        return None
 
-    def check_and_populate_args(self, arg_names, args, exec_ctx):
+    def check_and_populate_args(self, arg_names, args, exec_ctx, arg_types=None):
         res = RTResult()
         res.register(self.check_args(arg_names, args))
         if res.should_return():
             return res
-        self.populate_args(arg_names, args, exec_ctx)
+        err = self.populate_args(arg_names, args, exec_ctx, arg_types)
+        if err:
+            return err
         return res.success(None)
 
 
 class Function(BaseFunction):
-    def __init__(self, name, body_node, param_names):
+    def __init__(self, name, body_node, param_names, param_types=None):
         super().__init__(name)
         self.body_node = body_node
         self.param_names = param_names
+        self.param_types = param_types or [None] * len(param_names)
 
     def execute(self, args):
         res = RTResult()
-        interpreter = Interpreter()
+        interpreter = SHARED_INTERPRETER
         exec_ctx = self.generate_new_context()
 
-        res.register(self.check_and_populate_args(self.param_names, args, exec_ctx))
+        res.register(
+            self.check_and_populate_args(
+                self.param_names, args, exec_ctx, self.param_types
+            )
+        )
         if res.should_return():
             return res
 
@@ -1971,7 +2285,7 @@ class Function(BaseFunction):
         return res.success(ret_value)
 
     def copy(self):
-        c = Function(self.name, self.body_node, self.param_names)
+        c = Function(self.name, self.body_node, self.param_names, self.param_types)
         c.set_context(self.context)
         c.set_pos(self.pos_start, self.pos_end)
         return c
@@ -1983,10 +2297,14 @@ class Function(BaseFunction):
 class BuiltInFunction(BaseFunction):
     print: ClassVar["BuiltInFunction"]
     input: ClassVar["BuiltInFunction"]
-    rawpy: ClassVar["BuiltInFunction"]
+    rawPy: ClassVar["BuiltInFunction"]
+    rawPyx: ClassVar["BuiltInFunction"]
     str_of: ClassVar["BuiltInFunction"]
     int_of: ClassVar["BuiltInFunction"]
     float_of: ClassVar["BuiltInFunction"]
+    returnType: ClassVar["BuiltInFunction"]
+    returnLength: ClassVar["BuiltInFunction"]
+    seqFromTo: ClassVar["BuiltInFunction"]
 
     def __init__(self, name):
         super().__init__(name)
@@ -2035,13 +2353,13 @@ class BuiltInFunction(BaseFunction):
         text = input(prompt)
         return RTResult().success(String(text))
 
-    def execute_rawpy(self, args, exec_ctx):
+    def execute_rawPy(self, args, exec_ctx):
         if len(args) != 1 or not isinstance(args[0], String):
             return RTResult().failure(
                 RTError(
                     self.pos_start,
                     self.pos_end,
-                    'rawpy() expects exactly one string argument — rawpy("python code")',
+                    'rawPy() expects exactly one string argument — rawPy("python code")',
                     exec_ctx,
                 )
             )
@@ -2052,7 +2370,7 @@ class BuiltInFunction(BaseFunction):
                 RTError(
                     self.pos_start,
                     self.pos_end,
-                    f"Python error in rawpy(): {e}",
+                    f"Python error in rawPy(): {e}",
                     exec_ctx,
                 )
             )
@@ -2116,13 +2434,101 @@ class BuiltInFunction(BaseFunction):
                 )
             )
 
+    def execute_rawPyx(self, args, exec_ctx):
+        if len(args) != 1 or not isinstance(args[0], String):
+            return RTResult().failure(
+                RTError(
+                    self.pos_start,
+                    self.pos_end,
+                    'rawPyx() expects exactly one string argument — rawPyx("cython code")',
+                    exec_ctx,
+                )
+            )
+        try:
+            cython_inline = _get_cython_inline()
+            cy_locals = {}
+            cython_inline(args[0].value, locals=cy_locals, globals=cy_locals, quiet=True)
+        except Exception as e:  # noqa: F841 — cy_locals unused for the string form
+            return RTResult().failure(
+                RTError(
+                    self.pos_start,
+                    self.pos_end,
+                    f"Cython error in rawPyx(): {type(e).__name__}: {e}",
+                    exec_ctx,
+                )
+            )
+        return RTResult().success(Number.null)
+
+    def execute_returnType(self, args, exec_ctx):
+        if len(args) != 1:
+            return RTResult().failure(
+                RTError(
+                    self.pos_start,
+                    self.pos_end,
+                    "returnType() takes exactly 1 argument",
+                    exec_ctx,
+                )
+            )
+        return RTResult().success(String(value_type_name(args[0])))
+
+    def execute_returnLength(self, args, exec_ctx):
+        if len(args) != 1:
+            return RTResult().failure(
+                RTError(
+                    self.pos_start,
+                    self.pos_end,
+                    "returnLength() takes exactly 1 argument",
+                    exec_ctx,
+                )
+            )
+        v = args[0]
+        if isinstance(v, String):
+            return RTResult().success(Number(len(v.value)))
+        if isinstance(v, List):
+            return RTResult().success(Number(len(v.elements)))
+        return RTResult().failure(
+            RTError(
+                self.pos_start,
+                self.pos_end,
+                f"returnLength() does not support values of type '{type(v).__name__}'",
+                exec_ctx,
+            )
+        )
+
+    def execute_seqFromTo(self, args, exec_ctx):
+        if len(args) != 3 or not all(isinstance(a, Number) for a in args):
+            return RTResult().failure(
+                RTError(
+                    self.pos_start,
+                    self.pos_end,
+                    "seqFromTo() expects exactly 3 numeric arguments — seqFromTo(start, stop, step)",
+                    exec_ctx,
+                )
+            )
+        start, stop, step = (int(a.value) for a in args)
+        if step == 0:
+            return RTResult().failure(
+                RTError(
+                    self.pos_start,
+                    self.pos_end,
+                    "seqFromTo() step cannot be 0",
+                    exec_ctx,
+                )
+            )
+        elements = [Number(n).set_context(exec_ctx) for n in range(start, stop, step)]
+        return RTResult().success(List(elements))
+
 
 BuiltInFunction.print = BuiltInFunction("print")
 BuiltInFunction.input = BuiltInFunction("input")
-BuiltInFunction.rawpy = BuiltInFunction("rawpy")
+BuiltInFunction.rawPy = BuiltInFunction("rawPy")
+BuiltInFunction.rawPyx = BuiltInFunction("rawPyx")
 BuiltInFunction.str_of = BuiltInFunction("str_of")
 BuiltInFunction.int_of = BuiltInFunction("int_of")
 BuiltInFunction.float_of = BuiltInFunction("float_of")
+BuiltInFunction.returnType = BuiltInFunction("returnType")
+BuiltInFunction.returnLength = BuiltInFunction("returnLength")
+BuiltInFunction.seqFromTo = BuiltInFunction("seqFromTo")
 
 # modules
 
@@ -2201,25 +2607,39 @@ class SymbolTable:
     def __init__(self, parent=None):
         self.symbols = {}
         self.constants = set()
+        self.types = {}
         self.parent = parent
 
     def get(self, name):
-        value = self.symbols.get(name, None)
-        if value is None and self.parent:
-            return self.parent.get(name)
-        return value
+        table = self
+        while table:
+            if name in table.symbols:
+                return table.symbols[name]
+            table = table.parent
+        return None
 
-    def set(self, name, value, is_const=False):
+    def set(self, name, value, is_const=False, decl_type=None):
         self.symbols[name] = value
         if is_const:
             self.constants.add(name)
+        if decl_type is not None:
+            self.types[name] = decl_type
 
     def is_const(self, name):
-        if name in self.constants:
-            return True
-        if self.parent:
-            return self.parent.is_const(name)
+        table = self
+        while table:
+            if name in table.symbols:
+                return name in table.constants
+            table = table.parent
         return False
+
+    def get_type(self, name):
+        table = self
+        while table:
+            if name in table.symbols:
+                return table.types.get(name)
+            table = table.parent
+        return None
 
     def remove(self, name):
         del self.symbols[name]
@@ -2252,9 +2672,14 @@ class Interpreter:
         )
 
     def visit_BoolNode(self, node, context):
-        val = Number(1 if node.value else 0)
+        val = Number(1 if node.value else 0, is_bool=True)
         return RTResult().success(
             val.set_context(context).set_pos(node.pos_start, node.pos_end)
+        )
+
+    def visit_NoneNode(self, node, context):
+        return RTResult().success(
+            Null().set_context(context).set_pos(node.pos_start, node.pos_end)
         )
 
     def visit_VarAccessNode(self, node, context):
@@ -2276,10 +2701,23 @@ class Interpreter:
     def visit_VarDeclNode(self, node, context):
         res = RTResult()
         var_name = node.var_name_tok.value
+        decl_type = node.type_tok.value if node.type_tok else None
         value = res.register(self.visit(node.value_node, context))
         if res.should_return():
             return res
-        context.symbol_table.set(var_name, value, is_const=node.is_const)
+        if not type_matches(decl_type, value):
+            return res.failure(
+                RTError(
+                    node.pos_start,
+                    node.pos_end,
+                    f"Type mismatch: '{var_name}' is declared as '{decl_type}' "
+                    f"but got a '{value_type_name(value)}' value",
+                    context,
+                )
+            )
+        context.symbol_table.set(
+            var_name, value, is_const=node.is_const, decl_type=decl_type
+        )
         return res.success(value)
 
     def visit_VarAssignNode(self, node, context):
@@ -2297,6 +2735,17 @@ class Interpreter:
         value = res.register(self.visit(node.value_node, context))
         if res.should_return():
             return res
+        decl_type = context.symbol_table.get_type(var_name)
+        if not type_matches(decl_type, value):
+            return res.failure(
+                RTError(
+                    node.pos_start,
+                    node.pos_end,
+                    f"Type mismatch: '{var_name}' is declared as '{decl_type}' "
+                    f"but got a '{value_type_name(value)}' value",
+                    context,
+                )
+            )
         context.symbol_table.set(var_name, value)
         return res.success(value)
 
@@ -2346,6 +2795,16 @@ class Interpreter:
             result, error = left.anded_by(right)
         elif op.matches(TT_KEYWORD, "or"):
             result, error = left.ored_by(right)
+        elif op.type == TT_AMP:
+            result, error = left.bit_anded_by(right)
+        elif op.type == TT_PIPE:
+            result, error = left.bit_ored_by(right)
+        elif op.type == TT_CARET:
+            result, error = left.bit_xored_by(right)
+        elif op.type == TT_SHL:
+            result, error = left.shifted_left_by(right)
+        elif op.type == TT_SHR:
+            result, error = left.shifted_right_by(right)
 
         if error:
             return res.failure(error)
@@ -2362,6 +2821,8 @@ class Interpreter:
             value, error = value.multed_by(Number(-1))
         elif node.op_tok.matches(TT_KEYWORD, "not"):
             value, error = value.notted()
+        elif node.op_tok.type == TT_TILDE:
+            value, error = value.bit_notted()
 
         if error:
             return res.failure(error)
@@ -2445,7 +2906,8 @@ class Interpreter:
         res = RTResult()
         func_name = node.var_name_tok.value
         param_names = [p[1].value for p in node.param_toks]
-        func_value = Function(func_name, node.body_block, param_names)
+        param_types = [p[0].value if p[0] else None for p in node.param_toks]
+        func_value = Function(func_name, node.body_block, param_names, param_types)
         func_value.set_context(context).set_pos(node.pos_start, node.pos_end)
         context.symbol_table.set(func_name, func_value)
         return res.success(func_value)
@@ -2522,12 +2984,60 @@ class Interpreter:
                 RTError(
                     node.pos_start,
                     node.pos_end,
-                    f"Python error in rawpy block: {type(e).__name__}: {e}",
+                    f"Python error in rawPy block: {type(e).__name__}: {e}",
                     context,
                 )
             )
 
         for name, val in py_ns.items():
+            if name.startswith("__") or callable(val):
+                continue
+            if isinstance(val, bool):
+                context.symbol_table.set(name, Number(1 if val else 0))
+            elif isinstance(val, int):
+                context.symbol_table.set(name, Number(val))
+            elif isinstance(val, float):
+                context.symbol_table.set(name, Number(val))
+            elif isinstance(val, str):
+                context.symbol_table.set(name, String(val))
+
+        return res.success(Number.null)
+
+    def visit_RawPyxBlockNode(self, node, context):
+        res = RTResult()
+        cy_locals = {}
+        tbl = context.symbol_table
+        while tbl is not None:
+            for name, val in tbl.symbols.items():
+                if name not in cy_locals:
+                    if isinstance(val, Number):
+                        cy_locals[name] = val.value
+                    elif isinstance(val, String):
+                        cy_locals[name] = val.value
+            tbl = tbl.parent
+
+        try:
+            cython_inline = _get_cython_inline()
+            result_locals = cython_inline(
+                textwrap.dedent(node.code),
+                locals=cy_locals,
+                globals=cy_locals,
+                quiet=True,
+            )
+        except Exception as e:
+            return res.failure(
+                RTError(
+                    node.pos_start,
+                    node.pos_end,
+                    f"Cython error in rawPyx block: {type(e).__name__}: {e}",
+                    context,
+                )
+            )
+
+        if isinstance(result_locals, dict):
+            cy_locals.update(result_locals)
+
+        for name, val in cy_locals.items():
             if name.startswith("__") or callable(val):
                 continue
             if isinstance(val, bool):
@@ -2595,10 +3105,14 @@ class Interpreter:
         module_table.set("false", Number.false)
         module_table.set("print", BuiltInFunction.print)
         module_table.set("input", BuiltInFunction.input)
-        module_table.set("rawpy", BuiltInFunction.rawpy)
+        module_table.set("rawPy", BuiltInFunction.rawPy)
+        module_table.set("rawPyx", BuiltInFunction.rawPyx)
         module_table.set("str_of", BuiltInFunction.str_of)
         module_table.set("int_of", BuiltInFunction.int_of)
         module_table.set("float_of", BuiltInFunction.float_of)
+        module_table.set("returnType", BuiltInFunction.returnType)
+        module_table.set("returnLength", BuiltInFunction.returnLength)
+        module_table.set("seqFromTo", BuiltInFunction.seqFromTo)
 
         error = run_file(filepath, script, module_table)
         if error:
@@ -2651,10 +3165,17 @@ global_symbol_table.set("true", Number.true)
 global_symbol_table.set("false", Number.false)
 global_symbol_table.set("print", BuiltInFunction.print)
 global_symbol_table.set("input", BuiltInFunction.input)
-global_symbol_table.set("rawpy", BuiltInFunction.rawpy)
+global_symbol_table.set("rawPy", BuiltInFunction.rawPy)
+global_symbol_table.set("rawPyx", BuiltInFunction.rawPyx)
 global_symbol_table.set("str_of", BuiltInFunction.str_of)
 global_symbol_table.set("int_of", BuiltInFunction.int_of)
 global_symbol_table.set("float_of", BuiltInFunction.float_of)
+global_symbol_table.set("returnType", BuiltInFunction.returnType)
+global_symbol_table.set("returnLength", BuiltInFunction.returnLength)
+global_symbol_table.set("seqFromTo", BuiltInFunction.seqFromTo)
+
+SHARED_INTERPRETER = Interpreter()
+
 
 # run
 
@@ -2670,7 +3191,7 @@ def run(fn, text):
     if ast.error:
         return None, ast.error
 
-    interpreter = Interpreter()
+    interpreter = SHARED_INTERPRETER
     context = Context("<program>")
     context.symbol_table = global_symbol_table
     global_symbol_table.set("__file__", String(os.path.abspath(fn)))
@@ -2691,7 +3212,7 @@ def run_file(fn, text, symbol_table):
     if ast.error:
         return ast.error
 
-    interpreter = Interpreter()
+    interpreter = SHARED_INTERPRETER
     context = Context(f"<import:{os.path.basename(fn)}>")
     context.symbol_table = symbol_table
     symbol_table.set("__file__", String(os.path.abspath(fn)))

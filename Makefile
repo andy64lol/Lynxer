@@ -42,7 +42,8 @@ test:
 	@echo "Running Lynxer test suite …"
 	@cd lynxer && $(PYTHON) shell.py tests/test.lynx && \
 	             $(PYTHON) shell.py tests/import_test.lynx && \
-	             $(PYTHON) shell.py tests/rawpy_test.lynx && \
+	             $(PYTHON) shell.py tests/rawPy_test.lynx && \
+	             $(PYTHON) shell.py tests/newfeatures_test.lynx && \
 	 echo "✓  All tests passed."
 
 # ── clean ────────────────────────────────────────────────────────────────────

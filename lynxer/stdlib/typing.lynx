@@ -7,7 +7,7 @@ void setup(){}
 
 void toStr(int n){
     str result = "";
-    rawpy(){
+    rawPy(){
         result = str(n)
     }
     return result;
@@ -15,7 +15,7 @@ void toStr(int n){
 
 void toInt(str s){
     int result = 0;
-    rawpy(){
+    rawPy(){
         try:
             result = int(float(s))
         except Exception:
@@ -26,7 +26,7 @@ void toInt(str s){
 
 void toFloat(str s){
     float result = 0.0;
-    rawpy(){
+    rawPy(){
         try:
             result = float(s)
         except Exception:
@@ -44,7 +44,7 @@ void toBool(int n){
 
 void isNumeric(str s){
     int result = 0;
-    rawpy(){
+    rawPy(){
         try:
             float(s)
             result = 1
@@ -56,7 +56,7 @@ void isNumeric(str s){
 
 void lenStr(str s){
     int result = 0;
-    rawpy(){
+    rawPy(){
         result = len(s)
     }
     return result;
@@ -64,7 +64,7 @@ void lenStr(str s){
 
 void repeat(str s, int n){
     str result = "";
-    rawpy(){
+    rawPy(){
         result = s * n
     }
     return result;
@@ -72,7 +72,7 @@ void repeat(str s, int n){
 
 void contains(str haystack, str needle){
     int result = 0;
-    rawpy(){
+    rawPy(){
         result = 1 if needle in haystack else 0
     }
     return result;

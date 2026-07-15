@@ -1,13 +1,13 @@
 ///
   test.lynx — Lynxer feature regression test.
   Covers: consts, arithmetic, comparisons, logic, if/else,
-          while, for, local functions, rawpy, built-ins.
+          while, for, local functions, rawPy, built-ins.
 ///
 
-const str LANG = "Lynxer";
-const str VER  = "v0.1";
-
-void setup(){}
+void setup(){
+    const str LANG = "Lynxer";
+    const str VER  = "v0.1";
+}
 
 void main(){
     // Header
@@ -76,12 +76,12 @@ void main(){
     float pi = 3.14159;
     print("pi = "); print(pi); print("\n");
 
-    // rawpy block
+    // rawPy block
     int rp = 0;
-    rawpy(){
+    rawPy(){
         rp = 6 * 7
     }
-    print("rawpy 6*7 = "); print(rp); print("\n");
+    print("rawPy 6*7 = "); print(rp); print("\n");
 
     // built-ins
     str numStr = str_of(100);

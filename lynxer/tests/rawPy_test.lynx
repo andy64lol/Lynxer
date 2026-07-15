@@ -1,5 +1,5 @@
 ///
-  rawpy_test.lynx — tests rawpy block/string, stdlib, built-ins.
+  rawPy_test.lynx — tests rawPy block/string, stdlib, built-ins.
 ///
 
 void setup(){
@@ -8,23 +8,23 @@ void setup(){
 }
 
 void main(){
-    // rawpy block: bridge vars in and out
-    print("=== rawpy block ===\n");
+    // rawPy block: bridge vars in and out
+    print("=== rawPy block ===\n");
     int x = 0;
-    rawpy(){
+    rawPy(){
         x = 7 * 6
     }
-    print("7*6 via rawpy = "); print(x); print("\n");
+    print("7*6 via rawPy = "); print(x); print("\n");
 
     str greeting = "";
-    rawpy(){
+    rawPy(){
         greeting = "Hello from Python!".upper()
     }
     print(greeting); print("\n");
 
-    // rawpy string form
-    print("=== rawpy string ===\n");
-    rawpy("print('Direct Python print')");
+    // rawPy string form
+    print("=== rawPy string ===\n");
+    rawPy("print('Direct Python print')");
 
     // built-ins
     print("=== built-ins ===\n");

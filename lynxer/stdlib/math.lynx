@@ -39,7 +39,7 @@ void pow(int base, int exp){
 }
 
 void floor(float n){
-    rawpy(){
+    rawPy(){
         import math as _m
         n = _m.floor(n)
     }
@@ -47,7 +47,7 @@ void floor(float n){
 }
 
 void ceil(float n){
-    rawpy(){
+    rawPy(){
         import math as _m
         n = _m.ceil(n)
     }
@@ -55,7 +55,7 @@ void ceil(float n){
 }
 
 void sqrt(float n){
-    rawpy(){
+    rawPy(){
         import math as _m
         n = _m.sqrt(n)
     }
@@ -63,7 +63,7 @@ void sqrt(float n){
 }
 
 void roundNum(float n){
-    rawpy(){
+    rawPy(){
         n = round(n)
     }
     return n;
@@ -71,7 +71,7 @@ void roundNum(float n){
 
 void PI(){
     float result = 0.0;
-    rawpy(){
+    rawPy(){
         import math as _m
         result = _m.pi
     }

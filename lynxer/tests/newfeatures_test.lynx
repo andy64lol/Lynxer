@@ -1,0 +1,40 @@
+///
+  newfeatures_test.lynx — tests `any`/`none`, returnType(), returnLength(),
+  seqFromTo(), and rawPyx.
+///
+
+void setup(){}
+
+void main(){
+    print("=== any / none ===\n");
+    any nothing = none;
+    print("nothing = ");     print(nothing);              print("\n");
+    print("returnType(nothing) = "); print(returnType(nothing)); print("\n");
+
+    any n = 42;
+    any f = 3.5;
+    any s = "hi";
+    print("returnType(n) = "); print(returnType(n)); print("\n");
+    print("returnType(f) = "); print(returnType(f)); print("\n");
+    print("returnType(s) = "); print(returnType(s)); print("\n");
+
+    print("=== returnLength ===\n");
+    str word = "Lynxer";
+    print("returnLength(word) = "); print(returnLength(word)); print("\n");
+
+    print("=== seqFromTo ===\n");
+    any seq = seqFromTo(0, 10, 2);
+    print("seqFromTo(0,10,2) = "); print(seq); print("\n");
+    print("returnType(seq) = "); print(returnType(seq)); print("\n");
+    print("returnLength(seq) = "); print(returnLength(seq)); print("\n");
+
+    print("=== rawPyx ===\n");
+    int result = 0;
+    rawPyx(){
+        result = 6 * 7
+    }
+    print("rawPyx block 6*7 = "); print(result); print("\n");
+    rawPyx("print('rawPyx() string form works')");
+
+    print("All new-feature tests passed!\n");
+}

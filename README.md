@@ -102,8 +102,18 @@ void main(){
 | `float` | `3.14`, `-0.5`       |
 | `str`   | `"hello\n"`          |
 | `bool`  | `true`, `false`      |
+| `any`   | any of the above, or `none` |
 
 Types are declared but not enforced at runtime in v0.1.
+
+`any` accepts a value of any type, including the `none` literal (a null-like
+empty value):
+
+```c
+any nothing = none;
+any x = 5;
+x = "now a string";   // fine — any never type-checks
+```
 
 ### Variables
 
@@ -112,7 +122,6 @@ int x = 10;
 float pi = 3.14159;
 str msg = "hi";
 bool alive = true;
-
 const str VERSION = "1.0";  // immutable — reassignment is a runtime error
 ```
 
@@ -171,34 +180,61 @@ void main(){
 
 ### Built-in functions
 
-| Function          | Description                          |
-|-------------------|--------------------------------------|
-| `print(v)`        | Print any value (no automatic newline) |
-| `input("prompt")` | Read a line from stdin, return `str` |
-| `str_of(v)`       | Convert any value to string          |
-| `int_of(v)`       | Parse value to int                   |
-| `float_of(v)`     | Parse value to float                 |
-| `rawpy("code")`   | Execute Python code string           |
+| Function                    | Description                                   |
+|-----------------------------|------------------------------------------------|
+| `print(v)`                  | Print any value (no automatic newline)        |
+| `input("prompt")`           | Read a line from stdin, return `str`          |
+| `str_of(v)`                 | Convert any value to string                   |
+| `int_of(v)`                 | Parse value to int                             |
+| `float_of(v)`               | Parse value to float                           |
+| `rawPy("code")`             | Execute Python code string                     |
+| `rawPyx("code")`         | Compile and execute a Cython code string       |
+| `returnType(v)`             | Name of `v`'s type: `"int"`, `"float"`, `"str"`, `"bool"`, `"none"`, `"list"`, `"function"`, or `"any"` |
+| `returnLength(v)`           | Length of a `str` or the `list` from `seqFromTo` |
+| `seqFromTo(start, stop, step)` | Build a list of ints, like Python's `range()` |
 
-### rawpy — embed Python
+### rawPy — embed Python
 
 ```c
 void main(){
     // Block form: variables bridge in and out
     int x = 0;
-    rawpy(){
+    rawPy(){
         x = 7 * 6          // x is now 42 in Lynxer
     }
 
     str s = "";
-    rawpy(){
+    rawPy(){
         s = "hello".upper()  // s is now "HELLO"
     }
 
     // String form: quick one-liners (stdout only, no bridging)
-    rawpy("import math; print(math.pi)");
+    rawPy("import math; print(math.pi)");
 }
 ```
+
+### rawPyx — embed compiled Cython
+
+Same shape as `rawPy`, but the code is compiled with Cython before running —
+use it for numeric hot loops that need to run at native speed. The first call
+for a given snippet pays a one-time compile cost (cached under
+`.cache/cython/`); repeat calls reuse the compiled extension.
+
+```c
+void main(){
+    // Block form: variables bridge in and out
+    int result = 0;
+    rawPyx(){
+        result = 6 * 7        // result is now 42 in Lynxer
+    }
+
+    // String form: quick one-liners (stdout only, no bridging)
+    rawPyx("print('compiled with Cython')");
+}
+```
+
+Requires the `cython` package (declared in `setup.py`'s `install_requires`)
+and a C compiler (`gcc`/`cc`) on the system `PATH`.
 
 ### Modules and imports
 
