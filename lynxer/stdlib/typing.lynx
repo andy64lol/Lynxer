@@ -51,15 +51,12 @@ void isNumeric(str s){
         except Exception:
             result = 0
     }
+    result = global.toBool(result);
     return result;
 }
 
 void lenStr(str s){
-    int result = 0;
-    rawPy(){
-        result = len(s)
-    }
-    return result;
+    return returnLength(s);
 }
 
 void repeat(str s, int n){
@@ -75,6 +72,7 @@ void contains(str haystack, str needle){
     rawPy(){
         result = 1 if needle in haystack else 0
     }
+    result = global.toBool(result);
     return result;
 }
 

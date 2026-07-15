@@ -274,7 +274,7 @@ Import with `import("math")` or `import("typing")`.
 | `global.math.floor(n)`      | Floor (round down)       |
 | `global.math.ceil(n)`       | Ceiling (round up)       |
 | `global.math.roundNum(n)`   | Round to nearest integer |
-| `global.math.PI()`          | π ≈ 3.14159…             |
+| `global.math.pi()`          | π ≈ 3.14159…             |
 
 ### `typing`
 

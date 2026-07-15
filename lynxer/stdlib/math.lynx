@@ -69,7 +69,25 @@ void roundNum(float n){
     return n;
 }
 
-void PI(){
+void pi(){
+    float result = 0.0;
+    rawPy(){
+        import math as _m
+        result = _m.pi
+    }
+    return result;
+}
+
+void PI(){ // for backward compatibility, this was the OG name and looked too... uppercase...
+    float result = 0.0;
+    rawPy(){
+        import math as _m
+        result = _m.pi
+    }
+    return result;
+}
+
+void Pi(){ // also allow this idk why
     float result = 0.0;
     rawPy(){
         import math as _m

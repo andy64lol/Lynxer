@@ -191,6 +191,10 @@ void main(){
 
     printLine("=", 40);
     print("Done.\n");
+    // --- also bro we can have multiple arguments in print();
+    str text1 = "Hello";
+    str text2 = "World";
+    print(text1, " ", text2,"!\n");
 }
 
 // That's all!
