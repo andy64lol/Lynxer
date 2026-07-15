@@ -24,7 +24,7 @@ def main():
         print("Usage: python shell.py <file.lynx>")
         return 0
     if argv[0] in ('-v', '--version'):
-        print("Lynxer 0.1.0")
+        print("Lynxer 0.1.1")
         return 0
 
     filepath = argv[0]
