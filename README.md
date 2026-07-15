@@ -1,7 +1,8 @@
 # Lynxer
 
-A statically-flavoured, C-style scripting language that runs on Python.  
+A statically-flavoured C-style scripting language that runs on Python.  
 Files use the `.lynx` extension.
+[Open syntax.lynx](syntax.lynx)
 
 ```c
 void setup(){

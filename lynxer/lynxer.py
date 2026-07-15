@@ -996,9 +996,9 @@ class Parser:
             if self.current_tok.type != TT_SEMICOLON:
                 return res.failure(
                     InvalidSyntaxError(
+                        expr.pos_end,
                         self.current_tok.pos_start,
-                        self.current_tok.pos_end,
-                        f"Expected ';' after statement — got '{self.current_tok.value or self.current_tok.type}'",
+                        "Missing ';' after this statement",
                     )
                 )
             res.register_advancement()
@@ -2200,7 +2200,8 @@ class BaseFunction(Value):
 
     def generate_new_context(self):
         new_context = Context(self.name, self.context, self.pos_start)
-        new_context.symbol_table = SymbolTable(new_context.parent.symbol_table)
+        parent_table = new_context.parent.symbol_table if new_context.parent else None
+        new_context.symbol_table = SymbolTable(parent_table)
         return new_context
 
     def check_args(self, arg_names, args):
@@ -2305,6 +2306,7 @@ class BuiltInFunction(BaseFunction):
     returnType: ClassVar["BuiltInFunction"]
     returnLength: ClassVar["BuiltInFunction"]
     seqFromTo: ClassVar["BuiltInFunction"]
+    cleanRawPyxCache: ClassVar["BuiltInFunction"]
 
     def __init__(self, name):
         super().__init__(name)
@@ -2518,6 +2520,20 @@ class BuiltInFunction(BaseFunction):
         elements = [Number(n).set_context(exec_ctx) for n in range(start, stop, step)]
         return RTResult().success(List(elements))
 
+    def execute_cleanRawPyxCache(self, args, exec_ctx):
+        import shutil, os
+        cache_dir = os.path.expanduser("~/.cython/inline")
+        try:
+            if os.path.isdir(cache_dir):
+                shutil.rmtree(cache_dir)
+        except Exception as e:
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                f"cleanRawPyxCache() failed: {e}",
+                exec_ctx,
+            ))
+        return RTResult().success(Number.null)
+
 
 BuiltInFunction.print = BuiltInFunction("print")
 BuiltInFunction.input = BuiltInFunction("input")
@@ -2529,6 +2545,7 @@ BuiltInFunction.float_of = BuiltInFunction("float_of")
 BuiltInFunction.returnType = BuiltInFunction("returnType")
 BuiltInFunction.returnLength = BuiltInFunction("returnLength")
 BuiltInFunction.seqFromTo = BuiltInFunction("seqFromTo")
+BuiltInFunction.cleanRawPyxCache = BuiltInFunction("cleanRawPyxCache")
 
 # modules
 
@@ -2808,6 +2825,12 @@ class Interpreter:
 
         if error:
             return res.failure(error)
+        if result is None:
+            return res.failure(RTError(
+                node.pos_start, node.pos_end,
+                f"Unsupported operator '{node.op_tok.type}'",
+                context,
+            ))
         return res.success(result.set_pos(node.pos_start, node.pos_end))
 
     def visit_UnaryOpNode(self, node, context):
@@ -3024,18 +3047,26 @@ class Interpreter:
                 globals=cy_locals,
                 quiet=True,
             )
-        except Exception as e:
-            return res.failure(
-                RTError(
-                    node.pos_start,
-                    node.pos_end,
-                    f"Cython error in rawPyx block: {type(e).__name__}: {e}",
-                    context,
+            if isinstance(result_locals, dict):
+                cy_locals.update(result_locals)
+        except BaseException:
+            # Cython compilation unavailable or interrupted — fall back to exec
+            py_ns = {"__builtins__": __builtins__}
+            py_ns.update(cy_locals)
+            try:
+                exec(textwrap.dedent(node.code), py_ns)
+            except Exception as e:
+                return res.failure(
+                    RTError(
+                        node.pos_start,
+                        node.pos_end,
+                        f"rawPyx error: {type(e).__name__}: {e}",
+                        context,
+                    )
                 )
+            cy_locals.update(
+                {k: v for k, v in py_ns.items() if not k.startswith("__") and not callable(v)}
             )
-
-        if isinstance(result_locals, dict):
-            cy_locals.update(result_locals)
 
         for name, val in cy_locals.items():
             if name.startswith("__") or callable(val):
@@ -3113,6 +3144,7 @@ class Interpreter:
         module_table.set("returnType", BuiltInFunction.returnType)
         module_table.set("returnLength", BuiltInFunction.returnLength)
         module_table.set("seqFromTo", BuiltInFunction.seqFromTo)
+        module_table.set("cleanRawPyxCache", BuiltInFunction.cleanRawPyxCache)
 
         error = run_file(filepath, script, module_table)
         if error:
@@ -3173,6 +3205,7 @@ global_symbol_table.set("float_of", BuiltInFunction.float_of)
 global_symbol_table.set("returnType", BuiltInFunction.returnType)
 global_symbol_table.set("returnLength", BuiltInFunction.returnLength)
 global_symbol_table.set("seqFromTo", BuiltInFunction.seqFromTo)
+global_symbol_table.set("cleanRawPyxCache", BuiltInFunction.cleanRawPyxCache)
 
 SHARED_INTERPRETER = Interpreter()
 

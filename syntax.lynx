@@ -1,0 +1,196 @@
+/// syntax.lynx — full Lynxer syntax showcase ///
+
+// single line comment
+///
+ multiline
+ comment
+///
+
+///
+every program starts with void setup(){} and ends with void main(){}, no exceptions
+void declares a global function. Functions may return values with return regardless of parameter types
+weird but because it reminds me of Arduino C, that's why
+///
+
+
+// globals go in setup()
+void setup(){
+    import("math");
+    import("typing");
+
+    const str TITLE = "Lynxer Syntax Demo";
+    const int VERSION = 1;
+}
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+// void with no return value
+void printLine(str ch, int n){
+    rawPy(){
+        print(ch * n)
+    }
+}
+
+// void functions can still return values
+void add(int a, int b){
+    return a + b;
+}
+
+void divide(float a, float b){
+    return a / b;
+}
+
+void greet(str name){
+    return "Hello, " + name + "!";
+}
+
+// any = accepts / returns anything
+void identity(any x){
+    return x;
+}
+
+// ── control flow ─────────────────────────────────────────────────────────────
+
+void demoIf(int n){
+    if(n > 0){
+        print("positive\n");
+    } else {
+        if(n is 0){
+            print("zero\n");
+        } else {
+            print("negative\n");
+        }
+    }
+}
+
+void demoWhile(){
+    int i = 0;
+    while(i < 3){
+        print(i); print(" ");
+        i += 1;
+    }
+    print("\n");
+}
+
+void demoFor(){
+    for(int i = 0; i < 4; i = i + 1){
+        print(i); print(" ");
+    }
+    print("\n");
+}
+
+// ── main ─────────────────────────────────────────────────────────────────────
+
+void main(){
+    printLine("=", 40);
+    print(TITLE); print(" v"); print(VERSION); print("\n");
+    printLine("=", 40);
+
+    // --- types ---
+    print("\n-- types --\n");
+    int   n = 42;
+    float f = 3.14;
+    str   s = "hello";
+    bool  b = true;
+    any   nothing = none;
+    const int MAX = 100;
+
+    print("int:   "); print(n);       print("\n");
+    print("float: "); print(f);       print("\n");
+    print("str:   "); print(s);       print("\n");
+    print("bool:  "); print(b);       print("\n");
+    print("none:  "); print(nothing); print("\n");
+    print("const: "); print(MAX);     print("\n");
+
+    // --- arithmetic ---
+    print("\n-- arithmetic --\n");
+    print("add(10,3)      = "); print(add(10, 3));       print("\n");
+    print("divide(7,2)    = "); print(divide(7.0, 2.0)); print("\n");
+    print("10 % 3         = "); print(10 % 3);           print("\n");
+    int x = 5;
+    x += 3;
+    print("5 += 3         = "); print(x); print("\n");
+    x -= 2;
+    print("  -= 2         = "); print(x); print("\n");
+
+    // --- comparison & logic ---
+    print("\n-- comparison & logic --\n");
+    print("5 > 3          = "); print(5 > 3);           print("\n");
+    print("5 is 5         = "); print(5 is 5);           print("\n");
+    print("5 not is 4     = "); print(5 not is 4);       print("\n");
+    print("true and false = "); print(true and false);   print("\n");
+    print("true or false  = "); print(true or false);    print("\n");
+    print("not true       = "); print(not true);         print("\n");
+
+    // --- bitwise ---
+    print("\n-- bitwise --\n");
+    print("6 & 3   = "); print(6 & 3);   print("\n");
+    print("6 | 3   = "); print(6 | 3);   print("\n");
+    print("6 ^ 3   = "); print(6 ^ 3);   print("\n");
+    print("~0      = "); print(~0);       print("\n");
+    print("1 << 4  = "); print(1 << 4);  print("\n");
+    print("32 >> 2 = "); print(32 >> 2); print("\n");
+
+    // --- strings & builtins ---
+    print("\n-- strings & builtins --\n");
+    print(greet("World")); print("\n");
+    print("str_of(99)         = "); print(str_of(99));      print("\n");
+    print("int_of(\"7\")      = "); print(int_of("7"));     print("\n");
+    print("float_of(\"1.5\")  = "); print(float_of("1.5")); print("\n");
+    print("returnType(n)      = "); print(returnType(n));    print("\n");
+    print("returnType(s)      = "); print(returnType(s));    print("\n");
+    print("returnLength(s)    = "); print(returnLength(s));  print("\n");
+
+    // --- sequences ---
+    print("\n-- sequences --\n");
+    any seq = seqFromTo(0, 10, 2);
+    print("seqFromTo(0,10,2)  = "); print(seq);              print("\n");
+    print("returnLength(seq)  = "); print(returnLength(seq)); print("\n");
+    print("returnType(seq)    = "); print(returnType(seq));   print("\n");
+
+    // --- any type ---
+    print("\n-- any type --\n");
+    print("identity(42)    = "); print(identity(42));   print("\n");
+    print("identity(\"hi\") = "); print(identity("hi")); print("\n");
+
+    // --- control flow ---
+    print("\n-- control flow --\n");
+    demoIf(1); demoIf(0); demoIf(-1);
+    print("while: "); demoWhile();
+    print("for:   "); demoFor();
+
+    // --- math stdlib ---
+    print("\n-- math stdlib --\n");
+    print("sqrt(144)       = "); print(math.global.sqrt(144));        print("\n");
+    print("pow(2,10)       = "); print(math.global.pow(2, 10));       print("\n");
+    print("abs(-7)         = "); print(math.global.abs(-7));           print("\n");
+    print("clamp(20,0,10)  = "); print(math.global.clamp(20, 0, 10)); print("\n");
+
+    // --- typing stdlib ---
+    print("\n-- typing stdlib --\n");
+    print("isNumeric(\"3.14\")      = "); print(typing.global.isNumeric("3.14"));          print("\n");
+    print("isNumeric(\"abc\")       = "); print(typing.global.isNumeric("abc"));            print("\n");
+    print("repeat(\"ab\",3)         = "); print(typing.global.repeat("ab", 3));             print("\n");
+    print("contains(\"foobar\",\"oba\") = "); print(typing.global.contains("foobar","oba")); print("\n");
+
+    // --- rawPy: inline Python ---
+    print("\n-- rawPy --\n");
+    int total = 0;
+    rawPy(){
+        total = sum(range(1, 11))
+    }
+    print("sum 1..10 = "); print(total); print("\n");
+
+    // --- rawPyx: Cython (falls back to Python if unavailable) ---
+    print("\n-- rawPyx --\n");
+    int cy = 0;
+    rawPyx(){
+        cy = 6 * 7
+    }
+    print("6*7 = "); print(cy); print("\n");
+
+    printLine("=", 40);
+    print("Done.\n");
+}
+
+// That's all!
