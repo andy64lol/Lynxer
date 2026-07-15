@@ -212,8 +212,8 @@ void setup(){
 }
 
 void main(){
-    mylib.global.sayHi();
-    print(math.global.sqrt(144));
+    global.mylib.sayHi();
+    print(global.math.sqrt(144));
     print("\n");
 }
 ```
@@ -228,29 +228,29 @@ Import with `import("math")` or `import("typing")`.
 
 | Function                    | Description              |
 |-----------------------------|--------------------------|
-| `math.global.abs(n)`        | Absolute value           |
-| `math.global.max(a, b)`     | Larger of two values     |
-| `math.global.min(a, b)`     | Smaller of two values    |
-| `math.global.clamp(v,lo,hi)`| Clamp value to range     |
-| `math.global.pow(base, exp)`| Integer exponentiation   |
-| `math.global.sqrt(n)`       | Square root              |
-| `math.global.floor(n)`      | Floor (round down)       |
-| `math.global.ceil(n)`       | Ceiling (round up)       |
-| `math.global.roundNum(n)`   | Round to nearest integer |
-| `math.global.PI()`          | π ≈ 3.14159…             |
+| `global.math.abs(n)`        | Absolute value           |
+| `global.math.max(a, b)`     | Larger of two values     |
+| `global.math.min(a, b)`     | Smaller of two values    |
+| `global.math.clamp(v,lo,hi)`| Clamp value to range     |
+| `global.math.pow(base, exp)`| Integer exponentiation   |
+| `global.math.sqrt(n)`       | Square root              |
+| `global.math.floor(n)`      | Floor (round down)       |
+| `global.math.ceil(n)`       | Ceiling (round up)       |
+| `global.math.roundNum(n)`   | Round to nearest integer |
+| `global.math.PI()`          | π ≈ 3.14159…             |
 
 ### `typing`
 
 | Function                          | Description                        |
 |-----------------------------------|------------------------------------|
-| `typing.global.toStr(n)`          | Number → string                    |
-| `typing.global.toInt(s)`          | String → int (0 on failure)        |
-| `typing.global.toFloat(s)`        | String → float (0.0 on failure)    |
-| `typing.global.toBool(n)`         | 0 → false, nonzero → true          |
-| `typing.global.isNumeric(s)`      | 1 if parseable as number, else 0   |
-| `typing.global.lenStr(s)`         | Length of string                   |
-| `typing.global.repeat(s, n)`      | Repeat string n times              |
-| `typing.global.contains(hay,needle)` | 1 if needle in haystack, else 0 |
+| `global.typing.toStr(n)`          | Number → string                    |
+| `global.typing.toInt(s)`          | String → int (0 on failure)        |
+| `global.typing.toFloat(s)`        | String → float (0.0 on failure)    |
+| `global.typing.toBool(n)`         | 0 → false, nonzero → true          |
+| `global.typing.isNumeric(s)`      | 1 if parseable as number, else 0   |
+| `global.typing.lenStr(s)`         | Length of string                   |
+| `global.typing.repeat(s, n)`      | Repeat string n times              |
+| `global.typing.contains(hay,needle)` | 1 if needle in haystack, else 0 |
 
 ---
 
