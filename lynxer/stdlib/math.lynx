@@ -1,6 +1,6 @@
 ///
   Lynxer Standard Library — math
-  Provides: abs, max, min, clamp, pow, floor, ceil, sqrt, round, PI
+  Provides: abs, max, min, clamp, pow, floor, ceil, sqrt, round, PI (legacy), pi, Pi (if someone writes incorrectly)
 ///
 
 void setup(){}
