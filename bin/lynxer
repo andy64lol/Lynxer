@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Lynxer CLI wrapper — installed by `make install`
+#
+# This script is placed in $PREFIX/bin/ by the Makefile.
+# It delegates to the interpreter stored in $LYNXER_HOME.
+#
+# If LYNXER_HOME is not set, it falls back to the directory relative to
+# this script (useful for running straight from the repo with `bin/lynxer`).
+
+if [ -z "$LYNXER_HOME" ]; then
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  LYNXER_HOME="$(dirname "$SCRIPT_DIR")"
+fi
+
+exec python3 "$LYNXER_HOME/lynxer/__main__.py" "$@"

@@ -1,0 +1,81 @@
+///
+  Lynxer Standard Library — typing
+  Provides: toStr, toInt, toFloat, toBool, isNumeric, lenStr
+///
+
+void setup(){}
+
+void toStr(int n){
+    str result = "";
+    rawpy(){
+        result = str(n)
+    }
+    return result;
+}
+
+void toInt(str s){
+    int result = 0;
+    rawpy(){
+        try:
+            result = int(float(s))
+        except Exception:
+            result = 0
+    }
+    return result;
+}
+
+void toFloat(str s){
+    float result = 0.0;
+    rawpy(){
+        try:
+            result = float(s)
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+void toBool(int n){
+    if(n not is 0){
+        return true;
+    }
+    return false;
+}
+
+void isNumeric(str s){
+    int result = 0;
+    rawpy(){
+        try:
+            float(s)
+            result = 1
+        except Exception:
+            result = 0
+    }
+    return result;
+}
+
+void lenStr(str s){
+    int result = 0;
+    rawpy(){
+        result = len(s)
+    }
+    return result;
+}
+
+void repeat(str s, int n){
+    str result = "";
+    rawpy(){
+        result = s * n
+    }
+    return result;
+}
+
+void contains(str haystack, str needle){
+    int result = 0;
+    rawpy(){
+        result = 1 if needle in haystack else 0
+    }
+    return result;
+}
+
+void main(){}

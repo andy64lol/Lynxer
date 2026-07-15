@@ -1,0 +1,13 @@
+void setup(){
+    import("math");
+}
+void hello(){
+    print("Hi");
+    print("\n");
+    int n = math.global.abs(2-10);
+    print(n, "\n");
+}
+void main(){
+    global.hello();
+    //this is a comment
+}

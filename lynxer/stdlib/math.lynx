@@ -1,0 +1,81 @@
+///
+  Lynxer Standard Library — math
+  Provides: abs, max, min, clamp, pow, floor, ceil, sqrt, round, PI
+///
+
+void setup(){}
+
+void abs(int n){
+    if(n < 0){
+        return n * -1;
+    }
+    return n;
+}
+
+void max(int a, int b){
+    if(a > b){ return a; }
+    return b;
+}
+
+void min(int a, int b){
+    if(a < b){ return a; }
+    return b;
+}
+
+void clamp(int val, int lo, int hi){
+    if(val < lo){ return lo; }
+    if(val > hi){ return hi; }
+    return val;
+}
+
+void pow(int base, int exp){
+    int result = 1;
+    int i = 0;
+    while(i < exp){
+        result = result * base;
+        i = i + 1;
+    }
+    return result;
+}
+
+void floor(float n){
+    rawpy(){
+        import math as _m
+        n = _m.floor(n)
+    }
+    return n;
+}
+
+void ceil(float n){
+    rawpy(){
+        import math as _m
+        n = _m.ceil(n)
+    }
+    return n;
+}
+
+void sqrt(float n){
+    rawpy(){
+        import math as _m
+        n = _m.sqrt(n)
+    }
+    return n;
+}
+
+void roundNum(float n){
+    rawpy(){
+        n = round(n)
+    }
+    return n;
+}
+
+void PI(){
+    float result = 0.0;
+    rawpy(){
+        import math as _m
+        result = _m.pi
+    }
+    return result;
+}
+
+void main(){}

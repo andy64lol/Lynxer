@@ -1,0 +1,57 @@
+///
+  rawpy_test.lynx — tests rawpy block/string, stdlib, built-ins.
+///
+
+void setup(){
+    import("math");
+    import("typing");
+}
+
+void main(){
+    // rawpy block: bridge vars in and out
+    print("=== rawpy block ===\n");
+    int x = 0;
+    rawpy(){
+        x = 7 * 6
+    }
+    print("7*6 via rawpy = "); print(x); print("\n");
+
+    str greeting = "";
+    rawpy(){
+        greeting = "Hello from Python!".upper()
+    }
+    print(greeting); print("\n");
+
+    // rawpy string form
+    print("=== rawpy string ===\n");
+    rawpy("print('Direct Python print')");
+
+    // built-ins
+    print("=== built-ins ===\n");
+    print("str_of(42) = ");    print(str_of(42));        print("\n");
+    print("int_of(\"7\") = "); print(int_of("7"));       print("\n");
+    print("float_of(\"1.5\") = "); print(float_of("1.5")); print("\n");
+
+    // math stdlib
+    print("=== math ===\n");
+    print("abs(-9) = ");       print(math.global.abs(-9));         print("\n");
+    print("max(4,7) = ");      print(math.global.max(4, 7));       print("\n");
+    print("min(4,7) = ");      print(math.global.min(4, 7));       print("\n");
+    print("clamp(15,0,10) = "); print(math.global.clamp(15,0,10)); print("\n");
+    print("pow(2,8) = ");      print(math.global.pow(2, 8));       print("\n");
+    print("sqrt(144) = ");     print(math.global.sqrt(144));       print("\n");
+    print("floor(3.9) = ");    print(math.global.floor(3.9));      print("\n");
+    print("ceil(3.1) = ");     print(math.global.ceil(3.1));       print("\n");
+
+    // typing stdlib
+    print("=== typing ===\n");
+    print("toStr(999) = ");       print(typing.global.toStr(999));          print("\n");
+    print("toInt(\"42\") = ");    print(typing.global.toInt("42"));         print("\n");
+    print("isNumeric(\"3.14\") = "); print(typing.global.isNumeric("3.14")); print("\n");
+    print("isNumeric(\"abc\") = "); print(typing.global.isNumeric("abc"));   print("\n");
+    print("lenStr(\"hello\") = "); print(typing.global.lenStr("hello"));    print("\n");
+    print("repeat(\"ab\",3) = "); print(typing.global.repeat("ab", 3));     print("\n");
+    print("contains(\"foobar\",\"oba\") = "); print(typing.global.contains("foobar","oba")); print("\n");
+
+    print("All tests passed!\n");
+}

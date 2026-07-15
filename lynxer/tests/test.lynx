@@ -1,0 +1,96 @@
+///
+  test.lynx — Lynxer feature regression test.
+  Covers: consts, arithmetic, comparisons, logic, if/else,
+          while, for, local functions, rawpy, built-ins.
+///
+
+const str LANG = "Lynxer";
+const str VER  = "v0.1";
+
+void setup(){}
+
+void main(){
+    // Header
+    print("Language: ");
+    print(LANG);
+    print(" ");
+    print(VER);
+    print("\n");
+
+    // Arithmetic
+    int a = 10;
+    int b = 3;
+    print(a); print(" + "); print(b); print(" = "); print(a + b); print("\n");
+    print(a); print(" - "); print(b); print(" = "); print(a - b); print("\n");
+    print(a); print(" * "); print(b); print(" = "); print(a * b); print("\n");
+    print(a); print(" / "); print(b); print(" = "); print(a / b); print("\n");
+    print(a); print(" % "); print(b); print(" = "); print(a % b); print("\n");
+    print("---\n");
+
+    // Equality / inequality
+    str name  = "Lynxer";
+    int score = 42;
+    if(name is "Lynxer"){
+        print("Name is Lynxer\n");
+    }
+    if(score not is 99){
+        print("Score is not 99\n");
+    }
+
+    // Logic
+    bool alive = true;
+    if(alive and score > 10){
+        print("Alive and score ok\n");
+    }
+    if(alive or score > 999){
+        print("Logic: score ok\n");
+    }
+    print("---\n");
+
+    // if/else
+    int val = -5;
+    if(val > 0){
+        print("Pass\n");
+    }
+    else{
+        print("Fail\n");
+    }
+    print("---\n");
+
+    // while
+    int i = 0;
+    while(i < 3){
+        print("while: "); print(i); print("\n");
+        i = i + 1;
+    }
+    print("---\n");
+
+    // for
+    for(int j = 0; j < 4; j = j + 1){
+        print("for: "); print(j); print("\n");
+    }
+    print("---\n");
+
+    // local def function
+    def square(int n){ return n * n; }
+    float pi = 3.14159;
+    print("pi = "); print(pi); print("\n");
+
+    // rawpy block
+    int rp = 0;
+    rawpy(){
+        rp = 6 * 7
+    }
+    print("rawpy 6*7 = "); print(rp); print("\n");
+
+    // built-ins
+    str numStr = str_of(100);
+    int parsed = int_of("55");
+    float fval = float_of("2.5");
+    print("str_of(100) = "); print(numStr); print("\n");
+    print("int_of(\"55\") = "); print(parsed); print("\n");
+    print("float_of(\"2.5\") = "); print(fval); print("\n");
+
+    print("Done!\n");
+    print("This was written using Lynxer (.lynx)! \n");
+}

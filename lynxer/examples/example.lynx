@@ -1,0 +1,26 @@
+///
+  example.lynx — classic Lynxer demo:
+    • setup() declares a global variable and imports stdlib
+    • main() greets the user and counts down
+///
+
+void setup(){
+    import("math");
+    str userName = input("What's your name? ");
+}
+
+void main(){
+    print("Welcome, ");
+    print(userName);
+    print("!\n");
+
+    print("Hello!\n");
+
+    // Countdown from 3 using math.global.abs
+    int n = math.global.abs(-3);
+    while(n > 0){
+        print(n);
+        print("\n");
+        n = n - 1;
+    }
+}
