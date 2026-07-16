@@ -321,4 +321,4 @@ README.md
 
 ## License
 
-MIT
+MIT, see (here)[LICENSE].
