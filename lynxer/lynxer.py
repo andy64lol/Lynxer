@@ -746,9 +746,9 @@ class Parser:
                     InvalidSyntaxError(
                         self.current_tok.pos_start,
                         self.current_tok.pos_end,
-                        f"Executable code is not allowed outside of a function. "
-                        f"Only 'void' function definitions are permitted at the top level. "
-                        f"Put globals in setup() and logic in a function such as 'void main(){{}}'",
+                        "Executable code is not allowed outside of a function. "
+                        "Only 'void' function definitions are permitted at the top level. "
+                        "Put globals in setup() and logic in a function such as 'void main(){}'",
                     )
                 )
 
@@ -1057,7 +1057,6 @@ class Parser:
 
     def parse_const_decl(self):
         res = ParseResult()
-        pos_start = self.current_tok.pos_start.copy()
         res.register_advancement()
         self.advance()
 
@@ -2276,7 +2275,7 @@ class Function(BaseFunction):
         if res.should_return():
             return res
 
-        value = res.register(interpreter.visit(self.body_node, exec_ctx))
+        res.register(interpreter.visit(self.body_node, exec_ctx))
         if res.should_return() and res.func_return_value is None:
             return res
 
@@ -2521,7 +2520,8 @@ class BuiltInFunction(BaseFunction):
         return RTResult().success(List(elements))
 
     def execute_cleanRawPyxCache(self, args, exec_ctx):
-        import shutil, os
+        import shutil
+        import os
         cache_dir = os.path.expanduser("~/.cython/inline")
         try:
             if os.path.isdir(cache_dir):
@@ -2769,7 +2769,7 @@ class Interpreter:
     def visit_BlockNode(self, node, context):
         res = RTResult()
         for stmt in node.statements:
-            value = res.register(self.visit(stmt, context))
+            res.register(self.visit(stmt, context))
             if res.should_return():
                 return res
         return res.success(Number.null)
@@ -2858,11 +2858,11 @@ class Interpreter:
             return res
 
         if condition.is_true():
-            value = res.register(self.visit(node.then_block, context))
+            res.register(self.visit(node.then_block, context))
             if res.should_return():
                 return res
         elif node.else_block:
-            value = res.register(self.visit(node.else_block, context))
+            res.register(self.visit(node.else_block, context))
             if res.should_return():
                 return res
 
