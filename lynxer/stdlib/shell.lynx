@@ -1,0 +1,58 @@
+///
+ Lynxer standard library: shell
+ provides: runShell runShellCapture runShellSilent
+///
+
+void setup(){}
+
+void runShell(str command){
+    int code = 0;
+
+    rawPy(){
+        import subprocess
+        proc = subprocess.run(command, shell=True)
+        code = proc.returncode
+    }
+
+    return code;
+}
+
+void runShellCapture(str command){
+    str result = "";
+
+    rawPy(){
+        import subprocess
+
+        proc = subprocess.run(
+            command,
+            shell=True,
+            capture_output=True,
+            text=True
+        )
+
+        result = proc.stdout
+    }
+
+    return result;
+}
+
+void runShellSilent(str command){
+    int code = 0;
+
+    rawPy(){
+        import subprocess
+
+        proc = subprocess.run(
+            command,
+            shell=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+
+        code = proc.returncode
+    }
+
+    return code;
+}
+
+void main(){}

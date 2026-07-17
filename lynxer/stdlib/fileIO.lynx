@@ -1,0 +1,73 @@
+///
+ Lynxer standard Library — fileIO
+ Provide: readFile, writeFile, appendFile, fileExists, deleteFile
+///
+
+void setup(){}
+void readFile(str path){
+    str content = "";
+
+    rawPy(){
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                content = f.read()
+        except:
+            content = ""
+    }
+
+    return content;
+}
+
+void writeFile(str path, str content){
+    bool success = true;
+    rawPy(){
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(content)
+        except:
+            success = False
+    }
+    return success;
+}
+
+void appendFile(str path, str content){
+    bool success = true;
+
+    rawPy(){
+        try:
+            with open(path, "a", encoding="utf-8") as f:
+                f.write(content)
+        except:
+            success = False
+    }
+
+    return success;
+}
+
+void fileExists(str path){
+    bool exists = false;
+
+    rawPy(){
+        import os
+        exists = os.path.isfile(path)
+    }
+
+    return exists;
+}
+
+void deleteFile(str path){
+    bool success = true;
+
+    rawPy(){
+        import os
+
+        try:
+            os.remove(path)
+        except:
+            success = False
+    }
+
+    return success;
+}
+
+void main(){}

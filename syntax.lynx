@@ -17,7 +17,8 @@ weird but because it reminds me of Arduino C, that's why
 void setup(){
     import("math");
     import("typing");
-
+    import("fileIO");
+    import("shell");
     const str TITLE = "Lynxer Syntax Demo";
     const int VERSION = 1;
 }
@@ -191,10 +192,26 @@ void main(){
 
     printLine("=", 40);
     print("Done.\n");
-    // --- also bro we can have multiple arguments in print();
+    print("Or not...");
+    // --- also bro we can have multiple arguments in print(); ---
     str text1 = "Hello";
     str text2 = "World";
     print(text1, " ", text2,"!\n");
+
+    // --- new libraries: Shell and fileIO
+    global.shell.runShell("echo Hello");
+    global.shell.runShellCapture("echo Gotyu!");
+    global.shell.runShellSilent("echo Well...");
+    global.fileIO.writeFile("notes.txt", "Hello!");
+    str notes = global.fileIO.readFile("notes.txt");
+    print(notes, "\n");
+    global.fileIO.appendFile("notes.txt", "\nSecond line.");
+
+    if(global.fileIO.fileExists("notes.txt")){
+        print("Exists!\n");
+    }
+
+    global.fileIO.deleteFile("notes.txt");
 }
 
 // That's all!

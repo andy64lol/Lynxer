@@ -1,0 +1,16 @@
+void setup(){
+    import("fileIO");
+}
+
+void main(){
+    global.fileIO.writeFile("notes.txt", "Hello!");
+    str notes = global.fileIO.readFile("notes.txt");
+    print(notes, "\n");
+    global.fileIO.appendFile("notes.txt", "\nSecond line.");
+
+    if(global.fileIO.fileExists("notes.txt")){
+        print("Exists!\n");
+    }
+
+    global.fileIO.deleteFile("notes.txt");
+}
