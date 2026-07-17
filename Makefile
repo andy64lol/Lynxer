@@ -1,22 +1,28 @@
 # Lynxer Makefile
-#   make install    — install lynxer to /usr/local/bin  (needs sudo on most systems)
+#   make install    — install deps + lynxer to /usr/local/bin  (may need sudo)
 #   make uninstall  — remove the installed command and data
 #   make test       — run the test suite
 #   make clean      — remove Python byte-code caches
 #   make help       — show this message
-#   You should run this with sudo if you want to install to /usr/local/bin, or set PREFIX=~/.local to install to ~/.local/bin (no sudo needed).
+#   Set PREFIX=~/.local to install to ~/.local/bin (no sudo needed).
 
 PREFIX  ?= /usr/local
 BINDIR   = $(PREFIX)/bin
 DATADIR  = $(PREFIX)/share/lynxer
 
-PYTHON  ?= python3
+PYTHON  ?= $(shell command -v python3 2>/dev/null || command -v python 2>/dev/null || echo python3)
 SRC_DIR  = lynxer
 
-.PHONY: install uninstall test clean help
+.PHONY: install uninstall deps pip-install test clean help
+
+# ── deps ─────────────────────────────────────────────────────────────────────
+deps:
+	@echo "Installing Python dependencies …"
+	@$(PYTHON) -m pip install --quiet --upgrade cython setuptools
+	@echo "✓  Dependencies installed."
 
 # ── install ──────────────────────────────────────────────────────────────────
-install:
+install: deps
 	@echo "Installing Lynxer to $(BINDIR)/lynxer …"
 	@mkdir -p "$(BINDIR)" "$(DATADIR)"
 	@rm -rf "$(DATADIR)/lynxer"
@@ -24,7 +30,7 @@ install:
 	@printf '#!/usr/bin/env bash\nLYNXER_HOME="%s" exec $(PYTHON) "%s/lynxer/__main__.py" "$$@"\n' \
 		"$(DATADIR)" "$(DATADIR)" > "$(BINDIR)/lynxer"
 	@chmod +x "$(BINDIR)/lynxer"
-	@echo "✓  lynxer installed.  Try:  lynxer --version"
+	@echo "✓  Lynxer installed.  Try:  lynxer --version"
 
 # ── uninstall ────────────────────────────────────────────────────────────────
 uninstall:
@@ -55,9 +61,10 @@ clean:
 # ── help ─────────────────────────────────────────────────────────────────────
 help:
 	@echo "Lynxer build targets:"
-	@echo "  make install      Install to $(BINDIR) (needs sudo)"
-	@echo "  make install PREFIX=~/.local   Install to ~/.local/bin (no sudo)"
-	@echo "  make uninstall    Remove installed files"
-	@echo "  make pip-install  Editable pip install (for development)"
-	@echo "  make test         Run the test suite"
-	@echo "  make clean        Remove byte-code caches"
+	@echo "  make install               Install to $(BINDIR) (may need sudo)"
+	@echo "  make install PREFIX=~/.local  Install to ~/.local/bin (no sudo)"
+	@echo "  make uninstall             Remove installed files"
+	@echo "  make deps                  Install Python dependencies only"
+	@echo "  make pip-install           Editable pip install (for development)"
+	@echo "  make test                  Run the test suite"
+	@echo "  make clean                 Remove byte-code caches"
