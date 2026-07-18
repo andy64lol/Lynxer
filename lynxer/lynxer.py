@@ -345,7 +345,12 @@ class Lexer:
         escape_character = False
         self.advance()
 
-        escape_characters = {"n": "\n", "t": "\t", "\\": "\\", '"': '"'}
+        escape_characters = {
+            "n": "\n", "t": "\t", "r": "\r",
+            "\\": "\\", '"': '"', "'": "'",
+            "0": "\0", "a": "\a", "b": "\b",
+            "f": "\f", "v": "\v",
+        }
 
         while self.current_char is not None and (
             self.current_char != '"' or escape_character
@@ -4280,7 +4285,9 @@ class Interpreter:
             for name, val in tbl.symbols.items():
                 if name not in py_ns:
                     if isinstance(val, Number):
-                        py_ns[name] = val.value
+                        # Preserve bool type: Lynxer bools become Python bools
+                        # so they round-trip correctly after exec.
+                        py_ns[name] = bool(val.value) if val.is_bool else val.value
                     elif isinstance(val, String):
                         py_ns[name] = val.value
             tbl = tbl.parent
@@ -4319,7 +4326,7 @@ class Interpreter:
             for name, val in tbl.symbols.items():
                 if name not in cy_locals:
                     if isinstance(val, Number):
-                        cy_locals[name] = val.value
+                        cy_locals[name] = bool(val.value) if val.is_bool else val.value
                     elif isinstance(val, String):
                         cy_locals[name] = val.value
             tbl = tbl.parent

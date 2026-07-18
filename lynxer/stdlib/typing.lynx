@@ -106,4 +106,107 @@ void unique(any lst){
     return listUnique(lst);
 }
 
+/// Strip leading and trailing whitespace from s. ///
+void trim(str s){
+    str result = "";
+    rawPy(){
+        result = s.strip()
+    }
+    return result;
+}
+
+/// Convert s to uppercase. ///
+void upper(str s){
+    str result = "";
+    rawPy(){
+        result = s.upper()
+    }
+    return result;
+}
+
+/// Convert s to lowercase. ///
+void lower(str s){
+    str result = "";
+    rawPy(){
+        result = s.lower()
+    }
+    return result;
+}
+
+/// Returns true if s starts with prefix. ///
+void startsWith(str s, str prefix){
+    int result = 0;
+    rawPy(){
+        result = 1 if s.startswith(prefix) else 0
+    }
+    if(result not is 0){ return true; }
+    return false;
+}
+
+/// Returns true if s ends with suffix. ///
+void endsWith(str s, str suffix){
+    int result = 0;
+    rawPy(){
+        result = 1 if s.endswith(suffix) else 0
+    }
+    if(result not is 0){ return true; }
+    return false;
+}
+
+/// Replace all occurrences of old with new in s. ///
+void replace(str s, str old, str new){
+    str result = "";
+    rawPy(){
+        result = s.replace(old, new)
+    }
+    return result;
+}
+
+/// Return the index of the first occurrence of sub in s, or -1 if not found. ///
+void indexOf(str s, str sub){
+    int result = 0;
+    rawPy(){
+        result = s.find(sub)
+    }
+    return result;
+}
+
+/// Return s[start:end] (Python-style slice). Negative indices count from the end. ///
+void substr(str s, int start, int end){
+    str result = "";
+    rawPy(){
+        result = s[start:end]
+    }
+    return result;
+}
+
+/// Left-pad s with ch until it is at least width characters wide. ///
+void padLeft(str s, int width, str ch){
+    str result = "";
+    rawPy(){
+        pad_ch = ch[0] if ch else " "
+        result = s.rjust(width, pad_ch)
+    }
+    return result;
+}
+
+/// Right-pad s with ch until it is at least width characters wide. ///
+void padRight(str s, int width, str ch){
+    str result = "";
+    rawPy(){
+        pad_ch = ch[0] if ch else " "
+        result = s.ljust(width, pad_ch)
+    }
+    return result;
+}
+
+/// Return s with its characters in reverse order. ///
+void strReverse(str s){
+    str result = "";
+    rawPy(){
+        result = s[::-1]
+    }
+    return result;
+}
+
 void main(){}

@@ -1,0 +1,63 @@
+///
+  test_js.lynx — Regression test for the js stdlib.
+  Requires Node.js on PATH.
+  Covers: nodeExists, nodeVersion, evalJS, runJS, runJSFile
+///
+
+void setup(){
+    import("js");
+}
+
+void main(){
+    println("=== JS Stdlib Tests ===");
+
+    // nodeExists — should return 1 if node is on PATH
+    int exists = global.js.nodeExists();
+    print("nodeExists: ");
+    println(exists);
+    if(exists not is 1){
+        println("  WARNING: node not found — remaining tests may fail");
+    }
+
+    // nodeVersion — should return a non-empty string like "v20.x.x"
+    str ver = global.js.nodeVersion();
+    print("nodeVersion: ");
+    println(ver);
+
+    // evalJS — arithmetic expression
+    str arith = global.js.evalJS("1 + 2 + 3");
+    print("evalJS(1+2+3): ");
+    println(arith);
+
+    // evalJS — string expression
+    str strExpr = global.js.evalJS("\"hello from JS\"");
+    print("evalJS(string): ");
+    println(strExpr);
+
+    // evalJS — boolean expression
+    str boolExpr = global.js.evalJS("2 > 1");
+    print("evalJS(2>1): ");
+    println(boolExpr);
+
+    // runJS — multi-line script with console.log
+    str script = "for(let i=0;i<3;i++){console.log('line '+i);}";
+    str out = global.js.runJS(script);
+    print("runJS(for loop):\n");
+    print(out);
+
+    // runJS — error path: intentional syntax error should return stderr
+    str bad = global.js.runJS("this is not javascript !!!;");
+    print("runJS(bad JS) returns error text: ");
+    if(returnLength(bad) > 0){
+        println("OK");
+    } else {
+        println("FAIL — expected error text");
+    }
+
+    // evalJS — math expression using JS Math object
+    str sqrtVal = global.js.evalJS("Math.sqrt(144)");
+    print("evalJS(Math.sqrt(144)): ");
+    println(sqrtVal);
+
+    println("=== JS tests done ===");
+}

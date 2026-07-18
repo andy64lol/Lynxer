@@ -1,73 +1,113 @@
 ///
- Lynxer standard Library — fileIO
- Provide: readFile, writeFile, appendFile, fileExists, deleteFile
+ Lynxer Standard Library — fileIO
+ Provides: readFile, writeFile, appendFile, fileExists, deleteFile,
+           readLines, copyFile, fileSize
 ///
 
 void setup(){}
+
+/// Read the entire contents of path as a string. Returns "" on error. ///
 void readFile(str path){
     str content = "";
-
     rawPy(){
         try:
             with open(path, "r", encoding="utf-8") as f:
                 content = f.read()
-        except:
+        except Exception:
             content = ""
     }
-
     return content;
 }
 
+/// Write content to path (overwrites). Returns true on success, false on error. ///
 void writeFile(str path, str content){
     bool success = true;
     rawPy(){
         try:
             with open(path, "w", encoding="utf-8") as f:
                 f.write(content)
-        except:
+        except Exception:
             success = False
     }
     return success;
 }
 
+/// Append content to path. Returns true on success, false on error. ///
 void appendFile(str path, str content){
     bool success = true;
-
     rawPy(){
         try:
             with open(path, "a", encoding="utf-8") as f:
                 f.write(content)
-        except:
+        except Exception:
             success = False
     }
-
     return success;
 }
 
+/// Returns true if path refers to an existing file. ///
 void fileExists(str path){
     bool exists = false;
-
     rawPy(){
-        import os
-        exists = os.path.isfile(path)
+        import os as _os
+        exists = _os.path.isfile(path)
     }
-
     return exists;
 }
 
+/// Delete path. Returns true on success, false on error (e.g. file not found). ///
 void deleteFile(str path){
     bool success = true;
-
     rawPy(){
-        import os
-
+        import os as _os
         try:
-            os.remove(path)
-        except:
+            _os.remove(path)
+        except Exception:
             success = False
     }
-
     return success;
+}
+
+/// Read path and return a list of lines (newlines stripped). Returns an empty list on error. ///
+void readLines(str path){
+    str raw = "";
+    rawPy(){
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                raw = f.read()
+        except Exception:
+            raw = ""
+    }
+    if(raw is ""){
+        return seqFromTo(0, 0, 1);
+    }
+    return splitStr(raw, "\n");
+}
+
+/// Copy src to dst (overwrite dst if it exists). Returns true on success, false on error. ///
+void copyFile(str src, str dst){
+    bool success = true;
+    rawPy(){
+        import shutil as _sh
+        try:
+            _sh.copy2(src, dst)
+        except Exception:
+            success = False
+    }
+    return success;
+}
+
+/// Return the size of path in bytes, or -1 on error. ///
+void fileSize(str path){
+    int result = -1;
+    rawPy(){
+        import os as _os
+        try:
+            result = _os.path.getsize(path)
+        except Exception:
+            result = -1
+    }
+    return result;
 }
 
 void main(){}

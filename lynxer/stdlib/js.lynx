@@ -7,11 +7,12 @@
 
 void setup(){}
 
-/// Runs a JS code string with Node.js. Returns stdout as str, or "" on error. ///
+/// Runs a JS code string with Node.js. Returns stdout as str, or an error message on failure. ///
 void runJS(str code){
     str result = "";
     rawPy(){
         import subprocess, tempfile, os as _os
+        tmp = None
         try:
             with tempfile.NamedTemporaryFile(mode="w", suffix=".js",
                                              delete=False, encoding="utf-8") as f:
@@ -29,10 +30,11 @@ void runJS(str code){
         except Exception as e:
             result = "Error: " + str(e)
         finally:
-            try:
-                _os.remove(tmp)
-            except Exception:
-                pass
+            if tmp is not None:
+                try:
+                    _os.remove(tmp)
+                except Exception:
+                    pass
     }
     return result;
 }
@@ -64,11 +66,12 @@ void evalJS(str expr){
     str result = "";
     rawPy(){
         import subprocess, tempfile, os as _os
-        code = "console.log(" + expr + ");"
+        tmp = None
+        js_code = "console.log(" + expr + ");"
         try:
             with tempfile.NamedTemporaryFile(mode="w", suffix=".js",
                                              delete=False, encoding="utf-8") as f:
-                f.write(code)
+                f.write(js_code)
                 tmp = f.name
             proc = subprocess.run(
                 ["node", tmp],
@@ -82,10 +85,11 @@ void evalJS(str expr){
         except Exception as e:
             result = "Error: " + str(e)
         finally:
-            try:
-                _os.remove(tmp)
-            except Exception:
-                pass
+            if tmp is not None:
+                try:
+                    _os.remove(tmp)
+                except Exception:
+                    pass
     }
     return result;
 }

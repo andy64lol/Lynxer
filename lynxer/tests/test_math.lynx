@@ -1,0 +1,112 @@
+///
+  test_math.lynx — Regression test for the math stdlib.
+  Covers: abs, max, min, clamp, pow, sqrt, floor, ceil, round,
+          pi, e, log, log2, log10, sin, cos, tan, degrees, radians,
+          sign, isEven, isOdd, factorial, gcd, hypot, truncate,
+          randInt, randFloat
+///
+
+void setup(){
+    import("math");
+}
+
+// Helper: print PASS/FAIL
+void check(str label, bool ok){
+    if(ok){
+        println("PASS: " + label);
+    } else {
+        println("FAIL: " + label);
+    }
+}
+
+void main(){
+    println("=== math stdlib tests ===");
+
+    // abs
+    check("abs(-5) == 5",          global.math.abs(-5) is 5);
+    check("abs(3) == 3",           global.math.abs(3)  is 3);
+    check("abs(0) == 0",           global.math.abs(0)  is 0);
+
+    // max / min
+    check("max(2,7) == 7",         global.math.max(2, 7) is 7);
+    check("min(2,7) == 2",         global.math.min(2, 7) is 2);
+
+    // clamp
+    check("clamp(20,0,10) == 10",  global.math.clamp(20, 0, 10) is 10);
+    check("clamp(-5,0,10) == 0",   global.math.clamp(-5, 0, 10) is 0);
+    check("clamp(5,0,10) == 5",    global.math.clamp(5,  0, 10) is 5);
+
+    // pow
+    check("pow(2,10) == 1024",     global.math.pow(2, 10) is 1024);
+    check("pow(3,0) == 1",         global.math.pow(3, 0)  is 1);
+
+    // sqrt
+    float sq = global.math.sqrt(144.0);
+    check("sqrt(144) == 12",       sq is 12.0);
+
+    // floor / ceil / round / truncate
+    check("floor(3.9) == 3",       global.math.floor(3.9)  is 3);
+    check("ceil(3.1) == 4",        global.math.ceil(3.1)   is 4);
+    check("round(3.5) == 4",       global.math.round(3.5)  is 4);
+    check("truncate(3.9) == 3",    global.math.truncate(3.9)  is 3);
+    check("truncate(-3.9) == -3",  global.math.truncate(-3.9) is -3);
+
+    // pi / e
+    float pi = global.math.pi();
+    float eu = global.math.e();
+    check("pi > 3.14 and < 3.15",  pi > 3.14 and pi < 3.15);
+    check("e  > 2.71 and < 2.72",  eu > 2.71 and eu < 2.72);
+
+    // log / log2 / log10
+    float ln1  = global.math.log(1.0);
+    float lg2  = global.math.log2(8.0);
+    float lg10 = global.math.log10(1000.0);
+    check("log(1) == 0",           ln1  is 0.0);
+    check("log2(8) == 3",          lg2  is 3.0);
+    check("log10(1000) == 3",      lg10 is 3.0);
+
+    // sin / cos / tan (using known values near 0)
+    float s0  = global.math.sin(0.0);
+    float c0  = global.math.cos(0.0);
+    check("sin(0) == 0",           s0 is 0.0);
+    check("cos(0) == 1",           c0 is 1.0);
+
+    // degrees / radians
+    float deg90 = global.math.degrees(global.math.pi() / 2.0);
+    check("degrees(pi/2) ≈ 90",    deg90 > 89.9 and deg90 < 90.1);
+    float rad90 = global.math.radians(90.0);
+    check("radians(90) ≈ pi/2",    rad90 > 1.57 and rad90 < 1.58);
+
+    // sign
+    check("sign(-9) == -1",        global.math.sign(-9) is -1);
+    check("sign(0) == 0",          global.math.sign(0)  is 0);
+    check("sign(7) == 1",          global.math.sign(7)  is 1);
+
+    // isEven / isOdd
+    check("isEven(4) == true",     global.math.isEven(4) is true);
+    check("isEven(3) == false",    global.math.isEven(3) is false);
+    check("isOdd(3) == true",      global.math.isOdd(3)  is true);
+    check("isOdd(4) == false",     global.math.isOdd(4)  is false);
+
+    // factorial
+    check("factorial(5) == 120",   global.math.factorial(5) is 120);
+    check("factorial(0) == 1",     global.math.factorial(0) is 1);
+
+    // gcd
+    check("gcd(12,8) == 4",        global.math.gcd(12, 8) is 4);
+    check("gcd(7,13) == 1",        global.math.gcd(7, 13) is 1);
+
+    // hypot
+    float h = global.math.hypot(3.0, 4.0);
+    check("hypot(3,4) == 5",       h is 5.0);
+
+    // randInt — just check it's in range
+    int r = global.math.randInt(1, 10);
+    check("randInt(1,10) in [1,10]", r >= 1 and r <= 10);
+
+    // randFloat — just check it's in range
+    float rf = global.math.randFloat(0.0, 1.0);
+    check("randFloat(0,1) in [0,1)", rf >= 0.0 and rf < 1.0);
+
+    println("=== math tests done ===");
+}

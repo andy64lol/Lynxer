@@ -216,4 +216,47 @@ void sep(){
     return result;
 }
 
+/// Set environment variable key to val for the current process. Returns true on success. ///
+void setenv(str key, str val){
+    bool ok = true;
+    rawPy(){
+        import os as _os
+        try:
+            _os.environ[key] = val
+        except Exception:
+            ok = False
+    }
+    return ok;
+}
+
+/// Expand a leading ~ or ~user in path to the full home directory. ///
+void expandUser(str path){
+    str result = "";
+    rawPy(){
+        import os as _os
+        result = _os.path.expanduser(path)
+    }
+    return result;
+}
+
+/// Return the file extension of path (including the dot), e.g. ".txt". Returns "" if none. ///
+void extname(str path){
+    str result = "";
+    rawPy(){
+        import os as _os
+        result = _os.path.splitext(path)[1]
+    }
+    return result;
+}
+
+/// Normalize a path (resolve "..", collapse double slashes, etc.). ///
+void normPath(str path){
+    str result = "";
+    rawPy(){
+        import os as _os
+        result = _os.path.normpath(path)
+    }
+    return result;
+}
+
 void main(){}

@@ -21,6 +21,7 @@ void setup(){
     import("shell");
     import("os");
     import("json");
+    import("js");
     const str TITLE = "Lynxer Syntax Demo";
     const int VERSION = 1;
 }
@@ -133,6 +134,22 @@ void main(){
     print("~0      = "); print(~0);       print("\n");
     print("1 << 4  = "); print(1 << 4);  print("\n");
     print("32 >> 2 = "); print(32 >> 2); print("\n");
+
+    // --- println vs print ---
+    print("\n-- println vs print --\n");
+    println("println adds a newline automatically");
+    println("multiple", " ", "args", " work", " too");
+    print("print does not add newline");
+    print(" — must add \\n manually\n");
+
+    // --- escape sequences ---
+    print("\n-- escape sequences --\n");
+    println("newline (\\n):    line1\nline2");
+    println("tab    (\\t):    col1\tcol2");
+    println("quote  (\\\"): She said \"hi\"");
+    println("backsl (\\\\): one\\two");
+    println("cr     (\\r): overwrite\rOK      ");
+    println("null   (\\0): before\0after — invisible null");
 
     // --- strings & builtins ---
     print("\n-- strings & builtins --\n");
@@ -356,6 +373,19 @@ void main(){
     removeVarGroup(player2.stats, xp);
 
     println(strOf(config2));
+
+    // --- js stdlib ---
+    println("\n-- js stdlib --");
+    int jsOk = global.js.nodeExists();
+    print("node available: "); println(jsOk);
+    if(jsOk){
+        str jsVer = global.js.nodeVersion();
+        print("node version:   "); println(jsVer);
+        str jsArith = global.js.evalJS("6 * 7");
+        print("evalJS(6*7):    "); println(jsArith);
+        str jsOut = global.js.runJS("console.log(\"hello from JS\");");
+        print("runJS output:   "); print(jsOut);
+    }
 }
 
 // That's all!

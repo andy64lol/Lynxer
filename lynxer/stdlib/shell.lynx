@@ -1,58 +1,95 @@
 ///
- Lynxer standard library: shell
- provides: runShell runShellCapture runShellSilent
+ Lynxer Standard Library — shell
+ Provides: runShell, runShellCapture, runShellSilent,
+           runShellErr, runShellCode, commandExists
 ///
 
 void setup(){}
 
+/// Run command in the shell. Inherits stdin/stdout/stderr. Returns exit code. ///
 void runShell(str command){
     int code = 0;
-
     rawPy(){
         import subprocess
         proc = subprocess.run(command, shell=True)
         code = proc.returncode
     }
-
     return code;
 }
 
+/// Run command and capture stdout. Returns captured output as a string. ///
 void runShellCapture(str command){
     str result = "";
-
     rawPy(){
         import subprocess
-
         proc = subprocess.run(
             command,
             shell=True,
             capture_output=True,
             text=True
         )
-
         result = proc.stdout
     }
-
     return result;
 }
 
+/// Run command, suppressing all output. Returns exit code. ///
 void runShellSilent(str command){
     int code = 0;
-
     rawPy(){
         import subprocess
-
         proc = subprocess.run(
             command,
             shell=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL
         )
-
         code = proc.returncode
     }
-
     return code;
+}
+
+/// Run command and capture stderr only. Returns captured stderr as a string. ///
+void runShellErr(str command){
+    str result = "";
+    rawPy(){
+        import subprocess
+        proc = subprocess.run(
+            command,
+            shell=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        result = proc.stderr
+    }
+    return result;
+}
+
+/// Run command (capturing output silently) and return its exit code. ///
+void runShellCode(str command){
+    int code = 0;
+    rawPy(){
+        import subprocess
+        proc = subprocess.run(
+            command,
+            shell=True,
+            capture_output=True
+        )
+        code = proc.returncode
+    }
+    return code;
+}
+
+/// Returns true if cmd is found on PATH (i.e. the command exists). ///
+void commandExists(str cmd){
+    int result = 0;
+    rawPy(){
+        import shutil as _sh
+        result = 1 if _sh.which(cmd) is not None else 0
+    }
+    if(result not is 0){ return true; }
+    return false;
 }
 
 void main(){}

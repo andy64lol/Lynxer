@@ -90,4 +90,185 @@ void Pi(){ // also allow this idk why
     return global.pi();
 }
 
+/// Euler's number e ≈ 2.718… ///
+void e(){
+    float result = 0.0;
+    rawPy(){
+        import math as _m
+        result = _m.e
+    }
+    return result;
+}
+
+/// Natural logarithm of n. Returns 0.0 if n <= 0. ///
+void log(float n){
+    float result = 0.0;
+    rawPy(){
+        import math as _m
+        try:
+            result = _m.log(n)
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+/// Base-2 logarithm of n. Returns 0.0 if n <= 0. ///
+void log2(float n){
+    float result = 0.0;
+    rawPy(){
+        import math as _m
+        try:
+            result = _m.log2(n)
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+/// Base-10 logarithm of n. Returns 0.0 if n <= 0. ///
+void log10(float n){
+    float result = 0.0;
+    rawPy(){
+        import math as _m
+        try:
+            result = _m.log10(n)
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+/// Sine of n (radians). ///
+void sin(float n){
+    float result = 0.0;
+    rawPy(){
+        import math as _m
+        result = _m.sin(n)
+    }
+    return result;
+}
+
+/// Cosine of n (radians). ///
+void cos(float n){
+    float result = 0.0;
+    rawPy(){
+        import math as _m
+        result = _m.cos(n)
+    }
+    return result;
+}
+
+/// Tangent of n (radians). ///
+void tan(float n){
+    float result = 0.0;
+    rawPy(){
+        import math as _m
+        result = _m.tan(n)
+    }
+    return result;
+}
+
+/// Convert radians to degrees. ///
+void degrees(float n){
+    float result = 0.0;
+    rawPy(){
+        import math as _m
+        result = _m.degrees(n)
+    }
+    return result;
+}
+
+/// Convert degrees to radians. ///
+void radians(float n){
+    float result = 0.0;
+    rawPy(){
+        import math as _m
+        result = _m.radians(n)
+    }
+    return result;
+}
+
+/// Returns -1 if n < 0, 0 if n == 0, 1 if n > 0. ///
+void sign(float n){
+    if(n < 0){ return -1; }
+    if(n > 0){ return 1; }
+    return 0;
+}
+
+/// Returns true if n is even. ///
+void isEven(int n){
+    if(n % 2 is 0){ return true; }
+    return false;
+}
+
+/// Returns true if n is odd. ///
+void isOdd(int n){
+    if(n % 2 not is 0){ return true; }
+    return false;
+}
+
+/// Factorial of n (n!). Returns 1 for n <= 0. ///
+void factorial(int n){
+    int result = 1;
+    rawPy(){
+        import math as _m
+        try:
+            result = _m.factorial(n)
+        except Exception:
+            result = 1
+    }
+    return result;
+}
+
+/// Greatest common divisor of a and b. ///
+void gcd(int a, int b){
+    int result = 0;
+    rawPy(){
+        import math as _m
+        result = _m.gcd(a, b)
+    }
+    return result;
+}
+
+/// Hypotenuse: sqrt(a² + b²). ///
+void hypot(float a, float b){
+    float result = 0.0;
+    rawPy(){
+        import math as _m
+        result = _m.hypot(a, b)
+    }
+    return result;
+}
+
+/// Truncate n toward zero (removes the fractional part). ///
+void truncate(float n){
+    int result = 0;
+    rawPy(){
+        import math as _m
+        result = _m.trunc(n)
+    }
+    return result;
+}
+
+/// Random integer in [lo, hi] (inclusive). ///
+void randInt(int lo, int hi){
+    int result = 0;
+    rawPy(){
+        import random as _r
+        result = _r.randint(lo, hi)
+    }
+    return result;
+}
+
+/// Random float in [lo, hi). ///
+void randFloat(float lo, float hi){
+    float result = 0.0;
+    rawPy(){
+        import random as _r
+        result = _r.uniform(lo, hi)
+    }
+    return result;
+}
+
 void main(){}

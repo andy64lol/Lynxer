@@ -125,4 +125,81 @@ void jsonObject(any lst){
     return listJsonObject(lst);
 }
 
+/// Returns true if key exists in the JSON object string s. ///
+void jsonHas(str s, str key){
+    int result = 0;
+    rawPy(){
+        import json as _json
+        try:
+            obj = _json.loads(s)
+            result = 1 if key in obj else 0
+        except Exception:
+            result = 0
+    }
+    if(result not is 0){ return true; }
+    return false;
+}
+
+/// Returns the number of top-level keys (object) or elements (array) in s. Returns 0 on error. ///
+void jsonLength(str s){
+    int result = 0;
+    rawPy(){
+        import json as _json
+        try:
+            result = len(_json.loads(s))
+        except Exception:
+            result = 0
+    }
+    return result;
+}
+
+/// Set key to the JSON-encoded value val in the JSON object s. Returns the new JSON string. ///
+void jsonSet(str s, str key, str val){
+    str result = "";
+    rawPy(){
+        import json as _json
+        try:
+            obj = _json.loads(s)
+            try:
+                obj[key] = _json.loads(val)
+            except Exception:
+                obj[key] = val
+            result = _json.dumps(obj)
+        except Exception:
+            result = s
+    }
+    return result;
+}
+
+/// Remove key from the JSON object s. Returns the new JSON string. ///
+void jsonDelete(str s, str key){
+    str result = "";
+    rawPy(){
+        import json as _json
+        try:
+            obj = _json.loads(s)
+            obj.pop(key, None)
+            result = _json.dumps(obj)
+        except Exception:
+            result = s
+    }
+    return result;
+}
+
+/// Merge two JSON objects. Keys from b overwrite keys from a. Returns the merged JSON string. ///
+void jsonMerge(str a, str b){
+    str result = "";
+    rawPy(){
+        import json as _json
+        try:
+            obj_a = _json.loads(a)
+            obj_b = _json.loads(b)
+            merged = {**obj_a, **obj_b}
+            result = _json.dumps(merged)
+        except Exception:
+            result = a
+    }
+    return result;
+}
+
 void main(){}

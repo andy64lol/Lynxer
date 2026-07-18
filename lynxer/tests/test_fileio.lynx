@@ -1,0 +1,82 @@
+///
+  test_fileio.lynx — Regression test for the fileIO stdlib.
+  Covers: writeFile, readFile, appendFile, fileExists, deleteFile,
+          readLines, copyFile, fileSize
+///
+
+void setup(){
+    import("fileIO");
+    import("typing");
+}
+
+void check(str label, bool ok){
+    if(ok){
+        println("PASS: " + label);
+    } else {
+        println("FAIL: " + label);
+    }
+}
+
+void main(){
+    println("=== fileIO stdlib tests ===");
+
+    str path  = "/tmp/_lynx_test_fileio.txt";
+    str path2 = "/tmp/_lynx_test_fileio_copy.txt";
+
+    // writeFile / readFile
+    bool w1 = global.fileIO.writeFile(path, "Hello, Lynxer!");
+    check("writeFile returns true",       w1 is true);
+
+    str content = global.fileIO.readFile(path);
+    check("readFile returns content",     content is "Hello, Lynxer!");
+
+    // fileExists
+    check("fileExists (exists) == true",  global.fileIO.fileExists(path) is true);
+    check("fileExists (missing) == false", global.fileIO.fileExists("/tmp/_no_such_file_lynx.txt") is false);
+
+    // fileSize
+    int sz = global.fileIO.fileSize(path);
+    check("fileSize > 0",                 sz > 0);
+    check("fileSize missing == -1",       global.fileIO.fileSize("/tmp/_no_such.txt") is -1);
+
+    // appendFile
+    bool a1 = global.fileIO.appendFile(path, "\nSecond line.");
+    check("appendFile returns true",      a1 is true);
+    str appended = global.fileIO.readFile(path);
+    check("appendFile content present",   global.typing.contains(appended, "Second line.") is true);
+
+    // readLines
+    bool w2 = global.fileIO.writeFile(path, "line1\nline2\nline3");
+    any lines = global.fileIO.readLines(path);
+    check("readLines count == 3",         returnLength(lines) is 3);
+    check("readLines first == line1",     listGet(lines, 0) is "line1");
+    check("readLines last == line3",      listGet(lines, 2) is "line3");
+
+    // readLines on missing file returns empty list
+    any nolines = global.fileIO.readLines("/tmp/_no_such_lynx.txt");
+    check("readLines missing returns empty", returnLength(nolines) is 0);
+
+    // copyFile
+    bool cp = global.fileIO.copyFile(path, path2);
+    check("copyFile returns true",        cp is true);
+    check("copyFile dest exists",         global.fileIO.fileExists(path2) is true);
+    str cpContent = global.fileIO.readFile(path2);
+    check("copyFile content matches",     cpContent is "line1\nline2\nline3");
+
+    // readFile on missing returns ""
+    str missing = global.fileIO.readFile("/tmp/_no_such_lynx.txt");
+    check("readFile missing == \"\"",     missing is "");
+
+    // deleteFile
+    bool d1 = global.fileIO.deleteFile(path);
+    bool d2 = global.fileIO.deleteFile(path2);
+    check("deleteFile returns true",      d1 is true);
+    check("deleteFile copy returns true", d2 is true);
+    check("deleted file gone",            global.fileIO.fileExists(path) is false);
+
+    // deleteFile on missing returns false
+    bool dm = global.fileIO.deleteFile("/tmp/_no_such_lynx.txt");
+    check("deleteFile missing == false",  dm is false);
+
+    println("=== fileIO tests done ===");
+}

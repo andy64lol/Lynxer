@@ -1,0 +1,63 @@
+///
+  test_escapes.lynx — Regression test for string escape sequences.
+  Covers: \n, \t, \r, \\, \", \', \0, \a, \b, \f, \v
+///
+
+void setup(){}
+
+void main(){
+    println("=== Escape Sequence Tests ===");
+
+    // \n — newline (should split across two lines)
+    str nl = "line1\nline2";
+    println("\\n test:");
+    println(nl);
+
+    // \t — horizontal tab
+    str tab = "col1\tcol2\tcol3";
+    println("\\t test:");
+    println(tab);
+
+    // \\ — literal backslash
+    str bs = "back\\slash";
+    println("\\\\ test: " + bs);
+
+    // \" — double quote inside string
+    str dq = "She said \"hello!\"";
+    println("\\\" test: " + dq);
+
+    // \' — single quote inside string
+    str sq = "it\'s fine";
+    println("\\' test: " + sq);
+
+    // \r — carriage return (moves cursor to start of line)
+    str cr = "overwrite\rOK";
+    println("\\r test (should show 'OK…'):");
+    print(cr); print("\n");
+
+    // \0 — null character (invisible, but accepted without error)
+    str nul = "before\0after";
+    println("\\0 test (no crash): OK");
+
+    // \a — bell (invisible/silent in most terminals, but accepted)
+    str bell = "ding\aok";
+    println("\\a test (no crash): OK");
+
+    // \b — backspace
+    str bksp = "AB\bC";
+    println("\\b test (no crash): OK");
+
+    // \f — form feed
+    str ff = "page\fbreak";
+    println("\\f test (no crash): OK");
+
+    // \v — vertical tab
+    str vt = "ver\vtab";
+    println("\\v test (no crash): OK");
+
+    // Unknown escape — should pass through the literal character
+    str unk = "\q";
+    println("unknown \\q (passthrough): " + unk);
+
+    println("=== All escape tests passed ===");
+}
