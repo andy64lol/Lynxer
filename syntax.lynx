@@ -137,9 +137,9 @@ void main(){
     // --- strings & builtins ---
     print("\n-- strings & builtins --\n");
     print(greet("World")); print("\n");
-    print("str_of(99)         = "); print(str_of(99));      print("\n");
-    print("int_of(\"7\")      = "); print(int_of("7"));     print("\n");
-    print("float_of(\"1.5\")  = "); print(float_of("1.5")); print("\n");
+    print("strOf(99)         = "); print(strOf(99));      print("\n");
+    print("intOf(\"7\")      = "); print(intOf("7"));     print("\n");
+    print("floatOf(\"1.5\")  = "); print(floatOf("1.5")); print("\n");
     print("returnType(n)      = "); print(returnType(n));    print("\n");
     print("returnType(s)      = "); print(returnType(s));    print("\n");
     print("returnLength(s)    = "); print(returnLength(s));  print("\n");
@@ -220,11 +220,11 @@ void main(){
 
     // build from range
     any nums = seqFromTo(1, 6, 1);           // [1, 2, 3, 4, 5]
-    print("range: "); print(str_of(nums)); print("\n");
+    print("range: "); print(strOf(nums)); print("\n");
 
     // push / pop — listPush returns a new list (reassign)
     nums = listPush(nums, 99);
-    print("after push 99: "); print(str_of(nums)); print("\n");
+    print("after push 99: "); print(strOf(nums)); print("\n");
     int popped = listPop(nums);
     print("last element: "); print(popped); print("\n");
 
@@ -232,12 +232,12 @@ void main(){
     int first = listGet(nums, 0);
     print("first: "); print(first); print("\n");
     nums = listSet(nums, 0, 100);
-    print("after set [0]=100: "); print(str_of(nums)); print("\n");
+    print("after set [0]=100: "); print(strOf(nums)); print("\n");
     nums = listSet(nums, 0, 1);  // restore
 
     // slice
     any sliced = listSlice(nums, 1, 4);
-    print("slice [1:4]: "); print(str_of(sliced)); print("\n");
+    print("slice [1:4]: "); print(strOf(sliced)); print("\n");
 
     // search
     int idx = listIndex(nums, 3);
@@ -264,9 +264,9 @@ void main(){
     any asc  = sortList(unsorted);
     any desc = sortList(unsorted, true);
     any rev  = reverseList(unsorted);
-    print("sorted asc:  "); print(str_of(asc));  print("\n");
-    print("sorted desc: "); print(str_of(desc)); print("\n");
-    print("reversed:    "); print(str_of(rev));  print("\n");
+    print("sorted asc:  "); print(strOf(asc));  print("\n");
+    print("sorted desc: "); print(strOf(desc)); print("\n");
+    print("reversed:    "); print(strOf(rev));  print("\n");
 
     // join
     any words = seqFromTo(0, 0, 1);
@@ -279,11 +279,11 @@ void main(){
     // remove element
     any lst2 = seqFromTo(10, 14, 1);         // [10, 11, 12, 13]
     any lst3 = listRemove(lst2, 1);
-    print("removed idx 1: "); print(str_of(lst3)); print("\n");
+    print("removed idx 1: "); print(strOf(lst3)); print("\n");
 
     // typing helpers
     any parts = global.typing.toList("a,b,c", ",");
-    print("toList: "); print(str_of(parts)); print("\n");
+    print("toList: "); print(strOf(parts)); print("\n");
     print("isList: "); print(global.typing.isList(parts)); print("\n");
 
     // --- os ---
@@ -355,7 +355,7 @@ void main(){
     removeVarGroup(player2, title);
     removeVarGroup(player2.stats, xp);
 
-    println(str_of(config2));
+    println(strOf(config2));
 }
 
 // That's all!

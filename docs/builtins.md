@@ -39,38 +39,38 @@ str raw  = input();   // no prompt
 
 ## Type conversion
 
-### `str_of(v)`
+### `strOf(v)`
 
 Converts any value to its string representation.
 
 ```c
-str s = str_of(99);      // "99"
-str f = str_of(3.14);    // "3.14"
-str b = str_of(true);    // "true"
-str l = str_of(seqFromTo(0,3,1)); // "[0, 1, 2]"
+str s = strOf(99);      // "99"
+str f = strOf(3.14);    // "3.14"
+str b = strOf(true);    // "true"
+str l = strOf(seqFromTo(0,3,1)); // "[0, 1, 2]"
 ```
 
-### `int_of(v)`
+### `intOf(v)`
 
 Parses a value as an integer. Returns `0` on failure.
 
 > Use `global.typing.isNumeric(s)` to validate before converting when `0` could be a valid result.
 
 ```c
-int n = int_of("42");    // 42
-int m = int_of(3.9);     // 3
-int bad = int_of("hi");  // 0
+int n = intOf("42");    // 42
+int m = intOf(3.9);     // 3
+int bad = intOf("hi");  // 0
 ```
 
-### `float_of(v)`
+### `floatOf(v)`
 
 Parses a value as a float. Returns `0.0` on failure.
 
 > Use `global.typing.isNumeric(s)` to validate before converting when `0.0` could be a valid result.
 
 ```c
-float f = float_of("1.5");    // 1.5
-float bad = float_of("hi");   // 0.0
+float f = floatOf("1.5");    // 1.5
+float bad = floatOf("hi");   // 0.0
 ```
 
 ---

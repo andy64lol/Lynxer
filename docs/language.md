@@ -62,7 +62,7 @@ global.typing.toStr(99)
 ```
 
 **What lives under `global`:**
-- All built-in functions: `print`, `input`, `str_of`, `int_of`, `float_of`, `returnType`, `returnLength`, `seqFromTo`, all list built-ins, `rawPy`, `rawPyx`, etc.
+- All built-in functions: `print`, `input`, `strOf`, `intOf`, `floatOf`, `returnType`, `returnLength`, `seqFromTo`, all list built-ins, `rawPy`, `rawPyx`, etc.
 - All imported modules: after `import("math")`, accessible as `global.math`.
 - Global constants and variables declared in `setup()`.
 

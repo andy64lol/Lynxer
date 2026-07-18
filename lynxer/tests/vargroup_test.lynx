@@ -70,8 +70,8 @@ void main() {
     println(player.username);    // Andy
     println(player.stats.level); // 10
 
-    // str_of
-    println(str_of(config)); // vargroup config { str host = localhost, int port = 9000, bool debug = false }
+    // strOf
+    println(strOf(config)); // vargroup config { str host = localhost, int port = 9000, bool debug = false }
 
     // vargroup inside a top-level void function
     makeGroup();

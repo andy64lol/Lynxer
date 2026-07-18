@@ -95,10 +95,10 @@ void main(){
     print(global.typing.contains("foobar", "oba")); print("\n"); // true
 
     any parts = global.typing.toList("a,b,c", ",");
-    print(str_of(parts)); print("\n");  // [a, b, c]
+    print(strOf(parts)); print("\n");  // [a, b, c]
 
     any u = global.typing.unique(seqFromTo(1, 4, 1));
-    print(str_of(u)); print("\n");      // [1, 2, 3]
+    print(strOf(u)); print("\n");      // [1, 2, 3]
 }
 ```
 

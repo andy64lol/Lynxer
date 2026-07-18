@@ -138,7 +138,7 @@ str csv    = listJoin(words, ",");   // "a,b,c"
 
 ```c
 any lst = seqFromTo(1, 4, 1);
-print(str_of(lst)); print("\n");    // [1, 2, 3]
+print(strOf(lst)); print("\n");    // [1, 2, 3]
 ```
 
 ---
@@ -153,7 +153,7 @@ void setup(){ import("typing"); }
 void main(){
     // Split a string into a list
     any parts = global.typing.toList("a,b,c", ",");
-    print(str_of(parts)); print("\n");   // [a, b, c]
+    print(strOf(parts)); print("\n");   // [a, b, c]
 
     // Check if a value is a list
     print(global.typing.isList(parts)); print("\n");   // true
@@ -164,13 +164,13 @@ void main(){
     lst = listPush(lst, 1); lst = listPush(lst, 2);
     lst = listPush(lst, 1); lst = listPush(lst, 3);
     any u = global.typing.unique(lst);  // [1, 2, 3]
-    print(str_of(u)); print("\n");
+    print(strOf(u)); print("\n");
 
     // Flatten one level of nested lists
     any inner = seqFromTo(4, 6, 1);   // [4, 5]
     any outer = seqFromTo(1, 3, 1);   // [1, 2]
     outer = listPush(outer, inner);
     any flat = global.typing.flatten(outer); // [1, 2, 4, 5]
-    print(str_of(flat)); print("\n");
+    print(strOf(flat)); print("\n");
 }
 ```

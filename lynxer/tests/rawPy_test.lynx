@@ -28,9 +28,9 @@ void main(){
 
     // built-ins
     print("=== built-ins ===\n");
-    print("str_of(42) = ");    print(str_of(42));        print("\n");
-    print("int_of(\"7\") = "); print(int_of("7"));       print("\n");
-    print("float_of(\"1.5\") = "); print(float_of("1.5")); print("\n");
+    print("strOf(42) = ");    print(strOf(42));        print("\n");
+    print("intOf(\"7\") = "); print(intOf("7"));       print("\n");
+    print("floatOf(\"1.5\") = "); print(floatOf("1.5")); print("\n");
 
     // math stdlib
     print("=== math ===\n");

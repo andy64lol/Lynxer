@@ -84,12 +84,12 @@ void main(){
     print("rawPy 6*7 = "); print(rp); print("\n");
 
     // built-ins
-    str numStr = str_of(100);
-    int parsed = int_of("55");
-    float fval = float_of("2.5");
-    print("str_of(100) = "); print(numStr); print("\n");
-    print("int_of(\"55\") = "); print(parsed); print("\n");
-    print("float_of(\"2.5\") = "); print(fval); print("\n");
+    str numStr = strOf(100);
+    int parsed = intOf("55");
+    float fval = floatOf("2.5");
+    print("strOf(100) = "); print(numStr); print("\n");
+    print("intOf(\"55\") = "); print(parsed); print("\n");
+    print("floatOf(\"2.5\") = "); print(fval); print("\n");
 
     print("Done!\n");
     print("This was written using Lynxer (.lynx)! \n");

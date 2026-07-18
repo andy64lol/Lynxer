@@ -15,14 +15,8 @@ SRC_DIR  = lynxer
 
 .PHONY: install uninstall deps pip-install test clean help
 
-# ── deps ─────────────────────────────────────────────────────────────────────
-deps:
-	@echo "Installing Python dependencies …"
-	@$(PYTHON) -m pip install --quiet --upgrade cython setuptools
-	@echo "✓  Dependencies installed."
-
 # ── install ──────────────────────────────────────────────────────────────────
-install: deps
+install:
 	@echo "Installing Lynxer to $(BINDIR)/lynxer …"
 	@mkdir -p "$(BINDIR)" "$(DATADIR)"
 	@rm -rf "$(DATADIR)/lynxer"

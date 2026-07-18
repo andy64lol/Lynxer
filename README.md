@@ -103,7 +103,7 @@ void main(){
 | Page | Contents |
 |------|----------|
 | [Language reference](docs/language.md) | Types, variables, operators, control flow, functions |
-| [Built-ins](docs/builtins.md) | `print`, `input`, `str_of`, `returnType`, `seqFromTo`, … |
+| [Built-ins](docs/builtins.md) | `print`, `input`, `strOf`, `returnType`, `seqFromTo`, … |
 | [Standard library](docs/stdlib.md) | `math`, `typing`, `fileIO`, `shell` modules |
 | [rawPy / rawPyx](docs/rawpy.md) | Embedding Python and Cython |
 | [Module system](docs/modules.md) | `import()`, namespaces, writing your own modules |

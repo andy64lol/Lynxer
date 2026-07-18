@@ -2937,9 +2937,9 @@ class BuiltInFunction(BaseFunction):
     input: ClassVar["BuiltInFunction"]
     rawPy: ClassVar["BuiltInFunction"]
     rawPyx: ClassVar["BuiltInFunction"]
-    str_of: ClassVar["BuiltInFunction"]
-    int_of: ClassVar["BuiltInFunction"]
-    float_of: ClassVar["BuiltInFunction"]
+    strOf: ClassVar["BuiltInFunction"]
+    intOf: ClassVar["BuiltInFunction"]
+    floatOf: ClassVar["BuiltInFunction"]
     returnType: ClassVar["BuiltInFunction"]
     returnLength: ClassVar["BuiltInFunction"]
     seqFromTo: ClassVar["BuiltInFunction"]
@@ -3043,25 +3043,25 @@ class BuiltInFunction(BaseFunction):
             )
         return RTResult().success(Number.null)
 
-    def execute_str_of(self, args, exec_ctx):
+    def execute_strOf(self, args, exec_ctx):
         if len(args) != 1:
             return RTResult().failure(
                 RTError(
                     self.pos_start,
                     self.pos_end,
-                    "str_of() takes exactly 1 argument",
+                    "strOf() takes exactly 1 argument",
                     exec_ctx,
                 )
             )
         return RTResult().success(String(str(args[0])))
 
-    def execute_int_of(self, args, exec_ctx):
+    def execute_intOf(self, args, exec_ctx):
         if len(args) != 1:
             return RTResult().failure(
                 RTError(
                     self.pos_start,
                     self.pos_end,
-                    "int_of() takes exactly 1 argument",
+                    "intOf() takes exactly 1 argument",
                     exec_ctx,
                 )
             )
@@ -3078,13 +3078,13 @@ class BuiltInFunction(BaseFunction):
                 )
             )
 
-    def execute_float_of(self, args, exec_ctx):
+    def execute_floatOf(self, args, exec_ctx):
         if len(args) != 1:
             return RTResult().failure(
                 RTError(
                     self.pos_start,
                     self.pos_end,
-                    "float_of() takes exactly 1 argument",
+                    "floatOf() takes exactly 1 argument",
                     exec_ctx,
                 )
             )
@@ -3539,9 +3539,9 @@ BuiltInFunction.println = BuiltInFunction("println")
 BuiltInFunction.input = BuiltInFunction("input")
 BuiltInFunction.rawPy = BuiltInFunction("rawPy")
 BuiltInFunction.rawPyx = BuiltInFunction("rawPyx")
-BuiltInFunction.str_of = BuiltInFunction("str_of")
-BuiltInFunction.int_of = BuiltInFunction("int_of")
-BuiltInFunction.float_of = BuiltInFunction("float_of")
+BuiltInFunction.strOf = BuiltInFunction("strOf")
+BuiltInFunction.intOf = BuiltInFunction("intOf")
+BuiltInFunction.floatOf = BuiltInFunction("floatOf")
 BuiltInFunction.returnType = BuiltInFunction("returnType")
 BuiltInFunction.returnLength = BuiltInFunction("returnLength")
 BuiltInFunction.seqFromTo = BuiltInFunction("seqFromTo")
@@ -4429,9 +4429,9 @@ class Interpreter:
         module_table.set("input", BuiltInFunction.input)
         module_table.set("rawPy", BuiltInFunction.rawPy)
         module_table.set("rawPyx", BuiltInFunction.rawPyx)
-        module_table.set("str_of", BuiltInFunction.str_of)
-        module_table.set("int_of", BuiltInFunction.int_of)
-        module_table.set("float_of", BuiltInFunction.float_of)
+        module_table.set("strOf", BuiltInFunction.strOf)
+        module_table.set("intOf", BuiltInFunction.intOf)
+        module_table.set("floatOf", BuiltInFunction.floatOf)
         module_table.set("returnType", BuiltInFunction.returnType)
         module_table.set("returnLength", BuiltInFunction.returnLength)
         module_table.set("seqFromTo", BuiltInFunction.seqFromTo)
@@ -4512,9 +4512,9 @@ global_symbol_table.set("println", BuiltInFunction.println)
 global_symbol_table.set("input", BuiltInFunction.input)
 global_symbol_table.set("rawPy", BuiltInFunction.rawPy)
 global_symbol_table.set("rawPyx", BuiltInFunction.rawPyx)
-global_symbol_table.set("str_of", BuiltInFunction.str_of)
-global_symbol_table.set("int_of", BuiltInFunction.int_of)
-global_symbol_table.set("float_of", BuiltInFunction.float_of)
+global_symbol_table.set("strOf", BuiltInFunction.strOf)
+global_symbol_table.set("intOf", BuiltInFunction.intOf)
+global_symbol_table.set("floatOf", BuiltInFunction.floatOf)
 global_symbol_table.set("returnType", BuiltInFunction.returnType)
 global_symbol_table.set("returnLength", BuiltInFunction.returnLength)
 global_symbol_table.set("seqFromTo", BuiltInFunction.seqFromTo)

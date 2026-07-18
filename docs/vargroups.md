@@ -163,11 +163,11 @@ print(bag.item);   // 42
 
 ## Printing a vargroup
 
-`print(vg)` and `str_of(vg)` both produce a readable representation:
+`print(vg)` and `strOf(vg)` both produce a readable representation:
 
 ```c
 vargroup cfg = [str host = "localhost", int port = 9000, bool debug = false];
-print(str_of(cfg));
+print(strOf(cfg));
 // vargroup cfg { str host = localhost, int port = 9000, bool debug = false }
 ```
 
@@ -199,4 +199,4 @@ print(a.x);   // 99  — mutation is immediate
 | `addVarGroup(vg, vargroup name = [...]);` | Add a new nested vargroup field |
 | `removeVarGroup(vg, name);` | Remove a field |
 | `returnType(vg)` | Returns `"vargroup"` |
-| `str_of(vg)` | Human-readable representation |
+| `strOf(vg)` | Human-readable representation |
