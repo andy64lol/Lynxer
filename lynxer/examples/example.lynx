@@ -14,9 +14,7 @@ void main(){
     print(userName);
     print("!\n");
 
-    print("Hello!\n");
-
-    // Countdown from 3 using global.math.abs
+    // Countdown from 3 using global.math.abs()
     int n = global.math.abs(-3);
     while(n > 0){
         print(n);

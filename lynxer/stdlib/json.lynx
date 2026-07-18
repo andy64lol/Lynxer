@@ -1,0 +1,128 @@
+///
+  Lynxer Standard Library — json
+  JSON encode / decode via Python's json module.
+  Provides: jsonValid, jsonParse, jsonGet, jsonGetInt, jsonGetFloat,
+            jsonGetBool, jsonKeys, jsonStringify, jsonArray, jsonObject
+///
+
+void setup(){}
+
+/// Returns true if s is valid JSON, false otherwise. ///
+void jsonValid(str s){
+    bool result = false;
+    rawPy(){
+        import json as _json
+        try:
+            _json.loads(s)
+            result = True
+        except Exception:
+            result = False
+    }
+    return result;
+}
+
+/// Pretty-prints a JSON string with 2-space indent. Returns "" on parse error. ///
+void jsonParse(str s){
+    str result = "";
+    rawPy(){
+        import json as _json
+        try:
+            result = _json.dumps(_json.loads(s), indent=2)
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+/// Gets the string value at key from a JSON object string. Returns "" if missing or wrong type. ///
+void jsonGet(str s, str key){
+    str result = "";
+    rawPy(){
+        import json as _json
+        try:
+            obj = _json.loads(s)
+            val = obj.get(key, "")
+            result = str(val) if val is not None else ""
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+/// Gets an integer value at key from a JSON object string. Returns 0 on error. ///
+void jsonGetInt(str s, str key){
+    int result = 0;
+    rawPy(){
+        import json as _json
+        try:
+            obj = _json.loads(s)
+            result = int(obj[key])
+        except Exception:
+            result = 0
+    }
+    return result;
+}
+
+/// Gets a float value at key from a JSON object string. Returns 0.0 on error. ///
+void jsonGetFloat(str s, str key){
+    float result = 0.0;
+    rawPy(){
+        import json as _json
+        try:
+            obj = _json.loads(s)
+            result = float(obj[key])
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+/// Gets a bool value at key from a JSON object string. Returns false on error. ///
+void jsonGetBool(str s, str key){
+    bool result = false;
+    rawPy(){
+        import json as _json
+        try:
+            obj = _json.loads(s)
+            result = bool(obj[key])
+        except Exception:
+            result = False
+    }
+    return result;
+}
+
+/// Returns the top-level keys of a JSON object as a comma-separated string. ///
+void jsonKeys(str s){
+    str result = "";
+    rawPy(){
+        import json as _json
+        try:
+            obj = _json.loads(s)
+            result = ",".join(str(k) for k in obj.keys())
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+/// JSON-encodes a Lynxer string value (adds quotes and escapes). ///
+void jsonStringify(str s){
+    str result = "";
+    rawPy(){
+        import json as _json
+        result = _json.dumps(s)
+    }
+    return result;
+}
+
+/// Builds a JSON array from a Lynxer list of values. ///
+void jsonArray(any lst){
+    return listJsonArray(lst);
+}
+
+/// Builds a JSON object from a flat Lynxer list alternating key, value, key, value… ///
+void jsonObject(any lst){
+    return listJsonObject(lst);
+}
+
+void main(){}

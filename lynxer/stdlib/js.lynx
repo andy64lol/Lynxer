@@ -1,0 +1,131 @@
+///
+  Lynxer Standard Library — js
+  Run JavaScript via Node.js subprocess.
+  Requires: node installed and on PATH.
+  Provides: runJS, runJSFile, evalJS, nodeVersion, nodeExists
+///
+
+void setup(){}
+
+/// Runs a JS code string with Node.js. Returns stdout as str, or "" on error. ///
+void runJS(str code){
+    str result = "";
+    rawPy(){
+        import subprocess, tempfile, os as _os
+        try:
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".js",
+                                             delete=False, encoding="utf-8") as f:
+                f.write(code)
+                tmp = f.name
+            proc = subprocess.run(
+                ["node", tmp],
+                capture_output=True, text=True, timeout=30
+            )
+            result = proc.stdout
+            if proc.returncode != 0 and not result:
+                result = proc.stderr
+        except FileNotFoundError:
+            result = "Error: node not found on PATH"
+        except Exception as e:
+            result = "Error: " + str(e)
+        finally:
+            try:
+                _os.remove(tmp)
+            except Exception:
+                pass
+    }
+    return result;
+}
+
+/// Runs a .js file with Node.js. Returns stdout as str, or "" on error. ///
+void runJSFile(str path){
+    str result = "";
+    rawPy(){
+        import subprocess
+        try:
+            proc = subprocess.run(
+                ["node", path],
+                capture_output=True, text=True, timeout=30
+            )
+            result = proc.stdout
+            if proc.returncode != 0 and not result:
+                result = proc.stderr
+        except FileNotFoundError:
+            result = "Error: node not found on PATH"
+        except Exception as e:
+            result = "Error: " + str(e)
+    }
+    return result;
+}
+
+/// Evaluates a JS expression and returns the result as a string.
+  Wraps the expression in console.log() automatically. ///
+void evalJS(str expr){
+    str result = "";
+    rawPy(){
+        import subprocess, tempfile, os as _os
+        code = "console.log(" + expr + ");"
+        try:
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".js",
+                                             delete=False, encoding="utf-8") as f:
+                f.write(code)
+                tmp = f.name
+            proc = subprocess.run(
+                ["node", tmp],
+                capture_output=True, text=True, timeout=10
+            )
+            result = proc.stdout.rstrip("\n")
+            if proc.returncode != 0 and not result:
+                result = proc.stderr.strip()
+        except FileNotFoundError:
+            result = "Error: node not found on PATH"
+        except Exception as e:
+            result = "Error: " + str(e)
+        finally:
+            try:
+                _os.remove(tmp)
+            except Exception:
+                pass
+    }
+    return result;
+}
+
+/// Returns the Node.js version string (e.g. "v20.11.0"), or "" if node is not found. ///
+void nodeVersion(){
+    str result = "";
+    rawPy(){
+        import subprocess
+        try:
+            proc = subprocess.run(
+                ["node", "--version"],
+                capture_output=True, text=True, timeout=5
+            )
+            result = proc.stdout.strip()
+        except FileNotFoundError:
+            result = ""
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+/// Returns 1 if Node.js is available on PATH, 0 otherwise. ///
+void nodeExists(){
+    int result = 0;
+    rawPy(){
+        import subprocess
+        try:
+            subprocess.run(
+                ["node", "--version"],
+                capture_output=True, timeout=5
+            )
+            result = 1
+        except FileNotFoundError:
+            result = 0
+        except Exception:
+            result = 0
+    }
+    return result;
+}
+
+void main(){}

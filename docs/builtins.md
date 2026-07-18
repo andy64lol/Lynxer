@@ -1,27 +1,38 @@
 # Built-in Functions
 
-These are always available — no `import()` needed.
+Built-in functions are always available — no `import()` needed. Call them directly by name, or via `global.<name>(...)`.
 
 ---
 
 ## I/O
 
-### `print(v)`
+### `print(v, ...)` 
 
-Prints any value with no automatic newline.
+Prints one or more values with **no automatic newline**. Multiple arguments are concatenated.
 
 ```c
-print("Hello"); print("\n");
-print(42);      print("\n");
-print(3.14);    print("\n");
+print("Hello, "); print("World\n");  // Hello, World
+print("x=", 10, " y=", 20, "\n");   // x=10 y=20
 ```
 
-### `input("prompt")`
+### `println(v, ...)`
 
-Prints the prompt, reads a line from stdin, returns `str`.
+Prints one or more values followed by a newline. Equivalent to `print(v, "\n")`.
+
+```c
+println("Hello, World");   // Hello, World\n
+println(42);               // 42\n
+println(true);             // true\n
+println("x=", 10);        // x=10\n
+```
+
+### `input(prompt?)`
+
+Prints the optional prompt, reads a line from stdin, and returns it as `str`.
 
 ```c
 str name = input("Name: ");
+str raw  = input();   // no prompt
 ```
 
 ---
@@ -30,28 +41,36 @@ str name = input("Name: ");
 
 ### `str_of(v)`
 
-Converts any value to a string.
+Converts any value to its string representation.
 
 ```c
-str s = str_of(99);     // "99"
-str f = str_of(3.14);   // "3.14"
+str s = str_of(99);      // "99"
+str f = str_of(3.14);    // "3.14"
+str b = str_of(true);    // "true"
+str l = str_of(seqFromTo(0,3,1)); // "[0, 1, 2]"
 ```
 
 ### `int_of(v)`
 
-Parses a value as an integer.
+Parses a value as an integer. Returns `0` on failure.
+
+> Use `global.typing.isNumeric(s)` to validate before converting when `0` could be a valid result.
 
 ```c
-int n = int_of("42");   // 42
-int m = int_of(3.9);    // 3
+int n = int_of("42");    // 42
+int m = int_of(3.9);     // 3
+int bad = int_of("hi");  // 0
 ```
 
 ### `float_of(v)`
 
-Parses a value as a float.
+Parses a value as a float. Returns `0.0` on failure.
+
+> Use `global.typing.isNumeric(s)` to validate before converting when `0.0` could be a valid result.
 
 ```c
-float f = float_of("1.5");   // 1.5
+float f = float_of("1.5");    // 1.5
+float bad = float_of("hi");   // 0.0
 ```
 
 ---
@@ -60,30 +79,36 @@ float f = float_of("1.5");   // 1.5
 
 ### `returnType(v)`
 
-Returns the type name of `v` as a string.
+Returns the type name of `v` as a `str`.
 
 | Value | Result |
 |-------|--------|
 | `42` | `"int"` |
 | `3.14` | `"float"` |
 | `"hi"` | `"str"` |
-| `true` | `"bool"` |
+| `true` / `false` | `"bool"` |
 | `none` | `"none"` |
-| list from `seqFromTo` | `"list"` |
+| list | `"list"` |
+| vargroup | `"vargroup"` |
 | a function | `"function"` |
 
 ```c
-print(returnType(42));      // int
-print(returnType("hello")); // str
+print(returnType(42));            // int
+print(returnType("hello"));      // str
+print(returnType(true));         // bool
+print(returnType(seqFromTo(0,2,1))); // list
+
+vargroup cfg = [str host = "localhost", int port = 8080];
+print(returnType(cfg));           // vargroup
 ```
 
 ### `returnLength(v)`
 
-Returns the length of a `str` or a `list`.
+Returns the number of characters in a `str`, or the number of elements in a `list`.
 
 ```c
-print(returnLength("hello"));        // 5
-print(returnLength(seqFromTo(0,5,1))); // 5
+print(returnLength("hello"));             // 5
+print(returnLength(seqFromTo(0, 5, 1)));  // 5
 ```
 
 ---
@@ -92,25 +117,104 @@ print(returnLength(seqFromTo(0,5,1))); // 5
 
 ### `seqFromTo(start, stop, step)`
 
-Builds a list of integers like Python's `range()`.
+Returns a `list` of integers identical to Python's `range(start, stop, step)`.
 
 ```c
 any nums = seqFromTo(0, 10, 2);  // [0, 2, 4, 6, 8]
-any odds = seqFromTo(1, 10, 2);  // [1, 3, 5, 7, 9]
 any down = seqFromTo(5, 0, -1);  // [5, 4, 3, 2, 1]
+any empty = seqFromTo(0, 0, 1);  // []  — empty list
 ```
 
 `step` must not be `0`.
 
 ---
 
+## List operations
+
+All list operations work with values produced by `seqFromTo()` or built up with `listPush()`. See [lists.md](lists.md) for a full tutorial.
+
+> **Value semantics:** `listPush`, `listSet`, and `listRemove` return a **new** list. Always reassign:
+> ```c
+> lst = listPush(lst, val);   // ✓ correct
+> listPush(lst, val);          // ✗ original unchanged
+> ```
+
+### `listPush(lst, val)` → `list`
+Return new list with `val` appended.
+
+### `listPop(lst)` → value
+Return the last element (does not modify the original).
+
+### `listGet(lst, idx)` → value
+Return element at `idx`. Negative indices count from the end (`-1` = last).
+
+### `listSet(lst, idx, val)` → `list`
+Return new list with element at `idx` replaced.
+
+### `listRemove(lst, idx)` → `list`
+Return new list with element at `idx` removed.
+
+### `listSlice(lst, start, stop)` → `list`
+Return new list with elements from `start` up to (not including) `stop`.
+
+### `listContains(lst, val)` → `bool`
+Return `true` if `val` is in `lst`.
+
+### `listJoin(lst, sep)` → `str`
+Concatenate all elements as strings, separated by `sep`.
+
+### `listIndex(lst, val)` → `int`
+Return the index of the first match, or `-1` if not found.
+
+### `anyOf(lst)` → `bool`
+Return `true` if at least one element is truthy.
+
+### `allOf(lst)` → `bool`
+Return `true` if every element is truthy.
+
+### `sumOf(lst)` → number
+Return the sum of all numeric elements.
+
+### `sortList(lst)` / `sortList(lst, reverse)` → `list`
+Return new sorted list. Pass `true` as second argument to sort descending.
+
+### `reverseList(lst)` → `list`
+Return new list with elements in reverse order.
+
+### `listMin(lst)` → value
+Return the smallest element.
+
+### `listMax(lst)` → value
+Return the largest element.
+
+### `splitStr(s, sep)` → `list`
+Split string `s` by separator `sep` and return a list of strings.
+
+```c
+any parts = splitStr("a,b,c", ",");  // [a, b, c]
+```
+
+### `listFlatten(lst)` → `list`
+Flatten one level of nested lists.
+
+### `listUnique(lst)` → `list`
+Return new list with duplicate values removed (order preserved).
+
+### `listJsonArray(lst)` → `str`
+Serialize a list to a JSON array string.
+
+### `listJsonObject(lst)` → `str`
+Build a JSON object string from a flat alternating key/value list. The list must have an even number of elements.
+
+---
+
 ## rawPy / rawPyx
 
-See [rawpy.md](rawpy.md) for the block and string forms.
+See [language.md](language.md#rawpy-and-rawpyx) for full bridging rules.
 
 ### `rawPy("code")`
 
-Execute a Python one-liner (stdout only, no variable bridging).
+Execute a Python one-liner. No variable bridging — stdout only.
 
 ```c
 rawPy("print('hello from Python')");
@@ -118,7 +222,7 @@ rawPy("print('hello from Python')");
 
 ### `rawPyx("code")`
 
-Compile and execute a Cython one-liner.
+Compile and execute a Cython one-liner. Requires Cython.
 
 ```c
 rawPyx("print('hello from Cython')");
@@ -130,8 +234,7 @@ rawPyx("print('hello from Cython')");
 
 ### `cleanRawPyxCache()`
 
-Deletes the Cython inline cache (`~/.cython/inline/`).  
-Useful when a cached `.so` becomes corrupted.
+Deletes the Cython inline cache (`~/.cython/inline/`). Useful when a cached `.so` becomes corrupted.
 
 ```c
 cleanRawPyxCache();

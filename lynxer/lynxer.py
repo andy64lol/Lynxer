@@ -146,6 +146,8 @@ TT_SHL = "SHL"
 TT_SHR = "SHR"
 TT_RAWPY_BLOCK = "RAWPY_BLOCK"
 TT_RAWPYX_BLOCK = "RAWPYX_BLOCK"
+TT_LBRACKET = "LBRACKET"
+TT_RBRACKET = "RBRACKET"
 TT_EOF = "EOF"
 
 TYPE_KEYWORDS = ["int", "float", "str", "bool", "any"]
@@ -157,6 +159,7 @@ KEYWORDS = [
     "return", "import",
     "true", "false", "none",
     "and", "or", "not", "is",
+    "vargroup",
 ]
 
 
@@ -302,6 +305,12 @@ class Lexer:
                 self.advance()
             elif self.current_char == ".":
                 tokens.append(Token(TT_DOT, pos_start=self.pos))
+                self.advance()
+            elif self.current_char == "[":
+                tokens.append(Token(TT_LBRACKET, pos_start=self.pos))
+                self.advance()
+            elif self.current_char == "]":
+                tokens.append(Token(TT_RBRACKET, pos_start=self.pos))
                 self.advance()
             else:
                 pos_start = self.pos.copy()
@@ -627,6 +636,48 @@ class ProgramNode:
         self.pos_end = pos_end
 
 
+class VarGroupDeclNode:
+    """vargroup name = [ fields ]; — fields is list of (type_str, name_tok, value_node)"""
+    def __init__(self, name_tok, fields, pos_start, pos_end):
+        self.name_tok = name_tok
+        # fields: list of (type_str, name_tok, value_node_or_VarGroupDeclNode)
+        self.fields = fields
+        self.pos_start = pos_start
+        self.pos_end = pos_end
+
+
+class DotAssignNode:
+    """type obj.field = value  (typed dot-path assignment into a vargroup)"""
+    def __init__(self, obj_node, attr_name_tok, value_node, decl_type, pos_start, pos_end):
+        self.obj_node = obj_node
+        self.attr_name_tok = attr_name_tok
+        self.value_node = value_node
+        self.decl_type = decl_type  # type keyword given at the assignment site
+        self.pos_start = pos_start
+        self.pos_end = pos_end
+
+
+class AddVarGroupNode:
+    """addVarGroup(path_expr, type name = value)"""
+    def __init__(self, path_node, field_type, field_name_tok, field_value_node,
+                 pos_start, pos_end):
+        self.path_node = path_node
+        self.field_type = field_type
+        self.field_name_tok = field_name_tok
+        self.field_value_node = field_value_node
+        self.pos_start = pos_start
+        self.pos_end = pos_end
+
+
+class RemoveVarGroupNode:
+    """removeVarGroup(path_expr, fieldName)"""
+    def __init__(self, path_node, field_name_tok, pos_start, pos_end):
+        self.path_node = path_node
+        self.field_name_tok = field_name_tok
+        self.pos_start = pos_start
+        self.pos_end = pos_end
+
+
 # parse result
 
 
@@ -751,6 +802,16 @@ class Parser:
                         "Put globals in setup() and logic in a function such as 'void main(){}'",
                     )
                 )
+
+        if setup_func is None and self._require_main:
+            return res.failure(
+                InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "Program requires a 'void setup(){}' function. "
+                    "Add 'void setup(){}' before 'void main()'.",
+                )
+            )
 
         if main_func is None and self._require_main:
             return res.failure(
@@ -919,6 +980,16 @@ class Parser:
                 return res
             return res.success(node)
 
+        if self.current_tok.matches(TT_KEYWORD, "void"):
+            return res.failure(
+                InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "'void' function definitions must be at the top level of the file, "
+                    "not inside another function. Move the function before 'void main(){}'.",
+                )
+            )
+
         if self.current_tok.matches(TT_KEYWORD, "if"):
             node = res.register(self.parse_if())
             if res.error:
@@ -950,13 +1021,55 @@ class Parser:
             return res.success(node)
 
         if self.is_type_keyword():
+            # typed dot-assignment: int vg.field = value;
+            next1 = self.peek(1)
+            next2 = self.peek(2)
+            if next1 and next1.type == TT_IDENTIFIER and next2 and next2.type == TT_DOT:
+                node = res.register(self.parse_typed_dot_assign())
+                if res.error:
+                    return res
+                return res.success(node)
             node = res.register(self.parse_var_decl())
+            if res.error:
+                return res
+            return res.success(node)
+
+        if self.current_tok.matches(TT_KEYWORD, "vargroup"):
+            # typed dot-assignment with vargroup type: vargroup vg.field = val;
+            next1 = self.peek(1)
+            next2 = self.peek(2)
+            if next1 and next1.type == TT_IDENTIFIER and next2 and next2.type == TT_DOT:
+                node = res.register(self.parse_typed_dot_assign())
+                if res.error:
+                    return res
+                return res.success(node)
+            node = res.register(self.parse_vargroup_decl())
             if res.error:
                 return res
             return res.success(node)
 
         if self.current_tok.type == TT_IDENTIFIER:
             next_tok = self.peek(1)
+
+            if (
+                self.current_tok.value == "addVarGroup"
+                and next_tok
+                and next_tok.type == TT_LPAREN
+            ):
+                node = res.register(self.parse_add_vargroup())
+                if res.error:
+                    return res
+                return res.success(node)
+
+            if (
+                self.current_tok.value == "removeVarGroup"
+                and next_tok
+                and next_tok.type == TT_LPAREN
+            ):
+                node = res.register(self.parse_remove_vargroup())
+                if res.error:
+                    return res
+                return res.success(node)
 
             if (
                 self.current_tok.value == "rawPy"
@@ -993,6 +1106,18 @@ class Parser:
             expr = res.register(self.parse_expr())
             if res.error:
                 return res
+
+            # Untyped dot-assignment is not allowed — tell the user to add a type
+            if isinstance(expr, DotAccessNode) and self.current_tok.type == TT_EQ:
+                return res.failure(
+                    InvalidSyntaxError(
+                        expr.pos_start,
+                        self.current_tok.pos_end,
+                        "vargroup field assignment requires an explicit type. "
+                        "Use: type vargroup.field = value;  e.g.  int player.coins = 500;",
+                    )
+                )
+
             if self.current_tok.type != TT_SEMICOLON:
                 return res.failure(
                     InvalidSyntaxError(
@@ -1137,6 +1262,513 @@ class Parser:
             value = BinOpNode(VarAccessNode(name_tok), Token(TT_MINUS), value)
 
         return res.success(VarAssignNode(name_tok, value))
+
+    # ------------------------------------------------------------------ vargroup
+
+    def parse_typed_dot_assign(self):
+        """type vg.field = value;  or  type vg.a.b.field = value;"""
+        res = ParseResult()
+        pos_start = self.current_tok.pos_start.copy()
+
+        type_tok = self.current_tok
+        decl_type = type_tok.value  # e.g. "int", "str", "vargroup"
+        res.register_advancement()
+        self.advance()
+
+        expr = res.register(self.parse_expr())
+        if res.error:
+            return res
+
+        if not isinstance(expr, DotAccessNode):
+            return res.failure(
+                InvalidSyntaxError(
+                    pos_start,
+                    self.current_tok.pos_start,
+                    "Expected a dot-path (e.g. player.coins) after type keyword in vargroup assignment",
+                )
+            )
+
+        if self.current_tok.type != TT_EQ:
+            return res.failure(
+                InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "Expected '=' in vargroup field assignment",
+                )
+            )
+        res.register_advancement()
+        self.advance()
+
+        rhs = res.register(self.parse_expr())
+        if res.error:
+            return res
+
+        if self.current_tok.type != TT_SEMICOLON:
+            return res.failure(
+                InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "Expected ';' after vargroup field assignment",
+                )
+            )
+        pos_end = self.current_tok.pos_end.copy()
+        res.register_advancement()
+        self.advance()
+
+        return res.success(
+            DotAssignNode(expr.obj_node, expr.attr_name_tok, rhs, decl_type, pos_start, pos_end)
+        )
+
+    def parse_vargroup_field(self):
+        """Parse one field inside a vargroup body: type name = value  OR  vargroup name = [...]"""
+        res = ParseResult()
+        pos_start = self.current_tok.pos_start.copy()
+
+        if self.current_tok.matches(TT_KEYWORD, "vargroup"):
+            # nested vargroup field
+            res.register_advancement()
+            self.advance()
+
+            if self.current_tok.type != TT_IDENTIFIER:
+                return res.failure(
+                    InvalidSyntaxError(
+                        self.current_tok.pos_start,
+                        self.current_tok.pos_end,
+                        "Expected nested vargroup name",
+                    )
+                )
+            name_tok = self.current_tok
+            res.register_advancement()
+            self.advance()
+
+            if self.current_tok.type != TT_EQ:
+                return res.failure(
+                    InvalidSyntaxError(
+                        self.current_tok.pos_start,
+                        self.current_tok.pos_end,
+                        "Expected '=' after nested vargroup name",
+                    )
+                )
+            res.register_advancement()
+            self.advance()
+
+            if self.current_tok.type != TT_LBRACKET:
+                return res.failure(
+                    InvalidSyntaxError(
+                        self.current_tok.pos_start,
+                        self.current_tok.pos_end,
+                        "Expected '[' to open nested vargroup body",
+                    )
+                )
+            res.register_advancement()
+            self.advance()
+
+            nested_fields = []
+            while self.current_tok.type != TT_RBRACKET:
+                if self.current_tok.type == TT_EOF:
+                    return res.failure(
+                        InvalidSyntaxError(
+                            self.current_tok.pos_start,
+                            self.current_tok.pos_end,
+                            "Expected ']' to close nested vargroup",
+                        )
+                    )
+                f = res.register(self.parse_vargroup_field())
+                if res.error:
+                    return res
+                nested_fields.append(f)
+                if self.current_tok.type == TT_COMMA:
+                    res.register_advancement()
+                    self.advance()
+                elif self.current_tok.type != TT_RBRACKET:
+                    return res.failure(
+                        InvalidSyntaxError(
+                            self.current_tok.pos_start,
+                            self.current_tok.pos_end,
+                            "Expected ',' or ']' in nested vargroup body",
+                        )
+                    )
+
+            pos_end = self.current_tok.pos_end.copy()
+            res.register_advancement()
+            self.advance()  # consume ']'
+
+            nested_node = VarGroupDeclNode(name_tok, nested_fields, pos_start, pos_end)
+            return res.success(("vargroup", name_tok, nested_node))
+
+        # regular field: type name = expr
+        if not self.is_type_keyword():
+            return res.failure(
+                InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "Expected a type keyword or 'vargroup' for field declaration",
+                )
+            )
+        type_tok = self.current_tok
+        res.register_advancement()
+        self.advance()
+
+        if self.current_tok.type != TT_IDENTIFIER:
+            return res.failure(
+                InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "Expected field name",
+                )
+            )
+        name_tok = self.current_tok
+        res.register_advancement()
+        self.advance()
+
+        if self.current_tok.type != TT_EQ:
+            return res.failure(
+                InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "Expected '=' after field name",
+                )
+            )
+        res.register_advancement()
+        self.advance()
+
+        value_node = res.register(self.parse_expr())
+        if res.error:
+            return res
+
+        return res.success((type_tok.value, name_tok, value_node))
+
+    def parse_vargroup_decl(self):
+        """Parse: vargroup name = [ fields... ]; """
+        res = ParseResult()
+        pos_start = self.current_tok.pos_start.copy()
+        res.register_advancement()
+        self.advance()  # consume 'vargroup'
+
+        if self.current_tok.type != TT_IDENTIFIER:
+            return res.failure(
+                InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "Expected vargroup name",
+                )
+            )
+        name_tok = self.current_tok
+        res.register_advancement()
+        self.advance()
+
+        if self.current_tok.type != TT_EQ:
+            return res.failure(
+                InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "Expected '=' after vargroup name",
+                )
+            )
+        res.register_advancement()
+        self.advance()
+
+        if self.current_tok.type != TT_LBRACKET:
+            return res.failure(
+                InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "Expected '[' to open vargroup body",
+                )
+            )
+        res.register_advancement()
+        self.advance()
+
+        fields = []
+        while self.current_tok.type != TT_RBRACKET:
+            if self.current_tok.type == TT_EOF:
+                return res.failure(
+                    InvalidSyntaxError(
+                        self.current_tok.pos_start,
+                        self.current_tok.pos_end,
+                        "Expected ']' to close vargroup",
+                    )
+                )
+            field = res.register(self.parse_vargroup_field())
+            if res.error:
+                return res
+            fields.append(field)
+            if self.current_tok.type == TT_COMMA:
+                res.register_advancement()
+                self.advance()
+            elif self.current_tok.type != TT_RBRACKET:
+                return res.failure(
+                    InvalidSyntaxError(
+                        self.current_tok.pos_start,
+                        self.current_tok.pos_end,
+                        "Expected ',' or ']' in vargroup body",
+                    )
+                )
+
+        res.register_advancement()
+        self.advance()  # consume ']'
+
+        if self.current_tok.type != TT_SEMICOLON:
+            return res.failure(
+                InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "Expected ';' after vargroup declaration",
+                )
+            )
+        pos_end = self.current_tok.pos_end.copy()
+        res.register_advancement()
+        self.advance()
+
+        return res.success(VarGroupDeclNode(name_tok, fields, pos_start, pos_end))
+
+    def parse_add_vargroup(self):
+        """Parse: addVarGroup(path_expr, type name = value); """
+        res = ParseResult()
+        pos_start = self.current_tok.pos_start.copy()
+        res.register_advancement()
+        self.advance()  # consume 'addVarGroup'
+
+        if self.current_tok.type != TT_LPAREN:
+            return res.failure(
+                InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "Expected '(' after addVarGroup",
+                )
+            )
+        res.register_advancement()
+        self.advance()
+
+        # first argument: path expression (vargroup variable / dot chain)
+        path_node = res.register(self.parse_expr())
+        if res.error:
+            return res
+
+        if self.current_tok.type != TT_COMMA:
+            return res.failure(
+                InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "Expected ',' after path in addVarGroup",
+                )
+            )
+        res.register_advancement()
+        self.advance()
+
+        # second argument: field declaration  — either "type name = value" or "vargroup name = [...]"
+        if self.current_tok.matches(TT_KEYWORD, "vargroup"):
+            res.register_advancement()
+            self.advance()
+            field_type = "vargroup"
+
+            if self.current_tok.type != TT_IDENTIFIER:
+                return res.failure(
+                    InvalidSyntaxError(
+                        self.current_tok.pos_start,
+                        self.current_tok.pos_end,
+                        "Expected field name",
+                    )
+                )
+            field_name_tok = self.current_tok
+            res.register_advancement()
+            self.advance()
+
+            if self.current_tok.type != TT_EQ:
+                return res.failure(
+                    InvalidSyntaxError(
+                        self.current_tok.pos_start,
+                        self.current_tok.pos_end,
+                        "Expected '='",
+                    )
+                )
+            res.register_advancement()
+            self.advance()
+
+            if self.current_tok.type != TT_LBRACKET:
+                return res.failure(
+                    InvalidSyntaxError(
+                        self.current_tok.pos_start,
+                        self.current_tok.pos_end,
+                        "Expected '[' to open nested vargroup body",
+                    )
+                )
+            res.register_advancement()
+            self.advance()
+
+            nested_fields = []
+            while self.current_tok.type != TT_RBRACKET:
+                if self.current_tok.type == TT_EOF:
+                    return res.failure(
+                        InvalidSyntaxError(
+                            self.current_tok.pos_start,
+                            self.current_tok.pos_end,
+                            "Expected ']' to close nested vargroup",
+                        )
+                    )
+                f = res.register(self.parse_vargroup_field())
+                if res.error:
+                    return res
+                nested_fields.append(f)
+                if self.current_tok.type == TT_COMMA:
+                    res.register_advancement()
+                    self.advance()
+                elif self.current_tok.type != TT_RBRACKET:
+                    return res.failure(
+                        InvalidSyntaxError(
+                            self.current_tok.pos_start,
+                            self.current_tok.pos_end,
+                            "Expected ',' or ']'",
+                        )
+                    )
+
+            res.register_advancement()
+            self.advance()  # consume ']'
+
+            field_value_node = VarGroupDeclNode(
+                field_name_tok, nested_fields,
+                field_name_tok.pos_start, self.current_tok.pos_start,
+            )
+        else:
+            if not self.is_type_keyword():
+                return res.failure(
+                    InvalidSyntaxError(
+                        self.current_tok.pos_start,
+                        self.current_tok.pos_end,
+                        "Expected a type keyword or 'vargroup' for field declaration",
+                    )
+                )
+            type_tok = self.current_tok
+            field_type = type_tok.value
+            res.register_advancement()
+            self.advance()
+
+            if self.current_tok.type != TT_IDENTIFIER:
+                return res.failure(
+                    InvalidSyntaxError(
+                        self.current_tok.pos_start,
+                        self.current_tok.pos_end,
+                        "Expected field name",
+                    )
+                )
+            field_name_tok = self.current_tok
+            res.register_advancement()
+            self.advance()
+
+            if self.current_tok.type != TT_EQ:
+                return res.failure(
+                    InvalidSyntaxError(
+                        self.current_tok.pos_start,
+                        self.current_tok.pos_end,
+                        "Expected '='",
+                    )
+                )
+            res.register_advancement()
+            self.advance()
+
+            field_value_node = res.register(self.parse_expr())
+            if res.error:
+                return res
+
+        if self.current_tok.type != TT_RPAREN:
+            return res.failure(
+                InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "Expected ')'",
+                )
+            )
+        res.register_advancement()
+        self.advance()
+
+        if self.current_tok.type != TT_SEMICOLON:
+            return res.failure(
+                InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "Expected ';' after addVarGroup",
+                )
+            )
+        pos_end = self.current_tok.pos_end.copy()
+        res.register_advancement()
+        self.advance()
+
+        return res.success(
+            AddVarGroupNode(path_node, field_type, field_name_tok, field_value_node,
+                            pos_start, pos_end)
+        )
+
+    def parse_remove_vargroup(self):
+        """Parse: removeVarGroup(path_expr, fieldName); """
+        res = ParseResult()
+        pos_start = self.current_tok.pos_start.copy()
+        res.register_advancement()
+        self.advance()  # consume 'removeVarGroup'
+
+        if self.current_tok.type != TT_LPAREN:
+            return res.failure(
+                InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "Expected '(' after removeVarGroup",
+                )
+            )
+        res.register_advancement()
+        self.advance()
+
+        path_node = res.register(self.parse_expr())
+        if res.error:
+            return res
+
+        if self.current_tok.type != TT_COMMA:
+            return res.failure(
+                InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "Expected ',' after path in removeVarGroup",
+                )
+            )
+        res.register_advancement()
+        self.advance()
+
+        if self.current_tok.type != TT_IDENTIFIER:
+            return res.failure(
+                InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "Expected field name to remove",
+                )
+            )
+        field_name_tok = self.current_tok
+        res.register_advancement()
+        self.advance()
+
+        if self.current_tok.type != TT_RPAREN:
+            return res.failure(
+                InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "Expected ')'",
+                )
+            )
+        res.register_advancement()
+        self.advance()
+
+        if self.current_tok.type != TT_SEMICOLON:
+            return res.failure(
+                InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "Expected ';' after removeVarGroup",
+                )
+            )
+        pos_end = self.current_tok.pos_end.copy()
+        res.register_advancement()
+        self.advance()
+
+        return res.success(RemoveVarGroupNode(path_node, field_name_tok, pos_start, pos_end))
+
+    # ------------------------------------------------------------------ /vargroup
 
     def parse_import(self):
         res = ParseResult()
@@ -2054,6 +2686,8 @@ class Number(Value):
         return self.value != 0
 
     def __str__(self):
+        if self.is_bool:
+            return "true" if self.value else "false"
         v = self.value
         if isinstance(v, float) and v == int(v):
             return str(int(v))
@@ -2175,6 +2809,8 @@ def value_type_name(v):
         return "str"
     if isinstance(v, List):
         return "list"
+    if isinstance(v, VarGroup):
+        return "vargroup"
     if isinstance(v, (Function, BuiltInFunction)):
         return "function"
     return "any"
@@ -2189,6 +2825,8 @@ def type_matches(declared_type, value):
     actual = value_type_name(value)
     if declared_type in NUMERIC_TYPES:
         return actual in NUMERIC_TYPES
+    if declared_type == "vargroup":
+        return actual == "vargroup"
     return actual == declared_type
 
 
@@ -2306,6 +2944,28 @@ class BuiltInFunction(BaseFunction):
     returnLength: ClassVar["BuiltInFunction"]
     seqFromTo: ClassVar["BuiltInFunction"]
     cleanRawPyxCache: ClassVar["BuiltInFunction"]
+    # list built-ins
+    splitStr: ClassVar["BuiltInFunction"]
+    listFlatten: ClassVar["BuiltInFunction"]
+    listUnique: ClassVar["BuiltInFunction"]
+    listJsonArray: ClassVar["BuiltInFunction"]
+    listJsonObject: ClassVar["BuiltInFunction"]
+    listPush: ClassVar["BuiltInFunction"]
+    listPop: ClassVar["BuiltInFunction"]
+    listGet: ClassVar["BuiltInFunction"]
+    listSet: ClassVar["BuiltInFunction"]
+    listSlice: ClassVar["BuiltInFunction"]
+    listContains: ClassVar["BuiltInFunction"]
+    listJoin: ClassVar["BuiltInFunction"]
+    listIndex: ClassVar["BuiltInFunction"]
+    listRemove: ClassVar["BuiltInFunction"]
+    anyOf: ClassVar["BuiltInFunction"]
+    allOf: ClassVar["BuiltInFunction"]
+    sumOf: ClassVar["BuiltInFunction"]
+    sortList: ClassVar["BuiltInFunction"]
+    reverseList: ClassVar["BuiltInFunction"]
+    listMin: ClassVar["BuiltInFunction"]
+    listMax: ClassVar["BuiltInFunction"]
 
     def __init__(self, name):
         super().__init__(name)
@@ -2337,6 +2997,12 @@ class BuiltInFunction(BaseFunction):
     def execute_print(self, args, exec_ctx):
         output = "".join(str(a) for a in args)
         sys.stdout.write(output)
+        sys.stdout.flush()
+        return RTResult().success(Number.null)
+
+    def execute_println(self, args, exec_ctx):
+        output = "".join(str(a) for a in args)
+        sys.stdout.write(output + "\n")
         sys.stdout.flush()
         return RTResult().success(Number.null)
 
@@ -2534,8 +3200,342 @@ class BuiltInFunction(BaseFunction):
             ))
         return RTResult().success(Number.null)
 
+    # ── list built-ins ────────────────────────────────────────────────────────
+
+    def execute_listJsonArray(self, args, exec_ctx):
+        import json as _json
+        if len(args) != 1 or not isinstance(args[0], List):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "listJsonArray(list) expects a list",
+                exec_ctx,
+            ))
+        try:
+            items = [e.value if isinstance(e, (Number, String)) else str(e)
+                     for e in args[0].elements]
+            return RTResult().success(String(_json.dumps(items)))
+        except Exception as e:
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                f"listJsonArray() failed: {e}",
+                exec_ctx,
+            ))
+
+    def execute_listJsonObject(self, args, exec_ctx):
+        import json as _json
+        if len(args) != 1 or not isinstance(args[0], List):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "listJsonObject(list) expects a flat key/value list",
+                exec_ctx,
+            ))
+        els = args[0].elements
+        if len(els) % 2 != 0:
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "listJsonObject() requires an even-length list (key, value, key, value, ...)",
+                exec_ctx,
+            ))
+        try:
+            obj = {}
+            for i in range(0, len(els), 2):
+                k = els[i].value if isinstance(els[i], (Number, String)) else str(els[i])
+                v = els[i + 1].value if isinstance(els[i + 1], (Number, String)) else str(els[i + 1])
+                obj[str(k)] = v
+            return RTResult().success(String(_json.dumps(obj)))
+        except Exception as e:
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                f"listJsonObject() failed: {e}",
+                exec_ctx,
+            ))
+
+    def execute_splitStr(self, args, exec_ctx):
+        if (len(args) != 2 or not isinstance(args[0], String)
+                or not isinstance(args[1], String)):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "splitStr(str, sep) expects two string arguments",
+                exec_ctx,
+            ))
+        parts = args[0].value.split(args[1].value)
+        elements = [String(p).set_context(exec_ctx) for p in parts]
+        return RTResult().success(List(elements))
+
+    def execute_listFlatten(self, args, exec_ctx):
+        if len(args) != 1 or not isinstance(args[0], List):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "listFlatten(list) expects a list",
+                exec_ctx,
+            ))
+        flat = []
+        for el in args[0].elements:
+            if isinstance(el, List):
+                flat.extend(el.elements)
+            else:
+                flat.append(el)
+        return RTResult().success(List(flat))
+
+    def execute_listUnique(self, args, exec_ctx):
+        if len(args) != 1 or not isinstance(args[0], List):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "listUnique(list) expects a list",
+                exec_ctx,
+            ))
+        seen_strs: list[str] = []
+        unique_els = []
+        for el in args[0].elements:
+            s = str(el)
+            if s not in seen_strs:
+                seen_strs.append(s)
+                unique_els.append(el)
+        return RTResult().success(List(unique_els))
+
+    def execute_listPush(self, args, exec_ctx):
+        if len(args) != 2 or not isinstance(args[0], List):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "listPush(list, item) expects a list and a value",
+                exec_ctx,
+            ))
+        new_elements = list(args[0].elements) + [args[1]]
+        return RTResult().success(List(new_elements))
+
+    def execute_listPop(self, args, exec_ctx):
+        if len(args) != 1 or not isinstance(args[0], List):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "listPop(list) expects a list",
+                exec_ctx,
+            ))
+        if not args[0].elements:
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "listPop() called on an empty list",
+                exec_ctx,
+            ))
+        return RTResult().success(args[0].elements.pop())
+
+    def execute_listGet(self, args, exec_ctx):
+        if len(args) != 2 or not isinstance(args[0], List) or not isinstance(args[1], Number):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "listGet(list, idx) expects a list and an integer index",
+                exec_ctx,
+            ))
+        lst = args[0]
+        idx = int(args[1].value)
+        if idx < -len(lst.elements) or idx >= len(lst.elements):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                f"listGet() index {idx} out of range for list of length {len(lst.elements)}",
+                exec_ctx,
+            ))
+        return RTResult().success(lst.elements[idx])
+
+    def execute_listSet(self, args, exec_ctx):
+        if len(args) != 3 or not isinstance(args[0], List) or not isinstance(args[1], Number):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "listSet(list, idx, val) expects a list, an integer index, and a value",
+                exec_ctx,
+            ))
+        lst = args[0]
+        idx = int(args[1].value)
+        if idx < -len(lst.elements) or idx >= len(lst.elements):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                f"listSet() index {idx} out of range for list of length {len(lst.elements)}",
+                exec_ctx,
+            ))
+        new_elements = list(lst.elements)
+        new_elements[idx] = args[2]
+        return RTResult().success(List(new_elements))
+
+    def execute_listSlice(self, args, exec_ctx):
+        if (len(args) != 3 or not isinstance(args[0], List)
+                or not isinstance(args[1], Number) or not isinstance(args[2], Number)):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "listSlice(list, start, stop) expects a list and two integer indices",
+                exec_ctx,
+            ))
+        start = int(args[1].value)
+        stop = int(args[2].value)
+        return RTResult().success(List(args[0].elements[start:stop]))
+
+    def execute_listContains(self, args, exec_ctx):
+        if len(args) != 2 or not isinstance(args[0], List):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "listContains(list, item) expects a list and a value",
+                exec_ctx,
+            ))
+        target = str(args[1])
+        found = any(str(e) == target for e in args[0].elements)
+        return RTResult().success(Number(1 if found else 0, is_bool=True))
+
+    def execute_listJoin(self, args, exec_ctx):
+        if len(args) != 2 or not isinstance(args[0], List) or not isinstance(args[1], String):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "listJoin(list, sep) expects a list and a string separator",
+                exec_ctx,
+            ))
+        sep = args[1].value
+        result = sep.join(str(e) for e in args[0].elements)
+        return RTResult().success(String(result))
+
+    def execute_listIndex(self, args, exec_ctx):
+        if len(args) != 2 or not isinstance(args[0], List):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "listIndex(list, item) expects a list and a value",
+                exec_ctx,
+            ))
+        target = str(args[1])
+        for i, e in enumerate(args[0].elements):
+            if str(e) == target:
+                return RTResult().success(Number(i))
+        return RTResult().success(Number(-1))
+
+    def execute_listRemove(self, args, exec_ctx):
+        if len(args) != 2 or not isinstance(args[0], List) or not isinstance(args[1], Number):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "listRemove(list, idx) expects a list and an integer index",
+                exec_ctx,
+            ))
+        lst = args[0]
+        idx = int(args[1].value)
+        if idx < -len(lst.elements) or idx >= len(lst.elements):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                f"listRemove() index {idx} out of range for list of length {len(lst.elements)}",
+                exec_ctx,
+            ))
+        new_elements = list(lst.elements)
+        new_elements.pop(idx)
+        return RTResult().success(List(new_elements))
+
+    def execute_anyOf(self, args, exec_ctx):
+        if len(args) != 1 or not isinstance(args[0], List):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "anyOf(list) expects a list",
+                exec_ctx,
+            ))
+        result = any(e.is_true() for e in args[0].elements)
+        return RTResult().success(Number(1 if result else 0, is_bool=True))
+
+    def execute_allOf(self, args, exec_ctx):
+        if len(args) != 1 or not isinstance(args[0], List):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "allOf(list) expects a list",
+                exec_ctx,
+            ))
+        result = all(e.is_true() for e in args[0].elements)
+        return RTResult().success(Number(1 if result else 0, is_bool=True))
+
+    def execute_sumOf(self, args, exec_ctx):
+        if len(args) != 1 or not isinstance(args[0], List):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "sumOf(list) expects a list",
+                exec_ctx,
+            ))
+        try:
+            total = sum(e.value for e in args[0].elements if isinstance(e, Number))
+            return RTResult().success(Number(total))
+        except Exception as e:
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                f"sumOf() failed: {e}",
+                exec_ctx,
+            ))
+
+    def _list_sort_key(self, e):
+        if isinstance(e, (Number, String)):
+            return e.value
+        return str(e)
+
+    def execute_sortList(self, args, exec_ctx):
+        if len(args) not in (1, 2) or not isinstance(args[0], List):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "sortList(list) or sortList(list, reverse) expects a list",
+                exec_ctx,
+            ))
+        reverse = args[1].is_true() if len(args) == 2 else False
+        try:
+            sorted_els = sorted(args[0].elements, key=self._list_sort_key, reverse=reverse)
+            return RTResult().success(List(sorted_els))
+        except Exception as e:
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                f"sortList() failed: {e}",
+                exec_ctx,
+            ))
+
+    def execute_reverseList(self, args, exec_ctx):
+        if len(args) != 1 or not isinstance(args[0], List):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "reverseList(list) expects a list",
+                exec_ctx,
+            ))
+        return RTResult().success(List(list(reversed(args[0].elements))))
+
+    def execute_listMin(self, args, exec_ctx):
+        if len(args) != 1 or not isinstance(args[0], List):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "listMin(list) expects a list",
+                exec_ctx,
+            ))
+        if not args[0].elements:
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "listMin() called on an empty list",
+                exec_ctx,
+            ))
+        try:
+            return RTResult().success(min(args[0].elements, key=self._list_sort_key))
+        except Exception as e:
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                f"listMin() failed: {e}",
+                exec_ctx,
+            ))
+
+    def execute_listMax(self, args, exec_ctx):
+        if len(args) != 1 or not isinstance(args[0], List):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "listMax(list) expects a list",
+                exec_ctx,
+            ))
+        if not args[0].elements:
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "listMax() called on an empty list",
+                exec_ctx,
+            ))
+        try:
+            return RTResult().success(max(args[0].elements, key=self._list_sort_key))
+        except Exception as e:
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                f"listMax() failed: {e}",
+                exec_ctx,
+            ))
+
 
 BuiltInFunction.print = BuiltInFunction("print")
+BuiltInFunction.println = BuiltInFunction("println")
 BuiltInFunction.input = BuiltInFunction("input")
 BuiltInFunction.rawPy = BuiltInFunction("rawPy")
 BuiltInFunction.rawPyx = BuiltInFunction("rawPyx")
@@ -2546,6 +3546,27 @@ BuiltInFunction.returnType = BuiltInFunction("returnType")
 BuiltInFunction.returnLength = BuiltInFunction("returnLength")
 BuiltInFunction.seqFromTo = BuiltInFunction("seqFromTo")
 BuiltInFunction.cleanRawPyxCache = BuiltInFunction("cleanRawPyxCache")
+BuiltInFunction.listJsonArray = BuiltInFunction("listJsonArray")
+BuiltInFunction.listJsonObject = BuiltInFunction("listJsonObject")
+BuiltInFunction.splitStr = BuiltInFunction("splitStr")
+BuiltInFunction.listFlatten = BuiltInFunction("listFlatten")
+BuiltInFunction.listUnique = BuiltInFunction("listUnique")
+BuiltInFunction.listPush = BuiltInFunction("listPush")
+BuiltInFunction.listPop = BuiltInFunction("listPop")
+BuiltInFunction.listGet = BuiltInFunction("listGet")
+BuiltInFunction.listSet = BuiltInFunction("listSet")
+BuiltInFunction.listSlice = BuiltInFunction("listSlice")
+BuiltInFunction.listContains = BuiltInFunction("listContains")
+BuiltInFunction.listJoin = BuiltInFunction("listJoin")
+BuiltInFunction.listIndex = BuiltInFunction("listIndex")
+BuiltInFunction.listRemove = BuiltInFunction("listRemove")
+BuiltInFunction.anyOf = BuiltInFunction("anyOf")
+BuiltInFunction.allOf = BuiltInFunction("allOf")
+BuiltInFunction.sumOf = BuiltInFunction("sumOf")
+BuiltInFunction.sortList = BuiltInFunction("sortList")
+BuiltInFunction.reverseList = BuiltInFunction("reverseList")
+BuiltInFunction.listMin = BuiltInFunction("listMin")
+BuiltInFunction.listMax = BuiltInFunction("listMax")
 
 # modules
 
@@ -2604,6 +3625,90 @@ class Module(Value):
 
     def __repr__(self):
         return f"<module {self.name}>"
+
+
+class VarGroup(Value):
+    """Runtime representation of a vargroup value.
+
+    Uses reference semantics: copy() returns self so that mutations made
+    through addVarGroup / removeVarGroup / dot-assignment are visible to
+    all references that hold the same object.
+    """
+
+    def __init__(self, name):
+        super().__init__()
+        self.name = name
+        # Ordered dict: field_name -> {"type": str, "value": Value}
+        self._fields = {}
+
+    # ---- attribute access ----
+
+    def get_attr(self, name):
+        if name not in self._fields:
+            return None, RTError(
+                self.pos_start,
+                self.pos_end,
+                f"vargroup '{self.name}' has no field '{name}'",
+                self.context,
+            )
+        return self._fields[name]["value"], None
+
+    def set_attr(self, name, value):
+        """Set an existing field.  Returns RTError on type mismatch or unknown field."""
+        if name not in self._fields:
+            return RTError(
+                self.pos_start,
+                self.pos_end,
+                f"vargroup '{self.name}' has no field '{name}'",
+                self.context,
+            )
+        decl_type = self._fields[name]["type"]
+        if not type_matches(decl_type, value):
+            return RTError(
+                self.pos_start,
+                self.pos_end,
+                f"Field '{name}' of vargroup '{self.name}' is declared as "
+                f"'{decl_type}' but received a '{value_type_name(value)}' value",
+                self.context,
+            )
+        self._fields[name]["value"] = value
+        return None  # no error
+
+    def add_field(self, field_type, name, value):
+        """Append a new field.  Returns RTError on duplicate."""
+        if name in self._fields:
+            return RTError(
+                self.pos_start,
+                self.pos_end,
+                f'Duplicate field "{name}" in vargroup \'{self.name}\'',
+                self.context,
+            )
+        self._fields[name] = {"type": field_type, "value": value}
+        return None
+
+    def remove_field(self, name):
+        """Remove a field by name.  Returns RTError if not found."""
+        if name not in self._fields:
+            return RTError(
+                self.pos_start,
+                self.pos_end,
+                f"vargroup '{self.name}' has no field '{name}'",
+                self.context,
+            )
+        del self._fields[name]
+        return None
+
+    # ---- value protocol ----
+
+    def copy(self):
+        # Reference semantics: return self so mutations are always visible.
+        return self
+
+    def __repr__(self):
+        parts = []
+        for k, info in self._fields.items():
+            parts.append(f"{info['type']} {k} = {info['value']}")
+        return f"vargroup {self.name} " + "{ " + ", ".join(parts) + " }"
 
 
 # context
@@ -2987,6 +4092,186 @@ class Interpreter:
             )
         )
 
+    # ------------------------------------------------------------------ vargroup visitors
+
+    def _build_vargroup(self, name, fields, context):
+        """Recursively construct a VarGroup from a list of (type, name_tok, value_node) tuples.
+        Does NOT register the result in the symbol table — callers do that."""
+        res = RTResult()
+        vg = VarGroup(name)
+        for field_type, name_tok, value_node in fields:
+            field_name = name_tok.value
+            if field_name in vg._fields:
+                return res.failure(
+                    RTError(
+                        name_tok.pos_start,
+                        name_tok.pos_end,
+                        f'Duplicate field "{field_name}" in vargroup \'{name}\'',
+                        context,
+                    )
+                )
+            if field_type == "vargroup":
+                # value_node is a VarGroupDeclNode — build nested VarGroup
+                nested = res.register(
+                    self._build_vargroup(
+                        value_node.name_tok.value, value_node.fields, context
+                    )
+                )
+                if res.should_return():
+                    return res
+                vg._fields[field_name] = {"type": "vargroup", "value": nested}
+            else:
+                value = res.register(self.visit(value_node, context))
+                if res.should_return():
+                    return res
+                if not type_matches(field_type, value):
+                    return res.failure(
+                        RTError(
+                            name_tok.pos_start,
+                            value_node.pos_end,
+                            f"Field '{field_name}' is declared as '{field_type}' "
+                            f"but received a '{value_type_name(value)}' value",
+                            context,
+                        )
+                    )
+                vg._fields[field_name] = {"type": field_type, "value": value}
+        return res.success(vg)
+
+    def visit_VarGroupDeclNode(self, node, context):
+        res = RTResult()
+        vg = res.register(
+            self._build_vargroup(node.name_tok.value, node.fields, context)
+        )
+        if res.should_return():
+            return res
+        context.symbol_table.set(node.name_tok.value, vg, decl_type="vargroup")
+        return res.success(vg)
+
+    def visit_DotAssignNode(self, node, context):
+        res = RTResult()
+        obj = res.register(self.visit(node.obj_node, context))
+        if res.should_return():
+            return res
+
+        if not isinstance(obj, VarGroup):
+            return res.failure(
+                RTError(
+                    node.pos_start,
+                    node.pos_end,
+                    "Dot-assignment target must be a vargroup",
+                    context,
+                )
+            )
+
+        attr_name = node.attr_name_tok.value
+
+        # The type written at the assignment site must match the field's declared type
+        if attr_name in obj._fields:
+            field_decl = obj._fields[attr_name]["type"]
+            if node.decl_type != field_decl and node.decl_type != "any" and field_decl != "any":
+                return res.failure(
+                    RTError(
+                        node.pos_start,
+                        node.pos_end,
+                        f"Type mismatch: field '{attr_name}' is declared as '{field_decl}' "
+                        f"but assignment specifies '{node.decl_type}'",
+                        context,
+                    )
+                )
+
+        value = res.register(self.visit(node.value_node, context))
+        if res.should_return():
+            return res
+
+        obj.set_context(context).set_pos(node.pos_start, node.pos_end)
+        error = obj.set_attr(attr_name, value)
+        if error:
+            error.pos_start = node.pos_start
+            error.pos_end = node.pos_end
+            error.context = context
+            return res.failure(error)
+
+        return res.success(value)
+
+    def visit_AddVarGroupNode(self, node, context):
+        res = RTResult()
+        obj = res.register(self.visit(node.path_node, context))
+        if res.should_return():
+            return res
+
+        if not isinstance(obj, VarGroup):
+            return res.failure(
+                RTError(
+                    node.pos_start,
+                    node.pos_end,
+                    "addVarGroup() first argument must be a vargroup",
+                    context,
+                )
+            )
+
+        field_name = node.field_name_tok.value
+
+        if node.field_type == "vargroup":
+            # field_value_node is a VarGroupDeclNode
+            value = res.register(
+                self._build_vargroup(
+                    field_name, node.field_value_node.fields, context
+                )
+            )
+        else:
+            value = res.register(self.visit(node.field_value_node, context))
+        if res.should_return():
+            return res
+
+        if node.field_type != "vargroup" and not type_matches(node.field_type, value):
+            return res.failure(
+                RTError(
+                    node.pos_start,
+                    node.pos_end,
+                    f"Field '{field_name}' declared as '{node.field_type}' "
+                    f"but received a '{value_type_name(value)}' value",
+                    context,
+                )
+            )
+
+        obj.set_context(context).set_pos(node.pos_start, node.pos_end)
+        error = obj.add_field(node.field_type, field_name, value)
+        if error:
+            error.pos_start = node.pos_start
+            error.pos_end = node.pos_end
+            error.context = context
+            return res.failure(error)
+
+        return res.success(Number.null)
+
+    def visit_RemoveVarGroupNode(self, node, context):
+        res = RTResult()
+        obj = res.register(self.visit(node.path_node, context))
+        if res.should_return():
+            return res
+
+        if not isinstance(obj, VarGroup):
+            return res.failure(
+                RTError(
+                    node.pos_start,
+                    node.pos_end,
+                    "removeVarGroup() first argument must be a vargroup",
+                    context,
+                )
+            )
+
+        obj.set_context(context).set_pos(node.pos_start, node.pos_end)
+        error = obj.remove_field(node.field_name_tok.value)
+        if error:
+            error.pos_start = node.pos_start
+            error.pos_end = node.pos_end
+            error.context = context
+            return res.failure(error)
+
+        return res.success(Number.null)
+
+    # ------------------------------------------------------------------ /vargroup visitors
+
     def visit_RawPyBlockNode(self, node, context):
         res = RTResult()
         py_ns = {"__builtins__": __builtins__}
@@ -3016,7 +4301,7 @@ class Interpreter:
             if name.startswith("__") or callable(val):
                 continue
             if isinstance(val, bool):
-                context.symbol_table.set(name, Number(1 if val else 0))
+                context.symbol_table.set(name, Number(1 if val else 0, is_bool=True))
             elif isinstance(val, int):
                 context.symbol_table.set(name, Number(val))
             elif isinstance(val, float):
@@ -3072,7 +4357,7 @@ class Interpreter:
             if name.startswith("__") or callable(val):
                 continue
             if isinstance(val, bool):
-                context.symbol_table.set(name, Number(1 if val else 0))
+                context.symbol_table.set(name, Number(1 if val else 0, is_bool=True))
             elif isinstance(val, int):
                 context.symbol_table.set(name, Number(val))
             elif isinstance(val, float):
@@ -3100,6 +4385,11 @@ class Interpreter:
             filename += ".lynx"
 
         module_name = os.path.splitext(os.path.basename(filename))[0]
+
+        # Idempotent: if this module is already loaded, skip re-importing
+        existing = global_symbol_table.get(module_name)
+        if isinstance(existing, Module):
+            return res.success(Number.null)
 
         file_val = global_symbol_table.get("__file__")
         base_dir = os.path.dirname(file_val.value) if file_val else ""
@@ -3135,6 +4425,7 @@ class Interpreter:
         module_table.set("true", Number.true)
         module_table.set("false", Number.false)
         module_table.set("print", BuiltInFunction.print)
+        module_table.set("println", BuiltInFunction.println)
         module_table.set("input", BuiltInFunction.input)
         module_table.set("rawPy", BuiltInFunction.rawPy)
         module_table.set("rawPyx", BuiltInFunction.rawPyx)
@@ -3145,6 +4436,27 @@ class Interpreter:
         module_table.set("returnLength", BuiltInFunction.returnLength)
         module_table.set("seqFromTo", BuiltInFunction.seqFromTo)
         module_table.set("cleanRawPyxCache", BuiltInFunction.cleanRawPyxCache)
+        module_table.set("listJsonArray", BuiltInFunction.listJsonArray)
+        module_table.set("listJsonObject", BuiltInFunction.listJsonObject)
+        module_table.set("splitStr", BuiltInFunction.splitStr)
+        module_table.set("listFlatten", BuiltInFunction.listFlatten)
+        module_table.set("listUnique", BuiltInFunction.listUnique)
+        module_table.set("listPush", BuiltInFunction.listPush)
+        module_table.set("listPop", BuiltInFunction.listPop)
+        module_table.set("listGet", BuiltInFunction.listGet)
+        module_table.set("listSet", BuiltInFunction.listSet)
+        module_table.set("listSlice", BuiltInFunction.listSlice)
+        module_table.set("listContains", BuiltInFunction.listContains)
+        module_table.set("listJoin", BuiltInFunction.listJoin)
+        module_table.set("listIndex", BuiltInFunction.listIndex)
+        module_table.set("listRemove", BuiltInFunction.listRemove)
+        module_table.set("anyOf", BuiltInFunction.anyOf)
+        module_table.set("allOf", BuiltInFunction.allOf)
+        module_table.set("sumOf", BuiltInFunction.sumOf)
+        module_table.set("sortList", BuiltInFunction.sortList)
+        module_table.set("reverseList", BuiltInFunction.reverseList)
+        module_table.set("listMin", BuiltInFunction.listMin)
+        module_table.set("listMax", BuiltInFunction.listMax)
 
         error = run_file(filepath, script, module_table)
         if error:
@@ -3196,6 +4508,7 @@ global_symbol_table = SymbolTable()
 global_symbol_table.set("true", Number.true)
 global_symbol_table.set("false", Number.false)
 global_symbol_table.set("print", BuiltInFunction.print)
+global_symbol_table.set("println", BuiltInFunction.println)
 global_symbol_table.set("input", BuiltInFunction.input)
 global_symbol_table.set("rawPy", BuiltInFunction.rawPy)
 global_symbol_table.set("rawPyx", BuiltInFunction.rawPyx)
@@ -3206,6 +4519,27 @@ global_symbol_table.set("returnType", BuiltInFunction.returnType)
 global_symbol_table.set("returnLength", BuiltInFunction.returnLength)
 global_symbol_table.set("seqFromTo", BuiltInFunction.seqFromTo)
 global_symbol_table.set("cleanRawPyxCache", BuiltInFunction.cleanRawPyxCache)
+global_symbol_table.set("listJsonArray", BuiltInFunction.listJsonArray)
+global_symbol_table.set("listJsonObject", BuiltInFunction.listJsonObject)
+global_symbol_table.set("splitStr", BuiltInFunction.splitStr)
+global_symbol_table.set("listFlatten", BuiltInFunction.listFlatten)
+global_symbol_table.set("listUnique", BuiltInFunction.listUnique)
+global_symbol_table.set("listPush", BuiltInFunction.listPush)
+global_symbol_table.set("listPop", BuiltInFunction.listPop)
+global_symbol_table.set("listGet", BuiltInFunction.listGet)
+global_symbol_table.set("listSet", BuiltInFunction.listSet)
+global_symbol_table.set("listSlice", BuiltInFunction.listSlice)
+global_symbol_table.set("listContains", BuiltInFunction.listContains)
+global_symbol_table.set("listJoin", BuiltInFunction.listJoin)
+global_symbol_table.set("listIndex", BuiltInFunction.listIndex)
+global_symbol_table.set("listRemove", BuiltInFunction.listRemove)
+global_symbol_table.set("anyOf", BuiltInFunction.anyOf)
+global_symbol_table.set("allOf", BuiltInFunction.allOf)
+global_symbol_table.set("sumOf", BuiltInFunction.sumOf)
+global_symbol_table.set("sortList", BuiltInFunction.sortList)
+global_symbol_table.set("reverseList", BuiltInFunction.reverseList)
+global_symbol_table.set("listMin", BuiltInFunction.listMin)
+global_symbol_table.set("listMax", BuiltInFunction.listMax)
 
 SHARED_INTERPRETER = Interpreter()
 

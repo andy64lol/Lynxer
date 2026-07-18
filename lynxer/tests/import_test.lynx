@@ -2,9 +2,9 @@
   import_test.lynx — regression: import() + dot-notation module access.
   Demonstrates:
     - import("greetlib")  without .lynx extension
-    - greetlib.global.GREETLIB_VERSION
-    - greetlib.global.sayHi()
-    - greetlib.global.sayHello(name)
+    - global.greetlib.GREETLIB_VERSION
+    - global.greetlib.sayHi()
+    - global.greetlib.sayHello(name)
 ///
 
 void setup(){
@@ -13,9 +13,9 @@ void setup(){
 
 void main(){
     print("greetlib version: ");
-    print(greetlib.global.GREETLIB_VERSION);
+    print(global.greetlib.GREETLIB_VERSION);
     print("\n");
 
-    greetlib.global.sayHi();
-    greetlib.global.sayHello("World");
+    global.greetlib.sayHi();
+    global.greetlib.sayHello("World");
 }

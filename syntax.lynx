@@ -19,6 +19,8 @@ void setup(){
     import("typing");
     import("fileIO");
     import("shell");
+    import("os");
+    import("json");
     const str TITLE = "Lynxer Syntax Demo";
     const int VERSION = 1;
 }
@@ -212,6 +214,148 @@ void main(){
     }
 
     global.fileIO.deleteFile("notes.txt");
+
+    // --- lists ---
+    print("\n-- lists --\n");
+
+    // build from range
+    any nums = seqFromTo(1, 6, 1);           // [1, 2, 3, 4, 5]
+    print("range: "); print(str_of(nums)); print("\n");
+
+    // push / pop — listPush returns a new list (reassign)
+    nums = listPush(nums, 99);
+    print("after push 99: "); print(str_of(nums)); print("\n");
+    int popped = listPop(nums);
+    print("last element: "); print(popped); print("\n");
+
+    // get / set — listSet returns a new list (reassign)
+    int first = listGet(nums, 0);
+    print("first: "); print(first); print("\n");
+    nums = listSet(nums, 0, 100);
+    print("after set [0]=100: "); print(str_of(nums)); print("\n");
+    nums = listSet(nums, 0, 1);  // restore
+
+    // slice
+    any sliced = listSlice(nums, 1, 4);
+    print("slice [1:4]: "); print(str_of(sliced)); print("\n");
+
+    // search
+    int idx = listIndex(nums, 3);
+    print("index of 3: "); print(idx); print("\n");
+    bool has4 = listContains(nums, 4);
+    print("contains 4: "); print(has4); print("\n");
+
+    // aggregates
+    int total2 = sumOf(nums);
+    print("sum: "); print(total2); print("\n");
+    int mn = listMin(nums);
+    int mx = listMax(nums);
+    print("min: "); print(mn); print(" max: "); print(mx); print("\n");
+    bool anyT = anyOf(nums);
+    bool allT = allOf(nums);
+    print("any: "); print(anyT); print(" all: "); print(allT); print("\n");
+
+    // sort / reverse
+    any unsorted = seqFromTo(0, 0, 1);
+    unsorted = listPush(unsorted, 5);
+    unsorted = listPush(unsorted, 2);
+    unsorted = listPush(unsorted, 8);
+    unsorted = listPush(unsorted, 1);
+    any asc  = sortList(unsorted);
+    any desc = sortList(unsorted, true);
+    any rev  = reverseList(unsorted);
+    print("sorted asc:  "); print(str_of(asc));  print("\n");
+    print("sorted desc: "); print(str_of(desc)); print("\n");
+    print("reversed:    "); print(str_of(rev));  print("\n");
+
+    // join
+    any words = seqFromTo(0, 0, 1);
+    words = listPush(words, "Lynxer");
+    words = listPush(words, "is");
+    words = listPush(words, "fun");
+    str sentence = listJoin(words, " ");
+    print("joined: "); print(sentence); print("\n");
+
+    // remove element
+    any lst2 = seqFromTo(10, 14, 1);         // [10, 11, 12, 13]
+    any lst3 = listRemove(lst2, 1);
+    print("removed idx 1: "); print(str_of(lst3)); print("\n");
+
+    // typing helpers
+    any parts = global.typing.toList("a,b,c", ",");
+    print("toList: "); print(str_of(parts)); print("\n");
+    print("isList: "); print(global.typing.isList(parts)); print("\n");
+
+    // --- os ---
+    print("\n-- os --\n");
+    str cwd = global.os.getcwd();
+    any entries = global.os.listdir(".");
+    print("entries in .: "); print(returnLength(entries)); print("\n");
+    print("cwd: "); print(cwd); print("\n");
+    str sep = global.os.sep();
+    print("sep: "); print(sep); print("\n");
+    bool cwdIsDir = global.os.isDir(cwd);
+    print("cwd is dir: "); print(cwdIsDir); print("\n");
+    str joined = global.os.joinPath(cwd, "syntax.lynx");
+    print("joinPath: "); print(joined); print("\n");
+
+    // --- json ---
+    print("\n-- json --\n");
+    str jdata = "{\"lang\":\"Lynxer\",\"version\":1}";
+    print("valid: ");   print(global.json.jsonValid(jdata));            print("\n");
+    print("keys: ");    print(global.json.jsonKeys(jdata));             print("\n");
+    print("lang: ");    print(global.json.jsonGet(jdata, "lang"));      print("\n");
+    print("version: "); print(global.json.jsonGetInt(jdata, "version")); print("\n");
+
+    any kv = seqFromTo(0, 0, 1);
+    kv = listPush(kv, "name"); kv = listPush(kv, "Lynxer");
+    kv = listPush(kv, "year"); kv = listPush(kv, "2024");
+    print(global.json.jsonObject(kv)); print("\n");
+
+    // --- vargroups ---
+    println("\n-- vargroups --");
+
+    vargroup config2 = [
+        str  host  = "localhost",
+        int  port  = 8080,
+        bool debug = true
+    ];
+    print("host: ");  println(config2.host);
+    print("port: ");  println(config2.port);
+    print("debug: "); println(config2.debug);
+    print("type: ");  println(returnType(config2));
+
+    // typed dot-assignment — type keyword required
+    int  config2.port  = 9000;
+    bool config2.debug = false;
+    print("port after set: ");  println(config2.port);
+    print("debug after set: "); println(config2.debug);
+
+    vargroup player2 = [
+        str  username = "Andy",
+        int  coins    = 500,
+        vargroup stats = [
+            int   level = 10,
+            float speed = 7.25
+        ]
+    ];
+    print("player: "); println(player2.username);
+    print("level: ");  println(player2.stats.level);
+    print("speed: ");  println(player2.stats.speed);
+
+    int player2.stats.level = 20;
+    print("level after set: "); println(player2.stats.level);
+
+    addVarGroup(player2, str title = "Warrior");
+    print("title: "); println(player2.title);
+
+    addVarGroup(player2.stats, int xp = 1200);
+    print("xp: "); println(player2.stats.xp);
+
+    removeVarGroup(player2, title);
+    removeVarGroup(player2.stats, xp);
+
+    println(str_of(config2));
 }
 
 // That's all!

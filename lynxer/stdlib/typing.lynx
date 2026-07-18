@@ -1,6 +1,8 @@
 ///
   Lynxer Standard Library — typing
-  Provides: toStr, toInt, toFloat, toBool, isNumeric, lenStr
+  Provides: toStr, toInt, toFloat, toBool, isNumeric, lenStr,
+            repeat, contains,
+            toList, isList, lenList, flatten, unique
 ///
 
 void setup(){}
@@ -51,8 +53,8 @@ void isNumeric(str s){
         except Exception:
             result = 0
     }
-    result = global.toBool(result);
-    return result;
+    if(result not is 0){ return true; }
+    return false;
 }
 
 void lenStr(str s){
@@ -72,8 +74,36 @@ void contains(str haystack, str needle){
     rawPy(){
         result = 1 if needle in haystack else 0
     }
-    result = global.toBool(result);
-    return result;
+    if(result not is 0){ return true; }
+    return false;
+}
+
+/// Splits a string by sep and returns a list. ///
+void toList(str s, str sep){
+    return splitStr(s, sep);
+}
+
+/// Returns 1 if val is a list, 0 otherwise. ///
+void isList(any val){
+    if(returnType(val) is "list"){
+        return true;
+    }
+    return false;
+}
+
+/// Returns the number of elements in a list (alias for returnLength). ///
+void lenList(any lst){
+    return returnLength(lst);
+}
+
+/// Flattens one level of nested lists into a single flat list. ///
+void flatten(any lst){
+    return listFlatten(lst);
+}
+
+/// Returns a new list with duplicate values removed (order preserved). ///
+void unique(any lst){
+    return listUnique(lst);
 }
 
 void main(){}

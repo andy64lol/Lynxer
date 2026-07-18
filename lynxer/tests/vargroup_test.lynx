@@ -1,0 +1,89 @@
+// vargroup_test.lynx
+
+void setup(){
+    // global vargroup accessible from all functions
+    vargroup config = [
+        str  host  = "localhost",
+        int  port  = 8080,
+        bool debug = true
+    ];
+}
+
+void makeGroup() {
+    vargroup local = [
+        int x = 1,
+        int y = 2
+    ];
+    println(local.x); // 1
+    println(local.y); // 2
+    int local.x = 99;
+    println(local.x); // 99
+}
+
+void main() {
+
+    // global vargroup declared in setup()
+    println(config.host);        // localhost
+    println(config.port);        // 8080
+    println(config.debug);       // true
+    println(returnType(config)); // vargroup
+
+    // typed dot-assignment — type must match field declaration
+    int  config.port  = 9000;
+    bool config.debug = false;
+    println(config.port);  // 9000
+    println(config.debug); // false
+
+    // nested vargroup — all fields must have an explicit type
+    vargroup player = [
+        str  username = "Andy",
+        int  coins    = 250,
+        bool online   = true,
+        vargroup stats = [
+            int   level = 5,
+            float speed = 3.5
+        ]
+    ];
+    println(player.username);    // Andy
+    println(player.coins);       // 250
+    println(player.stats.level); // 5
+    println(player.stats.speed); // 3.5
+
+    // nested typed dot-assignment
+    int   player.coins       = 500;
+    int   player.stats.level = 10;
+    float player.stats.speed = 7.25;
+    println(player.coins);       // 500
+    println(player.stats.level); // 10
+    println(player.stats.speed); // 7.25
+
+    // addVarGroup — type is always required
+    addVarGroup(player, str title = "Warrior");
+    println(player.title); // Warrior
+
+    addVarGroup(player.stats, int xp = 1200);
+    println(player.stats.xp); // 1200
+
+    // removeVarGroup
+    removeVarGroup(player, title);
+    removeVarGroup(player.stats, xp);
+    println(player.username);    // Andy
+    println(player.stats.level); // 10
+
+    // str_of
+    println(str_of(config)); // vargroup config { str host = localhost, int port = 9000, bool debug = false }
+
+    // vargroup inside a top-level void function
+    makeGroup();
+
+    // any-typed field — must still declare 'any' explicitly
+    vargroup bag = [
+        any item  = "sword",
+        int count = 3
+    ];
+    println(bag.item); // sword
+    any bag.item = 42;
+    println(bag.item); // 42
+
+    println("vargroup tests passed");
+}

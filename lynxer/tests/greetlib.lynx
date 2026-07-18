@@ -1,6 +1,6 @@
 ///
   greetlib.lynx — a small library for import_test.lynx
-  Demonstrates: constants and functions exported via module.global.*
+  Demonstrates: constants and functions exported via global.module.*
 ///
 
 void setup(){

@@ -1,0 +1,219 @@
+///
+  Lynxer Standard Library — os
+  Port of Python's os / os.path module.
+  Provides: getcwd, chdir, listdir, mkdir, makedirs, rmdir,
+            remove, rename, exists, isFile, isDir, joinPath, basename,
+            dirname, absPath, getenv, getpid, sep
+///
+
+void setup(){}
+
+/// Returns the current working directory as a string. ///
+void getcwd(){
+    str result = "";
+    rawPy(){
+        import os as _os
+        result = _os.getcwd()
+    }
+    return result;
+}
+
+/// Changes the current working directory to path.
+  Returns true on success, false on error. ///
+void chdir(str path){
+    bool ok = true;
+    rawPy(){
+        import os as _os
+        try:
+            _os.chdir(path)
+        except Exception:
+            ok = False
+    }
+    return ok;
+}
+
+/// Returns directory entries as a Lynxer list.
+  Returns an empty list on error or if the directory is empty. ///
+void listdir(str path){
+    str raw = "";
+    rawPy(){
+        import os as _os
+        try:
+            entries = _os.listdir(path)
+            raw = "\n".join(entries)
+        except Exception:
+            raw = ""
+    }
+    if(raw is ""){
+        return seqFromTo(0, 0, 1);
+    }
+    return splitStr(raw, "\n");
+}
+
+/// Creates a directory. Returns true on success, false on error (including if it already exists). ///
+void mkdir(str path){
+    bool ok = true;
+    rawPy(){
+        import os as _os
+        try:
+            _os.mkdir(path)
+        except Exception:
+            ok = False
+    }
+    return ok;
+}
+
+/// Creates a directory and all intermediate parents (like mkdir -p).
+  Returns true on success, false on error. ///
+void makedirs(str path){
+    bool ok = true;
+    rawPy(){
+        import os as _os
+        try:
+            _os.makedirs(path, exist_ok=True)
+        except Exception:
+            ok = False
+    }
+    return ok;
+}
+
+/// Removes an empty directory. Returns true on success, false on error. ///
+void rmdir(str path){
+    bool ok = true;
+    rawPy(){
+        import os as _os
+        try:
+            _os.rmdir(path)
+        except Exception:
+            ok = False
+    }
+    return ok;
+}
+
+/// Removes a file. Returns true on success, false on error. ///
+void remove(str path){
+    bool ok = true;
+    rawPy(){
+        import os as _os
+        try:
+            _os.remove(path)
+        except Exception:
+            ok = False
+    }
+    return ok;
+}
+
+/// Renames or moves src to dst. Returns true on success, false on error. ///
+void rename(str src, str dst){
+    bool ok = true;
+    rawPy(){
+        import os as _os
+        try:
+            _os.rename(src, dst)
+        except Exception:
+            ok = False
+    }
+    return ok;
+}
+
+/// Returns true if path exists (file or directory), false otherwise. ///
+void exists(str path){
+    bool result = false;
+    rawPy(){
+        import os as _os
+        result = _os.path.exists(path)
+    }
+    return result;
+}
+
+/// Returns true if path is a regular file. ///
+void isFile(str path){
+    bool result = false;
+    rawPy(){
+        import os as _os
+        result = _os.path.isfile(path)
+    }
+    return result;
+}
+
+/// Returns true if path is a directory. ///
+void isDir(str path){
+    bool result = false;
+    rawPy(){
+        import os as _os
+        result = _os.path.isdir(path)
+    }
+    return result;
+}
+
+/// Joins two path components with the OS separator. ///
+void joinPath(str a, str b){
+    str result = "";
+    rawPy(){
+        import os as _os
+        result = _os.path.join(a, b)
+    }
+    return result;
+}
+
+/// Returns the last component of path (the filename or directory name). ///
+void basename(str path){
+    str result = "";
+    rawPy(){
+        import os as _os
+        result = _os.path.basename(path)
+    }
+    return result;
+}
+
+/// Returns the directory portion of path. ///
+void dirname(str path){
+    str result = "";
+    rawPy(){
+        import os as _os
+        result = _os.path.dirname(path)
+    }
+    return result;
+}
+
+/// Returns the absolute path of path. ///
+void absPath(str path){
+    str result = "";
+    rawPy(){
+        import os as _os
+        result = _os.path.abspath(path)
+    }
+    return result;
+}
+
+/// Returns the value of environment variable key, or "" if not set. ///
+void getenv(str key){
+    str result = "";
+    rawPy(){
+        import os as _os
+        result = _os.environ.get(key, "")
+    }
+    return result;
+}
+
+/// Returns the current process ID as an integer. ///
+void getpid(){
+    int result = 0;
+    rawPy(){
+        import os as _os
+        result = _os.getpid()
+    }
+    return result;
+}
+
+/// Returns the OS path separator ("/" on Unix, "\" on Windows). ///
+void sep(){
+    str result = "";
+    rawPy(){
+        import os as _os
+        result = _os.sep
+    }
+    return result;
+}
+
+void main(){}
