@@ -162,17 +162,17 @@ void main(){
 
     // --- math stdlib ---
     print("\n-- math stdlib --\n");
-    print("sqrt(144)       = "); print(math.global.sqrt(144));        print("\n");
-    print("pow(2,10)       = "); print(math.global.pow(2, 10));       print("\n");
-    print("abs(-7)         = "); print(math.global.abs(-7));           print("\n");
-    print("clamp(20,0,10)  = "); print(math.global.clamp(20, 0, 10)); print("\n");
+    print("sqrt(144)       = "); print(global.math.sqrt(144));        print("\n");
+    print("pow(2,10)       = "); print(global.math.pow(2, 10));       print("\n");
+    print("abs(-7)         = "); print(global.math.abs(-7));           print("\n");
+    print("clamp(20,0,10)  = "); print(global.math.clamp(20, 0, 10)); print("\n");
 
     // --- typing stdlib ---
     print("\n-- typing stdlib --\n");
-    print("isNumeric(\"3.14\")      = "); print(typing.global.isNumeric("3.14"));          print("\n");
-    print("isNumeric(\"abc\")       = "); print(typing.global.isNumeric("abc"));            print("\n");
-    print("repeat(\"ab\",3)         = "); print(typing.global.repeat("ab", 3));             print("\n");
-    print("contains(\"foobar\",\"oba\") = "); print(typing.global.contains("foobar","oba")); print("\n");
+    print("isNumeric(\"3.14\")      = "); print(global.typing.isNumeric("3.14"));          print("\n");
+    print("isNumeric(\"abc\")       = "); print(global.typing.isNumeric("abc"));            print("\n");
+    print("repeat(\"ab\",3)         = "); print(global.typing.repeat("ab", 3));             print("\n");
+    print("contains(\"foobar\",\"oba\") = "); print(global.typing.contains("foobar","oba")); print("\n");
 
     // --- rawPy: inline Python ---
     print("\n-- rawPy --\n");

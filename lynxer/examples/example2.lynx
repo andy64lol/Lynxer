@@ -4,7 +4,7 @@ void setup(){
 void hello(){
     print("Hi");
     print("\n");
-    int n = math.global.abs(2-10);
+    int n = global.math.abs(2-10);
     print(n, "\n");
 }
 void main(){

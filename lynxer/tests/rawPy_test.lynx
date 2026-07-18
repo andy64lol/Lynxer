@@ -34,24 +34,24 @@ void main(){
 
     // math stdlib
     print("=== math ===\n");
-    print("abs(-9) = ");       print(math.global.abs(-9));         print("\n");
-    print("max(4,7) = ");      print(math.global.max(4, 7));       print("\n");
-    print("min(4,7) = ");      print(math.global.min(4, 7));       print("\n");
-    print("clamp(15,0,10) = "); print(math.global.clamp(15,0,10)); print("\n");
-    print("pow(2,8) = ");      print(math.global.pow(2, 8));       print("\n");
-    print("sqrt(144) = ");     print(math.global.sqrt(144));       print("\n");
-    print("floor(3.9) = ");    print(math.global.floor(3.9));      print("\n");
-    print("ceil(3.1) = ");     print(math.global.ceil(3.1));       print("\n");
+    print("abs(-9) = ");       print(global.math.abs(-9));         print("\n");
+    print("max(4,7) = ");      print(global.math.max(4, 7));       print("\n");
+    print("min(4,7) = ");      print(global.math.min(4, 7));       print("\n");
+    print("clamp(15,0,10) = "); print(global.math.clamp(15,0,10)); print("\n");
+    print("pow(2,8) = ");      print(global.math.pow(2, 8));       print("\n");
+    print("sqrt(144) = ");     print(global.math.sqrt(144));       print("\n");
+    print("floor(3.9) = ");    print(global.math.floor(3.9));      print("\n");
+    print("ceil(3.1) = ");     print(global.math.ceil(3.1));       print("\n");
 
     // typing stdlib
     print("=== typing ===\n");
-    print("toStr(999) = ");       print(typing.global.toStr(999));          print("\n");
-    print("toInt(\"42\") = ");    print(typing.global.toInt("42"));         print("\n");
-    print("isNumeric(\"3.14\") = "); print(typing.global.isNumeric("3.14")); print("\n");
-    print("isNumeric(\"abc\") = "); print(typing.global.isNumeric("abc"));   print("\n");
-    print("lenStr(\"hello\") = "); print(typing.global.lenStr("hello"));    print("\n");
-    print("repeat(\"ab\",3) = "); print(typing.global.repeat("ab", 3));     print("\n");
-    print("contains(\"foobar\",\"oba\") = "); print(typing.global.contains("foobar","oba")); print("\n");
+    print("toStr(999) = ");       print(global.typing.toStr(999));          print("\n");
+    print("toInt(\"42\") = ");    print(global.typing.toInt("42"));         print("\n");
+    print("isNumeric(\"3.14\") = "); print(global.typing.isNumeric("3.14")); print("\n");
+    print("isNumeric(\"abc\") = "); print(global.typing.isNumeric("abc"));   print("\n");
+    print("lenStr(\"hello\") = "); print(global.typing.lenStr("hello"));    print("\n");
+    print("repeat(\"ab\",3) = "); print(global.typing.repeat("ab", 3));     print("\n");
+    print("contains(\"foobar\",\"oba\") = "); print(global.typing.contains("foobar","oba")); print("\n");
 
     print("All tests passed!\n");
 }

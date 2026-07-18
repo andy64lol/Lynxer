@@ -92,7 +92,7 @@ void main(){
     print(result); print("\n");
 
     // stdlib
-    print(math.global.sqrt(144)); print("\n");
+    print(global.math.sqrt(144)); print("\n");
 }
 ```
 

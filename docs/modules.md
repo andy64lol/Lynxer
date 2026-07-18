@@ -25,8 +25,8 @@ The `.lynx` extension is optional — `import("math")` and `import("math.lynx")`
 After importing, access functions via `<module>.global.<function>`:
 
 ```c
-math.global.sqrt(144)
-typing.global.toStr(99)
+global.math.sqrt(144)
+global.typing.toStr(99)
 mylib.global.myFunction()
 ```
 
