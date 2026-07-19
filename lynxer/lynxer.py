@@ -160,6 +160,8 @@ KEYWORDS = [
     "true", "false", "none",
     "and", "or", "not", "is",
     "vargroup",
+    "try", "catch",
+    "async", "await",
 ]
 
 
@@ -586,12 +588,22 @@ class ForNode:
 
 class FuncDefNode:
     def __init__(
-        self, kind_tok, var_name_tok, param_toks, body_block, pos_start, pos_end
+        self, kind_tok, var_name_tok, param_toks, body_block, pos_start, pos_end,
+        is_async=False
     ):
         self.kind_tok = kind_tok
         self.var_name_tok = var_name_tok
         self.param_toks = param_toks
         self.body_block = body_block
+        self.pos_start = pos_start
+        self.pos_end = pos_end
+        self.is_async = is_async
+
+
+class AwaitNode:
+    """await expr — suspends inside an async function until the coroutine resolves."""
+    def __init__(self, expr_node, pos_start, pos_end):
+        self.expr_node = expr_node
         self.pos_start = pos_start
         self.pos_end = pos_end
 
@@ -683,6 +695,22 @@ class RemoveVarGroupNode:
         self.pos_end = pos_end
 
 
+class TryCatchNode:
+    """try { body } catch { handler }
+       try { body } catch(str varname) { handler }
+
+    If the try block raises a runtime error the handler runs instead.
+    When catch_var_tok is given, the error message is bound as a str in
+    the handler's scope under that name.
+    """
+    def __init__(self, try_block, catch_var_tok, catch_block, pos_start, pos_end):
+        self.try_block = try_block          # BlockNode
+        self.catch_var_tok = catch_var_tok  # Token (identifier) or None
+        self.catch_block = catch_block      # BlockNode
+        self.pos_start = pos_start
+        self.pos_end = pos_end
+
+
 # parse result
 
 
@@ -765,20 +793,47 @@ class Parser:
         self._require_main = require_main
 
         while self.current_tok.type != TT_EOF:
-            if self.current_tok.matches(TT_KEYWORD, "void"):
-                next_tok = self.peek(1)
+            is_async_prefix = self.current_tok.matches(TT_KEYWORD, "async")
+            is_func_kw = (
+                self.current_tok.matches(TT_KEYWORD, "void")
+                or self.current_tok.matches(TT_KEYWORD, "def")
+            )
+            if is_func_kw or is_async_prefix:
+                # Determine the function-name token to check for setup/main:
+                #   plain void/def:     peek(1) = name
+                #   async void/def:     peek(1) = void/def, peek(2) = name
+                if is_async_prefix:
+                    kind_peek = self.peek(1)
+                    if not (
+                        kind_peek
+                        and (
+                            kind_peek.matches(TT_KEYWORD, "void")
+                            or kind_peek.matches(TT_KEYWORD, "def")
+                        )
+                    ):
+                        return res.failure(
+                            InvalidSyntaxError(
+                                self.current_tok.pos_start,
+                                self.current_tok.pos_end,
+                                "Expected 'void' or 'def' after 'async' at the top level",
+                            )
+                        )
+                    func_name_tok = self.peek(2)
+                else:
+                    func_name_tok = self.peek(1)
+
                 if (
-                    next_tok
-                    and next_tok.type == TT_IDENTIFIER
-                    and next_tok.value == "setup"
+                    func_name_tok
+                    and func_name_tok.type == TT_IDENTIFIER
+                    and func_name_tok.value == "setup"
                 ):
                     setup_func = res.register(self.parse_func_def())
                     if res.error:
                         return res
                 elif (
-                    next_tok
-                    and next_tok.type == TT_IDENTIFIER
-                    and next_tok.value == "main"
+                    func_name_tok
+                    and func_name_tok.type == TT_IDENTIFIER
+                    and func_name_tok.value == "main"
                 ):
                     main_func = res.register(self.parse_func_def())
                     if res.error:
@@ -803,8 +858,8 @@ class Parser:
                         self.current_tok.pos_start,
                         self.current_tok.pos_end,
                         "Executable code is not allowed outside of a function. "
-                        "Only 'void' function definitions are permitted at the top level. "
-                        "Put globals in setup() and logic in a function such as 'void main(){}'",
+                        "Only 'void'/'def' and 'async void'/'async def' definitions are permitted "
+                        "at the top level. Put globals in setup() and entry logic in 'void main(){}'",
                     )
                 )
 
@@ -836,6 +891,13 @@ class Parser:
         res = ParseResult()
         pos_start = self.current_tok.pos_start.copy()
 
+        # Optional async prefix
+        is_async = False
+        if self.current_tok.matches(TT_KEYWORD, "async"):
+            is_async = True
+            res.register_advancement()
+            self.advance()  # consume 'async'
+
         # kind: void or def
         if not (
             self.current_tok.matches(TT_KEYWORD, "void")
@@ -845,7 +907,7 @@ class Parser:
                 InvalidSyntaxError(
                     self.current_tok.pos_start,
                     self.current_tok.pos_end,
-                    "Expected 'void' or 'def'",
+                    "Expected 'void' or 'def'" + (" after 'async'" if is_async else ""),
                 )
             )
         kind_tok = self.current_tok
@@ -922,7 +984,8 @@ class Parser:
 
         pos_end = self.current_tok.pos_end.copy()
         return res.success(
-            FuncDefNode(kind_tok, name_tok, param_toks, body, pos_start, pos_end)
+            FuncDefNode(kind_tok, name_tok, param_toks, body, pos_start, pos_end,
+                        is_async=is_async)
         )
 
     def parse_block(self, in_setup=False, allow_local_funcs=False):
@@ -979,7 +1042,14 @@ class Parser:
                 return res
             return res.success(node)
 
-        if allow_local_funcs and self.current_tok.matches(TT_KEYWORD, "def"):
+        if allow_local_funcs and (
+            self.current_tok.matches(TT_KEYWORD, "def")
+            or (
+                self.current_tok.matches(TT_KEYWORD, "async")
+                and self.peek(1)
+                and self.peek(1).matches(TT_KEYWORD, "def")
+            )
+        ):
             node = res.register(self.parse_func_def())
             if res.error:
                 return res
@@ -1012,6 +1082,29 @@ class Parser:
             if res.error:
                 return res
             return res.success(node)
+
+        if self.current_tok.matches(TT_KEYWORD, "try"):
+            node = res.register(self.parse_try_catch())
+            if res.error:
+                return res
+            return res.success(node)
+
+        if self.current_tok.matches(TT_KEYWORD, "await"):
+            # await used as a standalone statement expression: await someAsyncCall();
+            expr = res.register(self.parse_expr())
+            if res.error:
+                return res
+            if self.current_tok.type != TT_SEMICOLON:
+                return res.failure(
+                    InvalidSyntaxError(
+                        expr.pos_end,
+                        self.current_tok.pos_start,
+                        "Missing ';' after 'await' expression",
+                    )
+                )
+            res.register_advancement()
+            self.advance()
+            return res.success(expr)
 
         if self.current_tok.matches(TT_KEYWORD, "return"):
             node = res.register(self.parse_return())
@@ -1931,6 +2024,75 @@ class Parser:
         pos_end = self.current_tok.pos_end.copy()
         return res.success(WhileNode(condition, body, pos_start, pos_end))
 
+    def parse_try_catch(self):
+        res = ParseResult()
+        pos_start = self.current_tok.pos_start.copy()
+        res.register_advancement()
+        self.advance()  # consume 'try'
+
+        try_block = res.register(self.parse_block(allow_local_funcs=True))
+        if res.error:
+            return res
+
+        if not self.current_tok.matches(TT_KEYWORD, "catch"):
+            return res.failure(
+                InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "Expected 'catch' after 'try' block",
+                )
+            )
+        res.register_advancement()
+        self.advance()  # consume 'catch'
+
+        catch_var_tok = None
+        if self.current_tok.type == TT_LPAREN:
+            res.register_advancement()
+            self.advance()  # consume '('
+
+            if not (self.current_tok.type == TT_KEYWORD and self.current_tok.value == "str"):
+                return res.failure(
+                    InvalidSyntaxError(
+                        self.current_tok.pos_start,
+                        self.current_tok.pos_end,
+                        "Expected 'str' type keyword for the catch variable — e.g. catch(str err)",
+                    )
+                )
+            res.register_advancement()
+            self.advance()  # consume 'str'
+
+            if self.current_tok.type != TT_IDENTIFIER:
+                return res.failure(
+                    InvalidSyntaxError(
+                        self.current_tok.pos_start,
+                        self.current_tok.pos_end,
+                        "Expected a variable name after 'str' in catch clause",
+                    )
+                )
+            catch_var_tok = self.current_tok
+            res.register_advancement()
+            self.advance()  # consume identifier
+
+            if self.current_tok.type != TT_RPAREN:
+                return res.failure(
+                    InvalidSyntaxError(
+                        self.current_tok.pos_start,
+                        self.current_tok.pos_end,
+                        "Expected ')' to close catch clause",
+                    )
+                )
+            res.register_advancement()
+            self.advance()  # consume ')'
+
+        catch_block = res.register(self.parse_block(allow_local_funcs=True))
+        if res.error:
+            return res
+
+        pos_end = self.current_tok.pos_end.copy()
+        return res.success(
+            TryCatchNode(try_block, catch_var_tok, catch_block, pos_start, pos_end)
+        )
+
     def parse_for(self):
         res = ParseResult()
         pos_start = self.current_tok.pos_start.copy()
@@ -2397,13 +2559,28 @@ class Parser:
                 )
             )
 
+        elif tok.matches(TT_KEYWORD, "await"):
+            return self.parse_await()
+
         return res.failure(
             InvalidSyntaxError(
                 tok.pos_start,
                 tok.pos_end,
-                "Expected int, float, str, bool, none, identifier, or '('",
+                "Expected int, float, str, bool, none, identifier, '(', or 'await'",
             )
         )
+
+    def parse_await(self):
+        """await expr  — only valid inside an async function body."""
+        res = ParseResult()
+        pos_start = self.current_tok.pos_start.copy()
+        res.register_advancement()
+        self.advance()  # consume 'await'
+
+        expr = res.register(self.parse_call())
+        if res.error:
+            return res
+        return res.success(AwaitNode(expr, pos_start, expr.pos_end))
 
 
 # runtime result
@@ -2937,6 +3114,68 @@ class Function(BaseFunction):
         return f"<function {self.name}>"
 
 
+class AsyncFunction(BaseFunction):
+    """User-defined async function.  Calling it returns a CoroutineValue."""
+
+    def __init__(self, name, body_node, param_names, param_types=None):
+        super().__init__(name)
+        self.body_node = body_node
+        self.param_names = param_names
+        self.param_types = param_types or [None] * len(param_names)
+
+    def execute(self, args):
+        res = RTResult()
+        exec_ctx = self.generate_new_context()
+
+        # Validate / populate args synchronously — arg errors are sync failures
+        res.register(
+            self.check_and_populate_args(
+                self.param_names, args, exec_ctx, self.param_types
+            )
+        )
+        if res.should_return():
+            return res
+
+        body_node = self.body_node
+
+        async def _coro():
+            body_res = await SHARED_INTERPRETER.async_visit(body_node, exec_ctx)
+            if body_res.should_return() and body_res.func_return_value is None:
+                return body_res  # error / loop signal
+            ret = (
+                body_res.func_return_value
+                if body_res.func_return_value is not None
+                else Number.null
+            )
+            return RTResult().success(ret)
+
+        return RTResult().success(CoroutineValue(_coro()))
+
+    def copy(self):
+        c = AsyncFunction(self.name, self.body_node, self.param_names, self.param_types)
+        c.set_context(self.context)
+        c.set_pos(self.pos_start, self.pos_end)
+        return c
+
+    def __repr__(self):
+        return f"<async function {self.name}>"
+
+
+class CoroutineValue(Value):
+    """Wraps a Python coroutine produced by calling an AsyncFunction."""
+
+    def __init__(self, coro):
+        super().__init__()
+        self.coro = coro
+
+    def copy(self):
+        # Coroutines cannot be duplicated; return self (single-use)
+        return self
+
+    def __repr__(self):
+        return "<coroutine>"
+
+
 class BuiltInFunction(BaseFunction):
     print: ClassVar["BuiltInFunction"]
     input: ClassVar["BuiltInFunction"]
@@ -2971,6 +3210,9 @@ class BuiltInFunction(BaseFunction):
     reverseList: ClassVar["BuiltInFunction"]
     listMin: ClassVar["BuiltInFunction"]
     listMax: ClassVar["BuiltInFunction"]
+    asyncRun: ClassVar["BuiltInFunction"]
+    asyncGather: ClassVar["BuiltInFunction"]
+    asyncSleep: ClassVar["BuiltInFunction"]
 
     def __init__(self, name):
         super().__init__(name)
@@ -3538,6 +3780,83 @@ class BuiltInFunction(BaseFunction):
                 exec_ctx,
             ))
 
+    # ------------------------------------------------------------------ async built-ins
+
+    def execute_asyncRun(self, args, exec_ctx):
+        """asyncRun(coro) — run a coroutine (from an async function call) synchronously
+        via asyncio.run().  Use this in main() to drive async code."""
+        import asyncio
+        if len(args) != 1 or not isinstance(args[0], CoroutineValue):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "asyncRun(coro) expects a single coroutine argument "
+                "(the result of calling an 'async' function)",
+                exec_ctx,
+            ))
+        try:
+            coro_res = asyncio.run(args[0].coro)
+        except Exception as e:
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                f"asyncRun() raised an exception: {type(e).__name__}: {e}",
+                exec_ctx,
+            ))
+        if isinstance(coro_res, RTResult):
+            if coro_res.error:
+                return RTResult().failure(coro_res.error)
+            return RTResult().success(coro_res.value if coro_res.value is not None else Number.null)
+        return RTResult().success(Number.null)
+
+    def execute_asyncGather(self, args, exec_ctx):
+        """asyncGather(coro1, coro2, ...) — return a new coroutine that, when awaited,
+        runs all supplied coroutines concurrently and returns a list of their results."""
+        for i, arg in enumerate(args):
+            if not isinstance(arg, CoroutineValue):
+                return RTResult().failure(RTError(
+                    self.pos_start, self.pos_end,
+                    f"asyncGather() argument {i + 1} is not a coroutine "
+                    "(expected the result of calling an 'async' function)",
+                    exec_ctx,
+                ))
+
+        import asyncio
+
+        coros = [arg.coro for arg in args]
+
+        async def _gather():
+            results = await asyncio.gather(*coros)
+            elements = []
+            for r in results:
+                if isinstance(r, RTResult):
+                    if r.error:
+                        return r  # propagate first error
+                    elements.append(r.value if r.value is not None else Number.null)
+                else:
+                    elements.append(Number.null)
+            return RTResult().success(List(elements))
+
+        return RTResult().success(CoroutineValue(_gather()))
+
+    def execute_asyncSleep(self, args, exec_ctx):
+        """asyncSleep(seconds) — return a coroutine that, when awaited,
+        sleeps for the given number of seconds (float allowed)."""
+        import asyncio
+        if len(args) != 1 or not isinstance(args[0], Number):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "asyncSleep(seconds) expects a single numeric argument",
+                exec_ctx,
+            ))
+        seconds = args[0].value
+
+        async def _sleep():
+            await asyncio.sleep(seconds)
+            return RTResult().success(Number.null)
+
+        return RTResult().success(CoroutineValue(_sleep()))
+
+    # ------------------------------------------------------------------ /async built-ins
+
 
 BuiltInFunction.print = BuiltInFunction("print")
 BuiltInFunction.println = BuiltInFunction("println")
@@ -3572,6 +3891,9 @@ BuiltInFunction.sortList = BuiltInFunction("sortList")
 BuiltInFunction.reverseList = BuiltInFunction("reverseList")
 BuiltInFunction.listMin = BuiltInFunction("listMin")
 BuiltInFunction.listMax = BuiltInFunction("listMax")
+BuiltInFunction.asyncRun = BuiltInFunction("asyncRun")
+BuiltInFunction.asyncGather = BuiltInFunction("asyncGather")
+BuiltInFunction.asyncSleep = BuiltInFunction("asyncSleep")
 
 # modules
 
@@ -4035,15 +4357,427 @@ class Interpreter:
 
         return res.success(Number.null)
 
+    def visit_TryCatchNode(self, node, context):
+        res = RTResult()
+
+        # Run the try block in isolation — do not propagate its error outward
+        try_res = RTResult()
+        try_res.register(self.visit(node.try_block, context))
+
+        if try_res.error:
+            # A runtime error occurred — execute the catch block instead.
+            # Run the catch block in the same context so that assignments
+            # inside it affect the surrounding scope, just like if/else blocks.
+            if node.catch_var_tok:
+                var_name = node.catch_var_tok.value
+
+                # Enforce const invariant — cannot rebind a const variable
+                if context.symbol_table.is_const(var_name):
+                    return res.failure(RTError(
+                        node.catch_var_tok.pos_start,
+                        node.catch_var_tok.pos_end,
+                        f"Cannot bind catch variable '{var_name}': "
+                        f"it is declared as const",
+                        context,
+                    ))
+
+                # Enforce type invariant — existing typed variable must be str or any
+                existing_type = context.symbol_table.get_type(var_name)
+                if existing_type is not None and existing_type not in ("str", "any"):
+                    return res.failure(RTError(
+                        node.catch_var_tok.pos_start,
+                        node.catch_var_tok.pos_end,
+                        f"Cannot bind catch variable '{var_name}' as 'str': "
+                        f"'{var_name}' is already declared as '{existing_type}'",
+                        context,
+                    ))
+
+                # Bind the error message as a str in the current scope
+                err_str = String(try_res.error.details)
+                err_str.set_context(context)
+                context.symbol_table.set(var_name, err_str, decl_type="str")
+
+            catch_res = RTResult()
+            catch_res.register(self.visit(node.catch_block, context))
+            if catch_res.error:
+                return res.failure(catch_res.error)
+            if catch_res.func_return_value is not None:
+                return res.success_return(catch_res.func_return_value)
+            if catch_res.loop_should_break:
+                out = RTResult()
+                out.loop_should_break = True
+                return out
+            if catch_res.loop_should_continue:
+                out = RTResult()
+                out.loop_should_continue = True
+                return out
+            return res.success(Number.null)
+
+        # No error — propagate any control-flow signals from the try block
+        if try_res.func_return_value is not None:
+            return res.success_return(try_res.func_return_value)
+        if try_res.loop_should_break:
+            out = RTResult()
+            out.loop_should_break = True
+            return out
+        if try_res.loop_should_continue:
+            out = RTResult()
+            out.loop_should_continue = True
+            return out
+        return res.success(Number.null)
+
     def visit_FuncDefNode(self, node, context):
         res = RTResult()
         func_name = node.var_name_tok.value
         param_names = [p[1].value for p in node.param_toks]
         param_types = [p[0].value if p[0] else None for p in node.param_toks]
-        func_value = Function(func_name, node.body_block, param_names, param_types)
+        if node.is_async:
+            func_value = AsyncFunction(func_name, node.body_block, param_names, param_types)
+        else:
+            func_value = Function(func_name, node.body_block, param_names, param_types)
         func_value.set_context(context).set_pos(node.pos_start, node.pos_end)
         context.symbol_table.set(func_name, func_value)
         return res.success(func_value)
+
+    def visit_AwaitNode(self, node, context):
+        """Sync context — await is not allowed here."""
+        return RTResult().failure(RTError(
+            node.pos_start,
+            node.pos_end,
+            "'await' can only be used inside an 'async' function",
+            context,
+        ))
+
+    # ------------------------------------------------------------------ async visitor path
+
+    async def async_visit(self, node, context):
+        """Dispatch to async_visit_<NodeType> if available, else fall back to sync visit."""
+        method_name = f"async_visit_{type(node).__name__}"
+        method = getattr(self, method_name, None)
+        if method is not None:
+            return await method(node, context)
+        # Leaf / simple nodes (NumberNode, StringNode, BoolNode, NoneNode, VarAccessNode, etc.)
+        return self.visit(node, context)
+
+    async def async_visit_BlockNode(self, node, context):
+        res = RTResult()
+        for stmt in node.statements:
+            res.register(await self.async_visit(stmt, context))
+            if res.should_return():
+                return res
+        return res.success(Number.null)
+
+    async def async_visit_AwaitNode(self, node, context):
+        res = RTResult()
+        value = res.register(await self.async_visit(node.expr_node, context))
+        if res.should_return():
+            return res
+
+        if not isinstance(value, CoroutineValue):
+            return res.failure(RTError(
+                node.pos_start,
+                node.pos_end,
+                "Can only 'await' a coroutine (result of calling an 'async' function)",
+                context,
+            ))
+
+        coro_res = await value.coro
+        return coro_res  # coro_res is an RTResult already
+
+    async def async_visit_VarDeclNode(self, node, context):
+        res = RTResult()
+        var_name = node.var_name_tok.value
+        decl_type = node.type_tok.value if node.type_tok else None
+        value = res.register(await self.async_visit(node.value_node, context))
+        if res.should_return():
+            return res
+        if not type_matches(decl_type, value):
+            return res.failure(RTError(
+                node.pos_start, node.pos_end,
+                f"Type mismatch: '{var_name}' is declared as '{decl_type}' "
+                f"but received a '{value_type_name(value)}' value",
+                context,
+            ))
+        context.symbol_table.set(var_name, value, is_const=node.is_const, decl_type=decl_type)
+        return res.success(value)
+
+    async def async_visit_VarAssignNode(self, node, context):
+        res = RTResult()
+        var_name = node.var_name_tok.value
+        if context.symbol_table.is_const(var_name):
+            return res.failure(RTError(
+                node.pos_start, node.pos_end,
+                f"Cannot assign to constant '{var_name}'",
+                context,
+            ))
+        value = res.register(await self.async_visit(node.value_node, context))
+        if res.should_return():
+            return res
+        decl_type = context.symbol_table.get_type(var_name)
+        if not type_matches(decl_type, value):
+            return res.failure(RTError(
+                node.pos_start, node.pos_end,
+                f"Type mismatch: '{var_name}' is declared as '{decl_type}' "
+                f"but received a '{value_type_name(value)}' value",
+                context,
+            ))
+        context.symbol_table.set(var_name, value)
+        return res.success(value)
+
+    async def async_visit_BinOpNode(self, node, context):
+        res = RTResult()
+        left = res.register(await self.async_visit(node.left_node, context))
+        if res.should_return():
+            return res
+        right = res.register(await self.async_visit(node.right_node, context))
+        if res.should_return():
+            return res
+
+        op = node.op_tok
+        result, error = None, None
+        if op.type == TT_PLUS:
+            result, error = left.added_to(right)
+        elif op.type == TT_MINUS:
+            result, error = left.subbed_by(right)
+        elif op.type == TT_MUL:
+            result, error = left.multed_by(right)
+        elif op.type == TT_DIV:
+            result, error = left.dived_by(right)
+        elif op.type == TT_MOD:
+            result, error = left.modded_by(right)
+        elif op.type == TT_POW:
+            result, error = left.powed_by(right)
+        elif op.matches(TT_KEYWORD, "is"):
+            result, error = left.get_comparison_eq(right)
+        elif op.type == TT_KEYWORD and op.value == "not is":
+            result, error = left.get_comparison_ne(right)
+        elif op.type == TT_LT:
+            result, error = left.get_comparison_lt(right)
+        elif op.type == TT_GT:
+            result, error = left.get_comparison_gt(right)
+        elif op.type == TT_LTE:
+            result, error = left.get_comparison_lte(right)
+        elif op.type == TT_GTE:
+            result, error = left.get_comparison_gte(right)
+        elif op.matches(TT_KEYWORD, "and"):
+            result, error = left.anded_by(right)
+        elif op.matches(TT_KEYWORD, "or"):
+            result, error = left.ored_by(right)
+        elif op.type == TT_AMP:
+            result, error = left.bit_anded_by(right)
+        elif op.type == TT_PIPE:
+            result, error = left.bit_ored_by(right)
+        elif op.type == TT_CARET:
+            result, error = left.bit_xored_by(right)
+        elif op.type == TT_SHL:
+            result, error = left.shifted_left_by(right)
+        elif op.type == TT_SHR:
+            result, error = left.shifted_right_by(right)
+
+        if error:
+            return res.failure(error)
+        if result is None:
+            return res.failure(RTError(
+                node.pos_start, node.pos_end,
+                f"Unsupported operator '{node.op_tok.type}'", context,
+            ))
+        return res.success(result.set_pos(node.pos_start, node.pos_end))
+
+    async def async_visit_UnaryOpNode(self, node, context):
+        res = RTResult()
+        value = res.register(await self.async_visit(node.node, context))
+        if res.should_return():
+            return res
+
+        error = None
+        if node.op_tok.type == TT_MINUS:
+            value, error = value.multed_by(Number(-1))
+        elif node.op_tok.matches(TT_KEYWORD, "not"):
+            value, error = value.notted()
+        elif node.op_tok.type == TT_TILDE:
+            value, error = value.bit_notted()
+
+        if error:
+            return res.failure(error)
+        return res.success(value.set_pos(node.pos_start, node.pos_end))
+
+    async def async_visit_IfNode(self, node, context):
+        res = RTResult()
+        condition = res.register(await self.async_visit(node.condition_node, context))
+        if res.should_return():
+            return res
+        if condition.is_true():
+            res.register(await self.async_visit(node.then_block, context))
+            if res.should_return():
+                return res
+        elif node.else_block:
+            res.register(await self.async_visit(node.else_block, context))
+            if res.should_return():
+                return res
+        return res.success(Number.null)
+
+    async def async_visit_WhileNode(self, node, context):
+        res = RTResult()
+        while True:
+            condition = res.register(await self.async_visit(node.condition_node, context))
+            if res.should_return():
+                return res
+            if not condition.is_true():
+                break
+            res.register(await self.async_visit(node.body_block, context))
+            if (
+                res.should_return()
+                and not res.loop_should_continue
+                and not res.loop_should_break
+            ):
+                return res
+            if res.loop_should_break:
+                break
+            res.loop_should_continue = False
+        return res.success(Number.null)
+
+    async def async_visit_ForNode(self, node, context):
+        res = RTResult()
+        for_ctx = Context("<for>", context, node.pos_start)
+        for_ctx.symbol_table = SymbolTable(context.symbol_table)
+
+        init_res = RTResult()
+        init_res.register(await self.async_visit(node.init_node, for_ctx))
+        if init_res.error:
+            return init_res
+
+        while True:
+            cond = RTResult()
+            condition = cond.register(await self.async_visit(node.condition_node, for_ctx))
+            if cond.error:
+                return cond
+            if not condition.is_true():
+                break
+
+            body = RTResult()
+            body.register(await self.async_visit(node.body_block, for_ctx))
+            if body.error or body.func_return_value is not None:
+                return body
+            should_break = body.loop_should_break
+
+            if not should_break:
+                upd = RTResult()
+                upd.register(await self.async_visit(node.update_node, for_ctx))
+                if upd.error:
+                    return upd
+
+            if should_break:
+                break
+
+        return res.success(Number.null)
+
+    async def async_visit_TryCatchNode(self, node, context):
+        res = RTResult()
+        try_res = RTResult()
+        try_res.register(await self.async_visit(node.try_block, context))
+
+        if try_res.error:
+            if node.catch_var_tok:
+                var_name = node.catch_var_tok.value
+                if context.symbol_table.is_const(var_name):
+                    return res.failure(RTError(
+                        node.catch_var_tok.pos_start, node.catch_var_tok.pos_end,
+                        f"Cannot bind catch variable '{var_name}': it is declared as const",
+                        context,
+                    ))
+                existing_type = context.symbol_table.get_type(var_name)
+                if existing_type is not None and existing_type not in ("str", "any"):
+                    return res.failure(RTError(
+                        node.catch_var_tok.pos_start, node.catch_var_tok.pos_end,
+                        f"Cannot bind catch variable '{var_name}' as 'str': "
+                        f"'{var_name}' is already declared as '{existing_type}'",
+                        context,
+                    ))
+                err_str = String(try_res.error.details)
+                err_str.set_context(context)
+                context.symbol_table.set(var_name, err_str, decl_type="str")
+
+            catch_res = RTResult()
+            catch_res.register(await self.async_visit(node.catch_block, context))
+            if catch_res.error:
+                return res.failure(catch_res.error)
+            if catch_res.func_return_value is not None:
+                return res.success_return(catch_res.func_return_value)
+            if catch_res.loop_should_break:
+                out = RTResult(); out.loop_should_break = True; return out
+            if catch_res.loop_should_continue:
+                out = RTResult(); out.loop_should_continue = True; return out
+            return res.success(Number.null)
+
+        if try_res.func_return_value is not None:
+            return res.success_return(try_res.func_return_value)
+        if try_res.loop_should_break:
+            out = RTResult(); out.loop_should_break = True; return out
+        if try_res.loop_should_continue:
+            out = RTResult(); out.loop_should_continue = True; return out
+        return res.success(Number.null)
+
+    async def async_visit_ReturnNode(self, node, context):
+        res = RTResult()
+        if node.node_to_return:
+            value = res.register(await self.async_visit(node.node_to_return, context))
+            if res.should_return():
+                return res
+        else:
+            value = Number.null
+        return res.success_return(value)
+
+    async def async_visit_CallNode(self, node, context):
+        res = RTResult()
+        args = []
+        value_to_call = res.register(await self.async_visit(node.node_to_call, context))
+        if res.should_return():
+            return res
+        value_to_call = value_to_call.copy().set_pos(node.pos_start, node.pos_end)
+
+        for arg_node in node.arg_nodes:
+            args.append(res.register(await self.async_visit(arg_node, context)))
+            if res.should_return():
+                return res
+
+        return_value = res.register(value_to_call.execute(args))
+        if res.should_return():
+            return res
+        return_value = (
+            return_value.copy()
+            .set_pos(node.pos_start, node.pos_end)
+            .set_context(context)
+        )
+        return res.success(return_value)
+
+    async def async_visit_DotAccessNode(self, node, context):
+        res = RTResult()
+        obj = res.register(await self.async_visit(node.obj_node, context))
+        if res.should_return():
+            return res
+
+        attr_name = node.attr_name_tok.value
+        if hasattr(obj, "get_attr"):
+            value, error = obj.get_attr(attr_name)
+            if error:
+                error.pos_start = node.pos_start
+                error.pos_end = node.pos_end
+                error.context = context
+                return res.failure(error)
+            value = value.copy().set_pos(node.pos_start, node.pos_end).set_context(context)
+            return res.success(value)
+
+        return res.failure(RTError(
+            node.pos_start, node.pos_end,
+            f"Value of type '{type(obj).__name__}' does not support attribute access",
+            context,
+        ))
+
+    async def async_visit_FuncDefNode(self, node, context):
+        # Defining a function inside an async body is sync work
+        return self.visit_FuncDefNode(node, context)
+
+    # ------------------------------------------------------------------ /async visitor path
 
     def visit_CallNode(self, node, context):
         res = RTResult()
@@ -4547,6 +5281,9 @@ global_symbol_table.set("sortList", BuiltInFunction.sortList)
 global_symbol_table.set("reverseList", BuiltInFunction.reverseList)
 global_symbol_table.set("listMin", BuiltInFunction.listMin)
 global_symbol_table.set("listMax", BuiltInFunction.listMax)
+global_symbol_table.set("asyncRun", BuiltInFunction.asyncRun)
+global_symbol_table.set("asyncGather", BuiltInFunction.asyncGather)
+global_symbol_table.set("asyncSleep", BuiltInFunction.asyncSleep)
 
 SHARED_INTERPRETER = Interpreter()
 

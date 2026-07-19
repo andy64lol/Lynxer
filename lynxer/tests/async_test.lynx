@@ -1,0 +1,180 @@
+void setup() {}
+
+// ── helper: a simple async function that returns a value after a tiny sleep
+
+async def slowDouble(int n) {
+    await asyncSleep(0.01);
+    return n * 2;
+}
+
+// ── helper: async void function (no return value)
+
+async void greetAsync(str name) {
+    str msg = "hello " + name;
+    println(msg + "\n");
+}
+
+// ── TEST 1: asyncRun drives a simple async def function
+
+async def test1() {
+    any result = await slowDouble(7);
+    return result;
+}
+
+void runTest1() {
+    any got = asyncRun(test1());
+    if (got is 14) {
+        println("TEST 1 PASSED\n");
+    } else {
+        println("TEST 1 FAILED got=" + strOf(got) + "\n");
+    }
+}
+
+// ── TEST 2: asyncRun drives an async void function
+
+void runTest2() {
+    asyncRun(greetAsync("world"));
+    println("TEST 2 PASSED\n");
+}
+
+// ── TEST 3: chained await inside async
+
+async def addAsync(int a, int b) {
+    await asyncSleep(0.01);
+    return a + b;
+}
+
+async def test3() {
+    any x = await addAsync(3, 4);
+    any y = await addAsync(x, 10);
+    return y;
+}
+
+void runTest3() {
+    any got = asyncRun(test3());
+    if (got is 17) {
+        println("TEST 3 PASSED\n");
+    } else {
+        println("TEST 3 FAILED got=" + strOf(got) + "\n");
+    }
+}
+
+// ── TEST 4: asyncGather runs tasks concurrently, returns list
+
+async def test4() {
+    any results = await asyncGather(
+        slowDouble(1),
+        slowDouble(2),
+        slowDouble(3)
+    );
+    any a = listGet(results, 0);
+    any b = listGet(results, 1);
+    any c = listGet(results, 2);
+    if (a is 2 and b is 4 and c is 6) {
+        return 1;
+    }
+    return 0;
+}
+
+void runTest4() {
+    any ok = asyncRun(test4());
+    if (ok is 1) {
+        println("TEST 4 PASSED\n");
+    } else {
+        println("TEST 4 FAILED\n");
+    }
+}
+
+// ── TEST 5: await inside async + string result
+
+async def greetStr(str name) {
+    await asyncSleep(0.01);
+    return "hi " + name;
+}
+
+async def test5() {
+    any msg = await greetStr("lynxer");
+    return msg;
+}
+
+void runTest5() {
+    any got = asyncRun(test5());
+    if (got is "hi lynxer") {
+        println("TEST 5 PASSED\n");
+    } else {
+        println("TEST 5 FAILED got=" + strOf(got) + "\n");
+    }
+}
+
+// ── TEST 6: try/catch inside async
+
+async def test6() {
+    str caught = "";
+    try {
+        any x = 1 / 0;
+    } catch(str err) {
+        caught = err;
+    }
+    if (caught is "Division by zero") {
+        return "ok";
+    }
+    return "fail";
+}
+
+void runTest6() {
+    any got = asyncRun(test6());
+    if (got is "ok") {
+        println("TEST 6 PASSED\n");
+    } else {
+        println("TEST 6 FAILED got=" + strOf(got) + "\n");
+    }
+}
+
+// ── TEST 7: while loop inside async
+
+async def test7() {
+    int total = 0;
+    int i = 0;
+    while (i < 5) {
+        total = total + i;
+        i = i + 1;
+    }
+    return total;
+}
+
+void runTest7() {
+    any got = asyncRun(test7());
+    if (got is 10) {
+        println("TEST 7 PASSED\n");
+    } else {
+        println("TEST 7 FAILED got=" + strOf(got) + "\n");
+    }
+}
+
+// ── TEST 8: async void main pattern (await inside async void)
+
+async void asyncMain() {
+    any v = await slowDouble(21);
+    if (v is 42) {
+        println("TEST 8 PASSED\n");
+    } else {
+        println("TEST 8 FAILED got=" + strOf(v) + "\n");
+    }
+}
+
+void runTest8() {
+    asyncRun(asyncMain());
+}
+
+// ── run all tests
+
+void main() {
+    runTest1();
+    runTest2();
+    runTest3();
+    runTest4();
+    runTest5();
+    runTest6();
+    runTest7();
+    runTest8();
+}

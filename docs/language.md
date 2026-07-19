@@ -421,7 +421,7 @@ print(result); print("\n");   // 42
 
 ## Errors
 
-Lynxer does not have try/catch. Any runtime error **terminates the program immediately** with a message showing:
+Any unhandled runtime error **terminates the program immediately** with a message showing:
 - The error type (e.g. `Runtime Error`, `Type mismatch`)
 - The details
 - The file, line, and column
@@ -437,6 +437,143 @@ Common error types:
 - `Type mismatch` — assigning wrong type to a typed variable, or passing wrong type to a typed parameter
 - `Runtime Error` — division by zero, index out of range, undefined variable, etc.
 - `Unexpected Character` / `Missing Character` — lexer/syntax errors
+
+---
+
+## try / catch
+
+`try/catch` lets you handle runtime errors instead of letting them terminate the program.
+
+### Syntax
+
+```c
+// Form 1 — catch and bind the error message
+try {
+    // code that might fail
+} catch(str err) {
+    // err holds the error message as a string
+    print(err); print("\n");
+}
+
+// Form 2 — catch without binding the message
+try {
+    // code that might fail
+} catch {
+    print("something went wrong\n");
+}
+```
+
+### How it works
+
+- The **`try` block** runs normally.
+- If a **runtime error** occurs anywhere inside the `try` block, execution jumps immediately to the **`catch` block**. The rest of the `try` body is skipped.
+- If **no error** occurs, the `catch` block is **never executed**.
+- `catch(str varname)` binds the error message as a `str` in the catch block's scope. The variable is available only inside that block.
+- **Syntax and lexer errors are not catchable** — they occur before execution begins.
+
+### Examples
+
+**Catching division by zero:**
+
+```c
+void main(){
+    int result = 0;
+    try {
+        result = 10 / 0;
+    } catch(str err) {
+        print("Caught: "); print(err); print("\n");
+        result = -1;
+    }
+    print(result); print("\n");   // -1
+}
+```
+
+**Safe integer conversion:**
+
+```c
+void setup(){
+    str userInput = "abc";
+}
+
+void main(){
+    int n = 0;
+    try {
+        n = intOf(userInput);
+    } catch {
+        print("Not a valid integer\n");
+    }
+}
+```
+
+**Nested try/catch:**
+
+```c
+void main(){
+    try {
+        try {
+            int bad = 1 / 0;
+        } catch(str inner) {
+            print("Inner caught: "); print(inner); print("\n");
+            // this second error propagates to the outer catch
+            any x = undefinedVariable;
+        }
+    } catch(str outer) {
+        print("Outer caught: "); print(outer); print("\n");
+    }
+}
+```
+
+**`return` and loop signals propagate through try/catch:**
+
+`return`, `break`, and `continue` inside a `try` or `catch` block behave exactly as they would outside — they exit the block normally and are not treated as errors.
+
+```c
+void findFirst(any lst){
+    for(int i = 0; i < returnLength(lst); i = i + 1){
+        try {
+            int v = intOf(listGet(lst, i));
+            return v;
+        } catch {
+            // not an integer — skip
+        }
+    }
+    return -1;
+}
+```
+
+### Scoping rules for the catch variable
+
+The catch variable (`str err` in `catch(str err)`) is bound in the **same scope** as the surrounding code — not in an isolated inner scope. This means:
+
+- After the catch block finishes, the variable is still accessible.
+- If a variable with the same name already exists, the following rules apply:
+  - **Same type (`str`) or `any`:** the existing variable is rebound to the error message — this is valid.
+  - **Different type (e.g. `int err`):** a runtime error is raised — type guarantees are preserved.
+  - **`const` variable:** a runtime error is raised — const guarantees are preserved.
+
+```c
+void main(){
+    int score = 0;
+    try {
+        int bad = 1 / 0;
+    } catch(str score) {
+        // Runtime Error: 'score' is declared as 'int', cannot bind as 'str'
+    }
+}
+```
+
+```c
+void main(){
+    str msg = "ok";
+    try {
+        int bad = 1 / 0;
+    } catch(str msg) {
+        // fine — msg is already str; it is now rebound to the error text
+        print(msg); print("\n");
+    }
+    // msg is still in scope here (contains the error message)
+}
+```
 
 ---
 

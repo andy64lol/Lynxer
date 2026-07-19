@@ -1,0 +1,149 @@
+///
+  trycatch_test.lynx — Tests for the try/catch feature.
+  Covers:
+    - catch with error variable binding (catch(str err))
+    - catch without error variable (catch)
+    - nested try/catch
+    - try with no error (normal flow)
+    - return value propagation through try
+///
+
+void setup(){}
+
+void main(){
+    // ── 1. Basic catch with error message binding ─────────────────────────────
+    str caught = "none";
+    try {
+        int x = 1 / 0;
+    } catch(str err) {
+        caught = err;
+    }
+    print("Test 1 - division by zero caught: ");
+    if(caught is "none"){
+        print("FAIL\n");
+    } else {
+        print("PASS\n");
+    }
+
+    // ── 2. Catch without error variable ───────────────────────────────────────
+    bool reached = false;
+    try {
+        str bad = strOf(none);
+        int n = intOf("not_a_number");
+    } catch {
+        reached = true;
+    }
+    print("Test 2 - catch without variable: ");
+    if(reached){
+        print("PASS\n");
+    } else {
+        print("FAIL\n");
+    }
+
+    // ── 3. No error — catch block should NOT run ──────────────────────────────
+    bool catchRan = false;
+    int result = 0;
+    try {
+        result = 6 * 7;
+    } catch {
+        catchRan = true;
+    }
+    print("Test 3 - no error, catch skipped: ");
+    if(result is 42 and not catchRan){
+        print("PASS\n");
+    } else {
+        print("FAIL\n");
+    }
+
+    // ── 4. Undefined variable triggers catch ─────────────────────────────────
+    str errMsg = "";
+    try {
+        any v = undefinedVar;
+    } catch(str err) {
+        errMsg = err;
+    }
+    print("Test 4 - undefined variable caught: ");
+    if(errMsg is ""){
+        print("FAIL\n");
+    } else {
+        print("PASS\n");
+    }
+
+    // ── 5. Nested try/catch ───────────────────────────────────────────────────
+    str outer = "outer_ok";
+    str inner = "inner_ok";
+    try {
+        try {
+            int bad = 1 / 0;
+        } catch(str e) {
+            inner = "inner_caught";
+            // trigger another error in the outer try
+            any y = anotherUndefined;
+        }
+    } catch(str e2) {
+        outer = "outer_caught";
+    }
+    print("Test 5 - nested try/catch: ");
+    if(inner is "inner_caught" and outer is "outer_caught"){
+        print("PASS\n");
+    } else {
+        print("FAIL\n");
+    }
+
+    // ── 6. Catch variable reuses name already declared as same type (str) ──────
+    // Should work fine — rebinding a str with a str is allowed
+    str myErr = "before";
+    try {
+        int bad = 1 / 0;
+    } catch(str myErr) {
+        // myErr is now the error message
+    }
+    print("Test 6 - rebind existing str with catch var: ");
+    if(myErr is "before"){
+        print("FAIL\n");
+    } else {
+        print("PASS\n");
+    }
+
+    // ── 7. Catch variable name conflicts with existing int variable ────────────
+    // Should raise a runtime error (type mismatch)
+    bool test7Pass = false;
+    int conflictVar = 99;
+    try {
+        try {
+            int boom = 1 / 0;
+        } catch(str conflictVar) {
+            // This should fail: conflictVar is declared as int
+        }
+    } catch(str outerE) {
+        test7Pass = true;
+    }
+    print("Test 7 - type conflict with existing int var: ");
+    if(test7Pass){
+        print("PASS\n");
+    } else {
+        print("FAIL\n");
+    }
+
+    // ── 8. Catch variable name conflicts with a const variable ───────────────
+    // Should raise a runtime error (cannot overwrite const)
+    bool test8Pass = false;
+    const str FIXED = "immutable";
+    try {
+        try {
+            int boom2 = 1 / 0;
+        } catch(str FIXED) {
+            // This should fail: FIXED is const
+        }
+    } catch(str constErr) {
+        test8Pass = true;
+    }
+    print("Test 8 - const conflict with catch var: ");
+    if(test8Pass){
+        print("PASS\n");
+    } else {
+        print("FAIL\n");
+    }
+
+    print("Done!\n");
+}
