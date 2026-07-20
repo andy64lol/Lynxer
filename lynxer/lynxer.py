@@ -609,6 +609,25 @@ class AwaitNode:
         self.pos_end = pos_end
 
 
+class AsyncLocalDefNode:
+    """async funcName(params) { body } — local async sub-function inside a global."""
+    def __init__(self, name_tok, param_toks, body, pos_start, pos_end):
+        self.name_tok = name_tok
+        self.param_toks = param_toks
+        self.body = body
+        self.pos_start = pos_start
+        self.pos_end = pos_end
+
+
+class AsyncDotCallNode:
+    """async.funcName(args) — run a locally-defined async function synchronously."""
+    def __init__(self, name_tok, arg_nodes, pos_start, pos_end):
+        self.name_tok = name_tok
+        self.arg_nodes = arg_nodes
+        self.pos_start = pos_start
+        self.pos_end = pos_end
+
+
 class CallNode:
     def __init__(self, node_to_call, arg_nodes, pos_start, pos_end):
         self.node_to_call = node_to_call
@@ -794,7 +813,6 @@ class Parser:
         self._require_main = require_main
 
         while self.current_tok.type != TT_EOF:
-            is_async_prefix = self.current_tok.matches(TT_KEYWORD, "async")
             is_func_kw = (
                 self.current_tok.matches(TT_KEYWORD, "void")
                 or self.current_tok.matches(TT_KEYWORD, "def")
@@ -805,30 +823,8 @@ class Parser:
                     and self.peek(1).type == TT_IDENTIFIER
                 )
             )
-            if is_func_kw or is_async_prefix:
-                # Determine the function-name token to check for setup/main:
-                #   plain void/def:     peek(1) = name
-                #   async void/def:     peek(1) = void/def, peek(2) = name
-                if is_async_prefix:
-                    kind_peek = self.peek(1)
-                    if not (
-                        kind_peek
-                        and (
-                            kind_peek.matches(TT_KEYWORD, "void")
-                            or kind_peek.matches(TT_KEYWORD, "def")
-                            or (kind_peek.type == TT_IDENTIFIER and kind_peek.value == "global")
-                        )
-                    ):
-                        return res.failure(
-                            InvalidSyntaxError(
-                                self.current_tok.pos_start,
-                                self.current_tok.pos_end,
-                                "Expected 'void'/'global' or 'def' after 'async' at the top level",
-                            )
-                        )
-                    func_name_tok = self.peek(2)
-                else:
-                    func_name_tok = self.peek(1)
+            if is_func_kw:
+                func_name_tok = self.peek(1)
 
                 if (
                     func_name_tok
@@ -866,8 +862,8 @@ class Parser:
                         self.current_tok.pos_start,
                         self.current_tok.pos_end,
                         "Executable code is not allowed outside of a function. "
-                        "Only 'void'/'global'/'def' and 'async void'/'async global'/'async def' definitions are permitted "
-                        "at the top level. Put globals in setup() and entry logic in 'void main(){}'",
+                        "Only 'void'/'global'/'def' definitions are permitted at the top level. "
+                        "Put globals in setup() and entry logic in 'void main(){}'",
                     )
                 )
 
@@ -921,6 +917,14 @@ class Parser:
                     self.current_tok.pos_start,
                     self.current_tok.pos_end,
                     "Expected 'void'/'global' or 'def'" + (" after 'async'" if is_async else ""),
+                )
+            )
+        if is_async and not _is_global_kw:
+            return res.failure(
+                InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "'async' is only allowed before 'global' functions",
                 )
             )
         kind_tok = self.current_tok
@@ -1055,18 +1059,35 @@ class Parser:
                 return res
             return res.success(node)
 
-        if allow_local_funcs and (
-            self.current_tok.matches(TT_KEYWORD, "def")
-            or (
-                self.current_tok.matches(TT_KEYWORD, "async")
-                and self.peek(1)
-                and self.peek(1).matches(TT_KEYWORD, "def")
-            )
-        ):
+        if allow_local_funcs and self.current_tok.matches(TT_KEYWORD, "def"):
             node = res.register(self.parse_func_def())
             if res.error:
                 return res
             return res.success(node)
+
+        if self.current_tok.matches(TT_KEYWORD, "async"):
+            peek1 = self.peek(1)
+            if peek1 and peek1.type == TT_IDENTIFIER:
+                if not allow_local_funcs:
+                    return res.failure(InvalidSyntaxError(
+                        self.current_tok.pos_start, self.current_tok.pos_end,
+                        "'async' function definitions are only allowed inside a function body",
+                    ))
+                node = res.register(self.parse_async_local_def())
+                if res.error:
+                    return res
+                return res.success(node)
+            # async.funcName(args); — expression statement
+            expr = res.register(self.parse_async_dot_call())
+            if res.error:
+                return res
+            if self.current_tok.type != TT_SEMICOLON:
+                return res.failure(InvalidSyntaxError(
+                    expr.pos_end, self.current_tok.pos_start,
+                    "Missing ';' after async call",
+                ))
+            res.register_advancement(); self.advance()
+            return res.success(expr)
 
         if self.current_tok.matches(TT_KEYWORD, "void") or (
             self.current_tok.type == TT_IDENTIFIER
@@ -2580,6 +2601,9 @@ class Parser:
         elif tok.matches(TT_KEYWORD, "await"):
             return self.parse_await()
 
+        elif tok.matches(TT_KEYWORD, "async"):
+            return self.parse_async_dot_call()
+
         return res.failure(
             InvalidSyntaxError(
                 tok.pos_start,
@@ -2594,11 +2618,95 @@ class Parser:
         pos_start = self.current_tok.pos_start.copy()
         res.register_advancement()
         self.advance()  # consume 'await'
-
         expr = res.register(self.parse_call())
         if res.error:
             return res
         return res.success(AwaitNode(expr, pos_start, expr.pos_end))
+
+    def parse_async_local_def(self):
+        """async funcName(params) { body } — local async sub-function."""
+        res = ParseResult()
+        pos_start = self.current_tok.pos_start.copy()
+        res.register_advancement(); self.advance()  # consume 'async'
+        if self.current_tok.type != TT_IDENTIFIER:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                "Expected function name after 'async'",
+            ))
+        name_tok = self.current_tok
+        res.register_advancement(); self.advance()
+        if self.current_tok.type != TT_LPAREN:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end, "Expected '('",
+            ))
+        res.register_advancement(); self.advance()
+        param_toks = []
+        while self.current_tok.type != TT_RPAREN and self.current_tok.type != TT_EOF:
+            if self.is_type_keyword() and self.peek(1) and self.peek(1).type == TT_IDENTIFIER:
+                type_tok = self.current_tok
+                res.register_advancement(); self.advance()
+                pname_tok = self.current_tok
+                res.register_advancement(); self.advance()
+                param_toks.append((type_tok, pname_tok))
+            elif self.current_tok.type == TT_IDENTIFIER:
+                param_toks.append((None, self.current_tok))
+                res.register_advancement(); self.advance()
+            else:
+                return res.failure(InvalidSyntaxError(
+                    self.current_tok.pos_start, self.current_tok.pos_end,
+                    "Expected parameter name",
+                ))
+            if self.current_tok.type == TT_COMMA:
+                res.register_advancement(); self.advance()
+            else:
+                break
+        if self.current_tok.type != TT_RPAREN:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end, "Expected ')'",
+            ))
+        res.register_advancement(); self.advance()
+        body = res.register(self.parse_block(allow_local_funcs=False))
+        if res.error:
+            return res
+        return res.success(AsyncLocalDefNode(name_tok, param_toks, body, pos_start, self.current_tok.pos_end.copy()))
+
+    def parse_async_dot_call(self):
+        """async.funcName(args) — call a locally-defined async function."""
+        res = ParseResult()
+        pos_start = self.current_tok.pos_start.copy()
+        res.register_advancement(); self.advance()  # consume 'async'
+        if self.current_tok.type != TT_DOT:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                "Expected '.' after 'async' (usage: async.funcName(args))",
+            ))
+        res.register_advancement(); self.advance()  # consume '.'
+        if self.current_tok.type != TT_IDENTIFIER:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end, "Expected function name",
+            ))
+        name_tok = self.current_tok
+        res.register_advancement(); self.advance()
+        if self.current_tok.type != TT_LPAREN:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end, "Expected '('",
+            ))
+        res.register_advancement(); self.advance()
+        arg_nodes = []
+        if self.current_tok.type != TT_RPAREN:
+            arg_nodes.append(res.register(self.parse_expr()))
+            if res.error: return res
+            while self.current_tok.type == TT_COMMA:
+                res.register_advancement(); self.advance()
+                arg_nodes.append(res.register(self.parse_expr()))
+                if res.error: return res
+            if self.current_tok.type != TT_RPAREN:
+                return res.failure(InvalidSyntaxError(
+                    self.current_tok.pos_start, self.current_tok.pos_end, "Expected ',' or ')'",
+                ))
+        pos_end = self.current_tok.pos_end.copy()
+        res.register_advancement(); self.advance()  # consume ')'
+        return res.success(AsyncDotCallNode(name_tok, arg_nodes, pos_start, pos_end))
 
 
 # runtime result
@@ -4457,12 +4565,50 @@ class Interpreter:
         context.symbol_table.set(func_name, func_value)
         return res.success(func_value)
 
+    def visit_AsyncLocalDefNode(self, node, context):
+        res = RTResult()
+        func_name = node.name_tok.value
+        param_names = [p[1].value for p in node.param_toks]
+        param_types = [p[0].value if p[0] else None for p in node.param_toks]
+        func_value = AsyncFunction(func_name, node.body, param_names, param_types)
+        func_value.set_context(context).set_pos(node.pos_start, node.pos_end)
+        context.symbol_table.set(f"__async__{func_name}", func_value)
+        return res.success(Number.null)
+
+    def visit_AsyncDotCallNode(self, node, context):
+        import asyncio
+        res = RTResult()
+        func_name = node.name_tok.value
+        func_value = context.symbol_table.get(f"__async__{func_name}")
+        if func_value is None:
+            return res.failure(RTError(
+                node.pos_start, node.pos_end,
+                f"No async function '{func_name}' defined in this scope — define it with 'async {func_name}(){{}}' first",
+                context,
+            ))
+        args = []
+        for arg_node in node.arg_nodes:
+            val = res.register(self.visit(arg_node, context))
+            if res.should_return(): return res
+            args.append(val)
+        call_res = func_value.execute(args)
+        if call_res.error: return call_res
+        coro_val = call_res.value
+        if not isinstance(coro_val, CoroutineValue):
+            return res.failure(RTError(node.pos_start, node.pos_end, f"'{func_name}' is not an async function", context))
+        try:
+            coro_result = asyncio.run(coro_val.coro)
+        except Exception as e:
+            return res.failure(RTError(node.pos_start, node.pos_end, f"async.{func_name}() raised: {type(e).__name__}: {e}", context))
+        if coro_result.error: return coro_result
+        return res.success(coro_result.value if coro_result.value is not None else Number.null)
+
     def visit_AwaitNode(self, node, context):
         """Sync context — await is not allowed here."""
         return RTResult().failure(RTError(
             node.pos_start,
             node.pos_end,
-            "'await' can only be used inside an 'async' function",
+            "'await' can only be used inside an 'async' function body",
             context,
         ))
 
@@ -4790,8 +4936,32 @@ class Interpreter:
         ))
 
     async def async_visit_FuncDefNode(self, node, context):
-        # Defining a function inside an async body is sync work
         return self.visit_FuncDefNode(node, context)
+
+    async def async_visit_AsyncLocalDefNode(self, node, context):
+        return self.visit_AsyncLocalDefNode(node, context)
+
+    async def async_visit_AsyncDotCallNode(self, node, context):
+        # Inside an async body: async.name(args) returns a CoroutineValue so the caller
+        # can either `await` it or pass it to asyncGather.
+        res = RTResult()
+        func_name = node.name_tok.value
+        func_value = context.symbol_table.get(f"__async__{func_name}")
+        if func_value is None:
+            return res.failure(RTError(
+                node.pos_start, node.pos_end,
+                f"No async function '{func_name}' defined in this scope",
+                context,
+            ))
+        args = []
+        for arg_node in node.arg_nodes:
+            val = res.register(await self.async_visit(arg_node, context))
+            if res.should_return(): return res
+            args.append(val)
+        call_res = func_value.execute(args)
+        if call_res.error: return call_res
+        # Return the CoroutineValue — let await / asyncGather consume it
+        return res.success(call_res.value)
 
     async def async_visit_DotAssignNode(self, node, context):
         res = RTResult()

@@ -1,22 +1,12 @@
 global setup() {}
 
-async def slowDouble(int n) {
-    await asyncSleep(0.01);
-    return n * 2;
-}
-
-async global greetAsync(str name) {
-    str msg = "hello " + name;
-    println(msg);
-}
-
-async def test1() {
-    any result = await slowDouble(7);
-    return result;
-}
-
+// test 1: basic async.call with return value
 global runTest1() {
-    any got = asyncRun(test1());
+    async slowDouble(int n) {
+        await asyncSleep(0.01);
+        return n * 2;
+    }
+    any got = async.slowDouble(7);
     if (got is 14) {
         println("TEST 1 PASSED");
     } else {
@@ -24,67 +14,63 @@ global runTest1() {
     }
 }
 
+// test 2: async with no return value
 global runTest2() {
-    asyncRun(global.greetAsync("world"));
+    async greet(str name) {
+        str msg = "hello " + name;
+        println(msg);
+    }
+    async.greet("world");
     println("TEST 2 PASSED");
 }
 
-async def addAsync(int a, int b) {
-    await asyncSleep(0.01);
-    return a + b;
-}
-
-async def test3() {
-    any x = await addAsync(3, 4);
-    any y = await addAsync(x, 10);
-    return y;
-}
-
+// test 3: chained async calls (sequential)
 global runTest3() {
-    any got = asyncRun(test3());
-    if (got is 17) {
+    async addAsync(int a, int b) {
+        await asyncSleep(0.01);
+        return a + b;
+    }
+    any x = async.addAsync(3, 4);
+    any y = async.addAsync(x, 10);
+    if (y is 17) {
         println("TEST 3 PASSED");
     } else {
-        println("TEST 3 FAILED got=" + strOf(got));
+        println("TEST 3 FAILED got=" + strOf(y));
     }
 }
 
-async def test4() {
-    any results = await asyncGather(
-        slowDouble(1),
-        slowDouble(2),
-        slowDouble(3)
-    );
+// test 4: await async.call inside another async body + asyncGather
+global runTest4() {
+    async slowDouble(int n) {
+        await asyncSleep(0.01);
+        return n * 2;
+    }
+    async gather3() {
+        any results = await asyncGather(
+            async.slowDouble(1),
+            async.slowDouble(2),
+            async.slowDouble(3)
+        );
+        return results;
+    }
+    any results = async.gather3();
     any a = listGet(results, 0);
     any b = listGet(results, 1);
     any c = listGet(results, 2);
     if (a is 2 and b is 4 and c is 6) {
-        return 1;
-    }
-    return 0;
-}
-
-global runTest4() {
-    any ok = asyncRun(test4());
-    if (ok is 1) {
         println("TEST 4 PASSED");
     } else {
         println("TEST 4 FAILED");
     }
 }
 
-async def greetStr(str name) {
-    await asyncSleep(0.01);
-    return "hi " + name;
-}
-
-async def test5() {
-    any msg = await greetStr("lynxer");
-    return msg;
-}
-
+// test 5: async returning a string
 global runTest5() {
-    any got = asyncRun(test5());
+    async greetStr(str name) {
+        await asyncSleep(0.01);
+        return "hi " + name;
+    }
+    any got = async.greetStr("lynxer");
     if (got is "hi lynxer") {
         println("TEST 5 PASSED");
     } else {
@@ -92,21 +78,21 @@ global runTest5() {
     }
 }
 
-async def test6() {
-    str caught = "";
-    try {
-        any x = 1 / 0;
-    } catch(str err) {
-        caught = err;
-    }
-    if (caught is "Division by zero") {
-        return "ok";
-    }
-    return "fail";
-}
-
+// test 6: try/catch inside async
 global runTest6() {
-    any got = asyncRun(test6());
+    async risky() {
+        str caught = "";
+        try {
+            any x = 1 / 0;
+        } catch(str err) {
+            caught = err;
+        }
+        if (caught is "Division by zero") {
+            return "ok";
+        }
+        return "fail";
+    }
+    any got = async.risky();
     if (got is "ok") {
         println("TEST 6 PASSED");
     } else {
@@ -114,18 +100,18 @@ global runTest6() {
     }
 }
 
-async def test7() {
-    int total = 0;
-    int i = 0;
-    while (i < 5) {
-        total = total + i;
-        i = i + 1;
-    }
-    return total;
-}
-
+// test 7: loop inside async
 global runTest7() {
-    any got = asyncRun(test7());
+    async sumTo5() {
+        int total = 0;
+        int i = 0;
+        while (i < 5) {
+            total = total + i;
+            i = i + 1;
+        }
+        return total;
+    }
+    any got = async.sumTo5();
     if (got is 10) {
         println("TEST 7 PASSED");
     } else {
@@ -133,17 +119,36 @@ global runTest7() {
     }
 }
 
-async global asyncMain() {
-    any v = await slowDouble(21);
-    if (v is 42) {
+// test 8: await async.call inside async body
+global runTest8() {
+    async compute() {
+        await asyncSleep(0.05);
+        return 42;
+    }
+    async run() {
+        int answer = await async.compute();
+        return answer;
+    }
+    any got = async.run();
+    if (got is 42) {
         println("TEST 8 PASSED");
     } else {
-        println("TEST 8 FAILED got=" + strOf(v));
+        println("TEST 8 FAILED got=" + strOf(got));
     }
 }
 
-global runTest8() {
-    asyncRun(global.asyncMain());
+// test 9: async captures outer params
+global runTest9(int n) {
+    async doubleN() {
+        await asyncSleep(0.01);
+        return n * 2;
+    }
+    any got = async.doubleN();
+    if (got is 42) {
+        println("TEST 9 PASSED");
+    } else {
+        println("TEST 9 FAILED got=" + strOf(got));
+    }
 }
 
 global main() {
@@ -155,4 +160,5 @@ global main() {
     global.runTest6();
     global.runTest7();
     global.runTest8();
+    global.runTest9(21);
 }

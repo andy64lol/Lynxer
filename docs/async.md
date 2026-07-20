@@ -1,168 +1,175 @@
 # Async / Await
 
-Lynxer supports cooperative concurrency through `async` functions and `await` expressions, built on top of Python's `asyncio`.
+Lynxer supports cooperative concurrency through local `async` sub-functions, built on top of Python's `asyncio`.
 
-## Declaring an async function
+## Declaring a local async function
 
-Add the `async` keyword before `void` or `def`:
+Inside any `global` function body, use `async` to define a local async sub-function:
 
 ```c
-async void fetchData() {
-    await asyncSleep(0.5);
-    println("data fetched\n");
-}
-
-async def int slowAdd(int a, int b) {
-    await asyncSleep(0.1);
-    return a + b;
+global fetchData() {
+    async fetch() {
+        await asyncSleep(0.5);
+        println("data fetched\n");
+    }
+    async.fetch();
 }
 ```
 
-- An `async void` function can be used at the top level (like a regular `void` function).
-- An `async def` function can be defined locally inside another function with `allow_local_funcs`.
+- `async funcName(params) { body }` defines a local async function scoped to the enclosing `global`.
+- The sub-function can reference the enclosing function's parameters and local variables.
+- A definition must appear **before** any block that calls it.
 
-## Calling an async function
+## Calling from sync context
 
-Calling an `async` function **does not run it immediately**. It returns a *coroutine* that can be:
+Use `async.funcName(args)` to call and run the async function to completion:
 
-1. **Run to completion** with `asyncRun()`
-2. **Awaited** with `await` inside another `async` function
-3. **Run concurrently** with `asyncGather()`
+```c
+global main() {
+    async greet(str name) {
+        await asyncSleep(0.1);
+        println("Hello, " + name + "!\n");
+    }
+    async.greet("World"); // runs and blocks until done
+}
+```
+
+`async.funcName()` blocks until the async body finishes and returns its value.
+
+## Return values
+
+```c
+global main() {
+    async slowAdd(int a, int b) {
+        await asyncSleep(0.05);
+        return a + b;
+    }
+    any result = async.slowAdd(3, 4); // 7
+    println(strOf(result) + "\n");
+}
+```
+
+## Calling from inside another async body
+
+Inside an async body, prefix with `await async.funcName()` to suspend until the inner call finishes:
+
+```c
+global main() {
+    async compute() {
+        await asyncSleep(0.05);
+        return 42;
+    }
+    async run() {
+        int answer = await async.compute(); // compute must be defined before run
+        println(strOf(answer) + "\n");      // 42
+    }
+    async.run();
+}
+```
+
+> The called function (`compute`) must be defined **before** the async block that calls it (`run`).
+
+## Capturing outer parameters
+
+The async body closes over the enclosing function's parameters:
+
+```c
+global compute(int n) {
+    async doubleIt() {
+        await asyncSleep(0.01);
+        return n * 2; // n comes from the outer global
+    }
+    any result = async.doubleIt();
+    println(strOf(result) + "\n");
+}
+
+global main() {
+    global.compute(21); // prints 42
+}
+```
 
 ## Built-in async helpers
 
-### `asyncRun(coro)`
+### `asyncSleep(seconds)`
 
-Runs a coroutine synchronously (blocks until complete). Use this in `main()` to drive async code.
+Suspends the async body for `seconds` (float allowed). Must be `await`ed.
 
 ```c
-void main() {
-    asyncRun(fetchData());
+global main() {
+    async countdown() {
+        int i = 3;
+        while (i > 0) {
+            println(strOf(i) + "\n");
+            await asyncSleep(1.0);
+            i = i - 1;
+        }
+        println("Go!\n");
+    }
+    async.countdown();
 }
 ```
 
 ### `asyncGather(coro1, coro2, ...)`
 
-Returns a new coroutine that runs all supplied coroutines **concurrently** and resolves to a list of their return values.
+Runs multiple coroutines concurrently and returns a list of results. Pass coroutines produced by `async.funcName(args)` inside an async body (where `async.funcName()` yields a coroutine rather than running immediately):
 
 ```c
-async def int task(int n) {
-    await asyncSleep(0.1);
-    return n * 2;
-}
-
-void main() {
-    any results = asyncRun(asyncGather(task(1), task(2), task(3)));
-    // results is a list: [2, 4, 6]
-    println(strOf(listGet(results, 0)) + "\n");  // 2
-}
-```
-
-### `asyncSleep(seconds)`
-
-Returns a coroutine that sleeps for `seconds` (float allowed). Must be `await`ed inside an async function.
-
-```c
-async void countdown() {
-    int i = 3;
-    while (i > 0) {
-        println(strOf(i) + "\n");
-        await asyncSleep(1.0);
-        i = i - 1;
+global main() {
+    async slowSquare(int n) {
+        await asyncSleep(0.1);
+        return n * n;
     }
-    println("Go!\n");
-}
-
-void main() {
-    asyncRun(countdown());
+    async gatherAll() {
+        // all three run concurrently — total ≈ 0.1 s, not 0.3 s
+        any squares = await asyncGather(
+            async.slowSquare(2),
+            async.slowSquare(3),
+            async.slowSquare(4)
+        );
+        return squares; // [4, 9, 16]
+    }
+    any result = async.gatherAll();
+    println(strOf(listGet(result, 0)) + "\n"); // 4
 }
 ```
+
+> Inside an async body, `async.funcName(args)` yields a coroutine (for `await` or `asyncGather`).  
+> At the top level of a `global`, `async.funcName(args)` runs synchronously and returns the value.
 
 ## `await` expression
 
-`await` can only appear inside an `async` function body. It suspends execution until the coroutine completes and evaluates to its return value.
+`await` is only valid inside an `async` body:
 
 ```c
-async def int compute() {
-    await asyncSleep(0.05);
-    return 42;
-}
-
-async void run() {
-    int answer = await compute();
-    println(strOf(answer) + "\n");  // 42
-}
-
-void main() {
-    asyncRun(run());
+async run() {
+    int answer = await async.compute(); // suspends until compute finishes
 }
 ```
 
-> **Error**: using `await` outside an `async` function is a runtime error:
-> `'await' can only be used inside an 'async' function`
+> **Error**: using `await` outside an `async` body is a runtime error.
 
-## Error handling inside async functions
+## Error handling
 
 `try / catch` works normally inside async functions:
 
 ```c
-async void risky() {
-    try {
-        int x = 1 / 0;
-    } catch(str err) {
-        println("caught: " + err + "\n");
+global main() {
+    async risky() {
+        try {
+            any x = 1 / 0;
+        } catch(str err) {
+            println("caught: " + err + "\n");
+        }
     }
-}
-
-void main() {
-    asyncRun(risky());
+    async.risky();
 }
 ```
 
-## Chaining async functions
+## Rules
 
-```c
-async def str greet(str name) {
-    await asyncSleep(0.01);
-    return "Hello, " + name + "!";
-}
-
-async void main_async() {
-    str msg = await greet("World");
-    println(msg + "\n");
-}
-
-void main() {
-    asyncRun(main_async());
-}
-```
-
-## Concurrent tasks with `asyncGather`
-
-```c
-async def int slowSquare(int n) {
-    await asyncSleep(0.1);
-    return n * n;
-}
-
-void main() {
-    // All three run concurrently — total time ≈ 0.1 s, not 0.3 s
-    any squares = asyncRun(asyncGather(
-        slowSquare(2),
-        slowSquare(3),
-        slowSquare(4)
-    ));
-    // squares == [4, 9, 16]
-}
-```
-
-## Scoping rules
-
-Async functions use the same scoping rules as regular functions: each call gets a fresh execution context. Variables declared inside an async function are local to that call.
-
-## Limitations
-
-- `await` is only valid inside `async def` or `async void` function bodies. Using it elsewhere raises a runtime error.
+- `async` definitions are **local** to the enclosing `global` function — not visible outside it.
+- A definition must appear before any async block that calls it with `await async.funcName()`.
+- `async` at the top level (outside a function body) is a syntax error.
+- `await` is only valid inside an `async` body.
 - `rawPy` and `rawPyx` blocks inside async functions run synchronously; avoid blocking I/O inside them.
 - `vargroup` field initializers do not support `await` expressions.
-- `asyncRun` cannot be used while another event loop is already running (e.g. inside a Jupyter notebook that already uses `asyncio`).
