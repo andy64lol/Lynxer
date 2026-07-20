@@ -7,11 +7,11 @@
     - global.greetlib.sayHello(name)
 ///
 
-void setup(){
+global setup(){
     import("greetlib");
 }
 
-void main(){
+global main(){
     print("greetlib version: ");
     print(global.greetlib.GREETLIB_VERSION);
     print("\n");

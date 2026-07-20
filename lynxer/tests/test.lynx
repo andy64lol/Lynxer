@@ -4,12 +4,12 @@
           while, for, local functions, rawPy, built-ins.
 ///
 
-void setup(){
+global setup(){
     const str LANG = "Lynxer";
     const str VER  = "v0.1";
 }
 
-void main(){
+global main(){
     // Header
     print("Language: ");
     print(LANG);

@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='lynxer',
-    version='0.1.2',
+    version='0.1.3',
     description='A statically-flavoured, C-style scripting language written in Python',
     python_requires='>=3.8',
     install_requires=[

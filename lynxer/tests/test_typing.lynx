@@ -6,11 +6,11 @@
           indexOf, substr, padLeft, padRight, strReverse
 ///
 
-void setup(){
+global setup(){
     import("typing");
 }
 
-void check(str label, bool ok){
+global check(str label, bool ok){
     if(ok){
         println("PASS: " + label);
     } else {
@@ -18,49 +18,49 @@ void check(str label, bool ok){
     }
 }
 
-void main(){
+global main(){
     println("=== typing stdlib tests ===");
 
     // toStr
-    check("toStr(42) == \"42\"",     global.typing.toStr(42)   is "42");
-    check("toStr(0) == \"0\"",       global.typing.toStr(0)    is "0");
+    global.check("toStr(42) == \"42\"",     global.typing.toStr(42)   is "42");
+    global.check("toStr(0) == \"0\"",       global.typing.toStr(0)    is "0");
 
     // toInt
-    check("toInt(\"7\") == 7",       global.typing.toInt("7")    is 7);
-    check("toInt(\"3.9\") == 3",     global.typing.toInt("3.9")  is 3);
-    check("toInt(\"abc\") == 0",     global.typing.toInt("abc")  is 0);
+    global.check("toInt(\"7\") == 7",       global.typing.toInt("7")    is 7);
+    global.check("toInt(\"3.9\") == 3",     global.typing.toInt("3.9")  is 3);
+    global.check("toInt(\"abc\") == 0",     global.typing.toInt("abc")  is 0);
 
     // toFloat
-    check("toFloat(\"1.5\") == 1.5", global.typing.toFloat("1.5") is 1.5);
-    check("toFloat(\"bad\") == 0.0", global.typing.toFloat("bad") is 0.0);
+    global.check("toFloat(\"1.5\") == 1.5", global.typing.toFloat("1.5") is 1.5);
+    global.check("toFloat(\"bad\") == 0.0", global.typing.toFloat("bad") is 0.0);
 
     // toBool
-    check("toBool(0) == false",      global.typing.toBool(0)  is false);
-    check("toBool(1) == true",       global.typing.toBool(1)  is true);
-    check("toBool(99) == true",      global.typing.toBool(99) is true);
+    global.check("toBool(0) == false",      global.typing.toBool(0)  is false);
+    global.check("toBool(1) == true",       global.typing.toBool(1)  is true);
+    global.check("toBool(99) == true",      global.typing.toBool(99) is true);
 
     // isNumeric
-    check("isNumeric(\"3.14\") true",  global.typing.isNumeric("3.14") is true);
-    check("isNumeric(\"abc\") false",  global.typing.isNumeric("abc")  is false);
-    check("isNumeric(\"-7\") true",    global.typing.isNumeric("-7")   is true);
+    global.check("isNumeric(\"3.14\") true",  global.typing.isNumeric("3.14") is true);
+    global.check("isNumeric(\"abc\") false",  global.typing.isNumeric("abc")  is false);
+    global.check("isNumeric(\"-7\") true",    global.typing.isNumeric("-7")   is true);
 
     // lenStr
-    check("lenStr(\"hello\") == 5", global.typing.lenStr("hello") is 5);
-    check("lenStr(\"\") == 0",      global.typing.lenStr("")       is 0);
+    global.check("lenStr(\"hello\") == 5", global.typing.lenStr("hello") is 5);
+    global.check("lenStr(\"\") == 0",      global.typing.lenStr("")       is 0);
 
     // repeat
-    check("repeat(\"ab\",3) == \"ababab\"", global.typing.repeat("ab", 3) is "ababab");
-    check("repeat(\"x\",0) == \"\"",        global.typing.repeat("x", 0)  is "");
+    global.check("repeat(\"ab\",3) == \"ababab\"", global.typing.repeat("ab", 3) is "ababab");
+    global.check("repeat(\"x\",0) == \"\"",        global.typing.repeat("x", 0)  is "");
 
     // contains
-    check("contains(\"foobar\",\"oba\") true",  global.typing.contains("foobar", "oba") is true);
-    check("contains(\"foobar\",\"xyz\") false", global.typing.contains("foobar", "xyz") is false);
+    global.check("contains(\"foobar\",\"oba\") true",  global.typing.contains("foobar", "oba") is true);
+    global.check("contains(\"foobar\",\"xyz\") false", global.typing.contains("foobar", "xyz") is false);
 
     // toList / isList / lenList
     any parts = global.typing.toList("a,b,c", ",");
-    check("toList gives list",        global.typing.isList(parts) is true);
-    check("toList length == 3",       global.typing.lenList(parts) is 3);
-    check("isList(42) == false",      global.typing.isList(42) is false);
+    global.check("toList gives list",        global.typing.isList(parts) is true);
+    global.check("toList length == 3",       global.typing.lenList(parts) is 3);
+    global.check("isList(42) == false",      global.typing.isList(42) is false);
 
     // flatten
     any inner = seqFromTo(0, 0, 1);
@@ -70,7 +70,7 @@ void main(){
     outer = listPush(outer, inner);
     outer = listPush(outer, 3);
     any flat = global.typing.flatten(outer);
-    check("flatten length == 3", returnLength(flat) is 3);
+    global.check("flatten length == 3", returnLength(flat) is 3);
 
     // unique
     any dupes = seqFromTo(0, 0, 1);
@@ -79,41 +79,41 @@ void main(){
     dupes = listPush(dupes, 1);
     dupes = listPush(dupes, 3);
     any u = global.typing.unique(dupes);
-    check("unique removes dup (len==3)", returnLength(u) is 3);
+    global.check("unique removes dup (len==3)", returnLength(u) is 3);
 
     // trim
-    check("trim(\"  hi  \") == \"hi\"",   global.typing.trim("  hi  ") is "hi");
-    check("trim(\"ok\") == \"ok\"",        global.typing.trim("ok")      is "ok");
+    global.check("trim(\"  hi  \") == \"hi\"",   global.typing.trim("  hi  ") is "hi");
+    global.check("trim(\"ok\") == \"ok\"",        global.typing.trim("ok")      is "ok");
 
     // upper / lower
-    check("upper(\"hello\") == \"HELLO\"", global.typing.upper("hello") is "HELLO");
-    check("lower(\"HELLO\") == \"hello\"", global.typing.lower("HELLO") is "hello");
+    global.check("upper(\"hello\") == \"HELLO\"", global.typing.upper("hello") is "HELLO");
+    global.check("lower(\"HELLO\") == \"hello\"", global.typing.lower("HELLO") is "hello");
 
     // startsWith / endsWith
-    check("startsWith(\"Lynxer\",\"Lyn\") true",   global.typing.startsWith("Lynxer", "Lyn") is true);
-    check("startsWith(\"Lynxer\",\"xyz\") false",  global.typing.startsWith("Lynxer", "xyz") is false);
-    check("endsWith(\"Lynxer\",\"xer\") true",     global.typing.endsWith("Lynxer", "xer")   is true);
-    check("endsWith(\"Lynxer\",\"abc\") false",    global.typing.endsWith("Lynxer", "abc")   is false);
+    global.check("startsWith(\"Lynxer\",\"Lyn\") true",   global.typing.startsWith("Lynxer", "Lyn") is true);
+    global.check("startsWith(\"Lynxer\",\"xyz\") false",  global.typing.startsWith("Lynxer", "xyz") is false);
+    global.check("endsWith(\"Lynxer\",\"xer\") true",     global.typing.endsWith("Lynxer", "xer")   is true);
+    global.check("endsWith(\"Lynxer\",\"abc\") false",    global.typing.endsWith("Lynxer", "abc")   is false);
 
     // replace
-    check("replace(\"hello world\",\"world\",\"Lynxer\")",
+    global.check("replace(\"hello world\",\"world\",\"Lynxer\")",
           global.typing.replace("hello world", "world", "Lynxer") is "hello Lynxer");
 
     // indexOf
-    check("indexOf(\"foobar\",\"bar\") == 3",  global.typing.indexOf("foobar", "bar") is 3);
-    check("indexOf(\"foobar\",\"xyz\") == -1", global.typing.indexOf("foobar", "xyz") is -1);
+    global.check("indexOf(\"foobar\",\"bar\") == 3",  global.typing.indexOf("foobar", "bar") is 3);
+    global.check("indexOf(\"foobar\",\"xyz\") == -1", global.typing.indexOf("foobar", "xyz") is -1);
 
     // substr
-    check("substr(\"Lynxer\",0,3) == \"Lyn\"", global.typing.substr("Lynxer", 0, 3) is "Lyn");
-    check("substr(\"Lynxer\",3,6) == \"xer\"", global.typing.substr("Lynxer", 3, 6) is "xer");
+    global.check("substr(\"Lynxer\",0,3) == \"Lyn\"", global.typing.substr("Lynxer", 0, 3) is "Lyn");
+    global.check("substr(\"Lynxer\",3,6) == \"xer\"", global.typing.substr("Lynxer", 3, 6) is "xer");
 
     // padLeft / padRight
-    check("padLeft(\"5\",3,\"0\") == \"005\"",   global.typing.padLeft("5", 3, "0")  is "005");
-    check("padRight(\"hi\",5,\".\") == \"hi...\"", global.typing.padRight("hi", 5, ".") is "hi...");
+    global.check("padLeft(\"5\",3,\"0\") == \"005\"",   global.typing.padLeft("5", 3, "0")  is "005");
+    global.check("padRight(\"hi\",5,\".\") == \"hi...\"", global.typing.padRight("hi", 5, ".") is "hi...");
 
     // strReverse
-    check("strReverse(\"abc\") == \"cba\"", global.typing.strReverse("abc") is "cba");
-    check("strReverse(\"\") == \"\"",       global.typing.strReverse("")    is "");
+    global.check("strReverse(\"abc\") == \"cba\"", global.typing.strReverse("abc") is "cba");
+    global.check("strReverse(\"\") == \"\"",       global.typing.strReverse("")    is "");
 
     println("=== typing tests done ===");
 }

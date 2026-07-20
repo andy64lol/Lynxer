@@ -2,12 +2,12 @@
   rawPy_test.lynx — tests rawPy block/string, stdlib, built-ins.
 ///
 
-void setup(){
+global setup(){
     import("math");
     import("typing");
 }
 
-void main(){
+global main(){
     // rawPy block: bridge vars in and out
     print("=== rawPy block ===\n");
     int x = 0;

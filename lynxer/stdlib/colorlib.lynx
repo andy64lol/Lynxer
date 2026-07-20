@@ -1,0 +1,58 @@
+///
+  Lynxer Standard Library — colorlib
+  Written completely in Lynxer using ANSI escape sequences.
+  gives easy access to colours
+///
+
+global setup(){}
+
+// foreground
+global black(str text)   { return "\e[30m" + text + "\e[0m"; }
+global red(str text)     { return "\e[31m" + text + "\e[0m"; }
+global green(str text)   { return "\e[32m" + text + "\e[0m"; }
+global yellow(str text)  { return "\e[33m" + text + "\e[0m"; }
+global blue(str text)    { return "\e[34m" + text + "\e[0m"; }
+global magenta(str text) { return "\e[35m" + text + "\e[0m"; }
+global cyan(str text)    { return "\e[36m" + text + "\e[0m"; }
+global white(str text)   { return "\e[37m" + text + "\e[0m"; }
+global brightBlack(str text)   { return "\e[90m" + text + "\e[0m"; }
+global brightRed(str text)     { return "\e[91m" + text + "\e[0m"; }
+global brightGreen(str text)   { return "\e[92m" + text + "\e[0m"; }
+global brightYellow(str text)  { return "\e[93m" + text + "\e[0m"; }
+global brightBlue(str text)    { return "\e[94m" + text + "\e[0m"; }
+global brightMagenta(str text) { return "\e[95m" + text + "\e[0m"; }
+global brightCyan(str text)    { return "\e[96m" + text + "\e[0m"; }
+global brightWhite(str text)   { return "\e[97m" + text + "\e[0m"; }
+
+// backgrounds
+
+global bgBlack(str text)   { return "\e[40m" + text + "\e[0m"; }
+global bgRed(str text)     { return "\e[41m" + text + "\e[0m"; }
+global bgGreen(str text)   { return "\e[42m" + text + "\e[0m"; }
+global bgYellow(str text)  { return "\e[43m" + text + "\e[0m"; }
+global bgBlue(str text)    { return "\e[44m" + text + "\e[0m"; }
+global bgMagenta(str text) { return "\e[45m" + text + "\e[0m"; }
+global bgCyan(str text)    { return "\e[46m" + text + "\e[0m"; }
+global bgWhite(str text)   { return "\e[47m" + text + "\e[0m"; }
+
+// text
+global bold(str text)      { return "\e[1m" + text + "\e[0m"; }
+global dim(str text)       { return "\e[2m" + text + "\e[0m"; }
+global italic(str text)    { return "\e[3m" + text + "\e[0m"; } // some doesn't support this
+global underline(str text) { return "\e[4m" + text + "\e[0m"; }
+global blink(str text)     { return "\e[5m" + text + "\e[0m"; } // same as italic
+global inverse(str text)   { return "\e[7m" + text + "\e[0m"; }
+global strike(str text)    { return "\e[9m" + text + "\e[0m"; }
+global error(str text)   { return "\e[1;31m" + text + "\e[0m"; }
+global success(str text) { return "\e[1;32m" + text + "\e[0m"; }
+global warn(str text)    { return "\e[1;33m" + text + "\e[0m"; }
+global info(str text)    { return "\e[1;36m" + text + "\e[0m"; }
+global heading(str text) { return "\e[1;37m" + text + "\e[0m"; }
+
+// Low level helpers
+global reset() { return "\e[0m"; }
+global ansi(str text, str code) { return "\e[" + code + "m" + text + "\e[0m"; }
+global clearScreen() { return "\e[2J\e[H"; }
+global cursorHome() { return "\e[H"; }
+
+global main(){}

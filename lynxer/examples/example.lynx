@@ -4,12 +4,12 @@
     • main() greets the user and counts down
 ///
 
-void setup(){
+global setup(){
     import("math");
     str userName = input("What's your name? ");
 }
 
-void main(){
+global main(){
     print("Welcome, ");
     print(userName);
     print("!\n");

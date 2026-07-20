@@ -4,10 +4,10 @@
            readLines, copyFile, fileSize
 ///
 
-void setup(){}
+global setup(){}
 
 /// Read the entire contents of path as a string. Returns "" on error. ///
-void readFile(str path){
+global readFile(str path){
     str content = "";
     rawPy(){
         try:
@@ -20,7 +20,7 @@ void readFile(str path){
 }
 
 /// Write content to path (overwrites). Returns true on success, false on error. ///
-void writeFile(str path, str content){
+global writeFile(str path, str content){
     bool success = true;
     rawPy(){
         try:
@@ -33,7 +33,7 @@ void writeFile(str path, str content){
 }
 
 /// Append content to path. Returns true on success, false on error. ///
-void appendFile(str path, str content){
+global appendFile(str path, str content){
     bool success = true;
     rawPy(){
         try:
@@ -46,7 +46,7 @@ void appendFile(str path, str content){
 }
 
 /// Returns true if path refers to an existing file. ///
-void fileExists(str path){
+global fileExists(str path){
     bool exists = false;
     rawPy(){
         import os as _os
@@ -56,7 +56,7 @@ void fileExists(str path){
 }
 
 /// Delete path. Returns true on success, false on error (e.g. file not found). ///
-void deleteFile(str path){
+global deleteFile(str path){
     bool success = true;
     rawPy(){
         import os as _os
@@ -69,7 +69,7 @@ void deleteFile(str path){
 }
 
 /// Read path and return a list of lines (newlines stripped). Returns an empty list on error. ///
-void readLines(str path){
+global readLines(str path){
     str raw = "";
     rawPy(){
         try:
@@ -85,7 +85,7 @@ void readLines(str path){
 }
 
 /// Copy src to dst (overwrite dst if it exists). Returns true on success, false on error. ///
-void copyFile(str src, str dst){
+global copyFile(str src, str dst){
     bool success = true;
     rawPy(){
         import shutil as _sh
@@ -98,7 +98,7 @@ void copyFile(str src, str dst){
 }
 
 /// Return the size of path in bytes, or -1 on error. ///
-void fileSize(str path){
+global fileSize(str path){
     int result = -1;
     rawPy(){
         import os as _os
@@ -110,4 +110,4 @@ void fileSize(str path){
     return result;
 }
 
-void main(){}
+global main(){}

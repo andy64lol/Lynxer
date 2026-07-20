@@ -1,10 +1,10 @@
 /// Minimal hello-world Lynxer program ///
 
-void setup(){
+global setup(){
     str msg = "Hello, World!";
 }
 
-void main(){
+global main(){
     print(msg);
     print("\n");
 }

@@ -5,10 +5,10 @@
   Provides: runJS, runJSFile, evalJS, nodeVersion, nodeExists
 ///
 
-void setup(){}
+global setup(){}
 
 /// Runs a JS code string with Node.js. Returns stdout as str, or an error message on failure. ///
-void runJS(str code){
+global runJS(str code){
     str result = "";
     rawPy(){
         import subprocess, tempfile, os as _os
@@ -40,7 +40,7 @@ void runJS(str code){
 }
 
 /// Runs a .js file with Node.js. Returns stdout as str, or "" on error. ///
-void runJSFile(str path){
+global runJSFile(str path){
     str result = "";
     rawPy(){
         import subprocess
@@ -62,7 +62,7 @@ void runJSFile(str path){
 
 /// Evaluates a JS expression and returns the result as a string.
   Wraps the expression in console.log() automatically. ///
-void evalJS(str expr){
+global evalJS(str expr){
     str result = "";
     rawPy(){
         import subprocess, tempfile, os as _os
@@ -95,7 +95,7 @@ void evalJS(str expr){
 }
 
 /// Returns the Node.js version string (e.g. "v20.11.0"), or "" if node is not found. ///
-void nodeVersion(){
+global nodeVersion(){
     str result = "";
     rawPy(){
         import subprocess
@@ -114,7 +114,7 @@ void nodeVersion(){
 }
 
 /// Returns 1 if Node.js is available on PATH, 0 otherwise. ///
-void nodeExists(){
+global nodeExists(){
     int result = 0;
     rawPy(){
         import subprocess
@@ -132,4 +132,4 @@ void nodeExists(){
     return result;
 }
 
-void main(){}
+global main(){}

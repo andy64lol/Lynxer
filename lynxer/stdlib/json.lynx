@@ -5,10 +5,10 @@
             jsonGetBool, jsonKeys, jsonStringify, jsonArray, jsonObject
 ///
 
-void setup(){}
+global setup(){}
 
 /// Returns true if s is valid JSON, false otherwise. ///
-void jsonValid(str s){
+global jsonValid(str s){
     bool result = false;
     rawPy(){
         import json as _json
@@ -22,7 +22,7 @@ void jsonValid(str s){
 }
 
 /// Pretty-prints a JSON string with 2-space indent. Returns "" on parse error. ///
-void jsonParse(str s){
+global jsonParse(str s){
     str result = "";
     rawPy(){
         import json as _json
@@ -35,7 +35,7 @@ void jsonParse(str s){
 }
 
 /// Gets the string value at key from a JSON object string. Returns "" if missing or wrong type. ///
-void jsonGet(str s, str key){
+global jsonGet(str s, str key){
     str result = "";
     rawPy(){
         import json as _json
@@ -50,7 +50,7 @@ void jsonGet(str s, str key){
 }
 
 /// Gets an integer value at key from a JSON object string. Returns 0 on error. ///
-void jsonGetInt(str s, str key){
+global jsonGetInt(str s, str key){
     int result = 0;
     rawPy(){
         import json as _json
@@ -64,7 +64,7 @@ void jsonGetInt(str s, str key){
 }
 
 /// Gets a float value at key from a JSON object string. Returns 0.0 on error. ///
-void jsonGetFloat(str s, str key){
+global jsonGetFloat(str s, str key){
     float result = 0.0;
     rawPy(){
         import json as _json
@@ -78,7 +78,7 @@ void jsonGetFloat(str s, str key){
 }
 
 /// Gets a bool value at key from a JSON object string. Returns false on error. ///
-void jsonGetBool(str s, str key){
+global jsonGetBool(str s, str key){
     bool result = false;
     rawPy(){
         import json as _json
@@ -92,7 +92,7 @@ void jsonGetBool(str s, str key){
 }
 
 /// Returns the top-level keys of a JSON object as a comma-separated string. ///
-void jsonKeys(str s){
+global jsonKeys(str s){
     str result = "";
     rawPy(){
         import json as _json
@@ -106,7 +106,7 @@ void jsonKeys(str s){
 }
 
 /// JSON-encodes a Lynxer string value (adds quotes and escapes). ///
-void jsonStringify(str s){
+global jsonStringify(str s){
     str result = "";
     rawPy(){
         import json as _json
@@ -116,17 +116,17 @@ void jsonStringify(str s){
 }
 
 /// Builds a JSON array from a Lynxer list of values. ///
-void jsonArray(any lst){
+global jsonArray(any lst){
     return listJsonArray(lst);
 }
 
 /// Builds a JSON object from a flat Lynxer list alternating key, value, key, value… ///
-void jsonObject(any lst){
+global jsonObject(any lst){
     return listJsonObject(lst);
 }
 
 /// Returns true if key exists in the JSON object string s. ///
-void jsonHas(str s, str key){
+global jsonHas(str s, str key){
     int result = 0;
     rawPy(){
         import json as _json
@@ -141,7 +141,7 @@ void jsonHas(str s, str key){
 }
 
 /// Returns the number of top-level keys (object) or elements (array) in s. Returns 0 on error. ///
-void jsonLength(str s){
+global jsonLength(str s){
     int result = 0;
     rawPy(){
         import json as _json
@@ -154,7 +154,7 @@ void jsonLength(str s){
 }
 
 /// Set key to the JSON-encoded value val in the JSON object s. Returns the new JSON string. ///
-void jsonSet(str s, str key, str val){
+global jsonSet(str s, str key, str val){
     str result = "";
     rawPy(){
         import json as _json
@@ -172,7 +172,7 @@ void jsonSet(str s, str key, str val){
 }
 
 /// Remove key from the JSON object s. Returns the new JSON string. ///
-void jsonDelete(str s, str key){
+global jsonDelete(str s, str key){
     str result = "";
     rawPy(){
         import json as _json
@@ -187,7 +187,7 @@ void jsonDelete(str s, str key){
 }
 
 /// Merge two JSON objects. Keys from b overwrite keys from a. Returns the merged JSON string. ///
-void jsonMerge(str a, str b){
+global jsonMerge(str a, str b){
     str result = "";
     rawPy(){
         import json as _json
@@ -202,4 +202,4 @@ void jsonMerge(str a, str b){
     return result;
 }
 
-void main(){}
+global main(){}

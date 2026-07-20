@@ -4,10 +4,10 @@
            runShellErr, runShellCode, commandExists
 ///
 
-void setup(){}
+global setup(){}
 
 /// Run command in the shell. Inherits stdin/stdout/stderr. Returns exit code. ///
-void runShell(str command){
+global runShell(str command){
     int code = 0;
     rawPy(){
         import subprocess
@@ -18,7 +18,7 @@ void runShell(str command){
 }
 
 /// Run command and capture stdout. Returns captured output as a string. ///
-void runShellCapture(str command){
+global runShellCapture(str command){
     str result = "";
     rawPy(){
         import subprocess
@@ -34,7 +34,7 @@ void runShellCapture(str command){
 }
 
 /// Run command, suppressing all output. Returns exit code. ///
-void runShellSilent(str command){
+global runShellSilent(str command){
     int code = 0;
     rawPy(){
         import subprocess
@@ -50,7 +50,7 @@ void runShellSilent(str command){
 }
 
 /// Run command and capture stderr only. Returns captured stderr as a string. ///
-void runShellErr(str command){
+global runShellErr(str command){
     str result = "";
     rawPy(){
         import subprocess
@@ -67,7 +67,7 @@ void runShellErr(str command){
 }
 
 /// Run command (capturing output silently) and return its exit code. ///
-void runShellCode(str command){
+global runShellCode(str command){
     int code = 0;
     rawPy(){
         import subprocess
@@ -82,7 +82,7 @@ void runShellCode(str command){
 }
 
 /// Returns true if cmd is found on PATH (i.e. the command exists). ///
-void commandExists(str cmd){
+global commandExists(str cmd){
     int result = 0;
     rawPy(){
         import shutil as _sh
@@ -92,4 +92,4 @@ void commandExists(str cmd){
     return false;
 }
 
-void main(){}
+global main(){}

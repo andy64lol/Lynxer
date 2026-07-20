@@ -1,15 +1,15 @@
-void setup(){
+global setup(){
     import("math");
 }
 
-void hello(){
+global hello(){
     print("Hi");
     print("\n");
     int n = global.math.abs(2 - 10);
     print(n, "\n");
 }
 
-void main(){
+global main(){
     hello();
     // this is a comment
 }

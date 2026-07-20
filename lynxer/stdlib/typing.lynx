@@ -5,9 +5,9 @@
             toList, isList, lenList, flatten, unique
 ///
 
-void setup(){}
+global setup(){}
 
-void toStr(int n){
+global toStr(int n){
     str result = "";
     rawPy(){
         result = str(n)
@@ -15,7 +15,7 @@ void toStr(int n){
     return result;
 }
 
-void toInt(str s){
+global toInt(str s){
     int result = 0;
     rawPy(){
         try:
@@ -26,7 +26,7 @@ void toInt(str s){
     return result;
 }
 
-void toFloat(str s){
+global toFloat(str s){
     float result = 0.0;
     rawPy(){
         try:
@@ -37,14 +37,14 @@ void toFloat(str s){
     return result;
 }
 
-void toBool(int n){
+global toBool(int n){
     if(n not is 0){
         return true;
     }
     return false;
 }
 
-void isNumeric(str s){
+global isNumeric(str s){
     int result = 0;
     rawPy(){
         try:
@@ -57,11 +57,11 @@ void isNumeric(str s){
     return false;
 }
 
-void lenStr(str s){
+global lenStr(str s){
     return returnLength(s);
 }
 
-void repeat(str s, int n){
+global repeat(str s, int n){
     str result = "";
     rawPy(){
         result = s * n
@@ -69,7 +69,7 @@ void repeat(str s, int n){
     return result;
 }
 
-void contains(str haystack, str needle){
+global contains(str haystack, str needle){
     int result = 0;
     rawPy(){
         result = 1 if needle in haystack else 0
@@ -79,12 +79,12 @@ void contains(str haystack, str needle){
 }
 
 /// Splits a string by sep and returns a list. ///
-void toList(str s, str sep){
+global toList(str s, str sep){
     return splitStr(s, sep);
 }
 
 /// Returns 1 if val is a list, 0 otherwise. ///
-void isList(any val){
+global isList(any val){
     if(returnType(val) is "list"){
         return true;
     }
@@ -92,22 +92,22 @@ void isList(any val){
 }
 
 /// Returns the number of elements in a list (alias for returnLength). ///
-void lenList(any lst){
+global lenList(any lst){
     return returnLength(lst);
 }
 
 /// Flattens one level of nested lists into a single flat list. ///
-void flatten(any lst){
+global flatten(any lst){
     return listFlatten(lst);
 }
 
 /// Returns a new list with duplicate values removed (order preserved). ///
-void unique(any lst){
+global unique(any lst){
     return listUnique(lst);
 }
 
 /// Strip leading and trailing whitespace from s. ///
-void trim(str s){
+global trim(str s){
     str result = "";
     rawPy(){
         result = s.strip()
@@ -116,7 +116,7 @@ void trim(str s){
 }
 
 /// Convert s to uppercase. ///
-void upper(str s){
+global upper(str s){
     str result = "";
     rawPy(){
         result = s.upper()
@@ -125,7 +125,7 @@ void upper(str s){
 }
 
 /// Convert s to lowercase. ///
-void lower(str s){
+global lower(str s){
     str result = "";
     rawPy(){
         result = s.lower()
@@ -134,7 +134,7 @@ void lower(str s){
 }
 
 /// Returns true if s starts with prefix. ///
-void startsWith(str s, str prefix){
+global startsWith(str s, str prefix){
     int result = 0;
     rawPy(){
         result = 1 if s.startswith(prefix) else 0
@@ -144,7 +144,7 @@ void startsWith(str s, str prefix){
 }
 
 /// Returns true if s ends with suffix. ///
-void endsWith(str s, str suffix){
+global endsWith(str s, str suffix){
     int result = 0;
     rawPy(){
         result = 1 if s.endswith(suffix) else 0
@@ -154,7 +154,7 @@ void endsWith(str s, str suffix){
 }
 
 /// Replace all occurrences of old with new in s. ///
-void replace(str s, str old, str new){
+global replace(str s, str old, str new){
     str result = "";
     rawPy(){
         result = s.replace(old, new)
@@ -163,7 +163,7 @@ void replace(str s, str old, str new){
 }
 
 /// Return the index of the first occurrence of sub in s, or -1 if not found. ///
-void indexOf(str s, str sub){
+global indexOf(str s, str sub){
     int result = 0;
     rawPy(){
         result = s.find(sub)
@@ -172,7 +172,7 @@ void indexOf(str s, str sub){
 }
 
 /// Return s[start:end] (Python-style slice). Negative indices count from the end. ///
-void substr(str s, int start, int end){
+global substr(str s, int start, int end){
     str result = "";
     rawPy(){
         result = s[start:end]
@@ -181,7 +181,7 @@ void substr(str s, int start, int end){
 }
 
 /// Left-pad s with ch until it is at least width characters wide. ///
-void padLeft(str s, int width, str ch){
+global padLeft(str s, int width, str ch){
     str result = "";
     rawPy(){
         pad_ch = ch[0] if ch else " "
@@ -191,7 +191,7 @@ void padLeft(str s, int width, str ch){
 }
 
 /// Right-pad s with ch until it is at least width characters wide. ///
-void padRight(str s, int width, str ch){
+global padRight(str s, int width, str ch){
     str result = "";
     rawPy(){
         pad_ch = ch[0] if ch else " "
@@ -201,7 +201,7 @@ void padRight(str s, int width, str ch){
 }
 
 /// Return s with its characters in reverse order. ///
-void strReverse(str s){
+global strReverse(str s){
     str result = "";
     rawPy(){
         result = s[::-1]
@@ -209,4 +209,4 @@ void strReverse(str s){
     return result;
 }
 
-void main(){}
+global main(){}

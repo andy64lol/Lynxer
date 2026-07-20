@@ -352,6 +352,7 @@ class Lexer:
             "\\": "\\", '"': '"', "'": "'",
             "0": "\0", "a": "\a", "b": "\b",
             "f": "\f", "v": "\v",
+            "e": "\033",   # ESC — for ANSI escape sequences
         }
 
         while self.current_char is not None and (
@@ -687,7 +688,7 @@ class AddVarGroupNode:
 
 
 class RemoveVarGroupNode:
-    """removeVarGroup(path_expr, fieldName)"""
+    """removeVarGroup(path_expr, field_name)"""
     def __init__(self, path_node, field_name_tok, pos_start, pos_end):
         self.path_node = path_node
         self.field_name_tok = field_name_tok
@@ -797,6 +798,12 @@ class Parser:
             is_func_kw = (
                 self.current_tok.matches(TT_KEYWORD, "void")
                 or self.current_tok.matches(TT_KEYWORD, "def")
+                or (
+                    self.current_tok.type == TT_IDENTIFIER
+                    and self.current_tok.value == "global"
+                    and self.peek(1) is not None
+                    and self.peek(1).type == TT_IDENTIFIER
+                )
             )
             if is_func_kw or is_async_prefix:
                 # Determine the function-name token to check for setup/main:
@@ -809,13 +816,14 @@ class Parser:
                         and (
                             kind_peek.matches(TT_KEYWORD, "void")
                             or kind_peek.matches(TT_KEYWORD, "def")
+                            or (kind_peek.type == TT_IDENTIFIER and kind_peek.value == "global")
                         )
                     ):
                         return res.failure(
                             InvalidSyntaxError(
                                 self.current_tok.pos_start,
                                 self.current_tok.pos_end,
-                                "Expected 'void' or 'def' after 'async' at the top level",
+                                "Expected 'void'/'global' or 'def' after 'async' at the top level",
                             )
                         )
                     func_name_tok = self.peek(2)
@@ -858,7 +866,7 @@ class Parser:
                         self.current_tok.pos_start,
                         self.current_tok.pos_end,
                         "Executable code is not allowed outside of a function. "
-                        "Only 'void'/'def' and 'async void'/'async def' definitions are permitted "
+                        "Only 'void'/'global'/'def' and 'async void'/'async global'/'async def' definitions are permitted "
                         "at the top level. Put globals in setup() and entry logic in 'void main(){}'",
                     )
                 )
@@ -868,8 +876,8 @@ class Parser:
                 InvalidSyntaxError(
                     self.current_tok.pos_start,
                     self.current_tok.pos_end,
-                    "Program requires a 'void setup(){}' function. "
-                    "Add 'void setup(){}' before 'void main()'.",
+                    "Program requires a 'void setup(){}' (or 'global setup(){}') function. "
+                    "Add it before 'void main()' (or 'global main()').",
                 )
             )
 
@@ -898,16 +906,21 @@ class Parser:
             res.register_advancement()
             self.advance()  # consume 'async'
 
-        # kind: void or def
+        # kind: void/global or def
+        _is_global_kw = (
+            self.current_tok.type == TT_IDENTIFIER
+            and self.current_tok.value == "global"
+        )
         if not (
             self.current_tok.matches(TT_KEYWORD, "void")
+            or _is_global_kw
             or self.current_tok.matches(TT_KEYWORD, "def")
         ):
             return res.failure(
                 InvalidSyntaxError(
                     self.current_tok.pos_start,
                     self.current_tok.pos_end,
-                    "Expected 'void' or 'def'" + (" after 'async'" if is_async else ""),
+                    "Expected 'void'/'global' or 'def'" + (" after 'async'" if is_async else ""),
                 )
             )
         kind_tok = self.current_tok
@@ -1055,12 +1068,17 @@ class Parser:
                 return res
             return res.success(node)
 
-        if self.current_tok.matches(TT_KEYWORD, "void"):
+        if self.current_tok.matches(TT_KEYWORD, "void") or (
+            self.current_tok.type == TT_IDENTIFIER
+            and self.current_tok.value == "global"
+            and self.peek(1) is not None
+            and self.peek(1).type == TT_IDENTIFIER
+        ):
             return res.failure(
                 InvalidSyntaxError(
                     self.current_tok.pos_start,
                     self.current_tok.pos_end,
-                    "'void' function definitions must be at the top level of the file, "
+                    "'void'/'global' function definitions must be at the top level of the file, "
                     "not inside another function. Move the function before 'void main(){}'.",
                 )
             )
@@ -1797,7 +1815,7 @@ class Parser:
         )
 
     def parse_remove_vargroup(self):
-        """Parse: removeVarGroup(path_expr, fieldName); """
+        """Parse: removeVarGroup(path_expr, field_name); """
         res = ParseResult()
         pos_start = self.current_tok.pos_start.copy()
         res.register_advancement()
@@ -4545,8 +4563,6 @@ class Interpreter:
             result, error = left.dived_by(right)
         elif op.type == TT_MOD:
             result, error = left.modded_by(right)
-        elif op.type == TT_POW:
-            result, error = left.powed_by(right)
         elif op.matches(TT_KEYWORD, "is"):
             result, error = left.get_comparison_eq(right)
         elif op.type == TT_KEYWORD and op.value == "not is":
@@ -4776,6 +4792,62 @@ class Interpreter:
     async def async_visit_FuncDefNode(self, node, context):
         # Defining a function inside an async body is sync work
         return self.visit_FuncDefNode(node, context)
+
+    async def async_visit_DotAssignNode(self, node, context):
+        res = RTResult()
+        obj = res.register(await self.async_visit(node.obj_node, context))
+        if res.should_return():
+            return res
+
+        if not isinstance(obj, VarGroup):
+            return res.failure(
+                RTError(
+                    node.pos_start,
+                    node.pos_end,
+                    "Dot-assignment target must be a vargroup",
+                    context,
+                )
+            )
+
+        attr_name = node.attr_name_tok.value
+
+        if attr_name in obj._fields:
+            field_decl = obj._fields[attr_name]["type"]
+            if node.decl_type != field_decl and node.decl_type != "any" and field_decl != "any":
+                return res.failure(
+                    RTError(
+                        node.pos_start,
+                        node.pos_end,
+                        f"Type mismatch: field '{attr_name}' is declared as '{field_decl}' "
+                        f"but assignment specifies '{node.decl_type}'",
+                        context,
+                    )
+                )
+
+        value = res.register(await self.async_visit(node.value_node, context))
+        if res.should_return():
+            return res
+
+        obj.set_context(context).set_pos(node.pos_start, node.pos_end)
+        error = obj.set_attr(attr_name, value)
+        if error:
+            error.pos_start = node.pos_start
+            error.pos_end = node.pos_end
+            error.context = context
+            return res.failure(error)
+
+        return res.success(value)
+
+    async def async_visit_VarGroupDeclNode(self, node, context):
+        # Field initializers do not support await (per language spec)
+        return self.visit_VarGroupDeclNode(node, context)
+
+    async def async_visit_AddVarGroupNode(self, node, context):
+        # Field initializers do not support await (per language spec)
+        return self.visit_AddVarGroupNode(node, context)
+
+    async def async_visit_RemoveVarGroupNode(self, node, context):
+        return self.visit_RemoveVarGroupNode(node, context)
 
     # ------------------------------------------------------------------ /async visitor path
 

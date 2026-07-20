@@ -3,9 +3,9 @@
   seqFromTo(), and rawPyx.
 ///
 
-void setup(){}
+global setup(){}
 
-void main(){
+global main(){
     print("=== any / none ===\n");
     any nothing = none;
     print("nothing = ");     print(nothing);              print("\n");

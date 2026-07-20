@@ -6,10 +6,10 @@
             dirname, absPath, getenv, getpid, sep
 ///
 
-void setup(){}
+global setup(){}
 
 /// Returns the current working directory as a string. ///
-void getcwd(){
+global getcwd(){
     str result = "";
     rawPy(){
         import os as _os
@@ -20,7 +20,7 @@ void getcwd(){
 
 /// Changes the current working directory to path.
   Returns true on success, false on error. ///
-void chdir(str path){
+global chdir(str path){
     bool ok = true;
     rawPy(){
         import os as _os
@@ -34,7 +34,7 @@ void chdir(str path){
 
 /// Returns directory entries as a Lynxer list.
   Returns an empty list on error or if the directory is empty. ///
-void listdir(str path){
+global listdir(str path){
     str raw = "";
     rawPy(){
         import os as _os
@@ -51,7 +51,7 @@ void listdir(str path){
 }
 
 /// Creates a directory. Returns true on success, false on error (including if it already exists). ///
-void mkdir(str path){
+global mkdir(str path){
     bool ok = true;
     rawPy(){
         import os as _os
@@ -65,7 +65,7 @@ void mkdir(str path){
 
 /// Creates a directory and all intermediate parents (like mkdir -p).
   Returns true on success, false on error. ///
-void makedirs(str path){
+global makedirs(str path){
     bool ok = true;
     rawPy(){
         import os as _os
@@ -78,7 +78,7 @@ void makedirs(str path){
 }
 
 /// Removes an empty directory. Returns true on success, false on error. ///
-void rmdir(str path){
+global rmdir(str path){
     bool ok = true;
     rawPy(){
         import os as _os
@@ -91,7 +91,7 @@ void rmdir(str path){
 }
 
 /// Removes a file. Returns true on success, false on error. ///
-void remove(str path){
+global remove(str path){
     bool ok = true;
     rawPy(){
         import os as _os
@@ -104,7 +104,7 @@ void remove(str path){
 }
 
 /// Renames or moves src to dst. Returns true on success, false on error. ///
-void rename(str src, str dst){
+global rename(str src, str dst){
     bool ok = true;
     rawPy(){
         import os as _os
@@ -117,7 +117,7 @@ void rename(str src, str dst){
 }
 
 /// Returns true if path exists (file or directory), false otherwise. ///
-void exists(str path){
+global exists(str path){
     bool result = false;
     rawPy(){
         import os as _os
@@ -127,7 +127,7 @@ void exists(str path){
 }
 
 /// Returns true if path is a regular file. ///
-void isFile(str path){
+global isFile(str path){
     bool result = false;
     rawPy(){
         import os as _os
@@ -137,7 +137,7 @@ void isFile(str path){
 }
 
 /// Returns true if path is a directory. ///
-void isDir(str path){
+global isDir(str path){
     bool result = false;
     rawPy(){
         import os as _os
@@ -147,7 +147,7 @@ void isDir(str path){
 }
 
 /// Joins two path components with the OS separator. ///
-void joinPath(str a, str b){
+global joinPath(str a, str b){
     str result = "";
     rawPy(){
         import os as _os
@@ -157,7 +157,7 @@ void joinPath(str a, str b){
 }
 
 /// Returns the last component of path (the filename or directory name). ///
-void basename(str path){
+global basename(str path){
     str result = "";
     rawPy(){
         import os as _os
@@ -167,7 +167,7 @@ void basename(str path){
 }
 
 /// Returns the directory portion of path. ///
-void dirname(str path){
+global dirname(str path){
     str result = "";
     rawPy(){
         import os as _os
@@ -177,7 +177,7 @@ void dirname(str path){
 }
 
 /// Returns the absolute path of path. ///
-void absPath(str path){
+global absPath(str path){
     str result = "";
     rawPy(){
         import os as _os
@@ -187,7 +187,7 @@ void absPath(str path){
 }
 
 /// Returns the value of environment variable key, or "" if not set. ///
-void getenv(str key){
+global getenv(str key){
     str result = "";
     rawPy(){
         import os as _os
@@ -197,7 +197,7 @@ void getenv(str key){
 }
 
 /// Returns the current process ID as an integer. ///
-void getpid(){
+global getpid(){
     int result = 0;
     rawPy(){
         import os as _os
@@ -207,7 +207,7 @@ void getpid(){
 }
 
 /// Returns the OS path separator ("/" on Unix, "\" on Windows). ///
-void sep(){
+global sep(){
     str result = "";
     rawPy(){
         import os as _os
@@ -217,7 +217,7 @@ void sep(){
 }
 
 /// Set environment variable key to val for the current process. Returns true on success. ///
-void setenv(str key, str val){
+global setenv(str key, str val){
     bool ok = true;
     rawPy(){
         import os as _os
@@ -230,7 +230,7 @@ void setenv(str key, str val){
 }
 
 /// Expand a leading ~ or ~user in path to the full home directory. ///
-void expandUser(str path){
+global expandUser(str path){
     str result = "";
     rawPy(){
         import os as _os
@@ -240,7 +240,7 @@ void expandUser(str path){
 }
 
 /// Return the file extension of path (including the dot), e.g. ".txt". Returns "" if none. ///
-void extname(str path){
+global extname(str path){
     str result = "";
     rawPy(){
         import os as _os
@@ -250,7 +250,7 @@ void extname(str path){
 }
 
 /// Normalize a path (resolve "..", collapse double slashes, etc.). ///
-void normPath(str path){
+global normPath(str path){
     str result = "";
     rawPy(){
         import os as _os
@@ -259,4 +259,4 @@ void normPath(str path){
     return result;
 }
 
-void main(){}
+global main(){}

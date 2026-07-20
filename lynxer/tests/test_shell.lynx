@@ -4,12 +4,12 @@
           runShellErr, runShellCode, commandExists
 ///
 
-void setup(){
+global setup(){
     import("shell");
     import("typing");
 }
 
-void check(str label, bool ok){
+global check(str label, bool ok){
     if(ok){
         println("PASS: " + label);
     } else {
@@ -17,44 +17,44 @@ void check(str label, bool ok){
     }
 }
 
-void main(){
+global main(){
     println("=== shell stdlib tests ===");
 
     // runShell — returns exit code
     int code0 = global.shell.runShell("true");
     int code1 = global.shell.runShell("false");
-    check("runShell(true) == 0",   code0 is 0);
-    check("runShell(false) == 1",  code1 is 1);
+    global.check("runShell(true) == 0",   code0 is 0);
+    global.check("runShell(false) == 1",  code1 is 1);
 
     // runShellCapture — captures stdout
     str out = global.shell.runShellCapture("echo hello");
-    check("runShellCapture returns output",  global.typing.contains(out, "hello") is true);
+    global.check("runShellCapture returns output",  global.typing.contains(out, "hello") is true);
 
     str out2 = global.shell.runShellCapture("echo Lynxer");
-    check("runShellCapture Lynxer",          global.typing.contains(out2, "Lynxer") is true);
+    global.check("runShellCapture Lynxer",          global.typing.contains(out2, "Lynxer") is true);
 
     // runShellSilent — no output, returns exit code
     int sc0 = global.shell.runShellSilent("echo suppress");
     int sc1 = global.shell.runShellSilent("false");
-    check("runShellSilent(true) == 0",  sc0 is 0);
-    check("runShellSilent(false) == 1", sc1 is 1);
+    global.check("runShellSilent(true) == 0",  sc0 is 0);
+    global.check("runShellSilent(false) == 1", sc1 is 1);
 
     // runShellCode — returns exit code (silently)
     int rc0 = global.shell.runShellCode("true");
     int rc1 = global.shell.runShellCode("false");
     int rc2 = global.shell.runShellCode("exit 42");
-    check("runShellCode(true) == 0",   rc0 is 0);
-    check("runShellCode(false) == 1",  rc1 is 1);
-    check("runShellCode(exit 42)==42", rc2 is 42);
+    global.check("runShellCode(true) == 0",   rc0 is 0);
+    global.check("runShellCode(false) == 1",  rc1 is 1);
+    global.check("runShellCode(exit 42)==42", rc2 is 42);
 
     // runShellErr — captures stderr only
     str err = global.shell.runShellErr("echo errline >&2");
-    check("runShellErr captures stderr", global.typing.contains(err, "errline") is true);
+    global.check("runShellErr captures stderr", global.typing.contains(err, "errline") is true);
 
     // commandExists
-    check("commandExists(echo) == true",     global.shell.commandExists("echo")          is true);
-    check("commandExists(python3) == true",  global.shell.commandExists("python3")       is true);
-    check("commandExists(no_cmd) == false",  global.shell.commandExists("__no_such_cmd") is false);
+    global.check("commandExists(echo) == true",     global.shell.commandExists("echo")          is true);
+    global.check("commandExists(python3) == true",  global.shell.commandExists("python3")       is true);
+    global.check("commandExists(no_cmd) == false",  global.shell.commandExists("__no_such_cmd") is false);
 
     println("=== shell tests done ===");
 }

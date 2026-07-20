@@ -1,6 +1,6 @@
 // vargroup_test.lynx
 
-void setup(){
+global setup(){
     // global vargroup accessible from all functions
     vargroup config = [
         str  host  = "localhost",
@@ -9,7 +9,7 @@ void setup(){
     ];
 }
 
-void makeGroup() {
+global makeGroup() {
     vargroup local = [
         int x = 1,
         int y = 2
@@ -20,7 +20,7 @@ void makeGroup() {
     println(local.x); // 99
 }
 
-void main() {
+global main() {
 
     // global vargroup declared in setup()
     println(config.host);        // localhost
@@ -73,8 +73,8 @@ void main() {
     // strOf
     println(strOf(config)); // vargroup config { str host = localhost, int port = 9000, bool debug = false }
 
-    // vargroup inside a top-level void function
-    makeGroup();
+    // vargroup inside a top-level global function
+    global.makeGroup();
 
     // any-typed field — must still declare 'any' explicitly
     vargroup bag = [

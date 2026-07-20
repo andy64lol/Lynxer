@@ -6,12 +6,12 @@
           extname, normPath
 ///
 
-void setup(){
+global setup(){
     import("os");
     import("typing");
 }
 
-void check(str label, bool ok){
+global check(str label, bool ok){
     if(ok){
         println("PASS: " + label);
     } else {
@@ -19,53 +19,53 @@ void check(str label, bool ok){
     }
 }
 
-void main(){
+global main(){
     println("=== os stdlib tests ===");
 
     // getcwd
     str cwd = global.os.getcwd();
-    check("getcwd non-empty",         returnLength(cwd) > 0);
+    global.check("getcwd non-empty",         returnLength(cwd) > 0);
 
     // sep
     str s = global.os.sep();
-    check("sep is / or \\",           s is "/" or s is "\\");
+    global.check("sep is / or \\",           s is "/" or s is "\\");
 
     // getpid
     int pid = global.os.getpid();
-    check("getpid > 0",               pid > 0);
+    global.check("getpid > 0",               pid > 0);
 
     // getenv — PATH should always be set
     str path_env = global.os.getenv("PATH");
-    check("getenv(PATH) non-empty",   returnLength(path_env) > 0);
-    check("getenv(MISSING) == \"\"",  global.os.getenv("__NO_SUCH_VAR__") is "");
+    global.check("getenv(PATH) non-empty",   returnLength(path_env) > 0);
+    global.check("getenv(MISSING) == \"\"",  global.os.getenv("__NO_SUCH_VAR__") is "");
 
     // setenv
     bool sv = global.os.setenv("LYNX_TEST_VAR", "hello");
-    check("setenv returns true",      sv is true);
+    global.check("setenv returns true",      sv is true);
     str got = global.os.getenv("LYNX_TEST_VAR");
-    check("setenv value readable",    got is "hello");
+    global.check("setenv value readable",    got is "hello");
 
     // isDir / isFile / exists
-    check("isDir(cwd) == true",       global.os.isDir(cwd) is true);
-    check("isFile(cwd) == false",     global.os.isFile(cwd) is false);
-    check("exists(cwd) == true",      global.os.exists(cwd) is true);
-    check("exists(missing) == false", global.os.exists("/no_such_path_lynx") is false);
+    global.check("isDir(cwd) == true",       global.os.isDir(cwd) is true);
+    global.check("isFile(cwd) == false",     global.os.isFile(cwd) is false);
+    global.check("exists(cwd) == true",      global.os.exists(cwd) is true);
+    global.check("exists(missing) == false", global.os.exists("/no_such_path_lynx") is false);
 
     // mkdir / rmdir
     str testDir = "/tmp/_lynx_test_os_dir";
     global.os.rmdir(testDir);
     bool mk = global.os.mkdir(testDir);
-    check("mkdir returns true",       mk is true);
-    check("mkdir: dir exists",        global.os.isDir(testDir) is true);
+    global.check("mkdir returns true",       mk is true);
+    global.check("mkdir: dir exists",        global.os.isDir(testDir) is true);
     bool rd = global.os.rmdir(testDir);
-    check("rmdir returns true",       rd is true);
-    check("rmdir: dir gone",          global.os.exists(testDir) is false);
+    global.check("rmdir returns true",       rd is true);
+    global.check("rmdir: dir gone",          global.os.exists(testDir) is false);
 
     // makedirs (nested)
     str nested = "/tmp/_lynx_os_a/b/c";
     bool mds = global.os.makedirs(nested);
-    check("makedirs returns true",    mds is true);
-    check("makedirs: leaf exists",    global.os.isDir(nested) is true);
+    global.check("makedirs returns true",    mds is true);
+    global.check("makedirs: leaf exists",    global.os.isDir(nested) is true);
 
     // remove a file
     str tmpFile = "/tmp/_lynx_test_os_file.txt";
@@ -73,10 +73,10 @@ void main(){
         with open(tmpFile, "w") as _f:
             _f.write("test")
     }
-    check("isFile after create",      global.os.isFile(tmpFile) is true);
+    global.check("isFile after create",      global.os.isFile(tmpFile) is true);
     bool rm = global.os.remove(tmpFile);
-    check("remove returns true",      rm is true);
-    check("remove: file gone",        global.os.exists(tmpFile) is false);
+    global.check("remove returns true",      rm is true);
+    global.check("remove: file gone",        global.os.exists(tmpFile) is false);
 
     // rename
     str src = "/tmp/_lynx_rename_src.txt";
@@ -86,40 +86,40 @@ void main(){
             _f.write("rename")
     }
     bool rn = global.os.rename(src, dst);
-    check("rename returns true",      rn is true);
-    check("rename dst exists",        global.os.isFile(dst) is true);
-    check("rename src gone",          global.os.exists(src) is false);
+    global.check("rename returns true",      rn is true);
+    global.check("rename dst exists",        global.os.isFile(dst) is true);
+    global.check("rename src gone",          global.os.exists(src) is false);
     global.os.remove(dst);
 
     // joinPath / basename / dirname / absPath
     str joined = global.os.joinPath("/foo/bar", "baz.txt");
-    check("joinPath result",          global.typing.endsWith(joined, "baz.txt") is true);
+    global.check("joinPath result",          global.typing.endsWith(joined, "baz.txt") is true);
     str bn = global.os.basename("/foo/bar/baz.txt");
-    check("basename == baz.txt",      bn is "baz.txt");
+    global.check("basename == baz.txt",      bn is "baz.txt");
     str dn = global.os.dirname("/foo/bar/baz.txt");
-    check("dirname == /foo/bar",      dn is "/foo/bar");
+    global.check("dirname == /foo/bar",      dn is "/foo/bar");
     str ap = global.os.absPath(".");
-    check("absPath non-empty",        returnLength(ap) > 0);
+    global.check("absPath non-empty",        returnLength(ap) > 0);
 
     // extname
-    check("extname(.txt) == \".txt\"",  global.os.extname("file.txt")   is ".txt");
-    check("extname(.lynx) == \".lynx\"", global.os.extname("prog.lynx") is ".lynx");
-    check("extname(no ext) == \"\"",    global.os.extname("noext")      is "");
+    global.check("extname(.txt) == \".txt\"",  global.os.extname("file.txt")   is ".txt");
+    global.check("extname(.lynx) == \".lynx\"", global.os.extname("prog.lynx") is ".lynx");
+    global.check("extname(no ext) == \"\"",    global.os.extname("noext")      is "");
 
     // normPath
     str np = global.os.normPath("/foo/bar/../baz");
-    check("normPath resolves ..",     np is "/foo/baz");
+    global.check("normPath resolves ..",     np is "/foo/baz");
 
     // expandUser
     str home = global.os.expandUser("~");
-    check("expandUser(~) non-empty",  returnLength(home) > 0);
-    check("expandUser(~) no tilde",   global.typing.contains(home, "~") is false);
+    global.check("expandUser(~) non-empty",  returnLength(home) > 0);
+    global.check("expandUser(~) no tilde",   global.typing.contains(home, "~") is false);
 
     // listdir
     any entries = global.os.listdir("/tmp");
-    check("listdir(/tmp) non-empty",  returnLength(entries) > 0);
+    global.check("listdir(/tmp) non-empty",  returnLength(entries) > 0);
     any empty = global.os.listdir("/no_such_dir_lynx");
-    check("listdir(missing) empty",   returnLength(empty) is 0);
+    global.check("listdir(missing) empty",   returnLength(empty) is 0);
 
     println("=== os tests done ===");
 }

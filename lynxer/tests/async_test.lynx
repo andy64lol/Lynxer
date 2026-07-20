@@ -1,43 +1,33 @@
-void setup() {}
-
-// ── helper: a simple async function that returns a value after a tiny sleep
+global setup() {}
 
 async def slowDouble(int n) {
     await asyncSleep(0.01);
     return n * 2;
 }
 
-// ── helper: async void function (no return value)
-
-async void greetAsync(str name) {
+async global greetAsync(str name) {
     str msg = "hello " + name;
-    println(msg + "\n");
+    println(msg);
 }
-
-// ── TEST 1: asyncRun drives a simple async def function
 
 async def test1() {
     any result = await slowDouble(7);
     return result;
 }
 
-void runTest1() {
+global runTest1() {
     any got = asyncRun(test1());
     if (got is 14) {
-        println("TEST 1 PASSED\n");
+        println("TEST 1 PASSED");
     } else {
-        println("TEST 1 FAILED got=" + strOf(got) + "\n");
+        println("TEST 1 FAILED got=" + strOf(got));
     }
 }
 
-// ── TEST 2: asyncRun drives an async void function
-
-void runTest2() {
-    asyncRun(greetAsync("world"));
-    println("TEST 2 PASSED\n");
+global runTest2() {
+    asyncRun(global.greetAsync("world"));
+    println("TEST 2 PASSED");
 }
-
-// ── TEST 3: chained await inside async
 
 async def addAsync(int a, int b) {
     await asyncSleep(0.01);
@@ -50,16 +40,14 @@ async def test3() {
     return y;
 }
 
-void runTest3() {
+global runTest3() {
     any got = asyncRun(test3());
     if (got is 17) {
-        println("TEST 3 PASSED\n");
+        println("TEST 3 PASSED");
     } else {
-        println("TEST 3 FAILED got=" + strOf(got) + "\n");
+        println("TEST 3 FAILED got=" + strOf(got));
     }
 }
-
-// ── TEST 4: asyncGather runs tasks concurrently, returns list
 
 async def test4() {
     any results = await asyncGather(
@@ -76,16 +64,14 @@ async def test4() {
     return 0;
 }
 
-void runTest4() {
+global runTest4() {
     any ok = asyncRun(test4());
     if (ok is 1) {
-        println("TEST 4 PASSED\n");
+        println("TEST 4 PASSED");
     } else {
-        println("TEST 4 FAILED\n");
+        println("TEST 4 FAILED");
     }
 }
-
-// ── TEST 5: await inside async + string result
 
 async def greetStr(str name) {
     await asyncSleep(0.01);
@@ -97,16 +83,14 @@ async def test5() {
     return msg;
 }
 
-void runTest5() {
+global runTest5() {
     any got = asyncRun(test5());
     if (got is "hi lynxer") {
-        println("TEST 5 PASSED\n");
+        println("TEST 5 PASSED");
     } else {
-        println("TEST 5 FAILED got=" + strOf(got) + "\n");
+        println("TEST 5 FAILED got=" + strOf(got));
     }
 }
-
-// ── TEST 6: try/catch inside async
 
 async def test6() {
     str caught = "";
@@ -121,16 +105,14 @@ async def test6() {
     return "fail";
 }
 
-void runTest6() {
+global runTest6() {
     any got = asyncRun(test6());
     if (got is "ok") {
-        println("TEST 6 PASSED\n");
+        println("TEST 6 PASSED");
     } else {
-        println("TEST 6 FAILED got=" + strOf(got) + "\n");
+        println("TEST 6 FAILED got=" + strOf(got));
     }
 }
-
-// ── TEST 7: while loop inside async
 
 async def test7() {
     int total = 0;
@@ -142,39 +124,35 @@ async def test7() {
     return total;
 }
 
-void runTest7() {
+global runTest7() {
     any got = asyncRun(test7());
     if (got is 10) {
-        println("TEST 7 PASSED\n");
+        println("TEST 7 PASSED");
     } else {
-        println("TEST 7 FAILED got=" + strOf(got) + "\n");
+        println("TEST 7 FAILED got=" + strOf(got));
     }
 }
 
-// ── TEST 8: async void main pattern (await inside async void)
-
-async void asyncMain() {
+async global asyncMain() {
     any v = await slowDouble(21);
     if (v is 42) {
-        println("TEST 8 PASSED\n");
+        println("TEST 8 PASSED");
     } else {
-        println("TEST 8 FAILED got=" + strOf(v) + "\n");
+        println("TEST 8 FAILED got=" + strOf(v));
     }
 }
 
-void runTest8() {
-    asyncRun(asyncMain());
+global runTest8() {
+    asyncRun(global.asyncMain());
 }
 
-// ── run all tests
-
-void main() {
-    runTest1();
-    runTest2();
-    runTest3();
-    runTest4();
-    runTest5();
-    runTest6();
-    runTest7();
-    runTest8();
+global main() {
+    global.runTest1();
+    global.runTest2();
+    global.runTest3();
+    global.runTest4();
+    global.runTest5();
+    global.runTest6();
+    global.runTest7();
+    global.runTest8();
 }

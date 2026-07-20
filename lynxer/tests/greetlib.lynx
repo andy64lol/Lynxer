@@ -3,18 +3,18 @@
   Demonstrates: constants and functions exported via global.module.*
 ///
 
-void setup(){
+global setup(){
     const str GREETLIB_VERSION = "1.0";
 }
 
-void sayHi(){
+global sayHi(){
     print("Hi from greetlib!\n");
 }
 
-void sayHello(str name){
+global sayHello(str name){
     print("Hello, ");
     print(name);
     print("!\n");
 }
 
-void main(){}
+global main(){}

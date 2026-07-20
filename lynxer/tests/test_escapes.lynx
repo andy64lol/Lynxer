@@ -3,9 +3,9 @@
   Covers: \n, \t, \r, \\, \", \', \0, \a, \b, \f, \v
 ///
 
-void setup(){}
+global setup(){}
 
-void main(){
+global main(){
     println("=== Escape Sequence Tests ===");
 
     // \n — newline (should split across two lines)

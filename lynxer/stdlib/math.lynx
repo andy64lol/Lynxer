@@ -3,32 +3,32 @@
   Provides: abs, max, min, clamp, pow, floor, ceil, sqrt, round, roundNum (Legacy), PI (legacy), pi, Pi (if someone writes incorrectly)
 ///
 
-void setup(){}
+global setup(){}
 
-void abs(int n){
+global abs(int n){
     if(n < 0){
         return n * -1;
     }
     return n;
 }
 
-void max(int a, int b){
+global max(int a, int b){
     if(a > b){ return a; }
     return b;
 }
 
-void min(int a, int b){
+global min(int a, int b){
     if(a < b){ return a; }
     return b;
 }
 
-void clamp(int val, int lo, int hi){
+global clamp(int val, int lo, int hi){
     if(val < lo){ return lo; }
     if(val > hi){ return hi; }
     return val;
 }
 
-void pow(int base, int exp){
+global pow(int base, int exp){
     int result = 1;
     int i = 0;
     while(i < exp){
@@ -38,7 +38,7 @@ void pow(int base, int exp){
     return result;
 }
 
-void floor(float n){
+global floor(float n){
     rawPy(){
         import math as _m
         n = _m.floor(n)
@@ -46,7 +46,7 @@ void floor(float n){
     return n;
 }
 
-void ceil(float n){
+global ceil(float n){
     rawPy(){
         import math as _m
         n = _m.ceil(n)
@@ -54,7 +54,7 @@ void ceil(float n){
     return n;
 }
 
-void sqrt(float n){
+global sqrt(float n){
     rawPy(){
         import math as _m
         n = _m.sqrt(n)
@@ -62,18 +62,18 @@ void sqrt(float n){
     return n;
 }
 
-void round(float n){
+global round(float n){
     rawPy(){
         n = round(n)
     }
     return n;
 }
 
-void roundNum(float n){ //legacy again
+global roundNum(float n){ //legacy again
     return global.round(n);
 }
 
-void pi(){
+global pi(){
     float result = 0.0;
     rawPy(){
         import math as _m
@@ -82,16 +82,16 @@ void pi(){
     return result;
 }
 
-void PI(){ // for backward compatibility, this was the OG name and looked too... uppercase...
+global PI(){ // for backward compatibility, this was the OG name and looked too... uppercase...
     return global.pi();
 }
 
-void Pi(){ // also allow this idk why
+global Pi(){ // also allow this idk why
     return global.pi();
 }
 
 /// Euler's number e ≈ 2.718… ///
-void e(){
+global e(){
     float result = 0.0;
     rawPy(){
         import math as _m
@@ -101,7 +101,7 @@ void e(){
 }
 
 /// Natural logarithm of n. Returns 0.0 if n <= 0. ///
-void log(float n){
+global log(float n){
     float result = 0.0;
     rawPy(){
         import math as _m
@@ -114,7 +114,7 @@ void log(float n){
 }
 
 /// Base-2 logarithm of n. Returns 0.0 if n <= 0. ///
-void log2(float n){
+global log2(float n){
     float result = 0.0;
     rawPy(){
         import math as _m
@@ -127,7 +127,7 @@ void log2(float n){
 }
 
 /// Base-10 logarithm of n. Returns 0.0 if n <= 0. ///
-void log10(float n){
+global log10(float n){
     float result = 0.0;
     rawPy(){
         import math as _m
@@ -140,7 +140,7 @@ void log10(float n){
 }
 
 /// Sine of n (radians). ///
-void sin(float n){
+global sin(float n){
     float result = 0.0;
     rawPy(){
         import math as _m
@@ -150,7 +150,7 @@ void sin(float n){
 }
 
 /// Cosine of n (radians). ///
-void cos(float n){
+global cos(float n){
     float result = 0.0;
     rawPy(){
         import math as _m
@@ -160,7 +160,7 @@ void cos(float n){
 }
 
 /// Tangent of n (radians). ///
-void tan(float n){
+global tan(float n){
     float result = 0.0;
     rawPy(){
         import math as _m
@@ -170,7 +170,7 @@ void tan(float n){
 }
 
 /// Convert radians to degrees. ///
-void degrees(float n){
+global degrees(float n){
     float result = 0.0;
     rawPy(){
         import math as _m
@@ -180,7 +180,7 @@ void degrees(float n){
 }
 
 /// Convert degrees to radians. ///
-void radians(float n){
+global radians(float n){
     float result = 0.0;
     rawPy(){
         import math as _m
@@ -190,26 +190,26 @@ void radians(float n){
 }
 
 /// Returns -1 if n < 0, 0 if n == 0, 1 if n > 0. ///
-void sign(float n){
+global sign(float n){
     if(n < 0){ return -1; }
     if(n > 0){ return 1; }
     return 0;
 }
 
 /// Returns true if n is even. ///
-void isEven(int n){
+global isEven(int n){
     if(n % 2 is 0){ return true; }
     return false;
 }
 
 /// Returns true if n is odd. ///
-void isOdd(int n){
+global isOdd(int n){
     if(n % 2 not is 0){ return true; }
     return false;
 }
 
 /// Factorial of n (n!). Returns 1 for n <= 0. ///
-void factorial(int n){
+global factorial(int n){
     int result = 1;
     rawPy(){
         import math as _m
@@ -222,7 +222,7 @@ void factorial(int n){
 }
 
 /// Greatest common divisor of a and b. ///
-void gcd(int a, int b){
+global gcd(int a, int b){
     int result = 0;
     rawPy(){
         import math as _m
@@ -231,8 +231,8 @@ void gcd(int a, int b){
     return result;
 }
 
-/// Hypotenuse: sqrt(a² + b²). ///
-void hypot(float a, float b){
+/// Hypotenuse: global.sqrt(a² + b²). ///
+global hypot(float a, float b){
     float result = 0.0;
     rawPy(){
         import math as _m
@@ -242,7 +242,7 @@ void hypot(float a, float b){
 }
 
 /// Truncate n toward zero (removes the fractional part). ///
-void truncate(float n){
+global truncate(float n){
     int result = 0;
     rawPy(){
         import math as _m
@@ -252,7 +252,7 @@ void truncate(float n){
 }
 
 /// Random integer in [lo, hi] (inclusive). ///
-void randInt(int lo, int hi){
+global randInt(int lo, int hi){
     int result = 0;
     rawPy(){
         import random as _r
@@ -262,7 +262,7 @@ void randInt(int lo, int hi){
 }
 
 /// Random float in [lo, hi). ///
-void randFloat(float lo, float hi){
+global randFloat(float lo, float hi){
     float result = 0.0;
     rawPy(){
         import random as _r
@@ -271,4 +271,4 @@ void randFloat(float lo, float hi){
     return result;
 }
 
-void main(){}
+global main(){}

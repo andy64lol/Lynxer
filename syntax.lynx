@@ -7,14 +7,14 @@
 ///
 
 ///
-every program starts with void setup(){} and ends with void main(){}, no exceptions
-void declares a global function. Functions may return values with return regardless of parameter types
+every program starts with global setup(){} and ends with global main(){}, no exceptions
+global declares a global function. Functions may return values with return regardless of parameter types
 weird but because it reminds me of Arduino C, that's why
 ///
 
 
 // globals go in setup()
-void setup(){
+global setup(){
     import("math");
     import("typing");
     import("fileIO");
@@ -28,34 +28,34 @@ void setup(){
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
-// void with no return value
-void printLine(str ch, int n){
+// global with no return value
+global printLine(str ch, int n){
     rawPy(){
         print(ch * n)
     }
 }
 
-// void functions can still return values
-void add(int a, int b){
+// global functions can still return values
+global add(int a, int b){
     return a + b;
 }
 
-void divide(float a, float b){
+global divide(float a, float b){
     return a / b;
 }
 
-void greet(str name){
+global greet(str name){
     return "Hello, " + name + "!";
 }
 
 // any = accepts / returns anything
-void identity(any x){
+global identity(any x){
     return x;
 }
 
 // ── control flow ─────────────────────────────────────────────────────────────
 
-void demoIf(int n){
+global demoIf(int n){
     if(n > 0){
         print("positive\n");
     } else {
@@ -67,7 +67,7 @@ void demoIf(int n){
     }
 }
 
-void demoWhile(){
+global demoWhile(){
     int i = 0;
     while(i < 3){
         print(i); print(" ");
@@ -76,7 +76,7 @@ void demoWhile(){
     print("\n");
 }
 
-void demoFor(){
+global demoFor(){
     for(int i = 0; i < 4; i = i + 1){
         print(i); print(" ");
     }
@@ -85,10 +85,10 @@ void demoFor(){
 
 // ── main ─────────────────────────────────────────────────────────────────────
 
-void main(){
-    printLine("=", 40);
+global main(){
+    global.printLine("=", 40);
     print(TITLE); print(" v"); print(VERSION); print("\n");
-    printLine("=", 40);
+    global.printLine("=", 40);
 
     // --- types ---
     print("\n-- types --\n");
@@ -108,8 +108,8 @@ void main(){
 
     // --- arithmetic ---
     print("\n-- arithmetic --\n");
-    print("add(10,3)      = "); print(add(10, 3));       print("\n");
-    print("divide(7,2)    = "); print(divide(7.0, 2.0)); print("\n");
+    print("global.add(10,3)      = "); print(global.add(10, 3));       print("\n");
+    print("global.divide(7,2)    = "); print(global.divide(7.0, 2.0)); print("\n");
     print("10 % 3         = "); print(10 % 3);           print("\n");
     int x = 5;
     x += 3;
@@ -153,7 +153,7 @@ void main(){
 
     // --- strings & builtins ---
     print("\n-- strings & builtins --\n");
-    print(greet("World")); print("\n");
+    print(global.greet("World")); print("\n");
     print("strOf(99)         = "); print(strOf(99));      print("\n");
     print("intOf(\"7\")      = "); print(intOf("7"));     print("\n");
     print("floatOf(\"1.5\")  = "); print(floatOf("1.5")); print("\n");
@@ -170,14 +170,14 @@ void main(){
 
     // --- any type ---
     print("\n-- any type --\n");
-    print("identity(42)    = "); print(identity(42));   print("\n");
-    print("identity(\"hi\") = "); print(identity("hi")); print("\n");
+    print("global.identity(42)    = "); print(global.identity(42));   print("\n");
+    print("global.identity(\"hi\") = "); print(global.identity("hi")); print("\n");
 
     // --- control flow ---
     print("\n-- control flow --\n");
-    demoIf(1); demoIf(0); demoIf(-1);
-    print("while: "); demoWhile();
-    print("for:   "); demoFor();
+    global.demoIf(1); global.demoIf(0); global.demoIf(-1);
+    print("while: "); global.demoWhile();
+    print("for:   "); global.demoFor();
 
     // --- math stdlib ---
     print("\n-- math stdlib --\n");
@@ -209,7 +209,7 @@ void main(){
     }
     print("6*7 = "); print(cy); print("\n");
 
-    printLine("=", 40);
+    global.printLine("=", 40);
     print("Done.\n");
     print("Or not...");
     // --- also bro we can have multiple arguments in print(); ---

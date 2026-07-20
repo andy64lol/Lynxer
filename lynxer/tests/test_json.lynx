@@ -5,12 +5,12 @@
           jsonHas, jsonLength, jsonSet, jsonDelete, jsonMerge
 ///
 
-void setup(){
+global setup(){
     import("json");
     import("typing");
 }
 
-void check(str label, bool ok){
+global check(str label, bool ok){
     if(ok){
         println("PASS: " + label);
     } else {
@@ -18,45 +18,45 @@ void check(str label, bool ok){
     }
 }
 
-void main(){
+global main(){
     println("=== json stdlib tests ===");
 
     str data = "{\"name\":\"Lynxer\",\"version\":1,\"active\":true,\"score\":9.5}";
     str bad  = "not json at all";
 
     // jsonValid
-    check("jsonValid(good) == true",  global.json.jsonValid(data) is true);
-    check("jsonValid(bad) == false",  global.json.jsonValid(bad)  is false);
+    global.check("jsonValid(good) == true",  global.json.jsonValid(data) is true);
+    global.check("jsonValid(bad) == false",  global.json.jsonValid(bad)  is false);
 
     // jsonGet (string value)
-    check("jsonGet name == Lynxer",   global.json.jsonGet(data, "name")    is "Lynxer");
-    check("jsonGet missing == \"\"",  global.json.jsonGet(data, "nope")    is "");
+    global.check("jsonGet name == Lynxer",   global.json.jsonGet(data, "name")    is "Lynxer");
+    global.check("jsonGet missing == \"\"",  global.json.jsonGet(data, "nope")    is "");
 
     // jsonGetInt
-    check("jsonGetInt version == 1",  global.json.jsonGetInt(data, "version") is 1);
-    check("jsonGetInt missing == 0",  global.json.jsonGetInt(data, "nope")    is 0);
+    global.check("jsonGetInt version == 1",  global.json.jsonGetInt(data, "version") is 1);
+    global.check("jsonGetInt missing == 0",  global.json.jsonGetInt(data, "nope")    is 0);
 
     // jsonGetFloat
     float sc = global.json.jsonGetFloat(data, "score");
-    check("jsonGetFloat score == 9.5", sc is 9.5);
+    global.check("jsonGetFloat score == 9.5", sc is 9.5);
 
     // jsonGetBool
-    check("jsonGetBool active == true",  global.json.jsonGetBool(data, "active") is true);
-    check("jsonGetBool missing == false", global.json.jsonGetBool(data, "nope")  is false);
+    global.check("jsonGetBool active == true",  global.json.jsonGetBool(data, "active") is true);
+    global.check("jsonGetBool missing == false", global.json.jsonGetBool(data, "nope")  is false);
 
     // jsonKeys
     str keys = global.json.jsonKeys(data);
-    check("jsonKeys contains 'name'",    global.typing.contains(keys, "name")    is false or true);
-    check("jsonKeys non-empty",          returnLength(keys) > 0);
+    global.check("jsonKeys contains 'name'",    global.typing.contains(keys, "name")    is false or true);
+    global.check("jsonKeys non-empty",          returnLength(keys) > 0);
 
     // jsonParse (pretty-print)
     str pretty = global.json.jsonParse(data);
-    check("jsonParse returns non-empty", returnLength(pretty) > 0);
-    check("jsonParse bad returns \"\"",  global.json.jsonParse(bad) is "");
+    global.check("jsonParse returns non-empty", returnLength(pretty) > 0);
+    global.check("jsonParse bad returns \"\"",  global.json.jsonParse(bad) is "");
 
     // jsonStringify
     str enc = global.json.jsonStringify("hello \"world\"");
-    check("jsonStringify wraps in quotes", global.typing.startsWith(enc, "\"") is true);
+    global.check("jsonStringify wraps in quotes", global.typing.startsWith(enc, "\"") is true);
 
     // jsonArray
     any lst = seqFromTo(0, 0, 1);
@@ -64,44 +64,44 @@ void main(){
     lst = listPush(lst, "b");
     lst = listPush(lst, "c");
     str arr = global.json.jsonArray(lst);
-    check("jsonArray non-empty",           returnLength(arr) > 0);
-    check("jsonArray starts with [",       global.typing.startsWith(arr, "[") is true);
+    global.check("jsonArray non-empty",           returnLength(arr) > 0);
+    global.check("jsonArray starts with [",       global.typing.startsWith(arr, "[") is true);
 
     // jsonObject
     any kv = seqFromTo(0, 0, 1);
     kv = listPush(kv, "lang");  kv = listPush(kv, "Lynxer");
     kv = listPush(kv, "year");  kv = listPush(kv, "2025");
     str obj = global.json.jsonObject(kv);
-    check("jsonObject starts with {",  global.typing.startsWith(obj, "{") is true);
-    check("jsonObject valid JSON",     global.json.jsonValid(obj) is true);
+    global.check("jsonObject starts with {",  global.typing.startsWith(obj, "{") is true);
+    global.check("jsonObject valid JSON",     global.json.jsonValid(obj) is true);
 
     // jsonHas
-    check("jsonHas 'name' == true",   global.json.jsonHas(data, "name") is true);
-    check("jsonHas 'nope' == false",  global.json.jsonHas(data, "nope") is false);
+    global.check("jsonHas 'name' == true",   global.json.jsonHas(data, "name") is true);
+    global.check("jsonHas 'nope' == false",  global.json.jsonHas(data, "nope") is false);
 
     // jsonLength
     int len4 = global.json.jsonLength(data);
-    check("jsonLength(4-key obj) == 4", len4 is 4);
-    check("jsonLength(bad) == 0",       global.json.jsonLength(bad) is 0);
+    global.check("jsonLength(4-key obj) == 4", len4 is 4);
+    global.check("jsonLength(bad) == 0",       global.json.jsonLength(bad) is 0);
 
     // jsonSet
     str s2 = global.json.jsonSet(data, "name", "\"Updated\"");
-    check("jsonSet updates key",    global.json.jsonGet(s2, "name") is "Updated");
-    check("jsonSet valid JSON",     global.json.jsonValid(s2) is true);
+    global.check("jsonSet updates key",    global.json.jsonGet(s2, "name") is "Updated");
+    global.check("jsonSet valid JSON",     global.json.jsonValid(s2) is true);
 
     // jsonDelete
     str s3 = global.json.jsonDelete(data, "name");
-    check("jsonDelete removes key", global.json.jsonHas(s3, "name") is false);
-    check("jsonDelete valid JSON",  global.json.jsonValid(s3) is true);
+    global.check("jsonDelete removes key", global.json.jsonHas(s3, "name") is false);
+    global.check("jsonDelete valid JSON",  global.json.jsonValid(s3) is true);
 
     // jsonMerge
     str a = "{\"x\":1,\"y\":2}";
     str b = "{\"y\":99,\"z\":3}";
     str merged = global.json.jsonMerge(a, b);
-    check("jsonMerge valid JSON",      global.json.jsonValid(merged) is true);
-    check("jsonMerge b wins on 'y'",   global.json.jsonGetInt(merged, "y") is 99);
-    check("jsonMerge keeps 'x'",       global.json.jsonGetInt(merged, "x") is 1);
-    check("jsonMerge adds 'z'",        global.json.jsonGetInt(merged, "z") is 3);
+    global.check("jsonMerge valid JSON",      global.json.jsonValid(merged) is true);
+    global.check("jsonMerge b wins on 'y'",   global.json.jsonGetInt(merged, "y") is 99);
+    global.check("jsonMerge keeps 'x'",       global.json.jsonGetInt(merged, "x") is 1);
+    global.check("jsonMerge adds 'z'",        global.json.jsonGetInt(merged, "z") is 3);
 
     println("=== json tests done ===");
 }

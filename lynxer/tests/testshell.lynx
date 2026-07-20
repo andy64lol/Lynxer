@@ -1,7 +1,0 @@
-void setup(){
-    import("shell");
-}
-
-void main(){
-    global.shell.runShell("echo Hello");
-}

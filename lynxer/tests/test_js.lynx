@@ -4,11 +4,11 @@
   Covers: nodeExists, nodeVersion, evalJS, runJS, runJSFile
 ///
 
-void setup(){
+global setup(){
     import("js");
 }
 
-void main(){
+global main(){
     println("=== JS Stdlib Tests ===");
 
     // nodeExists — should return 1 if node is on PATH

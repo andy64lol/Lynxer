@@ -8,9 +8,9 @@
     - return value propagation through try
 ///
 
-void setup(){}
+global setup(){}
 
-void main(){
+global main(){
     // ── 1. Basic catch with error message binding ─────────────────────────────
     str caught = "none";
     try {
