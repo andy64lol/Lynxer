@@ -233,6 +233,24 @@ for(int i = 0; i < 10; i = i + 1){
 }
 ```
 
+### iterate
+
+Run a block a fixed number of times without a loop variable:
+
+```c
+iterate(5) {
+    println("hello");
+}
+
+// the count can be any expression
+int n = 3;
+iterate(n * 2) {
+    println("again");
+}
+```
+
+`break` and `continue` work inside `iterate` the same as in `while` and `for`.
+
 ### break / continue
 
 ```c

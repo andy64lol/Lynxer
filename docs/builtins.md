@@ -208,6 +208,25 @@ Build a JSON object string from a flat alternating key/value list. The list must
 
 ---
 
+## Repeat loop
+
+### `iterate(count) { body }`
+
+Runs `body` exactly `count` times. `count` can be any integer expression. `break` and `continue` work as normal.
+
+```c
+iterate(3) {
+    println("hello");
+}
+
+int n = 5;
+iterate(n) {
+    println("again");
+}
+```
+
+---
+
 ## rawPy / rawPyx
 
 See [language.md](language.md#rawpy-and-rawpyx) for full bridging rules.

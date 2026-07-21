@@ -186,6 +186,53 @@ print(a.x);   // 99  — mutation is immediate
 
 ---
 
+## Const vargroups and const fields
+
+### `const vargroup`
+
+Prefix the declaration with `const` to prevent the variable from being reassigned. The vargroup itself and its non-const fields are still mutable through dot-assignment.
+
+```c
+const vargroup cfg = [
+    str host = "localhost",
+    int port = 8080
+];
+
+// dot-assignment to a non-const field still works
+int cfg.port = 9000;
+
+// reassigning the variable is blocked
+// cfg = someOtherVargroup;  // Runtime Error: Cannot assign to constant 'cfg'
+```
+
+### `const` fields
+
+Mark individual fields with `const` to make them immutable after declaration:
+
+```c
+vargroup player = [
+    str       username = "Andy",
+    const int id       = 42,
+    int       coins    = 100
+];
+
+println(player.id);      // 42
+int player.coins = 200;  // ok — coins is not const
+
+// assigning to a const field is a runtime error
+// int player.id = 99;  // Runtime Error: Field 'id' of vargroup 'player' is const and cannot be changed
+```
+
+`strOf(vg)` and `print(vg)` show the `const` prefix on const fields:
+
+```
+vargroup player { str username = Andy, const int id = 42, int coins = 200 }
+```
+
+Both features can be combined: `const vargroup` with `const` fields gives a fully locked record.
+
+---
+
 ## Summary
 
 | Syntax | Purpose |
@@ -200,3 +247,5 @@ print(a.x);   // 99  — mutation is immediate
 | `removeVarGroup(vg, name);` | Remove a field |
 | `returnType(vg)` | Returns `"vargroup"` |
 | `strOf(vg)` | Human-readable representation |
+| `const vargroup name = [...];` | Vargroup variable that cannot be reassigned |
+| `const type field = value` | Field that cannot be changed after declaration |

@@ -1,0 +1,54 @@
+global setup(){}
+
+global main(){
+    //iterate
+
+    int n = 0;
+    iterate(3) {
+        println(n);
+        n = n + 1;
+    }
+
+    int times = 2;
+    int x = 10;
+    iterate(times) {
+        x = x + 5;
+    }
+    println(x);
+
+    println("iterate ok");
+
+    // const vargroup
+
+    const vargroup cfg = [
+        str  host = "localhost",
+        int  port = 8080
+    ];
+    println(cfg.host);
+    println(cfg.port);
+
+    // non-const field on a const vargroup is still mutable
+    int cfg.port = 9000;
+    println(cfg.port);
+
+    // vargroup with a const field
+    vargroup player = [
+        str       username = "Andy",
+        const int id       = 42,
+        int       coins    = 100
+    ];
+    println(player.id);
+    println(player.coins);
+
+    int player.coins = 200;
+    println(player.coins);
+
+    // assigning to a const field must be blocked
+    try {
+        int player.id = 99;
+    } catch(str err) {
+        println("blocked: " + err);
+    }
+
+    println("const vargroup ok");
+}

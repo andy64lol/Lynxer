@@ -587,6 +587,15 @@ class ForNode:
         self.pos_end = pos_end
 
 
+class IterateNode:
+    # iterate(count) { body } — run body N times
+    def __init__(self, count_node, body_block, pos_start, pos_end):
+        self.count_node = count_node
+        self.body_block = body_block
+        self.pos_start = pos_start
+        self.pos_end = pos_end
+
+
 class FuncDefNode:
     def __init__(
         self, kind_tok, var_name_tok, param_toks, body_block, pos_start, pos_end,
@@ -674,11 +683,11 @@ class ProgramNode:
 
 
 class VarGroupDeclNode:
-    """vargroup name = [ fields ]; — fields is list of (type_str, name_tok, value_node)"""
-    def __init__(self, name_tok, fields, pos_start, pos_end):
+    # fields: list of (type_str, name_tok, value_node, is_const)
+    def __init__(self, name_tok, fields, pos_start, pos_end, is_const=False):
         self.name_tok = name_tok
-        # fields: list of (type_str, name_tok, value_node_or_VarGroupDeclNode)
         self.fields = fields
+        self.is_const = is_const
         self.pos_start = pos_start
         self.pos_end = pos_end
 
@@ -1189,6 +1198,16 @@ class Parser:
             next_tok = self.peek(1)
 
             if (
+                self.current_tok.value == "iterate"
+                and next_tok
+                and next_tok.type == TT_LPAREN
+            ):
+                node = res.register(self.parse_iterate())
+                if res.error:
+                    return res
+                return res.success(node)
+
+            if (
                 self.current_tok.value == "addVarGroup"
                 and next_tok
                 and next_tok.type == TT_LPAREN
@@ -1321,6 +1340,14 @@ class Parser:
         res = ParseResult()
         res.register_advancement()
         self.advance()
+
+        # const vargroup name = [...];
+        if self.current_tok.matches(TT_KEYWORD, "vargroup"):
+            node = res.register(self.parse_vargroup_decl())
+            if res.error:
+                return res
+            node.is_const = True
+            return res.success(node)
 
         if not self.is_type_keyword():
             return res.failure(
@@ -1456,6 +1483,44 @@ class Parser:
             DotAssignNode(expr.obj_node, expr.attr_name_tok, rhs, decl_type, pos_start, pos_end)
         )
 
+    def parse_iterate(self):
+        # parse: iterate(count) { body }
+        res = ParseResult()
+        pos_start = self.current_tok.pos_start.copy()
+        res.register_advancement()
+        self.advance()  # consume 'iterate'
+
+        if self.current_tok.type != TT_LPAREN:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                "Expected '(' after iterate",
+            ))
+        res.register_advancement()
+        self.advance()
+
+        count_node = res.register(self.parse_expr())
+        if res.error:
+            return res
+
+        if self.current_tok.type != TT_RPAREN:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                "Expected ')' after iterate count",
+            ))
+        res.register_advancement()
+        self.advance()
+
+        if self.current_tok.type != TT_LBRACE:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                "Expected '{' after iterate(...)",
+            ))
+        body = res.register(self.parse_block())
+        if res.error:
+            return res
+
+        return res.success(IterateNode(count_node, body, pos_start, body.pos_end))
+
     def parse_vargroup_field(self):
         """Parse one field inside a vargroup body: type name = value  OR  vargroup name = [...]"""
         res = ParseResult()
@@ -1531,9 +1596,15 @@ class Parser:
             self.advance()  # consume ']'
 
             nested_node = VarGroupDeclNode(name_tok, nested_fields, pos_start, pos_end)
-            return res.success(("vargroup", name_tok, nested_node))
+            return res.success(("vargroup", name_tok, nested_node, False))
 
-        # regular field: type name = expr
+        # regular field: [const] type name = expr
+        is_const = False
+        if self.current_tok.matches(TT_KEYWORD, "const"):
+            is_const = True
+            res.register_advancement()
+            self.advance()
+
         if not self.is_type_keyword():
             return res.failure(
                 InvalidSyntaxError(
@@ -1573,7 +1644,7 @@ class Parser:
         if res.error:
             return res
 
-        return res.success((type_tok.value, name_tok, value_node))
+        return res.success((type_tok.value, name_tok, value_node, is_const))
 
     def parse_vargroup_decl(self):
         """Parse: vargroup name = [ fields... ]; """
@@ -4107,12 +4178,18 @@ class VarGroup(Value):
         return self._fields[name]["value"], None
 
     def set_attr(self, name, value):
-        """Set an existing field.  Returns RTError on type mismatch or unknown field."""
         if name not in self._fields:
             return RTError(
                 self.pos_start,
                 self.pos_end,
                 f"vargroup '{self.name}' has no field '{name}'",
+                self.context,
+            )
+        if self._fields[name].get("const"):
+            return RTError(
+                self.pos_start,
+                self.pos_end,
+                f"Field '{name}' of vargroup '{self.name}' is const and cannot be changed",
                 self.context,
             )
         decl_type = self._fields[name]["type"]
@@ -4125,10 +4202,9 @@ class VarGroup(Value):
                 self.context,
             )
         self._fields[name]["value"] = value
-        return None  # no error
+        return None
 
     def add_field(self, field_type, name, value):
-        """Append a new field.  Returns RTError on duplicate."""
         if name in self._fields:
             return RTError(
                 self.pos_start,
@@ -4136,7 +4212,7 @@ class VarGroup(Value):
                 f'Duplicate field "{name}" in vargroup \'{self.name}\'',
                 self.context,
             )
-        self._fields[name] = {"type": field_type, "value": value}
+        self._fields[name] = {"type": field_type, "value": value, "const": False}
         return None
 
     def remove_field(self, name):
@@ -4160,7 +4236,8 @@ class VarGroup(Value):
     def __repr__(self):
         parts = []
         for k, info in self._fields.items():
-            parts.append(f"{info['type']} {k} = {info['value']}")
+            prefix = "const " if info.get("const") else ""
+            parts.append(f"{prefix}{info['type']} {k} = {info['value']}")
         return f"vargroup {self.name} " + "{ " + ", ".join(parts) + " }"
 
 
@@ -4424,6 +4501,27 @@ class Interpreter:
             if res.should_return():
                 return res
 
+        return res.success(Number.null)
+
+    def visit_IterateNode(self, node, context):
+        res = RTResult()
+        count_val = res.register(self.visit(node.count_node, context))
+        if res.should_return():
+            return res
+        if not isinstance(count_val, Number):
+            return res.failure(RTError(
+                node.count_node.pos_start, node.count_node.pos_end,
+                "iterate() count must be an integer",
+                context,
+            ))
+        count = int(count_val.value)
+        for _ in range(count):
+            res.register(self.visit(node.body_block, context))
+            if res.should_return() and not res.loop_should_continue and not res.loop_should_break:
+                return res
+            if res.loop_should_break:
+                break
+            res.loop_should_continue = False
         return res.success(Number.null)
 
     def visit_WhileNode(self, node, context):
@@ -4798,6 +4896,27 @@ class Interpreter:
             res.loop_should_continue = False
         return res.success(Number.null)
 
+    async def async_visit_IterateNode(self, node, context):
+        res = RTResult()
+        count_val = res.register(await self.async_visit(node.count_node, context))
+        if res.should_return():
+            return res
+        if not isinstance(count_val, Number):
+            return res.failure(RTError(
+                node.count_node.pos_start, node.count_node.pos_end,
+                "iterate() count must be an integer",
+                context,
+            ))
+        count = int(count_val.value)
+        for _ in range(count):
+            res.register(await self.async_visit(node.body_block, context))
+            if res.should_return() and not res.loop_should_continue and not res.loop_should_break:
+                return res
+            if res.loop_should_break:
+                break
+            res.loop_should_continue = False
+        return res.success(Number.null)
+
     async def async_visit_ForNode(self, node, context):
         res = RTResult()
         for_ctx = Context("<for>", context, node.pos_start)
@@ -5076,11 +5195,12 @@ class Interpreter:
     # ------------------------------------------------------------------ vargroup visitors
 
     def _build_vargroup(self, name, fields, context):
-        """Recursively construct a VarGroup from a list of (type, name_tok, value_node) tuples.
-        Does NOT register the result in the symbol table — callers do that."""
+        # build a VarGroup from fields; caller registers it
         res = RTResult()
         vg = VarGroup(name)
-        for field_type, name_tok, value_node in fields:
+        for field_tuple in fields:
+            # fields are 4-tuples: (type, name_tok, value_node, is_const)
+            field_type, name_tok, value_node, is_const = field_tuple
             field_name = name_tok.value
             if field_name in vg._fields:
                 return res.failure(
@@ -5100,7 +5220,7 @@ class Interpreter:
                 )
                 if res.should_return():
                     return res
-                vg._fields[field_name] = {"type": "vargroup", "value": nested}
+                vg._fields[field_name] = {"type": "vargroup", "value": nested, "const": is_const}
             else:
                 value = res.register(self.visit(value_node, context))
                 if res.should_return():
@@ -5115,7 +5235,7 @@ class Interpreter:
                             context,
                         )
                     )
-                vg._fields[field_name] = {"type": field_type, "value": value}
+                vg._fields[field_name] = {"type": field_type, "value": value, "const": is_const}
         return res.success(vg)
 
     def visit_VarGroupDeclNode(self, node, context):
@@ -5125,7 +5245,7 @@ class Interpreter:
         )
         if res.should_return():
             return res
-        context.symbol_table.set(node.name_tok.value, vg, decl_type="vargroup")
+        context.symbol_table.set(node.name_tok.value, vg, is_const=node.is_const, decl_type="vargroup")
         return res.success(vg)
 
     def visit_DotAssignNode(self, node, context):
