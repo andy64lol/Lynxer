@@ -1,24 +1,231 @@
-// Time lynxer library
-// wraps the time module from python
+///
+  Lynxer Standard Library — datetime
+  Provides: now, getTime, getDate, getYear, getMonth, getDay,
+            getHour, getMinute, getSecond,
+            getWeekday, getWeekdayNum,
+            isoNow, format,
+            timestamp, fromTimestamp, toTimestamp,
+            addDays, diffDays,
+            isLeapYear, daysInMonth
+///
 
 global setup(){}
 
-global getTime(){
-    str timeTemp = "";
+/// Current datetime as "YYYY-MM-DD HH:MM:SS". ///
+global now(){
+    str result = "";
     rawPy(){
-        from datetime import datetime
-        timeTemp = datetime.now().strftime("%H:%M:%S")
+        from datetime import datetime as _dt
+        result = _dt.now().strftime("%Y-%m-%d %H:%M:%S")
     }
-    return timeTemp;
+    return result;
 }
 
-global getDate(){
-    str dateTemp = "";
+/// Current time as "HH:MM:SS". ///
+global getTime(){
+    str result = "";
     rawPy(){
-        from datetime import datetime
-        dateTemp = datetime.now().strftime("%Y-%m-%d")
+        from datetime import datetime as _dt
+        result = _dt.now().strftime("%H:%M:%S")
     }
-    return dateTemp;
+    return result;
+}
+
+/// Current date as "YYYY-MM-DD". ///
+global getDate(){
+    str result = "";
+    rawPy(){
+        from datetime import datetime as _dt
+        result = _dt.now().strftime("%Y-%m-%d")
+    }
+    return result;
+}
+
+/// Current four-digit year (e.g. 2025). ///
+global getYear(){
+    int result = 0;
+    rawPy(){
+        from datetime import datetime as _dt
+        result = _dt.now().year
+    }
+    return result;
+}
+
+/// Current month as 1–12. ///
+global getMonth(){
+    int result = 0;
+    rawPy(){
+        from datetime import datetime as _dt
+        result = _dt.now().month
+    }
+    return result;
+}
+
+/// Current day of the month as 1–31. ///
+global getDay(){
+    int result = 0;
+    rawPy(){
+        from datetime import datetime as _dt
+        result = _dt.now().day
+    }
+    return result;
+}
+
+/// Current hour as 0–23. ///
+global getHour(){
+    int result = 0;
+    rawPy(){
+        from datetime import datetime as _dt
+        result = _dt.now().hour
+    }
+    return result;
+}
+
+/// Current minute as 0–59. ///
+global getMinute(){
+    int result = 0;
+    rawPy(){
+        from datetime import datetime as _dt
+        result = _dt.now().minute
+    }
+    return result;
+}
+
+/// Current second as 0–59. ///
+global getSecond(){
+    int result = 0;
+    rawPy(){
+        from datetime import datetime as _dt
+        result = _dt.now().second
+    }
+    return result;
+}
+
+/// Full weekday name for today, e.g. "Monday". ///
+global getWeekday(){
+    str result = "";
+    rawPy(){
+        from datetime import datetime as _dt
+        result = _dt.now().strftime("%A")
+    }
+    return result;
+}
+
+/// Weekday number for today: 0 = Monday … 6 = Sunday. ///
+global getWeekdayNum(){
+    int result = 0;
+    rawPy(){
+        from datetime import datetime as _dt
+        result = _dt.now().weekday()
+    }
+    return result;
+}
+
+/// Current datetime in ISO 8601 format, e.g. "2025-07-21T14:30:00". ///
+global isoNow(){
+    str result = "";
+    rawPy(){
+        from datetime import datetime as _dt
+        result = _dt.now().strftime("%Y-%m-%dT%H:%M:%S")
+    }
+    return result;
+}
+
+/// Format the current datetime using a strftime pattern string.
+/// Example: format("%d/%m/%Y") → "21/07/2025" ///
+global format(str pattern){
+    str result = "";
+    rawPy(){
+        from datetime import datetime as _dt
+        result = _dt.now().strftime(pattern)
+    }
+    return result;
+}
+
+/// Unix epoch timestamp (seconds since 1970-01-01 00:00:00 UTC) as a float. ///
+global timestamp(){
+    float result = 0.0;
+    rawPy(){
+        from datetime import datetime as _dt, timezone as _tz
+        result = _dt.now(_tz.utc).timestamp()
+    }
+    return result;
+}
+
+/// Convert a Unix timestamp to a "YYYY-MM-DD HH:MM:SS" string (local time). ///
+global fromTimestamp(float ts){
+    str result = "";
+    rawPy(){
+        from datetime import datetime as _dt
+        result = _dt.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
+    }
+    return result;
+}
+
+/// Parse a "YYYY-MM-DD HH:MM:SS" string and return its Unix timestamp.
+/// Returns -1.0 if the string cannot be parsed. ///
+global toTimestamp(str dt){
+    float result = 0.0;
+    rawPy(){
+        from datetime import datetime as _dt
+        try:
+            result = _dt.strptime(dt, "%Y-%m-%d %H:%M:%S").timestamp()
+        except Exception:
+            result = -1.0
+    }
+    return result;
+}
+
+/// Add days days to a "YYYY-MM-DD" date and return the new "YYYY-MM-DD" string.
+/// Use negative days to subtract. ///
+global addDays(str date, int days){
+    str result = "";
+    rawPy(){
+        from datetime import datetime as _dt, timedelta as _td
+        try:
+            d = _dt.strptime(date, "%Y-%m-%d") + _td(days=days)
+            result = d.strftime("%Y-%m-%d")
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+/// Number of days between two "YYYY-MM-DD" dates (date2 - date1).
+/// Returns 0 if either string cannot be parsed. ///
+global diffDays(str date1, str date2){
+    int result = 0;
+    rawPy(){
+        from datetime import datetime as _dt
+        try:
+            d1 = _dt.strptime(date1, "%Y-%m-%d")
+            d2 = _dt.strptime(date2, "%Y-%m-%d")
+            result = (d2 - d1).days
+        except Exception:
+            result = 0
+    }
+    return result;
+}
+
+/// Returns true if year is a leap year. ///
+global isLeapYear(int year){
+    int result = 0;
+    rawPy(){
+        import calendar as _cal
+        result = 1 if _cal.isleap(year) else 0
+    }
+    if(result not is 0){ return true; }
+    return false;
+}
+
+/// Number of days in the given month (1–12) of year. ///
+global daysInMonth(int year, int month){
+    int result = 0;
+    rawPy(){
+        import calendar as _cal
+        result = _cal.monthrange(year, month)[1]
+    }
+    return result;
 }
 
 global main(){}
