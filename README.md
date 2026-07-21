@@ -4,11 +4,11 @@ A statically-flavoured, C-style scripting language that runs on Python.
 Files use the `.lynx` extension.
 
 ```c
-void setup(){
+global setup(){
     str name = input("What's your name? ");
 }
 
-void main(){
+global main(){
     print("Hello, ");
     print(name);
     print("!\n");
@@ -58,16 +58,16 @@ lynxer --help           # print help
 ## Language at a glance
 
 ```c
-void setup(){
+global setup(){
     import("math");
     const str LANG = "Lynxer";
 }
 
-void greet(str name){
+global greet(str name){
     print("Hello, "); print(name); print("!\n");
 }
 
-void main(){
+global main(){
     int x = 10;
     float pi = 3.14;
     bool ok = true;

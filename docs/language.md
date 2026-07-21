@@ -4,31 +4,31 @@
 
 Every Lynxer program must contain exactly two required top-level declarations, in this order:
 
-1. **`void setup(){}`** — runs before `main`. The only place to declare global variables and call `import()`. Required even when empty.
-2. **`void main(){}`** — the entry point. Runs last.
+1. **`global setup(){}`** — runs before `main`. The only place to declare global variables and call `import()`. Required even when empty.
+2. **`global main(){}`** — the entry point. Runs last.
 
 Additional global functions may be declared between `setup` and `main`:
 
 ```c
-void setup(){
+global setup(){
     import("math");
     const str APP = "MyApp";
     int counter = 0;
 }
 
 // global helpers go here, between setup and main
-void greet(str name){
+global greet(str name){
     print("Hello, "); print(name); print("!\n");
 }
 
-void main(){
+global main(){
     greet(APP);
 }
 ```
 
 **Rules:**
-- `void setup(){}` is **mandatory**, even if its body is empty.
-- Global `void` function declarations are only allowed between `setup` and `main`.
+- `global setup(){}` is **mandatory**, even if its body is empty.
+- Global `global` function declarations are only allowed between `setup` and `main`.
 - Executable code outside a function body is a runtime error.
 - `import()` may only appear inside `setup()`.
 
@@ -253,46 +253,46 @@ Lynxer has two kinds of functions with distinct scopes:
 
 | Kind | Keyword | Where | Visible from |
 |------|---------|-------|--------------|
-| Global | `void` | Top-level only (between `setup` and `main`) | Any function in the file |
+| Global | `global` | Top-level only (between `setup` and `main`) | Any function in the file |
 | Local | `def` | Inside any function body | Only inside the declaring function |
 
-### Global functions (`void`)
+### Global functions (`global`)
 
-`void` functions must be declared at the **top level of the file** — never inside another function. Attempting to define a `void` inside another function is a syntax error.
+`global` functions must be declared at the **top level of the file** — never inside another function. Attempting to define a `global` inside another function is a syntax error.
 
 ```c
-void setup(){}
+global setup(){}
 
-// ✓ correct — top-level void helpers
-void add(int a, int b){
+// ✓ correct — top-level global helpers
+global add(int a, int b){
     return a + b;
 }
 
-void greet(str name){
+global greet(str name){
     print("Hello, "); print(name); print("!\n");
 }
 
-void main(){
+global main(){
     int sum = add(3, 4);   // 7
     greet("World");
 }
 ```
 
 ```c
-// ✗ WRONG — void inside another void is forbidden
-void main(){
-    void helper(){ ... }   // Syntax Error
+// ✗ WRONG — global inside another global is forbidden
+global main(){
+    global helper(){ ... }   // Syntax Error
 }
 ```
 
-All `void` functions can return a value with `return`, regardless of the signature name. A `void` without an explicit `return` produces `none`.
+All `global` functions can return a value with `return`, regardless of the signature name. A `global` without an explicit `return` produces `none`.
 
 ### Local functions (`def`)
 
 `def` is the keyword for **local**, value-returning helpers declared inside a function body. They are not accessible outside their declaring scope.
 
 ```c
-void main(){
+global main(){
     def square(int n){
         return n * n;
     }
@@ -313,9 +313,9 @@ void main(){
 Parameters may be typed (enforced at call time) or left untyped (treated as `any`):
 
 ```c
-void typed(int a, str b){ ... }
-void untyped(a, b){ ... }         // any type accepted
-void mixed(int n, any x){ ... }
+global typed(int a, str b){ ... }
+global untyped(a, b){ ... }         // any type accepted
+global mixed(int n, any x){ ... }
 ```
 
 A call that passes a value of the wrong type is a runtime error.
@@ -325,11 +325,11 @@ A call that passes a value of the wrong type is a runtime error.
 `return` exits the function and optionally produces a value:
 
 ```c
-void compute(int n){
+global compute(int n){
     return n * 2;
 }
 
-void main(){
+global main(){
     int r = compute(5);   // 10
 }
 ```
@@ -345,7 +345,7 @@ A function without an explicit `return` produces `none`.
 Embeds a Python code block inside a Lynxer function. Variables from the surrounding Lynxer scope are bridged into and out of the block.
 
 ```c
-void main(){
+global main(){
     int total = 0;
     rawPy(){
         total = sum(range(1, 11))
@@ -385,7 +385,7 @@ void main(){
 - Any `import` inside a rawPy block uses Python's import system and does not affect the Lynxer module namespace.
 
 ```c
-void main(){
+global main(){
     str msg = "hello";
     bool flag = false;
     rawPy(){
@@ -476,7 +476,7 @@ try {
 **Catching division by zero:**
 
 ```c
-void main(){
+global main(){
     int result = 0;
     try {
         result = 10 / 0;
@@ -491,11 +491,11 @@ void main(){
 **Safe integer conversion:**
 
 ```c
-void setup(){
+global setup(){
     str userInput = "abc";
 }
 
-void main(){
+global main(){
     int n = 0;
     try {
         n = intOf(userInput);
@@ -508,7 +508,7 @@ void main(){
 **Nested try/catch:**
 
 ```c
-void main(){
+global main(){
     try {
         try {
             int bad = 1 / 0;
@@ -528,7 +528,7 @@ void main(){
 `return`, `break`, and `continue` inside a `try` or `catch` block behave exactly as they would outside — they exit the block normally and are not treated as errors.
 
 ```c
-void findFirst(any lst){
+global findFirst(any lst){
     for(int i = 0; i < returnLength(lst); i = i + 1){
         try {
             int v = intOf(listGet(lst, i));
@@ -552,7 +552,7 @@ The catch variable (`str err` in `catch(str err)`) is bound in the **same scope*
   - **`const` variable:** a runtime error is raised — const guarantees are preserved.
 
 ```c
-void main(){
+global main(){
     int score = 0;
     try {
         int bad = 1 / 0;
@@ -563,7 +563,7 @@ void main(){
 ```
 
 ```c
-void main(){
+global main(){
     str msg = "ok";
     try {
         int bad = 1 / 0;
@@ -584,7 +584,7 @@ void main(){
 `import()` loads a `.lynx` file as a module. It may only be called inside `setup()`.
 
 ```c
-void setup(){
+global setup(){
     import("math");
     import("mylib");   // looks for mylib.lynx
 }
@@ -605,9 +605,9 @@ global.<module>.<function>(args)
 ```
 
 ```c
-void setup(){ import("math"); }
+global setup(){ import("math"); }
 
-void main(){
+global main(){
     print(global.math.sqrt(144));  // 12
     print(global.math.pi());       // 3.141592653589793
     print("\n");
@@ -620,16 +620,16 @@ Constants and variables declared in a module's `setup()` are accessible via `glo
 
 ```c
 /// config.lynx ///
-void setup(){
+global setup(){
     const str HOST = "localhost";
     const int PORT = 8080;
 }
-void main(){}
+global main(){}
 ```
 
 ```c
-void setup(){ import("config"); }
-void main(){
+global setup(){ import("config"); }
+global main(){
     print(global.config.HOST); print("\n");   // localhost
     print(global.config.PORT); print("\n");   // 8080
 }
@@ -673,10 +673,10 @@ removeVarGroup(player, title);               // remove a field
 **Global vargroup** — declare in `setup()` to share across all functions:
 
 ```c
-void setup(){
+global setup(){
     vargroup config = [str host = "localhost", int port = 8080];
 }
-void main(){
+global main(){
     print(config.host);   // localhost
     config.port = 9000;
 }

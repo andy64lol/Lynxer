@@ -148,9 +148,9 @@ print(strOf(lst)); print("\n");    // [1, 2, 3]
 The `typing` module adds a few extra list utilities:
 
 ```c
-void setup(){ import("typing"); }
+global setup(){ import("typing"); }
 
-void main(){
+global main(){
     // Split a string into a list
     any parts = global.typing.toList("a,b,c", ",");
     print(strOf(parts)); print("\n");   // [a, b, c]

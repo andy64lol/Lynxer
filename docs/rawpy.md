@@ -12,7 +12,7 @@ Variables declared in Lynxer are visible inside the block.
 Changes to those variables are written back to Lynxer scope when the block exits.
 
 ```c
-void main(){
+global main(){
     int x = 0;
     rawPy(){
         x = 7 * 6          // x is 42 in Lynxer after this block
@@ -50,7 +50,7 @@ The first call for a given snippet pays a one-time compile cost (cached in `~/.c
 ### Block form
 
 ```c
-void main(){
+global main(){
     int result = 0;
     rawPyx(){
         result = 6 * 7
@@ -90,7 +90,7 @@ Multiple `rawPy`/`rawPyx` blocks can appear in the same function.
 Each is an independent Python `exec` scope (variables re-bridged each time).
 
 ```c
-void printHeader(str text){
+global printHeader(str text){
     int n = returnLength(text);
     rawPy(){
         print("=" * n)

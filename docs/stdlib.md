@@ -3,7 +3,7 @@
 Import modules inside `setup()`:
 
 ```c
-void setup(){
+global setup(){
     import("math");
     import("typing");
     import("fileIO");
@@ -63,9 +63,9 @@ global.json.jsonGet(data, "key")
 | `randFloat` | `(float lo, float hi)` | Random float in `[lo, hi)` |
 
 ```c
-void setup(){ import("math"); }
+global setup(){ import("math"); }
 
-void main(){
+global main(){
     print(global.math.sqrt(144));            // 12.0
     print(global.math.clamp(20, 0, 10));     // 10
     print(global.math.pi());                 // 3.141592653589793
@@ -117,9 +117,9 @@ void main(){
 > **`toInt` / `toFloat` failure:** Both return `0` / `0.0` on failure, which is indistinguishable from a valid `"0"` parse. Use `isNumeric(s)` first when `0` could be a legitimate result.
 
 ```c
-void setup(){ import("typing"); }
+global setup(){ import("typing"); }
 
-void main(){
+global main(){
     print(global.typing.trim("  hi  "));           // "hi"
     print(global.typing.upper("hello"));            // "HELLO"
     print(global.typing.lower("HELLO"));            // "hello"
@@ -149,9 +149,9 @@ void main(){
 | `fileSize` | `(str path)` | File size in bytes; `-1` on error |
 
 ```c
-void setup(){ import("fileIO"); }
+global setup(){ import("fileIO"); }
 
-void main(){
+global main(){
     global.fileIO.writeFile("data.txt", "line1\nline2\nline3");
     any lines = global.fileIO.readLines("data.txt");
     int n = returnLength(lines);               // 3
@@ -179,9 +179,9 @@ void main(){
 | `commandExists` | `(str cmd)` | `true` if `cmd` is found on `PATH` |
 
 ```c
-void setup(){ import("shell"); }
+global setup(){ import("shell"); }
 
-void main(){
+global main(){
     int code = global.shell.runShell("echo Hello");
     str out  = global.shell.runShellCapture("date");
     str err  = global.shell.runShellErr("ls /no_such_path");
@@ -220,9 +220,9 @@ void main(){
 | `sep` | `()` | OS path separator (`"/"` on Unix, `"\\"` on Windows) |
 
 ```c
-void setup(){ import("os"); }
+global setup(){ import("os"); }
 
-void main(){
+global main(){
     str cwd = global.os.getcwd();
     str ext = global.os.extname("program.lynx");   // ".lynx"
     str home = global.os.expandUser("~");
@@ -249,9 +249,9 @@ Runs JavaScript via a Node.js subprocess. Requires `node` on `PATH`.
 | `evalJS` | `(str expr)` | Evaluate a JS expression; wraps in `console.log()` and returns the result |
 
 ```c
-void setup(){ import("js"); }
+global setup(){ import("js"); }
 
-void main(){
+global main(){
     int ok = global.js.nodeExists();
     if(ok){
         str ver = global.js.nodeVersion();
@@ -299,9 +299,9 @@ JSON encode / decode via Python's `json` module.
 > **`jsonSet` value encoding:** Pass the value already JSON-encoded if you want a non-string type, e.g. `"42"` for a number or `"true"` for a boolean. If the value is not valid JSON it is stored as a raw string.
 
 ```c
-void setup(){ import("json"); }
+global setup(){ import("json"); }
 
-void main(){
+global main(){
     str data = "{\"name\":\"Lynxer\",\"version\":1}";
 
     print(global.json.jsonValid(data));               // true

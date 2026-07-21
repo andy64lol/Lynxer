@@ -171,5 +171,5 @@ global main() {
 - A definition must appear before any async block that calls it with `await async.funcName()`.
 - `async` at the top level (outside a function body) is a syntax error.
 - `await` is only valid inside an `async` body.
-- `rawPy` and `rawPyx` blocks inside async functions run synchronously; avoid blocking I/O inside them.
+- `rawPy` and `rawPyx` blocks inside async functions run synchronously; aglobal blocking I/O inside them.
 - `vargroup` field initializers do not support `await` expressions.

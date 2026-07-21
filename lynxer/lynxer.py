@@ -154,7 +154,7 @@ TYPE_KEYWORDS = ["int", "float", "str", "bool", "any"]
 
 KEYWORDS = [
     "int", "float", "str", "bool", "any",
-    "void", "def", "const",
+    "global", "def", "const",
     "if", "else", "while", "for",
     "return", "import",
     "true", "false", "none",
@@ -814,7 +814,7 @@ class Parser:
 
         while self.current_tok.type != TT_EOF:
             is_func_kw = (
-                self.current_tok.matches(TT_KEYWORD, "void")
+                self.current_tok.matches(TT_KEYWORD, "global")
                 or self.current_tok.matches(TT_KEYWORD, "def")
                 or (
                     self.current_tok.type == TT_IDENTIFIER
@@ -852,7 +852,7 @@ class Parser:
                     InvalidSyntaxError(
                         self.current_tok.pos_start,
                         self.current_tok.pos_end,
-                        f"Global variables must be declared inside 'void setup(){{}}', not at the top level. "
+                        f"Global variables must be declared inside 'global setup(){{}}', not at the top level. "
                         f"Move '{self.current_tok.value} ...' inside setup()",
                     )
                 )
@@ -862,8 +862,8 @@ class Parser:
                         self.current_tok.pos_start,
                         self.current_tok.pos_end,
                         "Executable code is not allowed outside of a function. "
-                        "Only 'void'/'global'/'def' definitions are permitted at the top level. "
-                        "Put globals in setup() and entry logic in 'void main(){}'",
+                        "Only 'global'/'global'/'def' definitions are permitted at the top level. "
+                        "Put globals in setup() and entry logic in 'global main(){}'",
                     )
                 )
 
@@ -872,8 +872,8 @@ class Parser:
                 InvalidSyntaxError(
                     self.current_tok.pos_start,
                     self.current_tok.pos_end,
-                    "Program requires a 'void setup(){}' (or 'global setup(){}') function. "
-                    "Add it before 'void main()' (or 'global main()').",
+                    "Program requires a 'global setup(){}' (or 'global setup(){}') function. "
+                    "Add it before 'global main()' (or 'global main()').",
                 )
             )
 
@@ -882,7 +882,7 @@ class Parser:
                 InvalidSyntaxError(
                     self.current_tok.pos_start,
                     self.current_tok.pos_end,
-                    "Program requires a 'void main()' function",
+                    "Program requires a 'global main()' function",
                 )
             )
 
@@ -902,13 +902,13 @@ class Parser:
             res.register_advancement()
             self.advance()  # consume 'async'
 
-        # kind: void/global or def
+        # kind: global/global or def
         _is_global_kw = (
             self.current_tok.type == TT_IDENTIFIER
             and self.current_tok.value == "global"
         )
         if not (
-            self.current_tok.matches(TT_KEYWORD, "void")
+            self.current_tok.matches(TT_KEYWORD, "global")
             or _is_global_kw
             or self.current_tok.matches(TT_KEYWORD, "def")
         ):
@@ -916,7 +916,7 @@ class Parser:
                 InvalidSyntaxError(
                     self.current_tok.pos_start,
                     self.current_tok.pos_end,
-                    "Expected 'void'/'global' or 'def'" + (" after 'async'" if is_async else ""),
+                    "Expected 'global'/'global' or 'def'" + (" after 'async'" if is_async else ""),
                 )
             )
         if is_async and not _is_global_kw:
@@ -1089,7 +1089,7 @@ class Parser:
             res.register_advancement(); self.advance()
             return res.success(expr)
 
-        if self.current_tok.matches(TT_KEYWORD, "void") or (
+        if self.current_tok.matches(TT_KEYWORD, "global") or (
             self.current_tok.type == TT_IDENTIFIER
             and self.current_tok.value == "global"
             and self.peek(1) is not None
@@ -1099,8 +1099,8 @@ class Parser:
                 InvalidSyntaxError(
                     self.current_tok.pos_start,
                     self.current_tok.pos_end,
-                    "'void'/'global' function definitions must be at the top level of the file, "
-                    "not inside another function. Move the function before 'void main(){}'.",
+                    "'global'/'global' function definitions must be at the top level of the file, "
+                    "not inside another function. Move the function before 'global main(){}'.",
                 )
             )
 

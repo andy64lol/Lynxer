@@ -5,7 +5,7 @@
 `import()` loads a `.lynx` file as a module and may only be called inside `setup()`.
 
 ```c
-void setup(){
+global setup(){
     import("math");       // stdlib module
     import("mylib");      // local file: mylib.lynx
 }
@@ -26,12 +26,12 @@ The `.lynx` extension is optional — `import("math")` and `import("math.lynx")`
 Use `global.<module>.<function>()`:
 
 ```c
-void setup(){
+global setup(){
     import("math");
     import("typing");
 }
 
-void main(){
+global main(){
     print(global.math.sqrt(144));          // 12
     print(global.typing.toStr(99));        // 99
     print(global.typing.isNumeric("3.5")); // true
@@ -46,16 +46,16 @@ Constants and variables declared in a module's `setup()` are accessible via `glo
 
 ```c
 /// config.lynx ///
-void setup(){
+global setup(){
     const str HOST = "localhost";
     const int PORT  = 8080;
 }
-void main(){}
+global main(){}
 ```
 
 ```c
-void setup(){ import("config"); }
-void main(){
+global setup(){ import("config"); }
+global main(){
     print(global.config.HOST); print("\n");   // localhost
     print(global.config.PORT); print("\n");   // 8080
 }
@@ -65,29 +65,29 @@ void main(){
 
 ## Writing your own module
 
-Any `.lynx` file is a valid module. Declare globals in `setup()`, implement functions in between, and include a no-op `void main(){}`:
+Any `.lynx` file is a valid module. Declare globals in `setup()`, implement functions in between, and include a no-op `global main(){}`:
 
 ```c
 /// greetlib.lynx ///
-void setup(){
+global setup(){
     const str VERSION = "1.0";
 }
 
-void sayHi(){
+global sayHi(){
     print("Hi!\n");
 }
 
-void greet(str name){
+global greet(str name){
     print("Hello, "); print(name); print("!\n");
 }
 
-void main(){}
+global main(){}
 ```
 
 ```c
-void setup(){ import("greetlib"); }
+global setup(){ import("greetlib"); }
 
-void main(){
+global main(){
     print(global.greetlib.VERSION); print("\n");   // 1.0
     global.greetlib.sayHi();
     global.greetlib.greet("World");

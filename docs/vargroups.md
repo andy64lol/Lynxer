@@ -15,7 +15,7 @@ vargroup player = [
 ```
 
 **Rules:**
-- `vargroup` is a statement, valid anywhere a variable declaration is valid: inside `void main()`, inside any function, or inside `void setup()` (making it a global vargroup accessible from everywhere).
+- `vargroup` is a statement, valid anywhere a variable declaration is valid: inside `global main()`, inside any function, or inside `global setup()` (making it a global vargroup accessible from everywhere).
 - Every field must have an explicit type (`int`, `float`, `str`, `bool`, `any`) and an initial value.
 - Duplicate field names inside the same vargroup are a runtime error.
 - `returnType(vg)` returns `"vargroup"`.
@@ -128,7 +128,7 @@ Removing a field that does not exist is a runtime error.
 Declare a vargroup inside `setup()` to make it globally visible:
 
 ```c
-void setup(){
+global setup(){
     vargroup config = [
         str  host  = "localhost",
         int  port  = 8080,
@@ -136,7 +136,7 @@ void setup(){
     ];
 }
 
-void main(){
+global main(){
     print(config.host);   // localhost
     config.port = 9000;
     print(config.port);   // 9000
