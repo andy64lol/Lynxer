@@ -3376,6 +3376,7 @@ class CoroutineValue(Value):
 class BuiltInFunction(BaseFunction):
     print: ClassVar["BuiltInFunction"]
     input: ClassVar["BuiltInFunction"]
+    inputln: ClassVar["BuiltInFunction"]
     rawPy: ClassVar["BuiltInFunction"]
     rawPyx: ClassVar["BuiltInFunction"]
     strOf: ClassVar["BuiltInFunction"]
@@ -3463,6 +3464,20 @@ class BuiltInFunction(BaseFunction):
         prompt = str(args[0]) if args else ""
         text = input(prompt)
         return RTResult().success(String(text))
+    
+    def execute_inputln(self, args, exec_ctx):
+        if len(args) > 1:
+            return RTResult().failure(
+                RTError(
+                    self.pos_start,
+                    self.pos_end,
+                    "inputln() takes 0 or 1 arguments",
+                    exec_ctx,
+                )
+            )
+        prompt = str(args[0]) if args else ""
+        text = input(prompt)
+        return RTResult().success(String(text + "\n"))
 
     def execute_rawPy(self, args, exec_ctx):
         if len(args) != 1 or not isinstance(args[0], String):
@@ -4058,6 +4073,7 @@ class BuiltInFunction(BaseFunction):
 BuiltInFunction.print = BuiltInFunction("print")
 BuiltInFunction.println = BuiltInFunction("println")
 BuiltInFunction.input = BuiltInFunction("input")
+BuiltInFunction.inputln = BuiltInFunction("inputln")
 BuiltInFunction.rawPy = BuiltInFunction("rawPy")
 BuiltInFunction.rawPyx = BuiltInFunction("rawPyx")
 BuiltInFunction.strOf = BuiltInFunction("strOf")
@@ -5530,6 +5546,7 @@ class Interpreter:
         module_table.set("print", BuiltInFunction.print)
         module_table.set("println", BuiltInFunction.println)
         module_table.set("input", BuiltInFunction.input)
+        module_table.set("inputln", BuiltInFunction.inputln)
         module_table.set("rawPy", BuiltInFunction.rawPy)
         module_table.set("rawPyx", BuiltInFunction.rawPyx)
         module_table.set("strOf", BuiltInFunction.strOf)
@@ -5612,6 +5629,7 @@ global_symbol_table.set("true", Number.true)
 global_symbol_table.set("false", Number.false)
 global_symbol_table.set("print", BuiltInFunction.print)
 global_symbol_table.set("println", BuiltInFunction.println)
+global_symbol_table.set("inputln", BuiltInFunction.inputln)
 global_symbol_table.set("input", BuiltInFunction.input)
 global_symbol_table.set("rawPy", BuiltInFunction.rawPy)
 global_symbol_table.set("rawPyx", BuiltInFunction.rawPyx)

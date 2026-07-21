@@ -100,7 +100,7 @@ return RTResult().failure(RTError(
 
 ### Step 3 — Instantiate the class variable
 
-Around line 4058, after the class body, there is a block of `BuiltInFunction.name = BuiltInFunction("name")` lines. Add yours:
+Around line 4073, after the class body, there is a block of `BuiltInFunction.name = BuiltInFunction("name")` lines. Add yours:
 
 ```python
 BuiltInFunction.myFunc = BuiltInFunction("myFunc")
@@ -112,13 +112,13 @@ The string `"myFunc"` must match the method name suffix exactly (`execute_myFunc
 
 There are **two** places where built-ins are registered.
 
-**a) `global_symbol_table`** (around line 5613) — makes it available to every Lynxer program:
+**a) `global_symbol_table`** (around line 5624) — makes it available to every Lynxer program:
 
 ```python
 global_symbol_table.set("myFunc", BuiltInFunction.myFunc)
 ```
 
-**b) `module_table`** inside `visit_ImportNode` (around line 5530) — makes it available inside imported stdlib modules:
+**b) `module_table`** inside `visit_ImportNode` (around line 5543) — makes it available inside imported stdlib modules:
 
 ```python
 module_table.set("myFunc", BuiltInFunction.myFunc)
