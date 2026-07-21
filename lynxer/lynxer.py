@@ -1098,6 +1098,26 @@ class Parser:
             res.register_advancement(); self.advance()
             return res.success(expr)
 
+        # global.funcName(...); — namespace call as a standalone statement
+        if (
+            self.current_tok.matches(TT_KEYWORD, "global")
+            or (self.current_tok.type == TT_IDENTIFIER and self.current_tok.value == "global")
+        ) and self.peek(1) is not None and self.peek(1).type == TT_DOT:
+            expr = res.register(self.parse_expr())
+            if res.error:
+                return res
+            if self.current_tok.type != TT_SEMICOLON:
+                return res.failure(
+                    InvalidSyntaxError(
+                        expr.pos_end,
+                        self.current_tok.pos_start,
+                        "Missing ';' after statement",
+                    )
+                )
+            res.register_advancement()
+            self.advance()
+            return res.success(expr)
+
         if self.current_tok.matches(TT_KEYWORD, "global") or (
             self.current_tok.type == TT_IDENTIFIER
             and self.current_tok.value == "global"
@@ -2648,7 +2668,7 @@ class Parser:
             self.advance()
             return res.success(NoneNode(tok))
 
-        elif tok.type == TT_IDENTIFIER:
+        elif tok.type == TT_IDENTIFIER or tok.matches(TT_KEYWORD, "global"):
             res.register_advancement()
             self.advance()
             return res.success(VarAccessNode(tok))
@@ -3273,11 +3293,12 @@ class BaseFunction(Value):
 
 
 class Function(BaseFunction):
-    def __init__(self, name, body_node, param_names, param_types=None):
+    def __init__(self, name, body_node, param_names, param_types=None, is_global=False):
         super().__init__(name)
         self.body_node = body_node
         self.param_names = param_names
         self.param_types = param_types or [None] * len(param_names)
+        self.is_global = is_global
 
     def execute(self, args):
         res = RTResult()
@@ -3302,7 +3323,7 @@ class Function(BaseFunction):
         return res.success(ret_value)
 
     def copy(self):
-        c = Function(self.name, self.body_node, self.param_names, self.param_types)
+        c = Function(self.name, self.body_node, self.param_names, self.param_types, self.is_global)
         c.set_context(self.context)
         c.set_pos(self.pos_start, self.pos_end)
         return c
@@ -3314,11 +3335,12 @@ class Function(BaseFunction):
 class AsyncFunction(BaseFunction):
     """User-defined async function.  Calling it returns a CoroutineValue."""
 
-    def __init__(self, name, body_node, param_names, param_types=None):
+    def __init__(self, name, body_node, param_names, param_types=None, is_global=False):
         super().__init__(name)
         self.body_node = body_node
         self.param_names = param_names
         self.param_types = param_types or [None] * len(param_names)
+        self.is_global = is_global
 
     def execute(self, args):
         res = RTResult()
@@ -3349,7 +3371,7 @@ class AsyncFunction(BaseFunction):
         return RTResult().success(CoroutineValue(_coro()))
 
     def copy(self):
-        c = AsyncFunction(self.name, self.body_node, self.param_names, self.param_types)
+        c = AsyncFunction(self.name, self.body_node, self.param_names, self.param_types, self.is_global)
         c.set_context(self.context)
         c.set_pos(self.pos_start, self.pos_end)
         return c
@@ -4671,10 +4693,11 @@ class Interpreter:
         func_name = node.var_name_tok.value
         param_names = [p[1].value for p in node.param_toks]
         param_types = [p[0].value if p[0] else None for p in node.param_toks]
+        is_global = node.kind_tok.value == "global"
         if node.is_async:
-            func_value = AsyncFunction(func_name, node.body_block, param_names, param_types)
+            func_value = AsyncFunction(func_name, node.body_block, param_names, param_types, is_global)
         else:
-            func_value = Function(func_name, node.body_block, param_names, param_types)
+            func_value = Function(func_name, node.body_block, param_names, param_types, is_global)
         func_value.set_context(context).set_pos(node.pos_start, node.pos_end)
         context.symbol_table.set(func_name, func_value)
         return res.success(func_value)
@@ -5032,6 +5055,17 @@ class Interpreter:
             return res
         value_to_call = value_to_call.copy().set_pos(node.pos_start, node.pos_end)
 
+        # enforce global.funcName() call syntax for user-defined global functions
+        if (isinstance(node.node_to_call, VarAccessNode)
+                and isinstance(value_to_call, (Function, AsyncFunction))
+                and value_to_call.is_global):
+            return res.failure(RTError(
+                node.pos_start, node.pos_end,
+                f"Global function '{value_to_call.name}' must be called as "
+                f"'global.{value_to_call.name}(...)' not '{value_to_call.name}(...)'",
+                context,
+            ))
+
         for arg_node in node.arg_nodes:
             args.append(res.register(await self.async_visit(arg_node, context)))
             if res.should_return():
@@ -5164,6 +5198,17 @@ class Interpreter:
         if res.should_return():
             return res
         value_to_call = value_to_call.copy().set_pos(node.pos_start, node.pos_end)
+
+        # enforce global.funcName() call syntax for user-defined global functions
+        if (isinstance(node.node_to_call, VarAccessNode)
+                and isinstance(value_to_call, (Function, AsyncFunction))
+                and value_to_call.is_global):
+            return res.failure(RTError(
+                node.pos_start, node.pos_end,
+                f"Global function '{value_to_call.name}' must be called as "
+                f"'global.{value_to_call.name}(...)' not '{value_to_call.name}(...)'",
+                context,
+            ))
 
         for arg_node in node.arg_nodes:
             args.append(res.register(self.visit(arg_node, context)))

@@ -10,6 +10,6 @@ global hello(){
 }
 
 global main(){
-    hello();
+    global.hello();
     // this is a comment
 }

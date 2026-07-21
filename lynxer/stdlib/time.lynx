@@ -1,6 +1,5 @@
 // Time lynxer library
 // wraps the time module from python
-// incomplete for now
 
 global setup(){}
 
@@ -13,8 +12,13 @@ global getTime(){
     return timeTemp;
 }
 
-global main(){
-    str time = getTime(); //this somehow doesn't use global.funcName(); which is weird???
-    getTime();
-    println(time);
+global getDate(){
+    str dateTemp = "";
+    rawPy(){
+        from datetime import datetime
+        dateTemp = datetime.now().strftime("%Y-%m-%d")
+    }
+    return dateTemp;
 }
+
+global main(){}
