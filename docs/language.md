@@ -655,8 +655,8 @@ vargroup player = [
 print(player.username);        // Andy
 print(player.stats.level);     // 5
 
-player.coins       = 500;      // dot-assignment
-player.stats.level = 10;       // nested dot-assignment
+int player.coins       = 500;      // dot-assignment
+int player.stats.level = 10;       // nested dot-assignment
 
 print(returnType(player));     // vargroup
 ```
@@ -678,7 +678,7 @@ global setup(){
 }
 global main(){
     print(config.host);   // localhost
-    config.port = 9000;
+    int config.port = 9000;
 }
 ```
 
