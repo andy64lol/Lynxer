@@ -13,7 +13,7 @@ DATADIR  = $(PREFIX)/share/lynxer
 PYTHON  ?= $(shell command -v python3 2>/dev/null || command -v python 2>/dev/null || echo python3)
 SRC_DIR  = lynxer
 
-.PHONY: install uninstall deps pip-install test clean help
+.PHONY: build install uninstall deps pip-install test clean help
 
 # ── install ──────────────────────────────────────────────────────────────────
 install:
@@ -25,6 +25,17 @@ install:
 		"$(DATADIR)" "$(DATADIR)" > "$(BINDIR)/lynxer"
 	@chmod +x "$(BINDIR)/lynxer"
 	@echo "✓  Lynxer installed.  Try:  lynxer --version"
+
+# ── build ────────────────────────────────────────────────────────────────────
+build:
+	@echo "Building Lynxer..."
+	@$(PYTHON) -m PyInstaller \
+		--onefile \
+		--clean \
+		--name lynxer \
+		--add-data "$(SRC_DIR)/lynxer/stdlib:stdlib" \
+		"$(SRC_DIR)/lynxer/shell.py"
+	@echo "✓  Build complete: dist/lynxer"
 
 # ── uninstall ────────────────────────────────────────────────────────────────
 uninstall:
