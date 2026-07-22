@@ -21,7 +21,7 @@ install:
 	@mkdir -p "$(BINDIR)" "$(DATADIR)"
 	@rm -rf "$(DATADIR)/lynxer"
 	@cp -r "$(SRC_DIR)" "$(DATADIR)/lynxer"
-	@printf '#!/usr/bin/env bash\nLYNXER_HOME="%s" exec $(PYTHON) "%s/lynxer/__main__.py" "$$@"\n' \
+	@printf '#!/usr/bin/env bash\nLYNXER_HOME="%s" exec $(PYTHON) "%s/lynxer/shell.py" "$$@"\n' \
 		"$(DATADIR)" "$(DATADIR)" > "$(BINDIR)/lynxer"
 	@chmod +x "$(BINDIR)/lynxer"
 	@echo "✓  Lynxer installed.  Try:  lynxer --version"

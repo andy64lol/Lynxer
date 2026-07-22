@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
 Development shim — run from anywhere:
-
     python lynxer/shell.py <file.lynx>
     cd lynxer && python shell.py <file.lynx>
 """
@@ -15,7 +14,7 @@ _parent = os.path.dirname(_here)                         # repo root
 if _parent not in sys.path:
     sys.path.insert(0, _parent)
 
-from lynxer.lynxer import run  # noqa: E402
+from lynxer import run  # noqa: E402
 
 
 def main():
@@ -24,7 +23,7 @@ def main():
         print("Usage: python shell.py <file.lynx>")
         return 0
     if argv[0] in ('-v', '--version'):
-        print("Lynxer 0.1.1")
+        print("Lynxer 0.1.3")
         return 0
 
     filepath = argv[0]

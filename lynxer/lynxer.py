@@ -1,5 +1,5 @@
 from __future__ import annotations
-from .strings_with_arrows import string_with_arrows
+from strings_with_arrows import string_with_arrows
 import string
 import os
 import sys
