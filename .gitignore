@@ -1,1 +1,5 @@
 *.pyc
+lynxer/build/
+lynxer/dist/
+lynxer/__pycache__/
+*.spec
