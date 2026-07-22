@@ -1,0 +1,201 @@
+///
+  Lynxer Standard Library - http
+  HTTP client built on Python's urllib (no extra deps).
+
+  Provides: get, post, put, delete, patch,
+            getStatus, getHeaders,
+            getJson, postJson,
+            download, urlencode
+///
+
+global setup(){}
+
+global get(str url){
+    str result = "";
+    rawPy(){
+        import urllib.request as _req
+        import urllib.error as _err
+        try:
+            with _req.urlopen(url, timeout=30) as _r:
+                result = _r.read().decode("utf-8", errors="replace")
+        except _err.HTTPError as e:
+            result = "ERROR: HTTP " + str(e.code) + " " + str(e.reason)
+        except Exception as e:
+            result = "ERROR: " + str(e)
+    }
+    return result;
+}
+
+global getStatus(str url){
+    int result = 0;
+    rawPy(){
+        import urllib.request as _req
+        import urllib.error as _err
+        try:
+            with _req.urlopen(url, timeout=30) as _r:
+                result = _r.status
+        except _err.HTTPError as e:
+            result = e.code
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+global getHeaders(str url){
+    str result = "";
+    rawPy(){
+        import urllib.request as _req
+        import urllib.error as _err
+        try:
+            with _req.urlopen(url, timeout=30) as _r:
+                lines = []
+                for k, v in _r.headers.items():
+                    lines.append(k + ": " + v)
+                result = "\n".join(lines)
+        except _err.HTTPError as e:
+            result = "ERROR: HTTP " + str(e.code)
+        except Exception as e:
+            result = "ERROR: " + str(e)
+    }
+    return result;
+}
+
+global post(str url, str body, str contentType){
+    str result = "";
+    rawPy(){
+        import urllib.request as _req
+        import urllib.error as _err
+        try:
+            _data = body.encode("utf-8")
+            _rq = _req.Request(url, data=_data, method="POST")
+            _rq.add_header("Content-Type", contentType)
+            with _req.urlopen(_rq, timeout=30) as _r:
+                result = _r.read().decode("utf-8", errors="replace")
+        except _err.HTTPError as e:
+            result = "ERROR: HTTP " + str(e.code) + " " + str(e.reason)
+        except Exception as e:
+            result = "ERROR: " + str(e)
+    }
+    return result;
+}
+
+global getJson(str url){
+    str result = "";
+    rawPy(){
+        import urllib.request as _req
+        import urllib.error as _err
+        try:
+            _rq = _req.Request(url)
+            _rq.add_header("Accept", "application/json")
+            with _req.urlopen(_rq, timeout=30) as _r:
+                result = _r.read().decode("utf-8", errors="replace")
+        except _err.HTTPError as e:
+            result = "ERROR: HTTP " + str(e.code) + " " + str(e.reason)
+        except Exception as e:
+            result = "ERROR: " + str(e)
+    }
+    return result;
+}
+
+global postJson(str url, str jsonBody){
+    str result = "";
+    rawPy(){
+        import urllib.request as _req
+        import urllib.error as _err
+        try:
+            _data = jsonBody.encode("utf-8")
+            _rq = _req.Request(url, data=_data, method="POST")
+            _rq.add_header("Content-Type", "application/json")
+            _rq.add_header("Accept", "application/json")
+            with _req.urlopen(_rq, timeout=30) as _r:
+                result = _r.read().decode("utf-8", errors="replace")
+        except _err.HTTPError as e:
+            result = "ERROR: HTTP " + str(e.code) + " " + str(e.reason)
+        except Exception as e:
+            result = "ERROR: " + str(e)
+    }
+    return result;
+}
+
+global put(str url, str body, str contentType){
+    str result = "";
+    rawPy(){
+        import urllib.request as _req
+        import urllib.error as _err
+        try:
+            _data = body.encode("utf-8")
+            _rq = _req.Request(url, data=_data, method="PUT")
+            _rq.add_header("Content-Type", contentType)
+            with _req.urlopen(_rq, timeout=30) as _r:
+                result = _r.read().decode("utf-8", errors="replace")
+        except _err.HTTPError as e:
+            result = "ERROR: HTTP " + str(e.code) + " " + str(e.reason)
+        except Exception as e:
+            result = "ERROR: " + str(e)
+    }
+    return result;
+}
+
+global delete(str url){
+    str result = "";
+    rawPy(){
+        import urllib.request as _req
+        import urllib.error as _err
+        try:
+            _rq = _req.Request(url, method="DELETE")
+            with _req.urlopen(_rq, timeout=30) as _r:
+                result = _r.read().decode("utf-8", errors="replace")
+        except _err.HTTPError as e:
+            result = "ERROR: HTTP " + str(e.code) + " " + str(e.reason)
+        except Exception as e:
+            result = "ERROR: " + str(e)
+    }
+    return result;
+}
+
+global patch(str url, str body, str contentType){
+    str result = "";
+    rawPy(){
+        import urllib.request as _req
+        import urllib.error as _err
+        try:
+            _data = body.encode("utf-8")
+            _rq = _req.Request(url, data=_data, method="PATCH")
+            _rq.add_header("Content-Type", contentType)
+            with _req.urlopen(_rq, timeout=30) as _r:
+                result = _r.read().decode("utf-8", errors="replace")
+        except _err.HTTPError as e:
+            result = "ERROR: HTTP " + str(e.code) + " " + str(e.reason)
+        except Exception as e:
+            result = "ERROR: " + str(e)
+    }
+    return result;
+}
+
+global download(str url, str filepath){
+    str result = "";
+    rawPy(){
+        import urllib.request as _req
+        import urllib.error as _err
+        try:
+            _req.urlretrieve(url, filepath)
+            result = "ok"
+        except _err.HTTPError as e:
+            result = "ERROR: HTTP " + str(e.code) + " " + str(e.reason)
+        except Exception as e:
+            result = "ERROR: " + str(e)
+    }
+    return result;
+}
+
+global urlencode(str text){
+    str result = "";
+    rawPy(){
+        import urllib.parse as _p
+        result = _p.quote_plus(text)
+    }
+    return result;
+}
+
+global main(){}

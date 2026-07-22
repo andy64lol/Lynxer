@@ -1,0 +1,112 @@
+///
+  Lynxer Standard Library - random
+  Provides: seed, random, randint, uniform,
+            randrange, randrangeStep,
+            gauss, coinflip,
+            sampleInt, sampleFloat
+///
+
+global setup(){}
+
+/// Seed the random number generator. Pass 0 to use system entropy. ///
+global seed(int n){
+    rawPy(){
+        import random as _r
+        _r.seed(n if n != 0 else None)
+    }
+}
+
+/// Random float in [0.0, 1.0). ///
+global random(){
+    float result = 0.0;
+    rawPy(){
+        import random as _r
+        result = _r.random()
+    }
+    return result;
+}
+
+/// Random integer in [a, b] inclusive. ///
+global randint(int a, int b){
+    int result = 0;
+    rawPy(){
+        import random as _r
+        result = _r.randint(a, b)
+    }
+    return result;
+}
+
+/// Random float in [a, b]. ///
+global uniform(float a, float b){
+    float result = 0.0;
+    rawPy(){
+        import random as _r
+        result = _r.uniform(a, b)
+    }
+    return result;
+}
+
+global randrange(int start, int stop){
+    int result = 0;
+    rawPy(){
+        import random as _r
+        result = _r.randrange(start, stop)
+    }
+    return result;
+}
+
+global randrangeStep(int start, int stop, int step){
+    int result = 0;
+    rawPy(){
+        import random as _r
+        result = _r.randrange(start, stop, step)
+    }
+    return result;
+}
+
+global gauss(float mu, float sigma){
+    float result = 0.0;
+    rawPy(){
+        import random as _r
+        result = _r.gauss(mu, sigma)
+    }
+    return result;
+}
+
+/// Returns true or false with equal probability. ///
+global coinflip(){
+    int result = 0;
+    rawPy(){
+        import random as _r
+        result = _r.randint(0, 1)
+    }
+    if(result is 1){ return true; }
+    return false;
+}
+
+global sampleInt(str items){
+    int result = 0;
+    rawPy(){
+        import random as _r
+        parts = [x.strip() for x in items.split("|") if x.strip()]
+        if parts:
+            try:
+                result = int(_r.choice(parts))
+            except ValueError:
+                result = 0
+    }
+    return result;
+}
+
+global sampleStr(str items){
+    str result = "";
+    rawPy(){
+        import random as _r
+        parts = [x.strip() for x in items.split("|") if x.strip()]
+        if parts:
+            result = _r.choice(parts)
+    }
+    return result;
+}
+
+global main(){}
