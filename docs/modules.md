@@ -98,14 +98,6 @@ global main(){
 
 ## Available stdlib modules
 
-| Module | Import | Key functions |
-|--------|--------|---------------|
-| `math` | `import("math")` | `abs`, `max`, `min`, `clamp`, `pow`, `sqrt`, `floor`, `ceil`, `roundNum`, `pi` |
-| `typing` | `import("typing")` | `toStr`, `toInt`, `toFloat`, `toBool`, `isNumeric`, `lenStr`, `repeat`, `contains`, `toList`, `isList`, `lenList`, `flatten`, `unique` |
-| `fileIO` | `import("fileIO")` | `readFile`, `writeFile`, `appendFile`, `fileExists`, `deleteFile` |
-| `shell` | `import("shell")` | `runShell`, `runShellCapture`, `runShellSilent` |
-| `os` | `import("os")` | `getcwd`, `chdir`, `listdir`, `mkdir`, `makedirs`, `rmdir`, `remove`, `rename`, `exists`, `isFile`, `isDir`, `joinPath`, `basename`, `dirname`, `absPath`, `getenv`, `getpid`, `sep` |
-| `js` | `import("js")` | `runJS`, `runJSFile`, `evalJS`, `nodeVersion`, `nodeExists` |
-| `json` | `import("json")` | `jsonValid`, `jsonParse`, `jsonGet`, `jsonGetInt`, `jsonGetFloat`, `jsonGetBool`, `jsonKeys`, `jsonStringify`, `jsonArray`, `jsonObject` |
+Too lazy to write all new modules
 
-See [stdlib.md](stdlib.md) for full API details.
+See [stdlib list](stdlib/README.md) for full stdlib details.

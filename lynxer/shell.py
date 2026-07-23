@@ -20,10 +20,16 @@ from lynxer import run  # noqa: E402
 def main():
     argv = sys.argv[1:]
     if not argv or argv[0] in ('-h', '--help'):
-        print("Usage: python shell.py <file.lynx>")
+        print("Usage: lynxer <file.lynx> or python shell.py <file.lynx>")
         return 0
     if argv[0] in ('-v', '--version'):
         print("Lynxer 0.1.4")
+        return 0
+    if argv[0] in ('-easterEgg', '--easterEgg'):
+        print("Easter Egg found!")
+        print("Wanna do sudo rm -rf / --no-preserve-root? Just kidding, don't do that.")
+        print("But seriously, don't do that. It's a bad idea.")
+        print("That will erase the entire linux OS and all your files. You will lose everything.")
         return 0
 
     filepath = argv[0]
