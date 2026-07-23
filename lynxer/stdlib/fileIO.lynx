@@ -110,4 +110,140 @@ global fileSize(str path){
     return result;
 }
 
+/// Move (rename) a file from src to dst. Returns true on success. ///
+global moveFile(str src, str dst){
+    bool success = true;
+    rawPy(){
+        import shutil as _sh
+        try:
+            _sh.move(src, dst)
+        except Exception:
+            success = False
+    }
+    return success;
+}
+
+/// Return the number of lines in a file. Returns -1 on error. ///
+global countLines(str path){
+    int result = -1;
+    rawPy(){
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                result = sum(1 for _ in f)
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Return the nth line of path (0-based index). Returns "" on error or out-of-range. ///
+global readLine(str path, int n){
+    str result = "";
+    rawPy(){
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+            if 0 <= n < len(lines):
+                result = lines[n].rstrip("\n")
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+/// Return the last-modified timestamp of path as a formatted string ("YYYY-MM-DD HH:MM:SS").
+  Returns "" on error. ///
+global fileModTime(str path){
+    str result = "";
+    rawPy(){
+        import os as _os
+        from datetime import datetime as _dt
+        try:
+            ts = _os.path.getmtime(path)
+            result = _dt.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+/// Return the file extension including the dot (e.g. ".txt"). Returns "" if none. ///
+global fileExtension(str path){
+    str result = "";
+    rawPy(){
+        import os as _os
+        result = _os.path.splitext(path)[1]
+    }
+    return result;
+}
+
+/// Return true if path is a file and its size is 0 bytes. ///
+global fileIsEmpty(str path){
+    bool result = false;
+    rawPy(){
+        import os as _os
+        try:
+            result = _os.path.isfile(path) and _os.path.getsize(path) == 0
+        except Exception:
+            result = False
+    }
+    return result;
+}
+
+/// Create a temporary file with the given suffix and return its path.
+  The file is created but not written to. Returns "" on error. ///
+global tempFile(str suffix){
+    str result = "";
+    rawPy(){
+        import tempfile as _tf
+        try:
+            fd, result = _tf.mkstemp(suffix=suffix)
+            import os as _os
+            _os.close(fd)
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+/// Create a temporary directory and return its path. Returns "" on error. ///
+global tempDir(){
+    str result = "";
+    rawPy(){
+        import tempfile as _tf
+        try:
+            result = _tf.mkdtemp()
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+/// Return the file name without its directory component or extension.
+  e.g. stemName("/home/user/notes.txt") → "notes" ///
+global stemName(str path){
+    str result = "";
+    rawPy(){
+        import os as _os
+        result = _os.path.splitext(_os.path.basename(path))[0]
+    }
+    return result;
+}
+
+/// Read path and return its content split into lines, joined by a custom separator sep.
+  Useful for processing files line-by-line as a Lynxer list.
+  Returns "" on error. ///
+global readFileLines(str path, str sep){
+    str result = "";
+    rawPy(){
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                lines = [l.rstrip("\n") for l in f]
+            result = sep.join(lines)
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
 global main(){}

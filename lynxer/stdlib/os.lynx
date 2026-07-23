@@ -259,4 +259,156 @@ global normPath(str path){
     return result;
 }
 
+/// Recursively remove a directory tree. Returns true on success, false on error. ///
+global rmTree(str path){
+    bool ok = true;
+    rawPy(){
+        import shutil as _sh
+        try:
+            _sh.rmtree(path)
+        except Exception:
+            ok = False
+    }
+    return ok;
+}
+
+/// Copy an entire directory tree from src to dst.
+  dst must not already exist. Returns true on success, false on error. ///
+global copyTree(str src, str dst){
+    bool ok = true;
+    rawPy(){
+        import shutil as _sh
+        try:
+            _sh.copytree(src, dst)
+        except Exception:
+            ok = False
+    }
+    return ok;
+}
+
+/// Return only the files in path whose name ends with ext (e.g. ".txt").
+  Returns entries as a list. ///
+global listdirExt(str path, str ext){
+    str raw = "";
+    rawPy(){
+        import os as _os
+        try:
+            entries = [e for e in _os.listdir(path) if e.endswith(ext)]
+            raw = "\n".join(entries)
+        except Exception:
+            raw = ""
+    }
+    if(raw is ""){
+        return seqFromTo(0, 0, 1);
+    }
+    return splitStr(raw, "\n");
+}
+
+/// Return the system temporary directory (e.g. "/tmp" on Linux). ///
+global tempDir(){
+    str result = "";
+    rawPy(){
+        import tempfile as _tf
+        result = _tf.gettempdir()
+    }
+    return result;
+}
+
+/// Return the current user's home directory. ///
+global homedir(){
+    str result = "";
+    rawPy(){
+        import os as _os
+        result = _os.path.expanduser("~")
+    }
+    return result;
+}
+
+/// Return the current user's login name. Returns "" if unavailable. ///
+global username(){
+    str result = "";
+    rawPy(){
+        import os as _os
+        try:
+            result = _os.getlogin()
+        except Exception:
+            import getpass as _gp
+            try:
+                result = _gp.getuser()
+            except Exception:
+                result = ""
+    }
+    return result;
+}
+
+/// Return the system hostname. Returns "" on error. ///
+global hostname(){
+    str result = "";
+    rawPy(){
+        import socket as _s
+        try:
+            result = _s.gethostname()
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+/// Return the number of CPU cores on this machine, or 1 on error. ///
+global cpuCount(){
+    int result = 1;
+    rawPy(){
+        import os as _os
+        try:
+            result = _os.cpu_count() or 1
+        except Exception:
+            result = 1
+    }
+    return result;
+}
+
+/// Return the total disk space of path in bytes, or -1 on error. ///
+global diskTotal(str path){
+    int result = -1;
+    rawPy(){
+        import shutil as _sh
+        try:
+            result = _sh.disk_usage(path).total
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Return the free disk space of path in bytes, or -1 on error. ///
+global diskFree(str path){
+    int result = -1;
+    rawPy(){
+        import shutil as _sh
+        try:
+            result = _sh.disk_usage(path).free
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Recursively list all files under path. Returns a newline-joined string
+  (use splitStr(result, "\n") to get a list). Returns "" on error. ///
+global walkFiles(str path){
+    str result = "";
+    rawPy(){
+        import os as _os
+        try:
+            files = []
+            for root, dirs, fnames in _os.walk(path):
+                for fn in fnames:
+                    files.append(_os.path.join(root, fn))
+            result = "\n".join(files)
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
 global main(){}

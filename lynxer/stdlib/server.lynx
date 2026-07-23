@@ -1,0 +1,71 @@
+/// 
+Lynxer Standard Library — server
+Wraps Python's built-in http.server module to provide a simple HTTP server.
+///
+
+global setup(){}
+
+global init(str host, int port){
+    rawPy(){
+        from http.server import BaseHTTPRequestHandler, HTTPServer
+        import builtins
+
+        class _LynxerHandler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                routes = builtins._lx_server_get
+
+                if self.path in routes:
+                    self.send_response(200)
+                    self.send_header("Content-type", "text/plain")
+                    self.end_headers()
+                    self.wfile.write(routes[self.path].encode())
+                else:
+                    self.send_response(404)
+                    self.end_headers()
+                    self.wfile.write(b"404 Not Found")
+
+            def do_POST(self):
+                routes = builtins._lx_server_post
+
+                if self.path in routes:
+                    self.send_response(200)
+                    self.send_header("Content-type", "text/plain")
+                    self.end_headers()
+                    self.wfile.write(routes[self.path].encode())
+                else:
+                    self.send_response(404)
+                    self.end_headers()
+                    self.wfile.write(b"404 Not Found")
+
+            def log_message(self, format, *args):
+                return
+
+        builtins._lx_server_get = {}
+        builtins._lx_server_post = {}
+        builtins._lx_server = HTTPServer((host, port), _LynxerHandler)
+    }
+}
+
+global get(str path, str response){
+    rawPy(){
+        import builtins
+        builtins._lx_server_get[path] = response
+    }
+}
+
+global post(str path, str response){
+    rawPy(){
+        import builtins
+        builtins._lx_server_post[path] = response
+    }
+}
+
+global run(){
+    rawPy(){
+        import builtins
+        print("Server running...")
+        builtins._lx_server.serve_forever()
+    }
+}
+
+global main(){}

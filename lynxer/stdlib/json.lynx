@@ -202,4 +202,81 @@ global jsonMerge(str a, str b){
     return result;
 }
 
+/// Set a key to an int value in a JSON object string. Returns updated JSON. ///
+global jsonSetInt(str s, str key, int value){
+    str result = "";
+    rawPy(){
+        import json as _json
+        try:
+            obj = _json.loads(s)
+            obj[key] = value
+            result = _json.dumps(obj)
+        except Exception:
+            result = s
+    }
+    return result;
+}
+
+/// Pretty-print a JSON string with 4-space indent. Returns "" on parse error. ///
+global jsonPretty(str s){
+    str result = "";
+    rawPy(){
+        import json as _json
+        try:
+            result = _json.dumps(_json.loads(s), indent=4)
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+/// Return the JSON type of the value at key as a string:
+  "string", "int", "float", "bool", "null", "object", "array", or "unknown". ///
+global jsonType(str s, str key){
+    str result = "unknown";
+    rawPy(){
+        import json as _json
+        try:
+            obj = _json.loads(s)
+            val = obj.get(key)
+            if val is None:
+                result = "null"
+            elif isinstance(val, bool):
+                result = "bool"
+            elif isinstance(val, int):
+                result = "int"
+            elif isinstance(val, float):
+                result = "float"
+            elif isinstance(val, str):
+                result = "string"
+            elif isinstance(val, list):
+                result = "array"
+            elif isinstance(val, dict):
+                result = "object"
+        except Exception:
+            result = "unknown"
+    }
+    return result;
+}
+
+/// Build a JSON object from a Lynxer string of alternating key=value pairs separated by "|".
+  e.g. jsonBuild("name=Alice|age=30") → '{"name": "Alice", "age": "30"}' ///
+global jsonBuild(str pairs){
+    str result = "";
+    rawPy(){
+        import json as _json
+        try:
+            obj = {}
+            for pair in pairs.split("|"):
+                pair = pair.strip()
+                if "=" in pair:
+                    k, _, v = pair.partition("=")
+                    obj[k.strip()] = v.strip()
+            result = _json.dumps(obj)
+        except Exception:
+            result = "{}"
+    }
+    return result;
+}
+
 global main(){}

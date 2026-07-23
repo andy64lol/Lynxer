@@ -209,4 +209,176 @@ global strReverse(str s){
     return result;
 }
 
+/// Return the Unicode code point of the first character of s.
+  Returns -1 if s is empty. ///
+global charCode(str s){
+    int result = -1;
+    rawPy(){
+        try:
+            result = ord(s[0]) if s else -1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Return the character whose Unicode code point is code. Returns "" on error. ///
+global charOf(int code){
+    str result = "";
+    rawPy(){
+        try:
+            result = chr(code)
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+/// Count how many times sub appears in s (non-overlapping). ///
+global countOccurrences(str s, str sub){
+    int result = 0;
+    rawPy(){
+        try:
+            result = s.count(sub) if sub else 0
+        except Exception:
+            result = 0
+    }
+    return result;
+}
+
+/// Split s on the first occurrence of sep and return a 2-element list.
+  If sep is not found the second element is "". ///
+global splitFirst(str s, str sep){
+    str result = "";
+    rawPy(){
+        if sep and sep in s:
+            idx    = s.index(sep)
+            first  = s[:idx]
+            second = s[idx + len(sep):]
+            result = first + "\x1f" + second
+        else:
+            result = s + "\x1f"
+    }
+    return splitStr(result, "\x1f");
+}
+
+/// Centre s in a field of width characters, padded with ch on both sides. ///
+global center(str s, int width, str ch){
+    str result = "";
+    rawPy(){
+        pad_ch = ch[0] if ch else " "
+        result = s.center(width, pad_ch)
+    }
+    return result;
+}
+
+/// Strip leading whitespace from s. ///
+global stripLeft(str s){
+    str result = "";
+    rawPy(){
+        result = s.lstrip()
+    }
+    return result;
+}
+
+/// Strip trailing whitespace from s. ///
+global stripRight(str s){
+    str result = "";
+    rawPy(){
+        result = s.rstrip()
+    }
+    return result;
+}
+
+/// Return true if every character in s is a letter (a-z, A-Z). Returns false if empty. ///
+global isAlpha(str s){
+    bool result = false;
+    rawPy(){
+        result = s.isalpha()
+    }
+    return result;
+}
+
+/// Return true if every character in s is a decimal digit. Returns false if empty. ///
+global isDigit(str s){
+    bool result = false;
+    rawPy(){
+        result = s.isdigit()
+    }
+    return result;
+}
+
+/// Return true if every character in s is alphanumeric. Returns false if empty. ///
+global isAlphaNum(str s){
+    bool result = false;
+    rawPy(){
+        result = s.isalnum()
+    }
+    return result;
+}
+
+/// Return true if every character in s is a whitespace character. Returns false if empty. ///
+global isSpace(str s){
+    bool result = false;
+    rawPy(){
+        result = s.isspace()
+    }
+    return result;
+}
+
+/// Convert s to title case (first letter of each word capitalised). ///
+global titleCase(str s){
+    str result = "";
+    rawPy(){
+        result = s.title()
+    }
+    return result;
+}
+
+/// Swap the case of every character in s (upper↔lower). ///
+global swapCase(str s){
+    str result = "";
+    rawPy(){
+        result = s.swapcase()
+    }
+    return result;
+}
+
+/// Repeat s exactly n times. ///
+global repeatStr(str s, int n){
+    str result = "";
+    rawPy(){
+        result = s * max(0, n)
+    }
+    return result;
+}
+
+/// Return a string of n space characters. ///
+global spaces(int n){
+    str result = "";
+    rawPy(){
+        result = " " * max(0, n)
+    }
+    return result;
+}
+
+/// Wrap long text to at most width characters per line, returning the wrapped text. ///
+global wordWrap(str s, int width){
+    str result = "";
+    rawPy(){
+        import textwrap as _tw
+        result = _tw.fill(s, width)
+    }
+    return result;
+}
+
+/// Expand tab characters in s to spaces, using tabSize-character tab stops. ///
+global expandTabs(str s, int tabSize){
+    str result = "";
+    rawPy(){
+        result = s.expandtabs(tabSize)
+    }
+    return result;
+}
+
 global main(){}

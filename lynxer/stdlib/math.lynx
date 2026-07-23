@@ -271,4 +271,124 @@ global randFloat(float lo, float hi){
     return result;
 }
 
+/// Least common multiple of a and b. ///
+global lcm(int a, int b){
+    int result = 0;
+    rawPy(){
+        import math as _m
+        try:
+            result = _m.lcm(a, b)
+        except AttributeError:
+            g = _m.gcd(a, b)
+            result = abs(a * b) // g if g else 0
+    }
+    return result;
+}
+
+/// Returns true if n is a prime number (n >= 2). ///
+global isPrime(int n){
+    bool result = false;
+    rawPy(){
+        import math as _m
+        if n < 2:
+            result = False
+        elif n == 2:
+            result = True
+        elif n % 2 == 0:
+            result = False
+        else:
+            result = all(n % i != 0 for i in range(3, _m.isqrt(n) + 1, 2))
+    }
+    return result;
+}
+
+/// Return the smallest prime number strictly greater than n. ///
+global nextPrime(int n){
+    int result = 2;
+    rawPy(){
+        import math as _m
+        candidate = n + 1
+        while True:
+            if candidate < 2:
+                candidate = 2
+                continue
+            if candidate == 2:
+                result = 2
+                break
+            if candidate % 2 == 0:
+                candidate += 1
+                continue
+            ok = all(candidate % i != 0 for i in range(3, _m.isqrt(candidate) + 1, 2))
+            if ok:
+                result = candidate
+                break
+            candidate += 1
+    }
+    return result;
+}
+
+/// Binomial coefficient C(n, k) — "n choose k". Returns 0 for invalid inputs. ///
+global binomial(int n, int k){
+    int result = 0;
+    rawPy(){
+        import math as _m
+        try:
+            result = _m.comb(n, k)
+        except Exception:
+            result = 0
+    }
+    return result;
+}
+
+/// Integer square root (floor of sqrt for non-negative integers). ///
+global isqrt(int n){
+    int result = 0;
+    rawPy(){
+        import math as _m
+        try:
+            result = _m.isqrt(n)
+        except Exception:
+            result = 0
+    }
+    return result;
+}
+
+/// Return the sum of integers from lo to hi (inclusive). ///
+global sumRange(int lo, int hi){
+    int result = 0;
+    rawPy(){
+        result = sum(range(lo, hi + 1))
+    }
+    return result;
+}
+
+/// Linear interpolation: return lo + t*(hi - lo). t should be in [0.0, 1.0]. ///
+global lerp(float lo, float hi, float t){
+    float result = 0.0;
+    rawPy(){
+        result = lo + t * (hi - lo)
+    }
+    return result;
+}
+
+/// Clamp a float val to [lo, hi]. ///
+global clampFloat(float val, float lo, float hi){
+    if(val < lo){ return lo; }
+    if(val > hi){ return hi; }
+    return val;
+}
+
+/// Map value from range [inLo, inHi] to range [outLo, outHi]. ///
+global mapRange(float value, float inLo, float inHi, float outLo, float outHi){
+    float result = 0.0;
+    rawPy(){
+        if inHi == inLo:
+            result = outLo
+        else:
+            t = (value - inLo) / (inHi - inLo)
+            result = outLo + t * (outHi - outLo)
+    }
+    return result;
+}
+
 global main(){}

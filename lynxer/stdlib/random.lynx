@@ -109,4 +109,82 @@ global sampleStr(str items){
     return result;
 }
 
+/// Shuffle a pipe-separated list of strings and return a new pipe-separated string.
+  e.g. shuffle("a|b|c|d") → "c|a|d|b" ///
+global shuffle(str items){
+    str result = "";
+    rawPy(){
+        import random as _r
+        parts = [x for x in items.split("|") if x]
+        _r.shuffle(parts)
+        result = "|".join(parts)
+    }
+    return result;
+}
+
+/// Return a random float drawn from a triangular distribution with
+  low=lo, high=hi, mode=mode. ///
+global triangular(float lo, float hi, float mid){
+    float result = 0.0;
+    rawPy(){
+        import random as _r
+        result = _r.triangular(lo, hi, mid)
+    }
+    return result;
+}
+
+/// Generate a UUID4 string (e.g. "f47ac10b-58cc-4372-a567-0e02b2c3d479"). ///
+global uuid4(){
+    str result = "";
+    rawPy(){
+        import uuid as _u
+        result = str(_u.uuid4())
+    }
+    return result;
+}
+
+/// Return n random hex characters (lowercase), e.g. randHex(8) → "a3f9c201". ///
+global randHex(int n){
+    str result = "";
+    rawPy(){
+        import random as _r, string as _s
+        result = "".join(_r.choices(_s.hexdigits[:16], k=n))
+    }
+    return result;
+}
+
+/// Return a random element from a pipe-separated list of strings.
+  Returns "" if the list is empty. ///
+global choice(str items){
+    str result = "";
+    rawPy(){
+        import random as _r
+        parts = [x for x in items.split("|") if x]
+        result = _r.choice(parts) if parts else ""
+    }
+    return result;
+}
+
+/// Pick k unique items from a pipe-separated list and return them pipe-separated. ///
+global sample(str items, int k){
+    str result = "";
+    rawPy(){
+        import random as _r
+        parts = [x for x in items.split("|") if x]
+        k = min(k, len(parts))
+        result = "|".join(_r.sample(parts, k))
+    }
+    return result;
+}
+
+/// Return a random boolean (true or false with equal probability). ///
+global randBool(){
+    bool result = false;
+    rawPy(){
+        import random as _r
+        result = _r.random() < 0.5
+    }
+    return result;
+}
+
 global main(){}
