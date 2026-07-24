@@ -1,422 +1,71 @@
-///
+/// 
 Lynxer Standard Library — server
-Thread-safe HTTP server with proper HEAD handling and CORS support.
+Wraps Python's built-in http.server module to provide a simple HTTP server.
 ///
 
-global setup(){
-    rawPy(){
-        import builtins
-        import threading
-        import os
-        import mimetypes
-        import shutil
-        import urllib.parse
-        import json
-        import traceback
-
-        # Thread-Local Storage (TLS) for request context
-        builtins._lx_tls = threading.local()
-        builtins._lx_server = None
-        builtins._lx_server_running = False
-        builtins._lx_cors_origin = "*"
-        
-        # Routes
-        builtins._lx_server_get = {}
-        builtins._lx_server_post = {}
-        builtins._lx_server_put = {}
-        builtins._lx_server_patch = {}
-        builtins._lx_server_delete = {}
-        
-        # Static & Behavior
-        builtins._lx_server_static = {}
-        builtins._lx_server_middleware = []
-        builtins._lx_server_status = {}
-    }
-}
+global setup(){}
 
 global init(str host, int port){
     rawPy(){
-        from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
+        from http.server import BaseHTTPRequestHandler, HTTPServer
         import builtins
-        import os
-        import mimetypes
-        import shutil
-        import urllib.parse
-        import json
-        import traceback
 
-        class _Handler(BaseHTTPRequestHandler):
-            def _normalizeHeaders(self, headers):
-                return {k.lower(): v for k, v in dict(headers).items()}
+        class _LynxerHandler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                routes = builtins._lx_server_get
 
-            def _buildCtx(self):
-                # Store context in Thread-Local Storage
-                parsed = urllib.parse.urlparse(self.path)
-                q = urllib.parse.parse_qs(parsed.query)
-                
-                builtins._lx_tls.ctx = {
-                    "path": parsed.path, "method": self.command,
-                    "headers": self._normalizeHeaders(self.headers),
-                    "query": {k: v[0] for k, v in q.items() if v},
-                    "queryAll": {k: v[:] for k, v in q.items()}, # Copy lists
-                    "client": self.client_address[0], "isHead": (self.command == "HEAD"),
-                    "_resp_overrides": {"headers": {}, "status": None}
-                }
-                if self.command in ["POST", "PUT", "PATCH"]:
-                    length = int(self.headers.get('Content-Length', 0))
-                    builtins._lx_tls.ctx["body"] = self.rfile.read(length).decode('utf-8')
-                    if 'application/json' in builtins._lx_tls.ctx["headers"].get('content-type', ''):
-                        try: builtins._lx_tls.ctx["json"] = json.loads(builtins._lx_tls.ctx["body"])
-                        except json.JSONDecodeError: builtins._lx_tls.ctx["json"] = None
-                return builtins._lx_tls.ctx
-
-            def _applyMiddleware(self, ctx):
-                try:
-                    for mw in builtins._lx_server_middleware:
-                        if mw(ctx) is False:
-                            self._respond(403, "Forbidden by Middleware")
-                            return False
-                except Exception:
-                    traceback.print_exc() # Log to server stderr
-                    self._respond(500, "Middleware Error")
-                    return False
-                return True
-
-            def _safePath(self, base, requested):
-                # FIX: More robust path validation
-                real_base = os.path.realpath(base)
-                joined = os.path.realpath(os.path.join(base, requested.lstrip('/')))
-                # Ensure the resolved path is inside the base directory
-                return joined if os.path.commonpath([real_base, joined]) == real_base else None
-
-            def _serveStatic(self, path):
-                for prefix, folder in builtins._lx_server_static.items():
-                    if path == prefix or (path.startswith(prefix + "/")):
-                        rel_path = path[len(prefix):].lstrip('/')
-                        fs_path = self._safePath(folder, rel_path)
-                        if fs_path and os.path.isfile(fs_path):
-                            mt = mimetypes.guess_type(fs_path)[0] or 'application/octet-stream'
-                            self.send_response(200)
-                            self.send_header("Content-type", mt)
-                            self.send_header("Content-Length", str(os.path.getsize(fs_path)))
-                            self.send_header("Access-Control-Allow-Origin", builtins._lx_cors_origin)
-                            self.end_headers()
-                            if self.command != "HEAD":
-                                with open(fs_path, 'rb') as f:
-                                    shutil.copyfileobj(f, self.wfile)
-                            return True
-                return False
-
-            def _respond(self, code=200, body="", headers=None):
-                ctx = builtins._lx_tls.ctx
-                final_code = ctx["_resp_overrides"]["status"] or code
-                
-                self.send_response(final_code)
-                
-                base_h = {
-                    "Content-type": "text/plain; charset=utf-8",
-                    "Access-Control-Allow-Origin": builtins._lx_cors_origin
-                }
-                base_h.update(ctx["_resp_overrides"]["headers"])
-                if headers: base_h.update(headers)
-
-                # Auto Content-Length
-                has_content_length = any(k.lower() == "content-length" for k in base_h.keys())
-                if not has_content_length:
-                    if isinstance(body, str):
-                        base_h["Content-Length"] = str(len(body.encode('utf-8')))
-                    elif isinstance(body, bytes):
-                        base_h["Content-Length"] = str(len(body))
-
-                for k, v in base_h.items(): self.send_header(k, v)
-                self.end_headers()
-                
-                if self.command != "HEAD":
-                    file_to_stream = ctx.get("_file_to_stream")
-                    if file_to_stream and os.path.exists(file_to_stream):
-                        with open(file_to_stream, 'rb') as f:
-                            shutil.copyfileobj(f, self.wfile)
-                    elif isinstance(body, str): 
-                        self.wfile.write(body.encode('utf-8'))
-                    elif isinstance(body, bytes): 
-                        self.wfile.write(body)
-
-            def _route(self, routes):
-                ctx = self._buildCtx()
-                
-                if self._serveStatic(ctx["path"]):
-                    builtins._lx_tls.ctx = {}
-                    return
-                
-                if not self._applyMiddleware(ctx):
-                    builtins._lx_tls.ctx = {}
-                    return
-                
-                handler = routes.get(ctx["path"])
-                if handler:
-                    try:
-                        # FIX: Handle callable vs string handlers
-                        if callable(handler):
-                            # For HEAD: Execute handler to get headers/status, 
-                            # but handler should check ctx["isHead"] to skip side effects.
-                            result = handler(ctx)
-                        else:
-                            result = handler # Literal string/bytes
-                        
-                        if ctx["isHead"]:
-                            self._respond(200) # Send headers, no body
-                        elif result is None:
-                            self._respond(204)
-                        else:
-                            self._respond(200, result)
-                    except (BrokenPipeError, ConnectionResetError):
-                        pass # Client disconnected
-                    except Exception:
-                        traceback.print_exc() # Log to server stderr
-                        self._respond(500, "500 Internal Server Error")
+                if self.path in routes:
+                    self.send_response(200)
+                    self.send_header("Content-type", "text/plain")
+                    self.end_headers()
+                    self.wfile.write(routes[self.path].encode())
                 else:
-                    h = builtins._lx_server_status.get(404)
-                    if h: self._respond(404, h(ctx))
-                    else: self._respond(404, "404 Not Found")
-                
-                builtins._lx_tls.ctx = {} # Clear TLS for this thread
+                    self.send_response(404)
+                    self.end_headers()
+                    self.wfile.write(b"404 Not Found")
 
-            def do_GET(self): self._route(builtins._lx_server_get)
-            def do_POST(self): self._route(builtins._lx_server_post)
-            def do_PUT(self): self._route(builtins._lx_server_put)
-            def do_PATCH(self): self._route(builtins._lx_server_patch)
-            def do_DELETE(self): self._route(builtins._lx_server_delete)
-            def do_HEAD(self): self._route(builtins._lx_server_get)
-            
-            def do_OPTIONS(self):
-                self.send_response(204)
-                self.send_header("Allow", "GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS")
-                self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS")
-                self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
-                self.send_header("Access-Control-Allow-Origin", builtins._lx_cors_origin)
-                self.end_headers()
+            def do_POST(self):
+                routes = builtins._lx_server_post
+
+                if self.path in routes:
+                    self.send_response(200)
+                    self.send_header("Content-type", "text/plain")
+                    self.end_headers()
+                    self.wfile.write(routes[self.path].encode())
+                else:
+                    self.send_response(404)
+                    self.end_headers()
+                    self.wfile.write(b"404 Not Found")
 
             def log_message(self, format, *args):
                 return
 
-        builtins._lx_server = ThreadingHTTPServer((host, port), _Handler)
+        builtins._lx_server_get = {}
+        builtins._lx_server_post = {}
+        builtins._lx_server = HTTPServer((host, port), _LynxerHandler)
     }
 }
 
-///
-Routing Functions
-///
-global get(str path, handler){ rawPy(){ import builtins; builtins._lx_server_get[path] = handler } }
-global post(str path, handler){ rawPy(){ import builtins; builtins._lx_server_post[path] = handler } }
-global put(str path, handler){ rawPy(){ import builtins; builtins._lx_server_put[path] = handler } }
-global patch(str path, handler){ rawPy(){ import builtins; builtins._lx_server_patch[path] = handler } }
-global delete(str path, handler){ rawPy(){ import builtins; builtins._lx_server_delete[path] = handler } }
-
-///
-Response Helper Functions (Callable handlers)
-///
-global html(str path, str htmlContent){
+global get(str path, str response){
     rawPy(){
         import builtins
-        def _h(ctx):
-            if ctx.get("isHead"): return None # Skip side effects for HEAD
-            ctx["_resp_overrides"]["headers"]["Content-type"] = "text/html; charset=utf-8"
-            return htmlContent
-        builtins._lx_server_get[path] = _h
-        builtins._lx_server_post[path] = _h
+        builtins._lx_server_get[path] = response
     }
 }
 
-global json(str path, dict jsonContent){
+global post(str path, str response){
     rawPy(){
         import builtins
-        import json
-        def _j(ctx):
-            if ctx.get("isHead"): return None # Skip side effects for HEAD
-            ctx["_resp_overrides"]["headers"]["Content-type"] = "application/json; charset=utf-8"
-            return json.dumps(jsonContent)
-        builtins._lx_server_get[path] = _j
-        builtins._lx_server_post[path] = _j
+        builtins._lx_server_post[path] = response
     }
 }
-
-global file(str path, str filename){
-    rawPy(){
-        import builtins
-        import os
-        import mimetypes
-        def _serve_file(ctx):
-            if not os.path.exists(filename):
-                ctx["_resp_overrides"]["status"] = 404
-                return b"404 File Not Found"
-            mt = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
-            ctx["_resp_overrides"]["headers"]["Content-type"] = mt
-            ctx["_resp_overrides"]["headers"]["Content-Length"] = str(os.path.getsize(filename))
-            ctx["_file_to_stream"] = filename
-            return ""
-        builtins._lx_server_get[path] = _serve_file
-    }
-}
-
-global download(str path, str filename){
-    rawPy(){
-        import builtins
-        import os
-        import mimetypes
-        def _download_file(ctx):
-            if not os.path.exists(filename):
-                ctx["_resp_overrides"]["status"] = 404
-                return b"404 File Not Found"
-            mt = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
-            ctx["_resp_overrides"]["headers"]["Content-type"] = mt
-            ctx["_resp_overrides"]["headers"]["Content-Disposition"] = f'attachment; filename="{os.path.basename(filename)}"'
-            ctx["_resp_overrides"]["headers"]["Content-Length"] = str(os.path.getsize(filename))
-            ctx["_file_to_stream"] = filename
-            return ""
-        builtins._lx_server_get[path] = _download_file
-    }
-}
-
-global redirect(str path, str destination, str methods){
-    rawPy(){
-        import builtins
-        def _redir(ctx):
-            if ctx.get("isHead"): return None # Skip side effects for HEAD
-            ctx["_resp_overrides"]["status"] = 302
-            ctx["_resp_overrides"]["headers"]["Location"] = destination
-            return ""
-        
-        target_methods = [m.strip().upper() for m in methods.split(",")] if methods else ["GET"]
-        if "GET" in target_methods: builtins._lx_server_get[path] = _redir
-        if "POST" in target_methods: builtins._lx_server_post[path] = _redir
-        if "PUT" in target_methods: builtins._lx_server_put[path] = _redir
-        if "PATCH" in target_methods: builtins._lx_server_patch[path] = _redir
-        if "DELETE" in target_methods: builtins._lx_server_delete[path] = _redir
-    }
-}
-
-///
-Context Getters (Use Thread-Local Storage)
-///
-global query(str key){ rawPy(){ import builtins; return builtins._lx_tls.ctx.get("query", {}).get(key, "") } }
-global queryAll(str key){ rawPy(){ import builtins; return builtins._lx_tls.ctx.get("queryAll", {}).get(key, []) } }
-global getAllQueries(){ rawPy(){ import builtins; return builtins._lx_tls.ctx.get("queryAll", {}) } }
-global body(){ rawPy(){ import builtins; return builtins._lx_tls.ctx.get("body", "") } }
-global method(){ rawPy(){ import builtins; return builtins._lx_tls.ctx.get("method", "") } }
-global path(){ rawPy(){ import builtins; return builtins._lx_tls.ctx.get("path", "") } }
-global clientIp(){ rawPy(){ import builtins; return builtins._lx_tls.ctx.get("client", "") } }
-global headerValue(str key){
-    rawPy(){ import builtins; return builtins._lx_tls.ctx.get("headers", {}).get(key.lower(), "") }
-}
-global isHead(){ rawPy(){ import builtins; return builtins._lx_tls.ctx.get("isHead", False) } }
-
-///
-Response Configuration
-///
-global header(str key, str value){
-    rawPy(){
-        import builtins
-        if hasattr(builtins._lx_tls, 'ctx'):
-            builtins._lx_tls.ctx["_resp_overrides"]["headers"][key] = value
-    }
-}
-
-global status(int code){
-    rawPy(){
-        import builtins
-        if hasattr(builtins._lx_tls, 'ctx'):
-            builtins._lx_tls.ctx["_resp_overrides"]["status"] = code
-    }
-}
-
-///
-Utilities
-///
-global static(str urlPrefix, str folder){
-    rawPy(){
-        import builtins
-        import os
-        if os.path.isdir(folder):
-            builtins._lx_server_static[urlPrefix] = os.path.realpath(folder)
-    }
-}
-
-global cors(str origin){
-    rawPy(){ import builtins; builtins._lx_cors_origin = origin }
-}
-
-global middleware(func handler){ rawPy(){ import builtins; builtins._lx_server_middleware.append(handler) } }
-global onStatus(int code, func handler){ rawPy(){ import builtins; builtins._lx_server_status[code] = handler } }
 
 global run(){
     rawPy(){
         import builtins
-        if not builtins._lx_server:
-            print("Server not initialized. Call init() first.")
-            return
-        builtins._lx_server_running = True
-        print(f"Server running at http://{builtins._lx_server.server_address[0]}:{builtins._lx_server.server_address[1]}")
-        try:
-            builtins._lx_server.serve_forever()
-        except KeyboardInterrupt:
-            print("\nServer stopped by user.")
-        finally:
-            builtins._lx_server_running = False
+        print("Server running...")
+        builtins._lx_server.serve_forever()
     }
-}
-
-global stop(){
-    rawPy(){
-        import builtins
-        if builtins._lx_server:
-            builtins._lx_server_running = False
-            builtins._lx_server.shutdown()
-            builtins._lx_server.server_close()
-            builtins._lx_server = None
-    }
-}
-
-global routes(){
-    rawPy(){
-        import builtins
-        out = []
-        out.extend(sorted([f"GET {k}" for k in builtins._lx_server_get.keys()]))
-        out.extend(sorted([f"POST {k}" for k in builtins._lx_server_post.keys()]))
-        out.extend(sorted([f"PUT {k}" for k in builtins._lx_server_put.keys()]))
-        out.extend(sorted([f"PATCH {k}" for k in builtins._lx_server_patch.keys()]))
-        out.extend(sorted([f"DELETE {k}" for k in builtins._lx_server_delete.keys()]))
-        return out
-    }
-}
-
-global remove(str path){
-    rawPy(){
-        import builtins
-        builtins._lx_server_get.pop(path, None)
-        builtins._lx_server_post.pop(path, None)
-        builtins._lx_server_put.pop(path, None)
-        builtins._lx_server_patch.pop(path, None)
-        builtins._lx_server_delete.pop(path, None)
-        builtins._lx_server_static.pop(path, None)
-    }
-}
-
-global clear(){
-    rawPy(){
-        import builtins
-        builtins._lx_server_get.clear()
-        builtins._lx_server_post.clear()
-        builtins._lx_server_put.clear()
-        builtins._lx_server_patch.clear()
-        builtins._lx_server_delete.clear()
-        builtins._lx_server_static.clear()
-        builtins._lx_server_middleware.clear()
-        builtins._lx_server_status.clear()
-    }
-}
-
-global isRunning(){
-    rawPy(){ import builtins; return builtins._lx_server_running }
 }
 
 global main(){}
