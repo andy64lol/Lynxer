@@ -6,7 +6,7 @@ Built-in functions are always available — no `import()` needed. Call them dire
 
 ## I/O
 
-### `print(v, ...)` 
+### `print(v, ...)`
 
 Prints one or more values with **no automatic newline**. Multiple arguments are concatenated.
 
@@ -35,6 +35,10 @@ str name = input("Name: ");
 str raw  = input();   // no prompt
 ```
 
+### `inputln(prompt?)`
+
+Like `input()` but appends a newline to the returned string.
+
 ---
 
 ## Type conversion
@@ -47,30 +51,24 @@ Converts any value to its string representation.
 str s = strOf(99);      // "99"
 str f = strOf(3.14);    // "3.14"
 str b = strOf(true);    // "true"
-str l = strOf(seqFromTo(0,3,1)); // "[0, 1, 2]"
+str l = strOf(range(3)); // "[0, 1, 2]"
 ```
 
 ### `intOf(v)`
 
-Parses a value as an integer. Returns `0` on failure.
-
-> Use `global.typing.isNumeric(s)` to validate before converting when `0` could be a valid result.
+Parses a value as an integer. Raises a runtime error on failure (use `try/catch` to handle).
 
 ```c
 int n = intOf("42");    // 42
 int m = intOf(3.9);     // 3
-int bad = intOf("hi");  // 0
 ```
 
 ### `floatOf(v)`
 
-Parses a value as a float. Returns `0.0` on failure.
-
-> Use `global.typing.isNumeric(s)` to validate before converting when `0.0` could be a valid result.
+Parses a value as a float. Raises a runtime error on failure.
 
 ```c
 float f = floatOf("1.5");    // 1.5
-float bad = floatOf("hi");   // 0.0
 ```
 
 ---
@@ -96,7 +94,7 @@ Returns the type name of `v` as a `str`.
 print(returnType(42));            // int
 print(returnType("hello"));      // str
 print(returnType(true));         // bool
-print(returnType(seqFromTo(0,2,1))); // list
+print(returnType(range(3)));     // list
 
 vargroup cfg = [str host = "localhost", int port = 8080];
 print(returnType(cfg));           // vargroup
@@ -107,31 +105,41 @@ print(returnType(cfg));           // vargroup
 Returns the number of characters in a `str`, or the number of elements in a `list`.
 
 ```c
-print(returnLength("hello"));             // 5
-print(returnLength(seqFromTo(0, 5, 1)));  // 5
+print(returnLength("hello"));     // 5
+print(returnLength(range(5)));    // 5
 ```
 
 ---
 
 ## Sequences
 
+### `range(stop)` / `range(start, stop)` / `range(start, stop, step)`
+
+Returns a `list` of integers, mirroring Python's `range()`:
+- `start` is **included**, `stop` is **excluded**, `step` defaults to `1`.
+- `step` must not be `0`.
+
+```c
+any r = range(5);            // [0, 1, 2, 3, 4]
+any r2 = range(2, 8);        // [2, 3, 4, 5, 6, 7]
+any r3 = range(0, 10, 2);    // [0, 2, 4, 6, 8]
+any r4 = range(10, 0, -1);   // [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
+any empty = range(5, 5);     // []
+```
+
 ### `seqFromTo(start, stop, step)`
 
-Returns a `list` of integers identical to Python's `range(start, stop, step)`.
+Legacy alias similar to `range()` but always requires all 3 arguments.
 
 ```c
 any nums = seqFromTo(0, 10, 2);  // [0, 2, 4, 6, 8]
-any down = seqFromTo(5, 0, -1);  // [5, 4, 3, 2, 1]
-any empty = seqFromTo(0, 0, 1);  // []  — empty list
 ```
-
-`step` must not be `0`.
 
 ---
 
 ## List operations
 
-All list operations work with values produced by `seqFromTo()` or built up with `listPush()`. See [lists.md](lists.md) for a full tutorial.
+All list operations work with values produced by `range()`, `seqFromTo()`, or built up with `listPush()`. See [lists.md](lists.md) for a full tutorial.
 
 > **Value semantics:** `listPush`, `listSet`, and `listRemove` return a **new** list. Always reassign:
 > ```c
@@ -212,7 +220,7 @@ Build a JSON object string from a flat alternating key/value list. The list must
 
 ### `iterate(count) { body }`
 
-Runs `body` exactly `count` times. `count` can be any integer expression. `break` and `continue` work as normal.
+Runs `body` exactly `count` times. `count` can be any integer expression. `break`, `continue`, and `restart` work as normal.
 
 ```c
 iterate(3) {

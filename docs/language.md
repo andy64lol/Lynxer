@@ -2,12 +2,12 @@
 
 ## Program structure
 
-Every Lynxer program must contain exactly two required top-level declarations, in this order:
+Every Lynxer program must contain exactly two required top-level declarations, **in strict order**:
 
-1. **`global setup(){}`** — runs before `main`. The only place to declare global variables and call `import()`. Required even when empty.
-2. **`global main(){}`** — the entry point. Runs last.
+1. **`global setup(){}`** — must be the **very first** declaration. The only place to declare global variables and call `import()`. Required even when empty.
+2. **`global main(){}`** — must be the **very last** declaration. The entry point; runs last.
 
-Additional global functions may be declared between `setup` and `main`:
+Additional global functions and class definitions may be declared **between** `setup` and `main`:
 
 ```c
 global setup(){
@@ -21,15 +21,21 @@ global greet(str name){
     print("Hello, "); print(name); print("!\n");
 }
 
+class Config {
+    int maxRetries = 3;
+    def getMax() { return this.maxRetries; }
+}
+
 global main(){
     greet(APP);
 }
 ```
 
 **Rules:**
-- `global setup(){}` is **mandatory**, even if its body is empty.
-- Global `global` function declarations are only allowed between `setup` and `main`.
-- Executable code outside a function body is a runtime error.
+- `global setup(){}` is **mandatory** and must be first — before all other globals, classes, and main.
+- `global main(){}` is **mandatory** and must be last — no declarations may follow it.
+- Global function and class declarations are only allowed between `setup` and `main`.
+- Executable code outside a function body is a syntax error.
 - `import()` may only appear inside `setup()`.
 
 ---
@@ -62,9 +68,10 @@ global.typing.toStr(99)
 ```
 
 **What lives under `global`:**
-- All built-in functions: `print`, `input`, `strOf`, `intOf`, `floatOf`, `returnType`, `returnLength`, `seqFromTo`, all list built-ins, `rawPy`, `rawPyx`, etc.
+- All built-in functions: `print`, `input`, `strOf`, `intOf`, `floatOf`, `returnType`, `returnLength`, `seqFromTo`, `range`, all list built-ins, `rawPy`, `rawPyx`, etc.
 - All imported modules: after `import("math")`, accessible as `global.math`.
 - Global constants and variables declared in `setup()`.
+- The class registry: `global.class.ClassName` accesses a defined class.
 
 Built-in functions are conventionally called **directly** (without `global.`). Module functions are always called as **`global.<module>.<function>()`**.
 
@@ -76,9 +83,9 @@ Built-in functions are conventionally called **directly** (without `global.`). M
 |------------|---------------------------|-------|
 | `int`      | `42`, `-7`, `0`           | integer |
 | `float`    | `3.14`, `-0.5`            | floating-point; `int` and `float` are interchangeable in expressions |
-| `str`      | `"hello"`, `"line\n"`     | double-quoted; supports `\n \t \\` escapes |
+| `str`      | `"hello"`, `"line\n"`     | double-quoted; supports `\n \t \\ \r \e` escapes |
 | `bool`     | `true`, `false`           | displays as `true`/`false`; truthy when non-zero |
-| `list`     | `seqFromTo(0,3,1)`        | ordered sequence of values; use `any` to declare |
+| `list`     | `range(5)`                | ordered sequence of values; declare with `any` |
 | `vargroup` | `vargroup p = [...]`      | named typed record with dot-accessed fields; see [vargroups.md](vargroups.md) |
 | `any`      | anything, including `none`| no type check at assignment |
 
@@ -99,15 +106,14 @@ n = "oops";   // Runtime Error: Type mismatch
 
 ### The `list` type
 
-Lists are first-class values. `returnType()` returns `"list"` for them. They are created with `seqFromTo()` or built up with `listPush()`. Because Lynxer uses value semantics (every variable read is a copy), mutating built-ins like `listPush` and `listSet` return a **new** list — always reassign the result:
+Lists are first-class values. `returnType()` returns `"list"` for them. They are created with `range()` or `seqFromTo()`, or built up with `listPush()`. Because Lynxer uses value semantics, mutating built-ins like `listPush` and `listSet` return a **new** list — always reassign the result:
 
 ```c
-any lst = seqFromTo(0, 0, 1);   // []
-lst = listPush(lst, 10);         // [10]
-lst = listPush(lst, 20);         // [10, 20]
-int n = listGet(lst, 0);         // 10
+any lst = range(5);              // [0, 1, 2, 3, 4]
+lst = listPush(lst, 10);         // [0, 1, 2, 3, 4, 10]
+int n = listGet(lst, 0);         // 0
 print(returnType(lst));          // list
-print(returnLength(lst));        // 2
+print(returnLength(lst));        // 6
 ```
 
 See [lists.md](lists.md) for the full list API.
@@ -251,17 +257,37 @@ iterate(n * 2) {
 
 `break` and `continue` work inside `iterate` the same as in `while` and `for`.
 
-### break / continue
+### break / continue / restart
+
+`break;` exits the nearest enclosing loop immediately.
+`continue;` and `restart;` (both work identically) skip the rest of the current loop body and jump to the next iteration. In a `for` loop, the update step still runs before the next iteration.
 
 ```c
-int i = 0;
-while(true){
-    if(i > 5){ break; }
-    i += 1;
-    if(i is 3){ continue; }
-    print(i); print("\n");
+// break
+for(int i = 0; i < 10; i = i + 1){
+    if(i is 5){ break; }
+    print(i); print(" ");
 }
+// prints: 0 1 2 3 4
+
+// continue
+for(int i = 0; i < 6; i = i + 1){
+    if(i % 2 is 0){ continue; }
+    print(i); print(" ");
+}
+// prints: 1 3 5
+
+// restart (same as continue)
+int w = 0;
+while(w < 5){
+    w += 1;
+    if(w is 3){ restart; }
+    print(w); print(" ");
+}
+// prints: 1 2 4 5
 ```
+
+`break` and `continue`/`restart` work in `for`, `while`, and `iterate` loops. They are **not** valid outside a loop.
 
 ---
 
@@ -276,12 +302,11 @@ Lynxer has two kinds of functions with distinct scopes:
 
 ### Global functions (`global`)
 
-`global` functions must be declared at the **top level of the file** — never inside another function. Attempting to define a `global` inside another function is a syntax error.
+`global` functions must be declared at the **top level of the file** — between `setup` and `main`, never inside another function. Attempting to define a `global` inside another function is a syntax error.
 
 ```c
 global setup(){}
 
-// ✓ correct — top-level global helpers
 global add(int a, int b){
     return a + b;
 }
@@ -291,23 +316,16 @@ global greet(str name){
 }
 
 global main(){
-    int sum = add(3, 4);   // 7
-    greet("World");
+    int sum = global.add(3, 4);   // 7
+    global.greet("World");
 }
 ```
 
-```c
-// ✗ WRONG — global inside another global is forbidden
-global main(){
-    global helper(){ ... }   // Syntax Error
-}
-```
-
-All `global` functions can return a value with `return`, regardless of the signature name. A `global` without an explicit `return` produces `none`.
+All `global` functions must be called with the `global.` prefix when invoked from inside another global function.
 
 ### Local functions (`def`)
 
-`def` is the keyword for **local**, value-returning helpers declared inside a function body. They are not accessible outside their declaring scope.
+`def` is the keyword for **local** helpers declared inside a function body. They are not accessible outside their declaring scope.
 
 ```c
 global main(){
@@ -322,9 +340,8 @@ global main(){
 
 **Scope rules for `def`:**
 - Visible only after the line it is declared.
-- `def` functions can be nested (a `def` inside a `def`).
 - A `def` shadows any outer name of the same name within its declaring scope.
-- Variables are looked up through the parent context chain at call time, not captured by closure copy.
+- Variables are looked up through the parent context chain at call time.
 
 ### Typed parameters
 
@@ -348,11 +365,44 @@ global compute(int n){
 }
 
 global main(){
-    int r = compute(5);   // 10
+    int r = global.compute(5);   // 10
 }
 ```
 
 A function without an explicit `return` produces `none`.
+
+---
+
+## Classes
+
+A **class** is a named, static singleton that groups typed fields and methods. There is one instance per class (no `new` keyword). See [classes.md](classes.md) for the full reference.
+
+```c
+global setup(){}
+
+class Counter {
+    int count = 0;
+
+    def init() {
+        int this.count = 0;
+    }
+
+    def increment() {
+        int this.count = this.count + 1;
+    }
+
+    def value() {
+        return this.count;
+    }
+}
+
+global main(){
+    global.class.Counter();          // runs init()
+    global.class.Counter.increment();
+    global.class.Counter.increment();
+    print(global.class.Counter.value()); print("\n");  // 2
+}
+```
 
 ---
 
@@ -381,7 +431,7 @@ global main(){
 | `int` | `int` |
 | `float` | `float` |
 | `str` | `str` |
-| `bool` | `int` (0 or 1) — **not** Python `bool` |
+| `bool` | `int` (0 or 1) |
 | `list` | **not visible** — use built-in functions instead |
 | `none` | **not visible** |
 | function/module | **not visible** |
@@ -397,35 +447,14 @@ global main(){
 | anything else | ignored |
 
 **Rules:**
-- Only variables that already exist in Lynxer scope can be updated. You cannot create new Lynxer variables from inside a rawPy block.
-- Python code can read and update `int`, `float`, and `str` Lynxer variables. For `bool` variables, write Python `True`/`False`; they come back as Lynxer `true`/`false`.
-- `list` values are not visible in rawPy blocks. Use built-in list functions (`listPush`, `sortList`, etc.) instead.
-- Any `import` inside a rawPy block uses Python's import system and does not affect the Lynxer module namespace.
-
-```c
-global main(){
-    str msg = "hello";
-    bool flag = false;
-    rawPy(){
-        msg = msg.upper()   // "HELLO"
-        flag = True         // becomes Lynxer true
-    }
-    print(msg);  print("\n");   // HELLO
-    print(flag); print("\n");   // true
-}
-```
-
-### rawPy string form
-
-`rawPy("code")` executes a Python one-liner. No variable bridging — stdout only.
-
-```c
-rawPy("print('hello from Python')");
-```
+- Only variables that already exist in Lynxer scope can be updated.
+- Python code can read and update `int`, `float`, and `str` Lynxer variables.
+- `list` values are not visible in rawPy blocks.
+- Any `import` inside a rawPy block uses Python's import system.
 
 ### rawPyx block
 
-Like `rawPy` but compiles Python code with Cython for potential speed gains. Requires Cython to be installed. Falls back to an error if Cython is not available.
+Like `rawPy` but compiles code with Cython for potential speed gains. Requires Cython to be installed; falls back to Python exec if unavailable.
 
 ```c
 int result = 0;
@@ -439,20 +468,10 @@ print(result); print("\n");   // 42
 
 ## Errors
 
-Any unhandled runtime error **terminates the program immediately** with a message showing:
-- The error type (e.g. `Runtime Error`, `Type mismatch`)
-- The details
-- The file, line, and column
-- A snippet with a caret pointing at the problem
-
-```
-[Lynxer] Runtime Error
-  Type mismatch: 'n' is declared as 'int' but got a 'str' value
-  --> myfile.lynx, line 5, column 5
-```
+Any unhandled runtime error terminates the program immediately with a message showing the error type, details, file, line, column, and a code snippet.
 
 Common error types:
-- `Type mismatch` — assigning wrong type to a typed variable, or passing wrong type to a typed parameter
+- `Type mismatch` — assigning wrong type to a typed variable
 - `Runtime Error` — division by zero, index out of range, undefined variable, etc.
 - `Unexpected Character` / `Missing Character` — lexer/syntax errors
 
@@ -462,18 +481,15 @@ Common error types:
 
 `try/catch` lets you handle runtime errors instead of letting them terminate the program.
 
-### Syntax
-
 ```c
 // Form 1 — catch and bind the error message
 try {
     // code that might fail
 } catch(str err) {
-    // err holds the error message as a string
     print(err); print("\n");
 }
 
-// Form 2 — catch without binding the message
+// Form 2 — catch without binding
 try {
     // code that might fail
 } catch {
@@ -481,117 +497,10 @@ try {
 }
 ```
 
-### How it works
-
-- The **`try` block** runs normally.
-- If a **runtime error** occurs anywhere inside the `try` block, execution jumps immediately to the **`catch` block**. The rest of the `try` body is skipped.
-- If **no error** occurs, the `catch` block is **never executed**.
-- `catch(str varname)` binds the error message as a `str` in the catch block's scope. The variable is available only inside that block.
-- **Syntax and lexer errors are not catchable** — they occur before execution begins.
-
-### Examples
-
-**Catching division by zero:**
-
-```c
-global main(){
-    int result = 0;
-    try {
-        result = 10 / 0;
-    } catch(str err) {
-        print("Caught: "); print(err); print("\n");
-        result = -1;
-    }
-    print(result); print("\n");   // -1
-}
-```
-
-**Safe integer conversion:**
-
-```c
-global setup(){
-    str userInput = "abc";
-}
-
-global main(){
-    int n = 0;
-    try {
-        n = intOf(userInput);
-    } catch {
-        print("Not a valid integer\n");
-    }
-}
-```
-
-**Nested try/catch:**
-
-```c
-global main(){
-    try {
-        try {
-            int bad = 1 / 0;
-        } catch(str inner) {
-            print("Inner caught: "); print(inner); print("\n");
-            // this second error propagates to the outer catch
-            any x = undefinedVariable;
-        }
-    } catch(str outer) {
-        print("Outer caught: "); print(outer); print("\n");
-    }
-}
-```
-
-**`return` and loop signals propagate through try/catch:**
-
-`return`, `break`, and `continue` inside a `try` or `catch` block behave exactly as they would outside — they exit the block normally and are not treated as errors.
-
-```c
-global findFirst(any lst){
-    for(int i = 0; i < returnLength(lst); i = i + 1){
-        try {
-            int v = intOf(listGet(lst, i));
-            return v;
-        } catch {
-            // not an integer — skip
-        }
-    }
-    return -1;
-}
-```
-
-### Scoping rules for the catch variable
-
-The catch variable (`str err` in `catch(str err)`) is bound in the **same scope** as the surrounding code — not in an isolated inner scope. This means:
-
-- After the catch block finishes, the variable is still accessible.
-- If a variable with the same name already exists, the following rules apply:
-  - **Same type (`str`) or `any`:** the existing variable is rebound to the error message — this is valid.
-  - **Different type (e.g. `int err`):** a runtime error is raised — type guarantees are preserved.
-  - **`const` variable:** a runtime error is raised — const guarantees are preserved.
-
-```c
-global main(){
-    int score = 0;
-    try {
-        int bad = 1 / 0;
-    } catch(str score) {
-        // Runtime Error: 'score' is declared as 'int', cannot bind as 'str'
-    }
-}
-```
-
-```c
-global main(){
-    str msg = "ok";
-    try {
-        int bad = 1 / 0;
-    } catch(str msg) {
-        // fine — msg is already str; it is now rebound to the error text
-        print(msg); print("\n");
-    }
-    // msg is still in scope here (contains the error message)
-}
-```
+- If a runtime error occurs in the `try` block, the `catch` block runs.
+- If no error occurs, the `catch` block is skipped.
+- `return`, `break`, and `continue` inside try/catch behave normally.
+- Syntax and lexer errors are not catchable.
 
 ---
 
@@ -612,9 +521,7 @@ global setup(){
 1. Same directory as the running script
 2. The `stdlib/` folder bundled with Lynxer
 
-The `.lynx` extension is optional.
-
-**Idempotency:** Importing the same module twice is safe and has no effect the second time — the module is loaded once and cached.
+**Idempotency:** Importing the same module twice is safe and has no effect the second time.
 
 ### Calling module functions
 
@@ -657,7 +564,7 @@ global main(){
 
 ## VarGroups
 
-A **vargroup** is a named, typed record with dot-accessed fields — similar to a C struct.
+A **vargroup** is a named, typed record with dot-accessed fields — similar to a C struct. See [vargroups.md](vargroups.md) for the full reference.
 
 ```c
 vargroup player = [
@@ -699,5 +606,3 @@ global main(){
     int config.port = 9000;
 }
 ```
-
-See [vargroups.md](vargroups.md) for the full reference.

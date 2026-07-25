@@ -1,12 +1,14 @@
 # Classes
 
-A **class** is a named, static namespace that groups related fields (data) and methods (functions) together under one name.  Unlike traditional object-oriented languages, Lynxer classes are **singletons** — there is exactly one instance of each class, and all access goes through the `global.class` namespace.
+A **class** is a named, static singleton that groups typed fields and methods under one name. Unlike traditional OOP languages, Lynxer classes have **no instances** — there is exactly one copy of each class, and all access goes through `global.class.ClassName`.
 
 ---
 
 ## Defining a class
 
 ```c
+global setup(){}
+
 class Dog {
     str  name = "unnamed";
     int  age  = 0;
@@ -19,13 +21,22 @@ class Dog {
         int this.age = this.age + 1;
     }
 }
+
+global main(){
+    str global.class.Dog.name = "Rex";
+    int global.class.Dog.age  = 2;
+    global.class.Dog.bark();       // Rex says: Woof!
+    global.class.Dog.birthday();
+    print(global.class.Dog.age);   // 3
+    print("\n");
+}
 ```
 
 **Rules:**
-- `class` is a top-level declaration — same level as `global` functions.
+- `class` is a top-level declaration — it must appear **between `global setup(){}` and `global main(){}`**.
 - A class **must not be empty**: it needs at least one field or one method.
-- Fields are declared as `[const] type name = defaultValue;`.
-- Methods are declared with `def methodName(params) { body }` (not `global`).
+- Fields are declared as `[const] type name = defaultValue;` (semicolon required).
+- Methods are declared with `def methodName(params) { body }`.
 - Inside a method, `this` refers to the class itself — use `this.fieldName` to read a field and `type this.fieldName = value` to write it.
 - A special method named `init` is called automatically when `global.class.ClassName()` is invoked.
 
@@ -34,10 +45,10 @@ class Dog {
 ## Calling / initialising a class
 
 ```c
-global.class.Dog();           // runs init() if defined, otherwise a no-op
+global.class.ClassName()
 ```
 
-If the class has no `init` method the call simply succeeds and returns nothing.
+If the class has no `init` method, this call is a no-op (still succeeds).
 
 ### With an `init` method
 
@@ -66,7 +77,9 @@ global main() {
     global.class.Counter.increment();
     global.class.Counter.increment();
     print(global.class.Counter.count);         // 2
-    print(global.class.Counter.value()); print("\n");  // 2
+    print("\n");
+    print(global.class.Counter.value());       // 2
+    print("\n");
 }
 ```
 
@@ -74,14 +87,14 @@ global main() {
 
 ## Accessing and modifying fields
 
-Field access always uses the full `global.class.ClassName.fieldName` path:
+Field access uses the full `global.class.ClassName.fieldName` path:
 
 ```c
-print(global.class.Dog.name);         // read a field
+print(global.class.Dog.name);          // read a field
 print(global.class.Dog.age); print("\n");
 ```
 
-To **set** a field from outside the class, use the typed dot-assignment syntax (same as vargroups):
+To **set** a field from outside the class, use the typed dot-assignment syntax:
 
 ```c
 str global.class.Dog.name = "Rex";
@@ -95,114 +108,149 @@ The type keyword must match the field's declared type. A mismatch is a runtime e
 ## Calling methods
 
 ```c
-global.class.Dog.bark();            // calls the bark method
-global.class.Dog.birthday();        // calls the birthday method
+global.class.Dog.bark();            // call a method
+global.class.Counter.increment();   // call a method
 ```
 
 Methods with parameters:
 
 ```c
-class Greeter {
-    str lang = "en";
-
-    def greet(str who) {
-        if(this.lang == "en") {
-            print("Hello, "); print(who); print("!\n");
-        }
-        if(this.lang == "es") {
-            print("Hola, "); print(who); print("!\n");
-        }
+class Adder {
+    int total = 0;
+    def add(int n) {
+        int this.total = this.total + n;
     }
 }
-```
 
-```c
-global.class.Greeter.greet("World");
-str global.class.Greeter.lang = "es";
-global.class.Greeter.greet("Mundo");
+global main(){
+    global.class.Adder.add(5);
+    global.class.Adder.add(10);
+    print(global.class.Adder.total); print("\n");  // 15
+}
 ```
 
 ---
 
-## `const` fields
+## Const fields
 
-Fields declared `const` cannot be changed after the class is defined:
+Fields declared with `const` cannot be changed after initialisation:
 
 ```c
+global setup(){}
+
 class Config {
-    const str HOST = "localhost";
-    int port = 8080;
+    const int MAX_SIZE = 100;
+    int       current  = 0;
 }
-```
 
-```c
-print(global.class.Config.HOST);      // localhost
-str global.class.Config.HOST = "x";  // Runtime Error: field is const
+global main(){
+    print(global.class.Config.MAX_SIZE); print("\n");  // 100
+    // int global.class.Config.MAX_SIZE = 999;  // Runtime Error: const field
+}
 ```
 
 ---
 
-## Classes in imported modules
+## `this` inside methods
 
-Any `.lynx` file can declare classes.  After importing, use the module's class namespace:
+Inside a method body, `this` always refers to the class blueprint. You can:
+- **Read** a field: `this.fieldName`
+- **Write** a field: `type this.fieldName = newValue;`
+- **Call** another method: `this.methodName()` — not yet supported; call via `global.class.ClassName.methodName()` instead
 
 ```c
-/// animals.lynx ///
-global setup() {}
+class Rect {
+    int width  = 0;
+    int height = 0;
 
-class Cat {
-    str name = "unnamed";
+    def setSize(int w, int h) {
+        int this.width  = w;
+        int this.height = h;
+    }
 
-    def meow() {
-        print(this.name); print(" says: Meow!\n");
+    def area() {
+        return this.width * this.height;
     }
 }
-global main() {}
 
-```
+global setup(){}
 
-```c
-global setup() { import("animals"); }
-
-global main() {
-    global.animals.class.Cat();
-    str global.animals.class.Cat.name = "Whiskers";
-    global.animals.class.Cat.meow();       // Whiskers says: Meow!
+global main(){
+    global.class.Rect.setSize(4, 5);
+    print(global.class.Rect.area()); print("\n");  // 20
 }
 ```
 
 ---
 
-## Return values from methods
+## Multiple classes
 
-Methods can `return` a value just like regular functions:
+Multiple classes can be defined between `setup` and `main`. Each is independent:
 
 ```c
-class MathHelper {
-    float pi = 3.14159;
+global setup(){}
 
-    def circleArea(float r) {
-        return this.pi * r * r;
-    }
+class Foo {
+    int x = 1;
+    def get() { return this.x; }
 }
-```
 
-```c
-float area = global.class.MathHelper.circleArea(5.0);
-print(area); print("\n");
+class Bar {
+    int y = 2;
+    def get() { return this.y; }
+}
+
+global main(){
+    print(global.class.Foo.get()); print("\n");  // 1
+    print(global.class.Bar.get()); print("\n");  // 2
+}
 ```
 
 ---
 
-## Summary
+## VarGroups
 
-| Syntax | Meaning |
-|--------|---------|
-| `class Name { ... }` | Declare a class at the top level |
-| `global.class.Name()` | Initialise the class (calls `init()` if defined) |
-| `global.class.Name.field` | Read a class field |
-| `type global.class.Name.field = value` | Set a class field |
-| `global.class.Name.method(args)` | Call a class method |
-| `this.field` | Inside a method, access the class field |
-| `type this.field = value` | Inside a method, set the class field |
-| `global.moduleName.class.Name()` | Use a class from an imported module |
+A **vargroup** is a named, typed record with dot-accessed fields — similar to a C struct. Unlike classes, vargroups have no methods and multiple vargroup values can exist side by side.
+
+```c
+vargroup player = [
+    str  username = "Andy",
+    int  coins    = 250,
+    bool online   = true,
+    vargroup stats = [
+        int   level = 5,
+        float speed = 3.5
+    ]
+];
+
+print(player.username);        // Andy
+print(player.stats.level);     // 5
+
+int player.coins       = 500;      // dot-assignment
+int player.stats.level = 10;       // nested dot-assignment
+
+print(returnType(player));     // vargroup
+```
+
+**Dynamic fields:**
+
+```c
+addVarGroup(player, str title = "Warrior");  // add a new field
+print(player.title);                          // Warrior
+
+removeVarGroup(player, title);               // remove a field
+```
+
+**Global vargroup** — declare in `setup()` to share across all functions:
+
+```c
+global setup(){
+    vargroup config = [str host = "localhost", int port = 8080];
+}
+global main(){
+    print(config.host);   // localhost
+    int config.port = 9000;
+}
+```
+
+See [vargroups.md](vargroups.md) for the full reference.

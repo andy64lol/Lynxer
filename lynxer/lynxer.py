@@ -163,6 +163,7 @@ KEYWORDS = [
     "try", "catch",
     "async", "await",
     "class",
+    "break", "continue", "restart",
 ]
 
 
@@ -674,6 +675,18 @@ class RawPyxBlockNode:
         self.pos_end = pos_end
 
 
+class BreakNode:
+    def __init__(self, pos_start, pos_end):
+        self.pos_start = pos_start
+        self.pos_end = pos_end
+
+
+class ContinueNode:
+    def __init__(self, pos_start, pos_end):
+        self.pos_start = pos_start
+        self.pos_end = pos_end
+
+
 class ProgramNode:
     def __init__(self, setup_func, globals_list, main_func, pos_start, pos_end):
         self.setup_func = setup_func
@@ -800,6 +813,7 @@ class Parser:
     def __init__(self, tokens):
         self.tokens = tokens
         self.tok_idx = -1
+        self._loop_depth = 0   # tracks nesting depth of for/while/iterate
         self.advance()
 
     def advance(self):
@@ -835,6 +849,10 @@ class Parser:
         main_func = None
         globals_list = []
         self._require_main = require_main
+        # For ordering enforcement
+        setup_seen = False
+        main_seen = False
+        any_other_seen = False  # any global func or class that is not setup/main
 
         while self.current_tok.type != TT_EOF:
             is_func_kw = (
@@ -855,27 +873,64 @@ class Parser:
                     and func_name_tok.type == TT_IDENTIFIER
                     and func_name_tok.value == "setup"
                 ):
+                    # setup must be the very first declaration
+                    if setup_seen:
+                        return res.failure(InvalidSyntaxError(
+                            self.current_tok.pos_start, self.current_tok.pos_end,
+                            "Duplicate 'global setup(){}' — only one setup function is allowed",
+                        ))
+                    if any_other_seen or main_seen:
+                        return res.failure(InvalidSyntaxError(
+                            self.current_tok.pos_start, self.current_tok.pos_end,
+                            "'global setup(){}' must be the very first declaration in the file. "
+                            "Move it above all other global functions and classes.",
+                        ))
                     setup_func = res.register(self.parse_func_def())
                     if res.error:
                         return res
+                    setup_seen = True
                 elif (
                     func_name_tok
                     and func_name_tok.type == TT_IDENTIFIER
                     and func_name_tok.value == "main"
                 ):
+                    # main must come after setup (and all other globals)
+                    if main_seen:
+                        return res.failure(InvalidSyntaxError(
+                            self.current_tok.pos_start, self.current_tok.pos_end,
+                            "Duplicate 'global main()' — only one main function is allowed",
+                        ))
                     main_func = res.register(self.parse_func_def())
                     if res.error:
                         return res
+                    main_seen = True
                 else:
+                    # Regular global function — must come after setup and before main
+                    if main_seen:
+                        fname = func_name_tok.value if func_name_tok else "..."
+                        return res.failure(InvalidSyntaxError(
+                            self.current_tok.pos_start, self.current_tok.pos_end,
+                            f"'global {fname}' must be declared "
+                            f"before 'global main(){{}}'. No declarations are allowed after main.",
+                        ))
                     node = res.register(self.parse_func_def())
                     if res.error:
                         return res
                     globals_list.append(node)
+                    any_other_seen = True
             elif self.current_tok.matches(TT_KEYWORD, "class"):
+                # Classes must come after setup and before main
+                if main_seen:
+                    return res.failure(InvalidSyntaxError(
+                        self.current_tok.pos_start, self.current_tok.pos_end,
+                        "Class definitions must appear before 'global main(){}'. "
+                        "No declarations are allowed after main.",
+                    ))
                 node = res.register(self.parse_class_def())
                 if res.error:
                     return res
                 globals_list.append(node)
+                any_other_seen = True
             elif self.current_tok.matches(TT_KEYWORD, "const") or self.is_type_keyword():
                 return res.failure(
                     InvalidSyntaxError(
@@ -901,8 +956,8 @@ class Parser:
                 InvalidSyntaxError(
                     self.current_tok.pos_start,
                     self.current_tok.pos_end,
-                    "Program requires a 'global setup(){}' (or 'global setup(){}') function. "
-                    "Add it before 'global main()' (or 'global main()').",
+                    "Program requires a 'global setup(){}' function at the top. "
+                    "Add it as the very first declaration (before all other globals and main).",
                 )
             )
 
@@ -911,7 +966,8 @@ class Parser:
                 InvalidSyntaxError(
                     self.current_tok.pos_start,
                     self.current_tok.pos_end,
-                    "Program requires a 'global main()' function",
+                    "Program requires a 'global main(){}' function as the last declaration. "
+                    "Add it after all other global functions and classes.",
                 )
             )
 
@@ -1292,6 +1348,46 @@ class Parser:
             self.advance()
             return res.success(expr)
 
+        if self.current_tok.matches(TT_KEYWORD, "break"):
+            pos_start = self.current_tok.pos_start.copy()
+            pos_end = self.current_tok.pos_end.copy()
+            if self._loop_depth == 0:
+                return res.failure(InvalidSyntaxError(
+                    pos_start, pos_end,
+                    "'break' is only valid inside a for, while, or iterate loop",
+                ))
+            res.register_advancement()
+            self.advance()
+            if self.current_tok.type != TT_SEMICOLON:
+                return res.failure(InvalidSyntaxError(
+                    self.current_tok.pos_start, self.current_tok.pos_end,
+                    "Expected ';' after 'break'",
+                ))
+            res.register_advancement()
+            self.advance()
+            return res.success(BreakNode(pos_start, pos_end))
+
+        if (self.current_tok.matches(TT_KEYWORD, "continue")
+                or self.current_tok.matches(TT_KEYWORD, "restart")):
+            kw = self.current_tok.value
+            pos_start = self.current_tok.pos_start.copy()
+            pos_end = self.current_tok.pos_end.copy()
+            if self._loop_depth == 0:
+                return res.failure(InvalidSyntaxError(
+                    pos_start, pos_end,
+                    f"'{kw}' is only valid inside a for, while, or iterate loop",
+                ))
+            res.register_advancement()
+            self.advance()
+            if self.current_tok.type != TT_SEMICOLON:
+                return res.failure(InvalidSyntaxError(
+                    self.current_tok.pos_start, self.current_tok.pos_end,
+                    f"Expected ';' after '{kw}'",
+                ))
+            res.register_advancement()
+            self.advance()
+            return res.success(ContinueNode(pos_start, pos_end))
+
         if self.current_tok.matches(TT_KEYWORD, "return"):
             node = res.register(self.parse_return())
             if res.error:
@@ -1658,7 +1754,9 @@ class Parser:
                 self.current_tok.pos_start, self.current_tok.pos_end,
                 "Expected '{' after iterate(...)",
             ))
+        self._loop_depth += 1
         body = res.register(self.parse_block())
+        self._loop_depth -= 1
         if res.error:
             return res
 
@@ -2270,7 +2368,9 @@ class Parser:
         res.register_advancement()
         self.advance()
 
+        self._loop_depth += 1
         body = res.register(self.parse_block(allow_local_funcs=True))
+        self._loop_depth -= 1
         if res.error:
             return res
 
@@ -2404,7 +2504,9 @@ class Parser:
         res.register_advancement()
         self.advance()
 
+        self._loop_depth += 1
         body = res.register(self.parse_block(allow_local_funcs=True))
+        self._loop_depth -= 1
         if res.error:
             return res
 
@@ -3535,6 +3637,7 @@ class BuiltInFunction(BaseFunction):
     returnType: ClassVar["BuiltInFunction"]
     returnLength: ClassVar["BuiltInFunction"]
     seqFromTo: ClassVar["BuiltInFunction"]
+    range: ClassVar["BuiltInFunction"]
     cleanRawPyxCache: ClassVar["BuiltInFunction"]
     # list built-ins
     splitStr: ClassVar["BuiltInFunction"]
@@ -3791,6 +3894,32 @@ class BuiltInFunction(BaseFunction):
                     exec_ctx,
                 )
             )
+        elements = [Number(n).set_context(exec_ctx) for n in range(start, stop, step)]
+        return RTResult().success(List(elements))
+
+    def execute_range(self, args, exec_ctx):
+        """range(stop)  or  range(start, stop)  or  range(start, stop, step)
+        start is included, stop is excluded, step defaults to 1.
+        Mirrors Python's range() semantics."""
+        if not args or len(args) > 3 or not all(isinstance(a, Number) for a in args):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "range() expects 1, 2, or 3 integer arguments: "
+                "range(stop), range(start, stop), or range(start, stop, step)",
+                exec_ctx,
+            ))
+        if len(args) == 1:
+            start, stop, step = 0, int(args[0].value), 1
+        elif len(args) == 2:
+            start, stop, step = int(args[0].value), int(args[1].value), 1
+        else:
+            start, stop, step = int(args[0].value), int(args[1].value), int(args[2].value)
+        if step == 0:
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "range() step cannot be 0",
+                exec_ctx,
+            ))
         elements = [Number(n).set_context(exec_ctx) for n in range(start, stop, step)]
         return RTResult().success(List(elements))
 
@@ -4232,6 +4361,7 @@ BuiltInFunction.floatOf = BuiltInFunction("floatOf")
 BuiltInFunction.returnType = BuiltInFunction("returnType")
 BuiltInFunction.returnLength = BuiltInFunction("returnLength")
 BuiltInFunction.seqFromTo = BuiltInFunction("seqFromTo")
+BuiltInFunction.range = BuiltInFunction("range")
 BuiltInFunction.cleanRawPyxCache = BuiltInFunction("cleanRawPyxCache")
 BuiltInFunction.listJsonArray = BuiltInFunction("listJsonArray")
 BuiltInFunction.listJsonObject = BuiltInFunction("listJsonObject")
@@ -4626,6 +4756,20 @@ class SymbolTable:
         if decl_type is not None:
             self.types[name] = decl_type
 
+    def update_existing(self, name, value):
+        """Walk the parent chain to find the declaring scope and update it there.
+        Falls back to the current table if the variable is not found anywhere.
+        Returns the table where the update was performed."""
+        table = self
+        while table:
+            if name in table.symbols:
+                table.symbols[name] = value
+                return table
+            table = table.parent
+        # Variable not found — set in current scope (should not happen for well-typed code)
+        self.symbols[name] = value
+        return self
+
     def is_const(self, name):
         table = self
         while table:
@@ -4747,7 +4891,9 @@ class Interpreter:
                     context,
                 )
             )
-        context.symbol_table.set(var_name, value)
+        # Update in the declaring scope so that assignments inside sub-contexts
+        # (e.g. for-loop) are visible in the outer scope.
+        context.symbol_table.update_existing(var_name, value)
         return res.success(value)
 
     def visit_BlockNode(self, node, context):
@@ -4918,6 +5064,8 @@ class Interpreter:
             if body_res.error or body_res.func_return_value is not None:
                 return body_res
             should_break = body_res.loop_should_break
+            # continue/restart: still run the update step, then loop
+            should_continue = body_res.loop_should_continue
 
             if not should_break:
                 upd_res = RTResult()
@@ -4927,8 +5075,19 @@ class Interpreter:
 
             if should_break:
                 break
+            # should_continue just means skip the rest of the body (already done)
 
         return res.success(Number.null)
+
+    def visit_BreakNode(self, node, context):
+        res = RTResult()
+        res.loop_should_break = True
+        return res
+
+    def visit_ContinueNode(self, node, context):
+        res = RTResult()
+        res.loop_should_continue = True
+        return res
 
     def visit_TryCatchNode(self, node, context):
         res = RTResult()
@@ -5133,7 +5292,7 @@ class Interpreter:
                 f"but received a '{value_type_name(value)}' value",
                 context,
             ))
-        context.symbol_table.set(var_name, value)
+        context.symbol_table.update_existing(var_name, value)
         return res.success(value)
 
     async def async_visit_BinOpNode(self, node, context):
@@ -5299,8 +5458,19 @@ class Interpreter:
 
             if should_break:
                 break
+            # continue/restart just skips the rest of body (already handled)
 
         return res.success(Number.null)
+
+    async def async_visit_BreakNode(self, node, context):
+        res = RTResult()
+        res.loop_should_break = True
+        return res
+
+    async def async_visit_ContinueNode(self, node, context):
+        res = RTResult()
+        res.loop_should_continue = True
+        return res
 
     async def async_visit_TryCatchNode(self, node, context):
         res = RTResult()
@@ -5965,6 +6135,7 @@ class Interpreter:
         module_table.set("returnType", BuiltInFunction.returnType)
         module_table.set("returnLength", BuiltInFunction.returnLength)
         module_table.set("seqFromTo", BuiltInFunction.seqFromTo)
+        module_table.set("range", BuiltInFunction.range)
         module_table.set("cleanRawPyxCache", BuiltInFunction.cleanRawPyxCache)
         module_table.set("listJsonArray", BuiltInFunction.listJsonArray)
         module_table.set("listJsonObject", BuiltInFunction.listJsonObject)
@@ -6051,6 +6222,7 @@ global_symbol_table.set("floatOf", BuiltInFunction.floatOf)
 global_symbol_table.set("returnType", BuiltInFunction.returnType)
 global_symbol_table.set("returnLength", BuiltInFunction.returnLength)
 global_symbol_table.set("seqFromTo", BuiltInFunction.seqFromTo)
+global_symbol_table.set("range", BuiltInFunction.range)
 global_symbol_table.set("cleanRawPyxCache", BuiltInFunction.cleanRawPyxCache)
 global_symbol_table.set("listJsonArray", BuiltInFunction.listJsonArray)
 global_symbol_table.set("listJsonObject", BuiltInFunction.listJsonObject)

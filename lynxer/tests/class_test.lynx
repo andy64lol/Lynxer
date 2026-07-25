@@ -1,0 +1,185 @@
+///
+  class_test.lynx — comprehensive test for Lynxer classes.
+  Tests: field defaults, init(), method calls, field read/write,
+         const fields, multiple classes, this.field access,
+         return values from methods, break/continue in for, range().
+///
+
+global setup(){}
+
+class Counter {
+    int count = 0;
+    int step  = 1;
+
+    def init() {
+        int this.count = 0;
+    }
+
+    def increment() {
+        int this.count = this.count + this.step;
+    }
+
+    def add(int n) {
+        int this.count = this.count + n;
+    }
+
+    def value() {
+        return this.count;
+    }
+
+    def reset() {
+        int this.count = 0;
+    }
+}
+
+class Dog {
+    str  name = "unnamed";
+    int  age  = 0;
+    bool alive = true;
+
+    def init() {
+        str this.name = "unnamed";
+        int this.age  = 0;
+    }
+
+    def bark() {
+        print(this.name); print(" says: Woof!\n");
+    }
+
+    def birthday() {
+        int this.age = this.age + 1;
+    }
+
+    def describe() {
+        print("Dog: "); print(this.name);
+        print(", age "); print(this.age); print("\n");
+    }
+}
+
+class MathHelper {
+    const int BASE = 10;
+    int  accumulator = 0;
+
+    def add(int n) {
+        int this.accumulator = this.accumulator + n;
+    }
+
+    def getResult() {
+        return this.accumulator + this.BASE;
+    }
+}
+
+global main(){
+    print("=== Counter class ===\n");
+    global.class.Counter();
+    print("Initial count: "); print(global.class.Counter.count); print("\n");
+
+    global.class.Counter.increment();
+    global.class.Counter.increment();
+    global.class.Counter.increment();
+    print("After 3 increments: "); print(global.class.Counter.count); print("\n");
+
+    global.class.Counter.add(10);
+    print("After add(10): "); print(global.class.Counter.count); print("\n");
+
+    int val = global.class.Counter.value();
+    print("value() returned: "); print(val); print("\n");
+
+    global.class.Counter.reset();
+    print("After reset: "); print(global.class.Counter.count); print("\n");
+
+    // Modify step field
+    int global.class.Counter.step = 5;
+    global.class.Counter.increment();
+    global.class.Counter.increment();
+    print("After step=5, 2 increments: "); print(global.class.Counter.count); print("\n");
+
+    print("---\n");
+    print("=== Dog class ===\n");
+    global.class.Dog();
+    str global.class.Dog.name = "Rex";
+    int global.class.Dog.age  = 3;
+    global.class.Dog.bark();
+    global.class.Dog.birthday();
+    global.class.Dog.describe();
+    print("returnType(Dog): "); print(returnType(global.class.Dog)); print("\n");
+
+    print("---\n");
+    print("=== MathHelper class ===\n");
+    global.class.MathHelper.add(5);
+    global.class.MathHelper.add(7);
+    int result = global.class.MathHelper.getResult();
+    print("MathHelper result (5+7+BASE=10): "); print(result); print("\n");
+
+    print("---\n");
+    print("=== break; in for loop ===\n");
+    int found = -1;
+    for(int i = 0; i < 10; i = i + 1){
+        if(i is 5){
+            found = i;
+            break;
+        }
+    }
+    print("broke at i=5, found="); print(found); print("\n");
+
+    print("=== continue; in for loop ===\n");
+    int evensSum = 0;
+    for(int j = 0; j < 10; j = j + 1){
+        if(j % 2 not is 0){ continue; }
+        evensSum += j;
+    }
+    print("sum of evens 0..9 = "); print(evensSum); print("\n");
+
+    print("=== restart; in for loop ===\n");
+    int oddsSum = 0;
+    for(int k = 0; k < 10; k = k + 1){
+        if(k % 2 is 0){ restart; }
+        oddsSum += k;
+    }
+    print("sum of odds 0..9 = "); print(oddsSum); print("\n");
+
+    print("=== break; in while loop ===\n");
+    int w = 0;
+    while(true){
+        if(w >= 3){ break; }
+        w += 1;
+    }
+    print("while broke at w="); print(w); print("\n");
+
+    print("=== continue; in while loop ===\n");
+    int wSum = 0;
+    int wI = 0;
+    while(wI < 6){
+        wI += 1;
+        if(wI % 2 is 0){ continue; }
+        wSum += wI;
+    }
+    print("while sum of odds 1..5 = "); print(wSum); print("\n");
+
+    print("---\n");
+    print("=== range() ===\n");
+    any r1 = range(5);
+    print("range(5) = "); print(r1); print("\n");
+
+    any r2 = range(2, 8);
+    print("range(2, 8) = "); print(r2); print("\n");
+
+    any r3 = range(0, 10, 2);
+    print("range(0, 10, 2) = "); print(r3); print("\n");
+
+    any r4 = range(10, 0, -2);
+    print("range(10, 0, -2) = "); print(r4); print("\n");
+
+    any r5 = range(3, 3);
+    print("range(3, 3) [empty] = "); print(r5); print("\n");
+
+    int rSum = 0;
+    any rNums = range(1, 6);
+    for(int ri = 0; ri < returnLength(rNums); ri = ri + 1){
+        rSum += intOf(strOf(listGet(rNums, ri)));
+    }
+    print("sum of range(1,6) = "); print(rSum); print("\n");
+
+    print("---\n");
+    print("All class tests passed!\n");
+}

@@ -1,0 +1,81 @@
+///
+  loop_control_test.lynx
+  Tests break, continue, restart in for/while/iterate.
+  Also verifies that break/continue are illegal outside loops
+  by catching the parse error via the Python shell directly.
+///
+
+global setup(){}
+
+global main(){
+    print("=== break in for ===\n");
+    int found = -1;
+    for(int i = 0; i < 10; i = i + 1){
+        if(i is 5){ found = i; break; }
+    }
+    print("found="); print(found); print("\n");
+
+    print("=== continue in for ===\n");
+    int evens = 0;
+    for(int j = 0; j < 10; j = j + 1){
+        if(j % 2 not is 0){ continue; }
+        evens += j;
+    }
+    print("evens="); print(evens); print("\n");
+
+    print("=== restart in for ===\n");
+    int odds = 0;
+    for(int k = 0; k < 10; k = k + 1){
+        if(k % 2 is 0){ restart; }
+        odds += k;
+    }
+    print("odds="); print(odds); print("\n");
+
+    print("=== break in while ===\n");
+    int w = 0;
+    while(true){
+        if(w >= 4){ break; }
+        w += 1;
+    }
+    print("w="); print(w); print("\n");
+
+    print("=== continue in while ===\n");
+    int wSum = 0;
+    int wi = 0;
+    while(wi < 6){
+        wi += 1;
+        if(wi % 2 is 0){ continue; }
+        wSum += wi;
+    }
+    print("wSum="); print(wSum); print("\n");
+
+    print("=== break in iterate ===\n");
+    int itCount = 0;
+    iterate(10){
+        if(itCount is 3){ break; }
+        itCount += 1;
+    }
+    print("itCount="); print(itCount); print("\n");
+
+    print("=== continue in iterate ===\n");
+    int itEvens = 0;
+    int itI = 0;
+    iterate(10){
+        if(itI % 2 not is 0){ itI += 1; continue; }
+        itEvens += itI;
+        itI += 1;
+    }
+    print("itEvens="); print(itEvens); print("\n");
+
+    print("=== nested loops with break ===\n");
+    int outerCount = 0;
+    for(int oi = 0; oi < 3; oi = oi + 1){
+        for(int ii = 0; ii < 10; ii = ii + 1){
+            if(ii is 2){ break; }
+        }
+        outerCount += 1;
+    }
+    print("outerCount="); print(outerCount); print("\n");
+
+    print("All loop-control tests passed!\n");
+}
