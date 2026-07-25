@@ -31,6 +31,6 @@ and you would end up with an executeable of lynxer.
 ## Verifying the install
 
 ```bash
-lynxer --version   # Lynxer 0.1.4
+lynxer --version   # Lynxer 0.1.5
 lynxer syntax.lynx # run the syntax showcase
 ```

@@ -23,7 +23,7 @@ def main():
         print("Usage: lynxer <file.lynx> or python shell.py <file.lynx>")
         return 0
     if argv[0] in ('-v', '--version'):
-        print("Lynxer 0.1.4")
+        print("Lynxer 0.1.5")
         return 0
     if argv[0] in ('-easterEgg', '--easterEgg'):
         print("Easter Egg found!")
