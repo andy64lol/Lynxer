@@ -98,6 +98,14 @@ global main(){
 
 ## Available stdlib modules
 
-Too lazy to write all new modules
+| Module | Import | What it provides |
+|--------|--------|-----------------|
+| `math` | `import("math")` | Arithmetic, trig, rounding, random numbers |
+| `typing` | `import("typing")` | Type conversion, string manipulation, list utilities |
+| `fileIO` | `import("fileIO")` | Read, write, append, copy, move, delete files |
+| `shell` | `import("shell")` | Run external shell commands, capture output |
+| `os` | `import("os")` | Directory navigation, path utilities, environment vars |
+| `json` | `import("json")` | JSON encode / decode / query |
+| `js` | `import("js")` | Run JavaScript via Node.js |
 
-See [stdlib list](stdlib/README.md) for full stdlib details.
+See [stdlib.md](stdlib.md) for the full function reference.

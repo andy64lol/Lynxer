@@ -4,6 +4,31 @@ Lynxer lets you drop into Python or Cython at any point inside a function.
 
 ---
 
+## Isolation
+
+**Each `rawPy` and `rawPyx` block runs in its own isolated Python `exec` scope.**
+
+Variables are re-bridged from Lynxer into a fresh namespace every time the block executes. No state — Python imports, helper variables, or module aliases — persists between blocks. Side effects that touch the filesystem, network, or Python global state do persist (they go through the OS), but the Python namespace itself is always clean at the start of each block.
+
+```c
+global main(){
+    int x = 5;
+    rawPy(){
+        import math as _m    // _m is visible only inside THIS block
+        x = int(_m.sqrt(x))
+    }
+    rawPy(){
+        // _m is NOT available here — this is a new, independent exec scope
+        x = x * 2
+    }
+    print(x); print("\n");   // 6
+}
+```
+
+This isolation applies equally to `rawPyx` blocks.
+
+---
+
 ## rawPy — inline Python
 
 ### Block form
@@ -70,7 +95,7 @@ cleanRawPyxCache();
 ## Multi-block example
 
 Multiple `rawPy`/`rawPyx` blocks can appear in the same function.  
-Each is an independent Python `exec` scope (variables re-bridged each time).
+Each block is an **independent, isolated Python `exec` scope** — variables are re-bridged from the current Lynxer scope before each block runs, and written back after.
 
 ```c
 global printHeader(str text){

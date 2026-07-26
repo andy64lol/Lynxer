@@ -139,7 +139,7 @@ any nums = seqFromTo(0, 10, 2);  // [0, 2, 4, 6, 8]
 
 ## List operations
 
-All list operations work with values produced by `range()`, `seqFromTo()`, or built up with `listPush()`. See [lists.md](lists.md) for a full tutorial.
+All list operations work with values produced by `range()`, `seqFromTo()`, or built up with `listPush()`. Declare list variables as `any`.
 
 > **Value semantics:** `listPush`, `listSet`, and `listRemove` return a **new** list. Always reassign:
 > ```c

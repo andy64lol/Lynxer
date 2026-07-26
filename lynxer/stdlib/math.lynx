@@ -41,7 +41,7 @@ global pow(int base, int exp){
 global floor(float n){
     rawPy(){
         import math as _m
-        n = float(_m.floor(n))   // floor() returns int in Python 3 — keep float for Lynxer
+        n = float(_m.floor(n))
     }
     return n;
 }
@@ -49,7 +49,7 @@ global floor(float n){
 global ceil(float n){
     rawPy(){
         import math as _m
-        n = float(_m.ceil(n))    // ceil() returns int in Python 3 — keep float for Lynxer
+        n = float(_m.ceil(n))
     }
     return n;
 }
@@ -64,7 +64,7 @@ global sqrt(float n){
 
 global round(float n){
     rawPy(){
-        n = float(round(n))   // round() returns int in Python 3 — keep float for Lynxer
+        n = float(round(n))
     }
     return n;
 }

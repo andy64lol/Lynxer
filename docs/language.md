@@ -116,7 +116,7 @@ print(returnType(lst));          // list
 print(returnLength(lst));        // 6
 ```
 
-See [lists.md](lists.md) for the full list API.
+See [builtins.md](builtins.md#list-operations) for the full list API.
 
 ### Booleans
 
@@ -167,6 +167,9 @@ All variables must be declared with a type before use. The declaration initialis
 ```c
 x += 5;   // x = x + 5
 x -= 3;   // x = x - 3
+x *= 2;   // x = x * 2
+x /= 4;   // x = x / 4
+x %= 3;   // x = x % 3
 ```
 
 ### Comparison
@@ -375,7 +378,7 @@ A function without an explicit `return` produces `none`.
 
 ## Classes
 
-A **class** is a named, static singleton that groups typed fields and methods. There is one instance per class (no `new` keyword). See [classes.md](classes.md) for the full reference.
+A **class** is a named, static singleton that groups typed fields and methods. There is one instance per class (no `new` keyword). See [classes.md](classes.md) for a quick-reference summary.
 
 ```c
 global setup(){}
@@ -564,7 +567,7 @@ global main(){
 
 ## VarGroups
 
-A **vargroup** is a named, typed record with dot-accessed fields — similar to a C struct. See [vargroups.md](vargroups.md) for the full reference.
+A **vargroup** is a named, typed record with dot-accessed fields — similar to a C struct. See [vargroups.md](vargroups.md) for a quick-reference summary.
 
 ```c
 vargroup player = [

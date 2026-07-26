@@ -95,18 +95,8 @@ lynxer/
     typing.lynx
     fileIO.lynx
     shell.lynx
-  tests/
-    test.lynx
-    import_test.lynx
-    rawPy_test.lynx
-    newfeatures_test.lynx
-docs/
-  language.md
-  builtins.md
-  stdlib.md
-  rawpy.md
-  modules.md
-  install.md
+  tests/            Test files
+docs/               Documentation
 syntax.lynx         Full syntax showcase
 Makefile
 setup.py

@@ -12,8 +12,12 @@
 ## Build
 
 Simply run:
-`make build`
-and you would end up with an executeable of lynxer.
+```bash
+make build
+```
+and you will end up with an executable binary at `dist/lynxer`.
+
+The build process creates a Python virtual environment, installs dependencies (`flask`, `cython`, `setuptools`, `pyinstaller`), and compiles a single-file binary.
 
 ---
 

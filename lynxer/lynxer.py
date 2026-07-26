@@ -138,6 +138,9 @@ TT_COMMA = "COMMA"
 TT_DOT = "DOT"
 TT_PLUSEQ = "PLUSEQ"
 TT_MINUSEQ = "MINUSEQ"
+TT_MULEQ = "MULEQ"
+TT_DIVEQ = "DIVEQ"
+TT_MODEQ = "MODEQ"
 TT_AMP = "AMP"
 TT_PIPE = "PIPE"
 TT_CARET = "CARET"
@@ -274,14 +277,29 @@ class Lexer:
                 tokens.append(Token(TT_TILDE, pos_start=self.pos))
                 self.advance()
             elif self.current_char == "*":
-                tokens.append(Token(TT_MUL, pos_start=self.pos))
+                pos_start = self.pos.copy()
                 self.advance()
+                if self.current_char == "=":
+                    self.advance()
+                    tokens.append(Token(TT_MULEQ, pos_start=pos_start, pos_end=self.pos))
+                else:
+                    tokens.append(Token(TT_MUL, pos_start=pos_start, pos_end=self.pos))
             elif self.current_char == "/":
-                tokens.append(Token(TT_DIV, pos_start=self.pos))
+                pos_start = self.pos.copy()
                 self.advance()
+                if self.current_char == "=":
+                    self.advance()
+                    tokens.append(Token(TT_DIVEQ, pos_start=pos_start, pos_end=self.pos))
+                else:
+                    tokens.append(Token(TT_DIV, pos_start=pos_start, pos_end=self.pos))
             elif self.current_char == "%":
-                tokens.append(Token(TT_MOD, pos_start=self.pos))
+                pos_start = self.pos.copy()
                 self.advance()
+                if self.current_char == "=":
+                    self.advance()
+                    tokens.append(Token(TT_MODEQ, pos_start=pos_start, pos_end=self.pos))
+                else:
+                    tokens.append(Token(TT_MOD, pos_start=pos_start, pos_end=self.pos))
             elif self.current_char == "=":
                 tokens.append(Token(TT_EQ, pos_start=self.pos))
                 self.advance()
@@ -1492,7 +1510,7 @@ class Parser:
                 self.advance()
                 return res.success(RawPyxBlockNode(code, pos_start, pos_end))
 
-            if next_tok and next_tok.type in (TT_EQ, TT_PLUSEQ, TT_MINUSEQ):
+            if next_tok and next_tok.type in (TT_EQ, TT_PLUSEQ, TT_MINUSEQ, TT_MULEQ, TT_DIVEQ, TT_MODEQ):
                 node = res.register(self.parse_assign())
                 if res.error:
                     return res
@@ -1663,6 +1681,12 @@ class Parser:
             value = BinOpNode(VarAccessNode(name_tok), Token(TT_PLUS), value)
         elif op_tok.type == TT_MINUSEQ:
             value = BinOpNode(VarAccessNode(name_tok), Token(TT_MINUS), value)
+        elif op_tok.type == TT_MULEQ:
+            value = BinOpNode(VarAccessNode(name_tok), Token(TT_MUL), value)
+        elif op_tok.type == TT_DIVEQ:
+            value = BinOpNode(VarAccessNode(name_tok), Token(TT_DIV), value)
+        elif op_tok.type == TT_MODEQ:
+            value = BinOpNode(VarAccessNode(name_tok), Token(TT_MOD), value)
 
         return res.success(VarAssignNode(name_tok, value))
 
@@ -5999,14 +6023,19 @@ class Interpreter:
         for name, val in py_ns.items():
             if name.startswith("__") or callable(val):
                 continue
+            new_val = None
             if isinstance(val, bool):
-                context.symbol_table.set(name, Number(1 if val else 0, is_bool=True))
+                new_val = Number(1 if val else 0, is_bool=True)
             elif isinstance(val, int):
-                context.symbol_table.set(name, Number(val))
+                new_val = Number(val)
             elif isinstance(val, float):
-                context.symbol_table.set(name, Number(val))
+                new_val = Number(val)
             elif isinstance(val, str):
-                context.symbol_table.set(name, String(val))
+                new_val = String(val)
+            if new_val is not None and context.symbol_table.get(name) is not None:
+                # Update in the declaring scope so nested-scope rawPy blocks
+                # (e.g. inside a for/while loop) write back to the right place.
+                context.symbol_table.update_existing(name, new_val)
 
         return res.success(Number.null)
 
@@ -6055,14 +6084,19 @@ class Interpreter:
         for name, val in cy_locals.items():
             if name.startswith("__") or callable(val):
                 continue
+            new_val = None
             if isinstance(val, bool):
-                context.symbol_table.set(name, Number(1 if val else 0, is_bool=True))
+                new_val = Number(1 if val else 0, is_bool=True)
             elif isinstance(val, int):
-                context.symbol_table.set(name, Number(val))
+                new_val = Number(val)
             elif isinstance(val, float):
-                context.symbol_table.set(name, Number(val))
+                new_val = Number(val)
             elif isinstance(val, str):
-                context.symbol_table.set(name, String(val))
+                new_val = String(val)
+            if new_val is not None and context.symbol_table.get(name) is not None:
+                # Update in the declaring scope so nested-scope rawPyx blocks
+                # (e.g. inside a for/while loop) write back to the right place.
+                context.symbol_table.update_existing(name, new_val)
 
         return res.success(Number.null)
 

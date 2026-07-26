@@ -33,14 +33,25 @@ build:
 # ── test ─────────────────────────────────────────────────────────────────────
 test:
 	@echo "Running Lynxer test suite …"
-	@cd lynxer && $(PYTHON) shell.py tests/test.lynx && \
-	             $(PYTHON) shell.py tests/import_test.lynx && \
-	             $(PYTHON) shell.py tests/rawPy_test.lynx && \
-	             $(PYTHON) shell.py tests/newfeatures_test.lynx && \
-	             $(PYTHON) shell.py tests/class_test.lynx && \
-	             $(PYTHON) shell.py tests/loop_control_test.lynx && \
-	             $(PYTHON) shell.py tests/trycatch_test.lynx && \
-	             $(PYTHON) shell.py tests/vargroup_test.lynx && \
+	@cd lynxer && \
+	 $(PYTHON) shell.py tests/test.lynx && \
+	 $(PYTHON) shell.py tests/import_test.lynx && \
+	 $(PYTHON) shell.py tests/rawPy_test.lynx && \
+	 $(PYTHON) shell.py tests/newfeatures_test.lynx && \
+	 $(PYTHON) shell.py tests/class_test.lynx && \
+	 $(PYTHON) shell.py tests/loop_control_test.lynx && \
+	 $(PYTHON) shell.py tests/trycatch_test.lynx && \
+	 $(PYTHON) shell.py tests/vargroup_test.lynx && \
+	 $(PYTHON) shell.py tests/iterate_const_test.lynx && \
+	 $(PYTHON) shell.py tests/test_escapes.lynx && \
+	 $(PYTHON) shell.py tests/test_math.lynx && \
+	 $(PYTHON) shell.py tests/test_typing.lynx && \
+	 $(PYTHON) shell.py tests/test_fileio.lynx && \
+	 $(PYTHON) shell.py tests/test_shell.lynx && \
+	 $(PYTHON) shell.py tests/test_json.lynx && \
+	 $(PYTHON) shell.py tests/test_os.lynx && \
+	 $(PYTHON) shell.py tests/async_test.lynx && \
+	 $(PYTHON) shell.py tests/test_compound_assign.lynx && \
 	 echo "✓  All tests passed."
 
 # ── clean ────────────────────────────────────────────────────────────────────
