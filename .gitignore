@@ -4,3 +4,4 @@ lynxer/dist/
 lynxer/__pycache__/
 *.spec
 build/
+venv/

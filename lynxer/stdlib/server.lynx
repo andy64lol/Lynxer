@@ -1,70 +1,63 @@
 /// 
 Lynxer Standard Library — server
-Wraps Python's built-in http.server module to provide a simple HTTP server.
+Wraps Flask to provide a simple HTTP server.
 ///
 
 global setup(){}
 
 global init(str host, int port){
     rawPy(){
-        from http.server import BaseHTTPRequestHandler, HTTPServer
+        from flask import Flask
         import builtins
 
-        class _LynxerHandler(BaseHTTPRequestHandler):
-            def do_GET(self):
-                routes = builtins._lx_server_get
-
-                if self.path in routes:
-                    self.send_response(200)
-                    self.send_header("Content-type", "text/plain")
-                    self.end_headers()
-                    self.wfile.write(routes[self.path].encode())
-                else:
-                    self.send_response(404)
-                    self.end_headers()
-                    self.wfile.write(b"404 Not Found")
-
-            def do_POST(self):
-                routes = builtins._lx_server_post
-
-                if self.path in routes:
-                    self.send_response(200)
-                    self.send_header("Content-type", "text/plain")
-                    self.end_headers()
-                    self.wfile.write(routes[self.path].encode())
-                else:
-                    self.send_response(404)
-                    self.end_headers()
-                    self.wfile.write(b"404 Not Found")
-
-            def log_message(self, format, *args):
-                return
-
-        builtins._lx_server_get = {}
-        builtins._lx_server_post = {}
-        builtins._lx_server = HTTPServer((host, port), _LynxerHandler)
+        builtins._lx_flask = Flask(__name__)
+        builtins._lx_host = host
+        builtins._lx_port = port
     }
 }
 
 global get(str path, str response){
     rawPy(){
         import builtins
-        builtins._lx_server_get[path] = response
+
+        def handler():
+            return response
+
+        builtins._lx_flask.add_url_rule(
+            path,
+            endpoint="GET_" + path.replace("/", "_"),
+            view_func=handler,
+            methods=["GET"]
+        )
     }
 }
 
 global post(str path, str response){
     rawPy(){
         import builtins
-        builtins._lx_server_post[path] = response
+
+        def handler():
+            return response
+
+        builtins._lx_flask.add_url_rule(
+            path,
+            endpoint="POST_" + path.replace("/", "_"),
+            view_func=handler,
+            methods=["POST"]
+        )
     }
 }
 
 global run(){
     rawPy(){
         import builtins
-        print("Server running...")
-        builtins._lx_server.serve_forever()
+
+        print("Server running on http://" + builtins._lx_host + ":" + str(builtins._lx_port))
+
+        builtins._lx_flask.run(
+            host=builtins._lx_host,
+            port=builtins._lx_port
+        )
     }
 }
 

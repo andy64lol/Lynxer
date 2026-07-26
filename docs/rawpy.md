@@ -80,8 +80,6 @@ cleanRawPyxCache();
 - `cython` Python package
 - A C compiler (`gcc` or `cc`) on the system `PATH`
 
-Both are installed automatically by `make install`.
-
 ---
 
 ## Multi-block example
