@@ -29,15 +29,6 @@ global main(){
 
 Only `int`, `float`, `str`, and `bool` values are bridged. Other Python objects (lists, dicts, etc.) are ignored.
 
-### String form
-
-Quick one-liner — prints directly to stdout, no variable bridging.
-
-```c
-rawPy("print('hello from Python')");
-rawPy("import math; print(math.pi)");
-```
-
 ---
 
 ## rawPyx — inline Cython
@@ -57,12 +48,6 @@ global main(){
     }
     print(result); print("\n"); // 42
 }
-```
-
-### String form
-
-```c
-rawPyx("print('compiled with Cython')");
 ```
 
 ### Fallback behaviour

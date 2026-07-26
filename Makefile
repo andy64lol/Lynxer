@@ -1,21 +1,33 @@
 # Lynxer Makefile
 #   make test       — run the test suite
-#   make clean      — remove Python byte-code caches
+#   make build      — create venv, install deps, then build with PyInstaller
+#   make clean      — remove Python byte-code caches and build artefacts
 #   make help       — show this message
 
-PYTHON  ?= $(shell command -v python3 2>/dev/null || command -v python 2>/dev/null || echo python3)
+PYTHON   ?= $(shell command -v python3 2>/dev/null || command -v python 2>/dev/null || echo python3)
+VENV     := venv
+VENV_PY  := $(VENV)/bin/python
+VENV_PIP := $(VENV)/bin/pip
 
 .PHONY: build test clean help
 
 # ── build ────────────────────────────────────────────────────────────────────
 build:
-	@echo "Building Lynxer..."
-	@$(PYTHON) -m PyInstaller \
+	@echo "Creating virtual environment '$(VENV)' …"
+	@$(PYTHON) -m venv $(VENV)
+	@echo "Upgrading pip …"
+	@$(VENV_PIP) install --upgrade pip 
+	@echo "Installing dependencies from requirements_venv.txt …"
+	@$(VENV_PIP) install -r requirements_venv.txt --quiet
+	@echo "Installing PyInstaller …"
+	@$(VENV_PIP) install pyinstaller 
+	@echo "Building Lynxer …"
+	@$(VENV)/bin/pyinstaller \
 		--onefile \
 		--clean \
 		--name lynxer \
 		--add-data "lynxer/stdlib:stdlib" \
-		 lynxer/shell.py
+		lynxer/shell.py
 	@echo "✓  Build complete: dist/lynxer"
 
 # ── test ─────────────────────────────────────────────────────────────────────
@@ -25,16 +37,22 @@ test:
 	             $(PYTHON) shell.py tests/import_test.lynx && \
 	             $(PYTHON) shell.py tests/rawPy_test.lynx && \
 	             $(PYTHON) shell.py tests/newfeatures_test.lynx && \
+	             $(PYTHON) shell.py tests/class_test.lynx && \
+	             $(PYTHON) shell.py tests/loop_control_test.lynx && \
+	             $(PYTHON) shell.py tests/trycatch_test.lynx && \
+	             $(PYTHON) shell.py tests/vargroup_test.lynx && \
 	 echo "✓  All tests passed."
 
 # ── clean ────────────────────────────────────────────────────────────────────
 clean:
 	@find . -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null; true
 	@find . -name '*.pyc' -delete 2>/dev/null; true
+	@rm -rf build/ dist/ lynxer.spec 2>/dev/null; true
 	@echo "✓  Cleaned."
 
 # ── help ─────────────────────────────────────────────────────────────────────
 help:
 	@echo "Lynxer build targets:"
 	@echo "  make test                  Run the test suite"
-	@echo "  make clean                 Remove byte-code caches"
+	@echo "  make build                 Create venv, install deps, build binary with PyInstaller"
+	@echo "  make clean                 Remove byte-code caches and build artefacts"
