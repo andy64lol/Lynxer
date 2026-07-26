@@ -17,34 +17,6 @@ global main(){
 
 ---
 
-## Installation
-
-### System-wide
-
-```bash
-git clone https://github.com/andy64lol/Lynxer.git
-cd Lynxer
-make install          # installs to /usr/local/bin (may need sudo)
-make install PREFIX=~/.local  # no sudo needed
-```
-
-`make install` also installs required Python packages (`cython`, `setuptools`).
-
-### Run without installing
-
-```bash
-python lynxer/shell.py my_program.lynx
-python -m lynxer my_program.lynx
-```
-
-### Uninstall
-
-```bash
-make uninstall
-```
-
----
-
 ## Quick start
 
 ```bash
