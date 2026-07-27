@@ -4,7 +4,12 @@ import string
 import os
 import sys
 import textwrap
+import pickle
 from typing import ClassVar
+
+# ── Bytecode constants ────────────────────────────────────────────────────────
+BYTECODE_MAGIC   = b"LYNXC\x00"
+BYTECODE_VERSION = 1
 
 DIGITS = "0123456789"
 STDLIB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "stdlib")
@@ -6114,7 +6119,9 @@ class Interpreter:
         res = RTResult()
         filename = node.filename_tok.value
 
-        if not filename.endswith(".lynx"):
+        # Accept explicit .lynxc extension; otherwise default to .lynx
+        explicit_bytecode = filename.endswith(".lynxc")
+        if not filename.endswith(".lynx") and not explicit_bytecode:
             filename += ".lynx"
 
         module_name = os.path.splitext(os.path.basename(filename))[0]
@@ -6127,29 +6134,26 @@ class Interpreter:
         file_val = global_symbol_table.get("__file__")
         base_dir = os.path.dirname(file_val.value) if file_val else ""
         filepath = os.path.join(base_dir, filename) if base_dir else filename
-        if not os.path.exists(filepath):
-            stdlib_path = os.path.join(STDLIB_DIR, filename)
-            if os.path.exists(stdlib_path):
-                filepath = stdlib_path
 
-        try:
-            with open(filepath, "r") as f:
-                script = f.read()
-        except FileNotFoundError:
+        # Resolve path: for .lynx imports, a compiled .lynxc beside the source
+        # takes precedence; fall back to stdlib if neither exists locally.
+        use_bytecode = explicit_bytecode
+        if not explicit_bytecode:
+            lynxc_path = os.path.splitext(filepath)[0] + ".lynxc"
+            if os.path.exists(lynxc_path):
+                filepath = lynxc_path
+                use_bytecode = True
+            elif not os.path.exists(filepath):
+                stdlib_path = os.path.join(STDLIB_DIR, filename)
+                if os.path.exists(stdlib_path):
+                    filepath = stdlib_path
+
+        if not os.path.exists(filepath):
             return res.failure(
                 RTError(
                     node.pos_start,
                     node.pos_end,
                     f"Module \"{module_name}\" not found — checked '{filepath}' and stdlib/",
-                    context,
-                )
-            )
-        except Exception as e:
-            return res.failure(
-                RTError(
-                    node.pos_start,
-                    node.pos_end,
-                    f'Failed to import "{filename}": {e}',
                     context,
                 )
             )
@@ -6195,7 +6199,33 @@ class Interpreter:
         # Class registry for this module (accessible as global.<module>.class)
         module_table.set("class", ClassRegistry())
 
-        error = run_file(filepath, script, module_table)
+        if use_bytecode:
+            try:
+                error = run_bytecode_file(filepath, module_table)
+            except Exception as e:
+                return res.failure(
+                    RTError(
+                        node.pos_start,
+                        node.pos_end,
+                        f'Failed to load bytecode "{filename}": {e}',
+                        context,
+                    )
+                )
+        else:
+            try:
+                with open(filepath, "r") as f:
+                    script = f.read()
+            except Exception as e:
+                return res.failure(
+                    RTError(
+                        node.pos_start,
+                        node.pos_end,
+                        f'Failed to import "{filename}": {e}',
+                        context,
+                    )
+                )
+            error = run_file(filepath, script, module_table)
+
         if error:
             return res.failure(
                 RTError(
@@ -6329,6 +6359,105 @@ def run_file(fn, text, symbol_table):
     symbol_table.set("__file__", String(os.path.abspath(fn)))
 
     node = ast.node
+
+    for decl in node.globals_list:
+        r = RTResult()
+        r.register(interpreter.visit(decl, context))
+        if r.error:
+            return r.error
+
+    if node.setup_func:
+        r = RTResult()
+        r.register(interpreter.visit(node.setup_func.body_block, context))
+        if r.error:
+            return r.error
+
+    return None
+
+
+# ── Bytecode compile / run ────────────────────────────────────────────────────
+
+def compile_to_bytecode(fn, text):
+    """Parse *text* (source of *fn*) and write a ``.lynxc`` file beside it.
+
+    Returns ``(out_path, None)`` on success or ``(None, error)`` on failure.
+    The ``.lynxc`` file is a binary pickle prefixed with ``BYTECODE_MAGIC``.
+    """
+    lexer = Lexer(fn, text)
+    tokens, error = lexer.make_tokens()
+    if error:
+        return None, error
+
+    parser = Parser(tokens)
+    ast = parser.parse()
+    if ast.error:
+        return None, ast.error
+
+    out_path = os.path.splitext(os.path.abspath(fn))[0] + ".lynxc"
+    data = {
+        "version": BYTECODE_VERSION,
+        "source":  os.path.abspath(fn),
+        "node":    ast.node,
+    }
+    with open(out_path, "wb") as f:
+        f.write(BYTECODE_MAGIC)
+        pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+    return out_path, None
+
+
+def _load_bytecode(fn):
+    """Read and unpickle a ``.lynxc`` file.  Returns the data dict."""
+    with open(fn, "rb") as f:
+        magic = f.read(len(BYTECODE_MAGIC))
+        if magic != BYTECODE_MAGIC:
+            raise ValueError(
+                f"'{fn}' is not a valid Lynxer bytecode file "
+                f"(bad magic bytes: {magic!r})"
+            )
+        return pickle.load(f)
+
+
+def run_bytecode(fn):
+    """Load and execute a pre-compiled ``.lynxc`` bytecode file.
+
+    Returns ``(value, error)`` — the same contract as :func:`run`.
+    """
+    try:
+        data = _load_bytecode(fn)
+    except Exception as e:
+        # Wrap in a plain Python exception; shell.py will print it.
+        raise RuntimeError(str(e)) from e
+
+    node = data["node"]
+    interpreter = SHARED_INTERPRETER
+    context = Context("<program>")
+    context.symbol_table = global_symbol_table
+    global_symbol_table.set("__file__", String(os.path.abspath(fn)))
+    global_symbol_table.set("global", Namespace(global_symbol_table))
+    global_symbol_table.set("class", ClassRegistry())
+
+    result = interpreter.visit(node, context)
+    return result.value, result.error
+
+
+def run_bytecode_file(fn, symbol_table):
+    """Load and execute a ``.lynxc`` file as a module (used by ``import()``).
+
+    Returns ``None`` on success or an ``Error`` on failure — the same
+    contract as :func:`run_file`.
+    """
+    try:
+        data = _load_bytecode(fn)
+    except Exception as e:
+        # Surface as a plain string; visit_ImportNode wraps it in RTError.
+        raise RuntimeError(str(e)) from e
+
+    node = data["node"]
+    interpreter = SHARED_INTERPRETER
+    context = Context(f"<import:{os.path.basename(fn)}>")
+    context.symbol_table = symbol_table
+    symbol_table.set("__file__", String(os.path.abspath(fn)))
 
     for decl in node.globals_list:
         r = RTResult()

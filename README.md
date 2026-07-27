@@ -20,9 +20,11 @@ global main(){
 ## Quick start
 
 ```bash
-lynxer syntax.lynx      # run a file
-lynxer --version        # print version
-lynxer --help           # print help
+lynxer syntax.lynx           # run a source file
+lynxer --compile syntax.lynx # compile to bytecode (syntax.lynxc)
+lynxer syntax.lynxc          # run compiled bytecode directly
+lynxer --version             # print version
+lynxer --help                # print help
 ```
 
 ---
@@ -79,6 +81,7 @@ global main(){
 | [Standard library](docs/stdlib.md) | `math`, `typing`, `fileIO`, `shell` modules |
 | [rawPy / rawPyx](docs/rawpy.md) | Embedding Python and Cython |
 | [Module system](docs/modules.md) | `import()`, namespaces, writing your own modules |
+| [Bytecode (.lynxc)](docs/bytecode.md) | Compiling to bytecode, running `.lynxc` files, importing bytecode modules |
 | [Installation](docs/install.md) | Detailed install, Makefile targets, requirements |
 
 ---
@@ -87,19 +90,16 @@ global main(){
 
 ```
 lynxer/
-  __main__.py       CLI entry point
-  lynxer.py         Lexer + parser + interpreter
-  shell.py          Dev shim (python shell.py file.lynx)
+  lynxer.py         Lexer + parser + interpreter + bytecode compiler
+  shell.py          CLI entry point (dev shim: python shell.py file.lynx)
   stdlib/
     math.lynx
     typing.lynx
     fileIO.lynx
     shell.lynx
-  tests/            Test files
 docs/               Documentation
 syntax.lynx         Full syntax showcase
 Makefile
-setup.py
 README.md
 ```
 

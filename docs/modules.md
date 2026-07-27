@@ -2,20 +2,24 @@
 
 ## Importing
 
-`import()` loads a `.lynx` file as a module and may only be called inside `setup()`.
+`import()` loads a `.lynx` or `.lynxc` file as a module and may only be called inside `setup()`.
 
 ```c
 global setup(){
-    import("math");       // stdlib module
-    import("mylib");      // local file: mylib.lynx
+    import("math");           // stdlib module
+    import("mylib");          // local file: mylib.lynx (or mylib.lynxc if present)
+    import("mylib.lynxc");    // explicit bytecode import
 }
 ```
 
 **Search order:**
-1. Same directory as the running script
+1. Same directory as the running script — checks for a compiled `.lynxc` first, then `.lynx`
 2. The `stdlib/` folder bundled with Lynxer
 
-The `.lynx` extension is optional — `import("math")` and `import("math.lynx")` are equivalent.
+The `.lynx` extension is optional — `import("math")` and `import("math.lynx")` are equivalent.  
+You may also pass `.lynxc` explicitly: `import("mylib.lynxc")`.
+
+**Bytecode auto-detection:** when you call `import("name")` without an extension, Lynxer looks for `name.lynxc` in the same directory first.  If found, the bytecode is loaded instead of the source.  This lets you distribute compiled modules alongside (or in place of) source files transparently.
 
 **Idempotency:** Importing the same module twice is safe. The second call is ignored — the module is executed once and cached.
 

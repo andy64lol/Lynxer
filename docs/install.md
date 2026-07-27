@@ -26,7 +26,6 @@ The build process creates a Python virtual environment, installs dependencies (`
 | Target | Description |
 |--------|-------------|
 | `make build` | Build the package |
-| `make test` | Run the full test suite |
 | `make clean` | Remove `__pycache__` and `.pyc` files |
 | `make help` | Print available targets |
 
@@ -35,6 +34,6 @@ The build process creates a Python virtual environment, installs dependencies (`
 ## Verifying the install
 
 ```bash
-lynxer --version   # Lynxer 0.1.5
+lynxer --version   # Lynxer 0.1.6
 lynxer syntax.lynx # run the syntax showcase
 ```
