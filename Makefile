@@ -13,22 +13,31 @@ VENV_PIP := $(VENV)/bin/pip
 
 # ── build ────────────────────────────────────────────────────────────────────
 build:
-	@echo "Creating virtual environment '$(VENV)' …"
-	@$(PYTHON) -m venv $(VENV)
-	@echo "Upgrading pip …"
-	@$(VENV_PIP) install --upgrade pip 
-	@echo "Installing dependencies from requirements_venv.txt …"
-	@$(VENV_PIP) install -r requirements_venv.txt --quiet
-	@echo "Installing PyInstaller …"
-	@$(VENV_PIP) install pyinstaller 
-	@echo "Building Lynxer …"
+	@if [ ! -d "$(VENV)" ]; then \
+		echo "Creating virtual environment '$(VENV)'..."; \
+		$(PYTHON) -m venv $(VENV); \
+	else \
+		echo "Using existing virtual environment '$(VENV)'."; \
+	fi
+
+	@echo "Upgrading pip..."
+	@$(VENV_PIP) install --upgrade pip
+
+	@echo "Synchronizing dependencies with requirements_venv.txt..."
+	@$(VENV_PIP) install --upgrade -r requirements_venv.txt
+
+	@echo "Ensuring PyInstaller is installed..."
+	@$(VENV_PIP) install --upgrade pyinstaller
+
+	@echo "Building Lynxer..."
 	@$(VENV)/bin/pyinstaller \
 		--onefile \
 		--clean \
 		--name lynxer \
 		--add-data "lynxer/stdlib:stdlib" \
 		lynxer/shell.py
-	@echo "✓  Build complete: dist/lynxer"
+
+	@echo "✓ Build complete: dist/lynxer"
 
 # ── test ─────────────────────────────────────────────────────────────────────
 test:
