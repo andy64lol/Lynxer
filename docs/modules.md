@@ -1,5 +1,7 @@
 # Module System
 
+> See also: [importAs](importAs.md) for importing a module under a custom alias.
+
 ## Importing
 
 `import()` loads a `.lynx` or `.lynxc` file as a module and may only be called inside `setup()`.

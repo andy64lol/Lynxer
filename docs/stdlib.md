@@ -64,6 +64,11 @@ Mathematical operations wrapping Python's `math` and `random` modules.
 
 ## typing
 
+String manipulation, type conversion, list utilities, and tuple extras.
+
+> **Tuple core built-ins** (`tupleCreate`, `tupleGet`, `tupleLen`, `tupleContains`, `tupleIndex`, `tupleSlice`, `tupleToList`, `listToTuple`, `tupleConcat`, `tupleCount`, `tupleFirst`, `tupleLast`, `tupleJsonArray`) are always available without importing anything. See [docs/tuples.md](tuples.md) for the full reference.
+> This module provides additional higher-level utilities: `tupleReverse`, `tupleSort`, `tupleSortDesc`, `tupleMin`, `tupleMax`, `tupleSum`, `tupleAny`, `tupleAll`, `tupleUnique`, `tupleMean`, `tupleFlatten`, `tupleZip`, `tupleJoin`.
+
 String manipulation, type conversion, and list utilities.
 
 | Function | Signature | Description |

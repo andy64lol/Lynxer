@@ -78,10 +78,12 @@ global main(){
 |------|----------|
 | [Language reference](docs/language.md) | Types, variables, operators, control flow, functions |
 | [Built-ins](docs/builtins.md) | `print`, `input`, `strOf`, `returnType`, `seqFromTo`, … |
+| [Tuples](docs/tuples.md) | `tuple` type, built-in tuple functions, typing module extras |
+| [importAs](docs/importAs.md) | `importAs("module", "alias")` — import under a custom name |
 | [Standard library](docs/stdlib.md) | All stdlib modules — overview and function tables |
 | [stdlib/ reference](docs/stdlib/README.md) | Individual per-module documentation pages |
 | [rawPy / rawPyx](docs/rawpy.md) | Embedding Python and Cython |
-| [Module system](docs/modules.md) | `import()`, namespaces, writing your own modules |
+| [Module system](docs/modules.md) | `import()`, `importAs()`, namespaces, writing your own modules |
 | [Bytecode (.lynxc)](docs/bytecode.md) | Compiling to bytecode, running `.lynxc` files, importing bytecode modules |
 | [Vargroups](docs/vargroups.md) | Named typed records (struct-like) |
 | [Classes](docs/classes.md) | Static singleton classes |

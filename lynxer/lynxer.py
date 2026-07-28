@@ -158,13 +158,13 @@ TT_LBRACKET = "LBRACKET"
 TT_RBRACKET = "RBRACKET"
 TT_EOF = "EOF"
 
-TYPE_KEYWORDS = ["int", "float", "str", "bool", "any"]
+TYPE_KEYWORDS = ["int", "float", "str", "bool", "any", "tuple"]
 
 KEYWORDS = [
-    "int", "float", "str", "bool", "any",
+    "int", "float", "str", "bool", "any", "tuple",
     "global", "def", "const",
     "if", "else", "while", "for",
-    "return", "import",
+    "return", "import", "importAs",
     "true", "false", "none",
     "and", "or", "not", "is",
     "vargroup",
@@ -684,6 +684,15 @@ class ImportNode:
         self.pos_end = pos_end
 
 
+class ImportAsNode:
+    """importAs("module", "alias");  — import module and bind it under a custom name."""
+    def __init__(self, filename_tok, alias_tok, pos_start, pos_end):
+        self.filename_tok = filename_tok
+        self.alias_tok = alias_tok
+        self.pos_start = pos_start
+        self.pos_end = pos_end
+
+
 class RawPyBlockNode:
     def __init__(self, code, pos_start, pos_end):
         self.code = code
@@ -1157,7 +1166,7 @@ class Parser:
                 if not self.is_type_keyword():
                     return res.failure(InvalidSyntaxError(
                         self.current_tok.pos_start, self.current_tok.pos_end,
-                        "Expected a type keyword (int, float, str, bool, any) for class field"
+                        "Expected a type keyword (int, float, str, bool, any, tuple) for class field"
                     ))
                 type_tok = self.current_tok
                 res.register_advancement()
@@ -1261,6 +1270,20 @@ class Parser:
                     )
                 )
             node = res.register(self.parse_import())
+            if res.error:
+                return res
+            return res.success(node)
+
+        if self.current_tok.matches(TT_KEYWORD, "importAs"):
+            if not in_setup:
+                return res.failure(
+                    InvalidSyntaxError(
+                        self.current_tok.pos_start,
+                        self.current_tok.pos_end,
+                        "importAs() may only be used inside setup()",
+                    )
+                )
+            node = res.register(self.parse_importAs())
             if res.error:
                 return res
             return res.success(node)
@@ -2297,6 +2320,79 @@ class Parser:
         self.advance()
 
         return res.success(ImportNode(filename_tok, pos_start, pos_end))
+
+    def parse_importAs(self):
+        res = ParseResult()
+        pos_start = self.current_tok.pos_start.copy()
+        res.register_advancement()
+        self.advance()  # consume 'importAs'
+
+        if self.current_tok.type != TT_LPAREN:
+            return res.failure(
+                InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "Expected '(' after importAs",
+                )
+            )
+        res.register_advancement()
+        self.advance()
+
+        if self.current_tok.type != TT_STRING:
+            return res.failure(
+                InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "Expected module filename string as first argument to importAs()",
+                )
+            )
+        filename_tok = self.current_tok
+        res.register_advancement()
+        self.advance()
+
+        if self.current_tok.type != TT_COMMA:
+            return res.failure(
+                InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "Expected ',' between module name and alias in importAs()",
+                )
+            )
+        res.register_advancement()
+        self.advance()
+
+        if self.current_tok.type != TT_STRING:
+            return res.failure(
+                InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "Expected alias string as second argument to importAs()",
+                )
+            )
+        alias_tok = self.current_tok
+        res.register_advancement()
+        self.advance()
+
+        if self.current_tok.type != TT_RPAREN:
+            return res.failure(
+                InvalidSyntaxError(
+                    self.current_tok.pos_start, self.current_tok.pos_end, "Expected ')'"
+                )
+            )
+        res.register_advancement()
+        self.advance()
+
+        if self.current_tok.type != TT_SEMICOLON:
+            return res.failure(
+                InvalidSyntaxError(
+                    self.current_tok.pos_start, self.current_tok.pos_end, "Expected ';'"
+                )
+            )
+        pos_end = self.current_tok.pos_end.copy()
+        res.register_advancement()
+        self.advance()
+
+        return res.success(ImportAsNode(filename_tok, alias_tok, pos_start, pos_end))
 
     def parse_return(self):
         res = ParseResult()
@@ -3456,6 +3552,48 @@ class List(Value):
         return self.__str__()
 
 
+class LynxTuple(Value):
+    """Immutable, ordered, fixed-length sequence.  Declared with the 'tuple' type keyword."""
+
+    def __init__(self, elements):
+        super().__init__()
+        self.elements = tuple(elements)   # Python tuple — truly immutable
+
+    def get_comparison_eq(self, other):
+        if isinstance(other, LynxTuple):
+            if len(self.elements) != len(other.elements):
+                return Number(0, is_bool=True).set_context(self.context), None
+            for a, b in zip(self.elements, other.elements):
+                eq, err = a.get_comparison_eq(b)
+                if err or not eq.is_true():
+                    return Number(0, is_bool=True).set_context(self.context), None
+            return Number(1, is_bool=True).set_context(self.context), None
+        return None, Value.illegal_operation(self, other)
+
+    def get_comparison_ne(self, other):
+        eq, err = self.get_comparison_eq(other)
+        if err:
+            return None, err
+        return Number(1 - int(eq.value), is_bool=True).set_context(self.context), None
+
+    def is_true(self):
+        return len(self.elements) > 0
+
+    def copy(self):
+        c = LynxTuple(self.elements)
+        c.set_pos(self.pos_start, self.pos_end)
+        c.set_context(self.context)
+        return c
+
+    def __str__(self):
+        if len(self.elements) == 1:
+            return "(" + str(self.elements[0]) + ",)"
+        return "(" + ", ".join(str(e) for e in self.elements) + ")"
+
+    def __repr__(self):
+        return self.__str__()
+
+
 def value_type_name(v):
     if isinstance(v, Null):
         return "none"
@@ -3465,6 +3603,8 @@ def value_type_name(v):
         return "float" if isinstance(v.value, float) else "int"
     if isinstance(v, String):
         return "str"
+    if isinstance(v, LynxTuple):
+        return "tuple"
     if isinstance(v, List):
         return "list"
     if isinstance(v, VarGroup):
@@ -3693,6 +3833,20 @@ class BuiltInFunction(BaseFunction):
     asyncRun: ClassVar["BuiltInFunction"]
     asyncGather: ClassVar["BuiltInFunction"]
     asyncSleep: ClassVar["BuiltInFunction"]
+    # tuple built-ins
+    tupleCreate: ClassVar["BuiltInFunction"]
+    tupleGet: ClassVar["BuiltInFunction"]
+    tupleLen: ClassVar["BuiltInFunction"]
+    tupleContains: ClassVar["BuiltInFunction"]
+    tupleIndex: ClassVar["BuiltInFunction"]
+    tupleSlice: ClassVar["BuiltInFunction"]
+    tupleToList: ClassVar["BuiltInFunction"]
+    listToTuple: ClassVar["BuiltInFunction"]
+    tupleConcat: ClassVar["BuiltInFunction"]
+    tupleCount: ClassVar["BuiltInFunction"]
+    tupleFirst: ClassVar["BuiltInFunction"]
+    tupleLast: ClassVar["BuiltInFunction"]
+    tupleJsonArray: ClassVar["BuiltInFunction"]
 
     def __init__(self, name):
         super().__init__(name)
@@ -3892,7 +4046,7 @@ class BuiltInFunction(BaseFunction):
         v = args[0]
         if isinstance(v, String):
             return RTResult().success(Number(len(v.value)))
-        if isinstance(v, List):
+        if isinstance(v, (List, LynxTuple)):
             return RTResult().success(Number(len(v.elements)))
         return RTResult().failure(
             RTError(
@@ -4300,6 +4454,164 @@ class BuiltInFunction(BaseFunction):
                 exec_ctx,
             ))
 
+    # ── tuple built-ins ───────────────────────────────────────────────────────
+
+    def execute_tupleCreate(self, args, exec_ctx):
+        """tupleCreate(v1, v2, ...) — create a tuple from any number of arguments."""
+        return RTResult().success(LynxTuple(args))
+
+    def execute_tupleGet(self, args, exec_ctx):
+        if len(args) != 2 or not isinstance(args[0], LynxTuple) or not isinstance(args[1], Number):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "tupleGet(tuple, idx) expects a tuple and an integer index",
+                exec_ctx,
+            ))
+        t = args[0]
+        idx = int(args[1].value)
+        if idx < -len(t.elements) or idx >= len(t.elements):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                f"tupleGet() index {idx} out of range for tuple of length {len(t.elements)}",
+                exec_ctx,
+            ))
+        return RTResult().success(t.elements[idx])
+
+    def execute_tupleLen(self, args, exec_ctx):
+        if len(args) != 1 or not isinstance(args[0], LynxTuple):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "tupleLen(tuple) expects a tuple",
+                exec_ctx,
+            ))
+        return RTResult().success(Number(len(args[0].elements)))
+
+    def execute_tupleContains(self, args, exec_ctx):
+        if len(args) != 2 or not isinstance(args[0], LynxTuple):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "tupleContains(tuple, val) expects a tuple and a value",
+                exec_ctx,
+            ))
+        target = str(args[1])
+        found = any(str(e) == target for e in args[0].elements)
+        return RTResult().success(Number(1 if found else 0, is_bool=True))
+
+    def execute_tupleIndex(self, args, exec_ctx):
+        if len(args) != 2 or not isinstance(args[0], LynxTuple):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "tupleIndex(tuple, val) expects a tuple and a value",
+                exec_ctx,
+            ))
+        target = str(args[1])
+        for i, e in enumerate(args[0].elements):
+            if str(e) == target:
+                return RTResult().success(Number(i))
+        return RTResult().success(Number(-1))
+
+    def execute_tupleSlice(self, args, exec_ctx):
+        if (len(args) != 3 or not isinstance(args[0], LynxTuple)
+                or not isinstance(args[1], Number) or not isinstance(args[2], Number)):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "tupleSlice(tuple, start, stop) expects a tuple and two integer indices",
+                exec_ctx,
+            ))
+        start = int(args[1].value)
+        stop = int(args[2].value)
+        return RTResult().success(LynxTuple(args[0].elements[start:stop]))
+
+    def execute_tupleToList(self, args, exec_ctx):
+        if len(args) != 1 or not isinstance(args[0], LynxTuple):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "tupleToList(tuple) expects a tuple",
+                exec_ctx,
+            ))
+        return RTResult().success(List(list(args[0].elements)))
+
+    def execute_listToTuple(self, args, exec_ctx):
+        if len(args) != 1 or not isinstance(args[0], List):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "listToTuple(list) expects a list",
+                exec_ctx,
+            ))
+        return RTResult().success(LynxTuple(args[0].elements))
+
+    def execute_tupleConcat(self, args, exec_ctx):
+        if (len(args) != 2 or not isinstance(args[0], LynxTuple)
+                or not isinstance(args[1], LynxTuple)):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "tupleConcat(t1, t2) expects two tuples",
+                exec_ctx,
+            ))
+        return RTResult().success(LynxTuple(args[0].elements + args[1].elements))
+
+    def execute_tupleCount(self, args, exec_ctx):
+        if len(args) != 2 or not isinstance(args[0], LynxTuple):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "tupleCount(tuple, val) expects a tuple and a value",
+                exec_ctx,
+            ))
+        target = str(args[1])
+        count = sum(1 for e in args[0].elements if str(e) == target)
+        return RTResult().success(Number(count))
+
+    def execute_tupleFirst(self, args, exec_ctx):
+        if len(args) != 1 or not isinstance(args[0], LynxTuple):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "tupleFirst(tuple) expects a tuple",
+                exec_ctx,
+            ))
+        if not args[0].elements:
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "tupleFirst() called on an empty tuple",
+                exec_ctx,
+            ))
+        return RTResult().success(args[0].elements[0])
+
+    def execute_tupleLast(self, args, exec_ctx):
+        if len(args) != 1 or not isinstance(args[0], LynxTuple):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "tupleLast(tuple) expects a tuple",
+                exec_ctx,
+            ))
+        if not args[0].elements:
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "tupleLast() called on an empty tuple",
+                exec_ctx,
+            ))
+        return RTResult().success(args[0].elements[-1])
+
+    def execute_tupleJsonArray(self, args, exec_ctx):
+        import json as _json
+        if len(args) != 1 or not isinstance(args[0], LynxTuple):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                "tupleJsonArray(tuple) expects a tuple",
+                exec_ctx,
+            ))
+        try:
+            items = [e.value if isinstance(e, (Number, String)) else str(e)
+                     for e in args[0].elements]
+            return RTResult().success(String(_json.dumps(items)))
+        except Exception as e:
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                f"tupleJsonArray() failed: {e}",
+                exec_ctx,
+            ))
+
+    # ── /tuple built-ins ──────────────────────────────────────────────────────
+
     # ------------------------------------------------------------------ async built-ins
 
     def execute_asyncRun(self, args, exec_ctx):
@@ -4416,6 +4728,19 @@ BuiltInFunction.listMax = BuiltInFunction("listMax")
 BuiltInFunction.asyncRun = BuiltInFunction("asyncRun")
 BuiltInFunction.asyncGather = BuiltInFunction("asyncGather")
 BuiltInFunction.asyncSleep = BuiltInFunction("asyncSleep")
+BuiltInFunction.tupleCreate = BuiltInFunction("tupleCreate")
+BuiltInFunction.tupleGet = BuiltInFunction("tupleGet")
+BuiltInFunction.tupleLen = BuiltInFunction("tupleLen")
+BuiltInFunction.tupleContains = BuiltInFunction("tupleContains")
+BuiltInFunction.tupleIndex = BuiltInFunction("tupleIndex")
+BuiltInFunction.tupleSlice = BuiltInFunction("tupleSlice")
+BuiltInFunction.tupleToList = BuiltInFunction("tupleToList")
+BuiltInFunction.listToTuple = BuiltInFunction("listToTuple")
+BuiltInFunction.tupleConcat = BuiltInFunction("tupleConcat")
+BuiltInFunction.tupleCount = BuiltInFunction("tupleCount")
+BuiltInFunction.tupleFirst = BuiltInFunction("tupleFirst")
+BuiltInFunction.tupleLast = BuiltInFunction("tupleLast")
+BuiltInFunction.tupleJsonArray = BuiltInFunction("tupleJsonArray")
 
 # modules
 
@@ -4879,6 +5204,10 @@ class Interpreter:
         value = res.register(self.visit(node.value_node, context))
         if res.should_return():
             return res
+        # Auto-convert a list literal [a, b, c] to a LynxTuple when declared as 'tuple'
+        if decl_type == "tuple" and isinstance(value, List):
+            value = LynxTuple(value.elements)
+            value.set_context(context)
         if not type_matches(decl_type, value):
             return res.failure(
                 RTError(
@@ -4910,6 +5239,10 @@ class Interpreter:
         if res.should_return():
             return res
         decl_type = context.symbol_table.get_type(var_name)
+        # Auto-convert a list literal [a, b, c] to a LynxTuple when the target is 'tuple'
+        if decl_type == "tuple" and isinstance(value, List):
+            value = LynxTuple(value.elements)
+            value.set_context(context)
         if not type_matches(decl_type, value):
             return res.failure(
                 RTError(
@@ -5291,6 +5624,10 @@ class Interpreter:
         value = res.register(await self.async_visit(node.value_node, context))
         if res.should_return():
             return res
+        # Auto-convert list literal to LynxTuple when declared as 'tuple'
+        if decl_type == "tuple" and isinstance(value, List):
+            value = LynxTuple(value.elements)
+            value.set_context(context)
         if not type_matches(decl_type, value):
             return res.failure(RTError(
                 node.pos_start, node.pos_end,
@@ -5314,6 +5651,10 @@ class Interpreter:
         if res.should_return():
             return res
         decl_type = context.symbol_table.get_type(var_name)
+        # Auto-convert list literal to LynxTuple when the target is 'tuple'
+        if decl_type == "tuple" and isinstance(value, List):
+            value = LynxTuple(value.elements)
+            value.set_context(context)
         if not type_matches(decl_type, value):
             return res.failure(RTError(
                 node.pos_start, node.pos_end,
@@ -6011,6 +6352,18 @@ class Interpreter:
                         py_ns[name] = bool(val.value) if val.is_bool else val.value
                     elif isinstance(val, String):
                         py_ns[name] = val.value
+                    elif isinstance(val, LynxTuple):
+                        # Expose as a read-only Python tuple of primitive values
+                        py_ns[name] = tuple(
+                            e.value if isinstance(e, (Number, String)) else str(e)
+                            for e in val.elements
+                        )
+                    elif isinstance(val, List):
+                        # Expose as a read-only Python list of primitive values
+                        py_ns[name] = [
+                            e.value if isinstance(e, (Number, String)) else str(e)
+                            for e in val.elements
+                        ]
             tbl = tbl.parent
 
         try:
@@ -6196,6 +6549,19 @@ class Interpreter:
         module_table.set("reverseList", BuiltInFunction.reverseList)
         module_table.set("listMin", BuiltInFunction.listMin)
         module_table.set("listMax", BuiltInFunction.listMax)
+        module_table.set("tupleCreate", BuiltInFunction.tupleCreate)
+        module_table.set("tupleGet", BuiltInFunction.tupleGet)
+        module_table.set("tupleLen", BuiltInFunction.tupleLen)
+        module_table.set("tupleContains", BuiltInFunction.tupleContains)
+        module_table.set("tupleIndex", BuiltInFunction.tupleIndex)
+        module_table.set("tupleSlice", BuiltInFunction.tupleSlice)
+        module_table.set("tupleToList", BuiltInFunction.tupleToList)
+        module_table.set("listToTuple", BuiltInFunction.listToTuple)
+        module_table.set("tupleConcat", BuiltInFunction.tupleConcat)
+        module_table.set("tupleCount", BuiltInFunction.tupleCount)
+        module_table.set("tupleFirst", BuiltInFunction.tupleFirst)
+        module_table.set("tupleLast", BuiltInFunction.tupleLast)
+        module_table.set("tupleJsonArray", BuiltInFunction.tupleJsonArray)
         # Class registry for this module (accessible as global.<module>.class)
         module_table.set("class", ClassRegistry())
 
@@ -6239,6 +6605,137 @@ class Interpreter:
         module = Module(module_name, module_table)
         module.set_pos(node.pos_start, node.pos_end).set_context(context)
         global_symbol_table.set(module_name, module)
+        return res.success(Number.null)
+
+    def visit_ImportAsNode(self, node, context):
+        res = RTResult()
+        filename = node.filename_tok.value
+        alias_name = node.alias_tok.value
+
+        if not alias_name or not alias_name.isidentifier():
+            return res.failure(RTError(
+                node.pos_start, node.pos_end,
+                f"importAs alias '{alias_name}' is not a valid identifier",
+                context,
+            ))
+
+        explicit_bytecode = filename.endswith(".lynxc")
+        if not filename.endswith(".lynx") and not explicit_bytecode:
+            filename += ".lynx"
+
+        module_name = os.path.splitext(os.path.basename(filename))[0]
+
+        # Idempotent: skip if this alias is already loaded as a module
+        existing = global_symbol_table.get(alias_name)
+        if isinstance(existing, Module):
+            return res.success(Number.null)
+
+        file_val = global_symbol_table.get("__file__")
+        base_dir = os.path.dirname(file_val.value) if file_val else ""
+        filepath = os.path.join(base_dir, filename) if base_dir else filename
+
+        use_bytecode = explicit_bytecode
+        if not explicit_bytecode:
+            lynxc_path = os.path.splitext(filepath)[0] + ".lynxc"
+            if os.path.exists(lynxc_path):
+                filepath = lynxc_path
+                use_bytecode = True
+            elif not os.path.exists(filepath):
+                stdlib_path = os.path.join(STDLIB_DIR, filename)
+                if os.path.exists(stdlib_path):
+                    filepath = stdlib_path
+
+        if not os.path.exists(filepath):
+            return res.failure(RTError(
+                node.pos_start, node.pos_end,
+                f"Module \"{module_name}\" not found — checked '{filepath}' and stdlib/",
+                context,
+            ))
+
+        module_table = SymbolTable(global_symbol_table)
+        module_table.set("true", Number.true)
+        module_table.set("false", Number.false)
+        module_table.set("print", BuiltInFunction.print)
+        module_table.set("println", BuiltInFunction.println)
+        module_table.set("input", BuiltInFunction.input)
+        module_table.set("inputln", BuiltInFunction.inputln)
+        module_table.set("rawPy", BuiltInFunction.rawPy)
+        module_table.set("rawPyx", BuiltInFunction.rawPyx)
+        module_table.set("strOf", BuiltInFunction.strOf)
+        module_table.set("intOf", BuiltInFunction.intOf)
+        module_table.set("floatOf", BuiltInFunction.floatOf)
+        module_table.set("returnType", BuiltInFunction.returnType)
+        module_table.set("returnLength", BuiltInFunction.returnLength)
+        module_table.set("seqFromTo", BuiltInFunction.seqFromTo)
+        module_table.set("range", BuiltInFunction.range)
+        module_table.set("cleanRawPyxCache", BuiltInFunction.cleanRawPyxCache)
+        module_table.set("listJsonArray", BuiltInFunction.listJsonArray)
+        module_table.set("listJsonObject", BuiltInFunction.listJsonObject)
+        module_table.set("splitStr", BuiltInFunction.splitStr)
+        module_table.set("listFlatten", BuiltInFunction.listFlatten)
+        module_table.set("listUnique", BuiltInFunction.listUnique)
+        module_table.set("listPush", BuiltInFunction.listPush)
+        module_table.set("listPop", BuiltInFunction.listPop)
+        module_table.set("listGet", BuiltInFunction.listGet)
+        module_table.set("listSet", BuiltInFunction.listSet)
+        module_table.set("listSlice", BuiltInFunction.listSlice)
+        module_table.set("listContains", BuiltInFunction.listContains)
+        module_table.set("listJoin", BuiltInFunction.listJoin)
+        module_table.set("listIndex", BuiltInFunction.listIndex)
+        module_table.set("listRemove", BuiltInFunction.listRemove)
+        module_table.set("anyOf", BuiltInFunction.anyOf)
+        module_table.set("allOf", BuiltInFunction.allOf)
+        module_table.set("sumOf", BuiltInFunction.sumOf)
+        module_table.set("sortList", BuiltInFunction.sortList)
+        module_table.set("reverseList", BuiltInFunction.reverseList)
+        module_table.set("listMin", BuiltInFunction.listMin)
+        module_table.set("listMax", BuiltInFunction.listMax)
+        module_table.set("tupleCreate", BuiltInFunction.tupleCreate)
+        module_table.set("tupleGet", BuiltInFunction.tupleGet)
+        module_table.set("tupleLen", BuiltInFunction.tupleLen)
+        module_table.set("tupleContains", BuiltInFunction.tupleContains)
+        module_table.set("tupleIndex", BuiltInFunction.tupleIndex)
+        module_table.set("tupleSlice", BuiltInFunction.tupleSlice)
+        module_table.set("tupleToList", BuiltInFunction.tupleToList)
+        module_table.set("listToTuple", BuiltInFunction.listToTuple)
+        module_table.set("tupleConcat", BuiltInFunction.tupleConcat)
+        module_table.set("tupleCount", BuiltInFunction.tupleCount)
+        module_table.set("tupleFirst", BuiltInFunction.tupleFirst)
+        module_table.set("tupleLast", BuiltInFunction.tupleLast)
+        module_table.set("tupleJsonArray", BuiltInFunction.tupleJsonArray)
+        module_table.set("class", ClassRegistry())
+
+        if use_bytecode:
+            try:
+                error = run_bytecode_file(filepath, module_table)
+            except Exception as e:
+                return res.failure(RTError(
+                    node.pos_start, node.pos_end,
+                    f'Failed to load bytecode "{filename}": {e}',
+                    context,
+                ))
+        else:
+            try:
+                with open(filepath, "r") as f:
+                    script = f.read()
+            except Exception as e:
+                return res.failure(RTError(
+                    node.pos_start, node.pos_end,
+                    f'Failed to importAs "{filename}": {e}',
+                    context,
+                ))
+            error = run_file(filepath, script, module_table)
+
+        if error:
+            return res.failure(RTError(
+                node.pos_start, node.pos_end,
+                f'Error in imported file "{filename}":\n{error.as_string()}',
+                context,
+            ))
+
+        module = Module(module_name, module_table)
+        module.set_pos(node.pos_start, node.pos_end).set_context(context)
+        global_symbol_table.set(alias_name, module)
         return res.success(Number.null)
 
     def visit_ProgramNode(self, node, context):
@@ -6312,6 +6809,19 @@ global_symbol_table.set("listMax", BuiltInFunction.listMax)
 global_symbol_table.set("asyncRun", BuiltInFunction.asyncRun)
 global_symbol_table.set("asyncGather", BuiltInFunction.asyncGather)
 global_symbol_table.set("asyncSleep", BuiltInFunction.asyncSleep)
+global_symbol_table.set("tupleCreate", BuiltInFunction.tupleCreate)
+global_symbol_table.set("tupleGet", BuiltInFunction.tupleGet)
+global_symbol_table.set("tupleLen", BuiltInFunction.tupleLen)
+global_symbol_table.set("tupleContains", BuiltInFunction.tupleContains)
+global_symbol_table.set("tupleIndex", BuiltInFunction.tupleIndex)
+global_symbol_table.set("tupleSlice", BuiltInFunction.tupleSlice)
+global_symbol_table.set("tupleToList", BuiltInFunction.tupleToList)
+global_symbol_table.set("listToTuple", BuiltInFunction.listToTuple)
+global_symbol_table.set("tupleConcat", BuiltInFunction.tupleConcat)
+global_symbol_table.set("tupleCount", BuiltInFunction.tupleCount)
+global_symbol_table.set("tupleFirst", BuiltInFunction.tupleFirst)
+global_symbol_table.set("tupleLast", BuiltInFunction.tupleLast)
+global_symbol_table.set("tupleJsonArray", BuiltInFunction.tupleJsonArray)
 
 SHARED_INTERPRETER = Interpreter()
 
