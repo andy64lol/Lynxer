@@ -2,7 +2,7 @@
 
 See [Language Reference — Classes](language.md#classes) for the full reference.
 
-A **class** in Lynxer is a named, static singleton that groups typed fields and `def` methods. There is exactly one instance per class — no `new` keyword.
+A **class** in Lynxer is a named, static singleton that groups typed fields and `local` methods. There is exactly one instance per class — no `new` keyword.
 
 ```c
 global setup(){}
@@ -10,15 +10,15 @@ global setup(){}
 class Counter {
     int count = 0;
 
-    def init() {
+    local init() {
         int this.count = 0;
     }
 
-    def increment() {
+    local increment() {
         int this.count = this.count + 1;
     }
 
-    def value() {
+    local value() {
         return this.count;
     }
 }

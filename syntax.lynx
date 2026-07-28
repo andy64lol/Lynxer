@@ -83,10 +83,41 @@ global demoFor(){
     print("\n");
 }
 
+// ── local function helpers ────────────────────────────────────────────────────
+// (local functions are defined and called inside a global function body)
+
 // ── main ─────────────────────────────────────────────────────────────────────
 
 global main(){
     global.printLine("=", 40);
+
+    // --- local functions ---
+    print("\n-- local functions --\n");
+
+    local square(int n){
+        return n * n;
+    }
+
+    local cube(int n){
+        return n * n * n;
+    }
+
+    local greetLocal(str name){
+        return "Hi, " + name + "!";
+    }
+
+    print("local.square(5)      = "); print(local.square(5));         print("\n");
+    print("local.cube(3)        = "); print(local.cube(3));           print("\n");
+    print("local.greetLocal()   = "); print(local.greetLocal("Dev")); print("\n");
+
+    // nested local: local.outer.inner() syntax
+    local outer(){
+        local inner(){
+            return 99;
+        }
+        return local.inner();
+    }
+    print("local.outer() (nested inner) = "); print(local.outer()); print("\n");
     print(TITLE); print(" v"); print(VERSION); print("\n");
     global.printLine("=", 40);
 

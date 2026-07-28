@@ -23,11 +23,11 @@ global greet(str name){
 
 class Config {
     int maxRetries = 3;
-    def getMax() { return this.maxRetries; }
+    local getMax() { return this.maxRetries; }
 }
 
 global main(){
-    greet(APP);
+    global.greet(APP);
 }
 ```
 
@@ -301,7 +301,7 @@ Lynxer has two kinds of functions with distinct scopes:
 | Kind | Keyword | Where | Visible from |
 |------|---------|-------|--------------|
 | Global | `global` | Top-level only (between `setup` and `main`) | Any function in the file |
-| Local | `def` | Inside any function body | Only inside the declaring function |
+| Local | `local` | Inside any function body | Only inside the declaring function |
 
 ### Global functions (`global`)
 
@@ -326,25 +326,38 @@ global main(){
 
 All `global` functions must be called with the `global.` prefix when invoked from inside another global function.
 
-### Local functions (`def`)
+### Local functions (`local`)
 
-`def` is the keyword for **local** helpers declared inside a function body. They are not accessible outside their declaring scope.
+`local` is the keyword for **local** helpers declared inside a function body. They are not accessible outside their declaring scope.
 
 ```c
 global main(){
-    def square(int n){
+    local square(int n){
         return n * n;
     }
-    print(square(5)); print("\n");   // 25
+    print(local.square(5)); print("\n");   // 25
 }
 ```
 
-`def` functions can be nested (a `def` inside a `def`).
+`local` functions can be nested (a `local` inside a `local`). Calling a nested local uses the chained `local.outer.inner()` syntax:
 
-**Scope rules for `def`:**
+```c
+global main(){
+    local outer(){
+        local inner(){
+            return 42;
+        }
+        return local.inner();
+    }
+    print(local.outer()); print("\n");  // 42
+}
+```
+
+**Scope rules for `local`:**
 - Visible only after the line it is declared.
-- A `def` shadows any outer name of the same name within its declaring scope.
+- A `local` shadows any outer name of the same name within its declaring scope.
 - Variables are looked up through the parent context chain at call time.
+- Always call a local function with the `local.` prefix: `local.funcName()`.
 
 ### Typed parameters
 
@@ -386,15 +399,15 @@ global setup(){}
 class Counter {
     int count = 0;
 
-    def init() {
+    local init() {
         int this.count = 0;
     }
 
-    def increment() {
+    local increment() {
         int this.count = this.count + 1;
     }
 
-    def value() {
+    local value() {
         return this.count;
     }
 }

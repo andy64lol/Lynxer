@@ -162,7 +162,7 @@ TYPE_KEYWORDS = ["int", "float", "str", "bool", "any", "tuple"]
 
 KEYWORDS = [
     "int", "float", "str", "bool", "any", "tuple",
-    "global", "def", "const",
+    "global", "local", "const",
     "if", "else", "while", "for",
     "return", "import", "importAs",
     "true", "false", "none",
@@ -889,7 +889,6 @@ class Parser:
         while self.current_tok.type != TT_EOF:
             is_func_kw = (
                 self.current_tok.matches(TT_KEYWORD, "global")
-                or self.current_tok.matches(TT_KEYWORD, "def")
                 or (
                     self.current_tok.type == TT_IDENTIFIER
                     and self.current_tok.value == "global"
@@ -978,7 +977,7 @@ class Parser:
                         self.current_tok.pos_start,
                         self.current_tok.pos_end,
                         "Executable code is not allowed outside of a function. "
-                        "Only 'global'/'global'/'def' definitions are permitted at the top level. "
+                        "Only 'global' definitions are permitted at the top level. "
                         "Put globals in setup() and entry logic in 'global main(){}'",
                     )
                 )
@@ -1019,7 +1018,7 @@ class Parser:
             res.register_advancement()
             self.advance()  # consume 'async'
 
-        # kind: global/global or def
+        # kind: global or local
         _is_global_kw = (
             self.current_tok.type == TT_IDENTIFIER
             and self.current_tok.value == "global"
@@ -1027,13 +1026,13 @@ class Parser:
         if not (
             self.current_tok.matches(TT_KEYWORD, "global")
             or _is_global_kw
-            or self.current_tok.matches(TT_KEYWORD, "def")
+            or self.current_tok.matches(TT_KEYWORD, "local")
         ):
             return res.failure(
                 InvalidSyntaxError(
                     self.current_tok.pos_start,
                     self.current_tok.pos_end,
-                    "Expected 'global'/'global' or 'def'" + (" after 'async'" if is_async else ""),
+                    "Expected 'global' or 'local'" + (" after 'async'" if is_async else ""),
                 )
             )
         if is_async and not _is_global_kw:
@@ -1152,7 +1151,7 @@ class Parser:
         method_nodes = []  # list of FuncDefNode (kind == 'def')
 
         while self.current_tok.type != TT_RBRACE and self.current_tok.type != TT_EOF:
-            if self.current_tok.matches(TT_KEYWORD, "def"):
+            if self.current_tok.matches(TT_KEYWORD, "local"):
                 method_node = res.register(self.parse_func_def())
                 if res.error:
                     return res
@@ -1200,7 +1199,7 @@ class Parser:
             else:
                 return res.failure(InvalidSyntaxError(
                     self.current_tok.pos_start, self.current_tok.pos_end,
-                    "Expected a field declaration (type name = value;) or method (def name(){}) in class body"
+                    "Expected a field declaration (type name = value;) or method (local name(){}) in class body"
                 ))
 
         if not field_defs and not method_nodes:
@@ -1288,11 +1287,40 @@ class Parser:
                 return res
             return res.success(node)
 
-        if allow_local_funcs and self.current_tok.matches(TT_KEYWORD, "def"):
+        # local.funcName(...); — local namespace call as a standalone statement
+        if (
+            self.current_tok.matches(TT_KEYWORD, "local")
+        ) and self.peek(1) is not None and self.peek(1).type == TT_DOT:
+            expr = res.register(self.parse_expr())
+            if res.error:
+                return res
+            if self.current_tok.type != TT_SEMICOLON:
+                return res.failure(
+                    InvalidSyntaxError(
+                        expr.pos_end,
+                        self.current_tok.pos_start,
+                        "Missing ';' after statement",
+                    )
+                )
+            res.register_advancement()
+            self.advance()
+            return res.success(expr)
+
+        if allow_local_funcs and self.current_tok.matches(TT_KEYWORD, "local"):
             node = res.register(self.parse_func_def())
             if res.error:
                 return res
             return res.success(node)
+
+        # 'local funcName(){}' outside a function body — helpful error
+        if self.current_tok.matches(TT_KEYWORD, "local"):
+            return res.failure(
+                InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "'local' function definitions are only allowed inside a function body",
+                )
+            )
 
         if self.current_tok.matches(TT_KEYWORD, "async"):
             peek1 = self.peek(1)
@@ -3023,7 +3051,9 @@ class Parser:
             self.advance()
             return res.success(NoneNode(tok))
 
-        elif tok.type == TT_IDENTIFIER or tok.matches(TT_KEYWORD, "global"):
+        elif (tok.type == TT_IDENTIFIER
+              or tok.matches(TT_KEYWORD, "global")
+              or tok.matches(TT_KEYWORD, "local")):
             res.register_advancement()
             self.advance()
             return res.success(VarAccessNode(tok))
@@ -3698,11 +3728,23 @@ class Function(BaseFunction):
         self.param_names = param_names
         self.param_types = param_types or [None] * len(param_names)
         self.is_global = is_global
+        self.inner_locals = {}  # nested 'local' functions defined inside this function
+
+    def get_attr(self, name):
+        if name in self.inner_locals:
+            return self.inner_locals[name], None
+        return None, RTError(
+            self.pos_start,
+            self.pos_end,
+            f"Local function '{self.name}' has no nested local '{name}'",
+            self.context,
+        )
 
     def execute(self, args):
         res = RTResult()
         interpreter = SHARED_INTERPRETER
         exec_ctx = self.generate_new_context()
+        exec_ctx.current_function = self  # track for inner-local registration
 
         res.register(
             self.check_and_populate_args(
@@ -3711,6 +3753,9 @@ class Function(BaseFunction):
         )
         if res.should_return():
             return res
+
+        # Expose 'local' namespace so local.funcName() calls work
+        exec_ctx.symbol_table.set("local", LocalNamespace(exec_ctx.symbol_table))
 
         res.register(interpreter.visit(self.body_node, exec_ctx))
         if res.should_return() and res.func_return_value is None:
@@ -3725,6 +3770,7 @@ class Function(BaseFunction):
         c = Function(self.name, self.body_node, self.param_names, self.param_types, self.is_global)
         c.set_context(self.context)
         c.set_pos(self.pos_start, self.pos_end)
+        c.inner_locals = dict(self.inner_locals)
         return c
 
     def __repr__(self):
@@ -3740,10 +3786,22 @@ class AsyncFunction(BaseFunction):
         self.param_names = param_names
         self.param_types = param_types or [None] * len(param_names)
         self.is_global = is_global
+        self.inner_locals = {}  # nested 'local' functions defined inside this function
+
+    def get_attr(self, name):
+        if name in self.inner_locals:
+            return self.inner_locals[name], None
+        return None, RTError(
+            self.pos_start,
+            self.pos_end,
+            f"Local function '{self.name}' has no nested local '{name}'",
+            self.context,
+        )
 
     def execute(self, args):
         res = RTResult()
         exec_ctx = self.generate_new_context()
+        exec_ctx.current_function = self  # track for inner-local registration
 
         # Validate / populate args synchronously — arg errors are sync failures
         res.register(
@@ -3753,6 +3811,9 @@ class AsyncFunction(BaseFunction):
         )
         if res.should_return():
             return res
+
+        # Expose 'local' namespace so local.funcName() calls work
+        exec_ctx.symbol_table.set("local", LocalNamespace(exec_ctx.symbol_table))
 
         body_node = self.body_node
 
@@ -3773,6 +3834,7 @@ class AsyncFunction(BaseFunction):
         c = AsyncFunction(self.name, self.body_node, self.param_names, self.param_types, self.is_global)
         c.set_context(self.context)
         c.set_pos(self.pos_start, self.pos_end)
+        c.inner_locals = dict(self.inner_locals)
         return c
 
     def __repr__(self):
@@ -4770,6 +4832,41 @@ class Namespace(Value):
         return "<namespace>"
 
 
+class LocalNamespace(Value):
+    """Namespace for 'local' functions defined in the current function scope."""
+
+    def __init__(self, symbol_table):
+        super().__init__()
+        self.symbol_table = symbol_table
+
+    def get_attr(self, name):
+        val = self.symbol_table.get(name)
+        if val is None:
+            return None, RTError(
+                self.pos_start,
+                self.pos_end,
+                f"Local function '{name}' is not defined in this scope",
+                self.context,
+            )
+        if isinstance(val, (Function, AsyncFunction)) and val.is_global:
+            return None, RTError(
+                self.pos_start,
+                self.pos_end,
+                f"'{name}' is a global function — call it with 'global.{name}(...)' instead",
+                self.context,
+            )
+        return val, None
+
+    def copy(self):
+        c = LocalNamespace(self.symbol_table)
+        c.set_pos(self.pos_start, self.pos_end)
+        c.set_context(self.context)
+        return c
+
+    def __repr__(self):
+        return "<local namespace>"
+
+
 class Module(Value):
     def __init__(self, name, symbol_table):
         super().__init__()
@@ -5083,6 +5180,7 @@ class Context:
         self.parent = parent
         self.parent_entry_pos = parent_entry_pos
         self.symbol_table = None
+        self.current_function = None  # the Function/AsyncFunction currently executing
 
 
 # symbol table
@@ -5532,6 +5630,10 @@ class Interpreter:
             func_value = Function(func_name, node.body_block, param_names, param_types, is_global)
         func_value.set_context(context).set_pos(node.pos_start, node.pos_end)
         context.symbol_table.set(func_name, func_value)
+        # If this is a 'local' function defined inside another local, also register
+        # it on the parent function so local.outerFunc.innerFunc() chains work.
+        if not is_global and context.current_function is not None:
+            context.current_function.inner_locals[func_name] = func_value
         return res.success(func_value)
 
     def visit_AsyncLocalDefNode(self, node, context):
@@ -5917,6 +6019,17 @@ class Interpreter:
                 context,
             ))
 
+        # enforce local.funcName() call syntax for user-defined local functions
+        if (isinstance(node.node_to_call, VarAccessNode)
+                and isinstance(value_to_call, (Function, AsyncFunction))
+                and not value_to_call.is_global):
+            return res.failure(RTError(
+                node.pos_start, node.pos_end,
+                f"Local function '{value_to_call.name}' must be called as "
+                f"'local.{value_to_call.name}(...)' not '{value_to_call.name}(...)'",
+                context,
+            ))
+
         for arg_node in node.arg_nodes:
             args.append(res.register(await self.async_visit(arg_node, context)))
             if res.should_return():
@@ -6059,6 +6172,17 @@ class Interpreter:
                 node.pos_start, node.pos_end,
                 f"Global function '{value_to_call.name}' must be called as "
                 f"'global.{value_to_call.name}(...)' not '{value_to_call.name}(...)'",
+                context,
+            ))
+
+        # enforce local.funcName() call syntax for user-defined local functions
+        if (isinstance(node.node_to_call, VarAccessNode)
+                and isinstance(value_to_call, (Function, AsyncFunction))
+                and not value_to_call.is_global):
+            return res.failure(RTError(
+                node.pos_start, node.pos_end,
+                f"Local function '{value_to_call.name}' must be called as "
+                f"'local.{value_to_call.name}(...)' not '{value_to_call.name}(...)'",
                 context,
             ))
 
