@@ -1,0 +1,328 @@
+///
+  Lynxer Standard Library — re
+  Wraps Python's re module for regular expression operations.
+
+  All pattern strings use Python regex syntax.
+  Functions that return multiple results encode them as JSON arrays.
+
+  Provides: test, match, matchFull, search, findall, finditer,
+            sub, subn, split, escape, groups, groupsAll,
+            named, count,
+            matchIgnoreCase, searchIgnoreCase, findallIgnoreCase,
+            subIgnoreCase, testIgnoreCase
+///
+
+global setup(){}
+
+// ── Basic matching ─────────────────────────────────────────────────────────
+
+/// Return true if pattern matches anywhere in string. ///
+global test(str pattern, str string){
+    bool result = false;
+    rawPy(){
+        import re as _re
+        result = bool(_re.search(pattern, string))
+    }
+    return result;
+}
+
+/// Match pattern at the start of string.
+  Returns the matched substring, or "" if no match. ///
+global match(str pattern, str string){
+    str result = "";
+    rawPy(){
+        import re as _re
+        m = _re.match(pattern, string)
+        result = m.group(0) if m else ""
+    }
+    return result;
+}
+
+/// Match pattern against the entire string (anchored at both ends).
+  Returns the matched substring, or "" if no full match. ///
+global matchFull(str pattern, str string){
+    str result = "";
+    rawPy(){
+        import re as _re
+        m = _re.fullmatch(pattern, string)
+        result = m.group(0) if m else ""
+    }
+    return result;
+}
+
+/// Search string for pattern; return the first matched substring, or "". ///
+global search(str pattern, str string){
+    str result = "";
+    rawPy(){
+        import re as _re
+        m = _re.search(pattern, string)
+        result = m.group(0) if m else ""
+    }
+    return result;
+}
+
+/// Return a JSON array of all non-overlapping matches of pattern in string.
+  Example: findall("\\d+", "a1 b22 c333") → '["1","22","333"]'. ///
+global findall(str pattern, str string){
+    str result = "";
+    rawPy(){
+        import re as _re, json as _json
+        matches = _re.findall(pattern, string)
+        result = _json.dumps([str(m) if not isinstance(m, str) else m for m in matches])
+    }
+    return result;
+}
+
+/// Return the number of non-overlapping matches of pattern in string. ///
+global count(str pattern, str string){
+    int result = 0;
+    rawPy(){
+        import re as _re
+        result = len(_re.findall(pattern, string))
+    }
+    return result;
+}
+
+// ── Capture groups ─────────────────────────────────────────────────────────
+
+/// Return a JSON array of capture groups from the first match, or "[]" if no match.
+  Example: groups("(\\w+)@(\\w+)", "user@host") → '["user","host"]'. ///
+global groups(str pattern, str string){
+    str result = "";
+    rawPy(){
+        import re as _re, json as _json
+        m = _re.search(pattern, string)
+        result = _json.dumps(list(m.groups(default=""))) if m else "[]"
+    }
+    return result;
+}
+
+/// Return a JSON array-of-arrays of capture groups for every match.
+  Each inner array contains the groups from one match.
+  Example: groupsAll("(\\w+)=(\\d+)", "x=1 y=2") → '[["x","1"],["y","2"]]'. ///
+global groupsAll(str pattern, str string){
+    str result = "";
+    rawPy(){
+        import re as _re, json as _json
+        rows = []
+        for m in _re.finditer(pattern, string):
+            rows.append(list(m.groups(default="")))
+        result = _json.dumps(rows)
+    }
+    return result;
+}
+
+/// Return a JSON object of named capture groups from the first match, or "{}".
+  Use (?P<name>...) in your pattern.
+  Example: named("(?P<user>\\w+)@(?P<host>\\w+)", "alice@example") → '{"user":"alice","host":"example"}'. ///
+global named(str pattern, str string){
+    str result = "";
+    rawPy(){
+        import re as _re, json as _json
+        m = _re.search(pattern, string)
+        result = _json.dumps(m.groupdict()) if m else "{}"
+    }
+    return result;
+}
+
+// ── Substitution ───────────────────────────────────────────────────────────
+
+/// Replace all occurrences of pattern in string with repl.
+  Backreferences like \\1 or \\g<name> work as in Python's re.sub.
+  Returns the modified string. ///
+global sub(str pattern, str repl, str string){
+    str result = "";
+    rawPy(){
+        import re as _re
+        result = _re.sub(pattern, repl, string)
+    }
+    return result;
+}
+
+/// Replace the first n occurrences of pattern in string with repl.
+  Returns the modified string. ///
+global subN(str pattern, str repl, str string, int n){
+    str result = "";
+    rawPy(){
+        import re as _re
+        result = _re.sub(pattern, repl, string, count=n)
+    }
+    return result;
+}
+
+/// Replace pattern with repl; return a JSON object {"result":"...","count":N}
+  where count is the number of substitutions made. ///
+global subn(str pattern, str repl, str string){
+    str result = "";
+    rawPy(){
+        import re as _re, json as _json
+        new_str, n = _re.subn(pattern, repl, string)
+        result = _json.dumps({"result": new_str, "count": n})
+    }
+    return result;
+}
+
+// ── Splitting ──────────────────────────────────────────────────────────────
+
+/// Split string by every occurrence of pattern.
+  Returns a JSON array of the resulting parts.
+  Example: split("\\s+", "one  two   three") → '["one","two","three"]'. ///
+global split(str pattern, str string){
+    str result = "";
+    rawPy(){
+        import re as _re, json as _json
+        result = _json.dumps(_re.split(pattern, string))
+    }
+    return result;
+}
+
+/// Split string by pattern at most maxSplit times.
+  Returns a JSON array. ///
+global splitN(str pattern, str string, int maxSplit){
+    str result = "";
+    rawPy(){
+        import re as _re, json as _json
+        result = _json.dumps(_re.split(pattern, string, maxsplit=maxSplit))
+    }
+    return result;
+}
+
+// ── Utility ────────────────────────────────────────────────────────────────
+
+/// Escape all special regex characters in string so it matches literally.
+  Example: escape("a.b+c") → "a\\.b\\+c". ///
+global escape(str string){
+    str result = "";
+    rawPy(){
+        import re as _re
+        result = _re.escape(string)
+    }
+    return result;
+}
+
+/// Return the start index of the first match, or -1 if no match. ///
+global matchStart(str pattern, str string){
+    int result = 0;
+    rawPy(){
+        import re as _re
+        m = _re.search(pattern, string)
+        result = m.start() if m else -1
+    }
+    return result;
+}
+
+/// Return the end index of the first match, or -1 if no match. ///
+global matchEnd(str pattern, str string){
+    int result = 0;
+    rawPy(){
+        import re as _re
+        m = _re.search(pattern, string)
+        result = m.end() if m else -1
+    }
+    return result;
+}
+
+/// Return a JSON array [{start, end, match}] for every match in string.
+  Example: findSpans("\\d+", "a12b34") → '[{"start":1,"end":3,"match":"12"},...]'. ///
+global findSpans(str pattern, str string){
+    str result = "";
+    rawPy(){
+        import re as _re, json as _json
+        spans = []
+        for m in _re.finditer(pattern, string):
+            spans.append({"start": m.start(), "end": m.end(), "match": m.group(0)})
+        result = _json.dumps(spans)
+    }
+    return result;
+}
+
+// ── Case-insensitive variants ──────────────────────────────────────────────
+
+/// Return true if pattern matches anywhere in string (case-insensitive). ///
+global testIgnoreCase(str pattern, str string){
+    bool result = false;
+    rawPy(){
+        import re as _re
+        result = bool(_re.search(pattern, string, _re.IGNORECASE))
+    }
+    return result;
+}
+
+/// Match pattern at the start of string (case-insensitive). Returns matched string or "". ///
+global matchIgnoreCase(str pattern, str string){
+    str result = "";
+    rawPy(){
+        import re as _re
+        m = _re.match(pattern, string, _re.IGNORECASE)
+        result = m.group(0) if m else ""
+    }
+    return result;
+}
+
+/// Search string for pattern (case-insensitive). Returns first matched string or "". ///
+global searchIgnoreCase(str pattern, str string){
+    str result = "";
+    rawPy(){
+        import re as _re
+        m = _re.search(pattern, string, _re.IGNORECASE)
+        result = m.group(0) if m else ""
+    }
+    return result;
+}
+
+/// Return JSON array of all matches (case-insensitive). ///
+global findallIgnoreCase(str pattern, str string){
+    str result = "";
+    rawPy(){
+        import re as _re, json as _json
+        matches = _re.findall(pattern, string, _re.IGNORECASE)
+        result = _json.dumps([str(m) if not isinstance(m, str) else m for m in matches])
+    }
+    return result;
+}
+
+/// Replace all occurrences of pattern in string with repl (case-insensitive). ///
+global subIgnoreCase(str pattern, str repl, str string){
+    str result = "";
+    rawPy(){
+        import re as _re
+        result = _re.sub(pattern, repl, string, flags=_re.IGNORECASE)
+    }
+    return result;
+}
+
+// ── Multiline / dotall variants ────────────────────────────────────────────
+
+/// Return JSON array of all matches with MULTILINE flag (^ and $ match each line). ///
+global findallMultiline(str pattern, str string){
+    str result = "";
+    rawPy(){
+        import re as _re, json as _json
+        matches = _re.findall(pattern, string, _re.MULTILINE)
+        result = _json.dumps([str(m) if not isinstance(m, str) else m for m in matches])
+    }
+    return result;
+}
+
+/// Replace with MULTILINE flag. ///
+global subMultiline(str pattern, str repl, str string){
+    str result = "";
+    rawPy(){
+        import re as _re
+        result = _re.sub(pattern, repl, string, flags=_re.MULTILINE)
+    }
+    return result;
+}
+
+/// Search with DOTALL flag (. matches newline too). ///
+global searchDotall(str pattern, str string){
+    str result = "";
+    rawPy(){
+        import re as _re
+        m = _re.search(pattern, string, _re.DOTALL)
+        result = m.group(0) if m else ""
+    }
+    return result;
+}
+
+global main(){}

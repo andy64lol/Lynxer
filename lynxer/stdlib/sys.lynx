@@ -1,0 +1,336 @@
+///
+  Lynxer Standard Library — sys
+  Wraps Python's sys module for runtime information and control.
+
+  Provides: version, versionInfo, platform, executable, prefix,
+            argv, exit, getPath, addPath, removeFromPath,
+            getModules, getRecursionLimit, setRecursionLimit,
+            getMaxSize, getByteOrder, getDefaultEncoding,
+            getFilesystemEncoding, getRefCount, isFrozen,
+            stdin, stdout, stderr (as string descriptors),
+            getFlags
+///
+
+global setup(){}
+
+// ── Version & platform ─────────────────────────────────────────────────────
+
+/// Return the Python version string, e.g. "3.11.4 (main, ...)". ///
+global version(){
+    str result = "";
+    rawPy(){
+        import sys as _sys
+        result = _sys.version
+    }
+    return result;
+}
+
+/// Return version info as a JSON object: {"major":3,"minor":11,"micro":4,"releaselevel":"final","serial":0}. ///
+global versionInfo(){
+    str result = "";
+    rawPy(){
+        import sys as _sys, json as _json
+        v = _sys.version_info
+        result = _json.dumps({
+            "major":        v.major,
+            "minor":        v.minor,
+            "micro":        v.micro,
+            "releaselevel": v.releaselevel,
+            "serial":       v.serial
+        })
+    }
+    return result;
+}
+
+/// Return the platform identifier, e.g. "linux", "darwin", "win32". ///
+global platform(){
+    str result = "";
+    rawPy(){
+        import sys as _sys
+        result = _sys.platform
+    }
+    return result;
+}
+
+/// Return the absolute path to the Python interpreter executable. ///
+global executable(){
+    str result = "";
+    rawPy(){
+        import sys as _sys
+        result = _sys.executable
+    }
+    return result;
+}
+
+/// Return sys.prefix (Python installation root). ///
+global prefix(){
+    str result = "";
+    rawPy(){
+        import sys as _sys
+        result = _sys.prefix
+    }
+    return result;
+}
+
+/// Return sys.exec_prefix (platform-specific installation root). ///
+global execPrefix(){
+    str result = "";
+    rawPy(){
+        import sys as _sys
+        result = _sys.exec_prefix
+    }
+    return result;
+}
+
+// ── Command-line arguments ─────────────────────────────────────────────────
+
+/// Return sys.argv as a JSON array string, e.g. '["script.lynx","--flag","value"]'. ///
+global argv(){
+    str result = "";
+    rawPy(){
+        import sys as _sys, json as _json
+        result = _json.dumps(_sys.argv)
+    }
+    return result;
+}
+
+/// Return sys.argv[index] as a string, or "" if index is out of range. ///
+global getArg(int index){
+    str result = "";
+    rawPy(){
+        import sys as _sys
+        try:
+            result = str(_sys.argv[index])
+        except IndexError:
+            result = ""
+    }
+    return result;
+}
+
+/// Return the number of command-line arguments (len(sys.argv)). ///
+global argCount(){
+    int result = 0;
+    rawPy(){
+        import sys as _sys
+        result = len(_sys.argv)
+    }
+    return result;
+}
+
+// ── Process control ────────────────────────────────────────────────────────
+
+/// Exit the process with the given exit code (0 = success). ///
+global exit(int code){
+    rawPy(){
+        import sys as _sys
+        _sys.exit(code)
+    }
+}
+
+/// Exit with code 0. ///
+global exitOk(){
+    rawPy(){
+        import sys as _sys
+        _sys.exit(0)
+    }
+}
+
+/// Exit with code 1. ///
+global exitError(){
+    rawPy(){
+        import sys as _sys
+        _sys.exit(1)
+    }
+}
+
+// ── Module search path (sys.path) ──────────────────────────────────────────
+
+/// Return sys.path as a JSON array string. ///
+global getPath(){
+    str result = "";
+    rawPy(){
+        import sys as _sys, json as _json
+        result = _json.dumps(_sys.path)
+    }
+    return result;
+}
+
+/// Append path to sys.path. ///
+global addPath(str path){
+    rawPy(){
+        import sys as _sys
+        if path not in _sys.path:
+            _sys.path.append(path)
+    }
+}
+
+/// Prepend path to sys.path (highest priority). ///
+global prependPath(str path){
+    rawPy(){
+        import sys as _sys
+        if path in _sys.path:
+            _sys.path.remove(path)
+        _sys.path.insert(0, path)
+    }
+}
+
+/// Remove path from sys.path (no-op if not present). ///
+global removeFromPath(str path){
+    rawPy(){
+        import sys as _sys
+        try:
+            _sys.path.remove(path)
+        except ValueError:
+            pass
+    }
+}
+
+// ── Loaded modules ─────────────────────────────────────────────────────────
+
+/// Return a JSON array of names of all currently imported Python modules. ///
+global getModules(){
+    str result = "";
+    rawPy(){
+        import sys as _sys, json as _json
+        result = _json.dumps(sorted(_sys.modules.keys()))
+    }
+    return result;
+}
+
+/// Return true if the named Python module is already imported. ///
+global isModuleLoaded(str name){
+    bool result = false;
+    rawPy(){
+        import sys as _sys
+        result = name in _sys.modules
+    }
+    return result;
+}
+
+// ── Recursion limit ────────────────────────────────────────────────────────
+
+/// Return the current recursion limit (default 1000). ///
+global getRecursionLimit(){
+    int result = 0;
+    rawPy(){
+        import sys as _sys
+        result = _sys.getrecursionlimit()
+    }
+    return result;
+}
+
+/// Set a new recursion limit (must be > 0). ///
+global setRecursionLimit(int n){
+    rawPy(){
+        import sys as _sys
+        _sys.setrecursionlimit(n)
+    }
+}
+
+// ── Integer / memory limits ────────────────────────────────────────────────
+
+/// Return sys.maxsize (largest positive integer the platform can hold in a C ssize_t). ///
+global getMaxSize(){
+    int result = 0;
+    rawPy(){
+        import sys as _sys
+        result = _sys.maxsize
+    }
+    return result;
+}
+
+/// Return the native byte order: "little" or "big". ///
+global getByteOrder(){
+    str result = "";
+    rawPy(){
+        import sys as _sys
+        result = _sys.byteorder
+    }
+    return result;
+}
+
+// ── Encoding ───────────────────────────────────────────────────────────────
+
+/// Return the name of the default string encoding, e.g. "utf-8". ///
+global getDefaultEncoding(){
+    str result = "";
+    rawPy(){
+        import sys as _sys
+        result = _sys.getdefaultencoding()
+    }
+    return result;
+}
+
+/// Return the filesystem encoding used for file names, e.g. "utf-8". ///
+global getFilesystemEncoding(){
+    str result = "";
+    rawPy(){
+        import sys as _sys
+        result = _sys.getfilesystemencoding()
+    }
+    return result;
+}
+
+// ── Miscellaneous ──────────────────────────────────────────────────────────
+
+/// Return true if the interpreter is running as a PyInstaller frozen bundle. ///
+global isFrozen(){
+    bool result = false;
+    rawPy(){
+        import sys as _sys
+        result = getattr(_sys, "frozen", False) is not False
+    }
+    return result;
+}
+
+/// Return the name of the standard input stream device ("<stdin>"). ///
+global stdinName(){
+    str result = "";
+    rawPy(){
+        import sys as _sys
+        result = getattr(_sys.stdin, "name", "<stdin>")
+    }
+    return result;
+}
+
+/// Return the name of the standard output stream device ("<stdout>"). ///
+global stdoutName(){
+    str result = "";
+    rawPy(){
+        import sys as _sys
+        result = getattr(_sys.stdout, "name", "<stdout>")
+    }
+    return result;
+}
+
+/// Return true if stdout is connected to a terminal (TTY). ///
+global isatty(){
+    bool result = false;
+    rawPy(){
+        import sys as _sys
+        result = hasattr(_sys.stdout, "isatty") and _sys.stdout.isatty()
+    }
+    return result;
+}
+
+/// Return the CPython implementation name, e.g. "cpython". ///
+global implementation(){
+    str result = "";
+    rawPy(){
+        import sys as _sys
+        result = _sys.implementation.name
+    }
+    return result;
+}
+
+/// Return the Python API version as an integer. ///
+global apiVersion(){
+    int result = 0;
+    rawPy(){
+        import sys as _sys
+        result = getattr(_sys, "api_version", 0)
+    }
+    return result;
+}
+
+global main(){}

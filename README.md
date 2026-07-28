@@ -78,11 +78,16 @@ global main(){
 |------|----------|
 | [Language reference](docs/language.md) | Types, variables, operators, control flow, functions |
 | [Built-ins](docs/builtins.md) | `print`, `input`, `strOf`, `returnType`, `seqFromTo`, … |
-| [Standard library](docs/stdlib.md) | `math`, `typing`, `fileIO`, `shell` modules |
+| [Standard library](docs/stdlib.md) | All stdlib modules — overview and function tables |
+| [stdlib/ reference](docs/stdlib/README.md) | Individual per-module documentation pages |
 | [rawPy / rawPyx](docs/rawpy.md) | Embedding Python and Cython |
 | [Module system](docs/modules.md) | `import()`, namespaces, writing your own modules |
 | [Bytecode (.lynxc)](docs/bytecode.md) | Compiling to bytecode, running `.lynxc` files, importing bytecode modules |
-| [Installation](docs/install.md) | Detailed install, Makefile targets, requirements |
+| [Vargroups](docs/vargroups.md) | Named typed records (struct-like) |
+| [Classes](docs/classes.md) | Static singleton classes |
+| [Async](docs/async.md) | Async functions |
+| [Lists](docs/lists.md) | List operations |
+| [Installation](docs/install.md) | Install, Makefile targets, requirements |
 
 ---
 

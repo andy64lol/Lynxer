@@ -1,21 +1,55 @@
 ///
-Lynxer Standard Library — tkinter
-Wraps Python's tkinter to provide simple GUI windows.
+  Lynxer Standard Library — tkinter
+  Comprehensive GUI toolkit wrapping Python's tkinter and tkinter.ttk.
+
+  Widgets are referenced by integer indexes stored in an internal list.
+  Layout:  pack (default) | grid | place
+
+  Provides:
+    Window:       init, setTitle, resize, setBackground, disableResize,
+                  setMinSize, setMaxSize, setOpacity, center, topmost,
+                  iconify, deiconify, update, after, bind, unbind
+    Widgets:      label, button, entry, textBox, checkbox, separator,
+                  frame, labelFrame, listbox, radioButton, scale,
+                  spinbox, progressBar, combobox, canvas, image, scrollbar
+    ttk:          notebook, addTab
+    Menus:        menubar, addMenu, addMenuItem, addMenuSeparator,
+                  addCheckMenuItem, contextMenu, addContextItem, showContext
+    Layout:       grid, place, pack
+    Styling:      setFont, setForeground, setBackgroundWidget,
+                  setPadding, setBorder, setCursor
+    Widget ops:   getValue, getListSelection, getScale, getRadio,
+                  getCombo, setText, setEntryText, setValue,
+                  clearWidget, disableWidget, enableWidget, isChecked,
+                  setChecked, hideWidget, showWidget, destroyWidget,
+                  canvasLine, canvasRect, canvasOval, canvasText,
+                  canvasClear, scrollbarAttach
+    Dialogs:      messageBox, warningBox, errorBox, askYesNo,
+                  openFileDialog, saveFileDialog, openDirDialog,
+                  askColor, askString, askInteger, askFloat
+    App:          run, close
 ///
 
 global setup(){}
 
+// ── Window ─────────────────────────────────────────────────────────────────
+
+/// Create the main window.  Must be called first. ///
 global init(str title, int width, int height){
     rawPy(){
         import tkinter as _tk, builtins
         _root = _tk.Tk()
         _root.title(title)
         _root.geometry(str(width) + "x" + str(height))
-        builtins._lx_root = _root
+        builtins._lx_root    = _root
         builtins._lx_widgets = []
+        builtins._lx_menus   = []
+        builtins._lx_rgroups = {}   // radiobutton groups {groupId: StringVar}
+        builtins._lx_menubar = None
     }
 }
 
+/// Change the window title. ///
 global setTitle(str title){
     rawPy(){
         import builtins
@@ -23,6 +57,7 @@ global setTitle(str title){
     }
 }
 
+/// Resize the window. ///
 global resize(int width, int height){
     rawPy(){
         import builtins
@@ -30,6 +65,7 @@ global resize(int width, int height){
     }
 }
 
+/// Set the background colour of the window (e.g. "white", "#1e1e1e"). ///
 global setBackground(str color){
     rawPy(){
         import builtins
@@ -37,6 +73,7 @@ global setBackground(str color){
     }
 }
 
+/// Prevent the user from resizing the window. ///
 global disableResize(){
     rawPy(){
         import builtins
@@ -44,6 +81,103 @@ global disableResize(){
     }
 }
 
+/// Set minimum window dimensions. ///
+global setMinSize(int width, int height){
+    rawPy(){
+        import builtins
+        builtins._lx_root.minsize(width, height)
+    }
+}
+
+/// Set maximum window dimensions. ///
+global setMaxSize(int width, int height){
+    rawPy(){
+        import builtins
+        builtins._lx_root.maxsize(width, height)
+    }
+}
+
+/// Set window opacity (0.0 fully transparent … 1.0 fully opaque). ///
+global setOpacity(float alpha){
+    rawPy(){
+        import builtins
+        builtins._lx_root.attributes("-alpha", alpha)
+    }
+}
+
+/// Center the window on the screen. ///
+global center(){
+    rawPy(){
+        import builtins
+        root = builtins._lx_root
+        root.update_idletasks()
+        w = root.winfo_width()
+        h = root.winfo_height()
+        sw = root.winfo_screenwidth()
+        sh = root.winfo_screenheight()
+        x = (sw - w) // 2
+        y = (sh - h) // 2
+        root.geometry(f"{w}x{h}+{x}+{y}")
+    }
+}
+
+/// Keep the window always on top when enabled is true. ///
+global topmost(bool enabled){
+    rawPy(){
+        import builtins
+        builtins._lx_root.attributes("-topmost", bool(enabled))
+    }
+}
+
+/// Minimize (iconify) the window. ///
+global iconify(){
+    rawPy(){
+        import builtins
+        builtins._lx_root.iconify()
+    }
+}
+
+/// Restore a minimized window. ///
+global deiconify(){
+    rawPy(){
+        import builtins
+        builtins._lx_root.deiconify()
+    }
+}
+
+/// Process all pending events (force UI refresh). ///
+global update(){
+    rawPy(){
+        import builtins
+        builtins._lx_root.update()
+    }
+}
+
+/// Schedule a callback to fire once after delayMs milliseconds.
+  Internally uses root.after(); no Lynxer callback — use with rawPy. ///
+global after(int delayMs){
+    rawPy(){
+        import builtins
+        builtins._lx_root.after(delayMs)
+    }
+}
+
+/// Bind a keyboard or window event to close the app.
+  event examples: "<Escape>", "<Control-q>", "<F1>", "WM_DELETE_WINDOW". ///
+global bindClose(str event){
+    rawPy(){
+        import builtins
+        _ev = event
+        if _ev == "WM_DELETE_WINDOW":
+            builtins._lx_root.protocol("WM_DELETE_WINDOW", builtins._lx_root.destroy)
+        else:
+            builtins._lx_root.bind(_ev, lambda e: builtins._lx_root.destroy())
+    }
+}
+
+// ── Label ──────────────────────────────────────────────────────────────────
+
+/// Create a text label.  Returns widget index. ///
 global label(str text){
     int idx = 0;
     rawPy(){
@@ -56,6 +190,22 @@ global label(str text){
     return idx;
 }
 
+/// Create a label with custom text colour and background colour. ///
+global labelStyled(str text, str fg, str bg){
+    int idx = 0;
+    rawPy(){
+        import tkinter as _tk, builtins
+        w = _tk.Label(builtins._lx_root, text=text, fg=fg, bg=bg)
+        w.pack(pady=4, padx=8, anchor="w")
+        builtins._lx_widgets.append(w)
+        idx = len(builtins._lx_widgets) - 1
+    }
+    return idx;
+}
+
+// ── Button ─────────────────────────────────────────────────────────────────
+
+/// Create a button.  Returns widget index. ///
 global button(str text){
     int idx = 0;
     rawPy(){
@@ -68,6 +218,23 @@ global button(str text){
     return idx;
 }
 
+/// Create a button with custom foreground and background colours. ///
+global buttonStyled(str text, str fg, str bg){
+    int idx = 0;
+    rawPy(){
+        import tkinter as _tk, builtins
+        w = _tk.Button(builtins._lx_root, text=text, fg=fg, bg=bg,
+                       activeforeground=fg, activebackground=bg)
+        w.pack(pady=4, padx=8, anchor="w")
+        builtins._lx_widgets.append(w)
+        idx = len(builtins._lx_widgets) - 1
+    }
+    return idx;
+}
+
+// ── Entry (single-line text input) ─────────────────────────────────────────
+
+/// Create a single-line text entry.  Returns widget index. ///
 global entry(){
     int idx = 0;
     rawPy(){
@@ -80,6 +247,22 @@ global entry(){
     return idx;
 }
 
+/// Create a password entry (characters shown as •). ///
+global passwordEntry(){
+    int idx = 0;
+    rawPy(){
+        import tkinter as _tk, builtins
+        w = _tk.Entry(builtins._lx_root, width=30, show="•")
+        w.pack(pady=4, padx=8, anchor="w")
+        builtins._lx_widgets.append(w)
+        idx = len(builtins._lx_widgets) - 1
+    }
+    return idx;
+}
+
+// ── Text box (multi-line) ───────────────────────────────────────────────────
+
+/// Create a multi-line text box.  Returns widget index. ///
 global textBox(int width, int height){
     int idx = 0;
     rawPy(){
@@ -92,6 +275,9 @@ global textBox(int width, int height){
     return idx;
 }
 
+// ── Checkbox ───────────────────────────────────────────────────────────────
+
+/// Create a checkbox.  Returns widget index.  Read state with isChecked(idx). ///
 global checkbox(str text){
     int idx = 0;
     rawPy(){
@@ -106,22 +292,363 @@ global checkbox(str text){
     return idx;
 }
 
-global separator(){
+// ── Radio button ───────────────────────────────────────────────────────────
+
+/// Create a radio button belonging to groupId.
+  All radio buttons sharing the same groupId are mutually exclusive.
+  Returns widget index.  Read selected value with getRadio(groupId). ///
+global radioButton(str text, str groupId){
     int idx = 0;
     rawPy(){
         import tkinter as _tk, builtins
-        try:
-            import tkinter.ttk as _ttk
-            w = _ttk.Separator(builtins._lx_root, orient="horizontal")
-        except Exception:
-            w = _tk.Frame(builtins._lx_root, height=2, bd=1, relief="sunken")
-        w.pack(fill="x", padx=8, pady=6)
+        if groupId not in builtins._lx_rgroups:
+            builtins._lx_rgroups[groupId] = _tk.StringVar(value="")
+        var = builtins._lx_rgroups[groupId]
+        w = _tk.Radiobutton(builtins._lx_root, text=text, variable=var, value=text)
+        w.pack(pady=2, padx=8, anchor="w")
         builtins._lx_widgets.append(w)
         idx = len(builtins._lx_widgets) - 1
     }
     return idx;
 }
 
+/// Return the value (text) of the currently selected radio button in groupId. ///
+global getRadio(str groupId){
+    str result = "";
+    rawPy(){
+        import builtins
+        try:
+            result = builtins._lx_rgroups[groupId].get()
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+// ── Listbox ────────────────────────────────────────────────────────────────
+
+/// Create a listbox populated with items (JSON array string of strings).
+  e.g. listbox('["Apple","Banana","Cherry"]')
+  Returns widget index.  Read selection with getListSelection(idx). ///
+global listbox(str itemsJson){
+    int idx = 0;
+    rawPy(){
+        import tkinter as _tk, builtins, json as _json
+        items = _json.loads(itemsJson) if itemsJson.strip() else []
+        var  = _tk.StringVar(value=items)
+        w    = _tk.Listbox(builtins._lx_root, listvariable=var, selectmode="single", height=6)
+        w.pack(pady=4, padx=8, fill="x")
+        builtins._lx_widgets.append(w)
+        idx = len(builtins._lx_widgets) - 1
+    }
+    return idx;
+}
+
+/// Return the currently selected item in a listbox, or "" if nothing selected. ///
+global getListSelection(int idx){
+    str result = "";
+    rawPy(){
+        import builtins
+        try:
+            w = builtins._lx_widgets[idx]
+            sel = w.curselection()
+            result = w.get(sel[0]) if sel else ""
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+/// Return the zero-based index of the selected listbox row, or -1. ///
+global getListIndex(int idx){
+    int result = 0;
+    rawPy(){
+        import builtins
+        try:
+            w   = builtins._lx_widgets[idx]
+            sel = w.curselection()
+            result = sel[0] if sel else -1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+// ── Scale (slider) ─────────────────────────────────────────────────────────
+
+/// Create a horizontal slider from lo to hi.
+  Returns widget index.  Read value with getScale(idx). ///
+global scale(float lo, float hi){
+    int idx = 0;
+    rawPy(){
+        import tkinter as _tk, builtins
+        w = _tk.Scale(builtins._lx_root, from_=lo, to=hi, orient="horizontal", length=200)
+        w.pack(pady=4, padx=8, anchor="w")
+        builtins._lx_widgets.append(w)
+        idx = len(builtins._lx_widgets) - 1
+    }
+    return idx;
+}
+
+/// Create a vertical slider from lo to hi. ///
+global scaleVertical(float lo, float hi){
+    int idx = 0;
+    rawPy(){
+        import tkinter as _tk, builtins
+        w = _tk.Scale(builtins._lx_root, from_=lo, to=hi, orient="vertical", length=150)
+        w.pack(pady=4, padx=8, anchor="w")
+        builtins._lx_widgets.append(w)
+        idx = len(builtins._lx_widgets) - 1
+    }
+    return idx;
+}
+
+/// Return the current float value of a Scale widget. ///
+global getScale(int idx){
+    float result = 0.0;
+    rawPy(){
+        import builtins
+        try:
+            result = float(builtins._lx_widgets[idx].get())
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+/// Set the value of a Scale widget. ///
+global setScale(int idx, float val){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_widgets[idx].set(val)
+        except Exception:
+            pass
+    }
+}
+
+// ── Spinbox ────────────────────────────────────────────────────────────────
+
+/// Create a spinbox (numeric stepper) from lo to hi with step increment.
+  Returns widget index.  Read value with getValue(idx). ///
+global spinbox(float lo, float hi, float step){
+    int idx = 0;
+    rawPy(){
+        import tkinter as _tk, builtins
+        w = _tk.Spinbox(builtins._lx_root, from_=lo, to=hi, increment=step, width=10)
+        w.pack(pady=4, padx=8, anchor="w")
+        builtins._lx_widgets.append(w)
+        idx = len(builtins._lx_widgets) - 1
+    }
+    return idx;
+}
+
+// ── ttk ProgressBar ────────────────────────────────────────────────────────
+
+/// Create a horizontal progress bar with a maximum value.
+  Returns widget index.  Set progress with setProgress(idx, value). ///
+global progressBar(float maxVal){
+    int idx = 0;
+    rawPy(){
+        import tkinter.ttk as _ttk, builtins
+        w = _ttk.Progressbar(builtins._lx_root, orient="horizontal",
+                             length=200, mode="determinate", maximum=maxVal)
+        w.pack(pady=4, padx=8, fill="x")
+        builtins._lx_widgets.append(w)
+        idx = len(builtins._lx_widgets) - 1
+    }
+    return idx;
+}
+
+/// Set the current value of a ProgressBar. ///
+global setProgress(int idx, float val){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_widgets[idx]["value"] = val
+            builtins._lx_root.update_idletasks()
+        except Exception:
+            pass
+    }
+}
+
+/// Return the current value of a ProgressBar. ///
+global getProgress(int idx){
+    float result = 0.0;
+    rawPy(){
+        import builtins
+        try:
+            result = float(builtins._lx_widgets[idx]["value"])
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+// ── ttk Combobox (dropdown) ────────────────────────────────────────────────
+
+/// Create a dropdown combobox.  itemsJson is a JSON array of strings.
+  e.g. combobox('["Red","Green","Blue"]')
+  Returns widget index.  Read selection with getCombo(idx). ///
+global combobox(str itemsJson){
+    int idx = 0;
+    rawPy(){
+        import tkinter.ttk as _ttk, builtins, json as _json
+        items = _json.loads(itemsJson) if itemsJson.strip() else []
+        w = _ttk.Combobox(builtins._lx_root, values=items, state="readonly", width=20)
+        if items:
+            w.current(0)
+        w.pack(pady=4, padx=8, anchor="w")
+        builtins._lx_widgets.append(w)
+        idx = len(builtins._lx_widgets) - 1
+    }
+    return idx;
+}
+
+/// Return the currently selected combobox value. ///
+global getCombo(int idx){
+    str result = "";
+    rawPy(){
+        import builtins
+        try:
+            result = builtins._lx_widgets[idx].get()
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+/// Set the combobox selection by item text. ///
+global setCombo(int idx, str text){
+    rawPy(){
+        import builtins
+        try:
+            w = builtins._lx_widgets[idx]
+            vals = list(w["values"])
+            if text in vals:
+                w.set(text)
+        except Exception:
+            pass
+    }
+}
+
+// ── ttk Notebook (tabbed pane) ─────────────────────────────────────────────
+
+/// Create a ttk Notebook (tabbed panel container).
+  Returns widget index.  Add tabs with addTab(nbIdx, frameIdx, text). ///
+global notebook(){
+    int idx = 0;
+    rawPy(){
+        import tkinter.ttk as _ttk, builtins
+        w = _ttk.Notebook(builtins._lx_root)
+        w.pack(pady=4, padx=8, fill="both", expand=True)
+        builtins._lx_widgets.append(w)
+        idx = len(builtins._lx_widgets) - 1
+    }
+    return idx;
+}
+
+/// Add a frame as a tab in a Notebook.
+  nbIdx is the notebook index; frameIdx is the frame to embed; text is the tab label. ///
+global addTab(int nbIdx, int frameIdx, str text){
+    rawPy(){
+        import builtins
+        try:
+            nb  = builtins._lx_widgets[nbIdx]
+            frm = builtins._lx_widgets[frameIdx]
+            frm.pack_forget()
+            nb.add(frm, text=text)
+        except Exception:
+            pass
+    }
+}
+
+// ── Canvas ─────────────────────────────────────────────────────────────────
+
+/// Create a drawing canvas.  Returns widget index. ///
+global canvas(int width, int height){
+    int idx = 0;
+    rawPy(){
+        import tkinter as _tk, builtins
+        w = _tk.Canvas(builtins._lx_root, width=width, height=height, bg="white")
+        w.pack(pady=4, padx=8)
+        builtins._lx_widgets.append(w)
+        idx = len(builtins._lx_widgets) - 1
+    }
+    return idx;
+}
+
+/// Draw a line on a canvas from (x1,y1) to (x2,y2) with the given colour. ///
+global canvasLine(int idx, float x1, float y1, float x2, float y2, str color){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_widgets[idx].create_line(x1, y1, x2, y2, fill=color)
+        except Exception:
+            pass
+    }
+}
+
+/// Draw a filled rectangle on a canvas. ///
+global canvasRect(int idx, float x1, float y1, float x2, float y2, str fill, str outline){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_widgets[idx].create_rectangle(x1, y1, x2, y2, fill=fill, outline=outline)
+        except Exception:
+            pass
+    }
+}
+
+/// Draw a filled oval / circle on a canvas. ///
+global canvasOval(int idx, float x1, float y1, float x2, float y2, str fill, str outline){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_widgets[idx].create_oval(x1, y1, x2, y2, fill=fill, outline=outline)
+        except Exception:
+            pass
+    }
+}
+
+/// Draw text on a canvas at (x, y). ///
+global canvasText(int idx, float x, float y, str text, str color){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_widgets[idx].create_text(x, y, text=text, fill=color)
+        except Exception:
+            pass
+    }
+}
+
+/// Draw a polygon on a canvas.  coordsJson is a JSON array of [x,y,...] numbers.
+  e.g. canvasPolygon(idx, "[10,10,50,10,30,40]", "blue", "black") ///
+global canvasPolygon(int idx, str coordsJson, str fill, str outline){
+    rawPy(){
+        import builtins, json as _json
+        try:
+            coords = _json.loads(coordsJson)
+            builtins._lx_widgets[idx].create_polygon(coords, fill=fill, outline=outline)
+        except Exception:
+            pass
+    }
+}
+
+/// Clear all drawings from a canvas. ///
+global canvasClear(int idx){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_widgets[idx].delete("all")
+        except Exception:
+            pass
+    }
+}
+
+// ── Frame / LabelFrame ──────────────────────────────────────────────────────
+
+/// Create a plain frame container.  Returns widget index. ///
 global frame(){
     int idx = 0;
     rawPy(){
@@ -134,6 +661,297 @@ global frame(){
     return idx;
 }
 
+/// Create a frame with a labelled border.  Returns widget index. ///
+global labelFrame(str text){
+    int idx = 0;
+    rawPy(){
+        import tkinter as _tk, builtins
+        w = _tk.LabelFrame(builtins._lx_root, text=text, padx=6, pady=6)
+        w.pack(pady=6, padx=8, fill="x")
+        builtins._lx_widgets.append(w)
+        idx = len(builtins._lx_widgets) - 1
+    }
+    return idx;
+}
+
+/// Create a horizontal separator rule.  Returns widget index. ///
+global separator(){
+    int idx = 0;
+    rawPy(){
+        import builtins
+        try:
+            import tkinter.ttk as _ttk
+            w = _ttk.Separator(builtins._lx_root, orient="horizontal")
+        except Exception:
+            import tkinter as _tk
+            w = _tk.Frame(builtins._lx_root, height=2, bd=1, relief="sunken")
+        w.pack(fill="x", padx=8, pady=6)
+        builtins._lx_widgets.append(w)
+        idx = len(builtins._lx_widgets) - 1
+    }
+    return idx;
+}
+
+// ── Scrollbar ──────────────────────────────────────────────────────────────
+
+/// Create a vertical scrollbar and attach it to widget at targetIdx.
+  Returns scrollbar widget index. ///
+global scrollbar(int targetIdx){
+    int idx = 0;
+    rawPy(){
+        import tkinter as _tk, builtins
+        target = builtins._lx_widgets[targetIdx]
+        sb = _tk.Scrollbar(builtins._lx_root, orient="vertical", command=target.yview)
+        target.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y")
+        builtins._lx_widgets.append(sb)
+        idx = len(builtins._lx_widgets) - 1
+    }
+    return idx;
+}
+
+// ── Image ──────────────────────────────────────────────────────────────────
+
+/// Display an image from imagePath (PNG, GIF, or PPM).  Returns widget index. ///
+global image(str imagePath){
+    int idx = 0;
+    rawPy(){
+        import tkinter as _tk, builtins
+        try:
+            photo = _tk.PhotoImage(file=imagePath)
+            w = _tk.Label(builtins._lx_root, image=photo)
+            w._lx_image = photo   // prevent GC
+            w.pack(pady=4, padx=8)
+            builtins._lx_widgets.append(w)
+            idx = len(builtins._lx_widgets) - 1
+        except Exception:
+            idx = -1
+    }
+    return idx;
+}
+
+// ── Menubar ────────────────────────────────────────────────────────────────
+
+/// Create a menubar and attach it to the window.  Must be called once.
+  Returns menubar index (internal menu list). ///
+global menubar(){
+    int idx = 0;
+    rawPy(){
+        import tkinter as _tk, builtins
+        mb = _tk.Menu(builtins._lx_root)
+        builtins._lx_root.config(menu=mb)
+        builtins._lx_menubar = mb
+        builtins._lx_menus.append(mb)
+        idx = len(builtins._lx_menus) - 1
+    }
+    return idx;
+}
+
+/// Add a top-level menu to the menubar (e.g. "File", "Edit").
+  Returns the new menu's index (for addMenuItem). ///
+global addMenu(str text){
+    int idx = 0;
+    rawPy(){
+        import tkinter as _tk, builtins
+        m = _tk.Menu(builtins._lx_menubar, tearoff=0)
+        builtins._lx_menubar.add_cascade(label=text, menu=m)
+        builtins._lx_menus.append(m)
+        idx = len(builtins._lx_menus) - 1
+    }
+    return idx;
+}
+
+/// Add a command item to a menu.  When clicked it prints a log message.
+  To attach real logic use rawPy to add a command= after the fact. ///
+global addMenuItem(int menuIdx, str text){
+    rawPy(){
+        import builtins
+        _lbl = text
+        def _cmd(): print("[Lynxer menu]", _lbl)
+        builtins._lx_menus[menuIdx].add_command(label=text, command=_cmd)
+    }
+}
+
+/// Add a separator line to a menu. ///
+global addMenuSeparator(int menuIdx){
+    rawPy(){
+        import builtins
+        builtins._lx_menus[menuIdx].add_separator()
+    }
+}
+
+/// Add a checkable menu item.  isOn sets the initial checked state. ///
+global addCheckMenuItem(int menuIdx, str text, bool isOn){
+    rawPy(){
+        import tkinter as _tk, builtins
+        var = _tk.BooleanVar(value=bool(isOn))
+        builtins._lx_menus[menuIdx].add_checkbutton(label=text, variable=var)
+    }
+}
+
+// ── Context (right-click) menu ─────────────────────────────────────────────
+
+/// Create a floating context menu (not shown yet).  Returns menu index. ///
+global contextMenu(){
+    int idx = 0;
+    rawPy(){
+        import tkinter as _tk, builtins
+        m = _tk.Menu(builtins._lx_root, tearoff=0)
+        builtins._lx_menus.append(m)
+        idx = len(builtins._lx_menus) - 1
+    }
+    return idx;
+}
+
+/// Add a command item to a context menu. ///
+global addContextItem(int menuIdx, str text){
+    rawPy(){
+        import builtins
+        _lbl = text
+        def _cmd(): print("[Lynxer context]", _lbl)
+        builtins._lx_menus[menuIdx].add_command(label=text, command=_cmd)
+    }
+}
+
+/// Show a context menu at screen position (x, y). ///
+global showContext(int menuIdx, int x, int y){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_menus[menuIdx].tk_popup(x, y)
+        except Exception:
+            pass
+    }
+}
+
+// ── Layout helpers ─────────────────────────────────────────────────────────
+
+/// Place widget at grid position (row, col).
+  Removes the default pack layout and uses grid instead. ///
+global grid(int idx, int row, int col){
+    rawPy(){
+        import builtins
+        try:
+            w = builtins._lx_widgets[idx]
+            w.pack_forget()
+            w.grid(row=row, column=col, padx=6, pady=4, sticky="w")
+        except Exception:
+            pass
+    }
+}
+
+/// Place widget at grid position with column span. ///
+global gridSpan(int idx, int row, int col, int colspan){
+    rawPy(){
+        import builtins
+        try:
+            w = builtins._lx_widgets[idx]
+            w.pack_forget()
+            w.grid(row=row, column=col, columnspan=colspan, padx=6, pady=4, sticky="ew")
+        except Exception:
+            pass
+    }
+}
+
+/// Place widget at absolute pixel position (x, y). ///
+global place(int idx, int x, int y){
+    rawPy(){
+        import builtins
+        try:
+            w = builtins._lx_widgets[idx]
+            w.pack_forget()
+            w.place(x=x, y=y)
+        except Exception:
+            pass
+    }
+}
+
+/// Re-pack a widget with anchor: "w" (left), "e" (right), "center", etc. ///
+global pack(int idx, str anchor){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_widgets[idx].pack(anchor=anchor, padx=8, pady=4)
+        except Exception:
+            pass
+    }
+}
+
+// ── Styling ────────────────────────────────────────────────────────────────
+
+/// Set the font of a widget.  family e.g. "Helvetica", style: "bold", "italic", "bold italic", "". ///
+global setFont(int idx, str family, int size, str style){
+    rawPy(){
+        import tkinter.font as _fnt, builtins
+        try:
+            f = _fnt.Font(family=family, size=size, weight="bold" if "bold" in style else "normal",
+                          slant="italic" if "italic" in style else "roman")
+            builtins._lx_widgets[idx].configure(font=f)
+        except Exception:
+            pass
+    }
+}
+
+/// Set the text (foreground) colour of a widget. ///
+global setForeground(int idx, str color){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_widgets[idx].configure(fg=color)
+        except Exception:
+            pass
+    }
+}
+
+/// Set the background colour of a widget. ///
+global setBackgroundWidget(int idx, str color){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_widgets[idx].configure(bg=color)
+        except Exception:
+            pass
+    }
+}
+
+/// Set internal padding (pixels) of a widget. ///
+global setPadding(int idx, int px, int py){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_widgets[idx].configure(padx=px, pady=py)
+        except Exception:
+            pass
+    }
+}
+
+/// Set the mouse cursor for a widget.
+  Common cursors: "arrow", "hand2", "watch", "crosshair", "fleur", "sizing". ///
+global setCursor(int idx, str cursor){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_widgets[idx].configure(cursor=cursor)
+        except Exception:
+            pass
+    }
+}
+
+/// Set a flat relief border on a widget.
+  relief: "flat", "raised", "sunken", "groove", "ridge", "solid". ///
+global setBorder(int idx, str relief, int borderWidth){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_widgets[idx].configure(relief=relief, bd=borderWidth)
+        except Exception:
+            pass
+    }
+}
+
+// ── Widget interactions ─────────────────────────────────────────────────────
+
+/// Return the string value of Entry, Text, Spinbox, or Combobox widgets. ///
 global getValue(int idx){
     str result = "";
     rawPy(){
@@ -151,6 +969,7 @@ global getValue(int idx){
     return result;
 }
 
+/// Set the display text of Label, Button, Checkbutton, or Radiobutton. ///
 global setText(int idx, str text){
     rawPy(){
         import builtins
@@ -161,6 +980,33 @@ global setText(int idx, str text){
     }
 }
 
+/// Replace the content of an Entry widget with text. ///
+global setEntryText(int idx, str text){
+    rawPy(){
+        import builtins, tkinter as _tk
+        try:
+            w = builtins._lx_widgets[idx]
+            w.delete(0, "end")
+            w.insert(0, text)
+        except Exception:
+            pass
+    }
+}
+
+/// Replace the entire content of a Text widget with text. ///
+global setTextBoxContent(int idx, str text){
+    rawPy(){
+        import builtins, tkinter as _tk
+        try:
+            w = builtins._lx_widgets[idx]
+            w.delete("1.0", "end")
+            w.insert("1.0", text)
+        except Exception:
+            pass
+    }
+}
+
+/// Return true if a Checkbutton at idx is checked. ///
 global isChecked(int idx){
     bool result = false;
     rawPy(){
@@ -173,6 +1019,18 @@ global isChecked(int idx){
     return result;
 }
 
+/// Programmatically check or uncheck a Checkbutton. ///
+global setChecked(int idx, bool checked){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_widgets[idx]._lx_var.set(bool(checked))
+        except Exception:
+            pass
+    }
+}
+
+/// Clear the content of an Entry, Text, or Listbox widget. ///
 global clearWidget(int idx){
     rawPy(){
         import builtins, tkinter as _tk
@@ -187,6 +1045,7 @@ global clearWidget(int idx){
     }
 }
 
+/// Disable a widget (greyed out, non-interactive). ///
 global disableWidget(int idx){
     rawPy(){
         import builtins
@@ -197,6 +1056,7 @@ global disableWidget(int idx){
     }
 }
 
+/// Re-enable a previously disabled widget. ///
 global enableWidget(int idx){
     rawPy(){
         import builtins
@@ -207,7 +1067,53 @@ global enableWidget(int idx){
     }
 }
 
+/// Hide a widget (removes from layout without destroying). ///
+global hideWidget(int idx){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_widgets[idx].pack_forget()
+        except Exception:
+            pass
+    }
+}
 
+/// Show a previously hidden widget (re-packs it). ///
+global showWidget(int idx){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_widgets[idx].pack(pady=4, padx=8, anchor="w")
+        except Exception:
+            pass
+    }
+}
+
+/// Permanently destroy a widget and remove it from the window. ///
+global destroyWidget(int idx){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_widgets[idx].destroy()
+        except Exception:
+            pass
+    }
+}
+
+/// Focus (keyboard focus) the widget at idx. ///
+global focusWidget(int idx){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_widgets[idx].focus_set()
+        except Exception:
+            pass
+    }
+}
+
+// ── Dialogs ────────────────────────────────────────────────────────────────
+
+/// Show an info message box. ///
 global messageBox(str title, str message){
     rawPy(){
         import tkinter.messagebox as _mb
@@ -215,6 +1121,7 @@ global messageBox(str title, str message){
     }
 }
 
+/// Show a warning message box. ///
 global warningBox(str title, str message){
     rawPy(){
         import tkinter.messagebox as _mb
@@ -222,6 +1129,7 @@ global warningBox(str title, str message){
     }
 }
 
+/// Show an error message box. ///
 global errorBox(str title, str message){
     rawPy(){
         import tkinter.messagebox as _mb
@@ -229,6 +1137,7 @@ global errorBox(str title, str message){
     }
 }
 
+/// Show a Yes/No dialog.  Returns true if the user clicked Yes. ///
 global askYesNo(str title, str question){
     bool result = false;
     rawPy(){
@@ -238,6 +1147,17 @@ global askYesNo(str title, str question){
     return result;
 }
 
+/// Show an OK/Cancel dialog.  Returns true if the user clicked OK. ///
+global askOkCancel(str title, str message){
+    bool result = false;
+    rawPy(){
+        import tkinter.messagebox as _mb
+        result = bool(_mb.askokcancel(title, message))
+    }
+    return result;
+}
+
+/// Open an "Open file" dialog.  Returns the selected file path, or "". ///
 global openFileDialog(str title){
     str result = "";
     rawPy(){
@@ -247,6 +1167,21 @@ global openFileDialog(str title){
     return result;
 }
 
+/// Open an "Open file" dialog filtered by extension (e.g. ".txt").  Returns path or "". ///
+global openFileDialogFilter(str title, str ext){
+    str result = "";
+    rawPy(){
+        import tkinter.filedialog as _fd
+        _ext = ext if ext.startswith(".") else "." + ext
+        result = _fd.askopenfilename(
+            title=title,
+            filetypes=[(ext + " files", "*" + _ext), ("All files", "*.*")]
+        ) or ""
+    }
+    return result;
+}
+
+/// Open a "Save file" dialog.  Returns the chosen path, or "". ///
 global saveFileDialog(str title){
     str result = "";
     rawPy(){
@@ -256,6 +1191,63 @@ global saveFileDialog(str title){
     return result;
 }
 
+/// Open a "Choose directory" dialog.  Returns the chosen directory path, or "". ///
+global openDirDialog(str title){
+    str result = "";
+    rawPy(){
+        import tkinter.filedialog as _fd
+        result = _fd.askdirectory(title=title) or ""
+    }
+    return result;
+}
+
+/// Open a colour-picker dialog.  Returns the hex colour string, e.g. "#ff0000", or "". ///
+global askColor(str title){
+    str result = "";
+    rawPy(){
+        import tkinter.colorchooser as _cc
+        _, hex_color = _cc.askcolor(title=title)
+        result = hex_color or ""
+    }
+    return result;
+}
+
+/// Show a simple text-input dialog.  Returns the entered string, or "". ///
+global askString(str title, str prompt){
+    str result = "";
+    rawPy(){
+        import tkinter.simpledialog as _sd
+        r = _sd.askstring(title, prompt)
+        result = r if r is not None else ""
+    }
+    return result;
+}
+
+/// Show a simple integer-input dialog.  Returns the entered integer, or 0 on cancel. ///
+global askInteger(str title, str prompt){
+    int result = 0;
+    rawPy(){
+        import tkinter.simpledialog as _sd
+        r = _sd.askinteger(title, prompt)
+        result = r if r is not None else 0
+    }
+    return result;
+}
+
+/// Show a simple float-input dialog.  Returns the entered float, or 0.0 on cancel. ///
+global askFloat(str title, str prompt){
+    float result = 0.0;
+    rawPy(){
+        import tkinter.simpledialog as _sd
+        r = _sd.askfloat(title, prompt)
+        result = r if r is not None else 0.0
+    }
+    return result;
+}
+
+// ── App lifecycle ───────────────────────────────────────────────────────────
+
+/// Start the Tk main event loop (blocking). ///
 global run(){
     rawPy(){
         import builtins
@@ -263,6 +1255,7 @@ global run(){
     }
 }
 
+/// Destroy the window and exit the event loop. ///
 global close(){
     rawPy(){
         import builtins

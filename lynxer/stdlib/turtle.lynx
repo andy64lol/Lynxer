@@ -1,22 +1,30 @@
 ///
-  Lynxer Standard Library - turtle
-  Wraps Python's turtle graphics module.
-  Requires a display (Tk). Call done() at the end of main()
-  to keep the window open.
+  Lynxer Standard Library — turtle
+  Comprehensive wrapper for Python's turtle graphics module.
+  Requires a display (Tk).  Call done() at the end of main() to keep the window open.
 
-  Provides: init, title, bgcolor,
-            forward, backward, right, left,
-            goto, home, setheading,
-            penup, pendown, pencolor, pensize,
-            fillcolor, begin_fill, end_fill,
-            circle, dot, write,
-            speed, hideturtle, showturtle,
-            clear, reset, done,
-            xcor, ycor, heading, pos
+  Provides:
+    Window:      init, title, bgcolor, bgpic, screensize,
+                 window_width, window_height, mode, colormode, tracer, update
+    Movement:    forward, backward, right, left, goto, setx, sety, home,
+                 setheading, towards
+    Pen:         penup, pendown, pencolor, pensize, fillcolor, begin_fill, end_fill,
+                 color, isdown, speed
+    Drawing:     circle, dot, write, stamp, clearstamp, undo
+    Shapes:      shape, turtlesize, resizemode, addshape
+    Turtle state: xcor, ycor, heading, pos, distance
+    Appearance:  hideturtle, showturtle
+    Canvas:      clear, reset, polygon, star
+    Events:      listen, exitonclick, onkey, onclick, onscreenclick
+    Dialogs:     numinput, textinput
+    App:         done
 ///
 
 global setup(){}
 
+// ── Window & screen ─────────────────────────────────────────────────────────
+
+/// Set the canvas window size in pixels. ///
 global init(int width, int height){
     rawPy(){
         import turtle as _t
@@ -24,7 +32,7 @@ global init(int width, int height){
     }
 }
 
-/// Set the window title. ///
+/// Set the window title bar text. ///
 global title(str text){
     rawPy(){
         import turtle as _t
@@ -32,13 +40,88 @@ global title(str text){
     }
 }
 
-/// Set the background colour, e.g. "white" or "#ff0000". ///
+/// Set the background colour, e.g. "white" or "#1a1a2e". ///
 global bgcolor(str color){
     rawPy(){
         import turtle as _t
         _t.bgcolor(color)
     }
 }
+
+/// Set a background image from an image file (GIF or PNG depending on Python version). ///
+global bgpic(str filename){
+    rawPy(){
+        import turtle as _t
+        _t.bgpic(filename)
+    }
+}
+
+/// Set the scroll-region canvas size in pixels. ///
+global screensize(int width, int height){
+    rawPy(){
+        import turtle as _t
+        _t.screensize(width, height)
+    }
+}
+
+/// Return the current window width in pixels. ///
+global window_width(){
+    int result = 0;
+    rawPy(){
+        import turtle as _t
+        result = _t.window_width()
+    }
+    return result;
+}
+
+/// Return the current window height in pixels. ///
+global window_height(){
+    int result = 0;
+    rawPy(){
+        import turtle as _t
+        result = _t.window_height()
+    }
+    return result;
+}
+
+/// Set the drawing mode.
+  "standard"  — 0° is East, counter-clockwise positive (default).
+  "logo"      — 0° is North, clockwise positive.
+  "world"     — user-defined coordinates. ///
+global mode(str m){
+    rawPy(){
+        import turtle as _t
+        _t.mode(m)
+    }
+}
+
+/// Set the colour resolution.  Use 255 for RGB 0–255 or 1 for 0.0–1.0. ///
+global colormode(int n){
+    rawPy(){
+        import turtle as _t
+        _t.colormode(n)
+    }
+}
+
+/// Set the animation tracer.
+  n=0 disables screen updates (fastest); n=1 draws every step.
+  delay is the delay between frames in milliseconds. ///
+global tracer(int n, int delay){
+    rawPy(){
+        import turtle as _t
+        _t.tracer(n, delay)
+    }
+}
+
+/// Force the screen to refresh — useful after tracer(0, 0). ///
+global update(){
+    rawPy(){
+        import turtle as _t
+        _t.update()
+    }
+}
+
+// ── Movement ────────────────────────────────────────────────────────────────
 
 /// Move forward by dist pixels in the current heading. ///
 global forward(float dist){
@@ -72,11 +155,27 @@ global left(float angle){
     }
 }
 
-/// Move to absolute position (x, y) — pen state is preserved. ///
+/// Move to absolute position (x, y); pen state is preserved. ///
 global goto(float x, float y){
     rawPy(){
         import turtle as _t
         _t.goto(x, y)
+    }
+}
+
+/// Set the turtle's x coordinate without changing y. ///
+global setx(float x){
+    rawPy(){
+        import turtle as _t
+        _t.setx(x)
+    }
+}
+
+/// Set the turtle's y coordinate without changing x. ///
+global sety(float y){
+    rawPy(){
+        import turtle as _t
+        _t.sety(y)
     }
 }
 
@@ -88,7 +187,7 @@ global home(){
     }
 }
 
-/// Set the turtle's heading in degrees (0 = right, 90 = up). ///
+/// Set the turtle's absolute heading in degrees (0 = East in standard mode, 0 = North in logo mode). ///
 global setheading(float angle){
     rawPy(){
         import turtle as _t
@@ -96,7 +195,19 @@ global setheading(float angle){
     }
 }
 
-/// Lift the pen — movement does not draw. ///
+/// Return the angle (in current mode's degrees) from the turtle to point (x, y). ///
+global towards(float x, float y){
+    float result = 0.0;
+    rawPy(){
+        import turtle as _t
+        result = _t.towards(x, y)
+    }
+    return result;
+}
+
+// ── Pen control ─────────────────────────────────────────────────────────────
+
+/// Lift the pen so movement does not draw. ///
 global penup(){
     rawPy(){
         import turtle as _t
@@ -104,7 +215,7 @@ global penup(){
     }
 }
 
-/// Lower the pen — movement draws. ///
+/// Lower the pen so movement draws. ///
 global pendown(){
     rawPy(){
         import turtle as _t
@@ -128,7 +239,15 @@ global pensize(float size){
     }
 }
 
-/// Set the fill colour, e.g. "blue". ///
+/// Set both pen colour and fill colour at once. ///
+global color(str penColor, str fillColor){
+    rawPy(){
+        import turtle as _t
+        _t.color(penColor, fillColor)
+    }
+}
+
+/// Set the fill colour for filled shapes. ///
 global fillcolor(str color){
     rawPy(){
         import turtle as _t
@@ -152,12 +271,40 @@ global end_fill(){
     }
 }
 
-// Draw a circle of radius r. Positive = counter-clockwise.
-/// Pass a negative radius to draw clockwise. ///
+/// Return true if the pen is currently down (drawing). ///
+global isdown(){
+    bool result = true;
+    rawPy(){
+        import turtle as _t
+        result = _t.isdown()
+    }
+    return result;
+}
+
+/// Set drawing speed.
+  0 = fastest (no animation), 1 = slowest, 6 = normal, 10 = fast. ///
+global speed(int n){
+    rawPy(){
+        import turtle as _t
+        _t.speed(n)
+    }
+}
+
+// ── Drawing primitives ───────────────────────────────────────────────────────
+
+/// Draw a circle of radius r.  Positive r = counter-clockwise; negative = clockwise. ///
 global circle(float r){
     rawPy(){
         import turtle as _t
         _t.circle(r)
+    }
+}
+
+/// Draw an arc of radius r covering extent degrees. ///
+global arc(float r, float extent){
+    rawPy(){
+        import turtle as _t
+        _t.circle(r, extent=extent)
     }
 }
 
@@ -169,7 +316,16 @@ global dot(float size){
     }
 }
 
-/// Write text at the current position. ///
+/// Draw a dot of diameter size in an explicit colour. ///
+global dotColor(float size, str color){
+    rawPy(){
+        import turtle as _t
+        _t.dot(size, color)
+    }
+}
+
+/// Write text at the current turtle position using the given font.
+  fontName e.g. "Arial", fontSize e.g. 14, fontStyle: "normal","bold","italic". ///
 global write(str text){
     rawPy(){
         import turtle as _t
@@ -177,98 +333,25 @@ global write(str text){
     }
 }
 
-// Set drawing speed. 0 = fastest, 1 = slowest, 10 = fast.
-/// Values outside 0-10 are clamped by turtle. ///
-global speed(int n){
+/// Write text with an explicit font specification. ///
+global writeFont(str text, str fontName, int fontSize, str fontStyle){
     rawPy(){
         import turtle as _t
-        _t.speed(n)
+        _t.write(text, font=(fontName, fontSize, fontStyle))
     }
 }
 
-/// Hide the turtle arrow. ///
-global hideturtle(){
+/// Write text and align it: "left", "center", or "right". ///
+global writeAligned(str text, str align, str fontName, int fontSize){
     rawPy(){
         import turtle as _t
-        _t.hideturtle()
+        _t.write(text, align=align, font=(fontName, fontSize, "normal"))
     }
 }
 
-/// Show the turtle arrow. ///
-global showturtle(){
-    rawPy(){
-        import turtle as _t
-        _t.showturtle()
-    }
-}
+// ── Stamps ───────────────────────────────────────────────────────────────────
 
-/// Clear all drawings; keep position and heading. ///
-global clear(){
-    rawPy(){
-        import turtle as _t
-        _t.clear()
-    }
-}
-
-/// Clear all drawings and reset position, heading, and pen. ///
-global reset(){
-    rawPy(){
-        import turtle as _t
-        _t.reset()
-    }
-}
-
-// Enter the Tk event loop — call at the end of main().
-/// The window stays open until the user closes it. ///
-global done(){
-    rawPy(){
-        import turtle as _t
-        _t.done()
-    }
-}
-
-/// Current x coordinate of the turtle. ///
-global xcor(){
-    float result = 0.0;
-    rawPy(){
-        import turtle as _t
-        result = _t.xcor()
-    }
-    return result;
-}
-
-/// Current y coordinate of the turtle. ///
-global ycor(){
-    float result = 0.0;
-    rawPy(){
-        import turtle as _t
-        result = _t.ycor()
-    }
-    return result;
-}
-
-/// Current heading in degrees (0 = right, 90 = up). ///
-global heading(){
-    float result = 0.0;
-    rawPy(){
-        import turtle as _t
-        result = _t.heading()
-    }
-    return result;
-}
-
-/// Current position as "(x, y)" string. ///
-global pos(){
-    str result = "";
-    rawPy(){
-        import turtle as _t
-        p = _t.pos()
-        result = "(" + str(round(p[0], 4)) + ", " + str(round(p[1], 4)) + ")"
-    }
-    return result;
-}
-
-/// Stamp the current turtle shape onto the canvas. Returns a stamp ID (int). ///
+/// Stamp the current turtle shape onto the canvas.  Returns stamp ID. ///
 global stamp(){
     int result = 0;
     rawPy(){
@@ -294,62 +377,106 @@ global undo(){
     }
 }
 
-/// Set the animation tracer. n=0 disables animation (fastest); n=1 draws every step.
-  delay is the delay between frames in milliseconds. ///
-global tracer(int n, int delay){
+// ── Turtle appearance ────────────────────────────────────────────────────────
+
+/// Set the turtle shape.
+  Built-in shapes: "arrow", "turtle", "circle", "square", "triangle", "classic". ///
+global shape(str name){
     rawPy(){
         import turtle as _t
-        _t.tracer(n, delay)
+        _t.shape(name)
     }
 }
 
-/// Force the screen to update (useful after tracer(0) for manual refresh). ///
-global update(){
+/// Register a custom turtle shape from a GIF image file.  Use with shape(name). ///
+global addshape(str name, str filename){
     rawPy(){
         import turtle as _t
-        _t.update()
+        _t.register_shape(name, filename)
     }
 }
 
-/// Return true if the pen is currently down (drawing), false if up. ///
-global isdown(){
-    bool result = true;
+/// Resize the turtle.
+  stretchWid: perpendicular to heading.  stretchLen: along heading.
+  outline: outline width. ///
+global turtlesize(float stretchWid, float stretchLen, float outline){
     rawPy(){
         import turtle as _t
-        result = _t.isdown()
+        _t.turtlesize(stretchWid, stretchLen, outline)
+    }
+}
+
+/// Set resize mode.
+  "noresize" — fixed size (default).
+  "auto"     — size scales with pen width.
+  "user"     — controlled by turtlesize(). ///
+global resizemode(str mode){
+    rawPy(){
+        import turtle as _t
+        _t.resizemode(mode)
+    }
+}
+
+/// Hide the turtle arrow. ///
+global hideturtle(){
+    rawPy(){
+        import turtle as _t
+        _t.hideturtle()
+    }
+}
+
+/// Show the turtle arrow. ///
+global showturtle(){
+    rawPy(){
+        import turtle as _t
+        _t.showturtle()
+    }
+}
+
+// ── Turtle state ─────────────────────────────────────────────────────────────
+
+/// Return the current x coordinate of the turtle. ///
+global xcor(){
+    float result = 0.0;
+    rawPy(){
+        import turtle as _t
+        result = _t.xcor()
     }
     return result;
 }
 
-/// Set the canvas (scroll region) size in pixels. ///
-global screensize(int width, int height){
+/// Return the current y coordinate of the turtle. ///
+global ycor(){
+    float result = 0.0;
     rawPy(){
         import turtle as _t
-        _t.screensize(width, height)
-    }
-}
-
-/// Return the window width in pixels. ///
-global window_width(){
-    int result = 0;
-    rawPy(){
-        import turtle as _t
-        result = _t.window_width()
+        result = _t.ycor()
     }
     return result;
 }
 
-/// Return the window height in pixels. ///
-global window_height(){
-    int result = 0;
+/// Return the current heading in degrees. ///
+global heading(){
+    float result = 0.0;
     rawPy(){
         import turtle as _t
-        result = _t.window_height()
+        result = _t.heading()
     }
     return result;
 }
 
-/// Return the distance from the turtle to the point (x, y). ///
+/// Return the current position as a "(x, y)" string. ///
+global pos(){
+    str result = "";
+    rawPy(){
+        import turtle as _t
+        p = _t.pos()
+        result = "(" + str(round(p[0], 4)) + ", " + str(round(p[1], 4)) + ")"
+    }
+    return result;
+}
+
+/// Return the distance from the turtle to point (x, y). ///
 global distance(float x, float y){
     float result = 0.0;
     rawPy(){
@@ -359,41 +486,28 @@ global distance(float x, float y){
     return result;
 }
 
-/// Set the drawing mode. Valid values: "standard" (default), "logo", "world". ///
-global mode(str m){
+// ── Screen clearing ──────────────────────────────────────────────────────────
+
+/// Clear all drawings; turtle keeps its position and heading. ///
+global clear(){
     rawPy(){
         import turtle as _t
-        _t.mode(m)
+        _t.clear()
     }
 }
 
-/// Set the color resolution mode. Use 255 for RGB 0-255, or 1 for 0.0-1.0. ///
-global colormode(int n){
+/// Clear all drawings and reset turtle to origin with default pen settings. ///
+global reset(){
     rawPy(){
         import turtle as _t
-        _t.colormode(n)
+        _t.reset()
     }
 }
 
-/// Set the turtle's shape. Built-ins: "arrow", "turtle", "circle", "square",
-  "triangle", "classic". ///
-global shape(str name){
-    rawPy(){
-        import turtle as _t
-        _t.shape(name)
-    }
-}
+// ── Event handling ───────────────────────────────────────────────────────────
 
-/// Set both pen and fill colour at once (e.g. "red" or "#ff0000"). ///
-global color(str penColor, str fillColor){
-    rawPy(){
-        import turtle as _t
-        _t.color(penColor, fillColor)
-    }
-}
-
-/// Give the window focus so it can receive keyboard events.
-  Call before binding keys with onkey(). ///
+/// Give the screen keyboard focus so it can receive key events.
+  Call before binding keys with rawPy and _t.onkey(). ///
 global listen(){
     rawPy(){
         import turtle as _t
@@ -401,7 +515,39 @@ global listen(){
     }
 }
 
-/// Exit the turtle window when the user clicks it. ///
+/// Bind a key press to a no-arg log action.
+  Use rawPy + _t.onkey() for real callbacks.
+  key examples: "Up", "Down", "Left", "Right", "space", "Return", "Escape", "q". ///
+global onkey(str key){
+    rawPy(){
+        import turtle as _t
+        _key = key
+        def _cb(): print("[Lynxer turtle] key pressed:", _key)
+        _t.onkey(_cb, _key)
+    }
+}
+
+/// Bind a mouse click on the turtle to a log message.
+  Use rawPy + _t.onclick() for real callbacks. ///
+global onclick(){
+    rawPy(){
+        import turtle as _t
+        def _cb(x, y): print("[Lynxer turtle] clicked at", x, y)
+        _t.onclick(_cb)
+    }
+}
+
+/// Bind a mouse click anywhere on the screen to a log message.
+  Use rawPy + _t.onscreenclick() for real callbacks. ///
+global onscreenclick(){
+    rawPy(){
+        import turtle as _t
+        def _cb(x, y): print("[Lynxer turtle] screen click at", x, y)
+        _t.onscreenclick(_cb)
+    }
+}
+
+/// Exit the window when the user clicks it (convenience for demos). ///
 global exitonclick(){
     rawPy(){
         import turtle as _t
@@ -409,11 +555,36 @@ global exitonclick(){
     }
 }
 
-/// Draw a filled polygon with nSides sides of sideLen pixels. ///
+// ── Input dialogs ────────────────────────────────────────────────────────────
+
+/// Show a numeric input dialog.  Returns the entered float, or -1.0 on cancel. ///
+global numinput(str title, str prompt){
+    float result = 0.0;
+    rawPy(){
+        import turtle as _t
+        r = _t.numinput(title, prompt)
+        result = r if r is not None else -1.0
+    }
+    return result;
+}
+
+/// Show a text input dialog.  Returns the entered string, or "" on cancel. ///
+global textinput(str title, str prompt){
+    str result = "";
+    rawPy(){
+        import turtle as _t
+        r = _t.textinput(title, prompt)
+        result = r if r is not None else ""
+    }
+    return result;
+}
+
+// ── High-level shape helpers ─────────────────────────────────────────────────
+
+/// Draw a filled regular polygon with nSides sides of sideLen pixels each. ///
 global polygon(int nSides, float sideLen){
     rawPy(){
         import turtle as _t
-        import math as _m
         angle = 360.0 / nSides
         _t.begin_fill()
         for _ in range(nSides):
@@ -426,9 +597,8 @@ global polygon(int nSides, float sideLen){
 /// Draw a regular star with nPoints points inscribed in a circle of radius r. ///
 global star(int nPoints, float r){
     rawPy(){
-        import turtle as _t
-        import math as _m
-        step = 360.0 / nPoints
+        import turtle as _t, math as _m
+        step  = 360.0 / nPoints
         outer = r
         inner = r * _m.sin(_m.radians(18)) / _m.sin(_m.radians(54))
         angle = -90.0
@@ -437,16 +607,58 @@ global star(int nPoints, float r){
         _t.pendown()
         _t.begin_fill()
         for i in range(nPoints * 2):
-            if i % 2 == 0:
-                radius = outer
-            else:
-                radius = inner
+            radius = outer if i % 2 == 0 else inner
             a = _m.radians(angle + i * step)
             _t.goto(radius * _m.cos(a + _m.pi/2), radius * _m.sin(a + _m.pi/2))
         _t.end_fill()
         _t.penup()
         _t.home()
         _t.pendown()
+    }
+}
+
+/// Draw a grid of rows × cols cells each of size cellSize pixels.
+  The grid is centred at the current turtle position. ///
+global grid(int rows, int cols, float cellSize){
+    rawPy(){
+        import turtle as _t
+        ox = _t.xcor() - (cols * cellSize) / 2
+        oy = _t.ycor() + (rows * cellSize) / 2
+        _t.penup()
+        for r in range(rows + 1):
+            _t.goto(ox, oy - r * cellSize)
+            _t.pendown()
+            _t.goto(ox + cols * cellSize, oy - r * cellSize)
+            _t.penup()
+        for c in range(cols + 1):
+            _t.goto(ox + c * cellSize, oy)
+            _t.pendown()
+            _t.goto(ox + c * cellSize, oy - rows * cellSize)
+            _t.penup()
+        _t.home()
+    }
+}
+
+/// Draw a spiral of nLines lines starting at length startLen,
+  growing by deltaLen each step, turning by angle degrees each step. ///
+global spiral(int nLines, float startLen, float deltaLen, float angle){
+    rawPy(){
+        import turtle as _t
+        length = startLen
+        for _ in range(nLines):
+            _t.forward(length)
+            _t.right(angle)
+            length += deltaLen
+    }
+}
+
+// ── App lifecycle ────────────────────────────────────────────────────────────
+
+/// Enter the Tk event loop — call at the end of main() to keep the window open. ///
+global done(){
+    rawPy(){
+        import turtle as _t
+        _t.done()
     }
 }
 
