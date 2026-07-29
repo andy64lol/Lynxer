@@ -164,7 +164,7 @@ KEYWORDS = [
     "int", "float", "str", "bool", "any", "tuple",
     "global", "local", "const",
     "if", "else", "while", "for",
-    "return", "import", "importAs",
+    "return", "import", "importAs", "importPy",
     "true", "false", "none",
     "and", "or", "not", "is",
     "vargroup",
@@ -689,6 +689,18 @@ class ImportAsNode:
     def __init__(self, filename_tok, alias_tok, pos_start, pos_end):
         self.filename_tok = filename_tok
         self.alias_tok = alias_tok
+        self.pos_start = pos_start
+        self.pos_end = pos_end
+
+
+class ImportPyNode:
+    """importPy(){"os", "sys", "json"};
+    Pre-imports Python modules into a shared global dict so rawPy / rawPyx
+    blocks can use them without writing 'import x' every time.
+    Only valid inside global setup(){}.
+    """
+    def __init__(self, module_names, pos_start, pos_end):
+        self.module_names = module_names  # list[str]
         self.pos_start = pos_start
         self.pos_end = pos_end
 
@@ -1297,6 +1309,20 @@ class Parser:
                     )
                 )
             node = res.register(self.parse_importAs())
+            if res.error:
+                return res
+            return res.success(node)
+
+        if self.current_tok.matches(TT_KEYWORD, "importPy"):
+            if not in_setup:
+                return res.failure(
+                    InvalidSyntaxError(
+                        self.current_tok.pos_start,
+                        self.current_tok.pos_end,
+                        "importPy(){...} may only be used inside global setup(){}",
+                    )
+                )
+            node = res.register(self.parse_importPy())
             if res.error:
                 return res
             return res.success(node)
@@ -2452,6 +2478,90 @@ class Parser:
 
         return res.success(ImportAsNode(filename_tok, alias_tok, pos_start, pos_end))
 
+    def parse_importPy(self):
+        """Parse:  importPy(){"os", "sys", "json"};
+        The () is empty; the {} holds a comma-separated list of string module names.
+        """
+        res = ParseResult()
+        pos_start = self.current_tok.pos_start.copy()
+        res.register_advancement()
+        self.advance()  # consume 'importPy'
+
+        # Expect ()
+        if self.current_tok.type != TT_LPAREN:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                "Expected '(' after importPy",
+            ))
+        res.register_advancement()
+        self.advance()
+
+        if self.current_tok.type != TT_RPAREN:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                "importPy() takes no arguments inside the parentheses — "
+                "put module names in the braces: importPy(){\"os\", \"sys\"};",
+            ))
+        res.register_advancement()
+        self.advance()
+
+        # Expect {
+        if self.current_tok.type != TT_LBRACE:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                "Expected '{' containing module names after importPy()",
+            ))
+        res.register_advancement()
+        self.advance()
+
+        # Collect comma-separated string literals
+        module_names = []
+        if self.current_tok.type == TT_RBRACE:
+            # empty importPy(){} is allowed (no-op)
+            pass
+        else:
+            if self.current_tok.type != TT_STRING:
+                return res.failure(InvalidSyntaxError(
+                    self.current_tok.pos_start, self.current_tok.pos_end,
+                    "Expected a quoted module name string inside importPy(){...}",
+                ))
+            module_names.append(self.current_tok.value)
+            res.register_advancement()
+            self.advance()
+
+            while self.current_tok.type == TT_COMMA:
+                res.register_advancement()
+                self.advance()
+                if self.current_tok.type != TT_STRING:
+                    return res.failure(InvalidSyntaxError(
+                        self.current_tok.pos_start, self.current_tok.pos_end,
+                        "Expected a quoted module name string after ',' in importPy(){...}",
+                    ))
+                module_names.append(self.current_tok.value)
+                res.register_advancement()
+                self.advance()
+
+        # Expect }
+        if self.current_tok.type != TT_RBRACE:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                "Expected '}' to close importPy(){...}",
+            ))
+        res.register_advancement()
+        self.advance()
+
+        # Expect ;
+        if self.current_tok.type != TT_SEMICOLON:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                "Expected ';' after importPy(){...}",
+            ))
+        pos_end = self.current_tok.pos_end.copy()
+        res.register_advancement()
+        self.advance()
+
+        return res.success(ImportPyNode(module_names, pos_start, pos_end))
+
     def parse_return(self):
         res = ParseResult()
         pos_start = self.current_tok.pos_start.copy()
@@ -3003,10 +3113,15 @@ class Parser:
             if self.current_tok.type == TT_DOT:
                 res.register_advancement()
                 self.advance()
-                # Allow 'class' keyword as an attribute name (global.class.ClassName)
+                # Allow 'class' keyword and type keywords (str, int, float, bool, any, tuple)
+                # as attribute names so embedPy.str(), embedPy.int(), etc. work.
                 is_attr = (
                     self.current_tok.type == TT_IDENTIFIER
                     or self.current_tok.matches(TT_KEYWORD, "class")
+                    or (
+                        self.current_tok.type == TT_KEYWORD
+                        and self.current_tok.value in TYPE_KEYWORDS
+                    )
                 )
                 if not is_attr:
                     return res.failure(
@@ -4920,6 +5035,268 @@ class LocalNamespace(Value):
         return "<local namespace>"
 
 
+# ── embedPy — experimental Python bridge ──────────────────────────────────────
+# Lets Lynxer code call Python functions/modules with Lynx syntax instead of
+# a rawPy block.  Example:
+#   embedPy.requests.get("https://example.com")   →  calls requests.get(...)
+#   embedPy.len("hello")                           →  calls builtins.len("hello")
+#   str status = embedPy.os.path.exists("/tmp");   →  typed variable, "True"/"False"
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def _lynx_to_python(val):
+    """Convert a Lynxer Value → plain Python value suitable for passing to Python code."""
+    if isinstance(val, Number):
+        return val.value
+    if isinstance(val, String):
+        return val.value
+    if isinstance(val, List):
+        return [_lynx_to_python(e) for e in val.elements]
+    if isinstance(val, LynxTuple):
+        return tuple(_lynx_to_python(e) for e in val.elements)
+    if isinstance(val, EmbedPyObject):
+        return val.py_obj
+    # Number.null / Null singleton → None
+    return None
+
+
+def _python_to_lynx(py_val, context=None, pos_start=None, pos_end=None):
+    """Convert a plain Python value → the nearest Lynxer Value equivalent."""
+    if py_val is None:
+        return Number.null
+    if isinstance(py_val, bool):
+        # bool check must come before int (bool is a subtype of int)
+        return Number(1 if py_val else 0)
+    if isinstance(py_val, int):
+        return Number(py_val)
+    if isinstance(py_val, float):
+        return Number(py_val)
+    if isinstance(py_val, str):
+        return String(py_val)
+    if isinstance(py_val, bytes):
+        return String(py_val.decode("utf-8", errors="replace"))
+    if isinstance(py_val, (list, tuple)):
+        elements = [_python_to_lynx(e, context, pos_start, pos_end) for e in py_val]
+        return List(elements)
+    if isinstance(py_val, dict):
+        import json as _json
+        try:
+            return String(_json.dumps(py_val))
+        except Exception:
+            return String(str(py_val))
+    # Anything else (Response objects, class instances, modules…) → EmbedPyObject
+    obj = EmbedPyObject(py_val)
+    if context:
+        obj.set_context(context)
+    if pos_start:
+        obj.set_pos(pos_start, pos_end)
+    return obj
+
+
+class EmbedPyObject(Value):
+    """Wraps an arbitrary Python object returned from an embedPy call.
+
+    Supports further attribute access (``obj.attr``) and calling if callable.
+    When printed or used as a string, falls back to Python's str().
+    """
+
+    def __init__(self, py_obj):
+        super().__init__()
+        self.py_obj = py_obj
+
+    def get_attr(self, name):
+        import types as _types
+        try:
+            attr = getattr(self.py_obj, name)
+        except AttributeError:
+            return None, RTError(
+                self.pos_start, self.pos_end,
+                f"Python object <{type(self.py_obj).__name__}> has no attribute '{name}'",
+                self.context,
+            )
+        if isinstance(attr, _types.ModuleType):
+            mod = EmbedPyModule(attr, type(self.py_obj).__name__ + "." + name)
+            mod.set_context(self.context).set_pos(self.pos_start, self.pos_end)
+            return mod, None
+        if callable(attr):
+            fn = EmbedPyCallable(attr, f"<{type(self.py_obj).__name__}>.{name}")
+            fn.set_context(self.context).set_pos(self.pos_start, self.pos_end)
+            return fn, None
+        result = _python_to_lynx(attr, self.context, self.pos_start, self.pos_end)
+        return result, None
+
+    def execute(self, args):
+        if not callable(self.py_obj):
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                f"embedPy: Python object <{type(self.py_obj).__name__}> is not callable",
+                self.context,
+            ))
+        py_args = [_lynx_to_python(a) for a in args]
+        try:
+            result = self.py_obj(*py_args)
+        except Exception as e:
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                f"embedPy: Python error calling <{type(self.py_obj).__name__}>: {e}",
+                self.context,
+            ))
+        lx = _python_to_lynx(result, self.context, self.pos_start, self.pos_end)
+        return RTResult().success(lx)
+
+    def copy(self):
+        c = EmbedPyObject(self.py_obj)
+        c.set_context(self.context)
+        c.set_pos(self.pos_start, self.pos_end)
+        return c
+
+    def __repr__(self):
+        return str(self.py_obj)
+
+
+class EmbedPyCallable(Value):
+    """Wraps a Python callable (function, method, class, lambda) for Lynxer calls."""
+
+    def __init__(self, py_callable, name="<python>"):
+        super().__init__()
+        self.py_callable = py_callable
+        self.name = name
+
+    def get_attr(self, name):
+        """Support chained access on callables, e.g. a class with static methods."""
+        import types as _types
+        try:
+            attr = getattr(self.py_callable, name)
+        except AttributeError:
+            return None, RTError(
+                self.pos_start, self.pos_end,
+                f"embedPy callable '{self.name}' has no attribute '{name}'",
+                self.context,
+            )
+        if isinstance(attr, _types.ModuleType):
+            mod = EmbedPyModule(attr, f"{self.name}.{name}")
+            mod.set_context(self.context).set_pos(self.pos_start, self.pos_end)
+            return mod, None
+        if callable(attr):
+            fn = EmbedPyCallable(attr, f"{self.name}.{name}")
+            fn.set_context(self.context).set_pos(self.pos_start, self.pos_end)
+            return fn, None
+        result = _python_to_lynx(attr, self.context, self.pos_start, self.pos_end)
+        return result, None
+
+    def execute(self, args):
+        py_args = [_lynx_to_python(a) for a in args]
+        try:
+            result = self.py_callable(*py_args)
+        except Exception as e:
+            return RTResult().failure(RTError(
+                self.pos_start, self.pos_end,
+                f"embedPy: Python error calling '{self.name}': {e}",
+                self.context,
+            ))
+        lx = _python_to_lynx(result, self.context, self.pos_start, self.pos_end)
+        return RTResult().success(lx)
+
+    def copy(self):
+        c = EmbedPyCallable(self.py_callable, self.name)
+        c.set_context(self.context)
+        c.set_pos(self.pos_start, self.pos_end)
+        return c
+
+    def __repr__(self):
+        return f"<embedPy: {self.name}>"
+
+
+class EmbedPyModule(Value):
+    """Wraps a Python module; attribute access returns EmbedPyCallable or nested EmbedPyModule."""
+
+    def __init__(self, py_module, module_name=""):
+        super().__init__()
+        self.py_module = py_module
+        self.module_name = module_name
+
+    def get_attr(self, name):
+        import types as _types
+        try:
+            attr = getattr(self.py_module, name)
+        except AttributeError:
+            return None, RTError(
+                self.pos_start, self.pos_end,
+                f"embedPy module '{self.module_name}' has no attribute '{name}'",
+                self.context,
+            )
+        if isinstance(attr, _types.ModuleType):
+            mod = EmbedPyModule(attr, f"{self.module_name}.{name}")
+            mod.set_context(self.context).set_pos(self.pos_start, self.pos_end)
+            return mod, None
+        if callable(attr):
+            fn = EmbedPyCallable(attr, f"{self.module_name}.{name}")
+            fn.set_context(self.context).set_pos(self.pos_start, self.pos_end)
+            return fn, None
+        # Non-callable attribute (constant, string, int…) — convert directly
+        result = _python_to_lynx(attr, self.context, self.pos_start, self.pos_end)
+        return result, None
+
+    def copy(self):
+        c = EmbedPyModule(self.py_module, self.module_name)
+        c.set_context(self.context)
+        c.set_pos(self.pos_start, self.pos_end)
+        return c
+
+    def __repr__(self):
+        return f"<embedPy module: {self.module_name}>"
+
+
+class EmbedPyNamespace(Value):
+    """The root ``embedPy`` namespace.
+
+    ``embedPy.name`` first checks Python builtins (len, str, int, …) then
+    tries to import a module with that name.  On failure, a clear error is
+    raised instead of silently returning null.
+    """
+
+    def get_attr(self, name):
+        import builtins as _builtins
+        import importlib as _importlib
+        import types as _types
+
+        # 1. Python builtins (len, str, int, print, open, …)
+        builtin = getattr(_builtins, name, None)
+        if builtin is not None and callable(builtin):
+            fn = EmbedPyCallable(builtin, name)
+            fn.set_context(self.context).set_pos(self.pos_start, self.pos_end)
+            return fn, None
+
+        # 2. Try importing as a module (requests, os, json, math, …)
+        try:
+            mod = _importlib.import_module(name)
+            em = EmbedPyModule(mod, name)
+            em.set_context(self.context).set_pos(self.pos_start, self.pos_end)
+            return em, None
+        except ImportError:
+            pass
+
+        # 3. Not found anywhere
+        return None, RTError(
+            self.pos_start, self.pos_end,
+            f"embedPy: '{name}' is not a Python builtin and cannot be imported as a module. "
+            f"If it is a third-party package, install it first (pip install {name}).",
+            self.context,
+        )
+
+    def copy(self):
+        c = EmbedPyNamespace()
+        c.set_context(self.context)
+        c.set_pos(self.pos_start, self.pos_end)
+        return c
+
+    def __repr__(self):
+        return "<embedPy>"
+
+
+# ── end embedPy ────────────────────────────────────────────────────────────────
+
+
 class Module(Value):
     def __init__(self, name, symbol_table):
         super().__init__()
@@ -5295,6 +5672,12 @@ class SymbolTable:
     def remove(self, name):
         del self.symbols[name]
 
+
+# ── importPy shared module registry ───────────────────────────────────────────
+# Populated by importPy(){"os","sys",...} inside global setup(){}.
+# Injected into every rawPy{} and rawPyx{} exec namespace so users never need
+# to write 'import os' inside individual blocks.
+_rawpy_global_modules: dict = {}
 
 # ── global call hierarchy helpers ─────────────────────────────────────────────
 
@@ -6628,9 +7011,31 @@ class Interpreter:
 
     # ------------------------------------------------------------------ /vargroup visitors
 
+    def visit_ImportPyNode(self, node, context):
+        """Pre-import Python modules into _rawpy_global_modules so every
+        rawPy{} / rawPyx{} block in this run can use them without an explicit
+        'import x' statement at the top of each block.
+        """
+        res = RTResult()
+        import importlib as _importlib
+        for mod_name in node.module_names:
+            try:
+                mod = _importlib.import_module(mod_name)
+                _rawpy_global_modules[mod_name] = mod
+            except ImportError as e:
+                return res.failure(RTError(
+                    node.pos_start, node.pos_end,
+                    f"importPy: cannot import Python module '{mod_name}': {e}. "
+                    f"Make sure the package is installed.",
+                    context,
+                ))
+        return res.success(Number.null)
+
     def visit_RawPyBlockNode(self, node, context):
         res = RTResult()
         py_ns = {"__builtins__": __builtins__}
+        # Inject modules pre-imported via importPy(){"os","sys",...} in setup()
+        py_ns.update(_rawpy_global_modules)
         tbl = context.symbol_table
         while tbl is not None:
             for name, val in tbl.symbols.items():
@@ -7111,6 +7516,7 @@ global_symbol_table.set("tupleCount", BuiltInFunction.tupleCount)
 global_symbol_table.set("tupleFirst", BuiltInFunction.tupleFirst)
 global_symbol_table.set("tupleLast", BuiltInFunction.tupleLast)
 global_symbol_table.set("tupleJsonArray", BuiltInFunction.tupleJsonArray)
+global_symbol_table.set("embedPy", EmbedPyNamespace())
 
 SHARED_INTERPRETER = Interpreter()
 
