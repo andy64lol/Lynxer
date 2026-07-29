@@ -2,10 +2,10 @@
 
 ## Program structure
 
-Every Lynxer program must contain exactly two required top-level declarations, **in strict order**:
+Every Lynxer program has one required top-level declaration and one customisable entry point:
 
 1. **`global setup(){}`** — must be the **very first** declaration. The only place to declare global variables and call `import()`. Required even when empty.
-2. **`global main(){}`** — must be the **very last** declaration. The entry point; runs last.
+2. **Entry point** — by default this is `global main(){}`, which must be the last declaration. You can replace it with any global function using [`overrideMain()`](#overriding-the-entry-point).
 
 Additional global functions and class definitions may be declared **between** `setup` and `main`:
 
@@ -33,10 +33,45 @@ global main(){
 
 **Rules:**
 - `global setup(){}` is **mandatory** and must be first — before all other globals, classes, and main.
-- `global main(){}` is **mandatory** and must be last — no declarations may follow it.
+- `global main(){}` must be the **last** declaration when present — no declarations may follow it.
 - Global function and class declarations are only allowed between `setup` and `main`.
 - Executable code outside a function body is a syntax error.
 - `import()` may only appear inside `setup()`.
+
+---
+
+## Overriding the entry point
+
+By default Lynxer calls `global main(){}` after setup finishes. You can redirect this to any other global function with `overrideMain("funcName")` inside `setup()`:
+
+```c
+global setup(){
+    overrideMain("start");   // "start" runs instead of main
+}
+
+global start(){
+    print("Hello from start!\n");
+}
+```
+
+When `overrideMain` is set, `global main(){}` is **not required**. Both can be present — the named function wins and `main` is never called.
+
+```c
+global setup(){
+    overrideMain("app");
+}
+
+global app(){
+    print("app is the entry point\n");
+}
+
+global main(){
+    // this is NEVER called when overrideMain is active
+    print("main\n");
+}
+```
+
+If the named function does not exist, a runtime error is raised with the missing name clearly shown.
 
 ---
 
