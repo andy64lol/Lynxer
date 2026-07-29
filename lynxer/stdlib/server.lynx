@@ -3,17 +3,24 @@
   Full-featured HTTP server built on Flask.
 
   Supports:
-    • Plain text / HTML routes (GET, POST, PUT, DELETE, any-method)
-    • JSON API routes
+    • Plain text / HTML routes (GET, POST, PUT, DELETE, PATCH, any-method, multi-method)
+    • Routes with URL parameters: /user/<id>
+    • JSON API routes (fixed and dynamic via rawPy callback)
     • Jinja2 template file and inline-string routes
     • Static file directories
-    • Complete static-site hosting  
+    • Complete static-site hosting
     • Temporary and permanent redirects
     • Custom 404 / 500 / 403 error pages
     • CORS (wildcard or single origin)
     • Per-request logging
     • Global response headers
-    • Request-context readers (args, form, body, headers, method, URL, IP)
+    • Cookie reading and setting
+    • Request-context readers:
+        getArg(name), getFormField(name), getBody(), getBodyJson(),
+        getHeader(name), getMethod(), getURL(), getIP(),
+        getContentType(), getQueryAll(), getRouteParam(name)
+    • Response helpers: withStatus, jsonWithStatus
+    • Max request body size
     • HTTPS / SSL
     • Debug mode
 
@@ -41,6 +48,7 @@ global init(str host, int port){
         builtins._lx_port         = port
         builtins._lx_debug        = False
         builtins._lx_cors_origins = None
+        builtins._lx_global_headers = {}
     }
 }
 
@@ -61,39 +69,78 @@ global setTemplateFolder(str path){
     }
 }
 
+/// Set the maximum allowed request body size in bytes.
+  Requests larger than this limit receive a 413 error automatically.
+  Example: global.server.setMaxBodySize(1048576);  // 1 MB ///
+global setMaxBodySize(int bytes){
+    rawPy(){
+        import builtins
+        builtins._lx_flask.config["MAX_CONTENT_LENGTH"] = int(bytes)
+    }
+}
+
+// ── Internal helper ────────────────────────────────────────────────────────
+
+// Build a unique Flask endpoint name from path + method list
+global _epName(str prefix, str path){
+    str result = "";
+    rawPy(){
+        result = prefix + "_" + path.replace("/","_").replace("<","").replace(">","").replace(":","")
+    }
+    return result;
+}
+
 // ── Plain text / HTML routes ───────────────────────────────────────────────
 
-/// Register a GET route that returns response as HTML/text. ///
+/// Register a GET route that returns *response* as HTML/text. ///
 global get(str path, str response){
     rawPy(){
         import builtins
         _resp = response
-        def _h():
-            hdrs = {"Content-Type": "text/html; charset=utf-8"}
+        _p    = path
+        def _h(**kw):
+            hdrs = dict(getattr(builtins, "_lx_global_headers", {}))
+            hdrs["Content-Type"] = "text/html; charset=utf-8"
             if getattr(builtins, "_lx_cors_origins", None):
                 hdrs["Access-Control-Allow-Origin"] = builtins._lx_cors_origins
             return _resp, 200, hdrs
-        builtins._lx_flask.add_url_rule(
-            path, endpoint="GET_" + path.replace("/","_").replace("<","").replace(">",""),
-            view_func=_h, methods=["GET"]
-        )
+        _ep = "GET_" + _p.replace("/","_").replace("<","").replace(">","")
+        builtins._lx_flask.add_url_rule(_p, endpoint=_ep, view_func=_h, methods=["GET"])
     }
 }
 
-/// Register a POST route that returns response as HTML/text. ///
+/// Register a GET route with a custom HTTP status code. ///
+global getWithStatus(str path, str response, int status){
+    rawPy(){
+        import builtins
+        _resp   = response
+        _status = int(status)
+        _p      = path
+        def _h(**kw):
+            hdrs = dict(getattr(builtins, "_lx_global_headers", {}))
+            hdrs["Content-Type"] = "text/html; charset=utf-8"
+            if getattr(builtins, "_lx_cors_origins", None):
+                hdrs["Access-Control-Allow-Origin"] = builtins._lx_cors_origins
+            return _resp, _status, hdrs
+        _ep = "GWS_" + _p.replace("/","_").replace("<","").replace(">","")
+        builtins._lx_flask.add_url_rule(_p, endpoint=_ep, view_func=_h, methods=["GET"])
+    }
+}
+
+/// Register a POST route that returns *response* as HTML/text. ///
 global post(str path, str response){
     rawPy(){
         import builtins
         _resp = response
-        def _h():
-            hdrs = {"Content-Type": "text/html; charset=utf-8"}
+        _p    = path
+        def _h(**kw):
+            hdrs = dict(getattr(builtins, "_lx_global_headers", {}))
+            hdrs["Content-Type"] = "text/html; charset=utf-8"
             if getattr(builtins, "_lx_cors_origins", None):
                 hdrs["Access-Control-Allow-Origin"] = builtins._lx_cors_origins
             return _resp, 200, hdrs
-        builtins._lx_flask.add_url_rule(
-            path, endpoint="POST_" + path.replace("/","_").replace("<","").replace(">",""),
-            view_func=_h, methods=["POST"]
-        )
+        _ep = "POST_" + _p.replace("/","_").replace("<","").replace(">","")
+        builtins._lx_flask.add_url_rule(_p, endpoint=_ep, view_func=_h, methods=["POST"])
     }
 }
 
@@ -102,15 +149,15 @@ global put(str path, str response){
     rawPy(){
         import builtins
         _resp = response
-        def _h():
-            hdrs = {"Content-Type": "text/html; charset=utf-8"}
+        _p    = path
+        def _h(**kw):
+            hdrs = dict(getattr(builtins, "_lx_global_headers", {}))
+            hdrs["Content-Type"] = "text/html; charset=utf-8"
             if getattr(builtins, "_lx_cors_origins", None):
                 hdrs["Access-Control-Allow-Origin"] = builtins._lx_cors_origins
             return _resp, 200, hdrs
-        builtins._lx_flask.add_url_rule(
-            path, endpoint="PUT_" + path.replace("/","_").replace("<","").replace(">",""),
-            view_func=_h, methods=["PUT"]
-        )
+        _ep = "PUT_" + _p.replace("/","_").replace("<","").replace(">","")
+        builtins._lx_flask.add_url_rule(_p, endpoint=_ep, view_func=_h, methods=["PUT"])
     }
 }
 
@@ -119,15 +166,15 @@ global delete(str path, str response){
     rawPy(){
         import builtins
         _resp = response
-        def _h():
-            hdrs = {"Content-Type": "text/html; charset=utf-8"}
+        _p    = path
+        def _h(**kw):
+            hdrs = dict(getattr(builtins, "_lx_global_headers", {}))
+            hdrs["Content-Type"] = "text/html; charset=utf-8"
             if getattr(builtins, "_lx_cors_origins", None):
                 hdrs["Access-Control-Allow-Origin"] = builtins._lx_cors_origins
             return _resp, 200, hdrs
-        builtins._lx_flask.add_url_rule(
-            path, endpoint="DEL_" + path.replace("/","_").replace("<","").replace(">",""),
-            view_func=_h, methods=["DELETE"]
-        )
+        _ep = "DELETE_" + _p.replace("/","_").replace("<","").replace(">","")
+        builtins._lx_flask.add_url_rule(_p, endpoint=_ep, view_func=_h, methods=["DELETE"])
     }
 }
 
@@ -136,493 +183,383 @@ global patch(str path, str response){
     rawPy(){
         import builtins
         _resp = response
-        def _h():
-            hdrs = {"Content-Type": "text/html; charset=utf-8"}
+        _p    = path
+        def _h(**kw):
+            hdrs = dict(getattr(builtins, "_lx_global_headers", {}))
+            hdrs["Content-Type"] = "text/html; charset=utf-8"
             if getattr(builtins, "_lx_cors_origins", None):
                 hdrs["Access-Control-Allow-Origin"] = builtins._lx_cors_origins
             return _resp, 200, hdrs
-        builtins._lx_flask.add_url_rule(
-            path, endpoint="PATCH_" + path.replace("/","_").replace("<","").replace(">",""),
-            view_func=_h, methods=["PATCH"]
-        )
+        _ep = "PATCH_" + _p.replace("/","_").replace("<","").replace(">","")
+        builtins._lx_flask.add_url_rule(_p, endpoint=_ep, view_func=_h, methods=["PATCH"])
     }
 }
 
-/// Register a route that accepts GET, POST, PUT, DELETE, and PATCH. ///
+/// Register a route that accepts any HTTP method. ///
 global any(str path, str response){
     rawPy(){
         import builtins
         _resp = response
-        def _h():
-            hdrs = {"Content-Type": "text/html; charset=utf-8"}
+        _p    = path
+        def _h(**kw):
+            hdrs = dict(getattr(builtins, "_lx_global_headers", {}))
+            hdrs["Content-Type"] = "text/html; charset=utf-8"
             if getattr(builtins, "_lx_cors_origins", None):
                 hdrs["Access-Control-Allow-Origin"] = builtins._lx_cors_origins
             return _resp, 200, hdrs
+        _ep = "ANY_" + _p.replace("/","_").replace("<","").replace(">","")
         builtins._lx_flask.add_url_rule(
-            path, endpoint="ANY_" + path.replace("/","_").replace("<","").replace(">",""),
-            view_func=_h, methods=["GET","POST","PUT","DELETE","PATCH"]
+            _p, endpoint=_ep, view_func=_h,
+            methods=["GET","POST","PUT","DELETE","PATCH","HEAD","OPTIONS"]
         )
     }
 }
 
-/// Register a GET route with a custom HTTP status code. ///
-global getStatus(str path, str response, int status){
+/// Register a route for multiple specific methods.
+  methods is a comma-separated string, e.g. "GET,POST". ///
+global multiMethod(str path, str response, str methods){
     rawPy(){
         import builtins
-        _resp   = response
-        _status = status
-        def _h():
-            hdrs = {"Content-Type": "text/html; charset=utf-8"}
+        _resp    = response
+        _p       = path
+        _methods = [m.strip().upper() for m in methods.split(",") if m.strip()]
+        def _h(**kw):
+            hdrs = dict(getattr(builtins, "_lx_global_headers", {}))
+            hdrs["Content-Type"] = "text/html; charset=utf-8"
             if getattr(builtins, "_lx_cors_origins", None):
                 hdrs["Access-Control-Allow-Origin"] = builtins._lx_cors_origins
-            return _resp, _status, hdrs
-        builtins._lx_flask.add_url_rule(
-            path, endpoint="GETS_" + path.replace("/","_").replace("<","").replace(">",""),
-            view_func=_h, methods=["GET"]
-        )
+            return _resp, 200, hdrs
+        _ep = "MULTI_" + "_".join(_methods) + "_" + _p.replace("/","_").replace("<","").replace(">","")
+        builtins._lx_flask.add_url_rule(_p, endpoint=_ep, view_func=_h, methods=_methods)
     }
 }
 
-// ── JSON API routes ────────────────────────────────────────────────────────
+// ── JSON routes ────────────────────────────────────────────────────────────
 
-/// Register a GET route that returns jsonStr with Content-Type: application/json. ///
-global jsonGet(str path, str jsonStr){
+/// Register a GET route that returns a fixed JSON string. ///
+global jsonGet(str path, str jsonBody){
     rawPy(){
         import builtins
-        _data = jsonStr
-        def _h():
-            hdrs = {"Content-Type": "application/json"}
+        _body = jsonBody
+        _p    = path
+        def _h(**kw):
+            hdrs = dict(getattr(builtins, "_lx_global_headers", {}))
+            hdrs["Content-Type"] = "application/json"
             if getattr(builtins, "_lx_cors_origins", None):
                 hdrs["Access-Control-Allow-Origin"] = builtins._lx_cors_origins
-            return _data, 200, hdrs
-        builtins._lx_flask.add_url_rule(
-            path, endpoint="JGET_" + path.replace("/","_").replace("<","").replace(">",""),
-            view_func=_h, methods=["GET"]
-        )
+            return _body, 200, hdrs
+        _ep = "JSONGET_" + _p.replace("/","_").replace("<","").replace(">","")
+        builtins._lx_flask.add_url_rule(_p, endpoint=_ep, view_func=_h, methods=["GET"])
     }
 }
 
-/// Register a POST route that returns jsonStr as JSON. ///
-global jsonPost(str path, str jsonStr){
+/// Register a POST route that returns a fixed JSON string. ///
+global jsonPost(str path, str jsonBody){
     rawPy(){
         import builtins
-        _data = jsonStr
-        def _h():
-            hdrs = {"Content-Type": "application/json"}
+        _body = jsonBody
+        _p    = path
+        def _h(**kw):
+            hdrs = dict(getattr(builtins, "_lx_global_headers", {}))
+            hdrs["Content-Type"] = "application/json"
             if getattr(builtins, "_lx_cors_origins", None):
                 hdrs["Access-Control-Allow-Origin"] = builtins._lx_cors_origins
-            return _data, 200, hdrs
-        builtins._lx_flask.add_url_rule(
-            path, endpoint="JPOST_" + path.replace("/","_").replace("<","").replace(">",""),
-            view_func=_h, methods=["POST"]
-        )
+            return _body, 200, hdrs
+        _ep = "JSONPOST_" + _p.replace("/","_").replace("<","").replace(">","")
+        builtins._lx_flask.add_url_rule(_p, endpoint=_ep, view_func=_h, methods=["POST"])
     }
 }
 
-/// Register a route for GET and POST that returns jsonStr as JSON. ///
-global jsonRoute(str path, str jsonStr){
+/// Register a JSON GET route with a custom status code. ///
+global jsonWithStatus(str path, str jsonBody, int status){
     rawPy(){
         import builtins
-        _data = jsonStr
-        def _h():
-            hdrs = {"Content-Type": "application/json"}
+        _body   = jsonBody
+        _status = int(status)
+        _p      = path
+        def _h(**kw):
+            hdrs = dict(getattr(builtins, "_lx_global_headers", {}))
+            hdrs["Content-Type"] = "application/json"
             if getattr(builtins, "_lx_cors_origins", None):
                 hdrs["Access-Control-Allow-Origin"] = builtins._lx_cors_origins
-            return _data, 200, hdrs
+            return _body, _status, hdrs
+        _ep = "JWS_" + _p.replace("/","_").replace("<","").replace(">","")
         builtins._lx_flask.add_url_rule(
-            path, endpoint="JALL_" + path.replace("/","_").replace("<","").replace(">",""),
-            view_func=_h, methods=["GET","POST"]
-        )
-    }
-}
-
-/// Register a JSON route with a custom HTTP status code. ///
-global jsonStatus(str path, str jsonStr, int status){
-    rawPy(){
-        import builtins
-        _data   = jsonStr
-        _status = status
-        def _h():
-            hdrs = {"Content-Type": "application/json"}
-            if getattr(builtins, "_lx_cors_origins", None):
-                hdrs["Access-Control-Allow-Origin"] = builtins._lx_cors_origins
-            return _data, _status, hdrs
-        builtins._lx_flask.add_url_rule(
-            path, endpoint="JST_" + path.replace("/","_").replace("<","").replace(">",""),
-            view_func=_h, methods=["GET","POST"]
+            _p, endpoint=_ep, view_func=_h,
+            methods=["GET","POST","PUT","DELETE","PATCH"]
         )
     }
 }
 
 // ── Jinja2 template routes ─────────────────────────────────────────────────
 
-/// Register a GET route that renders a Jinja2 template file.
-  templateFile is relative to the template folder (default: "templates/").
-  dataJson is a JSON object whose keys become template variables,
-  e.g. '{"title":"Home","user":"Alice"}'. Pass "{}" for no variables. ///
-global template(str path, str templateFile, str dataJson){
+/// Register a GET route that renders a Jinja2 template file. ///
+global templateGet(str path, str templateFile){
     rawPy(){
-        import builtins, json as _json
+        import builtins
         from flask import render_template
-        _tpl  = templateFile
-        _data = dataJson
-        def _h():
-            try:
-                ctx = _json.loads(_data) if _data.strip() else {}
-            except Exception:
-                ctx = {}
-            hdrs = {}
+        _tpl = templateFile
+        _p   = path
+        def _h(**kw):
+            hdrs = dict(getattr(builtins, "_lx_global_headers", {}))
             if getattr(builtins, "_lx_cors_origins", None):
                 hdrs["Access-Control-Allow-Origin"] = builtins._lx_cors_origins
-            return render_template(_tpl, **ctx), 200, hdrs
-        builtins._lx_flask.add_url_rule(
-            path, endpoint="TPL_" + path.replace("/","_").replace("<","").replace(">",""),
-            view_func=_h, methods=["GET"]
-        )
+            body = render_template(_tpl, **kw)
+            return body, 200, hdrs
+        _ep = "TPLGET_" + _p.replace("/","_").replace("<","").replace(">","")
+        builtins._lx_flask.add_url_rule(_p, endpoint=_ep, view_func=_h, methods=["GET"])
     }
 }
 
-/// Register a POST route that renders a Jinja2 template file with dataJson context. ///
-global templatePost(str path, str templateFile, str dataJson){
+/// Register a POST route that renders a Jinja2 template file. ///
+global templatePost(str path, str templateFile){
     rawPy(){
-        import builtins, json as _json
+        import builtins
         from flask import render_template
-        _tpl  = templateFile
-        _data = dataJson
-        def _h():
-            try:
-                ctx = _json.loads(_data) if _data.strip() else {}
-            except Exception:
-                ctx = {}
-            hdrs = {}
+        _tpl = templateFile
+        _p   = path
+        def _h(**kw):
+            hdrs = dict(getattr(builtins, "_lx_global_headers", {}))
             if getattr(builtins, "_lx_cors_origins", None):
                 hdrs["Access-Control-Allow-Origin"] = builtins._lx_cors_origins
-            return render_template(_tpl, **ctx), 200, hdrs
-        builtins._lx_flask.add_url_rule(
-            path, endpoint="TPLP_" + path.replace("/","_").replace("<","").replace(">",""),
-            view_func=_h, methods=["POST"]
-        )
+            body = render_template(_tpl, **kw)
+            return body, 200, hdrs
+        _ep = "TPLPOST_" + _p.replace("/","_").replace("<","").replace(">","")
+        builtins._lx_flask.add_url_rule(_p, endpoint=_ep, view_func=_h, methods=["POST"])
     }
 }
 
-/// Register a GET route with an inline Jinja2 template string.
-  templateStr is the full HTML/Jinja2 source code.
-  dataJson is a JSON object of template variables, e.g. '{"name":"World"}'. ///
-global templateString(str path, str templateStr, str dataJson){
+/// Register a GET route that renders an inline Jinja2 template string. ///
+global inlineTemplate(str path, str templateStr){
     rawPy(){
-        import builtins, json as _json
+        import builtins
         from flask import render_template_string
-        _tpl  = templateStr
-        _data = dataJson
-        def _h():
-            try:
-                ctx = _json.loads(_data) if _data.strip() else {}
-            except Exception:
-                ctx = {}
-            hdrs = {}
+        _tpl = templateStr
+        _p   = path
+        def _h(**kw):
+            hdrs = dict(getattr(builtins, "_lx_global_headers", {}))
             if getattr(builtins, "_lx_cors_origins", None):
                 hdrs["Access-Control-Allow-Origin"] = builtins._lx_cors_origins
-            return render_template_string(_tpl, **ctx), 200, hdrs
+            body = render_template_string(_tpl, **kw)
+            return body, 200, hdrs
+        _ep = "ITPL_" + _p.replace("/","_").replace("<","").replace(">","")
+        builtins._lx_flask.add_url_rule(_p, endpoint=_ep, view_func=_h, methods=["GET"])
+    }
+}
+
+// ── Static files ───────────────────────────────────────────────────────────
+
+/// Serve a directory of static files under a URL prefix.
+  Example: global.server.staticDir("./public", "/static"); ///
+global staticDir(str dir, str urlPrefix){
+    rawPy(){
+        import builtins, os
+        from flask import send_from_directory
+        _dir    = os.path.abspath(dir)
+        _prefix = urlPrefix.rstrip("/")
+        def _static(filename):
+            hdrs = dict(getattr(builtins, "_lx_global_headers", {}))
+            if getattr(builtins, "_lx_cors_origins", None):
+                hdrs["Access-Control-Allow-Origin"] = builtins._lx_cors_origins
+            resp = send_from_directory(_dir, filename)
+            for k, v in hdrs.items():
+                resp.headers[k] = v
+            return resp
+        _ep = "STATIC_" + _prefix.replace("/","_")
         builtins._lx_flask.add_url_rule(
-            path, endpoint="TPLSTR_" + path.replace("/","_").replace("<","").replace(">",""),
-            view_func=_h, methods=["GET"]
+            _prefix + "/<path:filename>", endpoint=_ep, view_func=_static
         )
     }
 }
 
-// ── Static files & sites ───────────────────────────────────────────────────
-
-/// Serve files from directory under the given URL prefix.
-  e.g. staticFiles("/assets", "./public/assets") serves
-  ./public/assets/logo.png at /assets/logo.png. ///
-global staticFiles(str urlPrefix, str directory){
+/// Serve an entire directory as a static site (index.html at /). ///
+global staticSite(str dir, str urlPrefix){
     rawPy(){
         import builtins, os
         from flask import send_from_directory
-        _dir = os.path.abspath(directory)
-        _pfx = urlPrefix.rstrip("/")
-        def _sh(filename):
-            return send_from_directory(_dir, filename)
-        ep = "SF_" + urlPrefix.replace("/","_")
-        builtins._lx_flask.add_url_rule(
-            _pfx + "/<path:filename>", endpoint=ep, view_func=_sh
-        )
-    }
-}
-
-/// Host a complete static site from a local directory.
-  "/" serves index.html; all other paths serve the matching file.
-  Ideal for deploying a Vite/React/plain-HTML build. ///
-global staticSite(str directory){
-    rawPy(){
-        import builtins, os
-        from flask import send_from_directory
-        _dir = os.path.abspath(directory)
-        def _root():
+        _dir    = os.path.abspath(dir)
+        _prefix = urlPrefix.rstrip("/")
+        def _index():
             return send_from_directory(_dir, "index.html")
-        def _file(filename):
+        def _files(filename):
             return send_from_directory(_dir, filename)
-        builtins._lx_flask.add_url_rule("/",                endpoint="SROOT", view_func=_root)
-        builtins._lx_flask.add_url_rule("/<path:filename>", endpoint="SFILE", view_func=_file)
+        _ep_idx = "SSITE_IDX_" + _prefix.replace("/","_")
+        _ep_fls = "SSITE_FLS_" + _prefix.replace("/","_")
+        builtins._lx_flask.add_url_rule(_prefix + "/", endpoint=_ep_idx, view_func=_index)
+        builtins._lx_flask.add_url_rule(
+            _prefix + "/<path:filename>", endpoint=_ep_fls, view_func=_files
+        )
     }
 }
 
-/// Serve a single HTML file at path. ///
-global serveFile(str path, str filepath){
+/// Send a file as a downloadable attachment.
+  path is the URL path; filePath is the local file path; filename is the download name. ///
+global sendFile(str path, str filePath, str filename){
     rawPy(){
         import builtins, os
-        from flask import send_file
-        _fp = os.path.abspath(filepath)
-        def _h():
-            return send_file(_fp)
-        builtins._lx_flask.add_url_rule(
-            path, endpoint="FILE_" + path.replace("/","_"),
-            view_func=_h, methods=["GET"]
-        )
+        from flask import send_file as _sf
+        _fp  = os.path.abspath(filePath)
+        _fn  = filename
+        _p   = path
+        def _h(**kw):
+            return _sf(_fp, as_attachment=True, download_name=_fn)
+        _ep = "SENDFILE_" + _p.replace("/","_").replace("<","").replace(">","")
+        builtins._lx_flask.add_url_rule(_p, endpoint=_ep, view_func=_h, methods=["GET"])
     }
 }
 
 // ── Redirects ──────────────────────────────────────────────────────────────
 
-/// Register a temporary (302) redirect from path to target URL. ///
-global redirect(str path, str target){
+/// Register a temporary (302) redirect from path to destination. ///
+global redirect(str path, str destination){
     rawPy(){
         import builtins
-        from flask import redirect as _rd
-        _tgt = target
-        def _h(): return _rd(_tgt, 302)
-        builtins._lx_flask.add_url_rule(
-            path, endpoint="RD_" + path.replace("/","_"), view_func=_h
-        )
+        from flask import redirect as _redir
+        _dest = destination
+        _p    = path
+        def _h(**kw):
+            return _redir(_dest, 302)
+        _ep = "REDIR_" + _p.replace("/","_").replace("<","").replace(">","")
+        builtins._lx_flask.add_url_rule(_p, endpoint=_ep, view_func=_h, methods=["GET"])
     }
 }
 
-/// Register a permanent (301) redirect from path to target URL. ///
-global redirect301(str path, str target){
+/// Register a permanent (301) redirect from path to destination. ///
+global permanentRedirect(str path, str destination){
     rawPy(){
         import builtins
-        from flask import redirect as _rd
-        _tgt = target
-        def _h(): return _rd(_tgt, 301)
-        builtins._lx_flask.add_url_rule(
-            path, endpoint="RD301_" + path.replace("/","_"), view_func=_h
-        )
+        from flask import redirect as _redir
+        _dest = destination
+        _p    = path
+        def _h(**kw):
+            return _redir(_dest, 301)
+        _ep = "PERMAREDIR_" + _p.replace("/","_").replace("<","").replace(">","")
+        builtins._lx_flask.add_url_rule(_p, endpoint=_ep, view_func=_h, methods=["GET"])
     }
 }
 
-// ── Error handlers ─────────────────────────────────────────────────────────
+// ── Error pages ────────────────────────────────────────────────────────────
 
-/// Register a custom 404 Not Found page. response is HTML/text. ///
-global notFound(str response){
+/// Set a custom 404 (Not Found) error page. ///
+global errorPage(str html){
     rawPy(){
         import builtins
-        _resp = response
+        _html = html
         @builtins._lx_flask.errorhandler(404)
         def _404(e):
-            return _resp, 404, {"Content-Type": "text/html; charset=utf-8"}
+            return _html, 404
     }
 }
 
-/// Register a custom 500 Internal Server Error page. ///
-global serverError(str response){
+/// Set a custom 500 (Internal Server Error) page. ///
+global errorPage500(str html){
     rawPy(){
         import builtins
-        _resp = response
+        _html = html
         @builtins._lx_flask.errorhandler(500)
         def _500(e):
-            return _resp, 500, {"Content-Type": "text/html; charset=utf-8"}
+            return _html, 500
     }
 }
 
-/// Register a custom 403 Forbidden page. ///
-global forbidden(str response){
+/// Set a custom 403 (Forbidden) error page. ///
+global forbidden(str html){
     rawPy(){
         import builtins
-        _resp = response
+        _html = html
         @builtins._lx_flask.errorhandler(403)
         def _403(e):
-            return _resp, 403, {"Content-Type": "text/html; charset=utf-8"}
+            return _html, 403
     }
 }
 
-/// Register a custom 405 Method Not Allowed page. ///
-global methodNotAllowed(str response){
+/// Set a custom 405 (Method Not Allowed) error page. ///
+global errorPage405(str html){
     rawPy(){
         import builtins
-        _resp = response
+        _html = html
         @builtins._lx_flask.errorhandler(405)
         def _405(e):
-            return _resp, 405, {"Content-Type": "text/html; charset=utf-8"}
+            return _html, 405
+    }
+}
+
+/// Set a custom 413 (Request Entity Too Large) error page. ///
+global errorPage413(str html){
+    rawPy(){
+        import builtins
+        _html = html
+        @builtins._lx_flask.errorhandler(413)
+        def _413(e):
+            return _html, 413
     }
 }
 
 // ── CORS ───────────────────────────────────────────────────────────────────
 
-/// Add Access-Control-Allow-Origin: * to every response (open CORS). ///
-global cors(){
+/// Enable CORS for all responses using a wildcard origin (*). ///
+global enableCORS(){
     rawPy(){
         import builtins
         builtins._lx_cors_origins = "*"
-        @builtins._lx_flask.after_request
-        def _cors(resp):
-            resp.headers["Access-Control-Allow-Origin"]  = "*"
-            resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-            resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, PATCH, OPTIONS"
-            return resp
     }
 }
 
-/// Allow only the specified origin (e.g. "https://example.com"). ///
-global corsOrigin(str origin){
+/// Set a specific CORS origin header value (e.g. "https://example.com"). ///
+global setCORSOrigin(str origin){
     rawPy(){
         import builtins
-        _origin = origin
-        builtins._lx_cors_origins = _origin
-        @builtins._lx_flask.after_request
-        def _cors_o(resp):
-            resp.headers["Access-Control-Allow-Origin"]  = _origin
-            resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-            resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, PATCH, OPTIONS"
-            return resp
+        builtins._lx_cors_origins = origin
+    }
+}
+
+/// Disable CORS headers. ///
+global disableCORS(){
+    rawPy(){
+        import builtins
+        builtins._lx_cors_origins = None
     }
 }
 
 // ── Global response headers ────────────────────────────────────────────────
 
-/// Append a header to every response.  Call before run(). ///
-global addGlobalHeader(str key, str val){
+/// Add a header that will be included in every response. ///
+global addHeader(str name, str value){
     rawPy(){
         import builtins
-        _k = key
-        _v = val
+        if not hasattr(builtins, "_lx_global_headers"):
+            builtins._lx_global_headers = {}
+        builtins._lx_global_headers[name] = value
+    }
+}
+
+/// Remove a previously added global response header. ///
+global removeHeader(str name){
+    rawPy(){
+        import builtins
+        if hasattr(builtins, "_lx_global_headers"):
+            builtins._lx_global_headers.pop(name, None)
+    }
+}
+
+// ── Per-request logging ────────────────────────────────────────────────────
+
+/// Enable per-request console logging (method + path + status). ///
+global enableLogging(){
+    rawPy(){
+        import builtins
+        from flask import request as _req
         @builtins._lx_flask.after_request
-        def _gh(resp):
-            resp.headers[_k] = _v
+        def _log(resp):
+            print(f"[Lynxer server] {_req.method} {_req.path} -> {resp.status_code}")
             return resp
     }
 }
 
-// ── Request logging ────────────────────────────────────────────────────────
+// ── Cookies ────────────────────────────────────────────────────────────────
 
-/// Log METHOD /path to stdout before every request. ///
-global enableRequestLog(){
-    rawPy(){
-        import builtins
-        @builtins._lx_flask.before_request
-        def _log():
-            from flask import request as _req
-            print("[Lynxer server]", _req.method, _req.path)
-    }
-}
-
-// ── Request context readers ────────────────────────────────────────────────
-
-/// Return the value of URL query-string parameter name, or "" if absent.
-  Example URL: /search?q=hello  →  getArg("q") returns "hello". ///
-global getArg(str name){
-    str result = "";
-    rawPy(){
-        try:
-            from flask import request as _req
-            result = _req.args.get(name, "")
-        except Exception:
-            result = ""
-    }
-    return result;
-}
-
-/// Return a form field from the POST body, or "" if absent. ///
-global getForm(str name){
-    str result = "";
-    rawPy(){
-        try:
-            from flask import request as _req
-            result = _req.form.get(name, "")
-        except Exception:
-            result = ""
-    }
-    return result;
-}
-
-/// Return the raw request body as a string (useful for JSON APIs). ///
-global getBody(){
-    str result = "";
-    rawPy(){
-        try:
-            from flask import request as _req
-            result = _req.get_data(as_text=True)
-        except Exception:
-            result = ""
-    }
-    return result;
-}
-
-/// Return the value of a request header, or "" if absent. ///
-global getHeader(str name){
-    str result = "";
-    rawPy(){
-        try:
-            from flask import request as _req
-            result = _req.headers.get(name, "")
-        except Exception:
-            result = ""
-    }
-    return result;
-}
-
-/// Return the HTTP method of the current request ("GET", "POST", etc.). ///
-global getMethod(){
-    str result = "";
-    rawPy(){
-        try:
-            from flask import request as _req
-            result = _req.method
-        except Exception:
-            result = ""
-    }
-    return result;
-}
-
-/// Return the full URL of the current request. ///
-global getUrl(){
-    str result = "";
-    rawPy(){
-        try:
-            from flask import request as _req
-            result = _req.url
-        except Exception:
-            result = ""
-    }
-    return result;
-}
-
-/// Return the request path (without host or query string). ///
-global getPath(){
-    str result = "";
-    rawPy(){
-        try:
-            from flask import request as _req
-            result = _req.path
-        except Exception:
-            result = ""
-    }
-    return result;
-}
-
-/// Return the remote IP address of the client. ///
-global getRemoteAddr(){
-    str result = "";
-    rawPy(){
-        try:
-            from flask import request as _req
-            result = _req.remote_addr or ""
-        except Exception:
-            result = ""
-    }
-    return result;
-}
-
-/// Return the value of a cookie from the current request, or "" if absent. ///
+/// Read a cookie value by name. Returns empty string if not found.
+  Call only inside a request handler (rawPy block in a route callback). ///
 global getCookie(str name){
     str result = "";
     rawPy(){
@@ -635,7 +572,157 @@ global getCookie(str name){
     return result;
 }
 
-/// Return the Content-Type header of the current request. ///
+/// Set a cookie on the current response context.
+  Must be used with a rawPy route that builds a Response object. ///
+global setCookieHeader(str name, str value, int maxAge){
+    str result = "";
+    rawPy(){
+        result = f"Set-Cookie: {name}={value}; Max-Age={int(maxAge)}; Path=/"
+    }
+    return result;
+}
+
+// ── Request-context readers ────────────────────────────────────────────────
+
+/// Get a URL query-string parameter by name.
+  Example: /search?q=hello  →  getArg("q") returns "hello". ///
+global getArg(str name){
+    str result = "";
+    rawPy(){
+        try:
+            from flask import request as _req
+            result = _req.args.get(name, "")
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+/// Get all URL query-string parameters as a JSON string.
+  Example: /search?q=hi&lang=en → "{\"q\":\"hi\",\"lang\":\"en\"}". ///
+global getQueryAll(){
+    str result = "";
+    rawPy(){
+        try:
+            import json as _json
+            from flask import request as _req
+            result = _json.dumps(dict(_req.args))
+        except Exception:
+            result = "{}"
+    }
+    return result;
+}
+
+/// Get a URL route parameter by name.
+  Requires a route defined with a <paramName> placeholder,
+  e.g. path "/user/<id>".  Call inside a rawPy block. ///
+global getRouteParam(str name){
+    str result = "";
+    rawPy(){
+        try:
+            from flask import request as _req
+            result = str(_req.view_args.get(name, "")) if _req.view_args else ""
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+/// Get a form-data field value by name (from a POST/PUT form submission). ///
+global getFormField(str name){
+    str result = "";
+    rawPy(){
+        try:
+            from flask import request as _req
+            result = _req.form.get(name, "")
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+/// Get the raw request body as a string. ///
+global getBody(){
+    str result = "";
+    rawPy(){
+        try:
+            from flask import request as _req
+            result = _req.get_data(as_text=True)
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+/// Get the request body parsed as a JSON string (re-serialised).
+  Returns "{}" on failure. ///
+global getBodyJson(){
+    str result = "";
+    rawPy(){
+        try:
+            import json as _json
+            from flask import request as _req
+            data = _req.get_json(silent=True, force=True)
+            result = _json.dumps(data) if data is not None else "{}"
+        except Exception:
+            result = "{}"
+    }
+    return result;
+}
+
+/// Get a request header value by name. Returns empty string if absent. ///
+global getHeader(str name){
+    str result = "";
+    rawPy(){
+        try:
+            from flask import request as _req
+            result = _req.headers.get(name, "")
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+/// Get the HTTP method of the current request (e.g. "GET", "POST"). ///
+global getMethod(){
+    str result = "";
+    rawPy(){
+        try:
+            from flask import request as _req
+            result = _req.method
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+/// Get the full URL of the current request. ///
+global getURL(){
+    str result = "";
+    rawPy(){
+        try:
+            from flask import request as _req
+            result = _req.url
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+/// Get the client IP address of the current request. ///
+global getIP(){
+    str result = "";
+    rawPy(){
+        try:
+            from flask import request as _req
+            result = _req.remote_addr or ""
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+/// Get the Content-Type header of the current request. ///
 global getContentType(){
     str result = "";
     rawPy(){
@@ -644,6 +731,46 @@ global getContentType(){
             result = _req.content_type or ""
         except Exception:
             result = ""
+    }
+    return result;
+}
+
+/// Return true (1) if the current request method is GET. ///
+global isGet(){
+    int result = 0;
+    rawPy(){
+        try:
+            from flask import request as _req
+            result = 1 if _req.method == "GET" else 0
+        except Exception:
+            result = 0
+    }
+    return result;
+}
+
+/// Return true (1) if the current request method is POST. ///
+global isPost(){
+    int result = 0;
+    rawPy(){
+        try:
+            from flask import request as _req
+            result = 1 if _req.method == "POST" else 0
+        except Exception:
+            result = 0
+    }
+    return result;
+}
+
+/// Get all request headers as a JSON string. ///
+global getAllHeaders(){
+    str result = "";
+    rawPy(){
+        try:
+            import json as _json
+            from flask import request as _req
+            result = _json.dumps(dict(_req.headers))
+        except Exception:
+            result = "{}"
     }
     return result;
 }

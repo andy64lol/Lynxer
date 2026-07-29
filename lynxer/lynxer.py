@@ -845,7 +845,8 @@ class Parser:
     def __init__(self, tokens):
         self.tokens = tokens
         self.tok_idx = -1
-        self._loop_depth = 0   # tracks nesting depth of for/while/iterate
+        self._loop_depth = 0       # tracks nesting depth of for/while/iterate
+        self._in_global_func = False  # True when parsing a non-setup global body
         self.advance()
 
     def advance(self):
@@ -1111,7 +1112,20 @@ class Parser:
         self.advance()
 
         is_setup = name_tok.value == "setup"
+        _is_global_def = kind_tok.value == "global" or (
+            kind_tok.type == TT_IDENTIFIER and kind_tok.value == "global"
+        )
+
+        # Manage _in_global_func flag: True only while inside a non-setup global body
+        prev_in_global_func = self._in_global_func
+        if _is_global_def and not is_setup:
+            self._in_global_func = True
+        else:
+            # local functions and setup never allow nested globals
+            self._in_global_func = False
+
         body = res.register(self.parse_block(in_setup=is_setup, allow_local_funcs=True))
+        self._in_global_func = prev_in_global_func  # restore
         if res.error:
             return res
 
@@ -1372,12 +1386,28 @@ class Parser:
             and self.peek(1) is not None
             and self.peek(1).type == TT_IDENTIFIER
         ):
+            if self._in_global_func:
+                # Nested global definition inside a non-setup global body — allowed
+                node = res.register(self.parse_func_def())
+                if res.error:
+                    return res
+                return res.success(node)
+            if in_setup:
+                return res.failure(
+                    InvalidSyntaxError(
+                        self.current_tok.pos_start,
+                        self.current_tok.pos_end,
+                        "Cannot define a 'global' function inside 'global setup(){}'. "
+                        "Nested globals belong inside other global functions, not in setup.",
+                    )
+                )
             return res.failure(
                 InvalidSyntaxError(
                     self.current_tok.pos_start,
                     self.current_tok.pos_end,
-                    "'global'/'global' function definitions must be at the top level of the file, "
-                    "not inside another function. Move the function before 'global main(){}'.",
+                    "'global' function definitions must be at the top level of the file "
+                    "or nested inside another global function. "
+                    "Move the function before 'global main(){}'.",
                 )
             )
 
@@ -3728,15 +3758,19 @@ class Function(BaseFunction):
         self.param_names = param_names
         self.param_types = param_types or [None] * len(param_names)
         self.is_global = is_global
-        self.inner_locals = {}  # nested 'local' functions defined inside this function
+        self.inner_locals = {}   # nested 'local' functions defined inside this function
+        self.inner_globals = {}  # nested 'global' functions defined inside this global
+        self.global_path = None  # list like ['a', 'b'] for global.a.b; None for locals
 
     def get_attr(self, name):
         if name in self.inner_locals:
             return self.inner_locals[name], None
+        if name in self.inner_globals:
+            return self.inner_globals[name], None
         return None, RTError(
             self.pos_start,
             self.pos_end,
-            f"Local function '{self.name}' has no nested local '{name}'",
+            f"Function '{self.name}' has no nested local or nested global '{name}'",
             self.context,
         )
 
@@ -3744,7 +3778,9 @@ class Function(BaseFunction):
         res = RTResult()
         interpreter = SHARED_INTERPRETER
         exec_ctx = self.generate_new_context()
-        exec_ctx.current_function = self  # track for inner-local registration
+        exec_ctx.current_function = self  # track for inner-local/inner-global registration
+        if self.is_global:
+            exec_ctx.current_global_path = self.global_path  # for hierarchy enforcement
 
         res.register(
             self.check_and_populate_args(
@@ -3771,6 +3807,8 @@ class Function(BaseFunction):
         c.set_context(self.context)
         c.set_pos(self.pos_start, self.pos_end)
         c.inner_locals = dict(self.inner_locals)
+        c.inner_globals = dict(self.inner_globals)
+        c.global_path = self.global_path
         return c
 
     def __repr__(self):
@@ -3786,22 +3824,28 @@ class AsyncFunction(BaseFunction):
         self.param_names = param_names
         self.param_types = param_types or [None] * len(param_names)
         self.is_global = is_global
-        self.inner_locals = {}  # nested 'local' functions defined inside this function
+        self.inner_locals = {}   # nested 'local' functions defined inside this function
+        self.inner_globals = {}  # nested 'global' functions defined inside this global
+        self.global_path = None  # list like ['a', 'b'] for global.a.b
 
     def get_attr(self, name):
         if name in self.inner_locals:
             return self.inner_locals[name], None
+        if name in self.inner_globals:
+            return self.inner_globals[name], None
         return None, RTError(
             self.pos_start,
             self.pos_end,
-            f"Local function '{self.name}' has no nested local '{name}'",
+            f"Function '{self.name}' has no nested local or nested global '{name}'",
             self.context,
         )
 
     def execute(self, args):
         res = RTResult()
         exec_ctx = self.generate_new_context()
-        exec_ctx.current_function = self  # track for inner-local registration
+        exec_ctx.current_function = self  # track for inner-local/inner-global registration
+        if self.is_global:
+            exec_ctx.current_global_path = self.global_path
 
         # Validate / populate args synchronously — arg errors are sync failures
         res.register(
@@ -3835,6 +3879,8 @@ class AsyncFunction(BaseFunction):
         c.set_context(self.context)
         c.set_pos(self.pos_start, self.pos_end)
         c.inner_locals = dict(self.inner_locals)
+        c.inner_globals = dict(self.inner_globals)
+        c.global_path = self.global_path
         return c
 
     def __repr__(self):
@@ -4833,19 +4879,26 @@ class Namespace(Value):
 
 
 class LocalNamespace(Value):
-    """Namespace for 'local' functions defined in the current function scope."""
+    """Namespace for 'local' functions defined in the current function scope.
+
+    Intentionally only searches the *direct* symbol table (no parent walk).
+    A nested global executing inside an outer global must not be able to
+    reach locals that were defined in the outer global's scope.
+    """
 
     def __init__(self, symbol_table):
         super().__init__()
         self.symbol_table = symbol_table
 
     def get_attr(self, name):
-        val = self.symbol_table.get(name)
+        # Direct lookup only — do NOT walk the parent chain.
+        val = self.symbol_table.symbols.get(name)
         if val is None:
             return None, RTError(
                 self.pos_start,
                 self.pos_end,
-                f"Local function '{name}' is not defined in this scope",
+                f"Local function '{name}' is not defined in this scope "
+                f"(locals are only visible inside the function that defines them)",
                 self.context,
             )
         if isinstance(val, (Function, AsyncFunction)) and val.is_global:
@@ -5180,7 +5233,8 @@ class Context:
         self.parent = parent
         self.parent_entry_pos = parent_entry_pos
         self.symbol_table = None
-        self.current_function = None  # the Function/AsyncFunction currently executing
+        self.current_function = None      # the Function/AsyncFunction currently executing
+        self.current_global_path = None   # path list for the executing global, e.g. ['a', 'b']
 
 
 # symbol table
@@ -5240,6 +5294,77 @@ class SymbolTable:
 
     def remove(self, name):
         del self.symbols[name]
+
+
+# ── global call hierarchy helpers ─────────────────────────────────────────────
+
+def _can_call_global(caller_path, callee_path):
+    """Return True if a global at *caller_path* is allowed to call one at *callee_path*.
+
+    Rules (hierarchical call restriction):
+    - Recursion (same path) is always allowed.
+    - Globals with a different top-level name are always callable (different tree).
+    - Within the same tree, a caller may only call its own ancestors (upward calls).
+      Sideways calls to siblings, cousins, or downward calls to descendants are
+      forbidden to keep the hierarchy clean.
+    """
+    if not caller_path or not callee_path:
+        return True
+    # Recursion
+    if caller_path == callee_path:
+        return True
+    # Different top-level root — always OK
+    if caller_path[0] != callee_path[0]:
+        return True
+    # Same root: callee must be a strict prefix of caller (i.e. an ancestor)
+    if len(callee_path) < len(caller_path):
+        return caller_path[:len(callee_path)] == callee_path
+    # callee is at the same depth or deeper — not an ancestor
+    return False
+
+
+def _get_current_global_path(context):
+    """Walk the context chain to find the nearest current_global_path."""
+    c = context
+    while c is not None:
+        if c.current_global_path is not None:
+            return c.current_global_path
+        c = c.parent
+    return None
+
+
+def _preregister_nested_globals(parent_func, block_node, context):
+    """Scan the top-level statements of *block_node* for nested global FuncDefNodes
+    and eagerly register them in *parent_func.inner_globals* so that calls like
+    ``global.outer.inner()`` work without first executing ``global.outer()``.
+
+    Only the *direct* children of the block are scanned (not nested inside if/for/while).
+    Globals inside control-flow branches are registered lazily at runtime when the
+    parent executes.  Recurses for deeper nesting (global.a.b.c).
+    """
+    for stmt in block_node.statements:
+        if not isinstance(stmt, FuncDefNode):
+            continue
+        is_global_def = (
+            stmt.kind_tok.value == "global"
+            or (stmt.kind_tok.type == TT_IDENTIFIER and stmt.kind_tok.value == "global")
+        )
+        if not is_global_def:
+            continue
+        child_name = stmt.var_name_tok.value
+        param_names = [p[1].value for p in stmt.param_toks]
+        param_types = [p[0].value if p[0] else None for p in stmt.param_toks]
+        if stmt.is_async:
+            child_func = AsyncFunction(child_name, stmt.body_block, param_names, param_types, is_global=True)
+        else:
+            child_func = Function(child_name, stmt.body_block, param_names, param_types, is_global=True)
+        child_func.set_context(context)
+        child_func.set_pos(stmt.pos_start, stmt.pos_end)
+        parent_path = parent_func.global_path or [parent_func.name]
+        child_func.global_path = parent_path + [child_name]
+        parent_func.inner_globals[child_name] = child_func
+        # Recurse for deeper nesting
+        _preregister_nested_globals(child_func, stmt.body_block, context)
 
 
 # interpreter
@@ -5623,17 +5748,39 @@ class Interpreter:
         func_name = node.var_name_tok.value
         param_names = [p[1].value for p in node.param_toks]
         param_types = [p[0].value if p[0] else None for p in node.param_toks]
-        is_global = node.kind_tok.value == "global"
+        is_global = node.kind_tok.value == "global" or (
+            node.kind_tok.type == TT_IDENTIFIER and node.kind_tok.value == "global"
+        )
         if node.is_async:
             func_value = AsyncFunction(func_name, node.body_block, param_names, param_types, is_global)
         else:
             func_value = Function(func_name, node.body_block, param_names, param_types, is_global)
         func_value.set_context(context).set_pos(node.pos_start, node.pos_end)
+
+        if is_global:
+            # Determine global_path and register as a nested global if applicable
+            parent_fn = context.current_function
+            if parent_fn is not None and parent_fn.is_global:
+                # Nested global: register on parent function and build path
+                parent_path = parent_fn.global_path or [parent_fn.name]
+                func_value.global_path = parent_path + [func_name]
+                parent_fn.inner_globals[func_name] = func_value
+            else:
+                # Top-level global
+                func_value.global_path = [func_name]
+
+            # Pre-register any nested globals declared directly inside this
+            # function's body so they are accessible via global.a.b() without
+            # needing to call global.a() first.
+            _preregister_nested_globals(func_value, node.body_block, context)
+
         context.symbol_table.set(func_name, func_value)
-        # If this is a 'local' function defined inside another local, also register
-        # it on the parent function so local.outerFunc.innerFunc() chains work.
+
+        # If this is a 'local' function defined inside another function, register on
+        # the parent function so local.outerFunc.innerFunc() chains work.
         if not is_global and context.current_function is not None:
             context.current_function.inner_locals[func_name] = func_value
+
         return res.success(func_value)
 
     def visit_AsyncLocalDefNode(self, node, context):
@@ -6185,6 +6332,24 @@ class Interpreter:
                 f"'local.{value_to_call.name}(...)' not '{value_to_call.name}(...)'",
                 context,
             ))
+
+        # enforce global call hierarchy restriction for nested globals
+        if (isinstance(value_to_call, (Function, AsyncFunction))
+                and value_to_call.is_global
+                and value_to_call.global_path is not None
+                and len(value_to_call.global_path) > 1):
+            caller_path = _get_current_global_path(context)
+            if caller_path is not None and not _can_call_global(caller_path, value_to_call.global_path):
+                callee_str = "global." + ".".join(value_to_call.global_path)
+                caller_str = "global." + ".".join(caller_path)
+                return res.failure(RTError(
+                    node.pos_start, node.pos_end,
+                    f"Hierarchical call restriction: '{caller_str}' cannot call "
+                    f"'{callee_str}'. Within the same global tree, a nested global "
+                    f"may only call its own ancestors (upward calls only). "
+                    f"Sideways and downward calls within the same tree are not allowed.",
+                    context,
+                ))
 
         for arg_node in node.arg_nodes:
             args.append(res.register(self.visit(arg_node, context)))
