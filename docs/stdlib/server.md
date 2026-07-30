@@ -41,7 +41,7 @@ All route-registration functions must be called before `run()`.
 | `put` | `put(str path, str response)` | Register a `PUT` route. |
 | `delete` | `delete(str path, str response)` | Register a `DELETE` route. |
 | `patch` | `patch(str path, str response)` | Register a `PATCH` route. |
-| `any` | `any(str path, str response)` | Register a route for GET, POST, PUT, DELETE, and PATCH. |
+| `anyHttp` | `anyHttp(str path, str response)` | Register a route for GET, POST, PUT, DELETE, and PATCH. |
 | `getStatus` | `getStatus(str path, str response, int status)` | `GET` route with a custom HTTP status code. |
 
 ```c

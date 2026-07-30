@@ -41,9 +41,10 @@ global setup(){}
   Must be called before any route registration. ///
 global init(str host, int port){
     rawPy(){
+        import os
         from flask import Flask
         import builtins
-        builtins._lx_flask        = Flask(__name__)
+        builtins._lx_flask = Flask("lynxer",root_path=os.getcwd())
         builtins._lx_host         = host
         builtins._lx_port         = port
         builtins._lx_debug        = False
@@ -196,7 +197,7 @@ global patch(str path, str response){
 }
 
 /// Register a route that accepts any HTTP method. ///
-global any(str path, str response){
+global anyHttp(str path, str response){
     rawPy(){
         import builtins
         _resp = response
