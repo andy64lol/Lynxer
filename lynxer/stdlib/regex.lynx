@@ -1,0 +1,461 @@
+///
+  Lynxer Standard Library — regex
+  Extended regular expression operations.
+
+  Uses Python's `regex` package when available, with graceful fallback to `re`.
+  The `regex` package adds: possessive quantifiers (++, *+), atomic groups (?>...),
+  Unicode category support (\p{L}), and overlapping matches.
+
+  Complements re.lynx with:
+    • Compiled pattern cache (compile / compileFlags)
+    • Pattern validation (isValid)
+    • Extended extraction (extract, extractAll, unique)
+    • Replace helpers (replaceNth, replaceAllLiteral)
+    • Search helpers (lastMatch, highlight, splitKeep)
+    • Utility (globToRegex, countWords, truncateMatch)
+
+  For basic regex operations (test, match, findall, sub, split, groups, named …)
+  use global.re.* — those are already well-covered in re.lynx.
+///
+
+global setup(){}
+
+// ── Internal helpers ──────────────────────────────────────────────────────────
+
+// Store compiled patterns in builtins._lx_regex_cache {name -> compiled}
+global _ensureCache(){
+    rawPy(){
+        import builtins
+        if not hasattr(builtins, "_lx_regex_cache"):
+            builtins._lx_regex_cache = {}
+    }
+}
+
+// ── Compiled pattern cache ────────────────────────────────────────────────────
+
+/// Compile a pattern and store it under name for later use with match/search/findall/sub/test.
+Flags string can be empty or any combination of: I (ignore case), M (multiline), S (dotall), X (verbose). ///
+global compile(str name, str pattern, str flags){
+    rawPy(){
+        import builtins
+        if not hasattr(builtins, "_lx_regex_cache"):
+            builtins._lx_regex_cache = {}
+        try:
+            _rx = __import__("regex")
+        except ImportError:
+            _rx = __import__("re")
+        _f = 0
+        if "I" in flags.upper(): _f |= _rx.IGNORECASE
+        if "M" in flags.upper(): _f |= _rx.MULTILINE
+        if "S" in flags.upper(): _f |= _rx.DOTALL
+        if "X" in flags.upper(): _f |= _rx.VERBOSE
+        try:
+            builtins._lx_regex_cache[name] = _rx.compile(pattern, _f)
+        except Exception:
+            pass
+    }
+}
+
+/// Use a compiled (cached) pattern to test whether it matches string.
+Returns 1 (match found) or 0. ///
+global testCompiled(str name, str string){
+    int result = 0;
+    rawPy(){
+        import builtins
+        cache = getattr(builtins, "_lx_regex_cache", {})
+        p = cache.get(name)
+        result = 1 if (p and p.search(string)) else 0
+    }
+    return result;
+}
+
+/// Use a compiled pattern to return the first matching substring, or "". ///
+global matchCompiled(str name, str string){
+    str result = "";
+    rawPy(){
+        import builtins
+        cache = getattr(builtins, "_lx_regex_cache", {})
+        p = cache.get(name)
+        if p:
+            m = p.search(string)
+            result = m.group(0) if m else ""
+        else:
+            result = ""
+    }
+    return result;
+}
+
+/// Use a compiled pattern to return all matches as a JSON array. ///
+global findallCompiled(str name, str string){
+    str result = "";
+    rawPy(){
+        import builtins, json as _json
+        cache = getattr(builtins, "_lx_regex_cache", {})
+        p = cache.get(name)
+        if p:
+            matches = p.findall(string)
+            result = _json.dumps([str(m) if not isinstance(m, str) else m for m in matches])
+        else:
+            result = "[]"
+    }
+    return result;
+}
+
+/// Use a compiled pattern to replace all matches with repl. Returns modified string. ///
+global subCompiled(str name, str repl, str string){
+    str result = "";
+    rawPy(){
+        import builtins
+        cache = getattr(builtins, "_lx_regex_cache", {})
+        p = cache.get(name)
+        result = p.sub(repl, string) if p else string
+    }
+    return result;
+}
+
+/// Clear the compiled pattern cache. ///
+global clearCache(){
+    rawPy(){
+        import builtins
+        builtins._lx_regex_cache = {}
+    }
+}
+
+/// Return the names of all currently compiled (cached) patterns as a JSON array. ///
+global cacheKeys(){
+    str result = "";
+    rawPy(){
+        import builtins, json as _json
+        cache = getattr(builtins, "_lx_regex_cache", {})
+        result = _json.dumps(list(cache.keys()))
+    }
+    return result;
+}
+
+// ── Pattern validation ────────────────────────────────────────────────────────
+
+/// Return 1 if pattern is a valid regex, else 0. ///
+global isValid(str pattern){
+    int result = 0;
+    rawPy(){
+        try:
+            _rx = __import__("regex")
+        except ImportError:
+            _rx = __import__("re")
+        try:
+            _rx.compile(pattern)
+            result = 1
+        except Exception:
+            result = 0
+    }
+    return result;
+}
+
+// ── Extraction helpers ────────────────────────────────────────────────────────
+
+/// Return a JSON object of all named groups from the first match, or "{}".
+Equivalent to re.named but using the regex package. ///
+global extract(str pattern, str string){
+    str result = "";
+    rawPy(){
+        import json as _json
+        try:
+            _rx = __import__("regex")
+        except ImportError:
+            _rx = __import__("re")
+        try:
+            m = _rx.search(pattern, string)
+            result = _json.dumps(m.groupdict()) if m else "{}"
+        except Exception:
+            result = "{}"
+    }
+    return result;
+}
+
+/// Return a JSON array of objects — one per match — with all named groups.
+Use (?P<name>...) in your pattern. ///
+global extractAll(str pattern, str string){
+    str result = "";
+    rawPy(){
+        import json as _json
+        try:
+            _rx = __import__("regex")
+        except ImportError:
+            _rx = __import__("re")
+        try:
+            result = _json.dumps([m.groupdict() for m in _rx.finditer(pattern, string)])
+        except Exception:
+            result = "[]"
+    }
+    return result;
+}
+
+/// Return a JSON array of all unique matches (no duplicates). ///
+global unique(str pattern, str string){
+    str result = "";
+    rawPy(){
+        import json as _json
+        try:
+            _rx = __import__("regex")
+        except ImportError:
+            _rx = __import__("re")
+        try:
+            seen = []
+            for m in _rx.finditer(pattern, string):
+                t = m.group(0)
+                if t not in seen:
+                    seen.append(t)
+            result = _json.dumps(seen)
+        except Exception:
+            result = "[]"
+    }
+    return result;
+}
+
+/// Return the last match of pattern in string, or "" if none. ///
+global lastMatch(str pattern, str string){
+    str result = "";
+    rawPy(){
+        try:
+            _rx = __import__("regex")
+        except ImportError:
+            _rx = __import__("re")
+        try:
+            matches = list(_rx.finditer(pattern, string))
+            result = matches[-1].group(0) if matches else ""
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+/// Return all overlapping matches as a JSON array (requires regex package; falls back to non-overlapping). ///
+global findallOverlapping(str pattern, str string){
+    str result = "";
+    rawPy(){
+        import json as _json
+        try:
+            import regex as _rx
+            matches = [m.group(0) for m in _rx.finditer(pattern, string, overlapped=True)]
+            result = _json.dumps(matches)
+        except ImportError:
+            import re as _re, json as _j
+            matches = [m.group(0) for m in _re.finditer(pattern, string)]
+            result = _j.dumps(matches)
+        except Exception:
+            result = "[]"
+    }
+    return result;
+}
+
+// ── Replace helpers ───────────────────────────────────────────────────────────
+
+/// Replace only the n-th occurrence (1-indexed) of pattern with repl.
+All other occurrences are left unchanged. ///
+global replaceNth(str pattern, str repl, str string, int n){
+    str result = "";
+    rawPy(){
+        try:
+            _rx = __import__("regex")
+        except ImportError:
+            _rx = __import__("re")
+        try:
+            _counter = [0]
+            def _replacer(m):
+                _counter[0] += 1
+                return repl if _counter[0] == n else m.group(0)
+            result = _rx.sub(pattern, _replacer, string)
+        except Exception:
+            result = string
+    }
+    return result;
+}
+
+/// Replace all occurrences of pattern with a literal string (no backreference expansion).
+Useful when repl contains backslashes or group references that should not be interpreted. ///
+global replaceAllLiteral(str pattern, str repl, str string){
+    str result = "";
+    rawPy(){
+        try:
+            _rx = __import__("regex")
+        except ImportError:
+            _rx = __import__("re")
+        try:
+            _r = repl
+            result = _rx.sub(pattern, lambda m: _r, string)
+        except Exception:
+            result = string
+    }
+    return result;
+}
+
+// ── Highlight and split ───────────────────────────────────────────────────────
+
+/// Wrap every match with before and after strings.
+Example: highlight("\\d+", "**", "**", "score: 42") → "score: **42**". ///
+global highlight(str pattern, str before, str after, str string){
+    str result = "";
+    rawPy(){
+        try:
+            _rx = __import__("regex")
+        except ImportError:
+            _rx = __import__("re")
+        _b = before
+        _a = after
+        try:
+            result = _rx.sub(pattern, lambda m: _b + m.group(0) + _a, string)
+        except Exception:
+            result = string
+    }
+    return result;
+}
+
+/// Split string by pattern but keep the separators in the result.
+Returns a JSON array where matched separators appear as separate elements. ///
+global splitKeep(str pattern, str string){
+    str result = "";
+    rawPy(){
+        import json as _json
+        try:
+            _rx = __import__("regex")
+        except ImportError:
+            _rx = __import__("re")
+        try:
+            parts = _rx.split("(" + pattern + ")", string)
+            result = _json.dumps([p for p in parts if p is not None])
+        except Exception:
+            result = "[]"
+    }
+    return result;
+}
+
+// ── Unicode category helpers (regex package) ──────────────────────────────────
+
+/// Return all Unicode letters in string as a JSON array (uses \p{L}).
+Falls back to \w word characters if regex package is unavailable. ///
+global findLetters(str string){
+    str result = "";
+    rawPy(){
+        import json as _json
+        try:
+            import regex as _rx
+            result = _json.dumps(_rx.findall(r"\p{L}+", string))
+        except ImportError:
+            import re as _re
+            result = _json.dumps(_re.findall(r"[a-zA-Z]+", string))
+        except Exception:
+            result = "[]"
+    }
+    return result;
+}
+
+/// Return all Unicode decimal digits in string as a JSON array (uses \p{Nd}). ///
+global findDigits(str string){
+    str result = "";
+    rawPy(){
+        import json as _json
+        try:
+            import regex as _rx
+            result = _json.dumps(_rx.findall(r"\p{Nd}+", string))
+        except ImportError:
+            import re as _re
+            result = _json.dumps(_re.findall(r"\d+", string))
+        except Exception:
+            result = "[]"
+    }
+    return result;
+}
+
+// ── Utility ───────────────────────────────────────────────────────────────────
+
+/// Convert a glob pattern (*, ?, [abc]) to an equivalent regex string.
+Example: globToRegex("*.txt") → "^.*\\.txt$". ///
+global globToRegex(str glob){
+    str result = "";
+    rawPy(){
+        import re as _re
+        try:
+            escaped = ""
+            i = 0
+            while i < len(glob):
+                c = glob[i]
+                if c == "*":
+                    escaped += ".*"
+                elif c == "?":
+                    escaped += "."
+                elif c == "[":
+                    j = glob.find("]", i)
+                    if j >= 0:
+                        escaped += glob[i:j+1]
+                        i = j + 1
+                        continue
+                    else:
+                        escaped += _re.escape(c)
+                else:
+                    escaped += _re.escape(c)
+                i += 1
+            result = "^" + escaped + "$"
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+/// Return the number of non-overlapping matches of pattern in string. ///
+global countMatches(str pattern, str string){
+    int result = 0;
+    rawPy(){
+        try:
+            _rx = __import__("regex")
+        except ImportError:
+            _rx = __import__("re")
+        try:
+            result = len(list(_rx.finditer(pattern, string)))
+        except Exception:
+            result = 0
+    }
+    return result;
+}
+
+/// Return the start character index of the first match, or -1. ///
+global firstMatchPos(str pattern, str string){
+    int result = 0;
+    rawPy(){
+        try:
+            _rx = __import__("regex")
+        except ImportError:
+            _rx = __import__("re")
+        try:
+            m = _rx.search(pattern, string)
+            result = m.start() if m else -1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Truncate string to maxLen characters, keeping only the portion containing the first match.
+The match is centred in the window when possible. ///
+global truncateMatch(str pattern, str string, int maxLen){
+    str result = "";
+    rawPy(){
+        try:
+            _rx = __import__("regex")
+        except ImportError:
+            _rx = __import__("re")
+        try:
+            m = _rx.search(pattern, string)
+            if not m:
+                result = string[:maxLen]
+            else:
+                half = maxLen // 2
+                start = max(0, m.start() - half)
+                end   = min(len(string), start + maxLen)
+                result = string[start:end]
+        except Exception:
+            result = string[:maxLen]
+    }
+    return result;
+}
+
+global main(){}

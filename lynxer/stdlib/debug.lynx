@@ -1,0 +1,294 @@
+///
+  Lynxer Standard Library — debug
+  Runtime inspection, assertion, timing, and logging helpers.
+
+  Provides:
+    • assert helpers: assert, assertEq, assertGt, assertLt, assertContains
+    • type inspection: typeOf, dump, inspect
+    • structured logging: log, info, warn, error, debug
+    • timer: startTimer, stopTimer, elapsed, clock
+    • environment: envGet, envAll
+    • memory: getMemory
+    • pretty-print: pp
+///
+
+global setup(){}
+
+// ── Assertions ────────────────────────────────────────────────────────────────
+
+/// Raise a runtime error with msg if condition is 0 / false. ///
+global assert(bool cond, str msg){
+    rawPy(){
+        if not bool(cond):
+            raise AssertionError(msg)
+    }
+}
+
+/// Raise a runtime error if a and b are not equal (string comparison).
+Use for checking two string values match. ///
+global assertEq(str a, str b, str msg){
+    rawPy(){
+        if str(a) != str(b):
+            raise AssertionError(msg + " (expected: " + repr(str(b)) + ", got: " + repr(str(a)) + ")")
+    }
+}
+
+/// Raise a runtime error if a and b are equal (string comparison). ///
+global assertNotEq(str a, str b, str msg){
+    rawPy(){
+        if str(a) == str(b):
+            raise AssertionError(msg + " (both equal: " + repr(str(a)) + ")")
+    }
+}
+
+/// Raise a runtime error if a ≤ b (numeric). ///
+global assertGt(float a, float b, str msg){
+    rawPy(){
+        if not (float(a) > float(b)):
+            raise AssertionError(msg + " (" + str(a) + " is not > " + str(b) + ")")
+    }
+}
+
+/// Raise a runtime error if a ≥ b (numeric). ///
+global assertLt(float a, float b, str msg){
+    rawPy(){
+        if not (float(a) < float(b)):
+            raise AssertionError(msg + " (" + str(a) + " is not < " + str(b) + ")")
+    }
+}
+
+/// Raise a runtime error if needle is not a substring of haystack. ///
+global assertContains(str haystack, str needle, str msg){
+    rawPy(){
+        if str(needle) not in str(haystack):
+            raise AssertionError(msg + " (" + repr(str(needle)) + " not found in " + repr(str(haystack)) + ")")
+    }
+}
+
+// ── Type inspection ───────────────────────────────────────────────────────────
+
+/// Return the Lynxer type name of a value as a string.
+Returns one of: "int", "float", "str", "bool", "list", "null". ///
+global typeOf(any val){
+    str result = "";
+    rawPy(){
+        # val comes from Lynxer bridging: Number, String, or a Python list
+        if isinstance(val, list):
+            result = "list"
+        elif isinstance(val, bool):
+            result = "bool"
+        elif isinstance(val, int):
+            result = "int"
+        elif isinstance(val, float):
+            result = "float"
+        elif isinstance(val, str):
+            result = "str"
+        elif val is None:
+            result = "null"
+        else:
+            result = type(val).__name__
+    }
+    return result;
+}
+
+/// Print the type and value of val to stdout. ///
+global dump(any val){
+    rawPy(){
+        if isinstance(val, bool):
+            _t = "bool"
+        elif isinstance(val, int):
+            _t = "int"
+        elif isinstance(val, float):
+            _t = "float"
+        elif isinstance(val, str):
+            _t = "str"
+        elif isinstance(val, list):
+            _t = "list"
+        elif val is None:
+            _t = "null"
+        else:
+            _t = type(val).__name__
+        print("[debug.dump] type=" + _t + "  value=" + repr(val))
+    }
+}
+
+/// Return a JSON string describing val: {"type": "...", "value": "..."}.
+The value field is always a string representation. ///
+global inspect(any val){
+    str result = "";
+    rawPy(){
+        import json as _json
+        if isinstance(val, bool):
+            _t = "bool"
+        elif isinstance(val, int):
+            _t = "int"
+        elif isinstance(val, float):
+            _t = "float"
+        elif isinstance(val, str):
+            _t = "str"
+        elif isinstance(val, list):
+            _t = "list"
+        elif val is None:
+            _t = "null"
+        else:
+            _t = type(val).__name__
+        result = _json.dumps({"type": _t, "value": repr(val)})
+    }
+    return result;
+}
+
+/// Pretty-print val to stdout with indentation for lists. ///
+global pp(any val){
+    rawPy(){
+        import json as _json
+        if isinstance(val, (list, dict)):
+            try:
+                print(_json.dumps(val, indent=2))
+            except Exception:
+                print(repr(val))
+        else:
+            print(repr(val))
+    }
+}
+
+// ── Structured logging ────────────────────────────────────────────────────────
+
+/// Emit a timestamped log line: [LEVEL timestamp] message. ///
+global log(str level, str msg){
+    rawPy(){
+        import time as _time
+        _ts = _time.strftime("%H:%M:%S")
+        print("[" + level.upper() + " " + _ts + "] " + msg)
+    }
+}
+
+/// Log an INFO message. ///
+global info(str msg){
+    rawPy(){
+        import time as _time
+        _ts = _time.strftime("%H:%M:%S")
+        print("[INFO  " + _ts + "] " + msg)
+    }
+}
+
+/// Log a WARN message. ///
+global warn(str msg){
+    rawPy(){
+        import time as _time
+        _ts = _time.strftime("%H:%M:%S")
+        print("[WARN  " + _ts + "] " + msg)
+    }
+}
+
+/// Log an ERROR message. ///
+global error(str msg){
+    rawPy(){
+        import time as _time
+        _ts = _time.strftime("%H:%M:%S")
+        print("[ERROR " + _ts + "] " + msg)
+    }
+}
+
+/// Log a DEBUG message. ///
+global debug(str msg){
+    rawPy(){
+        import time as _time
+        _ts = _time.strftime("%H:%M:%S")
+        print("[DEBUG " + _ts + "] " + msg)
+    }
+}
+
+// ── Timer ─────────────────────────────────────────────────────────────────────
+
+/// Start a named timer. Call stopTimer or elapsed to read the time. ///
+global startTimer(str label){
+    rawPy(){
+        import builtins, time as _time
+        if not hasattr(builtins, "_lx_timers"):
+            builtins._lx_timers = {}
+        builtins._lx_timers[label] = _time.perf_counter()
+    }
+}
+
+/// Stop the named timer and return elapsed milliseconds.
+The timer is removed from the cache after reading. ///
+global stopTimer(str label){
+    float result = 0.0;
+    rawPy(){
+        import builtins, time as _time
+        timers = getattr(builtins, "_lx_timers", {})
+        if label in timers:
+            result = (_time.perf_counter() - timers[label]) * 1000.0
+            del timers[label]
+        else:
+            result = -1.0
+    }
+    return result;
+}
+
+/// Read elapsed milliseconds without stopping the timer. ///
+global elapsed(str label){
+    float result = 0.0;
+    rawPy(){
+        import builtins, time as _time
+        timers = getattr(builtins, "_lx_timers", {})
+        if label in timers:
+            result = (_time.perf_counter() - timers[label]) * 1000.0
+        else:
+            result = -1.0
+    }
+    return result;
+}
+
+/// Return the current high-resolution timestamp in milliseconds. ///
+global clock(){
+    float result = 0.0;
+    rawPy(){
+        import time as _time
+        result = _time.perf_counter() * 1000.0
+    }
+    return result;
+}
+
+// ── Environment ───────────────────────────────────────────────────────────────
+
+/// Get the value of an environment variable, or "" if not set. ///
+global envGet(str key){
+    str result = "";
+    rawPy(){
+        import os as _os
+        result = _os.environ.get(key, "")
+    }
+    return result;
+}
+
+/// Return all environment variables as a JSON object. ///
+global envAll(){
+    str result = "";
+    rawPy(){
+        import os as _os, json as _json
+        result = _json.dumps(dict(_os.environ))
+    }
+    return result;
+}
+
+// ── Memory ────────────────────────────────────────────────────────────────────
+
+/// Return the current process RSS (resident set size) in megabytes. ///
+global getMemory(){
+    float result = 0.0;
+    rawPy(){
+        try:
+            import resource as _res
+            result = _res.getrusage(_res.RUSAGE_SELF).ru_maxrss / 1024.0
+        except Exception:
+            try:
+                import psutil as _ps, os as _os
+                result = _ps.Process(_os.getpid()).memory_info().rss / (1024 * 1024)
+            except Exception:
+                result = -1.0
+    }
+    return result;
+}
+
+global main(){}

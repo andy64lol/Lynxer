@@ -1,2 +1,8 @@
 flask
 pyinstaller
+numpy
+fastapi
+requests
+httpx
+regex
+uvicorn

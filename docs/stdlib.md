@@ -27,22 +27,30 @@ See the [stdlib/ documentation folder](stdlib/README.md) for individual module p
 
 ## math
 
-Mathematical operations wrapping Python's `math` and `random` modules.
+Mathematical operations wrapping Python's `math`, `random`, and **NumPy** modules.
+
+Requires: `pip install numpy` (for NumPy-backed functions).
+
+See [docs/stdlib/math.md](stdlib/math.md) for the full reference.
+
+**Core (Python `math` / pure Lynxer)**
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `abs` | `abs(float n)` | Absolute value |
 | `max` | `max(float a, float b)` | Larger of two values |
 | `min` | `min(float a, float b)` | Smaller of two values |
-| `clamp` | `clamp(float val, float lo, float hi)` | Clamp `val` to `[lo, hi]` |
-| `pow` | `pow(float base, float exp)` | `base ^ exp` |
+| `clamp` | `clamp(float val, float lo, float hi)` | Clamp `val` to `[lo, hi]` (int) |
+| `clampFloat` | `clampFloat(float val, float lo, float hi)` | Clamp `val` to `[lo, hi]` (float) |
+| `pow` | `pow(int base, int exp)` | Integer exponentiation |
 | `sqrt` | `sqrt(float n)` | Square root |
-| `floor` | `floor(float n)` | Round down to nearest integer |
-| `ceil` | `ceil(float n)` | Round up to nearest integer |
+| `floor` | `floor(float n)` | Round down |
+| `ceil` | `ceil(float n)` | Round up |
 | `round` | `round(float n)` | Round to nearest integer |
-| `pi` | `pi()` | Returns `3.141592653589793` |
-| `e` | `e()` | Returns `2.718281828459045` |
-| `log` | `log(float n)` | Natural logarithm (returns `0.0` if n ≤ 0) |
+| `roundNum` | `roundNum(float n)` | Alias for `round` (legacy) |
+| `pi` | `pi()` | `3.141592653589793` |
+| `e` | `e()` | `2.718281828459045` |
+| `log` | `log(float n)` | Natural logarithm |
 | `log2` | `log2(float n)` | Base-2 logarithm |
 | `log10` | `log10(float n)` | Base-10 logarithm |
 | `sin` | `sin(float n)` | Sine (radians) |
@@ -51,14 +59,60 @@ Mathematical operations wrapping Python's `math` and `random` modules.
 | `degrees` | `degrees(float n)` | Radians → degrees |
 | `radians` | `radians(float n)` | Degrees → radians |
 | `sign` | `sign(float n)` | `-1`, `0`, or `1` |
-| `isEven` | `isEven(int n)` | `true` if `n` is even |
-| `isOdd` | `isOdd(int n)` | `true` if `n` is odd |
-| `factorial` | `factorial(int n)` | `n!` (returns `1` for n ≤ 0) |
+| `isEven` | `isEven(int n)` | `true` if even |
+| `isOdd` | `isOdd(int n)` | `true` if odd |
+| `factorial` | `factorial(int n)` | `n!` |
 | `gcd` | `gcd(int a, int b)` | Greatest common divisor |
+| `lcm` | `lcm(int a, int b)` | Least common multiple |
 | `hypot` | `hypot(float a, float b)` | `sqrt(a² + b²)` |
-| `truncate` | `truncate(float n)` | Remove fractional part (toward zero) |
-| `randInt` | `randInt(int lo, int hi)` | Random integer in `[lo, hi]` inclusive |
+| `truncate` | `truncate(float n)` | Remove fractional part |
+| `isqrt` | `isqrt(int n)` | Integer square root |
+| `isPrime` | `isPrime(int n)` | `true` if prime |
+| `nextPrime` | `nextPrime(int n)` | Smallest prime > `n` |
+| `binomial` | `binomial(int n, int k)` | `C(n, k)` |
+| `sumRange` | `sumRange(int lo, int hi)` | Sum of integers `lo..hi` |
+| `lerp` | `lerp(float lo, float hi, float t)` | Linear interpolation |
+| `mapRange` | `mapRange(value, inLo, inHi, outLo, outHi)` | Map between ranges |
+| `randInt` | `randInt(int lo, int hi)` | Random integer in `[lo, hi]` |
 | `randFloat` | `randFloat(float lo, float hi)` | Random float in `[lo, hi)` |
+
+**NumPy-backed — scalars**
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `tau` | `tau()` | `2π ≈ 6.283…` |
+| `exp` | `exp(float n)` | `eⁿ` |
+| `arcsin` | `arcsin(float n)` | Inverse sine (radians) |
+| `arccos` | `arccos(float n)` | Inverse cosine (radians) |
+| `arctan` | `arctan(float n)` | Inverse tangent (radians) |
+| `arctan2` | `arctan2(float y, float x)` | Four-quadrant `atan(y/x)` |
+| `sinh` | `sinh(float n)` | Hyperbolic sine |
+| `cosh` | `cosh(float n)` | Hyperbolic cosine |
+| `tanh` | `tanh(float n)` | Hyperbolic tangent |
+| `roundTo` | `roundTo(float n, int decimals)` | Round to `decimals` places |
+| `mean` | `mean(any lst)` | Arithmetic mean of a list |
+| `median` | `median(any lst)` | Median of a list |
+| `std` | `std(any lst)` | Population standard deviation |
+| `variance` | `variance(any lst)` | Population variance |
+| `percentile` | `percentile(any lst, float p)` | p-th percentile (p in 0–100) |
+| `corrcoef` | `corrcoef(any a, any b)` | Pearson correlation coefficient |
+| `prod` | `prod(any lst)` | Product of all elements |
+| `argmax` | `argmax(any lst)` | Index of the maximum value |
+| `argmin` | `argmin(any lst)` | Index of the minimum value |
+| `dot` | `dot(any a, any b)` | Dot product of two lists |
+| `norm` | `norm(any lst)` | L2 (Euclidean) norm |
+
+**NumPy-backed — list-returning**
+
+These return a **list of strings**. Use `floatOf(listGet(lst, i))` to convert elements to float.
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `linspace` | `linspace(float start, float stop, int n)` | `n` evenly-spaced values in `[start, stop]` |
+| `cumsum` | `cumsum(any lst)` | Cumulative sum |
+| `diff` | `diff(any lst)` | Differences between consecutive elements |
+| `clip` | `clip(any lst, float lo, float hi)` | Element-wise clamp to `[lo, hi]` |
+| `normalize` | `normalize(any lst)` | Scale list to unit L2 length |
 
 ---
 
