@@ -7,13 +7,21 @@ global setup(){
     import("math");
     import("typing");
     import("fileIO");
+    import("csv");
     import("shell");
     import("os");
     import("json");
     import("js");
+    import("http");
+    import("net");
     import("server");
     import("sys");
     import("re");
+    import("regex");
+    import("random");
+    import("time");
+    import("debug");
+    import("colorlib");
     import("tkinter");
     import("turtle");
 }
@@ -341,6 +349,323 @@ Pattern strings use Python regex syntax. Multi-match results are returned as JSO
 | `findSpans(pattern, string)` | JSON array of `{start,end,match}` for all matches |
 | `testIgnoreCase / matchIgnoreCase / searchIgnoreCase / findallIgnoreCase / subIgnoreCase` | Case-insensitive variants |
 | `findallMultiline / subMultiline / searchDotall` | MULTILINE / DOTALL variants |
+
+---
+
+## colorlib
+
+Terminal colour and text-style helpers using ANSI escape sequences. Written entirely in Lynxer — no Python dependencies.
+
+See [docs/stdlib/colorlib.md](stdlib/colorlib.md) for the complete reference.
+
+```c
+global setup(){
+    import("colorlib");
+}
+
+global main(){
+    print(global.colorlib.red("Error!")); print("\n");
+    print(global.colorlib.green("OK")); print("\n");
+    print(global.colorlib.bold("Important")); print("\n");
+}
+```
+
+| Category | Functions |
+|----------|-----------|
+| Foreground | `black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white` |
+| Bright foreground | `brightBlack`, `brightRed`, `brightGreen`, `brightYellow`, `brightBlue`, `brightMagenta`, `brightCyan`, `brightWhite` |
+| Background | `bgBlack`, `bgRed`, `bgGreen`, `bgYellow`, `bgBlue`, `bgMagenta`, `bgCyan`, `bgWhite` |
+| Text styles | `bold`, `dim`, `italic`, `underline`, `blink`, `inverse`, `strike` |
+| Semantic | `error`, `success`, `warn`, `info`, `heading` |
+| Low-level | `reset`, `ansi(text, code)`, `clearScreen`, `cursorHome` |
+
+---
+
+## csv
+
+CSV parsing, writing, filtering, and transformation. See [docs/stdlib/csv.md](stdlib/csv.md) for the complete reference.
+
+```c
+global setup(){
+    import("csv");
+    import("json");
+}
+
+global main(){
+    str rows = global.csv.readCSV("data.csv");          // JSON array of objects
+    print(global.csv.csvRowCount(rows)); print("\n");   // number of data rows
+    str first = global.csv.csvRow(rows, 0);             // first row as JSON object
+    print(global.json.jsonGet(first, "name")); print("\n");
+
+    str cols = global.csv.csvColumn(rows, "score");     // all values in "score" column
+    str result = global.csv.writeCSV("out.csv", rows, "name,score");  // write back
+}
+```
+
+| Function | Description |
+|----------|-------------|
+| `readCSV(path)` | Read CSV; returns JSON array of objects (first row = headers) |
+| `parseCSV(str)` | Parse a CSV string into JSON array of objects |
+| `csvRow(str, n)` | Row `n` (0-based) as a JSON object |
+| `csvRowCount(str)` | Number of data rows |
+| `csvHeaders(str)` | Comma-separated header names |
+| `csvColumn(str, col)` | All values for column `col` as JSON array |
+| `writeCSV(path, jsonRows, headers)` | Write CSV file; returns `"ok"` or `"ERROR: ..."` |
+| `buildCSV(jsonRows, headers)` | Build CSV string (no file write) |
+| `appendRow(csvStr, jsonRow)` | Append a row (JSON array) to a CSV string |
+| `filterCSV(str, col, value)` | Keep rows where `col == value` |
+| `sortCSV(str, col)` | Sort rows by column (ascending) |
+| `dedupCSV(str, col)` | Remove duplicate rows by column |
+| `fromTSV(str)` | Convert TSV to CSV |
+
+---
+
+## debug
+
+Runtime inspection, assertions, structured logging, and timers. See [docs/stdlib/debug.md](stdlib/debug.md) for the complete reference.
+
+```c
+global setup(){
+    import("debug");
+}
+
+global main(){
+    // assertions
+    global.debug.assert(1 > 0, "math is broken");
+    global.debug.assertEq("hello", "hello", "mismatch");
+
+    // type inspection
+    int x = 42;
+    print(global.debug.typeOf(x)); print("\n");    // "int"
+    global.debug.dump(x);                          // [debug.dump] type=int  value=42
+
+    // logging
+    global.debug.info("starting");
+    global.debug.warn("low memory");
+    global.debug.error("failed");
+
+    // timers
+    global.debug.startTimer("work");
+    for(int i = 0; i < 100000; i = i + 1){}
+    float ms = global.debug.stopTimer("work");
+    print("took "); print(ms); print(" ms\n");
+}
+```
+
+| Category | Functions |
+|----------|-----------|
+| Assertions | `assert`, `assertEq`, `assertNotEq`, `assertGt`, `assertLt`, `assertContains` |
+| Inspection | `typeOf`, `dump`, `inspect`, `pp` |
+| Logging | `log`, `info`, `warn`, `error`, `debug` |
+| Timers | `startTimer`, `stopTimer`, `elapsed`, `clock` |
+| Environment | `envGet`, `envAll`, `getMemory` |
+
+---
+
+## http
+
+Simple HTTP client built on Python's `urllib` — no extra dependencies. See [docs/stdlib/http.md](stdlib/http.md) for the complete reference.
+
+```c
+global setup(){
+    import("http");
+    import("json");
+}
+
+global main(){
+    str body = global.http.get("https://api.github.com");
+    int status = global.http.getStatus("https://example.com");
+    print(status); print("\n");   // 200
+
+    str resp = global.http.postJson("https://httpbin.org/post",
+                                    "{\"key\":\"value\"}");
+    print(resp); print("\n");
+}
+```
+
+| Function | Description |
+|----------|-------------|
+| `get(url)` | GET request; returns body or `"ERROR: ..."` |
+| `getStatus(url)` | HTTP status code or `-1` |
+| `getHeaders(url)` | Response headers as newline-separated string |
+| `post(url, body, contentType)` | POST request |
+| `put(url, body, contentType)` | PUT request |
+| `delete(url)` | DELETE request |
+| `patch(url, body, contentType)` | PATCH request |
+| `getJson(url)` | GET with `Accept: application/json` |
+| `postJson(url, jsonBody)` | POST with `Content-Type: application/json` |
+| `download(url, filepath)` | Write response to file; returns `"ok"` or `"ERROR: ..."` |
+| `urlencode(text)` | URL-encode a string |
+
+---
+
+## net
+
+WebSocket client, TCP client, hostname/IP lookup, and URL parsing. See [docs/stdlib/net.md](stdlib/net.md) for the complete reference.
+
+**Requires:** `pip install websockets`
+
+```c
+global setup(){
+    import("net");
+}
+
+global main(){
+    // check reachability
+    if(global.net.ping("example.com")){
+        print("reachable\n");
+    }
+
+    // URL parsing
+    str parsed = global.net.urlParse("https://api.example.com/v1/data?page=1");
+    print(global.net.urlHost("https://api.example.com/v1")); print("\n");  // api.example.com
+
+    // WebSocket round-trip
+    global.net.wsConnect("echo", "wss://echo.websocket.org");
+    str reply = global.net.wsSendReceive("echo", "Hello!");
+    print(reply); print("\n");
+    global.net.wsClose("echo");
+
+    // TCP
+    global.net.tcpConnect("srv", "example.com", 80);
+    global.net.tcpSend("srv", "GET / HTTP/1.0\r\nHost: example.com\r\n\r\n");
+    str resp = global.net.tcpReceive("srv", 1024);
+    print(resp); print("\n");
+    global.net.tcpClose("srv");
+}
+```
+
+| Category | Functions |
+|----------|-----------|
+| WebSocket | `wsConnect`, `wsSend`, `wsReceive`, `wsSendReceive`, `wsClose`, `wsConnected` |
+| TCP | `tcpConnect`, `tcpSend`, `tcpReceive`, `tcpSendReceive`, `tcpClose` |
+| Hostname/IP | `getHostname`, `getLocalIP`, `resolveHost`, `isPortOpen` |
+| URL | `urlScheme`, `urlHost`, `urlPath`, `urlParse` |
+| HTTP util | `httpHead`, `ping` |
+
+---
+
+## random
+
+Random number and sequence utilities wrapping Python's `random`. See [docs/stdlib/random.md](stdlib/random.md) for the complete reference.
+
+```c
+global setup(){
+    import("random");
+}
+
+global main(){
+    global.random.seed(0);                      // 0 = system entropy
+
+    float r = global.random.random();           // [0.0, 1.0)
+    int n = global.random.randint(1, 10);       // integer in [1,10]
+    float u = global.random.uniform(1.0, 5.0);  // float in [1.0, 5.0]
+    bool flip = global.random.coinflip();        // 50/50 bool
+
+    str uid = global.random.uuid4();             // "f47ac10b-58cc-..."
+    str picked = global.random.sampleStr("cat|dog|fish");   // one of the three
+    str shuffled = global.random.shuffle("a|b|c|d");         // e.g. "c|a|d|b"
+}
+```
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `seed` | `seed(int n)` | Seed RNG; pass `0` for system entropy |
+| `random` | `random()` | Float in `[0.0, 1.0)` |
+| `randint` | `randint(int a, int b)` | Integer in `[a, b]` inclusive |
+| `uniform` | `uniform(float a, float b)` | Float in `[a, b]` |
+| `randrange` | `randrange(int start, int stop)` | Integer in `[start, stop)` |
+| `randrangeStep` | `randrangeStep(int start, int stop, int step)` | Ranged integer with step |
+| `gauss` | `gauss(float mu, float sigma)` | Gaussian random float |
+| `coinflip` | `coinflip()` | `true` or `false` equally |
+| `sampleInt` | `sampleInt(str items)` | Pick one int from pipe-separated list |
+| `sampleStr` | `sampleStr(str items)` | Pick one string from pipe-separated list |
+| `shuffle` | `shuffle(str items)` | Shuffle pipe-separated list; return new string |
+| `triangular` | `triangular(float lo, float hi, float mid)` | Triangular distribution |
+| `uuid4` | `uuid4()` | Random UUID4 string |
+| `randHex` | `randHex(int n)` | `n` hex characters |
+
+---
+
+## time
+
+Date and time utilities wrapping Python's `datetime`. See [docs/stdlib/time.md](stdlib/time.md) for the complete reference.
+
+```c
+global setup(){
+    import("time");
+}
+
+global main(){
+    print(global.time.now()); print("\n");       // "2024-08-01 14:30:00"
+    print(global.time.getDate()); print("\n");   // "2024-08-01"
+    print(global.time.getYear()); print("\n");   // 2024
+    print(global.time.timestamp()); print("\n"); // 1722520200.0
+
+    // arithmetic
+    str tomorrow = global.time.addDays("2024-08-01", 1);
+    print(tomorrow); print("\n");                // "2024-08-02"
+
+    int diff = global.time.diffDays("2024-08-01", "2024-09-01");
+    print(diff); print("\n");                    // 31
+}
+```
+
+| Function | Description |
+|----------|-------------|
+| `now()` | Current datetime as `"YYYY-MM-DD HH:MM:SS"` |
+| `getTime()` | Current time as `"HH:MM:SS"` |
+| `getDate()` | Current date as `"YYYY-MM-DD"` |
+| `getYear / getMonth / getDay / getHour / getMinute / getSecond` | Numeric components |
+| `getWeekday / getWeekdayNum` | Day name and 0-based number |
+| `isoNow()` | ISO 8601 datetime string |
+| `format(pattern)` | Format current datetime with `strftime` pattern |
+| `timestamp()` | Unix epoch timestamp (float) |
+| `fromTimestamp(ts)` | Epoch → `"YYYY-MM-DD HH:MM:SS"` |
+| `toTimestamp(dt)` | `"YYYY-MM-DD HH:MM:SS"` → epoch (`-1.0` on error) |
+| `addDays(date, n)` | Add `n` days to a `"YYYY-MM-DD"` string |
+| `diffDays(d1, d2)` | Days between two `"YYYY-MM-DD"` strings |
+| `isLeapYear(year)` | `true` if `year` is a leap year |
+| `daysInMonth(year, month)` | Number of days in a month |
+
+---
+
+## regex
+
+Extended regular expressions with compiled pattern caching. See [docs/stdlib/regex.md](stdlib/regex.md) for the complete reference.
+
+Uses the `regex` package when installed (`pip install regex`), falling back to `re`.
+
+> For basic one-off regex work, use `re` instead. Import `regex` when you need a compiled pattern cache, advanced Unicode support (`\p{L}`), or the extended helpers.
+
+```c
+global setup(){
+    import("regex");
+}
+
+global main(){
+    // compile once, reuse many times
+    global.regex.compile("email",
+        "[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}", "");
+
+    print(global.regex.testCompiled("email", "user@example.com")); print("\n");  // true
+    str all = global.regex.findallCompiled("email", "a@b.com and c@d.org");
+    print(all); print("\n");   // ["a@b.com","c@d.org"]
+
+    // replace only the 2nd match
+    str r = global.regex.replaceNth("cat", "dog", "cat cat cat", 2);
+    print(r); print("\n");   // cat dog cat
+}
+```
+
+| Category | Functions |
+|----------|-----------|
+| Cache | `compile`, `testCompiled`, `matchCompiled`, `findallCompiled`, `subCompiled`, `clearCache` |
+| Validation | `isValid` |
+| Extraction | `extract`, `extractAll`, `unique` |
+| Replace | `replaceNth`, `replaceAllLiteral` |
+| Search | `lastMatch`, `highlight`, `splitKeep` |
+| Utility | `globToRegex`, `countWords`, `truncateMatch` |
 
 ---
 

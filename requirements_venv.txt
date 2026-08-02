@@ -6,3 +6,4 @@ requests
 httpx
 regex
 uvicorn
+websockets

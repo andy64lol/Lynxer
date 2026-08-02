@@ -7,14 +7,18 @@ This directory contains documentation for all Lynxer standard library modules.
 | Module | File | What it provides |
 |--------|------|-----------------|
 | [colorlib](colorlib.md) | `colorlib.lynx` | ANSI colour helpers for terminal output |
+| [csv](csv.md) | `csv.lynx` | CSV read, write, parse, filter, and transform |
+| [debug](debug.md) | `debug.lynx` | Assertions, type inspection, structured logging, timers |
 | [fileIO](fileIO.md) | `fileIO.lynx` | File reading, writing, copying, moving, and temp files |
-| [http](http.md) | `http.lynx` | Simple HTTP client (GET, POST) |
+| [http](http.md) | `http.lynx` | Simple HTTP client (GET, POST, PUT, DELETE, download) |
 | [js](js.md) | `js.lynx` | Run JavaScript via Node.js |
 | [json](json.md) | `json.lynx` | JSON encode / decode / query / mutate |
-| [math](math.md) | `math.lynx` | Math utilities, trig, rounding, random numbers |
+| [math](math.md) | `math.lynx` | Math utilities, trig, rounding, statistics (NumPy) |
+| [net](net.md) | `net.lynx` | WebSocket client, TCP client, hostname/IP/URL utilities |
 | [os](os.md) | `os.lynx` | OS and filesystem helpers (dirs, paths, env vars) |
 | [random](random.md) | `random.lynx` | Random number and sequence utilities |
 | [re](re.md) | `re.lynx` | Regular expressions (search, match, sub, split, groups) |
+| [regex](regex.md) | `regex.lynx` | Extended regex: compiled cache, Unicode, advanced helpers |
 | [server](server.md) | `server.lynx` | Full-featured HTTP server (Flask): routes, JSON API, Jinja2 templates, static sites, CORS |
 | [shell](shell.md) | `shell.lynx` | Run external shell commands, capture output |
 | [sys](sys.md) | `sys.lynx` | Runtime info: version, platform, argv, path, exit, recursion limit |
@@ -29,10 +33,24 @@ Import any module inside `setup()`:
 
 ```c
 global setup(){
-    import("server");
+    import("math");
+    import("typing");
+    import("json");
     import("re");
+    import("regex");
+    import("fileIO");
+    import("csv");
+    import("debug");
+    import("http");
+    import("net");
+    import("os");
+    import("random");
+    import("time");
+    import("shell");
     import("sys");
+    import("server");
     import("tkinter");
+    import("turtle");
 }
 ```
 

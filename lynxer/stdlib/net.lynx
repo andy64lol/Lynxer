@@ -1,0 +1,441 @@
+///
+  Lynxer Standard Library — net
+  Networking utilities: WebSocket client, TCP helpers, hostname/IP lookup,
+  and simple HTTP utilities.
+
+  Requires: pip install websockets
+
+  Provides:
+    WebSocket client:
+      wsConnect, wsSend, wsReceive, wsSendReceive, wsClose, wsConnected
+    TCP:
+      tcpConnect, tcpSend, tcpReceive, tcpSendReceive, tcpClose
+    Utilities:
+      getHostname, getLocalIP, resolveHost, isPortOpen,
+      urlParse, urlHost, urlPath, urlScheme,
+      httpHead, ping
+///
+
+global setup(){}
+
+// ── Internal WebSocket state ─────────────────────────────────────────────────
+// Stored in builtins._lx_ws_connections: dict[str, websocket connection]
+
+global _ensureWsStore(){
+    rawPy(){
+        import builtins
+        if not hasattr(builtins, "_lx_ws_connections"):
+            builtins._lx_ws_connections = {}
+    }
+}
+
+// ── WebSocket client ─────────────────────────────────────────────────────────
+
+/// Open a WebSocket connection to uri and store it under name.
+  Returns "ok" on success, or "ERROR: ..." on failure.
+  Example: wsConnect("chat", "ws://localhost:8765") ///
+global wsConnect(str name, str uri){
+    str result = "";
+    rawPy(){
+        import builtins, asyncio as _aio
+        try:
+            import websockets as _ws
+        except ImportError:
+            result = "ERROR: websockets not installed (pip install websockets)"
+            # jump out — can't proceed
+        else:
+            if not hasattr(builtins, "_lx_ws_connections"):
+                builtins._lx_ws_connections = {}
+            try:
+                loop = _aio.new_event_loop()
+                conn = loop.run_until_complete(_ws.connect(uri))
+                builtins._lx_ws_connections[name] = (conn, loop)
+                result = "ok"
+            except Exception as e:
+                result = "ERROR: " + str(e)
+    }
+    return result;
+}
+
+/// Send a text message on the named WebSocket connection.
+  Returns "ok" or "ERROR: ...". ///
+global wsSend(str name, str message){
+    str result = "";
+    rawPy(){
+        import builtins
+        entry = getattr(builtins, "_lx_ws_connections", {}).get(name)
+        if not entry:
+            result = "ERROR: no connection named '" + name + "'"
+        else:
+            conn, loop = entry
+            try:
+                loop.run_until_complete(conn.send(message))
+                result = "ok"
+            except Exception as e:
+                result = "ERROR: " + str(e)
+    }
+    return result;
+}
+
+/// Receive the next text message from the named WebSocket connection.
+  Returns the message string, or "ERROR: ...". ///
+global wsReceive(str name){
+    str result = "";
+    rawPy(){
+        import builtins
+        entry = getattr(builtins, "_lx_ws_connections", {}).get(name)
+        if not entry:
+            result = "ERROR: no connection named '" + name + "'"
+        else:
+            conn, loop = entry
+            try:
+                msg = loop.run_until_complete(conn.recv())
+                result = str(msg)
+            except Exception as e:
+                result = "ERROR: " + str(e)
+    }
+    return result;
+}
+
+/// Send a message and immediately wait for one reply.
+  A convenience wrapper around wsSend + wsReceive.
+  Returns the reply string, or "ERROR: ...". ///
+global wsSendReceive(str name, str message){
+    str result = "";
+    rawPy(){
+        import builtins
+        entry = getattr(builtins, "_lx_ws_connections", {}).get(name)
+        if not entry:
+            result = "ERROR: no connection named '" + name + "'"
+        else:
+            conn, loop = entry
+            try:
+                async def _round_trip(c, m):
+                    await c.send(m)
+                    return await c.recv()
+                msg = loop.run_until_complete(_round_trip(conn, message))
+                result = str(msg)
+            except Exception as e:
+                result = "ERROR: " + str(e)
+    }
+    return result;
+}
+
+/// Close and remove the named WebSocket connection.
+  Returns "ok" or "ERROR: ...". ///
+global wsClose(str name){
+    str result = "";
+    rawPy(){
+        import builtins
+        store = getattr(builtins, "_lx_ws_connections", {})
+        entry = store.get(name)
+        if not entry:
+            result = "ERROR: no connection named '" + name + "'"
+        else:
+            conn, loop = entry
+            try:
+                loop.run_until_complete(conn.close())
+                loop.close()
+                del store[name]
+                result = "ok"
+            except Exception as e:
+                result = "ERROR: " + str(e)
+    }
+    return result;
+}
+
+/// Returns true if a named WebSocket connection is currently open. ///
+global wsConnected(str name){
+    int result = 0;
+    rawPy(){
+        import builtins
+        store = getattr(builtins, "_lx_ws_connections", {})
+        entry = store.get(name)
+        if entry:
+            conn, loop = entry
+            try:
+                # websockets ≥ 11 exposes .open / .closed
+                result = 1 if not conn.closed else 0
+            except Exception:
+                result = 0
+        else:
+            result = 0
+    }
+    if(result not is 0){ return true; }
+    return false;
+}
+
+// ── TCP client ───────────────────────────────────────────────────────────────
+
+/// Open a TCP connection to host:port, store it under name.
+  Returns "ok" or "ERROR: ...". ///
+global tcpConnect(str name, str host, int port){
+    str result = "";
+    rawPy(){
+        import builtins, socket as _sock
+        if not hasattr(builtins, "_lx_tcp_connections"):
+            builtins._lx_tcp_connections = {}
+        try:
+            s = _sock.socket(_sock.AF_INET, _sock.SOCK_STREAM)
+            s.settimeout(10)
+            s.connect((host, port))
+            builtins._lx_tcp_connections[name] = s
+            result = "ok"
+        except Exception as e:
+            result = "ERROR: " + str(e)
+    }
+    return result;
+}
+
+/// Send raw bytes (UTF-8 text) on the named TCP connection.
+  Returns "ok" or "ERROR: ...". ///
+global tcpSend(str name, str data){
+    str result = "";
+    rawPy(){
+        import builtins
+        store = getattr(builtins, "_lx_tcp_connections", {})
+        s = store.get(name)
+        if not s:
+            result = "ERROR: no connection named '" + name + "'"
+        else:
+            try:
+                s.sendall(data.encode("utf-8"))
+                result = "ok"
+            except Exception as e:
+                result = "ERROR: " + str(e)
+    }
+    return result;
+}
+
+/// Receive up to bufSize bytes from the named TCP connection.
+  Returns the received string (UTF-8 decoded), or "ERROR: ...". ///
+global tcpReceive(str name, int bufSize){
+    str result = "";
+    rawPy(){
+        import builtins
+        store = getattr(builtins, "_lx_tcp_connections", {})
+        s = store.get(name)
+        if not s:
+            result = "ERROR: no connection named '" + name + "'"
+        else:
+            try:
+                data = s.recv(bufSize)
+                result = data.decode("utf-8", errors="replace")
+            except Exception as e:
+                result = "ERROR: " + str(e)
+    }
+    return result;
+}
+
+/// Send data and receive up to bufSize bytes back (TCP round-trip).
+  Returns the response string, or "ERROR: ...". ///
+global tcpSendReceive(str name, str data, int bufSize){
+    str result = "";
+    rawPy(){
+        import builtins
+        store = getattr(builtins, "_lx_tcp_connections", {})
+        s = store.get(name)
+        if not s:
+            result = "ERROR: no connection named '" + name + "'"
+        else:
+            try:
+                s.sendall(data.encode("utf-8"))
+                resp = s.recv(bufSize)
+                result = resp.decode("utf-8", errors="replace")
+            except Exception as e:
+                result = "ERROR: " + str(e)
+    }
+    return result;
+}
+
+/// Close the named TCP connection. Returns "ok" or "ERROR: ...". ///
+global tcpClose(str name){
+    str result = "";
+    rawPy(){
+        import builtins
+        store = getattr(builtins, "_lx_tcp_connections", {})
+        s = store.get(name)
+        if not s:
+            result = "ERROR: no connection named '" + name + "'"
+        else:
+            try:
+                s.close()
+                del store[name]
+                result = "ok"
+            except Exception as e:
+                result = "ERROR: " + str(e)
+    }
+    return result;
+}
+
+// ── Hostname and IP utilities ────────────────────────────────────────────────
+
+/// Return the local machine's hostname. ///
+global getHostname(){
+    str result = "";
+    rawPy(){
+        import socket as _sock
+        try:
+            result = _sock.gethostname()
+        except Exception as e:
+            result = "ERROR: " + str(e)
+    }
+    return result;
+}
+
+/// Return the primary local IPv4 address (the one used to reach the internet).
+  Returns "127.0.0.1" if detection fails. ///
+global getLocalIP(){
+    str result = "127.0.0.1";
+    rawPy(){
+        import socket as _sock
+        try:
+            s = _sock.socket(_sock.AF_INET, _sock.SOCK_DGRAM)
+            s.settimeout(0)
+            s.connect(("8.8.8.8", 80))
+            result = s.getsockname()[0]
+            s.close()
+        except Exception:
+            result = "127.0.0.1"
+    }
+    return result;
+}
+
+/// Resolve a hostname to its IPv4 address string.
+  Returns "ERROR: ..." if resolution fails. ///
+global resolveHost(str hostname){
+    str result = "";
+    rawPy(){
+        import socket as _sock
+        try:
+            result = _sock.gethostbyname(hostname)
+        except Exception as e:
+            result = "ERROR: " + str(e)
+    }
+    return result;
+}
+
+/// Return true if host:port accepts a TCP connection within timeoutSecs.
+  Use to check whether a service is up before connecting. ///
+global isPortOpen(str host, int port, int timeoutSecs){
+    int result = 0;
+    rawPy(){
+        import socket as _sock
+        try:
+            s = _sock.socket(_sock.AF_INET, _sock.SOCK_STREAM)
+            s.settimeout(float(timeoutSecs))
+            s.connect((host, port))
+            s.close()
+            result = 1
+        except Exception:
+            result = 0
+    }
+    if(result not is 0){ return true; }
+    return false;
+}
+
+// ── URL parsing ──────────────────────────────────────────────────────────────
+
+/// Return the scheme of a URL (e.g. "https", "ws"). ///
+global urlScheme(str url){
+    str result = "";
+    rawPy(){
+        try:
+            from urllib.parse import urlparse as _up
+            result = _up(url).scheme
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+/// Return the host (and port if present) of a URL, e.g. "example.com:8080". ///
+global urlHost(str url){
+    str result = "";
+    rawPy(){
+        try:
+            from urllib.parse import urlparse as _up
+            p = _up(url)
+            result = p.netloc
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+/// Return the path component of a URL, e.g. "/api/v1/data". ///
+global urlPath(str url){
+    str result = "";
+    rawPy(){
+        try:
+            from urllib.parse import urlparse as _up
+            result = _up(url).path
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+/// Return a JSON object with url parts: scheme, host, port, path, query, fragment. ///
+global urlParse(str url){
+    str result = "";
+    rawPy(){
+        import json as _json
+        try:
+            from urllib.parse import urlparse as _up
+            p = _up(url)
+            result = _json.dumps({
+                "scheme":   p.scheme,
+                "host":     p.hostname or "",
+                "port":     p.port or 0,
+                "path":     p.path,
+                "query":    p.query,
+                "fragment": p.fragment
+            })
+        except Exception as e:
+            result = "ERROR: " + str(e)
+    }
+    return result;
+}
+
+// ── HTTP utilities ───────────────────────────────────────────────────────────
+
+/// Send an HTTP HEAD request and return the status code, or -1 on error.
+  Useful to check if a URL is reachable without downloading the body. ///
+global httpHead(str url){
+    int result = -1;
+    rawPy(){
+        import urllib.request as _req
+        import urllib.error as _err
+        try:
+            _rq = _req.Request(url, method="HEAD")
+            with _req.urlopen(_rq, timeout=10) as _r:
+                result = _r.status
+        except _err.HTTPError as e:
+            result = e.code
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Attempt a TCP connection to host:80 to check reachability.
+  Returns true if reachable within 3 seconds. ///
+global ping(str host){
+    int result = 0;
+    rawPy(){
+        import socket as _sock
+        try:
+            s = _sock.socket(_sock.AF_INET, _sock.SOCK_STREAM)
+            s.settimeout(3.0)
+            s.connect((host, 80))
+            s.close()
+            result = 1
+        except Exception:
+            result = 0
+    }
+    if(result not is 0){ return true; }
+    return false;
+}
+
+global main(){}

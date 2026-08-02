@@ -382,11 +382,11 @@ global expandTabs(str s, int tabSize){
 }
 
 
-/// ─── Tuple extras ─────────────────────────────────────────────────────────
-/// These functions compose the built-in tupleXxx() functions.
-/// The core built-ins (tupleCreate, tupleGet, tupleLen, tupleContains,
-/// tupleIndex, tupleSlice, tupleToList, listToTuple, tupleConcat, tupleCount,
-/// tupleFirst, tupleLast, tupleJsonArray) are always available without import. ///
+// ─── Tuple extras ──────────────────────────────────────────────────────────
+// These functions compose the built-in tupleXxx() functions.
+// The core built-ins (tupleCreate, tupleGet, tupleLen, tupleContains,
+// tupleIndex, tupleSlice, tupleToList, listToTuple, tupleConcat, tupleCount,
+// tupleFirst, tupleLast, tupleJsonArray) are always available without import.
 
 /// Return a new tuple with the elements in reversed order. ///
 global tupleReverse(any t){
@@ -483,7 +483,7 @@ global tupleZip(any t1, any t2){
     int len2 = tupleLen(t2);
     int len = len1;
     if(len2 < len1){ len = len2; }
-    any result = [];
+    any result = seqFromTo(0, -1, 1);
     int i = 0;
     while(i < len){
         any a = tupleGet(t1, i);
