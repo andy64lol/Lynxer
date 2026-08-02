@@ -24,6 +24,7 @@ global setup(){
     import("colorlib");
     import("tkinter");
     import("turtle");
+    import("game");
 }
 ```
 
@@ -671,9 +672,11 @@ global main(){
 
 ## tkinter
 
-Comprehensive GUI toolkit. See [docs/stdlib/tkinter.md](stdlib/tkinter.md) for the complete reference.
+Comprehensive GUI toolkit (standard + CTk extension). See [docs/stdlib/tkinter.md](stdlib/tkinter.md) for the complete reference.
 
 Requires a desktop display. Widgets are referenced by integer indexes.
+
+### Standard tkinter
 
 **Workflow:** `init` → create widgets → optionally style/layout → `run`.
 
@@ -692,6 +695,49 @@ Requires a desktop display. Widgets are referenced by integer indexes.
 **Dialogs:** `messageBox`, `warningBox`, `errorBox`, `askYesNo`, `askOkCancel`, `openFileDialog`, `openFileDialogFilter`, `saveFileDialog`, `openDirDialog`, `askColor`, `askString`, `askInteger`, `askFloat`
 
 **Window:** `setTitle`, `resize`, `setBackground`, `disableResize`, `setMinSize`, `setMaxSize`, `setOpacity`, `center`, `topmost`, `iconify`, `deiconify`, `update`, `bindClose`
+
+### CustomTkinter (CTk) extension
+
+Built into the same `tkinter` module — just `import("tkinter")`. Requires: `pip install customtkinter`. Do **not** mix `init`/`label`/… and `ctkInit`/`ctkLabel`/… in the same program.
+
+**Workflow:** `ctkSetAppearance` → `ctkSetTheme` → `ctkInit` → create widgets → `ctkRun`.
+
+**Theme:** `ctkSetAppearance(mode)` (`"dark"`, `"light"`, `"system"`), `ctkSetTheme(theme)` (`"blue"`, `"green"`, `"dark-blue"`)
+
+**Key widget creators (all return index):** `ctkLabel`, `ctkLabelStyled`, `ctkButton`, `ctkButtonStyled`, `ctkEntry`, `ctkEntryPlaceholder`, `ctkPasswordEntry`, `ctkTextBox`, `ctkCheckbox`, `ctkSwitch`, `ctkRadioButton`, `ctkCombobox`, `ctkOptionMenu`, `ctkSegmented`, `ctkSlider`, `ctkProgressBar`, `ctkFrame`, `ctkScrollFrame`, `ctkTabView`, `ctkImage`
+
+**Key operations:** `ctkGetValue`, `ctkGetText`, `ctkSetText`, `ctkSetEntryText`, `ctkIsChecked`, `ctkSetChecked`, `ctkIsOn`, `ctkSetSwitch`, `ctkGetRadio`, `ctkGetSlider`, `ctkSetSlider`, `ctkGetCombo`, `ctkSetCombo`, `ctkGetOption`, `ctkSetOption`, `ctkSetProgress`, `ctkDisableWidget`, `ctkEnableWidget`, `ctkHideWidget`, `ctkShowWidget`, `ctkDestroyWidget`, `ctkFocusWidget`
+
+**Styling:** `ctkSetFont`, `ctkSetForeground`, `ctkSetBackgroundWidget`, `ctkSetCornerRadius`, `ctkSetBorderWidth`, `ctkSetPadding`
+
+**Layout:** `ctkGrid`, `ctkGridSpan`, `ctkPlace`, `ctkPack`
+
+**Window:** `ctkSetTitle`, `ctkResize`, `ctkSetBackground`, `ctkDisableResize`, `ctkSetMinSize`, `ctkSetMaxSize`, `ctkSetOpacity`, `ctkCenter`, `ctkTopmost`, `ctkIconify`, `ctkDeiconify`, `ctkUpdate`, `ctkBindClose`
+
+---
+
+## game
+
+2-D game development. See [docs/stdlib/game.md](stdlib/game.md) for the complete reference.
+
+Requires: `pip install arcade`. The draw/update loop is wired via `rawPy` callbacks; see the [game docs](stdlib/game.md) for the pattern.
+
+**Key functions:**
+
+| Category | Functions |
+|----------|-----------|
+| Window | `init`, `setTitle`, `setBackground`, `getWidth`, `getHeight`, `close` |
+| App | `run` |
+| Draw loop | `beginDraw`, `endDraw` |
+| Shapes | `drawRect`, `drawRectOutline`, `drawCircle`, `drawCircleOutline`, `drawEllipse`, `drawEllipseOutline`, `drawLine`, `drawTriangle`, `drawTriangleOutline`, `drawPolygon`, `drawArc`, `drawPoint` |
+| Text | `drawText`, `drawTextStyled` |
+| Sprites | `loadSprite`, `setSpritePos`, `setSpriteAngle`, `setSpriteScale`, `setSpriteVelocity`, `getSpriteX`, `getSpriteY`, `getSpriteAngle`, `updateSprite`, `drawSprite`, `spriteCollides` |
+| Sprite lists | `makeSpriteList`, `addToList`, `drawSpriteList`, `updateSpriteList` |
+| Input | `keyDown`, `keyUp`, `mouseX`, `mouseY`, `mouseLeft`, `mouseRight` |
+| Sound | `loadSound`, `playSound`, `stopSound` |
+| Timer | `deltaTime` |
+| Camera | `makeCamera`, `useCamera`, `setCameraPos`, `resetCamera` |
+| Physics | `makePhysicsEngine`, `setPhysicsPlayer`, `updatePhysics`, `canJump` |
 
 ---
 

@@ -2,6 +2,8 @@
 
 Comprehensive GUI toolkit wrapping Python's `tkinter` and `tkinter.ttk`. Build desktop applications with windows, widgets, menus, dialogs, and a drawing canvas.
 
+> **Want a modern, dark-mode-ready UI?** Use the `ctk*` functions built into this module (e.g. `ctkInit`, `ctkLabel`, `ctkButton`). They wrap [CustomTkinter](https://github.com/TomSchimansky/CustomTkinter) and require `pip install customtkinter`. Do **not** mix standard `init`/`label`/… and `ctkInit`/`ctkLabel`/… in the same program — they each create their own root window.
+
 Widgets are referenced by **integer indexes** stored in an internal list that is initialised by `init()`.
 
 ---
@@ -304,3 +306,145 @@ global main(){
     global.tkinter.run();
 }
 ```
+
+---
+
+## CustomTkinter (CTk) extension
+
+All CTk functions are built into the same `tkinter` module — no separate import needed. Just `import("tkinter")` and use the `ctk*` functions. They maintain their own widget list (`builtins._lx_ctk_widgets`) with indexes independent of the standard widget list.
+
+> **Requires:** `pip install customtkinter`  
+> Do **not** call `init` and `ctkInit` in the same program — each creates its own root window.
+
+### Quick start (CTk)
+
+```c
+global setup(){ import("tkinter"); }
+
+global main(){
+    global.tkinter.ctkSetAppearance("dark");
+    global.tkinter.ctkSetTheme("blue");
+    global.tkinter.ctkInit("My Modern App", 480, 360);
+    global.tkinter.ctkCenter();
+
+    int lbl  = global.tkinter.ctkLabelStyled("Hello, CTk!", "#5bc0eb", 20);
+    int entry = global.tkinter.ctkEntryPlaceholder("Type something…");
+    int sw   = global.tkinter.ctkSwitch("Dark mode");
+    global.tkinter.ctkSetSwitch(sw, true);
+    int prog = global.tkinter.ctkProgressBar();
+    global.tkinter.ctkSetProgress(prog, 0.7);
+    int btn  = global.tkinter.ctkButton("Save");
+
+    global.tkinter.ctkRun();
+}
+```
+
+### Theme
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `ctkSetAppearance` | `ctkSetAppearance(str mode)` | `"dark"`, `"light"`, or `"system"`. Call before `ctkInit`. |
+| `ctkSetTheme` | `ctkSetTheme(str theme)` | `"blue"`, `"green"`, or `"dark-blue"`. Call before `ctkInit`. |
+
+### Window management
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `ctkInit` | `ctkInit(str title, int width, int height)` | Create the CTk root window. |
+| `ctkSetTitle` | `ctkSetTitle(str title)` | Change the window title. |
+| `ctkResize` | `ctkResize(int width, int height)` | Set window size. |
+| `ctkSetBackground` | `ctkSetBackground(str color)` | Set window background colour. |
+| `ctkDisableResize` | `ctkDisableResize()` | Prevent user resizing. |
+| `ctkSetMinSize` | `ctkSetMinSize(int width, int height)` | Minimum window size. |
+| `ctkSetMaxSize` | `ctkSetMaxSize(int width, int height)` | Maximum window size. |
+| `ctkSetOpacity` | `ctkSetOpacity(float alpha)` | Opacity 0.0–1.0. |
+| `ctkCenter` | `ctkCenter()` | Centre on screen. |
+| `ctkTopmost` | `ctkTopmost(bool enabled)` | Keep always on top. |
+| `ctkIconify` | `ctkIconify()` | Minimise. |
+| `ctkDeiconify` | `ctkDeiconify()` | Restore. |
+| `ctkUpdate` | `ctkUpdate()` | Force UI refresh. |
+| `ctkAfter` | `ctkAfter(int delayMs)` | Block for ms. |
+| `ctkBindClose` | `ctkBindClose(str event)` | Close on event (`"WM_DELETE_WINDOW"`, `"<Escape>"`, …). |
+
+### CTk widgets (all return an integer index)
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `ctkLabel` | `ctkLabel(str text)` | CTkLabel. |
+| `ctkLabelStyled` | `ctkLabelStyled(str text, str color, int size)` | Label with colour and font size. |
+| `ctkButton` | `ctkButton(str text)` | CTkButton. |
+| `ctkButtonStyled` | `ctkButtonStyled(str text, str fg, str hover)` | Button with fill and hover colour. |
+| `ctkEntry` | `ctkEntry()` | Single-line text input. |
+| `ctkEntryPlaceholder` | `ctkEntryPlaceholder(str placeholder)` | Entry with placeholder text. |
+| `ctkPasswordEntry` | `ctkPasswordEntry()` | Password entry (`•`). |
+| `ctkTextBox` | `ctkTextBox(int width, int height)` | Multi-line textbox. |
+| `ctkCheckbox` | `ctkCheckbox(str text)` | CTkCheckBox. Read with `ctkIsChecked(idx)`. |
+| `ctkSwitch` | `ctkSwitch(str text)` | CTkSwitch. Read with `ctkIsOn(idx)`. |
+| `ctkRadioButton` | `ctkRadioButton(str text, str groupId)` | CTkRadioButton. Read with `ctkGetRadio(groupId)`. |
+| `ctkCombobox` | `ctkCombobox(str itemsJson)` | Dropdown — JSON array. Read with `ctkGetCombo(idx)`. |
+| `ctkOptionMenu` | `ctkOptionMenu(str itemsJson)` | Option menu. Read with `ctkGetOption(idx)`. |
+| `ctkSegmented` | `ctkSegmented(str valuesJson)` | Segmented button bar. Read with `ctkGetValue(idx)`. |
+| `ctkSlider` | `ctkSlider(float lo, float hi)` | CTkSlider. Read with `ctkGetSlider(idx)`. |
+| `ctkProgressBar` | `ctkProgressBar()` | CTkProgressBar (0.0–1.0). Set with `ctkSetProgress(idx, val)`. |
+| `ctkFrame` | `ctkFrame()` | CTkFrame container. |
+| `ctkScrollFrame` | `ctkScrollFrame(int width, int height)` | CTkScrollableFrame. |
+| `ctkTabView` | `ctkTabView()` | CTkTabview. Add tabs with `ctkAddTab(tvIdx, text)`. |
+| `ctkAddTab` | `ctkAddTab(int tvIdx, str text)` | Add a tab to a CTkTabview. |
+| `ctkImage` | `ctkImage(str imagePath, int width, int height)` | Display image (requires Pillow). |
+
+### CTk layout
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `ctkGrid` | `ctkGrid(int idx, int row, int col)` | Grid position. |
+| `ctkGridSpan` | `ctkGridSpan(int idx, int row, int col, int colspan)` | Grid with column span. |
+| `ctkPlace` | `ctkPlace(int idx, int x, int y)` | Absolute pixel position. |
+| `ctkPack` | `ctkPack(int idx, str anchor)` | Re-pack with anchor. |
+
+### CTk styling
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `ctkSetFont` | `ctkSetFont(int idx, str family, int size, str style)` | Font (`style`: `"bold"`, `"italic"`, `"bold italic"`, `""`). |
+| `ctkSetForeground` | `ctkSetForeground(int idx, str color)` | Text colour. |
+| `ctkSetBackgroundWidget` | `ctkSetBackgroundWidget(int idx, str color)` | Widget `fg_color`. |
+| `ctkSetCornerRadius` | `ctkSetCornerRadius(int idx, int radius)` | Corner radius in pixels. |
+| `ctkSetBorderWidth` | `ctkSetBorderWidth(int idx, int width)` | Border width in pixels. |
+| `ctkSetPadding` | `ctkSetPadding(int idx, int px, int py)` | Internal padding. |
+
+### CTk widget operations
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `ctkGetValue` | `ctkGetValue(int idx)` | Entry / Textbox / ComboBox / SegmentedButton value. |
+| `ctkGetText` | `ctkGetText(int idx)` | Label or Button display text. |
+| `ctkSetText` | `ctkSetText(int idx, str text)` | Set display text. |
+| `ctkSetEntryText` | `ctkSetEntryText(int idx, str text)` | Replace Entry content. |
+| `ctkSetTextBoxContent` | `ctkSetTextBoxContent(int idx, str text)` | Replace Textbox content. |
+| `ctkIsChecked` | `ctkIsChecked(int idx)` | `true` if CheckBox checked. |
+| `ctkSetChecked` | `ctkSetChecked(int idx, bool checked)` | Check/uncheck. |
+| `ctkIsOn` | `ctkIsOn(int idx)` | `true` if Switch is on. |
+| `ctkSetSwitch` | `ctkSetSwitch(int idx, bool on)` | Turn switch on/off. |
+| `ctkGetRadio` | `ctkGetRadio(str groupId)` | Selected radio value. |
+| `ctkGetSlider` | `ctkGetSlider(int idx)` | Slider value. |
+| `ctkSetSlider` | `ctkSetSlider(int idx, float val)` | Set slider value. |
+| `ctkGetCombo` | `ctkGetCombo(int idx)` | ComboBox selection. |
+| `ctkSetCombo` | `ctkSetCombo(int idx, str text)` | Set ComboBox selection. |
+| `ctkGetOption` | `ctkGetOption(int idx)` | OptionMenu selection. |
+| `ctkSetOption` | `ctkSetOption(int idx, str text)` | Set OptionMenu selection. |
+| `ctkSetProgress` | `ctkSetProgress(int idx, float val)` | Set progress (0.0–1.0). |
+| `ctkGetProgress` | `ctkGetProgress(int idx)` | Get progress value. |
+| `ctkClearWidget` | `ctkClearWidget(int idx)` | Clear Entry or Textbox. |
+| `ctkDisableWidget` | `ctkDisableWidget(int idx)` | Disable (grey out). |
+| `ctkEnableWidget` | `ctkEnableWidget(int idx)` | Re-enable. |
+| `ctkHideWidget` | `ctkHideWidget(int idx)` | Remove from layout. |
+| `ctkShowWidget` | `ctkShowWidget(int idx)` | Re-pack hidden widget. |
+| `ctkDestroyWidget` | `ctkDestroyWidget(int idx)` | Permanently destroy. |
+| `ctkFocusWidget` | `ctkFocusWidget(int idx)` | Keyboard focus. |
+
+### CTk app lifecycle
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `ctkRun` | `ctkRun()` | Start the CTk event loop (blocking). |
+| `ctkClose` | `ctkClose()` | Destroy window and exit the loop. |

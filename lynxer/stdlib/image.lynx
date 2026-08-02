@@ -1,0 +1,1452 @@
+///
+  Lynxer Standard Library — image
+  Comprehensive image processing library wrapping Python's Pillow (PIL Fork).
+  Requires: pip install Pillow
+
+  Images are stored in an internal list and referenced by integer indexes —
+  the same pattern used by tkinter widgets.
+
+  Functions that create new images (resize, crop, filter, etc.) return a
+  NEW index; the original image is not modified unless noted otherwise.
+  Use save(idx, path) to write the result to disk.
+
+  Provides:
+    Core:         open, new, save, saveQuality, copy, show, close,
+                  getWidth, getHeight, getMode, getFormat, info
+    Transform:    resize, thumbnail, crop, rotate, flipH, flipV, pad,
+                  scale, fit, contain
+    Convert:      convert, grayscale, toRGB, toRGBA, toBinary
+    Enhance:      brightness, contrast, color, sharpness, invert
+    Filter:       blur, boxBlur, unsharpMask, sharpen, edgeEnhance,
+                  emboss, findEdges, smooth, contour, detail,
+                  medianFilter, minFilter, maxFilter
+    Pixel:        getPixel, setPixel, setPixelA, fill
+    Composite:    paste, pasteWithAlpha, blend, composite,
+                  addAlpha, setAlpha, removeAlpha, putAlpha
+    Drawing:      drawLine, drawRect, drawRoundedRect, drawCircle,
+                  drawEllipse, drawPolygon, drawText, drawTextFont,
+                  floodFill
+    Analysis:     getAverageColor, getDominantColor, getHistogram
+    Special:      autoContrast, equalize, quantize, solarize,
+                  posterize, tile, splitChannels, mergeChannels
+    Base64:       toBase64, fromBase64, toDataUrl
+///
+
+global setup(){}
+
+// ── Core ───────────────────────────────────────────────────────────────────
+
+/// Open an image from path.  Returns image index. ///
+global open(str path){
+    int idx = 0;
+    rawPy(){
+        from PIL import Image as _PIL, builtins as _b
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            img = _PIL.open(path)
+            img.load()
+            builtins._lx_images.append(img)
+            idx = len(builtins._lx_images) - 1
+        except Exception:
+            idx = -1
+    }
+    return idx;
+}
+
+/// Create a new blank image.
+  mode: "RGB", "RGBA", "L" (grayscale), "1" (binary).
+  Returns image index. ///
+global new(int width, int height, str mode, int r, int g, int b){
+    int idx = 0;
+    rawPy(){
+        from PIL import Image as _PIL
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            if mode in ("L", "1"):
+                color = r
+            elif mode == "RGBA":
+                color = (r, g, b, 255)
+            else:
+                color = (r, g, b)
+            img = _PIL.new(mode, (width, height), color)
+            builtins._lx_images.append(img)
+            idx = len(builtins._lx_images) - 1
+        except Exception:
+            idx = -1
+    }
+    return idx;
+}
+
+/// Save image at idx to path.
+  Format is inferred from the extension (.png, .jpg, .bmp, .gif, …). ///
+global save(int idx, str path){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_images[idx].save(path)
+        except Exception:
+            pass
+    }
+}
+
+/// Save image with JPEG quality (1–95).  Use for .jpg files only. ///
+global saveQuality(int idx, str path, int quality){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_images[idx].save(path, quality=max(1, min(95, quality)))
+        except Exception:
+            pass
+    }
+}
+
+/// Return a deep copy of image at idx as a new image. ///
+global copy(int idx){
+    int result = 0;
+    rawPy(){
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            img = builtins._lx_images[idx].copy()
+            builtins._lx_images.append(img)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Open the image in the system's default image viewer. ///
+global show(int idx){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_images[idx].show()
+        except Exception:
+            pass
+    }
+}
+
+/// Free the image at idx from memory (sets the slot to None). ///
+global close(int idx){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_images[idx].close()
+            builtins._lx_images[idx] = None
+        except Exception:
+            pass
+    }
+}
+
+/// Return the width of an image in pixels. ///
+global getWidth(int idx){
+    int result = 0;
+    rawPy(){
+        import builtins
+        try:
+            result = builtins._lx_images[idx].width
+        except Exception:
+            result = 0
+    }
+    return result;
+}
+
+/// Return the height of an image in pixels. ///
+global getHeight(int idx){
+    int result = 0;
+    rawPy(){
+        import builtins
+        try:
+            result = builtins._lx_images[idx].height
+        except Exception:
+            result = 0
+    }
+    return result;
+}
+
+/// Return the color mode string: "RGB", "RGBA", "L", "P", "1", etc. ///
+global getMode(int idx){
+    str result = "";
+    rawPy(){
+        import builtins
+        try:
+            result = builtins._lx_images[idx].mode
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+/// Return the file format string ("PNG", "JPEG", "GIF", …), or "" if unknown. ///
+global getFormat(int idx){
+    str result = "";
+    rawPy(){
+        import builtins
+        try:
+            result = builtins._lx_images[idx].format or ""
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+/// Return a JSON string with basic image info (width, height, mode, format). ///
+global info(int idx){
+    str result = "{}";
+    rawPy(){
+        import builtins, json as _json
+        try:
+            img = builtins._lx_images[idx]
+            result = _json.dumps({
+                "width":  img.width,
+                "height": img.height,
+                "mode":   img.mode,
+                "format": img.format or ""
+            })
+        except Exception:
+            result = "{}"
+    }
+    return result;
+}
+
+// ── Transform ──────────────────────────────────────────────────────────────
+
+/// Resize an image to (width, height) using high-quality Lanczos resampling.
+  Returns new image index. ///
+global resize(int idx, int width, int height){
+    int result = 0;
+    rawPy(){
+        from PIL import Image as _PIL
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            img = builtins._lx_images[idx].resize((width, height), _PIL.LANCZOS)
+            builtins._lx_images.append(img)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Shrink image so it fits within (maxWidth, maxHeight), preserving aspect ratio.
+  Returns new image index. ///
+global thumbnail(int idx, int maxWidth, int maxHeight){
+    int result = 0;
+    rawPy(){
+        from PIL import Image as _PIL
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            img = builtins._lx_images[idx].copy()
+            img.thumbnail((maxWidth, maxHeight), _PIL.LANCZOS)
+            builtins._lx_images.append(img)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Scale image uniformly by a factor (e.g. 0.5 = half size, 2.0 = double).
+  Returns new image index. ///
+global scale(int idx, float factor){
+    int result = 0;
+    rawPy(){
+        from PIL import Image as _PIL
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            img = builtins._lx_images[idx]
+            nw  = int(img.width  * factor)
+            nh  = int(img.height * factor)
+            out = img.resize((max(1,nw), max(1,nh)), _PIL.LANCZOS)
+            builtins._lx_images.append(out)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Resize image to exactly (width, height), cropping to fill (cover fit).
+  Returns new image index. ///
+global fit(int idx, int width, int height){
+    int result = 0;
+    rawPy(){
+        from PIL import ImageOps as _ops
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            out = _ops.fit(builtins._lx_images[idx], (width, height))
+            builtins._lx_images.append(out)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Resize image to fit inside (width, height), adding padding to fill the gap.
+  Padding colour: (r, g, b).  Returns new image index. ///
+global contain(int idx, int width, int height, int r, int g, int b){
+    int result = 0;
+    rawPy(){
+        from PIL import ImageOps as _ops, Image as _PIL
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            src = builtins._lx_images[idx]
+            out = _PIL.new(src.mode, (width, height), (r, g, b))
+            thumb = src.copy()
+            thumb.thumbnail((width, height), _PIL.LANCZOS)
+            x = (width  - thumb.width)  // 2
+            y = (height - thumb.height) // 2
+            out.paste(thumb, (x, y))
+            builtins._lx_images.append(out)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Crop image to the rectangle (x1, y1, x2, y2).  Returns new image index. ///
+global crop(int idx, int x1, int y1, int x2, int y2){
+    int result = 0;
+    rawPy(){
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            img = builtins._lx_images[idx].crop((x1, y1, x2, y2))
+            builtins._lx_images.append(img)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Rotate image by angle degrees (counter-clockwise).
+  expand=true enlarges canvas to fit the rotated image.
+  Returns new image index. ///
+global rotate(int idx, float angle, bool expand){
+    int result = 0;
+    rawPy(){
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            img = builtins._lx_images[idx].rotate(angle, expand=bool(expand))
+            builtins._lx_images.append(img)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Flip image left-to-right (mirror horizontally).  Returns new index. ///
+global flipH(int idx){
+    int result = 0;
+    rawPy(){
+        from PIL import ImageOps as _ops
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            img = _ops.mirror(builtins._lx_images[idx])
+            builtins._lx_images.append(img)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Flip image top-to-bottom (mirror vertically).  Returns new index. ///
+global flipV(int idx){
+    int result = 0;
+    rawPy(){
+        from PIL import ImageOps as _ops
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            img = _ops.flip(builtins._lx_images[idx])
+            builtins._lx_images.append(img)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Add padding (in pixels) around an image.  Returns new image index. ///
+global pad(int idx, int top, int right, int bottom, int left, int r, int g, int b){
+    int result = 0;
+    rawPy(){
+        from PIL import Image as _PIL
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            src = builtins._lx_images[idx]
+            nw  = src.width  + left + right
+            nh  = src.height + top  + bottom
+            out = _PIL.new(src.mode, (nw, nh), (r, g, b))
+            out.paste(src, (left, top))
+            builtins._lx_images.append(out)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+// ── Convert ────────────────────────────────────────────────────────────────
+
+/// Convert image to a different mode.
+  mode: "RGB", "RGBA", "L", "P", "1", "CMYK", "YCbCr".
+  Returns new image index. ///
+global convert(int idx, str mode){
+    int result = 0;
+    rawPy(){
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            img = builtins._lx_images[idx].convert(mode)
+            builtins._lx_images.append(img)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Convert to grayscale ("L" mode).  Returns new image index. ///
+global grayscale(int idx){
+    int result = 0;
+    rawPy(){
+        from PIL import ImageOps as _ops
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            img = _ops.grayscale(builtins._lx_images[idx])
+            builtins._lx_images.append(img)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Convert to full-color RGB (removes alpha).  Returns new image index. ///
+global toRGB(int idx){
+    int result = 0;
+    rawPy(){
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            img = builtins._lx_images[idx].convert("RGB")
+            builtins._lx_images.append(img)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Convert to RGBA (adds alpha channel if missing).  Returns new image index. ///
+global toRGBA(int idx){
+    int result = 0;
+    rawPy(){
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            img = builtins._lx_images[idx].convert("RGBA")
+            builtins._lx_images.append(img)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Convert to 1-bit black-and-white.  threshold 0–255 (default 127).
+  Returns new image index. ///
+global toBinary(int idx, int threshold){
+    int result = 0;
+    rawPy(){
+        from PIL import ImageOps as _ops
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            gray = builtins._lx_images[idx].convert("L")
+            out  = gray.point(lambda p: 255 if p > threshold else 0, "1")
+            builtins._lx_images.append(out)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+// ── Enhance ────────────────────────────────────────────────────────────────
+
+/// Adjust brightness.  factor 1.0 = original, 0.0 = black, 2.0 = double.
+  Returns new image index. ///
+global brightness(int idx, float factor){
+    int result = 0;
+    rawPy(){
+        from PIL import ImageEnhance as _enh
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            img = _enh.Brightness(builtins._lx_images[idx]).enhance(factor)
+            builtins._lx_images.append(img)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Adjust contrast.  factor 1.0 = original, 0.0 = grey, 2.0 = high contrast.
+  Returns new image index. ///
+global contrast(int idx, float factor){
+    int result = 0;
+    rawPy(){
+        from PIL import ImageEnhance as _enh
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            img = _enh.Contrast(builtins._lx_images[idx]).enhance(factor)
+            builtins._lx_images.append(img)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Adjust color saturation.  factor 1.0 = original, 0.0 = grayscale, 2.0 = vivid.
+  Returns new image index. ///
+global color(int idx, float factor){
+    int result = 0;
+    rawPy(){
+        from PIL import ImageEnhance as _enh
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            img = _enh.Color(builtins._lx_images[idx]).enhance(factor)
+            builtins._lx_images.append(img)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Adjust sharpness.  factor 1.0 = original, 0.0 = blurred, 2.0 = sharp.
+  Returns new image index. ///
+global sharpness(int idx, float factor){
+    int result = 0;
+    rawPy(){
+        from PIL import ImageEnhance as _enh
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            img = _enh.Sharpness(builtins._lx_images[idx]).enhance(factor)
+            builtins._lx_images.append(img)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Invert all pixel values (photo negative).  Returns new image index. ///
+global invert(int idx){
+    int result = 0;
+    rawPy(){
+        from PIL import ImageOps as _ops
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            img = _ops.invert(builtins._lx_images[idx].convert("RGB"))
+            builtins._lx_images.append(img)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+// ── Filter ─────────────────────────────────────────────────────────────────
+
+/// Apply a Gaussian blur with radius.  Returns new image index. ///
+global blur(int idx, float radius){
+    int result = 0;
+    rawPy(){
+        from PIL import ImageFilter as _F
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            img = builtins._lx_images[idx].filter(_F.GaussianBlur(radius))
+            builtins._lx_images.append(img)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Apply a box blur with radius.  Returns new image index. ///
+global boxBlur(int idx, float radius){
+    int result = 0;
+    rawPy(){
+        from PIL import ImageFilter as _F
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            img = builtins._lx_images[idx].filter(_F.BoxBlur(radius))
+            builtins._lx_images.append(img)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Apply unsharp mask (sharpening via blur subtraction).  Returns new image index. ///
+global unsharpMask(int idx, float radius, float percent, int threshold){
+    int result = 0;
+    rawPy(){
+        from PIL import ImageFilter as _F
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            img = builtins._lx_images[idx].filter(
+                _F.UnsharpMask(radius=radius, percent=int(percent), threshold=threshold))
+            builtins._lx_images.append(img)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Apply a basic sharpen filter.  Returns new image index. ///
+global sharpen(int idx){
+    int result = 0;
+    rawPy(){
+        from PIL import ImageFilter as _F
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            img = builtins._lx_images[idx].filter(_F.SHARPEN)
+            builtins._lx_images.append(img)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Enhance edges.  Returns new image index. ///
+global edgeEnhance(int idx){
+    int result = 0;
+    rawPy(){
+        from PIL import ImageFilter as _F
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            img = builtins._lx_images[idx].filter(_F.EDGE_ENHANCE_MORE)
+            builtins._lx_images.append(img)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Apply emboss effect.  Returns new image index. ///
+global emboss(int idx){
+    int result = 0;
+    rawPy(){
+        from PIL import ImageFilter as _F
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            img = builtins._lx_images[idx].filter(_F.EMBOSS)
+            builtins._lx_images.append(img)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Detect edges (produces a sketch-like result).  Returns new image index. ///
+global findEdges(int idx){
+    int result = 0;
+    rawPy(){
+        from PIL import ImageFilter as _F
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            img = builtins._lx_images[idx].filter(_F.FIND_EDGES)
+            builtins._lx_images.append(img)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Apply a smoothing (mild blur) filter.  Returns new image index. ///
+global smooth(int idx){
+    int result = 0;
+    rawPy(){
+        from PIL import ImageFilter as _F
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            img = builtins._lx_images[idx].filter(_F.SMOOTH_MORE)
+            builtins._lx_images.append(img)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Apply contour (edge outline) filter.  Returns new image index. ///
+global contour(int idx){
+    int result = 0;
+    rawPy(){
+        from PIL import ImageFilter as _F
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            img = builtins._lx_images[idx].filter(_F.CONTOUR)
+            builtins._lx_images.append(img)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Apply detail-enhancement filter.  Returns new image index. ///
+global detail(int idx){
+    int result = 0;
+    rawPy(){
+        from PIL import ImageFilter as _F
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            img = builtins._lx_images[idx].filter(_F.DETAIL)
+            builtins._lx_images.append(img)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Apply a median filter (good for noise removal).  size must be odd.
+  Returns new image index. ///
+global medianFilter(int idx, int size){
+    int result = 0;
+    rawPy(){
+        from PIL import ImageFilter as _F
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            s = size if size % 2 == 1 else size + 1
+            img = builtins._lx_images[idx].filter(_F.MedianFilter(s))
+            builtins._lx_images.append(img)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Apply a minimum (erosion) filter.  Returns new image index. ///
+global minFilter(int idx, int size){
+    int result = 0;
+    rawPy(){
+        from PIL import ImageFilter as _F
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            s = size if size % 2 == 1 else size + 1
+            img = builtins._lx_images[idx].filter(_F.MinFilter(s))
+            builtins._lx_images.append(img)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Apply a maximum (dilation) filter.  Returns new image index. ///
+global maxFilter(int idx, int size){
+    int result = 0;
+    rawPy(){
+        from PIL import ImageFilter as _F
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            s = size if size % 2 == 1 else size + 1
+            img = builtins._lx_images[idx].filter(_F.MaxFilter(s))
+            builtins._lx_images.append(img)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+// ── Pixel operations ────────────────────────────────────────────────────────
+
+/// Return the pixel color at (x, y) as a comma-separated string.
+  RGB → "r,g,b"   RGBA → "r,g,b,a"   L → "v" ///
+global getPixel(int idx, int x, int y){
+    str result = "0,0,0";
+    rawPy(){
+        import builtins
+        try:
+            px = builtins._lx_images[idx].getpixel((x, y))
+            if isinstance(px, (list, tuple)):
+                result = ",".join(str(v) for v in px)
+            else:
+                result = str(px)
+        except Exception:
+            result = "0,0,0"
+    }
+    return result;
+}
+
+/// Set the pixel color at (x, y) for RGB images. ///
+global setPixel(int idx, int x, int y, int r, int g, int b){
+    rawPy(){
+        import builtins
+        try:
+            img = builtins._lx_images[idx]
+            img.putpixel((x, y), (r, g, b))
+        except Exception:
+            pass
+    }
+}
+
+/// Set the pixel color at (x, y) with alpha for RGBA images. ///
+global setPixelA(int idx, int x, int y, int r, int g, int b, int a){
+    rawPy(){
+        import builtins
+        try:
+            img = builtins._lx_images[idx]
+            img.putpixel((x, y), (r, g, b, a))
+        except Exception:
+            pass
+    }
+}
+
+/// Fill the entire image with a solid color (in-place). ///
+global fill(int idx, int r, int g, int b){
+    rawPy(){
+        from PIL import ImageDraw as _D
+        import builtins
+        try:
+            draw = _D.Draw(builtins._lx_images[idx])
+            img  = builtins._lx_images[idx]
+            draw.rectangle([0, 0, img.width, img.height], fill=(r, g, b))
+        except Exception:
+            pass
+    }
+}
+
+// ── Composite ──────────────────────────────────────────────────────────────
+
+/// Paste srcIdx on top of dstIdx at position (x, y) — in-place on dst. ///
+global paste(int dstIdx, int srcIdx, int x, int y){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_images[dstIdx].paste(builtins._lx_images[srcIdx], (x, y))
+        except Exception:
+            pass
+    }
+}
+
+/// Paste srcIdx on dstIdx using the src alpha channel as a transparency mask. ///
+global pasteWithAlpha(int dstIdx, int srcIdx, int x, int y){
+    rawPy(){
+        import builtins
+        try:
+            src  = builtins._lx_images[srcIdx].convert("RGBA")
+            mask = src.split()[3]   // alpha channel
+            builtins._lx_images[dstIdx].paste(src, (x, y), mask)
+        except Exception:
+            pass
+    }
+}
+
+/// Blend two images: result = img1 * (1-alpha) + img2 * alpha.
+  alpha 0.0 → img1 fully, 1.0 → img2 fully.  Returns new index. ///
+global blend(int idx1, int idx2, float alpha){
+    int result = 0;
+    rawPy(){
+        from PIL import Image as _PIL
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            img = _PIL.blend(
+                builtins._lx_images[idx1].convert("RGBA"),
+                builtins._lx_images[idx2].convert("RGBA"),
+                alpha)
+            builtins._lx_images.append(img)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Composite overlay on top of base using mask.  Returns new index. ///
+global composite(int baseIdx, int overlayIdx, int maskIdx){
+    int result = 0;
+    rawPy(){
+        from PIL import Image as _PIL
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            img = _PIL.composite(
+                builtins._lx_images[overlayIdx].convert("RGBA"),
+                builtins._lx_images[baseIdx].convert("RGBA"),
+                builtins._lx_images[maskIdx].convert("L"))
+            builtins._lx_images.append(img)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Convert an RGB image to RGBA, adding a fully-opaque alpha channel.
+  Returns new image index. ///
+global addAlpha(int idx){
+    int result = 0;
+    rawPy(){
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            img = builtins._lx_images[idx].convert("RGBA")
+            builtins._lx_images.append(img)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Set all alpha values to the given level (0 = transparent, 255 = opaque).
+  Input must be RGBA or will be converted.  Returns new image index. ///
+global setAlpha(int idx, int alpha){
+    int result = 0;
+    rawPy(){
+        from PIL import Image as _PIL
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            img = builtins._lx_images[idx].convert("RGBA")
+            r, g, b, a = img.split()
+            a = a.point(lambda _: max(0, min(255, alpha)))
+            img = _PIL.merge("RGBA", (r, g, b, a))
+            builtins._lx_images.append(img)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Flatten RGBA image to RGB using a white background.  Returns new index. ///
+global removeAlpha(int idx){
+    int result = 0;
+    rawPy(){
+        from PIL import Image as _PIL
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            src = builtins._lx_images[idx].convert("RGBA")
+            bg  = _PIL.new("RGBA", src.size, (255, 255, 255, 255))
+            bg.paste(src, mask=src.split()[3])
+            out = bg.convert("RGB")
+            builtins._lx_images.append(out)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+// ── Drawing ────────────────────────────────────────────────────────────────
+
+/// Draw a line on image idx from (x1,y1) to (x2,y2). ///
+global drawLine(int idx, int x1, int y1, int x2, int y2, int r, int g, int b, int lineWidth){
+    rawPy(){
+        from PIL import ImageDraw as _D
+        import builtins
+        try:
+            draw = _D.Draw(builtins._lx_images[idx])
+            draw.line([(x1, y1), (x2, y2)], fill=(r, g, b), width=lineWidth)
+        except Exception:
+            pass
+    }
+}
+
+/// Draw a rectangle.  fill=true fills it; fill=false draws outline only. ///
+global drawRect(int idx, int x1, int y1, int x2, int y2, int r, int g, int b, bool fill){
+    rawPy(){
+        from PIL import ImageDraw as _D
+        import builtins
+        try:
+            draw = _D.Draw(builtins._lx_images[idx])
+            if bool(fill):
+                draw.rectangle([x1, y1, x2, y2], fill=(r, g, b))
+            else:
+                draw.rectangle([x1, y1, x2, y2], outline=(r, g, b))
+        except Exception:
+            pass
+    }
+}
+
+/// Draw a rounded-corner rectangle with corner radius. ///
+global drawRoundedRect(int idx, int x1, int y1, int x2, int y2, int r, int g, int b, bool fill, int radius){
+    rawPy(){
+        from PIL import ImageDraw as _D
+        import builtins
+        try:
+            draw = _D.Draw(builtins._lx_images[idx])
+            col  = (r, g, b)
+            if bool(fill):
+                draw.rounded_rectangle([x1, y1, x2, y2], radius=radius, fill=col)
+            else:
+                draw.rounded_rectangle([x1, y1, x2, y2], radius=radius, outline=col)
+        except Exception:
+            pass
+    }
+}
+
+/// Draw a circle centered at (cx, cy) with given radius. ///
+global drawCircle(int idx, int cx, int cy, int radius, int r, int g, int b, bool fill){
+    rawPy(){
+        from PIL import ImageDraw as _D
+        import builtins
+        try:
+            draw = _D.Draw(builtins._lx_images[idx])
+            col  = (r, g, b)
+            x1 = cx - radius;  y1 = cy - radius
+            x2 = cx + radius;  y2 = cy + radius
+            if bool(fill):
+                draw.ellipse([x1, y1, x2, y2], fill=col)
+            else:
+                draw.ellipse([x1, y1, x2, y2], outline=col)
+        except Exception:
+            pass
+    }
+}
+
+/// Draw an ellipse fitting the bounding box (x1,y1,x2,y2). ///
+global drawEllipse(int idx, int x1, int y1, int x2, int y2, int r, int g, int b, bool fill){
+    rawPy(){
+        from PIL import ImageDraw as _D
+        import builtins
+        try:
+            draw = _D.Draw(builtins._lx_images[idx])
+            col  = (r, g, b)
+            if bool(fill):
+                draw.ellipse([x1, y1, x2, y2], fill=col)
+            else:
+                draw.ellipse([x1, y1, x2, y2], outline=col)
+        except Exception:
+            pass
+    }
+}
+
+/// Draw a filled polygon.  coordsJson: flat JSON [x,y,...]. ///
+global drawPolygon(int idx, str coordsJson, int r, int g, int b){
+    rawPy(){
+        from PIL import ImageDraw as _D
+        import builtins, json as _json
+        try:
+            flat = _json.loads(coordsJson)
+            pts  = [(flat[i], flat[i+1]) for i in range(0, len(flat)-1, 2)]
+            draw = _D.Draw(builtins._lx_images[idx])
+            draw.polygon(pts, fill=(r, g, b))
+        except Exception:
+            pass
+    }
+}
+
+/// Draw text on image at (x, y) using the default font. ///
+global drawText(int idx, int x, int y, str text, int r, int g, int b, int size){
+    rawPy(){
+        from PIL import ImageDraw as _D, ImageFont as _F
+        import builtins
+        try:
+            draw = _D.Draw(builtins._lx_images[idx])
+            try:
+                font = _F.truetype("arial.ttf", size)
+            except Exception:
+                font = _F.load_default(size=size) if hasattr(_F, 'load_default') else _F.load_default()
+            draw.text((x, y), text, fill=(r, g, b), font=font)
+        except Exception:
+            pass
+    }
+}
+
+/// Draw text using a TTF/OTF font file. ///
+global drawTextFont(int idx, int x, int y, str text, int r, int g, int b, int size, str fontPath){
+    rawPy(){
+        from PIL import ImageDraw as _D, ImageFont as _F
+        import builtins
+        try:
+            draw = _D.Draw(builtins._lx_images[idx])
+            try:
+                font = _F.truetype(fontPath, size)
+            except Exception:
+                font = _F.load_default()
+            draw.text((x, y), text, fill=(r, g, b), font=font)
+        except Exception:
+            pass
+    }
+}
+
+/// Flood-fill starting at (x, y) with a new color. ///
+global floodFill(int idx, int x, int y, int r, int g, int b){
+    rawPy(){
+        from PIL import ImageDraw as _D
+        import builtins
+        try:
+            _D.floodfill(builtins._lx_images[idx], (x, y), (r, g, b))
+        except Exception:
+            pass
+    }
+}
+
+// ── Analysis ────────────────────────────────────────────────────────────────
+
+/// Return the average pixel color as "r,g,b". ///
+global getAverageColor(int idx){
+    str result = "0,0,0";
+    rawPy(){
+        from PIL import ImageStat as _S
+        import builtins
+        try:
+            stat = _S.Stat(builtins._lx_images[idx].convert("RGB"))
+            r, g, b = (int(v) for v in stat.mean)
+            result = f"{r},{g},{b}"
+        except Exception:
+            result = "0,0,0"
+    }
+    return result;
+}
+
+/// Return the most common pixel color as "r,g,b" (quantizes to 1 color). ///
+global getDominantColor(int idx){
+    str result = "0,0,0";
+    rawPy(){
+        import builtins
+        try:
+            img = builtins._lx_images[idx].convert("RGB").quantize(colors=1)
+            r, g, b = img.getpalette()[:3]
+            result = f"{r},{g},{b}"
+        except Exception:
+            result = "0,0,0"
+    }
+    return result;
+}
+
+/// Return the per-channel histogram as a JSON string.
+  For RGB: 256 values per channel concatenated → 768 total.
+  For L (grayscale): 256 values. ///
+global getHistogram(int idx){
+    str result = "[]";
+    rawPy(){
+        import builtins, json as _json
+        try:
+            hist   = builtins._lx_images[idx].histogram()
+            result = _json.dumps(hist)
+        except Exception:
+            result = "[]"
+    }
+    return result;
+}
+
+// ── Special operations ─────────────────────────────────────────────────────
+
+/// Auto-adjust contrast (stretch histogram to use full range).
+  Returns new image index. ///
+global autoContrast(int idx){
+    int result = 0;
+    rawPy(){
+        from PIL import ImageOps as _ops
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            img = _ops.autocontrast(builtins._lx_images[idx])
+            builtins._lx_images.append(img)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Equalize the image histogram (enhance contrast globally).
+  Returns new image index. ///
+global equalize(int idx){
+    int result = 0;
+    rawPy(){
+        from PIL import ImageOps as _ops
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            img = _ops.equalize(builtins._lx_images[idx].convert("RGB"))
+            builtins._lx_images.append(img)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Reduce the color palette to `colors` colors.  Returns new image index. ///
+global quantize(int idx, int colors){
+    int result = 0;
+    rawPy(){
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            img = builtins._lx_images[idx].quantize(colors=max(1, colors))
+            builtins._lx_images.append(img)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Apply solarize: pixels above threshold are inverted.
+  threshold 0–255.  Returns new image index. ///
+global solarize(int idx, int threshold){
+    int result = 0;
+    rawPy(){
+        from PIL import ImageOps as _ops
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            img = _ops.solarize(builtins._lx_images[idx].convert("RGB"), threshold)
+            builtins._lx_images.append(img)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Posterize: reduce each channel to `bits` bits (1–8).
+  Returns new image index. ///
+global posterize(int idx, int bits){
+    int result = 0;
+    rawPy(){
+        from PIL import ImageOps as _ops
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            img = _ops.posterize(builtins._lx_images[idx].convert("RGB"),
+                                 max(1, min(8, bits)))
+            builtins._lx_images.append(img)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Tile (repeat) the image into a grid of (cols × rows).
+  Returns new image index. ///
+global tile(int idx, int cols, int rows){
+    int result = 0;
+    rawPy(){
+        from PIL import Image as _PIL
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            src = builtins._lx_images[idx]
+            out = _PIL.new(src.mode, (src.width * cols, src.height * rows))
+            for row in range(rows):
+                for col in range(cols):
+                    out.paste(src, (col * src.width, row * src.height))
+            builtins._lx_images.append(out)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Split an RGBA image into four separate L-mode images (R, G, B, A).
+  Returns a comma-separated string of four new image indexes: "ri,gi,bi,ai". ///
+global splitChannels(int idx){
+    str result = "-1,-1,-1,-1";
+    rawPy(){
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            img  = builtins._lx_images[idx].convert("RGBA")
+            r, g, b, a = img.split()
+            base = len(builtins._lx_images)
+            builtins._lx_images.extend([r, g, b, a])
+            result = f"{base},{base+1},{base+2},{base+3}"
+        except Exception:
+            result = "-1,-1,-1,-1"
+    }
+    return result;
+}
+
+/// Merge four L-mode channel images into one RGBA image.
+  idxR, idxG, idxB, idxA are indexes into the image list.
+  Returns new image index. ///
+global mergeChannels(int idxR, int idxG, int idxB, int idxA){
+    int result = 0;
+    rawPy(){
+        from PIL import Image as _PIL
+        import builtins
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            img = _PIL.merge("RGBA", (
+                builtins._lx_images[idxR].convert("L"),
+                builtins._lx_images[idxG].convert("L"),
+                builtins._lx_images[idxB].convert("L"),
+                builtins._lx_images[idxA].convert("L"),
+            ))
+            builtins._lx_images.append(img)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+// ── Base64 / encoding ──────────────────────────────────────────────────────
+
+/// Encode image to a Base64 string.
+  format: "PNG", "JPEG", "WEBP", "BMP", etc. ///
+global toBase64(int idx, str format){
+    str result = "";
+    rawPy(){
+        import builtins, base64 as _b64, io as _io
+        try:
+            buf = _io.BytesIO()
+            builtins._lx_images[idx].save(buf, format=format)
+            result = _b64.b64encode(buf.getvalue()).decode("ascii")
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+/// Decode a Base64 string back to an image.  Returns new image index. ///
+global fromBase64(str b64str){
+    int result = 0;
+    rawPy(){
+        from PIL import Image as _PIL
+        import builtins, base64 as _b64, io as _io
+        if not hasattr(builtins, "_lx_images"):
+            builtins._lx_images = []
+        try:
+            data = _b64.b64decode(b64str)
+            img  = _PIL.open(_io.BytesIO(data))
+            img.load()
+            builtins._lx_images.append(img)
+            result = len(builtins._lx_images) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Return a data URL suitable for embedding in HTML.
+  format: "PNG", "JPEG", "WEBP".
+  e.g. "data:image/png;base64,iVBORw0K..." ///
+global toDataUrl(int idx, str format){
+    str result = "";
+    rawPy(){
+        import builtins, base64 as _b64, io as _io
+        try:
+            buf  = _io.BytesIO()
+            builtins._lx_images[idx].save(buf, format=format)
+            b64  = _b64.b64encode(buf.getvalue()).decode("ascii")
+            mime = f"image/{format.lower()}"
+            result = f"data:{mime};base64,{b64}"
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+global main(){}

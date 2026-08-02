@@ -10,6 +10,8 @@ This directory contains documentation for all Lynxer standard library modules.
 | [csv](csv.md) | `csv.lynx` | CSV read, write, parse, filter, and transform |
 | [debug](debug.md) | `debug.lynx` | Assertions, type inspection, structured logging, timers |
 | [fileIO](fileIO.md) | `fileIO.lynx` | File reading, writing, copying, moving, and temp files |
+| [game](game.md) | `game.lynx` | 2-D game development: window, shapes, sprites, scenes, tilemap, camera, physics (Arcade) |
+| [image](image.md) | `image.lynx` | Image processing: load, resize, filter, draw, composite, base64 (Pillow) |
 | [http](http.md) | `http.lynx` | Simple HTTP client (GET, POST, PUT, DELETE, download) |
 | [js](js.md) | `js.lynx` | Run JavaScript via Node.js |
 | [json](json.md) | `json.lynx` | JSON encode / decode / query / mutate |
@@ -23,7 +25,7 @@ This directory contains documentation for all Lynxer standard library modules.
 | [shell](shell.md) | `shell.lynx` | Run external shell commands, capture output |
 | [sys](sys.md) | `sys.lynx` | Runtime info: version, platform, argv, path, exit, recursion limit |
 | [time](time.md) | `time.lynx` | Date/time helpers |
-| [tkinter](tkinter.md) | `tkinter.lynx` | Comprehensive GUI: windows, widgets, menus, canvas, dialogs |
+| [tkinter](tkinter.md) | `tkinter.lynx` | Comprehensive GUI: windows, widgets, menus, canvas, dialogs; includes CTk extension (`ctk*` functions) |
 | [turtle](turtle.md) | `turtle.lynx` | Turtle graphics: drawing, shapes, animation, events |
 | [typing](typing.md) | `typing.lynx` | String/list/type conversion utilities |
 
@@ -51,6 +53,8 @@ global setup(){
     import("server");
     import("tkinter");
     import("turtle");
+    import("game");
+    import("image");
 }
 ```
 

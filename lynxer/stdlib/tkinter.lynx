@@ -1,10 +1,14 @@
 ///
   Lynxer Standard Library — tkinter
   Comprehensive GUI toolkit wrapping Python's tkinter and tkinter.ttk.
+  Also includes a CustomTkinter (CTk) extension — all CTk functions are
+  prefixed with "ctk" (e.g. ctkInit, ctkLabel, ctkButton).
+  Requires: pip install customtkinter  (for ctk* functions only)
 
   Widgets are referenced by integer indexes stored in an internal list.
   Layout:  pack (default) | grid | place
 
+  ── Standard tkinter ──────────────────────────────────────────────────
   Provides:
     Window:       init, setTitle, resize, setBackground, disableResize,
                   setMinSize, setMaxSize, setOpacity, center, topmost,
@@ -28,6 +32,32 @@
                   openFileDialog, saveFileDialog, openDirDialog,
                   askColor, askString, askInteger, askFloat
     App:          run, close
+
+  ── CustomTkinter (CTk) extension ────────────────────────────────────
+  Theme:        ctkSetAppearance, ctkSetTheme
+  Window:       ctkInit, ctkSetTitle, ctkResize, ctkSetBackground,
+                ctkDisableResize, ctkSetMinSize, ctkSetMaxSize,
+                ctkSetOpacity, ctkCenter, ctkTopmost, ctkIconify,
+                ctkDeiconify, ctkUpdate, ctkAfter, ctkBindClose
+  Widgets:      ctkLabel, ctkLabelStyled, ctkButton, ctkButtonStyled,
+                ctkEntry, ctkEntryPlaceholder, ctkPasswordEntry,
+                ctkTextBox, ctkCheckbox, ctkSwitch, ctkRadioButton,
+                ctkCombobox, ctkOptionMenu, ctkSegmented,
+                ctkSlider, ctkProgressBar, ctkFrame, ctkScrollFrame,
+                ctkTabView, ctkAddTab, ctkImage
+  Layout:       ctkGrid, ctkGridSpan, ctkPlace, ctkPack
+  Styling:      ctkSetFont, ctkSetForeground, ctkSetBackgroundWidget,
+                ctkSetCornerRadius, ctkSetBorderWidth, ctkSetPadding
+  Widget ops:   ctkGetValue, ctkGetText, ctkSetText, ctkSetEntryText,
+                ctkSetTextBoxContent, ctkIsChecked, ctkSetChecked,
+                ctkIsOn, ctkSetSwitch, ctkGetRadio,
+                ctkGetSlider, ctkSetSlider, ctkGetCombo, ctkSetCombo,
+                ctkGetOption, ctkSetOption, ctkSetProgress, ctkGetProgress,
+                ctkClearWidget, ctkDisableWidget, ctkEnableWidget,
+                ctkHideWidget, ctkShowWidget, ctkDestroyWidget,
+                ctkFocusWidget
+  Dialogs:      (reuses standard tkinter dialogs — messageBox etc.)
+  App:          ctkRun, ctkClose
 ///
 
 global setup(){}
@@ -1261,6 +1291,962 @@ global close(){
         import builtins
         try:
             builtins._lx_root.destroy()
+        except Exception:
+            pass
+    }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// ── CustomTkinter (CTk) extension ─────────────────────────────────────────
+// All functions below require:  pip install customtkinter
+// They use a separate widget list (builtins._lx_ctk_widgets) so they do NOT
+// share indexes with the standard tkinter widgets above.
+// Do NOT call ctkInit and init in the same program.
+// ════════════════════════════════════════════════════════════════════════════
+
+// ── Theme ──────────────────────────────────────────────────────────────────
+
+/// Set CTk appearance mode: "dark", "light", or "system". Call before ctkInit. ///
+global ctkSetAppearance(str mode){
+    rawPy(){
+        import customtkinter as _ctk
+        _ctk.set_appearance_mode(mode)
+    }
+}
+
+/// Set CTk color theme: "blue" (default), "green", or "dark-blue". Call before ctkInit. ///
+global ctkSetTheme(str theme){
+    rawPy(){
+        import customtkinter as _ctk
+        _ctk.set_default_color_theme(theme)
+    }
+}
+
+// ── Window ─────────────────────────────────────────────────────────────────
+
+/// Create the CTk root window. Must be called first (CTk side). ///
+global ctkInit(str title, int width, int height){
+    rawPy(){
+        import customtkinter as _ctk, builtins
+        _root = _ctk.CTk()
+        _root.title(title)
+        _root.geometry(str(width) + "x" + str(height))
+        builtins._lx_ctk_root    = _root
+        builtins._lx_ctk_widgets = []
+        builtins._lx_ctk_rgroups = {}
+    }
+}
+
+/// Change the CTk window title. ///
+global ctkSetTitle(str title){
+    rawPy(){
+        import builtins
+        builtins._lx_ctk_root.title(title)
+    }
+}
+
+/// Resize the CTk window. ///
+global ctkResize(int width, int height){
+    rawPy(){
+        import builtins
+        builtins._lx_ctk_root.geometry(str(width) + "x" + str(height))
+    }
+}
+
+/// Set the CTk window background colour. ///
+global ctkSetBackground(str color){
+    rawPy(){
+        import builtins
+        builtins._lx_ctk_root.configure(bg_color=color)
+    }
+}
+
+/// Prevent the user from resizing the CTk window. ///
+global ctkDisableResize(){
+    rawPy(){
+        import builtins
+        builtins._lx_ctk_root.resizable(False, False)
+    }
+}
+
+/// Set minimum CTk window dimensions. ///
+global ctkSetMinSize(int width, int height){
+    rawPy(){
+        import builtins
+        builtins._lx_ctk_root.minsize(width, height)
+    }
+}
+
+/// Set maximum CTk window dimensions. ///
+global ctkSetMaxSize(int width, int height){
+    rawPy(){
+        import builtins
+        builtins._lx_ctk_root.maxsize(width, height)
+    }
+}
+
+/// Set CTk window opacity (0.0 transparent … 1.0 opaque). ///
+global ctkSetOpacity(float alpha){
+    rawPy(){
+        import builtins
+        builtins._lx_ctk_root.attributes("-alpha", alpha)
+    }
+}
+
+/// Center the CTk window on screen. ///
+global ctkCenter(){
+    rawPy(){
+        import builtins
+        root = builtins._lx_ctk_root
+        root.update_idletasks()
+        w  = root.winfo_width()
+        h  = root.winfo_height()
+        sw = root.winfo_screenwidth()
+        sh = root.winfo_screenheight()
+        root.geometry(f"{w}x{h}+{(sw-w)//2}+{(sh-h)//2}")
+    }
+}
+
+/// Keep CTk window always on top when enabled is true. ///
+global ctkTopmost(bool enabled){
+    rawPy(){
+        import builtins
+        builtins._lx_ctk_root.attributes("-topmost", bool(enabled))
+    }
+}
+
+/// Minimize the CTk window. ///
+global ctkIconify(){
+    rawPy(){
+        import builtins
+        builtins._lx_ctk_root.iconify()
+    }
+}
+
+/// Restore a minimized CTk window. ///
+global ctkDeiconify(){
+    rawPy(){
+        import builtins
+        builtins._lx_ctk_root.deiconify()
+    }
+}
+
+/// Process all pending CTk events (force UI refresh). ///
+global ctkUpdate(){
+    rawPy(){
+        import builtins
+        builtins._lx_ctk_root.update()
+    }
+}
+
+/// Block for delayMs milliseconds (CTk window). ///
+global ctkAfter(int delayMs){
+    rawPy(){
+        import builtins
+        builtins._lx_ctk_root.after(delayMs)
+    }
+}
+
+/// Bind an event to close the CTk window.
+  event: "<Escape>", "<Control-q>", "WM_DELETE_WINDOW", etc. ///
+global ctkBindClose(str event){
+    rawPy(){
+        import builtins
+        _ev = event
+        if _ev == "WM_DELETE_WINDOW":
+            builtins._lx_ctk_root.protocol("WM_DELETE_WINDOW", builtins._lx_ctk_root.destroy)
+        else:
+            builtins._lx_ctk_root.bind(_ev, lambda e: builtins._lx_ctk_root.destroy())
+    }
+}
+
+// ── Label ──────────────────────────────────────────────────────────────────
+
+/// Create a CTkLabel.  Returns widget index. ///
+global ctkLabel(str text){
+    int idx = 0;
+    rawPy(){
+        import customtkinter as _ctk, builtins
+        w = _ctk.CTkLabel(builtins._lx_ctk_root, text=text)
+        w.pack(pady=6, padx=10, anchor="w")
+        builtins._lx_ctk_widgets.append(w)
+        idx = len(builtins._lx_ctk_widgets) - 1
+    }
+    return idx;
+}
+
+/// Create a CTkLabel with custom text colour and font size. ///
+global ctkLabelStyled(str text, str color, int size){
+    int idx = 0;
+    rawPy(){
+        import customtkinter as _ctk, builtins
+        w = _ctk.CTkLabel(builtins._lx_ctk_root, text=text,
+                          text_color=color,
+                          font=_ctk.CTkFont(size=size))
+        w.pack(pady=6, padx=10, anchor="w")
+        builtins._lx_ctk_widgets.append(w)
+        idx = len(builtins._lx_ctk_widgets) - 1
+    }
+    return idx;
+}
+
+// ── Button ─────────────────────────────────────────────────────────────────
+
+/// Create a CTkButton.  Returns widget index. ///
+global ctkButton(str text){
+    int idx = 0;
+    rawPy(){
+        import customtkinter as _ctk, builtins
+        w = _ctk.CTkButton(builtins._lx_ctk_root, text=text)
+        w.pack(pady=6, padx=10, anchor="w")
+        builtins._lx_ctk_widgets.append(w)
+        idx = len(builtins._lx_ctk_widgets) - 1
+    }
+    return idx;
+}
+
+/// Create a CTkButton with custom fill and hover colours. ///
+global ctkButtonStyled(str text, str fg, str hover){
+    int idx = 0;
+    rawPy(){
+        import customtkinter as _ctk, builtins
+        w = _ctk.CTkButton(builtins._lx_ctk_root, text=text,
+                           fg_color=fg, hover_color=hover)
+        w.pack(pady=6, padx=10, anchor="w")
+        builtins._lx_ctk_widgets.append(w)
+        idx = len(builtins._lx_ctk_widgets) - 1
+    }
+    return idx;
+}
+
+// ── Entry ──────────────────────────────────────────────────────────────────
+
+/// Create a CTkEntry (single-line text input).  Returns widget index. ///
+global ctkEntry(){
+    int idx = 0;
+    rawPy(){
+        import customtkinter as _ctk, builtins
+        w = _ctk.CTkEntry(builtins._lx_ctk_root, width=200)
+        w.pack(pady=6, padx=10, anchor="w")
+        builtins._lx_ctk_widgets.append(w)
+        idx = len(builtins._lx_ctk_widgets) - 1
+    }
+    return idx;
+}
+
+/// Create a CTkEntry with placeholder text. ///
+global ctkEntryPlaceholder(str placeholder){
+    int idx = 0;
+    rawPy(){
+        import customtkinter as _ctk, builtins
+        w = _ctk.CTkEntry(builtins._lx_ctk_root, width=200,
+                          placeholder_text=placeholder)
+        w.pack(pady=6, padx=10, anchor="w")
+        builtins._lx_ctk_widgets.append(w)
+        idx = len(builtins._lx_ctk_widgets) - 1
+    }
+    return idx;
+}
+
+/// Create a CTk password entry (characters shown as •). ///
+global ctkPasswordEntry(){
+    int idx = 0;
+    rawPy(){
+        import customtkinter as _ctk, builtins
+        w = _ctk.CTkEntry(builtins._lx_ctk_root, width=200, show="•")
+        w.pack(pady=6, padx=10, anchor="w")
+        builtins._lx_ctk_widgets.append(w)
+        idx = len(builtins._lx_ctk_widgets) - 1
+    }
+    return idx;
+}
+
+// ── TextBox ────────────────────────────────────────────────────────────────
+
+/// Create a CTkTextbox (multi-line).  Returns widget index. ///
+global ctkTextBox(int width, int height){
+    int idx = 0;
+    rawPy(){
+        import customtkinter as _ctk, builtins
+        w = _ctk.CTkTextbox(builtins._lx_ctk_root, width=width, height=height)
+        w.pack(pady=6, padx=10)
+        builtins._lx_ctk_widgets.append(w)
+        idx = len(builtins._lx_ctk_widgets) - 1
+    }
+    return idx;
+}
+
+// ── Checkbox ───────────────────────────────────────────────────────────────
+
+/// Create a CTkCheckBox.  Returns widget index.  Read state with ctkIsChecked(idx). ///
+global ctkCheckbox(str text){
+    int idx = 0;
+    rawPy(){
+        import customtkinter as _ctk, builtins, tkinter as _tk
+        var = _tk.BooleanVar()
+        w = _ctk.CTkCheckBox(builtins._lx_ctk_root, text=text, variable=var)
+        w._lx_var = var
+        w.pack(pady=6, padx=10, anchor="w")
+        builtins._lx_ctk_widgets.append(w)
+        idx = len(builtins._lx_ctk_widgets) - 1
+    }
+    return idx;
+}
+
+// ── Switch ─────────────────────────────────────────────────────────────────
+
+/// Create a CTkSwitch toggle.  Returns widget index.  Read state with ctkIsOn(idx). ///
+global ctkSwitch(str text){
+    int idx = 0;
+    rawPy(){
+        import customtkinter as _ctk, builtins, tkinter as _tk
+        var = _tk.BooleanVar(value=False)
+        w = _ctk.CTkSwitch(builtins._lx_ctk_root, text=text, variable=var)
+        w._lx_var = var
+        w.pack(pady=6, padx=10, anchor="w")
+        builtins._lx_ctk_widgets.append(w)
+        idx = len(builtins._lx_ctk_widgets) - 1
+    }
+    return idx;
+}
+
+/// Return true if the CTkSwitch at idx is on. ///
+global ctkIsOn(int idx){
+    bool result = false;
+    rawPy(){
+        import builtins
+        try:
+            result = bool(builtins._lx_ctk_widgets[idx]._lx_var.get())
+        except Exception:
+            result = False
+    }
+    return result;
+}
+
+/// Programmatically turn a CTkSwitch on (true) or off (false). ///
+global ctkSetSwitch(int idx, bool on){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_ctk_widgets[idx]._lx_var.set(bool(on))
+        except Exception:
+            pass
+    }
+}
+
+// ── Radio button ───────────────────────────────────────────────────────────
+
+/// Create a CTkRadioButton belonging to groupId.  Returns widget index. ///
+global ctkRadioButton(str text, str groupId){
+    int idx = 0;
+    rawPy(){
+        import customtkinter as _ctk, builtins, tkinter as _tk
+        if groupId not in builtins._lx_ctk_rgroups:
+            builtins._lx_ctk_rgroups[groupId] = _tk.StringVar(value="")
+        var = builtins._lx_ctk_rgroups[groupId]
+        w = _ctk.CTkRadioButton(builtins._lx_ctk_root, text=text,
+                                variable=var, value=text)
+        w.pack(pady=4, padx=10, anchor="w")
+        builtins._lx_ctk_widgets.append(w)
+        idx = len(builtins._lx_ctk_widgets) - 1
+    }
+    return idx;
+}
+
+/// Return the value (text) of the selected CTk radio button in groupId. ///
+global ctkGetRadio(str groupId){
+    str result = "";
+    rawPy(){
+        import builtins
+        try:
+            result = builtins._lx_ctk_rgroups[groupId].get()
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+// ── Combobox ───────────────────────────────────────────────────────────────
+
+/// Create a CTkComboBox.  itemsJson is a JSON array of strings.
+  Returns widget index.  Read selection with ctkGetCombo(idx). ///
+global ctkCombobox(str itemsJson){
+    int idx = 0;
+    rawPy(){
+        import customtkinter as _ctk, builtins, json as _json
+        items = _json.loads(itemsJson) if itemsJson.strip() else []
+        w = _ctk.CTkComboBox(builtins._lx_ctk_root, values=items)
+        if items:
+            w.set(items[0])
+        w.pack(pady=6, padx=10, anchor="w")
+        builtins._lx_ctk_widgets.append(w)
+        idx = len(builtins._lx_ctk_widgets) - 1
+    }
+    return idx;
+}
+
+/// Return the currently selected CTkComboBox value. ///
+global ctkGetCombo(int idx){
+    str result = "";
+    rawPy(){
+        import builtins
+        try:
+            result = builtins._lx_ctk_widgets[idx].get()
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+/// Set the CTkComboBox value by text. ///
+global ctkSetCombo(int idx, str text){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_ctk_widgets[idx].set(text)
+        except Exception:
+            pass
+    }
+}
+
+// ── OptionMenu ─────────────────────────────────────────────────────────────
+
+/// Create a CTkOptionMenu.  itemsJson is a JSON array of strings.
+  Returns widget index.  Read selection with ctkGetOption(idx). ///
+global ctkOptionMenu(str itemsJson){
+    int idx = 0;
+    rawPy(){
+        import customtkinter as _ctk, builtins, json as _json
+        items = _json.loads(itemsJson) if itemsJson.strip() else [""]
+        w = _ctk.CTkOptionMenu(builtins._lx_ctk_root, values=items)
+        w.pack(pady=6, padx=10, anchor="w")
+        builtins._lx_ctk_widgets.append(w)
+        idx = len(builtins._lx_ctk_widgets) - 1
+    }
+    return idx;
+}
+
+/// Return the currently selected CTkOptionMenu value. ///
+global ctkGetOption(int idx){
+    str result = "";
+    rawPy(){
+        import builtins
+        try:
+            result = builtins._lx_ctk_widgets[idx].get()
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+/// Set the CTkOptionMenu selection by text. ///
+global ctkSetOption(int idx, str text){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_ctk_widgets[idx].set(text)
+        except Exception:
+            pass
+    }
+}
+
+// ── SegmentedButton ────────────────────────────────────────────────────────
+
+/// Create a CTkSegmentedButton.  valuesJson is a JSON array of strings.
+  Returns widget index.  Read selection with ctkGetValue(idx). ///
+global ctkSegmented(str valuesJson){
+    int idx = 0;
+    rawPy(){
+        import customtkinter as _ctk, builtins, json as _json
+        vals = _json.loads(valuesJson) if valuesJson.strip() else []
+        w = _ctk.CTkSegmentedButton(builtins._lx_ctk_root, values=vals)
+        if vals:
+            w.set(vals[0])
+        w.pack(pady=6, padx=10, anchor="w")
+        builtins._lx_ctk_widgets.append(w)
+        idx = len(builtins._lx_ctk_widgets) - 1
+    }
+    return idx;
+}
+
+// ── Slider ─────────────────────────────────────────────────────────────────
+
+/// Create a CTkSlider from lo to hi.
+  Returns widget index.  Read value with ctkGetSlider(idx). ///
+global ctkSlider(float lo, float hi){
+    int idx = 0;
+    rawPy(){
+        import customtkinter as _ctk, builtins
+        w = _ctk.CTkSlider(builtins._lx_ctk_root, from_=lo, to=hi, width=200)
+        w.set((lo + hi) / 2)
+        w.pack(pady=6, padx=10, anchor="w")
+        builtins._lx_ctk_widgets.append(w)
+        idx = len(builtins._lx_ctk_widgets) - 1
+    }
+    return idx;
+}
+
+/// Return the current float value of a CTkSlider. ///
+global ctkGetSlider(int idx){
+    float result = 0.0;
+    rawPy(){
+        import builtins
+        try:
+            result = float(builtins._lx_ctk_widgets[idx].get())
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+/// Set the value of a CTkSlider. ///
+global ctkSetSlider(int idx, float val){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_ctk_widgets[idx].set(val)
+        except Exception:
+            pass
+    }
+}
+
+// ── ProgressBar ────────────────────────────────────────────────────────────
+
+/// Create a CTkProgressBar (value 0.0–1.0).
+  Returns widget index.  Set with ctkSetProgress(idx, val). ///
+global ctkProgressBar(){
+    int idx = 0;
+    rawPy(){
+        import customtkinter as _ctk, builtins
+        w = _ctk.CTkProgressBar(builtins._lx_ctk_root, width=200)
+        w.set(0)
+        w.pack(pady=6, padx=10, fill="x")
+        builtins._lx_ctk_widgets.append(w)
+        idx = len(builtins._lx_ctk_widgets) - 1
+    }
+    return idx;
+}
+
+/// Set the current value of a CTkProgressBar (0.0 … 1.0). ///
+global ctkSetProgress(int idx, float val){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_ctk_widgets[idx].set(val)
+            builtins._lx_ctk_root.update_idletasks()
+        except Exception:
+            pass
+    }
+}
+
+/// Return the current value of a CTkProgressBar. ///
+global ctkGetProgress(int idx){
+    float result = 0.0;
+    rawPy(){
+        import builtins
+        try:
+            result = float(builtins._lx_ctk_widgets[idx].get())
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+// ── Frame ──────────────────────────────────────────────────────────────────
+
+/// Create a CTkFrame container.  Returns widget index. ///
+global ctkFrame(){
+    int idx = 0;
+    rawPy(){
+        import customtkinter as _ctk, builtins
+        w = _ctk.CTkFrame(builtins._lx_ctk_root)
+        w.pack(pady=6, padx=10, fill="x")
+        builtins._lx_ctk_widgets.append(w)
+        idx = len(builtins._lx_ctk_widgets) - 1
+    }
+    return idx;
+}
+
+/// Create a CTkScrollableFrame.  Returns widget index. ///
+global ctkScrollFrame(int width, int height){
+    int idx = 0;
+    rawPy(){
+        import customtkinter as _ctk, builtins
+        w = _ctk.CTkScrollableFrame(builtins._lx_ctk_root,
+                                    width=width, height=height)
+        w.pack(pady=6, padx=10, fill="both", expand=True)
+        builtins._lx_ctk_widgets.append(w)
+        idx = len(builtins._lx_ctk_widgets) - 1
+    }
+    return idx;
+}
+
+// ── TabView ────────────────────────────────────────────────────────────────
+
+/// Create a CTkTabview (tabbed container).
+  Returns widget index.  Add tabs with ctkAddTab(tvIdx, text). ///
+global ctkTabView(){
+    int idx = 0;
+    rawPy(){
+        import customtkinter as _ctk, builtins
+        w = _ctk.CTkTabview(builtins._lx_ctk_root)
+        w.pack(pady=6, padx=10, fill="both", expand=True)
+        builtins._lx_ctk_widgets.append(w)
+        idx = len(builtins._lx_ctk_widgets) - 1
+    }
+    return idx;
+}
+
+/// Add a named tab to a CTkTabview.
+  tvIdx: tabview widget index.  text: tab label. ///
+global ctkAddTab(int tvIdx, str text){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_ctk_widgets[tvIdx].add(text)
+        except Exception:
+            pass
+    }
+}
+
+// ── Image ──────────────────────────────────────────────────────────────────
+
+/// Display an image in a CTk window.  Requires Pillow (pip install Pillow).
+  Returns widget index. ///
+global ctkImage(str imagePath, int width, int height){
+    int idx = 0;
+    rawPy(){
+        import customtkinter as _ctk, builtins
+        try:
+            from PIL import Image as _PILImage
+            pil_img = _PILImage.open(imagePath)
+            ctk_img = _ctk.CTkImage(pil_img, size=(width, height))
+            w = _ctk.CTkLabel(builtins._lx_ctk_root, image=ctk_img, text="")
+            w._lx_image = ctk_img
+            w.pack(pady=6, padx=10)
+            builtins._lx_ctk_widgets.append(w)
+            idx = len(builtins._lx_ctk_widgets) - 1
+        except Exception:
+            idx = -1
+    }
+    return idx;
+}
+
+// ── Layout ─────────────────────────────────────────────────────────────────
+
+/// Place a CTk widget at grid position (row, col). ///
+global ctkGrid(int idx, int row, int col){
+    rawPy(){
+        import builtins
+        try:
+            w = builtins._lx_ctk_widgets[idx]
+            w.pack_forget()
+            w.grid(row=row, column=col, padx=6, pady=4, sticky="w")
+        except Exception:
+            pass
+    }
+}
+
+/// Place a CTk widget at grid position with column span. ///
+global ctkGridSpan(int idx, int row, int col, int colspan){
+    rawPy(){
+        import builtins
+        try:
+            w = builtins._lx_ctk_widgets[idx]
+            w.pack_forget()
+            w.grid(row=row, column=col, columnspan=colspan,
+                   padx=6, pady=4, sticky="ew")
+        except Exception:
+            pass
+    }
+}
+
+/// Place a CTk widget at an absolute pixel position. ///
+global ctkPlace(int idx, int x, int y){
+    rawPy(){
+        import builtins
+        try:
+            w = builtins._lx_ctk_widgets[idx]
+            w.pack_forget()
+            w.place(x=x, y=y)
+        except Exception:
+            pass
+    }
+}
+
+/// Re-pack a CTk widget with anchor. ///
+global ctkPack(int idx, str anchor){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_ctk_widgets[idx].pack(anchor=anchor, padx=10, pady=6)
+        except Exception:
+            pass
+    }
+}
+
+// ── Styling ────────────────────────────────────────────────────────────────
+
+/// Set the font of a CTk widget. ///
+global ctkSetFont(int idx, str family, int size, str style){
+    rawPy(){
+        import customtkinter as _ctk, builtins
+        try:
+            weight = "bold"   if "bold"   in style else "normal"
+            slant  = "italic" if "italic" in style else "roman"
+            f = _ctk.CTkFont(family=family, size=size, weight=weight, slant=slant)
+            builtins._lx_ctk_widgets[idx].configure(font=f)
+        except Exception:
+            pass
+    }
+}
+
+/// Set the text colour of a CTk widget. ///
+global ctkSetForeground(int idx, str color){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_ctk_widgets[idx].configure(text_color=color)
+        except Exception:
+            pass
+    }
+}
+
+/// Set the fg_color (background) of a CTk widget. ///
+global ctkSetBackgroundWidget(int idx, str color){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_ctk_widgets[idx].configure(fg_color=color)
+        except Exception:
+            pass
+    }
+}
+
+/// Set the corner radius (pixels) of a CTk widget. ///
+global ctkSetCornerRadius(int idx, int radius){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_ctk_widgets[idx].configure(corner_radius=radius)
+        except Exception:
+            pass
+    }
+}
+
+/// Set the border width (pixels) of a CTk widget. ///
+global ctkSetBorderWidth(int idx, int width){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_ctk_widgets[idx].configure(border_width=width)
+        except Exception:
+            pass
+    }
+}
+
+/// Set internal padding of a CTk widget. ///
+global ctkSetPadding(int idx, int px, int py){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_ctk_widgets[idx].configure(padx=px, pady=py)
+        except Exception:
+            pass
+    }
+}
+
+// ── Widget interactions ─────────────────────────────────────────────────────
+
+/// Return the string value of a CTkEntry, CTkTextbox, CTkComboBox,
+  CTkOptionMenu, or CTkSegmentedButton. ///
+global ctkGetValue(int idx){
+    str result = "";
+    rawPy(){
+        import builtins, customtkinter as _ctk
+        try:
+            w = builtins._lx_ctk_widgets[idx]
+            if isinstance(w, _ctk.CTkTextbox):
+                result = w.get("1.0", "end-1c")
+            else:
+                result = w.get()
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+/// Return the display text of a CTkLabel or CTkButton. ///
+global ctkGetText(int idx){
+    str result = "";
+    rawPy(){
+        import builtins
+        try:
+            result = str(builtins._lx_ctk_widgets[idx].cget("text"))
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+/// Set the display text of a CTkLabel, CTkButton, CTkCheckBox, etc. ///
+global ctkSetText(int idx, str text){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_ctk_widgets[idx].configure(text=text)
+        except Exception:
+            pass
+    }
+}
+
+/// Replace the content of a CTkEntry. ///
+global ctkSetEntryText(int idx, str text){
+    rawPy(){
+        import builtins
+        try:
+            w = builtins._lx_ctk_widgets[idx]
+            w.delete(0, "end")
+            w.insert(0, text)
+        except Exception:
+            pass
+    }
+}
+
+/// Replace the content of a CTkTextbox. ///
+global ctkSetTextBoxContent(int idx, str text){
+    rawPy(){
+        import builtins
+        try:
+            w = builtins._lx_ctk_widgets[idx]
+            w.delete("1.0", "end")
+            w.insert("1.0", text)
+        except Exception:
+            pass
+    }
+}
+
+/// Return true if a CTkCheckBox is checked. ///
+global ctkIsChecked(int idx){
+    bool result = false;
+    rawPy(){
+        import builtins
+        try:
+            result = bool(builtins._lx_ctk_widgets[idx]._lx_var.get())
+        except Exception:
+            result = False
+    }
+    return result;
+}
+
+/// Programmatically check or uncheck a CTkCheckBox. ///
+global ctkSetChecked(int idx, bool checked){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_ctk_widgets[idx]._lx_var.set(bool(checked))
+        except Exception:
+            pass
+    }
+}
+
+/// Clear the content of a CTkEntry or CTkTextbox. ///
+global ctkClearWidget(int idx){
+    rawPy(){
+        import builtins, customtkinter as _ctk
+        try:
+            w = builtins._lx_ctk_widgets[idx]
+            if isinstance(w, _ctk.CTkTextbox):
+                w.delete("1.0", "end")
+            else:
+                w.delete(0, "end")
+        except Exception:
+            pass
+    }
+}
+
+/// Disable a CTk widget (greyed out, non-interactive). ///
+global ctkDisableWidget(int idx){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_ctk_widgets[idx].configure(state="disabled")
+        except Exception:
+            pass
+    }
+}
+
+/// Re-enable a previously disabled CTk widget. ///
+global ctkEnableWidget(int idx){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_ctk_widgets[idx].configure(state="normal")
+        except Exception:
+            pass
+    }
+}
+
+/// Hide a CTk widget (removes from layout without destroying). ///
+global ctkHideWidget(int idx){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_ctk_widgets[idx].pack_forget()
+        except Exception:
+            pass
+    }
+}
+
+/// Show a previously hidden CTk widget. ///
+global ctkShowWidget(int idx){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_ctk_widgets[idx].pack(pady=6, padx=10, anchor="w")
+        except Exception:
+            pass
+    }
+}
+
+/// Permanently destroy a CTk widget. ///
+global ctkDestroyWidget(int idx){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_ctk_widgets[idx].destroy()
+        except Exception:
+            pass
+    }
+}
+
+/// Give keyboard focus to the CTk widget at idx. ///
+global ctkFocusWidget(int idx){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_ctk_widgets[idx].focus_set()
+        except Exception:
+            pass
+    }
+}
+
+// ── App lifecycle ───────────────────────────────────────────────────────────
+
+/// Start the CTk main event loop (blocking). ///
+global ctkRun(){
+    rawPy(){
+        import builtins
+        builtins._lx_ctk_root.mainloop()
+    }
+}
+
+/// Destroy the CTk window and exit the event loop. ///
+global ctkClose(){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_ctk_root.destroy()
         except Exception:
             pass
     }
