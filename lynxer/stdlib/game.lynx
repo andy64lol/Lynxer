@@ -784,4 +784,839 @@ global canJump(int engineIdx){
     return result;
 }
 
+
+// ── Extra drawing ─────────────────────────────────────────────────────────────
+
+/// Draw a filled rounded rectangle using four corner circles + two inner rects. ///
+global drawRectRoundedFilled(float cx, float cy, float w, float h, int r, int g, int b, float cr){
+    rawPy(){
+        import arcade
+        col = arcade.color.Color(r, g, b)
+        hw = w / 2;  hh = h / 2
+        arcade.draw_rectangle_filled(cx, cy, w - cr*2, h, col)
+        arcade.draw_rectangle_filled(cx, cy, w, h - cr*2, col)
+        for ox, oy in [(-1,-1),(1,-1),(1,1),(-1,1)]:
+            arcade.draw_circle_filled(cx + ox*(hw-cr), cy + oy*(hh-cr), cr, col)
+    }
+}
+
+/// Draw a rounded rectangle outline. ///
+global drawRectRoundedOutline(float cx, float cy, float w, float h, int r, int g, int b, float cr, float lw){
+    rawPy(){
+        import arcade
+        col = arcade.color.Color(r, g, b)
+        hw = w/2;  hh = h/2
+        arcade.draw_line(cx-hw+cr, cy+hh,   cx+hw-cr, cy+hh,   col, lw)
+        arcade.draw_line(cx-hw+cr, cy-hh,   cx+hw-cr, cy-hh,   col, lw)
+        arcade.draw_line(cx-hw,    cy-hh+cr, cx-hw,    cy+hh-cr, col, lw)
+        arcade.draw_line(cx+hw,    cy-hh+cr, cx+hw,    cy+hh-cr, col, lw)
+        arcade.draw_arc_outline(cx-hw+cr, cy+hh-cr, cr*2, cr*2, col, 90,  180, lw)
+        arcade.draw_arc_outline(cx+hw-cr, cy+hh-cr, cr*2, cr*2, col, 0,   90,  lw)
+        arcade.draw_arc_outline(cx-hw+cr, cy-hh+cr, cr*2, cr*2, col, 180, 270, lw)
+        arcade.draw_arc_outline(cx+hw-cr, cy-hh+cr, cr*2, cr*2, col, 270, 360, lw)
+    }
+}
+
+/// Draw a filled arc/pie sector. ///
+global drawArcFilled(float cx, float cy, float w, float h, int r, int g, int b, float startAngle, float endAngle){
+    rawPy(){
+        import arcade
+        arcade.draw_arc_filled(cx, cy, w, h,
+                               arcade.color.Color(r, g, b),
+                               startAngle, endAngle)
+    }
+}
+
+/// Draw a filled n-point star. ///
+global drawStar(float cx, float cy, float outerR, float innerR, int n, int r, int g, int b){
+    rawPy(){
+        import arcade, math as _m
+        col  = arcade.color.Color(r, g, b)
+        step = _m.pi / n
+        pts  = []
+        for i in range(n * 2):
+            angle = i * step - _m.pi/2
+            rad   = outerR if i % 2 == 0 else innerR
+            pts.append((cx + rad * _m.cos(angle), cy + rad * _m.sin(angle)))
+        arcade.draw_polygon_filled(pts, col)
+    }
+}
+
+/// Draw a dashed line between two points. ///
+global drawDashedLine(float x1, float y1, float x2, float y2, int r, int g, int b, float lw, float dashLen){
+    rawPy(){
+        import arcade, math as _m
+        col  = arcade.color.Color(r, g, b)
+        dx   = x2 - x1;  dy = y2 - y1
+        dist = _m.hypot(dx, dy)
+        if dist > 0:
+            nx   = dx / dist;  ny = dy / dist
+            pos  = 0.0;  draw = True
+            while pos < dist:
+                end = min(pos + dashLen, dist)
+                if draw:
+                    arcade.draw_line(x1+nx*pos, y1+ny*pos,
+                                     x1+nx*end, y1+ny*end, col, lw)
+                pos  = end;  draw = not draw
+    }
+}
+
+/// Draw a cross/plus shape. ///
+global drawCross(float cx, float cy, float size, int r, int g, int b, float lw){
+    rawPy(){
+        import arcade
+        col = arcade.color.Color(r, g, b)
+        arcade.draw_line(cx - size, cy, cx + size, cy, col, lw)
+        arcade.draw_line(cx, cy - size, cx, cy + size, col, lw)
+    }
+}
+
+/// Draw a polyline through many points.  coordsJson: flat [x,y,...] JSON array. ///
+global drawPolyline(str coordsJson, int r, int g, int b, float lw){
+    rawPy(){
+        import arcade, json as _json
+        try:
+            flat = _json.loads(coordsJson)
+            col  = arcade.color.Color(r, g, b)
+            pts  = [(flat[i], flat[i+1]) for i in range(0, len(flat)-1, 2)]
+            for i in range(len(pts)-1):
+                arcade.draw_line(pts[i][0], pts[i][1],
+                                 pts[i+1][0], pts[i+1][1], col, lw)
+        except Exception:
+            pass
+    }
+}
+
+/// Draw many points at once.  coordsJson: flat [x,y,...] JSON array. ///
+global drawPoints(str coordsJson, int r, int g, int b, float size){
+    rawPy(){
+        import arcade, json as _json
+        try:
+            flat = _json.loads(coordsJson)
+            col  = arcade.color.Color(r, g, b)
+            for i in range(0, len(flat)-1, 2):
+                arcade.draw_point(flat[i], flat[i+1], col, size)
+        except Exception:
+            pass
+    }
+}
+
+/// Draw a simple two-color vertical gradient rectangle. ///
+global drawGradientRect(float cx, float cy, float w, float h, int r1, int g1, int b1, int r2, int g2, int b2){
+    rawPy(){
+        import arcade
+        arcade.draw_rectangle_filled(cx, cy + h*0.25, w, h*0.5,
+                                     arcade.color.Color(r1, g1, b1))
+        arcade.draw_rectangle_filled(cx, cy - h*0.25, w, h*0.5,
+                                     arcade.color.Color(r2, g2, b2))
+    }
+}
+
+/// Draw an image from a file path centered at (cx, cy). ///
+global drawTextureAt(str imagePath, float cx, float cy, float scale){
+    rawPy(){
+        import arcade
+        try:
+            tex = arcade.load_texture(imagePath)
+            arcade.draw_scaled_texture_rectangle(cx, cy,
+                tex.width*scale, tex.height*scale, tex)
+        except Exception:
+            pass
+    }
+}
+
+// ── Texture cache ─────────────────────────────────────────────────────────────
+
+/// Load and cache a texture for fast repeated drawing.  Returns texture index. ///
+global loadTexture(str imagePath){
+    int idx = 0;
+    rawPy(){
+        import arcade, builtins
+        if not hasattr(builtins, "_lx_textures"):
+            builtins._lx_textures = []
+        try:
+            tex = arcade.load_texture(imagePath)
+            builtins._lx_textures.append(tex)
+            idx = len(builtins._lx_textures) - 1
+        except Exception:
+            idx = -1
+    }
+    return idx;
+}
+
+/// Draw a cached texture centered at (cx, cy). ///
+global drawTexture(int texIdx, float cx, float cy, float w, float h, float angle){
+    rawPy(){
+        import arcade, builtins
+        try:
+            tex = builtins._lx_textures[texIdx]
+            arcade.draw_scaled_texture_rectangle(cx, cy, w, h, tex, angle)
+        except Exception:
+            pass
+    }
+}
+
+// ── Sprite extended ───────────────────────────────────────────────────────────
+
+/// Set sprite opacity (0 = invisible, 255 = fully opaque). ///
+global setSpriteAlpha(int idx, int alpha){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_sprites[idx].alpha = max(0, min(255, alpha))
+        except Exception:
+            pass
+    }
+}
+
+/// Tint a sprite with an RGBA color. ///
+global setSpriteColor(int idx, int r, int g, int b, int a){
+    rawPy(){
+        import builtins, arcade
+        try:
+            builtins._lx_sprites[idx].color = arcade.color.Color(r, g, b, a)
+        except Exception:
+            pass
+    }
+}
+
+/// Flip sprite texture horizontally. ///
+global flipSpriteH(int idx){
+    rawPy(){
+        import builtins
+        try:
+            sp = builtins._lx_sprites[idx]
+            sp.texture = sp.texture.flip_left_right()
+        except Exception:
+            pass
+    }
+}
+
+/// Flip sprite texture vertically. ///
+global flipSpriteV(int idx){
+    rawPy(){
+        import builtins
+        try:
+            sp = builtins._lx_sprites[idx]
+            sp.texture = sp.texture.flip_top_bottom()
+        except Exception:
+            pass
+    }
+}
+
+/// Return the sprite's width in pixels. ///
+global getSpriteWidth(int idx){
+    float result = 0.0;
+    rawPy(){
+        import builtins
+        try:
+            result = float(builtins._lx_sprites[idx].width)
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+/// Return the sprite's height in pixels. ///
+global getSpriteHeight(int idx){
+    float result = 0.0;
+    rawPy(){
+        import builtins
+        try:
+            result = float(builtins._lx_sprites[idx].height)
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+/// Return the sprite's velocity X (pixels/second). ///
+global getSpriteVX(int idx){
+    float result = 0.0;
+    rawPy(){
+        import builtins
+        try:
+            result = float(builtins._lx_sprites[idx].change_x)
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+/// Return the sprite's velocity Y (pixels/second). ///
+global getSpriteVY(int idx){
+    float result = 0.0;
+    rawPy(){
+        import builtins
+        try:
+            result = float(builtins._lx_sprites[idx].change_y)
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+/// Stop a sprite (set velocity to 0). ///
+global stopSprite(int idx){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_sprites[idx].change_x = 0
+            builtins._lx_sprites[idx].change_y = 0
+        except Exception:
+            pass
+    }
+}
+
+/// Move a sprite toward (tx, ty) at speed pixels/frame. ///
+global moveSpriteToward(int idx, float tx, float ty, float speed){
+    rawPy(){
+        import builtins, math as _m
+        try:
+            sp = builtins._lx_sprites[idx]
+            dx = tx - sp.center_x;  dy = ty - sp.center_y
+            dist = _m.hypot(dx, dy)
+            if dist > 0:
+                sp.change_x = (dx / dist) * speed
+                sp.change_y = (dy / dist) * speed
+            else:
+                sp.change_x = 0;  sp.change_y = 0
+        except Exception:
+            pass
+    }
+}
+
+/// Rotate sprite so it faces (tx, ty). ///
+global faceSpriteTo(int idx, float tx, float ty){
+    rawPy(){
+        import builtins, math as _m
+        try:
+            sp = builtins._lx_sprites[idx]
+            dx = tx - sp.center_x;  dy = ty - sp.center_y
+            sp.angle = _m.degrees(_m.atan2(dy, dx))
+        except Exception:
+            pass
+    }
+}
+
+/// Return the distance between two sprites. ///
+global spriteDistance(int idxA, int idxB){
+    float result = 0.0;
+    rawPy(){
+        import builtins, math as _m
+        try:
+            a = builtins._lx_sprites[idxA]
+            b = builtins._lx_sprites[idxB]
+            result = float(_m.hypot(a.center_x - b.center_x,
+                                    a.center_y - b.center_y))
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+/// Return true if a sprite is within range pixels of (tx, ty). ///
+global spriteNear(int idx, float tx, float ty, float range){
+    bool result = false;
+    rawPy(){
+        import builtins, math as _m
+        try:
+            sp = builtins._lx_sprites[idx]
+            result = _m.hypot(sp.center_x - tx,
+                              sp.center_y - ty) <= range
+        except Exception:
+            result = False
+    }
+    return result;
+}
+
+/// Show or hide a sprite (hidden sprites still exist in lists). ///
+global setSpriteVisible(int idx, bool visible){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_sprites[idx].visible = bool(visible)
+        except Exception:
+            pass
+    }
+}
+
+/// Return true if the sprite is currently visible. ///
+global getSpriteVisible(int idx){
+    bool result = true;
+    rawPy(){
+        import builtins
+        try:
+            result = bool(builtins._lx_sprites[idx].visible)
+        except Exception:
+            result = True
+    }
+    return result;
+}
+
+/// Return true if a sprite collides with any sprite in a SpriteList. ///
+global spriteCollidesWithList(int sprIdx, int listIdx){
+    bool result = false;
+    rawPy(){
+        import builtins, arcade
+        try:
+            sp  = builtins._lx_sprites[sprIdx]
+            lst = builtins._lx_spr_lists[listIdx]
+            result = bool(arcade.check_for_collision_with_list(sp, lst))
+        except Exception:
+            result = False
+    }
+    return result;
+}
+
+/// Remove a sprite from a SpriteList without destroying it. ///
+global removeSpriteFromList(int listIdx, int sprIdx){
+    rawPy(){
+        import builtins
+        try:
+            sp  = builtins._lx_sprites[sprIdx]
+            lst = builtins._lx_spr_lists[listIdx]
+            if sp in lst:
+                lst.remove(sp)
+        except Exception:
+            pass
+    }
+}
+
+/// Remove all sprites from a SpriteList. ///
+global clearSpriteList(int listIdx){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_spr_lists[listIdx].clear()
+        except Exception:
+            pass
+    }
+}
+
+/// Return the number of sprites in a SpriteList. ///
+global getSpriteListCount(int listIdx){
+    int result = 0;
+    rawPy(){
+        import builtins
+        try:
+            result = len(builtins._lx_spr_lists[listIdx])
+        except Exception:
+            result = 0
+    }
+    return result;
+}
+
+// ── Animated sprites ──────────────────────────────────────────────────────────
+
+/// Create a sprite that cycles through a list of images.
+  pathsJson: JSON array of image paths.  fps: frames per second. ///
+global makeAnimatedSprite(str pathsJson, float fps, float x, float y){
+    int idx = 0;
+    rawPy(){
+        import arcade, builtins, json as _json
+        try:
+            paths    = _json.loads(pathsJson)
+            textures = [arcade.load_texture(p) for p in paths]
+            sp       = arcade.AnimatedTimeBasedSprite()
+            from arcade import AnimationKeyframe
+            dur = int(1000 / max(fps, 1))
+            for i, tex in enumerate(textures):
+                sp.frames.append(AnimationKeyframe(i, dur, tex))
+            sp.texture   = textures[0]
+            sp.center_x  = x;  sp.center_y = y
+            builtins._lx_sprites.append(sp)
+            idx = len(builtins._lx_sprites) - 1
+        except Exception:
+            idx = -1
+    }
+    return idx;
+}
+
+/// Advance animated sprite by dt seconds.  Call inside on_update. ///
+global updateAnimation(int idx, float dt){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_sprites[idx].update_animation(dt)
+        except Exception:
+            pass
+    }
+}
+
+// ── Scene management ──────────────────────────────────────────────────────────
+
+/// Create an arcade Scene (named collection of SpriteLists).
+  Returns scene index. ///
+global makeScene(){
+    int idx = 0;
+    rawPy(){
+        import arcade, builtins
+        if not hasattr(builtins, "_lx_scenes"):
+            builtins._lx_scenes = []
+        sc = arcade.Scene()
+        builtins._lx_scenes.append(sc)
+        idx = len(builtins._lx_scenes) - 1
+    }
+    return idx;
+}
+
+/// Add a SpriteList to a Scene under a name. ///
+global addListToScene(int sceneIdx, int listIdx, str name){
+    rawPy(){
+        import builtins
+        try:
+            sc  = builtins._lx_scenes[sceneIdx]
+            lst = builtins._lx_spr_lists[listIdx]
+            sc.add_sprite_list(name, sprite_list=lst,
+                               use_spatial_hash=True)
+        except Exception:
+            pass
+    }
+}
+
+/// Draw all SpriteLists in a Scene. ///
+global drawScene(int sceneIdx){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_scenes[sceneIdx].draw()
+        except Exception:
+            pass
+    }
+}
+
+/// Update all SpriteLists in a Scene (apply velocities). ///
+global updateScene(int sceneIdx){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_scenes[sceneIdx].update()
+        except Exception:
+            pass
+    }
+}
+
+// ── Tilemap (Tiled editor) ────────────────────────────────────────────────────
+
+/// Load a Tiled .tmx file.  Returns a scene index. ///
+global loadTilemap(str tmxPath, float scaling){
+    int idx = 0;
+    rawPy(){
+        import arcade, builtins
+        if not hasattr(builtins, "_lx_scenes"):
+            builtins._lx_scenes = []
+        try:
+            tilemap = arcade.load_tilemap(tmxPath, scaling=scaling)
+            sc      = arcade.Scene.from_tilemap(tilemap)
+            builtins._lx_scenes.append(sc)
+            idx = len(builtins._lx_scenes) - 1
+            if not hasattr(builtins, "_lx_tilemaps"):
+                builtins._lx_tilemaps = []
+            builtins._lx_tilemaps.append(tilemap)
+        except Exception:
+            idx = -1
+    }
+    return idx;
+}
+
+/// Get a named layer from a tilemap scene as a SpriteList index. ///
+global getTilemapLayer(int sceneIdx, str layerName){
+    int idx = 0;
+    rawPy(){
+        import builtins
+        try:
+            sc  = builtins._lx_scenes[sceneIdx]
+            lst = sc.get_sprite_list(layerName)
+            builtins._lx_spr_lists.append(lst)
+            idx = len(builtins._lx_spr_lists) - 1
+        except Exception:
+            idx = -1
+    }
+    return idx;
+}
+
+// ── Window / display ──────────────────────────────────────────────────────────
+
+/// Return the current FPS. ///
+global getFPS(){
+    float result = 0.0;
+    rawPy(){
+        import builtins
+        try:
+            result = float(builtins._lx_game_win.get_fps())
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+/// Set the target frame rate. ///
+global setFPSCap(int fps){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_game_win.set_update_rate(1.0 / max(fps, 1))
+        except Exception:
+            pass
+    }
+}
+
+/// Enter or leave fullscreen. ///
+global setFullscreen(bool enabled){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_game_win.set_fullscreen(bool(enabled))
+        except Exception:
+            pass
+    }
+}
+
+/// Hide the mouse cursor. ///
+global hideCursor(){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_game_win.set_mouse_visible(False)
+        except Exception:
+            pass
+    }
+}
+
+/// Show the mouse cursor. ///
+global showCursor(){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_game_win.set_mouse_visible(True)
+        except Exception:
+            pass
+    }
+}
+
+/// Set window position on screen. ///
+global setWindowPos(int x, int y){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_game_win.set_location(x, y)
+        except Exception:
+            pass
+    }
+}
+
+/// Save a screenshot of the current frame. ///
+global screenshot(str path){
+    rawPy(){
+        import arcade
+        try:
+            arcade.get_image().save(path)
+        except Exception:
+            pass
+    }
+}
+
+/// Return seconds elapsed since program start. ///
+global getTime(){
+    float result = 0.0;
+    rawPy(){
+        import time as _t, builtins
+        try:
+            if not hasattr(builtins, "_lx_start_time"):
+                builtins._lx_start_time = _t.time()
+            result = float(_t.time() - builtins._lx_start_time)
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+// ── Input extended ────────────────────────────────────────────────────────────
+
+/// Return true if the middle mouse button is held. ///
+global mouseMiddle(){
+    bool result = false;
+    rawPy(){
+        import builtins, arcade
+        try:
+            result = arcade.MOUSE_BUTTON_MIDDLE in builtins._lx_game_win._mouse_btn
+        except Exception:
+            result = False
+    }
+    return result;
+}
+
+/// Return the last scroll wheel delta Y and reset it.
+  Positive = scroll up, negative = scroll down. ///
+global mouseScrollY(){
+    float result = 0.0;
+    rawPy(){
+        import builtins
+        try:
+            result = float(getattr(builtins, "_lx_scroll_y", 0.0))
+            builtins._lx_scroll_y = 0.0
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+// ── Sound extended ────────────────────────────────────────────────────────────
+
+/// Set the playback volume of a sound (0.0 silent, 1.0 full). ///
+global setSoundVolume(int soundIdx, float volume){
+    rawPy(){
+        import builtins, arcade
+        try:
+            entry = builtins._lx_sounds[soundIdx]
+            if entry["player"] is not None:
+                arcade.set_volume(entry["player"],
+                                  max(0.0, min(1.0, volume)))
+        except Exception:
+            pass
+    }
+}
+
+/// Return true if the sound is currently playing. ///
+global isSoundPlaying(int soundIdx){
+    bool result = false;
+    rawPy(){
+        import builtins, arcade
+        try:
+            entry = builtins._lx_sounds[soundIdx]
+            result = (entry["player"] is not None and
+                      arcade.is_playing(entry["player"]))
+        except Exception:
+            result = False
+    }
+    return result;
+}
+
+/// Play a sound on an infinite loop. ///
+global loopSound(int soundIdx){
+    rawPy(){
+        import builtins, arcade
+        try:
+            entry = builtins._lx_sounds[soundIdx]
+            if entry["player"] is not None:
+                try:
+                    arcade.stop_sound(entry["player"])
+                except Exception:
+                    pass
+            entry["player"] = arcade.play_sound(entry["sound"],
+                                                looping=True)
+        except Exception:
+            pass
+    }
+}
+
+// ── Camera extended ───────────────────────────────────────────────────────────
+
+/// Set camera zoom level (1.0 = normal, 2.0 = zoomed in). ///
+global zoomCamera(int camIdx, float zoom){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_cameras[camIdx].zoom = zoom
+        except Exception:
+            pass
+    }
+}
+
+/// Return the camera center X. ///
+global getCameraX(int camIdx){
+    float result = 0.0;
+    rawPy(){
+        import builtins
+        try:
+            result = float(builtins._lx_cameras[camIdx].position[0])
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+/// Return the camera center Y. ///
+global getCameraY(int camIdx){
+    float result = 0.0;
+    rawPy(){
+        import builtins
+        try:
+            result = float(builtins._lx_cameras[camIdx].position[1])
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+/// Lerp camera toward (tx, ty) by speed factor (0.0–1.0). ///
+global smoothScrollCamera(int camIdx, float tx, float ty, float speed){
+    rawPy(){
+        import builtins
+        try:
+            cam = builtins._lx_cameras[camIdx]
+            cx, cy = cam.position
+            cam.position = (cx + (tx - cx) * speed,
+                            cy + (ty - cy) * speed)
+        except Exception:
+            pass
+    }
+}
+
+// ── Physics extended ──────────────────────────────────────────────────────────
+
+/// Jump the physics player if it is on the ground. ///
+global jumpPlayer(int engineIdx, float jumpSpeed){
+    rawPy(){
+        import builtins
+        try:
+            eng = builtins._lx_physics_engines[engineIdx]["engine"]
+            if eng and eng.can_jump():
+                eng.player_sprite.change_y = jumpSpeed
+        except Exception:
+            pass
+    }
+}
+
+/// Return the physics player's current Y velocity. ///
+global getPlayerVY(int engineIdx){
+    float result = 0.0;
+    rawPy(){
+        import builtins
+        try:
+            eng = builtins._lx_physics_engines[engineIdx]["engine"]
+            result = float(eng.player_sprite.change_y) if eng else 0.0
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+// ── Grid helpers ──────────────────────────────────────────────────────────────
+
+/// Convert screen pixel (x, y) to tile coordinates.
+  Returns "tx,ty" string. ///
+global screenToTile(float x, float y, int tileSize){
+    str result = "0,0";
+    rawPy(){
+        tx = int(x // tileSize)
+        ty = int(y // tileSize)
+        result = f"{tx},{ty}"
+    }
+    return result;
+}
+
+/// Convert tile (tx, ty) to screen pixel center.
+  Returns "sx,sy" string. ///
+global tileToScreen(int tx, int ty, int tileSize){
+    str result = "0,0";
+    rawPy(){
+        sx = tx * tileSize + tileSize // 2
+        sy = ty * tileSize + tileSize // 2
+        result = f"{sx},{sy}"
+    }
+    return result;
+}
+
 global main(){}
