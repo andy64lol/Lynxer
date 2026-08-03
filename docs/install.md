@@ -34,6 +34,6 @@ The build process creates a Python virtual environment, installs dependencies (`
 ## Verifying the install
 
 ```bash
-lynxer --version   # Lynxer 0.1.6
+lynxer --version   # Lynxer 0.1.7b
 lynxer syntax.lynx # run the syntax showcase
 ```

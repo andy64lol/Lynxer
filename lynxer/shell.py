@@ -29,7 +29,7 @@ def main():
         print("  lynxer --version                Print version")
         return 0
     if argv[0] in ('-v', '--version'):
-        print("Lynxer 0.1.6")
+        print("Lynxer 0.1.7b")
         return 0
     if argv[0] in ('-easterEgg', '--easterEgg'):
         print("Easter Egg found!")
