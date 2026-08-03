@@ -5,3 +5,4 @@ lynxer/__pycache__/
 *.spec
 build/
 venv/
+dist/
