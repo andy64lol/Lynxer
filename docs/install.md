@@ -17,7 +17,7 @@ make build
 ```
 and you will end up with an executable binary at `dist/lynxer`.
 
-The build process creates a Python virtual environment, installs dependencies (`flask`, `cython`, `setuptools`, `pyinstaller`), and compiles a single-file binary.
+The build process creates a Python virtual environment, installs dependencies (`flask`, `cython`, `setuptools`, `pyinstaller` and etc), and compiles a single-file binary.
 
 ---
 
@@ -34,6 +34,6 @@ The build process creates a Python virtual environment, installs dependencies (`
 ## Verifying the install
 
 ```bash
-lynxer --version   # Lynxer 0.1.7b
+lynxer --version   # Lynxer 0.1.7b2
 lynxer syntax.lynx # run the syntax showcase
 ```
