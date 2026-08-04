@@ -1,23 +1,14 @@
-#!/usr/bin/env python3
-"""
-Development shim — run from anywhere:
-    python lynxer/shell.py <file.lynx>
-    python lynxer/shell.py --compile <file.lynx>
-    python lynxer/shell.py <file.lynxc>
-    cd lynxer && python shell.py <file.lynx>
-"""
+# !/usr/bin/env python3
+"""Development shim — run from."""
 import sys
 import os
 
-# Resolve repo root (parent of the lynxer/ package directory) and add it to
-# sys.path so that `from lynxer.lynxer import run` always works.
 _here   = os.path.dirname(os.path.abspath(__file__))   # .../lynxer/
 _parent = os.path.dirname(_here)                         # repo root
 if _parent not in sys.path:
     sys.path.insert(0, _parent)
 
 from lynxer import run, compile_to_bytecode, run_bytecode  # noqa: E402
-
 
 def main():
     argv = sys.argv[1:]
@@ -82,7 +73,6 @@ def main():
         print(error.as_string(), file=sys.stderr)
         return 1
     return 0
-
 
 if __name__ == '__main__':
     sys.exit(main())

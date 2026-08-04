@@ -156,11 +156,11 @@ These functions accept a Lynxer list of numbers and return a scalar.
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `mean` | `mean(any lst)` | Arithmetic mean |
-| `median` | `median(any lst)` | Median value |
-| `std` | `std(any lst)` | Population standard deviation |
-| `variance` | `variance(any lst)` | Population variance |
-| `percentile` | `percentile(any lst, float p)` | p-th percentile (p in 0–100) |
+| `mean` | `mean(list lst)` | Arithmetic mean |
+| `median` | `median(list lst)` | Median value |
+| `std` | `std(list lst)` | Population standard deviation |
+| `variance` | `variance(list lst)` | Population variance |
+| `percentile` | `percentile(list lst, float p)` | p-th percentile (p in 0–100) |
 | `corrcoef` | `corrcoef(any a, any b)` | Pearson correlation coefficient of two lists. Returns a value in [-1, 1]. |
 
 ```c
@@ -180,9 +180,9 @@ global main(){
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `prod` | `prod(any lst)` | Product of all elements |
-| `argmax` | `argmax(any lst)` | Zero-based index of the maximum value |
-| `argmin` | `argmin(any lst)` | Zero-based index of the minimum value |
+| `prod` | `prod(list lst)` | Product of all elements |
+| `argmax` | `argmax(list lst)` | Zero-based index of the maximum value |
+| `argmin` | `argmin(list lst)` | Zero-based index of the minimum value |
 
 ---
 
@@ -191,7 +191,7 @@ global main(){
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `dot` | `dot(any a, any b)` | Dot product of two equal-length lists |
-| `norm` | `norm(any lst)` | L2 (Euclidean) norm — magnitude of a vector |
+| `norm` | `norm(list lst)` | L2 (Euclidean) norm — magnitude of a vector |
 
 ```c
 global main(){
@@ -219,10 +219,10 @@ Use `floatOf(listGet(lst, i))` to convert an element to a number for arithmetic.
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `linspace` | `linspace(float start, float stop, int n)` | `n` evenly-spaced values between `start` and `stop` (inclusive) |
-| `cumsum` | `cumsum(any lst)` | Running total at each position |
-| `diff` | `diff(any lst)` | Differences between consecutive elements; result is one shorter than input |
-| `clip` | `clip(any lst, float lo, float hi)` | Element-wise clamp to `[lo, hi]` |
-| `normalize` | `normalize(any lst)` | Scale to unit L2 length (divides each element by the norm) |
+| `cumsum` | `cumsum(list lst)` | Running total at each position |
+| `diff` | `diff(list lst)` | Differences between consecutive elements; result is one shorter than input |
+| `clip` | `clip(list lst, float lo, float hi)` | Element-wise clamp to `[lo, hi]` |
+| `normalize` | `normalize(list lst)` | Scale to unit L2 length (divides each element by the norm) |
 
 ```c
 global main(){

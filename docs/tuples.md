@@ -20,7 +20,7 @@ The right-hand side uses list literal syntax `[...]`. The interpreter auto-conve
 
 ## Type system
 
-`tuple` is a first-class type keyword. It participates in the same type-checking as `int`, `str`, `list`, etc.
+`tuple` is a first-class type keyword. It participates in the same type-checking as `int`, `str`, `bool`, and `any`.
 
 ```c
 tuple coords = [0, 0];
@@ -74,7 +74,7 @@ global main(){
     tuple sl  = tupleSlice(t, 1, 3);   // (20, 30)
     tuple cat = tupleConcat(t, sl);    // (10, 20, 30, 20, 20, 30)
 
-    any   lst = tupleToList(t);        // [10, 20, 30, 20]
+    list  lst = tupleToList(t);        // [10, 20, 30, 20]
     tuple t2  = listToTuple(lst);      // (10, 20, 30, 20)
 
     str   j   = tupleJsonArray(t);     // "[10, 20, 30, 20]"
@@ -168,7 +168,7 @@ global main(){
     }
 
     // Or via list conversion + iterate
-    any lst = tupleToList(t);
+    list lst = tupleToList(t);
     for(any v : lst){
         println(strOf(v));
     }

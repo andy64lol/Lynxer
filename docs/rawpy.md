@@ -35,8 +35,12 @@ global main(){
 }
 ```
 
-Only `int`, `float`, `str`, and `bool` values are bridged back. Other Python
-objects (lists, dicts, custom instances, …) are ignored on write-back.
+Only `int`, `float`, `str`, and `bool` values are bridged back on write-back. Other Python
+objects (dicts, custom instances, …) are ignored on write-back.
+
+> **Lists:** Lynxer `List` values are visible inside a `rawPy`/`rawPyx` block as a Python
+> `list`, but they are **read-only** — changes made to the list inside the block are not
+> written back to the Lynxer variable after the block exits.
 
 ---
 

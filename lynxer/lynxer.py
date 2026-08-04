@@ -8,7 +8,7 @@ import pickle
 import zlib
 from typing import ClassVar
 
-# ── Bytecode constants ────────────────────────────────────────────────────────
+# Bytecode constants
 BYTECODE_MAGIC   = b"LYNXC\x00"
 BYTECODE_VERSION = 2
 
@@ -18,7 +18,6 @@ LETTERS = string.ascii_letters
 LETTERS_DIGITS = LETTERS + DIGITS
 
 _cython_inline_fn = None
-
 
 def _get_cython_inline():
     """Lazily import Cython's inline compiler (needs setuptools' distutils shim)."""
@@ -31,7 +30,6 @@ def _get_cython_inline():
     return _cython_inline_fn
 
 # errors
-
 
 class Error:
     def __init__(self, pos_start, pos_end, error_name, details):
@@ -52,21 +50,17 @@ class Error:
         )
         return result
 
-
 class IllegalCharError(Error):
     def __init__(self, pos_start, pos_end, details):
         super().__init__(pos_start, pos_end, "Unexpected Character", details)
-
 
 class ExpectedCharError(Error):
     def __init__(self, pos_start, pos_end, details):
         super().__init__(pos_start, pos_end, "Missing Character", details)
 
-
 class InvalidSyntaxError(Error):
     def __init__(self, pos_start, pos_end, details=""):
         super().__init__(pos_start, pos_end, "Syntax Error", details)
-
 
 class RTError(Error):
     def __init__(self, pos_start, pos_end, details, context):
@@ -94,9 +88,7 @@ class RTError(Error):
             ctx = ctx.parent
         return "Traceback (most recent call last):\n" + result
 
-
 # position
-
 
 class Position:
     def __init__(self, idx, ln, col, fn, ftxt):
@@ -117,10 +109,7 @@ class Position:
     def copy(self):
         return Position(self.idx, self.ln, self.col, self.fn, self.ftxt)
 
-    # ── Bytecode serialisation ────────────────────────────────────────────
-    # ftxt is the full source text, duplicated on every token.  Drop it
-    # when pickling so bytecode files stay small.  Error messages in
-    # bytecode runs will omit the source-pointer arrow, but still work.
+    # Bytecode serialisation
     def __getstate__(self):
         return (self.idx, self.ln, self.col, self.fn)
 
@@ -128,12 +117,12 @@ class Position:
         self.idx, self.ln, self.col, self.fn = state
         self.ftxt = ""
 
-
 # tokens
 
 TT_INT = "INT"
 TT_FLOAT = "FLOAT"
 TT_STRING = "STRING"
+TT_CHAR   = "CHAR"
 TT_IDENTIFIER = "IDENTIFIER"
 TT_KEYWORD = "KEYWORD"
 TT_PLUS = "PLUS"
@@ -170,10 +159,10 @@ TT_LBRACKET = "LBRACKET"
 TT_RBRACKET = "RBRACKET"
 TT_EOF = "EOF"
 
-TYPE_KEYWORDS = ["int", "float", "str", "bool", "any", "tuple"]
+TYPE_KEYWORDS = ["int", "float", "str", "bool", "any", "tuple", "list", "num", "char"]
 
 KEYWORDS = [
-    "int", "float", "str", "bool", "any", "tuple",
+    "int", "float", "str", "bool", "any", "tuple", "list", "num", "char",
     "global", "local", "const",
     "if", "else", "while", "for",
     "return", "import", "importAs", "importPy",
@@ -185,7 +174,6 @@ KEYWORDS = [
     "class",
     "break", "continue", "restart",
 ]
-
 
 class Token:
     def __init__(self, type_, value=None, pos_start=None, pos_end=None):
@@ -208,9 +196,7 @@ class Token:
             return f"{self.type}:{self.value}"
         return f"{self.type}"
 
-
 # lexer
-
 
 class Lexer:
     def __init__(self, fn, text):
@@ -265,6 +251,11 @@ class Lexer:
                         tokens.append(block_tok)
             elif self.current_char == '"':
                 tokens.append(self.make_string())
+            elif self.current_char == "'":
+                tok, error = self.make_char()
+                if error:
+                    return [], error
+                tokens.append(tok)
             elif self.current_char == "+":
                 pos_start = self.pos.copy()
                 self.advance()
@@ -389,7 +380,7 @@ class Lexer:
             "\\": "\\", '"': '"', "'": "'",
             "0": "\0", "a": "\a", "b": "\b",
             "f": "\f", "v": "\v",
-            "e": "\033",   # ESC — for ANSI escape sequences
+            "e": "\033",
         }
 
         while self.current_char is not None and (
@@ -407,6 +398,31 @@ class Lexer:
 
         self.advance()
         return Token(TT_STRING, s, pos_start, self.pos)
+
+    def make_char(self):
+        pos_start = self.pos.copy()
+        escape_characters = {
+            "n": "\n", "t": "\t", "r": "\r",
+            "\\": "\\", "'": "'", '"': '"',
+            "0": "\0", "a": "\a", "b": "\b",
+            "f": "\f", "v": "\v", "e": "\033",
+        }
+        self.advance()
+        ch = ""
+        if self.current_char == "\\":
+            self.advance()
+            ch = escape_characters.get(self.current_char, self.current_char)
+            self.advance()
+        elif self.current_char is not None and self.current_char != "'":
+            ch = self.current_char
+            self.advance()
+        if self.current_char != "'":
+            return None, IllegalCharError(
+                pos_start, self.pos,
+                "Expected closing ' for char literal"
+            )
+        self.advance()
+        return Token(TT_CHAR, ch if ch else "\0", pos_start, self.pos), None
 
     def make_identifier(self):
         id_str = ""
@@ -505,9 +521,7 @@ class Lexer:
 
         return Token(token_type, code, pos_start, self.pos)
 
-
 # nodes
-
 
 class NumberNode:
     def __init__(self, tok):
@@ -515,13 +529,17 @@ class NumberNode:
         self.pos_start = self.tok.pos_start
         self.pos_end = self.tok.pos_end
 
-
 class StringNode:
     def __init__(self, tok):
         self.tok = tok
         self.pos_start = self.tok.pos_start
         self.pos_end = self.tok.pos_end
 
+class CharNode:
+    def __init__(self, tok):
+        self.tok = tok
+        self.pos_start = self.tok.pos_start
+        self.pos_end = self.tok.pos_end
 
 class BoolNode:
     def __init__(self, tok):
@@ -530,13 +548,11 @@ class BoolNode:
         self.pos_start = self.tok.pos_start
         self.pos_end = self.tok.pos_end
 
-
 class NoneNode:
     def __init__(self, tok):
         self.tok = tok
         self.pos_start = self.tok.pos_start
         self.pos_end = self.tok.pos_end
-
 
 class VarAccessNode:
     def __init__(self, var_name_tok):
@@ -544,14 +560,12 @@ class VarAccessNode:
         self.pos_start = self.var_name_tok.pos_start
         self.pos_end = self.var_name_tok.pos_end
 
-
 class DotAccessNode:
     def __init__(self, obj_node, attr_name_tok):
         self.obj_node = obj_node
         self.attr_name_tok = attr_name_tok
         self.pos_start = obj_node.pos_start
         self.pos_end = attr_name_tok.pos_end
-
 
 class VarDeclNode:
     def __init__(self, type_tok, var_name_tok, value_node, is_const=False):
@@ -562,7 +576,6 @@ class VarDeclNode:
         self.pos_start = type_tok.pos_start if type_tok else var_name_tok.pos_start
         self.pos_end = value_node.pos_end
 
-
 class VarAssignNode:
     def __init__(self, var_name_tok, value_node):
         self.var_name_tok = var_name_tok
@@ -570,13 +583,11 @@ class VarAssignNode:
         self.pos_start = self.var_name_tok.pos_start
         self.pos_end = self.value_node.pos_end
 
-
 class BlockNode:
     def __init__(self, statements, pos_start, pos_end):
         self.statements = statements
         self.pos_start = pos_start
         self.pos_end = pos_end
-
 
 class BinOpNode:
     def __init__(self, left_node, op_tok, right_node):
@@ -586,14 +597,12 @@ class BinOpNode:
         self.pos_start = self.left_node.pos_start
         self.pos_end = self.right_node.pos_end
 
-
 class UnaryOpNode:
     def __init__(self, op_tok, node):
         self.op_tok = op_tok
         self.node = node
         self.pos_start = self.op_tok.pos_start
         self.pos_end = node.pos_end
-
 
 class IfNode:
     def __init__(self, condition_node, then_block, else_block, pos_start, pos_end):
@@ -603,14 +612,12 @@ class IfNode:
         self.pos_start = pos_start
         self.pos_end = pos_end
 
-
 class WhileNode:
     def __init__(self, condition_node, body_block, pos_start, pos_end):
         self.condition_node = condition_node
         self.body_block = body_block
         self.pos_start = pos_start
         self.pos_end = pos_end
-
 
 class ForNode:
     def __init__(
@@ -623,15 +630,12 @@ class ForNode:
         self.pos_start = pos_start
         self.pos_end = pos_end
 
-
 class IterateNode:
-    # iterate(count) { body } — run body N times
     def __init__(self, count_node, body_block, pos_start, pos_end):
         self.count_node = count_node
         self.body_block = body_block
         self.pos_start = pos_start
         self.pos_end = pos_end
-
 
 class FuncDefNode:
     def __init__(
@@ -646,14 +650,12 @@ class FuncDefNode:
         self.pos_end = pos_end
         self.is_async = is_async
 
-
 class AwaitNode:
     """await expr — suspends inside an async function until the coroutine resolves."""
     def __init__(self, expr_node, pos_start, pos_end):
         self.expr_node = expr_node
         self.pos_start = pos_start
         self.pos_end = pos_end
-
 
 class AsyncLocalDefNode:
     """async funcName(params) { body } — local async sub-function inside a global."""
@@ -664,7 +666,6 @@ class AsyncLocalDefNode:
         self.pos_start = pos_start
         self.pos_end = pos_end
 
-
 class AsyncDotCallNode:
     """async.funcName(args) — run a locally-defined async function synchronously."""
     def __init__(self, name_tok, arg_nodes, pos_start, pos_end):
@@ -673,7 +674,6 @@ class AsyncDotCallNode:
         self.pos_start = pos_start
         self.pos_end = pos_end
 
-
 class CallNode:
     def __init__(self, node_to_call, arg_nodes, pos_start, pos_end):
         self.node_to_call = node_to_call
@@ -681,20 +681,17 @@ class CallNode:
         self.pos_start = pos_start
         self.pos_end = pos_end
 
-
 class ReturnNode:
     def __init__(self, node_to_return, pos_start, pos_end):
         self.node_to_return = node_to_return
         self.pos_start = pos_start
         self.pos_end = pos_end
 
-
 class ImportNode:
     def __init__(self, filename_tok, pos_start, pos_end):
         self.filename_tok = filename_tok
         self.pos_start = pos_start
         self.pos_end = pos_end
-
 
 class ImportAsNode:
     """importAs("module", "alias");  — import module and bind it under a custom name."""
@@ -704,18 +701,12 @@ class ImportAsNode:
         self.pos_start = pos_start
         self.pos_end = pos_end
 
-
 class ImportPyNode:
-    """importPy(){"os", "sys", "json"};
-    Pre-imports Python modules into a shared global dict so rawPy / rawPyx
-    blocks can use them without writing 'import x' every time.
-    Only valid inside global setup(){}.
-    """
+    """importPy(){"os", "sys", "json"};."""
     def __init__(self, module_names, pos_start, pos_end):
         self.module_names = module_names  # list[str]
         self.pos_start = pos_start
         self.pos_end = pos_end
-
 
 class RawPyBlockNode:
     def __init__(self, code, pos_start, pos_end):
@@ -723,25 +714,21 @@ class RawPyBlockNode:
         self.pos_start = pos_start
         self.pos_end = pos_end
 
-
 class RawPyxBlockNode:
     def __init__(self, code, pos_start, pos_end):
         self.code = code
         self.pos_start = pos_start
         self.pos_end = pos_end
 
-
 class BreakNode:
     def __init__(self, pos_start, pos_end):
         self.pos_start = pos_start
         self.pos_end = pos_end
 
-
 class ContinueNode:
     def __init__(self, pos_start, pos_end):
         self.pos_start = pos_start
         self.pos_end = pos_end
-
 
 class ProgramNode:
     def __init__(self, setup_func, globals_list, main_func, pos_start, pos_end):
@@ -751,9 +738,7 @@ class ProgramNode:
         self.pos_start = pos_start
         self.pos_end = pos_end
 
-
 class VarGroupDeclNode:
-    # fields: list of (type_str, name_tok, value_node, is_const)
     def __init__(self, name_tok, fields, pos_start, pos_end, is_const=False):
         self.name_tok = name_tok
         self.fields = fields
@@ -761,17 +746,15 @@ class VarGroupDeclNode:
         self.pos_start = pos_start
         self.pos_end = pos_end
 
-
 class DotAssignNode:
     """type obj.field = value  (typed dot-path assignment into a vargroup)"""
     def __init__(self, obj_node, attr_name_tok, value_node, decl_type, pos_start, pos_end):
         self.obj_node = obj_node
         self.attr_name_tok = attr_name_tok
         self.value_node = value_node
-        self.decl_type = decl_type  # type keyword given at the assignment site
+        self.decl_type = decl_type
         self.pos_start = pos_start
         self.pos_end = pos_end
-
 
 class AddVarGroupNode:
     """addVarGroup(path_expr, type name = value)"""
@@ -784,7 +767,6 @@ class AddVarGroupNode:
         self.pos_start = pos_start
         self.pos_end = pos_end
 
-
 class RemoveVarGroupNode:
     """removeVarGroup(path_expr, field_name)"""
     def __init__(self, path_node, field_name_tok, pos_start, pos_end):
@@ -793,15 +775,8 @@ class RemoveVarGroupNode:
         self.pos_start = pos_start
         self.pos_end = pos_end
 
-
 class TryCatchNode:
-    """try { body } catch { handler }
-       try { body } catch(str varname) { handler }
-
-    If the try block raises a runtime error the handler runs instead.
-    When catch_var_tok is given, the error message is bound as a str in
-    the handler's scope under that name.
-    """
+    """try { body } catch."""
     def __init__(self, try_block, catch_var_tok, catch_block, pos_start, pos_end):
         self.try_block = try_block          # BlockNode
         self.catch_var_tok = catch_var_tok  # Token (identifier) or None
@@ -809,13 +784,8 @@ class TryCatchNode:
         self.pos_start = pos_start
         self.pos_end = pos_end
 
-
 class ClassDefNode:
-    """class ClassName { [const] type field = value; ... def method(params){} ... }
-
-    field_defs : list of (type_str, name_tok, value_node, is_const)
-    method_nodes: list of FuncDefNode  (kind == 'def')
-    """
+    """class ClassName { [const] type."""
     def __init__(self, name_tok, field_defs, method_nodes, pos_start, pos_end):
         self.name_tok = name_tok
         self.field_defs = field_defs
@@ -823,9 +793,7 @@ class ClassDefNode:
         self.pos_start = pos_start
         self.pos_end = pos_end
 
-
 # parse result
-
 
 class ParseResult:
     def __init__(self):
@@ -861,16 +829,14 @@ class ParseResult:
             self.error = error
         return self
 
-
 # parser
-
 
 class Parser:
     def __init__(self, tokens):
         self.tokens = tokens
         self.tok_idx = -1
         self._loop_depth = 0       # tracks nesting depth of for/while/iterate
-        self._in_global_func = False  # True when parsing a non-setup global body
+        self._in_global_func = False
         self.advance()
 
     def advance(self):
@@ -909,7 +875,7 @@ class Parser:
         # For ordering enforcement
         setup_seen = False
         main_seen = False
-        any_other_seen = False  # any global func or class that is not setup/main
+        any_other_seen = False
 
         while self.current_tok.type != TT_EOF:
             is_func_kw = (
@@ -929,7 +895,6 @@ class Parser:
                     and func_name_tok.type == TT_IDENTIFIER
                     and func_name_tok.value == "setup"
                 ):
-                    # setup must be the very first declaration
                     if setup_seen:
                         return res.failure(InvalidSyntaxError(
                             self.current_tok.pos_start, self.current_tok.pos_end,
@@ -950,7 +915,6 @@ class Parser:
                     and func_name_tok.type == TT_IDENTIFIER
                     and func_name_tok.value == "main"
                 ):
-                    # main must come after setup (and all other globals)
                     if main_seen:
                         return res.failure(InvalidSyntaxError(
                             self.current_tok.pos_start, self.current_tok.pos_end,
@@ -961,7 +925,6 @@ class Parser:
                         return res
                     main_seen = True
                 else:
-                    # Regular global function — must come after setup and before main
                     if main_seen:
                         fname = func_name_tok.value if func_name_tok else "..."
                         return res.failure(InvalidSyntaxError(
@@ -975,7 +938,6 @@ class Parser:
                     globals_list.append(node)
                     any_other_seen = True
             elif self.current_tok.matches(TT_KEYWORD, "class"):
-                # Classes must come after setup and before main
                 if main_seen:
                     return res.failure(InvalidSyntaxError(
                         self.current_tok.pos_start, self.current_tok.pos_end,
@@ -1016,10 +978,6 @@ class Parser:
                     "Add it as the very first declaration (before all other globals and main).",
                 )
             )
-
-        # main() is optional at parse time — it may be replaced by overrideMain()
-        # in setup().  Missing-entry-point errors are raised at runtime by
-        # visit_ProgramNode with a message that mentions both options.
 
         pos_end = self.current_tok.pos_end.copy()
         return res.success(
@@ -1134,12 +1092,10 @@ class Parser:
             kind_tok.type == TT_IDENTIFIER and kind_tok.value == "global"
         )
 
-        # Manage _in_global_func flag: True only while inside a non-setup global body
         prev_in_global_func = self._in_global_func
         if _is_global_def and not is_setup:
             self._in_global_func = True
         else:
-            # local functions and setup never allow nested globals
             self._in_global_func = False
 
         body = res.register(self.parse_block(in_setup=is_setup, allow_local_funcs=True))
@@ -1179,8 +1135,8 @@ class Parser:
         res.register_advancement()
         self.advance()
 
-        field_defs = []    # list of (type_str, name_tok, value_node, is_const)
-        method_nodes = []  # list of FuncDefNode (kind == 'def')
+        field_defs = []
+        method_nodes = []
 
         while self.current_tok.type != TT_RBRACE and self.current_tok.type != TT_EOF:
             if self.current_tok.matches(TT_KEYWORD, "local"):
@@ -1197,7 +1153,7 @@ class Parser:
                 if not self.is_type_keyword():
                     return res.failure(InvalidSyntaxError(
                         self.current_tok.pos_start, self.current_tok.pos_end,
-                        "Expected a type keyword (int, float, str, bool, any, tuple) for class field"
+                        "Expected a type keyword (int, float, str, bool, any, tuple, list, num, char) for class field"
                     ))
                 type_tok = self.current_tok
                 res.register_advancement()
@@ -1333,7 +1289,6 @@ class Parser:
                 return res
             return res.success(node)
 
-        # local.funcName(...); — local namespace call as a standalone statement
         if (
             self.current_tok.matches(TT_KEYWORD, "local")
         ) and self.peek(1) is not None and self.peek(1).type == TT_DOT:
@@ -1358,7 +1313,6 @@ class Parser:
                 return res
             return res.success(node)
 
-        # 'local funcName(){}' outside a function body — helpful error
         if self.current_tok.matches(TT_KEYWORD, "local"):
             return res.failure(
                 InvalidSyntaxError(
@@ -1392,7 +1346,6 @@ class Parser:
             res.register_advancement(); self.advance()
             return res.success(expr)
 
-        # global.funcName(...); — namespace call as a standalone statement
         if (
             self.current_tok.matches(TT_KEYWORD, "global")
             or (self.current_tok.type == TT_IDENTIFIER and self.current_tok.value == "global")
@@ -1419,7 +1372,6 @@ class Parser:
             and self.peek(1).type == TT_IDENTIFIER
         ):
             if self._in_global_func:
-                # Nested global definition inside a non-setup global body — allowed
                 node = res.register(self.parse_func_def())
                 if res.error:
                     return res
@@ -1468,7 +1420,6 @@ class Parser:
             return res.success(node)
 
         if self.current_tok.matches(TT_KEYWORD, "await"):
-            # await used as a standalone statement expression: await someAsyncCall();
             expr = res.register(self.parse_expr())
             if res.error:
                 return res
@@ -1537,8 +1488,6 @@ class Parser:
             return res.success(node)
 
         if self.is_type_keyword():
-            # typed dot-assignment: int vg.field = value;
-            # Also handles: int global.class.Name.field = value;
             next1 = self.peek(1)
             next2 = self.peek(2)
             next1_starts_dotpath = next1 and (
@@ -1556,7 +1505,6 @@ class Parser:
             return res.success(node)
 
         if self.current_tok.matches(TT_KEYWORD, "vargroup"):
-            # typed dot-assignment with vargroup type: vargroup vg.field = val;
             next1 = self.peek(1)
             next2 = self.peek(2)
             if next1 and next1.type == TT_IDENTIFIER and next2 and next2.type == TT_DOT:
@@ -1638,7 +1586,6 @@ class Parser:
             if res.error:
                 return res
 
-            # Untyped dot-assignment is not allowed — tell the user to add a type
             if isinstance(expr, DotAccessNode) and self.current_tok.type == TT_EQ:
                 return res.failure(
                     InvalidSyntaxError(
@@ -1808,7 +1755,7 @@ class Parser:
 
         return res.success(VarAssignNode(name_tok, value))
 
-    # ------------------------------------------------------------------ vargroup
+    # vargroup
 
     def parse_typed_dot_assign(self):
         """type vg.field = value;  or  type vg.a.b.field = value;"""
@@ -1981,7 +1928,6 @@ class Parser:
             nested_node = VarGroupDeclNode(name_tok, nested_fields, pos_start, pos_end)
             return res.success(("vargroup", name_tok, nested_node, False))
 
-        # regular field: [const] type name = expr
         is_const = False
         if self.current_tok.matches(TT_KEYWORD, "const"):
             is_const = True
@@ -2131,7 +2077,6 @@ class Parser:
         res.register_advancement()
         self.advance()
 
-        # first argument: path expression (vargroup variable / dot chain)
         path_node = res.register(self.parse_expr())
         if res.error:
             return res
@@ -2147,7 +2092,6 @@ class Parser:
         res.register_advancement()
         self.advance()
 
-        # second argument: field declaration  — either "type name = value" or "vargroup name = [...]"
         if self.current_tok.matches(TT_KEYWORD, "vargroup"):
             res.register_advancement()
             self.advance()
@@ -2359,7 +2303,7 @@ class Parser:
 
         return res.success(RemoveVarGroupNode(path_node, field_name_tok, pos_start, pos_end))
 
-    # ------------------------------------------------------------------ /vargroup
+    # /vargroup
 
     def parse_import(self):
         res = ParseResult()
@@ -2485,9 +2429,7 @@ class Parser:
         return res.success(ImportAsNode(filename_tok, alias_tok, pos_start, pos_end))
 
     def parse_importPy(self):
-        """Parse:  importPy(){"os", "sys", "json"};
-        The () is empty; the {} holds a comma-separated list of string module names.
-        """
+        """Parse:  importPy(){"os", "sys", "json"};."""
         res = ParseResult()
         pos_start = self.current_tok.pos_start.copy()
         res.register_advancement()
@@ -3119,8 +3061,6 @@ class Parser:
             if self.current_tok.type == TT_DOT:
                 res.register_advancement()
                 self.advance()
-                # Allow 'class' keyword and type keywords (str, int, float, bool, any, tuple)
-                # as attribute names so embedPy.str(), embedPy.int(), etc. work.
                 is_attr = (
                     self.current_tok.type == TT_IDENTIFIER
                     or self.current_tok.matches(TT_KEYWORD, "class")
@@ -3191,6 +3131,11 @@ class Parser:
             res.register_advancement()
             self.advance()
             return res.success(StringNode(tok))
+
+        elif tok.type == TT_CHAR:
+            res.register_advancement()
+            self.advance()
+            return res.success(CharNode(tok))
 
         elif tok.matches(TT_KEYWORD, "true") or tok.matches(TT_KEYWORD, "false"):
             res.register_advancement()
@@ -3335,9 +3280,7 @@ class Parser:
         res.register_advancement(); self.advance()  # consume ')'
         return res.success(AsyncDotCallNode(name_tok, arg_nodes, pos_start, pos_end))
 
-
 # runtime result
-
 
 class RTResult:
     def __init__(self):
@@ -3380,9 +3323,7 @@ class RTResult:
             or self.loop_should_break
         )
 
-
 # values
-
 
 class Value:
     def __init__(self):
@@ -3471,7 +3412,6 @@ class Value:
         if not other:
             other = self
         return RTError(self.pos_start, other.pos_end, "Illegal operation", self.context)
-
 
 class Number(Value):
     null: ClassVar["Number"]
@@ -3631,11 +3571,9 @@ class Number(Value):
     def __repr__(self):
         return self.__str__()
 
-
 Number.null = Number(0)
 Number.false = Number(0, is_bool=True)
 Number.true = Number(1, is_bool=True)
-
 
 class String(Value):
     def __init__(self, value):
@@ -3644,6 +3582,8 @@ class String(Value):
 
     def added_to(self, other):
         if isinstance(other, String):
+            return String(self.value + other.value).set_context(self.context), None
+        if isinstance(other, Char):
             return String(self.value + other.value).set_context(self.context), None
         return None, Value.illegal_operation(self, other)
 
@@ -3676,6 +3616,41 @@ class String(Value):
     def __repr__(self):
         return f'"{self.value}"'
 
+class Char(Value):
+    """Single Unicode character. Literal syntax: 'a'"""
+    def __init__(self, value):
+        super().__init__()
+        self.value = value[0] if value else "\0"
+
+    def added_to(self, other):
+        if isinstance(other, (Char, String)):
+            return String(self.value + other.value).set_context(self.context), None
+        return None, Value.illegal_operation(self, other)
+
+    def get_comparison_eq(self, other):
+        if isinstance(other, Char):
+            return Number(int(self.value == other.value), is_bool=True).set_context(self.context), None
+        return None, Value.illegal_operation(self, other)
+
+    def get_comparison_ne(self, other):
+        if isinstance(other, Char):
+            return Number(int(self.value != other.value), is_bool=True).set_context(self.context), None
+        return None, Value.illegal_operation(self, other)
+
+    def is_true(self):
+        return True
+
+    def copy(self):
+        c = Char(self.value)
+        c.set_pos(self.pos_start, self.pos_end)
+        c.set_context(self.context)
+        return c
+
+    def __str__(self):
+        return self.value
+
+    def __repr__(self):
+        return f"'{self.value}'"
 
 class Null(Value):
     def __init__(self):
@@ -3704,7 +3679,6 @@ class Null(Value):
     def __repr__(self):
         return "none"
 
-
 class List(Value):
     def __init__(self, elements):
         super().__init__()
@@ -3731,7 +3705,6 @@ class List(Value):
 
     def __repr__(self):
         return self.__str__()
-
 
 class LynxTuple(Value):
     """Immutable, ordered, fixed-length sequence.  Declared with the 'tuple' type keyword."""
@@ -3774,7 +3747,6 @@ class LynxTuple(Value):
     def __repr__(self):
         return self.__str__()
 
-
 def value_type_name(v):
     if isinstance(v, Null):
         return "none"
@@ -3782,6 +3754,8 @@ def value_type_name(v):
         if v.is_bool:
             return "bool"
         return "float" if isinstance(v.value, float) else "int"
+    if isinstance(v, Char):
+        return "char"
     if isinstance(v, String):
         return "str"
     if isinstance(v, LynxTuple):
@@ -3794,20 +3768,21 @@ def value_type_name(v):
         return "function"
     return "any"
 
-
 NUMERIC_TYPES = {"int", "float"}
-
 
 def type_matches(declared_type, value):
     if declared_type in (None, "any"):
         return True
     actual = value_type_name(value)
+    if declared_type == "num":
+        return actual in NUMERIC_TYPES
     if declared_type in NUMERIC_TYPES:
         return actual in NUMERIC_TYPES
+    if declared_type == "char":
+        return isinstance(value, Char)
     if declared_type == "vargroup":
         return actual == "vargroup"
     return actual == declared_type
-
 
 class BaseFunction(Value):
     def __init__(self, name):
@@ -3871,7 +3846,6 @@ class BaseFunction(Value):
             return err
         return res.success(None)
 
-
 class Function(BaseFunction):
     def __init__(self, name, body_node, param_names, param_types=None, is_global=False):
         super().__init__(name)
@@ -3879,9 +3853,9 @@ class Function(BaseFunction):
         self.param_names = param_names
         self.param_types = param_types or [None] * len(param_names)
         self.is_global = is_global
-        self.inner_locals = {}   # nested 'local' functions defined inside this function
-        self.inner_globals = {}  # nested 'global' functions defined inside this global
-        self.global_path = None  # list like ['a', 'b'] for global.a.b; None for locals
+        self.inner_locals = {}
+        self.inner_globals = {}
+        self.global_path = None
 
     def get_attr(self, name):
         if name in self.inner_locals:
@@ -3911,7 +3885,6 @@ class Function(BaseFunction):
         if res.should_return():
             return res
 
-        # Expose 'local' namespace so local.funcName() calls work
         exec_ctx.symbol_table.set("local", LocalNamespace(exec_ctx.symbol_table))
 
         res.register(interpreter.visit(self.body_node, exec_ctx))
@@ -3935,7 +3908,6 @@ class Function(BaseFunction):
     def __repr__(self):
         return f"<function {self.name}>"
 
-
 class AsyncFunction(BaseFunction):
     """User-defined async function.  Calling it returns a CoroutineValue."""
 
@@ -3945,9 +3917,9 @@ class AsyncFunction(BaseFunction):
         self.param_names = param_names
         self.param_types = param_types or [None] * len(param_names)
         self.is_global = is_global
-        self.inner_locals = {}   # nested 'local' functions defined inside this function
-        self.inner_globals = {}  # nested 'global' functions defined inside this global
-        self.global_path = None  # list like ['a', 'b'] for global.a.b
+        self.inner_locals = {}
+        self.inner_globals = {}
+        self.global_path = None
 
     def get_attr(self, name):
         if name in self.inner_locals:
@@ -3968,7 +3940,6 @@ class AsyncFunction(BaseFunction):
         if self.is_global:
             exec_ctx.current_global_path = self.global_path
 
-        # Validate / populate args synchronously — arg errors are sync failures
         res.register(
             self.check_and_populate_args(
                 self.param_names, args, exec_ctx, self.param_types
@@ -3977,7 +3948,6 @@ class AsyncFunction(BaseFunction):
         if res.should_return():
             return res
 
-        # Expose 'local' namespace so local.funcName() calls work
         exec_ctx.symbol_table.set("local", LocalNamespace(exec_ctx.symbol_table))
 
         body_node = self.body_node
@@ -4007,7 +3977,6 @@ class AsyncFunction(BaseFunction):
     def __repr__(self):
         return f"<async function {self.name}>"
 
-
 class CoroutineValue(Value):
     """Wraps a Python coroutine produced by calling an AsyncFunction."""
 
@@ -4016,12 +3985,10 @@ class CoroutineValue(Value):
         self.coro = coro
 
     def copy(self):
-        # Coroutines cannot be duplicated; return self (single-use)
         return self
 
     def __repr__(self):
         return "<coroutine>"
-
 
 class BuiltInFunction(BaseFunction):
     print: ClassVar["BuiltInFunction"]
@@ -4311,9 +4278,7 @@ class BuiltInFunction(BaseFunction):
         return RTResult().success(List(elements))
 
     def execute_range(self, args, exec_ctx):
-        """range(stop)  or  range(start, stop)  or  range(start, stop, step)
-        start is included, stop is excluded, step defaults to 1.
-        Mirrors Python's range() semantics."""
+        """range(stop) or range(start, stop) or."""
         if not args or len(args) > 3 or not all(isinstance(a, Number) for a in args):
             return RTResult().failure(RTError(
                 self.pos_start, self.pos_end,
@@ -4351,7 +4316,7 @@ class BuiltInFunction(BaseFunction):
             ))
         return RTResult().success(Number.null)
 
-    # ── list built-ins ────────────────────────────────────────────────────────
+    # list built-ins
 
     def execute_listJsonArray(self, args, exec_ctx):
         import json as _json
@@ -4684,7 +4649,7 @@ class BuiltInFunction(BaseFunction):
                 exec_ctx,
             ))
 
-    # ── tuple built-ins ───────────────────────────────────────────────────────
+    # tuple built-ins
 
     def execute_tupleCreate(self, args, exec_ctx):
         """tupleCreate(v1, v2, ...) — create a tuple from any number of arguments."""
@@ -4840,13 +4805,12 @@ class BuiltInFunction(BaseFunction):
                 exec_ctx,
             ))
 
-    # ── /tuple built-ins ──────────────────────────────────────────────────────
+    # /tuple built-ins
 
-    # ------------------------------------------------------------------ async built-ins
+    # async built-ins
 
     def execute_asyncRun(self, args, exec_ctx):
-        """asyncRun(coro) — run a coroutine (from an async function call) synchronously
-        via asyncio.run().  Use this in main() to drive async code."""
+        """asyncRun(coro) — run a coroutine."""
         import asyncio
         if len(args) != 1 or not isinstance(args[0], CoroutineValue):
             return RTResult().failure(RTError(
@@ -4870,8 +4834,7 @@ class BuiltInFunction(BaseFunction):
         return RTResult().success(Number.null)
 
     def execute_asyncGather(self, args, exec_ctx):
-        """asyncGather(coro1, coro2, ...) — return a new coroutine that, when awaited,
-        runs all supplied coroutines concurrently and returns a list of their results."""
+        """asyncGather(coro1, coro2, ...) — return."""
         for i, arg in enumerate(args):
             if not isinstance(arg, CoroutineValue):
                 return RTResult().failure(RTError(
@@ -4900,8 +4863,7 @@ class BuiltInFunction(BaseFunction):
         return RTResult().success(CoroutineValue(_gather()))
 
     def execute_asyncSleep(self, args, exec_ctx):
-        """asyncSleep(seconds) — return a coroutine that, when awaited,
-        sleeps for the given number of seconds (float allowed)."""
+        """asyncSleep(seconds) — return a coroutine."""
         import asyncio
         if len(args) != 1 or not isinstance(args[0], Number):
             return RTResult().failure(RTError(
@@ -4917,24 +4879,10 @@ class BuiltInFunction(BaseFunction):
 
         return RTResult().success(CoroutineValue(_sleep()))
 
-    # ------------------------------------------------------------------ /async built-ins
+    # /async built-ins
 
     def execute_overrideMain(self, args, exec_ctx):
-        """overrideMain("funcName") — redirect the program entry point.
-
-        Call this inside ``global setup(){}`` to use a global function other
-        than ``main`` as the program's starting point.  When set, the named
-        function is called instead of ``main`` after setup finishes.
-
-        Example::
-
-            global setup(){
-                overrideMain("start");
-            }
-            global start(){
-                print("Hello from start!\\n");
-            }
-        """
+        """overrideMain("funcName") — redirect the program."""
         global _main_override
         if len(args) != 1 or not isinstance(args[0], String):
             return RTResult().failure(RTError(
@@ -4946,7 +4894,6 @@ class BuiltInFunction(BaseFunction):
             ))
         _main_override = args[0].value
         return RTResult().success(Number.null)
-
 
 BuiltInFunction.print = BuiltInFunction("print")
 BuiltInFunction.println = BuiltInFunction("println")
@@ -5028,21 +4975,14 @@ class Namespace(Value):
     def __repr__(self):
         return "<namespace>"
 
-
 class LocalNamespace(Value):
-    """Namespace for 'local' functions defined in the current function scope.
-
-    Intentionally only searches the *direct* symbol table (no parent walk).
-    A nested global executing inside an outer global must not be able to
-    reach locals that were defined in the outer global's scope.
-    """
+    """Namespace for 'local' functions defined."""
 
     def __init__(self, symbol_table):
         super().__init__()
         self.symbol_table = symbol_table
 
     def get_attr(self, name):
-        # Direct lookup only — do NOT walk the parent chain.
         val = self.symbol_table.symbols.get(name)
         if val is None:
             return None, RTError(
@@ -5070,16 +5010,10 @@ class LocalNamespace(Value):
     def __repr__(self):
         return "<local namespace>"
 
-
-# ── embedPy — experimental Python bridge ──────────────────────────────────────
-# Lets Lynxer code call Python functions/modules with Lynx syntax instead of
+# embedPy — experimental Python bridge
 # a rawPy block.  Example:
-#   embedPy.requests.get("https://example.com")   →  calls requests.get(...)
-#   embedPy.len("hello")                           →  calls builtins.len("hello")
-#   str status = embedPy.os.path.exists("/tmp");   →  typed variable, "True"/"False"
-# ──────────────────────────────────────────────────────────────────────────────
-
-
+# embedPy.requests.get("https://example.com")   →  calls requests.get(...)
+# embedPy.len("hello")                           →  calls builtins.len("hello")
 def _lynx_to_python(val):
     """Convert a Lynxer Value → plain Python value suitable for passing to Python code."""
     if isinstance(val, Number):
@@ -5092,16 +5026,13 @@ def _lynx_to_python(val):
         return tuple(_lynx_to_python(e) for e in val.elements)
     if isinstance(val, EmbedPyObject):
         return val.py_obj
-    # Number.null / Null singleton → None
     return None
-
 
 def _python_to_lynx(py_val, context=None, pos_start=None, pos_end=None):
     """Convert a plain Python value → the nearest Lynxer Value equivalent."""
     if py_val is None:
         return Number.null
     if isinstance(py_val, bool):
-        # bool check must come before int (bool is a subtype of int)
         return Number(1 if py_val else 0)
     if isinstance(py_val, int):
         return Number(py_val)
@@ -5120,7 +5051,6 @@ def _python_to_lynx(py_val, context=None, pos_start=None, pos_end=None):
             return String(_json.dumps(py_val))
         except Exception:
             return String(str(py_val))
-    # Anything else (Response objects, class instances, modules…) → EmbedPyObject
     obj = EmbedPyObject(py_val)
     if context:
         obj.set_context(context)
@@ -5128,13 +5058,8 @@ def _python_to_lynx(py_val, context=None, pos_start=None, pos_end=None):
         obj.set_pos(pos_start, pos_end)
     return obj
 
-
 class EmbedPyObject(Value):
-    """Wraps an arbitrary Python object returned from an embedPy call.
-
-    Supports further attribute access (``obj.attr``) and calling if callable.
-    When printed or used as a string, falls back to Python's str().
-    """
+    """Wraps an arbitrary Python object."""
 
     def __init__(self, py_obj):
         super().__init__()
@@ -5189,7 +5114,6 @@ class EmbedPyObject(Value):
     def __repr__(self):
         return str(self.py_obj)
 
-
 class EmbedPyCallable(Value):
     """Wraps a Python callable (function, method, class, lambda) for Lynxer calls."""
 
@@ -5242,7 +5166,6 @@ class EmbedPyCallable(Value):
     def __repr__(self):
         return f"<embedPy: {self.name}>"
 
-
 class EmbedPyModule(Value):
     """Wraps a Python module; attribute access returns EmbedPyCallable or nested EmbedPyModule."""
 
@@ -5269,7 +5192,6 @@ class EmbedPyModule(Value):
             fn = EmbedPyCallable(attr, f"{self.module_name}.{name}")
             fn.set_context(self.context).set_pos(self.pos_start, self.pos_end)
             return fn, None
-        # Non-callable attribute (constant, string, int…) — convert directly
         result = _python_to_lynx(attr, self.context, self.pos_start, self.pos_end)
         return result, None
 
@@ -5282,28 +5204,20 @@ class EmbedPyModule(Value):
     def __repr__(self):
         return f"<embedPy module: {self.module_name}>"
 
-
 class EmbedPyNamespace(Value):
-    """The root ``embedPy`` namespace.
-
-    ``embedPy.name`` first checks Python builtins (len, str, int, …) then
-    tries to import a module with that name.  On failure, a clear error is
-    raised instead of silently returning null.
-    """
+    """The root ``embedPy`` namespace."""
 
     def get_attr(self, name):
         import builtins as _builtins
         import importlib as _importlib
         import types as _types
 
-        # 1. Python builtins (len, str, int, print, open, …)
         builtin = getattr(_builtins, name, None)
         if builtin is not None and callable(builtin):
             fn = EmbedPyCallable(builtin, name)
             fn.set_context(self.context).set_pos(self.pos_start, self.pos_end)
             return fn, None
 
-        # 2. Try importing as a module (requests, os, json, math, …)
         try:
             mod = _importlib.import_module(name)
             em = EmbedPyModule(mod, name)
@@ -5329,9 +5243,7 @@ class EmbedPyNamespace(Value):
     def __repr__(self):
         return "<embedPy>"
 
-
-# ── end embedPy ────────────────────────────────────────────────────────────────
-
+# end embedPy
 
 class Module(Value):
     def __init__(self, name, symbol_table):
@@ -5363,13 +5275,8 @@ class Module(Value):
     def __repr__(self):
         return f"<module {self.name}>"
 
-
 class ClassRegistry(Value):
-    """Namespace of all class blueprints for a given scope.
-
-    Accessible as ``global.class`` (main program) or
-    ``global.<module>.class`` (imported module).
-    """
+    """Namespace of all class blueprints."""
 
     def __init__(self):
         super().__init__()
@@ -5397,32 +5304,18 @@ class ClassRegistry(Value):
     def __repr__(self):
         return f"<class registry: {list(self._classes.keys())}>"
 
-
 class ClassBlueprint(Value):
-    """Static singleton class object.
-
-    Fields and methods live directly on this object — there are no
-    separate instances.  Access pattern::
-
-        global.class.ClassName()              # run init() if defined
-        global.class.ClassName.varName        # read field
-        str global.class.ClassName.varName = "x"  # set field
-        global.class.ClassName.methodName()  # call method
-    """
+    """Static singleton class object."""
 
     def __init__(self, name, field_defs, methods):
-        """
-        field_defs : list of (type_str, name_str, value_node, is_const)
-                     value_node is evaluated lazily at class-definition time.
-        methods    : dict of method_name -> Function
-        """
+        """field_defs : list of (type_str,."""
         super().__init__()
         self.name = name
         self._field_defs = field_defs   # kept for repr / introspection
         self._methods = methods
-        self._fields = {}               # name -> {"type": str, "value": Value, "const": bool}
+        self._fields = {}
 
-    # ---- attribute access ----
+    # attribute access
 
     def get_attr(self, name):
         if name in self._fields:
@@ -5483,10 +5376,9 @@ class ClassBlueprint(Value):
                 return call_res
         return res.success(Number.null)
 
-    # ---- value protocol ----
+    # value protocol
 
     def copy(self):
-        # Reference semantics — mutations must be visible everywhere.
         return self
 
     def __repr__(self):
@@ -5502,13 +5394,8 @@ class ClassBlueprint(Value):
             + ">"
         )
 
-
 class BoundMethod(Value):
-    """A class method bound to its owning ClassBlueprint.
-
-    When called, injects ``this`` = the class blueprint into the
-    method's execution context so that ``this.field`` etc. work.
-    """
+    """A class method bound to."""
 
     def __init__(self, func, class_obj):
         super().__init__()
@@ -5546,22 +5433,15 @@ class BoundMethod(Value):
     def __repr__(self):
         return f"<bound method {self.func.name} of class {self.class_obj.name}>"
 
-
 class VarGroup(Value):
-    """Runtime representation of a vargroup value.
-
-    Uses reference semantics: copy() returns self so that mutations made
-    through addVarGroup / removeVarGroup / dot-assignment are visible to
-    all references that hold the same object.
-    """
+    """Runtime representation of a vargroup."""
 
     def __init__(self, name):
         super().__init__()
         self.name = name
-        # Ordered dict: field_name -> {"type": str, "value": Value}
         self._fields = {}
 
-    # ---- attribute access ----
+    # attribute access
 
     def get_attr(self, name):
         if name not in self._fields:
@@ -5623,10 +5503,9 @@ class VarGroup(Value):
         del self._fields[name]
         return None
 
-    # ---- value protocol ----
+    # value protocol
 
     def copy(self):
-        # Reference semantics: return self so mutations are always visible.
         return self
 
     def __repr__(self):
@@ -5636,9 +5515,7 @@ class VarGroup(Value):
             parts.append(f"{prefix}{info['type']} {k} = {info['value']}")
         return f"vargroup {self.name} " + "{ " + ", ".join(parts) + " }"
 
-
 # context
-
 
 class Context:
     def __init__(self, display_name, parent=None, parent_entry_pos=None):
@@ -5647,11 +5524,9 @@ class Context:
         self.parent_entry_pos = parent_entry_pos
         self.symbol_table = None
         self.current_function = None      # the Function/AsyncFunction currently executing
-        self.current_global_path = None   # path list for the executing global, e.g. ['a', 'b']
-
+        self.current_global_path = None
 
 # symbol table
-
 
 class SymbolTable:
     def __init__(self, parent=None):
@@ -5676,16 +5551,13 @@ class SymbolTable:
             self.types[name] = decl_type
 
     def update_existing(self, name, value):
-        """Walk the parent chain to find the declaring scope and update it there.
-        Falls back to the current table if the variable is not found anywhere.
-        Returns the table where the update was performed."""
+        """Walk the parent chain to."""
         table = self
         while table:
             if name in table.symbols:
                 table.symbols[name] = value
                 return table
             table = table.parent
-        # Variable not found — set in current scope (should not happen for well-typed code)
         self.symbols[name] = value
         return self
 
@@ -5708,45 +5580,26 @@ class SymbolTable:
     def remove(self, name):
         del self.symbols[name]
 
-
-# ── importPy shared module registry ───────────────────────────────────────────
-# Populated by importPy(){"os","sys",...} inside global setup(){}.
-# Injected into every rawPy{} and rawPyx{} exec namespace so users never need
-# to write 'import os' inside individual blocks.
+# importPy shared module registry
 _rawpy_global_modules: dict = {}
 
-# ── overrideMain entry-point registry ─────────────────────────────────────────
-# Set by overrideMain("funcName") inside global setup(){}.
-# visit_ProgramNode calls this function instead of main() when it is set.
-# Reset to None at the start of every run() / run_bytecode() call.
+# overrideMain entry-point registry
 _main_override: "str | None" = None
 
-# ── global call hierarchy helpers ─────────────────────────────────────────────
+# global call hierarchy helpers
 
 def _can_call_global(caller_path, callee_path):
-    """Return True if a global at *caller_path* is allowed to call one at *callee_path*.
-
-    Rules (hierarchical call restriction):
-    - Recursion (same path) is always allowed.
-    - Globals with a different top-level name are always callable (different tree).
-    - Within the same tree, a caller may only call its own ancestors (upward calls).
-      Sideways calls to siblings, cousins, or downward calls to descendants are
-      forbidden to keep the hierarchy clean.
-    """
+    """Return True if a global."""
     if not caller_path or not callee_path:
         return True
     # Recursion
     if caller_path == callee_path:
         return True
-    # Different top-level root — always OK
     if caller_path[0] != callee_path[0]:
         return True
-    # Same root: callee must be a strict prefix of caller (i.e. an ancestor)
     if len(callee_path) < len(caller_path):
         return caller_path[:len(callee_path)] == callee_path
-    # callee is at the same depth or deeper — not an ancestor
     return False
-
 
 def _get_current_global_path(context):
     """Walk the context chain to find the nearest current_global_path."""
@@ -5757,16 +5610,8 @@ def _get_current_global_path(context):
         c = c.parent
     return None
 
-
 def _preregister_nested_globals(parent_func, block_node, context):
-    """Scan the top-level statements of *block_node* for nested global FuncDefNodes
-    and eagerly register them in *parent_func.inner_globals* so that calls like
-    ``global.outer.inner()`` work without first executing ``global.outer()``.
-
-    Only the *direct* children of the block are scanned (not nested inside if/for/while).
-    Globals inside control-flow branches are registered lazily at runtime when the
-    parent executes.  Recurses for deeper nesting (global.a.b.c).
-    """
+    """Scan the top-level statements of."""
     for stmt in block_node.statements:
         if not isinstance(stmt, FuncDefNode):
             continue
@@ -5791,9 +5636,7 @@ def _preregister_nested_globals(parent_func, block_node, context):
         # Recurse for deeper nesting
         _preregister_nested_globals(child_func, stmt.body_block, context)
 
-
 # interpreter
-
 
 class Interpreter:
     def visit(self, node, context):
@@ -5814,6 +5657,13 @@ class Interpreter:
     def visit_StringNode(self, node, context):
         return RTResult().success(
             String(node.tok.value)
+            .set_context(context)
+            .set_pos(node.pos_start, node.pos_end)
+        )
+
+    def visit_CharNode(self, node, context):
+        return RTResult().success(
+            Char(node.tok.value)
             .set_context(context)
             .set_pos(node.pos_start, node.pos_end)
         )
@@ -5852,9 +5702,17 @@ class Interpreter:
         value = res.register(self.visit(node.value_node, context))
         if res.should_return():
             return res
-        # Auto-convert a list literal [a, b, c] to a LynxTuple when declared as 'tuple'
         if decl_type == "tuple" and isinstance(value, List):
             value = LynxTuple(value.elements)
+            value.set_context(context)
+        if decl_type == "char" and isinstance(value, String):
+            if len(value.value) != 1:
+                return res.failure(RTError(
+                    node.pos_start, node.pos_end,
+                    f"Type mismatch: '{var_name}' is 'char' but got a string of length {len(value.value)} — char requires exactly one character",
+                    context,
+                ))
+            value = Char(value.value)
             value.set_context(context)
         if not type_matches(decl_type, value):
             return res.failure(
@@ -5887,9 +5745,17 @@ class Interpreter:
         if res.should_return():
             return res
         decl_type = context.symbol_table.get_type(var_name)
-        # Auto-convert a list literal [a, b, c] to a LynxTuple when the target is 'tuple'
         if decl_type == "tuple" and isinstance(value, List):
             value = LynxTuple(value.elements)
+            value.set_context(context)
+        if decl_type == "char" and isinstance(value, String):
+            if len(value.value) != 1:
+                return res.failure(RTError(
+                    node.pos_start, node.pos_end,
+                    f"Type mismatch: '{var_name}' is 'char' but got a string of length {len(value.value)} — char requires exactly one character",
+                    context,
+                ))
+            value = Char(value.value)
             value.set_context(context)
         if not type_matches(decl_type, value):
             return res.failure(
@@ -5901,8 +5767,6 @@ class Interpreter:
                     context,
                 )
             )
-        # Update in the declaring scope so that assignments inside sub-contexts
-        # (e.g. for-loop) are visible in the outer scope.
         context.symbol_table.update_existing(var_name, value)
         return res.success(value)
 
@@ -6074,7 +5938,6 @@ class Interpreter:
             if body_res.error or body_res.func_return_value is not None:
                 return body_res
             should_break = body_res.loop_should_break
-            # continue/restart: still run the update step, then loop
             should_continue = body_res.loop_should_continue
 
             if not should_break:
@@ -6085,8 +5948,6 @@ class Interpreter:
 
             if should_break:
                 break
-            # should_continue just means skip the rest of the body (already done)
-
         return res.success(Number.null)
 
     def visit_BreakNode(self, node, context):
@@ -6102,18 +5963,13 @@ class Interpreter:
     def visit_TryCatchNode(self, node, context):
         res = RTResult()
 
-        # Run the try block in isolation — do not propagate its error outward
         try_res = RTResult()
         try_res.register(self.visit(node.try_block, context))
 
         if try_res.error:
-            # A runtime error occurred — execute the catch block instead.
-            # Run the catch block in the same context so that assignments
-            # inside it affect the surrounding scope, just like if/else blocks.
             if node.catch_var_tok:
                 var_name = node.catch_var_tok.value
 
-                # Enforce const invariant — cannot rebind a const variable
                 if context.symbol_table.is_const(var_name):
                     return res.failure(RTError(
                         node.catch_var_tok.pos_start,
@@ -6123,7 +5979,6 @@ class Interpreter:
                         context,
                     ))
 
-                # Enforce type invariant — existing typed variable must be str or any
                 existing_type = context.symbol_table.get_type(var_name)
                 if existing_type is not None and existing_type not in ("str", "any"):
                     return res.failure(RTError(
@@ -6134,7 +5989,6 @@ class Interpreter:
                         context,
                     ))
 
-                # Bind the error message as a str in the current scope
                 err_str = String(try_res.error.details)
                 err_str.set_context(context)
                 context.symbol_table.set(var_name, err_str, decl_type="str")
@@ -6155,7 +6009,6 @@ class Interpreter:
                 return out
             return res.success(Number.null)
 
-        # No error — propagate any control-flow signals from the try block
         if try_res.func_return_value is not None:
             return res.success_return(try_res.func_return_value)
         if try_res.loop_should_break:
@@ -6183,10 +6036,8 @@ class Interpreter:
         func_value.set_context(context).set_pos(node.pos_start, node.pos_end)
 
         if is_global:
-            # Determine global_path and register as a nested global if applicable
             parent_fn = context.current_function
             if parent_fn is not None and parent_fn.is_global:
-                # Nested global: register on parent function and build path
                 parent_path = parent_fn.global_path or [parent_fn.name]
                 func_value.global_path = parent_path + [func_name]
                 parent_fn.inner_globals[func_name] = func_value
@@ -6194,15 +6045,11 @@ class Interpreter:
                 # Top-level global
                 func_value.global_path = [func_name]
 
-            # Pre-register any nested globals declared directly inside this
-            # function's body so they are accessible via global.a.b() without
             # needing to call global.a() first.
             _preregister_nested_globals(func_value, node.body_block, context)
 
         context.symbol_table.set(func_name, func_value)
 
-        # If this is a 'local' function defined inside another function, register on
-        # the parent function so local.outerFunc.innerFunc() chains work.
         if not is_global and context.current_function is not None:
             context.current_function.inner_locals[func_name] = func_value
 
@@ -6255,7 +6102,7 @@ class Interpreter:
             context,
         ))
 
-    # ------------------------------------------------------------------ async visitor path
+    # async visitor path
 
     async def async_visit(self, node, context):
         """Dispatch to async_visit_<NodeType> if available, else fall back to sync visit."""
@@ -6263,7 +6110,6 @@ class Interpreter:
         method = getattr(self, method_name, None)
         if method is not None:
             return await method(node, context)
-        # Leaf / simple nodes (NumberNode, StringNode, BoolNode, NoneNode, VarAccessNode, etc.)
         return self.visit(node, context)
 
     async def async_visit_BlockNode(self, node, context):
@@ -6298,7 +6144,6 @@ class Interpreter:
         value = res.register(await self.async_visit(node.value_node, context))
         if res.should_return():
             return res
-        # Auto-convert list literal to LynxTuple when declared as 'tuple'
         if decl_type == "tuple" and isinstance(value, List):
             value = LynxTuple(value.elements)
             value.set_context(context)
@@ -6325,7 +6170,6 @@ class Interpreter:
         if res.should_return():
             return res
         decl_type = context.symbol_table.get_type(var_name)
-        # Auto-convert list literal to LynxTuple when the target is 'tuple'
         if decl_type == "tuple" and isinstance(value, List):
             value = LynxTuple(value.elements)
             value.set_context(context)
@@ -6502,8 +6346,6 @@ class Interpreter:
 
             if should_break:
                 break
-            # continue/restart just skips the rest of body (already handled)
-
         return res.success(Number.null)
 
     async def async_visit_BreakNode(self, node, context):
@@ -6580,7 +6422,6 @@ class Interpreter:
             return res
         value_to_call = value_to_call.copy().set_pos(node.pos_start, node.pos_end)
 
-        # enforce global.funcName() call syntax for user-defined global functions
         if (isinstance(node.node_to_call, VarAccessNode)
                 and isinstance(value_to_call, (Function, AsyncFunction))
                 and value_to_call.is_global):
@@ -6591,7 +6432,6 @@ class Interpreter:
                 context,
             ))
 
-        # enforce local.funcName() call syntax for user-defined local functions
         if (isinstance(node.node_to_call, VarAccessNode)
                 and isinstance(value_to_call, (Function, AsyncFunction))
                 and not value_to_call.is_global):
@@ -6647,8 +6487,6 @@ class Interpreter:
         return self.visit_AsyncLocalDefNode(node, context)
 
     async def async_visit_AsyncDotCallNode(self, node, context):
-        # Inside an async body: async.name(args) returns a CoroutineValue so the caller
-        # can either `await` it or pass it to asyncGather.
         res = RTResult()
         func_name = node.name_tok.value
         func_value = context.symbol_table.get(f"__async__{func_name}")
@@ -6665,7 +6503,6 @@ class Interpreter:
             args.append(val)
         call_res = func_value.execute(args)
         if call_res.error: return call_res
-        # Return the CoroutineValue — let await / asyncGather consume it
         return res.success(call_res.value)
 
     async def async_visit_DotAssignNode(self, node, context):
@@ -6715,17 +6552,15 @@ class Interpreter:
         return res.success(value)
 
     async def async_visit_VarGroupDeclNode(self, node, context):
-        # Field initializers do not support await (per language spec)
         return self.visit_VarGroupDeclNode(node, context)
 
     async def async_visit_AddVarGroupNode(self, node, context):
-        # Field initializers do not support await (per language spec)
         return self.visit_AddVarGroupNode(node, context)
 
     async def async_visit_RemoveVarGroupNode(self, node, context):
         return self.visit_RemoveVarGroupNode(node, context)
 
-    # ------------------------------------------------------------------ /async visitor path
+    # /async visitor path
 
     def visit_CallNode(self, node, context):
         res = RTResult()
@@ -6736,7 +6571,6 @@ class Interpreter:
             return res
         value_to_call = value_to_call.copy().set_pos(node.pos_start, node.pos_end)
 
-        # enforce global.funcName() call syntax for user-defined global functions
         if (isinstance(node.node_to_call, VarAccessNode)
                 and isinstance(value_to_call, (Function, AsyncFunction))
                 and value_to_call.is_global):
@@ -6747,7 +6581,6 @@ class Interpreter:
                 context,
             ))
 
-        # enforce local.funcName() call syntax for user-defined local functions
         if (isinstance(node.node_to_call, VarAccessNode)
                 and isinstance(value_to_call, (Function, AsyncFunction))
                 and not value_to_call.is_global):
@@ -6758,7 +6591,6 @@ class Interpreter:
                 context,
             ))
 
-        # enforce global call hierarchy restriction for nested globals
         if (isinstance(value_to_call, (Function, AsyncFunction))
                 and value_to_call.is_global
                 and value_to_call.global_path is not None
@@ -6819,14 +6651,12 @@ class Interpreter:
             )
         )
 
-    # ------------------------------------------------------------------ vargroup visitors
+    # vargroup visitors
 
     def _build_vargroup(self, name, fields, context):
-        # build a VarGroup from fields; caller registers it
         res = RTResult()
         vg = VarGroup(name)
         for field_tuple in fields:
-            # fields are 4-tuples: (type, name_tok, value_node, is_const)
             field_type, name_tok, value_node, is_const = field_tuple
             field_name = name_tok.value
             if field_name in vg._fields:
@@ -6839,7 +6669,6 @@ class Interpreter:
                     )
                 )
             if field_type == "vargroup":
-                # value_node is a VarGroupDeclNode — build nested VarGroup
                 nested = res.register(
                     self._build_vargroup(
                         value_node.name_tok.value, value_node.fields, context
@@ -6879,7 +6708,6 @@ class Interpreter:
         """Register a class blueprint in the nearest ClassRegistry."""
         res = RTResult()
 
-        # Build method Functions from method FuncDefNodes
         methods = {}
         for method_node in node.method_nodes:
             func_name = method_node.var_name_tok.value
@@ -6898,7 +6726,6 @@ class Interpreter:
         blueprint = ClassBlueprint(node.name_tok.value, field_defs, methods)
         blueprint.set_context(context).set_pos(node.pos_start, node.pos_end)
 
-        # Evaluate field default values, enforce declared type, populate blueprint
         for (field_type, field_name, value_node, is_const) in field_defs:
             value = res.register(self.visit(value_node, context))
             if res.should_return():
@@ -6917,7 +6744,6 @@ class Interpreter:
                 "const": is_const,
             }
 
-        # Register in the ClassRegistry stored under "class" in this scope
         class_registry = context.symbol_table.get("class")
         if not isinstance(class_registry, ClassRegistry):
             class_registry = ClassRegistry()
@@ -6946,7 +6772,6 @@ class Interpreter:
 
         attr_name = node.attr_name_tok.value
 
-        # The type written at the assignment site must match the field's declared type
         if attr_name in obj._fields:
             field_decl = obj._fields[attr_name]["type"]
             if node.decl_type != field_decl and node.decl_type != "any" and field_decl != "any":
@@ -7051,13 +6876,10 @@ class Interpreter:
 
         return res.success(Number.null)
 
-    # ------------------------------------------------------------------ /vargroup visitors
+    # /vargroup visitors
 
     def visit_ImportPyNode(self, node, context):
-        """Pre-import Python modules into _rawpy_global_modules so every
-        rawPy{} / rawPyx{} block in this run can use them without an explicit
-        'import x' statement at the top of each block.
-        """
+        """Pre-import Python modules into _rawpy_global_modules."""
         res = RTResult()
         import importlib as _importlib
         for mod_name in node.module_names:
@@ -7076,26 +6898,23 @@ class Interpreter:
     def visit_RawPyBlockNode(self, node, context):
         res = RTResult()
         py_ns = {"__builtins__": __builtins__}
-        # Inject modules pre-imported via importPy(){"os","sys",...} in setup()
         py_ns.update(_rawpy_global_modules)
         tbl = context.symbol_table
         while tbl is not None:
             for name, val in tbl.symbols.items():
                 if name not in py_ns:
                     if isinstance(val, Number):
-                        # Preserve bool type: Lynxer bools become Python bools
-                        # so they round-trip correctly after exec.
                         py_ns[name] = bool(val.value) if val.is_bool else val.value
+                    elif isinstance(val, Char):
+                        py_ns[name] = val.value
                     elif isinstance(val, String):
                         py_ns[name] = val.value
                     elif isinstance(val, LynxTuple):
-                        # Expose as a read-only Python tuple of primitive values
                         py_ns[name] = tuple(
                             e.value if isinstance(e, (Number, String)) else str(e)
                             for e in val.elements
                         )
                     elif isinstance(val, List):
-                        # Expose as a read-only Python list of primitive values
                         py_ns[name] = [
                             e.value if isinstance(e, (Number, String)) else str(e)
                             for e in val.elements
@@ -7127,8 +6946,6 @@ class Interpreter:
             elif isinstance(val, str):
                 new_val = String(val)
             if new_val is not None and context.symbol_table.get(name) is not None:
-                # Update in the declaring scope so nested-scope rawPy blocks
-                # (e.g. inside a for/while loop) write back to the right place.
                 context.symbol_table.update_existing(name, new_val)
 
         return res.success(Number.null)
@@ -7157,7 +6974,6 @@ class Interpreter:
             if isinstance(result_locals, dict):
                 cy_locals.update(result_locals)
         except BaseException:
-            # Cython compilation unavailable or interrupted — fall back to exec
             py_ns = {"__builtins__": __builtins__}
             py_ns.update(cy_locals)
             try:
@@ -7188,8 +7004,6 @@ class Interpreter:
             elif isinstance(val, str):
                 new_val = String(val)
             if new_val is not None and context.symbol_table.get(name) is not None:
-                # Update in the declaring scope so nested-scope rawPyx blocks
-                # (e.g. inside a for/while loop) write back to the right place.
                 context.symbol_table.update_existing(name, new_val)
 
         return res.success(Number.null)
@@ -7208,14 +7022,12 @@ class Interpreter:
         res = RTResult()
         filename = node.filename_tok.value
 
-        # Accept explicit .lynxc extension; otherwise default to .lynx
         explicit_bytecode = filename.endswith(".lynxc")
         if not filename.endswith(".lynx") and not explicit_bytecode:
             filename += ".lynx"
 
         module_name = os.path.splitext(os.path.basename(filename))[0]
 
-        # Idempotent: if this module is already loaded, skip re-importing
         existing = global_symbol_table.get(module_name)
         if isinstance(existing, Module):
             return res.success(Number.null)
@@ -7224,8 +7036,6 @@ class Interpreter:
         base_dir = os.path.dirname(file_val.value) if file_val else ""
         filepath = os.path.join(base_dir, filename) if base_dir else filename
 
-        # Resolve path: for .lynx imports, a compiled .lynxc beside the source
-        # takes precedence; fall back to stdlib if neither exists locally.
         use_bytecode = explicit_bytecode
         if not explicit_bytecode:
             lynxc_path = os.path.splitext(filepath)[0] + ".lynxc"
@@ -7298,7 +7108,6 @@ class Interpreter:
         module_table.set("tupleFirst", BuiltInFunction.tupleFirst)
         module_table.set("tupleLast", BuiltInFunction.tupleLast)
         module_table.set("tupleJsonArray", BuiltInFunction.tupleJsonArray)
-        # Class registry for this module (accessible as global.<module>.class)
         module_table.set("class", ClassRegistry())
 
         if use_bytecode:
@@ -7361,7 +7170,6 @@ class Interpreter:
 
         module_name = os.path.splitext(os.path.basename(filename))[0]
 
-        # Idempotent: skip if this alias is already loaded as a module
         existing = global_symbol_table.get(alias_name)
         if isinstance(existing, Module):
             return res.success(Number.null)
@@ -7482,20 +7290,17 @@ class Interpreter:
             if res.error:
                 return res
 
-        # Register main() into the symbol table if present
         if node.main_func is not None:
             res.register(self.visit(node.main_func, context))
             if res.error:
                 return res
 
-        # Run setup() — this is where overrideMain() may be called
         if node.setup_func:
             setup_res = RTResult()
             setup_res.register(self.visit(node.setup_func.body_block, context))
             if setup_res.error:
                 return setup_res
 
-        # Determine entry point: overrideMain() wins, otherwise fall back to main()
         entry_name = _main_override if _main_override else "main"
         entry_fn = context.symbol_table.get(entry_name)
         if entry_fn is None:
@@ -7522,7 +7327,6 @@ class Interpreter:
             return call_res
 
         return res.success(Number.null)
-
 
 # global symbol table
 
@@ -7585,13 +7389,11 @@ global_symbol_table.set("overrideMain", BuiltInFunction.overrideMain)
 
 SHARED_INTERPRETER = Interpreter()
 
-
 # run
-
 
 def run(fn, text):
     global _main_override
-    _main_override = None  # reset so each run starts fresh
+    _main_override = None
 
     lexer = Lexer(fn, text)
     tokens, error = lexer.make_tokens()
@@ -7608,12 +7410,10 @@ def run(fn, text):
     context.symbol_table = global_symbol_table
     global_symbol_table.set("__file__", String(os.path.abspath(fn)))
     global_symbol_table.set("global", Namespace(global_symbol_table))
-    # Fresh class registry for this run (accessible as global.class)
     global_symbol_table.set("class", ClassRegistry())
 
     result = interpreter.visit(ast.node, context)
     return result.value, result.error
-
 
 def run_file(fn, text, symbol_table):
     lexer = Lexer(fn, text)
@@ -7647,26 +7447,10 @@ def run_file(fn, text, symbol_table):
 
     return None
 
-
-# ── Bytecode compile / run ────────────────────────────────────────────────────
+# Bytecode compile / run
 
 def compile_to_bytecode(fn, text):
-    """Parse *text* (source of *fn*) and write a ``.lynxc`` file beside it.
-
-    Returns ``(out_path, None)`` on success or ``(None, error)`` on failure.
-
-    Bytecode format (v2):
-      - 6-byte magic header (``LYNXC\\x00``)
-      - zlib-compressed pickle stream containing ``version``, ``source``,
-        and the serialised AST.
-
-    Two optimisations over v1:
-      1. **zlib compression** — the pickle stream is compressed before
-         writing, typically cutting file size by 60–80 %.
-      2. **ftxt stripping** — ``Position.__getstate__`` omits the full
-         source text from every token, removing thousands of redundant
-         copies of the same string from the archive.
-    """
+    """Parse *text* (source of *fn*)."""
     lexer = Lexer(fn, text)
     tokens, error = lexer.make_tokens()
     if error:
@@ -7693,7 +7477,6 @@ def compile_to_bytecode(fn, text):
 
     return out_path, None
 
-
 def _load_bytecode(fn):
     """Read, decompress, and unpickle a ``.lynxc`` file.  Returns the data dict."""
     with open(fn, "rb") as f:
@@ -7714,19 +7497,14 @@ def _load_bytecode(fn):
         ) from exc
     return pickle.loads(raw)
 
-
 def run_bytecode(fn):
-    """Load and execute a pre-compiled ``.lynxc`` bytecode file.
-
-    Returns ``(value, error)`` — the same contract as :func:`run`.
-    """
+    """Load and execute a pre-compiled."""
     global _main_override
-    _main_override = None  # reset so each run starts fresh
+    _main_override = None
 
     try:
         data = _load_bytecode(fn)
     except Exception as e:
-        # Wrap in a plain Python exception; shell.py will print it.
         raise RuntimeError(str(e)) from e
 
     node = data["node"]
@@ -7740,17 +7518,11 @@ def run_bytecode(fn):
     result = interpreter.visit(node, context)
     return result.value, result.error
 
-
 def run_bytecode_file(fn, symbol_table):
-    """Load and execute a ``.lynxc`` file as a module (used by ``import()``).
-
-    Returns ``None`` on success or an ``Error`` on failure — the same
-    contract as :func:`run_file`.
-    """
+    """Load and execute a ``.lynxc``."""
     try:
         data = _load_bytecode(fn)
     except Exception as e:
-        # Surface as a plain string; visit_ImportNode wraps it in RTError.
         raise RuntimeError(str(e)) from e
 
     node = data["node"]

@@ -118,9 +118,12 @@ Built-in functions are conventionally called **directly** (without `global.`). M
 |------------|---------------------------|-------|
 | `int`      | `42`, `-7`, `0`           | integer |
 | `float`    | `3.14`, `-0.5`            | floating-point; `int` and `float` are interchangeable in expressions |
+| `num`      | `42`, `3.14`              | flexible numeric — accepts both `int` and `float`; `returnType()` reflects the actual stored kind |
+| `char`     | `'a'`, `'\n'`             | single Unicode character; single-quote literal; concatenates with `str` |
 | `str`      | `"hello"`, `"line\n"`     | double-quoted; supports `\n \t \\ \r \e` escapes |
 | `bool`     | `true`, `false`           | displays as `true`/`false`; truthy when non-zero |
-| `list`     | `range(5)`                | ordered sequence of values; declare with `any` |
+| `tuple`    | `[1, 2, 3]`               | immutable, fixed-length sequence; see [tuples.md](tuples.md) |
+| `list`     | `range(5)`                | ordered mutable sequence; declare with `list` keyword |
 | `vargroup` | `vargroup p = [...]`      | named typed record with dot-accessed fields; see [vargroups.md](vargroups.md) |
 | `any`      | anything, including `none`| no type check at assignment |
 
@@ -139,12 +142,63 @@ int n = 42;
 n = "oops";   // Runtime Error: Type mismatch
 ```
 
+Use `num` when a variable needs to hold either an integer or a floating-point value without knowing which ahead of time:
+
+```c
+num x = 10;      // holds an int
+x = 3.14;        // now holds a float — no error
+x = x + 1;       // arithmetic works normally
+print(returnType(x));  // "float" — reflects the actual stored kind
+```
+
+`num` enforces that the value is always numeric — assigning a string or other type is still a runtime error.
+
+### The `char` type
+
+`char` holds exactly one Unicode character. Use single-quote literals:
+
+```c
+char c = 'A';
+char newline = '\n';
+char tab     = '\t';
+```
+
+You can also assign a single-character string — the interpreter auto-converts it:
+
+```c
+char c = "B";    // fine — single-char string converted to char
+char bad = "hi"; // Runtime Error — string length 2 is not a char
+```
+
+Concatenating a `char` with another `char` or a `str` produces a `str`:
+
+```c
+char a = 'H';
+char b = 'i';
+str s = a + b;           // "Hi"
+str t = a + "ello";      // "Hello"
+print(returnType(a));    // char
+print(returnType(s));    // str
+```
+
+`char` values support `is` / `not is` equality:
+
+```c
+char x = 'z';
+if(x is 'z'){ print("yes\n"); }
+```
+
+Use `typing` helpers for char-specific operations:
+- `global.typing.charCodeOf(c)` — Unicode code point of a char
+- `global.typing.toChar(n)` — char from a code point integer
+- `global.typing.charAt(s, idx)` — extract the char at position `idx` from a string
+
 ### The `list` type
 
 Lists are first-class values. `returnType()` returns `"list"` for them. They are created with `range()` or `seqFromTo()`, or built up with `listPush()`. Because Lynxer uses value semantics, mutating built-ins like `listPush` and `listSet` return a **new** list — always reassign the result:
 
 ```c
-any lst = range(5);              // [0, 1, 2, 3, 4]
+list lst = range(5);             // [0, 1, 2, 3, 4]
 lst = listPush(lst, 10);         // [0, 1, 2, 3, 4, 10]
 int n = listGet(lst, 0);         // 0
 print(returnType(lst));          // list
@@ -172,6 +226,7 @@ print(not true);        // false
 ```c
 int x = 10;
 float pi = 3.14159;
+num score = 0;        // accepts int or float freely
 str msg = "hi";
 bool alive = true;
 any thing = none;
@@ -179,7 +234,28 @@ any thing = none;
 const str VERSION = "1.0";   // immutable — reassignment is a runtime error
 ```
 
-All variables must be declared with a type before use. The declaration initialises them.
+All variables must be declared with a type keyword before use. The declaration initialises them.
+
+**Reassignment** — after a variable has been declared, assign a new value using just the variable name, **without the type keyword**:
+
+```c
+int x = 10;   // declaration — type keyword required
+x = 20;       // reassignment — no type keyword
+x += 5;       // compound assignment: x is now 25
+```
+
+Using the type keyword a second time on the same name re-declares the variable — this is also how you **change a variable's type**:
+
+```c
+int x = 10;
+x = 20;         // reassignment — still an int, type enforced
+str x = "hi";   // re-declaration — x is now a str
+x = "world";    // fine — x is a str
+```
+
+Re-declaration replaces both the value and the recorded type, so subsequent bare assignments are checked against the new type. The normal idiom is bare assignment for same-type updates and re-declaration only when you intentionally change the type.
+
+> **List variables** use the `list` keyword: `list nums = range(5);`
 
 **Global variables** must be declared inside `setup()`. They are accessible from any function in the file.
 
@@ -340,7 +416,7 @@ Lynxer has two kinds of functions with distinct scopes:
 
 ### Global functions (`global`)
 
-`global` functions must be declared at the **top level of the file** — between `setup` and `main`, never inside another function. Attempting to define a `global` inside another function is a syntax error.
+`global` functions must be declared at the **top level of the file** — between `setup` and `main`. They may also be declared inside another `global` function body (the parser permits nested `global` definitions inside an enclosing `global`). Attempting to define a `global` inside a `local` function is a syntax error.
 
 ```c
 global setup(){}
@@ -483,7 +559,7 @@ global main(){
 | `float` | `float` |
 | `str` | `str` |
 | `bool` | `int` (0 or 1) |
-| `list` | **not visible** — use built-in functions instead |
+| `list` | `list` (read-only — changes inside the block are not written back) |
 | `none` | **not visible** |
 | function/module | **not visible** |
 
@@ -500,7 +576,7 @@ global main(){
 **Rules:**
 - Only variables that already exist in Lynxer scope can be updated.
 - Python code can read and update `int`, `float`, and `str` Lynxer variables.
-- `list` values are not visible in rawPy blocks.
+- `list` values are visible as Python `list` inside rawPy blocks but are read-only (changes are not written back).
 - Any `import` inside a rawPy block uses Python's import system.
 
 ### rawPyx block

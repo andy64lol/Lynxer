@@ -99,17 +99,17 @@ See [docs/stdlib/math.md](stdlib/math.md) for the full reference.
 | `cosh` | `cosh(float n)` | Hyperbolic cosine |
 | `tanh` | `tanh(float n)` | Hyperbolic tangent |
 | `roundTo` | `roundTo(float n, int decimals)` | Round to `decimals` places |
-| `mean` | `mean(any lst)` | Arithmetic mean of a list |
-| `median` | `median(any lst)` | Median of a list |
-| `std` | `std(any lst)` | Population standard deviation |
-| `variance` | `variance(any lst)` | Population variance |
-| `percentile` | `percentile(any lst, float p)` | p-th percentile (p in 0–100) |
+| `mean` | `mean(list lst)` | Arithmetic mean of a list |
+| `median` | `median(list lst)` | Median of a list |
+| `std` | `std(list lst)` | Population standard deviation |
+| `variance` | `variance(list lst)` | Population variance |
+| `percentile` | `percentile(list lst, float p)` | p-th percentile (p in 0–100) |
 | `corrcoef` | `corrcoef(any a, any b)` | Pearson correlation coefficient |
-| `prod` | `prod(any lst)` | Product of all elements |
-| `argmax` | `argmax(any lst)` | Index of the maximum value |
-| `argmin` | `argmin(any lst)` | Index of the minimum value |
+| `prod` | `prod(list lst)` | Product of all elements |
+| `argmax` | `argmax(list lst)` | Index of the maximum value |
+| `argmin` | `argmin(list lst)` | Index of the minimum value |
 | `dot` | `dot(any a, any b)` | Dot product of two lists |
-| `norm` | `norm(any lst)` | L2 (Euclidean) norm |
+| `norm` | `norm(list lst)` | L2 (Euclidean) norm |
 
 **NumPy-backed — list-returning**
 
@@ -118,10 +118,10 @@ These return a **list of strings**. Use `floatOf(listGet(lst, i))` to convert el
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `linspace` | `linspace(float start, float stop, int n)` | `n` evenly-spaced values in `[start, stop]` |
-| `cumsum` | `cumsum(any lst)` | Cumulative sum |
-| `diff` | `diff(any lst)` | Differences between consecutive elements |
-| `clip` | `clip(any lst, float lo, float hi)` | Element-wise clamp to `[lo, hi]` |
-| `normalize` | `normalize(any lst)` | Scale list to unit L2 length |
+| `cumsum` | `cumsum(list lst)` | Cumulative sum |
+| `diff` | `diff(list lst)` | Differences between consecutive elements |
+| `clip` | `clip(list lst, float lo, float hi)` | Element-wise clamp to `[lo, hi]` |
+| `normalize` | `normalize(list lst)` | Scale list to unit L2 length |
 
 ---
 
@@ -152,9 +152,9 @@ String manipulation, type conversion, and list utilities.
 | `replace` | `replace(str s, str old, str new)` | Replace all occurrences |
 | `toList` | `toList(str s, str sep)` | Split string by `sep` into a list |
 | `isList` | `isList(any val)` | `true` if `val` is a list |
-| `lenList` | `lenList(any lst)` | Number of elements in a list |
-| `flatten` | `flatten(any lst)` | Flatten one level of nested lists |
-| `unique` | `unique(any lst)` | Remove duplicates (order preserved) |
+| `lenList` | `lenList(list lst)` | Number of elements in a list |
+| `flatten` | `flatten(list lst)` | Flatten one level of nested lists |
+| `unique` | `unique(list lst)` | Remove duplicates (order preserved) |
 
 ---
 
@@ -233,8 +233,8 @@ JSON encode / decode via Python's `json` module.
 | `jsonGetBool` | `jsonGetBool(str s, str key)` | Get bool value at key |
 | `jsonKeys` | `jsonKeys(str s)` | Top-level keys as comma-separated string |
 | `jsonStringify` | `jsonStringify(str s)` | JSON-encode a raw string value |
-| `jsonArray` | `jsonArray(any lst)` | Serialize a Lynxer list to a JSON array string |
-| `jsonObject` | `jsonObject(any lst)` | Build JSON object from flat alternating key/value list |
+| `jsonArray` | `jsonArray(list lst)` | Serialize a Lynxer list to a JSON array string |
+| `jsonObject` | `jsonObject(list lst)` | Build JSON object from flat alternating key/value list |
 | `jsonHas` | `jsonHas(str s, str key)` | `true` if key exists in JSON object |
 | `jsonLength` | `jsonLength(str s)` | Number of keys in JSON object |
 | `jsonSet` | `jsonSet(str s, str key, str val)` | Set a string key; returns new JSON string |

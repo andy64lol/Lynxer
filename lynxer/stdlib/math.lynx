@@ -516,7 +516,7 @@ global roundTo(float n, int decimals){
 // Scalar results are returned as float.
 
 /// Arithmetic mean of a numeric list. ///
-global mean(any lst){
+global mean(list lst){
     float result = 0.0;
     rawPy(){
         import numpy as _np
@@ -529,7 +529,7 @@ global mean(any lst){
 }
 
 /// Median of a numeric list. ///
-global median(any lst){
+global median(list lst){
     float result = 0.0;
     rawPy(){
         import numpy as _np
@@ -542,7 +542,7 @@ global median(any lst){
 }
 
 /// Population standard deviation of a numeric list. ///
-global std(any lst){
+global std(list lst){
     float result = 0.0;
     rawPy(){
         import numpy as _np
@@ -555,7 +555,7 @@ global std(any lst){
 }
 
 /// Population variance of a numeric list. ///
-global variance(any lst){
+global variance(list lst){
     float result = 0.0;
     rawPy(){
         import numpy as _np
@@ -568,7 +568,7 @@ global variance(any lst){
 }
 
 /// p-th percentile of a numeric list (p in 0–100). ///
-global percentile(any lst, float p){
+global percentile(list lst, float p){
     float result = 0.0;
     rawPy(){
         import numpy as _np
@@ -598,7 +598,7 @@ global corrcoef(any a, any b){
 // ── List aggregates (scalar result) ─────────────────────────────────────────
 
 /// Product of all elements in a numeric list. ///
-global prod(any lst){
+global prod(list lst){
     float result = 0.0;
     rawPy(){
         import numpy as _np
@@ -611,7 +611,7 @@ global prod(any lst){
 }
 
 /// Index of the maximum value in a numeric list. ///
-global argmax(any lst){
+global argmax(list lst){
     int result = 0;
     rawPy(){
         import numpy as _np
@@ -624,7 +624,7 @@ global argmax(any lst){
 }
 
 /// Index of the minimum value in a numeric list. ///
-global argmin(any lst){
+global argmin(list lst){
     int result = 0;
     rawPy(){
         import numpy as _np
@@ -652,7 +652,7 @@ global dot(any a, any b){
 }
 
 /// L2 (Euclidean) norm of a numeric list. ///
-global norm(any lst){
+global norm(list lst){
     float result = 0.0;
     rawPy(){
         import numpy as _np
@@ -688,7 +688,7 @@ global linspace(float start, float stop, int n){
 }
 
 /// Cumulative sum of a numeric list. Elements are returned as strings. ///
-global cumsum(any lst){
+global cumsum(list lst){
     str result = "";
     rawPy(){
         import numpy as _np
@@ -704,7 +704,7 @@ global cumsum(any lst){
 
 /// Differences between consecutive elements of a numeric list.
 Returns a list one shorter than the input. Elements are strings. ///
-global diff(any lst){
+global diff(list lst){
     str result = "";
     rawPy(){
         import numpy as _np
@@ -720,7 +720,7 @@ global diff(any lst){
 
 /// Clip each element of a numeric list to the range [lo, hi].
 Returns a list of strings; use floatOf() to convert. ///
-global clip(any lst, float lo, float hi){
+global clip(list lst, float lo, float hi){
     str result = "";
     rawPy(){
         import numpy as _np
@@ -737,7 +737,7 @@ global clip(any lst, float lo, float hi){
 /// Normalize a numeric list to unit L2 length.
 If the norm is 0 the original list (as strings) is returned unchanged.
 Elements are strings; use floatOf() to convert. ///
-global normalize(any lst){
+global normalize(list lst){
     str result = "";
     rawPy(){
         import numpy as _np

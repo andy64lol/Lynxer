@@ -116,12 +116,12 @@ global jsonStringify(str s){
 }
 
 /// Builds a JSON array from a Lynxer list of values. ///
-global jsonArray(any lst){
+global jsonArray(list lst){
     return listJsonArray(lst);
 }
 
 /// Builds a JSON object from a flat Lynxer list alternating key, value, key, value… ///
-global jsonObject(any lst){
+global jsonObject(list lst){
     return listJsonObject(lst);
 }
 

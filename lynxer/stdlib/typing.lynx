@@ -92,17 +92,17 @@ global isList(any val){
 }
 
 /// Returns the number of elements in a list (alias for returnLength). ///
-global lenList(any lst){
+global lenList(list lst){
     return returnLength(lst);
 }
 
 /// Flattens one level of nested lists into a single flat list. ///
-global flatten(any lst){
+global flatten(list lst){
     return listFlatten(lst);
 }
 
 /// Returns a new list with duplicate values removed (order preserved). ///
-global unique(any lst){
+global unique(list lst){
     return listUnique(lst);
 }
 
@@ -382,6 +382,286 @@ global expandTabs(str s, int tabSize){
 }
 
 
+// ─── Type checks ───────────────────────────────────────────────────────────
+
+/// Return true if val is a char. ///
+global isChar(any val){
+    if(returnType(val) is "char"){ return true; }
+    return false;
+}
+
+/// Convert a single-char string or an int char-code to a char. ///
+global toChar(any val){
+    str kind = returnType(val);
+    if(kind is "char"){ return val; }
+    if(kind is "int"){
+        str result = "";
+        rawPy(){
+            try:
+                result = chr(val)
+            except Exception:
+                result = "\0"
+        }
+        char c = result;
+        return c;
+    }
+    if(kind is "str"){
+        char c = val;
+        return c;
+    }
+    char fallback = "\0";
+    return fallback;
+}
+
+/// Return the Unicode code point of a char or the first char of a string. ///
+global charCodeOf(any val){
+    int result = -1;
+    rawPy(){
+        try:
+            result = ord(str(val)[0])
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+/// Return the char at index idx in string s. ///
+global charAt(str s, int idx){
+    str sub = "";
+    rawPy(){
+        try:
+            sub = s[idx]
+        except Exception:
+            sub = ""
+    }
+    if(sub is ""){ return none; }
+    char c = sub;
+    return c;
+}
+
+/// Return true if val is int or float (i.e. numeric). ///
+global isNum(any val){
+    str t = returnType(val);
+    if(t is "int"){ return true; }
+    if(t is "float"){ return true; }
+    return false;
+}
+
+/// Return true if val is an int. ///
+global isInt(any val){
+    if(returnType(val) is "int"){ return true; }
+    return false;
+}
+
+/// Return true if val is a float. ///
+global isFloat(any val){
+    if(returnType(val) is "float"){ return true; }
+    return false;
+}
+
+/// Return true if val is a str. ///
+global isStr(any val){
+    if(returnType(val) is "str"){ return true; }
+    return false;
+}
+
+/// Return true if val is a bool. ///
+global isBool(any val){
+    if(returnType(val) is "bool"){ return true; }
+    return false;
+}
+
+/// Return true if val is a tuple. ///
+global isTuple(any val){
+    if(returnType(val) is "tuple"){ return true; }
+    return false;
+}
+
+/// Return true if val is none. ///
+global isNone(any val){
+    if(returnType(val) is "none"){ return true; }
+    return false;
+}
+
+// ─── List extras ───────────────────────────────────────────────────────────
+
+/// Return the first element of lst. Runtime error if lst is empty. ///
+global listFirst(list lst){
+    return listGet(lst, 0);
+}
+
+/// Return the last element of lst. Runtime error if lst is empty. ///
+global listLast(list lst){
+    int idx = returnLength(lst) - 1;
+    return listGet(lst, idx);
+}
+
+/// Return the first n elements of lst as a new list. ///
+global listHead(list lst, int n){
+    return listSlice(lst, 0, n);
+}
+
+/// Return the last n elements of lst as a new list. ///
+global listTail(list lst, int n){
+    int len = returnLength(lst);
+    int start = len - n;
+    if(start < 0){ start = 0; }
+    return listSlice(lst, start, len);
+}
+
+/// Sum all numeric elements in lst (alias for sumOf). ///
+global listSum(list lst){
+    return sumOf(lst);
+}
+
+/// Count how many times val appears in lst. ///
+global listCount(list lst, any val){
+    int count = 0;
+    int i = 0;
+    int len = returnLength(lst);
+    while(i < len){
+        any elem = listGet(lst, i);
+        if(strOf(elem) is strOf(val)){ count = count + 1; }
+        i = i + 1;
+    }
+    return count;
+}
+
+/// Zip two lists into a list of JSON pair strings: ["{\"a\":v1,\"b\":v2}", ...].
+  Length is min(len(lst1), len(lst2)). ///
+global listZip(list lst1, list lst2){
+    int len1 = returnLength(lst1);
+    int len2 = returnLength(lst2);
+    int len = len1;
+    if(len2 < len1){ len = len2; }
+    list result = seqFromTo(0, -1, 1);
+    int i = 0;
+    while(i < len){
+        any a = listGet(lst1, i);
+        any b = listGet(lst2, i);
+        str pair = "";
+        rawPy(){
+            import json as _json
+            pair = _json.dumps({"a": str(a), "b": str(b)})
+        }
+        result = listPush(result, pair);
+        i = i + 1;
+    }
+    return result;
+}
+
+// ─── Number extras ─────────────────────────────────────────────────────────
+
+/// Clamp n to the range [lo, hi]. Returns lo if n < lo, hi if n > hi. ///
+global clamp(float n, float lo, float hi){
+    if(n < lo){ return lo; }
+    if(n > hi){ return hi; }
+    return n;
+}
+
+/// Absolute value of n. ///
+global abs(num n){
+    if(n < 0){ return n * -1; }
+    return n;
+}
+
+/// Sign of n: returns 1 if n > 0, -1 if n < 0, 0 if n is 0. ///
+global sign(num n){
+    if(n > 0){ return 1; }
+    if(n < 0){ return -1; }
+    return 0;
+}
+
+/// Return the larger of two numeric values. ///
+global maxOf(num a, num b){
+    if(a > b){ return a; }
+    return b;
+}
+
+/// Return the smaller of two numeric values. ///
+global minOf(num a, num b){
+    if(a < b){ return a; }
+    return b;
+}
+
+/// Return true if lo <= n <= hi. ///
+global between(num n, num lo, num hi){
+    if(n >= lo and n <= hi){ return true; }
+    return false;
+}
+
+/// Round n to digits decimal places. ///
+global roundTo(float n, int digits){
+    float result = 0.0;
+    rawPy(){
+        result = round(n, digits)
+    }
+    return result;
+}
+
+// ─── String extras ─────────────────────────────────────────────────────────
+
+/// Zero-pad s on the left to at least width characters. ///
+global zfill(str s, int width){
+    str result = "";
+    rawPy(){
+        result = s.zfill(width)
+    }
+    return result;
+}
+
+/// Split s by newlines and return a list of lines. ///
+global linesOf(str s){
+    return splitStr(s, "\n");
+}
+
+// ─── List extras continued ─────────────────────────────────────────────────
+
+/// Average (mean) of all numeric elements in lst. ///
+global listAvg(list lst){
+    int len = returnLength(lst);
+    if(len is 0){ return 0.0; }
+    float total = sumOf(lst);
+    float result = 0.0;
+    rawPy(){
+        result = total / len
+    }
+    return result;
+}
+
+/// Return a new list of n copies of val. ///
+global listRepeat(any val, int n){
+    list result = range(0, 0, 1);
+    int i = 0;
+    while(i < n){
+        result = listPush(result, val);
+        i = i + 1;
+    }
+    return result;
+}
+
+/// Split lst into consecutive chunks of size n.
+  The last chunk may be smaller than n. Returns a list of lists encoded
+  as JSON arrays (use listGet + json.parseArray to access). ///
+global listChunk(list lst, int n){
+    list result = range(0, 0, 1);
+    int len = returnLength(lst);
+    int i = 0;
+    while(i < len){
+        int stop = i + n;
+        if(stop > len){ stop = len; }
+        list chunk = listSlice(lst, i, stop);
+        str encoded = "";
+        rawPy(){
+            import json as _json
+            encoded = _json.dumps(chunk)
+        }
+        result = listPush(result, encoded);
+        i = i + n;
+    }
+    return result;
+}
+
 // ─── Tuple extras ──────────────────────────────────────────────────────────
 // These functions compose the built-in tupleXxx() functions.
 // The core built-ins (tupleCreate, tupleGet, tupleLen, tupleContains,
@@ -390,58 +670,58 @@ global expandTabs(str s, int tabSize){
 
 /// Return a new tuple with the elements in reversed order. ///
 global tupleReverse(any t){
-    any lst = tupleToList(t);
+    list lst = tupleToList(t);
     lst = reverseList(lst);
     return listToTuple(lst);
 }
 
 /// Return a new tuple sorted in ascending order (numeric or string). ///
 global tupleSort(any t){
-    any lst = tupleToList(t);
+    list lst = tupleToList(t);
     lst = sortList(lst);
     return listToTuple(lst);
 }
 
 /// Return a new tuple sorted in descending order. ///
 global tupleSortDesc(any t){
-    any lst = tupleToList(t);
+    list lst = tupleToList(t);
     lst = sortList(lst, true);
     return listToTuple(lst);
 }
 
 /// Return the minimum element of a numeric tuple. ///
 global tupleMin(any t){
-    any lst = tupleToList(t);
+    list lst = tupleToList(t);
     return listMin(lst);
 }
 
 /// Return the maximum element of a numeric tuple. ///
 global tupleMax(any t){
-    any lst = tupleToList(t);
+    list lst = tupleToList(t);
     return listMax(lst);
 }
 
 /// Return the sum of all elements in a numeric tuple. ///
 global tupleSum(any t){
-    any lst = tupleToList(t);
+    list lst = tupleToList(t);
     return sumOf(lst);
 }
 
 /// Return true if any element in the tuple is truthy. ///
 global tupleAny(any t){
-    any lst = tupleToList(t);
+    list lst = tupleToList(t);
     return anyOf(lst);
 }
 
 /// Return true if all elements in the tuple are truthy. ///
 global tupleAll(any t){
-    any lst = tupleToList(t);
+    list lst = tupleToList(t);
     return allOf(lst);
 }
 
 /// Return a new tuple with duplicate values removed (order preserved). ///
 global tupleUnique(any t){
-    any lst = tupleToList(t);
+    list lst = tupleToList(t);
     lst = listUnique(lst);
     return listToTuple(lst);
 }
@@ -501,7 +781,7 @@ global tupleZip(any t1, any t2){
 
 /// Return a comma-separated string of the tuple's elements. ///
 global tupleJoin(any t, str sep){
-    any lst = tupleToList(t);
+    list lst = tupleToList(t);
     return listJoin(lst, sep);
 }
 
