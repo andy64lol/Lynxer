@@ -1,6 +1,7 @@
-![Lynxer logo](assets/lynxer.png)
-
 # Lynxer 
+
+![Lynxer logo](assets/lynxer.png)
+![](https://img.shields.io/badge/-Custom%20programming%20language-blue?style=for-the-badge)
 
 A statically-flavoured, C-style scripting language that runs on Python.  
 Files use the `.lynx` extension.
