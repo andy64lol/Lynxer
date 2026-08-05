@@ -28,6 +28,16 @@ build:
 	@echo "Installing dependencies..."
 	@$(VENV_PIP) install --upgrade -r requirements_venv.txt
 
+	@echo "Patching Arcade PyInstaller hook... (due to a bug)"
+	@HOOK=$$($(VENV_PY) -c 'import arcade, os; print(os.path.join(os.path.dirname(arcade.__file__), "__pyinstaller", "hook-arcade.py"))'); \
+	if [ -f "$$HOOK" ]; then \
+		sed -i.bak 's|"./arcade/VERSION"|"./arcade"|g' "$$HOOK"; \
+		rm -f "$$HOOK.bak"; \
+		echo "  -> Patched $$HOOK"; \
+	else \
+		echo "  -> Hook file not found (Arcade may not be installed?)"; \
+	fi
+
 	@echo "Installing PyInstaller..."
 	@$(VENV_PIP) install --upgrade pyinstaller
 
