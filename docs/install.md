@@ -1,23 +1,50 @@
 # Installation
 
-## Requirements
+## Option 1 — Download the executable (recommended)
+
+Download the latest pre-built binary for your platform from the
+[GitHub Releases page](https://github.com/your-org/lynxer/releases).
+
+No Python installation required. Unzip, place `lynxer` (or `lynxer.exe` on
+Windows) somewhere on your `PATH`, and you're done.
+
+```bash
+lynxer --version   # confirm it works
+lynxer hello.lynx  # run a Lynxer source file
+```
+
+---
+
+## Option 2 — Build from source
+
+### Requirements
 
 - Python 3.8 or later
 - `cython` Python package (for `rawPyx` support)
 - `setuptools` Python package (Cython shim on Python 3.12+)
 - A C compiler (`gcc` or `cc`) for Cython compilation
 
----
+### Full build
 
-## Build
+Bundles the complete standard library (all stdlib modules included):
 
-Simply run:
 ```bash
 make build
 ```
-and you will end up with an executable binary at `dist/lynxer`.
 
-The build process creates a Python virtual environment, installs dependencies (`flask`, `cython`, `setuptools`, `pyinstaller` and etc), and compiles a single-file binary.
+Produces a single-file binary at `dist/lynxer`.
+
+### Lite build
+
+Produces a smaller binary with a reduced standard library — useful for
+embedding or size-constrained targets where the full stdlib is not needed:
+
+```bash
+make buildLite
+```
+
+Produces `dist/lynxer-lite`. The lite build excludes heavier optional stdlib
+modules while keeping the core language and essential utilities.
 
 ---
 
@@ -25,7 +52,8 @@ The build process creates a Python virtual environment, installs dependencies (`
 
 | Target | Description |
 |--------|-------------|
-| `make build` | Build the package |
+| `make build` | Full build — all stdlib modules included |
+| `make buildLite` | Lite build — reduced stdlib, smaller binary |
 | `make clean` | Remove `__pycache__` and `.pyc` files |
 | `make help` | Print available targets |
 
@@ -34,6 +62,7 @@ The build process creates a Python virtual environment, installs dependencies (`
 ## Verifying the install
 
 ```bash
-lynxer --version   # Lynxer 0.1.7b3
-lynxer syntax.lynx # run the syntax showcase
+lynxer --version        # Lynxer 0.1.7b
+lynxer --compile a.lynx # compile to bytecode
+lynxer a.lynxc          # run compiled bytecode
 ```
