@@ -1,6 +1,4 @@
-# Lynxer
-
-![Lynxer logo](assets/lynxer.png)
+# Lynxer ![Lynxer logo](assets/lynxer.png)
 
 A statically-flavoured, C-style scripting language that runs on Python.  
 Files use the `.lynx` extension.
