@@ -2,6 +2,7 @@
 """Development shim — run from."""
 import sys
 import os
+import re
 
 _here   = os.path.dirname(os.path.abspath(__file__))   # .../lynxer/
 _parent = os.path.dirname(_here)                         # repo root
@@ -18,6 +19,7 @@ def main():
         print("  lynxer --compile <file.lynx>    Compile to bytecode (.lynxc)")
         print("  lynxer <file.lynxc>             Run a compiled bytecode file")
         print("  lynxer --version                Print version")
+        print("  lynxer --list-stdlibs           List available Lynxer stdlib modules")
         return 0
     if argv[0] in ('-v', '--version'):
         print("Lynxer 0.1.7b2")
@@ -29,7 +31,37 @@ def main():
         print("That will erase the entire linux OS and all your files. You will lose everything.")
         return 0
 
-    # --compile <file.lynx>  →  produce <file.lynxc>
+    if argv[0] in ('--list-stdlibs', '--stdlibs'):
+        stdlib_dir = os.path.join(_here, 'stdlib')
+        if not os.path.isdir(stdlib_dir):
+            print('No stdlib directory found.')
+            return 1
+        IMPORT_RE = re.compile(r"^\s*(?:from\s+([\w\.]+)\s+import|import\s+([\w\.]+))")
+        files = sorted([f for f in os.listdir(stdlib_dir) if f.endswith('.lynx')])
+        if not files:
+            print('No Lynxer stdlib modules found.')
+            return 0
+        print('Available Lynxer stdlib modules:')
+        for fn in files:
+            path = os.path.join(stdlib_dir, fn)
+            imports = set()
+            try:
+                with open(path, 'r', encoding='utf-8') as fh:
+                    for line in fh:
+                        m = IMPORT_RE.match(line)
+                        if m:
+                            mod = m.group(1) or m.group(2)
+                            if mod:
+                                imports.add(mod.split('.')[0])
+            except Exception:
+                pass
+            name = os.path.splitext(fn)[0]
+            if imports:
+                print(f"  - {name}: imports {', '.join(sorted(imports))}")
+            else:
+                print(f"  - {name}")
+        return 0
+
     if argv[0] in ('-c', '--compile'):
         if len(argv) < 2:
             print("shell.py: --compile requires a file argument", file=sys.stderr)

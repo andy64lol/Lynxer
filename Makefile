@@ -12,7 +12,7 @@ COLLECT_ALL := $(shell \
 	xargs -I{} printf -- "--collect-all=%s " "{}" \
 )
 
-.PHONY: build clean help
+.PHONY: build buildLite clean help
 
 build:
 	@if [ ! -d "$(VENV)" ]; then \
@@ -52,6 +52,34 @@ build:
 
 	@echo "✓ Build complete: dist/lynxer"
 
+buildLite:
+	@if [ ! -d "$(VENV)" ]; then \
+		echo "Creating virtual environment '$(VENV)'..."; \
+		$(PYTHON) -m venv $(VENV); \
+	else \
+		echo "Using existing virtual environment '$(VENV)'."; \
+	fi
+
+	@echo "Upgrading pip..."
+	@$(VENV_PIP) install --upgrade pip
+
+	@echo "Installing PyInstaller only (no external packages)..."
+	@$(VENV_PIP) install --upgrade pyinstaller
+
+	@echo "Selecting pure stdlib .lynx modules..."
+	@rm -rf build/stdlib_pure || true
+	@$(VENV_PY) scripts/select_pure_stdlib.py lynxer/stdlib build/stdlib_pure
+
+	@echo "Building Lynxer (lite) with only pure stdlib modules..."
+	@$(PYINSTALLER) \
+		--onefile \
+		--clean \
+		--name lynxer-lite \
+		--add-data "build/stdlib_pure:stdlib" \
+		lynxer/shell.py
+
+	@echo "✓ Lite build complete: dist/lynxer-lite"
+
 clean:
 	@find . -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null || true
 	@find . -name '*.pyc' -delete 2>/dev/null || true
@@ -62,4 +90,5 @@ clean:
 help:
 	@echo "Lynxer build targets:"
 	@echo "  make build"
+	@echo "  make buildLite"
 	@echo "  make clean"
