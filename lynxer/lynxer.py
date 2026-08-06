@@ -263,7 +263,11 @@ class Lexer:
                     if block_tok is not None:
                         tokens.append(block_tok)
             elif self.current_char == '"':
-                tokens.append(self.make_string())
+                tok = self.make_string()
+                if tok is None:
+                    pos = self.pos.copy()
+                    return [], IllegalCharError(pos, pos, "Unterminated string literal — missing closing '\"'")
+                tokens.append(tok)
             elif self.current_char == "'":
                 tok, error = self.make_char()
                 if error:
@@ -408,6 +412,10 @@ class Lexer:
                 else:
                     s += self.current_char
             self.advance()
+
+        if self.current_char is None:
+            # EOF reached before closing quote
+            return None  # caller handles None as an error
 
         self.advance()
         return Token(TT_STRING, s, pos_start, self.pos)
@@ -5671,7 +5679,7 @@ def _preregister_nested_globals(parent_func, block_node, context):
     first (textually) wins, which matches the behaviour of ``visit_FuncDefNode``.
     """
     for stmt in block_node.statements:
-        # ── Direct nested global ──────────────────────────────────────────
+        # Direct nested global
         if isinstance(stmt, FuncDefNode):
             is_global_def = (
                 stmt.kind_tok.value == "global"
@@ -5697,12 +5705,8 @@ def _preregister_nested_globals(parent_func, block_node, context):
             # Recurse so that 3+-level nesting is fully pre-populated.
             _preregister_nested_globals(child_func, stmt.body_block, context)
 
-        # ── Control-flow: search inside every known block-carrying node type
-        #    so that globals defined inside branches/loops/try are still
-        #    discoverable at module load time.  Using explicit isinstance
-        #    checks (rather than hasattr duck-typing) avoids accidentally
-        #    traversing unrelated nodes that happen to have similarly-named
-        #    attributes. ────────────────────────────────────────────────────
+        # Control-flow: search inside branches, loops, and try blocks too,
+        # so globals defined inside conditionals are still pre-registered.
         elif isinstance(stmt, IfNode):
             # then_block is always present; else_block may be None
             _preregister_nested_globals(parent_func, stmt.then_block, context)
@@ -6559,7 +6563,7 @@ class Interpreter:
 
         return res.failure(RTError(
             node.pos_start, node.pos_end,
-            f"Value of type '{type(obj).__name__}' does not support attribute access",
+            f"Value of type '{value_type_name(obj)}' does not support attribute access",
             context,
         ))
 
@@ -6729,7 +6733,7 @@ class Interpreter:
             RTError(
                 node.pos_start,
                 node.pos_end,
-                f"Value of type '{type(obj).__name__}' does not support attribute access",
+                f"Value of type '{value_type_name(obj)}' does not support attribute access",
                 context,
             )
         )
@@ -7533,7 +7537,7 @@ def run_file(fn, text, symbol_table):
 # Bytecode compile / run
 
 def compile_to_bytecode(fn, text):
-    """Parse *text* (source of *fn*)."""
+    """Parse and compile *text* (source of *fn*) to a .lynxc bytecode file."""
     lexer = Lexer(fn, text)
     tokens, error = lexer.make_tokens()
     if error:
@@ -7561,7 +7565,7 @@ def compile_to_bytecode(fn, text):
     return out_path, None
 
 def _load_bytecode(fn):
-    """Read, decompress, and unpickle a ``.lynxc`` file.  Returns the data dict."""
+    """Read, decompress, and unpickle a .lynxc file. Returns the data dict."""
     with open(fn, "rb") as f:
         magic = f.read(len(BYTECODE_MAGIC))
         if magic != BYTECODE_MAGIC:
@@ -7579,7 +7583,7 @@ def _load_bytecode(fn):
             f"Recompile the source file to fix this."
         ) from exc
     data = pickle.loads(raw)
-    # ── Version gate ────────────────────────────────────────────────────────
+    # Version check
     file_ver = data.get("version")
     if file_ver != BYTECODE_VERSION:
         raise ValueError(
@@ -7591,7 +7595,7 @@ def _load_bytecode(fn):
     return data
 
 def run_bytecode(fn):
-    """Load and execute a pre-compiled."""
+    """Load and execute a pre-compiled .lynxc bytecode file."""
     global _main_override
     _main_override = None
 

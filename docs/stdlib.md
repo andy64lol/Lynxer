@@ -25,12 +25,29 @@ global setup(){
     import("tkinter");
     import("turtle");
     import("game");
+    import("multiprocessing");
 }
 ```
 
 All functions are accessed via `global.<module>.<function>(...)`.
 
 See the [stdlib/ documentation folder](stdlib/README.md) for individual module pages.
+
+---
+
+## multiprocessing
+
+Run shell commands in parallel using Python's `multiprocessing` and `threading` modules.
+
+See [docs/multiprocessing.md](multiprocessing.md) for the full reference.
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `workerCount` | `workerCount()` | Number of available CPU cores |
+| `runParallel` | `runParallel(list commands)` | Run shell commands in parallel; return list of outputs |
+| `mapShell` | `mapShell(str template, list items)` | Run command per item (replace `{}` with item); return outputs |
+| `threadMap` | `threadMap(str template, list items)` | Like `mapShell` but uses threads (better for I/O-bound work) |
+| `runParallelSilent` | `runParallelSilent(list commands)` | Run commands in parallel, discard output; return exit codes |
 
 ---
 

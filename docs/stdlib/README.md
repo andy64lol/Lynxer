@@ -16,6 +16,7 @@ This directory contains documentation for all Lynxer standard library modules.
 | [js](js.md) | `js.lynx` | Run JavaScript via Node.js |
 | [json](json.md) | `json.lynx` | JSON encode / decode / query / mutate |
 | [math](math.md) | `math.lynx` | Math utilities, trig, rounding, statistics (NumPy) |
+| [multiprocessing](../multiprocessing.md) | `multiprocessing.lynx` | Run shell commands in parallel using process/thread pools |
 | [net](net.md) | `net.lynx` | WebSocket client, TCP client, hostname/IP/URL utilities |
 | [os](os.md) | `os.lynx` | OS and filesystem helpers (dirs, paths, env vars) |
 | [random](random.md) | `random.lynx` | Random number and sequence utilities |

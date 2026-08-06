@@ -1,5 +1,5 @@
-# !/usr/bin/env python3
-"""Development shim — run from."""
+#!/usr/bin/env python3
+"""CLI entry point for Lynxer. Run with: python lynxer/shell.py <file.lynx>"""
 import sys
 import os
 import re

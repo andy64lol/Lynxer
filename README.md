@@ -1,9 +1,9 @@
-# Lynxer 
+# Lynxer
 
 ![Lynxer logo](assets/lynxer.png)
 ![](https://img.shields.io/badge/-Custom%20programming%20language-blue?style=for-the-badge)
 
-A statically-flavoured, C-style scripting language that runs on Python.  
+A statically-flavoured, C-style scripting language that runs on Python.
 Files use the `.lynx` extension.
 
 ```c
@@ -17,6 +17,8 @@ global main(){
     print("!\n");
 }
 ```
+
+→ **[Installation](docs/install.md)** | **[Language reference](docs/language.md)** | **[Standard library](docs/stdlib.md)**
 
 ---
 
@@ -49,12 +51,10 @@ global main(){
     float pi = 3.14;
     bool ok = true;
 
-    // compound assignment
     x += 5;
 
-    // control flow
     if(x > 10){
-        greet(LANG);
+        global.greet(LANG);
     }
 
     for(int i = 0; i < 3; i = i + 1){
@@ -69,7 +69,7 @@ global main(){
     print(result); print("\n");
 
     // stdlib
-    print(math.global.sqrt(144)); print("\n");
+    print(global.math.sqrt(144)); print("\n");
 }
 ```
 
@@ -79,20 +79,20 @@ global main(){
 
 | Page | Contents |
 |------|----------|
+| [Installation](docs/install.md) | How to install and run Lynxer |
 | [Language reference](docs/language.md) | Types, variables, operators, control flow, functions |
 | [Built-ins](docs/builtins.md) | `print`, `input`, `strOf`, `returnType`, `seqFromTo`, … |
-| [Tuples](docs/tuples.md) | `tuple` type, built-in tuple functions, typing module extras |
+| [Tuples](docs/tuples.md) | `tuple` type, built-in tuple functions |
 | [importAs](docs/importAs.md) | `importAs("module", "alias")` — import under a custom name |
 | [Standard library](docs/stdlib.md) | All stdlib modules — overview and function tables |
-| [stdlib/ reference](docs/stdlib/README.md) | Individual per-module documentation pages |
+| [stdlib/ reference](docs/stdlib/README.md) | Per-module documentation pages |
 | [rawPy / rawPyx](docs/rawpy.md) | Embedding Python and Cython |
 | [Module system](docs/modules.md) | `import()`, `importAs()`, namespaces, writing your own modules |
-| [Bytecode (.lynxc)](docs/bytecode.md) | Compiling to bytecode, running `.lynxc` files, importing bytecode modules |
+| [Bytecode (.lynxc)](docs/bytecode.md) | Compiling to bytecode, running `.lynxc` files |
 | [Vargroups](docs/vargroups.md) | Named typed records (struct-like) |
 | [Classes](docs/classes.md) | Static singleton classes |
 | [Async](docs/async.md) | Async functions |
 | [Lists](docs/lists.md) | List operations |
-| [Installation](docs/install.md) | Install, Makefile targets, requirements |
 
 ---
 
@@ -101,14 +101,11 @@ global main(){
 ```
 lynxer/
   lynxer.py         Lexer + parser + interpreter + bytecode compiler
-  shell.py          CLI entry point (dev shim: python shell.py file.lynx)
-  stdlib/
-    math.lynx
-    typing.lynx
-    fileIO.lynx
-    shell.lynx
+  shell.py          CLI entry point
+  stdlib/           Standard library modules (.lynx files)
 docs/               Documentation
 syntax.lynx         Full syntax showcase
+main.py             Launcher (delegates to shell.py)
 Makefile
 README.md
 ```
