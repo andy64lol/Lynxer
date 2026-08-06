@@ -18,7 +18,7 @@ Adding a built-in requires exactly **four edits** to `lynxer/lynxer.py`, all in 
 
 ### Step 1 — Declare the class variable
 
-Around line 3376, `BuiltInFunction` has a block of `ClassVar` declarations — one per built-in. Add yours to the list:
+Around line 4051, `BuiltInFunction` has a block of `ClassVar` declarations — one per built-in. Add yours to the list:
 
 ```python
 class BuiltInFunction(BaseFunction):
@@ -100,7 +100,7 @@ return RTResult().failure(RTError(
 
 ### Step 3 — Instantiate the class variable
 
-Around line 4073, after the class body, there is a block of `BuiltInFunction.name = BuiltInFunction("name")` lines. Add yours:
+Around line 4956, after the class body, there is a block of `BuiltInFunction.name = BuiltInFunction("name")` lines. Add yours:
 
 ```python
 BuiltInFunction.myFunc = BuiltInFunction("myFunc")
@@ -112,17 +112,19 @@ The string `"myFunc"` must match the method name suffix exactly (`execute_myFunc
 
 There are **two** places where built-ins are registered.
 
-**a) `global_symbol_table`** (around line 5624) — makes it available to every Lynxer program:
+**a) `global_symbol_table`** (around line 7421) — makes it available to every Lynxer program:
 
 ```python
 global_symbol_table.set("myFunc", BuiltInFunction.myFunc)
 ```
 
-**b) `module_table`** inside `visit_ImportNode` (around line 5543) — makes it available inside imported stdlib modules:
+**b) `module_table`** inside `visit_ImportNode` (around line 7147) — makes it available inside imported stdlib modules:
 
 ```python
 module_table.set("myFunc", BuiltInFunction.myFunc)
 ```
+
+There is also an identical `module_table` registration inside `visit_ImportAsNode` (around line 7287). Both module import paths must include your built-in.
 
 Both registrations are required. Skipping the `module_table` entry means the built-in silently disappears inside any imported `.lynx` file.
 
