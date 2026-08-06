@@ -28,6 +28,7 @@ This directory contains documentation for all Lynxer standard library modules.
 | [tkinter](tkinter.md) | `tkinter.lynx` | Comprehensive GUI: windows, widgets, menus, canvas, dialogs; includes CTk extension (`ctk*` functions) |
 | [turtle](turtle.md) | `turtle.lynx` | Turtle graphics: drawing, shapes, animation, events |
 | [typing](typing.md) | `typing.lynx` | String/list/type conversion utilities |
+| [venv](venv.md) | `venv.lynx` | Python virtual environment lifecycle and package management |
 
 ## Usage
 
@@ -55,6 +56,7 @@ global setup(){
     import("turtle");
     import("game");
     import("image");
+    import("venv");
 }
 ```
 

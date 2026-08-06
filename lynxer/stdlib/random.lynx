@@ -1,14 +1,14 @@
-///
+////
   Lynxer Standard Library - random
   Provides: seed, random, randint, uniform,
             randrange, randrangeStep,
             gauss, coinflip,
             sampleInt, sampleFloat
-///
+////
 
 global setup(){}
 
-/// Seed the random number generator. Pass 0 to use system entropy. ///
+// Seed the random number generator. Pass 0 to use system entropy.
 global seed(int n){
     rawPy(){
         import random as _r
@@ -16,7 +16,7 @@ global seed(int n){
     }
 }
 
-/// Random float in [0.0, 1.0). ///
+// Random float in [0.0, 1.0).
 global random(){
     float result = 0.0;
     rawPy(){
@@ -26,7 +26,7 @@ global random(){
     return result;
 }
 
-/// Random integer in [a, b] inclusive. ///
+// Random integer in [a, b] inclusive.
 global randint(int a, int b){
     int result = 0;
     rawPy(){
@@ -36,7 +36,7 @@ global randint(int a, int b){
     return result;
 }
 
-/// Random float in [a, b]. ///
+// Random float in [a, b].
 global uniform(float a, float b){
     float result = 0.0;
     rawPy(){
@@ -73,7 +73,7 @@ global gauss(float mu, float sigma){
     return result;
 }
 
-/// Returns true or false with equal probability. ///
+// Returns true or false with equal probability.
 global coinflip(){
     int result = 0;
     rawPy(){
@@ -109,8 +109,8 @@ global sampleStr(str items){
     return result;
 }
 
-/// Shuffle a pipe-separated list of strings and return a new pipe-separated string.
-  e.g. shuffle("a|b|c|d") → "c|a|d|b" ///
+// Shuffle a pipe-separated list of strings and return a new pipe-separated string.
+// e.g. shuffle("a|b|c|d") → "c|a|d|b"
 global shuffle(str items){
     str result = "";
     rawPy(){
@@ -122,8 +122,8 @@ global shuffle(str items){
     return result;
 }
 
-/// Return a random float drawn from a triangular distribution with
-  low=lo, high=hi, mode=mode. ///
+// Return a random float drawn from a triangular distribution with
+// low=lo, high=hi, mode=mode.
 global triangular(float lo, float hi, float mid){
     float result = 0.0;
     rawPy(){
@@ -133,7 +133,7 @@ global triangular(float lo, float hi, float mid){
     return result;
 }
 
-/// Generate a UUID4 string (e.g. "f47ac10b-58cc-4372-a567-0e02b2c3d479"). ///
+// Generate a UUID4 string (e.g. "f47ac10b-58cc-4372-a567-0e02b2c3d479").
 global uuid4(){
     str result = "";
     rawPy(){
@@ -143,7 +143,7 @@ global uuid4(){
     return result;
 }
 
-/// Return n random hex characters (lowercase), e.g. randHex(8) → "a3f9c201". ///
+// Return n random hex characters (lowercase), e.g. randHex(8) → "a3f9c201".
 global randHex(int n){
     str result = "";
     rawPy(){
@@ -153,8 +153,8 @@ global randHex(int n){
     return result;
 }
 
-/// Return a random element from a pipe-separated list of strings.
-  Returns "" if the list is empty. ///
+// Return a random element from a pipe-separated list of strings.
+// Returns "" if the list is empty.
 global choice(str items){
     str result = "";
     rawPy(){
@@ -165,7 +165,7 @@ global choice(str items){
     return result;
 }
 
-/// Pick k unique items from a pipe-separated list and return them pipe-separated. ///
+// Pick k unique items from a pipe-separated list and return them pipe-separated.
 global sample(str items, int k){
     str result = "";
     rawPy(){
@@ -177,7 +177,7 @@ global sample(str items, int k){
     return result;
 }
 
-/// Return a random boolean (true or false with equal probability). ///
+// Return a random boolean (true or false with equal probability).
 global randBool(){
     bool result = false;
     rawPy(){

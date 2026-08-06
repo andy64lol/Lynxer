@@ -1,4 +1,4 @@
-///
+////
   Lynxer Standard Library — debug
   Runtime inspection, assertion, timing, and logging helpers.
 
@@ -10,13 +10,13 @@
     • environment: envGet, envAll
     • memory: getMemory
     • pretty-print: pp
-///
+////
 
 global setup(){}
 
 // ── Assertions ────────────────────────────────────────────────────────────────
 
-/// Raise a runtime error with msg if condition is 0 / false. ///
+// Raise a runtime error with msg if condition is 0 / false.
 global assert(bool cond, str msg){
     rawPy(){
         if not bool(cond):
@@ -24,8 +24,8 @@ global assert(bool cond, str msg){
     }
 }
 
-/// Raise a runtime error if a and b are not equal (string comparison).
-Use for checking two string values match. ///
+// Raise a runtime error if a and b are not equal (string comparison).
+// Use for checking two string values match.
 global assertEq(str a, str b, str msg){
     rawPy(){
         if str(a) != str(b):
@@ -33,7 +33,7 @@ global assertEq(str a, str b, str msg){
     }
 }
 
-/// Raise a runtime error if a and b are equal (string comparison). ///
+// Raise a runtime error if a and b are equal (string comparison).
 global assertNotEq(str a, str b, str msg){
     rawPy(){
         if str(a) == str(b):
@@ -41,7 +41,7 @@ global assertNotEq(str a, str b, str msg){
     }
 }
 
-/// Raise a runtime error if a ≤ b (numeric). ///
+// Raise a runtime error if a ≤ b (numeric).
 global assertGt(float a, float b, str msg){
     rawPy(){
         if not (float(a) > float(b)):
@@ -49,7 +49,7 @@ global assertGt(float a, float b, str msg){
     }
 }
 
-/// Raise a runtime error if a ≥ b (numeric). ///
+// Raise a runtime error if a ≥ b (numeric).
 global assertLt(float a, float b, str msg){
     rawPy(){
         if not (float(a) < float(b)):
@@ -57,7 +57,7 @@ global assertLt(float a, float b, str msg){
     }
 }
 
-/// Raise a runtime error if needle is not a substring of haystack. ///
+// Raise a runtime error if needle is not a substring of haystack.
 global assertContains(str haystack, str needle, str msg){
     rawPy(){
         if str(needle) not in str(haystack):
@@ -67,8 +67,8 @@ global assertContains(str haystack, str needle, str msg){
 
 // ── Type inspection ───────────────────────────────────────────────────────────
 
-/// Return the Lynxer type name of a value as a string.
-Returns one of: "int", "float", "str", "bool", "list", "null". ///
+// Return the Lynxer type name of a value as a string.
+// Returns one of: "int", "float", "str", "bool", "list", "null".
 global typeOf(any val){
     str result = "";
     rawPy(){
@@ -91,7 +91,7 @@ global typeOf(any val){
     return result;
 }
 
-/// Print the type and value of val to stdout. ///
+// Print the type and value of val to stdout.
 global dump(any val){
     rawPy(){
         if isinstance(val, bool):
@@ -112,8 +112,8 @@ global dump(any val){
     }
 }
 
-/// Return a JSON string describing val: {"type": "...", "value": "..."}.
-The value field is always a string representation. ///
+// Return a JSON string describing val: {"type": "...", "value": "..."}.
+// The value field is always a string representation.
 global inspect(any val){
     str result = "";
     rawPy(){
@@ -137,7 +137,7 @@ global inspect(any val){
     return result;
 }
 
-/// Pretty-print val to stdout with indentation for lists. ///
+// Pretty-print val to stdout with indentation for lists.
 global pp(any val){
     rawPy(){
         import json as _json
@@ -153,7 +153,7 @@ global pp(any val){
 
 // ── Structured logging ────────────────────────────────────────────────────────
 
-/// Emit a timestamped log line: [LEVEL timestamp] message. ///
+// Emit a timestamped log line: [LEVEL timestamp] message.
 global log(str level, str msg){
     rawPy(){
         import time as _time
@@ -162,7 +162,7 @@ global log(str level, str msg){
     }
 }
 
-/// Log an INFO message. ///
+// Log an INFO message.
 global info(str msg){
     rawPy(){
         import time as _time
@@ -171,7 +171,7 @@ global info(str msg){
     }
 }
 
-/// Log a WARN message. ///
+// Log a WARN message.
 global warn(str msg){
     rawPy(){
         import time as _time
@@ -180,7 +180,7 @@ global warn(str msg){
     }
 }
 
-/// Log an ERROR message. ///
+// Log an ERROR message.
 global error(str msg){
     rawPy(){
         import time as _time
@@ -189,7 +189,7 @@ global error(str msg){
     }
 }
 
-/// Log a DEBUG message. ///
+// Log a DEBUG message.
 global debug(str msg){
     rawPy(){
         import time as _time
@@ -200,7 +200,7 @@ global debug(str msg){
 
 // ── Timer ─────────────────────────────────────────────────────────────────────
 
-/// Start a named timer. Call stopTimer or elapsed to read the time. ///
+// Start a named timer. Call stopTimer or elapsed to read the time.
 global startTimer(str label){
     rawPy(){
         import builtins, time as _time
@@ -210,8 +210,8 @@ global startTimer(str label){
     }
 }
 
-/// Stop the named timer and return elapsed milliseconds.
-The timer is removed from the cache after reading. ///
+// Stop the named timer and return elapsed milliseconds.
+// The timer is removed from the cache after reading.
 global stopTimer(str label){
     float result = 0.0;
     rawPy(){
@@ -226,7 +226,7 @@ global stopTimer(str label){
     return result;
 }
 
-/// Read elapsed milliseconds without stopping the timer. ///
+// Read elapsed milliseconds without stopping the timer.
 global elapsed(str label){
     float result = 0.0;
     rawPy(){
@@ -240,7 +240,7 @@ global elapsed(str label){
     return result;
 }
 
-/// Return the current high-resolution timestamp in milliseconds. ///
+// Return the current high-resolution timestamp in milliseconds.
 global clock(){
     float result = 0.0;
     rawPy(){
@@ -252,7 +252,7 @@ global clock(){
 
 // ── Environment ───────────────────────────────────────────────────────────────
 
-/// Get the value of an environment variable, or "" if not set. ///
+// Get the value of an environment variable, or "" if not set.
 global envGet(str key){
     str result = "";
     rawPy(){
@@ -262,7 +262,7 @@ global envGet(str key){
     return result;
 }
 
-/// Return all environment variables as a JSON object. ///
+// Return all environment variables as a JSON object.
 global envAll(){
     str result = "";
     rawPy(){
@@ -274,7 +274,7 @@ global envAll(){
 
 // ── Memory ────────────────────────────────────────────────────────────────────
 
-/// Return the current process RSS (resident set size) in megabytes. ///
+// Return the current process RSS (resident set size) in megabytes.
 global getMemory(){
     float result = 0.0;
     rawPy(){

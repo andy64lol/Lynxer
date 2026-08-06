@@ -1,13 +1,13 @@
-///
+////
   Lynxer Standard Library — js
   Run JavaScript via Node.js subprocess.
   Requires: node installed and on PATH.
   Provides: runJS, runJSFile, evalJS, nodeVersion, nodeExists
-///
+////
 
 global setup(){}
 
-/// Runs a JS code string with Node.js. Returns stdout as str, or an error message on failure. ///
+// Runs a JS code string with Node.js. Returns stdout as str, or an error message on failure.
 global runJS(str code){
     str result = "";
     rawPy(){
@@ -39,7 +39,7 @@ global runJS(str code){
     return result;
 }
 
-/// Runs a .js file with Node.js. Returns stdout as str, or "" on error. ///
+// Runs a .js file with Node.js. Returns stdout as str, or "" on error.
 global runJSFile(str path){
     str result = "";
     rawPy(){
@@ -60,8 +60,8 @@ global runJSFile(str path){
     return result;
 }
 
-/// Evaluates a JS expression and returns the result as a string.
-  Wraps the expression in console.log() automatically. ///
+// Evaluates a JS expression and returns the result as a string.
+// Wraps the expression in console.log() automatically.
 global evalJS(str expr){
     str result = "";
     rawPy(){
@@ -94,7 +94,7 @@ global evalJS(str expr){
     return result;
 }
 
-/// Returns the Node.js version string (e.g. "v20.11.0"), or "" if node is not found. ///
+// Returns the Node.js version string (e.g. "v20.11.0"), or "" if node is not found.
 global nodeVersion(){
     str result = "";
     rawPy(){
@@ -113,7 +113,7 @@ global nodeVersion(){
     return result;
 }
 
-/// Returns 1 if Node.js is available on PATH, 0 otherwise. ///
+// Returns 1 if Node.js is available on PATH, 0 otherwise.
 global nodeExists(){
     int result = 0;
     rawPy(){

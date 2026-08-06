@@ -1,4 +1,4 @@
-///
+////
   Lynxer Standard Library — net
   Networking utilities: WebSocket client, TCP helpers, hostname/IP lookup,
   and simple HTTP utilities.
@@ -14,7 +14,7 @@
       getHostname, getLocalIP, resolveHost, isPortOpen,
       urlParse, urlHost, urlPath, urlScheme,
       httpHead, ping
-///
+////
 
 global setup(){}
 
@@ -31,9 +31,9 @@ global _ensureWsStore(){
 
 // ── WebSocket client ─────────────────────────────────────────────────────────
 
-/// Open a WebSocket connection to uri and store it under name.
-  Returns "ok" on success, or "ERROR: ..." on failure.
-  Example: wsConnect("chat", "ws://localhost:8765") ///
+// Open a WebSocket connection to uri and store it under name.
+// Returns "ok" on success, or "ERROR: ..." on failure.
+// Example: wsConnect("chat", "ws://localhost:8765")
 global wsConnect(str name, str uri){
     str result = "";
     rawPy(){
@@ -57,8 +57,8 @@ global wsConnect(str name, str uri){
     return result;
 }
 
-/// Send a text message on the named WebSocket connection.
-  Returns "ok" or "ERROR: ...". ///
+// Send a text message on the named WebSocket connection.
+// Returns "ok" or "ERROR: ...".
 global wsSend(str name, str message){
     str result = "";
     rawPy(){
@@ -77,8 +77,8 @@ global wsSend(str name, str message){
     return result;
 }
 
-/// Receive the next text message from the named WebSocket connection.
-  Returns the message string, or "ERROR: ...". ///
+// Receive the next text message from the named WebSocket connection.
+// Returns the message string, or "ERROR: ...".
 global wsReceive(str name){
     str result = "";
     rawPy(){
@@ -97,9 +97,9 @@ global wsReceive(str name){
     return result;
 }
 
-/// Send a message and immediately wait for one reply.
-  A convenience wrapper around wsSend + wsReceive.
-  Returns the reply string, or "ERROR: ...". ///
+// Send a message and immediately wait for one reply.
+// A convenience wrapper around wsSend + wsReceive.
+// Returns the reply string, or "ERROR: ...".
 global wsSendReceive(str name, str message){
     str result = "";
     rawPy(){
@@ -121,8 +121,8 @@ global wsSendReceive(str name, str message){
     return result;
 }
 
-/// Close and remove the named WebSocket connection.
-  Returns "ok" or "ERROR: ...". ///
+// Close and remove the named WebSocket connection.
+// Returns "ok" or "ERROR: ...".
 global wsClose(str name){
     str result = "";
     rawPy(){
@@ -144,7 +144,7 @@ global wsClose(str name){
     return result;
 }
 
-/// Returns true if a named WebSocket connection is currently open. ///
+// Returns true if a named WebSocket connection is currently open.
 global wsConnected(str name){
     int result = 0;
     rawPy(){
@@ -167,8 +167,8 @@ global wsConnected(str name){
 
 // ── TCP client ───────────────────────────────────────────────────────────────
 
-/// Open a TCP connection to host:port, store it under name.
-  Returns "ok" or "ERROR: ...". ///
+// Open a TCP connection to host:port, store it under name.
+// Returns "ok" or "ERROR: ...".
 global tcpConnect(str name, str host, int port){
     str result = "";
     rawPy(){
@@ -187,8 +187,8 @@ global tcpConnect(str name, str host, int port){
     return result;
 }
 
-/// Send raw bytes (UTF-8 text) on the named TCP connection.
-  Returns "ok" or "ERROR: ...". ///
+// Send raw bytes (UTF-8 text) on the named TCP connection.
+// Returns "ok" or "ERROR: ...".
 global tcpSend(str name, str data){
     str result = "";
     rawPy(){
@@ -207,8 +207,8 @@ global tcpSend(str name, str data){
     return result;
 }
 
-/// Receive up to bufSize bytes from the named TCP connection.
-  Returns the received string (UTF-8 decoded), or "ERROR: ...". ///
+// Receive up to bufSize bytes from the named TCP connection.
+// Returns the received string (UTF-8 decoded), or "ERROR: ...".
 global tcpReceive(str name, int bufSize){
     str result = "";
     rawPy(){
@@ -227,8 +227,8 @@ global tcpReceive(str name, int bufSize){
     return result;
 }
 
-/// Send data and receive up to bufSize bytes back (TCP round-trip).
-  Returns the response string, or "ERROR: ...". ///
+// Send data and receive up to bufSize bytes back (TCP round-trip).
+// Returns the response string, or "ERROR: ...".
 global tcpSendReceive(str name, str data, int bufSize){
     str result = "";
     rawPy(){
@@ -248,7 +248,7 @@ global tcpSendReceive(str name, str data, int bufSize){
     return result;
 }
 
-/// Close the named TCP connection. Returns "ok" or "ERROR: ...". ///
+// Close the named TCP connection. Returns "ok" or "ERROR: ...".
 global tcpClose(str name){
     str result = "";
     rawPy(){
@@ -270,7 +270,7 @@ global tcpClose(str name){
 
 // ── Hostname and IP utilities ────────────────────────────────────────────────
 
-/// Return the local machine's hostname. ///
+// Return the local machine's hostname.
 global getHostname(){
     str result = "";
     rawPy(){
@@ -283,8 +283,8 @@ global getHostname(){
     return result;
 }
 
-/// Return the primary local IPv4 address (the one used to reach the internet).
-  Returns "127.0.0.1" if detection fails. ///
+// Return the primary local IPv4 address (the one used to reach the internet).
+// Returns "127.0.0.1" if detection fails.
 global getLocalIP(){
     str result = "127.0.0.1";
     rawPy(){
@@ -301,8 +301,8 @@ global getLocalIP(){
     return result;
 }
 
-/// Resolve a hostname to its IPv4 address string.
-  Returns "ERROR: ..." if resolution fails. ///
+// Resolve a hostname to its IPv4 address string.
+// Returns "ERROR: ..." if resolution fails.
 global resolveHost(str hostname){
     str result = "";
     rawPy(){
@@ -315,8 +315,8 @@ global resolveHost(str hostname){
     return result;
 }
 
-/// Return true if host:port accepts a TCP connection within timeoutSecs.
-  Use to check whether a service is up before connecting. ///
+// Return true if host:port accepts a TCP connection within timeoutSecs.
+// Use to check whether a service is up before connecting.
 global isPortOpen(str host, int port, int timeoutSecs){
     int result = 0;
     rawPy(){
@@ -336,7 +336,7 @@ global isPortOpen(str host, int port, int timeoutSecs){
 
 // ── URL parsing ──────────────────────────────────────────────────────────────
 
-/// Return the scheme of a URL (e.g. "https", "ws"). ///
+// Return the scheme of a URL (e.g. "https", "ws").
 global urlScheme(str url){
     str result = "";
     rawPy(){
@@ -349,7 +349,7 @@ global urlScheme(str url){
     return result;
 }
 
-/// Return the host (and port if present) of a URL, e.g. "example.com:8080". ///
+// Return the host (and port if present) of a URL, e.g. "example.com:8080".
 global urlHost(str url){
     str result = "";
     rawPy(){
@@ -363,7 +363,7 @@ global urlHost(str url){
     return result;
 }
 
-/// Return the path component of a URL, e.g. "/api/v1/data". ///
+// Return the path component of a URL, e.g. "/api/v1/data".
 global urlPath(str url){
     str result = "";
     rawPy(){
@@ -376,7 +376,7 @@ global urlPath(str url){
     return result;
 }
 
-/// Return a JSON object with url parts: scheme, host, port, path, query, fragment. ///
+// Return a JSON object with url parts: scheme, host, port, path, query, fragment.
 global urlParse(str url){
     str result = "";
     rawPy(){
@@ -400,8 +400,8 @@ global urlParse(str url){
 
 // ── HTTP utilities ───────────────────────────────────────────────────────────
 
-/// Send an HTTP HEAD request and return the status code, or -1 on error.
-  Useful to check if a URL is reachable without downloading the body. ///
+// Send an HTTP HEAD request and return the status code, or -1 on error.
+// Useful to check if a URL is reachable without downloading the body.
 global httpHead(str url){
     int result = -1;
     rawPy(){
@@ -419,8 +419,8 @@ global httpHead(str url){
     return result;
 }
 
-/// Attempt a TCP connection to host:80 to check reachability.
-  Returns true if reachable within 3 seconds. ///
+// Attempt a TCP connection to host:80 to check reachability.
+// Returns true if reachable within 3 seconds.
 global ping(str host){
     int result = 0;
     rawPy(){

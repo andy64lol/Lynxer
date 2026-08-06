@@ -1,4 +1,4 @@
-///
+////
   Lynxer Standard Library — sys
   Wraps Python's sys module for runtime information and control.
 
@@ -9,13 +9,13 @@
             getFilesystemEncoding, getRefCount, isFrozen,
             stdin, stdout, stderr (as string descriptors),
             getFlags
-///
+////
 
 global setup(){}
 
 // ── Version & platform ─────────────────────────────────────────────────────
 
-/// Return the Python version string, e.g. "3.11.4 (main, ...)". ///
+// Return the Python version string, e.g. "3.11.4 (main, ...)".
 global version(){
     str result = "";
     rawPy(){
@@ -25,7 +25,7 @@ global version(){
     return result;
 }
 
-/// Return version info as a JSON object: {"major":3,"minor":11,"micro":4,"releaselevel":"final","serial":0}. ///
+// Return version info as a JSON object: {"major":3,"minor":11,"micro":4,"releaselevel":"final","serial":0}.
 global versionInfo(){
     str result = "";
     rawPy(){
@@ -42,7 +42,7 @@ global versionInfo(){
     return result;
 }
 
-/// Return the platform identifier, e.g. "linux", "darwin", "win32". ///
+// Return the platform identifier, e.g. "linux", "darwin", "win32".
 global platform(){
     str result = "";
     rawPy(){
@@ -52,7 +52,7 @@ global platform(){
     return result;
 }
 
-/// Return the absolute path to the Python interpreter executable. ///
+// Return the absolute path to the Python interpreter executable.
 global executable(){
     str result = "";
     rawPy(){
@@ -62,7 +62,7 @@ global executable(){
     return result;
 }
 
-/// Return sys.prefix (Python installation root). ///
+// Return sys.prefix (Python installation root).
 global prefix(){
     str result = "";
     rawPy(){
@@ -72,7 +72,7 @@ global prefix(){
     return result;
 }
 
-/// Return sys.exec_prefix (platform-specific installation root). ///
+// Return sys.exec_prefix (platform-specific installation root).
 global execPrefix(){
     str result = "";
     rawPy(){
@@ -84,7 +84,7 @@ global execPrefix(){
 
 // ── Command-line arguments ─────────────────────────────────────────────────
 
-/// Return sys.argv as a JSON array string, e.g. '["script.lynx","--flag","value"]'. ///
+// Return sys.argv as a JSON array string, e.g. '["script.lynx","--flag","value"]'.
 global argv(){
     str result = "";
     rawPy(){
@@ -94,7 +94,7 @@ global argv(){
     return result;
 }
 
-/// Return sys.argv[index] as a string, or "" if index is out of range. ///
+// Return sys.argv[index] as a string, or "" if index is out of range.
 global getArg(int index){
     str result = "";
     rawPy(){
@@ -107,7 +107,7 @@ global getArg(int index){
     return result;
 }
 
-/// Return the number of command-line arguments (len(sys.argv)). ///
+// Return the number of command-line arguments (len(sys.argv)).
 global argCount(){
     int result = 0;
     rawPy(){
@@ -119,7 +119,7 @@ global argCount(){
 
 // ── Process control ────────────────────────────────────────────────────────
 
-/// Exit the process with the given exit code (0 = success). ///
+// Exit the process with the given exit code (0 = success).
 global exit(int code){
     rawPy(){
         import sys as _sys
@@ -127,7 +127,7 @@ global exit(int code){
     }
 }
 
-/// Exit with code 0. ///
+// Exit with code 0.
 global exitOk(){
     rawPy(){
         import sys as _sys
@@ -135,7 +135,7 @@ global exitOk(){
     }
 }
 
-/// Exit with code 1. ///
+// Exit with code 1.
 global exitError(){
     rawPy(){
         import sys as _sys
@@ -145,7 +145,7 @@ global exitError(){
 
 // ── Module search path (sys.path) ──────────────────────────────────────────
 
-/// Return sys.path as a JSON array string. ///
+// Return sys.path as a JSON array string.
 global getPath(){
     str result = "";
     rawPy(){
@@ -155,7 +155,7 @@ global getPath(){
     return result;
 }
 
-/// Append path to sys.path. ///
+// Append path to sys.path.
 global addPath(str path){
     rawPy(){
         import sys as _sys
@@ -164,7 +164,7 @@ global addPath(str path){
     }
 }
 
-/// Prepend path to sys.path (highest priority). ///
+// Prepend path to sys.path (highest priority).
 global prependPath(str path){
     rawPy(){
         import sys as _sys
@@ -174,7 +174,7 @@ global prependPath(str path){
     }
 }
 
-/// Remove path from sys.path (no-op if not present). ///
+// Remove path from sys.path (no-op if not present).
 global removeFromPath(str path){
     rawPy(){
         import sys as _sys
@@ -187,7 +187,7 @@ global removeFromPath(str path){
 
 // ── Loaded modules ─────────────────────────────────────────────────────────
 
-/// Return a JSON array of names of all currently imported Python modules. ///
+// Return a JSON array of names of all currently imported Python modules.
 global getModules(){
     str result = "";
     rawPy(){
@@ -197,7 +197,7 @@ global getModules(){
     return result;
 }
 
-/// Return true if the named Python module is already imported. ///
+// Return true if the named Python module is already imported.
 global isModuleLoaded(str name){
     bool result = false;
     rawPy(){
@@ -209,7 +209,7 @@ global isModuleLoaded(str name){
 
 // ── Recursion limit ────────────────────────────────────────────────────────
 
-/// Return the current recursion limit (default 1000). ///
+// Return the current recursion limit (default 1000).
 global getRecursionLimit(){
     int result = 0;
     rawPy(){
@@ -219,7 +219,7 @@ global getRecursionLimit(){
     return result;
 }
 
-/// Set a new recursion limit (must be > 0). ///
+// Set a new recursion limit (must be > 0).
 global setRecursionLimit(int n){
     rawPy(){
         import sys as _sys
@@ -229,7 +229,7 @@ global setRecursionLimit(int n){
 
 // ── Integer / memory limits ────────────────────────────────────────────────
 
-/// Return sys.maxsize (largest positive integer the platform can hold in a C ssize_t). ///
+// Return sys.maxsize (largest positive integer the platform can hold in a C ssize_t).
 global getMaxSize(){
     int result = 0;
     rawPy(){
@@ -239,7 +239,7 @@ global getMaxSize(){
     return result;
 }
 
-/// Return the native byte order: "little" or "big". ///
+// Return the native byte order: "little" or "big".
 global getByteOrder(){
     str result = "";
     rawPy(){
@@ -251,7 +251,7 @@ global getByteOrder(){
 
 // ── Encoding ───────────────────────────────────────────────────────────────
 
-/// Return the name of the default string encoding, e.g. "utf-8". ///
+// Return the name of the default string encoding, e.g. "utf-8".
 global getDefaultEncoding(){
     str result = "";
     rawPy(){
@@ -261,7 +261,7 @@ global getDefaultEncoding(){
     return result;
 }
 
-/// Return the filesystem encoding used for file names, e.g. "utf-8". ///
+// Return the filesystem encoding used for file names, e.g. "utf-8".
 global getFilesystemEncoding(){
     str result = "";
     rawPy(){
@@ -273,7 +273,7 @@ global getFilesystemEncoding(){
 
 // ── Miscellaneous ──────────────────────────────────────────────────────────
 
-/// Return true if the interpreter is running as a PyInstaller frozen bundle. ///
+// Return true if the interpreter is running as a PyInstaller frozen bundle.
 global isFrozen(){
     bool result = false;
     rawPy(){
@@ -283,7 +283,7 @@ global isFrozen(){
     return result;
 }
 
-/// Return the name of the standard input stream device ("<stdin>"). ///
+// Return the name of the standard input stream device ("<stdin>").
 global stdinName(){
     str result = "";
     rawPy(){
@@ -293,7 +293,7 @@ global stdinName(){
     return result;
 }
 
-/// Return the name of the standard output stream device ("<stdout>"). ///
+// Return the name of the standard output stream device ("<stdout>").
 global stdoutName(){
     str result = "";
     rawPy(){
@@ -303,7 +303,7 @@ global stdoutName(){
     return result;
 }
 
-/// Return true if stdout is connected to a terminal (TTY). ///
+// Return true if stdout is connected to a terminal (TTY).
 global isatty(){
     bool result = false;
     rawPy(){
@@ -313,7 +313,7 @@ global isatty(){
     return result;
 }
 
-/// Return the CPython implementation name, e.g. "cpython". ///
+// Return the CPython implementation name, e.g. "cpython".
 global implementation(){
     str result = "";
     rawPy(){
@@ -323,7 +323,7 @@ global implementation(){
     return result;
 }
 
-/// Return the Python API version as an integer. ///
+// Return the Python API version as an integer.
 global apiVersion(){
     int result = 0;
     rawPy(){

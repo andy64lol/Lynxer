@@ -1,13 +1,13 @@
-///
+////
   Lynxer Standard Library — json
   JSON encode / decode via Python's json module.
   Provides: jsonValid, jsonParse, jsonGet, jsonGetInt, jsonGetFloat,
             jsonGetBool, jsonKeys, jsonStringify, jsonArray, jsonObject
-///
+////
 
 global setup(){}
 
-/// Returns true if s is valid JSON, false otherwise. ///
+// Returns true if s is valid JSON, false otherwise.
 global jsonValid(str s){
     bool result = false;
     rawPy(){
@@ -21,7 +21,7 @@ global jsonValid(str s){
     return result;
 }
 
-/// Pretty-prints a JSON string with 2-space indent. Returns "" on parse error. ///
+// Pretty-prints a JSON string with 2-space indent. Returns "" on parse error.
 global jsonParse(str s){
     str result = "";
     rawPy(){
@@ -34,7 +34,7 @@ global jsonParse(str s){
     return result;
 }
 
-/// Gets the string value at key from a JSON object string. Returns "" if missing or wrong type. ///
+// Gets the string value at key from a JSON object string. Returns "" if missing or wrong type.
 global jsonGet(str s, str key){
     str result = "";
     rawPy(){
@@ -49,7 +49,7 @@ global jsonGet(str s, str key){
     return result;
 }
 
-/// Gets an integer value at key from a JSON object string. Returns 0 on error. ///
+// Gets an integer value at key from a JSON object string. Returns 0 on error.
 global jsonGetInt(str s, str key){
     int result = 0;
     rawPy(){
@@ -63,7 +63,7 @@ global jsonGetInt(str s, str key){
     return result;
 }
 
-/// Gets a float value at key from a JSON object string. Returns 0.0 on error. ///
+// Gets a float value at key from a JSON object string. Returns 0.0 on error.
 global jsonGetFloat(str s, str key){
     float result = 0.0;
     rawPy(){
@@ -77,7 +77,7 @@ global jsonGetFloat(str s, str key){
     return result;
 }
 
-/// Gets a bool value at key from a JSON object string. Returns false on error. ///
+// Gets a bool value at key from a JSON object string. Returns false on error.
 global jsonGetBool(str s, str key){
     bool result = false;
     rawPy(){
@@ -91,7 +91,7 @@ global jsonGetBool(str s, str key){
     return result;
 }
 
-/// Returns the top-level keys of a JSON object as a comma-separated string. ///
+// Returns the top-level keys of a JSON object as a comma-separated string.
 global jsonKeys(str s){
     str result = "";
     rawPy(){
@@ -105,7 +105,7 @@ global jsonKeys(str s){
     return result;
 }
 
-/// JSON-encodes a Lynxer string value (adds quotes and escapes). ///
+// JSON-encodes a Lynxer string value (adds quotes and escapes).
 global jsonStringify(str s){
     str result = "";
     rawPy(){
@@ -115,17 +115,17 @@ global jsonStringify(str s){
     return result;
 }
 
-/// Builds a JSON array from a Lynxer list of values. ///
+// Builds a JSON array from a Lynxer list of values.
 global jsonArray(list lst){
     return listJsonArray(lst);
 }
 
-/// Builds a JSON object from a flat Lynxer list alternating key, value, key, value… ///
+// Builds a JSON object from a flat Lynxer list alternating key, value, key, value…
 global jsonObject(list lst){
     return listJsonObject(lst);
 }
 
-/// Returns true if key exists in the JSON object string s. ///
+// Returns true if key exists in the JSON object string s.
 global jsonHas(str s, str key){
     int result = 0;
     rawPy(){
@@ -140,7 +140,7 @@ global jsonHas(str s, str key){
     return false;
 }
 
-/// Returns the number of top-level keys (object) or elements (array) in s. Returns 0 on error. ///
+// Returns the number of top-level keys (object) or elements (array) in s. Returns 0 on error.
 global jsonLength(str s){
     int result = 0;
     rawPy(){
@@ -153,7 +153,7 @@ global jsonLength(str s){
     return result;
 }
 
-/// Set key to the JSON-encoded value val in the JSON object s. Returns the new JSON string. ///
+// Set key to the JSON-encoded value val in the JSON object s. Returns the new JSON string.
 global jsonSet(str s, str key, str val){
     str result = "";
     rawPy(){
@@ -171,7 +171,7 @@ global jsonSet(str s, str key, str val){
     return result;
 }
 
-/// Remove key from the JSON object s. Returns the new JSON string. ///
+// Remove key from the JSON object s. Returns the new JSON string.
 global jsonDelete(str s, str key){
     str result = "";
     rawPy(){
@@ -186,7 +186,7 @@ global jsonDelete(str s, str key){
     return result;
 }
 
-/// Merge two JSON objects. Keys from b overwrite keys from a. Returns the merged JSON string. ///
+// Merge two JSON objects. Keys from b overwrite keys from a. Returns the merged JSON string.
 global jsonMerge(str a, str b){
     str result = "";
     rawPy(){
@@ -202,7 +202,7 @@ global jsonMerge(str a, str b){
     return result;
 }
 
-/// Set a key to an int value in a JSON object string. Returns updated JSON. ///
+// Set a key to an int value in a JSON object string. Returns updated JSON.
 global jsonSetInt(str s, str key, int value){
     str result = "";
     rawPy(){
@@ -217,7 +217,7 @@ global jsonSetInt(str s, str key, int value){
     return result;
 }
 
-/// Pretty-print a JSON string with 4-space indent. Returns "" on parse error. ///
+// Pretty-print a JSON string with 4-space indent. Returns "" on parse error.
 global jsonPretty(str s){
     str result = "";
     rawPy(){
@@ -230,8 +230,8 @@ global jsonPretty(str s){
     return result;
 }
 
-/// Return the JSON type of the value at key as a string:
-  "string", "int", "float", "bool", "null", "object", "array", or "unknown". ///
+// Return the JSON type of the value at key as a string:
+// "string", "int", "float", "bool", "null", "object", "array", or "unknown".
 global jsonType(str s, str key){
     str result = "unknown";
     rawPy(){
@@ -259,8 +259,8 @@ global jsonType(str s, str key){
     return result;
 }
 
-/// Build a JSON object from a Lynxer string of alternating key=value pairs separated by "|".
-  e.g. jsonBuild("name=Alice|age=30") → '{"name": "Alice", "age": "30"}' ///
+// Build a JSON object from a Lynxer string of alternating key=value pairs separated by "|".
+// e.g. jsonBuild("name=Alice|age=30") → '{"name": "Alice", "age": "30"}'
 global jsonBuild(str pairs){
     str result = "";
     rawPy(){

@@ -1,9 +1,9 @@
-///
+////
   Lynxer Standard Library — typing
   Provides: toStr, toInt, toFloat, toBool, isNumeric, lenStr,
             repeat, contains,
             toList, isList, lenList, flatten, unique
-///
+////
 
 global setup(){}
 
@@ -78,12 +78,12 @@ global contains(str haystack, str needle){
     return false;
 }
 
-/// Splits a string by sep and returns a list. ///
+// Splits a string by sep and returns a list.
 global toList(str s, str sep){
     return splitStr(s, sep);
 }
 
-/// Returns 1 if val is a list, 0 otherwise. ///
+// Returns 1 if val is a list, 0 otherwise.
 global isList(any val){
     if(returnType(val) is "list"){
         return true;
@@ -91,22 +91,22 @@ global isList(any val){
     return false;
 }
 
-/// Returns the number of elements in a list (alias for returnLength). ///
+// Returns the number of elements in a list (alias for returnLength).
 global lenList(list lst){
     return returnLength(lst);
 }
 
-/// Flattens one level of nested lists into a single flat list. ///
+// Flattens one level of nested lists into a single flat list.
 global flatten(list lst){
     return listFlatten(lst);
 }
 
-/// Returns a new list with duplicate values removed (order preserved). ///
+// Returns a new list with duplicate values removed (order preserved).
 global unique(list lst){
     return listUnique(lst);
 }
 
-/// Strip leading and trailing whitespace from s. ///
+// Strip leading and trailing whitespace from s.
 global trim(str s){
     str result = "";
     rawPy(){
@@ -115,7 +115,7 @@ global trim(str s){
     return result;
 }
 
-/// Convert s to uppercase. ///
+// Convert s to uppercase.
 global upper(str s){
     str result = "";
     rawPy(){
@@ -124,7 +124,7 @@ global upper(str s){
     return result;
 }
 
-/// Convert s to lowercase. ///
+// Convert s to lowercase.
 global lower(str s){
     str result = "";
     rawPy(){
@@ -133,7 +133,7 @@ global lower(str s){
     return result;
 }
 
-/// Returns true if s starts with prefix. ///
+// Returns true if s starts with prefix.
 global startsWith(str s, str prefix){
     int result = 0;
     rawPy(){
@@ -143,7 +143,7 @@ global startsWith(str s, str prefix){
     return false;
 }
 
-/// Returns true if s ends with suffix. ///
+// Returns true if s ends with suffix.
 global endsWith(str s, str suffix){
     int result = 0;
     rawPy(){
@@ -153,7 +153,7 @@ global endsWith(str s, str suffix){
     return false;
 }
 
-/// Replace all occurrences of old with new in s. ///
+// Replace all occurrences of old with new in s.
 global replace(str s, str old, str new){
     str result = "";
     rawPy(){
@@ -162,7 +162,7 @@ global replace(str s, str old, str new){
     return result;
 }
 
-/// Return the index of the first occurrence of sub in s, or -1 if not found. ///
+// Return the index of the first occurrence of sub in s, or -1 if not found.
 global indexOf(str s, str sub){
     int result = 0;
     rawPy(){
@@ -171,7 +171,7 @@ global indexOf(str s, str sub){
     return result;
 }
 
-/// Return s[start:end] (Python-style slice). Negative indices count from the end. ///
+// Return s[start:end] (Python-style slice). Negative indices count from the end.
 global substr(str s, int start, int end){
     str result = "";
     rawPy(){
@@ -180,7 +180,7 @@ global substr(str s, int start, int end){
     return result;
 }
 
-/// Left-pad s with ch until it is at least width characters wide. ///
+// Left-pad s with ch until it is at least width characters wide.
 global padLeft(str s, int width, str ch){
     str result = "";
     rawPy(){
@@ -190,7 +190,7 @@ global padLeft(str s, int width, str ch){
     return result;
 }
 
-/// Right-pad s with ch until it is at least width characters wide. ///
+// Right-pad s with ch until it is at least width characters wide.
 global padRight(str s, int width, str ch){
     str result = "";
     rawPy(){
@@ -200,7 +200,7 @@ global padRight(str s, int width, str ch){
     return result;
 }
 
-/// Return s with its characters in reverse order. ///
+// Return s with its characters in reverse order.
 global strReverse(str s){
     str result = "";
     rawPy(){
@@ -209,8 +209,8 @@ global strReverse(str s){
     return result;
 }
 
-/// Return the Unicode code point of the first character of s.
-  Returns -1 if s is empty. ///
+// Return the Unicode code point of the first character of s.
+// Returns -1 if s is empty.
 global charCode(str s){
     int result = -1;
     rawPy(){
@@ -222,7 +222,7 @@ global charCode(str s){
     return result;
 }
 
-/// Return the character whose Unicode code point is code. Returns "" on error. ///
+// Return the character whose Unicode code point is code. Returns "" on error.
 global charOf(int code){
     str result = "";
     rawPy(){
@@ -234,7 +234,7 @@ global charOf(int code){
     return result;
 }
 
-/// Count how many times sub appears in s (non-overlapping). ///
+// Count how many times sub appears in s (non-overlapping).
 global countOccurrences(str s, str sub){
     int result = 0;
     rawPy(){
@@ -246,8 +246,8 @@ global countOccurrences(str s, str sub){
     return result;
 }
 
-/// Split s on the first occurrence of sep and return a 2-element list.
-  If sep is not found the second element is "". ///
+// Split s on the first occurrence of sep and return a 2-element list.
+// If sep is not found the second element is "".
 global splitFirst(str s, str sep){
     str result = "";
     rawPy(){
@@ -262,7 +262,7 @@ global splitFirst(str s, str sep){
     return splitStr(result, "\x1f");
 }
 
-/// Centre s in a field of width characters, padded with ch on both sides. ///
+// Centre s in a field of width characters, padded with ch on both sides.
 global center(str s, int width, str ch){
     str result = "";
     rawPy(){
@@ -272,7 +272,7 @@ global center(str s, int width, str ch){
     return result;
 }
 
-/// Strip leading whitespace from s. ///
+// Strip leading whitespace from s.
 global stripLeft(str s){
     str result = "";
     rawPy(){
@@ -281,7 +281,7 @@ global stripLeft(str s){
     return result;
 }
 
-/// Strip trailing whitespace from s. ///
+// Strip trailing whitespace from s.
 global stripRight(str s){
     str result = "";
     rawPy(){
@@ -290,7 +290,7 @@ global stripRight(str s){
     return result;
 }
 
-/// Return true if every character in s is a letter (a-z, A-Z). Returns false if empty. ///
+// Return true if every character in s is a letter (a-z, A-Z). Returns false if empty.
 global isAlpha(str s){
     bool result = false;
     rawPy(){
@@ -299,7 +299,7 @@ global isAlpha(str s){
     return result;
 }
 
-/// Return true if every character in s is a decimal digit. Returns false if empty. ///
+// Return true if every character in s is a decimal digit. Returns false if empty.
 global isDigit(str s){
     bool result = false;
     rawPy(){
@@ -308,7 +308,7 @@ global isDigit(str s){
     return result;
 }
 
-/// Return true if every character in s is alphanumeric. Returns false if empty. ///
+// Return true if every character in s is alphanumeric. Returns false if empty.
 global isAlphaNum(str s){
     bool result = false;
     rawPy(){
@@ -317,7 +317,7 @@ global isAlphaNum(str s){
     return result;
 }
 
-/// Return true if every character in s is a whitespace character. Returns false if empty. ///
+// Return true if every character in s is a whitespace character. Returns false if empty.
 global isSpace(str s){
     bool result = false;
     rawPy(){
@@ -326,7 +326,7 @@ global isSpace(str s){
     return result;
 }
 
-/// Convert s to title case (first letter of each word capitalised). ///
+// Convert s to title case (first letter of each word capitalised).
 global titleCase(str s){
     str result = "";
     rawPy(){
@@ -335,7 +335,7 @@ global titleCase(str s){
     return result;
 }
 
-/// Swap the case of every character in s (upper↔lower). ///
+// Swap the case of every character in s (upper↔lower).
 global swapCase(str s){
     str result = "";
     rawPy(){
@@ -344,7 +344,7 @@ global swapCase(str s){
     return result;
 }
 
-/// Repeat s exactly n times. ///
+// Repeat s exactly n times.
 global repeatStr(str s, int n){
     str result = "";
     rawPy(){
@@ -353,7 +353,7 @@ global repeatStr(str s, int n){
     return result;
 }
 
-/// Return a string of n space characters. ///
+// Return a string of n space characters.
 global spaces(int n){
     str result = "";
     rawPy(){
@@ -362,7 +362,7 @@ global spaces(int n){
     return result;
 }
 
-/// Wrap long text to at most width characters per line, returning the wrapped text. ///
+// Wrap long text to at most width characters per line, returning the wrapped text.
 global wordWrap(str s, int width){
     str result = "";
     rawPy(){
@@ -372,7 +372,7 @@ global wordWrap(str s, int width){
     return result;
 }
 
-/// Expand tab characters in s to spaces, using tabSize-character tab stops. ///
+// Expand tab characters in s to spaces, using tabSize-character tab stops.
 global expandTabs(str s, int tabSize){
     str result = "";
     rawPy(){
@@ -384,13 +384,13 @@ global expandTabs(str s, int tabSize){
 
 // ─── Type checks ───────────────────────────────────────────────────────────
 
-/// Return true if val is a char. ///
+// Return true if val is a char.
 global isChar(any val){
     if(returnType(val) is "char"){ return true; }
     return false;
 }
 
-/// Convert a single-char string or an int char-code to a char. ///
+// Convert a single-char string or an int char-code to a char.
 global toChar(any val){
     str kind = returnType(val);
     if(kind is "char"){ return val; }
@@ -413,7 +413,7 @@ global toChar(any val){
     return fallback;
 }
 
-/// Return the Unicode code point of a char or the first char of a string. ///
+// Return the Unicode code point of a char or the first char of a string.
 global charCodeOf(any val){
     int result = -1;
     rawPy(){
@@ -425,7 +425,7 @@ global charCodeOf(any val){
     return result;
 }
 
-/// Return the char at index idx in string s. ///
+// Return the char at index idx in string s.
 global charAt(str s, int idx){
     str sub = "";
     rawPy(){
@@ -439,7 +439,7 @@ global charAt(str s, int idx){
     return c;
 }
 
-/// Return true if val is int or float (i.e. numeric). ///
+// Return true if val is int or float (i.e. numeric).
 global isNum(any val){
     str t = returnType(val);
     if(t is "int"){ return true; }
@@ -447,37 +447,37 @@ global isNum(any val){
     return false;
 }
 
-/// Return true if val is an int. ///
+// Return true if val is an int.
 global isInt(any val){
     if(returnType(val) is "int"){ return true; }
     return false;
 }
 
-/// Return true if val is a float. ///
+// Return true if val is a float.
 global isFloat(any val){
     if(returnType(val) is "float"){ return true; }
     return false;
 }
 
-/// Return true if val is a str. ///
+// Return true if val is a str.
 global isStr(any val){
     if(returnType(val) is "str"){ return true; }
     return false;
 }
 
-/// Return true if val is a bool. ///
+// Return true if val is a bool.
 global isBool(any val){
     if(returnType(val) is "bool"){ return true; }
     return false;
 }
 
-/// Return true if val is a tuple. ///
+// Return true if val is a tuple.
 global isTuple(any val){
     if(returnType(val) is "tuple"){ return true; }
     return false;
 }
 
-/// Return true if val is none. ///
+// Return true if val is none.
 global isNone(any val){
     if(returnType(val) is "none"){ return true; }
     return false;
@@ -485,23 +485,23 @@ global isNone(any val){
 
 // ─── List extras ───────────────────────────────────────────────────────────
 
-/// Return the first element of lst. Runtime error if lst is empty. ///
+// Return the first element of lst. Runtime error if lst is empty.
 global listFirst(list lst){
     return listGet(lst, 0);
 }
 
-/// Return the last element of lst. Runtime error if lst is empty. ///
+// Return the last element of lst. Runtime error if lst is empty.
 global listLast(list lst){
     int idx = returnLength(lst) - 1;
     return listGet(lst, idx);
 }
 
-/// Return the first n elements of lst as a new list. ///
+// Return the first n elements of lst as a new list.
 global listHead(list lst, int n){
     return listSlice(lst, 0, n);
 }
 
-/// Return the last n elements of lst as a new list. ///
+// Return the last n elements of lst as a new list.
 global listTail(list lst, int n){
     int len = returnLength(lst);
     int start = len - n;
@@ -509,12 +509,12 @@ global listTail(list lst, int n){
     return listSlice(lst, start, len);
 }
 
-/// Sum all numeric elements in lst (alias for sumOf). ///
+// Sum all numeric elements in lst (alias for sumOf).
 global listSum(list lst){
     return sumOf(lst);
 }
 
-/// Count how many times val appears in lst. ///
+// Count how many times val appears in lst.
 global listCount(list lst, any val){
     int count = 0;
     int i = 0;
@@ -527,8 +527,8 @@ global listCount(list lst, any val){
     return count;
 }
 
-/// Zip two lists into a list of JSON pair strings: ["{\"a\":v1,\"b\":v2}", ...].
-  Length is min(len(lst1), len(lst2)). ///
+// Zip two lists into a list of JSON pair strings: ["{\"a\":v1,\"b\":v2}", ...].
+// Length is min(len(lst1), len(lst2)).
 global listZip(list lst1, list lst2){
     int len1 = returnLength(lst1);
     int len2 = returnLength(lst2);
@@ -552,45 +552,45 @@ global listZip(list lst1, list lst2){
 
 // ─── Number extras ─────────────────────────────────────────────────────────
 
-/// Clamp n to the range [lo, hi]. Returns lo if n < lo, hi if n > hi. ///
+// Clamp n to the range [lo, hi]. Returns lo if n < lo, hi if n > hi.
 global clamp(float n, float lo, float hi){
     if(n < lo){ return lo; }
     if(n > hi){ return hi; }
     return n;
 }
 
-/// Absolute value of n. ///
+// Absolute value of n.
 global abs(num n){
     if(n < 0){ return n * -1; }
     return n;
 }
 
-/// Sign of n: returns 1 if n > 0, -1 if n < 0, 0 if n is 0. ///
+// Sign of n: returns 1 if n > 0, -1 if n < 0, 0 if n is 0.
 global sign(num n){
     if(n > 0){ return 1; }
     if(n < 0){ return -1; }
     return 0;
 }
 
-/// Return the larger of two numeric values. ///
+// Return the larger of two numeric values.
 global maxOf(num a, num b){
     if(a > b){ return a; }
     return b;
 }
 
-/// Return the smaller of two numeric values. ///
+// Return the smaller of two numeric values.
 global minOf(num a, num b){
     if(a < b){ return a; }
     return b;
 }
 
-/// Return true if lo <= n <= hi. ///
+// Return true if lo <= n <= hi.
 global between(num n, num lo, num hi){
     if(n >= lo and n <= hi){ return true; }
     return false;
 }
 
-/// Round n to digits decimal places. ///
+// Round n to digits decimal places.
 global roundTo(float n, int digits){
     float result = 0.0;
     rawPy(){
@@ -601,7 +601,7 @@ global roundTo(float n, int digits){
 
 // ─── String extras ─────────────────────────────────────────────────────────
 
-/// Zero-pad s on the left to at least width characters. ///
+// Zero-pad s on the left to at least width characters.
 global zfill(str s, int width){
     str result = "";
     rawPy(){
@@ -610,14 +610,14 @@ global zfill(str s, int width){
     return result;
 }
 
-/// Split s by newlines and return a list of lines. ///
+// Split s by newlines and return a list of lines.
 global linesOf(str s){
     return splitStr(s, "\n");
 }
 
 // ─── List extras continued ─────────────────────────────────────────────────
 
-/// Average (mean) of all numeric elements in lst. ///
+// Average (mean) of all numeric elements in lst.
 global listAvg(list lst){
     int len = returnLength(lst);
     if(len is 0){ return 0.0; }
@@ -629,7 +629,7 @@ global listAvg(list lst){
     return result;
 }
 
-/// Return a new list of n copies of val. ///
+// Return a new list of n copies of val.
 global listRepeat(any val, int n){
     list result = range(0, 0, 1);
     int i = 0;
@@ -640,9 +640,9 @@ global listRepeat(any val, int n){
     return result;
 }
 
-/// Split lst into consecutive chunks of size n.
-  The last chunk may be smaller than n. Returns a list of lists encoded
-  as JSON arrays (use listGet + json.parseArray to access). ///
+// Split lst into consecutive chunks of size n.
+// The last chunk may be smaller than n. Returns a list of lists encoded
+// as JSON arrays (use listGet + json.parseArray to access).
 global listChunk(list lst, int n){
     list result = range(0, 0, 1);
     int len = returnLength(lst);
@@ -668,65 +668,65 @@ global listChunk(list lst, int n){
 // tupleIndex, tupleSlice, tupleToList, listToTuple, tupleConcat, tupleCount,
 // tupleFirst, tupleLast, tupleJsonArray) are always available without import.
 
-/// Return a new tuple with the elements in reversed order. ///
+// Return a new tuple with the elements in reversed order.
 global tupleReverse(any t){
     list lst = tupleToList(t);
     lst = reverseList(lst);
     return listToTuple(lst);
 }
 
-/// Return a new tuple sorted in ascending order (numeric or string). ///
+// Return a new tuple sorted in ascending order (numeric or string).
 global tupleSort(any t){
     list lst = tupleToList(t);
     lst = sortList(lst);
     return listToTuple(lst);
 }
 
-/// Return a new tuple sorted in descending order. ///
+// Return a new tuple sorted in descending order.
 global tupleSortDesc(any t){
     list lst = tupleToList(t);
     lst = sortList(lst, true);
     return listToTuple(lst);
 }
 
-/// Return the minimum element of a numeric tuple. ///
+// Return the minimum element of a numeric tuple.
 global tupleMin(any t){
     list lst = tupleToList(t);
     return listMin(lst);
 }
 
-/// Return the maximum element of a numeric tuple. ///
+// Return the maximum element of a numeric tuple.
 global tupleMax(any t){
     list lst = tupleToList(t);
     return listMax(lst);
 }
 
-/// Return the sum of all elements in a numeric tuple. ///
+// Return the sum of all elements in a numeric tuple.
 global tupleSum(any t){
     list lst = tupleToList(t);
     return sumOf(lst);
 }
 
-/// Return true if any element in the tuple is truthy. ///
+// Return true if any element in the tuple is truthy.
 global tupleAny(any t){
     list lst = tupleToList(t);
     return anyOf(lst);
 }
 
-/// Return true if all elements in the tuple are truthy. ///
+// Return true if all elements in the tuple are truthy.
 global tupleAll(any t){
     list lst = tupleToList(t);
     return allOf(lst);
 }
 
-/// Return a new tuple with duplicate values removed (order preserved). ///
+// Return a new tuple with duplicate values removed (order preserved).
 global tupleUnique(any t){
     list lst = tupleToList(t);
     lst = listUnique(lst);
     return listToTuple(lst);
 }
 
-/// Return the average (mean) of a numeric tuple. ///
+// Return the average (mean) of a numeric tuple.
 global tupleMean(any t){
     int len = tupleLen(t);
     if(len is 0){ return 0.0; }
@@ -738,7 +738,7 @@ global tupleMean(any t){
     return result;
 }
 
-/// Flatten one level: if elements are themselves tuples, concatenate them. ///
+// Flatten one level: if elements are themselves tuples, concatenate them.
 global tupleFlatten(any t){
     any result = tupleCreate();
     int i = 0;
@@ -757,7 +757,7 @@ global tupleFlatten(any t){
     return result;
 }
 
-/// Zip two tuples into a list of JSON pair strings: ["{\"a\":v1,\"b\":v2}", ...] ///
+// Zip two tuples into a list of JSON pair strings: ["{\"a\":v1,\"b\":v2}", ...]
 global tupleZip(any t1, any t2){
     int len1 = tupleLen(t1);
     int len2 = tupleLen(t2);
@@ -779,7 +779,7 @@ global tupleZip(any t1, any t2){
     return result;
 }
 
-/// Return a comma-separated string of the tuple's elements. ///
+// Return a comma-separated string of the tuple's elements.
 global tupleJoin(any t, str sep){
     list lst = tupleToList(t);
     return listJoin(lst, sep);

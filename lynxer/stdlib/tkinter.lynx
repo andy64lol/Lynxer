@@ -1,4 +1,4 @@
-///
+////
   Lynxer Standard Library — tkinter
   Comprehensive GUI toolkit wrapping Python's tkinter and tkinter.ttk.
   Also includes a CustomTkinter (CTk) extension — all CTk functions are
@@ -58,13 +58,13 @@
                 ctkFocusWidget
   Dialogs:      (reuses standard tkinter dialogs — messageBox etc.)
   App:          ctkRun, ctkClose
-///
+////
 
 global setup(){}
 
 // ── Window ─────────────────────────────────────────────────────────────────
 
-/// Create the main window.  Must be called first. ///
+// Create the main window.  Must be called first.
 global init(str title, int width, int height){
     rawPy(){
         import tkinter as _tk, builtins
@@ -79,7 +79,7 @@ global init(str title, int width, int height){
     }
 }
 
-/// Change the window title. ///
+// Change the window title.
 global setTitle(str title){
     rawPy(){
         import builtins
@@ -87,7 +87,7 @@ global setTitle(str title){
     }
 }
 
-/// Resize the window. ///
+// Resize the window.
 global resize(int width, int height){
     rawPy(){
         import builtins
@@ -95,7 +95,7 @@ global resize(int width, int height){
     }
 }
 
-/// Set the background colour of the window (e.g. "white", "#1e1e1e"). ///
+// Set the background colour of the window (e.g. "white", "#1e1e1e").
 global setBackground(str color){
     rawPy(){
         import builtins
@@ -103,7 +103,7 @@ global setBackground(str color){
     }
 }
 
-/// Prevent the user from resizing the window. ///
+// Prevent the user from resizing the window.
 global disableResize(){
     rawPy(){
         import builtins
@@ -111,7 +111,7 @@ global disableResize(){
     }
 }
 
-/// Set minimum window dimensions. ///
+// Set minimum window dimensions.
 global setMinSize(int width, int height){
     rawPy(){
         import builtins
@@ -119,7 +119,7 @@ global setMinSize(int width, int height){
     }
 }
 
-/// Set maximum window dimensions. ///
+// Set maximum window dimensions.
 global setMaxSize(int width, int height){
     rawPy(){
         import builtins
@@ -127,7 +127,7 @@ global setMaxSize(int width, int height){
     }
 }
 
-/// Set window opacity (0.0 fully transparent … 1.0 fully opaque). ///
+// Set window opacity (0.0 fully transparent … 1.0 fully opaque).
 global setOpacity(float alpha){
     rawPy(){
         import builtins
@@ -135,7 +135,7 @@ global setOpacity(float alpha){
     }
 }
 
-/// Center the window on the screen. ///
+// Center the window on the screen.
 global center(){
     rawPy(){
         import builtins
@@ -151,7 +151,7 @@ global center(){
     }
 }
 
-/// Keep the window always on top when enabled is true. ///
+// Keep the window always on top when enabled is true.
 global topmost(bool enabled){
     rawPy(){
         import builtins
@@ -159,7 +159,7 @@ global topmost(bool enabled){
     }
 }
 
-/// Minimize (iconify) the window. ///
+// Minimize (iconify) the window.
 global iconify(){
     rawPy(){
         import builtins
@@ -167,7 +167,7 @@ global iconify(){
     }
 }
 
-/// Restore a minimized window. ///
+// Restore a minimized window.
 global deiconify(){
     rawPy(){
         import builtins
@@ -175,7 +175,7 @@ global deiconify(){
     }
 }
 
-/// Process all pending events (force UI refresh). ///
+// Process all pending events (force UI refresh).
 global update(){
     rawPy(){
         import builtins
@@ -183,8 +183,8 @@ global update(){
     }
 }
 
-/// Schedule a callback to fire once after delayMs milliseconds.
-  Internally uses root.after(); no Lynxer callback — use with rawPy. ///
+// Schedule a callback to fire once after delayMs milliseconds.
+// Internally uses root.after(); no Lynxer callback — use with rawPy.
 global after(int delayMs){
     rawPy(){
         import builtins
@@ -192,8 +192,8 @@ global after(int delayMs){
     }
 }
 
-/// Bind a keyboard or window event to close the app.
-  event examples: "<Escape>", "<Control-q>", "<F1>", "WM_DELETE_WINDOW". ///
+// Bind a keyboard or window event to close the app.
+// event examples: "<Escape>", "<Control-q>", "<F1>", "WM_DELETE_WINDOW".
 global bindClose(str event){
     rawPy(){
         import builtins
@@ -207,7 +207,7 @@ global bindClose(str event){
 
 // ── Label ──────────────────────────────────────────────────────────────────
 
-/// Create a text label.  Returns widget index. ///
+// Create a text label.  Returns widget index.
 global label(str text){
     int idx = 0;
     rawPy(){
@@ -220,7 +220,7 @@ global label(str text){
     return idx;
 }
 
-/// Create a label with custom text colour and background colour. ///
+// Create a label with custom text colour and background colour.
 global labelStyled(str text, str fg, str bg){
     int idx = 0;
     rawPy(){
@@ -235,7 +235,7 @@ global labelStyled(str text, str fg, str bg){
 
 // ── Button ─────────────────────────────────────────────────────────────────
 
-/// Create a button.  Returns widget index. ///
+// Create a button.  Returns widget index.
 global button(str text){
     int idx = 0;
     rawPy(){
@@ -248,7 +248,7 @@ global button(str text){
     return idx;
 }
 
-/// Create a button with custom foreground and background colours. ///
+// Create a button with custom foreground and background colours.
 global buttonStyled(str text, str fg, str bg){
     int idx = 0;
     rawPy(){
@@ -264,7 +264,7 @@ global buttonStyled(str text, str fg, str bg){
 
 // ── Entry (single-line text input) ─────────────────────────────────────────
 
-/// Create a single-line text entry.  Returns widget index. ///
+// Create a single-line text entry.  Returns widget index.
 global entry(){
     int idx = 0;
     rawPy(){
@@ -277,7 +277,7 @@ global entry(){
     return idx;
 }
 
-/// Create a password entry (characters shown as •). ///
+// Create a password entry (characters shown as •).
 global passwordEntry(){
     int idx = 0;
     rawPy(){
@@ -292,7 +292,7 @@ global passwordEntry(){
 
 // ── Text box (multi-line) ───────────────────────────────────────────────────
 
-/// Create a multi-line text box.  Returns widget index. ///
+// Create a multi-line text box.  Returns widget index.
 global textBox(int width, int height){
     int idx = 0;
     rawPy(){
@@ -307,7 +307,7 @@ global textBox(int width, int height){
 
 // ── Checkbox ───────────────────────────────────────────────────────────────
 
-/// Create a checkbox.  Returns widget index.  Read state with isChecked(idx). ///
+// Create a checkbox.  Returns widget index.  Read state with isChecked(idx).
 global checkbox(str text){
     int idx = 0;
     rawPy(){
@@ -324,9 +324,9 @@ global checkbox(str text){
 
 // ── Radio button ───────────────────────────────────────────────────────────
 
-/// Create a radio button belonging to groupId.
-  All radio buttons sharing the same groupId are mutually exclusive.
-  Returns widget index.  Read selected value with getRadio(groupId). ///
+// Create a radio button belonging to groupId.
+// All radio buttons sharing the same groupId are mutually exclusive.
+// Returns widget index.  Read selected value with getRadio(groupId).
 global radioButton(str text, str groupId){
     int idx = 0;
     rawPy(){
@@ -342,7 +342,7 @@ global radioButton(str text, str groupId){
     return idx;
 }
 
-/// Return the value (text) of the currently selected radio button in groupId. ///
+// Return the value (text) of the currently selected radio button in groupId.
 global getRadio(str groupId){
     str result = "";
     rawPy(){
@@ -357,9 +357,9 @@ global getRadio(str groupId){
 
 // ── Listbox ────────────────────────────────────────────────────────────────
 
-/// Create a listbox populated with items (JSON array string of strings).
-  e.g. listbox('["Apple","Banana","Cherry"]')
-  Returns widget index.  Read selection with getListSelection(idx). ///
+// Create a listbox populated with items (JSON array string of strings).
+// e.g. listbox('["Apple","Banana","Cherry"]')
+// Returns widget index.  Read selection with getListSelection(idx).
 global listbox(str itemsJson){
     int idx = 0;
     rawPy(){
@@ -374,7 +374,7 @@ global listbox(str itemsJson){
     return idx;
 }
 
-/// Return the currently selected item in a listbox, or "" if nothing selected. ///
+// Return the currently selected item in a listbox, or "" if nothing selected.
 global getListSelection(int idx){
     str result = "";
     rawPy(){
@@ -389,7 +389,7 @@ global getListSelection(int idx){
     return result;
 }
 
-/// Return the zero-based index of the selected listbox row, or -1. ///
+// Return the zero-based index of the selected listbox row, or -1.
 global getListIndex(int idx){
     int result = 0;
     rawPy(){
@@ -406,8 +406,8 @@ global getListIndex(int idx){
 
 // ── Scale (slider) ─────────────────────────────────────────────────────────
 
-/// Create a horizontal slider from lo to hi.
-  Returns widget index.  Read value with getScale(idx). ///
+// Create a horizontal slider from lo to hi.
+// Returns widget index.  Read value with getScale(idx).
 global scale(float lo, float hi){
     int idx = 0;
     rawPy(){
@@ -420,7 +420,7 @@ global scale(float lo, float hi){
     return idx;
 }
 
-/// Create a vertical slider from lo to hi. ///
+// Create a vertical slider from lo to hi.
 global scaleVertical(float lo, float hi){
     int idx = 0;
     rawPy(){
@@ -433,7 +433,7 @@ global scaleVertical(float lo, float hi){
     return idx;
 }
 
-/// Return the current float value of a Scale widget. ///
+// Return the current float value of a Scale widget.
 global getScale(int idx){
     float result = 0.0;
     rawPy(){
@@ -446,7 +446,7 @@ global getScale(int idx){
     return result;
 }
 
-/// Set the value of a Scale widget. ///
+// Set the value of a Scale widget.
 global setScale(int idx, float val){
     rawPy(){
         import builtins
@@ -459,8 +459,8 @@ global setScale(int idx, float val){
 
 // ── Spinbox ────────────────────────────────────────────────────────────────
 
-/// Create a spinbox (numeric stepper) from lo to hi with step increment.
-  Returns widget index.  Read value with getValue(idx). ///
+// Create a spinbox (numeric stepper) from lo to hi with step increment.
+// Returns widget index.  Read value with getValue(idx).
 global spinbox(float lo, float hi, float step){
     int idx = 0;
     rawPy(){
@@ -475,8 +475,8 @@ global spinbox(float lo, float hi, float step){
 
 // ── ttk ProgressBar ────────────────────────────────────────────────────────
 
-/// Create a horizontal progress bar with a maximum value.
-  Returns widget index.  Set progress with setProgress(idx, value). ///
+// Create a horizontal progress bar with a maximum value.
+// Returns widget index.  Set progress with setProgress(idx, value).
 global progressBar(float maxVal){
     int idx = 0;
     rawPy(){
@@ -490,7 +490,7 @@ global progressBar(float maxVal){
     return idx;
 }
 
-/// Set the current value of a ProgressBar. ///
+// Set the current value of a ProgressBar.
 global setProgress(int idx, float val){
     rawPy(){
         import builtins
@@ -502,7 +502,7 @@ global setProgress(int idx, float val){
     }
 }
 
-/// Return the current value of a ProgressBar. ///
+// Return the current value of a ProgressBar.
 global getProgress(int idx){
     float result = 0.0;
     rawPy(){
@@ -517,9 +517,9 @@ global getProgress(int idx){
 
 // ── ttk Combobox (dropdown) ────────────────────────────────────────────────
 
-/// Create a dropdown combobox.  itemsJson is a JSON array of strings.
-  e.g. combobox('["Red","Green","Blue"]')
-  Returns widget index.  Read selection with getCombo(idx). ///
+// Create a dropdown combobox.  itemsJson is a JSON array of strings.
+// e.g. combobox('["Red","Green","Blue"]')
+// Returns widget index.  Read selection with getCombo(idx).
 global combobox(str itemsJson){
     int idx = 0;
     rawPy(){
@@ -535,7 +535,7 @@ global combobox(str itemsJson){
     return idx;
 }
 
-/// Return the currently selected combobox value. ///
+// Return the currently selected combobox value.
 global getCombo(int idx){
     str result = "";
     rawPy(){
@@ -548,7 +548,7 @@ global getCombo(int idx){
     return result;
 }
 
-/// Set the combobox selection by item text. ///
+// Set the combobox selection by item text.
 global setCombo(int idx, str text){
     rawPy(){
         import builtins
@@ -564,8 +564,8 @@ global setCombo(int idx, str text){
 
 // ── ttk Notebook (tabbed pane) ─────────────────────────────────────────────
 
-/// Create a ttk Notebook (tabbed panel container).
-  Returns widget index.  Add tabs with addTab(nbIdx, frameIdx, text). ///
+// Create a ttk Notebook (tabbed panel container).
+// Returns widget index.  Add tabs with addTab(nbIdx, frameIdx, text).
 global notebook(){
     int idx = 0;
     rawPy(){
@@ -578,8 +578,8 @@ global notebook(){
     return idx;
 }
 
-/// Add a frame as a tab in a Notebook.
-  nbIdx is the notebook index; frameIdx is the frame to embed; text is the tab label. ///
+// Add a frame as a tab in a Notebook.
+// nbIdx is the notebook index; frameIdx is the frame to embed; text is the tab label.
 global addTab(int nbIdx, int frameIdx, str text){
     rawPy(){
         import builtins
@@ -595,7 +595,7 @@ global addTab(int nbIdx, int frameIdx, str text){
 
 // ── Canvas ─────────────────────────────────────────────────────────────────
 
-/// Create a drawing canvas.  Returns widget index. ///
+// Create a drawing canvas.  Returns widget index.
 global canvas(int width, int height){
     int idx = 0;
     rawPy(){
@@ -608,7 +608,7 @@ global canvas(int width, int height){
     return idx;
 }
 
-/// Draw a line on a canvas from (x1,y1) to (x2,y2) with the given colour. ///
+// Draw a line on a canvas from (x1,y1) to (x2,y2) with the given colour.
 global canvasLine(int idx, float x1, float y1, float x2, float y2, str color){
     rawPy(){
         import builtins
@@ -619,7 +619,7 @@ global canvasLine(int idx, float x1, float y1, float x2, float y2, str color){
     }
 }
 
-/// Draw a filled rectangle on a canvas. ///
+// Draw a filled rectangle on a canvas.
 global canvasRect(int idx, float x1, float y1, float x2, float y2, str fill, str outline){
     rawPy(){
         import builtins
@@ -630,7 +630,7 @@ global canvasRect(int idx, float x1, float y1, float x2, float y2, str fill, str
     }
 }
 
-/// Draw a filled oval / circle on a canvas. ///
+// Draw a filled oval / circle on a canvas.
 global canvasOval(int idx, float x1, float y1, float x2, float y2, str fill, str outline){
     rawPy(){
         import builtins
@@ -641,7 +641,7 @@ global canvasOval(int idx, float x1, float y1, float x2, float y2, str fill, str
     }
 }
 
-/// Draw text on a canvas at (x, y). ///
+// Draw text on a canvas at (x, y).
 global canvasText(int idx, float x, float y, str text, str color){
     rawPy(){
         import builtins
@@ -652,8 +652,8 @@ global canvasText(int idx, float x, float y, str text, str color){
     }
 }
 
-/// Draw a polygon on a canvas.  coordsJson is a JSON array of [x,y,...] numbers.
-  e.g. canvasPolygon(idx, "[10,10,50,10,30,40]", "blue", "black") ///
+// Draw a polygon on a canvas.  coordsJson is a JSON array of [x,y,...] numbers.
+// e.g. canvasPolygon(idx, "[10,10,50,10,30,40]", "blue", "black")
 global canvasPolygon(int idx, str coordsJson, str fill, str outline){
     rawPy(){
         import builtins, json as _json
@@ -665,7 +665,7 @@ global canvasPolygon(int idx, str coordsJson, str fill, str outline){
     }
 }
 
-/// Clear all drawings from a canvas. ///
+// Clear all drawings from a canvas.
 global canvasClear(int idx){
     rawPy(){
         import builtins
@@ -678,7 +678,7 @@ global canvasClear(int idx){
 
 // ── Frame / LabelFrame ──────────────────────────────────────────────────────
 
-/// Create a plain frame container.  Returns widget index. ///
+// Create a plain frame container.  Returns widget index.
 global frame(){
     int idx = 0;
     rawPy(){
@@ -691,7 +691,7 @@ global frame(){
     return idx;
 }
 
-/// Create a frame with a labelled border.  Returns widget index. ///
+// Create a frame with a labelled border.  Returns widget index.
 global labelFrame(str text){
     int idx = 0;
     rawPy(){
@@ -704,7 +704,7 @@ global labelFrame(str text){
     return idx;
 }
 
-/// Create a horizontal separator rule.  Returns widget index. ///
+// Create a horizontal separator rule.  Returns widget index.
 global separator(){
     int idx = 0;
     rawPy(){
@@ -724,8 +724,8 @@ global separator(){
 
 // ── Scrollbar ──────────────────────────────────────────────────────────────
 
-/// Create a vertical scrollbar and attach it to widget at targetIdx.
-  Returns scrollbar widget index. ///
+// Create a vertical scrollbar and attach it to widget at targetIdx.
+// Returns scrollbar widget index.
 global scrollbar(int targetIdx){
     int idx = 0;
     rawPy(){
@@ -742,7 +742,7 @@ global scrollbar(int targetIdx){
 
 // ── Image ──────────────────────────────────────────────────────────────────
 
-/// Display an image from imagePath (PNG, GIF, or PPM).  Returns widget index. ///
+// Display an image from imagePath (PNG, GIF, or PPM).  Returns widget index.
 global image(str imagePath){
     int idx = 0;
     rawPy(){
@@ -762,8 +762,8 @@ global image(str imagePath){
 
 // ── Menubar ────────────────────────────────────────────────────────────────
 
-/// Create a menubar and attach it to the window.  Must be called once.
-  Returns menubar index (internal menu list). ///
+// Create a menubar and attach it to the window.  Must be called once.
+// Returns menubar index (internal menu list).
 global menubar(){
     int idx = 0;
     rawPy(){
@@ -777,8 +777,8 @@ global menubar(){
     return idx;
 }
 
-/// Add a top-level menu to the menubar (e.g. "File", "Edit").
-  Returns the new menu's index (for addMenuItem). ///
+// Add a top-level menu to the menubar (e.g. "File", "Edit").
+// Returns the new menu's index (for addMenuItem).
 global addMenu(str text){
     int idx = 0;
     rawPy(){
@@ -791,8 +791,8 @@ global addMenu(str text){
     return idx;
 }
 
-/// Add a command item to a menu.  When clicked it prints a log message.
-  To attach real logic use rawPy to add a command= after the fact. ///
+// Add a command item to a menu.  When clicked it prints a log message.
+// To attach real logic use rawPy to add a command= after the fact.
 global addMenuItem(int menuIdx, str text){
     rawPy(){
         import builtins
@@ -802,7 +802,7 @@ global addMenuItem(int menuIdx, str text){
     }
 }
 
-/// Add a separator line to a menu. ///
+// Add a separator line to a menu.
 global addMenuSeparator(int menuIdx){
     rawPy(){
         import builtins
@@ -810,7 +810,7 @@ global addMenuSeparator(int menuIdx){
     }
 }
 
-/// Add a checkable menu item.  isOn sets the initial checked state. ///
+// Add a checkable menu item.  isOn sets the initial checked state.
 global addCheckMenuItem(int menuIdx, str text, bool isOn){
     rawPy(){
         import tkinter as _tk, builtins
@@ -821,7 +821,7 @@ global addCheckMenuItem(int menuIdx, str text, bool isOn){
 
 // ── Context (right-click) menu ─────────────────────────────────────────────
 
-/// Create a floating context menu (not shown yet).  Returns menu index. ///
+// Create a floating context menu (not shown yet).  Returns menu index.
 global contextMenu(){
     int idx = 0;
     rawPy(){
@@ -833,7 +833,7 @@ global contextMenu(){
     return idx;
 }
 
-/// Add a command item to a context menu. ///
+// Add a command item to a context menu.
 global addContextItem(int menuIdx, str text){
     rawPy(){
         import builtins
@@ -843,7 +843,7 @@ global addContextItem(int menuIdx, str text){
     }
 }
 
-/// Show a context menu at screen position (x, y). ///
+// Show a context menu at screen position (x, y).
 global showContext(int menuIdx, int x, int y){
     rawPy(){
         import builtins
@@ -856,8 +856,8 @@ global showContext(int menuIdx, int x, int y){
 
 // ── Layout helpers ─────────────────────────────────────────────────────────
 
-/// Place widget at grid position (row, col).
-  Removes the default pack layout and uses grid instead. ///
+// Place widget at grid position (row, col).
+// Removes the default pack layout and uses grid instead.
 global grid(int idx, int row, int col){
     rawPy(){
         import builtins
@@ -870,7 +870,7 @@ global grid(int idx, int row, int col){
     }
 }
 
-/// Place widget at grid position with column span. ///
+// Place widget at grid position with column span.
 global gridSpan(int idx, int row, int col, int colspan){
     rawPy(){
         import builtins
@@ -883,7 +883,7 @@ global gridSpan(int idx, int row, int col, int colspan){
     }
 }
 
-/// Place widget at absolute pixel position (x, y). ///
+// Place widget at absolute pixel position (x, y).
 global place(int idx, int x, int y){
     rawPy(){
         import builtins
@@ -896,7 +896,7 @@ global place(int idx, int x, int y){
     }
 }
 
-/// Re-pack a widget with anchor: "w" (left), "e" (right), "center", etc. ///
+// Re-pack a widget with anchor: "w" (left), "e" (right), "center", etc.
 global pack(int idx, str anchor){
     rawPy(){
         import builtins
@@ -909,7 +909,7 @@ global pack(int idx, str anchor){
 
 // ── Styling ────────────────────────────────────────────────────────────────
 
-/// Set the font of a widget.  family e.g. "Helvetica", style: "bold", "italic", "bold italic", "". ///
+// Set the font of a widget.  family e.g. "Helvetica", style: "bold", "italic", "bold italic", "".
 global setFont(int idx, str family, int size, str style){
     rawPy(){
         import tkinter.font as _fnt, builtins
@@ -922,7 +922,7 @@ global setFont(int idx, str family, int size, str style){
     }
 }
 
-/// Set the text (foreground) colour of a widget. ///
+// Set the text (foreground) colour of a widget.
 global setForeground(int idx, str color){
     rawPy(){
         import builtins
@@ -933,7 +933,7 @@ global setForeground(int idx, str color){
     }
 }
 
-/// Set the background colour of a widget. ///
+// Set the background colour of a widget.
 global setBackgroundWidget(int idx, str color){
     rawPy(){
         import builtins
@@ -944,7 +944,7 @@ global setBackgroundWidget(int idx, str color){
     }
 }
 
-/// Set internal padding (pixels) of a widget. ///
+// Set internal padding (pixels) of a widget.
 global setPadding(int idx, int px, int py){
     rawPy(){
         import builtins
@@ -955,8 +955,8 @@ global setPadding(int idx, int px, int py){
     }
 }
 
-/// Set the mouse cursor for a widget.
-  Common cursors: "arrow", "hand2", "watch", "crosshair", "fleur", "sizing". ///
+// Set the mouse cursor for a widget.
+// Common cursors: "arrow", "hand2", "watch", "crosshair", "fleur", "sizing".
 global setCursor(int idx, str cursor){
     rawPy(){
         import builtins
@@ -967,8 +967,8 @@ global setCursor(int idx, str cursor){
     }
 }
 
-/// Set a flat relief border on a widget.
-  relief: "flat", "raised", "sunken", "groove", "ridge", "solid". ///
+// Set a flat relief border on a widget.
+// relief: "flat", "raised", "sunken", "groove", "ridge", "solid".
 global setBorder(int idx, str relief, int borderWidth){
     rawPy(){
         import builtins
@@ -981,7 +981,7 @@ global setBorder(int idx, str relief, int borderWidth){
 
 // ── Widget interactions ─────────────────────────────────────────────────────
 
-/// Return the string value of Entry, Text, Spinbox, or Combobox widgets. ///
+// Return the string value of Entry, Text, Spinbox, or Combobox widgets.
 global getValue(int idx){
     str result = "";
     rawPy(){
@@ -999,7 +999,7 @@ global getValue(int idx){
     return result;
 }
 
-/// Set the display text of Label, Button, Checkbutton, or Radiobutton. ///
+// Set the display text of Label, Button, Checkbutton, or Radiobutton.
 global setText(int idx, str text){
     rawPy(){
         import builtins
@@ -1010,7 +1010,7 @@ global setText(int idx, str text){
     }
 }
 
-/// Replace the content of an Entry widget with text. ///
+// Replace the content of an Entry widget with text.
 global setEntryText(int idx, str text){
     rawPy(){
         import builtins, tkinter as _tk
@@ -1023,7 +1023,7 @@ global setEntryText(int idx, str text){
     }
 }
 
-/// Replace the entire content of a Text widget with text. ///
+// Replace the entire content of a Text widget with text.
 global setTextBoxContent(int idx, str text){
     rawPy(){
         import builtins, tkinter as _tk
@@ -1036,7 +1036,7 @@ global setTextBoxContent(int idx, str text){
     }
 }
 
-/// Return true if a Checkbutton at idx is checked. ///
+// Return true if a Checkbutton at idx is checked.
 global isChecked(int idx){
     bool result = false;
     rawPy(){
@@ -1049,7 +1049,7 @@ global isChecked(int idx){
     return result;
 }
 
-/// Programmatically check or uncheck a Checkbutton. ///
+// Programmatically check or uncheck a Checkbutton.
 global setChecked(int idx, bool checked){
     rawPy(){
         import builtins
@@ -1060,7 +1060,7 @@ global setChecked(int idx, bool checked){
     }
 }
 
-/// Clear the content of an Entry, Text, or Listbox widget. ///
+// Clear the content of an Entry, Text, or Listbox widget.
 global clearWidget(int idx){
     rawPy(){
         import builtins, tkinter as _tk
@@ -1075,7 +1075,7 @@ global clearWidget(int idx){
     }
 }
 
-/// Disable a widget (greyed out, non-interactive). ///
+// Disable a widget (greyed out, non-interactive).
 global disableWidget(int idx){
     rawPy(){
         import builtins
@@ -1086,7 +1086,7 @@ global disableWidget(int idx){
     }
 }
 
-/// Re-enable a previously disabled widget. ///
+// Re-enable a previously disabled widget.
 global enableWidget(int idx){
     rawPy(){
         import builtins
@@ -1097,7 +1097,7 @@ global enableWidget(int idx){
     }
 }
 
-/// Hide a widget (removes from layout without destroying). ///
+// Hide a widget (removes from layout without destroying).
 global hideWidget(int idx){
     rawPy(){
         import builtins
@@ -1108,7 +1108,7 @@ global hideWidget(int idx){
     }
 }
 
-/// Show a previously hidden widget (re-packs it). ///
+// Show a previously hidden widget (re-packs it).
 global showWidget(int idx){
     rawPy(){
         import builtins
@@ -1119,7 +1119,7 @@ global showWidget(int idx){
     }
 }
 
-/// Permanently destroy a widget and remove it from the window. ///
+// Permanently destroy a widget and remove it from the window.
 global destroyWidget(int idx){
     rawPy(){
         import builtins
@@ -1130,7 +1130,7 @@ global destroyWidget(int idx){
     }
 }
 
-/// Focus (keyboard focus) the widget at idx. ///
+// Focus (keyboard focus) the widget at idx.
 global focusWidget(int idx){
     rawPy(){
         import builtins
@@ -1143,7 +1143,7 @@ global focusWidget(int idx){
 
 // ── Dialogs ────────────────────────────────────────────────────────────────
 
-/// Show an info message box. ///
+// Show an info message box.
 global messageBox(str title, str message){
     rawPy(){
         import tkinter.messagebox as _mb
@@ -1151,7 +1151,7 @@ global messageBox(str title, str message){
     }
 }
 
-/// Show a warning message box. ///
+// Show a warning message box.
 global warningBox(str title, str message){
     rawPy(){
         import tkinter.messagebox as _mb
@@ -1159,7 +1159,7 @@ global warningBox(str title, str message){
     }
 }
 
-/// Show an error message box. ///
+// Show an error message box.
 global errorBox(str title, str message){
     rawPy(){
         import tkinter.messagebox as _mb
@@ -1167,7 +1167,7 @@ global errorBox(str title, str message){
     }
 }
 
-/// Show a Yes/No dialog.  Returns true if the user clicked Yes. ///
+// Show a Yes/No dialog.  Returns true if the user clicked Yes.
 global askYesNo(str title, str question){
     bool result = false;
     rawPy(){
@@ -1177,7 +1177,7 @@ global askYesNo(str title, str question){
     return result;
 }
 
-/// Show an OK/Cancel dialog.  Returns true if the user clicked OK. ///
+// Show an OK/Cancel dialog.  Returns true if the user clicked OK.
 global askOkCancel(str title, str message){
     bool result = false;
     rawPy(){
@@ -1187,7 +1187,7 @@ global askOkCancel(str title, str message){
     return result;
 }
 
-/// Open an "Open file" dialog.  Returns the selected file path, or "". ///
+// Open an "Open file" dialog.  Returns the selected file path, or "".
 global openFileDialog(str title){
     str result = "";
     rawPy(){
@@ -1197,7 +1197,7 @@ global openFileDialog(str title){
     return result;
 }
 
-/// Open an "Open file" dialog filtered by extension (e.g. ".txt").  Returns path or "". ///
+// Open an "Open file" dialog filtered by extension (e.g. ".txt").  Returns path or "".
 global openFileDialogFilter(str title, str ext){
     str result = "";
     rawPy(){
@@ -1211,7 +1211,7 @@ global openFileDialogFilter(str title, str ext){
     return result;
 }
 
-/// Open a "Save file" dialog.  Returns the chosen path, or "". ///
+// Open a "Save file" dialog.  Returns the chosen path, or "".
 global saveFileDialog(str title){
     str result = "";
     rawPy(){
@@ -1221,7 +1221,7 @@ global saveFileDialog(str title){
     return result;
 }
 
-/// Open a "Choose directory" dialog.  Returns the chosen directory path, or "". ///
+// Open a "Choose directory" dialog.  Returns the chosen directory path, or "".
 global openDirDialog(str title){
     str result = "";
     rawPy(){
@@ -1231,7 +1231,7 @@ global openDirDialog(str title){
     return result;
 }
 
-/// Open a colour-picker dialog.  Returns the hex colour string, e.g. "#ff0000", or "". ///
+// Open a colour-picker dialog.  Returns the hex colour string, e.g. "#ff0000", or "".
 global askColor(str title){
     str result = "";
     rawPy(){
@@ -1242,7 +1242,7 @@ global askColor(str title){
     return result;
 }
 
-/// Show a simple text-input dialog.  Returns the entered string, or "". ///
+// Show a simple text-input dialog.  Returns the entered string, or "".
 global askString(str title, str prompt){
     str result = "";
     rawPy(){
@@ -1253,7 +1253,7 @@ global askString(str title, str prompt){
     return result;
 }
 
-/// Show a simple integer-input dialog.  Returns the entered integer, or 0 on cancel. ///
+// Show a simple integer-input dialog.  Returns the entered integer, or 0 on cancel.
 global askInteger(str title, str prompt){
     int result = 0;
     rawPy(){
@@ -1264,7 +1264,7 @@ global askInteger(str title, str prompt){
     return result;
 }
 
-/// Show a simple float-input dialog.  Returns the entered float, or 0.0 on cancel. ///
+// Show a simple float-input dialog.  Returns the entered float, or 0.0 on cancel.
 global askFloat(str title, str prompt){
     float result = 0.0;
     rawPy(){
@@ -1277,7 +1277,7 @@ global askFloat(str title, str prompt){
 
 // ── App lifecycle ───────────────────────────────────────────────────────────
 
-/// Start the Tk main event loop (blocking). ///
+// Start the Tk main event loop (blocking).
 global run(){
     rawPy(){
         import builtins
@@ -1285,7 +1285,7 @@ global run(){
     }
 }
 
-/// Destroy the window and exit the event loop. ///
+// Destroy the window and exit the event loop.
 global close(){
     rawPy(){
         import builtins
@@ -1306,7 +1306,7 @@ global close(){
 
 // ── Theme ──────────────────────────────────────────────────────────────────
 
-/// Set CTk appearance mode: "dark", "light", or "system". Call before ctkInit. ///
+// Set CTk appearance mode: "dark", "light", or "system". Call before ctkInit.
 global ctkSetAppearance(str mode){
     rawPy(){
         import customtkinter as _ctk
@@ -1314,7 +1314,7 @@ global ctkSetAppearance(str mode){
     }
 }
 
-/// Set CTk color theme: "blue" (default), "green", or "dark-blue". Call before ctkInit. ///
+// Set CTk color theme: "blue" (default), "green", or "dark-blue". Call before ctkInit.
 global ctkSetTheme(str theme){
     rawPy(){
         import customtkinter as _ctk
@@ -1324,7 +1324,7 @@ global ctkSetTheme(str theme){
 
 // ── Window ─────────────────────────────────────────────────────────────────
 
-/// Create the CTk root window. Must be called first (CTk side). ///
+// Create the CTk root window. Must be called first (CTk side).
 global ctkInit(str title, int width, int height){
     rawPy(){
         import customtkinter as _ctk, builtins
@@ -1337,7 +1337,7 @@ global ctkInit(str title, int width, int height){
     }
 }
 
-/// Change the CTk window title. ///
+// Change the CTk window title.
 global ctkSetTitle(str title){
     rawPy(){
         import builtins
@@ -1345,7 +1345,7 @@ global ctkSetTitle(str title){
     }
 }
 
-/// Resize the CTk window. ///
+// Resize the CTk window.
 global ctkResize(int width, int height){
     rawPy(){
         import builtins
@@ -1353,7 +1353,7 @@ global ctkResize(int width, int height){
     }
 }
 
-/// Set the CTk window background colour. ///
+// Set the CTk window background colour.
 global ctkSetBackground(str color){
     rawPy(){
         import builtins
@@ -1361,7 +1361,7 @@ global ctkSetBackground(str color){
     }
 }
 
-/// Prevent the user from resizing the CTk window. ///
+// Prevent the user from resizing the CTk window.
 global ctkDisableResize(){
     rawPy(){
         import builtins
@@ -1369,7 +1369,7 @@ global ctkDisableResize(){
     }
 }
 
-/// Set minimum CTk window dimensions. ///
+// Set minimum CTk window dimensions.
 global ctkSetMinSize(int width, int height){
     rawPy(){
         import builtins
@@ -1377,7 +1377,7 @@ global ctkSetMinSize(int width, int height){
     }
 }
 
-/// Set maximum CTk window dimensions. ///
+// Set maximum CTk window dimensions.
 global ctkSetMaxSize(int width, int height){
     rawPy(){
         import builtins
@@ -1385,7 +1385,7 @@ global ctkSetMaxSize(int width, int height){
     }
 }
 
-/// Set CTk window opacity (0.0 transparent … 1.0 opaque). ///
+// Set CTk window opacity (0.0 transparent … 1.0 opaque).
 global ctkSetOpacity(float alpha){
     rawPy(){
         import builtins
@@ -1393,7 +1393,7 @@ global ctkSetOpacity(float alpha){
     }
 }
 
-/// Center the CTk window on screen. ///
+// Center the CTk window on screen.
 global ctkCenter(){
     rawPy(){
         import builtins
@@ -1407,7 +1407,7 @@ global ctkCenter(){
     }
 }
 
-/// Keep CTk window always on top when enabled is true. ///
+// Keep CTk window always on top when enabled is true.
 global ctkTopmost(bool enabled){
     rawPy(){
         import builtins
@@ -1415,7 +1415,7 @@ global ctkTopmost(bool enabled){
     }
 }
 
-/// Minimize the CTk window. ///
+// Minimize the CTk window.
 global ctkIconify(){
     rawPy(){
         import builtins
@@ -1423,7 +1423,7 @@ global ctkIconify(){
     }
 }
 
-/// Restore a minimized CTk window. ///
+// Restore a minimized CTk window.
 global ctkDeiconify(){
     rawPy(){
         import builtins
@@ -1431,7 +1431,7 @@ global ctkDeiconify(){
     }
 }
 
-/// Process all pending CTk events (force UI refresh). ///
+// Process all pending CTk events (force UI refresh).
 global ctkUpdate(){
     rawPy(){
         import builtins
@@ -1439,7 +1439,7 @@ global ctkUpdate(){
     }
 }
 
-/// Block for delayMs milliseconds (CTk window). ///
+// Block for delayMs milliseconds (CTk window).
 global ctkAfter(int delayMs){
     rawPy(){
         import builtins
@@ -1447,8 +1447,8 @@ global ctkAfter(int delayMs){
     }
 }
 
-/// Bind an event to close the CTk window.
-  event: "<Escape>", "<Control-q>", "WM_DELETE_WINDOW", etc. ///
+// Bind an event to close the CTk window.
+// event: "<Escape>", "<Control-q>", "WM_DELETE_WINDOW", etc.
 global ctkBindClose(str event){
     rawPy(){
         import builtins
@@ -1462,7 +1462,7 @@ global ctkBindClose(str event){
 
 // ── Label ──────────────────────────────────────────────────────────────────
 
-/// Create a CTkLabel.  Returns widget index. ///
+// Create a CTkLabel.  Returns widget index.
 global ctkLabel(str text){
     int idx = 0;
     rawPy(){
@@ -1475,7 +1475,7 @@ global ctkLabel(str text){
     return idx;
 }
 
-/// Create a CTkLabel with custom text colour and font size. ///
+// Create a CTkLabel with custom text colour and font size.
 global ctkLabelStyled(str text, str color, int size){
     int idx = 0;
     rawPy(){
@@ -1492,7 +1492,7 @@ global ctkLabelStyled(str text, str color, int size){
 
 // ── Button ─────────────────────────────────────────────────────────────────
 
-/// Create a CTkButton.  Returns widget index. ///
+// Create a CTkButton.  Returns widget index.
 global ctkButton(str text){
     int idx = 0;
     rawPy(){
@@ -1505,7 +1505,7 @@ global ctkButton(str text){
     return idx;
 }
 
-/// Create a CTkButton with custom fill and hover colours. ///
+// Create a CTkButton with custom fill and hover colours.
 global ctkButtonStyled(str text, str fg, str hover){
     int idx = 0;
     rawPy(){
@@ -1521,7 +1521,7 @@ global ctkButtonStyled(str text, str fg, str hover){
 
 // ── Entry ──────────────────────────────────────────────────────────────────
 
-/// Create a CTkEntry (single-line text input).  Returns widget index. ///
+// Create a CTkEntry (single-line text input).  Returns widget index.
 global ctkEntry(){
     int idx = 0;
     rawPy(){
@@ -1534,7 +1534,7 @@ global ctkEntry(){
     return idx;
 }
 
-/// Create a CTkEntry with placeholder text. ///
+// Create a CTkEntry with placeholder text.
 global ctkEntryPlaceholder(str placeholder){
     int idx = 0;
     rawPy(){
@@ -1548,7 +1548,7 @@ global ctkEntryPlaceholder(str placeholder){
     return idx;
 }
 
-/// Create a CTk password entry (characters shown as •). ///
+// Create a CTk password entry (characters shown as •).
 global ctkPasswordEntry(){
     int idx = 0;
     rawPy(){
@@ -1563,7 +1563,7 @@ global ctkPasswordEntry(){
 
 // ── TextBox ────────────────────────────────────────────────────────────────
 
-/// Create a CTkTextbox (multi-line).  Returns widget index. ///
+// Create a CTkTextbox (multi-line).  Returns widget index.
 global ctkTextBox(int width, int height){
     int idx = 0;
     rawPy(){
@@ -1578,7 +1578,7 @@ global ctkTextBox(int width, int height){
 
 // ── Checkbox ───────────────────────────────────────────────────────────────
 
-/// Create a CTkCheckBox.  Returns widget index.  Read state with ctkIsChecked(idx). ///
+// Create a CTkCheckBox.  Returns widget index.  Read state with ctkIsChecked(idx).
 global ctkCheckbox(str text){
     int idx = 0;
     rawPy(){
@@ -1595,7 +1595,7 @@ global ctkCheckbox(str text){
 
 // ── Switch ─────────────────────────────────────────────────────────────────
 
-/// Create a CTkSwitch toggle.  Returns widget index.  Read state with ctkIsOn(idx). ///
+// Create a CTkSwitch toggle.  Returns widget index.  Read state with ctkIsOn(idx).
 global ctkSwitch(str text){
     int idx = 0;
     rawPy(){
@@ -1610,7 +1610,7 @@ global ctkSwitch(str text){
     return idx;
 }
 
-/// Return true if the CTkSwitch at idx is on. ///
+// Return true if the CTkSwitch at idx is on.
 global ctkIsOn(int idx){
     bool result = false;
     rawPy(){
@@ -1623,7 +1623,7 @@ global ctkIsOn(int idx){
     return result;
 }
 
-/// Programmatically turn a CTkSwitch on (true) or off (false). ///
+// Programmatically turn a CTkSwitch on (true) or off (false).
 global ctkSetSwitch(int idx, bool on){
     rawPy(){
         import builtins
@@ -1636,7 +1636,7 @@ global ctkSetSwitch(int idx, bool on){
 
 // ── Radio button ───────────────────────────────────────────────────────────
 
-/// Create a CTkRadioButton belonging to groupId.  Returns widget index. ///
+// Create a CTkRadioButton belonging to groupId.  Returns widget index.
 global ctkRadioButton(str text, str groupId){
     int idx = 0;
     rawPy(){
@@ -1653,7 +1653,7 @@ global ctkRadioButton(str text, str groupId){
     return idx;
 }
 
-/// Return the value (text) of the selected CTk radio button in groupId. ///
+// Return the value (text) of the selected CTk radio button in groupId.
 global ctkGetRadio(str groupId){
     str result = "";
     rawPy(){
@@ -1668,8 +1668,8 @@ global ctkGetRadio(str groupId){
 
 // ── Combobox ───────────────────────────────────────────────────────────────
 
-/// Create a CTkComboBox.  itemsJson is a JSON array of strings.
-  Returns widget index.  Read selection with ctkGetCombo(idx). ///
+// Create a CTkComboBox.  itemsJson is a JSON array of strings.
+// Returns widget index.  Read selection with ctkGetCombo(idx).
 global ctkCombobox(str itemsJson){
     int idx = 0;
     rawPy(){
@@ -1685,7 +1685,7 @@ global ctkCombobox(str itemsJson){
     return idx;
 }
 
-/// Return the currently selected CTkComboBox value. ///
+// Return the currently selected CTkComboBox value.
 global ctkGetCombo(int idx){
     str result = "";
     rawPy(){
@@ -1698,7 +1698,7 @@ global ctkGetCombo(int idx){
     return result;
 }
 
-/// Set the CTkComboBox value by text. ///
+// Set the CTkComboBox value by text.
 global ctkSetCombo(int idx, str text){
     rawPy(){
         import builtins
@@ -1711,8 +1711,8 @@ global ctkSetCombo(int idx, str text){
 
 // ── OptionMenu ─────────────────────────────────────────────────────────────
 
-/// Create a CTkOptionMenu.  itemsJson is a JSON array of strings.
-  Returns widget index.  Read selection with ctkGetOption(idx). ///
+// Create a CTkOptionMenu.  itemsJson is a JSON array of strings.
+// Returns widget index.  Read selection with ctkGetOption(idx).
 global ctkOptionMenu(str itemsJson){
     int idx = 0;
     rawPy(){
@@ -1726,7 +1726,7 @@ global ctkOptionMenu(str itemsJson){
     return idx;
 }
 
-/// Return the currently selected CTkOptionMenu value. ///
+// Return the currently selected CTkOptionMenu value.
 global ctkGetOption(int idx){
     str result = "";
     rawPy(){
@@ -1739,7 +1739,7 @@ global ctkGetOption(int idx){
     return result;
 }
 
-/// Set the CTkOptionMenu selection by text. ///
+// Set the CTkOptionMenu selection by text.
 global ctkSetOption(int idx, str text){
     rawPy(){
         import builtins
@@ -1752,8 +1752,8 @@ global ctkSetOption(int idx, str text){
 
 // ── SegmentedButton ────────────────────────────────────────────────────────
 
-/// Create a CTkSegmentedButton.  valuesJson is a JSON array of strings.
-  Returns widget index.  Read selection with ctkGetValue(idx). ///
+// Create a CTkSegmentedButton.  valuesJson is a JSON array of strings.
+// Returns widget index.  Read selection with ctkGetValue(idx).
 global ctkSegmented(str valuesJson){
     int idx = 0;
     rawPy(){
@@ -1771,8 +1771,8 @@ global ctkSegmented(str valuesJson){
 
 // ── Slider ─────────────────────────────────────────────────────────────────
 
-/// Create a CTkSlider from lo to hi.
-  Returns widget index.  Read value with ctkGetSlider(idx). ///
+// Create a CTkSlider from lo to hi.
+// Returns widget index.  Read value with ctkGetSlider(idx).
 global ctkSlider(float lo, float hi){
     int idx = 0;
     rawPy(){
@@ -1786,7 +1786,7 @@ global ctkSlider(float lo, float hi){
     return idx;
 }
 
-/// Return the current float value of a CTkSlider. ///
+// Return the current float value of a CTkSlider.
 global ctkGetSlider(int idx){
     float result = 0.0;
     rawPy(){
@@ -1799,7 +1799,7 @@ global ctkGetSlider(int idx){
     return result;
 }
 
-/// Set the value of a CTkSlider. ///
+// Set the value of a CTkSlider.
 global ctkSetSlider(int idx, float val){
     rawPy(){
         import builtins
@@ -1812,8 +1812,8 @@ global ctkSetSlider(int idx, float val){
 
 // ── ProgressBar ────────────────────────────────────────────────────────────
 
-/// Create a CTkProgressBar (value 0.0–1.0).
-  Returns widget index.  Set with ctkSetProgress(idx, val). ///
+// Create a CTkProgressBar (value 0.0–1.0).
+// Returns widget index.  Set with ctkSetProgress(idx, val).
 global ctkProgressBar(){
     int idx = 0;
     rawPy(){
@@ -1827,7 +1827,7 @@ global ctkProgressBar(){
     return idx;
 }
 
-/// Set the current value of a CTkProgressBar (0.0 … 1.0). ///
+// Set the current value of a CTkProgressBar (0.0 … 1.0).
 global ctkSetProgress(int idx, float val){
     rawPy(){
         import builtins
@@ -1839,7 +1839,7 @@ global ctkSetProgress(int idx, float val){
     }
 }
 
-/// Return the current value of a CTkProgressBar. ///
+// Return the current value of a CTkProgressBar.
 global ctkGetProgress(int idx){
     float result = 0.0;
     rawPy(){
@@ -1854,7 +1854,7 @@ global ctkGetProgress(int idx){
 
 // ── Frame ──────────────────────────────────────────────────────────────────
 
-/// Create a CTkFrame container.  Returns widget index. ///
+// Create a CTkFrame container.  Returns widget index.
 global ctkFrame(){
     int idx = 0;
     rawPy(){
@@ -1867,7 +1867,7 @@ global ctkFrame(){
     return idx;
 }
 
-/// Create a CTkScrollableFrame.  Returns widget index. ///
+// Create a CTkScrollableFrame.  Returns widget index.
 global ctkScrollFrame(int width, int height){
     int idx = 0;
     rawPy(){
@@ -1883,8 +1883,8 @@ global ctkScrollFrame(int width, int height){
 
 // ── TabView ────────────────────────────────────────────────────────────────
 
-/// Create a CTkTabview (tabbed container).
-  Returns widget index.  Add tabs with ctkAddTab(tvIdx, text). ///
+// Create a CTkTabview (tabbed container).
+// Returns widget index.  Add tabs with ctkAddTab(tvIdx, text).
 global ctkTabView(){
     int idx = 0;
     rawPy(){
@@ -1897,8 +1897,8 @@ global ctkTabView(){
     return idx;
 }
 
-/// Add a named tab to a CTkTabview.
-  tvIdx: tabview widget index.  text: tab label. ///
+// Add a named tab to a CTkTabview.
+// tvIdx: tabview widget index.  text: tab label.
 global ctkAddTab(int tvIdx, str text){
     rawPy(){
         import builtins
@@ -1911,8 +1911,8 @@ global ctkAddTab(int tvIdx, str text){
 
 // ── Image ──────────────────────────────────────────────────────────────────
 
-/// Display an image in a CTk window.  Requires Pillow (pip install Pillow).
-  Returns widget index. ///
+// Display an image in a CTk window.  Requires Pillow (pip install Pillow).
+// Returns widget index.
 global ctkImage(str imagePath, int width, int height){
     int idx = 0;
     rawPy(){
@@ -1934,7 +1934,7 @@ global ctkImage(str imagePath, int width, int height){
 
 // ── Layout ─────────────────────────────────────────────────────────────────
 
-/// Place a CTk widget at grid position (row, col). ///
+// Place a CTk widget at grid position (row, col).
 global ctkGrid(int idx, int row, int col){
     rawPy(){
         import builtins
@@ -1947,7 +1947,7 @@ global ctkGrid(int idx, int row, int col){
     }
 }
 
-/// Place a CTk widget at grid position with column span. ///
+// Place a CTk widget at grid position with column span.
 global ctkGridSpan(int idx, int row, int col, int colspan){
     rawPy(){
         import builtins
@@ -1961,7 +1961,7 @@ global ctkGridSpan(int idx, int row, int col, int colspan){
     }
 }
 
-/// Place a CTk widget at an absolute pixel position. ///
+// Place a CTk widget at an absolute pixel position.
 global ctkPlace(int idx, int x, int y){
     rawPy(){
         import builtins
@@ -1974,7 +1974,7 @@ global ctkPlace(int idx, int x, int y){
     }
 }
 
-/// Re-pack a CTk widget with anchor. ///
+// Re-pack a CTk widget with anchor.
 global ctkPack(int idx, str anchor){
     rawPy(){
         import builtins
@@ -1987,7 +1987,7 @@ global ctkPack(int idx, str anchor){
 
 // ── Styling ────────────────────────────────────────────────────────────────
 
-/// Set the font of a CTk widget. ///
+// Set the font of a CTk widget.
 global ctkSetFont(int idx, str family, int size, str style){
     rawPy(){
         import customtkinter as _ctk, builtins
@@ -2001,7 +2001,7 @@ global ctkSetFont(int idx, str family, int size, str style){
     }
 }
 
-/// Set the text colour of a CTk widget. ///
+// Set the text colour of a CTk widget.
 global ctkSetForeground(int idx, str color){
     rawPy(){
         import builtins
@@ -2012,7 +2012,7 @@ global ctkSetForeground(int idx, str color){
     }
 }
 
-/// Set the fg_color (background) of a CTk widget. ///
+// Set the fg_color (background) of a CTk widget.
 global ctkSetBackgroundWidget(int idx, str color){
     rawPy(){
         import builtins
@@ -2023,7 +2023,7 @@ global ctkSetBackgroundWidget(int idx, str color){
     }
 }
 
-/// Set the corner radius (pixels) of a CTk widget. ///
+// Set the corner radius (pixels) of a CTk widget.
 global ctkSetCornerRadius(int idx, int radius){
     rawPy(){
         import builtins
@@ -2034,7 +2034,7 @@ global ctkSetCornerRadius(int idx, int radius){
     }
 }
 
-/// Set the border width (pixels) of a CTk widget. ///
+// Set the border width (pixels) of a CTk widget.
 global ctkSetBorderWidth(int idx, int width){
     rawPy(){
         import builtins
@@ -2045,7 +2045,7 @@ global ctkSetBorderWidth(int idx, int width){
     }
 }
 
-/// Set internal padding of a CTk widget. ///
+// Set internal padding of a CTk widget.
 global ctkSetPadding(int idx, int px, int py){
     rawPy(){
         import builtins
@@ -2058,8 +2058,8 @@ global ctkSetPadding(int idx, int px, int py){
 
 // ── Widget interactions ─────────────────────────────────────────────────────
 
-/// Return the string value of a CTkEntry, CTkTextbox, CTkComboBox,
-  CTkOptionMenu, or CTkSegmentedButton. ///
+// Return the string value of a CTkEntry, CTkTextbox, CTkComboBox,
+// CTkOptionMenu, or CTkSegmentedButton.
 global ctkGetValue(int idx){
     str result = "";
     rawPy(){
@@ -2076,7 +2076,7 @@ global ctkGetValue(int idx){
     return result;
 }
 
-/// Return the display text of a CTkLabel or CTkButton. ///
+// Return the display text of a CTkLabel or CTkButton.
 global ctkGetText(int idx){
     str result = "";
     rawPy(){
@@ -2089,7 +2089,7 @@ global ctkGetText(int idx){
     return result;
 }
 
-/// Set the display text of a CTkLabel, CTkButton, CTkCheckBox, etc. ///
+// Set the display text of a CTkLabel, CTkButton, CTkCheckBox, etc.
 global ctkSetText(int idx, str text){
     rawPy(){
         import builtins
@@ -2100,7 +2100,7 @@ global ctkSetText(int idx, str text){
     }
 }
 
-/// Replace the content of a CTkEntry. ///
+// Replace the content of a CTkEntry.
 global ctkSetEntryText(int idx, str text){
     rawPy(){
         import builtins
@@ -2113,7 +2113,7 @@ global ctkSetEntryText(int idx, str text){
     }
 }
 
-/// Replace the content of a CTkTextbox. ///
+// Replace the content of a CTkTextbox.
 global ctkSetTextBoxContent(int idx, str text){
     rawPy(){
         import builtins
@@ -2126,7 +2126,7 @@ global ctkSetTextBoxContent(int idx, str text){
     }
 }
 
-/// Return true if a CTkCheckBox is checked. ///
+// Return true if a CTkCheckBox is checked.
 global ctkIsChecked(int idx){
     bool result = false;
     rawPy(){
@@ -2139,7 +2139,7 @@ global ctkIsChecked(int idx){
     return result;
 }
 
-/// Programmatically check or uncheck a CTkCheckBox. ///
+// Programmatically check or uncheck a CTkCheckBox.
 global ctkSetChecked(int idx, bool checked){
     rawPy(){
         import builtins
@@ -2150,7 +2150,7 @@ global ctkSetChecked(int idx, bool checked){
     }
 }
 
-/// Clear the content of a CTkEntry or CTkTextbox. ///
+// Clear the content of a CTkEntry or CTkTextbox.
 global ctkClearWidget(int idx){
     rawPy(){
         import builtins, customtkinter as _ctk
@@ -2165,7 +2165,7 @@ global ctkClearWidget(int idx){
     }
 }
 
-/// Disable a CTk widget (greyed out, non-interactive). ///
+// Disable a CTk widget (greyed out, non-interactive).
 global ctkDisableWidget(int idx){
     rawPy(){
         import builtins
@@ -2176,7 +2176,7 @@ global ctkDisableWidget(int idx){
     }
 }
 
-/// Re-enable a previously disabled CTk widget. ///
+// Re-enable a previously disabled CTk widget.
 global ctkEnableWidget(int idx){
     rawPy(){
         import builtins
@@ -2187,7 +2187,7 @@ global ctkEnableWidget(int idx){
     }
 }
 
-/// Hide a CTk widget (removes from layout without destroying). ///
+// Hide a CTk widget (removes from layout without destroying).
 global ctkHideWidget(int idx){
     rawPy(){
         import builtins
@@ -2198,7 +2198,7 @@ global ctkHideWidget(int idx){
     }
 }
 
-/// Show a previously hidden CTk widget. ///
+// Show a previously hidden CTk widget.
 global ctkShowWidget(int idx){
     rawPy(){
         import builtins
@@ -2209,7 +2209,7 @@ global ctkShowWidget(int idx){
     }
 }
 
-/// Permanently destroy a CTk widget. ///
+// Permanently destroy a CTk widget.
 global ctkDestroyWidget(int idx){
     rawPy(){
         import builtins
@@ -2220,7 +2220,7 @@ global ctkDestroyWidget(int idx){
     }
 }
 
-/// Give keyboard focus to the CTk widget at idx. ///
+// Give keyboard focus to the CTk widget at idx.
 global ctkFocusWidget(int idx){
     rawPy(){
         import builtins
@@ -2233,7 +2233,7 @@ global ctkFocusWidget(int idx){
 
 // ── App lifecycle ───────────────────────────────────────────────────────────
 
-/// Start the CTk main event loop (blocking). ///
+// Start the CTk main event loop (blocking).
 global ctkRun(){
     rawPy(){
         import builtins
@@ -2241,7 +2241,7 @@ global ctkRun(){
     }
 }
 
-/// Destroy the CTk window and exit the event loop. ///
+// Destroy the CTk window and exit the event loop.
 global ctkClose(){
     rawPy(){
         import builtins

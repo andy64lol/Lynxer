@@ -1,0 +1,173 @@
+////
+ Lynxer Standard Library — venv
+ Virtual environment management via Python's built-in venv module.
+
+ Usage (after import("venv") in setup()):
+   global.venv.venv.create("my-env", "")              // create in cwd/my-env
+   global.venv.venv.create("my-env", "/opt/envs")     // create in /opt/envs/my-env
+   global.venv.venv.init("/path/to/my-env")            // verify an existing venv
+   global.venv.venv.listVenvs()                        // list venvs in cwd (JSON array)
+   global.venv.venv.remove("my-env")                  // remove cwd/my-env (or abs path)
+   global.venv.package.add("my-env", "requests")      // pip install into venv
+   global.venv.package.remove("my-env", "requests")   // pip uninstall from venv
+////
+
+global setup(){}
+
+// venv sub-namespace
+
+global venv(){
+
+    // Create a new virtual environment.
+    // name: directory name for the venv.
+    // path: parent directory. Pass "" to use the current working directory.
+    // Returns: "ok:<resolved_path>" on success, "error:<message>" on failure.
+    global create(str name, str path){
+        str result = "";
+        rawPy(){
+            import subprocess, os, sys
+            parent = path.strip() if path.strip() else os.getcwd()
+            venv_path = os.path.join(parent, name)
+            try:
+                proc = subprocess.run(
+                    [sys.executable, "-m", "venv", venv_path],
+                    capture_output=True, text=True
+                )
+                if proc.returncode == 0:
+                    result = "ok:" + venv_path
+                else:
+                    result = "error:" + proc.stderr.strip()
+            except Exception as _e:
+                result = "error:" + str(_e)
+        }
+        return result;
+    }
+
+    // Verify that a virtual environment exists at the given path.
+    // venv_path: absolute or relative path to the venv directory.
+    // Returns: "ok:<resolved_path>" if valid, "error:<message>" otherwise.
+    global init(str venv_path){
+        str result = "";
+        rawPy(){
+            import os
+            abs_path = os.path.abspath(venv_path)
+            cfg = os.path.join(abs_path, "pyvenv.cfg")
+            if os.path.isdir(abs_path) and os.path.exists(cfg):
+                result = "ok:" + abs_path
+            elif os.path.isdir(abs_path):
+                result = "error:directory exists but is not a venv (missing pyvenv.cfg): " + abs_path
+            else:
+                result = "error:venv not found: " + abs_path
+        }
+        return result;
+    }
+
+    // List all virtual environments in the current working directory.
+    // Detects venvs by checking for a pyvenv.cfg inside each subdirectory.
+    // Named listVenvs because "list" is a reserved keyword in Lynxer.
+    // Returns: JSON array of venv names, e.g. ["my-env", "test-env"]
+    global listVenvs(){
+        str result = "";
+        rawPy(){
+            import os, json
+            cwd = os.getcwd()
+            venvs = []
+            try:
+                for entry in sorted(os.listdir(cwd)):
+                    full = os.path.join(cwd, entry)
+                    if os.path.isdir(full) and os.path.exists(os.path.join(full, "pyvenv.cfg")):
+                        venvs.append(entry)
+            except Exception as _e:
+                venvs = []
+            result = json.dumps(venvs)
+        }
+        return result;
+    }
+
+    // Remove a virtual environment by deleting its directory tree.
+    // name: venv name (resolved against cwd) or an absolute path.
+    // Returns: "ok" on success, "error:<message>" on failure.
+    global remove(str name){
+        str result = "";
+        rawPy(){
+            import shutil, os
+            venv_path = name if os.path.isabs(name) else os.path.join(os.getcwd(), name)
+            try:
+                if os.path.isdir(venv_path):
+                    shutil.rmtree(venv_path)
+                    result = "ok"
+                else:
+                    result = "error:venv not found: " + venv_path
+            except Exception as _e:
+                result = "error:" + str(_e)
+        }
+        return result;
+    }
+
+}
+
+// package sub-namespace
+
+global package(){
+
+    // Install a package into a virtual environment using pip.
+    // venv_name: venv directory name (resolved against cwd) or absolute path.
+    // pkg_name: package name as accepted by pip, e.g. "requests" or "flask==2.3.0".
+    // Returns: "ok" on success, "error:<stderr>" on failure.
+    global add(str venv_name, str pkg_name){
+        str result = "";
+        rawPy(){
+            import subprocess, os
+            venv_path = venv_name if os.path.isabs(venv_name) else os.path.join(os.getcwd(), venv_name)
+            pip = (
+                os.path.join(venv_path, "Scripts", "pip")
+                if os.name == "nt"
+                else os.path.join(venv_path, "bin", "pip")
+            )
+            if not os.path.exists(pip):
+                result = "error:pip not found in venv: " + venv_path
+            else:
+                try:
+                    proc = subprocess.run(
+                        [pip, "install", pkg_name],
+                        capture_output=True, text=True
+                    )
+                    result = "ok" if proc.returncode == 0 else "error:" + proc.stderr.strip()
+                except Exception as _e:
+                    result = "error:" + str(_e)
+        }
+        return result;
+    }
+
+    // Uninstall a package from a virtual environment using pip.
+    // venv_name: venv directory name (resolved against cwd) or absolute path.
+    // pkg_name: package name to uninstall.
+    // Returns: "ok" on success, "error:<stderr>" on failure.
+    global remove(str venv_name, str pkg_name){
+        str result = "";
+        rawPy(){
+            import subprocess, os
+            venv_path = venv_name if os.path.isabs(venv_name) else os.path.join(os.getcwd(), venv_name)
+            pip = (
+                os.path.join(venv_path, "Scripts", "pip")
+                if os.name == "nt"
+                else os.path.join(venv_path, "bin", "pip")
+            )
+            if not os.path.exists(pip):
+                result = "error:pip not found in venv: " + venv_path
+            else:
+                try:
+                    proc = subprocess.run(
+                        [pip, "uninstall", "-y", pkg_name],
+                        capture_output=True, text=True
+                    )
+                    result = "ok" if proc.returncode == 0 else "error:" + proc.stderr.strip()
+                except Exception as _e:
+                    result = "error:" + str(_e)
+        }
+        return result;
+    }
+
+}
+
+global main(){}

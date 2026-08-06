@@ -1,4 +1,4 @@
-///
+////
   Lynxer Standard Library - datetime
   Provides: now, getTime, getDate, getYear, getMonth, getDay,
             getHour, getMinute, getSecond,
@@ -7,11 +7,11 @@
             timestamp, fromTimestamp, toTimestamp,
             addDays, diffDays,
             isLeapYear, daysInMonth
-///
+////
 
 global setup(){}
 
-/// Current datetime as "YYYY-MM-DD HH:MM:SS". ///
+// Current datetime as "YYYY-MM-DD HH:MM:SS".
 global now(){
     str result = "";
     rawPy(){
@@ -21,7 +21,7 @@ global now(){
     return result;
 }
 
-/// Current time as "HH:MM:SS". ///
+// Current time as "HH:MM:SS".
 global getTime(){
     str result = "";
     rawPy(){
@@ -31,7 +31,7 @@ global getTime(){
     return result;
 }
 
-/// Current date as "YYYY-MM-DD". ///
+// Current date as "YYYY-MM-DD".
 global getDate(){
     str result = "";
     rawPy(){
@@ -41,7 +41,7 @@ global getDate(){
     return result;
 }
 
-/// Current four-digit year, e.g. 2025. ///
+// Current four-digit year, e.g. 2025.
 global getYear(){
     int result = 0;
     rawPy(){
@@ -51,7 +51,7 @@ global getYear(){
     return result;
 }
 
-/// Current month as 1-12. ///
+// Current month as 1-12.
 global getMonth(){
     int result = 0;
     rawPy(){
@@ -61,7 +61,7 @@ global getMonth(){
     return result;
 }
 
-/// Current day of the month as 1-31. ///
+// Current day of the month as 1-31.
 global getDay(){
     int result = 0;
     rawPy(){
@@ -71,7 +71,7 @@ global getDay(){
     return result;
 }
 
-/// Current hour as 0-23. ///
+// Current hour as 0-23.
 global getHour(){
     int result = 0;
     rawPy(){
@@ -81,7 +81,7 @@ global getHour(){
     return result;
 }
 
-/// Current minute as 0-59. ///
+// Current minute as 0-59.
 global getMinute(){
     int result = 0;
     rawPy(){
@@ -91,7 +91,7 @@ global getMinute(){
     return result;
 }
 
-/// Current second as 0-59. ///
+// Current second as 0-59.
 global getSecond(){
     int result = 0;
     rawPy(){
@@ -101,7 +101,7 @@ global getSecond(){
     return result;
 }
 
-/// Full weekday name for today, e.g. "Monday". ///
+// Full weekday name for today, e.g. "Monday".
 global getWeekday(){
     str result = "";
     rawPy(){
@@ -111,7 +111,7 @@ global getWeekday(){
     return result;
 }
 
-/// Weekday number for today: 0 = Monday, 6 = Sunday. ///
+// Weekday number for today: 0 = Monday, 6 = Sunday.
 global getWeekdayNum(){
     int result = 0;
     rawPy(){
@@ -121,7 +121,7 @@ global getWeekdayNum(){
     return result;
 }
 
-/// Current datetime in ISO 8601 format, e.g. "2025-07-21T14:30:00". ///
+// Current datetime in ISO 8601 format, e.g. "2025-07-21T14:30:00".
 global isoNow(){
     str result = "";
     rawPy(){
@@ -133,7 +133,7 @@ global isoNow(){
 
 // Format the current datetime with a strftime pattern.
 // Example: global.time.format("%d/%m/%Y")  returns  "21/07/2025"
-/// See Python strftime docs for pattern tokens. ///
+// See Python strftime docs for pattern tokens.
 global format(str pattern){
     str result = "";
     rawPy(){
@@ -143,7 +143,7 @@ global format(str pattern){
     return result;
 }
 
-/// Unix epoch timestamp (seconds since 1970-01-01 UTC) as a float. ///
+// Unix epoch timestamp (seconds since 1970-01-01 UTC) as a float.
 global timestamp(){
     float result = 0.0;
     rawPy(){
@@ -154,7 +154,7 @@ global timestamp(){
 }
 
 // Convert a Unix timestamp to a local "YYYY-MM-DD HH:MM:SS" string.
-/// Pass the float returned by timestamp() or toTimestamp(). ///
+// Pass the float returned by timestamp() or toTimestamp().
 global fromTimestamp(float ts){
     str result = "";
     rawPy(){
@@ -165,7 +165,7 @@ global fromTimestamp(float ts){
 }
 
 // Parse a "YYYY-MM-DD HH:MM:SS" string and return its Unix timestamp.
-/// Returns -1.0 if the string cannot be parsed. ///
+// Returns -1.0 if the string cannot be parsed.
 global toTimestamp(str dt){
     float result = 0.0;
     rawPy(){
@@ -179,7 +179,7 @@ global toTimestamp(str dt){
 }
 
 // Add days to a "YYYY-MM-DD" date string, return new "YYYY-MM-DD".
-/// Use a negative number to subtract days. Returns "" on bad input. ///
+// Use a negative number to subtract days. Returns "" on bad input.
 global addDays(str date, int days){
     str result = "";
     rawPy(){
@@ -194,7 +194,7 @@ global addDays(str date, int days){
 }
 
 // Days between two "YYYY-MM-DD" strings (date2 - date1).
-/// Returns 0 if either string cannot be parsed. ///
+// Returns 0 if either string cannot be parsed.
 global diffDays(str date1, str date2){
     int result = 0;
     rawPy(){
@@ -209,7 +209,7 @@ global diffDays(str date1, str date2){
     return result;
 }
 
-/// Returns true if year is a leap year. ///
+// Returns true if year is a leap year.
 global isLeapYear(int year){
     int result = 0;
     rawPy(){
@@ -220,7 +220,7 @@ global isLeapYear(int year){
     return false;
 }
 
-/// Number of days in the given month (1-12) of year. ///
+// Number of days in the given month (1-12) of year.
 global daysInMonth(int year, int month){
     int result = 0;
     rawPy(){

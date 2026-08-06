@@ -1,4 +1,4 @@
-///
+////
   Lynxer Standard Library — regex
   Extended regular expression operations.
 
@@ -16,7 +16,7 @@
 
   For basic regex operations (test, match, findall, sub, split, groups, named …)
   use global.re.* — those are already well-covered in re.lynx.
-///
+////
 
 global setup(){}
 
@@ -33,8 +33,8 @@ global _ensureCache(){
 
 // ── Compiled pattern cache ────────────────────────────────────────────────────
 
-/// Compile a pattern and store it under name for later use with match/search/findall/sub/test.
-Flags string can be empty or any combination of: I (ignore case), M (multiline), S (dotall), X (verbose). ///
+// Compile a pattern and store it under name for later use with match/search/findall/sub/test.
+// Flags string can be empty or any combination of: I (ignore case), M (multiline), S (dotall), X (verbose).
 global compile(str name, str pattern, str flags){
     rawPy(){
         import builtins
@@ -56,8 +56,8 @@ global compile(str name, str pattern, str flags){
     }
 }
 
-/// Use a compiled (cached) pattern to test whether it matches string.
-Returns 1 (match found) or 0. ///
+// Use a compiled (cached) pattern to test whether it matches string.
+// Returns 1 (match found) or 0.
 global testCompiled(str name, str string){
     int result = 0;
     rawPy(){
@@ -69,7 +69,7 @@ global testCompiled(str name, str string){
     return result;
 }
 
-/// Use a compiled pattern to return the first matching substring, or "". ///
+// Use a compiled pattern to return the first matching substring, or "".
 global matchCompiled(str name, str string){
     str result = "";
     rawPy(){
@@ -85,7 +85,7 @@ global matchCompiled(str name, str string){
     return result;
 }
 
-/// Use a compiled pattern to return all matches as a JSON array. ///
+// Use a compiled pattern to return all matches as a JSON array.
 global findallCompiled(str name, str string){
     str result = "";
     rawPy(){
@@ -101,7 +101,7 @@ global findallCompiled(str name, str string){
     return result;
 }
 
-/// Use a compiled pattern to replace all matches with repl. Returns modified string. ///
+// Use a compiled pattern to replace all matches with repl. Returns modified string.
 global subCompiled(str name, str repl, str string){
     str result = "";
     rawPy(){
@@ -113,7 +113,7 @@ global subCompiled(str name, str repl, str string){
     return result;
 }
 
-/// Clear the compiled pattern cache. ///
+// Clear the compiled pattern cache.
 global clearCache(){
     rawPy(){
         import builtins
@@ -121,7 +121,7 @@ global clearCache(){
     }
 }
 
-/// Return the names of all currently compiled (cached) patterns as a JSON array. ///
+// Return the names of all currently compiled (cached) patterns as a JSON array.
 global cacheKeys(){
     str result = "";
     rawPy(){
@@ -134,7 +134,7 @@ global cacheKeys(){
 
 // ── Pattern validation ────────────────────────────────────────────────────────
 
-/// Return 1 if pattern is a valid regex, else 0. ///
+// Return 1 if pattern is a valid regex, else 0.
 global isValid(str pattern){
     int result = 0;
     rawPy(){
@@ -153,8 +153,8 @@ global isValid(str pattern){
 
 // ── Extraction helpers ────────────────────────────────────────────────────────
 
-/// Return a JSON object of all named groups from the first match, or "{}".
-Equivalent to re.named but using the regex package. ///
+// Return a JSON object of all named groups from the first match, or "{}".
+// Equivalent to re.named but using the regex package.
 global extract(str pattern, str string){
     str result = "";
     rawPy(){
@@ -172,8 +172,8 @@ global extract(str pattern, str string){
     return result;
 }
 
-/// Return a JSON array of objects — one per match — with all named groups.
-Use (?P<name>...) in your pattern. ///
+// Return a JSON array of objects — one per match — with all named groups.
+// Use (?P<name>...) in your pattern.
 global extractAll(str pattern, str string){
     str result = "";
     rawPy(){
@@ -190,7 +190,7 @@ global extractAll(str pattern, str string){
     return result;
 }
 
-/// Return a JSON array of all unique matches (no duplicates). ///
+// Return a JSON array of all unique matches (no duplicates).
 global unique(str pattern, str string){
     str result = "";
     rawPy(){
@@ -212,7 +212,7 @@ global unique(str pattern, str string){
     return result;
 }
 
-/// Return the last match of pattern in string, or "" if none. ///
+// Return the last match of pattern in string, or "" if none.
 global lastMatch(str pattern, str string){
     str result = "";
     rawPy(){
@@ -229,7 +229,7 @@ global lastMatch(str pattern, str string){
     return result;
 }
 
-/// Return all overlapping matches as a JSON array (requires regex package; falls back to non-overlapping). ///
+// Return all overlapping matches as a JSON array (requires regex package; falls back to non-overlapping).
 global findallOverlapping(str pattern, str string){
     str result = "";
     rawPy(){
@@ -250,8 +250,8 @@ global findallOverlapping(str pattern, str string){
 
 // ── Replace helpers ───────────────────────────────────────────────────────────
 
-/// Replace only the n-th occurrence (1-indexed) of pattern with repl.
-All other occurrences are left unchanged. ///
+// Replace only the n-th occurrence (1-indexed) of pattern with repl.
+// All other occurrences are left unchanged.
 global replaceNth(str pattern, str repl, str string, int n){
     str result = "";
     rawPy(){
@@ -271,8 +271,8 @@ global replaceNth(str pattern, str repl, str string, int n){
     return result;
 }
 
-/// Replace all occurrences of pattern with a literal string (no backreference expansion).
-Useful when repl contains backslashes or group references that should not be interpreted. ///
+// Replace all occurrences of pattern with a literal string (no backreference expansion).
+// Useful when repl contains backslashes or group references that should not be interpreted.
 global replaceAllLiteral(str pattern, str repl, str string){
     str result = "";
     rawPy(){
@@ -291,8 +291,8 @@ global replaceAllLiteral(str pattern, str repl, str string){
 
 // ── Highlight and split ───────────────────────────────────────────────────────
 
-/// Wrap every match with before and after strings.
-Example: highlight("\\d+", "**", "**", "score: 42") → "score: **42**". ///
+// Wrap every match with before and after strings.
+// Example: highlight("\\d+", "**", "**", "score: 42") → "score: **42**".
 global highlight(str pattern, str before, str after, str string){
     str result = "";
     rawPy(){
@@ -310,8 +310,8 @@ global highlight(str pattern, str before, str after, str string){
     return result;
 }
 
-/// Split string by pattern but keep the separators in the result.
-Returns a JSON array where matched separators appear as separate elements. ///
+// Split string by pattern but keep the separators in the result.
+// Returns a JSON array where matched separators appear as separate elements.
 global splitKeep(str pattern, str string){
     str result = "";
     rawPy(){
@@ -331,8 +331,8 @@ global splitKeep(str pattern, str string){
 
 // ── Unicode category helpers (regex package) ──────────────────────────────────
 
-/// Return all Unicode letters in string as a JSON array (uses \p{L}).
-Falls back to \w word characters if regex package is unavailable. ///
+// Return all Unicode letters in string as a JSON array (uses \p{L}).
+// Falls back to \w word characters if regex package is unavailable.
 global findLetters(str string){
     str result = "";
     rawPy(){
@@ -349,7 +349,7 @@ global findLetters(str string){
     return result;
 }
 
-/// Return all Unicode decimal digits in string as a JSON array (uses \p{Nd}). ///
+// Return all Unicode decimal digits in string as a JSON array (uses \p{Nd}).
 global findDigits(str string){
     str result = "";
     rawPy(){
@@ -368,8 +368,8 @@ global findDigits(str string){
 
 // ── Utility ───────────────────────────────────────────────────────────────────
 
-/// Convert a glob pattern (*, ?, [abc]) to an equivalent regex string.
-Example: globToRegex("*.txt") → "^.*\\.txt$". ///
+// Convert a glob pattern (*, ?, [abc]) to an equivalent regex string.
+// Example: globToRegex("*.txt") → "^.*\\.txt$".
 global globToRegex(str glob){
     str result = "";
     rawPy(){
@@ -401,7 +401,7 @@ global globToRegex(str glob){
     return result;
 }
 
-/// Return the number of non-overlapping matches of pattern in string. ///
+// Return the number of non-overlapping matches of pattern in string.
 global countMatches(str pattern, str string){
     int result = 0;
     rawPy(){
@@ -417,7 +417,7 @@ global countMatches(str pattern, str string){
     return result;
 }
 
-/// Return the start character index of the first match, or -1. ///
+// Return the start character index of the first match, or -1.
 global firstMatchPos(str pattern, str string){
     int result = 0;
     rawPy(){
@@ -434,8 +434,8 @@ global firstMatchPos(str pattern, str string){
     return result;
 }
 
-/// Truncate string to maxLen characters, keeping only the portion containing the first match.
-The match is centred in the window when possible. ///
+// Truncate string to maxLen characters, keeping only the portion containing the first match.
+// The match is centred in the window when possible.
 global truncateMatch(str pattern, str string, int maxLen){
     str result = "";
     rawPy(){

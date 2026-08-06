@@ -1,4 +1,4 @@
-///
+////
   Lynxer Standard Library — image
   Comprehensive image processing library wrapping Python's Pillow (PIL Fork).
   Requires: pip install Pillow
@@ -30,13 +30,13 @@
     Special:      autoContrast, equalize, quantize, solarize,
                   posterize, tile, splitChannels, mergeChannels
     Base64:       toBase64, fromBase64, toDataUrl
-///
+////
 
 global setup(){}
 
 // ── Core ───────────────────────────────────────────────────────────────────
 
-/// Open an image from path.  Returns image index. ///
+// Open an image from path.  Returns image index.
 global open(str path){
     int idx = 0;
     rawPy(){
@@ -55,9 +55,9 @@ global open(str path){
     return idx;
 }
 
-/// Create a new blank image.
-  mode: "RGB", "RGBA", "L" (grayscale), "1" (binary).
-  Returns image index. ///
+// Create a new blank image.
+// mode: "RGB", "RGBA", "L" (grayscale), "1" (binary).
+// Returns image index.
 global new(int width, int height, str mode, int r, int g, int b){
     int idx = 0;
     rawPy(){
@@ -81,8 +81,8 @@ global new(int width, int height, str mode, int r, int g, int b){
     return idx;
 }
 
-/// Save image at idx to path.
-  Format is inferred from the extension (.png, .jpg, .bmp, .gif, …). ///
+// Save image at idx to path.
+// Format is inferred from the extension (.png, .jpg, .bmp, .gif, …).
 global save(int idx, str path){
     rawPy(){
         import builtins
@@ -93,7 +93,7 @@ global save(int idx, str path){
     }
 }
 
-/// Save image with JPEG quality (1–95).  Use for .jpg files only. ///
+// Save image with JPEG quality (1–95).  Use for .jpg files only.
 global saveQuality(int idx, str path, int quality){
     rawPy(){
         import builtins
@@ -104,7 +104,7 @@ global saveQuality(int idx, str path, int quality){
     }
 }
 
-/// Return a deep copy of image at idx as a new image. ///
+// Return a deep copy of image at idx as a new image.
 global copy(int idx){
     int result = 0;
     rawPy(){
@@ -121,7 +121,7 @@ global copy(int idx){
     return result;
 }
 
-/// Open the image in the system's default image viewer. ///
+// Open the image in the system's default image viewer.
 global show(int idx){
     rawPy(){
         import builtins
@@ -132,7 +132,7 @@ global show(int idx){
     }
 }
 
-/// Free the image at idx from memory (sets the slot to None). ///
+// Free the image at idx from memory (sets the slot to None).
 global close(int idx){
     rawPy(){
         import builtins
@@ -144,7 +144,7 @@ global close(int idx){
     }
 }
 
-/// Return the width of an image in pixels. ///
+// Return the width of an image in pixels.
 global getWidth(int idx){
     int result = 0;
     rawPy(){
@@ -157,7 +157,7 @@ global getWidth(int idx){
     return result;
 }
 
-/// Return the height of an image in pixels. ///
+// Return the height of an image in pixels.
 global getHeight(int idx){
     int result = 0;
     rawPy(){
@@ -170,7 +170,7 @@ global getHeight(int idx){
     return result;
 }
 
-/// Return the color mode string: "RGB", "RGBA", "L", "P", "1", etc. ///
+// Return the color mode string: "RGB", "RGBA", "L", "P", "1", etc.
 global getMode(int idx){
     str result = "";
     rawPy(){
@@ -183,7 +183,7 @@ global getMode(int idx){
     return result;
 }
 
-/// Return the file format string ("PNG", "JPEG", "GIF", …), or "" if unknown. ///
+// Return the file format string ("PNG", "JPEG", "GIF", …), or "" if unknown.
 global getFormat(int idx){
     str result = "";
     rawPy(){
@@ -196,7 +196,7 @@ global getFormat(int idx){
     return result;
 }
 
-/// Return a JSON string with basic image info (width, height, mode, format). ///
+// Return a JSON string with basic image info (width, height, mode, format).
 global info(int idx){
     str result = "{}";
     rawPy(){
@@ -217,8 +217,8 @@ global info(int idx){
 
 // ── Transform ──────────────────────────────────────────────────────────────
 
-/// Resize an image to (width, height) using high-quality Lanczos resampling.
-  Returns new image index. ///
+// Resize an image to (width, height) using high-quality Lanczos resampling.
+// Returns new image index.
 global resize(int idx, int width, int height){
     int result = 0;
     rawPy(){
@@ -236,8 +236,8 @@ global resize(int idx, int width, int height){
     return result;
 }
 
-/// Shrink image so it fits within (maxWidth, maxHeight), preserving aspect ratio.
-  Returns new image index. ///
+// Shrink image so it fits within (maxWidth, maxHeight), preserving aspect ratio.
+// Returns new image index.
 global thumbnail(int idx, int maxWidth, int maxHeight){
     int result = 0;
     rawPy(){
@@ -256,8 +256,8 @@ global thumbnail(int idx, int maxWidth, int maxHeight){
     return result;
 }
 
-/// Scale image uniformly by a factor (e.g. 0.5 = half size, 2.0 = double).
-  Returns new image index. ///
+// Scale image uniformly by a factor (e.g. 0.5 = half size, 2.0 = double).
+// Returns new image index.
 global scale(int idx, float factor){
     int result = 0;
     rawPy(){
@@ -278,8 +278,8 @@ global scale(int idx, float factor){
     return result;
 }
 
-/// Resize image to exactly (width, height), cropping to fill (cover fit).
-  Returns new image index. ///
+// Resize image to exactly (width, height), cropping to fill (cover fit).
+// Returns new image index.
 global fit(int idx, int width, int height){
     int result = 0;
     rawPy(){
@@ -297,8 +297,8 @@ global fit(int idx, int width, int height){
     return result;
 }
 
-/// Resize image to fit inside (width, height), adding padding to fill the gap.
-  Padding colour: (r, g, b).  Returns new image index. ///
+// Resize image to fit inside (width, height), adding padding to fill the gap.
+// Padding colour: (r, g, b).  Returns new image index.
 global contain(int idx, int width, int height, int r, int g, int b){
     int result = 0;
     rawPy(){
@@ -322,7 +322,7 @@ global contain(int idx, int width, int height, int r, int g, int b){
     return result;
 }
 
-/// Crop image to the rectangle (x1, y1, x2, y2).  Returns new image index. ///
+// Crop image to the rectangle (x1, y1, x2, y2).  Returns new image index.
 global crop(int idx, int x1, int y1, int x2, int y2){
     int result = 0;
     rawPy(){
@@ -339,9 +339,9 @@ global crop(int idx, int x1, int y1, int x2, int y2){
     return result;
 }
 
-/// Rotate image by angle degrees (counter-clockwise).
-  expand=true enlarges canvas to fit the rotated image.
-  Returns new image index. ///
+// Rotate image by angle degrees (counter-clockwise).
+// expand=true enlarges canvas to fit the rotated image.
+// Returns new image index.
 global rotate(int idx, float angle, bool expand){
     int result = 0;
     rawPy(){
@@ -358,7 +358,7 @@ global rotate(int idx, float angle, bool expand){
     return result;
 }
 
-/// Flip image left-to-right (mirror horizontally).  Returns new index. ///
+// Flip image left-to-right (mirror horizontally).  Returns new index.
 global flipH(int idx){
     int result = 0;
     rawPy(){
@@ -376,7 +376,7 @@ global flipH(int idx){
     return result;
 }
 
-/// Flip image top-to-bottom (mirror vertically).  Returns new index. ///
+// Flip image top-to-bottom (mirror vertically).  Returns new index.
 global flipV(int idx){
     int result = 0;
     rawPy(){
@@ -394,7 +394,7 @@ global flipV(int idx){
     return result;
 }
 
-/// Add padding (in pixels) around an image.  Returns new image index. ///
+// Add padding (in pixels) around an image.  Returns new image index.
 global pad(int idx, int top, int right, int bottom, int left, int r, int g, int b){
     int result = 0;
     rawPy(){
@@ -418,9 +418,9 @@ global pad(int idx, int top, int right, int bottom, int left, int r, int g, int 
 
 // ── Convert ────────────────────────────────────────────────────────────────
 
-/// Convert image to a different mode.
-  mode: "RGB", "RGBA", "L", "P", "1", "CMYK", "YCbCr".
-  Returns new image index. ///
+// Convert image to a different mode.
+// mode: "RGB", "RGBA", "L", "P", "1", "CMYK", "YCbCr".
+// Returns new image index.
 global convert(int idx, str mode){
     int result = 0;
     rawPy(){
@@ -437,7 +437,7 @@ global convert(int idx, str mode){
     return result;
 }
 
-/// Convert to grayscale ("L" mode).  Returns new image index. ///
+// Convert to grayscale ("L" mode).  Returns new image index.
 global grayscale(int idx){
     int result = 0;
     rawPy(){
@@ -455,7 +455,7 @@ global grayscale(int idx){
     return result;
 }
 
-/// Convert to full-color RGB (removes alpha).  Returns new image index. ///
+// Convert to full-color RGB (removes alpha).  Returns new image index.
 global toRGB(int idx){
     int result = 0;
     rawPy(){
@@ -472,7 +472,7 @@ global toRGB(int idx){
     return result;
 }
 
-/// Convert to RGBA (adds alpha channel if missing).  Returns new image index. ///
+// Convert to RGBA (adds alpha channel if missing).  Returns new image index.
 global toRGBA(int idx){
     int result = 0;
     rawPy(){
@@ -489,8 +489,8 @@ global toRGBA(int idx){
     return result;
 }
 
-/// Convert to 1-bit black-and-white.  threshold 0–255 (default 127).
-  Returns new image index. ///
+// Convert to 1-bit black-and-white.  threshold 0–255 (default 127).
+// Returns new image index.
 global toBinary(int idx, int threshold){
     int result = 0;
     rawPy(){
@@ -511,8 +511,8 @@ global toBinary(int idx, int threshold){
 
 // ── Enhance ────────────────────────────────────────────────────────────────
 
-/// Adjust brightness.  factor 1.0 = original, 0.0 = black, 2.0 = double.
-  Returns new image index. ///
+// Adjust brightness.  factor 1.0 = original, 0.0 = black, 2.0 = double.
+// Returns new image index.
 global brightness(int idx, float factor){
     int result = 0;
     rawPy(){
@@ -530,8 +530,8 @@ global brightness(int idx, float factor){
     return result;
 }
 
-/// Adjust contrast.  factor 1.0 = original, 0.0 = grey, 2.0 = high contrast.
-  Returns new image index. ///
+// Adjust contrast.  factor 1.0 = original, 0.0 = grey, 2.0 = high contrast.
+// Returns new image index.
 global contrast(int idx, float factor){
     int result = 0;
     rawPy(){
@@ -549,8 +549,8 @@ global contrast(int idx, float factor){
     return result;
 }
 
-/// Adjust color saturation.  factor 1.0 = original, 0.0 = grayscale, 2.0 = vivid.
-  Returns new image index. ///
+// Adjust color saturation.  factor 1.0 = original, 0.0 = grayscale, 2.0 = vivid.
+// Returns new image index.
 global color(int idx, float factor){
     int result = 0;
     rawPy(){
@@ -568,8 +568,8 @@ global color(int idx, float factor){
     return result;
 }
 
-/// Adjust sharpness.  factor 1.0 = original, 0.0 = blurred, 2.0 = sharp.
-  Returns new image index. ///
+// Adjust sharpness.  factor 1.0 = original, 0.0 = blurred, 2.0 = sharp.
+// Returns new image index.
 global sharpness(int idx, float factor){
     int result = 0;
     rawPy(){
@@ -587,7 +587,7 @@ global sharpness(int idx, float factor){
     return result;
 }
 
-/// Invert all pixel values (photo negative).  Returns new image index. ///
+// Invert all pixel values (photo negative).  Returns new image index.
 global invert(int idx){
     int result = 0;
     rawPy(){
@@ -607,7 +607,7 @@ global invert(int idx){
 
 // ── Filter ─────────────────────────────────────────────────────────────────
 
-/// Apply a Gaussian blur with radius.  Returns new image index. ///
+// Apply a Gaussian blur with radius.  Returns new image index.
 global blur(int idx, float radius){
     int result = 0;
     rawPy(){
@@ -625,7 +625,7 @@ global blur(int idx, float radius){
     return result;
 }
 
-/// Apply a box blur with radius.  Returns new image index. ///
+// Apply a box blur with radius.  Returns new image index.
 global boxBlur(int idx, float radius){
     int result = 0;
     rawPy(){
@@ -643,7 +643,7 @@ global boxBlur(int idx, float radius){
     return result;
 }
 
-/// Apply unsharp mask (sharpening via blur subtraction).  Returns new image index. ///
+// Apply unsharp mask (sharpening via blur subtraction).  Returns new image index.
 global unsharpMask(int idx, float radius, float percent, int threshold){
     int result = 0;
     rawPy(){
@@ -662,7 +662,7 @@ global unsharpMask(int idx, float radius, float percent, int threshold){
     return result;
 }
 
-/// Apply a basic sharpen filter.  Returns new image index. ///
+// Apply a basic sharpen filter.  Returns new image index.
 global sharpen(int idx){
     int result = 0;
     rawPy(){
@@ -680,7 +680,7 @@ global sharpen(int idx){
     return result;
 }
 
-/// Enhance edges.  Returns new image index. ///
+// Enhance edges.  Returns new image index.
 global edgeEnhance(int idx){
     int result = 0;
     rawPy(){
@@ -698,7 +698,7 @@ global edgeEnhance(int idx){
     return result;
 }
 
-/// Apply emboss effect.  Returns new image index. ///
+// Apply emboss effect.  Returns new image index.
 global emboss(int idx){
     int result = 0;
     rawPy(){
@@ -716,7 +716,7 @@ global emboss(int idx){
     return result;
 }
 
-/// Detect edges (produces a sketch-like result).  Returns new image index. ///
+// Detect edges (produces a sketch-like result).  Returns new image index.
 global findEdges(int idx){
     int result = 0;
     rawPy(){
@@ -734,7 +734,7 @@ global findEdges(int idx){
     return result;
 }
 
-/// Apply a smoothing (mild blur) filter.  Returns new image index. ///
+// Apply a smoothing (mild blur) filter.  Returns new image index.
 global smooth(int idx){
     int result = 0;
     rawPy(){
@@ -752,7 +752,7 @@ global smooth(int idx){
     return result;
 }
 
-/// Apply contour (edge outline) filter.  Returns new image index. ///
+// Apply contour (edge outline) filter.  Returns new image index.
 global contour(int idx){
     int result = 0;
     rawPy(){
@@ -770,7 +770,7 @@ global contour(int idx){
     return result;
 }
 
-/// Apply detail-enhancement filter.  Returns new image index. ///
+// Apply detail-enhancement filter.  Returns new image index.
 global detail(int idx){
     int result = 0;
     rawPy(){
@@ -788,8 +788,8 @@ global detail(int idx){
     return result;
 }
 
-/// Apply a median filter (good for noise removal).  size must be odd.
-  Returns new image index. ///
+// Apply a median filter (good for noise removal).  size must be odd.
+// Returns new image index.
 global medianFilter(int idx, int size){
     int result = 0;
     rawPy(){
@@ -808,7 +808,7 @@ global medianFilter(int idx, int size){
     return result;
 }
 
-/// Apply a minimum (erosion) filter.  Returns new image index. ///
+// Apply a minimum (erosion) filter.  Returns new image index.
 global minFilter(int idx, int size){
     int result = 0;
     rawPy(){
@@ -827,7 +827,7 @@ global minFilter(int idx, int size){
     return result;
 }
 
-/// Apply a maximum (dilation) filter.  Returns new image index. ///
+// Apply a maximum (dilation) filter.  Returns new image index.
 global maxFilter(int idx, int size){
     int result = 0;
     rawPy(){
@@ -848,8 +848,8 @@ global maxFilter(int idx, int size){
 
 // ── Pixel operations ────────────────────────────────────────────────────────
 
-/// Return the pixel color at (x, y) as a comma-separated string.
-  RGB → "r,g,b"   RGBA → "r,g,b,a"   L → "v" ///
+// Return the pixel color at (x, y) as a comma-separated string.
+// RGB → "r,g,b"   RGBA → "r,g,b,a"   L → "v"
 global getPixel(int idx, int x, int y){
     str result = "0,0,0";
     rawPy(){
@@ -866,7 +866,7 @@ global getPixel(int idx, int x, int y){
     return result;
 }
 
-/// Set the pixel color at (x, y) for RGB images. ///
+// Set the pixel color at (x, y) for RGB images.
 global setPixel(int idx, int x, int y, int r, int g, int b){
     rawPy(){
         import builtins
@@ -878,7 +878,7 @@ global setPixel(int idx, int x, int y, int r, int g, int b){
     }
 }
 
-/// Set the pixel color at (x, y) with alpha for RGBA images. ///
+// Set the pixel color at (x, y) with alpha for RGBA images.
 global setPixelA(int idx, int x, int y, int r, int g, int b, int a){
     rawPy(){
         import builtins
@@ -890,7 +890,7 @@ global setPixelA(int idx, int x, int y, int r, int g, int b, int a){
     }
 }
 
-/// Fill the entire image with a solid color (in-place). ///
+// Fill the entire image with a solid color (in-place).
 global fill(int idx, int r, int g, int b){
     rawPy(){
         from PIL import ImageDraw as _D
@@ -906,7 +906,7 @@ global fill(int idx, int r, int g, int b){
 
 // ── Composite ──────────────────────────────────────────────────────────────
 
-/// Paste srcIdx on top of dstIdx at position (x, y) — in-place on dst. ///
+// Paste srcIdx on top of dstIdx at position (x, y) — in-place on dst.
 global paste(int dstIdx, int srcIdx, int x, int y){
     rawPy(){
         import builtins
@@ -917,7 +917,7 @@ global paste(int dstIdx, int srcIdx, int x, int y){
     }
 }
 
-/// Paste srcIdx on dstIdx using the src alpha channel as a transparency mask. ///
+// Paste srcIdx on dstIdx using the src alpha channel as a transparency mask.
 global pasteWithAlpha(int dstIdx, int srcIdx, int x, int y){
     rawPy(){
         import builtins
@@ -930,8 +930,8 @@ global pasteWithAlpha(int dstIdx, int srcIdx, int x, int y){
     }
 }
 
-/// Blend two images: result = img1 * (1-alpha) + img2 * alpha.
-  alpha 0.0 → img1 fully, 1.0 → img2 fully.  Returns new index. ///
+// Blend two images: result = img1 * (1-alpha) + img2 * alpha.
+// alpha 0.0 → img1 fully, 1.0 → img2 fully.  Returns new index.
 global blend(int idx1, int idx2, float alpha){
     int result = 0;
     rawPy(){
@@ -952,7 +952,7 @@ global blend(int idx1, int idx2, float alpha){
     return result;
 }
 
-/// Composite overlay on top of base using mask.  Returns new index. ///
+// Composite overlay on top of base using mask.  Returns new index.
 global composite(int baseIdx, int overlayIdx, int maskIdx){
     int result = 0;
     rawPy(){
@@ -973,8 +973,8 @@ global composite(int baseIdx, int overlayIdx, int maskIdx){
     return result;
 }
 
-/// Convert an RGB image to RGBA, adding a fully-opaque alpha channel.
-  Returns new image index. ///
+// Convert an RGB image to RGBA, adding a fully-opaque alpha channel.
+// Returns new image index.
 global addAlpha(int idx){
     int result = 0;
     rawPy(){
@@ -991,8 +991,8 @@ global addAlpha(int idx){
     return result;
 }
 
-/// Set all alpha values to the given level (0 = transparent, 255 = opaque).
-  Input must be RGBA or will be converted.  Returns new image index. ///
+// Set all alpha values to the given level (0 = transparent, 255 = opaque).
+// Input must be RGBA or will be converted.  Returns new image index.
 global setAlpha(int idx, int alpha){
     int result = 0;
     rawPy(){
@@ -1013,7 +1013,7 @@ global setAlpha(int idx, int alpha){
     return result;
 }
 
-/// Flatten RGBA image to RGB using a white background.  Returns new index. ///
+// Flatten RGBA image to RGB using a white background.  Returns new index.
 global removeAlpha(int idx){
     int result = 0;
     rawPy(){
@@ -1036,7 +1036,7 @@ global removeAlpha(int idx){
 
 // ── Drawing ────────────────────────────────────────────────────────────────
 
-/// Draw a line on image idx from (x1,y1) to (x2,y2). ///
+// Draw a line on image idx from (x1,y1) to (x2,y2).
 global drawLine(int idx, int x1, int y1, int x2, int y2, int r, int g, int b, int lineWidth){
     rawPy(){
         from PIL import ImageDraw as _D
@@ -1049,7 +1049,7 @@ global drawLine(int idx, int x1, int y1, int x2, int y2, int r, int g, int b, in
     }
 }
 
-/// Draw a rectangle.  fill=true fills it; fill=false draws outline only. ///
+// Draw a rectangle.  fill=true fills it; fill=false draws outline only.
 global drawRect(int idx, int x1, int y1, int x2, int y2, int r, int g, int b, bool fill){
     rawPy(){
         from PIL import ImageDraw as _D
@@ -1065,7 +1065,7 @@ global drawRect(int idx, int x1, int y1, int x2, int y2, int r, int g, int b, bo
     }
 }
 
-/// Draw a rounded-corner rectangle with corner radius. ///
+// Draw a rounded-corner rectangle with corner radius.
 global drawRoundedRect(int idx, int x1, int y1, int x2, int y2, int r, int g, int b, bool fill, int radius){
     rawPy(){
         from PIL import ImageDraw as _D
@@ -1082,7 +1082,7 @@ global drawRoundedRect(int idx, int x1, int y1, int x2, int y2, int r, int g, in
     }
 }
 
-/// Draw a circle centered at (cx, cy) with given radius. ///
+// Draw a circle centered at (cx, cy) with given radius.
 global drawCircle(int idx, int cx, int cy, int radius, int r, int g, int b, bool fill){
     rawPy(){
         from PIL import ImageDraw as _D
@@ -1101,7 +1101,7 @@ global drawCircle(int idx, int cx, int cy, int radius, int r, int g, int b, bool
     }
 }
 
-/// Draw an ellipse fitting the bounding box (x1,y1,x2,y2). ///
+// Draw an ellipse fitting the bounding box (x1,y1,x2,y2).
 global drawEllipse(int idx, int x1, int y1, int x2, int y2, int r, int g, int b, bool fill){
     rawPy(){
         from PIL import ImageDraw as _D
@@ -1118,7 +1118,7 @@ global drawEllipse(int idx, int x1, int y1, int x2, int y2, int r, int g, int b,
     }
 }
 
-/// Draw a filled polygon.  coordsJson: flat JSON [x,y,...]. ///
+// Draw a filled polygon.  coordsJson: flat JSON [x,y,...].
 global drawPolygon(int idx, str coordsJson, int r, int g, int b){
     rawPy(){
         from PIL import ImageDraw as _D
@@ -1133,7 +1133,7 @@ global drawPolygon(int idx, str coordsJson, int r, int g, int b){
     }
 }
 
-/// Draw text on image at (x, y) using the default font. ///
+// Draw text on image at (x, y) using the default font.
 global drawText(int idx, int x, int y, str text, int r, int g, int b, int size){
     rawPy(){
         from PIL import ImageDraw as _D, ImageFont as _F
@@ -1150,7 +1150,7 @@ global drawText(int idx, int x, int y, str text, int r, int g, int b, int size){
     }
 }
 
-/// Draw text using a TTF/OTF font file. ///
+// Draw text using a TTF/OTF font file.
 global drawTextFont(int idx, int x, int y, str text, int r, int g, int b, int size, str fontPath){
     rawPy(){
         from PIL import ImageDraw as _D, ImageFont as _F
@@ -1167,7 +1167,7 @@ global drawTextFont(int idx, int x, int y, str text, int r, int g, int b, int si
     }
 }
 
-/// Flood-fill starting at (x, y) with a new color. ///
+// Flood-fill starting at (x, y) with a new color.
 global floodFill(int idx, int x, int y, int r, int g, int b){
     rawPy(){
         from PIL import ImageDraw as _D
@@ -1181,7 +1181,7 @@ global floodFill(int idx, int x, int y, int r, int g, int b){
 
 // ── Analysis ────────────────────────────────────────────────────────────────
 
-/// Return the average pixel color as "r,g,b". ///
+// Return the average pixel color as "r,g,b".
 global getAverageColor(int idx){
     str result = "0,0,0";
     rawPy(){
@@ -1197,7 +1197,7 @@ global getAverageColor(int idx){
     return result;
 }
 
-/// Return the most common pixel color as "r,g,b" (quantizes to 1 color). ///
+// Return the most common pixel color as "r,g,b" (quantizes to 1 color).
 global getDominantColor(int idx){
     str result = "0,0,0";
     rawPy(){
@@ -1212,9 +1212,9 @@ global getDominantColor(int idx){
     return result;
 }
 
-/// Return the per-channel histogram as a JSON string.
-  For RGB: 256 values per channel concatenated → 768 total.
-  For L (grayscale): 256 values. ///
+// Return the per-channel histogram as a JSON string.
+// For RGB: 256 values per channel concatenated → 768 total.
+// For L (grayscale): 256 values.
 global getHistogram(int idx){
     str result = "[]";
     rawPy(){
@@ -1230,8 +1230,8 @@ global getHistogram(int idx){
 
 // ── Special operations ─────────────────────────────────────────────────────
 
-/// Auto-adjust contrast (stretch histogram to use full range).
-  Returns new image index. ///
+// Auto-adjust contrast (stretch histogram to use full range).
+// Returns new image index.
 global autoContrast(int idx){
     int result = 0;
     rawPy(){
@@ -1249,8 +1249,8 @@ global autoContrast(int idx){
     return result;
 }
 
-/// Equalize the image histogram (enhance contrast globally).
-  Returns new image index. ///
+// Equalize the image histogram (enhance contrast globally).
+// Returns new image index.
 global equalize(int idx){
     int result = 0;
     rawPy(){
@@ -1268,7 +1268,7 @@ global equalize(int idx){
     return result;
 }
 
-/// Reduce the color palette to `colors` colors.  Returns new image index. ///
+// Reduce the color palette to `colors` colors.  Returns new image index.
 global quantize(int idx, int colors){
     int result = 0;
     rawPy(){
@@ -1285,8 +1285,8 @@ global quantize(int idx, int colors){
     return result;
 }
 
-/// Apply solarize: pixels above threshold are inverted.
-  threshold 0–255.  Returns new image index. ///
+// Apply solarize: pixels above threshold are inverted.
+// threshold 0–255.  Returns new image index.
 global solarize(int idx, int threshold){
     int result = 0;
     rawPy(){
@@ -1304,8 +1304,8 @@ global solarize(int idx, int threshold){
     return result;
 }
 
-/// Posterize: reduce each channel to `bits` bits (1–8).
-  Returns new image index. ///
+// Posterize: reduce each channel to `bits` bits (1–8).
+// Returns new image index.
 global posterize(int idx, int bits){
     int result = 0;
     rawPy(){
@@ -1324,8 +1324,8 @@ global posterize(int idx, int bits){
     return result;
 }
 
-/// Tile (repeat) the image into a grid of (cols × rows).
-  Returns new image index. ///
+// Tile (repeat) the image into a grid of (cols × rows).
+// Returns new image index.
 global tile(int idx, int cols, int rows){
     int result = 0;
     rawPy(){
@@ -1347,8 +1347,8 @@ global tile(int idx, int cols, int rows){
     return result;
 }
 
-/// Split an RGBA image into four separate L-mode images (R, G, B, A).
-  Returns a comma-separated string of four new image indexes: "ri,gi,bi,ai". ///
+// Split an RGBA image into four separate L-mode images (R, G, B, A).
+// Returns a comma-separated string of four new image indexes: "ri,gi,bi,ai".
 global splitChannels(int idx){
     str result = "-1,-1,-1,-1";
     rawPy(){
@@ -1367,9 +1367,9 @@ global splitChannels(int idx){
     return result;
 }
 
-/// Merge four L-mode channel images into one RGBA image.
-  idxR, idxG, idxB, idxA are indexes into the image list.
-  Returns new image index. ///
+// Merge four L-mode channel images into one RGBA image.
+// idxR, idxG, idxB, idxA are indexes into the image list.
+// Returns new image index.
 global mergeChannels(int idxR, int idxG, int idxB, int idxA){
     int result = 0;
     rawPy(){
@@ -1394,8 +1394,8 @@ global mergeChannels(int idxR, int idxG, int idxB, int idxA){
 
 // ── Base64 / encoding ──────────────────────────────────────────────────────
 
-/// Encode image to a Base64 string.
-  format: "PNG", "JPEG", "WEBP", "BMP", etc. ///
+// Encode image to a Base64 string.
+// format: "PNG", "JPEG", "WEBP", "BMP", etc.
 global toBase64(int idx, str format){
     str result = "";
     rawPy(){
@@ -1410,7 +1410,7 @@ global toBase64(int idx, str format){
     return result;
 }
 
-/// Decode a Base64 string back to an image.  Returns new image index. ///
+// Decode a Base64 string back to an image.  Returns new image index.
 global fromBase64(str b64str){
     int result = 0;
     rawPy(){
@@ -1430,9 +1430,9 @@ global fromBase64(str b64str){
     return result;
 }
 
-/// Return a data URL suitable for embedding in HTML.
-  format: "PNG", "JPEG", "WEBP".
-  e.g. "data:image/png;base64,iVBORw0K..." ///
+// Return a data URL suitable for embedding in HTML.
+// format: "PNG", "JPEG", "WEBP".
+// e.g. "data:image/png;base64,iVBORw0K..."
 global toDataUrl(int idx, str format){
     str result = "";
     rawPy(){

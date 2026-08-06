@@ -1,12 +1,12 @@
-///
+////
  Lynxer Standard Library — shell
  Provides: runShell, runShellCapture, runShellSilent,
            runShellErr, runShellCode, commandExists
-///
+////
 
 global setup(){}
 
-/// Run command in the shell. Inherits stdin/stdout/stderr. Returns exit code. ///
+// Run command in the shell. Inherits stdin/stdout/stderr. Returns exit code.
 global runShell(str command){
     int code = 0;
     rawPy(){
@@ -17,7 +17,7 @@ global runShell(str command){
     return code;
 }
 
-/// Run command and capture stdout. Returns captured output as a string. ///
+// Run command and capture stdout. Returns captured output as a string.
 global runShellCapture(str command){
     str result = "";
     rawPy(){
@@ -33,7 +33,7 @@ global runShellCapture(str command){
     return result;
 }
 
-/// Run command, suppressing all output. Returns exit code. ///
+// Run command, suppressing all output. Returns exit code.
 global runShellSilent(str command){
     int code = 0;
     rawPy(){
@@ -49,7 +49,7 @@ global runShellSilent(str command){
     return code;
 }
 
-/// Run command and capture stderr only. Returns captured stderr as a string. ///
+// Run command and capture stderr only. Returns captured stderr as a string.
 global runShellErr(str command){
     str result = "";
     rawPy(){
@@ -66,7 +66,7 @@ global runShellErr(str command){
     return result;
 }
 
-/// Run command (capturing output silently) and return its exit code. ///
+// Run command (capturing output silently) and return its exit code.
 global runShellCode(str command){
     int code = 0;
     rawPy(){
@@ -81,7 +81,7 @@ global runShellCode(str command){
     return code;
 }
 
-/// Returns true if cmd is found on PATH (i.e. the command exists). ///
+// Returns true if cmd is found on PATH (i.e. the command exists).
 global commandExists(str cmd){
     int result = 0;
     rawPy(){

@@ -1,12 +1,12 @@
-///
+////
  Lynxer Standard Library — fileIO
  Provides: readFile, writeFile, appendFile, fileExists, deleteFile,
            readLines, copyFile, fileSize
-///
+////
 
 global setup(){}
 
-/// Read the entire contents of path as a string. Returns "" on error. ///
+// Read the entire contents of path as a string. Returns "" on error.
 global readFile(str path){
     str content = "";
     rawPy(){
@@ -19,7 +19,7 @@ global readFile(str path){
     return content;
 }
 
-/// Write content to path (overwrites). Returns true on success, false on error. ///
+// Write content to path (overwrites). Returns true on success, false on error.
 global writeFile(str path, str content){
     bool success = true;
     rawPy(){
@@ -32,7 +32,7 @@ global writeFile(str path, str content){
     return success;
 }
 
-/// Append content to path. Returns true on success, false on error. ///
+// Append content to path. Returns true on success, false on error.
 global appendFile(str path, str content){
     bool success = true;
     rawPy(){
@@ -45,7 +45,7 @@ global appendFile(str path, str content){
     return success;
 }
 
-/// Returns true if path refers to an existing file. ///
+// Returns true if path refers to an existing file.
 global fileExists(str path){
     bool exists = false;
     rawPy(){
@@ -55,7 +55,7 @@ global fileExists(str path){
     return exists;
 }
 
-/// Delete path. Returns true on success, false on error (e.g. file not found). ///
+// Delete path. Returns true on success, false on error (e.g. file not found).
 global deleteFile(str path){
     bool success = true;
     rawPy(){
@@ -68,7 +68,7 @@ global deleteFile(str path){
     return success;
 }
 
-/// Read path and return a list of lines (newlines stripped). Returns an empty list on error. ///
+// Read path and return a list of lines (newlines stripped). Returns an empty list on error.
 global readLines(str path){
     str raw = "";
     rawPy(){
@@ -84,7 +84,7 @@ global readLines(str path){
     return splitStr(raw, "\n");
 }
 
-/// Copy src to dst (overwrite dst if it exists). Returns true on success, false on error. ///
+// Copy src to dst (overwrite dst if it exists). Returns true on success, false on error.
 global copyFile(str src, str dst){
     bool success = true;
     rawPy(){
@@ -97,7 +97,7 @@ global copyFile(str src, str dst){
     return success;
 }
 
-/// Return the size of path in bytes, or -1 on error. ///
+// Return the size of path in bytes, or -1 on error.
 global fileSize(str path){
     int result = -1;
     rawPy(){
@@ -110,7 +110,7 @@ global fileSize(str path){
     return result;
 }
 
-/// Move (rename) a file from src to dst. Returns true on success. ///
+// Move (rename) a file from src to dst. Returns true on success.
 global moveFile(str src, str dst){
     bool success = true;
     rawPy(){
@@ -123,7 +123,7 @@ global moveFile(str src, str dst){
     return success;
 }
 
-/// Return the number of lines in a file. Returns -1 on error. ///
+// Return the number of lines in a file. Returns -1 on error.
 global countLines(str path){
     int result = -1;
     rawPy(){
@@ -136,7 +136,7 @@ global countLines(str path){
     return result;
 }
 
-/// Return the nth line of path (0-based index). Returns "" on error or out-of-range. ///
+// Return the nth line of path (0-based index). Returns "" on error or out-of-range.
 global readLine(str path, int n){
     str result = "";
     rawPy(){
@@ -151,8 +151,8 @@ global readLine(str path, int n){
     return result;
 }
 
-/// Return the last-modified timestamp of path as a formatted string ("YYYY-MM-DD HH:MM:SS").
-  Returns "" on error. ///
+// Return the last-modified timestamp of path as a formatted string ("YYYY-MM-DD HH:MM:SS").
+// Returns "" on error.
 global fileModTime(str path){
     str result = "";
     rawPy(){
@@ -167,7 +167,7 @@ global fileModTime(str path){
     return result;
 }
 
-/// Return the file extension including the dot (e.g. ".txt"). Returns "" if none. ///
+// Return the file extension including the dot (e.g. ".txt"). Returns "" if none.
 global fileExtension(str path){
     str result = "";
     rawPy(){
@@ -177,7 +177,7 @@ global fileExtension(str path){
     return result;
 }
 
-/// Return true if path is a file and its size is 0 bytes. ///
+// Return true if path is a file and its size is 0 bytes.
 global fileIsEmpty(str path){
     bool result = false;
     rawPy(){
@@ -190,8 +190,8 @@ global fileIsEmpty(str path){
     return result;
 }
 
-/// Create a temporary file with the given suffix and return its path.
-  The file is created but not written to. Returns "" on error. ///
+// Create a temporary file with the given suffix and return its path.
+// The file is created but not written to. Returns "" on error.
 global tempFile(str suffix){
     str result = "";
     rawPy(){
@@ -206,7 +206,7 @@ global tempFile(str suffix){
     return result;
 }
 
-/// Create a temporary directory and return its path. Returns "" on error. ///
+// Create a temporary directory and return its path. Returns "" on error.
 global tempDir(){
     str result = "";
     rawPy(){
@@ -219,8 +219,8 @@ global tempDir(){
     return result;
 }
 
-/// Return the file name without its directory component or extension.
-  e.g. stemName("/home/user/notes.txt") → "notes" ///
+// Return the file name without its directory component or extension.
+// e.g. stemName("/home/user/notes.txt") → "notes"
 global stemName(str path){
     str result = "";
     rawPy(){
@@ -230,9 +230,9 @@ global stemName(str path){
     return result;
 }
 
-/// Read path and return its content split into lines, joined by a custom separator sep.
-  Useful for processing files line-by-line as a Lynxer list.
-  Returns "" on error. ///
+// Read path and return its content split into lines, joined by a custom separator sep.
+// Useful for processing files line-by-line as a Lynxer list.
+// Returns "" on error.
 global readFileLines(str path, str sep){
     str result = "";
     rawPy(){

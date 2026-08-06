@@ -1,4 +1,4 @@
-///
+////
   Lynxer Standard Library — server
   Full-featured HTTP server built on Flask.
 
@@ -31,14 +31,14 @@
         global.server.get("/", "<h1>Hello from Lynxer!</h1>");
         global.server.run();
     }
-///
+////
 
 global setup(){}
 
 // ── App initialisation ─────────────────────────────────────────────────────
 
-/// Create the Flask application and bind it to host:port.
-  Must be called before any route registration. ///
+// Create the Flask application and bind it to host:port.
+// Must be called before any route registration.
 global init(str host, int port){
     rawPy(){
         import os
@@ -53,7 +53,7 @@ global init(str host, int port){
     }
 }
 
-/// Enable or disable Flask debug mode (auto-reloader + debugger). ///
+// Enable or disable Flask debug mode (auto-reloader + debugger).
 global setDebug(bool enabled){
     rawPy(){
         import builtins
@@ -61,8 +61,8 @@ global setDebug(bool enabled){
     }
 }
 
-/// Set the folder from which Jinja2 template files are loaded.
-  Defaults to the Flask app's template_folder ("templates"). ///
+// Set the folder from which Jinja2 template files are loaded.
+// Defaults to the Flask app's template_folder ("templates").
 global setTemplateFolder(str path){
     rawPy(){
         import builtins, os
@@ -70,9 +70,9 @@ global setTemplateFolder(str path){
     }
 }
 
-/// Set the maximum allowed request body size in bytes.
-  Requests larger than this limit receive a 413 error automatically.
-  Example: global.server.setMaxBodySize(1048576);  // 1 MB ///
+// Set the maximum allowed request body size in bytes.
+// Requests larger than this limit receive a 413 error automatically.
+// Example: global.server.setMaxBodySize(1048576);  // 1 MB
 global setMaxBodySize(int bytes){
     rawPy(){
         import builtins
@@ -93,7 +93,7 @@ global _epName(str prefix, str path){
 
 // ── Plain text / HTML routes ───────────────────────────────────────────────
 
-/// Register a GET route that returns *response* as HTML/text. ///
+// Register a GET route that returns *response* as HTML/text.
 global get(str path, str response){
     rawPy(){
         import builtins
@@ -110,7 +110,7 @@ global get(str path, str response){
     }
 }
 
-/// Register a GET route with a custom HTTP status code. ///
+// Register a GET route with a custom HTTP status code.
 global getWithStatus(str path, str response, int status){
     rawPy(){
         import builtins
@@ -128,7 +128,7 @@ global getWithStatus(str path, str response, int status){
     }
 }
 
-/// Register a POST route that returns *response* as HTML/text. ///
+// Register a POST route that returns *response* as HTML/text.
 global post(str path, str response){
     rawPy(){
         import builtins
@@ -145,7 +145,7 @@ global post(str path, str response){
     }
 }
 
-/// Register a PUT route. ///
+// Register a PUT route.
 global put(str path, str response){
     rawPy(){
         import builtins
@@ -162,7 +162,7 @@ global put(str path, str response){
     }
 }
 
-/// Register a DELETE route. ///
+// Register a DELETE route.
 global delete(str path, str response){
     rawPy(){
         import builtins
@@ -179,7 +179,7 @@ global delete(str path, str response){
     }
 }
 
-/// Register a PATCH route. ///
+// Register a PATCH route.
 global patch(str path, str response){
     rawPy(){
         import builtins
@@ -196,7 +196,7 @@ global patch(str path, str response){
     }
 }
 
-/// Register a route that accepts any HTTP method. ///
+// Register a route that accepts any HTTP method.
 global anyHttp(str path, str response){
     rawPy(){
         import builtins
@@ -216,8 +216,8 @@ global anyHttp(str path, str response){
     }
 }
 
-/// Register a route for multiple specific methods.
-  methods is a comma-separated string, e.g. "GET,POST". ///
+// Register a route for multiple specific methods.
+// methods is a comma-separated string, e.g. "GET,POST".
 global multiMethod(str path, str response, str methods){
     rawPy(){
         import builtins
@@ -237,7 +237,7 @@ global multiMethod(str path, str response, str methods){
 
 // ── JSON routes ────────────────────────────────────────────────────────────
 
-/// Register a GET route that returns a fixed JSON string. ///
+// Register a GET route that returns a fixed JSON string.
 global jsonGet(str path, str jsonBody){
     rawPy(){
         import builtins
@@ -254,7 +254,7 @@ global jsonGet(str path, str jsonBody){
     }
 }
 
-/// Register a POST route that returns a fixed JSON string. ///
+// Register a POST route that returns a fixed JSON string.
 global jsonPost(str path, str jsonBody){
     rawPy(){
         import builtins
@@ -271,7 +271,7 @@ global jsonPost(str path, str jsonBody){
     }
 }
 
-/// Register a JSON GET route with a custom status code. ///
+// Register a JSON GET route with a custom status code.
 global jsonWithStatus(str path, str jsonBody, int status){
     rawPy(){
         import builtins
@@ -294,7 +294,7 @@ global jsonWithStatus(str path, str jsonBody, int status){
 
 // ── Jinja2 template routes ─────────────────────────────────────────────────
 
-/// Register a GET route that renders a Jinja2 template file. ///
+// Register a GET route that renders a Jinja2 template file.
 global templateGet(str path, str templateFile){
     rawPy(){
         import builtins
@@ -312,7 +312,7 @@ global templateGet(str path, str templateFile){
     }
 }
 
-/// Register a POST route that renders a Jinja2 template file. ///
+// Register a POST route that renders a Jinja2 template file.
 global templatePost(str path, str templateFile){
     rawPy(){
         import builtins
@@ -330,7 +330,7 @@ global templatePost(str path, str templateFile){
     }
 }
 
-/// Register a GET route that renders an inline Jinja2 template string. ///
+// Register a GET route that renders an inline Jinja2 template string.
 global inlineTemplate(str path, str templateStr){
     rawPy(){
         import builtins
@@ -350,8 +350,8 @@ global inlineTemplate(str path, str templateStr){
 
 // ── Static files ───────────────────────────────────────────────────────────
 
-/// Serve a directory of static files under a URL prefix.
-  Example: global.server.staticDir("./public", "/static"); ///
+// Serve a directory of static files under a URL prefix.
+// Example: global.server.staticDir("./public", "/static");
 global staticDir(str dir, str urlPrefix){
     rawPy(){
         import builtins, os
@@ -373,7 +373,7 @@ global staticDir(str dir, str urlPrefix){
     }
 }
 
-/// Serve an entire directory as a static site (index.html at /). ///
+// Serve an entire directory as a static site (index.html at /).
 global staticSite(str dir, str urlPrefix){
     rawPy(){
         import builtins, os
@@ -393,8 +393,8 @@ global staticSite(str dir, str urlPrefix){
     }
 }
 
-/// Send a file as a downloadable attachment.
-  path is the URL path; filePath is the local file path; filename is the download name. ///
+// Send a file as a downloadable attachment.
+// path is the URL path; filePath is the local file path; filename is the download name.
 global sendFile(str path, str filePath, str filename){
     rawPy(){
         import builtins, os
@@ -411,7 +411,7 @@ global sendFile(str path, str filePath, str filename){
 
 // ── Redirects ──────────────────────────────────────────────────────────────
 
-/// Register a temporary (302) redirect from path to destination. ///
+// Register a temporary (302) redirect from path to destination.
 global redirect(str path, str destination){
     rawPy(){
         import builtins
@@ -425,7 +425,7 @@ global redirect(str path, str destination){
     }
 }
 
-/// Register a permanent (301) redirect from path to destination. ///
+// Register a permanent (301) redirect from path to destination.
 global permanentRedirect(str path, str destination){
     rawPy(){
         import builtins
@@ -441,7 +441,7 @@ global permanentRedirect(str path, str destination){
 
 // ── Error pages ────────────────────────────────────────────────────────────
 
-/// Set a custom 404 (Not Found) error page. ///
+// Set a custom 404 (Not Found) error page.
 global errorPage(str html){
     rawPy(){
         import builtins
@@ -452,7 +452,7 @@ global errorPage(str html){
     }
 }
 
-/// Set a custom 500 (Internal Server Error) page. ///
+// Set a custom 500 (Internal Server Error) page.
 global errorPage500(str html){
     rawPy(){
         import builtins
@@ -463,7 +463,7 @@ global errorPage500(str html){
     }
 }
 
-/// Set a custom 403 (Forbidden) error page. ///
+// Set a custom 403 (Forbidden) error page.
 global forbidden(str html){
     rawPy(){
         import builtins
@@ -474,7 +474,7 @@ global forbidden(str html){
     }
 }
 
-/// Set a custom 405 (Method Not Allowed) error page. ///
+// Set a custom 405 (Method Not Allowed) error page.
 global errorPage405(str html){
     rawPy(){
         import builtins
@@ -485,7 +485,7 @@ global errorPage405(str html){
     }
 }
 
-/// Set a custom 413 (Request Entity Too Large) error page. ///
+// Set a custom 413 (Request Entity Too Large) error page.
 global errorPage413(str html){
     rawPy(){
         import builtins
@@ -498,7 +498,7 @@ global errorPage413(str html){
 
 // ── CORS ───────────────────────────────────────────────────────────────────
 
-/// Enable CORS for all responses using a wildcard origin (*). ///
+// Enable CORS for all responses using a wildcard origin (*).
 global enableCORS(){
     rawPy(){
         import builtins
@@ -506,7 +506,7 @@ global enableCORS(){
     }
 }
 
-/// Set a specific CORS origin header value (e.g. "https://example.com"). ///
+// Set a specific CORS origin header value (e.g. "https://example.com").
 global setCORSOrigin(str origin){
     rawPy(){
         import builtins
@@ -514,7 +514,7 @@ global setCORSOrigin(str origin){
     }
 }
 
-/// Disable CORS headers. ///
+// Disable CORS headers.
 global disableCORS(){
     rawPy(){
         import builtins
@@ -524,7 +524,7 @@ global disableCORS(){
 
 // ── Global response headers ────────────────────────────────────────────────
 
-/// Add a header that will be included in every response. ///
+// Add a header that will be included in every response.
 global addHeader(str name, str value){
     rawPy(){
         import builtins
@@ -534,7 +534,7 @@ global addHeader(str name, str value){
     }
 }
 
-/// Remove a previously added global response header. ///
+// Remove a previously added global response header.
 global removeHeader(str name){
     rawPy(){
         import builtins
@@ -545,7 +545,7 @@ global removeHeader(str name){
 
 // ── Per-request logging ────────────────────────────────────────────────────
 
-/// Enable per-request console logging (method + path + status). ///
+// Enable per-request console logging (method + path + status).
 global enableLogging(){
     rawPy(){
         import builtins
@@ -559,8 +559,8 @@ global enableLogging(){
 
 // ── Cookies ────────────────────────────────────────────────────────────────
 
-/// Read a cookie value by name. Returns empty string if not found.
-  Call only inside a request handler (rawPy block in a route callback). ///
+// Read a cookie value by name. Returns empty string if not found.
+// Call only inside a request handler (rawPy block in a route callback).
 global getCookie(str name){
     str result = "";
     rawPy(){
@@ -573,8 +573,8 @@ global getCookie(str name){
     return result;
 }
 
-/// Set a cookie on the current response context.
-  Must be used with a rawPy route that builds a Response object. ///
+// Set a cookie on the current response context.
+// Must be used with a rawPy route that builds a Response object.
 global setCookieHeader(str name, str value, int maxAge){
     str result = "";
     rawPy(){
@@ -585,8 +585,8 @@ global setCookieHeader(str name, str value, int maxAge){
 
 // ── Request-context readers ────────────────────────────────────────────────
 
-/// Get a URL query-string parameter by name.
-  Example: /search?q=hello  →  getArg("q") returns "hello". ///
+// Get a URL query-string parameter by name.
+// Example: /search?q=hello  →  getArg("q") returns "hello".
 global getArg(str name){
     str result = "";
     rawPy(){
@@ -599,8 +599,8 @@ global getArg(str name){
     return result;
 }
 
-/// Get all URL query-string parameters as a JSON string.
-  Example: /search?q=hi&lang=en → "{\"q\":\"hi\",\"lang\":\"en\"}". ///
+// Get all URL query-string parameters as a JSON string.
+// Example: /search?q=hi&lang=en → "{\"q\":\"hi\",\"lang\":\"en\"}".
 global getQueryAll(){
     str result = "";
     rawPy(){
@@ -614,9 +614,9 @@ global getQueryAll(){
     return result;
 }
 
-/// Get a URL route parameter by name.
-  Requires a route defined with a <paramName> placeholder,
-  e.g. path "/user/<id>".  Call inside a rawPy block. ///
+// Get a URL route parameter by name.
+// Requires a route defined with a <paramName> placeholder,
+// e.g. path "/user/<id>".  Call inside a rawPy block.
 global getRouteParam(str name){
     str result = "";
     rawPy(){
@@ -629,7 +629,7 @@ global getRouteParam(str name){
     return result;
 }
 
-/// Get a form-data field value by name (from a POST/PUT form submission). ///
+// Get a form-data field value by name (from a POST/PUT form submission).
 global getFormField(str name){
     str result = "";
     rawPy(){
@@ -642,7 +642,7 @@ global getFormField(str name){
     return result;
 }
 
-/// Get the raw request body as a string. ///
+// Get the raw request body as a string.
 global getBody(){
     str result = "";
     rawPy(){
@@ -655,8 +655,8 @@ global getBody(){
     return result;
 }
 
-/// Get the request body parsed as a JSON string (re-serialised).
-  Returns "{}" on failure. ///
+// Get the request body parsed as a JSON string (re-serialised).
+// Returns "{}" on failure.
 global getBodyJson(){
     str result = "";
     rawPy(){
@@ -671,7 +671,7 @@ global getBodyJson(){
     return result;
 }
 
-/// Get a request header value by name. Returns empty string if absent. ///
+// Get a request header value by name. Returns empty string if absent.
 global getHeader(str name){
     str result = "";
     rawPy(){
@@ -684,7 +684,7 @@ global getHeader(str name){
     return result;
 }
 
-/// Get the HTTP method of the current request (e.g. "GET", "POST"). ///
+// Get the HTTP method of the current request (e.g. "GET", "POST").
 global getMethod(){
     str result = "";
     rawPy(){
@@ -697,7 +697,7 @@ global getMethod(){
     return result;
 }
 
-/// Get the full URL of the current request. ///
+// Get the full URL of the current request.
 global getURL(){
     str result = "";
     rawPy(){
@@ -710,7 +710,7 @@ global getURL(){
     return result;
 }
 
-/// Get the client IP address of the current request. ///
+// Get the client IP address of the current request.
 global getIP(){
     str result = "";
     rawPy(){
@@ -723,7 +723,7 @@ global getIP(){
     return result;
 }
 
-/// Get the Content-Type header of the current request. ///
+// Get the Content-Type header of the current request.
 global getContentType(){
     str result = "";
     rawPy(){
@@ -736,7 +736,7 @@ global getContentType(){
     return result;
 }
 
-/// Return true (1) if the current request method is GET. ///
+// Return true (1) if the current request method is GET.
 global isGet(){
     int result = 0;
     rawPy(){
@@ -749,7 +749,7 @@ global isGet(){
     return result;
 }
 
-/// Return true (1) if the current request method is POST. ///
+// Return true (1) if the current request method is POST.
 global isPost(){
     int result = 0;
     rawPy(){
@@ -762,7 +762,7 @@ global isPost(){
     return result;
 }
 
-/// Get all request headers as a JSON string. ///
+// Get all request headers as a JSON string.
 global getAllHeaders(){
     str result = "";
     rawPy(){
@@ -778,7 +778,7 @@ global getAllHeaders(){
 
 // ── Server startup ─────────────────────────────────────────────────────────
 
-/// Start the server (blocking). Uses host and port set by init(). ///
+// Start the server (blocking). Uses host and port set by init().
 global run(){
     rawPy(){
         import builtins
@@ -790,8 +790,8 @@ global run(){
     }
 }
 
-/// Start the server with SSL/HTTPS.
-  cert and key are paths to PEM certificate and private-key files. ///
+// Start the server with SSL/HTTPS.
+// cert and key are paths to PEM certificate and private-key files.
 global runHTTPS(str cert, str key){
     rawPy(){
         import builtins
@@ -805,7 +805,7 @@ global runHTTPS(str cert, str key){
     }
 }
 
-/// Start the server with an auto-generated self-signed certificate (requires pyOpenSSL). ///
+// Start the server with an auto-generated self-signed certificate (requires pyOpenSSL).
 global runSSLAdhoc(){
     rawPy(){
         import builtins

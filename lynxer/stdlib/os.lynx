@@ -1,14 +1,14 @@
-///
+////
   Lynxer Standard Library — os
   Port of Python's os / os.path module.
   Provides: getcwd, chdir, listdir, mkdir, makedirs, rmdir,
             remove, rename, exists, isFile, isDir, joinPath, basename,
             dirname, absPath, getenv, getpid, sep
-///
+////
 
 global setup(){}
 
-/// Returns the current working directory as a string. ///
+// Returns the current working directory as a string.
 global getcwd(){
     str result = "";
     rawPy(){
@@ -18,8 +18,8 @@ global getcwd(){
     return result;
 }
 
-/// Changes the current working directory to path.
-  Returns true on success, false on error. ///
+// Changes the current working directory to path.
+// Returns true on success, false on error.
 global chdir(str path){
     bool ok = true;
     rawPy(){
@@ -32,8 +32,8 @@ global chdir(str path){
     return ok;
 }
 
-/// Returns directory entries as a Lynxer list.
-  Returns an empty list on error or if the directory is empty. ///
+// Returns directory entries as a Lynxer list.
+// Returns an empty list on error or if the directory is empty.
 global listdir(str path){
     str raw = "";
     rawPy(){
@@ -50,7 +50,7 @@ global listdir(str path){
     return splitStr(raw, "\n");
 }
 
-/// Creates a directory. Returns true on success, false on error (including if it already exists). ///
+// Creates a directory. Returns true on success, false on error (including if it already exists).
 global mkdir(str path){
     bool ok = true;
     rawPy(){
@@ -63,8 +63,8 @@ global mkdir(str path){
     return ok;
 }
 
-/// Creates a directory and all intermediate parents (like mkdir -p).
-  Returns true on success, false on error. ///
+// Creates a directory and all intermediate parents (like mkdir -p).
+// Returns true on success, false on error.
 global makedirs(str path){
     bool ok = true;
     rawPy(){
@@ -77,7 +77,7 @@ global makedirs(str path){
     return ok;
 }
 
-/// Removes an empty directory. Returns true on success, false on error. ///
+// Removes an empty directory. Returns true on success, false on error.
 global rmdir(str path){
     bool ok = true;
     rawPy(){
@@ -90,7 +90,7 @@ global rmdir(str path){
     return ok;
 }
 
-/// Removes a file. Returns true on success, false on error. ///
+// Removes a file. Returns true on success, false on error.
 global remove(str path){
     bool ok = true;
     rawPy(){
@@ -103,7 +103,7 @@ global remove(str path){
     return ok;
 }
 
-/// Renames or moves src to dst. Returns true on success, false on error. ///
+// Renames or moves src to dst. Returns true on success, false on error.
 global rename(str src, str dst){
     bool ok = true;
     rawPy(){
@@ -116,7 +116,7 @@ global rename(str src, str dst){
     return ok;
 }
 
-/// Returns true if path exists (file or directory), false otherwise. ///
+// Returns true if path exists (file or directory), false otherwise.
 global exists(str path){
     bool result = false;
     rawPy(){
@@ -126,7 +126,7 @@ global exists(str path){
     return result;
 }
 
-/// Returns true if path is a regular file. ///
+// Returns true if path is a regular file.
 global isFile(str path){
     bool result = false;
     rawPy(){
@@ -136,7 +136,7 @@ global isFile(str path){
     return result;
 }
 
-/// Returns true if path is a directory. ///
+// Returns true if path is a directory.
 global isDir(str path){
     bool result = false;
     rawPy(){
@@ -146,7 +146,7 @@ global isDir(str path){
     return result;
 }
 
-/// Joins two path components with the OS separator. ///
+// Joins two path components with the OS separator.
 global joinPath(str a, str b){
     str result = "";
     rawPy(){
@@ -156,7 +156,7 @@ global joinPath(str a, str b){
     return result;
 }
 
-/// Returns the last component of path (the filename or directory name). ///
+// Returns the last component of path (the filename or directory name).
 global basename(str path){
     str result = "";
     rawPy(){
@@ -166,7 +166,7 @@ global basename(str path){
     return result;
 }
 
-/// Returns the directory portion of path. ///
+// Returns the directory portion of path.
 global dirname(str path){
     str result = "";
     rawPy(){
@@ -176,7 +176,7 @@ global dirname(str path){
     return result;
 }
 
-/// Returns the absolute path of path. ///
+// Returns the absolute path of path.
 global absPath(str path){
     str result = "";
     rawPy(){
@@ -186,7 +186,7 @@ global absPath(str path){
     return result;
 }
 
-/// Returns the value of environment variable key, or "" if not set. ///
+// Returns the value of environment variable key, or "" if not set.
 global getenv(str key){
     str result = "";
     rawPy(){
@@ -196,7 +196,7 @@ global getenv(str key){
     return result;
 }
 
-/// Returns the current process ID as an integer. ///
+// Returns the current process ID as an integer.
 global getpid(){
     int result = 0;
     rawPy(){
@@ -206,7 +206,7 @@ global getpid(){
     return result;
 }
 
-/// Returns the OS path separator ("/" on Unix, "\" on Windows). ///
+// Returns the OS path separator ("/" on Unix, "\" on Windows).
 global sep(){
     str result = "";
     rawPy(){
@@ -216,7 +216,7 @@ global sep(){
     return result;
 }
 
-/// Set environment variable key to val for the current process. Returns true on success. ///
+// Set environment variable key to val for the current process. Returns true on success.
 global setenv(str key, str val){
     bool ok = true;
     rawPy(){
@@ -229,7 +229,7 @@ global setenv(str key, str val){
     return ok;
 }
 
-/// Expand a leading ~ or ~user in path to the full home directory. ///
+// Expand a leading ~ or ~user in path to the full home directory.
 global expandUser(str path){
     str result = "";
     rawPy(){
@@ -239,7 +239,7 @@ global expandUser(str path){
     return result;
 }
 
-/// Return the file extension of path (including the dot), e.g. ".txt". Returns "" if none. ///
+// Return the file extension of path (including the dot), e.g. ".txt". Returns "" if none.
 global extname(str path){
     str result = "";
     rawPy(){
@@ -249,7 +249,7 @@ global extname(str path){
     return result;
 }
 
-/// Normalize a path (resolve "..", collapse double slashes, etc.). ///
+// Normalize a path (resolve "..", collapse double slashes, etc.).
 global normPath(str path){
     str result = "";
     rawPy(){
@@ -259,7 +259,7 @@ global normPath(str path){
     return result;
 }
 
-/// Recursively remove a directory tree. Returns true on success, false on error. ///
+// Recursively remove a directory tree. Returns true on success, false on error.
 global rmTree(str path){
     bool ok = true;
     rawPy(){
@@ -272,8 +272,8 @@ global rmTree(str path){
     return ok;
 }
 
-/// Copy an entire directory tree from src to dst.
-  dst must not already exist. Returns true on success, false on error. ///
+// Copy an entire directory tree from src to dst.
+// dst must not already exist. Returns true on success, false on error.
 global copyTree(str src, str dst){
     bool ok = true;
     rawPy(){
@@ -286,8 +286,8 @@ global copyTree(str src, str dst){
     return ok;
 }
 
-/// Return only the files in path whose name ends with ext (e.g. ".txt").
-  Returns entries as a list. ///
+// Return only the files in path whose name ends with ext (e.g. ".txt").
+// Returns entries as a list.
 global listdirExt(str path, str ext){
     str raw = "";
     rawPy(){
@@ -304,7 +304,7 @@ global listdirExt(str path, str ext){
     return splitStr(raw, "\n");
 }
 
-/// Return the system temporary directory (e.g. "/tmp" on Linux). ///
+// Return the system temporary directory (e.g. "/tmp" on Linux).
 global tempDir(){
     str result = "";
     rawPy(){
@@ -314,7 +314,7 @@ global tempDir(){
     return result;
 }
 
-/// Return the current user's home directory. ///
+// Return the current user's home directory.
 global homedir(){
     str result = "";
     rawPy(){
@@ -324,7 +324,7 @@ global homedir(){
     return result;
 }
 
-/// Return the current user's login name. Returns "" if unavailable. ///
+// Return the current user's login name. Returns "" if unavailable.
 global username(){
     str result = "";
     rawPy(){
@@ -341,7 +341,7 @@ global username(){
     return result;
 }
 
-/// Return the system hostname. Returns "" on error. ///
+// Return the system hostname. Returns "" on error.
 global hostname(){
     str result = "";
     rawPy(){
@@ -354,7 +354,7 @@ global hostname(){
     return result;
 }
 
-/// Return the number of CPU cores on this machine, or 1 on error. ///
+// Return the number of CPU cores on this machine, or 1 on error.
 global cpuCount(){
     int result = 1;
     rawPy(){
@@ -367,7 +367,7 @@ global cpuCount(){
     return result;
 }
 
-/// Return the total disk space of path in bytes, or -1 on error. ///
+// Return the total disk space of path in bytes, or -1 on error.
 global diskTotal(str path){
     int result = -1;
     rawPy(){
@@ -380,7 +380,7 @@ global diskTotal(str path){
     return result;
 }
 
-/// Return the free disk space of path in bytes, or -1 on error. ///
+// Return the free disk space of path in bytes, or -1 on error.
 global diskFree(str path){
     int result = -1;
     rawPy(){
@@ -393,8 +393,8 @@ global diskFree(str path){
     return result;
 }
 
-/// Recursively list all files under path. Returns a newline-joined string
-  (use splitStr(result, "\n") to get a list). Returns "" on error. ///
+// Recursively list all files under path. Returns a newline-joined string
+// (use splitStr(result, "\n") to get a list). Returns "" on error.
 global walkFiles(str path){
     str result = "";
     rawPy(){

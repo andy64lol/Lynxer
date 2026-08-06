@@ -1,5 +1,8 @@
 from __future__ import annotations
-from strings_with_arrows import string_with_arrows
+try:
+    from strings_with_arrows import string_with_arrows
+except ImportError:
+    from lynxer.strings_with_arrows import string_with_arrows  # type: ignore[no-redef]
 import string
 import os
 import sys
@@ -10,7 +13,7 @@ from typing import ClassVar
 
 # Bytecode constants
 BYTECODE_MAGIC   = b"LYNXC\x00"
-BYTECODE_VERSION = 2
+BYTECODE_VERSION = 3   # bump whenever the serialised node format changes
 
 DIGITS = "0123456789"
 STDLIB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "stdlib")
@@ -158,6 +161,7 @@ TT_RAWPYX_BLOCK = "RAWPYX_BLOCK"
 TT_LBRACKET = "LBRACKET"
 TT_RBRACKET = "RBRACKET"
 TT_EOF = "EOF"
+TT_DOCSTRING = "DOCSTRING"
 
 TYPE_KEYWORDS = ["int", "float", "str", "bool", "any", "tuple", "list", "num", "char"]
 
@@ -220,12 +224,21 @@ class Lexer:
         peek_idx = self.pos.idx + 2
         return self.text[peek_idx] if peek_idx < len(self.text) else None
 
+    def peek3(self):
+        peek_idx = self.pos.idx + 3
+        return self.text[peek_idx] if peek_idx < len(self.text) else None
+
     def make_tokens(self):
         tokens = []
 
         while self.current_char is not None:
             if self.current_char in " \t\n\r":
                 self.advance()
+            elif (
+                self.current_char == "/" and self.peek() == "/"
+                and self.peek2() == "/" and self.peek3() == "/"
+            ):
+                tokens.append(self.make_docstring())
             elif (
                 self.current_char == "/" and self.peek() == "/" and self.peek2() == "/"
             ):
@@ -479,6 +492,23 @@ class Lexer:
                 break
             self.advance()
 
+    def make_docstring(self):
+        """Consume a //// ... //// block and return a TT_DOCSTRING token."""
+        pos_start = self.pos.copy()
+        for _ in range(4):
+            self.advance()          # consume opening ////
+        content = []
+        while self.current_char is not None:
+            if (self.current_char == "/" and self.peek() == "/"
+                    and self.peek2() == "/" and self.peek3() == "/"):
+                for _ in range(4):
+                    self.advance()  # consume closing ////
+                break
+            content.append(self.current_char)
+            self.advance()
+        pos_end = self.pos.copy()
+        return Token(TT_DOCSTRING, "".join(content).strip(), pos_start, pos_end)
+
     def _try_consume_brace_block(self, pos_start, token_type):
         text = self.text
         n = len(text)
@@ -730,11 +760,19 @@ class ContinueNode:
         self.pos_start = pos_start
         self.pos_end = pos_end
 
+class DocstringNode:
+    """AST node for a //// ... //// file-level docstring."""
+    def __init__(self, value, pos_start, pos_end):
+        self.value = value
+        self.pos_start = pos_start
+        self.pos_end = pos_end
+
 class ProgramNode:
-    def __init__(self, setup_func, globals_list, main_func, pos_start, pos_end):
+    def __init__(self, setup_func, globals_list, main_func, pos_start, pos_end, docstring=None):
         self.setup_func = setup_func
         self.globals_list = globals_list
         self.main_func = main_func
+        self.docstring = docstring   # plain str extracted from leading //// block, or None
         self.pos_start = pos_start
         self.pos_end = pos_end
 
@@ -877,6 +915,13 @@ class Parser:
         main_seen = False
         any_other_seen = False
 
+        # Consume an optional leading //// docstring before any global declarations
+        docstring = None
+        if self.current_tok.type == TT_DOCSTRING:
+            docstring = self.current_tok.value
+            res.register_advancement()
+            self.advance()
+
         while self.current_tok.type != TT_EOF:
             is_func_kw = (
                 self.current_tok.matches(TT_KEYWORD, "global")
@@ -981,7 +1026,7 @@ class Parser:
 
         pos_end = self.current_tok.pos_end.copy()
         return res.success(
-            ProgramNode(setup_func, globals_list, main_func, pos_start, pos_end)
+            ProgramNode(setup_func, globals_list, main_func, pos_start, pos_end, docstring=docstring)
         )
 
     def parse_func_def(self):
@@ -1222,6 +1267,11 @@ class Parser:
 
         statements = []
         while self.current_tok.type != TT_RBRACE and self.current_tok.type != TT_EOF:
+            # //// docstrings inside a block are treated as comments — skip them.
+            if self.current_tok.type == TT_DOCSTRING:
+                res.register_advancement()
+                self.advance()
+                continue
             stmt = res.register(
                 self.parse_statement(
                     in_setup=in_setup, allow_local_funcs=allow_local_funcs
@@ -5611,30 +5661,63 @@ def _get_current_global_path(context):
     return None
 
 def _preregister_nested_globals(parent_func, block_node, context):
-    """Scan the top-level statements of."""
+    """Scan the statements of *block_node* for nested ``global`` function
+    definitions and register them in ``parent_func.inner_globals``.
+
+    The scan is *deep*: it recurses into the bodies of control-flow nodes
+    (if / while / for / try) so that globals defined inside conditional branches
+    are still discoverable via dot-access without the outer function ever being
+    called.  Existing entries are never overwritten — a definition that appeared
+    first (textually) wins, which matches the behaviour of ``visit_FuncDefNode``.
+    """
     for stmt in block_node.statements:
-        if not isinstance(stmt, FuncDefNode):
-            continue
-        is_global_def = (
-            stmt.kind_tok.value == "global"
-            or (stmt.kind_tok.type == TT_IDENTIFIER and stmt.kind_tok.value == "global")
-        )
-        if not is_global_def:
-            continue
-        child_name = stmt.var_name_tok.value
-        param_names = [p[1].value for p in stmt.param_toks]
-        param_types = [p[0].value if p[0] else None for p in stmt.param_toks]
-        if stmt.is_async:
-            child_func = AsyncFunction(child_name, stmt.body_block, param_names, param_types, is_global=True)
-        else:
-            child_func = Function(child_name, stmt.body_block, param_names, param_types, is_global=True)
-        child_func.set_context(context)
-        child_func.set_pos(stmt.pos_start, stmt.pos_end)
-        parent_path = parent_func.global_path or [parent_func.name]
-        child_func.global_path = parent_path + [child_name]
-        parent_func.inner_globals[child_name] = child_func
-        # Recurse for deeper nesting
-        _preregister_nested_globals(child_func, stmt.body_block, context)
+        # ── Direct nested global ──────────────────────────────────────────
+        if isinstance(stmt, FuncDefNode):
+            is_global_def = (
+                stmt.kind_tok.value == "global"
+                or (stmt.kind_tok.type == TT_IDENTIFIER and stmt.kind_tok.value == "global")
+            )
+            if not is_global_def:
+                continue
+            child_name = stmt.var_name_tok.value
+            # Skip duplicate — keep whichever was registered first.
+            if child_name in parent_func.inner_globals:
+                continue
+            param_names = [p[1].value for p in stmt.param_toks]
+            param_types = [p[0].value if p[0] else None for p in stmt.param_toks]
+            if stmt.is_async:
+                child_func = AsyncFunction(child_name, stmt.body_block, param_names, param_types, is_global=True)
+            else:
+                child_func = Function(child_name, stmt.body_block, param_names, param_types, is_global=True)
+            child_func.set_context(context)
+            child_func.set_pos(stmt.pos_start, stmt.pos_end)
+            parent_path = parent_func.global_path or [parent_func.name]
+            child_func.global_path = parent_path + [child_name]
+            parent_func.inner_globals[child_name] = child_func
+            # Recurse so that 3+-level nesting is fully pre-populated.
+            _preregister_nested_globals(child_func, stmt.body_block, context)
+
+        # ── Control-flow: search inside every known block-carrying node type
+        #    so that globals defined inside branches/loops/try are still
+        #    discoverable at module load time.  Using explicit isinstance
+        #    checks (rather than hasattr duck-typing) avoids accidentally
+        #    traversing unrelated nodes that happen to have similarly-named
+        #    attributes. ────────────────────────────────────────────────────
+        elif isinstance(stmt, IfNode):
+            # then_block is always present; else_block may be None
+            _preregister_nested_globals(parent_func, stmt.then_block, context)
+            if stmt.else_block is not None:
+                _preregister_nested_globals(parent_func, stmt.else_block, context)
+
+        elif isinstance(stmt, (WhileNode, ForNode, IterateNode)):
+            # All three carry exactly one body_block
+            _preregister_nested_globals(parent_func, stmt.body_block, context)
+
+        elif isinstance(stmt, TryCatchNode):
+            # try_block and catch_block are both BlockNodes
+            _preregister_nested_globals(parent_func, stmt.try_block, context)
+            if stmt.catch_block is not None:
+                _preregister_nested_globals(parent_func, stmt.catch_block, context)
 
 # interpreter
 
@@ -7495,7 +7578,17 @@ def _load_bytecode(fn):
             f"Lynxer version (decompression failed: {exc}). "
             f"Recompile the source file to fix this."
         ) from exc
-    return pickle.loads(raw)
+    data = pickle.loads(raw)
+    # ── Version gate ────────────────────────────────────────────────────────
+    file_ver = data.get("version")
+    if file_ver != BYTECODE_VERSION:
+        raise ValueError(
+            f"'{fn}' was compiled with bytecode version {file_ver} but this "
+            f"Lynxer runtime expects version {BYTECODE_VERSION}.  "
+            f"Recompile the source file with 'lynxer --compile <source.lynx>' "
+            f"to generate an up-to-date .lynxc file."
+        )
+    return data
 
 def run_bytecode(fn):
     """Load and execute a pre-compiled."""

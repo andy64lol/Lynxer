@@ -1,4 +1,4 @@
-///
+////
   Lynxer Standard Library — game
   2-D game development toolkit wrapping Python's arcade library.
   Requires: arcade  (pip install arcade)
@@ -46,15 +46,15 @@
         builtins._lx_game_win.on_draw   = _draw
         builtins._lx_game_win.on_update = _update
     }
-///
+////
 
 global setup(){}
 
 // ── Window ─────────────────────────────────────────────────────────────────
 
-/// Create the arcade game window.  Must be called first.
-  Stores the window in builtins._lx_game_win.
-  background defaults to black; change with setBackground. ///
+// Create the arcade game window.  Must be called first.
+// Stores the window in builtins._lx_game_win.
+// background defaults to black; change with setBackground.
 global init(str title, int width, int height){
     rawPy(){
         import arcade, builtins
@@ -105,7 +105,7 @@ global init(str title, int width, int height){
     }
 }
 
-/// Set the window title. ///
+// Set the window title.
 global setTitle(str title){
     rawPy(){
         import builtins
@@ -113,7 +113,7 @@ global setTitle(str title){
     }
 }
 
-/// Set the background clear colour (r, g, b each 0–255). ///
+// Set the background clear colour (r, g, b each 0–255).
 global setBackground(int r, int g, int b){
     rawPy(){
         import arcade, builtins
@@ -121,7 +121,7 @@ global setBackground(int r, int g, int b){
     }
 }
 
-/// Return the window width in pixels. ///
+// Return the window width in pixels.
 global getWidth(){
     int result = 0;
     rawPy(){
@@ -131,7 +131,7 @@ global getWidth(){
     return result;
 }
 
-/// Return the window height in pixels. ///
+// Return the window height in pixels.
 global getHeight(){
     int result = 0;
     rawPy(){
@@ -141,7 +141,7 @@ global getHeight(){
     return result;
 }
 
-/// Close the game window. ///
+// Close the game window.
 global close(){
     rawPy(){
         import builtins, arcade
@@ -154,7 +154,7 @@ global close(){
 
 // ── App lifecycle ───────────────────────────────────────────────────────────
 
-/// Start the arcade event loop (blocking). ///
+// Start the arcade event loop (blocking).
 global run(){
     rawPy(){
         import arcade
@@ -164,7 +164,7 @@ global run(){
 
 // ── Draw loop ───────────────────────────────────────────────────────────────
 
-/// Call at the start of your on_draw to clear the screen. ///
+// Call at the start of your on_draw to clear the screen.
 global beginDraw(){
     rawPy(){
         import builtins
@@ -172,13 +172,13 @@ global beginDraw(){
     }
 }
 
-/// No-op — retained for API symmetry with beginDraw. ///
+// No-op — retained for API symmetry with beginDraw.
 global endDraw(){
 }
 
 // ── Shape drawing ───────────────────────────────────────────────────────────
 
-/// Draw a filled rectangle centered at (cx, cy). ///
+// Draw a filled rectangle centered at (cx, cy).
 global drawRect(float cx, float cy, float width, float height, int r, int g, int b){
     rawPy(){
         import arcade
@@ -186,7 +186,7 @@ global drawRect(float cx, float cy, float width, float height, int r, int g, int
     }
 }
 
-/// Draw a rectangle outline centered at (cx, cy). ///
+// Draw a rectangle outline centered at (cx, cy).
 global drawRectOutline(float cx, float cy, float width, float height, int r, int g, int b, float lineWidth){
     rawPy(){
         import arcade
@@ -195,7 +195,7 @@ global drawRectOutline(float cx, float cy, float width, float height, int r, int
     }
 }
 
-/// Draw a filled circle centered at (cx, cy). ///
+// Draw a filled circle centered at (cx, cy).
 global drawCircle(float cx, float cy, float radius, int r, int g, int b){
     rawPy(){
         import arcade
@@ -203,7 +203,7 @@ global drawCircle(float cx, float cy, float radius, int r, int g, int b){
     }
 }
 
-/// Draw a circle outline centered at (cx, cy). ///
+// Draw a circle outline centered at (cx, cy).
 global drawCircleOutline(float cx, float cy, float radius, int r, int g, int b, float lineWidth){
     rawPy(){
         import arcade
@@ -212,7 +212,7 @@ global drawCircleOutline(float cx, float cy, float radius, int r, int g, int b, 
     }
 }
 
-/// Draw a filled ellipse centered at (cx, cy). ///
+// Draw a filled ellipse centered at (cx, cy).
 global drawEllipse(float cx, float cy, float w, float h, int r, int g, int b){
     rawPy(){
         import arcade
@@ -220,7 +220,7 @@ global drawEllipse(float cx, float cy, float w, float h, int r, int g, int b){
     }
 }
 
-/// Draw an ellipse outline centered at (cx, cy). ///
+// Draw an ellipse outline centered at (cx, cy).
 global drawEllipseOutline(float cx, float cy, float w, float h, int r, int g, int b, float lineWidth){
     rawPy(){
         import arcade
@@ -229,7 +229,7 @@ global drawEllipseOutline(float cx, float cy, float w, float h, int r, int g, in
     }
 }
 
-/// Draw a line from (x1,y1) to (x2,y2). ///
+// Draw a line from (x1,y1) to (x2,y2).
 global drawLine(float x1, float y1, float x2, float y2, int r, int g, int b, float lineWidth){
     rawPy(){
         import arcade
@@ -237,7 +237,7 @@ global drawLine(float x1, float y1, float x2, float y2, int r, int g, int b, flo
     }
 }
 
-/// Draw a filled triangle. ///
+// Draw a filled triangle.
 global drawTriangle(float x1, float y1, float x2, float y2, float x3, float y3, int r, int g, int b){
     rawPy(){
         import arcade
@@ -245,7 +245,7 @@ global drawTriangle(float x1, float y1, float x2, float y2, float x3, float y3, 
     }
 }
 
-/// Draw a triangle outline. ///
+// Draw a triangle outline.
 global drawTriangleOutline(float x1, float y1, float x2, float y2, float x3, float y3, int r, int g, int b, float lineWidth){
     rawPy(){
         import arcade
@@ -254,8 +254,8 @@ global drawTriangleOutline(float x1, float y1, float x2, float y2, float x3, flo
     }
 }
 
-/// Draw a filled polygon.  coordsJson is a JSON array of [x,y,...] floats.
-  e.g. drawPolygon("[100,100, 200,100, 150,200]", 0, 200, 100) ///
+// Draw a filled polygon.  coordsJson is a JSON array of [x,y,...] floats.
+// e.g. drawPolygon("[100,100, 200,100, 150,200]", 0, 200, 100)
 global drawPolygon(str coordsJson, int r, int g, int b){
     rawPy(){
         import arcade, json as _json
@@ -268,8 +268,8 @@ global drawPolygon(str coordsJson, int r, int g, int b){
     }
 }
 
-/// Draw an arc (sector outline) centered at (cx, cy).
-  startAngle and endAngle are in degrees (0 = right, counter-clockwise). ///
+// Draw an arc (sector outline) centered at (cx, cy).
+// startAngle and endAngle are in degrees (0 = right, counter-clockwise).
 global drawArc(float cx, float cy, float w, float h, int r, int g, int b, float startAngle, float endAngle, float lineWidth){
     rawPy(){
         import arcade
@@ -279,7 +279,7 @@ global drawArc(float cx, float cy, float w, float h, int r, int g, int b, float 
     }
 }
 
-/// Draw a filled point (small circle) at (x, y). ///
+// Draw a filled point (small circle) at (x, y).
 global drawPoint(float x, float y, int r, int g, int b, float size){
     rawPy(){
         import arcade
@@ -289,7 +289,7 @@ global drawPoint(float x, float y, int r, int g, int b, float size){
 
 // ── Text ────────────────────────────────────────────────────────────────────
 
-/// Draw text at (x, y) with font size.  anchor_x: "left", "center", "right". ///
+// Draw text at (x, y) with font size.  anchor_x: "left", "center", "right".
 global drawText(str text, float x, float y, int r, int g, int b, int size){
     rawPy(){
         import arcade
@@ -297,7 +297,7 @@ global drawText(str text, float x, float y, int r, int g, int b, int size){
     }
 }
 
-/// Draw text with font family, size, style, and horizontal anchor. ///
+// Draw text with font family, size, style, and horizontal anchor.
 global drawTextStyled(str text, float x, float y, int r, int g, int b, int size, str fontName, bool bold, bool italic, str anchorX){
     rawPy(){
         import arcade
@@ -313,8 +313,8 @@ global drawTextStyled(str text, float x, float y, int r, int g, int b, int size,
 
 // ── Sprites ─────────────────────────────────────────────────────────────────
 
-/// Load a sprite image from path with optional scale.
-  Returns sprite index. ///
+// Load a sprite image from path with optional scale.
+// Returns sprite index.
 global loadSprite(str path, float scale, float x, float y){
     int idx = 0;
     rawPy(){
@@ -331,7 +331,7 @@ global loadSprite(str path, float scale, float x, float y){
     return idx;
 }
 
-/// Return the center X position of sprite at idx. ///
+// Return the center X position of sprite at idx.
 global getSpriteX(int idx){
     float result = 0.0;
     rawPy(){
@@ -344,7 +344,7 @@ global getSpriteX(int idx){
     return result;
 }
 
-/// Return the center Y position of sprite at idx. ///
+// Return the center Y position of sprite at idx.
 global getSpriteY(int idx){
     float result = 0.0;
     rawPy(){
@@ -357,7 +357,7 @@ global getSpriteY(int idx){
     return result;
 }
 
-/// Return the angle (degrees) of sprite at idx. ///
+// Return the angle (degrees) of sprite at idx.
 global getSpriteAngle(int idx){
     float result = 0.0;
     rawPy(){
@@ -370,7 +370,7 @@ global getSpriteAngle(int idx){
     return result;
 }
 
-/// Set the position of sprite at idx. ///
+// Set the position of sprite at idx.
 global setSpritePos(int idx, float x, float y){
     rawPy(){
         import builtins
@@ -383,7 +383,7 @@ global setSpritePos(int idx, float x, float y){
     }
 }
 
-/// Set the rotation angle (degrees, counter-clockwise) of sprite at idx. ///
+// Set the rotation angle (degrees, counter-clockwise) of sprite at idx.
 global setSpriteAngle(int idx, float angle){
     rawPy(){
         import builtins
@@ -394,7 +394,7 @@ global setSpriteAngle(int idx, float angle){
     }
 }
 
-/// Set the scale of sprite at idx. ///
+// Set the scale of sprite at idx.
 global setSpriteScale(int idx, float scale){
     rawPy(){
         import builtins
@@ -405,7 +405,7 @@ global setSpriteScale(int idx, float scale){
     }
 }
 
-/// Set the velocity of sprite at idx (pixels per second). ///
+// Set the velocity of sprite at idx (pixels per second).
 global setSpriteVelocity(int idx, float vx, float vy){
     rawPy(){
         import builtins
@@ -418,7 +418,7 @@ global setSpriteVelocity(int idx, float vx, float vy){
     }
 }
 
-/// Update a single sprite's position by its velocity. ///
+// Update a single sprite's position by its velocity.
 global updateSprite(int idx){
     rawPy(){
         import builtins
@@ -429,7 +429,7 @@ global updateSprite(int idx){
     }
 }
 
-/// Draw a single sprite. ///
+// Draw a single sprite.
 global drawSprite(int idx){
     rawPy(){
         import builtins
@@ -440,7 +440,7 @@ global drawSprite(int idx){
     }
 }
 
-/// Return true if sprite A collides with sprite B. ///
+// Return true if sprite A collides with sprite B.
 global spriteCollides(int idxA, int idxB){
     bool result = false;
     rawPy(){
@@ -457,7 +457,7 @@ global spriteCollides(int idxA, int idxB){
 
 // ── Sprite lists ─────────────────────────────────────────────────────────────
 
-/// Create a new SpriteList.  Returns list index. ///
+// Create a new SpriteList.  Returns list index.
 global makeSpriteList(){
     int idx = 0;
     rawPy(){
@@ -469,7 +469,7 @@ global makeSpriteList(){
     return idx;
 }
 
-/// Add sprite at sprIdx to the SpriteList at listIdx. ///
+// Add sprite at sprIdx to the SpriteList at listIdx.
 global addToList(int listIdx, int sprIdx){
     rawPy(){
         import builtins
@@ -480,7 +480,7 @@ global addToList(int listIdx, int sprIdx){
     }
 }
 
-/// Draw all sprites in a SpriteList. ///
+// Draw all sprites in a SpriteList.
 global drawSpriteList(int listIdx){
     rawPy(){
         import builtins
@@ -491,7 +491,7 @@ global drawSpriteList(int listIdx){
     }
 }
 
-/// Update all sprites in a SpriteList (apply velocities). ///
+// Update all sprites in a SpriteList (apply velocities).
 global updateSpriteList(int listIdx){
     rawPy(){
         import builtins
@@ -504,10 +504,10 @@ global updateSpriteList(int listIdx){
 
 // ── Input ───────────────────────────────────────────────────────────────────
 
-/// Return true if the named key is currently held down.
-  Key names: "UP", "DOWN", "LEFT", "RIGHT", "SPACE", "ENTER",
-  "ESCAPE", "A"–"Z", "0"–"9", "F1"–"F12".
-  e.g. keyDown("LEFT") ///
+// Return true if the named key is currently held down.
+// Key names: "UP", "DOWN", "LEFT", "RIGHT", "SPACE", "ENTER",
+// "ESCAPE", "A"–"Z", "0"–"9", "F1"–"F12".
+// e.g. keyDown("LEFT")
 global keyDown(str key){
     bool result = false;
     rawPy(){
@@ -541,7 +541,7 @@ global keyDown(str key){
     return result;
 }
 
-/// Return true if the named key is NOT held down. ///
+// Return true if the named key is NOT held down.
 global keyUp(str key){
     bool result = false;
     rawPy(){
@@ -554,7 +554,7 @@ global keyUp(str key){
     return false;
 }
 
-/// Return the current mouse X position (pixels from left). ///
+// Return the current mouse X position (pixels from left).
 global mouseX(){
     float result = 0.0;
     rawPy(){
@@ -567,7 +567,7 @@ global mouseX(){
     return result;
 }
 
-/// Return the current mouse Y position (pixels from bottom). ///
+// Return the current mouse Y position (pixels from bottom).
 global mouseY(){
     float result = 0.0;
     rawPy(){
@@ -580,7 +580,7 @@ global mouseY(){
     return result;
 }
 
-/// Return true if the left mouse button is held. ///
+// Return true if the left mouse button is held.
 global mouseLeft(){
     bool result = false;
     rawPy(){
@@ -593,7 +593,7 @@ global mouseLeft(){
     return result;
 }
 
-/// Return true if the right mouse button is held. ///
+// Return true if the right mouse button is held.
 global mouseRight(){
     bool result = false;
     rawPy(){
@@ -608,7 +608,7 @@ global mouseRight(){
 
 // ── Sound ────────────────────────────────────────────────────────────────────
 
-/// Load a sound from path.  Returns sound index. ///
+// Load a sound from path.  Returns sound index.
 global loadSound(str path){
     int idx = 0;
     rawPy(){
@@ -623,7 +623,7 @@ global loadSound(str path){
     return idx;
 }
 
-/// Play the sound at soundIdx.  Stops any previous play of the same sound. ///
+// Play the sound at soundIdx.  Stops any previous play of the same sound.
 global playSound(int soundIdx){
     rawPy(){
         import arcade, builtins
@@ -640,7 +640,7 @@ global playSound(int soundIdx){
     }
 }
 
-/// Stop the sound at soundIdx. ///
+// Stop the sound at soundIdx.
 global stopSound(int soundIdx){
     rawPy(){
         import arcade, builtins
@@ -656,7 +656,7 @@ global stopSound(int soundIdx){
 
 // ── Timer ────────────────────────────────────────────────────────────────────
 
-/// Return the delta time (seconds) from the last on_update call. ///
+// Return the delta time (seconds) from the last on_update call.
 global deltaTime(){
     float result = 0.0;
     rawPy(){
@@ -671,7 +671,7 @@ global deltaTime(){
 
 // ── Camera ───────────────────────────────────────────────────────────────────
 
-/// Create a Camera2D and return its index. ///
+// Create a Camera2D and return its index.
 global makeCamera(){
     int idx = 0;
     rawPy(){
@@ -686,7 +686,7 @@ global makeCamera(){
     return idx;
 }
 
-/// Activate the camera at camIdx (draws subsequent geometry through it). ///
+// Activate the camera at camIdx (draws subsequent geometry through it).
 global useCamera(int camIdx){
     rawPy(){
         import builtins
@@ -697,7 +697,7 @@ global useCamera(int camIdx){
     }
 }
 
-/// Move a camera's position to (x, y). ///
+// Move a camera's position to (x, y).
 global setCameraPos(int camIdx, float x, float y){
     rawPy(){
         import builtins
@@ -708,7 +708,7 @@ global setCameraPos(int camIdx, float x, float y){
     }
 }
 
-/// Reset the viewport to the default (full window). ///
+// Reset the viewport to the default (full window).
 global resetCamera(){
     rawPy(){
         import arcade, builtins
@@ -721,8 +721,8 @@ global resetCamera(){
 
 // ── Physics ───────────────────────────────────────────────────────────────────
 
-/// Create a SimplePhysicsEngine with gravity and walls SpriteList.
-  Returns engine index.  wallsListIdx = -1 for no walls. ///
+// Create a SimplePhysicsEngine with gravity and walls SpriteList.
+// Returns engine index.  wallsListIdx = -1 for no walls.
 global makePhysicsEngine(float gravity, int wallsListIdx){
     int idx = 0;
     rawPy(){
@@ -741,8 +741,8 @@ global makePhysicsEngine(float gravity, int wallsListIdx){
     return idx;
 }
 
-/// Assign a player sprite to a physics engine and initialise it.
-  Must be called before updatePhysics. ///
+// Assign a player sprite to a physics engine and initialise it.
+// Must be called before updatePhysics.
 global setPhysicsPlayer(int engineIdx, int sprIdx){
     rawPy(){
         import arcade, builtins
@@ -757,7 +757,7 @@ global setPhysicsPlayer(int engineIdx, int sprIdx){
     }
 }
 
-/// Step the physics engine at engineIdx. ///
+// Step the physics engine at engineIdx.
 global updatePhysics(int engineIdx){
     rawPy(){
         import builtins
@@ -770,7 +770,7 @@ global updatePhysics(int engineIdx){
     }
 }
 
-/// Return true if the player can jump (is on the ground). ///
+// Return true if the player can jump (is on the ground).
 global canJump(int engineIdx){
     bool result = false;
     rawPy(){
@@ -787,7 +787,7 @@ global canJump(int engineIdx){
 
 // ── Extra drawing ─────────────────────────────────────────────────────────────
 
-/// Draw a filled rounded rectangle using four corner circles + two inner rects. ///
+// Draw a filled rounded rectangle using four corner circles + two inner rects.
 global drawRectRoundedFilled(float cx, float cy, float w, float h, int r, int g, int b, float cr){
     rawPy(){
         import arcade
@@ -800,7 +800,7 @@ global drawRectRoundedFilled(float cx, float cy, float w, float h, int r, int g,
     }
 }
 
-/// Draw a rounded rectangle outline. ///
+// Draw a rounded rectangle outline.
 global drawRectRoundedOutline(float cx, float cy, float w, float h, int r, int g, int b, float cr, float lw){
     rawPy(){
         import arcade
@@ -817,7 +817,7 @@ global drawRectRoundedOutline(float cx, float cy, float w, float h, int r, int g
     }
 }
 
-/// Draw a filled arc/pie sector. ///
+// Draw a filled arc/pie sector.
 global drawArcFilled(float cx, float cy, float w, float h, int r, int g, int b, float startAngle, float endAngle){
     rawPy(){
         import arcade
@@ -827,7 +827,7 @@ global drawArcFilled(float cx, float cy, float w, float h, int r, int g, int b, 
     }
 }
 
-/// Draw a filled n-point star. ///
+// Draw a filled n-point star.
 global drawStar(float cx, float cy, float outerR, float innerR, int n, int r, int g, int b){
     rawPy(){
         import arcade, math as _m
@@ -842,7 +842,7 @@ global drawStar(float cx, float cy, float outerR, float innerR, int n, int r, in
     }
 }
 
-/// Draw a dashed line between two points. ///
+// Draw a dashed line between two points.
 global drawDashedLine(float x1, float y1, float x2, float y2, int r, int g, int b, float lw, float dashLen){
     rawPy(){
         import arcade, math as _m
@@ -861,7 +861,7 @@ global drawDashedLine(float x1, float y1, float x2, float y2, int r, int g, int 
     }
 }
 
-/// Draw a cross/plus shape. ///
+// Draw a cross/plus shape.
 global drawCross(float cx, float cy, float size, int r, int g, int b, float lw){
     rawPy(){
         import arcade
@@ -871,7 +871,7 @@ global drawCross(float cx, float cy, float size, int r, int g, int b, float lw){
     }
 }
 
-/// Draw a polyline through many points.  coordsJson: flat [x,y,...] JSON array. ///
+// Draw a polyline through many points.  coordsJson: flat [x,y,...] JSON array.
 global drawPolyline(str coordsJson, int r, int g, int b, float lw){
     rawPy(){
         import arcade, json as _json
@@ -887,7 +887,7 @@ global drawPolyline(str coordsJson, int r, int g, int b, float lw){
     }
 }
 
-/// Draw many points at once.  coordsJson: flat [x,y,...] JSON array. ///
+// Draw many points at once.  coordsJson: flat [x,y,...] JSON array.
 global drawPoints(str coordsJson, int r, int g, int b, float size){
     rawPy(){
         import arcade, json as _json
@@ -901,7 +901,7 @@ global drawPoints(str coordsJson, int r, int g, int b, float size){
     }
 }
 
-/// Draw a simple two-color vertical gradient rectangle. ///
+// Draw a simple two-color vertical gradient rectangle.
 global drawGradientRect(float cx, float cy, float w, float h, int r1, int g1, int b1, int r2, int g2, int b2){
     rawPy(){
         import arcade
@@ -912,7 +912,7 @@ global drawGradientRect(float cx, float cy, float w, float h, int r1, int g1, in
     }
 }
 
-/// Draw an image from a file path centered at (cx, cy). ///
+// Draw an image from a file path centered at (cx, cy).
 global drawTextureAt(str imagePath, float cx, float cy, float scale){
     rawPy(){
         import arcade
@@ -927,7 +927,7 @@ global drawTextureAt(str imagePath, float cx, float cy, float scale){
 
 // ── Texture cache ─────────────────────────────────────────────────────────────
 
-/// Load and cache a texture for fast repeated drawing.  Returns texture index. ///
+// Load and cache a texture for fast repeated drawing.  Returns texture index.
 global loadTexture(str imagePath){
     int idx = 0;
     rawPy(){
@@ -944,7 +944,7 @@ global loadTexture(str imagePath){
     return idx;
 }
 
-/// Draw a cached texture centered at (cx, cy). ///
+// Draw a cached texture centered at (cx, cy).
 global drawTexture(int texIdx, float cx, float cy, float w, float h, float angle){
     rawPy(){
         import arcade, builtins
@@ -958,7 +958,7 @@ global drawTexture(int texIdx, float cx, float cy, float w, float h, float angle
 
 // ── Sprite extended ───────────────────────────────────────────────────────────
 
-/// Set sprite opacity (0 = invisible, 255 = fully opaque). ///
+// Set sprite opacity (0 = invisible, 255 = fully opaque).
 global setSpriteAlpha(int idx, int alpha){
     rawPy(){
         import builtins
@@ -969,7 +969,7 @@ global setSpriteAlpha(int idx, int alpha){
     }
 }
 
-/// Tint a sprite with an RGBA color. ///
+// Tint a sprite with an RGBA color.
 global setSpriteColor(int idx, int r, int g, int b, int a){
     rawPy(){
         import builtins, arcade
@@ -980,7 +980,7 @@ global setSpriteColor(int idx, int r, int g, int b, int a){
     }
 }
 
-/// Flip sprite texture horizontally. ///
+// Flip sprite texture horizontally.
 global flipSpriteH(int idx){
     rawPy(){
         import builtins
@@ -992,7 +992,7 @@ global flipSpriteH(int idx){
     }
 }
 
-/// Flip sprite texture vertically. ///
+// Flip sprite texture vertically.
 global flipSpriteV(int idx){
     rawPy(){
         import builtins
@@ -1004,7 +1004,7 @@ global flipSpriteV(int idx){
     }
 }
 
-/// Return the sprite's width in pixels. ///
+// Return the sprite's width in pixels.
 global getSpriteWidth(int idx){
     float result = 0.0;
     rawPy(){
@@ -1017,7 +1017,7 @@ global getSpriteWidth(int idx){
     return result;
 }
 
-/// Return the sprite's height in pixels. ///
+// Return the sprite's height in pixels.
 global getSpriteHeight(int idx){
     float result = 0.0;
     rawPy(){
@@ -1030,7 +1030,7 @@ global getSpriteHeight(int idx){
     return result;
 }
 
-/// Return the sprite's velocity X (pixels/second). ///
+// Return the sprite's velocity X (pixels/second).
 global getSpriteVX(int idx){
     float result = 0.0;
     rawPy(){
@@ -1043,7 +1043,7 @@ global getSpriteVX(int idx){
     return result;
 }
 
-/// Return the sprite's velocity Y (pixels/second). ///
+// Return the sprite's velocity Y (pixels/second).
 global getSpriteVY(int idx){
     float result = 0.0;
     rawPy(){
@@ -1056,7 +1056,7 @@ global getSpriteVY(int idx){
     return result;
 }
 
-/// Stop a sprite (set velocity to 0). ///
+// Stop a sprite (set velocity to 0).
 global stopSprite(int idx){
     rawPy(){
         import builtins
@@ -1068,7 +1068,7 @@ global stopSprite(int idx){
     }
 }
 
-/// Move a sprite toward (tx, ty) at speed pixels/frame. ///
+// Move a sprite toward (tx, ty) at speed pixels/frame.
 global moveSpriteToward(int idx, float tx, float ty, float speed){
     rawPy(){
         import builtins, math as _m
@@ -1086,7 +1086,7 @@ global moveSpriteToward(int idx, float tx, float ty, float speed){
     }
 }
 
-/// Rotate sprite so it faces (tx, ty). ///
+// Rotate sprite so it faces (tx, ty).
 global faceSpriteTo(int idx, float tx, float ty){
     rawPy(){
         import builtins, math as _m
@@ -1099,7 +1099,7 @@ global faceSpriteTo(int idx, float tx, float ty){
     }
 }
 
-/// Return the distance between two sprites. ///
+// Return the distance between two sprites.
 global spriteDistance(int idxA, int idxB){
     float result = 0.0;
     rawPy(){
@@ -1115,7 +1115,7 @@ global spriteDistance(int idxA, int idxB){
     return result;
 }
 
-/// Return true if a sprite is within range pixels of (tx, ty). ///
+// Return true if a sprite is within range pixels of (tx, ty).
 global spriteNear(int idx, float tx, float ty, float range){
     bool result = false;
     rawPy(){
@@ -1130,7 +1130,7 @@ global spriteNear(int idx, float tx, float ty, float range){
     return result;
 }
 
-/// Show or hide a sprite (hidden sprites still exist in lists). ///
+// Show or hide a sprite (hidden sprites still exist in lists).
 global setSpriteVisible(int idx, bool visible){
     rawPy(){
         import builtins
@@ -1141,7 +1141,7 @@ global setSpriteVisible(int idx, bool visible){
     }
 }
 
-/// Return true if the sprite is currently visible. ///
+// Return true if the sprite is currently visible.
 global getSpriteVisible(int idx){
     bool result = true;
     rawPy(){
@@ -1154,7 +1154,7 @@ global getSpriteVisible(int idx){
     return result;
 }
 
-/// Return true if a sprite collides with any sprite in a SpriteList. ///
+// Return true if a sprite collides with any sprite in a SpriteList.
 global spriteCollidesWithList(int sprIdx, int listIdx){
     bool result = false;
     rawPy(){
@@ -1169,7 +1169,7 @@ global spriteCollidesWithList(int sprIdx, int listIdx){
     return result;
 }
 
-/// Remove a sprite from a SpriteList without destroying it. ///
+// Remove a sprite from a SpriteList without destroying it.
 global removeSpriteFromList(int listIdx, int sprIdx){
     rawPy(){
         import builtins
@@ -1183,7 +1183,7 @@ global removeSpriteFromList(int listIdx, int sprIdx){
     }
 }
 
-/// Remove all sprites from a SpriteList. ///
+// Remove all sprites from a SpriteList.
 global clearSpriteList(int listIdx){
     rawPy(){
         import builtins
@@ -1194,7 +1194,7 @@ global clearSpriteList(int listIdx){
     }
 }
 
-/// Return the number of sprites in a SpriteList. ///
+// Return the number of sprites in a SpriteList.
 global getSpriteListCount(int listIdx){
     int result = 0;
     rawPy(){
@@ -1209,8 +1209,8 @@ global getSpriteListCount(int listIdx){
 
 // ── Animated sprites ──────────────────────────────────────────────────────────
 
-/// Create a sprite that cycles through a list of images.
-  pathsJson: JSON array of image paths.  fps: frames per second. ///
+// Create a sprite that cycles through a list of images.
+// pathsJson: JSON array of image paths.  fps: frames per second.
 global makeAnimatedSprite(str pathsJson, float fps, float x, float y){
     int idx = 0;
     rawPy(){
@@ -1233,7 +1233,7 @@ global makeAnimatedSprite(str pathsJson, float fps, float x, float y){
     return idx;
 }
 
-/// Advance animated sprite by dt seconds.  Call inside on_update. ///
+// Advance animated sprite by dt seconds.  Call inside on_update.
 global updateAnimation(int idx, float dt){
     rawPy(){
         import builtins
@@ -1246,8 +1246,8 @@ global updateAnimation(int idx, float dt){
 
 // ── Scene management ──────────────────────────────────────────────────────────
 
-/// Create an arcade Scene (named collection of SpriteLists).
-  Returns scene index. ///
+// Create an arcade Scene (named collection of SpriteLists).
+// Returns scene index.
 global makeScene(){
     int idx = 0;
     rawPy(){
@@ -1261,7 +1261,7 @@ global makeScene(){
     return idx;
 }
 
-/// Add a SpriteList to a Scene under a name. ///
+// Add a SpriteList to a Scene under a name.
 global addListToScene(int sceneIdx, int listIdx, str name){
     rawPy(){
         import builtins
@@ -1275,7 +1275,7 @@ global addListToScene(int sceneIdx, int listIdx, str name){
     }
 }
 
-/// Draw all SpriteLists in a Scene. ///
+// Draw all SpriteLists in a Scene.
 global drawScene(int sceneIdx){
     rawPy(){
         import builtins
@@ -1286,7 +1286,7 @@ global drawScene(int sceneIdx){
     }
 }
 
-/// Update all SpriteLists in a Scene (apply velocities). ///
+// Update all SpriteLists in a Scene (apply velocities).
 global updateScene(int sceneIdx){
     rawPy(){
         import builtins
@@ -1299,7 +1299,7 @@ global updateScene(int sceneIdx){
 
 // ── Tilemap (Tiled editor) ────────────────────────────────────────────────────
 
-/// Load a Tiled .tmx file.  Returns a scene index. ///
+// Load a Tiled .tmx file.  Returns a scene index.
 global loadTilemap(str tmxPath, float scaling){
     int idx = 0;
     rawPy(){
@@ -1320,7 +1320,7 @@ global loadTilemap(str tmxPath, float scaling){
     return idx;
 }
 
-/// Get a named layer from a tilemap scene as a SpriteList index. ///
+// Get a named layer from a tilemap scene as a SpriteList index.
 global getTilemapLayer(int sceneIdx, str layerName){
     int idx = 0;
     rawPy(){
@@ -1338,7 +1338,7 @@ global getTilemapLayer(int sceneIdx, str layerName){
 
 // ── Window / display ──────────────────────────────────────────────────────────
 
-/// Return the current FPS. ///
+// Return the current FPS.
 global getFPS(){
     float result = 0.0;
     rawPy(){
@@ -1351,7 +1351,7 @@ global getFPS(){
     return result;
 }
 
-/// Set the target frame rate. ///
+// Set the target frame rate.
 global setFPSCap(int fps){
     rawPy(){
         import builtins
@@ -1362,7 +1362,7 @@ global setFPSCap(int fps){
     }
 }
 
-/// Enter or leave fullscreen. ///
+// Enter or leave fullscreen.
 global setFullscreen(bool enabled){
     rawPy(){
         import builtins
@@ -1373,7 +1373,7 @@ global setFullscreen(bool enabled){
     }
 }
 
-/// Hide the mouse cursor. ///
+// Hide the mouse cursor.
 global hideCursor(){
     rawPy(){
         import builtins
@@ -1384,7 +1384,7 @@ global hideCursor(){
     }
 }
 
-/// Show the mouse cursor. ///
+// Show the mouse cursor.
 global showCursor(){
     rawPy(){
         import builtins
@@ -1395,7 +1395,7 @@ global showCursor(){
     }
 }
 
-/// Set window position on screen. ///
+// Set window position on screen.
 global setWindowPos(int x, int y){
     rawPy(){
         import builtins
@@ -1406,7 +1406,7 @@ global setWindowPos(int x, int y){
     }
 }
 
-/// Save a screenshot of the current frame. ///
+// Save a screenshot of the current frame.
 global screenshot(str path){
     rawPy(){
         import arcade
@@ -1417,7 +1417,7 @@ global screenshot(str path){
     }
 }
 
-/// Return seconds elapsed since program start. ///
+// Return seconds elapsed since program start.
 global getTime(){
     float result = 0.0;
     rawPy(){
@@ -1434,7 +1434,7 @@ global getTime(){
 
 // ── Input extended ────────────────────────────────────────────────────────────
 
-/// Return true if the middle mouse button is held. ///
+// Return true if the middle mouse button is held.
 global mouseMiddle(){
     bool result = false;
     rawPy(){
@@ -1447,8 +1447,8 @@ global mouseMiddle(){
     return result;
 }
 
-/// Return the last scroll wheel delta Y and reset it.
-  Positive = scroll up, negative = scroll down. ///
+// Return the last scroll wheel delta Y and reset it.
+// Positive = scroll up, negative = scroll down.
 global mouseScrollY(){
     float result = 0.0;
     rawPy(){
@@ -1464,7 +1464,7 @@ global mouseScrollY(){
 
 // ── Sound extended ────────────────────────────────────────────────────────────
 
-/// Set the playback volume of a sound (0.0 silent, 1.0 full). ///
+// Set the playback volume of a sound (0.0 silent, 1.0 full).
 global setSoundVolume(int soundIdx, float volume){
     rawPy(){
         import builtins, arcade
@@ -1478,7 +1478,7 @@ global setSoundVolume(int soundIdx, float volume){
     }
 }
 
-/// Return true if the sound is currently playing. ///
+// Return true if the sound is currently playing.
 global isSoundPlaying(int soundIdx){
     bool result = false;
     rawPy(){
@@ -1493,7 +1493,7 @@ global isSoundPlaying(int soundIdx){
     return result;
 }
 
-/// Play a sound on an infinite loop. ///
+// Play a sound on an infinite loop.
 global loopSound(int soundIdx){
     rawPy(){
         import builtins, arcade
@@ -1513,7 +1513,7 @@ global loopSound(int soundIdx){
 
 // ── Camera extended ───────────────────────────────────────────────────────────
 
-/// Set camera zoom level (1.0 = normal, 2.0 = zoomed in). ///
+// Set camera zoom level (1.0 = normal, 2.0 = zoomed in).
 global zoomCamera(int camIdx, float zoom){
     rawPy(){
         import builtins
@@ -1524,7 +1524,7 @@ global zoomCamera(int camIdx, float zoom){
     }
 }
 
-/// Return the camera center X. ///
+// Return the camera center X.
 global getCameraX(int camIdx){
     float result = 0.0;
     rawPy(){
@@ -1537,7 +1537,7 @@ global getCameraX(int camIdx){
     return result;
 }
 
-/// Return the camera center Y. ///
+// Return the camera center Y.
 global getCameraY(int camIdx){
     float result = 0.0;
     rawPy(){
@@ -1550,7 +1550,7 @@ global getCameraY(int camIdx){
     return result;
 }
 
-/// Lerp camera toward (tx, ty) by speed factor (0.0–1.0). ///
+// Lerp camera toward (tx, ty) by speed factor (0.0–1.0).
 global smoothScrollCamera(int camIdx, float tx, float ty, float speed){
     rawPy(){
         import builtins
@@ -1566,7 +1566,7 @@ global smoothScrollCamera(int camIdx, float tx, float ty, float speed){
 
 // ── Physics extended ──────────────────────────────────────────────────────────
 
-/// Jump the physics player if it is on the ground. ///
+// Jump the physics player if it is on the ground.
 global jumpPlayer(int engineIdx, float jumpSpeed){
     rawPy(){
         import builtins
@@ -1579,7 +1579,7 @@ global jumpPlayer(int engineIdx, float jumpSpeed){
     }
 }
 
-/// Return the physics player's current Y velocity. ///
+// Return the physics player's current Y velocity.
 global getPlayerVY(int engineIdx){
     float result = 0.0;
     rawPy(){
@@ -1595,8 +1595,8 @@ global getPlayerVY(int engineIdx){
 
 // ── Grid helpers ──────────────────────────────────────────────────────────────
 
-/// Convert screen pixel (x, y) to tile coordinates.
-  Returns "tx,ty" string. ///
+// Convert screen pixel (x, y) to tile coordinates.
+// Returns "tx,ty" string.
 global screenToTile(float x, float y, int tileSize){
     str result = "0,0";
     rawPy(){
@@ -1607,8 +1607,8 @@ global screenToTile(float x, float y, int tileSize){
     return result;
 }
 
-/// Convert tile (tx, ty) to screen pixel center.
-  Returns "sx,sy" string. ///
+// Convert tile (tx, ty) to screen pixel center.
+// Returns "sx,sy" string.
 global tileToScreen(int tx, int ty, int tileSize){
     str result = "0,0";
     rawPy(){

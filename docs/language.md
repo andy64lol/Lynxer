@@ -84,6 +84,11 @@ If the named function does not exist, a runtime error is raised with the missing
   multi-line comment
   spans as many lines as needed
 ///
+
+////
+  This is a docstring
+  It should be called before global setup(){}
+////
 ```
 
 ---

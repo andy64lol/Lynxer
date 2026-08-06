@@ -1,4 +1,4 @@
-///
+////
   Lynxer Standard Library — csv
   CSV and TSV file / string operations backed by Python's csv module.
 
@@ -12,14 +12,14 @@
   All parse functions expect the first row to be a header row.
   Functions that return structured data encode results as JSON strings.
   Use global.json.* to work with those strings.
-///
+////
 
 global setup(){}
 
 // ── Read / Write ─────────────────────────────────────────────────────────────
 
-/// Read a CSV file and return its raw content as a string.
-Returns "ERROR: ..." on failure. ///
+// Read a CSV file and return its raw content as a string.
+// Returns "ERROR: ..." on failure.
 global readCSV(str path){
     str result = "";
     rawPy(){
@@ -32,10 +32,10 @@ global readCSV(str path){
     return result;
 }
 
-/// Write a CSV file from a JSON array of objects and a comma-separated header list.
-headers is a comma-separated string of column names, e.g. "name,age,city".
-jsonRows is a JSON array of objects, e.g. '[{"name":"Alice","age":"30"}]'.
-Returns "ok" or "ERROR: ...". ///
+// Write a CSV file from a JSON array of objects and a comma-separated header list.
+// headers is a comma-separated string of column names, e.g. "name,age,city".
+// jsonRows is a JSON array of objects, e.g. '[{"name":"Alice","age":"30"}]'.
+// Returns "ok" or "ERROR: ...".
 global writeCSV(str path, str jsonRows, str headers){
     str result = "";
     rawPy(){
@@ -55,9 +55,9 @@ global writeCSV(str path, str jsonRows, str headers){
     return result;
 }
 
-/// Append a single row (JSON array of values) to an existing CSV string.
-jsonRow is a JSON array of string values matching the column order.
-Returns the new CSV string, or "ERROR: ...". ///
+// Append a single row (JSON array of values) to an existing CSV string.
+// jsonRow is a JSON array of string values matching the column order.
+// Returns the new CSV string, or "ERROR: ...".
 global appendRow(str csvStr, str jsonRow){
     str result = "";
     rawPy(){
@@ -75,8 +75,8 @@ global appendRow(str csvStr, str jsonRow){
     return result;
 }
 
-/// Build a CSV string from a JSON array of objects and a comma-separated header list.
-Does not write to disk; returns the CSV as a string. ///
+// Build a CSV string from a JSON array of objects and a comma-separated header list.
+// Does not write to disk; returns the CSV as a string.
 global buildCSV(str jsonRows, str headers){
     str result = "";
     rawPy(){
@@ -98,8 +98,8 @@ global buildCSV(str jsonRows, str headers){
 
 // ── Parsing ──────────────────────────────────────────────────────────────────
 
-/// Parse a CSV string into a JSON array-of-arrays (includes header row).
-Example: parseRows(csv) → '[["name","age"],["Alice","30"],["Bob","25"]]' ///
+// Parse a CSV string into a JSON array-of-arrays (includes header row).
+// Example: parseRows(csv) → '[["name","age"],["Alice","30"],["Bob","25"]]'
 global parseRows(str csvStr){
     str result = "";
     rawPy(){
@@ -113,8 +113,8 @@ global parseRows(str csvStr){
     return result;
 }
 
-/// Return a JSON array of column header names (first row).
-Example: parseHeaders(csv) → '["name","age","city"]' ///
+// Return a JSON array of column header names (first row).
+// Example: parseHeaders(csv) → '["name","age","city"]'
 global parseHeaders(str csvStr){
     str result = "";
     rawPy(){
@@ -128,8 +128,8 @@ global parseHeaders(str csvStr){
     return result;
 }
 
-/// Parse a CSV string into a JSON array of objects using the first row as keys.
-Example: parseToJson(csv) → '[{"name":"Alice","age":"30"},{"name":"Bob","age":"25"}]' ///
+// Parse a CSV string into a JSON array of objects using the first row as keys.
+// Example: parseToJson(csv) → '[{"name":"Alice","age":"30"},{"name":"Bob","age":"25"}]'
 global parseToJson(str csvStr){
     str result = "";
     rawPy(){
@@ -146,8 +146,8 @@ global parseToJson(str csvStr){
 
 // ── Column and row access ─────────────────────────────────────────────────────
 
-/// Return a JSON array of all values in the named column (excludes header row).
-Returns "[]" if column does not exist. ///
+// Return a JSON array of all values in the named column (excludes header row).
+// Returns "[]" if column does not exist.
 global getColumn(str csvStr, str colName){
     str result = "";
     rawPy(){
@@ -162,8 +162,8 @@ global getColumn(str csvStr, str colName){
     return result;
 }
 
-/// Return a JSON array of values for data row at rowIdx (0-indexed, excluding header).
-Returns "[]" if out of range. ///
+// Return a JSON array of values for data row at rowIdx (0-indexed, excluding header).
+// Returns "[]" if out of range.
 global getRow(str csvStr, int rowIdx){
     str result = "";
     rawPy(){
@@ -181,7 +181,7 @@ global getRow(str csvStr, int rowIdx){
     return result;
 }
 
-/// Return the number of data rows (excluding the header). ///
+// Return the number of data rows (excluding the header).
 global rowCount(str csvStr){
     int result = 0;
     rawPy(){
@@ -195,7 +195,7 @@ global rowCount(str csvStr){
     return result;
 }
 
-/// Return the number of columns (from the header row). ///
+// Return the number of columns (from the header row).
 global colCount(str csvStr){
     int result = 0;
     rawPy(){
@@ -209,7 +209,7 @@ global colCount(str csvStr){
     return result;
 }
 
-/// Return 1 if the CSV contains a column with the given name, else 0. ///
+// Return 1 if the CSV contains a column with the given name, else 0.
 global hasColumn(str csvStr, str colName){
     int result = 0;
     rawPy(){
@@ -225,8 +225,8 @@ global hasColumn(str csvStr, str colName){
 
 // ── Filtering and sorting ─────────────────────────────────────────────────────
 
-/// Return a CSV string containing only rows where colName equals value.
-The header row is always included. ///
+// Return a CSV string containing only rows where colName equals value.
+// The header row is always included.
 global filterRows(str csvStr, str colName, str value){
     str result = "";
     rawPy(){
@@ -246,8 +246,8 @@ global filterRows(str csvStr, str colName, str value){
     return result;
 }
 
-/// Return a CSV string sorted ascending by colName (lexicographic).
-The header row is preserved as the first row. ///
+// Return a CSV string sorted ascending by colName (lexicographic).
+// The header row is preserved as the first row.
 global sortCSV(str csvStr, str colName){
     str result = "";
     rawPy(){
@@ -267,7 +267,7 @@ global sortCSV(str csvStr, str colName){
     return result;
 }
 
-/// Return a CSV string sorted descending by colName. ///
+// Return a CSV string sorted descending by colName.
 global sortCSVDesc(str csvStr, str colName){
     str result = "";
     rawPy(){
@@ -289,8 +289,8 @@ global sortCSVDesc(str csvStr, str colName){
 
 // ── Column statistics ─────────────────────────────────────────────────────────
 
-/// Return JSON statistics for a numeric column: {min, max, mean, sum, count}.
-Non-numeric values are ignored. Returns "{}" on error. ///
+// Return JSON statistics for a numeric column: {min, max, mean, sum, count}.
+// Non-numeric values are ignored. Returns "{}" on error.
 global columnStats(str csvStr, str colName){
     str result = "";
     rawPy(){
@@ -321,7 +321,7 @@ global columnStats(str csvStr, str colName){
 
 // ── TSV (tab-separated) ───────────────────────────────────────────────────────
 
-/// Convert a CSV string to TSV (tab-separated values). ///
+// Convert a CSV string to TSV (tab-separated values).
 global toTSV(str csvStr){
     str result = "";
     rawPy(){
@@ -339,7 +339,7 @@ global toTSV(str csvStr){
     return result;
 }
 
-/// Convert a TSV string to CSV. ///
+// Convert a TSV string to CSV.
 global fromTSV(str tsvStr){
     str result = "";
     rawPy(){
@@ -357,8 +357,8 @@ global fromTSV(str tsvStr){
     return result;
 }
 
-/// Read a file using a custom delimiter (e.g. ";" for semicolon-separated).
-Returns raw file content. ///
+// Read a file using a custom delimiter (e.g. ";" for semicolon-separated).
+// Returns raw file content.
 global readWithDelimiter(str path, str delimiter){
     str result = "";
     rawPy(){
@@ -371,8 +371,8 @@ global readWithDelimiter(str path, str delimiter){
     return result;
 }
 
-/// Parse a delimited string (custom delimiter) into a JSON array of objects.
-delimiter is a single character, e.g. ";". ///
+// Parse a delimited string (custom delimiter) into a JSON array of objects.
+// delimiter is a single character, e.g. ";".
 global parseDelimited(str csvStr, str delimiter){
     str result = "";
     rawPy(){

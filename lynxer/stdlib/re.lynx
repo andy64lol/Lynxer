@@ -1,4 +1,4 @@
-///
+////
   Lynxer Standard Library — re
   Wraps Python's re module for regular expression operations.
 
@@ -10,13 +10,13 @@
             named, count,
             matchIgnoreCase, searchIgnoreCase, findallIgnoreCase,
             subIgnoreCase, testIgnoreCase
-///
+////
 
 global setup(){}
 
 // ── Basic matching ─────────────────────────────────────────────────────────
 
-/// Return true if pattern matches anywhere in string. ///
+// Return true if pattern matches anywhere in string.
 global test(str pattern, str string){
     bool result = false;
     rawPy(){
@@ -26,8 +26,8 @@ global test(str pattern, str string){
     return result;
 }
 
-/// Match pattern at the start of string.
-  Returns the matched substring, or "" if no match. ///
+// Match pattern at the start of string.
+// Returns the matched substring, or "" if no match.
 global match(str pattern, str string){
     str result = "";
     rawPy(){
@@ -38,8 +38,8 @@ global match(str pattern, str string){
     return result;
 }
 
-/// Match pattern against the entire string (anchored at both ends).
-  Returns the matched substring, or "" if no full match. ///
+// Match pattern against the entire string (anchored at both ends).
+// Returns the matched substring, or "" if no full match.
 global matchFull(str pattern, str string){
     str result = "";
     rawPy(){
@@ -50,7 +50,7 @@ global matchFull(str pattern, str string){
     return result;
 }
 
-/// Search string for pattern; return the first matched substring, or "". ///
+// Search string for pattern; return the first matched substring, or "".
 global search(str pattern, str string){
     str result = "";
     rawPy(){
@@ -61,8 +61,8 @@ global search(str pattern, str string){
     return result;
 }
 
-/// Return a JSON array of all non-overlapping matches of pattern in string.
-  Example: findall("\\d+", "a1 b22 c333") → '["1","22","333"]'. ///
+// Return a JSON array of all non-overlapping matches of pattern in string.
+// Example: findall("\\d+", "a1 b22 c333") → '["1","22","333"]'.
 global findall(str pattern, str string){
     str result = "";
     rawPy(){
@@ -73,7 +73,7 @@ global findall(str pattern, str string){
     return result;
 }
 
-/// Return the number of non-overlapping matches of pattern in string. ///
+// Return the number of non-overlapping matches of pattern in string.
 global count(str pattern, str string){
     int result = 0;
     rawPy(){
@@ -85,8 +85,8 @@ global count(str pattern, str string){
 
 // ── Capture groups ─────────────────────────────────────────────────────────
 
-/// Return a JSON array of capture groups from the first match, or "[]" if no match.
-  Example: groups("(\\w+)@(\\w+)", "user@host") → '["user","host"]'. ///
+// Return a JSON array of capture groups from the first match, or "[]" if no match.
+// Example: groups("(\\w+)@(\\w+)", "user@host") → '["user","host"]'.
 global groups(str pattern, str string){
     str result = "";
     rawPy(){
@@ -97,9 +97,9 @@ global groups(str pattern, str string){
     return result;
 }
 
-/// Return a JSON array-of-arrays of capture groups for every match.
-  Each inner array contains the groups from one match.
-  Example: groupsAll("(\\w+)=(\\d+)", "x=1 y=2") → '[["x","1"],["y","2"]]'. ///
+// Return a JSON array-of-arrays of capture groups for every match.
+// Each inner array contains the groups from one match.
+// Example: groupsAll("(\\w+)=(\\d+)", "x=1 y=2") → '[["x","1"],["y","2"]]'.
 global groupsAll(str pattern, str string){
     str result = "";
     rawPy(){
@@ -112,9 +112,9 @@ global groupsAll(str pattern, str string){
     return result;
 }
 
-/// Return a JSON object of named capture groups from the first match, or "{}".
-  Use (?P<name>...) in your pattern.
-  Example: named("(?P<user>\\w+)@(?P<host>\\w+)", "alice@example") → '{"user":"alice","host":"example"}'. ///
+// Return a JSON object of named capture groups from the first match, or "{}".
+// Use (?P<name>...) in your pattern.
+// Example: named("(?P<user>\\w+)@(?P<host>\\w+)", "alice@example") → '{"user":"alice","host":"example"}'.
 global named(str pattern, str string){
     str result = "";
     rawPy(){
@@ -127,9 +127,9 @@ global named(str pattern, str string){
 
 // ── Substitution ───────────────────────────────────────────────────────────
 
-/// Replace all occurrences of pattern in string with repl.
-  Backreferences like \\1 or \\g<name> work as in Python's re.sub.
-  Returns the modified string. ///
+// Replace all occurrences of pattern in string with repl.
+// Backreferences like \\1 or \\g<name> work as in Python's re.sub.
+// Returns the modified string.
 global sub(str pattern, str repl, str string){
     str result = "";
     rawPy(){
@@ -139,8 +139,8 @@ global sub(str pattern, str repl, str string){
     return result;
 }
 
-/// Replace the first n occurrences of pattern in string with repl.
-  Returns the modified string. ///
+// Replace the first n occurrences of pattern in string with repl.
+// Returns the modified string.
 global subN(str pattern, str repl, str string, int n){
     str result = "";
     rawPy(){
@@ -150,8 +150,8 @@ global subN(str pattern, str repl, str string, int n){
     return result;
 }
 
-/// Replace pattern with repl; return a JSON object {"result":"...","count":N}
-  where count is the number of substitutions made. ///
+// Replace pattern with repl; return a JSON object {"result":"...","count":N}
+// where count is the number of substitutions made.
 global subn(str pattern, str repl, str string){
     str result = "";
     rawPy(){
@@ -164,9 +164,9 @@ global subn(str pattern, str repl, str string){
 
 // ── Splitting ──────────────────────────────────────────────────────────────
 
-/// Split string by every occurrence of pattern.
-  Returns a JSON array of the resulting parts.
-  Example: split("\\s+", "one  two   three") → '["one","two","three"]'. ///
+// Split string by every occurrence of pattern.
+// Returns a JSON array of the resulting parts.
+// Example: split("\\s+", "one  two   three") → '["one","two","three"]'.
 global split(str pattern, str string){
     str result = "";
     rawPy(){
@@ -176,8 +176,8 @@ global split(str pattern, str string){
     return result;
 }
 
-/// Split string by pattern at most maxSplit times.
-  Returns a JSON array. ///
+// Split string by pattern at most maxSplit times.
+// Returns a JSON array.
 global splitN(str pattern, str string, int maxSplit){
     str result = "";
     rawPy(){
@@ -189,8 +189,8 @@ global splitN(str pattern, str string, int maxSplit){
 
 // ── Utility ────────────────────────────────────────────────────────────────
 
-/// Escape all special regex characters in string so it matches literally.
-  Example: escape("a.b+c") → "a\\.b\\+c". ///
+// Escape all special regex characters in string so it matches literally.
+// Example: escape("a.b+c") → "a\\.b\\+c".
 global escape(str string){
     str result = "";
     rawPy(){
@@ -200,7 +200,7 @@ global escape(str string){
     return result;
 }
 
-/// Return the start index of the first match, or -1 if no match. ///
+// Return the start index of the first match, or -1 if no match.
 global matchStart(str pattern, str string){
     int result = 0;
     rawPy(){
@@ -211,7 +211,7 @@ global matchStart(str pattern, str string){
     return result;
 }
 
-/// Return the end index of the first match, or -1 if no match. ///
+// Return the end index of the first match, or -1 if no match.
 global matchEnd(str pattern, str string){
     int result = 0;
     rawPy(){
@@ -222,8 +222,8 @@ global matchEnd(str pattern, str string){
     return result;
 }
 
-/// Return a JSON array [{start, end, match}] for every match in string.
-  Example: findSpans("\\d+", "a12b34") → '[{"start":1,"end":3,"match":"12"},...]'. ///
+// Return a JSON array [{start, end, match}] for every match in string.
+// Example: findSpans("\\d+", "a12b34") → '[{"start":1,"end":3,"match":"12"},...]'.
 global findSpans(str pattern, str string){
     str result = "";
     rawPy(){
@@ -238,7 +238,7 @@ global findSpans(str pattern, str string){
 
 // ── Case-insensitive variants ──────────────────────────────────────────────
 
-/// Return true if pattern matches anywhere in string (case-insensitive). ///
+// Return true if pattern matches anywhere in string (case-insensitive).
 global testIgnoreCase(str pattern, str string){
     bool result = false;
     rawPy(){
@@ -248,7 +248,7 @@ global testIgnoreCase(str pattern, str string){
     return result;
 }
 
-/// Match pattern at the start of string (case-insensitive). Returns matched string or "". ///
+// Match pattern at the start of string (case-insensitive). Returns matched string or "".
 global matchIgnoreCase(str pattern, str string){
     str result = "";
     rawPy(){
@@ -259,7 +259,7 @@ global matchIgnoreCase(str pattern, str string){
     return result;
 }
 
-/// Search string for pattern (case-insensitive). Returns first matched string or "". ///
+// Search string for pattern (case-insensitive). Returns first matched string or "".
 global searchIgnoreCase(str pattern, str string){
     str result = "";
     rawPy(){
@@ -270,7 +270,7 @@ global searchIgnoreCase(str pattern, str string){
     return result;
 }
 
-/// Return JSON array of all matches (case-insensitive). ///
+// Return JSON array of all matches (case-insensitive).
 global findallIgnoreCase(str pattern, str string){
     str result = "";
     rawPy(){
@@ -281,7 +281,7 @@ global findallIgnoreCase(str pattern, str string){
     return result;
 }
 
-/// Replace all occurrences of pattern in string with repl (case-insensitive). ///
+// Replace all occurrences of pattern in string with repl (case-insensitive).
 global subIgnoreCase(str pattern, str repl, str string){
     str result = "";
     rawPy(){
@@ -293,7 +293,7 @@ global subIgnoreCase(str pattern, str repl, str string){
 
 // ── Multiline / dotall variants ────────────────────────────────────────────
 
-/// Return JSON array of all matches with MULTILINE flag (^ and $ match each line). ///
+// Return JSON array of all matches with MULTILINE flag (^ and $ match each line).
 global findallMultiline(str pattern, str string){
     str result = "";
     rawPy(){
@@ -304,7 +304,7 @@ global findallMultiline(str pattern, str string){
     return result;
 }
 
-/// Replace with MULTILINE flag. ///
+// Replace with MULTILINE flag.
 global subMultiline(str pattern, str repl, str string){
     str result = "";
     rawPy(){
@@ -314,7 +314,7 @@ global subMultiline(str pattern, str repl, str string){
     return result;
 }
 
-/// Search with DOTALL flag (. matches newline too). ///
+// Search with DOTALL flag (. matches newline too).
 global searchDotall(str pattern, str string){
     str result = "";
     rawPy(){
