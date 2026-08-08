@@ -640,7 +640,7 @@ try {
 
 ### Importing
 
-`import()` loads a `.lynx` file as a module. It may only be called inside `setup()`.
+`import();` loads a `.lynx` file as a module. It may only be called inside `setup()`.
 
 ```c
 global setup(){
@@ -658,7 +658,7 @@ global setup(){
 ### Calling module functions
 
 ```c
-global.<module>.<function>(args)
+global.<module>.<function>(args);
 ```
 
 ```c
