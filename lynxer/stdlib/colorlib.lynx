@@ -34,6 +34,14 @@ global bgBlue(str text)    { return "\e[44m" + text + "\e[0m"; }
 global bgMagenta(str text) { return "\e[45m" + text + "\e[0m"; }
 global bgCyan(str text)    { return "\e[46m" + text + "\e[0m"; }
 global bgWhite(str text)   { return "\e[47m" + text + "\e[0m"; }
+global bgBrightBlack(str text)   { return "\e[100m" + text + "\e[0m"; }
+global bgBrightRed(str text)     { return "\e[101m" + text + "\e[0m"; }
+global bgBrightGreen(str text)   { return "\e[102m" + text + "\e[0m"; }
+global bgBrightYellow(str text)  { return "\e[103m" + text + "\e[0m"; }
+global bgBrightBlue(str text)    { return "\e[104m" + text + "\e[0m"; }
+global bgBrightMagenta(str text) { return "\e[105m" + text + "\e[0m"; }
+global bgBrightCyan(str text)    { return "\e[106m" + text + "\e[0m"; }
+global bgBrightWhite(str text)   { return "\e[107m" + text + "\e[0m"; }
 
 // text
 global bold(str text)      { return "\e[1m" + text + "\e[0m"; }

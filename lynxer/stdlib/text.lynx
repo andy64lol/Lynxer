@@ -1,0 +1,365 @@
+////
+  Lynxer Standard Library — text
+  String manipulation utilities.
+  Uses Python's standard string operations through rawPy().
+////
+
+global setup(){}
+
+// Basic manipulation
+
+global reverse(str text){
+    str result = "";
+
+    rawPy(){
+        result = text[::-1]
+    }
+
+    return result;
+}
+
+global repeat(str text, int count){
+    str result = "";
+
+    rawPy(){
+        result = text * count
+    }
+
+    return result;
+}
+
+global trim(str text){
+    str result = "";
+
+    rawPy(){
+        result = text.strip()
+    }
+
+    return result;
+}
+
+global trimLeft(str text){
+    str result = "";
+
+    rawPy(){
+        result = text.lstrip()
+    }
+
+    return result;
+}
+
+global trimRight(str text){
+    str result = "";
+
+    rawPy(){
+        result = text.rstrip()
+    }
+
+    return result;
+}
+
+// Searching
+
+global contains(str text, str needle){
+    int found = 0;
+
+    rawPy(){
+        found = 1 if needle in text else 0
+    }
+
+    if(found not is 0){
+        return true;
+    }
+
+    return false;
+}
+
+global startsWith(str text, str prefix){
+    int found = 0;
+
+    rawPy(){
+        found = 1 if text.startswith(prefix) else 0
+    }
+
+    if(found not is 0){
+        return true;
+    }
+
+    return false;
+}
+
+global endsWith(str text, str suffix){
+    int found = 0;
+
+    rawPy(){
+        found = 1 if text.endswith(suffix) else 0
+    }
+
+    if(found not is 0){
+        return true;
+    }
+
+    return false;
+}
+
+global count(str text, str needle){
+    int result = 0;
+
+    rawPy(){
+        result = text.count(needle)
+    }
+
+    return result;
+}
+
+// Modification
+
+global replace(str text, str old, str new){
+    str result = "";
+
+    rawPy(){
+        result = text.replace(old, new)
+    }
+
+    return result;
+}
+
+global replaceFirst(str text, str old, str new){
+    str result = "";
+
+    rawPy(){
+        result = text.replace(old, new, 1)
+    }
+
+    return result;
+}
+
+global remove(str text, str target){
+    str result = "";
+
+    rawPy(){
+        result = text.replace(target, "")
+    }
+
+    return result;
+}
+
+// Case conversion
+
+global upper(str text){
+    str result = "";
+
+    rawPy(){
+        result = text.upper()
+    }
+
+    return result;
+}
+
+global lower(str text){
+    str result = "";
+
+    rawPy(){
+        result = text.lower()
+    }
+
+    return result;
+}
+
+global capitalize(str text){
+    str result = "";
+
+    rawPy(){
+        result = text.capitalize()
+    }
+
+    return result;
+}
+
+global title(str text){
+    str result = "";
+
+    rawPy(){
+        result = text.title()
+    }
+
+    return result;
+}
+
+global swapCase(str text){
+    str result = "";
+
+    rawPy(){
+        result = text.swapcase()
+    }
+
+    return result;
+}
+
+// Splitting
+
+global split(str text, str separator){
+    list result = [];
+
+    rawPy(){
+        result = text.split(separator)
+    }
+
+    return result;
+}
+
+global splitLines(str text){
+    list result = [];
+
+    rawPy(){
+        result = text.splitlines()
+    }
+
+    return result;
+}
+
+// Joining
+
+global join(list parts, str separator){
+    str result = "";
+
+    rawPy(){
+        result = separator.join(parts)
+    }
+
+    return result;
+}
+
+// Padding
+
+global padLeft(str text, int width, str fill){
+    str result = "";
+
+    rawPy(){
+        result = text.rjust(width, fill)
+    }
+
+    return result;
+}
+
+global padRight(str text, int width, str fill){
+    str result = "";
+
+    rawPy(){
+        result = text.ljust(width, fill)
+    }
+
+    return result;
+}
+
+global center(str text, int width, str fill){
+    str result = "";
+
+    rawPy(){
+        result = text.center(width, fill)
+    }
+
+    return result;
+}
+
+// Character / substring operations
+
+global charAt(str text, int index){
+    str result = "";
+
+    rawPy(){
+        result = text[index]
+    }
+
+    return result;
+}
+
+global substring(str text, int start, int end){
+    str result = "";
+
+    rawPy(){
+        result = text[start:end]
+    }
+
+    return result;
+}
+
+// Validation
+
+global isEmpty(str text){
+    if(len(text) == 0){
+        return true;
+    }
+
+    return false;
+}
+
+global isBlank(str text){
+    int result = 0;
+
+    rawPy(){
+        result = 1 if text.strip() == "" else 0
+    }
+
+    if(result not is 0){
+        return true;
+    }
+
+    return false;
+}
+
+global isAlpha(str text){
+    int result = 0;
+
+    rawPy(){
+        result = 1 if text.isalpha() else 0
+    }
+
+    if(result not is 0){
+        return true;
+    }
+
+    return false;
+}
+
+global isNumeric(str text){
+    int result = 0;
+
+    rawPy(){
+        result = 1 if text.isnumeric() else 0
+    }
+
+    if(result not is 0){
+        return true;
+    }
+
+    return false;
+}
+
+global isAlphaNumeric(str text){
+    int result = 0;
+
+    rawPy(){
+        result = 1 if text.isalnum() else 0
+    }
+
+    if(result not is 0){
+        return true;
+    }
+
+    return false;
+}
+
+// Formatting
+
+global indent(str text, str prefix){
+    str result = "";
+
+    rawPy(){
+        result = prefix + text.replace("\n", "\n" + prefix)
+    }
+
+    return result;
+}
+
+global main(){}

@@ -132,7 +132,7 @@ def main():
         print("  lynxer --list-stdlibs                 List available Lynxer stdlib modules")
         return 0
     if argv[0] in ('-v', '--version'):
-        print("Lynxer 0.1.7b4")
+        print("Lynxer 0.1.7b5")
         return 0
     if argv[0] in ('-easterEgg', '--easterEgg'):
         print("Easter Egg found!")

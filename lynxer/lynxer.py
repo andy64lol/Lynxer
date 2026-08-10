@@ -1,15 +1,17 @@
 from __future__ import annotations
+
+import os
+import pickle
+import string
+import sys
+import textwrap
+import zlib
+from typing import ClassVar
+
 try:
     from strings_with_arrows import string_with_arrows
 except ImportError:
     from lynxer.strings_with_arrows import string_with_arrows  # type: ignore[no-redef]
-import string
-import os
-import sys
-import textwrap
-import pickle
-import zlib
-from typing import ClassVar
 
 # Bytecode constants
 BYTECODE_MAGIC   = b"LYNXC\x00"
@@ -4155,7 +4157,7 @@ class BuiltInFunction(BaseFunction):
         prompt = str(args[0]) if args else ""
         text = input(prompt)
         return RTResult().success(String(text))
-    
+
     def execute_inputln(self, args, exec_ctx):
         if len(args) > 1:
             return RTResult().failure(
