@@ -1,37 +1,32 @@
 from __future__ import annotations
 
 import os
-import pickle
 import string
 import sys
 import textwrap
-import zlib
-from typing import ClassVar
+from typing import Any, ClassVar
 
 try:
     from strings_with_arrows import string_with_arrows
 except ImportError:
     from lynxer.strings_with_arrows import string_with_arrows  # type: ignore[no-redef]
 
-# Bytecode constants
-BYTECODE_MAGIC   = b"LYNXC\x00"
-BYTECODE_VERSION = 3   # bump whenever the serialised node format changes
-
 DIGITS = "0123456789"
 STDLIB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "stdlib")
 LETTERS = string.ascii_letters
 LETTERS_DIGITS = LETTERS + DIGITS
 
-_cython_inline_fn = None
+_cython_inline_fn: Any = None
 
-def _get_cython_inline():
+def _get_cython_inline() -> Any:
     """Lazily import Cython's inline compiler (needs setuptools' distutils shim)."""
     global _cython_inline_fn
     if _cython_inline_fn is None:
         import setuptools  # noqa: F401 — patches distutils for Cython on py3.12+
-        from Cython.Build.Inline import cython_inline
-
-        _cython_inline_fn = cython_inline
+        # Import by name so Pyright can analyze Lynxer without requiring the
+        # optional Cython package to be installed in its analysis environment.
+        from importlib import import_module
+        _cython_inline_fn = import_module("Cython.Build.Inline").cython_inline
     return _cython_inline_fn
 
 # errors
@@ -183,8 +178,10 @@ KEYWORDS = [
 
 class Token:
     def __init__(self, type_, value=None, pos_start=None, pos_end=None):
-        self.type = type_
-        self.value = value
+        self.type: str = type_
+        self.value: Any = value
+        self.pos_start: Any = None
+        self.pos_end: Any = None
 
         if pos_start:
             self.pos_start = pos_start.copy()
@@ -209,7 +206,7 @@ class Lexer:
         self.fn = fn
         self.text = text
         self.pos = Position(-1, 0, -1, fn, text)
-        self.current_char = None
+        self.current_char: str | None = None
         self.advance()
 
     def advance(self):
@@ -594,6 +591,21 @@ class NoneNode:
         self.pos_start = self.tok.pos_start
         self.pos_end = self.tok.pos_end
 
+class ListElementNode:
+    """One typed element in a list literal: ``int 1`` or ``str "text"``."""
+    def __init__(self, type_tok, value_node):
+        self.type_tok = type_tok
+        self.value_node = value_node
+        self.pos_start = type_tok.pos_start
+        self.pos_end = value_node.pos_end
+
+class ListNode:
+    """A list literal, whose elements are explicitly typed."""
+    def __init__(self, elements, pos_start, pos_end):
+        self.elements = elements
+        self.pos_start = pos_start
+        self.pos_end = pos_end
+
 class VarAccessNode:
     def __init__(self, var_name_tok):
         self.var_name_tok = var_name_tok
@@ -845,8 +857,8 @@ class ClassDefNode:
 
 class ParseResult:
     def __init__(self):
-        self.error = None
-        self.node = None
+        self.error: Error | None = None
+        self.node: Any = None
         self.last_registered_advance_count = 0
         self.advance_count = 0
         self.to_reverse_count = 0
@@ -855,7 +867,7 @@ class ParseResult:
         self.last_registered_advance_count = 1
         self.advance_count += 1
 
-    def register(self, res):
+    def register(self, res: "ParseResult") -> Any:
         self.last_registered_advance_count = res.advance_count
         self.advance_count += res.advance_count
         if res.error:
@@ -885,6 +897,11 @@ class Parser:
         self.tok_idx = -1
         self._loop_depth = 0       # tracks nesting depth of for/while/iterate
         self._in_global_func = False
+        self.current_tok: Token = (
+            tokens[0]
+            if tokens
+            else Token(TT_EOF, pos_start=Position(0, 0, 0, "<parser>", ""))
+        )
         self.advance()
 
     def advance(self):
@@ -933,13 +950,14 @@ class Parser:
             self.advance()
 
         while self.current_tok.type != TT_EOF:
+            next_tok = self.peek(1)
             is_func_kw = (
                 self.current_tok.matches(TT_KEYWORD, "global")
                 or (
                     self.current_tok.type == TT_IDENTIFIER
                     and self.current_tok.value == "global"
-                    and self.peek(1) is not None
-                    and self.peek(1).type == TT_IDENTIFIER
+                    and next_tok is not None
+                    and next_tok.type == TT_IDENTIFIER
                 )
             )
             if is_func_kw:
@@ -1102,10 +1120,11 @@ class Parser:
 
         param_toks = []
         while self.current_tok.type != TT_RPAREN and self.current_tok.type != TT_EOF:
+            next_tok = self.peek(1)
             if (
                 self.is_type_keyword()
-                and self.peek(1)
-                and self.peek(1).type == TT_IDENTIFIER
+                and next_tok is not None
+                and next_tok.type == TT_IDENTIFIER
             ):
                 type_tok = self.current_tok
                 res.register_advancement()
@@ -1349,9 +1368,10 @@ class Parser:
                 return res
             return res.success(node)
 
+        next_tok = self.peek(1)
         if (
             self.current_tok.matches(TT_KEYWORD, "local")
-        ) and self.peek(1) is not None and self.peek(1).type == TT_DOT:
+        ) and next_tok is not None and next_tok.type == TT_DOT:
             expr = res.register(self.parse_expr())
             if res.error:
                 return res
@@ -1406,10 +1426,11 @@ class Parser:
             res.register_advancement(); self.advance()
             return res.success(expr)
 
+        next_tok = self.peek(1)
         if (
             self.current_tok.matches(TT_KEYWORD, "global")
             or (self.current_tok.type == TT_IDENTIFIER and self.current_tok.value == "global")
-        ) and self.peek(1) is not None and self.peek(1).type == TT_DOT:
+        ) and next_tok is not None and next_tok.type == TT_DOT:
             expr = res.register(self.parse_expr())
             if res.error:
                 return res
@@ -1425,11 +1446,12 @@ class Parser:
             self.advance()
             return res.success(expr)
 
+        next_tok = self.peek(1)
         if self.current_tok.matches(TT_KEYWORD, "global") or (
             self.current_tok.type == TT_IDENTIFIER
             and self.current_tok.value == "global"
-            and self.peek(1) is not None
-            and self.peek(1).type == TT_IDENTIFIER
+            and next_tok is not None
+            and next_tok.type == TT_IDENTIFIER
         ):
             if self._in_global_func:
                 node = res.register(self.parse_func_def())
@@ -2966,10 +2988,11 @@ class Parser:
         if res.error:
             return res
 
+        peek_tok = self.peek()
         if (
             self.current_tok.matches(TT_KEYWORD, "not")
-            and self.peek()
-            and self.peek().matches(TT_KEYWORD, "is")
+            and peek_tok is not None
+            and peek_tok.matches(TT_KEYWORD, "is")
         ):
             op_tok = self.current_tok
             op_tok.value = "not is"
@@ -3207,6 +3230,9 @@ class Parser:
             self.advance()
             return res.success(NoneNode(tok))
 
+        elif tok.type == TT_LBRACKET:
+            return self.parse_list_literal()
+
         elif (tok.type == TT_IDENTIFIER
               or tok.matches(TT_KEYWORD, "global")
               or tok.matches(TT_KEYWORD, "local")):
@@ -3244,6 +3270,64 @@ class Parser:
             )
         )
 
+    def parse_list_literal(self):
+        """Parse a typed list literal: ``[int 1, str "two"]``."""
+        res = ParseResult()
+        pos_start = self.current_tok.pos_start.copy()
+
+        res.register_advancement()
+        self.advance()  # consume '['
+
+        elements = []
+        if self.current_tok.type != TT_RBRACKET:
+            while True:
+                if not self.is_type_keyword():
+                    return res.failure(
+                        InvalidSyntaxError(
+                            self.current_tok.pos_start,
+                            self.current_tok.pos_end,
+                            "Expected a type keyword before each list element "
+                            "(for example, '[int 1, str \"two\"]')",
+                        )
+                    )
+
+                type_tok = self.current_tok
+                res.register_advancement()
+                self.advance()
+
+                value_node = res.register(self.parse_expr())
+                if res.error:
+                    return res
+                elements.append(ListElementNode(type_tok, value_node))
+
+                if self.current_tok.type != TT_COMMA:
+                    break
+                res.register_advancement()
+                self.advance()
+
+                if self.current_tok.type == TT_RBRACKET:
+                    return res.failure(
+                        InvalidSyntaxError(
+                            self.current_tok.pos_start,
+                            self.current_tok.pos_end,
+                            "Expected a list element after ','",
+                        )
+                    )
+
+        if self.current_tok.type != TT_RBRACKET:
+            return res.failure(
+                InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "Expected ',' or ']' in list literal",
+                )
+            )
+
+        pos_end = self.current_tok.pos_end.copy()
+        res.register_advancement()
+        self.advance()  # consume ']'
+        return res.success(ListNode(elements, pos_start, pos_end))
+
     def parse_await(self):
         """await expr  — only valid inside an async function body."""
         res = ParseResult()
@@ -3274,7 +3358,8 @@ class Parser:
         res.register_advancement(); self.advance()
         param_toks = []
         while self.current_tok.type != TT_RPAREN and self.current_tok.type != TT_EOF:
-            if self.is_type_keyword() and self.peek(1) and self.peek(1).type == TT_IDENTIFIER:
+            next_tok = self.peek(1)
+            if self.is_type_keyword() and next_tok is not None and next_tok.type == TT_IDENTIFIER:
                 type_tok = self.current_tok
                 res.register_advancement(); self.advance()
                 pname_tok = self.current_tok
@@ -3387,88 +3472,91 @@ class RTResult:
 
 class Value:
     def __init__(self):
+        self.pos_start: Any = None
+        self.pos_end: Any = None
+        self.context: Any = None
         self.set_pos()
         self.set_context()
 
-    def set_pos(self, pos_start=None, pos_end=None):
+    def set_pos(self, pos_start: Any = None, pos_end: Any = None) -> "Value":
         self.pos_start = pos_start
         self.pos_end = pos_end
         return self
 
-    def set_context(self, context=None):
+    def set_context(self, context: Any = None) -> "Value":
         self.context = context
         return self
 
-    def added_to(self, other):
+    def added_to(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
         return None, self.illegal_operation(other)
 
-    def subbed_by(self, other):
+    def subbed_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
         return None, self.illegal_operation(other)
 
-    def multed_by(self, other):
+    def multed_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
         return None, self.illegal_operation(other)
 
-    def dived_by(self, other):
+    def dived_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
         return None, self.illegal_operation(other)
 
-    def modded_by(self, other):
+    def modded_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
         return None, self.illegal_operation(other)
 
-    def get_comparison_eq(self, other):
+    def get_comparison_eq(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
         return None, self.illegal_operation(other)
 
-    def get_comparison_ne(self, other):
+    def get_comparison_ne(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
         return None, self.illegal_operation(other)
 
-    def get_comparison_lt(self, other):
+    def get_comparison_lt(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
         return None, self.illegal_operation(other)
 
-    def get_comparison_gt(self, other):
+    def get_comparison_gt(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
         return None, self.illegal_operation(other)
 
-    def get_comparison_lte(self, other):
+    def get_comparison_lte(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
         return None, self.illegal_operation(other)
 
-    def get_comparison_gte(self, other):
+    def get_comparison_gte(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
         return None, self.illegal_operation(other)
 
-    def anded_by(self, other):
+    def anded_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
         return None, self.illegal_operation(other)
 
-    def ored_by(self, other):
+    def ored_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
         return None, self.illegal_operation(other)
 
-    def notted(self):
+    def notted(self) -> tuple["Value | None", "RTError | None"]:
         return None, self.illegal_operation()
 
-    def bit_anded_by(self, other):
+    def bit_anded_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
         return None, self.illegal_operation(other)
 
-    def bit_ored_by(self, other):
+    def bit_ored_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
         return None, self.illegal_operation(other)
 
-    def bit_xored_by(self, other):
+    def bit_xored_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
         return None, self.illegal_operation(other)
 
-    def bit_notted(self):
+    def bit_notted(self) -> tuple["Value | None", "RTError | None"]:
         return None, self.illegal_operation()
 
-    def shifted_left_by(self, other):
+    def shifted_left_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
         return None, self.illegal_operation(other)
 
-    def shifted_right_by(self, other):
+    def shifted_right_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
         return None, self.illegal_operation(other)
 
     def execute(self, args):
         return RTResult().failure(self.illegal_operation())
 
-    def copy(self):
+    def copy(self) -> "Value":
         raise Exception("No copy method defined")
 
-    def is_true(self):
+    def is_true(self) -> bool:
         return False
 
-    def illegal_operation(self, other=None):
+    def illegal_operation(self, other: "Value | None" = None) -> "RTError":
         if not other:
             other = self
         return RTError(self.pos_start, other.pos_end, "Illegal operation", self.context)
@@ -3788,6 +3876,8 @@ class LynxTuple(Value):
         eq, err = self.get_comparison_eq(other)
         if err:
             return None, err
+        if not isinstance(eq, Number):
+            return None, Value.illegal_operation(self, other)
         return Number(1 - int(eq.value), is_bool=True).set_context(self.context), None
 
     def is_true(self):
@@ -3915,7 +4005,7 @@ class Function(BaseFunction):
         self.is_global = is_global
         self.inner_locals = {}
         self.inner_globals = {}
-        self.global_path = None
+        self.global_path: list[str] | None = None
 
     def get_attr(self, name):
         if name in self.inner_locals:
@@ -3979,7 +4069,7 @@ class AsyncFunction(BaseFunction):
         self.is_global = is_global
         self.inner_locals = {}
         self.inner_globals = {}
-        self.global_path = None
+        self.global_path: list[str] | None = None
 
     def get_attr(self, name):
         if name in self.inner_locals:
@@ -4052,6 +4142,7 @@ class CoroutineValue(Value):
 
 class BuiltInFunction(BaseFunction):
     print: ClassVar["BuiltInFunction"]
+    println: ClassVar["BuiltInFunction"]
     input: ClassVar["BuiltInFunction"]
     inputln: ClassVar["BuiltInFunction"]
     rawPy: ClassVar["BuiltInFunction"]
@@ -5582,9 +5673,9 @@ class Context:
         self.display_name = display_name
         self.parent = parent
         self.parent_entry_pos = parent_entry_pos
-        self.symbol_table = None
-        self.current_function = None      # the Function/AsyncFunction currently executing
-        self.current_global_path = None
+        self.symbol_table: Any = None
+        self.current_function: Any = None      # the Function/AsyncFunction currently executing
+        self.current_global_path: list[str] | None = None
 
 # symbol table
 
@@ -5766,6 +5857,46 @@ class Interpreter:
     def visit_NoneNode(self, node, context):
         return RTResult().success(
             Null().set_context(context).set_pos(node.pos_start, node.pos_end)
+        )
+
+    def visit_ListNode(self, node, context):
+        res = RTResult()
+        elements = []
+
+        for index, element_node in enumerate(node.elements):
+            value = res.register(self.visit(element_node.value_node, context))
+            if res.should_return():
+                return res
+
+            element_type = element_node.type_tok.value
+            if element_type == "tuple" and isinstance(value, List):
+                value = LynxTuple(value.elements)
+                value.set_context(context)
+            if element_type == "char" and isinstance(value, String):
+                if len(value.value) != 1:
+                    return res.failure(RTError(
+                        element_node.pos_start,
+                        element_node.pos_end,
+                        f"List element {index} is declared as 'char' but got a "
+                        f"string of length {len(value.value)} — char requires "
+                        "exactly one character",
+                        context,
+                    ))
+                value = Char(value.value)
+                value.set_context(context)
+
+            if not type_matches(element_type, value):
+                return res.failure(RTError(
+                    element_node.pos_start,
+                    element_node.pos_end,
+                    f"List element {index} is declared as '{element_type}' "
+                    f"but got a '{value_type_name(value)}' value",
+                    context,
+                ))
+            elements.append(value)
+
+        return res.success(
+            List(elements).set_context(context).set_pos(node.pos_start, node.pos_end)
         )
 
     def visit_VarAccessNode(self, node, context):
@@ -6226,6 +6357,48 @@ class Interpreter:
         coro_res = await value.coro
         return coro_res  # coro_res is an RTResult already
 
+    async def async_visit_ListNode(self, node, context):
+        res = RTResult()
+        elements = []
+
+        for index, element_node in enumerate(node.elements):
+            value = res.register(
+                await self.async_visit(element_node.value_node, context)
+            )
+            if res.should_return():
+                return res
+
+            element_type = element_node.type_tok.value
+            if element_type == "tuple" and isinstance(value, List):
+                value = LynxTuple(value.elements)
+                value.set_context(context)
+            if element_type == "char" and isinstance(value, String):
+                if len(value.value) != 1:
+                    return res.failure(RTError(
+                        element_node.pos_start,
+                        element_node.pos_end,
+                        f"List element {index} is declared as 'char' but got a "
+                        f"string of length {len(value.value)} — char requires "
+                        "exactly one character",
+                        context,
+                    ))
+                value = Char(value.value)
+                value.set_context(context)
+
+            if not type_matches(element_type, value):
+                return res.failure(RTError(
+                    element_node.pos_start,
+                    element_node.pos_end,
+                    f"List element {index} is declared as '{element_type}' "
+                    f"but got a '{value_type_name(value)}' value",
+                    context,
+                ))
+            elements.append(value)
+
+        return res.success(
+            List(elements).set_context(context).set_pos(node.pos_start, node.pos_end)
+        )
+
     async def async_visit_VarDeclNode(self, node, context):
         res = RTResult()
         var_name = node.var_name_tok.value
@@ -6539,6 +6712,12 @@ class Interpreter:
         return_value = res.register(value_to_call.execute(args))
         if res.should_return():
             return res
+        if return_value is None:
+            return res.failure(RTError(
+                node.pos_start, node.pos_end,
+                "Callable returned no runtime value",
+                context,
+            ))
         return_value = (
             return_value.copy()
             .set_pos(node.pos_start, node.pos_end)
@@ -6705,6 +6884,12 @@ class Interpreter:
         return_value = res.register(value_to_call.execute(args))
         if res.should_return():
             return res
+        if return_value is None:
+            return res.failure(RTError(
+                node.pos_start, node.pos_end,
+                "Callable returned no runtime value",
+                context,
+            ))
         return_value = (
             return_value.copy()
             .set_pos(node.pos_start, node.pos_end)
@@ -7536,110 +7721,12 @@ def run_file(fn, text, symbol_table):
 
     return None
 
-# Bytecode compile / run
-
-def compile_to_bytecode(fn, text):
-    """Parse and compile *text* (source of *fn*) to a .lynxc bytecode file."""
-    lexer = Lexer(fn, text)
-    tokens, error = lexer.make_tokens()
-    if error:
-        return None, error
-
-    parser = Parser(tokens)
-    ast = parser.parse()
-    if ast.error:
-        return None, ast.error
-
-    out_path = os.path.splitext(os.path.abspath(fn))[0] + ".lynxc"
-    data = {
-        "version": BYTECODE_VERSION,
-        "source":  os.path.abspath(fn),
-        "node":    ast.node,
-    }
-    payload = zlib.compress(
-        pickle.dumps(data, protocol=pickle.HIGHEST_PROTOCOL),
-        level=zlib.Z_BEST_COMPRESSION,
-    )
-    with open(out_path, "wb") as f:
-        f.write(BYTECODE_MAGIC)
-        f.write(payload)
-
-    return out_path, None
-
-def _load_bytecode(fn):
-    """Read, decompress, and unpickle a .lynxc file. Returns the data dict."""
-    with open(fn, "rb") as f:
-        magic = f.read(len(BYTECODE_MAGIC))
-        if magic != BYTECODE_MAGIC:
-            raise ValueError(
-                f"'{fn}' is not a valid Lynxer bytecode file "
-                f"(bad magic bytes: {magic!r})"
-            )
-        compressed = f.read()
-    try:
-        raw = zlib.decompress(compressed)
-    except zlib.error as exc:
-        raise ValueError(
-            f"'{fn}' bytecode is corrupt or was compiled with an older "
-            f"Lynxer version (decompression failed: {exc}). "
-            f"Recompile the source file to fix this."
-        ) from exc
-    data = pickle.loads(raw)
-    # Version check
-    file_ver = data.get("version")
-    if file_ver != BYTECODE_VERSION:
-        raise ValueError(
-            f"'{fn}' was compiled with bytecode version {file_ver} but this "
-            f"Lynxer runtime expects version {BYTECODE_VERSION}.  "
-            f"Recompile the source file with 'lynxer --compile <source.lynx>' "
-            f"to generate an up-to-date .lynxc file."
-        )
-    return data
-
-def run_bytecode(fn):
-    """Load and execute a pre-compiled .lynxc bytecode file."""
-    global _main_override
-    _main_override = None
-
-    try:
-        data = _load_bytecode(fn)
-    except Exception as e:
-        raise RuntimeError(str(e)) from e
-
-    node = data["node"]
-    interpreter = SHARED_INTERPRETER
-    context = Context("<program>")
-    context.symbol_table = global_symbol_table
-    global_symbol_table.set("__file__", String(os.path.abspath(fn)))
-    global_symbol_table.set("global", Namespace(global_symbol_table))
-    global_symbol_table.set("class", ClassRegistry())
-
-    result = interpreter.visit(node, context)
-    return result.value, result.error
-
-def run_bytecode_file(fn, symbol_table):
-    """Load and execute a ``.lynxc``."""
-    try:
-        data = _load_bytecode(fn)
-    except Exception as e:
-        raise RuntimeError(str(e)) from e
-
-    node = data["node"]
-    interpreter = SHARED_INTERPRETER
-    context = Context(f"<import:{os.path.basename(fn)}>")
-    context.symbol_table = symbol_table
-    symbol_table.set("__file__", String(os.path.abspath(fn)))
-
-    for decl in node.globals_list:
-        r = RTResult()
-        r.register(interpreter.visit(decl, context))
-        if r.error:
-            return r.error
-
-    if node.setup_func:
-        r = RTResult()
-        r.register(interpreter.visit(node.setup_func.body_block, context))
-        if r.error:
-            return r.error
-
-    return None
+# Bytecode helpers remain available from this module for compatibility with
+# callers that historically imported them from ``lynxer.lynxer``.
+from .bytecode import (  # noqa: E402
+    BYTECODE_MAGIC,
+    BYTECODE_VERSION,
+    compile_to_bytecode,
+    run_bytecode,
+    run_bytecode_file,
+)

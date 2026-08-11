@@ -6,3 +6,5 @@ lynxer/__pycache__/
 build/
 venv/
 dist/
+test/
+tests/

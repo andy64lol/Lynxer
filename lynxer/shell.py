@@ -2,14 +2,14 @@
 """CLI entry point for Lynxer. Run with: python lynxer/shell.py <file.lynx>"""
 import sys
 import os
-import re
 
 _here   = os.path.dirname(os.path.abspath(__file__))   # .../lynxer/
 _parent = os.path.dirname(_here)                         # repo root
 if _parent not in sys.path:
     sys.path.insert(0, _parent)
 
-from lynxer import run, compile_to_bytecode, run_bytecode, BYTECODE_MAGIC, BYTECODE_VERSION  # noqa: E402
+from lynxer import run, compile_to_bytecode, run_bytecode  # noqa: E402
+from lynxer.bytecode import BYTECODE_VERSION, read_bytecode  # noqa: E402
 
 def _extract_docstring(path):
     """Return the text inside the first //// ... //// block in a Lynxer file, or None."""
@@ -34,22 +34,11 @@ def _extract_docstring(path):
 
 def _view_bytecode(filepath):
     """Pretty-print the metadata and top-level structure of a .lynxc file."""
-    import pickle, zlib
-
-    with open(filepath, "rb") as f:
-        magic = f.read(len(BYTECODE_MAGIC))
-        if magic != BYTECODE_MAGIC:
-            print(f"Error: '{filepath}' is not a valid Lynxer bytecode file.", file=sys.stderr)
-            return 1
-        compressed = f.read()
-
     try:
-        raw = zlib.decompress(compressed)
-    except zlib.error as exc:
-        print(f"Error: could not decompress '{filepath}': {exc}", file=sys.stderr)
+        data, raw_size, stored_size = read_bytecode(filepath)
+    except (OSError, ValueError) as exc:
+        print(f"Error: could not read '{filepath}': {exc}", file=sys.stderr)
         return 1
-
-    data = pickle.loads(raw)
 
     file_ver  = data.get("version", "<unknown>")
     source    = data.get("source",  "<unknown>")
@@ -62,7 +51,7 @@ def _view_bytecode(filepath):
     print(f"  File   : {filepath}")
     print(f"  Source : {source}")
     print(f"  Version: {file_ver}  {ver_ok}")
-    print(f"  Size   : {len(raw):,} bytes (decompressed), {len(compressed):,} bytes (stored)")
+    print(f"  Size   : {raw_size:,} bytes (decompressed), {stored_size:,} bytes (stored)")
 
     if node is None:
         print("  (no AST node stored)")

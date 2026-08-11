@@ -12,6 +12,8 @@ COLLECT_ALL := $(shell \
 	xargs -I{} printf -- "--collect-all=%s " "{}" \
 )
 
+CYTHON_COLLECT_ALL := --collect-all=Cython --collect-all=setuptools
+
 .PHONY: build buildLite clean help
 
 build:
@@ -63,17 +65,19 @@ buildLite:
 	@echo "Upgrading pip..."
 	@$(VENV_PIP) install --upgrade pip
 
-	@echo "Installing PyInstaller only (no external packages)..."
-	@$(VENV_PIP) install --upgrade pyinstaller
+	@echo "Installing PyInstaller and Cython runtime dependencies..."
+	@$(VENV_PIP) install --upgrade pyinstaller cython setuptools
 
 	@echo "Selecting pure stdlib .lynx modules..."
 	@rm -rf build/stdlib_pure || true
 	@$(VENV_PY) scripts/select_pure_stdlib.py lynxer/stdlib build/stdlib_pure
 
-	@echo "Building Lynxer (lite) with only pure stdlib modules..."
+	@echo "Building Lynxer (lite) with Cython support and only pure stdlib modules..."
 	@$(PYINSTALLER) \
 		--onefile \
 		--clean \
+		$(CYTHON_COLLECT_ALL) \
+		--hidden-import Cython.Build.Inline \
 		--name lynxer-lite \
 		--add-data "build/stdlib_pure:stdlib" \
 		lynxer/shell.py
