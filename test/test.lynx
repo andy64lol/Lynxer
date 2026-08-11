@@ -1,0 +1,6 @@
+global setup(){}
+global main(){
+    int hello = 1;
+    list lst = [int hello, int 2, int 3, int 4, int 5];
+    println(lst);
+}

@@ -10,6 +10,7 @@ if _parent not in sys.path:
 
 from lynxer import run, compile_to_bytecode, run_bytecode  # noqa: E402
 from lynxer.bytecode import BYTECODE_VERSION, read_bytecode  # noqa: E402
+from lynxer.install import installer_main  # noqa: E402
 
 def _extract_docstring(path):
     """Return the text inside the first //// ... //// block in a Lynxer file, or None."""
@@ -26,7 +27,8 @@ def _extract_docstring(path):
                     if stripped == '////':
                         break
                     lines.append(line.rstrip())
-    except Exception:
+    except Exception as e:
+        print(f"Error: could not read '{path}': {e}")
         pass
     text = '\n'.join(lines).strip()
     return text if text else None
@@ -119,10 +121,14 @@ def main():
         print("  lynxer --view-bytecode <file.lynxc>   Inspect bytecode metadata and structure")
         print("  lynxer --version                      Print version")
         print("  lynxer --list-stdlibs                 List available Lynxer stdlib modules")
+        print("  lynxer --install                      Install the compiled executable as /usr/bin/lynxer")
+        print("  lynxer --uninstall                    Remove /usr/bin/lynxer")
         return 0
     if argv[0] in ('-v', '--version'):
         print("Lynxer 0.1.7b5")
         return 0
+    if argv[0] in ('--install', '--uninstall'):
+        return installer_main(argv[0])
     if argv[0] in ('-easterEgg', '--easterEgg'):
         print("Easter Egg found!")
         print("Wanna do sudo rm -rf / --no-preserve-root? Just kidding, don't do that.")
