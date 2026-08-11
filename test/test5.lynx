@@ -1,0 +1,25 @@
+global setup(){}
+global main(){
+    tuple point = (int 10, int 20);
+    tuple nested = (tuple (int 1, int 2), str "ok");
+    tuple empty = ();
+
+    vargroup player = {
+        str name = "Ada",
+        vargroup stats = {
+            int level = 3
+        }
+    };
+
+    // Legacy forms remain valid and produce deprecation warnings
+    tuple legacyTuple = [int 1, int 2];
+    vargroup legacyGroup = [str name = "legacy"];
+    legacyTuple = [int 3, int 4];
+
+    println(point);
+    println(nested);
+    println(empty);
+    println(player.stats.level);
+    println(legacyTuple);
+    println(legacyGroup.name);
+}

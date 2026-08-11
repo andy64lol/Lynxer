@@ -205,7 +205,7 @@ global setup(){
 }
 
 global main(){
-    tuple nums = [5, 3, 8, 1, 3];
+    tuple nums = (int 5, int 3, int 8, int 1, int 3);
     tuple rev  = global.typing.tupleReverse(nums);   // (3, 1, 8, 3, 5)
     tuple srt  = global.typing.tupleSort(nums);      // (1, 3, 3, 5, 8)
     any   sm   = global.typing.tupleSum(nums);       // 20

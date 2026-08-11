@@ -7,14 +7,18 @@ Tuples are immutable, ordered, fixed-length sequences. Once created, their eleme
 ## Declaration
 
 ```c
-tuple point   = [10, 20];
-tuple rgb     = [255, 128, 0];
-tuple mixed   = ["hello", 42, true];
-tuple single  = [99];         // single-element tuple — prints as (99,)
-tuple empty   = [];           // empty tuple
+tuple point   = (int 10, int 20);
+tuple rgb     = (int 255, int 128, int 0);
+tuple mixed   = (str "hello", int 42, bool true);
+tuple single  = (int 99,);          // single-element tuple — prints as (99,)
+tuple empty   = ();                 // empty tuple
 ```
 
-The right-hand side uses list literal syntax `[...]`. The interpreter auto-converts it to a tuple. You can also build a tuple with `tupleCreate()` or convert an existing list with `listToTuple()`.
+Each tuple element uses an explicit type, just like list elements. Tuple literals
+use `(...)`; the older typed `[...]` form is still accepted and converted to a
+tuple when the variable is declared as `tuple`, but it is deprecated and should
+not be used in new code. You can also build a tuple with `tupleCreate()` or
+convert an existing list with `listToTuple()`.
 
 ---
 
@@ -23,9 +27,9 @@ The right-hand side uses list literal syntax `[...]`. The interpreter auto-conve
 `tuple` is a first-class type keyword. It participates in the same type-checking as `int`, `str`, `bool`, and `any`.
 
 ```c
-tuple coords = [0, 0];
-coords = [1, 2];              // ok — rebinding the variable
-coords = [1, 2, 3];           // ok — different length is fine
+tuple coords = (int 0, int 0);
+coords = [int 1, int 2];              // legacy-compatible rebinding
+coords = [int 1, int 2, int 3];       // legacy-compatible rebinding
 
 // returnType() returns "tuple"
 str t = returnType(coords);   // "tuple"
@@ -62,7 +66,7 @@ All of these are available everywhere without any `import`.
 
 ```c
 global main(){
-    tuple t = [10, 20, 30, 20];
+    tuple t = (int 10, int 20, int 30, int 20);
 
     int  len  = tupleLen(t);           // 4
     any  elem = tupleGet(t, 0);        // 10
@@ -118,7 +122,7 @@ global setup(){
 }
 
 global main(){
-    tuple nums = [5, 3, 8, 1, 3];
+    tuple nums = (int 5, int 3, int 8, int 1, int 3);
 
     tuple rev  = global.typing.tupleReverse(nums);  // (3, 1, 8, 3, 5)
     tuple srt  = global.typing.tupleSort(nums);     // (1, 3, 3, 5, 8)
@@ -128,8 +132,8 @@ global main(){
     tuple uniq = global.typing.tupleUnique(nums);   // (5, 3, 8, 1)
     str   j    = global.typing.tupleJoin(nums, "-");// "5-3-8-1-3"
 
-    tuple a = [1, 2, 3];
-    tuple b = [4, 5, 6];
+    tuple a = (int 1, int 2, int 3);
+    tuple b = (int 4, int 5, int 6);
     any   z = global.typing.tupleZip(a, b);
     // z is a list: ['{"a":"1","b":"4"}', '{"a":"2","b":"5"}', '{"a":"3","b":"6"}']
 }
@@ -142,9 +146,9 @@ global main(){
 Tuples support `is` / `not is` equality:
 
 ```c
-tuple a = [1, 2, 3];
-tuple b = [1, 2, 3];
-tuple c = [1, 2, 9];
+tuple a = (int 1, int 2, int 3);
+tuple b = (int 1, int 2, int 3);
+tuple c = (int 1, int 2, int 9);
 
 if(a is b){  println("equal");   }   // equal
 if(a not is c){ println("different"); }
@@ -158,7 +162,7 @@ Use `tupleToList()` to iterate over a tuple with a `for` loop, or index manually
 
 ```c
 global main(){
-    tuple t = [10, 20, 30];
+    tuple t = (int 10, int 20, int 30);
 
     // Manual index loop
     int i = 0;
@@ -183,7 +187,7 @@ Tuple variables are exposed to `rawPy {}` blocks as Python tuples of their primi
 
 ```c
 global main(){
-    tuple rgb = [255, 128, 0];
+    tuple rgb = (int 255, int 128, int 0);
     rawPy(){
         r, g, b = rgb     // Python tuple unpacking
         print(f"Red={r}, Green={g}, Blue={b}")

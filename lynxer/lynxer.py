@@ -4,6 +4,7 @@ import os
 import string
 import sys
 import textwrap
+import warnings
 from typing import Any, ClassVar
 
 try:
@@ -61,6 +62,22 @@ class ExpectedCharError(Error):
 class InvalidSyntaxError(Error):
     def __init__(self, pos_start, pos_end, details=""):
         super().__init__(pos_start, pos_end, "Syntax Error", details)
+
+class LynxSyntaxDeprecationWarning(UserWarning):
+    """A warning for syntax retained only for backwards compatibility."""
+
+def warn_legacy_syntax(token, details):
+    """Warn at the source location of a legacy syntax form."""
+    warn_legacy_syntax_position(token.pos_start, details)
+
+def warn_legacy_syntax_position(pos, details):
+    """Warn at a parser node or token source location."""
+    warnings.warn_explicit(
+        details,
+        LynxSyntaxDeprecationWarning,
+        pos.fn or "<source>",
+        pos.ln + 1,
+    )
 
 class RTError(Error):
     def __init__(self, pos_start, pos_end, details, context):
@@ -601,6 +618,13 @@ class ListElementNode:
 
 class ListNode:
     """A list literal, whose elements are explicitly typed."""
+    def __init__(self, elements, pos_start, pos_end):
+        self.elements = elements
+        self.pos_start = pos_start
+        self.pos_end = pos_end
+
+class TupleNode:
+    """A tuple literal, whose elements are explicitly typed."""
     def __init__(self, elements, pos_start, pos_end):
         self.elements = elements
         self.pos_start = pos_start
@@ -1729,6 +1753,15 @@ class Parser:
         if res.error:
             return res
 
+        if type_tok.value == "tuple" and isinstance(value, ListNode):
+            warn_legacy_syntax_position(
+                value.pos_start,
+                "Legacy tuple syntax uses '[...]'. Use '(...)' with an "
+                "explicit type before each element; square-bracket tuples "
+                "are retained for compatibility and will be removed in a "
+                "future release.",
+            )
+
         if self.current_tok.type != TT_SEMICOLON:
             return res.failure(
                 InvalidSyntaxError(
@@ -1789,6 +1822,15 @@ class Parser:
         value = res.register(self.parse_expr())
         if res.error:
             return res
+
+        if type_tok.value == "tuple" and isinstance(value, ListNode):
+            warn_legacy_syntax_position(
+                value.pos_start,
+                "Legacy tuple syntax uses '[...]'. Use '(...)' with an "
+                "explicit type before each element; square-bracket tuples "
+                "are retained for compatibility and will be removed in a "
+                "future release.",
+            )
 
         if self.current_tok.type != TT_SEMICOLON:
             return res.failure(
@@ -1934,7 +1976,7 @@ class Parser:
         return res.success(IterateNode(count_node, body, pos_start, body.pos_end))
 
     def parse_vargroup_field(self):
-        """Parse one field inside a vargroup body: type name = value  OR  vargroup name = [...]"""
+        """Parse one field inside a vargroup body."""
         res = ParseResult()
         pos_start = self.current_tok.pos_start.copy()
 
@@ -1966,25 +2008,34 @@ class Parser:
             res.register_advancement()
             self.advance()
 
-            if self.current_tok.type != TT_LBRACKET:
+            if self.current_tok.type not in (TT_LBRACE, TT_LBRACKET):
                 return res.failure(
                     InvalidSyntaxError(
                         self.current_tok.pos_start,
                         self.current_tok.pos_end,
-                        "Expected '[' to open nested vargroup body",
+                        "Expected '{' to open nested vargroup body",
                     )
+                )
+            open_tok = self.current_tok
+            close_type = TT_RBRACKET if open_tok.type == TT_LBRACKET else TT_RBRACE
+            if open_tok.type == TT_LBRACKET:
+                warn_legacy_syntax(
+                    open_tok,
+                    "Legacy vargroup syntax uses '[...]'. Use '{...}' for "
+                    "vargroups; square brackets are retained for compatibility "
+                    "and will be removed in a future release.",
                 )
             res.register_advancement()
             self.advance()
 
             nested_fields = []
-            while self.current_tok.type != TT_RBRACKET:
+            while self.current_tok.type != close_type:
                 if self.current_tok.type == TT_EOF:
                     return res.failure(
                         InvalidSyntaxError(
                             self.current_tok.pos_start,
                             self.current_tok.pos_end,
-                            "Expected ']' to close nested vargroup",
+                            "Expected '}' to close nested vargroup",
                         )
                     )
                 f = res.register(self.parse_vargroup_field())
@@ -1994,18 +2045,18 @@ class Parser:
                 if self.current_tok.type == TT_COMMA:
                     res.register_advancement()
                     self.advance()
-                elif self.current_tok.type != TT_RBRACKET:
+                elif self.current_tok.type != close_type:
                     return res.failure(
                         InvalidSyntaxError(
                             self.current_tok.pos_start,
                             self.current_tok.pos_end,
-                            "Expected ',' or ']' in nested vargroup body",
+                            "Expected ',' or '}' in nested vargroup body",
                         )
                     )
 
             pos_end = self.current_tok.pos_end.copy()
             res.register_advancement()
-            self.advance()  # consume ']'
+            self.advance()  # consume the nested vargroup delimiter
 
             nested_node = VarGroupDeclNode(name_tok, nested_fields, pos_start, pos_end)
             return res.success(("vargroup", name_tok, nested_node, False))
@@ -2058,7 +2109,7 @@ class Parser:
         return res.success((type_tok.value, name_tok, value_node, is_const))
 
     def parse_vargroup_decl(self):
-        """Parse: vargroup name = [ fields... ]; """
+        """Parse: vargroup name = { fields... }; """
         res = ParseResult()
         pos_start = self.current_tok.pos_start.copy()
         res.register_advancement()
@@ -2087,25 +2138,34 @@ class Parser:
         res.register_advancement()
         self.advance()
 
-        if self.current_tok.type != TT_LBRACKET:
+        if self.current_tok.type not in (TT_LBRACE, TT_LBRACKET):
             return res.failure(
                 InvalidSyntaxError(
                     self.current_tok.pos_start,
                     self.current_tok.pos_end,
-                    "Expected '[' to open vargroup body",
+                    "Expected '{' to open vargroup body",
                 )
+            )
+        open_tok = self.current_tok
+        close_type = TT_RBRACKET if open_tok.type == TT_LBRACKET else TT_RBRACE
+        if open_tok.type == TT_LBRACKET:
+            warn_legacy_syntax(
+                open_tok,
+                "Legacy vargroup syntax uses '[...]'. Use '{...}' for "
+                "vargroups; square brackets are retained for compatibility "
+                "and will be removed in a future release.",
             )
         res.register_advancement()
         self.advance()
 
         fields = []
-        while self.current_tok.type != TT_RBRACKET:
+        while self.current_tok.type != close_type:
             if self.current_tok.type == TT_EOF:
                 return res.failure(
                     InvalidSyntaxError(
                         self.current_tok.pos_start,
                         self.current_tok.pos_end,
-                        "Expected ']' to close vargroup",
+                        "Expected '}' to close vargroup",
                     )
                 )
             field = res.register(self.parse_vargroup_field())
@@ -2115,17 +2175,17 @@ class Parser:
             if self.current_tok.type == TT_COMMA:
                 res.register_advancement()
                 self.advance()
-            elif self.current_tok.type != TT_RBRACKET:
+            elif self.current_tok.type != close_type:
                 return res.failure(
                     InvalidSyntaxError(
                         self.current_tok.pos_start,
                         self.current_tok.pos_end,
-                        "Expected ',' or ']' in vargroup body",
+                        "Expected ',' or '}' in vargroup body",
                     )
                 )
 
         res.register_advancement()
-        self.advance()  # consume ']'
+        self.advance()  # consume the vargroup delimiter
 
         if self.current_tok.type != TT_SEMICOLON:
             return res.failure(
@@ -3240,6 +3300,16 @@ class Parser:
             self.advance()
             return res.success(VarAccessNode(tok))
 
+        elif tok.type == TT_LPAREN and (
+            self.peek(1) is not None
+            and (
+                self.peek(1).type == TT_RPAREN
+                or self.peek(1).type == TT_KEYWORD
+                and self.peek(1).value in TYPE_KEYWORDS
+            )
+        ):
+            return self.parse_tuple_literal()
+
         elif tok.type == TT_LPAREN:
             res.register_advancement()
             self.advance()
@@ -3269,6 +3339,58 @@ class Parser:
                 "Expected int, float, str, bool, none, identifier, '(', or 'await'",
             )
         )
+
+    def parse_tuple_literal(self):
+        """Parse a typed tuple literal: ``(int 1, str "two")``."""
+        res = ParseResult()
+        pos_start = self.current_tok.pos_start.copy()
+
+        res.register_advancement()
+        self.advance()  # consume '('
+
+        elements = []
+        if self.current_tok.type != TT_RPAREN:
+            while True:
+                if not self.is_type_keyword():
+                    return res.failure(
+                        InvalidSyntaxError(
+                            self.current_tok.pos_start,
+                            self.current_tok.pos_end,
+                            "Expected a type keyword before each tuple element "
+                            "(for example, '(int 1, str \"two\")')",
+                        )
+                    )
+
+                type_tok = self.current_tok
+                res.register_advancement()
+                self.advance()
+
+                value_node = res.register(self.parse_expr())
+                if res.error:
+                    return res
+                elements.append(ListElementNode(type_tok, value_node))
+
+                if self.current_tok.type != TT_COMMA:
+                    break
+                res.register_advancement()
+                self.advance()
+
+                if self.current_tok.type == TT_RPAREN:
+                    break
+
+        if self.current_tok.type != TT_RPAREN:
+            return res.failure(
+                InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "Expected ',' or ')' in tuple literal",
+                )
+            )
+
+        pos_end = self.current_tok.pos_end.copy()
+        res.register_advancement()
+        self.advance()  # consume ')'
+        return res.success(TupleNode(elements, pos_start, pos_end))
 
     def parse_list_literal(self):
         """Parse a typed list literal: ``[int 1, str "two"]``."""
@@ -5740,17 +5862,17 @@ _main_override: "str | None" = None
 # global call hierarchy helpers
 
 def _can_call_global(caller_path, callee_path):
-    """Return True if a global."""
+    """Return whether a global may call another global in its hierarchy."""
     if not caller_path or not callee_path:
         return True
-    # Recursion
-    if caller_path == callee_path:
-        return True
+    # Separate top-level global trees are independent.
     if caller_path[0] != callee_path[0]:
         return True
-    if len(callee_path) < len(caller_path):
-        return caller_path[:len(callee_path)] == callee_path
-    return False
+    # Within one tree, calls may move along the caller's own ancestor/
+    # descendant chain.  Sibling branches remain isolated.
+    caller_is_prefix = caller_path == callee_path[:len(caller_path)]
+    callee_is_prefix = callee_path == caller_path[:len(callee_path)]
+    return caller_is_prefix or callee_is_prefix
 
 def _get_current_global_path(context):
     """Walk the context chain to find the nearest current_global_path."""
@@ -5899,6 +6021,46 @@ class Interpreter:
             List(elements).set_context(context).set_pos(node.pos_start, node.pos_end)
         )
 
+    def visit_TupleNode(self, node, context):
+        res = RTResult()
+        elements = []
+
+        for index, element_node in enumerate(node.elements):
+            value = res.register(self.visit(element_node.value_node, context))
+            if res.should_return():
+                return res
+
+            element_type = element_node.type_tok.value
+            if element_type == "tuple" and isinstance(value, List):
+                value = LynxTuple(value.elements)
+                value.set_context(context)
+            if element_type == "char" and isinstance(value, String):
+                if len(value.value) != 1:
+                    return res.failure(RTError(
+                        element_node.pos_start,
+                        element_node.pos_end,
+                        f"Tuple element {index} is declared as 'char' but got a "
+                        f"string of length {len(value.value)} — char requires "
+                        "exactly one character",
+                        context,
+                    ))
+                value = Char(value.value)
+                value.set_context(context)
+
+            if not type_matches(element_type, value):
+                return res.failure(RTError(
+                    element_node.pos_start,
+                    element_node.pos_end,
+                    f"Tuple element {index} is declared as '{element_type}' "
+                    f"but got a '{value_type_name(value)}' value",
+                    context,
+                ))
+            elements.append(value)
+
+        return res.success(
+            LynxTuple(elements).set_context(context).set_pos(node.pos_start, node.pos_end)
+        )
+
     def visit_VarAccessNode(self, node, context):
         res = RTResult()
         var_name = node.var_name_tok.value
@@ -5966,6 +6128,14 @@ class Interpreter:
             return res
         decl_type = context.symbol_table.get_type(var_name)
         if decl_type == "tuple" and isinstance(value, List):
+            if isinstance(node.value_node, ListNode):
+                warn_legacy_syntax_position(
+                    node.value_node.pos_start,
+                    "Legacy tuple syntax uses '[...]'. Use '(...)' with an "
+                    "explicit type before each element; square-bracket tuples "
+                    "are retained for compatibility and will be removed in a "
+                    "future release.",
+                )
             value = LynxTuple(value.elements)
             value.set_context(context)
         if decl_type == "char" and isinstance(value, String):
@@ -6399,6 +6569,48 @@ class Interpreter:
             List(elements).set_context(context).set_pos(node.pos_start, node.pos_end)
         )
 
+    async def async_visit_TupleNode(self, node, context):
+        res = RTResult()
+        elements = []
+
+        for index, element_node in enumerate(node.elements):
+            value = res.register(
+                await self.async_visit(element_node.value_node, context)
+            )
+            if res.should_return():
+                return res
+
+            element_type = element_node.type_tok.value
+            if element_type == "tuple" and isinstance(value, List):
+                value = LynxTuple(value.elements)
+                value.set_context(context)
+            if element_type == "char" and isinstance(value, String):
+                if len(value.value) != 1:
+                    return res.failure(RTError(
+                        element_node.pos_start,
+                        element_node.pos_end,
+                        f"Tuple element {index} is declared as 'char' but got a "
+                        f"string of length {len(value.value)} — char requires "
+                        "exactly one character",
+                        context,
+                    ))
+                value = Char(value.value)
+                value.set_context(context)
+
+            if not type_matches(element_type, value):
+                return res.failure(RTError(
+                    element_node.pos_start,
+                    element_node.pos_end,
+                    f"Tuple element {index} is declared as '{element_type}' "
+                    f"but got a '{value_type_name(value)}' value",
+                    context,
+                ))
+            elements.append(value)
+
+        return res.success(
+            LynxTuple(elements).set_context(context).set_pos(node.pos_start, node.pos_end)
+        )
+
     async def async_visit_VarDeclNode(self, node, context):
         res = RTResult()
         var_name = node.var_name_tok.value
@@ -6433,6 +6645,14 @@ class Interpreter:
             return res
         decl_type = context.symbol_table.get_type(var_name)
         if decl_type == "tuple" and isinstance(value, List):
+            if isinstance(node.value_node, ListNode):
+                warn_legacy_syntax_position(
+                    node.value_node.pos_start,
+                    "Legacy tuple syntax uses '[...]'. Use '(...)' with an "
+                    "explicit type before each element; square-bracket tuples "
+                    "are retained for compatibility and will be removed in a "
+                    "future release.",
+                )
             value = LynxTuple(value.elements)
             value.set_context(context)
         if not type_matches(decl_type, value):
@@ -6871,8 +7091,8 @@ class Interpreter:
                     node.pos_start, node.pos_end,
                     f"Hierarchical call restriction: '{caller_str}' cannot call "
                     f"'{callee_str}'. Within the same global tree, a nested global "
-                    f"may only call its own ancestors (upward calls only). "
-                    f"Sideways and downward calls within the same tree are not allowed.",
+                    f"may only call along its own ancestor/descendant path. "
+                    f"Sideways calls within the same tree are not allowed.",
                     context,
                 ))
 

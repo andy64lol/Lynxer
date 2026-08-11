@@ -6,16 +6,6 @@ global main(){
             println("data fetched\n");
         }
         async.fetch();
-        }
     }
     global.main.fetchData();
-    ///
-        bug detected:
-        [Lynxer] Syntax Error
-        'global None' must be declared before 'global main(){}'. No declarations are allowed after main.
-            --> /run/media/andy/0123-4567/proyectos/Lynxer/test/test2.lynx, line 11, column 5
-
-        global.main.fetchData();
-        ^^^^^^
-    ///
 }

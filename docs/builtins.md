@@ -96,7 +96,7 @@ print(returnType("hello"));      // str
 print(returnType(true));         // bool
 print(returnType(range(3)));     // list
 
-vargroup cfg = [str host = "localhost", int port = 8080];
+vargroup cfg = {str host = "localhost", int port = 8080};
 print(returnType(cfg));           // vargroup
 ```
 

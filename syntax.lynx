@@ -363,11 +363,11 @@ global main(){
     // vargroups
     println("\n-- vargroups --");
 
-    vargroup config2 = [
+    vargroup config2 = {
         str  host  = "localhost",
         int  port  = 8080,
         bool debug = true
-    ];
+    };
     print("host: ");  println(config2.host);
     print("port: ");  println(config2.port);
     print("debug: "); println(config2.debug);
@@ -379,14 +379,14 @@ global main(){
     print("port after set: ");  println(config2.port);
     print("debug after set: "); println(config2.debug);
 
-    vargroup player2 = [
+    vargroup player2 = {
         str  username = "Andy",
         int  coins    = 500,
-        vargroup stats = [
+        vargroup stats = {
             int   level = 10,
             float speed = 7.25
-        ]
-    ];
+        }
+    };
     print("player: "); println(player2.username);
     print("level: ");  println(player2.stats.level);
     print("speed: ");  println(player2.stats.speed);

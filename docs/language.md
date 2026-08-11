@@ -127,9 +127,9 @@ Built-in functions are conventionally called **directly** (without `global.`). M
 | `char`     | `'a'`, `'\n'`             | single Unicode character; single-quote literal; concatenates with `str` |
 | `str`      | `"hello"`, `"line\n"`     | double-quoted; supports `\n \t \\ \r \e` escapes |
 | `bool`     | `true`, `false`           | displays as `true`/`false`; truthy when non-zero |
-| `tuple`    | `[1, 2, 3]`               | immutable, fixed-length sequence; see [tuples.md](tuples.md) |
+| `tuple`    | `(int 1, int 2, int 3)`   | immutable, fixed-length sequence; see [tuples.md](tuples.md) |
 | `list`     | `range(5)`                | ordered mutable sequence; declare with `list` keyword |
-| `vargroup` | `vargroup p = [...]`      | named typed record with dot-accessed fields; see [vargroups.md](vargroups.md) |
+| `vargroup` | `vargroup p = {...}`      | named typed record with dot-accessed fields; see [vargroups.md](vargroups.md) |
 | `any`      | anything, including `none`| no type check at assignment |
 
 `none` is a null-like literal, assignable to `any`:
@@ -699,15 +699,15 @@ global main(){
 A **vargroup** is a named, typed record with dot-accessed fields — similar to a C struct. See [vargroups.md](vargroups.md) for a quick-reference summary.
 
 ```c
-vargroup player = [
+vargroup player = {
     str  username = "Andy",
     int  coins    = 250,
     bool online   = true,
-    vargroup stats = [
+    vargroup stats = {
         int   level = 5,
         float speed = 3.5
-    ]
-];
+    }
+};
 
 print(player.username);        // Andy
 print(player.stats.level);     // 5
@@ -731,7 +731,7 @@ removeVarGroup(player, title);               // remove a field
 
 ```c
 global setup(){
-    vargroup config = [str host = "localhost", int port = 8080];
+    vargroup config = {str host = "localhost", int port = 8080};
 }
 global main(){
     print(config.host);   // localhost
