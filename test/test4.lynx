@@ -1,0 +1,14 @@
+global setup(){
+    list idkLmao = [int 0, int 1, str "Hello"];
+}
+global main(){
+    local hello(){
+        local nested(){
+            str greeting = listGet(idkLmao, 2);
+            println(greeting, " world!");
+        }
+        local.nested();
+    }
+    local.hello();
+    // lists, local nested functions and global variables work perfectly
+}
