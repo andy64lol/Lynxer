@@ -14,7 +14,7 @@ def run_cmd(cmd: str) -> str:
     try:
         proc = subprocess.run(
             cmd, shell=True,
-            capture_output=True, text=True, timeout=60
+            capture_output=True, text=True, timeout=60, check=True
         )
         out = proc.stdout.strip() if proc.returncode == 0 else proc.stderr.strip()
         # Replace internal newlines so the caller's \n delimiter stays unambiguous
@@ -36,7 +36,8 @@ def run_cmd_silent(cmd: str) -> int:
             cmd, shell=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            timeout=60
+            timeout=60,
+            check=True
         )
         return proc.returncode
     except Exception:

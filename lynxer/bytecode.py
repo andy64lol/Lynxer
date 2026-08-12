@@ -6,7 +6,6 @@ without creating a circular import during interpreter startup.
 """
 
 from __future__ import annotations
-
 import os
 import pickle
 import zlib

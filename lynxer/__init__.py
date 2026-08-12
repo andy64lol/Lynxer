@@ -9,3 +9,4 @@ from lynxer.bytecode import (  # noqa: F401
     run_bytecode,
     run_bytecode_file,
 )
+# shush

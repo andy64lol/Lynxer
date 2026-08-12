@@ -54,6 +54,7 @@ def _view_bytecode(filepath):
     print(f"  Source : {source}")
     print(f"  Version: {file_ver}  {ver_ok}")
     print(f"  Size   : {raw_size:,} bytes (decompressed), {stored_size:,} bytes (stored)")
+    print("─" * 44)
 
     if node is None:
         print("  (no AST node stored)")
@@ -114,6 +115,7 @@ def _view_bytecode(filepath):
 def main():
     argv = sys.argv[1:]
     if not argv or argv[0] in ('-h', '--help'):
+        print()
         print("Usage:")
         print("  lynxer <file.lynx>                    Run a Lynxer source file")
         print("  lynxer --compile <file.lynx>          Compile to bytecode (.lynxc)")
@@ -121,22 +123,26 @@ def main():
         print("  lynxer --view-bytecode <file.lynxc>   Inspect bytecode metadata and structure")
         print("  lynxer --version                      Print version")
         print("  lynxer --list-stdlibs                 List available Lynxer stdlib modules")
-        print("  lynxer --install                      Install the compiled executable as /usr/bin/lynxer")
-        print("  lynxer --uninstall                    Remove /usr/bin/lynxer")
+        print("  lynxer --install                      Install the compiled executable as /usr/bin/lynxer, may require sudo")
+        print("  lynxer --uninstall                    Remove /usr/bin/lynxer, also may require sudo")
+        print()
+        print("  BTW, please run the install and uninstall with the executeable, not shell.py nor anything else.")
+        print("  If you are running from source, use the compiled executable instead located in GitHub Releases.")
+        print()
         return 0
-    if argv[0] in ('-v', '--version'):
+    if argv[0] in ('-v', '--version', '-version','--v'):
         print("Lynxer 0.1.7b5")
         return 0
     if argv[0] in ('--install', '--uninstall'):
         return installer_main(argv[0])
-    if argv[0] in ('-easterEgg', '--easterEgg'):
+    if argv[0] in ('-easterEgg', '--easterEgg', '--idklmao', '-wnwnerbcyunwrbygnubeuyxnqybxun'):
         print("Easter Egg found!")
         print("Wanna do sudo rm -rf / --no-preserve-root? Just kidding, don't do that.")
         print("But seriously, don't do that. It's a bad idea.")
         print("That will erase the entire linux OS and all your files. You will lose everything.")
         return 0
 
-    if argv[0] in ('--list-stdlibs', '--stdlibs'):
+    if argv[0] in ('--list-stdlibs', '--stdlibs', '-stdlibs', '-list-stdlibs'):
         stdlib_dir = os.path.join(_here, 'stdlib')
         if not os.path.isdir(stdlib_dir):
             print('No stdlib directory found.')
@@ -160,7 +166,7 @@ def main():
                 print(f"  {name}\n")
         return 0
 
-    if argv[0] in ('-c', '--compile'):
+    if argv[0] in ('-c', '--compile', '--c','-compile'):
         if len(argv) < 2:
             print("shell.py: --compile requires a file argument", file=sys.stderr)
             return 1
