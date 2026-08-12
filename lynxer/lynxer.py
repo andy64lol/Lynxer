@@ -3300,15 +3300,14 @@ class Parser:
             self.advance()
             return res.success(VarAccessNode(tok))
 
-        elif tok.type == TT_LPAREN and (
-            self.peek(1) is not None
-            and (
-                self.peek(1).type == TT_RPAREN
-                or self.peek(1).type == TT_KEYWORD
-                and self.peek(1).value in TYPE_KEYWORDS
-            )
-        ):
-            return self.parse_tuple_literal()
+        elif tok.type == TT_LPAREN:
+            next_tok = self.peek(1)
+            if next_tok is not None and (
+                next_tok.type == TT_RPAREN
+                or next_tok.type == TT_KEYWORD
+                and next_tok.value in TYPE_KEYWORDS
+            ):
+                return self.parse_tuple_literal()
 
         elif tok.type == TT_LPAREN:
             res.register_advancement()
@@ -4262,62 +4261,7 @@ class CoroutineValue(Value):
     def __repr__(self):
         return "<coroutine>"
 
-class BuiltInFunction(BaseFunction):
-    print: ClassVar["BuiltInFunction"]
-    println: ClassVar["BuiltInFunction"]
-    input: ClassVar["BuiltInFunction"]
-    inputln: ClassVar["BuiltInFunction"]
-    rawPy: ClassVar["BuiltInFunction"]
-    rawPyx: ClassVar["BuiltInFunction"]
-    strOf: ClassVar["BuiltInFunction"]
-    intOf: ClassVar["BuiltInFunction"]
-    floatOf: ClassVar["BuiltInFunction"]
-    returnType: ClassVar["BuiltInFunction"]
-    returnLength: ClassVar["BuiltInFunction"]
-    seqFromTo: ClassVar["BuiltInFunction"]
-    range: ClassVar["BuiltInFunction"]
-    cleanRawPyxCache: ClassVar["BuiltInFunction"]
-    # list built-ins
-    splitStr: ClassVar["BuiltInFunction"]
-    listFlatten: ClassVar["BuiltInFunction"]
-    listUnique: ClassVar["BuiltInFunction"]
-    listJsonArray: ClassVar["BuiltInFunction"]
-    listJsonObject: ClassVar["BuiltInFunction"]
-    listPush: ClassVar["BuiltInFunction"]
-    listPop: ClassVar["BuiltInFunction"]
-    listGet: ClassVar["BuiltInFunction"]
-    listSet: ClassVar["BuiltInFunction"]
-    listSlice: ClassVar["BuiltInFunction"]
-    listContains: ClassVar["BuiltInFunction"]
-    listJoin: ClassVar["BuiltInFunction"]
-    listIndex: ClassVar["BuiltInFunction"]
-    listRemove: ClassVar["BuiltInFunction"]
-    anyOf: ClassVar["BuiltInFunction"]
-    allOf: ClassVar["BuiltInFunction"]
-    sumOf: ClassVar["BuiltInFunction"]
-    sortList: ClassVar["BuiltInFunction"]
-    reverseList: ClassVar["BuiltInFunction"]
-    listMin: ClassVar["BuiltInFunction"]
-    listMax: ClassVar["BuiltInFunction"]
-    asyncRun: ClassVar["BuiltInFunction"]
-    asyncGather: ClassVar["BuiltInFunction"]
-    asyncSleep: ClassVar["BuiltInFunction"]
-    # tuple built-ins
-    tupleCreate: ClassVar["BuiltInFunction"]
-    tupleGet: ClassVar["BuiltInFunction"]
-    tupleLen: ClassVar["BuiltInFunction"]
-    tupleContains: ClassVar["BuiltInFunction"]
-    tupleIndex: ClassVar["BuiltInFunction"]
-    tupleSlice: ClassVar["BuiltInFunction"]
-    tupleToList: ClassVar["BuiltInFunction"]
-    listToTuple: ClassVar["BuiltInFunction"]
-    tupleConcat: ClassVar["BuiltInFunction"]
-    tupleCount: ClassVar["BuiltInFunction"]
-    tupleFirst: ClassVar["BuiltInFunction"]
-    tupleLast: ClassVar["BuiltInFunction"]
-    tupleJsonArray: ClassVar["BuiltInFunction"]
-    overrideMain: ClassVar["BuiltInFunction"]
-
+class _BuiltinFunctionRuntime(BaseFunction):
     def __init__(self, name):
         super().__init__(name)
 
@@ -5167,59 +5111,6 @@ class BuiltInFunction(BaseFunction):
             ))
         _main_override = args[0].value
         return RTResult().success(Number.null)
-
-BuiltInFunction.print = BuiltInFunction("print")
-BuiltInFunction.println = BuiltInFunction("println")
-BuiltInFunction.input = BuiltInFunction("input")
-BuiltInFunction.inputln = BuiltInFunction("inputln")
-BuiltInFunction.rawPy = BuiltInFunction("rawPy")
-BuiltInFunction.rawPyx = BuiltInFunction("rawPyx")
-BuiltInFunction.strOf = BuiltInFunction("strOf")
-BuiltInFunction.intOf = BuiltInFunction("intOf")
-BuiltInFunction.floatOf = BuiltInFunction("floatOf")
-BuiltInFunction.returnType = BuiltInFunction("returnType")
-BuiltInFunction.returnLength = BuiltInFunction("returnLength")
-BuiltInFunction.seqFromTo = BuiltInFunction("seqFromTo")
-BuiltInFunction.range = BuiltInFunction("range")
-BuiltInFunction.cleanRawPyxCache = BuiltInFunction("cleanRawPyxCache")
-BuiltInFunction.listJsonArray = BuiltInFunction("listJsonArray")
-BuiltInFunction.listJsonObject = BuiltInFunction("listJsonObject")
-BuiltInFunction.splitStr = BuiltInFunction("splitStr")
-BuiltInFunction.listFlatten = BuiltInFunction("listFlatten")
-BuiltInFunction.listUnique = BuiltInFunction("listUnique")
-BuiltInFunction.listPush = BuiltInFunction("listPush")
-BuiltInFunction.listPop = BuiltInFunction("listPop")
-BuiltInFunction.listGet = BuiltInFunction("listGet")
-BuiltInFunction.listSet = BuiltInFunction("listSet")
-BuiltInFunction.listSlice = BuiltInFunction("listSlice")
-BuiltInFunction.listContains = BuiltInFunction("listContains")
-BuiltInFunction.listJoin = BuiltInFunction("listJoin")
-BuiltInFunction.listIndex = BuiltInFunction("listIndex")
-BuiltInFunction.listRemove = BuiltInFunction("listRemove")
-BuiltInFunction.anyOf = BuiltInFunction("anyOf")
-BuiltInFunction.allOf = BuiltInFunction("allOf")
-BuiltInFunction.sumOf = BuiltInFunction("sumOf")
-BuiltInFunction.sortList = BuiltInFunction("sortList")
-BuiltInFunction.reverseList = BuiltInFunction("reverseList")
-BuiltInFunction.listMin = BuiltInFunction("listMin")
-BuiltInFunction.listMax = BuiltInFunction("listMax")
-BuiltInFunction.asyncRun = BuiltInFunction("asyncRun")
-BuiltInFunction.asyncGather = BuiltInFunction("asyncGather")
-BuiltInFunction.asyncSleep = BuiltInFunction("asyncSleep")
-BuiltInFunction.tupleCreate = BuiltInFunction("tupleCreate")
-BuiltInFunction.tupleGet = BuiltInFunction("tupleGet")
-BuiltInFunction.tupleLen = BuiltInFunction("tupleLen")
-BuiltInFunction.tupleContains = BuiltInFunction("tupleContains")
-BuiltInFunction.tupleIndex = BuiltInFunction("tupleIndex")
-BuiltInFunction.tupleSlice = BuiltInFunction("tupleSlice")
-BuiltInFunction.tupleToList = BuiltInFunction("tupleToList")
-BuiltInFunction.listToTuple = BuiltInFunction("listToTuple")
-BuiltInFunction.tupleConcat = BuiltInFunction("tupleConcat")
-BuiltInFunction.tupleCount = BuiltInFunction("tupleCount")
-BuiltInFunction.tupleFirst = BuiltInFunction("tupleFirst")
-BuiltInFunction.tupleLast = BuiltInFunction("tupleLast")
-BuiltInFunction.tupleJsonArray = BuiltInFunction("tupleJsonArray")
-BuiltInFunction.overrideMain = BuiltInFunction("overrideMain")
 
 # modules
 
@@ -7552,56 +7443,7 @@ class Interpreter:
             )
 
         module_table = SymbolTable(global_symbol_table)
-        module_table.set("true", Number.true)
-        module_table.set("false", Number.false)
-        module_table.set("print", BuiltInFunction.print)
-        module_table.set("println", BuiltInFunction.println)
-        module_table.set("input", BuiltInFunction.input)
-        module_table.set("inputln", BuiltInFunction.inputln)
-        module_table.set("rawPy", BuiltInFunction.rawPy)
-        module_table.set("rawPyx", BuiltInFunction.rawPyx)
-        module_table.set("strOf", BuiltInFunction.strOf)
-        module_table.set("intOf", BuiltInFunction.intOf)
-        module_table.set("floatOf", BuiltInFunction.floatOf)
-        module_table.set("returnType", BuiltInFunction.returnType)
-        module_table.set("returnLength", BuiltInFunction.returnLength)
-        module_table.set("seqFromTo", BuiltInFunction.seqFromTo)
-        module_table.set("range", BuiltInFunction.range)
-        module_table.set("cleanRawPyxCache", BuiltInFunction.cleanRawPyxCache)
-        module_table.set("listJsonArray", BuiltInFunction.listJsonArray)
-        module_table.set("listJsonObject", BuiltInFunction.listJsonObject)
-        module_table.set("splitStr", BuiltInFunction.splitStr)
-        module_table.set("listFlatten", BuiltInFunction.listFlatten)
-        module_table.set("listUnique", BuiltInFunction.listUnique)
-        module_table.set("listPush", BuiltInFunction.listPush)
-        module_table.set("listPop", BuiltInFunction.listPop)
-        module_table.set("listGet", BuiltInFunction.listGet)
-        module_table.set("listSet", BuiltInFunction.listSet)
-        module_table.set("listSlice", BuiltInFunction.listSlice)
-        module_table.set("listContains", BuiltInFunction.listContains)
-        module_table.set("listJoin", BuiltInFunction.listJoin)
-        module_table.set("listIndex", BuiltInFunction.listIndex)
-        module_table.set("listRemove", BuiltInFunction.listRemove)
-        module_table.set("anyOf", BuiltInFunction.anyOf)
-        module_table.set("allOf", BuiltInFunction.allOf)
-        module_table.set("sumOf", BuiltInFunction.sumOf)
-        module_table.set("sortList", BuiltInFunction.sortList)
-        module_table.set("reverseList", BuiltInFunction.reverseList)
-        module_table.set("listMin", BuiltInFunction.listMin)
-        module_table.set("listMax", BuiltInFunction.listMax)
-        module_table.set("tupleCreate", BuiltInFunction.tupleCreate)
-        module_table.set("tupleGet", BuiltInFunction.tupleGet)
-        module_table.set("tupleLen", BuiltInFunction.tupleLen)
-        module_table.set("tupleContains", BuiltInFunction.tupleContains)
-        module_table.set("tupleIndex", BuiltInFunction.tupleIndex)
-        module_table.set("tupleSlice", BuiltInFunction.tupleSlice)
-        module_table.set("tupleToList", BuiltInFunction.tupleToList)
-        module_table.set("listToTuple", BuiltInFunction.listToTuple)
-        module_table.set("tupleConcat", BuiltInFunction.tupleConcat)
-        module_table.set("tupleCount", BuiltInFunction.tupleCount)
-        module_table.set("tupleFirst", BuiltInFunction.tupleFirst)
-        module_table.set("tupleLast", BuiltInFunction.tupleLast)
-        module_table.set("tupleJsonArray", BuiltInFunction.tupleJsonArray)
+        register_builtins(module_table)
         module_table.set("class", ClassRegistry())
 
         if use_bytecode:
@@ -7691,56 +7533,7 @@ class Interpreter:
             ))
 
         module_table = SymbolTable(global_symbol_table)
-        module_table.set("true", Number.true)
-        module_table.set("false", Number.false)
-        module_table.set("print", BuiltInFunction.print)
-        module_table.set("println", BuiltInFunction.println)
-        module_table.set("input", BuiltInFunction.input)
-        module_table.set("inputln", BuiltInFunction.inputln)
-        module_table.set("rawPy", BuiltInFunction.rawPy)
-        module_table.set("rawPyx", BuiltInFunction.rawPyx)
-        module_table.set("strOf", BuiltInFunction.strOf)
-        module_table.set("intOf", BuiltInFunction.intOf)
-        module_table.set("floatOf", BuiltInFunction.floatOf)
-        module_table.set("returnType", BuiltInFunction.returnType)
-        module_table.set("returnLength", BuiltInFunction.returnLength)
-        module_table.set("seqFromTo", BuiltInFunction.seqFromTo)
-        module_table.set("range", BuiltInFunction.range)
-        module_table.set("cleanRawPyxCache", BuiltInFunction.cleanRawPyxCache)
-        module_table.set("listJsonArray", BuiltInFunction.listJsonArray)
-        module_table.set("listJsonObject", BuiltInFunction.listJsonObject)
-        module_table.set("splitStr", BuiltInFunction.splitStr)
-        module_table.set("listFlatten", BuiltInFunction.listFlatten)
-        module_table.set("listUnique", BuiltInFunction.listUnique)
-        module_table.set("listPush", BuiltInFunction.listPush)
-        module_table.set("listPop", BuiltInFunction.listPop)
-        module_table.set("listGet", BuiltInFunction.listGet)
-        module_table.set("listSet", BuiltInFunction.listSet)
-        module_table.set("listSlice", BuiltInFunction.listSlice)
-        module_table.set("listContains", BuiltInFunction.listContains)
-        module_table.set("listJoin", BuiltInFunction.listJoin)
-        module_table.set("listIndex", BuiltInFunction.listIndex)
-        module_table.set("listRemove", BuiltInFunction.listRemove)
-        module_table.set("anyOf", BuiltInFunction.anyOf)
-        module_table.set("allOf", BuiltInFunction.allOf)
-        module_table.set("sumOf", BuiltInFunction.sumOf)
-        module_table.set("sortList", BuiltInFunction.sortList)
-        module_table.set("reverseList", BuiltInFunction.reverseList)
-        module_table.set("listMin", BuiltInFunction.listMin)
-        module_table.set("listMax", BuiltInFunction.listMax)
-        module_table.set("tupleCreate", BuiltInFunction.tupleCreate)
-        module_table.set("tupleGet", BuiltInFunction.tupleGet)
-        module_table.set("tupleLen", BuiltInFunction.tupleLen)
-        module_table.set("tupleContains", BuiltInFunction.tupleContains)
-        module_table.set("tupleIndex", BuiltInFunction.tupleIndex)
-        module_table.set("tupleSlice", BuiltInFunction.tupleSlice)
-        module_table.set("tupleToList", BuiltInFunction.tupleToList)
-        module_table.set("listToTuple", BuiltInFunction.listToTuple)
-        module_table.set("tupleConcat", BuiltInFunction.tupleConcat)
-        module_table.set("tupleCount", BuiltInFunction.tupleCount)
-        module_table.set("tupleFirst", BuiltInFunction.tupleFirst)
-        module_table.set("tupleLast", BuiltInFunction.tupleLast)
-        module_table.set("tupleJsonArray", BuiltInFunction.tupleJsonArray)
+        register_builtins(module_table)
         module_table.set("class", ClassRegistry())
 
         if use_bytecode:
@@ -7822,64 +7615,17 @@ class Interpreter:
 
         return res.success(Number.null)
 
+# Built-in functions live in their own module. Importing here, after all runtime
+# value types are defined, avoids a circular import during module startup.
+from .builtins import BuiltInFunction, register_builtins
+
 # global symbol table
 
 global_symbol_table = SymbolTable()
 global_symbol_table.set("true", Number.true)
 global_symbol_table.set("false", Number.false)
-global_symbol_table.set("print", BuiltInFunction.print)
-global_symbol_table.set("println", BuiltInFunction.println)
-global_symbol_table.set("inputln", BuiltInFunction.inputln)
-global_symbol_table.set("input", BuiltInFunction.input)
-global_symbol_table.set("rawPy", BuiltInFunction.rawPy)
-global_symbol_table.set("rawPyx", BuiltInFunction.rawPyx)
-global_symbol_table.set("strOf", BuiltInFunction.strOf)
-global_symbol_table.set("intOf", BuiltInFunction.intOf)
-global_symbol_table.set("floatOf", BuiltInFunction.floatOf)
-global_symbol_table.set("returnType", BuiltInFunction.returnType)
-global_symbol_table.set("returnLength", BuiltInFunction.returnLength)
-global_symbol_table.set("seqFromTo", BuiltInFunction.seqFromTo)
-global_symbol_table.set("range", BuiltInFunction.range)
-global_symbol_table.set("cleanRawPyxCache", BuiltInFunction.cleanRawPyxCache)
-global_symbol_table.set("listJsonArray", BuiltInFunction.listJsonArray)
-global_symbol_table.set("listJsonObject", BuiltInFunction.listJsonObject)
-global_symbol_table.set("splitStr", BuiltInFunction.splitStr)
-global_symbol_table.set("listFlatten", BuiltInFunction.listFlatten)
-global_symbol_table.set("listUnique", BuiltInFunction.listUnique)
-global_symbol_table.set("listPush", BuiltInFunction.listPush)
-global_symbol_table.set("listPop", BuiltInFunction.listPop)
-global_symbol_table.set("listGet", BuiltInFunction.listGet)
-global_symbol_table.set("listSet", BuiltInFunction.listSet)
-global_symbol_table.set("listSlice", BuiltInFunction.listSlice)
-global_symbol_table.set("listContains", BuiltInFunction.listContains)
-global_symbol_table.set("listJoin", BuiltInFunction.listJoin)
-global_symbol_table.set("listIndex", BuiltInFunction.listIndex)
-global_symbol_table.set("listRemove", BuiltInFunction.listRemove)
-global_symbol_table.set("anyOf", BuiltInFunction.anyOf)
-global_symbol_table.set("allOf", BuiltInFunction.allOf)
-global_symbol_table.set("sumOf", BuiltInFunction.sumOf)
-global_symbol_table.set("sortList", BuiltInFunction.sortList)
-global_symbol_table.set("reverseList", BuiltInFunction.reverseList)
-global_symbol_table.set("listMin", BuiltInFunction.listMin)
-global_symbol_table.set("listMax", BuiltInFunction.listMax)
-global_symbol_table.set("asyncRun", BuiltInFunction.asyncRun)
-global_symbol_table.set("asyncGather", BuiltInFunction.asyncGather)
-global_symbol_table.set("asyncSleep", BuiltInFunction.asyncSleep)
-global_symbol_table.set("tupleCreate", BuiltInFunction.tupleCreate)
-global_symbol_table.set("tupleGet", BuiltInFunction.tupleGet)
-global_symbol_table.set("tupleLen", BuiltInFunction.tupleLen)
-global_symbol_table.set("tupleContains", BuiltInFunction.tupleContains)
-global_symbol_table.set("tupleIndex", BuiltInFunction.tupleIndex)
-global_symbol_table.set("tupleSlice", BuiltInFunction.tupleSlice)
-global_symbol_table.set("tupleToList", BuiltInFunction.tupleToList)
-global_symbol_table.set("listToTuple", BuiltInFunction.listToTuple)
-global_symbol_table.set("tupleConcat", BuiltInFunction.tupleConcat)
-global_symbol_table.set("tupleCount", BuiltInFunction.tupleCount)
-global_symbol_table.set("tupleFirst", BuiltInFunction.tupleFirst)
-global_symbol_table.set("tupleLast", BuiltInFunction.tupleLast)
-global_symbol_table.set("tupleJsonArray", BuiltInFunction.tupleJsonArray)
+register_builtins(global_symbol_table)
 global_symbol_table.set("embedPy", EmbedPyNamespace())
-global_symbol_table.set("overrideMain", BuiltInFunction.overrideMain)
 
 SHARED_INTERPRETER = Interpreter()
 
