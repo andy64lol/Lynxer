@@ -1,0 +1,34 @@
+global setup(){
+    import("math");
+    const str LANG = "Lynxer";
+}
+
+global greet(str name){
+    print("Hello, "); print(name); print("!\n");
+}
+
+global main(){
+    int x = 10;
+    float pi = 3.14;
+    bool ok = true;
+
+    x += 5;
+
+    if(x > 10){
+        global.greet(LANG);
+    }
+
+    for(int i = 0; i < 3; i = i + 1){
+        print(i); print("\n");
+    }
+
+    // inline Python
+    int result = 0;
+    rawPy(){
+        result = sum(range(1, 11))
+    }
+    print(result); print("\n");
+
+    // stdlib
+    print(global.math.sqrt(144)); print("\n");
+}
