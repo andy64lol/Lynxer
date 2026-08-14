@@ -564,6 +564,40 @@ global main(){
 
 ## rawPy and rawPyx
 
+### exec block
+
+`exec(){...}` parses and runs the Lynxer statements inside the block directly
+in the current function context. Variables, control flow, `return`, and calls
+therefore behave as if the statements had been written at the `exec` location.
+
+```c
+global greet(str name){
+    exec(){
+        print("Hello, ");
+        print(name);
+        print("!\n");
+    }
+}
+```
+
+An `exec` block cannot define `local`, `global`, or `async` functions,
+including inside nested control-flow blocks. It can call functions that were
+defined elsewhere:
+
+```c
+global add(int a, int b){
+    return a + b;
+}
+
+global main(){
+    int result = 0;
+    exec(){
+        result = global.add(20, 22);
+    }
+    print(result); print("\n"); // 42
+}
+```
+
 ### rawPy block
 
 Embeds a Python code block inside a Lynxer function. Variables from the surrounding Lynxer scope are bridged into and out of the block.

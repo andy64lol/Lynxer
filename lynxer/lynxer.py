@@ -186,6 +186,7 @@ TT_SHL = "SHL"
 TT_SHR = "SHR"
 TT_RAWPY_BLOCK = "RAWPY_BLOCK"
 TT_RAWPYX_BLOCK = "RAWPYX_BLOCK"
+TT_EXEC_BLOCK = "EXEC_BLOCK"
 TT_LBRACKET = "LBRACKET"
 TT_RBRACKET = "RBRACKET"
 TT_EOF = "EOF"
@@ -289,6 +290,12 @@ class Lexer:
                 elif tok.type == TT_IDENTIFIER and tok.value == "rawPyx":
                     block_tok = self._try_consume_brace_block(
                         tok.pos_start, TT_RAWPYX_BLOCK
+                    )
+                    if block_tok is not None:
+                        tokens.append(block_tok)
+                elif tok.type == TT_IDENTIFIER and tok.value == "exec":
+                    block_tok = self._try_consume_brace_block(
+                        tok.pos_start, TT_EXEC_BLOCK
                     )
                     if block_tok is not None:
                         tokens.append(block_tok)
@@ -737,7 +744,7 @@ class ForeverNode:
 class FuncDefNode:
     def __init__(
         self, kind_tok, var_name_tok, param_toks, body_block, pos_start, pos_end,
-        is_async=False
+        is_async=False, code_block_toks=None
     ):
         self.kind_tok = kind_tok
         self.var_name_tok = var_name_tok
@@ -746,6 +753,7 @@ class FuncDefNode:
         self.pos_start = pos_start
         self.pos_end = pos_end
         self.is_async = is_async
+        self.code_block_toks = code_block_toks or []
 
 class AwaitNode:
     """await expr — suspends inside an async function until the coroutine resolves."""
@@ -772,9 +780,33 @@ class AsyncDotCallNode:
         self.pos_end = pos_end
 
 class CallNode:
-    def __init__(self, node_to_call, arg_nodes, pos_start, pos_end):
+    def __init__(
+        self, node_to_call, arg_nodes, pos_start, pos_end, block_arg_nodes=None
+    ):
         self.node_to_call = node_to_call
         self.arg_nodes = arg_nodes
+        self.pos_start = pos_start
+        self.pos_end = pos_end
+        self.block_arg_nodes = block_arg_nodes or []
+
+class CodeBlockRefNode:
+    """Reference to a named code-block parameter, used by ``exec({name})``."""
+    def __init__(self, name_tok):
+        self.name_tok = name_tok
+        self.pos_start = name_tok.pos_start
+        self.pos_end = name_tok.pos_end
+
+class CodeBlockLiteralNode:
+    """A code block supplied after a function call, e.g. ``fn(){ ... }``."""
+    def __init__(self, body_block, pos_start, pos_end):
+        self.body_block = body_block
+        self.pos_start = pos_start
+        self.pos_end = pos_end
+
+class ExecCallNode:
+    """Execute a named code-block parameter: ``exec({name})``."""
+    def __init__(self, code_block_node, pos_start, pos_end):
+        self.code_block_node = code_block_node
         self.pos_start = pos_start
         self.pos_end = pos_end
 
@@ -814,6 +846,13 @@ class RawPyBlockNode:
 class RawPyxBlockNode:
     def __init__(self, code, pos_start, pos_end):
         self.code = code
+        self.pos_start = pos_start
+        self.pos_end = pos_end
+
+class ExecBlockNode:
+    """Lynxer code injected into and executed in the current context."""
+    def __init__(self, body_block, pos_start, pos_end):
+        self.body_block = body_block
         self.pos_start = pos_start
         self.pos_end = pos_end
 
@@ -959,6 +998,7 @@ class Parser:
         self.tok_idx = -1
         self._loop_depth = 0       # tracks nesting depth of for/while/iterate/forever
         self._in_global_func = False
+        self._exec_mode = False    # parse injected exec() code with no function definitions
         self.current_tok: Token = (
             tokens[0]
             if tokens
@@ -1223,6 +1263,47 @@ class Parser:
         res.register_advancement()
         self.advance()
 
+        code_block_toks = []
+        if self._looks_like_code_block_signature():
+            res.register_advancement()
+            self.advance()  # consume the code-block signature '{'
+
+            while self.current_tok.type != TT_RBRACE and self.current_tok.type != TT_EOF:
+                if self.current_tok.type != TT_IDENTIFIER:
+                    return res.failure(InvalidSyntaxError(
+                        self.current_tok.pos_start,
+                        self.current_tok.pos_end,
+                        "Expected a code-block name",
+                    ))
+                code_block_toks.append(self.current_tok)
+                res.register_advancement()
+                self.advance()
+
+                if self.current_tok.type == TT_COMMA:
+                    res.register_advancement()
+                    self.advance()
+                    if self.current_tok.type == TT_RBRACE:
+                        return res.failure(InvalidSyntaxError(
+                            self.current_tok.pos_start,
+                            self.current_tok.pos_end,
+                            "Expected a code-block name after ','",
+                        ))
+                elif self.current_tok.type != TT_RBRACE:
+                    return res.failure(InvalidSyntaxError(
+                        self.current_tok.pos_start,
+                        self.current_tok.pos_end,
+                        "Expected ',' or '}' after code-block name",
+                    ))
+
+            if self.current_tok.type != TT_RBRACE:
+                return res.failure(InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "Expected '}' after code-block parameter list",
+                ))
+            res.register_advancement()
+            self.advance()
+
         is_setup = name_tok.value == "setup"
         _is_global_def = kind_tok.value == "global" or (
             kind_tok.type == TT_IDENTIFIER and kind_tok.value == "global"
@@ -1242,8 +1323,32 @@ class Parser:
         pos_end = self.current_tok.pos_end.copy()
         return res.success(
             FuncDefNode(kind_tok, name_tok, param_toks, body, pos_start, pos_end,
-                        is_async=is_async)
+                        is_async=is_async, code_block_toks=code_block_toks)
         )
+
+    def _looks_like_code_block_signature(self):
+        """Return whether the brace after a function's ')' is a block signature.
+
+        A normal function body also starts with '{', so the only unambiguous
+        distinction is whether its matching '}' is immediately followed by the
+        actual function-body '{'.
+        """
+        if self.current_tok.type != TT_LBRACE:
+            return False
+
+        depth = 0
+        index = self.tok_idx
+        while index < len(self.tokens):
+            token = self.tokens[index]
+            if token.type == TT_LBRACE:
+                depth += 1
+            elif token.type == TT_RBRACE:
+                depth -= 1
+                if depth == 0:
+                    next_token = self.tokens[index + 1] if index + 1 < len(self.tokens) else None
+                    return next_token is not None and next_token.type == TT_LBRACE
+            index += 1
+        return False
 
     def parse_class_def(self):
         """Parse: class ClassName { [const] type field = value; ... def method(params){} ... }"""
@@ -1365,7 +1470,8 @@ class Parser:
                 continue
             stmt = res.register(
                 self.parse_statement(
-                    in_setup=in_setup, allow_local_funcs=allow_local_funcs
+                    in_setup=in_setup,
+                    allow_local_funcs=allow_local_funcs and not self._exec_mode,
                 )
             )
             if res.error:
@@ -1383,6 +1489,47 @@ class Parser:
         self.advance()
 
         return res.success(BlockNode(statements, pos_start, pos_end))
+
+    def parse_exec_source(self, code, in_setup=False):
+        """Parse an ``exec(){...}`` body as statements to inject at runtime.
+
+        The nested parser deliberately starts outside a global function and
+        disables local-function parsing.  This rejects global, local, and
+        async function definitions while still allowing normal statements and
+        calls to functions defined by the surrounding program.
+        """
+        lexer = Lexer(self.current_tok.pos_start.fn, code)
+        tokens, error = lexer.make_tokens()
+        if error:
+            return ParseResult().failure(error)
+
+        parser = Parser(tokens)
+        parser._exec_mode = True
+        parser._loop_depth = self._loop_depth
+        return parser.parse_exec_block(in_setup=in_setup)
+
+    def parse_exec_block(self, in_setup=False):
+        """Parse standalone statements until the injected source reaches EOF."""
+        res = ParseResult()
+        pos_start = self.current_tok.pos_start.copy()
+        statements = []
+
+        while self.current_tok.type != TT_EOF:
+            if self.current_tok.type == TT_DOCSTRING:
+                res.register_advancement()
+                self.advance()
+                continue
+
+            stmt = res.register(
+                self.parse_statement(in_setup=in_setup, allow_local_funcs=False)
+            )
+            if res.error:
+                return res
+            statements.append(stmt)
+
+        return res.success(
+            BlockNode(statements, pos_start, self.current_tok.pos_end.copy())
+        )
 
     def parse_statement(self, in_setup=False, allow_local_funcs=False):
         res = ParseResult()
@@ -1725,6 +1872,22 @@ class Parser:
                 res.register_advancement()
                 self.advance()
                 return res.success(RawPyxBlockNode(code, pos_start, pos_end))
+
+            if (
+                self.current_tok.value == "exec"
+                and next_tok
+                and next_tok.type == TT_EXEC_BLOCK
+            ):
+                res.register_advancement()
+                self.advance()
+                code = self.current_tok.value
+                pos_end = self.current_tok.pos_end.copy()
+                exec_res = self.parse_exec_source(code, in_setup=in_setup)
+                if exec_res.error:
+                    return res.failure(exec_res.error)
+                res.register_advancement()
+                self.advance()
+                return res.success(ExecBlockNode(exec_res.node, pos_start, pos_end))
 
             if next_tok and next_tok.type in (TT_EQ, TT_PLUSEQ, TT_MINUSEQ, TT_MULEQ, TT_DIVEQ, TT_MODEQ):
                 node = res.register(self.parse_assign())
@@ -3317,6 +3480,26 @@ class Parser:
                 self.advance()
                 arg_nodes = []
 
+                is_exec_ref_call = (
+                    isinstance(atom, VarAccessNode)
+                    and atom.var_name_tok.value == "exec"
+                )
+                if is_exec_ref_call and self.current_tok.type == TT_LBRACE:
+                    code_block_node = res.register(self.parse_code_block_ref())
+                    if res.error:
+                        return res
+                    if self.current_tok.type != TT_RPAREN:
+                        return res.failure(InvalidSyntaxError(
+                            self.current_tok.pos_start,
+                            self.current_tok.pos_end,
+                            "exec() accepts exactly one code-block reference",
+                        ))
+                    pos_end = self.current_tok.pos_end.copy()
+                    res.register_advancement()
+                    self.advance()
+                    atom = ExecCallNode(code_block_node, pos_start, pos_end)
+                    continue
+
                 if self.current_tok.type != TT_RPAREN:
                     arg_nodes.append(res.register(self.parse_expr()))
                     if res.error:
@@ -3343,10 +3526,62 @@ class Parser:
                 self.advance()
                 atom = CallNode(atom, arg_nodes, pos_start, pos_end)
 
+            elif self.current_tok.type == TT_LBRACE and isinstance(atom, CallNode):
+                block_node = res.register(self.parse_code_block_literal())
+                if res.error:
+                    return res
+                atom.block_arg_nodes.append(block_node)
+                atom.pos_end = block_node.pos_end
+
             else:
                 break
 
         return res.success(atom)
+
+    def parse_code_block_ref(self):
+        res = ParseResult()
+        pos_start = self.current_tok.pos_start.copy()
+        res.register_advancement()
+        self.advance()  # consume '{'
+
+        if self.current_tok.type != TT_IDENTIFIER:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start,
+                self.current_tok.pos_end,
+                "Expected a code-block name inside exec({ ... })",
+            ))
+        name_tok = self.current_tok
+        res.register_advancement()
+        self.advance()
+
+        if self.current_tok.type != TT_RBRACE:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start,
+                self.current_tok.pos_end,
+                "Expected '}' after code-block name",
+            ))
+        res.register_advancement()
+        self.advance()
+        return res.success(CodeBlockRefNode(name_tok))
+
+    def parse_code_block_literal(self):
+        """Parse a caller-supplied block without allowing function definitions."""
+        res = ParseResult()
+        pos_start = self.current_tok.pos_start.copy()
+        previous_exec_mode = self._exec_mode
+        previous_global_func = self._in_global_func
+        previous_loop_depth = self._loop_depth
+        self._exec_mode = True
+        self._in_global_func = False
+        try:
+            body = res.register(self.parse_block(in_setup=False, allow_local_funcs=False))
+        finally:
+            self._exec_mode = previous_exec_mode
+            self._in_global_func = previous_global_func
+            self._loop_depth = previous_loop_depth
+        if res.error:
+            return res
+        return res.success(CodeBlockLiteralNode(body, pos_start, body.pos_end))
 
     def parse_atom(self):
         res = ParseResult()
@@ -3769,6 +4004,21 @@ class Value:
             other = self
         return RTError(self.pos_start, other.pos_end, "Illegal operation", self.context)
 
+class CodeBlockValue(Value):
+    """A code block captured from a function call."""
+    def __init__(self, body_node):
+        super().__init__()
+        self.body_node = body_node
+
+    def copy(self):
+        c = CodeBlockValue(self.body_node)
+        c.set_pos(self.pos_start, self.pos_end)
+        c.set_context(self.context)
+        return c
+
+    def __repr__(self):
+        return "<code block>"
+
 class Number(Value):
     null: ClassVar["Number"]
     false: ClassVar["Number"]
@@ -4120,6 +4370,8 @@ def value_type_name(v):
         return "tuple"
     if isinstance(v, List):
         return "list"
+    if isinstance(v, CodeBlockValue):
+        return "codeblock"
     if isinstance(v, VarGroup):
         return "vargroup"
     if isinstance(v, (Function, BuiltInFunction)):
@@ -4205,12 +4457,16 @@ class BaseFunction(Value):
         return res.success(None)
 
 class Function(BaseFunction):
-    def __init__(self, name, body_node, param_names, param_types=None, is_global=False):
+    def __init__(
+        self, name, body_node, param_names, param_types=None, is_global=False,
+        code_block_names=None
+    ):
         super().__init__(name)
         self.body_node = body_node
         self.param_names = param_names
         self.param_types = param_types or [None] * len(param_names)
         self.is_global = is_global
+        self.code_block_names = code_block_names or []
         self.inner_locals = {}
         self.inner_globals = {}
         self.global_path: list[str] | None = None
@@ -4227,7 +4483,7 @@ class Function(BaseFunction):
             self.context,
         )
 
-    def execute(self, args):
+    def execute(self, args, code_blocks=None):
         res = RTResult()
         interpreter = SHARED_INTERPRETER
         exec_ctx = self.generate_new_context()
@@ -4243,6 +4499,20 @@ class Function(BaseFunction):
         if res.should_return():
             return res
 
+        code_blocks = code_blocks or []
+        if len(code_blocks) != len(self.code_block_names):
+            return res.failure(RTError(
+                self.pos_start,
+                self.pos_end,
+                f"Function '{self.name}' expects exactly "
+                f"{len(self.code_block_names)} code block(s), but got "
+                f"{len(code_blocks)}",
+                exec_ctx,
+            ))
+        for block_name, block_value in zip(self.code_block_names, code_blocks):
+            block_value = block_value.copy().set_context(exec_ctx)
+            exec_ctx.symbol_table.set(block_name, block_value)
+
         exec_ctx.symbol_table.set("local", LocalNamespace(exec_ctx.symbol_table))
 
         res.register(interpreter.visit(self.body_node, exec_ctx))
@@ -4255,7 +4525,14 @@ class Function(BaseFunction):
         return res.success(ret_value)
 
     def copy(self):
-        c = Function(self.name, self.body_node, self.param_names, self.param_types, self.is_global)
+        c = Function(
+            self.name,
+            self.body_node,
+            self.param_names,
+            self.param_types,
+            self.is_global,
+            self.code_block_names,
+        )
         c.set_context(self.context)
         c.set_pos(self.pos_start, self.pos_end)
         c.inner_locals = dict(self.inner_locals)
@@ -4269,12 +4546,16 @@ class Function(BaseFunction):
 class AsyncFunction(BaseFunction):
     """User-defined async function.  Calling it returns a CoroutineValue."""
 
-    def __init__(self, name, body_node, param_names, param_types=None, is_global=False):
+    def __init__(
+        self, name, body_node, param_names, param_types=None, is_global=False,
+        code_block_names=None
+    ):
         super().__init__(name)
         self.body_node = body_node
         self.param_names = param_names
         self.param_types = param_types or [None] * len(param_names)
         self.is_global = is_global
+        self.code_block_names = code_block_names or []
         self.inner_locals = {}
         self.inner_globals = {}
         self.global_path: list[str] | None = None
@@ -4291,7 +4572,7 @@ class AsyncFunction(BaseFunction):
             self.context,
         )
 
-    def execute(self, args):
+    def execute(self, args, code_blocks=None):
         res = RTResult()
         exec_ctx = self.generate_new_context()
         exec_ctx.current_function = self  # track for inner-local/inner-global registration
@@ -4305,6 +4586,20 @@ class AsyncFunction(BaseFunction):
         )
         if res.should_return():
             return res
+
+        code_blocks = code_blocks or []
+        if len(code_blocks) != len(self.code_block_names):
+            return res.failure(RTError(
+                self.pos_start,
+                self.pos_end,
+                f"Function '{self.name}' expects exactly "
+                f"{len(self.code_block_names)} code block(s), but got "
+                f"{len(code_blocks)}",
+                exec_ctx,
+            ))
+        for block_name, block_value in zip(self.code_block_names, code_blocks):
+            block_value = block_value.copy().set_context(exec_ctx)
+            exec_ctx.symbol_table.set(block_name, block_value)
 
         exec_ctx.symbol_table.set("local", LocalNamespace(exec_ctx.symbol_table))
 
@@ -4324,7 +4619,14 @@ class AsyncFunction(BaseFunction):
         return RTResult().success(CoroutineValue(_coro()))
 
     def copy(self):
-        c = AsyncFunction(self.name, self.body_node, self.param_names, self.param_types, self.is_global)
+        c = AsyncFunction(
+            self.name,
+            self.body_node,
+            self.param_names,
+            self.param_types,
+            self.is_global,
+            self.code_block_names,
+        )
         c.set_context(self.context)
         c.set_pos(self.pos_start, self.pos_end)
         c.inner_locals = dict(self.inner_locals)
@@ -4802,7 +5104,7 @@ class BoundMethod(Value):
         self.func = func
         self.class_obj = class_obj   # ClassBlueprint
 
-    def execute(self, args):
+    def execute(self, args, code_blocks=None):
         res = RTResult()
         interpreter = SHARED_INTERPRETER
         exec_ctx = self.func.generate_new_context()
@@ -4814,6 +5116,19 @@ class BoundMethod(Value):
         )
         if res.should_return():
             return res
+        code_blocks = code_blocks or []
+        if len(code_blocks) != len(self.func.code_block_names):
+            return res.failure(RTError(
+                self.pos_start,
+                self.pos_end,
+                f"Function '{self.func.name}' expects exactly "
+                f"{len(self.func.code_block_names)} code block(s), but got "
+                f"{len(code_blocks)}",
+                exec_ctx,
+            ))
+        for block_name, block_value in zip(self.func.code_block_names, code_blocks):
+            block_value = block_value.copy().set_context(exec_ctx)
+            exec_ctx.symbol_table.set(block_name, block_value)
         res.register(interpreter.visit(self.func.body_node, exec_ctx))
         if res.should_return() and res.func_return_value is None:
             return res
@@ -5040,10 +5355,25 @@ def _preregister_nested_globals(parent_func, block_node, context):
                 continue
             param_names = [p[1].value for p in stmt.param_toks]
             param_types = [p[0].value if p[0] else None for p in stmt.param_toks]
+            code_block_names = [tok.value for tok in stmt.code_block_toks]
             if stmt.is_async:
-                child_func = AsyncFunction(child_name, stmt.body_block, param_names, param_types, is_global=True)
+                child_func = AsyncFunction(
+                    child_name,
+                    stmt.body_block,
+                    param_names,
+                    param_types,
+                    is_global=True,
+                    code_block_names=code_block_names,
+                )
             else:
-                child_func = Function(child_name, stmt.body_block, param_names, param_types, is_global=True)
+                child_func = Function(
+                    child_name,
+                    stmt.body_block,
+                    param_names,
+                    param_types,
+                    is_global=True,
+                    code_block_names=code_block_names,
+                )
             child_func.set_context(context)
             child_func.set_pos(stmt.pos_start, stmt.pos_end)
             parent_path = parent_func.global_path or [parent_func.name]
@@ -5563,13 +5893,28 @@ class Interpreter:
         func_name = node.var_name_tok.value
         param_names = [p[1].value for p in node.param_toks]
         param_types = [p[0].value if p[0] else None for p in node.param_toks]
+        code_block_names = [tok.value for tok in node.code_block_toks]
         is_global = node.kind_tok.value == "global" or (
             node.kind_tok.type == TT_IDENTIFIER and node.kind_tok.value == "global"
         )
         if node.is_async:
-            func_value = AsyncFunction(func_name, node.body_block, param_names, param_types, is_global)
+            func_value = AsyncFunction(
+                func_name,
+                node.body_block,
+                param_names,
+                param_types,
+                is_global,
+                code_block_names,
+            )
         else:
-            func_value = Function(func_name, node.body_block, param_names, param_types, is_global)
+            func_value = Function(
+                func_name,
+                node.body_block,
+                param_names,
+                param_types,
+                is_global,
+                code_block_names,
+            )
         func_value.set_context(context).set_pos(node.pos_start, node.pos_end)
 
         if is_global:
@@ -5656,6 +6001,9 @@ class Interpreter:
             if res.should_return():
                 return res
         return res.success(Number.null)
+
+    async def async_visit_ExecBlockNode(self, node, context):
+        return await self.async_visit(node.body_block, context)
 
     async def async_visit_AwaitNode(self, node, context):
         res = RTResult()
@@ -6058,9 +6406,30 @@ class Interpreter:
             value = Number.null
         return res.success_return(value)
 
+    async def async_visit_CodeBlockLiteralNode(self, node, context):
+        return self.visit_CodeBlockLiteralNode(node, context)
+
+    async def async_visit_CodeBlockRefNode(self, node, context):
+        return self.visit_CodeBlockRefNode(node, context)
+
+    async def async_visit_ExecCallNode(self, node, context):
+        res = RTResult()
+        block = res.register(await self.async_visit(node.code_block_node, context))
+        if res.should_return():
+            return res
+        if not isinstance(block, CodeBlockValue):
+            return res.failure(RTError(
+                node.pos_start,
+                node.pos_end,
+                "exec() expects a code-block parameter reference",
+                context,
+            ))
+        return await self.async_visit(block.body_node, context)
+
     async def async_visit_CallNode(self, node, context):
         res = RTResult()
         args = []
+        block_args = []
         value_to_call = res.register(await self.async_visit(node.node_to_call, context))
         if res.should_return():
             return res
@@ -6091,7 +6460,22 @@ class Interpreter:
             if res.should_return():
                 return res
 
-        return_value = res.register(value_to_call.execute(args))
+        for block_node in node.block_arg_nodes:
+            block_args.append(res.register(await self.async_visit(block_node, context)))
+            if res.should_return():
+                return res
+
+        if isinstance(value_to_call, (Function, AsyncFunction, BoundMethod)):
+            return_value = res.register(value_to_call.execute(args, block_args))
+        elif block_args:
+            return res.failure(RTError(
+                node.pos_start,
+                node.pos_end,
+                "Only user-defined functions can receive code blocks",
+                context,
+            ))
+        else:
+            return_value = res.register(value_to_call.execute(args))
         if res.should_return():
             return res
         if return_value is None:
@@ -6212,9 +6596,52 @@ class Interpreter:
 
     # /async visitor path
 
+    def visit_CodeBlockLiteralNode(self, node, context):
+        return RTResult().success(
+            CodeBlockValue(node.body_block)
+            .set_context(context)
+            .set_pos(node.pos_start, node.pos_end)
+        )
+
+    def visit_CodeBlockRefNode(self, node, context):
+        res = RTResult()
+        block = context.symbol_table.get(node.name_tok.value)
+        if block is None:
+            return res.failure(RTError(
+                node.pos_start,
+                node.pos_end,
+                f"Code-block parameter '{node.name_tok.value}' is not defined",
+                context,
+            ))
+        if not isinstance(block, CodeBlockValue):
+            return res.failure(RTError(
+                node.pos_start,
+                node.pos_end,
+                f"'{node.name_tok.value}' is not a code-block parameter",
+                context,
+            ))
+        return res.success(block.copy().set_context(context).set_pos(
+            node.pos_start, node.pos_end
+        ))
+
+    def visit_ExecCallNode(self, node, context):
+        res = RTResult()
+        block = res.register(self.visit(node.code_block_node, context))
+        if res.should_return():
+            return res
+        if not isinstance(block, CodeBlockValue):
+            return res.failure(RTError(
+                node.pos_start,
+                node.pos_end,
+                "exec() expects a code-block parameter reference",
+                context,
+            ))
+        return self.visit(block.body_node, context)
+
     def visit_CallNode(self, node, context):
         res = RTResult()
         args = []
+        block_args = []
 
         value_to_call = res.register(self.visit(node.node_to_call, context))
         if res.should_return():
@@ -6263,7 +6690,22 @@ class Interpreter:
             if res.should_return():
                 return res
 
-        return_value = res.register(value_to_call.execute(args))
+        for block_node in node.block_arg_nodes:
+            block_args.append(res.register(self.visit(block_node, context)))
+            if res.should_return():
+                return res
+
+        if isinstance(value_to_call, (Function, AsyncFunction, BoundMethod)):
+            return_value = res.register(value_to_call.execute(args, block_args))
+        elif block_args:
+            return res.failure(RTError(
+                node.pos_start,
+                node.pos_end,
+                "Only user-defined functions can receive code blocks",
+                context,
+            ))
+        else:
+            return_value = res.register(value_to_call.execute(args))
         if res.should_return():
             return res
         if return_value is None:
@@ -6605,6 +7047,10 @@ class Interpreter:
                 context.symbol_table.update_existing(name, new_val)
 
         return res.success(Number.null)
+
+    def visit_ExecBlockNode(self, node, context):
+        """Run injected Lynxer statements in the surrounding context."""
+        return self.visit(node.body_block, context)
 
     def visit_RawPyxBlockNode(self, node, context):
         res = RTResult()

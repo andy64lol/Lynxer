@@ -62,7 +62,7 @@ modules while keeping the core language and essential utilities.
 ## Verifying the install
 
 ```bash
-lynxer --version        # Lynxer 0.1.7b4
+lynxer --version        # Lynxer 0.1.7b6
 lynxer --compile a.lynx # compile to bytecode
 lynxer a.lynxc          # run compiled bytecode
 ```
