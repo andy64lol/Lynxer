@@ -1,0 +1,362 @@
+////
+  Lynxer Standard Library — mathPlus
+  The complete math API plus NumPy-backed numerical operations.
+  Requires: pip install numpy
+////
+
+global setup(){
+    import("math");
+}
+
+// Re-export the dependency-free math API.
+global abs(int n){ return global.math.abs(n); }
+global max(int a, int b){ return global.math.max(a, b); }
+global min(int a, int b){ return global.math.min(a, b); }
+global clamp(int val, int lo, int hi){ return global.math.clamp(val, lo, hi); }
+global pow(int base, int exp){ return global.math.pow(base, exp); }
+global floor(float n){ return global.math.floor(n); }
+global ceil(float n){ return global.math.ceil(n); }
+global sqrt(float n){ return global.math.sqrt(n); }
+global round(float n){ return global.math.round(n); }
+global roundNum(float n){ return global.math.roundNum(n); }
+global pi(){ return global.math.pi(); }
+global PI(){ return global.math.PI(); }
+global Pi(){ return global.math.Pi(); }
+global e(){ return global.math.e(); }
+global log(float n){ return global.math.log(n); }
+global log2(float n){ return global.math.log2(n); }
+global log10(float n){ return global.math.log10(n); }
+global sin(float n){ return global.math.sin(n); }
+global cos(float n){ return global.math.cos(n); }
+global tan(float n){ return global.math.tan(n); }
+global degrees(float n){ return global.math.degrees(n); }
+global radians(float n){ return global.math.radians(n); }
+global sign(float n){ return global.math.sign(n); }
+global isEven(int n){ return global.math.isEven(n); }
+global isOdd(int n){ return global.math.isOdd(n); }
+global factorial(int n){ return global.math.factorial(n); }
+global gcd(int a, int b){ return global.math.gcd(a, b); }
+global hypot(float a, float b){ return global.math.hypot(a, b); }
+global truncate(float n){ return global.math.truncate(n); }
+global randInt(int lo, int hi){ return global.math.randInt(lo, hi); }
+global randFloat(float lo, float hi){ return global.math.randFloat(lo, hi); }
+global lcm(int a, int b){ return global.math.lcm(a, b); }
+global isPrime(int n){ return global.math.isPrime(n); }
+global nextPrime(int n){ return global.math.nextPrime(n); }
+global binomial(int n, int k){ return global.math.binomial(n, k); }
+global isqrt(int n){ return global.math.isqrt(n); }
+global sumRange(int lo, int hi){ return global.math.sumRange(lo, hi); }
+global lerp(float lo, float hi, float t){ return global.math.lerp(lo, hi, t); }
+global clampFloat(float val, float lo, float hi){
+    return global.math.clampFloat(val, lo, hi);
+}
+global mapRange(float value, float inLo, float inHi, float outLo, float outHi){
+    return global.math.mapRange(value, inLo, inHi, outLo, outHi);
+}
+
+// All functions below require numpy to be installed.
+
+global tau(){
+    float result = 0.0;
+    rawPy(){
+        import numpy as _np
+        result = float(_np.pi * 2)
+    }
+    return result;
+}
+
+global exp(float n){
+    float result = 0.0;
+    rawPy(){
+        import numpy as _np
+        result = float(_np.exp(n))
+    }
+    return result;
+}
+
+global arcsin(float n){
+    float result = 0.0;
+    rawPy(){
+        import numpy as _np
+        try:
+            result = float(_np.arcsin(n))
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+global arccos(float n){
+    float result = 0.0;
+    rawPy(){
+        import numpy as _np
+        try:
+            result = float(_np.arccos(n))
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+global arctan(float n){
+    float result = 0.0;
+    rawPy(){
+        import numpy as _np
+        result = float(_np.arctan(n))
+    }
+    return result;
+}
+
+global arctan2(float y, float x){
+    float result = 0.0;
+    rawPy(){
+        import numpy as _np
+        result = float(_np.arctan2(y, x))
+    }
+    return result;
+}
+
+global sinh(float n){
+    float result = 0.0;
+    rawPy(){
+        import numpy as _np
+        result = float(_np.sinh(n))
+    }
+    return result;
+}
+
+global cosh(float n){
+    float result = 0.0;
+    rawPy(){
+        import numpy as _np
+        result = float(_np.cosh(n))
+    }
+    return result;
+}
+
+global tanh(float n){
+    float result = 0.0;
+    rawPy(){
+        import numpy as _np
+        result = float(_np.tanh(n))
+    }
+    return result;
+}
+
+global roundTo(float n, int decimals){
+    float result = 0.0;
+    rawPy(){
+        result = float(round(n, decimals))
+    }
+    return result;
+}
+
+global mean(list lst){
+    float result = 0.0;
+    rawPy(){
+        import numpy as _np
+        try:
+            result = float(_np.mean(lst))
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+global median(list lst){
+    float result = 0.0;
+    rawPy(){
+        import numpy as _np
+        try:
+            result = float(_np.median(lst))
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+global std(list lst){
+    float result = 0.0;
+    rawPy(){
+        import numpy as _np
+        try:
+            result = float(_np.std(lst))
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+global variance(list lst){
+    float result = 0.0;
+    rawPy(){
+        import numpy as _np
+        try:
+            result = float(_np.var(lst))
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+global percentile(list lst, float p){
+    float result = 0.0;
+    rawPy(){
+        import numpy as _np
+        try:
+            result = float(_np.percentile(lst, p))
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+global corrcoef(any a, any b){
+    float result = 0.0;
+    rawPy(){
+        import numpy as _np
+        try:
+            m = _np.corrcoef(a, b)
+            result = float(m[0, 1])
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+global prod(list lst){
+    float result = 0.0;
+    rawPy(){
+        import numpy as _np
+        try:
+            result = float(_np.prod(lst))
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+global argmax(list lst){
+    int result = 0;
+    rawPy(){
+        import numpy as _np
+        try:
+            result = int(_np.argmax(lst))
+        except Exception:
+            result = 0
+    }
+    return result;
+}
+
+global argmin(list lst){
+    int result = 0;
+    rawPy(){
+        import numpy as _np
+        try:
+            result = int(_np.argmin(lst))
+        except Exception:
+            result = 0
+    }
+    return result;
+}
+
+global dot(any a, any b){
+    float result = 0.0;
+    rawPy(){
+        import numpy as _np
+        try:
+            result = float(_np.dot(a, b))
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+global norm(list lst){
+    float result = 0.0;
+    rawPy(){
+        import numpy as _np
+        try:
+            result = float(_np.linalg.norm(lst))
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+global linspace(float start, float stop, int n){
+    str result = "";
+    rawPy(){
+        import numpy as _np
+        try:
+            arr = _np.linspace(start, stop, n)
+            result = "\x1f".join(str(float(x)) for x in arr)
+        except Exception:
+            result = ""
+    }
+    if(result is ""){ return seqFromTo(0, 0, 1); }
+    return splitStr(result, "\x1f");
+}
+
+global cumsum(list lst){
+    str result = "";
+    rawPy(){
+        import numpy as _np
+        try:
+            arr = _np.cumsum(lst)
+            result = "\x1f".join(str(float(x)) for x in arr)
+        except Exception:
+            result = ""
+    }
+    if(result is ""){ return seqFromTo(0, 0, 1); }
+    return splitStr(result, "\x1f");
+}
+
+global diff(list lst){
+    str result = "";
+    rawPy(){
+        import numpy as _np
+        try:
+            arr = _np.diff(lst)
+            result = "\x1f".join(str(float(x)) for x in arr)
+        except Exception:
+            result = ""
+    }
+    if(result is ""){ return seqFromTo(0, 0, 1); }
+    return splitStr(result, "\x1f");
+}
+
+global clip(list lst, float lo, float hi){
+    str result = "";
+    rawPy(){
+        import numpy as _np
+        try:
+            arr = _np.clip(lst, lo, hi)
+            result = "\x1f".join(str(float(x)) for x in arr)
+        except Exception:
+            result = ""
+    }
+    if(result is ""){ return seqFromTo(0, 0, 1); }
+    return splitStr(result, "\x1f");
+}
+
+global normalize(list lst){
+    str result = "";
+    rawPy(){
+        import numpy as _np
+        try:
+            arr = _np.array(lst, dtype=float)
+            n = _np.linalg.norm(arr)
+            if n == 0:
+                out = arr
+            else:
+                out = arr / n
+            result = "\x1f".join(str(float(x)) for x in out)
+        except Exception:
+            result = ""
+    }
+    if(result is ""){ return seqFromTo(0, 0, 1); }
+    return splitStr(result, "\x1f");
+}
+
+global main(){}

@@ -1,24 +1,14 @@
 ////
   Lynxer Standard Library — math
-  Provides: abs, max, min, clamp, pow, floor, ceil, sqrt, round, roundNum (Legacy), PI (legacy), pi, Pi (if someone writes incorrectly)
-  
-  NumPy-backed additions (require numpy):
-    Constants  : tau()
-    Trig       : exp, arcsin, arccos, arctan, arctan2, sinh, cosh, tanh
-    Rounding   : roundTo(n, decimals)
-    Statistics : mean, median, std, variance, percentile, corrcoef
-    Aggregates : prod, cumsum (returns list), diff (returns list)
-    Generation : linspace (returns list)
-    List ops   : clip (returns list), normalize (returns list)
-    Lin. alg.  : dot, norm, argmax, argmin
+  Pure-Python math, number theory, interpolation, and random helpers.
+
+  NumPy-backed functions are available from mathPlus.lynx.
 ////
 
 global setup(){}
 
 global abs(int n){
-    if(n < 0){
-        return n * -1;
-    }
+    if(n < 0){ return n * -1; }
     return n;
 }
 
@@ -79,7 +69,7 @@ global round(float n){
     return n;
 }
 
-global roundNum(float n){ //legacy again
+global roundNum(float n){
     return global.round(n);
 }
 
@@ -92,15 +82,9 @@ global pi(){
     return result;
 }
 
-global PI(){ // for backward compatibility, this was the OG name and looked too... uppercase...
-    return global.pi();
-}
+global PI(){ return global.pi(); }
+global Pi(){ return global.pi(); }
 
-global Pi(){ // also allow this idk why
-    return global.pi();
-}
-
-// Euler's number e ≈ 2.718…
 global e(){
     float result = 0.0;
     rawPy(){
@@ -110,7 +94,6 @@ global e(){
     return result;
 }
 
-// Natural logarithm of n. Returns 0.0 if n <= 0.
 global log(float n){
     float result = 0.0;
     rawPy(){
@@ -123,7 +106,6 @@ global log(float n){
     return result;
 }
 
-// Base-2 logarithm of n. Returns 0.0 if n <= 0.
 global log2(float n){
     float result = 0.0;
     rawPy(){
@@ -136,7 +118,6 @@ global log2(float n){
     return result;
 }
 
-// Base-10 logarithm of n. Returns 0.0 if n <= 0.
 global log10(float n){
     float result = 0.0;
     rawPy(){
@@ -149,7 +130,6 @@ global log10(float n){
     return result;
 }
 
-// Sine of n (radians).
 global sin(float n){
     float result = 0.0;
     rawPy(){
@@ -159,7 +139,6 @@ global sin(float n){
     return result;
 }
 
-// Cosine of n (radians).
 global cos(float n){
     float result = 0.0;
     rawPy(){
@@ -169,7 +148,6 @@ global cos(float n){
     return result;
 }
 
-// Tangent of n (radians).
 global tan(float n){
     float result = 0.0;
     rawPy(){
@@ -179,7 +157,6 @@ global tan(float n){
     return result;
 }
 
-// Convert radians to degrees.
 global degrees(float n){
     float result = 0.0;
     rawPy(){
@@ -189,7 +166,6 @@ global degrees(float n){
     return result;
 }
 
-// Convert degrees to radians.
 global radians(float n){
     float result = 0.0;
     rawPy(){
@@ -199,26 +175,22 @@ global radians(float n){
     return result;
 }
 
-// Returns -1 if n < 0, 0 if n == 0, 1 if n > 0.
 global sign(float n){
     if(n < 0){ return -1; }
     if(n > 0){ return 1; }
     return 0;
 }
 
-// Returns true if n is even.
 global isEven(int n){
     if(n % 2 is 0){ return true; }
     return false;
 }
 
-// Returns true if n is odd.
 global isOdd(int n){
     if(n % 2 not is 0){ return true; }
     return false;
 }
 
-// Factorial of n (n!). Returns 1 for n <= 0.
 global factorial(int n){
     int result = 1;
     rawPy(){
@@ -231,7 +203,6 @@ global factorial(int n){
     return result;
 }
 
-// Greatest common divisor of a and b.
 global gcd(int a, int b){
     int result = 0;
     rawPy(){
@@ -241,7 +212,6 @@ global gcd(int a, int b){
     return result;
 }
 
-// Hypotenuse: global.sqrt(a² + b²).
 global hypot(float a, float b){
     float result = 0.0;
     rawPy(){
@@ -251,7 +221,6 @@ global hypot(float a, float b){
     return result;
 }
 
-// Truncate n toward zero (removes the fractional part).
 global truncate(float n){
     int result = 0;
     rawPy(){
@@ -261,7 +230,6 @@ global truncate(float n){
     return result;
 }
 
-// Random integer in [lo, hi] (inclusive).
 global randInt(int lo, int hi){
     int result = 0;
     rawPy(){
@@ -271,7 +239,6 @@ global randInt(int lo, int hi){
     return result;
 }
 
-// Random float in [lo, hi).
 global randFloat(float lo, float hi){
     float result = 0.0;
     rawPy(){
@@ -281,7 +248,6 @@ global randFloat(float lo, float hi){
     return result;
 }
 
-// Least common multiple of a and b.
 global lcm(int a, int b){
     int result = 0;
     rawPy(){
@@ -295,7 +261,6 @@ global lcm(int a, int b){
     return result;
 }
 
-// Returns true if n is a prime number (n >= 2).
 global isPrime(int n){
     bool result = false;
     rawPy(){
@@ -312,7 +277,6 @@ global isPrime(int n){
     return result;
 }
 
-// Return the smallest prime number strictly greater than n.
 global nextPrime(int n){
     int result = 2;
     rawPy(){
@@ -337,7 +301,6 @@ global nextPrime(int n){
     return result;
 }
 
-// Binomial coefficient C(n, k) — "n choose k". Returns 0 for invalid inputs.
 global binomial(int n, int k){
     int result = 0;
     rawPy(){
@@ -350,7 +313,6 @@ global binomial(int n, int k){
     return result;
 }
 
-// Integer square root (floor of sqrt for non-negative integers).
 global isqrt(int n){
     int result = 0;
     rawPy(){
@@ -363,7 +325,6 @@ global isqrt(int n){
     return result;
 }
 
-// Return the sum of integers from lo to hi (inclusive).
 global sumRange(int lo, int hi){
     int result = 0;
     rawPy(){
@@ -372,7 +333,6 @@ global sumRange(int lo, int hi){
     return result;
 }
 
-// Linear interpolation: return lo + t*(hi - lo). t should be in [0.0, 1.0].
 global lerp(float lo, float hi, float t){
     float result = 0.0;
     rawPy(){
@@ -381,14 +341,12 @@ global lerp(float lo, float hi, float t){
     return result;
 }
 
-// Clamp a float val to [lo, hi].
 global clampFloat(float val, float lo, float hi){
     if(val < lo){ return lo; }
     if(val > hi){ return hi; }
     return val;
 }
 
-// Map value from range [inLo, inHi] to range [outLo, outHi].
 global mapRange(float value, float inLo, float inHi, float outLo, float outHi){
     float result = 0.0;
     rawPy(){
@@ -399,361 +357,6 @@ global mapRange(float value, float inLo, float inHi, float outLo, float outHi){
             result = outLo + t * (outHi - outLo)
     }
     return result;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// NumPy-backed functions
-// All functions below require numpy to be installed (pip install numpy).
-// ─────────────────────────────────────────────────────────────────────────────
-
-// Tau (2π) ≈ 6.283…
-global tau(){
-    float result = 0.0;
-    rawPy(){
-        import numpy as _np
-        result = float(_np.pi * 2)
-    }
-    return result;
-}
-
-// e raised to the power n (eⁿ).
-global exp(float n){
-    float result = 0.0;
-    rawPy(){
-        import numpy as _np
-        result = float(_np.exp(n))
-    }
-    return result;
-}
-
-// Inverse sine of n (in radians). n must be in [-1, 1].
-global arcsin(float n){
-    float result = 0.0;
-    rawPy(){
-        import numpy as _np
-        try:
-            result = float(_np.arcsin(n))
-        except Exception:
-            result = 0.0
-    }
-    return result;
-}
-
-// Inverse cosine of n (in radians). n must be in [-1, 1].
-global arccos(float n){
-    float result = 0.0;
-    rawPy(){
-        import numpy as _np
-        try:
-            result = float(_np.arccos(n))
-        except Exception:
-            result = 0.0
-    }
-    return result;
-}
-
-// Inverse tangent of n (in radians).
-global arctan(float n){
-    float result = 0.0;
-    rawPy(){
-        import numpy as _np
-        result = float(_np.arctan(n))
-    }
-    return result;
-}
-
-// Four-quadrant inverse tangent of y/x (in radians). Range: (-π, π].
-global arctan2(float y, float x){
-    float result = 0.0;
-    rawPy(){
-        import numpy as _np
-        result = float(_np.arctan2(y, x))
-    }
-    return result;
-}
-
-// Hyperbolic sine of n.
-global sinh(float n){
-    float result = 0.0;
-    rawPy(){
-        import numpy as _np
-        result = float(_np.sinh(n))
-    }
-    return result;
-}
-
-// Hyperbolic cosine of n.
-global cosh(float n){
-    float result = 0.0;
-    rawPy(){
-        import numpy as _np
-        result = float(_np.cosh(n))
-    }
-    return result;
-}
-
-// Hyperbolic tangent of n.
-global tanh(float n){
-    float result = 0.0;
-    rawPy(){
-        import numpy as _np
-        result = float(_np.tanh(n))
-    }
-    return result;
-}
-
-// Round n to the given number of decimal places.
-global roundTo(float n, int decimals){
-    float result = 0.0;
-    rawPy(){
-        result = float(round(n, decimals))
-    }
-    return result;
-}
-
-// ── List statistics ──────────────────────────────────────────────────────────
-// Input: a Lynxer list of numbers.
-// Scalar results are returned as float.
-
-// Arithmetic mean of a numeric list.
-global mean(list lst){
-    float result = 0.0;
-    rawPy(){
-        import numpy as _np
-        try:
-            result = float(_np.mean(lst))
-        except Exception:
-            result = 0.0
-    }
-    return result;
-}
-
-// Median of a numeric list.
-global median(list lst){
-    float result = 0.0;
-    rawPy(){
-        import numpy as _np
-        try:
-            result = float(_np.median(lst))
-        except Exception:
-            result = 0.0
-    }
-    return result;
-}
-
-// Population standard deviation of a numeric list.
-global std(list lst){
-    float result = 0.0;
-    rawPy(){
-        import numpy as _np
-        try:
-            result = float(_np.std(lst))
-        except Exception:
-            result = 0.0
-    }
-    return result;
-}
-
-// Population variance of a numeric list.
-global variance(list lst){
-    float result = 0.0;
-    rawPy(){
-        import numpy as _np
-        try:
-            result = float(_np.var(lst))
-        except Exception:
-            result = 0.0
-    }
-    return result;
-}
-
-// p-th percentile of a numeric list (p in 0–100).
-global percentile(list lst, float p){
-    float result = 0.0;
-    rawPy(){
-        import numpy as _np
-        try:
-            result = float(_np.percentile(lst, p))
-        except Exception:
-            result = 0.0
-    }
-    return result;
-}
-
-// Pearson correlation coefficient between two equal-length numeric lists.
-// Returns a value in [-1, 1]. Returns 0.0 if inputs are invalid.
-global corrcoef(any a, any b){
-    float result = 0.0;
-    rawPy(){
-        import numpy as _np
-        try:
-            m = _np.corrcoef(a, b)
-            result = float(m[0, 1])
-        except Exception:
-            result = 0.0
-    }
-    return result;
-}
-
-// ── List aggregates (scalar result) ─────────────────────────────────────────
-
-// Product of all elements in a numeric list.
-global prod(list lst){
-    float result = 0.0;
-    rawPy(){
-        import numpy as _np
-        try:
-            result = float(_np.prod(lst))
-        except Exception:
-            result = 0.0
-    }
-    return result;
-}
-
-// Index of the maximum value in a numeric list.
-global argmax(list lst){
-    int result = 0;
-    rawPy(){
-        import numpy as _np
-        try:
-            result = int(_np.argmax(lst))
-        except Exception:
-            result = 0
-    }
-    return result;
-}
-
-// Index of the minimum value in a numeric list.
-global argmin(list lst){
-    int result = 0;
-    rawPy(){
-        import numpy as _np
-        try:
-            result = int(_np.argmin(lst))
-        except Exception:
-            result = 0
-    }
-    return result;
-}
-
-// ── Linear algebra (scalar result) ──────────────────────────────────────────
-
-// Dot product of two equal-length numeric lists.
-global dot(any a, any b){
-    float result = 0.0;
-    rawPy(){
-        import numpy as _np
-        try:
-            result = float(_np.dot(a, b))
-        except Exception:
-            result = 0.0
-    }
-    return result;
-}
-
-// L2 (Euclidean) norm of a numeric list.
-global norm(list lst){
-    float result = 0.0;
-    rawPy(){
-        import numpy as _np
-        try:
-            result = float(_np.linalg.norm(lst))
-        except Exception:
-            result = 0.0
-    }
-    return result;
-}
-
-// ── List-returning functions ─────────────────────────────────────────────────
-// These functions return a Lynxer list of strings.
-// Convert elements to float with floatOf() when you need to do arithmetic:
-//
-//   any pts = global.math.linspace(0.0, 1.0, 5);
-//   float v  = floatOf(listGet(pts, 0));
-
-// Return n evenly-spaced float values between start and stop (inclusive).
-// Elements are returned as strings; use floatOf() to convert.
-global linspace(float start, float stop, int n){
-    str result = "";
-    rawPy(){
-        import numpy as _np
-        try:
-            arr = _np.linspace(start, stop, n)
-            result = "\x1f".join(str(float(x)) for x in arr)
-        except Exception:
-            result = ""
-    }
-    if(result is ""){ return seqFromTo(0, 0, 1); }
-    return splitStr(result, "\x1f");
-}
-
-// Cumulative sum of a numeric list. Elements are returned as strings.
-global cumsum(list lst){
-    str result = "";
-    rawPy(){
-        import numpy as _np
-        try:
-            arr = _np.cumsum(lst)
-            result = "\x1f".join(str(float(x)) for x in arr)
-        except Exception:
-            result = ""
-    }
-    if(result is ""){ return seqFromTo(0, 0, 1); }
-    return splitStr(result, "\x1f");
-}
-
-// Differences between consecutive elements of a numeric list.
-// Returns a list one shorter than the input. Elements are strings.
-global diff(list lst){
-    str result = "";
-    rawPy(){
-        import numpy as _np
-        try:
-            arr = _np.diff(lst)
-            result = "\x1f".join(str(float(x)) for x in arr)
-        except Exception:
-            result = ""
-    }
-    if(result is ""){ return seqFromTo(0, 0, 1); }
-    return splitStr(result, "\x1f");
-}
-
-// Clip each element of a numeric list to the range [lo, hi].
-// Returns a list of strings; use floatOf() to convert.
-global clip(list lst, float lo, float hi){
-    str result = "";
-    rawPy(){
-        import numpy as _np
-        try:
-            arr = _np.clip(lst, lo, hi)
-            result = "\x1f".join(str(float(x)) for x in arr)
-        except Exception:
-            result = ""
-    }
-    if(result is ""){ return seqFromTo(0, 0, 1); }
-    return splitStr(result, "\x1f");
-}
-
-// Normalize a numeric list to unit L2 length.
-// If the norm is 0 the original list (as strings) is returned unchanged.
-// Elements are strings; use floatOf() to convert.
-global normalize(list lst){
-    str result = "";
-    rawPy(){
-        import numpy as _np
-        try:
-            arr = _np.array(lst, dtype=float)
-            n = _np.linalg.norm(arr)
-            if n == 0:
-                out = arr
-            else:
-                out = arr / n
-            result = "\x1f".join(str(float(x)) for x in out)
-        except Exception:
-            result = ""
-    }
-    if(result is ""){ return seqFromTo(0, 0, 1); }
-    return splitStr(result, "\x1f");
 }
 
 global main(){}
