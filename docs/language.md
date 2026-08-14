@@ -376,6 +376,29 @@ iterate(n * 2) {
 
 `break` and `continue` work inside `iterate` the same as in `while` and `for`.
 
+### forever
+
+Run a block repeatedly with a short delay between iterations. A `forever`
+loop should normally contain a `break;` condition:
+
+```c
+global setup(){
+    foreverDelay(0.02);
+}
+
+global main(){
+    int i = 0;
+    forever(){
+        i += 1;
+        if(i is 5){ break; }
+    }
+}
+```
+
+The default delay is `0.02` seconds. Use `suppressForeverWarning()` in
+`setup()` when a loop is intentionally unbounded. `break`, `continue`, and
+`restart` work in `forever` loops.
+
 ### break / continue / restart
 
 `break;` exits the nearest enclosing loop immediately.
@@ -406,7 +429,8 @@ while(w < 5){
 // prints: 1 2 4 5
 ```
 
-`break` and `continue`/`restart` work in `for`, `while`, and `iterate` loops. They are **not** valid outside a loop.
+`break` and `continue`/`restart` work in `for`, `while`, `iterate`, and
+`forever` loops. They are **not** valid outside a loop.
 
 ---
 

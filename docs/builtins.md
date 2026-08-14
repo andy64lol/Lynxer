@@ -235,6 +235,45 @@ iterate(n) {
 
 ---
 
+## Forever loop
+
+### `forever() { body }`
+
+Runs `body` repeatedly until it executes `break;`. The loop waits `0.02`
+seconds between iterations by default. Configure the delay once from
+`global setup()` with `foreverDelay(seconds)`.
+
+```c
+global setup() {
+    foreverDelay(0.05);
+}
+
+global main() {
+    int count = 0;
+    forever() {
+        count = count + 1;
+        println(count); 
+        if(count is 3) { break; }
+    }
+}
+```
+
+Lynxer warns when a `forever()` body contains no `break;`, because it may run
+until the process is stopped. If the loop is intentionally unbounded, suppress
+that warning from `setup()`:
+
+```c
+global setup() {
+    suppressForeverWarning();
+}
+```
+
+`foreverDelay()` and `suppressForeverWarning()` are setup-only functions.
+`break`, `continue`, and `restart` work inside `forever()` like they do in
+the other loop forms.
+
+---
+
 ## rawPy / rawPyx
 
 See [language.md](language.md#rawpy-and-rawpyx) for full bridging rules.

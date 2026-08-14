@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import string
-import sys
 import textwrap
 import warnings
 from typing import Any, ClassVar
@@ -66,6 +65,9 @@ class InvalidSyntaxError(Error):
 class LynxSyntaxDeprecationWarning(UserWarning):
     """A warning for syntax retained only for backwards compatibility."""
 
+class LynxerForeverWarning(UserWarning):
+    """A warning for a forever loop that has no visible break statement."""
+
 def warn_legacy_syntax(token, details):
     """Warn at the source location of a legacy syntax form."""
     warn_legacy_syntax_position(token.pos_start, details)
@@ -77,6 +79,18 @@ def warn_legacy_syntax_position(pos, details):
         LynxSyntaxDeprecationWarning,
         pos.fn or "<source>",
         pos.ln + 1,
+    )
+
+def warn_forever_no_break(node):
+    """Warn when a forever loop has no visible way to stop."""
+    if node.has_break or _forever_warning_suppressed:
+        return
+    warnings.warn_explicit(
+        "forever() has no break; it will run until the process is stopped. "
+        "Add break; or call suppressForeverWarning() in global setup(){}.",
+        LynxerForeverWarning,
+        node.pos_start.fn or "<source>",
+        node.pos_start.ln + 1,
     )
 
 class RTError(Error):
@@ -182,7 +196,7 @@ TYPE_KEYWORDS = ["int", "float", "str", "bool", "any", "tuple", "list", "num", "
 KEYWORDS = [
     "int", "float", "str", "bool", "any", "tuple", "list", "num", "char",
     "global", "local", "const",
-    "if", "else", "while", "for",
+    "if", "else", "while", "for", "forever",
     "return", "import", "importAs", "importPy",
     "true", "false", "none",
     "and", "or", "not", "is",
@@ -713,6 +727,13 @@ class IterateNode:
         self.pos_start = pos_start
         self.pos_end = pos_end
 
+class ForeverNode:
+    def __init__(self, body_block, pos_start, pos_end, has_break=False):
+        self.body_block = body_block
+        self.pos_start = pos_start
+        self.pos_end = pos_end
+        self.has_break = has_break
+
 class FuncDefNode:
     def __init__(
         self, kind_tok, var_name_tok, param_toks, body_block, pos_start, pos_end,
@@ -822,6 +843,23 @@ class ProgramNode:
         self.pos_start = pos_start
         self.pos_end = pos_end
 
+def _block_contains_break(block_node):
+    """Return whether a block contains a ``break`` statement."""
+    for stmt in block_node.statements:
+        if isinstance(stmt, BreakNode):
+            return True
+        if isinstance(stmt, IfNode):
+            if _block_contains_break(stmt.then_block):
+                return True
+            if stmt.else_block is not None and _block_contains_break(stmt.else_block):
+                return True
+        elif isinstance(stmt, TryCatchNode):
+            if _block_contains_break(stmt.try_block):
+                return True
+            if stmt.catch_block is not None and _block_contains_break(stmt.catch_block):
+                return True
+    return False
+
 class VarGroupDeclNode:
     def __init__(self, name_tok, fields, pos_start, pos_end, is_const=False):
         self.name_tok = name_tok
@@ -919,7 +957,7 @@ class Parser:
     def __init__(self, tokens):
         self.tokens = tokens
         self.tok_idx = -1
-        self._loop_depth = 0       # tracks nesting depth of for/while/iterate
+        self._loop_depth = 0       # tracks nesting depth of for/while/iterate/forever
         self._in_global_func = False
         self.current_tok: Token = (
             tokens[0]
@@ -1519,6 +1557,12 @@ class Parser:
                 return res
             return res.success(node)
 
+        if self.current_tok.matches(TT_KEYWORD, "forever"):
+            node = res.register(self.parse_forever())
+            if res.error:
+                return res
+            return res.success(node)
+
         if self.current_tok.matches(TT_KEYWORD, "try"):
             node = res.register(self.parse_try_catch())
             if res.error:
@@ -1974,6 +2018,49 @@ class Parser:
             return res
 
         return res.success(IterateNode(count_node, body, pos_start, body.pos_end))
+
+    def parse_forever(self):
+        # parse: forever() { body }
+        res = ParseResult()
+        pos_start = self.current_tok.pos_start.copy()
+        res.register_advancement()
+        self.advance()  # consume 'forever'
+
+        if self.current_tok.type != TT_LPAREN:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                "Expected '(' after forever",
+            ))
+        res.register_advancement()
+        self.advance()
+
+        if self.current_tok.type != TT_RPAREN:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                "forever() does not accept arguments",
+            ))
+        res.register_advancement()
+        self.advance()
+
+        if self.current_tok.type != TT_LBRACE:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                "Expected '{' after forever()",
+            ))
+        self._loop_depth += 1
+        body = res.register(self.parse_block())
+        self._loop_depth -= 1
+        if res.error:
+            return res
+
+        return res.success(
+            ForeverNode(
+                body,
+                pos_start,
+                body.pos_end,
+                has_break=_block_contains_break(body),
+            )
+        )
 
     def parse_vargroup_field(self):
         """Parse one field inside a vargroup body."""
@@ -4261,857 +4348,6 @@ class CoroutineValue(Value):
     def __repr__(self):
         return "<coroutine>"
 
-class _BuiltinFunctionRuntime(BaseFunction):
-    def __init__(self, name):
-        super().__init__(name)
-
-    def execute(self, args):
-        res = RTResult()
-        exec_ctx = self.generate_new_context()
-
-        method_name = f"execute_{self.name}"
-        method = getattr(self, method_name, self.no_visit_method)
-        return_value = res.register(method(args, exec_ctx))
-
-        if res.should_return():
-            return res
-        return res.success(return_value)
-
-    def no_visit_method(self, node, context):
-        raise Exception(f"No execute_{self.name} method defined")
-
-    def copy(self):
-        c = BuiltInFunction(self.name)
-        c.set_context(self.context)
-        c.set_pos(self.pos_start, self.pos_end)
-        return c
-
-    def __repr__(self):
-        return f"<built-in {self.name}>"
-
-    def execute_print(self, args, exec_ctx):
-        output = "".join(str(a) for a in args)
-        sys.stdout.write(output)
-        sys.stdout.flush()
-        return RTResult().success(Number.null)
-
-    def execute_println(self, args, exec_ctx):
-        output = "".join(str(a) for a in args)
-        sys.stdout.write(output + "\n")
-        sys.stdout.flush()
-        return RTResult().success(Number.null)
-
-    def execute_input(self, args, exec_ctx):
-        if len(args) > 1:
-            return RTResult().failure(
-                RTError(
-                    self.pos_start,
-                    self.pos_end,
-                    "input() takes 0 or 1 arguments",
-                    exec_ctx,
-                )
-            )
-        prompt = str(args[0]) if args else ""
-        text = input(prompt)
-        return RTResult().success(String(text))
-
-    def execute_inputln(self, args, exec_ctx):
-        if len(args) > 1:
-            return RTResult().failure(
-                RTError(
-                    self.pos_start,
-                    self.pos_end,
-                    "inputln() takes 0 or 1 arguments",
-                    exec_ctx,
-                )
-            )
-        prompt = str(args[0]) if args else ""
-        text = input(prompt)
-        return RTResult().success(String(text + "\n"))
-
-    def execute_rawPy(self, args, exec_ctx):
-        if len(args) != 1 or not isinstance(args[0], String):
-            return RTResult().failure(
-                RTError(
-                    self.pos_start,
-                    self.pos_end,
-                    'rawPy() expects exactly one string argument — rawPy("python code")',
-                    exec_ctx,
-                )
-            )
-        try:
-            exec(args[0].value, {"__builtins__": __builtins__})
-        except Exception as e:
-            return RTResult().failure(
-                RTError(
-                    self.pos_start,
-                    self.pos_end,
-                    f"Python error in rawPy(): {e}",
-                    exec_ctx,
-                )
-            )
-        return RTResult().success(Number.null)
-
-    def execute_strOf(self, args, exec_ctx):
-        if len(args) != 1:
-            return RTResult().failure(
-                RTError(
-                    self.pos_start,
-                    self.pos_end,
-                    "strOf() takes exactly 1 argument",
-                    exec_ctx,
-                )
-            )
-        return RTResult().success(String(str(args[0])))
-
-    def execute_intOf(self, args, exec_ctx):
-        if len(args) != 1:
-            return RTResult().failure(
-                RTError(
-                    self.pos_start,
-                    self.pos_end,
-                    "intOf() takes exactly 1 argument",
-                    exec_ctx,
-                )
-            )
-        v = args[0]
-        try:
-            return RTResult().success(Number(int(float(v.value))))
-        except Exception:
-            return RTResult().failure(
-                RTError(
-                    self.pos_start,
-                    self.pos_end,
-                    f"Cannot convert '{v}' to int",
-                    exec_ctx,
-                )
-            )
-
-    def execute_floatOf(self, args, exec_ctx):
-        if len(args) != 1:
-            return RTResult().failure(
-                RTError(
-                    self.pos_start,
-                    self.pos_end,
-                    "floatOf() takes exactly 1 argument",
-                    exec_ctx,
-                )
-            )
-        v = args[0]
-        try:
-            return RTResult().success(Number(float(v.value)))
-        except Exception:
-            return RTResult().failure(
-                RTError(
-                    self.pos_start,
-                    self.pos_end,
-                    f"Cannot convert '{v}' to float",
-                    exec_ctx,
-                )
-            )
-
-    def execute_rawPyx(self, args, exec_ctx):
-        if len(args) != 1 or not isinstance(args[0], String):
-            return RTResult().failure(
-                RTError(
-                    self.pos_start,
-                    self.pos_end,
-                    'rawPyx() expects exactly one string argument — rawPyx("cython code")',
-                    exec_ctx,
-                )
-            )
-        try:
-            cython_inline = _get_cython_inline()
-            cy_locals = {}
-            cython_inline(args[0].value, locals=cy_locals, globals=cy_locals, quiet=True)
-        except Exception as e:  # noqa: F841 — cy_locals unused for the string form
-            return RTResult().failure(
-                RTError(
-                    self.pos_start,
-                    self.pos_end,
-                    f"Cython error in rawPyx(): {type(e).__name__}: {e}",
-                    exec_ctx,
-                )
-            )
-        return RTResult().success(Number.null)
-
-    def execute_returnType(self, args, exec_ctx):
-        if len(args) != 1:
-            return RTResult().failure(
-                RTError(
-                    self.pos_start,
-                    self.pos_end,
-                    "returnType() takes exactly 1 argument",
-                    exec_ctx,
-                )
-            )
-        return RTResult().success(String(value_type_name(args[0])))
-
-    def execute_returnLength(self, args, exec_ctx):
-        if len(args) != 1:
-            return RTResult().failure(
-                RTError(
-                    self.pos_start,
-                    self.pos_end,
-                    "returnLength() takes exactly 1 argument",
-                    exec_ctx,
-                )
-            )
-        v = args[0]
-        if isinstance(v, String):
-            return RTResult().success(Number(len(v.value)))
-        if isinstance(v, (List, LynxTuple)):
-            return RTResult().success(Number(len(v.elements)))
-        return RTResult().failure(
-            RTError(
-                self.pos_start,
-                self.pos_end,
-                f"returnLength() does not support values of type '{type(v).__name__}'",
-                exec_ctx,
-            )
-        )
-
-    def execute_seqFromTo(self, args, exec_ctx):
-        if len(args) != 3 or not all(isinstance(a, Number) for a in args):
-            return RTResult().failure(
-                RTError(
-                    self.pos_start,
-                    self.pos_end,
-                    "seqFromTo() expects exactly 3 numeric arguments — seqFromTo(start, stop, step)",
-                    exec_ctx,
-                )
-            )
-        start, stop, step = (int(a.value) for a in args)
-        if step == 0:
-            return RTResult().failure(
-                RTError(
-                    self.pos_start,
-                    self.pos_end,
-                    "seqFromTo() step cannot be 0",
-                    exec_ctx,
-                )
-            )
-        elements = [Number(n).set_context(exec_ctx) for n in range(start, stop, step)]
-        return RTResult().success(List(elements))
-
-    def execute_range(self, args, exec_ctx):
-        """range(stop) or range(start, stop) or."""
-        if not args or len(args) > 3 or not all(isinstance(a, Number) for a in args):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "range() expects 1, 2, or 3 integer arguments: "
-                "range(stop), range(start, stop), or range(start, stop, step)",
-                exec_ctx,
-            ))
-        if len(args) == 1:
-            start, stop, step = 0, int(args[0].value), 1
-        elif len(args) == 2:
-            start, stop, step = int(args[0].value), int(args[1].value), 1
-        else:
-            start, stop, step = int(args[0].value), int(args[1].value), int(args[2].value)
-        if step == 0:
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "range() step cannot be 0",
-                exec_ctx,
-            ))
-        elements = [Number(n).set_context(exec_ctx) for n in range(start, stop, step)]
-        return RTResult().success(List(elements))
-
-    def execute_cleanRawPyxCache(self, args, exec_ctx):
-        import shutil
-        import os
-        cache_dir = os.path.expanduser("~/.cython/inline")
-        try:
-            if os.path.isdir(cache_dir):
-                shutil.rmtree(cache_dir)
-        except Exception as e:
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                f"cleanRawPyxCache() failed: {e}",
-                exec_ctx,
-            ))
-        return RTResult().success(Number.null)
-
-    # list built-ins
-
-    def execute_listJsonArray(self, args, exec_ctx):
-        import json as _json
-        if len(args) != 1 or not isinstance(args[0], List):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "listJsonArray(list) expects a list",
-                exec_ctx,
-            ))
-        try:
-            items = [e.value if isinstance(e, (Number, String)) else str(e)
-                     for e in args[0].elements]
-            return RTResult().success(String(_json.dumps(items)))
-        except Exception as e:
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                f"listJsonArray() failed: {e}",
-                exec_ctx,
-            ))
-
-    def execute_listJsonObject(self, args, exec_ctx):
-        import json as _json
-        if len(args) != 1 or not isinstance(args[0], List):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "listJsonObject(list) expects a flat key/value list",
-                exec_ctx,
-            ))
-        els = args[0].elements
-        if len(els) % 2 != 0:
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "listJsonObject() requires an even-length list (key, value, key, value, ...)",
-                exec_ctx,
-            ))
-        try:
-            obj = {}
-            for i in range(0, len(els), 2):
-                k = els[i].value if isinstance(els[i], (Number, String)) else str(els[i])
-                v = els[i + 1].value if isinstance(els[i + 1], (Number, String)) else str(els[i + 1])
-                obj[str(k)] = v
-            return RTResult().success(String(_json.dumps(obj)))
-        except Exception as e:
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                f"listJsonObject() failed: {e}",
-                exec_ctx,
-            ))
-
-    def execute_splitStr(self, args, exec_ctx):
-        if (len(args) != 2 or not isinstance(args[0], String)
-                or not isinstance(args[1], String)):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "splitStr(str, sep) expects two string arguments",
-                exec_ctx,
-            ))
-        parts = args[0].value.split(args[1].value)
-        elements = [String(p).set_context(exec_ctx) for p in parts]
-        return RTResult().success(List(elements))
-
-    def execute_listFlatten(self, args, exec_ctx):
-        if len(args) != 1 or not isinstance(args[0], List):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "listFlatten(list) expects a list",
-                exec_ctx,
-            ))
-        flat = []
-        for el in args[0].elements:
-            if isinstance(el, List):
-                flat.extend(el.elements)
-            else:
-                flat.append(el)
-        return RTResult().success(List(flat))
-
-    def execute_listUnique(self, args, exec_ctx):
-        if len(args) != 1 or not isinstance(args[0], List):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "listUnique(list) expects a list",
-                exec_ctx,
-            ))
-        seen_strs: list[str] = []
-        unique_els = []
-        for el in args[0].elements:
-            s = str(el)
-            if s not in seen_strs:
-                seen_strs.append(s)
-                unique_els.append(el)
-        return RTResult().success(List(unique_els))
-
-    def execute_listPush(self, args, exec_ctx):
-        if len(args) != 2 or not isinstance(args[0], List):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "listPush(list, item) expects a list and a value",
-                exec_ctx,
-            ))
-        new_elements = list(args[0].elements) + [args[1]]
-        return RTResult().success(List(new_elements))
-
-    def execute_listPop(self, args, exec_ctx):
-        if len(args) != 1 or not isinstance(args[0], List):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "listPop(list) expects a list",
-                exec_ctx,
-            ))
-        if not args[0].elements:
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "listPop() called on an empty list",
-                exec_ctx,
-            ))
-        return RTResult().success(args[0].elements.pop())
-
-    def execute_listGet(self, args, exec_ctx):
-        if len(args) != 2 or not isinstance(args[0], List) or not isinstance(args[1], Number):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "listGet(list, idx) expects a list and an integer index",
-                exec_ctx,
-            ))
-        lst = args[0]
-        idx = int(args[1].value)
-        if idx < -len(lst.elements) or idx >= len(lst.elements):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                f"listGet() index {idx} out of range for list of length {len(lst.elements)}",
-                exec_ctx,
-            ))
-        return RTResult().success(lst.elements[idx])
-
-    def execute_listSet(self, args, exec_ctx):
-        if len(args) != 3 or not isinstance(args[0], List) or not isinstance(args[1], Number):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "listSet(list, idx, val) expects a list, an integer index, and a value",
-                exec_ctx,
-            ))
-        lst = args[0]
-        idx = int(args[1].value)
-        if idx < -len(lst.elements) or idx >= len(lst.elements):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                f"listSet() index {idx} out of range for list of length {len(lst.elements)}",
-                exec_ctx,
-            ))
-        new_elements = list(lst.elements)
-        new_elements[idx] = args[2]
-        return RTResult().success(List(new_elements))
-
-    def execute_listSlice(self, args, exec_ctx):
-        if (len(args) != 3 or not isinstance(args[0], List)
-                or not isinstance(args[1], Number) or not isinstance(args[2], Number)):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "listSlice(list, start, stop) expects a list and two integer indices",
-                exec_ctx,
-            ))
-        start = int(args[1].value)
-        stop = int(args[2].value)
-        return RTResult().success(List(args[0].elements[start:stop]))
-
-    def execute_listContains(self, args, exec_ctx):
-        if len(args) != 2 or not isinstance(args[0], List):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "listContains(list, item) expects a list and a value",
-                exec_ctx,
-            ))
-        target = str(args[1])
-        found = any(str(e) == target for e in args[0].elements)
-        return RTResult().success(Number(1 if found else 0, is_bool=True))
-
-    def execute_listJoin(self, args, exec_ctx):
-        if len(args) != 2 or not isinstance(args[0], List) or not isinstance(args[1], String):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "listJoin(list, sep) expects a list and a string separator",
-                exec_ctx,
-            ))
-        sep = args[1].value
-        result = sep.join(str(e) for e in args[0].elements)
-        return RTResult().success(String(result))
-
-    def execute_listIndex(self, args, exec_ctx):
-        if len(args) != 2 or not isinstance(args[0], List):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "listIndex(list, item) expects a list and a value",
-                exec_ctx,
-            ))
-        target = str(args[1])
-        for i, e in enumerate(args[0].elements):
-            if str(e) == target:
-                return RTResult().success(Number(i))
-        return RTResult().success(Number(-1))
-
-    def execute_listRemove(self, args, exec_ctx):
-        if len(args) != 2 or not isinstance(args[0], List) or not isinstance(args[1], Number):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "listRemove(list, idx) expects a list and an integer index",
-                exec_ctx,
-            ))
-        lst = args[0]
-        idx = int(args[1].value)
-        if idx < -len(lst.elements) or idx >= len(lst.elements):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                f"listRemove() index {idx} out of range for list of length {len(lst.elements)}",
-                exec_ctx,
-            ))
-        new_elements = list(lst.elements)
-        new_elements.pop(idx)
-        return RTResult().success(List(new_elements))
-
-    def execute_anyOf(self, args, exec_ctx):
-        if len(args) != 1 or not isinstance(args[0], List):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "anyOf(list) expects a list",
-                exec_ctx,
-            ))
-        result = any(e.is_true() for e in args[0].elements)
-        return RTResult().success(Number(1 if result else 0, is_bool=True))
-
-    def execute_allOf(self, args, exec_ctx):
-        if len(args) != 1 or not isinstance(args[0], List):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "allOf(list) expects a list",
-                exec_ctx,
-            ))
-        result = all(e.is_true() for e in args[0].elements)
-        return RTResult().success(Number(1 if result else 0, is_bool=True))
-
-    def execute_sumOf(self, args, exec_ctx):
-        if len(args) != 1 or not isinstance(args[0], List):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "sumOf(list) expects a list",
-                exec_ctx,
-            ))
-        try:
-            total = sum(e.value for e in args[0].elements if isinstance(e, Number))
-            return RTResult().success(Number(total))
-        except Exception as e:
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                f"sumOf() failed: {e}",
-                exec_ctx,
-            ))
-
-    def _list_sort_key(self, e):
-        if isinstance(e, (Number, String)):
-            return e.value
-        return str(e)
-
-    def execute_sortList(self, args, exec_ctx):
-        if len(args) not in (1, 2) or not isinstance(args[0], List):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "sortList(list) or sortList(list, reverse) expects a list",
-                exec_ctx,
-            ))
-        reverse = args[1].is_true() if len(args) == 2 else False
-        try:
-            sorted_els = sorted(args[0].elements, key=self._list_sort_key, reverse=reverse)
-            return RTResult().success(List(sorted_els))
-        except Exception as e:
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                f"sortList() failed: {e}",
-                exec_ctx,
-            ))
-
-    def execute_reverseList(self, args, exec_ctx):
-        if len(args) != 1 or not isinstance(args[0], List):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "reverseList(list) expects a list",
-                exec_ctx,
-            ))
-        return RTResult().success(List(list(reversed(args[0].elements))))
-
-    def execute_listMin(self, args, exec_ctx):
-        if len(args) != 1 or not isinstance(args[0], List):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "listMin(list) expects a list",
-                exec_ctx,
-            ))
-        if not args[0].elements:
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "listMin() called on an empty list",
-                exec_ctx,
-            ))
-        try:
-            return RTResult().success(min(args[0].elements, key=self._list_sort_key))
-        except Exception as e:
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                f"listMin() failed: {e}",
-                exec_ctx,
-            ))
-
-    def execute_listMax(self, args, exec_ctx):
-        if len(args) != 1 or not isinstance(args[0], List):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "listMax(list) expects a list",
-                exec_ctx,
-            ))
-        if not args[0].elements:
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "listMax() called on an empty list",
-                exec_ctx,
-            ))
-        try:
-            return RTResult().success(max(args[0].elements, key=self._list_sort_key))
-        except Exception as e:
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                f"listMax() failed: {e}",
-                exec_ctx,
-            ))
-
-    # tuple built-ins
-
-    def execute_tupleCreate(self, args, exec_ctx):
-        """tupleCreate(v1, v2, ...) — create a tuple from any number of arguments."""
-        return RTResult().success(LynxTuple(args))
-
-    def execute_tupleGet(self, args, exec_ctx):
-        if len(args) != 2 or not isinstance(args[0], LynxTuple) or not isinstance(args[1], Number):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "tupleGet(tuple, idx) expects a tuple and an integer index",
-                exec_ctx,
-            ))
-        t = args[0]
-        idx = int(args[1].value)
-        if idx < -len(t.elements) or idx >= len(t.elements):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                f"tupleGet() index {idx} out of range for tuple of length {len(t.elements)}",
-                exec_ctx,
-            ))
-        return RTResult().success(t.elements[idx])
-
-    def execute_tupleLen(self, args, exec_ctx):
-        if len(args) != 1 or not isinstance(args[0], LynxTuple):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "tupleLen(tuple) expects a tuple",
-                exec_ctx,
-            ))
-        return RTResult().success(Number(len(args[0].elements)))
-
-    def execute_tupleContains(self, args, exec_ctx):
-        if len(args) != 2 or not isinstance(args[0], LynxTuple):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "tupleContains(tuple, val) expects a tuple and a value",
-                exec_ctx,
-            ))
-        target = str(args[1])
-        found = any(str(e) == target for e in args[0].elements)
-        return RTResult().success(Number(1 if found else 0, is_bool=True))
-
-    def execute_tupleIndex(self, args, exec_ctx):
-        if len(args) != 2 or not isinstance(args[0], LynxTuple):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "tupleIndex(tuple, val) expects a tuple and a value",
-                exec_ctx,
-            ))
-        target = str(args[1])
-        for i, e in enumerate(args[0].elements):
-            if str(e) == target:
-                return RTResult().success(Number(i))
-        return RTResult().success(Number(-1))
-
-    def execute_tupleSlice(self, args, exec_ctx):
-        if (len(args) != 3 or not isinstance(args[0], LynxTuple)
-                or not isinstance(args[1], Number) or not isinstance(args[2], Number)):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "tupleSlice(tuple, start, stop) expects a tuple and two integer indices",
-                exec_ctx,
-            ))
-        start = int(args[1].value)
-        stop = int(args[2].value)
-        return RTResult().success(LynxTuple(args[0].elements[start:stop]))
-
-    def execute_tupleToList(self, args, exec_ctx):
-        if len(args) != 1 or not isinstance(args[0], LynxTuple):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "tupleToList(tuple) expects a tuple",
-                exec_ctx,
-            ))
-        return RTResult().success(List(list(args[0].elements)))
-
-    def execute_listToTuple(self, args, exec_ctx):
-        if len(args) != 1 or not isinstance(args[0], List):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "listToTuple(list) expects a list",
-                exec_ctx,
-            ))
-        return RTResult().success(LynxTuple(args[0].elements))
-
-    def execute_tupleConcat(self, args, exec_ctx):
-        if (len(args) != 2 or not isinstance(args[0], LynxTuple)
-                or not isinstance(args[1], LynxTuple)):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "tupleConcat(t1, t2) expects two tuples",
-                exec_ctx,
-            ))
-        return RTResult().success(LynxTuple(args[0].elements + args[1].elements))
-
-    def execute_tupleCount(self, args, exec_ctx):
-        if len(args) != 2 or not isinstance(args[0], LynxTuple):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "tupleCount(tuple, val) expects a tuple and a value",
-                exec_ctx,
-            ))
-        target = str(args[1])
-        count = sum(1 for e in args[0].elements if str(e) == target)
-        return RTResult().success(Number(count))
-
-    def execute_tupleFirst(self, args, exec_ctx):
-        if len(args) != 1 or not isinstance(args[0], LynxTuple):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "tupleFirst(tuple) expects a tuple",
-                exec_ctx,
-            ))
-        if not args[0].elements:
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "tupleFirst() called on an empty tuple",
-                exec_ctx,
-            ))
-        return RTResult().success(args[0].elements[0])
-
-    def execute_tupleLast(self, args, exec_ctx):
-        if len(args) != 1 or not isinstance(args[0], LynxTuple):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "tupleLast(tuple) expects a tuple",
-                exec_ctx,
-            ))
-        if not args[0].elements:
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "tupleLast() called on an empty tuple",
-                exec_ctx,
-            ))
-        return RTResult().success(args[0].elements[-1])
-
-    def execute_tupleJsonArray(self, args, exec_ctx):
-        import json as _json
-        if len(args) != 1 or not isinstance(args[0], LynxTuple):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "tupleJsonArray(tuple) expects a tuple",
-                exec_ctx,
-            ))
-        try:
-            items = [e.value if isinstance(e, (Number, String)) else str(e)
-                     for e in args[0].elements]
-            return RTResult().success(String(_json.dumps(items)))
-        except Exception as e:
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                f"tupleJsonArray() failed: {e}",
-                exec_ctx,
-            ))
-
-    # /tuple built-ins
-
-    # async built-ins
-
-    def execute_asyncRun(self, args, exec_ctx):
-        """asyncRun(coro) — run a coroutine."""
-        import asyncio
-        if len(args) != 1 or not isinstance(args[0], CoroutineValue):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "asyncRun(coro) expects a single coroutine argument "
-                "(the result of calling an 'async' function)",
-                exec_ctx,
-            ))
-        try:
-            coro_res = asyncio.run(args[0].coro)
-        except Exception as e:
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                f"asyncRun() raised an exception: {type(e).__name__}: {e}",
-                exec_ctx,
-            ))
-        if isinstance(coro_res, RTResult):
-            if coro_res.error:
-                return RTResult().failure(coro_res.error)
-            return RTResult().success(coro_res.value if coro_res.value is not None else Number.null)
-        return RTResult().success(Number.null)
-
-    def execute_asyncGather(self, args, exec_ctx):
-        """asyncGather(coro1, coro2, ...) — return."""
-        for i, arg in enumerate(args):
-            if not isinstance(arg, CoroutineValue):
-                return RTResult().failure(RTError(
-                    self.pos_start, self.pos_end,
-                    f"asyncGather() argument {i + 1} is not a coroutine "
-                    "(expected the result of calling an 'async' function)",
-                    exec_ctx,
-                ))
-
-        import asyncio
-
-        coros = [arg.coro for arg in args]
-
-        async def _gather():
-            results = await asyncio.gather(*coros)
-            elements = []
-            for r in results:
-                if isinstance(r, RTResult):
-                    if r.error:
-                        return r  # propagate first error
-                    elements.append(r.value if r.value is not None else Number.null)
-                else:
-                    elements.append(Number.null)
-            return RTResult().success(List(elements))
-
-        return RTResult().success(CoroutineValue(_gather()))
-
-    def execute_asyncSleep(self, args, exec_ctx):
-        """asyncSleep(seconds) — return a coroutine."""
-        import asyncio
-        if len(args) != 1 or not isinstance(args[0], Number):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "asyncSleep(seconds) expects a single numeric argument",
-                exec_ctx,
-            ))
-        seconds = args[0].value
-
-        async def _sleep():
-            await asyncio.sleep(seconds)
-            return RTResult().success(Number.null)
-
-        return RTResult().success(CoroutineValue(_sleep()))
-
-    # /async built-ins
-
-    def execute_overrideMain(self, args, exec_ctx):
-        """overrideMain("funcName") — redirect the program."""
-        global _main_override
-        if len(args) != 1 or not isinstance(args[0], String):
-            return RTResult().failure(RTError(
-                self.pos_start, self.pos_end,
-                "overrideMain() expects exactly one string argument — "
-                "the name of the global function to use as the program entry point.\n"
-                "  Example:  overrideMain(\"start\");",
-                exec_ctx,
-            ))
-        _main_override = args[0].value
-        return RTResult().success(Number.null)
-
 # modules
 
 class Namespace(Value):
@@ -5750,6 +4986,11 @@ _rawpy_global_modules: dict = {}
 # overrideMain entry-point registry
 _main_override: "str | None" = None
 
+# forever-loop configuration. These are reset for each top-level run.
+_forever_delay = 0.02
+_forever_warning_suppressed = False
+_setup_in_progress = False
+
 # global call hierarchy helpers
 
 def _can_call_global(caller_path, callee_path):
@@ -5819,7 +5060,7 @@ def _preregister_nested_globals(parent_func, block_node, context):
             if stmt.else_block is not None:
                 _preregister_nested_globals(parent_func, stmt.else_block, context)
 
-        elif isinstance(stmt, (WhileNode, ForNode, IterateNode)):
+        elif isinstance(stmt, (WhileNode, ForNode, IterateNode, ForeverNode)):
             # All three carry exactly one body_block
             _preregister_nested_globals(parent_func, stmt.body_block, context)
 
@@ -6173,6 +5414,21 @@ class Interpreter:
                 break
             res.loop_should_continue = False
         return res.success(Number.null)
+
+    def visit_ForeverNode(self, node, context):
+        res = RTResult()
+        warn_forever_no_break(node)
+
+        import time
+
+        while True:
+            res.register(self.visit(node.body_block, context))
+            if res.error or res.func_return_value is not None:
+                return res
+            if res.loop_should_break:
+                return res.success(Number.null)
+            res.loop_should_continue = False
+            time.sleep(_forever_delay)
 
     def visit_WhileNode(self, node, context):
         res = RTResult()
@@ -6686,6 +5942,21 @@ class Interpreter:
                 break
             res.loop_should_continue = False
         return res.success(Number.null)
+
+    async def async_visit_ForeverNode(self, node, context):
+        res = RTResult()
+        warn_forever_no_break(node)
+
+        import asyncio
+
+        while True:
+            res.register(await self.async_visit(node.body_block, context))
+            if res.error or res.func_return_value is not None:
+                return res
+            if res.loop_should_break:
+                return res.success(Number.null)
+            res.loop_should_continue = False
+            await asyncio.sleep(_forever_delay)
 
     async def async_visit_ForNode(self, node, context):
         res = RTResult()
@@ -7583,10 +6854,16 @@ class Interpreter:
                 return res
 
         if node.setup_func:
-            setup_res = RTResult()
-            setup_res.register(self.visit(node.setup_func.body_block, context))
-            if setup_res.error:
-                return setup_res
+            global _setup_in_progress
+            previous_setup_state = _setup_in_progress
+            _setup_in_progress = True
+            try:
+                setup_res = RTResult()
+                setup_res.register(self.visit(node.setup_func.body_block, context))
+                if setup_res.error:
+                    return setup_res
+            finally:
+                _setup_in_progress = previous_setup_state
 
         entry_name = _main_override if _main_override else "main"
         entry_fn = context.symbol_table.get(entry_name)
@@ -7632,8 +6909,11 @@ SHARED_INTERPRETER = Interpreter()
 # run
 
 def run(fn, text):
-    global _main_override
+    global _forever_delay, _forever_warning_suppressed, _setup_in_progress, _main_override
     _main_override = None
+    _forever_delay = 0.02
+    _forever_warning_suppressed = False
+    _setup_in_progress = False
 
     lexer = Lexer(fn, text)
     tokens, error = lexer.make_tokens()
@@ -7680,10 +6960,16 @@ def run_file(fn, text, symbol_table):
             return r.error
 
     if node.setup_func:
-        r = RTResult()
-        r.register(interpreter.visit(node.setup_func.body_block, context))
-        if r.error:
-            return r.error
+        global _setup_in_progress
+        previous_setup_state = _setup_in_progress
+        _setup_in_progress = True
+        try:
+            r = RTResult()
+            r.register(interpreter.visit(node.setup_func.body_block, context))
+            if r.error:
+                return r.error
+        finally:
+            _setup_in_progress = previous_setup_state
 
     return None
 

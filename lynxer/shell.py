@@ -223,4 +223,9 @@ def main():
     return 0
 
 if __name__ == '__main__':
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        # Ctrl-C is an intentional CLI exit, not an interpreter error.
+        print()
+        sys.exit(130)

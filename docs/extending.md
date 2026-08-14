@@ -1,292 +1,267 @@
 # Extending Lynxer
 
-There are two ways to add new functionality:
+Lynxer has two extension layers:
 
-| Method | What you write | Where it lives |
-|--------|---------------|----------------|
-| **Built-in function** | Python inside `lynxer.py` | Always available, no `import()` needed |
-| **Standard library module** | Lynxer inside `stdlib/<name>.lynx` | Available via `import("<name>")` in `setup()` |
+| Extension | Implementation | Use it when |
+| --- | --- | --- |
+| **Built-in function** | Python in `lynxer/builtins.py` | The operation needs Python libraries, system access, or a runtime primitive. |
+| **Standard-library module** | Lynxer in `lynxer/stdlib/<name>.lynx` | The operation can be expressed as Lynxer code or should be a normal imported module. |
 
-Use a built-in when you need raw Python power (speed, system access, Python libraries).  
-Use a stdlib module when pure Lynxer is enough — it is simpler and keeps the interpreter untouched.
+Built-ins are available without `import()`. Standard-library modules are loaded
+with `import("name")` and expose their global functions through
+`global.name.function(...)`.
 
 ---
 
-## Part 1 — Adding a built-in function
+## Part 1 — Add a built-in function
 
-Adding a built-in requires exactly **four edits** to `lynxer/lynxer.py`, all in the same region of the file.
+All built-in definitions and their implementations live in
+`lynxer/builtins.py`. The interpreter only imports the module after its runtime
+value classes have been defined, then installs the registered functions into
+the global and module symbol tables.
 
-### Step 1 — Declare the class variable
+### The built-in class
 
-Around line 4051, `BuiltInFunction` has a block of `ClassVar` declarations — one per built-in. Add yours to the list:
+`BuiltInFunction` is a `BaseFunction` whose `execute()` method dispatches by
+name:
 
 ```python
+method_name = f"execute_{self.name}"
+method = getattr(self, method_name, self.no_visit_method)
+return_value = res.register(method(args, exec_ctx))
+```
+
+Consequently, a built-in named `clamp` is implemented by a method named
+`execute_clamp`. The method receives:
+
+* `args`: a list of Lynxer runtime `Value` objects;
+* `exec_ctx`: the call's runtime `Context`.
+
+Return an `RTResult`: use `success(value)` for a Lynxer value and
+`failure(RTError(...))` for a Lynxer runtime error.
+
+### Example: `clamp(value, low, high)`
+
+Add the name to `BUILTIN_FUNCTION_NAMES` and add its implementation to
+`BuiltInFunction`:
+
+```python
+# in BUILTIN_FUNCTION_NAMES
+"clamp",
+
 class BuiltInFunction(BaseFunction):
-    print:   ClassVar["BuiltInFunction"]
-    println: ClassVar["BuiltInFunction"]
-    # ... existing entries ...
-    myFunc:  ClassVar["BuiltInFunction"]   # ← add here
+    # ...
+    def execute_clamp(self, args, exec_ctx):
+        if len(args) != 3 or not all(isinstance(arg, Number) for arg in args):
+            return RTResult().failure(
+                RTError(
+                    self.pos_start,
+                    self.pos_end,
+                    "clamp(value, low, high) expects three numbers",
+                    exec_ctx,
+                )
+            )
+
+        value, low, high = (arg.value for arg in args)
+        return RTResult().success(Number(max(low, min(value, high))))
 ```
 
-This is a type hint only; it lets static analysers and readers know the attribute exists.
-
-### Step 2 — Write the `execute_` method
-
-The `execute()` dispatcher calls `self.execute_<name>(args, exec_ctx)` automatically, where `name` is the string you passed to the constructor. Write that method anywhere inside `BuiltInFunction`:
+The registry at the bottom of `builtins.py` creates the function instance and
+installs it:
 
 ```python
-def execute_myFunc(self, args, exec_ctx):
-    # validate arguments
-    if len(args) != 2:
-        return RTResult().failure(RTError(
-            self.pos_start, self.pos_end,
-            "myFunc() takes exactly 2 arguments",
-            exec_ctx,
-        ))
-
-    # unwrap Lynxer values to Python values
-    a = args[0].value   # Number.value → int/float, String.value → str
-    b = args[1].value
-
-    # do the work
-    result = a + b
-
-    # wrap and return
-    return RTResult().success(Number(result))
+for name in BUILTIN_FUNCTION_NAMES:
+    register_builtin(name)
 ```
 
-**Argument types** arrive as Lynxer runtime objects. The common ones:
+Do **not** add registrations to `lynxer.py`. The list and the `execute_...`
+methods in `builtins.py` are the complete built-in definition.
 
-| Lynxer type | Python class | `.value` gives |
-|-------------|-------------|----------------|
-| `int` / `float` | `Number` | `int` or `float` |
-| `str` | `String` | `str` |
-| `list` | `List` | `list` of runtime objects |
-| `bool` | `Number` | `1` (true) or `0` (false) |
-| `none` | `Number` | `0` |
+### Runtime values
 
-**Return values** must also be wrapped:
+Arguments and return values must use Lynxer's runtime classes:
+
+| Lynxer value | Runtime class | Python payload |
+| --- | --- | --- |
+| `int`, `float`, `bool` | `Number` | `.value`; booleans also set `is_bool=True` |
+| `str` | `String` | `.value` |
+| `char` | `Char` | `.value` |
+| `list` | `List` | `.elements`, a list of runtime values |
+| `tuple` | `LynxTuple` | `.elements`, a list of runtime values |
+| `none` | `Null` | no payload |
+| async result | `CoroutineValue` | `.coro`, a Python coroutine |
+
+Use the singletons for language booleans and `none`:
 
 ```python
-# number
-return RTResult().success(Number(42))
-return RTResult().success(Number(3.14))
-
-# string
-return RTResult().success(String("hello"))
-
-# list
-elements = [Number(1), Number(2), String("x")]
-return RTResult().success(List(elements))
-
-# boolean (use the singletons)
 return RTResult().success(Number.true)
 return RTResult().success(Number.false)
-
-# null / void
 return RTResult().success(Number.null)
 ```
 
-**Returning an error:**
+For a new list or tuple, wrap the elements:
 
 ```python
-return RTResult().failure(RTError(
-    self.pos_start,
-    self.pos_end,
-    "Something went wrong: <description>",
-    exec_ctx,
-))
+return RTResult().success(List([Number(1), String("two")]))
+return RTResult().success(LynxTuple([Number(1), String("two")]))
 ```
 
-### Step 3 — Instantiate the class variable
+`Value.set_context()` and `Value.set_pos()` are available when a newly created
+value needs source/runtime metadata. The call visitor applies the call's
+position and context to the returned value automatically.
 
-Around line 4956, after the class body, there is a block of `BuiltInFunction.name = BuiltInFunction("name")` lines. Add yours:
+### Validate arguments and report errors
 
-```python
-BuiltInFunction.myFunc = BuiltInFunction("myFunc")
-```
-
-The string `"myFunc"` must match the method name suffix exactly (`execute_myFunc`).
-
-### Step 4 — Register in both symbol tables
-
-There are **two** places where built-ins are registered.
-
-**a) `global_symbol_table`** (around line 7421) — makes it available to every Lynxer program:
+Validate arity and runtime types before reading `.value` or `.elements`.
+Errors should point to `self.pos_start` and `self.pos_end`:
 
 ```python
-global_symbol_table.set("myFunc", BuiltInFunction.myFunc)
-```
-
-**b) `module_table`** inside `visit_ImportNode` (around line 7147) — makes it available inside imported stdlib modules:
-
-```python
-module_table.set("myFunc", BuiltInFunction.myFunc)
-```
-
-There is also an identical `module_table` registration inside `visit_ImportAsNode` (around line 7287). Both module import paths must include your built-in.
-
-Both registrations are required. Skipping the `module_table` entry means the built-in silently disappears inside any imported `.lynx` file.
-
-### Complete example — `clamp(value, lo, hi)`
-
-```python
-# Step 1 — ClassVar
-clamp: ClassVar["BuiltInFunction"]
-
-# Step 2 — execute method
-def execute_clamp(self, args, exec_ctx):
-    if len(args) != 3:
-        return RTResult().failure(RTError(
-            self.pos_start, self.pos_end,
-            "clamp() takes exactly 3 arguments: clamp(value, lo, hi)",
+if len(args) != 1 or not isinstance(args[0], String):
+    return RTResult().failure(
+        RTError(
+            self.pos_start,
+            self.pos_end,
+            'slugify(text) expects one string argument',
             exec_ctx,
-        ))
-    val = args[0].value
-    lo  = args[1].value
-    hi  = args[2].value
-    return RTResult().success(Number(max(lo, min(val, hi))))
-
-# Step 3 — instantiate
-BuiltInFunction.clamp = BuiltInFunction("clamp")
-
-# Step 4 — register (both places)
-global_symbol_table.set("clamp", BuiltInFunction.clamp)
-module_table.set("clamp", BuiltInFunction.clamp)   # inside visit_ImportNode
+        )
+    )
 ```
 
-After this, Lynxer programs can call `clamp(x, 0, 100)` without any import.
+Do not raise an ordinary Python exception for user input errors. Return an
+`RTError` so Lynxer can show its normal traceback and source excerpt. Python
+exceptions from an external library should generally be caught and converted
+to an `RTError` as well.
 
----
+### Register an implementation dynamically
 
-## Part 2 — Writing a stdlib module
+`register_builtin` is also available for extensions that need to register a
+handler after importing Lynxer:
 
-A stdlib module is a plain `.lynx` file placed in `lynxer/stdlib/`. Users load it with `import("name")` inside `setup()` and call its functions as `global.name.functionName(...)`.
+```python
+from lynxer.builtins import register_builtin
 
-### Minimal skeleton
+def execute_clamp(builtin, args, exec_ctx):
+    # Return RTResult.success(...) or RTResult.failure(...)
+    ...
 
-```c
-/// lynxer/stdlib/mylib.lynx — one-line description ///
-
-global setup(){}
-
-global myHelper(int x){
-    return x * 2;
-}
-
-// main() is required by the Lynxer runtime even in library files
-global main(){}
+register_builtin("clamp", execute_clamp)
 ```
 
-`setup()` and `main()` must both be present (they can be empty). Every exported function is a top-level `global` function.
+The handler is attached to `BuiltInFunction`, an instance is stored in
+`BUILTIN_FUNCTIONS`, and the global symbol table is updated immediately when
+it has already been created. For an in-tree built-in, prefer the class method
+plus `BUILTIN_FUNCTION_NAMES`; that keeps the complete built-in inventory
+reviewable in one file.
 
-### Using `rawPy{}` to call Python
+The `@builtin("name")` decorator is equivalent to
+`register_builtin("name", handler)`:
 
-The block form `rawPy{ ... }` is the primary bridge for stdlib functions that need Python. Variables declared in the surrounding Lynxer function scope are automatically visible inside the block, and assignments to those same names flow back out:
-
-```c
-global sqrt(float n){
-    float result = 0.0;
-    rawPy(){
-        import math as _m
-        result = _m.sqrt(n)    // writes back to Lynxer's 'result'
-    }
-    return result;
-}
-```
-
-Rules for `rawPy{}` blocks:
-- Variable names must match their Lynxer declarations exactly.
-- Only Lynxer-declared variables in the same function scope are bridged; Python-only temporaries (like `_m` above) are not visible in Lynxer.
-- Use underscore-prefixed names (`_m`, `_tmp`) for Python temporaries to avoid collisions.
-- Returning a boolean: assign `1` or `0` to an `int`, then compare with `not is 0` in Lynxer.
-
-### Pattern — wrapping a Python stdlib function
-
-```c
-/// Returns s repeated n times. ///
-global repeat(str s, int n){
-    str result = "";
-    rawPy(){
-        result = s * n
-    }
-    return result;
-}
-
-/// Returns true if needle is found anywhere in haystack. ///
-global contains(str haystack, str needle){
-    int found = 0;
-    rawPy(){
-        found = 1 if needle in haystack else 0
-    }
-    if(found not is 0){ return true; }
-    return false;
-}
-```
-
-### Pattern — fallible conversion
-
-```c
-/// Parse s as an integer, return 0 on failure. ///
-global toInt(str s){
-    int result = 0;
-    rawPy(){
-        try:
-            result = int(float(s))
-        except Exception:
-            result = 0
-    }
-    return result;
-}
-```
-
-### Placement and naming
-
-```
-lynxer/
-  stdlib/
-    mylib.lynx    ← import("mylib")
-    math.lynx     ← import("math")   (existing)
-    typing.lynx   ← import("typing") (existing)
+```python
+@builtin("clamp")
+def execute_clamp(builtin, args, exec_ctx):
     ...
 ```
 
-The file name (without `.lynx`) is the import key and the namespace prefix:
+### Testing a built-in
 
-```c
-global setup(){
+Create a small Lynxer program that calls the function directly and through an
+imported module if the module path matters:
+
+```lynx
+global setup() {}
+
+global main() {
+    println(clamp(12, 0, 10));
+}
+```
+
+Run it from the repository root:
+
+```sh
+python3 lynxer/shell.py /path/to/check.lynx
+```
+
+Also run the existing examples/tests after changing runtime code:
+
+```sh
+python3 lynxer/shell.py test/test.lynx
+python3 lynxer/shell.py test/test2.lynx
+```
+
+---
+
+## Part 2 — Add a standard-library module
+
+Put a module in `lynxer/stdlib/`. Its filename becomes its import name:
+
+```text
+lynxer/stdlib/mylib.lynx  ->  import("mylib")
+```
+
+A module has `setup()` and `main()` declarations. `main()` is required by
+the module parser even though `run_file()` does not execute it as an entry
+point:
+
+```lynx
+/// Small example module ///
+
+global setup() {}
+
+global double(int value) {
+    return value * 2;
+}
+
+global main() {}
+```
+
+Use it from a program like this:
+
+```lynx
+global setup() {
     import("mylib");
 }
 
-global main(){
-    int v = global.mylib.myHelper(21);   // 42
-    println(v);
+global main() {
+    println(global.mylib.double(21));
 }
 ```
 
-### What stdlib modules can use
+Every built-in is seeded into the module's symbol table before the module is
+run, so module code can call `print`, `range`, `listPush`, and the other
+built-ins directly.
 
-Because the interpreter seeds `module_table` with the full set of built-ins before running the module file, every built-in is available inside a stdlib module without qualification — `print`, `println`, `splitStr`, `listPush`, `seqFromTo`, etc. all work exactly as they do in user code.
+### Calling Python from a module
 
-### Testing a new stdlib module
+Use a `rawPy` block when a standard-library function needs Python:
 
-Write a small test file and run it with the interpreter directly:
-
-```
-/path/to/python3 lynxer/shell.py lynxer/tests/mylib_test.lynx
-```
-
-Use `println` assertions:
-
-```c
-global setup(){
-    import("mylib");
-}
-
-global main(){
-    int v = global.mylib.myHelper(21);
-    println(v);   // expected: 42
+```lynx
+global sqrt(float value) {
+    float result = 0.0;
+    rawPy() {
+        import math as _math
+        result = _math.sqrt(value)
+    }
+    return result;
 }
 ```
 
-There is no built-in assertion built-in yet — compare the printed output against your expectations manually or redirect stdout and diff.
+Variables declared in the same Lynxer function scope are bridged into the
+block and assignments to those names are copied back. Python-only temporaries
+should use underscore-prefixed names. `rawPy` blocks do not automatically
+expose arbitrary Python objects as Lynxer values; convert results to numbers,
+strings, or booleans before assigning them back.
+
+For Cython-backed code, use `rawPyx` and keep the same conversion rule. The
+string built-ins `rawPy("...")` and `rawPyx("...")` execute one-line code
+without Lynxer variable bridging.
+
+### Module checklist
+
+1. Add `lynxer/stdlib/<name>.lynx`.
+2. Include empty or real `global setup() {}` and `global main() {}`.
+3. Export functions as top-level `global` functions.
+4. Import the module in a test program.
+5. Run the test program and the existing interpreter tests.
+
+No changes to `lynxer.py` are needed for a normal built-in or standard-library
+extension.

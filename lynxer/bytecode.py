@@ -104,6 +104,9 @@ def run_bytecode(fn: str) -> tuple[Any, Any]:
     """Load and execute a pre-compiled ``.lynxc`` file."""
     runtime = _runtime()
     runtime._main_override = None
+    runtime._forever_delay = 0.02
+    runtime._forever_warning_suppressed = False
+    runtime._setup_in_progress = False
 
     try:
         data = load_bytecode(fn)
@@ -145,9 +148,14 @@ def run_bytecode_file(fn: str, symbol_table: Any) -> Any:
             return result.error
 
     if node.setup_func:
-        result = runtime.RTResult()
-        result.register(interpreter.visit(node.setup_func.body_block, context))
-        if result.error:
-            return result.error
+        previous_setup_state = runtime._setup_in_progress
+        runtime._setup_in_progress = True
+        try:
+            result = runtime.RTResult()
+            result.register(interpreter.visit(node.setup_func.body_block, context))
+            if result.error:
+                return result.error
+        finally:
+            runtime._setup_in_progress = previous_setup_state
 
     return None
