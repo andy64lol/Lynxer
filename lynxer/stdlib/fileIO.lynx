@@ -1,7 +1,6 @@
 ////
- Lynxer Standard Library — fileIO
- Provides: readFile, writeFile, appendFile, fileExists, deleteFile,
-           readLines, copyFile, fileSize
+Lynxer standard library: fileIO.
+File and text input/output helpers.
 ////
 
 global setup(){}

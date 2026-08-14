@@ -1068,6 +1068,34 @@ class BuiltInFunction(BaseFunction):
 
         return RTResult().success(CoroutineValue(_gather()))
 
+    def execute_sleep(self, args, exec_ctx):
+        """sleep(seconds) — block the current execution for a number of seconds."""
+        import time
+
+        if len(args) != 1 or not isinstance(args[0], Number) or args[0].is_bool:
+            return RTResult().failure(
+                RTError(
+                    self.pos_start,
+                    self.pos_end,
+                    "sleep(num) expects exactly one int or float argument",
+                    exec_ctx,
+                )
+            )
+
+        seconds = float(args[0].value)
+        if seconds < 0:
+            return RTResult().failure(
+                RTError(
+                    self.pos_start,
+                    self.pos_end,
+                    "sleep(num) cannot use a negative number of seconds",
+                    exec_ctx,
+                )
+            )
+
+        time.sleep(seconds)
+        return RTResult().success(Number.null)
+
     def execute_asyncSleep(self, args, exec_ctx):
         """asyncSleep(seconds) — return a coroutine."""
         import asyncio
@@ -1205,6 +1233,7 @@ BUILTIN_FUNCTION_NAMES = (
     "listMax",
     "asyncRun",
     "asyncGather",
+    "sleep",
     "asyncSleep",
     "foreverDelay",
     "suppressForeverWarning",

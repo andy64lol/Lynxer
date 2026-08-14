@@ -1,51 +1,6 @@
 ////
-  Lynxer Standard Library — game
-  2-D game development toolkit wrapping Python's arcade library.
-  Requires: arcade  (pip install arcade)
-
-  Provides:
-    Window:      init, setTitle, setBackground, getWidth, getHeight, close
-    App:         run
-    Draw loop:   beginDraw, endDraw
-    Shapes:      drawRect, drawRectOutline, drawCircle, drawCircleOutline,
-                 drawEllipse, drawEllipseOutline, drawLine, drawTriangle,
-                 drawTriangleOutline, drawPolygon, drawArc, drawPoint
-    Text:        drawText, drawTextStyled
-    Sprites:     loadSprite, getSpriteX, getSpriteY, getSpriteAngle,
-                 setSpritePos, setSpriteAngle, setSpriteScale,
-                 setSpriteVelocity, updateSprite, drawSprite,
-                 spriteCollidesWithList, loadSpriteList, addToList,
-                 drawSpriteList, updateSpriteList
-    Input:       keyDown, keyUp (bool checks), mouseX, mouseY
-    Sound:       loadSound, playSound, stopSound
-    Camera:      useCamera, resetCamera
-    Timer:       deltaTime
-    Physics:     makePhysicsEngine, updatePhysics
-    Scene:       makeScene, addSpriteToScene, drawScene, updateScene
-
-  Usage pattern
-  ─────────────
-  import("game") inside setup(), then:
-
-    global main(){
-        global.game.init("My Game", 800, 600);
-        global.game.setBackground(30, 30, 30);
-        // game loop driven by rawPy — see docs/stdlib/game.md
-        global.game.run();
-    }
-
-  The on_draw / on_update hooks must be set via rawPy before run():
-    rawPy(){
-        import builtins, arcade
-        def _draw():
-            global.game.beginDraw()
-            global.game.drawCircle(400, 300, 50, 255, 100, 100)
-            global.game.endDraw()
-        def _update(dt):
-            builtins._lx_game_dt = dt
-        builtins._lx_game_win.on_draw   = _draw
-        builtins._lx_game_win.on_update = _update
-    }
+Lynxer standard library: game.
+2D game helpers using Arcade. Requires Arcade.
 ////
 
 global setup(){}

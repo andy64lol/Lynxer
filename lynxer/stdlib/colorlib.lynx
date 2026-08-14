@@ -1,7 +1,6 @@
 ////
-  Lynxer Standard Library — colorlib
-  Written completely in Lynxer using ANSI escape sequences.
-  gives easy access to colours
+Lynxer standard library: colorlib.
+ANSI color helpers.
 ////
 
 global setup(){}

@@ -1,15 +1,6 @@
 ////
-  Lynxer Standard Library — re
-  Wraps Python's re module for regular expression operations.
-
-  All pattern strings use Python regex syntax.
-  Functions that return multiple results encode them as JSON arrays.
-
-  Provides: test, match, matchFull, search, findall, finditer,
-            sub, subn, split, escape, groups, groupsAll,
-            named, count,
-            matchIgnoreCase, searchIgnoreCase, findallIgnoreCase,
-            subIgnoreCase, testIgnoreCase
+Lynxer standard library: re.
+Regular expression helpers using Python re.
 ////
 
 global setup(){}

@@ -1,9 +1,6 @@
 ////
-  Lynxer Standard Library - random
-  Provides: seed, random, randint, uniform,
-            randrange, randrangeStep,
-            gauss, coinflip,
-            sampleInt, sampleFloat
+Lynxer standard library: random.
+Random value helpers.
 ////
 
 global setup(){}

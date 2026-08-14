@@ -1,8 +1,6 @@
 ////
-  Lynxer Standard Library — typing
-  Provides: toStr, toInt, toFloat, toBool, isNumeric, lenStr,
-            repeat, contains,
-            toList, isList, lenList, flatten, unique
+Lynxer Standard Library — typing
+Adds typing convertion functions and other things about types.  
 ////
 
 global setup(){}

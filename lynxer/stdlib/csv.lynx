@@ -1,17 +1,6 @@
 ////
-  Lynxer Standard Library — csv
-  CSV and TSV file / string operations backed by Python's csv module.
-
-  Provides:
-    • readCSV, writeCSV, appendRow, buildCSV
-    • parseRows, parseHeaders, parseToJson
-    • getColumn, getRow, rowCount, colCount, hasColumn
-    • filterRows, sortCSV, columnStats
-    • toTSV, fromTSV, readWithDelimiter
-
-  All parse functions expect the first row to be a header row.
-  Functions that return structured data encode results as JSON strings.
-  Use global.json.* to work with those strings.
+Lynxer standard library: csv.
+CSV and TSV data helpers.
 ////
 
 global setup(){}

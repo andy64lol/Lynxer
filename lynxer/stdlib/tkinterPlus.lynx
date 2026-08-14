@@ -1,63 +1,6 @@
 ////
-  Lynxer Standard Library — tkinterPlus
-  Comprehensive GUI toolkit wrapping Python's tkinter and tkinter.ttk.
-  Also includes a CustomTkinter (CTk) extension — all CTk functions are
-  prefixed with "ctk" (e.g. ctkInit, ctkLabel, ctkButton).
-  Requires: pip install customtkinter  (for ctk* functions only)
-
-  Widgets are referenced by integer indexes stored in an internal list.
-  Layout:  pack (default) | grid | place
-
-  ── Standard tkinter ──────────────────────────────────────────────────
-  Provides:
-    Window:       init, setTitle, resize, setBackground, disableResize,
-                  setMinSize, setMaxSize, setOpacity, center, topmost,
-                  iconify, deiconify, update, after, bind, unbind
-    Widgets:      label, button, entry, textBox, checkbox, separator,
-                  frame, labelFrame, listbox, radioButton, scale,
-                  spinbox, progressBar, combobox, canvas, image, scrollbar
-    ttk:          notebook, addTab
-    Menus:        menubar, addMenu, addMenuItem, addMenuSeparator,
-                  addCheckMenuItem, contextMenu, addContextItem, showContext
-    Layout:       grid, place, pack
-    Styling:      setFont, setForeground, setBackgroundWidget,
-                  setPadding, setBorder, setCursor
-    Widget ops:   getValue, getListSelection, getScale, getRadio,
-                  getCombo, setText, setEntryText, setValue,
-                  clearWidget, disableWidget, enableWidget, isChecked,
-                  setChecked, hideWidget, showWidget, destroyWidget,
-                  canvasLine, canvasRect, canvasOval, canvasText,
-                  canvasClear, scrollbarAttach
-    Dialogs:      messageBox, warningBox, errorBox, askYesNo,
-                  openFileDialog, saveFileDialog, openDirDialog,
-                  askColor, askString, askInteger, askFloat
-    App:          run, close
-
-  ── CustomTkinter (CTk) extension ────────────────────────────────────
-  Theme:        ctkSetAppearance, ctkSetTheme
-  Window:       ctkInit, ctkSetTitle, ctkResize, ctkSetBackground,
-                ctkDisableResize, ctkSetMinSize, ctkSetMaxSize,
-                ctkSetOpacity, ctkCenter, ctkTopmost, ctkIconify,
-                ctkDeiconify, ctkUpdate, ctkAfter, ctkBindClose
-  Widgets:      ctkLabel, ctkLabelStyled, ctkButton, ctkButtonStyled,
-                ctkEntry, ctkEntryPlaceholder, ctkPasswordEntry,
-                ctkTextBox, ctkCheckbox, ctkSwitch, ctkRadioButton,
-                ctkCombobox, ctkOptionMenu, ctkSegmented,
-                ctkSlider, ctkProgressBar, ctkFrame, ctkScrollFrame,
-                ctkTabView, ctkAddTab, ctkImage
-  Layout:       ctkGrid, ctkGridSpan, ctkPlace, ctkPack
-  Styling:      ctkSetFont, ctkSetForeground, ctkSetBackgroundWidget,
-                ctkSetCornerRadius, ctkSetBorderWidth, ctkSetPadding
-  Widget ops:   ctkGetValue, ctkGetText, ctkSetText, ctkSetEntryText,
-                ctkSetTextBoxContent, ctkIsChecked, ctkSetChecked,
-                ctkIsOn, ctkSetSwitch, ctkGetRadio,
-                ctkGetSlider, ctkSetSlider, ctkGetCombo, ctkSetCombo,
-                ctkGetOption, ctkSetOption, ctkSetProgress, ctkGetProgress,
-                ctkClearWidget, ctkDisableWidget, ctkEnableWidget,
-                ctkHideWidget, ctkShowWidget, ctkDestroyWidget,
-                ctkFocusWidget
-  Dialogs:      (reuses standard tkinter dialogs — messageBox etc.)
-  App:          ctkRun, ctkClose
+Lynxer standard library — tkinterPlus
+Adds tkinter based GUI and adds extension of customTkinter.
 ////
 
 global setup(){}

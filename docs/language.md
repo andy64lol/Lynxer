@@ -511,6 +511,53 @@ global mixed(int n, any x){ ... }
 
 A call that passes a value of the wrong type is a runtime error.
 
+### Caller-supplied code blocks
+
+Global, local, and class-method functions may declare one or more named
+code-block parameters after their normal parameters. The parameter list is
+followed by the function body:
+
+```c
+global repeat(str label){body}{
+    print(label); print(": ");
+    exec({body});
+    print("\n");
+}
+
+global main(){
+    global.repeat("message"){
+        print("hello from the caller");
+    };
+}
+```
+
+The trailing block is passed to the function, and `exec({name})` injects its
+Lynxer statements at that point in the callee's current context. This means
+the injected code can use the function's parameters and local variables, call
+other functions, return from the function, and participate in its control
+flow. A function must receive exactly the number of code blocks declared in
+its signature; blocks are matched in declaration order.
+
+```c
+global runTwice(){first, second}{
+    exec({first});
+    exec({second});
+}
+
+global main(){
+    global.runTwice(){
+        print("one\n");
+    }{
+        print("two\n");
+    };
+}
+```
+
+Code-block parameters are only valid on callable functions, not on
+`setup()` or the program-entry `main()`. Injected code cannot define
+`local`, `global`, or `async` functions, and cannot attach another code block
+to a call; it can call functions that were defined elsewhere.
+
 ### Return values
 
 `return` exits the function and optionally produces a value:

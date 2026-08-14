@@ -1,8 +1,6 @@
 ////
-  Lynxer Standard Library — js
-  Run JavaScript via Node.js subprocess.
-  Requires: node installed and on PATH.
-  Provides: runJS, runJSFile, evalJS, nodeVersion, nodeExists
+Lynxer standard library: js.
+JavaScript execution helpers using Node.js. Requires Node.js.
 ////
 
 global setup(){}

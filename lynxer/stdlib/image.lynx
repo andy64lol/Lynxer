@@ -1,35 +1,6 @@
 ////
-  Lynxer Standard Library — image
-  Comprehensive image processing library wrapping Python's Pillow (PIL Fork).
-  Requires: pip install Pillow
-
-  Images are stored in an internal list and referenced by integer indexes —
-  the same pattern used by tkinter widgets.
-
-  Functions that create new images (resize, crop, filter, etc.) return a
-  NEW index; the original image is not modified unless noted otherwise.
-  Use save(idx, path) to write the result to disk.
-
-  Provides:
-    Core:         open, new, save, saveQuality, copy, show, close,
-                  getWidth, getHeight, getMode, getFormat, info
-    Transform:    resize, thumbnail, crop, rotate, flipH, flipV, pad,
-                  scale, fit, contain
-    Convert:      convert, grayscale, toRGB, toRGBA, toBinary
-    Enhance:      brightness, contrast, color, sharpness, invert
-    Filter:       blur, boxBlur, unsharpMask, sharpen, edgeEnhance,
-                  emboss, findEdges, smooth, contour, detail,
-                  medianFilter, minFilter, maxFilter
-    Pixel:        getPixel, setPixel, setPixelA, fill
-    Composite:    paste, pasteWithAlpha, blend, composite,
-                  addAlpha, setAlpha, removeAlpha, putAlpha
-    Drawing:      drawLine, drawRect, drawRoundedRect, drawCircle,
-                  drawEllipse, drawPolygon, drawText, drawTextFont,
-                  floodFill
-    Analysis:     getAverageColor, getDominantColor, getHistogram
-    Special:      autoContrast, equalize, quantize, solarize,
-                  posterize, tile, splitChannels, mergeChannels
-    Base64:       toBase64, fromBase64, toDataUrl
+Lynxer standard library: image.
+Image processing helpers using Pillow. Requires Pillow.
 ////
 
 global setup(){}

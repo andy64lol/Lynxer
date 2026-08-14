@@ -1,21 +1,6 @@
 ////
-  Lynxer Standard Library — regex
-  Extended regular expression operations.
-
-  Uses Python's `regex` package when available, with graceful fallback to `re`.
-  The `regex` package adds: possessive quantifiers (++, *+), atomic groups (?>...),
-  Unicode category support (\p{L}), and overlapping matches.
-
-  Complements re.lynx with:
-    • Compiled pattern cache (compile / compileFlags)
-    • Pattern validation (isValid)
-    • Extended extraction (extract, extractAll, unique)
-    • Replace helpers (replaceNth, replaceAllLiteral)
-    • Search helpers (lastMatch, highlight, splitKeep)
-    • Utility (globToRegex, countWords, truncateMatch)
-
-  For basic regex operations (test, match, findall, sub, split, groups, named …)
-  use global.re.* — those are already well-covered in re.lynx.
+Lynxer standard library: regex.
+Extended regular expression helpers.
 ////
 
 global setup(){}

@@ -1,7 +1,6 @@
 ////
-  Lynxer Standard Library — text
-  String manipulation utilities.
-  Uses Python's standard string operations through rawPy().
+Lynxer Standard Library — text
+String manipulation utilities.
 ////
 
 global setup(){}

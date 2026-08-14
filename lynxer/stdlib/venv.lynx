@@ -1,15 +1,6 @@
 ////
- Lynxer Standard Library — venv
- Virtual environment management via Python's built-in venv module.
-
- Usage (after import("venv") in setup()):
-   global.venv.venv.create("my-env", "")              // create in cwd/my-env
-   global.venv.venv.create("my-env", "/opt/envs")     // create in /opt/envs/my-env
-   global.venv.venv.init("/path/to/my-env")            // verify an existing venv
-   global.venv.venv.listVenvs()                        // list venvs in cwd (JSON array)
-   global.venv.venv.remove("my-env")                  // remove cwd/my-env (or abs path)
-   global.venv.package.add("my-env", "requests")      // pip install into venv
-   global.venv.package.remove("my-env", "requests")   // pip uninstall from venv
+Lynxer Standard Library — venv
+Virtual environment management via Python's built-in venv module.
 ////
 
 global setup(){}

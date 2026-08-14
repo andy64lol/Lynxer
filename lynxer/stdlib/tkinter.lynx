@@ -1,5 +1,6 @@
 ////
-    Tkinter
+Lynxer standard library — tkinter
+Adds tkinter based GUI.
 ////
 
 global setup(){}

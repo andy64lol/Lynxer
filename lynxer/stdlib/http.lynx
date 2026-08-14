@@ -1,11 +1,6 @@
 ////
-  Lynxer Standard Library - http
-  HTTP client built on Python's urllib (no extra deps).
-
-  Provides: get, post, put, delete, patch,
-            getStatus, getHeaders,
-            getJson, postJson,
-            download, urlencode
+Lynxer standard library: http.
+HTTP client helpers.
 ////
 
 global setup(){}

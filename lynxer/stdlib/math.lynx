@@ -1,8 +1,6 @@
 ////
-  Lynxer Standard Library — math
-  Pure-Python math, number theory, interpolation, and random helpers.
-
-  NumPy-backed functions are available from mathPlus.lynx.
+Lynxer standard library: math.
+Math and number helpers.
 ////
 
 global setup(){}

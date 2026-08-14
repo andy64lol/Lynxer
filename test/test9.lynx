@@ -1,0 +1,15 @@
+global setup(){}
+global render(str prefix){content}{content2}{
+    print(prefix);
+    exec({content});
+    exec({content2});
+}
+global main(){
+    global.render("value: "){
+        sleep(5); //sleeps for 5 seconds here
+        println("42");
+    }{
+        sleep(0.01);
+        println("Hello!");
+    }
+}

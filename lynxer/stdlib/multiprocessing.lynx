@@ -1,25 +1,6 @@
 ////
- Lynxer Standard Library — multiprocessing
- Run shell commands in parallel using Python's concurrent.futures module.
-
- Shell commands are I/O-bound (each spawns a separate OS process), so a
- thread pool is used rather than a process pool — no pickling required and
- no spawning overhead.  For CPU-bound Python work, use runParallelProcess
- which uses a ProcessPoolExecutor with picklable workers from lynxer._mp_workers.
-
- Provides:
-   workerCount()                       Number of available CPU cores
-   runParallel(list commands)          Run shell commands in parallel; return list of outputs
-   mapShell(str template, list items)  Run a command per item (replace {} with each item); return outputs
-   threadMap(str template, list items) Alias for mapShell (thread-based)
-   runParallelSilent(list commands)    Run in parallel, discard output; return list of integer exit codes
-   runParallelProcess(list commands)   Like runParallel but uses a process pool (CPU-bound tasks)
-
- Return-value contract:
-   All list-returning functions return a Lynxer list of strings.
-   runParallelSilent returns integer exit codes (as Lynxer ints).
-   Empty input → empty list.
-   Command timeout (60s) → error string or exit code 1.
+Lynxer standard library: multiprocessing.
+Parallel shell and process helpers.
 ////
 
 global setup(){

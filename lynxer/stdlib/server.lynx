@@ -1,36 +1,6 @@
 ////
-  Lynxer Standard Library — server
-  Full-featured HTTP server built on Flask.
-
-  Supports:
-    • Plain text / HTML routes (GET, POST, PUT, DELETE, PATCH, any-method, multi-method)
-    • Routes with URL parameters: /user/<id>
-    • JSON API routes (fixed and dynamic via rawPy callback)
-    • Jinja2 template file and inline-string routes
-    • Static file directories
-    • Complete static-site hosting
-    • Temporary and permanent redirects
-    • Custom 404 / 500 / 403 error pages
-    • CORS (wildcard or single origin)
-    • Per-request logging
-    • Global response headers
-    • Cookie reading and setting
-    • Request-context readers:
-        getArg(name), getFormField(name), getBody(), getBodyJson(),
-        getHeader(name), getMethod(), getURL(), getIP(),
-        getContentType(), getQueryAll(), getRouteParam(name)
-    • Response helpers: withStatus, jsonWithStatus
-    • Max request body size
-    • HTTPS / SSL
-    • Debug mode
-
-  Quick start:
-    global setup(){ import("server"); }
-    global main(){
-        global.server.init("0.0.0.0", 8080);
-        global.server.get("/", "<h1>Hello from Lynxer!</h1>");
-        global.server.run();
-    }
+Lynxer standard library: server.
+HTTP server helpers using Flask. Requires Flask.
 ////
 
 global setup(){}

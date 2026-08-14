@@ -1,15 +1,6 @@
 ////
-  Lynxer Standard Library — debug
-  Runtime inspection, assertion, timing, and logging helpers.
-
-  Provides:
-    • assert helpers: assert, assertEq, assertGt, assertLt, assertContains
-    • type inspection: typeOf, dump, inspect
-    • structured logging: log, info, warn, error, debug
-    • timer: startTimer, stopTimer, elapsed, clock
-    • environment: envGet, envAll
-    • memory: getMemory
-    • pretty-print: pp
+Lynxer standard library: debug.
+Debugging, logging, and inspection helpers.
 ////
 
 global setup(){}

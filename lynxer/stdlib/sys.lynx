@@ -1,14 +1,6 @@
 ////
-  Lynxer Standard Library — sys
-  Wraps Python's sys module for runtime information and control.
-
-  Provides: version, versionInfo, platform, executable, prefix,
-            argv, exit, getPath, addPath, removeFromPath,
-            getModules, getRecursionLimit, setRecursionLimit,
-            getMaxSize, getByteOrder, getDefaultEncoding,
-            getFilesystemEncoding, getRefCount, isFrozen,
-            stdin, stdout, stderr (as string descriptors),
-            getFlags
+Lynxer standard library: sys.
+Runtime and system information helpers.
 ////
 
 global setup(){}

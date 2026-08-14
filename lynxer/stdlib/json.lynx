@@ -1,8 +1,6 @@
 ////
-  Lynxer Standard Library — json
-  JSON encode / decode via Python's json module.
-  Provides: jsonValid, jsonParse, jsonGet, jsonGetInt, jsonGetFloat,
-            jsonGetBool, jsonKeys, jsonStringify, jsonArray, jsonObject
+Lynxer standard library: json.
+JSON encoding and decoding helpers.
 ////
 
 global setup(){}

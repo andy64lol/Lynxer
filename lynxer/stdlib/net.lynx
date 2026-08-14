@@ -1,19 +1,6 @@
 ////
-  Lynxer Standard Library — net
-  Networking utilities: WebSocket client, TCP helpers, hostname/IP lookup,
-  and simple HTTP utilities.
-
-  Requires: pip install websockets
-
-  Provides:
-    WebSocket client:
-      wsConnect, wsSend, wsReceive, wsSendReceive, wsClose, wsConnected
-    TCP:
-      tcpConnect, tcpSend, tcpReceive, tcpSendReceive, tcpClose
-    Utilities:
-      getHostname, getLocalIP, resolveHost, isPortOpen,
-      urlParse, urlHost, urlPath, urlScheme,
-      httpHead, ping
+Lynxer standard library: net.
+Networking helpers. Requires websockets.
 ////
 
 global setup(){}

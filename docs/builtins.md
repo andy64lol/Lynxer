@@ -274,6 +274,21 @@ the other loop forms.
 
 ---
 
+## Timing
+
+### `sleep(num)`
+
+Blocks the current execution for the given number of seconds. The argument
+may be an `int` or `float`; negative durations and other value types raise a
+runtime error.
+
+```c
+sleep(1);       // one second
+sleep(0.25);    // 250 milliseconds
+```
+
+---
+
 ## rawPy / rawPyx
 
 See [language.md](language.md#rawpy-and-rawpyx) for full bridging rules.

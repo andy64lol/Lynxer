@@ -1263,8 +1263,9 @@ class Parser:
         res.register_advancement()
         self.advance()
 
+        param_names = [param_tok.value for _, param_tok in param_toks]
         code_block_toks = []
-        if self._looks_like_code_block_signature():
+        while self._looks_like_code_block_signature():
             res.register_advancement()
             self.advance()  # consume the code-block signature '{'
 
@@ -1305,6 +1306,33 @@ class Parser:
             self.advance()
 
         is_setup = name_tok.value == "setup"
+        if code_block_toks and is_setup:
+            return res.failure(InvalidSyntaxError(
+                name_tok.pos_start,
+                self.current_tok.pos_end,
+                "'global setup(){}' cannot declare code-block parameters because "
+                "setup() is invoked without caller-supplied blocks",
+            ))
+        if code_block_toks and name_tok.value == "main":
+            return res.failure(InvalidSyntaxError(
+                name_tok.pos_start,
+                self.current_tok.pos_end,
+                "'global main(){}' cannot declare code-block parameters because "
+                "main() is invoked as the program entry point",
+            ))
+
+        seen_names = set(param_names)
+        for block_tok in code_block_toks:
+            if block_tok.value in seen_names:
+                return res.failure(InvalidSyntaxError(
+                    block_tok.pos_start,
+                    block_tok.pos_end,
+                    f"Duplicate parameter name '{block_tok.value}' — "
+                    "code-block names must be unique and must not overlap "
+                    "value parameters",
+                ))
+            seen_names.add(block_tok.value)
+
         _is_global_def = kind_tok.value == "global" or (
             kind_tok.type == TT_IDENTIFIER and kind_tok.value == "global"
         )
@@ -1585,15 +1613,17 @@ class Parser:
             if res.error:
                 return res
             if self.current_tok.type != TT_SEMICOLON:
-                return res.failure(
-                    InvalidSyntaxError(
-                        expr.pos_end,
-                        self.current_tok.pos_start,
-                        "Missing ';' after statement",
+                if not (isinstance(expr, CallNode) and expr.block_arg_nodes):
+                    return res.failure(
+                        InvalidSyntaxError(
+                            expr.pos_end,
+                            self.current_tok.pos_start,
+                            "Missing ';' after statement",
+                        )
                     )
-                )
-            res.register_advancement()
-            self.advance()
+            else:
+                res.register_advancement()
+                self.advance()
             return res.success(expr)
 
         if allow_local_funcs and self.current_tok.matches(TT_KEYWORD, "local"):
@@ -1644,15 +1674,17 @@ class Parser:
             if res.error:
                 return res
             if self.current_tok.type != TT_SEMICOLON:
-                return res.failure(
-                    InvalidSyntaxError(
-                        expr.pos_end,
-                        self.current_tok.pos_start,
-                        "Missing ';' after statement",
+                if not (isinstance(expr, CallNode) and expr.block_arg_nodes):
+                    return res.failure(
+                        InvalidSyntaxError(
+                            expr.pos_end,
+                            self.current_tok.pos_start,
+                            "Missing ';' after statement",
+                        )
                     )
-                )
-            res.register_advancement()
-            self.advance()
+            else:
+                res.register_advancement()
+                self.advance()
             return res.success(expr)
 
         next_tok = self.peek(1)
@@ -1878,6 +1910,13 @@ class Parser:
                 and next_tok
                 and next_tok.type == TT_EXEC_BLOCK
             ):
+                if self._exec_mode:
+                    return res.failure(InvalidSyntaxError(
+                        self.current_tok.pos_start,
+                        self.current_tok.pos_end,
+                        "Code blocks are not allowed inside exec(); "
+                        "call the function without a nested exec block",
+                    ))
                 res.register_advancement()
                 self.advance()
                 code = self.current_tok.value
@@ -1910,15 +1949,17 @@ class Parser:
                 )
 
             if self.current_tok.type != TT_SEMICOLON:
-                return res.failure(
-                    InvalidSyntaxError(
-                        expr.pos_end,
-                        self.current_tok.pos_start,
-                        "Missing ';' after this statement",
+                if not (isinstance(expr, CallNode) and expr.block_arg_nodes):
+                    return res.failure(
+                        InvalidSyntaxError(
+                            expr.pos_end,
+                            self.current_tok.pos_start,
+                            "Missing ';' after this statement",
+                        )
                     )
-                )
-            res.register_advancement()
-            self.advance()
+            else:
+                res.register_advancement()
+                self.advance()
             return res.success(expr)
 
         return res.failure(
@@ -3527,6 +3568,13 @@ class Parser:
                 atom = CallNode(atom, arg_nodes, pos_start, pos_end)
 
             elif self.current_tok.type == TT_LBRACE and isinstance(atom, CallNode):
+                if self._exec_mode:
+                    return res.failure(InvalidSyntaxError(
+                        self.current_tok.pos_start,
+                        self.current_tok.pos_end,
+                        "Code blocks are not allowed inside exec(); "
+                        "call the function without a trailing code block",
+                    ))
                 block_node = res.register(self.parse_code_block_literal())
                 if res.error:
                     return res
@@ -6406,6 +6454,9 @@ class Interpreter:
             value = Number.null
         return res.success_return(value)
 
+    async def async_visit_ExecBlockNode(self, node, context):
+        return await self.async_visit(node.body_block, context)
+
     async def async_visit_CodeBlockLiteralNode(self, node, context):
         return self.visit_CodeBlockLiteralNode(node, context)
 
@@ -6811,7 +6862,15 @@ class Interpreter:
             func_name = method_node.var_name_tok.value
             param_names = [p[1].value for p in method_node.param_toks]
             param_types = [p[0].value if p[0] else None for p in method_node.param_toks]
-            func = Function(func_name, method_node.body_block, param_names, param_types, is_global=False)
+            code_block_names = [tok.value for tok in method_node.code_block_toks]
+            func = Function(
+                func_name,
+                method_node.body_block,
+                param_names,
+                param_types,
+                is_global=False,
+                code_block_names=code_block_names,
+            )
             func.set_context(context).set_pos(method_node.pos_start, method_node.pos_end)
             methods[func_name] = func
 

@@ -1,7 +1,6 @@
 ////
-  Lynxer Standard Library — mathPlus
-  The complete math API plus NumPy-backed numerical operations.
-  Requires: pip install numpy
+Lynxer standard library: mathPlus.
+Extended math and NumPy helpers. Requires NumPy.
 ////
 
 global setup(){

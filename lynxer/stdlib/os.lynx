@@ -1,9 +1,6 @@
 ////
-  Lynxer Standard Library — os
-  Port of Python's os / os.path module.
-  Provides: getcwd, chdir, listdir, mkdir, makedirs, rmdir,
-            remove, rename, exists, isFile, isDir, joinPath, basename,
-            dirname, absPath, getenv, getpid, sep
+Lynxer standard library: os.
+Operating system and path helpers.
 ////
 
 global setup(){}

@@ -1,7 +1,6 @@
 ////
- Lynxer Standard Library — shell
- Provides: runShell, runShellCapture, runShellSilent,
-           runShellErr, runShellCode, commandExists
+Lynxer standard library: shell.
+Shell command helpers.
 ////
 
 global setup(){}

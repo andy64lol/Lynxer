@@ -1,12 +1,6 @@
 ////
-  Lynxer Standard Library - datetime
-  Provides: now, getTime, getDate, getYear, getMonth, getDay,
-            getHour, getMinute, getSecond,
-            getWeekday, getWeekdayNum,
-            isoNow, format,
-            timestamp, fromTimestamp, toTimestamp,
-            addDays, diffDays,
-            isLeapYear, daysInMonth
+Lynxer standard library — time
+Time and date utilities.
 ////
 
 global setup(){}

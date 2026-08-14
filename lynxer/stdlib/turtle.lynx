@@ -1,23 +1,6 @@
 ////
-  Lynxer Standard Library — turtle
-  Comprehensive wrapper for Python's turtle graphics module.
-  Requires a display (Tk).  Call done() at the end of main() to keep the window open.
-
-  Provides:
-    Window:      init, title, bgcolor, bgpic, screensize,
-                 window_width, window_height, mode, colormode, tracer, update
-    Movement:    forward, backward, right, left, goto, setx, sety, home,
-                 setheading, towards
-    Pen:         penup, pendown, pencolor, pensize, fillcolor, begin_fill, end_fill,
-                 color, isdown, speed
-    Drawing:     circle, dot, write, stamp, clearstamp, undo
-    Shapes:      shape, turtlesize, resizemode, addshape
-    Turtle state: xcor, ycor, heading, pos, distance
-    Appearance:  hideturtle, showturtle
-    Canvas:      clear, reset, polygon, star
-    Events:      listen, exitonclick, onkey, onclick, onscreenclick
-    Dialogs:     numinput, textinput
-    App:         done
+Lynxer standard library — turtle
+Adds turtle drawing and rendering from python.
 ////
 
 global setup(){}
