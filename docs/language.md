@@ -340,6 +340,31 @@ if(x > 0){
 }
 ```
 
+### switch / case
+
+`switch(value){}` selects the first `case(value){}` block whose value equals
+the switch value. If no case matches, the switch does nothing. Cases do not
+fall through to one another:
+
+```c
+int status = 2;
+
+switch(status){
+    case(1){
+        println("pending");
+    }
+    case(2){
+        println("complete");
+    }
+    case(3){
+        println("failed");
+    }
+}
+```
+
+`case` blocks are only valid directly inside a `switch` block. A switch may
+contain any number of cases, including none.
+
 ### while
 
 ```c
@@ -513,9 +538,9 @@ A call that passes a value of the wrong type is a runtime error.
 
 ### Caller-supplied code blocks
 
-Global, local, and class-method functions may declare one or more named
-code-block parameters after their normal parameters. The parameter list is
-followed by the function body:
+Global, local, and class-method functions may declare named parameters for
+code supplied by the caller. Put each code-block name in braces after the
+normal parameters, then write the function body:
 
 ```c
 global repeat(str label){body}{
@@ -527,19 +552,21 @@ global repeat(str label){body}{
 global main(){
     global.repeat("message"){
         print("hello from the caller");
-    };
+    }
 }
 ```
 
-The trailing block is passed to the function, and `exec({name})` injects its
-Lynxer statements at that point in the callee's current context. This means
-the injected code can use the function's parameters and local variables, call
-other functions, return from the function, and participate in its control
-flow. A function must receive exactly the number of code blocks declared in
-its signature; blocks are matched in declaration order.
+`exec({body})` runs the supplied Lynxer code at that point in the function.
+The code runs in the callee's context, so it can use the function's parameters
+and local variables. It can call existing functions, use control flow, and
+return from the callee.
+
+### Multiple code blocks
+
+Declare multiple blocks in the order in which they should be bound:
 
 ```c
-global runTwice(){first, second}{
+global runTwice(){first}{second}{
     exec({first});
     exec({second});
 }
@@ -549,14 +576,32 @@ global main(){
         print("one\n");
     }{
         print("two\n");
-    };
+    }
 }
 ```
 
-Code-block parameters are only valid on callable functions, not on
-`setup()` or the program-entry `main()`. Injected code cannot define
-`local`, `global`, or `async` functions, and cannot attach another code block
-to a call; it can call functions that were defined elsewhere.
+The comma form `{first, second}` is also accepted. A call must provide exactly
+the number of blocks declared by the function, and blocks are bound in
+declaration order.
+
+The semicolon after a call is optional when the call ends with one or more
+code blocks:
+
+```c
+global.runTwice(){ print("one\n"); }{ print("two\n"); }
+```
+
+Ordinary function calls still require a semicolon:
+
+```c
+global.runTwice();   // syntax error: no code blocks were supplied
+global.greet("Hi");  // normal call; semicolon required
+```
+
+Code-block parameters are not allowed on `setup()` or the program-entry
+`main()`. Supplied code cannot define `local`, `global`, or `async` functions,
+and cannot attach another code block to a call. It may call functions that were
+defined elsewhere.
 
 ### Return values
 

@@ -197,7 +197,7 @@ TYPE_KEYWORDS = ["int", "float", "str", "bool", "any", "tuple", "list", "num", "
 KEYWORDS = [
     "int", "float", "str", "bool", "any", "tuple", "list", "num", "char",
     "global", "local", "const",
-    "if", "else", "while", "for", "forever",
+    "if", "else", "while", "for", "forever", "switch", "case",
     "return", "import", "importAs", "importPy",
     "true", "false", "none",
     "and", "or", "not", "is",
@@ -741,6 +741,20 @@ class ForeverNode:
         self.pos_end = pos_end
         self.has_break = has_break
 
+class SwitchNode:
+    def __init__(self, value_node, cases, pos_start, pos_end):
+        self.value_node = value_node
+        self.cases = cases
+        self.pos_start = pos_start
+        self.pos_end = pos_end
+
+class CaseNode:
+    def __init__(self, match_node, body_block, pos_start, pos_end):
+        self.match_node = match_node
+        self.body_block = body_block
+        self.pos_start = pos_start
+        self.pos_end = pos_end
+
 class FuncDefNode:
     def __init__(
         self, kind_tok, var_name_tok, param_toks, body_block, pos_start, pos_end,
@@ -997,6 +1011,7 @@ class Parser:
         self.tokens = tokens
         self.tok_idx = -1
         self._loop_depth = 0       # tracks nesting depth of for/while/iterate/forever
+        self._switch_depth = 0     # tracks whether case is inside a switch block
         self._in_global_func = False
         self._exec_mode = False    # parse injected exec() code with no function definitions
         self.current_tok: Token = (
@@ -1738,6 +1753,24 @@ class Parser:
 
         if self.current_tok.matches(TT_KEYWORD, "forever"):
             node = res.register(self.parse_forever())
+            if res.error:
+                return res
+            return res.success(node)
+
+        if self.current_tok.matches(TT_KEYWORD, "switch"):
+            node = res.register(self.parse_switch())
+            if res.error:
+                return res
+            return res.success(node)
+
+        if self.current_tok.matches(TT_KEYWORD, "case"):
+            if self._switch_depth == 0:
+                return res.failure(InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "'case' is only valid inside a 'switch' block",
+                ))
+            node = res.register(self.parse_case())
             if res.error:
                 return res
             return res.success(node)
@@ -3050,6 +3083,105 @@ class Parser:
 
         pos_end = self.current_tok.pos_end.copy()
         return res.success(WhileNode(condition, body, pos_start, pos_end))
+
+    def parse_switch(self):
+        res = ParseResult()
+        pos_start = self.current_tok.pos_start.copy()
+        res.register_advancement()
+        self.advance()  # consume 'switch'
+
+        if self.current_tok.type != TT_LPAREN:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start,
+                self.current_tok.pos_end,
+                "Expected '(' after 'switch'",
+            ))
+        res.register_advancement()
+        self.advance()
+
+        if self.current_tok.type == TT_RPAREN:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start,
+                self.current_tok.pos_end,
+                "switch() requires a value to match",
+            ))
+        value_node = res.register(self.parse_expr())
+        if res.error:
+            return res
+
+        if self.current_tok.type != TT_RPAREN:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start,
+                self.current_tok.pos_end,
+                "Expected ')' after switch value",
+            ))
+        res.register_advancement()
+        self.advance()
+
+        if self.current_tok.type != TT_LBRACE:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start,
+                self.current_tok.pos_end,
+                "Expected '{' after switch(...)",
+            ))
+
+        self._switch_depth += 1
+        body = res.register(self.parse_block(allow_local_funcs=True))
+        self._switch_depth -= 1
+        if res.error:
+            return res
+
+        cases = body.statements
+        for case in cases:
+            if not isinstance(case, CaseNode):
+                return res.failure(InvalidSyntaxError(
+                    case.pos_start,
+                    case.pos_end,
+                    "Only case(...){} blocks are allowed directly inside a switch",
+                ))
+
+        pos_end = body.pos_end
+        return res.success(SwitchNode(value_node, cases, pos_start, pos_end))
+
+    def parse_case(self):
+        res = ParseResult()
+        pos_start = self.current_tok.pos_start.copy()
+        res.register_advancement()
+        self.advance()  # consume 'case'
+
+        if self.current_tok.type != TT_LPAREN:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start,
+                self.current_tok.pos_end,
+                "Expected '(' after 'case'",
+            ))
+        res.register_advancement()
+        self.advance()
+
+        if self.current_tok.type == TT_RPAREN:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start,
+                self.current_tok.pos_end,
+                "case() requires a value to match",
+            ))
+        match_node = res.register(self.parse_expr())
+        if res.error:
+            return res
+
+        if self.current_tok.type != TT_RPAREN:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start,
+                self.current_tok.pos_end,
+                "Expected ')' after case value",
+            ))
+        res.register_advancement()
+        self.advance()
+
+        body = res.register(self.parse_block(allow_local_funcs=True))
+        if res.error:
+            return res
+
+        return res.success(CaseNode(match_node, body, pos_start, body.pos_end))
 
     def parse_try_catch(self):
         res = ParseResult()
@@ -5442,6 +5574,10 @@ def _preregister_nested_globals(parent_func, block_node, context):
             # All three carry exactly one body_block
             _preregister_nested_globals(parent_func, stmt.body_block, context)
 
+        elif isinstance(stmt, SwitchNode):
+            for case in stmt.cases:
+                _preregister_nested_globals(parent_func, case.body_block, context)
+
         elif isinstance(stmt, TryCatchNode):
             # try_block and catch_block are both BlockNodes
             _preregister_nested_globals(parent_func, stmt.try_block, context)
@@ -5827,6 +5963,29 @@ class Interpreter:
             if res.loop_should_break:
                 break
             res.loop_should_continue = False
+
+        return res.success(Number.null)
+
+    def visit_SwitchNode(self, node, context):
+        res = RTResult()
+        switch_value = res.register(self.visit(node.value_node, context))
+        if res.should_return():
+            return res
+
+        for case in node.cases:
+            case_value = res.register(self.visit(case.match_node, context))
+            if res.should_return():
+                return res
+
+            matches, error = switch_value.get_comparison_eq(case_value)
+            if error:
+                # Values of different or unsupported types simply do not match.
+                continue
+            if matches.is_true():
+                res.register(self.visit(case.body_block, context))
+                if res.should_return():
+                    return res
+                break
 
         return res.success(Number.null)
 
@@ -6316,6 +6475,28 @@ class Interpreter:
             if res.loop_should_break:
                 break
             res.loop_should_continue = False
+        return res.success(Number.null)
+
+    async def async_visit_SwitchNode(self, node, context):
+        res = RTResult()
+        switch_value = res.register(await self.async_visit(node.value_node, context))
+        if res.should_return():
+            return res
+
+        for case in node.cases:
+            case_value = res.register(await self.async_visit(case.match_node, context))
+            if res.should_return():
+                return res
+
+            matches, error = switch_value.get_comparison_eq(case_value)
+            if error:
+                continue
+            if matches.is_true():
+                res.register(await self.async_visit(case.body_block, context))
+                if res.should_return():
+                    return res
+                break
+
         return res.success(Number.null)
 
     async def async_visit_IterateNode(self, node, context):

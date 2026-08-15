@@ -6,10 +6,16 @@ global render(str prefix){content}{content2}{
 }
 global main(){
     global.render("value: "){
-        sleep(5); //sleeps for 5 seconds here
+        sleep(1); //sleeps for 1 second here
         println("42");
     }{
         sleep(0.01);
         println("Hello!");
+    }
+    local anotherExample(){ex1}{
+        exec({ex1});
+    }
+    local.anotherExample(){
+        println("another example, this is local function");
     }
 }

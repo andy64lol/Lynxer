@@ -1,0 +1,18 @@
+global setup(){}
+
+global main(){
+    int value = 2;
+
+    switch(value){
+        case(1){
+            println("one");
+        }
+        case(2){
+            println("two");
+        }
+        case(3){
+            println("three");
+        }
+    // will print "two" here
+    }
+}
