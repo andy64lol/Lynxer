@@ -279,6 +279,7 @@ Re-declaration replaces both the value and the recorded type, so subsequent bare
 | `%` | modulo |
 | `**` | exponentiation |
 | `/*` | root (`a /* b` is the b-th root of a) |
+| `/%` | floor division (division without a fractional result) |
 
 ### Compound assignment
 
@@ -290,6 +291,7 @@ x /= 4;   // x = x / 4
 x %= 3;   // x = x % 3
 x **= 2;  // x = x ** 2
 x /*= 2;  // x = x /* 2
+x /%= 2;  // x = x /% 2
 ```
 
 ### Comparison
@@ -324,31 +326,34 @@ not alive
 
 ### Operator precedence (high → low)
 
-`~` → `** /*` → `* / %` → `+ -` → `<< >>` → `&` → `^` → `|` → comparisons → `not` → `and` → `or`
+`~` → `** /*` → `* / % /%` → `+ -` → `<< >>` → `&` → `^` → `|` → comparisons → `not` → `and` → `or`
 
 ---
 
 ## Control flow
 
-### if / else
+### if / elif / else
 
 ```c
 if(x > 0){
     print("positive\n");
+} elif(x is 0){
+    print("zero\n");
 } else {
-    if(x is 0){
-        print("zero\n");
-    } else {
-        print("negative\n");
-    }
+    print("negative\n");
 }
 ```
 
-### switch / case
+`elif(condition){}` chains another condition after an `if` or previous
+`elif`. At most one matching branch runs; the final `else{}` is optional.
+
+### switch / case / default
 
 `switch(value){}` selects the first `case(value){}` block whose value equals
-the switch value. If no case matches, the switch does nothing. Cases do not
-fall through to one another:
+the switch value. If no case matches, an optional `default(){}` block runs.
+Cases do not fall through to one another: after a matching case finishes, the
+switch exits automatically. `break;` is not required, and omitting it never
+continues into the next case as it would in C.
 
 ```c
 int status = 2;
@@ -363,11 +368,14 @@ switch(status){
     case(3){
         println("failed");
     }
+    default(){
+        println("unknown");
+    }
 }
 ```
 
-`case` blocks are only valid directly inside a `switch` block. A switch may
-contain any number of cases, including none.
+`case` and `default` blocks are only valid directly inside a `switch` block.
+A switch may contain any number of cases and at most one `default()` block.
 
 ### while
 
@@ -397,10 +405,18 @@ for(int i = 0; i < 3){
 ```
 
 Compound assignment operators are also supported in the update clause:
-`+=`, `-=`, `*=`, `/=`, and `%=`:
+`+=`, `-=`, `*=`, `/=`, `%=`, `**=`, `/*=`, and `/%=`:
 
 ```c
 for(int i = 1; i < 20; i *= 2){
+    print(i); print("\n");
+}
+
+for(int i = 2; i < 100; i **= 2){
+    print(i); print("\n");
+}
+
+for(int i = 20; i > 1; i /%= 3){
     print(i); print("\n");
 }
 ```

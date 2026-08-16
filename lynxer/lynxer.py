@@ -163,6 +163,7 @@ TT_DIV = "DIV"
 TT_MOD = "MOD"
 TT_POW = "POW"
 TT_ROOT = "ROOT"
+TT_FLOORDIV = "FLOORDIV"
 TT_EQ = "EQ"
 TT_LT = "LT"
 TT_GT = "GT"
@@ -182,6 +183,7 @@ TT_DIVEQ = "DIVEQ"
 TT_MODEQ = "MODEQ"
 TT_POWEQ = "POWEQ"
 TT_ROOTEQ = "ROOTEQ"
+TT_FLOORDIVEQ = "FLOORDIVEQ"
 TT_AMP = "AMP"
 TT_PIPE = "PIPE"
 TT_CARET = "CARET"
@@ -201,7 +203,7 @@ TYPE_KEYWORDS = ["int", "float", "str", "bool", "any", "tuple", "list", "num", "
 KEYWORDS = [
     "int", "float", "str", "bool", "any", "tuple", "list", "num", "char",
     "global", "local", "const",
-    "if", "else", "while", "for", "forever", "switch", "case",
+    "if", "elif", "else", "while", "for", "forever", "switch", "case", "default",
     "return", "import", "importAs", "importPy",
     "true", "false", "none",
     "and", "or", "not", "is",
@@ -367,6 +369,13 @@ class Lexer:
                         tokens.append(Token(TT_ROOTEQ, pos_start=pos_start, pos_end=self.pos))
                     else:
                         tokens.append(Token(TT_ROOT, pos_start=pos_start, pos_end=self.pos))
+                elif self.current_char == "%":
+                    self.advance()
+                    if self.current_char == "=":
+                        self.advance()
+                        tokens.append(Token(TT_FLOORDIVEQ, pos_start=pos_start, pos_end=self.pos))
+                    else:
+                        tokens.append(Token(TT_FLOORDIV, pos_start=pos_start, pos_end=self.pos))
                 elif self.current_char == "=":
                     self.advance()
                     tokens.append(Token(TT_DIVEQ, pos_start=pos_start, pos_end=self.pos))
@@ -780,6 +789,12 @@ class CaseNode:
         self.pos_start = pos_start
         self.pos_end = pos_end
 
+class DefaultNode:
+    def __init__(self, body_block, pos_start, pos_end):
+        self.body_block = body_block
+        self.pos_start = pos_start
+        self.pos_end = pos_end
+
 class FuncDefNode:
     def __init__(
         self, kind_tok, var_name_tok, param_toks, body_block, pos_start, pos_end,
@@ -923,6 +938,14 @@ class ProgramNode:
 
 def _block_contains_break(block_node):
     """Return whether a block contains a ``break`` statement."""
+    if isinstance(block_node, IfNode):
+        if _block_contains_break(block_node.then_block):
+            return True
+        return (
+            block_node.else_block is not None
+            and _block_contains_break(block_node.else_block)
+        )
+
     for stmt in block_node.statements:
         if isinstance(stmt, BreakNode):
             return True
@@ -1806,11 +1829,12 @@ class Parser:
                 return res
             return res.success(node)
 
+        next_tok = self.peek(1)
         if (
             self.current_tok.type == TT_IDENTIFIER
             and self.current_tok.value == "doWhile"
-            and self.peek(1)
-            and self.peek(1).type == TT_LPAREN
+            and next_tok is not None
+            and next_tok.type == TT_LPAREN
         ):
             node = res.register(self.parse_do_while())
             if res.error:
@@ -1843,6 +1867,18 @@ class Parser:
                     "'case' is only valid inside a 'switch' block",
                 ))
             node = res.register(self.parse_case())
+            if res.error:
+                return res
+            return res.success(node)
+
+        if self.current_tok.matches(TT_KEYWORD, "default"):
+            if self._switch_depth == 0:
+                return res.failure(InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "'default' is only valid inside a 'switch' block",
+                ))
+            node = res.register(self.parse_default())
             if res.error:
                 return res
             return res.success(node)
@@ -2042,6 +2078,7 @@ class Parser:
                 TT_MODEQ,
                 TT_POWEQ,
                 TT_ROOTEQ,
+                TT_FLOORDIVEQ,
             ):
                 node = res.register(self.parse_assign())
                 if res.error:
@@ -2242,6 +2279,8 @@ class Parser:
             value = BinOpNode(VarAccessNode(name_tok), Token(TT_POW), value)
         elif op_tok.type == TT_ROOTEQ:
             value = BinOpNode(VarAccessNode(name_tok), Token(TT_ROOT), value)
+        elif op_tok.type == TT_FLOORDIVEQ:
+            value = BinOpNode(VarAccessNode(name_tok), Token(TT_FLOORDIV), value)
 
         return res.success(VarAssignNode(name_tok, value))
 
@@ -3120,10 +3159,17 @@ class Parser:
             return res
 
         else_block = None
-        if self.current_tok.matches(TT_KEYWORD, "else"):
+        if self.current_tok.matches(TT_KEYWORD, "elif"):
+            else_block = res.register(self.parse_if())
+            if res.error:
+                return res
+        elif self.current_tok.matches(TT_KEYWORD, "else"):
             res.register_advancement()
             self.advance()
-            else_block = res.register(self.parse_block(allow_local_funcs=True))
+            if self.current_tok.matches(TT_KEYWORD, "elif"):
+                else_block = res.register(self.parse_if())
+            else:
+                else_block = res.register(self.parse_block(allow_local_funcs=True))
             if res.error:
                 return res
 
@@ -3269,12 +3315,21 @@ class Parser:
             return res
 
         cases = body.statements
+        default_count = 0
         for case in cases:
-            if not isinstance(case, CaseNode):
+            if isinstance(case, DefaultNode):
+                default_count += 1
+                if default_count > 1:
+                    return res.failure(InvalidSyntaxError(
+                        case.pos_start,
+                        case.pos_end,
+                        "A switch can contain only one default() block",
+                    ))
+            elif not isinstance(case, CaseNode):
                 return res.failure(InvalidSyntaxError(
                     case.pos_start,
                     case.pos_end,
-                    "Only case(...){} blocks are allowed directly inside a switch",
+                    "Only case(...){} or default(){} blocks are allowed directly inside a switch",
                 ))
 
         pos_end = body.pos_end
@@ -3322,6 +3377,39 @@ class Parser:
             return res
 
         return res.success(CaseNode(match_node, body, pos_start, body.pos_end))
+
+    def parse_default(self):
+        res = ParseResult()
+        pos_start = self.current_tok.pos_start.copy()
+        res.register_advancement()
+        self.advance()  # consume 'default'
+
+        if self.current_tok.type != TT_LPAREN:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start,
+                self.current_tok.pos_end,
+                "Expected '(' after 'default'",
+            ))
+        res.register_advancement()
+        self.advance()
+
+        if self.current_tok.type != TT_RPAREN:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start,
+                self.current_tok.pos_end,
+                "default() does not accept a value",
+            ))
+        res.register_advancement()
+        self.advance()
+
+        body = res.register(self.parse_block(
+            allow_local_funcs=True,
+            allow_function_defs=None,
+        ))
+        if res.error:
+            return res
+
+        return res.success(DefaultNode(body, pos_start, body.pos_end))
 
     def parse_try_catch(self):
         res = ParseResult()
@@ -3576,12 +3664,13 @@ class Parser:
             TT_MODEQ,
             TT_POWEQ,
             TT_ROOTEQ,
+            TT_FLOORDIVEQ,
         ):
             return res.failure(
                 InvalidSyntaxError(
                     self.current_tok.pos_start,
                     self.current_tok.pos_end,
-                    "Expected '=', '+=', '-=', '*=', '/=', '%=', '**=', or '/*=' in for-update",
+                    "Expected '=', '+=', '-=', '*=', '/=', '%=', '**=', '/*=', or '/%=' in for-update",
                 )
             )
         res.register_advancement()
@@ -3599,6 +3688,7 @@ class Parser:
             TT_MODEQ: TT_MOD,
             TT_POWEQ: TT_POW,
             TT_ROOTEQ: TT_ROOT,
+            TT_FLOORDIVEQ: TT_FLOORDIV,
         }
         if op_tok.type in compound_ops:
             value = BinOpNode(
@@ -3788,7 +3878,7 @@ class Parser:
         if res.error:
             return res
 
-        while self.current_tok.type in (TT_MUL, TT_DIV, TT_MOD):
+        while self.current_tok.type in (TT_MUL, TT_DIV, TT_MOD, TT_FLOORDIV):
             op_tok = self.current_tok
             res.register_advancement()
             self.advance()
@@ -4340,6 +4430,9 @@ class Value:
     def modded_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
         return None, self.illegal_operation(other)
 
+    def floordivided_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
+        return None, self.illegal_operation(other)
+
     def powered_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
         return None, self.illegal_operation(other)
 
@@ -4461,6 +4554,18 @@ class Number(Value):
                     other.pos_start, other.pos_end, "Modulo by zero", self.context
                 )
             return Number(self.value % other.value).set_context(self.context), None
+        return None, Value.illegal_operation(self, other)
+
+    def floordivided_by(self, other):
+        if isinstance(other, Number):
+            if other.value == 0:
+                return None, RTError(
+                    other.pos_start,
+                    other.pos_end,
+                    "Floor division by zero",
+                    self.context,
+                )
+            return Number(int(self.value // other.value)).set_context(self.context), None
         return None, Value.illegal_operation(self, other)
 
     def powered_by(self, other):
@@ -5801,6 +5906,12 @@ def _preregister_nested_globals(parent_func, block_node, context):
     called.  Existing entries are never overwritten — a definition that appeared
     first (textually) wins, which matches the behaviour of ``visit_FuncDefNode``.
     """
+    if isinstance(block_node, IfNode):
+        _preregister_nested_globals(parent_func, block_node.then_block, context)
+        if block_node.else_block is not None:
+            _preregister_nested_globals(parent_func, block_node.else_block, context)
+        return
+
     for stmt in block_node.statements:
         # Direct nested global
         if isinstance(stmt, FuncDefNode):
@@ -6121,6 +6232,8 @@ class Interpreter:
             result, error = left.powered_by(right)
         elif op.type == TT_ROOT:
             result, error = left.rooted_by(right)
+        elif op.type == TT_FLOORDIV:
+            result, error = left.floordivided_by(right)
         elif op.matches(TT_KEYWORD, "is"):
             result, error = left.get_comparison_eq(right)
         elif op.type == TT_KEYWORD and op.value == "not is":
@@ -6280,7 +6393,12 @@ class Interpreter:
         if res.should_return():
             return res
 
+        default_case = None
         for case in node.cases:
+            if isinstance(case, DefaultNode):
+                default_case = case
+                continue
+
             case_value = res.register(self.visit(case.match_node, context))
             if res.should_return():
                 return res
@@ -6294,6 +6412,12 @@ class Interpreter:
                 if res.should_return():
                     return res
                 break
+
+        else:
+            if default_case is not None:
+                res.register(self.visit(default_case.body_block, context))
+                if res.should_return():
+                    return res
 
         return res.success(Number.null)
 
@@ -6700,6 +6824,8 @@ class Interpreter:
             result, error = left.powered_by(right)
         elif op.type == TT_ROOT:
             result, error = left.rooted_by(right)
+        elif op.type == TT_FLOORDIV:
+            result, error = left.floordivided_by(right)
         elif op.matches(TT_KEYWORD, "is"):
             result, error = left.get_comparison_eq(right)
         elif op.type == TT_KEYWORD and op.value == "not is":
@@ -6818,7 +6944,12 @@ class Interpreter:
         if res.should_return():
             return res
 
+        default_case = None
         for case in node.cases:
+            if isinstance(case, DefaultNode):
+                default_case = case
+                continue
+
             case_value = res.register(await self.async_visit(case.match_node, context))
             if res.should_return():
                 return res
@@ -6831,6 +6962,12 @@ class Interpreter:
                 if res.should_return():
                     return res
                 break
+
+        else:
+            if default_case is not None:
+                res.register(await self.async_visit(default_case.body_block, context))
+                if res.should_return():
+                    return res
 
         return res.success(Number.null)
 
@@ -6969,9 +7106,6 @@ class Interpreter:
         else:
             value = Number.null
         return res.success_return(value)
-
-    async def async_visit_ExecBlockNode(self, node, context):
-        return await self.async_visit(node.body_block, context)
 
     async def async_visit_CodeBlockLiteralNode(self, node, context):
         return self.visit_CodeBlockLiteralNode(node, context)

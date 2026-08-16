@@ -2,6 +2,10 @@
 
 Built-in functions are always available — no `import()` needed. Call them directly by name, or via `global.<name>(...)`.
 
+The complete implementation and registry for Lynxer language built-ins lives in
+`lynxer/builtins.py`. The interpreter imports and registers that module after
+its runtime value types have been defined.
+
 ---
 
 ## I/O

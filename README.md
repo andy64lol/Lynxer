@@ -101,6 +101,7 @@ global main(){
 ```
 lynxer/
   lynxer.py         Lexer + parser + interpreter + bytecode compiler
+  builtins.py       Language builtin implementations and registry
   shell.py          CLI entry point
   stdlib/           Standard library modules (.lynx files)
 docs/               Documentation
