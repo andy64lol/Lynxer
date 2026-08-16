@@ -277,6 +277,8 @@ Re-declaration replaces both the value and the recorded type, so subsequent bare
 | `*` | multiply |
 | `/` | divide (always returns float) |
 | `%` | modulo |
+| `**` | exponentiation |
+| `/*` | root (`a /* b` is the b-th root of a) |
 
 ### Compound assignment
 
@@ -286,6 +288,8 @@ x -= 3;   // x = x - 3
 x *= 2;   // x = x * 2
 x /= 4;   // x = x / 4
 x %= 3;   // x = x % 3
+x **= 2;  // x = x ** 2
+x /*= 2;  // x = x /* 2
 ```
 
 ### Comparison
@@ -320,7 +324,7 @@ not alive
 
 ### Operator precedence (high → low)
 
-`~` → `* / %` → `+ -` → `<< >>` → `&` → `^` → `|` → comparisons → `not` → `and` → `or`
+`~` → `** /*` → `* / %` → `+ -` → `<< >>` → `&` → `^` → `|` → comparisons → `not` → `and` → `or`
 
 ---
 
@@ -382,6 +386,40 @@ for(int i = 0; i < 10; i = i + 1){
     print(i); print("\n");
 }
 ```
+
+The update clause may be omitted; it defaults to incrementing the loop
+variable by one:
+
+```c
+for(int i = 0; i < 3){
+    print(i); print("\n");
+}
+```
+
+Compound assignment operators are also supported in the update clause:
+`+=`, `-=`, `*=`, `/=`, and `%=`:
+
+```c
+for(int i = 1; i < 20; i *= 2){
+    print(i); print("\n");
+}
+```
+
+### doWhile
+
+`doWhile(condition){}` runs its body once before checking the condition, then
+repeats the body while the condition remains true. The condition is optional,
+so `doWhile(){}` repeats until it reaches a `break;`:
+
+```c
+int i = 0;
+doWhile(i < 5){
+    print(i); print("\n");
+    i += 1;
+}
+```
+
+`break` exits the loop and `continue` proceeds to the condition check.
 
 ### iterate
 
@@ -454,8 +492,8 @@ while(w < 5){
 // prints: 1 2 4 5
 ```
 
-`break` and `continue`/`restart` work in `for`, `while`, `iterate`, and
-`forever` loops. They are **not** valid outside a loop.
+`break` and `continue`/`restart` work in `for`, `while`, `doWhile`, `iterate`,
+and `forever` loops. They are **not** valid outside a loop.
 
 ---
 

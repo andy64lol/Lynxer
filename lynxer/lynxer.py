@@ -161,6 +161,8 @@ TT_MINUS = "MINUS"
 TT_MUL = "MUL"
 TT_DIV = "DIV"
 TT_MOD = "MOD"
+TT_POW = "POW"
+TT_ROOT = "ROOT"
 TT_EQ = "EQ"
 TT_LT = "LT"
 TT_GT = "GT"
@@ -178,6 +180,8 @@ TT_MINUSEQ = "MINUSEQ"
 TT_MULEQ = "MULEQ"
 TT_DIVEQ = "DIVEQ"
 TT_MODEQ = "MODEQ"
+TT_POWEQ = "POWEQ"
+TT_ROOTEQ = "ROOTEQ"
 TT_AMP = "AMP"
 TT_PIPE = "PIPE"
 TT_CARET = "CARET"
@@ -341,7 +345,14 @@ class Lexer:
             elif self.current_char == "*":
                 pos_start = self.pos.copy()
                 self.advance()
-                if self.current_char == "=":
+                if self.current_char == "*":
+                    self.advance()
+                    if self.current_char == "=":
+                        self.advance()
+                        tokens.append(Token(TT_POWEQ, pos_start=pos_start, pos_end=self.pos))
+                    else:
+                        tokens.append(Token(TT_POW, pos_start=pos_start, pos_end=self.pos))
+                elif self.current_char == "=":
                     self.advance()
                     tokens.append(Token(TT_MULEQ, pos_start=pos_start, pos_end=self.pos))
                 else:
@@ -349,7 +360,14 @@ class Lexer:
             elif self.current_char == "/":
                 pos_start = self.pos.copy()
                 self.advance()
-                if self.current_char == "=":
+                if self.current_char == "*":
+                    self.advance()
+                    if self.current_char == "=":
+                        self.advance()
+                        tokens.append(Token(TT_ROOTEQ, pos_start=pos_start, pos_end=self.pos))
+                    else:
+                        tokens.append(Token(TT_ROOT, pos_start=pos_start, pos_end=self.pos))
+                elif self.current_char == "=":
                     self.advance()
                     tokens.append(Token(TT_DIVEQ, pos_start=pos_start, pos_end=self.pos))
                 else:
@@ -716,6 +734,13 @@ class WhileNode:
         self.pos_start = pos_start
         self.pos_end = pos_end
 
+class DoWhileNode:
+    def __init__(self, condition_node, body_block, pos_start, pos_end):
+        self.condition_node = condition_node
+        self.body_block = body_block
+        self.pos_start = pos_start
+        self.pos_end = pos_end
+
 class ForNode:
     def __init__(
         self, init_node, condition_node, update_node, body_block, pos_start, pos_end
@@ -1010,9 +1035,10 @@ class Parser:
     def __init__(self, tokens):
         self.tokens = tokens
         self.tok_idx = -1
-        self._loop_depth = 0       # tracks nesting depth of for/while/iterate/forever
+        self._loop_depth = 0       # tracks nesting depth of all loop forms
         self._switch_depth = 0     # tracks whether case is inside a switch block
         self._in_global_func = False
+        self._allow_function_defs = True
         self._exec_mode = False    # parse injected exec() code with no function definitions
         self.current_tok: Token = (
             tokens[0]
@@ -1491,7 +1517,12 @@ class Parser:
 
         return res.success(ClassDefNode(name_tok, field_defs, method_nodes, pos_start, pos_end))
 
-    def parse_block(self, in_setup=False, allow_local_funcs=False):
+    def parse_block(
+        self,
+        in_setup=False,
+        allow_local_funcs=False,
+        allow_function_defs=None,
+    ):
         res = ParseResult()
         pos_start = self.current_tok.pos_start.copy()
 
@@ -1505,21 +1536,29 @@ class Parser:
         self.advance()
 
         statements = []
-        while self.current_tok.type != TT_RBRACE and self.current_tok.type != TT_EOF:
-            # //// docstrings inside a block are treated as comments — skip them.
-            if self.current_tok.type == TT_DOCSTRING:
-                res.register_advancement()
-                self.advance()
-                continue
-            stmt = res.register(
-                self.parse_statement(
-                    in_setup=in_setup,
-                    allow_local_funcs=allow_local_funcs and not self._exec_mode,
-                )
+        previous_allow_function_defs = self._allow_function_defs
+        if allow_function_defs is not None:
+            self._allow_function_defs = (
+                previous_allow_function_defs and allow_function_defs
             )
-            if res.error:
-                return res
-            statements.append(stmt)
+        try:
+            while self.current_tok.type != TT_RBRACE and self.current_tok.type != TT_EOF:
+                # //// docstrings inside a block are treated as comments — skip them.
+                if self.current_tok.type == TT_DOCSTRING:
+                    res.register_advancement()
+                    self.advance()
+                    continue
+                stmt = res.register(
+                    self.parse_statement(
+                        in_setup=in_setup,
+                        allow_local_funcs=allow_local_funcs and not self._exec_mode,
+                    )
+                )
+                if res.error:
+                    return res
+                statements.append(stmt)
+        finally:
+            self._allow_function_defs = previous_allow_function_defs
 
         if self.current_tok.type != TT_RBRACE:
             return res.failure(
@@ -1641,13 +1680,23 @@ class Parser:
                 self.advance()
             return res.success(expr)
 
-        if allow_local_funcs and self.current_tok.matches(TT_KEYWORD, "local"):
+        if (
+            allow_local_funcs
+            and self._allow_function_defs
+            and self.current_tok.matches(TT_KEYWORD, "local")
+        ):
             node = res.register(self.parse_func_def())
             if res.error:
                 return res
             return res.success(node)
 
         if self.current_tok.matches(TT_KEYWORD, "local"):
+            if not self._allow_function_defs:
+                return res.failure(InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "Function definitions are not allowed inside loop or switch blocks",
+                ))
             return res.failure(
                 InvalidSyntaxError(
                     self.current_tok.pos_start,
@@ -1659,7 +1708,13 @@ class Parser:
         if self.current_tok.matches(TT_KEYWORD, "async"):
             peek1 = self.peek(1)
             if peek1 and peek1.type == TT_IDENTIFIER:
-                if not allow_local_funcs:
+                if not allow_local_funcs or not self._allow_function_defs:
+                    if not self._allow_function_defs:
+                        return res.failure(InvalidSyntaxError(
+                            self.current_tok.pos_start,
+                            self.current_tok.pos_end,
+                            "Function definitions are not allowed inside loop or switch blocks",
+                        ))
                     return res.failure(InvalidSyntaxError(
                         self.current_tok.pos_start, self.current_tok.pos_end,
                         "'async' function definitions are only allowed inside a function body",
@@ -1710,6 +1765,12 @@ class Parser:
             and next_tok.type == TT_IDENTIFIER
         ):
             if self._in_global_func:
+                if not self._allow_function_defs:
+                    return res.failure(InvalidSyntaxError(
+                        self.current_tok.pos_start,
+                        self.current_tok.pos_end,
+                        "Function definitions are not allowed inside loop or switch blocks",
+                    ))
                 node = res.register(self.parse_func_def())
                 if res.error:
                     return res
@@ -1741,6 +1802,17 @@ class Parser:
 
         if self.current_tok.matches(TT_KEYWORD, "while"):
             node = res.register(self.parse_while())
+            if res.error:
+                return res
+            return res.success(node)
+
+        if (
+            self.current_tok.type == TT_IDENTIFIER
+            and self.current_tok.value == "doWhile"
+            and self.peek(1)
+            and self.peek(1).type == TT_LPAREN
+        ):
+            node = res.register(self.parse_do_while())
             if res.error:
                 return res
             return res.success(node)
@@ -1803,7 +1875,7 @@ class Parser:
             if self._loop_depth == 0:
                 return res.failure(InvalidSyntaxError(
                     pos_start, pos_end,
-                    "'break' is only valid inside a for, while, or iterate loop",
+                    "'break' is only valid inside a loop",
                 ))
             res.register_advancement()
             self.advance()
@@ -1824,7 +1896,7 @@ class Parser:
             if self._loop_depth == 0:
                 return res.failure(InvalidSyntaxError(
                     pos_start, pos_end,
-                    f"'{kw}' is only valid inside a for, while, or iterate loop",
+                    f"'{kw}' is only valid inside a loop",
                 ))
             res.register_advancement()
             self.advance()
@@ -1961,7 +2033,16 @@ class Parser:
                 self.advance()
                 return res.success(ExecBlockNode(exec_res.node, pos_start, pos_end))
 
-            if next_tok and next_tok.type in (TT_EQ, TT_PLUSEQ, TT_MINUSEQ, TT_MULEQ, TT_DIVEQ, TT_MODEQ):
+            if next_tok and next_tok.type in (
+                TT_EQ,
+                TT_PLUSEQ,
+                TT_MINUSEQ,
+                TT_MULEQ,
+                TT_DIVEQ,
+                TT_MODEQ,
+                TT_POWEQ,
+                TT_ROOTEQ,
+            ):
                 node = res.register(self.parse_assign())
                 if res.error:
                     return res
@@ -2157,6 +2238,10 @@ class Parser:
             value = BinOpNode(VarAccessNode(name_tok), Token(TT_DIV), value)
         elif op_tok.type == TT_MODEQ:
             value = BinOpNode(VarAccessNode(name_tok), Token(TT_MOD), value)
+        elif op_tok.type == TT_POWEQ:
+            value = BinOpNode(VarAccessNode(name_tok), Token(TT_POW), value)
+        elif op_tok.type == TT_ROOTEQ:
+            value = BinOpNode(VarAccessNode(name_tok), Token(TT_ROOT), value)
 
         return res.success(VarAssignNode(name_tok, value))
 
@@ -2249,7 +2334,7 @@ class Parser:
                 "Expected '{' after iterate(...)",
             ))
         self._loop_depth += 1
-        body = res.register(self.parse_block())
+        body = res.register(self.parse_block(allow_function_defs=False))
         self._loop_depth -= 1
         if res.error:
             return res
@@ -2285,7 +2370,7 @@ class Parser:
                 "Expected '{' after forever()",
             ))
         self._loop_depth += 1
-        body = res.register(self.parse_block())
+        body = res.register(self.parse_block(allow_function_defs=False))
         self._loop_depth -= 1
         if res.error:
             return res
@@ -3076,13 +3161,62 @@ class Parser:
         self.advance()
 
         self._loop_depth += 1
-        body = res.register(self.parse_block(allow_local_funcs=True))
+        body = res.register(self.parse_block(
+            allow_local_funcs=True,
+            allow_function_defs=False,
+        ))
         self._loop_depth -= 1
         if res.error:
             return res
 
         pos_end = self.current_tok.pos_end.copy()
         return res.success(WhileNode(condition, body, pos_start, pos_end))
+
+    def parse_do_while(self):
+        """Parse: doWhile(condition) { body }."""
+        res = ParseResult()
+        pos_start = self.current_tok.pos_start.copy()
+        res.register_advancement()
+        self.advance()  # consume 'doWhile'
+
+        if self.current_tok.type != TT_LPAREN:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start,
+                self.current_tok.pos_end,
+                "Expected '(' after doWhile",
+            ))
+        res.register_advancement()
+        self.advance()
+
+        condition = None
+        if self.current_tok.type != TT_RPAREN:
+            condition = res.register(self.parse_expr())
+            if res.error:
+                return res
+
+        if self.current_tok.type != TT_RPAREN:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start,
+                self.current_tok.pos_end,
+                "Expected ')' after doWhile condition",
+            ))
+        res.register_advancement()
+        self.advance()
+
+        if self.current_tok.type != TT_LBRACE:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start,
+                self.current_tok.pos_end,
+                "Expected '{' after doWhile(condition)",
+            ))
+
+        self._loop_depth += 1
+        body = res.register(self.parse_block(allow_function_defs=False))
+        self._loop_depth -= 1
+        if res.error:
+            return res
+
+        return res.success(DoWhileNode(condition, body, pos_start, body.pos_end))
 
     def parse_switch(self):
         res = ParseResult()
@@ -3126,7 +3260,10 @@ class Parser:
             ))
 
         self._switch_depth += 1
-        body = res.register(self.parse_block(allow_local_funcs=True))
+        body = res.register(self.parse_block(
+            allow_local_funcs=False,
+            allow_function_defs=False,
+        ))
         self._switch_depth -= 1
         if res.error:
             return res
@@ -3177,7 +3314,10 @@ class Parser:
         res.register_advancement()
         self.advance()
 
-        body = res.register(self.parse_block(allow_local_funcs=True))
+        body = res.register(self.parse_block(
+            allow_local_funcs=True,
+            allow_function_defs=None,
+        ))
         if res.error:
             return res
 
@@ -3286,20 +3426,25 @@ class Parser:
         if res.error:
             return res
 
-        if self.current_tok.type != TT_SEMICOLON:
+        update_node = None
+        if self.current_tok.type == TT_SEMICOLON:
+            res.register_advancement()
+            self.advance()
+            if self.current_tok.type != TT_RPAREN:
+                update_node = res.register(self.parse_for_update())
+                if res.error:
+                    return res
+        elif self.current_tok.type != TT_RPAREN:
             return res.failure(
                 InvalidSyntaxError(
                     self.current_tok.pos_start,
                     self.current_tok.pos_end,
-                    "Expected ';' after for-condition",
+                    "Expected ';' or ')' after for-condition",
                 )
             )
-        res.register_advancement()
-        self.advance()
 
-        update_node = res.register(self.parse_for_update())
-        if res.error:
-            return res
+        if update_node is None:
+            update_node = self.make_default_for_update(init_node)
 
         if self.current_tok.type != TT_RPAREN:
             return res.failure(
@@ -3311,7 +3456,10 @@ class Parser:
         self.advance()
 
         self._loop_depth += 1
-        body = res.register(self.parse_block(allow_local_funcs=True))
+        body = res.register(self.parse_block(
+            allow_local_funcs=True,
+            allow_function_defs=False,
+        ))
         self._loop_depth -= 1
         if res.error:
             return res
@@ -3319,6 +3467,25 @@ class Parser:
         pos_end = self.current_tok.pos_end.copy()
         return res.success(
             ForNode(init_node, condition, update_node, body, pos_start, pos_end)
+        )
+
+    def make_default_for_update(self, init_node):
+        """Build the implicit ``i = i + 1`` update for a short for-loop."""
+        name_tok = init_node.var_name_tok
+        one_tok = Token(
+            TT_INT,
+            1,
+            pos_start=name_tok.pos_start,
+            pos_end=name_tok.pos_end,
+        )
+        plus_tok = Token(
+            TT_PLUS,
+            pos_start=name_tok.pos_start,
+            pos_end=name_tok.pos_end,
+        )
+        return VarAssignNode(
+            name_tok,
+            BinOpNode(VarAccessNode(name_tok), plus_tok, NumberNode(one_tok)),
         )
 
     def parse_for_init(self):
@@ -3399,12 +3566,22 @@ class Parser:
         res.register_advancement()
         self.advance()
 
-        if self.current_tok.type != TT_EQ:
+        op_tok = self.current_tok
+        if op_tok.type not in (
+            TT_EQ,
+            TT_PLUSEQ,
+            TT_MINUSEQ,
+            TT_MULEQ,
+            TT_DIVEQ,
+            TT_MODEQ,
+            TT_POWEQ,
+            TT_ROOTEQ,
+        ):
             return res.failure(
                 InvalidSyntaxError(
                     self.current_tok.pos_start,
                     self.current_tok.pos_end,
-                    "Expected '=' in for-update",
+                    "Expected '=', '+=', '-=', '*=', '/=', '%=', '**=', or '/*=' in for-update",
                 )
             )
         res.register_advancement()
@@ -3413,6 +3590,26 @@ class Parser:
         value = res.register(self.parse_expr())
         if res.error:
             return res
+
+        compound_ops = {
+            TT_PLUSEQ: TT_PLUS,
+            TT_MINUSEQ: TT_MINUS,
+            TT_MULEQ: TT_MUL,
+            TT_DIVEQ: TT_DIV,
+            TT_MODEQ: TT_MOD,
+            TT_POWEQ: TT_POW,
+            TT_ROOTEQ: TT_ROOT,
+        }
+        if op_tok.type in compound_ops:
+            value = BinOpNode(
+                VarAccessNode(name_tok),
+                Token(
+                    compound_ops[op_tok.type],
+                    pos_start=op_tok.pos_start,
+                    pos_end=op_tok.pos_end,
+                ),
+                value,
+            )
         return res.success(VarAssignNode(name_tok, value))
 
     def parse_expr(self):
@@ -3587,7 +3784,7 @@ class Parser:
 
     def parse_term(self):
         res = ParseResult()
-        left = res.register(self.parse_factor())
+        left = res.register(self.parse_power())
         if res.error:
             return res
 
@@ -3595,7 +3792,25 @@ class Parser:
             op_tok = self.current_tok
             res.register_advancement()
             self.advance()
-            right = res.register(self.parse_factor())
+            right = res.register(self.parse_power())
+            if res.error:
+                return res
+            left = BinOpNode(left, op_tok, right)
+
+        return res.success(left)
+
+    def parse_power(self):
+        """Parse right-associative exponentiation and root expressions."""
+        res = ParseResult()
+        left = res.register(self.parse_factor())
+        if res.error:
+            return res
+
+        if self.current_tok.type in (TT_POW, TT_ROOT):
+            op_tok = self.current_tok
+            res.register_advancement()
+            self.advance()
+            right = res.register(self.parse_power())
             if res.error:
                 return res
             left = BinOpNode(left, op_tok, right)
@@ -4125,6 +4340,12 @@ class Value:
     def modded_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
         return None, self.illegal_operation(other)
 
+    def powered_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
+        return None, self.illegal_operation(other)
+
+    def rooted_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
+        return None, self.illegal_operation(other)
+
     def get_comparison_eq(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
         return None, self.illegal_operation(other)
 
@@ -4240,6 +4461,66 @@ class Number(Value):
                     other.pos_start, other.pos_end, "Modulo by zero", self.context
                 )
             return Number(self.value % other.value).set_context(self.context), None
+        return None, Value.illegal_operation(self, other)
+
+    def powered_by(self, other):
+        if isinstance(other, Number):
+            try:
+                result = self.value ** other.value
+            except (OverflowError, ValueError, ZeroDivisionError):
+                return None, RTError(
+                    self.pos_start,
+                    other.pos_end,
+                    "Invalid exponentiation",
+                    self.context,
+                )
+            if isinstance(result, complex):
+                return None, RTError(
+                    self.pos_start,
+                    other.pos_end,
+                    "Exponentiation produced a complex number",
+                    self.context,
+                )
+            return Number(result).set_context(self.context), None
+        return None, Value.illegal_operation(self, other)
+
+    def rooted_by(self, other):
+        if isinstance(other, Number):
+            degree = other.value
+            if degree == 0:
+                return None, RTError(
+                    other.pos_start,
+                    other.pos_end,
+                    "Root degree cannot be zero",
+                    self.context,
+                )
+            try:
+                if self.value < 0:
+                    if degree != int(degree) or int(degree) % 2 == 0:
+                        return None, RTError(
+                            self.pos_start,
+                            other.pos_end,
+                            "Even roots of negative numbers are not real",
+                            self.context,
+                        )
+                    result = -((-self.value) ** (1 / degree))
+                else:
+                    result = self.value ** (1 / degree)
+            except (OverflowError, ValueError, ZeroDivisionError):
+                return None, RTError(
+                    self.pos_start,
+                    other.pos_end,
+                    "Invalid root operation",
+                    self.context,
+                )
+            if isinstance(result, complex):
+                return None, RTError(
+                    self.pos_start,
+                    other.pos_end,
+                    "Root operation produced a complex number",
+                    self.context,
+                )
+            return Number(result).set_context(self.context), None
         return None, Value.illegal_operation(self, other)
 
     def get_comparison_eq(self, other):
@@ -5570,8 +5851,8 @@ def _preregister_nested_globals(parent_func, block_node, context):
             if stmt.else_block is not None:
                 _preregister_nested_globals(parent_func, stmt.else_block, context)
 
-        elif isinstance(stmt, (WhileNode, ForNode, IterateNode, ForeverNode)):
-            # All three carry exactly one body_block
+        elif isinstance(stmt, (WhileNode, DoWhileNode, ForNode, IterateNode, ForeverNode)):
+            # Loop nodes all carry exactly one body_block.
             _preregister_nested_globals(parent_func, stmt.body_block, context)
 
         elif isinstance(stmt, SwitchNode):
@@ -5836,6 +6117,10 @@ class Interpreter:
             result, error = left.dived_by(right)
         elif op.type == TT_MOD:
             result, error = left.modded_by(right)
+        elif op.type == TT_POW:
+            result, error = left.powered_by(right)
+        elif op.type == TT_ROOT:
+            result, error = left.rooted_by(right)
         elif op.matches(TT_KEYWORD, "is"):
             result, error = left.get_comparison_eq(right)
         elif op.type == TT_KEYWORD and op.value == "not is":
@@ -5963,6 +6248,29 @@ class Interpreter:
             if res.loop_should_break:
                 break
             res.loop_should_continue = False
+
+        return res.success(Number.null)
+
+    def visit_DoWhileNode(self, node, context):
+        res = RTResult()
+        while True:
+            body_res = RTResult()
+            body_res.register(self.visit(node.body_block, context))
+            if body_res.error or body_res.func_return_value is not None:
+                return body_res
+            if body_res.loop_should_break:
+                break
+            if node.condition_node is None:
+                continue
+
+            condition_res = RTResult()
+            condition = condition_res.register(
+                self.visit(node.condition_node, context)
+            )
+            if condition_res.error:
+                return condition_res
+            if not condition.is_true():
+                break
 
         return res.success(Number.null)
 
@@ -6388,6 +6696,10 @@ class Interpreter:
             result, error = left.dived_by(right)
         elif op.type == TT_MOD:
             result, error = left.modded_by(right)
+        elif op.type == TT_POW:
+            result, error = left.powered_by(right)
+        elif op.type == TT_ROOT:
+            result, error = left.rooted_by(right)
         elif op.matches(TT_KEYWORD, "is"):
             result, error = left.get_comparison_eq(right)
         elif op.type == TT_KEYWORD and op.value == "not is":
@@ -6475,6 +6787,29 @@ class Interpreter:
             if res.loop_should_break:
                 break
             res.loop_should_continue = False
+        return res.success(Number.null)
+
+    async def async_visit_DoWhileNode(self, node, context):
+        res = RTResult()
+        while True:
+            body_res = RTResult()
+            body_res.register(await self.async_visit(node.body_block, context))
+            if body_res.error or body_res.func_return_value is not None:
+                return body_res
+            if body_res.loop_should_break:
+                break
+            if node.condition_node is None:
+                continue
+
+            condition_res = RTResult()
+            condition = condition_res.register(
+                await self.async_visit(node.condition_node, context)
+            )
+            if condition_res.error:
+                return condition_res
+            if not condition.is_true():
+                break
+
         return res.success(Number.null)
 
     async def async_visit_SwitchNode(self, node, context):

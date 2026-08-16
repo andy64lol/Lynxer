@@ -18,7 +18,7 @@ global main(){
         global.greet(LANG);
     }
 
-    for(int i = 0; i < 3; i = i + 1){
+    for(int i = 0; i < 3; i += 1){
         print(i); print("\n");
     }
 
