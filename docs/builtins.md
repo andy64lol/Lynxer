@@ -91,6 +91,7 @@ Returns the type name of `v` as a `str`.
 | `true` / `false` | `"bool"` |
 | `none` | `"none"` |
 | list | `"list"` |
+| tuple | `"tuple"` |
 | vargroup | `"vargroup"` |
 | a function | `"function"` |
 
@@ -106,7 +107,7 @@ print(returnType(cfg));           // vargroup
 
 ### `returnLength(v)`
 
-Returns the number of characters in a `str`, or the number of elements in a `list`.
+Returns the number of characters in a `str`, or the number of elements in a `list` or `tuple`.
 
 ```c
 print(returnLength("hello"));     // 5
@@ -171,6 +172,19 @@ Return new list with elements from `start` up to (not including) `stop`.
 
 ### `listContains(lst, val)` → `bool`
 Return `true` if `val` is in `lst`.
+
+### `contains(sequence, val)` → `bool`
+Return `true` if `val` is in a `list` or `tuple`. This is the common membership
+built-in for both sequence types.
+
+```c
+list numbers = [1, 2, 3];
+tuple point = [10, 20];
+
+bool hasTwo = contains(numbers, 2);  // true
+bool has20 = contains(point, 20);    // true
+bool hasNine = contains(point, 9);   // false
+```
 
 ### `listJoin(lst, sep)` → `str`
 Concatenate all elements as strings, separated by `sep`.

@@ -44,8 +44,6 @@ Tuples are **immutable** in the sense that no built-in mutates an existing tuple
 
 ## Built-in tuple functions
 
-All of these are available everywhere without any `import`.
-
 | Function | Signature | Returns | Description |
 |----------|-----------|---------|-------------|
 | `tupleCreate` | `tupleCreate(v1, v2, ...)` | `tuple` | Create a tuple from any number of arguments |
@@ -61,6 +59,9 @@ All of these are available everywhere without any `import`.
 | `tupleFirst` | `tupleFirst(tuple t)` | element | First element (error on empty) |
 | `tupleLast` | `tupleLast(tuple t)` | element | Last element (error on empty) |
 | `tupleJsonArray` | `tupleJsonArray(tuple t)` | `str` | JSON array string, e.g. `"[1,2,3]"` |
+| `contains` | `contains(tuple t, any val)` | `bool` | Common membership test shared with lists |
+| `global.typing.toList` | `toList(any t)` | `list` | Convert a tuple to a list, requires typing stdlib. |
+| `global.typing.toTuple` | `toTuple(any l)` | `tuple` | Convert a list to a tuple, requires typing stdlib. |
 
 ### Examples
 
@@ -74,12 +75,15 @@ global main(){
     bool has  = tupleContains(t, 20);  // true
     int  idx  = tupleIndex(t, 30);     // 2
     int  cnt  = tupleCount(t, 20);     // 2
+    bool has30 = contains(t, 30);      // true
 
     tuple sl  = tupleSlice(t, 1, 3);   // (20, 30)
     tuple cat = tupleConcat(t, sl);    // (10, 20, 30, 20, 20, 30)
 
     list  lst = tupleToList(t);        // [10, 20, 30, 20]
     tuple t2  = listToTuple(lst);      // (10, 20, 30, 20)
+    list  lst2 = global.typing.toList(t);   // [10, 20, 30, 20]
+    tuple t3  = global.typing.toTuple(lst); // (10, 20, 30, 20)
 
     str   j   = tupleJsonArray(t);     // "[10, 20, 30, 20]"
 

@@ -160,7 +160,7 @@ String manipulation, type conversion, and list utilities.
 | `isNumeric` | `isNumeric(str s)` | `true` if `s` can be parsed as a number |
 | `lenStr` | `lenStr(str s)` | Length of string |
 | `repeat` | `repeat(str s, int n)` | Repeat `s` `n` times |
-| `contains` | `contains(str haystack, str needle)` | `true` if `needle` is in `haystack` |
+| `contains` | `contains(list_or_tuple value, any needle)` | Built-in membership test for lists and tuples |
 | `trim` | `trim(str s)` | Strip leading/trailing whitespace |
 | `upper` | `upper(str s)` | Convert to uppercase |
 | `lower` | `lower(str s)` | Convert to lowercase |

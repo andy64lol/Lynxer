@@ -77,8 +77,33 @@ global contains(str haystack, str needle){
 }
 
 // Splits a string by sep and returns a list.
-global toList(str s, str sep){
+// Use splitToList() for string splitting; toList() converts tuple/list values.
+global splitToList(str s, str sep){
     return splitStr(s, sep);
+}
+
+// Convert a tuple to a list. Lists are returned unchanged.
+global toList(any value){
+    str kind = returnType(value);
+    if(kind is "tuple"){
+        return tupleToList(value);
+    }
+    if(kind is "list"){
+        return value;
+    }
+    return range(0, 0);
+}
+
+// Convert a list to a tuple. Tuples are returned unchanged.
+global toTuple(any value){
+    str kind = returnType(value);
+    if(kind is "list"){
+        return listToTuple(value);
+    }
+    if(kind is "tuple"){
+        return value;
+    }
+    return tupleCreate();
 }
 
 // Returns 1 if val is a list, 0 otherwise.
@@ -87,6 +112,32 @@ global isList(any val){
         return true;
     }
     return false;
+}
+
+// Returns true if val is a list or tuple.
+global isSequence(any val){
+    str kind = returnType(val);
+    if(kind is "list"){ return true; }
+    if(kind is "tuple"){ return true; }
+    return false;
+}
+
+// Returns the number of elements in a list or tuple.
+global lenSequence(any val){
+    str kind = returnType(val);
+    if(kind is "list"){ return returnLength(val); }
+    if(kind is "tuple"){ return returnLength(val); }
+    return 0;
+}
+
+// Convert any Lynxer value to its display string.
+global toString(any val){
+    return strOf(val);
+}
+
+// Convert a number-like value to a float. Invalid values become 0.0.
+global toNumber(any val){
+    return toFloat(strOf(val));
 }
 
 // Returns the number of elements in a list (alias for returnLength).

@@ -38,7 +38,7 @@ global runParallel(list commands){
     if(returnLength(_raw) is 0){
         return seqFromTo(0, -1, 1);
     }
-    return global.typing.toList(_raw, "\n");
+    return global.typing.splitToList(_raw, "\n");
 }
 
 // Run a shell command template for each item in a list, in parallel.
@@ -60,7 +60,7 @@ global mapShell(str template, list items){
     if(returnLength(_raw) is 0){
         return seqFromTo(0, -1, 1);
     }
-    return global.typing.toList(_raw, "\n");
+    return global.typing.splitToList(_raw, "\n");
 }
 
 // Alias for mapShell (thread-based command mapping).
@@ -84,7 +84,7 @@ global runParallelSilent(list commands){
     if(returnLength(_raw) is 0){
         return seqFromTo(0, -1, 1);
     }
-    return global.typing.toList(_raw, "\n");
+    return global.typing.splitToList(_raw, "\n");
 }
 
 // Run commands in parallel using a process pool (better for CPU-bound tasks).
@@ -106,7 +106,7 @@ global runParallelProcess(list commands){
     if(returnLength(_raw) is 0){
         return seqFromTo(0, -1, 1);
     }
-    return global.typing.toList(_raw, "\n");
+    return global.typing.splitToList(_raw, "\n");
 }
 
 global main(){}

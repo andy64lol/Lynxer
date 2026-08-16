@@ -1,470 +1,136 @@
-//// syntax.lynx — full Lynxer syntax showcase ////
+//// syntax.lynx — Lynxer language syntax showcase ////
 
-// single line comment
+// Comments:
+// single-line comments start with //
 ///
- multiline
- comment
-///
-
-///
-every program starts with global setup(){} and ends with global main(){}, no exceptions
-global declares a global function. Functions may return values with return regardless of parameter types
+   multiline comments use, well, you see, i didn't place the triple / here because that ends the block of multiline comments
+   so well, as you see
 ///
 
-
-// globals go in setup()
+// setup() must be the first global declaration.
+// importAs() binds a module to the alias supplied as its second argument.
 global setup(){
-    import("math");
-    import("typing");
-    import("fileIO");
-    import("shell");
-    import("os");
-    import("json");
-    import("js");
-    import("multiprocessing");
-    const str TITLE = "Lynxer Syntax Demo";
-    const int VERSION = 1;
+    importAs("math", "m");
+    importAs("typing", "types");
 }
 
-// helpers
-
-// global with no return value
-global printLine(str ch, int n){
-    rawPy(){
-        print(ch * n)
-    }
-}
-
-// global functions can still return values
+// Global functions are declared before main().
 global add(int a, int b){
     return a + b;
 }
 
-global divide(float a, float b){
-    return a / b;
+global identity(any value){
+    return value;
 }
-
-global greet(str name){
-    return "Hello, " + name + "!";
-}
-
-// any = accepts / returns anything
-global identity(any x){
-    return x;
-}
-
-// control flow
-
-global demoIf(int n){
-    if(n > 0){
-        print("positive\n");
-    } else {
-        if(n is 0){
-            print("zero\n");
-        } else {
-            print("negative\n");
-        }
-    }
-}
-
-global demoWhile(){
-    int i = 0;
-    while(i < 3){
-        print(i); print(" ");
-        i += 1;
-    }
-    print("\n");
-}
-
-global demoFor(){
-    for(int i = 0; i < 4; i = i + 1){
-        print(i); print(" ");
-    }
-    print("\n");
-}
-
-// local function helpers are defined and called inside a global function body
-
-// main
 
 global main(){
-    global.printLine("=", 40);
+    println("=== Lynxer syntax showcase ===");
 
-    // local functions
-    print("\n-- local functions --\n");
-
-    local square(int n){
-        return n * n;
-    }
-
-    local cube(int n){
-        return n * n * n;
-    }
-
-    local greetLocal(str name){
-        return "Hi, " + name + "!";
-    }
-
-    print("local.square(5)      = "); print(local.square(5));         print("\n");
-    print("local.cube(3)        = "); print(local.cube(3));           print("\n");
-    print("local.greetLocal()   = "); print(local.greetLocal("Dev")); print("\n");
-
-    // nested local: local.outer.inner() syntax
-    local outer(){
-        local inner(){
-            return 99;
-        }
-        return local.inner();
-    }
-    print("local.outer() (nested inner) = "); print(local.outer()); print("\n");
-    print(TITLE); print(" v"); print(VERSION); print("\n");
-    global.printLine("=", 40);
-
-    // types
-    print("\n-- types --\n");
-    int   n = 42;
-    float f = 3.14;
-    str   s = "hello";
-    bool  b = true;
-    any   nothing = none;
+    // Primitive types and constants.
+    int number = 42;
+    float decimal = 3.14;
+    str greeting = "hello";
+    bool enabled = true;
+    any anything = none;
     const int MAX = 100;
+    println("types: ", number, ", ", decimal, ", ", greeting, ", ",
+            enabled, ", ", anything, ", const=", MAX);
 
-    print("int:   "); print(n);       print("\n");
-    print("float: "); print(f);       print("\n");
-    print("str:   "); print(s);       print("\n");
-    print("bool:  "); print(b);       print("\n");
-    print("none:  "); print(nothing); print("\n");
-    print("const: "); print(MAX);     print("\n");
+    // Functions and multiple arguments.
+    println("add(10, 3) = ", global.add(10, 3));
+    println("identity(\"Lynxer\") = ", global.identity("Lynxer"));
+    println("math alias m.sqrt(144) = ", global.m.sqrt(144));
 
-    // arithmetic
-    print("\n-- arithmetic --\n");
-    print("global.add(10,3)      = "); print(global.add(10, 3));       print("\n");
-    print("global.divide(7,2)    = "); print(global.divide(7.0, 2.0)); print("\n");
-    print("10 % 3         = "); print(10 % 3);           print("\n");
+    // Arithmetic, comparisons, logic, and bitwise operators.
     int x = 5;
     x += 3;
-    print("5 += 3         = "); print(x); print("\n");
     x -= 2;
-    print("  -= 2         = "); print(x); print("\n");
+    println("arithmetic: x=", x, ", 10%3=", 10 % 3, ", 2^10=", global.m.pow(2, 10));
+    println("comparisons: ", 5 > 3, ", ", 5 is 5, ", ", 5 not is 4);
+    println("logic: ", true and false, ", ", true or false, ", ", not true);
+    println("bitwise: ", 6 & 3, ", ", 6 | 3, ", ", 6 ^ 3, ", ", 1 << 4, ", ", 32 >> 2);
 
-    // comparison and logic
-    print("\n-- comparison & logic --\n");
-    print("5 > 3          = "); print(5 > 3);           print("\n");
-    print("5 is 5         = "); print(5 is 5);           print("\n");
-    print("5 not is 4     = "); print(5 not is 4);       print("\n");
-    print("true and false = "); print(true and false);   print("\n");
-    print("true or false  = "); print(true or false);    print("\n");
-    print("not true       = "); print(not true);         print("\n");
+    // Lists.
+    list numbers = [int 1, int 2, int 3, int 4, int 5];
+    println("list: ", numbers);
+    println("list length: ", returnLength(numbers));
+    println("list get first: ", listGet(numbers, 0));
+    numbers = listPush(numbers, 6);
+    println("after listPush: ", numbers);
+    println("list slice: ", listSlice(numbers, 1, 4));
+    println("list index of 4: ", listIndex(numbers, 4));
+    println("list contains 4: ", listContains(numbers, 4));
+    println("common contains(list, 5): ", contains(numbers, 5));
 
-    // bitwise
-    print("\n-- bitwise --\n");
-    print("6 & 3   = "); print(6 & 3);   print("\n");
-    print("6 | 3   = "); print(6 | 3);   print("\n");
-    print("6 ^ 3   = "); print(6 ^ 3);   print("\n");
-    print("~0      = "); print(~0);       print("\n");
-    print("1 << 4  = "); print(1 << 4);  print("\n");
-    print("32 >> 2 = "); print(32 >> 2); print("\n");
+    // Tuples are declared with the tuple type and are immutable sequences.
+    // A list literal on the right side is converted to a tuple.
+    tuple point = (int 10, int 20, int 30);
+    tuple other = tupleCreate(40, 50);
+    tuple combined = tupleConcat(point, other);
+    tuple middle = tupleSlice(combined, 1, 4);
+    println("tuple: ", point);
+    println("tuple type: ", returnType(point));
+    println("tuple length: ", tupleLen(point));
+    println("tuple get index 1: ", tupleGet(point, 1));
+    println("tuple first/last: ", tupleFirst(point), " / ", tupleLast(point));
+    println("tuple contains 20: ", contains(point, 20));
+    println("tuple index of 30: ", tupleIndex(point, 30));
+    println("tuple count of 20: ", tupleCount(tupleCreate(20, 20, 30), 20));
+    println("tuple slice: ", middle);
+    println("tuple concat: ", combined);
+    println("tuple as list: ", tupleToList(point));
+    println("tuple as JSON: ", tupleJsonArray(point));
+    println("list to tuple: ", listToTuple(numbers));
 
-    // println vs print
-    print("\n-- println vs print --\n");
-    println("println adds a newline automatically");
-    println("multiple", " ", "args", " work", " too");
-    print("print does not add newline");
-    print(" — must add \\n manually\n");
+    // Higher-level tuple helpers live in the typing module.
+    tuple reversed = global.types.tupleReverse(point);
+    tuple sorted = global.types.tupleSort(tupleCreate(5, 2, 4, 1));
+    tuple unique = global.types.tupleUnique(tupleCreate(1, 1, 2, 3, 3));
+    println("typing tupleReverse: ", reversed);
+    println("typing tupleSort: ", sorted);
+    println("typing tupleUnique: ", unique);
+    println("typing tupleSum: ", global.types.tupleSum(point));
+    println("typing tupleJoin: ", global.types.tupleJoin(point, "-"));
+    list pointList = global.types.toList(point);
+    tuple pointTuple = global.types.toTuple(pointList);
+    println("typing toList(tuple): ", pointList);
+    println("typing toTuple(list): ", pointTuple);
+    println("typing isSequence(point): ", global.types.isSequence(point));
+    println("typing lenSequence(point): ", global.types.lenSequence(point));
+    println("typing toString(point): ", global.types.toString(point));
+    println("typing toNumber(\"3.5\"): ", global.types.toNumber("3.5"));
 
-    // escape sequences
-    print("\n-- escape sequences --\n");
-    println("newline (\\n):    line1\nline2");
-    println("tab    (\\t):    col1\tcol2");
-    println("quote  (\\\"): She said \"hi\"");
-    println("backsl (\\\\): one\\two");
-    println("cr     (\\r): overwrite\rOK      ");
-    println("null   (\\0): before\0after — invisible null");
+    // Built-ins are available without importing a module.
+    println("returnType(point): ", returnType(point));
+    println("returnLength(point): ", returnLength(point));
+    println("contains(list, value): ", contains(numbers, 3));
+    println("contains(tuple, value): ", contains(point, 30));
 
-    // strings and builtins
-    print("\n-- strings & builtins --\n");
-    print(global.greet("World")); print("\n");
-    print("strOf(99)         = "); print(strOf(99));      print("\n");
-    print("intOf(\"7\")      = "); print(intOf("7"));     print("\n");
-    print("floatOf(\"1.5\")  = "); print(floatOf("1.5")); print("\n");
-    print("returnType(n)      = "); print(returnType(n));    print("\n");
-    print("returnType(s)      = "); print(returnType(s));    print("\n");
-    print("returnLength(s)    = "); print(returnLength(s));  print("\n");
+    // Control flow.
+    if(enabled){
+        println("if: enabled");
+    } else {
+        println("if: disabled");
+    }
 
-    // sequences
-    print("\n-- sequences --\n");
-    any seq = seqFromTo(0, 10, 2);
-    print("seqFromTo(0,10,2)  = "); print(seq);              print("\n");
-    print("returnLength(seq)  = "); print(returnLength(seq)); print("\n");
-    print("returnType(seq)    = "); print(returnType(seq));   print("\n");
+    int i = 0;
+    while(i < 3){
+        println("while iteration ", i);
+        i += 1;
+    }
 
-    // any type
-    print("\n-- any type --\n");
-    print("global.identity(42)    = "); print(global.identity(42));   print("\n");
-    print("global.identity(\"hi\") = "); print(global.identity("hi")); print("\n");
+    for(int j = 0; j < 3; j = j + 1){
+        println("for iteration ", j);
+    }
 
-    // control flow
-    print("\n-- control flow --\n");
-    global.demoIf(1); global.demoIf(0); global.demoIf(-1);
-    print("while: "); global.demoWhile();
-    print("for:   "); global.demoFor();
-
-    // math stdlib
-    print("\n-- math stdlib --\n");
-    print("sqrt(144)       = "); print(global.math.sqrt(144));        print("\n");
-    print("pow(2,10)       = "); print(global.math.pow(2, 10));       print("\n");
-    print("abs(-7)         = "); print(global.math.abs(-7));           print("\n");
-    print("clamp(20,0,10)  = "); print(global.math.clamp(20, 0, 10)); print("\n");
-
-    // typing stdlib
-    print("\n-- typing stdlib --\n");
-    print("isNumeric(\"3.14\")      = "); print(global.typing.isNumeric("3.14"));          print("\n");
-    print("isNumeric(\"abc\")       = "); print(global.typing.isNumeric("abc"));            print("\n");
-    print("repeat(\"ab\",3)         = "); print(global.typing.repeat("ab", 3));             print("\n");
-    print("contains(\"foobar\",\"oba\") = "); print(global.typing.contains("foobar","oba")); print("\n");
-
-    // rawPy: inline Python
-    print("\n-- rawPy --\n");
+    // Raw Python receives primitive values and tuple variables as Python tuples.
     int total = 0;
     rawPy(){
-        total = sum(range(1, 11))
+        total = sum(numbers)
     }
-    print("sum 1..10 = "); print(total); print("\n");
+    println("rawPy sum: ", total);
 
-    // rawPyx: Cython (falls back to Python if unavailable)
-    print("\n-- rawPyx --\n");
-    int cy = 0;
-    rawPyx(){
-        cy = 6 * 7
-    }
-    print("6*7 = "); print(cy); print("\n");
-
-    global.printLine("=", 40);
-    print("Done.\n");
-    print("Or not...");
-
-    // multiple arguments in print()
-    str text1 = "Hello";
-    str text2 = "World";
-    print(text1, " ", text2,"!\n");
-
-    // shell and fileIO
-    global.shell.runShell("echo Hello");
-    global.shell.runShellCapture("echo Gotyu!");
-    global.shell.runShellSilent("echo Well...");
-    global.fileIO.writeFile("notes.txt", "Hello!");
-    str notes = global.fileIO.readFile("notes.txt");
-    print(notes, "\n");
-    global.fileIO.appendFile("notes.txt", "\nSecond line.");
-
-    if(global.fileIO.fileExists("notes.txt")){
-        print("Exists!\n");
-    }
-
-    global.fileIO.deleteFile("notes.txt");
-
-    // lists
-    print("\n-- lists --\n");
-
-    // build from range
-    any nums = seqFromTo(1, 6, 1);
-    print("range: "); print(strOf(nums)); print("\n");
-
-    // push / pop
-    nums = listPush(nums, 99);
-    print("after push 99: "); print(strOf(nums)); print("\n");
-    int popped = listPop(nums);
-    print("last element: "); print(popped); print("\n");
-
-    // get / set
-    int first = listGet(nums, 0);
-    print("first: "); print(first); print("\n");
-    nums = listSet(nums, 0, 100);
-    print("after set [0]=100: "); print(strOf(nums)); print("\n");
-    nums = listSet(nums, 0, 1);
-
-    // slice
-    any sliced = listSlice(nums, 1, 4);
-    print("slice [1:4]: "); print(strOf(sliced)); print("\n");
-
-    // search
-    int idx = listIndex(nums, 3);
-    print("index of 3: "); print(idx); print("\n");
-    bool has4 = listContains(nums, 4);
-    print("contains 4: "); print(has4); print("\n");
-
-    // aggregates
-    int total2 = sumOf(nums);
-    print("sum: "); print(total2); print("\n");
-    int mn = listMin(nums);
-    int mx = listMax(nums);
-    print("min: "); print(mn); print(" max: "); print(mx); print("\n");
-    bool anyT = anyOf(nums);
-    bool allT = allOf(nums);
-    print("any: "); print(anyT); print(" all: "); print(allT); print("\n");
-
-    // sort / reverse
-    any unsorted = seqFromTo(0, 0, 1);
-    unsorted = listPush(unsorted, 5);
-    unsorted = listPush(unsorted, 2);
-    unsorted = listPush(unsorted, 8);
-    unsorted = listPush(unsorted, 1);
-    any asc  = sortList(unsorted);
-    any desc = sortList(unsorted, true);
-    any rev  = reverseList(unsorted);
-    print("sorted asc:  "); print(strOf(asc));  print("\n");
-    print("sorted desc: "); print(strOf(desc)); print("\n");
-    print("reversed:    "); print(strOf(rev));  print("\n");
-
-    // join
-    any words = seqFromTo(0, 0, 1);
-    words = listPush(words, "Lynxer");
-    words = listPush(words, "is");
-    words = listPush(words, "fun");
-    str sentence = listJoin(words, " ");
-    print("joined: "); print(sentence); print("\n");
-
-    // remove element
-    any lst2 = seqFromTo(10, 14, 1);
-    any lst3 = listRemove(lst2, 1);
-    print("removed idx 1: "); print(strOf(lst3)); print("\n");
-
-    // typing helpers
-    any parts = global.typing.toList("a,b,c", ",");
-    print("toList: "); print(strOf(parts)); print("\n");
-    print("isList: "); print(global.typing.isList(parts)); print("\n");
-
-    // os
-    print("\n-- os --\n");
-    str cwd = global.os.getcwd();
-    any entries = global.os.listdir(".");
-    print("entries in .: "); print(returnLength(entries)); print("\n");
-    print("cwd: "); print(cwd); print("\n");
-    str sep = global.os.sep();
-    print("sep: "); print(sep); print("\n");
-    bool cwdIsDir = global.os.isDir(cwd);
-    print("cwd is dir: "); print(cwdIsDir); print("\n");
-    str joined = global.os.joinPath(cwd, "syntax.lynx");
-    print("joinPath: "); print(joined); print("\n");
-
-    // json
-    print("\n-- json --\n");
-    str jdata = "{\"lang\":\"Lynxer\",\"version\":1}";
-    print("valid: ");   print(global.json.jsonValid(jdata));            print("\n");
-    print("keys: ");    print(global.json.jsonKeys(jdata));             print("\n");
-    print("lang: ");    print(global.json.jsonGet(jdata, "lang"));      print("\n");
-    print("version: "); print(global.json.jsonGetInt(jdata, "version")); print("\n");
-
-    any kv = seqFromTo(0, 0, 1);
-    kv = listPush(kv, "name"); kv = listPush(kv, "Lynxer");
-    kv = listPush(kv, "year"); kv = listPush(kv, "2024");
-    print(global.json.jsonObject(kv)); print("\n");
-
-    // vargroups
-    println("\n-- vargroups --");
-
-    vargroup config2 = {
-        str  host  = "localhost",
-        int  port  = 8080,
-        bool debug = true
-    };
-    print("host: ");  println(config2.host);
-    print("port: ");  println(config2.port);
-    print("debug: "); println(config2.debug);
-    print("type: ");  println(returnType(config2));
-
-    // typed dot-assignment requires the type keyword
-    int  config2.port  = 9000;
-    bool config2.debug = false;
-    print("port after set: ");  println(config2.port);
-    print("debug after set: "); println(config2.debug);
-
-    vargroup player2 = {
-        str  username = "Andy",
-        int  coins    = 500,
-        vargroup stats = {
-            int   level = 10,
-            float speed = 7.25
-        }
-    };
-    print("player: "); println(player2.username);
-    print("level: ");  println(player2.stats.level);
-    print("speed: ");  println(player2.stats.speed);
-
-    int player2.stats.level = 20;
-    print("level after set: "); println(player2.stats.level);
-
-    addVarGroup(player2, str title = "Warrior");
-    print("title: "); println(player2.title);
-
-    addVarGroup(player2.stats, int xp = 1200);
-    print("xp: "); println(player2.stats.xp);
-
-    removeVarGroup(player2, title);
-    removeVarGroup(player2.stats, xp);
-
-    println(strOf(config2));
-
-    // js stdlib
-    println("\n-- js stdlib --");
-    int jsOk = global.js.nodeExists();
-    print("node available: "); println(jsOk);
-    if(jsOk){
-        str jsVer = global.js.nodeVersion();
-        print("node version:   "); println(jsVer);
-        str jsArith = global.js.evalJS("6 * 7");
-        print("evalJS(6*7):    "); println(jsArith);
-        str jsOut = global.js.runJS("console.log(\"hello from JS\");");
-        print("runJS output:   "); print(jsOut);
-    }
-
-    // multiprocessing
-    println("\n-- multiprocessing --");
-    int cores = global.multiprocessing.workerCount();
-    print("CPU cores: "); println(cores);
-
-    // runParallel: three echo commands in parallel
-    any cmds = seqFromTo(0, -1, 1);
-    cmds = listPush(cmds, "echo alpha");
-    cmds = listPush(cmds, "echo beta");
-    cmds = listPush(cmds, "echo gamma");
-    any outputs = global.multiprocessing.runParallel(cmds);
-    print("parallel echo outputs: "); println(strOf(outputs));
-
-    // mapShell: template per item
-    any items = seqFromTo(1, 4, 1);
-    any mapped = global.multiprocessing.mapShell("echo item_{}", items);
-    print("mapShell results: "); println(strOf(mapped));
-
-    // Concurrency proof: two sleep 1 commands should complete well under 3 s total.
-    // If they ran sequentially the total would be ~2 s; true parallelism cuts it to ~1 s.
-    any sleep_cmds = seqFromTo(0, -1, 1);
-    sleep_cmds = listPush(sleep_cmds, "sleep 1 && echo slept1");
-    sleep_cmds = listPush(sleep_cmds, "sleep 1 && echo slept2");
-    int _t0 = 0;
-    int _t1 = 0;
-    rawPy(){
-        import time as _time
-        _t0 = int(_time.monotonic() * 1000)
-    }
-    any sleep_out = global.multiprocessing.runParallel(sleep_cmds);
-    rawPy(){
-        import time as _time
-        _t1 = int(_time.monotonic() * 1000)
-    }
-    int elapsed_ms = _t1 - _t0;
-    print("sleep outputs: "); println(strOf(sleep_out));
-    print("elapsed ms:    "); println(elapsed_ms);
-    // Assert < 2000 ms — would be ~2000 ms if sequential
-    bool parallel_ok = elapsed_ms < 2000;
-    print("ran in parallel: "); println(parallel_ok);
-
-    // runParallelSilent: returns integer exit codes
-    any silent_cmds = seqFromTo(0, -1, 1);
-    silent_cmds = listPush(silent_cmds, "true");
-    silent_cmds = listPush(silent_cmds, "false");
-    any codes = global.multiprocessing.runParallelSilent(silent_cmds);
-    print("exit codes (true,false): "); println(strOf(codes));
+    // Multiple arguments replace chains of print("label"); print(value); print("\n").
+    println("one call, ", "multiple arguments, ", number, ", ", point);
+    println("=== done ===");
 }
-
-// That's all!

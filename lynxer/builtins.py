@@ -562,6 +562,21 @@ class BuiltInFunction(BaseFunction):
         found = any(str(e) == target for e in args[0].elements)
         return RTResult().success(Number(1 if found else 0, is_bool=True))
 
+    def execute_contains(self, args, exec_ctx):
+        """contains(sequence, value) — membership for lists and tuples."""
+        if len(args) != 2 or not isinstance(args[0], (List, LynxTuple)):
+            return RTResult().failure(
+                RTError(
+                    self.pos_start,
+                    self.pos_end,
+                    "contains(list_or_tuple, value) expects a list or tuple and a value",
+                    exec_ctx,
+                )
+            )
+        target = str(args[1])
+        found = any(str(element) == target for element in args[0].elements)
+        return RTResult().success(Number(1 if found else 0, is_bool=True))
+
     def execute_listJoin(self, args, exec_ctx):
         if (
             len(args) != 2
@@ -1221,6 +1236,7 @@ BUILTIN_FUNCTION_NAMES = (
     "listSet",
     "listSlice",
     "listContains",
+    "contains",
     "listJoin",
     "listIndex",
     "listRemove",

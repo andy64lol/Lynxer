@@ -92,7 +92,7 @@ global main(){
 | `swapCase` | `swapCase(str s)` | `str` | Swap upper↔lower for every character |
 | `repeat` | `repeat(str s, int n)` | `str` | Repeat `s` exactly `n` times |
 | `repeatStr` | `repeatStr(str s, int n)` | `str` | Same as `repeat` |
-| `contains` | `contains(str haystack, str needle)` | `bool` | `true` if `needle` is in `haystack` |
+| `contains` | `contains(str haystack, str needle)` | `bool` | String membership helper inside `global.typing`; direct `contains(list_or_tuple, value)` is a built-in |
 | `startsWith` | `startsWith(str s, str prefix)` | `bool` | `true` if `s` starts with `prefix` |
 | `endsWith` | `endsWith(str s, str suffix)` | `bool` | `true` if `s` ends with `suffix` |
 | `replace` | `replace(str s, str old, str new)` | `str` | Replace all occurrences of `old` with `new` |
