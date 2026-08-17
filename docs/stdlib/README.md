@@ -19,6 +19,7 @@ This directory contains documentation for all Lynxer standard library modules.
 | [multiprocessing](../multiprocessing.md) | `multiprocessing.lynx` | Run shell commands in parallel using process/thread pools |
 | [net](net.md) | `net.lynx` | WebSocket client, TCP client, hostname/IP/URL utilities |
 | [os](os.md) | `os.lynx` | OS and filesystem helpers (dirs, paths, env vars) |
+| [path](path.md) | `path.lynx` | `pathlib.Path` path manipulation, traversal, filesystem, and text helpers |
 | [random](random.md) | `random.lynx` | Random number and sequence utilities |
 | [re](re.md) | `re.lynx` | Regular expressions (search, match, sub, split, groups) |
 | [regex](regex.md) | `regex.lynx` | Extended regex: compiled cache, Unicode, advanced helpers |
@@ -48,6 +49,7 @@ global setup(){
     import("http");
     import("net");
     import("os");
+    import("path");
     import("random");
     import("time");
     import("shell");

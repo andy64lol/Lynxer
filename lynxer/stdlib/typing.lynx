@@ -137,7 +137,15 @@ global toString(any val){
 
 // Convert a number-like value to a float. Invalid values become 0.0.
 global toNumber(any val){
-    return toFloat(strOf(val));
+    str text = strOf(val);
+    float result = 0.0;
+    rawPy(){
+        try:
+            result = float(text)
+        except Exception:
+            result = 0.0
+    }
+    return result;
 }
 
 // Returns the number of elements in a list (alias for returnLength).

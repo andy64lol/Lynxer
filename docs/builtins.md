@@ -45,6 +45,25 @@ Like `input()` but appends a newline to the returned string.
 
 ---
 
+## Assertions
+
+### `assert(condition[, message])`
+
+Checks a boolean or numeric condition. A zero or `false` condition raises a
+runtime error; a non-zero condition succeeds. The optional message is shown
+as the runtime error details.
+
+```c
+assert(true);
+assert(2 + 2 is 4, "arithmetic is broken");
+```
+
+Assertions are always available and do not require importing the `debug`
+module. The debug module also provides more specialized helpers such as
+`global.debug.assertEq()` and `global.debug.assertContains()`.
+
+---
+
 ## Type conversion
 
 ### `strOf(v)`

@@ -1,0 +1,7 @@
+global setup(){}
+
+global main(){
+    assert(true);
+    assert(2 + 2 is 4, "arithmetic is broken");
+    println("assert passed");
+}

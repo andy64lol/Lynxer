@@ -1204,6 +1204,39 @@ class BuiltInFunction(BaseFunction):
         _runtime._main_override = args[0].value
         return RTResult().success(Number.null)
 
+    def execute_assert(self, args, exec_ctx):
+        """assert(condition[, message]) — fail when condition is false."""
+        if len(args) not in (1, 2) or not isinstance(args[0], Number):
+            return RTResult().failure(
+                RTError(
+                    self.pos_start,
+                    self.pos_end,
+                    "assert(condition[, message]) expects a boolean or number "
+                    "condition and an optional string message",
+                    exec_ctx,
+                )
+            )
+        if len(args) == 2 and not isinstance(args[1], String):
+            return RTResult().failure(
+                RTError(
+                    self.pos_start,
+                    self.pos_end,
+                    "assert(condition[, message]) expects message to be a string",
+                    exec_ctx,
+                )
+            )
+        if args[0].value == 0:
+            message = args[1].value if len(args) == 2 else "Assertion failed"
+            return RTResult().failure(
+                RTError(
+                    self.pos_start,
+                    self.pos_end,
+                    message,
+                    exec_ctx,
+                )
+            )
+        return RTResult().success(Number.null)
+
 
 BuiltinHandler = Callable[[BuiltInFunction, list[Any], Any], Any]
 
@@ -1266,6 +1299,7 @@ BUILTIN_FUNCTION_NAMES = (
     "tupleFirst",
     "tupleLast",
     "tupleJsonArray",
+    "assert",
     "overrideMain",
 )
 

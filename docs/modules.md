@@ -111,6 +111,7 @@ global main(){
 | `fileIO` | `import("fileIO")` | Read, write, append, copy, move, delete files |
 | `shell` | `import("shell")` | Run external shell commands, capture output |
 | `os` | `import("os")` | Directory navigation, path utilities, environment vars |
+| `path` | `import("path")` | `pathlib.Path` manipulation, traversal, filesystem, and text helpers |
 | `json` | `import("json")` | JSON encode / decode / query |
 | `js` | `import("js")` | Run JavaScript via Node.js |
 

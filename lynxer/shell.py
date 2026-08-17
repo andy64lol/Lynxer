@@ -131,7 +131,7 @@ def main():
         print()
         return 0
     if argv[0] in ('-v', '--version', '-version','--v'):
-        print("Lynxer 0.1.7b6")
+        print("Lynxer 0.1.7b7")
         return 0
     if argv[0] in ('--install', '--uninstall'):
         return installer_main(argv[0])

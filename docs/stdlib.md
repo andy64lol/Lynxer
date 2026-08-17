@@ -10,6 +10,7 @@ global setup(){
     import("csv");
     import("shell");
     import("os");
+    import("path");
     import("json");
     import("js");
     import("http");
@@ -167,7 +168,7 @@ String manipulation, type conversion, and list utilities.
 | `startsWith` | `startsWith(str s, str prefix)` | `true` if `s` starts with `prefix` |
 | `endsWith` | `endsWith(str s, str suffix)` | `true` if `s` ends with `suffix` |
 | `replace` | `replace(str s, str old, str new)` | Replace all occurrences |
-| `toList` | `toList(str s, str sep)` | Split string by `sep` into a list |
+| `splitToList` | `splitToList(str s, str sep)` | Split string by `sep` into a list |
 | `isList` | `isList(any val)` | `true` if `val` is a list |
 | `lenList` | `lenList(list lst)` | Number of elements in a list |
 | `flatten` | `flatten(list lst)` | Flatten one level of nested lists |
@@ -233,6 +234,22 @@ Directory navigation and path utilities wrapping Python's `os` / `os.path`.
 | `getenv` | `getenv(str name)` | Read environment variable (returns `""` if unset) |
 | `getpid` | `getpid()` | Current process ID |
 | `sep` | `sep()` | OS path separator (`/` or `\`) |
+
+---
+
+## path
+
+Path manipulation and filesystem helpers wrapping Python's `pathlib.Path`.
+Paths are represented as strings; see [the complete path reference](stdlib/path.md).
+
+| Function group | Examples |
+|----------------|----------|
+| Construction | `cwd`, `home`, `absolute`, `resolve`, `expandUser`, `join`, `normalize` |
+| Components | `name`, `stem`, `suffix`, `suffixes`, `parent`, `parts`, `withName`, `withSuffix` |
+| Queries | `exists`, `isFile`, `isDir`, `isSymlink`, `isAbsolute`, `sameFile`, `size` |
+| Traversal | `iterDir`, `glob`, `rglob` |
+| Filesystem | `mkdir`, `mkdirs`, `rmdir`, `unlink`, `touch`, `rename`, `replace` |
+| Text I/O | `readText`, `writeText`, `appendText`, `readTextEncoding`, `writeTextEncoding` |
 
 ---
 

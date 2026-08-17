@@ -30,6 +30,7 @@ global setup(){
 | `isDigit` | `isDigit(str s)` | `bool` | `true` if every character is a digit |
 | `isAlphaNum` | `isAlphaNum(str s)` | `bool` | `true` if every character is alphanumeric |
 | `isSpace` | `isSpace(str s)` | `bool` | `true` if every character is whitespace |
+| `isSequence` | `isSequence(any val)` | `bool` | `true` if `val` is a `list` or `tuple` |
 
 ```c
 global main(){
@@ -55,6 +56,32 @@ global main(){
 | `toFloat` | `toFloat(str s)` | `float` | String to float (0.0 on error) |
 | `toBool` | `toBool(int n)` | `bool` | Non-zero → `true`, zero → `false` |
 | `toChar` | `toChar(any val)` | `char` | String of length 1 or int code-point → `char`; `"\0"` on error |
+| `toString` | `toString(any val)` | `str` | Convert any Lynxer value to its display string |
+| `toNumber` | `toNumber(any val)` | `float` | Convert a number-like value to a float; `0.0` on error |
+
+`toList()` and `toTuple()` provide type-aware sequence conversion:
+
+| Function | Signature | Returns | Description |
+|----------|-----------|---------|-------------|
+| `toList` | `toList(any val)` | `list` | Convert a tuple to a list; return lists unchanged; unsupported values become an empty list |
+| `toTuple` | `toTuple(any val)` | `tuple` | Convert a list to a tuple; return tuples unchanged; unsupported values become an empty tuple |
+| `lenSequence` | `lenSequence(any val)` | `int` | Return the length of a list or tuple; return `0` for other values |
+
+```c
+global setup(){
+    import("typing");
+}
+
+global main(){
+    list values = range(3);
+    tuple coords = (int 10, int 20);
+
+    tuple convertedTuple = global.typing.toTuple(values); // (0, 1, 2)
+    list  convertedList  = global.typing.toList(coords);  // [10, 20]
+    bool  sequence       = global.typing.isSequence(coords); // true
+    int   size           = global.typing.lenSequence(coords); // 2
+}
+```
 
 ---
 
@@ -110,7 +137,7 @@ global main(){
 | `wordWrap` | `wordWrap(str s, int width)` | `str` | Wrap text to at most `width` characters per line |
 | `expandTabs` | `expandTabs(str s, int tabSize)` | `str` | Expand tab characters to `tabSize`-width stops |
 | `splitFirst` | `splitFirst(str s, str sep)` | `list` | Split on first occurrence of `sep`; returns 2-element list |
-| `toList` | `toList(str s, str sep)` | `list` | Split `s` by `sep` into a list of strings |
+| `splitToList` | `splitToList(str s, str sep)` | `list` | Split `s` by `sep` into a list of strings |
 | `linesOf` | `linesOf(str s)` | `list` | Split `s` by newlines into a list of lines |
 
 ---

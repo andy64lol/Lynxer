@@ -1,0 +1,613 @@
+////
+Lynxer standard library: path.
+Path manipulation and filesystem helpers backed by Python's pathlib.Path.
+
+Paths are represented as strings so they can be passed between functions and
+stored in ordinary Lynxer variables. Functions return an empty string, empty
+list, false, or -1 when pathlib reports an error.
+////
+
+global setup(){}
+
+// Return the current working directory.
+global cwd(){
+    str result = "";
+    rawPy(){
+        from pathlib import Path
+        result = str(Path.cwd())
+    }
+    return result;
+}
+
+// Return the current user's home directory.
+global home(){
+    str result = "";
+    rawPy(){
+        from pathlib import Path
+        result = str(Path.home())
+    }
+    return result;
+}
+
+// Return an absolute path without requiring it to exist.
+global absolute(str path){
+    str result = "";
+    rawPy(){
+        from pathlib import Path
+        try:
+            result = str(Path(path).absolute())
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+// Return a normalized absolute path. Missing paths are allowed.
+global resolve(str path){
+    str result = "";
+    rawPy(){
+        from pathlib import Path
+        try:
+            result = str(Path(path).resolve(strict=False))
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+// Expand a leading "~" to the user's home directory.
+global expandUser(str path){
+    str result = "";
+    rawPy(){
+        from pathlib import Path
+        try:
+            result = str(Path(path).expanduser())
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+// Join base and child using pathlib's platform-aware path rules.
+global join(str base, str child){
+    str result = "";
+    rawPy(){
+        from pathlib import Path
+        try:
+            result = str(Path(base) / child)
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+// Join three path components.
+global join3(str first, str second, str third){
+    str result = "";
+    rawPy(){
+        from pathlib import Path
+        try:
+            result = str(Path(first) / second / third)
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+// Normalize ".", "..", and repeated separators without making the path absolute.
+global normalize(str path){
+    str result = "";
+    rawPy(){
+        import os as _os
+        try:
+            result = _os.path.normpath(path)
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+// Return common Path components.
+global name(str path){
+    str result = "";
+    rawPy(){
+        from pathlib import Path
+        try:
+            result = Path(path).name
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+global stem(str path){
+    str result = "";
+    rawPy(){
+        from pathlib import Path
+        try:
+            result = Path(path).stem
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+global suffix(str path){
+    str result = "";
+    rawPy(){
+        from pathlib import Path
+        try:
+            result = Path(path).suffix
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+// Return all suffixes, such as [".tar", ".gz"] for "archive.tar.gz".
+global suffixes(str path){
+    str raw = "";
+    rawPy(){
+        from pathlib import Path
+        try:
+            raw = "\n".join(Path(path).suffixes)
+        except Exception:
+            raw = ""
+    }
+    if(raw is ""){
+        return seqFromTo(0, 0, 1);
+    }
+    return splitStr(raw, "\n");
+}
+
+global parent(str path){
+    str result = "";
+    rawPy(){
+        from pathlib import Path
+        try:
+            result = str(Path(path).parent)
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+global anchor(str path){
+    str result = "";
+    rawPy(){
+        from pathlib import Path
+        try:
+            result = Path(path).anchor
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+global root(str path){
+    str result = "";
+    rawPy(){
+        from pathlib import Path
+        try:
+            result = Path(path).root
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+global drive(str path){
+    str result = "";
+    rawPy(){
+        from pathlib import Path
+        try:
+            result = Path(path).drive
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+global isAbsolute(str path){
+    bool result = false;
+    rawPy(){
+        from pathlib import Path
+        try:
+            result = Path(path).is_absolute()
+        except Exception:
+            result = False
+    }
+    return result;
+}
+
+// Return path components from the root/anchor through the final component.
+global parts(str path){
+    str raw = "";
+    rawPy(){
+        from pathlib import Path
+        try:
+            raw = "\n".join(Path(path).parts)
+        except Exception:
+            raw = ""
+    }
+    if(raw is ""){
+        return seqFromTo(0, 0, 1);
+    }
+    return splitStr(raw, "\n");
+}
+
+// Return true when the path matches a pathlib glob pattern.
+global match(str path, str pattern){
+    bool result = false;
+    rawPy(){
+        from pathlib import Path
+        try:
+            result = Path(path).match(pattern)
+        except Exception:
+            result = False
+    }
+    return result;
+}
+
+// Return a path relative to base, or "" when it is not below base.
+global relativeTo(str path, str base){
+    str result = "";
+    rawPy(){
+        from pathlib import Path
+        try:
+            result = str(Path(path).relative_to(Path(base)))
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+// Replace the final name or suffix and return the resulting path.
+global withName(str path, str newName){
+    str result = "";
+    rawPy(){
+        from pathlib import Path
+        try:
+            result = str(Path(path).with_name(newName))
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+global withSuffix(str path, str newSuffix){
+    str result = "";
+    rawPy(){
+        from pathlib import Path
+        try:
+            result = str(Path(path).with_suffix(newSuffix))
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+// Filesystem predicates.
+global exists(str path){
+    bool result = false;
+    rawPy(){
+        from pathlib import Path
+        try:
+            result = Path(path).exists()
+        except Exception:
+            result = False
+    }
+    return result;
+}
+
+global isFile(str path){
+    bool result = false;
+    rawPy(){
+        from pathlib import Path
+        try:
+            result = Path(path).is_file()
+        except Exception:
+            result = False
+    }
+    return result;
+}
+
+global isDir(str path){
+    bool result = false;
+    rawPy(){
+        from pathlib import Path
+        try:
+            result = Path(path).is_dir()
+        except Exception:
+            result = False
+    }
+    return result;
+}
+
+global isSymlink(str path){
+    bool result = false;
+    rawPy(){
+        from pathlib import Path
+        try:
+            result = Path(path).is_symlink()
+        except Exception:
+            result = False
+    }
+    return result;
+}
+
+global isMount(str path){
+    bool result = false;
+    rawPy(){
+        from pathlib import Path
+        try:
+            result = Path(path).is_mount()
+        except Exception:
+            result = False
+    }
+    return result;
+}
+
+// Return true if both paths refer to the same existing file.
+global sameFile(str first, str second){
+    bool result = false;
+    rawPy(){
+        from pathlib import Path
+        try:
+            result = Path(first).samefile(Path(second))
+        except Exception:
+            result = False
+    }
+    return result;
+}
+
+// List direct children as strings, sorted for deterministic output.
+global iterDir(str path){
+    str raw = "";
+    rawPy(){
+        from pathlib import Path
+        try:
+            raw = "\n".join(sorted(str(item) for item in Path(path).iterdir()))
+        except Exception:
+            raw = ""
+    }
+    if(raw is ""){
+        return seqFromTo(0, 0, 1);
+    }
+    return splitStr(raw, "\n");
+}
+
+// Glob direct children below path. Pattern uses pathlib glob syntax.
+global glob(str path, str pattern){
+    str raw = "";
+    rawPy(){
+        from pathlib import Path
+        try:
+            raw = "\n".join(sorted(str(item) for item in Path(path).glob(pattern)))
+        except Exception:
+            raw = ""
+    }
+    if(raw is ""){
+        return seqFromTo(0, 0, 1);
+    }
+    return splitStr(raw, "\n");
+}
+
+// Recursively glob below path.
+global rglob(str path, str pattern){
+    str raw = "";
+    rawPy(){
+        from pathlib import Path
+        try:
+            raw = "\n".join(sorted(str(item) for item in Path(path).rglob(pattern)))
+        except Exception:
+            raw = ""
+    }
+    if(raw is ""){
+        return seqFromTo(0, 0, 1);
+    }
+    return splitStr(raw, "\n");
+}
+
+// Create one directory. Returns false if it already exists or on error.
+global mkdir(str path){
+    bool result = true;
+    rawPy(){
+        from pathlib import Path
+        try:
+            Path(path).mkdir()
+        except Exception:
+            result = False
+    }
+    return result;
+}
+
+// Create a directory and all missing parents. Existing directories are okay.
+global mkdirs(str path){
+    bool result = true;
+    rawPy(){
+        from pathlib import Path
+        try:
+            Path(path).mkdir(parents=True, exist_ok=True)
+        except Exception:
+            result = False
+    }
+    return result;
+}
+
+global rmdir(str path){
+    bool result = true;
+    rawPy(){
+        from pathlib import Path
+        try:
+            Path(path).rmdir()
+        except Exception:
+            result = False
+    }
+    return result;
+}
+
+// Remove a file or symlink. Returns false when it does not exist.
+global unlink(str path){
+    bool result = true;
+    rawPy(){
+        from pathlib import Path
+        try:
+            Path(path).unlink()
+        except Exception:
+            result = False
+    }
+    return result;
+}
+
+// Remove a file or symlink, treating a missing path as success.
+global unlinkMissingOk(str path){
+    bool result = true;
+    rawPy(){
+        from pathlib import Path
+        try:
+            Path(path).unlink(missing_ok=True)
+        except Exception:
+            result = False
+    }
+    return result;
+}
+
+global touch(str path){
+    bool result = true;
+    rawPy(){
+        from pathlib import Path
+        try:
+            Path(path).touch()
+        except Exception:
+            result = False
+    }
+    return result;
+}
+
+// Rename path to target. Returns the resulting target path, or "" on error.
+global rename(str path, str target){
+    str result = "";
+    rawPy(){
+        from pathlib import Path
+        try:
+            result = str(Path(path).rename(target))
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+// Replace target even when it already exists. Returns the resulting target path.
+global replace(str path, str target){
+    str result = "";
+    rawPy(){
+        from pathlib import Path
+        try:
+            result = str(Path(path).replace(target))
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+// Read and write UTF-8 text.
+global readText(str path){
+    str result = "";
+    rawPy(){
+        from pathlib import Path
+        try:
+            result = Path(path).read_text(encoding="utf-8")
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+global readTextEncoding(str path, str encoding){
+    str result = "";
+    rawPy(){
+        from pathlib import Path
+        try:
+            result = Path(path).read_text(encoding=encoding)
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+global writeText(str path, str content){
+    bool result = true;
+    rawPy(){
+        from pathlib import Path
+        try:
+            Path(path).write_text(content, encoding="utf-8")
+        except Exception:
+            result = False
+    }
+    return result;
+}
+
+global writeTextEncoding(str path, str content, str encoding){
+    bool result = true;
+    rawPy(){
+        from pathlib import Path
+        try:
+            Path(path).write_text(content, encoding=encoding)
+        except Exception:
+            result = False
+    }
+    return result;
+}
+
+// Append UTF-8 text, since pathlib itself only provides write_text().
+global appendText(str path, str content){
+    bool result = true;
+    rawPy(){
+        try:
+            with open(path, "a", encoding="utf-8") as file:
+                file.write(content)
+        except Exception:
+            result = False
+    }
+    return result;
+}
+
+// Return file size in bytes, or -1 on error.
+global size(str path){
+    int result = -1;
+    rawPy(){
+        from pathlib import Path
+        try:
+            result = Path(path).stat().st_size
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+// Return modification time as a Unix timestamp, or -1.0 on error.
+global modifiedTime(str path){
+    float result = -1.0;
+    rawPy(){
+        from pathlib import Path
+        try:
+            result = Path(path).stat().st_mtime
+        except Exception:
+            result = -1.0
+    }
+    return result;
+}
+
+// Convert an absolute path to a file URI.
+global asUri(str path){
+    str result = "";
+    rawPy(){
+        from pathlib import Path
+        try:
+            result = Path(path).absolute().as_uri()
+        except Exception:
+            result = ""
+    }
+    return result;
+}
