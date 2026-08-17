@@ -27,6 +27,7 @@ global setup(){
     import("turtle");
     import("game");
     import("multiprocessing");
+    import("sqldb");
 }
 ```
 

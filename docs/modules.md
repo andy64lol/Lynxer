@@ -114,5 +114,6 @@ global main(){
 | `path` | `import("path")` | `pathlib.Path` manipulation, traversal, filesystem, and text helpers |
 | `json` | `import("json")` | JSON encode / decode / query |
 | `js` | `import("js")` | Run JavaScript via Node.js |
+| `sqldb` | `import("sqldb")` | SQLite database operations through Python `sqlite3` |
 
 See [stdlib.md](stdlib.md) for the full function reference.

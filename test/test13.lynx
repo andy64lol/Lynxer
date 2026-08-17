@@ -1,0 +1,20 @@
+global setup(){}
+
+global main(){
+    any missing = sentinel("MISSING");
+    any sameName = sentinel("MISSING");
+    any unnamed = sentinel();
+    any marker = object();
+    any otherMarker = object();
+
+    assert(returnType(missing) == "sentinel");
+    assert(returnType(marker) == "object");
+    assert(strOf(missing) == "MISSING");
+    assert(strOf(unnamed) == "<sentinel>");
+    assert(strOf(marker) == "<object>");
+
+    assert(missing == missing);
+    assert(missing != sameName);
+    assert(marker == marker);
+    assert(marker != otherMarker);
+}

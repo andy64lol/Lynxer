@@ -5042,6 +5042,54 @@ class Null(Value):
     def __repr__(self):
         return "none"
 
+class Sentinel(Value):
+    """A unique marker value with an optional human-readable name."""
+
+    def __init__(self, name=None):
+        super().__init__()
+        self.name = name
+
+    def get_comparison_eq(self, other):
+        return Number(int(self is other), is_bool=True).set_context(self.context), None
+
+    def get_comparison_ne(self, other):
+        return Number(int(self is not other), is_bool=True).set_context(self.context), None
+
+    def is_true(self):
+        return True
+
+    def copy(self):
+        # A sentinel's identity is its meaning; variable access must not clone it.
+        return self
+
+    def __str__(self):
+        return self.name if self.name is not None else "<sentinel>"
+
+    def __repr__(self):
+        return f"sentinel({self.name!r})" if self.name is not None else "sentinel()"
+
+class ObjectValue(Value):
+    """A unique unnamed opaque value, analogous to Python's object()."""
+
+    def get_comparison_eq(self, other):
+        return Number(int(self is other), is_bool=True).set_context(self.context), None
+
+    def get_comparison_ne(self, other):
+        return Number(int(self is not other), is_bool=True).set_context(self.context), None
+
+    def is_true(self):
+        return True
+
+    def copy(self):
+        # Object identity is significant, just like a Python object() instance.
+        return self
+
+    def __str__(self):
+        return "<object>"
+
+    def __repr__(self):
+        return "object()"
+
 class List(Value):
     def __init__(self, elements):
         super().__init__()
@@ -5127,6 +5175,10 @@ def value_type_name(v):
         return "tuple"
     if isinstance(v, List):
         return "list"
+    if isinstance(v, Sentinel):
+        return "sentinel"
+    if isinstance(v, ObjectValue):
+        return "object"
     if isinstance(v, CodeBlockValue):
         return "codeblock"
     if isinstance(v, VarGroup):

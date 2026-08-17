@@ -12,6 +12,7 @@ from lynxer import run, compile_to_bytecode, run_bytecode  # noqa: E402
 from lynxer.bytecode import BYTECODE_VERSION, read_bytecode  # noqa: E402
 from lynxer.formatting import FormattingError, format_source, lint_source  # noqa: E402
 from lynxer.install import installer_main  # noqa: E402
+from lynxer.lynxer import Lexer, Parser, Token  # noqa: E402
 
 def _extract_docstring(path):
     """Return the text inside the first //// ... //// block in a Lynxer file, or None."""
@@ -113,6 +114,65 @@ def _view_bytecode(filepath):
     return 0
 
 
+def _ast_lines(value, indent=0):
+    """Render parser nodes as a readable, position-free tree."""
+    prefix = " " * indent
+
+    if isinstance(value, Token):
+        return [
+            f"{prefix}Token(type={value.type!r}, value={value.value!r})"
+        ]
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return [f"{prefix}{value!r}"]
+    if isinstance(value, (list, tuple)):
+        if not value:
+            return [f"{prefix}{type(value).__name__}[]"]
+        lines = [f"{prefix}{type(value).__name__}["]
+        for item in value:
+            lines.extend(_ast_lines(item, indent + 2))
+        lines.append(f"{prefix}]")
+        return lines
+    if isinstance(value, dict):
+        if not value:
+            return [f"{prefix}{{}}"]
+        lines = [f"{prefix}{{"]
+        for key, item in value.items():
+            child = _ast_lines(item, indent + 4)
+            lines.append(f"{' ' * (indent + 2)}{key!r}:")
+            lines.extend(child)
+        lines.append(f"{prefix}}}")
+        return lines
+    if hasattr(value, "__dict__"):
+        lines = [f"{prefix}{type(value).__name__}"]
+        for name, item in vars(value).items():
+            if name in {"pos_start", "pos_end"}:
+                continue
+            child = _ast_lines(item, indent + 4)
+            lines.append(f"{' ' * (indent + 2)}{name}:")
+            lines.extend(child)
+        return lines
+    return [f"{prefix}{value!r}"]
+
+
+def _print_ast(filepath, source):
+    """Parse and print a Lynxer source AST without executing it."""
+    lexer = Lexer(filepath, source)
+    tokens, error = lexer.make_tokens()
+    if error:
+        print(error.as_string(), file=sys.stderr)
+        return 1
+
+    result = Parser(tokens).parse()
+    if result.error:
+        print(result.error.as_string(), file=sys.stderr)
+        return 1
+
+    print("Lynxer AST")
+    print("===========")
+    print("\n".join(_ast_lines(result.node)))
+    return 0
+
+
 def main():
     argv = sys.argv[1:]
     if not argv or argv[0] in ('-h', '--help'):
@@ -122,6 +182,7 @@ def main():
         print("  lynxer --compile <file.lynx>          Compile to bytecode (.lynxc)")
         print("  lynxer <file.lynxc>                   Run a compiled bytecode file")
         print("  lynxer --view-bytecode <file.lynxc>   Inspect bytecode metadata and structure")
+        print("  lynxer --ast <file.lynx>              Parse and print the abstract syntax tree")
         print("  lynxer --format <file.lynx>           Format a Lynxer source file in place")
         print("  lynxer --format-oneline <file.lynx>   Compact a Lynxer source file to one line")
         print("  lynxer --lint <file.lynx>             Check Lynxer syntax without running it")
@@ -170,7 +231,7 @@ def main():
                 print(f"  {name}\n")
         return 0
 
-    if argv[0] in ("--format", "--format-oneline", "--lint"):
+    if argv[0] in ("--ast", "--format", "--format-oneline", "--lint"):
         if len(argv) != 2:
             print(f"shell.py: {argv[0]} requires exactly one file argument", file=sys.stderr)
             return 1
@@ -188,6 +249,9 @@ def main():
         except OSError as exc:
             print(f"shell.py: could not read '{argv[1]}': {exc}", file=sys.stderr)
             return 1
+
+        if argv[0] == "--ast":
+            return _print_ast(source_path, source)
 
         if argv[0] == "--lint":
             error = lint_source(source_path, source)

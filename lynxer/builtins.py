@@ -20,6 +20,8 @@ CoroutineValue = _runtime.CoroutineValue
 List = _runtime.List
 LynxTuple = _runtime.LynxTuple
 VarGroup = _runtime.VarGroup
+Sentinel = _runtime.Sentinel
+ObjectValue = _runtime.ObjectValue
 Number = _runtime.Number
 RTError = _runtime.RTError
 RTResult = _runtime.RTResult
@@ -46,6 +48,8 @@ def _json_value(value):
             name: _json_value(info["value"])
             for name, info in value._fields.items()
         }
+    if isinstance(value, (Sentinel, ObjectValue)):
+        return str(value)
     return str(value)
 
 
@@ -201,6 +205,33 @@ class BuiltInFunction(BaseFunction):
                     exec_ctx,
                 )
             )
+
+    def execute_sentinel(self, args, exec_ctx):
+        """sentinel([name]) — create a unique, optionally named sentinel."""
+        if len(args) > 1 or (args and not isinstance(args[0], String)):
+            return RTResult().failure(
+                RTError(
+                    self.pos_start,
+                    self.pos_end,
+                    'sentinel() expects zero or one string argument — sentinel("NAME")',
+                    exec_ctx,
+                )
+            )
+        name = args[0].value if args else None
+        return RTResult().success(Sentinel(name).set_context(exec_ctx))
+
+    def execute_object(self, args, exec_ctx):
+        """object() — create a unique unnamed opaque object value."""
+        if args:
+            return RTResult().failure(
+                RTError(
+                    self.pos_start,
+                    self.pos_end,
+                    "object() takes no arguments",
+                    exec_ctx,
+                )
+            )
+        return RTResult().success(ObjectValue().set_context(exec_ctx))
 
     def execute_rawPyx(self, args, exec_ctx):
         if len(args) != 1 or not isinstance(args[0], String):
@@ -1559,6 +1590,8 @@ BUILTIN_FUNCTION_NAMES = (
     "strOf",
     "intOf",
     "floatOf",
+    "sentinel",
+    "object",
     "returnType",
     "returnLength",
     "seqFromTo",
@@ -1586,6 +1619,17 @@ BUILTIN_FUNCTION_NAMES = (
     "reverseList",
     "listMin",
     "listMax",
+    "listFirst",
+    "listLast",
+    "listHead",
+    "listTail",
+    "listCount",
+    "listExtend",
+    "listInsert",
+    "listClear",
+    "listRepeat",
+    "listAvg",
+    "listZip",
     "asyncRun",
     "asyncGather",
     "sleep",
@@ -1606,6 +1650,19 @@ BUILTIN_FUNCTION_NAMES = (
     "tupleFirst",
     "tupleLast",
     "tupleJsonArray",
+    "tupleReverse",
+    "tupleSort",
+    "tupleSortDesc",
+    "tupleMin",
+    "tupleMax",
+    "tupleSum",
+    "tupleAny",
+    "tupleAll",
+    "tupleUnique",
+    "tupleMean",
+    "tupleFlatten",
+    "tupleZip",
+    "tupleJoin",
     "assert",
     "overrideMain",
 )

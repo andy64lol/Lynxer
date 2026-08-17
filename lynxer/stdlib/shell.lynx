@@ -1,6 +1,6 @@
 ////
 Lynxer standard library: shell.
-Shell command helpers.
+ Shell command helpers and shell discovery.
 ////
 
 global setup(){}
@@ -89,6 +89,138 @@ global commandExists(str cmd){
     }
     if(result != 0){ return true; }
     return false;
+}
+
+// Return true when a shell executable is available on PATH.
+// Accepts names such as "bash", "zsh", "fish", "sh", "pwsh", or "cmd".
+global checkShell(str shellName){
+    bool result = false;
+    rawPy(){
+        import shutil as _sh
+        _name = shellName.strip()
+        result = bool(_name and _sh.which(_name))
+    }
+    return result;
+}
+
+// Return the resolved executable path for a shell, or "" when unavailable.
+global shellPath(str shellName){
+    str result = "";
+    rawPy(){
+        import shutil as _sh
+        _path = _sh.which(shellName.strip())
+        if _path is not None:
+            result = _path
+    }
+    return result;
+}
+
+// Return the shell path advertised by the environment.
+// On Unix this uses SHELL; on Windows it uses ComSpec.
+global currentShell(){
+    str result = "";
+    rawPy(){
+        import os as _os
+        result = _os.environ.get("SHELL", "") or _os.environ.get("ComSpec", "")
+    }
+    return result;
+}
+
+// Return the first version line reported by a shell, or "" on failure.
+global shellVersion(str shellName){
+    str result = "";
+    rawPy(){
+        import os as _os
+        import shutil as _sh
+        import subprocess as _subprocess
+        _path = _sh.which(shellName.strip())
+        if _path is not None:
+            try:
+                _base = _os.path.basename(_path).lower()
+                _flag = "/?" if _base in ("cmd", "cmd.exe") else "--version"
+                _proc = _subprocess.run(
+                    [_path, _flag],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                _text = (_proc.stdout or _proc.stderr or "").strip()
+                if _text:
+                    result = _text.splitlines()[0]
+            except Exception:
+                result = ""
+    }
+    return result;
+}
+
+// Return a JSON array of common shells that are installed on PATH.
+global availableShells(){
+    str result = "[]";
+    rawPy(){
+        import json as _json
+        import shutil as _sh
+        _candidates = [
+            "sh", "bash", "zsh", "fish", "dash", "ash",
+            "ksh", "mksh", "csh", "tcsh", "pwsh",
+            "powershell", "cmd"
+        ]
+        _found = []
+        for _name in _candidates:
+            if _sh.which(_name) is not None:
+                _found.append(_name)
+        result = _json.dumps(_found)
+    }
+    return result;
+}
+
+// Run a command through a selected shell and inherit its standard streams.
+// Returns 127 when the shell is unavailable, otherwise its exit code.
+global runShellAs(str shellName, str command){
+    int code = 127;
+    rawPy(){
+        import os as _os
+        import shutil as _sh
+        import subprocess as _subprocess
+        _path = _sh.which(shellName.strip())
+        if _path is not None:
+            _base = _os.path.basename(_path).lower()
+            if _base in ("cmd", "cmd.exe"):
+                _args = [_path, "/c", command]
+            elif _base in ("powershell", "powershell.exe", "pwsh", "pwsh.exe"):
+                _args = [_path, "-Command", command]
+            else:
+                _args = [_path, "-c", command]
+            _proc = _subprocess.run(_args)
+            code = _proc.returncode
+    }
+    return code;
+}
+
+// Run a command through a selected shell and return captured stdout.
+// Returns "" when the shell is unavailable or the command has no stdout.
+global runShellCaptureAs(str shellName, str command){
+    str result = "";
+    rawPy(){
+        import os as _os
+        import shutil as _sh
+        import subprocess as _subprocess
+        _path = _sh.which(shellName.strip())
+        if _path is not None:
+            _base = _os.path.basename(_path).lower()
+            if _base in ("cmd", "cmd.exe"):
+                _args = [_path, "/c", command]
+            elif _base in ("powershell", "powershell.exe", "pwsh", "pwsh.exe"):
+                _args = [_path, "-Command", command]
+            else:
+                _args = [_path, "-c", command]
+            _proc = _subprocess.run(
+                _args,
+                capture_output=True,
+                text=True
+            )
+            result = _proc.stdout
+    }
+    return result;
 }
 
 global main(){}

@@ -109,6 +109,8 @@ Returns the type name of `v` as a `str`.
 | `"hi"` | `"str"` |
 | `true` / `false` | `"bool"` |
 | `none` | `"none"` |
+| `sentinel("MISSING")` | `"sentinel"` |
+| `object()` | `"object"` |
 | list | `"list"` |
 | tuple | `"tuple"` |
 | vargroup | `"vargroup"` |
@@ -122,6 +124,39 @@ print(returnType(range(3)));     // list
 
 vargroup cfg = {str host = "localhost", int port = 8080};
 print(returnType(cfg));           // vargroup
+```
+
+### `sentinel([name])` → `sentinel`
+
+Creates a unique marker value. Pass one string to give it a readable display
+name; omit it for an unnamed sentinel. Every call creates a distinct value,
+even when the names match. Sentinel values compare by identity and are useful
+for distinguishing “missing” from `none`.
+
+```c
+any missing = sentinel("MISSING");
+any unnamed = sentinel();
+
+print(strOf(missing));            // MISSING
+print(returnType(missing));       // sentinel
+assert(missing == missing);
+assert(missing != sentinel("MISSING"));
+```
+
+### `object()` → `object`
+
+Creates a unique unnamed opaque value. It accepts no arguments and cannot
+define a display name. Object values compare by identity and are useful as
+private marker values.
+
+```c
+any marker = object();
+any other = object();
+
+print(strOf(marker));             // <object>
+print(returnType(marker));        // object
+assert(marker == marker);
+assert(marker != other);
 ```
 
 ### `returnLength(v)`

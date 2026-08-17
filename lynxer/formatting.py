@@ -64,14 +64,31 @@ def _token_text(token: Token, source: str) -> str:
     return source[start:end]
 
 
-def _comments_in_gap(gap: str) -> list[str]:
-    """Extract ordinary comments from whitespace between two tokens."""
+def _comments_in_gap(gap: str, include_delimited: bool = False) -> list[str]:
+    """Extract comments from whitespace between two tokens."""
     comments: list[str] = []
     for line in gap.splitlines():
         stripped = line.strip()
-        if stripped.startswith("//"):
+        if stripped.startswith("////"):
+            continue
+        if stripped.startswith("///"):
+            if include_delimited and stripped.endswith("///"):
+                comments.append(stripped)
+        elif stripped.startswith("//"):
             comments.append(stripped)
     return comments
+
+
+def _as_multiline_comment(comment: str) -> str:
+    """Convert an ordinary ``//`` comment to Lynxer's delimited form."""
+    return f"///{comment[2:]} ///"
+
+
+def _oneline_comment(comment: str) -> str:
+    """Return a comment that is safe to keep in a one-line source file."""
+    if comment.startswith("///"):
+        return comment
+    return _as_multiline_comment(comment)
 
 
 def _is_word(token: Token) -> bool:
@@ -214,8 +231,14 @@ def format_source(filename: str, source: str, oneline: bool = False) -> str:
             continue
 
         gap = source[previous_end : token.pos_start.idx]
-        for comment in _comments_in_gap(gap):
-            if not oneline:
+        for comment in _comments_in_gap(gap, include_delimited=oneline):
+            if oneline:
+                writer.append(
+                    _oneline_comment(comment),
+                    space=bool(writer.current.strip()),
+                )
+                writer.append(" ")
+            else:
                 writer.newline()
                 writer.append(comment)
                 writer.newline()
@@ -274,5 +297,13 @@ def format_source(filename: str, source: str, oneline: bool = False) -> str:
             writer.newline()
             writer.append(comment)
             writer.newline()
+    else:
+        for comment in _comments_in_gap(
+            source[previous_end:], include_delimited=True
+        ):
+            writer.append(
+                _oneline_comment(comment),
+                space=bool(writer.current.strip()),
+            )
 
     return writer.trim()

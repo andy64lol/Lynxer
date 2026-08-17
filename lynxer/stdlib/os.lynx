@@ -408,4 +408,160 @@ global walkFiles(str path){
     return result;
 }
 
+// Return the operating-system family, such as "Linux", "Darwin", or "Windows".
+global getSystemName(){
+    str result = "";
+    rawPy(){
+        import platform as _platform
+        result = _platform.system()
+    }
+    return result;
+}
+
+// Return the operating-system release string.
+global getSystemRelease(){
+    str result = "";
+    rawPy(){
+        import platform as _platform
+        result = _platform.release()
+    }
+    return result;
+}
+
+// Return the operating-system version string.
+global getSystemVersion(){
+    str result = "";
+    rawPy(){
+        import platform as _platform
+        result = _platform.version()
+    }
+    return result;
+}
+
+// Return the machine architecture name, such as "x86_64" or "arm64".
+global getSystemMachine(){
+    str result = "";
+    rawPy(){
+        import platform as _platform
+        result = _platform.machine()
+    }
+    return result;
+}
+
+// Return the processor name when the platform reports one.
+global getSystemProcessor(){
+    str result = "";
+    rawPy(){
+        import platform as _platform
+        result = _platform.processor()
+    }
+    return result;
+}
+
+// Return the executable bitness, usually "64bit" or "32bit".
+global getSystemArchitecture(){
+    str result = "";
+    rawPy(){
+        import platform as _platform
+        result = _platform.architecture()[0]
+    }
+    return result;
+}
+
+// Return the machine's network node name.
+global getSystemNode(){
+    str result = "";
+    rawPy(){
+        import platform as _platform
+        result = _platform.node()
+    }
+    return result;
+}
+
+// Return the Python runtime version used by Lynxer.
+global getPythonVersion(){
+    str result = "";
+    rawPy(){
+        import platform as _platform
+        result = _platform.python_version()
+    }
+    return result;
+}
+
+// Return the Python implementation, such as "CPython" or "PyPy".
+global getPythonImplementation(){
+    str result = "";
+    rawPy(){
+        import platform as _platform
+        result = _platform.python_implementation()
+    }
+    return result;
+}
+
+// Return a JSON object containing the core platform.uname() fields.
+global getSystemUname(){
+    str result = "{}";
+    rawPy(){
+        import json as _json
+        import platform as _platform
+        try:
+            _info = _platform.uname()
+            result = _json.dumps({
+                "system": _info.system,
+                "node": _info.node,
+                "release": _info.release,
+                "version": _info.version,
+                "machine": _info.machine,
+                "processor": _info.processor
+            })
+        except Exception:
+            result = "{}"
+    }
+    return result;
+}
+
+// Return a JSON object with common OS, machine, Python, and runtime details.
+global getSystemInfo(){
+    str result = "{}";
+    rawPy(){
+        import json as _json
+        import os as _os
+        import platform as _platform
+        import sys as _sys
+        try:
+            _info = _platform.uname()
+            _bits, _linkage = _platform.architecture()
+            result = _json.dumps({
+                "system": _info.system,
+                "node": _info.node,
+                "release": _info.release,
+                "version": _info.version,
+                "machine": _info.machine,
+                "processor": _info.processor,
+                "architecture": _bits,
+                "python": _platform.python_version(),
+                "pythonImplementation": _platform.python_implementation(),
+                "pythonExecutable": _os.path.abspath(_sys.executable)
+            })
+        except Exception:
+            result = "{}"
+    }
+    return result;
+}
+
+// Return Linux distribution metadata as JSON when available.
+// Returns "{}" on non-Linux platforms or older Python versions.
+global getSystemDistro(){
+    str result = "{}";
+    rawPy(){
+        import json as _json
+        import platform as _platform
+        try:
+            result = _json.dumps(_platform.freedesktop_os_release())
+        except Exception:
+            result = "{}"
+    }
+    return result;
+}
+
 global main(){}

@@ -80,6 +80,7 @@ global main(){
 | Page | Contents |
 |------|----------|
 | [Installation](docs/install.md) | How to install and run Lynxer |
+| [CLI reference](docs/CLI.md) | Complete command-line usage |
 | [Language reference](docs/language.md) | Types, variables, operators, control flow, functions |
 | [Built-ins](docs/builtins.md) | `print`, `input`, `strOf`, `returnType`, `seqFromTo`, … |
 | [Tuples](docs/tuples.md) | `tuple` type, built-in tuple functions |

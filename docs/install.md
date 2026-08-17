@@ -61,12 +61,15 @@ modules while keeping the core language and essential utilities.
 
 ## Verifying the install
 
+See the complete [CLI reference](CLI.md) for every command and alias.
+
 ```bash
 lynxer --version        # Lynxer 0.1.7b7
 lynxer --compile a.lynx # compile to bytecode
 lynxer a.lynxc          # run compiled bytecode
 lynxer --format a.lynx  # format the source file in place
 lynxer --format-oneline a.lynx
+lynxer --ast a.lynx    # print the parsed abstract syntax tree
 lynxer --lint a.lynx    # check syntax without running the program
 ```
 

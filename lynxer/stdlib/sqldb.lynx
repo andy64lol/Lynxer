@@ -1,0 +1,246 @@
+////
+Lynxer standard library: sqldb.
+Small SQLite helpers backed by Python's sqlite3 module.
+////
+
+global setup(){}
+
+// Execute one SQL statement and commit it.
+// Returns "ok" or "ERROR: <message>".
+global execute(str path, str sql){
+    str result = "";
+    rawPy(){
+        import sqlite3 as _sqlite3
+        try:
+            _conn = _sqlite3.connect(path)
+            _conn.execute(sql)
+            _conn.commit()
+            _conn.close()
+            result = "ok"
+        except Exception as _e:
+            try:
+                _conn.close()
+            except Exception:
+                pass
+            result = "ERROR: " + str(_e)
+    }
+    return result;
+}
+
+// Execute one parameterized SQL statement.
+// paramsJson must be a JSON array, for example "[\"Ada\", 37]".
+global executeArgs(str path, str sql, str paramsJson){
+    str result = "";
+    rawPy(){
+        import json as _json
+        import sqlite3 as _sqlite3
+        try:
+            _params = _json.loads(paramsJson)
+            if not isinstance(_params, list):
+                raise ValueError("paramsJson must contain a JSON array")
+            _conn = _sqlite3.connect(path)
+            _conn.execute(sql, tuple(_params))
+            _conn.commit()
+            _conn.close()
+            result = "ok"
+        except Exception as _e:
+            try:
+                _conn.close()
+            except Exception:
+                pass
+            result = "ERROR: " + str(_e)
+    }
+    return result;
+}
+
+// Execute multiple SQL statements and commit them as one transaction.
+// Returns "ok" or "ERROR: <message>".
+global script(str path, str sqlScript){
+    str result = "";
+    rawPy(){
+        import sqlite3 as _sqlite3
+        try:
+            _conn = _sqlite3.connect(path)
+            _conn.executescript(sqlScript)
+            _conn.commit()
+            _conn.close()
+            result = "ok"
+        except Exception as _e:
+            try:
+                _conn.close()
+            except Exception:
+                pass
+            result = "ERROR: " + str(_e)
+    }
+    return result;
+}
+
+// Query rows and return a JSON array of objects.
+// Values use SQLite's native JSON-compatible scalar representation.
+global query(str path, str sql){
+    str result = "[]";
+    rawPy(){
+        import json as _json
+        import sqlite3 as _sqlite3
+        try:
+            _conn = _sqlite3.connect(path)
+            _conn.row_factory = _sqlite3.Row
+            _rows = _conn.execute(sql).fetchall()
+            result = _json.dumps([dict(_row) for _row in _rows], default=str)
+            _conn.close()
+        except Exception as _e:
+            try:
+                _conn.close()
+            except Exception:
+                pass
+            result = "ERROR: " + str(_e)
+    }
+    return result;
+}
+
+// Parameterized form of query().
+global queryArgs(str path, str sql, str paramsJson){
+    str result = "[]";
+    rawPy(){
+        import json as _json
+        import sqlite3 as _sqlite3
+        try:
+            _params = _json.loads(paramsJson)
+            if not isinstance(_params, list):
+                raise ValueError("paramsJson must contain a JSON array")
+            _conn = _sqlite3.connect(path)
+            _conn.row_factory = _sqlite3.Row
+            _rows = _conn.execute(sql, tuple(_params)).fetchall()
+            result = _json.dumps([dict(_row) for _row in _rows], default=str)
+            _conn.close()
+        except Exception as _e:
+            try:
+                _conn.close()
+            except Exception:
+                pass
+            result = "ERROR: " + str(_e)
+    }
+    return result;
+}
+
+// Return the first column of the first row as a string, or "" when absent.
+global scalar(str path, str sql){
+    str result = "";
+    rawPy(){
+        import sqlite3 as _sqlite3
+        try:
+            _conn = _sqlite3.connect(path)
+            _row = _conn.execute(sql).fetchone()
+            if _row is not None and _row[0] is not None:
+                result = str(_row[0])
+            _conn.close()
+        except Exception as _e:
+            try:
+                _conn.close()
+            except Exception:
+                pass
+            result = "ERROR: " + str(_e)
+    }
+    return result;
+}
+
+// Parameterized form of scalar().
+global scalarArgs(str path, str sql, str paramsJson){
+    str result = "";
+    rawPy(){
+        import json as _json
+        import sqlite3 as _sqlite3
+        try:
+            _params = _json.loads(paramsJson)
+            if not isinstance(_params, list):
+                raise ValueError("paramsJson must contain a JSON array")
+            _conn = _sqlite3.connect(path)
+            _row = _conn.execute(sql, tuple(_params)).fetchone()
+            if _row is not None and _row[0] is not None:
+                result = str(_row[0])
+            _conn.close()
+        except Exception as _e:
+            try:
+                _conn.close()
+            except Exception:
+                pass
+            result = "ERROR: " + str(_e)
+    }
+    return result;
+}
+
+// Execute an insert/update and return SQLite's lastrowid as an integer.
+// Returns -1 on error or when SQLite does not provide a row id.
+global lastInsertId(str path, str sql, str paramsJson){
+    int result = -1;
+    rawPy(){
+        import json as _json
+        import sqlite3 as _sqlite3
+        try:
+            _params = _json.loads(paramsJson)
+            if not isinstance(_params, list):
+                raise ValueError("paramsJson must contain a JSON array")
+            _conn = _sqlite3.connect(path)
+            _cursor = _conn.execute(sql, tuple(_params))
+            _conn.commit()
+            result = _cursor.lastrowid if _cursor.lastrowid is not None else -1
+            _conn.close()
+        except Exception:
+            try:
+                _conn.close()
+            except Exception:
+                pass
+            result = -1
+    }
+    return result;
+}
+
+// Return whether a table exists in the database.
+global tableExists(str path, str tableName){
+    bool result = false;
+    rawPy(){
+        import sqlite3 as _sqlite3
+        try:
+            _conn = _sqlite3.connect(path)
+            _row = _conn.execute(
+                "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+                (tableName,),
+            ).fetchone()
+            result = _row is not None
+            _conn.close()
+        except Exception:
+            try:
+                _conn.close()
+            except Exception:
+                pass
+            result = False
+    }
+    return result;
+}
+
+// Return table names as a JSON array.
+global tables(str path){
+    str result = "[]";
+    rawPy(){
+        import json as _json
+        import sqlite3 as _sqlite3
+        try:
+            _conn = _sqlite3.connect(path)
+            _rows = _conn.execute(
+                "SELECT name FROM sqlite_master "
+                "WHERE type = 'table' AND name NOT LIKE 'sqlite_%' "
+                "ORDER BY name"
+            ).fetchall()
+            result = _json.dumps([_row[0] for _row in _rows])
+            _conn.close()
+        except Exception as _e:
+            try:
+                _conn.close()
+            except Exception:
+                pass
+            result = "ERROR: " + str(_e)
+    }
+    return result;
+}
+
+global main(){}

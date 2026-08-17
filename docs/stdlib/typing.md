@@ -2,7 +2,9 @@
 
 > **Note on tuples:** The core tuple built-ins (`tupleCreate`, `tupleGet`, `tupleLen`, `tupleContains`, `tupleIndex`, `tupleSlice`, `tupleToList`, `listToTuple`, `tupleConcat`, `tupleCount`, `tupleFirst`, `tupleLast`, `tupleJsonArray`) are always available without any import — they are language built-ins. This module provides higher-level utilities that compose those primitives.
 
-String, list, number, char, and type-check utilities.
+String, list, number, char, tuple, and type-check utilities. Most helpers are
+small wrappers around the corresponding Lynxer built-ins or Python string
+operations.
 
 ```c
 global setup(){
@@ -58,6 +60,10 @@ global main(){
 | `toChar` | `toChar(any val)` | `char` | String of length 1 or int code-point → `char`; `"\0"` on error |
 | `toString` | `toString(any val)` | `str` | Convert any Lynxer value to its display string |
 | `toNumber` | `toNumber(any val)` | `float` | Convert a number-like value to a float; `0.0` on error |
+
+`toStr`, `toString`, and `toNumber` are useful at API boundaries where a
+value must be rendered or converted before passing it to `rawPy` or another
+stdlib module.
 
 `toList()` and `toTuple()` provide type-aware sequence conversion:
 

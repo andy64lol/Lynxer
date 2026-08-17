@@ -25,6 +25,7 @@ This directory contains documentation for all Lynxer standard library modules.
 | [regex](regex.md) | `regex.lynx` | Extended regex: compiled cache, Unicode, advanced helpers |
 | [server](server.md) | `server.lynx` | Full-featured HTTP server (Flask): routes, JSON API, Jinja2 templates, static sites, CORS |
 | [shell](shell.md) | `shell.lynx` | Run external shell commands, capture output |
+| [sqldb](sqldb.md) | `sqldb.lynx` | SQLite database operations through Python `sqlite3` |
 | [sys](sys.md) | `sys.lynx` | Runtime info: version, platform, argv, path, exit, recursion limit |
 | [time](time.md) | `time.lynx` | Date/time helpers |
 | [tkinter](tkinter.md) | `tkinter.lynx` | Comprehensive GUI: windows, widgets, menus, canvas, dialogs; includes CTk extension (`ctk*` functions) |
