@@ -505,7 +505,7 @@ global keyUp(str key){
     // delegate to keyDown and invert
     bool down = false;
     down = global.keyDown(key);
-    if(down is false){ return true; }
+    if(down == false){ return true; }
     return false;
 }
 

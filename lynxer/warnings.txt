@@ -1,0 +1,6 @@
+# Lynxer warning messages.
+# Format: warning_key<TAB>message
+
+legacy_not_is	Legacy equality operator 'not is' is deprecated; use '!=' instead.
+legacy_is	Legacy equality operator 'is' is deprecated; use '==' instead.
+forever_no_break	forever() has no break; it will run until the process is stopped. Add break; or call suppressForeverWarning() in global setup(){}.

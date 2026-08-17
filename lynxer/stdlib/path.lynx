@@ -154,7 +154,7 @@ global suffixes(str path){
         except Exception:
             raw = ""
     }
-    if(raw is ""){
+    if(raw == ""){
         return seqFromTo(0, 0, 1);
     }
     return splitStr(raw, "\n");
@@ -230,7 +230,7 @@ global parts(str path){
         except Exception:
             raw = ""
     }
-    if(raw is ""){
+    if(raw == ""){
         return seqFromTo(0, 0, 1);
     }
     return splitStr(raw, "\n");
@@ -371,7 +371,7 @@ global iterDir(str path){
         except Exception:
             raw = ""
     }
-    if(raw is ""){
+    if(raw == ""){
         return seqFromTo(0, 0, 1);
     }
     return splitStr(raw, "\n");
@@ -387,7 +387,7 @@ global glob(str path, str pattern){
         except Exception:
             raw = ""
     }
-    if(raw is ""){
+    if(raw == ""){
         return seqFromTo(0, 0, 1);
     }
     return splitStr(raw, "\n");
@@ -403,7 +403,7 @@ global rglob(str path, str pattern){
         except Exception:
             raw = ""
     }
-    if(raw is ""){
+    if(raw == ""){
         return seqFromTo(0, 0, 1);
     }
     return splitStr(raw, "\n");

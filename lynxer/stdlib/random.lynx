@@ -77,7 +77,7 @@ global coinflip(){
         import random as _r
         result = _r.randint(0, 1)
     }
-    if(result is 1){ return true; }
+    if(result == 1){ return true; }
     return false;
 }
 

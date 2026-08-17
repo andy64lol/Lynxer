@@ -87,7 +87,7 @@ global commandExists(str cmd){
         import shutil as _sh
         result = 1 if _sh.which(cmd) is not None else 0
     }
-    if(result not is 0){ return true; }
+    if(result != 0){ return true; }
     return false;
 }
 

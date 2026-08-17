@@ -29,6 +29,43 @@ def _get_cython_inline() -> Any:
         _cython_inline_fn = import_module("Cython.Build.Inline").cython_inline
     return _cython_inline_fn
 
+_WARNING_MESSAGES_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "warnings.txt"
+)
+
+
+def _load_warning_messages() -> dict[str, str]:
+    messages: dict[str, str] = {}
+    try:
+        with open(_WARNING_MESSAGES_PATH, "r", encoding="utf-8") as warning_file:
+            for line_number, line in enumerate(warning_file, 1):
+                stripped = line.rstrip("\n")
+                if not stripped or stripped.startswith("#"):
+                    continue
+                try:
+                    key, message = stripped.split("\t", 1)
+                except ValueError as exc:
+                    raise RuntimeError(
+                        f"Invalid warning message at {_WARNING_MESSAGES_PATH}, "
+                        f"line {line_number}: expected a tab-separated key and message"
+                    ) from exc
+                messages[key] = message
+    except OSError as exc:
+        raise RuntimeError(
+            f"Could not load Lynxer warning messages from {_WARNING_MESSAGES_PATH}"
+        ) from exc
+    return messages
+
+
+_WARNING_MESSAGES = _load_warning_messages()
+
+
+def warning_message(key: str) -> str:
+    try:
+        return _WARNING_MESSAGES[key]
+    except KeyError as exc:
+        raise RuntimeError(f"Unknown Lynxer warning message: {key}") from exc
+
 # errors
 
 class Error:
@@ -74,6 +111,15 @@ def warn_legacy_syntax(token, details):
 
 def warn_legacy_syntax_position(pos, details):
     """Warn at a parser node or token source location."""
+    if _deprecation_warning_suppressed:
+        return
+    if _deprecation_warning_deferred:
+        _pending_deprecation_warnings.append((pos, details))
+        return
+    _emit_deprecation_warning(pos, details)
+
+
+def _emit_deprecation_warning(pos, details):
     warnings.warn_explicit(
         details,
         LynxSyntaxDeprecationWarning,
@@ -81,13 +127,22 @@ def warn_legacy_syntax_position(pos, details):
         pos.ln + 1,
     )
 
+
+def _flush_deprecation_warnings():
+    pending = list(_pending_deprecation_warnings)
+    _pending_deprecation_warnings.clear()
+    if _deprecation_warning_suppressed:
+        return
+    for pos, details in pending:
+        _emit_deprecation_warning(pos, details)
+
+
 def warn_forever_no_break(node):
     """Warn when a forever loop has no visible way to stop."""
     if node.has_break or _forever_warning_suppressed:
         return
     warnings.warn_explicit(
-        "forever() has no break; it will run until the process is stopped. "
-        "Add break; or call suppressForeverWarning() in global setup(){}.",
+        warning_message("forever_no_break"),
         LynxerForeverWarning,
         node.pos_start.fn or "<source>",
         node.pos_start.ln + 1,
@@ -165,6 +220,8 @@ TT_POW = "POW"
 TT_ROOT = "ROOT"
 TT_FLOORDIV = "FLOORDIV"
 TT_EQ = "EQ"
+TT_EQEQ = "EQEQ"
+TT_NE = "NE"
 TT_LT = "LT"
 TT_GT = "GT"
 TT_LTE = "LTE"
@@ -190,6 +247,14 @@ TT_CARET = "CARET"
 TT_TILDE = "TILDE"
 TT_SHL = "SHL"
 TT_SHR = "SHR"
+TT_LOGICAL_NOT = "LOGICAL_NOT"
+TT_LOGICAL_AND = "LOGICAL_AND"
+TT_LOGICAL_NAND = "LOGICAL_NAND"
+TT_LOGICAL_OR = "LOGICAL_OR"
+TT_LOGICAL_NOR = "LOGICAL_NOR"
+TT_BITWISE_NAND = "BITWISE_NAND"
+TT_BITWISE_XNOR = "BITWISE_XNOR"
+TT_BITWISE_NOR = "BITWISE_NOR"
 TT_RAWPY_BLOCK = "RAWPY_BLOCK"
 TT_RAWPYX_BLOCK = "RAWPYX_BLOCK"
 TT_EXEC_BLOCK = "EXEC_BLOCK"
@@ -332,12 +397,50 @@ class Lexer:
                     tokens.append(Token(TT_MINUSEQ, pos_start=pos_start, pos_end=self.pos))
                 else:
                     tokens.append(Token(TT_MINUS, pos_start=pos_start, pos_end=self.pos))
+            elif self.current_char == "!":
+                pos_start = self.pos.copy()
+                self.advance()
+                if self.current_char == "=":
+                    self.advance()
+                    tokens.append(Token(TT_NE, pos_start=pos_start, pos_end=self.pos))
+                elif self.current_char == "!":
+                    self.advance()
+                    tokens.append(Token(TT_LOGICAL_NOT, pos_start=pos_start, pos_end=self.pos))
+                elif self.current_char == "&":
+                    self.advance()
+                    if self.current_char == "&":
+                        self.advance()
+                        tokens.append(Token(TT_LOGICAL_NAND, pos_start=pos_start, pos_end=self.pos))
+                    else:
+                        tokens.append(Token(TT_BITWISE_NAND, pos_start=pos_start, pos_end=self.pos))
+                elif self.current_char == "|":
+                    self.advance()
+                    if self.current_char == "|":
+                        self.advance()
+                        tokens.append(Token(TT_LOGICAL_NOR, pos_start=pos_start, pos_end=self.pos))
+                    else:
+                        tokens.append(Token(TT_BITWISE_NOR, pos_start=pos_start, pos_end=self.pos))
+                elif self.current_char == "^":
+                    self.advance()
+                    tokens.append(Token(TT_BITWISE_XNOR, pos_start=pos_start, pos_end=self.pos))
+                else:
+                    return [], IllegalCharError(pos_start, self.pos, "'!' must be followed by '=', '!', '&', '|', or '^'")
             elif self.current_char == "&":
-                tokens.append(Token(TT_AMP, pos_start=self.pos))
+                pos_start = self.pos.copy()
                 self.advance()
+                if self.current_char == "&":
+                    self.advance()
+                    tokens.append(Token(TT_LOGICAL_AND, pos_start=pos_start, pos_end=self.pos))
+                else:
+                    tokens.append(Token(TT_AMP, pos_start=pos_start, pos_end=self.pos))
             elif self.current_char == "|":
-                tokens.append(Token(TT_PIPE, pos_start=self.pos))
+                pos_start = self.pos.copy()
                 self.advance()
+                if self.current_char == "|":
+                    self.advance()
+                    tokens.append(Token(TT_LOGICAL_OR, pos_start=pos_start, pos_end=self.pos))
+                else:
+                    tokens.append(Token(TT_PIPE, pos_start=pos_start, pos_end=self.pos))
             elif self.current_char == "^":
                 tokens.append(Token(TT_CARET, pos_start=self.pos))
                 self.advance()
@@ -390,8 +493,13 @@ class Lexer:
                 else:
                     tokens.append(Token(TT_MOD, pos_start=pos_start, pos_end=self.pos))
             elif self.current_char == "=":
-                tokens.append(Token(TT_EQ, pos_start=self.pos))
+                pos_start = self.pos.copy()
                 self.advance()
+                if self.current_char == "=":
+                    self.advance()
+                    tokens.append(Token(TT_EQEQ, pos_start=pos_start, pos_end=self.pos))
+                else:
+                    tokens.append(Token(TT_EQ, pos_start=pos_start, pos_end=self.pos))
             elif self.current_char == "<":
                 tokens.append(self.make_less_than())
             elif self.current_char == ">":
@@ -3711,7 +3819,10 @@ class Parser:
         if res.error:
             return res
 
-        while self.current_tok.matches(TT_KEYWORD, "or"):
+        while (
+            self.current_tok.matches(TT_KEYWORD, "or")
+            or self.current_tok.type in (TT_LOGICAL_OR, TT_LOGICAL_NOR)
+        ):
             op_tok = self.current_tok
             res.register_advancement()
             self.advance()
@@ -3728,7 +3839,10 @@ class Parser:
         if res.error:
             return res
 
-        while self.current_tok.matches(TT_KEYWORD, "and"):
+        while (
+            self.current_tok.matches(TT_KEYWORD, "and")
+            or self.current_tok.type in (TT_LOGICAL_AND, TT_LOGICAL_NAND)
+        ):
             op_tok = self.current_tok
             res.register_advancement()
             self.advance()
@@ -3741,7 +3855,10 @@ class Parser:
 
     def parse_not_expr(self):
         res = ParseResult()
-        if self.current_tok.matches(TT_KEYWORD, "not"):
+        if (
+            self.current_tok.matches(TT_KEYWORD, "not")
+            or self.current_tok.type == TT_LOGICAL_NOT
+        ):
             op_tok = self.current_tok
             res.register_advancement()
             self.advance()
@@ -3766,6 +3883,10 @@ class Parser:
         ):
             op_tok = self.current_tok
             op_tok.value = "not is"
+            warn_legacy_syntax(
+                op_tok,
+                warning_message("legacy_not_is"),
+            )
             res.register_advancement()
             self.advance()
             res.register_advancement()
@@ -3777,6 +3898,10 @@ class Parser:
 
         if self.current_tok.matches(TT_KEYWORD, "is"):
             op_tok = self.current_tok
+            warn_legacy_syntax(
+                op_tok,
+                warning_message("legacy_is"),
+            )
             res.register_advancement()
             self.advance()
             right = res.register(self.parse_bitwise_or_expr())
@@ -3784,7 +3909,7 @@ class Parser:
                 return res
             return res.success(BinOpNode(left, op_tok, right))
 
-        if self.current_tok.type in (TT_LT, TT_GT, TT_LTE, TT_GTE):
+        if self.current_tok.type in (TT_EQEQ, TT_NE, TT_LT, TT_GT, TT_LTE, TT_GTE):
             op_tok = self.current_tok
             res.register_advancement()
             self.advance()
@@ -3800,7 +3925,7 @@ class Parser:
         left = res.register(self.parse_bitwise_xor_expr())
         if res.error:
             return res
-        while self.current_tok.type == TT_PIPE:
+        while self.current_tok.type in (TT_PIPE, TT_BITWISE_NOR):
             op_tok = self.current_tok
             res.register_advancement()
             self.advance()
@@ -3815,7 +3940,7 @@ class Parser:
         left = res.register(self.parse_bitwise_and_expr())
         if res.error:
             return res
-        while self.current_tok.type == TT_CARET:
+        while self.current_tok.type in (TT_CARET, TT_BITWISE_XNOR):
             op_tok = self.current_tok
             res.register_advancement()
             self.advance()
@@ -3830,7 +3955,7 @@ class Parser:
         left = res.register(self.parse_shift_expr())
         if res.error:
             return res
-        while self.current_tok.type == TT_AMP:
+        while self.current_tok.type in (TT_AMP, TT_BITWISE_NAND):
             op_tok = self.current_tok
             res.register_advancement()
             self.advance()
@@ -4115,8 +4240,6 @@ class Parser:
                 and next_tok.value in TYPE_KEYWORDS
             ):
                 return self.parse_tuple_literal()
-
-        elif tok.type == TT_LPAREN:
             res.register_advancement()
             self.advance()
             expr = res.register(self.parse_expr())
@@ -4463,6 +4586,12 @@ class Value:
     def ored_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
         return None, self.illegal_operation(other)
 
+    def nanded_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
+        return None, self.illegal_operation(other)
+
+    def nored_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
+        return None, self.illegal_operation(other)
+
     def notted(self) -> tuple["Value | None", "RTError | None"]:
         return None, self.illegal_operation()
 
@@ -4473,6 +4602,15 @@ class Value:
         return None, self.illegal_operation(other)
 
     def bit_xored_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
+        return None, self.illegal_operation(other)
+
+    def bit_nanded_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
+        return None, self.illegal_operation(other)
+
+    def bit_xnored_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
+        return None, self.illegal_operation(other)
+
+    def bit_nored_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
         return None, self.illegal_operation(other)
 
     def bit_notted(self) -> tuple["Value | None", "RTError | None"]:
@@ -4680,6 +4818,20 @@ class Number(Value):
             ), None
         return None, Value.illegal_operation(self, other)
 
+    def nanded_by(self, other):
+        if isinstance(other, Number):
+            return Number(int(not (self.value and other.value)), is_bool=True).set_context(
+                self.context
+            ), None
+        return None, Value.illegal_operation(self, other)
+
+    def nored_by(self, other):
+        if isinstance(other, Number):
+            return Number(int(not (self.value or other.value)), is_bool=True).set_context(
+                self.context
+            ), None
+        return None, Value.illegal_operation(self, other)
+
     def notted(self):
         return Number(1 if self.value == 0 else 0, is_bool=True).set_context(
             self.context
@@ -4702,6 +4854,27 @@ class Number(Value):
     def bit_xored_by(self, other):
         if isinstance(other, Number):
             return Number(int(self.value) ^ int(other.value)).set_context(
+                self.context
+            ), None
+        return None, Value.illegal_operation(self, other)
+
+    def bit_nanded_by(self, other):
+        if isinstance(other, Number):
+            return Number(~(int(self.value) & int(other.value))).set_context(
+                self.context
+            ), None
+        return None, Value.illegal_operation(self, other)
+
+    def bit_xnored_by(self, other):
+        if isinstance(other, Number):
+            return Number(~(int(self.value) ^ int(other.value))).set_context(
+                self.context
+            ), None
+        return None, Value.illegal_operation(self, other)
+
+    def bit_nored_by(self, other):
+        if isinstance(other, Number):
+            return Number(~(int(self.value) | int(other.value))).set_context(
                 self.context
             ), None
         return None, Value.illegal_operation(self, other)
@@ -5870,6 +6043,9 @@ _main_override: "str | None" = None
 # forever-loop configuration. These are reset for each top-level run.
 _forever_delay = 0.02
 _forever_warning_suppressed = False
+_deprecation_warning_suppressed = False
+_deprecation_warning_deferred = False
+_pending_deprecation_warnings: list[tuple[Any, str]] = []
 _setup_in_progress = False
 
 # global call hierarchy helpers
@@ -6234,9 +6410,9 @@ class Interpreter:
             result, error = left.rooted_by(right)
         elif op.type == TT_FLOORDIV:
             result, error = left.floordivided_by(right)
-        elif op.matches(TT_KEYWORD, "is"):
+        elif op.type == TT_EQEQ or op.matches(TT_KEYWORD, "is"):
             result, error = left.get_comparison_eq(right)
-        elif op.type == TT_KEYWORD and op.value == "not is":
+        elif op.type == TT_NE or (op.type == TT_KEYWORD and op.value == "not is"):
             result, error = left.get_comparison_ne(right)
         elif op.type == TT_LT:
             result, error = left.get_comparison_lt(right)
@@ -6246,16 +6422,26 @@ class Interpreter:
             result, error = left.get_comparison_lte(right)
         elif op.type == TT_GTE:
             result, error = left.get_comparison_gte(right)
-        elif op.matches(TT_KEYWORD, "and"):
+        elif op.matches(TT_KEYWORD, "and") or op.type == TT_LOGICAL_AND:
             result, error = left.anded_by(right)
-        elif op.matches(TT_KEYWORD, "or"):
+        elif op.matches(TT_KEYWORD, "or") or op.type == TT_LOGICAL_OR:
             result, error = left.ored_by(right)
+        elif op.type == TT_LOGICAL_NAND:
+            result, error = left.nanded_by(right)
+        elif op.type == TT_LOGICAL_NOR:
+            result, error = left.nored_by(right)
         elif op.type == TT_AMP:
             result, error = left.bit_anded_by(right)
         elif op.type == TT_PIPE:
             result, error = left.bit_ored_by(right)
         elif op.type == TT_CARET:
             result, error = left.bit_xored_by(right)
+        elif op.type == TT_BITWISE_NAND:
+            result, error = left.bit_nanded_by(right)
+        elif op.type == TT_BITWISE_XNOR:
+            result, error = left.bit_xnored_by(right)
+        elif op.type == TT_BITWISE_NOR:
+            result, error = left.bit_nored_by(right)
         elif op.type == TT_SHL:
             result, error = left.shifted_left_by(right)
         elif op.type == TT_SHR:
@@ -6280,7 +6466,10 @@ class Interpreter:
         error = None
         if node.op_tok.type == TT_MINUS:
             value, error = value.multed_by(Number(-1))
-        elif node.op_tok.matches(TT_KEYWORD, "not"):
+        elif (
+            node.op_tok.matches(TT_KEYWORD, "not")
+            or node.op_tok.type == TT_LOGICAL_NOT
+        ):
             value, error = value.notted()
         elif node.op_tok.type == TT_TILDE:
             value, error = value.bit_notted()
@@ -6826,9 +7015,9 @@ class Interpreter:
             result, error = left.rooted_by(right)
         elif op.type == TT_FLOORDIV:
             result, error = left.floordivided_by(right)
-        elif op.matches(TT_KEYWORD, "is"):
+        elif op.type == TT_EQEQ or op.matches(TT_KEYWORD, "is"):
             result, error = left.get_comparison_eq(right)
-        elif op.type == TT_KEYWORD and op.value == "not is":
+        elif op.type == TT_NE or (op.type == TT_KEYWORD and op.value == "not is"):
             result, error = left.get_comparison_ne(right)
         elif op.type == TT_LT:
             result, error = left.get_comparison_lt(right)
@@ -6838,16 +7027,26 @@ class Interpreter:
             result, error = left.get_comparison_lte(right)
         elif op.type == TT_GTE:
             result, error = left.get_comparison_gte(right)
-        elif op.matches(TT_KEYWORD, "and"):
+        elif op.matches(TT_KEYWORD, "and") or op.type == TT_LOGICAL_AND:
             result, error = left.anded_by(right)
-        elif op.matches(TT_KEYWORD, "or"):
+        elif op.matches(TT_KEYWORD, "or") or op.type == TT_LOGICAL_OR:
             result, error = left.ored_by(right)
+        elif op.type == TT_LOGICAL_NAND:
+            result, error = left.nanded_by(right)
+        elif op.type == TT_LOGICAL_NOR:
+            result, error = left.nored_by(right)
         elif op.type == TT_AMP:
             result, error = left.bit_anded_by(right)
         elif op.type == TT_PIPE:
             result, error = left.bit_ored_by(right)
         elif op.type == TT_CARET:
             result, error = left.bit_xored_by(right)
+        elif op.type == TT_BITWISE_NAND:
+            result, error = left.bit_nanded_by(right)
+        elif op.type == TT_BITWISE_XNOR:
+            result, error = left.bit_xnored_by(right)
+        elif op.type == TT_BITWISE_NOR:
+            result, error = left.bit_nored_by(right)
         elif op.type == TT_SHL:
             result, error = left.shifted_left_by(right)
         elif op.type == TT_SHR:
@@ -6871,7 +7070,10 @@ class Interpreter:
         error = None
         if node.op_tok.type == TT_MINUS:
             value, error = value.multed_by(Number(-1))
-        elif node.op_tok.matches(TT_KEYWORD, "not"):
+        elif (
+            node.op_tok.matches(TT_KEYWORD, "not")
+            or node.op_tok.type == TT_LOGICAL_NOT
+        ):
             value, error = value.notted()
         elif node.op_tok.type == TT_TILDE:
             value, error = value.bit_notted()
@@ -8063,22 +8265,30 @@ SHARED_INTERPRETER = Interpreter()
 
 # run
 
-def run(fn, text):
-    global _forever_delay, _forever_warning_suppressed, _setup_in_progress, _main_override
+def run(fn, text, suppress_deprecation_warnings=False):
+    global _forever_delay, _forever_warning_suppressed, _setup_in_progress
+    global _main_override, _deprecation_warning_suppressed
+    global _deprecation_warning_deferred
     _main_override = None
     _forever_delay = 0.02
     _forever_warning_suppressed = False
+    _deprecation_warning_suppressed = bool(suppress_deprecation_warnings)
+    _pending_deprecation_warnings.clear()
     _setup_in_progress = False
+    _deprecation_warning_deferred = True
 
-    lexer = Lexer(fn, text)
-    tokens, error = lexer.make_tokens()
-    if error:
-        return None, error
+    try:
+        lexer = Lexer(fn, text)
+        tokens, error = lexer.make_tokens()
+        if error:
+            return None, error
 
-    parser = Parser(tokens)
-    ast = parser.parse()
-    if ast.error:
-        return None, ast.error
+        parser = Parser(tokens)
+        ast = parser.parse()
+        if ast.error:
+            return None, ast.error
+    finally:
+        _deprecation_warning_deferred = False
 
     interpreter = SHARED_INTERPRETER
     context = Context("<program>")
@@ -8088,6 +8298,7 @@ def run(fn, text):
     global_symbol_table.set("class", ClassRegistry())
 
     result = interpreter.visit(ast.node, context)
+    _flush_deprecation_warnings()
     return result.value, result.error
 
 def run_file(fn, text, symbol_table):

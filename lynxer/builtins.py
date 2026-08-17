@@ -1188,6 +1188,29 @@ class BuiltInFunction(BaseFunction):
         _runtime._forever_warning_suppressed = True
         return RTResult().success(Number.null)
 
+    def execute_suppressDeprecationWarning(self, args, exec_ctx):
+        """Suppress legacy syntax deprecation warnings for this run."""
+        if not _runtime._setup_in_progress:
+            return RTResult().failure(
+                RTError(
+                    self.pos_start,
+                    self.pos_end,
+                    "suppressDeprecationWarning() may only be called inside global setup(){}",
+                    exec_ctx,
+                )
+            )
+        if args:
+            return RTResult().failure(
+                RTError(
+                    self.pos_start,
+                    self.pos_end,
+                    "suppressDeprecationWarning() takes no arguments",
+                    exec_ctx,
+                )
+            )
+        _runtime._deprecation_warning_suppressed = True
+        return RTResult().success(Number.null)
+
     def execute_overrideMain(self, args, exec_ctx):
         """overrideMain("funcName") — redirect the program."""
         if len(args) != 1 or not isinstance(args[0], String):
@@ -1286,6 +1309,7 @@ BUILTIN_FUNCTION_NAMES = (
     "asyncSleep",
     "foreverDelay",
     "suppressForeverWarning",
+    "suppressDeprecationWarning",
     "tupleCreate",
     "tupleGet",
     "tupleLen",

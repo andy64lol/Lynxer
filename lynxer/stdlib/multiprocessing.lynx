@@ -35,7 +35,7 @@ global runParallel(list commands){
                 results = list(ex.map(run_cmd, commands))
             _raw = "\n".join(results)
     }
-    if(returnLength(_raw) is 0){
+    if(returnLength(_raw) == 0){
         return seqFromTo(0, -1, 1);
     }
     return global.typing.splitToList(_raw, "\n");
@@ -57,7 +57,7 @@ global mapShell(str template, list items){
                 results = list(ex.map(run_cmd_template, pairs))
             _raw = "\n".join(results)
     }
-    if(returnLength(_raw) is 0){
+    if(returnLength(_raw) == 0){
         return seqFromTo(0, -1, 1);
     }
     return global.typing.splitToList(_raw, "\n");
@@ -81,7 +81,7 @@ global runParallelSilent(list commands){
                 codes = list(ex.map(run_cmd_silent, commands))
             _raw = "\n".join(str(c) for c in codes)
     }
-    if(returnLength(_raw) is 0){
+    if(returnLength(_raw) == 0){
         return seqFromTo(0, -1, 1);
     }
     return global.typing.splitToList(_raw, "\n");
@@ -103,7 +103,7 @@ global runParallelProcess(list commands){
                 results = list(ex.map(run_cmd, commands))
             _raw = "\n".join(results)
     }
-    if(returnLength(_raw) is 0){
+    if(returnLength(_raw) == 0){
         return seqFromTo(0, -1, 1);
     }
     return global.typing.splitToList(_raw, "\n");

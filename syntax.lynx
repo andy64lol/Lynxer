@@ -46,9 +46,12 @@ global main(){
     x += 3;
     x -= 2;
     println("arithmetic: x=", x, ", 10%3=", 10 % 3, ", 2^10=", global.m.pow(2, 10));
-    println("comparisons: ", 5 > 3, ", ", 5 is 5, ", ", 5 not is 4);
-    println("logic: ", true and false, ", ", true or false, ", ", not true);
-    println("bitwise: ", 6 & 3, ", ", 6 | 3, ", ", 6 ^ 3, ", ", 1 << 4, ", ", 32 >> 2);
+    println("comparisons: ", 5 > 3, ", ", 5 == 5, ", ", 5 != 4);
+    println("logic: ", true && false, ", ", true !&& false, ", ",
+            true || false, ", ", true !|| false, ", ", !!true);
+    println("bitwise: ", 6 & 3, ", ", 6 !& 3, ", ", 6 ^ 3, ", ",
+            6 !^ 3, ", ", 6 | 3, ", ", 6 !| 3, ", ",
+            1 << 4, ", ", 32 >> 2);
 
     // Lists.
     list numbers = [int 1, int 2, int 3, int 4, int 5];

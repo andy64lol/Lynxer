@@ -77,7 +77,7 @@ global readLines(str path){
         except Exception:
             raw = ""
     }
-    if(raw is ""){
+    if(raw == ""){
         return seqFromTo(0, 0, 1);
     }
     return splitStr(raw, "\n");

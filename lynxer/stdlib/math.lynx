@@ -180,12 +180,12 @@ global sign(float n){
 }
 
 global isEven(int n){
-    if(n % 2 is 0){ return true; }
+    if(n % 2 == 0){ return true; }
     return false;
 }
 
 global isOdd(int n){
-    if(n % 2 not is 0){ return true; }
+    if(n % 2 != 0){ return true; }
     return false;
 }
 

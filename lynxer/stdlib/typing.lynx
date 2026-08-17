@@ -36,7 +36,7 @@ global toFloat(str s){
 }
 
 global toBool(int n){
-    if(n not is 0){
+    if(n != 0){
         return true;
     }
     return false;
@@ -51,7 +51,7 @@ global isNumeric(str s){
         except Exception:
             result = 0
     }
-    if(result not is 0){ return true; }
+    if(result != 0){ return true; }
     return false;
 }
 
@@ -72,7 +72,7 @@ global contains(str haystack, str needle){
     rawPy(){
         result = 1 if needle in haystack else 0
     }
-    if(result not is 0){ return true; }
+    if(result != 0){ return true; }
     return false;
 }
 
@@ -85,10 +85,10 @@ global splitToList(str s, str sep){
 // Convert a tuple to a list. Lists are returned unchanged.
 global toList(any value){
     str kind = returnType(value);
-    if(kind is "tuple"){
+    if(kind == "tuple"){
         return tupleToList(value);
     }
-    if(kind is "list"){
+    if(kind == "list"){
         return value;
     }
     return range(0, 0);
@@ -97,10 +97,10 @@ global toList(any value){
 // Convert a list to a tuple. Tuples are returned unchanged.
 global toTuple(any value){
     str kind = returnType(value);
-    if(kind is "list"){
+    if(kind == "list"){
         return listToTuple(value);
     }
-    if(kind is "tuple"){
+    if(kind == "tuple"){
         return value;
     }
     return tupleCreate();
@@ -108,7 +108,7 @@ global toTuple(any value){
 
 // Returns 1 if val is a list, 0 otherwise.
 global isList(any val){
-    if(returnType(val) is "list"){
+    if(returnType(val) == "list"){
         return true;
     }
     return false;
@@ -117,16 +117,16 @@ global isList(any val){
 // Returns true if val is a list or tuple.
 global isSequence(any val){
     str kind = returnType(val);
-    if(kind is "list"){ return true; }
-    if(kind is "tuple"){ return true; }
+    if(kind == "list"){ return true; }
+    if(kind == "tuple"){ return true; }
     return false;
 }
 
 // Returns the number of elements in a list or tuple.
 global lenSequence(any val){
     str kind = returnType(val);
-    if(kind is "list"){ return returnLength(val); }
-    if(kind is "tuple"){ return returnLength(val); }
+    if(kind == "list"){ return returnLength(val); }
+    if(kind == "tuple"){ return returnLength(val); }
     return 0;
 }
 
@@ -196,7 +196,7 @@ global startsWith(str s, str prefix){
     rawPy(){
         result = 1 if s.startswith(prefix) else 0
     }
-    if(result not is 0){ return true; }
+    if(result != 0){ return true; }
     return false;
 }
 
@@ -206,7 +206,7 @@ global endsWith(str s, str suffix){
     rawPy(){
         result = 1 if s.endswith(suffix) else 0
     }
-    if(result not is 0){ return true; }
+    if(result != 0){ return true; }
     return false;
 }
 
@@ -443,15 +443,15 @@ global expandTabs(str s, int tabSize){
 
 // Return true if val is a char.
 global isChar(any val){
-    if(returnType(val) is "char"){ return true; }
+    if(returnType(val) == "char"){ return true; }
     return false;
 }
 
 // Convert a single-char string or an int char-code to a char.
 global toChar(any val){
     str kind = returnType(val);
-    if(kind is "char"){ return val; }
-    if(kind is "int"){
+    if(kind == "char"){ return val; }
+    if(kind == "int"){
         str result = "";
         rawPy(){
             try:
@@ -462,7 +462,7 @@ global toChar(any val){
         char c = result;
         return c;
     }
-    if(kind is "str"){
+    if(kind == "str"){
         char c = val;
         return c;
     }
@@ -491,7 +491,7 @@ global charAt(str s, int idx){
         except Exception:
             sub = ""
     }
-    if(sub is ""){ return none; }
+    if(sub == ""){ return none; }
     char c = sub;
     return c;
 }
@@ -499,44 +499,44 @@ global charAt(str s, int idx){
 // Return true if val is int or float (i.e. numeric).
 global isNum(any val){
     str t = returnType(val);
-    if(t is "int"){ return true; }
-    if(t is "float"){ return true; }
+    if(t == "int"){ return true; }
+    if(t == "float"){ return true; }
     return false;
 }
 
 // Return true if val is an int.
 global isInt(any val){
-    if(returnType(val) is "int"){ return true; }
+    if(returnType(val) == "int"){ return true; }
     return false;
 }
 
 // Return true if val is a float.
 global isFloat(any val){
-    if(returnType(val) is "float"){ return true; }
+    if(returnType(val) == "float"){ return true; }
     return false;
 }
 
 // Return true if val is a str.
 global isStr(any val){
-    if(returnType(val) is "str"){ return true; }
+    if(returnType(val) == "str"){ return true; }
     return false;
 }
 
 // Return true if val is a bool.
 global isBool(any val){
-    if(returnType(val) is "bool"){ return true; }
+    if(returnType(val) == "bool"){ return true; }
     return false;
 }
 
 // Return true if val is a tuple.
 global isTuple(any val){
-    if(returnType(val) is "tuple"){ return true; }
+    if(returnType(val) == "tuple"){ return true; }
     return false;
 }
 
 // Return true if val is none.
 global isNone(any val){
-    if(returnType(val) is "none"){ return true; }
+    if(returnType(val) == "none"){ return true; }
     return false;
 }
 
@@ -578,7 +578,7 @@ global listCount(list lst, any val){
     int len = returnLength(lst);
     while(i < len){
         any elem = listGet(lst, i);
-        if(strOf(elem) is strOf(val)){ count = count + 1; }
+        if(strOf(elem) == strOf(val)){ count = count + 1; }
         i = i + 1;
     }
     return count;
@@ -677,7 +677,7 @@ global linesOf(str s){
 // Average (mean) of all numeric elements in lst.
 global listAvg(list lst){
     int len = returnLength(lst);
-    if(len is 0){ return 0.0; }
+    if(len == 0){ return 0.0; }
     float total = sumOf(lst);
     float result = 0.0;
     rawPy(){
@@ -786,7 +786,7 @@ global tupleUnique(any t){
 // Return the average (mean) of a numeric tuple.
 global tupleMean(any t){
     int len = tupleLen(t);
-    if(len is 0){ return 0.0; }
+    if(len == 0){ return 0.0; }
     float s = tupleSum(t);
     float result = 0.0;
     rawPy(){
@@ -803,10 +803,10 @@ global tupleFlatten(any t){
     while(i < len){
         any elem = tupleGet(t, i);
         str kind = returnType(elem);
-        if(kind is "tuple"){
+        if(kind == "tuple"){
             result = tupleConcat(result, elem);
         }
-        if(kind not is "tuple"){
+        if(kind != "tuple"){
             result = tupleConcat(result, tupleCreate(elem));
         }
         i = i + 1;

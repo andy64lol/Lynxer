@@ -55,7 +55,7 @@ as the runtime error details.
 
 ```c
 assert(true);
-assert(2 + 2 is 4, "arithmetic is broken");
+assert(2 + 2 == 4, "arithmetic is broken");
 ```
 
 Assertions are always available and do not require importing the `debug`
@@ -290,7 +290,7 @@ global main() {
     forever() {
         count = count + 1;
         println(count); 
-        if(count is 3) { break; }
+        if(count == 3) { break; }
     }
 }
 ```

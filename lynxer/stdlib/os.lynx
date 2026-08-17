@@ -41,7 +41,7 @@ global listdir(str path){
         except Exception:
             raw = ""
     }
-    if(raw is ""){
+    if(raw == ""){
         return seqFromTo(0, 0, 1);
     }
     return splitStr(raw, "\n");
@@ -295,7 +295,7 @@ global listdirExt(str path, str ext){
         except Exception:
             raw = ""
     }
-    if(raw is ""){
+    if(raw == ""){
         return seqFromTo(0, 0, 1);
     }
     return splitStr(raw, "\n");

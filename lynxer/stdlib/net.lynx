@@ -148,7 +148,7 @@ global wsConnected(str name){
         else:
             result = 0
     }
-    if(result not is 0){ return true; }
+    if(result != 0){ return true; }
     return false;
 }
 
@@ -317,7 +317,7 @@ global isPortOpen(str host, int port, int timeoutSecs){
         except Exception:
             result = 0
     }
-    if(result not is 0){ return true; }
+    if(result != 0){ return true; }
     return false;
 }
 
@@ -421,7 +421,7 @@ global ping(str host){
         except Exception:
             result = 0
     }
-    if(result not is 0){ return true; }
+    if(result != 0){ return true; }
     return false;
 }
 

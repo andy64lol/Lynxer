@@ -154,8 +154,8 @@ tuple a = (int 1, int 2, int 3);
 tuple b = (int 1, int 2, int 3);
 tuple c = (int 1, int 2, int 9);
 
-if(a is b){  println("equal");   }   // equal
-if(a not is c){ println("different"); }
+if(a == b){  println("equal");   }   // equal
+if(a != c){ println("different"); }
 ```
 
 ---

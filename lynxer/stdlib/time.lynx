@@ -210,7 +210,7 @@ global isLeapYear(int year){
         import calendar as _cal
         result = 1 if _cal.isleap(year) else 0
     }
-    if(result not is 0){ return true; }
+    if(result != 0){ return true; }
     return false;
 }
 

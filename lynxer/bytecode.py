@@ -100,12 +100,14 @@ def compile_to_bytecode(fn: str, text: str) -> tuple[str | None, Any]:
     return out_path, None
 
 
-def run_bytecode(fn: str) -> tuple[Any, Any]:
+def run_bytecode(fn: str, suppress_deprecation_warnings=False) -> tuple[Any, Any]:
     """Load and execute a pre-compiled ``.lynxc`` file."""
     runtime = _runtime()
     runtime._main_override = None
     runtime._forever_delay = 0.02
     runtime._forever_warning_suppressed = False
+    runtime._deprecation_warning_suppressed = bool(suppress_deprecation_warnings)
+    runtime._pending_deprecation_warnings.clear()
     runtime._setup_in_progress = False
 
     try:

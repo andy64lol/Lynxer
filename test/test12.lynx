@@ -1,0 +1,20 @@
+// Symbolic comparison, logical, and bitwise operator regression coverage.
+global setup(){}
+
+global main(){
+    assert(2 == 2);
+    assert(2 != 3);
+    assert(!!false);
+
+    assert(true && true);
+    assert((true !&& true) == false);
+    assert(false || true);
+    assert(false !|| false);
+
+    assert((6 & 3) == 2);
+    assert((6 !& 3) == -3);
+    assert((6 ^ 3) == 5);
+    assert((6 !^ 3) == -6);
+    assert((6 | 3) == 7);
+    assert((6 !| 3) == -8);
+}

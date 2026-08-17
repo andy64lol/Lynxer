@@ -186,11 +186,11 @@ print(returnType(a));    // char
 print(returnType(s));    // str
 ```
 
-`char` values support `is` / `not is` equality:
+`char` values support `==` / `!=` equality:
 
 ```c
 char x = 'z';
-if(x is 'z'){ print("yes\n"); }
+if(x == 'z'){ print("yes\n"); }
 ```
 
 Use `typing` helpers for char-specific operations:
@@ -302,15 +302,21 @@ x /%= 2;  // x = x /% 2
 | `>` | greater than |
 | `<=` | less than or equal |
 | `>=` | greater than or equal |
-| `is` | equal (works for `int`, `float`, `str`, `bool`) |
-| `not is` | not equal |
+| `==` | equal (works for `int`, `float`, `str`, `bool`) |
+| `!=` | not equal |
+| `is` | legacy spelling for `==` (deprecated) |
+| `not is` | legacy spelling for `!=` (deprecated) |
 
 ### Logic
 
 ```c
-x > 0 and x < 10
-x < 0 or x > 100
-not alive
+x > 0 && x < 10
+x < 0 || x > 100
+!!alive
+
+// NAND and NOR are the negated logical combinations.
+x > 0 !&& x < 10
+x < 0 !|| x > 100
 ```
 
 ### Bitwise
@@ -320,13 +326,21 @@ not alive
 | `&` | AND |
 | `\|` | OR |
 | `^` | XOR |
+| `!&` | NAND |
+| `!^` | XNOR |
+| `!|` | NOR |
 | `~` | NOT (unary) |
 | `<<` | left shift |
 | `>>` | right shift |
 
 ### Operator precedence (high → low)
 
-`~` → `** /*` → `* / % /%` → `+ -` → `<< >>` → `&` → `^` → `|` → comparisons → `not` → `and` → `or`
+`~` → `** /*` → `* / % /%` → `+ -` → `<< >>` → `& !&` → `^ !^` → `| !|`
+→ comparisons → `!!` → `&& !&&` → `|| !||`
+
+The word forms `and`, `or`, and `not` remain supported. The legacy equality
+forms `is` and `not is` are accepted for compatibility but emit a deprecation
+warning; use `==` and `!=` in new code.
 
 ---
 
@@ -337,7 +351,7 @@ not alive
 ```c
 if(x > 0){
     print("positive\n");
-} elif(x is 0){
+} elif(x == 0){
     print("zero\n");
 } else {
     print("negative\n");
@@ -469,7 +483,7 @@ global main(){
     int i = 0;
     forever(){
         i += 1;
-        if(i is 5){ break; }
+        if(i == 5){ break; }
     }
 }
 ```
@@ -486,14 +500,14 @@ The default delay is `0.02` seconds. Use `suppressForeverWarning()` in
 ```c
 // break
 for(int i = 0; i < 10; i = i + 1){
-    if(i is 5){ break; }
+    if(i == 5){ break; }
     print(i); print(" ");
 }
 // prints: 0 1 2 3 4
 
 // continue
 for(int i = 0; i < 6; i = i + 1){
-    if(i % 2 is 0){ continue; }
+    if(i % 2 == 0){ continue; }
     print(i); print(" ");
 }
 // prints: 1 3 5
@@ -502,7 +516,7 @@ for(int i = 0; i < 6; i = i + 1){
 int w = 0;
 while(w < 5){
     w += 1;
-    if(w is 3){ restart; }
+    if(w == 3){ restart; }
     print(w); print(" ");
 }
 // prints: 1 2 4 5

@@ -293,7 +293,7 @@ global linspace(float start, float stop, int n){
         except Exception:
             result = ""
     }
-    if(result is ""){ return seqFromTo(0, 0, 1); }
+    if(result == ""){ return seqFromTo(0, 0, 1); }
     return splitStr(result, "\x1f");
 }
 
@@ -307,7 +307,7 @@ global cumsum(list lst){
         except Exception:
             result = ""
     }
-    if(result is ""){ return seqFromTo(0, 0, 1); }
+    if(result == ""){ return seqFromTo(0, 0, 1); }
     return splitStr(result, "\x1f");
 }
 
@@ -321,7 +321,7 @@ global diff(list lst){
         except Exception:
             result = ""
     }
-    if(result is ""){ return seqFromTo(0, 0, 1); }
+    if(result == ""){ return seqFromTo(0, 0, 1); }
     return splitStr(result, "\x1f");
 }
 
@@ -335,7 +335,7 @@ global clip(list lst, float lo, float hi){
         except Exception:
             result = ""
     }
-    if(result is ""){ return seqFromTo(0, 0, 1); }
+    if(result == ""){ return seqFromTo(0, 0, 1); }
     return splitStr(result, "\x1f");
 }
 
@@ -354,7 +354,7 @@ global normalize(list lst){
         except Exception:
             result = ""
     }
-    if(result is ""){ return seqFromTo(0, 0, 1); }
+    if(result == ""){ return seqFromTo(0, 0, 1); }
     return splitStr(result, "\x1f");
 }
 

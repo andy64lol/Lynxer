@@ -3,6 +3,8 @@ VENV     := venv
 VENV_PY  := $(VENV)/bin/python
 VENV_PIP := $(VENV)/bin/pip
 PYINSTALLER := $(VENV)/bin/pyinstaller
+WARNING_FILE := lynxer/warnings.txt
+WARNING_DATA := --add-data "$(WARNING_FILE):lynxer"
 
 COLLECT_ALL := $(shell \
 	sed 's/#.*//' requirements_venv.txt | \
@@ -49,6 +51,7 @@ build:
 		--clean \
 		$(COLLECT_ALL) \
 		--name lynxer \
+		$(WARNING_DATA) \
 		--add-data "lynxer/stdlib:stdlib" \
 		lynxer/shell.py
 
@@ -79,6 +82,7 @@ buildLite:
 		$(CYTHON_COLLECT_ALL) \
 		--hidden-import Cython.Build.Inline \
 		--name lynxer-lite \
+		$(WARNING_DATA) \
 		--add-data "build/stdlib_pure:stdlib" \
 		lynxer/shell.py
 
