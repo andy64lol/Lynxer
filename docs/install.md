@@ -65,4 +65,12 @@ modules while keeping the core language and essential utilities.
 lynxer --version        # Lynxer 0.1.7b7
 lynxer --compile a.lynx # compile to bytecode
 lynxer a.lynxc          # run compiled bytecode
+lynxer --format a.lynx  # format the source file in place
+lynxer --format-oneline a.lynx
+lynxer --lint a.lynx    # check syntax without running the program
 ```
+
+`--format` applies readable indentation and spacing while preserving ordinary
+comments. `--format-oneline` compacts valid source into one line. Both format
+commands rewrite the file in place. `--lint` only tokenizes and parses the
+file; it does not execute the program.

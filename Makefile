@@ -1,7 +1,7 @@
 PYTHON   ?= $(shell command -v python3 2>/dev/null || command -v python 2>/dev/null || echo python3)
 VENV     := venv
 VENV_PY  := $(VENV)/bin/python
-VENV_PIP := $(VENV)/bin/pip
+VENV_PIP := $(VENV_PY) -m pip
 PYINSTALLER := $(VENV)/bin/pyinstaller
 WARNING_FILE := lynxer/warnings.txt
 WARNING_DATA := --add-data "$(WARNING_FILE):lynxer"
@@ -100,3 +100,8 @@ help:
 	@echo "  make build"
 	@echo "  make buildLite"
 	@echo "  make clean"
+	@echo ""
+	@echo "Lynxer source commands:"
+	@echo "  lynxer --format <file.lynx>"
+	@echo "  lynxer --format-oneline <file.lynx>"
+	@echo "  lynxer --lint <file.lynx>"

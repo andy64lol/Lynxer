@@ -19,11 +19,34 @@ BaseFunction = _runtime.BaseFunction
 CoroutineValue = _runtime.CoroutineValue
 List = _runtime.List
 LynxTuple = _runtime.LynxTuple
+VarGroup = _runtime.VarGroup
 Number = _runtime.Number
 RTError = _runtime.RTError
 RTResult = _runtime.RTResult
 String = _runtime.String
 _get_cython_inline = _runtime._get_cython_inline
+
+
+def _json_value(value):
+    """Convert a Lynxer value into a JSON-compatible Python value."""
+    if isinstance(value, Number):
+        return bool(value.value) if value.is_bool else value.value
+    if isinstance(value, String):
+        return value.value
+    if isinstance(value, _runtime.Char):
+        return value.value
+    if isinstance(value, _runtime.Null):
+        return None
+    if isinstance(value, List):
+        return [_json_value(element) for element in value.elements]
+    if isinstance(value, LynxTuple):
+        return [_json_value(element) for element in value.elements]
+    if isinstance(value, VarGroup):
+        return {
+            name: _json_value(info["value"])
+            for name, info in value._fields.items()
+        }
+    return str(value)
 
 
 class BuiltInFunction(BaseFunction):
@@ -43,6 +66,11 @@ class BuiltInFunction(BaseFunction):
 
     def no_visit_method(self, node, context):
         raise Exception(f"No execute_{self.name} method defined")
+
+    def _failure(self, exec_ctx, message):
+        return RTResult().failure(
+            RTError(self.pos_start, self.pos_end, message, exec_ctx)
+        )
 
     def copy(self):
         c = BuiltInFunction(self.name)
@@ -798,6 +826,124 @@ class BuiltInFunction(BaseFunction):
                 )
             )
 
+    def execute_listFirst(self, args, exec_ctx):
+        if len(args) != 1 or not isinstance(args[0], List):
+            return self._failure(exec_ctx, "listFirst(list) expects a list")
+        if not args[0].elements:
+            return self._failure(exec_ctx, "listFirst() called on an empty list")
+        return RTResult().success(args[0].elements[0])
+
+    def execute_listLast(self, args, exec_ctx):
+        if len(args) != 1 or not isinstance(args[0], List):
+            return self._failure(exec_ctx, "listLast(list) expects a list")
+        if not args[0].elements:
+            return self._failure(exec_ctx, "listLast() called on an empty list")
+        return RTResult().success(args[0].elements[-1])
+
+    def execute_listHead(self, args, exec_ctx):
+        if (
+            len(args) != 2
+            or not isinstance(args[0], List)
+            or not isinstance(args[1], Number)
+        ):
+            return self._failure(
+                exec_ctx, "listHead(list, count) expects a list and an integer count"
+            )
+        count = int(args[1].value)
+        if count < 0:
+            return self._failure(exec_ctx, "listHead() count cannot be negative")
+        return RTResult().success(List(args[0].elements[:count]))
+
+    def execute_listTail(self, args, exec_ctx):
+        if (
+            len(args) != 2
+            or not isinstance(args[0], List)
+            or not isinstance(args[1], Number)
+        ):
+            return self._failure(
+                exec_ctx, "listTail(list, count) expects a list and an integer count"
+            )
+        count = int(args[1].value)
+        if count < 0:
+            return self._failure(exec_ctx, "listTail() count cannot be negative")
+        return RTResult().success(List(args[0].elements[-count:] if count else []))
+
+    def execute_listCount(self, args, exec_ctx):
+        if len(args) != 2 or not isinstance(args[0], List):
+            return self._failure(
+                exec_ctx, "listCount(list, value) expects a list and a value"
+            )
+        target = str(args[1])
+        return RTResult().success(
+            Number(sum(1 for element in args[0].elements if str(element) == target))
+        )
+
+    def execute_listExtend(self, args, exec_ctx):
+        if (
+            len(args) != 2
+            or not isinstance(args[0], List)
+            or not isinstance(args[1], List)
+        ):
+            return self._failure(exec_ctx, "listExtend(list1, list2) expects two lists")
+        return RTResult().success(List(args[0].elements + args[1].elements))
+
+    def execute_listInsert(self, args, exec_ctx):
+        if (
+            len(args) != 3
+            or not isinstance(args[0], List)
+            or not isinstance(args[1], Number)
+        ):
+            return self._failure(
+                exec_ctx,
+                "listInsert(list, index, value) expects a list, integer index, and value",
+            )
+        elements = list(args[0].elements)
+        elements.insert(int(args[1].value), args[2])
+        return RTResult().success(List(elements))
+
+    def execute_listClear(self, args, exec_ctx):
+        if len(args) != 1 or not isinstance(args[0], List):
+            return self._failure(exec_ctx, "listClear(list) expects a list")
+        return RTResult().success(List([]))
+
+    def execute_listRepeat(self, args, exec_ctx):
+        if len(args) != 2 or not isinstance(args[1], Number):
+            return self._failure(
+                exec_ctx, "listRepeat(value, count) expects a value and integer count"
+            )
+        count = int(args[1].value)
+        if count < 0:
+            return self._failure(exec_ctx, "listRepeat() count cannot be negative")
+        return RTResult().success(List([args[0]] * count))
+
+    def execute_listAvg(self, args, exec_ctx):
+        if len(args) != 1 or not isinstance(args[0], List):
+            return self._failure(exec_ctx, "listAvg(list) expects a list")
+        numbers = [element.value for element in args[0].elements if isinstance(element, Number)]
+        if not numbers:
+            return RTResult().success(Number(0.0))
+        return RTResult().success(Number(sum(numbers) / len(numbers)))
+
+    def execute_listZip(self, args, exec_ctx):
+        if (
+            len(args) != 2
+            or not isinstance(args[0], List)
+            or not isinstance(args[1], List)
+        ):
+            return self._failure(exec_ctx, "listZip(list1, list2) expects two lists")
+        import json as _json
+
+        pairs = []
+        for left, right in zip(args[0].elements, args[1].elements):
+            pairs.append(
+                String(
+                    _json.dumps(
+                        {"a": _json_value(left), "b": _json_value(right)}
+                    )
+                )
+            )
+        return RTResult().success(List(pairs))
+
     # tuple built-ins
 
     def execute_tupleCreate(self, args, exec_ctx):
@@ -1015,6 +1161,143 @@ class BuiltInFunction(BaseFunction):
                     exec_ctx,
                 )
             )
+
+    def _tuple_values(self, args, exec_ctx, name):
+        if len(args) != 1 or not isinstance(args[0], LynxTuple):
+            return None, self._failure(exec_ctx, f"{name}(tuple) expects a tuple")
+        return args[0].elements, None
+
+    def execute_tupleReverse(self, args, exec_ctx):
+        values, error = self._tuple_values(args, exec_ctx, "tupleReverse")
+        if error:
+            return error
+        return RTResult().success(LynxTuple(reversed(values)))
+
+    def execute_tupleSort(self, args, exec_ctx):
+        if len(args) not in (1, 2) or not isinstance(args[0], LynxTuple):
+            return self._failure(
+                exec_ctx,
+                "tupleSort(tuple) or tupleSort(tuple, reverse) expects a tuple",
+            )
+        reverse = args[1].is_true() if len(args) == 2 else False
+        try:
+            return RTResult().success(
+                LynxTuple(sorted(args[0].elements, key=self._list_sort_key, reverse=reverse))
+            )
+        except Exception as exc:
+            return self._failure(exec_ctx, f"tupleSort() failed: {exc}")
+
+    def execute_tupleSortDesc(self, args, exec_ctx):
+        if len(args) != 1:
+            return self._failure(exec_ctx, "tupleSortDesc(tuple) expects a tuple")
+        return self.execute_tupleSort([args[0], Number(1, is_bool=True)], exec_ctx)
+
+    def execute_tupleMin(self, args, exec_ctx):
+        values, error = self._tuple_values(args, exec_ctx, "tupleMin")
+        if error:
+            return error
+        if not values:
+            return self._failure(exec_ctx, "tupleMin() called on an empty tuple")
+        try:
+            return RTResult().success(min(values, key=self._list_sort_key))
+        except Exception as exc:
+            return self._failure(exec_ctx, f"tupleMin() failed: {exc}")
+
+    def execute_tupleMax(self, args, exec_ctx):
+        values, error = self._tuple_values(args, exec_ctx, "tupleMax")
+        if error:
+            return error
+        if not values:
+            return self._failure(exec_ctx, "tupleMax() called on an empty tuple")
+        try:
+            return RTResult().success(max(values, key=self._list_sort_key))
+        except Exception as exc:
+            return self._failure(exec_ctx, f"tupleMax() failed: {exc}")
+
+    def execute_tupleSum(self, args, exec_ctx):
+        values, error = self._tuple_values(args, exec_ctx, "tupleSum")
+        if error:
+            return error
+        return RTResult().success(
+            Number(sum(element.value for element in values if isinstance(element, Number)))
+        )
+
+    def execute_tupleAny(self, args, exec_ctx):
+        values, error = self._tuple_values(args, exec_ctx, "tupleAny")
+        if error:
+            return error
+        return RTResult().success(Number(int(any(value.is_true() for value in values)), is_bool=True))
+
+    def execute_tupleAll(self, args, exec_ctx):
+        values, error = self._tuple_values(args, exec_ctx, "tupleAll")
+        if error:
+            return error
+        return RTResult().success(Number(int(all(value.is_true() for value in values)), is_bool=True))
+
+    def execute_tupleUnique(self, args, exec_ctx):
+        values, error = self._tuple_values(args, exec_ctx, "tupleUnique")
+        if error:
+            return error
+        seen = set()
+        unique = []
+        for value in values:
+            key = str(value)
+            if key not in seen:
+                seen.add(key)
+                unique.append(value)
+        return RTResult().success(LynxTuple(unique))
+
+    def execute_tupleMean(self, args, exec_ctx):
+        values, error = self._tuple_values(args, exec_ctx, "tupleMean")
+        if error:
+            return error
+        numbers = [value.value for value in values if isinstance(value, Number)]
+        return RTResult().success(Number(sum(numbers) / len(numbers) if numbers else 0.0))
+
+    def execute_tupleFlatten(self, args, exec_ctx):
+        values, error = self._tuple_values(args, exec_ctx, "tupleFlatten")
+        if error:
+            return error
+        flattened = []
+        for value in values:
+            if isinstance(value, LynxTuple):
+                flattened.extend(value.elements)
+            else:
+                flattened.append(value)
+        return RTResult().success(LynxTuple(flattened))
+
+    def execute_tupleZip(self, args, exec_ctx):
+        if (
+            len(args) != 2
+            or not isinstance(args[0], LynxTuple)
+            or not isinstance(args[1], LynxTuple)
+        ):
+            return self._failure(exec_ctx, "tupleZip(tuple1, tuple2) expects two tuples")
+        import json as _json
+
+        pairs = []
+        for left, right in zip(args[0].elements, args[1].elements):
+            pairs.append(
+                String(
+                    _json.dumps(
+                        {"a": _json_value(left), "b": _json_value(right)}
+                    )
+                )
+            )
+        return RTResult().success(List(pairs))
+
+    def execute_tupleJoin(self, args, exec_ctx):
+        if (
+            len(args) != 2
+            or not isinstance(args[0], LynxTuple)
+            or not isinstance(args[1], String)
+        ):
+            return self._failure(
+                exec_ctx, "tupleJoin(tuple, separator) expects a tuple and string separator"
+            )
+        return RTResult().success(
+            String(args[1].value.join(str(value) for value in args[0].elements))
+        )
 
     # async built-ins
 

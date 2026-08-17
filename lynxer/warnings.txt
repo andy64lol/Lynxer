@@ -3,4 +3,6 @@
 
 legacy_not_is	Legacy equality operator 'not is' is deprecated; use '!=' instead.
 legacy_is	Legacy equality operator 'is' is deprecated; use '==' instead.
+legacy_tuple	Legacy tuple syntax uses '[...]'. Use '(...)' with an explicit type before each element; square-bracket tuples are retained for compatibility and will be removed in a future release.
+legacy_vargroup	Legacy vargroup syntax uses '[...]'. Use '{...}' for vargroups; square brackets are retained for compatibility and will be removed in a future release.
 forever_no_break	forever() has no break; it will run until the process is stopped. Add break; or call suppressForeverWarning() in global setup(){}.

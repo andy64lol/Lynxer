@@ -10,6 +10,7 @@ if _parent not in sys.path:
 
 from lynxer import run, compile_to_bytecode, run_bytecode  # noqa: E402
 from lynxer.bytecode import BYTECODE_VERSION, read_bytecode  # noqa: E402
+from lynxer.formatting import FormattingError, format_source, lint_source  # noqa: E402
 from lynxer.install import installer_main  # noqa: E402
 
 def _extract_docstring(path):
@@ -121,6 +122,9 @@ def main():
         print("  lynxer --compile <file.lynx>          Compile to bytecode (.lynxc)")
         print("  lynxer <file.lynxc>                   Run a compiled bytecode file")
         print("  lynxer --view-bytecode <file.lynxc>   Inspect bytecode metadata and structure")
+        print("  lynxer --format <file.lynx>           Format a Lynxer source file in place")
+        print("  lynxer --format-oneline <file.lynx>   Compact a Lynxer source file to one line")
+        print("  lynxer --lint <file.lynx>             Check Lynxer syntax without running it")
         print("  lynxer --version                      Print version")
         print("  lynxer --list-stdlibs                 List available Lynxer stdlib modules")
         print("  lynxer --install                      Install the compiled executable as /usr/bin/lynxer, may require sudo")
@@ -164,6 +168,52 @@ def main():
                 print()
             else:
                 print(f"  {name}\n")
+        return 0
+
+    if argv[0] in ("--format", "--format-oneline", "--lint"):
+        if len(argv) != 2:
+            print(f"shell.py: {argv[0]} requires exactly one file argument", file=sys.stderr)
+            return 1
+
+        source_path = argv[1]
+        if not os.path.isabs(source_path):
+            source_path = os.path.join(os.getcwd(), source_path)
+        if not os.path.exists(source_path):
+            print(f"shell.py: file not found: '{argv[1]}'", file=sys.stderr)
+            return 1
+
+        try:
+            with open(source_path, "r", encoding="utf-8") as source_file:
+                source = source_file.read()
+        except OSError as exc:
+            print(f"shell.py: could not read '{argv[1]}': {exc}", file=sys.stderr)
+            return 1
+
+        if argv[0] == "--lint":
+            error = lint_source(source_path, source)
+            if error:
+                print(error.as_string(), file=sys.stderr)
+                return 1
+            print(f"Lint OK: {argv[1]}")
+            return 0
+
+        try:
+            formatted = format_source(
+                source_path,
+                source,
+                oneline=argv[0] == "--format-oneline",
+            )
+            with open(source_path, "w", encoding="utf-8", newline="") as output_file:
+                output_file.write(formatted)
+        except (FormattingError, OSError) as exc:
+            error = exc.error if isinstance(exc, FormattingError) else None
+            if error is not None:
+                print(error.as_string(), file=sys.stderr)
+            else:
+                print(f"shell.py: could not format '{argv[1]}': {exc}", file=sys.stderr)
+            return 1
+
+        print(f"Formatted: {argv[1]}")
         return 0
 
     if argv[0] in ('-c', '--compile', '--c','-compile'):

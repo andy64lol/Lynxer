@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import string
+import sys
 import textwrap
 import warnings
 from typing import Any, ClassVar
@@ -34,27 +35,54 @@ _WARNING_MESSAGES_PATH = os.path.join(
 )
 
 
+def _warning_message_paths() -> list[str]:
+    """Return the source and frozen-bundle locations for the warning catalog."""
+    paths = [_WARNING_MESSAGES_PATH]
+    frozen_root = getattr(sys, "_MEIPASS", None)
+    if frozen_root:
+        paths.append(os.path.join(frozen_root, "lynxer", "warnings.txt"))
+    return list(dict.fromkeys(paths))
+
+
 def _load_warning_messages() -> dict[str, str]:
-    messages: dict[str, str] = {}
-    try:
-        with open(_WARNING_MESSAGES_PATH, "r", encoding="utf-8") as warning_file:
-            for line_number, line in enumerate(warning_file, 1):
-                stripped = line.rstrip("\n")
-                if not stripped or stripped.startswith("#"):
-                    continue
-                try:
-                    key, message = stripped.split("\t", 1)
-                except ValueError as exc:
-                    raise RuntimeError(
-                        f"Invalid warning message at {_WARNING_MESSAGES_PATH}, "
-                        f"line {line_number}: expected a tab-separated key and message"
-                    ) from exc
-                messages[key] = message
-    except OSError as exc:
-        raise RuntimeError(
-            f"Could not load Lynxer warning messages from {_WARNING_MESSAGES_PATH}"
-        ) from exc
-    return messages
+    for warning_path in _warning_message_paths():
+        try:
+            messages: dict[str, str] = {}
+            with open(warning_path, "r", encoding="utf-8") as warning_file:
+                for line_number, line in enumerate(warning_file, 1):
+                    stripped = line.rstrip("\r\n")
+                    if not stripped or stripped.startswith("#"):
+                        continue
+                    try:
+                        key, message = stripped.split("\t", 1)
+                    except ValueError as exc:
+                        raise RuntimeError(
+                            f"Invalid warning message at {warning_path}, "
+                            f"line {line_number}: expected a tab-separated key and message"
+                        ) from exc
+                    if not key or not message:
+                        raise RuntimeError(
+                            f"Invalid warning message at {warning_path}, "
+                            f"line {line_number}: key and message must not be empty"
+                        )
+                    if key in messages:
+                        raise RuntimeError(
+                            f"Invalid warning message at {warning_path}, "
+                            f"line {line_number}: duplicate key '{key}'"
+                        )
+                    messages[key] = message
+            return messages
+        except FileNotFoundError:
+            continue
+        except OSError as exc:
+            raise RuntimeError(
+                f"Could not load Lynxer warning messages from {warning_path}"
+            ) from exc
+
+    searched_paths = ", ".join(_warning_message_paths())
+    raise RuntimeError(
+        f"Could not load Lynxer warning messages; searched: {searched_paths}"
+    )
 
 
 _WARNING_MESSAGES = _load_warning_messages()
@@ -2263,10 +2291,7 @@ class Parser:
         if type_tok.value == "tuple" and isinstance(value, ListNode):
             warn_legacy_syntax_position(
                 value.pos_start,
-                "Legacy tuple syntax uses '[...]'. Use '(...)' with an "
-                "explicit type before each element; square-bracket tuples "
-                "are retained for compatibility and will be removed in a "
-                "future release.",
+                warning_message("legacy_tuple"),
             )
 
         if self.current_tok.type != TT_SEMICOLON:
@@ -2333,10 +2358,7 @@ class Parser:
         if type_tok.value == "tuple" and isinstance(value, ListNode):
             warn_legacy_syntax_position(
                 value.pos_start,
-                "Legacy tuple syntax uses '[...]'. Use '(...)' with an "
-                "explicit type before each element; square-bracket tuples "
-                "are retained for compatibility and will be removed in a "
-                "future release.",
+                warning_message("legacy_tuple"),
             )
 
         if self.current_tok.type != TT_SEMICOLON:
@@ -2577,9 +2599,7 @@ class Parser:
             if open_tok.type == TT_LBRACKET:
                 warn_legacy_syntax(
                     open_tok,
-                    "Legacy vargroup syntax uses '[...]'. Use '{...}' for "
-                    "vargroups; square brackets are retained for compatibility "
-                    "and will be removed in a future release.",
+                    warning_message("legacy_vargroup"),
                 )
             res.register_advancement()
             self.advance()
@@ -2707,9 +2727,7 @@ class Parser:
         if open_tok.type == TT_LBRACKET:
             warn_legacy_syntax(
                 open_tok,
-                "Legacy vargroup syntax uses '[...]'. Use '{...}' for "
-                "vargroups; square brackets are retained for compatibility "
-                "and will be removed in a future release.",
+                warning_message("legacy_vargroup"),
             )
         res.register_advancement()
         self.advance()
@@ -6345,10 +6363,7 @@ class Interpreter:
             if isinstance(node.value_node, ListNode):
                 warn_legacy_syntax_position(
                     node.value_node.pos_start,
-                    "Legacy tuple syntax uses '[...]'. Use '(...)' with an "
-                    "explicit type before each element; square-bracket tuples "
-                    "are retained for compatibility and will be removed in a "
-                    "future release.",
+                    warning_message("legacy_tuple"),
                 )
             value = LynxTuple(value.elements)
             value.set_context(context)
@@ -6971,10 +6986,7 @@ class Interpreter:
             if isinstance(node.value_node, ListNode):
                 warn_legacy_syntax_position(
                     node.value_node.pos_start,
-                    "Legacy tuple syntax uses '[...]'. Use '(...)' with an "
-                    "explicit type before each element; square-bracket tuples "
-                    "are retained for compatibility and will be removed in a "
-                    "future release.",
+                    warning_message("legacy_tuple"),
                 )
             value = LynxTuple(value.elements)
             value.set_context(context)
