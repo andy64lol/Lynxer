@@ -1,8 +1,8 @@
 global setup(){}
 global render(str prefix){content}{content2}{
     print(prefix);
-    exec({content});
-    exec({content2});
+    exec(){{content}}
+    exec(){{content2}}
 }
 global main(){
     global.render("value: "){
@@ -13,7 +13,7 @@ global main(){
         println("Hello!");
     }
     local anotherExample(){ex1}{
-        exec({ex1});
+        exec(){{ex1}}
     }
     local.anotherExample(){
         println("another example, this is local function");

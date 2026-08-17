@@ -714,6 +714,31 @@ exec("left", 42){
 
 The old `exec({name})` form is replaced by `exec(){{name}}`.
 
+Code-block identifiers are unique across the complete source file, regardless
+of where they are declared. A `codeblock` variable and a caller-supplied
+code-block parameter therefore cannot reuse the same identifier. Named blocks
+can be passed to functions from another level with the double-brace form:
+
+```c
+global setup(){
+    codeblock code1 = {
+        println("A");
+    };
+}
+
+global something(){handler}{
+    exec(){{handler}}
+}
+
+global main(){
+    global.something(){{code1}}
+}
+```
+
+The block keeps its unique identity when copied into a function parameter, so
+it can be referenced through `exec(){{name}}` wherever that named block is
+available.
+
 ---
 
 ## Classes

@@ -1,0 +1,13 @@
+global setup(){
+    codeblock code1 = {
+        println("A");
+    };
+}
+
+global runBlock(){handler}{
+    exec(){{handler}}
+}
+
+global main(){
+    global.runBlock(){{code1}}
+}

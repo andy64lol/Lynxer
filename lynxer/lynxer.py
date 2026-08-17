@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import itertools
 import string
 import sys
 import textwrap
@@ -1190,7 +1191,7 @@ class ParseResult:
 # parser
 
 class Parser:
-    def __init__(self, tokens):
+    def __init__(self, tokens, code_block_names=None):
         self.tokens = tokens
         self.tok_idx = -1
         self._loop_depth = 0       # tracks nesting depth of all loop forms
@@ -1198,6 +1199,7 @@ class Parser:
         self._in_global_func = False
         self._allow_function_defs = True
         self._exec_mode = False    # parse injected exec() code with no function definitions
+        self._code_block_names = code_block_names if code_block_names is not None else {}
         self.current_tok: Token = (
             tokens[0]
             if tokens
@@ -1230,6 +1232,25 @@ class Parser:
             self.current_tok.type == TT_KEYWORD
             and self.current_tok.value in TYPE_KEYWORDS
         )
+
+    def claim_code_block_name(self, name_tok):
+        """Reserve a code-block identifier for this parsed source unit.
+
+        Code-block identifiers are deliberately source-wide rather than
+        scope-local.  This keeps ``exec(){{name}}`` and ``{{name}}`` call
+        arguments unambiguous even when the declaration and use live at
+        different nesting levels.
+        """
+        previous = self._code_block_names.get(name_tok.value)
+        if previous is not None:
+            return InvalidSyntaxError(
+                name_tok.pos_start,
+                name_tok.pos_end,
+                f"Duplicate code-block identifier '{name_tok.value}'. "
+                "Code-block identifiers must be unique across the whole source.",
+            )
+        self._code_block_names[name_tok.value] = name_tok
+        return None
 
     def parse(self, require_main=True):
         res = ParseResult()
@@ -1531,6 +1552,9 @@ class Parser:
                     "value parameters",
                 ))
             seen_names.add(block_tok.value)
+            duplicate_error = self.claim_code_block_name(block_tok)
+            if duplicate_error is not None:
+                return res.failure(duplicate_error)
 
         _is_global_def = kind_tok.value == "global" or (
             kind_tok.type == TT_IDENTIFIER and kind_tok.value == "global"
@@ -1743,7 +1767,7 @@ class Parser:
         if error:
             return ParseResult().failure(error)
 
-        parser = Parser(tokens)
+        parser = Parser(tokens, self._code_block_names)
         parser._exec_mode = True
         parser._loop_depth = self._loop_depth
         return parser.parse_exec_block(in_setup=in_setup)
@@ -2295,6 +2319,11 @@ class Parser:
         res.register_advancement()
         self.advance()
 
+        if type_tok.value == "codeblock":
+            duplicate_error = self.claim_code_block_name(name_tok)
+            if duplicate_error is not None:
+                return res.failure(duplicate_error)
+
         if self.current_tok.type != TT_EQ:
             return res.failure(
                 InvalidSyntaxError(
@@ -2361,6 +2390,11 @@ class Parser:
         name_tok = self.current_tok
         res.register_advancement()
         self.advance()
+
+        if type_tok.value == "codeblock":
+            duplicate_error = self.claim_code_block_name(name_tok)
+            if duplicate_error is not None:
+                return res.failure(duplicate_error)
 
         if self.current_tok.type != TT_EQ:
             return res.failure(
@@ -4163,6 +4197,18 @@ class Parser:
                     block_node.pos_end,
                 )
 
+            elif (
+                self.current_tok.type == TT_LBRACE
+                and (next_token := self.peek(1)) is not None
+                and next_token.type == TT_LBRACE
+                and isinstance(atom, CallNode)
+            ):
+                block_node = res.register(self.parse_code_block_ref_argument())
+                if res.error:
+                    return res
+                atom.block_arg_nodes.append(block_node)
+                atom.pos_end = block_node.pos_end
+
             elif self.current_tok.type == TT_LBRACE and isinstance(atom, CallNode):
                 if self._exec_mode:
                     return res.failure(InvalidSyntaxError(
@@ -4193,25 +4239,41 @@ class Parser:
                 "Expected '{' after exec(...)",
             ))
 
-        if self.peek(1) and self.peek(1).type == TT_LBRACE:
-            res.register_advancement()
-            self.advance()  # outer '{'
-            block_node = res.register(self.parse_code_block_ref())
-            if res.error:
-                return res
-            if self.current_tok.type != TT_RBRACE:
-                return res.failure(InvalidSyntaxError(
-                    self.current_tok.pos_start,
-                    self.current_tok.pos_end,
-                    "Expected '}' after exec(){{codeblockName}}",
-                ))
-            res.register_advancement()
-            self.advance()  # outer '}'
-            return res.success(block_node)
+        next_token = self.peek(1)
+        if next_token is not None and next_token.type == TT_LBRACE:
+            return res.success(res.register(self.parse_code_block_ref_argument()))
 
         block_node = res.register(self.parse_code_block_literal())
         if res.error:
             return res
+        return res.success(block_node)
+
+    def parse_code_block_ref_argument(self):
+        """Parse a named block argument such as ``{{savedBlock}}``."""
+        res = ParseResult()
+        next_token = self.peek(1)
+        if self.current_tok.type != TT_LBRACE or (
+            next_token is None or next_token.type != TT_LBRACE
+        ):
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start,
+                self.current_tok.pos_end,
+                "Expected '{{codeblockName}}'",
+            ))
+
+        res.register_advancement()
+        self.advance()  # consume the outer '{'
+        block_node = res.register(self.parse_code_block_ref())
+        if res.error:
+            return res
+        if self.current_tok.type != TT_RBRACE:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start,
+                self.current_tok.pos_end,
+                "Expected '}' after '{{codeblockName}}'",
+            ))
+        res.register_advancement()
+        self.advance()  # consume the outer '}'
         return res.success(block_node)
 
     def parse_code_block_ref(self):
@@ -4705,14 +4767,18 @@ class Value:
             other = self
         return RTError(self.pos_start, other.pos_end, "Illegal operation", self.context)
 
+_CODE_BLOCK_IDS = itertools.count(1)
+
+
 class CodeBlockValue(Value):
     """A code block captured from a function call."""
-    def __init__(self, body_node):
+    def __init__(self, body_node, block_id=None):
         super().__init__()
         self.body_node = body_node
+        self.block_id = block_id if block_id is not None else next(_CODE_BLOCK_IDS)
 
     def copy(self):
-        c = CodeBlockValue(self.body_node)
+        c = CodeBlockValue(self.body_node, self.block_id)
         c.set_pos(self.pos_start, self.pos_end)
         c.set_context(self.context)
         return c
@@ -5372,6 +5438,7 @@ class Function(BaseFunction):
         for block_name, block_value in zip(self.code_block_names, code_blocks):
             block_value = block_value.copy().set_context(exec_ctx)
             exec_ctx.symbol_table.set(block_name, block_value)
+            exec_ctx.code_blocks[block_name] = block_value
 
         exec_ctx.symbol_table.set("local", LocalNamespace(exec_ctx.symbol_table))
 
@@ -5460,6 +5527,7 @@ class AsyncFunction(BaseFunction):
         for block_name, block_value in zip(self.code_block_names, code_blocks):
             block_value = block_value.copy().set_context(exec_ctx)
             exec_ctx.symbol_table.set(block_name, block_value)
+            exec_ctx.code_blocks[block_name] = block_value
 
         exec_ctx.symbol_table.set("local", LocalNamespace(exec_ctx.symbol_table))
 
@@ -5989,6 +6057,7 @@ class BoundMethod(Value):
         for block_name, block_value in zip(self.func.code_block_names, code_blocks):
             block_value = block_value.copy().set_context(exec_ctx)
             exec_ctx.symbol_table.set(block_name, block_value)
+            exec_ctx.code_blocks[block_name] = block_value
         res.register(interpreter.visit(self.func.body_node, exec_ctx))
         if res.should_return() and res.func_return_value is None:
             return res
@@ -6100,6 +6169,7 @@ class Context:
         self.symbol_table: Any = None
         self.current_function: Any = None      # the Function/AsyncFunction currently executing
         self.current_global_path: list[str] | None = None
+        self.code_blocks = parent.code_blocks if parent is not None else {}
 
 # symbol table
 
@@ -6444,6 +6514,8 @@ class Interpreter:
         context.symbol_table.set(
             var_name, value, is_const=node.is_const, decl_type=decl_type
         )
+        if decl_type == "codeblock":
+            context.code_blocks[var_name] = value
         return res.success(value)
 
     def visit_VarAssignNode(self, node, context):
@@ -6490,6 +6562,8 @@ class Interpreter:
                 )
             )
         context.symbol_table.update_existing(var_name, value)
+        if decl_type == "codeblock":
+            context.code_blocks[var_name] = value
         return res.success(value)
 
     def visit_BlockNode(self, node, context):
@@ -7643,12 +7717,15 @@ class Interpreter:
 
     def visit_CodeBlockRefNode(self, node, context):
         res = RTResult()
-        block = context.symbol_table.get(node.name_tok.value)
+        block_name = node.name_tok.value
+        block = context.code_blocks.get(block_name)
+        if block is None:
+            block = context.symbol_table.get(block_name)
         if block is None:
             return res.failure(RTError(
                 node.pos_start,
                 node.pos_end,
-                f"Code-block parameter '{node.name_tok.value}' is not defined",
+                f"Code-block '{block_name}' is not defined",
                 context,
             ))
         if not isinstance(block, CodeBlockValue):
