@@ -135,5 +135,20 @@ global main(){
 
     // Multiple arguments replace chains of print("label"); print(value); print("\n").
     println("one call, ", "multiple arguments, ", number, ", ", point);
+
+    // Sentinels compare by identity.
+    sentinel missing = sentinel("MISSING");
+    println("sentinel type: ", returnType(missing));
+    println("sentinel identity: ", missing == missing);
+
+    // Codeblocks can be stored and executed later.
+    codeblock helloWorld = {
+        println("Hello world!");
+    };
+    exec(){{helloWorld}}
+    exec("left", 42){
+        println("exec arguments: ", execArg0, " ", execArg1);
+    }
+
     println("=== done ===");
 }

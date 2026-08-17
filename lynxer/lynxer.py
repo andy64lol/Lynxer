@@ -291,10 +291,14 @@ TT_RBRACKET = "RBRACKET"
 TT_EOF = "EOF"
 TT_DOCSTRING = "DOCSTRING"
 
-TYPE_KEYWORDS = ["int", "float", "str", "bool", "any", "tuple", "list", "num", "char"]
+TYPE_KEYWORDS = [
+    "int", "float", "str", "bool", "any", "tuple", "list", "num", "char",
+    "sentinel", "codeblock",
+]
 
 KEYWORDS = [
     "int", "float", "str", "bool", "any", "tuple", "list", "num", "char",
+    "sentinel", "codeblock",
     "global", "local", "const",
     "if", "elif", "else", "while", "for", "forever", "switch", "case", "default",
     "return", "import", "importAs", "importPy",
@@ -389,12 +393,6 @@ class Lexer:
                 elif tok.type == TT_IDENTIFIER and tok.value == "rawPyx":
                     block_tok = self._try_consume_brace_block(
                         tok.pos_start, TT_RAWPYX_BLOCK
-                    )
-                    if block_tok is not None:
-                        tokens.append(block_tok)
-                elif tok.type == TT_IDENTIFIER and tok.value == "exec":
-                    block_tok = self._try_consume_brace_block(
-                        tok.pos_start, TT_EXEC_BLOCK
                     )
                     if block_tok is not None:
                         tokens.append(block_tok)
@@ -994,9 +992,10 @@ class CodeBlockLiteralNode:
         self.pos_end = pos_end
 
 class ExecCallNode:
-    """Execute a named code-block parameter: ``exec({name})``."""
-    def __init__(self, code_block_node, pos_start, pos_end):
+    """Execute an inline or referenced code block: ``exec(){} ``."""
+    def __init__(self, code_block_node, arg_nodes=None, pos_start=None, pos_end=None):
         self.code_block_node = code_block_node
+        self.arg_nodes = arg_nodes or []
         self.pos_start = pos_start
         self.pos_end = pos_end
 
@@ -1826,7 +1825,10 @@ class Parser:
             if res.error:
                 return res
             if self.current_tok.type != TT_SEMICOLON:
-                if not (isinstance(expr, CallNode) and expr.block_arg_nodes):
+                if not (
+                    (isinstance(expr, CallNode) and expr.block_arg_nodes)
+                    or isinstance(expr, ExecCallNode)
+                ):
                     return res.failure(
                         InvalidSyntaxError(
                             expr.pos_end,
@@ -1903,7 +1905,10 @@ class Parser:
             if res.error:
                 return res
             if self.current_tok.type != TT_SEMICOLON:
-                if not (isinstance(expr, CallNode) and expr.block_arg_nodes):
+                if not (
+                    (isinstance(expr, CallNode) and expr.block_arg_nodes)
+                    or isinstance(expr, ExecCallNode)
+                ):
                     return res.failure(
                         InvalidSyntaxError(
                             expr.pos_end,
@@ -2185,6 +2190,18 @@ class Parser:
             if (
                 self.current_tok.value == "exec"
                 and next_tok
+                and next_tok.type == TT_LBRACE
+            ):
+                return res.failure(InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    next_tok.pos_end,
+                    "The exec block syntax is now exec(){...}; "
+                    "use parentheses before the block",
+                ))
+
+            if (
+                self.current_tok.value == "exec"
+                and next_tok
                 and next_tok.type == TT_EXEC_BLOCK
             ):
                 if self._exec_mode:
@@ -2236,7 +2253,10 @@ class Parser:
                 )
 
             if self.current_tok.type != TT_SEMICOLON:
-                if not (isinstance(expr, CallNode) and expr.block_arg_nodes):
+                if not (
+                    (isinstance(expr, CallNode) and expr.block_arg_nodes)
+                    or isinstance(expr, ExecCallNode)
+                ):
                     return res.failure(
                         InvalidSyntaxError(
                             expr.pos_end,
@@ -4101,26 +4121,6 @@ class Parser:
                 self.advance()
                 arg_nodes = []
 
-                is_exec_ref_call = (
-                    isinstance(atom, VarAccessNode)
-                    and atom.var_name_tok.value == "exec"
-                )
-                if is_exec_ref_call and self.current_tok.type == TT_LBRACE:
-                    code_block_node = res.register(self.parse_code_block_ref())
-                    if res.error:
-                        return res
-                    if self.current_tok.type != TT_RPAREN:
-                        return res.failure(InvalidSyntaxError(
-                            self.current_tok.pos_start,
-                            self.current_tok.pos_end,
-                            "exec() accepts exactly one code-block reference",
-                        ))
-                    pos_end = self.current_tok.pos_end.copy()
-                    res.register_advancement()
-                    self.advance()
-                    atom = ExecCallNode(code_block_node, pos_start, pos_end)
-                    continue
-
                 if self.current_tok.type != TT_RPAREN:
                     arg_nodes.append(res.register(self.parse_expr()))
                     if res.error:
@@ -4147,6 +4147,22 @@ class Parser:
                 self.advance()
                 atom = CallNode(atom, arg_nodes, pos_start, pos_end)
 
+            elif (
+                self.current_tok.type == TT_LBRACE
+                and isinstance(atom, CallNode)
+                and isinstance(atom.node_to_call, VarAccessNode)
+                and atom.node_to_call.var_name_tok.value == "exec"
+            ):
+                block_node = res.register(self.parse_exec_block_argument())
+                if res.error:
+                    return res
+                atom = ExecCallNode(
+                    block_node,
+                    atom.arg_nodes,
+                    atom.pos_start,
+                    block_node.pos_end,
+                )
+
             elif self.current_tok.type == TT_LBRACE and isinstance(atom, CallNode):
                 if self._exec_mode:
                     return res.failure(InvalidSyntaxError(
@@ -4166,9 +4182,40 @@ class Parser:
 
         return res.success(atom)
 
+    def parse_exec_block_argument(self):
+        """Parse ``{...}`` or ``{{codeblockName}}`` after ``exec(args)``."""
+        res = ParseResult()
+
+        if self.current_tok.type != TT_LBRACE:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start,
+                self.current_tok.pos_end,
+                "Expected '{' after exec(...)",
+            ))
+
+        if self.peek(1) and self.peek(1).type == TT_LBRACE:
+            res.register_advancement()
+            self.advance()  # outer '{'
+            block_node = res.register(self.parse_code_block_ref())
+            if res.error:
+                return res
+            if self.current_tok.type != TT_RBRACE:
+                return res.failure(InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "Expected '}' after exec(){{codeblockName}}",
+                ))
+            res.register_advancement()
+            self.advance()  # outer '}'
+            return res.success(block_node)
+
+        block_node = res.register(self.parse_code_block_literal())
+        if res.error:
+            return res
+        return res.success(block_node)
+
     def parse_code_block_ref(self):
         res = ParseResult()
-        pos_start = self.current_tok.pos_start.copy()
         res.register_advancement()
         self.advance()  # consume '{'
 
@@ -4243,9 +4290,13 @@ class Parser:
         elif tok.type == TT_LBRACKET:
             return self.parse_list_literal()
 
+        elif tok.type == TT_LBRACE:
+            return self.parse_code_block_literal()
+
         elif (tok.type == TT_IDENTIFIER
               or tok.matches(TT_KEYWORD, "global")
-              or tok.matches(TT_KEYWORD, "local")):
+              or tok.matches(TT_KEYWORD, "local")
+              or tok.matches(TT_KEYWORD, "sentinel")):
             res.register_advancement()
             self.advance()
             return res.success(VarAccessNode(tok))
@@ -7381,6 +7432,11 @@ class Interpreter:
 
     async def async_visit_ExecCallNode(self, node, context):
         res = RTResult()
+        args = []
+        for arg_node in node.arg_nodes:
+            args.append(res.register(await self.async_visit(arg_node, context)))
+            if res.should_return():
+                return res
         block = res.register(await self.async_visit(node.code_block_node, context))
         if res.should_return():
             return res
@@ -7391,7 +7447,22 @@ class Interpreter:
                 "exec() expects a code-block parameter reference",
                 context,
             ))
-        return await self.async_visit(block.body_node, context)
+        previous = {}
+        if args:
+            exec_args = List(args).set_context(context)
+            for name, value in [("execArgs", exec_args)] + [
+                (f"execArg{i}", value) for i, value in enumerate(args)
+            ]:
+                previous[name] = context.symbol_table.symbols.get(name)
+                context.symbol_table.set(name, value)
+        try:
+            return await self.async_visit(block.body_node, context)
+        finally:
+            for name, old_value in previous.items():
+                if old_value is None:
+                    context.symbol_table.symbols.pop(name, None)
+                else:
+                    context.symbol_table.symbols[name] = old_value
 
     async def async_visit_CallNode(self, node, context):
         res = RTResult()
@@ -7593,6 +7664,11 @@ class Interpreter:
 
     def visit_ExecCallNode(self, node, context):
         res = RTResult()
+        args = []
+        for arg_node in node.arg_nodes:
+            args.append(res.register(self.visit(arg_node, context)))
+            if res.should_return():
+                return res
         block = res.register(self.visit(node.code_block_node, context))
         if res.should_return():
             return res
@@ -7603,7 +7679,22 @@ class Interpreter:
                 "exec() expects a code-block parameter reference",
                 context,
             ))
-        return self.visit(block.body_node, context)
+        previous = {}
+        if args:
+            exec_args = List(args).set_context(context)
+            for name, value in [("execArgs", exec_args)] + [
+                (f"execArg{i}", value) for i, value in enumerate(args)
+            ]:
+                previous[name] = context.symbol_table.symbols.get(name)
+                context.symbol_table.set(name, value)
+        try:
+            return self.visit(block.body_node, context)
+        finally:
+            for name, old_value in previous.items():
+                if old_value is None:
+                    context.symbol_table.symbols.pop(name, None)
+                else:
+                    context.symbol_table.symbols[name] = old_value
 
     def visit_CallNode(self, node, context):
         res = RTResult()

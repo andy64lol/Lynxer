@@ -134,7 +134,7 @@ even when the names match. Sentinel values compare by identity and are useful
 for distinguishing “missing” from `none`.
 
 ```c
-any missing = sentinel("MISSING");
+sentinel missing = sentinel("MISSING");
 any unnamed = sentinel();
 
 print(strOf(missing));            // MISSING
@@ -142,6 +142,9 @@ print(returnType(missing));       // sentinel
 assert(missing == missing);
 assert(missing != sentinel("MISSING"));
 ```
+
+Sentinel variables retain identity when read or assigned. Two separately
+created sentinels are different even when they have the same display name.
 
 ### `object()` → `object`
 

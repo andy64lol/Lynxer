@@ -128,6 +128,8 @@ Built-in functions are conventionally called **directly** (without `global.`). M
 | `str`      | `"hello"`, `"line\n"`     | double-quoted; supports `\n \t \\ \r \e` escapes |
 | `bool`     | `true`, `false`           | displays as `true`/`false`; truthy when non-zero |
 | `tuple`    | `(int 1, int 2, int 3)`   | immutable, fixed-length sequence; see [tuples.md](tuples.md) |
+| `sentinel` | `sentinel("MISSING")`     | unique identity marker; compare with `is` / `not is` |
+| `codeblock`| `{ println("hi"); }`      | stored Lynxer statements; execute with `exec(){{name}}` |
 | `list`     | `range(5)`                | ordered mutable sequence; declare with `list` keyword |
 | `vargroup` | `vargroup p = {...}`      | named typed record with dot-accessed fields; see [vargroups.md](vargroups.md) |
 | `any`      | anything, including `none`| no type check at assignment |
@@ -613,7 +615,7 @@ normal parameters, then write the function body:
 ```c
 global repeat(str label){body}{
     print(label); print(": ");
-    exec({body});
+    exec(){{body}}
     print("\n");
 }
 
@@ -624,7 +626,7 @@ global main(){
 }
 ```
 
-`exec({body})` runs the supplied Lynxer code at that point in the function.
+`exec(){{body}}` runs the supplied Lynxer code at that point in the function.
 The code runs in the callee's context, so it can use the function's parameters
 and local variables. It can call existing functions, use control flow, and
 return from the callee.
@@ -635,8 +637,8 @@ Declare multiple blocks in the order in which they should be bound:
 
 ```c
 global runTwice(){first}{second}{
-    exec({first});
-    exec({second});
+    exec(){{first}}
+    exec(){{second}}
 }
 
 global main(){
@@ -686,6 +688,31 @@ global main(){
 ```
 
 A function without an explicit `return` produces `none`.
+
+---
+
+### Named codeblock values and `exec`
+
+Use the `codeblock` type to store Lynxer statements in a variable:
+
+```c
+codeblock helloWorld = {
+    println("Hello world!");
+};
+
+exec(){{helloWorld}}
+```
+
+`exec(){...}` executes an inline block. Parenthesized values are available
+inside that block as `execArgs` (a list), `execArg0`, `execArg1`, and so on:
+
+```c
+exec("left", 42){
+    println(execArg0, " ", execArg1);
+}
+```
+
+The old `exec({name})` form is replaced by `exec(){{name}}`.
 
 ---
 
