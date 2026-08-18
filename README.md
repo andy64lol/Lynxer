@@ -91,7 +91,7 @@ global main(){
 | [Module system](docs/modules.md) | `import()`, `importAs()`, namespaces, writing your own modules |
 | [Bytecode (.lynxc)](docs/bytecode.md) | Compiling to bytecode, running `.lynxc` files |
 | [Vargroups](docs/vargroups.md) | Named typed records (struct-like) |
-| [Classes](docs/classes.md) | Static singleton classes |
+| [Classes](docs/classes.md) | Instances, constructors, fields, and methods |
 | [Async](docs/async.md) | Async functions |
 | [Lists](docs/lists.md) | List operations |
 

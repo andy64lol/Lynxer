@@ -1,0 +1,34 @@
+global setup(){}
+
+class Counter {
+    int value = 0;
+
+    local init(int initial){
+        this.value = initial;
+    }
+
+    local increment(){
+        this.value = this.value + 1;
+    }
+
+    local get(){
+        return this.value;
+    }
+}
+
+global readCounter(Counter counter){
+    return counter.get();
+}
+
+global main(){
+    Counter first = new Counter(2);
+    Counter second = new Counter(10);
+
+    first.increment();
+    second.increment();
+
+    assert(first.get() == 3);
+    assert(second.get() == 11);
+    assert(global.readCounter(first) == 3);
+    assert(returnType(first) == "Counter");
+}

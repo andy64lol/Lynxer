@@ -13,7 +13,7 @@ from typing import Any
 
 
 BYTECODE_MAGIC = b"LYNXC\x00"
-BYTECODE_VERSION = 3
+BYTECODE_VERSION = 4
 
 
 def _runtime() -> Any:

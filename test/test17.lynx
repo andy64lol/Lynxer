@@ -1,0 +1,107 @@
+global setup(){}
+
+global main(){
+    list nums = [int 1, int 2, int 3, int 2];
+    list nested = [list [int 1, int 2], list [int 3]];
+    list words = splitStr("a,b,c", ",");
+
+    assert(returnType(nums) == "list");
+    assert(returnLength(nums) == 4);
+    assert(listGet(nums, -1) == 2);
+    assert(listContains(nums, 3));
+    assert(contains(nums, 3));
+    assert(listIndex(nums, 2) == 1);
+    assert(listCount(nums, 2) == 2);
+    assert(listJoin(words, "-") == "a-b-c");
+    assert(listJsonArray(nums) == "[1, 2, 3, 2]");
+    assert(listJsonObject([str "a", int 1, str "b", bool true]) == "{\"a\": 1, \"b\": true}");
+
+    list pushed = listPush(nums, 4);
+    list set_nums = listSet(pushed, 0, 9);
+    list removed = listRemove(set_nums, -1);
+    list sliced = listSlice(removed, 1, 3);
+    assert(returnLength(nums) == 4);
+    assert(listGet(set_nums, 0) == 9);
+    assert(returnLength(removed) == 4);
+    assert(returnLength(sliced) == 2);
+    assert(listPop(pushed) == 4);
+    assert(returnLength(pushed) == 5);
+
+    assert(listFlatten(nested) == [int 1, int 2, int 3]);
+    assert(listUnique(nums) == [int 1, int 2, int 3]);
+    assert(anyOf([bool false, bool true]));
+    assert(allOf([bool true, bool true]));
+    assert(sumOf(nums) == 8);
+    assert(sortList(nums) == [int 1, int 2, int 2, int 3]);
+    assert(sortList(nums, true) == [int 3, int 2, int 2, int 1]);
+    assert(reverseList(nums) == [int 2, int 3, int 2, int 1]);
+    assert(listMin(nums) == 1);
+    assert(listMax(nums) == 3);
+    assert(listFirst(nums) == 1);
+    assert(listLast(nums) == 2);
+    assert(listHead(nums, 2) == [int 1, int 2]);
+    assert(listTail(nums, 2) == [int 3, int 2]);
+    assert(listExtend([int 1], [int 2, int 3]) == [int 1, int 2, int 3]);
+    assert(listInsert([int 1, int 3], 1, 2) == [int 1, int 2, int 3]);
+    assert(listClear(nums) == []);
+    assert(listRepeat(7, 3) == [int 7, int 7, int 7]);
+    assert(listAvg([int 1, int 2, int 4]) == 7.0 / 3.0);
+    assert(listZip([int 1, int 2], [str "a", str "b"]) == [str "{\"a\": 1, \"b\": \"a\"}", str "{\"a\": 2, \"b\": \"b\"}"]);
+
+    tuple point = (int 10, int 20, int 10);
+    tuple nested_tuple = (tuple (int 1, int 2), str "ok");
+    tuple empty = ();
+    assert(returnType(point) == "tuple");
+    assert(tupleLen(point) == 3);
+    assert(tupleGet(point, -1) == 10);
+    assert(tupleContains(point, 20));
+    assert(tupleIndex(point, 10) == 0);
+    assert(tupleSlice(point, 1, 3) == (int 20, int 10));
+    assert(tupleCount(point, 10) == 2);
+    assert(tupleFirst(point) == 10);
+    assert(tupleLast(point) == 10);
+    assert(tupleJsonArray(point) == "[10, 20, 10]");
+    assert(tupleReverse(point) == (int 10, int 20, int 10));
+    assert(tupleSort(point) == (int 10, int 10, int 20));
+    assert(tupleSortDesc(point) == (int 20, int 10, int 10));
+    assert(tupleMin(point) == 10);
+    assert(tupleMax(point) == 20);
+    assert(tupleSum(point) == 40);
+    assert(tupleAny(point));
+    assert(tupleAll(point));
+    assert(tupleUnique(point) == (int 10, int 20));
+    assert(tupleMean(point) == 40.0 / 3.0);
+    assert(tupleFlatten(nested_tuple) == (int 1, int 2, str "ok"));
+    assert(tupleJoin(point, ":") == "10:20:10");
+    assert(tupleConcat((int 1,), (int 2,)) == (int 1, int 2));
+    assert(tupleZip((int 1, int 2), (str "a", str "b")) == [str "{\"a\": 1, \"b\": \"a\"}", str "{\"a\": 2, \"b\": \"b\"}"]);
+    list point_list = tupleToList(point);
+    assert(returnType(point_list) == "list");
+    assert(listToTuple(point_list) == point);
+    assert(returnLength(empty) == 0);
+
+    vargroup player = {
+        str name = "Ada",
+        int score = 10,
+        const str role = "admin",
+        vargroup stats = {
+            int level = 3,
+            list scores = [int 1, int 2]
+        }
+    };
+    assert(returnType(player) == "vargroup");
+    assert(player.name == "Ada");
+    assert(player.stats.level == 3);
+    int player.score = 11;
+    int player.stats.level = 4;
+    list player.stats.scores = listPush(player.stats.scores, 3);
+    addVarGroup(player, str title = "Owner");
+    addVarGroup(player.stats, bool active = true);
+    assert(player.score == 11);
+    assert(player.stats.level == 4);
+    assert(returnLength(player.stats.scores) == 3);
+    assert(player.title == "Owner");
+    assert(player.stats.active);
+    removeVarGroup(player, title);
+    assert(returnLength(player.stats.scores) == 3);
+}

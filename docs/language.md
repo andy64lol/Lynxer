@@ -805,32 +805,37 @@ available.
 
 ## Classes
 
-A **class** is a named, static singleton that groups typed fields and methods. There is one instance per class (no `new` keyword). See [classes.md](classes.md) for a quick-reference summary.
+A **class** is a reusable object definition that groups typed fields and
+methods. `new` creates a separate instance, and each method call is bound to
+the instance used as its receiver. See [classes.md](classes.md) for a
+quick-reference summary.
 
 ```c
 global setup(){}
 
 class Counter {
-    int count = 0;
+    int value = 0;
 
-    local init() {
-        int this.count = 0;
+    local init(int initial) {
+        this.value = initial;
     }
 
     local increment() {
-        int this.count = this.count + 1;
+        this.value = this.value + 1;
     }
 
-    local value() {
-        return this.count;
+    local get() {
+        return this.value;
     }
 }
 
 global main(){
-    global.class.Counter();          // runs init()
-    global.class.Counter.increment();
-    global.class.Counter.increment();
-    print(global.class.Counter.value()); print("\n");  // 2
+    Counter first = new Counter(1);
+    Counter second = new Counter(10);
+    first.increment();
+    second.increment();
+    print(first.get()); print("\n");   // 2
+    print(second.get()); print("\n");  // 11
 }
 ```
 

@@ -385,10 +385,7 @@ class BuiltInFunction(BaseFunction):
                 )
             )
         try:
-            items = [
-                e.value if isinstance(e, (Number, String)) else str(e)
-                for e in args[0].elements
-            ]
+            items = [_json_value(element) for element in args[0].elements]
             return RTResult().success(String(_json.dumps(items)))
         except Exception as e:
             return RTResult().failure(
@@ -425,12 +422,8 @@ class BuiltInFunction(BaseFunction):
         try:
             obj = {}
             for i in range(0, len(els), 2):
-                k = els[i].value if isinstance(els[i], (Number, String)) else str(els[i])
-                v = (
-                    els[i + 1].value
-                    if isinstance(els[i + 1], (Number, String))
-                    else str(els[i + 1])
-                )
+                k = _json_value(els[i])
+                v = _json_value(els[i + 1])
                 obj[str(k)] = v
             return RTResult().success(String(_json.dumps(obj)))
         except Exception as e:
@@ -1178,10 +1171,7 @@ class BuiltInFunction(BaseFunction):
                 )
             )
         try:
-            items = [
-                e.value if isinstance(e, (Number, String)) else str(e)
-                for e in args[0].elements
-            ]
+            items = [_json_value(element) for element in args[0].elements]
             return RTResult().success(String(_json.dumps(items)))
         except Exception as e:
             return RTResult().failure(

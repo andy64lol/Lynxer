@@ -309,6 +309,7 @@ KEYWORDS = [
     "try", "catch",
     "async", "await",
     "class",
+    "new",
     "break", "continue", "restart",
 ]
 
@@ -826,6 +827,14 @@ class DotAccessNode:
         self.pos_start = obj_node.pos_start
         self.pos_end = attr_name_tok.pos_end
 
+class NewNode:
+    """Create a class instance: ``new ClassName(args...)``."""
+    def __init__(self, class_name_tok, arg_nodes, pos_start, pos_end):
+        self.class_name_tok = class_name_tok
+        self.arg_nodes = arg_nodes
+        self.pos_start = pos_start
+        self.pos_end = pos_end
+
 class VarDeclNode:
     def __init__(self, type_tok, var_name_tok, value_node, is_const=False):
         self.type_tok = type_tok
@@ -1246,6 +1255,18 @@ class Parser:
             and self.current_tok.value in TYPE_KEYWORDS
         )
 
+    def is_type_name(self):
+        """Return whether the current tokens start a built-in or class type.
+
+        Class names remain identifiers, so ``Widget item`` is distinguishable
+        from an untyped parameter/statement by the second identifier token.
+        """
+        return self.is_type_keyword() or (
+            self.current_tok.type == TT_IDENTIFIER
+            and self.peek(1) is not None
+            and self.peek(1).type == TT_IDENTIFIER
+        )
+
     def claim_code_block_name(self, name_tok):
         """Reserve a code-block identifier for this parsed source unit.
 
@@ -1458,7 +1479,7 @@ class Parser:
         while self.current_tok.type != TT_RPAREN and self.current_tok.type != TT_EOF:
             next_tok = self.peek(1)
             if (
-                self.is_type_keyword()
+                self.is_type_name()
                 and next_tok is not None
                 and next_tok.type == TT_IDENTIFIER
             ):
@@ -1666,16 +1687,24 @@ class Parser:
                 if res.error:
                     return res
                 method_nodes.append(method_node)
-            elif self.current_tok.matches(TT_KEYWORD, "const") or self.is_type_keyword():
+            elif (
+                self.current_tok.matches(TT_KEYWORD, "const")
+                or self.is_type_keyword()
+                or (
+                    self.current_tok.type == TT_IDENTIFIER
+                    and self.peek(1) is not None
+                    and self.peek(1).type == TT_IDENTIFIER
+                )
+            ):
                 is_const = False
                 if self.current_tok.matches(TT_KEYWORD, "const"):
                     is_const = True
                     res.register_advancement()
                     self.advance()
-                if not self.is_type_keyword():
+                if not self.is_type_name():
                     return res.failure(InvalidSyntaxError(
                         self.current_tok.pos_start, self.current_tok.pos_end,
-                        "Expected a type keyword (int, float, str, bool, any, tuple, list, num, char) for class field"
+                        "Expected a built-in or class type for class field"
                     ))
                 type_tok = self.current_tok
                 res.register_advancement()
@@ -2185,6 +2214,14 @@ class Parser:
         if self.current_tok.type == TT_IDENTIFIER:
             next_tok = self.peek(1)
 
+            # User-defined class type declaration, e.g.
+            # ``Counter counter = new Counter(1);``.
+            if next_tok is not None and next_tok.type == TT_IDENTIFIER:
+                node = res.register(self.parse_var_decl())
+                if res.error:
+                    return res
+                return res.success(node)
+
             if (
                 self.current_tok.value == "iterate"
                 and next_tok
@@ -2297,14 +2334,31 @@ class Parser:
                 return res
 
             if isinstance(expr, DotAccessNode) and self.current_tok.type == TT_EQ:
-                return res.failure(
-                    InvalidSyntaxError(
-                        expr.pos_start,
+                # Untyped dot assignment is the natural form for instance
+                # fields (``this.value = ...``).  Vargroups still get their
+                # explicit-type validation in visit_DotAssignNode.
+                res.register_advancement()
+                self.advance()
+                rhs = res.register(self.parse_expr())
+                if res.error:
+                    return res
+                if self.current_tok.type != TT_SEMICOLON:
+                    return res.failure(InvalidSyntaxError(
+                        self.current_tok.pos_start,
                         self.current_tok.pos_end,
-                        "vargroup field assignment requires an explicit type. "
-                        "Use: type vargroup.field = value;  e.g.  int player.coins = 500;",
-                    )
-                )
+                        "Expected ';' after field assignment",
+                    ))
+                pos_end = self.current_tok.pos_end.copy()
+                res.register_advancement()
+                self.advance()
+                return res.success(DotAssignNode(
+                    expr.obj_node,
+                    expr.attr_name_tok,
+                    rhs,
+                    None,
+                    expr.pos_start,
+                    pos_end,
+                ))
 
             if self.current_tok.type != TT_SEMICOLON:
                 if not (
@@ -2405,12 +2459,12 @@ class Parser:
             node.is_const = True
             return res.success(node)
 
-        if not self.is_type_keyword():
+        if not self.is_type_name():
             return res.failure(
                 InvalidSyntaxError(
                     self.current_tok.pos_start,
                     self.current_tok.pos_end,
-                    "Expected type keyword after 'const'",
+                    "Expected a built-in or class type after 'const'",
                 )
             )
         type_tok = self.current_tok
@@ -4164,6 +4218,55 @@ class Parser:
 
         return self.parse_call()
 
+    def parse_new(self):
+        """Parse ``new ClassName(arg1, arg2, ...)``."""
+        res = ParseResult()
+        pos_start = self.current_tok.pos_start.copy()
+        res.register_advancement()
+        self.advance()  # consume new
+
+        if self.current_tok.type != TT_IDENTIFIER:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start,
+                self.current_tok.pos_end,
+                "Expected a class name after 'new'",
+            ))
+        class_name_tok = self.current_tok
+        res.register_advancement()
+        self.advance()
+
+        if self.current_tok.type != TT_LPAREN:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start,
+                self.current_tok.pos_end,
+                "Expected '(' after class name in 'new ClassName(...)'",
+            ))
+        res.register_advancement()
+        self.advance()
+
+        arg_nodes = []
+        if self.current_tok.type != TT_RPAREN:
+            arg_nodes.append(res.register(self.parse_expr()))
+            if res.error:
+                return res
+            while self.current_tok.type == TT_COMMA:
+                res.register_advancement()
+                self.advance()
+                arg_nodes.append(res.register(self.parse_expr()))
+                if res.error:
+                    return res
+            if self.current_tok.type != TT_RPAREN:
+                return res.failure(InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "Expected ',' or ')' in constructor call",
+                ))
+
+        pos_end = self.current_tok.pos_end.copy()
+        res.register_advancement()
+        self.advance()
+        return res.success(NewNode(class_name_tok, arg_nodes, pos_start, pos_end))
+
     def parse_call(self):
         res = ParseResult()
         pos_start = self.current_tok.pos_start.copy()
@@ -4640,6 +4743,9 @@ class Parser:
                     self.current_tok.pos_start, self.current_tok.pos_end, "Expected ')'"
                 )
             )
+
+        elif tok.matches(TT_KEYWORD, "new"):
+            return self.parse_new()
 
         elif tok.matches(TT_KEYWORD, "await"):
             return self.parse_await()
@@ -5490,6 +5596,23 @@ class List(Value):
             ), None
         return None, Value.illegal_operation(self, other)
 
+    def get_comparison_eq(self, other):
+        if not isinstance(other, List):
+            return None, Value.illegal_operation(self, other)
+        if len(self.elements) != len(other.elements):
+            return Number(0, is_bool=True).set_context(self.context), None
+        for left, right in zip(self.elements, other.elements):
+            equal, error = left.get_comparison_eq(right)
+            if error or not equal.is_true():
+                return Number(0, is_bool=True).set_context(self.context), None
+        return Number(1, is_bool=True).set_context(self.context), None
+
+    def get_comparison_ne(self, other):
+        equal, error = self.get_comparison_eq(other)
+        if error:
+            return None, error
+        return Number(1 - int(equal.value), is_bool=True).set_context(self.context), None
+
     def is_true(self):
         return len(self.elements) > 0
 
@@ -5567,6 +5690,8 @@ def value_type_name(v):
         return "sentinel"
     if isinstance(v, ObjectValue):
         return "object"
+    if isinstance(v, ClassInstance):
+        return v.class_name
     if isinstance(v, CodeBlockValue):
         return "codeblock"
     if isinstance(v, VarGroup):
@@ -6358,7 +6483,11 @@ class ClassRegistry(Value):
         return f"<class registry: {list(self._classes.keys())}>"
 
 class ClassBlueprint(Value):
-    """Static singleton class object."""
+    """The reusable definition of a Lynxer class.
+
+    A blueprint keeps the legacy ``global.class.Name`` access path, but
+    ``new Name(...)`` creates a separate :class:`ClassInstance` from it.
+    """
 
     def __init__(self, name, field_defs, methods):
         """field_defs : list of (type_str,."""
@@ -6409,18 +6538,76 @@ class ClassBlueprint(Value):
         self._fields[name]["value"] = value
         return None
 
-    # ---- callable: global.class.ClassName() ----
+    def instantiate(self, args, context):
+        """Create and initialise one independent instance."""
+        res = RTResult()
+        instance = ClassInstance(self)
+        instance.set_context(context)
+
+        # Field defaults are expressions, not shared runtime values.  Evaluate
+        # each one for every instance and expose ``this`` while doing so.
+        init_context = Context(
+            f"{self.name} instance initializer",
+            context,
+            self.pos_start,
+        )
+        init_context.symbol_table = SymbolTable(
+            context.symbol_table if context is not None else None
+        )
+        init_context.symbol_table.set("this", instance, decl_type=self.name)
+
+        for field_type, field_name, value_node, is_const in self._field_defs:
+            value = res.register(SHARED_INTERPRETER.visit(value_node, init_context))
+            if res.should_return():
+                return res
+            if field_type == "tuple" and isinstance(value, List):
+                value = LynxTuple(value.elements).set_context(init_context)
+            if field_type == "char" and isinstance(value, String):
+                if len(value.value) != 1:
+                    return res.failure(RTError(
+                        value_node.pos_start,
+                        value_node.pos_end,
+                        f"Field '{field_name}' is declared as 'char' but got a "
+                        f"string of length {len(value.value)}",
+                        init_context,
+                    ))
+                value = Char(value.value).set_context(init_context)
+            if not type_matches(field_type, value):
+                return res.failure(RTError(
+                    value_node.pos_start,
+                    value_node.pos_end,
+                    f"Class '{self.name}': field '{field_name}' is declared as "
+                    f"'{field_type}' but the initializer produces a "
+                    f"'{value_type_name(value)}' value",
+                    init_context,
+                ))
+            instance._fields[field_name] = {
+                "type": field_type,
+                "value": value,
+                "const": is_const,
+            }
+
+        if "init" in self._methods:
+            bound = BoundMethod(self._methods["init"], instance)
+            bound.set_pos(self.pos_start, self.pos_end).set_context(context)
+            call_res = bound.execute(args)
+            if call_res.error:
+                return call_res
+
+        return res.success(instance)
+
+    # ---- callable: legacy global.class.ClassName() ----
 
     def execute(self, args):
-        """Call the class.  Runs init() if defined, otherwise is a no-op."""
+        """Retain the old static call while accepting constructor arguments.
+
+        Existing programs use ``global.class.Name()`` as a one-time singleton
+        initialiser.  Keep that behavior for zero arguments; passing arguments
+        returns a real instance, while ``new Name(...)`` is the preferred form.
+        """
         res = RTResult()
         if args:
-            return res.failure(RTError(
-                self.pos_start, self.pos_end,
-                f"Class '{self.name}' constructor takes no arguments "
-                f"(define an 'init' method for custom initialisation)",
-                self.context,
-            ))
+            return self.instantiate(args, self.context)
         if "init" in self._methods:
             bound = BoundMethod(self._methods["init"], self)
             bound.set_pos(self.pos_start, self.pos_end).set_context(self.context)
@@ -6447,19 +6634,90 @@ class ClassBlueprint(Value):
             + ">"
         )
 
-class BoundMethod(Value):
-    """A class method bound to."""
+class ClassInstance(Value):
+    """One object created from a :class:`ClassBlueprint`."""
 
-    def __init__(self, func, class_obj):
+    def __init__(self, blueprint):
+        super().__init__()
+        self.blueprint = blueprint
+        self.class_name = blueprint.name
+        self._fields = {}
+
+    def get_attr(self, name):
+        if name in self._fields:
+            return self._fields[name]["value"], None
+        if name in self.blueprint._methods:
+            bound = BoundMethod(self.blueprint._methods[name], self)
+            bound.set_pos(self.pos_start, self.pos_end)
+            bound.set_context(self.context)
+            return bound, None
+        return None, RTError(
+            self.pos_start,
+            self.pos_end,
+            f"Instance of class '{self.class_name}' has no field or method '{name}'",
+            self.context,
+        )
+
+    def set_attr(self, name, value):
+        if name not in self._fields:
+            return RTError(
+                self.pos_start,
+                self.pos_end,
+                f"Instance of class '{self.class_name}' has no field '{name}'",
+                self.context,
+            )
+        field = self._fields[name]
+        if field.get("const"):
+            return RTError(
+                self.pos_start,
+                self.pos_end,
+                f"Field '{name}' of instance '{self.class_name}' is const and cannot be changed",
+                self.context,
+            )
+        if not type_matches(field["type"], value):
+            return RTError(
+                self.pos_start,
+                self.pos_end,
+                f"Field '{name}' of instance '{self.class_name}' is declared as "
+                f"'{field['type']}' but received a '{value_type_name(value)}' value",
+                self.context,
+            )
+        field["value"] = value
+        return None
+
+    def copy(self):
+        # Instances are identity-bearing objects; assignments must not clone
+        # the receiver that methods and fields refer to.
+        return self
+
+    def __repr__(self):
+        parts = [
+            f"{info['type']} {name} = {info['value']}"
+            for name, info in self._fields.items()
+        ]
+        return f"<{self.class_name} instance" + (
+            f" fields=[{', '.join(parts)}]" if parts else ""
+        ) + ">"
+
+class BoundMethod(Value):
+    """A class method bound to one class blueprint or instance."""
+
+    def __init__(self, func, receiver):
         super().__init__()
         self.func = func
-        self.class_obj = class_obj   # ClassBlueprint
+        self.receiver = receiver
 
     def execute(self, args, code_blocks=None):
         res = RTResult()
         interpreter = SHARED_INTERPRETER
         exec_ctx = self.func.generate_new_context()
-        exec_ctx.symbol_table.set("this", self.class_obj)
+        exec_ctx.current_function = self.func
+        receiver_type = (
+            self.receiver.class_name
+            if isinstance(self.receiver, ClassInstance)
+            else self.receiver.name
+        )
+        exec_ctx.symbol_table.set("this", self.receiver, decl_type=receiver_type)
         res.register(
             self.func.check_and_populate_args(
                 self.func.param_names,
@@ -6485,6 +6743,7 @@ class BoundMethod(Value):
             block_value = block_value.copy().set_context(exec_ctx)
             exec_ctx.symbol_table.set(block_name, block_value)
             exec_ctx.code_blocks[block_name] = block_value
+        exec_ctx.symbol_table.set("local", LocalNamespace(exec_ctx.symbol_table))
         res.register(interpreter.visit(self.func.body_node, exec_ctx))
         if res.should_return() and res.func_return_value is None:
             return res
@@ -6496,13 +6755,18 @@ class BoundMethod(Value):
         return res.success(ret_value)
 
     def copy(self):
-        c = BoundMethod(self.func, self.class_obj)
+        c = BoundMethod(self.func, self.receiver)
         c.set_pos(self.pos_start, self.pos_end)
         c.set_context(self.context)
         return c
 
     def __repr__(self):
-        return f"<bound method {self.func.name} of class {self.class_obj.name}>"
+        owner = (
+            self.receiver.class_name
+            if isinstance(self.receiver, ClassInstance)
+            else self.receiver.name
+        )
+        return f"<bound method {self.func.name} of {owner}>"
 
 class VarGroup(Value):
     """Runtime representation of a vargroup."""
@@ -8019,6 +8283,35 @@ class Interpreter:
                 else:
                     context.symbol_table.symbols[name] = old_value
 
+    async def async_visit_NewNode(self, node, context):
+        # Constructors are synchronous Lynxer methods, but argument
+        # expressions may still be evaluated from an async function.
+        res = RTResult()
+        class_registry = context.symbol_table.get("class")
+        if not isinstance(class_registry, ClassRegistry):
+            return res.failure(RTError(
+                node.pos_start, node.pos_end,
+                "No class registry is available in this scope",
+                context,
+            ))
+        blueprint, error = class_registry.get_attr(node.class_name_tok.value)
+        if error:
+            error.pos_start = node.pos_start
+            error.pos_end = node.pos_end
+            error.context = context
+            return res.failure(error)
+        args = []
+        for arg_node in node.arg_nodes:
+            args.append(res.register(await self.async_visit(arg_node, context)))
+            if res.should_return():
+                return res
+        instance = res.register(blueprint.instantiate(args, context))
+        if res.should_return():
+            return res
+        return res.success(
+            instance.set_pos(node.pos_start, node.pos_end).set_context(context)
+        )
+
     async def async_visit_CallNode(self, node, context):
         res = RTResult()
         args = []
@@ -8138,20 +8431,27 @@ class Interpreter:
         if res.should_return():
             return res
 
-        if not isinstance(obj, (VarGroup, ClassBlueprint)):
+        if not isinstance(obj, (VarGroup, ClassBlueprint, ClassInstance)):
             return res.failure(
                 RTError(
                     node.pos_start,
                     node.pos_end,
-                    "Dot-assignment target must be a vargroup or a class field "
-                    "(use: type global.class.ClassName.field = value)",
+                    "Dot-assignment target must be a vargroup, class field, "
+                    "or class instance field",
                     context,
                 )
             )
+        if node.decl_type is None and not isinstance(obj, ClassInstance):
+            return res.failure(RTError(
+                node.pos_start,
+                node.pos_end,
+                "Vargroup and legacy class-field assignment requires an explicit type",
+                context,
+            ))
 
         attr_name = node.attr_name_tok.value
 
-        if attr_name in obj._fields:
+        if node.decl_type is not None and attr_name in obj._fields:
             field_decl = obj._fields[attr_name]["type"]
             if node.decl_type != field_decl and node.decl_type != "any" and field_decl != "any":
                 return res.failure(
@@ -8380,6 +8680,38 @@ class Interpreter:
             )
         )
 
+    def visit_NewNode(self, node, context):
+        res = RTResult()
+        class_registry = context.symbol_table.get("class")
+        if not isinstance(class_registry, ClassRegistry):
+            return res.failure(RTError(
+                node.pos_start,
+                node.pos_end,
+                "No class registry is available in this scope",
+                context,
+            ))
+        blueprint, error = class_registry.get_attr(node.class_name_tok.value)
+        if error:
+            error.pos_start = node.pos_start
+            error.pos_end = node.pos_end
+            error.context = context
+            return res.failure(error)
+
+        args = []
+        for arg_node in node.arg_nodes:
+            # The async visitor has its own constructor path below; this
+            # synchronous path handles ordinary expressions.
+            args.append(res.register(self.visit(arg_node, context)))
+            if res.should_return():
+                return res
+        instance_res = blueprint.instantiate(args, context)
+        instance = res.register(instance_res)
+        if res.should_return():
+            return res
+        return res.success(
+            instance.set_pos(node.pos_start, node.pos_end).set_context(context)
+        )
+
     # vargroup visitors
 
     def _build_vargroup(self, name, fields, context):
@@ -8498,20 +8830,27 @@ class Interpreter:
         if res.should_return():
             return res
 
-        if not isinstance(obj, (VarGroup, ClassBlueprint)):
+        if not isinstance(obj, (VarGroup, ClassBlueprint, ClassInstance)):
             return res.failure(
                 RTError(
                     node.pos_start,
                     node.pos_end,
-                    "Dot-assignment target must be a vargroup or a class field "
-                    "(use: type global.class.ClassName.field = value)",
+                    "Dot-assignment target must be a vargroup, class field, "
+                    "or class instance field",
                     context,
                 )
             )
+        if node.decl_type is None and not isinstance(obj, ClassInstance):
+            return res.failure(RTError(
+                node.pos_start,
+                node.pos_end,
+                "Vargroup and legacy class-field assignment requires an explicit type",
+                context,
+            ))
 
         attr_name = node.attr_name_tok.value
 
-        if attr_name in obj._fields:
+        if node.decl_type is not None and attr_name in obj._fields:
             field_decl = obj._fields[attr_name]["type"]
             if node.decl_type != field_decl and node.decl_type != "any" and field_decl != "any":
                 return res.failure(
