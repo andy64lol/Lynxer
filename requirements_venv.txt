@@ -12,3 +12,5 @@ websockets
 customtkinter
 arcade
 Pillow
+lupa
+rich

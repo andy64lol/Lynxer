@@ -1,0 +1,916 @@
+////
+Lynxer standard library — tui
+Terminal UI helpers powered by the rich Python package.
+////
+
+global setup(){}
+
+// Returns 1 if rich is installed and importable, 0 otherwise.
+global tuiExists(){
+    int result = 0;
+    rawPy(){
+        try:
+            import rich
+            result = 1
+        except Exception:
+            result = 0
+    }
+    return result;
+}
+
+// Returns the installed Rich version, or "" if rich is unavailable.
+global tuiVersion(){
+    str result = "";
+    rawPy(){
+        try:
+            from importlib.metadata import version
+            result = version("rich")
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+// Prints text with Rich markup support.
+global printText(str text){
+    rawPy(){
+        try:
+            from rich.console import Console
+            Console().print(text)
+        except Exception as e:
+            print("Error: " + str(e))
+    }
+}
+
+// Prints text with a Rich style such as "bold green" or "white on blue".
+// Markup is disabled so the text is displayed literally.
+global printStyled(str text, str style){
+    rawPy(){
+        try:
+            from rich.console import Console
+            Console().print(text, style=style, markup=False)
+        except Exception as e:
+            print("Error: " + str(e))
+    }
+}
+
+// Renders Markdown to the terminal.
+global markdown(str text){
+    rawPy(){
+        try:
+            from rich.console import Console
+            from rich.markdown import Markdown
+            Console().print(Markdown(text))
+        except Exception as e:
+            print("Error: " + str(e))
+    }
+}
+
+// Renders a bordered panel. An empty title omits the panel title.
+global panel(str text, str title){
+    rawPy(){
+        try:
+            from rich.console import Console
+            from rich.panel import Panel
+            if title:
+                Console().print(Panel(text, title=title))
+            else:
+                Console().print(Panel(text))
+        except Exception as e:
+            print("Error: " + str(e))
+    }
+}
+
+// Renders a panel with explicit border and content styles.
+global panelStyled(str text, str title, str borderStyle, str contentStyle){
+    rawPy(){
+        try:
+            from rich.console import Console
+            from rich.panel import Panel
+            Console().print(Panel(
+                text,
+                title=title if title else None,
+                border_style=borderStyle if borderStyle else None,
+                style=contentStyle if contentStyle else None,
+            ))
+        except Exception as e:
+            print("Error: " + str(e))
+    }
+}
+
+// Prints a horizontal rule with an optional title.
+global rule(str title){
+    rawPy(){
+        try:
+            from rich.console import Console
+            from rich.rule import Rule
+            Console().print(Rule(title))
+        except Exception as e:
+            print("Error: " + str(e))
+    }
+}
+
+global ruleStyled(str title, str style){
+    rawPy(){
+        try:
+            from rich.console import Console
+            from rich.rule import Rule
+            Console().print(Rule(title, style=style))
+        except Exception as e:
+            print("Error: " + str(e))
+    }
+}
+
+// Pretty-prints a JSON document with Rich syntax highlighting.
+global jsonPretty(str jsonText){
+    rawPy(){
+        try:
+            from rich.console import Console
+            Console().print_json(json=jsonText)
+        except Exception as e:
+            print("Error: " + str(e))
+    }
+}
+
+// Syntax-highlight source code using any lexer supported by Pygments.
+global printSyntax(str code, str lexer, bool lineNumbers){
+    rawPy(){
+        try:
+            from rich.console import Console
+            from rich.syntax import Syntax
+            Console().print(Syntax(code, lexer, line_numbers=lineNumbers))
+        except Exception as e:
+            print("Error: " + str(e))
+    }
+}
+
+// Renders a table.
+// columnsJson is a JSON array of column names.
+// rowsJson is a JSON array of arrays, for example:
+// table("Users", "[\"Name\", \"Role\"]", "[[\"Ada\", \"admin\"]]")
+global table(str title, str columnsJson, str rowsJson){
+    rawPy(){
+        try:
+            import json as _json
+            from rich.console import Console
+            from rich.table import Table
+
+            columns = _json.loads(columnsJson)
+            rows = _json.loads(rowsJson)
+            if not isinstance(columns, list) or not isinstance(rows, list):
+                raise ValueError("columnsJson and rowsJson must contain JSON arrays")
+
+            rendered = Table(title=title if title else None)
+            for column in columns:
+                rendered.add_column(str(column))
+            for row in rows:
+                if isinstance(row, list):
+                    values = [str(value) for value in row]
+                else:
+                    values = [str(row)]
+                rendered.add_row(*values)
+            Console().print(rendered)
+        except Exception as e:
+            print("Error: " + str(e))
+    }
+}
+
+// Clears the terminal using Rich's console-aware clear operation.
+global clear(){
+    rawPy(){
+        try:
+            from rich.console import Console
+            Console().clear()
+        except Exception as e:
+            print("Error: " + str(e))
+    }
+}
+
+// Reads a line using Rich's styled console input.
+global ask(str prompt){
+    str result = "";
+    rawPy(){
+        try:
+            from rich.console import Console
+            result = Console().input(prompt + " ")
+        except Exception as e:
+            result = "Error: " + str(e)
+    }
+    return result;
+}
+
+// Reads a yes/no answer. Returns 1 for yes and 0 for no.
+global confirm(str prompt){
+    bool result = false;
+    rawPy(){
+        try:
+            from rich.prompt import Confirm
+            result = Confirm.ask(prompt)
+        except Exception:
+            result = False
+    }
+    return result;
+}
+
+// ── Console configuration ───────────────────────────────────────────────────
+
+// Create or replace the shared Rich Console. colorSystem may be "", "standard",
+// "256", or "truecolor".
+global init(str colorSystem){
+    rawPy(){
+        import builtins
+        from rich.console import Console
+        kwargs = {"record": True}
+        if colorSystem:
+            kwargs["color_system"] = colorSystem
+        builtins._lx_tui_console = Console(**kwargs)
+        builtins._lx_tui_tables = []
+        builtins._lx_tui_trees = []
+        builtins._lx_tui_layouts = []
+        builtins._lx_tui_progress = []
+        builtins._lx_tui_status = []
+        builtins._lx_tui_live = []
+    }
+}
+
+// Configure the shared console width. Returns the applied width.
+global setWidth(int width){
+    int result = 0;
+    rawPy(){
+        import builtins
+        from rich.console import Console
+        if not hasattr(builtins, "_lx_tui_console"):
+            builtins._lx_tui_console = Console(record=True)
+        builtins._lx_tui_console.width = width
+        result = builtins._lx_tui_console.width
+    }
+    return result;
+}
+
+global setMarkup(bool enabled){
+    rawPy(){
+        import builtins
+        from rich.console import Console
+        if not hasattr(builtins, "_lx_tui_console"):
+            builtins._lx_tui_console = Console(record=True)
+        builtins._lx_tui_console._markup = enabled
+    }
+}
+
+global setEmoji(bool enabled){
+    rawPy(){
+        import builtins
+        from rich.console import Console
+        if not hasattr(builtins, "_lx_tui_console"):
+            builtins._lx_tui_console = Console(record=True)
+        builtins._lx_tui_console._emoji = enabled
+    }
+}
+
+global setHighlight(bool enabled){
+    rawPy(){
+        import builtins
+        from rich.console import Console
+        if not hasattr(builtins, "_lx_tui_console"):
+            builtins._lx_tui_console = Console(record=True)
+        builtins._lx_tui_console._highlight = enabled
+    }
+}
+
+global setSoftWrap(bool enabled){
+    rawPy(){
+        import builtins
+        from rich.console import Console
+        if not hasattr(builtins, "_lx_tui_console"):
+            builtins._lx_tui_console = Console(record=True)
+        builtins._lx_tui_console.soft_wrap = enabled
+    }
+}
+
+global consoleLog(str text){
+    rawPy(){
+        import builtins
+        from rich.console import Console
+        if not hasattr(builtins, "_lx_tui_console"):
+            builtins._lx_tui_console = Console(record=True)
+        builtins._lx_tui_console.log(text)
+    }
+}
+
+global consoleSaveText(str path){
+    str result = "";
+    rawPy(){
+        import builtins
+        from rich.console import Console
+        try:
+            if not hasattr(builtins, "_lx_tui_console"):
+                builtins._lx_tui_console = Console(record=True)
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(builtins._lx_tui_console.export_text(styles=True))
+            result = "ok"
+        except Exception as e:
+            result = "error:" + str(e)
+    }
+    return result;
+}
+
+global consoleSaveHtml(str path){
+    str result = "";
+    rawPy(){
+        import builtins
+        from rich.console import Console
+        try:
+            if not hasattr(builtins, "_lx_tui_console"):
+                builtins._lx_tui_console = Console(record=True)
+            builtins._lx_tui_console.save_html(path)
+            result = "ok"
+        except Exception as e:
+            result = "error:" + str(e)
+    }
+    return result;
+}
+
+// ── Markup, styles, text, and renderables ────────────────────────────────────
+
+global markupEscape(str text){
+    str result = "";
+    rawPy(){
+        from rich.markup import escape
+        result = escape(text)
+    }
+    return result;
+}
+
+global styleValid(str style){
+    bool result = false;
+    rawPy(){
+        try:
+            from rich.style import Style
+            Style.parse(style)
+            result = true
+        except Exception:
+            result = false
+    }
+    return result;
+}
+
+global printTextStyle(str text, str style){
+    rawPy(){
+        import builtins
+        from rich.console import Console
+        from rich.text import Text
+        if not hasattr(builtins, "_lx_tui_console"):
+            builtins._lx_tui_console = Console(record=True)
+        builtins._lx_tui_console.print(Text(text, style=style))
+    }
+}
+
+global printTextPlain(str text){
+    rawPy(){
+        import builtins
+        from rich.console import Console
+        if not hasattr(builtins, "_lx_tui_console"):
+            builtins._lx_tui_console = Console(record=True)
+        builtins._lx_tui_console.print(text, markup=False, highlight=False)
+    }
+}
+
+global printPretty(str value){
+    rawPy(){
+        import builtins
+        from rich.console import Console
+        from rich.pretty import Pretty
+        if not hasattr(builtins, "_lx_tui_console"):
+            builtins._lx_tui_console = Console(record=True)
+        builtins._lx_tui_console.print(Pretty(value))
+    }
+}
+
+global printColumns(str itemsJson, bool equal, bool expand){
+    rawPy(){
+        import builtins, json as _json
+        from rich.columns import Columns
+        from rich.console import Console
+        if not hasattr(builtins, "_lx_tui_console"):
+            builtins._lx_tui_console = Console(record=True)
+        try:
+            items = _json.loads(itemsJson)
+            if not isinstance(items, list):
+                raise ValueError("itemsJson must contain a JSON array")
+            builtins._lx_tui_console.print(
+                Columns([str(item) for item in items], equal=equal, expand=expand)
+            )
+        except Exception as e:
+            builtins._lx_tui_console.print("Error: " + str(e))
+    }
+}
+
+global printAligned(str text, str align, bool pad){
+    rawPy(){
+        import builtins
+        from rich.align import Align
+        from rich.console import Console
+        if not hasattr(builtins, "_lx_tui_console"):
+            builtins._lx_tui_console = Console(record=True)
+        builtins._lx_tui_console.print(Align(text, align=align, pad=pad))
+    }
+}
+
+global printPadded(str text, int top, int right, int bottom, int left){
+    rawPy(){
+        import builtins
+        from rich.console import Console
+        from rich.padding import Padding
+        if not hasattr(builtins, "_lx_tui_console"):
+            builtins._lx_tui_console = Console(record=True)
+        builtins._lx_tui_console.print(
+            Padding(text, (top, right, bottom, left))
+        )
+    }
+}
+
+// Render an exception traceback with Rich's traceback formatter.
+global printException(){
+    rawPy(){
+        import builtins
+        from rich.console import Console
+        if not hasattr(builtins, "_lx_tui_console"):
+            builtins._lx_tui_console = Console(record=True)
+        builtins._lx_tui_console.print_exception()
+    }
+}
+
+global installTraceback(bool showLocals){
+    rawPy(){
+        from rich.traceback import install
+        install(show_locals=showLocals)
+    }
+}
+
+// ── Stateful tables ─────────────────────────────────────────────────────────
+
+// Create a Table and return its integer handle.
+global tableCreate(str title){
+    int idx = -1;
+    rawPy(){
+        import builtins
+        from rich.table import Table
+        if not hasattr(builtins, "_lx_tui_tables"):
+            builtins._lx_tui_tables = []
+        table = Table(title=title if title else None)
+        builtins._lx_tui_tables.append(table)
+        idx = len(builtins._lx_tui_tables) - 1
+    }
+    return idx;
+}
+
+global tableAddColumn(int idx, str header, str style){
+    rawPy(){
+        import builtins
+        try:
+            table = builtins._lx_tui_tables[idx]
+            if style:
+                table.add_column(header, style=style)
+            else:
+                table.add_column(header)
+        except Exception:
+            pass
+    }
+}
+
+global tableAddRow(int idx, str valuesJson){
+    rawPy(){
+        import builtins, json as _json
+        try:
+            values = _json.loads(valuesJson)
+            if not isinstance(values, list):
+                raise ValueError("valuesJson must contain a JSON array")
+            builtins._lx_tui_tables[idx].add_row(
+                *[str(value) for value in values]
+            )
+        except Exception:
+            pass
+    }
+}
+
+global tableSetCaption(int idx, str caption){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_tui_tables[idx].caption = caption
+        except Exception:
+            pass
+    }
+}
+
+global tableSetHeader(int idx, bool showHeader){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_tui_tables[idx].show_header = showHeader
+        except Exception:
+            pass
+    }
+}
+
+global tableSetLines(int idx, bool showLines){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_tui_tables[idx].show_lines = showLines
+        except Exception:
+            pass
+    }
+}
+
+// Select a Rich table box by name, e.g. "ROUNDED", "SIMPLE", "DOUBLE",
+// "MARKDOWN", "ASCII", "HEAVY_HEAD", or "MINIMAL_DOUBLE_HEAD".
+global tableSetBox(int idx, str boxName){
+    rawPy(){
+        import builtins
+        from rich import box as _box
+        try:
+            boxType = getattr(_box, boxName.upper())
+            builtins._lx_tui_tables[idx].box = boxType
+        except Exception:
+            pass
+    }
+}
+
+global tableSetExpand(int idx, bool expand){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_tui_tables[idx].expand = expand
+        except Exception:
+            pass
+    }
+}
+
+global tablePrint(int idx){
+    rawPy(){
+        import builtins
+        from rich.console import Console
+        if not hasattr(builtins, "_lx_tui_console"):
+            builtins._lx_tui_console = Console(record=True)
+        try:
+            builtins._lx_tui_console.print(builtins._lx_tui_tables[idx])
+        except Exception as e:
+            builtins._lx_tui_console.print("Error: " + str(e))
+    }
+}
+
+// ── Trees ────────────────────────────────────────────────────────────────────
+
+global treeCreate(str label){
+    int idx = -1;
+    rawPy(){
+        import builtins
+        from rich.tree import Tree
+        if not hasattr(builtins, "_lx_tui_trees"):
+            builtins._lx_tui_trees = []
+        tree = Tree(label)
+        builtins._lx_tui_trees.append(tree)
+        idx = len(builtins._lx_tui_trees) - 1
+    }
+    return idx;
+}
+
+global treeAdd(int parentIdx, str label){
+    int idx = -1;
+    rawPy(){
+        import builtins
+        try:
+            child = builtins._lx_tui_trees[parentIdx].add(label)
+            builtins._lx_tui_trees.append(child)
+            idx = len(builtins._lx_tui_trees) - 1
+        except Exception:
+            idx = -1
+    }
+    return idx;
+}
+
+global treePrint(int idx){
+    rawPy(){
+        import builtins
+        from rich.console import Console
+        if not hasattr(builtins, "_lx_tui_console"):
+            builtins._lx_tui_console = Console(record=True)
+        try:
+            builtins._lx_tui_console.print(builtins._lx_tui_trees[idx])
+        except Exception as e:
+            builtins._lx_tui_console.print("Error: " + str(e))
+    }
+}
+
+// ── Layouts ──────────────────────────────────────────────────────────────────
+
+global layoutCreate(str name){
+    int idx = -1;
+    rawPy(){
+        import builtins
+        from rich.layout import Layout
+        if not hasattr(builtins, "_lx_tui_layouts"):
+            builtins._lx_tui_layouts = []
+        builtins._lx_tui_layouts.append(Layout(name=name))
+        idx = len(builtins._lx_tui_layouts) - 1
+    }
+    return idx;
+}
+
+global layoutSplitRows(int idx, str namesJson){
+    rawPy(){
+        import builtins, json as _json
+        from rich.layout import Layout
+        try:
+            names = _json.loads(namesJson)
+            builtins._lx_tui_layouts[idx].split_row(
+                *[Layout(name=str(name)) for name in names]
+            )
+        except Exception:
+            pass
+    }
+}
+
+global layoutSplitColumns(int idx, str namesJson){
+    rawPy(){
+        import builtins, json as _json
+        from rich.layout import Layout
+        try:
+            names = _json.loads(namesJson)
+            builtins._lx_tui_layouts[idx].split_column(
+                *[Layout(name=str(name)) for name in names]
+            )
+        except Exception:
+            pass
+    }
+}
+
+global layoutUpdate(int idx, str name, str text){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_tui_layouts[idx][name].update(text)
+        except Exception:
+            pass
+    }
+}
+
+global layoutPanel(int idx, str name, str text, str title){
+    rawPy(){
+        import builtins
+        from rich.panel import Panel
+        try:
+            builtins._lx_tui_layouts[idx][name].update(
+                Panel(text, title=title if title else None)
+            )
+        except Exception:
+            pass
+    }
+}
+
+global layoutPrint(int idx){
+    rawPy(){
+        import builtins
+        from rich.console import Console
+        if not hasattr(builtins, "_lx_tui_console"):
+            builtins._lx_tui_console = Console(record=True)
+        try:
+            builtins._lx_tui_console.print(builtins._lx_tui_layouts[idx])
+        except Exception as e:
+            builtins._lx_tui_console.print("Error: " + str(e))
+    }
+}
+
+// ── Progress, status, and live displays ──────────────────────────────────────
+
+global progressStart(){
+    int idx = -1;
+    rawPy(){
+        import builtins
+        from rich.console import Console
+        from rich.progress import (
+            BarColumn, Progress, SpinnerColumn, TaskProgressColumn,
+            TextColumn, TimeRemainingColumn
+        )
+        if not hasattr(builtins, "_lx_tui_console"):
+            builtins._lx_tui_console = Console(record=True)
+        if not hasattr(builtins, "_lx_tui_progress"):
+            builtins._lx_tui_progress = []
+        progress = Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            TimeRemainingColumn(),
+            console=builtins._lx_tui_console,
+        )
+        progress.start()
+        builtins._lx_tui_progress.append(progress)
+        idx = len(builtins._lx_tui_progress) - 1
+    }
+    return idx;
+}
+
+global progressAddTask(int idx, str description, float total){
+    int taskId = -1;
+    rawPy(){
+        import builtins
+        try:
+            taskId = builtins._lx_tui_progress[idx].add_task(
+                description, total=total
+            )
+        except Exception:
+            taskId = -1
+    }
+    return taskId;
+}
+
+global progressAdvance(int idx, int taskId, float amount){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_tui_progress[idx].advance(taskId, amount)
+        except Exception:
+            pass
+    }
+}
+
+global progressUpdate(int idx, int taskId, float completed, float total){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_tui_progress[idx].update(
+                taskId, completed=completed, total=total
+            )
+        except Exception:
+            pass
+    }
+}
+
+global progressStop(int idx){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_tui_progress[idx].stop()
+        except Exception:
+            pass
+    }
+}
+
+global statusStart(str text){
+    int idx = -1;
+    rawPy(){
+        import builtins
+        from rich.console import Console
+        from rich.status import Status
+        if not hasattr(builtins, "_lx_tui_console"):
+            builtins._lx_tui_console = Console(record=True)
+        if not hasattr(builtins, "_lx_tui_status"):
+            builtins._lx_tui_status = []
+        status = Status(text, console=builtins._lx_tui_console)
+        status.start()
+        builtins._lx_tui_status.append(status)
+        idx = len(builtins._lx_tui_status) - 1
+    }
+    return idx;
+}
+
+global statusUpdate(int idx, str text){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_tui_status[idx].update(text)
+        except Exception:
+            pass
+    }
+}
+
+global statusStop(int idx){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_tui_status[idx].stop()
+        except Exception:
+            pass
+    }
+}
+
+global liveStart(str text, float refreshPerSecond){
+    int idx = -1;
+    rawPy(){
+        import builtins
+        from rich.console import Console
+        from rich.live import Live
+        if not hasattr(builtins, "_lx_tui_console"):
+            builtins._lx_tui_console = Console(record=True)
+        if not hasattr(builtins, "_lx_tui_live"):
+            builtins._lx_tui_live = []
+        live = Live(
+            text,
+            console=builtins._lx_tui_console,
+            refresh_per_second=refreshPerSecond,
+        )
+        live.start()
+        builtins._lx_tui_live.append(live)
+        idx = len(builtins._lx_tui_live) - 1
+    }
+    return idx;
+}
+
+global liveUpdate(int idx, str text){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_tui_live[idx].update(text, refresh=True)
+        except Exception:
+            pass
+    }
+}
+
+global livePanel(int idx, str text, str title){
+    rawPy(){
+        import builtins
+        from rich.panel import Panel
+        try:
+            builtins._lx_tui_live[idx].update(
+                Panel(text, title=title if title else None), refresh=True
+            )
+        except Exception:
+            pass
+    }
+}
+
+global liveStop(int idx){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_tui_live[idx].stop()
+        except Exception:
+            pass
+    }
+}
+
+// ── Prompt variants ──────────────────────────────────────────────────────────
+
+global askPassword(str prompt){
+    str result = "";
+    rawPy(){
+        try:
+            from rich.prompt import Prompt
+            result = Prompt.ask(prompt, password=true)
+        except Exception as e:
+            result = "Error: " + str(e)
+    }
+    return result;
+}
+
+global askInt(str prompt){
+    int result = 0;
+    rawPy(){
+        try:
+            from rich.prompt import IntPrompt
+            result = IntPrompt.ask(prompt)
+        except Exception:
+            result = 0
+    }
+    return result;
+}
+
+global askFloat(str prompt){
+    float result = 0.0;
+    rawPy(){
+        try:
+            from rich.prompt import FloatPrompt
+            result = FloatPrompt.ask(prompt)
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+global askDefault(str prompt, str defaultValue){
+    str result = "";
+    rawPy(){
+        try:
+            from rich.prompt import Prompt
+            result = Prompt.ask(prompt, default=defaultValue)
+        except Exception as e:
+            result = "Error: " + str(e)
+    }
+    return result;
+}
+
+global confirmDefault(str prompt, bool defaultValue){
+    bool result = false;
+    rawPy(){
+        try:
+            from rich.prompt import Confirm
+            result = Confirm.ask(prompt, default=defaultValue)
+        except Exception:
+            result = defaultValue
+    }
+    return result;
+}
+
+global main(){}

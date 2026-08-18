@@ -13,6 +13,8 @@ global setup(){
     import("path");
     import("json");
     import("js");
+    import("lua");
+    import("tui");
     import("http");
     import("net");
     import("server");
@@ -289,6 +291,68 @@ Run JavaScript via Node.js (Node must be on the system `PATH`).
 | `evalJS` | `evalJS(str expr)` | Evaluate a JS expression; returns result as string |
 | `runJS` | `runJS(str script)` | Run a multi-line JS script; returns stdout |
 | `runJSFile` | `runJSFile(str path)` | Run a `.js` file; returns stdout |
+
+---
+
+## lua
+
+Run Lua code through the embedded `lupa` runtime. Lua itself does not need to
+be installed on the system.
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `luaExists` | `luaExists()` | Returns `1` if `lupa` is importable, else `0` |
+| `luaVersion` | `luaVersion()` | Returns the embedded Lua version string |
+| `evalLua` | `evalLua(str expr)` | Evaluate a Lua expression; returns its result as a string |
+| `runLua` | `runLua(str script)` | Run a Lua script; returns captured `print` output |
+| `runLuaFile` | `runLuaFile(str path)` | Run a `.lua` file; returns captured `print` output |
+
+Each call uses a fresh Lua runtime. Errors are returned as strings beginning
+with `"Error: "`.
+
+---
+
+## tui
+
+Terminal UI rendering and input helpers powered by the `rich` Python package.
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `tuiExists` | `tuiExists()` | Returns `1` if Rich is importable, else `0` |
+| `tuiVersion` | `tuiVersion()` | Returns the installed Rich version |
+| `init` | `init(str colorSystem)` | Configure the shared Rich console |
+| `setWidth` | `setWidth(int width)` | Set console width |
+| `setMarkup / setEmoji / setHighlight / setSoftWrap` | `set...(bool enabled)` | Configure console rendering |
+| `consoleLog` | `consoleLog(str text)` | Emit a timestamped Rich log line |
+| `consoleSaveText / consoleSaveHtml` | `consoleSave...(str path)` | Save recorded console output |
+| `printText` | `printText(str text)` | Print text with Rich markup |
+| `printStyled` | `printStyled(str text, str style)` | Print literal text with a Rich style |
+| `printTextStyle / printTextPlain` | `print...(str text, ...)` | Render Rich `Text` or literal text |
+| `markdown` | `markdown(str text)` | Render Markdown |
+| `panel` | `panel(str text, str title)` | Render a bordered panel |
+| `panelStyled` | `panelStyled(str text, str title, str borderStyle, str contentStyle)` | Render a styled panel |
+| `rule` | `rule(str title)` | Render a horizontal rule |
+| `ruleStyled` | `ruleStyled(str title, str style)` | Render a styled horizontal rule |
+| `jsonPretty` | `jsonPretty(str jsonText)` | Render syntax-highlighted JSON |
+| `printSyntax` | `printSyntax(str code, str lexer, bool lineNumbers)` | Syntax-highlight source code |
+| `printPretty` | `printPretty(str value)` | Render a Rich Pretty value |
+| `printColumns` | `printColumns(str itemsJson, bool equal, bool expand)` | Render items in columns |
+| `printAligned / printPadded` | `print...(str text, ...)` | Render aligned or padded content |
+| `markupEscape / styleValid` | `...(str value)` | Escape markup or validate styles |
+| `table` | `table(str title, str columnsJson, str rowsJson)` | Render a table from JSON arrays |
+| `tableCreate / tableAddColumn / tableAddRow / tableSetBox / tablePrint` | `table...` | Stateful table builder using integer handles |
+| `treeCreate / treeAdd / treePrint` | `tree...` | Stateful tree builder using integer handles |
+| `layoutCreate / layoutSplitRows / layoutSplitColumns / layoutUpdate / layoutPrint` | `layout...` | Stateful Rich layouts |
+| `progressStart / progressAddTask / progressAdvance / progressUpdate / progressStop` | `progress...` | Rich progress bars using integer handles |
+| `statusStart / statusUpdate / statusStop` | `status...` | Spinner status displays |
+| `liveStart / liveUpdate / livePanel / liveStop` | `live...` | Live-updating terminal displays |
+| `clear` | `clear()` | Clear the terminal |
+| `ask / askDefault / askPassword / askInt / askFloat` | `ask...` | Rich prompt variants |
+| `confirm / confirmDefault` | `confirm...` | Rich yes/no prompts |
+| `installTraceback / printException` | `...` | Rich traceback integration |
+
+Rendering functions write directly to the terminal. Errors are printed as
+`"Error: ..."` messages.
 
 ---
 

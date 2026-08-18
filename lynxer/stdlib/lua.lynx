@@ -1,0 +1,130 @@
+////
+Lynxer standard library — lua
+Lua execution helpers using the lupa embedded Lua runtime.
+////
+
+global setup(){}
+
+// Runs a Lua code string with lupa. Returns captured print output as str,
+// or an error message on failure.
+global runLua(str code){
+    str result = "";
+    rawPy(){
+        try:
+            from lupa import LuaRuntime
+
+            output = []
+
+            def _lua_text(value):
+                if value is None:
+                    return "nil"
+                if isinstance(value, bool):
+                    return "true" if value else "false"
+                return str(value)
+
+            def _lua_print(*values):
+                output.append("\t".join(_lua_text(value) for value in values))
+
+            runtime = LuaRuntime(unpack_returned_tuples=True)
+            runtime.globals()["print"] = _lua_print
+            runtime.execute(code)
+            result = "\n".join(output)
+            if output:
+                result += "\n"
+        except ImportError:
+            result = "Error: lupa is not installed"
+        except Exception as e:
+            result = "Error: " + str(e)
+    }
+    return result;
+}
+
+// Runs a Lua file with lupa. Returns captured print output as str,
+// or an error message on failure.
+global runLuaFile(str path){
+    str result = "";
+    rawPy(){
+        try:
+            from lupa import LuaRuntime
+
+            with open(path, "r", encoding="utf-8") as f:
+                code = f.read()
+
+            output = []
+
+            def _lua_text(value):
+                if value is None:
+                    return "nil"
+                if isinstance(value, bool):
+                    return "true" if value else "false"
+                return str(value)
+
+            def _lua_print(*values):
+                output.append("\t".join(_lua_text(value) for value in values))
+
+            runtime = LuaRuntime(unpack_returned_tuples=True)
+            runtime.globals()["print"] = _lua_print
+            runtime.execute(code, name=path)
+            result = "\n".join(output)
+            if output:
+                result += "\n"
+        except ImportError:
+            result = "Error: lupa is not installed"
+        except Exception as e:
+            result = "Error: " + str(e)
+    }
+    return result;
+}
+
+// Evaluates a Lua expression and returns its result as a string.
+global evalLua(str expr){
+    str result = "";
+    rawPy(){
+        try:
+            from lupa import LuaRuntime
+
+            runtime = LuaRuntime(unpack_returned_tuples=True)
+            value = runtime.eval("(" + expr + ")")
+            if value is None:
+                result = "nil"
+            elif isinstance(value, bool):
+                result = "true" if value else "false"
+            else:
+                result = str(value)
+        except ImportError:
+            result = "Error: lupa is not installed"
+        except Exception as e:
+            result = "Error: " + str(e)
+    }
+    return result;
+}
+
+// Returns the embedded Lua version string (for example, "Lua 5.5"),
+// or "" if lupa is not available.
+global luaVersion(){
+    str result = "";
+    rawPy(){
+        try:
+            from lupa import LuaRuntime
+            runtime = LuaRuntime(unpack_returned_tuples=True)
+            result = str(runtime.eval("_VERSION"))
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+// Returns 1 if lupa is available, 0 otherwise.
+global luaExists(){
+    int result = 0;
+    rawPy(){
+        try:
+            from lupa import LuaRuntime
+            result = 1
+        except Exception:
+            result = 0
+    }
+    return result;
+}
+
+global main(){}

@@ -14,6 +14,7 @@ This directory contains documentation for all Lynxer standard library modules.
 | [image](image.md) | `image.lynx` | Image processing: load, resize, filter, draw, composite, base64 (Pillow) |
 | [http](http.md) | `http.lynx` | Simple HTTP client (GET, POST, PUT, DELETE, download) |
 | [js](js.md) | `js.lynx` | Run JavaScript via Node.js |
+| [lua](lua.md) | `lua.lynx` | Run embedded Lua via lupa |
 | [json](json.md) | `json.lynx` | JSON encode / decode / query / mutate |
 | [math](math.md) | `math.lynx` | Math utilities, trig, rounding, statistics (NumPy) |
 | [multiprocessing](../multiprocessing.md) | `multiprocessing.lynx` | Run shell commands in parallel using process/thread pools |
@@ -31,6 +32,7 @@ This directory contains documentation for all Lynxer standard library modules.
 | [tkinter](tkinter.md) | `tkinter.lynx` | Comprehensive GUI: windows, widgets, menus, canvas, dialogs; includes CTk extension (`ctk*` functions) |
 | [turtle](turtle.md) | `turtle.lynx` | Turtle graphics: drawing, shapes, animation, events |
 | [typing](typing.md) | `typing.lynx` | String/list/type conversion utilities |
+| [tui](tui.md) | `tui.lynx` | Rich terminal UI rendering and prompts |
 | [venv](venv.md) | `venv.lynx` | Python virtual environment lifecycle and package management |
 
 ## Usage
