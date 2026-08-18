@@ -14,7 +14,8 @@ except ImportError:
     from lynxer.strings_with_arrows import string_with_arrows  # type: ignore[no-redef]
 
 DIGITS = "0123456789"
-STDLIB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "stdlib")
+_SOURCE_DIR = os.path.dirname(os.path.abspath(__file__))
+STDLIB_DIR = os.path.join(_SOURCE_DIR, "stdlib")
 LETTERS = string.ascii_letters
 LETTERS_DIGITS = LETTERS + DIGITS
 
@@ -43,6 +44,23 @@ def _warning_message_paths() -> list[str]:
     if frozen_root:
         paths.append(os.path.join(frozen_root, "lynxer", "warnings.txt"))
     return list(dict.fromkeys(paths))
+
+
+def stdlib_dir() -> str:
+    """Return the standard-library directory in source and frozen builds."""
+    candidates = [STDLIB_DIR]
+    frozen_root = getattr(sys, "_MEIPASS", None)
+    if frozen_root:
+        candidates.extend(
+            [
+                os.path.join(frozen_root, "stdlib"),
+                os.path.join(frozen_root, "lynxer", "stdlib"),
+            ]
+        )
+    for candidate in candidates:
+        if os.path.isdir(candidate):
+            return candidate
+    return candidates[0]
 
 
 def _load_warning_messages() -> dict[str, str]:
@@ -1021,6 +1039,16 @@ class ExecCallNode:
         self.infer_params = infer_params
         self.pos_start = pos_start
         self.pos_end = pos_end
+
+
+class ExecFileNode:
+    """Execute a Lynxer source file at the current execution point."""
+
+    def __init__(self, path_node, pos_start, pos_end):
+        self.path_node = path_node
+        self.pos_start = pos_start
+        self.pos_end = pos_end
+
 
 class ReturnNode:
     def __init__(self, node_to_return, pos_start, pos_end):
@@ -4320,11 +4348,19 @@ class Parser:
                             return res
 
                     if self.current_tok.type != TT_LBRACE:
+                        if not param_toks and len(arg_nodes) == 1:
+                            path_node = arg_nodes[0]
+                            atom = ExecFileNode(
+                                path_node,
+                                pos_start,
+                                path_node.pos_end,
+                            )
+                            continue
                         return res.failure(
                             InvalidSyntaxError(
                                 self.current_tok.pos_start,
                                 self.current_tok.pos_end,
-                                "Expected '{' after exec(...)",
+                                "Expected '{' after exec(...) or a single .lynx filename",
                             )
                         )
                     block_node = res.register(self.parse_exec_block_argument())
@@ -6954,6 +6990,64 @@ def _get_current_global_path(context):
         c = c.parent
     return None
 
+
+def _module_path(filename: str, base_dir: str) -> tuple[str | None, bool, str | None]:
+    """Resolve an import without escaping the importing directory.
+
+    Returns ``(path, use_bytecode, error)``.  Auto-detected bytecode is used
+    only when it is at least as new as its source, preventing an old sibling
+    ``.lynxc`` from silently overriding edited source.
+    """
+    if os.path.isabs(filename):
+        return None, False, "module paths must be relative"
+
+    normalized = os.path.normpath(filename)
+    path_parts = normalized.replace("\\", "/").split("/")
+    if ".." in path_parts:
+        return None, False, "module paths may not escape the importing directory"
+
+    base_dir = os.path.realpath(os.path.abspath(base_dir or os.getcwd()))
+    source_path = os.path.realpath(os.path.join(base_dir, normalized))
+    try:
+        if os.path.commonpath((base_dir, source_path)) != base_dir:
+            return None, False, "module paths may not escape the importing directory"
+    except ValueError:
+        return None, False, "module path is on a different filesystem root"
+
+    bytecode_path = os.path.splitext(source_path)[0] + ".lynxc"
+    source_exists = os.path.isfile(source_path)
+    bytecode_exists = os.path.isfile(bytecode_path)
+
+    if filename.endswith(".lynxc"):
+        if bytecode_exists:
+            return bytecode_path, True, None
+        return None, False, f"compiled module '{filename}' was not found"
+
+    if bytecode_exists:
+        if not source_exists:
+            return bytecode_path, True, None
+        try:
+            if os.path.getmtime(bytecode_path) >= os.path.getmtime(source_path):
+                return bytecode_path, True, None
+        except OSError:
+            # The source tree may be changing while an import is resolved.
+            # Prefer readable source rather than failing on a transient stat.
+            pass
+    if source_exists:
+        return source_path, False, None
+
+    stdlib_root = os.path.realpath(stdlib_dir())
+    stdlib_path = os.path.realpath(os.path.join(stdlib_root, normalized))
+    try:
+        if os.path.commonpath((stdlib_root, stdlib_path)) != stdlib_root:
+            return None, False, "module path is invalid"
+    except ValueError:
+        return None, False, "module path is invalid"
+    if os.path.isfile(stdlib_path):
+        return stdlib_path, False, None
+
+    return None, False, f"module '{filename}' was not found"
+
 def _preregister_nested_globals(parent_func, block_node, context):
     """Scan the statements of *block_node* for nested ``global`` function
     definitions and register them in ``parent_func.inner_globals``.
@@ -8283,6 +8377,9 @@ class Interpreter:
                 else:
                     context.symbol_table.symbols[name] = old_value
 
+    async def async_visit_ExecFileNode(self, node, context):
+        return self.visit_ExecFileNode(node, context)
+
     async def async_visit_NewNode(self, node, context):
         # Constructors are synchronous Lynxer methods, but argument
         # expressions may still be evaluated from an async function.
@@ -8568,6 +8665,77 @@ class Interpreter:
                     context.symbol_table.symbols.pop(name, None)
                 else:
                     context.symbol_table.symbols[name] = old_value
+
+    def visit_ExecFileNode(self, node, context):
+        res = RTResult()
+        path_value = res.register(self.visit(node.path_node, context))
+        if res.should_return():
+            return res
+        if not isinstance(path_value, String):
+            return res.failure(RTError(
+                node.pos_start,
+                node.pos_end,
+                "exec() file form expects one string path ending in '.lynx'",
+                context,
+            ))
+
+        requested_path = path_value.value.strip()
+        if not requested_path.lower().endswith(".lynx"):
+            return res.failure(RTError(
+                node.pos_start,
+                node.pos_end,
+                "exec() file paths must end in '.lynx'",
+                context,
+            ))
+
+        file_value = context.symbol_table.get("__file__")
+        base_dir = (
+            os.path.dirname(file_value.value)
+            if isinstance(file_value, String)
+            else os.getcwd()
+        )
+        filepath = os.path.realpath(
+            requested_path
+            if os.path.isabs(requested_path)
+            else os.path.join(base_dir, requested_path)
+        )
+        if not os.path.isfile(filepath):
+            return res.failure(RTError(
+                node.pos_start,
+                node.pos_end,
+                f"exec() file not found: '{requested_path}'",
+                context,
+            ))
+
+        try:
+            with open(filepath, "r", encoding="utf-8") as source_file:
+                source = source_file.read()
+        except (OSError, UnicodeError) as exc:
+            return res.failure(RTError(
+                node.pos_start,
+                node.pos_end,
+                f"Could not read exec() file '{requested_path}': {exc}",
+                context,
+            ))
+
+        exec_table = SymbolTable(context.symbol_table)
+        register_builtins(exec_table)
+        exec_table.set("class", ClassRegistry())
+        exec_table.set("global", Namespace(exec_table))
+        error = run_file(
+            filepath,
+            source,
+            exec_table,
+            execute_main=True,
+        )
+        if error:
+            return res.failure(RTError(
+                node.pos_start,
+                node.pos_end,
+                f"Error executing Lynxer file '{requested_path}':\n{error.as_string()}",
+                context,
+            ))
+        return res.success(Number.null)
 
     def visit_CallNode(self, node, context):
         res = RTResult()
@@ -9116,25 +9284,14 @@ class Interpreter:
 
         file_val = global_symbol_table.get("__file__")
         base_dir = os.path.dirname(file_val.value) if file_val else ""
-        filepath = os.path.join(base_dir, filename) if base_dir else filename
+        filepath, use_bytecode, resolve_error = _module_path(filename, base_dir)
 
-        use_bytecode = explicit_bytecode
-        if not explicit_bytecode:
-            lynxc_path = os.path.splitext(filepath)[0] + ".lynxc"
-            if os.path.exists(lynxc_path):
-                filepath = lynxc_path
-                use_bytecode = True
-            elif not os.path.exists(filepath):
-                stdlib_path = os.path.join(STDLIB_DIR, filename)
-                if os.path.exists(stdlib_path):
-                    filepath = stdlib_path
-
-        if not os.path.exists(filepath):
+        if filepath is None:
             return res.failure(
                 RTError(
                     node.pos_start,
                     node.pos_end,
-                    f"Module \"{module_name}\" not found — checked '{filepath}' and stdlib/",
+                    f"Could not import module \"{module_name}\": {resolve_error}",
                     context,
                 )
             )
@@ -9209,23 +9366,12 @@ class Interpreter:
 
         file_val = global_symbol_table.get("__file__")
         base_dir = os.path.dirname(file_val.value) if file_val else ""
-        filepath = os.path.join(base_dir, filename) if base_dir else filename
+        filepath, use_bytecode, resolve_error = _module_path(filename, base_dir)
 
-        use_bytecode = explicit_bytecode
-        if not explicit_bytecode:
-            lynxc_path = os.path.splitext(filepath)[0] + ".lynxc"
-            if os.path.exists(lynxc_path):
-                filepath = lynxc_path
-                use_bytecode = True
-            elif not os.path.exists(filepath):
-                stdlib_path = os.path.join(STDLIB_DIR, filename)
-                if os.path.exists(stdlib_path):
-                    filepath = stdlib_path
-
-        if not os.path.exists(filepath):
+        if filepath is None:
             return res.failure(RTError(
                 node.pos_start, node.pos_end,
-                f"Module \"{module_name}\" not found — checked '{filepath}' and stdlib/",
+                f"Could not import module \"{module_name}\": {resolve_error}",
                 context,
             ))
 
@@ -9323,13 +9469,34 @@ from .builtins import BuiltInFunction, register_builtins
 
 # global symbol table
 
-global_symbol_table = SymbolTable()
-global_symbol_table.set("true", Number.true)
-global_symbol_table.set("false", Number.false)
-register_builtins(global_symbol_table)
-global_symbol_table.set("embedPy", EmbedPyNamespace())
+def _new_global_symbol_table():
+    table = SymbolTable()
+    table.set("true", Number.true)
+    table.set("false", Number.false)
+    register_builtins(table)
+    table.set("embedPy", EmbedPyNamespace())
+    return table
+
+
+global_symbol_table = _new_global_symbol_table()
 
 SHARED_INTERPRETER = Interpreter()
+
+
+def reset_runtime_state():
+    """Start a clean top-level runtime for an independent program run."""
+    global global_symbol_table
+    global_symbol_table = _new_global_symbol_table()
+    _rawpy_global_modules.clear()
+
+
+def _interpreter_error(fn, text, context_name, exc):
+    """Turn an unexpected host exception into a normal Lynxer error."""
+    context = Context(context_name)
+    start = Position(0, 0, 0, fn, text)
+    details = str(exc).strip() or type(exc).__name__
+    return RTError(start, start.copy(), f"Interpreter failure: {details}", context)
+
 
 # run
 
@@ -9337,6 +9504,7 @@ def run(fn, text, suppress_deprecation_warnings=False):
     global _forever_delay, _forever_warning_suppressed, _setup_in_progress
     global _main_override, _deprecation_warning_suppressed
     global _deprecation_warning_deferred
+    reset_runtime_state()
     _main_override = None
     _forever_delay = 0.02
     _forever_warning_suppressed = False
@@ -9365,11 +9533,15 @@ def run(fn, text, suppress_deprecation_warnings=False):
     global_symbol_table.set("global", Namespace(global_symbol_table))
     global_symbol_table.set("class", ClassRegistry())
 
-    result = interpreter.visit(ast.node, context)
+    try:
+        result = interpreter.visit(ast.node, context)
+    except Exception as exc:
+        _flush_deprecation_warnings()
+        return None, _interpreter_error(fn, text, "<program>", exc)
     _flush_deprecation_warnings()
     return result.value, result.error
 
-def run_file(fn, text, symbol_table):
+def run_file(fn, text, symbol_table, execute_main=False):
     lexer = Lexer(fn, text)
     tokens, error = lexer.make_tokens()
     if error:
@@ -9387,22 +9559,43 @@ def run_file(fn, text, symbol_table):
 
     node = ast.node
 
-    for decl in node.globals_list:
-        r = RTResult()
-        r.register(interpreter.visit(decl, context))
-        if r.error:
-            return r.error
-
-    if node.setup_func:
-        global _setup_in_progress
-        previous_setup_state = _setup_in_progress
-        _setup_in_progress = True
-        try:
-            r = interpreter.run_setup(node.setup_func, context)
+    try:
+        for decl in node.globals_list:
+            r = RTResult()
+            r.register(interpreter.visit(decl, context))
             if r.error:
                 return r.error
-        finally:
-            _setup_in_progress = previous_setup_state
+
+        if node.setup_func:
+            global _setup_in_progress
+            previous_setup_state = _setup_in_progress
+            _setup_in_progress = True
+            try:
+                r = interpreter.run_setup(node.setup_func, context)
+                if r.error:
+                    return r.error
+            finally:
+                _setup_in_progress = previous_setup_state
+
+        if execute_main and node.main_func is not None:
+            main_decl_result = RTResult()
+            main_decl_result.register(interpreter.visit(node.main_func, context))
+            if main_decl_result.error:
+                return main_decl_result.error
+            main_name = node.main_func.var_name_tok.value
+            main_function = symbol_table.get(main_name)
+            if main_function is None:
+                return _interpreter_error(
+                    fn,
+                    text,
+                    f"<exec:{os.path.basename(fn)}>",
+                    RuntimeError(f"entry point '{main_name}' was not registered"),
+                )
+            call_result = main_function.execute([])
+            if call_result.error:
+                return call_result.error
+    except Exception as exc:
+        return _interpreter_error(fn, text, f"<import:{os.path.basename(fn)}>", exc)
 
     return None
 

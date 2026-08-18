@@ -6,6 +6,7 @@ without creating a circular import during interpreter startup.
 """
 
 from __future__ import annotations
+import io
 import os
 import pickle
 import zlib
@@ -14,6 +15,51 @@ from typing import Any
 
 BYTECODE_MAGIC = b"LYNXC\x00"
 BYTECODE_VERSION = 4
+MAX_BYTECODE_FILE_SIZE = 64 * 1024 * 1024
+MAX_BYTECODE_PAYLOAD_SIZE = 256 * 1024 * 1024
+
+
+class _SafeUnpickler(pickle.Unpickler):
+    """Unpickle only the AST types produced by Lynxer's compiler.
+
+    Pickle is executable by design.  A ``.lynxc`` file is user-controlled
+    input, so the normal ``pickle.loads`` entry point is not appropriate here.
+    The compiler serialises syntax nodes, tokens, and positions only; runtime
+    values and arbitrary Python globals are intentionally not accepted.
+    """
+
+    _ALLOWED_BUILTINS = {
+        "bool",
+        "bytes",
+        "complex",
+        "dict",
+        "float",
+        "frozenset",
+        "int",
+        "list",
+        "set",
+        "str",
+        "tuple",
+    }
+
+    def find_class(self, module: str, name: str) -> Any:
+        if module == "builtins" and name in self._ALLOWED_BUILTINS:
+            return getattr(__import__(module), name)
+
+        if module == "lynxer.lynxer":
+            runtime = _runtime()
+            allowed = {
+                class_name
+                for class_name, value in vars(runtime).items()
+                if isinstance(value, type)
+                and (class_name.endswith("Node") or class_name in {"Position", "Token"})
+            }
+            if name in allowed:
+                return getattr(runtime, name)
+
+        raise pickle.UnpicklingError(
+            f"bytecode contains a disallowed Python object: {module}.{name}"
+        )
 
 
 def _runtime() -> Any:
@@ -25,25 +71,57 @@ def _runtime() -> Any:
 
 def _read_bytecode(fn: str) -> tuple[dict[str, Any], int, int]:
     """Read, decompress, validate, and unpickle a ``.lynxc`` file."""
-    with open(fn, "rb") as bytecode_file:
-        magic = bytecode_file.read(len(BYTECODE_MAGIC))
-        if magic != BYTECODE_MAGIC:
-            raise ValueError(
-                f"'{fn}' is not a valid Lynxer bytecode file "
-                f"(bad magic bytes: {magic!r})"
-            )
-        compressed = bytecode_file.read()
+    try:
+        file_size = os.path.getsize(fn)
+    except OSError as exc:
+        raise ValueError(f"could not read '{fn}': {exc}") from exc
+    if file_size > MAX_BYTECODE_FILE_SIZE:
+        raise ValueError(
+            f"'{fn}' is too large ({file_size:,} bytes); "
+            f"the maximum supported bytecode file is {MAX_BYTECODE_FILE_SIZE:,} bytes"
+        )
 
     try:
-        raw = zlib.decompress(compressed)
-    except zlib.error as exc:
+        with open(fn, "rb") as bytecode_file:
+            magic = bytecode_file.read(len(BYTECODE_MAGIC))
+            if magic != BYTECODE_MAGIC:
+                raise ValueError(
+                    f"'{fn}' is not a valid Lynxer bytecode file "
+                    f"(bad magic bytes: {magic!r})"
+                )
+            compressed = bytecode_file.read()
+    except OSError as exc:
+        raise ValueError(f"could not read '{fn}': {exc}") from exc
+
+    try:
+        decompressor = zlib.decompressobj()
+        raw = decompressor.decompress(compressed, MAX_BYTECODE_PAYLOAD_SIZE + 1)
+        if len(raw) > MAX_BYTECODE_PAYLOAD_SIZE or decompressor.unconsumed_tail:
+            raise ValueError(
+                f"'{fn}' expands beyond the maximum supported bytecode payload "
+                f"of {MAX_BYTECODE_PAYLOAD_SIZE:,} bytes"
+            )
+        raw += decompressor.flush()
+        if len(raw) > MAX_BYTECODE_PAYLOAD_SIZE:
+            raise ValueError(
+                f"'{fn}' expands beyond the maximum supported bytecode payload "
+                f"of {MAX_BYTECODE_PAYLOAD_SIZE:,} bytes"
+            )
+        if decompressor.unused_data:
+            raise ValueError(f"'{fn}' contains trailing or oversized compressed data")
+    except (ValueError, zlib.error) as exc:
         raise ValueError(
             f"'{fn}' bytecode is corrupt or was compiled with an older "
             f"Lynxer version (decompression failed: {exc}). "
             "Recompile the source file to fix this."
         ) from exc
 
-    data = pickle.loads(raw)
+    try:
+        data = _SafeUnpickler(io.BytesIO(raw)).load()
+    except (pickle.UnpicklingError, EOFError, AttributeError, ImportError, IndexError, TypeError) as exc:
+        raise ValueError(
+            f"'{fn}' does not contain a safe, valid Lynxer bytecode payload: {exc}"
+        ) from exc
     if not isinstance(data, dict):
         raise ValueError(f"'{fn}' does not contain a valid Lynxer bytecode payload")
 
@@ -55,6 +133,12 @@ def _read_bytecode(fn: str) -> tuple[dict[str, Any], int, int]:
             "Recompile the source file with "
             "'lynxer --compile <source.lynx>' to generate an up-to-date .lynxc file."
         )
+
+    if "node" not in data:
+        raise ValueError(f"'{fn}' does not contain a compiled Lynxer program")
+    runtime = _runtime()
+    if not isinstance(data["node"], runtime.ProgramNode):
+        raise ValueError(f"'{fn}' does not contain a valid compiled Lynxer program")
 
     return data, len(raw), len(compressed)
 
@@ -103,6 +187,7 @@ def compile_to_bytecode(fn: str, text: str) -> tuple[str | None, Any]:
 def run_bytecode(fn: str, suppress_deprecation_warnings=False) -> tuple[Any, Any]:
     """Load and execute a pre-compiled ``.lynxc`` file."""
     runtime = _runtime()
+    runtime.reset_runtime_state()
     runtime._main_override = None
     runtime._forever_delay = 0.02
     runtime._forever_warning_suppressed = False

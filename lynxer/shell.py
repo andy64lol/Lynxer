@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """CLI entry point for Lynxer. Run with: python lynxer/shell.py <file.lynx>"""
+
 import sys
 import os
 
-_here   = os.path.dirname(os.path.abspath(__file__))   # .../lynxer/
-_parent = os.path.dirname(_here)                         # repo root
+_here = os.path.dirname(os.path.abspath(__file__))  # .../lynxer/
+_parent = os.path.dirname(_here)  # repo root
 if _parent not in sys.path:
     sys.path.insert(0, _parent)
 
@@ -12,27 +13,28 @@ from lynxer import run, compile_to_bytecode, run_bytecode  # noqa: E402
 from lynxer.bytecode import BYTECODE_VERSION, read_bytecode  # noqa: E402
 from lynxer.formatting import FormattingError, format_source, lint_source  # noqa: E402
 from lynxer.install import installer_main  # noqa: E402
-from lynxer.lynxer import Lexer, Parser, Token  # noqa: E402
+from lynxer.lynxer import Lexer, Parser, Token, stdlib_dir  # noqa: E402
+
 
 def _extract_docstring(path):
     """Return the text inside the first //// ... //// block in a Lynxer file, or None."""
     lines = []
     inside = False
     try:
-        with open(path, 'r', encoding='utf-8') as fh:
+        with open(path, "r", encoding="utf-8") as fh:
             for line in fh:
                 stripped = line.strip()
                 if not inside:
-                    if stripped == '////':
+                    if stripped == "////":
                         inside = True
                 else:
-                    if stripped == '////':
+                    if stripped == "////":
                         break
                     lines.append(line.rstrip())
     except Exception as e:
         print(f"Error: could not read '{path}': {e}")
         pass
-    text = '\n'.join(lines).strip()
+    text = "\n".join(lines).strip()
     return text if text else None
 
 
@@ -44,18 +46,24 @@ def _view_bytecode(filepath):
         print(f"Error: could not read '{filepath}': {exc}", file=sys.stderr)
         return 1
 
-    file_ver  = data.get("version", "<unknown>")
-    source    = data.get("source",  "<unknown>")
-    node      = data.get("node")
+    file_ver = data.get("version", "<unknown>")
+    source = data.get("source", "<unknown>")
+    node = data.get("node")
 
-    ver_ok = "✓" if file_ver == BYTECODE_VERSION else "✗ (runtime expects v{})".format(BYTECODE_VERSION)
+    ver_ok = (
+        "✓"
+        if file_ver == BYTECODE_VERSION
+        else "✗ (runtime expects v{})".format(BYTECODE_VERSION)
+    )
 
     print("Lynxer Bytecode Inspector")
     print("─" * 44)
     print(f"  File   : {filepath}")
     print(f"  Source : {source}")
     print(f"  Version: {file_ver}  {ver_ok}")
-    print(f"  Size   : {raw_size:,} bytes (decompressed), {stored_size:,} bytes (stored)")
+    print(
+        f"  Size   : {raw_size:,} bytes (decompressed), {stored_size:,} bytes (stored)"
+    )
     print("─" * 44)
 
     if node is None:
@@ -64,17 +72,17 @@ def _view_bytecode(filepath):
 
     # Collect top-level globals from the AST
     globals_list = getattr(node, "globals_list", [])
-    setup_func   = getattr(node, "setup_func",   None)
-    main_func    = None
+    setup_func = getattr(node, "setup_func", None)
+    main_func = None
 
     print()
     print("  Top-level globals:")
     if not globals_list:
         print("    (none)")
     for fn_def in globals_list:
-        fname  = getattr(fn_def, "var_name_tok", None)
-        params = getattr(fn_def, "param_toks",   [])
-        name   = fname.value if fname else "?"
+        fname = getattr(fn_def, "var_name_tok", None)
+        params = getattr(fn_def, "param_toks", [])
+        name = fname.value if fname else "?"
         param_strs = []
         for param in params:
             pt, nt = param[:2]
@@ -97,7 +105,9 @@ def _view_bytecode(filepath):
                 for param in iparams:
                     pt, nt = param[:2]
                     type_str = pt.value if pt else "any"
-                    default_str = " = ..." if len(param) > 2 and param[2] is not None else ""
+                    default_str = (
+                        " = ..." if len(param) > 2 and param[2] is not None else ""
+                    )
                     ip_strs.append(f"{type_str} {nt.value}{default_str}")
                 ia = getattr(inner, "is_async", False)
                 ipfx = "async " if ia else ""
@@ -123,9 +133,7 @@ def _ast_lines(value, indent=0):
     prefix = " " * indent
 
     if isinstance(value, Token):
-        return [
-            f"{prefix}Token(type={value.type!r}, value={value.value!r})"
-        ]
+        return [f"{prefix}Token(type={value.type!r}, value={value.value!r})"]
     if value is None or isinstance(value, (str, int, float, bool)):
         return [f"{prefix}{value!r}"]
     if isinstance(value, (list, tuple)):
@@ -179,50 +187,77 @@ def _print_ast(filepath, source):
 
 def main():
     argv = sys.argv[1:]
-    if not argv or argv[0] in ('-h', '--help'):
+    if not argv or argv[0] in ("-h", "--help"):
         print()
         print("Usage:")
         print("  lynxer <file.lynx>                    Run a Lynxer source file")
         print("  lynxer --compile <file.lynx>          Compile to bytecode (.lynxc)")
         print("  lynxer <file.lynxc>                   Run a compiled bytecode file")
-        print("  lynxer --view-bytecode <file.lynxc>   Inspect bytecode metadata and structure")
-        print("  lynxer --ast <file.lynx>              Parse and print the abstract syntax tree")
-        print("  lynxer --format <file.lynx>           Format a Lynxer source file in place")
-        print("  lynxer --format-oneline <file.lynx>   Compact a Lynxer source file to one line")
-        print("  lynxer --lint <file.lynx>             Check Lynxer syntax without running it")
+        print(
+            "  lynxer --view-bytecode <file.lynxc>   Inspect bytecode metadata and structure"
+        )
+        print(
+            "  lynxer --ast <file.lynx>              Parse and print the abstract syntax tree"
+        )
+        print(
+            "  lynxer --format <file.lynx>           Format a Lynxer source file in place"
+        )
+        print(
+            "  lynxer --format-oneline <file.lynx>   Compact a Lynxer source file to one line"
+        )
+        print(
+            "  lynxer --lint <file.lynx>             Check Lynxer syntax without running it"
+        )
         print("  lynxer --version                      Print version")
-        print("  lynxer --list-stdlibs                 List available Lynxer stdlib modules")
-        print("  lynxer --install                      Install the compiled executable as /usr/bin/lynxer, may require sudo")
-        print("  lynxer --uninstall                    Remove /usr/bin/lynxer, also may require sudo")
+        print(
+            "  lynxer --list-stdlibs                 List available Lynxer stdlib modules"
+        )
+        print(
+            "  lynxer --install                      Install the compiled executable as /usr/bin/lynxer, may require sudo"
+        )
+        print(
+            "  lynxer --uninstall                    Remove /usr/bin/lynxer, also may require sudo"
+        )
         print()
-        print("  BTW, please run the install and uninstall with the executeable, not shell.py nor anything else.")
-        print("  If you are running from source, use the compiled executable instead located in GitHub Releases.")
+        print(
+            "  BTW, please run the install and uninstall with the executeable, not shell.py nor anything else."
+        )
+        print(
+            "  If you are running from source, use the compiled executable instead located in GitHub Releases."
+        )
         print()
         return 0
-    if argv[0] in ('-v', '--version', '-version','--v'):
-        print("Lynxer 0.1.7b7")
+    if argv[0] in ("-v", "--version", "-version", "--v"):
+        print("Lynxer 0.1.7b8")
         return 0
-    if argv[0] in ('--install', '--uninstall'):
+    if argv[0] in ("--install", "--uninstall"):
         return installer_main(argv[0])
-    if argv[0] in ('-easterEgg', '--easterEgg', '--idklmao', '-wnwnerbcyunwrbygnubeuyxnqybxun'):
+    if argv[0] in (
+        "-easterEgg",
+        "--easterEgg",
+        "--idklmao",
+        "-wnwnerbcyunwrbygnubeuyxnqybxun",
+    ):
         print("Easter Egg found!")
         print("Wanna do sudo rm -rf / --no-preserve-root? Just kidding, don't do that.")
         print("But seriously, don't do that. It's a bad idea.")
-        print("That will erase the entire linux OS and all your files. You will lose everything.")
+        print(
+            "That will erase the entire linux OS and all your files. You will lose everything."
+        )
         return 0
 
-    if argv[0] in ('--list-stdlibs', '--stdlibs', '-stdlibs', '-list-stdlibs'):
-        stdlib_dir = os.path.join(_here, 'stdlib')
-        if not os.path.isdir(stdlib_dir):
-            print('No stdlib directory found.')
+    if argv[0] in ("--list-stdlibs", "--stdlibs", "-stdlibs", "-list-stdlibs"):
+        stdlib_path = stdlib_dir()
+        if not os.path.isdir(stdlib_path):
+            print("No stdlib directory found.")
             return 1
-        files = sorted([f for f in os.listdir(stdlib_dir) if f.endswith('.lynx')])
+        files = sorted([f for f in os.listdir(stdlib_path) if f.endswith(".lynx")])
         if not files:
-            print('No Lynxer stdlib modules found.')
+            print("No Lynxer stdlib modules found.")
             return 0
-        print('Available Lynxer stdlib modules:\n')
+        print("Available Lynxer stdlib modules:\n")
         for fn in files:
-            path = os.path.join(stdlib_dir, fn)
+            path = os.path.join(stdlib_path, fn)
             name = os.path.splitext(fn)[0]
             docstring = _extract_docstring(path)
             if docstring:
@@ -237,7 +272,10 @@ def main():
 
     if argv[0] in ("--ast", "--format", "--format-oneline", "--lint"):
         if len(argv) != 2:
-            print(f"shell.py: {argv[0]} requires exactly one file argument", file=sys.stderr)
+            print(
+                f"shell.py: {argv[0]} requires exactly one file argument",
+                file=sys.stderr,
+            )
             return 1
 
         source_path = argv[1]
@@ -284,7 +322,7 @@ def main():
         print(f"Formatted: {argv[1]}")
         return 0
 
-    if argv[0] in ('-c', '--compile', '--c','-compile'):
+    if argv[0] in ("-c", "--compile", "--c", "-compile"):
         if len(argv) < 2:
             print("shell.py: --compile requires a file argument", file=sys.stderr)
             return 1
@@ -294,8 +332,12 @@ def main():
         if not os.path.exists(src):
             print(f"shell.py: file not found: '{argv[1]}'", file=sys.stderr)
             return 1
-        with open(src, 'r') as fh:
-            source = fh.read()
+        try:
+            with open(src, "r", encoding="utf-8") as fh:
+                source = fh.read()
+        except (OSError, UnicodeError) as exc:
+            print(f"shell.py: could not read '{argv[1]}': {exc}", file=sys.stderr)
+            return 1
         out_path, error = compile_to_bytecode(src, source)
         if error:
             print(error.as_string(), file=sys.stderr)
@@ -303,9 +345,12 @@ def main():
         print(f"Compiled: {out_path}")
         return 0
 
-    if argv[0] in ('--view-bytecode', '--inspect-bytecode', '--disasm'):
+    if argv[0] in ("--view-bytecode", "--inspect-bytecode", "--disasm"):
         if len(argv) < 2:
-            print("shell.py: --view-bytecode requires a .lynxc file argument", file=sys.stderr)
+            print(
+                "shell.py: --view-bytecode requires a .lynxc file argument",
+                file=sys.stderr,
+            )
             return 1
         src = argv[1]
         if not os.path.isabs(src):
@@ -324,23 +369,38 @@ def main():
         return 1
 
     # Run pre-compiled bytecode directly
-    if filepath.endswith('.lynxc'):
-        _, error = run_bytecode(filepath)
+    if filepath.endswith(".lynxc"):
+        try:
+            _, error = run_bytecode(filepath)
+        except Exception as exc:
+            print(
+                f"shell.py: could not run bytecode '{argv[0]}': {exc}", file=sys.stderr
+            )
+            return 1
         if error:
             print(error.as_string(), file=sys.stderr)
             return 1
         return 0
 
-    with open(filepath, 'r') as fh:
-        source = fh.read()
+    try:
+        with open(filepath, "r", encoding="utf-8") as fh:
+            source = fh.read()
+    except (OSError, UnicodeError) as exc:
+        print(f"shell.py: could not read '{argv[0]}': {exc}", file=sys.stderr)
+        return 1
 
-    _, error = run(filepath, source)
+    try:
+        _, error = run(filepath, source)
+    except Exception as exc:
+        print(f"shell.py: interpreter failure in '{argv[0]}': {exc}", file=sys.stderr)
+        return 1
     if error:
         print(error.as_string(), file=sys.stderr)
         return 1
     return 0
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     try:
         sys.exit(main())
     except KeyboardInterrupt:

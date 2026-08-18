@@ -64,7 +64,7 @@ modules while keeping the core language and essential utilities.
 See the complete [CLI reference](CLI.md) for every command and alias.
 
 ```bash
-lynxer --version        # Lynxer 0.1.7b7
+lynxer --version        # Lynxer 0.1.7b8
 lynxer --compile a.lynx # compile to bytecode
 lynxer a.lynxc          # run compiled bytecode
 lynxer --format a.lynx  # format the source file in place

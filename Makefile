@@ -16,7 +16,16 @@ COLLECT_ALL := $(shell \
 
 CYTHON_COLLECT_ALL := --collect-all=Cython --collect-all=setuptools
 
-.PHONY: build buildLite clean help
+.PHONY: build buildLite test check clean help
+
+test:
+	@$(PYTHON) -m unittest discover -s test -p 'test_*.py' -v
+
+check: test
+	@for file in syntax.lynx test/*.lynx; do \
+		$(PYTHON) main.py --lint "$$file" >/dev/null || exit $$?; \
+	done
+	@echo "✓ Lynxer checks passed."
 
 build:
 	@if [ ! -d "$(VENV)" ]; then \
@@ -99,6 +108,8 @@ help:
 	@echo "Lynxer build targets:"
 	@echo "  make build"
 	@echo "  make buildLite"
+	@echo "  make test"
+	@echo "  make check"
 	@echo "  make clean"
 	@echo ""
 	@echo "Lynxer source commands:"

@@ -49,14 +49,14 @@ built-in stdlib.
 
 ---
 
-## Bytecode format (v2)
+## Bytecode format (v4)
 
 | Field | Details |
 |-------|---------|
 | Magic header | 6 bytes: `LYNXC\x00` |
-| Payload | zlib-compressed Python `pickle` stream containing `version`, `source` path, and the serialised AST node |
+| Payload | zlib-compressed, restricted Python `pickle` stream containing `version`, `source` path, and the serialised AST node |
 
-### What changed in v2
+### What changed in v4
 
 Two optimisations were made over the original v1 format:
 
@@ -67,18 +67,24 @@ Two optimisations were made over the original v1 format:
 2. **Source-text stripping** — every token in the AST previously carried a
    copy of the entire source file inside its position metadata (`ftxt`), so a
    1 KB source file would embed thousands of redundant 1 KB strings into the
-   archive.  In v2 these strings are omitted from the bytecode; only line/column
+   archive.  Since v2 these strings are omitted from the bytecode; only line/column
    numbers and the filename are kept.  The AST executes identically; runtime
    error messages will not show the source-pointer arrow, but the error
    location (file, line, column) is still reported correctly.
+
+3. **Restricted loading and size limits** — the runtime only accepts the AST
+   classes emitted by Lynxer's compiler and rejects arbitrary Python objects
+   and oversized compressed payloads. Do not treat `.lynxc` files from an
+   untrusted source as an authorization boundary; a Lynxer program can still
+   intentionally execute `rawPy` code after it has been loaded.
 
 ### Compatibility
 
 The bytecode format is tied to the Python version and the Lynxer AST — it is
 **not** portable across major Python versions or Lynxer releases.
 
-If you load a v1 `.lynxc` file with the current runtime you will see a clear
-error asking you to recompile.  Always recompile after upgrading Lynxer.
+If you load an older `.lynxc` file with the current runtime you will see a
+clear error asking you to recompile. Always recompile after upgrading Lynxer.
 
 ---
 
