@@ -987,10 +987,13 @@ class CodeBlockRefNode:
 
 class CodeBlockLiteralNode:
     """A code block supplied after a function call, e.g. ``fn(){ ... }``."""
-    def __init__(self, body_block, pos_start, pos_end):
+    def __init__(self, body_block, pos_start, pos_end, param_toks=None):
         self.body_block = body_block
         self.pos_start = pos_start
         self.pos_end = pos_end
+        # ``None`` means infer parameters from body references.  An empty
+        # list means the author explicitly declared that the block has none.
+        self.param_toks = param_toks
 
 class ExecCallNode:
     """Execute an inline or referenced code block with declared/provided values."""
@@ -2364,6 +2367,12 @@ class Parser:
         if res.error:
             return res
 
+        if type_tok.value == "codeblock" and isinstance(value, CodeBlockLiteralNode):
+            if self.current_tok.type == TT_LBRACKET:
+                value.param_toks = res.register(self.parse_codeblock_params())
+                if res.error:
+                    return res
+
         if type_tok.value == "tuple" and isinstance(value, ListNode):
             warn_legacy_syntax_position(
                 value.pos_start,
@@ -2371,6 +2380,8 @@ class Parser:
             )
 
         if self.current_tok.type != TT_SEMICOLON:
+            if type_tok.value == "codeblock" and isinstance(value, CodeBlockLiteralNode):
+                return res.success(VarDeclNode(type_tok, name_tok, value, is_const=False))
             return res.failure(
                 InvalidSyntaxError(
                     self.current_tok.pos_start, self.current_tok.pos_end, "Expected ';'"
@@ -2436,6 +2447,12 @@ class Parser:
         if res.error:
             return res
 
+        if type_tok.value == "codeblock" and isinstance(value, CodeBlockLiteralNode):
+            if self.current_tok.type == TT_LBRACKET:
+                value.param_toks = res.register(self.parse_codeblock_params())
+                if res.error:
+                    return res
+
         if type_tok.value == "tuple" and isinstance(value, ListNode):
             warn_legacy_syntax_position(
                 value.pos_start,
@@ -2443,6 +2460,8 @@ class Parser:
             )
 
         if self.current_tok.type != TT_SEMICOLON:
+            if type_tok.value == "codeblock" and isinstance(value, CodeBlockLiteralNode):
+                return res.success(VarDeclNode(type_tok, name_tok, value, is_const=True))
             return res.failure(
                 InvalidSyntaxError(
                     self.current_tok.pos_start, self.current_tok.pos_end, "Expected ';'"
@@ -4485,6 +4504,77 @@ class Parser:
             return res
         return res.success(CodeBlockLiteralNode(body, pos_start, body.pos_end))
 
+    def parse_codeblock_params(self):
+        """Parse an optional stored-codeblock parameter list: ``[str name]``."""
+        res = ParseResult()
+        param_toks = []
+        seen_names = set()
+
+        if self.current_tok.type != TT_LBRACKET:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start,
+                self.current_tok.pos_end,
+                "Expected '[' before codeblock parameters",
+            ))
+        res.register_advancement()
+        self.advance()
+
+        while self.current_tok.type != TT_RBRACKET and self.current_tok.type != TT_EOF:
+            next_tok = self.peek(1)
+            if self.is_type_keyword() and next_tok is not None and next_tok.type == TT_IDENTIFIER:
+                type_tok = self.current_tok
+                res.register_advancement()
+                self.advance()
+                name_tok = self.current_tok
+                res.register_advancement()
+                self.advance()
+            elif self.current_tok.type == TT_IDENTIFIER:
+                type_tok = None
+                name_tok = self.current_tok
+                res.register_advancement()
+                self.advance()
+            else:
+                return res.failure(InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "Expected a codeblock parameter name, optionally preceded by a type",
+                ))
+
+            if name_tok.value in seen_names:
+                return res.failure(InvalidSyntaxError(
+                    name_tok.pos_start,
+                    name_tok.pos_end,
+                    f"Duplicate codeblock parameter '{name_tok.value}'",
+                ))
+            seen_names.add(name_tok.value)
+            param_toks.append((type_tok, name_tok))
+
+            if self.current_tok.type == TT_COMMA:
+                res.register_advancement()
+                self.advance()
+                if self.current_tok.type == TT_RBRACKET:
+                    return res.failure(InvalidSyntaxError(
+                        self.current_tok.pos_start,
+                        self.current_tok.pos_end,
+                        "Expected a codeblock parameter after ','",
+                    ))
+            elif self.current_tok.type != TT_RBRACKET:
+                return res.failure(InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "Expected ',' or ']' after codeblock parameter",
+                ))
+
+        if self.current_tok.type != TT_RBRACKET:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start,
+                self.current_tok.pos_end,
+                "Expected ']' after codeblock parameters",
+            ))
+        res.register_advancement()
+        self.advance()
+        return res.success(param_toks)
+
     def parse_atom(self):
         res = ParseResult()
         tok = self.current_tok
@@ -4952,13 +5042,14 @@ _CODE_BLOCK_IDS = itertools.count(1)
 
 class CodeBlockValue(Value):
     """A code block captured from a function call."""
-    def __init__(self, body_node, block_id=None):
+    def __init__(self, body_node, param_toks=None, block_id=None):
         super().__init__()
         self.body_node = body_node
+        self.param_toks = param_toks
         self.block_id = block_id if block_id is not None else next(_CODE_BLOCK_IDS)
 
     def copy(self):
-        c = CodeBlockValue(self.body_node, self.block_id)
+        c = CodeBlockValue(self.body_node, self.param_toks, self.block_id)
         c.set_pos(self.pos_start, self.pos_end)
         c.set_context(self.context)
         return c
@@ -5555,6 +5646,33 @@ def _exec_codeblock_variable_names(node):
 
 def _build_exec_bindings(node, block, args, context):
     """Build ``(name, declared_type, value)`` bindings for one exec call."""
+    if block.param_toks is not None:
+        if len(args) != len(block.param_toks):
+            expected = ", ".join(
+                name_tok.value for _, name_tok in block.param_toks
+            ) if block.param_toks else "no variables"
+            return None, RTError(
+                node.pos_start,
+                node.pos_end,
+                f"exec() expects {len(block.param_toks)} value(s) for declared "
+                f"codeblock parameters ({expected}), but got {len(args)}",
+                context,
+            )
+
+        bindings = []
+        for (type_tok, name_tok), value in zip(block.param_toks, args):
+            declared_type = type_tok.value if type_tok else None
+            if not type_matches(declared_type, value):
+                return None, RTError(
+                    name_tok.pos_start,
+                    name_tok.pos_end,
+                    f"Codeblock parameter '{name_tok.value}' expects "
+                    f"'{declared_type}' but got a '{value_type_name(value)}' value",
+                    context,
+                )
+            bindings.append((name_tok.value, declared_type, value))
+        return bindings, None
+
     if node.infer_params:
         names = _exec_codeblock_variable_names(block.body_node)
         if len(args) != len(names):
@@ -7220,6 +7338,44 @@ class Interpreter:
             return out
         return res.success(Number.null)
 
+    def run_setup(self, setup_node, context):
+        """Run ``global setup`` while preserving its top-level scope.
+
+        Setup is intentionally evaluated in the program/module symbol table
+        rather than through ``Function.execute``: declarations made there are
+        global to the program or module.  Bind its parameters first so setup
+        follows the same default-parameter rules as every other function.
+        """
+        param_names = [param[1].value for param in setup_node.param_toks]
+        param_types = [param[0].value if param[0] else None for param in setup_node.param_toks]
+        param_defaults = [param[2] for param in setup_node.param_toks]
+        setup_function = Function(
+            setup_node.var_name_tok.value,
+            setup_node.body_block,
+            param_names,
+            param_types,
+            is_global=True,
+            param_defaults=param_defaults,
+        )
+        setup_function.set_context(context).set_pos(
+            setup_node.pos_start, setup_node.pos_end
+        )
+
+        result = RTResult()
+        result.register(
+            setup_function.check_and_populate_args(
+                param_names,
+                [],
+                context,
+                param_types,
+                param_defaults,
+            )
+        )
+        if result.should_return():
+            return result
+        result.register(self.visit(setup_node.body_block, context))
+        return result
+
     def visit_FuncDefNode(self, node, context):
         res = RTResult()
         func_name = node.var_name_tok.value
@@ -8034,8 +8190,20 @@ class Interpreter:
     # /async visitor path
 
     def visit_CodeBlockLiteralNode(self, node, context):
+        if node.param_toks is not None:
+            declared_names = {name_tok.value for _, name_tok in node.param_toks}
+            used_names = _exec_codeblock_variable_names(node.body_block)
+            undeclared = [name for name in used_names if name not in declared_names]
+            if undeclared:
+                return RTResult().failure(RTError(
+                    node.pos_start,
+                    node.pos_end,
+                    "Codeblock uses undeclared variable(s): "
+                    + ", ".join(undeclared),
+                    context,
+                ))
         return RTResult().success(
-            CodeBlockValue(node.body_block)
+            CodeBlockValue(node.body_block, node.param_toks)
             .set_context(context)
             .set_pos(node.pos_start, node.pos_end)
         )
@@ -8777,8 +8945,7 @@ class Interpreter:
             previous_setup_state = _setup_in_progress
             _setup_in_progress = True
             try:
-                setup_res = RTResult()
-                setup_res.register(self.visit(node.setup_func.body_block, context))
+                setup_res = self.run_setup(node.setup_func, context)
                 if setup_res.error:
                     return setup_res
             finally:
@@ -8892,8 +9059,7 @@ def run_file(fn, text, symbol_table):
         previous_setup_state = _setup_in_progress
         _setup_in_progress = True
         try:
-            r = RTResult()
-            r.register(interpreter.visit(node.setup_func.body_block, context))
+            r = interpreter.run_setup(node.setup_func, context)
             if r.error:
                 return r.error
         finally:

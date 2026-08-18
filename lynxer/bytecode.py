@@ -153,8 +153,7 @@ def run_bytecode_file(fn: str, symbol_table: Any) -> Any:
         previous_setup_state = runtime._setup_in_progress
         runtime._setup_in_progress = True
         try:
-            result = runtime.RTResult()
-            result.register(interpreter.visit(node.setup_func.body_block, context))
+            result = interpreter.run_setup(node.setup_func, context)
             if result.error:
                 return result.error
         finally:

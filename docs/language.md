@@ -623,7 +623,9 @@ global main(){
 ```
 
 Required parameters must come before parameters with defaults. Defaults are
-evaluated at call time, so expressions are evaluated for each call.
+evaluated at call time, so expressions are evaluated for each call. This also
+applies to parameters on `global setup(){}`; setup still runs in the program
+or module's global scope.
 
 ### Caller-supplied code blocks
 
@@ -722,6 +724,23 @@ codeblock helloWorld = {
 exec(){{helloWorld}}
 ```
 
+Stored codeblocks may declare the names and types of the values they receive
+after the body:
+
+```c
+codeblock example = {
+    println(name, age);
+}[str name, int age]
+
+exec("Alice", 30){{example}}
+```
+
+The declared list is positional. Each name used by the body must appear in the
+list, and each supplied value is checked against its declared type. The
+semicolon after the closing `]` is optional.
+
+The semicolon after a stored codeblock body or parameter list is optional.
+
 `exec(){...}` executes an inline block. Values used by the block are declared
 in the `exec` parameter list, using the same typed parameter syntax as a
 function:
@@ -737,8 +756,8 @@ Each declared value is looked up in the surrounding scope, checked against its
 declared type, and is available under its declared name while the block runs.
 The declaration is temporary and does not create magic `exec` variables.
 
-Stored codeblocks can instead receive values positionally. The names are taken
-from the user variables referenced by the codeblock:
+When the parameter list is omitted, names are inferred from the user variables
+referenced by the codeblock:
 
 ```c
 codeblock example = {
@@ -751,7 +770,9 @@ exec("Hello!"){{example}}
 The first value is bound to `text`, the next value to the next referenced
 variable, and so on. The number of provided values must match the number of
 variables required by the codeblock. These bindings are temporary and are
-restored after execution.
+restored after execution. This inferred form is equivalent to being prompted
+for `text` in the example; a block using `name` and `age` would require those
+two positional values.
 
 The old `exec({name})` form is replaced by `exec(){{name}}`.
 

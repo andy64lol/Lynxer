@@ -150,6 +150,10 @@ global main(){
         println("provided codeblock value: ", text);
     };
     exec("Hello!"){{example}}
+    codeblock typedExample = {
+        println("typed codeblock value: ", name, " ", age);
+    }[str name, int age]
+    exec("Alice", 30){{typedExample}}
     str text = "left";
     exec(str text){
         println("exec argument: ", text);

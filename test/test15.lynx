@@ -1,0 +1,37 @@
+global setup(str label = "setup default"){
+    println(label);
+}
+
+global greet(int x, str y = "hello"){
+    println(x, y);
+}
+
+global outer(){
+    global nested(str label = "nested default"){
+        println(label);
+    }
+}
+
+class Defaults {
+    local show(str label = "method default"){
+        println(label);
+    }
+}
+
+global main(){
+    global.greet(42);
+    global.greet(42, "world");
+
+    global.outer();
+    global.outer.nested();
+    global.outer.nested("nested override");
+
+    global.class.Defaults();
+    global.class.Defaults.show();
+
+    async echo(str label = "async default"){
+        println(label);
+    }
+    async.echo();
+    async.echo("async override");
+}

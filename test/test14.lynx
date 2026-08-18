@@ -2,6 +2,9 @@ global setup(){
     codeblock code1 = {
         println("A");
     };
+    codeblock typedCode = {
+        println(name, age);
+    }[str name, int age]
 }
 
 global runBlock(){handler}{
@@ -10,4 +13,9 @@ global runBlock(){handler}{
 
 global main(){
     global.runBlock(){{code1}}
+    codeblock inferredCode = {
+        println(inferredName, inferredAge);
+    }
+    exec("B", 2){{inferredCode}}
+    exec("C", 3){{typedCode}}
 }
