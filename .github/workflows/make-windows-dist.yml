@@ -1,0 +1,146 @@
+name: Windows Build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      # Equivalent to the venv creation in `make build`
+      - name: Create virtual environment
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "venv")) {
+            Write-Host "Creating virtual environment 'venv'..."
+            python -m venv venv
+          } else {
+            Write-Host "Using existing virtual environment 'venv'."
+          }
+
+      # Equivalent to:
+      # pip install --upgrade pip
+      # pip install --upgrade -r requirements_venv.txt
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          .\venv\Scripts\python.exe -m pip install --upgrade pip
+          .\venv\Scripts\python.exe -m pip install --upgrade -r requirements_venv.txt
+
+      - name: Patch Arcade PyInstaller hook
+        shell: pwsh
+        run: |
+          $hook = & .\venv\Scripts\python.exe -c "import arcade, os; print(os.path.join(os.path.dirname(arcade.__file__), '__pyinstaller', 'hook-arcade.py'))"
+
+          if (Test-Path $hook) {
+            $content = Get-Content $hook -Raw
+            $content = $content.Replace('"./arcade/VERSION"', '"./arcade"')
+            Set-Content -Path $hook -Value $content -NoNewline
+            Write-Host "  -> Patched $hook"
+          } else {
+            Write-Host "  -> Hook file not found (Arcade may not be installed?)"
+          }
+
+      - name: Install PyInstaller
+        shell: pwsh
+        run: |
+          .\venv\Scripts\python.exe -m pip install --upgrade pyinstaller
+
+      # Equivalent to COLLECT_ALL in the Makefile
+      - name: Build Lynxer
+        shell: pwsh
+        run: |
+          $collectArgs = @()
+
+          Get-Content requirements_venv.txt | ForEach-Object {
+            $line = $_ -replace '#.*', ''
+            $line = $line.Trim()
+
+            if ($line -ne '') {
+              $package = $line -replace '[<>=!~].*', ''
+              $package = $package -replace '\[.*\]', ''
+
+              if ($package -ne '') {
+                $collectArgs += "--collect-all=$package"
+              }
+            }
+          }
+
+          & .\venv\Scripts\pyinstaller.exe `
+            --onefile `
+            --clean `
+            @collectArgs `
+            --name lynxer `
+            --add-data "lynxer/warnings.txt;lynxer" `
+            --add-data "lynxer/stdlib;stdlib" `
+            lynxer/shell.py
+
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+
+          Write-Host "✓ Build complete: dist/lynxer"
+
+      # Equivalent to the dependency installation in `buildLite`
+      - name: Install Lite dependencies
+        shell: pwsh
+        run: |
+          .\venv\Scripts\python.exe -m pip install --upgrade pyinstaller cython setuptools
+
+      # Equivalent to:
+      # rm -rf build/stdlib_pure
+      # python scripts/select_pure_stdlib.py ...
+      - name: Select pure stdlib
+        shell: pwsh
+        run: |
+          if (Test-Path "build/stdlib_pure") {
+            Remove-Item -Recurse -Force "build/stdlib_pure"
+          }
+
+          & .\venv\Scripts\python.exe `
+            scripts/select_pure_stdlib.py `
+            lynxer/stdlib `
+            build/stdlib_pure
+
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+
+      # Equivalent to the buildLite PyInstaller invocation
+      - name: Build Lynxer Lite
+        shell: pwsh
+        run: |
+          & .\venv\Scripts\pyinstaller.exe `
+            --onefile `
+            --clean `
+            --collect-all=Cython `
+            --collect-all=setuptools `
+            --hidden-import=Cython.Build.Inline `
+            --name lynxer-lite `
+            --add-data "lynxer/warnings.txt;lynxer" `
+            --add-data "build/stdlib_pure;stdlib" `
+            lynxer/shell.py
+
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+
+          Write-Host "✓ Lite build complete: dist/lynxer-lite"
+
+      - name: Upload Windows builds
+        uses: actions/upload-artifact@v4
+        with:
+          name: lynxer-windows
+          path: |
+            dist/lynxer.exe
+            dist/lynxer-lite.exe
