@@ -104,5 +104,5 @@ help:
 	@echo "Lynxer source commands:"
 	@echo "  lynxer --format <file.lynx>"
 	@echo "  lynxer --format-oneline <file.lynx>"
-@echo "  lynxer --ast <file.lynx>"
+	@echo "  lynxer --ast <file.lynx>"
 	@echo "  lynxer --lint <file.lynx>"
