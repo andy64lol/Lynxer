@@ -993,10 +993,20 @@ class CodeBlockLiteralNode:
         self.pos_end = pos_end
 
 class ExecCallNode:
-    """Execute an inline or referenced code block: ``exec(){} ``."""
-    def __init__(self, code_block_node, arg_nodes=None, pos_start=None, pos_end=None):
+    """Execute an inline or referenced code block with declared/provided values."""
+    def __init__(
+        self,
+        code_block_node,
+        param_toks=None,
+        arg_nodes=None,
+        infer_params=False,
+        pos_start=None,
+        pos_end=None,
+    ):
         self.code_block_node = code_block_node
+        self.param_toks = param_toks or []
         self.arg_nodes = arg_nodes or []
+        self.infer_params = infer_params
         self.pos_start = pos_start
         self.pos_end = pos_end
 
@@ -1441,6 +1451,7 @@ class Parser:
         self.advance()
 
         param_toks = []
+        has_default = False
         while self.current_tok.type != TT_RPAREN and self.current_tok.type != TT_EOF:
             next_tok = self.peek(1)
             if (
@@ -1454,9 +1465,9 @@ class Parser:
                 pname_tok = self.current_tok
                 res.register_advancement()
                 self.advance()
-                param_toks.append((type_tok, pname_tok))
             elif self.current_tok.type == TT_IDENTIFIER:
-                param_toks.append((None, self.current_tok))
+                type_tok = None
+                pname_tok = self.current_tok
                 res.register_advancement()
                 self.advance()
             else:
@@ -1467,6 +1478,22 @@ class Parser:
                         "Expected parameter name (optionally preceded by a type: int, float, str, bool)",
                     )
                 )
+
+            default_node = None
+            if self.current_tok.type == TT_EQ:
+                has_default = True
+                res.register_advancement()
+                self.advance()
+                default_node = res.register(self.parse_expr())
+                if res.error:
+                    return res
+            elif has_default:
+                return res.failure(InvalidSyntaxError(
+                    pname_tok.pos_start,
+                    pname_tok.pos_end,
+                    "Required parameters cannot follow a parameter with a default value",
+                ))
+            param_toks.append((type_tok, pname_tok, default_node))
 
             if self.current_tok.type == TT_COMMA:
                 res.register_advancement()
@@ -1483,7 +1510,7 @@ class Parser:
         res.register_advancement()
         self.advance()
 
-        param_names = [param_tok.value for _, param_tok in param_toks]
+        param_names = [param_tok.value for _, param_tok, _ in param_toks]
         code_block_toks = []
         while self._looks_like_code_block_signature():
             res.register_advancement()
@@ -4153,33 +4180,76 @@ class Parser:
             elif self.current_tok.type == TT_LPAREN:
                 res.register_advancement()
                 self.advance()
-                arg_nodes = []
+                is_exec_call = (
+                    isinstance(atom, VarAccessNode)
+                    and atom.var_name_tok.value == "exec"
+                )
 
-                if self.current_tok.type != TT_RPAREN:
-                    arg_nodes.append(res.register(self.parse_expr()))
-                    if res.error:
-                        return res
-
-                    while self.current_tok.type == TT_COMMA:
-                        res.register_advancement()
-                        self.advance()
-                        arg_nodes.append(res.register(self.parse_expr()))
+                if is_exec_call:
+                    if self._looks_like_exec_declaration():
+                        param_toks = res.register(self.parse_exec_params())
+                        if res.error:
+                            return res
+                        arg_nodes = []
+                    else:
+                        param_toks = []
+                        arg_nodes = res.register(self.parse_exec_args())
                         if res.error:
                             return res
 
-                    if self.current_tok.type != TT_RPAREN:
+                    if self.current_tok.type != TT_LBRACE:
                         return res.failure(
                             InvalidSyntaxError(
                                 self.current_tok.pos_start,
                                 self.current_tok.pos_end,
-                                "Expected ',' or ')'",
+                                "Expected '{' after exec(...)",
                             )
                         )
+                    block_node = res.register(self.parse_exec_block_argument())
+                    if res.error:
+                        return res
+                    atom = ExecCallNode(
+                        block_node,
+                        param_toks,
+                        arg_nodes,
+                        infer_params=(
+                            (
+                                isinstance(block_node, CodeBlockRefNode)
+                                and not param_toks
+                            )
+                            or bool(arg_nodes)
+                        ),
+                        pos_start=pos_start,
+                        pos_end=block_node.pos_end,
+                    )
+                else:
+                    arg_nodes = []
 
-                pos_end = self.current_tok.pos_end.copy()
-                res.register_advancement()
-                self.advance()
-                atom = CallNode(atom, arg_nodes, pos_start, pos_end)
+                    if self.current_tok.type != TT_RPAREN:
+                        arg_nodes.append(res.register(self.parse_expr()))
+                        if res.error:
+                            return res
+
+                        while self.current_tok.type == TT_COMMA:
+                            res.register_advancement()
+                            self.advance()
+                            arg_nodes.append(res.register(self.parse_expr()))
+                            if res.error:
+                                return res
+
+                        if self.current_tok.type != TT_RPAREN:
+                            return res.failure(
+                                InvalidSyntaxError(
+                                    self.current_tok.pos_start,
+                                    self.current_tok.pos_end,
+                                    "Expected ',' or ')'",
+                                )
+                            )
+
+                    pos_end = self.current_tok.pos_end.copy()
+                    res.register_advancement()
+                    self.advance()
+                    atom = CallNode(atom, arg_nodes, pos_start, pos_end)
 
             elif (
                 self.current_tok.type == TT_LBRACE
@@ -4192,9 +4262,11 @@ class Parser:
                     return res
                 atom = ExecCallNode(
                     block_node,
+                    [],
                     atom.arg_nodes,
-                    atom.pos_start,
-                    block_node.pos_end,
+                    infer_params=bool(atom.arg_nodes),
+                    pos_start=atom.pos_start,
+                    pos_end=block_node.pos_end,
                 )
 
             elif (
@@ -4228,8 +4300,101 @@ class Parser:
 
         return res.success(atom)
 
+    def _looks_like_exec_declaration(self):
+        """Return whether the first exec value is a typed declaration."""
+        return (
+            self.is_type_keyword()
+            and self.peek(1) is not None
+            and self.peek(1).type == TT_IDENTIFIER
+        )
+
+    def parse_exec_args(self):
+        """Parse positional values in ``exec(value, ...)``."""
+        res = ParseResult()
+        arg_nodes = []
+
+        if self.current_tok.type != TT_RPAREN:
+            arg_nodes.append(res.register(self.parse_expr()))
+            if res.error:
+                return res
+
+            while self.current_tok.type == TT_COMMA:
+                res.register_advancement()
+                self.advance()
+                arg_nodes.append(res.register(self.parse_expr()))
+                if res.error:
+                    return res
+
+            if self.current_tok.type != TT_RPAREN:
+                return res.failure(InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "Expected ',' or ')'",
+                ))
+
+        res.register_advancement()
+        self.advance()
+        return res.success(arg_nodes)
+
+    def parse_exec_params(self):
+        """Parse declared values in ``exec(type name, ...)``."""
+        res = ParseResult()
+        param_toks = []
+        seen_names = set()
+
+        while self.current_tok.type != TT_RPAREN and self.current_tok.type != TT_EOF:
+            next_tok = self.peek(1)
+            if (
+                self.is_type_keyword()
+                and next_tok is not None
+                and next_tok.type == TT_IDENTIFIER
+            ):
+                type_tok = self.current_tok
+                res.register_advancement()
+                self.advance()
+                name_tok = self.current_tok
+                res.register_advancement()
+                self.advance()
+            elif self.current_tok.type == TT_IDENTIFIER:
+                type_tok = None
+                name_tok = self.current_tok
+                res.register_advancement()
+                self.advance()
+            else:
+                return res.failure(InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    self.current_tok.pos_end,
+                    "Expected parameter name (optionally preceded by a type: "
+                    "int, float, str, bool)",
+                ))
+
+            if name_tok.value in seen_names:
+                return res.failure(InvalidSyntaxError(
+                    name_tok.pos_start,
+                    name_tok.pos_end,
+                    f"Duplicate exec parameter name '{name_tok.value}'",
+                ))
+            seen_names.add(name_tok.value)
+            param_toks.append((type_tok, name_tok))
+
+            if self.current_tok.type == TT_COMMA:
+                res.register_advancement()
+                self.advance()
+            else:
+                break
+
+        if self.current_tok.type != TT_RPAREN:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start,
+                self.current_tok.pos_end,
+                "Expected ')'",
+            ))
+        res.register_advancement()
+        self.advance()
+        return res.success(param_toks)
+
     def parse_exec_block_argument(self):
-        """Parse ``{...}`` or ``{{codeblockName}}`` after ``exec(args)``."""
+        """Parse ``{...}`` or ``{{codeblockName}}`` after ``exec(...)``."""
         res = ParseResult()
 
         if self.current_tok.type != TT_LBRACE:
@@ -4539,6 +4704,7 @@ class Parser:
             ))
         res.register_advancement(); self.advance()
         param_toks = []
+        has_default = False
         while self.current_tok.type != TT_RPAREN and self.current_tok.type != TT_EOF:
             next_tok = self.peek(1)
             if self.is_type_keyword() and next_tok is not None and next_tok.type == TT_IDENTIFIER:
@@ -4546,15 +4712,29 @@ class Parser:
                 res.register_advancement(); self.advance()
                 pname_tok = self.current_tok
                 res.register_advancement(); self.advance()
-                param_toks.append((type_tok, pname_tok))
             elif self.current_tok.type == TT_IDENTIFIER:
-                param_toks.append((None, self.current_tok))
+                type_tok = None
+                pname_tok = self.current_tok
                 res.register_advancement(); self.advance()
             else:
                 return res.failure(InvalidSyntaxError(
                     self.current_tok.pos_start, self.current_tok.pos_end,
                     "Expected parameter name",
                 ))
+            default_node = None
+            if self.current_tok.type == TT_EQ:
+                has_default = True
+                res.register_advancement(); self.advance()
+                default_node = res.register(self.parse_expr())
+                if res.error:
+                    return res
+            elif has_default:
+                return res.failure(InvalidSyntaxError(
+                    pname_tok.pos_start,
+                    pname_tok.pos_end,
+                    "Required parameters cannot follow a parameter with a default value",
+                ))
+            param_toks.append((type_tok, pname_tok, default_node))
             if self.current_tok.type == TT_COMMA:
                 res.register_advancement(); self.advance()
             else:
@@ -5320,6 +5500,97 @@ def type_matches(declared_type, value):
         return actual == "vargroup"
     return actual == declared_type
 
+def _exec_codeblock_variable_names(node):
+    """Return user-variable references in a codeblock in source order."""
+    names = []
+    seen = set()
+    namespace_names = {"global", "local", "class", "async"}
+
+    def visit(value, call_target=False):
+        if value is None or isinstance(value, (Token, str, int, float, bool)):
+            return
+        if isinstance(value, VarAccessNode):
+            name = value.var_name_tok.value
+            if not call_target and name not in namespace_names and name not in seen:
+                seen.add(name)
+                names.append(name)
+            return
+        if isinstance(value, VarAssignNode):
+            name = value.var_name_tok.value
+            if name not in namespace_names and name not in seen:
+                seen.add(name)
+                names.append(name)
+            visit(value.value_node)
+            return
+        if isinstance(value, CodeBlockRefNode):
+            return
+        if isinstance(value, CallNode):
+            visit(value.node_to_call, call_target=True)
+            for arg_node in value.arg_nodes:
+                visit(arg_node)
+            for block_node in value.block_arg_nodes:
+                visit(block_node)
+            return
+        if isinstance(value, DotAccessNode):
+            if (
+                call_target
+                and isinstance(value.obj_node, VarAccessNode)
+                and value.obj_node.var_name_tok.value in namespace_names
+            ):
+                return
+            visit(value.obj_node)
+            return
+        if isinstance(value, (list, tuple)):
+            for item in value:
+                visit(item)
+            return
+        if hasattr(value, "__dict__"):
+            for attr_name, attr_value in vars(value).items():
+                if attr_name in {"pos_start", "pos_end"}:
+                    continue
+                visit(attr_value)
+
+    visit(node)
+    return names
+
+def _build_exec_bindings(node, block, args, context):
+    """Build ``(name, declared_type, value)`` bindings for one exec call."""
+    if node.infer_params:
+        names = _exec_codeblock_variable_names(block.body_node)
+        if len(args) != len(names):
+            expected = ", ".join(names) if names else "no variables"
+            return None, RTError(
+                node.pos_start,
+                node.pos_end,
+                f"exec() expects {len(names)} value(s) for codeblock variables "
+                f"({expected}), but got {len(args)}",
+                context,
+            )
+        return [(name, None, value) for name, value in zip(names, args)], None
+
+    bindings = []
+    for type_tok, name_tok in node.param_toks:
+        name = name_tok.value
+        value = context.symbol_table.get(name)
+        if value is None:
+            return None, RTError(
+                name_tok.pos_start,
+                name_tok.pos_end,
+                f"Exec parameter '{name}' is not defined in the surrounding scope",
+                context,
+            )
+        declared_type = type_tok.value if type_tok else None
+        if not type_matches(declared_type, value):
+            return None, RTError(
+                name_tok.pos_start,
+                name_tok.pos_end,
+                f"Exec parameter '{name}' expects '{declared_type}' "
+                f"but got a '{value_type_name(value)}' value",
+                context,
+            )
+        bindings.append((name, declared_type, value))
+    return bindings, None
+
 class BaseFunction(Value):
     def __init__(self, name):
         super().__init__()
@@ -5331,8 +5602,12 @@ class BaseFunction(Value):
         new_context.symbol_table = SymbolTable(parent_table)
         return new_context
 
-    def check_args(self, arg_names, args):
+    def check_args(self, arg_names, args, arg_defaults=None):
         res = RTResult()
+        arg_defaults = arg_defaults or []
+        required_count = len(arg_names) - sum(
+            default_node is not None for default_node in arg_defaults
+        )
         if len(args) > len(arg_names):
             return res.failure(
                 RTError(
@@ -5342,12 +5617,12 @@ class BaseFunction(Value):
                     self.context,
                 )
             )
-        if len(args) < len(arg_names):
+        if len(args) < required_count:
             return res.failure(
                 RTError(
                     self.pos_start,
                     self.pos_end,
-                    f"{len(arg_names) - len(args)} too few arguments passed into '{self.name}'",
+                    f"{required_count - len(args)} too few arguments passed into '{self.name}'",
                     self.context,
                 )
             )
@@ -5372,25 +5647,44 @@ class BaseFunction(Value):
             exec_ctx.symbol_table.set(arg_name, arg_value, decl_type=arg_type)
         return None
 
-    def check_and_populate_args(self, arg_names, args, exec_ctx, arg_types=None):
+    def check_and_populate_args(
+        self, arg_names, args, exec_ctx, arg_types=None, arg_defaults=None
+    ):
         res = RTResult()
-        res.register(self.check_args(arg_names, args))
+        res.register(self.check_args(arg_names, args, arg_defaults))
         if res.should_return():
             return res
         err = self.populate_args(arg_names, args, exec_ctx, arg_types)
         if err:
             return err
+        arg_defaults = arg_defaults or []
+        for index in range(len(args), len(arg_names)):
+            default_node = arg_defaults[index]
+            default_value = res.register(
+                SHARED_INTERPRETER.visit(default_node, exec_ctx)
+            )
+            if res.should_return():
+                return res
+            err = self.populate_args(
+                [arg_names[index]],
+                [default_value],
+                exec_ctx,
+                [arg_types[index] if arg_types else None],
+            )
+            if err:
+                return err
         return res.success(None)
 
 class Function(BaseFunction):
     def __init__(
         self, name, body_node, param_names, param_types=None, is_global=False,
-        code_block_names=None
+        code_block_names=None, param_defaults=None
     ):
         super().__init__(name)
         self.body_node = body_node
         self.param_names = param_names
         self.param_types = param_types or [None] * len(param_names)
+        self.param_defaults = param_defaults or [None] * len(param_names)
         self.is_global = is_global
         self.code_block_names = code_block_names or []
         self.inner_locals = {}
@@ -5419,7 +5713,11 @@ class Function(BaseFunction):
 
         res.register(
             self.check_and_populate_args(
-                self.param_names, args, exec_ctx, self.param_types
+                self.param_names,
+                args,
+                exec_ctx,
+                self.param_types,
+                self.param_defaults,
             )
         )
         if res.should_return():
@@ -5459,6 +5757,7 @@ class Function(BaseFunction):
             self.param_types,
             self.is_global,
             self.code_block_names,
+            self.param_defaults,
         )
         c.set_context(self.context)
         c.set_pos(self.pos_start, self.pos_end)
@@ -5475,12 +5774,13 @@ class AsyncFunction(BaseFunction):
 
     def __init__(
         self, name, body_node, param_names, param_types=None, is_global=False,
-        code_block_names=None
+        code_block_names=None, param_defaults=None
     ):
         super().__init__(name)
         self.body_node = body_node
         self.param_names = param_names
         self.param_types = param_types or [None] * len(param_names)
+        self.param_defaults = param_defaults or [None] * len(param_names)
         self.is_global = is_global
         self.code_block_names = code_block_names or []
         self.inner_locals = {}
@@ -5508,7 +5808,11 @@ class AsyncFunction(BaseFunction):
 
         res.register(
             self.check_and_populate_args(
-                self.param_names, args, exec_ctx, self.param_types
+                self.param_names,
+                args,
+                exec_ctx,
+                self.param_types,
+                self.param_defaults,
             )
         )
         if res.should_return():
@@ -5554,6 +5858,7 @@ class AsyncFunction(BaseFunction):
             self.param_types,
             self.is_global,
             self.code_block_names,
+            self.param_defaults,
         )
         c.set_context(self.context)
         c.set_pos(self.pos_start, self.pos_end)
@@ -6039,7 +6344,11 @@ class BoundMethod(Value):
         exec_ctx.symbol_table.set("this", self.class_obj)
         res.register(
             self.func.check_and_populate_args(
-                self.func.param_names, args, exec_ctx, self.func.param_types
+                self.func.param_names,
+                args,
+                exec_ctx,
+                self.func.param_types,
+                self.func.param_defaults,
             )
         )
         if res.should_return():
@@ -6294,6 +6603,7 @@ def _preregister_nested_globals(parent_func, block_node, context):
                 continue
             param_names = [p[1].value for p in stmt.param_toks]
             param_types = [p[0].value if p[0] else None for p in stmt.param_toks]
+            param_defaults = [p[2] for p in stmt.param_toks]
             code_block_names = [tok.value for tok in stmt.code_block_toks]
             if stmt.is_async:
                 child_func = AsyncFunction(
@@ -6303,6 +6613,7 @@ def _preregister_nested_globals(parent_func, block_node, context):
                     param_types,
                     is_global=True,
                     code_block_names=code_block_names,
+                    param_defaults=param_defaults,
                 )
             else:
                 child_func = Function(
@@ -6312,6 +6623,7 @@ def _preregister_nested_globals(parent_func, block_node, context):
                     param_types,
                     is_global=True,
                     code_block_names=code_block_names,
+                    param_defaults=param_defaults,
                 )
             child_func.set_context(context)
             child_func.set_pos(stmt.pos_start, stmt.pos_end)
@@ -6913,6 +7225,7 @@ class Interpreter:
         func_name = node.var_name_tok.value
         param_names = [p[1].value for p in node.param_toks]
         param_types = [p[0].value if p[0] else None for p in node.param_toks]
+        param_defaults = [p[2] for p in node.param_toks]
         code_block_names = [tok.value for tok in node.code_block_toks]
         is_global = node.kind_tok.value == "global" or (
             node.kind_tok.type == TT_IDENTIFIER and node.kind_tok.value == "global"
@@ -6925,6 +7238,7 @@ class Interpreter:
                 param_types,
                 is_global,
                 code_block_names,
+                param_defaults,
             )
         else:
             func_value = Function(
@@ -6934,6 +7248,7 @@ class Interpreter:
                 param_types,
                 is_global,
                 code_block_names,
+                param_defaults,
             )
         func_value.set_context(context).set_pos(node.pos_start, node.pos_end)
 
@@ -6962,7 +7277,14 @@ class Interpreter:
         func_name = node.name_tok.value
         param_names = [p[1].value for p in node.param_toks]
         param_types = [p[0].value if p[0] else None for p in node.param_toks]
-        func_value = AsyncFunction(func_name, node.body, param_names, param_types)
+        param_defaults = [p[2] for p in node.param_toks]
+        func_value = AsyncFunction(
+            func_name,
+            node.body,
+            param_names,
+            param_types,
+            param_defaults=param_defaults,
+        )
         func_value.set_context(context).set_pos(node.pos_start, node.pos_end)
         context.symbol_table.set(f"__async__{func_name}", func_value)
         return res.success(Number.null)
@@ -7521,15 +7843,18 @@ class Interpreter:
                 "exec() expects a code-block parameter reference",
                 context,
             ))
+        bindings, error = _build_exec_bindings(node, block, args, context)
+        if error:
+            return res.failure(error)
         previous = {}
-        if args:
-            exec_args = List(args).set_context(context)
-            for name, value in [("execArgs", exec_args)] + [
-                (f"execArg{i}", value) for i, value in enumerate(args)
-            ]:
-                previous[name] = context.symbol_table.symbols.get(name)
-                context.symbol_table.set(name, value)
         try:
+            for name, declared_type, value in bindings:
+                previous[name] = context.symbol_table.symbols.get(name)
+                context.symbol_table.set(
+                    name,
+                    value.copy().set_context(context),
+                    decl_type=declared_type,
+                )
             return await self.async_visit(block.body_node, context)
         finally:
             for name, old_value in previous.items():
@@ -7756,15 +8081,18 @@ class Interpreter:
                 "exec() expects a code-block parameter reference",
                 context,
             ))
+        bindings, error = _build_exec_bindings(node, block, args, context)
+        if error:
+            return res.failure(error)
         previous = {}
-        if args:
-            exec_args = List(args).set_context(context)
-            for name, value in [("execArgs", exec_args)] + [
-                (f"execArg{i}", value) for i, value in enumerate(args)
-            ]:
-                previous[name] = context.symbol_table.symbols.get(name)
-                context.symbol_table.set(name, value)
         try:
+            for name, declared_type, value in bindings:
+                previous[name] = context.symbol_table.symbols.get(name)
+                context.symbol_table.set(
+                    name,
+                    value.copy().set_context(context),
+                    decl_type=declared_type,
+                )
             return self.visit(block.body_node, context)
         finally:
             for name, old_value in previous.items():
@@ -7946,6 +8274,7 @@ class Interpreter:
             func_name = method_node.var_name_tok.value
             param_names = [p[1].value for p in method_node.param_toks]
             param_types = [p[0].value if p[0] else None for p in method_node.param_toks]
+            param_defaults = [p[2] for p in method_node.param_toks]
             code_block_names = [tok.value for tok in method_node.code_block_toks]
             func = Function(
                 func_name,
@@ -7954,6 +8283,7 @@ class Interpreter:
                 param_types,
                 is_global=False,
                 code_block_names=code_block_names,
+                param_defaults=param_defaults,
             )
             func.set_context(context).set_pos(method_node.pos_start, method_node.pos_end)
             methods[func_name] = func

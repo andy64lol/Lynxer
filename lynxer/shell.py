@@ -76,9 +76,11 @@ def _view_bytecode(filepath):
         params = getattr(fn_def, "param_toks",   [])
         name   = fname.value if fname else "?"
         param_strs = []
-        for pt, nt in params:
+        for param in params:
+            pt, nt = param[:2]
             type_str = pt.value if pt else "any"
-            param_strs.append(f"{type_str} {nt.value}")
+            default_str = " = ..." if len(param) > 2 and param[2] is not None else ""
+            param_strs.append(f"{type_str} {nt.value}{default_str}")
         is_async = getattr(fn_def, "is_async", False)
         prefix = "async " if is_async else ""
         print(f"    {prefix}global {name}({', '.join(param_strs)})")
@@ -92,9 +94,11 @@ def _view_bytecode(filepath):
                     continue
                 iparams = getattr(inner, "param_toks", [])
                 ip_strs = []
-                for pt, nt in iparams:
+                for param in iparams:
+                    pt, nt = param[:2]
                     type_str = pt.value if pt else "any"
-                    ip_strs.append(f"{type_str} {nt.value}")
+                    default_str = " = ..." if len(param) > 2 and param[2] is not None else ""
+                    ip_strs.append(f"{type_str} {nt.value}{default_str}")
                 ia = getattr(inner, "is_async", False)
                 ipfx = "async " if ia else ""
                 print(f"      {ipfx}global {iname.value}({', '.join(ip_strs)})")

@@ -146,8 +146,13 @@ global main(){
         println("Hello world!");
     };
     exec(){{helloWorld}}
-    exec("left", 42){
-        println("exec arguments: ", execArg0, " ", execArg1);
+    codeblock example = {
+        println("provided codeblock value: ", text);
+    };
+    exec("Hello!"){{example}}
+    str text = "left";
+    exec(str text){
+        println("exec argument: ", text);
     }
 
     println("=== done ===");

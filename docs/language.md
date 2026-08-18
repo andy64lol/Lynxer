@@ -606,6 +606,25 @@ global mixed(int n, any x){ ... }
 
 A call that passes a value of the wrong type is a runtime error.
 
+### Default parameters
+
+Parameters may provide a default expression. The default is used when the
+caller omits that trailing argument, and an explicit argument overrides it:
+
+```c
+global foo(int x, str y = "hello"){
+    println(x, y);
+}
+
+global main(){
+    global.foo(42);           // prints: 42hello
+    global.foo(42, "world");  // prints: 42world
+}
+```
+
+Required parameters must come before parameters with defaults. Defaults are
+evaluated at call time, so expressions are evaluated for each call.
+
 ### Caller-supplied code blocks
 
 Global, local, and class-method functions may declare named parameters for
@@ -703,14 +722,36 @@ codeblock helloWorld = {
 exec(){{helloWorld}}
 ```
 
-`exec(){...}` executes an inline block. Parenthesized values are available
-inside that block as `execArgs` (a list), `execArg0`, `execArg1`, and so on:
+`exec(){...}` executes an inline block. Values used by the block are declared
+in the `exec` parameter list, using the same typed parameter syntax as a
+function:
 
 ```c
-exec("left", 42){
-    println(execArg0, " ", execArg1);
+str text = "left";
+exec(str text){
+    println(text);
 }
 ```
+
+Each declared value is looked up in the surrounding scope, checked against its
+declared type, and is available under its declared name while the block runs.
+The declaration is temporary and does not create magic `exec` variables.
+
+Stored codeblocks can instead receive values positionally. The names are taken
+from the user variables referenced by the codeblock:
+
+```c
+codeblock example = {
+    println(text);
+};
+
+exec("Hello!"){{example}}
+```
+
+The first value is bound to `text`, the next value to the next referenced
+variable, and so on. The number of provided values must match the number of
+variables required by the codeblock. These bindings are temporary and are
+restored after execution.
 
 The old `exec({name})` form is replaced by `exec(){{name}}`.
 
