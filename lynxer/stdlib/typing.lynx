@@ -35,9 +35,124 @@ global toFloat(str s){
     return result;
 }
 
+// Convert to a float32-compatible value.
+global toFloat32(any value){
+    float result = 0.0;
+    rawPy(){
+        import struct as _struct
+        try:
+            result = _struct.unpack("f", _struct.pack("f", float(value)))[0]
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+// Convert to a float64-compatible value.
+global toFloat64(any value){
+    float result = 0.0;
+    rawPy(){
+        try:
+            result = float(value)
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
 global toBool(int n){
     if(n != 0){
         return true;
+    }
+    return false;
+}
+
+// Convert a number to numeric boolean form: exactly 0 or 1.
+global toNumBool(any value){
+    if(value != 0){ return 1; }
+    return 0;
+}
+
+// Convert a number to a single bit: exactly 0 or 1.
+global toBit(any value){
+    if(value != 0){ return 1; }
+    return 0;
+}
+
+// Convert a number to a byte, clamping to the valid range 0..255.
+global toByte(any value){
+    if(value < 0){ return 0; }
+    if(value > 255){ return 255; }
+    return intOf(strOf(value));
+}
+
+global isNumBool(any value){
+    if(returnType(value) == "int" and value >= 0 and value <= 1){ return true; }
+    return false;
+}
+
+global isBit(any value){
+    return global.typing.isNumBool(value);
+}
+
+global isByte(any value){
+    if(returnType(value) == "int" and value >= 0 and value <= 255){ return true; }
+    return false;
+}
+
+global isInt8(any value){
+    if(returnType(value) == "int" and value >= -128 and value <= 127){ return true; }
+    return false;
+}
+
+global isInt16(any value){
+    if(returnType(value) == "int" and value >= -32768 and value <= 32767){ return true; }
+    return false;
+}
+
+global isInt32(any value){
+    if(returnType(value) == "int" and value >= -2147483648 and value <= 2147483647){ return true; }
+    return false;
+}
+
+global isInt64(any value){
+    if(returnType(value) == "int" and value >= -9223372036854775808 and value <= 9223372036854775807){ return true; }
+    return false;
+}
+
+global isUInt8(any value){
+    return global.typing.isByte(value);
+}
+
+global isUInt16(any value){
+    if(returnType(value) == "int" and value >= 0 and value <= 65535){ return true; }
+    return false;
+}
+
+global isUInt32(any value){
+    if(returnType(value) == "int" and value >= 0 and value <= 4294967295){ return true; }
+    return false;
+}
+
+global isUInt64(any value){
+    if(returnType(value) == "int" and value >= 0 and value <= 18446744073709551615){ return true; }
+    return false;
+}
+
+global isFloat32(any value){
+    if(returnType(value) == "int" or returnType(value) == "float"){
+        if(value == value and value >= -340282346638528860000000000000000000000 and value <= 340282346638528860000000000000000000000){
+            return true;
+        }
+    }
+    return false;
+}
+
+global isFloat64(any value){
+    if(returnType(value) == "int" or returnType(value) == "float"){
+        if(value == value){
+            return true;
+        }
     }
     return false;
 }
@@ -210,11 +325,11 @@ global endsWith(str s, str suffix){
     return false;
 }
 
-// Replace all occurrences of old with new in s.
-global replace(str s, str old, str new){
+// Replace all occurrences of old with replacement in s.
+global replace(str s, str old, str replacement){
     str result = "";
     rawPy(){
-        result = s.replace(old, new)
+        result = s.replace(old, replacement)
     }
     return result;
 }

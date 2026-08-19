@@ -65,6 +65,106 @@ global writeByte(int address, int offset, int value){
     }
 }
 
+global readInt8(int address, int offset){
+    int value = 0;
+    rawPy(){ value = c.readInt8(address, offset) }
+    return value;
+}
+
+global writeInt8(int address, int offset, int value){
+    rawPy(){ c.writeInt8(address, offset, value) }
+}
+
+global readInt16(int address, int offset){
+    int value = 0;
+    rawPy(){ value = c.readInt16(address, offset) }
+    return value;
+}
+
+global writeInt16(int address, int offset, int value){
+    rawPy(){ c.writeInt16(address, offset, value) }
+}
+
+global readInt32(int address, int offset){
+    int value = 0;
+    rawPy(){ value = c.readInt32(address, offset) }
+    return value;
+}
+
+global writeInt32(int address, int offset, int value){
+    rawPy(){ c.writeInt32(address, offset, value) }
+}
+
+global readInt64(int address, int offset){
+    int value = 0;
+    rawPy(){ value = c.readInt64(address, offset) }
+    return value;
+}
+
+global writeInt64(int address, int offset, int value){
+    rawPy(){ c.writeInt64(address, offset, value) }
+}
+
+global readUInt8(int address, int offset){
+    int value = 0;
+    rawPy(){ value = c.readUInt8(address, offset) }
+    return value;
+}
+
+global writeUInt8(int address, int offset, int value){
+    rawPy(){ c.writeUInt8(address, offset, value) }
+}
+
+global readUInt16(int address, int offset){
+    int value = 0;
+    rawPy(){ value = c.readUInt16(address, offset) }
+    return value;
+}
+
+global writeUInt16(int address, int offset, int value){
+    rawPy(){ c.writeUInt16(address, offset, value) }
+}
+
+global readUInt32(int address, int offset){
+    int value = 0;
+    rawPy(){ value = c.readUInt32(address, offset) }
+    return value;
+}
+
+global writeUInt32(int address, int offset, int value){
+    rawPy(){ c.writeUInt32(address, offset, value) }
+}
+
+global readUInt64(int address, int offset){
+    int value = 0;
+    rawPy(){ value = c.readUInt64(address, offset) }
+    return value;
+}
+
+global writeUInt64(int address, int offset, int value){
+    rawPy(){ c.writeUInt64(address, offset, value) }
+}
+
+global readFloat32(int address, int offset){
+    float value = 0.0;
+    rawPy(){ value = c.readFloat32(address, offset) }
+    return value;
+}
+
+global writeFloat32(int address, int offset, float value){
+    rawPy(){ c.writeFloat32(address, offset, value) }
+}
+
+global readFloat64(int address, int offset){
+    float value = 0.0;
+    rawPy(){ value = c.readFloat64(address, offset) }
+    return value;
+}
+
+global writeFloat64(int address, int offset, float value){
+    rawPy(){ c.writeFloat64(address, offset, value) }
+}
+
 global sizeof(str typeName){
     int size = 0;
     rawPy(){

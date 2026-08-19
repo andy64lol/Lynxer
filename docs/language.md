@@ -127,6 +127,19 @@ Built-in functions are conventionally called **directly** (without `global.`). M
 | `char`     | `'a'`, `'\n'`             | single Unicode character; single-quote literal; concatenates with `str` |
 | `str`      | `"hello"`, `"line\n"`     | double-quoted; supports `\n \t \\ \r \e` escapes |
 | `bool`     | `true`, `false`           | displays as `true`/`false`; truthy when non-zero |
+| `numBool`  | integer `0` or `1`        | numeric boolean; displays as `0`/`1` |
+| `bit`      | integer `0` or `1`        | one-bit numeric value |
+| `byte`     | integer `0` through `255` | unsigned 8-bit numeric value |
+| `int8`     | signed 8-bit integer      | range `-128..127` |
+| `int16`    | signed 16-bit integer     | range `-32768..32767` |
+| `int32`    | signed 32-bit integer     | range `-2147483648..2147483647` |
+| `int64`    | signed 64-bit integer     | range `-9223372036854775808..9223372036854775807` |
+| `uint8`    | unsigned 8-bit integer    | range `0..255` |
+| `uint16`   | unsigned 16-bit integer   | range `0..65535` |
+| `uint32`   | unsigned 32-bit integer   | range `0..4294967295` |
+| `uint64`   | unsigned 64-bit integer   | range `0..18446744073709551615` |
+| `float32`  | single-precision float    | finite range up to approximately `3.4028235e38` |
+| `float64`  | double-precision float    | finite range up to approximately `1.7976931e308` |
 | `tuple`    | `(int 1, int 2, int 3)`   | immutable, fixed-length sequence; see [tuples.md](tuples.md) |
 | `sentinel` | `sentinel("MISSING")`     | unique identity marker; compare with `is` / `not is` |
 | `codeblock`| `{ println("hi"); }`      | stored Lynxer statements; execute with `exec(){{name}}` |

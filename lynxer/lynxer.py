@@ -64,6 +64,15 @@ def stdlib_dir() -> str:
     return candidates[0]
 
 
+def _ensure_experimental_python_path() -> None:
+    """Make optional native modules beside experimental stdlib files importable."""
+    experimental_dir = os.path.realpath(
+        os.path.join(stdlib_dir(), "experimental")
+    )
+    if os.path.isdir(experimental_dir) and experimental_dir not in sys.path:
+        sys.path.insert(0, experimental_dir)
+
+
 def _load_warning_messages() -> dict[str, str]:
     for warning_path in _warning_message_paths():
         try:
@@ -313,11 +322,19 @@ TT_DOCSTRING = "DOCSTRING"
 
 TYPE_KEYWORDS = [
     "int", "float", "str", "bool", "any", "tuple", "list", "num", "char",
+    "numBool", "bit", "byte",
+    "int8", "int16", "int32", "int64",
+    "uint8", "uint16", "uint32", "uint64",
+    "float32", "float64",
     "sentinel", "codeblock",
 ]
 
 KEYWORDS = [
     "int", "float", "str", "bool", "any", "tuple", "list", "num", "char",
+    "numBool", "bit", "byte",
+    "int8", "int16", "int32", "int64",
+    "uint8", "uint16", "uint32", "uint64",
+    "float32", "float64",
     "sentinel", "codeblock",
     "global", "local", "const",
     "if", "elif", "else", "while", "for", "forever", "switch", "case", "default",
@@ -5738,6 +5755,23 @@ def value_type_name(v):
     return "any"
 
 NUMERIC_TYPES = {"int", "float"}
+INTEGER_RANGES = {
+    "int8": (-128, 127),
+    "int16": (-32768, 32767),
+    "int32": (-2147483648, 2147483647),
+    "int64": (-9223372036854775808, 9223372036854775807),
+    "uint8": (0, 255),
+    "uint16": (0, 65535),
+    "uint32": (0, 4294967295),
+    "uint64": (0, 18446744073709551615),
+    "bit": (0, 1),
+    "numBool": (0, 1),
+    "byte": (0, 255),
+}
+FLOAT_RANGES = {
+    "float32": 3.4028234663852886e38,
+    "float64": 1.7976931348623157e308,
+}
 
 def type_matches(declared_type, value):
     if declared_type in (None, "any"):
@@ -5747,6 +5781,22 @@ def type_matches(declared_type, value):
         return actual in NUMERIC_TYPES
     if declared_type in NUMERIC_TYPES:
         return actual in NUMERIC_TYPES
+    if declared_type in INTEGER_RANGES:
+        return (
+            isinstance(value, Number)
+            and not value.is_bool
+            and isinstance(value.value, int)
+            and INTEGER_RANGES[declared_type][0] <= value.value
+            <= INTEGER_RANGES[declared_type][1]
+        )
+    if declared_type in FLOAT_RANGES:
+        return (
+            isinstance(value, Number)
+            and not value.is_bool
+            and isinstance(value.value, (int, float))
+            and value.value == value.value
+            and abs(value.value) <= FLOAT_RANGES[declared_type]
+        )
     if declared_type == "char":
         return isinstance(value, Char)
     if declared_type == "vargroup":
@@ -9147,6 +9197,9 @@ class Interpreter:
         import importlib as _importlib
         for mod_name in node.module_names:
             try:
+                # Experimental native extensions are built next to their .lynx
+                # wrappers, not installed as top-level site packages.
+                _ensure_experimental_python_path()
                 mod = _importlib.import_module(mod_name)
                 _rawpy_global_modules[mod_name] = mod
             except ImportError as e:

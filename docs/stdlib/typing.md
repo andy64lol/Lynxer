@@ -56,10 +56,20 @@ global main(){
 | `toStr` | `toStr(int n)` | `str` | Integer to string |
 | `toInt` | `toInt(str s)` | `int` | String to int (0 on error) |
 | `toFloat` | `toFloat(str s)` | `float` | String to float (0.0 on error) |
+| `toFloat32` | `toFloat32(any value)` | `float32` | Convert to single-precision-compatible range and precision |
+| `toFloat64` | `toFloat64(any value)` | `float64` | Convert to double-precision-compatible value |
 | `toBool` | `toBool(int n)` | `bool` | Non-zero → `true`, zero → `false` |
+| `toNumBool` | `toNumBool(any value)` | `numBool` | Normalize a value to numeric boolean `0` or `1` |
+| `toBit` | `toBit(any value)` | `bit` | Normalize a value to `0` or `1` |
+| `toByte` | `toByte(any value)` | `byte` | Convert and clamp a value to `0..255` |
 | `toChar` | `toChar(any val)` | `char` | String of length 1 or int code-point → `char`; `"\0"` on error |
 | `toString` | `toString(any val)` | `str` | Convert any Lynxer value to its display string |
 | `toNumber` | `toNumber(any val)` | `float` | Convert a number-like value to a float; `0.0` on error |
+
+The type predicates `isNumBool`, `isBit`, `isByte`, `isInt8`, `isInt16`,
+`isInt32`, `isInt64`, `isUInt8`, `isUInt16`, `isUInt32`, and `isUInt64`
+check whether an integer fits the corresponding range. `isFloat32` and
+`isFloat64` perform the corresponding floating-point range checks.
 
 `toStr`, `toString`, and `toNumber` are useful at API boundaries where a
 value must be rendered or converted before passing it to `rawPy` or another

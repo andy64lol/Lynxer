@@ -38,6 +38,19 @@ All functions are accessed via `global.<module>.<function>(...)`.
 
 See the [stdlib/ documentation folder](stdlib/README.md) for individual module pages.
 
+## Experimental modules
+
+Experimental modules live in `lynxer/stdlib/experimental/` and are not part
+of the stable stdlib surface. `lowLevel` is currently the only experimental
+module. It requires an optional native build:
+
+```bash
+make buildExperimental
+```
+
+See the [lowLevel reference](stdlib/lowLevel.md) for its API and safety
+requirements.
+
 ---
 
 ## multiprocessing
