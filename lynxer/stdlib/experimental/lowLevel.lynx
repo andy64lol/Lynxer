@@ -1,0 +1,74 @@
+////
+Experimental low-level memory API backed by the native C++ `c` Python module.
+
+Addresses are represented as Lynxer integers. Memory is unmanaged: callers are
+responsible for freeing allocations and for passing valid addresses and sizes.
+////
+
+global setup(){
+    importPy(){"c"};
+}
+
+global malloc(int size){
+    int address = 0;
+    rawPy(){
+        address = c.malloc(size)
+    }
+    return address;
+}
+
+global calloc(int count, int size){
+    int address = 0;
+    rawPy(){
+        address = c.calloc(count, size)
+    }
+    return address;
+}
+
+global realloc(int address, int size){
+    int newAddress = 0;
+    rawPy(){
+        newAddress = c.realloc(address, size)
+    }
+    return newAddress;
+}
+
+global free(int address){
+    rawPy(){
+        c.free(address)
+    }
+}
+
+global memset(int address, int value, int size){
+    rawPy(){
+        c.memset(address, value, size)
+    }
+}
+
+global memcpy(int destination, int source, int size){
+    rawPy(){
+        c.memcpy(destination, source, size)
+    }
+}
+
+global readByte(int address, int offset){
+    int value = 0;
+    rawPy(){
+        value = c.readByte(address, offset)
+    }
+    return value;
+}
+
+global writeByte(int address, int offset, int value){
+    rawPy(){
+        c.writeByte(address, offset, value)
+    }
+}
+
+global sizeof(str typeName){
+    int size = 0;
+    rawPy(){
+        size = c.sizeof(typeName)
+    }
+    return size;
+}
