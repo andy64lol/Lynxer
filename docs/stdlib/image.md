@@ -34,7 +34,7 @@ Every function that creates an image returns a new integer **index** into an int
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `open` | `open(str path)` | Load image from file. Returns index. |
-| `new` | `new(int width, int height, str mode, int r, int g, int b)` | Create blank image. `mode`: `"RGB"`, `"RGBA"`, `"L"`. Returns index. |
+| `create` | `create(int width, int height, str mode, int r, int g, int b)` | Create blank image. `mode`: `"RGB"`, `"RGBA"`, `"L"`. Returns index. |
 | `save` | `save(int idx, str path)` | Save image to file (format inferred from extension). |
 | `saveQuality` | `saveQuality(int idx, str path, int quality)` | Save JPEG with quality 1–95. |
 | `copy` | `copy(int idx)` | Deep-copy image. Returns new index. |
@@ -223,7 +223,7 @@ global main(){
     int b    = global.image.open("b.png");
     int ta   = global.image.thumbnail(a, 200, 200);
     int tb   = global.image.thumbnail(b, 200, 200);
-    int strip = global.image.new(400, 200, "RGB", 30, 30, 30);
+    int strip = global.image.create(400, 200, "RGB", 30, 30, 30);
     global.image.paste(strip, ta, 0, 0);
     global.image.paste(strip, tb, 200, 0);
     global.image.save(strip, "strip.png");
@@ -266,7 +266,7 @@ global main(){
 global setup(){ import("image"); }
 
 global main(){
-    int canvas = global.image.new(400, 300, "RGB", 255, 255, 255);
+    int canvas = global.image.create(400, 300, "RGB", 255, 255, 255);
     global.image.drawRect(canvas, 20, 20, 380, 280, 30, 30, 30, false);
     global.image.drawCircle(canvas, 200, 150, 80, 100, 180, 255, true);
     global.image.drawText(canvas, 130, 240, "Hello, Pillow!", 0, 0, 0, 20);

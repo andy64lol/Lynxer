@@ -6,6 +6,7 @@ This directory contains documentation for all Lynxer standard library modules.
 
 | Module | File | What it provides |
 |--------|------|-----------------|
+| [cli](cli.md) | `cli.lynx` | Extended Click/Typer command-line builders and Python CLI utilities |
 | [colorlib](colorlib.md) | `colorlib.lynx` | ANSI colour helpers for terminal output |
 | [csv](csv.md) | `csv.lynx` | CSV read, write, parse, filter, and transform |
 | [debug](debug.md) | `debug.lynx` | Assertions, type inspection, structured logging, timers |
@@ -56,6 +57,7 @@ global setup(){
     import("random");
     import("time");
     import("shell");
+    import("cli");
     import("sys");
     import("server");
     import("tkinter");

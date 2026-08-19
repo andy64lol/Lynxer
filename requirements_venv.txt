@@ -14,3 +14,5 @@ arcade
 Pillow
 lupa
 rich
+click<8.4
+typer

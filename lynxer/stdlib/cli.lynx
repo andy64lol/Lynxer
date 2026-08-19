@@ -1,0 +1,632 @@
+////
+Lynxer standard library: cli.
+Extended command-line helpers powered by Click, Typer, and Python's standard library.
+
+Click and Typer objects use integer handles, following the indexed-resource
+pattern used by the tkinter and tui modules. JSON strings are used for
+structured arguments and results across the Lynxer/Python bridge.
+////
+
+global setup(){}
+
+// ── Availability and runtime information ─────────────────────────────────────
+
+global clickExists(){
+    bool result = false;
+    rawPy(){
+        try:
+            import click
+            result = true
+        except Exception:
+            result = false
+    }
+    return result;
+}
+
+global typerExists(){
+    bool result = false;
+    rawPy(){
+        try:
+            import typer
+            result = true
+        except Exception:
+            result = false
+    }
+    return result;
+}
+
+global clickVersion(){
+    str result = "";
+    rawPy(){
+        try:
+            from importlib.metadata import version
+            result = version("click")
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+global typerVersion(){
+    str result = "";
+    rawPy(){
+        try:
+            from importlib.metadata import version
+            result = version("typer")
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+// ── Python CLI basics ────────────────────────────────────────────────────────
+
+global argv(){
+    str result = "[]";
+    rawPy(){
+        import json as _json
+        import sys as _sys
+        result = _json.dumps(_sys.argv)
+    }
+    return result;
+}
+
+global argCount(){
+    int result = 0;
+    rawPy(){
+        import sys as _sys
+        result = len(_sys.argv)
+    }
+    return result;
+}
+
+global getArg(int index){
+    str result = "";
+    rawPy(){
+        import sys as _sys
+        try:
+            result = str(_sys.argv[index])
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+global envGet(str name){
+    str result = "";
+    rawPy(){
+        import os as _os
+        result = _os.environ.get(name, "")
+    }
+    return result;
+}
+
+global envHas(str name){
+    bool result = false;
+    rawPy(){
+        import os as _os
+        result = name in _os.environ
+    }
+    return result;
+}
+
+global envAll(){
+    str result = "{}";
+    rawPy(){
+        import json as _json
+        import os as _os
+        result = _json.dumps(dict(_os.environ))
+    }
+    return result;
+}
+
+global cwd(){
+    str result = "";
+    rawPy(){
+        import os as _os
+        result = _os.getcwd()
+    }
+    return result;
+}
+
+global chdir(str path){
+    bool result = false;
+    rawPy(){
+        import os as _os
+        try:
+            _os.chdir(path)
+            result = true
+        except Exception:
+            result = false
+    }
+    return result;
+}
+
+global stdinIsTty(){
+    bool result = false;
+    rawPy(){
+        import sys as _sys
+        result = bool(_sys.stdin.isatty())
+    }
+    return result;
+}
+
+global stdoutIsTty(){
+    bool result = false;
+    rawPy(){
+        import sys as _sys
+        result = bool(_sys.stdout.isatty())
+    }
+    return result;
+}
+
+global readStdin(){
+    str result = "";
+    rawPy(){
+        import sys as _sys
+        try:
+            result = _sys.stdin.read()
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+global writeStdout(str text){
+    rawPy(){
+        import sys as _sys
+        _sys.stdout.write(text)
+        _sys.stdout.flush()
+    }
+}
+
+global writeStderr(str text){
+    rawPy(){
+        import sys as _sys
+        _sys.stderr.write(text)
+        _sys.stderr.flush()
+    }
+}
+
+global terminalSize(){
+    str result = "{\"columns\":80,\"lines\":24}";
+    rawPy(){
+        import json as _json
+        import shutil as _shutil
+        _size = _shutil.get_terminal_size(fallback=(80, 24))
+        result = _json.dumps({"columns": _size.columns, "lines": _size.lines})
+    }
+    return result;
+}
+
+global exit(int code){
+    rawPy(){
+        import sys as _sys
+        _sys.exit(code)
+    }
+}
+
+global pathExists(str path){
+    bool result = false;
+    rawPy(){
+        import os as _os
+        result = _os.path.exists(path)
+    }
+    return result;
+}
+
+global isFile(str path){
+    bool result = false;
+    rawPy(){
+        import os as _os
+        result = _os.path.isfile(path)
+    }
+    return result;
+}
+
+global isDirectory(str path){
+    bool result = false;
+    rawPy(){
+        import os as _os
+        result = _os.path.isdir(path)
+    }
+    return result;
+}
+
+global which(str executable){
+    str result = "";
+    rawPy(){
+        import shutil as _shutil
+        result = _shutil.which(executable) or ""
+    }
+    return result;
+}
+
+global run(str command, bool capture){
+    str result = "";
+    rawPy(){
+        import subprocess as _subprocess
+        try:
+            if capture:
+                _proc = _subprocess.run(command, shell=True, capture_output=True, text=True)
+                result = _proc.stdout
+            else:
+                _proc = _subprocess.run(command, shell=True)
+                result = str(_proc.returncode)
+        except Exception as _error:
+            result = "Error: " + str(_error)
+    }
+    return result;
+}
+
+global runCode(str command){
+    int result = -1;
+    rawPy(){
+        import subprocess as _subprocess
+        try:
+            result = _subprocess.run(command, shell=True).returncode
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+// ── Click command builders ───────────────────────────────────────────────────
+
+global clickInit(){
+    rawPy(){
+        import builtins
+        builtins._lx_cli_click_commands = {}
+        builtins._lx_cli_click_groups = {}
+        builtins._lx_cli_click_last = {}
+        builtins._lx_cli_click_shell = {}
+    }
+}
+
+global clickCommandCreate(str name, str helpText){
+    int result = -1;
+    rawPy(){
+        import builtins
+        import click
+        _store = getattr(builtins, "_lx_cli_click_commands", {})
+        _idx = len(_store)
+        def _callback(**kwargs):
+            builtins._lx_cli_click_last = {"handle": _idx, "params": kwargs}
+            _shell = getattr(builtins, "_lx_cli_click_shell", {}).get(_idx, "")
+            if _shell:
+                import shlex
+                import subprocess
+                _command = _shell
+                for _key, _value in kwargs.items():
+                    _command = _command.replace("{" + _key + "}", shlex.quote(str(_value)))
+                _proc = subprocess.run(_command, shell=True, capture_output=True, text=True)
+                if _proc.stdout:
+                    click.echo(_proc.stdout, nl=False)
+                if _proc.returncode != 0:
+                    raise click.ClickException(_proc.stderr.strip() or "command failed")
+        _store[_idx] = click.Command(name, callback=_callback, help=helpText or None)
+        builtins._lx_cli_click_commands = _store
+        result = _idx
+    }
+    return result;
+}
+
+global clickGroupCreate(str name, str helpText){
+    int result = -1;
+    rawPy(){
+        import builtins
+        import click
+        _store = getattr(builtins, "_lx_cli_click_groups", {})
+        _idx = len(_store)
+        _handle = 1000000 + _idx
+        _group = click.Group(name, help=helpText or None)
+        _store[_handle] = _group
+        builtins._lx_cli_click_groups = _store
+        result = _handle
+    }
+    return result;
+}
+
+global clickGroupAddCommand(int groupHandle, int commandHandle, str name){
+    rawPy(){
+        import builtins
+        try:
+            _group = builtins._lx_cli_click_groups[groupHandle]
+            _command = builtins._lx_cli_click_commands[commandHandle]
+            _group.add_command(_command, name=name or _command.name)
+        except Exception:
+            pass
+    }
+}
+
+global clickAddArgument(int commandHandle, str name, bool required, int nargs){
+    rawPy(){
+        import builtins
+        import click
+        try:
+            _command = builtins._lx_cli_click_commands[commandHandle]
+            _command.params.append(click.Argument([name], required=required, nargs=nargs))
+        except Exception:
+            pass
+    }
+}
+
+// typeName: "text", "int", "float", "bool", or "path".
+// decls accepts comma-separated declarations such as "--verbose,-v".
+global clickAddOption(int commandHandle, str decls, str helpText, str defaultValue, bool isFlag, bool required, str typeName){
+    rawPy(){
+        import builtins
+        import click
+        try:
+            _types = {
+                "text": click.STRING,
+                "int": click.INT,
+                "float": click.FLOAT,
+                "bool": click.BOOL,
+                "path": click.Path(exists=False),
+            }
+            _decls = [x.strip() for x in decls.split(",") if x.strip()]
+            _kwargs = {
+                "help": helpText or None,
+                "is_flag": isFlag,
+                "required": required,
+                "type": _types.get(typeName.lower(), click.STRING),
+            }
+            if defaultValue:
+                _kwargs["default"] = defaultValue
+            _command = builtins._lx_cli_click_commands[commandHandle]
+            _command.params.append(click.Option(_decls, **_kwargs))
+        except Exception:
+            pass
+    }
+}
+
+global clickCommandSetShell(int commandHandle, str commandTemplate){
+    rawPy(){
+        import builtins
+        _store = getattr(builtins, "_lx_cli_click_shell", {})
+        _store[commandHandle] = commandTemplate
+        builtins._lx_cli_click_shell = _store
+    }
+}
+
+global clickInvoke(int handle, str argsJson){
+    str result = "{\"exit_code\":1,\"output\":\"invalid command\"}";
+    rawPy(){
+        import builtins
+        import json
+        from click.testing import CliRunner
+        try:
+            _command = builtins._lx_cli_click_commands.get(handle)
+            if _command is None:
+                _command = builtins._lx_cli_click_groups.get(handle)
+            _args = json.loads(argsJson) if argsJson else []
+            _args = [str(x) for x in _args]
+            _run = CliRunner().invoke(_command, _args)
+            _exception = "" if _run.exception is None else str(_run.exception)
+            result = json.dumps({
+                "exit_code": _run.exit_code,
+                "output": _run.output,
+                "exception": _exception,
+                "params": getattr(builtins, "_lx_cli_click_last", {}).get("params", {}),
+            })
+        except Exception as _error:
+            result = json.dumps({"exit_code": 1, "output": "", "exception": str(_error)})
+    }
+    return result;
+}
+
+global clickGroupInvoke(int handle, str argsJson){
+    str result = "{\"exit_code\":1,\"output\":\"invalid group\"}";
+    rawPy(){
+        import builtins
+        import json
+        from click.testing import CliRunner
+        try:
+            _group = builtins._lx_cli_click_groups.get(handle)
+            _args = json.loads(argsJson) if argsJson else []
+            _run = CliRunner().invoke(_group, [str(x) for x in _args])
+            _exception = "" if _run.exception is None else str(_run.exception)
+            result = json.dumps({
+                "exit_code": _run.exit_code,
+                "output": _run.output,
+                "exception": _exception,
+                "params": getattr(builtins, "_lx_cli_click_last", {}).get("params", {}),
+            })
+        except Exception as _error:
+            result = json.dumps({"exit_code": 1, "output": "", "exception": str(_error)})
+    }
+    return result;
+}
+
+global clickRun(int handle){
+    str argsJson = "[]";
+    rawPy(){
+        import json as _json
+        import sys as _sys
+        argsJson = _json.dumps(_sys.argv[1:])
+    }
+    return clickInvoke(handle, argsJson);
+}
+
+global clickLastParams(){
+    str result = "{}";
+    rawPy(){
+        import builtins
+        import json
+        result = json.dumps(getattr(builtins, "_lx_cli_click_last", {}).get("params", {}))
+    }
+    return result;
+}
+
+// ── Typer app builders ───────────────────────────────────────────────────────
+
+global typerInit(){
+    rawPy(){
+        import builtins
+        builtins._lx_cli_typer_apps = {}
+        builtins._lx_cli_typer_specs = {}
+        builtins._lx_cli_typer_shell = {}
+        builtins._lx_cli_typer_last = {}
+    }
+}
+
+global typerAppCreate(str name, str helpText, bool noArgsHelp){
+    int result = -1;
+    rawPy(){
+        import builtins
+        import typer
+        _apps = getattr(builtins, "_lx_cli_typer_apps", {})
+        _idx = len(_apps)
+        _apps[_idx] = typer.Typer(
+            name=name or None,
+            help=helpText or None,
+            no_args_is_help=noArgsHelp,
+            add_completion=False,
+        )
+        builtins._lx_cli_typer_apps = _apps
+        result = _idx
+    }
+    return result;
+}
+
+global typerCommandCreate(int appHandle, str name, str helpText){
+    int result = -1;
+    rawPy(){
+        import builtins
+        import typer
+        _specs = getattr(builtins, "_lx_cli_typer_specs", {})
+        _idx = len(_specs)
+        def _callback():
+            return None
+        _apps = builtins._lx_cli_typer_apps
+        _apps[appHandle].command(name=name or None, help=helpText or None)(_callback)
+        _specs[_idx] = {"app": appHandle, "name": name, "callback": _callback, "options": [], "arguments": []}
+        builtins._lx_cli_typer_apps = _apps
+        builtins._lx_cli_typer_specs = _specs
+        result = _idx
+    }
+    return result;
+}
+
+global typerAddArgument(int commandHandle, str name, bool required, int nargs){
+    rawPy(){
+        import builtins
+        _spec = builtins._lx_cli_typer_specs.get(commandHandle)
+        if _spec is not None:
+            _spec["arguments"].append({"name": name, "required": required, "nargs": nargs})
+    }
+}
+
+global typerAddOption(int commandHandle, str decls, str helpText, str defaultValue, bool isFlag, bool required, str typeName){
+    rawPy(){
+        import builtins
+        _spec = builtins._lx_cli_typer_specs.get(commandHandle)
+        if _spec is not None:
+            _spec["options"].append({
+                "decls": decls, "help": helpText, "default": defaultValue,
+                "is_flag": isFlag, "required": required, "type": typeName,
+            })
+    }
+}
+
+global typerCommandSetShell(int commandHandle, str commandTemplate){
+    rawPy(){
+        import builtins
+        _store = getattr(builtins, "_lx_cli_typer_shell", {})
+        _store[commandHandle] = commandTemplate
+        builtins._lx_cli_typer_shell = _store
+    }
+}
+
+global typerInvoke(int appHandle, str argsJson){
+    str result = "{\"exit_code\":1,\"output\":\"invalid app\"}";
+    rawPy(){
+        import builtins
+        import click
+        import json
+        import shlex
+        import subprocess
+        from typer.main import get_command
+        from click.testing import CliRunner
+        try:
+            _app = builtins._lx_cli_typer_apps[appHandle]
+            _root = get_command(_app)
+            _specs = builtins._lx_cli_typer_specs
+            _command_by_name = {}
+            for _idx, _spec in _specs.items():
+                if _spec["app"] == appHandle:
+                    _command_by_name[_spec["name"] or "_callback"] = (_idx, _spec)
+            _commands = getattr(_root, "commands", None)
+            for _name, (_idx, _spec) in _command_by_name.items():
+                _command = _commands.get(_name) if _commands else _root
+                if _command is None:
+                    continue
+                for _argument in _spec["arguments"]:
+                    _command.params.append(click.Argument(
+                        [_argument["name"]],
+                        required=_argument["required"],
+                        nargs=_argument["nargs"],
+                    ))
+                for _option in _spec["options"]:
+                    _types = {"text": click.STRING, "int": click.INT, "float": click.FLOAT, "bool": click.BOOL, "path": click.Path(exists=False)}
+                    _decls = [x.strip() for x in _option["decls"].split(",") if x.strip()]
+                    _kwargs = {
+                        "help": _option["help"] or None,
+                        "is_flag": _option["is_flag"],
+                        "required": _option["required"],
+                        "type": _types.get(_option["type"].lower(), click.STRING),
+                    }
+                    if _option["default"]:
+                        _kwargs["default"] = _option["default"]
+                    _command.params.append(click.Option(_decls, **_kwargs))
+                def _callback_factory(_command_idx):
+                    def _callback(**kwargs):
+                        builtins._lx_cli_typer_last = {"handle": _command_idx, "params": kwargs}
+                        _shell = builtins._lx_cli_typer_shell.get(_command_idx, "")
+                        if _shell:
+                            _cmd = _shell
+                            for _key, _value in kwargs.items():
+                                _cmd = _cmd.replace("{" + _key + "}", shlex.quote(str(_value)))
+                            _proc = subprocess.run(_cmd, shell=True, capture_output=True, text=True)
+                            if _proc.stdout:
+                                click.echo(_proc.stdout, nl=False)
+                            if _proc.returncode != 0:
+                                raise click.ClickException(_proc.stderr.strip() or "command failed")
+                    return _callback
+                _command.callback = _callback_factory(_idx)
+            _args = json.loads(argsJson) if argsJson else []
+            _run = CliRunner().invoke(_root, [str(x) for x in _args])
+            result = json.dumps({
+                "exit_code": _run.exit_code,
+                "output": _run.output,
+                "exception": "" if _run.exception is None else str(_run.exception),
+                "params": getattr(builtins, "_lx_cli_typer_last", {}).get("params", {}),
+            })
+        except Exception as _error:
+            result = json.dumps({"exit_code": 1, "output": "", "exception": str(_error)})
+    }
+    return result;
+}
+
+global typerRun(int appHandle){
+    str argsJson = "[]";
+    rawPy(){
+        import json as _json
+        import sys as _sys
+        argsJson = _json.dumps(_sys.argv[1:])
+    }
+    return typerInvoke(appHandle, argsJson);
+}
+
+global typerLastParams(){
+    str result = "{}";
+    rawPy(){
+        import builtins
+        import json
+        result = json.dumps(getattr(builtins, "_lx_cli_typer_last", {}).get("params", {}))
+    }
+    return result;
+}
+
+global main(){}

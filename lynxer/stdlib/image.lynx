@@ -29,7 +29,7 @@ global open(str path){
 // Create a new blank image.
 // mode: "RGB", "RGBA", "L" (grayscale), "1" (binary).
 // Returns image index.
-global new(int width, int height, str mode, int r, int g, int b){
+global create(int width, int height, str mode, int r, int g, int b){
     int idx = 0;
     rawPy(){
         from PIL import Image as _PIL

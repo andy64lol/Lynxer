@@ -15,6 +15,7 @@ global setup(){
     import("js");
     import("lua");
     import("tui");
+    import("cli");
     import("http");
     import("net");
     import("server");
@@ -210,6 +211,25 @@ External process and command-line execution.
 | `runShellErr` | `runShellErr(str cmd)` | Capture stderr only; returns stderr string |
 | `runShellCode` | `runShellCode(str cmd)` | Run silently; returns exit code |
 | `commandExists` | `commandExists(str cmd)` | `true` if `cmd` is on the system `PATH` |
+
+---
+
+## cli
+
+Extended command-line helpers powered by Click, Typer, and Python's standard
+library. See [docs/stdlib/cli.md](stdlib/cli.md) for the complete reference.
+
+| Function group | Highlights |
+|----------------|------------|
+| Availability | `clickExists`, `typerExists`, `clickVersion`, `typerVersion` |
+| Process basics | `argv`, `argCount`, `getArg`, `envGet`, `envAll`, `cwd`, `readStdin` |
+| Terminal basics | `stdinIsTty`, `stdoutIsTty`, `writeStdout`, `writeStderr`, `terminalSize` |
+| Click | `clickCommandCreate`, `clickGroupCreate`, `clickAddArgument`, `clickAddOption`, `clickInvoke` |
+| Typer | `typerAppCreate`, `typerCommandCreate`, `typerAddArgument`, `typerAddOption`, `typerInvoke` |
+| Process helpers | `pathExists`, `isFile`, `isDirectory`, `which`, `run`, `runCode` |
+
+Click and Typer resources use integer handles. Structured arguments and
+invocation results use JSON strings.
 
 ---
 
