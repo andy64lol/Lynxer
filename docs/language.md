@@ -277,6 +277,25 @@ Re-declaration replaces both the value and the recorded type, so subsequent bare
 
 > **List variables** use the `list` keyword: `list nums = range(5);`
 
+### Shared variables
+
+Prefix a typed declaration with `shared` to create an alias to another
+variable. Assignments through either name update the same stored value:
+
+```c
+int x = 42;
+shared int y = x;
+
+y = 100;       // x is now 100 too
+unshare(y);    // y becomes independent, keeping its current value
+y = 200;       // x remains 100, while y is 200
+```
+
+The initializer for a shared declaration must be a variable name, and its
+value must satisfy the declared type. `unshare(name)` takes exactly one
+variable name and detaches that alias. The detached variable keeps its
+current value and retains its declared type.
+
 **Global variables** must be declared inside `setup()`. They are accessible from any function in the file.
 
 ---

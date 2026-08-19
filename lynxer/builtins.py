@@ -97,6 +97,17 @@ class BuiltInFunction(BaseFunction):
         sys.stdout.flush()
         return RTResult().success(Number.null)
 
+    def execute_unshare(self, args, exec_ctx):
+        if len(args) != 1:
+            return self._failure(exec_ctx, "unshare() expects exactly one variable")
+        # The AST-level variable name is attached by the interpreter before
+        # calling this built-in; values alone are intentionally not enough to
+        # identify an alias.
+        name = getattr(args[0], "_lynxer_name", None)
+        if not isinstance(name, str) or not exec_ctx.symbol_table.unshare(name):
+            return self._failure(exec_ctx, "unshare() expects a shared variable name")
+        return RTResult().success(Number.null)
+
     def execute_input(self, args, exec_ctx):
         if len(args) > 1:
             return RTResult().failure(
@@ -1655,6 +1666,7 @@ BUILTIN_FUNCTION_NAMES = (
     "tupleJoin",
     "assert",
     "overrideMain",
+    "unshare",
 )
 
 

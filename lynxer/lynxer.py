@@ -337,6 +337,7 @@ KEYWORDS = [
     "float32", "float64",
     "sentinel", "codeblock",
     "global", "local", "const",
+    "shared",
     "if", "elif", "else", "while", "for", "forever", "switch", "case", "default",
     "return", "import", "importAs", "importPy",
     "true", "false", "none",
@@ -872,11 +873,12 @@ class NewNode:
         self.pos_end = pos_end
 
 class VarDeclNode:
-    def __init__(self, type_tok, var_name_tok, value_node, is_const=False):
+    def __init__(self, type_tok, var_name_tok, value_node, is_const=False, is_shared=False):
         self.type_tok = type_tok
         self.var_name_tok = var_name_tok
         self.value_node = value_node
         self.is_const = is_const
+        self.is_shared = is_shared
         self.pos_start = type_tok.pos_start if type_tok else var_name_tok.pos_start
         self.pos_end = value_node.pos_end
 
@@ -886,6 +888,18 @@ class VarAssignNode:
         self.value_node = value_node
         self.pos_start = self.var_name_tok.pos_start
         self.pos_end = self.value_node.pos_end
+
+class SharedNode:
+    """Mark an existing variable, usually a function parameter, as shared."""
+    def __init__(self, var_name_tok):
+        self.var_name_tok = var_name_tok
+        self.pos_start = var_name_tok.pos_start
+        self.pos_end = var_name_tok.pos_end
+
+def _uses_shared_parameters(function_value):
+    body = getattr(function_value, "body_node", None)
+    statements = getattr(body, "statements", ())
+    return any(isinstance(statement, SharedNode) for statement in statements)
 
 class BlockNode:
     def __init__(self, statements, pos_start, pos_end):
@@ -2227,6 +2241,26 @@ class Parser:
                 return res
             return res.success(node)
 
+        if self.current_tok.matches(TT_KEYWORD, "shared"):
+            res.register_advancement()
+            self.advance()
+            if (
+                self.current_tok.type == TT_IDENTIFIER
+                and (next_tok := self.peek(1)) is not None
+                and next_tok.type == TT_SEMICOLON
+            ):
+                name_tok = self.current_tok
+                pos_end = next_tok.pos_end.copy()
+                res.register_advancement()
+                self.advance()
+                res.register_advancement()
+                self.advance()
+                return res.success(SharedNode(name_tok))
+            node = res.register(self.parse_var_decl(is_shared=True))
+            if res.error:
+                return res
+            return res.success(node)
+
         if self.is_type_keyword():
             next1 = self.peek(1)
             next2 = self.peek(2)
@@ -2431,7 +2465,7 @@ class Parser:
             )
         )
 
-    def parse_var_decl(self):
+    def parse_var_decl(self, is_shared=False):
         res = ParseResult()
         type_tok = self.current_tok
         res.register_advancement()
@@ -2481,7 +2515,9 @@ class Parser:
 
         if self.current_tok.type != TT_SEMICOLON:
             if type_tok.value == "codeblock" and isinstance(value, CodeBlockLiteralNode):
-                return res.success(VarDeclNode(type_tok, name_tok, value, is_const=False))
+                return res.success(VarDeclNode(
+                    type_tok, name_tok, value, is_const=False, is_shared=is_shared
+                ))
             return res.failure(
                 InvalidSyntaxError(
                     self.current_tok.pos_start, self.current_tok.pos_end, "Expected ';'"
@@ -2490,7 +2526,9 @@ class Parser:
         res.register_advancement()
         self.advance()
 
-        return res.success(VarDeclNode(type_tok, name_tok, value, is_const=False))
+        return res.success(VarDeclNode(
+            type_tok, name_tok, value, is_const=False, is_shared=is_shared
+        ))
 
     def parse_const_decl(self):
         res = ParseResult()
@@ -6956,17 +6994,36 @@ class SymbolTable:
         self.symbols = {}
         self.constants = set()
         self.types = {}
+        self.aliases = {}
         self.parent = parent
 
-    def get(self, name):
+    def _find(self, name):
         table = self
         while table:
-            if name in table.symbols:
-                return table.symbols[name]
+            if name in table.symbols or name in table.aliases:
+                return table
             table = table.parent
         return None
 
+    def _resolve(self, name):
+        table = self._find(name)
+        if table is None:
+            return None, None
+        seen = set()
+        while name in table.aliases:
+            marker = (id(table), name)
+            if marker in seen:
+                return None, None
+            seen.add(marker)
+            table, name = table.aliases[name]
+        return table, name
+
+    def get(self, name):
+        table, resolved_name = self._resolve(name)
+        return table.symbols.get(resolved_name) if table and resolved_name else None
+
     def set(self, name, value, is_const=False, decl_type=None):
+        self.aliases.pop(name, None)
         self.symbols[name] = value
         if is_const:
             self.constants.add(name)
@@ -6974,31 +7031,52 @@ class SymbolTable:
             self.types[name] = decl_type
 
     def update_existing(self, name, value):
-        """Walk the parent chain to."""
-        table = self
-        while table:
-            if name in table.symbols:
-                table.symbols[name] = value
-                return table
-            table = table.parent
+        table, resolved_name = self._resolve(name)
+        if table is not None and resolved_name is not None:
+            table.symbols[resolved_name] = value
+            return table
         self.symbols[name] = value
         return self
 
     def is_const(self, name):
-        table = self
-        while table:
-            if name in table.symbols:
-                return name in table.constants
-            table = table.parent
-        return False
+        table = self._find(name)
+        if table is None:
+            return False
+        resolved_table, resolved_name = self._resolve(name)
+        return name in table.constants or (
+            resolved_table is not None and resolved_name in resolved_table.constants
+        )
 
     def get_type(self, name):
-        table = self
-        while table:
-            if name in table.symbols:
-                return table.types.get(name)
-            table = table.parent
-        return None
+        table = self._find(name)
+        return table.types.get(name) if table else None
+
+    def share(self, name, target):
+        target_table, target_name = self._resolve(target)
+        if target_table is None or target_name is None:
+            return False
+        self.symbols.pop(name, None)
+        self.aliases[name] = (target_table, target_name)
+        self.types[name] = self.get_type(target) or self.types.get(name)
+        return True
+
+    def share_reference(self, name, target_table, target_name):
+        if target_table is None or target_table._resolve(target_name)[0] is None:
+            return False
+        self.symbols.pop(name, None)
+        self.aliases[name] = (target_table, target_name)
+        return True
+
+    def unshare(self, name):
+        table = self._find(name)
+        if table is None or name not in table.aliases:
+            return False
+        value = self.get(name)
+        if value is None:
+            return False
+        table.aliases.pop(name)
+        table.symbols[name] = value.copy()
+        return True
 
     def remove(self, name):
         del self.symbols[name]
@@ -7337,6 +7415,25 @@ class Interpreter:
         value = value.copy().set_pos(node.pos_start, node.pos_end).set_context(context)
         return res.success(value)
 
+    def visit_SharedNode(self, node, context):
+        res = RTResult()
+        name = node.var_name_tok.value
+        value = context.symbol_table.get(name)
+        reference = getattr(value, "_lynxer_ref", None) if value is not None else None
+        if not (
+            isinstance(reference, tuple)
+            and len(reference) == 2
+            and context.symbol_table.share_reference(name, reference[0], reference[1])
+        ):
+            return res.failure(RTError(
+                node.pos_start,
+                node.pos_end,
+                f"'{name}' is not a reference-capable function argument; "
+                "call the function with a variable",
+                context,
+            ))
+        return res.success(value)
+
     def visit_VarDeclNode(self, node, context):
         res = RTResult()
         var_name = node.var_name_tok.value
@@ -7366,6 +7463,21 @@ class Interpreter:
                     context,
                 )
             )
+        if node.is_shared:
+            if not isinstance(node.value_node, VarAccessNode):
+                return res.failure(RTError(
+                    node.pos_start, node.pos_end,
+                    "A shared variable must be initialized from another variable",
+                    context,
+                ))
+            target_name = node.value_node.var_name_tok.value
+            if not context.symbol_table.share(var_name, target_name):
+                return res.failure(RTError(
+                    node.pos_start, node.pos_end,
+                    f"Cannot share '{var_name}' with undefined variable '{target_name}'",
+                    context,
+                ))
+            return res.success(value)
         context.symbol_table.set(
             var_name, value, is_const=node.is_const, decl_type=decl_type
         )
@@ -8046,8 +8158,26 @@ class Interpreter:
                 f"but received a '{value_type_name(value)}' value",
                 context,
             ))
+        if node.is_shared:
+            if not isinstance(node.value_node, VarAccessNode):
+                return res.failure(RTError(
+                    node.pos_start, node.pos_end,
+                    "A shared variable must be initialized from another variable",
+                    context,
+                ))
+            target_name = node.value_node.var_name_tok.value
+            if not context.symbol_table.share(var_name, target_name):
+                return res.failure(RTError(
+                    node.pos_start, node.pos_end,
+                    f"Cannot share '{var_name}' with undefined variable '{target_name}'",
+                    context,
+                ))
+            return res.success(value)
         context.symbol_table.set(var_name, value, is_const=node.is_const, decl_type=decl_type)
         return res.success(value)
+
+    async def async_visit_SharedNode(self, node, context):
+        return self.visit_SharedNode(node, context)
 
     async def async_visit_VarAssignNode(self, node, context):
         res = RTResult()
@@ -8411,7 +8541,8 @@ class Interpreter:
         res = RTResult()
         args = []
         for arg_node in node.arg_nodes:
-            args.append(res.register(await self.async_visit(arg_node, context)))
+            arg_value = res.register(await self.async_visit(arg_node, context))
+            args.append(arg_value)
             if res.should_return():
                 return res
         block = res.register(await self.async_visit(node.code_block_node, context))
@@ -8466,7 +8597,15 @@ class Interpreter:
             return res.failure(error)
         args = []
         for arg_node in node.arg_nodes:
-            args.append(res.register(await self.async_visit(arg_node, context)))
+            arg_value = res.register(await self.async_visit(arg_node, context))
+            if (
+                isinstance(node.node_to_call, VarAccessNode)
+                and node.node_to_call.var_name_tok.value == "unshare"
+                and isinstance(arg_node, VarAccessNode)
+                and arg_value is not None
+            ):
+                arg_value._lynxer_name = arg_node.var_name_tok.value
+            args.append(arg_value)
             if res.should_return():
                 return res
         instance = res.register(blueprint.instantiate(args, context))
@@ -8487,7 +8626,8 @@ class Interpreter:
 
         if (isinstance(node.node_to_call, VarAccessNode)
                 and isinstance(value_to_call, (Function, AsyncFunction))
-                and value_to_call.is_global):
+                and value_to_call.is_global
+                and not _uses_shared_parameters(value_to_call)):
             return res.failure(RTError(
                 node.pos_start, node.pos_end,
                 f"Global function '{value_to_call.name}' must be called as "
@@ -8506,7 +8646,10 @@ class Interpreter:
             ))
 
         for arg_node in node.arg_nodes:
-            args.append(res.register(await self.async_visit(arg_node, context)))
+            arg_value = res.register(await self.async_visit(arg_node, context))
+            if isinstance(arg_node, VarAccessNode) and arg_value is not None:
+                arg_value._lynxer_ref = (context.symbol_table, arg_node.var_name_tok.value)
+            args.append(arg_value)
             if res.should_return():
                 return res
 
@@ -8700,7 +8843,8 @@ class Interpreter:
         res = RTResult()
         args = []
         for arg_node in node.arg_nodes:
-            args.append(res.register(self.visit(arg_node, context)))
+            arg_value = res.register(self.visit(arg_node, context))
+            args.append(arg_value)
             if res.should_return():
                 return res
         block = res.register(self.visit(node.code_block_node, context))
@@ -8816,7 +8960,8 @@ class Interpreter:
 
         if (isinstance(node.node_to_call, VarAccessNode)
                 and isinstance(value_to_call, (Function, AsyncFunction))
-                and value_to_call.is_global):
+                and value_to_call.is_global
+                and not _uses_shared_parameters(value_to_call)):
             return res.failure(RTError(
                 node.pos_start, node.pos_end,
                 f"Global function '{value_to_call.name}' must be called as "
@@ -8852,7 +8997,17 @@ class Interpreter:
                 ))
 
         for arg_node in node.arg_nodes:
-            args.append(res.register(self.visit(arg_node, context)))
+            arg_value = res.register(self.visit(arg_node, context))
+            if isinstance(arg_node, VarAccessNode) and arg_value is not None:
+                arg_value._lynxer_ref = (context.symbol_table, arg_node.var_name_tok.value)
+            if (
+                isinstance(node.node_to_call, VarAccessNode)
+                and node.node_to_call.var_name_tok.value == "unshare"
+                and isinstance(arg_node, VarAccessNode)
+                and arg_value is not None
+            ):
+                arg_value._lynxer_name = arg_node.var_name_tok.value
+            args.append(arg_value)
             if res.should_return():
                 return res
 

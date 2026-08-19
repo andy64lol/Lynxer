@@ -1,0 +1,31 @@
+global setup(){}
+global main(){
+int x = 42;
+
+shared int y = x;
+unshare(y);
+
+shared int z = y;
+
+y = 100;
+
+println(x); // 42
+println(y); // 100
+println(z); // 100
+
+float w = 3.14;
+shared float l = w;
+
+l = 6.28;
+
+println(w); // 6.28
+
+str i = "hello";
+shared str e = i;
+
+unshare(e);
+e = "world";
+
+println(i); // hello
+println(e); // world
+}
