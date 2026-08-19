@@ -19,7 +19,7 @@ lynxer hello.lynx  # run a Lynxer source file
 
 ### Requirements
 
-- Python 3.8 or later
+- Python 3.14 or later
 - `cython` Python package (for `rawPyx` support)
 - `setuptools` Python package (Cython shim on Python 3.12+)
 - A C compiler (`gcc` or `cc`) for Cython compilation
