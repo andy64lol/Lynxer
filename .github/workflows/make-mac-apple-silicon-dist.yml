@@ -1,4 +1,4 @@
-name: Builds
+name: MAC apple silicon build
 
 on:
   push:
