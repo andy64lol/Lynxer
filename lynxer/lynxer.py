@@ -16,6 +16,7 @@ except ImportError:
 DIGITS = "0123456789"
 _SOURCE_DIR = os.path.dirname(os.path.abspath(__file__))
 STDLIB_DIR = os.path.join(_SOURCE_DIR, "stdlib")
+EXPERIMENTAL_STDLIB_DIR = os.path.join(STDLIB_DIR, "experimental")
 LETTERS = string.ascii_letters
 LETTERS_DIGITS = LETTERS + DIGITS
 
@@ -7045,6 +7046,22 @@ def _module_path(filename: str, base_dir: str) -> tuple[str | None, bool, str | 
         return None, False, "module path is invalid"
     if os.path.isfile(stdlib_path):
         return stdlib_path, False, None
+
+    # Experimental modules are intentionally kept in a separate directory,
+    # but remain importable by their public module name.
+    experimental_root = os.path.realpath(
+        os.path.join(stdlib_root, "experimental")
+    )
+    experimental_path = os.path.realpath(
+        os.path.join(experimental_root, normalized)
+    )
+    try:
+        if os.path.commonpath((experimental_root, experimental_path)) != experimental_root:
+            return None, False, "module path is invalid"
+    except ValueError:
+        return None, False, "module path is invalid"
+    if os.path.isfile(experimental_path):
+        return experimental_path, False, None
 
     return None, False, f"module '{filename}' was not found"
 

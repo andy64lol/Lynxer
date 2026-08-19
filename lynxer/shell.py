@@ -251,7 +251,16 @@ def main():
         if not os.path.isdir(stdlib_path):
             print("No stdlib directory found.")
             return 1
-        files = sorted([f for f in os.listdir(stdlib_path) if f.endswith(".lynx")])
+        files = sorted(
+            f for f in os.listdir(stdlib_path) if f.endswith(".lynx")
+        )
+        experimental_path = os.path.join(stdlib_path, "experimental")
+        if os.path.isdir(experimental_path):
+            files.extend(
+                os.path.join("experimental", f)
+                for f in sorted(os.listdir(experimental_path))
+                if f.endswith(".lynx")
+            )
         if not files:
             print("No Lynxer stdlib modules found.")
             return 0
