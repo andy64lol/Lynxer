@@ -1,0 +1,5 @@
+// EXPECT_ERROR: invalid native memory address
+global setup(){}
+global main(){
+    memoryReadInt32(12345, 0);
+}

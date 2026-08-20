@@ -32,6 +32,45 @@ type_matches = _runtime.type_matches
 value_type_name = _runtime.value_type_name
 _get_cython_inline = _runtime._get_cython_inline
 
+_FREED_MEMORY_ADDRESSES: set[int] = set()
+_TYPED_MEMORY_BLOCKS: dict[int, tuple[str, int]] = {}
+_MEMORY_STRUCTS: dict[int, dict[str, tuple[str, int]]] = {}
+
+_MEMORY_TYPES = {
+    "byte": (1, _MEMORY_LIB.readByte, _MEMORY_LIB.writeByte, 0, 255),
+    "int8": (1, _MEMORY_LIB.readInt8, _MEMORY_LIB.writeInt8, -(2**7), 2**7 - 1),
+    "uint8": (1, _MEMORY_LIB.readUInt8, _MEMORY_LIB.writeUInt8, 0, 2**8 - 1),
+    "int16": (2, _MEMORY_LIB.readInt16, _MEMORY_LIB.writeInt16, -(2**15), 2**15 - 1),
+    "uint16": (2, _MEMORY_LIB.readUInt16, _MEMORY_LIB.writeUInt16, 0, 2**16 - 1),
+    "int32": (4, _MEMORY_LIB.readInt32, _MEMORY_LIB.writeInt32, -(2**31), 2**31 - 1),
+    "uint32": (4, _MEMORY_LIB.readUInt32, _MEMORY_LIB.writeUInt32, 0, 2**32 - 1),
+    "int64": (8, _MEMORY_LIB.readInt64, _MEMORY_LIB.writeInt64, -(2**63), 2**63 - 1),
+    "uint64": (8, _MEMORY_LIB.readUInt64, _MEMORY_LIB.writeUInt64, 0, 2**64 - 1),
+    "float32": (4, _MEMORY_LIB.readFloat32, _MEMORY_LIB.writeFloat32, None, None),
+    "float64": (8, _MEMORY_LIB.readFloat64, _MEMORY_LIB.writeFloat64, None, None),
+}
+
+
+def _memory_type(value):
+    return value.value.lower() if isinstance(value, String) else None
+
+
+def _struct_layout(value):
+    if not isinstance(value, String):
+        return None
+    fields = {}
+    offset = 0
+    for declaration in value.value.split(","):
+        parts = declaration.strip().split()
+        if len(parts) != 2 or parts[0].lower() not in _MEMORY_TYPES:
+            return None
+        field_type, field_name = parts[0].lower(), parts[1]
+        if not field_name.isidentifier() or field_name in fields:
+            return None
+        fields[field_name] = (field_type, offset)
+        offset += _MEMORY_TYPES[field_type][0]
+    return fields, offset
+
 
 def _native_int(value):
     return (
@@ -181,10 +220,129 @@ class BuiltInFunction(BaseFunction):
             return self._failure(exec_ctx, "modifyAddressValue() could not update its target")
         return RTResult().success(Number.null)
 
+    def execute_memoryTypeSize(self, args, exec_ctx):
+        if len(args) != 1 or _memory_type(args[0]) not in _MEMORY_TYPES:
+            return self._failure(exec_ctx, "memoryTypeSize(type) expects a supported memory type")
+        return RTResult().success(Number(_MEMORY_TYPES[_memory_type(args[0])][0]))
+
+    def execute_memoryBlockAllocate(self, args, exec_ctx):
+        if (
+            len(args) != 2
+            or _memory_type(args[0]) not in _MEMORY_TYPES
+            or not _native_nonnegative(args[1])
+        ):
+            return self._failure(
+                exec_ctx,
+                "memoryBlockAllocate(type, count) expects a supported type and non-negative count",
+            )
+        type_name, count = _memory_type(args[0]), args[1].value
+        size = _MEMORY_TYPES[type_name][0] * count
+        address = _MEMORY_LIB.malloc(size)
+        _FREED_MEMORY_ADDRESSES.discard(address)
+        _TYPED_MEMORY_BLOCKS[address] = (type_name, count)
+        return RTResult().success(Number(address))
+
+    def _typed_block(self, address, index, exec_ctx, name):
+        block = _TYPED_MEMORY_BLOCKS.get(address)
+        if block is None:
+            return None, self._failure(exec_ctx, f"{name}() expects a typed memory block address")
+        type_name, count = block
+        if index >= count:
+            return None, self._failure(
+                exec_ctx, f"{name}() index {index} is out of bounds for {count} elements"
+            )
+        return (type_name, index), None
+
+    def execute_memoryBlockGet(self, args, exec_ctx):
+        if len(args) != 2 or not _native_nonnegative(args[0]) or not _native_nonnegative(args[1]):
+            return self._failure(exec_ctx, "memoryBlockGet(address, index) expects non-negative integers")
+        resolved, error = self._typed_block(args[0].value, args[1].value, exec_ctx, "memoryBlockGet")
+        if error:
+            return error
+        type_name, index = resolved
+        size, reader, _, _, _ = _MEMORY_TYPES[type_name]
+        return RTResult().success(Number(reader(args[0].value, index * size)))
+
+    def execute_memoryBlockSet(self, args, exec_ctx):
+        if (
+            len(args) != 3
+            or not _native_nonnegative(args[0])
+            or not _native_nonnegative(args[1])
+            or not isinstance(args[2], Number)
+            or args[2].is_bool
+        ):
+            return self._failure(exec_ctx, "memoryBlockSet(address, index, value) expects an address, index, and number")
+        resolved, error = self._typed_block(args[0].value, args[1].value, exec_ctx, "memoryBlockSet")
+        if error:
+            return error
+        type_name, index = resolved
+        size, _, writer, minimum, maximum = _MEMORY_TYPES[type_name]
+        value = args[2].value
+        if minimum is not None and not minimum <= value <= maximum:
+            return self._failure(exec_ctx, f"memoryBlockSet() value is outside the range for {type_name}")
+        writer(args[0].value, index * size, value)
+        return RTResult().success(Number.null)
+
+    def execute_memoryBlockLength(self, args, exec_ctx):
+        if len(args) != 1 or not _native_nonnegative(args[0]):
+            return self._failure(exec_ctx, "memoryBlockLength(address) expects a non-negative integer address")
+        block = _TYPED_MEMORY_BLOCKS.get(args[0].value)
+        if block is None:
+            return self._failure(exec_ctx, "memoryBlockLength() expects a typed memory block address")
+        return RTResult().success(Number(block[1]))
+
+    def execute_memoryStructSize(self, args, exec_ctx):
+        layout = _struct_layout(args[0]) if len(args) == 1 else None
+        if layout is None:
+            return self._failure(exec_ctx, "memoryStructSize(layout) expects fields like \"int32 id, float32 x\"")
+        return RTResult().success(Number(layout[1]))
+
+    def execute_memoryStructAllocate(self, args, exec_ctx):
+        layout = _struct_layout(args[0]) if len(args) == 1 else None
+        if layout is None:
+            return self._failure(exec_ctx, "memoryStructAllocate(layout) expects fields like \"int32 id, float32 x\"")
+        fields, size = layout
+        address = _MEMORY_LIB.malloc(size)
+        _FREED_MEMORY_ADDRESSES.discard(address)
+        _MEMORY_STRUCTS[address] = fields
+        return RTResult().success(Number(address))
+
+    def _struct_field(self, address, field, exec_ctx, name):
+        fields = _MEMORY_STRUCTS.get(address)
+        if fields is None:
+            return None, self._failure(exec_ctx, f"{name}() expects a memory struct address")
+        if not isinstance(field, String) or field.value not in fields:
+            return None, self._failure(exec_ctx, f"{name}() field is not present in the struct layout")
+        return fields[field.value], None
+
+    def execute_memoryStructGet(self, args, exec_ctx):
+        if len(args) != 2 or not _native_nonnegative(args[0]):
+            return self._failure(exec_ctx, "memoryStructGet(address, field) expects an address and field name")
+        field, error = self._struct_field(args[0].value, args[1], exec_ctx, "memoryStructGet")
+        if error:
+            return error
+        type_name, offset = field
+        return RTResult().success(Number(_MEMORY_TYPES[type_name][1](args[0].value, offset)))
+
+    def execute_memoryStructSet(self, args, exec_ctx):
+        if len(args) != 3 or not _native_nonnegative(args[0]) or not isinstance(args[2], Number) or args[2].is_bool:
+            return self._failure(exec_ctx, "memoryStructSet(address, field, value) expects an address, field, and number")
+        field, error = self._struct_field(args[0].value, args[1], exec_ctx, "memoryStructSet")
+        if error:
+            return error
+        type_name, offset = field
+        _, _, writer, minimum, maximum = _MEMORY_TYPES[type_name]
+        if minimum is not None and not minimum <= args[2].value <= maximum:
+            return self._failure(exec_ctx, f"memoryStructSet() value is outside the range for {type_name}")
+        writer(args[0].value, offset, args[2].value)
+        return RTResult().success(Number.null)
+
     def execute_memoryAllocate(self, args, exec_ctx):
         if len(args) != 1 or not _native_nonnegative(args[0]):
             return self._failure(exec_ctx, "memoryAllocate(size) expects a non-negative integer size")
-        return RTResult().success(Number(_MEMORY_LIB.malloc(args[0].value)))
+        address = _MEMORY_LIB.malloc(args[0].value)
+        _FREED_MEMORY_ADDRESSES.discard(address)
+        return RTResult().success(Number(address))
 
     def execute_memoryCallocate(self, args, exec_ctx):
         if len(args) != 2 or not all(_native_nonnegative(arg) for arg in args):
@@ -192,9 +350,9 @@ class BuiltInFunction(BaseFunction):
                 exec_ctx,
                 "memoryCallocate(count, size) expects non-negative integer arguments",
             )
-        return RTResult().success(
-            Number(_MEMORY_LIB.calloc(args[0].value, args[1].value))
-        )
+        address = _MEMORY_LIB.calloc(args[0].value, args[1].value)
+        _FREED_MEMORY_ADDRESSES.discard(address)
+        return RTResult().success(Number(address))
 
     def execute_memoryReallocate(self, args, exec_ctx):
         if (
@@ -207,15 +365,41 @@ class BuiltInFunction(BaseFunction):
                 exec_ctx,
                 "memoryReallocate(address, size) expects an address and non-negative integer size",
             )
-        return RTResult().success(
-            Number(_MEMORY_LIB.realloc(args[0].value, args[1].value))
-        )
+        error = self._check_memory_address(args[0].value, exec_ctx)
+        if error:
+            return error
+        old_address = args[0].value
+        new_address = _MEMORY_LIB.realloc(old_address, args[1].value)
+        _FREED_MEMORY_ADDRESSES.add(old_address)
+        _FREED_MEMORY_ADDRESSES.discard(new_address)
+        block = _TYPED_MEMORY_BLOCKS.pop(old_address, None)
+        _MEMORY_STRUCTS.pop(old_address, None)
+        if block is not None:
+            type_name, count = block
+            element_size = _MEMORY_TYPES[type_name][0]
+            _TYPED_MEMORY_BLOCKS[new_address] = (
+                type_name,
+                min(count, args[1].value // element_size),
+            )
+        return RTResult().success(Number(new_address))
 
     def execute_memoryFree(self, args, exec_ctx):
         if len(args) != 1 or not _native_int(args[0]) or args[0].value < 0:
             return self._failure(exec_ctx, "memoryFree(address) expects an integer address")
-        _MEMORY_LIB.free(args[0].value)
+        address = args[0].value
+        error = self._check_memory_address(address, exec_ctx)
+        if error:
+            return error
+        _MEMORY_LIB.free(address)
+        _FREED_MEMORY_ADDRESSES.add(address)
+        _TYPED_MEMORY_BLOCKS.pop(address, None)
+        _MEMORY_STRUCTS.pop(address, None)
         return RTResult().success(Number.null)
+
+    def _check_memory_address(self, address, exec_ctx):
+        if address in _FREED_MEMORY_ADDRESSES:
+            return self._failure(exec_ctx, "address refers to freed memory")
+        return None
 
     def execute_memorySet(self, args, exec_ctx):
         if (
@@ -229,6 +413,9 @@ class BuiltInFunction(BaseFunction):
                 "memorySet(address, value, size) expects a non-negative address and size "
                 "and a byte value from 0 to 255",
             )
+        error = self._check_memory_address(args[0].value, exec_ctx)
+        if error:
+            return error
         _MEMORY_LIB.memset(args[0].value, args[1].value, args[2].value)
         return RTResult().success(Number.null)
 
@@ -241,6 +428,10 @@ class BuiltInFunction(BaseFunction):
                 exec_ctx,
                 "memoryCopy(destination, source, size) expects non-negative integer arguments",
             )
+        for address in (args[0].value, args[1].value):
+            error = self._check_memory_address(address, exec_ctx)
+            if error:
+                return error
         _MEMORY_LIB.memcpy(args[0].value, args[1].value, args[2].value)
         return RTResult().success(Number.null)
 
@@ -254,6 +445,9 @@ class BuiltInFunction(BaseFunction):
                 exec_ctx,
                 f"{name}(address, offset) expects non-negative integer arguments",
             )
+        error = self._check_memory_address(args[0].value, exec_ctx)
+        if error:
+            return error
         return RTResult().success(
             Number(native_function(args[0].value, args[1].value))
         )
@@ -273,6 +467,9 @@ class BuiltInFunction(BaseFunction):
                 f"{name}(address, offset, value) expects non-negative address "
                 f"and offset and a value from {minimum} to {maximum}",
             )
+        error = self._check_memory_address(args[0].value, exec_ctx)
+        if error:
+            return error
         native_function(args[0].value, args[1].value, args[2].value)
         return RTResult().success(Number.null)
 
@@ -2054,6 +2251,15 @@ BUILTIN_FUNCTION_NAMES = (
     "getAddress",
     "modifyAddressValue",
     "getAddressValue",
+    "memoryTypeSize",
+    "memoryBlockAllocate",
+    "memoryBlockGet",
+    "memoryBlockSet",
+    "memoryBlockLength",
+    "memoryStructSize",
+    "memoryStructAllocate",
+    "memoryStructGet",
+    "memoryStructSet",
     "memoryAllocate",
     "memoryCallocate",
     "memoryReallocate",

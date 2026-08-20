@@ -1,0 +1,6 @@
+// EXPECT_ERROR: memory access is out of bounds
+global setup(){}
+global main(){
+    int address = memoryAllocate(8);
+    memoryReadInt64(address, 1);
+}

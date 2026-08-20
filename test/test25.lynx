@@ -2,10 +2,6 @@
 global setup(){}
 global main(){
     int address = memoryAllocate(8);
-
-    memoryWriteInt32(address, 0, 42);
-
     memoryFree(address);
-
-    println(memoryReadInt32(address, 0));
+    memoryFree(address);
 }

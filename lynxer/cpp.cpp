@@ -7,6 +7,8 @@
 #include <cmath>
 #include <limits>
 #include <type_traits>
+#include <unordered_map>
+#include <unordered_set>
 
 namespace {
 
@@ -21,6 +23,33 @@ bool pointerFromPy(PyObject *obj, void **out) {
     }
     *out = reinterpret_cast<void *>(static_cast<uintptr_t>(value));
     return true;
+}
+
+std::unordered_map<void *, size_t> allocations;
+std::unordered_set<void *> freedAllocations;
+
+bool validateMemory(void *ptr, size_t offset, size_t bytes) {
+    if (freedAllocations.find(ptr) != freedAllocations.end()) {
+        PyErr_SetString(PyExc_RuntimeError, "address refers to freed memory");
+        return false;
+    }
+    auto allocation = allocations.find(ptr);
+    if (allocation == allocations.end()) {
+        PyErr_SetString(PyExc_RuntimeError, "invalid native memory address");
+        return false;
+    }
+    if (offset > allocation->second || bytes > allocation->second - offset) {
+        PyErr_SetString(PyExc_RuntimeError, "memory access is out of bounds");
+        return false;
+    }
+    return true;
+}
+
+void trackAllocation(void *ptr, size_t size) {
+    if (ptr != nullptr) {
+        allocations[ptr] = size;
+        freedAllocations.erase(ptr);
+    }
 }
 
 PyObject *pyRefCreate(PyObject *, PyObject *args) {
@@ -88,6 +117,7 @@ PyObject *pyMalloc(PyObject *, PyObject *args) {
     }
     void *ptr = std::malloc(static_cast<size_t>(size));
     if (ptr == nullptr && size != 0) return PyErr_NoMemory();
+    trackAllocation(ptr, static_cast<size_t>(size));
     return PyLong_FromUnsignedLongLong(
         static_cast<unsigned long long>(reinterpret_cast<uintptr_t>(ptr))
     );
@@ -103,6 +133,7 @@ PyObject *pyCalloc(PyObject *, PyObject *args) {
     }
     void *ptr = std::calloc(static_cast<size_t>(count), static_cast<size_t>(size));
     if (ptr == nullptr && count != 0 && size != 0) return PyErr_NoMemory();
+    trackAllocation(ptr, static_cast<size_t>(count * size));
     return PyLong_FromUnsignedLongLong(
         static_cast<unsigned long long>(reinterpret_cast<uintptr_t>(ptr))
     );
@@ -118,8 +149,14 @@ PyObject *pyRealloc(PyObject *, PyObject *args) {
         PyErr_SetString(PyExc_OverflowError, "allocation size is too large");
         return nullptr;
     }
+    if (ptr != nullptr && !validateMemory(ptr, 0, 0)) return nullptr;
     void *newPtr = std::realloc(ptr, static_cast<size_t>(size));
     if (newPtr == nullptr && size != 0) return PyErr_NoMemory();
+    if (ptr != nullptr) {
+        allocations.erase(ptr);
+        if (newPtr != ptr) freedAllocations.insert(ptr);
+    }
+    trackAllocation(newPtr, static_cast<size_t>(size));
     return PyLong_FromUnsignedLongLong(
         static_cast<unsigned long long>(reinterpret_cast<uintptr_t>(newPtr))
     );
@@ -130,7 +167,10 @@ PyObject *pyFree(PyObject *, PyObject *args) {
     if (!PyArg_ParseTuple(args, "O", &ptrObject)) return nullptr;
     void *ptr;
     if (!pointerFromPy(ptrObject, &ptr)) return nullptr;
+    if (!validateMemory(ptr, 0, 0)) return nullptr;
     std::free(ptr);
+    allocations.erase(ptr);
+    freedAllocations.insert(ptr);
     Py_RETURN_NONE;
 }
 
@@ -145,6 +185,7 @@ PyObject *pyMemset(PyObject *, PyObject *args) {
     }
     void *ptr;
     if (!pointerFromPy(ptrObject, &ptr)) return nullptr;
+    if (!validateMemory(ptr, 0, static_cast<size_t>(size))) return nullptr;
     std::memset(ptr, value, static_cast<size_t>(size));
     Py_RETURN_NONE;
 }
@@ -164,6 +205,8 @@ PyObject *pyMemcpy(PyObject *, PyObject *args) {
     void *source;
     if (!pointerFromPy(destinationObject, &destination) ||
         !pointerFromPy(sourceObject, &source)) return nullptr;
+    if (!validateMemory(destination, 0, static_cast<size_t>(size)) ||
+        !validateMemory(source, 0, static_cast<size_t>(size))) return nullptr;
     std::memcpy(destination, source, static_cast<size_t>(size));
     Py_RETURN_NONE;
 }
@@ -174,6 +217,7 @@ PyObject *pyReadByte(PyObject *, PyObject *args) {
     if (!PyArg_ParseTuple(args, "OK", &ptrObject, &offset)) return nullptr;
     void *ptr;
     if (!pointerFromPy(ptrObject, &ptr)) return nullptr;
+    if (!validateMemory(ptr, static_cast<size_t>(offset), 1)) return nullptr;
     auto *bytes = static_cast<unsigned char *>(ptr);
     return PyLong_FromUnsignedLong(static_cast<unsigned long>(bytes[offset]));
 }
@@ -189,6 +233,7 @@ PyObject *pyWriteByte(PyObject *, PyObject *args) {
     }
     void *ptr;
     if (!pointerFromPy(ptrObject, &ptr)) return nullptr;
+    if (!validateMemory(ptr, static_cast<size_t>(offset), 1)) return nullptr;
     static_cast<unsigned char *>(ptr)[offset] = static_cast<unsigned char>(value);
     Py_RETURN_NONE;
 }
@@ -200,6 +245,7 @@ PyObject *readFixed(PyObject *args) {
     if (!PyArg_ParseTuple(args, "OK", &ptrObject, &offset)) return nullptr;
     void *ptr;
     if (!pointerFromPy(ptrObject, &ptr)) return nullptr;
+    if (!validateMemory(ptr, static_cast<size_t>(offset), sizeof(T))) return nullptr;
     T value;
     std::memcpy(&value, static_cast<unsigned char *>(ptr) + offset, sizeof(T));
     if constexpr (std::is_signed_v<T>) {
@@ -218,6 +264,7 @@ PyObject *writeFixed(PyObject *args) {
     }
     void *ptr;
     if (!pointerFromPy(ptrObject, &ptr)) return nullptr;
+    if (!validateMemory(ptr, static_cast<size_t>(offset), sizeof(T))) return nullptr;
     T value;
     if constexpr (std::is_signed_v<T>) {
         long long raw = PyLong_AsLongLong(valueObject);
@@ -248,6 +295,7 @@ PyObject *readFloat(PyObject *args) {
     if (!PyArg_ParseTuple(args, "OK", &ptrObject, &offset)) return nullptr;
     void *ptr;
     if (!pointerFromPy(ptrObject, &ptr)) return nullptr;
+    if (!validateMemory(ptr, static_cast<size_t>(offset), sizeof(T))) return nullptr;
     T value;
     std::memcpy(&value, static_cast<unsigned char *>(ptr) + offset, sizeof(T));
     return PyFloat_FromDouble(static_cast<double>(value));
@@ -266,6 +314,7 @@ PyObject *writeFloat(PyObject *args) {
     }
     void *ptr;
     if (!pointerFromPy(ptrObject, &ptr)) return nullptr;
+    if (!validateMemory(ptr, static_cast<size_t>(offset), sizeof(T))) return nullptr;
     std::memcpy(static_cast<unsigned char *>(ptr) + offset, &value, sizeof(T));
     Py_RETURN_NONE;
 }

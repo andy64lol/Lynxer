@@ -13,6 +13,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import re
 from pathlib import Path
 from typing import Callable
 
@@ -314,17 +315,34 @@ def test_installer_safety() -> None:
 
 
 def test_existing_fixtures() -> None:
-    fixtures = sorted((ROOT / "test").glob("*.lynx"))
+    fixture_pattern = re.compile(r"^test(\d+)\.lynx$")
+    fixtures = sorted(
+        (
+            fixture
+            for fixture in (ROOT / "test").iterdir()
+            if fixture.is_file() and fixture_pattern.match(fixture.name)
+        ),
+        key=lambda fixture: int(fixture_pattern.match(fixture.name).group(1)),
+    )
     for fixture in fixtures:
         source = fixture.read_text(encoding="utf-8")
         if "forever(" in source:
             print(f"SKIP  existing fixture {fixture.name}: contains unbounded forever()")
             continue
+        expected_error = re.search(r"^\s*//\s*EXPECT_ERROR:\s*(.+?)\s*$", source, re.MULTILINE)
         _, error = run_source(source, str(fixture))
-        if error is not None:
+        if expected_error:
+            fragment = expected_error.group(1)
+            if error is None or fragment not in error.as_string():
+                raise ValidationFailure(
+                    f"fixture {fixture.name} expected error containing {fragment!r}, "
+                    f"received {error.as_string() if error else 'no error'}"
+                )
+        elif error is not None:
             raise ValidationFailure(
                 f"existing fixture {fixture.name} failed:\n{error.as_string()}"
             )
+        print(f"PASS  {fixture.name}")
 
 
 TESTS: list[tuple[str, Callable[[], None]]] = [
