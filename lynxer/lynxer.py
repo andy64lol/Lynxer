@@ -317,6 +317,7 @@ TYPE_KEYWORDS = [
     "uint8", "uint16", "uint32", "uint64",
     "float32", "float64",
     "sentinel", "codeblock",
+    "struct",
 ]
 
 KEYWORDS = [
@@ -336,6 +337,7 @@ KEYWORDS = [
     "try", "catch",
     "async", "await",
     "class",
+    "struct",
     "new",
     "break", "continue", "restart",
 ]
@@ -1170,10 +1172,12 @@ def _block_contains_break(block_node):
     return False
 
 class VarGroupDeclNode:
-    def __init__(self, name_tok, fields, pos_start, pos_end, is_const=False):
+    def __init__(self, name_tok, fields, pos_start, pos_end, is_const=False,
+                 kind="vargroup"):
         self.name_tok = name_tok
         self.fields = fields
         self.is_const = is_const
+        self.kind = kind
         self.pos_start = pos_start
         self.pos_end = pos_end
 
@@ -2251,6 +2255,15 @@ class Parser:
                 return res
             return res.success(node)
 
+        # A struct declaration is a declaration form, not a variable whose
+        # type is "struct".  Handle it before the generic typed declaration
+        # branch because "struct" is also a type keyword for field matching.
+        if self.current_tok.matches(TT_KEYWORD, "struct"):
+            node = res.register(self.parse_vargroup_decl(kind="struct"))
+            if res.error:
+                return res
+            return res.success(node)
+
         if self.is_type_keyword():
             next1 = self.peek(1)
             next2 = self.peek(2)
@@ -2912,19 +2925,19 @@ class Parser:
 
         return res.success((type_tok.value, name_tok, value_node, is_const))
 
-    def parse_vargroup_decl(self):
+    def parse_vargroup_decl(self, kind="vargroup"):
         """Parse: vargroup name = { fields... }; """
         res = ParseResult()
         pos_start = self.current_tok.pos_start.copy()
         res.register_advancement()
-        self.advance()  # consume 'vargroup'
+        self.advance()  # consume declaration keyword
 
         if self.current_tok.type != TT_IDENTIFIER:
             return res.failure(
                 InvalidSyntaxError(
                     self.current_tok.pos_start,
                     self.current_tok.pos_end,
-                    "Expected vargroup name",
+                    f"Expected {kind} name",
                 )
             )
         name_tok = self.current_tok
@@ -2936,7 +2949,7 @@ class Parser:
                 InvalidSyntaxError(
                     self.current_tok.pos_start,
                     self.current_tok.pos_end,
-                    "Expected '=' after vargroup name",
+                    f"Expected '=' after {kind} name",
                 )
             )
         res.register_advancement()
@@ -2947,7 +2960,7 @@ class Parser:
                 InvalidSyntaxError(
                     self.current_tok.pos_start,
                     self.current_tok.pos_end,
-                    "Expected '{' to open vargroup body",
+                    f"Expected '{{' to open {kind} body",
                 )
             )
         open_tok = self.current_tok
@@ -2967,7 +2980,7 @@ class Parser:
                     InvalidSyntaxError(
                         self.current_tok.pos_start,
                         self.current_tok.pos_end,
-                        "Expected '}' to close vargroup",
+                            f"Expected '}}' to close {kind}",
                     )
                 )
             field = res.register(self.parse_vargroup_field())
@@ -2982,7 +2995,7 @@ class Parser:
                     InvalidSyntaxError(
                         self.current_tok.pos_start,
                         self.current_tok.pos_end,
-                        "Expected ',' or '}' in vargroup body",
+                        f"Expected ',' or '}}' in {kind} body",
                     )
                 )
 
@@ -2994,14 +3007,16 @@ class Parser:
                 InvalidSyntaxError(
                     self.current_tok.pos_start,
                     self.current_tok.pos_end,
-                    "Expected ';' after vargroup declaration",
+                    f"Expected ';' after {kind} declaration",
                 )
             )
         pos_end = self.current_tok.pos_end.copy()
         res.register_advancement()
         self.advance()
 
-        return res.success(VarGroupDeclNode(name_tok, fields, pos_start, pos_end))
+        return res.success(VarGroupDeclNode(
+            name_tok, fields, pos_start, pos_end, kind=kind
+        ))
 
     def parse_add_vargroup(self):
         """Parse: addVarGroup(path_expr, type name = value); """
@@ -5871,7 +5886,7 @@ def type_matches(declared_type, value):
         )
     if declared_type == "char":
         return isinstance(value, Char)
-    if declared_type == "vargroup":
+    if declared_type in ("vargroup", "struct"):
         return actual == "vargroup"
     return actual == declared_type
 
@@ -6930,9 +6945,10 @@ class BoundMethod(Value):
 class VarGroup(Value):
     """Runtime representation of a vargroup."""
 
-    def __init__(self, name):
+    def __init__(self, name, kind="vargroup"):
         super().__init__()
         self.name = name
+        self.kind = kind
         self._fields = {}
 
     # attribute access
@@ -7007,7 +7023,7 @@ class VarGroup(Value):
         for k, info in self._fields.items():
             prefix = "const " if info.get("const") else ""
             parts.append(f"{prefix}{info['type']} {k} = {info['value']}")
-        return f"vargroup {self.name} " + "{ " + ", ".join(parts) + " }"
+        return f"{self.kind} {self.name} " + "{ " + ", ".join(parts) + " }"
 
 # context
 
@@ -9164,9 +9180,9 @@ class Interpreter:
 
     # vargroup visitors
 
-    def _build_vargroup(self, name, fields, context):
+    def _build_vargroup(self, name, fields, context, kind="vargroup"):
         res = RTResult()
-        vg = VarGroup(name)
+        vg = VarGroup(name, kind=kind)
         for field_tuple in fields:
             field_type, name_tok, value_node, is_const = field_tuple
             field_name = name_tok.value
@@ -9208,11 +9224,16 @@ class Interpreter:
     def visit_VarGroupDeclNode(self, node, context):
         res = RTResult()
         vg = res.register(
-            self._build_vargroup(node.name_tok.value, node.fields, context)
+            self._build_vargroup(
+                node.name_tok.value, node.fields, context, kind=node.kind
+            )
         )
         if res.should_return():
             return res
-        context.symbol_table.set(node.name_tok.value, vg, is_const=node.is_const, decl_type="vargroup")
+        context.symbol_table.set(
+            node.name_tok.value, vg, is_const=node.is_const,
+            decl_type=node.kind,
+        )
         return res.success(vg)
 
     def visit_ClassDefNode(self, node, context):

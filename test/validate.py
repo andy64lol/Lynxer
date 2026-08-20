@@ -216,6 +216,162 @@ global main(){ println(sizeof("unit32")); }""",
         "unknown C type",
         "uint32 spelling validation",
     )
+    require_output(
+        """global setup(){}
+global main(){
+    int values = memoryBlockAllocate("int32", 2);
+    memoryBlockSet(values, 0, 7);
+    memoryBlockView(values, "int32", 2);
+    memoryViewSet(values, 1, 9);
+    println(memoryArrayGet(values, 0));
+    println(memoryViewGet(values, 1));
+    println(memoryArrayLength(values));
+    memoryFree(values);
+}""",
+        "7\n9\n2\n",
+        "native typed memory blocks and views",
+    )
+    require_output(
+        """global setup(){}
+global main(){
+    int a = memoryBlockAllocate("int8", 1);
+    int b = memoryBlockAllocate("uint8", 1);
+    int c = memoryBlockAllocate("int16", 1);
+    int d = memoryBlockAllocate("uint16", 1);
+    int e = memoryBlockAllocate("int32", 1);
+    int f = memoryBlockAllocate("uint32", 1);
+    int g = memoryBlockAllocate("int64", 1);
+    int h = memoryBlockAllocate("uint64", 1);
+    int i = memoryBlockAllocate("float32", 1);
+    int j = memoryBlockAllocate("float64", 1);
+    memoryBlockSet(a, 0, -8); memoryBlockSet(b, 0, 250);
+    memoryBlockSet(c, 0, -1600); memoryBlockSet(d, 0, 65000);
+    memoryBlockSet(e, 0, -320000); memoryBlockSet(f, 0, 4000000000);
+    memoryBlockSet(g, 0, -6400000000); memoryBlockSet(h, 0, 16000000000);
+    memoryBlockSet(i, 0, 1.5); memoryBlockSet(j, 0, 2.5);
+    println(memoryBlockGet(a, 0)); println(memoryBlockGet(b, 0));
+    println(memoryBlockGet(c, 0)); println(memoryBlockGet(d, 0));
+    println(memoryBlockGet(e, 0)); println(memoryBlockGet(f, 0));
+    println(memoryBlockGet(g, 0)); println(memoryBlockGet(h, 0));
+    println(memoryBlockGet(i, 0)); println(memoryBlockGet(j, 0));
+    memoryFree(a); memoryFree(b); memoryFree(c); memoryFree(d); memoryFree(e);
+    memoryFree(f); memoryFree(g); memoryFree(h); memoryFree(i); memoryFree(j);
+}""",
+        "-8\n250\n-1600\n65000\n-320000\n4000000000\n"
+        "-6400000000\n16000000000\n1.5\n2.5\n",
+        "all native typed memory scalar types",
+    )
+    require_output(
+        """global setup(){}
+global main(){
+    int raw = memoryAllocate(16);
+    memoryBlockView(raw, "int32", 4);
+    memoryBlockSet(raw, 0, 11);
+    memoryArraySet(raw, 1, 22);
+    println(memoryViewGet(raw, 0));
+    println(memoryArrayGet(raw, 1));
+    println(memoryBlockLength(raw));
+    memoryFree(raw);
+}""",
+        "11\n22\n4\n",
+        "typed views and array aliases",
+    )
+    require_output(
+        """global setup(){}
+global main(){
+    int player = memoryStructAllocate("int32 id, float32 x");
+    memoryStructSet(player, "id", 42);
+    memoryStructSet(player, "x", 2.5);
+    println(memoryStructGet(player, "id"));
+    println(memoryStructGet(player, "x"));
+    println(memoryStructSize("int32 id, float32 x"));
+    println(memoryStructFieldOffset("int32 id, float32 x", "x"));
+    memoryFree(player);
+}""",
+        "42\n2.5\n8\n4\n",
+        "native struct layouts",
+    )
+    require_output(
+        """global setup(){}
+global main(){
+    int player = nativeStructAllocate("int32 id, float64 score, uint8 alive");
+    nativeStructSet(player, "id", 99);
+    nativeStructSet(player, "score", 12.5);
+    nativeStructSet(player, "alive", 1);
+    println(nativeStructGet(player, "id"));
+    println(nativeStructGet(player, "score"));
+    println(nativeStructGet(player, "alive"));
+    println(nativeStructFieldOffset("int32 id, float64 score, uint8 alive", "score"));
+    println(nativeStructFieldSize("int32 id, float64 score, uint8 alive", "alive"));
+    memoryFree(player);
+}""",
+        "99\n12.5\n1\n8\n1\n",
+        "native struct aliases and padding",
+    )
+    require_error(
+        """global setup(){}
+global main(){
+    int values = memoryBlockAllocate("int32", 1);
+    memoryBlockGet(values, 1);
+}""",
+        "out of bounds",
+        "typed block bounds validation",
+    )
+    require_error(
+        """global setup(){}
+global main(){
+    int player = memoryStructAllocate("int32 id");
+    memoryStructGet(player, "missing");
+}""",
+        "struct field is not present",
+        "struct field validation",
+    )
+    require_error(
+        """global setup(){}
+global main(){
+    int values = memoryBlockAllocate("uint8", 1);
+    memoryBlockSet(values, 0, 256);
+}""",
+        "outside the range",
+        "typed block range validation",
+    )
+    require_error(
+        """global setup(){}
+global main(){
+    int values = memoryAllocate(4);
+    memoryBlockView(values, "int32", 2);
+}""",
+        "out of bounds",
+        "typed view allocation bounds validation",
+    )
+    require_error(
+        """global setup(){}
+global main(){
+    int values = memoryBlockAllocate("int32", 1);
+    memoryFree(values);
+    memoryBlockLength(values);
+}""",
+        "typed memory block",
+        "typed block lifetime validation",
+    )
+    require_error(
+        """global setup(){}
+global main(){
+    int values = memoryBlockAllocate("int32", 1);
+    memoryBlockGet(values, 1);
+}""",
+        "out of bounds",
+        "typed block index validation",
+    )
+    require_error(
+        """global setup(){}
+global main(){
+    int player = memoryStructAllocate("int32 id");
+    memoryStructSet(player, "missing", 1);
+}""",
+        "struct field is not present",
+        "struct field write validation",
+    )
 
 
 def test_imports(temp_root: Path) -> None:

@@ -7,6 +7,8 @@
 #include <cmath>
 #include <limits>
 #include <type_traits>
+#include <string>
+#include <vector>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -27,6 +29,96 @@ bool pointerFromPy(PyObject *obj, void **out) {
 
 std::unordered_map<void *, size_t> allocations;
 std::unordered_set<void *> freedAllocations;
+
+struct MemoryType {
+    size_t size;
+    size_t alignment;
+};
+
+struct TypedBlock {
+    std::string type;
+    size_t count;
+};
+
+struct StructField {
+    std::string name;
+    std::string type;
+    size_t offset;
+};
+
+struct StructLayout {
+    std::vector<StructField> fields;
+    size_t size;
+};
+
+std::unordered_map<void *, TypedBlock> typedBlocks;
+std::unordered_map<void *, StructLayout> structBlocks;
+
+bool memoryType(const std::string &name, MemoryType *out) {
+    if (name == "byte" || name == "int8" || name == "uint8") *out = {1, 1};
+    else if (name == "int16" || name == "uint16") *out = {2, 2};
+    else if (name == "int32" || name == "uint32" || name == "float32") *out = {4, 4};
+    else if (name == "int64" || name == "uint64" || name == "float64") *out = {8, 8};
+    else return false;
+    return true;
+}
+
+bool layoutFromObject(PyObject *object, StructLayout *out) {
+    const char *raw;
+    if (!PyArg_Parse(object, "s", &raw)) return false;
+    std::string text(raw);
+    size_t offset = 0, alignment = 1, start = 0;
+    std::unordered_set<std::string> names;
+    while (start <= text.size()) {
+        size_t end = text.find(',', start);
+        std::string item = text.substr(start, end == std::string::npos ? end : end - start);
+        size_t itemStart = item.find_first_not_of(" \t");
+        if (itemStart != std::string::npos) item = item.substr(itemStart);
+        size_t split = item.find_first_of(" \t");
+        if (split == std::string::npos) {
+            PyErr_SetString(PyExc_ValueError, "layout fields must be '<type> <name>'");
+            return false;
+        }
+        std::string type = item.substr(0, split);
+        size_t nameStart = item.find_first_not_of(" \t", split);
+        std::string name = nameStart == std::string::npos ? "" : item.substr(nameStart);
+        size_t nameEnd = name.find_last_not_of(" \t");
+        if (nameEnd != std::string::npos) name.resize(nameEnd + 1);
+        MemoryType info;
+        if (!memoryType(type, &info) || name.empty() || names.count(name)) {
+            PyErr_SetString(PyExc_ValueError, "invalid or duplicate struct layout field");
+            return false;
+        }
+        names.insert(name);
+        offset = (offset + info.alignment - 1) / info.alignment * info.alignment;
+        out->fields.push_back({name, type, offset});
+        offset += info.size;
+        alignment = std::max(alignment, info.alignment);
+        if (end == std::string::npos) break;
+        start = end + 1;
+    }
+    out->size = (offset + alignment - 1) / alignment * alignment;
+    return true;
+}
+
+bool blockField(PyObject *object, PyObject *indexObject, void **ptr, size_t *offset,
+                std::string *type) {
+    void *raw;
+    unsigned long long index;
+    if (!pointerFromPy(object, &raw) ||
+        !PyArg_Parse(indexObject, "K", &index)) return false;
+    auto block = typedBlocks.find(raw);
+    if (block == typedBlocks.end() || index >= block->second.count) {
+        PyErr_SetString(PyExc_RuntimeError, "typed memory block index is out of bounds");
+        return false;
+    }
+    MemoryType info;
+    memoryType(block->second.type, &info);
+    *ptr = raw;
+    *offset = static_cast<size_t>(index) * info.size;
+    *type = block->second.type;
+    return true;
+}
 
 bool validateMemory(void *ptr, size_t offset, size_t bytes) {
     if (freedAllocations.find(ptr) != freedAllocations.end()) {
@@ -154,6 +246,8 @@ PyObject *pyRealloc(PyObject *, PyObject *args) {
     if (newPtr == nullptr && size != 0) return PyErr_NoMemory();
     if (ptr != nullptr) {
         allocations.erase(ptr);
+        typedBlocks.erase(ptr);
+        structBlocks.erase(ptr);
         if (newPtr != ptr) freedAllocations.insert(ptr);
     }
     trackAllocation(newPtr, static_cast<size_t>(size));
@@ -170,6 +264,8 @@ PyObject *pyFree(PyObject *, PyObject *args) {
     if (!validateMemory(ptr, 0, 0)) return nullptr;
     std::free(ptr);
     allocations.erase(ptr);
+    typedBlocks.erase(ptr);
+    structBlocks.erase(ptr);
     freedAllocations.insert(ptr);
     Py_RETURN_NONE;
 }
@@ -271,7 +367,7 @@ PyObject *writeFixed(PyObject *args) {
         if (PyErr_Occurred()) return nullptr;
         if (raw < static_cast<long long>(std::numeric_limits<T>::min()) ||
             raw > static_cast<long long>(std::numeric_limits<T>::max())) {
-            PyErr_SetString(PyExc_OverflowError, "signed integer value is out of range");
+            PyErr_SetString(PyExc_OverflowError, "value is outside the range for typed memory");
             return nullptr;
         }
         value = static_cast<T>(raw);
@@ -279,7 +375,7 @@ PyObject *writeFixed(PyObject *args) {
         unsigned long long raw = PyLong_AsUnsignedLongLong(valueObject);
         if (PyErr_Occurred()) return nullptr;
         if (raw > static_cast<unsigned long long>(std::numeric_limits<T>::max())) {
-            PyErr_SetString(PyExc_OverflowError, "unsigned integer value is out of range");
+            PyErr_SetString(PyExc_OverflowError, "value is outside the range for typed memory");
             return nullptr;
         }
         value = static_cast<T>(raw);
@@ -323,6 +419,217 @@ PyObject *pyReadFloat32(PyObject *, PyObject *args) { return readFloat<float>(ar
 PyObject *pyWriteFloat32(PyObject *, PyObject *args) { return writeFloat<float>(args); }
 PyObject *pyReadFloat64(PyObject *, PyObject *args) { return readFloat<double>(args); }
 PyObject *pyWriteFloat64(PyObject *, PyObject *args) { return writeFloat<double>(args); }
+
+PyObject *pyMemoryTypeSize(PyObject *, PyObject *args) {
+    const char *name;
+    if (!PyArg_ParseTuple(args, "s", &name)) return nullptr;
+    MemoryType info;
+    if (!memoryType(name, &info)) {
+        PyErr_SetString(PyExc_ValueError, "unsupported typed memory type");
+        return nullptr;
+    }
+    return PyLong_FromSize_t(info.size);
+}
+
+PyObject *pyMemoryBlockAllocate(PyObject *, PyObject *args) {
+    const char *name;
+    unsigned long long count;
+    if (!PyArg_ParseTuple(args, "sK", &name, &count)) return nullptr;
+    MemoryType info;
+    if (!memoryType(name, &info)) {
+        PyErr_SetString(PyExc_ValueError, "unsupported typed memory type");
+        return nullptr;
+    }
+    if (count > std::numeric_limits<size_t>::max() / info.size) {
+        PyErr_SetString(PyExc_OverflowError, "typed allocation size is too large");
+        return nullptr;
+    }
+    void *ptr = std::malloc(static_cast<size_t>(count) * info.size);
+    if (!ptr && count) return PyErr_NoMemory();
+    trackAllocation(ptr, static_cast<size_t>(count) * info.size);
+    typedBlocks[ptr] = {name, static_cast<size_t>(count)};
+    return PyLong_FromUnsignedLongLong(reinterpret_cast<uintptr_t>(ptr));
+}
+
+PyObject *pyMemoryBlockView(PyObject *, PyObject *args) {
+    PyObject *addressObject;
+    const char *name;
+    unsigned long long count;
+    if (!PyArg_ParseTuple(args, "OsK", &addressObject, &name, &count)) return nullptr;
+    void *ptr;
+    if (!pointerFromPy(addressObject, &ptr)) return nullptr;
+    MemoryType info;
+    if (!memoryType(name, &info) || !validateMemory(ptr, 0, count * info.size)) return nullptr;
+    typedBlocks[ptr] = {name, static_cast<size_t>(count)};
+    return PyLong_FromUnsignedLongLong(reinterpret_cast<uintptr_t>(ptr));
+}
+
+PyObject *pyMemoryBlockLength(PyObject *, PyObject *args) {
+    PyObject *addressObject;
+    if (!PyArg_ParseTuple(args, "O", &addressObject)) return nullptr;
+    void *ptr;
+    if (!pointerFromPy(addressObject, &ptr)) return nullptr;
+    auto it = typedBlocks.find(ptr);
+    if (it == typedBlocks.end()) {
+        PyErr_SetString(PyExc_RuntimeError, "address is not a typed memory block");
+        return nullptr;
+    }
+    return PyLong_FromSize_t(it->second.count);
+}
+
+PyObject *pyMemoryBlockGet(PyObject *, PyObject *args) {
+    PyObject *addressObject, *indexObject;
+    if (!PyArg_ParseTuple(args, "OO", &addressObject, &indexObject)) return nullptr;
+    void *ptr; size_t offset; std::string type;
+    if (!blockField(addressObject, indexObject, &ptr, &offset, &type)) return nullptr;
+    MemoryType info;
+    memoryType(type, &info);
+    if (!validateMemory(ptr, offset, info.size)) return nullptr;
+    PyObject *pair = Py_BuildValue("(OK)", addressObject, static_cast<unsigned long long>(offset));
+    if (!pair) return nullptr;
+    PyObject *result = nullptr;
+    if (type == "float32") result = readFloat<float>(pair);
+    else if (type == "float64") result = readFloat<double>(pair);
+    else if (type == "int8") result = readFixed<std::int8_t>(pair);
+    else if (type == "uint8" || type == "byte") result = readFixed<std::uint8_t>(pair);
+    else if (type == "int16") result = readFixed<std::int16_t>(pair);
+    else if (type == "uint16") result = readFixed<std::uint16_t>(pair);
+    else if (type == "int32") result = readFixed<std::int32_t>(pair);
+    else if (type == "uint32") result = readFixed<std::uint32_t>(pair);
+    else if (type == "int64") result = readFixed<std::int64_t>(pair);
+    else result = readFixed<std::uint64_t>(pair);
+    Py_DECREF(pair);
+    return result;
+}
+
+PyObject *pyMemoryBlockSet(PyObject *, PyObject *args) {
+    PyObject *addressObject, *indexObject, *valueObject;
+    if (!PyArg_ParseTuple(args, "OOO", &addressObject, &indexObject, &valueObject)) return nullptr;
+    void *ptr; size_t offset; std::string type;
+    if (!blockField(addressObject, indexObject, &ptr, &offset, &type)) return nullptr;
+    MemoryType info; memoryType(type, &info);
+    if (!validateMemory(ptr, offset, info.size)) return nullptr;
+    PyObject *pair = Py_BuildValue("(OKO)", addressObject, offset, valueObject);
+    if (!pair) return nullptr;
+    PyObject *result = nullptr;
+    if (type == "float32") result = writeFloat<float>(pair);
+    else if (type == "float64") result = writeFloat<double>(pair);
+    else if (type == "int8") result = writeFixed<std::int8_t>(pair);
+    else if (type == "uint8" || type == "byte") result = writeFixed<std::uint8_t>(pair);
+    else if (type == "int16") result = writeFixed<std::int16_t>(pair);
+    else if (type == "uint16") result = writeFixed<std::uint16_t>(pair);
+    else if (type == "int32") result = writeFixed<std::int32_t>(pair);
+    else if (type == "uint32") result = writeFixed<std::uint32_t>(pair);
+    else if (type == "int64") result = writeFixed<std::int64_t>(pair);
+    else result = writeFixed<std::uint64_t>(pair);
+    Py_DECREF(pair);
+    return result;
+}
+
+PyObject *pyMemoryStructSize(PyObject *, PyObject *args) {
+    PyObject *layoutObject;
+    if (!PyArg_ParseTuple(args, "O", &layoutObject)) return nullptr;
+    StructLayout layout;
+    if (!layoutFromObject(layoutObject, &layout)) return nullptr;
+    return PyLong_FromSize_t(layout.size);
+}
+
+PyObject *pyMemoryStructAllocate(PyObject *, PyObject *args) {
+    PyObject *layoutObject;
+    if (!PyArg_ParseTuple(args, "O", &layoutObject)) return nullptr;
+    StructLayout layout;
+    if (!layoutFromObject(layoutObject, &layout)) return nullptr;
+    void *ptr = std::malloc(layout.size);
+    if (!ptr && layout.size) return PyErr_NoMemory();
+    trackAllocation(ptr, layout.size);
+    structBlocks[ptr] = layout;
+    return PyLong_FromUnsignedLongLong(reinterpret_cast<uintptr_t>(ptr));
+}
+
+PyObject *pyMemoryStructField(PyObject *, PyObject *args, bool wantSize) {
+    PyObject *layoutObject; const char *field;
+    if (!PyArg_ParseTuple(args, "Os", &layoutObject, &field)) return nullptr;
+    StructLayout layout;
+    if (!layoutFromObject(layoutObject, &layout)) return nullptr;
+    for (const auto &item : layout.fields) {
+        (void)item;
+    }
+    for (size_t i = 0; i < layout.fields.size(); ++i) {
+        if (layout.fields[i].name == field) {
+            MemoryType info;
+            memoryType(layout.fields[i].type, &info);
+            return PyLong_FromSize_t(wantSize ? info.size : layout.fields[i].offset);
+        }
+    }
+    PyErr_SetString(PyExc_ValueError, "struct field is not present");
+    return nullptr;
+}
+
+PyObject *pyMemoryStructGet(PyObject *, PyObject *args) {
+    PyObject *addressObject; const char *field;
+    if (!PyArg_ParseTuple(args, "Os", &addressObject, &field)) return nullptr;
+    void *ptr; if (!pointerFromPy(addressObject, &ptr)) return nullptr;
+    auto block = structBlocks.find(ptr);
+    if (block == structBlocks.end()) {
+        PyErr_SetString(PyExc_RuntimeError, "address is not a memory struct");
+        return nullptr;
+    }
+    for (const auto &item : block->second.fields) {
+        if (item.name == field) {
+            PyObject *pair = Py_BuildValue("(OK)", addressObject,
+                static_cast<unsigned long long>(item.offset));
+            if (!pair) return nullptr;
+            PyObject *result = nullptr;
+            if (item.type == "float32") result = readFloat<float>(pair);
+            else if (item.type == "float64") result = readFloat<double>(pair);
+            else if (item.type == "int32") result = readFixed<std::int32_t>(pair);
+            else if (item.type == "uint32") result = readFixed<std::uint32_t>(pair);
+            else if (item.type == "int64") result = readFixed<std::int64_t>(pair);
+            else if (item.type == "uint64") result = readFixed<std::uint64_t>(pair);
+            else if (item.type == "int16") result = readFixed<std::int16_t>(pair);
+            else if (item.type == "uint16") result = readFixed<std::uint16_t>(pair);
+            else if (item.type == "int8") result = readFixed<std::int8_t>(pair);
+            else result = readFixed<std::uint8_t>(pair);
+            Py_DECREF(pair);
+            return result;
+        }
+    }
+    PyErr_SetString(PyExc_ValueError, "struct field is not present");
+    return nullptr;
+}
+
+PyObject *pyMemoryStructSet(PyObject *, PyObject *args) {
+    PyObject *addressObject, *valueObject; const char *field;
+    if (!PyArg_ParseTuple(args, "OsO", &addressObject, &field, &valueObject)) return nullptr;
+    void *ptr; if (!pointerFromPy(addressObject, &ptr)) return nullptr;
+    auto block = structBlocks.find(ptr);
+    if (block == structBlocks.end()) {
+        PyErr_SetString(PyExc_RuntimeError, "address is not a memory struct");
+        return nullptr;
+    }
+    for (const auto &item : block->second.fields) {
+        if (item.name == field) {
+            PyObject *triple = Py_BuildValue("(OKO)", addressObject,
+                static_cast<unsigned long long>(item.offset), valueObject);
+            if (!triple) return nullptr;
+            PyObject *result = nullptr;
+            if (item.type == "float32") result = writeFloat<float>(triple);
+            else if (item.type == "float64") result = writeFloat<double>(triple);
+            else if (item.type == "int32") result = writeFixed<std::int32_t>(triple);
+            else if (item.type == "uint32") result = writeFixed<std::uint32_t>(triple);
+            else if (item.type == "int64") result = writeFixed<std::int64_t>(triple);
+            else if (item.type == "uint64") result = writeFixed<std::uint64_t>(triple);
+            else if (item.type == "int16") result = writeFixed<std::int16_t>(triple);
+            else if (item.type == "uint16") result = writeFixed<std::uint16_t>(triple);
+            else if (item.type == "int8") result = writeFixed<std::int8_t>(triple);
+            else result = writeFixed<std::uint8_t>(triple);
+            Py_DECREF(triple);
+            return result;
+        }
+    }
+    PyErr_SetString(PyExc_ValueError, "struct field is not present");
+    return nullptr;
+}
 
 #define FIXED_INTEGER_FUNCTIONS(NAME, TYPE) \
     PyObject *pyRead##NAME(PyObject *, PyObject *args) { return readFixed<TYPE>(args); } \
@@ -401,6 +708,22 @@ PyMethodDef methods[] = {
     {"writeFloat32", pyWriteFloat32, METH_VARARGS, "Write 32-bit float."},
     {"readFloat64", pyReadFloat64, METH_VARARGS, "Read 64-bit float."},
     {"writeFloat64", pyWriteFloat64, METH_VARARGS, "Write 64-bit float."},
+    {"memoryTypeSize", pyMemoryTypeSize, METH_VARARGS, "Return a typed memory size."},
+    {"memoryBlockAllocate", pyMemoryBlockAllocate, METH_VARARGS, "Allocate a typed block."},
+    {"memoryBlockView", pyMemoryBlockView, METH_VARARGS, "Create a typed view."},
+    {"memoryBlockLength", pyMemoryBlockLength, METH_VARARGS, "Return typed block length."},
+    {"memoryBlockGet", pyMemoryBlockGet, METH_VARARGS, "Read typed block element."},
+    {"memoryBlockSet", pyMemoryBlockSet, METH_VARARGS, "Write typed block element."},
+    {"memoryStructSize", pyMemoryStructSize, METH_VARARGS, "Return native struct size."},
+    {"memoryStructAllocate", pyMemoryStructAllocate, METH_VARARGS, "Allocate native struct."},
+    {"memoryStructFieldOffset", [](PyObject *, PyObject *args) {
+        return pyMemoryStructField(nullptr, args, false);
+    }, METH_VARARGS, "Return native struct field offset."},
+    {"memoryStructFieldSize", [](PyObject *, PyObject *args) {
+        return pyMemoryStructField(nullptr, args, true);
+    }, METH_VARARGS, "Return native struct field size."},
+    {"memoryStructGet", pyMemoryStructGet, METH_VARARGS, "Read native struct field."},
+    {"memoryStructSet", pyMemoryStructSet, METH_VARARGS, "Write native struct field."},
     {"sizeof", pySizeOf, METH_VARARGS, "Return sizeof for a C type."},
     {nullptr, nullptr, 0, nullptr}
 };

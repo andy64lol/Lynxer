@@ -60,6 +60,7 @@ def _struct_layout(value):
         return None
     fields = {}
     offset = 0
+    max_alignment = 1
     for declaration in value.value.split(","):
         parts = declaration.strip().split()
         if len(parts) != 2 or parts[0].lower() not in _MEMORY_TYPES:
@@ -67,8 +68,15 @@ def _struct_layout(value):
         field_type, field_name = parts[0].lower(), parts[1]
         if not field_name.isidentifier() or field_name in fields:
             return None
+        size = _MEMORY_TYPES[field_type][0]
+        # Native C structs align each member to its natural size.  This keeps
+        # memoryStruct* layouts usable with buffers produced by C libraries.
+        alignment = min(size, 8)
+        offset = (offset + alignment - 1) // alignment * alignment
         fields[field_name] = (field_type, offset)
-        offset += _MEMORY_TYPES[field_type][0]
+        offset += size
+        max_alignment = max(max_alignment, alignment)
+    offset = (offset + max_alignment - 1) // max_alignment * max_alignment
     return fields, offset
 
 
@@ -130,6 +138,13 @@ class BuiltInFunction(BaseFunction):
         return RTResult().failure(
             RTError(self.pos_start, self.pos_end, message, exec_ctx)
         )
+
+    def _cpp(self, method, values, exec_ctx):
+        """Call a C++ memory primitive and translate its exception to Lynxer."""
+        try:
+            return method(*values)
+        except (RuntimeError, ValueError, OverflowError, MemoryError) as exc:
+            return self._failure(exec_ctx, str(exc))
 
     def copy(self):
         c = BuiltInFunction(self.name)
@@ -223,7 +238,8 @@ class BuiltInFunction(BaseFunction):
     def execute_memoryTypeSize(self, args, exec_ctx):
         if len(args) != 1 or _memory_type(args[0]) not in _MEMORY_TYPES:
             return self._failure(exec_ctx, "memoryTypeSize(type) expects a supported memory type")
-        return RTResult().success(Number(_MEMORY_TYPES[_memory_type(args[0])][0]))
+        result = self._cpp(_MEMORY_LIB.memoryTypeSize, [_memory_type(args[0])], exec_ctx)
+        return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
     def execute_memoryBlockAllocate(self, args, exec_ctx):
         if (
@@ -237,10 +253,56 @@ class BuiltInFunction(BaseFunction):
             )
         type_name, count = _memory_type(args[0]), args[1].value
         size = _MEMORY_TYPES[type_name][0] * count
-        address = _MEMORY_LIB.malloc(size)
-        _FREED_MEMORY_ADDRESSES.discard(address)
-        _TYPED_MEMORY_BLOCKS[address] = (type_name, count)
-        return RTResult().success(Number(address))
+        result = self._cpp(_MEMORY_LIB.memoryBlockAllocate, [type_name, count], exec_ctx)
+        return result if isinstance(result, RTResult) else RTResult().success(Number(result))
+
+    def execute_memoryBlockView(self, args, exec_ctx):
+        """Describe an existing native allocation as a typed array view.
+
+        Views deliberately do not own the allocation.  The caller must keep
+        the source allocation alive and free it only after the view is gone.
+        """
+        if (
+            len(args) != 3
+            or not _native_int(args[0]) or args[0].value < 0
+            or _memory_type(args[1]) not in _MEMORY_TYPES
+            or not _native_nonnegative(args[2])
+        ):
+            return self._failure(
+                exec_ctx,
+                "memoryBlockView(address, type, count) expects an address, "
+                "supported type, and non-negative count",
+            )
+        address, type_name, count = args[0].value, _memory_type(args[1]), args[2].value
+        error = self._check_memory_address(address, exec_ctx)
+        if error:
+            return error
+        result = self._cpp(_MEMORY_LIB.memoryBlockView, [address, type_name, count], exec_ctx)
+        return result if isinstance(result, RTResult) else RTResult().success(Number(result))
+
+    def execute_memoryArrayAllocate(self, args, exec_ctx):
+        return self.execute_memoryBlockAllocate(args, exec_ctx)
+
+    def execute_memoryArrayView(self, args, exec_ctx):
+        return self.execute_memoryBlockView(args, exec_ctx)
+
+    def execute_memoryArrayGet(self, args, exec_ctx):
+        return self.execute_memoryBlockGet(args, exec_ctx)
+
+    def execute_memoryArraySet(self, args, exec_ctx):
+        return self.execute_memoryBlockSet(args, exec_ctx)
+
+    def execute_memoryArrayLength(self, args, exec_ctx):
+        return self.execute_memoryBlockLength(args, exec_ctx)
+
+    def execute_memoryViewGet(self, args, exec_ctx):
+        return self.execute_memoryBlockGet(args, exec_ctx)
+
+    def execute_memoryViewSet(self, args, exec_ctx):
+        return self.execute_memoryBlockSet(args, exec_ctx)
+
+    def execute_memoryViewLength(self, args, exec_ctx):
+        return self.execute_memoryBlockLength(args, exec_ctx)
 
     def _typed_block(self, address, index, exec_ctx, name):
         block = _TYPED_MEMORY_BLOCKS.get(address)
@@ -256,12 +318,9 @@ class BuiltInFunction(BaseFunction):
     def execute_memoryBlockGet(self, args, exec_ctx):
         if len(args) != 2 or not _native_nonnegative(args[0]) or not _native_nonnegative(args[1]):
             return self._failure(exec_ctx, "memoryBlockGet(address, index) expects non-negative integers")
-        resolved, error = self._typed_block(args[0].value, args[1].value, exec_ctx, "memoryBlockGet")
-        if error:
-            return error
-        type_name, index = resolved
-        size, reader, _, _, _ = _MEMORY_TYPES[type_name]
-        return RTResult().success(Number(reader(args[0].value, index * size)))
+        index = args[1].value
+        result = self._cpp(_MEMORY_LIB.memoryBlockGet, [args[0].value, index], exec_ctx)
+        return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
     def execute_memoryBlockSet(self, args, exec_ctx):
         if (
@@ -272,40 +331,71 @@ class BuiltInFunction(BaseFunction):
             or args[2].is_bool
         ):
             return self._failure(exec_ctx, "memoryBlockSet(address, index, value) expects an address, index, and number")
-        resolved, error = self._typed_block(args[0].value, args[1].value, exec_ctx, "memoryBlockSet")
-        if error:
-            return error
-        type_name, index = resolved
-        size, _, writer, minimum, maximum = _MEMORY_TYPES[type_name]
+        index = args[1].value
         value = args[2].value
-        if minimum is not None and not minimum <= value <= maximum:
-            return self._failure(exec_ctx, f"memoryBlockSet() value is outside the range for {type_name}")
-        writer(args[0].value, index * size, value)
-        return RTResult().success(Number.null)
+        result = self._cpp(_MEMORY_LIB.memoryBlockSet, [args[0].value, index, value], exec_ctx)
+        return result if isinstance(result, RTResult) else RTResult().success(Number.null)
 
     def execute_memoryBlockLength(self, args, exec_ctx):
         if len(args) != 1 or not _native_nonnegative(args[0]):
             return self._failure(exec_ctx, "memoryBlockLength(address) expects a non-negative integer address")
-        block = _TYPED_MEMORY_BLOCKS.get(args[0].value)
-        if block is None:
-            return self._failure(exec_ctx, "memoryBlockLength() expects a typed memory block address")
-        return RTResult().success(Number(block[1]))
+        result = self._cpp(_MEMORY_LIB.memoryBlockLength, [args[0].value], exec_ctx)
+        return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
     def execute_memoryStructSize(self, args, exec_ctx):
         layout = _struct_layout(args[0]) if len(args) == 1 else None
         if layout is None:
             return self._failure(exec_ctx, "memoryStructSize(layout) expects fields like \"int32 id, float32 x\"")
-        return RTResult().success(Number(layout[1]))
+        result = self._cpp(_MEMORY_LIB.memoryStructSize, [args[0].value], exec_ctx)
+        return result if isinstance(result, RTResult) else RTResult().success(Number(result))
+
+    def execute_memoryStructFieldOffset(self, args, exec_ctx):
+        layout = _struct_layout(args[0]) if len(args) == 2 else None
+        if layout is None or not isinstance(args[1], String):
+            return self._failure(
+                exec_ctx,
+                "memoryStructFieldOffset(layout, field) expects a layout and field name",
+            )
+        result = self._cpp(_MEMORY_LIB.memoryStructFieldOffset, [args[0].value, args[1].value], exec_ctx)
+        return result if isinstance(result, RTResult) else RTResult().success(Number(result))
+
+    def execute_memoryStructFieldSize(self, args, exec_ctx):
+        layout = _struct_layout(args[0]) if len(args) == 2 else None
+        if layout is None or not isinstance(args[1], String):
+            return self._failure(
+                exec_ctx,
+                "memoryStructFieldSize(layout, field) expects a layout and field name",
+            )
+        result = self._cpp(_MEMORY_LIB.memoryStructFieldSize, [args[0].value, args[1].value], exec_ctx)
+        return result if isinstance(result, RTResult) else RTResult().success(Number(result))
+
+    # Explicit names for FFI callers.  The memoryStruct implementation uses
+    # native alignment and native-endian primitive access, so these aliases
+    # make that intent clear without creating a second layout format.
+    def execute_nativeStructSize(self, args, exec_ctx):
+        return self.execute_memoryStructSize(args, exec_ctx)
+
+    def execute_nativeStructAllocate(self, args, exec_ctx):
+        return self.execute_memoryStructAllocate(args, exec_ctx)
+
+    def execute_nativeStructFieldOffset(self, args, exec_ctx):
+        return self.execute_memoryStructFieldOffset(args, exec_ctx)
+
+    def execute_nativeStructFieldSize(self, args, exec_ctx):
+        return self.execute_memoryStructFieldSize(args, exec_ctx)
+
+    def execute_nativeStructGet(self, args, exec_ctx):
+        return self.execute_memoryStructGet(args, exec_ctx)
+
+    def execute_nativeStructSet(self, args, exec_ctx):
+        return self.execute_memoryStructSet(args, exec_ctx)
 
     def execute_memoryStructAllocate(self, args, exec_ctx):
         layout = _struct_layout(args[0]) if len(args) == 1 else None
         if layout is None:
             return self._failure(exec_ctx, "memoryStructAllocate(layout) expects fields like \"int32 id, float32 x\"")
-        fields, size = layout
-        address = _MEMORY_LIB.malloc(size)
-        _FREED_MEMORY_ADDRESSES.discard(address)
-        _MEMORY_STRUCTS[address] = fields
-        return RTResult().success(Number(address))
+        result = self._cpp(_MEMORY_LIB.memoryStructAllocate, [args[0].value], exec_ctx)
+        return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
     def _struct_field(self, address, field, exec_ctx, name):
         fields = _MEMORY_STRUCTS.get(address)
@@ -318,24 +408,14 @@ class BuiltInFunction(BaseFunction):
     def execute_memoryStructGet(self, args, exec_ctx):
         if len(args) != 2 or not _native_nonnegative(args[0]):
             return self._failure(exec_ctx, "memoryStructGet(address, field) expects an address and field name")
-        field, error = self._struct_field(args[0].value, args[1], exec_ctx, "memoryStructGet")
-        if error:
-            return error
-        type_name, offset = field
-        return RTResult().success(Number(_MEMORY_TYPES[type_name][1](args[0].value, offset)))
+        result = self._cpp(_MEMORY_LIB.memoryStructGet, [args[0].value, args[1].value], exec_ctx)
+        return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
     def execute_memoryStructSet(self, args, exec_ctx):
         if len(args) != 3 or not _native_nonnegative(args[0]) or not isinstance(args[2], Number) or args[2].is_bool:
             return self._failure(exec_ctx, "memoryStructSet(address, field, value) expects an address, field, and number")
-        field, error = self._struct_field(args[0].value, args[1], exec_ctx, "memoryStructSet")
-        if error:
-            return error
-        type_name, offset = field
-        _, _, writer, minimum, maximum = _MEMORY_TYPES[type_name]
-        if minimum is not None and not minimum <= args[2].value <= maximum:
-            return self._failure(exec_ctx, f"memoryStructSet() value is outside the range for {type_name}")
-        writer(args[0].value, offset, args[2].value)
-        return RTResult().success(Number.null)
+        result = self._cpp(_MEMORY_LIB.memoryStructSet, [args[0].value, args[1].value, args[2].value], exec_ctx)
+        return result if isinstance(result, RTResult) else RTResult().success(Number.null)
 
     def execute_memoryAllocate(self, args, exec_ctx):
         if len(args) != 1 or not _native_nonnegative(args[0]):
@@ -397,8 +477,9 @@ class BuiltInFunction(BaseFunction):
         return RTResult().success(Number.null)
 
     def _check_memory_address(self, address, exec_ctx):
-        if address in _FREED_MEMORY_ADDRESSES:
-            return self._failure(exec_ctx, "address refers to freed memory")
+        # Allocation ownership and lifetime are tracked by cpp.cpp.  Keeping
+        # a second Python-side address set is incorrect because malloc may
+        # legally reuse an address after free.
         return None
 
     def execute_memorySet(self, args, exec_ctx):
@@ -2253,13 +2334,30 @@ BUILTIN_FUNCTION_NAMES = (
     "getAddressValue",
     "memoryTypeSize",
     "memoryBlockAllocate",
+    "memoryBlockView",
     "memoryBlockGet",
     "memoryBlockSet",
     "memoryBlockLength",
+    "memoryArrayAllocate",
+    "memoryArrayView",
+    "memoryArrayGet",
+    "memoryArraySet",
+    "memoryArrayLength",
+    "memoryViewGet",
+    "memoryViewSet",
+    "memoryViewLength",
     "memoryStructSize",
+    "memoryStructFieldOffset",
+    "memoryStructFieldSize",
     "memoryStructAllocate",
     "memoryStructGet",
     "memoryStructSet",
+    "nativeStructSize",
+    "nativeStructAllocate",
+    "nativeStructFieldOffset",
+    "nativeStructFieldSize",
+    "nativeStructGet",
+    "nativeStructSet",
     "memoryAllocate",
     "memoryCallocate",
     "memoryReallocate",
