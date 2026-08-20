@@ -38,17 +38,16 @@ All functions are accessed via `global.<module>.<function>(...)`.
 
 See the [stdlib/ documentation folder](stdlib/README.md) for individual module pages.
 
-## Experimental modules
+## Native memory built-ins
 
-Experimental modules live in `lynxer/stdlib/experimental/` and are not part
-of the stable stdlib surface. `lowLevel` is currently the only experimental
-module. It requires an optional native build:
+Unmanaged native-memory operations are available as core built-ins. Build the
+bundled C++ extension with:
 
 ```bash
-make buildExperimental
+make buildCpp
 ```
 
-See the [lowLevel reference](stdlib/lowLevel.md) for its API and safety
+See the [native memory reference](stdlib/lowLevel.md) for its API and safety
 requirements.
 
 ---

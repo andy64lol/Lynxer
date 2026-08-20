@@ -88,7 +88,7 @@ global main(){
 | [importAs](docs/importAs.md) | `importAs("module", "alias")` — import under a custom name |
 | [Standard library](docs/stdlib.md) | All stdlib modules — overview and function tables |
 | [stdlib/ reference](docs/stdlib/README.md) | Per-module documentation pages |
-| [Experimental lowLevel](docs/stdlib/lowLevel.md) | Optional C++-backed unmanaged memory API |
+| [Built-ins](docs/builtins.md) | Core language functions, including unmanaged memory operations |
 | [rawPy / rawPyx](docs/rawpy.md) | Embedding Python and Cython |
 | [Module system](docs/modules.md) | `import()`, `importAs()`, namespaces, writing your own modules |
 | [Bytecode (.lynxc)](docs/bytecode.md) | Compiling to bytecode, running `.lynxc` files |
@@ -107,7 +107,8 @@ lynxer/
   builtins.py       Language builtin implementations and registry
   shell.py          CLI entry point
   stdlib/           Standard library modules (.lynx files)
-    experimental/   Optional native-backed modules
+  cpp.cpp           C++ implementation of core memory built-ins
+  setup.py          C++ extension build script
 docs/               Documentation
 syntax.lynx         Full syntax showcase
 main.py             Launcher (delegates to shell.py)

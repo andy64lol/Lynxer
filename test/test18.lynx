@@ -1,12 +1,10 @@
-global setup(){
-    import("lowLevel");
-}
+global setup(){}
 
 global main(){
-    int address = global.lowLevel.calloc(4, 1);
+    int address = calloc(4, 1);
 
-    global.lowLevel.writeByte(address, 0, 65);
-    println(global.lowLevel.readByte(address, 0));
+    writeByte(address, 0, 65);
+    println(readByte(address, 0));
 
-    global.lowLevel.free(address);
+    free(address);
 }

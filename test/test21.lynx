@@ -1,0 +1,110 @@
+global setup(){}
+
+global main(){
+    println("Basic allocation");
+    int address = memoryAllocate(128);
+    memorySet(address, 0, 128);
+
+    memoryWriteInt8(address, 0, -8);
+    memoryWriteInt16(address, 2, -1600);
+    memoryWriteInt32(address, 4, -320000);
+    memoryWriteInt64(address, 8, -6400000000);
+
+    memoryWriteUInt8(address, 16, 250);
+    memoryWriteUInt16(address, 18, 65000);
+    memoryWriteUInt32(address, 20, 4000000000);
+    memoryWriteUInt64(address, 24, 16000000000);
+
+    memoryWriteFloat32(address, 40, 1.5);
+    memoryWriteFloat64(address, 48, 2.5);
+
+    println("Int8:", memoryReadInt8(address, 0));
+    println("Int16:", memoryReadInt16(address, 2));
+    println("Int32:", memoryReadInt32(address, 4));
+    println("Int64:", memoryReadInt64(address, 8));
+    println("UInt8:", memoryReadUInt8(address, 16));
+    println("UInt16:", memoryReadUInt16(address, 18));
+    println("UInt32:", memoryReadUInt32(address, 20));
+    println("UInt64:", memoryReadUInt64(address, 24));
+    println("Float32:", memoryReadFloat32(address, 40));
+    println("Float64:", memoryReadFloat64(address, 48));
+
+
+    println("\nCallocate + copy");
+
+    int copied = memoryCallocate(1, 128);
+    memoryCopy(copied, address, 128);
+
+    println("Copied Int32:", memoryReadInt32(copied, 4));
+    println("Copied UInt64:", memoryReadUInt64(copied, 24));
+    println("Copied Float64:", memoryReadFloat64(copied, 48));
+
+
+    println("\nReallocation");
+
+    int resized = memoryReallocate(copied, 256);
+
+    println("After growing:");
+    println(memoryReadInt32(resized, 4));
+    println(memoryReadUInt64(resized, 24));
+    println(memoryReadFloat64(resized, 48));
+
+    memoryWriteInt32(resized, 128, 123456);
+    memoryWriteInt64(resized, 136, 9876543210);
+
+    println("New data:");
+    println(memoryReadInt32(resized, 128));
+    println(memoryReadInt64(resized, 136));
+
+
+    println("\nMemory set");
+
+    memorySet(resized, 0, 16);
+
+    println("After clearing first 16 bytes:");
+    println(memoryReadInt32(resized, 0));
+    println(memoryReadInt32(resized, 4));
+
+
+    println("\nReallocation preservation");
+
+    int test = memoryAllocate(16);
+
+    memoryWriteInt32(test, 0, 123456);
+    memoryWriteInt32(test, 4, 789);
+
+    println("Before reallocation:");
+    println(memoryReadInt32(test, 0));
+    println(memoryReadInt32(test, 4));
+
+    test = memoryReallocate(test, 1024);
+
+    println("After growing:");
+    println(memoryReadInt32(test, 0));
+    println(memoryReadInt32(test, 4));
+
+
+    println("\nReallocation shrinking");
+
+    memoryWriteInt32(test, 0, 654321);
+    memoryWriteInt32(test, 4, 987);
+
+    println("Before shrinking:");
+    println(memoryReadInt32(test, 0));
+    println(memoryReadInt32(test, 4));
+
+    test = memoryReallocate(test, 8);
+
+    println("After shrinking:");
+    println(memoryReadInt32(test, 0));
+    println(memoryReadInt32(test, 4));
+
+
+    println("\nCleanup");
+
+    memoryFree(address);
+    memoryFree(resized);
+    memoryFree(test);
+
+    println("All memory freed.");
+}

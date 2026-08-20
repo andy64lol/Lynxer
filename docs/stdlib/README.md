@@ -17,7 +17,6 @@ This directory contains documentation for all Lynxer standard library modules.
 | [js](js.md) | `js.lynx` | Run JavaScript via Node.js |
 | [lua](lua.md) | `lua.lynx` | Run embedded Lua via lupa |
 | [json](json.md) | `json.lynx` | JSON encode / decode / query / mutate |
-| [lowLevel](lowLevel.md) | `experimental/lowLevel.lynx` | Experimental unmanaged C memory operations (optional C++ extension) |
 | [math](math.md) | `math.lynx` | Math utilities, trig, rounding, statistics (NumPy) |
 | [multiprocessing](../multiprocessing.md) | `multiprocessing.lynx` | Run shell commands in parallel using process/thread pools |
 | [net](net.md) | `net.lynx` | WebSocket client, TCP client, hostname/IP/URL utilities |

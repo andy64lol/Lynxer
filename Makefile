@@ -16,7 +16,7 @@ COLLECT_ALL := $(shell \
 
 CYTHON_COLLECT_ALL := --collect-all=Cython --collect-all=setuptools
 
-.PHONY: build buildLite buildExperimental test check clean help
+.PHONY: build buildLite buildCpp test check clean help
 
 test:
 	@$(PYTHON) -m unittest discover -s test -p 'test_*.py' -v
@@ -97,10 +97,10 @@ buildLite:
 
 	@echo "✓ Lite build complete: dist/lynxer-lite"
 
-buildExperimental:
-	@echo "Building experimental native modules..."
-	@$(PYTHON) lynxer/stdlib/experimental/setup.py build_ext --inplace
-	@echo "✓ Experimental modules built in lynxer/stdlib/experimental"
+buildCpp:
+@echo "Building Lynxer C++ memory extension..."
+@$(PYTHON) lynxer/setup.py build_ext --inplace
+@echo "✓ C++ extension built in lynxer/"
 
 clean:
 	@find . -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null || true
@@ -113,7 +113,7 @@ help:
 	@echo "Lynxer build targets:"
 	@echo "  make build"
 	@echo "  make buildLite"
-	@echo "  make buildExperimental"
+@echo "  make buildCpp"
 	@echo "  make test"
 	@echo "  make check"
 	@echo "  make clean"

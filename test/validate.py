@@ -171,6 +171,52 @@ global main(){ println(missing); }""",
     )
 
 
+def test_low_level_memory() -> None:
+    source_path = ROOT / "test" / "test20.lynx"
+    source = source_path.read_text(encoding="utf-8")
+    expected = (
+        "-8\n"
+        "-1600\n"
+        "-320000\n"
+        "-6400000000\n"
+        "250\n"
+        "65000\n"
+        "4000000000\n"
+        "16000000000\n"
+        "1.5\n"
+        "2.5\n"
+        "4\n"
+    )
+    output, error = run_source(source, str(source_path))
+    if error is not None:
+        raise ValidationFailure(
+            f"low-level memory fixture failed:\n{error.as_string()}"
+        )
+    if output != expected:
+        raise ValidationFailure(
+            f"low-level memory fixture: expected {expected!r}, received {output!r}"
+        )
+
+    require_error(
+        """global setup(){}
+global main(){ memoryWriteUInt8(1, 0, 256); }""",
+        "0 to 255",
+        "memory byte range validation",
+    )
+    require_error(
+        """global setup(){}
+global main(){ memoryReadInt32(-1, 0); }""",
+        "non-negative integer arguments",
+        "memory address validation",
+    )
+    require_error(
+        """global setup(){}
+global main(){ println(sizeof("unit32")); }""",
+        "unknown C type",
+        "uint32 spelling validation",
+    )
+
+
 def test_imports(temp_root: Path) -> None:
     module = temp_root / "validation_module.lynx"
     module.write_text(
@@ -287,6 +333,7 @@ TESTS: list[tuple[str, Callable[[], None]]] = [
     ("shared aliases", test_shared_aliases),
     ("control flow and functions", test_control_flow_and_functions),
     ("runtime errors", test_runtime_errors),
+    ("low-level memory", test_low_level_memory),
     ("installer safety", test_installer_safety),
 ]
 

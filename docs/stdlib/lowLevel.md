@@ -1,8 +1,7 @@
-# lowLevel (experimental)
+# Native memory built-ins
 
-`lowLevel` exposes a small set of unmanaged C memory operations through a
-native C++ Python extension. It is intentionally kept outside the stable
-stdlib because incorrect addresses or sizes can crash the Python process.
+Lynxer exposes unmanaged native-memory operations as core built-ins. They use
+the bundled C++ extension in `lynxer/cpp.cpp`.
 
 ## Build the extension
 
@@ -10,14 +9,12 @@ The extension is optional and is not built automatically when Lynxer is
 installed:
 
 ```bash
-python lynxer/stdlib/experimental/setup.py build_ext --inplace
+python lynxer/setup.py build_ext --inplace
 # or
-make buildExperimental
+make buildCpp
 ```
 
-This creates a platform-specific `c` extension beside
-`lynxer/stdlib/experimental/lowLevel.lynx`. The Lynxer loader adds that
-directory to Python's import path when `importPy("c")` runs.
+This creates a platform-specific `cpp` extension beside `lynxer/cpp.cpp`.
 
 The module can be listed with:
 
@@ -25,15 +22,8 @@ The module can be listed with:
 python lynxer/shell.py --list-stdlibs
 ```
 
-## Import
-
-```c
-global setup(){
-    import("lowLevel");
-}
-```
-
-Functions are accessed through `global.lowLevel`.
+No import is required. Functions are available directly in every Lynxer
+program.
 
 ## API
 
@@ -73,22 +63,44 @@ zero.
 
 ```c
 global setup(){
-    import("lowLevel");
 }
 
 global main(){
-    int address = global.lowLevel.calloc(4, 1);
-    global.lowLevel.writeByte(address, 0, 65);
-    global.lowLevel.writeByte(address, 1, 66);
-    println(global.lowLevel.readByte(address, 0));
-    println(global.lowLevel.readByte(address, 1));
-    global.lowLevel.free(address);
+    int address = calloc(4, 1);
+    writeByte(address, 0, 65);
+    writeByte(address, 1, 66);
+    println(readByte(address, 0));
+    println(readByte(address, 1));
+    free(address);
 }
 ```
 
 ## Safety
 
-Addresses are represented as Lynxer integers and memory is unmanaged. Always
-free allocations exactly once, never read or write beyond the allocated
-region, and do not use an address after `realloc` or `free`. These functions
-perform no ownership tracking or bounds checking.
+Native memory addresses are represented as Lynxer integers and are different
+from the built-in `address` type. The built-in type points to a Lynxer
+variable:
+
+```c
+global setup(){}
+global main(){
+    int x = 42;
+    address p = getAddress(x);
+    modifyAddressValue(p, 100);
+    println(getAddressValue(p)); // 100
+}
+```
+
+Memory is intentionally unmanaged. The C++ extension does not track
+allocation ownership, allocation sizes, or pointer lifetimes. Therefore:
+
+- the caller owns every successful allocation and must call `free` exactly once;
+- using a pointer after `free`, or using the old pointer after `realloc`, is
+  invalid;
+- reads and writes are not bounds-checked by Lynxer;
+- callers must keep allocation sizes and offsets themselves.
+
+This design keeps the built-ins a thin native-memory interface rather than
+introducing a second managed heap. Invalid pointers and out-of-range offsets
+can crash the process, so use these functions only when native-memory behavior
+is required.

@@ -1,0 +1,37 @@
+global setup(){}
+global main(){
+    int address = memoryAllocate(128);
+    memorySet(address, 0, 128);
+
+    memoryWriteInt8(address, 0, -8);
+    memoryWriteInt16(address, 2, -1600);
+    memoryWriteInt32(address, 4, -320000);
+    memoryWriteInt64(address, 8, -6400000000);
+
+    memoryWriteUInt8(address, 16, 250);
+    memoryWriteUInt16(address, 18, 65000);
+    memoryWriteUInt32(address, 20, 4000000000);
+    memoryWriteUInt64(address, 24, 16000000000);
+
+    memoryWriteFloat32(address, 40, 1.5);
+    memoryWriteFloat64(address, 48, 2.5);
+
+    int copied = memoryCallocate(1, 128);
+    memoryCopy(copied, address, 128);
+    int resized = memoryReallocate(copied, 256);
+
+    println(memoryReadInt8(resized, 0));
+    println(memoryReadInt16(resized, 2));
+    println(memoryReadInt32(resized, 4));
+    println(memoryReadInt64(resized, 8));
+    println(memoryReadUInt8(resized, 16));
+    println(memoryReadUInt16(resized, 18));
+    println(memoryReadUInt32(resized, 20));
+    println(memoryReadUInt64(resized, 24));
+    println(memoryReadFloat32(resized, 40));
+    println(memoryReadFloat64(resized, 48));
+    println(sizeof("uint32"));
+
+    memoryFree(address);
+    memoryFree(resized);
+}

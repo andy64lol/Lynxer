@@ -45,6 +45,32 @@ Like `input()` but appends a newline to the returned string.
 
 ---
 
+## Native memory
+
+Lynxer includes unmanaged native-memory built-ins backed by the bundled C++
+extension. No import is required. Native addresses are integer values and must
+be freed exactly once.
+
+```c
+int address = malloc(16);
+memset(address, 0, 16);
+writeInt32(address, 0, 42);
+println(readInt32(address, 0));
+free(address);
+```
+
+The allocator is also available as `memoryAllocate`, `memoryCallocate`,
+`memoryReallocate`, `memoryFree`, `memorySet`, and `memoryCopy`. Typed
+read/write functions are available for signed and unsigned 8/16/32/64-bit
+integers, plus Float32 and Float64. `sizeof(typeName)` returns the size of a
+supported native C type.
+
+The native extension does not perform pointer ownership or bounds tracking.
+Callers must free each allocation once and must not use pointers after
+`free` or `realloc`.
+
+---
+
 ## Assertions
 
 ### `assert(condition[, message])`

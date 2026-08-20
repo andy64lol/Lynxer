@@ -16,7 +16,6 @@ except ImportError:
 DIGITS = "0123456789"
 _SOURCE_DIR = os.path.dirname(os.path.abspath(__file__))
 STDLIB_DIR = os.path.join(_SOURCE_DIR, "stdlib")
-EXPERIMENTAL_STDLIB_DIR = os.path.join(STDLIB_DIR, "experimental")
 LETTERS = string.ascii_letters
 LETTERS_DIGITS = LETTERS + DIGITS
 
@@ -62,15 +61,6 @@ def stdlib_dir() -> str:
         if os.path.isdir(candidate):
             return candidate
     return candidates[0]
-
-
-def _ensure_experimental_python_path() -> None:
-    """Make optional native modules beside experimental stdlib files importable."""
-    experimental_dir = os.path.realpath(
-        os.path.join(stdlib_dir(), "experimental")
-    )
-    if os.path.isdir(experimental_dir) and experimental_dir not in sys.path:
-        sys.path.insert(0, experimental_dir)
 
 
 def _load_warning_messages() -> dict[str, str]:
@@ -5255,6 +5245,46 @@ class CodeBlockValue(Value):
     def __repr__(self):
         return "<code block>"
 
+class Address(Value):
+    """A reference to a variable stored in a symbol table."""
+
+    def __init__(self, symbol_table, name):
+        super().__init__()
+        self.symbol_table = symbol_table
+        self.name = name
+        self.pointer = symbol_table.get_reference(name)
+
+    def _target(self):
+        table, resolved_name = self.symbol_table._resolve(self.name)
+        if table is None or resolved_name is None:
+            return None, None
+        return table, resolved_name
+
+    def get_value(self):
+        if not self.pointer:
+            return None
+        from . import cpp
+        return cpp.refGet(self.pointer)
+
+    def set_value(self, value):
+        if not self.pointer:
+            return False
+        from . import cpp
+        cpp.refSet(self.pointer, value)
+        return True
+
+    def copy(self):
+        c = Address(self.symbol_table, self.name)
+        c.set_pos(self.pos_start, self.pos_end)
+        c.set_context(self.context)
+        return c
+
+    def __str__(self):
+        target = self.get_value()
+        return f"<address 0x{self.pointer:x}>"
+
+    __repr__ = __str__
+
 class Number(Value):
     null: ClassVar["Number"]
     false: ClassVar["Number"]
@@ -5786,6 +5816,8 @@ def value_type_name(v):
         return v.class_name
     if isinstance(v, CodeBlockValue):
         return "codeblock"
+    if isinstance(v, Address):
+        return "address"
     if isinstance(v, VarGroup):
         return "vargroup"
     if isinstance(v, (Function, BuiltInFunction)):
@@ -6995,6 +7027,7 @@ class SymbolTable:
         self.constants = set()
         self.types = {}
         self.aliases = {}
+        self.references = {}
         self.parent = parent
 
     def _find(self, name):
@@ -7020,10 +7053,37 @@ class SymbolTable:
 
     def get(self, name):
         table, resolved_name = self._resolve(name)
-        return table.symbols.get(resolved_name) if table and resolved_name else None
+        if table is None or resolved_name is None:
+            return None
+        pointer = table.references.get(resolved_name)
+        if pointer:
+            from . import cpp
+            return cpp.refGet(pointer)
+        return table.symbols.get(resolved_name)
+
+    def get_reference(self, name):
+        table, resolved_name = self._resolve(name)
+        if table is None or resolved_name is None:
+            return None
+        pointer = table.references.get(resolved_name)
+        if pointer:
+            return pointer
+        value = table.symbols.get(resolved_name)
+        if value is None:
+            return None
+        from . import cpp
+        pointer = cpp.refCreate(value)
+        table.references[resolved_name] = pointer
+        return pointer
 
     def set(self, name, value, is_const=False, decl_type=None):
         self.aliases.pop(name, None)
+        pointer = self.references.get(name)
+        if pointer:
+            from . import cpp
+            cpp.refSet(pointer, value)
+        else:
+            self.symbols[name] = value
         self.symbols[name] = value
         if is_const:
             self.constants.add(name)
@@ -7033,6 +7093,10 @@ class SymbolTable:
     def update_existing(self, name, value):
         table, resolved_name = self._resolve(name)
         if table is not None and resolved_name is not None:
+            pointer = table.references.get(resolved_name)
+            if pointer:
+                from . import cpp
+                cpp.refSet(pointer, value)
             table.symbols[resolved_name] = value
             return table
         self.symbols[name] = value
@@ -7055,7 +7119,10 @@ class SymbolTable:
         target_table, target_name = self._resolve(target)
         if target_table is None or target_name is None:
             return False
+        if self.get_reference(target) is None:
+            return False
         self.symbols.pop(name, None)
+        self.references.pop(name, None)
         self.aliases[name] = (target_table, target_name)
         self.types[name] = self.get_type(target) or self.types.get(name)
         return True
@@ -7076,6 +7143,8 @@ class SymbolTable:
             return False
         table.aliases.pop(name)
         table.symbols[name] = value.copy()
+        from . import cpp
+        table.references[name] = cpp.refCreate(table.symbols[name])
         return True
 
     def remove(self, name):
@@ -7174,22 +7243,6 @@ def _module_path(filename: str, base_dir: str) -> tuple[str | None, bool, str | 
         return None, False, "module path is invalid"
     if os.path.isfile(stdlib_path):
         return stdlib_path, False, None
-
-    # Experimental modules are intentionally kept in a separate directory,
-    # but remain importable by their public module name.
-    experimental_root = os.path.realpath(
-        os.path.join(stdlib_root, "experimental")
-    )
-    experimental_path = os.path.realpath(
-        os.path.join(experimental_root, normalized)
-    )
-    try:
-        if os.path.commonpath((experimental_root, experimental_path)) != experimental_root:
-            return None, False, "module path is invalid"
-    except ValueError:
-        return None, False, "module path is invalid"
-    if os.path.isfile(experimental_path):
-        return experimental_path, False, None
 
     return None, False, f"module '{filename}' was not found"
 
@@ -9352,9 +9405,6 @@ class Interpreter:
         import importlib as _importlib
         for mod_name in node.module_names:
             try:
-                # Experimental native extensions are built next to their .lynx
-                # wrappers, not installed as top-level site packages.
-                _ensure_experimental_python_path()
                 mod = _importlib.import_module(mod_name)
                 _rawpy_global_modules[mod_name] = mod
             except ImportError as e:
