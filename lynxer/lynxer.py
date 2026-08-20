@@ -5246,35 +5246,37 @@ class CodeBlockValue(Value):
         return "<code block>"
 
 class Address(Value):
-    """A reference to a variable stored in a symbol table."""
+    """A native C++ pointer to a Lynxer reference cell."""
 
-    def __init__(self, symbol_table, name):
+    def __init__(self, pointer, symbol_table=None, name=None):
         super().__init__()
+        self.pointer = pointer
         self.symbol_table = symbol_table
         self.name = name
-        self.pointer = symbol_table.get_reference(name)
 
     def _target(self):
+        if self.symbol_table is None or self.name is None:
+            return None, None
         table, resolved_name = self.symbol_table._resolve(self.name)
         if table is None or resolved_name is None:
             return None, None
         return table, resolved_name
 
     def get_value(self):
-        if not self.pointer:
+        if self.pointer is None:
             return None
         from . import cpp
         return cpp.refGet(self.pointer)
 
     def set_value(self, value):
-        if not self.pointer:
+        if self.pointer is None:
             return False
         from . import cpp
         cpp.refSet(self.pointer, value)
         return True
 
     def copy(self):
-        c = Address(self.symbol_table, self.name)
+        c = Address(self.pointer, self.symbol_table, self.name)
         c.set_pos(self.pos_start, self.pos_end)
         c.set_context(self.context)
         return c
@@ -7119,10 +7121,11 @@ class SymbolTable:
         target_table, target_name = self._resolve(target)
         if target_table is None or target_name is None:
             return False
-        if self.get_reference(target) is None:
+        target_pointer = self.get_reference(target)
+        if target_pointer is None:
             return False
         self.symbols.pop(name, None)
-        self.references.pop(name, None)
+        self.references[name] = target_pointer
         self.aliases[name] = (target_table, target_name)
         self.types[name] = self.get_type(target) or self.types.get(name)
         return True
@@ -7130,7 +7133,11 @@ class SymbolTable:
     def share_reference(self, name, target_table, target_name):
         if target_table is None or target_table._resolve(target_name)[0] is None:
             return False
+        target_pointer = target_table.get_reference(target_name)
+        if target_pointer is None:
+            return False
         self.symbols.pop(name, None)
+        self.references[name] = target_pointer
         self.aliases[name] = (target_table, target_name)
         return True
 

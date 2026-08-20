@@ -1,0 +1,116 @@
+global setup(){}
+
+global main(){
+    println("Zero-size allocation");
+
+    int zero = memoryAllocate(0);
+    println("memoryAllocate(0):", zero);
+
+    int zeroCalloc = memoryCallocate(0, 128);
+    println("memoryCallocate(0, 128):", zeroCalloc);
+
+    int zeroCalloc2 = memoryCallocate(128, 0);
+    println("memoryCallocate(128, 0):", zeroCalloc2);
+
+    println("\nZero-size memory operations");
+
+    int address = memoryAllocate(16);
+    memorySet(address, 0, 16);
+
+    memoryWriteInt32(address, 0, 123456);
+
+    memorySet(address, 255, 0);
+
+    println("After memorySet(..., 0):");
+    println(memoryReadInt32(address, 0));
+
+    int copied = memoryAllocate(16);
+    memoryCopy(copied, address, 0);
+
+    println("After memoryCopy(..., 0):");
+    println(memoryReadInt32(copied, 0));
+
+    println("\nBoundary offsets");
+
+    memoryWriteInt8(address, 15, 127);
+    println("Last byte:", memoryReadInt8(address, 15));
+
+    println("\nInteger boundaries");
+
+    memoryWriteInt8(address, 0, -128);
+    println("Int8 minimum:", memoryReadInt8(address, 0));
+
+    memoryWriteInt8(address, 1, 127);
+    println("Int8 maximum:", memoryReadInt8(address, 1));
+
+    memoryWriteUInt8(address, 2, 0);
+    println("UInt8 minimum:", memoryReadUInt8(address, 2));
+
+    memoryWriteUInt8(address, 3, 255);
+    println("UInt8 maximum:", memoryReadUInt8(address, 3));
+
+    println("\n16-bit boundaries");
+
+    memoryWriteInt16(address, 4, -32768);
+    println("Int16 minimum:", memoryReadInt16(address, 4));
+
+    memoryWriteInt16(address, 6, 32767);
+    println("Int16 maximum:", memoryReadInt16(address, 6));
+
+    memoryWriteUInt16(address, 8, 0);
+    println("UInt16 minimum:", memoryReadUInt16(address, 8));
+
+    memoryWriteUInt16(address, 10, 65535);
+    println("UInt16 maximum:", memoryReadUInt16(address, 10));
+
+    println("\n32-bit boundaries");
+
+    memoryWriteInt32(address, 0, -2147483648);
+    println("Int32 minimum:", memoryReadInt32(address, 0));
+
+    memoryWriteInt32(address, 4, 2147483647);
+    println("Int32 maximum:", memoryReadInt32(address, 4));
+
+    memoryWriteUInt32(address, 0, 0);
+    println("UInt32 minimum:", memoryReadUInt32(address, 0));
+
+    memoryWriteUInt32(address, 4, 4294967295);
+    println("UInt32 maximum:", memoryReadUInt32(address, 4));
+
+    println("\n64-bit boundaries");
+int large = memoryAllocate(32);
+
+memoryWriteInt64(large, 0, -9223372036854775808);
+println("Int64 minimum:", memoryReadInt64(large, 0));
+
+memoryWriteInt64(large, 8, 9223372036854775807);
+println("Int64 maximum:", memoryReadInt64(large, 8));
+
+memoryWriteUInt64(large, 16, 0);
+println("UInt64 minimum:", memoryReadUInt64(large, 16));
+
+memoryWriteUInt64(large, 24, 18446744073709551615);
+println("UInt64 maximum:", memoryReadUInt64(large, 24));
+
+    println("\nReallocation to zero");
+
+    int resized = memoryAllocate(16);
+
+    memoryWriteInt32(resized, 0, 123456);
+
+    println("Before reallocating to zero:");
+    println(memoryReadInt32(resized, 0));
+
+    resized = memoryReallocate(resized, 0);
+
+    println("After reallocating to zero:");
+    println(resized);
+
+    println("\nCleanup");
+
+    memoryFree(address);
+    memoryFree(copied);
+    memoryFree(large);
+
+    println("All edge-case allocations cleaned up.");
+}

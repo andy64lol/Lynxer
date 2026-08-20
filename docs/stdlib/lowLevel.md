@@ -78,8 +78,8 @@ global main(){
 ## Safety
 
 Native memory addresses are represented as Lynxer integers and are different
-from the built-in `address` type. The built-in type points to a Lynxer
-variable:
+from the built-in `address` type. The built-in type is backed by a native C++
+reference-cell pointer to a Lynxer variable:
 
 ```c
 global setup(){}
@@ -88,6 +88,25 @@ global main(){
     address p = getAddress(x);
     modifyAddressValue(p, 100);
     println(getAddressValue(p)); // 100
+}
+```
+
+`shared` aliases use the same native reference-cell pointer internally.
+`unshare(name)` detaches the alias and gives it a new independent cell while
+keeping its current value:
+
+```c
+global setup(){}
+global main(){
+    int x = 42;
+    shared int y = x;
+    address p = getAddress(y);
+    modifyAddressValue(p, 100);
+    println(x); // 100
+    unshare(y);
+    modifyAddressValue(p, 200);
+    println(x); // 200
+    println(y); // 100
 }
 ```
 

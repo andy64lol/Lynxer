@@ -98,9 +98,9 @@ buildLite:
 	@echo "✓ Lite build complete: dist/lynxer-lite"
 
 buildCpp:
-@echo "Building Lynxer C++ memory extension..."
-@$(PYTHON) lynxer/setup.py build_ext --inplace
-@echo "✓ C++ extension built in lynxer/"
+	@echo "Building Lynxer C++ memory extension..."
+	@$(PYTHON) lynxer/setup.py build_ext --inplace
+	@echo "✓ C++ extension built in lynxer/"
 
 clean:
 	@find . -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null || true
@@ -113,7 +113,7 @@ help:
 	@echo "Lynxer build targets:"
 	@echo "  make build"
 	@echo "  make buildLite"
-@echo "  make buildCpp"
+	@echo "  make buildCpp"
 	@echo "  make test"
 	@echo "  make check"
 	@echo "  make clean"

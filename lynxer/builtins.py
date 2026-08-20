@@ -135,7 +135,10 @@ class BuiltInFunction(BaseFunction):
                 "getAddress() expects a variable name, not a computed value",
             )
         table, name = reference
-        address = Address(table, name)
+        pointer = table.get_reference(name)
+        if pointer is None:
+            return self._failure(exec_ctx, "getAddress() points to an undefined variable")
+        address = Address(pointer, table, name)
         address.set_context(exec_ctx)
         return RTResult().success(address)
 
