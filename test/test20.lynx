@@ -30,7 +30,7 @@ global main(){
     println(memoryReadUInt64(resized, 24));
     println(memoryReadFloat32(resized, 40));
     println(memoryReadFloat64(resized, 48));
-    println(sizeof("uint32"));
+    println(sizeOf("uint32"));
 
     memoryFree(address);
     memoryFree(resized);

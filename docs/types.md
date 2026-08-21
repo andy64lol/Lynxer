@@ -19,6 +19,7 @@ fixed-width integer and floating-point ranges.
 | `list` | Mutable sequence | `[ ... ]` |
 | `tuple` | Immutable sequence | `( ... )` |
 | `any` | Any value | Underlying value |
+| named `struct` | Data-only named value | `Name struct { ... }` |
 
 ## Fixed-width numeric types
 

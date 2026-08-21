@@ -212,7 +212,7 @@ global main(){ memoryReadInt32(-1, 0); }""",
     )
     require_error(
         """global setup(){}
-global main(){ println(sizeof("unit32")); }""",
+global main(){ println(sizeOf("unit32")); }""",
         "unknown C type",
         "uint32 spelling validation",
     )

@@ -1,0 +1,14 @@
+global setup(){}
+
+struct Player {
+    int health;
+    str name;
+}
+
+global main(){
+    Player player = new Player(100, "Ada");
+    println(player.name);
+    println(player.health);
+    player.health = 90;
+    println(player.health);
+}

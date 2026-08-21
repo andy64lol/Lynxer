@@ -6,7 +6,10 @@ import string
 import sys
 import textwrap
 import warnings
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
+
+if TYPE_CHECKING:
+    from .builtins import BuiltInFunction
 
 try:
     from strings_with_arrows import string_with_arrows
@@ -337,6 +340,7 @@ KEYWORDS = [
     "try", "catch",
     "async", "await",
     "class",
+    "native",
     "struct",
     "new",
     "break", "continue", "restart",
@@ -1228,6 +1232,15 @@ class ClassDefNode:
         self.pos_start = pos_start
         self.pos_end = pos_end
 
+class StructDefNode:
+    """A data-only struct declaration with required constructor fields."""
+    def __init__(self, name_tok, field_defs, pos_start, pos_end, is_native=False):
+        self.name_tok = name_tok
+        self.field_defs = field_defs
+        self.is_native = is_native
+        self.pos_start = pos_start
+        self.pos_end = pos_end
+
 # parse result
 
 class ParseResult:
@@ -1428,6 +1441,34 @@ class Parser:
                         "No declarations are allowed after main.",
                     ))
                 node = res.register(self.parse_class_def())
+                if res.error:
+                    return res
+                globals_list.append(node)
+                any_other_seen = True
+            elif self.current_tok.matches(TT_KEYWORD, "struct"):
+                if main_seen:
+                    return res.failure(InvalidSyntaxError(
+                        self.current_tok.pos_start, self.current_tok.pos_end,
+                        "Struct definitions must appear before 'global main(){}'. "
+                        "No declarations are allowed after main.",
+                    ))
+                node = res.register(self.parse_struct_def())
+                if res.error:
+                    return res
+                globals_list.append(node)
+                any_other_seen = True
+            elif (
+                self.current_tok.matches(TT_KEYWORD, "native")
+                and self.peek(1) is not None
+                and self.peek(1).matches(TT_KEYWORD, "struct")
+            ):
+                if main_seen:
+                    return res.failure(InvalidSyntaxError(
+                        self.current_tok.pos_start, self.current_tok.pos_end,
+                        "Struct definitions must appear before 'global main(){}'. "
+                        "No declarations are allowed after main.",
+                    ))
+                node = res.register(self.parse_struct_def(is_native=True))
                 if res.error:
                     return res
                 globals_list.append(node)
@@ -1811,6 +1852,72 @@ class Parser:
         self.advance()
 
         return res.success(ClassDefNode(name_tok, field_defs, method_nodes, pos_start, pos_end))
+
+    def parse_struct_def(self):
+        """Parse ``struct Name { type field; ... }``."""
+        res = ParseResult()
+        pos_start = self.current_tok.pos_start.copy()
+        res.register_advancement()
+        self.advance()
+
+        if self.current_tok.type != TT_IDENTIFIER:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                "Expected struct name after 'struct'",
+            ))
+        name_tok = self.current_tok
+        res.register_advancement()
+        self.advance()
+
+        if self.current_tok.type != TT_LBRACE:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                "Expected '{' to open struct body",
+            ))
+        res.register_advancement()
+        self.advance()
+
+        field_defs = []
+        while self.current_tok.type not in (TT_RBRACE, TT_EOF):
+            if not self.is_type_name():
+                return res.failure(InvalidSyntaxError(
+                    self.current_tok.pos_start, self.current_tok.pos_end,
+                    "Expected a type and field name in struct body",
+                ))
+            type_tok = self.current_tok
+            res.register_advancement()
+            self.advance()
+            if self.current_tok.type != TT_IDENTIFIER:
+                return res.failure(InvalidSyntaxError(
+                    self.current_tok.pos_start, self.current_tok.pos_end,
+                    "Expected struct field name",
+                ))
+            field_name_tok = self.current_tok
+            res.register_advancement()
+            self.advance()
+            if self.current_tok.type != TT_SEMICOLON:
+                return res.failure(InvalidSyntaxError(
+                    self.current_tok.pos_start, self.current_tok.pos_end,
+                    "Struct fields do not have defaults; expected ';'",
+                ))
+            res.register_advancement()
+            self.advance()
+            field_defs.append((type_tok.value, field_name_tok, None, False))
+
+        if not field_defs:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                f"Struct '{name_tok.value}' must have at least one field",
+            ))
+        if self.current_tok.type != TT_RBRACE:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                "Expected '}' to close struct body",
+            ))
+        pos_end = self.current_tok.pos_end.copy()
+        res.register_advancement()
+        self.advance()
+        return res.success(StructDefNode(name_tok, field_defs, pos_start, pos_end))
 
     def parse_block(
         self,
@@ -5837,7 +5944,9 @@ def value_type_name(v):
         return "address"
     if isinstance(v, VarGroup):
         return "vargroup"
-    if isinstance(v, (Function, BuiltInFunction)):
+    if isinstance(v, Function) or (
+        "BuiltInFunction" in globals() and isinstance(v, BuiltInFunction)
+    ):
         return "function"
     return "any"
 
@@ -6870,6 +6979,88 @@ class ClassInstance(Value):
             for name, info in self._fields.items()
         ]
         return f"<{self.class_name} instance" + (
+            f" fields=[{', '.join(parts)}]" if parts else ""
+        ) + ">"
+
+class StructBlueprint(ClassBlueprint):
+    """A data-only struct definition with required positional fields."""
+
+    def __init__(self, name, field_defs):
+        super().__init__(name, field_defs, {})
+
+    def instantiate(self, args, context):
+        res = RTResult()
+        if len(args) != len(self._field_defs):
+            return res.failure(RTError(
+                self.pos_start,
+                self.pos_end,
+                f"Struct '{self.name}' expects {len(self._field_defs)} "
+                f"argument(s), got {len(args)}",
+                context,
+            ))
+
+        instance = StructInstance(self)
+        instance.set_context(context)
+        for (field_type, field_name, _unused, _is_const), value in zip(
+            self._field_defs, args
+        ):
+            if field_type == "tuple" and isinstance(value, List):
+                value = LynxTuple(value.elements).set_context(context)
+            if field_type == "char" and isinstance(value, String):
+                if len(value.value) != 1:
+                    return res.failure(RTError(
+                        self.pos_start,
+                        self.pos_end,
+                        f"Struct '{self.name}' field '{field_name}' expects "
+                        "a single character",
+                        context,
+                    ))
+                value = Char(value.value).set_context(context)
+            if not type_matches(field_type, value):
+                return res.failure(RTError(
+                    self.pos_start,
+                    self.pos_end,
+                    f"Struct '{self.name}' field '{field_name}' is declared "
+                    f"as '{field_type}' but received a "
+                    f"'{value_type_name(value)}' value",
+                    context,
+                ))
+            instance._fields[field_name] = {
+                "type": field_type,
+                "value": value,
+                "const": False,
+            }
+        return res.success(instance)
+
+    def execute(self, args):
+        return self.instantiate(args, self.context)
+
+    def __repr__(self):
+        fields = ", ".join(
+            f"{field_type} {field_name}"
+            for field_type, field_name, _value, _const in self._field_defs
+        )
+        return f"<struct {self.name}({fields})>"
+
+class StructInstance(ClassInstance):
+    """One mutable, data-only value created from a :class:`StructBlueprint`."""
+
+    def get_attr(self, name):
+        if name not in self._fields:
+            return None, RTError(
+                self.pos_start,
+                self.pos_end,
+                f"Struct '{self.class_name}' has no field '{name}'",
+                self.context,
+            )
+        return self._fields[name]["value"], None
+
+    def __repr__(self):
+        parts = [
+            f"{info['type']} {name} = {info['value']}"
+            for name, info in self._fields.items()
+        ]
+        return f"<{self.class_name} struct" + (
             f" fields=[{', '.join(parts)}]" if parts else ""
         ) + ">"
 
@@ -8864,6 +9055,9 @@ class Interpreter:
     async def async_visit_VarGroupDeclNode(self, node, context):
         return self.visit_VarGroupDeclNode(node, context)
 
+    async def async_visit_StructDefNode(self, node, context):
+        return self.visit_StructDefNode(node, context)
+
     async def async_visit_AddVarGroupNode(self, node, context):
         return self.visit_AddVarGroupNode(node, context)
 
@@ -9006,7 +9200,7 @@ class Interpreter:
             ))
 
         exec_table = SymbolTable(context.symbol_table)
-        register_builtins(exec_table)
+        _register_builtins(exec_table)
         exec_table.set("class", ClassRegistry())
         exec_table.set("global", Namespace(exec_table))
         error = run_file(
@@ -9292,6 +9486,24 @@ class Interpreter:
             class_registry.set_pos(node.pos_start, node.pos_end).set_context(context)
             context.symbol_table.set("class", class_registry)
 
+        class_registry.register(node.name_tok.value, blueprint)
+        return res.success(Number.null)
+
+    def visit_StructDefNode(self, node, context):
+        """Register a data-only struct blueprint in the shared type registry."""
+        res = RTResult()
+        field_defs = [
+            (field_type, field_name_tok.value, None, False)
+            for field_type, field_name_tok, _value_node, _is_const in node.field_defs
+        ]
+        blueprint = StructBlueprint(node.name_tok.value, field_defs)
+        blueprint.set_context(context).set_pos(node.pos_start, node.pos_end)
+
+        class_registry = context.symbol_table.get("class")
+        if not isinstance(class_registry, ClassRegistry):
+            class_registry = ClassRegistry()
+            class_registry.set_pos(node.pos_start, node.pos_end).set_context(context)
+            context.symbol_table.set("class", class_registry)
         class_registry.register(node.name_tok.value, blueprint)
         return res.success(Number.null)
 
@@ -9600,7 +9812,7 @@ class Interpreter:
             )
 
         module_table = SymbolTable(global_symbol_table)
-        register_builtins(module_table)
+        _register_builtins(module_table)
         module_table.set("class", ClassRegistry())
 
         if use_bytecode:
@@ -9679,7 +9891,7 @@ class Interpreter:
             ))
 
         module_table = SymbolTable(global_symbol_table)
-        register_builtins(module_table)
+        _register_builtins(module_table)
         module_table.set("class", ClassRegistry())
 
         if use_bytecode:
@@ -9766,9 +9978,17 @@ class Interpreter:
 
         return res.success(Number.null)
 
-# Built-in functions live in their own module. Importing here, after all runtime
-# value types are defined, avoids a circular import during module startup.
-from .builtins import BuiltInFunction, register_builtins
+def _register_builtins(symbol_table: SymbolTable) -> None:
+    """Load built-ins only after the runtime types have finished initializing.
+
+    Keeping this import inside the registration boundary makes ``lynxer`` and
+    ``builtins`` independently importable without a partially initialized
+    module cycle.
+    """
+    from .builtins import BuiltInFunction, register_builtins
+
+    globals()["BuiltInFunction"] = BuiltInFunction
+    register_builtins(symbol_table)
 
 # global symbol table
 
@@ -9776,7 +9996,7 @@ def _new_global_symbol_table():
     table = SymbolTable()
     table.set("true", Number.true)
     table.set("false", Number.false)
-    register_builtins(table)
+    _register_builtins(table)
     table.set("embedPy", EmbedPyNamespace())
     return table
 

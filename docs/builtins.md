@@ -52,17 +52,17 @@ extension. No import is required. Native addresses are integer values and must
 be freed exactly once.
 
 ```c
-int address = malloc(16);
-memset(address, 0, 16);
-writeInt32(address, 0, 42);
-println(readInt32(address, 0));
-free(address);
+int address = memoryAllocate(16);
+memorySet(address, 0, 16);
+memoryWriteInt32(address, 0, 42);
+println(memoryReadInt32(address, 0));
+memoryFree(address);
 ```
 
 The allocator is also available as `memoryAllocate`, `memoryCallocate`,
 `memoryReallocate`, `memoryFree`, `memorySet`, and `memoryCopy`. Typed
 read/write functions are available for signed and unsigned 8/16/32/64-bit
-integers, plus Float32 and Float64. `sizeof(typeName)` returns the size of a
+integers, plus Float32 and Float64. `sizeOf(typeName)` returns the size of a
 supported native C type.
 
 The native extension does not perform pointer ownership or bounds tracking.

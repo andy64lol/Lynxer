@@ -93,6 +93,7 @@ global main(){
 | [Module system](docs/modules.md) | `import()`, `importAs()`, namespaces, writing your own modules |
 | [Bytecode (.lynxc)](docs/bytecode.md) | Compiling to bytecode, running `.lynxc` files |
 | [Vargroups](docs/vargroups.md) | Named typed records (struct-like) |
+| [Structs](docs/structs.md) | Data-only named types with positional constructors |
 | [Classes](docs/classes.md) | Instances, constructors, fields, and methods |
 | [Async](docs/async.md) | Async functions |
 | [Lists](docs/lists.md) | List operations |
@@ -106,7 +107,7 @@ lynxer/
   lynxer.py         Lexer + parser + interpreter + bytecode compiler
   builtins.py       Language builtin implementations and registry
   shell.py          CLI entry point
-  stdlib/           Standard library modules (.lynx files)
+  stdlib/           Standard library modules (.lynx files; native memory is built in)
   cpp.cpp           C++ implementation of core memory built-ins
   setup.py          C++ extension build script
 docs/               Documentation

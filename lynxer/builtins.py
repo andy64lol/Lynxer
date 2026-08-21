@@ -251,7 +251,9 @@ class BuiltInFunction(BaseFunction):
                 exec_ctx,
                 "memoryBlockAllocate(type, count) expects a supported type and non-negative count",
             )
-        type_name, count = _memory_type(args[0]), args[1].value
+        type_name = _memory_type(args[0])
+        assert type_name is not None
+        count = args[1].value
         size = _MEMORY_TYPES[type_name][0] * count
         result = self._cpp(_MEMORY_LIB.memoryBlockAllocate, [type_name, count], exec_ctx)
         return result if isinstance(result, RTResult) else RTResult().success(Number(result))
@@ -761,9 +763,9 @@ class BuiltInFunction(BaseFunction):
     def execute_writeFloat64(self, args, exec_ctx):
         return self.execute_memoryWriteFloat64(args, exec_ctx)
 
-    def execute_sizeof(self, args, exec_ctx):
+    def execute_sizeOf(self, args, exec_ctx):
         if len(args) != 1 or not isinstance(args[0], String):
-            return self._failure(exec_ctx, "sizeof(typeName) expects one string")
+            return self._failure(exec_ctx, "sizeOf(typeName) expects one string")
         try:
             size = _MEMORY_LIB.sizeof(args[0].value)
         except (TypeError, ValueError) as exc:
@@ -1856,7 +1858,9 @@ class BuiltInFunction(BaseFunction):
                 )
             )
 
-    def _tuple_values(self, args, exec_ctx, name):
+    def _tuple_values(
+        self, args: list[Any], exec_ctx: Any, name: str
+    ) -> tuple[tuple[Any, ...] | None, Any]:
         if len(args) != 1 or not isinstance(args[0], LynxTuple):
             return None, self._failure(exec_ctx, f"{name}(tuple) expects a tuple")
         return args[0].elements, None
@@ -1865,6 +1869,7 @@ class BuiltInFunction(BaseFunction):
         values, error = self._tuple_values(args, exec_ctx, "tupleReverse")
         if error:
             return error
+        assert values is not None
         return RTResult().success(LynxTuple(reversed(values)))
 
     def execute_tupleSort(self, args, exec_ctx):
@@ -1912,6 +1917,7 @@ class BuiltInFunction(BaseFunction):
         values, error = self._tuple_values(args, exec_ctx, "tupleSum")
         if error:
             return error
+        assert values is not None
         return RTResult().success(
             Number(sum(element.value for element in values if isinstance(element, Number)))
         )
@@ -1920,18 +1926,21 @@ class BuiltInFunction(BaseFunction):
         values, error = self._tuple_values(args, exec_ctx, "tupleAny")
         if error:
             return error
+        assert values is not None
         return RTResult().success(Number(int(any(value.is_true() for value in values)), is_bool=True))
 
     def execute_tupleAll(self, args, exec_ctx):
         values, error = self._tuple_values(args, exec_ctx, "tupleAll")
         if error:
             return error
+        assert values is not None
         return RTResult().success(Number(int(all(value.is_true() for value in values)), is_bool=True))
 
     def execute_tupleUnique(self, args, exec_ctx):
         values, error = self._tuple_values(args, exec_ctx, "tupleUnique")
         if error:
             return error
+        assert values is not None
         seen = set()
         unique = []
         for value in values:
@@ -1945,6 +1954,7 @@ class BuiltInFunction(BaseFunction):
         values, error = self._tuple_values(args, exec_ctx, "tupleMean")
         if error:
             return error
+        assert values is not None
         numbers = [value.value for value in values if isinstance(value, Number)]
         return RTResult().success(Number(sum(numbers) / len(numbers) if numbers else 0.0))
 
@@ -1952,6 +1962,7 @@ class BuiltInFunction(BaseFunction):
         values, error = self._tuple_values(args, exec_ctx, "tupleFlatten")
         if error:
             return error
+        assert values is not None
         flattened = []
         for value in values:
             if isinstance(value, LynxTuple):
@@ -2412,7 +2423,7 @@ BUILTIN_FUNCTION_NAMES = (
     "writeFloat32",
     "readFloat64",
     "writeFloat64",
-    "sizeof",
+    "sizeOf",
 )
 
 

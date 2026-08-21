@@ -47,7 +47,7 @@ bundled C++ extension with:
 make buildCpp
 ```
 
-See the [native memory reference](stdlib/lowLevel.md) for its API and safety
+See the [native memory reference](native-memory.md) for its API and safety
 requirements.
 
 ---

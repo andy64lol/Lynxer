@@ -1107,3 +1107,28 @@ global main(){
     int config.port = 9000;
 }
 ```
+
+## Structs
+
+A **struct** is a data-only named type. Its fields have no defaults and are
+initialized in declaration order through `new`:
+
+```c
+global setup(){}
+
+struct Player {
+    int health;
+    str name;
+}
+
+global main(){
+    Player player = new Player(100, "Ada");
+    println(player.name);
+    player.health = 90;
+}
+```
+
+Struct construction requires exactly one argument for every field, and each
+argument must match that field's declared type. Structs support field access
+and assignment, but cannot contain methods, inheritance, or uninitialized
+fields. Use a `class` when behavior or default field values are needed.
