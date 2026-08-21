@@ -9985,12 +9985,22 @@ def _register_builtins(symbol_table: SymbolTable) -> None:
     ``builtins`` independently importable without a partially initialized
     module cycle.
     """
+    global _builtins_registration_deferred
+    builtins_module = sys.modules.get(f"{__package__}.builtins")
+    if builtins_module is not None and not hasattr(
+        builtins_module, "BuiltInFunction"
+    ):
+        _builtins_registration_deferred = True
+        return
     from .builtins import BuiltInFunction, register_builtins
 
     globals()["BuiltInFunction"] = BuiltInFunction
     register_builtins(symbol_table)
+    _builtins_registration_deferred = False
 
 # global symbol table
+
+_builtins_registration_deferred = False
 
 def _new_global_symbol_table():
     table = SymbolTable()

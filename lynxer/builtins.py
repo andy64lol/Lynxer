@@ -8,12 +8,12 @@ fragile.
 
 from __future__ import annotations
 
+import importlib
 import sys
 from collections.abc import Callable
 from typing import Any
 
-from . import lynxer as _runtime
-import importlib
+_runtime = importlib.import_module(".lynxer", package=__package__)
 _MEMORY_LIB = importlib.import_module(".cpp", package=__package__)
 
 
@@ -33,10 +33,6 @@ type_matches = _runtime.type_matches
 value_type_name = _runtime.value_type_name
 _get_cython_inline = _runtime._get_cython_inline
 
-_FREED_MEMORY_ADDRESSES: set[int] = set()
-_TYPED_MEMORY_BLOCKS: dict[int, tuple[str, int]] = {}
-_MEMORY_STRUCTS: dict[int, dict[str, tuple[str, int]]] = {}
-
 _MEMORY_TYPES = {
     "byte": (1, _MEMORY_LIB.readByte, _MEMORY_LIB.writeByte, 0, 255),
     "int8": (1, _MEMORY_LIB.readInt8, _MEMORY_LIB.writeInt8, -(2**7), 2**7 - 1),
@@ -54,31 +50,6 @@ _MEMORY_TYPES = {
 
 def _memory_type(value):
     return value.value.lower() if isinstance(value, String) else None
-
-
-def _struct_layout(value):
-    if not isinstance(value, String):
-        return None
-    fields = {}
-    offset = 0
-    max_alignment = 1
-    for declaration in value.value.split(","):
-        parts = declaration.strip().split()
-        if len(parts) != 2 or parts[0].lower() not in _MEMORY_TYPES:
-            return None
-        field_type, field_name = parts[0].lower(), parts[1]
-        if not field_name.isidentifier() or field_name in fields:
-            return None
-        size = _MEMORY_TYPES[field_type][0]
-        # Native C structs align each member to its natural size.  This keeps
-        # memoryStruct* layouts usable with buffers produced by C libraries.
-        alignment = min(size, 8)
-        offset = (offset + alignment - 1) // alignment * alignment
-        fields[field_name] = (field_type, offset)
-        offset += size
-        max_alignment = max(max_alignment, alignment)
-    offset = (offset + max_alignment - 1) // max_alignment * max_alignment
-    return fields, offset
 
 
 def _native_int(value):
@@ -307,17 +278,6 @@ class BuiltInFunction(BaseFunction):
     def execute_memoryViewLength(self, args, exec_ctx):
         return self.execute_memoryBlockLength(args, exec_ctx)
 
-    def _typed_block(self, address, index, exec_ctx, name):
-        block = _TYPED_MEMORY_BLOCKS.get(address)
-        if block is None:
-            return None, self._failure(exec_ctx, f"{name}() expects a typed memory block address")
-        type_name, count = block
-        if index >= count:
-            return None, self._failure(
-                exec_ctx, f"{name}() index {index} is out of bounds for {count} elements"
-            )
-        return (type_name, index), None
-
     def execute_memoryBlockGet(self, args, exec_ctx):
         if len(args) != 2 or not _native_nonnegative(args[0]) or not _native_nonnegative(args[1]):
             return self._failure(exec_ctx, "memoryBlockGet(address, index) expects non-negative integers")
@@ -346,15 +306,13 @@ class BuiltInFunction(BaseFunction):
         return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
     def execute_memoryStructSize(self, args, exec_ctx):
-        layout = _struct_layout(args[0]) if len(args) == 1 else None
-        if layout is None:
+        if len(args) != 1 or not isinstance(args[0], String):
             return self._failure(exec_ctx, "memoryStructSize(layout) expects fields like \"int32 id, float32 x\"")
         result = self._cpp(_MEMORY_LIB.memoryStructSize, [args[0].value], exec_ctx)
         return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
     def execute_memoryStructFieldOffset(self, args, exec_ctx):
-        layout = _struct_layout(args[0]) if len(args) == 2 else None
-        if layout is None or not isinstance(args[1], String):
+        if len(args) != 2 or not isinstance(args[0], String) or not isinstance(args[1], String):
             return self._failure(
                 exec_ctx,
                 "memoryStructFieldOffset(layout, field) expects a layout and field name",
@@ -363,8 +321,7 @@ class BuiltInFunction(BaseFunction):
         return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
     def execute_memoryStructFieldSize(self, args, exec_ctx):
-        layout = _struct_layout(args[0]) if len(args) == 2 else None
-        if layout is None or not isinstance(args[1], String):
+        if len(args) != 2 or not isinstance(args[0], String) or not isinstance(args[1], String):
             return self._failure(
                 exec_ctx,
                 "memoryStructFieldSize(layout, field) expects a layout and field name",
@@ -394,28 +351,25 @@ class BuiltInFunction(BaseFunction):
         return self.execute_memoryStructSet(args, exec_ctx)
 
     def execute_memoryStructAllocate(self, args, exec_ctx):
-        layout = _struct_layout(args[0]) if len(args) == 1 else None
-        if layout is None:
+        if len(args) != 1 or not isinstance(args[0], String):
             return self._failure(exec_ctx, "memoryStructAllocate(layout) expects fields like \"int32 id, float32 x\"")
         result = self._cpp(_MEMORY_LIB.memoryStructAllocate, [args[0].value], exec_ctx)
         return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
-    def _struct_field(self, address, field, exec_ctx, name):
-        fields = _MEMORY_STRUCTS.get(address)
-        if fields is None:
-            return None, self._failure(exec_ctx, f"{name}() expects a memory struct address")
-        if not isinstance(field, String) or field.value not in fields:
-            return None, self._failure(exec_ctx, f"{name}() field is not present in the struct layout")
-        return fields[field.value], None
-
     def execute_memoryStructGet(self, args, exec_ctx):
-        if len(args) != 2 or not _native_nonnegative(args[0]):
+        if len(args) != 2 or not _native_nonnegative(args[0]) or not isinstance(args[1], String):
             return self._failure(exec_ctx, "memoryStructGet(address, field) expects an address and field name")
         result = self._cpp(_MEMORY_LIB.memoryStructGet, [args[0].value, args[1].value], exec_ctx)
         return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
     def execute_memoryStructSet(self, args, exec_ctx):
-        if len(args) != 3 or not _native_nonnegative(args[0]) or not isinstance(args[2], Number) or args[2].is_bool:
+        if (
+            len(args) != 3
+            or not _native_nonnegative(args[0])
+            or not isinstance(args[1], String)
+            or not isinstance(args[2], Number)
+            or args[2].is_bool
+        ):
             return self._failure(exec_ctx, "memoryStructSet(address, field, value) expects an address, field, and number")
         result = self._cpp(_MEMORY_LIB.memoryStructSet, [args[0].value, args[1].value, args[2].value], exec_ctx)
         return result if isinstance(result, RTResult) else RTResult().success(Number.null)
@@ -424,7 +378,6 @@ class BuiltInFunction(BaseFunction):
         if len(args) != 1 or not _native_nonnegative(args[0]):
             return self._failure(exec_ctx, "memoryAllocate(size) expects a non-negative integer size")
         address = _MEMORY_LIB.malloc(args[0].value)
-        _FREED_MEMORY_ADDRESSES.discard(address)
         return RTResult().success(Number(address))
 
     def execute_memoryCallocate(self, args, exec_ctx):
@@ -434,7 +387,6 @@ class BuiltInFunction(BaseFunction):
                 "memoryCallocate(count, size) expects non-negative integer arguments",
             )
         address = _MEMORY_LIB.calloc(args[0].value, args[1].value)
-        _FREED_MEMORY_ADDRESSES.discard(address)
         return RTResult().success(Number(address))
 
     def execute_memoryReallocate(self, args, exec_ctx):
@@ -453,17 +405,6 @@ class BuiltInFunction(BaseFunction):
             return error
         old_address = args[0].value
         new_address = _MEMORY_LIB.realloc(old_address, args[1].value)
-        _FREED_MEMORY_ADDRESSES.add(old_address)
-        _FREED_MEMORY_ADDRESSES.discard(new_address)
-        block = _TYPED_MEMORY_BLOCKS.pop(old_address, None)
-        _MEMORY_STRUCTS.pop(old_address, None)
-        if block is not None:
-            type_name, count = block
-            element_size = _MEMORY_TYPES[type_name][0]
-            _TYPED_MEMORY_BLOCKS[new_address] = (
-                type_name,
-                min(count, args[1].value // element_size),
-            )
         return RTResult().success(Number(new_address))
 
     def execute_memoryFree(self, args, exec_ctx):
@@ -474,9 +415,6 @@ class BuiltInFunction(BaseFunction):
         if error:
             return error
         _MEMORY_LIB.free(address)
-        _FREED_MEMORY_ADDRESSES.add(address)
-        _TYPED_MEMORY_BLOCKS.pop(address, None)
-        _MEMORY_STRUCTS.pop(address, None)
         return RTResult().success(Number.null)
 
     def _check_memory_address(self, address, exec_ctx):
@@ -2472,3 +2410,9 @@ def builtin(name: str) -> Callable[[BuiltinHandler], BuiltinHandler]:
 # Create the public instances from the complete implementation above.
 for _name in BUILTIN_FUNCTION_NAMES:
     register_builtin(_name)
+
+# If this module was imported first, lynxer.py had to defer registration
+# while this module was still being initialized. Complete it now that all
+# BuiltInFunction instances exist.
+if getattr(_runtime, "_builtins_registration_deferred", False):
+    _runtime._register_builtins(_runtime.global_symbol_table)

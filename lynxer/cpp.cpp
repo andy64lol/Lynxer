@@ -5,6 +5,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <cmath>
+#include <cctype>
+#include <algorithm>
 #include <limits>
 #include <type_traits>
 #include <string>
@@ -63,6 +65,18 @@ bool memoryType(const std::string &name, MemoryType *out) {
     return true;
 }
 
+bool validFieldName(const std::string &name) {
+    if (name.empty() ||
+        !(std::isalpha(static_cast<unsigned char>(name[0])) || name[0] == '_')) {
+        return false;
+    }
+    for (size_t i = 1; i < name.size(); ++i) {
+        unsigned char character = static_cast<unsigned char>(name[i]);
+        if (!(std::isalnum(character) || name[i] == '_')) return false;
+    }
+    return true;
+}
+
 bool layoutFromObject(PyObject *object, StructLayout *out) {
     const char *raw;
     if (!PyArg_Parse(object, "s", &raw)) return false;
@@ -85,7 +99,7 @@ bool layoutFromObject(PyObject *object, StructLayout *out) {
         size_t nameEnd = name.find_last_not_of(" \t");
         if (nameEnd != std::string::npos) name.resize(nameEnd + 1);
         MemoryType info;
-        if (!memoryType(type, &info) || name.empty() || names.count(name)) {
+        if (!memoryType(type, &info) || !validFieldName(name) || names.count(name)) {
             PyErr_SetString(PyExc_ValueError, "invalid or duplicate struct layout field");
             return false;
         }
@@ -459,7 +473,14 @@ PyObject *pyMemoryBlockView(PyObject *, PyObject *args) {
     void *ptr;
     if (!pointerFromPy(addressObject, &ptr)) return nullptr;
     MemoryType info;
-    if (!memoryType(name, &info) || !validateMemory(ptr, 0, count * info.size)) return nullptr;
+    if (count > std::numeric_limits<size_t>::max() / info.size) {
+        PyErr_SetString(PyExc_OverflowError, "typed view size is too large");
+        return nullptr;
+    }
+    if (!memoryType(name, &info) ||
+        !validateMemory(ptr, 0, static_cast<size_t>(count) * info.size)) {
+        return nullptr;
+    }
     typedBlocks[ptr] = {name, static_cast<size_t>(count)};
     return PyLong_FromUnsignedLongLong(reinterpret_cast<uintptr_t>(ptr));
 }
@@ -539,7 +560,7 @@ PyObject *pyMemoryStructAllocate(PyObject *, PyObject *args) {
     if (!PyArg_ParseTuple(args, "O", &layoutObject)) return nullptr;
     StructLayout layout;
     if (!layoutFromObject(layoutObject, &layout)) return nullptr;
-    void *ptr = std::malloc(layout.size);
+    void *ptr = std::calloc(1, layout.size);
     if (!ptr && layout.size) return PyErr_NoMemory();
     trackAllocation(ptr, layout.size);
     structBlocks[ptr] = layout;
@@ -551,9 +572,6 @@ PyObject *pyMemoryStructField(PyObject *, PyObject *args, bool wantSize) {
     if (!PyArg_ParseTuple(args, "Os", &layoutObject, &field)) return nullptr;
     StructLayout layout;
     if (!layoutFromObject(layoutObject, &layout)) return nullptr;
-    for (const auto &item : layout.fields) {
-        (void)item;
-    }
     for (size_t i = 0; i < layout.fields.size(); ++i) {
         if (layout.fields[i].name == field) {
             MemoryType info;
@@ -576,6 +594,11 @@ PyObject *pyMemoryStructGet(PyObject *, PyObject *args) {
     }
     for (const auto &item : block->second.fields) {
         if (item.name == field) {
+            MemoryType info;
+            if (!memoryType(item.type, &info) ||
+                !validateMemory(ptr, item.offset, info.size)) {
+                return nullptr;
+            }
             PyObject *pair = Py_BuildValue("(OK)", addressObject,
                 static_cast<unsigned long long>(item.offset));
             if (!pair) return nullptr;
@@ -609,6 +632,11 @@ PyObject *pyMemoryStructSet(PyObject *, PyObject *args) {
     }
     for (const auto &item : block->second.fields) {
         if (item.name == field) {
+            MemoryType info;
+            if (!memoryType(item.type, &info) ||
+                !validateMemory(ptr, item.offset, info.size)) {
+                return nullptr;
+            }
             PyObject *triple = Py_BuildValue("(OKO)", addressObject,
                 static_cast<unsigned long long>(item.offset), valueObject);
             if (!triple) return nullptr;
