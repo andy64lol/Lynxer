@@ -13,7 +13,8 @@ from collections.abc import Callable
 from typing import Any
 
 from . import lynxer as _runtime
-from . import cpp as _MEMORY_LIB
+import importlib
+_MEMORY_LIB = importlib.import_module(".cpp", package=__package__)
 
 
 BaseFunction = _runtime.BaseFunction
