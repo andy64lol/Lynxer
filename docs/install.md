@@ -5,8 +5,8 @@
 Download the latest pre-built binary for your platform from the
 [GitHub Releases page](https://github.com/your-org/lynxer/releases).
 
-No Python installation required. Unzip, place `lynxer` (or `lynxer.exe` on
-Windows) somewhere on your `PATH`, and you're done.
+No Python installation required. Unzip, place `lynxer` somewhere on your `PATH`, and you're done.
+(The binary is for x86-64 linux btw)
 
 ```bash
 lynxer --version   # confirm it works
