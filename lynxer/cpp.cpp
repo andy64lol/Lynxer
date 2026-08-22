@@ -14,6 +14,8 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <atomic>
+#include <thread>
+#include <mutex>
 #if defined(__unix__) || defined(__APPLE__)
 #include <sys/mman.h>
 #include <unistd.h>
@@ -24,6 +26,16 @@ namespace {
 struct ReferenceCell {
     PyObject *value;
 };
+
+struct NativeThread {
+    std::thread worker;
+    std::atomic<bool> alive{true};
+    std::atomic<bool> done{false};
+    std::atomic<bool> detached{false};
+};
+
+std::mutex nativeThreadsMutex;
+std::unordered_set<NativeThread *> nativeThreads;
 
 bool pointerFromPy(PyObject *obj, void **out) {
     unsigned long long value = PyLong_AsUnsignedLongLong(obj);
@@ -551,6 +563,111 @@ PyObject *pyNativeCall(PyObject *, PyObject *args) {
     if (resultType == "int32") return PyLong_FromLong(static_cast<std::int32_t>(result));
     if (resultType == "int64") return PyLong_FromLongLong(static_cast<std::int64_t>(result));
     return PyLong_FromUnsignedLongLong(static_cast<unsigned long long>(result));
+}
+
+PyObject *pyThreadStart(PyObject *, PyObject *args) {
+    PyObject *callback;
+    PyObject *callbackArgs;
+    if (!PyArg_ParseTuple(args, "OO", &callback, &callbackArgs)) return nullptr;
+    if (!PyList_Check(callbackArgs)) {
+        PyErr_SetString(PyExc_TypeError, "nativeThreadStart arguments must be a list");
+        return nullptr;
+    }
+    PyObject *execute = PyObject_GetAttrString(callback, "execute");
+    if (execute == nullptr || !PyCallable_Check(execute)) {
+        Py_XDECREF(execute);
+        PyErr_SetString(PyExc_TypeError, "nativeThreadStart callback must be a Lynxer function");
+        return nullptr;
+    }
+    Py_INCREF(callbackArgs);
+
+    auto *thread = new (std::nothrow) NativeThread;
+    if (thread == nullptr) {
+        Py_DECREF(execute);
+        Py_DECREF(callbackArgs);
+        PyErr_SetString(PyExc_MemoryError, "could not allocate native thread");
+        return nullptr;
+    }
+    {
+        std::lock_guard<std::mutex> lock(nativeThreadsMutex);
+        nativeThreads.insert(thread);
+    }
+    thread->worker = std::thread([thread, execute, callbackArgs]() {
+        PyGILState_STATE state = PyGILState_Ensure();
+        PyObject *result = PyObject_CallFunctionObjArgs(execute, callbackArgs, nullptr);
+        Py_XDECREF(result);
+        PyErr_Clear();
+        Py_DECREF(execute);
+        Py_DECREF(callbackArgs);
+        PyGILState_Release(state);
+        thread->alive.store(false);
+        thread->done.store(true);
+        std::lock_guard<std::mutex> lock(nativeThreadsMutex);
+        if (thread->detached.load()) {
+            nativeThreads.erase(thread);
+            delete thread;
+        }
+    });
+    return PyLong_FromVoidPtr(thread);
+}
+
+NativeThread *findNativeThread(PyObject *handle) {
+    void *raw = PyLong_AsVoidPtr(handle);
+    if (PyErr_Occurred()) return nullptr;
+    auto *thread = static_cast<NativeThread *>(raw);
+    std::lock_guard<std::mutex> lock(nativeThreadsMutex);
+    if (nativeThreads.find(thread) == nativeThreads.end()) {
+        PyErr_SetString(PyExc_ValueError, "unknown or already released native thread");
+        return nullptr;
+    }
+    return thread;
+}
+
+PyObject *pyThreadJoin(PyObject *, PyObject *args) {
+    PyObject *handle;
+    if (!PyArg_ParseTuple(args, "O", &handle)) return nullptr;
+    NativeThread *thread = findNativeThread(handle);
+    if (thread == nullptr) return nullptr;
+    if (thread->detached.load()) {
+        PyErr_SetString(PyExc_RuntimeError, "cannot join a detached native thread");
+        return nullptr;
+    }
+    Py_BEGIN_ALLOW_THREADS
+    thread->worker.join();
+    Py_END_ALLOW_THREADS
+    {
+        std::lock_guard<std::mutex> lock(nativeThreadsMutex);
+        nativeThreads.erase(thread);
+    }
+    delete thread;
+    Py_RETURN_NONE;
+}
+
+PyObject *pyThreadIsAlive(PyObject *, PyObject *args) {
+    PyObject *handle;
+    if (!PyArg_ParseTuple(args, "O", &handle)) return nullptr;
+    NativeThread *thread = findNativeThread(handle);
+    if (thread == nullptr) return nullptr;
+    if (thread->alive.load()) Py_RETURN_TRUE;
+    Py_RETURN_FALSE;
+}
+
+PyObject *pyThreadDetach(PyObject *, PyObject *args) {
+    PyObject *handle;
+    if (!PyArg_ParseTuple(args, "O", &handle)) return nullptr;
+    NativeThread *thread = findNativeThread(handle);
+    if (thread == nullptr) return nullptr;
+    std::lock_guard<std::mutex> lock(nativeThreadsMutex);
+    if (thread->detached.exchange(true)) {
+        PyErr_SetString(PyExc_RuntimeError, "native thread is already detached");
+        return nullptr;
+    }
+    thread->worker.detach();
+    if (thread->done.load()) {
+        nativeThreads.erase(thread);
+        delete thread;
+    }
+    Py_RETURN_NONE;
 }
 
 PyObject *pyMalloc(PyObject *, PyObject *args) {
@@ -1260,6 +1377,10 @@ PyMethodDef methods[] = {
     {"refSet", pyRefSet, METH_VARARGS, "Write a native Lynxer reference cell."},
     {"refFree", pyRefFree, METH_VARARGS, "Free a native Lynxer reference cell."},
     {"nativeCall", pyNativeCall, METH_VARARGS, "Call an integer-ABI native function address."},
+    {"nativeThreadStart", pyThreadStart, METH_VARARGS, "Start a native thread running a Lynxer function."},
+    {"nativeThreadJoin", pyThreadJoin, METH_VARARGS, "Join a native Lynxer thread."},
+    {"nativeThreadIsAlive", pyThreadIsAlive, METH_VARARGS, "Check whether a native Lynxer thread is running."},
+    {"nativeThreadDetach", pyThreadDetach, METH_VARARGS, "Detach a native Lynxer thread."},
     {"atomicLoad", pyAtomicLoad, METH_VARARGS, "Atomically load a native integer."},
     {"atomicStore", pyAtomicStore, METH_VARARGS, "Atomically store a native integer."},
     {"atomicAdd", pyAtomicAdd, METH_VARARGS, "Atomically add to a native integer."},

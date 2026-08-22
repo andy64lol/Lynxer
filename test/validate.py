@@ -449,6 +449,37 @@ global main(){
         raise ValidationFailure(f"bytecode: received {output.getvalue()!r}")
 
 
+def test_ffi() -> None:
+    require_output(
+        """global setup(){}
+global add(int a, int b){ return a + b; }
+global main(){
+    int libc = ffiLoadLibrary("libc.so.6");
+    functionAddress strlen = ffiLookup(libc, "strlen");
+    println(ffiCall(strlen, "cdecl:uintptr(cstring)", [str "hello"]));
+    functionAddress callback = ffiCallback("cdecl:int32(int32,int32)", global.add);
+    println(ffiCall(callback, "cdecl:int32(int32,int32)", [int 2, int 3]));
+    ffiFreeCallback(callback);
+    ffiCloseLibrary(libc);
+}""",
+        "5\n5\n",
+        "C FFI and native callbacks",
+    )
+
+
+def test_native_threads() -> None:
+    require_output(
+        """global setup(){}
+global worker(int value){ println(value); }
+global main(){
+    int thread = nativeThreadStart(global.worker, [int 42]);
+    nativeThreadJoin(thread);
+}""",
+        "42\n",
+        "native thread start and join",
+    )
+
+
 def test_cli(temp_root: Path) -> None:
     source_path = temp_root / "cli_case.lynx"
     source_path.write_text(
@@ -546,6 +577,8 @@ def main() -> int:
         tests = TESTS + [
             ("imports", lambda: test_imports(temp_root)),
             ("bytecode", lambda: test_bytecode(temp_root)),
+            ("C FFI and native callbacks", test_ffi),
+            ("native threads", test_native_threads),
             ("CLI", lambda: test_cli(temp_root)),
             ("existing .lynx fixtures", test_existing_fixtures),
         ]

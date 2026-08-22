@@ -64,6 +64,41 @@ The wrapper is useful for declarations and APIs that should reject ordinary
 integers and data addresses. It does not validate that the pointer is
 executable; the caller remains responsible for supplying a valid ABI.
 
+## C/C++ FFI
+
+The FFI helpers load shared libraries and expose symbols as function addresses:
+
+```lynx
+int libc = ffiLoadLibrary("libc.so.6");
+functionAddress strlen = ffiLookup(libc, "strlen");
+println(ffiCall(strlen, "cdecl:uintptr(cstring)", [str "hello"]));
+ffiCloseLibrary(libc);
+```
+
+FFI signatures support `void`, all signed and unsigned integer widths,
+`uintptr`, `float32`, `float64`, and `cstring`. Calls accept `cdecl` (the
+default) and `stdcall` on Windows. All arguments must match the declared
+signature. `ffiCallback(signature, function)` creates a native callback
+address and keeps it alive until `ffiFreeCallback(callback)` is called.
+Callbacks use the same types and calling conventions. Native code must not
+retain a callback after it has been freed.
+
+## Native threads
+
+Native threads run a Lynxer function on a C++ `std::thread` while acquiring the
+interpreter lock for each callback. Start a thread with a function and a list of
+arguments, then join it:
+
+```lynx
+global worker(int value){ println(value); }
+int thread = nativeThreadStart(global.worker, [int 42]);
+nativeThreadJoin(thread);
+```
+
+`nativeThreadIsAlive(handle)` reports whether the thread is still running.
+`nativeThreadDetach(handle)` releases ownership so it cleans itself up when it
+finishes. A thread handle must be joined or detached exactly once.
+
 ## Typed memory
 
 `memoryTypeSize(type)` returns the byte size of a supported type:

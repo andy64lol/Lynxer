@@ -4,10 +4,10 @@
 
 - [x] Native function calling from an address
 - [x] Function-address values
-- [ ] C/C++ FFI
-- [ ] Dynamic library loading and symbol lookup
-- [ ] Native callbacks
-- [ ] ABI and calling-convention support
+- [x] C/C++ FFI
+- [x] Dynamic library loading and symbol lookup
+- [x] Native callbacks
+- [x] ABI and calling-convention support
 
 ## Native memory
 
@@ -22,7 +22,7 @@
 
 ## Native concurrency
 
-- [ ] Native thread primitives
+- [x] Native thread primitives
 
 ## Runtime / portability
 
@@ -35,4 +35,4 @@
 - [x] Make sure --bundle command works
 - [x] Make --bundle generate: build/ and dist/
 - [x] Make Lynxer to bundle the compiled bytecode stored in build/bytecode
-- [ ] Test if bundled projects works
+- [x] Test if bundled projects works
