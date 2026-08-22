@@ -22,7 +22,7 @@ test: buildCpp
 	@$(PYTHON) test/validate.py
 
 validate: buildCpp
-	@$(PYTHON) validate.py
+	@$(PYTHON) lynxer/validate.py
 
 check: test
 	@for file in syntax.lynx test/*.lynx; do \

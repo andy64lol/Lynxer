@@ -11,6 +11,7 @@ if _parent not in sys.path:
     sys.path.insert(0, _parent)
 
 from lynxer import run, compile_to_bytecode, run_bytecode  # noqa: E402
+from lynxer.bundle import bundle_program  # noqa: E402
 from lynxer.bytecode import BYTECODE_VERSION, read_bytecode  # noqa: E402
 from lynxer.formatting import FormattingError, format_source, lint_source  # noqa: E402
 from lynxer.install import installer_main  # noqa: E402
@@ -193,6 +194,7 @@ def main():
         print("Usage:")
         print("  lynxer <file.lynx>                    Run a Lynxer source file")
         print("  lynxer --compile <file.lynx>          Compile to bytecode (.lynxc)")
+        print("  lynxer --bundle <file.lynx> [name]     Build a standalone native executable")
         print("  lynxer <file.lynxc>                   Run a compiled bytecode file")
         print(
             "  lynxer --view-bytecode <file.lynxc>   Inspect bytecode metadata and structure"
@@ -235,7 +237,7 @@ def main():
         print("Lynxer 0.1.7")
         return 0
     if argv[0] in ("--validate-executeable", "--validate-executable"):
-        validator = os.path.join(_parent, "validate.py")
+        validator = os.path.join(_here, "validate.py")
         if not os.path.exists(validator):
             print("shell.py: comprehensive validator is not available", file=sys.stderr)
             return 1
@@ -356,6 +358,18 @@ def main():
             print(error.as_string(), file=sys.stderr)
             return 1
         print(f"Compiled: {out_path}")
+        return 0
+
+    if argv[0] in ("--bundle", "-bundle"):
+        if len(argv) not in (2, 3):
+            print("shell.py: --bundle requires a .lynx file and optional output name", file=sys.stderr)
+            return 1
+        try:
+            executable = bundle_program(argv[1], argv[2] if len(argv) == 3 else None)
+        except (OSError, RuntimeError, UnicodeError) as exc:
+            print(f"shell.py: bundle failed: {exc}", file=sys.stderr)
+            return 1
+        print(f"Bundled: {executable}")
         return 0
 
     if argv[0] in ("--view-bytecode", "--inspect-bytecode", "--disasm"):

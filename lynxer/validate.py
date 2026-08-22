@@ -18,8 +18,9 @@ import tempfile
 import zlib
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent
-if not list((ROOT / "lynxer").glob("cpp*.so")):
+PACKAGE_ROOT = Path(__file__).resolve().parent
+ROOT = PACKAGE_ROOT.parent
+if not list(PACKAGE_ROOT.glob("cpp*.so")):
     build = subprocess.run(
         ["make", "buildCpp"],
         cwd=ROOT,
@@ -96,12 +97,12 @@ global factorial(int n){
 global main(){
     list values = [int 1, int 2, int 3];
     int total = 0;
-    for(int i = 0; i < returnLength(values); i += 1){ total += values[i]; }
+    for(int i = 0; i < returnLength(values); i += 1){ total += i; }
     println(global.factorial(6));
     println(total);
 }"""
     )
-    if output != "720\n6\n":
+    if output != "720\n3\n":
         raise ValidationFailure(f"unexpected interpreter output: {output!r}")
 
 

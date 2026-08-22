@@ -88,6 +88,24 @@ lynxer --view-bytecode program.lynxc
 
 Aliases are `--inspect-bytecode` and `--disasm`.
 
+## Build a standalone executable
+
+Bundle a Lynxer source program into a single native executable:
+
+```bash
+lynxer --bundle program.lynx
+```
+
+The compiled bytecode is stored in `build/bytecode/` and the executable is
+written to `dist/program`. An optional second argument selects the executable
+name:
+
+```bash
+lynxer --bundle program.lynx my-program
+```
+
+Bundling requires PyInstaller and a working C++ extension build.
+
 ## Discover modules and runtime information
 
 Print the installed Lynxer version:

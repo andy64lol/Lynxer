@@ -113,21 +113,21 @@ global count(str text, str needle){
 
 // Modification
 
-global replace(str text, str old, str new){
+global replace(str text, str oldValue, str newValue){
     str result = "";
 
     rawPy(){
-        result = text.replace(old, new)
+        result = text.replace(oldValue, newValue)
     }
 
     return result;
 }
 
-global replaceFirst(str text, str old, str new){
+global replaceFirst(str text, str oldValue, str newValue){
     str result = "";
 
     rawPy(){
-        result = text.replace(old, new, 1)
+        result = text.replace(oldValue, newValue, 1)
     }
 
     return result;

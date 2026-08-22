@@ -1,4 +1,4 @@
-# Low-level TODO
+# TODO
 
 ## Native execution & FFI
 
@@ -28,3 +28,11 @@
 
 - [ ] Native error/status values instead of silent failures
 - [ ] Portable native-extension builds
+
+## Bundling
+
+- [x] --bundle command allowing .lynx files turn into a bundled x86-64 Linux ELF executeable with the lynxer interpreter inside bundled
+- [x] Make sure --bundle command works
+- [x] Make --bundle generate: build/ and dist/
+- [x] Make Lynxer to bundle the compiled bytecode stored in build/bytecode
+- [ ] Test if bundled projects works
