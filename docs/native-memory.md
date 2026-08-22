@@ -50,6 +50,20 @@ their declared parameter types.
 The caller must provide a valid function address with the exact compatible ABI;
 invalid addresses can crash the process.
 
+The address may be a raw integer, an `Address` obtained with `getAddress()` when
+its target contains an integer pointer, or an explicit typed function address:
+
+```lynx
+int raw = /* supplied by an extension */;
+functionAddress fn = functionAddress(raw);
+int result = nativeCall(fn, "int32(int32)", [int 7]);
+```
+
+`nativeFunctionAddress(address)` is an alias for `functionAddress(address)`.
+The wrapper is useful for declarations and APIs that should reject ordinary
+integers and data addresses. It does not validate that the pointer is
+executable; the caller remains responsible for supplying a valid ABI.
+
 ## Typed memory
 
 `memoryTypeSize(type)` returns the byte size of a supported type:
@@ -126,6 +140,39 @@ Layout introspection is available without allocating a struct:
 The same queries are available as `nativeStructAlignment`,
 `nativeStructFieldCount`, and `nativeStructFieldType`; `nativeTypeAlignment`
 is the alias for `memoryTypeAlignment`.
+
+## Atomic and volatile access
+
+Atomic operations use sequential consistency and support `int32`, `uint32`,
+`int64`, and `uint64`:
+
+```c
+int address = memoryAllocate(8);
+atomicStore(address, 0, "int64", 10);
+println(atomicAdd(address, 0, "int64", 5));
+println(atomicLoad(address, 0, "int64"));
+memoryFree(address);
+```
+
+`volatileRead(address, offset, type)` and
+`volatileWrite(address, offset, type, value)` provide compiler-volatile byte
+access for supported native memory types. Volatile access is not atomic and
+does not provide thread synchronization.
+
+## Memory protection
+
+`memoryProtect(address, size, mode)` changes page protection for an allocation.
+Modes are `read`, `readwrite`, `execute`, and `none`. Protection is page based,
+so the system may change surrounding bytes in the same pages. Unsupported
+platforms return an explicit error.
+
+## Owned native handles
+
+For allocations that should not be passed around as unmanaged integers, use
+`nativeHandleAllocate(size)`, `nativeHandleAddress(handle)`,
+`nativeHandleIsAlive(handle)`, and `nativeHandleFree(handle)`. Copies of a
+handle share ownership state, so freeing one copy marks every copy as freed
+and later use is rejected.
 
 ## Safety
 

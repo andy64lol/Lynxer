@@ -3,6 +3,7 @@
 
 import sys
 import os
+import subprocess
 
 _here = os.path.dirname(os.path.abspath(__file__))  # .../lynxer/
 _parent = os.path.dirname(_here)  # repo root
@@ -208,6 +209,9 @@ def main():
         print(
             "  lynxer --lint <file.lynx>             Check Lynxer syntax without running it"
         )
+        print(
+            "  lynxer --validate-executeable         Run the comprehensive interpreter validator"
+        )
         print("  lynxer --version                      Print version")
         print(
             "  lynxer --list-stdlibs                 List available Lynxer stdlib modules"
@@ -230,6 +234,13 @@ def main():
     if argv[0] in ("-v", "--version", "-version", "--v"):
         print("Lynxer 0.1.7")
         return 0
+    if argv[0] in ("--validate-executeable", "--validate-executable"):
+        validator = os.path.join(_parent, "validate.py")
+        if not os.path.exists(validator):
+            print("shell.py: comprehensive validator is not available", file=sys.stderr)
+            return 1
+        result = subprocess.run([sys.executable, validator, *argv[1:]], cwd=_parent)
+        return result.returncode
     if argv[0] in ("--install", "--uninstall"):
         return installer_main(argv[0])
     if argv[0] in (

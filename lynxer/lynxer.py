@@ -319,7 +319,7 @@ TYPE_KEYWORDS = [
     "int8", "int16", "int32", "int64",
     "uint8", "uint16", "uint32", "uint64",
     "float32", "float64",
-    "sentinel", "codeblock",
+    "sentinel", "codeblock", "functionAddress",
     "struct",
 ]
 
@@ -1318,8 +1318,14 @@ class Parser:
 
     def is_type_keyword(self):
         return (
-            self.current_tok.type == TT_KEYWORD
-            and self.current_tok.value in TYPE_KEYWORDS
+            (
+                self.current_tok.type == TT_KEYWORD
+                and self.current_tok.value in TYPE_KEYWORDS
+            )
+            or (
+                self.current_tok.type == TT_IDENTIFIER
+                and self.current_tok.value == "functionAddress"
+            )
         )
 
     def is_type_name(self):
@@ -5409,6 +5415,52 @@ class Address(Value):
 
     __repr__ = __str__
 
+class FunctionAddress(Value):
+    """A typed native function pointer used by nativeCall()."""
+
+    def __init__(self, pointer):
+        super().__init__()
+        self.pointer = pointer
+
+    def copy(self):
+        c = FunctionAddress(self.pointer)
+        c.set_pos(self.pos_start, self.pos_end)
+        c.set_context(self.context)
+        return c
+
+    def __str__(self):
+        return f"<function-address 0x{self.pointer:x}>"
+
+    __repr__ = __str__
+
+class NativeHandle(Value):
+    """Owned native allocation with explicit, shared lifetime state."""
+
+    def __init__(self, pointer):
+        super().__init__()
+        self._state = {"pointer": pointer, "active": True}
+
+    @property
+    def pointer(self):
+        return self._state["pointer"]
+
+    @property
+    def active(self):
+        return self._state["active"]
+
+    def copy(self):
+        c = NativeHandle(self.pointer)
+        c._state = self._state
+        c.set_pos(self.pos_start, self.pos_end)
+        c.set_context(self.context)
+        return c
+
+    def __str__(self):
+        status = "active" if self.active else "freed"
+        return f"<native-handle 0x{self.pointer:x} {status}>"
+
+    __repr__ = __str__
+
 class Number(Value):
     null: ClassVar["Number"]
     false: ClassVar["Number"]
@@ -5942,6 +5994,10 @@ def value_type_name(v):
         return "codeblock"
     if isinstance(v, Address):
         return "address"
+    if isinstance(v, FunctionAddress):
+        return "functionAddress"
+    if isinstance(v, NativeHandle):
+        return "nativeHandle"
     if isinstance(v, VarGroup):
         return "vargroup"
     if isinstance(v, Function) or (
@@ -5995,6 +6051,10 @@ def type_matches(declared_type, value):
         )
     if declared_type == "char":
         return isinstance(value, Char)
+    if declared_type == "functionAddress":
+        return isinstance(value, FunctionAddress)
+    if declared_type == "nativeHandle":
+        return isinstance(value, NativeHandle)
     if declared_type in ("vargroup", "struct"):
         return actual == "vargroup"
     return actual == declared_type

@@ -13,6 +13,11 @@
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>
+#include <atomic>
+#if defined(__unix__) || defined(__APPLE__)
+#include <sys/mman.h>
+#include <unistd.h>
+#endif
 
 namespace {
 
@@ -259,6 +264,130 @@ bool validateMemory(void *ptr, size_t offset, size_t bytes) {
         return false;
     }
     return true;
+}
+
+bool atomicLocation(PyObject *addressObject, unsigned long long offset,
+                    const char *type, void **out) {
+    MemoryType info;
+    if (std::strcmp(type, "int32") != 0 && std::strcmp(type, "uint32") != 0 &&
+        std::strcmp(type, "int64") != 0 && std::strcmp(type, "uint64") != 0) {
+        PyErr_SetString(PyExc_ValueError, "atomic operations support int32, uint32, int64, and uint64");
+        return false;
+    }
+    memoryType(type, &info);
+    void *raw;
+    if (!pointerFromPy(addressObject, &raw) ||
+        !validateMemory(raw, static_cast<size_t>(offset), info.size)) return false;
+    uintptr_t value = reinterpret_cast<uintptr_t>(raw) + static_cast<size_t>(offset);
+    if (value % info.alignment != 0) {
+        PyErr_SetString(PyExc_RuntimeError, "atomic address is not properly aligned");
+        return false;
+    }
+    *out = reinterpret_cast<void *>(value);
+    return true;
+}
+
+PyObject *pyAtomicLoad(PyObject *, PyObject *args) {
+    PyObject *addressObject; unsigned long long offset; const char *type;
+    if (!PyArg_ParseTuple(args, "OKs", &addressObject, &offset, &type)) return nullptr;
+    void *location;
+    if (!atomicLocation(addressObject, offset, type, &location)) return nullptr;
+    if (std::strcmp(type, "int32") == 0)
+        return PyLong_FromLong(__atomic_load_n(static_cast<std::int32_t *>(location), __ATOMIC_SEQ_CST));
+    if (std::strcmp(type, "uint32") == 0)
+        return PyLong_FromUnsignedLong(__atomic_load_n(static_cast<std::uint32_t *>(location), __ATOMIC_SEQ_CST));
+    if (std::strcmp(type, "int64") == 0)
+        return PyLong_FromLongLong(__atomic_load_n(static_cast<std::int64_t *>(location), __ATOMIC_SEQ_CST));
+    return PyLong_FromUnsignedLongLong(__atomic_load_n(static_cast<std::uint64_t *>(location), __ATOMIC_SEQ_CST));
+}
+
+PyObject *pyAtomicStore(PyObject *, PyObject *args) {
+    PyObject *addressObject; unsigned long long offset; const char *type; long long value;
+    if (!PyArg_ParseTuple(args, "OKsL", &addressObject, &offset, &type, &value)) return nullptr;
+    void *location;
+    if (!atomicLocation(addressObject, offset, type, &location)) return nullptr;
+    if (std::strcmp(type, "int32") == 0) __atomic_store_n(static_cast<std::int32_t *>(location), static_cast<std::int32_t>(value), __ATOMIC_SEQ_CST);
+    else if (std::strcmp(type, "uint32") == 0) __atomic_store_n(static_cast<std::uint32_t *>(location), static_cast<std::uint32_t>(value), __ATOMIC_SEQ_CST);
+    else if (std::strcmp(type, "int64") == 0) __atomic_store_n(static_cast<std::int64_t *>(location), static_cast<std::int64_t>(value), __ATOMIC_SEQ_CST);
+    else __atomic_store_n(static_cast<std::uint64_t *>(location), static_cast<std::uint64_t>(value), __ATOMIC_SEQ_CST);
+    Py_RETURN_NONE;
+}
+
+PyObject *pyAtomicAdd(PyObject *, PyObject *args) {
+    PyObject *addressObject; unsigned long long offset; const char *type; long long value;
+    if (!PyArg_ParseTuple(args, "OKsL", &addressObject, &offset, &type, &value)) return nullptr;
+    void *location;
+    if (!atomicLocation(addressObject, offset, type, &location)) return nullptr;
+    if (std::strcmp(type, "int32") == 0)
+        return PyLong_FromLong(__atomic_add_fetch(static_cast<std::int32_t *>(location), static_cast<std::int32_t>(value), __ATOMIC_SEQ_CST));
+    if (std::strcmp(type, "uint32") == 0)
+        return PyLong_FromUnsignedLong(__atomic_add_fetch(static_cast<std::uint32_t *>(location), static_cast<std::uint32_t>(value), __ATOMIC_SEQ_CST));
+    if (std::strcmp(type, "int64") == 0)
+        return PyLong_FromLongLong(__atomic_add_fetch(static_cast<std::int64_t *>(location), static_cast<std::int64_t>(value), __ATOMIC_SEQ_CST));
+    return PyLong_FromUnsignedLongLong(__atomic_add_fetch(static_cast<std::uint64_t *>(location), static_cast<std::uint64_t>(value), __ATOMIC_SEQ_CST));
+}
+
+PyObject *pyVolatileRead(PyObject *, PyObject *args) {
+    PyObject *addressObject; unsigned long long offset; const char *type;
+    if (!PyArg_ParseTuple(args, "OKs", &addressObject, &offset, &type)) return nullptr;
+    MemoryType info;
+    if (!memoryType(type, &info) || info.size > 8) {
+        PyErr_SetString(PyExc_ValueError, "unsupported volatile memory type");
+        return nullptr;
+    }
+    void *raw;
+    if (!pointerFromPy(addressObject, &raw) ||
+        !validateMemory(raw, static_cast<size_t>(offset), info.size)) return nullptr;
+    volatile unsigned char *location = static_cast<volatile unsigned char *>(raw) + offset;
+    unsigned long long result = 0;
+    for (size_t i = 0; i < info.size; ++i) {
+        result |= static_cast<unsigned long long>(location[i]) << (i * 8);
+    }
+    return PyLong_FromUnsignedLongLong(result);
+}
+
+PyObject *pyVolatileWrite(PyObject *, PyObject *args) {
+    PyObject *addressObject; unsigned long long offset, value; const char *type;
+    if (!PyArg_ParseTuple(args, "OKsK", &addressObject, &offset, &type, &value)) return nullptr;
+    MemoryType info;
+    if (!memoryType(type, &info) || info.size > 8) {
+        PyErr_SetString(PyExc_ValueError, "unsupported volatile memory type");
+        return nullptr;
+    }
+    void *raw;
+    if (!pointerFromPy(addressObject, &raw) ||
+        !validateMemory(raw, static_cast<size_t>(offset), info.size)) return nullptr;
+    volatile unsigned char *location = static_cast<volatile unsigned char *>(raw) + offset;
+    for (size_t i = 0; i < info.size; ++i) location[i] = static_cast<unsigned char>(value >> (i * 8));
+    Py_RETURN_NONE;
+}
+
+PyObject *pyMemoryProtect(PyObject *, PyObject *args) {
+    PyObject *addressObject; unsigned long long size; const char *mode;
+    if (!PyArg_ParseTuple(args, "OKs", &addressObject, &size, &mode)) return nullptr;
+    void *raw;
+    if (!pointerFromPy(addressObject, &raw) || !validateMemory(raw, 0, static_cast<size_t>(size))) return nullptr;
+#if defined(__unix__) || defined(__APPLE__)
+    long page = sysconf(_SC_PAGESIZE);
+    uintptr_t start = reinterpret_cast<uintptr_t>(raw) & ~(static_cast<uintptr_t>(page) - 1);
+    uintptr_t end = (reinterpret_cast<uintptr_t>(raw) + size + page - 1) & ~(static_cast<uintptr_t>(page) - 1);
+    int protection = 0;
+    if (std::strcmp(mode, "read") == 0) protection = PROT_READ;
+    else if (std::strcmp(mode, "readwrite") == 0) protection = PROT_READ | PROT_WRITE;
+    else if (std::strcmp(mode, "execute") == 0) protection = PROT_READ | PROT_EXEC;
+    else if (std::strcmp(mode, "none") != 0) {
+        PyErr_SetString(PyExc_ValueError, "memory protection must be read, readwrite, execute, or none");
+        return nullptr;
+    }
+    if (mprotect(reinterpret_cast<void *>(start), end - start, protection) != 0) {
+        PyErr_SetFromErrno(PyExc_OSError);
+        return nullptr;
+    }
+    Py_RETURN_NONE;
+#else
+    PyErr_SetString(PyExc_NotImplementedError, "memory protection is not supported on this platform");
+    return nullptr;
+#endif
 }
 
 void trackAllocation(void *ptr, size_t size) {
@@ -1131,6 +1260,12 @@ PyMethodDef methods[] = {
     {"refSet", pyRefSet, METH_VARARGS, "Write a native Lynxer reference cell."},
     {"refFree", pyRefFree, METH_VARARGS, "Free a native Lynxer reference cell."},
     {"nativeCall", pyNativeCall, METH_VARARGS, "Call an integer-ABI native function address."},
+    {"atomicLoad", pyAtomicLoad, METH_VARARGS, "Atomically load a native integer."},
+    {"atomicStore", pyAtomicStore, METH_VARARGS, "Atomically store a native integer."},
+    {"atomicAdd", pyAtomicAdd, METH_VARARGS, "Atomically add to a native integer."},
+    {"volatileRead", pyVolatileRead, METH_VARARGS, "Read native memory as volatile."},
+    {"volatileWrite", pyVolatileWrite, METH_VARARGS, "Write native memory as volatile."},
+    {"memoryProtect", pyMemoryProtect, METH_VARARGS, "Change native memory protection."},
     {"malloc", pyMalloc, METH_VARARGS, "Allocate raw memory."},
     {"calloc", pyCalloc, METH_VARARGS, "Allocate zero-initialized raw memory."},
     {"realloc", pyRealloc, METH_VARARGS, "Resize raw memory."},

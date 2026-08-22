@@ -16,10 +16,13 @@ COLLECT_ALL := $(shell \
 
 CYTHON_COLLECT_ALL := --collect-all=Cython --collect-all=setuptools
 
-.PHONY: build buildLite buildCpp test check clean help
+.PHONY: build buildLite buildCpp test validate check clean help
 
-test:
+test: buildCpp
 	@$(PYTHON) test/validate.py
+
+validate: buildCpp
+	@$(PYTHON) validate.py
 
 check: test
 	@for file in syntax.lynx test/*.lynx; do \

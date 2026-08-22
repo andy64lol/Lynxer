@@ -26,6 +26,8 @@ Sentinel = _runtime.Sentinel
 ObjectValue = _runtime.ObjectValue
 Number = _runtime.Number
 Address = _runtime.Address
+FunctionAddress = _runtime.FunctionAddress
+NativeHandle = _runtime.NativeHandle
 RTError = _runtime.RTError
 RTResult = _runtime.RTResult
 String = _runtime.String
@@ -207,18 +209,184 @@ class BuiltInFunction(BaseFunction):
             return self._failure(exec_ctx, "modifyAddressValue() could not update its target")
         return RTResult().success(Number.null)
 
-    def execute_nativeCall(self, args, exec_ctx):
+    def execute_functionAddress(self, args, exec_ctx):
+        """Wrap a native pointer in a type-safe function-address value."""
+        if len(args) != 1:
+            return self._failure(exec_ctx, "functionAddress() expects one address")
+        pointer = args[0].pointer if isinstance(args[0], FunctionAddress) else None
+        if isinstance(args[0], Address):
+            value = args[0].get_value()
+            if not _native_nonnegative(value):
+                return self._failure(
+                    exec_ctx,
+                    "functionAddress() expects an address containing a non-negative integer",
+                )
+            pointer = value.value
+        elif _native_nonnegative(args[0]):
+            pointer = args[0].value
+        if pointer is None or pointer == 0:
+            return self._failure(
+                exec_ctx,
+                "functionAddress() expects a non-zero integer or address",
+            )
+        result = FunctionAddress(pointer)
+        result.set_context(exec_ctx)
+        return RTResult().success(result)
+
+    # Descriptive alias for callers that prefer the native-FFI naming.
+    def execute_nativeFunctionAddress(self, args, exec_ctx):
+        return self.execute_functionAddress(args, exec_ctx)
+
+    def execute_nativeHandleAllocate(self, args, exec_ctx):
+        if len(args) != 1 or not _native_nonnegative(args[0]):
+            return self._failure(exec_ctx, "nativeHandleAllocate(size) expects a non-negative integer")
+        result = self._cpp(_MEMORY_LIB.malloc, [args[0].value], exec_ctx)
+        if isinstance(result, RTResult):
+            return result
+        if result == 0:
+            return self._failure(exec_ctx, "nativeHandleAllocate() could not allocate memory")
+        handle = NativeHandle(result)
+        handle.set_context(exec_ctx)
+        return RTResult().success(handle)
+
+    def _native_handle_pointer(self, value, exec_ctx, name):
+        if not isinstance(value, NativeHandle):
+            return None, self._failure(exec_ctx, f"{name}() expects a nativeHandle")
+        if not value.active:
+            return None, self._failure(exec_ctx, f"{name}() cannot use a freed nativeHandle")
+        return value.pointer, None
+
+    def execute_nativeHandleAddress(self, args, exec_ctx):
+        if len(args) != 1:
+            return self._failure(exec_ctx, "nativeHandleAddress(handle) expects a nativeHandle")
+        pointer, failure = self._native_handle_pointer(args[0], exec_ctx, "nativeHandleAddress")
+        return failure or RTResult().success(Number(pointer))
+
+    def execute_nativeHandleFree(self, args, exec_ctx):
+        if len(args) != 1:
+            return self._failure(exec_ctx, "nativeHandleFree(handle) expects a nativeHandle")
+        handle = args[0]
+        pointer, failure = self._native_handle_pointer(handle, exec_ctx, "nativeHandleFree")
+        if failure:
+            return failure
+        result = self._cpp(_MEMORY_LIB.free, [pointer], exec_ctx)
+        if isinstance(result, RTResult):
+            return result
+        handle._state["active"] = False
+        return RTResult().success(Number.null)
+
+    def execute_nativeHandleIsAlive(self, args, exec_ctx):
+        if len(args) != 1 or not isinstance(args[0], NativeHandle):
+            return self._failure(exec_ctx, "nativeHandleIsAlive(handle) expects a nativeHandle")
+        return RTResult().success(Number(int(args[0].active), is_bool=True))
+
+    def execute_atomicLoad(self, args, exec_ctx):
         if (
             len(args) != 3
             or not _native_nonnegative(args[0])
-            or args[0].value == 0
+            or not _native_nonnegative(args[1])
+            or not isinstance(args[2], String)
+        ):
+            return self._failure(exec_ctx, "atomicLoad(address, offset, type) expects an address, offset, and integer type")
+        result = self._cpp(_MEMORY_LIB.atomicLoad, [args[0].value, args[1].value, args[2].value], exec_ctx)
+        return result if isinstance(result, RTResult) else RTResult().success(Number(result))
+
+    def execute_atomicStore(self, args, exec_ctx):
+        if (
+            len(args) != 4
+            or not _native_nonnegative(args[0])
+            or not _native_nonnegative(args[1])
+            or not isinstance(args[2], String)
+            or not _native_int(args[3])
+        ):
+            return self._failure(exec_ctx, "atomicStore(address, offset, type, value) expects an address, offset, integer type, and integer")
+        result = self._cpp(
+            _MEMORY_LIB.atomicStore,
+            [args[0].value, args[1].value, args[2].value, args[3].value],
+            exec_ctx,
+        )
+        return result if isinstance(result, RTResult) else RTResult().success(Number.null)
+
+    def execute_atomicAdd(self, args, exec_ctx):
+        if (
+            len(args) != 4
+            or not _native_nonnegative(args[0])
+            or not _native_nonnegative(args[1])
+            or not isinstance(args[2], String)
+            or not _native_int(args[3])
+        ):
+            return self._failure(exec_ctx, "atomicAdd(address, offset, type, value) expects an address, offset, integer type, and integer")
+        result = self._cpp(
+            _MEMORY_LIB.atomicAdd,
+            [args[0].value, args[1].value, args[2].value, args[3].value],
+            exec_ctx,
+        )
+        return result if isinstance(result, RTResult) else RTResult().success(Number(result))
+
+    def execute_volatileRead(self, args, exec_ctx):
+        if (
+            len(args) != 3
+            or not _native_nonnegative(args[0])
+            or not _native_nonnegative(args[1])
+            or not isinstance(args[2], String)
+        ):
+            return self._failure(exec_ctx, "volatileRead(address, offset, type) expects an address, offset, and type")
+        result = self._cpp(_MEMORY_LIB.volatileRead, [args[0].value, args[1].value, args[2].value], exec_ctx)
+        return result if isinstance(result, RTResult) else RTResult().success(Number(result))
+
+    def execute_volatileWrite(self, args, exec_ctx):
+        if (
+            len(args) != 4
+            or not _native_nonnegative(args[0])
+            or not _native_nonnegative(args[1])
+            or not isinstance(args[2], String)
+            or not _native_nonnegative(args[3])
+        ):
+            return self._failure(exec_ctx, "volatileWrite(address, offset, type, value) expects an address, offset, type, and non-negative integer")
+        result = self._cpp(
+            _MEMORY_LIB.volatileWrite,
+            [args[0].value, args[1].value, args[2].value, args[3].value],
+            exec_ctx,
+        )
+        return result if isinstance(result, RTResult) else RTResult().success(Number.null)
+
+    def execute_memoryProtect(self, args, exec_ctx):
+        if (
+            len(args) != 3
+            or not _native_nonnegative(args[0])
+            or not _native_nonnegative(args[1])
+            or not isinstance(args[2], String)
+        ):
+            return self._failure(exec_ctx, "memoryProtect(address, size, mode) expects an address, size, and protection mode")
+        result = self._cpp(
+            _MEMORY_LIB.memoryProtect,
+            [args[0].value, args[1].value, args[2].value],
+            exec_ctx,
+        )
+        return result if isinstance(result, RTResult) else RTResult().success(Number.null)
+
+    def execute_nativeCall(self, args, exec_ctx):
+        pointer = None
+        if len(args) == 3:
+            if isinstance(args[0], FunctionAddress):
+                pointer = args[0].pointer
+            elif isinstance(args[0], Address):
+                value = args[0].get_value()
+                if _native_nonnegative(value):
+                    pointer = value.value
+            elif _native_nonnegative(args[0]):
+                pointer = args[0].value
+        if (
+            len(args) != 3
+            or pointer is None
+            or pointer == 0
             or not isinstance(args[1], String)
             or not isinstance(args[2], List)
         ):
             return self._failure(
                 exec_ctx,
                 "nativeCall(address, signature, arguments) expects a non-zero "
-                "address, signature string, and argument list",
+                "address (integer, address value, or functionAddress)",
             )
         native_args = []
         for value in args[2].elements:
@@ -230,7 +398,7 @@ class BuiltInFunction(BaseFunction):
             native_args.append(value.value)
         result = self._cpp(
             _MEMORY_LIB.nativeCall,
-            [args[0].value, args[1].value, native_args],
+            [pointer, args[1].value, native_args],
             exec_ctx,
         )
         if isinstance(result, RTResult):
@@ -2438,7 +2606,19 @@ BUILTIN_FUNCTION_NAMES = (
     "getAddress",
     "modifyAddressValue",
     "getAddressValue",
+    "functionAddress",
+    "nativeFunctionAddress",
+    "nativeHandleAllocate",
+    "nativeHandleAddress",
+    "nativeHandleFree",
+    "nativeHandleIsAlive",
     "nativeCall",
+    "atomicLoad",
+    "atomicStore",
+    "atomicAdd",
+    "volatileRead",
+    "volatileWrite",
+    "memoryProtect",
     "memoryTypeSize",
     "memoryTypeAlignment",
     "memoryReadEndian",
