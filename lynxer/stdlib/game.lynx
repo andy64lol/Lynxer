@@ -96,6 +96,39 @@ global getHeight(){
     return result;
 }
 
+// Change the window size.
+global setWindowSize(int width, int height){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_game_win.set_size(width, height)
+        except Exception:
+            pass
+    }
+}
+
+// Allow or prevent interactive window resizing.
+global setResizable(bool enabled){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_game_win.set_resizable(bool(enabled))
+        except Exception:
+            pass
+    }
+}
+
+// Show or hide the mouse cursor over the game window.
+global setMouseVisible(bool visible){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_game_win.set_mouse_visible(bool(visible))
+        except Exception:
+            pass
+    }
+}
+
 // Close the game window.
 global close(){
     rawPy(){
@@ -286,6 +319,34 @@ global loadSprite(str path, float scale, float x, float y){
     return idx;
 }
 
+// Create a rectangle sprite without loading an image. Returns a sprite index.
+global makeSolidSprite(int width, int height, int r, int g, int b, float x, float y){
+    int idx = -1;
+    rawPy(){
+        import arcade, builtins
+        try:
+            sp = arcade.SpriteSolidColor(width, height, arcade.color.Color(r, g, b))
+            sp.center_x = x
+            sp.center_y = y
+            builtins._lx_sprites.append(sp)
+            idx = len(builtins._lx_sprites) - 1
+        except Exception:
+            idx = -1
+    }
+    return idx;
+}
+
+// Replace a sprite's image with a texture previously returned by loadTexture.
+global setSpriteTexture(int idx, int texIdx){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_sprites[idx].texture = builtins._lx_textures[texIdx]
+        except Exception:
+            pass
+    }
+}
+
 // Return the center X position of sprite at idx.
 global getSpriteX(int idx){
     float result = 0.0;
@@ -319,6 +380,32 @@ global getSpriteAngle(int idx){
         import builtins
         try:
             result = float(builtins._lx_sprites[idx].angle)
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+// Return sprite opacity (0–255).
+global getSpriteAlpha(int idx){
+    int result = 0;
+    rawPy(){
+        import builtins
+        try:
+            result = int(builtins._lx_sprites[idx].alpha)
+        except Exception:
+            result = 0
+    }
+    return result;
+}
+
+// Return sprite scale.
+global getSpriteScale(int idx){
+    float result = 0.0;
+    rawPy(){
+        import builtins
+        try:
+            result = float(builtins._lx_sprites[idx].scale)
         except Exception:
             result = 0.0
     }

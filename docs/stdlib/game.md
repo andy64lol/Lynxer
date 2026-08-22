@@ -48,6 +48,9 @@ The draw/update loop runs inside `rawPy` functions assigned to `builtins._lx_gam
 | `setBackground` | `setBackground(int r, int g, int b)` | Clear color (0–255 per channel). |
 | `getWidth` | `getWidth()` | Window width in pixels. |
 | `getHeight` | `getHeight()` | Window height in pixels. |
+| `setWindowSize` | `setWindowSize(int width, int height)` | Resize the window. |
+| `setResizable` | `setResizable(bool enabled)` | Allow or prevent interactive resizing. |
+| `setMouseVisible` | `setMouseVisible(bool visible)` | Show or hide the mouse cursor. |
 | `setFPSCap` | `setFPSCap(int fps)` | Set target frame rate. |
 | `getFPS` | `getFPS()` | Current frames per second. |
 | `setFullscreen` | `setFullscreen(bool enabled)` | Enter or leave fullscreen. |
@@ -140,6 +143,20 @@ All colors are `int r, g, b` (0–255). All coordinates use arcade's bottom-left
 ---
 
 ## Sprites
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `makeSolidSprite` | `makeSolidSprite(int width, int height, int r, int g, int b, float x, float y)` | Create a colored rectangle sprite. Returns an index. |
+| `setSpriteTexture` | `setSpriteTexture(int idx, int texIdx)` | Apply a texture returned by `loadTexture`. |
+
+### Sprite state
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `getSpriteAlpha` | `getSpriteAlpha(int idx)` | Return opacity from 0 to 255. |
+| `getSpriteScale` | `getSpriteScale(int idx)` | Return the current scale. |
+
+Existing image sprites are loaded with `loadSprite`.
 
 Sprites are referenced by integer indexes. All sprite operations use `builtins._lx_sprites[idx]` internally.
 

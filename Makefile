@@ -19,15 +19,15 @@ CYTHON_COLLECT_ALL := --collect-all=Cython --collect-all=setuptools
 .PHONY: build buildLite buildCpp test check clean help
 
 test:
-	@$(PYTHON) -m unittest discover -s test -p 'test_*.py' -v
+	@$(PYTHON) test/validate.py
 
 check: test
 	@for file in syntax.lynx test/*.lynx; do \
-		$(PYTHON) main.py --lint "$$file" >/dev/null || exit $$?; \
+		$(PYTHON) lynxer/shell.py --lint "$$file" >/dev/null || exit $$?; \
 	done
 	@echo "✓ Lynxer checks passed."
 
-build:
+build: buildCpp
 	@if [ ! -d "$(VENV)" ]; then \
 		echo "Creating virtual environment '$(VENV)'..."; \
 		$(PYTHON) -m venv $(VENV); \
@@ -60,13 +60,14 @@ build:
 		--clean \
 		$(COLLECT_ALL) \
 		--name lynxer \
+		--hidden-import lynxer.cpp \
 		$(WARNING_DATA) \
 		--add-data "lynxer/stdlib:stdlib" \
 		lynxer/shell.py
 
 	@echo "✓ Build complete: dist/lynxer"
 
-buildLite:
+buildLite: buildCpp
 	@if [ ! -d "$(VENV)" ]; then \
 		echo "Creating virtual environment '$(VENV)'..."; \
 		$(PYTHON) -m venv $(VENV); \
@@ -91,6 +92,7 @@ buildLite:
 		$(CYTHON_COLLECT_ALL) \
 		--hidden-import Cython.Build.Inline \
 		--name lynxer-lite \
+		--hidden-import lynxer.cpp \
 		$(WARNING_DATA) \
 		--add-data "build/stdlib_pure:stdlib" \
 		lynxer/shell.py
@@ -106,7 +108,7 @@ clean:
 	@find . -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null || true
 	@find . -name '*.pyc' -delete 2>/dev/null || true
 	@find . -name '*.lynxc' -delete 2>/dev/null || true
-	@rm -rf build dist *.spec 2>/dev/null || true
+	@rm -rf build dist *.spec lynxer/build lynxer/*.so 2>/dev/null || true
 	@echo "✓ Cleaned."
 
 help:

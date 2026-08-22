@@ -65,6 +65,116 @@ bool memoryType(const std::string &name, MemoryType *out) {
     return true;
 }
 
+bool parseByteOrder(const char *name, bool *little) {
+    if (std::strcmp(name, "little") == 0 || std::strcmp(name, "le") == 0) {
+        *little = true;
+        return true;
+    }
+    if (std::strcmp(name, "big") == 0 || std::strcmp(name, "be") == 0) {
+        *little = false;
+        return true;
+    }
+    return false;
+}
+
+bool nativeIntegerType(const std::string &name) {
+    return name == "int8" || name == "uint8" ||
+           name == "int16" || name == "uint16" ||
+           name == "int32" || name == "uint32" ||
+           name == "int64" || name == "uint64" ||
+           name == "uintptr";
+}
+
+bool parseNativeSignature(const char *signature, std::string *result,
+                          std::vector<std::string> *parameters) {
+    std::string text(signature);
+    size_t open = text.find('(');
+    if (open == std::string::npos || text.back() != ')' || open == 0) {
+        PyErr_SetString(PyExc_ValueError,
+            "native signature must be returnType(type,...)");
+        return false;
+    }
+    *result = text.substr(0, open);
+    if (*result != "void" && !nativeIntegerType(*result)) {
+        PyErr_SetString(PyExc_ValueError,
+            "native call supports void and integer/pointer return types");
+        return false;
+    }
+    std::string parametersText = text.substr(open + 1, text.size() - open - 2);
+    if (parametersText.empty()) return true;
+    size_t start = 0;
+    while (start <= parametersText.size()) {
+        size_t end = parametersText.find(',', start);
+        std::string parameter = parametersText.substr(
+            start, end == std::string::npos ? end : end - start);
+        size_t first = parameter.find_first_not_of(" \t");
+        size_t last = parameter.find_last_not_of(" \t");
+        if (first == std::string::npos) {
+            PyErr_SetString(PyExc_ValueError, "native signature contains an empty parameter");
+            return false;
+        }
+        parameter = parameter.substr(first, last - first + 1);
+        if (!nativeIntegerType(parameter)) {
+            PyErr_SetString(PyExc_ValueError,
+                "native call parameters must be integer or pointer types");
+            return false;
+        }
+        parameters->push_back(parameter);
+        if (parameters->size() > 6) {
+            PyErr_SetString(PyExc_ValueError,
+                "native call supports at most six parameters");
+            return false;
+        }
+        if (end == std::string::npos) break;
+        start = end + 1;
+    }
+    return true;
+}
+
+bool hostIsLittleEndian() {
+    const std::uint16_t marker = 1;
+    return *reinterpret_cast<const unsigned char *>(&marker) == 1;
+}
+
+template <typename T>
+T loadOrdered(const unsigned char *bytes, bool little) {
+    unsigned char native[sizeof(T)];
+    if (little == hostIsLittleEndian()) {
+        std::memcpy(native, bytes, sizeof(T));
+    } else {
+        for (size_t i = 0; i < sizeof(T); ++i) {
+            native[i] = bytes[sizeof(T) - 1 - i];
+        }
+    }
+    T value;
+    std::memcpy(&value, native, sizeof(T));
+    return value;
+}
+
+template <typename T>
+void storeOrdered(unsigned char *bytes, T value, bool little) {
+    unsigned char native[sizeof(T)];
+    std::memcpy(native, &value, sizeof(T));
+    if (little == hostIsLittleEndian()) {
+        std::memcpy(bytes, native, sizeof(T));
+    } else {
+        for (size_t i = 0; i < sizeof(T); ++i) {
+            bytes[i] = native[sizeof(T) - 1 - i];
+        }
+    }
+}
+
+size_t layoutAlignment(const StructLayout &layout) {
+    size_t alignment = 1;
+    for (const auto &field : layout.fields) {
+        MemoryType info;
+        if (memoryType(field.type, &info)) {
+            alignment = std::max(alignment, info.alignment);
+        }
+    }
+    return alignment;
+}
+
 bool validFieldName(const std::string &name) {
     if (name.empty() ||
         !(std::isalpha(static_cast<unsigned char>(name[0])) || name[0] == '_')) {
@@ -212,6 +322,106 @@ PyObject *pyRefFree(PyObject *, PyObject *args) {
         std::free(cell);
     }
     Py_RETURN_NONE;
+}
+
+PyObject *pyNativeCall(PyObject *, PyObject *args) {
+    PyObject *addressObject;
+    PyObject *signatureObject;
+    PyObject *valuesObject;
+    if (!PyArg_ParseTuple(args, "OOO", &addressObject, &signatureObject,
+                          &valuesObject)) {
+        return nullptr;
+    }
+    const char *signature;
+    if (!PyArg_Parse(signatureObject, "s", &signature)) return nullptr;
+
+    void *address;
+    if (!pointerFromPy(addressObject, &address)) return nullptr;
+    if (address == nullptr) {
+        PyErr_SetString(PyExc_ValueError, "native function address must be non-zero");
+        return nullptr;
+    }
+    if (!PyList_Check(valuesObject)) {
+        PyErr_SetString(PyExc_TypeError, "native call arguments must be a list");
+        return nullptr;
+    }
+
+    std::string resultType;
+    std::vector<std::string> parameterTypes;
+    if (!parseNativeSignature(signature, &resultType, &parameterTypes)) return nullptr;
+    Py_ssize_t count = PyList_GET_SIZE(valuesObject);
+    if (count != static_cast<Py_ssize_t>(parameterTypes.size())) {
+        PyErr_SetString(PyExc_ValueError,
+            "native call argument count does not match its signature");
+        return nullptr;
+    }
+
+    std::vector<uintptr_t> values;
+    values.reserve(static_cast<size_t>(count));
+    for (Py_ssize_t index = 0; index < count; ++index) {
+        PyObject *value = PyList_GET_ITEM(valuesObject, index);
+        unsigned long long converted;
+        const std::string &parameterType = parameterTypes[static_cast<size_t>(index)];
+        if (parameterType == "uint8" || parameterType == "uint16" ||
+            parameterType == "uint32" || parameterType == "uint64" ||
+            parameterType == "uintptr") {
+            converted = PyLong_AsUnsignedLongLong(value);
+        } else {
+            long long signedValue = PyLong_AsLongLong(value);
+            if (!PyErr_Occurred()) converted = static_cast<uintptr_t>(signedValue);
+        }
+        if (PyErr_Occurred()) {
+            PyErr_Clear();
+            PyErr_SetString(PyExc_TypeError,
+                "native call arguments must be integers compatible with their types");
+            return nullptr;
+        }
+        values.push_back(static_cast<uintptr_t>(converted));
+    }
+
+    using NativeFn0 = uintptr_t (*)();
+    using NativeFn1 = uintptr_t (*)(uintptr_t);
+    using NativeFn2 = uintptr_t (*)(uintptr_t, uintptr_t);
+    using NativeFn3 = uintptr_t (*)(uintptr_t, uintptr_t, uintptr_t);
+    using NativeFn4 = uintptr_t (*)(uintptr_t, uintptr_t, uintptr_t, uintptr_t);
+    using NativeFn5 = uintptr_t (*)(uintptr_t, uintptr_t, uintptr_t, uintptr_t, uintptr_t);
+    using NativeFn6 = uintptr_t (*)(uintptr_t, uintptr_t, uintptr_t, uintptr_t, uintptr_t, uintptr_t);
+    using NativeVoid0 = void (*)();
+    using NativeVoid1 = void (*)(uintptr_t);
+    using NativeVoid2 = void (*)(uintptr_t, uintptr_t);
+    using NativeVoid3 = void (*)(uintptr_t, uintptr_t, uintptr_t);
+    using NativeVoid4 = void (*)(uintptr_t, uintptr_t, uintptr_t, uintptr_t);
+    using NativeVoid5 = void (*)(uintptr_t, uintptr_t, uintptr_t, uintptr_t, uintptr_t);
+    using NativeVoid6 = void (*)(uintptr_t, uintptr_t, uintptr_t, uintptr_t, uintptr_t, uintptr_t);
+
+    uintptr_t rawAddress = reinterpret_cast<uintptr_t>(address);
+    uintptr_t result = 0;
+    if (resultType == "void") {
+        switch (count) {
+        case 0: reinterpret_cast<NativeVoid0>(rawAddress)(); break;
+        case 1: reinterpret_cast<NativeVoid1>(rawAddress)(values[0]); break;
+        case 2: reinterpret_cast<NativeVoid2>(rawAddress)(values[0], values[1]); break;
+        case 3: reinterpret_cast<NativeVoid3>(rawAddress)(values[0], values[1], values[2]); break;
+        case 4: reinterpret_cast<NativeVoid4>(rawAddress)(values[0], values[1], values[2], values[3]); break;
+        case 5: reinterpret_cast<NativeVoid5>(rawAddress)(values[0], values[1], values[2], values[3], values[4]); break;
+        case 6: reinterpret_cast<NativeVoid6>(rawAddress)(values[0], values[1], values[2], values[3], values[4], values[5]); break;
+        }
+        Py_RETURN_NONE;
+    }
+    switch (count) {
+    case 0: result = reinterpret_cast<NativeFn0>(rawAddress)(); break;
+    case 1: result = reinterpret_cast<NativeFn1>(rawAddress)(values[0]); break;
+    case 2: result = reinterpret_cast<NativeFn2>(rawAddress)(values[0], values[1]); break;
+    case 3: result = reinterpret_cast<NativeFn3>(rawAddress)(values[0], values[1], values[2]); break;
+    case 4: result = reinterpret_cast<NativeFn4>(rawAddress)(values[0], values[1], values[2], values[3]); break;
+    case 5: result = reinterpret_cast<NativeFn5>(rawAddress)(values[0], values[1], values[2], values[3], values[4]); break;
+    case 6: result = reinterpret_cast<NativeFn6>(rawAddress)(values[0], values[1], values[2], values[3], values[4], values[5]); break;
+    }
+    if (resultType == "int8") return PyLong_FromLong(static_cast<std::int8_t>(result));
+    if (resultType == "int16") return PyLong_FromLong(static_cast<std::int16_t>(result));
+    if (resultType == "int32") return PyLong_FromLong(static_cast<std::int32_t>(result));
+    if (resultType == "int64") return PyLong_FromLongLong(static_cast<std::int64_t>(result));
+    return PyLong_FromUnsignedLongLong(static_cast<unsigned long long>(result));
 }
 
 PyObject *pyMalloc(PyObject *, PyObject *args) {
@@ -434,6 +644,173 @@ PyObject *pyWriteFloat32(PyObject *, PyObject *args) { return writeFloat<float>(
 PyObject *pyReadFloat64(PyObject *, PyObject *args) { return readFloat<double>(args); }
 PyObject *pyWriteFloat64(PyObject *, PyObject *args) { return writeFloat<double>(args); }
 
+PyObject *pyMemoryReadEndian(PyObject *, PyObject *args) {
+    PyObject *addressObject;
+    unsigned long long offset;
+    const char *type;
+    const char *order;
+    if (!PyArg_ParseTuple(args, "OKss", &addressObject, &offset, &type, &order)) {
+        return nullptr;
+    }
+    MemoryType info;
+    bool little;
+    if (!memoryType(type, &info)) {
+        PyErr_SetString(PyExc_ValueError, "unsupported typed memory type");
+        return nullptr;
+    }
+    if (!parseByteOrder(order, &little)) {
+        PyErr_SetString(PyExc_ValueError, "byte order must be 'little' or 'big'");
+        return nullptr;
+    }
+    void *raw;
+    if (!pointerFromPy(addressObject, &raw) ||
+        !validateMemory(raw, static_cast<size_t>(offset), info.size)) {
+        return nullptr;
+    }
+    auto *bytes = static_cast<unsigned char *>(raw) + offset;
+    if (std::strcmp(type, "float32") == 0) {
+        return PyFloat_FromDouble(loadOrdered<float>(bytes, little));
+    }
+    if (std::strcmp(type, "float64") == 0) {
+        return PyFloat_FromDouble(loadOrdered<double>(bytes, little));
+    }
+    if (std::strcmp(type, "byte") == 0 || std::strcmp(type, "uint8") == 0) {
+        return PyLong_FromUnsignedLong(loadOrdered<std::uint8_t>(bytes, little));
+    }
+    if (std::strcmp(type, "int8") == 0) {
+        return PyLong_FromLong(loadOrdered<std::int8_t>(bytes, little));
+    }
+    if (std::strcmp(type, "int16") == 0) {
+        return PyLong_FromLong(loadOrdered<std::int16_t>(bytes, little));
+    }
+    if (std::strcmp(type, "uint16") == 0) {
+        return PyLong_FromUnsignedLong(loadOrdered<std::uint16_t>(bytes, little));
+    }
+    if (std::strcmp(type, "int32") == 0) {
+        return PyLong_FromLongLong(loadOrdered<std::int32_t>(bytes, little));
+    }
+    if (std::strcmp(type, "uint32") == 0) {
+        return PyLong_FromUnsignedLongLong(loadOrdered<std::uint32_t>(bytes, little));
+    }
+    if (std::strcmp(type, "int64") == 0) {
+        return PyLong_FromLongLong(loadOrdered<std::int64_t>(bytes, little));
+    }
+    return PyLong_FromUnsignedLongLong(loadOrdered<std::uint64_t>(bytes, little));
+}
+
+PyObject *pyMemoryWriteEndian(PyObject *, PyObject *args) {
+    PyObject *addressObject;
+    unsigned long long offset;
+    const char *type;
+    const char *order;
+    PyObject *valueObject;
+    if (!PyArg_ParseTuple(
+            args, "OKssO", &addressObject, &offset, &type, &order, &valueObject)) {
+        return nullptr;
+    }
+    MemoryType info;
+    bool little;
+    if (!memoryType(type, &info)) {
+        PyErr_SetString(PyExc_ValueError, "unsupported typed memory type");
+        return nullptr;
+    }
+    if (!parseByteOrder(order, &little)) {
+        PyErr_SetString(PyExc_ValueError, "byte order must be 'little' or 'big'");
+        return nullptr;
+    }
+    void *raw;
+    if (!pointerFromPy(addressObject, &raw) ||
+        !validateMemory(raw, static_cast<size_t>(offset), info.size)) {
+        return nullptr;
+    }
+    auto *bytes = static_cast<unsigned char *>(raw) + offset;
+    if (std::strcmp(type, "float32") == 0 ||
+        std::strcmp(type, "float64") == 0) {
+        double value = PyFloat_AsDouble(valueObject);
+        if (PyErr_Occurred() || !std::isfinite(value)) {
+            if (!PyErr_Occurred()) {
+                PyErr_SetString(PyExc_OverflowError, "floating-point value is out of range");
+            }
+            return nullptr;
+        }
+        if (std::strcmp(type, "float32") == 0) {
+            float narrowed = static_cast<float>(value);
+            if (!std::isfinite(narrowed)) {
+                PyErr_SetString(PyExc_OverflowError, "floating-point value is out of range");
+                return nullptr;
+            }
+            storeOrdered(bytes, narrowed, little);
+        } else {
+            storeOrdered(bytes, value, little);
+        }
+        Py_RETURN_NONE;
+    }
+    if (std::strcmp(type, "byte") == 0 || std::strcmp(type, "uint8") == 0) {
+        unsigned long long value = PyLong_AsUnsignedLongLong(valueObject);
+        if (PyErr_Occurred() || value > 255) {
+            if (!PyErr_Occurred()) {
+                PyErr_SetString(PyExc_OverflowError, "value is outside the range for typed memory");
+            }
+            return nullptr;
+        }
+        storeOrdered(bytes, static_cast<std::uint8_t>(value), little);
+    } else if (std::strcmp(type, "int8") == 0) {
+        long long value = PyLong_AsLongLong(valueObject);
+        if (PyErr_Occurred() || value < INT8_MIN || value > INT8_MAX) {
+            if (!PyErr_Occurred()) {
+                PyErr_SetString(PyExc_OverflowError, "value is outside the range for typed memory");
+            }
+            return nullptr;
+        }
+        storeOrdered(bytes, static_cast<std::int8_t>(value), little);
+    } else if (std::strcmp(type, "int16") == 0) {
+        long long value = PyLong_AsLongLong(valueObject);
+        if (PyErr_Occurred() || value < INT16_MIN || value > INT16_MAX) {
+            if (!PyErr_Occurred()) {
+                PyErr_SetString(PyExc_OverflowError, "value is outside the range for typed memory");
+            }
+            return nullptr;
+        }
+        storeOrdered(bytes, static_cast<std::int16_t>(value), little);
+    } else if (std::strcmp(type, "uint16") == 0) {
+        unsigned long long value = PyLong_AsUnsignedLongLong(valueObject);
+        if (PyErr_Occurred() || value > UINT16_MAX) {
+            if (!PyErr_Occurred()) {
+                PyErr_SetString(PyExc_OverflowError, "value is outside the range for typed memory");
+            }
+            return nullptr;
+        }
+        storeOrdered(bytes, static_cast<std::uint16_t>(value), little);
+    } else if (std::strcmp(type, "int32") == 0) {
+        long long value = PyLong_AsLongLong(valueObject);
+        if (PyErr_Occurred() || value < INT32_MIN || value > INT32_MAX) {
+            if (!PyErr_Occurred()) {
+                PyErr_SetString(PyExc_OverflowError, "value is outside the range for typed memory");
+            }
+            return nullptr;
+        }
+        storeOrdered(bytes, static_cast<std::int32_t>(value), little);
+    } else if (std::strcmp(type, "uint32") == 0) {
+        unsigned long long value = PyLong_AsUnsignedLongLong(valueObject);
+        if (PyErr_Occurred() || value > UINT32_MAX) {
+            if (!PyErr_Occurred()) {
+                PyErr_SetString(PyExc_OverflowError, "value is outside the range for typed memory");
+            }
+            return nullptr;
+        }
+        storeOrdered(bytes, static_cast<std::uint32_t>(value), little);
+    } else if (std::strcmp(type, "int64") == 0) {
+        long long value = PyLong_AsLongLong(valueObject);
+        if (PyErr_Occurred()) return nullptr;
+        storeOrdered(bytes, static_cast<std::int64_t>(value), little);
+    } else {
+        unsigned long long value = PyLong_AsUnsignedLongLong(valueObject);
+        if (PyErr_Occurred()) return nullptr;
+        storeOrdered(bytes, static_cast<std::uint64_t>(value), little);
+    }
+    Py_RETURN_NONE;
+}
+
 PyObject *pyMemoryTypeSize(PyObject *, PyObject *args) {
     const char *name;
     if (!PyArg_ParseTuple(args, "s", &name)) return nullptr;
@@ -443,6 +820,17 @@ PyObject *pyMemoryTypeSize(PyObject *, PyObject *args) {
         return nullptr;
     }
     return PyLong_FromSize_t(info.size);
+}
+
+PyObject *pyMemoryTypeAlignment(PyObject *, PyObject *args) {
+    const char *name;
+    if (!PyArg_ParseTuple(args, "s", &name)) return nullptr;
+    MemoryType info;
+    if (!memoryType(name, &info)) {
+        PyErr_SetString(PyExc_ValueError, "unsupported typed memory type");
+        return nullptr;
+    }
+    return PyLong_FromSize_t(info.alignment);
 }
 
 PyObject *pyMemoryBlockAllocate(PyObject *, PyObject *args) {
@@ -473,12 +861,15 @@ PyObject *pyMemoryBlockView(PyObject *, PyObject *args) {
     void *ptr;
     if (!pointerFromPy(addressObject, &ptr)) return nullptr;
     MemoryType info;
+    if (!memoryType(name, &info)) {
+        PyErr_SetString(PyExc_ValueError, "unsupported typed memory type");
+        return nullptr;
+    }
     if (count > std::numeric_limits<size_t>::max() / info.size) {
         PyErr_SetString(PyExc_OverflowError, "typed view size is too large");
         return nullptr;
     }
-    if (!memoryType(name, &info) ||
-        !validateMemory(ptr, 0, static_cast<size_t>(count) * info.size)) {
+    if (!validateMemory(ptr, 0, static_cast<size_t>(count) * info.size)) {
         return nullptr;
     }
     typedBlocks[ptr] = {name, static_cast<size_t>(count)};
@@ -553,6 +944,37 @@ PyObject *pyMemoryStructSize(PyObject *, PyObject *args) {
     StructLayout layout;
     if (!layoutFromObject(layoutObject, &layout)) return nullptr;
     return PyLong_FromSize_t(layout.size);
+}
+
+PyObject *pyMemoryStructAlignment(PyObject *, PyObject *args) {
+    PyObject *layoutObject;
+    if (!PyArg_ParseTuple(args, "O", &layoutObject)) return nullptr;
+    StructLayout layout;
+    if (!layoutFromObject(layoutObject, &layout)) return nullptr;
+    return PyLong_FromSize_t(layoutAlignment(layout));
+}
+
+PyObject *pyMemoryStructFieldCount(PyObject *, PyObject *args) {
+    PyObject *layoutObject;
+    if (!PyArg_ParseTuple(args, "O", &layoutObject)) return nullptr;
+    StructLayout layout;
+    if (!layoutFromObject(layoutObject, &layout)) return nullptr;
+    return PyLong_FromSize_t(layout.fields.size());
+}
+
+PyObject *pyMemoryStructFieldType(PyObject *, PyObject *args) {
+    PyObject *layoutObject;
+    const char *field;
+    if (!PyArg_ParseTuple(args, "Os", &layoutObject, &field)) return nullptr;
+    StructLayout layout;
+    if (!layoutFromObject(layoutObject, &layout)) return nullptr;
+    for (const auto &item : layout.fields) {
+        if (item.name == field) {
+            return PyUnicode_FromString(item.type.c_str());
+        }
+    }
+    PyErr_SetString(PyExc_ValueError, "struct field is not present");
+    return nullptr;
 }
 
 PyObject *pyMemoryStructAllocate(PyObject *, PyObject *args) {
@@ -708,6 +1130,7 @@ PyMethodDef methods[] = {
     {"refGet", pyRefGet, METH_VARARGS, "Read a native Lynxer reference cell."},
     {"refSet", pyRefSet, METH_VARARGS, "Write a native Lynxer reference cell."},
     {"refFree", pyRefFree, METH_VARARGS, "Free a native Lynxer reference cell."},
+    {"nativeCall", pyNativeCall, METH_VARARGS, "Call an integer-ABI native function address."},
     {"malloc", pyMalloc, METH_VARARGS, "Allocate raw memory."},
     {"calloc", pyCalloc, METH_VARARGS, "Allocate zero-initialized raw memory."},
     {"realloc", pyRealloc, METH_VARARGS, "Resize raw memory."},
@@ -736,13 +1159,19 @@ PyMethodDef methods[] = {
     {"writeFloat32", pyWriteFloat32, METH_VARARGS, "Write 32-bit float."},
     {"readFloat64", pyReadFloat64, METH_VARARGS, "Read 64-bit float."},
     {"writeFloat64", pyWriteFloat64, METH_VARARGS, "Write 64-bit float."},
+    {"memoryReadEndian", pyMemoryReadEndian, METH_VARARGS, "Read a value with explicit byte order."},
+    {"memoryWriteEndian", pyMemoryWriteEndian, METH_VARARGS, "Write a value with explicit byte order."},
     {"memoryTypeSize", pyMemoryTypeSize, METH_VARARGS, "Return a typed memory size."},
+    {"memoryTypeAlignment", pyMemoryTypeAlignment, METH_VARARGS, "Return a typed memory alignment."},
     {"memoryBlockAllocate", pyMemoryBlockAllocate, METH_VARARGS, "Allocate a typed block."},
     {"memoryBlockView", pyMemoryBlockView, METH_VARARGS, "Create a typed view."},
     {"memoryBlockLength", pyMemoryBlockLength, METH_VARARGS, "Return typed block length."},
     {"memoryBlockGet", pyMemoryBlockGet, METH_VARARGS, "Read typed block element."},
     {"memoryBlockSet", pyMemoryBlockSet, METH_VARARGS, "Write typed block element."},
     {"memoryStructSize", pyMemoryStructSize, METH_VARARGS, "Return native struct size."},
+    {"memoryStructAlignment", pyMemoryStructAlignment, METH_VARARGS, "Return native struct alignment."},
+    {"memoryStructFieldCount", pyMemoryStructFieldCount, METH_VARARGS, "Return native struct field count."},
+    {"memoryStructFieldType", pyMemoryStructFieldType, METH_VARARGS, "Return native struct field type."},
     {"memoryStructAllocate", pyMemoryStructAllocate, METH_VARARGS, "Allocate native struct."},
     {"memoryStructFieldOffset", [](PyObject *, PyObject *args) {
         return pyMemoryStructField(nullptr, args, false);

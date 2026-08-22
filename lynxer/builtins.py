@@ -207,11 +207,101 @@ class BuiltInFunction(BaseFunction):
             return self._failure(exec_ctx, "modifyAddressValue() could not update its target")
         return RTResult().success(Number.null)
 
+    def execute_nativeCall(self, args, exec_ctx):
+        if (
+            len(args) != 3
+            or not _native_nonnegative(args[0])
+            or args[0].value == 0
+            or not isinstance(args[1], String)
+            or not isinstance(args[2], List)
+        ):
+            return self._failure(
+                exec_ctx,
+                "nativeCall(address, signature, arguments) expects a non-zero "
+                "address, signature string, and argument list",
+            )
+        native_args = []
+        for value in args[2].elements:
+            if not _native_int(value):
+                return self._failure(
+                    exec_ctx,
+                    "nativeCall arguments must be integers",
+                )
+            native_args.append(value.value)
+        result = self._cpp(
+            _MEMORY_LIB.nativeCall,
+            [args[0].value, args[1].value, native_args],
+            exec_ctx,
+        )
+        if isinstance(result, RTResult):
+            return result
+        if result is None:
+            return RTResult().success(Number.null)
+        return RTResult().success(Number(result))
+
     def execute_memoryTypeSize(self, args, exec_ctx):
         if len(args) != 1 or _memory_type(args[0]) not in _MEMORY_TYPES:
             return self._failure(exec_ctx, "memoryTypeSize(type) expects a supported memory type")
         result = self._cpp(_MEMORY_LIB.memoryTypeSize, [_memory_type(args[0])], exec_ctx)
         return result if isinstance(result, RTResult) else RTResult().success(Number(result))
+
+    def execute_memoryTypeAlignment(self, args, exec_ctx):
+        if len(args) != 1 or _memory_type(args[0]) not in _MEMORY_TYPES:
+            return self._failure(exec_ctx, "memoryTypeAlignment(type) expects a supported memory type")
+        result = self._cpp(
+            _MEMORY_LIB.memoryTypeAlignment, [_memory_type(args[0])], exec_ctx
+        )
+        return result if isinstance(result, RTResult) else RTResult().success(Number(result))
+
+    def execute_memoryReadEndian(self, args, exec_ctx):
+        if (
+            len(args) != 4
+            or not _native_nonnegative(args[0])
+            or not _native_nonnegative(args[1])
+            or _memory_type(args[2]) not in _MEMORY_TYPES
+            or not isinstance(args[3], String)
+        ):
+            return self._failure(
+                exec_ctx,
+                "memoryReadEndian(address, offset, type, order) expects "
+                "an address, offset, supported type, and byte order",
+            )
+        result = self._cpp(
+            _MEMORY_LIB.memoryReadEndian,
+            [args[0].value, args[1].value, _memory_type(args[2]), args[3].value],
+            exec_ctx,
+        )
+        return result if isinstance(result, RTResult) else RTResult().success(Number(result))
+
+    def execute_memoryWriteEndian(self, args, exec_ctx):
+        if (
+            len(args) != 5
+            or not _native_nonnegative(args[0])
+            or not _native_nonnegative(args[1])
+            or _memory_type(args[2]) not in _MEMORY_TYPES
+            or not isinstance(args[3], String)
+            or not isinstance(args[4], Number)
+            or args[4].is_bool
+        ):
+            return self._failure(
+                exec_ctx,
+                "memoryWriteEndian(address, offset, type, order, value) expects "
+                "an address, offset, supported type, byte order, and number",
+            )
+        result = self._cpp(
+            _MEMORY_LIB.memoryWriteEndian,
+            [
+                args[0].value,
+                args[1].value,
+                _memory_type(args[2]),
+                args[3].value,
+                args[4].value,
+            ],
+            exec_ctx,
+        )
+        if isinstance(result, RTResult):
+            return result
+        return RTResult().success(Number.null)
 
     def execute_memoryBlockAllocate(self, args, exec_ctx):
         if (
@@ -329,6 +419,35 @@ class BuiltInFunction(BaseFunction):
         result = self._cpp(_MEMORY_LIB.memoryStructFieldSize, [args[0].value, args[1].value], exec_ctx)
         return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
+    def execute_memoryStructAlignment(self, args, exec_ctx):
+        if len(args) != 1 or not isinstance(args[0], String):
+            return self._failure(exec_ctx, "memoryStructAlignment(layout) expects a layout string")
+        result = self._cpp(_MEMORY_LIB.memoryStructAlignment, [args[0].value], exec_ctx)
+        return result if isinstance(result, RTResult) else RTResult().success(Number(result))
+
+    def execute_memoryStructFieldCount(self, args, exec_ctx):
+        if len(args) != 1 or not isinstance(args[0], String):
+            return self._failure(exec_ctx, "memoryStructFieldCount(layout) expects a layout string")
+        result = self._cpp(_MEMORY_LIB.memoryStructFieldCount, [args[0].value], exec_ctx)
+        return result if isinstance(result, RTResult) else RTResult().success(Number(result))
+
+    def execute_memoryStructFieldType(self, args, exec_ctx):
+        if (
+            len(args) != 2
+            or not isinstance(args[0], String)
+            or not isinstance(args[1], String)
+        ):
+            return self._failure(
+                exec_ctx,
+                "memoryStructFieldType(layout, field) expects a layout and field name",
+            )
+        result = self._cpp(
+            _MEMORY_LIB.memoryStructFieldType,
+            [args[0].value, args[1].value],
+            exec_ctx,
+        )
+        return result if isinstance(result, RTResult) else RTResult().success(String(result))
+
     # Explicit names for FFI callers.  The memoryStruct implementation uses
     # native alignment and native-endian primitive access, so these aliases
     # make that intent clear without creating a second layout format.
@@ -343,6 +462,18 @@ class BuiltInFunction(BaseFunction):
 
     def execute_nativeStructFieldSize(self, args, exec_ctx):
         return self.execute_memoryStructFieldSize(args, exec_ctx)
+
+    def execute_nativeTypeAlignment(self, args, exec_ctx):
+        return self.execute_memoryTypeAlignment(args, exec_ctx)
+
+    def execute_nativeStructAlignment(self, args, exec_ctx):
+        return self.execute_memoryStructAlignment(args, exec_ctx)
+
+    def execute_nativeStructFieldCount(self, args, exec_ctx):
+        return self.execute_memoryStructFieldCount(args, exec_ctx)
+
+    def execute_nativeStructFieldType(self, args, exec_ctx):
+        return self.execute_memoryStructFieldType(args, exec_ctx)
 
     def execute_nativeStructGet(self, args, exec_ctx):
         return self.execute_memoryStructGet(args, exec_ctx)
@@ -377,8 +508,8 @@ class BuiltInFunction(BaseFunction):
     def execute_memoryAllocate(self, args, exec_ctx):
         if len(args) != 1 or not _native_nonnegative(args[0]):
             return self._failure(exec_ctx, "memoryAllocate(size) expects a non-negative integer size")
-        address = _MEMORY_LIB.malloc(args[0].value)
-        return RTResult().success(Number(address))
+        result = self._cpp(_MEMORY_LIB.malloc, [args[0].value], exec_ctx)
+        return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
     def execute_memoryCallocate(self, args, exec_ctx):
         if len(args) != 2 or not all(_native_nonnegative(arg) for arg in args):
@@ -386,8 +517,10 @@ class BuiltInFunction(BaseFunction):
                 exec_ctx,
                 "memoryCallocate(count, size) expects non-negative integer arguments",
             )
-        address = _MEMORY_LIB.calloc(args[0].value, args[1].value)
-        return RTResult().success(Number(address))
+        result = self._cpp(
+            _MEMORY_LIB.calloc, [args[0].value, args[1].value], exec_ctx
+        )
+        return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
     def execute_memoryReallocate(self, args, exec_ctx):
         if (
@@ -404,8 +537,10 @@ class BuiltInFunction(BaseFunction):
         if error:
             return error
         old_address = args[0].value
-        new_address = _MEMORY_LIB.realloc(old_address, args[1].value)
-        return RTResult().success(Number(new_address))
+        result = self._cpp(
+            _MEMORY_LIB.realloc, [old_address, args[1].value], exec_ctx
+        )
+        return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
     def execute_memoryFree(self, args, exec_ctx):
         if len(args) != 1 or not _native_int(args[0]) or args[0].value < 0:
@@ -414,7 +549,9 @@ class BuiltInFunction(BaseFunction):
         error = self._check_memory_address(address, exec_ctx)
         if error:
             return error
-        _MEMORY_LIB.free(address)
+        result = self._cpp(_MEMORY_LIB.free, [address], exec_ctx)
+        if isinstance(result, RTResult):
+            return result
         return RTResult().success(Number.null)
 
     def _check_memory_address(self, address, exec_ctx):
@@ -438,7 +575,13 @@ class BuiltInFunction(BaseFunction):
         error = self._check_memory_address(args[0].value, exec_ctx)
         if error:
             return error
-        _MEMORY_LIB.memset(args[0].value, args[1].value, args[2].value)
+        result = self._cpp(
+            _MEMORY_LIB.memset,
+            [args[0].value, args[1].value, args[2].value],
+            exec_ctx,
+        )
+        if isinstance(result, RTResult):
+            return result
         return RTResult().success(Number.null)
 
     def execute_memoryCopy(self, args, exec_ctx):
@@ -454,7 +597,13 @@ class BuiltInFunction(BaseFunction):
             error = self._check_memory_address(address, exec_ctx)
             if error:
                 return error
-        _MEMORY_LIB.memcpy(args[0].value, args[1].value, args[2].value)
+        result = self._cpp(
+            _MEMORY_LIB.memcpy,
+            [args[0].value, args[1].value, args[2].value],
+            exec_ctx,
+        )
+        if isinstance(result, RTResult):
+            return result
         return RTResult().success(Number.null)
 
     def _memory_read_builtin(self, args, exec_ctx, name, native_function):
@@ -470,9 +619,10 @@ class BuiltInFunction(BaseFunction):
         error = self._check_memory_address(args[0].value, exec_ctx)
         if error:
             return error
-        return RTResult().success(
-            Number(native_function(args[0].value, args[1].value))
+        result = self._cpp(
+            native_function, [args[0].value, args[1].value], exec_ctx
         )
+        return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
     def _memory_write_builtin(
         self, args, exec_ctx, name, native_function, minimum, maximum
@@ -492,7 +642,13 @@ class BuiltInFunction(BaseFunction):
         error = self._check_memory_address(args[0].value, exec_ctx)
         if error:
             return error
-        native_function(args[0].value, args[1].value, args[2].value)
+        result = self._cpp(
+            native_function,
+            [args[0].value, args[1].value, args[2].value],
+            exec_ctx,
+        )
+        if isinstance(result, RTResult):
+            return result
         return RTResult().success(Number.null)
 
     def execute_memoryReadInt8(self, args, exec_ctx):
@@ -2089,7 +2245,7 @@ class BuiltInFunction(BaseFunction):
                     exec_ctx,
                 )
             )
-        _runtime._forever_delay = delay
+        setattr(_runtime, "_forever_delay", delay)
         return RTResult().success(Number.null)
 
     def execute_suppressForeverWarning(self, args, exec_ctx):
@@ -2112,7 +2268,7 @@ class BuiltInFunction(BaseFunction):
                     exec_ctx,
                 )
             )
-        _runtime._forever_warning_suppressed = True
+        setattr(_runtime, "_forever_warning_suppressed", True)
         return RTResult().success(Number.null)
 
     def execute_suppressDeprecationWarning(self, args, exec_ctx):
@@ -2135,7 +2291,7 @@ class BuiltInFunction(BaseFunction):
                     exec_ctx,
                 )
             )
-        _runtime._deprecation_warning_suppressed = True
+        setattr(_runtime, "_deprecation_warning_suppressed", True)
         return RTResult().success(Number.null)
 
     def execute_overrideMain(self, args, exec_ctx):
@@ -2151,7 +2307,7 @@ class BuiltInFunction(BaseFunction):
                     exec_ctx,
                 )
             )
-        _runtime._main_override = args[0].value
+        setattr(_runtime, "_main_override", args[0].value)
         return RTResult().success(Number.null)
 
     def execute_assert(self, args, exec_ctx):
@@ -2282,7 +2438,11 @@ BUILTIN_FUNCTION_NAMES = (
     "getAddress",
     "modifyAddressValue",
     "getAddressValue",
+    "nativeCall",
     "memoryTypeSize",
+    "memoryTypeAlignment",
+    "memoryReadEndian",
+    "memoryWriteEndian",
     "memoryBlockAllocate",
     "memoryBlockView",
     "memoryBlockGet",
@@ -2299,6 +2459,9 @@ BUILTIN_FUNCTION_NAMES = (
     "memoryStructSize",
     "memoryStructFieldOffset",
     "memoryStructFieldSize",
+    "memoryStructAlignment",
+    "memoryStructFieldCount",
+    "memoryStructFieldType",
     "memoryStructAllocate",
     "memoryStructGet",
     "memoryStructSet",
@@ -2306,6 +2469,10 @@ BUILTIN_FUNCTION_NAMES = (
     "nativeStructAllocate",
     "nativeStructFieldOffset",
     "nativeStructFieldSize",
+    "nativeTypeAlignment",
+    "nativeStructAlignment",
+    "nativeStructFieldCount",
+    "nativeStructFieldType",
     "nativeStructGet",
     "nativeStructSet",
     "memoryAllocate",

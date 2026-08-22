@@ -1,0 +1,20 @@
+global setup(){}
+
+global main(){
+    int address = memoryAllocate(16);
+
+    memoryWriteEndian(address, 0, "uint32", "big", 305419896);
+    println(memoryReadEndian(address, 0, "uint32", "big"));
+    println(memoryReadEndian(address, 0, "uint32", "little"));
+
+    memoryWriteEndian(address, 4, "int16", "le", -1234);
+    println(memoryReadEndian(address, 4, "int16", "little"));
+
+    memoryWriteEndian(address, 8, "float32", "little", 1.5);
+    println(memoryReadEndian(address, 8, "float32", "le"));
+
+    memoryWriteEndian(address, 12, "uint16", "be", 48879);
+    println(memoryReadEndian(address, 12, "uint16", "big"));
+
+    memoryFree(address);
+}

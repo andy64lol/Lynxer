@@ -308,6 +308,32 @@ global main(){
         "99\n12.5\n1\n8\n1\n",
         "native struct aliases and padding",
     )
+    require_output(
+        """global setup(){}
+global main(){
+    println(memoryTypeAlignment("float64"));
+    println(memoryStructAlignment("int32 id, float64 score, uint8 alive"));
+    println(memoryStructFieldCount("int32 id, float64 score, uint8 alive"));
+    println(memoryStructFieldType("int32 id, float64 score, uint8 alive", "score"));
+    println(nativeStructFieldType("int32 id, float64 score, uint8 alive", "alive"));
+}""",
+        "8\n8\n3\nfloat64\nuint8\n",
+        "native alignment and layout introspection",
+    )
+    require_output(
+        """global setup(){}
+global main(){
+    int address = memoryAllocate(8);
+    memoryWriteEndian(address, 0, "uint32", "big", 305419896);
+    println(memoryReadEndian(address, 0, "uint32", "big"));
+    println(memoryReadEndian(address, 0, "uint32", "little"));
+    memoryWriteEndian(address, 0, "float32", "little", 1.5);
+    println(memoryReadEndian(address, 0, "float32", "little"));
+    memoryFree(address);
+}""",
+        "305419896\n2018915346\n1.5\n",
+        "explicit native byte order",
+    )
     require_error(
         """global setup(){}
 global main(){

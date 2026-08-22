@@ -22,6 +22,7 @@ lynxer hello.lynx  # run a Lynxer source file
 - Python 3.14 or later
 - `cython` Python package (for `rawPyx` support)
 - `setuptools` Python package (Cython shim on Python 3.12+)
+- A C++ compiler (`g++` or `clang++`) for Lynxer's native memory extension
 - A C compiler (`gcc` or `cc`) for Cython compilation
 
 ### Full build
@@ -30,6 +31,14 @@ Bundles the complete standard library (all stdlib modules included):
 
 ```bash
 make build
+```
+
+The build automatically compiles `lynxer/cpp.cpp` for the active Python
+interpreter and includes the resulting native extension in the executable.
+To compile only that extension during development, run:
+
+```bash
+make buildCpp
 ```
 
 Produces a single-file binary at `dist/lynxer`.
@@ -54,6 +63,7 @@ modules while keeping the core language and essential utilities.
 |--------|-------------|
 | `make build` | Full build — all stdlib modules included |
 | `make buildLite` | Lite build — reduced stdlib, smaller binary |
+| `make buildCpp` | Compile the native C++ memory extension in place |
 | `make clean` | Remove `__pycache__` and `.pyc` files |
 | `make help` | Print available targets |
 

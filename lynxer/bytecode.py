@@ -188,12 +188,12 @@ def run_bytecode(fn: str, suppress_deprecation_warnings=False) -> tuple[Any, Any
     """Load and execute a pre-compiled ``.lynxc`` file."""
     runtime = _runtime()
     runtime.reset_runtime_state()
-    runtime._main_override = None
-    runtime._forever_delay = 0.02
-    runtime._forever_warning_suppressed = False
-    runtime._deprecation_warning_suppressed = bool(suppress_deprecation_warnings)
+    setattr(runtime, "_main_override", None)
+    setattr(runtime, "_forever_delay", 0.02)
+    setattr(runtime, "_forever_warning_suppressed", False)
+    setattr(runtime, "_deprecation_warning_suppressed", bool(suppress_deprecation_warnings))
     runtime._pending_deprecation_warnings.clear()
-    runtime._setup_in_progress = False
+    setattr(runtime, "_setup_in_progress", False)
 
     try:
         data = load_bytecode(fn)
@@ -236,12 +236,12 @@ def run_bytecode_file(fn: str, symbol_table: Any) -> Any:
 
     if node.setup_func:
         previous_setup_state = runtime._setup_in_progress
-        runtime._setup_in_progress = True
+        setattr(runtime, "_setup_in_progress", True)
         try:
             result = interpreter.run_setup(node.setup_func, context)
             if result.error:
                 return result.error
         finally:
-            runtime._setup_in_progress = previous_setup_state
+            setattr(runtime, "_setup_in_progress", previous_setup_state)
 
     return None

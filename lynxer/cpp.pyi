@@ -12,7 +12,9 @@ sizeof: Any
 refGet: Any
 refSet: Any
 refCreate: Any
+nativeCall: Any
 memoryTypeSize: Any
+memoryTypeAlignment: Any
 memoryBlockAllocate: Any
 memoryBlockView: Any
 memoryBlockGet: Any
@@ -40,7 +42,12 @@ readFloat32: Any
 writeFloat32: Any
 readFloat64: Any
 writeFloat64: Any
+memoryReadEndian: Any
+memoryWriteEndian: Any
 memoryStructSize: Any
+memoryStructAlignment: Any
+memoryStructFieldCount: Any
+memoryStructFieldType: Any
 memoryStructFieldOffset: Any
 memoryStructFieldSize: Any
 memoryStructAllocate: Any
