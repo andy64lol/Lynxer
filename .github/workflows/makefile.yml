@@ -13,9 +13,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Configure
-        run: ./configure
-
       - name: Build
         run: make
 
@@ -30,9 +27,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Configure
-        run: ./configure
 
       - name: Build Lite
         run: make buildLite
