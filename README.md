@@ -6,6 +6,11 @@
 A statically-flavoured, C-style scripting language that runs on Python.
 Files use the `.lynx` extension.
 
+> **Linux only:** Lynxer is currently supported for Linux users and Linux
+> distributions. The native C++ extension, standalone bundler, and Linux
+> system-level `os` calls require Linux. ARM64 (`aarch64`) and x86-64 Linux
+> hosts are supported; other operating systems are not supported.
+
 ```c
 global setup(){
     str name = input("What's your name? ");

@@ -189,7 +189,7 @@ class BuiltInFunction(BaseFunction):
         """Call a C++ memory primitive and translate its exception to Lynxer."""
         try:
             return method(*values)
-        except (RuntimeError, ValueError, OverflowError, MemoryError) as exc:
+        except (RuntimeError, ValueError, OverflowError, MemoryError, OSError) as exc:
             return self._failure(exec_ctx, str(exc))
 
     def copy(self):
@@ -479,6 +479,28 @@ class BuiltInFunction(BaseFunction):
             return RTResult().success(Number.null)
         return RTResult().success(Number(result))
 
+    def execute_linuxSyscall(self, args, exec_ctx):
+        if (
+            len(args) != 2
+            or not _native_nonnegative(args[0])
+            or not isinstance(args[1], List)
+            or len(args[1].elements) > 6
+            or not all(_native_int(value) for value in args[1].elements)
+        ):
+            return self._failure(
+                exec_ctx,
+                "linuxSyscall(number, arguments) expects a non-negative "
+                "number and up to six integer arguments",
+            )
+        result = self._cpp(
+            _MEMORY_LIB.linuxSyscall,
+            [args[0].value, [value.value for value in args[1].elements]],
+            exec_ctx,
+        )
+        if isinstance(result, RTResult):
+            return result
+        return RTResult().success(Number(result))
+
     def execute_ffiLoadLibrary(self, args, exec_ctx):
         if len(args) != 1 or not isinstance(args[0], String):
             return self._failure(exec_ctx, "ffiLoadLibrary(path) expects a library path")
@@ -592,7 +614,9 @@ class BuiltInFunction(BaseFunction):
         if len(args) != 1 or not _native_nonnegative(args[0]):
             return self._failure(exec_ctx, "nativeThreadJoin(handle) expects a thread handle")
         result = self._cpp(_MEMORY_LIB.nativeThreadJoin, [args[0].value], exec_ctx)
-        return result if isinstance(result, RTResult) else RTResult().success(Number.null)
+        if isinstance(result, RTResult):
+            return result
+        return RTResult().success(String(result))
 
     def execute_nativeThreadIsAlive(self, args, exec_ctx):
         if len(args) != 1 or not _native_nonnegative(args[0]):
@@ -601,6 +625,14 @@ class BuiltInFunction(BaseFunction):
         if isinstance(result, RTResult):
             return result
         return RTResult().success(Number(1 if result else 0, is_bool=True))
+
+    def execute_nativeThreadStatus(self, args, exec_ctx):
+        if len(args) != 1 or not _native_nonnegative(args[0]):
+            return self._failure(exec_ctx, "nativeThreadStatus(handle) expects a thread handle")
+        result = self._cpp(_MEMORY_LIB.nativeThreadStatus, [args[0].value], exec_ctx)
+        if isinstance(result, RTResult):
+            return result
+        return RTResult().success(String(result))
 
     def execute_nativeThreadDetach(self, args, exec_ctx):
         if len(args) != 1 or not _native_nonnegative(args[0]):
@@ -2818,12 +2850,14 @@ BUILTIN_FUNCTION_NAMES = (
     "nativeThreadStart",
     "nativeThreadJoin",
     "nativeThreadIsAlive",
+    "nativeThreadStatus",
     "nativeThreadDetach",
     "nativeHandleAllocate",
     "nativeHandleAddress",
     "nativeHandleFree",
     "nativeHandleIsAlive",
     "nativeCall",
+    "linuxSyscall",
     "atomicLoad",
     "atomicStore",
     "atomicAdd",

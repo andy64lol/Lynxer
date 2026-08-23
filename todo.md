@@ -26,12 +26,12 @@
 
 ## Runtime / portability
 
-- [ ] Native error/status values instead of silent failures
-- [ ] Portable native-extension builds
+- [x] Native error/status values instead of silent failures
+- [x] Portable native-extension builds
 
 ## Bundling
 
-- [x] --bundle command allowing .lynx files turn into a bundled x86-64 Linux ELF executeable with the lynxer interpreter inside bundled
+- [x] --bundle command producing a host-native Linux executable for x86-64 and ARM64 with the Lynxer interpreter bundled
 - [x] Make sure --bundle command works
 - [x] Make --bundle generate: build/ and dist/
 - [x] Make Lynxer to bundle the compiled bytecode stored in build/bytecode

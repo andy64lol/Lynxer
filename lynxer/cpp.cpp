@@ -16,9 +16,14 @@
 #include <atomic>
 #include <thread>
 #include <mutex>
+#include <exception>
 #if defined(__unix__) || defined(__APPLE__)
 #include <sys/mman.h>
 #include <unistd.h>
+#endif
+#if defined(__linux__)
+#include <cerrno>
+#include <sys/syscall.h>
 #endif
 
 namespace {
@@ -32,6 +37,8 @@ struct NativeThread {
     std::atomic<bool> alive{true};
     std::atomic<bool> done{false};
     std::atomic<bool> detached{false};
+    std::string status{"running"};
+    std::mutex statusMutex;
 };
 
 std::mutex nativeThreadsMutex;
@@ -565,6 +572,54 @@ PyObject *pyNativeCall(PyObject *, PyObject *args) {
     return PyLong_FromUnsignedLongLong(static_cast<unsigned long long>(result));
 }
 
+PyObject *pyLinuxSyscall(PyObject *, PyObject *args) {
+#if !defined(__linux__)
+    PyErr_SetString(PyExc_NotImplementedError,
+        "linuxSyscall is only available on Linux");
+    return nullptr;
+#else
+    PyObject *numberObject;
+    PyObject *valuesObject;
+    if (!PyArg_ParseTuple(args, "OO", &numberObject, &valuesObject)) return nullptr;
+    long long number = PyLong_AsLongLong(numberObject);
+    if (PyErr_Occurred()) return nullptr;
+    if (number < 0) {
+        PyErr_SetString(PyExc_ValueError, "Linux syscall number must be non-negative");
+        return nullptr;
+    }
+    if (!PyList_Check(valuesObject)) {
+        PyErr_SetString(PyExc_TypeError, "Linux syscall arguments must be a list");
+        return nullptr;
+    }
+    Py_ssize_t count = PyList_GET_SIZE(valuesObject);
+    if (count > 6) {
+        PyErr_SetString(PyExc_ValueError, "Linux syscalls accept at most six arguments");
+        return nullptr;
+    }
+    unsigned long long values[6] = {};
+    for (Py_ssize_t index = 0; index < count; ++index) {
+        values[index] = PyLong_AsUnsignedLongLongMask(PyList_GET_ITEM(valuesObject, index));
+        if (PyErr_Occurred()) return nullptr;
+    }
+    errno = 0;
+    long result;
+    switch (count) {
+    case 0: result = ::syscall(number); break;
+    case 1: result = ::syscall(number, values[0]); break;
+    case 2: result = ::syscall(number, values[0], values[1]); break;
+    case 3: result = ::syscall(number, values[0], values[1], values[2]); break;
+    case 4: result = ::syscall(number, values[0], values[1], values[2], values[3]); break;
+    case 5: result = ::syscall(number, values[0], values[1], values[2], values[3], values[4]); break;
+    default: result = ::syscall(number, values[0], values[1], values[2], values[3], values[4], values[5]); break;
+    }
+    if (result == -1 && errno != 0) {
+        PyErr_SetFromErrno(PyExc_OSError);
+        return nullptr;
+    }
+    return PyLong_FromLong(result);
+#endif
+}
+
 PyObject *pyThreadStart(PyObject *, PyObject *args) {
     PyObject *callback;
     PyObject *callbackArgs;
@@ -594,7 +649,39 @@ PyObject *pyThreadStart(PyObject *, PyObject *args) {
     }
     thread->worker = std::thread([thread, execute, callbackArgs]() {
         PyGILState_STATE state = PyGILState_Ensure();
-        PyObject *result = PyObject_CallFunctionObjArgs(execute, callbackArgs, nullptr);
+        PyObject *result = nullptr;
+        try {
+            result = PyObject_CallFunctionObjArgs(execute, callbackArgs, nullptr);
+            if (result != nullptr) {
+                PyObject *error = PyObject_GetAttrString(result, "error");
+                bool failed = error != nullptr && PyObject_IsTrue(error) == 1;
+                if (failed) {
+                    PyObject *message = PyObject_CallMethod(error, "as_string", nullptr);
+                    if (message == nullptr) {
+                        PyErr_Clear();
+                        message = PyObject_Str(error);
+                    }
+                    const char *text = message == nullptr ? "native thread callback failed"
+                                                           : PyUnicode_AsUTF8(message);
+                    std::lock_guard<std::mutex> statusLock(thread->statusMutex);
+                    thread->status = text == nullptr ? "native thread callback failed" : text;
+                    Py_XDECREF(message);
+                } else {
+                    std::lock_guard<std::mutex> statusLock(thread->statusMutex);
+                    thread->status = "completed";
+                }
+                Py_XDECREF(error);
+            } else {
+                std::lock_guard<std::mutex> statusLock(thread->statusMutex);
+                thread->status = "native thread callback raised an exception";
+            }
+        } catch (const std::exception &exception) {
+            std::lock_guard<std::mutex> statusLock(thread->statusMutex);
+            thread->status = exception.what();
+        } catch (...) {
+            std::lock_guard<std::mutex> statusLock(thread->statusMutex);
+            thread->status = "native thread callback failed";
+        }
         Py_XDECREF(result);
         PyErr_Clear();
         Py_DECREF(execute);
@@ -639,8 +726,13 @@ PyObject *pyThreadJoin(PyObject *, PyObject *args) {
         std::lock_guard<std::mutex> lock(nativeThreadsMutex);
         nativeThreads.erase(thread);
     }
+    std::string status;
+    {
+        std::lock_guard<std::mutex> statusLock(thread->statusMutex);
+        status = thread->status;
+    }
     delete thread;
-    Py_RETURN_NONE;
+    return PyUnicode_FromString(status.c_str());
 }
 
 PyObject *pyThreadIsAlive(PyObject *, PyObject *args) {
@@ -650,6 +742,15 @@ PyObject *pyThreadIsAlive(PyObject *, PyObject *args) {
     if (thread == nullptr) return nullptr;
     if (thread->alive.load()) Py_RETURN_TRUE;
     Py_RETURN_FALSE;
+}
+
+PyObject *pyThreadStatus(PyObject *, PyObject *args) {
+    PyObject *handle;
+    if (!PyArg_ParseTuple(args, "O", &handle)) return nullptr;
+    NativeThread *thread = findNativeThread(handle);
+    if (thread == nullptr) return nullptr;
+    std::lock_guard<std::mutex> statusLock(thread->statusMutex);
+    return PyUnicode_FromString(thread->status.c_str());
 }
 
 PyObject *pyThreadDetach(PyObject *, PyObject *args) {
@@ -1377,9 +1478,11 @@ PyMethodDef methods[] = {
     {"refSet", pyRefSet, METH_VARARGS, "Write a native Lynxer reference cell."},
     {"refFree", pyRefFree, METH_VARARGS, "Free a native Lynxer reference cell."},
     {"nativeCall", pyNativeCall, METH_VARARGS, "Call an integer-ABI native function address."},
+    {"linuxSyscall", pyLinuxSyscall, METH_VARARGS, "Invoke a raw Linux system call."},
     {"nativeThreadStart", pyThreadStart, METH_VARARGS, "Start a native thread running a Lynxer function."},
     {"nativeThreadJoin", pyThreadJoin, METH_VARARGS, "Join a native Lynxer thread."},
     {"nativeThreadIsAlive", pyThreadIsAlive, METH_VARARGS, "Check whether a native Lynxer thread is running."},
+    {"nativeThreadStatus", pyThreadStatus, METH_VARARGS, "Get the status of a native Lynxer thread."},
     {"nativeThreadDetach", pyThreadDetach, METH_VARARGS, "Detach a native Lynxer thread."},
     {"atomicLoad", pyAtomicLoad, METH_VARARGS, "Atomically load a native integer."},
     {"atomicStore", pyAtomicStore, METH_VARARGS, "Atomically store a native integer."},

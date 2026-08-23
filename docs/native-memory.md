@@ -11,6 +11,10 @@ The functions below are available directly in every program; they never need
 make buildCpp
 ```
 
+The extension build selects the appropriate C++17 and thread-linker flags for
+the host compiler: MSVC on Windows, and POSIX-compatible compiler flags on
+Unix-like systems.
+
 The normal `make build` and `make buildLite` targets run this step
 automatically before packaging Lynxer. A C++ compiler and the active Python
 development headers are required. Native addresses are
@@ -95,7 +99,11 @@ int thread = nativeThreadStart(global.worker, [int 42]);
 nativeThreadJoin(thread);
 ```
 
-`nativeThreadIsAlive(handle)` reports whether the thread is still running.
+`nativeThreadJoin(handle)` returns `completed` on success or the callback's
+error message on failure. `nativeThreadIsAlive(handle)` reports whether the
+thread is still running.
+`nativeThreadStatus(handle)` returns the current status while the thread is
+running.
 `nativeThreadDetach(handle)` releases ownership so it cleans itself up when it
 finishes. A thread handle must be joined or detached exactly once.
 

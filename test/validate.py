@@ -10,6 +10,7 @@ from __future__ import annotations
 import contextlib
 import io
 import os
+import platform
 import subprocess
 import sys
 import tempfile
@@ -478,6 +479,37 @@ global main(){
         "42\n",
         "native thread start and join",
     )
+    output, error = run_source(
+        """global setup(){}
+global worker(){ assert(false, "thread failure"); }
+global main(){
+    int thread = nativeThreadStart(global.worker, []);
+    println(nativeThreadJoin(thread));
+}""",
+        "<native thread failure status>",
+    )
+    if error is not None or "thread failure" not in output:
+        raise ValidationFailure(
+            "native thread failure status: expected propagated callback error, "
+            f"received {output!r}"
+        )
+
+
+def test_linux_syscall() -> None:
+    syscall_numbers = {"x86_64": 39, "amd64": 39, "aarch64": 172, "arm64": 172}
+    number = syscall_numbers.get(platform.machine().lower())
+    if number is None:
+        raise ValidationFailure(
+            f"Linux syscall test does not know architecture {platform.machine()!r}"
+        )
+    require_output(
+        f"""global setup(){{}}
+global main(){{
+    println(linuxSyscall({number}, [] ) > 0);
+}}""",
+        "true\n",
+        "Linux native syscall",
+    )
 
 
 def test_cli(temp_root: Path) -> None:
@@ -579,6 +611,7 @@ def main() -> int:
             ("bytecode", lambda: test_bytecode(temp_root)),
             ("C FFI and native callbacks", test_ffi),
             ("native threads", test_native_threads),
+            ("Linux native syscall", test_linux_syscall),
             ("CLI", lambda: test_cli(temp_root)),
             ("existing .lynx fixtures", test_existing_fixtures),
         ]

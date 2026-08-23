@@ -59,6 +59,15 @@ println(memoryReadInt32(address, 0));
 memoryFree(address);
 ```
 
+### `linuxSyscall(number, arguments)`
+
+Invoke a raw Linux system call through the C++ extension. `arguments` must be
+a list of at most six integer values. The syscall number and argument layout
+are Linux ABI-specific and can differ between x86-64 and ARM64; use the
+appropriate architecture's Linux headers when selecting them. Failed calls
+raise a Lynxer runtime error containing the Linux `errno` message. This
+built-in is available only on Linux.
+
 The allocator is also available as `memoryAllocate`, `memoryCallocate`,
 `memoryReallocate`, `memoryFree`, `memorySet`, and `memoryCopy`. Typed
 read/write functions are available for signed and unsigned 8/16/32/64-bit

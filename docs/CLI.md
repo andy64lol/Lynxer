@@ -97,8 +97,9 @@ lynxer --bundle program.lynx
 ```
 
 The compiled bytecode is stored in `build/bytecode/` and the executable is
-written to `dist/program`. An optional second argument selects the executable
-name:
+written to `dist/program`. On Linux, bundling uses the architecture of the
+host where it runs, including both x86-64 and ARM64 (`aarch64`) distributions.
+An optional second argument selects the executable name:
 
 ```bash
 lynxer --bundle program.lynx my-program

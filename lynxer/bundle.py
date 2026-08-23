@@ -5,9 +5,28 @@ from __future__ import annotations
 import shutil
 import subprocess
 import sys
+import platform
 from pathlib import Path
 
 from .bytecode import compile_to_bytecode
+
+
+def _linux_architecture() -> str:
+    """Return the normalized architecture PyInstaller will build for."""
+    machine = platform.machine().lower()
+    aliases = {
+        "x86_64": "x86_64",
+        "amd64": "x86_64",
+        "aarch64": "arm64",
+        "arm64": "arm64",
+    }
+    architecture = aliases.get(machine)
+    if sys.platform.startswith("linux") and architecture is None:
+        raise RuntimeError(
+            f"Linux bundling is supported on x86_64 and arm64 hosts; "
+            f"detected '{machine or 'unknown'}'"
+        )
+    return architecture or machine or "unknown"
 
 
 def _launcher_source(bytecode_name: str) -> str:
@@ -38,6 +57,7 @@ if __name__ == "__main__":
 
 def bundle_program(source_path: str, output_name: str | None = None) -> Path:
     """Compile *source_path* and package it as a one-file executable."""
+    _linux_architecture()
     source = Path(source_path).expanduser().resolve()
     if not source.is_file():
         raise RuntimeError(f"file not found: '{source_path}'")

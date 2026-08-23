@@ -13,6 +13,12 @@ refGet: Any
 refSet: Any
 refCreate: Any
 nativeCall: Any
+linuxSyscall: Any
+nativeThreadStart: Any
+nativeThreadJoin: Any
+nativeThreadIsAlive: Any
+nativeThreadStatus: Any
+nativeThreadDetach: Any
 memoryTypeSize: Any
 memoryTypeAlignment: Any
 memoryBlockAllocate: Any
