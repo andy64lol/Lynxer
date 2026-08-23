@@ -70,6 +70,8 @@ struct StructField {
     std::string name;
     std::string type;
     size_t offset;
+    size_t size;
+    size_t alignment;
 };
 
 struct StructLayout {
@@ -85,6 +87,8 @@ bool memoryType(const std::string &name, MemoryType *out) {
     else if (name == "int16" || name == "uint16") *out = {2, 2};
     else if (name == "int32" || name == "uint32" || name == "float32") *out = {4, 4};
     else if (name == "int64" || name == "uint64" || name == "float64") *out = {8, 8};
+    else if (name == "uintptr" || name == "pointer" || name == "functionPointer")
+        *out = {sizeof(uintptr_t), alignof(uintptr_t)};
     else return false;
     return true;
 }
@@ -188,17 +192,6 @@ void storeOrdered(unsigned char *bytes, T value, bool little) {
     }
 }
 
-size_t layoutAlignment(const StructLayout &layout) {
-    size_t alignment = 1;
-    for (const auto &field : layout.fields) {
-        MemoryType info;
-        if (memoryType(field.type, &info)) {
-            alignment = std::max(alignment, info.alignment);
-        }
-    }
-    return alignment;
-}
-
 bool validFieldName(const std::string &name) {
     if (name.empty() ||
         !(std::isalpha(static_cast<unsigned char>(name[0])) || name[0] == '_')) {
@@ -211,42 +204,132 @@ bool validFieldName(const std::string &name) {
     return true;
 }
 
-bool layoutFromObject(PyObject *object, StructLayout *out) {
-    const char *raw;
-    if (!PyArg_Parse(object, "s", &raw)) return false;
-    std::string text(raw);
-    size_t offset = 0, alignment = 1, start = 0;
+std::string trimLayoutText(const std::string &text) {
+    size_t first = text.find_first_not_of(" \t");
+    if (first == std::string::npos) return "";
+    size_t last = text.find_last_not_of(" \t");
+    return text.substr(first, last - first + 1);
+}
+
+bool splitLayoutFields(const std::string &text, std::vector<std::string> *fields) {
+    size_t start = 0;
+    int braces = 0;
+    int brackets = 0;
+    for (size_t i = 0; i <= text.size(); ++i) {
+        char character = i < text.size() ? text[i] : ',';
+        if (character == '{') ++braces;
+        else if (character == '}') --braces;
+        else if (character == '[') ++brackets;
+        else if (character == ']') --brackets;
+        else if (character == ',' && braces == 0 && brackets == 0) {
+            std::string field = trimLayoutText(text.substr(start, i - start));
+            if (field.empty()) {
+                PyErr_SetString(PyExc_ValueError, "layout contains an empty field");
+                return false;
+            }
+            fields->push_back(field);
+            start = i + 1;
+        }
+    }
+    if (braces != 0 || brackets != 0) {
+        PyErr_SetString(PyExc_ValueError, "layout has unbalanced braces or brackets");
+        return false;
+    }
+    return true;
+}
+
+bool layoutFromText(const std::string &text, StructLayout *out, bool unionLayout);
+size_t layoutAlignment(const StructLayout &layout);
+
+bool typeLayout(const std::string &rawType, MemoryType *out) {
+    std::string type = trimLayoutText(rawType);
+    if (memoryType(type, out)) return true;
+    if (type.size() > 2 && type.back() == ']') {
+        size_t open = type.rfind('[');
+        if (open == std::string::npos || open == 0 || open == type.size() - 1) return false;
+        std::string countText = type.substr(open + 1, type.size() - open - 2);
+        char *end = nullptr;
+        unsigned long long count = std::strtoull(countText.c_str(), &end, 10);
+        if (!end || *end != '\0' || count == 0 ||
+            count > std::numeric_limits<size_t>::max()) return false;
+        MemoryType element;
+        if (!typeLayout(type.substr(0, open), &element) ||
+            count > std::numeric_limits<size_t>::max() / element.size) return false;
+        out->size = element.size * static_cast<size_t>(count);
+        out->alignment = element.alignment;
+        return true;
+    }
+    bool isStruct = type.rfind("struct{", 0) == 0;
+    bool isUnion = type.rfind("union{", 0) == 0;
+    if (isStruct || isUnion) {
+        if (type.back() != '}') return false;
+        StructLayout nested;
+        if (!layoutFromText(type.substr(type.find('{') + 1,
+                                        type.size() - type.find('{') - 2),
+                            &nested, isUnion)) return false;
+        out->size = nested.size;
+        out->alignment = layoutAlignment(nested);
+        return true;
+    }
+    return false;
+}
+
+size_t layoutAlignment(const StructLayout &layout) {
+    size_t alignment = 1;
+    for (const auto &field : layout.fields) alignment = std::max(alignment, field.alignment);
+    return alignment;
+}
+
+bool layoutFromText(const std::string &text, StructLayout *out, bool unionLayout) {
+    size_t offset = 0;
+    size_t alignment = 1;
     std::unordered_set<std::string> names;
-    while (start <= text.size()) {
-        size_t end = text.find(',', start);
-        std::string item = text.substr(start, end == std::string::npos ? end : end - start);
-        size_t itemStart = item.find_first_not_of(" \t");
-        if (itemStart != std::string::npos) item = item.substr(itemStart);
-        size_t split = item.find_first_of(" \t");
+    std::vector<std::string> fields;
+    if (!splitLayoutFields(text, &fields)) return false;
+    for (const std::string &item : fields) {
+        size_t split = std::string::npos;
+        int braces = 0;
+        int brackets = 0;
+        for (size_t i = 0; i < item.size(); ++i) {
+            if (item[i] == '{') ++braces;
+            else if (item[i] == '}') --braces;
+            else if (item[i] == '[') ++brackets;
+            else if (item[i] == ']') --brackets;
+            else if (std::isspace(static_cast<unsigned char>(item[i])) &&
+                     braces == 0 && brackets == 0) {
+                split = i;
+                break;
+            }
+        }
         if (split == std::string::npos) {
             PyErr_SetString(PyExc_ValueError, "layout fields must be '<type> <name>'");
             return false;
         }
-        std::string type = item.substr(0, split);
+        std::string type = trimLayoutText(item.substr(0, split));
         size_t nameStart = item.find_first_not_of(" \t", split);
-        std::string name = nameStart == std::string::npos ? "" : item.substr(nameStart);
-        size_t nameEnd = name.find_last_not_of(" \t");
-        if (nameEnd != std::string::npos) name.resize(nameEnd + 1);
+        std::string name = nameStart == std::string::npos
+            ? "" : trimLayoutText(item.substr(nameStart));
         MemoryType info;
-        if (!memoryType(type, &info) || !validFieldName(name) || names.count(name)) {
+        if (!typeLayout(type, &info) || !validFieldName(name) || names.count(name)) {
             PyErr_SetString(PyExc_ValueError, "invalid or duplicate struct layout field");
             return false;
         }
         names.insert(name);
-        offset = (offset + info.alignment - 1) / info.alignment * info.alignment;
-        out->fields.push_back({name, type, offset});
-        offset += info.size;
+        size_t fieldOffset = unionLayout ? 0 :
+            (offset + info.alignment - 1) / info.alignment * info.alignment;
+        out->fields.push_back({name, type, fieldOffset, info.size, info.alignment});
+        if (unionLayout) offset = std::max(offset, info.size);
+        else offset = fieldOffset + info.size;
         alignment = std::max(alignment, info.alignment);
-        if (end == std::string::npos) break;
-        start = end + 1;
     }
     out->size = (offset + alignment - 1) / alignment * alignment;
     return true;
+}
+
+bool layoutFromObject(PyObject *object, StructLayout *out) {
+    const char *raw;
+    if (!PyArg_Parse(object, "s", &raw)) return false;
+    return layoutFromText(raw, out, false);
 }
 
 bool blockField(PyObject *object, PyObject *indexObject, void **ptr, size_t *offset,
@@ -572,28 +655,21 @@ PyObject *pyNativeCall(PyObject *, PyObject *args) {
     return PyLong_FromUnsignedLongLong(static_cast<unsigned long long>(result));
 }
 
-PyObject *pyLinuxSyscall(PyObject *, PyObject *args) {
+PyObject *invokeLinuxSyscall(long number, PyObject *args) {
 #if !defined(__linux__)
     PyErr_SetString(PyExc_NotImplementedError,
-        "linuxSyscall is only available on Linux");
+        "named syscalls are only available on Linux");
     return nullptr;
 #else
-    PyObject *numberObject;
     PyObject *valuesObject;
-    if (!PyArg_ParseTuple(args, "OO", &numberObject, &valuesObject)) return nullptr;
-    long long number = PyLong_AsLongLong(numberObject);
-    if (PyErr_Occurred()) return nullptr;
-    if (number < 0) {
-        PyErr_SetString(PyExc_ValueError, "Linux syscall number must be non-negative");
-        return nullptr;
-    }
+    if (!PyArg_ParseTuple(args, "O", &valuesObject)) return nullptr;
     if (!PyList_Check(valuesObject)) {
-        PyErr_SetString(PyExc_TypeError, "Linux syscall arguments must be a list");
+        PyErr_SetString(PyExc_TypeError, "syscall arguments must be a list");
         return nullptr;
     }
     Py_ssize_t count = PyList_GET_SIZE(valuesObject);
     if (count > 6) {
-        PyErr_SetString(PyExc_ValueError, "Linux syscalls accept at most six arguments");
+        PyErr_SetString(PyExc_ValueError, "syscalls accept at most six arguments");
         return nullptr;
     }
     unsigned long long values[6] = {};
@@ -619,6 +695,93 @@ PyObject *pyLinuxSyscall(PyObject *, PyObject *args) {
     return PyLong_FromLong(result);
 #endif
 }
+
+#if defined(__linux__)
+#define NAMED_SYSCALL(NAME, NUMBER) \
+    PyObject *py##NAME(PyObject *, PyObject *args) { return invokeLinuxSyscall(NUMBER, args); }
+#else
+#define NAMED_SYSCALL(NAME, NUMBER) \
+    PyObject *py##NAME(PyObject *, PyObject *args) { return invokeLinuxSyscall(0, args); }
+#endif
+
+NAMED_SYSCALL(SyscallRead, SYS_read)
+NAMED_SYSCALL(SyscallWrite, SYS_write)
+NAMED_SYSCALL(SyscallOpenAt, SYS_openat)
+NAMED_SYSCALL(SyscallClose, SYS_close)
+NAMED_SYSCALL(SyscallReadVector, SYS_readv)
+NAMED_SYSCALL(SyscallWriteVector, SYS_writev)
+NAMED_SYSCALL(SyscallSeekFile, SYS_lseek)
+NAMED_SYSCALL(SyscallGetFileStatus, SYS_fstat)
+NAMED_SYSCALL(SyscallGetFileStatusAt, SYS_newfstatat)
+NAMED_SYSCALL(SyscallTruncateFile, SYS_ftruncate)
+NAMED_SYSCALL(SyscallSynchronizeFile, SYS_fsync)
+NAMED_SYSCALL(SyscallSynchronizeFileData, SYS_fdatasync)
+NAMED_SYSCALL(SyscallDuplicateFileDescriptor, SYS_dup)
+NAMED_SYSCALL(SyscallDuplicateFileDescriptorAt, SYS_dup3)
+NAMED_SYSCALL(SyscallCreatePipe, SYS_pipe2)
+NAMED_SYSCALL(SyscallControlFileDescriptor, SYS_fcntl)
+NAMED_SYSCALL(SyscallGetDirectoryEntries, SYS_getdents64)
+NAMED_SYSCALL(SyscallReadSymbolicLink, SYS_readlinkat)
+NAMED_SYSCALL(SyscallCreateDirectoryAt, SYS_mkdirat)
+NAMED_SYSCALL(SyscallRemoveFileAt, SYS_unlinkat)
+NAMED_SYSCALL(SyscallRenameFileAt, SYS_renameat)
+NAMED_SYSCALL(SyscallCreateHardLinkAt, SYS_linkat)
+NAMED_SYSCALL(SyscallCreateSymbolicLinkAt, SYS_symlinkat)
+NAMED_SYSCALL(SyscallChangeFilePermissions, SYS_fchmodat)
+NAMED_SYSCALL(SyscallChangeFileDescriptorPermissions, SYS_fchmod)
+NAMED_SYSCALL(SyscallChangeFileOwner, SYS_fchownat)
+NAMED_SYSCALL(SyscallChangeFileDescriptorOwner, SYS_fchown)
+NAMED_SYSCALL(SyscallMemoryMap, SYS_mmap)
+NAMED_SYSCALL(SyscallMemoryUnmap, SYS_munmap)
+NAMED_SYSCALL(SyscallMemoryProtect, SYS_mprotect)
+NAMED_SYSCALL(SyscallMemoryAdvise, SYS_madvise)
+NAMED_SYSCALL(SyscallMemoryRemap, SYS_mremap)
+NAMED_SYSCALL(SyscallAdjustProgramBreak, SYS_brk)
+NAMED_SYSCALL(SyscallExecuteProgram, SYS_execve)
+NAMED_SYSCALL(SyscallExecuteProgramAt, SYS_execveat)
+NAMED_SYSCALL(SyscallExitProcess, SYS_exit)
+NAMED_SYSCALL(SyscallExitAllThreads, SYS_exit_group)
+NAMED_SYSCALL(SyscallWaitForProcess, SYS_wait4)
+NAMED_SYSCALL(SyscallGetProcessId, SYS_getpid)
+NAMED_SYSCALL(SyscallGetParentProcessId, SYS_getppid)
+NAMED_SYSCALL(SyscallSendSignal, SYS_kill)
+NAMED_SYSCALL(SyscallCreateThread, SYS_clone)
+NAMED_SYSCALL(SyscallGetThreadId, SYS_gettid)
+NAMED_SYSCALL(SyscallWaitOnMemory, SYS_futex)
+NAMED_SYSCALL(SyscallSetThreadIdAddress, SYS_set_tid_address)
+NAMED_SYSCALL(SyscallSetRobustThreadList, SYS_set_robust_list)
+NAMED_SYSCALL(SyscallGetRobustThreadList, SYS_get_robust_list)
+NAMED_SYSCALL(SyscallYieldProcessor, SYS_sched_yield)
+NAMED_SYSCALL(SyscallGetClockTime, SYS_clock_gettime)
+NAMED_SYSCALL(SyscallGetClockResolution, SYS_clock_getres)
+NAMED_SYSCALL(SyscallSleep, SYS_nanosleep)
+NAMED_SYSCALL(SyscallGetRandomBytes, SYS_getrandom)
+NAMED_SYSCALL(SyscallCreateSocket, SYS_socket)
+NAMED_SYSCALL(SyscallCreateSocketPair, SYS_socketpair)
+NAMED_SYSCALL(SyscallBindSocket, SYS_bind)
+NAMED_SYSCALL(SyscallListenSocket, SYS_listen)
+NAMED_SYSCALL(SyscallAcceptConnection, SYS_accept)
+NAMED_SYSCALL(SyscallConnectSocket, SYS_connect)
+NAMED_SYSCALL(SyscallSendData, SYS_sendto)
+NAMED_SYSCALL(SyscallReceiveData, SYS_recvfrom)
+NAMED_SYSCALL(SyscallSendMessage, SYS_sendmsg)
+NAMED_SYSCALL(SyscallReceiveMessage, SYS_recvmsg)
+NAMED_SYSCALL(SyscallShutdownSocket, SYS_shutdown)
+NAMED_SYSCALL(SyscallGetSocketAddress, SYS_getsockname)
+NAMED_SYSCALL(SyscallGetPeerAddress, SYS_getpeername)
+NAMED_SYSCALL(SyscallSetSocketOption, SYS_setsockopt)
+NAMED_SYSCALL(SyscallGetSocketOption, SYS_getsockopt)
+NAMED_SYSCALL(SyscallPollFileDescriptors, SYS_poll)
+NAMED_SYSCALL(SyscallCreateEventPoll, SYS_epoll_create1)
+NAMED_SYSCALL(SyscallControlEventPoll, SYS_epoll_ctl)
+NAMED_SYSCALL(SyscallWaitForEvents, SYS_epoll_wait)
+NAMED_SYSCALL(SyscallGetSystemInformation, SYS_sysinfo)
+NAMED_SYSCALL(SyscallGetResourceUsage, SYS_getrusage)
+NAMED_SYSCALL(SyscallGetResourceLimit, SYS_getrlimit)
+NAMED_SYSCALL(SyscallSetResourceLimit, SYS_setrlimit)
+NAMED_SYSCALL(SyscallControlProcess, SYS_prctl)
+
+#undef NAMED_SYSCALL
 
 PyObject *pyThreadStart(PyObject *, PyObject *args) {
     PyObject *callback;
@@ -1343,9 +1506,8 @@ PyObject *pyMemoryStructField(PyObject *, PyObject *args, bool wantSize) {
     if (!layoutFromObject(layoutObject, &layout)) return nullptr;
     for (size_t i = 0; i < layout.fields.size(); ++i) {
         if (layout.fields[i].name == field) {
-            MemoryType info;
-            memoryType(layout.fields[i].type, &info);
-            return PyLong_FromSize_t(wantSize ? info.size : layout.fields[i].offset);
+            return PyLong_FromSize_t(
+                wantSize ? layout.fields[i].size : layout.fields[i].offset);
         }
     }
     PyErr_SetString(PyExc_ValueError, "struct field is not present");
@@ -1366,6 +1528,10 @@ PyObject *pyMemoryStructGet(PyObject *, PyObject *args) {
             MemoryType info;
             if (!memoryType(item.type, &info) ||
                 !validateMemory(ptr, item.offset, info.size)) {
+                if (!memoryType(item.type, &info)) {
+                    PyErr_SetString(PyExc_ValueError,
+                        "struct field is an aggregate; access its native address and size");
+                }
                 return nullptr;
             }
             PyObject *pair = Py_BuildValue("(OK)", addressObject,
@@ -1381,6 +1547,9 @@ PyObject *pyMemoryStructGet(PyObject *, PyObject *args) {
             else if (item.type == "int16") result = readFixed<std::int16_t>(pair);
             else if (item.type == "uint16") result = readFixed<std::uint16_t>(pair);
             else if (item.type == "int8") result = readFixed<std::int8_t>(pair);
+            else if (item.type == "uintptr" || item.type == "pointer" ||
+                     item.type == "functionPointer")
+                result = readFixed<uintptr_t>(pair);
             else result = readFixed<std::uint8_t>(pair);
             Py_DECREF(pair);
             return result;
@@ -1404,6 +1573,10 @@ PyObject *pyMemoryStructSet(PyObject *, PyObject *args) {
             MemoryType info;
             if (!memoryType(item.type, &info) ||
                 !validateMemory(ptr, item.offset, info.size)) {
+                if (!memoryType(item.type, &info)) {
+                    PyErr_SetString(PyExc_ValueError,
+                        "struct field is an aggregate; write its native address directly");
+                }
                 return nullptr;
             }
             PyObject *triple = Py_BuildValue("(OKO)", addressObject,
@@ -1419,6 +1592,9 @@ PyObject *pyMemoryStructSet(PyObject *, PyObject *args) {
             else if (item.type == "int16") result = writeFixed<std::int16_t>(triple);
             else if (item.type == "uint16") result = writeFixed<std::uint16_t>(triple);
             else if (item.type == "int8") result = writeFixed<std::int8_t>(triple);
+            else if (item.type == "uintptr" || item.type == "pointer" ||
+                     item.type == "functionPointer")
+                result = writeFixed<uintptr_t>(triple);
             else result = writeFixed<std::uint8_t>(triple);
             Py_DECREF(triple);
             return result;
@@ -1478,7 +1654,82 @@ PyMethodDef methods[] = {
     {"refSet", pyRefSet, METH_VARARGS, "Write a native Lynxer reference cell."},
     {"refFree", pyRefFree, METH_VARARGS, "Free a native Lynxer reference cell."},
     {"nativeCall", pyNativeCall, METH_VARARGS, "Call an integer-ABI native function address."},
-    {"linuxSyscall", pyLinuxSyscall, METH_VARARGS, "Invoke a raw Linux system call."},
+    {"syscallRead", pySyscallRead, METH_VARARGS, "Invoke read."},
+    {"syscallWrite", pySyscallWrite, METH_VARARGS, "Invoke write."},
+    {"syscallOpenAt", pySyscallOpenAt, METH_VARARGS, "Invoke openat."},
+    {"syscallClose", pySyscallClose, METH_VARARGS, "Invoke close."},
+    {"syscallReadVector", pySyscallReadVector, METH_VARARGS, "Invoke readv."},
+    {"syscallWriteVector", pySyscallWriteVector, METH_VARARGS, "Invoke writev."},
+    {"syscallSeekFile", pySyscallSeekFile, METH_VARARGS, "Invoke lseek."},
+    {"syscallGetFileStatus", pySyscallGetFileStatus, METH_VARARGS, "Invoke fstat."},
+    {"syscallGetFileStatusAt", pySyscallGetFileStatusAt, METH_VARARGS, "Invoke newfstatat."},
+    {"syscallTruncateFile", pySyscallTruncateFile, METH_VARARGS, "Invoke ftruncate."},
+    {"syscallSynchronizeFile", pySyscallSynchronizeFile, METH_VARARGS, "Invoke fsync."},
+    {"syscallSynchronizeFileData", pySyscallSynchronizeFileData, METH_VARARGS, "Invoke fdatasync."},
+    {"syscallDuplicateFileDescriptor", pySyscallDuplicateFileDescriptor, METH_VARARGS, "Invoke dup."},
+    {"syscallDuplicateFileDescriptorAt", pySyscallDuplicateFileDescriptorAt, METH_VARARGS, "Invoke dup3."},
+    {"syscallCreatePipe", pySyscallCreatePipe, METH_VARARGS, "Invoke pipe2."},
+    {"syscallControlFileDescriptor", pySyscallControlFileDescriptor, METH_VARARGS, "Invoke fcntl."},
+    {"syscallGetDirectoryEntries", pySyscallGetDirectoryEntries, METH_VARARGS, "Invoke getdents64."},
+    {"syscallReadSymbolicLink", pySyscallReadSymbolicLink, METH_VARARGS, "Invoke readlinkat."},
+    {"syscallCreateDirectoryAt", pySyscallCreateDirectoryAt, METH_VARARGS, "Invoke mkdirat."},
+    {"syscallRemoveFileAt", pySyscallRemoveFileAt, METH_VARARGS, "Invoke unlinkat."},
+    {"syscallRenameFileAt", pySyscallRenameFileAt, METH_VARARGS, "Invoke renameat."},
+    {"syscallCreateHardLinkAt", pySyscallCreateHardLinkAt, METH_VARARGS, "Invoke linkat."},
+    {"syscallCreateSymbolicLinkAt", pySyscallCreateSymbolicLinkAt, METH_VARARGS, "Invoke symlinkat."},
+    {"syscallChangeFilePermissions", pySyscallChangeFilePermissions, METH_VARARGS, "Invoke fchmodat."},
+    {"syscallChangeFileDescriptorPermissions", pySyscallChangeFileDescriptorPermissions, METH_VARARGS, "Invoke fchmod."},
+    {"syscallChangeFileOwner", pySyscallChangeFileOwner, METH_VARARGS, "Invoke fchownat."},
+    {"syscallChangeFileDescriptorOwner", pySyscallChangeFileDescriptorOwner, METH_VARARGS, "Invoke fchown."},
+    {"syscallMemoryMap", pySyscallMemoryMap, METH_VARARGS, "Invoke mmap."},
+    {"syscallMemoryUnmap", pySyscallMemoryUnmap, METH_VARARGS, "Invoke munmap."},
+    {"syscallMemoryProtect", pySyscallMemoryProtect, METH_VARARGS, "Invoke mprotect."},
+    {"syscallMemoryAdvise", pySyscallMemoryAdvise, METH_VARARGS, "Invoke madvise."},
+    {"syscallMemoryRemap", pySyscallMemoryRemap, METH_VARARGS, "Invoke mremap."},
+    {"syscallAdjustProgramBreak", pySyscallAdjustProgramBreak, METH_VARARGS, "Invoke brk."},
+    {"syscallExecuteProgram", pySyscallExecuteProgram, METH_VARARGS, "Invoke execve."},
+    {"syscallExecuteProgramAt", pySyscallExecuteProgramAt, METH_VARARGS, "Invoke execveat."},
+    {"syscallExitProcess", pySyscallExitProcess, METH_VARARGS, "Invoke exit."},
+    {"syscallExitAllThreads", pySyscallExitAllThreads, METH_VARARGS, "Invoke exit_group."},
+    {"syscallWaitForProcess", pySyscallWaitForProcess, METH_VARARGS, "Invoke wait4."},
+    {"syscallGetProcessId", pySyscallGetProcessId, METH_VARARGS, "Invoke getpid."},
+    {"syscallGetParentProcessId", pySyscallGetParentProcessId, METH_VARARGS, "Invoke getppid."},
+    {"syscallSendSignal", pySyscallSendSignal, METH_VARARGS, "Invoke kill."},
+    {"syscallCreateThread", pySyscallCreateThread, METH_VARARGS, "Invoke clone."},
+    {"syscallGetThreadId", pySyscallGetThreadId, METH_VARARGS, "Invoke gettid."},
+    {"syscallWaitOnMemory", pySyscallWaitOnMemory, METH_VARARGS, "Invoke futex."},
+    {"syscallSetThreadIdAddress", pySyscallSetThreadIdAddress, METH_VARARGS, "Invoke set_tid_address."},
+    {"syscallSetRobustThreadList", pySyscallSetRobustThreadList, METH_VARARGS, "Invoke set_robust_list."},
+    {"syscallGetRobustThreadList", pySyscallGetRobustThreadList, METH_VARARGS, "Invoke get_robust_list."},
+    {"syscallYieldProcessor", pySyscallYieldProcessor, METH_VARARGS, "Invoke sched_yield."},
+    {"syscallGetClockTime", pySyscallGetClockTime, METH_VARARGS, "Invoke clock_gettime."},
+    {"syscallGetClockResolution", pySyscallGetClockResolution, METH_VARARGS, "Invoke clock_getres."},
+    {"syscallSleep", pySyscallSleep, METH_VARARGS, "Invoke nanosleep."},
+    {"syscallGetRandomBytes", pySyscallGetRandomBytes, METH_VARARGS, "Invoke getrandom."},
+    {"syscallCreateSocket", pySyscallCreateSocket, METH_VARARGS, "Invoke socket."},
+    {"syscallCreateSocketPair", pySyscallCreateSocketPair, METH_VARARGS, "Invoke socketpair."},
+    {"syscallBindSocket", pySyscallBindSocket, METH_VARARGS, "Invoke bind."},
+    {"syscallListenSocket", pySyscallListenSocket, METH_VARARGS, "Invoke listen."},
+    {"syscallAcceptConnection", pySyscallAcceptConnection, METH_VARARGS, "Invoke accept."},
+    {"syscallConnectSocket", pySyscallConnectSocket, METH_VARARGS, "Invoke connect."},
+    {"syscallSendData", pySyscallSendData, METH_VARARGS, "Invoke sendto."},
+    {"syscallReceiveData", pySyscallReceiveData, METH_VARARGS, "Invoke recvfrom."},
+    {"syscallSendMessage", pySyscallSendMessage, METH_VARARGS, "Invoke sendmsg."},
+    {"syscallReceiveMessage", pySyscallReceiveMessage, METH_VARARGS, "Invoke recvmsg."},
+    {"syscallShutdownSocket", pySyscallShutdownSocket, METH_VARARGS, "Invoke shutdown."},
+    {"syscallGetSocketAddress", pySyscallGetSocketAddress, METH_VARARGS, "Invoke getsockname."},
+    {"syscallGetPeerAddress", pySyscallGetPeerAddress, METH_VARARGS, "Invoke getpeername."},
+    {"syscallSetSocketOption", pySyscallSetSocketOption, METH_VARARGS, "Invoke setsockopt."},
+    {"syscallGetSocketOption", pySyscallGetSocketOption, METH_VARARGS, "Invoke getsockopt."},
+    {"syscallPollFileDescriptors", pySyscallPollFileDescriptors, METH_VARARGS, "Invoke poll."},
+    {"syscallCreateEventPoll", pySyscallCreateEventPoll, METH_VARARGS, "Invoke epoll_create1."},
+    {"syscallControlEventPoll", pySyscallControlEventPoll, METH_VARARGS, "Invoke epoll_ctl."},
+    {"syscallWaitForEvents", pySyscallWaitForEvents, METH_VARARGS, "Invoke epoll_wait."},
+    {"syscallGetSystemInformation", pySyscallGetSystemInformation, METH_VARARGS, "Invoke sysinfo."},
+    {"syscallGetResourceUsage", pySyscallGetResourceUsage, METH_VARARGS, "Invoke getrusage."},
+    {"syscallGetResourceLimit", pySyscallGetResourceLimit, METH_VARARGS, "Invoke getrlimit."},
+    {"syscallSetResourceLimit", pySyscallSetResourceLimit, METH_VARARGS, "Invoke setrlimit."},
+    {"syscallControlProcess", pySyscallControlProcess, METH_VARARGS, "Invoke prctl."},
     {"nativeThreadStart", pyThreadStart, METH_VARARGS, "Start a native thread running a Lynxer function."},
     {"nativeThreadJoin", pyThreadJoin, METH_VARARGS, "Join a native Lynxer thread."},
     {"nativeThreadIsAlive", pyThreadIsAlive, METH_VARARGS, "Check whether a native Lynxer thread is running."},

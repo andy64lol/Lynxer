@@ -68,6 +68,27 @@ The wrapper is useful for declarations and APIs that should reject ordinary
 integers and data addresses. It does not validate that the pointer is
 executable; the caller remains responsible for supplying a valid ABI.
 
+## C ABI layouts
+
+`memoryStruct*` layout strings support the primitive types above plus native
+pointer fields (`pointer`, `uintptr`, and `functionPointer`), fixed arrays, and
+inline nested aggregates:
+
+```lynx
+str layout = "struct{int32 x, uint8 y} point, union{int32 i, float64 d} value, int32[3] samples, functionPointer callback";
+println(memoryStructSize(layout));
+println(memoryStructFieldOffset(layout, "samples"));
+```
+
+Struct fields are aligned and padded like ordinary C structs. Union members
+share offset zero and the union size is rounded to its maximum member
+alignment. Array fields reserve `element-size * count` bytes. Pointer and
+function-pointer fields use the host pointer width and alignment, so layouts
+can differ between 32-bit and 64-bit hosts. Aggregate fields are exposed
+through their offset and size; use native memory reads and writes at those
+locations rather than `memoryStructGet`/`memoryStructSet`, which operate on
+scalar fields.
+
 ## C/C++ FFI
 
 The FFI helpers load shared libraries and expose symbols as function addresses:

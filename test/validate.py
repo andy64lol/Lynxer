@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import contextlib
 import io
+import json
 import os
 import platform
 import subprocess
@@ -324,6 +325,33 @@ global main(){
     require_output(
         """global setup(){}
 global main(){
+    str layout = "struct{int32 x, uint8 y} nested, union{int32 i, float64 d} choice, int32[3] values, functionPointer callback";
+    println(memoryStructSize(layout));
+    println(memoryStructAlignment(layout));
+    println(memoryStructFieldOffset(layout, "nested"));
+    println(memoryStructFieldSize(layout, "nested"));
+    println(memoryStructFieldOffset(layout, "choice"));
+    println(memoryStructFieldSize(layout, "choice"));
+    println(memoryStructFieldOffset(layout, "values"));
+    println(memoryStructFieldSize(layout, "values"));
+    println(memoryStructFieldOffset(layout, "callback"));
+    println(memoryStructFieldSize(layout, "callback"));
+    int value = memoryStructAllocate(layout);
+    memoryWriteInt32(value, 16, 41);
+    memoryWriteInt32(value, 20, 42);
+    memoryWriteInt32(value, 24, 43);
+    memoryStructSet(value, "callback", 123);
+    println(memoryReadInt32(value, 16));
+    println(memoryReadInt32(value, 24));
+    println(memoryStructGet(value, "callback"));
+    memoryFree(value);
+}""",
+        "40\n8\n0\n8\n8\n8\n16\n12\n32\n8\n41\n43\n123\n",
+        "C ABI nested structs unions arrays and function pointers",
+    )
+    require_output(
+        """global setup(){}
+global main(){
     int address = memoryAllocate(8);
     memoryWriteEndian(address, 0, "uint32", "big", 305419896);
     println(memoryReadEndian(address, 0, "uint32", "big"));
@@ -496,19 +524,64 @@ global main(){
 
 
 def test_linux_syscall() -> None:
-    syscall_numbers = {"x86_64": 39, "amd64": 39, "aarch64": 172, "arm64": 172}
-    number = syscall_numbers.get(platform.machine().lower())
-    if number is None:
-        raise ValidationFailure(
-            f"Linux syscall test does not know architecture {platform.machine()!r}"
-        )
+    require_output(
+        """global setup(){}
+global main(){
+    println(syscallGetProcessId() > 0);
+    println(syscallGetParentProcessId() > 0);
+    println(syscallYieldProcessor());
+    int randomBytes = memoryAllocate(16);
+    println(syscallGetRandomBytes(randomBytes, 16, 0) == 16);
+    println(memoryReadUInt8(randomBytes, 0) >= 0);
+    memoryFree(randomBytes);
+    int clock = memoryAllocate(16);
+    println(syscallGetClockTime(0, clock) == 0);
+    memoryFree(clock);
+    int systemInfo = memoryAllocate(256);
+    println(syscallGetSystemInformation(systemInfo) == 0);
+    memoryFree(systemInfo);
+}""",
+        "true\ntrue\n0\ntrue\ntrue\ntrue\ntrue\n",
+        "named Linux syscall ABI and pointer arguments",
+    )
+    require_error(
+        """global setup(){}
+global main(){ syscallClose(-1); }""",
+        "Bad file descriptor",
+        "named syscall errno propagation",
+    )
+
+
+def test_process_api() -> None:
+    executable = json.dumps(sys.executable)
+    child = json.dumps(
+        "import os,sys; data=sys.stdin.read(); "
+        "sys.stdout.write(os.environ['LYNXER_PROCESS_TEST'] + ':' + data)"
+    )
     require_output(
         f"""global setup(){{}}
 global main(){{
-    println(linuxSyscall({number}, [] ) > 0);
+    int process = processSpawn({executable}, [str "-c", str {child}], [str "LYNXER_PROCESS_TEST=ok"]);
+    println(processPoll(process) == -1);
+    println(processWrite(process, "hello") == 5);
+    processCloseInput(process);
+    println(processWait(process, 2) == 0);
+    println(processRead(process, "stdout", 64));
+    processClose(process);
+}}""",
+        "true\ntrue\ntrue\nok:hello\n",
+        "process spawn pipes environment and exit status",
+    )
+    require_output(
+        f"""global setup(){{}}
+global main(){{
+    int process = processSpawn({executable}, [str "-c", str "import time; time.sleep(5)"]);
+    processSendSignal(process, 15);
+    println(processWait(process, 2) < 0);
+    processClose(process);
 }}""",
         "true\n",
-        "Linux native syscall",
+        "process signal delivery",
     )
 
 
@@ -612,6 +685,7 @@ def main() -> int:
             ("C FFI and native callbacks", test_ffi),
             ("native threads", test_native_threads),
             ("Linux native syscall", test_linux_syscall),
+            ("process API", test_process_api),
             ("CLI", lambda: test_cli(temp_root)),
             ("existing .lynx fixtures", test_existing_fixtures),
         ]

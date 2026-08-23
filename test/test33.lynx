@@ -1,0 +1,7 @@
+// Named syscalls are built-ins backed by the native C++ extension.
+global setup(){}
+global main(){
+    println(syscallGetProcessId() > 0);
+    println(syscallGetParentProcessId() > 0);
+    println(syscallYieldProcessor());
+}

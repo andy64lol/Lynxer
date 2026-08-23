@@ -59,14 +59,18 @@ println(memoryReadInt32(address, 0));
 memoryFree(address);
 ```
 
-### `linuxSyscall(number, arguments)`
+### Named Linux syscall built-ins
 
-Invoke a raw Linux system call through the C++ extension. `arguments` must be
-a list of at most six integer values. The syscall number and argument layout
-are Linux ABI-specific and can differ between x86-64 and ARM64; use the
-appropriate architecture's Linux headers when selecting them. Failed calls
-raise a Lynxer runtime error containing the Linux `errno` message. This
-built-in is available only on Linux.
+The named `syscall*` built-ins are documented in the complete
+[Linux syscall reference](syscalls.md). They are always available as language
+built-ins, are backed by the native C++ extension, and are available at runtime
+on Linux only.
+
+### Process API
+
+The process built-ins provide managed subprocesses, pipes, environment
+overrides, signals, timeouts, and exit-status inspection. See the complete
+[Process API reference](process.md).
 
 The allocator is also available as `memoryAllocate`, `memoryCallocate`,
 `memoryReallocate`, `memoryFree`, `memorySet`, and `memoryCopy`. Typed

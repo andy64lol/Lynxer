@@ -11,6 +11,8 @@ from __future__ import annotations
 import importlib
 import ctypes
 import itertools
+import os
+import subprocess
 import sys
 from collections.abc import Callable
 from typing import Any
@@ -54,6 +56,42 @@ _MEMORY_TYPES = {
 _FFI_LIBRARIES: dict[int, ctypes.CDLL] = {}
 _FFI_CALLBACKS: dict[int, object] = {}
 _FFI_IDS = itertools.count(1)
+_PROCESSES: dict[int, subprocess.Popen] = {}
+_PROCESS_IDS = itertools.count(1)
+
+SYSCALL_BUILTIN_NAMES = (
+    "syscallRead", "syscallWrite", "syscallOpenAt", "syscallClose",
+    "syscallReadVector", "syscallWriteVector", "syscallSeekFile",
+    "syscallGetFileStatus", "syscallGetFileStatusAt", "syscallTruncateFile",
+    "syscallSynchronizeFile", "syscallSynchronizeFileData",
+    "syscallDuplicateFileDescriptor", "syscallDuplicateFileDescriptorAt",
+    "syscallCreatePipe", "syscallControlFileDescriptor",
+    "syscallGetDirectoryEntries", "syscallReadSymbolicLink",
+    "syscallCreateDirectoryAt", "syscallRemoveFileAt", "syscallRenameFileAt",
+    "syscallCreateHardLinkAt", "syscallCreateSymbolicLinkAt",
+    "syscallChangeFilePermissions", "syscallChangeFileDescriptorPermissions",
+    "syscallChangeFileOwner", "syscallChangeFileDescriptorOwner",
+    "syscallMemoryMap", "syscallMemoryUnmap", "syscallMemoryProtect",
+    "syscallMemoryAdvise", "syscallMemoryRemap", "syscallAdjustProgramBreak",
+    "syscallExecuteProgram", "syscallExecuteProgramAt", "syscallExitProcess",
+    "syscallExitAllThreads", "syscallWaitForProcess", "syscallGetProcessId",
+    "syscallGetParentProcessId", "syscallSendSignal", "syscallCreateThread",
+    "syscallGetThreadId", "syscallWaitOnMemory", "syscallSetThreadIdAddress",
+    "syscallSetRobustThreadList", "syscallGetRobustThreadList",
+    "syscallYieldProcessor", "syscallGetClockTime",
+    "syscallGetClockResolution", "syscallSleep", "syscallGetRandomBytes",
+    "syscallCreateSocket", "syscallCreateSocketPair", "syscallBindSocket",
+    "syscallListenSocket", "syscallAcceptConnection", "syscallConnectSocket",
+    "syscallSendData", "syscallReceiveData", "syscallSendMessage",
+    "syscallReceiveMessage", "syscallShutdownSocket",
+    "syscallGetSocketAddress", "syscallGetPeerAddress",
+    "syscallSetSocketOption", "syscallGetSocketOption",
+    "syscallPollFileDescriptors", "syscallCreateEventPoll",
+    "syscallControlEventPoll", "syscallWaitForEvents",
+    "syscallGetSystemInformation", "syscallGetResourceUsage",
+    "syscallGetResourceLimit", "syscallSetResourceLimit",
+    "syscallControlProcess",
+)
 
 
 def _ffi_signature(signature: str):
@@ -309,6 +347,175 @@ class BuiltInFunction(BaseFunction):
     def execute_nativeFunctionAddress(self, args, exec_ctx):
         return self.execute_functionAddress(args, exec_ctx)
 
+    def execute_processSpawn(self, args, exec_ctx):
+        if (
+            len(args) < 2
+            or len(args) > 3
+            or not isinstance(args[0], String)
+            or not isinstance(args[1], List)
+            or not all(isinstance(value, String) for value in args[1].elements)
+        ):
+            return self._failure(
+                exec_ctx,
+                "processSpawn(command, arguments, environment?) expects a command "
+                "and a list of string arguments",
+            )
+        environment = None
+        if len(args) == 3:
+            if not isinstance(args[2], List) or not all(
+                isinstance(value, String) and "=" in value.value
+                for value in args[2].elements
+            ):
+                return self._failure(
+                    exec_ctx,
+                    "processSpawn environment must be a list of KEY=VALUE strings",
+                )
+            environment = os.environ.copy()
+            for value in args[2].elements:
+                key, item = value.value.split("=", 1)
+                if not key:
+                    return self._failure(
+                        exec_ctx,
+                        "processSpawn environment keys must not be empty",
+                    )
+                environment[key] = item
+        try:
+            process = subprocess.Popen(
+                [args[0].value] + [value.value for value in args[1].elements],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=environment,
+            )
+        except (OSError, ValueError) as exc:
+            return self._failure(exec_ctx, f"processSpawn() failed: {exc}")
+        handle = next(_PROCESS_IDS)
+        _PROCESSES[handle] = process
+        return RTResult().success(Number(handle))
+
+    def _process(self, value, exec_ctx, name):
+        if not _native_nonnegative(value):
+            return None, self._failure(exec_ctx, f"{name}() expects a process handle")
+        process = _PROCESSES.get(value.value)
+        if process is None:
+            return None, self._failure(exec_ctx, f"{name}() received an unknown process handle")
+        return process, None
+
+    def execute_processWrite(self, args, exec_ctx):
+        if len(args) != 2 or not isinstance(args[1], String):
+            return self._failure(exec_ctx, "processWrite(handle, data) expects a handle and string")
+        process, failure = self._process(args[0], exec_ctx, "processWrite")
+        if failure:
+            return failure
+        if process.stdin is None:
+            return self._failure(exec_ctx, "processWrite() stdin is already closed")
+        try:
+            data = args[1].value.encode("utf-8")
+            process.stdin.write(data)
+            process.stdin.flush()
+        except (BrokenPipeError, OSError, ValueError) as exc:
+            return self._failure(exec_ctx, f"processWrite() failed: {exc}")
+        return RTResult().success(Number(len(data)))
+
+    def execute_processCloseInput(self, args, exec_ctx):
+        if len(args) != 1:
+            return self._failure(exec_ctx, "processCloseInput(handle) expects a process handle")
+        process, failure = self._process(args[0], exec_ctx, "processCloseInput")
+        if failure:
+            return failure
+        if process.stdin is not None:
+            try:
+                process.stdin.close()
+            except OSError as exc:
+                return self._failure(exec_ctx, f"processCloseInput() failed: {exc}")
+        return RTResult().success(Number.null)
+
+    def execute_processRead(self, args, exec_ctx):
+        if (
+            len(args) != 3
+            or not isinstance(args[1], String)
+            or not _native_nonnegative(args[2])
+            or args[1].value not in {"stdout", "stderr"}
+        ):
+            return self._failure(
+                exec_ctx,
+                "processRead(handle, stream, maxBytes) expects stdout/stderr and "
+                "a non-negative byte count",
+            )
+        process, failure = self._process(args[0], exec_ctx, "processRead")
+        if failure:
+            return failure
+        stream = process.stdout if args[1].value == "stdout" else process.stderr
+        if stream is None:
+            return self._failure(exec_ctx, "processRead() stream is closed")
+        try:
+            return RTResult().success(
+                String(stream.read(args[2].value).decode("utf-8", errors="replace"))
+            )
+        except (OSError, ValueError) as exc:
+            return self._failure(exec_ctx, f"processRead() failed: {exc}")
+
+    def execute_processPoll(self, args, exec_ctx):
+        if len(args) != 1:
+            return self._failure(exec_ctx, "processPoll(handle) expects a process handle")
+        process, failure = self._process(args[0], exec_ctx, "processPoll")
+        if failure:
+            return failure
+        return RTResult().success(Number(-1 if process.poll() is None else process.returncode))
+
+    def execute_processWait(self, args, exec_ctx):
+        if (
+            len(args) != 2
+            or not isinstance(args[1], Number)
+            or args[1].is_bool
+            or args[1].value < 0
+        ):
+            return self._failure(
+                exec_ctx,
+                "processWait(handle, timeoutSeconds) expects a non-negative timeout",
+            )
+        process, failure = self._process(args[0], exec_ctx, "processWait")
+        if failure:
+            return failure
+        try:
+            status = process.wait(timeout=float(args[1].value))
+        except subprocess.TimeoutExpired:
+            return RTResult().success(Number(-1))
+        return RTResult().success(Number(status))
+
+    def execute_processSendSignal(self, args, exec_ctx):
+        if len(args) != 2 or not _native_nonnegative(args[1]):
+            return self._failure(exec_ctx, "processSendSignal(handle, signal) expects a signal number")
+        process, failure = self._process(args[0], exec_ctx, "processSendSignal")
+        if failure:
+            return failure
+        if process.poll() is not None:
+            return self._failure(exec_ctx, "processSendSignal() process has already exited")
+        try:
+            process.send_signal(args[1].value)
+        except (OSError, ValueError) as exc:
+            return self._failure(exec_ctx, f"processSendSignal() failed: {exc}")
+        return RTResult().success(Number.null)
+
+    def execute_processClose(self, args, exec_ctx):
+        if len(args) != 1:
+            return self._failure(exec_ctx, "processClose(handle) expects a process handle")
+        process, failure = self._process(args[0], exec_ctx, "processClose")
+        if failure:
+            return failure
+        for stream in (process.stdin, process.stdout, process.stderr):
+            if stream is not None and not stream.closed:
+                stream.close()
+        if process.poll() is None:
+            process.terminate()
+            try:
+                process.wait(timeout=0.2)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()
+        _PROCESSES.pop(args[0].value, None)
+        return RTResult().success(Number.null)
+
     def execute_nativeHandleAllocate(self, args, exec_ctx):
         if len(args) != 1 or not _native_nonnegative(args[0]):
             return self._failure(exec_ctx, "nativeHandleAllocate(size) expects a non-negative integer")
@@ -477,28 +684,6 @@ class BuiltInFunction(BaseFunction):
             return result
         if result is None:
             return RTResult().success(Number.null)
-        return RTResult().success(Number(result))
-
-    def execute_linuxSyscall(self, args, exec_ctx):
-        if (
-            len(args) != 2
-            or not _native_nonnegative(args[0])
-            or not isinstance(args[1], List)
-            or len(args[1].elements) > 6
-            or not all(_native_int(value) for value in args[1].elements)
-        ):
-            return self._failure(
-                exec_ctx,
-                "linuxSyscall(number, arguments) expects a non-negative "
-                "number and up to six integer arguments",
-            )
-        result = self._cpp(
-            _MEMORY_LIB.linuxSyscall,
-            [args[0].value, [value.value for value in args[1].elements]],
-            exec_ctx,
-        )
-        if isinstance(result, RTResult):
-            return result
         return RTResult().success(Number(result))
 
     def execute_ffiLoadLibrary(self, args, exec_ctx):
@@ -2750,6 +2935,29 @@ BuiltinHandler = Callable[[BuiltInFunction, list[Any], Any], Any]
 # Keep this list as the single source of truth for functions available to both
 # programs and imported modules.  Adding a function here and registering its
 # handler below is all that is needed to expose it everywhere.
+def _execute_named_syscall(self, args, exec_ctx):
+    """Dispatch a named Linux syscall through the C++ extension.
+
+    The language-level API deliberately uses positional integer arguments,
+    while the extension receives a list so one validated dispatcher can
+    implement every syscall wrapper.
+    """
+    if len(args) > 6 or not all(_native_int(value) for value in args):
+        return self._failure(
+            exec_ctx,
+            f"{self.name}(...) expects up to six integer arguments",
+        )
+    method = getattr(_MEMORY_LIB, self.name)
+    result = self._cpp(method, [[value.value for value in args]], exec_ctx)
+    if isinstance(result, RTResult):
+        return result
+    return RTResult().success(Number(result))
+
+
+for _syscall_name in SYSCALL_BUILTIN_NAMES:
+    setattr(BuiltInFunction, f"execute_{_syscall_name}", _execute_named_syscall)
+
+
 BUILTIN_FUNCTION_NAMES = (
     "print",
     "println",
@@ -2857,7 +3065,15 @@ BUILTIN_FUNCTION_NAMES = (
     "nativeHandleFree",
     "nativeHandleIsAlive",
     "nativeCall",
-    "linuxSyscall",
+    "processSpawn",
+    "processWrite",
+    "processCloseInput",
+    "processRead",
+    "processPoll",
+    "processWait",
+    "processSendSignal",
+    "processClose",
+    *SYSCALL_BUILTIN_NAMES,
     "atomicLoad",
     "atomicStore",
     "atomicAdd",
