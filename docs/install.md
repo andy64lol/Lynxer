@@ -27,7 +27,7 @@ lynxer hello.lynx  # run a Lynxer source file
 
 ### Full build
 
-Bundles the complete standard library (all stdlib modules included):
+Bundles the complete standard library (all stdlib modules included, heavier):
 
 ```bash
 make build
