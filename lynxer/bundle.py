@@ -81,6 +81,23 @@ def bundle_program(source_path: str, output_name: str | None = None) -> Path:
     bytecode_name = f"{source.stem}.lynxc"
     bytecode_path = bytecode_root / bytecode_name
     shutil.move(str(compiled), bytecode_path)
+    # Native libraries are runtime inputs, not Python imports.  Stage them
+    # beside the bytecode so relative imports keep working after PyInstaller
+    # extracts a one-file executable to its temporary _MEIPASS directory.
+    from .bytecode import load_bytecode
+    payload = load_bytecode(str(bytecode_path))
+    native_dependencies = payload.get("native_dependencies", [])
+    staged_native = []
+    for dependency in native_dependencies:
+        dependency_path = (source.parent / dependency).resolve()
+        if not dependency_path.is_file():
+            raise RuntimeError(
+                f"native dependency '{dependency}' declared by {source.name} was not found "
+                f"(expected {dependency_path})"
+            )
+        target = bytecode_root / dependency_path.name
+        shutil.copy2(dependency_path, target)
+        staged_native.append(target)
 
     name = output_name or source.stem
     if Path(name).name != name or not name:
@@ -114,6 +131,8 @@ def bundle_program(source_path: str, output_name: str | None = None) -> Path:
         f"{root / 'lynxer' / 'warnings.txt'}:lynxer",
         str(launcher),
     ]
+    for native_path in staged_native:
+        command.extend(["--add-data", f"{native_path}:bytecode"])
     if pyinstaller == sys.executable:
         command[0:2] = [sys.executable, "-m"]
         command.insert(2, "PyInstaller")

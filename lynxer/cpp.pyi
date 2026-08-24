@@ -13,6 +13,14 @@ refGet: Any
 refSet: Any
 refCreate: Any
 nativeCall: Any
+ffiCall: Any
+ffiCallback: Any
+ffiFreeCallback: Any
+ffiLoadLibrary: Any
+ffiLookup: Any
+ffiCloseLibrary: Any
+nativeModuleLoad: Any
+nativeModuleClose: Any
 syscallRead: Any
 syscallWrite: Any
 syscallOpenAt: Any

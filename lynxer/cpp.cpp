@@ -97,6 +97,270 @@ std::unordered_map<std::int64_t, NativeLibrary *> nativeLibraries;
 std::int64_t nextNativeLibrary = 1;
 std::unordered_map<uintptr_t, PyObject *> ffiCallbacks;
 std::int64_t nextFfiCallback = 1;
+std::mutex ffiCallbackMutex;
+
+int ffiCallbackInt32Int32(int left, int right) {
+    PyGILState_STATE gil = PyGILState_Ensure();
+    PyObject *target = nullptr;
+    {
+        std::lock_guard<std::mutex> lock(ffiCallbackMutex);
+        auto it = ffiCallbacks.find(reinterpret_cast<uintptr_t>(&ffiCallbackInt32Int32));
+        if (it != ffiCallbacks.end()) target = it->second;
+        Py_XINCREF(target);
+    }
+    int result = 0;
+    if (target) {
+        PyObject *runtime = PyImport_ImportModule("lynxer.lynxer");
+        PyObject *numberType = runtime ? PyObject_GetAttrString(runtime, "Number") : nullptr;
+        PyObject *leftValue = numberType ? PyObject_CallFunction(numberType, "L", static_cast<long long>(left)) : nullptr;
+        PyObject *rightValue = numberType ? PyObject_CallFunction(numberType, "L", static_cast<long long>(right)) : nullptr;
+        PyObject *values = PyList_New(2);
+        if (values && leftValue && rightValue) {
+            PyList_SET_ITEM(values, 0, leftValue); leftValue = nullptr;
+            PyList_SET_ITEM(values, 1, rightValue); rightValue = nullptr;
+            PyObject *callResult = PyObject_CallMethod(target, "execute", "O", values);
+            PyObject *value = callResult ? PyObject_GetAttrString(callResult, "value") : nullptr;
+            if (value) {
+                PyObject *raw = PyObject_GetAttrString(value, "value");
+                if (raw) { result = static_cast<int>(PyLong_AsLongLong(raw)); Py_DECREF(raw); }
+                Py_DECREF(value);
+            }
+            Py_XDECREF(callResult);
+        }
+        Py_XDECREF(leftValue); Py_XDECREF(rightValue); Py_XDECREF(values);
+        Py_XDECREF(numberType); Py_XDECREF(runtime); Py_DECREF(target);
+        PyErr_Clear();
+    }
+    PyGILState_Release(gil);
+    return result;
+}
+
+struct NativeRegistration {
+    NativeLibrary *library;
+    std::string error;
+};
+
+bool validNativeName(const char *name) {
+    if (!name || !*name) return false;
+    if (!(std::isalpha(static_cast<unsigned char>(*name)) || *name == '_')) return false;
+    for (const char *p = name + 1; *p; ++p) {
+        if (!(std::isalnum(static_cast<unsigned char>(*p)) || *p == '_')) return false;
+    }
+    return true;
+}
+
+int registerNativeFunction(const char *name, const char *symbol,
+                           const char *signature, NativeRegistration *registration) {
+    if (!validNativeName(name) || !symbol || !*symbol || !signature || !*signature) {
+        registration->error = "invalid function registration";
+        return 0;
+    }
+    if (registration->library->functions.count(name) ||
+        registration->library->constants.count(name) ||
+        registration->library->types.count(name)) {
+        registration->error = std::string("duplicate registration '") + name + "'";
+        return 0;
+    }
+#if defined(__unix__) || defined(__APPLE__)
+    void *address = dlsym(registration->library->handle, symbol);
+    if (!address) {
+        registration->error = std::string("registered symbol '") + symbol + "' was not found: " +
+                              (dlerror() ? dlerror() : "unknown linker error");
+        return 0;
+    }
+#else
+    registration->error = "native modules are only supported on POSIX hosts";
+    return 0;
+#endif
+    registration->library->functions[name] = {
+        reinterpret_cast<uintptr_t>(address), signature};
+    return 1;
+}
+
+int registerNativeFunctionThunk(const char *name, const char *symbol,
+                                const char *signature, void *opaque) {
+    return registerNativeFunction(name, symbol, signature,
+                                  static_cast<NativeRegistration *>(opaque));
+}
+
+int registerNativeConstant(const char *name, std::int64_t value, void *opaque) {
+    auto *registration = static_cast<NativeRegistration *>(opaque);
+    if (!validNativeName(name)) {
+        registration->error = "invalid constant registration";
+        return 0;
+    }
+    if (registration->library->functions.count(name) ||
+        registration->library->constants.count(name) ||
+        registration->library->types.count(name)) {
+        registration->error = std::string("duplicate registration '") + name + "'";
+        return 0;
+    }
+    registration->library->constants[name] = value;
+    return 1;
+}
+
+int registerNativeType(const char *name, const char *layout, void *opaque) {
+    auto *registration = static_cast<NativeRegistration *>(opaque);
+    if (!validNativeName(name) || !layout || !*layout) {
+        registration->error = "invalid type registration";
+        return 0;
+    }
+    if (registration->library->functions.count(name) ||
+        registration->library->constants.count(name) ||
+        registration->library->types.count(name)) {
+        registration->error = std::string("duplicate registration '") + name + "'";
+        return 0;
+    }
+    registration->library->types[name] = layout;
+    return 1;
+}
+
+PyObject *pyNativeModuleLoad(PyObject *, PyObject *args) {
+#if !defined(__unix__) && !defined(__APPLE__)
+    PyErr_SetString(PyExc_NotImplementedError, "native modules are only supported on POSIX hosts");
+    return nullptr;
+#else
+    const char *path;
+    if (!PyArg_ParseTuple(args, "s", &path)) return nullptr;
+    void *handle = dlopen(path, RTLD_NOW | RTLD_LOCAL);
+    if (!handle) {
+        const char *detail = dlerror();
+        PyErr_Format(PyExc_RuntimeError, "could not load native module '%s': %s",
+                     path, detail ? detail : "unknown loader error");
+        return nullptr;
+    }
+    auto *library = new NativeLibrary{handle, path, {}, {}, {}};
+    auto *initializer = reinterpret_cast<int (*)(int (*)(const char *, const char *, const char *),
+                                                  int (*)(const char *, std::int64_t),
+                                                  int (*)(const char *, const char *))>(
+        dlsym(handle, "lynxer_module_init_v1"));
+    if (!initializer) {
+        dlclose(handle); delete library;
+        PyErr_SetString(PyExc_RuntimeError,
+            "native module lifecycle failure: missing lynxer_module_init_v1 entry point");
+        return nullptr;
+    }
+    NativeRegistration registration{library, ""};
+    // The registration ABI has no user-data parameter.  Keep the active
+    // registration in thread-local storage for the three C callbacks.
+    static thread_local NativeRegistration *active = nullptr;
+    active = &registration;
+    auto functionCallback = [](const char *n, const char *s, const char *g) -> int {
+        return registerNativeFunction(n, s, g, active);
+    };
+    auto constantCallback = [](const char *n, std::int64_t v) -> int {
+        return registerNativeConstant(n, v, active);
+    };
+    auto typeCallback = [](const char *n, const char *l) -> int {
+        return registerNativeType(n, l, active);
+    };
+    int status = initializer(functionCallback, constantCallback, typeCallback);
+    active = nullptr;
+    if (status != 0 || !registration.error.empty()) {
+        std::string detail = registration.error.empty()
+            ? "initializer returned " + std::to_string(status) : registration.error;
+        dlclose(handle); delete library;
+        PyErr_SetString(PyExc_RuntimeError,
+            ("native module lifecycle failure: " + detail).c_str());
+        return nullptr;
+    }
+    std::int64_t id = nextNativeLibrary++;
+    nativeLibraries[id] = library;
+    PyObject *result = PyDict_New();
+    PyDict_SetItemString(result, "handle", PyLong_FromLongLong(id));
+    std::string name = path;
+    size_t slash = name.find_last_of("/\\");
+    if (slash != std::string::npos) name = name.substr(slash + 1);
+    size_t dot = name.find_last_of('.');
+    if (dot != std::string::npos) name.resize(dot);
+    PyDict_SetItemString(result, "name", PyUnicode_FromString(name.c_str()));
+    PyObject *functions = PyDict_New();
+    for (const auto &entry : library->functions) {
+        PyObject *info = Py_BuildValue("{s:Ks:s}", "pointer",
+            static_cast<unsigned long long>(entry.second.first),
+            "signature", entry.second.second.c_str());
+        PyDict_SetItemString(functions, entry.first.c_str(), info); Py_DECREF(info);
+    }
+    PyDict_SetItemString(result, "functions", functions); Py_DECREF(functions);
+    PyObject *constants = PyDict_New();
+    for (const auto &entry : library->constants) {
+        PyObject *value = PyLong_FromLongLong(entry.second);
+        PyDict_SetItemString(constants, entry.first.c_str(), value); Py_DECREF(value);
+    }
+    PyDict_SetItemString(result, "constants", constants); Py_DECREF(constants);
+    PyObject *types = PyDict_New();
+    for (const auto &entry : library->types) {
+        PyObject *value = PyUnicode_FromString(entry.second.c_str());
+        PyDict_SetItemString(types, entry.first.c_str(), value); Py_DECREF(value);
+    }
+    PyDict_SetItemString(result, "types", types); Py_DECREF(types);
+    return result;
+#endif
+}
+
+PyObject *pyNativeModuleClose(PyObject *, PyObject *args) {
+    unsigned long long id;
+    if (!PyArg_ParseTuple(args, "K", &id)) return nullptr;
+    auto it = nativeLibraries.find(static_cast<std::int64_t>(id));
+    if (it == nativeLibraries.end()) {
+        PyErr_SetString(PyExc_RuntimeError, "native module lifecycle failure: unknown module handle");
+        return nullptr;
+    }
+#if defined(__unix__) || defined(__APPLE__)
+    dlclose(it->second->handle);
+#endif
+    delete it->second; nativeLibraries.erase(it);
+    Py_RETURN_NONE;
+}
+
+PyObject *pyFfiLoadLibrary(PyObject *, PyObject *args) {
+    const char *path;
+    if (!PyArg_ParseTuple(args, "s", &path)) return nullptr;
+#if defined(__unix__) || defined(__APPLE__)
+    void *handle = dlopen(path, RTLD_NOW | RTLD_LOCAL);
+    if (!handle) {
+        const char *detail = dlerror();
+        PyErr_Format(PyExc_RuntimeError, "could not load library '%s': %s",
+                     path, detail ? detail : "unknown loader error");
+        return nullptr;
+    }
+    auto *library = new NativeLibrary{handle, path, {}, {}, {}};
+    std::int64_t id = nextNativeLibrary++;
+    nativeLibraries[id] = library;
+    return PyLong_FromLongLong(id);
+#else
+    PyErr_SetString(PyExc_NotImplementedError, "dynamic libraries are only supported on POSIX hosts");
+    return nullptr;
+#endif
+}
+
+PyObject *pyFfiLookup(PyObject *, PyObject *args) {
+    unsigned long long id;
+    const char *symbol;
+    if (!PyArg_ParseTuple(args, "Ks", &id, &symbol)) return nullptr;
+    auto it = nativeLibraries.find(static_cast<std::int64_t>(id));
+    if (it == nativeLibraries.end()) {
+        PyErr_SetString(PyExc_RuntimeError, "unknown library handle");
+        return nullptr;
+    }
+#if defined(__unix__) || defined(__APPLE__)
+    void *address = dlsym(it->second->handle, symbol);
+    if (!address) {
+        const char *detail = dlerror();
+        PyErr_Format(PyExc_RuntimeError, "symbol '%s' was not found: %s",
+                     symbol, detail ? detail : "unknown linker error");
+        return nullptr;
+    }
+    return PyLong_FromUnsignedLongLong(reinterpret_cast<uintptr_t>(address));
+#else
+    PyErr_SetString(PyExc_NotImplementedError, "dynamic symbols are only supported on POSIX hosts");
+    return nullptr;
+#endif
+}
+
+PyObject *pyFfiCloseLibrary(PyObject *self, PyObject *args) {
+    return pyNativeModuleClose(self, args);
+}
 
 bool memoryType(const std::string &name, MemoryType *out) {
     if (name == "byte" || name == "int8" || name == "uint8") *out = {1, 1};
@@ -126,12 +390,15 @@ bool nativeIntegerType(const std::string &name) {
            name == "int16" || name == "uint16" ||
            name == "int32" || name == "uint32" ||
            name == "int64" || name == "uint64" ||
-           name == "uintptr";
+           name == "uintptr" || name == "cstring";
 }
 
 bool parseNativeSignature(const char *signature, std::string *result,
                           std::vector<std::string> *parameters) {
     std::string text(signature);
+    if (text.rfind("cdecl:", 0) == 0 || text.rfind("stdcall:", 0) == 0) {
+        text = text.substr(text.find(':') + 1);
+    }
     size_t open = text.find('(');
     if (open == std::string::npos || text.back() != ')' || open == 0) {
         PyErr_SetString(PyExc_ValueError,
@@ -158,7 +425,7 @@ bool parseNativeSignature(const char *signature, std::string *result,
             return false;
         }
         parameter = parameter.substr(first, last - first + 1);
-        if (!nativeIntegerType(parameter)) {
+        if (!nativeIntegerType(parameter) || parameter == "void") {
             PyErr_SetString(PyExc_ValueError,
                 "native call parameters must be integer or pointer types");
             return false;
@@ -604,12 +871,22 @@ PyObject *pyNativeCall(PyObject *, PyObject *args) {
     }
 
     std::vector<uintptr_t> values;
+    std::vector<PyObject *> stringKeepalive;
     values.reserve(static_cast<size_t>(count));
     for (Py_ssize_t index = 0; index < count; ++index) {
         PyObject *value = PyList_GET_ITEM(valuesObject, index);
         unsigned long long converted;
         const std::string &parameterType = parameterTypes[static_cast<size_t>(index)];
-        if (parameterType == "uint8" || parameterType == "uint16" ||
+        if (parameterType == "cstring") {
+            if (!PyUnicode_Check(value)) {
+                PyErr_SetString(PyExc_TypeError, "cstring arguments must be strings");
+                return nullptr;
+            }
+            PyObject *encoded = PyUnicode_AsUTF8String(value);
+            if (!encoded) return nullptr;
+            stringKeepalive.push_back(encoded);
+            converted = reinterpret_cast<uintptr_t>(PyBytes_AsString(encoded));
+        } else if (parameterType == "uint8" || parameterType == "uint16" ||
             parameterType == "uint32" || parameterType == "uint64" ||
             parameterType == "uintptr") {
             converted = PyLong_AsUnsignedLongLong(value);
@@ -668,7 +945,52 @@ PyObject *pyNativeCall(PyObject *, PyObject *args) {
     if (resultType == "int16") return PyLong_FromLong(static_cast<std::int16_t>(result));
     if (resultType == "int32") return PyLong_FromLong(static_cast<std::int32_t>(result));
     if (resultType == "int64") return PyLong_FromLongLong(static_cast<std::int64_t>(result));
+    if (resultType == "cstring") {
+        if (!result) return PyUnicode_FromString("");
+        return PyUnicode_FromString(reinterpret_cast<const char *>(result));
+    }
     return PyLong_FromUnsignedLongLong(static_cast<unsigned long long>(result));
+}
+
+PyObject *pyFfiCall(PyObject *self, PyObject *args) {
+    return pyNativeCall(self, args);
+}
+
+PyObject *pyFfiCallback(PyObject *, PyObject *args) {
+    const char *signature;
+    PyObject *target;
+    if (!PyArg_ParseTuple(args, "sO", &signature, &target)) return nullptr;
+    if (std::strcmp(signature, "cdecl:int32(int32,int32)") != 0 &&
+        std::strcmp(signature, "int32(int32,int32)") != 0) {
+        PyErr_SetString(PyExc_ValueError,
+            "native ffiCallback currently supports cdecl:int32(int32,int32)");
+        return nullptr;
+    }
+    if (!PyObject_HasAttrString(target, "execute")) {
+        PyErr_SetString(PyExc_TypeError, "ffiCallback target must be executable");
+        return nullptr;
+    }
+    uintptr_t pointer = reinterpret_cast<uintptr_t>(&ffiCallbackInt32Int32);
+    std::lock_guard<std::mutex> lock(ffiCallbackMutex);
+    auto existing = ffiCallbacks.find(pointer);
+    if (existing != ffiCallbacks.end()) Py_DECREF(existing->second);
+    Py_INCREF(target);
+    ffiCallbacks[pointer] = target;
+    return PyLong_FromUnsignedLongLong(pointer);
+}
+
+PyObject *pyFfiFreeCallback(PyObject *, PyObject *args) {
+    unsigned long long pointer;
+    if (!PyArg_ParseTuple(args, "K", &pointer)) return nullptr;
+    std::lock_guard<std::mutex> lock(ffiCallbackMutex);
+    auto it = ffiCallbacks.find(static_cast<uintptr_t>(pointer));
+    if (it == ffiCallbacks.end()) {
+        PyErr_SetString(PyExc_RuntimeError, "unknown native callback");
+        return nullptr;
+    }
+    Py_DECREF(it->second);
+    ffiCallbacks.erase(it);
+    Py_RETURN_NONE;
 }
 
 PyObject *invokeLinuxSyscall(long number, PyObject *args) {
@@ -1669,7 +1991,15 @@ PyMethodDef methods[] = {
     {"refGet", pyRefGet, METH_VARARGS, "Read a native Lynxer reference cell."},
     {"refSet", pyRefSet, METH_VARARGS, "Write a native Lynxer reference cell."},
     {"refFree", pyRefFree, METH_VARARGS, "Free a native Lynxer reference cell."},
-    {"nativeCall", pyNativeCall, METH_VARARGS, "Call an integer-ABI native function address."},
+    {"nativeCall", pyNativeCall, METH_VARARGS, "Call a low-level native function address."},
+    {"ffiCall", pyFfiCall, METH_VARARGS, "Call a typed native function address."},
+    {"ffiCallback", pyFfiCallback, METH_VARARGS, "Create a native callback trampoline."},
+    {"ffiFreeCallback", pyFfiFreeCallback, METH_VARARGS, "Release a native callback trampoline."},
+    {"nativeModuleLoad", pyNativeModuleLoad, METH_VARARGS, "Load and initialize a Lynxer native module."},
+    {"nativeModuleClose", pyNativeModuleClose, METH_VARARGS, "Close a Lynxer native module."},
+    {"ffiLoadLibrary", pyFfiLoadLibrary, METH_VARARGS, "Load a dynamic library."},
+    {"ffiLookup", pyFfiLookup, METH_VARARGS, "Resolve a dynamic library symbol."},
+    {"ffiCloseLibrary", pyFfiCloseLibrary, METH_VARARGS, "Close a dynamic library."},
     {"syscallRead", pySyscallRead, METH_VARARGS, "Invoke read."},
     {"syscallWrite", pySyscallWrite, METH_VARARGS, "Invoke write."},
     {"syscallOpenAt", pySyscallOpenAt, METH_VARARGS, "Invoke openat."},

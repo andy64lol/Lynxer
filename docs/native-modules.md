@@ -64,6 +64,18 @@ Native modules are initialized once per import and remain loaded for the
 lifetime of their namespace. This prevents function pointers from becoming
 invalid while a module is still in use.
 
+The loader, registration callbacks, symbol lookup, and library lifetime are
+implemented by Lynxer's C++ extension. The Python runtime does not use
+`ctypes`, which means the same low-level path is used by source, bytecode, and
+PyInstaller-bundled programs.
+
+Native dependencies compiled into bytecode are recorded in its dependency
+manifest. `--bundle` copies each declared library into the executable's
+extraction directory. Missing libraries, missing `lynxer_module_init_v1`
+symbols, missing registered symbols, duplicate registrations, and non-zero
+initializer returns are reported as explicit **native module lifecycle
+failure** errors with the relevant dependency or symbol.
+
 ## Explicit handle API
 
 For code that needs dynamic discovery, use:
@@ -81,4 +93,7 @@ An explicit module handle can be combined with `ffiCall` and the registered
 function address. Closing a handle invalidates it and releases its registration
 callbacks. Imported modules cannot be explicitly closed; their namespace owns
 their lifetime. Invalid handles and failed registrations produce normal
-Lynxer runtime errors.
+Lynxer runtime errors. The low-level FFI entry points are `ffiLoadLibrary`,
+`ffiLookup`, `ffiCall`, `ffiCallback`, `ffiFreeCallback`, and
+`ffiCloseLibrary`; unsupported callback signatures fail clearly rather than
+falling back to Python `ctypes`.

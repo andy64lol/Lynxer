@@ -9,14 +9,19 @@ from __future__ import annotations
 import io
 import os
 import pickle
+import re
 import zlib
 from typing import Any
 
 
 BYTECODE_MAGIC = b"LYNXC\x00"
-BYTECODE_VERSION = 4
+BYTECODE_VERSION = 5
 MAX_BYTECODE_FILE_SIZE = 64 * 1024 * 1024
 MAX_BYTECODE_PAYLOAD_SIZE = 256 * 1024 * 1024
+_NATIVE_IMPORT_RE = re.compile(
+    r"""(?:import|importAs)\s*\(\s*["']([^"']+\.(?:so|dylib|dll))["']""",
+    re.IGNORECASE,
+)
 
 
 class _SafeUnpickler(pickle.Unpickler):
@@ -171,6 +176,7 @@ def compile_to_bytecode(fn: str, text: str) -> tuple[str | None, Any]:
     data = {
         "version": BYTECODE_VERSION,
         "source": os.path.abspath(fn),
+        "native_dependencies": sorted(set(_NATIVE_IMPORT_RE.findall(text))),
         "node": ast.node,
     }
     payload = zlib.compress(

@@ -9,7 +9,6 @@ fragile.
 from __future__ import annotations
 
 import importlib
-import ctypes
 import itertools
 import os
 import subprocess
@@ -53,9 +52,6 @@ _MEMORY_TYPES = {
     "float64": (8, _MEMORY_LIB.readFloat64, _MEMORY_LIB.writeFloat64, None, None),
 }
 
-_FFI_LIBRARIES: dict[int, ctypes.CDLL] = {}
-_FFI_CALLBACKS: dict[int, object] = {}
-_FFI_IDS = itertools.count(1)
 _NATIVE_MODULES: dict[int, dict[str, Any]] = {}
 _NATIVE_MODULE_IDS = itertools.count(1)
 _PROCESSES: dict[int, subprocess.Popen] = {}
@@ -94,72 +90,6 @@ SYSCALL_BUILTIN_NAMES = (
     "syscallGetResourceLimit", "syscallSetResourceLimit",
     "syscallControlProcess",
 )
-
-
-def _ffi_signature(signature: str):
-    """Return (calling convention, return type, parameter types)."""
-    convention = "cdecl"
-    if ":" in signature:
-        convention, signature = signature.split(":", 1)
-    if convention not in {"cdecl", "stdcall"}:
-        raise ValueError("FFI calling convention must be cdecl or stdcall")
-    open_paren = signature.find("(")
-    if open_paren <= 0 or not signature.endswith(")"):
-        raise ValueError("FFI signature must be [cdecl|stdcall:]returnType(type,...)")
-    result_name = signature[:open_paren].strip()
-    names = signature[open_paren + 1:-1].strip()
-    parameter_names = [] if not names else [part.strip() for part in names.split(",")]
-    allowed = {
-        "void": None,
-        "int8": ctypes.c_int8,
-        "uint8": ctypes.c_uint8,
-        "int16": ctypes.c_int16,
-        "uint16": ctypes.c_uint16,
-        "int32": ctypes.c_int32,
-        "uint32": ctypes.c_uint32,
-        "int64": ctypes.c_int64,
-        "uint64": ctypes.c_uint64,
-        "uintptr": ctypes.c_void_p,
-        "float32": ctypes.c_float,
-        "float64": ctypes.c_double,
-        "cstring": ctypes.c_char_p,
-    }
-    if result_name not in allowed or any(name not in allowed or name == "void" for name in parameter_names):
-        raise ValueError(
-            "FFI types are void, integer types, uintptr, float32, float64, and cstring"
-        )
-    if convention == "stdcall" and not hasattr(ctypes, "WINFUNCTYPE"):
-        raise ValueError("stdcall calling convention is only available on Windows")
-    factory = getattr(ctypes, "WINFUNCTYPE", ctypes.CFUNCTYPE) if convention == "stdcall" else ctypes.CFUNCTYPE
-    return factory, allowed[result_name], [allowed[name] for name in parameter_names], parameter_names
-
-
-def _ffi_argument(value, name, keepalive):
-    if name == "cstring":
-        if not isinstance(value, String):
-            raise TypeError("cstring arguments must be Lynxer strings")
-        encoded = value.value.encode("utf-8")
-        keepalive.append(encoded)
-        return encoded
-    if name in {"float32", "float64"}:
-        if not isinstance(value, Number) or value.is_bool:
-            raise TypeError("FFI floating-point arguments must be numbers")
-        return value.value
-    if not _native_int(value):
-        raise TypeError("FFI integer arguments must be Lynxer integers")
-    return value.value
-
-
-def _ffi_result(value, name):
-    if name == "void":
-        return Number.null
-    if name == "cstring":
-        if not value:
-            return String("")
-        return String(ctypes.string_at(value).decode("utf-8", errors="replace"))
-    if name in {"float32", "float64"}:
-        return Number(float(value))
-    return Number(int(value))
 
 
 def _memory_type(value):
@@ -219,125 +149,14 @@ def _load_native_module(path: str, imported: bool = False):
     Registration callbacks receive UTF-8 names. Functions additionally provide
     an exported symbol and the existing Lynxer native-call signature grammar.
     """
-    resolved_path = os.path.abspath(path)
     try:
-        library = ctypes.CDLL(resolved_path)
-        initializer = library.lynxer_module_init_v1
-    except (OSError, AttributeError) as exc:
-        raise RuntimeError(
-            f"could not load native module '{path}': {exc}"
-        ) from exc
-
-    state: dict[str, Any] = {
-        "path": os.path.realpath(resolved_path),
-        "name": os.path.splitext(os.path.basename(resolved_path))[0],
-        "library": library,
-        "functions": {},
-        "constants": {},
-        "types": {},
-        "closed": False,
-        "imported": imported,
-        "error": None,
-        "callbacks": [],
-    }
-
-    def valid_name(raw_name):
-        if not raw_name:
-            return False
-        try:
-            return raw_name.decode("utf-8").isidentifier()
-        except UnicodeDecodeError:
-            return False
-
-    register_function_type = ctypes.CFUNCTYPE(
-        ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p
-    )
-    register_constant_type = ctypes.CFUNCTYPE(
-        ctypes.c_int, ctypes.c_char_p, ctypes.c_longlong
-    )
-    register_type_type = ctypes.CFUNCTYPE(
-        ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p
-    )
-
-    def register_function(raw_name, raw_symbol, raw_signature):
-        if not valid_name(raw_name) or not raw_symbol or not raw_signature:
-            state["error"] = "invalid function registration"
-            return 0
-        name = raw_name.decode("utf-8")
-        symbol = raw_symbol.decode("utf-8")
-        signature = raw_signature.decode("utf-8")
-        if ":" in signature:
-            convention, signature = signature.split(":", 1)
-            if convention not in {"cdecl", "stdcall"}:
-                state["error"] = f"unsupported calling convention '{convention}'"
-                return 0
-        if name in state["functions"] or name in state["constants"] or name in state["types"]:
-            state["error"] = f"duplicate registration '{name}'"
-            return 0
-        try:
-            pointer = ctypes.cast(getattr(library, symbol), ctypes.c_void_p).value
-        except AttributeError:
-            state["error"] = f"registered symbol '{symbol}' was not found"
-            return 0
-        if not pointer:
-            state["error"] = f"registered symbol '{symbol}' has a null address"
-            return 0
-        state["functions"][name] = {
-            "pointer": pointer,
-            "signature": signature,
-            "symbol": symbol,
-        }
-        return 1
-
-    def register_constant(raw_name, value):
-        if not valid_name(raw_name):
-            state["error"] = "invalid constant registration"
-            return 0
-        name = raw_name.decode("utf-8")
-        if name in state["functions"] or name in state["constants"] or name in state["types"]:
-            state["error"] = f"duplicate registration '{name}'"
-            return 0
-        state["constants"][name] = int(value)
-        return 1
-
-    def register_type(raw_name, raw_layout):
-        if not valid_name(raw_name) or not raw_layout:
-            state["error"] = "invalid type registration"
-            return 0
-        name = raw_name.decode("utf-8")
-        if name in state["functions"] or name in state["constants"] or name in state["types"]:
-            state["error"] = f"duplicate registration '{name}'"
-            return 0
-        try:
-            state["types"][name] = raw_layout.decode("utf-8")
-        except UnicodeDecodeError:
-            state["error"] = "type layout is not valid UTF-8"
-            return 0
-        return 1
-
-    callbacks = [
-        register_function_type(register_function),
-        register_constant_type(register_constant),
-        register_type_type(register_type),
-    ]
-    state["callbacks"] = callbacks
-    initializer.argtypes = [
-        register_function_type,
-        register_constant_type,
-        register_type_type,
-    ]
-    initializer.restype = ctypes.c_int
-    try:
-        status = initializer(*callbacks)
+        state = _MEMORY_LIB.nativeModuleLoad(os.path.abspath(path))
     except Exception as exc:
-        raise RuntimeError(f"native module initialization failed: {exc}") from exc
-    if status != 0 or state["error"]:
-        raise RuntimeError(
-            f"native module initialization failed: "
-            f"{state['error'] or f'initializer returned {status}'}"
-        )
-    handle = next(_NATIVE_MODULE_IDS)
-    state["handle"] = handle
+        raise RuntimeError(f"could not load native module '{path}': {exc}") from exc
+    state = dict(state)
+    state["closed"] = False
+    state["imported"] = imported
+    handle = int(state["handle"])
     _NATIVE_MODULES[handle] = state
     return handle, state
 
@@ -879,25 +698,18 @@ class BuiltInFunction(BaseFunction):
         if len(args) != 1 or not isinstance(args[0], String):
             return self._failure(exec_ctx, "ffiLoadLibrary(path) expects a library path")
         try:
-            library = ctypes.CDLL(args[0].value)
-        except OSError as exc:
+            handle = _MEMORY_LIB.ffiLoadLibrary(args[0].value)
+        except Exception as exc:
             return self._failure(exec_ctx, f"ffiLoadLibrary() failed: {exc}")
-        handle = next(_FFI_IDS)
-        _FFI_LIBRARIES[handle] = library
         return RTResult().success(Number(handle))
 
     def execute_ffiLookup(self, args, exec_ctx):
         if len(args) != 2 or not _native_nonnegative(args[0]) or not isinstance(args[1], String):
             return self._failure(exec_ctx, "ffiLookup(library, symbol) expects a library handle and symbol")
-        library = _FFI_LIBRARIES.get(args[0].value)
-        if library is None:
-            return self._failure(exec_ctx, "ffiLookup() received an unknown library handle")
         try:
-            pointer = ctypes.cast(getattr(library, args[1].value), ctypes.c_void_p).value
-        except AttributeError:
-            return self._failure(exec_ctx, f"ffiLookup() could not find symbol '{args[1].value}'")
-        if not pointer:
-            return self._failure(exec_ctx, f"ffiLookup() returned a null address for '{args[1].value}'")
+            pointer = _MEMORY_LIB.ffiLookup(args[0].value, args[1].value)
+        except Exception as exc:
+            return self._failure(exec_ctx, f"ffiLookup() failed: {exc}")
         result = FunctionAddress(pointer)
         result.set_context(exec_ctx)
         return RTResult().success(result)
@@ -905,9 +717,31 @@ class BuiltInFunction(BaseFunction):
     def execute_ffiCloseLibrary(self, args, exec_ctx):
         if len(args) != 1 or not _native_nonnegative(args[0]):
             return self._failure(exec_ctx, "ffiCloseLibrary(library) expects a library handle")
-        if _FFI_LIBRARIES.pop(args[0].value, None) is None:
-            return self._failure(exec_ctx, "ffiCloseLibrary() received an unknown library handle")
+        try:
+            _MEMORY_LIB.ffiCloseLibrary(args[0].value)
+        except Exception as exc:
+            return self._failure(exec_ctx, f"ffiCloseLibrary() failed: {exc}")
         return RTResult().success(Number.null)
+
+    # Clear, flat names for the low-level library API.  Keep ffi* above as
+    # source-compatible aliases for existing programs.
+    def execute_nativeLibraryLoad(self, args, exec_ctx):
+        return self.execute_ffiLoadLibrary(args, exec_ctx)
+
+    def execute_nativeLibraryLookup(self, args, exec_ctx):
+        return self.execute_ffiLookup(args, exec_ctx)
+
+    def execute_nativeLibraryClose(self, args, exec_ctx):
+        return self.execute_ffiCloseLibrary(args, exec_ctx)
+
+    def execute_nativeFunctionCall(self, args, exec_ctx):
+        return self.execute_ffiCall(args, exec_ctx)
+
+    def execute_nativeFunctionCallback(self, args, exec_ctx):
+        return self.execute_ffiCallback(args, exec_ctx)
+
+    def execute_nativeFunctionFreeCallback(self, args, exec_ctx):
+        return self.execute_ffiFreeCallback(args, exec_ctx)
 
     def execute_nativeModuleLoad(self, args, exec_ctx):
         if len(args) != 1 or not isinstance(args[0], String):
@@ -1000,8 +834,10 @@ class BuiltInFunction(BaseFunction):
             )
         state["closed"] = True
         _NATIVE_MODULES.pop(args[0].value, None)
-        state["callbacks"].clear()
-        state["library"] = None
+        try:
+            _MEMORY_LIB.nativeModuleClose(args[0].value)
+        except Exception as exc:
+            return self._failure(exec_ctx, f"nativeModuleClose() failed: {exc}")
         return RTResult().success(Number.null)
 
     def execute_ffiCall(self, args, exec_ctx):
@@ -1013,16 +849,18 @@ class BuiltInFunction(BaseFunction):
         if not pointer:
             return self._failure(exec_ctx, "ffiCall() expects a non-zero function address")
         try:
-            factory, result_type, parameter_types, parameter_names = _ffi_signature(args[1].value)
-            if len(parameter_types) != len(args[2].elements):
-                raise ValueError("FFI argument count does not match the signature")
-            keepalive = []
             values = [
-                _ffi_argument(value, name, keepalive)
-                for value, name in zip(args[2].elements, parameter_names)
+                value.value if isinstance(value, (Number, String)) else
+                (_ for _ in ()).throw(TypeError(
+                    "FFI arguments must be integers, numbers, or strings"
+                ))
+                for value in args[2].elements
             ]
-            function = factory(result_type, *parameter_types)(pointer)
-            result = _ffi_result(function(*values), args[1].value.split("(", 1)[0].split(":")[-1].strip())
+            raw = _MEMORY_LIB.ffiCall(pointer, args[1].value, values)
+            result_name = args[1].value.split("(", 1)[0].split(":")[-1].strip()
+            result = Number.null if result_name == "void" else (
+                String(raw) if result_name == "cstring" else Number(raw)
+            )
         except (TypeError, ValueError, OSError) as exc:
             return self._failure(exec_ctx, f"ffiCall() failed: {exc}")
         return RTResult().success(result)
@@ -1031,35 +869,9 @@ class BuiltInFunction(BaseFunction):
         if len(args) != 2 or not isinstance(args[0], String) or not hasattr(args[1], "execute"):
             return self._failure(exec_ctx, "ffiCallback(signature, function) expects a signature and Lynxer function")
         try:
-            factory, result_type, parameter_types, parameter_names = _ffi_signature(args[0].value)
-            callback_target = args[1]
-
-            def invoke(*native_args):
-                lynxer_args = []
-                for value, name in zip(native_args, parameter_names):
-                    if name == "cstring":
-                        lynxer_args.append(String(ctypes.string_at(value).decode("utf-8", errors="replace")))
-                    elif name in {"float32", "float64"}:
-                        lynxer_args.append(Number(float(value)))
-                    else:
-                        lynxer_args.append(Number(int(value)))
-                result = callback_target.execute(lynxer_args)
-                if hasattr(result, "error") and result.error:
-                    return 0
-                value = getattr(result, "value", result)
-                if result_name := args[0].value.split("(", 1)[0].split(":")[-1].strip():
-                    if result_name == "void":
-                        return None
-                    if result_name == "cstring":
-                        return str(value).encode("utf-8")
-                    return getattr(value, "value", value)
-                return 0
-
-            callback = factory(result_type, *parameter_types)(invoke)
-        except (TypeError, ValueError) as exc:
+            pointer = _MEMORY_LIB.ffiCallback(args[0].value, args[1])
+        except (TypeError, ValueError, OSError) as exc:
             return self._failure(exec_ctx, f"ffiCallback() failed: {exc}")
-        pointer = ctypes.cast(callback, ctypes.c_void_p).value
-        _FFI_CALLBACKS[pointer] = callback
         result = FunctionAddress(pointer)
         result.set_context(exec_ctx)
         return RTResult().success(result)
@@ -1067,8 +879,10 @@ class BuiltInFunction(BaseFunction):
     def execute_ffiFreeCallback(self, args, exec_ctx):
         if len(args) != 1 or not isinstance(args[0], FunctionAddress):
             return self._failure(exec_ctx, "ffiFreeCallback(callback) expects a function address")
-        if _FFI_CALLBACKS.pop(args[0].pointer, None) is None:
-            return self._failure(exec_ctx, "ffiFreeCallback() received an unknown callback")
+        try:
+            _MEMORY_LIB.ffiFreeCallback(args[0].pointer)
+        except Exception as exc:
+            return self._failure(exec_ctx, f"ffiFreeCallback() failed: {exc}")
         return RTResult().success(Number.null)
 
     def execute_nativeThreadStart(self, args, exec_ctx):
@@ -1236,6 +1050,23 @@ class BuiltInFunction(BaseFunction):
         return self.execute_memoryBlockSet(args, exec_ctx)
 
     def execute_memoryViewLength(self, args, exec_ctx):
+        return self.execute_memoryBlockLength(args, exec_ctx)
+
+    # Preferred typed-memory vocabulary.  The older Block/Array/View names
+    # remain available, but these names describe the operation directly.
+    def execute_memoryTypedAllocate(self, args, exec_ctx):
+        return self.execute_memoryBlockAllocate(args, exec_ctx)
+
+    def execute_memoryTypedView(self, args, exec_ctx):
+        return self.execute_memoryBlockView(args, exec_ctx)
+
+    def execute_memoryTypedRead(self, args, exec_ctx):
+        return self.execute_memoryBlockGet(args, exec_ctx)
+
+    def execute_memoryTypedWrite(self, args, exec_ctx):
+        return self.execute_memoryBlockSet(args, exec_ctx)
+
+    def execute_memoryTypedLength(self, args, exec_ctx):
         return self.execute_memoryBlockLength(args, exec_ctx)
 
     def execute_memoryBlockGet(self, args, exec_ctx):

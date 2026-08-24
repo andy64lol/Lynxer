@@ -49,22 +49,27 @@ built-in stdlib.
 
 ---
 
-## Bytecode format (v4)
+## Bytecode format (v5)
 
 | Field | Details |
 |-------|---------|
 | Magic header | 6 bytes: `LYNXC\x00` |
 | Payload | zlib-compressed, restricted Python `pickle` stream containing `version`, `source` path, and the serialised AST node |
 
-### What changed in v4
+### What changed in v5
 
 Two optimisations were made over the original v1 format:
 
-1. **zlib compression** — the pickle stream is compressed at maximum level
+1. **Native dependency manifest** — compiled bytecode records shared-library
+   imports in `native_dependencies`. Bundlers use this manifest to stage the
+   libraries beside the bytecode, so native modules continue to resolve inside
+   a one-file executable.
+
+2. **zlib compression** — the pickle stream is compressed at maximum level
    before being written to disk.  In practice this cuts file size by 60–80 %
    compared to an uncompressed AST of the same program.
 
-2. **Source-text stripping** — every token in the AST previously carried a
+3. **Source-text stripping** — every token in the AST previously carried a
    copy of the entire source file inside its position metadata (`ftxt`), so a
    1 KB source file would embed thousands of redundant 1 KB strings into the
    archive.  Since v2 these strings are omitted from the bytecode; only line/column
@@ -72,7 +77,7 @@ Two optimisations were made over the original v1 format:
    error messages will not show the source-pointer arrow, but the error
    location (file, line, column) is still reported correctly.
 
-3. **Restricted loading and size limits** — the runtime only accepts the AST
+4. **Restricted loading and size limits** — the runtime only accepts the AST
    classes emitted by Lynxer's compiler and rejects arbitrary Python objects
    and oversized compressed payloads. Do not treat `.lynxc` files from an
    untrusted source as an authorization boundary; a Lynxer program can still
