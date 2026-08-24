@@ -94,6 +94,8 @@ global main(){
 | [Standard library](docs/stdlib.md) | All stdlib modules — overview and function tables |
 | [stdlib/ reference](docs/stdlib/README.md) | Per-module documentation pages |
 | [Built-ins](docs/builtins.md) | Core language functions, including unmanaged memory operations |
+| [Filesystem API](docs/filesystem.md) | Safe handle-based file and directory operations |
+| [Networking API](docs/networking.md) | Managed TCP, UDP, and Unix-domain sockets |
 | [rawPy / rawPyx](docs/rawpy.md) | Embedding Python and Cython |
 | [Module system](docs/modules.md) | `import()`, `importAs()`, namespaces, writing your own modules |
 | [Bytecode (.lynxc)](docs/bytecode.md) | Compiling to bytecode, running `.lynxc` files |

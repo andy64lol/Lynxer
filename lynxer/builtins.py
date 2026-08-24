@@ -10,9 +10,13 @@ from __future__ import annotations
 
 import importlib
 import itertools
+import json
 import os
+import stat
 import subprocess
 import sys
+import atexit
+import socket
 from collections.abc import Callable
 from typing import Any
 
@@ -56,6 +60,33 @@ _NATIVE_MODULES: dict[int, dict[str, Any]] = {}
 _NATIVE_MODULE_IDS = itertools.count(1)
 _PROCESSES: dict[int, subprocess.Popen] = {}
 _PROCESS_IDS = itertools.count(1)
+_FILES: dict[int, int] = {}
+_FILE_IDS = itertools.count(1)
+_SOCKETS: dict[int, socket.socket] = {}
+_SOCKET_IDS = itertools.count(1)
+
+
+def _close_files():
+    """Close any handles a program leaves open when the runtime exits."""
+    for descriptor in list(_FILES.values()):
+        try:
+            os.close(descriptor)
+        except OSError:
+            pass
+    _FILES.clear()
+
+
+def _close_sockets():
+    for connection in list(_SOCKETS.values()):
+        try:
+            connection.close()
+        except OSError:
+            pass
+    _SOCKETS.clear()
+
+
+atexit.register(_close_files)
+atexit.register(_close_sockets)
 
 SYSCALL_BUILTIN_NAMES = (
     "syscallRead", "syscallWrite", "syscallOpenAt", "syscallClose",
@@ -565,6 +596,342 @@ class BuiltInFunction(BaseFunction):
                 process.wait()
         _PROCESSES.pop(args[0].value, None)
         return RTResult().success(Number.null)
+
+    # The filesystem* API is intentionally small and handle-based.  It keeps the
+    # low-level syscall builtins available while giving Lynxer programs one
+    # consistent, errno-preserving filesystem surface.
+    def execute_filesystemOpen(self, args, exec_ctx):
+        if (
+            len(args) not in {2, 3}
+            or not isinstance(args[0], String)
+            or not isinstance(args[1], String)
+            or (len(args) == 3 and not _native_nonnegative(args[2]))
+        ):
+            return self._failure(exec_ctx, "filesystemOpen(path, mode, permissions?) expects strings and an optional integer")
+        flags_by_mode = {
+            "r": os.O_RDONLY,
+            "w": os.O_WRONLY | os.O_CREAT | os.O_TRUNC,
+            "a": os.O_WRONLY | os.O_CREAT | os.O_APPEND,
+            "r+": os.O_RDWR,
+            "w+": os.O_RDWR | os.O_CREAT | os.O_TRUNC,
+            "a+": os.O_RDWR | os.O_CREAT | os.O_APPEND,
+        }
+        mode = args[1].value
+        flags = flags_by_mode.get(mode)
+        if flags is None:
+            return self._failure(exec_ctx, "filesystemOpen() mode must be r, w, a, r+, w+, or a+")
+        permissions = args[2].value if len(args) == 3 else 0o666
+        try:
+            descriptor = os.open(args[0].value, flags, permissions)
+        except OSError as exc:
+            return self._failure(exec_ctx, f"filesystemOpen() failed: [{exc.errno}] {exc.strerror}")
+        handle = next(_FILE_IDS)
+        _FILES[handle] = descriptor
+        return RTResult().success(Number(handle))
+
+    def _file(self, value, exec_ctx, name):
+        if not _native_nonnegative(value):
+            return None, self._failure(exec_ctx, f"{name}() expects a file handle")
+        descriptor = _FILES.get(value.value)
+        if descriptor is None:
+            return None, self._failure(exec_ctx, f"{name}() received an unknown or closed file handle")
+        return descriptor, None
+
+    def execute_filesystemRead(self, args, exec_ctx):
+        if len(args) != 2 or not _native_nonnegative(args[1]):
+            return self._failure(exec_ctx, "filesystemRead(handle, maxBytes) expects a non-negative byte count")
+        descriptor, failure = self._file(args[0], exec_ctx, "filesystemRead")
+        if failure:
+            return failure
+        try:
+            return RTResult().success(String(os.read(descriptor, args[1].value).decode("utf-8", errors="replace")))
+        except OSError as exc:
+            return self._failure(exec_ctx, f"filesystemRead() failed: [{exc.errno}] {exc.strerror}")
+
+    def execute_filesystemWrite(self, args, exec_ctx):
+        if len(args) != 2 or not isinstance(args[1], String):
+            return self._failure(exec_ctx, "filesystemWrite(handle, data) expects a file handle and string")
+        descriptor, failure = self._file(args[0], exec_ctx, "filesystemWrite")
+        if failure:
+            return failure
+        try:
+            return RTResult().success(Number(os.write(descriptor, args[1].value.encode("utf-8"))))
+        except OSError as exc:
+            return self._failure(exec_ctx, f"filesystemWrite() failed: [{exc.errno}] {exc.strerror}")
+
+    def execute_filesystemClose(self, args, exec_ctx):
+        descriptor, failure = self._file(args[0], exec_ctx, "filesystemClose") if len(args) == 1 else (None, self._failure(exec_ctx, "filesystemClose(handle) expects a file handle"))
+        if failure:
+            return failure
+        try:
+            os.close(descriptor)
+        except OSError as exc:
+            return self._failure(exec_ctx, f"filesystemClose() failed: [{exc.errno}] {exc.strerror}")
+        _FILES.pop(args[0].value, None)
+        return RTResult().success(Number.null)
+
+    def execute_filesystemStat(self, args, exec_ctx):
+        if len(args) != 1 or not isinstance(args[0], String):
+            return self._failure(exec_ctx, "filesystemStat(path) expects a path string")
+        try:
+            info = os.lstat(args[0].value)
+        except OSError as exc:
+            return self._failure(exec_ctx, f"filesystemStat() failed: [{exc.errno}] {exc.strerror}")
+        kind = "symlink" if stat.S_ISLNK(info.st_mode) else "file" if stat.S_ISREG(info.st_mode) else "dir" if stat.S_ISDIR(info.st_mode) else "other"
+        return RTResult().success(String(json.dumps({
+            "type": kind, "size": info.st_size, "mode": stat.S_IMODE(info.st_mode),
+            "modifiedTime": info.st_mtime, "accessTime": info.st_atime, "changeTime": info.st_ctime,
+        }, separators=(",", ":"))))
+
+    def execute_filesystemList(self, args, exec_ctx):
+        if len(args) != 1 or not isinstance(args[0], String):
+            return self._failure(exec_ctx, "filesystemList(path) expects a directory path string")
+        try:
+            entries = sorted(os.listdir(args[0].value))
+        except OSError as exc:
+            return self._failure(exec_ctx, f"filesystemList() failed: [{exc.errno}] {exc.strerror}")
+        return RTResult().success(List([String(entry) for entry in entries]))
+
+    def execute_filesystemMkdir(self, args, exec_ctx):
+        if len(args) not in {1, 2} or not isinstance(args[0], String) or (len(args) == 2 and not isinstance(args[1], Number)):
+            return self._failure(exec_ctx, "filesystemMkdir(path, parents?) expects a path and optional boolean")
+        try:
+            if len(args) == 2 and args[1].is_true():
+                os.makedirs(args[0].value, exist_ok=True)
+            else:
+                os.mkdir(args[0].value)
+        except OSError as exc:
+            return self._failure(exec_ctx, f"filesystemMkdir() failed: [{exc.errno}] {exc.strerror}")
+        return RTResult().success(Number(1, is_bool=True))
+
+    def execute_filesystemRemove(self, args, exec_ctx):
+        if len(args) != 1 or not isinstance(args[0], String):
+            return self._failure(exec_ctx, "filesystemRemove(path) expects a path string")
+        try:
+            os.rmdir(args[0].value) if os.path.isdir(args[0].value) and not os.path.islink(args[0].value) else os.unlink(args[0].value)
+        except OSError as exc:
+            return self._failure(exec_ctx, f"filesystemRemove() failed: [{exc.errno}] {exc.strerror}")
+        return RTResult().success(Number.null)
+
+    def execute_filesystemRename(self, args, exec_ctx):
+        if len(args) != 2 or not all(isinstance(value, String) for value in args):
+            return self._failure(exec_ctx, "filesystemRename(source, target) expects two path strings")
+        try:
+            os.rename(args[0].value, args[1].value)
+        except OSError as exc:
+            return self._failure(exec_ctx, f"filesystemRename() failed: [{exc.errno}] {exc.strerror}")
+        return RTResult().success(Number.null)
+
+    def execute_filesystemLink(self, args, exec_ctx):
+        if len(args) not in {2, 3} or not all(isinstance(value, String) for value in args[:2]) or (len(args) == 3 and not isinstance(args[2], Number)):
+            return self._failure(exec_ctx, "filesystemLink(source, target, symbolic?) expects paths and an optional boolean")
+        try:
+            if len(args) == 3 and args[2].is_true():
+                os.symlink(args[0].value, args[1].value)
+            else:
+                os.link(args[0].value, args[1].value)
+        except OSError as exc:
+            return self._failure(exec_ctx, f"filesystemLink() failed: [{exc.errno}] {exc.strerror}")
+        return RTResult().success(Number.null)
+
+    def execute_filesystemReadLink(self, args, exec_ctx):
+        if len(args) != 1 or not isinstance(args[0], String):
+            return self._failure(exec_ctx, "filesystemReadLink(path) expects a path string")
+        try:
+            return RTResult().success(String(os.readlink(args[0].value)))
+        except OSError as exc:
+            return self._failure(exec_ctx, f"filesystemReadLink() failed: [{exc.errno}] {exc.strerror}")
+
+    def execute_filesystemChmod(self, args, exec_ctx):
+        if len(args) != 2 or not isinstance(args[0], String) or not _native_nonnegative(args[1]):
+            return self._failure(exec_ctx, "filesystemChmod(path, mode) expects a path and non-negative integer mode")
+        try:
+            os.chmod(args[0].value, args[1].value)
+        except OSError as exc:
+            return self._failure(exec_ctx, f"filesystemChmod() failed: [{exc.errno}] {exc.strerror}")
+        return RTResult().success(Number.null)
+
+    # Managed TCP, UDP, and Unix-domain sockets. Addresses are deliberately
+    # represented by host/path strings plus an integer port so the API stays
+    # straightforward in Lynxer source.
+    def execute_networkingOpen(self, args, exec_ctx):
+        if len(args) != 1 or not isinstance(args[0], String):
+            return self._failure(exec_ctx, "networkingOpen(kind) expects tcp, udp, or unix")
+        families = {"tcp": (socket.AF_INET, socket.SOCK_STREAM), "udp": (socket.AF_INET, socket.SOCK_DGRAM), "unix": (socket.AF_UNIX, socket.SOCK_STREAM)}
+        kind = args[0].value.lower()
+        family_type = families.get(kind)
+        if family_type is None:
+            return self._failure(exec_ctx, "networkingOpen() kind must be tcp, udp, or unix")
+        try:
+            connection = socket.socket(*family_type)
+        except OSError as exc:
+            return self._failure(exec_ctx, f"networkingOpen() failed: [{exc.errno}] {exc.strerror}")
+        handle = next(_SOCKET_IDS)
+        _SOCKETS[handle] = connection
+        return RTResult().success(Number(handle))
+
+    def _socket(self, value, exec_ctx, name):
+        if not _native_nonnegative(value):
+            return None, self._failure(exec_ctx, f"{name}() expects a socket handle")
+        connection = _SOCKETS.get(value.value)
+        if connection is None:
+            return None, self._failure(exec_ctx, f"{name}() received an unknown or closed socket handle")
+        return connection, None
+
+    def _socket_address(self, args, exec_ctx, name):
+        if len(args) == 2 and isinstance(args[1], String):
+            return args[1].value, None
+        if len(args) == 3 and isinstance(args[1], String) and _native_nonnegative(args[2]):
+            return (args[1].value, args[2].value), None
+        return None, self._failure(exec_ctx, f"{name}(handle, address, port?) expects an address and optional non-negative port")
+
+    def execute_networkingBind(self, args, exec_ctx):
+        connection, failure = self._socket(args[0], exec_ctx, "networkingBind") if args else (None, self._failure(exec_ctx, "networkingBind(handle, address, port?) expects a socket handle"))
+        if failure:
+            return failure
+        address, failure = self._socket_address(args, exec_ctx, "networkingBind")
+        if failure:
+            return failure
+        try:
+            connection.bind(address)
+        except OSError as exc:
+            return self._failure(exec_ctx, f"networkingBind() failed: [{exc.errno}] {exc.strerror}")
+        return RTResult().success(Number.null)
+
+    def execute_networkingListen(self, args, exec_ctx):
+        if len(args) not in {1, 2} or (len(args) == 2 and not _native_nonnegative(args[1])):
+            return self._failure(exec_ctx, "networkingListen(handle, backlog?) expects a socket handle and optional integer")
+        connection, failure = self._socket(args[0], exec_ctx, "networkingListen")
+        if failure:
+            return failure
+        try:
+            connection.listen(args[1].value if len(args) == 2 else 128)
+        except OSError as exc:
+            return self._failure(exec_ctx, f"networkingListen() failed: [{exc.errno}] {exc.strerror}")
+        return RTResult().success(Number.null)
+
+    def execute_networkingAccept(self, args, exec_ctx):
+        if len(args) != 1:
+            return self._failure(exec_ctx, "networkingAccept(handle) expects a socket handle")
+        connection, failure = self._socket(args[0], exec_ctx, "networkingAccept")
+        if failure:
+            return failure
+        try:
+            accepted, _address = connection.accept()
+        except OSError as exc:
+            return self._failure(exec_ctx, f"networkingAccept() failed: [{exc.errno}] {exc.strerror}")
+        handle = next(_SOCKET_IDS)
+        _SOCKETS[handle] = accepted
+        return RTResult().success(Number(handle))
+
+    def execute_networkingConnect(self, args, exec_ctx):
+        connection, failure = self._socket(args[0], exec_ctx, "networkingConnect") if args else (None, self._failure(exec_ctx, "networkingConnect(handle, address, port?) expects a socket handle"))
+        if failure:
+            return failure
+        address, failure = self._socket_address(args, exec_ctx, "networkingConnect")
+        if failure:
+            return failure
+        try:
+            connection.connect(address)
+        except OSError as exc:
+            return self._failure(exec_ctx, f"networkingConnect() failed: [{exc.errno}] {exc.strerror}")
+        return RTResult().success(Number.null)
+
+    def execute_networkingSend(self, args, exec_ctx):
+        if len(args) != 2 or not isinstance(args[1], String):
+            return self._failure(exec_ctx, "networkingSend(handle, data) expects a socket handle and string")
+        connection, failure = self._socket(args[0], exec_ctx, "networkingSend")
+        if failure:
+            return failure
+        try:
+            return RTResult().success(Number(connection.send(args[1].value.encode("utf-8"))))
+        except OSError as exc:
+            return self._failure(exec_ctx, f"networkingSend() failed: [{exc.errno}] {exc.strerror}")
+
+    def execute_networkingReceive(self, args, exec_ctx):
+        if len(args) != 2 or not _native_nonnegative(args[1]):
+            return self._failure(exec_ctx, "networkingReceive(handle, maxBytes) expects a non-negative byte count")
+        connection, failure = self._socket(args[0], exec_ctx, "networkingReceive")
+        if failure:
+            return failure
+        try:
+            return RTResult().success(String(connection.recv(args[1].value).decode("utf-8", errors="replace")))
+        except OSError as exc:
+            return self._failure(exec_ctx, f"networkingReceive() failed: [{exc.errno}] {exc.strerror}")
+
+    def execute_networkingClose(self, args, exec_ctx):
+        if len(args) != 1:
+            return self._failure(exec_ctx, "networkingClose(handle) expects a socket handle")
+        connection, failure = self._socket(args[0], exec_ctx, "networkingClose")
+        if failure:
+            return failure
+        try:
+            connection.close()
+        except OSError as exc:
+            return self._failure(exec_ctx, f"networkingClose() failed: [{exc.errno}] {exc.strerror}")
+        _SOCKETS.pop(args[0].value, None)
+        return RTResult().success(Number.null)
+
+    def execute_networkingShutdown(self, args, exec_ctx):
+        if len(args) != 2 or not isinstance(args[1], String) or args[1].value not in {"read", "write", "both"}:
+            return self._failure(exec_ctx, "networkingShutdown(handle, how) expects read, write, or both")
+        connection, failure = self._socket(args[0], exec_ctx, "networkingShutdown")
+        if failure:
+            return failure
+        try:
+            connection.shutdown({"read": socket.SHUT_RD, "write": socket.SHUT_WR, "both": socket.SHUT_RDWR}[args[1].value])
+        except OSError as exc:
+            return self._failure(exec_ctx, f"networkingShutdown() failed: [{exc.errno}] {exc.strerror}")
+        return RTResult().success(Number.null)
+
+    def execute_networkingBlocking(self, args, exec_ctx):
+        if len(args) != 2 or not isinstance(args[1], Number):
+            return self._failure(exec_ctx, "networkingBlocking(handle, enabled) expects a socket handle and boolean")
+        connection, failure = self._socket(args[0], exec_ctx, "networkingBlocking")
+        if failure:
+            return failure
+        try:
+            connection.setblocking(args[1].is_true())
+        except OSError as exc:
+            return self._failure(exec_ctx, f"networkingBlocking() failed: [{exc.errno}] {exc.strerror}")
+        return RTResult().success(Number.null)
+
+    def execute_networkingOption(self, args, exec_ctx):
+        if len(args) != 3 or not isinstance(args[1], String) or not isinstance(args[2], Number):
+            return self._failure(exec_ctx, "networkingOption(handle, name, value) expects a socket handle, name, and integer")
+        options = {"reuseAddr": socket.SO_REUSEADDR, "keepAlive": socket.SO_KEEPALIVE, "broadcast": socket.SO_BROADCAST}
+        option = options.get(args[1].value)
+        if option is None:
+            return self._failure(exec_ctx, "networkingOption() supports reuseAddr, keepAlive, and broadcast")
+        connection, failure = self._socket(args[0], exec_ctx, "networkingOption")
+        if failure:
+            return failure
+        try:
+            connection.setsockopt(socket.SOL_SOCKET, option, int(args[2].value))
+        except OSError as exc:
+            return self._failure(exec_ctx, f"networkingOption() failed: [{exc.errno}] {exc.strerror}")
+        return RTResult().success(Number.null)
+
+    def execute_networkingResolve(self, args, exec_ctx):
+        if len(args) != 2 or not isinstance(args[0], String) or not _native_nonnegative(args[1]):
+            return self._failure(exec_ctx, "networkingResolve(host, port) expects a host and non-negative port")
+        try:
+            addresses = sorted({item[4][0] for item in socket.getaddrinfo(args[0].value, args[1].value, type=socket.SOCK_STREAM)})
+        except OSError as exc:
+            return self._failure(exec_ctx, f"networkingResolve() failed: [{exc.errno}] {exc.strerror}")
+        return RTResult().success(List([String(address) for address in addresses]))
+
+    def execute_networkingAddress(self, args, exec_ctx):
+        if len(args) != 1:
+            return self._failure(exec_ctx, "networkingAddress(handle) expects a socket handle")
+        connection, failure = self._socket(args[0], exec_ctx, "networkingAddress")
+        if failure:
+            return failure
+        try:
+            address = connection.getsockname()
+        except OSError as exc:
+            return self._failure(exec_ctx, f"networkingAddress() failed: [{exc.errno}] {exc.strerror}")
+        return RTResult().success(String(json.dumps(address, separators=(",", ":"))))
 
     def execute_nativeHandleAllocate(self, args, exec_ctx):
         if len(args) != 1 or not _native_nonnegative(args[0]):
@@ -3185,6 +3552,31 @@ BUILTIN_FUNCTION_NAMES = (
     "processWait",
     "processSendSignal",
     "processClose",
+    "filesystemOpen",
+    "filesystemRead",
+    "filesystemWrite",
+    "filesystemClose",
+    "filesystemStat",
+    "filesystemList",
+    "filesystemMkdir",
+    "filesystemRemove",
+    "filesystemRename",
+    "filesystemLink",
+    "filesystemReadLink",
+    "filesystemChmod",
+    "networkingOpen",
+    "networkingBind",
+    "networkingListen",
+    "networkingAccept",
+    "networkingConnect",
+    "networkingSend",
+    "networkingReceive",
+    "networkingClose",
+    "networkingShutdown",
+    "networkingBlocking",
+    "networkingOption",
+    "networkingResolve",
+    "networkingAddress",
     *SYSCALL_BUILTIN_NAMES,
     "atomicLoad",
     "atomicStore",

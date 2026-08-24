@@ -1,0 +1,27 @@
+// Managed filesystem API: files, metadata, directories, links, and permissions.
+global setup(){}
+
+global main(){
+    str root = "/tmp/lynxer-filesystem-fixture";
+    str file = root + ".txt";
+    str renamed = root + "-renamed.txt";
+    str link = root + "-link";
+    println(filesystemMkdir(root, true));
+    int handle = filesystemOpen(file, "w", 420);
+    println(filesystemWrite(handle, "filesystem") == 10);
+    filesystemClose(handle);
+    println(returnLength(filesystemStat(file)) > 0);
+    int reader = filesystemOpen(file, "r");
+    println(filesystemRead(reader, 32));
+    filesystemClose(reader);
+    println(filesystemList(root));
+    println(filesystemMkdir(root + "/nested"));
+    filesystemLink(file, link, true);
+    println(filesystemReadLink(link) == file);
+    filesystemChmod(file, 420);
+    filesystemRename(file, renamed);
+    filesystemRemove(link);
+    filesystemRemove(renamed);
+    filesystemRemove(root + "/nested");
+    filesystemRemove(root);
+}

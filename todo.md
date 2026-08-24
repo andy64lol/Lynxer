@@ -151,18 +151,18 @@
 
 ## Filesystem API
 
-- [ ] Build a safe, ergonomic filesystem abstraction over the syscall layer:
-- [ ] Add path, file, directory, metadata, rename, link, and permission operations.
-- [ ] Use managed file handles with deterministic close behavior.
-- [ ] Normalize errors and path behavior without hiding errno details.
-- [ ] Test regular files, directories, symbolic links, and edge cases.
+- [x] Build a safe, ergonomic filesystem abstraction over the syscall layer:
+- [x] Add path, file, directory, metadata, rename, link, and permission operations.
+- [x] Use managed file handles with deterministic close behavior.
+- [x] Normalize errors and path behavior without hiding errno details.
+- [x] Test regular files, directories, symbolic links, and edge cases.
 
 ## Networking API
 
-- [ ] Add TCP, UDP, and Unix-domain socket APIs over the syscall layer:
-- [ ] Provide address parsing, bind/listen/connect, accept, send, and receive operations.
-- [ ] Add blocking, non-blocking, socket options, shutdown, and cleanup.
-- [ ] Cover IPv4, IPv6, Unix sockets, connection failures, and timeouts.
+- [x] Add TCP, UDP, and Unix-domain socket APIs over the syscall layer:
+- [x] Provide address parsing, bind/listen/connect, accept, send, and receive operations.
+- [x] Add blocking, non-blocking, socket options, shutdown, and cleanup.
+- [x] Cover IPv4, IPv6, Unix sockets, connection failures, and timeouts.
 
 ## Concurrency API
 

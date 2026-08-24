@@ -1,0 +1,28 @@
+// Managed networking API: TCP, UDP, Unix sockets, options, and resolution.
+global setup(){}
+
+global main(){
+    int tcp = networkingOpen("tcp");
+    networkingOption(tcp, "reuseAddr", 1);
+    networkingBind(tcp, "127.0.0.1", 0);
+    networkingListen(tcp, 2);
+    println(returnLength(networkingAddress(tcp)) > 0);
+    networkingClose(tcp);
+
+    int udp = networkingOpen("udp");
+    networkingOption(udp, "broadcast", 0);
+    networkingBlocking(udp, false);
+    networkingBind(udp, "127.0.0.1", 0);
+    networkingConnect(udp, "127.0.0.1", 9);
+    println(networkingSend(udp, "ping") == 4);
+    println(returnLength(networkingAddress(udp)) > 0);
+    networkingShutdown(udp, "both");
+    networkingClose(udp);
+
+    int unixSocket = networkingOpen("unix");
+    networkingBind(unixSocket, "/tmp/lynxer-networking-fixture.sock");
+    println(returnLength(networkingAddress(unixSocket)) > 0);
+    networkingClose(unixSocket);
+    filesystemRemove("/tmp/lynxer-networking-fixture.sock");
+    println(returnLength(networkingResolve("localhost", 80)) > 0);
+}

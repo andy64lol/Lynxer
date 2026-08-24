@@ -72,6 +72,63 @@ The process built-ins provide managed subprocesses, pipes, environment
 overrides, signals, timeouts, and exit-status inspection. See the complete
 [Process API reference](process.md).
 
+### Filesystem and networking APIs
+
+The managed filesystem functions are documented in the
+[Filesystem API reference](filesystem.md), and managed TCP, UDP, and Unix
+sockets are documented in the [Networking API reference](networking.md).
+
+---
+
+## Complete builtin index
+
+The following is the complete public builtin registry, including the named
+Linux syscall wrappers. This index is generated from `lynxer/builtins.py`; the
+individual API references above and the linked subsystem references describe
+the argument and return-value contracts.
+
+```text
+print println input inputln rawPy rawPyx strOf intOf sentinel object returnType
+returnLength seqFromTo range cleanRawPyxCache listJsonArray listJsonObject splitStr
+listFlatten listUnique listPush listPop listGet listSet listSlice listContains
+contains listJoin listIndex listRemove anyOf allOf sumOf sortList reverseList listMin
+listMax listFirst listLast listHead listTail listCount listExtend listInsert listClear
+listRepeat listAvg listZip asyncRun asyncGather sleep asyncSleep foreverDelay
+suppressForeverWarning suppressDeprecationWarning
+tupleCreate tupleGet tupleLen tupleContains tupleIndex tupleSlice tupleToList
+listToTuple tupleConcat tupleCount tupleFirst tupleLast tupleJsonArray tupleReverse
+tupleSort tupleSortDesc tupleMin tupleMax tupleSum tupleAny tupleAll tupleUnique
+tupleMean tupleFlatten tupleZip tupleJoin assert overrideMain unshare getAddress
+modifyAddressValue getAddressValue functionAddress nativeFunctionAddress
+ffiLoadLibrary ffiLookup ffiCloseLibrary ffiCall ffiCallback ffiFreeCallback
+nativeModuleLoad nativeModuleName nativeModuleFunction nativeModuleConstant
+nativeModuleType nativeModuleError nativeModuleDependencies nativeModuleClose
+nativeThreadStart nativeThreadJoin nativeThreadIsAlive nativeThreadStatus
+nativeThreadDetach nativeHandleAllocate nativeHandleAddress nativeHandleFree
+nativeHandleIsAlive nativeCall processSpawn processWrite processCloseInput processRead
+processPoll processWait processSendSignal processClose
+filesystemOpen filesystemRead filesystemWrite filesystemClose filesystemStat filesystemList
+filesystemMkdir filesystemRemove filesystemRename filesystemLink filesystemReadLink
+filesystemChmod networkingOpen networkingBind networkingListen networkingAccept
+networkingConnect networkingSend networkingReceive networkingClose networkingShutdown
+networkingBlocking networkingOption networkingResolve networkingAddress
+atomicLoad atomicStore atomicAdd volatileRead volatileWrite memoryProtect memoryTypeSize
+memoryTypeAlignment memoryReadEndian memoryWriteEndian memoryBlockAllocate memoryBlockView
+memoryBlockGet memoryBlockSet memoryBlockLength memoryArrayAllocate memoryArrayView
+memoryArrayGet memoryArraySet memoryArrayLength memoryViewGet memoryViewSet memoryViewLength
+memoryStructSize memoryStructFieldOffset memoryStructFieldSize memoryStructAlignment
+memoryStructFieldCount memoryStructFieldType memoryStructAllocate memoryStructGet
+memoryStructSet nativeStructSize nativeStructAllocate nativeStructFieldOffset
+nativeStructFieldSize nativeTypeAlignment nativeStructAlignment nativeStructFieldCount
+nativeStructFieldType nativeStructGet nativeStructSet memoryAllocate memoryAllocateZeroed
+memoryReallocate memoryFree memorySet memoryCopy memoryReadInt32 memoryWriteInt32
+memoryReadInt8 memoryWriteInt8 memoryReadInt16 memoryWriteInt16 memoryReadInt64
+memoryWriteInt64 memoryReadUInt8 memoryWriteUInt8 memoryReadUInt16 memoryWriteUInt16
+memoryReadUInt32 memoryWriteUInt32 memoryReadUInt64 memoryWriteUInt64 memoryReadFloat32
+memoryWriteFloat32 memoryReadFloat64 memoryWriteFloat64 memoryReadByte memoryWriteByte
+sizeOf
+```
+
 The allocator is also available as `memoryAllocate`, `memoryAllocateZeroed`,
 `memoryReallocate`, `memoryFree`, `memorySet`, and `memoryCopy`. Typed
 read/write functions are available for signed and unsigned 8/16/32/64-bit

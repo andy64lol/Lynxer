@@ -1,0 +1,15 @@
+// Managed TCP accept with a real local client.
+global setup(){}
+
+global main(){
+    int server = networkingOpen("tcp");
+    networkingBind(server, "127.0.0.1", 39471);
+    networkingListen(server, 1);
+    int client = processSpawn("python3", [str "-c", str "import socket; s=socket.socket(); s.connect(('127.0.0.1', 39471)); s.sendall(b'hello'); s.close()"], []);
+    int connection = networkingAccept(server);
+    println(networkingReceive(connection, 32));
+    networkingClose(connection);
+    println(processWait(client, 2) == 0);
+    processClose(client);
+    networkingClose(server);
+}

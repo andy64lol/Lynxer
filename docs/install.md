@@ -6,9 +6,7 @@ Download the latest pre-built binary for your platform from the
 [GitHub Releases page](https://github.com/your-org/lynxer/releases).
 
 No Python installation required. Unzip, place `lynxer` somewhere on your `PATH`, and you're done.
-The native build targets the Linux host architecture. x86-64 and ARM64
-(`aarch64`) Linux hosts are supported; other operating systems are not
-supported.
+The native build targets the Linux host architecture. Only x86-64 Linux hosts are supported; other operating systems or architectures are not supported.
 
 ```bash
 lynxer --version   # confirm it works

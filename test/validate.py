@@ -16,6 +16,8 @@ import subprocess
 import sys
 import tempfile
 import re
+import threading
+import socket
 from pathlib import Path
 from typing import Callable
 
@@ -652,6 +654,104 @@ global main(){{
     )
 
 
+def test_filesystem_api(temp_root: Path) -> None:
+    source = f"""global setup(){{}}
+global main(){{
+    str root = "{temp_root}";
+    str file = root + "/file.txt";
+    int handle = filesystemOpen(file, "w");
+    println(filesystemWrite(handle, "hello") == 5);
+    filesystemClose(handle);
+    println(filesystemStat(file));
+    int reader = filesystemOpen(file, "r");
+    println(filesystemRead(reader, 32));
+    filesystemClose(reader);
+    filesystemMkdir(root + "/nested");
+    filesystemLink(file, root + "/link.txt", true);
+    println(filesystemReadLink(root + "/link.txt") == file);
+    println(filesystemList(root));
+    filesystemRename(file, root + "/renamed.txt");
+    filesystemChmod(root + "/renamed.txt", 420);
+    filesystemRemove(root + "/link.txt");
+    filesystemRemove(root + "/renamed.txt");
+    filesystemRemove(root + "/nested");
+}}"""
+    output, error = run_source(source, str(temp_root / "filesystem.lynx"))
+    if error is not None or not output.startswith('true\n{"type":"file"'):
+        raise ValidationFailure(
+            f"filesystem API failed: error={error.as_string() if error else None}, output={output!r}"
+        )
+    if (temp_root / "nested").exists() or (temp_root / "renamed.txt").exists():
+        raise ValidationFailure("filesystem API did not clean up test entries")
+    require_error(
+        """global setup(){}
+global main(){ filesystemRead(999999, 1); }""",
+        "unknown or closed file handle",
+        "filesystem closed-handle error",
+    )
+
+
+def test_networking_api(temp_root: Path) -> None:
+    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(1)
+    listener.settimeout(3)
+    port = listener.getsockname()[1]
+    peer_error: list[Exception] = []
+
+    def serve() -> None:
+        try:
+            connection, _ = listener.accept()
+            connection.settimeout(3)
+            connection.sendall(b"hello")
+            if connection.recv(32) != b"world":
+                raise AssertionError("networking client sent unexpected data")
+            connection.close()
+        except Exception as exc:
+            peer_error.append(exc)
+        finally:
+            listener.close()
+
+    peer = threading.Thread(target=serve)
+    peer.start()
+    unix_path = temp_root / "lynxer.sock"
+    source = f"""global setup(){{}}
+global main(){{
+    int tcp = networkingOpen("tcp");
+    networkingOption(tcp, "keepAlive", 0);
+    networkingConnect(tcp, "127.0.0.1", {port});
+    println(networkingReceive(tcp, 32));
+    println(networkingSend(tcp, "world") == 5);
+    networkingShutdown(tcp, "both");
+    networkingClose(tcp);
+    int udp = networkingOpen("udp");
+    networkingBlocking(udp, false);
+    networkingBind(udp, "127.0.0.1", 0);
+    println(returnLength(networkingAddress(udp)) > 0);
+    networkingClose(udp);
+    int unixSocket = networkingOpen("unix");
+    networkingBind(unixSocket, "{unix_path}");
+    println(returnLength(networkingAddress(unixSocket)) > 0);
+    networkingClose(unixSocket);
+    filesystemRemove("{unix_path}");
+    println(returnLength(networkingResolve("localhost", 80)) > 0);
+}}"""
+    output, error = run_source(source, str(temp_root / "networking.lynx"))
+    peer.join(timeout=2)
+    if peer.is_alive() or peer_error:
+        raise ValidationFailure(f"networking peer failed: {peer_error!r}")
+    if error is not None or output != "hello\ntrue\ntrue\ntrue\ntrue\n":
+        raise ValidationFailure(
+            f"networking API failed: error={error.as_string() if error else None}, output={output!r}"
+        )
+    require_error(
+        """global setup(){}
+global main(){ networkingReceive(999999, 1); }""",
+        "unknown or closed socket handle",
+        "networking closed-handle error",
+    )
+
+
 def test_cli(temp_root: Path) -> None:
     source_path = temp_root / "cli_case.lynx"
     source_path.write_text(
@@ -754,6 +854,8 @@ def main() -> int:
             ("native threads", test_native_threads),
             ("Linux native syscall", test_linux_syscall),
             ("process API", test_process_api),
+            ("filesystem API", lambda: test_filesystem_api(temp_root)),
+            ("networking API", lambda: test_networking_api(temp_root)),
             ("CLI", lambda: test_cli(temp_root)),
             ("existing .lynx fixtures", test_existing_fixtures),
         ]
