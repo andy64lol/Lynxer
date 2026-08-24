@@ -4,7 +4,9 @@
 
 ## Importing
 
-`import()` loads a `.lynx` or `.lynxc` file as a module and may only be called inside `setup()`.
+`import()` loads a `.lynx`, `.lynxc`, or registered native `.so` module and may
+only be called inside `setup()`. See [Native modules](native-modules.md) for
+the shared-library registration ABI.
 
 ```c
 global setup(){

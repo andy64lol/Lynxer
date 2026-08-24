@@ -7,6 +7,10 @@ Lynxer has two extension layers:
 | **Built-in function** | Python in `lynxer/builtins.py` | The operation needs Python libraries, system access, or a runtime primitive. |
 | **Standard-library module** | Lynxer in `lynxer/stdlib/<name>.lynx` | The operation can be expressed as Lynxer code or should be a normal imported module. |
 
+Native shared libraries can also be imported as first-class modules when they
+export the versioned registration ABI described in
+[Native modules](native-modules.md).
+
 Built-ins are available without `import()`. Standard-library modules are loaded
 with `import("name")` and expose their global functions through
 `global.name.function(...)`.

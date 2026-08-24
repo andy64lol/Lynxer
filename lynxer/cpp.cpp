@@ -25,6 +25,9 @@
 #include <cerrno>
 #include <sys/syscall.h>
 #endif
+#if defined(__unix__) || defined(__APPLE__)
+#include <dlfcn.h>
+#endif
 
 namespace {
 
@@ -81,6 +84,19 @@ struct StructLayout {
 
 std::unordered_map<void *, TypedBlock> typedBlocks;
 std::unordered_map<void *, StructLayout> structBlocks;
+
+struct NativeLibrary {
+    void *handle;
+    std::string path;
+    std::unordered_map<std::string, std::pair<uintptr_t, std::string>> functions;
+    std::unordered_map<std::string, std::int64_t> constants;
+    std::unordered_map<std::string, std::string> types;
+};
+
+std::unordered_map<std::int64_t, NativeLibrary *> nativeLibraries;
+std::int64_t nextNativeLibrary = 1;
+std::unordered_map<uintptr_t, PyObject *> ffiCallbacks;
+std::int64_t nextFfiCallback = 1;
 
 bool memoryType(const std::string &name, MemoryType *out) {
     if (name == "byte" || name == "int8" || name == "uint8") *out = {1, 1};

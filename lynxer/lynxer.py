@@ -7463,7 +7463,7 @@ def _get_current_global_path(context):
     return None
 
 
-def _module_path(filename: str, base_dir: str) -> tuple[str | None, bool, str | None]:
+def _module_path(filename: str, base_dir: str) -> tuple[str | None, bool | str, str | None]:
     """Resolve an import without escaping the importing directory.
 
     Returns ``(path, use_bytecode, error)``.  Auto-detected bytecode is used
@@ -7485,6 +7485,11 @@ def _module_path(filename: str, base_dir: str) -> tuple[str | None, bool, str | 
             return None, False, "module paths may not escape the importing directory"
     except ValueError:
         return None, False, "module path is on a different filesystem root"
+
+    if filename.endswith((".so", ".dylib", ".dll")):
+        if os.path.isfile(source_path):
+            return source_path, "native", None
+        return None, False, f"native module '{filename}' was not found"
 
     bytecode_path = os.path.splitext(source_path)[0] + ".lynxc"
     source_exists = os.path.isfile(source_path)
@@ -9848,7 +9853,8 @@ class Interpreter:
         filename = node.filename_tok.value
 
         explicit_bytecode = filename.endswith(".lynxc")
-        if not filename.endswith(".lynx") and not explicit_bytecode:
+        native_module = filename.endswith((".so", ".dylib", ".dll"))
+        if not filename.endswith(".lynx") and not explicit_bytecode and not native_module:
             filename += ".lynx"
 
         module_name = os.path.splitext(os.path.basename(filename))[0]
@@ -9875,7 +9881,19 @@ class Interpreter:
         _register_builtins(module_table)
         module_table.set("class", ClassRegistry())
 
-        if use_bytecode:
+        if use_bytecode == "native":
+            try:
+                from .builtins import _load_native_module, populate_native_module_table
+                _, native_state = _load_native_module(filepath, imported=True)
+                populate_native_module_table(native_state, module_table)
+                error = None
+            except Exception as e:
+                error = RTError(
+                    node.pos_start, node.pos_end,
+                    f'Failed to load native module "{filename}": {e}',
+                    context,
+                )
+        elif use_bytecode:
             try:
                 error = run_bytecode_file(filepath, module_table)
             except Exception as e:
@@ -9930,7 +9948,8 @@ class Interpreter:
             ))
 
         explicit_bytecode = filename.endswith(".lynxc")
-        if not filename.endswith(".lynx") and not explicit_bytecode:
+        native_module = filename.endswith((".so", ".dylib", ".dll"))
+        if not filename.endswith(".lynx") and not explicit_bytecode and not native_module:
             filename += ".lynx"
 
         module_name = os.path.splitext(os.path.basename(filename))[0]
@@ -9954,7 +9973,19 @@ class Interpreter:
         _register_builtins(module_table)
         module_table.set("class", ClassRegistry())
 
-        if use_bytecode:
+        if use_bytecode == "native":
+            try:
+                from .builtins import _load_native_module, populate_native_module_table
+                _, native_state = _load_native_module(filepath, imported=True)
+                populate_native_module_table(native_state, module_table)
+                error = None
+            except Exception as e:
+                error = RTError(
+                    node.pos_start, node.pos_end,
+                    f'Failed to load native module "{filename}": {e}',
+                    context,
+                )
+        elif use_bytecode:
             try:
                 error = run_bytecode_file(filepath, module_table)
             except Exception as e:

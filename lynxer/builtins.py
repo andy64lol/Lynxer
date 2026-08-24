@@ -56,6 +56,8 @@ _MEMORY_TYPES = {
 _FFI_LIBRARIES: dict[int, ctypes.CDLL] = {}
 _FFI_CALLBACKS: dict[int, object] = {}
 _FFI_IDS = itertools.count(1)
+_NATIVE_MODULES: dict[int, dict[str, Any]] = {}
+_NATIVE_MODULE_IDS = itertools.count(1)
 _PROCESSES: dict[int, subprocess.Popen] = {}
 _PROCESS_IDS = itertools.count(1)
 
@@ -198,6 +200,193 @@ def _json_value(value):
     if isinstance(value, (Sentinel, ObjectValue)):
         return str(value)
     return str(value)
+
+
+def _native_module_state(handle):
+    state = _NATIVE_MODULES.get(handle)
+    if state is None or state["closed"]:
+        return None
+    return state
+
+
+def _load_native_module(path: str, imported: bool = False):
+    """Load a native module and invoke its versioned registration entry point.
+
+    Native modules export:
+      int lynxer_module_init_v1(register_function, register_constant,
+                                register_type)
+
+    Registration callbacks receive UTF-8 names. Functions additionally provide
+    an exported symbol and the existing Lynxer native-call signature grammar.
+    """
+    resolved_path = os.path.abspath(path)
+    try:
+        library = ctypes.CDLL(resolved_path)
+        initializer = library.lynxer_module_init_v1
+    except (OSError, AttributeError) as exc:
+        raise RuntimeError(
+            f"could not load native module '{path}': {exc}"
+        ) from exc
+
+    state: dict[str, Any] = {
+        "path": os.path.realpath(resolved_path),
+        "name": os.path.splitext(os.path.basename(resolved_path))[0],
+        "library": library,
+        "functions": {},
+        "constants": {},
+        "types": {},
+        "closed": False,
+        "imported": imported,
+        "error": None,
+        "callbacks": [],
+    }
+
+    def valid_name(raw_name):
+        if not raw_name:
+            return False
+        try:
+            return raw_name.decode("utf-8").isidentifier()
+        except UnicodeDecodeError:
+            return False
+
+    register_function_type = ctypes.CFUNCTYPE(
+        ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_char_p
+    )
+    register_constant_type = ctypes.CFUNCTYPE(
+        ctypes.c_int, ctypes.c_char_p, ctypes.c_longlong
+    )
+    register_type_type = ctypes.CFUNCTYPE(
+        ctypes.c_int, ctypes.c_char_p, ctypes.c_char_p
+    )
+
+    def register_function(raw_name, raw_symbol, raw_signature):
+        if not valid_name(raw_name) or not raw_symbol or not raw_signature:
+            state["error"] = "invalid function registration"
+            return 0
+        name = raw_name.decode("utf-8")
+        symbol = raw_symbol.decode("utf-8")
+        signature = raw_signature.decode("utf-8")
+        if ":" in signature:
+            convention, signature = signature.split(":", 1)
+            if convention not in {"cdecl", "stdcall"}:
+                state["error"] = f"unsupported calling convention '{convention}'"
+                return 0
+        if name in state["functions"] or name in state["constants"] or name in state["types"]:
+            state["error"] = f"duplicate registration '{name}'"
+            return 0
+        try:
+            pointer = ctypes.cast(getattr(library, symbol), ctypes.c_void_p).value
+        except AttributeError:
+            state["error"] = f"registered symbol '{symbol}' was not found"
+            return 0
+        if not pointer:
+            state["error"] = f"registered symbol '{symbol}' has a null address"
+            return 0
+        state["functions"][name] = {
+            "pointer": pointer,
+            "signature": signature,
+            "symbol": symbol,
+        }
+        return 1
+
+    def register_constant(raw_name, value):
+        if not valid_name(raw_name):
+            state["error"] = "invalid constant registration"
+            return 0
+        name = raw_name.decode("utf-8")
+        if name in state["functions"] or name in state["constants"] or name in state["types"]:
+            state["error"] = f"duplicate registration '{name}'"
+            return 0
+        state["constants"][name] = int(value)
+        return 1
+
+    def register_type(raw_name, raw_layout):
+        if not valid_name(raw_name) or not raw_layout:
+            state["error"] = "invalid type registration"
+            return 0
+        name = raw_name.decode("utf-8")
+        if name in state["functions"] or name in state["constants"] or name in state["types"]:
+            state["error"] = f"duplicate registration '{name}'"
+            return 0
+        try:
+            state["types"][name] = raw_layout.decode("utf-8")
+        except UnicodeDecodeError:
+            state["error"] = "type layout is not valid UTF-8"
+            return 0
+        return 1
+
+    callbacks = [
+        register_function_type(register_function),
+        register_constant_type(register_constant),
+        register_type_type(register_type),
+    ]
+    state["callbacks"] = callbacks
+    initializer.argtypes = [
+        register_function_type,
+        register_constant_type,
+        register_type_type,
+    ]
+    initializer.restype = ctypes.c_int
+    try:
+        status = initializer(*callbacks)
+    except Exception as exc:
+        raise RuntimeError(f"native module initialization failed: {exc}") from exc
+    if status != 0 or state["error"]:
+        raise RuntimeError(
+            f"native module initialization failed: "
+            f"{state['error'] or f'initializer returned {status}'}"
+        )
+    handle = next(_NATIVE_MODULE_IDS)
+    state["handle"] = handle
+    _NATIVE_MODULES[handle] = state
+    return handle, state
+
+
+def populate_native_module_table(state, symbol_table):
+    """Bind a loaded module's registered ABI surface into a Lynxer namespace."""
+    for name, info in state["functions"].items():
+        symbol_table.set(name, NativeModuleFunction(
+            name, info["pointer"], info["signature"]
+        ))
+    for name, value in state["constants"].items():
+        symbol_table.set(name, Number(value))
+    for name, layout in state["types"].items():
+        symbol_table.set(name, String(layout))
+
+
+class NativeModuleFunction(BaseFunction):
+    """A directly callable function registered by a native module."""
+
+    def __init__(self, name, pointer, signature):
+        super().__init__(name)
+        self.pointer = pointer
+        self.signature = signature
+
+    def execute(self, args):
+        res = RTResult()
+        exec_ctx = self.generate_new_context()
+        if not all(_native_int(value) for value in args):
+            return res.failure(RTError(
+                self.pos_start, self.pos_end,
+                f"native module function '{self.name}' expects integer arguments",
+                exec_ctx,
+            ))
+        try:
+            result = _MEMORY_LIB.nativeCall(
+                self.pointer, self.signature, [value.value for value in args]
+            )
+        except (RuntimeError, ValueError, OverflowError, MemoryError, OSError) as exc:
+            return res.failure(RTError(self.pos_start, self.pos_end, str(exc), exec_ctx))
+        return res.success(Number.null if result is None else Number(result))
+
+    def copy(self):
+        copied = NativeModuleFunction(self.name, self.pointer, self.signature)
+        copied.set_pos(self.pos_start, self.pos_end)
+        copied.set_context(self.context)
+        return copied
+
+    def __repr__(self):
+        return f"<native module function {self.name}>"
 
 
 class BuiltInFunction(BaseFunction):
@@ -718,6 +907,101 @@ class BuiltInFunction(BaseFunction):
             return self._failure(exec_ctx, "ffiCloseLibrary(library) expects a library handle")
         if _FFI_LIBRARIES.pop(args[0].value, None) is None:
             return self._failure(exec_ctx, "ffiCloseLibrary() received an unknown library handle")
+        return RTResult().success(Number.null)
+
+    def execute_nativeModuleLoad(self, args, exec_ctx):
+        if len(args) != 1 or not isinstance(args[0], String):
+            return self._failure(exec_ctx, "nativeModuleLoad(path) expects a library path")
+        try:
+            handle, _ = _load_native_module(args[0].value)
+        except RuntimeError as exc:
+            return self._failure(exec_ctx, str(exc))
+        return RTResult().success(Number(handle))
+
+    def execute_nativeModuleName(self, args, exec_ctx):
+        if len(args) != 1 or not _native_nonnegative(args[0]):
+            return self._failure(exec_ctx, "nativeModuleName(module) expects a module handle")
+        state = _native_module_state(args[0].value)
+        if state is None:
+            return self._failure(exec_ctx, "nativeModuleName() received an unknown module handle")
+        return RTResult().success(String(state["name"]))
+
+    def execute_nativeModuleFunction(self, args, exec_ctx):
+        if (
+            len(args) != 2
+            or not _native_nonnegative(args[0])
+            or not isinstance(args[1], String)
+        ):
+            return self._failure(
+                exec_ctx,
+                "nativeModuleFunction(module, name) expects a module handle and function name",
+            )
+        state = _native_module_state(args[0].value)
+        if state is None:
+            return self._failure(exec_ctx, "nativeModuleFunction() received an unknown module handle")
+        function = state["functions"].get(args[1].value)
+        if function is None:
+            return self._failure(
+                exec_ctx, f"native module function '{args[1].value}' is not registered"
+            )
+        result = FunctionAddress(function["pointer"])
+        result.set_context(exec_ctx)
+        return RTResult().success(result)
+
+    def execute_nativeModuleConstant(self, args, exec_ctx):
+        if (
+            len(args) != 2
+            or not _native_nonnegative(args[0])
+            or not isinstance(args[1], String)
+        ):
+            return self._failure(
+                exec_ctx,
+                "nativeModuleConstant(module, name) expects a module handle and constant name",
+            )
+        state = _native_module_state(args[0].value)
+        if state is None:
+            return self._failure(exec_ctx, "nativeModuleConstant() received an unknown module handle")
+        if args[1].value not in state["constants"]:
+            return self._failure(
+                exec_ctx, f"native module constant '{args[1].value}' is not registered"
+            )
+        return RTResult().success(Number(state["constants"][args[1].value]))
+
+    def execute_nativeModuleType(self, args, exec_ctx):
+        if (
+            len(args) != 2
+            or not _native_nonnegative(args[0])
+            or not isinstance(args[1], String)
+        ):
+            return self._failure(
+                exec_ctx,
+                "nativeModuleType(module, name) expects a module handle and type name",
+            )
+        state = _native_module_state(args[0].value)
+        if state is None:
+            return self._failure(exec_ctx, "nativeModuleType() received an unknown module handle")
+        layout = state["types"].get(args[1].value)
+        if layout is None:
+            return self._failure(
+                exec_ctx, f"native module type '{args[1].value}' is not registered"
+            )
+        return RTResult().success(String(layout))
+
+    def execute_nativeModuleClose(self, args, exec_ctx):
+        if len(args) != 1 or not _native_nonnegative(args[0]):
+            return self._failure(exec_ctx, "nativeModuleClose(module) expects a module handle")
+        state = _native_module_state(args[0].value)
+        if state is None:
+            return self._failure(exec_ctx, "nativeModuleClose() received an unknown module handle")
+        if state["imported"]:
+            return self._failure(
+                exec_ctx,
+                "nativeModuleClose() cannot close a module imported into a namespace",
+            )
+        state["closed"] = True
+        _NATIVE_MODULES.pop(args[0].value, None)
+        state["callbacks"].clear()
+        state["library"] = None
         return RTResult().success(Number.null)
 
     def execute_ffiCall(self, args, exec_ctx):
@@ -3055,6 +3339,12 @@ BUILTIN_FUNCTION_NAMES = (
     "ffiCall",
     "ffiCallback",
     "ffiFreeCallback",
+    "nativeModuleLoad",
+    "nativeModuleName",
+    "nativeModuleFunction",
+    "nativeModuleConstant",
+    "nativeModuleType",
+    "nativeModuleClose",
     "nativeThreadStart",
     "nativeThreadJoin",
     "nativeThreadIsAlive",

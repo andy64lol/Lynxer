@@ -452,6 +452,60 @@ global main(){{ println(global.mod.exported); println(global.mod.helper()); }}
         raise ValidationFailure(f"imports: received {output!r}")
 
 
+def test_native_modules(temp_root: Path) -> None:
+    module_path = temp_root / "validation_native.so"
+    c_source = r"""
+#include <stdint.h>
+typedef int (*register_function)(const char *, const char *, const char *);
+typedef int (*register_constant)(const char *, int64_t);
+typedef int (*register_type)(const char *, const char *);
+int add_values(int64_t a, int64_t b) { return (int)(a + b); }
+int lynxer_module_init_v1(register_function function,
+                          register_constant constant,
+                          register_type type) {
+    if (!function("add", "add_values", "cdecl:int32(int64,int64)")) return 1;
+    if (!constant("magic", 42)) return 2;
+    if (!type("pair", "int64 left, int64 right")) return 3;
+    return 0;
+}
+"""
+    source_path = temp_root / "validation_native.c"
+    source_path.write_text(c_source, encoding="utf-8")
+    result = subprocess.run(
+        ["cc", "-shared", "-fPIC", "-O2", str(source_path), "-o", str(module_path)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise ValidationFailure(f"native module compilation failed: {result.stderr}")
+
+    module_name = json.dumps(module_path.name)
+    module_path_text = json.dumps(module_path.name)
+    old_cwd = Path.cwd()
+    os.chdir(temp_root)
+    try:
+        require_output(
+            f"""global setup(){{ importAs({module_name}, "nmod"); }}
+global main(){{
+    println(global.nmod.magic);
+    println(global.nmod.add(2, 3));
+    println(global.nmod.pair);
+    int module = nativeModuleLoad({module_path_text});
+    println(nativeModuleName(module));
+    println(nativeModuleConstant(module, "magic"));
+    println(nativeModuleType(module, "pair"));
+    functionAddress add = nativeModuleFunction(module, "add");
+    println(ffiCall(add, "cdecl:int32(int64,int64)", [int 7, int 8]));
+    nativeModuleClose(module);
+}}""",
+            "42\n5\nint64 left, int64 right\nvalidation_native\n42\nint64 left, int64 right\n15\n",
+            "native module registration and lifecycle",
+        )
+    finally:
+        os.chdir(old_cwd)
+
+
 def test_bytecode(temp_root: Path) -> None:
     source_path = temp_root / "bytecode_case.lynx"
     source = """global setup(){}
@@ -681,6 +735,7 @@ def main() -> int:
         temp_root = Path(directory)
         tests = TESTS + [
             ("imports", lambda: test_imports(temp_root)),
+            ("native modules", lambda: test_native_modules(temp_root)),
             ("bytecode", lambda: test_bytecode(temp_root)),
             ("C FFI and native callbacks", test_ffi),
             ("native threads", test_native_threads),
