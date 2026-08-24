@@ -72,15 +72,15 @@ The process built-ins provide managed subprocesses, pipes, environment
 overrides, signals, timeouts, and exit-status inspection. See the complete
 [Process API reference](process.md).
 
-The allocator is also available as `memoryAllocate`, `memoryCallocate`,
+The allocator is also available as `memoryAllocate`, `memoryAllocateZeroed`,
 `memoryReallocate`, `memoryFree`, `memorySet`, and `memoryCopy`. Typed
 read/write functions are available for signed and unsigned 8/16/32/64-bit
 integers, plus Float32 and Float64. `sizeOf(typeName)` returns the size of a
 supported native C type.
 
 The native extension does not perform pointer ownership or bounds tracking.
-Callers must free each allocation once and must not use pointers after
-`free` or `realloc`.
+Callers must release each allocation once with `memoryFree` and must not use
+pointers after `memoryFree` or `memoryReallocate`.
 
 ---
 

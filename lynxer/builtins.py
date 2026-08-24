@@ -39,17 +39,17 @@ value_type_name = _runtime.value_type_name
 _get_cython_inline = _runtime._get_cython_inline
 
 _MEMORY_TYPES = {
-    "byte": (1, _MEMORY_LIB.readByte, _MEMORY_LIB.writeByte, 0, 255),
-    "int8": (1, _MEMORY_LIB.readInt8, _MEMORY_LIB.writeInt8, -(2**7), 2**7 - 1),
-    "uint8": (1, _MEMORY_LIB.readUInt8, _MEMORY_LIB.writeUInt8, 0, 2**8 - 1),
-    "int16": (2, _MEMORY_LIB.readInt16, _MEMORY_LIB.writeInt16, -(2**15), 2**15 - 1),
-    "uint16": (2, _MEMORY_LIB.readUInt16, _MEMORY_LIB.writeUInt16, 0, 2**16 - 1),
-    "int32": (4, _MEMORY_LIB.readInt32, _MEMORY_LIB.writeInt32, -(2**31), 2**31 - 1),
-    "uint32": (4, _MEMORY_LIB.readUInt32, _MEMORY_LIB.writeUInt32, 0, 2**32 - 1),
-    "int64": (8, _MEMORY_LIB.readInt64, _MEMORY_LIB.writeInt64, -(2**63), 2**63 - 1),
-    "uint64": (8, _MEMORY_LIB.readUInt64, _MEMORY_LIB.writeUInt64, 0, 2**64 - 1),
-    "float32": (4, _MEMORY_LIB.readFloat32, _MEMORY_LIB.writeFloat32, None, None),
-    "float64": (8, _MEMORY_LIB.readFloat64, _MEMORY_LIB.writeFloat64, None, None),
+    "byte": (1, _MEMORY_LIB.memoryReadByte, _MEMORY_LIB.memoryWriteByte, 0, 255),
+    "int8": (1, _MEMORY_LIB.memoryReadInt8, _MEMORY_LIB.memoryWriteInt8, -(2**7), 2**7 - 1),
+    "uint8": (1, _MEMORY_LIB.memoryReadUInt8, _MEMORY_LIB.memoryWriteUInt8, 0, 2**8 - 1),
+    "int16": (2, _MEMORY_LIB.memoryReadInt16, _MEMORY_LIB.memoryWriteInt16, -(2**15), 2**15 - 1),
+    "uint16": (2, _MEMORY_LIB.memoryReadUInt16, _MEMORY_LIB.memoryWriteUInt16, 0, 2**16 - 1),
+    "int32": (4, _MEMORY_LIB.memoryReadInt32, _MEMORY_LIB.memoryWriteInt32, -(2**31), 2**31 - 1),
+    "uint32": (4, _MEMORY_LIB.memoryReadUInt32, _MEMORY_LIB.memoryWriteUInt32, 0, 2**32 - 1),
+    "int64": (8, _MEMORY_LIB.memoryReadInt64, _MEMORY_LIB.memoryWriteInt64, -(2**63), 2**63 - 1),
+    "uint64": (8, _MEMORY_LIB.memoryReadUInt64, _MEMORY_LIB.memoryWriteUInt64, 0, 2**64 - 1),
+    "float32": (4, _MEMORY_LIB.memoryReadFloat32, _MEMORY_LIB.memoryWriteFloat32, None, None),
+    "float64": (8, _MEMORY_LIB.memoryReadFloat64, _MEMORY_LIB.memoryWriteFloat64, None, None),
 }
 
 _NATIVE_MODULES: dict[int, dict[str, Any]] = {}
@@ -156,9 +156,42 @@ def _load_native_module(path: str, imported: bool = False):
     state = dict(state)
     state["closed"] = False
     state["imported"] = imported
+    state["dependencies"] = _native_module_dependencies(path)
     handle = int(state["handle"])
     _NATIVE_MODULES[handle] = state
     return handle, state
+
+
+def _native_module_dependencies(path: str) -> list[str]:
+    """Return the shared libraries declared by a native module.
+
+    ``ldd`` is used instead of guessing from the module filename.  Failure to
+    inspect dependencies is reported as an empty list because loading has
+    already succeeded and dependency inspection is informational.
+    """
+    if sys.platform == "win32":
+        return []
+    command = ["otool", "-L", path] if sys.platform == "darwin" else ["ldd", path]
+    try:
+        result = subprocess.run(
+            command, capture_output=True, text=True, check=False, timeout=5
+        )
+    except (OSError, subprocess.SubprocessError):
+        return []
+    dependencies = []
+    for line in result.stdout.splitlines():
+        line = line.strip()
+        if not line or line.startswith(path) or line.startswith("statically"):
+            continue
+        if " => " in line:
+            dependency = line.split(" => ", 1)[1].split(" (", 1)[0].strip()
+        elif sys.platform == "darwin":
+            dependency = line.split(" (", 1)[0].strip()
+        else:
+            continue
+        if dependency and dependency != "not found" and dependency not in dependencies:
+            dependencies.append(dependency)
+    return dependencies
 
 
 def populate_native_module_table(state, symbol_table):
@@ -176,14 +209,21 @@ def populate_native_module_table(state, symbol_table):
 class NativeModuleFunction(BaseFunction):
     """A directly callable function registered by a native module."""
 
-    def __init__(self, name, pointer, signature):
+    def __init__(self, name, pointer, signature, module_handle=None):
         super().__init__(name)
         self.pointer = pointer
         self.signature = signature
+        self.module_handle = module_handle
 
     def execute(self, args):
         res = RTResult()
         exec_ctx = self.generate_new_context()
+        if self.module_handle is not None and _native_module_state(self.module_handle) is None:
+            return res.failure(RTError(
+                self.pos_start, self.pos_end,
+                f"native module function '{self.name}' belongs to a closed module",
+                exec_ctx,
+            ))
         if not all(_native_int(value) for value in args):
             return res.failure(RTError(
                 self.pos_start, self.pos_end,
@@ -199,7 +239,9 @@ class NativeModuleFunction(BaseFunction):
         return res.success(Number.null if result is None else Number(result))
 
     def copy(self):
-        copied = NativeModuleFunction(self.name, self.pointer, self.signature)
+        copied = NativeModuleFunction(
+            self.name, self.pointer, self.signature, self.module_handle
+        )
         copied.set_pos(self.pos_start, self.pos_end)
         copied.set_context(self.context)
         return copied
@@ -527,7 +569,7 @@ class BuiltInFunction(BaseFunction):
     def execute_nativeHandleAllocate(self, args, exec_ctx):
         if len(args) != 1 or not _native_nonnegative(args[0]):
             return self._failure(exec_ctx, "nativeHandleAllocate(size) expects a non-negative integer")
-        result = self._cpp(_MEMORY_LIB.malloc, [args[0].value], exec_ctx)
+        result = self._cpp(_MEMORY_LIB.memoryAllocate, [args[0].value], exec_ctx)
         if isinstance(result, RTResult):
             return result
         if result == 0:
@@ -556,7 +598,7 @@ class BuiltInFunction(BaseFunction):
         pointer, failure = self._native_handle_pointer(handle, exec_ctx, "nativeHandleFree")
         if failure:
             return failure
-        result = self._cpp(_MEMORY_LIB.free, [pointer], exec_ctx)
+        result = self._cpp(_MEMORY_LIB.memoryFree, [pointer], exec_ctx)
         if isinstance(result, RTResult):
             return result
         handle._state["active"] = False
@@ -778,7 +820,7 @@ class BuiltInFunction(BaseFunction):
             return self._failure(
                 exec_ctx, f"native module function '{args[1].value}' is not registered"
             )
-        result = FunctionAddress(function["pointer"])
+        result = FunctionAddress(function["pointer"], args[0].value)
         result.set_context(exec_ctx)
         return RTResult().success(result)
 
@@ -821,6 +863,26 @@ class BuiltInFunction(BaseFunction):
             )
         return RTResult().success(String(layout))
 
+    def execute_nativeModuleError(self, args, exec_ctx):
+        if len(args) != 1 or not _native_nonnegative(args[0]):
+            return self._failure(exec_ctx, "nativeModuleError(module) expects a module handle")
+        state = _native_module_state(args[0].value)
+        if state is None:
+            return self._failure(exec_ctx, "nativeModuleError() received an unknown module handle")
+        return RTResult().success(String(state.get("error", "")))
+
+    def execute_nativeModuleDependencies(self, args, exec_ctx):
+        if len(args) != 1 or not _native_nonnegative(args[0]):
+            return self._failure(
+                exec_ctx, "nativeModuleDependencies(module) expects a module handle"
+            )
+        state = _native_module_state(args[0].value)
+        if state is None:
+            return self._failure(
+                exec_ctx, "nativeModuleDependencies() received an unknown module handle"
+            )
+        return RTResult().success(List([String(path) for path in state["dependencies"]]))
+
     def execute_nativeModuleClose(self, args, exec_ctx):
         if len(args) != 1 or not _native_nonnegative(args[0]):
             return self._failure(exec_ctx, "nativeModuleClose(module) expects a module handle")
@@ -832,17 +894,23 @@ class BuiltInFunction(BaseFunction):
                 exec_ctx,
                 "nativeModuleClose() cannot close a module imported into a namespace",
             )
-        state["closed"] = True
-        _NATIVE_MODULES.pop(args[0].value, None)
         try:
             _MEMORY_LIB.nativeModuleClose(args[0].value)
         except Exception as exc:
             return self._failure(exec_ctx, f"nativeModuleClose() failed: {exc}")
+        state["closed"] = True
+        _NATIVE_MODULES.pop(args[0].value, None)
         return RTResult().success(Number.null)
 
     def execute_ffiCall(self, args, exec_ctx):
         if len(args) != 3 or not isinstance(args[1], String) or not isinstance(args[2], List):
             return self._failure(exec_ctx, "ffiCall(address, signature, arguments) expects an address, signature, and list")
+        if (
+            isinstance(args[0], FunctionAddress)
+            and args[0].module_handle is not None
+            and _native_module_state(args[0].module_handle) is None
+        ):
+            return self._failure(exec_ctx, "ffiCall() cannot call a function from a closed native module")
         pointer = args[0].pointer if isinstance(args[0], FunctionAddress) else (
             args[0].value if _native_nonnegative(args[0]) else None
         )
@@ -1209,17 +1277,17 @@ class BuiltInFunction(BaseFunction):
     def execute_memoryAllocate(self, args, exec_ctx):
         if len(args) != 1 or not _native_nonnegative(args[0]):
             return self._failure(exec_ctx, "memoryAllocate(size) expects a non-negative integer size")
-        result = self._cpp(_MEMORY_LIB.malloc, [args[0].value], exec_ctx)
+        result = self._cpp(_MEMORY_LIB.memoryAllocate, [args[0].value], exec_ctx)
         return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
-    def execute_memoryCallocate(self, args, exec_ctx):
+    def execute_memoryAllocateZeroed(self, args, exec_ctx):
         if len(args) != 2 or not all(_native_nonnegative(arg) for arg in args):
             return self._failure(
                 exec_ctx,
-                "memoryCallocate(count, size) expects non-negative integer arguments",
+                "memoryAllocateZeroed(count, size) expects non-negative integer arguments",
             )
         result = self._cpp(
-            _MEMORY_LIB.calloc, [args[0].value, args[1].value], exec_ctx
+            _MEMORY_LIB.memoryAllocateZeroed, [args[0].value, args[1].value], exec_ctx
         )
         return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
@@ -1239,7 +1307,7 @@ class BuiltInFunction(BaseFunction):
             return error
         old_address = args[0].value
         result = self._cpp(
-            _MEMORY_LIB.realloc, [old_address, args[1].value], exec_ctx
+            _MEMORY_LIB.memoryReallocate, [old_address, args[1].value], exec_ctx
         )
         return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
@@ -1250,7 +1318,7 @@ class BuiltInFunction(BaseFunction):
         error = self._check_memory_address(address, exec_ctx)
         if error:
             return error
-        result = self._cpp(_MEMORY_LIB.free, [address], exec_ctx)
+        result = self._cpp(_MEMORY_LIB.memoryFree, [address], exec_ctx)
         if isinstance(result, RTResult):
             return result
         return RTResult().success(Number.null)
@@ -1277,7 +1345,7 @@ class BuiltInFunction(BaseFunction):
         if error:
             return error
         result = self._cpp(
-            _MEMORY_LIB.memset,
+            _MEMORY_LIB.memorySet,
             [args[0].value, args[1].value, args[2].value],
             exec_ctx,
         )
@@ -1299,7 +1367,7 @@ class BuiltInFunction(BaseFunction):
             if error:
                 return error
         result = self._cpp(
-            _MEMORY_LIB.memcpy,
+            _MEMORY_LIB.memoryCopy,
             [args[0].value, args[1].value, args[2].value],
             exec_ctx,
         )
@@ -1354,82 +1422,82 @@ class BuiltInFunction(BaseFunction):
 
     def execute_memoryReadInt8(self, args, exec_ctx):
         return self._memory_read_builtin(
-            args, exec_ctx, "memoryReadInt8", _MEMORY_LIB.readInt8
+            args, exec_ctx, "memoryReadInt8", _MEMORY_LIB.memoryReadInt8
         )
 
     def execute_memoryWriteInt8(self, args, exec_ctx):
         return self._memory_write_builtin(
-            args, exec_ctx, "memoryWriteInt8", _MEMORY_LIB.writeInt8, -(2**7), 2**7 - 1
+            args, exec_ctx, "memoryWriteInt8", _MEMORY_LIB.memoryWriteInt8, -(2**7), 2**7 - 1
         )
 
     def execute_memoryReadInt16(self, args, exec_ctx):
         return self._memory_read_builtin(
-            args, exec_ctx, "memoryReadInt16", _MEMORY_LIB.readInt16
+            args, exec_ctx, "memoryReadInt16", _MEMORY_LIB.memoryReadInt16
         )
 
     def execute_memoryWriteInt16(self, args, exec_ctx):
         return self._memory_write_builtin(
-            args, exec_ctx, "memoryWriteInt16", _MEMORY_LIB.writeInt16, -(2**15), 2**15 - 1
+            args, exec_ctx, "memoryWriteInt16", _MEMORY_LIB.memoryWriteInt16, -(2**15), 2**15 - 1
         )
 
     def execute_memoryReadInt32(self, args, exec_ctx):
         return self._memory_read_builtin(
-            args, exec_ctx, "memoryReadInt32", _MEMORY_LIB.readInt32
+            args, exec_ctx, "memoryReadInt32", _MEMORY_LIB.memoryReadInt32
         )
 
     def execute_memoryWriteInt32(self, args, exec_ctx):
         return self._memory_write_builtin(
-            args, exec_ctx, "memoryWriteInt32", _MEMORY_LIB.writeInt32, -(2**31), 2**31 - 1
+            args, exec_ctx, "memoryWriteInt32", _MEMORY_LIB.memoryWriteInt32, -(2**31), 2**31 - 1
         )
 
     def execute_memoryReadInt64(self, args, exec_ctx):
         return self._memory_read_builtin(
-            args, exec_ctx, "memoryReadInt64", _MEMORY_LIB.readInt64
+            args, exec_ctx, "memoryReadInt64", _MEMORY_LIB.memoryReadInt64
         )
 
     def execute_memoryWriteInt64(self, args, exec_ctx):
         return self._memory_write_builtin(
-            args, exec_ctx, "memoryWriteInt64", _MEMORY_LIB.writeInt64, -(2**63), 2**63 - 1
+            args, exec_ctx, "memoryWriteInt64", _MEMORY_LIB.memoryWriteInt64, -(2**63), 2**63 - 1
         )
 
     def execute_memoryReadUInt8(self, args, exec_ctx):
         return self._memory_read_builtin(
-            args, exec_ctx, "memoryReadUInt8", _MEMORY_LIB.readUInt8
+            args, exec_ctx, "memoryReadUInt8", _MEMORY_LIB.memoryReadUInt8
         )
 
     def execute_memoryWriteUInt8(self, args, exec_ctx):
         return self._memory_write_builtin(
-            args, exec_ctx, "memoryWriteUInt8", _MEMORY_LIB.writeUInt8, 0, 2**8 - 1
+            args, exec_ctx, "memoryWriteUInt8", _MEMORY_LIB.memoryWriteUInt8, 0, 2**8 - 1
         )
 
     def execute_memoryReadUInt16(self, args, exec_ctx):
         return self._memory_read_builtin(
-            args, exec_ctx, "memoryReadUInt16", _MEMORY_LIB.readUInt16
+            args, exec_ctx, "memoryReadUInt16", _MEMORY_LIB.memoryReadUInt16
         )
 
     def execute_memoryWriteUInt16(self, args, exec_ctx):
         return self._memory_write_builtin(
-            args, exec_ctx, "memoryWriteUInt16", _MEMORY_LIB.writeUInt16, 0, 2**16 - 1
+            args, exec_ctx, "memoryWriteUInt16", _MEMORY_LIB.memoryWriteUInt16, 0, 2**16 - 1
         )
 
     def execute_memoryReadUInt32(self, args, exec_ctx):
         return self._memory_read_builtin(
-            args, exec_ctx, "memoryReadUInt32", _MEMORY_LIB.readUInt32
+            args, exec_ctx, "memoryReadUInt32", _MEMORY_LIB.memoryReadUInt32
         )
 
     def execute_memoryWriteUInt32(self, args, exec_ctx):
         return self._memory_write_builtin(
-            args, exec_ctx, "memoryWriteUInt32", _MEMORY_LIB.writeUInt32, 0, 2**32 - 1
+            args, exec_ctx, "memoryWriteUInt32", _MEMORY_LIB.memoryWriteUInt32, 0, 2**32 - 1
         )
 
     def execute_memoryReadUInt64(self, args, exec_ctx):
         return self._memory_read_builtin(
-            args, exec_ctx, "memoryReadUInt64", _MEMORY_LIB.readUInt64
+            args, exec_ctx, "memoryReadUInt64", _MEMORY_LIB.memoryReadUInt64
         )
 
     def execute_memoryWriteUInt64(self, args, exec_ctx):
         return self._memory_write_builtin(
-            args, exec_ctx, "memoryWriteUInt64", _MEMORY_LIB.writeUInt64, 0, 2**64 - 1
+            args, exec_ctx, "memoryWriteUInt64", _MEMORY_LIB.memoryWriteUInt64, 0, 2**64 - 1
         )
 
     def _memory_read_float_builtin(self, args, exec_ctx, name, native_function):
@@ -1452,118 +1520,39 @@ class BuiltInFunction(BaseFunction):
 
     def execute_memoryReadFloat32(self, args, exec_ctx):
         return self._memory_read_float_builtin(
-            args, exec_ctx, "memoryReadFloat32", _MEMORY_LIB.readFloat32
+            args, exec_ctx, "memoryReadFloat32", _MEMORY_LIB.memoryReadFloat32
         )
 
     def execute_memoryWriteFloat32(self, args, exec_ctx):
         return self._memory_write_float_builtin(
-            args, exec_ctx, "memoryWriteFloat32", _MEMORY_LIB.writeFloat32
+            args, exec_ctx, "memoryWriteFloat32", _MEMORY_LIB.memoryWriteFloat32
         )
 
     def execute_memoryReadFloat64(self, args, exec_ctx):
         return self._memory_read_float_builtin(
-            args, exec_ctx, "memoryReadFloat64", _MEMORY_LIB.readFloat64
+            args, exec_ctx, "memoryReadFloat64", _MEMORY_LIB.memoryReadFloat64
         )
 
     def execute_memoryWriteFloat64(self, args, exec_ctx):
         return self._memory_write_float_builtin(
-            args, exec_ctx, "memoryWriteFloat64", _MEMORY_LIB.writeFloat64
+            args, exec_ctx, "memoryWriteFloat64", _MEMORY_LIB.memoryWriteFloat64
         )
 
-    # Short native-memory names exposed alongside the descriptive memory* API.
-    def execute_malloc(self, args, exec_ctx):
-        return self.execute_memoryAllocate(args, exec_ctx)
-
-    def execute_calloc(self, args, exec_ctx):
-        return self.execute_memoryCallocate(args, exec_ctx)
-
-    def execute_realloc(self, args, exec_ctx):
-        return self.execute_memoryReallocate(args, exec_ctx)
-
-    def execute_free(self, args, exec_ctx):
-        return self.execute_memoryFree(args, exec_ctx)
-
-    def execute_memset(self, args, exec_ctx):
-        return self.execute_memorySet(args, exec_ctx)
-
-    def execute_memcpy(self, args, exec_ctx):
-        return self.execute_memoryCopy(args, exec_ctx)
-
-    def execute_readByte(self, args, exec_ctx):
+    def execute_memoryReadByte(self, args, exec_ctx):
         return self._memory_read_builtin(
-            args, exec_ctx, "readByte", _MEMORY_LIB.readByte
+            args, exec_ctx, "memoryReadByte", _MEMORY_LIB.memoryReadByte
         )
 
-    def execute_writeByte(self, args, exec_ctx):
+    def execute_memoryWriteByte(self, args, exec_ctx):
         return self._memory_write_builtin(
-            args, exec_ctx, "writeByte", _MEMORY_LIB.writeByte, 0, 255
+            args, exec_ctx, "memoryWriteByte", _MEMORY_LIB.memoryWriteByte, 0, 255
         )
-
-    def execute_readInt8(self, args, exec_ctx):
-        return self.execute_memoryReadInt8(args, exec_ctx)
-
-    def execute_writeInt8(self, args, exec_ctx):
-        return self.execute_memoryWriteInt8(args, exec_ctx)
-
-    def execute_readInt16(self, args, exec_ctx):
-        return self.execute_memoryReadInt16(args, exec_ctx)
-
-    def execute_writeInt16(self, args, exec_ctx):
-        return self.execute_memoryWriteInt16(args, exec_ctx)
-
-    def execute_readInt32(self, args, exec_ctx):
-        return self.execute_memoryReadInt32(args, exec_ctx)
-
-    def execute_writeInt32(self, args, exec_ctx):
-        return self.execute_memoryWriteInt32(args, exec_ctx)
-
-    def execute_readInt64(self, args, exec_ctx):
-        return self.execute_memoryReadInt64(args, exec_ctx)
-
-    def execute_writeInt64(self, args, exec_ctx):
-        return self.execute_memoryWriteInt64(args, exec_ctx)
-
-    def execute_readUInt8(self, args, exec_ctx):
-        return self.execute_memoryReadUInt8(args, exec_ctx)
-
-    def execute_writeUInt8(self, args, exec_ctx):
-        return self.execute_memoryWriteUInt8(args, exec_ctx)
-
-    def execute_readUInt16(self, args, exec_ctx):
-        return self.execute_memoryReadUInt16(args, exec_ctx)
-
-    def execute_writeUInt16(self, args, exec_ctx):
-        return self.execute_memoryWriteUInt16(args, exec_ctx)
-
-    def execute_readUInt32(self, args, exec_ctx):
-        return self.execute_memoryReadUInt32(args, exec_ctx)
-
-    def execute_writeUInt32(self, args, exec_ctx):
-        return self.execute_memoryWriteUInt32(args, exec_ctx)
-
-    def execute_readUInt64(self, args, exec_ctx):
-        return self.execute_memoryReadUInt64(args, exec_ctx)
-
-    def execute_writeUInt64(self, args, exec_ctx):
-        return self.execute_memoryWriteUInt64(args, exec_ctx)
-
-    def execute_readFloat32(self, args, exec_ctx):
-        return self.execute_memoryReadFloat32(args, exec_ctx)
-
-    def execute_writeFloat32(self, args, exec_ctx):
-        return self.execute_memoryWriteFloat32(args, exec_ctx)
-
-    def execute_readFloat64(self, args, exec_ctx):
-        return self.execute_memoryReadFloat64(args, exec_ctx)
-
-    def execute_writeFloat64(self, args, exec_ctx):
-        return self.execute_memoryWriteFloat64(args, exec_ctx)
 
     def execute_sizeOf(self, args, exec_ctx):
         if len(args) != 1 or not isinstance(args[0], String):
             return self._failure(exec_ctx, "sizeOf(typeName) expects one string")
         try:
-            size = _MEMORY_LIB.sizeof(args[0].value)
+            size = _MEMORY_LIB.sizeOf(args[0].value)
         except (TypeError, ValueError) as exc:
             return self._failure(exec_ctx, str(exc))
         return RTResult().success(Number(size))
@@ -3175,6 +3164,8 @@ BUILTIN_FUNCTION_NAMES = (
     "nativeModuleFunction",
     "nativeModuleConstant",
     "nativeModuleType",
+    "nativeModuleError",
+    "nativeModuleDependencies",
     "nativeModuleClose",
     "nativeThreadStart",
     "nativeThreadJoin",
@@ -3238,7 +3229,7 @@ BUILTIN_FUNCTION_NAMES = (
     "nativeStructGet",
     "nativeStructSet",
     "memoryAllocate",
-    "memoryCallocate",
+    "memoryAllocateZeroed",
     "memoryReallocate",
     "memoryFree",
     "memorySet",
@@ -3263,34 +3254,8 @@ BUILTIN_FUNCTION_NAMES = (
     "memoryWriteFloat32",
     "memoryReadFloat64",
     "memoryWriteFloat64",
-    "malloc",
-    "calloc",
-    "realloc",
-    "free",
-    "memset",
-    "memcpy",
-    "readByte",
-    "writeByte",
-    "readInt8",
-    "writeInt8",
-    "readInt16",
-    "writeInt16",
-    "readInt32",
-    "writeInt32",
-    "readInt64",
-    "writeInt64",
-    "readUInt8",
-    "writeUInt8",
-    "readUInt16",
-    "writeUInt16",
-    "readUInt32",
-    "writeUInt32",
-    "readUInt64",
-    "writeUInt64",
-    "readFloat32",
-    "writeFloat32",
-    "readFloat64",
-    "writeFloat64",
+    "memoryReadByte",
+    "memoryWriteByte",
     "sizeOf",
 )
 

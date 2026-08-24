@@ -6,11 +6,11 @@ global main(){
     int zero = memoryAllocate(0);
     println("memoryAllocate(0):", zero);
 
-    int zeroCalloc = memoryCallocate(0, 128);
-    println("memoryCallocate(0, 128):", zeroCalloc);
+    int zeroCalloc = memoryAllocateZeroed(0, 128);
+    println("memoryAllocateZeroed(0, 128):", zeroCalloc);
 
-    int zeroCalloc2 = memoryCallocate(128, 0);
-    println("memoryCallocate(128, 0):", zeroCalloc2);
+    int zeroCalloc2 = memoryAllocateZeroed(128, 0);
+    println("memoryAllocateZeroed(128, 0):", zeroCalloc2);
 
     println("\nZero-size memory operations");
 

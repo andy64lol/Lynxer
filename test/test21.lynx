@@ -32,7 +32,7 @@ global main(){
 
     println("\nCallocate + copy");
 
-    int copied = memoryCallocate(1, 128);
+    int copied = memoryAllocateZeroed(1, 128);
     memoryCopy(copied, address, 128);
 
     println("Copied Int32:", memoryReadInt32(copied, 4));

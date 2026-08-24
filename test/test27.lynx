@@ -1,7 +1,7 @@
 global setup(){}
 global main(){
     int source = memoryAllocate(16);
-    int destination = memoryCallocate(2, 8);
+    int destination = memoryAllocateZeroed(2, 8);
     memoryWriteInt32(source, 0, 123456);
     memoryWriteInt32(source, 12, -654321);
     memoryCopy(destination, source, 16);

@@ -16,7 +16,7 @@ global main(){
     memoryWriteFloat32(address, 40, 1.5);
     memoryWriteFloat64(address, 48, 2.5);
 
-    int copied = memoryCallocate(1, 128);
+    int copied = memoryAllocateZeroed(1, 128);
     memoryCopy(copied, address, 128);
     int resized = memoryReallocate(copied, 256);
 

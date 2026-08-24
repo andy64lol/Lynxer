@@ -5418,12 +5418,13 @@ class Address(Value):
 class FunctionAddress(Value):
     """A typed native function pointer used by nativeCall()."""
 
-    def __init__(self, pointer):
+    def __init__(self, pointer, module_handle=None):
         super().__init__()
         self.pointer = pointer
+        self.module_handle = module_handle
 
     def copy(self):
-        c = FunctionAddress(self.pointer)
+        c = FunctionAddress(self.pointer, self.module_handle)
         c.set_pos(self.pos_start, self.pos_end)
         c.set_context(self.context)
         return c

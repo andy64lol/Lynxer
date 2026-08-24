@@ -87,13 +87,18 @@ For code that needs dynamic discovery, use:
 | `nativeModuleFunction(handle, name)` | Return a `functionAddress` |
 | `nativeModuleConstant(handle, name)` | Return a registered integer |
 | `nativeModuleType(handle, name)` | Return a registered native layout string |
+| `nativeModuleError(handle)` | Return the module-local lifecycle error, or `""` |
+| `nativeModuleDependencies(handle)` | Return discovered shared-library dependencies |
 | `nativeModuleClose(handle)` | Release an explicitly loaded module |
 
 An explicit module handle can be combined with `ffiCall` and the registered
 function address. Closing a handle invalidates it and releases its registration
-callbacks. Imported modules cannot be explicitly closed; their namespace owns
-their lifetime. Invalid handles and failed registrations produce normal
-Lynxer runtime errors. The low-level FFI entry points are `ffiLoadLibrary`,
+callbacks. Retained function addresses from that module fail cleanly after
+close instead of calling unmapped code. Imported modules cannot be explicitly
+closed; their namespace owns their lifetime. Invalid handles and failed
+registrations produce normal Lynxer runtime errors. The low-level FFI entry
+points are `ffiLoadLibrary`,
 `ffiLookup`, `ffiCall`, `ffiCallback`, `ffiFreeCallback`, and
 `ffiCloseLibrary`; unsupported callback signatures fail clearly rather than
-falling back to Python `ctypes`.
+falling back to Python `ctypes`. Dependency inspection is informational and
+returns an empty list when host linker tooling cannot inspect a loaded module.

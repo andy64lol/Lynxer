@@ -493,14 +493,27 @@ global main(){{
     println(global.nmod.pair);
     int module = nativeModuleLoad({module_path_text});
     println(nativeModuleName(module));
+     println(nativeModuleError(module) == "");
+     println(returnLength(nativeModuleDependencies(module)) >= 0);
     println(nativeModuleConstant(module, "magic"));
     println(nativeModuleType(module, "pair"));
     functionAddress add = nativeModuleFunction(module, "add");
     println(ffiCall(add, "cdecl:int32(int64,int64)", [int 7, int 8]));
     nativeModuleClose(module);
 }}""",
-            "42\n5\nint64 left, int64 right\nvalidation_native\n42\nint64 left, int64 right\n15\n",
+         "42\n5\nint64 left, int64 right\nvalidation_native\ntrue\ntrue\n42\nint64 left, int64 right\n15\n",
             "native module registration and lifecycle",
+        )
+        require_error(
+            f"""global setup(){{}}
+global main(){{
+    int module = nativeModuleLoad({module_path_text});
+    functionAddress add = nativeModuleFunction(module, "add");
+    nativeModuleClose(module);
+    ffiCall(add, "cdecl:int32(int64,int64)", [int 1, int 2]);
+}}""",
+            "closed native module",
+            "native module unload safety",
         )
     finally:
         os.chdir(old_cwd)

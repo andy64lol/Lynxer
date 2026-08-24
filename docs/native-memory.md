@@ -26,15 +26,15 @@ must release them exactly once.
 | Function | Description |
 |----------|-------------|
 | `memoryAllocate(size)` | Allocate `size` bytes and return its address |
-| `memoryCallocate(count, size)` | Allocate zero-initialized memory |
+| `memoryAllocateZeroed(count, size)` | Allocate zero-initialized memory |
 | `memoryReallocate(address, size)` | Resize an allocation |
 | `memoryFree(address)` | Release an allocation |
 | `memorySet(address, value, size)` | Fill memory with a byte value |
 | `memoryCopy(destination, source, size)` | Copy bytes between allocations |
 
-Short C-style aliases (`malloc`, `calloc`, `realloc`, `free`, `memset`, and
-`memcpy`) remain available for compatibility. New code should use the
-camelCase names above.
+The public native-memory API uses descriptive camelCase names. The allocator
+operations are `memoryAllocate`, `memoryAllocateZeroed`, `memoryReallocate`,
+`memoryFree`, `memorySet`, and `memoryCopy`.
 
 ## Native function calls
 
@@ -145,7 +145,8 @@ println(memoryReadEndian(address, 0, "uint32", "big"));
 memoryFree(address);
 ```
 
-`memoryReadEndian(address, offset, type, order)` and
+`memoryReadByte(address, offset)` and `memoryWriteByte(address, offset, value)`
+access one unsigned byte. `memoryReadEndian(address, offset, type, order)` and
 `memoryWriteEndian(address, offset, type, order, value)` support every typed
 memory type and accept `"little"`/`"le"` or `"big"`/`"be"`. The bytes in memory
 are always written and interpreted according to the requested order.
@@ -162,11 +163,12 @@ are always written and interpreted according to the requested order.
 `memoryArraySet`, and `memoryArrayLength` are aliases for the block API.
 `memoryViewGet`, `memoryViewSet`, and `memoryViewLength` are also aliases.
 
-Typed read/write functions are available for signed and unsigned 8/16/32/64
-bit integers and `float32`/`float64`, for example
+Typed read/write functions are available as `memoryRead<Type>` and
+`memoryWrite<Type>` for signed and unsigned 8/16/32/64-bit integers and
+`float32`/`float64`, for example
 `memoryReadInt32(address, offset)` and
-`memoryWriteInt32(address, offset, value)`. The shorter `readInt32` and
-`writeInt32` forms are compatibility aliases.
+`memoryWriteInt32(address, offset, value)`. The shorter C-style forms such as
+`readInt32` and `writeInt32` are not part of the public API.
 
 `sizeOf(typeName)` returns the size of a native C type. This is the canonical
 camelCase spelling; `sizeof` is no longer part of the built-in API.

@@ -1,10 +1,10 @@
 global setup(){}
 
 global main(){
-    int address = calloc(4, 1);
+    int address = memoryAllocateZeroed(4, 1);
 
-    writeByte(address, 0, 65);
-    println(readByte(address, 0));
+    memoryWriteByte(address, 0, 65);
+    println(memoryReadByte(address, 0));
 
-    free(address);
+    memoryFree(address);
 }

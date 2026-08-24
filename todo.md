@@ -138,7 +138,7 @@
 - [x] Make `.so` extensions first-class Lynxer modules:
 - [x] Define module discovery, naming, loading, and lifecycle rules.
 - [x] Expose a stable registration ABI for functions, types, and constants.
-- [ ] Add module-local error handling, unload safety, and dependency reporting.
+- [x] Add module-local error handling, unload safety, and dependency reporting.
 - [x] Support modules in source execution, bytecode, and bundled programs.
 
 ## Process API

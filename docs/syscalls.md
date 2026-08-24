@@ -4,6 +4,14 @@ Lynxer exposes a named, low-level wrapper for each syscall in the table below.
 The wrappers are implemented by the native C++ extension and select the
 appropriate Linux syscall number for the host architecture.
 
+## Naming
+
+Syscalls use flat, descriptive Lynxer names rather than a nested C-style
+namespace. For example, use `syscallMemoryMap(...)`, not
+`syscall.mmap(...)`. The syscall name comes first, followed by the operation
+and the resource it acts on (`syscallRead`, `syscallCreateSocket`,
+`syscallGetProcessId`, and so on).
+
 ## Calling convention
 
 Every syscall built-in takes the syscall arguments as positional integer
