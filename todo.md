@@ -31,7 +31,7 @@
 
 ## Bundling 1
 
-- [x] --bundle command producing a host-native Linux executable for x86-64 and ARM64 with the Lynxer interpreter bundled
+- [x] --bundle command producing a host-native Linux executable for x86-64 with the Lynxer interpreter bundled
 - [x] Make sure --bundle command works
 - [x] Make --bundle generate: build/ and dist/
 - [x] Make Lynxer to bundle the compiled bytecode stored in build/bytecode
@@ -191,7 +191,7 @@
 ## bundling 2
 
 - [ ] Make `--bundle` absolutely bulletproof:
-- [ ] Test bundled source and bytecode programs on Linux x86-64 and ARM64.
+- [ ] Test bundled source and bytecode programs on Linux x86-64.
 - [ ] Verify native extensions, standard-library assets, imports, and resource paths in clean environments.
 - [ ] Improve failure diagnostics and reproducibility.
 - [ ] Add smoke, compatibility, and repeatable release-build checks.
