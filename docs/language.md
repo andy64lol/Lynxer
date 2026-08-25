@@ -1024,6 +1024,34 @@ global setup(){
 
 **Idempotency:** Importing the same module twice is safe and has no effect the second time.
 
+### Nested and path-based imports
+
+An import path is resolved relative to the file that contains the import. This
+allows a module to load another module from a lower directory:
+
+```c
+// app.lynx
+global setup(){ import("lib/features.lynx"); }
+global main(){ global.features.run(); }
+```
+
+If `lib/features.lynx` contains `import("helpers/format.lynx");`, Lynxer
+looks for `helpers/format.lynx` relative to the `lib/` directory, not relative
+to `app.lynx`. The module name is the filename without its extension
+(`features` and `format` in this example).
+
+Two different files that produce the same module name are rejected:
+
+```c
+global setup(){
+    import("one/config.lynx");
+    import("two/config.lynx");  // error: both modules are named "config"
+}
+```
+
+Importing the exact same file more than once remains safe and reuses the
+already-loaded module.
+
 ### Calling module functions
 
 ```c

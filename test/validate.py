@@ -453,6 +453,50 @@ global main(){{ println(global.mod.exported); println(global.mod.helper()); }}
     if output != "9\n4\n":
         raise ValidationFailure(f"imports: received {output!r}")
 
+    nested = temp_root / "module_tree"
+    nested.mkdir()
+    (nested / "leaf.lynx").write_text(
+        """global setup(){}
+global value(){ return 12; }
+""",
+        encoding="utf-8",
+    )
+    (nested / "middle.lynx").write_text(
+        """global setup(){ import("leaf.lynx"); }
+global read(){ return global.leaf.value(); }
+""",
+        encoding="utf-8",
+    )
+    nested_source = """global setup(){ import("module_tree/middle.lynx"); }
+global main(){ println(global.middle.read()); }
+"""
+    output, error = run_source(
+        nested_source, str(temp_root / "nested_import_main.lynx")
+    )
+    if error is not None:
+        raise ValidationFailure(f"nested imports: runtime error:\n{error.as_string()}")
+    if output != "12\n":
+        raise ValidationFailure(f"nested imports: received {output!r}")
+
+    (temp_root / "one").mkdir()
+    (temp_root / "two").mkdir()
+    for directory in ("one", "two"):
+        (temp_root / directory / "same_name.lynx").write_text(
+            "global setup(){}\nglobal main(){}\n",
+            encoding="utf-8",
+        )
+    collision_source = """global setup(){
+    import("one/same_name.lynx");
+    import("two/same_name.lynx");
+}
+global main(){}
+"""
+    _, error = run_source(
+        collision_source, str(temp_root / "collision_main.lynx")
+    )
+    if error is None or "Module name collision" not in error.as_string():
+        raise ValidationFailure("module name collisions were not rejected")
+
 
 def test_native_modules(temp_root: Path) -> None:
     module_path = temp_root / "validation_native.so"

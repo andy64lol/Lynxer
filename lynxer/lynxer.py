@@ -7434,6 +7434,11 @@ class SymbolTable:
 # importPy shared module registry
 _rawpy_global_modules: dict = {}
 
+# Lynxer module registry.  Module names are intentionally global: importing
+# two different files with the same basename is ambiguous even when their
+# directories differ.
+_lynx_modules: dict[str, tuple[str, "Module"]] = {}
+
 # overrideMain entry-point registry
 _main_override: "str | None" = None
 
@@ -9871,13 +9876,10 @@ class Interpreter:
             filename += ".lynx"
 
         module_name = os.path.splitext(os.path.basename(filename))[0]
-
-        existing = global_symbol_table.get(module_name)
-        if isinstance(existing, Module):
-            return res.success(Number.null)
-
-        file_val = global_symbol_table.get("__file__")
-        base_dir = os.path.dirname(file_val.value) if file_val else ""
+        target_table = context.symbol_table
+        existing_entry = _lynx_modules.get(module_name)
+        file_val = target_table.get("__file__")
+        base_dir = os.path.dirname(file_val.value) if isinstance(file_val, String) else ""
         filepath, use_bytecode, resolve_error = _module_path(filename, base_dir)
 
         if filepath is None:
@@ -9890,9 +9892,27 @@ class Interpreter:
                 )
             )
 
-        module_table = SymbolTable(global_symbol_table)
+        if existing_entry is not None:
+            existing_path, existing_module = existing_entry
+            if os.path.realpath(filepath) != existing_path:
+                return res.failure(RTError(
+                    node.pos_start,
+                    node.pos_end,
+                    f"Module name collision: '{module_name}' is already loaded "
+                    f"from '{existing_path}', not '{filepath}'",
+                    context,
+                ))
+            target_table.set(module_name, existing_module)
+            global_symbol_table.set(module_name, existing_module)
+            return res.success(Number.null)
+
+        module_table = SymbolTable(target_table)
         _register_builtins(module_table)
         module_table.set("class", ClassRegistry())
+        module_table.set("global", Namespace(module_table))
+        module = Module(module_name, module_table)
+        module.set_pos(node.pos_start, node.pos_end).set_context(context)
+        _lynx_modules[module_name] = (os.path.realpath(filepath), module)
 
         if use_bytecode == "native":
             try:
@@ -9910,6 +9930,7 @@ class Interpreter:
             try:
                 error = run_bytecode_file(filepath, module_table)
             except Exception as e:
+                _lynx_modules.pop(module_name, None)
                 return res.failure(
                     RTError(
                         node.pos_start,
@@ -9920,9 +9941,10 @@ class Interpreter:
                 )
         else:
             try:
-                with open(filepath, "r") as f:
+                with open(filepath, "r", encoding="utf-8") as f:
                     script = f.read()
             except Exception as e:
+                _lynx_modules.pop(module_name, None)
                 return res.failure(
                     RTError(
                         node.pos_start,
@@ -9934,6 +9956,7 @@ class Interpreter:
             error = run_file(filepath, script, module_table)
 
         if error:
+            _lynx_modules.pop(module_name, None)
             return res.failure(
                 RTError(
                     node.pos_start,
@@ -9943,8 +9966,7 @@ class Interpreter:
                 )
             )
 
-        module = Module(module_name, module_table)
-        module.set_pos(node.pos_start, node.pos_end).set_context(context)
+        target_table.set(module_name, module)
         global_symbol_table.set(module_name, module)
         return res.success(Number.null)
 
@@ -9966,13 +9988,9 @@ class Interpreter:
             filename += ".lynx"
 
         module_name = os.path.splitext(os.path.basename(filename))[0]
-
-        existing = global_symbol_table.get(alias_name)
-        if isinstance(existing, Module):
-            return res.success(Number.null)
-
-        file_val = global_symbol_table.get("__file__")
-        base_dir = os.path.dirname(file_val.value) if file_val else ""
+        target_table = context.symbol_table
+        file_val = target_table.get("__file__")
+        base_dir = os.path.dirname(file_val.value) if isinstance(file_val, String) else ""
         filepath, use_bytecode, resolve_error = _module_path(filename, base_dir)
 
         if filepath is None:
@@ -9982,9 +10000,28 @@ class Interpreter:
                 context,
             ))
 
-        module_table = SymbolTable(global_symbol_table)
+        existing_entry = _lynx_modules.get(module_name)
+        if existing_entry is not None:
+            existing_path, existing_module = existing_entry
+            if os.path.realpath(filepath) != existing_path:
+                return res.failure(RTError(
+                    node.pos_start,
+                    node.pos_end,
+                    f"Module name collision: '{module_name}' is already loaded "
+                    f"from '{existing_path}', not '{filepath}'",
+                    context,
+                ))
+            target_table.set(alias_name, existing_module)
+            global_symbol_table.set(alias_name, existing_module)
+            return res.success(Number.null)
+
+        module_table = SymbolTable(target_table)
         _register_builtins(module_table)
         module_table.set("class", ClassRegistry())
+        module_table.set("global", Namespace(module_table))
+        module = Module(module_name, module_table)
+        module.set_pos(node.pos_start, node.pos_end).set_context(context)
+        _lynx_modules[module_name] = (os.path.realpath(filepath), module)
 
         if use_bytecode == "native":
             try:
@@ -10002,6 +10039,7 @@ class Interpreter:
             try:
                 error = run_bytecode_file(filepath, module_table)
             except Exception as e:
+                _lynx_modules.pop(module_name, None)
                 return res.failure(RTError(
                     node.pos_start, node.pos_end,
                     f'Failed to load bytecode "{filename}": {e}',
@@ -10009,9 +10047,10 @@ class Interpreter:
                 ))
         else:
             try:
-                with open(filepath, "r") as f:
+                with open(filepath, "r", encoding="utf-8") as f:
                     script = f.read()
             except Exception as e:
+                _lynx_modules.pop(module_name, None)
                 return res.failure(RTError(
                     node.pos_start, node.pos_end,
                     f'Failed to importAs "{filename}": {e}',
@@ -10020,14 +10059,14 @@ class Interpreter:
             error = run_file(filepath, script, module_table)
 
         if error:
+            _lynx_modules.pop(module_name, None)
             return res.failure(RTError(
                 node.pos_start, node.pos_end,
                 f'Error in imported file "{filename}":\n{error.as_string()}',
                 context,
             ))
 
-        module = Module(module_name, module_table)
-        module.set_pos(node.pos_start, node.pos_end).set_context(context)
+        target_table.set(alias_name, module)
         global_symbol_table.set(alias_name, module)
         return res.success(Number.null)
 
@@ -10125,6 +10164,7 @@ def reset_runtime_state():
     global global_symbol_table
     global_symbol_table = _new_global_symbol_table()
     _rawpy_global_modules.clear()
+    _lynx_modules.clear()
 
 
 def _interpreter_error(fn, text, context_name, exc):
