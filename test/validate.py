@@ -28,14 +28,14 @@ sys.path.insert(0, str(ROOT))
 
 from lynxer.bytecode import compile_to_bytecode, run_bytecode  # noqa: E402
 from lynxer.install import INSTALL_PATH, _is_elf, _matching_pids  # noqa: E402
-from lynxer.lynxer import run  # noqa: E402
+from lynxer.lynxer import Error, RTError, run  # noqa: E402
 
 
 class ValidationFailure(Exception):
     pass
 
 
-def run_source(source: str, filename: str = "<validation>") -> tuple[str, object]:
+def run_source(source: str, filename: str = "<validation>") -> tuple[str, Error | None]:
     output = io.StringIO()
     with contextlib.redirect_stdout(output):
         _, error = run(filename, source)
@@ -807,7 +807,7 @@ def test_existing_fixtures() -> None:
             for fixture in (ROOT / "test").iterdir()
             if fixture.is_file() and fixture_pattern.match(fixture.name)
         ),
-        key=lambda fixture: int(fixture_pattern.match(fixture.name).group(1)),
+        key=lambda fixture: int(fixture_pattern.match(fixture.name).group(1))  # type: ignore[union-attr],
     )
     for fixture in fixtures:
         source = fixture.read_text(encoding="utf-8")

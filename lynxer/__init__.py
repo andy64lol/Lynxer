@@ -5,6 +5,19 @@ Keep package exports lazy so importing a submodule such as
 ``lynxer.builtins`` does not eagerly start the interpreter first.
 """
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .bytecode import (
+        BYTECODE_MAGIC,
+        BYTECODE_VERSION,
+        compile_to_bytecode,
+        run_bytecode,
+        run_bytecode_file,
+    )
+    from .lynxer import run, run_file
+
+
 __all__ = [
     "run",
     "run_file",

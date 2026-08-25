@@ -1334,10 +1334,11 @@ class Parser:
         Class names remain identifiers, so ``Widget item`` is distinguishable
         from an untyped parameter/statement by the second identifier token.
         """
+        next_token = self.peek(1)
         return self.is_type_keyword() or (
             self.current_tok.type == TT_IDENTIFIER
-            and self.peek(1) is not None
-            and self.peek(1).type == TT_IDENTIFIER
+            and next_token is not None
+            and next_token.type == TT_IDENTIFIER
         )
 
     def claim_code_block_name(self, name_tok):
@@ -1391,6 +1392,7 @@ class Parser:
             )
             if is_func_kw:
                 func_name_tok = self.peek(1)
+                assert func_name_tok is not None
 
                 if (
                     func_name_tok
@@ -1465,8 +1467,8 @@ class Parser:
                 any_other_seen = True
             elif (
                 self.current_tok.matches(TT_KEYWORD, "native")
-                and self.peek(1) is not None
-                and self.peek(1).matches(TT_KEYWORD, "struct")
+                and next_tok is not None
+                and next_tok.matches(TT_KEYWORD, "struct")
             ):
                 if main_seen:
                     return res.failure(InvalidSyntaxError(
@@ -1793,8 +1795,8 @@ class Parser:
                 or self.is_type_keyword()
                 or (
                     self.current_tok.type == TT_IDENTIFIER
-                    and self.peek(1) is not None
-                    and self.peek(1).type == TT_IDENTIFIER
+                    and (next_token := self.peek(1)) is not None
+                    and next_token.type == TT_IDENTIFIER
                 )
             ):
                 is_const = False
@@ -1859,7 +1861,7 @@ class Parser:
 
         return res.success(ClassDefNode(name_tok, field_defs, method_nodes, pos_start, pos_end))
 
-    def parse_struct_def(self):
+    def parse_struct_def(self, is_native=False):
         """Parse ``struct Name { type field; ... }``."""
         res = ParseResult()
         pos_start = self.current_tok.pos_start.copy()
@@ -1923,7 +1925,9 @@ class Parser:
         pos_end = self.current_tok.pos_end.copy()
         res.register_advancement()
         self.advance()
-        return res.success(StructDefNode(name_tok, field_defs, pos_start, pos_end))
+        return res.success(StructDefNode(
+            name_tok, field_defs, pos_start, pos_end, is_native=is_native
+        ))
 
     def parse_block(
         self,
@@ -4634,10 +4638,11 @@ class Parser:
 
     def _looks_like_exec_declaration(self):
         """Return whether the first exec value is a typed declaration."""
+        next_token = self.peek(1)
         return (
             self.is_type_keyword()
-            and self.peek(1) is not None
-            and self.peek(1).type == TT_IDENTIFIER
+            and next_token is not None
+            and next_token.type == TT_IDENTIFIER
         )
 
     def parse_exec_args(self):
@@ -5910,6 +5915,7 @@ class List(Value):
         equal, error = self.get_comparison_eq(other)
         if error:
             return None, error
+        assert isinstance(equal, Number)
         return Number(1 - int(equal.value), is_bool=True).set_context(self.context), None
 
     def is_true(self):
@@ -8891,6 +8897,7 @@ class Interpreter:
         bindings, error = _build_exec_bindings(node, block, args, context)
         if error:
             return res.failure(error)
+        assert bindings is not None
         previous = {}
         try:
             for name, declared_type, value in bindings:
@@ -8928,6 +8935,7 @@ class Interpreter:
             error.pos_end = node.pos_end
             error.context = context
             return res.failure(error)
+        assert isinstance(blueprint, ClassBlueprint)
         args = []
         for arg_node in node.arg_nodes:
             arg_value = res.register(await self.async_visit(arg_node, context))
@@ -8944,6 +8952,7 @@ class Interpreter:
         instance = res.register(blueprint.instantiate(args, context))
         if res.should_return():
             return res
+        assert instance is not None
         return res.success(
             instance.set_pos(node.pos_start, node.pos_end).set_context(context)
         )
@@ -9196,6 +9205,7 @@ class Interpreter:
         bindings, error = _build_exec_bindings(node, block, args, context)
         if error:
             return res.failure(error)
+        assert bindings is not None
         previous = {}
         try:
             for name, declared_type, value in bindings:
@@ -9422,6 +9432,7 @@ class Interpreter:
             error.pos_end = node.pos_end
             error.context = context
             return res.failure(error)
+        assert isinstance(blueprint, ClassBlueprint)
 
         args = []
         for arg_node in node.arg_nodes:
@@ -9434,6 +9445,7 @@ class Interpreter:
         instance = res.register(instance_res)
         if res.should_return():
             return res
+        assert instance is not None
         return res.success(
             instance.set_pos(node.pos_start, node.pos_end).set_context(context)
         )

@@ -488,6 +488,7 @@ class BuiltInFunction(BaseFunction):
         process, failure = self._process(args[0], exec_ctx, "processWrite")
         if failure:
             return failure
+        assert process is not None
         if process.stdin is None:
             return self._failure(exec_ctx, "processWrite() stdin is already closed")
         try:
@@ -504,6 +505,7 @@ class BuiltInFunction(BaseFunction):
         process, failure = self._process(args[0], exec_ctx, "processCloseInput")
         if failure:
             return failure
+        assert process is not None
         if process.stdin is not None:
             try:
                 process.stdin.close()
@@ -526,6 +528,7 @@ class BuiltInFunction(BaseFunction):
         process, failure = self._process(args[0], exec_ctx, "processRead")
         if failure:
             return failure
+        assert process is not None
         stream = process.stdout if args[1].value == "stdout" else process.stderr
         if stream is None:
             return self._failure(exec_ctx, "processRead() stream is closed")
@@ -542,6 +545,7 @@ class BuiltInFunction(BaseFunction):
         process, failure = self._process(args[0], exec_ctx, "processPoll")
         if failure:
             return failure
+        assert process is not None
         return RTResult().success(Number(-1 if process.poll() is None else process.returncode))
 
     def execute_processWait(self, args, exec_ctx):
@@ -558,6 +562,7 @@ class BuiltInFunction(BaseFunction):
         process, failure = self._process(args[0], exec_ctx, "processWait")
         if failure:
             return failure
+        assert process is not None
         try:
             status = process.wait(timeout=float(args[1].value))
         except subprocess.TimeoutExpired:
@@ -570,6 +575,7 @@ class BuiltInFunction(BaseFunction):
         process, failure = self._process(args[0], exec_ctx, "processSendSignal")
         if failure:
             return failure
+        assert process is not None
         if process.poll() is not None:
             return self._failure(exec_ctx, "processSendSignal() process has already exited")
         try:
@@ -584,6 +590,7 @@ class BuiltInFunction(BaseFunction):
         process, failure = self._process(args[0], exec_ctx, "processClose")
         if failure:
             return failure
+        assert process is not None
         for stream in (process.stdin, process.stdout, process.stderr):
             if stream is not None and not stream.closed:
                 stream.close()
@@ -643,6 +650,7 @@ class BuiltInFunction(BaseFunction):
         descriptor, failure = self._file(args[0], exec_ctx, "filesystemRead")
         if failure:
             return failure
+        assert descriptor is not None
         try:
             return RTResult().success(String(os.read(descriptor, args[1].value).decode("utf-8", errors="replace")))
         except OSError as exc:
@@ -654,6 +662,7 @@ class BuiltInFunction(BaseFunction):
         descriptor, failure = self._file(args[0], exec_ctx, "filesystemWrite")
         if failure:
             return failure
+        assert descriptor is not None
         try:
             return RTResult().success(Number(os.write(descriptor, args[1].value.encode("utf-8"))))
         except OSError as exc:
@@ -663,6 +672,7 @@ class BuiltInFunction(BaseFunction):
         descriptor, failure = self._file(args[0], exec_ctx, "filesystemClose") if len(args) == 1 else (None, self._failure(exec_ctx, "filesystemClose(handle) expects a file handle"))
         if failure:
             return failure
+        assert descriptor is not None
         try:
             os.close(descriptor)
         except OSError as exc:
@@ -789,9 +799,11 @@ class BuiltInFunction(BaseFunction):
         connection, failure = self._socket(args[0], exec_ctx, "networkingBind") if args else (None, self._failure(exec_ctx, "networkingBind(handle, address, port?) expects a socket handle"))
         if failure:
             return failure
+        assert connection is not None
         address, failure = self._socket_address(args, exec_ctx, "networkingBind")
         if failure:
             return failure
+        assert address is not None
         try:
             connection.bind(address)
         except OSError as exc:
@@ -804,6 +816,7 @@ class BuiltInFunction(BaseFunction):
         connection, failure = self._socket(args[0], exec_ctx, "networkingListen")
         if failure:
             return failure
+        assert connection is not None
         try:
             connection.listen(args[1].value if len(args) == 2 else 128)
         except OSError as exc:
@@ -816,6 +829,7 @@ class BuiltInFunction(BaseFunction):
         connection, failure = self._socket(args[0], exec_ctx, "networkingAccept")
         if failure:
             return failure
+        assert connection is not None
         try:
             accepted, _address = connection.accept()
         except OSError as exc:
@@ -828,9 +842,11 @@ class BuiltInFunction(BaseFunction):
         connection, failure = self._socket(args[0], exec_ctx, "networkingConnect") if args else (None, self._failure(exec_ctx, "networkingConnect(handle, address, port?) expects a socket handle"))
         if failure:
             return failure
+        assert connection is not None
         address, failure = self._socket_address(args, exec_ctx, "networkingConnect")
         if failure:
             return failure
+        assert address is not None
         try:
             connection.connect(address)
         except OSError as exc:
@@ -843,6 +859,7 @@ class BuiltInFunction(BaseFunction):
         connection, failure = self._socket(args[0], exec_ctx, "networkingSend")
         if failure:
             return failure
+        assert connection is not None
         try:
             return RTResult().success(Number(connection.send(args[1].value.encode("utf-8"))))
         except OSError as exc:
@@ -854,6 +871,7 @@ class BuiltInFunction(BaseFunction):
         connection, failure = self._socket(args[0], exec_ctx, "networkingReceive")
         if failure:
             return failure
+        assert connection is not None
         try:
             return RTResult().success(String(connection.recv(args[1].value).decode("utf-8", errors="replace")))
         except OSError as exc:
@@ -865,6 +883,7 @@ class BuiltInFunction(BaseFunction):
         connection, failure = self._socket(args[0], exec_ctx, "networkingClose")
         if failure:
             return failure
+        assert connection is not None
         try:
             connection.close()
         except OSError as exc:
@@ -878,6 +897,7 @@ class BuiltInFunction(BaseFunction):
         connection, failure = self._socket(args[0], exec_ctx, "networkingShutdown")
         if failure:
             return failure
+        assert connection is not None
         try:
             connection.shutdown({"read": socket.SHUT_RD, "write": socket.SHUT_WR, "both": socket.SHUT_RDWR}[args[1].value])
         except OSError as exc:
@@ -890,6 +910,7 @@ class BuiltInFunction(BaseFunction):
         connection, failure = self._socket(args[0], exec_ctx, "networkingBlocking")
         if failure:
             return failure
+        assert connection is not None
         try:
             connection.setblocking(args[1].is_true())
         except OSError as exc:
@@ -906,6 +927,7 @@ class BuiltInFunction(BaseFunction):
         connection, failure = self._socket(args[0], exec_ctx, "networkingOption")
         if failure:
             return failure
+        assert connection is not None
         try:
             connection.setsockopt(socket.SOL_SOCKET, option, int(args[2].value))
         except OSError as exc:
@@ -927,6 +949,7 @@ class BuiltInFunction(BaseFunction):
         connection, failure = self._socket(args[0], exec_ctx, "networkingAddress")
         if failure:
             return failure
+        assert connection is not None
         try:
             address = connection.getsockname()
         except OSError as exc:
