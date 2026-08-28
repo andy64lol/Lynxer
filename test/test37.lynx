@@ -1,0 +1,24 @@
+global setup(){ import("game"); }
+
+global main(){
+    global.game.init("My Game", 800, 600);
+    global.game.setBackground(30, 30, 46);
+    global.game.setFPSCap(60);
+
+    rawPy(){
+        import builtins
+        px = [400.0]
+        def _draw():
+            global.game.beginDraw()
+            global.game.drawCircle(px[0], 300, 40, 100, 200, 255)
+            global.game.drawText("Arrow keys to move", 260, 20, 200, 200, 200, 16)
+            global.game.endDraw()
+        def _update(dt):
+            if global.game.keyDown("LEFT"):  px[0] -= 200 * dt
+            if global.game.keyDown("RIGHT"): px[0] += 200 * dt
+        builtins._lx_game_win.on_draw   = _draw
+        builtins._lx_game_win.on_update = _update
+    }
+
+    global.game.run();
+}

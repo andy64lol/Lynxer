@@ -128,6 +128,38 @@ running.
 `nativeThreadDetach(handle)` releases ownership so it cleans itself up when it
 finishes. A thread handle must be joined or detached exactly once.
 
+## Synchronization
+
+Native threads can coordinate through managed mutex, condition-variable, and
+semaphore handles:
+
+```lynx
+int mutex = nativeMutexCreate();
+int condition = nativeConditionCreate();
+nativeMutexLock(mutex);
+nativeConditionWait(condition, mutex);
+nativeMutexUnlock(mutex);
+nativeConditionClose(condition);
+nativeMutexClose(mutex);
+```
+
+Mutex operations are `nativeMutexLock`, `nativeMutexTryLock`,
+`nativeMutexUnlock`, and `nativeMutexClose`. `nativeMutexTryLock` returns a
+boolean. A mutex is non-recursive and can only be unlocked by its owning
+thread.
+
+Condition operations are `nativeConditionWait(condition, mutex)`,
+`nativeConditionNotify(condition, mutex)`, and
+`nativeConditionNotifyAll(condition, mutex)`, followed by
+`nativeConditionClose(condition)`. The caller must hold the mutex for all
+condition operations. Waiting releases the mutex atomically and reacquires it
+before returning.
+
+Semaphores are created with `nativeSemaphoreCreate(initial)`, then controlled
+with `nativeSemaphoreWait`, `nativeSemaphoreTryWait`, `nativeSemaphorePost`,
+and `nativeSemaphoreClose`. A semaphore cannot be closed while a thread is
+waiting on it. Mutexes and conditions likewise reject unsafe close operations.
+
 ## Typed memory
 
 `memoryTypeSize(type)` returns the byte size of a supported type:

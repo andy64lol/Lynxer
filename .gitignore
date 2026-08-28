@@ -6,3 +6,4 @@ lynxer/__pycache__/
 build/
 venv/
 dist/
+*.so

@@ -166,19 +166,19 @@
 
 ## Concurrency API
 
-- [ ] expose threads and synchronization cleanly to Lynxer:
-- [ ] add a high-level thread lifecycle and result/error propagation API
-- [ ] add mutexes, condition variables, semaphores, and safe ownership
-- [ ] define cancellation, shutdown, and deadlock-resistant cleanup rules.
-- [ ] test contention, wakeups, failures, and interpreter shutdown
+- [x] expose threads and synchronization cleanly to Lynxer:
+- [x] add a high-level thread lifecycle and result/error propagation API
+- [x] add mutexes, condition variables, semaphores, and safe ownership
+- [x] define cancellation, shutdown, and deadlock-resistant cleanup rules.
+- [x] test contention, wakeups, failures, and interpreter shutdown
 
 ## async I/O
 
-- [ ] Add epoll and event-driven APIs for serious servers:
-- [ ] Provide registration, modification, removal, and event waiting.
-- [ ] Integrate file, socket, timer, and wakeup events.
-- [ ] Define callback/task scheduling, cancellation, and backpressure.
-- [ ] Add high-concurrency and graceful-shutdown tests.
+- [x] Add epoll and event-driven APIs for serious servers:
+- [x] Provide registration, modification, removal, and event waiting.
+- [x] Integrate file, socket, timer, and wakeup events.
+- [x] Define callback/task scheduling, cancellation, and backpressure.
+- [x] Add high-concurrency and graceful-shutdown tests.
 
 ## Compiler improvements
 

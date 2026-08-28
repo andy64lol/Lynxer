@@ -12,11 +12,15 @@ import importlib
 import itertools
 import json
 import os
+import select
 import stat
 import subprocess
 import sys
 import atexit
 import socket
+import threading
+import asyncio
+import time
 from collections.abc import Callable
 from typing import Any
 
@@ -64,6 +68,170 @@ _FILES: dict[int, int] = {}
 _FILE_IDS = itertools.count(1)
 _SOCKETS: dict[int, socket.socket] = {}
 _SOCKET_IDS = itertools.count(1)
+_SYNC_OBJECTS: dict[int, Any] = {}
+_SYNC_IDS = itertools.count(1)
+_SYNC_REGISTRY_LOCK = threading.Lock()
+_ASYNC_POLLS: dict[int, Any] = {}
+_ASYNC_TIMERS: dict[int, Any] = {}
+_ASYNC_WAKEUPS: dict[int, Any] = {}
+_ASYNC_IDS = itertools.count(1)
+_ASYNC_REGISTRY_LOCK = threading.Lock()
+
+
+class _ManagedMutex:
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.owner = None
+        self.waiters = 0
+
+
+class _ManagedCondition:
+    def __init__(self):
+        self.condition = None
+        self.mutex = None
+        self.waiters = 0
+
+
+class _ManagedSemaphore:
+    def __init__(self, value):
+        self.semaphore = threading.Semaphore(value)
+        self.waiters = 0
+
+
+class _AsyncPoll:
+    def __init__(self):
+        self.poller = select.poll()
+        self.registrations = {}
+        self.timers = {}
+        self.waiting = False
+        self.closed = False
+        self.lock = threading.RLock()
+
+    def wait(self, timeout_ms, max_events):
+        with self.lock:
+            if self.closed:
+                raise RuntimeError("async poll is closed")
+            if self.waiting:
+                raise RuntimeError("async poll already has a waiting task")
+            self.waiting = True
+        try:
+            with self.lock:
+                now = time.monotonic()
+                due = [
+                    timer_id for timer_id, timer in self.timers.items()
+                    if timer["deadline"] <= now
+                ]
+                if due:
+                    poll_timeout = 0
+                else:
+                    poll_timeout = timeout_ms
+                    if self.timers:
+                        timer_timeout = max(
+                            1,
+                            int(
+                                (min(timer["deadline"] for timer in self.timers.values()) - now)
+                                * 1000
+                            ),
+                        )
+                        poll_timeout = (
+                            timer_timeout if poll_timeout < 0
+                            else min(poll_timeout, timer_timeout)
+                        )
+            ready = self.poller.poll(poll_timeout)
+            events = []
+            with self.lock:
+                for fd, mask in ready:
+                    registration = self.registrations.get(fd)
+                    if registration is None:
+                        continue
+                    if "wakeup" in registration:
+                        try:
+                            while os.read(registration["wakeup"].read_fd, 4096):
+                                pass
+                        except BlockingIOError:
+                            pass
+                        events.append({
+                            "kind": "wakeup",
+                            "fd": fd,
+                            "token": registration["token"],
+                        })
+                        continue
+                    event_names = []
+                    if mask & (select.POLLIN | select.POLLPRI):
+                        event_names.append("read")
+                    if mask & select.POLLOUT:
+                        event_names.append("write")
+                    if mask & (select.POLLERR | select.POLLHUP | select.POLLNVAL):
+                        event_names.append("error")
+                    events.append({
+                        "kind": "io",
+                        "fd": fd,
+                        "events": event_names,
+                        "token": registration["token"],
+                    })
+                now = time.monotonic()
+                for timer_id, timer in list(self.timers.items()):
+                    if timer["deadline"] <= now:
+                        events.append({
+                            "kind": "timer",
+                            "timer": timer_id,
+                            "token": timer["token"],
+                        })
+                        if timer["repeat"] > 0:
+                            timer["deadline"] = now + timer["repeat"]
+                        else:
+                            self.timers.pop(timer_id, None)
+                return events[:max_events]
+        finally:
+            with self.lock:
+                self.waiting = False
+
+    def close(self):
+        with self.lock:
+            if self.waiting:
+                raise RuntimeError("async poll cannot close while it is waiting")
+            self.closed = True
+            for fd in list(self.registrations):
+                try:
+                    self.poller.unregister(fd)
+                except OSError:
+                    pass
+            self.registrations.clear()
+            self.timers.clear()
+
+
+class _AsyncWakeup:
+    def __init__(self, poll, token):
+        self.poll = poll
+        self.token = token
+        self.read_fd, self.write_fd = os.pipe()
+        os.set_blocking(self.read_fd, False)
+        os.set_blocking(self.write_fd, False)
+        poll.poller.register(self.read_fd, select.POLLIN)
+        poll.registrations[self.read_fd] = {
+            "token": token, "wakeup": self,
+        }
+        self.closed = False
+
+    def signal(self):
+        if self.closed:
+            raise RuntimeError("async wakeup is closed")
+        try:
+            os.write(self.write_fd, b"\x01")
+        except BlockingIOError:
+            pass
+
+    def close(self):
+        if self.closed:
+            raise RuntimeError("async wakeup is already closed")
+        self.poll.registrations.pop(self.read_fd, None)
+        try:
+            self.poll.poller.unregister(self.read_fd)
+        except OSError:
+            pass
+        os.close(self.read_fd)
+        os.close(self.write_fd)
+        self.closed = True
 
 
 def _close_files():
@@ -85,8 +253,25 @@ def _close_sockets():
     _SOCKETS.clear()
 
 
+def _close_async_resources():
+    for wakeup in list(_ASYNC_WAKEUPS.values()):
+        try:
+            wakeup.close()
+        except (OSError, RuntimeError):
+            pass
+    _ASYNC_WAKEUPS.clear()
+    for poll in list(_ASYNC_POLLS.values()):
+        try:
+            poll.close()
+        except RuntimeError:
+            pass
+    _ASYNC_POLLS.clear()
+    _ASYNC_TIMERS.clear()
+
+
 atexit.register(_close_files)
 atexit.register(_close_sockets)
+atexit.register(_close_async_resources)
 
 SYSCALL_BUILTIN_NAMES = (
     "syscallRead", "syscallWrite", "syscallOpenAt", "syscallClose",
@@ -1380,6 +1565,210 @@ class BuiltInFunction(BaseFunction):
             return self._failure(exec_ctx, "nativeThreadDetach(handle) expects a thread handle")
         result = self._cpp(_MEMORY_LIB.nativeThreadDetach, [args[0].value], exec_ctx)
         return result if isinstance(result, RTResult) else RTResult().success(Number.null)
+
+    def _sync_handle(self, args, exec_ctx, name, kind):
+        if len(args) != 1 or not _native_nonnegative(args[0]):
+            return None, self._failure(exec_ctx, f"{name}(handle) expects a valid handle")
+        handle = args[0].value
+        with _SYNC_REGISTRY_LOCK:
+            value = _SYNC_OBJECTS.get(handle)
+        if value is None or not isinstance(value, kind):
+            return None, self._failure(exec_ctx, f"{name}() received an unknown or closed handle")
+        return value, None
+
+    def execute_nativeMutexCreate(self, args, exec_ctx):
+        if args:
+            return self._failure(exec_ctx, "nativeMutexCreate() expects no arguments")
+        handle = next(_SYNC_IDS)
+        with _SYNC_REGISTRY_LOCK:
+            _SYNC_OBJECTS[handle] = _ManagedMutex()
+        return RTResult().success(Number(handle))
+
+    def execute_nativeMutexLock(self, args, exec_ctx):
+        mutex, error = self._sync_handle(args, exec_ctx, "nativeMutexLock", _ManagedMutex)
+        if error:
+            return error
+        thread_id = threading.get_ident()
+        with _SYNC_REGISTRY_LOCK:
+            if mutex.owner == thread_id:
+                return self._failure(exec_ctx, "nativeMutexLock() is not recursive")
+            mutex.waiters += 1
+        try:
+            mutex.lock.acquire()
+        finally:
+            with _SYNC_REGISTRY_LOCK:
+                mutex.waiters -= 1
+        with _SYNC_REGISTRY_LOCK:
+            mutex.owner = thread_id
+        return RTResult().success(Number.null)
+
+    def execute_nativeMutexTryLock(self, args, exec_ctx):
+        mutex, error = self._sync_handle(args, exec_ctx, "nativeMutexTryLock", _ManagedMutex)
+        if error:
+            return error
+        thread_id = threading.get_ident()
+        with _SYNC_REGISTRY_LOCK:
+            if mutex.owner == thread_id:
+                return RTResult().success(Number(0, is_bool=True))
+        if not mutex.lock.acquire(False):
+            return RTResult().success(Number(0, is_bool=True))
+        with _SYNC_REGISTRY_LOCK:
+            mutex.owner = thread_id
+        return RTResult().success(Number(1, is_bool=True))
+
+    def execute_nativeMutexUnlock(self, args, exec_ctx):
+        mutex, error = self._sync_handle(args, exec_ctx, "nativeMutexUnlock", _ManagedMutex)
+        if error:
+            return error
+        with _SYNC_REGISTRY_LOCK:
+            if mutex.owner != threading.get_ident():
+                return self._failure(exec_ctx, "nativeMutexUnlock() requires the owning thread")
+            mutex.owner = None
+        mutex.lock.release()
+        return RTResult().success(Number.null)
+
+    def execute_nativeMutexClose(self, args, exec_ctx):
+        mutex, error = self._sync_handle(args, exec_ctx, "nativeMutexClose", _ManagedMutex)
+        if error:
+            return error
+        with _SYNC_REGISTRY_LOCK:
+            if mutex.owner is not None or mutex.waiters:
+                return self._failure(exec_ctx, "nativeMutexClose() cannot close a locked or awaited mutex")
+            for handle, value in _SYNC_OBJECTS.items():
+                if value is mutex:
+                    del _SYNC_OBJECTS[handle]
+                    break
+        return RTResult().success(Number.null)
+
+    def execute_nativeConditionCreate(self, args, exec_ctx):
+        if args:
+            return self._failure(exec_ctx, "nativeConditionCreate() expects no arguments")
+        handle = next(_SYNC_IDS)
+        condition = _ManagedCondition()
+        with _SYNC_REGISTRY_LOCK:
+            _SYNC_OBJECTS[handle] = condition
+        return RTResult().success(Number(handle))
+
+    def _condition_mutex(self, args, exec_ctx, name):
+        if len(args) != 2:
+            return None, None, self._failure(exec_ctx, f"{name}(condition, mutex) expects two handles")
+        condition, error = self._sync_handle(args[:1], exec_ctx, name, _ManagedCondition)
+        if error:
+            return None, None, error
+        mutex, error = self._sync_handle(args[1:], exec_ctx, name, _ManagedMutex)
+        if error:
+            return None, None, error
+        if mutex.owner != threading.get_ident():
+            return None, None, self._failure(
+                exec_ctx, f"{name}() requires the owning thread to hold the mutex"
+            )
+        if condition.condition is None:
+            condition.condition = threading.Condition(mutex.lock)
+            condition.mutex = mutex
+        elif condition.mutex is not mutex:
+            return None, None, self._failure(
+                exec_ctx, f"{name}() condition is bound to a different mutex"
+            )
+        return condition, mutex, None
+
+    def execute_nativeConditionWait(self, args, exec_ctx):
+        condition, mutex, error = self._condition_mutex(args, exec_ctx, "nativeConditionWait")
+        if error:
+            return error
+        with _SYNC_REGISTRY_LOCK:
+            condition.waiters += 1
+            mutex.owner = None
+        try:
+            condition.condition.wait()
+        finally:
+            with _SYNC_REGISTRY_LOCK:
+                condition.waiters -= 1
+                mutex.owner = threading.get_ident()
+        return RTResult().success(Number.null)
+
+    def _condition_notify(self, args, exec_ctx, all_waiters):
+        name = "nativeConditionNotifyAll" if all_waiters else "nativeConditionNotify"
+        condition, mutex, error = self._condition_mutex(args, exec_ctx, name)
+        if error:
+            return error
+        if all_waiters:
+            condition.condition.notify_all()
+        else:
+            condition.condition.notify()
+        return RTResult().success(Number.null)
+
+    def execute_nativeConditionNotify(self, args, exec_ctx):
+        return self._condition_notify(args, exec_ctx, False)
+
+    def execute_nativeConditionNotifyAll(self, args, exec_ctx):
+        return self._condition_notify(args, exec_ctx, True)
+
+    def execute_nativeConditionClose(self, args, exec_ctx):
+        condition, error = self._sync_handle(
+            args, exec_ctx, "nativeConditionClose", _ManagedCondition
+        )
+        if error:
+            return error
+        with _SYNC_REGISTRY_LOCK:
+            if condition.waiters:
+                return self._failure(exec_ctx, "nativeConditionClose() cannot close a waiting condition")
+            for handle, value in _SYNC_OBJECTS.items():
+                if value is condition:
+                    del _SYNC_OBJECTS[handle]
+                    break
+        return RTResult().success(Number.null)
+
+    def execute_nativeSemaphoreCreate(self, args, exec_ctx):
+        if len(args) != 1 or not _native_nonnegative(args[0]):
+            return self._failure(exec_ctx, "nativeSemaphoreCreate(initial) expects a nonnegative integer")
+        handle = next(_SYNC_IDS)
+        with _SYNC_REGISTRY_LOCK:
+            _SYNC_OBJECTS[handle] = _ManagedSemaphore(args[0].value)
+        return RTResult().success(Number(handle))
+
+    def _semaphore(self, args, exec_ctx, name):
+        return self._sync_handle(args, exec_ctx, name, _ManagedSemaphore)
+
+    def execute_nativeSemaphoreWait(self, args, exec_ctx):
+        semaphore, error = self._semaphore(args, exec_ctx, "nativeSemaphoreWait")
+        if error:
+            return error
+        with _SYNC_REGISTRY_LOCK:
+            semaphore.waiters += 1
+        try:
+            semaphore.semaphore.acquire()
+        finally:
+            with _SYNC_REGISTRY_LOCK:
+                semaphore.waiters -= 1
+        return RTResult().success(Number.null)
+
+    def execute_nativeSemaphoreTryWait(self, args, exec_ctx):
+        semaphore, error = self._semaphore(args, exec_ctx, "nativeSemaphoreTryWait")
+        if error:
+            return error
+        return RTResult().success(Number(
+            1 if semaphore.semaphore.acquire(False) else 0, is_bool=True
+        ))
+
+    def execute_nativeSemaphorePost(self, args, exec_ctx):
+        semaphore, error = self._semaphore(args, exec_ctx, "nativeSemaphorePost")
+        if error:
+            return error
+        semaphore.semaphore.release()
+        return RTResult().success(Number.null)
+
+    def execute_nativeSemaphoreClose(self, args, exec_ctx):
+        semaphore, error = self._semaphore(args, exec_ctx, "nativeSemaphoreClose")
+        if error:
+            return error
+        with _SYNC_REGISTRY_LOCK:
+            if semaphore.waiters:
+                return self._failure(exec_ctx, "nativeSemaphoreClose() cannot close a waited semaphore")
+            for handle, value in _SYNC_OBJECTS.items():
+                if value is semaphore:
+                    del _SYNC_OBJECTS[handle]
+                    break
+        return RTResult().success(Number.null)
 
     def execute_memoryTypeSize(self, args, exec_ctx):
         if len(args) != 1 or _memory_type(args[0]) not in _MEMORY_TYPES:
@@ -3179,6 +3568,335 @@ class BuiltInFunction(BaseFunction):
             String(args[1].value.join(str(value) for value in args[0].elements))
         )
 
+    # async I/O
+
+    def _async_poll(self, args, exec_ctx, name):
+        if len(args) != 1 or not _native_nonnegative(args[0]):
+            return None, self._failure(exec_ctx, f"{name}(poll) expects a valid poll handle")
+        with _ASYNC_REGISTRY_LOCK:
+            poll = _ASYNC_POLLS.get(args[0].value)
+        if poll is None or poll.closed:
+            return None, self._failure(exec_ctx, f"{name}() received an unknown or closed poll")
+        return poll, None
+
+    def _async_timeout(self, value, exec_ctx, name, default=-1):
+        if value is None:
+            return default, None
+        if not _native_int(value) or value.value < -1:
+            return None, self._failure(
+                exec_ctx, f"{name} timeout must be an integer >= -1 milliseconds"
+            )
+        return value.value, None
+
+    def _async_fd(self, value, exec_ctx, name):
+        if not _native_nonnegative(value):
+            return None, self._failure(exec_ctx, f"{name} resource expects a nonnegative integer")
+        resource = value.value
+        if resource in _FILES:
+            return _FILES[resource], None
+        if resource in _SOCKETS:
+            return _SOCKETS[resource].fileno(), None
+        return resource, None
+
+    def _async_event_mask(self, value, exec_ctx, name):
+        if not isinstance(value, String):
+            return None, self._failure(
+                exec_ctx, f"{name} events must be 'read', 'write', or 'readwrite'"
+            )
+        event_name = value.value.lower()
+        masks = {
+            "read": select.POLLIN,
+            "write": select.POLLOUT,
+            "readwrite": select.POLLIN | select.POLLOUT,
+        }
+        if event_name not in masks:
+            return None, self._failure(
+                exec_ctx, f"{name} events must be 'read', 'write', or 'readwrite'"
+            )
+        return (event_name, masks[event_name]), None
+
+    def execute_asyncPollCreate(self, args, exec_ctx):
+        if args:
+            return self._failure(exec_ctx, "asyncPollCreate() expects no arguments")
+        poll = _AsyncPoll()
+        handle = next(_ASYNC_IDS)
+        with _ASYNC_REGISTRY_LOCK:
+            _ASYNC_POLLS[handle] = poll
+        return RTResult().success(Number(handle))
+
+    def execute_asyncPollRegister(self, args, exec_ctx):
+        if len(args) != 4 or not isinstance(args[3], String):
+            return self._failure(
+                exec_ctx,
+                "asyncPollRegister(poll, resource, events, token) expects four arguments",
+            )
+        poll, error = self._async_poll(args[:1], exec_ctx, "asyncPollRegister")
+        if error:
+            return error
+        fd, error = self._async_fd(args[1], exec_ctx, "asyncPollRegister")
+        if error:
+            return error
+        event_info, error = self._async_event_mask(args[2], exec_ctx, "asyncPollRegister")
+        if error:
+            return error
+        event_name, mask = event_info
+        with poll.lock:
+            if fd in poll.registrations:
+                return self._failure(exec_ctx, "asyncPollRegister() resource is already registered")
+            try:
+                poll.poller.register(fd, mask)
+            except OSError as exc:
+                return self._failure(exec_ctx, f"asyncPollRegister() failed: {exc}")
+            poll.registrations[fd] = {
+                "token": args[3].value,
+                "events": event_name,
+            }
+        return RTResult().success(Number.null)
+
+    def execute_asyncPollModify(self, args, exec_ctx):
+        if len(args) != 4 or not isinstance(args[3], String):
+            return self._failure(
+                exec_ctx,
+                "asyncPollModify(poll, resource, events, token) expects four arguments",
+            )
+        poll, error = self._async_poll(args[:1], exec_ctx, "asyncPollModify")
+        if error:
+            return error
+        fd, error = self._async_fd(args[1], exec_ctx, "asyncPollModify")
+        if error:
+            return error
+        event_info, error = self._async_event_mask(args[2], exec_ctx, "asyncPollModify")
+        if error:
+            return error
+        event_name, mask = event_info
+        with poll.lock:
+            if fd not in poll.registrations:
+                return self._failure(exec_ctx, "asyncPollModify() resource is not registered")
+            if "wakeup" in poll.registrations[fd]:
+                return self._failure(exec_ctx, "asyncPollModify() cannot modify a wakeup")
+            try:
+                poll.poller.modify(fd, mask)
+            except OSError as exc:
+                return self._failure(exec_ctx, f"asyncPollModify() failed: {exc}")
+            poll.registrations[fd].update({
+                "token": args[3].value,
+                "events": event_name,
+            })
+        return RTResult().success(Number.null)
+
+    def execute_asyncPollRemove(self, args, exec_ctx):
+        if len(args) != 2:
+            return self._failure(
+                exec_ctx, "asyncPollRemove(poll, resource) expects two arguments"
+            )
+        poll, error = self._async_poll(args[:1], exec_ctx, "asyncPollRemove")
+        if error:
+            return error
+        fd, error = self._async_fd(args[1], exec_ctx, "asyncPollRemove")
+        if error:
+            return error
+        with poll.lock:
+            registration = poll.registrations.get(fd)
+            if registration is None:
+                return self._failure(exec_ctx, "asyncPollRemove() resource is not registered")
+            if "wakeup" in registration:
+                return self._failure(exec_ctx, "asyncPollRemove() cannot remove a wakeup")
+            try:
+                poll.poller.unregister(fd)
+            except OSError as exc:
+                return self._failure(exec_ctx, f"asyncPollRemove() failed: {exc}")
+            del poll.registrations[fd]
+        return RTResult().success(Number.null)
+
+    def execute_asyncPollWait(self, args, exec_ctx):
+        if len(args) not in {1, 2, 3}:
+            return self._failure(
+                exec_ctx, "asyncPollWait(poll, timeout_ms?, max_events?) expects one to three arguments"
+            )
+        poll, error = self._async_poll(args[:1], exec_ctx, "asyncPollWait")
+        if error:
+            return error
+        timeout, error = self._async_timeout(
+            args[1] if len(args) > 1 else None, exec_ctx, "asyncPollWait"
+        )
+        if error:
+            return error
+        max_events = 64
+        if len(args) == 3:
+            if not _native_nonnegative(args[2]) or args[2].value == 0:
+                return self._failure(
+                    exec_ctx, "asyncPollWait max_events must be a positive integer"
+                )
+            max_events = args[2].value
+
+        async def _wait():
+            try:
+                events = await asyncio.to_thread(poll.wait, timeout, max_events)
+            except Exception as exc:
+                return RTResult().failure(RTError(
+                    self.pos_start, self.pos_end,
+                    f"asyncPollWait() failed: {exc}", exec_ctx,
+                ))
+            return RTResult().success(List([
+                String(json.dumps(event, separators=(",", ":")))
+                for event in events
+            ]))
+
+        return RTResult().success(CoroutineValue(_wait()))
+
+    def execute_asyncPollDispatch(self, args, exec_ctx):
+        if len(args) not in {2, 3, 4} or not hasattr(args[1], "execute"):
+            return self._failure(
+                exec_ctx,
+                "asyncPollDispatch(poll, callback, timeout_ms?, max_events?) expects a poll and callback",
+            )
+        poll, error = self._async_poll(args[:1], exec_ctx, "asyncPollDispatch")
+        if error:
+            return error
+        timeout, error = self._async_timeout(
+            args[2] if len(args) > 2 else None, exec_ctx, "asyncPollDispatch"
+        )
+        if error:
+            return error
+        max_events = args[3].value if len(args) == 4 else 64
+        if len(args) == 4 and (
+            not _native_nonnegative(args[3]) or max_events == 0
+        ):
+            return self._failure(exec_ctx, "asyncPollDispatch max_events must be positive")
+        callback = args[1]
+
+        async def _dispatch():
+            try:
+                events = await asyncio.to_thread(poll.wait, timeout, max_events)
+                for event in events:
+                    result = callback.execute([
+                        String(json.dumps(event, separators=(",", ":")))
+                    ])
+                    if result.error:
+                        return result
+                    if isinstance(result.value, CoroutineValue):
+                        result = await result.value.coro
+                        if result.error:
+                            return result
+                return RTResult().success(Number(len(events)))
+            except Exception as exc:
+                return RTResult().failure(RTError(
+                    self.pos_start, self.pos_end,
+                    f"asyncPollDispatch() failed: {exc}", exec_ctx,
+                ))
+
+        return RTResult().success(CoroutineValue(_dispatch()))
+
+    def execute_asyncPollClose(self, args, exec_ctx):
+        poll, error = self._async_poll(args, exec_ctx, "asyncPollClose")
+        if error:
+            return error
+        with _ASYNC_REGISTRY_LOCK:
+            wakeups = [
+                (handle, wakeup) for handle, wakeup in _ASYNC_WAKEUPS.items()
+                if wakeup.poll is poll
+            ]
+            for handle, _ in wakeups:
+                _ASYNC_WAKEUPS.pop(handle, None)
+        for _, wakeup in wakeups:
+            try:
+                wakeup.close()
+            except OSError:
+                pass
+        try:
+            poll.close()
+        except RuntimeError as exc:
+            return self._failure(exec_ctx, str(exc))
+        with _ASYNC_REGISTRY_LOCK:
+            for handle, value in list(_ASYNC_POLLS.items()):
+                if value is poll:
+                    del _ASYNC_POLLS[handle]
+                    break
+        return RTResult().success(Number.null)
+
+    def execute_asyncTimerCreate(self, args, exec_ctx):
+        if len(args) not in {3, 4} or not isinstance(args[2], String):
+            return self._failure(
+                exec_ctx,
+                "asyncTimerCreate(poll, milliseconds, token, repeat_ms?) expects a poll, delay, and token",
+            )
+        poll, error = self._async_poll(args[:1], exec_ctx, "asyncTimerCreate")
+        if error:
+            return error
+        if not _native_nonnegative(args[1]):
+            return self._failure(exec_ctx, "asyncTimerCreate milliseconds must be nonnegative")
+        repeat = 0
+        if len(args) == 4:
+            if not _native_nonnegative(args[3]):
+                return self._failure(exec_ctx, "asyncTimerCreate repeat_ms must be nonnegative")
+            repeat = args[3].value
+        timer_id = next(_ASYNC_IDS)
+        with poll.lock:
+            poll.timers[timer_id] = {
+                "deadline": time.monotonic() + args[1].value / 1000,
+                "repeat": repeat / 1000,
+                "token": args[2].value,
+            }
+        with _ASYNC_REGISTRY_LOCK:
+            _ASYNC_TIMERS[timer_id] = poll
+        return RTResult().success(Number(timer_id))
+
+    def execute_asyncTimerCancel(self, args, exec_ctx):
+        if len(args) != 1 or not _native_nonnegative(args[0]):
+            return self._failure(exec_ctx, "asyncTimerCancel(timer) expects a valid timer handle")
+        timer_id = args[0].value
+        with _ASYNC_REGISTRY_LOCK:
+            poll = _ASYNC_TIMERS.pop(timer_id, None)
+        if poll is None:
+            return self._failure(exec_ctx, "asyncTimerCancel() received an unknown or cancelled timer")
+        with poll.lock:
+            poll.timers.pop(timer_id, None)
+        return RTResult().success(Number.null)
+
+    def execute_asyncWakeupCreate(self, args, exec_ctx):
+        if len(args) != 2 or not isinstance(args[1], String):
+            return self._failure(
+                exec_ctx, "asyncWakeupCreate(poll, token) expects a poll and string token"
+            )
+        poll, error = self._async_poll(args[:1], exec_ctx, "asyncWakeupCreate")
+        if error:
+            return error
+        try:
+            with poll.lock:
+                wakeup = _AsyncWakeup(poll, args[1].value)
+        except OSError as exc:
+            return self._failure(exec_ctx, f"asyncWakeupCreate() failed: {exc}")
+        handle = next(_ASYNC_IDS)
+        with _ASYNC_REGISTRY_LOCK:
+            _ASYNC_WAKEUPS[handle] = wakeup
+        return RTResult().success(Number(handle))
+
+    def execute_asyncWakeupSignal(self, args, exec_ctx):
+        if len(args) != 1 or not _native_nonnegative(args[0]):
+            return self._failure(exec_ctx, "asyncWakeupSignal(wakeup) expects a valid handle")
+        with _ASYNC_REGISTRY_LOCK:
+            wakeup = _ASYNC_WAKEUPS.get(args[0].value)
+        if wakeup is None:
+            return self._failure(exec_ctx, "asyncWakeupSignal() received an unknown or closed wakeup")
+        try:
+            wakeup.signal()
+        except OSError as exc:
+            return self._failure(exec_ctx, f"asyncWakeupSignal() failed: {exc}")
+        return RTResult().success(Number.null)
+
+    def execute_asyncWakeupClose(self, args, exec_ctx):
+        if len(args) != 1 or not _native_nonnegative(args[0]):
+            return self._failure(exec_ctx, "asyncWakeupClose(wakeup) expects a valid handle")
+        with _ASYNC_REGISTRY_LOCK:
+            wakeup = _ASYNC_WAKEUPS.pop(args[0].value, None)
+        if wakeup is None:
+            return self._failure(exec_ctx, "asyncWakeupClose() received an unknown or closed wakeup")
+        try:
+            wakeup.close()
+        except OSError as exc:
+            return self._failure(exec_ctx, f"asyncWakeupClose() failed: {exc}")
+        return RTResult().success(Number.null)
+
     # async built-ins
 
     def execute_asyncRun(self, args, exec_ctx):
@@ -3504,6 +4222,18 @@ BUILTIN_FUNCTION_NAMES = (
     "listZip",
     "asyncRun",
     "asyncGather",
+    "asyncPollCreate",
+    "asyncPollRegister",
+    "asyncPollModify",
+    "asyncPollRemove",
+    "asyncPollWait",
+    "asyncPollDispatch",
+    "asyncPollClose",
+    "asyncTimerCreate",
+    "asyncTimerCancel",
+    "asyncWakeupCreate",
+    "asyncWakeupSignal",
+    "asyncWakeupClose",
     "sleep",
     "asyncSleep",
     "foreverDelay",
@@ -3562,6 +4292,21 @@ BUILTIN_FUNCTION_NAMES = (
     "nativeThreadIsAlive",
     "nativeThreadStatus",
     "nativeThreadDetach",
+    "nativeMutexCreate",
+    "nativeMutexLock",
+    "nativeMutexTryLock",
+    "nativeMutexUnlock",
+    "nativeMutexClose",
+    "nativeConditionCreate",
+    "nativeConditionWait",
+    "nativeConditionNotify",
+    "nativeConditionNotifyAll",
+    "nativeConditionClose",
+    "nativeSemaphoreCreate",
+    "nativeSemaphoreWait",
+    "nativeSemaphoreTryWait",
+    "nativeSemaphorePost",
+    "nativeSemaphoreClose",
     "nativeHandleAllocate",
     "nativeHandleAddress",
     "nativeHandleFree",

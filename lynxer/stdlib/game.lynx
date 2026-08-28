@@ -20,9 +20,15 @@ global init(str title, int width, int height){
                 self._draw_fn   = None
                 self._update_fn = None
                 self._key_state = set()
+                self._key_pressed = set()
+                self._key_released = set()
                 self._mouse_x   = 0
                 self._mouse_y   = 0
+                self._mouse_dx  = 0
+                self._mouse_dy  = 0
                 self._mouse_btn = set()
+                self._scroll_x  = 0
+                self._scroll_y  = 0
 
             def on_draw(self):
                 self.clear()
@@ -36,19 +42,27 @@ global init(str title, int width, int height){
 
             def on_key_press(self, symbol, modifiers):
                 self._key_state.add(symbol)
+                self._key_pressed.add(symbol)
 
             def on_key_release(self, symbol, modifiers):
                 self._key_state.discard(symbol)
+                self._key_released.add(symbol)
 
             def on_mouse_motion(self, x, y, dx, dy):
                 self._mouse_x = x
                 self._mouse_y = y
+                self._mouse_dx += dx
+                self._mouse_dy += dy
 
             def on_mouse_press(self, x, y, button, modifiers):
                 self._mouse_btn.add(button)
 
             def on_mouse_release(self, x, y, button, modifiers):
                 self._mouse_btn.discard(button)
+
+            def on_mouse_scroll(self, x, y, scroll_x, scroll_y):
+                self._scroll_x += scroll_x
+                self._scroll_y += scroll_y
 
         win = _LynxGameWindow(title, width, height)
         builtins._lx_game_win  = win
@@ -57,6 +71,7 @@ global init(str title, int width, int height){
         builtins._lx_sounds    = []
         builtins._lx_spr_lists = []
         builtins._lx_cameras   = []
+        builtins._lx_labels    = []
     }
 }
 
@@ -482,6 +497,36 @@ global drawSprite(int idx){
     }
 }
 
+// Destroy a sprite and remove it from every SpriteList.
+// The index is not reused, so references held by game code stay safe.
+global destroySprite(int idx){
+    rawPy(){
+        import builtins
+        try:
+            sp = builtins._lx_sprites[idx]
+            if sp is not None:
+                for lst in builtins._lx_spr_lists:
+                    if sp in lst:
+                        lst.remove(sp)
+                builtins._lx_sprites[idx] = None
+        except Exception:
+            pass
+    }
+}
+
+// Return whether a sprite index still refers to a live sprite.
+global spriteExists(int idx){
+    bool result = false;
+    rawPy(){
+        import builtins
+        try:
+            result = builtins._lx_sprites[idx] is not None
+        except Exception:
+            result = false
+    }
+    return result;
+}
+
 // Return true if sprite A collides with sprite B.
 global spriteCollides(int idxA, int idxB){
     bool result = false;
@@ -596,6 +641,91 @@ global keyUp(str key){
     return false;
 }
 
+// Return true once when a key has been pressed since the previous query.
+// Unlike keyDown, this is useful for actions such as jump or pause.
+global keyPressed(str key){
+    bool result = false;
+    rawPy(){
+        import builtins, arcade
+        try:
+            _KEY_MAP = {
+                "UP": arcade.key.UP, "DOWN": arcade.key.DOWN,
+                "LEFT": arcade.key.LEFT, "RIGHT": arcade.key.RIGHT,
+                "SPACE": arcade.key.SPACE, "ENTER": arcade.key.RETURN,
+                "ESCAPE": arcade.key.ESCAPE,
+                "A": arcade.key.A, "B": arcade.key.B, "C": arcade.key.C,
+                "D": arcade.key.D, "E": arcade.key.E, "F": arcade.key.F,
+                "G": arcade.key.G, "H": arcade.key.H, "I": arcade.key.I,
+                "J": arcade.key.J, "K": arcade.key.K, "L": arcade.key.L,
+                "M": arcade.key.M, "N": arcade.key.N, "O": arcade.key.O,
+                "P": arcade.key.P, "Q": arcade.key.Q, "R": arcade.key.R,
+                "S": arcade.key.S, "T": arcade.key.T, "U": arcade.key.U,
+                "V": arcade.key.V, "W": arcade.key.W, "X": arcade.key.X,
+                "Y": arcade.key.Y, "Z": arcade.key.Z,
+                "0": arcade.key.KEY_0, "1": arcade.key.KEY_1,
+                "2": arcade.key.KEY_2, "3": arcade.key.KEY_3,
+                "4": arcade.key.KEY_4, "5": arcade.key.KEY_5,
+                "6": arcade.key.KEY_6, "7": arcade.key.KEY_7,
+                "8": arcade.key.KEY_8, "9": arcade.key.KEY_9,
+                "F1": arcade.key.F1, "F2": arcade.key.F2,
+                "F3": arcade.key.F3, "F4": arcade.key.F4,
+                "F5": arcade.key.F5, "F6": arcade.key.F6,
+                "F7": arcade.key.F7, "F8": arcade.key.F8,
+                "F9": arcade.key.F9, "F10": arcade.key.F10,
+                "F11": arcade.key.F11, "F12": arcade.key.F12
+            }
+            sym = _KEY_MAP.get(key.upper())
+            result = sym in builtins._lx_game_win._key_pressed if sym is not None else False
+            if sym is not None:
+                builtins._lx_game_win._key_pressed.discard(sym)
+        except Exception:
+            result = False
+    }
+    return result;
+}
+
+// Return true once when a key has been released since the previous query.
+global keyReleased(str key){
+    bool result = false;
+    rawPy(){
+        import builtins, arcade
+        try:
+            _KEY_MAP = {
+                "UP": arcade.key.UP, "DOWN": arcade.key.DOWN,
+                "LEFT": arcade.key.LEFT, "RIGHT": arcade.key.RIGHT,
+                "SPACE": arcade.key.SPACE, "ENTER": arcade.key.RETURN,
+                "ESCAPE": arcade.key.ESCAPE,
+                "A": arcade.key.A, "B": arcade.key.B, "C": arcade.key.C,
+                "D": arcade.key.D, "E": arcade.key.E, "F": arcade.key.F,
+                "G": arcade.key.G, "H": arcade.key.H, "I": arcade.key.I,
+                "J": arcade.key.J, "K": arcade.key.K, "L": arcade.key.L,
+                "M": arcade.key.M, "N": arcade.key.N, "O": arcade.key.O,
+                "P": arcade.key.P, "Q": arcade.key.Q, "R": arcade.key.R,
+                "S": arcade.key.S, "T": arcade.key.T, "U": arcade.key.U,
+                "V": arcade.key.V, "W": arcade.key.W, "X": arcade.key.X,
+                "Y": arcade.key.Y, "Z": arcade.key.Z,
+                "0": arcade.key.KEY_0, "1": arcade.key.KEY_1,
+                "2": arcade.key.KEY_2, "3": arcade.key.KEY_3,
+                "4": arcade.key.KEY_4, "5": arcade.key.KEY_5,
+                "6": arcade.key.KEY_6, "7": arcade.key.KEY_7,
+                "8": arcade.key.KEY_8, "9": arcade.key.KEY_9,
+                "F1": arcade.key.F1, "F2": arcade.key.F2,
+                "F3": arcade.key.F3, "F4": arcade.key.F4,
+                "F5": arcade.key.F5, "F6": arcade.key.F6,
+                "F7": arcade.key.F7, "F8": arcade.key.F8,
+                "F9": arcade.key.F9, "F10": arcade.key.F10,
+                "F11": arcade.key.F11, "F12": arcade.key.F12
+            }
+            sym = _KEY_MAP.get(key.upper())
+            result = sym in builtins._lx_game_win._key_released if sym is not None else False
+            if sym is not None:
+                builtins._lx_game_win._key_released.discard(sym)
+        except Exception:
+            result = False
+    }
+    return result;
+}
+
 // Return the current mouse X position (pixels from left).
 global mouseX(){
     float result = 0.0;
@@ -618,6 +748,52 @@ global mouseY(){
             result = float(builtins._lx_game_win._mouse_y)
         except Exception:
             result = 0.0
+    }
+    return result;
+}
+
+// Return accumulated mouse movement on X since the previous query.
+global mouseDeltaX(){
+    float result = 0.0;
+    rawPy(){
+        import builtins
+        try:
+            result = float(builtins._lx_game_win._mouse_dx)
+            builtins._lx_game_win._mouse_dx = 0
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+// Return accumulated mouse movement on Y since the previous query.
+global mouseDeltaY(){
+    float result = 0.0;
+    rawPy(){
+        import builtins
+        try:
+            result = float(builtins._lx_game_win._mouse_dy)
+            builtins._lx_game_win._mouse_dy = 0
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+// Return whether a named mouse button is held: LEFT, RIGHT, or MIDDLE.
+global mouseButtonDown(str button){
+    bool result = false;
+    rawPy(){
+        import builtins, arcade
+        try:
+            _BUTTONS = {
+                "LEFT": arcade.MOUSE_BUTTON_LEFT,
+                "RIGHT": arcade.MOUSE_BUTTON_RIGHT,
+                "MIDDLE": arcade.MOUSE_BUTTON_MIDDLE
+            }
+            result = _BUTTONS.get(button.upper()) in builtins._lx_game_win._mouse_btn
+        except Exception:
+            result = false
     }
     return result;
 }
@@ -1211,6 +1387,25 @@ global spriteCollidesWithList(int sprIdx, int listIdx){
     return result;
 }
 
+// Return colliding sprite indexes as a JSON array.
+global getCollidingSprites(int sprIdx, int listIdx){
+    str result = "[]";
+    rawPy(){
+        import builtins, arcade, json as _json
+        try:
+            sp = builtins._lx_sprites[sprIdx]
+            hits = arcade.check_for_collision_with_list(
+                sp, builtins._lx_spr_lists[listIdx])
+            result = _json.dumps([
+                i for i, candidate in enumerate(builtins._lx_sprites)
+                if candidate in hits
+            ])
+        except Exception:
+            result = "[]"
+    }
+    return result;
+}
+
 // Remove a sprite from a SpriteList without destroying it.
 global removeSpriteFromList(int listIdx, int sprIdx){
     rawPy(){
@@ -1247,6 +1442,81 @@ global getSpriteListCount(int listIdx){
             result = 0
     }
     return result;
+}
+
+// ── Text labels ──────────────────────────────────────────────────────────────
+
+// Create an Arcade text object. Returns a label index.
+global makeTextLabel(str text, float x, float y, int r, int g, int b, int size, str anchorX){
+    int idx = -1;
+    rawPy(){
+        import arcade, builtins
+        try:
+            label = arcade.Text(
+                text=text, x=x, y=y,
+                color=arcade.color.Color(r, g, b),
+                font_size=size, anchor_x=anchorX)
+            builtins._lx_labels.append(label)
+            idx = len(builtins._lx_labels) - 1
+        except Exception:
+            idx = -1
+    }
+    return idx;
+}
+
+// Change a label's text without rebuilding the Arcade text object.
+global setTextLabel(int idx, str text){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_labels[idx].text = text
+        except Exception:
+            pass
+    }
+}
+
+// Move a label.
+global setTextLabelPos(int idx, float x, float y){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_labels[idx].position = (x, y)
+        except Exception:
+            pass
+    }
+}
+
+// Change a label color.
+global setTextLabelColor(int idx, int r, int g, int b, int a){
+    rawPy(){
+        import builtins, arcade
+        try:
+            builtins._lx_labels[idx].color = arcade.color.Color(r, g, b, a)
+        except Exception:
+            pass
+    }
+}
+
+// Draw a label during on_draw.
+global drawTextLabel(int idx){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_labels[idx].draw()
+        except Exception:
+            pass
+    }
+}
+
+// Remove a label from the label registry.
+global destroyTextLabel(int idx){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_labels[idx] = None
+        except Exception:
+            pass
+    }
 }
 
 // ── Animated sprites ──────────────────────────────────────────────────────────
@@ -1496,8 +1766,8 @@ global mouseScrollY(){
     rawPy(){
         import builtins
         try:
-            result = float(getattr(builtins, "_lx_scroll_y", 0.0))
-            builtins._lx_scroll_y = 0.0
+            result = float(getattr(builtins._lx_game_win, "_scroll_y", 0.0))
+            builtins._lx_game_win._scroll_y = 0.0
         except Exception:
             result = 0.0
     }

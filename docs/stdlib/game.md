@@ -190,6 +190,8 @@ Sprites are referenced by integer indexes. All sprite operations use `builtins._
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
+| `destroySprite` | `destroySprite(int idx)` | Remove a sprite from every list and release its registry slot. |
+| `spriteExists` | `spriteExists(int idx)` | Check whether an index still refers to a live sprite. |
 | `setSpriteAlpha` | `setSpriteAlpha(int idx, int alpha)` | Opacity 0–255. |
 | `setSpriteColor` | `setSpriteColor(int idx, int r, int g, int b, int a)` | Tint color. |
 | `flipSpriteH` | `flipSpriteH(int idx)` | Mirror horizontally. |
@@ -203,6 +205,7 @@ Sprites are referenced by integer indexes. All sprite operations use `builtins._
 |----------|-----------|-------------|
 | `spriteCollides` | `spriteCollides(int idxA, int idxB)` | `true` if two sprites overlap. |
 | `spriteCollidesWithList` | `spriteCollidesWithList(int sprIdx, int listIdx)` | `true` if sprite hits any sprite in a list. |
+| `getCollidingSprites` | `getCollidingSprites(int sprIdx, int listIdx)` | JSON array of colliding sprite indexes. |
 | `spriteDistance` | `spriteDistance(int idxA, int idxB)` | Euclidean distance between two sprites. |
 | `spriteNear` | `spriteNear(int idx, float tx, float ty, float range)` | `true` if sprite is within range pixels of (tx, ty). |
 
@@ -227,6 +230,22 @@ Sprites are referenced by integer indexes. All sprite operations use `builtins._
 | `getSpriteListCount` | `getSpriteListCount(int listIdx)` | Number of sprites in list. |
 | `drawSpriteList` | `drawSpriteList(int listIdx)` | Draw all sprites. |
 | `updateSpriteList` | `updateSpriteList(int listIdx)` | Apply velocities for all sprites. |
+
+---
+
+## Text labels
+
+For HUDs and frequently changing text, use an Arcade text object instead of
+recreating a draw call every frame:
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `makeTextLabel` | `makeTextLabel(str text, float x, float y, int r, int g, int b, int size, str anchorX)` | Create a label and return its index. |
+| `setTextLabel` | `setTextLabel(int idx, str text)` | Change label text. |
+| `setTextLabelPos` | `setTextLabelPos(int idx, float x, float y)` | Move a label. |
+| `setTextLabelColor` | `setTextLabelColor(int idx, int r, int g, int b, int a)` | Change label color. |
+| `drawTextLabel` | `drawTextLabel(int idx)` | Draw the label during `on_draw`. |
+| `destroyTextLabel` | `destroyTextLabel(int idx)` | Release the label registry slot. |
 
 ---
 
@@ -266,8 +285,10 @@ int walls = global.game.getTilemapLayer(scene, "Walls");
 |----------|-----------|-------------|
 | `keyDown` | `keyDown(str key)` | `true` while key is held. |
 | `keyUp` | `keyUp(str key)` | `true` while key is NOT held. |
+| `keyPressed` | `keyPressed(str key)` | Consume and return `true` once for a press event. |
+| `keyReleased` | `keyReleased(str key)` | Consume and return `true` once for a release event. |
 
-**Key names** (case-insensitive): `"UP"`, `"DOWN"`, `"LEFT"`, `"RIGHT"`, `"SPACE"`, `"ENTER"`, `"ESCAPE"`, `"A"`–`"Z"`, `"0"`–`"9"`.
+**Key names** (case-insensitive): `"UP"`, `"DOWN"`, `"LEFT"`, `"RIGHT"`, `"SPACE"`, `"ENTER"`, `"ESCAPE"`, `"A"`–`"Z"`, `"0"`–`"9"`, and `"F1"`–`"F12"`.
 
 ### Mouse
 
@@ -275,6 +296,9 @@ int walls = global.game.getTilemapLayer(scene, "Walls");
 |----------|-----------|-------------|
 | `mouseX` | `mouseX()` | X (pixels from left). |
 | `mouseY` | `mouseY()` | Y (pixels from bottom). |
+| `mouseDeltaX` | `mouseDeltaX()` | Accumulated horizontal movement since the previous query, then resets it. |
+| `mouseDeltaY` | `mouseDeltaY()` | Accumulated vertical movement since the previous query, then resets it. |
+| `mouseButtonDown` | `mouseButtonDown(str button)` | Generic query for `"LEFT"`, `"RIGHT"`, or `"MIDDLE"`. |
 | `mouseLeft` | `mouseLeft()` | `true` if left button held. |
 | `mouseRight` | `mouseRight()` | `true` if right button held. |
 | `mouseMiddle` | `mouseMiddle()` | `true` if middle button held. |

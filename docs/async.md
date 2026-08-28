@@ -136,6 +136,64 @@ global main() {
 > Inside an async body, `async.funcName(args)` yields a coroutine (for `await` or `asyncGather`).  
 > At the top level of a `global`, `async.funcName(args)` runs synchronously and returns the value.
 
+## Event-driven I/O
+
+`asyncPollCreate()` creates an event poller. Register a Lynxer filesystem or
+networking handle, or a raw file descriptor, with a read/write interest and a
+token:
+
+```c
+global main() {
+    int poll = asyncPollCreate();
+    int file = filesystemOpen("input.txt", "r");
+
+    async readFile() {
+        asyncPollRegister(poll, file, "read", "input");
+        any events = await asyncPollWait(poll, 1000, 64);
+        println(listGet(events, 0)); // JSON event record
+        asyncPollRemove(poll, file);
+    }
+
+    async.readFile();
+    filesystemClose(file);
+    asyncPollClose(poll);
+}
+```
+
+The event functions are:
+
+| Function | Description |
+|---|---|
+| `asyncPollRegister(poll, resource, events, token)` | Register `read`, `write`, or `readwrite` readiness. |
+| `asyncPollModify(poll, resource, events, token)` | Change an existing registration. |
+| `asyncPollRemove(poll, resource)` | Remove a registration. |
+| `asyncPollWait(poll, timeout_ms?, max_events?)` | Await one bounded batch of JSON event records; `-1` waits forever. |
+| `asyncPollDispatch(poll, callback, timeout_ms?, max_events?)` | Await one batch and call the callback once per event. |
+| `asyncPollClose(poll)` | Close the poller after pending waits finish. |
+
+Event records contain `kind`, `token`, and readiness details. I/O records use
+`kind: "io"` and include `fd` and an `events` array. The other event kinds are
+`"timer"` and `"wakeup"`. `max_events` provides an explicit batch limit for
+backpressure.
+
+### Timers and wakeups
+
+Timers are attached to a poller and can be one-shot or repeating:
+
+```c
+int timer = asyncTimerCreate(poll, 500, "heartbeat", 500);
+any events = await asyncPollWait(poll, 1000);
+asyncTimerCancel(timer);
+```
+
+`asyncWakeupCreate(poll, token)` creates a thread-safe wakeup source.
+`asyncWakeupSignal(wakeup)` interrupts a pending poll wait, and
+`asyncWakeupClose(wakeup)` releases it. Wakeups are useful for cooperative
+shutdown and cancellation of an event loop. Poll waits are cancellable by
+closing the poller after the waiting task has returned; resource cancellation
+is provided by `asyncPollRemove`, `asyncTimerCancel`, and
+`asyncWakeupClose`.
+
 ## `await` expression
 
 `await` is only valid inside an `async` body:

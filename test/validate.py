@@ -498,6 +498,17 @@ global main(){}
         raise ValidationFailure("module name collisions were not rejected")
 
 
+def test_game_stdlib(temp_root: Path) -> None:
+    source = """global setup(){ import("game"); }
+global main(){}
+"""
+    output, error = run_source(source, str(temp_root / "game_stdlib.lynx"))
+    if error is not None:
+        raise ValidationFailure(f"game stdlib: runtime error:\n{error.as_string()}")
+    if output:
+        raise ValidationFailure(f"game stdlib: received unexpected output {output!r}")
+
+
 def test_native_modules(temp_root: Path) -> None:
     module_path = temp_root / "validation_native.so"
     c_source = r"""
@@ -634,6 +645,70 @@ global main(){
             "native thread failure status: expected propagated callback error, "
             f"received {output!r}"
         )
+    require_output(
+        """global setup(){}
+global signaler(int mutex, int condition){
+    nativeMutexLock(mutex);
+    nativeConditionNotify(condition, mutex);
+    nativeMutexUnlock(mutex);
+}
+global main(){
+    int mutex = nativeMutexCreate();
+    int condition = nativeConditionCreate();
+    int semaphore = nativeSemaphoreCreate(0);
+    nativeMutexLock(mutex);
+    println(nativeMutexTryLock(mutex) == false);
+    int thread = nativeThreadStart(global.signaler, [int mutex, int condition]);
+    nativeConditionWait(condition, mutex);
+    nativeMutexUnlock(mutex);
+    nativeThreadJoin(thread);
+    nativeSemaphorePost(semaphore);
+    println(nativeSemaphoreTryWait(semaphore));
+    nativeSemaphoreClose(semaphore);
+    nativeConditionClose(condition);
+    nativeMutexClose(mutex);
+}""",
+        "true\ntrue\n",
+        "native synchronization primitives",
+    )
+
+
+def test_async_io(temp_root: Path) -> None:
+    source_file = temp_root / "async_io.txt"
+    source_file.write_text("ready", encoding="utf-8")
+    source_path = json.dumps(str(source_file))
+    source = f"""global setup(){{}}
+global onEvent(str event){{ println(returnLength(event) > 0); }}
+global main(){{
+    int poll = asyncPollCreate();
+    int file = filesystemOpen({source_path}, "r");
+    async run(){{
+        asyncPollRegister(poll, file, "read", "file");
+        any fileEvents = await asyncPollWait(poll, 1000, 4);
+        println(returnLength(fileEvents) > 0);
+        asyncPollModify(poll, file, "readwrite", "modified");
+        asyncPollRemove(poll, file);
+        int timer = asyncTimerCreate(poll, 1, "timer");
+        any timerEvents = await asyncPollWait(poll, 1000);
+        println(returnLength(timerEvents) > 0);
+        asyncTimerCancel(timer);
+        int wakeup = asyncWakeupCreate(poll, "wake");
+        asyncWakeupSignal(wakeup);
+        any wakeEvents = await asyncPollWait(poll, 1000);
+        println(returnLength(wakeEvents) > 0);
+        asyncWakeupSignal(wakeup);
+        await asyncPollDispatch(poll, global.onEvent, 1000, 1);
+        asyncWakeupClose(wakeup);
+    }}
+    async.run();
+    filesystemClose(file);
+    asyncPollClose(poll);
+}}"""
+    output, error = run_source(source, str(temp_root / "async_io.lynx"))
+    if error is not None:
+        raise ValidationFailure(f"async I/O: runtime error:\n{error.as_string()}")
+    if output != "true\ntrue\ntrue\ntrue\n":
+        raise ValidationFailure(f"async I/O: received {output!r}")
 
 
 def test_linux_syscall() -> None:
@@ -892,10 +967,12 @@ def main() -> int:
         temp_root = Path(directory)
         tests = TESTS + [
             ("imports", lambda: test_imports(temp_root)),
+            ("game stdlib", lambda: test_game_stdlib(temp_root)),
             ("native modules", lambda: test_native_modules(temp_root)),
             ("bytecode", lambda: test_bytecode(temp_root)),
             ("C FFI and native callbacks", test_ffi),
             ("native threads", test_native_threads),
+            ("async I/O", lambda: test_async_io(temp_root)),
             ("Linux native syscall", test_linux_syscall),
             ("process API", test_process_api),
             ("filesystem API", lambda: test_filesystem_api(temp_root)),
