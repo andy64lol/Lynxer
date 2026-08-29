@@ -1,0 +1,57 @@
+// Window, labels, scenes, textures, audio, and lifecycle helpers.
+global setup(){
+    import("game");
+}
+
+global drawFrame(){
+    global.game.beginDraw();
+    global.game.drawTextLabel(0);
+    global.game.drawScene(0);
+    global.game.drawTextAnchored("Complete wrapper", 400, 300,
+                                 255, 255, 255, 20, "center", "center");
+    global.game.endDraw();
+}
+
+global updateFrame(float dt){
+    global.game.getFPS();
+    global.game.getTime();
+    global.game.close();
+}
+
+global main(){
+    global.game.init("Lifecycle API", 500, 400);
+    global.game.setTitle("Lifecycle API ready");
+    global.game.setWindowSize(500, 400);
+    global.game.setResizable(false);
+    global.game.setMouseVisible(true);
+    global.game.showCursor();
+    global.game.setVSync(false);
+    global.game.setWindowPos(20, 20);
+    global.game.getWidth();
+    global.game.getHeight();
+    global.game.getDisplaySize();
+
+    int label = global.game.makeTextLabel("HUD", 20, 360,
+                                          255, 255, 255, 16, "left");
+    global.game.setTextLabel(label, "HUD score");
+    global.game.setTextLabelPos(label, 30, 350);
+    global.game.setTextLabelColor(label, 100, 220, 255, 255);
+
+    int actors = global.game.makeSpriteList();
+    int sprite = global.game.makeSolidSprite(20, 20, 255, 180, 80, 250, 200);
+    global.game.addToList(actors, sprite);
+    int scene = global.game.makeScene();
+    global.game.addListToScene(scene, actors, "actors");
+
+    int missingTexture = global.game.loadTexture("missing-texture.png");
+    int missingSound = global.game.loadSound("missing-sound.wav");
+    global.game.drawTextureRect(missingTexture, 0, 0, 10, 10);
+    global.game.playSound(missingSound);
+    global.game.loopSound(missingSound);
+    global.game.stopSound(missingSound);
+    global.game.isSoundPlaying(missingSound);
+    global.game.loadTilemap("missing-map.tmx", 1);
+    global.game.setDrawCallback("global.drawFrame");
+    global.game.setUpdateCallback("global.updateFrame");
+    global.game.run();
+}

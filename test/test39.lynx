@@ -1,0 +1,58 @@
+// Input polling, callbacks, camera, physics, timers, and grid helpers.
+global setup(){
+    import("game");
+}
+
+global drawFrame(){
+    global.game.beginDraw();
+    global.game.drawText("Input and camera", 20, 560, 255, 255, 255, 18);
+    global.game.endDraw();
+}
+
+global updateFrame(float dt){
+    bool left = global.game.keyDown("LEFT");
+    bool released = global.game.keyReleased("SPACE");
+    float elapsed = global.game.deltaTime();
+    global.game.mouseDeltaX();
+    global.game.mouseDeltaY();
+    global.game.mouseScrollX();
+    global.game.mouseScrollY();
+    global.game.updatePhysics(0);
+    global.game.close();
+}
+
+global keyPress(int symbol, int modifiers){
+    global.game.keyCode("A");
+}
+
+global main(){
+    global.game.init("Input API", 640, 480);
+    int player = global.game.makeSolidSprite(30, 40, 80, 180, 255, 100, 100);
+    int walls = global.game.makeSpatialSpriteList();
+    int floor = global.game.makeSolidSprite(640, 20, 120, 120, 120, 320, 10);
+    global.game.addToList(walls, floor);
+    int engine = global.game.makePhysicsEngine(0.5, walls);
+    global.game.setPhysicsPlayer(engine, player);
+    global.game.setSpriteMotion(player, 1, 12, 0.2);
+    global.game.setSpriteBoundary(player, 0, 640, 0, 480);
+    global.game.jumpPlayer(engine, 10);
+    global.game.canJump(engine);
+    global.game.getPlayerVY(engine);
+
+    int camera = global.game.makeCamera();
+    global.game.setCameraPos(camera, 100, 120);
+    global.game.zoomCamera(camera, 1.5);
+    global.game.smoothScrollCamera(camera, 200, 180, 0.25);
+    global.game.getCameraX(camera);
+    global.game.getCameraY(camera);
+    global.game.getCameraZoom(camera);
+    global.game.useCamera(camera);
+    global.game.resetCamera();
+
+    global.game.screenToTile(129, 257, 32);
+    global.game.tileToScreen(4, 8, 32);
+    global.game.setDrawCallback("global.drawFrame");
+    global.game.setUpdateCallback("global.updateFrame");
+    global.game.setKeyPressCallback("global.keyPress");
+    global.game.run();
+}

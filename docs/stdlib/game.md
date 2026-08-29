@@ -1,6 +1,6 @@
 # game
 
-2-D game development toolkit for Lynxer, wrapping Python's [Arcade](https://api.arcade.academy/) library. Provides a window, drawing primitives, sprites, input polling, sound, scenes, tilemaps, camera, physics, and more — all accessible via Lynxer `rawPy` callbacks for the game loop.
+2-D game development toolkit for Lynxer, wrapping Python's [Arcade](https://api.arcade.academy/) library. Provides a window, drawing primitives, sprites, input polling, sound, scenes, tilemaps, camera, physics, shape batches, and more through the `global.game` namespace.
 
 > **Requires:** `pip install arcade`
 
@@ -12,54 +12,28 @@
 global setup(){
     import("game");
 }
+global drawFrame(){
+    global.game.beginDraw();
+    global.game.drawText("CLICK ME!", 400, 285, 255, 255, 255, 24);
+    global.game.endDraw();
+}
+
+global updateFrame(float dt){
+    // Keep the game running here, or call global.game.close() in a smoke test.
+}
+
 global main(){
     global.game.init("Clicker", 800, 600);
-    rawPy(){
-        import arcade
-        import builtins
-
-        score = [0]
-
-        def draw():
-
-            arcade.draw_text(
-                "CLICK ME!",
-                400, 285,
-                arcade.color.WHITE,
-                24,
-                anchor_x="center"
-            )
-
-            arcade.draw_text(
-                str(score[0]),
-                400, 450,
-                arcade.color.WHITE,
-                32,
-                anchor_x="center"
-            )
-
-        def update(dt):
-            pass
-
-        def mouse_press(x, y, button, modifiers):
-            if (
-                button == arcade.MOUSE_BUTTON_LEFT
-                and 300 <= x <= 500
-                and 250 <= y <= 350
-            ):
-                score[0] += 1
-
-        builtins._lx_game_win._draw_fn = draw
-        builtins._lx_game_win._update_fn = update
-        builtins._lx_game_win.on_mouse_press = mouse_press
-
-    }
-
+    global.game.setDrawCallback("global.drawFrame");
+    global.game.setUpdateCallback("global.updateFrame");
     global.game.run();
 }
 ```
 
-The draw/update loop runs inside `rawPy` functions assigned to `builtins._lx_game_win.on_draw` and `builtins._lx_game_win.on_update`. All `global.game.*` functions can be called freely inside those Python functions.
+The draw and update callbacks are ordinary Lynxer functions. Register them by
+name with `setDrawCallback` and `setUpdateCallback`; all drawing and input
+access stays inside the wrapped `global.game.*` API. Mouse and keyboard
+callbacks can be registered with the corresponding `set*Callback` functions.
 
 ---
 

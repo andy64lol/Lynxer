@@ -14,6 +14,15 @@ global init(str title, int width, int height){
     rawPy(){
         import arcade, builtins
 
+        # Arcade keeps a process-wide current window.  Closing a previous
+        # wrapper window makes repeated tests and scene changes deterministic.
+        previous = getattr(builtins, "_lx_game_win", None)
+        if previous is not None:
+            try:
+                previous.close()
+            except Exception:
+                pass
+
         class _LynxGameWindow(arcade.Window):
             def __init__(self, title, width, height):
                 super().__init__(width, height, title)
@@ -97,6 +106,7 @@ global init(str title, int width, int height){
         builtins._lx_scenes    = []
         builtins._lx_tilemaps  = []
         builtins._lx_textures  = []
+        builtins._lx_shape_lists = []
         builtins._lx_physics_engines = []
         builtins._lx_scheduled_callbacks = {}
         builtins._lx_start_time = None
@@ -1264,10 +1274,10 @@ global makePhysicsEngine(float gravity, int wallsListIdx){
         import arcade, builtins
         try:
             walls = builtins._lx_spr_lists[wallsListIdx] if wallsListIdx >= 0 else arcade.SpriteList()
-            // Engines are stored inline; we return the index into a new engines list.
+            # Engines are stored inline; return the index into the engines list.
             if not hasattr(builtins, "_lx_physics_engines"):
                 builtins._lx_physics_engines = []
-            // placeholder — engine is created when a player sprite is assigned
+            # The engine is created when a player sprite is assigned.
             builtins._lx_physics_engines.append({"gravity": gravity, "walls": walls, "engine": None})
             idx = len(builtins._lx_physics_engines) - 1
         except Exception:
@@ -1453,8 +1463,10 @@ global drawTextureAt(str imagePath, float cx, float cy, float scale){
         import arcade
         try:
             tex = arcade.load_texture(imagePath)
-            arcade.draw_scaled_texture_rectangle(cx, cy,
-                tex.width*scale, tex.height*scale, tex)
+            arcade.draw_texture_rect(
+                tex,
+                arcade.XYWH(cx, cy, tex.width * scale, tex.height * scale)
+            )
         except Exception:
             pass
     }
@@ -1466,14 +1478,9 @@ global drawTextureRect(int texIdx, float left, float bottom, float width, float 
         import arcade, builtins
         try:
             tex = builtins._lx_textures[texIdx]
-            if hasattr(arcade, "draw_texture_rect"):
-                arcade.draw_texture_rect(
-                    arcade.LBWH(left, bottom, width, height), tex
-                )
-            else:
-                arcade.draw_scaled_texture_rectangle(
-                    left + width / 2, bottom + height / 2, width, height, tex
-                )
+            arcade.draw_texture_rect(
+                tex, arcade.LBWH(left, bottom, width, height)
+            )
         except Exception:
             pass
     }
@@ -1504,7 +1511,9 @@ global drawTexture(int texIdx, float cx, float cy, float w, float h, float angle
         import arcade, builtins
         try:
             tex = builtins._lx_textures[texIdx]
-            arcade.draw_scaled_texture_rectangle(cx, cy, w, h, tex, angle)
+            arcade.draw_texture_rect(
+                tex, arcade.XYWH(cx, cy, w, h), angle=angle
+            )
         except Exception:
             pass
     }
@@ -1866,13 +1875,15 @@ global makeAnimatedSprite(str pathsJson, float fps, float x, float y){
         try:
             paths    = _json.loads(pathsJson)
             textures = [arcade.load_texture(p) for p in paths]
-            sp       = arcade.AnimatedTimeBasedSprite()
-            from arcade import AnimationKeyframe
+            from arcade import TextureAnimation, TextureAnimationSprite, TextureKeyframe
             dur = int(1000 / max(fps, 1))
-            for i, tex in enumerate(textures):
-                sp.frames.append(AnimationKeyframe(i, dur, tex))
-            sp.texture   = textures[0]
-            sp.center_x  = x;  sp.center_y = y
+            animation = TextureAnimation([
+                TextureKeyframe(tex, dur, i)
+                for i, tex in enumerate(textures)
+            ])
+            sp = TextureAnimationSprite(
+                center_x=x, center_y=y, animation=animation
+            )
             builtins._lx_sprites.append(sp)
             idx = len(builtins._lx_sprites) - 1
         except Exception:
@@ -2115,15 +2126,12 @@ global mouseScrollY(){
 // Set the playback volume of a sound (0.0 silent, 1.0 full).
 global setSoundVolume(int soundIdx, float volume){
     rawPy(){
-        import builtins, arcade
+        import builtins
         try:
             entry = builtins._lx_sounds[soundIdx]
             if entry["player"] is not None:
                 level = max(0.0, min(1.0, volume))
-                try:
-                    arcade.set_volume(level, entry["player"])
-                except TypeError:
-                    arcade.set_volume(entry["player"], level)
+                entry["sound"].set_volume(level, entry["player"])
         except Exception:
             pass
     }
@@ -2133,14 +2141,11 @@ global setSoundVolume(int soundIdx, float volume){
 global isSoundPlaying(int soundIdx){
     bool result = false;
     rawPy(){
-        import builtins, arcade
+        import builtins
         try:
             entry = builtins._lx_sounds[soundIdx]
             player = entry["player"]
-            checker = getattr(arcade, "is_sound_playing", None)
-            if checker is None:
-                checker = getattr(arcade, "is_playing", None)
-            result = bool(player is not None and checker is not None and checker(player))
+            result = bool(player is not None and entry["sound"].is_playing(player))
         except Exception:
             result = False
     }
@@ -2271,6 +2276,424 @@ global tileToScreen(int tx, int ty, int tileSize){
         sx = tx * tileSize + tileSize // 2
         sy = ty * tileSize + tileSize // 2
         result = f"{sx},{sy}"
+    }
+    return result;
+}
+
+// ── Arcade-compatible drawing and resource helpers ───────────────────────────
+
+// Edge-based rectangle variants mirror Arcade's LBWH and LRBT helpers.
+global drawRectLBWH(float left, float bottom, float width, float height, int r, int g, int b){
+    global.drawRect(left + width / 2, bottom + height / 2, width, height, r, g, b);
+}
+
+global drawRectEdges(float left, float right, float bottom, float top, int r, int g, int b){
+    global.drawRect((left + right) / 2, (bottom + top) / 2,
+                    right - left, top - bottom, r, g, b);
+}
+
+global drawRectLBWHOutline(float left, float bottom, float width, float height, int r, int g, int b, float lineWidth){
+    global.drawRectOutline(left + width / 2, bottom + height / 2,
+                           width, height, r, g, b, lineWidth);
+}
+
+global drawRectEdgesOutline(float left, float right, float bottom, float top, int r, int g, int b, float lineWidth){
+    global.drawRectOutline((left + right) / 2, (bottom + top) / 2,
+                           right - left, top - bottom, r, g, b, lineWidth);
+}
+
+global drawParabolaFilled(float startX, float startY, float endX, float height, int r, int g, int b, float tiltAngle){
+    rawPy(){
+        import arcade
+        arcade.draw_parabola_filled(
+            startX, startY, endX, height,
+            arcade.color.Color(r, g, b), tiltAngle
+        )
+    }
+}
+
+global drawParabolaOutline(float startX, float startY, float endX, float height, int r, int g, int b, float lineWidth, float tiltAngle){
+    rawPy(){
+        import arcade
+        arcade.draw_parabola_outline(
+            startX, startY, endX, height,
+            arcade.color.Color(r, g, b), lineWidth, tiltAngle
+        )
+    }
+}
+
+// segmentsJson is an array of [x1,y1,x2,y2] arrays.
+global drawLines(str segmentsJson, int r, int g, int b, float lineWidth){
+    rawPy(){
+        import arcade, json as _json
+        try:
+            segments = _json.loads(segmentsJson)
+            col = arcade.color.Color(r, g, b)
+            for segment in segments:
+                if len(segment) >= 4:
+                    arcade.draw_line(
+                        segment[0], segment[1], segment[2], segment[3],
+                        col, lineWidth
+                    )
+        except Exception:
+            pass
+    }
+}
+
+// Obtain Arcade constants without making game code import Python.
+global keyCode(str key){
+    int result = -1;
+    rawPy(){
+        import arcade
+        try:
+            name = key.upper()
+            aliases = {"ENTER": "RETURN", "CTRL": "LCTRL", "ALT": "LALT"}
+            name = aliases.get(name, name)
+            value = getattr(arcade.key, name, None)
+            if value is None and len(name) == 1 and name.isdigit():
+                value = getattr(arcade.key, "KEY_" + name, None)
+            result = int(value) if value is not None else -1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+global mouseButtonCode(str button){
+    int result = -1;
+    rawPy(){
+        import arcade
+        result = {
+            "LEFT": arcade.MOUSE_BUTTON_LEFT,
+            "MIDDLE": arcade.MOUSE_BUTTON_MIDDLE,
+            "RIGHT": arcade.MOUSE_BUTTON_RIGHT
+        }.get(button.upper(), -1)
+    }
+    return result;
+}
+
+// ── Shape batches ─────────────────────────────────────────────────────────────
+
+global makeShapeList(){
+    int idx = -1;
+    rawPy(){
+        import arcade, builtins
+        try:
+            if not hasattr(builtins, "_lx_shape_lists"):
+                builtins._lx_shape_lists = []
+            builtins._lx_shape_lists.append(arcade.ShapeElementList())
+            idx = len(builtins._lx_shape_lists) - 1
+        except Exception:
+            idx = -1
+    }
+    return idx;
+}
+
+global addRectToShapeList(int listIdx, float cx, float cy, float width, float height, int r, int g, int b){
+    rawPy(){
+        import arcade, builtins
+        try:
+            shape = arcade.shape_list.create_rectangle_filled(
+                cx, cy, width, height, arcade.color.Color(r, g, b)
+            )
+            builtins._lx_shape_lists[listIdx].append(shape)
+        except Exception:
+            pass
+    }
+}
+
+global addCircleToShapeList(int listIdx, float cx, float cy, float radius, int r, int g, int b){
+    rawPy(){
+        import arcade, builtins
+        try:
+            shape = arcade.shape_list.create_ellipse_filled(
+                cx, cy, radius * 2, radius * 2,
+                arcade.color.Color(r, g, b)
+            )
+            builtins._lx_shape_lists[listIdx].append(shape)
+        except Exception:
+            pass
+    }
+}
+
+global addLineToShapeList(int listIdx, float x1, float y1, float x2, float y2, int r, int g, int b, float lineWidth){
+    rawPy(){
+        import arcade, builtins
+        try:
+            shape = arcade.shape_list.create_line(
+                x1, y1, x2, y2, arcade.color.Color(r, g, b), lineWidth
+            )
+            builtins._lx_shape_lists[listIdx].append(shape)
+        except Exception:
+            pass
+    }
+}
+
+global drawShapeList(int listIdx){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_shape_lists[listIdx].draw()
+        except Exception:
+            pass
+    }
+}
+
+global clearShapeList(int listIdx){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_shape_lists[listIdx].shape_list.clear()
+        except Exception:
+            pass
+    }
+}
+
+global getShapeListCount(int listIdx){
+    int result = 0;
+    rawPy(){
+        import builtins
+        try:
+            result = len(builtins._lx_shape_lists[listIdx].shape_list)
+        except Exception:
+            result = 0
+    }
+    return result;
+}
+
+// ── Sprite convenience and collection queries ────────────────────────────────
+
+global makeCircleSprite(float radius, int r, int g, int b, float x, float y){
+    int idx = -1;
+    rawPy(){
+        import arcade, builtins
+        try:
+            sp = arcade.SpriteCircle(radius, arcade.color.Color(r, g, b))
+            sp.center_x = x
+            sp.center_y = y
+            builtins._lx_sprites.append(sp)
+            idx = len(builtins._lx_sprites) - 1
+        except Exception:
+            idx = -1
+    }
+    return idx;
+}
+
+global setSpritePosition(int idx, float x, float y){
+    global.setSpritePos(idx, x, y);
+}
+
+global getSpritePosition(int idx){
+    str result = "0,0";
+    rawPy(){
+        import builtins
+        try:
+            sp = builtins._lx_sprites[idx]
+            result = f"{sp.center_x},{sp.center_y}"
+        except Exception:
+            result = "0,0"
+    }
+    return result;
+}
+
+global setSpriteTextureIndex(int idx, int textureIndex){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_sprites[idx].set_texture(textureIndex)
+        except Exception:
+            pass
+    }
+}
+
+global appendSpriteTexture(int idx, int texIdx){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_sprites[idx].append_texture(
+                builtins._lx_textures[texIdx]
+            )
+        except Exception:
+            pass
+    }
+}
+
+global setSpriteListVisible(int listIdx, bool visible){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_spr_lists[listIdx].visible = bool(visible)
+        except Exception:
+            pass
+    }
+}
+
+global setSpriteListAlpha(int listIdx, int alpha){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_spr_lists[listIdx].alpha = max(0, min(255, alpha))
+        except Exception:
+            pass
+    }
+}
+
+global setSpriteListColor(int listIdx, int r, int g, int b, int a){
+    rawPy(){
+        import arcade, builtins
+        try:
+            builtins._lx_spr_lists[listIdx].color = arcade.color.Color(r, g, b, a)
+        except Exception:
+            pass
+    }
+}
+
+global getClosestSprite(int sprIdx, int listIdx){
+    int result = -1;
+    rawPy(){
+        import arcade, builtins
+        try:
+            source = builtins._lx_sprites[sprIdx]
+            closest, distance = arcade.get_closest_sprite(
+                source, builtins._lx_spr_lists[listIdx]
+            )
+            if closest is not None:
+                for i, candidate in enumerate(builtins._lx_sprites):
+                    if candidate is closest:
+                        result = i
+                        break
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+global getSpritesAtPoint(float x, float y, int listIdx){
+    str result = "[]";
+    rawPy(){
+        import arcade, builtins, json as _json
+        try:
+            hits = arcade.get_sprites_at_point(
+                (x, y), builtins._lx_spr_lists[listIdx]
+            )
+            result = _json.dumps([
+                i for i, candidate in enumerate(builtins._lx_sprites)
+                if candidate in hits
+            ])
+        except Exception:
+            result = "[]"
+    }
+    return result;
+}
+
+global getSpritesInRect(float left, float right, float bottom, float top, int listIdx){
+    str result = "[]";
+    rawPy(){
+        import arcade, builtins, json as _json
+        try:
+            hits = arcade.get_sprites_in_rect(
+                arcade.LRBT(left, right, bottom, top),
+                builtins._lx_spr_lists[listIdx]
+            )
+            result = _json.dumps([
+                i for i, candidate in enumerate(builtins._lx_sprites)
+                if candidate in hits
+            ])
+        except Exception:
+            result = "[]"
+    }
+    return result;
+}
+
+global areSpritesColliding(int idxA, int idxB){
+    return global.spriteCollides(idxA, idxB);
+}
+
+global collisionListCount(int sprIdx, int listIdx){
+    str hits = global.getCollidingSprites(sprIdx, listIdx);
+    int count = 0;
+    rawPy(){
+        import json as _json
+        try:
+            count = len(_json.loads(hits))
+        except Exception:
+            count = 0
+    }
+    return count;
+}
+
+// ── Window, mouse, sound, and camera compatibility helpers ───────────────────
+
+global getDisplaySize(){
+    str result = "0,0";
+    rawPy(){
+        import arcade
+        try:
+            width, height = arcade.get_display_size()
+            result = f"{width},{height}"
+        except Exception:
+            result = "0,0"
+    }
+    return result;
+}
+
+global setVSync(bool enabled){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_game_win.set_vsync(bool(enabled))
+        except Exception:
+            pass
+    }
+}
+
+global mouseScrollX(){
+    float result = 0.0;
+    rawPy(){
+        import builtins
+        try:
+            result = float(getattr(builtins._lx_game_win, "_scroll_x", 0.0))
+            builtins._lx_game_win._scroll_x = 0.0
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+global loadSoundStreaming(str path, bool streaming){
+    int idx = -1;
+    rawPy(){
+        import arcade, builtins
+        try:
+            snd = arcade.load_sound(path, streaming=bool(streaming))
+            builtins._lx_sounds.append({"sound": snd, "player": None})
+            idx = len(builtins._lx_sounds) - 1
+        except Exception:
+            idx = -1
+    }
+    return idx;
+}
+
+global getSoundLength(int soundIdx){
+    float result = 0.0;
+    rawPy(){
+        import builtins
+        try:
+            result = float(builtins._lx_sounds[soundIdx]["sound"].get_length())
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+global getCameraZoom(int camIdx){
+    float result = 1.0;
+    rawPy(){
+        import builtins
+        try:
+            result = float(builtins._lx_cameras[camIdx].zoom)
+        except Exception:
+            result = 1.0
     }
     return result;
 }
