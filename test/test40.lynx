@@ -1,57 +1,158 @@
-// Window, labels, scenes, textures, audio, and lifecycle helpers.
+// Interactive game: scenes, a live HUD, tile helpers and window lifecycle.
+// Click to drop a block, C cycles the palette, R clears, ESC quits.
+// Run with `lynxer test40.lynx`.
 global setup(){
     import("game");
+    int scene = -1;
+    int actors = -1;
+    int hud = -1;
+    float clock = 0.0;
+    bool cycle = true;
+    int spawned = 0;
+    int redC = 255;
+    int greenC = 180;
+    int blueC = 80;
 }
 
+// ── Scene ──────────────────────────────────────────────────────────────────
+global buildScene(){
+    actors = global.game.makeSpriteList();
+
+    int first = global.game.makeSolidSprite(34, 34, 255, 140, 90, 120, 300);
+    global.game.setSpriteVelocity(first, 2.2, 2.6);
+    global.game.addToList(actors, first);
+
+    int second = global.game.makeSolidSprite(34, 34, 90, 200, 255, 420, 220);
+    global.game.setSpriteVelocity(second, -2.4, 2.0);
+    global.game.addToList(actors, second);
+
+    int third = global.game.makeSolidSprite(28, 28, 160, 255, 140, 300, 380);
+    global.game.setSpriteVelocity(third, 1.8, -2.8);
+    global.game.addToList(actors, third);
+
+    scene = global.game.makeScene();
+    global.game.addListToScene(scene, actors, "actors");
+}
+
+// ── Tile grid (tileToScreen / screenToTile are shown below in main) ─────────
+global drawGrid(){
+    for(int i = 0; i <= 16; i += 1){
+        float gx = i * 40;
+        global.game.drawLine(gx, 0, gx, 480, 48, 60, 86, 1);
+    }
+    for(int j = 0; j <= 12; j += 1){
+        float gy = j * 40;
+        global.game.drawLine(0, gy, 640, gy, 48, 60, 86, 1);
+    }
+}
+
+global bounceActors(){
+    int count = global.game.getSpriteListCount(actors);
+    for(int i = 0; i < count; i += 1){
+        int spr = global.game.getSpriteFromList(actors, i);
+        float x = global.game.getSpriteX(spr);
+        float y = global.game.getSpriteY(spr);
+        float vx = global.game.getSpriteVX(spr);
+        float vy = global.game.getSpriteVY(spr);
+        if(x < 24 and vx < 0){ global.game.setSpriteVelocity(spr, -vx, vy); }
+        if(x > 616 and vx > 0){ global.game.setSpriteVelocity(spr, -vx, vy); }
+        if(y < 70 and vy < 0){ global.game.setSpriteVelocity(spr, vx, -vy); }
+        if(y > 410 and vy > 0){ global.game.setSpriteVelocity(spr, vx, -vy); }
+    }
+}
+
+// Slowly walk an RGB triple so the blocks keep changing colour.
+global cyclePalette(){
+    if(not cycle){ return; }
+    redC += 4;
+    greenC += 3;
+    blueC += 6;
+    if(redC > 255){ redC = 0; }
+    if(greenC > 255){ greenC = 0; }
+    if(blueC > 255){ blueC = 0; }
+
+    int count = global.game.getSpriteListCount(actors);
+    for(int i = 0; i < count; i += 1){
+        global.game.setSpriteColor(global.game.getSpriteFromList(actors, i),
+                                   redC, greenC, blueC, 255);
+    }
+}
+
+// ── Frame hooks ────────────────────────────────────────────────────────────
 global drawFrame(){
     global.game.beginDraw();
-    global.game.drawTextLabel(0);
-    global.game.drawScene(0);
-    global.game.drawTextAnchored("Complete wrapper", 400, 300,
-                                 255, 255, 255, 20, "center", "center");
+    global.game.drawGradientRect(320, 240, 640, 480, 34, 44, 66, 14, 18, 30);
+    global.drawGrid();
+    global.game.drawScene(scene);
+    global.game.drawTextLabel(hud);
+    global.game.drawText("Click drops a block  -  C cycles colour  -  R clears  -  ESC quits",
+                         12, 18, 150, 170, 200, 15);
     global.game.endDraw();
 }
 
 global updateFrame(float dt){
-    global.game.getFPS();
-    global.game.getTime();
-    global.game.close();
+    clock += dt;
+    global.game.updateScene(scene);
+    global.bounceActors();
+    global.cyclePalette();
+    global.game.setTextLabel(hud, "FPS: " + strOf(global.game.getFPS())
+                                  + "   time: " + strOf(global.game.getTime())
+                                  + "   blocks: "
+                                  + strOf(global.game.getSpriteListCount(actors)));
+}
+
+global mousePress(float x, float y, int button, int modifiers){
+    if(button == global.game.mouseButtonCode("LEFT")){
+        int block = global.game.makeSolidSprite(30, 30, redC, greenC, blueC, x, y);
+        global.game.setSpriteVelocity(block, 2.0, 2.4);
+        global.game.addToList(actors, block);
+        spawned += 1;
+    }
+}
+
+global keyPress(int symbol, int modifiers){
+    if(symbol == global.game.keyCode("ESCAPE")){
+        global.game.close();
+    }
+    if(symbol == global.game.keyCode("C")){
+        cycle = not cycle;
+    }
+    if(symbol == global.game.keyCode("R")){
+        global.game.clearSpriteList(actors);
+        spawned = 0;
+    }
 }
 
 global main(){
-    global.game.init("Lifecycle API", 500, 400);
-    global.game.setTitle("Lifecycle API ready");
-    global.game.setWindowSize(500, 400);
-    global.game.setResizable(false);
+    global.game.init("Scenes and HUD", 640, 480);
+    global.game.setTitle("Scenes and HUD - click to add blocks");
+    global.game.setWindowSize(640, 480);
+    global.game.setResizable(true);
     global.game.setMouseVisible(true);
     global.game.showCursor();
     global.game.setVSync(false);
-    global.game.setWindowPos(20, 20);
-    global.game.getWidth();
-    global.game.getHeight();
-    global.game.getDisplaySize();
+    global.game.setWindowPos(40, 40);
+    global.game.setFPSCap(60);
+    global.game.setBackground(14, 18, 30);
 
-    int label = global.game.makeTextLabel("HUD", 20, 360,
-                                          255, 255, 255, 16, "left");
-    global.game.setTextLabel(label, "HUD score");
-    global.game.setTextLabelPos(label, 30, 350);
-    global.game.setTextLabelColor(label, 100, 220, 255, 255);
+    println("window: " + strOf(global.game.getWidth()) + "x"
+            + strOf(global.game.getHeight()));
+    println("display: " + global.game.getDisplaySize());
+    println("tileToScreen(3,4,40) = " + global.game.tileToScreen(3, 4, 40));
+    println("screenToTile(140,180,40) = " + global.game.screenToTile(140, 180, 40));
 
-    int actors = global.game.makeSpriteList();
-    int sprite = global.game.makeSolidSprite(20, 20, 255, 180, 80, 250, 200);
-    global.game.addToList(actors, sprite);
-    int scene = global.game.makeScene();
-    global.game.addListToScene(scene, actors, "actors");
-
+    // Missing assets degrade gracefully instead of throwing.
     int missingTexture = global.game.loadTexture("missing-texture.png");
     int missingSound = global.game.loadSound("missing-sound.wav");
-    global.game.drawTextureRect(missingTexture, 0, 0, 10, 10);
-    global.game.playSound(missingSound);
-    global.game.loopSound(missingSound);
-    global.game.stopSound(missingSound);
-    global.game.isSoundPlaying(missingSound);
-    global.game.loadTilemap("missing-map.tmx", 1);
+    println("missing texture index: " + strOf(missingTexture));
+    println("missing sound index: " + strOf(missingSound));
+
+    global.buildScene();
+    hud = global.game.makeTextLabel("HUD", 12, 452, 180, 240, 255, 17, "left");
+
     global.game.setDrawCallback("global.drawFrame");
     global.game.setUpdateCallback("global.updateFrame");
+    global.game.setMousePressCallback("global.mousePress");
+    global.game.setKeyPressCallback("global.keyPress");
     global.game.run();
 }

@@ -8,32 +8,12 @@
 
 ## Quick start
 
-```c
-global setup(){
-    import("game");
-}
-global drawFrame(){
-    global.game.beginDraw();
-    global.game.drawText("CLICK ME!", 400, 285, 255, 255, 255, 24);
-    global.game.endDraw();
-}
-
-global updateFrame(float dt){
-    // Keep the game running here, or call global.game.close() in a smoke test.
-}
-
-global main(){
-    global.game.init("Clicker", 800, 600);
-    global.game.setDrawCallback("global.drawFrame");
-    global.game.setUpdateCallback("global.updateFrame");
-    global.game.run();
-}
-```
-
 The draw and update callbacks are ordinary Lynxer functions. Register them by
 name with `setDrawCallback` and `setUpdateCallback`; all drawing and input
 access stays inside the wrapped `global.game.*` API. Mouse and keyboard
 callbacks can be registered with the corresponding `set*Callback` functions.
+
+For a full example, see [`test/test37.lynx`](https://github.com/andy64lol/Lynxer/blob/main/test/test37.lynx).
 
 ---
 

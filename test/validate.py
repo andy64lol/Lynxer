@@ -498,6 +498,172 @@ global main(){}
         raise ValidationFailure("module name collisions were not rejected")
 
 
+# The interactive game fixtures (test37-test40) block until their window is
+# closed, so ``test_existing_fixtures`` skips them.  This exercises the same
+# wrapped arcade API headlessly to keep it under regression coverage.
+_GAME_DRAW_SOURCE = r"""
+global setup(){ import("game"); }
+global main(){
+    global.game.init("validation", 320, 240);
+    global.game.setBackground(20, 24, 40);
+
+    // Rect primitives (arcade 3 takes a Rect, not cx/cy/w/h)
+    global.game.drawRect(40, 40, 60, 40, 200, 60, 60);
+    global.game.drawRectOutline(40, 40, 60, 40, 255, 255, 255, 2);
+    global.game.drawRectangleFilled(120, 40, 60, 40, 60, 200, 120);
+    global.game.drawRectangleOutline(120, 40, 60, 40, 255, 255, 255, 2);
+    global.game.drawRectLBWH(160, 20, 60, 40, 90, 120, 220);
+    global.game.drawRectEdges(230, 280, 20, 60, 220, 160, 60);
+    global.game.drawRectLBWHOutline(160, 70, 60, 40, 255, 255, 255, 2);
+    global.game.drawRectEdgesOutline(230, 280, 70, 110, 255, 255, 255, 2);
+    global.game.drawGradientRect(160, 160, 80, 50, 40, 60, 200, 200, 60, 90);
+    global.game.drawRectRoundedFilled(60, 160, 70, 50, 180, 90, 220, 10);
+    global.game.drawRectRoundedOutline(60, 160, 70, 50, 255, 255, 255, 10, 2);
+
+    // Curves, lines and points
+    global.game.drawCircle(40, 90, 18, 240, 200, 60);
+    global.game.drawCircleOutline(90, 90, 18, 255, 255, 255, 2);
+    global.game.drawEllipse(140, 90, 50, 26, 80, 200, 200);
+    global.game.drawTriangle(20, 120, 50, 120, 35, 150, 220, 120, 60);
+    global.game.drawArc(70, 120, 40, 30, 255, 200, 60, 0, 270, 2);
+    global.game.drawArcFilled(120, 120, 40, 30, 90, 180, 240, 0, 180);
+    global.game.drawStar(170, 120, 22, 9, 5, 255, 220, 80);
+    global.game.drawLine(200, 30, 300, 90, 255, 255, 255, 2);
+    global.game.drawDashedLine(200, 60, 300, 120, 200, 255, 200, 2, 8);
+    global.game.drawPolyline("[210,150, 240,190, 270,150]", 140, 255, 200, 2);
+    global.game.drawLineStrip("[210,100, 240,140, 270,100]", 255, 200, 140, 2);
+    global.game.drawPoints("[210,60, 240,80, 270,60]", 255, 255, 255, 5);
+    global.game.drawCross(285, 60, 12, 255, 90, 90, 2);
+    global.game.drawPolygon("[20,180, 60,180, 70,210, 10,210]", 120, 90, 220);
+    global.game.drawPolygonOutline("[80,180, 120,180, 130,210, 70,210]",
+                                   255, 255, 255, 2);
+
+    // Text (empty font name must fall back to the default)
+    global.game.drawText("Validation", 10, 10, 255, 255, 255, 14);
+    global.game.drawTextStyled("Styled", 10, 26, 255, 255, 255, 14,
+                               "", false, false, "left");
+    global.game.drawTextAnchored("Anchored", 160, 10, 200, 255, 200, 14,
+                                 "center", "center");
+
+    // Sprites and sprite lists
+    int sprA = global.game.makeSolidSprite(24, 24, 240, 80, 80, 60, 200);
+    int sprB = global.game.makeSolidSprite(24, 24, 80, 160, 240, 62, 200);
+    int sprC = global.game.makeCircleSprite(14, 240, 220, 80, 240, 200);
+    int actors = global.game.makeSpriteList();
+    global.game.addToList(actors, sprA);
+    global.game.addToList(actors, sprB);
+    global.game.addToList(actors, sprC);
+    global.game.setSpriteVelocity(sprA, 2, 0);
+    global.game.updateSpriteList(actors);
+    global.game.drawSpriteList(actors);
+    global.game.setSpritePosition(sprA, 60, 200);
+    global.game.setSpriteAngle(sprB, 30);
+    global.game.setSpriteScale(sprC, 1.5);
+    global.game.setSpriteColor(sprA, 255, 255, 255, 255);
+    global.game.setSpriteAlpha(sprB, 200);
+    global.game.setSpriteVisible(sprC, true);
+    global.game.flipSpriteH(sprA);
+    global.game.flipSpriteV(sprB);
+    global.game.moveSpriteToward(sprC, 100, 100, 1);
+    global.game.faceSpriteTo(sprC, 120, 120);
+    global.game.drawSprite(sprA);
+
+    // Collision helpers
+    global.game.spriteCollides(sprA, sprB);
+    global.game.spriteCollidesWithList(sprA, actors);
+    global.game.areSpritesColliding(sprA, sprB);
+    global.game.collisionListCount(sprA, actors);
+    global.game.getCollidingSprites(sprA, actors);
+    global.game.spriteDistance(sprA, sprB);
+    global.game.spriteNear(sprA, 60, 200, 40);
+
+    // Batched shapes
+    int shapes = global.game.makeShapeList();
+    global.game.addRectToShapeList(shapes, 40, 210, 40, 20, 90, 120, 220);
+    global.game.addCircleToShapeList(shapes, 100, 210, 12, 220, 120, 90);
+    global.game.addLineToShapeList(shapes, 120, 200, 160, 220, 255, 255, 255, 2);
+    global.game.drawShapeList(shapes);
+    global.game.getShapeListCount(shapes);
+    global.game.clearShapeList(shapes);
+
+    // Labels, scenes, camera and physics
+    int label = global.game.makeTextLabel("HUD", 10, 230, 255, 255, 255, 14,
+                                          "left");
+    global.game.setTextLabel(label, "HUD 2");
+    global.game.setTextLabelPos(label, 12, 228);
+    global.game.setTextLabelColor(label, 255, 220, 120, 255);
+    global.game.drawTextLabel(label);
+    global.game.destroyTextLabel(label);
+
+    int scene = global.game.makeScene();
+    global.game.addListToScene(scene, actors, "actors");
+    global.game.updateScene(scene);
+    global.game.drawScene(scene);
+
+    int cam = global.game.makeCamera();
+    global.game.setCameraPos(cam, 100, 80);
+    global.game.zoomCamera(cam, 1.25);
+    global.game.getCameraX(cam);
+    global.game.getCameraY(cam);
+    global.game.getCameraZoom(cam);
+    global.game.smoothScrollCamera(cam, 120, 90, 0.2);
+    global.game.useCamera(cam);
+    global.game.resetCamera();
+
+    int walls = global.game.makeSpatialSpriteList();
+    int engine = global.game.makePhysicsEngine(0.5, walls);
+    global.game.setPhysicsPlayer(engine, sprA);
+    global.game.updatePhysics(engine);
+    global.game.canJump(engine);
+    global.game.jumpPlayer(engine, 8);
+    global.game.getPlayerVY(engine);
+
+    // Input polling, timers and grid helpers
+    global.game.keyDown("SPACE");
+    global.game.keyUp("SPACE");
+    global.game.keyCode("ESCAPE");
+    global.game.mouseX();
+    global.game.mouseY();
+    global.game.mouseButtonCode("LEFT");
+    global.game.mouseScrollX();
+    global.game.mouseScrollY();
+    global.game.mouseDeltaX();
+    global.game.mouseDeltaY();
+    global.game.getFPS();
+    global.game.getTime();
+    global.game.deltaTime();
+    global.game.getWidth();
+    global.game.getHeight();
+    global.game.getDisplaySize();
+    global.game.screenToTile(129, 257, 32);
+    global.game.tileToScreen(4, 8, 32);
+
+    // Missing assets must degrade to -1 instead of raising
+    int missingTexture = global.game.loadTexture("does-not-exist.png");
+    int missingSound = global.game.loadSound("does-not-exist.wav");
+    global.game.playSound(missingSound);
+    global.game.loopSound(missingSound);
+    global.game.stopSound(missingSound);
+    global.game.playSoundOnce(missingSound);
+    global.game.isSoundPlaying(missingSound);
+    global.game.loadTilemap("does-not-exist.tmx", 1);
+    global.game.close();
+}
+"""
+
+
+def _game_window_available() -> bool:
+    """True when arcade can open a window in this environment."""
+    try:
+        import arcade
+
+        window = arcade.Window(1, 1, "lynxer-probe")
+        window.close()
+        return True
+    except Exception:
+        return False
+
+
 def test_game_stdlib(temp_root: Path) -> None:
     source = """global setup(){ import("game"); }
 global main(){}
@@ -507,6 +673,19 @@ global main(){}
         raise ValidationFailure(f"game stdlib: runtime error:\n{error.as_string()}")
     if output:
         raise ValidationFailure(f"game stdlib: received unexpected output {output!r}")
+
+    if not _game_window_available():
+        print("SKIP  game drawing API: no GL context available here")
+        return
+    output, error = run_source(_GAME_DRAW_SOURCE, str(temp_root / "game_draw.lynx"))
+    if error is not None:
+        raise ValidationFailure(
+            f"game drawing API: runtime error:\n{error.as_string()}"
+        )
+    if output:
+        raise ValidationFailure(
+            f"game drawing API: received unexpected output {output!r}"
+        )
 
 
 def test_native_modules(temp_root: Path) -> None:
@@ -920,18 +1099,25 @@ def test_installer_safety() -> None:
 
 def test_existing_fixtures() -> None:
     fixture_pattern = re.compile(r"^test(\d+)\.lynx$")
-    fixtures = sorted(
-        (
-            fixture
-            for fixture in (ROOT / "test").iterdir()
-            if fixture.is_file() and fixture_pattern.match(fixture.name)
-        ),
-        key=lambda fixture: int(fixture_pattern.match(fixture.name).group(1))  # type: ignore[union-attr],
-    )
+    numbered: list[tuple[int, Path]] = []
+    for fixture in (ROOT / "test").iterdir():
+        if not fixture.is_file():
+            continue
+        match = fixture_pattern.match(fixture.name)
+        if match is None:
+            continue
+        numbered.append((int(match.group(1)), fixture))
+    fixtures = [fixture for _, fixture in sorted(numbered, key=lambda item: item[0])]
     for fixture in fixtures:
         source = fixture.read_text(encoding="utf-8")
         if "forever(" in source:
             print(f"SKIP  existing fixture {fixture.name}: contains unbounded forever()")
+            continue
+        if "global.game.run(" in source:
+            print(
+                f"SKIP  existing fixture {fixture.name}: interactive game "
+                f"example, blocks until its window is closed"
+            )
             continue
         expected_error = re.search(r"^\s*//\s*EXPECT_ERROR:\s*(.+?)\s*$", source, re.MULTILINE)
         _, error = run_source(source, str(fixture))

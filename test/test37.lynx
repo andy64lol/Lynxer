@@ -1,34 +1,118 @@
+// Interactive game: a clicker.
+// Click the button to score; the window stays open until you close it or
+// press ESC.  Run with `lynxer test37.lynx` — this is a playable example,
+// not a one-frame smoke test.
 global setup(){
     import("game");
+    int score = 0;
+    bool hovering = false;
+    float clock = 0.0;
+    float popupTimer = 0.0;
+    int bubbles = -1;
 }
 
+// ── Floating background bubbles ────────────────────────────────────────────
+global makeBubbles(){
+    bubbles = global.game.makeSpriteList();
+    int i = 0;
+    for(i = 0; i < 7; i += 1){
+        // Bubbles are drifted manually in updateBubbles (px per second * dt).
+        int bubble = global.game.makeCircleSprite(14, 90, 150, 220, 60 + i * 120, i * 90);
+        global.game.setSpriteAlpha(bubble, 70);
+        global.game.addToList(bubbles, bubble);
+    }
+}
+
+global updateBubbles(float dt){
+    int count = global.game.getSpriteListCount(bubbles);
+    for(int i = 0; i < count; i += 1){
+        int bubble = global.game.getSpriteFromList(bubbles, i);
+        float y = global.game.getSpriteY(bubble);
+        y += 40 * dt;
+        if(y > 640){ y = -20; }
+        global.game.setSpritePos(bubble, global.game.getSpriteX(bubble), y);
+    }
+}
+
+// ── Frame hooks ────────────────────────────────────────────────────────────
 global drawFrame(){
     global.game.beginDraw();
-    global.game.drawRect(400, 300, 800, 600, 24, 32, 48);
-    global.game.drawText("CLICK ME!", 400, 285, 255, 255, 255, 24);
-    global.game.drawText("Arcade through game.lynx", 400, 450,
-                         180, 220, 255, 18);
+
+    // Backdrop
+    global.game.drawGradientRect(400, 300, 800, 600, 62, 78, 128, 16, 20, 36);
+    global.game.drawSpriteList(bubbles);
+
+    // Podium behind the button
+    global.game.drawRectRoundedFilled(400, 292, 340, 168, 34, 40, 62, 18);
+
+    // The click target — brighter while hovered
+    int red = 72;
+    int green = 132;
+    int blue = 208;
+    if(hovering){
+        red = 96;
+        green = 176;
+        blue = 246;
+    }
+    global.game.drawRectRoundedFilled(400, 300, 300, 130, red, green, blue, 16);
+    global.game.drawRectOutline(400, 300, 300, 130, 235, 245, 255, 3);
+
+    global.game.drawTextAnchored("CLICK ME!", 400, 312, 255, 255, 255, 34,
+                                 "center", "center");
+    global.game.drawTextAnchored("Clicker", 400, 528, 130, 224, 255, 44,
+                                 "center", "center");
+    global.game.drawTextAnchored("Score: " + strOf(score), 400, 460,
+                                 255, 226, 110, 32, "center", "center");
+
+    // Rising "+1" feedback after a click
+    if(popupTimer > 0){
+        float rise = (0.7 - popupTimer) * 110;
+        global.game.drawTextAnchored("+1", 400, 380 + rise,
+                                    255, 240, 120, 30, "center", "center");
+    }
+
+    global.game.drawTextAnchored("Click the button   ·   ESC to quit", 400, 44,
+                                 168, 182, 214, 18, "center", "center");
     global.game.endDraw();
 }
 
 global updateFrame(float dt){
-    // A one-frame smoke test keeps the fixture non-blocking.
-    global.game.close();
+    clock += dt;
+    if(popupTimer > 0){
+        popupTimer -= dt;
+    }
+    global.updateBubbles(dt);
+
+    // Track whether the pointer is over the button
+    float mx = global.game.mouseX();
+    float my = global.game.mouseY();
+    hovering = (mx >= 250 and mx <= 550 and my >= 235 and my <= 365);
 }
 
 global mousePress(float x, float y, int button, int modifiers){
     if(button == global.game.mouseButtonCode("LEFT")
-       and x >= 300 and x <= 500 and y >= 250 and y <= 350){
-        global.game.setTitle("Clicked");
+       and x >= 250 and x <= 550 and y >= 235 and y <= 365){
+        score += 1;
+        popupTimer = 0.7;
+        global.game.setTitle("Clicker - " + strOf(score) + " clicks");
+    }
+}
+
+global keyPress(int symbol, int modifiers){
+    if(symbol == global.game.keyCode("ESCAPE")){
+        global.game.close();
     }
 }
 
 global main(){
     global.game.init("Clicker", 800, 600);
+    global.game.setBackground(16, 20, 36);
+    global.game.setFPSCap(60);
+    global.game.setMouseVisible(true);
+    global.makeBubbles();
     global.game.setDrawCallback("global.drawFrame");
     global.game.setUpdateCallback("global.updateFrame");
     global.game.setMousePressCallback("global.mousePress");
-    global.game.setBackground(24, 32, 48);
-    global.game.setFPSCap(60);
+    global.game.setKeyPressCallback("global.keyPress");
     global.game.run();
 }

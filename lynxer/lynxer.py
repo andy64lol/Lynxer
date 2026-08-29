@@ -9814,7 +9814,13 @@ class Interpreter:
         # function created in this isolated exec namespace can call it later,
         # after this rawPy block has returned.
         import builtins as _host_builtins
-        _host_builtins._lx_invoke_lynxer = _lynxer_callback_dispatcher(context)
+        # setattr, because this attribute is injected dynamically and is not
+        # part of the builtins module's declared interface.
+        setattr(
+            _host_builtins,
+            "_lx_invoke_lynxer",
+            _lynxer_callback_dispatcher(context),
+        )
         tbl = context.symbol_table
         while tbl is not None:
             for name, val in tbl.symbols.items():

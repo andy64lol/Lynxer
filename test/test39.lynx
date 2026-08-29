@@ -1,56 +1,104 @@
-// Input polling, callbacks, camera, physics, timers, and grid helpers.
+// Interactive game: a small platformer.
+// Arrow keys or A/D to run, SPACE (or UP) to jump, the camera follows the
+// player.  ESC quits.  Run with `lynxer test39.lynx`.
 global setup(){
     import("game");
+    int player = -1;
+    int walls = -1;
+    int engine = -1;
+    int cam = -1;
+    float clock = 0.0;
+    int jumps = 0;
+    bool onGround = false;
 }
 
+// ── Level ──────────────────────────────────────────────────────────────────
+global buildLevel(){
+    walls = global.game.makeSpatialSpriteList();
+
+    // Ground slab: 40 px tall, its top edge sits at y = 40
+    int ground = global.game.makeSolidSprite(900, 40, 96, 112, 138, 450, 20);
+    global.game.addToList(walls, ground);
+
+    int ledgeA = global.game.makeSolidSprite(180, 22, 118, 152, 196, 250, 130);
+    int ledgeB = global.game.makeSolidSprite(160, 22, 118, 152, 196, 590, 215);
+    int ledgeC = global.game.makeSolidSprite(150, 22, 118, 152, 196, 350, 305);
+    int ledgeD = global.game.makeSolidSprite(210, 22, 118, 152, 196, 760, 395);
+    global.game.addToList(walls, ledgeA);
+    global.game.addToList(walls, ledgeB);
+    global.game.addToList(walls, ledgeC);
+    global.game.addToList(walls, ledgeD);
+}
+
+// ── Frame hooks ────────────────────────────────────────────────────────────
 global drawFrame(){
     global.game.beginDraw();
-    global.game.drawText("Input and camera", 20, 560, 255, 255, 255, 18);
+
+    // Sky is drawn in screen space, before the camera is applied
+    global.game.drawGradientRect(450, 280, 900, 560, 92, 164, 222, 158, 208, 238);
+
+    global.game.useCamera(cam);
+    global.game.drawSpriteList(walls);
+    global.game.drawSprite(player);
+    global.game.resetCamera();
+
+    // HUD in screen space
+    global.game.drawRect(450, 528, 900, 64, 16, 22, 34);
+    global.game.drawText("Arrows or A/D to run   ·   SPACE to jump   ·   ESC to quit",
+                         18, 542, 206, 220, 240, 18);
+    global.game.drawText("Jumps: " + strOf(jumps) + "   ·   X: "
+                         + strOf(global.game.getSpriteX(player)),
+                         18, 516, 150, 200, 230, 16);
+    global.game.drawTextAnchored("FPS: " + strOf(global.game.getFPS()),
+                                 882, 542, 150, 220, 200, 16, "right", "center");
     global.game.endDraw();
 }
 
 global updateFrame(float dt){
-    bool left = global.game.keyDown("LEFT");
-    bool released = global.game.keyReleased("SPACE");
-    float elapsed = global.game.deltaTime();
-    global.game.mouseDeltaX();
-    global.game.mouseDeltaY();
-    global.game.mouseScrollX();
-    global.game.mouseScrollY();
-    global.game.updatePhysics(0);
-    global.game.close();
+    clock += dt;
+
+    // Horizontal control. setSpriteVelocity is px/frame at 60 FPS.
+    float vx = 0;
+    if(global.game.keyDown("LEFT") or global.game.keyDown("A")){ vx = -3.6; }
+    if(global.game.keyDown("RIGHT") or global.game.keyDown("D")){ vx = 3.6; }
+    global.game.setSpriteVelocity(player, vx, global.game.getSpriteVY(player));
+
+    onGround = global.game.canJump(engine);
+    if((global.game.keyDown("UP") or global.game.keyDown("SPACE")) and onGround){
+        global.game.jumpPlayer(engine, 13);
+        jumps += 1;
+    }
+
+    global.game.updatePhysics(engine);
+    global.game.smoothScrollCamera(cam,
+                                   global.game.getSpriteX(player),
+                                   global.game.getSpriteY(player) + 70,
+                                   0.1);
 }
 
 global keyPress(int symbol, int modifiers){
-    global.game.keyCode("A");
+    if(symbol == global.game.keyCode("ESCAPE")){
+        global.game.close();
+    }
 }
 
 global main(){
-    global.game.init("Input API", 640, 480);
-    int player = global.game.makeSolidSprite(30, 40, 80, 180, 255, 100, 100);
-    int walls = global.game.makeSpatialSpriteList();
-    int floor = global.game.makeSolidSprite(640, 20, 120, 120, 120, 320, 10);
-    global.game.addToList(walls, floor);
-    int engine = global.game.makePhysicsEngine(0.5, walls);
+    global.game.init("Platformer", 900, 560);
+    global.game.setBackground(92, 164, 222);
+    global.game.setFPSCap(60);
+
+    global.buildLevel();
+
+    player = global.game.makeSolidSprite(34, 48, 255, 196, 74, 90, 260);
+    global.game.setSpriteColor(player, 255, 186, 64, 255);
+
+    engine = global.game.makePhysicsEngine(0.6, walls);
     global.game.setPhysicsPlayer(engine, player);
-    global.game.setSpriteMotion(player, 1, 12, 0.2);
-    global.game.setSpriteBoundary(player, 0, 640, 0, 480);
-    global.game.jumpPlayer(engine, 10);
-    global.game.canJump(engine);
-    global.game.getPlayerVY(engine);
 
-    int camera = global.game.makeCamera();
-    global.game.setCameraPos(camera, 100, 120);
-    global.game.zoomCamera(camera, 1.5);
-    global.game.smoothScrollCamera(camera, 200, 180, 0.25);
-    global.game.getCameraX(camera);
-    global.game.getCameraY(camera);
-    global.game.getCameraZoom(camera);
-    global.game.useCamera(camera);
-    global.game.resetCamera();
+    cam = global.game.makeCamera();
+    global.game.setCameraPos(cam, global.game.getSpriteX(player),
+                             global.game.getSpriteY(player) + 70);
 
-    global.game.screenToTile(129, 257, 32);
-    global.game.tileToScreen(4, 8, 32);
     global.game.setDrawCallback("global.drawFrame");
     global.game.setUpdateCallback("global.updateFrame");
     global.game.setKeyPressCallback("global.keyPress");

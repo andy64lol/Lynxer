@@ -22,7 +22,7 @@ import threading
 import asyncio
 import time
 from collections.abc import Callable
-from typing import Any
+from typing import Any, TypeVar, cast
 
 _runtime = importlib.import_module(".lynxer", package=__package__)
 _MEMORY_LIB = importlib.import_module(".cpp", package=__package__)
@@ -62,7 +62,7 @@ _MEMORY_TYPES = {
 
 _NATIVE_MODULES: dict[int, dict[str, Any]] = {}
 _NATIVE_MODULE_IDS = itertools.count(1)
-_PROCESSES: dict[int, subprocess.Popen] = {}
+_PROCESSES: dict[int, "subprocess.Popen[bytes]"] = {}
 _PROCESS_IDS = itertools.count(1)
 _FILES: dict[int, int] = {}
 _FILE_IDS = itertools.count(1)
@@ -78,34 +78,40 @@ _ASYNC_IDS = itertools.count(1)
 _ASYNC_REGISTRY_LOCK = threading.Lock()
 
 
+# Handle-resolution helpers return ``(object, error)``.  Exactly one of the
+# two is meaningful: when the error is None the object is valid, and when the
+# error is set the caller returns immediately without touching the object.
+_SyncT = TypeVar("_SyncT")
+
+
 class _ManagedMutex:
     def __init__(self):
-        self.lock = threading.Lock()
-        self.owner = None
-        self.waiters = 0
+        self.lock: threading.Lock = threading.Lock()
+        self.owner: int | None = None
+        self.waiters: int = 0
 
 
 class _ManagedCondition:
     def __init__(self):
-        self.condition = None
-        self.mutex = None
-        self.waiters = 0
+        self.condition: threading.Condition | None = None
+        self.mutex: _ManagedMutex | None = None
+        self.waiters: int = 0
 
 
 class _ManagedSemaphore:
-    def __init__(self, value):
-        self.semaphore = threading.Semaphore(value)
-        self.waiters = 0
+    def __init__(self, value: int):
+        self.semaphore: threading.Semaphore = threading.Semaphore(value)
+        self.waiters: int = 0
 
 
 class _AsyncPoll:
     def __init__(self):
-        self.poller = select.poll()
-        self.registrations = {}
-        self.timers = {}
-        self.waiting = False
-        self.closed = False
-        self.lock = threading.RLock()
+        self.poller: select.poll = select.poll()
+        self.registrations: dict[int, dict[str, Any]] = {}
+        self.timers: dict[int, dict[str, Any]] = {}
+        self.waiting: bool = False
+        self.closed: bool = False
+        self.lock: threading.RLock = threading.RLock()
 
     def wait(self, timeout_ms, max_events):
         with self.lock:
@@ -1566,14 +1572,20 @@ class BuiltInFunction(BaseFunction):
         result = self._cpp(_MEMORY_LIB.nativeThreadDetach, [args[0].value], exec_ctx)
         return result if isinstance(result, RTResult) else RTResult().success(Number.null)
 
-    def _sync_handle(self, args, exec_ctx, name, kind):
+    def _sync_handle(
+        self, args: list[Any], exec_ctx: Any, name: str, kind: type[_SyncT]
+    ) -> "tuple[_SyncT, RTResult | None]":
         if len(args) != 1 or not _native_nonnegative(args[0]):
-            return None, self._failure(exec_ctx, f"{name}(handle) expects a valid handle")
+            return cast(_SyncT, None), self._failure(
+                exec_ctx, f"{name}(handle) expects a valid handle"
+            )
         handle = args[0].value
         with _SYNC_REGISTRY_LOCK:
             value = _SYNC_OBJECTS.get(handle)
         if value is None or not isinstance(value, kind):
-            return None, self._failure(exec_ctx, f"{name}() received an unknown or closed handle")
+            return cast(_SyncT, None), self._failure(
+                exec_ctx, f"{name}() received an unknown or closed handle"
+            )
         return value, None
 
     def execute_nativeMutexCreate(self, args, exec_ctx):
@@ -1649,25 +1661,39 @@ class BuiltInFunction(BaseFunction):
             _SYNC_OBJECTS[handle] = condition
         return RTResult().success(Number(handle))
 
-    def _condition_mutex(self, args, exec_ctx, name):
+    def _condition_mutex(
+        self, args: list[Any], exec_ctx: Any, name: str
+    ) -> "tuple[_ManagedCondition, _ManagedMutex, RTResult | None]":
         if len(args) != 2:
-            return None, None, self._failure(exec_ctx, f"{name}(condition, mutex) expects two handles")
+            return (
+                cast(_ManagedCondition, None),
+                cast(_ManagedMutex, None),
+                self._failure(exec_ctx, f"{name}(condition, mutex) expects two handles"),
+            )
         condition, error = self._sync_handle(args[:1], exec_ctx, name, _ManagedCondition)
         if error:
-            return None, None, error
+            return cast(_ManagedCondition, None), cast(_ManagedMutex, None), error
         mutex, error = self._sync_handle(args[1:], exec_ctx, name, _ManagedMutex)
         if error:
-            return None, None, error
+            return cast(_ManagedCondition, None), cast(_ManagedMutex, None), error
         if mutex.owner != threading.get_ident():
-            return None, None, self._failure(
-                exec_ctx, f"{name}() requires the owning thread to hold the mutex"
+            return (
+                cast(_ManagedCondition, None),
+                cast(_ManagedMutex, None),
+                self._failure(
+                    exec_ctx, f"{name}() requires the owning thread to hold the mutex"
+                ),
             )
         if condition.condition is None:
             condition.condition = threading.Condition(mutex.lock)
             condition.mutex = mutex
         elif condition.mutex is not mutex:
-            return None, None, self._failure(
-                exec_ctx, f"{name}() condition is bound to a different mutex"
+            return (
+                cast(_ManagedCondition, None),
+                cast(_ManagedMutex, None),
+                self._failure(
+                    exec_ctx, f"{name}() condition is bound to a different mutex"
+                ),
             )
         return condition, mutex, None
 
@@ -1675,11 +1701,15 @@ class BuiltInFunction(BaseFunction):
         condition, mutex, error = self._condition_mutex(args, exec_ctx, "nativeConditionWait")
         if error:
             return error
+        # _condition_mutex() binds the condition to the mutex before returning,
+        # so the underlying threading.Condition always exists here.
+        cond = condition.condition
+        assert cond is not None
         with _SYNC_REGISTRY_LOCK:
             condition.waiters += 1
             mutex.owner = None
         try:
-            condition.condition.wait()
+            cond.wait()
         finally:
             with _SYNC_REGISTRY_LOCK:
                 condition.waiters -= 1
@@ -1691,10 +1721,14 @@ class BuiltInFunction(BaseFunction):
         condition, mutex, error = self._condition_mutex(args, exec_ctx, name)
         if error:
             return error
+        # _condition_mutex() binds the condition to the mutex before returning,
+        # so the underlying threading.Condition always exists here.
+        cond = condition.condition
+        assert cond is not None
         if all_waiters:
-            condition.condition.notify_all()
+            cond.notify_all()
         else:
-            condition.condition.notify()
+            cond.notify()
         return RTResult().success(Number.null)
 
     def execute_nativeConditionNotify(self, args, exec_ctx):
@@ -3570,13 +3604,19 @@ class BuiltInFunction(BaseFunction):
 
     # async I/O
 
-    def _async_poll(self, args, exec_ctx, name):
+    def _async_poll(
+        self, args: list[Any], exec_ctx: Any, name: str
+    ) -> "tuple[_AsyncPoll, RTResult | None]":
         if len(args) != 1 or not _native_nonnegative(args[0]):
-            return None, self._failure(exec_ctx, f"{name}(poll) expects a valid poll handle")
+            return cast(_AsyncPoll, None), self._failure(
+                exec_ctx, f"{name}(poll) expects a valid poll handle"
+            )
         with _ASYNC_REGISTRY_LOCK:
             poll = _ASYNC_POLLS.get(args[0].value)
         if poll is None or poll.closed:
-            return None, self._failure(exec_ctx, f"{name}() received an unknown or closed poll")
+            return cast(_AsyncPoll, None), self._failure(
+                exec_ctx, f"{name}() received an unknown or closed poll"
+            )
         return poll, None
 
     def _async_timeout(self, value, exec_ctx, name, default=-1):
@@ -3588,9 +3628,13 @@ class BuiltInFunction(BaseFunction):
             )
         return value.value, None
 
-    def _async_fd(self, value, exec_ctx, name):
+    def _async_fd(
+        self, value: Any, exec_ctx: Any, name: str
+    ) -> "tuple[int, RTResult | None]":
         if not _native_nonnegative(value):
-            return None, self._failure(exec_ctx, f"{name} resource expects a nonnegative integer")
+            return cast(int, None), self._failure(
+                exec_ctx, f"{name} resource expects a nonnegative integer"
+            )
         resource = value.value
         if resource in _FILES:
             return _FILES[resource], None
@@ -3598,9 +3642,11 @@ class BuiltInFunction(BaseFunction):
             return _SOCKETS[resource].fileno(), None
         return resource, None
 
-    def _async_event_mask(self, value, exec_ctx, name):
+    def _async_event_mask(
+        self, value: Any, exec_ctx: Any, name: str
+    ) -> "tuple[tuple[str, int], RTResult | None]":
         if not isinstance(value, String):
-            return None, self._failure(
+            return cast(tuple[str, int], None), self._failure(
                 exec_ctx, f"{name} events must be 'read', 'write', or 'readwrite'"
             )
         event_name = value.value.lower()
@@ -3610,7 +3656,7 @@ class BuiltInFunction(BaseFunction):
             "readwrite": select.POLLIN | select.POLLOUT,
         }
         if event_name not in masks:
-            return None, self._failure(
+            return cast(tuple[str, int], None), self._failure(
                 exec_ctx, f"{name} events must be 'read', 'write', or 'readwrite'"
             )
         return (event_name, masks[event_name]), None
