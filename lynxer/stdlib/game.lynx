@@ -19,6 +19,12 @@ global init(str title, int width, int height){
                 super().__init__(width, height, title)
                 self._draw_fn   = None
                 self._update_fn = None
+                self._key_press_fn = None
+                self._key_release_fn = None
+                self._mouse_press_fn = None
+                self._mouse_release_fn = None
+                self._mouse_motion_fn = None
+                self._mouse_scroll_fn = None
                 self._key_state = set()
                 self._key_pressed = set()
                 self._key_released = set()
@@ -27,6 +33,8 @@ global init(str title, int width, int height){
                 self._mouse_dx  = 0
                 self._mouse_dy  = 0
                 self._mouse_btn = set()
+                self._mouse_pressed = set()
+                self._mouse_released = set()
                 self._scroll_x  = 0
                 self._scroll_y  = 0
 
@@ -43,26 +51,40 @@ global init(str title, int width, int height){
             def on_key_press(self, symbol, modifiers):
                 self._key_state.add(symbol)
                 self._key_pressed.add(symbol)
+                if self._key_press_fn:
+                    self._key_press_fn(symbol, modifiers)
 
             def on_key_release(self, symbol, modifiers):
                 self._key_state.discard(symbol)
                 self._key_released.add(symbol)
+                if self._key_release_fn:
+                    self._key_release_fn(symbol, modifiers)
 
             def on_mouse_motion(self, x, y, dx, dy):
                 self._mouse_x = x
                 self._mouse_y = y
                 self._mouse_dx += dx
                 self._mouse_dy += dy
+                if self._mouse_motion_fn:
+                    self._mouse_motion_fn(x, y, dx, dy)
 
             def on_mouse_press(self, x, y, button, modifiers):
                 self._mouse_btn.add(button)
+                self._mouse_pressed.add(button)
+                if self._mouse_press_fn:
+                    self._mouse_press_fn(x, y, button, modifiers)
 
             def on_mouse_release(self, x, y, button, modifiers):
                 self._mouse_btn.discard(button)
+                self._mouse_released.add(button)
+                if self._mouse_release_fn:
+                    self._mouse_release_fn(x, y, button, modifiers)
 
             def on_mouse_scroll(self, x, y, scroll_x, scroll_y):
                 self._scroll_x += scroll_x
                 self._scroll_y += scroll_y
+                if self._mouse_scroll_fn:
+                    self._mouse_scroll_fn(x, y, scroll_x, scroll_y)
 
         win = _LynxGameWindow(title, width, height)
         builtins._lx_game_win  = win
@@ -72,6 +94,12 @@ global init(str title, int width, int height){
         builtins._lx_spr_lists = []
         builtins._lx_cameras   = []
         builtins._lx_labels    = []
+        builtins._lx_scenes    = []
+        builtins._lx_tilemaps  = []
+        builtins._lx_textures  = []
+        builtins._lx_physics_engines = []
+        builtins._lx_scheduled_callbacks = {}
+        builtins._lx_start_time = None
     }
 }
 
@@ -162,6 +190,111 @@ global run(){
     rawPy(){
         import arcade
         arcade.run()
+    }
+}
+
+// Register Lynxer functions as Arcade event callbacks.  The functions are
+// named to keep callback registration simple and predictable:
+// draw(), update(float dt), keyPress(int symbol, int modifiers), etc.
+global setDrawCallback(str callbackName){
+    rawPy(){
+        import builtins
+        builtins._lx_game_win._draw_fn = (
+            lambda: builtins._lx_invoke_lynxer(callbackName)
+        )
+    }
+}
+
+global setUpdateCallback(str callbackName){
+    rawPy(){
+        import builtins
+        builtins._lx_game_win._update_fn = (
+            lambda dt: builtins._lx_invoke_lynxer(callbackName, dt)
+        )
+    }
+}
+
+global setKeyPressCallback(str callbackName){
+    rawPy(){
+        import builtins
+        builtins._lx_game_win._key_press_fn = (
+            lambda symbol, modifiers:
+                builtins._lx_invoke_lynxer(callbackName, symbol, modifiers)
+        )
+    }
+}
+
+global setKeyReleaseCallback(str callbackName){
+    rawPy(){
+        import builtins
+        builtins._lx_game_win._key_release_fn = (
+            lambda symbol, modifiers:
+                builtins._lx_invoke_lynxer(callbackName, symbol, modifiers)
+        )
+    }
+}
+
+global setMousePressCallback(str callbackName){
+    rawPy(){
+        import builtins
+        builtins._lx_game_win._mouse_press_fn = (
+            lambda x, y, button, modifiers:
+                builtins._lx_invoke_lynxer(callbackName, x, y, button, modifiers)
+        )
+    }
+}
+
+global setMouseReleaseCallback(str callbackName){
+    rawPy(){
+        import builtins
+        builtins._lx_game_win._mouse_release_fn = (
+            lambda x, y, button, modifiers:
+                builtins._lx_invoke_lynxer(callbackName, x, y, button, modifiers)
+        )
+    }
+}
+
+global setMouseMotionCallback(str callbackName){
+    rawPy(){
+        import builtins
+        builtins._lx_game_win._mouse_motion_fn = (
+            lambda x, y, dx, dy:
+                builtins._lx_invoke_lynxer(callbackName, x, y, dx, dy)
+        )
+    }
+}
+
+global setMouseScrollCallback(str callbackName){
+    rawPy(){
+        import builtins
+        builtins._lx_game_win._mouse_scroll_fn = (
+            lambda x, y, sx, sy:
+                builtins._lx_invoke_lynxer(callbackName, x, y, sx, sy)
+        )
+    }
+}
+
+// Schedule a named Lynxer function through Arcade's clock.  The callback
+// receives one float argument: elapsed seconds since the previous call.
+global schedule(str callbackName, float interval){
+    rawPy(){
+        import arcade, builtins
+        def _scheduled(dt):
+            builtins._lx_invoke_lynxer(callbackName, dt)
+        old = builtins._lx_scheduled_callbacks.get(callbackName)
+        if old is not None:
+            arcade.unschedule(old)
+        builtins._lx_scheduled_callbacks[callbackName] = _scheduled
+        arcade.schedule(_scheduled, max(0.001, interval))
+    }
+}
+
+global unschedule(str callbackName){
+    rawPy(){
+        import arcade, builtins
+        callback = builtins._lx_scheduled_callbacks.pop(callbackName, None)
+        if callback is not None:
+            arcade.unschedule(callback)
     }
 }
 
@@ -290,6 +423,44 @@ global drawPoint(float x, float y, int r, int g, int b, float size){
     }
 }
 
+// Arcade-compatible aliases and commonly used batch primitives.
+global drawRectangleFilled(float cx, float cy, float width, float height, int r, int g, int b){
+    global.drawRect(cx, cy, width, height, r, g, b);
+}
+
+global drawRectangleOutline(float cx, float cy, float width, float height, int r, int g, int b, float lineWidth){
+    global.drawRectOutline(cx, cy, width, height, r, g, b, lineWidth);
+}
+
+// Draw a filled quadrilateral from four corners.
+global drawQuadFilled(float x1, float y1, float x2, float y2, float x3, float y3, float x4, float y4, int r, int g, int b){
+    rawPy(){
+        import arcade
+        arcade.draw_polygon_filled(
+            [(x1, y1), (x2, y2), (x3, y3), (x4, y4)],
+            arcade.color.Color(r, g, b)
+        )
+    }
+}
+
+// Draw a polygon outline. coordsJson is a flat [x,y,...] JSON array.
+global drawPolygonOutline(str coordsJson, int r, int g, int b, float lineWidth){
+    rawPy(){
+        import arcade, json as _json
+        try:
+            flat = _json.loads(coordsJson)
+            pts = [(flat[i], flat[i+1]) for i in range(0, len(flat)-1, 2)]
+            arcade.draw_polygon_outline(pts, arcade.color.Color(r, g, b), lineWidth)
+        except Exception:
+            pass
+    }
+}
+
+// Draw connected line segments from a flat [x,y,...] JSON array.
+global drawLineStrip(str coordsJson, int r, int g, int b, float lineWidth){
+    global.drawPolyline(coordsJson, r, g, b, lineWidth);
+}
+
 // ── Text ────────────────────────────────────────────────────────────────────
 
 // Draw text at (x, y) with font size.  anchor_x: "left", "center", "right".
@@ -311,6 +482,16 @@ global drawTextStyled(str text, float x, float y, int r, int g, int b, int size,
                          bold=bool(bold),
                          italic=bool(italic),
                          anchor_x=anchorX)
+    }
+}
+
+global drawTextAnchored(str text, float x, float y, int r, int g, int b, int size, str anchorX, str anchorY){
+    rawPy(){
+        import arcade
+        arcade.draw_text(
+            text, x, y, arcade.color.Color(r, g, b), font_size=size,
+            anchor_x=anchorX, anchor_y=anchorY
+        )
     }
 }
 
@@ -475,6 +656,58 @@ global setSpriteVelocity(int idx, float vx, float vy){
     }
 }
 
+// Set angular velocity in degrees per second.
+global setSpriteAngularVelocity(int idx, float degreesPerSecond){
+    rawPy(){
+        import builtins
+        try:
+            builtins._lx_sprites[idx].change_angle = degreesPerSecond
+        except Exception:
+            pass
+    }
+}
+
+global getSpriteAngularVelocity(int idx){
+    float result = 0.0;
+    rawPy(){
+        import builtins
+        try:
+            result = float(builtins._lx_sprites[idx].change_angle)
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+// Set per-sprite acceleration, maximum velocity, and drag.
+global setSpriteMotion(int idx, float acceleration, float maxVelocity, float drag){
+    rawPy(){
+        import builtins
+        try:
+            sp = builtins._lx_sprites[idx]
+            sp.acceleration = acceleration
+            sp.max_forward_velocity = maxVelocity
+            sp.drag = drag
+        except Exception:
+            pass
+    }
+}
+
+// Restrict a sprite to a rectangular world boundary. Pass -1 for an open edge.
+global setSpriteBoundary(int idx, float left, float right, float bottom, float top){
+    rawPy(){
+        import builtins
+        try:
+            sp = builtins._lx_sprites[idx]
+            sp.boundary_left = left
+            sp.boundary_right = right
+            sp.boundary_bottom = bottom
+            sp.boundary_top = top
+        except Exception:
+            pass
+    }
+}
+
 // Update a single sprite's position by its velocity.
 global updateSprite(int idx){
     rawPy(){
@@ -567,6 +800,37 @@ global addToList(int listIdx, int sprIdx){
     }
 }
 
+// Create a SpriteList with optional spatial hashing for static collision walls.
+global makeSpatialSpriteList(){
+    int idx = 0;
+    rawPy(){
+        import arcade, builtins
+        try:
+            builtins._lx_spr_lists.append(arcade.SpriteList(use_spatial_hash=True))
+            idx = len(builtins._lx_spr_lists) - 1
+        except Exception:
+            idx = -1
+    }
+    return idx;
+}
+
+// Return the global sprite index at a SpriteList position, or -1.
+global getSpriteFromList(int listIdx, int position){
+    int result = -1;
+    rawPy(){
+        import builtins
+        try:
+            candidate = builtins._lx_spr_lists[listIdx][position]
+            for i, sprite in enumerate(builtins._lx_sprites):
+                if sprite is candidate:
+                    result = i
+                    break
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
 // Draw all sprites in a SpriteList.
 global drawSpriteList(int listIdx){
     rawPy(){
@@ -619,6 +883,12 @@ global keyDown(str key){
                 "4": arcade.key.KEY_4, "5": arcade.key.KEY_5,
                 "6": arcade.key.KEY_6, "7": arcade.key.KEY_7,
                 "8": arcade.key.KEY_8, "9": arcade.key.KEY_9,
+                "F1": arcade.key.F1, "F2": arcade.key.F2,
+                "F3": arcade.key.F3, "F4": arcade.key.F4,
+                "F5": arcade.key.F5, "F6": arcade.key.F6,
+                "F7": arcade.key.F7, "F8": arcade.key.F8,
+                "F9": arcade.key.F9, "F10": arcade.key.F10,
+                "F11": arcade.key.F11, "F12": arcade.key.F12
             }
             sym = _KEY_MAP.get(key.upper())
             result = sym in builtins._lx_game_win._key_state if sym is not None else False
@@ -824,6 +1094,48 @@ global mouseRight(){
     return result;
 }
 
+// Return true once for a mouse button press/release. Button names are
+// "LEFT", "RIGHT", and "MIDDLE".
+global mouseButtonPressed(str button){
+    bool result = false;
+    rawPy(){
+        import builtins, arcade
+        try:
+            buttons = {
+                "LEFT": arcade.MOUSE_BUTTON_LEFT,
+                "RIGHT": arcade.MOUSE_BUTTON_RIGHT,
+                "MIDDLE": arcade.MOUSE_BUTTON_MIDDLE
+            }
+            value = buttons.get(button.upper())
+            result = value in builtins._lx_game_win._mouse_pressed if value is not None else False
+            if value is not None:
+                builtins._lx_game_win._mouse_pressed.discard(value)
+        except Exception:
+            result = False
+    }
+    return result;
+}
+
+global mouseButtonReleased(str button){
+    bool result = false;
+    rawPy(){
+        import builtins, arcade
+        try:
+            buttons = {
+                "LEFT": arcade.MOUSE_BUTTON_LEFT,
+                "RIGHT": arcade.MOUSE_BUTTON_RIGHT,
+                "MIDDLE": arcade.MOUSE_BUTTON_MIDDLE
+            }
+            value = buttons.get(button.upper())
+            result = value in builtins._lx_game_win._mouse_released if value is not None else False
+            if value is not None:
+                builtins._lx_game_win._mouse_released.discard(value)
+        except Exception:
+            result = False
+    }
+    return result;
+}
+
 // ── Sound ────────────────────────────────────────────────────────────────────
 
 // Load a sound from path.  Returns sound index.
@@ -870,6 +1182,11 @@ global stopSound(int soundIdx){
         except Exception:
             pass
     }
+}
+
+// Play a sound once without keeping a separate player handle.
+global playSoundOnce(int soundIdx){
+    global.playSound(soundIdx);
 }
 
 // ── Timer ────────────────────────────────────────────────────────────────────
@@ -1138,6 +1455,25 @@ global drawTextureAt(str imagePath, float cx, float cy, float scale){
             tex = arcade.load_texture(imagePath)
             arcade.draw_scaled_texture_rectangle(cx, cy,
                 tex.width*scale, tex.height*scale, tex)
+        except Exception:
+            pass
+    }
+}
+
+// Draw a cached texture using a rectangle-like destination.
+global drawTextureRect(int texIdx, float left, float bottom, float width, float height){
+    rawPy(){
+        import arcade, builtins
+        try:
+            tex = builtins._lx_textures[texIdx]
+            if hasattr(arcade, "draw_texture_rect"):
+                arcade.draw_texture_rect(
+                    arcade.LBWH(left, bottom, width, height), tex
+                )
+            else:
+                arcade.draw_scaled_texture_rectangle(
+                    left + width / 2, bottom + height / 2, width, height, tex
+                )
         except Exception:
             pass
     }
@@ -1783,8 +2119,11 @@ global setSoundVolume(int soundIdx, float volume){
         try:
             entry = builtins._lx_sounds[soundIdx]
             if entry["player"] is not None:
-                arcade.set_volume(entry["player"],
-                                  max(0.0, min(1.0, volume)))
+                level = max(0.0, min(1.0, volume))
+                try:
+                    arcade.set_volume(level, entry["player"])
+                except TypeError:
+                    arcade.set_volume(entry["player"], level)
         except Exception:
             pass
     }
@@ -1797,8 +2136,11 @@ global isSoundPlaying(int soundIdx){
         import builtins, arcade
         try:
             entry = builtins._lx_sounds[soundIdx]
-            result = (entry["player"] is not None and
-                      arcade.is_playing(entry["player"]))
+            player = entry["player"]
+            checker = getattr(arcade, "is_sound_playing", None)
+            if checker is None:
+                checker = getattr(arcade, "is_playing", None)
+            result = bool(player is not None and checker is not None and checker(player))
         except Exception:
             result = False
     }
@@ -1816,8 +2158,10 @@ global loopSound(int soundIdx){
                     arcade.stop_sound(entry["player"])
                 except Exception:
                     pass
-            entry["player"] = arcade.play_sound(entry["sound"],
-                                                looping=True)
+            try:
+                entry["player"] = arcade.play_sound(entry["sound"], looping=True)
+            except TypeError:
+                entry["player"] = arcade.play_sound(entry["sound"], loop=True)
         except Exception:
             pass
     }

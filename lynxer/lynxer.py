@@ -7434,6 +7434,73 @@ class SymbolTable:
 # importPy shared module registry
 _rawpy_global_modules: dict = {}
 
+# Python callbacks registered by a standard-library module (for example the
+# Arcade game loop) need a way back into the currently running Lynxer program.
+# rawPy already runs with the active interpreter context, so the bridge is
+# installed lazily for the lifetime of each rawPy block and can safely be
+# captured by a host callback.
+def _python_to_lynxer_callback_value(value):
+    """Convert the small set of values host event loops pass to callbacks."""
+    if isinstance(value, bool):
+        return Number(1 if value else 0, is_bool=True)
+    if isinstance(value, int):
+        return Number(value)
+    if isinstance(value, float):
+        return Number(value)
+    if isinstance(value, str):
+        return String(value)
+    return String(str(value))
+
+
+def _lynxer_callback_dispatcher(context):
+    """Return a Python callable that invokes a Lynxer function by name.
+
+    Names may be plain function names or dotted global paths such as
+    ``global.update``.  The dispatcher intentionally accepts only Lynxer
+    functions; arbitrary Python objects are never exposed through this hook.
+    """
+    def dispatch(callback_name, *python_args):
+        if not isinstance(callback_name, str) or not callback_name.strip():
+            raise RuntimeError("game callback name must be a non-empty string")
+
+        parts = [part for part in callback_name.split(".") if part]
+        if parts and parts[0] == "global":
+            parts = parts[1:]
+            target = context.symbol_table.get("global")
+        else:
+            target = context.symbol_table.get(parts.pop(0)) if parts else None
+
+        for part in parts:
+            if target is None or not hasattr(target, "get_attr"):
+                target = None
+                break
+            target, error = target.get_attr(part)
+            if error:
+                target = None
+                break
+
+        if not isinstance(target, Function):
+            raise RuntimeError(
+                f"game callback '{callback_name}' is not a synchronous Lynxer function"
+            )
+
+        args = [
+            _python_to_lynxer_callback_value(value)
+            for value in python_args
+        ]
+        result = target.execute(args)
+        if result.error:
+            raise RuntimeError(result.error.as_string())
+        value = result.value
+        if isinstance(value, Number):
+            return bool(value.value) if value.is_bool else value.value
+        if isinstance(value, (String, Char)):
+            return value.value
+        return None
+
+    return dispatch
+
+
 # Lynxer module registry.  Module names are intentionally global: importing
 # two different files with the same basename is ambiguous even when their
 # directories differ.
@@ -9743,6 +9810,11 @@ class Interpreter:
         res = RTResult()
         py_ns = {"__builtins__": __builtins__}
         py_ns.update(_rawpy_global_modules)
+        # Keep the callback bridge on the real Python builtins module so a
+        # function created in this isolated exec namespace can call it later,
+        # after this rawPy block has returned.
+        import builtins as _host_builtins
+        _host_builtins._lx_invoke_lynxer = _lynxer_callback_dispatcher(context)
         tbl = context.symbol_table
         while tbl is not None:
             for name, val in tbl.symbols.items():
