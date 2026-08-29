@@ -1,23 +1,49 @@
-global setup(){ import("game"); }
+global setup(){
+    import("game");
+}
 
 global main(){
-    global.game.init("My Game", 800, 600);
-    global.game.setBackground(30, 30, 46);
-    global.game.setFPSCap(60);
+    global.game.init("Clicker", 800, 600);
 
     rawPy(){
+        import arcade
         import builtins
-        px = [400.0]
-        def _draw():
-            global.game.beginDraw()
-            global.game.drawCircle(px[0], 300, 40, 100, 200, 255)
-            global.game.drawText("Arrow keys to move", 260, 20, 200, 200, 200, 16)
-            global.game.endDraw()
-        def _update(dt):
-            if global.game.keyDown("LEFT"):  px[0] -= 200 * dt
-            if global.game.keyDown("RIGHT"): px[0] += 200 * dt
-        builtins._lx_game_win.on_draw   = _draw
-        builtins._lx_game_win.on_update = _update
+
+        score = [0]
+
+        def draw():
+
+            arcade.draw_text(
+                "CLICK ME!",
+                400, 285,
+                arcade.color.WHITE,
+                24,
+                anchor_x="center"
+            )
+
+            arcade.draw_text(
+                str(score[0]),
+                400, 450,
+                arcade.color.WHITE,
+                32,
+                anchor_x="center"
+            )
+
+        def update(dt):
+            pass
+
+        def mouse_press(x, y, button, modifiers):
+            if (
+                button == arcade.MOUSE_BUTTON_LEFT
+                and 300 <= x <= 500
+                and 250 <= y <= 350
+            ):
+                score[0] += 1
+
+        builtins._lx_game_win._draw_fn = draw
+        builtins._lx_game_win._update_fn = update
+        builtins._lx_game_win.on_mouse_press = mouse_press
+
     }
 
     global.game.run();

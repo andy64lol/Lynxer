@@ -185,7 +185,7 @@ global endDraw(){
 global drawRect(float cx, float cy, float width, float height, int r, int g, int b){
     rawPy(){
         import arcade
-        arcade.draw_rectangle_filled(cx, cy, width, height, arcade.color.Color(r, g, b))
+        arcade.draw_rect_filled(cx, cy, width, height, arcade.color.Color(r, g, b))
     }
 }
 
@@ -193,7 +193,7 @@ global drawRect(float cx, float cy, float width, float height, int r, int g, int
 global drawRectOutline(float cx, float cy, float width, float height, int r, int g, int b, float lineWidth){
     rawPy(){
         import arcade
-        arcade.draw_rectangle_outline(cx, cy, width, height,
+        arcade.draw_rect_outline(cx, cy, width, height,
                                       arcade.color.Color(r, g, b), lineWidth)
     }
 }
@@ -1011,8 +1011,8 @@ global drawRectRoundedFilled(float cx, float cy, float w, float h, int r, int g,
         import arcade
         col = arcade.color.Color(r, g, b)
         hw = w / 2;  hh = h / 2
-        arcade.draw_rectangle_filled(cx, cy, w - cr*2, h, col)
-        arcade.draw_rectangle_filled(cx, cy, w, h - cr*2, col)
+        arcade.draw_rect_filled(cx, cy, w - cr*2, h, col)
+        arcade.draw_rect_filled(cx, cy, w, h - cr*2, col)
         for ox, oy in [(-1,-1),(1,-1),(1,1),(-1,1)]:
             arcade.draw_circle_filled(cx + ox*(hw-cr), cy + oy*(hh-cr), cr, col)
     }
@@ -1123,9 +1123,9 @@ global drawPoints(str coordsJson, int r, int g, int b, float size){
 global drawGradientRect(float cx, float cy, float w, float h, int r1, int g1, int b1, int r2, int g2, int b2){
     rawPy(){
         import arcade
-        arcade.draw_rectangle_filled(cx, cy + h*0.25, w, h*0.5,
+        arcade.draw_rect_filled(cx, cy + h*0.25, w, h*0.5,
                                      arcade.color.Color(r1, g1, b1))
-        arcade.draw_rectangle_filled(cx, cy - h*0.25, w, h*0.5,
+        arcade.draw_rect_filled(cx, cy - h*0.25, w, h*0.5,
                                      arcade.color.Color(r2, g2, b2))
     }
 }
