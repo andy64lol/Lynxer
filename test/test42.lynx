@@ -1,0 +1,42 @@
+// Standard library: fileIO and path.
+global setup(){
+    import("fileIO");
+    import("path");
+}
+
+global main(){
+    str base = "/tmp/lynxer-stdlib-fileio.txt";
+    str copyPath = "/tmp/lynxer-stdlib-fileio-copy.txt";
+    str movedPath = "/tmp/lynxer-stdlib-fileio-moved.txt";
+
+    global.fileIO.deleteFile(base);
+    global.fileIO.deleteFile(copyPath);
+    global.fileIO.deleteFile(movedPath);
+
+    println(global.fileIO.writeFile(base, "alpha\nbeta\n"));
+    println(global.fileIO.appendFile(base, "gamma"));
+    println(global.fileIO.readFile(base));
+    println(global.fileIO.fileExists(base));
+    println(global.fileIO.countLines(base));
+    println(global.fileIO.readLine(base, 1));
+    println(global.fileIO.fileSize(base) > 0);
+    println(global.fileIO.fileExtension(base));
+    println(global.fileIO.stemName(base));
+    println(global.fileIO.copyFile(base, copyPath));
+    println(global.fileIO.moveFile(copyPath, movedPath));
+    println(global.fileIO.fileExists(movedPath));
+
+    println(global.path.name(base));
+    println(global.path.stem(base));
+    println(global.path.suffix(base));
+    println(global.path.parent(base));
+    println(global.path.join("/tmp", "lynxer-stdlib-fileio.txt"));
+    println(global.path.join3("/tmp", "lynxer", "stdlib.txt"));
+    println(global.path.normalize("/tmp/lynxer/../lynxer-stdlib-fileio.txt"));
+    println(global.path.isAbsolute(base));
+    println(global.path.exists(base));
+    println(global.path.isFile(base));
+
+    println(global.fileIO.deleteFile(base));
+    println(global.fileIO.deleteFile(movedPath));
+}

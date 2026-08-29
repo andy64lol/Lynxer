@@ -1,0 +1,33 @@
+// Standard library: re and regex.
+global setup(){
+    import("re");
+    import("regex");
+}
+
+global main(){
+    println(global.re.test("[a-z]+", "abc123"));
+    println(global.re.match("[a-z]+", "abc123"));
+    println(global.re.search("[0-9]+", "abc123"));
+    println(global.re.findall("[0-9]", "a1b2c3"));
+    println(global.re.sub("[0-9]+", "#", "a12b34"));
+    println(global.re.split(",", "a,b,c"));
+    println(global.re.escape("a.b?"));
+    println(global.re.testIgnoreCase("lynx", "LYNX"));
+
+    println(global.regex.isValid("[a-z]+"));
+    println(global.regex.extract("[0-9]+", "item42"));
+    println(global.regex.extractAll("[0-9]", "a1b2"));
+    println(global.regex.unique("[a-z]", "banana"));
+    println(global.regex.replaceNth("[0-9]", "X", "1 2 3", 2));
+    println(global.regex.replaceAllLiteral(".", "!", "a.b.c"));
+    println(global.regex.highlight("[0-9]+", "<", ">", "v12"));
+    println(global.regex.countMatches("[a-z]", "abc123"));
+    println(global.regex.firstMatchPos("[0-9]", "abc123"));
+
+    global.regex.compile("digits", "[0-9]+", "");
+    println(global.regex.testCompiled("digits", "abc123"));
+    println(global.regex.findallCompiled("digits", "a1 b22"));
+    println(global.regex.cacheKeys());
+    global.regex.clearCache();
+    println(global.regex.cacheKeys());
+}

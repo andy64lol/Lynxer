@@ -1,0 +1,37 @@
+// Standard library: csv, sqldb, and os.
+global setup(){
+    import("csv");
+    import("sqldb");
+    import("os");
+    import("fileIO");
+}
+
+global main(){
+    str csvText = "name,score\nAda,10\nLin,12\n";
+    println(global.csv.rowCount(csvText));
+    println(global.csv.colCount(csvText));
+    println(global.csv.hasColumn(csvText, "score"));
+    println(global.csv.getColumn(csvText, "name"));
+    println(global.csv.getRow(csvText, 1));
+    println(global.csv.filterRows(csvText, "name", "Ada"));
+    println(global.csv.toTSV(csvText));
+    println(global.csv.fromTSV("name\tscore\nAda\t10\n"));
+
+    str db = "/tmp/lynxer-stdlib-test.sqlite";
+    global.fileIO.deleteFile(db);
+    println(global.sqldb.execute(db, "create table people(name text, score int)"));
+    println(global.sqldb.executeArgs(db, "insert into people values(?, ?)", "[\"Ada\", 10]"));
+    println(global.sqldb.scalar(db, "select count(*) from people"));
+    println(global.sqldb.scalarArgs(db, "select score from people where name = ?", "[\"Ada\"]"));
+    println(global.sqldb.tableExists(db, "people"));
+    println(global.sqldb.tables(db));
+    println(global.sqldb.query(db, "select name, score from people"));
+    global.fileIO.deleteFile(db);
+
+    println(returnLength(global.os.getcwd()) > 0);
+    println(global.os.exists("/tmp"));
+    println(global.os.isDir("/tmp"));
+    println(global.os.basename("/tmp/lynxer.txt"));
+    println(global.os.dirname("/tmp/lynxer.txt"));
+    println(global.os.joinPath("/tmp", "lynxer.txt"));
+}

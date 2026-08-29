@@ -1,0 +1,38 @@
+// Standard library: text, typing, json, and colorlib.
+global setup(){
+    import("text");
+    import("typing");
+    import("json");
+    import("colorlib");
+}
+
+global main(){
+    println(global.text.reverse("lynx"));
+    println(global.text.trim("  padded  "));
+    println(global.text.startsWith("stdlib", "std"));
+    println(global.text.endsWith("stdlib", "lib"));
+    println(global.text.replaceFirst("one one", "one", "two"));
+    println(global.text.upper("mixed"));
+    println(global.text.join([str "a", str "b", str "c"], "|"));
+    println(global.text.substring("abcdef", 1, 4));
+
+    println(global.typing.toInt("42") + 8);
+    println(global.typing.toFloat("2.5") > 2.0);
+    println(global.typing.toBool(1));
+    println(global.typing.isNumeric("12.5"));
+    println(global.typing.lenList([int 1, int 2, int 3]));
+    println(global.typing.charOf(65));
+
+    str data = "{\"name\":\"lynxer\",\"count\":3,\"ok\":true}";
+    println(global.json.jsonValid(data));
+    println(global.json.jsonGet(data, "name"));
+    println(global.json.jsonGetInt(data, "count"));
+    println(global.json.jsonGetBool(data, "ok"));
+    println(global.json.jsonHas(data, "missing"));
+    println(global.json.jsonLength(data));
+    println(global.json.jsonStringify("quoted"));
+
+    println(global.colorlib.red("x") == "\e[31mx\e[0m");
+    println(global.colorlib.bold("x") == "\e[1mx\e[0m");
+    println(global.colorlib.ansi("x", "4") == "\e[4mx\e[0m");
+}

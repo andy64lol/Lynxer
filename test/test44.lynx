@@ -1,0 +1,41 @@
+// Standard library: random, time, sys, debug, and shell.
+global setup(){
+    import("random");
+    import("time");
+    import("sys");
+    import("debug");
+    import("shell");
+}
+
+global main(){
+    global.random.seed(123);
+    int n = global.random.randint(1, 10);
+    float x = global.random.random();
+    println(n >= 1 and n <= 10);
+    println(x >= 0.0 and x < 1.0);
+    println(returnLength(global.random.randHex(8)));
+    println(returnLength(global.random.uuid4()) == 36);
+    println(returnLength(global.random.sample("a|b|c", 2)) > 0);
+
+    println(global.time.isLeapYear(2024));
+    println(global.time.daysInMonth(2024, 2));
+    println(global.time.addDays("2024-02-28", 1));
+    println(global.time.diffDays("2024-03-01", "2024-02-28"));
+    println(global.time.toTimestamp("1970-01-01 00:00:00") >= 0.0);
+
+    println(returnLength(global.sys.version()) > 0);
+    println(returnLength(global.sys.platform()) > 0);
+    println(global.sys.getRecursionLimit() > 0);
+    println(returnLength(global.sys.getDefaultEncoding()) > 0);
+    println(returnLength(global.sys.getByteOrder()) > 0);
+
+    println(global.debug.typeOf(123));
+    println(global.debug.dump([int 1, int 2]));
+    println(global.debug.assert(true, "ok"));
+    println(global.debug.assertEq("a", "a", "same"));
+    println(global.debug.assertContains("stdlib", "lib", "contains"));
+
+    println(global.shell.commandExists("python3") or global.shell.commandExists("python"));
+    println(global.shell.runShellCapture("printf lynxer"));
+    println(global.shell.runShellCode("true") == 0);
+}
