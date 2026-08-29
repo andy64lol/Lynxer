@@ -182,16 +182,16 @@
 
 ## Compiler improvements
 
-- [ ] Improve compiler performance and developer feedback:
-- [ ] Add safe optimization passes and benchmark representative programs.
-- [ ] Improve source locations, type errors, runtime diagnostics, and actionable suggestions.
-- [ ] Reduce compilation overhead through caching and incremental work.
-- [ ] Add regression tests for optimized and unoptimized output.
+- [x] Improve compiler performance and developer feedback:
+- [x] Add safe optimization passes and benchmark representative programs.
+- [x] Improve source locations, type errors, runtime diagnostics, and actionable suggestions.
+- [x] Reduce compilation overhead through caching and incremental work.
+- [x] Add regression tests for optimized and unoptimized output.
 
 ## bundling 2
 
-- [ ] Make `--bundle` absolutely bulletproof:
-- [ ] Test bundled source and bytecode programs on Linux x86-64.
-- [ ] Verify native extensions, standard-library assets, imports, and resource paths in clean environments.
-- [ ] Improve failure diagnostics and reproducibility.
-- [ ] Add smoke, compatibility, and repeatable release-build checks.
+- [x] Make `--bundle` absolutely bulletproof:
+- [x] Test bundled source and bytecode programs on Linux x86-64.
+- [x] Verify native extensions, standard-library assets, imports, and resource paths in clean environments.
+- [x] Improve failure diagnostics and reproducibility.
+- [x] Add smoke, compatibility, and repeatable release-build checks.

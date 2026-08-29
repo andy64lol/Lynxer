@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import sys
@@ -55,6 +56,17 @@ if __name__ == "__main__":
 """
 
 
+def _runtime_hook_source() -> str:
+    return """import os
+import sys
+
+root = getattr(sys, "_MEIPASS", os.path.dirname(__file__))
+stdlib = os.path.join(root, "stdlib")
+if os.path.isdir(stdlib):
+    os.environ["LYNXER_STDLIB"] = stdlib
+"""
+
+
 def bundle_program(source_path: str, output_name: str | None = None) -> Path:
     """Compile *source_path* and package it as a one-file executable."""
     _linux_architecture()
@@ -68,9 +80,11 @@ def bundle_program(source_path: str, output_name: str | None = None) -> Path:
     build_root = root / "build"
     bytecode_root = build_root / "bytecode"
     launcher_root = build_root / "launchers"
+    hook_root = build_root / "hooks"
     dist_root = root / "dist"
     bytecode_root.mkdir(parents=True, exist_ok=True)
     launcher_root.mkdir(parents=True, exist_ok=True)
+    hook_root.mkdir(parents=True, exist_ok=True)
     dist_root.mkdir(parents=True, exist_ok=True)
 
     compiled_path, error = compile_to_bytecode(str(source), source.read_text(encoding="utf-8"))
@@ -104,6 +118,8 @@ def bundle_program(source_path: str, output_name: str | None = None) -> Path:
         raise RuntimeError("output name must be a simple executable name")
     launcher = launcher_root / f"{name}.py"
     launcher.write_text(_launcher_source(bytecode_name), encoding="utf-8")
+    runtime_hook = hook_root / f"{name}_runtime_hook.py"
+    runtime_hook.write_text(_runtime_hook_source(), encoding="utf-8")
 
     pyinstaller = shutil.which("pyinstaller") or sys.executable
     command = [
@@ -123,6 +139,8 @@ def bundle_program(source_path: str, output_name: str | None = None) -> Path:
         str(root),
         "--hidden-import",
         "lynxer.cpp",
+        "--runtime-hook",
+        str(runtime_hook),
         "--add-data",
         f"{bytecode_path}:bytecode",
         "--add-data",
@@ -137,8 +155,18 @@ def bundle_program(source_path: str, output_name: str | None = None) -> Path:
         command[0:2] = [sys.executable, "-m"]
         command.insert(2, "PyInstaller")
 
-    result = subprocess.run(command, cwd=root, check=False)
+    result = subprocess.run(command, cwd=root, check=False, capture_output=True, text=True)
     if result.returncode != 0:
+        details = "\n".join(
+            line
+            for line in [result.stdout.strip(), result.stderr.strip()]
+            if line
+        )
+        if details:
+            raise RuntimeError(
+                "PyInstaller failed while creating the bundled executable:\n"
+                + details[-4000:]
+            )
         raise RuntimeError("PyInstaller failed while creating the bundled executable")
     executable = dist_root / name
     if not executable.is_file():

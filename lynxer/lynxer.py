@@ -131,11 +131,32 @@ class Error:
         fn = self.pos_start.fn
         result = f"\n[Lynxer] {self.error_name}\n"
         result += f"  {self.details}\n"
+        suggestion = self.suggestion()
+        if suggestion:
+            result += f"  Suggestion: {suggestion}\n"
         result += f"  --> {fn}, line {ln}, column {col}\n"
         result += "\n" + string_with_arrows(
             self.pos_start.ftxt, self.pos_start, self.pos_end
         )
         return result
+
+    def suggestion(self):
+        details = str(self.details)
+        if "Expected ';'" in details:
+            return "add a semicolon at the end of this statement."
+        if "may only be used inside setup()" in details:
+            return "move this import into global setup(){...}."
+        if "Expected filename string" in details or "filename string" in details:
+            return 'pass the module path as a quoted string, for example import("math");.'
+        if "Expected ')'" in details:
+            return "close the argument list with ')'."
+        if "Expected '}'" in details:
+            return "close the block with '}'."
+        if "Expected variable name" in details:
+            return "provide an identifier after the type or declaration keyword."
+        if "Expected int, float, str, bool, none, identifier" in details:
+            return "add a value or expression here."
+        return ""
 
 class IllegalCharError(Error):
     def __init__(self, pos_start, pos_end, details):

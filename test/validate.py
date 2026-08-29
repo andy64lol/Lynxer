@@ -26,7 +26,8 @@ ROOT = Path(__file__).resolve().parents[1]
 SHELL = ROOT / "lynxer" / "shell.py"
 sys.path.insert(0, str(ROOT))
 
-from lynxer.bytecode import compile_to_bytecode, run_bytecode  # noqa: E402
+from lynxer.bytecode import compile_to_bytecode, load_bytecode, run_bytecode  # noqa: E402
+from lynxer import bundle as bundle_module  # noqa: E402
 from lynxer.install import INSTALL_PATH, _is_elf, _matching_pids  # noqa: E402
 from lynxer.lynxer import Error, RTError, run  # noqa: E402
 
@@ -174,6 +175,51 @@ global main(){ println(missing); }""",
         "is not defined",
         "undefined variable",
     )
+
+
+def test_compiler_feedback_and_cache(temp_root: Path) -> None:
+    source_path = temp_root / "compiler_cache.lynx"
+    source = """global setup(){}
+global main(){ println("cache"); }"""
+    source_path.write_text(source, encoding="utf-8")
+
+    optimized_path, error = compile_to_bytecode(str(source_path), source)
+    if error or not optimized_path:
+        raise ValidationFailure(error.as_string() if error else "optimized compile failed")
+    optimized = load_bytecode(optimized_path)
+    if not optimized.get("compiler_options", {}).get("optimize"):
+        raise ValidationFailure("optimized bytecode did not record optimization metadata")
+    if optimized.get("compile_stats", {}).get("token_count", 0) <= 0:
+        raise ValidationFailure("compiled bytecode did not record token count")
+
+    mtime = Path(optimized_path).stat().st_mtime_ns
+    cached_path, error = compile_to_bytecode(str(source_path), source)
+    if error or cached_path != optimized_path:
+        raise ValidationFailure("cache lookup did not return the existing bytecode")
+    if Path(optimized_path).stat().st_mtime_ns != mtime:
+        raise ValidationFailure("cache hit rewrote bytecode unexpectedly")
+
+    unoptimized_path, error = compile_to_bytecode(
+        str(source_path),
+        source,
+        optimize=False,
+        use_cache=False,
+    )
+    if error or not unoptimized_path:
+        raise ValidationFailure(error.as_string() if error else "unoptimized compile failed")
+    unoptimized = load_bytecode(unoptimized_path)
+    if unoptimized.get("compiler_options", {}).get("optimize"):
+        raise ValidationFailure("unoptimized bytecode did not record compiler option")
+
+    bad = "global setup(){}\nglobal main(){ int value = ; }"
+    _, error = compile_to_bytecode(str(temp_root / "bad.lynx"), bad, use_cache=False)
+    if error is None:
+        raise ValidationFailure("invalid source compiled successfully")
+    rendered = error.as_string()
+    if "line 2" not in rendered or "column" not in rendered:
+        raise ValidationFailure(f"compiler diagnostic lacks source location:\n{rendered}")
+    if "Suggestion:" not in rendered:
+        raise ValidationFailure(f"compiler diagnostic lacks actionable suggestion:\n{rendered}")
 
 
 def test_low_level_memory() -> None:
@@ -1085,6 +1131,100 @@ global main(){ println("cli works"); }
             f"stdout={compile_result.stdout!r}, stderr={compile_result.stderr!r}"
         )
 
+    no_opt_result = subprocess.run(
+        [sys.executable, str(SHELL), "--compile", "--no-opt", "--no-cache", str(source_path)],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if no_opt_result.returncode != 0:
+        raise ValidationFailure(
+            f"CLI no-opt compilation failed: rc={no_opt_result.returncode}, "
+            f"stdout={no_opt_result.stdout!r}, stderr={no_opt_result.stderr!r}"
+        )
+    metadata = load_bytecode(str(bytecode_path))
+    if metadata.get("compiler_options", {}).get("optimize"):
+        raise ValidationFailure("CLI --no-opt did not update bytecode metadata")
+
+    inspect_result = subprocess.run(
+        [sys.executable, str(SHELL), "--view-bytecode", str(bytecode_path)],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if inspect_result.returncode != 0 or "Lynxer Bytecode Inspector" not in inspect_result.stdout:
+        raise ValidationFailure(
+            f"CLI bytecode inspection failed: rc={inspect_result.returncode}, "
+            f"stdout={inspect_result.stdout!r}, stderr={inspect_result.stderr!r}"
+        )
+
+    benchmark_result = subprocess.run(
+        [sys.executable, str(SHELL), "--benchmark-compile", str(source_path)],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if (
+        benchmark_result.returncode != 0
+        or "unoptimized" not in benchmark_result.stdout
+        or "optimized" not in benchmark_result.stdout
+    ):
+        raise ValidationFailure(
+            f"CLI compile benchmark failed: rc={benchmark_result.returncode}, "
+            f"stdout={benchmark_result.stdout!r}, stderr={benchmark_result.stderr!r}"
+        )
+
+
+def test_bundle_smoke_and_diagnostics(temp_root: Path) -> None:
+    source_path = temp_root / "bundle_case.lynx"
+    source_path.write_text(
+        """global setup(){}
+global main(){ println("bundled"); }
+""",
+        encoding="utf-8",
+    )
+
+    original_run = bundle_module.subprocess.run
+
+    def fake_success(command, cwd=None, check=False, capture_output=False, text=False):
+        dist_index = command.index("--distpath") + 1
+        name_index = command.index("--name") + 1
+        executable = Path(command[dist_index]) / command[name_index]
+        executable.parent.mkdir(parents=True, exist_ok=True)
+        executable.write_text("#!/bin/sh\n", encoding="utf-8")
+        return subprocess.CompletedProcess(command, 0, "ok", "")
+
+    try:
+        bundle_module.subprocess.run = fake_success
+        executable = bundle_module.bundle_program(str(source_path), "bundle-smoke")
+    finally:
+        bundle_module.subprocess.run = original_run
+
+    if executable != ROOT / "dist" / "bundle-smoke" or not executable.exists():
+        raise ValidationFailure(f"bundle smoke did not create expected executable: {executable}")
+    hook = ROOT / "build" / "hooks" / "bundle-smoke_runtime_hook.py"
+    if not hook.exists() or "LYNXER_STDLIB" not in hook.read_text(encoding="utf-8"):
+        raise ValidationFailure("bundle runtime hook was not staged")
+
+    def fake_failure(command, cwd=None, check=False, capture_output=False, text=False):
+        return subprocess.CompletedProcess(command, 1, "stdout detail", "stderr detail")
+
+    try:
+        bundle_module.subprocess.run = fake_failure
+        try:
+            bundle_module.bundle_program(str(source_path), "bundle-fail")
+        except RuntimeError as exc:
+            message = str(exc)
+            if "stdout detail" not in message or "stderr detail" not in message:
+                raise ValidationFailure(f"bundle diagnostics dropped PyInstaller output: {message}")
+        else:
+            raise ValidationFailure("bundle failure did not raise RuntimeError")
+    finally:
+        bundle_module.subprocess.run = original_run
+
 
 def test_installer_safety() -> None:
     if not _is_elf(str(SHELL)):
@@ -1152,6 +1292,7 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="lynxer-validation-") as directory:
         temp_root = Path(directory)
         tests = TESTS + [
+            ("compiler feedback and cache", lambda: test_compiler_feedback_and_cache(temp_root)),
             ("imports", lambda: test_imports(temp_root)),
             ("game stdlib", lambda: test_game_stdlib(temp_root)),
             ("native modules", lambda: test_native_modules(temp_root)),
@@ -1164,6 +1305,7 @@ def main() -> int:
             ("filesystem API", lambda: test_filesystem_api(temp_root)),
             ("networking API", lambda: test_networking_api(temp_root)),
             ("CLI", lambda: test_cli(temp_root)),
+            ("bundle smoke and diagnostics", lambda: test_bundle_smoke_and_diagnostics(temp_root)),
             ("existing .lynx fixtures", test_existing_fixtures),
         ]
         for name, test in tests:

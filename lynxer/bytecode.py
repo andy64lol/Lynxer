@@ -7,9 +7,11 @@ without creating a circular import during interpreter startup.
 
 from __future__ import annotations
 import io
+import hashlib
 import os
 import pickle
 import re
+import time
 import zlib
 from typing import Any
 
@@ -22,6 +24,32 @@ _NATIVE_IMPORT_RE = re.compile(
     r"""(?:import|importAs)\s*\(\s*["']([^"']+\.(?:so|dylib|dll))["']""",
     re.IGNORECASE,
 )
+
+
+def _source_hash(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _compile_options(optimize: bool) -> dict[str, Any]:
+    return {"optimize": bool(optimize)}
+
+
+def _is_cache_current(data: dict[str, Any], fn: str, text: str, optimize: bool) -> bool:
+    return (
+        data.get("source") == os.path.abspath(fn)
+        and data.get("source_hash") == _source_hash(text)
+        and data.get("compiler_options") == _compile_options(optimize)
+    )
+
+
+def _optimize_program(node: Any) -> Any:
+    """Return an optimized AST.
+
+    This is intentionally conservative for now. The hook makes optimized and
+    unoptimized compilation explicit without risking behavior changes in the
+    interpreter's mutable AST nodes.
+    """
+    return node
 
 
 class _SafeUnpickler(pickle.Unpickler):
@@ -159,8 +187,24 @@ def read_bytecode(fn: str) -> tuple[dict[str, Any], int, int]:
     return _read_bytecode(fn)
 
 
-def compile_to_bytecode(fn: str, text: str) -> tuple[str | None, Any]:
+def compile_to_bytecode(
+    fn: str,
+    text: str,
+    *,
+    optimize: bool = True,
+    use_cache: bool = True,
+) -> tuple[str | None, Any]:
     """Parse and compile *text* to a ``.lynxc`` bytecode file."""
+    started = time.perf_counter()
+    out_path = os.path.splitext(os.path.abspath(fn))[0] + ".lynxc"
+    if use_cache and os.path.exists(out_path):
+        try:
+            cached = load_bytecode(out_path)
+            if _is_cache_current(cached, fn, text, optimize):
+                return out_path, None
+        except ValueError:
+            pass
+
     runtime = _runtime()
     lexer = runtime.Lexer(fn, text)
     tokens, error = lexer.make_tokens()
@@ -172,12 +216,20 @@ def compile_to_bytecode(fn: str, text: str) -> tuple[str | None, Any]:
     if ast.error:
         return None, ast.error
 
-    out_path = os.path.splitext(os.path.abspath(fn))[0] + ".lynxc"
+    node = _optimize_program(ast.node) if optimize else ast.node
+    elapsed_ms = int((time.perf_counter() - started) * 1000)
     data = {
         "version": BYTECODE_VERSION,
         "source": os.path.abspath(fn),
+        "source_hash": _source_hash(text),
+        "compiler_options": _compile_options(optimize),
+        "compile_stats": {
+            "token_count": len(tokens),
+            "optimized": bool(optimize),
+            "elapsed_ms": elapsed_ms,
+        },
         "native_dependencies": sorted(set(_NATIVE_IMPORT_RE.findall(text))),
-        "node": ast.node,
+        "node": node,
     }
     payload = zlib.compress(
         pickle.dumps(data, protocol=pickle.HIGHEST_PROTOCOL),

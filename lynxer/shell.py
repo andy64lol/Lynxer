@@ -4,6 +4,7 @@
 import sys
 import os
 import subprocess
+import time
 
 _here = os.path.dirname(os.path.abspath(__file__))  # .../lynxer/
 _parent = os.path.dirname(_here)  # repo root
@@ -194,6 +195,12 @@ def main():
         print("Usage:")
         print("  lynxer <file.lynx>                    Run a Lynxer source file")
         print("  lynxer --compile <file.lynx>          Compile to bytecode (.lynxc)")
+        print(
+            "  lynxer --compile --no-cache <file>    Recompile even when bytecode is current"
+        )
+        print(
+            "  lynxer --compile --no-opt <file>      Compile without optimization passes"
+        )
         print("  lynxer --bundle <file.lynx> [name]     Build a standalone native executable")
         print("  lynxer <file.lynxc>                   Run a compiled bytecode file")
         print(
@@ -201,6 +208,9 @@ def main():
         )
         print(
             "  lynxer --ast <file.lynx>              Parse and print the abstract syntax tree"
+        )
+        print(
+            "  lynxer --benchmark-compile <files...> Benchmark optimized and unoptimized compilation"
         )
         print(
             "  lynxer --format <file.lynx>           Format a Lynxer source file in place"
@@ -285,6 +295,42 @@ def main():
                 print(f"  {name}\n")
         return 0
 
+    if argv[0] in ("--benchmark-compile", "--bench-compile"):
+        if len(argv) < 2:
+            print(
+                "shell.py: --benchmark-compile requires at least one .lynx file",
+                file=sys.stderr,
+            )
+            return 1
+        failures = 0
+        print("file,mode,elapsed_ms,status")
+        for raw_path in argv[1:]:
+            src = raw_path if os.path.isabs(raw_path) else os.path.join(os.getcwd(), raw_path)
+            try:
+                with open(src, "r", encoding="utf-8") as fh:
+                    source = fh.read()
+            except (OSError, UnicodeError) as exc:
+                failures += 1
+                print(f"{raw_path},read,0,error:{exc}")
+                continue
+            for optimize in (False, True):
+                started = time.perf_counter()
+                _, error = compile_to_bytecode(
+                    src,
+                    source,
+                    optimize=optimize,
+                    use_cache=False,
+                )
+                elapsed_ms = int((time.perf_counter() - started) * 1000)
+                mode = "optimized" if optimize else "unoptimized"
+                if error:
+                    failures += 1
+                    detail = error.details.replace(",", ";")
+                    print(f"{raw_path},{mode},{elapsed_ms},error:{detail}")
+                else:
+                    print(f"{raw_path},{mode},{elapsed_ms},ok")
+        return 1 if failures else 0
+
     if argv[0] in ("--ast", "--format", "--format-oneline", "--lint"):
         if len(argv) != 2:
             print(
@@ -338,22 +384,31 @@ def main():
         return 0
 
     if argv[0] in ("-c", "--compile", "--c", "-compile"):
-        if len(argv) < 2:
+        compile_args = list(argv[1:])
+        optimize = True
+        use_cache = True
+        if "--no-opt" in compile_args:
+            optimize = False
+            compile_args.remove("--no-opt")
+        if "--no-cache" in compile_args:
+            use_cache = False
+            compile_args.remove("--no-cache")
+        if len(compile_args) != 1:
             print("shell.py: --compile requires a file argument", file=sys.stderr)
             return 1
-        src = argv[1]
+        src = compile_args[0]
         if not os.path.isabs(src):
             src = os.path.join(os.getcwd(), src)
         if not os.path.exists(src):
-            print(f"shell.py: file not found: '{argv[1]}'", file=sys.stderr)
+            print(f"shell.py: file not found: '{compile_args[0]}'", file=sys.stderr)
             return 1
         try:
             with open(src, "r", encoding="utf-8") as fh:
                 source = fh.read()
         except (OSError, UnicodeError) as exc:
-            print(f"shell.py: could not read '{argv[1]}': {exc}", file=sys.stderr)
+            print(f"shell.py: could not read '{compile_args[0]}': {exc}", file=sys.stderr)
             return 1
-        out_path, error = compile_to_bytecode(src, source)
+        out_path, error = compile_to_bytecode(src, source, optimize=optimize, use_cache=use_cache)
         if error:
             print(error.as_string(), file=sys.stderr)
             return 1
