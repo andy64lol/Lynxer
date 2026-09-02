@@ -19,6 +19,21 @@ jobs:
       - name: Build
         run: make build
 
+  test:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - name: build
+        run: make build
+      - name: Test
+        run: make test
+      - name: Check
+        run: make check
+
   buildLite:
     runs-on: ubuntu-24.04-arm
 
