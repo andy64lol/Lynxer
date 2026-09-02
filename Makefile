@@ -17,17 +17,10 @@ COLLECT_ALL := $(shell \
 
 CYTHON_COLLECT_ALL := --collect-all=Cython --collect-all=setuptools
 
-# The named syscall built-ins resolve their numbers from the system-calls
-# tables, so every build installs the package and bundles its architecture
-# tables (loaded through importlib, invisible to PyInstaller otherwise).
 SYSTEM_CALLS_DEP := system-calls
 SYSTEM_CALLS := --hidden-import system_calls --hidden-import lynxer.syscalls --collect-submodules system_calls
 
 .PHONY: venv platform-check build buildLite buildCpp test validate check clean help
-
-# ----------------------------------------------------------------------
-# Virtual environment
-# ----------------------------------------------------------------------
 
 venv:
 	@if [ ! -d "$(VENV)" ]; then \
@@ -39,25 +32,19 @@ venv:
 	@echo "Upgrading pip and setuptools..."
 	@$(VENV_PIP) install --upgrade pip setuptools
 
-# ----------------------------------------------------------------------
-# Tests / validation
-# ----------------------------------------------------------------------
-
 test: buildCpp
-	@$(VENV_PY) test/validate.py
+	@echo "Running tests..."
+	@$(VENV_PY) -u test/validate.py
 
 validate: buildCpp
-	@$(VENV_PY) lynxer/validate.py
+	@echo "Running validation..."
+	@$(VENV_PY) -u lynxer/validate.py
 
 check: test
 	@for file in syntax.lynx test/*.lynx; do \
 		$(VENV_PY) lynxer/shell.py --lint "$$file" >/dev/null || exit $$?; \
 	done
 	@echo "✓ Lynxer checks passed."
-
-# ----------------------------------------------------------------------
-# Full build
-# ----------------------------------------------------------------------
 
 platform-check: venv
 	@echo "Checking Linux build platform..."
@@ -97,10 +84,6 @@ build: platform-check buildCpp
 
 	@echo "✓ Build complete: dist/lynxer"
 
-# ----------------------------------------------------------------------
-# Lite build
-# ----------------------------------------------------------------------
-
 buildLite: platform-check buildCpp
 	@echo "Installing PyInstaller and Cython runtime dependencies..."
 	@$(VENV_PIP) install --upgrade pyinstaller cython setuptools
@@ -127,18 +110,10 @@ buildLite: platform-check buildCpp
 
 	@echo "✓ Lite build complete: dist/lynxer-lite"
 
-# ----------------------------------------------------------------------
-# C++ extension
-# ----------------------------------------------------------------------
-
 buildCpp: venv
 	@echo "Building Lynxer C++ memory extension..."
 	@$(VENV_PY) lynxer/setup.py build_ext --inplace
 	@echo "✓ C++ extension built in lynxer/"
-
-# ----------------------------------------------------------------------
-# Cleanup
-# ----------------------------------------------------------------------
 
 clean:
 	@find . -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null || true
@@ -146,10 +121,6 @@ clean:
 	@find . -name '*.lynxc' -delete 2>/dev/null || true
 	@rm -rf build dist *.spec lynxer/build lynxer/*.so 2>/dev/null || true
 	@echo "✓ Cleaned."
-
-# ----------------------------------------------------------------------
-# Help
-# ----------------------------------------------------------------------
 
 help:
 	@echo "Lynxer build targets:"
@@ -161,6 +132,7 @@ help:
 	@echo "  make test"
 	@echo "  make check"
 	@echo "  make clean"
+	@echo "  make help"
 	@echo ""
 	@echo "Lynxer source commands:"
 	@echo "  lynxer --format <file.lynx>"
