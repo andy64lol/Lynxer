@@ -1481,7 +1481,7 @@ class BuiltInFunction(BaseFunction):
             result = Number.null if result_name == "void" else (
                 String(raw) if result_name == "cstring" else Number(raw)
             )
-        except (TypeError, ValueError, OSError) as exc:
+        except Exception as exc:
             return self._failure(exec_ctx, f"ffiCall() failed: {exc}")
         return RTResult().success(result)
 
@@ -1490,7 +1490,7 @@ class BuiltInFunction(BaseFunction):
             return self._failure(exec_ctx, "ffiCallback(signature, function) expects a signature and Lynxer function")
         try:
             pointer = _MEMORY_LIB.ffiCallback(args[0].value, args[1])
-        except (TypeError, ValueError, OSError) as exc:
+        except Exception as exc:
             return self._failure(exec_ctx, f"ffiCallback() failed: {exc}")
         result = FunctionAddress(pointer)
         result.set_context(exec_ctx)

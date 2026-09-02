@@ -46,14 +46,11 @@ using a deliberately small integer ABI:
 int result = nativeCall(address, "int32(int32,int32)", [int 2, int 3]);
 ```
 
-Signatures use `returnType(parameterType,...)`. The return type may be `void`,
-`int8`, `uint8`, `int16`, `uint16`, `int32`, `uint32`, `int64`, `uint64`, or
-`uintptr`; parameters use the integer types above or `uintptr`. At most six
-parameters are accepted, and arguments must be Lynxer integers compatible with
-their declared parameter types.
-The caller must provide a valid function address with the exact compatible ABI;
-invalid addresses can crash the process.
-
+Signatures use `returnType(parameterType,...)`. The low-level `nativeCall`
+surface accepts `void`, the signed and unsigned integer widths, and `uintptr`
+with integer parameters. At most six parameters are accepted. The caller must
+provide a valid function address with the exact compatible ABI; invalid
+addresses can crash the process.
 The address may be a raw integer, an `Address` obtained with `getAddress()` when
 its target contains an integer pointer, or an explicit typed function address:
 
@@ -67,6 +64,12 @@ int result = nativeCall(fn, "int32(int32)", [int 7]);
 The wrapper is useful for declarations and APIs that should reject ordinary
 integers and data addresses. It does not validate that the pointer is
 executable; the caller remains responsible for supplying a valid ABI.
+Native library function addresses are invalidated when their library is closed;
+a subsequent call fails instead of jumping into unmapped code. Each
+`ffiCallback` has an independent ABI-correct trampoline. Callback return type
+`cstring` is rejected because a native caller could retain a pointer to a
+temporary string after the callback returns. Callbacks must be freed only after
+the native caller has stopped invoking them.
 
 ## C ABI layouts
 
@@ -102,11 +105,14 @@ ffiCloseLibrary(libc);
 
 FFI signatures support `void`, all signed and unsigned integer widths,
 `uintptr`, `float32`, `float64`, and `cstring`. Calls accept `cdecl` (the
-default) and `stdcall` on Windows. All arguments must match the declared
-signature. `ffiCallback(signature, function)` creates a native callback
-address and keeps it alive until `ffiFreeCallback(callback)` is called.
-Callbacks use the same types and calling conventions. Native code must not
-retain a callback after it has been freed.
+default) and `stdcall` on Windows. Calls are dispatched through the host ABI,
+including floating-point register conventions, and all arguments must match
+the declared signature. `ffiCallback(signature, function)` creates a native
+callback address and keeps it alive until `ffiFreeCallback(callback)` is
+called. Callbacks use the same parameter types and calling conventions, but a
+`cstring` return is rejected because its temporary storage cannot safely
+outlive the callback invocation. Native code must not retain a callback after
+it has been freed.
 
 ## Native threads
 

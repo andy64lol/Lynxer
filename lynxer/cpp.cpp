@@ -17,6 +17,8 @@
 #include <thread>
 #include <mutex>
 #include <exception>
+#include <memory>
+#include <new>
 #if defined(__unix__) || defined(__APPLE__)
 #include <sys/mman.h>
 #include <unistd.h>
@@ -32,26 +34,45 @@ struct ReferenceCell {
 };
 
 struct NativeThread {
+    uintptr_t handle{0};
     std::thread worker;
     std::atomic<bool> alive{true};
     std::atomic<bool> done{false};
-    std::atomic<bool> detached{false};
+    bool detached{false};
+    bool joined{false};
     std::string status{"running"};
     std::mutex statusMutex;
+    std::mutex lifecycleMutex;
 };
 
 std::mutex nativeThreadsMutex;
-std::unordered_set<NativeThread *> nativeThreads;
+std::unordered_map<uintptr_t, std::shared_ptr<NativeThread>> nativeThreads;
+uintptr_t nextNativeThreadHandle = 1;
+
+std::mutex referenceCellsMutex;
+std::unordered_map<uintptr_t, std::unique_ptr<ReferenceCell>> referenceCells;
+uintptr_t nextReferenceHandle = 1;
 
 bool pointerFromPy(PyObject *obj, void **out) {
+    if (!PyLong_Check(obj)) {
+        PyErr_SetString(PyExc_TypeError, "native pointer must be an integer");
+        return false;
+    }
     unsigned long long value = PyLong_AsUnsignedLongLong(obj);
     if (PyErr_Occurred()) {
+        return false;
+    }
+    if (value > static_cast<unsigned long long>(
+                    std::numeric_limits<uintptr_t>::max())) {
+        PyErr_SetString(PyExc_OverflowError,
+                        "native pointer does not fit this process pointer width");
         return false;
     }
     *out = reinterpret_cast<void *>(static_cast<uintptr_t>(value));
     return true;
 }
 
+std::recursive_mutex memoryMutex;
 std::unordered_map<void *, size_t> allocations;
 std::unordered_set<void *> freedAllocations;
 
@@ -82,53 +103,129 @@ std::unordered_map<void *, TypedBlock> typedBlocks;
 std::unordered_map<void *, StructLayout> structBlocks;
 
 struct NativeLibrary {
+    NativeLibrary(void *libraryHandle, const char *libraryPath)
+        : handle(libraryHandle), path(libraryPath) {}
+
     void *handle;
     std::string path;
     std::unordered_map<std::string, std::pair<uintptr_t, std::string>> functions;
     std::unordered_map<std::string, std::int64_t> constants;
     std::unordered_map<std::string, std::string> types;
+    std::unordered_set<uintptr_t> functionAddresses;
+    std::mutex lifecycleMutex;
+    size_t activeCalls{0};
+    bool closing{false};
 };
 
-std::unordered_map<std::int64_t, NativeLibrary *> nativeLibraries;
+std::mutex nativeLibrariesMutex;
+std::unordered_map<std::int64_t, std::shared_ptr<NativeLibrary>> nativeLibraries;
+std::unordered_map<uintptr_t, std::shared_ptr<NativeLibrary>> nativeFunctionOwners;
+std::unordered_set<uintptr_t> closedNativeFunctions;
 std::int64_t nextNativeLibrary = 1;
-std::unordered_map<uintptr_t, PyObject *> ffiCallbacks;
-std::int64_t nextFfiCallback = 1;
-std::mutex ffiCallbackMutex;
 
-int ffiCallbackInt32Int32(int left, int right) {
-    PyGILState_STATE gil = PyGILState_Ensure();
-    PyObject *target = nullptr;
-    {
-        std::lock_guard<std::mutex> lock(ffiCallbackMutex);
-        auto it = ffiCallbacks.find(reinterpret_cast<uintptr_t>(&ffiCallbackInt32Int32));
-        if (it != ffiCallbacks.end()) target = it->second;
-        Py_XINCREF(target);
-    }
-    int result = 0;
-    if (target) {
-        PyObject *runtime = PyImport_ImportModule("lynxer.lynxer");
-        PyObject *numberType = runtime ? PyObject_GetAttrString(runtime, "Number") : nullptr;
-        PyObject *leftValue = numberType ? PyObject_CallFunction(numberType, "L", static_cast<long long>(left)) : nullptr;
-        PyObject *rightValue = numberType ? PyObject_CallFunction(numberType, "L", static_cast<long long>(right)) : nullptr;
-        PyObject *values = PyList_New(2);
-        if (values && leftValue && rightValue) {
-            PyList_SET_ITEM(values, 0, leftValue); leftValue = nullptr;
-            PyList_SET_ITEM(values, 1, rightValue); rightValue = nullptr;
-            PyObject *callResult = PyObject_CallMethod(target, "execute", "O", values);
-            PyObject *value = callResult ? PyObject_GetAttrString(callResult, "value") : nullptr;
-            if (value) {
-                PyObject *raw = PyObject_GetAttrString(value, "value");
-                if (raw) { result = static_cast<int>(PyLong_AsLongLong(raw)); Py_DECREF(raw); }
-                Py_DECREF(value);
-            }
-            Py_XDECREF(callResult);
+struct FfiCallbackCallable {
+    PyObject_HEAD
+    PyObject *target;
+    std::string *resultType;
+    std::vector<std::string> *parameterTypes;
+};
+
+struct FfiCallbackRecord {
+    PyObject *callable;
+    FfiCallbackCallable *thunk;
+};
+
+PyTypeObject FfiCallbackCallableType = {PyVarObject_HEAD_INIT(nullptr, 0)};
+std::mutex ffiCallbackMutex;
+std::unordered_map<uintptr_t, FfiCallbackRecord> ffiCallbacks;
+std::vector<FfiCallbackRecord> retiredFfiCallbacks;
+
+bool registerFunctionOwner(const std::shared_ptr<NativeLibrary> &library,
+                           uintptr_t address) {
+    if (address == 0) return false;
+    nativeFunctionOwners[address] = library;
+    closedNativeFunctions.erase(address);
+    library->functionAddresses.insert(address);
+    return true;
+}
+
+std::shared_ptr<NativeLibrary> acquireFunctionOwner(uintptr_t address) {
+    std::lock_guard<std::mutex> librariesLock(nativeLibrariesMutex);
+    auto owner = nativeFunctionOwners.find(address);
+    if (owner == nativeFunctionOwners.end()) {
+        if (closedNativeFunctions.count(address)) {
+            PyErr_SetString(PyExc_RuntimeError,
+                            "native function belongs to a closed library");
+            return nullptr;
         }
-        Py_XDECREF(leftValue); Py_XDECREF(rightValue); Py_XDECREF(values);
-        Py_XDECREF(numberType); Py_XDECREF(runtime); Py_DECREF(target);
-        PyErr_Clear();
+        return {};
     }
-    PyGILState_Release(gil);
-    return result;
+    auto library = owner->second;
+    std::lock_guard<std::mutex> lifecycleLock(library->lifecycleMutex);
+    if (library->closing) {
+        PyErr_SetString(PyExc_RuntimeError,
+                        "native function belongs to a closing library");
+        return nullptr;
+    }
+    ++library->activeCalls;
+    return library;
+}
+
+void releaseFunctionOwner(const std::shared_ptr<NativeLibrary> &library) {
+    if (!library) return;
+    std::lock_guard<std::mutex> lifecycleLock(library->lifecycleMutex);
+    if (library->activeCalls > 0) --library->activeCalls;
+}
+
+struct FunctionOwnerLease {
+    std::shared_ptr<NativeLibrary> library;
+    ~FunctionOwnerLease() { releaseFunctionOwner(library); }
+};
+
+bool closeNativeLibrary(uintptr_t id) {
+    std::lock_guard<std::mutex> librariesLock(nativeLibrariesMutex);
+    auto it = nativeLibraries.find(static_cast<std::int64_t>(id));
+    if (it == nativeLibraries.end()) {
+        PyErr_SetString(PyExc_RuntimeError, "unknown native library handle");
+        return false;
+    }
+    const auto &library = it->second;
+    std::lock_guard<std::mutex> lifecycleLock(library->lifecycleMutex);
+    if (library->closing) {
+        PyErr_SetString(PyExc_RuntimeError, "native library is already closing");
+        return false;
+    }
+    if (library->activeCalls != 0) {
+        PyErr_SetString(PyExc_RuntimeError,
+                        "cannot close a native library while a function is running");
+        return false;
+    }
+    try {
+        closedNativeFunctions.reserve(
+            closedNativeFunctions.size() + library->functionAddresses.size());
+    } catch (const std::exception &) {
+        PyErr_NoMemory();
+        return false;
+    }
+    library->closing = true;
+#if defined(__unix__) || defined(__APPLE__)
+    if (dlclose(library->handle) != 0) {
+        library->closing = false;
+        const char *detail = dlerror();
+        PyErr_Format(PyExc_RuntimeError, "could not close native library: %s",
+                     detail ? detail : "unknown loader error");
+        return false;
+    }
+#endif
+    for (uintptr_t address : library->functionAddresses) {
+        auto owner = nativeFunctionOwners.find(address);
+        if (owner != nativeFunctionOwners.end() && owner->second == library) {
+            nativeFunctionOwners.erase(owner);
+            closedNativeFunctions.insert(address);
+        }
+    }
+    nativeLibraries.erase(it);
+    return true;
 }
 
 struct NativeRegistration {
@@ -160,8 +257,10 @@ int registerNativeFunction(const char *name, const char *symbol,
 #if defined(__unix__) || defined(__APPLE__)
     void *address = dlsym(registration->library->handle, symbol);
     if (!address) {
-        registration->error = std::string("registered symbol '") + symbol + "' was not found: " +
-                              (dlerror() ? dlerror() : "unknown linker error");
+        const char *detail = dlerror();
+        registration->error = std::string("registered symbol '") + symbol +
+                              "' was not found: " +
+                              (detail ? detail : "unknown linker error");
         return 0;
     }
 #else
@@ -225,43 +324,108 @@ PyObject *pyNativeModuleLoad(PyObject *, PyObject *args) {
                      path, detail ? detail : "unknown loader error");
         return nullptr;
     }
-    auto *library = new NativeLibrary{handle, path, {}, {}, {}};
+    std::shared_ptr<NativeLibrary> library;
+    try {
+        library = std::make_shared<NativeLibrary>(handle, path);
+    } catch (const std::exception &) {
+        dlclose(handle);
+        PyErr_NoMemory();
+        return nullptr;
+    }
     auto *initializer = reinterpret_cast<int (*)(int (*)(const char *, const char *, const char *),
                                                   int (*)(const char *, std::int64_t),
                                                   int (*)(const char *, const char *))>(
         dlsym(handle, "lynxer_module_init_v1"));
     if (!initializer) {
-        dlclose(handle); delete library;
+        dlclose(handle);
         PyErr_SetString(PyExc_RuntimeError,
             "native module lifecycle failure: missing lynxer_module_init_v1 entry point");
         return nullptr;
     }
-    NativeRegistration registration{library, ""};
+    NativeRegistration registration{library.get(), ""};
     // The registration ABI has no user-data parameter.  Keep the active
     // registration in thread-local storage for the three C callbacks.
     static thread_local NativeRegistration *active = nullptr;
     active = &registration;
-    auto functionCallback = [](const char *n, const char *s, const char *g) -> int {
-        return registerNativeFunction(n, s, g, active);
+    auto functionCallback = [](const char *n, const char *s, const char *g) noexcept -> int {
+        try {
+            return registerNativeFunction(n, s, g, active);
+        } catch (...) {
+            try { active->error = "function registration raised an exception"; } catch (...) {}
+            return 0;
+        }
     };
-    auto constantCallback = [](const char *n, std::int64_t v) -> int {
-        return registerNativeConstant(n, v, active);
+    auto constantCallback = [](const char *n, std::int64_t v) noexcept -> int {
+        try {
+            return registerNativeConstant(n, v, active);
+        } catch (...) {
+            try { active->error = "constant registration raised an exception"; } catch (...) {}
+            return 0;
+        }
     };
-    auto typeCallback = [](const char *n, const char *l) -> int {
-        return registerNativeType(n, l, active);
+    auto typeCallback = [](const char *n, const char *l) noexcept -> int {
+        try {
+            return registerNativeType(n, l, active);
+        } catch (...) {
+            try { active->error = "type registration raised an exception"; } catch (...) {}
+            return 0;
+        }
     };
-    int status = initializer(functionCallback, constantCallback, typeCallback);
+    int status = -1;
+    try {
+        status = initializer(functionCallback, constantCallback, typeCallback);
+    } catch (const std::exception &error) {
+        try {
+            registration.error =
+                std::string("initializer threw an exception: ") + error.what();
+        } catch (...) {
+            status = -1;
+        }
+    } catch (...) {
+        try {
+            registration.error = "initializer threw an unknown exception";
+        } catch (...) {
+            status = -1;
+        }
+    }
     active = nullptr;
     if (status != 0 || !registration.error.empty()) {
-        std::string detail = registration.error.empty()
-            ? "initializer returned " + std::to_string(status) : registration.error;
-        dlclose(handle); delete library;
-        PyErr_SetString(PyExc_RuntimeError,
-            ("native module lifecycle failure: " + detail).c_str());
+        if (registration.error.empty()) {
+            PyErr_Format(PyExc_RuntimeError,
+                         "native module lifecycle failure: initializer returned %d",
+                         status);
+        } else {
+            PyErr_Format(PyExc_RuntimeError,
+                         "native module lifecycle failure: %s",
+                         registration.error.c_str());
+        }
+        dlclose(handle);
         return nullptr;
     }
-    std::int64_t id = nextNativeLibrary++;
-    nativeLibraries[id] = library;
+    std::int64_t id;
+    try {
+        std::lock_guard<std::mutex> librariesLock(nativeLibrariesMutex);
+        id = nextNativeLibrary++;
+        nativeLibraries[id] = library;
+        for (const auto &entry : library->functions) {
+            registerFunctionOwner(library, entry.second.first);
+        }
+    } catch (const std::exception &) {
+        std::lock_guard<std::mutex> librariesLock(nativeLibrariesMutex);
+        for (uintptr_t address : library->functionAddresses) {
+            auto owner = nativeFunctionOwners.find(address);
+            if (owner != nativeFunctionOwners.end() && owner->second == library) {
+                nativeFunctionOwners.erase(owner);
+            }
+        }
+        for (auto it = nativeLibraries.begin(); it != nativeLibraries.end();) {
+            if (it->second == library) it = nativeLibraries.erase(it);
+            else ++it;
+        }
+        dlclose(handle);
+        PyErr_NoMemory();
+        return nullptr;
+    }
     PyObject *result = PyDict_New();
     PyDict_SetItemString(result, "handle", PyLong_FromLongLong(id));
     std::string name = path;
@@ -297,15 +461,12 @@ PyObject *pyNativeModuleLoad(PyObject *, PyObject *args) {
 PyObject *pyNativeModuleClose(PyObject *, PyObject *args) {
     unsigned long long id;
     if (!PyArg_ParseTuple(args, "K", &id)) return nullptr;
-    auto it = nativeLibraries.find(static_cast<std::int64_t>(id));
-    if (it == nativeLibraries.end()) {
-        PyErr_SetString(PyExc_RuntimeError, "native module lifecycle failure: unknown module handle");
+    if (id > static_cast<unsigned long long>(
+                  std::numeric_limits<uintptr_t>::max())) {
+        PyErr_SetString(PyExc_OverflowError, "library handle does not fit this process");
         return nullptr;
     }
-#if defined(__unix__) || defined(__APPLE__)
-    dlclose(it->second->handle);
-#endif
-    delete it->second; nativeLibraries.erase(it);
+    if (!closeNativeLibrary(static_cast<uintptr_t>(id))) return nullptr;
     Py_RETURN_NONE;
 }
 
@@ -320,9 +481,24 @@ PyObject *pyFfiLoadLibrary(PyObject *, PyObject *args) {
                      path, detail ? detail : "unknown loader error");
         return nullptr;
     }
-    auto *library = new NativeLibrary{handle, path, {}, {}, {}};
-    std::int64_t id = nextNativeLibrary++;
-    nativeLibraries[id] = library;
+    std::shared_ptr<NativeLibrary> library;
+    try {
+        library = std::make_shared<NativeLibrary>(handle, path);
+    } catch (const std::exception &) {
+        dlclose(handle);
+        PyErr_NoMemory();
+        return nullptr;
+    }
+    std::int64_t id;
+    try {
+        std::lock_guard<std::mutex> librariesLock(nativeLibrariesMutex);
+        id = nextNativeLibrary++;
+        nativeLibraries[id] = library;
+    } catch (const std::exception &) {
+        dlclose(handle);
+        PyErr_NoMemory();
+        return nullptr;
+    }
     return PyLong_FromLongLong(id);
 #else
     PyErr_SetString(PyExc_NotImplementedError, "dynamic libraries are only supported on POSIX hosts");
@@ -334,12 +510,20 @@ PyObject *pyFfiLookup(PyObject *, PyObject *args) {
     unsigned long long id;
     const char *symbol;
     if (!PyArg_ParseTuple(args, "Ks", &id, &symbol)) return nullptr;
+    std::lock_guard<std::mutex> librariesLock(nativeLibrariesMutex);
     auto it = nativeLibraries.find(static_cast<std::int64_t>(id));
     if (it == nativeLibraries.end()) {
         PyErr_SetString(PyExc_RuntimeError, "unknown library handle");
         return nullptr;
     }
 #if defined(__unix__) || defined(__APPLE__)
+    {
+        std::lock_guard<std::mutex> lifecycleLock(it->second->lifecycleMutex);
+        if (it->second->closing) {
+            PyErr_SetString(PyExc_RuntimeError, "library is closing");
+            return nullptr;
+        }
+    }
     void *address = dlsym(it->second->handle, symbol);
     if (!address) {
         const char *detail = dlerror();
@@ -347,7 +531,9 @@ PyObject *pyFfiLookup(PyObject *, PyObject *args) {
                      symbol, detail ? detail : "unknown linker error");
         return nullptr;
     }
-    return PyLong_FromUnsignedLongLong(reinterpret_cast<uintptr_t>(address));
+    uintptr_t rawAddress = reinterpret_cast<uintptr_t>(address);
+    registerFunctionOwner(it->second, rawAddress);
+    return PyLong_FromUnsignedLongLong(static_cast<unsigned long long>(rawAddress));
 #else
     PyErr_SetString(PyExc_NotImplementedError, "dynamic symbols are only supported on POSIX hosts");
     return nullptr;
@@ -363,8 +549,12 @@ bool memoryType(const std::string &name, MemoryType *out) {
     else if (name == "int16" || name == "uint16") *out = {2, 2};
     else if (name == "int32" || name == "uint32" || name == "float32") *out = {4, 4};
     else if (name == "int64" || name == "uint64" || name == "float64") *out = {8, 8};
-    else if (name == "uintptr" || name == "pointer" || name == "functionPointer")
-        *out = {sizeof(uintptr_t), alignof(uintptr_t)};
+    else if (name == "uintptr") *out = {sizeof(uintptr_t), alignof(uintptr_t)};
+    else if (name == "pointer") *out = {sizeof(void *), alignof(void *)};
+    else if (name == "functionPointer") {
+        if (sizeof(void (*)()) != sizeof(uintptr_t)) return false;
+        *out = {sizeof(void (*)()), alignof(void (*)())};
+    }
     else return false;
     return true;
 }
@@ -386,13 +576,17 @@ bool nativeIntegerType(const std::string &name) {
            name == "int16" || name == "uint16" ||
            name == "int32" || name == "uint32" ||
            name == "int64" || name == "uint64" ||
-           name == "uintptr" || name == "cstring";
+           name == "uintptr" || name == "float32" || name == "float64" ||
+           name == "cstring";
 }
 
 bool parseNativeSignature(const char *signature, std::string *result,
-                          std::vector<std::string> *parameters) {
+                          std::vector<std::string> *parameters,
+                          std::string *convention) {
     std::string text(signature);
+    *convention = "cdecl";
     if (text.rfind("cdecl:", 0) == 0 || text.rfind("stdcall:", 0) == 0) {
+        *convention = text.substr(0, text.find(':'));
         text = text.substr(text.find(':') + 1);
     }
     size_t open = text.find('(');
@@ -404,7 +598,7 @@ bool parseNativeSignature(const char *signature, std::string *result,
     *result = text.substr(0, open);
     if (*result != "void" && !nativeIntegerType(*result)) {
         PyErr_SetString(PyExc_ValueError,
-            "native call supports void and integer/pointer return types");
+            "native call supports void, integer, floating-point, and pointer return types");
         return false;
     }
     std::string parametersText = text.substr(open + 1, text.size() - open - 2);
@@ -423,7 +617,7 @@ bool parseNativeSignature(const char *signature, std::string *result,
         parameter = parameter.substr(first, last - first + 1);
         if (!nativeIntegerType(parameter) || parameter == "void") {
             PyErr_SetString(PyExc_ValueError,
-                "native call parameters must be integer or pointer types");
+                "native call parameters must be integer, floating-point, or pointer types");
             return false;
         }
         parameters->push_back(parameter);
@@ -497,9 +691,21 @@ bool splitLayoutFields(const std::string &text, std::vector<std::string> *fields
     for (size_t i = 0; i <= text.size(); ++i) {
         char character = i < text.size() ? text[i] : ',';
         if (character == '{') ++braces;
-        else if (character == '}') --braces;
+        else if (character == '}') {
+            if (braces == 0) {
+                PyErr_SetString(PyExc_ValueError, "layout has an unmatched closing brace");
+                return false;
+            }
+            --braces;
+        }
         else if (character == '[') ++brackets;
-        else if (character == ']') --brackets;
+        else if (character == ']') {
+            if (brackets == 0) {
+                PyErr_SetString(PyExc_ValueError, "layout has an unmatched closing bracket");
+                return false;
+            }
+            --brackets;
+        }
         else if (character == ',' && braces == 0 && brackets == 0) {
             std::string field = trimLayoutText(text.substr(start, i - start));
             if (field.empty()) {
@@ -560,6 +766,7 @@ size_t layoutAlignment(const StructLayout &layout) {
 }
 
 bool layoutFromText(const std::string &text, StructLayout *out, bool unionLayout) {
+    *out = StructLayout{{}, 0};
     size_t offset = 0;
     size_t alignment = 1;
     std::unordered_set<std::string> names;
@@ -594,14 +801,34 @@ bool layoutFromText(const std::string &text, StructLayout *out, bool unionLayout
             return false;
         }
         names.insert(name);
-        size_t fieldOffset = unionLayout ? 0 :
-            (offset + info.alignment - 1) / info.alignment * info.alignment;
+        size_t fieldOffset = 0;
+        if (!unionLayout) {
+            size_t remainder = offset % info.alignment;
+            size_t padding = remainder == 0 ? 0 : info.alignment - remainder;
+            if (offset > std::numeric_limits<size_t>::max() - padding) {
+                PyErr_SetString(PyExc_OverflowError, "struct layout offset overflow");
+                return false;
+            }
+            fieldOffset = offset + padding;
+        }
         out->fields.push_back({name, type, fieldOffset, info.size, info.alignment});
         if (unionLayout) offset = std::max(offset, info.size);
-        else offset = fieldOffset + info.size;
+        else {
+            if (fieldOffset > std::numeric_limits<size_t>::max() - info.size) {
+                PyErr_SetString(PyExc_OverflowError, "struct layout size overflow");
+                return false;
+            }
+            offset = fieldOffset + info.size;
+        }
         alignment = std::max(alignment, info.alignment);
     }
-    out->size = (offset + alignment - 1) / alignment * alignment;
+    size_t remainder = offset % alignment;
+    size_t padding = remainder == 0 ? 0 : alignment - remainder;
+    if (offset > std::numeric_limits<size_t>::max() - padding) {
+        PyErr_SetString(PyExc_OverflowError, "struct layout size overflow");
+        return false;
+    }
+    out->size = offset + padding;
     return true;
 }
 
@@ -613,6 +840,7 @@ bool layoutFromObject(PyObject *object, StructLayout *out) {
 
 bool blockField(PyObject *object, PyObject *indexObject, void **ptr, size_t *offset,
                 std::string *type) {
+    std::lock_guard<std::recursive_mutex> memoryLock(memoryMutex);
     void *raw;
     unsigned long long index;
     if (!pointerFromPy(object, &raw) ||
@@ -631,6 +859,7 @@ bool blockField(PyObject *object, PyObject *indexObject, void **ptr, size_t *off
 }
 
 bool validateMemory(void *ptr, size_t offset, size_t bytes) {
+    std::lock_guard<std::recursive_mutex> memoryLock(memoryMutex);
     if (freedAllocations.find(ptr) != freedAllocations.end()) {
         PyErr_SetString(PyExc_RuntimeError, "address refers to freed memory");
         return false;
@@ -669,6 +898,7 @@ bool atomicLocation(PyObject *addressObject, unsigned long long offset,
 }
 
 PyObject *pyAtomicLoad(PyObject *, PyObject *args) {
+    std::lock_guard<std::recursive_mutex> memoryLock(memoryMutex);
     PyObject *addressObject; unsigned long long offset; const char *type;
     if (!PyArg_ParseTuple(args, "OKs", &addressObject, &offset, &type)) return nullptr;
     void *location;
@@ -683,6 +913,7 @@ PyObject *pyAtomicLoad(PyObject *, PyObject *args) {
 }
 
 PyObject *pyAtomicStore(PyObject *, PyObject *args) {
+    std::lock_guard<std::recursive_mutex> memoryLock(memoryMutex);
     PyObject *addressObject; unsigned long long offset; const char *type; long long value;
     if (!PyArg_ParseTuple(args, "OKsL", &addressObject, &offset, &type, &value)) return nullptr;
     void *location;
@@ -695,6 +926,7 @@ PyObject *pyAtomicStore(PyObject *, PyObject *args) {
 }
 
 PyObject *pyAtomicAdd(PyObject *, PyObject *args) {
+    std::lock_guard<std::recursive_mutex> memoryLock(memoryMutex);
     PyObject *addressObject; unsigned long long offset; const char *type; long long value;
     if (!PyArg_ParseTuple(args, "OKsL", &addressObject, &offset, &type, &value)) return nullptr;
     void *location;
@@ -709,6 +941,7 @@ PyObject *pyAtomicAdd(PyObject *, PyObject *args) {
 }
 
 PyObject *pyVolatileRead(PyObject *, PyObject *args) {
+    std::lock_guard<std::recursive_mutex> memoryLock(memoryMutex);
     PyObject *addressObject; unsigned long long offset; const char *type;
     if (!PyArg_ParseTuple(args, "OKs", &addressObject, &offset, &type)) return nullptr;
     MemoryType info;
@@ -728,6 +961,7 @@ PyObject *pyVolatileRead(PyObject *, PyObject *args) {
 }
 
 PyObject *pyVolatileWrite(PyObject *, PyObject *args) {
+    std::lock_guard<std::recursive_mutex> memoryLock(memoryMutex);
     PyObject *addressObject; unsigned long long offset, value; const char *type;
     if (!PyArg_ParseTuple(args, "OKsK", &addressObject, &offset, &type, &value)) return nullptr;
     MemoryType info;
@@ -744,6 +978,7 @@ PyObject *pyVolatileWrite(PyObject *, PyObject *args) {
 }
 
 PyObject *pyMemoryProtect(PyObject *, PyObject *args) {
+    std::lock_guard<std::recursive_mutex> memoryLock(memoryMutex);
     PyObject *addressObject; unsigned long long size; const char *mode;
     if (!PyArg_ParseTuple(args, "OKs", &addressObject, &size, &mode)) return nullptr;
     void *raw;
@@ -772,6 +1007,7 @@ PyObject *pyMemoryProtect(PyObject *, PyObject *args) {
 }
 
 void trackAllocation(void *ptr, size_t size) {
+    std::lock_guard<std::recursive_mutex> memoryLock(memoryMutex);
     if (ptr != nullptr) {
         allocations[ptr] = size;
         freedAllocations.erase(ptr);
@@ -781,57 +1017,270 @@ void trackAllocation(void *ptr, size_t size) {
 PyObject *pyRefCreate(PyObject *, PyObject *args) {
     PyObject *value;
     if (!PyArg_ParseTuple(args, "O", &value)) return nullptr;
-    auto *cell = static_cast<ReferenceCell *>(std::malloc(sizeof(ReferenceCell)));
-    if (cell == nullptr) return PyErr_NoMemory();
+    std::unique_ptr<ReferenceCell> cell;
+    try {
+        cell = std::make_unique<ReferenceCell>();
+    } catch (const std::exception &) {
+        PyErr_NoMemory();
+        return nullptr;
+    }
     Py_INCREF(value);
     cell->value = value;
-    return PyLong_FromUnsignedLongLong(
-        static_cast<unsigned long long>(reinterpret_cast<uintptr_t>(cell))
-    );
+    std::lock_guard<std::mutex> lock(referenceCellsMutex);
+    if (nextReferenceHandle == 0) {
+        Py_DECREF(value);
+        PyErr_SetString(PyExc_OverflowError, "reference handle space is exhausted");
+        return nullptr;
+    }
+    uintptr_t handle = nextReferenceHandle++;
+    try {
+        referenceCells.emplace(handle, std::move(cell));
+    } catch (const std::exception &) {
+        Py_DECREF(value);
+        PyErr_NoMemory();
+        return nullptr;
+    }
+    return PyLong_FromUnsignedLongLong(static_cast<unsigned long long>(handle));
 }
 
 PyObject *pyRefGet(PyObject *, PyObject *args) {
     PyObject *pointerObject;
     if (!PyArg_ParseTuple(args, "O", &pointerObject)) return nullptr;
-    void *raw;
-    if (!pointerFromPy(pointerObject, &raw)) return nullptr;
-    auto *cell = static_cast<ReferenceCell *>(raw);
-    if (cell == nullptr || cell->value == nullptr) {
+    unsigned long long rawHandle;
+    if (!PyArg_Parse(pointerObject, "K", &rawHandle)) return nullptr;
+    if (rawHandle > static_cast<unsigned long long>(
+                        std::numeric_limits<uintptr_t>::max())) {
+        PyErr_SetString(PyExc_OverflowError, "reference handle does not fit this process");
+        return nullptr;
+    }
+    std::lock_guard<std::mutex> lock(referenceCellsMutex);
+    auto it = referenceCells.find(static_cast<uintptr_t>(rawHandle));
+    if (it == referenceCells.end() || it->second->value == nullptr) {
         PyErr_SetString(PyExc_RuntimeError, "invalid Lynxer reference pointer");
         return nullptr;
     }
-    Py_INCREF(cell->value);
-    return cell->value;
+    Py_INCREF(it->second->value);
+    return it->second->value;
 }
 
 PyObject *pyRefSet(PyObject *, PyObject *args) {
     PyObject *pointerObject;
     PyObject *value;
     if (!PyArg_ParseTuple(args, "OO", &pointerObject, &value)) return nullptr;
-    void *raw;
-    if (!pointerFromPy(pointerObject, &raw)) return nullptr;
-    auto *cell = static_cast<ReferenceCell *>(raw);
-    if (cell == nullptr) {
-        PyErr_SetString(PyExc_RuntimeError, "invalid Lynxer reference pointer");
+    unsigned long long rawHandle;
+    if (!PyArg_Parse(pointerObject, "K", &rawHandle)) return nullptr;
+    if (rawHandle > static_cast<unsigned long long>(
+                        std::numeric_limits<uintptr_t>::max())) {
+        PyErr_SetString(PyExc_OverflowError, "reference handle does not fit this process");
         return nullptr;
     }
     Py_INCREF(value);
-    Py_XDECREF(cell->value);
-    cell->value = value;
+    PyObject *oldValue = nullptr;
+    {
+        std::lock_guard<std::mutex> lock(referenceCellsMutex);
+        auto it = referenceCells.find(static_cast<uintptr_t>(rawHandle));
+        if (it == referenceCells.end() || it->second->value == nullptr) {
+            Py_DECREF(value);
+            PyErr_SetString(PyExc_RuntimeError, "invalid Lynxer reference pointer");
+            return nullptr;
+        }
+        oldValue = it->second->value;
+        it->second->value = value;
+    }
+    Py_XDECREF(oldValue);
     Py_RETURN_NONE;
 }
 
 PyObject *pyRefFree(PyObject *, PyObject *args) {
     PyObject *pointerObject;
     if (!PyArg_ParseTuple(args, "O", &pointerObject)) return nullptr;
-    void *raw;
-    if (!pointerFromPy(pointerObject, &raw)) return nullptr;
-    auto *cell = static_cast<ReferenceCell *>(raw);
-    if (cell != nullptr) {
-        Py_XDECREF(cell->value);
-        std::free(cell);
+    unsigned long long rawHandle;
+    if (!PyArg_Parse(pointerObject, "K", &rawHandle)) return nullptr;
+    if (rawHandle > static_cast<unsigned long long>(
+                        std::numeric_limits<uintptr_t>::max())) {
+        PyErr_SetString(PyExc_OverflowError, "reference handle does not fit this process");
+        return nullptr;
     }
+    std::unique_ptr<ReferenceCell> cell;
+    {
+        std::lock_guard<std::mutex> lock(referenceCellsMutex);
+        auto it = referenceCells.find(static_cast<uintptr_t>(rawHandle));
+        if (it == referenceCells.end()) {
+            PyErr_SetString(PyExc_RuntimeError, "invalid or already freed Lynxer reference");
+            return nullptr;
+        }
+        cell = std::move(it->second);
+        referenceCells.erase(it);
+    }
+    Py_XDECREF(cell->value);
+    cell->value = nullptr;
     Py_RETURN_NONE;
+}
+
+/*
+ * Native calls are dispatched through Python's ctypes rather than by casting
+ * an integer to an unrelated C++ function-pointer type.  ctypes/libffi owns
+ * the platform ABI details (including register-vs-stack arguments and
+ * floating-point returns) for the active architecture.
+ */
+PyObject *ctypesType(const std::string &name) {
+    PyObject *ctypes = PyImport_ImportModule("ctypes");
+    if (!ctypes) return nullptr;
+    const char *typeName = nullptr;
+    if (name == "int8") typeName = "c_int8";
+    else if (name == "uint8") typeName = "c_uint8";
+    else if (name == "int16") typeName = "c_int16";
+    else if (name == "uint16") typeName = "c_uint16";
+    else if (name == "int32") typeName = "c_int32";
+    else if (name == "uint32") typeName = "c_uint32";
+    else if (name == "int64") typeName = "c_int64";
+    else if (name == "uint64") typeName = "c_uint64";
+    else if (name == "uintptr") typeName = "c_size_t";
+    else if (name == "float32") typeName = "c_float";
+    else if (name == "float64") typeName = "c_double";
+    else if (name == "cstring") typeName = "c_char_p";
+    PyObject *result = typeName ? PyObject_GetAttrString(ctypes, typeName) : nullptr;
+    Py_DECREF(ctypes);
+    if (!result && !PyErr_Occurred()) {
+        PyErr_Format(PyExc_ValueError, "unsupported native type '%s'", name.c_str());
+    }
+    return result;
+}
+
+PyObject *ctypesFunctionType(const std::string &convention,
+                             const std::string &resultType,
+                             const std::vector<std::string> &parameterTypes) {
+    PyObject *ctypes = PyImport_ImportModule("ctypes");
+    if (!ctypes) return nullptr;
+    const char *factoryName = convention == "stdcall" ? "WINFUNCTYPE" : "CFUNCTYPE";
+    PyObject *factory = PyObject_GetAttrString(ctypes, factoryName);
+    PyObject *result = resultType == "void" ? Py_NewRef(Py_None) : ctypesType(resultType);
+    if (!factory || !result) {
+        Py_XDECREF(factory);
+        Py_XDECREF(result);
+        Py_DECREF(ctypes);
+        return nullptr;
+    }
+    PyObject *types = PyTuple_New(static_cast<Py_ssize_t>(parameterTypes.size()) + 1);
+    if (!types) {
+        Py_DECREF(factory); Py_DECREF(result); Py_DECREF(ctypes);
+        return nullptr;
+    }
+    PyTuple_SET_ITEM(types, 0, result);
+    for (size_t index = 0; index < parameterTypes.size(); ++index) {
+        PyObject *type = ctypesType(parameterTypes[index]);
+        if (!type) {
+            Py_DECREF(types); Py_DECREF(factory); Py_DECREF(ctypes);
+            return nullptr;
+        }
+        PyTuple_SET_ITEM(types, static_cast<Py_ssize_t>(index + 1), type);
+    }
+    PyObject *functionType = PyObject_CallObject(factory, types);
+    Py_DECREF(types);
+    Py_DECREF(factory);
+    Py_DECREF(ctypes);
+    return functionType;
+}
+
+PyObject *ctypesAddress(PyObject *callable) {
+    PyObject *ctypes = PyImport_ImportModule("ctypes");
+    if (!ctypes) return nullptr;
+    PyObject *cast = PyObject_GetAttrString(ctypes, "cast");
+    PyObject *voidType = PyObject_GetAttrString(ctypes, "c_void_p");
+    PyObject *castResult = cast && voidType
+        ? PyObject_CallFunctionObjArgs(cast, callable, voidType, nullptr) : nullptr;
+    PyObject *value = castResult ? PyObject_GetAttrString(castResult, "value") : nullptr;
+    Py_XDECREF(castResult);
+    Py_XDECREF(cast);
+    Py_XDECREF(voidType);
+    Py_DECREF(ctypes);
+    return value;
+}
+
+PyObject *nativeCallViaCtypes(PyObject *addressObject, const char *signature,
+                              PyObject *valuesObject) {
+    std::string resultType;
+    std::vector<std::string> parameterTypes;
+    std::string convention;
+    if (!parseNativeSignature(signature, &resultType, &parameterTypes, &convention)) {
+        return nullptr;
+    }
+    Py_ssize_t count = PyList_GET_SIZE(valuesObject);
+    if (count != static_cast<Py_ssize_t>(parameterTypes.size())) {
+        PyErr_SetString(PyExc_ValueError,
+                        "native call argument count does not match its signature");
+        return nullptr;
+    }
+#if !defined(_WIN32)
+    if (convention == "stdcall") {
+        PyErr_SetString(PyExc_ValueError,
+                        "stdcall signatures are only supported on Windows");
+        return nullptr;
+    }
+#endif
+    PyObject *functionType = ctypesFunctionType(convention, resultType, parameterTypes);
+    if (!functionType) return nullptr;
+    PyObject *address = nullptr;
+    void *rawAddress = nullptr;
+    if (!pointerFromPy(addressObject, &rawAddress) || !rawAddress) {
+        Py_DECREF(functionType);
+        if (!PyErr_Occurred()) {
+            PyErr_SetString(PyExc_ValueError, "native function address must be non-zero");
+        }
+        return nullptr;
+    }
+    address = PyLong_FromUnsignedLongLong(
+        static_cast<unsigned long long>(reinterpret_cast<uintptr_t>(rawAddress)));
+    PyObject *function = address
+        ? PyObject_CallFunctionObjArgs(functionType, address, nullptr) : nullptr;
+    Py_XDECREF(address);
+    Py_DECREF(functionType);
+    if (!function) return nullptr;
+
+    PyObject *callArgs = PyTuple_New(count);
+    if (!callArgs) {
+        Py_DECREF(function);
+        return nullptr;
+    }
+    for (Py_ssize_t index = 0; index < count; ++index) {
+        PyObject *value = PyList_GET_ITEM(valuesObject, index);
+        Py_INCREF(value);
+        if (parameterTypes[static_cast<size_t>(index)] == "cstring") {
+            if (!PyUnicode_Check(value)) {
+                Py_DECREF(value); Py_DECREF(callArgs); Py_DECREF(function);
+                PyErr_SetString(PyExc_TypeError, "cstring arguments must be strings");
+                return nullptr;
+            }
+            PyObject *encoded = PyUnicode_AsUTF8String(value);
+            Py_DECREF(value);
+            if (!encoded) {
+                Py_DECREF(callArgs); Py_DECREF(function);
+                return nullptr;
+            }
+            value = encoded;
+        }
+        PyTuple_SET_ITEM(callArgs, index, value);
+    }
+    PyObject *result = PyObject_CallObject(function, callArgs);
+    Py_DECREF(callArgs);
+    Py_DECREF(function);
+    if (!result) return nullptr;
+    if (resultType == "cstring" && result != Py_None) {
+        Py_ssize_t length = 0;
+        char *bytes = nullptr;
+        if (PyBytes_AsStringAndSize(result, &bytes, &length) < 0) {
+            Py_DECREF(result);
+            return nullptr;
+        }
+        PyObject *text = PyUnicode_DecodeUTF8(bytes, length, "replace");
+        Py_DECREF(result);
+        return text;
+    }
+    if (resultType == "cstring" && result == Py_None) {
+        Py_DECREF(result);
+        return PyUnicode_FromString("");
+    }
+    return result;
 }
 
 PyObject *pyNativeCall(PyObject *, PyObject *args) {
@@ -845,17 +1294,25 @@ PyObject *pyNativeCall(PyObject *, PyObject *args) {
     const char *signature;
     if (!PyArg_Parse(signatureObject, "s", &signature)) return nullptr;
 
-    void *address;
-    if (!pointerFromPy(addressObject, &address)) return nullptr;
-    if (address == nullptr) {
-        PyErr_SetString(PyExc_ValueError, "native function address must be non-zero");
+    void *address = nullptr;
+    if (!pointerFromPy(addressObject, &address) || !address) {
+        if (!PyErr_Occurred()) {
+            PyErr_SetString(PyExc_ValueError,
+                            "native function address must be non-zero");
+        }
         return nullptr;
     }
     if (!PyList_Check(valuesObject)) {
         PyErr_SetString(PyExc_TypeError, "native call arguments must be a list");
         return nullptr;
     }
+    std::shared_ptr<NativeLibrary> owner =
+        acquireFunctionOwner(reinterpret_cast<uintptr_t>(address));
+    if (PyErr_Occurred()) return nullptr;
+    FunctionOwnerLease lease{owner};
+    return nativeCallViaCtypes(addressObject, signature, valuesObject);
 
+#if 0
     std::string resultType;
     std::vector<std::string> parameterTypes;
     if (!parseNativeSignature(signature, &resultType, &parameterTypes)) return nullptr;
@@ -946,13 +1403,39 @@ PyObject *pyNativeCall(PyObject *, PyObject *args) {
         return PyUnicode_FromString(reinterpret_cast<const char *>(result));
     }
     return PyLong_FromUnsignedLongLong(static_cast<unsigned long long>(result));
+#endif
 }
 
 PyObject *pyFfiCall(PyObject *self, PyObject *args) {
-    return pyNativeCall(self, args);
+    PyObject *addressObject;
+    PyObject *signatureObject;
+    PyObject *valuesObject;
+    if (!PyArg_ParseTuple(args, "OOO", &addressObject, &signatureObject,
+                          &valuesObject)) return nullptr;
+    void *address = nullptr;
+    if (!pointerFromPy(addressObject, &address) || !address) {
+        if (!PyErr_Occurred()) {
+            PyErr_SetString(PyExc_ValueError,
+                            "native function address must be non-zero");
+        }
+        return nullptr;
+    }
+    if (!PyList_Check(valuesObject)) {
+        PyErr_SetString(PyExc_TypeError, "native call arguments must be a list");
+        return nullptr;
+    }
+    const char *signature;
+    if (!PyArg_Parse(signatureObject, "s", &signature)) return nullptr;
+    std::shared_ptr<NativeLibrary> owner =
+        acquireFunctionOwner(reinterpret_cast<uintptr_t>(address));
+    if (PyErr_Occurred()) return nullptr;
+    FunctionOwnerLease lease{owner};
+    PyObject *result = nativeCallViaCtypes(addressObject, signature, valuesObject);
+    return result;
 }
 
-PyObject *pyFfiCallback(PyObject *, PyObject *args) {
+#if 0
+PyObject *legacyFfiCallback(PyObject *, PyObject *args) {
     const char *signature;
     PyObject *target;
     if (!PyArg_ParseTuple(args, "sO", &signature, &target)) return nullptr;
@@ -962,7 +1445,9 @@ PyObject *pyFfiCallback(PyObject *, PyObject *args) {
             "native ffiCallback currently supports cdecl:int32(int32,int32)");
         return nullptr;
     }
-    if (!PyObject_HasAttrString(target, "execute")) {
+    int hasExecute = PyObject_HasAttrString(target, "execute");
+    if (hasExecute < 0) return nullptr;
+    if (!hasExecute) {
         PyErr_SetString(PyExc_TypeError, "ffiCallback target must be executable");
         return nullptr;
     }
@@ -975,7 +1460,7 @@ PyObject *pyFfiCallback(PyObject *, PyObject *args) {
     return PyLong_FromUnsignedLongLong(pointer);
 }
 
-PyObject *pyFfiFreeCallback(PyObject *, PyObject *args) {
+PyObject *legacyFfiFreeCallback(PyObject *, PyObject *args) {
     unsigned long long pointer;
     if (!PyArg_ParseTuple(args, "K", &pointer)) return nullptr;
     std::lock_guard<std::mutex> lock(ffiCallbackMutex);
@@ -988,8 +1473,226 @@ PyObject *pyFfiFreeCallback(PyObject *, PyObject *args) {
     ffiCallbacks.erase(it);
     Py_RETURN_NONE;
 }
+#endif
 
-PyObject *pyThreadStart(PyObject *, PyObject *args) {
+PyObject *ffiDefaultResult(const std::string &resultType) {
+    if (resultType == "void") return Py_NewRef(Py_None);
+    if (resultType == "float32" || resultType == "float64") {
+        return PyFloat_FromDouble(0.0);
+    }
+    if (resultType == "cstring") return PyBytes_FromString("");
+    return PyLong_FromLong(0);
+}
+
+void ffiCallbackCallableDealloc(FfiCallbackCallable *self) {
+    Py_XDECREF(self->target);
+    delete self->resultType;
+    delete self->parameterTypes;
+    Py_TYPE(self)->tp_free(reinterpret_cast<PyObject *>(self));
+}
+
+PyObject *ffiCallbackCallableCallImpl(FfiCallbackCallable *self, PyObject *args,
+                                      PyObject *) {
+    if (self->target == nullptr) return ffiDefaultResult(*self->resultType);
+    PyObject *values = PyList_New(PyTuple_GET_SIZE(args));
+    if (!values) return nullptr;
+    PyObject *runtime = PyImport_ImportModule("lynxer.lynxer");
+    PyObject *numberType = runtime ? PyObject_GetAttrString(runtime, "Number") : nullptr;
+    if (!numberType) {
+        Py_XDECREF(runtime);
+        Py_DECREF(values);
+        return nullptr;
+    }
+    for (Py_ssize_t index = 0; index < PyTuple_GET_SIZE(args); ++index) {
+        PyObject *raw = PyTuple_GET_ITEM(args, index);
+        const std::string &type =
+            self->parameterTypes->at(static_cast<size_t>(index));
+        PyObject *value = nullptr;
+        if (type == "cstring") {
+            if (raw == Py_None) {
+                value = PyUnicode_FromString("");
+            } else if (PyBytes_Check(raw)) {
+                Py_ssize_t length = 0;
+                char *data = nullptr;
+                if (PyBytes_AsStringAndSize(raw, &data, &length) == 0) {
+                    value = PyUnicode_DecodeUTF8(data, length, "replace");
+                }
+            }
+        } else {
+            value = PyObject_CallFunctionObjArgs(numberType, raw, nullptr);
+        }
+        if (!value) {
+            Py_DECREF(numberType);
+            Py_DECREF(runtime);
+            Py_DECREF(values);
+            return nullptr;
+        }
+        PyList_SET_ITEM(values, index, value);
+    }
+    PyObject *result = PyObject_CallMethod(self->target, "execute", "O", values);
+    Py_DECREF(numberType);
+    Py_DECREF(runtime);
+    Py_DECREF(values);
+    if (!result) {
+        PyErr_WriteUnraisable(reinterpret_cast<PyObject *>(self));
+        return ffiDefaultResult(*self->resultType);
+    }
+    PyObject *error = PyObject_GetAttrString(result, "error");
+    bool failed = error && PyObject_IsTrue(error) == 1;
+    if (!error) PyErr_Clear();
+    Py_XDECREF(error);
+    if (failed) {
+        PyErr_WriteUnraisable(result);
+        Py_DECREF(result);
+        return ffiDefaultResult(*self->resultType);
+    }
+    PyObject *value = PyObject_GetAttrString(result, "value");
+    Py_DECREF(result);
+    if (!value) {
+        PyErr_Clear();
+        return ffiDefaultResult(*self->resultType);
+    }
+    PyObject *rawValue = value == Py_None ? Py_NewRef(Py_None)
+                                          : PyObject_GetAttrString(value, "value");
+    Py_DECREF(value);
+    if (!rawValue) {
+        PyErr_Clear();
+        return ffiDefaultResult(*self->resultType);
+    }
+    if (*self->resultType == "cstring" && PyUnicode_Check(rawValue)) {
+        PyObject *encoded = PyUnicode_AsUTF8String(rawValue);
+        Py_DECREF(rawValue);
+        return encoded;
+    }
+    return rawValue;
+}
+
+PyObject *ffiCallbackCallableCall(FfiCallbackCallable *self, PyObject *args,
+                                  PyObject *keywords) noexcept {
+    try {
+        return ffiCallbackCallableCallImpl(self, args, keywords);
+    } catch (const std::exception &) {
+        PyErr_Clear();
+        return ffiDefaultResult(*self->resultType);
+    } catch (...) {
+        PyErr_Clear();
+        return ffiDefaultResult(*self->resultType);
+    }
+}
+
+PyObject *pyFfiCallback(PyObject *, PyObject *args) {
+    const char *signature;
+    PyObject *target;
+    if (!PyArg_ParseTuple(args, "sO", &signature, &target)) return nullptr;
+    if (!PyObject_HasAttrString(target, "execute")) {
+        PyErr_SetString(PyExc_TypeError, "ffiCallback target must be executable");
+        return nullptr;
+    }
+    std::string resultType;
+    std::vector<std::string> parameterTypes;
+    std::string convention;
+    if (!parseNativeSignature(signature, &resultType, &parameterTypes, &convention)) {
+        return nullptr;
+    }
+#if !defined(_WIN32)
+    if (convention == "stdcall") {
+        PyErr_SetString(PyExc_ValueError,
+                        "stdcall callbacks are only supported on Windows");
+        return nullptr;
+    }
+#endif
+    if (resultType == "cstring") {
+        PyErr_SetString(PyExc_ValueError,
+                        "cstring callback return values are not supported because "
+                        "the native caller would retain a dangling pointer");
+        return nullptr;
+    }
+    auto resultTypeStorage = std::make_unique<std::string>(resultType);
+    auto parameterTypeStorage =
+        std::make_unique<std::vector<std::string>>(parameterTypes);
+    auto *thunk = PyObject_New(FfiCallbackCallable, &FfiCallbackCallableType);
+    if (!thunk) return nullptr;
+    thunk->target = Py_NewRef(target);
+    thunk->resultType = resultTypeStorage.release();
+    thunk->parameterTypes = parameterTypeStorage.release();
+    PyObject *functionType =
+        ctypesFunctionType(convention, resultType, parameterTypes);
+    PyObject *callback = functionType
+        ? PyObject_CallFunctionObjArgs(functionType, thunk, nullptr) : nullptr;
+    Py_XDECREF(functionType);
+    if (!callback) {
+        Py_DECREF(reinterpret_cast<PyObject *>(thunk));
+        return nullptr;
+    }
+    PyObject *addressObject = ctypesAddress(callback);
+    void *rawAddress = nullptr;
+    if (!addressObject || addressObject == Py_None ||
+        !pointerFromPy(addressObject, &rawAddress) || !rawAddress) {
+        Py_XDECREF(addressObject);
+        Py_DECREF(callback);
+        if (!PyErr_Occurred()) {
+            PyErr_SetString(PyExc_RuntimeError,
+                            "ctypes did not return a callback address");
+        }
+        return nullptr;
+    }
+    uintptr_t pointer = reinterpret_cast<uintptr_t>(rawAddress);
+    {
+        std::lock_guard<std::mutex> lock(ffiCallbackMutex);
+        try {
+            auto inserted = ffiCallbacks.emplace(
+                pointer, FfiCallbackRecord{callback, thunk});
+            if (!inserted.second) {
+                Py_DECREF(callback);
+                Py_DECREF(reinterpret_cast<PyObject *>(thunk));
+                Py_DECREF(addressObject);
+                PyErr_SetString(PyExc_RuntimeError,
+                                "ctypes returned a duplicate callback address");
+                return nullptr;
+            }
+        } catch (...) {
+            Py_DECREF(callback);
+            Py_DECREF(reinterpret_cast<PyObject *>(thunk));
+            Py_DECREF(addressObject);
+            PyErr_NoMemory();
+            return nullptr;
+        }
+        Py_INCREF(thunk);
+    }
+    Py_DECREF(reinterpret_cast<PyObject *>(thunk));
+    Py_DECREF(addressObject);
+    return PyLong_FromUnsignedLongLong(static_cast<unsigned long long>(pointer));
+}
+
+PyObject *pyFfiFreeCallback(PyObject *, PyObject *args) {
+    unsigned long long pointer;
+    if (!PyArg_ParseTuple(args, "K", &pointer)) return nullptr;
+    if (pointer > static_cast<unsigned long long>(
+                       std::numeric_limits<uintptr_t>::max())) {
+        PyErr_SetString(PyExc_OverflowError,
+                        "callback address does not fit this process");
+        return nullptr;
+    }
+    std::lock_guard<std::mutex> lock(ffiCallbackMutex);
+    auto it = ffiCallbacks.find(static_cast<uintptr_t>(pointer));
+    if (it == ffiCallbacks.end()) {
+        PyErr_SetString(PyExc_RuntimeError, "unknown native callback");
+        return nullptr;
+    }
+    try {
+        retiredFfiCallbacks.push_back(it->second);
+    } catch (const std::exception &) {
+        PyErr_NoMemory();
+        return nullptr;
+    }
+    Py_XDECREF(it->second.thunk->target);
+    it->second.thunk->target = nullptr;
+    ffiCallbacks.erase(it);
+    Py_RETURN_NONE;
+}
+
+#if 0
+PyObject *legacyThreadStart(PyObject *, PyObject *args) {
     PyObject *callback;
     PyObject *callbackArgs;
     if (!PyArg_ParseTuple(args, "OO", &callback, &callbackArgs)) return nullptr;
@@ -1067,7 +1770,7 @@ PyObject *pyThreadStart(PyObject *, PyObject *args) {
     return PyLong_FromVoidPtr(thread);
 }
 
-NativeThread *findNativeThread(PyObject *handle) {
+NativeThread *legacyFindNativeThread(PyObject *handle) {
     void *raw = PyLong_AsVoidPtr(handle);
     if (PyErr_Occurred()) return nullptr;
     auto *thread = static_cast<NativeThread *>(raw);
@@ -1079,7 +1782,7 @@ NativeThread *findNativeThread(PyObject *handle) {
     return thread;
 }
 
-PyObject *pyThreadJoin(PyObject *, PyObject *args) {
+PyObject *legacyThreadJoin(PyObject *, PyObject *args) {
     PyObject *handle;
     if (!PyArg_ParseTuple(args, "O", &handle)) return nullptr;
     NativeThread *thread = findNativeThread(handle);
@@ -1104,7 +1807,7 @@ PyObject *pyThreadJoin(PyObject *, PyObject *args) {
     return PyUnicode_FromString(status.c_str());
 }
 
-PyObject *pyThreadIsAlive(PyObject *, PyObject *args) {
+PyObject *legacyThreadIsAlive(PyObject *, PyObject *args) {
     PyObject *handle;
     if (!PyArg_ParseTuple(args, "O", &handle)) return nullptr;
     NativeThread *thread = findNativeThread(handle);
@@ -1113,7 +1816,7 @@ PyObject *pyThreadIsAlive(PyObject *, PyObject *args) {
     Py_RETURN_FALSE;
 }
 
-PyObject *pyThreadStatus(PyObject *, PyObject *args) {
+PyObject *legacyThreadStatus(PyObject *, PyObject *args) {
     PyObject *handle;
     if (!PyArg_ParseTuple(args, "O", &handle)) return nullptr;
     NativeThread *thread = findNativeThread(handle);
@@ -1122,7 +1825,7 @@ PyObject *pyThreadStatus(PyObject *, PyObject *args) {
     return PyUnicode_FromString(thread->status.c_str());
 }
 
-PyObject *pyThreadDetach(PyObject *, PyObject *args) {
+PyObject *legacyThreadDetach(PyObject *, PyObject *args) {
     PyObject *handle;
     if (!PyArg_ParseTuple(args, "O", &handle)) return nullptr;
     NativeThread *thread = findNativeThread(handle);
@@ -1139,8 +1842,235 @@ PyObject *pyThreadDetach(PyObject *, PyObject *args) {
     }
     Py_RETURN_NONE;
 }
+#endif
+
+std::shared_ptr<NativeThread> findNativeThread(PyObject *handle) {
+    unsigned long long rawHandle;
+    if (!PyArg_Parse(handle, "K", &rawHandle)) return nullptr;
+    if (rawHandle == 0 ||
+        rawHandle > static_cast<unsigned long long>(
+                        std::numeric_limits<uintptr_t>::max())) {
+        PyErr_SetString(PyExc_ValueError, "invalid native thread handle");
+        return nullptr;
+    }
+    std::lock_guard<std::mutex> lock(nativeThreadsMutex);
+    auto it = nativeThreads.find(static_cast<uintptr_t>(rawHandle));
+    if (it == nativeThreads.end()) {
+        PyErr_SetString(PyExc_ValueError, "unknown or already released native thread");
+        return nullptr;
+    }
+    return it->second;
+}
+
+void finishDetachedThread(const std::shared_ptr<NativeThread> &thread) {
+    bool detached;
+    {
+        std::lock_guard<std::mutex> lifecycleLock(thread->lifecycleMutex);
+        detached = thread->detached;
+    }
+    if (!detached) return;
+    std::lock_guard<std::mutex> lock(nativeThreadsMutex);
+    auto it = nativeThreads.find(thread->handle);
+    if (it != nativeThreads.end() && it->second == thread) {
+        nativeThreads.erase(it);
+    }
+}
+
+PyObject *pyThreadStart(PyObject *, PyObject *args) {
+    PyObject *callback;
+    PyObject *callbackArgs;
+    if (!PyArg_ParseTuple(args, "OO", &callback, &callbackArgs)) return nullptr;
+    if (!PyList_Check(callbackArgs)) {
+        PyErr_SetString(PyExc_TypeError, "nativeThreadStart arguments must be a list");
+        return nullptr;
+    }
+    PyObject *execute = PyObject_GetAttrString(callback, "execute");
+    if (!execute || !PyCallable_Check(execute)) {
+        Py_XDECREF(execute);
+        PyErr_SetString(PyExc_TypeError,
+                        "nativeThreadStart callback must be a Lynxer function");
+        return nullptr;
+    }
+    Py_INCREF(callbackArgs);
+    std::shared_ptr<NativeThread> thread;
+    try {
+        thread = std::make_shared<NativeThread>();
+    } catch (const std::exception &) {
+        Py_DECREF(execute);
+        Py_DECREF(callbackArgs);
+        PyErr_NoMemory();
+        return nullptr;
+    }
+    try {
+        std::lock_guard<std::mutex> lock(nativeThreadsMutex);
+        if (nextNativeThreadHandle == 0) {
+            Py_DECREF(execute);
+            Py_DECREF(callbackArgs);
+            PyErr_SetString(PyExc_OverflowError,
+                            "native thread handle space is exhausted");
+            return nullptr;
+        }
+        thread->handle = nextNativeThreadHandle++;
+        nativeThreads.emplace(thread->handle, thread);
+    } catch (const std::exception &) {
+        Py_DECREF(execute);
+        Py_DECREF(callbackArgs);
+        PyErr_NoMemory();
+        return nullptr;
+    }
+    try {
+        thread->worker = std::thread([thread, execute, callbackArgs]() {
+            PyGILState_STATE state = PyGILState_Ensure();
+            PyObject *result = nullptr;
+            try {
+                result = PyObject_CallFunctionObjArgs(execute, callbackArgs, nullptr);
+                if (result != nullptr) {
+                    PyObject *error = PyObject_GetAttrString(result, "error");
+                    bool failed = error && PyObject_IsTrue(error) == 1;
+                    if (failed) {
+                        PyObject *message = PyObject_CallMethod(error, "as_string", nullptr);
+                        if (!message) {
+                            PyErr_Clear();
+                            message = PyObject_Str(error);
+                        }
+                        const char *text = message ? PyUnicode_AsUTF8(message) : nullptr;
+                        {
+                            std::lock_guard<std::mutex> statusLock(thread->statusMutex);
+                            thread->status = text ? text : "native thread callback failed";
+                        }
+                        Py_XDECREF(message);
+                    } else {
+                        std::lock_guard<std::mutex> statusLock(thread->statusMutex);
+                        thread->status = "completed";
+                    }
+                    Py_XDECREF(error);
+                } else {
+                    std::lock_guard<std::mutex> statusLock(thread->statusMutex);
+                    thread->status = "native thread callback raised an exception";
+                    PyErr_Clear();
+                }
+            } catch (const std::exception &error) {
+                std::lock_guard<std::mutex> statusLock(thread->statusMutex);
+                thread->status = error.what();
+            } catch (...) {
+                std::lock_guard<std::mutex> statusLock(thread->statusMutex);
+                thread->status = "native thread callback failed";
+            }
+            Py_XDECREF(result);
+            PyErr_Clear();
+            Py_DECREF(execute);
+            Py_DECREF(callbackArgs);
+            PyGILState_Release(state);
+            thread->alive.store(false);
+            thread->done.store(true);
+            finishDetachedThread(thread);
+        });
+    } catch (const std::exception &error) {
+        Py_DECREF(execute);
+        Py_DECREF(callbackArgs);
+        std::lock_guard<std::mutex> lock(nativeThreadsMutex);
+        nativeThreads.erase(thread->handle);
+        PyErr_Format(PyExc_RuntimeError, "could not start native thread: %s",
+                     error.what());
+        return nullptr;
+    }
+    return PyLong_FromUnsignedLongLong(
+        static_cast<unsigned long long>(thread->handle));
+}
+
+PyObject *pyThreadJoin(PyObject *, PyObject *args) {
+    PyObject *handle;
+    if (!PyArg_ParseTuple(args, "O", &handle)) return nullptr;
+    auto thread = findNativeThread(handle);
+    if (!thread) return nullptr;
+    std::unique_lock<std::mutex> lifecycleLock(thread->lifecycleMutex);
+    if (thread->detached) {
+        PyErr_SetString(PyExc_RuntimeError, "cannot join a detached native thread");
+        return nullptr;
+    }
+    if (thread->joined) {
+        PyErr_SetString(PyExc_RuntimeError, "native thread has already been joined");
+        return nullptr;
+    }
+    if (thread->worker.get_id() == std::this_thread::get_id()) {
+        PyErr_SetString(PyExc_RuntimeError, "native thread cannot join itself");
+        return nullptr;
+    }
+    thread->joined = true;
+    std::string joinError;
+    PyThreadState *savedState = PyEval_SaveThread();
+    try {
+        thread->worker.join();
+    } catch (const std::exception &error) {
+        joinError = error.what();
+    } catch (...) {
+        joinError = "unknown native thread join failure";
+    }
+    PyEval_RestoreThread(savedState);
+    if (!joinError.empty()) {
+        thread->joined = false;
+        PyErr_SetString(PyExc_RuntimeError, joinError.c_str());
+        return nullptr;
+    }
+    lifecycleLock.unlock();
+    {
+        std::lock_guard<std::mutex> lock(nativeThreadsMutex);
+        auto it = nativeThreads.find(thread->handle);
+        if (it != nativeThreads.end() && it->second == thread) {
+            nativeThreads.erase(it);
+        }
+    }
+    std::lock_guard<std::mutex> statusLock(thread->statusMutex);
+    return PyUnicode_FromString(thread->status.c_str());
+}
+
+PyObject *pyThreadIsAlive(PyObject *, PyObject *args) {
+    PyObject *handle;
+    if (!PyArg_ParseTuple(args, "O", &handle)) return nullptr;
+    auto thread = findNativeThread(handle);
+    if (!thread) return nullptr;
+    if (thread->alive.load()) Py_RETURN_TRUE;
+    Py_RETURN_FALSE;
+}
+
+PyObject *pyThreadStatus(PyObject *, PyObject *args) {
+    PyObject *handle;
+    if (!PyArg_ParseTuple(args, "O", &handle)) return nullptr;
+    auto thread = findNativeThread(handle);
+    if (!thread) return nullptr;
+    std::lock_guard<std::mutex> statusLock(thread->statusMutex);
+    return PyUnicode_FromString(thread->status.c_str());
+}
+
+PyObject *pyThreadDetach(PyObject *, PyObject *args) {
+    PyObject *handle;
+    if (!PyArg_ParseTuple(args, "O", &handle)) return nullptr;
+    auto thread = findNativeThread(handle);
+    if (!thread) return nullptr;
+    std::unique_lock<std::mutex> lifecycleLock(thread->lifecycleMutex);
+    if (thread->joined) {
+        PyErr_SetString(PyExc_RuntimeError, "native thread has already been joined");
+        return nullptr;
+    }
+    if (thread->detached) {
+        PyErr_SetString(PyExc_RuntimeError, "native thread is already detached");
+        return nullptr;
+    }
+    try {
+        thread->worker.detach();
+        thread->detached = true;
+    } catch (const std::exception &error) {
+        PyErr_SetString(PyExc_RuntimeError, error.what());
+        return nullptr;
+    }
+    bool done = thread->done.load();
+    lifecycleLock.unlock();
+    if (done) finishDetachedThread(thread);
+    Py_RETURN_NONE;
+}
 
 PyObject *pyMalloc(PyObject *, PyObject *args) {
+    std::lock_guard<std::recursive_mutex> memoryLock(memoryMutex);
     unsigned long long size;
     if (!PyArg_ParseTuple(args, "K", &size)) return nullptr;
     if (size > static_cast<unsigned long long>(std::numeric_limits<size_t>::max())) {
@@ -1156,6 +2086,7 @@ PyObject *pyMalloc(PyObject *, PyObject *args) {
 }
 
 PyObject *pyCalloc(PyObject *, PyObject *args) {
+    std::lock_guard<std::recursive_mutex> memoryLock(memoryMutex);
     unsigned long long count;
     unsigned long long size;
     if (!PyArg_ParseTuple(args, "KK", &count, &size)) return nullptr;
@@ -1172,6 +2103,7 @@ PyObject *pyCalloc(PyObject *, PyObject *args) {
 }
 
 PyObject *pyRealloc(PyObject *, PyObject *args) {
+    std::lock_guard<std::recursive_mutex> memoryLock(memoryMutex);
     PyObject *ptrObject;
     unsigned long long size;
     if (!PyArg_ParseTuple(args, "OK", &ptrObject, &size)) return nullptr;
@@ -1197,6 +2129,7 @@ PyObject *pyRealloc(PyObject *, PyObject *args) {
 }
 
 PyObject *pyFree(PyObject *, PyObject *args) {
+    std::lock_guard<std::recursive_mutex> memoryLock(memoryMutex);
     PyObject *ptrObject;
     if (!PyArg_ParseTuple(args, "O", &ptrObject)) return nullptr;
     void *ptr;
@@ -1211,6 +2144,7 @@ PyObject *pyFree(PyObject *, PyObject *args) {
 }
 
 PyObject *pyMemset(PyObject *, PyObject *args) {
+    std::lock_guard<std::recursive_mutex> memoryLock(memoryMutex);
     PyObject *ptrObject;
     int value;
     unsigned long long size;
@@ -1227,6 +2161,7 @@ PyObject *pyMemset(PyObject *, PyObject *args) {
 }
 
 PyObject *pyMemcpy(PyObject *, PyObject *args) {
+    std::lock_guard<std::recursive_mutex> memoryLock(memoryMutex);
     PyObject *destinationObject;
     PyObject *sourceObject;
     unsigned long long size;
@@ -1248,6 +2183,7 @@ PyObject *pyMemcpy(PyObject *, PyObject *args) {
 }
 
 PyObject *pyReadByte(PyObject *, PyObject *args) {
+    std::lock_guard<std::recursive_mutex> memoryLock(memoryMutex);
     PyObject *ptrObject;
     unsigned long long offset;
     if (!PyArg_ParseTuple(args, "OK", &ptrObject, &offset)) return nullptr;
@@ -1259,6 +2195,7 @@ PyObject *pyReadByte(PyObject *, PyObject *args) {
 }
 
 PyObject *pyWriteByte(PyObject *, PyObject *args) {
+    std::lock_guard<std::recursive_mutex> memoryLock(memoryMutex);
     PyObject *ptrObject;
     unsigned long long offset;
     unsigned int value;
@@ -1276,6 +2213,7 @@ PyObject *pyWriteByte(PyObject *, PyObject *args) {
 
 template <typename T>
 PyObject *readFixed(PyObject *args) {
+    std::lock_guard<std::recursive_mutex> memoryLock(memoryMutex);
     PyObject *ptrObject;
     unsigned long long offset;
     if (!PyArg_ParseTuple(args, "OK", &ptrObject, &offset)) return nullptr;
@@ -1292,6 +2230,7 @@ PyObject *readFixed(PyObject *args) {
 
 template <typename T>
 PyObject *writeFixed(PyObject *args) {
+    std::lock_guard<std::recursive_mutex> memoryLock(memoryMutex);
     PyObject *ptrObject;
     unsigned long long offset;
     PyObject *valueObject;
@@ -1326,6 +2265,7 @@ PyObject *writeFixed(PyObject *args) {
 
 template <typename T>
 PyObject *readFloat(PyObject *args) {
+    std::lock_guard<std::recursive_mutex> memoryLock(memoryMutex);
     PyObject *ptrObject;
     unsigned long long offset;
     if (!PyArg_ParseTuple(args, "OK", &ptrObject, &offset)) return nullptr;
@@ -1339,6 +2279,7 @@ PyObject *readFloat(PyObject *args) {
 
 template <typename T>
 PyObject *writeFloat(PyObject *args) {
+    std::lock_guard<std::recursive_mutex> memoryLock(memoryMutex);
     PyObject *ptrObject;
     unsigned long long offset;
     double rawValue;
@@ -1361,6 +2302,7 @@ PyObject *pyReadFloat64(PyObject *, PyObject *args) { return readFloat<double>(a
 PyObject *pyWriteFloat64(PyObject *, PyObject *args) { return writeFloat<double>(args); }
 
 PyObject *pyMemoryReadEndian(PyObject *, PyObject *args) {
+    std::lock_guard<std::recursive_mutex> memoryLock(memoryMutex);
     PyObject *addressObject;
     unsigned long long offset;
     const char *type;
@@ -1411,10 +2353,16 @@ PyObject *pyMemoryReadEndian(PyObject *, PyObject *args) {
     if (std::strcmp(type, "int64") == 0) {
         return PyLong_FromLongLong(loadOrdered<std::int64_t>(bytes, little));
     }
+    if (std::strcmp(type, "uintptr") == 0 ||
+        std::strcmp(type, "pointer") == 0 ||
+        std::strcmp(type, "functionPointer") == 0) {
+        return PyLong_FromUnsignedLongLong(loadOrdered<uintptr_t>(bytes, little));
+    }
     return PyLong_FromUnsignedLongLong(loadOrdered<std::uint64_t>(bytes, little));
 }
 
 PyObject *pyMemoryWriteEndian(PyObject *, PyObject *args) {
+    std::lock_guard<std::recursive_mutex> memoryLock(memoryMutex);
     PyObject *addressObject;
     unsigned long long offset;
     const char *type;
@@ -1519,6 +2467,20 @@ PyObject *pyMemoryWriteEndian(PyObject *, PyObject *args) {
         long long value = PyLong_AsLongLong(valueObject);
         if (PyErr_Occurred()) return nullptr;
         storeOrdered(bytes, static_cast<std::int64_t>(value), little);
+    } else if (std::strcmp(type, "uintptr") == 0 ||
+               std::strcmp(type, "pointer") == 0 ||
+               std::strcmp(type, "functionPointer") == 0) {
+        unsigned long long value = PyLong_AsUnsignedLongLong(valueObject);
+        if (PyErr_Occurred() ||
+            value > static_cast<unsigned long long>(
+                        std::numeric_limits<uintptr_t>::max())) {
+            if (!PyErr_Occurred()) {
+                PyErr_SetString(PyExc_OverflowError,
+                                "pointer value does not fit this process");
+            }
+            return nullptr;
+        }
+        storeOrdered(bytes, static_cast<uintptr_t>(value), little);
     } else {
         unsigned long long value = PyLong_AsUnsignedLongLong(valueObject);
         if (PyErr_Occurred()) return nullptr;
@@ -1550,6 +2512,7 @@ PyObject *pyMemoryTypeAlignment(PyObject *, PyObject *args) {
 }
 
 PyObject *pyMemoryBlockAllocate(PyObject *, PyObject *args) {
+    std::lock_guard<std::recursive_mutex> memoryLock(memoryMutex);
     const char *name;
     unsigned long long count;
     if (!PyArg_ParseTuple(args, "sK", &name, &count)) return nullptr;
@@ -1570,6 +2533,7 @@ PyObject *pyMemoryBlockAllocate(PyObject *, PyObject *args) {
 }
 
 PyObject *pyMemoryBlockView(PyObject *, PyObject *args) {
+    std::lock_guard<std::recursive_mutex> memoryLock(memoryMutex);
     PyObject *addressObject;
     const char *name;
     unsigned long long count;
@@ -1593,6 +2557,7 @@ PyObject *pyMemoryBlockView(PyObject *, PyObject *args) {
 }
 
 PyObject *pyMemoryBlockLength(PyObject *, PyObject *args) {
+    std::lock_guard<std::recursive_mutex> memoryLock(memoryMutex);
     PyObject *addressObject;
     if (!PyArg_ParseTuple(args, "O", &addressObject)) return nullptr;
     void *ptr;
@@ -1606,6 +2571,7 @@ PyObject *pyMemoryBlockLength(PyObject *, PyObject *args) {
 }
 
 PyObject *pyMemoryBlockGet(PyObject *, PyObject *args) {
+    std::lock_guard<std::recursive_mutex> memoryLock(memoryMutex);
     PyObject *addressObject, *indexObject;
     if (!PyArg_ParseTuple(args, "OO", &addressObject, &indexObject)) return nullptr;
     void *ptr; size_t offset; std::string type;
@@ -1625,12 +2591,15 @@ PyObject *pyMemoryBlockGet(PyObject *, PyObject *args) {
     else if (type == "int32") result = readFixed<std::int32_t>(pair);
     else if (type == "uint32") result = readFixed<std::uint32_t>(pair);
     else if (type == "int64") result = readFixed<std::int64_t>(pair);
+    else if (type == "uintptr" || type == "pointer" ||
+             type == "functionPointer") result = readFixed<uintptr_t>(pair);
     else result = readFixed<std::uint64_t>(pair);
     Py_DECREF(pair);
     return result;
 }
 
 PyObject *pyMemoryBlockSet(PyObject *, PyObject *args) {
+    std::lock_guard<std::recursive_mutex> memoryLock(memoryMutex);
     PyObject *addressObject, *indexObject, *valueObject;
     if (!PyArg_ParseTuple(args, "OOO", &addressObject, &indexObject, &valueObject)) return nullptr;
     void *ptr; size_t offset; std::string type;
@@ -1649,6 +2618,8 @@ PyObject *pyMemoryBlockSet(PyObject *, PyObject *args) {
     else if (type == "int32") result = writeFixed<std::int32_t>(pair);
     else if (type == "uint32") result = writeFixed<std::uint32_t>(pair);
     else if (type == "int64") result = writeFixed<std::int64_t>(pair);
+    else if (type == "uintptr" || type == "pointer" ||
+             type == "functionPointer") result = writeFixed<uintptr_t>(pair);
     else result = writeFixed<std::uint64_t>(pair);
     Py_DECREF(pair);
     return result;
@@ -1694,6 +2665,7 @@ PyObject *pyMemoryStructFieldType(PyObject *, PyObject *args) {
 }
 
 PyObject *pyMemoryStructAllocate(PyObject *, PyObject *args) {
+    std::lock_guard<std::recursive_mutex> memoryLock(memoryMutex);
     PyObject *layoutObject;
     if (!PyArg_ParseTuple(args, "O", &layoutObject)) return nullptr;
     StructLayout layout;
@@ -1721,6 +2693,7 @@ PyObject *pyMemoryStructField(PyObject *, PyObject *args, bool wantSize) {
 }
 
 PyObject *pyMemoryStructGet(PyObject *, PyObject *args) {
+    std::lock_guard<std::recursive_mutex> memoryLock(memoryMutex);
     PyObject *addressObject; const char *field;
     if (!PyArg_ParseTuple(args, "Os", &addressObject, &field)) return nullptr;
     void *ptr; if (!pointerFromPy(addressObject, &ptr)) return nullptr;
@@ -1766,6 +2739,7 @@ PyObject *pyMemoryStructGet(PyObject *, PyObject *args) {
 }
 
 PyObject *pyMemoryStructSet(PyObject *, PyObject *args) {
+    std::lock_guard<std::recursive_mutex> memoryLock(memoryMutex);
     PyObject *addressObject, *valueObject; const char *field;
     if (!PyArg_ParseTuple(args, "OsO", &addressObject, &field, &valueObject)) return nullptr;
     void *ptr; if (!pointerFromPy(addressObject, &ptr)) return nullptr;
@@ -1854,82 +2828,105 @@ PyObject *pySizeOf(PyObject *, PyObject *args) {
     return PyLong_FromSize_t(size);
 }
 
+#define SAFE_NATIVE_METHOD(function) safeNativeMethod<function>
+
+template <PyObject *(*Function)(PyObject *, PyObject *)>
+PyObject *safeNativeMethod(PyObject *self, PyObject *args) noexcept {
+    try {
+        return Function(self, args);
+    } catch (const std::bad_alloc &) {
+        PyErr_NoMemory();
+        return nullptr;
+    } catch (const std::exception &error) {
+        PyErr_Format(PyExc_RuntimeError, "native extension failure: %s",
+                     error.what());
+        return nullptr;
+    } catch (...) {
+        PyErr_SetString(PyExc_RuntimeError, "native extension failure");
+        return nullptr;
+    }
+}
+
+PyObject *pyMemoryStructFieldOffset(PyObject *self, PyObject *args) {
+    return pyMemoryStructField(self, args, false);
+}
+
+PyObject *pyMemoryStructFieldSize(PyObject *self, PyObject *args) {
+    return pyMemoryStructField(self, args, true);
+}
+
 PyMethodDef methods[] = {
-    {"refCreate", pyRefCreate, METH_VARARGS, "Create a native Lynxer reference cell."},
-    {"refGet", pyRefGet, METH_VARARGS, "Read a native Lynxer reference cell."},
-    {"refSet", pyRefSet, METH_VARARGS, "Write a native Lynxer reference cell."},
-    {"refFree", pyRefFree, METH_VARARGS, "Free a native Lynxer reference cell."},
-    {"nativeCall", pyNativeCall, METH_VARARGS, "Call a low-level native function address."},
-    {"ffiCall", pyFfiCall, METH_VARARGS, "Call a typed native function address."},
-    {"ffiCallback", pyFfiCallback, METH_VARARGS, "Create a native callback trampoline."},
-    {"ffiFreeCallback", pyFfiFreeCallback, METH_VARARGS, "Release a native callback trampoline."},
-    {"nativeModuleLoad", pyNativeModuleLoad, METH_VARARGS, "Load and initialize a Lynxer native module."},
-    {"nativeModuleClose", pyNativeModuleClose, METH_VARARGS, "Close a Lynxer native module."},
-    {"ffiLoadLibrary", pyFfiLoadLibrary, METH_VARARGS, "Load a dynamic library."},
-    {"ffiLookup", pyFfiLookup, METH_VARARGS, "Resolve a dynamic library symbol."},
-    {"ffiCloseLibrary", pyFfiCloseLibrary, METH_VARARGS, "Close a dynamic library."},
-    {"nativeThreadStart", pyThreadStart, METH_VARARGS, "Start a native thread running a Lynxer function."},
-    {"nativeThreadJoin", pyThreadJoin, METH_VARARGS, "Join a native Lynxer thread."},
-    {"nativeThreadIsAlive", pyThreadIsAlive, METH_VARARGS, "Check whether a native Lynxer thread is running."},
-    {"nativeThreadStatus", pyThreadStatus, METH_VARARGS, "Get the status of a native Lynxer thread."},
-    {"nativeThreadDetach", pyThreadDetach, METH_VARARGS, "Detach a native Lynxer thread."},
-    {"atomicLoad", pyAtomicLoad, METH_VARARGS, "Atomically load a native integer."},
-    {"atomicStore", pyAtomicStore, METH_VARARGS, "Atomically store a native integer."},
-    {"atomicAdd", pyAtomicAdd, METH_VARARGS, "Atomically add to a native integer."},
-    {"volatileRead", pyVolatileRead, METH_VARARGS, "Read native memory as volatile."},
-    {"volatileWrite", pyVolatileWrite, METH_VARARGS, "Write native memory as volatile."},
-    {"memoryProtect", pyMemoryProtect, METH_VARARGS, "Change native memory protection."},
-    {"memoryAllocate", pyMalloc, METH_VARARGS, "Allocate raw memory."},
-    {"memoryAllocateZeroed", pyCalloc, METH_VARARGS, "Allocate zero-initialized raw memory."},
-    {"memoryReallocate", pyRealloc, METH_VARARGS, "Resize raw memory."},
-    {"memoryFree", pyFree, METH_VARARGS, "Free raw memory."},
-    {"memorySet", pyMemset, METH_VARARGS, "Fill raw memory."},
-    {"memoryCopy", pyMemcpy, METH_VARARGS, "Copy raw memory."},
-    {"memoryReadByte", pyReadByte, METH_VARARGS, "Read one byte."},
-    {"memoryWriteByte", pyWriteByte, METH_VARARGS, "Write one byte."},
-    {"memoryReadInt8", pyReadInt8, METH_VARARGS, "Read signed 8-bit integer."},
-    {"memoryWriteInt8", pyWriteInt8, METH_VARARGS, "Write signed 8-bit integer."},
-    {"memoryReadInt16", pyReadInt16, METH_VARARGS, "Read signed 16-bit integer."},
-    {"memoryWriteInt16", pyWriteInt16, METH_VARARGS, "Write signed 16-bit integer."},
-    {"memoryReadInt32", pyReadInt32, METH_VARARGS, "Read signed 32-bit integer."},
-    {"memoryWriteInt32", pyWriteInt32, METH_VARARGS, "Write signed 32-bit integer."},
-    {"memoryReadInt64", pyReadInt64, METH_VARARGS, "Read signed 64-bit integer."},
-    {"memoryWriteInt64", pyWriteInt64, METH_VARARGS, "Write signed 64-bit integer."},
-    {"memoryReadUInt8", pyReadUInt8, METH_VARARGS, "Read unsigned 8-bit integer."},
-    {"memoryWriteUInt8", pyWriteUInt8, METH_VARARGS, "Write unsigned 8-bit integer."},
-    {"memoryReadUInt16", pyReadUInt16, METH_VARARGS, "Read unsigned 16-bit integer."},
-    {"memoryWriteUInt16", pyWriteUInt16, METH_VARARGS, "Write unsigned 16-bit integer."},
-    {"memoryReadUInt32", pyReadUInt32, METH_VARARGS, "Read unsigned 32-bit integer."},
-    {"memoryWriteUInt32", pyWriteUInt32, METH_VARARGS, "Write unsigned 32-bit integer."},
-    {"memoryReadUInt64", pyReadUInt64, METH_VARARGS, "Read unsigned 64-bit integer."},
-    {"memoryWriteUInt64", pyWriteUInt64, METH_VARARGS, "Write unsigned 64-bit integer."},
-    {"memoryReadFloat32", pyReadFloat32, METH_VARARGS, "Read 32-bit float."},
-    {"memoryWriteFloat32", pyWriteFloat32, METH_VARARGS, "Write 32-bit float."},
-    {"memoryReadFloat64", pyReadFloat64, METH_VARARGS, "Read 64-bit float."},
-    {"memoryWriteFloat64", pyWriteFloat64, METH_VARARGS, "Write 64-bit float."},
-    {"memoryReadEndian", pyMemoryReadEndian, METH_VARARGS, "Read a value with explicit byte order."},
-    {"memoryWriteEndian", pyMemoryWriteEndian, METH_VARARGS, "Write a value with explicit byte order."},
-    {"memoryTypeSize", pyMemoryTypeSize, METH_VARARGS, "Return a typed memory size."},
-    {"memoryTypeAlignment", pyMemoryTypeAlignment, METH_VARARGS, "Return a typed memory alignment."},
-    {"memoryBlockAllocate", pyMemoryBlockAllocate, METH_VARARGS, "Allocate a typed block."},
-    {"memoryBlockView", pyMemoryBlockView, METH_VARARGS, "Create a typed view."},
-    {"memoryBlockLength", pyMemoryBlockLength, METH_VARARGS, "Return typed block length."},
-    {"memoryBlockGet", pyMemoryBlockGet, METH_VARARGS, "Read typed block element."},
-    {"memoryBlockSet", pyMemoryBlockSet, METH_VARARGS, "Write typed block element."},
-    {"memoryStructSize", pyMemoryStructSize, METH_VARARGS, "Return native struct size."},
-    {"memoryStructAlignment", pyMemoryStructAlignment, METH_VARARGS, "Return native struct alignment."},
-    {"memoryStructFieldCount", pyMemoryStructFieldCount, METH_VARARGS, "Return native struct field count."},
-    {"memoryStructFieldType", pyMemoryStructFieldType, METH_VARARGS, "Return native struct field type."},
-    {"memoryStructAllocate", pyMemoryStructAllocate, METH_VARARGS, "Allocate native struct."},
-    {"memoryStructFieldOffset", [](PyObject *, PyObject *args) {
-        return pyMemoryStructField(nullptr, args, false);
-    }, METH_VARARGS, "Return native struct field offset."},
-    {"memoryStructFieldSize", [](PyObject *, PyObject *args) {
-        return pyMemoryStructField(nullptr, args, true);
-    }, METH_VARARGS, "Return native struct field size."},
-    {"memoryStructGet", pyMemoryStructGet, METH_VARARGS, "Read native struct field."},
-    {"memoryStructSet", pyMemoryStructSet, METH_VARARGS, "Write native struct field."},
-    {"sizeOf", pySizeOf, METH_VARARGS, "Return the size of a C type."},
+    {"refCreate", SAFE_NATIVE_METHOD(pyRefCreate), METH_VARARGS, "Create a native Lynxer reference cell."},
+    {"refGet", SAFE_NATIVE_METHOD(pyRefGet), METH_VARARGS, "Read a native Lynxer reference cell."},
+    {"refSet", SAFE_NATIVE_METHOD(pyRefSet), METH_VARARGS, "Write a native Lynxer reference cell."},
+    {"refFree", SAFE_NATIVE_METHOD(pyRefFree), METH_VARARGS, "Free a native Lynxer reference cell."},
+    {"nativeCall", SAFE_NATIVE_METHOD(pyNativeCall), METH_VARARGS, "Call a low-level native function address."},
+    {"ffiCall", SAFE_NATIVE_METHOD(pyFfiCall), METH_VARARGS, "Call a typed native function address."},
+    {"ffiCallback", SAFE_NATIVE_METHOD(pyFfiCallback), METH_VARARGS, "Create a native callback trampoline."},
+    {"ffiFreeCallback", SAFE_NATIVE_METHOD(pyFfiFreeCallback), METH_VARARGS, "Release a native callback trampoline."},
+    {"nativeModuleLoad", SAFE_NATIVE_METHOD(pyNativeModuleLoad), METH_VARARGS, "Load and initialize a Lynxer native module."},
+    {"nativeModuleClose", SAFE_NATIVE_METHOD(pyNativeModuleClose), METH_VARARGS, "Close a Lynxer native module."},
+    {"ffiLoadLibrary", SAFE_NATIVE_METHOD(pyFfiLoadLibrary), METH_VARARGS, "Load a dynamic library."},
+    {"ffiLookup", SAFE_NATIVE_METHOD(pyFfiLookup), METH_VARARGS, "Resolve a dynamic library symbol."},
+    {"ffiCloseLibrary", SAFE_NATIVE_METHOD(pyFfiCloseLibrary), METH_VARARGS, "Close a dynamic library."},
+    {"nativeThreadStart", SAFE_NATIVE_METHOD(pyThreadStart), METH_VARARGS, "Start a native thread running a Lynxer function."},
+    {"nativeThreadJoin", SAFE_NATIVE_METHOD(pyThreadJoin), METH_VARARGS, "Join a native Lynxer thread."},
+    {"nativeThreadIsAlive", SAFE_NATIVE_METHOD(pyThreadIsAlive), METH_VARARGS, "Check whether a native Lynxer thread is running."},
+    {"nativeThreadStatus", SAFE_NATIVE_METHOD(pyThreadStatus), METH_VARARGS, "Get the status of a native Lynxer thread."},
+    {"nativeThreadDetach", SAFE_NATIVE_METHOD(pyThreadDetach), METH_VARARGS, "Detach a native Lynxer thread."},
+    {"atomicLoad", SAFE_NATIVE_METHOD(pyAtomicLoad), METH_VARARGS, "Atomically load a native integer."},
+    {"atomicStore", SAFE_NATIVE_METHOD(pyAtomicStore), METH_VARARGS, "Atomically store a native integer."},
+    {"atomicAdd", SAFE_NATIVE_METHOD(pyAtomicAdd), METH_VARARGS, "Atomically add to a native integer."},
+    {"volatileRead", SAFE_NATIVE_METHOD(pyVolatileRead), METH_VARARGS, "Read native memory as volatile."},
+    {"volatileWrite", SAFE_NATIVE_METHOD(pyVolatileWrite), METH_VARARGS, "Write native memory as volatile."},
+    {"memoryProtect", SAFE_NATIVE_METHOD(pyMemoryProtect), METH_VARARGS, "Change native memory protection."},
+    {"memoryAllocate", SAFE_NATIVE_METHOD(pyMalloc), METH_VARARGS, "Allocate raw memory."},
+    {"memoryAllocateZeroed", SAFE_NATIVE_METHOD(pyCalloc), METH_VARARGS, "Allocate zero-initialized raw memory."},
+    {"memoryReallocate", SAFE_NATIVE_METHOD(pyRealloc), METH_VARARGS, "Resize raw memory."},
+    {"memoryFree", SAFE_NATIVE_METHOD(pyFree), METH_VARARGS, "Free raw memory."},
+    {"memorySet", SAFE_NATIVE_METHOD(pyMemset), METH_VARARGS, "Fill raw memory."},
+    {"memoryCopy", SAFE_NATIVE_METHOD(pyMemcpy), METH_VARARGS, "Copy raw memory."},
+    {"memoryReadByte", SAFE_NATIVE_METHOD(pyReadByte), METH_VARARGS, "Read one byte."},
+    {"memoryWriteByte", SAFE_NATIVE_METHOD(pyWriteByte), METH_VARARGS, "Write one byte."},
+    {"memoryReadInt8", SAFE_NATIVE_METHOD(pyReadInt8), METH_VARARGS, "Read signed 8-bit integer."},
+    {"memoryWriteInt8", SAFE_NATIVE_METHOD(pyWriteInt8), METH_VARARGS, "Write signed 8-bit integer."},
+    {"memoryReadInt16", SAFE_NATIVE_METHOD(pyReadInt16), METH_VARARGS, "Read signed 16-bit integer."},
+    {"memoryWriteInt16", SAFE_NATIVE_METHOD(pyWriteInt16), METH_VARARGS, "Write signed 16-bit integer."},
+    {"memoryReadInt32", SAFE_NATIVE_METHOD(pyReadInt32), METH_VARARGS, "Read signed 32-bit integer."},
+    {"memoryWriteInt32", SAFE_NATIVE_METHOD(pyWriteInt32), METH_VARARGS, "Write signed 32-bit integer."},
+    {"memoryReadInt64", SAFE_NATIVE_METHOD(pyReadInt64), METH_VARARGS, "Read signed 64-bit integer."},
+    {"memoryWriteInt64", SAFE_NATIVE_METHOD(pyWriteInt64), METH_VARARGS, "Write signed 64-bit integer."},
+    {"memoryReadUInt8", SAFE_NATIVE_METHOD(pyReadUInt8), METH_VARARGS, "Read unsigned 8-bit integer."},
+    {"memoryWriteUInt8", SAFE_NATIVE_METHOD(pyWriteUInt8), METH_VARARGS, "Write unsigned 8-bit integer."},
+    {"memoryReadUInt16", SAFE_NATIVE_METHOD(pyReadUInt16), METH_VARARGS, "Read unsigned 16-bit integer."},
+    {"memoryWriteUInt16", SAFE_NATIVE_METHOD(pyWriteUInt16), METH_VARARGS, "Write unsigned 16-bit integer."},
+    {"memoryReadUInt32", SAFE_NATIVE_METHOD(pyReadUInt32), METH_VARARGS, "Read unsigned 32-bit integer."},
+    {"memoryWriteUInt32", SAFE_NATIVE_METHOD(pyWriteUInt32), METH_VARARGS, "Write unsigned 32-bit integer."},
+    {"memoryReadUInt64", SAFE_NATIVE_METHOD(pyReadUInt64), METH_VARARGS, "Read unsigned 64-bit integer."},
+    {"memoryWriteUInt64", SAFE_NATIVE_METHOD(pyWriteUInt64), METH_VARARGS, "Write unsigned 64-bit integer."},
+    {"memoryReadFloat32", SAFE_NATIVE_METHOD(pyReadFloat32), METH_VARARGS, "Read 32-bit float."},
+    {"memoryWriteFloat32", SAFE_NATIVE_METHOD(pyWriteFloat32), METH_VARARGS, "Write 32-bit float."},
+    {"memoryReadFloat64", SAFE_NATIVE_METHOD(pyReadFloat64), METH_VARARGS, "Read 64-bit float."},
+    {"memoryWriteFloat64", SAFE_NATIVE_METHOD(pyWriteFloat64), METH_VARARGS, "Write 64-bit float."},
+    {"memoryReadEndian", SAFE_NATIVE_METHOD(pyMemoryReadEndian), METH_VARARGS, "Read a value with explicit byte order."},
+    {"memoryWriteEndian", SAFE_NATIVE_METHOD(pyMemoryWriteEndian), METH_VARARGS, "Write a value with explicit byte order."},
+    {"memoryTypeSize", SAFE_NATIVE_METHOD(pyMemoryTypeSize), METH_VARARGS, "Return a typed memory size."},
+    {"memoryTypeAlignment", SAFE_NATIVE_METHOD(pyMemoryTypeAlignment), METH_VARARGS, "Return a typed memory alignment."},
+    {"memoryBlockAllocate", SAFE_NATIVE_METHOD(pyMemoryBlockAllocate), METH_VARARGS, "Allocate a typed block."},
+    {"memoryBlockView", SAFE_NATIVE_METHOD(pyMemoryBlockView), METH_VARARGS, "Create a typed view."},
+    {"memoryBlockLength", SAFE_NATIVE_METHOD(pyMemoryBlockLength), METH_VARARGS, "Return typed block length."},
+    {"memoryBlockGet", SAFE_NATIVE_METHOD(pyMemoryBlockGet), METH_VARARGS, "Read typed block element."},
+    {"memoryBlockSet", SAFE_NATIVE_METHOD(pyMemoryBlockSet), METH_VARARGS, "Write typed block element."},
+    {"memoryStructSize", SAFE_NATIVE_METHOD(pyMemoryStructSize), METH_VARARGS, "Return native struct size."},
+    {"memoryStructAlignment", SAFE_NATIVE_METHOD(pyMemoryStructAlignment), METH_VARARGS, "Return native struct alignment."},
+    {"memoryStructFieldCount", SAFE_NATIVE_METHOD(pyMemoryStructFieldCount), METH_VARARGS, "Return native struct field count."},
+    {"memoryStructFieldType", SAFE_NATIVE_METHOD(pyMemoryStructFieldType), METH_VARARGS, "Return native struct field type."},
+    {"memoryStructAllocate", SAFE_NATIVE_METHOD(pyMemoryStructAllocate), METH_VARARGS, "Allocate native struct."},
+    {"memoryStructFieldOffset", SAFE_NATIVE_METHOD(pyMemoryStructFieldOffset), METH_VARARGS, "Return native struct field offset."},
+    {"memoryStructFieldSize", SAFE_NATIVE_METHOD(pyMemoryStructFieldSize), METH_VARARGS, "Return native struct field size."},
+    {"memoryStructGet", SAFE_NATIVE_METHOD(pyMemoryStructGet), METH_VARARGS, "Read native struct field."},
+    {"memoryStructSet", SAFE_NATIVE_METHOD(pyMemoryStructSet), METH_VARARGS, "Write native struct field."},
+    {"sizeOf", SAFE_NATIVE_METHOD(pySizeOf), METH_VARARGS, "Return the size of a C type."},
     {nullptr, nullptr, 0, nullptr}
 };
 
@@ -1944,5 +2941,23 @@ PyModuleDef module = {
 } // namespace
 
 PyMODINIT_FUNC PyInit_cpp() {
-    return PyModule_Create(&module);
+    FfiCallbackCallableType.tp_name = "lynxer.cpp.FfiCallbackCallable";
+    FfiCallbackCallableType.tp_basicsize = sizeof(FfiCallbackCallable);
+    FfiCallbackCallableType.tp_flags = Py_TPFLAGS_DEFAULT;
+    FfiCallbackCallableType.tp_dealloc =
+        reinterpret_cast<destructor>(ffiCallbackCallableDealloc);
+    FfiCallbackCallableType.tp_call =
+        reinterpret_cast<ternaryfunc>(ffiCallbackCallableCall);
+    FfiCallbackCallableType.tp_free = PyObject_Free;
+    if (PyType_Ready(&FfiCallbackCallableType) < 0) return nullptr;
+    PyObject *created = PyModule_Create(&module);
+    if (!created) return nullptr;
+    Py_INCREF(&FfiCallbackCallableType);
+    if (PyModule_AddObject(created, "_FfiCallbackCallable",
+                           reinterpret_cast<PyObject *>(&FfiCallbackCallableType)) < 0) {
+        Py_DECREF(&FfiCallbackCallableType);
+        Py_DECREF(created);
+        return nullptr;
+    }
+    return created;
 }

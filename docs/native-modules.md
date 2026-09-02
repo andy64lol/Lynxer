@@ -99,6 +99,9 @@ closed; their namespace owns their lifetime. Invalid handles and failed
 registrations produce normal Lynxer runtime errors. The low-level FFI entry
 points are `ffiLoadLibrary`,
 `ffiLookup`, `ffiCall`, `ffiCallback`, `ffiFreeCallback`, and
-`ffiCloseLibrary`; unsupported callback signatures fail clearly rather than
-falling back to Python `ctypes`. Dependency inspection is informational and
+`ffiCloseLibrary`; unsupported callback signatures fail clearly. Dependency inspection is informational and
 returns an empty list when host linker tooling cannot inspect a loaded module.
+Native calls use the host ABI through `ctypes`/libffi rather than casting raw
+addresses to unrelated C++ function-pointer types. Each callback has its own
+managed trampoline, and callback `cstring` returns are rejected because their
+storage cannot safely outlive the callback invocation.
