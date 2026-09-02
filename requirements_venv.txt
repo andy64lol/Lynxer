@@ -16,3 +16,4 @@ lupa
 rich
 click<8.4
 typer
+system-calls

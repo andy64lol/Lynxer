@@ -17,6 +17,12 @@ COLLECT_ALL := $(shell \
 
 CYTHON_COLLECT_ALL := --collect-all=Cython --collect-all=setuptools
 
+# The named syscall built-ins resolve their numbers from the system-calls
+# tables, so every build installs the package and bundles its architecture
+# tables (loaded through importlib, invisible to PyInstaller otherwise).
+SYSTEM_CALLS_DEP := system-calls
+SYSTEM_CALLS := --hidden-import lynxer.syscalls --collect-submodules system_calls
+
 .PHONY: venv build buildLite buildCpp test validate check clean help
 
 # ----------------------------------------------------------------------
@@ -57,6 +63,9 @@ build: buildCpp
 	@echo "Installing dependencies..."
 	@$(VENV_PIP) install --upgrade -r requirements_venv.txt
 
+	@echo "Installing the Linux syscall tables..."
+	@$(VENV_PIP) install --upgrade $(SYSTEM_CALLS_DEP)
+
 	@echo "Patching Arcade PyInstaller hook... (due to a bug)"
 	@HOOK=$$($(VENV_PY) -c 'import arcade, os; print(os.path.join(os.path.dirname(arcade.__file__), "__pyinstaller", "hook-arcade.py"))'); \
 	if [ -f "$$HOOK" ]; then \
@@ -77,6 +86,7 @@ build: buildCpp
 		$(COLLECT_ALL) \
 		--name lynxer \
 		--hidden-import lynxer.cpp \
+		$(SYSTEM_CALLS) \
 		$(WARNING_DATA) \
 		--add-data "lynxer/stdlib:stdlib" \
 		lynxer/shell.py
@@ -91,6 +101,9 @@ buildLite: buildCpp
 	@echo "Installing PyInstaller and Cython runtime dependencies..."
 	@$(VENV_PIP) install --upgrade pyinstaller cython setuptools
 
+	@echo "Installing the Linux syscall tables..."
+	@$(VENV_PIP) install --upgrade $(SYSTEM_CALLS_DEP)
+
 	@echo "Selecting pure stdlib .lynx modules..."
 	@rm -rf build/stdlib_pure || true
 	@$(VENV_PY) scripts/select_pure_stdlib.py lynxer/stdlib build/stdlib_pure
@@ -103,6 +116,7 @@ buildLite: buildCpp
 		--hidden-import Cython.Build.Inline \
 		--name lynxer-lite \
 		--hidden-import lynxer.cpp \
+		$(SYSTEM_CALLS) \
 		$(WARNING_DATA) \
 		--add-data "build/stdlib_pure:stdlib" \
 		lynxer/shell.py

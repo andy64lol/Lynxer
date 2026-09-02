@@ -63,8 +63,8 @@ memoryFree(address);
 
 The named `syscall*` built-ins are documented in the complete
 [Linux syscall reference](syscalls.md). They are always available as language
-built-ins, are backed by the native C++ extension, and are available at runtime
-on Linux only.
+built-ins, are dispatched through `ctypes` with syscall numbers from the host
+architecture's Linux syscall table, and are available at runtime on Linux only.
 
 ### Process API
 

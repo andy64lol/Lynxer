@@ -33,7 +33,7 @@ if not list(PACKAGE_ROOT.glob("cpp*.so")):
         raise SystemExit("could not build the native extension")
 sys.path.insert(0, str(ROOT))
 
-from lynxer import builtins, lynxer  # noqa: E402
+from lynxer import builtins, lynxer, syscalls  # noqa: E402
 from lynxer.bytecode import BYTECODE_MAGIC, BYTECODE_VERSION, load_bytecode  # noqa: E402
 from lynxer.bytecode import compile_to_bytecode, run_bytecode  # noqa: E402
 
@@ -70,6 +70,23 @@ def validate_builtin_coverage():
         raise ValidationFailure("built-ins without execute handlers: " + ", ".join(missing))
     if len(set(builtins.BUILTIN_FUNCTION_NAMES)) != len(builtins.BUILTIN_FUNCTION_NAMES):
         raise ValidationFailure("built-in registry contains duplicate names")
+
+
+def validate_syscall_layer():
+    architecture = syscalls.host_architecture()
+    total = len(syscalls.SYSCALL_TABLE)
+    missing = syscalls.unavailable()
+    print(
+        f"  host {architecture}, {syscalls.WORD_BYTES * 8}-bit syscall words: "
+        f"{total - len(missing)}/{total} built-ins available"
+    )
+    if missing:
+        print("  unavailable on this architecture: " + ", ".join(missing))
+    if len(missing) == total:
+        raise ValidationFailure(
+            "no syscall built-ins can be dispatched; install the "
+            f"'system-calls' package and check support for {architecture}"
+        )
 
 
 def validate_source_tree():
@@ -171,6 +188,7 @@ def main(argv=None):
     validate_exe = "--validate-executeable" in argv or "--validate-executable" in argv
     tests = [
         ("built-in handler coverage", validate_builtin_coverage),
+        ("Linux syscall layer", validate_syscall_layer),
         ("stdlib source tree", validate_source_tree),
         ("interpreter smoke", validate_interpreter_smoke),
         ("bytecode round-trip and safety", validate_bytecode_security),

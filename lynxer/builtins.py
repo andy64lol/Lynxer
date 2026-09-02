@@ -26,6 +26,7 @@ from typing import Any, TypeVar, cast
 
 _runtime = importlib.import_module(".lynxer", package=__package__)
 _MEMORY_LIB = importlib.import_module(".cpp", package=__package__)
+_syscalls = importlib.import_module(".syscalls", package=__package__)
 
 
 BaseFunction = _runtime.BaseFunction
@@ -279,39 +280,9 @@ atexit.register(_close_files)
 atexit.register(_close_sockets)
 atexit.register(_close_async_resources)
 
-SYSCALL_BUILTIN_NAMES = (
-    "syscallRead", "syscallWrite", "syscallOpenAt", "syscallClose",
-    "syscallReadVector", "syscallWriteVector", "syscallSeekFile",
-    "syscallGetFileStatus", "syscallGetFileStatusAt", "syscallTruncateFile",
-    "syscallSynchronizeFile", "syscallSynchronizeFileData",
-    "syscallDuplicateFileDescriptor", "syscallDuplicateFileDescriptorAt",
-    "syscallCreatePipe", "syscallControlFileDescriptor",
-    "syscallGetDirectoryEntries", "syscallReadSymbolicLink",
-    "syscallCreateDirectoryAt", "syscallRemoveFileAt", "syscallRenameFileAt",
-    "syscallCreateHardLinkAt", "syscallCreateSymbolicLinkAt",
-    "syscallChangeFilePermissions", "syscallChangeFileDescriptorPermissions",
-    "syscallChangeFileOwner", "syscallChangeFileDescriptorOwner",
-    "syscallMemoryMap", "syscallMemoryUnmap", "syscallMemoryProtect",
-    "syscallMemoryAdvise", "syscallMemoryRemap", "syscallAdjustProgramBreak",
-    "syscallExecuteProgram", "syscallExecuteProgramAt", "syscallExitProcess",
-    "syscallExitAllThreads", "syscallWaitForProcess", "syscallGetProcessId",
-    "syscallGetParentProcessId", "syscallSendSignal", "syscallCreateThread",
-    "syscallGetThreadId", "syscallWaitOnMemory", "syscallSetThreadIdAddress",
-    "syscallSetRobustThreadList", "syscallGetRobustThreadList",
-    "syscallYieldProcessor", "syscallGetClockTime",
-    "syscallGetClockResolution", "syscallSleep", "syscallGetRandomBytes",
-    "syscallCreateSocket", "syscallCreateSocketPair", "syscallBindSocket",
-    "syscallListenSocket", "syscallAcceptConnection", "syscallConnectSocket",
-    "syscallSendData", "syscallReceiveData", "syscallSendMessage",
-    "syscallReceiveMessage", "syscallShutdownSocket",
-    "syscallGetSocketAddress", "syscallGetPeerAddress",
-    "syscallSetSocketOption", "syscallGetSocketOption",
-    "syscallPollFileDescriptors", "syscallCreateEventPoll",
-    "syscallControlEventPoll", "syscallWaitForEvents",
-    "syscallGetSystemInformation", "syscallGetResourceUsage",
-    "syscallGetResourceLimit", "syscallSetResourceLimit",
-    "syscallControlProcess",
-)
+# Every name in ``_syscalls.SYSCALL_TABLE`` becomes a built-in, so the table
+# stays the single source of truth for the syscall layer.
+SYSCALL_BUILTIN_NAMES = tuple(_syscalls.SYSCALL_TABLE)
 
 
 def _memory_type(value):
@@ -496,7 +467,7 @@ class BuiltInFunction(BaseFunction):
         )
 
     def _cpp(self, method, values, exec_ctx):
-        """Call a C++ memory primitive and translate its exception to Lynxer."""
+        """Call a native primitive and translate its exception to Lynxer."""
         try:
             return method(*values)
         except (RuntimeError, ValueError, OverflowError, MemoryError, OSError) as exc:
@@ -4194,19 +4165,22 @@ BuiltinHandler = Callable[[BuiltInFunction, list[Any], Any], Any]
 # programs and imported modules.  Adding a function here and registering its
 # handler below is all that is needed to expose it everywhere.
 def _execute_named_syscall(self, args, exec_ctx):
-    """Dispatch a named Linux syscall through the C++ extension.
+    """Dispatch a named Linux syscall through the syscall layer.
 
     The language-level API deliberately uses positional integer arguments,
-    while the extension receives a list so one validated dispatcher can
+    while the dispatcher receives a list so one validated entry point can
     implement every syscall wrapper.
     """
-    if len(args) > 6 or not all(_native_int(value) for value in args):
+    if len(args) > _syscalls.MAX_SYSCALL_ARGS or not all(
+        _native_int(value) for value in args
+    ):
         return self._failure(
             exec_ctx,
             f"{self.name}(...) expects up to six integer arguments",
         )
-    method = getattr(_MEMORY_LIB, self.name)
-    result = self._cpp(method, [[value.value for value in args]], exec_ctx)
+    result = self._cpp(
+        _syscalls.invoke, [self.name, [value.value for value in args]], exec_ctx
+    )
     if isinstance(result, RTResult):
         return result
     return RTResult().success(Number(result))

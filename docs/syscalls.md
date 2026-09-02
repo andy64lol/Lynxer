@@ -1,8 +1,8 @@
 # Linux Syscall Built-ins
 
 Lynxer exposes a named, low-level wrapper for each syscall in the table below.
-The wrappers are implemented by the native C++ extension and select the
-appropriate Linux syscall number for the host architecture.
+Each wrapper resolves the Linux syscall number for the host architecture from
+the `system-calls` tables and issues the call through `ctypes`.
 
 ## Naming
 
@@ -23,6 +23,11 @@ The wrappers return the syscall's result as an integer. A result of `-1` is
 reported as a Lynxer runtime error containing the Linux `errno` message. These
 are raw Linux ABI calls: argument layouts, flags, structures, and pointer
 lifetimes are the caller's responsibility. They are available on Linux only.
+
+Not every architecture provides every syscall in the tables below. Calling one
+that the host architecture is missing, such as `syscallPollFileDescriptors` on
+arm64, where the kernel only exposes `ppoll`, is a runtime error naming the
+syscall and the architecture.
 
 For example:
 

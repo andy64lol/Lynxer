@@ -244,7 +244,7 @@ def main():
         print()
         return 0
     if argv[0] in ("-v", "--version", "-version", "--v"):
-        print("Lynxer 0.1.7")
+        print("Lynxer 0.1.8")
         return 0
     if argv[0] in ("--validate-executeable", "--validate-executable"):
         validator = os.path.join(_here, "validate.py")
