@@ -1983,20 +1983,25 @@ PyObject *pyThreadJoin(PyObject *, PyObject *args) {
     if (!PyArg_ParseTuple(args, "O", &handle)) return nullptr;
     auto thread = findNativeThread(handle);
     if (!thread) return nullptr;
-    std::unique_lock<std::mutex> lifecycleLock(thread->lifecycleMutex);
-    if (thread->detached) {
-        PyErr_SetString(PyExc_RuntimeError, "cannot join a detached native thread");
-        return nullptr;
+    {
+        std::lock_guard<std::mutex> lifecycleLock(thread->lifecycleMutex);
+        if (thread->detached) {
+            PyErr_SetString(PyExc_RuntimeError, "cannot join a detached native thread");
+            return nullptr;
+        }
+        if (thread->joined) {
+            PyErr_SetString(PyExc_RuntimeError, "native thread has already been joined");
+            return nullptr;
+        }
+        if (thread->worker.get_id() == std::this_thread::get_id()) {
+            PyErr_SetString(PyExc_RuntimeError, "native thread cannot join itself");
+            return nullptr;
+        }
+        thread->joined = true;
     }
-    if (thread->joined) {
-        PyErr_SetString(PyExc_RuntimeError, "native thread has already been joined");
-        return nullptr;
-    }
-    if (thread->worker.get_id() == std::this_thread::get_id()) {
-        PyErr_SetString(PyExc_RuntimeError, "native thread cannot join itself");
-        return nullptr;
-    }
-    thread->joined = true;
+    // The lifecycle lock must be released before waiting: the worker takes it
+    // again in its own cleanup, so holding it across join() deadlocks both
+    // threads (join waits for the worker, the worker waits for the lock).
     std::string joinError;
     PyThreadState *savedState = PyEval_SaveThread();
     try {
@@ -2008,11 +2013,11 @@ PyObject *pyThreadJoin(PyObject *, PyObject *args) {
     }
     PyEval_RestoreThread(savedState);
     if (!joinError.empty()) {
+        std::lock_guard<std::mutex> lifecycleLock(thread->lifecycleMutex);
         thread->joined = false;
         PyErr_SetString(PyExc_RuntimeError, joinError.c_str());
         return nullptr;
     }
-    lifecycleLock.unlock();
     {
         std::lock_guard<std::mutex> lock(nativeThreadsMutex);
         auto it = nativeThreads.find(thread->handle);
