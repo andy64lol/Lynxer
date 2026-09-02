@@ -8,8 +8,10 @@ Files use the `.lynx` extension.
 
 > **Linux only:** Lynxer is currently supported for Linux users and Linux
 > distributions. The native C++ extension, standalone bundler, and Linux
-> system-level `os` calls require Linux. Only x86-64 Linux
-> hosts are supported; other operating systems or architectures are not supported.
+> system-level `os` calls require Linux. Native builds support 64-bit
+> x86-64 (`amd64`) and ARM64 (`aarch64`) hosts. Builds fail early on other
+> operating systems, architectures, or Python ABIs rather than mixing syscall
+> tables or native extensions.
 
 ```c
 global setup(){

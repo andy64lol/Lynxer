@@ -6,7 +6,10 @@ Download the latest pre-built binary for your platform from the
 [GitHub Releases page](https://github.com/your-org/lynxer/releases).
 
 No Python installation required. Unzip, place `lynxer` somewhere on your `PATH`, and you're done.
-The native build targets the Linux host architecture. Only x86-64 Linux hosts are supported; other operating systems or architectures are not supported.
+The native build targets the Linux host architecture. Supported hosts are
+64-bit x86-64 (`amd64`) and ARM64 (`aarch64`). Other operating systems,
+architectures, and Python ABIs are rejected before the build starts so their
+native extensions and syscall tables cannot be mixed.
 
 ```bash
 lynxer --version   # confirm it works
@@ -35,6 +38,9 @@ make build
 
 The build automatically compiles `lynxer/cpp.cpp` for the active Python
 interpreter and includes the resulting native extension in the executable.
+It also installs and bundles the architecture-aware `system-calls` tables for
+the active Linux host. Run `make platform-check` to perform the same platform
+check without building.
 To compile only that extension during development, run:
 
 ```bash

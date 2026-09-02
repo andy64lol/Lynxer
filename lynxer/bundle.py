@@ -6,28 +6,16 @@ import os
 import shutil
 import subprocess
 import sys
-import platform
 from pathlib import Path
 
 from .bytecode import compile_to_bytecode
+from .syscalls import host_architecture, require_supported_platform
 
 
 def _linux_architecture() -> str:
     """Return the normalized architecture PyInstaller will build for."""
-    machine = platform.machine().lower()
-    aliases = {
-        "x86_64": "x86_64",
-        "amd64": "x86_64",
-        "aarch64": "arm64",
-        "arm64": "arm64",
-    }
-    architecture = aliases.get(machine)
-    if sys.platform.startswith("linux") and architecture is None:
-        raise RuntimeError(
-            f"Linux bundling is supported on x86_64 and arm64 hosts; "
-            f"detected '{machine or 'unknown'}'"
-        )
-    return architecture or machine or "unknown"
+    require_supported_platform()
+    return host_architecture()
 
 
 def _launcher_source(bytecode_name: str) -> str:

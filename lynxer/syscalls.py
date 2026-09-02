@@ -6,7 +6,8 @@ supporting a syscall is one table entry here rather than one wrapper in the
 native C++ extension.
 
 Numbers and argument widths are always taken from the host: an x86-64 build
-never resolves arm64 numbers and a 32-bit host never passes 64-bit words.
+never resolves arm64 numbers, and unsupported Python ABIs are rejected before
+any call is dispatched.
 """
 
 from __future__ import annotations
@@ -22,10 +23,12 @@ except ImportError:  # pragma: no cover - every build installs it
     system_calls = None
 
 MAX_SYSCALL_ARGS = 6
+SUPPORTED_ARCHITECTURES = frozenset({"arm64", "x86_64"})
+SUPPORTED_PLATFORM = "linux"
 
 # ``uname`` machine names that differ from the ``system_calls`` table names.
-# A 64-bit arm64 kernel and an x86-64 kernel must each pick their own table,
-# and 32-bit userspace on those CPUs (armv8l, i686) must pick the 32-bit one.
+# An arm64 kernel and an x86-64 kernel must each pick their own table. The
+# 32-bit aliases remain normalized for clear unsupported-platform errors.
 _ARCH_ALIASES = {
     "amd64": "x86_64",
     "x86-64": "x86_64",
@@ -41,9 +44,8 @@ _ARCH_ALIASES = {
     "ppc": "powerpc",
 }
 
-# A syscall argument is one machine word.  Masking to the host word size keeps
-# pointers readable by the kernel on 32-bit hosts instead of handing it a
-# 64-bit value split across two argument slots.
+# A syscall argument is one machine word. Masking to the host word size keeps
+# pointers and encoded negative arguments in the native ABI representation.
 WORD_BYTES = ctypes.sizeof(ctypes.c_void_p)
 _WORD_BITS = WORD_BYTES * 8
 _WORD_MASK = (1 << _WORD_BITS) - 1
@@ -138,7 +140,41 @@ def host_architecture() -> str:
     return _ARCH_ALIASES.get(machine, machine)
 
 
+def platform_error() -> str | None:
+    """Return a clear error when this runtime cannot issue supported syscalls.
+
+    The syscall tables and the native ``syscall(2)`` ABI are tied to the
+    running Linux architecture.  In particular, a 32-bit Python process on a
+    64-bit kernel must not accidentally use the 64-bit table.
+    """
+    if not sys.platform.startswith(SUPPORTED_PLATFORM):
+        return "named syscalls require a Linux runtime"
+
+    architecture = host_architecture()
+    if architecture not in SUPPORTED_ARCHITECTURES:
+        supported = ", ".join(sorted(SUPPORTED_ARCHITECTURES))
+        return (
+            f"unsupported Linux architecture '{architecture or 'unknown'}'; "
+            f"supported architectures are {supported}"
+        )
+    if WORD_BYTES != 8:
+        return (
+            f"unsupported {WORD_BYTES * 8}-bit Python ABI on {architecture}; "
+            "Lynxer syscall builds require a 64-bit Python runtime"
+        )
+    return None
+
+
+def require_supported_platform() -> str:
+    """Validate and return the normalized architecture for this runtime."""
+    error = platform_error()
+    if error is not None:
+        raise RuntimeError(error)
+    return host_architecture()
+
+
 def _load_libc() -> ctypes.CDLL:
+    require_supported_platform()
     libc = ctypes.CDLL(None, use_errno=True)
     try:
         libc.syscall
@@ -154,20 +190,21 @@ def _load_libc() -> ctypes.CDLL:
 
 _libc: ctypes.CDLL | None = None
 _table = None
-_cache: dict[str, int] = {}
+_cache: dict[tuple[str, str], int] = {}
 
 
 def _syscall_number(name: str) -> int:
     """Return the host architecture's number for a Linux syscall name."""
     global _table
-    number = _cache.get(name)
+    architecture = require_supported_platform()
+    cache_key = (architecture, name)
+    number = _cache.get(cache_key)
     if number is not None:
         return number
     if system_calls is None:
         raise RuntimeError("the 'system-calls' package is required for named syscalls")
     if _table is None:
         _table = system_calls.syscalls()
-    architecture = host_architecture()
     try:
         number = _table.get(name, architecture)
     except system_calls.NoSuchSystemCall:
@@ -180,7 +217,7 @@ def _syscall_number(name: str) -> int:
         raise RuntimeError(
             f"syscalls are not available on architecture {architecture}"
         ) from None
-    _cache[name] = number
+    _cache[cache_key] = number
     return number
 
 
@@ -194,7 +231,7 @@ def unavailable() -> list[str]:
     for builtin, name in SYSCALL_TABLE.items():
         try:
             _syscall_number(name)
-        except (RuntimeError, NotImplementedError):
+        except (RuntimeError, NotImplementedError, TypeError):
             missing.append(builtin)
     return sorted(missing)
 
@@ -216,10 +253,13 @@ def invoke(builtin: str, args: Sequence[int]) -> int:
     :class:`OSError` carrying the Linux ``errno``.
     """
     global _libc
-    if not sys.platform.startswith("linux"):
-        raise NotImplementedError("named syscalls are only available on Linux")
+    require_supported_platform()
+    if builtin not in SYSCALL_TABLE:
+        raise ValueError(f"unknown syscall built-in '{builtin}'")
     if len(args) > MAX_SYSCALL_ARGS:
         raise ValueError("syscalls accept at most six arguments")
+    if any(isinstance(arg, bool) or not isinstance(arg, int) for arg in args):
+        raise TypeError("syscall arguments must be integers")
     number = _syscall_number(SYSCALL_TABLE[builtin])
     if _libc is None:
         _libc = _load_libc()

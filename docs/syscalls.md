@@ -24,6 +24,11 @@ reported as a Lynxer runtime error containing the Linux `errno` message. These
 are raw Linux ABI calls: argument layouts, flags, structures, and pointer
 lifetimes are the caller's responsibility. They are available on Linux only.
 
+Lynxer currently permits these wrappers only on 64-bit Linux x86-64
+(`amd64`) and ARM64 (`aarch64`) runtimes. The runtime normalizes those machine
+names before looking up numbers, and refuses unsupported architectures or
+32-bit Python ABIs instead of dispatching with the wrong table.
+
 Not every architecture provides every syscall in the tables below. Calling one
 that the host architecture is missing, such as `syscallPollFileDescriptors` on
 arm64, where the kernel only exposes `ppoll`, is a runtime error naming the

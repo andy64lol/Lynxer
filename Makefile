@@ -21,9 +21,9 @@ CYTHON_COLLECT_ALL := --collect-all=Cython --collect-all=setuptools
 # tables, so every build installs the package and bundles its architecture
 # tables (loaded through importlib, invisible to PyInstaller otherwise).
 SYSTEM_CALLS_DEP := system-calls
-SYSTEM_CALLS := --hidden-import lynxer.syscalls --collect-submodules system_calls
+SYSTEM_CALLS := --hidden-import system_calls --hidden-import lynxer.syscalls --collect-submodules system_calls
 
-.PHONY: venv build buildLite buildCpp test validate check clean help
+.PHONY: venv platform-check build buildLite buildCpp test validate check clean help
 
 # ----------------------------------------------------------------------
 # Virtual environment
@@ -59,7 +59,11 @@ check: test
 # Full build
 # ----------------------------------------------------------------------
 
-build: buildCpp
+platform-check: venv
+	@echo "Checking Linux build platform..."
+	@$(VENV_PY) -c 'from lynxer.syscalls import require_supported_platform, WORD_BYTES; architecture = require_supported_platform(); print(f"  -> {architecture} ({WORD_BYTES * 8}-bit Python ABI)")'
+
+build: platform-check buildCpp
 	@echo "Installing dependencies..."
 	@$(VENV_PIP) install --upgrade -r requirements_venv.txt
 
@@ -97,7 +101,7 @@ build: buildCpp
 # Lite build
 # ----------------------------------------------------------------------
 
-buildLite: buildCpp
+buildLite: platform-check buildCpp
 	@echo "Installing PyInstaller and Cython runtime dependencies..."
 	@$(VENV_PIP) install --upgrade pyinstaller cython setuptools
 
@@ -152,6 +156,7 @@ help:
 	@echo "  make build"
 	@echo "  make buildLite"
 	@echo "  make buildCpp"
+	@echo "  make platform-check"
 	@echo "  make venv"
 	@echo "  make test"
 	@echo "  make check"
