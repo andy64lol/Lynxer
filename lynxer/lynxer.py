@@ -10276,6 +10276,21 @@ def _interpreter_error(fn, text, context_name, exc):
 
 # run
 
+def _join_outstanding_native_threads():
+    """Wait for native threads the program started but never joined.
+
+    A worker calls back into Python, so it must finish while the interpreter is
+    still alive; leaving one behind races the teardown and aborts the process.
+    """
+    module = sys.modules.get("lynxer.cpp") or sys.modules.get("cpp")
+    if module is None:
+        return
+    try:
+        module.nativeThreadJoinAll()
+    except Exception:
+        pass
+
+
 def run(fn, text, suppress_deprecation_warnings=False):
     global _forever_delay, _forever_warning_suppressed, _setup_in_progress
     global _main_override, _deprecation_warning_suppressed
@@ -10313,8 +10328,10 @@ def run(fn, text, suppress_deprecation_warnings=False):
         result = interpreter.visit(ast.node, context)
     except Exception as exc:
         _flush_deprecation_warnings()
+        _join_outstanding_native_threads()
         return None, _interpreter_error(fn, text, "<program>", exc)
     _flush_deprecation_warnings()
+    _join_outstanding_native_threads()
     return result.value, result.error
 
 def run_file(fn, text, symbol_table, execute_main=False):

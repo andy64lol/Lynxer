@@ -1862,6 +1862,45 @@ std::shared_ptr<NativeThread> findNativeThread(PyObject *handle) {
     return it->second;
 }
 
+// A Lynxer program may start a thread and never join or detach it.  Such a
+// worker still calls back into Python, so it has to finish before the
+// interpreter goes away; otherwise it touches a half-torn-down runtime (or
+// destroys a joinable std::thread, which aborts the process).
+void joinOutstandingThreads() {
+    std::vector<std::shared_ptr<NativeThread>> pending;
+    {
+        std::lock_guard<std::mutex> lock(nativeThreadsMutex);
+        for (const auto &entry : nativeThreads) pending.push_back(entry.second);
+    }
+    for (auto &thread : pending) {
+        {
+            std::lock_guard<std::mutex> lifecycleLock(thread->lifecycleMutex);
+            if (thread->joined || thread->detached) continue;
+            if (!thread->worker.joinable()) continue;
+        }
+        // The lifecycle lock must stay free: the worker takes it in cleanup.
+        PyThreadState *savedState = PyEval_SaveThread();
+        try {
+            thread->worker.join();
+        } catch (...) {
+        }
+        PyEval_RestoreThread(savedState);
+        {
+            std::lock_guard<std::mutex> lock(nativeThreadsMutex);
+            auto it = nativeThreads.find(thread->handle);
+            if (it != nativeThreads.end() && it->second == thread) {
+                nativeThreads.erase(it);
+            }
+        }
+    }
+}
+
+PyObject *pyThreadJoinAll(PyObject *, PyObject *args) {
+    if (!PyArg_ParseTuple(args, "")) return nullptr;
+    joinOutstandingThreads();
+    Py_RETURN_NONE;
+}
+
 void finishDetachedThread(const std::shared_ptr<NativeThread> &thread) {
     bool detached;
     {
@@ -2879,6 +2918,7 @@ PyMethodDef methods[] = {
     {"nativeThreadIsAlive", SAFE_NATIVE_METHOD(pyThreadIsAlive), METH_VARARGS, "Check whether a native Lynxer thread is running."},
     {"nativeThreadStatus", SAFE_NATIVE_METHOD(pyThreadStatus), METH_VARARGS, "Get the status of a native Lynxer thread."},
     {"nativeThreadDetach", SAFE_NATIVE_METHOD(pyThreadDetach), METH_VARARGS, "Detach a native Lynxer thread."},
+    {"nativeThreadJoinAll", SAFE_NATIVE_METHOD(pyThreadJoinAll), METH_VARARGS, "Wait for every native thread that was neither joined nor detached."},
     {"atomicLoad", SAFE_NATIVE_METHOD(pyAtomicLoad), METH_VARARGS, "Atomically load a native integer."},
     {"atomicStore", SAFE_NATIVE_METHOD(pyAtomicStore), METH_VARARGS, "Atomically store a native integer."},
     {"atomicAdd", SAFE_NATIVE_METHOD(pyAtomicAdd), METH_VARARGS, "Atomically add to a native integer."},
