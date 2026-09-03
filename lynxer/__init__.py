@@ -5,6 +5,11 @@ Keep package exports lazy so importing a submodule such as
 ``lynxer.builtins`` does not eagerly start the interpreter first.
 """
 
+# The import cycles below (``__init__`` <-> ``bytecode``/``lynxer``) only
+# exist for the type checker: both submodules are imported lazily by
+# ``__getattr__`` at runtime, which is what keeps interpreter startup cheap.
+# pyright: reportImportCycles=false
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:

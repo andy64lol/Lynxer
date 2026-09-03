@@ -6,14 +6,15 @@ import string
 import sys
 import textwrap
 import warnings
+from types import ModuleType
 from typing import TYPE_CHECKING, Any, ClassVar
 
 if TYPE_CHECKING:
     from .builtins import BuiltInFunction
 
 try:
-    from strings_with_arrows import string_with_arrows
-except ImportError:
+    from .strings_with_arrows import string_with_arrows
+except ImportError:  # lynxer.py imported as a top-level module
     from lynxer.strings_with_arrows import string_with_arrows  # type: ignore[no-redef]
 
 DIGITS = "0123456789"
@@ -1310,6 +1311,7 @@ class Parser:
         self._allow_function_defs = True
         self._exec_mode = False    # parse injected exec() code with no function definitions
         self._code_block_names = code_block_names if code_block_names is not None else {}
+        self._require_main = True
         self.current_tok: Token = (
             tokens[0]
             if tokens
@@ -7453,7 +7455,7 @@ class SymbolTable:
         del self.symbols[name]
 
 # importPy shared module registry
-_rawpy_global_modules: dict = {}
+_rawpy_global_modules: dict[str, ModuleType] = {}
 
 # Python callbacks registered by a standard-library module (for example the
 # Arcade game loop) need a way back into the currently running Lynxer program.

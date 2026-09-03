@@ -84,6 +84,11 @@ _ASYNC_REGISTRY_LOCK = threading.Lock()
 # error is set the caller returns immediately without touching the object.
 _SyncT = TypeVar("_SyncT")
 
+# Typed placeholder for the unused half of an ``(object, error)`` result.  It
+# is typed ``object`` so casting it below stays a valid downcast instead of a
+# ``None`` cast the type checker rejects.
+_NULL: object = None
+
 
 class _ManagedMutex:
     def __init__(self):
@@ -1547,14 +1552,14 @@ class BuiltInFunction(BaseFunction):
         self, args: list[Any], exec_ctx: Any, name: str, kind: type[_SyncT]
     ) -> "tuple[_SyncT, RTResult | None]":
         if len(args) != 1 or not _native_nonnegative(args[0]):
-            return cast(_SyncT, None), self._failure(
+            return cast(_SyncT, _NULL), self._failure(
                 exec_ctx, f"{name}(handle) expects a valid handle"
             )
         handle = args[0].value
         with _SYNC_REGISTRY_LOCK:
             value = _SYNC_OBJECTS.get(handle)
         if value is None or not isinstance(value, kind):
-            return cast(_SyncT, None), self._failure(
+            return cast(_SyncT, _NULL), self._failure(
                 exec_ctx, f"{name}() received an unknown or closed handle"
             )
         return value, None
@@ -1637,20 +1642,20 @@ class BuiltInFunction(BaseFunction):
     ) -> "tuple[_ManagedCondition, _ManagedMutex, RTResult | None]":
         if len(args) != 2:
             return (
-                cast(_ManagedCondition, None),
-                cast(_ManagedMutex, None),
+                cast(_ManagedCondition, _NULL),
+                cast(_ManagedMutex, _NULL),
                 self._failure(exec_ctx, f"{name}(condition, mutex) expects two handles"),
             )
         condition, error = self._sync_handle(args[:1], exec_ctx, name, _ManagedCondition)
         if error:
-            return cast(_ManagedCondition, None), cast(_ManagedMutex, None), error
+            return cast(_ManagedCondition, _NULL), cast(_ManagedMutex, _NULL), error
         mutex, error = self._sync_handle(args[1:], exec_ctx, name, _ManagedMutex)
         if error:
-            return cast(_ManagedCondition, None), cast(_ManagedMutex, None), error
+            return cast(_ManagedCondition, _NULL), cast(_ManagedMutex, _NULL), error
         if mutex.owner != threading.get_ident():
             return (
-                cast(_ManagedCondition, None),
-                cast(_ManagedMutex, None),
+                cast(_ManagedCondition, _NULL),
+                cast(_ManagedMutex, _NULL),
                 self._failure(
                     exec_ctx, f"{name}() requires the owning thread to hold the mutex"
                 ),
@@ -1660,8 +1665,8 @@ class BuiltInFunction(BaseFunction):
             condition.mutex = mutex
         elif condition.mutex is not mutex:
             return (
-                cast(_ManagedCondition, None),
-                cast(_ManagedMutex, None),
+                cast(_ManagedCondition, _NULL),
+                cast(_ManagedMutex, _NULL),
                 self._failure(
                     exec_ctx, f"{name}() condition is bound to a different mutex"
                 ),
@@ -3579,13 +3584,13 @@ class BuiltInFunction(BaseFunction):
         self, args: list[Any], exec_ctx: Any, name: str
     ) -> "tuple[_AsyncPoll, RTResult | None]":
         if len(args) != 1 or not _native_nonnegative(args[0]):
-            return cast(_AsyncPoll, None), self._failure(
+            return cast(_AsyncPoll, _NULL), self._failure(
                 exec_ctx, f"{name}(poll) expects a valid poll handle"
             )
         with _ASYNC_REGISTRY_LOCK:
             poll = _ASYNC_POLLS.get(args[0].value)
         if poll is None or poll.closed:
-            return cast(_AsyncPoll, None), self._failure(
+            return cast(_AsyncPoll, _NULL), self._failure(
                 exec_ctx, f"{name}() received an unknown or closed poll"
             )
         return poll, None
@@ -3603,7 +3608,7 @@ class BuiltInFunction(BaseFunction):
         self, value: Any, exec_ctx: Any, name: str
     ) -> "tuple[int, RTResult | None]":
         if not _native_nonnegative(value):
-            return cast(int, None), self._failure(
+            return cast(int, _NULL), self._failure(
                 exec_ctx, f"{name} resource expects a nonnegative integer"
             )
         resource = value.value
@@ -3617,7 +3622,7 @@ class BuiltInFunction(BaseFunction):
         self, value: Any, exec_ctx: Any, name: str
     ) -> "tuple[tuple[str, int], RTResult | None]":
         if not isinstance(value, String):
-            return cast(tuple[str, int], None), self._failure(
+            return cast(tuple[str, int], _NULL), self._failure(
                 exec_ctx, f"{name} events must be 'read', 'write', or 'readwrite'"
             )
         event_name = value.value.lower()
@@ -3627,7 +3632,7 @@ class BuiltInFunction(BaseFunction):
             "readwrite": select.POLLIN | select.POLLOUT,
         }
         if event_name not in masks:
-            return cast(tuple[str, int], None), self._failure(
+            return cast(tuple[str, int], _NULL), self._failure(
                 exec_ctx, f"{name} events must be 'read', 'write', or 'readwrite'"
             )
         return (event_name, masks[event_name]), None

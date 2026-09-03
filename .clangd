@@ -1,0 +1,8 @@
+CompileFlags:
+  Add:
+    # clangd has no build system to read the extension's include path from, so
+    # the CPython headers are declared here (lynxer/setup.py compiles cpp.cpp
+    # against them). Without them every Python.h symbol is unknown and the
+    # fallout hides any real error.
+    - -I/usr/include/python3.14
+    - -std=c++17
