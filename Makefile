@@ -20,7 +20,7 @@ CYTHON_COLLECT_ALL := --collect-all=Cython --collect-all=setuptools
 SYSTEM_CALLS_DEP := system-calls
 SYSTEM_CALLS := --hidden-import system_calls --hidden-import lynxer.syscalls --collect-submodules system_calls --collect-all=system_calls
 
-.PHONY: venv platform-check build buildLite buildCpp test validate check clean help
+.PHONY: venv platform-check build buildLite buildCpp test testAMR64 validate check clean help
 
 venv:
 	@if [ ! -d "$(VENV)" ]; then \
@@ -35,6 +35,10 @@ venv:
 test: buildCpp
 	@echo "Running tests..."
 	@$(VENV_PY) -u test/validate.py
+
+testAMR64: buildCpp
+	@echo "Running ARM64 syscall database test..."
+	@$(VENV_PY) -u scripts/testARM64Syscall.py
 
 validate: buildCpp
 	@echo "Running validation..."
@@ -130,6 +134,7 @@ help:
 	@echo "  make platform-check"
 	@echo "  make venv"
 	@echo "  make test"
+	@echo "  make testAMR64"
 	@echo "  make check"
 	@echo "  make clean"
 	@echo "  make help"

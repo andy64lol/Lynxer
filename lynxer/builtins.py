@@ -510,6 +510,92 @@ class BuiltInFunction(BaseFunction):
             return self._failure(exec_ctx, "unshare() expects a shared variable name")
         return RTResult().success(Number.null)
 
+    def _ownership_refs(self, args, exec_ctx, count):
+        if len(args) != count:
+            return None, self._failure(
+                exec_ctx,
+                f"{self.name}() expects exactly {count} variable name(s)",
+            )
+        references = []
+        for index, value in enumerate(args, 1):
+            reference = getattr(value, "_lynxer_ref", None)
+            if (
+                not isinstance(reference, tuple)
+                or len(reference) != 2
+                or reference[0] is None
+                or not isinstance(reference[1], str)
+            ):
+                return None, self._failure(
+                    exec_ctx,
+                    f"{self.name}() argument {index} must be a variable name",
+                )
+            references.append(reference)
+        return references, None
+
+    def execute_varTransfer(self, args, exec_ctx):
+        references, failure = self._ownership_refs(args, exec_ctx, 2)
+        if failure:
+            return failure
+        error = exec_ctx.symbol_table.transfer(references[0], references[1])
+        if error:
+            return self._failure(exec_ctx, error)
+        return RTResult().success(Number.null)
+
+    def execute_varBorrow(self, args, exec_ctx):
+        references, failure = self._ownership_refs(args, exec_ctx, 2)
+        if failure:
+            return failure
+        error = exec_ctx.symbol_table.borrow(references[0], references[1])
+        if error:
+            return self._failure(exec_ctx, error)
+        return RTResult().success(Number.null)
+
+    def execute_varSwapAll(self, args, exec_ctx):
+        references, failure = self._ownership_refs(args, exec_ctx, 2)
+        if failure:
+            return failure
+        error = exec_ctx.symbol_table.swap_all(references[0], references[1])
+        if error:
+            return self._failure(exec_ctx, error)
+        return RTResult().success(Number.null)
+
+    def execute_varSwapVal(self, args, exec_ctx):
+        references, failure = self._ownership_refs(args, exec_ctx, 2)
+        if failure:
+            return failure
+        error = exec_ctx.symbol_table.swap_values(references[0], references[1])
+        if error:
+            return self._failure(exec_ctx, error)
+        return RTResult().success(Number.null)
+
+    def execute_varEndBorrow(self, args, exec_ctx):
+        references, failure = self._ownership_refs(args, exec_ctx, 1)
+        if failure:
+            return failure
+        error = exec_ctx.symbol_table.end_borrow(references[0])
+        if error:
+            return self._failure(exec_ctx, error)
+        return RTResult().success(Number.null)
+
+    def execute_borrowing(self, args, exec_ctx):
+        references, failure = self._ownership_refs(args, exec_ctx, 1)
+        if failure:
+            return failure
+        return RTResult().success(
+            Number(1 if exec_ctx.symbol_table.is_borrowing(references[0]) else 0, is_bool=True)
+        )
+
+    def execute_beingBorrowed(self, args, exec_ctx):
+        references, failure = self._ownership_refs(args, exec_ctx, 1)
+        if failure:
+            return failure
+        return RTResult().success(
+            Number(
+                1 if exec_ctx.symbol_table.is_being_borrowed(references[0]) else 0,
+                is_bool=True,
+            )
+        )
+
     def execute_getAddress(self, args, exec_ctx):
         """Return an address pointing at a variable argument."""
         if len(args) != 1:
@@ -4293,6 +4379,13 @@ BUILTIN_FUNCTION_NAMES = (
     "assert",
     "overrideMain",
     "unshare",
+    "varTransfer",
+    "varBorrow",
+    "varSwapAll",
+    "varSwapVal",
+    "varEndBorrow",
+    "borrowing",
+    "beingBorrowed",
     "getAddress",
     "modifyAddressValue",
     "getAddressValue",

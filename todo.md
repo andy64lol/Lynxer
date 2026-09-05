@@ -269,17 +269,17 @@
   - Ensure failed operations do not partially update either variable or the
     ownership table.
 
-- [ ] Add ownership-aware swapping operations:
-  - Implement `varSwapAll(firstVar, secondVar)` to exchange both values and
+- [x] Add ownership-aware swapping operations:
+  - [x] Implement `varSwapAll(firstVar, secondVar)` to exchange both values and
     their complete runtime type/ownership metadata. The operation must work
     across compatible variable declarations and must define what happens when
     either variable is moved, borrowed, const, or otherwise unavailable.
-  - Implement `varSwapVal(firstVar, secondVar)` to exchange only values while
+  - [x] Implement `varSwapVal(firstVar, secondVar)` to exchange only values while
     retaining each variable's declared/runtime type identity. Reject the swap
     when either value cannot be assigned to the other variable's type.
-  - Define atomic failure behavior: type incompatibility, active-borrow conflicts,
+  - [x] Define atomic failure behavior: type incompatibility, active-borrow conflicts,
     and invalid ownership states must leave both variables unchanged.
-  - Add clear diagnostics and tests for primitive values, lists, tuples, structs,
+  - [x] Add clear diagnostics and tests for primitive values, lists, tuples, structs,
     `any`/numeric types, moved values, and active borrows.
 
 - [ ] Add type-changing ownership operations:

@@ -24,6 +24,16 @@ LETTERS = string.ascii_letters
 LETTERS_DIGITS = LETTERS + DIGITS
 
 _cython_inline_fn: Any = None
+_cpp_module: Any = None
+
+
+def _get_cpp():
+    """Load the optional native value-reference module once on first use."""
+    global _cpp_module
+    if _cpp_module is None:
+        from . import cpp
+        _cpp_module = cpp
+    return _cpp_module
 
 def _get_cython_inline() -> Any:
     """Lazily import Cython's inline compiler (needs setuptools' distutils shim)."""
@@ -1454,6 +1464,18 @@ class Parser:
 
         while self.current_tok.type != TT_EOF:
             next_tok = self.peek(1)
+            if (
+                self.current_tok.matches(TT_KEYWORD, "async")
+                and next_tok is not None
+                and next_tok.matches(TT_KEYWORD, "func")
+            ):
+                return res.failure(InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    next_tok.pos_end,
+                    "'async func' declarations are not allowed. "
+                    "File-wide 'func' declarations must be top-level; "
+                    "async functions may call them but cannot declare them.",
+                ))
             is_file_func_kw = self.current_tok.matches(TT_KEYWORD, "func")
             is_func_kw = (
                 self.current_tok.matches(TT_KEYWORD, "global")
@@ -2233,6 +2255,14 @@ class Parser:
 
         if self.current_tok.matches(TT_KEYWORD, "async"):
             peek1 = self.peek(1)
+            if peek1 and peek1.matches(TT_KEYWORD, "func"):
+                return res.failure(InvalidSyntaxError(
+                    self.current_tok.pos_start,
+                    peek1.pos_end,
+                    "'async func' declarations are not allowed. "
+                    "File-wide 'func' declarations must be top-level; "
+                    "async functions may call them but cannot declare them.",
+                ))
             if peek1 and peek1.type == TT_IDENTIFIER:
                 if not allow_local_funcs or not self._allow_function_defs:
                     if not self._allow_function_defs:
@@ -5509,14 +5539,12 @@ class Address(Value):
     def get_value(self):
         if self.pointer is None:
             return None
-        from . import cpp
-        return cpp.refGet(self.pointer)
+        return _get_cpp().refGet(self.pointer)
 
     def set_value(self, value):
         if self.pointer is None:
             return False
-        from . import cpp
-        cpp.refSet(self.pointer, value)
+        _get_cpp().refSet(self.pointer, value)
         return True
 
     def copy(self):
@@ -7420,6 +7448,15 @@ class SymbolTable:
         self.aliases = {}
         self.references = {}
         self.parent = parent
+        # Ownership metadata is shared by nested scopes so a borrow remains
+        # visible while the borrowed source is reached through a child table.
+        self._ownership = (
+            parent._ownership if parent is not None else {}
+        )
+        self._borrow_sources = (
+            parent._borrow_sources if parent is not None else {}
+        )
+        self._borrowers = parent._borrowers if parent is not None else {}
 
     def _find(self, name):
         table = self
@@ -7442,14 +7479,386 @@ class SymbolTable:
             table, name = table.aliases[name]
         return table, name
 
+    def _local_reference(self, name):
+        """Return the table/name that directly owns ``name``."""
+        table = self._find(name)
+        return (table, name) if table is not None else (None, None)
+
+    def _canonical_reference(self, name_or_reference):
+        if isinstance(name_or_reference, tuple):
+            table, name = name_or_reference
+            if table is None or not isinstance(name, str):
+                return None, None
+            return table._resolve(name)
+        return self._resolve(name_or_reference)
+
+    @staticmethod
+    def _reference_key(reference):
+        table, name = reference
+        return (table, name) if table is not None and name is not None else None
+
+    def _ownership_state(self, name):
+        local_table, local_name = self._local_reference(name)
+        if local_table is None:
+            return None
+        local_key = self._reference_key((local_table, local_name))
+        if local_key in self._borrow_sources:
+            return "borrowed"
+        canonical = self._canonical_reference((local_table, local_name))
+        key = self._reference_key(canonical)
+        return self._ownership.get(key, "live") if key is not None else None
+
+    def _active_borrowers(self, reference):
+        canonical = self._canonical_reference(reference)
+        key = self._reference_key(canonical)
+        return self._borrowers.get(key, set()) if key is not None else set()
+
+    def _detach_borrow(self, local_key):
+        source_key = self._borrow_sources.pop(local_key, None)
+        if source_key is None:
+            return
+        borrowers = self._borrowers.get(source_key)
+        if borrowers is not None:
+            borrowers.discard(local_key)
+            if not borrowers:
+                self._borrowers.pop(source_key, None)
+
+    def ownership_error(self, name, operation):
+        """Return a user-facing ownership error, or ``None`` when allowed."""
+        local_table = self._find(name)
+        if local_table is None:
+            return f"'{name}' is not defined"
+        local_key = self._reference_key((local_table, name))
+        canonical_table, canonical_name = local_table, name
+        seen = set()
+        while canonical_name in canonical_table.aliases:
+            marker = (id(canonical_table), canonical_name)
+            if marker in seen:
+                return f"'{name}' has an invalid alias chain"
+            seen.add(marker)
+            canonical_table, canonical_name = canonical_table.aliases[canonical_name]
+        canonical = self._reference_key((canonical_table, canonical_name))
+        if local_key in self._borrow_sources:
+            state = "borrowed"
+        else:
+            state = self._ownership.get(canonical, "live")
+        if state == "moved":
+            if operation == "write to":
+                return None
+            return (
+                f"Cannot {operation} moved variable '{name}'; "
+                "reinitialize it before using it again"
+            )
+        if state == "borrowed" and operation in {
+            "write to",
+            "transfer into",
+            "borrow into",
+        }:
+            return (
+                f"Cannot {operation} borrowed variable '{name}'; "
+                "end its borrow first"
+            )
+        if operation in {"write to", "move"} and self._active_borrowers(canonical):
+            return (
+                f"Cannot {operation} '{name}' while it is being borrowed; "
+                "end all active borrows first"
+            )
+        return None
+
+    def mark_reinitialized(self, name):
+        """Mark a moved variable live after a successful assignment."""
+        canonical = self._canonical_reference(name)
+        key = self._reference_key(canonical)
+        if key is not None:
+            self._ownership[key] = "live"
+
+    def transfer(self, source_reference, destination_reference):
+        """Move a variable value into an existing destination variable."""
+        source_table, source_name = self._canonical_reference(source_reference)
+        destination_table, destination_name = self._local_reference(
+            destination_reference[1]
+            if isinstance(destination_reference, tuple)
+            else destination_reference
+        )
+        if source_table is None or source_name is None:
+            return "source variable is not defined"
+        if destination_table is None or destination_name is None:
+            return "destination variable is not defined"
+        destination_key = self._reference_key((destination_table, destination_name))
+        source_key = self._reference_key((source_table, source_name))
+        if source_key == destination_key:
+            return "a variable cannot be transferred to itself"
+        if destination_name in destination_table.aliases:
+            return (
+                f"Cannot transfer into shared variable '{destination_name}'; "
+                "use an independent destination"
+            )
+        source_error = self.ownership_error(source_name, "move")
+        if source_error:
+            return source_error
+        if self.is_const(source_name):
+            return f"Cannot transfer constant '{source_name}'"
+        if self._active_borrowers((source_table, source_name)):
+            return (
+                f"Cannot move '{source_name}' while it is being borrowed; "
+                "end all active borrows first"
+            )
+        if self.is_const(destination_name):
+            return f"Cannot transfer into constant '{destination_name}'"
+        if self._active_borrowers((destination_table, destination_name)):
+            return (
+                f"Cannot transfer into '{destination_name}' while it is being "
+                "borrowed; end all active borrows first"
+            )
+        source_value = source_table.get(source_name)
+        if source_value is None:
+            return f"source variable '{source_name}' has no value"
+        destination_type = destination_table.types.get(destination_name)
+        if not type_matches(destination_type, source_value):
+            return (
+                f"Type mismatch: '{destination_name}' is declared as "
+                f"'{destination_type}' but got a '{value_type_name(source_value)}' value"
+            )
+        destination_value = source_value.copy()
+        destination_table.symbols[destination_name] = destination_value
+        destination_table.aliases.pop(destination_name, None)
+        destination_table.references.pop(destination_name, None)
+        self._ownership[destination_key] = "live"
+        self._ownership[source_key] = "moved"
+        return None
+
+    def _swap_references(self, first_reference, second_reference):
+        first_table, first_name = self._local_reference(
+            first_reference[1]
+            if isinstance(first_reference, tuple)
+            else first_reference
+        )
+        second_table, second_name = self._local_reference(
+            second_reference[1]
+            if isinstance(second_reference, tuple)
+            else second_reference
+        )
+        if first_table is None or first_name is None:
+            return None, None, None, None, "first variable is not defined"
+        if second_table is None or second_name is None:
+            return None, None, None, None, "second variable is not defined"
+
+        first_key = self._reference_key((first_table, first_name))
+        second_key = self._reference_key((second_table, second_name))
+        if first_key == second_key:
+            return None, None, None, None, "a variable cannot be swapped with itself"
+
+        for table, name, label in (
+            (first_table, first_name, "first"),
+            (second_table, second_name, "second"),
+        ):
+            if name in table.aliases:
+                return (
+                    None, None, None, None,
+                    f"Cannot swap {label} shared variable '{name}'; "
+                    "use independent variables",
+                )
+            if self.is_const(name):
+                return (
+                    None, None, None, None,
+                    f"Cannot swap {label} constant '{name}'",
+                )
+            state = self._ownership_state(name)
+            if state == "moved":
+                return (
+                    None, None, None, None,
+                    f"Cannot swap {label} moved variable '{name}'; "
+                    "reinitialize it before swapping",
+                )
+            if state == "borrowed":
+                return (
+                    None, None, None, None,
+                    f"Cannot swap {label} borrowed variable '{name}'; "
+                    "end its borrow first",
+                )
+            if self._active_borrowers((table, name)):
+                return (
+                    None, None, None, None,
+                    f"Cannot swap {label} variable '{name}' while it is being "
+                    "borrowed; end all active borrows first",
+                )
+
+        first_value = first_table.get(first_name)
+        second_value = second_table.get(second_name)
+        if first_value is None or second_value is None:
+            return None, None, None, None, "both variables must have values"
+        return (
+            first_table,
+            first_name,
+            second_table,
+            second_name,
+            None,
+        )
+
+    def _swap_values(self, first_table, first_name, second_table, second_name,
+                     first_value, second_value):
+        first_table.update_existing(first_name, second_value.copy())
+        second_table.update_existing(second_name, first_value.copy())
+
+    def swap_all(self, first_reference, second_reference):
+        """Atomically exchange values and declared type metadata."""
+        (
+            first_table,
+            first_name,
+            second_table,
+            second_name,
+            error,
+        ) = self._swap_references(first_reference, second_reference)
+        if error:
+            return error
+
+        first_type = first_table.types.get(first_name)
+        second_type = second_table.types.get(second_name)
+        first_value = first_table.get(first_name)
+        second_value = second_table.get(second_name)
+        self._swap_values(
+            first_table,
+            first_name,
+            second_table,
+            second_name,
+            first_value,
+            second_value,
+        )
+        if second_type is None:
+            first_table.types.pop(first_name, None)
+        else:
+            first_table.types[first_name] = second_type
+        if first_type is None:
+            second_table.types.pop(second_name, None)
+        else:
+            second_table.types[second_name] = first_type
+        return None
+
+    def swap_values(self, first_reference, second_reference):
+        """Atomically exchange values while retaining declared types."""
+        (
+            first_table,
+            first_name,
+            second_table,
+            second_name,
+            error,
+        ) = self._swap_references(first_reference, second_reference)
+        if error:
+            return error
+
+        first_value = first_table.get(first_name)
+        second_value = second_table.get(second_name)
+        first_type = first_table.types.get(first_name)
+        second_type = second_table.types.get(second_name)
+        if not type_matches(first_type, second_value):
+            return (
+                f"Type mismatch: '{first_name}' is declared as "
+                f"'{first_type}' but got a '{value_type_name(second_value)}' value"
+            )
+        if not type_matches(second_type, first_value):
+            return (
+                f"Type mismatch: '{second_name}' is declared as "
+                f"'{second_type}' but got a '{value_type_name(first_value)}' value"
+            )
+        self._swap_values(
+            first_table,
+            first_name,
+            second_table,
+            second_name,
+            first_value,
+            second_value,
+        )
+        return None
+
+    def borrow(self, source_reference, destination_reference):
+        """Create a read-only tracked alias in an existing destination."""
+        source_table, source_name = self._canonical_reference(source_reference)
+        destination_table, destination_name = self._local_reference(
+            destination_reference[1]
+            if isinstance(destination_reference, tuple)
+            else destination_reference
+        )
+        if source_table is None or source_name is None:
+            return "source variable is not defined"
+        if destination_table is None or destination_name is None:
+            return "destination variable is not defined"
+        source_key = self._reference_key((source_table, source_name))
+        destination_key = self._reference_key((destination_table, destination_name))
+        if source_key == destination_key:
+            return "a variable cannot borrow from itself"
+        if destination_name in destination_table.aliases:
+            return (
+                f"Cannot borrow into shared variable '{destination_name}'; "
+                "end or detach that alias first"
+            )
+        source_error = self.ownership_error(source_name, "borrow from")
+        if source_error:
+            return source_error
+        if self.is_const(destination_name):
+            return f"Cannot borrow into constant '{destination_name}'"
+        if destination_key in self._borrow_sources:
+            return (
+                f"Variable '{destination_name}' is already borrowing; "
+                "end its borrow first"
+            )
+        source_value = source_table.get(source_name)
+        if source_value is None:
+            return f"source variable '{source_name}' has no value"
+        destination_type = destination_table.types.get(destination_name)
+        if not type_matches(destination_type, source_value):
+            return (
+                f"Type mismatch: '{destination_name}' is declared as "
+                f"'{destination_type}' but got a '{value_type_name(source_value)}' value"
+            )
+        self._detach_borrow(destination_key)
+        destination_table.symbols.pop(destination_name, None)
+        destination_table.references[destination_name] = source_table.get_reference(source_name)
+        destination_table.aliases[destination_name] = (source_table, source_name)
+        self._borrow_sources[destination_key] = source_key
+        self._borrowers.setdefault(source_key, set()).add(destination_key)
+        self._ownership[destination_key] = "borrowed"
+        return None
+
+    def end_borrow(self, reference):
+        """End a borrow and turn the borrower into an independent value."""
+        table, name = self._local_reference(
+            reference[1] if isinstance(reference, tuple) else reference
+        )
+        key = self._reference_key((table, name))
+        if key not in self._borrow_sources:
+            return (
+                f"'{name}' is not an active borrow; "
+                "varEndBorrow() expects a borrowing variable"
+            )
+        source_key = self._borrow_sources[key]
+        source_table, source_name = source_key
+        value = source_table.get(source_name)
+        if value is None:
+            return f"borrowed source '{source_name}' is no longer available"
+        self._detach_borrow(key)
+        table.aliases.pop(name, None)
+        table.references.pop(name, None)
+        table.symbols[name] = value.copy()
+        self._ownership[key] = "live"
+        return None
+
+    def is_borrowing(self, reference):
+        table, name = self._local_reference(
+            reference[1] if isinstance(reference, tuple) else reference
+        )
+        return self._reference_key((table, name)) in self._borrow_sources
+
+    def is_being_borrowed(self, reference):
+        canonical = self._canonical_reference(reference)
+        return bool(self._active_borrowers(canonical))
+
     def get(self, name):
         table, resolved_name = self._resolve(name)
         if table is None or resolved_name is None:
             return None
         pointer = table.references.get(resolved_name)
         if pointer:
-            from . import cpp
-            return cpp.refGet(pointer)
+            return _get_cpp().refGet(pointer)
         return table.symbols.get(resolved_name)
 
     def get_reference(self, name):
@@ -7462,32 +7871,30 @@ class SymbolTable:
         value = table.symbols.get(resolved_name)
         if value is None:
             return None
-        from . import cpp
-        pointer = cpp.refCreate(value)
+        pointer = _get_cpp().refCreate(value)
         table.references[resolved_name] = pointer
         return pointer
 
     def set(self, name, value, is_const=False, decl_type=None):
+        local_key = self._reference_key((self, name))
+        self._detach_borrow(local_key)
         self.aliases.pop(name, None)
         pointer = self.references.get(name)
         if pointer:
-            from . import cpp
-            cpp.refSet(pointer, value)
-        else:
-            self.symbols[name] = value
+            _get_cpp().refSet(pointer, value)
         self.symbols[name] = value
         if is_const:
             self.constants.add(name)
         if decl_type is not None:
             self.types[name] = decl_type
+        self._ownership[local_key] = "live"
 
     def update_existing(self, name, value):
         table, resolved_name = self._resolve(name)
         if table is not None and resolved_name is not None:
             pointer = table.references.get(resolved_name)
             if pointer:
-                from . import cpp
-                cpp.refSet(pointer, value)
+                _get_cpp().refSet(pointer, value)
             table.symbols[resolved_name] = value
             return table
         self.symbols[name] = value
@@ -7510,6 +7917,8 @@ class SymbolTable:
         target_table, target_name = self._resolve(target)
         if target_table is None or target_name is None:
             return False
+        if self._active_borrowers((target_table, target_name)):
+            return False
         target_pointer = self.get_reference(target)
         if target_pointer is None:
             return False
@@ -7521,6 +7930,9 @@ class SymbolTable:
 
     def share_reference(self, name, target_table, target_name):
         if target_table is None or target_table._resolve(target_name)[0] is None:
+            return False
+        resolved_target = target_table._resolve(target_name)
+        if target_table._active_borrowers(resolved_target):
             return False
         target_pointer = target_table.get_reference(target_name)
         if target_pointer is None:
@@ -7534,13 +7946,14 @@ class SymbolTable:
         table = self._find(name)
         if table is None or name not in table.aliases:
             return False
+        if self.is_borrowing((table, name)):
+            return False
         value = self.get(name)
         if value is None:
             return False
         table.aliases.pop(name)
         table.symbols[name] = value.copy()
-        from . import cpp
-        table.references[name] = cpp.refCreate(table.symbols[name])
+        table.references[name] = _get_cpp().refCreate(table.symbols[name])
         return True
 
     def remove(self, name):
@@ -7928,6 +8341,16 @@ class Interpreter:
     def visit_VarAccessNode(self, node, context):
         res = RTResult()
         var_name = node.var_name_tok.value
+        ownership_error = context.symbol_table.ownership_error(var_name, "read")
+        if ownership_error:
+            return res.failure(
+                RTError(
+                    node.pos_start,
+                    node.pos_end,
+                    ownership_error,
+                    context,
+                )
+            )
         value = context.symbol_table.get(var_name)
         if value is None:
             return res.failure(
@@ -7964,6 +8387,15 @@ class Interpreter:
         res = RTResult()
         var_name = node.var_name_tok.value
         decl_type = node.type_tok.value if node.type_tok else None
+        if var_name in context.symbol_table.symbols or var_name in context.symbol_table.aliases:
+            ownership_error = context.symbol_table.ownership_error(var_name, "write to")
+            if ownership_error:
+                return res.failure(RTError(
+                    node.pos_start,
+                    node.pos_end,
+                    ownership_error,
+                    context,
+                ))
         value = res.register(self.visit(node.value_node, context))
         if res.should_return():
             return res
@@ -8014,6 +8446,16 @@ class Interpreter:
     def visit_VarAssignNode(self, node, context):
         res = RTResult()
         var_name = node.var_name_tok.value
+        ownership_error = context.symbol_table.ownership_error(var_name, "write to")
+        if ownership_error and ownership_error != f"'{var_name}' is not defined":
+            return res.failure(
+                RTError(
+                    node.pos_start,
+                    node.pos_end,
+                    ownership_error,
+                    context,
+                )
+            )
         if context.symbol_table.is_const(var_name):
             return res.failure(
                 RTError(
@@ -8055,6 +8497,7 @@ class Interpreter:
                 )
             )
         context.symbol_table.update_existing(var_name, value)
+        context.symbol_table.mark_reinitialized(var_name)
         if decl_type == "codeblock":
             context.code_blocks[var_name] = value
         return res.success(value)
@@ -8674,6 +9117,15 @@ class Interpreter:
         res = RTResult()
         var_name = node.var_name_tok.value
         decl_type = node.type_tok.value if node.type_tok else None
+        if var_name in context.symbol_table.symbols or var_name in context.symbol_table.aliases:
+            ownership_error = context.symbol_table.ownership_error(var_name, "write to")
+            if ownership_error:
+                return res.failure(RTError(
+                    node.pos_start,
+                    node.pos_end,
+                    ownership_error,
+                    context,
+                ))
         value = res.register(await self.async_visit(node.value_node, context))
         if res.should_return():
             return res
@@ -8711,6 +9163,16 @@ class Interpreter:
     async def async_visit_VarAssignNode(self, node, context):
         res = RTResult()
         var_name = node.var_name_tok.value
+        ownership_error = context.symbol_table.ownership_error(var_name, "write to")
+        if ownership_error and ownership_error != f"'{var_name}' is not defined":
+            return res.failure(
+                RTError(
+                    node.pos_start,
+                    node.pos_end,
+                    ownership_error,
+                    context,
+                )
+            )
         if context.symbol_table.is_const(var_name):
             return res.failure(RTError(
                 node.pos_start, node.pos_end,
@@ -8737,6 +9199,7 @@ class Interpreter:
                 context,
             ))
         context.symbol_table.update_existing(var_name, value)
+        context.symbol_table.mark_reinitialized(var_name)
         return res.success(value)
 
     async def async_visit_BinOpNode(self, node, context):
@@ -9178,8 +9641,48 @@ class Interpreter:
                 context,
             ))
 
-        for arg_node in node.arg_nodes:
-            arg_value = res.register(await self.async_visit(arg_node, context))
+        ownership_query = (
+            isinstance(node.node_to_call, VarAccessNode)
+            and node.node_to_call.var_name_tok.value in {"borrowing", "beingBorrowed"}
+        )
+        ownership_target = (
+            isinstance(node.node_to_call, VarAccessNode)
+            and node.node_to_call.var_name_tok.value in {
+                "varTransfer",
+                "varBorrow",
+                "varSwapAll",
+                "varSwapVal",
+            }
+        )
+        for index, arg_node in enumerate(node.arg_nodes):
+            if (
+                (
+                    ownership_query
+                    or (
+                        ownership_target
+                        and (
+                            node.node_to_call.var_name_tok.value
+                            in {"varSwapAll", "varSwapVal"}
+                            or index == 1
+                        )
+                    )
+                )
+                and isinstance(arg_node, VarAccessNode)
+            ):
+                arg_name = arg_node.var_name_tok.value
+                arg_value = context.symbol_table.get(arg_name)
+                if arg_value is None:
+                    return res.failure(RTError(
+                        arg_node.pos_start,
+                        arg_node.pos_end,
+                        f"'{arg_name}' is not defined",
+                        context,
+                    ))
+                arg_value = arg_value.copy().set_pos(
+                    arg_node.pos_start, arg_node.pos_end
+                ).set_context(context)
+            else:
+                arg_value = res.register(await self.async_visit(arg_node, context))
             if isinstance(arg_node, VarAccessNode) and arg_value is not None:
                 arg_value._lynxer_ref = (context.symbol_table, arg_node.var_name_tok.value)
             args.append(arg_value)
@@ -9534,8 +10037,48 @@ class Interpreter:
                     context,
                 ))
 
-        for arg_node in node.arg_nodes:
-            arg_value = res.register(self.visit(arg_node, context))
+        ownership_query = (
+            isinstance(node.node_to_call, VarAccessNode)
+            and node.node_to_call.var_name_tok.value in {"borrowing", "beingBorrowed"}
+        )
+        ownership_target = (
+            isinstance(node.node_to_call, VarAccessNode)
+            and node.node_to_call.var_name_tok.value in {
+                "varTransfer",
+                "varBorrow",
+                "varSwapAll",
+                "varSwapVal",
+            }
+        )
+        for index, arg_node in enumerate(node.arg_nodes):
+            if (
+                (
+                    ownership_query
+                    or (
+                        ownership_target
+                        and (
+                            node.node_to_call.var_name_tok.value
+                            in {"varSwapAll", "varSwapVal"}
+                            or index == 1
+                        )
+                    )
+                )
+                and isinstance(arg_node, VarAccessNode)
+            ):
+                arg_name = arg_node.var_name_tok.value
+                arg_value = context.symbol_table.get(arg_name)
+                if arg_value is None:
+                    return res.failure(RTError(
+                        arg_node.pos_start,
+                        arg_node.pos_end,
+                        f"'{arg_name}' is not defined",
+                        context,
+                    ))
+                arg_value = arg_value.copy().set_pos(
+                    arg_node.pos_start, arg_node.pos_end
+                ).set_context(context)
+            else:
+                arg_value = res.register(self.visit(arg_node, context))
             if isinstance(arg_node, VarAccessNode) and arg_value is not None:
                 arg_value._lynxer_ref = (context.symbol_table, arg_node.var_name_tok.value)
             if (

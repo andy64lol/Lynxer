@@ -141,6 +141,228 @@ global main(){
     )
 
 
+def test_ownership_operations() -> None:
+    require_output(
+        """global setup(){}
+global main(){
+    int source = 10;
+    int destination = 0;
+    println(borrowing(source));
+    println(beingBorrowed(source));
+    varTransfer(source, destination);
+    println(destination);
+    println(borrowing(source));
+    source = 20;
+    println(source);
+}""",
+        "false\nfalse\n10\nfalse\n20\n",
+        "ownership transfer and reinitialization",
+    )
+    require_output(
+        """global setup(){}
+global main(){
+    int source = 7;
+    int borrower = 0;
+    varBorrow(source, borrower);
+    println(borrowing(borrower));
+    println(beingBorrowed(source));
+    println(borrower);
+    varEndBorrow(borrower);
+    println(borrowing(borrower));
+    println(beingBorrowed(source));
+}""",
+        "true\ntrue\n7\nfalse\nfalse\n",
+        "read-only borrow lifecycle",
+    )
+    require_output(
+        """global setup(){}
+global main(){
+    int left = 1;
+    str right = "one";
+    varSwapAll(left, right);
+    println(left);
+    println(right);
+    left = "two";
+    right = 2;
+    println(left);
+    println(right);
+}""",
+        "one\n1\ntwo\n2\n",
+        "ownership swap with type metadata",
+    )
+    require_output(
+        """global setup(){}
+global main(){
+    num left = 1;
+    float right = 2.5;
+    varSwapVal(left, right);
+    println(left);
+    println(right);
+}""",
+        "2.5\n1\n",
+        "ownership swap retaining declared types",
+    )
+    require_output(
+        """global setup(){}
+global main(){
+    list left = [int 1, int 2];
+    list right = [int 3, int 4];
+    varSwapVal(left, right);
+    println(listGet(left, 0));
+    println(listGet(right, 0));
+}""",
+        "3\n1\n",
+        "ownership swap of lists",
+    )
+    require_output(
+        """global setup(){}
+global main(){
+    tuple left = (int 1, str "left");
+    tuple right = (int 2, str "right");
+    varSwapVal(left, right);
+    println(tupleGet(left, 1));
+    println(tupleGet(right, 1));
+}""",
+        "right\nleft\n",
+        "ownership swap of tuples",
+    )
+    require_output(
+        """global setup(){}
+struct SwapRecord {
+    int value;
+}
+global main(){
+    SwapRecord left = new SwapRecord(1);
+    SwapRecord right = new SwapRecord(2);
+    varSwapVal(left, right);
+    println(left.value);
+    println(right.value);
+}""",
+        "2\n1\n",
+        "ownership swap of structs",
+    )
+    require_output(
+        """global setup(){}
+global main(){
+    any left = 1;
+    any right = "two";
+    varSwapVal(left, right);
+    println(left);
+    println(right);
+}""",
+        "two\n1\n",
+        "ownership swap of any values",
+    )
+    require_output(
+        """global setup(){}
+global main(){
+    int first = 1;
+    int second = 2;
+    int destination = 0;
+    varTransfer(first, destination);
+    varTransfer(second, first);
+    println(first);
+    println(destination);
+}""",
+        "2\n1\n",
+        "transfer into moved destination",
+    )
+    require_error(
+        """global setup(){}
+global main(){
+    int left = 1;
+    str right = "one";
+    varSwapVal(left, right);
+}""",
+        "Type mismatch",
+        "incompatible value swap",
+    )
+    require_error(
+        """global setup(){}
+global main(){
+    int source = 1;
+    int borrower = 0;
+    varBorrow(source, borrower);
+    varSwapVal(source, borrower);
+}""",
+        "while it is being borrowed",
+        "swap with active borrow",
+    )
+    require_error(
+        """global setup(){}
+global main(){
+    const int left = 1;
+    int right = 2;
+    varSwapAll(left, right);
+}""",
+        "constant 'left'",
+        "swap with constant",
+    )
+    require_error(
+        """global setup(){}
+global main(){
+    int source = 10;
+    int destination = 0;
+    varTransfer(source, destination);
+    println(source);
+}""",
+        "moved variable 'source'",
+        "use after transfer",
+    )
+    require_error(
+        """global setup(){}
+global main(){
+    int source = 10;
+    int borrower = 0;
+    varBorrow(source, borrower);
+    source = 20;
+}""",
+        "while it is being borrowed",
+        "write through active borrow",
+    )
+    require_error(
+        """global setup(){}
+global main(){
+    int source = 10;
+    int borrower = 0;
+    varBorrow(source, borrower);
+    borrower = 20;
+}""",
+        "borrowed variable 'borrower'",
+        "write through read-only borrow",
+    )
+    require_error(
+        """global setup(){}
+global main(){
+    const int source = 10;
+    int destination = 0;
+    varTransfer(source, destination);
+}""",
+        "Cannot transfer constant 'source'",
+        "transfer from constant",
+    )
+    require_error(
+        """global setup(){}
+global main(){
+    int source = 10;
+    int borrower = 0;
+    varBorrow(source, borrower);
+    int borrower = 20;
+}""",
+        "borrowed variable 'borrower'",
+        "redeclaration of active borrower",
+    )
+    require_error(
+        """global setup(){}
+global main(){
+    int source = 10;
+    varEndBorrow(source);
+}""",
+        "not an active borrow",
+        "ending inactive borrow",
+    )
+
+
 def test_control_flow_and_functions() -> None:
     require_output(
         """global setup(){}
@@ -560,6 +782,18 @@ global main(){
         "5\n120\n9\n",
         "file-wide func declarations",
     )
+    require_output(
+        """global setup(){}
+func add(int left, int right){ return left + right; }
+global main(){
+    local callFromLocal(){ return add(2, 3); }
+    async callFromAsync(){ return add(4, 5); }
+    println(local.callFromLocal());
+    println(async.callFromAsync());
+}""",
+        "5\n9\n",
+        "file-wide funcs callable from local and async functions",
+    )
 
     require_error(
         """global setup(){}
@@ -574,6 +808,31 @@ global main(){}""",
 global main(){ func nested(){} }""",
         "'func' declarations are only allowed at the top level",
         "local func declaration",
+    )
+    require_error(
+        """global setup(){}
+func add(){ return 1; }
+global main(){
+    local helper(){ func nested(){} }
+}""",
+        "'func' declarations are only allowed at the top level",
+        "func declaration inside local function",
+    )
+    require_error(
+        """global setup(){}
+func add(){ return 1; }
+global main(){
+    async helper(){ func nested(){} }
+}""",
+        "'func' declarations are only allowed at the top level",
+        "func declaration inside async function",
+    )
+    require_error(
+        """global setup(){}
+async func invalid(){ return 1; }
+global main(){}""",
+        "'async func' declarations are not allowed",
+        "top-level async func declaration",
     )
     require_error(
         """global setup(){}
@@ -1383,6 +1642,7 @@ TESTS: list[tuple[str, Callable[[], None]]] = [
     ("scalars and operators", test_scalars_and_operators),
     ("lists and tuples", test_lists_and_tuples),
     ("shared aliases", test_shared_aliases),
+    ("ownership operations", test_ownership_operations),
     ("control flow and functions", test_control_flow_and_functions),
     ("runtime errors", test_runtime_errors),
     ("low-level memory", test_low_level_memory),

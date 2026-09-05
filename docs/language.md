@@ -69,6 +69,8 @@ File-wide `func` declarations follow these rules:
   even when another declaration appears between the two declarations.
 - A `func` cannot be declared inside `global`, `local`, `setup`, or `main`
   bodies.
+- `async` and `local` functions may call file-wide funcs by their direct name,
+  but neither may declare a `func` inside its body.
 - `main` and `setup` are reserved lifecycle names and must use their required
   `global` declarations.
 - Other language keywords, such as `if`, cannot be used as function names.
@@ -338,6 +340,47 @@ The initializer for a shared declaration must be a variable name, and its
 value must satisfy the declared type. `unshare(name)` takes exactly one
 variable name and detaches that alias. The detached variable keeps its
 current value and retains its declared type.
+
+### Ownership and borrowing
+
+Ownership operations make moves and temporary read-only aliases explicit:
+
+```c
+int source = 42;
+int destination = 0;
+varTransfer(source, destination);  // source is moved; destination owns 42
+
+int borrower = 0;
+varBorrow(destination, borrower);   // borrower is a read-only alias
+println(borrowing(borrower));        // true
+println(beingBorrowed(destination)); // true
+varEndBorrow(borrower);              // borrower becomes an independent copy
+```
+
+`varTransfer(source, destination)` moves the value into an already-declared
+destination. The destination's declared type must accept the value. A moved
+source cannot be read, passed to a function, borrowed, or moved again; a plain
+assignment reinitialises it and makes it usable again. Transfers are rejected
+while the source or destination has active borrows.
+
+`varBorrow(source, borrower)` creates a read-only tracked alias. The source
+may still be read, and multiple read-only borrowers may coexist, but neither
+the source nor the borrower may be written while the borrow is active.
+`varEndBorrow(borrower)` ends the relationship and gives the borrower an
+independent copy of the current source value. Borrowing a moved value,
+borrowing into a constant, and ending a non-active borrow are errors.
+
+`borrowing(variable)` reports whether the supplied variable is currently a
+borrower. `beingBorrowed(variable)` reports whether another variable is
+currently borrowing from it. Both inspection helpers accept moved variables
+so ownership state can be inspected while handling an ownership error.
+
+`varSwapAll(first, second)` exchanges values and declared type metadata. Both
+variables must be independent, live, mutable variables; constants, aliases,
+moved variables, and active borrows are rejected before either variable is
+changed. `varSwapVal(first, second)` exchanges only values and keeps each
+variable's declared type, so both cross-assignments must be type-compatible.
+Both operations are atomic on validation failure.
 
 **Global variables** must be declared inside `setup()`. They are accessible from any function in the file.
 

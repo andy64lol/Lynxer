@@ -19,6 +19,9 @@ global fetchData() {
 - `async funcName(params) { body }` defines a local async function scoped to the enclosing `global`.
 - The sub-function can reference the enclosing function's parameters and local variables.
 - A definition must appear **before** any block that calls it.
+- An async function may call a top-level file-wide `func` directly, but it
+  cannot declare a `func` inside its body. File-wide `func` declarations must
+  remain at the source top level.
 
 ## Calling from sync context
 

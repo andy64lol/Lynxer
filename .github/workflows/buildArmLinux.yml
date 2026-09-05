@@ -21,6 +21,8 @@ jobs:
         run: make build
       - name: Test
         run: make test
+      - name: Test ARM64
+        run: make testAMR64
 
   buildLite:
     runs-on: ubuntu-24.04-arm
