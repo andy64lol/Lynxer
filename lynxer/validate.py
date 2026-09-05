@@ -11,7 +11,6 @@ from __future__ import annotations
 import contextlib
 import io
 import os
-import pickle
 import subprocess
 import sys
 import tempfile
@@ -140,14 +139,26 @@ def validate_bytecode_security():
         if error or output.getvalue() != "42\n":
             raise ValidationFailure(f"bytecode round-trip failed: {error or output.getvalue()!r}")
 
+        # A payload that is not a tag stream must be rejected.
         corrupt = Path(directory) / "corrupt.lynxc"
-        corrupt.write_bytes(BYTECODE_MAGIC + zlib.compress(pickle.dumps({"bad": True})))
+        corrupt.write_bytes(BYTECODE_MAGIC + zlib.compress(b"not a lynxer payload"))
         try:
             load_bytecode(str(corrupt))
         except ValueError:
             pass
         else:
             raise ValidationFailure("corrupt bytecode was accepted")
+
+        # So must a real payload that was cut short.
+        truncated = Path(directory) / "truncated.lynxc"
+        stored = (Path(bytecode_path)).read_bytes()
+        truncated.write_bytes(stored[: len(stored) // 2])
+        try:
+            load_bytecode(str(truncated))
+        except ValueError:
+            pass
+        else:
+            raise ValidationFailure("truncated bytecode was accepted")
 
 
 def validate_cli():

@@ -277,14 +277,6 @@ class Position:
     def copy(self):
         return Position(self.idx, self.ln, self.col, self.fn, self.ftxt)
 
-    # Bytecode serialisation
-    def __getstate__(self):
-        return (self.idx, self.ln, self.col, self.fn)
-
-    def __setstate__(self, state):
-        self.idx, self.ln, self.col, self.fn = state
-        self.ftxt = ""
-
 # tokens
 
 TT_INT = "INT"

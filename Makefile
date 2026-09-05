@@ -20,7 +20,7 @@ CYTHON_COLLECT_ALL := --collect-all=Cython --collect-all=setuptools
 SYSTEM_CALLS_DEP := system-calls
 SYSTEM_CALLS := --hidden-import system_calls --hidden-import lynxer.syscalls --collect-submodules system_calls --collect-all=system_calls
 
-.PHONY: venv platform-check build buildLite buildCpp test testAMR64 validate check clean help
+.PHONY: venv platform-check build buildLite buildCpp test testAMR64 validate check clean cleanCpp cleanLynxc help
 
 venv:
 	@if [ ! -d "$(VENV)" ]; then \
@@ -122,9 +122,20 @@ buildCpp: venv
 clean:
 	@find . -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null || true
 	@find . -name '*.pyc' -delete 2>/dev/null || true
-	@find . -name '*.lynxc' -delete 2>/dev/null || true
-	@rm -rf build dist *.spec lynxer/build lynxer/*.so 2>/dev/null || true
+	@find . -name '*.lynxc' -not -path '*/stdlib/*' -delete 2>/dev/null || true
+	@rm -rf build dist *.spec lynxer/build 2>/dev/null || true
 	@echo "✓ Cleaned."
+	@echo "  (kept stdlib/*.lynxc and the built C++ extension;"
+	@echo "   run 'make cleanLynxc' or 'make cleanCpp' to remove those)"
+
+cleanCpp:
+	@rm -rf lynxer/build 2>/dev/null || true
+	@find lynxer -maxdepth 1 -name '*.so' -delete 2>/dev/null || true
+	@echo "✓ Cleaned the C++ extension (lynxer/*.so)."
+
+cleanLynxc:
+	@find . -name '*.lynxc' -delete 2>/dev/null || true
+	@echo "✓ Cleaned compiled bytecode (*.lynxc)."
 
 help:
 	@echo "Lynxer build targets:"
@@ -137,6 +148,8 @@ help:
 	@echo "  make testAMR64"
 	@echo "  make check"
 	@echo "  make clean"
+	@echo "  make cleanCpp"
+	@echo "  make cleanLynxc"
 	@echo "  make help"
 	@echo ""
 	@echo "Lynxer source commands:"

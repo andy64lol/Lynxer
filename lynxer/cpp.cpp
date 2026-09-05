@@ -272,12 +272,6 @@ int registerNativeFunction(const char *name, const char *symbol,
     return 1;
 }
 
-int registerNativeFunctionThunk(const char *name, const char *symbol,
-                                const char *signature, void *opaque) {
-    return registerNativeFunction(name, symbol, signature,
-                                  static_cast<NativeRegistration *>(opaque));
-}
-
 int registerNativeConstant(const char *name, std::int64_t value, void *opaque) {
     auto *registration = static_cast<NativeRegistration *>(opaque);
     if (!validNativeName(name)) {

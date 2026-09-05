@@ -1,29 +1,66 @@
 """Lynxer bytecode serialization, loading, and execution.
 
-The bytecode file contains a compressed pickle of the parsed AST.  Runtime
-classes are imported lazily so this module can be imported by ``lynxer.py``
-without creating a circular import during interpreter startup.
+The bytecode file contains a zlib-compressed, tag-based binary encoding of the
+parsed AST.  The payload is a plain data description: every value starts with a
+tag byte and only a fixed table of AST classes can be instantiated while
+reading, so a ``.lynxc`` file cannot execute code the way a ``pickle`` stream
+can.  Runtime classes are imported lazily so this module can be imported by
+``lynxer.py`` without creating a circular import during interpreter startup.
 """
 
 from __future__ import annotations
-import io
 import hashlib
 import os
-import pickle
 import re
+import struct
 import time
 import zlib
 from typing import Any
 
 
 BYTECODE_MAGIC = b"LYNXC\x00"
-BYTECODE_VERSION = 5
+BYTECODE_VERSION = 6
 MAX_BYTECODE_FILE_SIZE = 64 * 1024 * 1024
 MAX_BYTECODE_PAYLOAD_SIZE = 256 * 1024 * 1024
 _NATIVE_IMPORT_RE = re.compile(
     r"""(?:import|importAs)\s*\(\s*["']([^"']+\.(?:so|dylib|dll))["']""",
     re.IGNORECASE,
 )
+
+# ---------------------------------------------------------------------------
+# Binary payload format
+#
+# A payload is a stream of tagged values.  Integers and lengths are encoded as
+# unsigned LEB128 varints (signed integers use zig-zag encoding first) so the
+# common small values stay one byte wide.  Containers and AST nodes are written
+# in full the first time they are seen and emitted as back-references
+# afterwards, which keeps shared nodes compact and tolerates reference cycles.
+# ---------------------------------------------------------------------------
+
+_TAG_NONE = 0x00
+_TAG_FALSE = 0x01
+_TAG_TRUE = 0x02
+_TAG_INT = 0x03
+_TAG_FLOAT = 0x04
+_TAG_COMPLEX = 0x05
+_TAG_STR = 0x06
+_TAG_BYTES = 0x07
+_TAG_LIST = 0x08
+_TAG_TUPLE = 0x09
+_TAG_DICT = 0x0A
+_TAG_SET = 0x0B
+_TAG_FROZENSET = 0x0C
+_TAG_REF = 0x0D
+_TAG_OBJECT = 0x0E
+_TAG_POSITION = 0x0F
+
+_DOUBLE = struct.Struct("<d")
+# Integer literals are arbitrary-precision, so the cap only has to be large
+# enough to stay well clear of Python's own int-parsing limit; running off the
+# end of the payload is caught by the read itself.
+_MAX_VARINT_BITS = 1 << 16
+_MAX_OBJECT_ATTRS = 4096
+_REGISTRY_CACHE: Any = None
 
 
 def _source_hash(text: str) -> str:
@@ -52,49 +89,6 @@ def _optimize_program(node: Any) -> Any:
     return node
 
 
-class _SafeUnpickler(pickle.Unpickler):
-    """Unpickle only the AST types produced by Lynxer's compiler.
-
-    Pickle is executable by design.  A ``.lynxc`` file is user-controlled
-    input, so the normal ``pickle.loads`` entry point is not appropriate here.
-    The compiler serialises syntax nodes, tokens, and positions only; runtime
-    values and arbitrary Python globals are intentionally not accepted.
-    """
-
-    _ALLOWED_BUILTINS = {
-        "bool",
-        "bytes",
-        "complex",
-        "dict",
-        "float",
-        "frozenset",
-        "int",
-        "list",
-        "set",
-        "str",
-        "tuple",
-    }
-
-    def find_class(self, module: str, name: str) -> Any:
-        if module == "builtins" and name in self._ALLOWED_BUILTINS:
-            return getattr(__import__(module), name)
-
-        if module == "lynxer.lynxer":
-            runtime = _runtime()
-            allowed = {
-                class_name
-                for class_name, value in vars(runtime).items()
-                if isinstance(value, type)
-                and (class_name.endswith("Node") or class_name in {"Position", "Token"})
-            }
-            if name in allowed:
-                return getattr(runtime, name)
-
-        raise pickle.UnpicklingError(
-            f"bytecode contains a disallowed Python object: {module}.{name}"
-        )
-
-
 def _runtime() -> Any:
     """Return the interpreter module only when a bytecode operation needs it."""
     from . import lynxer
@@ -102,8 +96,323 @@ def _runtime() -> Any:
     return lynxer
 
 
+def _registry() -> tuple[list[type], dict[type, int]]:
+    """Return ``([classes], {class: id})`` for every encodable AST type.
+
+    Ids are assigned over the sorted class names, so a given Lynxer runtime
+    derives the same table whether it is writing or reading a payload.
+    ``Position`` is excluded: it carries the whole source text and is encoded
+    by its own tag instead.
+    """
+    global _REGISTRY_CACHE
+    runtime = _runtime()
+    if _REGISTRY_CACHE is None or _REGISTRY_CACHE[0] is not runtime:
+        names = sorted(
+            name
+            for name, value in vars(runtime).items()
+            if isinstance(value, type)
+            and name != "Position"
+            and (name.endswith("Node") or name == "Token")
+        )
+        classes = [getattr(runtime, name) for name in names]
+        _REGISTRY_CACHE = (runtime, classes, {cls: i for i, cls in enumerate(classes)})
+    return _REGISTRY_CACHE[1], _REGISTRY_CACHE[2]
+
+
+def _write_varint(out: bytearray, value: int) -> None:
+    while True:
+        byte = value & 0x7F
+        value >>= 7
+        if value:
+            out.append(byte | 0x80)
+        else:
+            out.append(byte)
+            return
+
+
+def _write_string(out: bytearray, value: str) -> None:
+    raw = value.encode("utf-8")
+    out.append(_TAG_STR)
+    _write_varint(out, len(raw))
+    out += raw
+
+
+class _Encoder:
+    """Serialise a compiler payload into the tag stream."""
+
+    def __init__(self) -> None:
+        self.out = bytearray()
+        self.memo: dict[int, int] = {}
+        self._interpreter: Any = None
+
+    def encode(self, value: Any) -> bytes:
+        self.write(value)
+        return bytes(self.out)
+
+    def _reference(self, value: Any) -> int | None:
+        """Reserve a memo slot for *value*; return an existing index if it has one."""
+        key = id(value)
+        index = self.memo.get(key)
+        if index is not None:
+            self.out.append(_TAG_REF)
+            _write_varint(self.out, index)
+            return index
+        self.memo[key] = len(self.memo)
+        return None
+
+    def write(self, value: Any) -> None:
+        out = self.out
+
+        if value is None:
+            out.append(_TAG_NONE)
+            return
+
+        value_type = type(value)
+
+        if value_type is bool:
+            out.append(_TAG_TRUE if value else _TAG_FALSE)
+            return
+        if value_type is int:
+            out.append(_TAG_INT)
+            _write_varint(out, value << 1 if value >= 0 else (~value << 1) | 1)
+            return
+        if value_type is float:
+            out.append(_TAG_FLOAT)
+            out += _DOUBLE.pack(value)
+            return
+        if value_type is complex:
+            out.append(_TAG_COMPLEX)
+            out += _DOUBLE.pack(value.real)
+            out += _DOUBLE.pack(value.imag)
+            return
+        if value_type is str:
+            _write_string(out, value)
+            return
+        if value_type is bytes:
+            out.append(_TAG_BYTES)
+            _write_varint(out, len(value))
+            out += value
+            return
+
+        if value_type is list or value_type is tuple or value_type is dict:
+            if self._reference(value) is not None:
+                return
+            if value_type is list:
+                out.append(_TAG_LIST)
+            elif value_type is tuple:
+                out.append(_TAG_TUPLE)
+            else:
+                out.append(_TAG_DICT)
+            _write_varint(out, len(value))
+            if value_type is dict:
+                for key, item in value.items():
+                    self.write(key)
+                    self.write(item)
+            else:
+                for item in value:
+                    self.write(item)
+            return
+
+        if value_type is set or value_type is frozenset:
+            if self._reference(value) is not None:
+                return
+            out.append(_TAG_SET if value_type is set else _TAG_FROZENSET)
+            _write_varint(out, len(value))
+            for item in value:
+                self.write(item)
+            return
+
+        if value_type is self.interpreter().Position:
+            # The source text is deliberately left out; only the location is
+            # kept, so a compiled program does not embed its own source.
+            out.append(_TAG_POSITION)
+            self.write(value.idx)
+            self.write(value.ln)
+            self.write(value.col)
+            self.write(value.fn)
+            return
+
+        class_id = _registry()[1].get(value_type)
+        if class_id is not None:
+            if self._reference(value) is not None:
+                return
+            out.append(_TAG_OBJECT)
+            _write_varint(out, class_id)
+            state = vars(value)
+            _write_varint(out, len(state))
+            for name, attribute in state.items():
+                _write_string(out, name)
+                self.write(attribute)
+            return
+
+        raise ValueError(
+            f"cannot encode a value of type {value_type.__name__!r} into Lynxer bytecode"
+        )
+
+    def interpreter(self) -> Any:
+        if self._interpreter is None:
+            self._interpreter = _runtime()
+        return self._interpreter
+
+
+class _Decoder:
+    """Read a tag stream back into Python values and AST nodes."""
+
+    def __init__(self, data: bytes) -> None:
+        self.data = data
+        self.pos = 0
+        self.memo: list[Any] = []
+        self._interpreter: Any = None
+
+    def decode(self) -> Any:
+        value = self.read()
+        if self.pos != len(self.data):
+            raise ValueError("trailing data in bytecode payload")
+        return value
+
+    def _read(self, count: int) -> bytes:
+        end = self.pos + count
+        if count < 0 or end > len(self.data):
+            raise ValueError("truncated bytecode payload")
+        chunk = self.data[self.pos:end]
+        self.pos = end
+        return chunk
+
+    def _byte(self) -> int:
+        if self.pos >= len(self.data):
+            raise ValueError("truncated bytecode payload")
+        byte = self.data[self.pos]
+        self.pos += 1
+        return byte
+
+    def _varint(self) -> int:
+        result = 0
+        shift = 0
+        while True:
+            byte = self._byte()
+            result |= (byte & 0x7F) << shift
+            if not byte & 0x80:
+                return result
+            shift += 7
+            if shift > _MAX_VARINT_BITS:
+                raise ValueError("integer in bytecode payload is too large")
+
+    def _count(self) -> int:
+        count = self._varint()
+        if count > len(self.data):
+            raise ValueError("container declares more items than the payload holds")
+        return count
+
+    def read(self) -> Any:
+        tag = self._byte()
+
+        if tag == _TAG_NONE:
+            return None
+        if tag == _TAG_TRUE:
+            return True
+        if tag == _TAG_FALSE:
+            return False
+        if tag == _TAG_INT:
+            number = self._varint()
+            return -(number >> 1) - 1 if number & 1 else number >> 1
+        if tag == _TAG_FLOAT:
+            return _DOUBLE.unpack(self._read(8))[0]
+        if tag == _TAG_COMPLEX:
+            return complex(
+                _DOUBLE.unpack(self._read(8))[0], _DOUBLE.unpack(self._read(8))[0]
+            )
+        if tag == _TAG_STR:
+            return self._read(self._varint()).decode("utf-8")
+        if tag == _TAG_BYTES:
+            return self._read(self._varint())
+
+        if tag == _TAG_LIST:
+            items: list[Any] = []
+            self.memo.append(items)
+            items.extend(self.read() for _ in range(self._count()))
+            return items
+        if tag == _TAG_TUPLE:
+            index = len(self.memo)
+            self.memo.append(None)
+            result = tuple(self.read() for _ in range(self._count()))
+            self.memo[index] = result
+            return result
+        if tag == _TAG_SET:
+            items_set: set[Any] = set()
+            self.memo.append(items_set)
+            for _ in range(self._count()):
+                items_set.add(self.read())
+            return items_set
+        if tag == _TAG_FROZENSET:
+            index = len(self.memo)
+            self.memo.append(None)
+            result_frozen = frozenset(self.read() for _ in range(self._count()))
+            self.memo[index] = result_frozen
+            return result_frozen
+        if tag == _TAG_DICT:
+            mapping: dict[Any, Any] = {}
+            self.memo.append(mapping)
+            for _ in range(self._count()):
+                key = self.read()
+                mapping[key] = self.read()
+            return mapping
+        if tag == _TAG_REF:
+            index = self._varint()
+            if index >= len(self.memo):
+                raise ValueError("invalid back-reference in bytecode payload")
+            return self.memo[index]
+
+        if tag == _TAG_POSITION:
+            runtime = self.interpreter()
+            idx = self.read()
+            ln = self.read()
+            col = self.read()
+            fn = self.read()
+            return runtime.Position(idx, ln, col, fn, "")
+
+        if tag == _TAG_OBJECT:
+            classes = _registry()[0]
+            class_id = self._varint()
+            if class_id >= len(classes):
+                raise ValueError(
+                    f"unknown AST node type id {class_id} in bytecode payload"
+                )
+            node_class = classes[class_id]
+            node = node_class.__new__(node_class)
+            self.memo.append(node)
+            count = self._varint()
+            if count > _MAX_OBJECT_ATTRS:
+                raise ValueError("AST node declares too many attributes")
+            state = {}
+            for _ in range(count):
+                name = self.read()
+                if not isinstance(name, str):
+                    raise ValueError("malformed AST node attribute name")
+                state[name] = self.read()
+            node.__dict__.update(state)
+            return node
+
+        raise ValueError(f"unknown bytecode tag 0x{tag:02x}")
+
+    def interpreter(self) -> Any:
+        if self._interpreter is None:
+            self._interpreter = _runtime()
+        return self._interpreter
+
+
+def _encode_payload(data: dict[str, Any]) -> bytes:
+    return _Encoder().encode(data)
+
+
+def _decode_payload(raw: bytes) -> Any:
+    try:
+        return _Decoder(raw).decode()
+    except RecursionError as exc:
+        raise ValueError("bytecode payload is nested too deeply") from exc
+
+
 def _read_bytecode(fn: str) -> tuple[dict[str, Any], int, int]:
-    """Read, decompress, validate, and unpickle a ``.lynxc`` file."""
+    """Read, decompress, validate, and decode a ``.lynxc`` file."""
     try:
         file_size = os.path.getsize(fn)
     except OSError as exc:
@@ -150,10 +459,19 @@ def _read_bytecode(fn: str) -> tuple[dict[str, Any], int, int]:
         ) from exc
 
     try:
-        data = _SafeUnpickler(io.BytesIO(raw)).load()
-    except (pickle.UnpicklingError, EOFError, AttributeError, ImportError, IndexError, TypeError) as exc:
+        data = _decode_payload(raw)
+    except (
+        ValueError,
+        struct.error,
+        UnicodeDecodeError,
+        AttributeError,
+        IndexError,
+        KeyError,
+        OverflowError,
+        TypeError,
+    ) as exc:
         raise ValueError(
-            f"'{fn}' does not contain a safe, valid Lynxer bytecode payload: {exc}"
+            f"'{fn}' does not contain a valid Lynxer bytecode payload: {exc}"
         ) from exc
     if not isinstance(data, dict):
         raise ValueError(f"'{fn}' does not contain a valid Lynxer bytecode payload")
@@ -232,7 +550,7 @@ def compile_to_bytecode(
         "node": node,
     }
     payload = zlib.compress(
-        pickle.dumps(data, protocol=pickle.HIGHEST_PROTOCOL),
+        _encode_payload(data),
         level=zlib.Z_BEST_COMPRESSION,
     )
     with open(out_path, "wb") as bytecode_file:
