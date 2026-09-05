@@ -1,0 +1,10 @@
+// A file-wide func name belongs to its own file and does not collide with an
+// imported file's func of the same name.
+global setup(){
+    import("test51");
+}
+func fixtureGreeting(){ return "from fixture 52"; }
+global main(){
+    println(fixtureGreeting());
+    println(global.test51.fixtureGreeting());
+}

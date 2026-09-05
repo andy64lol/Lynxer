@@ -1,0 +1,6 @@
+// File-wide funcs can be called directly from the same file.
+global setup(){}
+func fixtureGreeting(){ return "from fixture 51"; }
+global main(){
+    println(fixtureGreeting());
+}

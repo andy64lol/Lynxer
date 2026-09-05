@@ -1,0 +1,4 @@
+// EXPECT_ERROR: 'func setup()' conflicts with another function
+global setup(){}
+func setup(){}
+global main(){}

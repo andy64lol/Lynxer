@@ -73,7 +73,9 @@ global main(){
 
 ## Writing your own module
 
-Any `.lynx` file is a valid module. Declare globals in `setup()`, implement functions in between, and include a no-op `global main(){}`:
+Any `.lynx` file is a valid module. Declare globals in `setup()`, implement
+`global` functions or file-wide `func` declarations in between, and include a
+no-op `global main(){}`:
 
 ```c
 /// greetlib.lynx ///
@@ -99,6 +101,26 @@ global main(){
     print(global.greetlib.VERSION); print("\n");   // 1.0
     global.greetlib.sayHi();
     global.greetlib.greet("World");
+}
+```
+
+File-wide funcs are exported through the module namespace just like other
+top-level functions. Their names are isolated per file, so a caller may define
+a same-named local file-wide func without a collision:
+
+```c
+// greetlib.lynx
+global setup(){}
+func greeting(){ return "library"; }
+global main(){}
+```
+
+```c
+global setup(){ import("greetlib"); }
+func greeting(){ return "caller"; }
+global main(){
+    println(greeting());                 // caller
+    println(global.greetlib.greeting());  // library
 }
 ```
 

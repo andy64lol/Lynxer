@@ -1,0 +1,8 @@
+// EXPECT_ERROR: Duplicate 'func' declaration 'duplicate'
+// A duplicate file-wide func is rejected even when another declaration is
+// between the two declarations.
+global setup(){}
+func duplicate(){}
+global middle(){}
+func duplicate(){}
+global main(){}

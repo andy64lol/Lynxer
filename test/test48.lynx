@@ -1,0 +1,4 @@
+// EXPECT_ERROR: 'func main()' is reserved for the program lifecycle
+global setup(){}
+func main(){}
+global main(){}

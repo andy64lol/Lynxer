@@ -7,7 +7,8 @@ Every Lynxer program has one required top-level declaration and one customisable
 1. **`global setup(){}`** — must be the **very first** declaration. The only place to declare global variables and call `import()`. Required even when empty.
 2. **Entry point** — by default this is `global main(){}`, which must be the last declaration. You can replace it with any global function using [`overrideMain()`](#overriding-the-entry-point).
 
-Additional global functions and class definitions may be declared **between** `setup` and `main`:
+Additional global functions, file-wide `func` declarations, and class
+definitions may be declared **between** `setup` and `main`:
 
 ```c
 global setup(){
@@ -21,6 +22,11 @@ global greet(str name){
     print("Hello, "); print(name); print("!\n");
 }
 
+// A file-wide func is called directly, without the global namespace.
+func banner(){
+    return "Lynxer";
+}
+
 class Config {
     int maxRetries = 3;
     local getMax() { return this.maxRetries; }
@@ -28,6 +34,7 @@ class Config {
 
 global main(){
     global.greet(APP);
+    print(banner());
 }
 ```
 
@@ -37,6 +44,42 @@ global main(){
 - Global function and class declarations are only allowed between `setup` and `main`.
 - Executable code outside a function body is a syntax error.
 - `import()` may only appear inside `setup()`.
+
+### File-wide `func` declarations
+
+Use `func name(parameters){}` for a function that is directly callable by name
+from anywhere in the same file:
+
+```c
+global setup(){}
+
+func add(int left, int right){
+    return left + right;
+}
+
+global main(){
+    println(add(2, 3));       // 5
+}
+```
+
+File-wide `func` declarations follow these rules:
+
+- They must be declared at the top level, between `setup` and `main`.
+- A file may declare a given `func` name only once. The duplicate is rejected
+  even when another declaration appears between the two declarations.
+- A `func` cannot be declared inside `global`, `local`, `setup`, or `main`
+  bodies.
+- `main` and `setup` are reserved lifecycle names and must use their required
+  `global` declarations.
+- Other language keywords, such as `if`, cannot be used as function names.
+- A `func` name is scoped to its defining file. Two imported files may use the
+  same `func` name without colliding.
+- Imported file-wide funcs are accessed through the module namespace:
+  `global.moduleName.functionName()`.
+
+For example, an imported module and its caller may both define
+`fixtureGreeting()`; the caller uses `fixtureGreeting()` for its own function
+and `global.module.fixtureGreeting()` for the imported one.
 
 ---
 

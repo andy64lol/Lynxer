@@ -18,7 +18,7 @@ COLLECT_ALL := $(shell \
 CYTHON_COLLECT_ALL := --collect-all=Cython --collect-all=setuptools
 
 SYSTEM_CALLS_DEP := system-calls
-SYSTEM_CALLS := --hidden-import system_calls --hidden-import lynxer.syscalls --collect-submodules system_calls
+SYSTEM_CALLS := --hidden-import system_calls --hidden-import lynxer.syscalls --collect-submodules system_calls --collect-all=system_calls
 
 .PHONY: venv platform-check build buildLite buildCpp test validate check clean help
 

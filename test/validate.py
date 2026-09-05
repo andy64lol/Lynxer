@@ -544,6 +544,92 @@ global main(){}
         raise ValidationFailure("module name collisions were not rejected")
 
 
+def test_file_functions(temp_root: Path) -> None:
+    require_output(
+        """global setup(){}
+func add(int left, int right){ return left + right; }
+func factorial(int n){
+    if(n <= 1){ return 1; }
+    return n * factorial(n - 1);
+}
+global main(){
+    println(add(2, 3));
+    println(factorial(5));
+    println(global.add(4, 5));
+}""",
+        "5\n120\n9\n",
+        "file-wide func declarations",
+    )
+
+    require_error(
+        """global setup(){}
+func duplicate(){}
+func duplicate(){}
+global main(){}""",
+        "Duplicate 'func' declaration 'duplicate'",
+        "duplicate file-wide func declarations",
+    )
+    require_error(
+        """global setup(){}
+global main(){ func nested(){} }""",
+        "'func' declarations are only allowed at the top level",
+        "local func declaration",
+    )
+    require_error(
+        """global setup(){}
+func collision(){}
+global collision(){}
+global main(){}""",
+        "conflicts with the file-wide 'func' declaration",
+        "global/file-wide func collision",
+    )
+
+    module = temp_root / "file_function_module.lynx"
+    module.write_text(
+        """global setup(){}
+func exported(){ return 17; }
+global main(){}
+""",
+        encoding="utf-8",
+    )
+    output, error = run_source(
+        """global setup(){ importAs("file_function_module.lynx", "mod"); }
+global main(){ println(global.mod.exported()); }
+""",
+        str(temp_root / "file_function_import.lynx"),
+    )
+    if error is not None or output != "17\n":
+        raise ValidationFailure(
+            "imported func did not retain module-qualified access: "
+            f"{error.as_string() if error else output!r}"
+        )
+
+    bytecode_source = temp_root / "file_function_bytecode.lynx"
+    bytecode_text = """global setup(){}
+func bytecodeFunc(){ return 23; }
+global main(){ println(bytecodeFunc()); }
+"""
+    bytecode_source.write_text(bytecode_text, encoding="utf-8")
+    bytecode_path, compile_error = compile_to_bytecode(
+        str(bytecode_source),
+        bytecode_text,
+        use_cache=False,
+    )
+    if compile_error is not None or bytecode_path is None:
+        raise ValidationFailure(
+            "func bytecode compilation failed: "
+            f"{compile_error.as_string() if compile_error else 'unknown error'}"
+        )
+    output_buffer = io.StringIO()
+    with contextlib.redirect_stdout(output_buffer):
+        _, bytecode_error = run_bytecode(bytecode_path)
+    if bytecode_error is not None or output_buffer.getvalue() != "23\n":
+        raise ValidationFailure(
+            "func bytecode execution failed: "
+            f"{bytecode_error.as_string() if bytecode_error else output_buffer.getvalue()!r}"
+        )
+
+
 # The interactive game fixtures (test37-test40) block until their window is
 # closed, so ``test_existing_fixtures`` skips them.  This exercises the same
 # wrapped arcade API headlessly to keep it under regression coverage.
@@ -1188,8 +1274,10 @@ global main(){ println("bundled"); }
     )
 
     original_run = bundle_module.subprocess.run
+    captured_command: list[str] = []
 
     def fake_success(command, cwd=None, check=False, capture_output=False, text=False):
+        captured_command.extend(command)
         dist_index = command.index("--distpath") + 1
         name_index = command.index("--name") + 1
         executable = Path(command[dist_index]) / command[name_index]
@@ -1208,6 +1296,22 @@ global main(){ println("bundled"); }
     hook = ROOT / "build" / "hooks" / "bundle-smoke_runtime_hook.py"
     if not hook.exists() or "LYNXER_STDLIB" not in hook.read_text(encoding="utf-8"):
         raise ValidationFailure("bundle runtime hook was not staged")
+    launcher = ROOT / "build" / "launchers" / "bundle-smoke.py"
+    launcher_text = launcher.read_text(encoding="utf-8")
+    expected_arch = bundle_module.host_architecture()
+    if (
+        f"EXPECTED_ARCHITECTURE = {expected_arch!r}" not in launcher_text
+        or "require_supported_platform" not in launcher_text
+        or "unavailable()" not in launcher_text
+    ):
+        raise ValidationFailure(
+            "bundle launcher does not validate host architecture and syscall tables"
+        )
+    if (
+        "--collect-all" not in captured_command
+        or captured_command[captured_command.index("--collect-all") + 1] != "system_calls"
+    ):
+        raise ValidationFailure("bundle command does not collect syscall table data")
 
     def fake_failure(command, cwd=None, check=False, capture_output=False, text=False):
         return subprocess.CompletedProcess(command, 1, "stdout detail", "stderr detail")
@@ -1294,6 +1398,7 @@ def main() -> int:
         tests = TESTS + [
             ("compiler feedback and cache", lambda: test_compiler_feedback_and_cache(temp_root)),
             ("imports", lambda: test_imports(temp_root)),
+            ("file-wide funcs", lambda: test_file_functions(temp_root)),
             ("game stdlib", lambda: test_game_stdlib(temp_root)),
             ("native modules", lambda: test_native_modules(temp_root)),
             ("bytecode", lambda: test_bytecode(temp_root)),

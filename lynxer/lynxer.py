@@ -361,6 +361,7 @@ KEYWORDS = [
     "vargroup",
     "try", "catch",
     "async", "await",
+    "func",
     "class",
     "native",
     "struct",
@@ -1311,6 +1312,8 @@ class Parser:
         self._allow_function_defs = True
         self._exec_mode = False    # parse injected exec() code with no function definitions
         self._code_block_names = code_block_names if code_block_names is not None else {}
+        self._file_func_names = {}
+        self._declared_function_names = set()
         self._require_main = True
         self.current_tok: Token = (
             tokens[0]
@@ -1383,6 +1386,53 @@ class Parser:
         self._code_block_names[name_tok.value] = name_tok
         return None
 
+    def claim_file_func_name(self, name_tok):
+        """Reserve a direct-call ``func`` name for this source file.
+
+        ``func`` declarations are deliberately source-wide.  Keeping the
+        declaration token lets duplicate-name diagnostics point at the
+        original declaration as well as the conflicting one.
+        """
+        previous = self._file_func_names.get(name_tok.value)
+        if previous is not None:
+            return InvalidSyntaxError(
+                name_tok.pos_start,
+                name_tok.pos_end,
+                f"Duplicate 'func' declaration '{name_tok.value}'. "
+                "A func name may be declared only once in a Lynxer file "
+                f"(first declared at line {previous.pos_start.ln + 1}).",
+            )
+        if name_tok.value in self._declared_function_names:
+            return InvalidSyntaxError(
+                name_tok.pos_start,
+                name_tok.pos_end,
+                f"'func {name_tok.value}()' conflicts with another function "
+                "declared in this Lynxer file. Direct-call function names must "
+                "be unique and cannot shadow existing functions.",
+            )
+        if name_tok.value in {"setup", "main"}:
+            return InvalidSyntaxError(
+                name_tok.pos_start,
+                name_tok.pos_end,
+                f"'func {name_tok.value}()' is reserved for the program "
+                "lifecycle and must be declared with its required global form.",
+            )
+        self._file_func_names[name_tok.value] = name_tok
+        self._declared_function_names.add(name_tok.value)
+        return None
+
+    def claim_function_name_against_file_funcs(self, name_tok):
+        """Reject a later ordinary function that would shadow a ``func``."""
+        if name_tok.value in self._file_func_names:
+            return InvalidSyntaxError(
+                name_tok.pos_start,
+                name_tok.pos_end,
+                f"Function '{name_tok.value}' conflicts with the file-wide "
+                "'func' declaration of the same name.",
+            )
+        self._declared_function_names.add(name_tok.value)
+        return None
+
     def parse(self, require_main=True):
         res = ParseResult()
         pos_start = self.current_tok.pos_start.copy()
@@ -1404,6 +1454,7 @@ class Parser:
 
         while self.current_tok.type != TT_EOF:
             next_tok = self.peek(1)
+            is_file_func_kw = self.current_tok.matches(TT_KEYWORD, "func")
             is_func_kw = (
                 self.current_tok.matches(TT_KEYWORD, "global")
                 or (
@@ -1413,7 +1464,20 @@ class Parser:
                     and next_tok.type == TT_IDENTIFIER
                 )
             )
-            if is_func_kw:
+            if is_file_func_kw:
+                if main_seen:
+                    return res.failure(InvalidSyntaxError(
+                        self.current_tok.pos_start,
+                        self.current_tok.pos_end,
+                        "A 'func' declaration must appear before 'global main(){}'. "
+                        "No declarations are allowed after main.",
+                    ))
+                node = res.register(self.parse_func_def())
+                if res.error:
+                    return res
+                globals_list.append(node)
+                any_other_seen = True
+            elif is_func_kw:
                 func_name_tok = self.peek(1)
                 assert func_name_tok is not None
 
@@ -1436,6 +1500,7 @@ class Parser:
                     setup_func = res.register(self.parse_func_def())
                     if res.error:
                         return res
+                    self._declared_function_names.add(func_name_tok.value)
                     setup_seen = True
                 elif (
                     func_name_tok
@@ -1450,6 +1515,7 @@ class Parser:
                     main_func = res.register(self.parse_func_def())
                     if res.error:
                         return res
+                    self._declared_function_names.add(func_name_tok.value)
                     main_seen = True
                 else:
                     if main_seen:
@@ -1459,6 +1525,9 @@ class Parser:
                             f"'global {fname}' must be declared "
                             f"before 'global main(){{}}'. No declarations are allowed after main.",
                         ))
+                    collision = self.claim_function_name_against_file_funcs(func_name_tok)
+                    if collision is not None:
+                        return res.failure(collision)
                     node = res.register(self.parse_func_def())
                     if res.error:
                         return res
@@ -1559,14 +1628,17 @@ class Parser:
             self.current_tok.matches(TT_KEYWORD, "global")
             or _is_global_kw
             or self.current_tok.matches(TT_KEYWORD, "local")
+            or self.current_tok.matches(TT_KEYWORD, "func")
         ):
             return res.failure(
                 InvalidSyntaxError(
                     self.current_tok.pos_start,
                     self.current_tok.pos_end,
-                    "Expected 'global' or 'local'" + (" after 'async'" if is_async else ""),
+                    "Expected 'global', 'local', or 'func'"
+                    + (" after 'async'" if is_async else ""),
                 )
             )
+        is_file_func = self.current_tok.matches(TT_KEYWORD, "func")
         if is_async and not _is_global_kw:
             return res.failure(
                 InvalidSyntaxError(
@@ -1588,6 +1660,14 @@ class Parser:
                 )
             )
         name_tok = self.current_tok
+        if is_file_func:
+            collision = self.claim_file_func_name(name_tok)
+            if collision is not None:
+                return res.failure(collision)
+        elif self.current_tok.type == TT_IDENTIFIER or self.current_tok.type == TT_KEYWORD:
+            collision = self.claim_function_name_against_file_funcs(name_tok)
+            if collision is not None:
+                return res.failure(collision)
         res.register_advancement()
         self.advance()
 
@@ -1735,7 +1815,7 @@ class Parser:
 
         _is_global_def = kind_tok.value == "global" or (
             kind_tok.type == TT_IDENTIFIER and kind_tok.value == "global"
-        )
+        ) or kind_tok.value == "func"
 
         prev_in_global_func = self._in_global_func
         if _is_global_def and not is_setup:
@@ -2093,6 +2173,14 @@ class Parser:
             if res.error:
                 return res
             return res.success(node)
+
+        if self.current_tok.matches(TT_KEYWORD, "func"):
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start,
+                self.current_tok.pos_end,
+                "'func' declarations are only allowed at the top level of a "
+                "Lynxer file; local function bodies cannot declare file-wide funcs",
+            ))
 
         next_tok = self.peek(1)
         if (
@@ -6294,7 +6382,7 @@ class BaseFunction(Value):
 class Function(BaseFunction):
     def __init__(
         self, name, body_node, param_names, param_types=None, is_global=False,
-        code_block_names=None, param_defaults=None
+        code_block_names=None, param_defaults=None, is_file_func=False
     ):
         super().__init__(name)
         self.body_node = body_node
@@ -6302,6 +6390,7 @@ class Function(BaseFunction):
         self.param_types = param_types or [None] * len(param_names)
         self.param_defaults = param_defaults or [None] * len(param_names)
         self.is_global = is_global
+        self.is_file_func = is_file_func
         self.code_block_names = code_block_names or []
         self.inner_locals = {}
         self.inner_globals = {}
@@ -6374,6 +6463,7 @@ class Function(BaseFunction):
             self.is_global,
             self.code_block_names,
             self.param_defaults,
+            self.is_file_func,
         )
         c.set_context(self.context)
         c.set_pos(self.pos_start, self.pos_end)
@@ -6390,7 +6480,7 @@ class AsyncFunction(BaseFunction):
 
     def __init__(
         self, name, body_node, param_names, param_types=None, is_global=False,
-        code_block_names=None, param_defaults=None
+        code_block_names=None, param_defaults=None, is_file_func=False
     ):
         super().__init__(name)
         self.body_node = body_node
@@ -6398,6 +6488,7 @@ class AsyncFunction(BaseFunction):
         self.param_types = param_types or [None] * len(param_names)
         self.param_defaults = param_defaults or [None] * len(param_names)
         self.is_global = is_global
+        self.is_file_func = is_file_func
         self.code_block_names = code_block_names or []
         self.inner_locals = {}
         self.inner_globals = {}
@@ -6475,6 +6566,7 @@ class AsyncFunction(BaseFunction):
             self.is_global,
             self.code_block_names,
             self.param_defaults,
+            self.is_file_func,
         )
         c.set_context(self.context)
         c.set_pos(self.pos_start, self.pos_end)
@@ -8356,7 +8448,8 @@ class Interpreter:
         code_block_names = [tok.value for tok in node.code_block_toks]
         is_global = node.kind_tok.value == "global" or (
             node.kind_tok.type == TT_IDENTIFIER and node.kind_tok.value == "global"
-        )
+        ) or node.kind_tok.value == "func"
+        is_file_func = node.kind_tok.value == "func"
         if node.is_async:
             func_value = AsyncFunction(
                 func_name,
@@ -8366,6 +8459,7 @@ class Interpreter:
                 is_global,
                 code_block_names,
                 param_defaults,
+                is_file_func,
             )
         else:
             func_value = Function(
@@ -8376,6 +8470,7 @@ class Interpreter:
                 is_global,
                 code_block_names,
                 param_defaults,
+                is_file_func,
             )
         func_value.set_context(context).set_pos(node.pos_start, node.pos_end)
 
@@ -9064,6 +9159,7 @@ class Interpreter:
         if (isinstance(node.node_to_call, VarAccessNode)
                 and isinstance(value_to_call, (Function, AsyncFunction))
                 and value_to_call.is_global
+                and not value_to_call.is_file_func
                 and not _uses_shared_parameters(value_to_call)):
             return res.failure(RTError(
                 node.pos_start, node.pos_end,
@@ -9402,6 +9498,7 @@ class Interpreter:
         if (isinstance(node.node_to_call, VarAccessNode)
                 and isinstance(value_to_call, (Function, AsyncFunction))
                 and value_to_call.is_global
+                and not value_to_call.is_file_func
                 and not _uses_shared_parameters(value_to_call)):
             return res.failure(RTError(
                 node.pos_start, node.pos_end,

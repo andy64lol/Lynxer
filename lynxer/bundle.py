@@ -18,15 +18,39 @@ def _linux_architecture() -> str:
     return host_architecture()
 
 
-def _launcher_source(bytecode_name: str) -> str:
+def _launcher_source(bytecode_name: str, expected_architecture: str) -> str:
     return f"""#!/usr/bin/env python3
 import os
 import sys
 
 from lynxer.bytecode import run_bytecode
+from lynxer.syscalls import SYSCALL_TABLE, require_supported_platform, unavailable
+
+EXPECTED_ARCHITECTURE = {expected_architecture!r}
 
 
 def main():
+    try:
+        architecture = require_supported_platform()
+    except Exception as exc:
+        print(f"lynxer: bundled executable cannot run its Linux runtime: {{exc}}", file=sys.stderr)
+        return 1
+    if architecture != EXPECTED_ARCHITECTURE:
+        print(
+            "lynxer: bundled executable was built for "
+            f"{{EXPECTED_ARCHITECTURE}} but is running on {{architecture}}",
+            file=sys.stderr,
+        )
+        return 1
+    missing_syscalls = unavailable()
+    if len(missing_syscalls) == len(SYSCALL_TABLE):
+        print(
+            "lynxer: bundled syscall tables are unavailable; "
+            "rebuild with the system-calls package included",
+            file=sys.stderr,
+        )
+        return 1
+
     bytecode = os.path.join(getattr(sys, "_MEIPASS", os.path.dirname(__file__)), "bytecode", {bytecode_name!r})
     try:
         _, error = run_bytecode(bytecode)
@@ -57,7 +81,7 @@ if os.path.isdir(stdlib):
 
 def bundle_program(source_path: str, output_name: str | None = None) -> Path:
     """Compile *source_path* and package it as a one-file executable."""
-    _linux_architecture()
+    architecture = _linux_architecture()
     source = Path(source_path).expanduser().resolve()
     if not source.is_file():
         raise RuntimeError(f"file not found: '{source_path}'")
@@ -105,7 +129,10 @@ def bundle_program(source_path: str, output_name: str | None = None) -> Path:
     if Path(name).name != name or not name:
         raise RuntimeError("output name must be a simple executable name")
     launcher = launcher_root / f"{name}.py"
-    launcher.write_text(_launcher_source(bytecode_name), encoding="utf-8")
+    launcher.write_text(
+        _launcher_source(bytecode_name, architecture),
+        encoding="utf-8",
+    )
     runtime_hook = hook_root / f"{name}_runtime_hook.py"
     runtime_hook.write_text(_runtime_hook_source(), encoding="utf-8")
 
@@ -130,6 +157,8 @@ def bundle_program(source_path: str, output_name: str | None = None) -> Path:
         "--hidden-import",
         "lynxer.syscalls",
         "--collect-submodules",
+        "system_calls",
+        "--collect-all",
         "system_calls",
         "--runtime-hook",
         str(runtime_hook),

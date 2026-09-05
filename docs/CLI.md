@@ -97,15 +97,21 @@ lynxer --bundle program.lynx
 ```
 
 The compiled bytecode is stored in `build/bytecode/` and the executable is
-written to `dist/program`. On Linux, bundling uses the architecture of the
-host where it runs, including both x86-64 and ARM64 (`aarch64`) distributions.
+written to `dist/program`. On Linux, bundling is host-native: it uses the
+architecture of the machine where it runs, including x86-64 and ARM64
+(`aarch64`) distributions. A bundled executable records that architecture and
+refuses to start on a different Linux ABI instead of issuing syscalls with the
+wrong table.
 An optional second argument selects the executable name:
 
 ```bash
 lynxer --bundle program.lynx my-program
 ```
 
-Bundling requires PyInstaller and a working C++ extension build.
+Bundling requires PyInstaller, a working C++ extension build, and the
+`system-calls` package. The syscall package and its table data are collected
+into the executable, and startup verifies that the bundled runtime can resolve
+the host architecture's syscall table.
 
 ## Discover modules and runtime information
 

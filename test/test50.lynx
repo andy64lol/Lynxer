@@ -1,0 +1,4 @@
+// EXPECT_ERROR: Expected function name
+global setup(){}
+func if(){}
+global main(){}
