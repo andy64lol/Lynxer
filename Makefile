@@ -35,6 +35,7 @@ venv:
 test: buildCpp
 	@echo "Running tests..."
 	@$(VENV_PY) -u test/validate.py
+	@$(VENV_PY) -u test/remaining.py
 
 testAMR64: buildCpp
 	@echo "Running ARM64 syscall database test..."
@@ -46,6 +47,10 @@ validate: buildCpp
 
 check: test
 	@for file in syntax.lynx test/*.lynx; do \
+		if grep -q '^// EXPECT_ERROR:' "$$file"; then \
+			echo "Skipping expected-error fixture: $$file"; \
+			continue; \
+		fi; \
 		$(VENV_PY) lynxer/shell.py --lint "$$file" >/dev/null || exit $$?; \
 	done
 	@echo "✓ Lynxer checks passed."

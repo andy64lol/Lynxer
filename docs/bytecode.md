@@ -49,7 +49,7 @@ built-in stdlib.
 
 ---
 
-## Bytecode format (v7)
+## Bytecode format (v8)
 
 | Field | Details |
 |-------|---------|
@@ -88,9 +88,14 @@ instruction reader looks the id up in that fixed table, allocates the class
 with `__new__`, and fills in its attributes.  A `Position` omits its original
 source text and stores only its location.
 
-### What changed in v7
+### What changed in v8
 
-v7 replaced the AST serialization payload with the instruction stream above:
+v8 keeps the instruction stream format and bumps the compatibility version for
+enum declarations, ownership metadata, and switch pattern nodes. A compiler
+never loads an older payload as if it had the new semantics; stale files must
+be recompiled.
+
+The earlier v7 changes were:
 
 1. **Actual bytecode** — the program is written as opcodes and operands for a
    stack machine instead of as a pickled or generically serialized AST.

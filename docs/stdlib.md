@@ -853,6 +853,11 @@ Built into the same `tkinter` module — just `import("tkinter")`. Requires: `pi
 
 Requires: `pip install arcade`. The draw/update loop is wired via `rawPy` callbacks; see the [game docs](stdlib/game.md) for the pattern.
 
+## sound
+
+Standalone audio loading and playback controls that do not require a game
+window. See [docs/stdlib/sound.md](stdlib/sound.md).
+
 **Key functions:**
 
 | Category | Functions |

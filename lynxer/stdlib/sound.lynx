@@ -1,0 +1,8 @@
+////
+Lynxer standard library: sound.
+Standalone sound loading and playback controls.
+////
+
+global setup(){}
+// nothing yet
+global main(){}

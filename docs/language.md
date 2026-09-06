@@ -375,6 +375,14 @@ borrower. `beingBorrowed(variable)` reports whether another variable is
 currently borrowing from it. Both inspection helpers accept moved variables
 so ownership state can be inspected while handling an ownership error.
 
+`varTransferMutate(source, destination)` is the move form for an `any` or
+`num` destination: it retags the destination with the moved value's runtime
+type. A destination declared as a concrete incompatible type is rejected.
+`varBorrowMutate(source, borrower)` creates an exclusive mutable borrow. The
+borrower may be assigned through while the source observes the same storage;
+another active borrow makes the mutable borrow fail. Ending it with
+`varEndBorrow` leaves the borrower independent.
+
 `varSwapAll(first, second)` exchanges values and declared type metadata. Both
 variables must be independent, live, mutable variables; constants, aliases,
 moved variables, and active borrows are rejected before either variable is
@@ -510,6 +518,21 @@ switch(status){
 
 `case` and `default` blocks are only valid directly inside a `switch` block.
 A switch may contain any number of cases and at most one `default()` block.
+
+List and tuple patterns use exact length/arity matching. `_` is a wildcard,
+and a bare identifier binds the matching element for the case body:
+
+```c
+list value = [int 1, int 2];
+switch(value){
+    case([int 1, _]){ println("prefix matched"); }
+}
+```
+
+Patterns may be nested. Enum patterns use the qualified constructor spelling
+`result.Ok(value)` and bind payloads in the same way. Malformed patterns,
+incompatible sequence shapes, and invalid enum payloads produce diagnostics
+instead of silently matching.
 
 ### while
 

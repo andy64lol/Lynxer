@@ -77,6 +77,8 @@ _ASYNC_TIMERS: dict[int, Any] = {}
 _ASYNC_WAKEUPS: dict[int, Any] = {}
 _ASYNC_IDS = itertools.count(1)
 _ASYNC_REGISTRY_LOCK = threading.Lock()
+_SOUNDS: dict[int, dict[str, Any]] = {}
+_SOUND_IDS = itertools.count(1)
 
 
 # Handle-resolution helpers return ``(object, error)``.  Exactly one of the
@@ -541,11 +543,29 @@ class BuiltInFunction(BaseFunction):
             return self._failure(exec_ctx, error)
         return RTResult().success(Number.null)
 
+    def execute_varTransferMutate(self, args, exec_ctx):
+        references, failure = self._ownership_refs(args, exec_ctx, 2)
+        if failure:
+            return failure
+        error = exec_ctx.symbol_table.transfer_mutate(references[0], references[1])
+        if error:
+            return self._failure(exec_ctx, error)
+        return RTResult().success(Number.null)
+
     def execute_varBorrow(self, args, exec_ctx):
         references, failure = self._ownership_refs(args, exec_ctx, 2)
         if failure:
             return failure
         error = exec_ctx.symbol_table.borrow(references[0], references[1])
+        if error:
+            return self._failure(exec_ctx, error)
+        return RTResult().success(Number.null)
+
+    def execute_varBorrowMutate(self, args, exec_ctx):
+        references, failure = self._ownership_refs(args, exec_ctx, 2)
+        if failure:
+            return failure
+        error = exec_ctx.symbol_table.borrow_mutate(references[0], references[1])
         if error:
             return self._failure(exec_ctx, error)
         return RTResult().success(Number.null)
@@ -4100,6 +4120,133 @@ class BuiltInFunction(BaseFunction):
         time.sleep(seconds)
         return RTResult().success(Number.null)
 
+    def _sound_entry(self, args, exec_ctx, name):
+        if len(args) != 1 or not isinstance(args[0], Number) or args[0].is_bool:
+            return None, self._failure(exec_ctx, f"{name}(handle) expects one handle")
+        entry = _SOUNDS.get(int(args[0].value))
+        if entry is None:
+            return None, self._failure(exec_ctx, f"{name} received an invalid sound handle")
+        return entry, None
+
+    def execute_soundLoad(self, args, exec_ctx):
+        if len(args) != 1 or not isinstance(args[0], String):
+            return self._failure(exec_ctx, "soundLoad(path) expects one string path")
+        path = os.path.abspath(args[0].value)
+        if not os.path.isfile(path):
+            return self._failure(exec_ctx, f"sound file does not exist: '{args[0].value}'")
+        if os.path.splitext(path)[1].lower() not in {".wav", ".ogg", ".mp3", ".flac"}:
+            return self._failure(exec_ctx, "unsupported sound format; use WAV, OGG, MP3, or FLAC")
+        try:
+            import arcade
+            sound = arcade.Sound(path)
+        except Exception as exc:
+            return self._failure(exec_ctx, f"audio backend failed to load sound: {exc}")
+        handle = next(_SOUND_IDS)
+        _SOUNDS[handle] = {
+            "sound": sound, "player": None, "volume": 1.0,
+            "playing": False, "paused": False,
+        }
+        return RTResult().success(Number(handle))
+
+    def execute_soundPlay(self, args, exec_ctx):
+        entry, failure = self._sound_entry(args, exec_ctx, "soundPlay")
+        if failure:
+            return failure
+        try:
+            entry["player"] = entry["sound"].play(volume=entry["volume"])
+            entry["playing"] = True
+            entry["paused"] = False
+        except Exception as exc:
+            return self._failure(exec_ctx, f"audio backend failed to play sound: {exc}")
+        return RTResult().success(Number.null)
+
+    def execute_soundLoop(self, args, exec_ctx):
+        entry, failure = self._sound_entry(args, exec_ctx, "soundLoop")
+        if failure:
+            return failure
+        try:
+            entry["player"] = entry["sound"].play(
+                volume=entry["volume"], loop=True
+            )
+            entry["playing"] = True
+            entry["paused"] = False
+        except Exception as exc:
+            return self._failure(exec_ctx, f"audio backend failed to loop sound: {exc}")
+        return RTResult().success(Number.null)
+
+    def execute_soundStop(self, args, exec_ctx):
+        entry, failure = self._sound_entry(args, exec_ctx, "soundStop")
+        if failure:
+            return failure
+        try:
+            if entry["player"] is not None:
+                entry["player"].stop()
+        except Exception as exc:
+            return self._failure(exec_ctx, f"audio backend failed to stop sound: {exc}")
+        entry["playing"] = False
+        entry["paused"] = False
+        return RTResult().success(Number.null)
+
+    def execute_soundPause(self, args, exec_ctx):
+        entry, failure = self._sound_entry(args, exec_ctx, "soundPause")
+        if failure:
+            return failure
+        # Arcade's backend does not expose a portable pause operation.  Keep
+        # this explicit rather than pretending that a stop is resumable.
+        return self._failure(exec_ctx, "audio backend does not support portable pause/resume")
+
+    def execute_soundResume(self, args, exec_ctx):
+        entry, failure = self._sound_entry(args, exec_ctx, "soundResume")
+        if failure:
+            return failure
+        return self._failure(exec_ctx, "audio backend does not support portable pause/resume")
+
+    def execute_soundSetVolume(self, args, exec_ctx):
+        if (
+            len(args) != 2 or not isinstance(args[0], Number)
+            or not isinstance(args[1], Number)
+        ):
+            return self._failure(exec_ctx, "soundSetVolume(handle, volume) expects numbers")
+        entry = _SOUNDS.get(int(args[0].value))
+        if entry is None:
+            return self._failure(exec_ctx, "soundSetVolume received an invalid sound handle")
+        volume = float(args[1].value)
+        if not 0.0 <= volume <= 1.0:
+            return self._failure(exec_ctx, "sound volume must be between 0.0 and 1.0")
+        entry["volume"] = volume
+        if entry["player"] is not None:
+            try:
+                entry["player"].volume = volume
+            except Exception:
+                pass
+        return RTResult().success(Number.null)
+
+    def execute_soundIsPlaying(self, args, exec_ctx):
+        entry, failure = self._sound_entry(args, exec_ctx, "soundIsPlaying")
+        if failure:
+            return failure
+        playing = entry["playing"]
+        try:
+            if entry["player"] is not None:
+                playing = bool(entry["player"].is_playing())
+        except Exception:
+            pass
+        return RTResult().success(Number(int(playing), is_bool=True))
+
+    def execute_soundRelease(self, args, exec_ctx):
+        if len(args) != 1 or not isinstance(args[0], Number):
+            return self._failure(exec_ctx, "soundRelease(handle) expects one handle")
+        handle = int(args[0].value)
+        entry = _SOUNDS.pop(handle, None)
+        if entry is None:
+            return self._failure(exec_ctx, "soundRelease received an invalid sound handle")
+        try:
+            if entry["player"] is not None:
+                entry["player"].stop()
+        except Exception:
+            pass
+        return RTResult().success(Number.null)
+
     def execute_asyncSleep(self, args, exec_ctx):
         """asyncSleep(seconds) — return a coroutine."""
         import asyncio
@@ -4380,12 +4527,23 @@ BUILTIN_FUNCTION_NAMES = (
     "overrideMain",
     "unshare",
     "varTransfer",
+    "varTransferMutate",
     "varBorrow",
+    "varBorrowMutate",
     "varSwapAll",
     "varSwapVal",
     "varEndBorrow",
     "borrowing",
     "beingBorrowed",
+    "soundLoad",
+    "soundPlay",
+    "soundLoop",
+    "soundStop",
+    "soundPause",
+    "soundResume",
+    "soundSetVolume",
+    "soundIsPlaying",
+    "soundRelease",
     "getAddress",
     "modifyAddressValue",
     "getAddressValue",

@@ -364,6 +364,7 @@ KEYWORDS = [
     "try", "catch",
     "async", "await",
     "func",
+    "enum",
     "class",
     "native",
     "struct",
@@ -1010,6 +1011,28 @@ class DefaultNode:
         self.pos_start = pos_start
         self.pos_end = pos_end
 
+class PatternNode:
+    """A switch pattern.
+
+    Patterns deliberately remain AST data instead of being evaluated as normal
+    expressions.  This lets ``_`` and bindings work without requiring those
+    names to exist in the surrounding symbol table.
+    """
+    def __init__(self, kind, value=None, items=None, pos_start=None, pos_end=None):
+        self.kind = kind
+        self.value = value
+        self.items = items or []
+        self.pos_start = pos_start
+        self.pos_end = pos_end
+
+class EnumDefNode:
+    def __init__(self, name_tok, variants, body, pos_start, pos_end):
+        self.name_tok = name_tok
+        self.variants = variants
+        self.body = body
+        self.pos_start = pos_start
+        self.pos_end = pos_end
+
 class FuncDefNode:
     def __init__(
         self, kind_tok, var_name_tok, param_toks, body_block, pos_start, pos_end,
@@ -1571,6 +1594,18 @@ class Parser:
                     return res
                 globals_list.append(node)
                 any_other_seen = True
+            elif self.current_tok.matches(TT_KEYWORD, "enum"):
+                if main_seen:
+                    return res.failure(InvalidSyntaxError(
+                        self.current_tok.pos_start, self.current_tok.pos_end,
+                        "Enum definitions must appear before 'global main(){}'. "
+                        "No declarations are allowed after main.",
+                    ))
+                node = res.register(self.parse_enum_def())
+                if res.error:
+                    return res
+                globals_list.append(node)
+                any_other_seen = True
             elif (
                 self.current_tok.matches(TT_KEYWORD, "native")
                 and next_tok is not None
@@ -1621,6 +1656,106 @@ class Parser:
         return res.success(
             ProgramNode(setup_func, globals_list, main_func, pos_start, pos_end, docstring=docstring)
         )
+
+    def parse_enum_def(self):
+        """Parse ``enum Name = [Variant(type field), Empty] { ... }``."""
+        res = ParseResult()
+        pos_start = self.current_tok.pos_start.copy()
+        res.register_advancement()
+        self.advance()
+        if self.current_tok.type != TT_IDENTIFIER:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                "Expected an enum name after 'enum'",
+            ))
+        name_tok = self.current_tok
+        res.register_advancement()
+        self.advance()
+        if self.current_tok.type != TT_EQ:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                "Expected '=' after enum name",
+            ))
+        res.register_advancement()
+        self.advance()
+        if self.current_tok.type != TT_LBRACKET:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                "Expected '[' before enum variants",
+            ))
+        res.register_advancement()
+        self.advance()
+        variants = []
+        seen = set()
+        while self.current_tok.type != TT_RBRACKET:
+            if self.current_tok.type != TT_IDENTIFIER:
+                return res.failure(InvalidSyntaxError(
+                    self.current_tok.pos_start, self.current_tok.pos_end,
+                    "Expected an enum variant name",
+                ))
+            variant_tok = self.current_tok
+            if variant_tok.value in seen:
+                return res.failure(InvalidSyntaxError(
+                    variant_tok.pos_start, variant_tok.pos_end,
+                    f"Duplicate enum variant '{variant_tok.value}'",
+                ))
+            seen.add(variant_tok.value)
+            res.register_advancement()
+            self.advance()
+            fields = []
+            if self.current_tok.type == TT_LPAREN:
+                res.register_advancement()
+                self.advance()
+                while self.current_tok.type != TT_RPAREN:
+                    if not self.is_type_name():
+                        return res.failure(InvalidSyntaxError(
+                            self.current_tok.pos_start, self.current_tok.pos_end,
+                            "Expected a payload type and name in enum variant",
+                        ))
+                    type_name = self.current_tok.value
+                    res.register_advancement()
+                    self.advance()
+                    if self.current_tok.type != TT_IDENTIFIER:
+                        return res.failure(InvalidSyntaxError(
+                            self.current_tok.pos_start, self.current_tok.pos_end,
+                            "Expected an enum payload field name",
+                        ))
+                    field_tok = self.current_tok
+                    fields.append((type_name, field_tok.value))
+                    res.register_advancement()
+                    self.advance()
+                    if self.current_tok.type == TT_COMMA:
+                        res.register_advancement()
+                        self.advance()
+                    elif self.current_tok.type != TT_RPAREN:
+                        return res.failure(InvalidSyntaxError(
+                            self.current_tok.pos_start, self.current_tok.pos_end,
+                            "Expected ',' or ')' in enum payload",
+                        ))
+                res.register_advancement()
+                self.advance()
+            variants.append((variant_tok.value, fields))
+            if self.current_tok.type == TT_COMMA:
+                res.register_advancement()
+                self.advance()
+            elif self.current_tok.type != TT_RBRACKET:
+                return res.failure(InvalidSyntaxError(
+                    self.current_tok.pos_start, self.current_tok.pos_end,
+                    "Expected ',' or ']' after enum variant",
+                ))
+        res.register_advancement()
+        self.advance()
+        if self.current_tok.type != TT_LBRACE:
+            return res.failure(InvalidSyntaxError(
+                self.current_tok.pos_start, self.current_tok.pos_end,
+                "Expected '{' after enum variants",
+            ))
+        body = res.register(self.parse_block(
+            allow_local_funcs=True, allow_function_defs=False
+        ))
+        if res.error:
+            return res
+        return res.success(EnumDefNode(name_tok, variants, body, pos_start, body.pos_end))
 
     def parse_func_def(self):
         res = ParseResult()
@@ -3975,7 +4110,7 @@ class Parser:
                 self.current_tok.pos_end,
                 "case() requires a value to match",
             ))
-        match_node = res.register(self.parse_expr())
+        match_node = res.register(self.parse_switch_pattern())
         if res.error:
             return res
 
@@ -3996,6 +4131,109 @@ class Parser:
             return res
 
         return res.success(CaseNode(match_node, body, pos_start, body.pos_end))
+
+    def parse_switch_pattern(self):
+        """Parse scalar, wildcard, sequence, and enum switch patterns."""
+        res = ParseResult()
+        tok = self.current_tok
+        if tok.type == TT_IDENTIFIER and tok.value == "_":
+            res.register_advancement()
+            self.advance()
+            return res.success(PatternNode(
+                "wildcard", pos_start=tok.pos_start, pos_end=tok.pos_end
+            ))
+        if (
+            tok.type == TT_IDENTIFIER
+            and not (
+                self.peek(1) is not None
+                and self.peek(1).type in (TT_DOT, TT_LPAREN)
+            )
+        ):
+            res.register_advancement()
+            self.advance()
+            return res.success(PatternNode(
+                "binding", value=tok.value,
+                pos_start=tok.pos_start, pos_end=tok.pos_end,
+            ))
+
+        # Qualified enum pattern: Result.Ok(...) or Result.Ok.
+        if (
+            tok.type == TT_IDENTIFIER
+            and self.peek(1) is not None and self.peek(1).type == TT_DOT
+            and self.peek(2) is not None and self.peek(2).type == TT_IDENTIFIER
+        ):
+            enum_name = tok.value
+            variant_tok = self.peek(2)
+            if self.peek(3) is not None and self.peek(3).type == TT_LPAREN:
+                res.register_advancement(); self.advance()
+                res.register_advancement(); self.advance()
+                res.register_advancement(); self.advance()
+                res.register_advancement(); self.advance()
+                items = []
+                while self.current_tok.type != TT_RPAREN:
+                    items.append(res.register(self.parse_switch_pattern()))
+                    if res.error:
+                        return res
+                    if self.current_tok.type == TT_COMMA:
+                        res.register_advancement(); self.advance()
+                    elif self.current_tok.type != TT_RPAREN:
+                        return res.failure(InvalidSyntaxError(
+                            self.current_tok.pos_start, self.current_tok.pos_end,
+                            "Expected ',' or ')' in enum switch pattern",
+                        ))
+                res.register_advancement(); self.advance()
+                return res.success(PatternNode(
+                    "enum", value=(enum_name, variant_tok.value), items=items,
+                    pos_start=tok.pos_start, pos_end=self.current_tok.pos_end,
+                ))
+            res.register_advancement(); self.advance()
+            res.register_advancement(); self.advance()
+            res.register_advancement(); self.advance()
+            return res.success(PatternNode(
+                "enum", value=(enum_name, variant_tok.value), items=[],
+                pos_start=tok.pos_start, pos_end=variant_tok.pos_end,
+            ))
+
+        if tok.type in (TT_LBRACKET, TT_LPAREN):
+            opening = tok.type
+            closing = TT_RBRACKET if opening == TT_LBRACKET else TT_RPAREN
+            res.register_advancement()
+            self.advance()
+            items = []
+            while self.current_tok.type != closing:
+                if self.current_tok.type == TT_IDENTIFIER and self.current_tok.value == "_":
+                    item = res.register(self.parse_switch_pattern())
+                else:
+                    # Sequence patterns accept the normal typed literal form
+                    # as well as untyped scalar literals.
+                    if self.is_type_keyword() and self.peek(1) is not None:
+                        res.register_advancement()
+                        self.advance()
+                    item = res.register(self.parse_switch_pattern())
+                if res.error:
+                    return res
+                items.append(item)
+                if self.current_tok.type == TT_COMMA:
+                    res.register_advancement(); self.advance()
+                elif self.current_tok.type != closing:
+                    return res.failure(InvalidSyntaxError(
+                        self.current_tok.pos_start, self.current_tok.pos_end,
+                        "Expected ',' or closing delimiter in switch pattern",
+                    ))
+            pos_end = self.current_tok.pos_end.copy()
+            res.register_advancement()
+            self.advance()
+            kind = "list" if opening == TT_LBRACKET else "tuple"
+            return res.success(PatternNode(
+                kind, items=items, pos_start=tok.pos_start, pos_end=pos_end
+            ))
+
+        literal = res.register(self.parse_expr())
+        if res.error:
+            return res
+        return res.success(PatternNode(
+            "literal", value=literal, pos_start=literal.pos_start, pos_end=literal.pos_end
+        ))
 
     def parse_default(self):
         res = ParseResult()
@@ -6136,6 +6374,8 @@ def value_type_name(v):
         return "functionAddress"
     if isinstance(v, NativeHandle):
         return "nativeHandle"
+    if isinstance(v, EnumValue):
+        return v.enum_name
     if isinstance(v, VarGroup):
         return "vargroup"
     if isinstance(v, Function) or (
@@ -6167,6 +6407,8 @@ def type_matches(declared_type, value):
     if declared_type in (None, "any"):
         return True
     actual = value_type_name(value)
+    if isinstance(value, EnumValue):
+        return declared_type == value.enum_name
     if declared_type == "num":
         return actual in NUMERIC_TYPES
     if declared_type in NUMERIC_TYPES:
@@ -6637,6 +6879,122 @@ class Namespace(Value):
 
     def __repr__(self):
         return "<namespace>"
+
+class EnumValue(Value):
+    """Tagged, immutable enum value with optional named payloads."""
+    def __init__(self, enum_name, variant_name, payload=None, field_names=None):
+        super().__init__()
+        self.enum_name = enum_name
+        self.variant_name = variant_name
+        self.payload = list(payload or [])
+        self.field_names = list(field_names or [])
+
+    def get_attr(self, name):
+        if name in self.field_names:
+            return self.payload[self.field_names.index(name)], None
+        return None, RTError(
+            self.pos_start, self.pos_end,
+            f"Enum variant '{self.variant_name}' has no payload '{name}'",
+            self.context,
+        )
+
+    def get_comparison_eq(self, other):
+        if not isinstance(other, EnumValue):
+            return Number(0, is_bool=True), None
+        if self.enum_name != other.enum_name or self.variant_name != other.variant_name:
+            return Number(0, is_bool=True), None
+        if len(self.payload) != len(other.payload):
+            return Number(0, is_bool=True), None
+        for left, right in zip(self.payload, other.payload):
+            equal, error = left.get_comparison_eq(right)
+            if error or not equal.is_true():
+                return Number(0, is_bool=True), error
+        return Number(1, is_bool=True), None
+
+    def get_comparison_ne(self, other):
+        equal, error = self.get_comparison_eq(other)
+        if error:
+            return None, error
+        return Number(1 - int(equal.value), is_bool=True), None
+
+    def is_true(self):
+        return True
+
+    def copy(self):
+        copied = EnumValue(
+            self.enum_name, self.variant_name,
+            [item.copy() for item in self.payload], self.field_names
+        )
+        return copied.set_pos(self.pos_start, self.pos_end).set_context(self.context)
+
+    def __str__(self):
+        if not self.payload:
+            return f"{self.enum_name}.{self.variant_name}"
+        fields = ", ".join(str(item) for item in self.payload)
+        return f"{self.enum_name}.{self.variant_name}({fields})"
+
+    __repr__ = __str__
+
+class EnumConstructor(BaseFunction):
+    def __init__(self, enum_name, variant_name, field_defs):
+        super().__init__(f"{enum_name}.{variant_name}")
+        self.enum_name = enum_name
+        self.variant_name = variant_name
+        self.field_defs = field_defs
+
+    def execute(self, args, code_blocks=None):
+        res = RTResult()
+        if len(args) != len(self.field_defs):
+            return res.failure(RTError(
+                self.pos_start, self.pos_end,
+                f"{self.name} expects {len(self.field_defs)} payload value(s), "
+                f"received {len(args)}",
+                self.context,
+            ))
+        for value, (field_type, field_name) in zip(args, self.field_defs):
+            if not type_matches(field_type, value):
+                return res.failure(RTError(
+                    self.pos_start, self.pos_end,
+                    f"Enum '{self.enum_name}.{self.variant_name}' field "
+                    f"'{field_name}' is declared as '{field_type}' but received "
+                    f"'{value_type_name(value)}'",
+                    self.context,
+                ))
+        return res.success(EnumValue(
+            self.enum_name, self.variant_name, [item.copy() for item in args],
+            [name for _, name in self.field_defs],
+        ))
+
+    def copy(self):
+        return self
+
+class EnumType(Value):
+    def __init__(self, name, variants):
+        super().__init__()
+        self.name = name
+        self.variants = {
+            variant: (
+                EnumValue(name, variant)
+                if not fields else EnumConstructor(name, variant, fields)
+            )
+            for variant, fields in variants
+        }
+
+    def get_attr(self, name):
+        value = self.variants.get(name)
+        if value is None:
+            return None, RTError(
+                self.pos_start, self.pos_end,
+                f"Enum '{self.name}' has no variant '{name}'",
+                self.context,
+            )
+        return value, None
+
+    def copy(self):
+        return self
+
+    def __str__(self):
+        return f"<enum {self.name}>"
 
 class LocalNamespace(Value):
     """Namespace for 'local' functions defined."""
@@ -7449,6 +7807,8 @@ class SymbolTable:
             parent._borrow_sources if parent is not None else {}
         )
         self._borrowers = parent._borrowers if parent is not None else {}
+        self._borrow_modes = parent._borrow_modes if parent is not None else {}
+        self._runtime_types = parent._runtime_types if parent is not None else {}
 
     def _find(self, name):
         table = self
@@ -7507,6 +7867,7 @@ class SymbolTable:
 
     def _detach_borrow(self, local_key):
         source_key = self._borrow_sources.pop(local_key, None)
+        self._borrow_modes.pop(local_key, None)
         if source_key is None:
             return
         borrowers = self._borrowers.get(source_key)
@@ -7541,16 +7902,28 @@ class SymbolTable:
                 f"Cannot {operation} moved variable '{name}'; "
                 "reinitialize it before using it again"
             )
-        if state == "borrowed" and operation in {
-            "write to",
-            "transfer into",
-            "borrow into",
-        }:
+        if state == "borrowed" and operation in {"transfer into", "borrow into"}:
             return (
                 f"Cannot {operation} borrowed variable '{name}'; "
                 "end its borrow first"
             )
-        if operation in {"write to", "move"} and self._active_borrowers(canonical):
+        if (
+            state == "borrowed"
+            and operation == "write to"
+            and self._borrow_modes.get(local_key) != "mutable"
+        ):
+            return (
+                f"Cannot write to borrowed variable '{name}'; "
+                "the borrow is read-only"
+            )
+        if (
+            operation in {"write to", "move"}
+            and not (
+                state == "borrowed"
+                and self._borrow_modes.get(local_key) == "mutable"
+            )
+            and self._active_borrowers(canonical)
+        ):
             return (
                 f"Cannot {operation} '{name}' while it is being borrowed; "
                 "end all active borrows first"
@@ -7615,6 +7988,41 @@ class SymbolTable:
         destination_table.symbols[destination_name] = destination_value
         destination_table.aliases.pop(destination_name, None)
         destination_table.references.pop(destination_name, None)
+        self._ownership[destination_key] = "live"
+        self._ownership[source_key] = "moved"
+        return None
+
+    def transfer_mutate(self, source_reference, destination_reference):
+        """Move a value and retag an ``any``/``num`` destination."""
+        source_table, source_name = self._canonical_reference(source_reference)
+        destination_table, destination_name = self._local_reference(
+            destination_reference[1] if isinstance(destination_reference, tuple)
+            else destination_reference
+        )
+        if source_table is None or destination_table is None:
+            return "source and destination variables must be defined"
+        source_key = self._reference_key((source_table, source_name))
+        destination_key = self._reference_key((destination_table, destination_name))
+        if source_key == destination_key:
+            return "a variable cannot be transferred to itself"
+        source_error = self.ownership_error(source_name, "move")
+        if source_error:
+            return source_error
+        if self.is_const(source_name) or self.is_const(destination_name):
+            return "Cannot transfer through a constant variable"
+        if self._active_borrowers((source_table, source_name)):
+            return f"Cannot move '{source_name}' while it is being borrowed"
+        value = source_table.get(source_name)
+        declared = destination_table.types.get(destination_name)
+        if declared not in (None, "any", "num") and not type_matches(declared, value):
+            return (
+                f"Type mismatch: '{destination_name}' is declared as "
+                f"'{declared}' and cannot mutate to '{value_type_name(value)}'"
+            )
+        destination_table.symbols[destination_name] = value.copy()
+        destination_table.aliases.pop(destination_name, None)
+        destination_table.references.pop(destination_name, None)
+        self._runtime_types[destination_key] = value_type_name(value)
         self._ownership[destination_key] = "live"
         self._ownership[source_key] = "moved"
         return None
@@ -7807,6 +8215,45 @@ class SymbolTable:
         destination_table.references[destination_name] = source_table.get_reference(source_name)
         destination_table.aliases[destination_name] = (source_table, source_name)
         self._borrow_sources[destination_key] = source_key
+        self._borrow_modes[destination_key] = "readonly"
+        self._borrowers.setdefault(source_key, set()).add(destination_key)
+        self._ownership[destination_key] = "borrowed"
+        return None
+
+    def borrow_mutate(self, source_reference, destination_reference):
+        """Create an exclusive mutable borrow into an existing variable."""
+        source_table, source_name = self._canonical_reference(source_reference)
+        destination_table, destination_name = self._local_reference(
+            destination_reference[1] if isinstance(destination_reference, tuple)
+            else destination_reference
+        )
+        if source_table is None or destination_table is None:
+            return "source and destination variables must be defined"
+        source_key = self._reference_key((source_table, source_name))
+        destination_key = self._reference_key((destination_table, destination_name))
+        if source_key == destination_key:
+            return "a variable cannot borrow from itself"
+        source_error = self.ownership_error(source_name, "borrow from")
+        if source_error:
+            return source_error
+        if self._active_borrowers(source_key):
+            return f"Cannot mutably borrow '{source_name}' while it has active borrows"
+        if destination_key in self._borrow_sources:
+            return f"Variable '{destination_name}' is already borrowing"
+        if self.is_const(destination_name):
+            return f"Cannot borrow into constant '{destination_name}'"
+        value = source_table.get(source_name)
+        declared = destination_table.types.get(destination_name)
+        if declared not in (None, "any", "num") and not type_matches(declared, value):
+            return (
+                f"Type mismatch: '{destination_name}' is declared as "
+                f"'{declared}' and cannot mutate to '{value_type_name(value)}'"
+            )
+        destination_table.symbols.pop(destination_name, None)
+        destination_table.references[destination_name] = source_table.get_reference(source_name)
+        destination_table.aliases[destination_name] = (source_table, source_name)
+        self._borrow_sources[destination_key] = source_key
+        self._borrow_modes[destination_key] = "mutable"
         self._borrowers.setdefault(source_key, set()).add(destination_key)
         self._ownership[destination_key] = "borrowed"
         return None
@@ -8696,6 +9143,56 @@ class Interpreter:
 
         return res.success(Number.null)
 
+    def _match_switch_pattern(self, pattern, value, context, bindings):
+        if isinstance(pattern, PatternNode):
+            if pattern.kind == "wildcard":
+                return True, None
+            if pattern.kind == "binding":
+                existing = context.symbol_table.get(pattern.value)
+                if existing is None:
+                    bindings[pattern.value] = value.copy()
+                    return True, None
+                equal, error = existing.get_comparison_eq(value)
+                return bool(equal and equal.is_true()), error
+            if pattern.kind == "literal":
+                result = self.visit(pattern.value, context)
+                if result.error:
+                    return False, result.error
+                equal, error = value.get_comparison_eq(result.value)
+                return bool(equal and equal.is_true()), error
+            if pattern.kind in {"list", "tuple"}:
+                expected_type = List if pattern.kind == "list" else LynxTuple
+                if not isinstance(value, expected_type):
+                    return False, None
+                if len(value.elements) != len(pattern.items):
+                    return False, None
+                for child, actual in zip(pattern.items, value.elements):
+                    matched, error = self._match_switch_pattern(
+                        child, actual, context, bindings
+                    )
+                    if error or not matched:
+                        return matched, error
+                return True, None
+            if pattern.kind == "enum":
+                if not isinstance(value, EnumValue):
+                    return False, None
+                enum_name, variant_name = pattern.value
+                if (
+                    (enum_name is not None and value.enum_name != enum_name)
+                    or value.variant_name != variant_name
+                    or len(value.payload) != len(pattern.items)
+                ):
+                    return False, None
+                for child, actual in zip(pattern.items, value.payload):
+                    matched, error = self._match_switch_pattern(
+                        child, actual, context, bindings
+                    )
+                    if error or not matched:
+                        return matched, error
+                return True, None
+        equal, error = value.get_comparison_eq(pattern)
+        return bool(equal and equal.is_true()), error
+
     def visit_SwitchNode(self, node, context):
         res = RTResult()
         switch_value = res.register(self.visit(node.value_node, context))
@@ -8708,15 +9205,18 @@ class Interpreter:
                 default_case = case
                 continue
 
-            case_value = res.register(self.visit(case.match_node, context))
-            if res.should_return():
-                return res
-
-            matches, error = switch_value.get_comparison_eq(case_value)
+            bindings = {}
+            matches, error = self._match_switch_pattern(
+                case.match_node, switch_value, context, bindings
+            )
             if error:
-                # Values of different or unsupported types simply do not match.
-                continue
-            if matches.is_true():
+                return res.failure(error)
+            if matches:
+                for binding_name, binding_value in bindings.items():
+                    context.symbol_table.set(
+                        binding_name, binding_value,
+                        decl_type=value_type_name(binding_value),
+                    )
                 res.register(self.visit(case.body_block, context))
                 if res.should_return():
                     return res
@@ -9358,14 +9858,18 @@ class Interpreter:
                 default_case = case
                 continue
 
-            case_value = res.register(await self.async_visit(case.match_node, context))
-            if res.should_return():
-                return res
-
-            matches, error = switch_value.get_comparison_eq(case_value)
+            bindings = {}
+            matches, error = self._match_switch_pattern(
+                case.match_node, switch_value, context, bindings
+            )
             if error:
-                continue
-            if matches.is_true():
+                return res.failure(error)
+            if matches:
+                for binding_name, binding_value in bindings.items():
+                    context.symbol_table.set(
+                        binding_name, binding_value,
+                        decl_type=value_type_name(binding_value),
+                    )
                 res.register(await self.async_visit(case.body_block, context))
                 if res.should_return():
                     return res
@@ -9641,7 +10145,9 @@ class Interpreter:
             isinstance(node.node_to_call, VarAccessNode)
             and node.node_to_call.var_name_tok.value in {
                 "varTransfer",
+                "varTransferMutate",
                 "varBorrow",
+                "varBorrowMutate",
                 "varSwapAll",
                 "varSwapVal",
             }
@@ -9818,6 +10324,9 @@ class Interpreter:
 
     async def async_visit_StructDefNode(self, node, context):
         return self.visit_StructDefNode(node, context)
+
+    async def async_visit_EnumDefNode(self, node, context):
+        return self.visit_EnumDefNode(node, context)
 
     async def async_visit_AddVarGroupNode(self, node, context):
         return self.visit_AddVarGroupNode(node, context)
@@ -10037,7 +10546,9 @@ class Interpreter:
             isinstance(node.node_to_call, VarAccessNode)
             and node.node_to_call.var_name_tok.value in {
                 "varTransfer",
+                "varTransferMutate",
                 "varBorrow",
+                "varBorrowMutate",
                 "varSwapAll",
                 "varSwapVal",
             }
@@ -10311,6 +10822,14 @@ class Interpreter:
             context.symbol_table.set("class", class_registry)
         class_registry.register(node.name_tok.value, blueprint)
         return res.success(Number.null)
+
+    def visit_EnumDefNode(self, node, context):
+        enum = EnumType(node.name_tok.value, node.variants)
+        enum.set_context(context).set_pos(node.pos_start, node.pos_end)
+        context.symbol_table.set(node.name_tok.value, enum, decl_type=node.name_tok.value)
+        # Associated code is parsed and retained for forward compatibility.  It
+        # is intentionally not executed at declaration time.
+        return RTResult().success(Number.null)
 
     def visit_DotAssignNode(self, node, context):
         res = RTResult()

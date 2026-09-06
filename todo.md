@@ -247,7 +247,7 @@
   - Cover direct calls, recursion, forward references, imports, duplicate
     declarations, and attempts to declare a `func` inside a local function.
 
-- [ ] Add explicit ownership transfer and borrowing operations inspired by Rust:
+- [x] Add explicit ownership transfer and borrowing operations inspired by Rust:
   - Implement `varTransfer(oldVar, newVar)` as a move operation. The destination
     receives the value and ownership metadata, while the source becomes moved
     and cannot be read, written, transferred, borrowed, or passed to a function
@@ -282,7 +282,7 @@
   - [x] Add clear diagnostics and tests for primitive values, lists, tuples, structs,
     `any`/numeric types, moved values, and active borrows.
 
-- [ ] Add type-changing ownership operations:
+- [x] Add type-changing ownership operations:
   - Implement `varTransferMutate(oldVar, newVar)` as a transfer that also allows
     the destination's runtime type to change to the moved value's type, subject
     to the destination declaration and ownership rules.
@@ -296,7 +296,7 @@
   - Serialize and restore the resulting type and borrow metadata in bytecode,
     including failures for invalid mutation sequences.
 
-- [ ] Add ownership inspection helpers:
+- [x] Add ownership inspection helpers:
   - Implement `borrowing(variable)` returning a boolean indicating whether the
     variable currently represents an active borrow or has an active borrowing
     relationship, using one documented and consistent interpretation.
@@ -308,7 +308,7 @@
   - Add tests proving that both helpers change at the correct points during
     transfer, borrow, mutation, explicit `varEndBorrow`, and scope exit.
 
-- [ ] Expand `switch` pattern matching to support lists and tuples:
+- [x] Expand `switch` pattern matching to support lists and tuples:
   - Allow list and tuple literals as switch patterns, including nested lists and
     tuples, so a case can match sequence shape and element values rather than
     only scalar expressions.
@@ -324,7 +324,7 @@
   - Cover scalar, list, tuple, nested, empty, wildcard, and no-match cases,
     then verify identical behavior from source execution and compiled bytecode.
 
-- [ ] Add a standalone `sound` standard-library module:
+- [x] Add a standalone `sound` standard-library module:
   - Make `import("sound")` expose a documented `global.sound` namespace for
     loading and reproducing sound files independently of the game module.
   - Provide lifecycle operations for loading a file, playing it once, looping
@@ -341,7 +341,7 @@
   - Add regression coverage for successful loading/playback control, invalid
     paths, repeated cleanup, volume boundaries, and backend failure reporting.
 
-- [ ] Update the bytecode format for the new language features:
+- [x] Update the bytecode format for the new language features:
   - Bump the bytecode format version and serialize the AST/runtime metadata
     required for `func` declarations, ownership states, borrow relationships,
     mutable type transitions, list/tuple switch patterns, enums, and the sound
@@ -356,7 +356,7 @@
     versions, corrupted payloads, imported bytecode modules, and bundled
     bytecode programs.
 
-- [ ] Add comprehensive regression tests for the language and runtime changes:
+- [x] Add comprehensive regression tests for the language and runtime changes:
   - Add positive and negative tests for every new syntax and operation, with
     assertions for values, types, ownership states, diagnostics, and source
     locations.
@@ -373,7 +373,7 @@
     no audio device; audio tests must use controlled fixtures or explicitly
     verify a documented headless error path.
 
-- [ ] Add Rust-style enums with variable-like declarations and separate values
+- [x] Add Rust-style enums with variable-like declarations and separate values
   and implementation code:
   - Introduce an enum declaration whose bracketed section describes the
     variants and their optional payload values, while the braced section
