@@ -1,0 +1,88 @@
+// Descriptor control, poll/epoll, inode notifications, and uname syscalls.
+global setup(){}
+
+global main(){
+    int pipeFds = memoryAllocate(8);
+    assert(syscallCreatePipe(pipeFds, 0) == 0);
+    int readFd = memoryReadInt32(pipeFds, 0);
+    int writeFd = memoryReadInt32(pipeFds, 4);
+
+    int payload = memoryAllocate(1);
+    memoryWriteUInt8(payload, 0, 88);
+    assert(syscallWrite(writeFd, payload, 1) == 1);
+
+    int available = memoryAllocate(4);
+    assert(syscallControlInputOutput(readFd, 21531, available) == 0);
+    assert(memoryReadInt32(available, 0) == 1);
+
+    int pollFd = memoryAllocate(8);
+    memoryWriteInt32(pollFd, 0, readFd);
+    memoryWriteInt16(pollFd, 4, 1);
+    memoryWriteInt16(pollFd, 6, 0);
+    assert(syscallPollFileDescriptors(pollFd, 1, 0) == 1);
+    assert(memoryReadInt16(pollFd, 6) == 1);
+
+    int epoll = syscallCreateEventPoll(0);
+    int event = memoryAllocate(16);
+    memoryWriteUInt32(event, 0, 1);
+    memoryWriteUInt64(event, 4, 123);
+    assert(syscallControlEventPoll(epoll, 1, readFd, event) == 0);
+    int events = memoryAllocate(16);
+    assert(syscallWaitForEvents(epoll, events, 1, 0) == 1);
+    assert(memoryReadUInt32(events, 0) == 1);
+
+    int path = memoryAllocate(128);
+    memoryWriteUInt8(path, 0, 47);
+    memoryWriteUInt8(path, 1, 116);
+    memoryWriteUInt8(path, 2, 109);
+    memoryWriteUInt8(path, 3, 112);
+    memoryWriteUInt8(path, 4, 47);
+    memoryWriteUInt8(path, 5, 108);
+    memoryWriteUInt8(path, 6, 121);
+    memoryWriteUInt8(path, 7, 110);
+    memoryWriteUInt8(path, 8, 120);
+    memoryWriteUInt8(path, 9, 101);
+    memoryWriteUInt8(path, 10, 114);
+    memoryWriteUInt8(path, 11, 45);
+    memoryWriteUInt8(path, 12, 110);
+    memoryWriteUInt8(path, 13, 111);
+    memoryWriteUInt8(path, 14, 116);
+    memoryWriteUInt8(path, 15, 105);
+    memoryWriteUInt8(path, 16, 102);
+    memoryWriteUInt8(path, 17, 121);
+    memoryWriteUInt8(path, 18, 45);
+    memoryWriteUInt8(path, 19, 53);
+    memoryWriteUInt8(path, 20, 52);
+    memoryWriteUInt8(path, 21, 0);
+
+    int file = syscallOpenAt(-100, path, 578, 420);
+    int notifications = syscallInitializeInodeNotifications(0);
+    int watch = syscallAddInodeNotificationWatch(notifications, path, 2);
+    assert(file >= 0);
+    assert(notifications >= 0);
+    assert(watch >= 0);
+    assert(syscallPositionedWrite64(file, payload, 1, 0) == 1);
+    int notification = memoryAllocate(4096);
+    assert(syscallRead(notifications, notification, 4096) > 0);
+    assert(syscallRemoveInodeNotificationWatch(notifications, watch) == 0);
+    assert(syscallClose(notifications) == 0);
+    assert(syscallClose(file) == 0);
+    assert(syscallRemoveFileAt(-100, path, 0) == 0);
+
+    int systemName = memoryAllocate(512);
+    assert(syscallGetUnixSystemName(systemName) == 0);
+    assert(memoryReadUInt8(systemName, 0) > 0);
+
+    assert(syscallClose(epoll) == 0);
+    assert(syscallClose(readFd) == 0);
+    assert(syscallClose(writeFd) == 0);
+    memoryFree(systemName);
+    memoryFree(notification);
+    memoryFree(path);
+    memoryFree(events);
+    memoryFree(event);
+    memoryFree(pollFd);
+    memoryFree(available);
+    memoryFree(payload);
+    memoryFree(pipeFds);
+}

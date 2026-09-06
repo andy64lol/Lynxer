@@ -43,6 +43,11 @@
 
 * `syscallRead()`
 * `syscallWrite()`
+* `syscallGetCurrentDirectory()`
+* `syscallChangeDirectory()`
+* `syscallControlInputOutput()`
+* `syscallPositionedRead64()`
+* `syscallPositionedWrite64()`
 * `syscallOpenAt()`
 * `syscallClose()`
 * `syscallReadVector()`
@@ -51,6 +56,7 @@
 * `syscallGetFileStatus()`
 * `syscallGetFileStatusAt()`
 * `syscallTruncateFile()`
+* `syscallCheckFileAccessAt()`
 * `syscallSynchronizeFile()`
 * `syscallSynchronizeFileData()`
 * `syscallDuplicateFileDescriptor()`
@@ -112,7 +118,12 @@
 * `syscallCreateEventPoll()`
 * `syscallControlEventPoll()`
 * `syscallWaitForEvents()`
+* `syscallInitializeInodeNotifications()`
+* `syscallAddInodeNotificationWatch()`
+* `syscallRemoveInodeNotificationWatch()`
 * `syscallGetSystemInformation()`
+* `syscallGetUnixSystemName()`
+* `syscallGetExtendedFileStatus()`
 * `syscallGetResourceUsage()`
 * `syscallGetResourceLimit()`
 * `syscallSetResourceLimit()`

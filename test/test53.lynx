@@ -1,0 +1,67 @@
+// Filesystem syscalls: cwd, positioned I/O, truncation, access, and statx.
+global setup(){}
+
+global main(){
+    int cwd = memoryAllocate(4096);
+    int path = memoryAllocate(64);
+    memoryWriteUInt8(path, 0, 47);
+    memoryWriteUInt8(path, 1, 116);
+    memoryWriteUInt8(path, 2, 109);
+    memoryWriteUInt8(path, 3, 112);
+    memoryWriteUInt8(path, 4, 0);
+    assert(syscallGetCurrentDirectory(cwd, 4096) > 0);
+    assert(syscallChangeDirectory(path) == 0);
+    assert(syscallChangeDirectory(cwd) == 0);
+
+    int filePath = memoryAllocate(128);
+    memoryWriteUInt8(filePath, 0, 47);
+    memoryWriteUInt8(filePath, 1, 116);
+    memoryWriteUInt8(filePath, 2, 109);
+    memoryWriteUInt8(filePath, 3, 112);
+    memoryWriteUInt8(filePath, 4, 47);
+    memoryWriteUInt8(filePath, 5, 108);
+    memoryWriteUInt8(filePath, 6, 121);
+    memoryWriteUInt8(filePath, 7, 110);
+    memoryWriteUInt8(filePath, 8, 120);
+    memoryWriteUInt8(filePath, 9, 101);
+    memoryWriteUInt8(filePath, 10, 114);
+    memoryWriteUInt8(filePath, 11, 45);
+    memoryWriteUInt8(filePath, 12, 115);
+    memoryWriteUInt8(filePath, 13, 121);
+    memoryWriteUInt8(filePath, 14, 115);
+    memoryWriteUInt8(filePath, 15, 99);
+    memoryWriteUInt8(filePath, 16, 97);
+    memoryWriteUInt8(filePath, 17, 108);
+    memoryWriteUInt8(filePath, 18, 108);
+    memoryWriteUInt8(filePath, 19, 45);
+    memoryWriteUInt8(filePath, 20, 53);
+    memoryWriteUInt8(filePath, 21, 51);
+    memoryWriteUInt8(filePath, 22, 0);
+
+    int fd = syscallOpenAt(-100, filePath, 578, 420);
+    assert(fd >= 0);
+    int input = memoryAllocate(8);
+    memoryWriteUInt8(input, 0, 104);
+    memoryWriteUInt8(input, 1, 101);
+    memoryWriteUInt8(input, 2, 108);
+    memoryWriteUInt8(input, 3, 108);
+    memoryWriteUInt8(input, 4, 111);
+    int output = memoryAllocate(8);
+    assert(syscallPositionedWrite64(fd, input, 5, 0) == 5);
+    assert(syscallPositionedRead64(fd, output, 5, 0) == 5);
+    assert(memoryReadUInt8(output, 0) == 104);
+    assert(syscallTruncateFile(fd, 2) == 0);
+    assert(syscallCheckFileAccessAt(-100, filePath, 0, 0) == 0);
+
+    int status = memoryAllocate(256);
+    assert(syscallGetExtendedFileStatus(-100, filePath, 0, 2047, status) == 0);
+    assert(syscallClose(fd) == 0);
+    assert(syscallRemoveFileAt(-100, filePath, 0) == 0);
+
+    memoryFree(status);
+    memoryFree(output);
+    memoryFree(input);
+    memoryFree(filePath);
+    memoryFree(path);
+    memoryFree(cwd);
+}

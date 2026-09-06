@@ -3,6 +3,258 @@ Lynxer standard library: sound.
 Standalone sound loading and playback controls.
 ////
 
-global setup(){}
-// nothing yet
+global setup(){
+    rawPy(){
+        import builtins
+        if not hasattr(builtins, "_lx_sound_stdlib"):
+            builtins._lx_sound_stdlib = []
+    }
+}
+
+// Load an audio file with Arcade. Returns a stable sound handle, or -1 when
+// the file, format, Arcade package, or audio backend is unavailable.
+global loadSound(str path){
+    int result = -1;
+    rawPy(){
+        import builtins
+        try:
+            import arcade
+            sound = arcade.load_sound(path)
+            builtins._lx_sound_stdlib.append({
+                "sound": sound,
+                "player": None,
+                "volume": 1.0
+            })
+            result = len(builtins._lx_sound_stdlib) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+// Load a streaming audio file. Returns a stable handle, or -1 on failure.
+global loadSoundStreaming(str path){
+    int result = -1;
+    rawPy(){
+        import builtins
+        try:
+            import arcade
+            sound = arcade.load_sound(path, streaming = true)
+            builtins._lx_sound_stdlib.append({
+                "sound": sound,
+                "player": None,
+                "volume": 1.0
+            })
+            result = len(builtins._lx_sound_stdlib) - 1
+        except Exception:
+            result = -1
+    }
+    return result;
+}
+
+// Play a loaded sound once. Returns true when playback starts.
+global playSound(int soundIdx){
+    bool result = false;
+    rawPy(){
+        import builtins
+        try:
+            import arcade
+            if 0 <= soundIdx < len(builtins._lx_sound_stdlib):
+                entry = builtins._lx_sound_stdlib[soundIdx]
+                if entry is not None:
+                    if entry["player"] is not None:
+                        try:
+                            arcade.stop_sound(entry["player"])
+                        except Exception:
+                            pass
+                    entry["player"] = arcade.play_sound(entry["sound"])
+                    entry["sound"].set_volume(entry["volume"], entry["player"])
+                    result = true
+        except Exception:
+            result = false
+    }
+    return result;
+}
+
+// Alias for playSound with an explicit one-shot name.
+global playSoundOnce(int soundIdx){
+    return playSound(soundIdx);
+}
+
+// Start looping playback. Returns true when playback starts.
+global loopSound(int soundIdx){
+    bool result = false;
+    rawPy(){
+        import builtins
+        try:
+            import arcade
+            if 0 <= soundIdx < len(builtins._lx_sound_stdlib):
+                entry = builtins._lx_sound_stdlib[soundIdx]
+                if entry is not None:
+                    if entry["player"] is not None:
+                        try:
+                            arcade.stop_sound(entry["player"])
+                        except Exception:
+                            pass
+                    entry["player"] = arcade.play_sound(entry["sound"], loop = true)
+                    entry["sound"].set_volume(entry["volume"], entry["player"])
+                    result = true
+        except Exception:
+            result = false
+    }
+    return result;
+}
+
+// Stop playback. Returns true when the handle was valid.
+global stopSound(int soundIdx){
+    bool result = false;
+    rawPy(){
+        import builtins
+        try:
+            import arcade
+            if 0 <= soundIdx < len(builtins._lx_sound_stdlib):
+                entry = builtins._lx_sound_stdlib[soundIdx]
+                if entry is not None:
+                    if entry["player"] is not None:
+                        arcade.stop_sound(entry["player"])
+                        entry["player"] = None
+                    result = true
+        except Exception:
+            result = false
+    }
+    return result;
+}
+
+// Pause and resume an active player. Returns false when the handle is invalid
+// or when the backend does not expose the requested player operation.
+global pauseSound(int soundIdx){
+    bool result = false;
+    rawPy(){
+        import builtins
+        try:
+            if 0 <= soundIdx < len(builtins._lx_sound_stdlib):
+                entry = builtins._lx_sound_stdlib[soundIdx]
+                player = entry["player"] if entry is not None else None
+                pause = getattr(player, "pause", None)
+                if callable(pause):
+                    pause()
+                    result = true
+        except Exception:
+            result = false
+    }
+    return result;
+}
+
+global resumeSound(int soundIdx){
+    bool result = false;
+    rawPy(){
+        import builtins
+        try:
+            if 0 <= soundIdx < len(builtins._lx_sound_stdlib):
+                entry = builtins._lx_sound_stdlib[soundIdx]
+                player = entry["player"] if entry is not None else None
+                resume = getattr(player, "play", None)
+                if callable(resume):
+                    resume()
+                    result = true
+        except Exception:
+            result = false
+    }
+    return result;
+}
+
+// Change the stored volume and update an active player. Clamps to [0, 1].
+global setSoundVolume(int soundIdx, float volume){
+    bool result = false;
+    rawPy(){
+        import builtins
+        try:
+            if 0 <= soundIdx < len(builtins._lx_sound_stdlib):
+                entry = builtins._lx_sound_stdlib[soundIdx]
+                if entry is not None:
+                    level = max(0.0, min(1.0, volume))
+                    entry["volume"] = level
+                    if entry["player"] is not None:
+                        entry["sound"].set_volume(level, entry["player"])
+                    result = true
+        except Exception:
+            result = false
+    }
+    return result;
+}
+
+// Return whether an active player is currently playing.
+global isSoundPlaying(int soundIdx){
+    bool result = false;
+    rawPy(){
+        import builtins
+        try:
+            if 0 <= soundIdx < len(builtins._lx_sound_stdlib):
+                entry = builtins._lx_sound_stdlib[soundIdx]
+                player = entry["player"] if entry is not None else None
+                result = bool(
+                    player is not None
+                    and entry["sound"].is_playing(player)
+                )
+        except Exception:
+            result = false
+    }
+    return result;
+}
+
+// Return the decoded duration in seconds, or 0.0 for an invalid handle.
+global getSoundLength(int soundIdx){
+    float result = 0.0;
+    rawPy(){
+        import builtins
+        try:
+            if 0 <= soundIdx < len(builtins._lx_sound_stdlib):
+                entry = builtins._lx_sound_stdlib[soundIdx]
+                if entry is not None:
+                    result = float(entry["sound"].get_length())
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+// Release a loaded sound and invalidate its handle. Returns true on success.
+global releaseSound(int soundIdx){
+    bool result = false;
+    rawPy(){
+        import builtins
+        try:
+            import arcade
+            if 0 <= soundIdx < len(builtins._lx_sound_stdlib):
+                entry = builtins._lx_sound_stdlib[soundIdx]
+                if entry is not None:
+                    if entry["player"] is not None:
+                        try:
+                            arcade.stop_sound(entry["player"])
+                        except Exception:
+                            pass
+                    builtins._lx_sound_stdlib[soundIdx] = None
+                    result = true
+        except Exception:
+            result = false
+    }
+    return result;
+}
+
+// Return the number of currently loaded sound handles.
+global soundCount(){
+    int result = 0;
+    rawPy(){
+        import builtins
+        try:
+            result = sum(
+                1 for entry in builtins._lx_sound_stdlib
+                if entry is not None
+            )
+        except Exception:
+            result = 0
+    }
+    return result;
+}
+
 global main(){}

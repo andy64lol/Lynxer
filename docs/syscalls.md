@@ -43,12 +43,25 @@ global main(){
 }
 ```
 
+## Working directories
+
+The directory calls use a caller-owned, NUL-terminated path buffer. The
+current-directory call writes the absolute path, including its terminating
+NUL, into the supplied buffer and returns its length including that NUL.
+
+| Built-in | Linux syscall | Arguments |
+| --- | --- | --- |
+| `syscallGetCurrentDirectory(buffer, size)` | `getcwd` | output buffer address, buffer capacity |
+| `syscallChangeDirectory(path)` | `chdir` | NUL-terminated path address |
+
 ## File descriptors and files
 
 | Built-in | Linux syscall | Arguments |
 | --- | --- | --- |
 | `syscallRead(fd, buffer, count)` | `read` | descriptor, buffer address, byte count |
 | `syscallWrite(fd, buffer, count)` | `write` | descriptor, buffer address, byte count |
+| `syscallPositionedRead64(fd, buffer, count, offset)` | `pread64` | descriptor, buffer address, byte count, byte offset |
+| `syscallPositionedWrite64(fd, buffer, count, offset)` | `pwrite64` | descriptor, buffer address, byte count, byte offset |
 | `syscallOpenAt(dirfd, path, flags, mode)` | `openat` | directory descriptor, path address, flags, mode |
 | `syscallClose(fd)` | `close` | descriptor |
 | `syscallReadVector(fd, iov, count)` | `readv` | descriptor, iovec array address, element count |
@@ -57,6 +70,7 @@ global main(){
 | `syscallGetFileStatus(fd, status)` | `fstat` | descriptor, stat structure address |
 | `syscallGetFileStatusAt(dirfd, path, status, flags)` | `newfstatat` | directory descriptor, path, stat address, flags |
 | `syscallTruncateFile(fd, length)` | `ftruncate` | descriptor, length |
+| `syscallCheckFileAccessAt(dirfd, path, mode, flags)` | `faccessat` | directory descriptor, path address, access mode, flags |
 | `syscallSynchronizeFile(fd)` | `fsync` | descriptor |
 | `syscallSynchronizeFileData(fd)` | `fdatasync` | descriptor |
 | `syscallDuplicateFileDescriptor(fd)` | `dup` | descriptor |
@@ -65,6 +79,7 @@ global main(){
 | `syscallControlFileDescriptor(fd, command, argument)` | `fcntl` | descriptor, `F_*` command, command argument |
 | `syscallGetDirectoryEntries(fd, buffer, count)` | `getdents64` | descriptor, buffer address, byte count |
 | `syscallReadSymbolicLink(dirfd, path, buffer, size)` | `readlinkat` | directory descriptor, path, buffer, byte count |
+| `syscallControlInputOutput(fd, request, argument)` | `ioctl` | descriptor, request code, request-specific argument |
 
 ## Directory entries, links, ownership, and permissions
 
@@ -148,7 +163,12 @@ global main(){
 | `syscallCreateEventPoll(flags)` | `epoll_create1` | flags |
 | `syscallControlEventPoll(epoll, operation, fd, event)` | `epoll_ctl` | epoll descriptor, `EPOLL_CTL_*`, descriptor, event address |
 | `syscallWaitForEvents(epoll, events, maxevents, timeout)` | `epoll_wait` | epoll descriptor, event array, capacity, timeout |
+| `syscallInitializeInodeNotifications(flags)` | `inotify_init1` | `IN_NONBLOCK`/`IN_CLOEXEC` flags |
+| `syscallAddInodeNotificationWatch(inotify, path, mask)` | `inotify_add_watch` | inotify descriptor, path address, event mask |
+| `syscallRemoveInodeNotificationWatch(inotify, watch)` | `inotify_rm_watch` | inotify descriptor, watch descriptor |
 | `syscallGetSystemInformation(info)` | `sysinfo` | sysinfo structure address |
+| `syscallGetUnixSystemName(name)` | `uname` | `utsname` structure address |
+| `syscallGetExtendedFileStatus(dirfd, path, flags, mask, status)` | `statx` | directory descriptor, path, flags, mask, `statx` structure address |
 
 ## Resources and process control
 

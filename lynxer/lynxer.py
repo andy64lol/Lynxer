@@ -7908,8 +7908,9 @@ class SymbolTable:
         if state == "moved":
             if operation == "write to":
                 return None
+            action = "move from" if operation == "move" else operation
             return (
-                f"Cannot {operation} moved variable '{name}'; "
+                f"Cannot {action} moved variable '{name}'; "
                 "reinitialize it before using it again"
             )
         if state == "borrowed" and operation in {"transfer into", "borrow into"}:
@@ -8009,8 +8010,10 @@ class SymbolTable:
             destination_reference[1] if isinstance(destination_reference, tuple)
             else destination_reference
         )
-        if source_table is None or destination_table is None:
-            return "source and destination variables must be defined"
+        if source_table is None or source_name is None:
+            return "Cannot transfer from an undefined source variable"
+        if destination_table is None or destination_name is None:
+            return "Cannot transfer into an undefined destination variable"
         source_key = self._reference_key((source_table, source_name))
         destination_key = self._reference_key((destination_table, destination_name))
         if source_key == destination_key:
@@ -8018,10 +8021,15 @@ class SymbolTable:
         source_error = self.ownership_error(source_name, "move")
         if source_error:
             return source_error
-        if self.is_const(source_name) or self.is_const(destination_name):
-            return "Cannot transfer through a constant variable"
+        if self.is_const(source_name):
+            return f"Cannot transfer constant '{source_name}'"
+        if self.is_const(destination_name):
+            return f"Cannot transfer into constant '{destination_name}'"
         if self._active_borrowers((source_table, source_name)):
-            return f"Cannot move '{source_name}' while it is being borrowed"
+            return (
+                f"Cannot move '{source_name}' while it is being borrowed; "
+                "end all active borrows first"
+            )
         value = source_table.get(source_name)
         if value is None:
             return f"'{source_name}' is not defined"
@@ -8249,8 +8257,10 @@ class SymbolTable:
             destination_reference[1] if isinstance(destination_reference, tuple)
             else destination_reference
         )
-        if source_table is None or destination_table is None:
-            return "source and destination variables must be defined"
+        if source_table is None or source_name is None:
+            return "Cannot mutably borrow an undefined source variable"
+        if destination_table is None or destination_name is None:
+            return "Cannot mutably borrow into an undefined destination variable"
         source_key = self._reference_key((source_table, source_name))
         destination_key = self._reference_key((destination_table, destination_name))
         if source_key == destination_key:
@@ -8259,7 +8269,10 @@ class SymbolTable:
         if source_error:
             return source_error
         if self._active_borrowers(source_key):
-            return f"Cannot mutably borrow '{source_name}' while it has active borrows"
+            return (
+                f"Cannot mutably borrow '{source_name}' while it has active borrows; "
+                "end all active borrows first"
+            )
         if destination_key in self._borrow_sources:
             return f"Variable '{destination_name}' is already borrowing"
         if self.is_const(destination_name):
