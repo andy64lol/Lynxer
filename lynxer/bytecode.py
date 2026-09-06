@@ -9,6 +9,7 @@ runtime.  Runtime classes are imported lazily so this module can be imported by
 """
 
 from __future__ import annotations
+
 import hashlib
 import os
 import re
@@ -16,7 +17,6 @@ import struct
 import time
 import zlib
 from typing import Any
-
 
 BYTECODE_MAGIC = b"LYNXC\x00"
 BYTECODE_VERSION = 8
@@ -403,7 +403,7 @@ class _Decoder:
             for _ in range(count):
                 name = self.read()
                 if not isinstance(name, str):
-                    raise ValueError("malformed AST node attribute name")
+                    raise ValueError("malformed AST node attribute name")  # noqa: TRY004
                 state[name] = self.read()
             node.__dict__.update(state)
             return node
@@ -661,7 +661,7 @@ class _InstructionReader:
                     for index in range(0, len(values), 2):
                         name = values[index]
                         if not isinstance(name, str):
-                            raise ValueError("malformed AST node attribute name")
+                            raise ValueError("malformed AST node attribute name")  # noqa: TRY004
                         state[name] = values[index + 1]
                 except IndexError as exc:
                     raise ValueError("truncated AST node instruction") from exc
@@ -756,7 +756,7 @@ def _read_bytecode(fn: str) -> tuple[dict[str, Any], int, int]:
             f"'{fn}' does not contain a valid Lynxer bytecode payload: {exc}"
         ) from exc
     if not isinstance(data, dict):
-        raise ValueError(f"'{fn}' does not contain a valid Lynxer bytecode payload")
+        raise ValueError(f"'{fn}' does not contain a valid Lynxer bytecode payload")  # noqa: TRY004
 
     file_version = data.get("version")
     if file_version != BYTECODE_VERSION:
@@ -769,7 +769,7 @@ def _read_bytecode(fn: str) -> tuple[dict[str, Any], int, int]:
 
     code = data.get("code")
     if not isinstance(code, bytes):
-        raise ValueError(f"'{fn}' does not contain a compiled Lynxer instruction stream")
+        raise ValueError(f"'{fn}' does not contain a compiled Lynxer instruction stream")  # noqa: TRY004
     try:
         data["node"] = _decode_instruction_stream(code)
     except (
@@ -790,7 +790,7 @@ def _read_bytecode(fn: str) -> tuple[dict[str, Any], int, int]:
         raise ValueError(f"'{fn}' does not contain a compiled Lynxer program")
     runtime = _runtime()
     if not isinstance(data["node"], runtime.ProgramNode):
-        raise ValueError(f"'{fn}' does not contain a valid compiled Lynxer program")
+        raise ValueError(f"'{fn}' does not contain a valid compiled Lynxer program")  # noqa: TRY004
 
     return data, len(raw), len(compressed)
 
@@ -865,12 +865,12 @@ def run_bytecode(fn: str, suppress_deprecation_warnings=False) -> tuple[Any, Any
     """Load and execute a pre-compiled ``.lynxc`` file."""
     runtime = _runtime()
     runtime.reset_runtime_state()
-    setattr(runtime, "_main_override", None)
-    setattr(runtime, "_forever_delay", 0.02)
-    setattr(runtime, "_forever_warning_suppressed", False)
-    setattr(runtime, "_deprecation_warning_suppressed", bool(suppress_deprecation_warnings))
+    runtime._main_override = None
+    runtime._forever_delay = 0.02
+    runtime._forever_warning_suppressed = False
+    runtime._deprecation_warning_suppressed = bool(suppress_deprecation_warnings)
     runtime._pending_deprecation_warnings.clear()
-    setattr(runtime, "_setup_in_progress", False)
+    runtime._setup_in_progress = False
 
     try:
         data = load_bytecode(fn)
@@ -913,12 +913,12 @@ def run_bytecode_file(fn: str, symbol_table: Any) -> Any:
 
     if node.setup_func:
         previous_setup_state = runtime._setup_in_progress
-        setattr(runtime, "_setup_in_progress", True)
+        runtime._setup_in_progress = True
         try:
             result = interpreter.run_setup(node.setup_func, context)
             if result.error:
                 return result.error
         finally:
-            setattr(runtime, "_setup_in_progress", previous_setup_state)
+            runtime._setup_in_progress = previous_setup_state
 
     return None

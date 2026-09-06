@@ -19,7 +19,7 @@ def run_cmd(cmd: str) -> str:
         out = proc.stdout.strip() if proc.returncode == 0 else proc.stderr.strip()
         # Replace internal newlines so the caller's \n delimiter stays unambiguous
         return out.replace("\n", " ")
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         return str(exc).replace("\n", " ")
 
 
@@ -40,5 +40,5 @@ def run_cmd_silent(cmd: str) -> int:
             check=True
         )
         return proc.returncode
-    except Exception:
+    except Exception:  # noqa: BLE001
         return 1

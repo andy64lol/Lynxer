@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import errno
 import os
 import shutil
 import signal
@@ -12,7 +11,6 @@ import sys
 import tempfile
 import time
 from typing import Iterable
-
 
 INSTALL_PATH = "/usr/bin/lynxer"
 _TERM_WAIT_SECONDS = 3.0

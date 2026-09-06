@@ -1,10 +1,9 @@
 """Build Lynxer's bundled C++ memory extension."""
 
-from pathlib import Path
 import os
+from pathlib import Path
 
 from setuptools import Extension, setup
-
 
 ROOT = Path(__file__).resolve().parent
 os.chdir(ROOT)

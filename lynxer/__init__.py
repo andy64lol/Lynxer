@@ -24,13 +24,13 @@ if TYPE_CHECKING:
 
 
 __all__ = [
-    "run",
-    "run_file",
     "BYTECODE_MAGIC",
     "BYTECODE_VERSION",
     "compile_to_bytecode",
+    "run",
     "run_bytecode",
     "run_bytecode_file",
+    "run_file",
 ]
 
 

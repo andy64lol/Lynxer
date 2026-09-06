@@ -24,6 +24,7 @@ if not list(PACKAGE_ROOT.glob("cpp*.so")):
         ["make", "buildCpp"],
         cwd=ROOT,
         capture_output=True,
+        check=False,
         text=True,
     )
     if build.returncode != 0:
@@ -32,9 +33,14 @@ if not list(PACKAGE_ROOT.glob("cpp*.so")):
         raise SystemExit("could not build the native extension")
 sys.path.insert(0, str(ROOT))
 
-from lynxer import builtins, lynxer, syscalls  # noqa: E402
-from lynxer.bytecode import BYTECODE_MAGIC, BYTECODE_VERSION, load_bytecode  # noqa: E402
-from lynxer.bytecode import compile_to_bytecode, run_bytecode  # noqa: E402
+from lynxer import builtins, lynxer, syscalls
+from lynxer.bytecode import (
+    BYTECODE_MAGIC,
+    BYTECODE_VERSION,
+    compile_to_bytecode,
+    load_bytecode,
+    run_bytecode,
+)
 
 
 class ValidationFailure(Exception):
@@ -44,7 +50,7 @@ class ValidationFailure(Exception):
 def check(name, fn):
     try:
         fn()
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         print(f"FAIL  {name}: {exc}", file=sys.stderr)
         return False
     print(f"PASS  {name}")
@@ -173,10 +179,18 @@ def validate_cli():
         source = Path(directory) / "cli.lynx"
         source.write_text("global setup(){}\nglobal main(){ println(\"ok\"); }\n", encoding="utf-8")
         command = [sys.executable, str(ROOT / "lynxer" / "shell.py")]
-        result = subprocess.run(command + [str(source)], cwd=ROOT, capture_output=True, text=True)
+        result = subprocess.run(
+            command + [str(source)], cwd=ROOT, capture_output=True, text=True, check=False
+        )
         if result.returncode != 0 or result.stdout != "ok\n":
             raise ValidationFailure(f"source CLI failed: {result.returncode}: {result.stderr}")
-        result = subprocess.run(command + ["--compile", str(source)], cwd=ROOT, capture_output=True, text=True)
+        result = subprocess.run(
+            command + ["--compile", str(source)],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
         if result.returncode != 0 or not source.with_suffix(".lynxc").exists():
             raise ValidationFailure(f"bytecode CLI failed: {result.stderr}")
 
@@ -195,7 +209,9 @@ def validate_executable():
             "no executable found; build one first or set LYNXER_EXECUTABLE"
         )
     for executable in candidates:
-        version = subprocess.run([str(executable), "--version"], capture_output=True, text=True)
+        version = subprocess.run(
+            [str(executable), "--version"], capture_output=True, text=True, check=False
+        )
         if version.returncode != 0 or not version.stdout.startswith("Lynxer "):
             raise ValidationFailure(f"{executable}: --version failed")
     print("  checked: " + ", ".join(str(path) for path in candidates))

@@ -1,16 +1,17 @@
 from __future__ import annotations
 
-import os
 import itertools
+import os
 import string
 import sys
 import textwrap
 import warnings
-from types import ModuleType
 from typing import TYPE_CHECKING, Any, ClassVar
 
 if TYPE_CHECKING:
-    from .builtins import BuiltInFunction
+    from types import ModuleType
+
+    from .builtins import BuiltInFunction  # noqa: TC004
 
 try:
     from .strings_with_arrows import string_with_arrows
@@ -39,10 +40,12 @@ def _get_cython_inline() -> Any:
     """Lazily import Cython's inline compiler (needs setuptools' distutils shim)."""
     global _cython_inline_fn
     if _cython_inline_fn is None:
-        import setuptools  # noqa: F401 — patches distutils for Cython on py3.12+
         # Import by name so Pyright can analyze Lynxer without requiring the
         # optional Cython package to be installed in its analysis environment.
         from importlib import import_module
+
+        import setuptools  # noqa: F401 — patches distutils for Cython on py3.12+
+
         _cython_inline_fn = import_module("Cython.Build.Inline").cython_inline
     return _cython_inline_fn
 
@@ -1020,7 +1023,7 @@ class PatternNode:
     """
     def __init__(self, kind, value=None, items=None, pos_start=None, pos_end=None):
         self.kind = kind
-        self.value = value
+        self.value: Any = value
         self.items = items or []
         self.pos_start = pos_start
         self.pos_end = pos_end
@@ -1303,7 +1306,7 @@ class ParseResult:
         self.last_registered_advance_count = 1
         self.advance_count += 1
 
-    def register(self, res: "ParseResult") -> Any:
+    def register(self, res: ParseResult) -> Any:
         self.last_registered_advance_count = res.advance_count
         self.advance_count += res.advance_count
         if res.error:
@@ -2889,11 +2892,14 @@ class Parser:
         if res.error:
             return res
 
-        if type_tok.value == "codeblock" and isinstance(value, CodeBlockLiteralNode):
-            if self.current_tok.type == TT_LBRACKET:
-                value.param_toks = res.register(self.parse_codeblock_params())
-                if res.error:
-                    return res
+        if (
+            type_tok.value == "codeblock"
+            and isinstance(value, CodeBlockLiteralNode)
+            and self.current_tok.type == TT_LBRACKET
+        ):
+            value.param_toks = res.register(self.parse_codeblock_params())
+            if res.error:
+                return res
 
         if type_tok.value == "tuple" and isinstance(value, ListNode):
             warn_legacy_syntax_position(
@@ -2973,11 +2979,14 @@ class Parser:
         if res.error:
             return res
 
-        if type_tok.value == "codeblock" and isinstance(value, CodeBlockLiteralNode):
-            if self.current_tok.type == TT_LBRACKET:
-                value.param_toks = res.register(self.parse_codeblock_params())
-                if res.error:
-                    return res
+        if (
+            type_tok.value == "codeblock"
+            and isinstance(value, CodeBlockLiteralNode)
+            and self.current_tok.type == TT_LBRACKET
+        ):
+            value.param_toks = res.register(self.parse_codeblock_params())
+            if res.error:
+                return res
 
         if type_tok.value == "tuple" and isinstance(value, ListNode):
             warn_legacy_syntax_position(
@@ -4142,11 +4151,12 @@ class Parser:
             return res.success(PatternNode(
                 "wildcard", pos_start=tok.pos_start, pos_end=tok.pos_end
             ))
+        next_tok = self.peek(1)
         if (
             tok.type == TT_IDENTIFIER
             and not (
-                self.peek(1) is not None
-                and self.peek(1).type in (TT_DOT, TT_LPAREN)
+                next_tok is not None
+                and next_tok.type in (TT_DOT, TT_LPAREN)
             )
         ):
             res.register_advancement()
@@ -4157,14 +4167,16 @@ class Parser:
             ))
 
         # Qualified enum pattern: Result.Ok(...) or Result.Ok.
+        dot_tok = self.peek(1)
+        variant_tok = self.peek(2)
         if (
             tok.type == TT_IDENTIFIER
-            and self.peek(1) is not None and self.peek(1).type == TT_DOT
-            and self.peek(2) is not None and self.peek(2).type == TT_IDENTIFIER
+            and dot_tok is not None and dot_tok.type == TT_DOT
+            and variant_tok is not None and variant_tok.type == TT_IDENTIFIER
         ):
             enum_name = tok.value
-            variant_tok = self.peek(2)
-            if self.peek(3) is not None and self.peek(3).type == TT_LPAREN:
+            after_variant_tok = self.peek(3)
+            if after_variant_tok is not None and after_variant_tok.type == TT_LPAREN:
                 res.register_advancement(); self.advance()
                 res.register_advancement(); self.advance()
                 res.register_advancement(); self.advance()
@@ -5622,109 +5634,109 @@ class Value:
         self.set_pos()
         self.set_context()
 
-    def set_pos(self, pos_start: Any = None, pos_end: Any = None) -> "Value":
+    def set_pos(self, pos_start: Any = None, pos_end: Any = None) -> Value:
         self.pos_start = pos_start
         self.pos_end = pos_end
         return self
 
-    def set_context(self, context: Any = None) -> "Value":
+    def set_context(self, context: Any = None) -> Value:
         self.context = context
         return self
 
-    def added_to(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
+    def added_to(self, other: Value) -> tuple[Value | None, RTError | None]:
         return None, self.illegal_operation(other)
 
-    def subbed_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
+    def subbed_by(self, other: Value) -> tuple[Value | None, RTError | None]:
         return None, self.illegal_operation(other)
 
-    def multed_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
+    def multed_by(self, other: Value) -> tuple[Value | None, RTError | None]:
         return None, self.illegal_operation(other)
 
-    def dived_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
+    def dived_by(self, other: Value) -> tuple[Value | None, RTError | None]:
         return None, self.illegal_operation(other)
 
-    def modded_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
+    def modded_by(self, other: Value) -> tuple[Value | None, RTError | None]:
         return None, self.illegal_operation(other)
 
-    def floordivided_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
+    def floordivided_by(self, other: Value) -> tuple[Value | None, RTError | None]:
         return None, self.illegal_operation(other)
 
-    def powered_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
+    def powered_by(self, other: Value) -> tuple[Value | None, RTError | None]:
         return None, self.illegal_operation(other)
 
-    def rooted_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
+    def rooted_by(self, other: Value) -> tuple[Value | None, RTError | None]:
         return None, self.illegal_operation(other)
 
-    def get_comparison_eq(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
+    def get_comparison_eq(self, other: Value) -> tuple[Value | None, RTError | None]:
         return None, self.illegal_operation(other)
 
-    def get_comparison_ne(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
+    def get_comparison_ne(self, other: Value) -> tuple[Value | None, RTError | None]:
         return None, self.illegal_operation(other)
 
-    def get_comparison_lt(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
+    def get_comparison_lt(self, other: Value) -> tuple[Value | None, RTError | None]:
         return None, self.illegal_operation(other)
 
-    def get_comparison_gt(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
+    def get_comparison_gt(self, other: Value) -> tuple[Value | None, RTError | None]:
         return None, self.illegal_operation(other)
 
-    def get_comparison_lte(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
+    def get_comparison_lte(self, other: Value) -> tuple[Value | None, RTError | None]:
         return None, self.illegal_operation(other)
 
-    def get_comparison_gte(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
+    def get_comparison_gte(self, other: Value) -> tuple[Value | None, RTError | None]:
         return None, self.illegal_operation(other)
 
-    def anded_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
+    def anded_by(self, other: Value) -> tuple[Value | None, RTError | None]:
         return None, self.illegal_operation(other)
 
-    def ored_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
+    def ored_by(self, other: Value) -> tuple[Value | None, RTError | None]:
         return None, self.illegal_operation(other)
 
-    def nanded_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
+    def nanded_by(self, other: Value) -> tuple[Value | None, RTError | None]:
         return None, self.illegal_operation(other)
 
-    def nored_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
+    def nored_by(self, other: Value) -> tuple[Value | None, RTError | None]:
         return None, self.illegal_operation(other)
 
-    def notted(self) -> tuple["Value | None", "RTError | None"]:
+    def notted(self) -> tuple[Value | None, RTError | None]:
         return None, self.illegal_operation()
 
-    def bit_anded_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
+    def bit_anded_by(self, other: Value) -> tuple[Value | None, RTError | None]:
         return None, self.illegal_operation(other)
 
-    def bit_ored_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
+    def bit_ored_by(self, other: Value) -> tuple[Value | None, RTError | None]:
         return None, self.illegal_operation(other)
 
-    def bit_xored_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
+    def bit_xored_by(self, other: Value) -> tuple[Value | None, RTError | None]:
         return None, self.illegal_operation(other)
 
-    def bit_nanded_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
+    def bit_nanded_by(self, other: Value) -> tuple[Value | None, RTError | None]:
         return None, self.illegal_operation(other)
 
-    def bit_xnored_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
+    def bit_xnored_by(self, other: Value) -> tuple[Value | None, RTError | None]:
         return None, self.illegal_operation(other)
 
-    def bit_nored_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
+    def bit_nored_by(self, other: Value) -> tuple[Value | None, RTError | None]:
         return None, self.illegal_operation(other)
 
-    def bit_notted(self) -> tuple["Value | None", "RTError | None"]:
+    def bit_notted(self) -> tuple[Value | None, RTError | None]:
         return None, self.illegal_operation()
 
-    def shifted_left_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
+    def shifted_left_by(self, other: Value) -> tuple[Value | None, RTError | None]:
         return None, self.illegal_operation(other)
 
-    def shifted_right_by(self, other: "Value") -> tuple["Value | None", "RTError | None"]:
+    def shifted_right_by(self, other: Value) -> tuple[Value | None, RTError | None]:
         return None, self.illegal_operation(other)
 
     def execute(self, args):
         return RTResult().failure(self.illegal_operation())
 
-    def copy(self) -> "Value":
-        raise Exception("No copy method defined")
+    def copy(self) -> Value:
+        raise NotImplementedError("No copy method defined")
 
     def is_true(self) -> bool:
         return False
 
-    def illegal_operation(self, other: "Value | None" = None) -> "RTError":
+    def illegal_operation(self, other: Value | None = None) -> RTError:
         if not other:
             other = self
         return RTError(self.pos_start, other.pos_end, "Illegal operation", self.context)
@@ -5784,7 +5796,6 @@ class Address(Value):
         return c
 
     def __str__(self):
-        target = self.get_value()
         return f"<address 0x{self.pointer:x}>"
 
     __repr__ = __str__
@@ -5837,9 +5848,9 @@ class NativeHandle(Value):
     __repr__ = __str__
 
 class Number(Value):
-    null: ClassVar["Number"]
-    false: ClassVar["Number"]
-    true: ClassVar["Number"]
+    null: ClassVar[Number]
+    false: ClassVar[Number]
+    true: ClassVar[Number]
 
     def __init__(self, value, is_bool=False):
         super().__init__()
@@ -7070,7 +7081,7 @@ def _python_to_lynx(py_val, context=None, pos_start=None, pos_end=None):
         import json as _json
         try:
             return String(_json.dumps(py_val))
-        except Exception:
+        except Exception:  # noqa: BLE001
             return String(str(py_val))
     obj = EmbedPyObject(py_val)
     if context:
@@ -7117,7 +7128,7 @@ class EmbedPyObject(Value):
         py_args = [_lynx_to_python(a) for a in args]
         try:
             result = self.py_obj(*py_args)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             return RTResult().failure(RTError(
                 self.pos_start, self.pos_end,
                 f"embedPy: Python error calling <{type(self.py_obj).__name__}>: {e}",
@@ -7169,7 +7180,7 @@ class EmbedPyCallable(Value):
         py_args = [_lynx_to_python(a) for a in args]
         try:
             result = self.py_callable(*py_args)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             return RTResult().failure(RTError(
                 self.pos_start, self.pos_end,
                 f"embedPy: Python error calling '{self.name}': {e}",
@@ -7231,7 +7242,6 @@ class EmbedPyNamespace(Value):
     def get_attr(self, name):
         import builtins as _builtins
         import importlib as _importlib
-        import types as _types
 
         builtin = getattr(_builtins, name, None)
         if builtin is not None and callable(builtin):
@@ -8013,6 +8023,8 @@ class SymbolTable:
         if self._active_borrowers((source_table, source_name)):
             return f"Cannot move '{source_name}' while it is being borrowed"
         value = source_table.get(source_name)
+        if value is None:
+            return f"'{source_name}' is not defined"
         declared = destination_table.types.get(destination_name)
         if declared not in (None, "any", "num") and not type_matches(declared, value):
             return (
@@ -8027,7 +8039,9 @@ class SymbolTable:
         self._ownership[source_key] = "moved"
         return None
 
-    def _swap_references(self, first_reference, second_reference):
+    def _swap_references(
+        self, first_reference, second_reference
+    ) -> tuple[Any, Any, Any, Any, str | None]:
         first_table, first_name = self._local_reference(
             first_reference[1]
             if isinstance(first_reference, tuple)
@@ -8055,8 +8069,10 @@ class SymbolTable:
             if name in table.aliases:
                 return (
                     None, None, None, None,
-                    f"Cannot swap {label} shared variable '{name}'; "
-                    "use independent variables",
+                    (
+                        f"Cannot swap {label} shared variable '{name}'; "
+                        "use independent variables"
+                    ),
                 )
             if self.is_const(name):
                 return (
@@ -8067,20 +8083,26 @@ class SymbolTable:
             if state == "moved":
                 return (
                     None, None, None, None,
-                    f"Cannot swap {label} moved variable '{name}'; "
-                    "reinitialize it before swapping",
+                    (
+                        f"Cannot swap {label} moved variable '{name}'; "
+                        "reinitialize it before swapping"
+                    ),
                 )
             if state == "borrowed":
                 return (
                     None, None, None, None,
-                    f"Cannot swap {label} borrowed variable '{name}'; "
-                    "end its borrow first",
+                    (
+                        f"Cannot swap {label} borrowed variable '{name}'; "
+                        "end its borrow first"
+                    ),
                 )
             if self._active_borrowers((table, name)):
                 return (
                     None, None, None, None,
-                    f"Cannot swap {label} variable '{name}' while it is being "
-                    "borrowed; end all active borrows first",
+                    (
+                        f"Cannot swap {label} variable '{name}' while it is being "
+                        "borrowed; end all active borrows first"
+                    ),
                 )
 
         first_value = first_table.get(first_name)
@@ -8263,6 +8285,8 @@ class SymbolTable:
         table, name = self._local_reference(
             reference[1] if isinstance(reference, tuple) else reference
         )
+        if table is None:
+            return "varEndBorrow() expects a defined variable"
         key = self._reference_key((table, name))
         if key not in self._borrow_sources:
             return (
@@ -8447,7 +8471,7 @@ def _lynxer_callback_dispatcher(context):
                 break
 
         if not isinstance(target, Function):
-            raise RuntimeError(
+            raise RuntimeError(  # noqa: TRY004
                 f"game callback '{callback_name}' is not a synchronous Lynxer function"
             )
 
@@ -8471,10 +8495,10 @@ def _lynxer_callback_dispatcher(context):
 # Lynxer module registry.  Module names are intentionally global: importing
 # two different files with the same basename is ambiguous even when their
 # directories differ.
-_lynx_modules: dict[str, tuple[str, "Module"]] = {}
+_lynx_modules: dict[str, tuple[str, Module]] = {}
 
 # overrideMain entry-point registry
-_main_override: "str | None" = None
+_main_override: str | None = None
 
 # forever-loop configuration. These are reset for each top-level run.
 _forever_delay = 0.02
@@ -8663,7 +8687,9 @@ class Interpreter:
         return method(node, context)
 
     def no_visit_method(self, node, context):
-        raise Exception(f"No visit_{type(node).__name__} method defined")
+        raise NotImplementedError(
+            f"No visit_{type(node).__name__} method defined"
+        )
 
     def visit_NumberNode(self, node, context):
         return RTResult().success(
@@ -9253,7 +9279,6 @@ class Interpreter:
             if body_res.error or body_res.func_return_value is not None:
                 return body_res
             should_break = body_res.loop_should_break
-            should_continue = body_res.loop_should_continue
 
             if not should_break:
                 upd_res = RTResult()
@@ -9469,7 +9494,7 @@ class Interpreter:
             return res.failure(RTError(node.pos_start, node.pos_end, f"'{func_name}' is not an async function", context))
         try:
             coro_result = asyncio.run(coro_val.coro)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             return res.failure(RTError(node.pos_start, node.pos_end, f"async.{func_name}() raised: {type(e).__name__}: {e}", context))
         if coro_result.error: return coro_result
         return res.success(coro_result.value if coro_result.value is not None else Number.null)
@@ -10990,7 +11015,7 @@ class Interpreter:
         import builtins as _host_builtins
         # setattr, because this attribute is injected dynamically and is not
         # part of the builtins module's declared interface.
-        setattr(
+        setattr(  # noqa: B010
             _host_builtins,
             "_lx_invoke_lynxer",
             _lynxer_callback_dispatcher(context),
@@ -11001,9 +11026,7 @@ class Interpreter:
                 if name not in py_ns:
                     if isinstance(val, Number):
                         py_ns[name] = bool(val.value) if val.is_bool else val.value
-                    elif isinstance(val, Char):
-                        py_ns[name] = val.value
-                    elif isinstance(val, String):
+                    elif isinstance(val, Char) or isinstance(val, String):
                         py_ns[name] = val.value
                     elif isinstance(val, LynxTuple):
                         py_ns[name] = tuple(
@@ -11018,8 +11041,8 @@ class Interpreter:
             tbl = tbl.parent
 
         try:
-            exec(textwrap.dedent(node.code), py_ns)
-        except Exception as e:
+            exec(textwrap.dedent(node.code), py_ns)  # noqa: S102
+        except Exception as e:  # noqa: BLE001
             return res.failure(
                 RTError(
                     node.pos_start,
@@ -11035,9 +11058,7 @@ class Interpreter:
             new_val = None
             if isinstance(val, bool):
                 new_val = Number(1 if val else 0, is_bool=True)
-            elif isinstance(val, int):
-                new_val = Number(val)
-            elif isinstance(val, float):
+            elif isinstance(val, int) or isinstance(val, float):
                 new_val = Number(val)
             elif isinstance(val, str):
                 new_val = String(val)
@@ -11073,12 +11094,12 @@ class Interpreter:
             )
             if isinstance(result_locals, dict):
                 cy_locals.update(result_locals)
-        except BaseException:
+        except BaseException:  # noqa: BLE001
             py_ns = {"__builtins__": __builtins__}
             py_ns.update(cy_locals)
             try:
-                exec(textwrap.dedent(node.code), py_ns)
-            except Exception as e:
+                exec(textwrap.dedent(node.code), py_ns)  # noqa: S102
+            except Exception as e:  # noqa: BLE001
                 return res.failure(
                     RTError(
                         node.pos_start,
@@ -11097,9 +11118,7 @@ class Interpreter:
             new_val = None
             if isinstance(val, bool):
                 new_val = Number(1 if val else 0, is_bool=True)
-            elif isinstance(val, int):
-                new_val = Number(val)
-            elif isinstance(val, float):
+            elif isinstance(val, int) or isinstance(val, float):
                 new_val = Number(val)
             elif isinstance(val, str):
                 new_val = String(val)
@@ -11172,7 +11191,7 @@ class Interpreter:
                 _, native_state = _load_native_module(filepath, imported=True)
                 populate_native_module_table(native_state, module_table)
                 error = None
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 error = RTError(
                     node.pos_start, node.pos_end,
                     f'Failed to load native module "{filename}": {e}',
@@ -11181,7 +11200,7 @@ class Interpreter:
         elif use_bytecode:
             try:
                 error = run_bytecode_file(filepath, module_table)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 _lynx_modules.pop(module_name, None)
                 return res.failure(
                     RTError(
@@ -11195,7 +11214,7 @@ class Interpreter:
             try:
                 with open(filepath, "r", encoding="utf-8") as f:
                     script = f.read()
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 _lynx_modules.pop(module_name, None)
                 return res.failure(
                     RTError(
@@ -11281,7 +11300,7 @@ class Interpreter:
                 _, native_state = _load_native_module(filepath, imported=True)
                 populate_native_module_table(native_state, module_table)
                 error = None
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 error = RTError(
                     node.pos_start, node.pos_end,
                     f'Failed to load native module "{filename}": {e}',
@@ -11290,7 +11309,7 @@ class Interpreter:
         elif use_bytecode:
             try:
                 error = run_bytecode_file(filepath, module_table)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 _lynx_modules.pop(module_name, None)
                 return res.failure(RTError(
                     node.pos_start, node.pos_end,
@@ -11301,7 +11320,7 @@ class Interpreter:
             try:
                 with open(filepath, "r", encoding="utf-8") as f:
                     script = f.read()
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 _lynx_modules.pop(module_name, None)
                 return res.failure(RTError(
                     node.pos_start, node.pos_end,
@@ -11440,7 +11459,7 @@ def _join_outstanding_native_threads():
         return
     try:
         module.nativeThreadJoinAll()
-    except Exception:
+    except Exception:  # noqa: BLE001, S110
         pass
 
 
@@ -11479,7 +11498,7 @@ def run(fn, text, suppress_deprecation_warnings=False):
 
     try:
         result = interpreter.visit(ast.node, context)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         _flush_deprecation_warnings()
         _join_outstanding_native_threads()
         return None, _interpreter_error(fn, text, "<program>", exc)
@@ -11540,14 +11559,14 @@ def run_file(fn, text, symbol_table, execute_main=False):
             call_result = main_function.execute([])
             if call_result.error:
                 return call_result.error
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         return _interpreter_error(fn, text, f"<import:{os.path.basename(fn)}>", exc)
 
     return None
 
 # Bytecode helpers remain available from this module for compatibility with
 # callers that historically imported them from ``lynxer.lynxer``.
-from .bytecode import (  # noqa: E402
+from .bytecode import (  # noqa: F401 — re-exported for backwards compatibility
     BYTECODE_MAGIC,
     BYTECODE_VERSION,
     compile_to_bytecode,

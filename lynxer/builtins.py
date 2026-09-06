@@ -8,18 +8,18 @@ fragile.
 
 from __future__ import annotations
 
+import asyncio
+import atexit
 import importlib
 import itertools
 import json
 import os
 import select
+import socket
 import stat
 import subprocess
 import sys
-import atexit
-import socket
 import threading
-import asyncio
 import time
 from collections.abc import Callable
 from typing import Any, TypeVar, cast
@@ -63,7 +63,7 @@ _MEMORY_TYPES = {
 
 _NATIVE_MODULES: dict[int, dict[str, Any]] = {}
 _NATIVE_MODULE_IDS = itertools.count(1)
-_PROCESSES: dict[int, "subprocess.Popen[bytes]"] = {}
+_PROCESSES: dict[int, subprocess.Popen[bytes]] = {}
 _PROCESS_IDS = itertools.count(1)
 _FILES: dict[int, int] = {}
 _FILE_IDS = itertools.count(1)
@@ -381,7 +381,7 @@ def _native_module_dependencies(path: str) -> list[str]:
     dependencies = []
     for line in result.stdout.splitlines():
         line = line.strip()
-        if not line or line.startswith(path) or line.startswith("statically"):
+        if not line or line.startswith((path, "statically")):
             continue
         if " => " in line:
             dependency = line.split(" => ", 1)[1].split(" (", 1)[0].strip()
@@ -466,7 +466,9 @@ class BuiltInFunction(BaseFunction):
         return res.success(return_value)
 
     def no_visit_method(self, node, context):
-        raise Exception(f"No execute_{self.name} method defined")
+        raise NotImplementedError(
+            f"No execute_{self.name} method defined"
+        )
 
     def _failure(self, exec_ctx, message):
         return RTResult().failure(
@@ -536,7 +538,7 @@ class BuiltInFunction(BaseFunction):
 
     def execute_varTransfer(self, args, exec_ctx):
         references, failure = self._ownership_refs(args, exec_ctx, 2)
-        if failure:
+        if failure or references is None:
             return failure
         error = exec_ctx.symbol_table.transfer(references[0], references[1])
         if error:
@@ -545,7 +547,7 @@ class BuiltInFunction(BaseFunction):
 
     def execute_varTransferMutate(self, args, exec_ctx):
         references, failure = self._ownership_refs(args, exec_ctx, 2)
-        if failure:
+        if failure or references is None:
             return failure
         error = exec_ctx.symbol_table.transfer_mutate(references[0], references[1])
         if error:
@@ -554,7 +556,7 @@ class BuiltInFunction(BaseFunction):
 
     def execute_varBorrow(self, args, exec_ctx):
         references, failure = self._ownership_refs(args, exec_ctx, 2)
-        if failure:
+        if failure or references is None:
             return failure
         error = exec_ctx.symbol_table.borrow(references[0], references[1])
         if error:
@@ -563,7 +565,7 @@ class BuiltInFunction(BaseFunction):
 
     def execute_varBorrowMutate(self, args, exec_ctx):
         references, failure = self._ownership_refs(args, exec_ctx, 2)
-        if failure:
+        if failure or references is None:
             return failure
         error = exec_ctx.symbol_table.borrow_mutate(references[0], references[1])
         if error:
@@ -572,7 +574,7 @@ class BuiltInFunction(BaseFunction):
 
     def execute_varSwapAll(self, args, exec_ctx):
         references, failure = self._ownership_refs(args, exec_ctx, 2)
-        if failure:
+        if failure or references is None:
             return failure
         error = exec_ctx.symbol_table.swap_all(references[0], references[1])
         if error:
@@ -581,7 +583,7 @@ class BuiltInFunction(BaseFunction):
 
     def execute_varSwapVal(self, args, exec_ctx):
         references, failure = self._ownership_refs(args, exec_ctx, 2)
-        if failure:
+        if failure or references is None:
             return failure
         error = exec_ctx.symbol_table.swap_values(references[0], references[1])
         if error:
@@ -590,7 +592,7 @@ class BuiltInFunction(BaseFunction):
 
     def execute_varEndBorrow(self, args, exec_ctx):
         references, failure = self._ownership_refs(args, exec_ctx, 1)
-        if failure:
+        if failure or references is None:
             return failure
         error = exec_ctx.symbol_table.end_borrow(references[0])
         if error:
@@ -599,7 +601,7 @@ class BuiltInFunction(BaseFunction):
 
     def execute_borrowing(self, args, exec_ctx):
         references, failure = self._ownership_refs(args, exec_ctx, 1)
-        if failure:
+        if failure or references is None:
             return failure
         return RTResult().success(
             Number(1 if exec_ctx.symbol_table.is_borrowing(references[0]) else 0, is_bool=True)
@@ -607,7 +609,7 @@ class BuiltInFunction(BaseFunction):
 
     def execute_beingBorrowed(self, args, exec_ctx):
         references, failure = self._ownership_refs(args, exec_ctx, 1)
-        if failure:
+        if failure or references is None:
             return failure
         return RTResult().success(
             Number(
@@ -1404,7 +1406,7 @@ class BuiltInFunction(BaseFunction):
             return self._failure(exec_ctx, "ffiLoadLibrary(path) expects a library path")
         try:
             handle = _MEMORY_LIB.ffiLoadLibrary(args[0].value)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             return self._failure(exec_ctx, f"ffiLoadLibrary() failed: {exc}")
         return RTResult().success(Number(handle))
 
@@ -1413,7 +1415,7 @@ class BuiltInFunction(BaseFunction):
             return self._failure(exec_ctx, "ffiLookup(library, symbol) expects a library handle and symbol")
         try:
             pointer = _MEMORY_LIB.ffiLookup(args[0].value, args[1].value)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             return self._failure(exec_ctx, f"ffiLookup() failed: {exc}")
         result = FunctionAddress(pointer)
         result.set_context(exec_ctx)
@@ -1424,7 +1426,7 @@ class BuiltInFunction(BaseFunction):
             return self._failure(exec_ctx, "ffiCloseLibrary(library) expects a library handle")
         try:
             _MEMORY_LIB.ffiCloseLibrary(args[0].value)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             return self._failure(exec_ctx, f"ffiCloseLibrary() failed: {exc}")
         return RTResult().success(Number.null)
 
@@ -1559,7 +1561,7 @@ class BuiltInFunction(BaseFunction):
             )
         try:
             _MEMORY_LIB.nativeModuleClose(args[0].value)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             return self._failure(exec_ctx, f"nativeModuleClose() failed: {exc}")
         state["closed"] = True
         _NATIVE_MODULES.pop(args[0].value, None)
@@ -1592,7 +1594,7 @@ class BuiltInFunction(BaseFunction):
             result = Number.null if result_name == "void" else (
                 String(raw) if result_name == "cstring" else Number(raw)
             )
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             return self._failure(exec_ctx, f"ffiCall() failed: {exc}")
         return RTResult().success(result)
 
@@ -1601,7 +1603,7 @@ class BuiltInFunction(BaseFunction):
             return self._failure(exec_ctx, "ffiCallback(signature, function) expects a signature and Lynxer function")
         try:
             pointer = _MEMORY_LIB.ffiCallback(args[0].value, args[1])
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             return self._failure(exec_ctx, f"ffiCallback() failed: {exc}")
         result = FunctionAddress(pointer)
         result.set_context(exec_ctx)
@@ -1612,7 +1614,7 @@ class BuiltInFunction(BaseFunction):
             return self._failure(exec_ctx, "ffiFreeCallback(callback) expects a function address")
         try:
             _MEMORY_LIB.ffiFreeCallback(args[0].pointer)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             return self._failure(exec_ctx, f"ffiFreeCallback() failed: {exc}")
         return RTResult().success(Number.null)
 
@@ -1656,7 +1658,7 @@ class BuiltInFunction(BaseFunction):
 
     def _sync_handle(
         self, args: list[Any], exec_ctx: Any, name: str, kind: type[_SyncT]
-    ) -> "tuple[_SyncT, RTResult | None]":
+    ) -> tuple[_SyncT, RTResult | None]:
         if len(args) != 1 or not _native_nonnegative(args[0]):
             return cast(_SyncT, _NULL), self._failure(
                 exec_ctx, f"{name}(handle) expects a valid handle"
@@ -1745,7 +1747,7 @@ class BuiltInFunction(BaseFunction):
 
     def _condition_mutex(
         self, args: list[Any], exec_ctx: Any, name: str
-    ) -> "tuple[_ManagedCondition, _ManagedMutex, RTResult | None]":
+    ) -> tuple[_ManagedCondition, _ManagedMutex, RTResult | None]:
         if len(args) != 2:
             return (
                 cast(_ManagedCondition, _NULL),
@@ -1800,7 +1802,7 @@ class BuiltInFunction(BaseFunction):
 
     def _condition_notify(self, args, exec_ctx, all_waiters):
         name = "nativeConditionNotifyAll" if all_waiters else "nativeConditionNotify"
-        condition, mutex, error = self._condition_mutex(args, exec_ctx, name)
+        condition, _mutex, error = self._condition_mutex(args, exec_ctx, name)
         if error:
             return error
         # _condition_mutex() binds the condition to the mutex before returning,
@@ -1963,7 +1965,6 @@ class BuiltInFunction(BaseFunction):
         type_name = _memory_type(args[0])
         assert type_name is not None
         count = args[1].value
-        size = _MEMORY_TYPES[type_name][0] * count
         result = self._cpp(_MEMORY_LIB.memoryBlockAllocate, [type_name, count], exec_ctx)
         return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
@@ -2491,8 +2492,8 @@ class BuiltInFunction(BaseFunction):
                 )
             )
         try:
-            exec(args[0].value, {"__builtins__": __builtins__})
-        except Exception as e:
+            exec(args[0].value, {"__builtins__": __builtins__})  # noqa: S102
+        except Exception as e:  # noqa: BLE001
             return RTResult().failure(
                 RTError(
                     self.pos_start,
@@ -2528,7 +2529,7 @@ class BuiltInFunction(BaseFunction):
         v = args[0]
         try:
             return RTResult().success(Number(int(float(v.value))))
-        except Exception:
+        except Exception:  # noqa: BLE001
             return RTResult().failure(
                 RTError(
                     self.pos_start,
@@ -2551,7 +2552,7 @@ class BuiltInFunction(BaseFunction):
         v = args[0]
         try:
             return RTResult().success(Number(float(v.value)))
-        except Exception:
+        except Exception:  # noqa: BLE001
             return RTResult().failure(
                 RTError(
                     self.pos_start,
@@ -2602,7 +2603,7 @@ class BuiltInFunction(BaseFunction):
             cython_inline = _get_cython_inline()
             cy_locals = {}
             cython_inline(args[0].value, locals=cy_locals, globals=cy_locals, quiet=True)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             return RTResult().failure(
                 RTError(
                     self.pos_start,
@@ -2714,7 +2715,7 @@ class BuiltInFunction(BaseFunction):
         try:
             if os.path.isdir(cache_dir):
                 shutil.rmtree(cache_dir)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             return RTResult().failure(
                 RTError(
                     self.pos_start,
@@ -2742,7 +2743,7 @@ class BuiltInFunction(BaseFunction):
         try:
             items = [_json_value(element) for element in args[0].elements]
             return RTResult().success(String(_json.dumps(items)))
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             return RTResult().failure(
                 RTError(
                     self.pos_start,
@@ -2781,7 +2782,7 @@ class BuiltInFunction(BaseFunction):
                 v = _json_value(els[i + 1])
                 obj[str(k)] = v
             return RTResult().success(String(_json.dumps(obj)))
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             return RTResult().failure(
                 RTError(
                     self.pos_start,
@@ -3086,7 +3087,7 @@ class BuiltInFunction(BaseFunction):
         try:
             total = sum(e.value for e in args[0].elements if isinstance(e, Number))
             return RTResult().success(Number(total))
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             return RTResult().failure(
                 RTError(
                     self.pos_start,
@@ -3117,7 +3118,7 @@ class BuiltInFunction(BaseFunction):
                 args[0].elements, key=self._list_sort_key, reverse=reverse
             )
             return RTResult().success(List(sorted_els))
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             return RTResult().failure(
                 RTError(
                     self.pos_start,
@@ -3162,7 +3163,7 @@ class BuiltInFunction(BaseFunction):
             return RTResult().success(
                 min(args[0].elements, key=self._list_sort_key)
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             return RTResult().failure(
                 RTError(
                     self.pos_start,
@@ -3195,7 +3196,7 @@ class BuiltInFunction(BaseFunction):
             return RTResult().success(
                 max(args[0].elements, key=self._list_sort_key)
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             return RTResult().failure(
                 RTError(
                     self.pos_start,
@@ -3528,7 +3529,7 @@ class BuiltInFunction(BaseFunction):
         try:
             items = [_json_value(element) for element in args[0].elements]
             return RTResult().success(String(_json.dumps(items)))
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             return RTResult().failure(
                 RTError(
                     self.pos_start,
@@ -3563,7 +3564,7 @@ class BuiltInFunction(BaseFunction):
             return RTResult().success(
                 LynxTuple(sorted(args[0].elements, key=self._list_sort_key, reverse=reverse))
             )
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             return self._failure(exec_ctx, f"tupleSort() failed: {exc}")
 
     def execute_tupleSortDesc(self, args, exec_ctx):
@@ -3579,7 +3580,7 @@ class BuiltInFunction(BaseFunction):
             return self._failure(exec_ctx, "tupleMin() called on an empty tuple")
         try:
             return RTResult().success(min(values, key=self._list_sort_key))
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             return self._failure(exec_ctx, f"tupleMin() failed: {exc}")
 
     def execute_tupleMax(self, args, exec_ctx):
@@ -3590,7 +3591,7 @@ class BuiltInFunction(BaseFunction):
             return self._failure(exec_ctx, "tupleMax() called on an empty tuple")
         try:
             return RTResult().success(max(values, key=self._list_sort_key))
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             return self._failure(exec_ctx, f"tupleMax() failed: {exc}")
 
     def execute_tupleSum(self, args, exec_ctx):
@@ -3688,7 +3689,7 @@ class BuiltInFunction(BaseFunction):
 
     def _async_poll(
         self, args: list[Any], exec_ctx: Any, name: str
-    ) -> "tuple[_AsyncPoll, RTResult | None]":
+    ) -> tuple[_AsyncPoll, RTResult | None]:
         if len(args) != 1 or not _native_nonnegative(args[0]):
             return cast(_AsyncPoll, _NULL), self._failure(
                 exec_ctx, f"{name}(poll) expects a valid poll handle"
@@ -3712,7 +3713,7 @@ class BuiltInFunction(BaseFunction):
 
     def _async_fd(
         self, value: Any, exec_ctx: Any, name: str
-    ) -> "tuple[int, RTResult | None]":
+    ) -> tuple[int, RTResult | None]:
         if not _native_nonnegative(value):
             return cast(int, _NULL), self._failure(
                 exec_ctx, f"{name} resource expects a nonnegative integer"
@@ -3726,7 +3727,7 @@ class BuiltInFunction(BaseFunction):
 
     def _async_event_mask(
         self, value: Any, exec_ctx: Any, name: str
-    ) -> "tuple[tuple[str, int], RTResult | None]":
+    ) -> tuple[tuple[str, int], RTResult | None]:
         if not isinstance(value, String):
             return cast(tuple[str, int], _NULL), self._failure(
                 exec_ctx, f"{name} events must be 'read', 'write', or 'readwrite'"
@@ -3860,7 +3861,7 @@ class BuiltInFunction(BaseFunction):
         async def _wait():
             try:
                 events = await asyncio.to_thread(poll.wait, timeout, max_events)
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 return RTResult().failure(RTError(
                     self.pos_start, self.pos_end,
                     f"asyncPollWait() failed: {exc}", exec_ctx,
@@ -3907,7 +3908,7 @@ class BuiltInFunction(BaseFunction):
                         if result.error:
                             return result
                 return RTResult().success(Number(len(events)))
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 return RTResult().failure(RTError(
                     self.pos_start, self.pos_end,
                     f"asyncPollDispatch() failed: {exc}", exec_ctx,
@@ -4043,7 +4044,7 @@ class BuiltInFunction(BaseFunction):
             )
         try:
             coro_res = asyncio.run(args[0].coro)
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             return RTResult().failure(
                 RTError(
                     self.pos_start,
@@ -4139,7 +4140,7 @@ class BuiltInFunction(BaseFunction):
         try:
             import arcade
             sound = arcade.Sound(path)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             return self._failure(exec_ctx, f"audio backend failed to load sound: {exc}")
         handle = next(_SOUND_IDS)
         _SOUNDS[handle] = {
@@ -4150,19 +4151,19 @@ class BuiltInFunction(BaseFunction):
 
     def execute_soundPlay(self, args, exec_ctx):
         entry, failure = self._sound_entry(args, exec_ctx, "soundPlay")
-        if failure:
+        if failure or entry is None:
             return failure
         try:
             entry["player"] = entry["sound"].play(volume=entry["volume"])
             entry["playing"] = True
             entry["paused"] = False
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             return self._failure(exec_ctx, f"audio backend failed to play sound: {exc}")
         return RTResult().success(Number.null)
 
     def execute_soundLoop(self, args, exec_ctx):
         entry, failure = self._sound_entry(args, exec_ctx, "soundLoop")
-        if failure:
+        if failure or entry is None:
             return failure
         try:
             entry["player"] = entry["sound"].play(
@@ -4170,34 +4171,34 @@ class BuiltInFunction(BaseFunction):
             )
             entry["playing"] = True
             entry["paused"] = False
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             return self._failure(exec_ctx, f"audio backend failed to loop sound: {exc}")
         return RTResult().success(Number.null)
 
     def execute_soundStop(self, args, exec_ctx):
         entry, failure = self._sound_entry(args, exec_ctx, "soundStop")
-        if failure:
+        if failure or entry is None:
             return failure
         try:
             if entry["player"] is not None:
                 entry["player"].stop()
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             return self._failure(exec_ctx, f"audio backend failed to stop sound: {exc}")
         entry["playing"] = False
         entry["paused"] = False
         return RTResult().success(Number.null)
 
     def execute_soundPause(self, args, exec_ctx):
-        entry, failure = self._sound_entry(args, exec_ctx, "soundPause")
-        if failure:
+        _entry, failure = self._sound_entry(args, exec_ctx, "soundPause")
+        if failure or _entry is None:
             return failure
         # Arcade's backend does not expose a portable pause operation.  Keep
         # this explicit rather than pretending that a stop is resumable.
         return self._failure(exec_ctx, "audio backend does not support portable pause/resume")
 
     def execute_soundResume(self, args, exec_ctx):
-        entry, failure = self._sound_entry(args, exec_ctx, "soundResume")
-        if failure:
+        _entry, failure = self._sound_entry(args, exec_ctx, "soundResume")
+        if failure or _entry is None:
             return failure
         return self._failure(exec_ctx, "audio backend does not support portable pause/resume")
 
@@ -4217,19 +4218,19 @@ class BuiltInFunction(BaseFunction):
         if entry["player"] is not None:
             try:
                 entry["player"].volume = volume
-            except Exception:
+            except Exception:  # noqa: BLE001, S110
                 pass
         return RTResult().success(Number.null)
 
     def execute_soundIsPlaying(self, args, exec_ctx):
         entry, failure = self._sound_entry(args, exec_ctx, "soundIsPlaying")
-        if failure:
+        if failure or entry is None:
             return failure
         playing = entry["playing"]
         try:
             if entry["player"] is not None:
                 playing = bool(entry["player"].is_playing())
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
         return RTResult().success(Number(int(playing), is_bool=True))
 
@@ -4243,7 +4244,7 @@ class BuiltInFunction(BaseFunction):
         try:
             if entry["player"] is not None:
                 entry["player"].stop()
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
         return RTResult().success(Number.null)
 
@@ -4298,7 +4299,7 @@ class BuiltInFunction(BaseFunction):
                     exec_ctx,
                 )
             )
-        setattr(_runtime, "_forever_delay", delay)
+        setattr(_runtime, "_forever_delay", delay)  # noqa: B010
         return RTResult().success(Number.null)
 
     def execute_suppressForeverWarning(self, args, exec_ctx):
@@ -4321,7 +4322,7 @@ class BuiltInFunction(BaseFunction):
                     exec_ctx,
                 )
             )
-        setattr(_runtime, "_forever_warning_suppressed", True)
+        setattr(_runtime, "_forever_warning_suppressed", True)  # noqa: B010
         return RTResult().success(Number.null)
 
     def execute_suppressDeprecationWarning(self, args, exec_ctx):
@@ -4344,7 +4345,7 @@ class BuiltInFunction(BaseFunction):
                     exec_ctx,
                 )
             )
-        setattr(_runtime, "_deprecation_warning_suppressed", True)
+        setattr(_runtime, "_deprecation_warning_suppressed", True)  # noqa: B010
         return RTResult().success(Number.null)
 
     def execute_overrideMain(self, args, exec_ctx):
@@ -4360,7 +4361,7 @@ class BuiltInFunction(BaseFunction):
                     exec_ctx,
                 )
             )
-        setattr(_runtime, "_main_override", args[0].value)
+        setattr(_runtime, "_main_override", args[0].value)  # noqa: B010
         return RTResult().success(Number.null)
 
     def execute_assert(self, args, exec_ctx):

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """CLI entry point for Lynxer. Run with: python lynxer/shell.py <file.lynx>"""
 
-import sys
 import os
 import subprocess
+import sys
 import time
 
 _here = os.path.dirname(os.path.abspath(__file__))  # .../lynxer/
@@ -11,12 +11,12 @@ _parent = os.path.dirname(_here)  # repo root
 if _parent not in sys.path:
     sys.path.insert(0, _parent)
 
-from lynxer import run, compile_to_bytecode, run_bytecode  # noqa: E402
-from lynxer.bundle import bundle_program  # noqa: E402
-from lynxer.bytecode import BYTECODE_VERSION, read_bytecode  # noqa: E402
-from lynxer.formatting import FormattingError, format_source, lint_source  # noqa: E402
-from lynxer.install import installer_main  # noqa: E402
-from lynxer.lynxer import Lexer, Parser, Token, stdlib_dir  # noqa: E402
+from lynxer import compile_to_bytecode, run, run_bytecode
+from lynxer.bundle import bundle_program
+from lynxer.bytecode import BYTECODE_VERSION, read_bytecode
+from lynxer.formatting import FormattingError, format_source, lint_source
+from lynxer.install import installer_main
+from lynxer.lynxer import Lexer, Parser, Token, stdlib_dir
 
 
 def _extract_docstring(path):
@@ -34,7 +34,7 @@ def _extract_docstring(path):
                     if stripped == "////":
                         break
                     lines.append(line.rstrip())
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"Error: could not read '{path}': {e}")
         pass
     text = "\n".join(lines).strip()
@@ -251,7 +251,9 @@ def main():
         if not os.path.exists(validator):
             print("shell.py: comprehensive validator is not available", file=sys.stderr)
             return 1
-        result = subprocess.run([sys.executable, validator, *argv[1:]], cwd=_parent)
+        result = subprocess.run(
+            [sys.executable, validator, *argv[1:]], cwd=_parent, check=False
+        )
         return result.returncode
     if argv[0] in ("--install", "--uninstall"):
         return installer_main(argv[0])
@@ -454,7 +456,7 @@ def main():
     if filepath.endswith(".lynxc"):
         try:
             _, error = run_bytecode(filepath)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             print(
                 f"shell.py: could not run bytecode '{argv[0]}': {exc}", file=sys.stderr
             )
@@ -473,7 +475,7 @@ def main():
 
     try:
         _, error = run(filepath, source)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         print(f"shell.py: interpreter failure in '{argv[0]}': {exc}", file=sys.stderr)
         return 1
     if error:

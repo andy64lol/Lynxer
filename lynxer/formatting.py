@@ -6,9 +6,6 @@ import re
 from typing import Any
 
 from .lynxer import (
-    Lexer,
-    Parser,
-    Token,
     TT_COMMA,
     TT_DOCSTRING,
     TT_DOT,
@@ -18,8 +15,11 @@ from .lynxer import (
     TT_LPAREN,
     TT_RBRACE,
     TT_RBRACKET,
-    TT_SEMICOLON,
     TT_RPAREN,
+    TT_SEMICOLON,
+    Lexer,
+    Parser,
+    Token,
 )
 
 
