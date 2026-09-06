@@ -1,9 +1,9 @@
 # Bytecode Compilation (.lynxc)
 
 Lynxer can pre-compile a `.lynx` source file into a compact binary bytecode
-file with the `.lynxc` extension.  The bytecode is a binary encoding of the
-parsed AST, so the lexer and parser are skipped at load time — useful for
-distributing code without shipping readable source, or for shaving parse
+file with the `.lynxc` extension.  The bytecode is a compressed stack-machine
+instruction stream, so the lexer and parser are skipped at load time — useful
+for distributing code without shipping readable source, or for shaving parse
 overhead on larger programs.
 
 ---
@@ -49,84 +49,76 @@ built-in stdlib.
 
 ---
 
-## Bytecode format (v6)
+## Bytecode format (v7)
 
 | Field | Details |
 |-------|---------|
 | Magic header | 6 bytes: `LYNXC\x00` |
-| Payload | zlib-compressed tag stream (see below), holding `version`, `source` path, compiler metadata, and the encoded AST |
+| Payload | zlib-compressed metadata plus a postfix instruction stream |
 
-### The tag stream
+### Metadata and instruction stream
 
-Every value in the payload starts with one tag byte.  Integers and lengths are
-written as unsigned LEB128 varints, and signed integers use zig-zag encoding
-first, so the values that dominate an AST stay one or two bytes wide.  Strings
-are UTF-8 with a varint length prefix, and floats are little-endian IEEE 754
-doubles.
+The metadata dictionary uses a small tagged-value encoding.  It contains the
+version, source/cache information, compiler statistics, native dependency
+manifest, and the compiled instruction stream as bytes.  It does not contain
+pickled Python objects or an AST object graph.
 
-| Tag | Meaning | Body |
+Instructions are executed by a postfix stack machine while loading the
+program. Constants push values onto the stack; `BUILD_*` instructions pop
+their operands and push a container, source position, or AST node. The final
+stack value must be one `ProgramNode`, which is then executed by the Lynxer
+runtime.
+
+| Opcode | Meaning | Body |
 |-----|---------|------|
-| `0x00`–`0x02` | `null`, `false`, `true` | — |
-| `0x03` | integer | zig-zag varint |
-| `0x04` | float | 8-byte double |
-| `0x05` | complex | two 8-byte doubles |
-| `0x06` | string | varint length + UTF-8 bytes |
-| `0x07` | bytes | varint length + raw bytes |
-| `0x08`–`0x0C` | list, tuple, dict, set, frozenset | varint item count + items |
-| `0x0D` | back-reference | varint index into the value table |
-| `0x0E` | AST node / token | varint class id + varint attribute count + (name, value) pairs |
-| `0x0F` | source position | index, line, column, filename |
+| `0x20`–`0x22` | push `null`, `false`, `true` | — |
+| `0x23` | push integer | zig-zag varint |
+| `0x24` | push float | 8-byte little-endian double |
+| `0x25` | push complex | two doubles |
+| `0x26` | push string | varint length + UTF-8 bytes |
+| `0x27` | push bytes | varint length + raw bytes |
+| `0x28`–`0x2C` | build list, tuple, dict, set, frozenset | varint item count |
+| `0x2D` | build source position | pops index, line, column, filename |
+| `0x2E` | build AST node/token | class id + attribute count |
 
-The class id is an index into the table of encodable AST classes — every
+The class id is an index into the fixed table of encodable AST classes — every
 `*Node` class plus `Token`, sorted by name and derived from the running
-Lynxer interpreter.  Reading never imports or calls anything by name: the
-decoder looks the id up in that fixed table, allocates the class with
-`__new__`, and fills in the attributes.  Containers and nodes are stored in a
-value table on first use and referenced afterwards, so shared nodes stay
-compact and reference cycles cannot hang the reader.
+Lynxer interpreter.  Loading never imports or calls a class by name: the
+instruction reader looks the id up in that fixed table, allocates the class
+with `__new__`, and fills in its attributes.  A `Position` omits its original
+source text and stores only its location.
 
-Positions get their own tag rather than the generic object form because a
-`Position` also carries the whole source text (`ftxt`); only `idx`, `ln`,
-`col`, and `fn` are written, which is what keeps the payload small.
+### What changed in v7
 
-### What changed in v6
+v7 replaced the AST serialization payload with the instruction stream above:
 
-v6 replaced the pickle payload with the tag stream above:
+1. **Actual bytecode** — the program is written as opcodes and operands for a
+   stack machine instead of as a pickled or generically serialized AST.
+2. **No pickle** — a `.lynxc` file cannot request arbitrary Python imports or
+   execute pickle reducers while it is loaded.
 
-1. **No pickle** — the payload is now a plain data description.  A `.lynxc`
-   file can no longer name arbitrary Python objects; it can only select AST
-   classes from the fixed table, so loading one cannot execute code.
-
-Earlier versions:
-
-2. **Native dependency manifest** (v5) — compiled bytecode records shared-library
+3. **Native dependency manifest** — compiled bytecode records shared-library
    imports in `native_dependencies`. Bundlers use this manifest to stage the
    libraries beside the bytecode, so native modules continue to resolve inside
    a one-file executable.
 
-3. **zlib compression** (v5) — the payload is compressed at maximum level
+4. **zlib compression** — the payload is compressed at maximum level
    before being written to disk.  In practice this cuts file size by 60–80 %
    compared to an uncompressed AST of the same program.
 
-4. **Source-text stripping** (v2) — every token in the AST previously carried a
-   copy of the entire source file inside its position metadata (`ftxt`), so a
-   1 KB source file would embed thousands of redundant 1 KB strings into the
-   archive.  Since v2 these strings are omitted from the bytecode; only line/column
-   numbers and the filename are kept.  The AST executes identically; runtime
-   error messages will not show the source-pointer arrow, but the error
-   location (file, line, column) is still reported correctly.
+5. **Source-text stripping** — positions store only line, column, and filename
+   data, not copies of the source text.
 
-5. **Restricted loading and size limits** (v5) — the runtime caps the file and
-   decompressed payload size, and rejects malformed streams (unknown tags,
-   truncated values, dangling back-references, trailing data) instead of
-   failing later during execution. Do not treat `.lynxc` files from an
-   untrusted source as an authorization boundary; a Lynxer program can still
-   intentionally execute `rawPy` code after it has been loaded.
+6. **Restricted loading and size limits** — malformed streams are rejected
+   before execution. Do not treat `.lynxc` files from an untrusted source as an
+   authorization boundary; a Lynxer program can still intentionally execute
+   `rawPy` code after it has been loaded.
 
 ### Compatibility
 
-The bytecode format is tied to the Python version and the Lynxer AST — it is
-**not** portable across major Python versions or Lynxer releases.
+The bytecode format is tied to the Python version and the Lynxer instruction
+set/AST class table — it is **not** portable across major Python versions or
+Lynxer releases.
 
 If you load an older `.lynxc` file with the current runtime you will see a
 clear error asking you to recompile. Always recompile after upgrading Lynxer.

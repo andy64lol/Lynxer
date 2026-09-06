@@ -1,10 +1,10 @@
-"""Lynxer bytecode serialization, loading, and execution.
+"""Lynxer bytecode compilation, loading, and execution.
 
-The bytecode file contains a zlib-compressed, tag-based binary encoding of the
-parsed AST.  The payload is a plain data description: every value starts with a
-tag byte and only a fixed table of AST classes can be instantiated while
-reading, so a ``.lynxc`` file cannot execute code the way a ``pickle`` stream
-can.  Runtime classes are imported lazily so this module can be imported by
+The payload in a ``.lynxc`` file is a zlib-compressed stack-machine instruction
+stream.  It is not a pickle and it does not contain a Python object graph.
+Instructions push constants, build containers, and construct nodes from a fixed
+class table.  The resulting program node is then handed to the existing Lynxer
+runtime.  Runtime classes are imported lazily so this module can be imported by
 ``lynxer.py`` without creating a circular import during interpreter startup.
 """
 
@@ -19,7 +19,7 @@ from typing import Any
 
 
 BYTECODE_MAGIC = b"LYNXC\x00"
-BYTECODE_VERSION = 6
+BYTECODE_VERSION = 7
 MAX_BYTECODE_FILE_SIZE = 64 * 1024 * 1024
 MAX_BYTECODE_PAYLOAD_SIZE = 256 * 1024 * 1024
 _NATIVE_IMPORT_RE = re.compile(
@@ -29,12 +29,6 @@ _NATIVE_IMPORT_RE = re.compile(
 
 # ---------------------------------------------------------------------------
 # Binary payload format
-#
-# A payload is a stream of tagged values.  Integers and lengths are encoded as
-# unsigned LEB128 varints (signed integers use zig-zag encoding first) so the
-# common small values stay one byte wide.  Containers and AST nodes are written
-# in full the first time they are seen and emitted as back-references
-# afterwards, which keeps shared nodes compact and tolerates reference cycles.
 # ---------------------------------------------------------------------------
 
 _TAG_NONE = 0x00
@@ -61,6 +55,28 @@ _DOUBLE = struct.Struct("<d")
 _MAX_VARINT_BITS = 1 << 16
 _MAX_OBJECT_ATTRS = 4096
 _REGISTRY_CACHE: Any = None
+
+# The compiled-program portion of the payload is a postfix stack machine.  The
+# metadata dictionary still uses the small tagged-value encoder below, but AST
+# objects are never passed to that encoder.  Keeping the instruction opcodes
+# separate makes it possible to inspect a .lynxc file without treating it as a
+# Python serialization format.
+_OP_NONE = 0x20
+_OP_FALSE = 0x21
+_OP_TRUE = 0x22
+_OP_INT = 0x23
+_OP_FLOAT = 0x24
+_OP_COMPLEX = 0x25
+_OP_STR = 0x26
+_OP_BYTES = 0x27
+_OP_BUILD_LIST = 0x28
+_OP_BUILD_TUPLE = 0x29
+_OP_BUILD_DICT = 0x2A
+_OP_BUILD_SET = 0x2B
+_OP_BUILD_FROZENSET = 0x2C
+_OP_BUILD_POSITION = 0x2D
+_OP_BUILD_NODE = 0x2E
+_MAX_INSTRUCTIONS = 16 * 1024 * 1024
 
 
 def _source_hash(text: str) -> str:
@@ -96,7 +112,7 @@ def _runtime() -> Any:
     return lynxer
 
 
-def _registry() -> tuple[list[type], dict[type, int]]:
+def _registry() -> tuple[list[type[Any]], dict[type, int]]:
     """Return ``([classes], {class: id})`` for every encodable AST type.
 
     Ids are assigned over the sorted class names, so a given Lynxer runtime
@@ -138,7 +154,7 @@ def _write_string(out: bytearray, value: str) -> None:
 
 
 class _Encoder:
-    """Serialise a compiler payload into the tag stream."""
+    """Serialise bytecode metadata into the tagged metadata stream."""
 
     def __init__(self) -> None:
         self.out = bytearray()
@@ -256,7 +272,7 @@ class _Encoder:
 
 
 class _Decoder:
-    """Read a tag stream back into Python values and AST nodes."""
+    """Read the tagged metadata stream back into Python values."""
 
     def __init__(self, data: bytes) -> None:
         self.data = data
@@ -378,7 +394,7 @@ class _Decoder:
                     f"unknown AST node type id {class_id} in bytecode payload"
                 )
             node_class = classes[class_id]
-            node = node_class.__new__(node_class)
+            node: Any = object.__new__(node_class)
             self.memo.append(node)
             count = self._varint()
             if count > _MAX_OBJECT_ATTRS:
@@ -398,6 +414,272 @@ class _Decoder:
         if self._interpreter is None:
             self._interpreter = _runtime()
         return self._interpreter
+
+
+def _emit_instruction_string(out: bytearray, value: str) -> None:
+    raw = value.encode("utf-8")
+    out.append(_OP_STR)
+    _write_varint(out, len(raw))
+    out += raw
+
+
+def _emit_instruction_value(out: bytearray, value: Any) -> None:
+    """Compile one AST value into postfix stack-machine instructions."""
+    value_type = type(value)
+
+    if value is None:
+        out.append(_OP_NONE)
+        return
+    if value_type is bool:
+        out.append(_OP_TRUE if value else _OP_FALSE)
+        return
+    if value_type is int:
+        out.append(_OP_INT)
+        _write_varint(out, value << 1 if value >= 0 else (~value << 1) | 1)
+        return
+    if value_type is float:
+        out.append(_OP_FLOAT)
+        out += _DOUBLE.pack(value)
+        return
+    if value_type is complex:
+        out.append(_OP_COMPLEX)
+        out += _DOUBLE.pack(value.real)
+        out += _DOUBLE.pack(value.imag)
+        return
+    if value_type is str:
+        _emit_instruction_string(out, value)
+        return
+    if value_type is bytes:
+        out.append(_OP_BYTES)
+        _write_varint(out, len(value))
+        out += value
+        return
+
+    if value_type is _runtime().Position:
+        _emit_instruction_value(out, value.idx)
+        _emit_instruction_value(out, value.ln)
+        _emit_instruction_value(out, value.col)
+        _emit_instruction_value(out, value.fn)
+        out.append(_OP_BUILD_POSITION)
+        return
+
+    if value_type is list or value_type is tuple:
+        for item in value:
+            _emit_instruction_value(out, item)
+        out.append(_OP_BUILD_LIST if value_type is list else _OP_BUILD_TUPLE)
+        _write_varint(out, len(value))
+        return
+
+    if value_type is dict:
+        for key, item in value.items():
+            _emit_instruction_value(out, key)
+            _emit_instruction_value(out, item)
+        out.append(_OP_BUILD_DICT)
+        _write_varint(out, len(value))
+        return
+
+    if value_type is set or value_type is frozenset:
+        # AST values are deterministic apart from sets.  Sorting their
+        # instruction representation keeps cache artifacts reproducible.
+        items = list(value)
+        items.sort(key=repr)
+        for item in items:
+            _emit_instruction_value(out, item)
+        out.append(_OP_BUILD_SET if value_type is set else _OP_BUILD_FROZENSET)
+        _write_varint(out, len(value))
+        return
+
+    class_id = _registry()[1].get(value_type)
+    if class_id is not None:
+        state = vars(value)
+        for name, attribute in state.items():
+            _emit_instruction_string(out, name)
+            _emit_instruction_value(out, attribute)
+        out.append(_OP_BUILD_NODE)
+        _write_varint(out, class_id)
+        _write_varint(out, len(state))
+        return
+
+    raise ValueError(
+        f"cannot compile a value of type {value_type.__name__!r} into Lynxer bytecode"
+    )
+
+
+def _compile_instruction_stream(node: Any) -> bytes:
+    """Compile the parsed program into a real postfix instruction stream."""
+    instructions = bytearray()
+    _emit_instruction_value(instructions, node)
+    if len(instructions) > _MAX_INSTRUCTIONS:
+        raise ValueError("compiled Lynxer instruction stream is too large")
+    return bytes(instructions)
+
+
+class _InstructionReader:
+    """Execute the serialized instruction stream into safe runtime values."""
+
+    def __init__(self, code: bytes) -> None:
+        self.code = code
+        self.pos = 0
+        self.stack: list[Any] = []
+        self.instruction_count = 0
+
+    def _read(self, count: int) -> bytes:
+        end = self.pos + count
+        if count < 0 or end > len(self.code):
+            raise ValueError("truncated bytecode instruction stream")
+        chunk = self.code[self.pos:end]
+        self.pos = end
+        return chunk
+
+    def _byte(self) -> int:
+        if self.pos >= len(self.code):
+            raise ValueError("truncated bytecode instruction stream")
+        byte = self.code[self.pos]
+        self.pos += 1
+        return byte
+
+    def _varint(self) -> int:
+        result = 0
+        shift = 0
+        while True:
+            byte = self._byte()
+            result |= (byte & 0x7F) << shift
+            if not byte & 0x80:
+                return result
+            shift += 7
+            if shift > _MAX_VARINT_BITS:
+                raise ValueError("integer in bytecode instruction stream is too large")
+
+    def _count(self) -> int:
+        count = self._varint()
+        if count > len(self.code):
+            raise ValueError(
+                "instruction declares more values than the bytecode holds"
+            )
+        return count
+
+    def _pop_values(self, count: int) -> list[Any]:
+        if count > len(self.stack):
+            raise ValueError("bytecode instruction stack underflow")
+        if not count:
+            return []
+        values = self.stack[-count:]
+        del self.stack[-count:]
+        return values
+
+    def _read_string(self) -> str:
+        try:
+            return self._read(self._varint()).decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise ValueError("bytecode instruction contains invalid UTF-8") from exc
+
+    def run(self) -> Any:
+        while self.pos < len(self.code):
+            self.instruction_count += 1
+            if self.instruction_count > _MAX_INSTRUCTIONS:
+                raise ValueError("bytecode instruction stream contains too many instructions")
+            opcode = self._byte()
+
+            if opcode == _OP_NONE:
+                self.stack.append(None)
+            elif opcode == _OP_FALSE:
+                self.stack.append(False)
+            elif opcode == _OP_TRUE:
+                self.stack.append(True)
+            elif opcode == _OP_INT:
+                number = self._varint()
+                self.stack.append(-(number >> 1) - 1 if number & 1 else number >> 1)
+            elif opcode == _OP_FLOAT:
+                self.stack.append(_DOUBLE.unpack(self._read(8))[0])
+            elif opcode == _OP_COMPLEX:
+                self.stack.append(
+                    complex(
+                        _DOUBLE.unpack(self._read(8))[0],
+                        _DOUBLE.unpack(self._read(8))[0],
+                    )
+                )
+            elif opcode == _OP_STR:
+                self.stack.append(self._read_string())
+            elif opcode == _OP_BYTES:
+                self.stack.append(self._read(self._varint()))
+            elif opcode in (
+                _OP_BUILD_LIST,
+                _OP_BUILD_TUPLE,
+                _OP_BUILD_SET,
+                _OP_BUILD_FROZENSET,
+            ):
+                count = self._count()
+                values = self._pop_values(count)
+                if opcode == _OP_BUILD_LIST:
+                    self.stack.append(values)
+                elif opcode == _OP_BUILD_TUPLE:
+                    self.stack.append(tuple(values))
+                elif opcode == _OP_BUILD_SET:
+                    try:
+                        self.stack.append(set(values))
+                    except TypeError as exc:
+                        raise ValueError("bytecode built an invalid set") from exc
+                else:
+                    try:
+                        self.stack.append(frozenset(values))
+                    except TypeError as exc:
+                        raise ValueError("bytecode built an invalid frozenset") from exc
+            elif opcode == _OP_BUILD_DICT:
+                count = self._count()
+                values = self._pop_values(count * 2)
+                mapping: dict[Any, Any] = {}
+                try:
+                    for index in range(0, len(values), 2):
+                        mapping[values[index]] = values[index + 1]
+                except (IndexError, TypeError) as exc:
+                    raise ValueError("bytecode built an invalid dictionary") from exc
+                self.stack.append(mapping)
+            elif opcode == _OP_BUILD_POSITION:
+                values = self._pop_values(4)
+                if (
+                    not all(isinstance(value, int) for value in values[:3])
+                    or not isinstance(values[3], str)
+                ):
+                    raise ValueError("bytecode built an invalid source position")
+                runtime = _runtime()
+                self.stack.append(runtime.Position(*values, ""))
+            elif opcode == _OP_BUILD_NODE:
+                classes = _registry()[0]
+                class_id = self._varint()
+                if class_id >= len(classes):
+                    raise ValueError(
+                        f"unknown AST node type id {class_id} in bytecode instruction stream"
+                    )
+                count = self._varint()
+                if count > _MAX_OBJECT_ATTRS:
+                    raise ValueError("AST node declares too many attributes")
+                values = self._pop_values(count * 2)
+                node_class = classes[class_id]
+                node: Any = object.__new__(node_class)
+                state = {}
+                try:
+                    for index in range(0, len(values), 2):
+                        name = values[index]
+                        if not isinstance(name, str):
+                            raise ValueError("malformed AST node attribute name")
+                        state[name] = values[index + 1]
+                except IndexError as exc:
+                    raise ValueError("truncated AST node instruction") from exc
+                node.__dict__.update(state)
+                self.stack.append(node)
+            else:
+                raise ValueError(f"unknown bytecode instruction 0x{opcode:02x}")
+
+        if len(self.stack) != 1:
+            raise ValueError("bytecode instruction stream did not produce one program")
+        return self.stack[0]
+
+
+def _decode_instruction_stream(code: bytes) -> Any:
+    try:
+        return _InstructionReader(code).run()
+    except RecursionError as exc:
+        raise ValueError("bytecode instruction stream is nested too deeply") from exc
 
 
 def _encode_payload(data: dict[str, Any]) -> bytes:
@@ -485,6 +767,25 @@ def _read_bytecode(fn: str) -> tuple[dict[str, Any], int, int]:
             "'lynxer --compile <source.lynx>' to generate an up-to-date .lynxc file."
         )
 
+    code = data.get("code")
+    if not isinstance(code, bytes):
+        raise ValueError(f"'{fn}' does not contain a compiled Lynxer instruction stream")
+    try:
+        data["node"] = _decode_instruction_stream(code)
+    except (
+        ValueError,
+        struct.error,
+        UnicodeDecodeError,
+        AttributeError,
+        IndexError,
+        KeyError,
+        OverflowError,
+        TypeError,
+    ) as exc:
+        raise ValueError(
+            f"'{fn}' does not contain a valid Lynxer instruction stream: {exc}"
+        ) from exc
+
     if "node" not in data:
         raise ValueError(f"'{fn}' does not contain a compiled Lynxer program")
     runtime = _runtime()
@@ -547,7 +848,7 @@ def compile_to_bytecode(
             "elapsed_ms": elapsed_ms,
         },
         "native_dependencies": sorted(set(_NATIVE_IMPORT_RE.findall(text))),
-        "node": node,
+        "code": _compile_instruction_stream(node),
     }
     payload = zlib.compress(
         _encode_payload(data),

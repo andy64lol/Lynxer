@@ -133,6 +133,13 @@ def validate_bytecode_security():
         payload = load_bytecode(bytecode_path)
         if payload.get("version") != BYTECODE_VERSION:
             raise ValidationFailure("compiled bytecode has the wrong version")
+        instruction_stream = payload.get("code")
+        if (
+            not isinstance(instruction_stream, bytes)
+            or not instruction_stream
+            or instruction_stream[0] < 0x20
+        ):
+            raise ValidationFailure("compiled bytecode did not contain an opcode stream")
         output = io.StringIO()
         with contextlib.redirect_stdout(output):
             _, error = run_bytecode(bytecode_path)
