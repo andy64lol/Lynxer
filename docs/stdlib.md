@@ -860,20 +860,18 @@ window. See [docs/stdlib/sound.md](stdlib/sound.md).
 
 **Key functions:**
 
-| Category | Functions |
-|----------|-----------|
-| Window | `init`, `setTitle`, `setBackground`, `getWidth`, `getHeight`, `close` |
-| App | `run` |
-| Draw loop | `beginDraw`, `endDraw` |
-| Shapes | `drawRect`, `drawRectOutline`, `drawCircle`, `drawCircleOutline`, `drawEllipse`, `drawEllipseOutline`, `drawLine`, `drawTriangle`, `drawTriangleOutline`, `drawPolygon`, `drawArc`, `drawPoint` |
-| Text | `drawText`, `drawTextStyled` |
-| Sprites | `loadSprite`, `setSpritePos`, `setSpriteAngle`, `setSpriteScale`, `setSpriteVelocity`, `getSpriteX`, `getSpriteY`, `getSpriteAngle`, `updateSprite`, `drawSprite`, `spriteCollides` |
-| Sprite lists | `makeSpriteList`, `addToList`, `drawSpriteList`, `updateSpriteList` |
-| Input | `keyDown`, `keyUp`, `mouseX`, `mouseY`, `mouseLeft`, `mouseRight` |
-| Sound | `loadSound`, `playSound`, `stopSound` |
-| Timer | `deltaTime` |
-| Camera | `makeCamera`, `useCamera`, `setCameraPos`, `resetCamera` |
-| Physics | `makePhysicsEngine`, `setPhysicsPlayer`, `updatePhysics`, `canJump` |
+| Function | Description |
+|----------|-------------|
+| `loadSound(path)` | Load a sound file, returns a handle or `-1` |
+| `loadSoundStreaming(path)` | Load for streaming playback |
+| `playSound(handle)` / `playSoundOnce(handle)` | Play once |
+| `loopSound(handle)` | Play repeatedly |
+| `stopSound(handle)` / `pauseSound(handle)` / `resumeSound(handle)` | Playback control |
+| `setSoundVolume(handle, volume)` | Volume clamped to `0.0 .. 1.0` |
+| `isSoundPlaying(handle)` | Whether a player is active |
+| `getSoundLength(handle)` | Duration in seconds, `0.0` when invalid |
+| `releaseSound(handle)` | Stop, free, and invalidate the handle |
+| `soundCount()` | Number of allocated sound slots |
 
 ---
 

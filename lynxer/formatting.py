@@ -96,6 +96,7 @@ def _is_word(token: Token) -> bool:
         "INT",
         "FLOAT",
         "STRING",
+        "INTER_STRING",
         "CHAR",
         "IDENTIFIER",
         "KEYWORD",

@@ -88,6 +88,22 @@ lynxer --view-bytecode program.lynxc
 
 Aliases are `--inspect-bytecode` and `--disasm`.
 
+### Compile flags
+
+| Flag | Effect |
+|------|--------|
+| `--no-cache` | Recompile even when the cached `.lynxc` is up to date |
+| `--no-opt` | Skip the optimization hook (recorded in the bytecode metadata) |
+
+```bash
+lynxer --compile --no-cache program.lynx
+lynxer --compile --no-opt program.lynx
+```
+
+Both flags apply to `--compile` only. Note that the optimizer is currently a
+pass-through: no optimization passes run, so `--no-opt` and the default output
+are identical today. See [limitations.md](limitations.md).
+
 ## Build a standalone executable
 
 Bundle a Lynxer source program into a single native executable:

@@ -285,6 +285,7 @@ class Position:
 TT_INT = "INT"
 TT_FLOAT = "FLOAT"
 TT_STRING = "STRING"
+TT_INTER_STRING = "INTER_STRING"
 TT_CHAR   = "CHAR"
 TT_IDENTIFIER = "IDENTIFIER"
 TT_KEYWORD = "KEYWORD"
@@ -373,7 +374,18 @@ KEYWORDS = [
     "struct",
     "new",
     "break", "continue", "restart",
+    "inter",
 ]
+
+# Built-ins that accept an ``inter"..."`` argument. Everywhere else the parser
+# rejects the form so interpolation never leaks into ordinary expressions.
+INTERPOLATION_BUILTINS = ("print", "println", "input", "inputln")
+
+# Marker written in front of a character that came from an escape sequence
+# inside an ``inter"..."`` body. It lets the parser tell a real ``{``/``}``
+# interpolation delimiter from an escaped ``\{``/``\}`` one. ``\x01`` cannot be
+# produced by any documented Lynxer escape sequence.
+INTER_ESCAPE_MARK = "\x01"
 
 class Token:
     def __init__(self, type_, value=None, pos_start=None, pos_end=None):
@@ -460,6 +472,14 @@ class Lexer:
                     )
                     if block_tok is not None:
                         tokens.append(block_tok)
+                elif tok.matches(TT_KEYWORD, "inter"):
+                    inter_tok, inter_error = self._try_consume_inter_string(
+                        tok.pos_start
+                    )
+                    if inter_error:
+                        return [], inter_error
+                    if inter_tok is not None:
+                        tokens[-1] = inter_tok
             elif self.current_char == '"':
                 tok = self.make_string()
                 if tok is None:
@@ -682,6 +702,77 @@ class Lexer:
         self.advance()
         return Token(TT_STRING, s, pos_start, self.pos)
 
+    def _try_consume_inter_string(self, pos_start):
+        """Consume ``inter"..."`` as one interpolated-string token.
+
+        Returns ``(None, None)`` when ``inter`` is not followed by a string
+        literal (the keyword token is then kept so the parser can report the
+        real problem), ``(None, error)`` for an unterminated body, and
+        ``(token, None)`` on success.
+        """
+        text = self.text
+        n = len(text)
+        i = self.pos.idx
+
+        while i < n and text[i] in " \t":
+            i += 1
+        if i >= n or text[i] != '"':
+            return None, None
+
+        while self.pos.idx < i:
+            self.advance()
+
+        tok = self.make_inter_string(pos_start)
+        if tok is None:
+            return None, IllegalCharError(
+                pos_start,
+                self.pos,
+                'Unterminated inter"..." string literal — missing closing \'"\'',
+            )
+        return tok, None
+
+    def make_inter_string(self, pos_start):
+        """Read the body of an ``inter"..."`` literal.
+
+        Escapes are decoded exactly like ``make_string``, but characters that
+        came from an escape sequence are prefixed with :data:`INTER_ESCAPE_MARK`
+        so the parser can still tell delimiters (``{``/``}``) apart from
+        escaped braces and from backslashes produced by escapes.
+        """
+        s = ""
+        escape_character = False
+        self.advance()
+
+        escape_characters = {
+            "n": "\n", "t": "\t", "r": "\r",
+            "\\": "\\", '"': '"', "'": "'",
+            "0": "\0", "a": "\a", "b": "\b",
+            "f": "\f", "v": "\v",
+            "e": "\033",
+        }
+
+        while self.current_char is not None and (
+            self.current_char != '"' or escape_character
+        ):
+            if escape_character:
+                if self.current_char in "{}\\":
+                    s += INTER_ESCAPE_MARK
+                s += escape_characters.get(self.current_char, self.current_char)
+                escape_character = False
+            else:
+                if self.current_char == "\\":
+                    escape_character = True
+                else:
+                    s += self.current_char
+            self.advance()
+
+        if self.current_char is None:
+            # EOF reached before closing quote
+            return None
+
+        self.advance()
+        return Token(TT_INTER_STRING, s, pos_start, self.pos)
+
     def make_char(self):
         pos_start = self.pos.copy()
         escape_characters = {
@@ -832,6 +923,19 @@ class NumberNode:
 class StringNode:
     def __init__(self, tok):
         self.tok = tok
+        self.pos_start = self.tok.pos_start
+        self.pos_end = self.tok.pos_end
+
+class InterpolatedStringNode:
+    """An ``inter"Hello, {name}!"`` literal.
+
+    ``literal_parts`` always holds one more entry than ``value_nodes``: the
+    text before, between, and after each ``{...}`` interpolation.
+    """
+    def __init__(self, tok, literal_parts, value_nodes):
+        self.tok = tok
+        self.literal_parts = literal_parts
+        self.value_nodes = value_nodes
         self.pos_start = self.tok.pos_start
         self.pos_end = self.tok.pos_end
 
@@ -1343,6 +1447,7 @@ class Parser:
         self._file_func_names = {}
         self._declared_function_names = set()
         self._require_main = True
+        self._inter_allowed = False  # whether inter"..." may appear right here
         self.current_tok: Token = (
             tokens[0]
             if tokens
@@ -4943,8 +5048,14 @@ class Parser:
                     )
                 else:
                     arg_nodes = []
+                    inter_allowed = (
+                        isinstance(atom, VarAccessNode)
+                        and atom.var_name_tok.value in INTERPOLATION_BUILTINS
+                    )
 
                     if self.current_tok.type != TT_RPAREN:
+                        outer_inter = self._inter_allowed
+                        self._inter_allowed = inter_allowed
                         arg_nodes.append(res.register(self.parse_expr()))
                         if res.error:
                             return res
@@ -4955,6 +5066,7 @@ class Parser:
                             arg_nodes.append(res.register(self.parse_expr()))
                             if res.error:
                                 return res
+                        self._inter_allowed = outer_inter
 
                         if self.current_tok.type != TT_RPAREN:
                             return res.failure(
@@ -5290,6 +5402,20 @@ class Parser:
             self.advance()
             return res.success(StringNode(tok))
 
+        elif tok.type == TT_INTER_STRING:
+            return self.parse_inter_string()
+
+        elif tok.matches(TT_KEYWORD, "inter"):
+            next_tok = self.peek(1)
+            return res.failure(
+                InvalidSyntaxError(
+                    tok.pos_start,
+                    next_tok.pos_end if next_tok else tok.pos_end,
+                    "Expected a string literal after 'inter' "
+                    '(e.g. inter"Hello, {name}!")',
+                )
+            )
+
         elif tok.type == TT_CHAR:
             res.register_advancement()
             self.advance()
@@ -5357,6 +5483,164 @@ class Parser:
                 tok.pos_end,
                 "Expected int, float, str, bool, none, identifier, '(', or 'await'",
             )
+        )
+
+    def _inter_body_offset(self, tok):
+        """Return the offset of the first body character inside the quotes."""
+        text = tok.pos_start.ftxt or ""
+        start = tok.pos_start.idx
+        end = tok.pos_end.idx if tok.pos_end.idx > start else len(text)
+        quote = text.find('"', start, end)
+        if quote == -1:
+            return len("inter") + 1
+        return quote - start + 1
+
+    def _inter_position(self, tok, offset):
+        """Return a file position for *offset* characters into an inter body."""
+        pos = tok.pos_start.copy()
+        delta = self._inter_body_offset(tok) + offset
+        pos.idx += delta
+        pos.col += delta
+        return pos
+
+    def parse_inter_expression(self, tok, source, offset):
+        """Parse one ``{...}`` body of an ``inter"..."`` literal."""
+        res = ParseResult()
+        lexer = Lexer(tok.pos_start.fn, source)
+        inner_tokens, error = lexer.make_tokens()
+        if error:
+            return res.failure(
+                InvalidSyntaxError(
+                    self._inter_position(tok, offset),
+                    self._inter_position(tok, offset + len(source)),
+                    f"Invalid expression inside inter\"...\": {error.details}",
+                )
+            )
+
+        # The inner lexer measured positions against the body text; move them
+        # back onto the real file so diagnostics point at the right place.
+        delta = self._inter_body_offset(tok) + offset
+        for inner_tok in inner_tokens:
+            for pos in (inner_tok.pos_start, inner_tok.pos_end):
+                pos.idx += tok.pos_start.idx + delta
+                pos.col += tok.pos_start.col + delta
+                pos.ftxt = tok.pos_start.ftxt
+
+        inner_parser = Parser(inner_tokens)
+        node = res.register(inner_parser.parse_expr())
+        if res.error:
+            return res
+
+        if inner_parser.current_tok.type != TT_EOF:
+            return res.failure(
+                InvalidSyntaxError(
+                    inner_parser.current_tok.pos_start,
+                    inner_parser.current_tok.pos_end,
+                    "Unexpected text inside inter\"...\" interpolation; "
+                    "expected a single value or path",
+                )
+            )
+        return res.success(node)
+
+    def parse_inter_string(self):
+        """Parse ``inter"Hello, {name}!"`` into an interpolated string node."""
+        res = ParseResult()
+        tok = self.current_tok
+        res.register_advancement()
+        self.advance()
+
+        if not self._inter_allowed:
+            return res.failure(
+                InvalidSyntaxError(
+                    tok.pos_start,
+                    tok.pos_end,
+                    "inter\"...\" interpolation is only allowed in "
+                    "print, println, input, and inputln",
+                )
+            )
+
+        raw = tok.value if isinstance(tok.value, str) else ""
+        literal_parts = []
+        value_nodes = []
+        buffer: list[str] = []
+        expr_source = None
+        expr_offset = 0
+        index = 0
+
+        while index < len(raw):
+            char = raw[index]
+            if char == INTER_ESCAPE_MARK:
+                index += 1
+                if index < len(raw):
+                    if expr_source is None:
+                        buffer.append(raw[index])
+                    else:
+                        expr_source += raw[index]
+                index += 1
+                continue
+            if char == "{":
+                if expr_source is not None:
+                    return res.failure(
+                        InvalidSyntaxError(
+                            self._inter_position(tok, index),
+                            self._inter_position(tok, index + 1),
+                            "Nested '{' inside inter\"...\"; write '\\{' for a "
+                            "literal brace",
+                        )
+                    )
+                literal_parts.append("".join(buffer))
+                buffer = []
+                expr_source = ""
+                expr_offset = index + 1
+                index += 1
+                continue
+            if char == "}":
+                if expr_source is None:
+                    return res.failure(
+                        InvalidSyntaxError(
+                            self._inter_position(tok, index),
+                            self._inter_position(tok, index + 1),
+                            "Unmatched '}' inside inter\"...\"; write '\\}' for "
+                            "a literal brace",
+                        )
+                    )
+                source = expr_source.strip()
+                if not source:
+                    return res.failure(
+                        InvalidSyntaxError(
+                            self._inter_position(tok, expr_offset - 1),
+                            self._inter_position(tok, index + 1),
+                            "Empty '{}' inside inter\"...\"; expected a variable "
+                            "or value path",
+                        )
+                    )
+                node = res.register(
+                    self.parse_inter_expression(tok, source, expr_offset)
+                )
+                if res.error:
+                    return res
+                value_nodes.append(node)
+                expr_source = None
+                index += 1
+                continue
+            if expr_source is None:
+                buffer.append(char)
+            else:
+                expr_source += char
+            index += 1
+
+        if expr_source is not None:
+            return res.failure(
+                InvalidSyntaxError(
+                    self._inter_position(tok, expr_offset - 1),
+                    tok.pos_end,
+                    "Missing '}' to close the interpolation in inter\"...\"",
+                )
+            )
+
+        literal_parts.append("".join(buffer))
+        return res.success(
+            InterpolatedStringNode(tok, literal_parts, value_nodes)
         )
 
     def parse_tuple_literal(self):
@@ -8714,6 +8998,25 @@ class Interpreter:
     def visit_StringNode(self, node, context):
         return RTResult().success(
             String(node.tok.value)
+            .set_context(context)
+            .set_pos(node.pos_start, node.pos_end)
+        )
+
+    def visit_InterpolatedStringNode(self, node, context):
+        res = RTResult()
+        parts = []
+
+        for index, literal in enumerate(node.literal_parts):
+            parts.append(literal)
+            if index >= len(node.value_nodes):
+                continue
+            value = res.register(self.visit(node.value_nodes[index], context))
+            if res.should_return():
+                return res
+            parts.append(str(value))
+
+        return res.success(
+            String("".join(parts))
             .set_context(context)
             .set_pos(node.pos_start, node.pos_end)
         )

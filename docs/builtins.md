@@ -43,6 +43,43 @@ str raw  = input();   // no prompt
 
 Like `input()` but appends a newline to the returned string.
 
+### String interpolation: `inter"..."`
+
+`inter` is a **reserved keyword**. Written directly in front of a string
+literal — with no comma — it turns the literal into an interpolated string:
+every `{...}` inside it is replaced by the value of that variable or path.
+
+```c
+str name = "Ada";
+int  age = 36;
+
+println(inter"Hello, {name}!");      // Hello, Ada!
+println(inter"{name} is {age}");     // Ada is 36
+print(inter"{age + 4}\n");           // 40
+str answer = input(inter"Name for {name}: ");
+```
+
+Rules:
+
+- `inter"..."` is only accepted as an argument of `print`, `println`, `input`,
+  and `inputln`. Anywhere else — including `str s = inter"...";` — is a
+  syntax error.
+- A `{...}` body may be a variable, a dotted path such as `player.stats.level`,
+  or any single expression (`{age + 4}`, `{items[0]}`). It is evaluated in the
+  surrounding scope and converted with `strOf`-style stringification, so an
+  undefined name is the usual `'name' is not defined` runtime error.
+- There may be no comma between `inter` and the string: `print(inter"hi")`,
+  never `print(inter, "hi")`.
+- Ordinary strings are never interpolated: `println("{name}")` prints
+  `{name}`.
+- Escape sequences work as in any string. Write `\{` and `\}` for a literal
+  brace, and `\\` for a literal backslash.
+- Empty `{}`, a missing `}`, and a stray `}` are syntax errors, as is an
+  `inter` that is not followed by a string literal.
+
+The formatter keeps `inter"..."` glued together, and interpolated strings
+compile to bytecode unchanged, so source and `.lynxc` runs agree.
+
 ---
 
 ## Native memory
@@ -88,75 +125,76 @@ individual API references above and the linked subsystem references describe
 the argument and return-value contracts.
 
 ```text
-print println input inputln rawPy rawPyx strOf intOf sentinel object returnType
+print println input inputln rawPy rawPyx strOf intOf floatOf sentinel object returnType
 returnLength seqFromTo range cleanRawPyxCache listJsonArray listJsonObject splitStr
-listFlatten listUnique listPush listPop listGet listSet listSlice listContains
-contains listJoin listIndex listRemove anyOf allOf sumOf sortList reverseList listMin
-listMax listFirst listLast listHead listTail listCount listExtend listInsert listClear
-listRepeat listAvg listZip asyncRun asyncGather sleep asyncSleep foreverDelay
-suppressForeverWarning suppressDeprecationWarning
-tupleCreate tupleGet tupleLen tupleContains tupleIndex tupleSlice tupleToList
-listToTuple tupleConcat tupleCount tupleFirst tupleLast tupleJsonArray tupleReverse
-tupleSort tupleSortDesc tupleMin tupleMax tupleSum tupleAny tupleAll tupleUnique
-tupleMean tupleFlatten tupleZip tupleJoin assert overrideMain unshare getAddress
-varTransfer varBorrow varSwapAll varSwapVal varEndBorrow borrowing beingBorrowed
-modifyAddressValue
-getAddressValue functionAddress nativeFunctionAddress
-ffiLoadLibrary ffiLookup ffiCloseLibrary ffiCall ffiCallback ffiFreeCallback
-nativeModuleLoad nativeModuleName nativeModuleFunction nativeModuleConstant
-nativeModuleType nativeModuleError nativeModuleDependencies nativeModuleClose
-nativeThreadStart nativeThreadJoin nativeThreadIsAlive nativeThreadStatus
-nativeThreadDetach nativeHandleAllocate nativeHandleAddress nativeHandleFree
+listFlatten listUnique listPush listPop listGet listSet listSlice listContains contains
+listJoin listIndex listRemove anyOf allOf sumOf sortList reverseList listMin listMax
+listFirst listLast listHead listTail listCount listExtend listInsert listClear listRepeat
+listAvg listZip asyncRun asyncGather asyncPollCreate asyncPollRegister asyncPollModify
+asyncPollRemove asyncPollWait asyncPollDispatch asyncPollClose asyncTimerCreate
+asyncTimerCancel asyncWakeupCreate asyncWakeupSignal asyncWakeupClose sleep asyncSleep
+foreverDelay suppressForeverWarning suppressDeprecationWarning tupleCreate tupleGet tupleLen
+tupleContains tupleIndex tupleSlice tupleToList listToTuple tupleConcat tupleCount
+tupleFirst tupleLast tupleJsonArray tupleReverse tupleSort tupleSortDesc tupleMin tupleMax
+tupleSum tupleAny tupleAll tupleUnique tupleMean tupleFlatten tupleZip tupleJoin assert
+overrideMain unshare varTransfer varTransferMutate varBorrow varBorrowMutate varSwapAll
+varSwapVal varEndBorrow borrowing beingBorrowed soundLoad soundPlay soundLoop soundStop
+soundPause soundResume soundSetVolume soundIsPlaying soundRelease getAddress
+modifyAddressValue getAddressValue functionAddress nativeFunctionAddress ffiLoadLibrary
+ffiLookup ffiCloseLibrary ffiCall ffiCallback ffiFreeCallback nativeModuleLoad
+nativeModuleName nativeModuleFunction nativeModuleConstant nativeModuleType
+nativeModuleError nativeModuleDependencies nativeModuleClose nativeThreadStart
+nativeThreadJoin nativeThreadIsAlive nativeThreadStatus nativeThreadDetach nativeMutexCreate
+nativeMutexLock nativeMutexTryLock nativeMutexUnlock nativeMutexClose nativeConditionCreate
+nativeConditionWait nativeConditionNotify nativeConditionNotifyAll nativeConditionClose
+nativeSemaphoreCreate nativeSemaphoreWait nativeSemaphoreTryWait nativeSemaphorePost
+nativeSemaphoreClose nativeHandleAllocate nativeHandleAddress nativeHandleFree
 nativeHandleIsAlive nativeCall processSpawn processWrite processCloseInput processRead
-processPoll processWait processSendSignal processClose
-syscallGetCurrentDirectory syscallChangeDirectory syscallControlInputOutput
-syscallRead syscallWrite syscallPositionedRead64 syscallPositionedWrite64
-syscallOpenAt syscallClose syscallReadVector syscallWriteVector syscallSeekFile
-syscallGetFileStatus syscallGetFileStatusAt syscallTruncateFile
-syscallCheckFileAccessAt syscallSynchronizeFile syscallSynchronizeFileData
-syscallDuplicateFileDescriptor syscallDuplicateFileDescriptorAt syscallCreatePipe
-syscallControlFileDescriptor syscallGetDirectoryEntries syscallReadSymbolicLink
-syscallCreateDirectoryAt syscallRemoveFileAt syscallRenameFileAt
+processPoll processWait processSendSignal processClose filesystemOpen filesystemRead
+filesystemWrite filesystemClose filesystemStat filesystemList filesystemMkdir
+filesystemRemove filesystemRename filesystemLink filesystemReadLink filesystemChmod
+networkingOpen networkingBind networkingListen networkingAccept networkingConnect
+networkingSend networkingReceive networkingClose networkingShutdown networkingBlocking
+networkingOption networkingResolve networkingAddress syscallGetCurrentDirectory
+syscallChangeDirectory syscallControlInputOutput syscallRead syscallWrite
+syscallPositionedRead64 syscallPositionedWrite64 syscallOpenAt syscallClose
+syscallReadVector syscallWriteVector syscallSeekFile syscallGetFileStatus
+syscallGetFileStatusAt syscallTruncateFile syscallCheckFileAccessAt syscallSynchronizeFile
+syscallSynchronizeFileData syscallDuplicateFileDescriptor syscallDuplicateFileDescriptorAt
+syscallCreatePipe syscallControlFileDescriptor syscallGetDirectoryEntries
+syscallReadSymbolicLink syscallCreateDirectoryAt syscallRemoveFileAt syscallRenameFileAt
 syscallCreateHardLinkAt syscallCreateSymbolicLinkAt syscallChangeFilePermissions
 syscallChangeFileDescriptorPermissions syscallChangeFileOwner
-syscallChangeFileDescriptorOwner
-syscallMemoryMap syscallMemoryUnmap syscallMemoryProtect syscallMemoryAdvise
-syscallMemoryRemap syscallAdjustProgramBreak syscallExecuteProgram
-syscallExecuteProgramAt syscallExitProcess syscallExitAllThreads
-syscallWaitForProcess syscallGetProcessId syscallGetParentProcessId
-syscallSendSignal syscallCreateThread syscallGetThreadId syscallWaitOnMemory
-syscallSetThreadIdAddress syscallSetRobustThreadList syscallGetRobustThreadList
-syscallYieldProcessor syscallGetClockTime syscallGetClockResolution syscallSleep
-syscallGetRandomBytes syscallCreateSocket syscallCreateSocketPair syscallBindSocket
-syscallListenSocket syscallAcceptConnection syscallConnectSocket syscallSendData
-syscallReceiveData syscallSendMessage syscallReceiveMessage syscallShutdownSocket
-syscallGetSocketAddress syscallGetPeerAddress syscallSetSocketOption
-syscallGetSocketOption syscallPollFileDescriptors syscallCreateEventPoll
-syscallControlEventPoll syscallWaitForEvents syscallInitializeInodeNotifications
-syscallAddInodeNotificationWatch syscallRemoveInodeNotificationWatch
-syscallGetSystemInformation syscallGetUnixSystemName syscallGetExtendedFileStatus
-syscallGetResourceUsage syscallGetResourceLimit syscallSetResourceLimit
-syscallControlProcess
-filesystemOpen filesystemRead filesystemWrite filesystemClose filesystemStat filesystemList
-filesystemMkdir filesystemRemove filesystemRename filesystemLink filesystemReadLink
-filesystemChmod networkingOpen networkingBind networkingListen networkingAccept
-networkingConnect networkingSend networkingReceive networkingClose networkingShutdown
-networkingBlocking networkingOption networkingResolve networkingAddress
-atomicLoad atomicStore atomicAdd volatileRead volatileWrite memoryProtect memoryTypeSize
-memoryTypeAlignment memoryReadEndian memoryWriteEndian memoryBlockAllocate memoryBlockView
-memoryBlockGet memoryBlockSet memoryBlockLength memoryArrayAllocate memoryArrayView
-memoryArrayGet memoryArraySet memoryArrayLength memoryViewGet memoryViewSet memoryViewLength
-memoryStructSize memoryStructFieldOffset memoryStructFieldSize memoryStructAlignment
-memoryStructFieldCount memoryStructFieldType memoryStructAllocate memoryStructGet
-memoryStructSet nativeStructSize nativeStructAllocate nativeStructFieldOffset
-nativeStructFieldSize nativeTypeAlignment nativeStructAlignment nativeStructFieldCount
-nativeStructFieldType nativeStructGet nativeStructSet memoryAllocate memoryAllocateZeroed
-memoryReallocate memoryFree memorySet memoryCopy memoryReadInt32 memoryWriteInt32
-memoryReadInt8 memoryWriteInt8 memoryReadInt16 memoryWriteInt16 memoryReadInt64
-memoryWriteInt64 memoryReadUInt8 memoryWriteUInt8 memoryReadUInt16 memoryWriteUInt16
-memoryReadUInt32 memoryWriteUInt32 memoryReadUInt64 memoryWriteUInt64 memoryReadFloat32
-memoryWriteFloat32 memoryReadFloat64 memoryWriteFloat64 memoryReadByte memoryWriteByte
-sizeOf
+syscallChangeFileDescriptorOwner syscallMemoryMap syscallMemoryUnmap syscallMemoryProtect
+syscallMemoryAdvise syscallMemoryRemap syscallAdjustProgramBreak syscallExecuteProgram
+syscallExecuteProgramAt syscallExitProcess syscallExitAllThreads syscallWaitForProcess
+syscallGetProcessId syscallGetParentProcessId syscallSendSignal syscallCreateThread
+syscallGetThreadId syscallWaitOnMemory syscallSetThreadIdAddress syscallSetRobustThreadList
+syscallGetRobustThreadList syscallYieldProcessor syscallGetClockTime
+syscallGetClockResolution syscallSleep syscallGetRandomBytes syscallCreateSocket
+syscallCreateSocketPair syscallBindSocket syscallListenSocket syscallAcceptConnection
+syscallConnectSocket syscallSendData syscallReceiveData syscallSendMessage
+syscallReceiveMessage syscallShutdownSocket syscallGetSocketAddress syscallGetPeerAddress
+syscallSetSocketOption syscallGetSocketOption syscallPollFileDescriptors
+syscallCreateEventPoll syscallControlEventPoll syscallWaitForEvents
+syscallInitializeInodeNotifications syscallAddInodeNotificationWatch
+syscallRemoveInodeNotificationWatch syscallGetSystemInformation syscallGetUnixSystemName
+syscallGetExtendedFileStatus syscallGetResourceUsage syscallGetResourceLimit
+syscallSetResourceLimit syscallControlProcess atomicLoad atomicStore atomicAdd volatileRead
+volatileWrite memoryProtect memoryTypeSize memoryTypeAlignment memoryReadEndian
+memoryWriteEndian memoryBlockAllocate memoryBlockView memoryBlockGet memoryBlockSet
+memoryBlockLength memoryArrayAllocate memoryArrayView memoryArrayGet memoryArraySet
+memoryArrayLength memoryViewGet memoryViewSet memoryViewLength memoryStructSize
+memoryStructFieldOffset memoryStructFieldSize memoryStructAlignment memoryStructFieldCount
+memoryStructFieldType memoryStructAllocate memoryStructGet memoryStructSet nativeStructSize
+nativeStructAllocate nativeStructFieldOffset nativeStructFieldSize nativeTypeAlignment
+nativeStructAlignment nativeStructFieldCount nativeStructFieldType nativeStructGet
+nativeStructSet memoryAllocate memoryAllocateZeroed memoryReallocate memoryFree memorySet
+memoryCopy memoryReadInt32 memoryWriteInt32 memoryReadInt8 memoryWriteInt8 memoryReadInt16
+memoryWriteInt16 memoryReadInt64 memoryWriteInt64 memoryReadUInt8 memoryWriteUInt8
+memoryReadUInt16 memoryWriteUInt16 memoryReadUInt32 memoryWriteUInt32 memoryReadUInt64
+memoryWriteUInt64 memoryReadFloat32 memoryWriteFloat32 memoryReadFloat64 memoryWriteFloat64
+memoryReadByte memoryWriteByte sizeOf
 ```
 
 The allocator is also available as `memoryAllocate`, `memoryAllocateZeroed`,

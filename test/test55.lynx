@@ -1,0 +1,13 @@
+global setup(){}
+enum status = [Ready, Failed(str reason)]{}
+enum point  = [Two(int x, int y)]{}
+
+global main(){
+    any a = status.Ready;          // empty variant: no parentheses
+    any b = status.Failed("disk"); // positional payloads
+    any c = point.Two(3, 4);
+
+    println(a);        // status.Ready
+    println(c.x);      // 3  — payload field by name
+    println(b.reason); // disk
+}

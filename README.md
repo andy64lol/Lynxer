@@ -104,6 +104,8 @@ global main(){
 | [Vargroups](docs/vargroups.md) | Named typed records (struct-like) |
 | [Structs](docs/structs.md) | Data-only named types with positional constructors |
 | [Classes](docs/classes.md) | Instances, constructors, fields, and methods |
+| [Enums](docs/enums.md) | Rust-style tagged unions, payloads, and pattern matching |
+| [Known limitations](docs/limitations.md) | Documented gaps between `todo.md` and the implementation |
 | [Async](docs/async.md) | Async functions |
 | [Lists](docs/lists.md) | List operations |
 

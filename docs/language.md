@@ -170,7 +170,7 @@ Built-in functions are conventionally called **directly** (without `global.`). M
 | `float`    | `3.14`, `-0.5`            | floating-point; `int` and `float` are interchangeable in expressions |
 | `num`      | `42`, `3.14`              | flexible numeric — accepts both `int` and `float`; `returnType()` reflects the actual stored kind |
 | `char`     | `'a'`, `'\n'`             | single Unicode character; single-quote literal; concatenates with `str` |
-| `str`      | `"hello"`, `"line\n"`     | double-quoted; supports `\n \t \\ \r \e` escapes |
+| `str`      | `"hello"`, `"line\n"`     | double-quoted; supports `\n \t \\ \r \e` escapes; `inter"..."` interpolates `{...}` — see [String interpolation](#string-interpolation-inter) |
 | `bool`     | `true`, `false`           | displays as `true`/`false`; truthy when non-zero |
 | `numBool`  | integer `0` or `1`        | numeric boolean; displays as `0`/`1` |
 | `bit`      | integer `0` or `1`        | one-bit numeric value |
@@ -217,6 +217,29 @@ print(returnType(x));  // "float" — reflects the actual stored kind
 ```
 
 `num` enforces that the value is always numeric — assigning a string or other type is still a runtime error.
+
+### String interpolation: `inter"..."`
+
+`inter` is a **reserved keyword** and cannot be used as a variable name. Put it
+directly in front of a string literal — with no comma — and every `{...}` in
+that literal is replaced by the value of the named variable, path, or
+expression:
+
+```c
+str name = "Ada";
+int  age = 36;
+
+println(inter"Hello, {name}!");          // Hello, Ada!
+println(inter"{name} is {age}");         // Ada is 36
+println(inter"Next year: {age + 1}");    // Next year: 37
+println(inter"{player.stats.level}");    // dotted paths work
+println("literal: {name}");              // literal: {name}
+```
+
+`inter"..."` is only allowed as an argument of `print`, `println`, `input`, and
+`inputln`; anywhere else it is a syntax error. Use `\{` / `\}` for a literal
+brace and `\\` for a literal backslash. Full rules and error behaviour are in
+[builtins.md](builtins.md#string-interpolation-inter).
 
 ### The `char` type
 
@@ -533,6 +556,9 @@ Patterns may be nested. Enum patterns use the qualified constructor spelling
 `result.Ok(value)` and bind payloads in the same way. Malformed patterns,
 incompatible sequence shapes, and invalid enum payloads produce diagnostics
 instead of silently matching.
+
+See [enums.md](enums.md) for the full enum reference: declaration, payload
+types, field access, and variant matching.
 
 ### while
 

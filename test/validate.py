@@ -1146,6 +1146,93 @@ global main(){{
         os.chdir(old_cwd)
 
 
+def test_string_interpolation(temp_root: Path) -> None:
+    require_output(
+        """global setup(){}
+global main(){
+    str name = "Ada";
+    int age = 36;
+    println(inter"Hello, {name}!");
+    print(inter"{name} is {age}\n");
+    println(inter"{age + 4}");
+    println("no interpolation: {name}");
+}""",
+        "Hello, Ada!\nAda is 36\n40\nno interpolation: {name}\n",
+        "inter string interpolation",
+    )
+
+    require_output(
+        """global setup(){}
+global main(){
+    vargroup player = {
+        str username = "Andy",
+        int coins = 250
+    };
+    println(inter"{player.username} has {player.coins}");
+    println(inter"escaped \\{player.coins\\} and \\\\");
+}""",
+        "Andy has 250\nescaped {player.coins} and \\\n",
+        "inter dotted paths and escapes",
+    )
+
+    require_error(
+        """global setup(){}
+global main(){ str message = inter"hi"; }""",
+        "inter\"...\" interpolation is only allowed in print, println, input, and inputln",
+        "inter outside the I/O built-ins",
+    )
+    require_error(
+        """global setup(){}
+global main(){ println(inter"{missing}"); }""",
+        "'missing' is not defined",
+        "inter with an undefined variable",
+    )
+    require_error(
+        """global setup(){}
+global main(){ println(inter"hi {name"); }""",
+        "Missing '}'",
+        "inter with an unclosed interpolation",
+    )
+    require_error(
+        """global setup(){}
+global main(){ println(inter"hi }"); }""",
+        "Unmatched '}'",
+        "inter with an unmatched brace",
+    )
+    require_error(
+        """global setup(){}
+global main(){ println(inter"hi {}"); }""",
+        "Empty '{}'",
+        "inter with an empty interpolation",
+    )
+    require_error(
+        """global setup(){}
+global main(){ println(inter); }""",
+        "Expected a string literal after 'inter'",
+        "inter without a string literal",
+    )
+
+    source_path = temp_root / "inter_bytecode.lynx"
+    source = """global setup(){}
+global main(){
+    str name = "Ada";
+    println(inter"Hello, {name}!");
+}"""
+    source_path.write_text(source, encoding="utf-8")
+    bytecode_path, error = compile_to_bytecode(str(source_path), source)
+    if error is not None or bytecode_path is None:
+        raise ValidationFailure(
+            f"inter bytecode compilation failed: {error.as_string() if error else 'unknown error'}"
+        )
+    output = io.StringIO()
+    with contextlib.redirect_stdout(output):
+        _, error = run_bytecode(bytecode_path)
+    if error is not None:
+        raise ValidationFailure(f"inter bytecode execution failed:\n{error.as_string()}")
+    if output.getvalue() != "Hello, Ada!\n":
+        raise ValidationFailure(f"inter bytecode: received {output.getvalue()!r}")
+
+
 def test_bytecode(temp_root: Path) -> None:
     source_path = temp_root / "bytecode_case.lynx"
     source = """global setup(){}
@@ -1669,6 +1756,7 @@ def main() -> int:
             ("process API", test_process_api),
             ("filesystem API", lambda: test_filesystem_api(temp_root)),
             ("networking API", lambda: test_networking_api(temp_root)),
+            ("string interpolation", lambda: test_string_interpolation(temp_root)),
             ("CLI", lambda: test_cli(temp_root)),
             ("bundle smoke and diagnostics", lambda: test_bundle_smoke_and_diagnostics(temp_root)),
             ("existing .lynx fixtures", test_existing_fixtures),

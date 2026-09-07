@@ -109,10 +109,9 @@ default) and `stdcall` on Windows. Calls are dispatched through the host ABI,
 including floating-point register conventions, and all arguments must match
 the declared signature. `ffiCallback(signature, function)` creates a native
 callback address and keeps it alive until `ffiFreeCallback(callback)` is
-called. Callbacks use the same parameter types and calling conventions, but a
-`cstring` return is rejected because its temporary storage cannot safely
-outlive the callback invocation. Native code must not retain a callback after
-it has been freed.
+called. **Callbacks currently accept a single signature**,
+`cdecl:int32(int32,int32)`; any other signature is rejected at runtime.
+Native code must not retain a callback after it has been freed.
 
 ## Native threads
 
