@@ -5,4 +5,3 @@ CompileFlags:
     # against them). Without them every Python.h symbol is unknown and the
     # fallout hides any real error.
     - -I/usr/include/python3.14
-    - -std=c++17

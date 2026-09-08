@@ -26,6 +26,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SHELL = ROOT / "lynxer" / "shell.py"
 sys.path.insert(0, str(ROOT))
 
+from lynxer import bytecode as bytecode_module  # noqa: E402
 from lynxer.bytecode import compile_to_bytecode, load_bytecode, run_bytecode  # noqa: E402
 from lynxer import bundle as bundle_module  # noqa: E402
 from lynxer.install import INSTALL_PATH, _is_elf, _matching_pids  # noqa: E402
@@ -1323,6 +1324,88 @@ global main(){
         raise ValidationFailure(f"bytecode: received {output.getvalue()!r}")
 
 
+def test_native_bytecode_vm(temp_root: Path) -> None:
+    """Exercise the native decoder and compare it with the Python fallback."""
+    native_vm = bytecode_module._native_vm()
+    if native_vm is None:
+        print("SKIP  native bytecode VM: extension not built")
+        return
+
+    source_path = temp_root / "native_bytecode_vm.lynx"
+    source = """global setup(){}
+global main(){
+    list values = [int 1, str "two", list [bool true]];
+    tuple pair = (int 3, str "four");
+    println(strOf(values));
+    println(strOf(pair));
+}"""
+    source_path.write_text(source, encoding="utf-8")
+    bytecode_path, error = compile_to_bytecode(
+        str(source_path), source, use_cache=False
+    )
+    if error is not None or bytecode_path is None:
+        raise ValidationFailure(
+            f"native bytecode compilation failed: "
+            f"{error.as_string() if error else 'unknown error'}"
+        )
+
+    native_payload = load_bytecode(bytecode_path)
+    native_node = native_payload["node"]
+    bytecode_module._NATIVE_VM = None
+    try:
+        fallback_node = load_bytecode(bytecode_path)["node"]
+    finally:
+        bytecode_module._NATIVE_VM = native_vm
+
+    def shape(value, active=None):
+        """Return a comparison shape without using object addresses."""
+        if active is None:
+            active = set()
+        if value is None or isinstance(value, (bool, int, float, str, bytes)):
+            return (type(value).__name__, value)
+        value_id = id(value)
+        if value_id in active:
+            return ("cycle", type(value).__name__)
+        active = active | {value_id}
+        if isinstance(value, (list, tuple)):
+            return (type(value).__name__, tuple(shape(item, active) for item in value))
+        if isinstance(value, dict):
+            items = [
+                (shape(key, active), shape(item, active))
+                for key, item in value.items()
+            ]
+            return ("dict", tuple(sorted(items, key=repr)))
+        if isinstance(value, (set, frozenset)):
+            return (type(value).__name__, tuple(sorted(
+                (shape(item, active) for item in value), key=repr
+            )))
+        if hasattr(value, "__dict__"):
+            return (
+                type(value).__name__,
+                tuple(sorted(
+                    (name, shape(item, active))
+                    for name, item in vars(value).items()
+                )),
+            )
+        return (type(value).__name__, repr(value))
+
+    if shape(native_node) != shape(fallback_node):
+        raise ValidationFailure("native and Python bytecode decoders disagree")
+
+    for malformed in (b"\xff", b"\x28\x01", b"\x26\x02\xff"):
+        try:
+            native_vm.decode(
+                malformed,
+                bytecode_module._registry()[0],
+                bytecode_module._runtime().Position,
+            )
+        except ValueError:
+            continue
+        raise ValidationFailure(
+            f"native bytecode VM accepted malformed stream {malformed.hex()}"
+        )
+
+
 def test_ffi() -> None:
     require_output(
         """global setup(){}
@@ -1813,6 +1896,7 @@ def main() -> int:
             ("game stdlib", lambda: test_game_stdlib(temp_root)),
             ("native modules", lambda: test_native_modules(temp_root)),
             ("bytecode", lambda: test_bytecode(temp_root)),
+            ("native bytecode VM", lambda: test_native_bytecode_vm(temp_root)),
             ("C FFI and native callbacks", test_ffi),
             ("native threads", test_native_threads),
             ("async I/O", lambda: test_async_io(temp_root)),

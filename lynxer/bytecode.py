@@ -77,6 +77,8 @@ _OP_BUILD_FROZENSET = 0x2C
 _OP_BUILD_POSITION = 0x2D
 _OP_BUILD_NODE = 0x2E
 _MAX_INSTRUCTIONS = 16 * 1024 * 1024
+_NATIVE_VM_UNSET = object()
+_NATIVE_VM: Any = _NATIVE_VM_UNSET
 
 
 def _source_hash(text: str) -> str:
@@ -233,6 +235,19 @@ def _runtime() -> Any:
     from . import lynxer
 
     return lynxer
+
+
+def _native_vm() -> Any:
+    """Return the optional native bytecode VM, or ``None`` when unavailable."""
+    global _NATIVE_VM
+    if _NATIVE_VM is _NATIVE_VM_UNSET:
+        try:
+            from . import bytecode_vm
+        except (ImportError, ModuleNotFoundError):
+            _NATIVE_VM = None
+        else:
+            _NATIVE_VM = bytecode_vm
+    return _NATIVE_VM
 
 
 def _registry() -> tuple[list[type[Any]], dict[type, int]]:
@@ -800,6 +815,9 @@ class _InstructionReader:
 
 def _decode_instruction_stream(code: bytes) -> Any:
     try:
+        native_vm = _native_vm()
+        if native_vm is not None:
+            return native_vm.decode(code, _registry()[0], _runtime().Position)
         return _InstructionReader(code).run()
     except RecursionError as exc:
         raise ValueError("bytecode instruction stream is nested too deeply") from exc

@@ -83,10 +83,11 @@ runtime.
 
 The class id is an index into the fixed table of encodable AST classes — every
 `*Node` class plus `Token`, sorted by name and derived from the running
-Lynxer interpreter.  Loading never imports or calls a class by name: the
+Lynxer interpreter.  Loading never imports or calls a class by name: the native
 instruction reader looks the id up in that fixed table, allocates the class
-with `__new__`, and fills in its attributes.  A `Position` omits its original
-source text and stores only its location.
+with `__new__`, and fills in its attributes.  When the native extension is not
+built, the Python instruction reader is used as a compatible fallback.  A
+`Position` omits its original source text and stores only its location.
 
 ### What changed in v9
 

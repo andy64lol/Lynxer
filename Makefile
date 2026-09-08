@@ -98,6 +98,7 @@ build: platform-check buildCpp
 		$(COLLECT_ALL) \
 		--name lynxer \
 		--hidden-import lynxer.cpp \
+	--hidden-import lynxer.bytecode_vm \
 		$(SYSTEM_CALLS) \
 		$(WARNING_DATA) \
 		--add-data "lynxer/stdlib:stdlib" \
@@ -121,6 +122,7 @@ buildLite: lite-platform-check buildCpp
 		--hidden-import Cython.Build.Inline \
 		--name lynxer-lite \
 		--hidden-import lynxer.cpp \
+	--hidden-import lynxer.bytecode_vm \
 		$(SYSTEM_CALLS) \
 		$(WARNING_DATA) \
 		--add-data "build/stdlib_pure:stdlib" \
@@ -131,7 +133,7 @@ buildLite: lite-platform-check buildCpp
 buildCpp: venv
 	@echo "Building Lynxer C++ memory extension..."
 	@$(VENV_PY) lynxer/setup.py build_ext --inplace
-	@echo "✓ C++ extension built in lynxer/"
+	@echo "✓ Native extensions built in lynxer/ (memory + bytecode VM)"
 
 clean:
 	@find . -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null || true
@@ -139,13 +141,13 @@ clean:
 	@find . -name '*.lynxc' -not -path '*/stdlib/*' -delete 2>/dev/null || true
 	@rm -rf build dist *.spec lynxer/build 2>/dev/null || true
 	@echo "✓ Cleaned."
-	@echo "  (kept stdlib/*.lynxc and the built C++ extension;"
+	@echo "  (kept stdlib/*.lynxc and the built native extensions;"
 	@echo "   run 'make cleanLynxc' or 'make cleanCpp' to remove those)"
 
 cleanCpp:
 	@rm -rf lynxer/build 2>/dev/null || true
 	@find lynxer -maxdepth 1 -name '*.so' -delete 2>/dev/null || true
-	@echo "✓ Cleaned the C++ extension (lynxer/*.so)."
+	@echo "✓ Cleaned the native extensions (lynxer/*.so)."
 
 cleanLynxc:
 	@find . -name '*.lynxc' -delete 2>/dev/null || true
