@@ -20,7 +20,7 @@ CYTHON_COLLECT_ALL := --collect-all=Cython --collect-all=setuptools
 SYSTEM_CALLS_DEP := system-calls
 SYSTEM_CALLS := --hidden-import system_calls --hidden-import lynxer.syscalls --collect-submodules system_calls --collect-all=system_calls
 
-.PHONY: venv deps platform-check build buildLite buildCpp test testAMR64 validate check clean cleanCpp cleanLynxc help
+.PHONY: venv deps liteDeps platform-check build buildLite buildCpp test testAMR64 validate check clean cleanCpp cleanLynxc help
 
 venv:
 	@if [ ! -d "$(VENV)" ]; then \
@@ -33,13 +33,24 @@ venv:
 	@$(VENV_PIP) install --upgrade pip setuptools
 
 deps: venv
-	@echo "Installing dependencies..."
+	@echo "Installing full dependencies..."
 	@$(VENV_PIP) install --upgrade -r requirements_venv.txt
 
 	@echo "Installing the Linux syscall tables..."
 	@$(VENV_PIP) install --upgrade $(SYSTEM_CALLS_DEP)
 
+liteDeps: venv
+	@echo "Installing Lite dependencies..."
+	@$(VENV_PIP) install --upgrade cython setuptools
+
+	@echo "Installing the Linux syscall tables..."
+	@$(VENV_PIP) install --upgrade $(SYSTEM_CALLS_DEP)
+
 platform-check: deps
+	@echo "Checking Linux build platform..."
+	@$(VENV_PY) -c 'from lynxer.syscalls import require_supported_platform, WORD_BYTES; architecture = require_supported_platform(); print(f"  -> {architecture} ({WORD_BYTES * 8}-bit Python ABI)")'
+
+lite-platform-check: liteDeps
 	@echo "Checking Linux build platform..."
 	@$(VENV_PY) -c 'from lynxer.syscalls import require_supported_platform, WORD_BYTES; architecture = require_supported_platform(); print(f"  -> {architecture} ({WORD_BYTES * 8}-bit Python ABI)")'
 
@@ -94,9 +105,9 @@ build: platform-check buildCpp
 
 	@echo "✓ Build complete: dist/lynxer"
 
-buildLite: platform-check buildCpp
-	@echo "Installing PyInstaller and Cython runtime dependencies..."
-	@$(VENV_PIP) install --upgrade pyinstaller cython setuptools
+buildLite: lite-platform-check buildCpp
+	@echo "Installing PyInstaller..."
+	@$(VENV_PIP) install --upgrade pyinstaller
 
 	@echo "Selecting pure stdlib .lynx modules..."
 	@rm -rf build/stdlib_pure || true
@@ -146,8 +157,9 @@ help:
 	@echo "  make buildLite"
 	@echo "  make buildCpp"
 	@echo "  make platform-check"
-	@echo "  make deps"
 	@echo "  make venv"
+	@echo "  make deps"
+	@echo "  make liteDeps"
 	@echo "  make test"
 	@echo "  make testAMR64"
 	@echo "  make check"
