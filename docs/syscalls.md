@@ -33,7 +33,9 @@ names before looking up numbers, and refuses unsupported architectures or
 
 The built-in registry accounts for architecture-specific syscall names.
 `syscallPollFileDescriptors` uses `poll` on x86-64 and `ppoll` on ARM64, so
-the same Lynxer source works on both architectures.
+the same Lynxer source works on both architectures. The corresponding
+architecture-specific alternatives are exposed separately when code needs the
+native ABI.
 
 For example:
 
@@ -161,9 +163,11 @@ NUL, into the supplied buffer and returns its length including that NUL.
 | Built-in | Linux syscall | Arguments |
 | --- | --- | --- |
 | `syscallPollFileDescriptors(fds, count, timeout_ms)` | `poll` (x86-64), `ppoll` (ARM64) | pollfd array address, count, timeout in milliseconds |
+| `syscallPpollFileDescriptors(fds, count, timespec, sigmask, sigsetsize)` | `ppoll` (ARM64 only) | pollfd array, count, timespec address, signal-mask address, signal-set size |
 | `syscallCreateEventPoll(flags)` | `epoll_create1` | flags |
 | `syscallControlEventPoll(epoll, operation, fd, event)` | `epoll_ctl` | epoll descriptor, `EPOLL_CTL_*`, descriptor, event address |
-| `syscallWaitForEvents(epoll, events, maxevents, timeout)` | `epoll_wait` | epoll descriptor, event array, capacity, timeout |
+| `syscallWaitForEvents(epoll, events, maxevents, timeout, sigmask)` | `epoll_wait` (x86-64), `epoll_pwait` (ARM64) | epoll descriptor, event array, capacity, timeout, signal-mask address; `sigmask` is ignored on x86-64 |
+| `syscallWaitForEventsWithSignalMask(epoll, events, maxevents, timeout, sigmask)` | `epoll_pwait` (ARM64 only) | epoll descriptor, event array, capacity, timeout, signal-mask address; Lynxer supplies the raw syscall's signal-set size |
 | `syscallInitializeInodeNotifications(flags)` | `inotify_init1` | `IN_NONBLOCK`/`IN_CLOEXEC` flags |
 | `syscallAddInodeNotificationWatch(inotify, path, mask)` | `inotify_add_watch` | inotify descriptor, path address, event mask |
 | `syscallRemoveInodeNotificationWatch(inotify, watch)` | `inotify_rm_watch` | inotify descriptor, watch descriptor |

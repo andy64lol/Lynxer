@@ -28,7 +28,7 @@ global main(){
     memoryWriteUInt64(event, 4, 123);
     assert(syscallControlEventPoll(epoll, 1, readFd, event) == 0);
     int events = memoryAllocate(16);
-    assert(syscallWaitForEvents(epoll, events, 1, 0) == 1);
+    assert(syscallWaitForEvents(epoll, events, 1, 0, 0) == 1);
     assert(memoryReadUInt32(events, 0) == 1);
 
     int path = memoryAllocate(128);

@@ -74,11 +74,14 @@ relying on the interpreter's exit-time safety net.
 event loop (`lynxer/builtins.py`), which on Linux uses the host's poll
 interface. The raw `syscallPollFileDescriptors` builtin uses `poll(2)` on
 x86-64 and adapts its existing millisecond timeout API to `ppoll(2)` on ARM64,
-where the legacy `poll` syscall is absent.
+where the legacy `poll` syscall is absent. `syscallPpollFileDescriptors` is
+also available as an ARM64-only raw five-argument alternative.
 [async.md](async.md) describes it honestly as an event poller and never claims
 epoll. The `asyncPoll*` API and the syscall wrappers `syscallCreateEventPoll`,
 `syscallControlEventPoll`, and `syscallWaitForEvents` do expose real epoll when
-you need it.
+you need it. `syscallWaitForEvents` uses `epoll_wait` on x86-64 and
+`epoll_pwait` on ARM64; `syscallWaitForEventsWithSignalMask` exposes the
+ARM64-only signal-mask form directly.
 
 This is unlikely to change: `asyncPoll*` accepts arbitrary file descriptors
 including regular files, which epoll cannot watch (`EPERM`) but `poll` can, and

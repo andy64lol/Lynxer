@@ -132,9 +132,11 @@ SYSCALL_TABLE: dict[str, str] = {
     "syscallSetSocketOption": "setsockopt",
     "syscallGetSocketOption": "getsockopt",
     "syscallPollFileDescriptors": "poll",
+    "syscallPpollFileDescriptors": "ppoll",
     "syscallCreateEventPoll": "epoll_create1",
     "syscallControlEventPoll": "epoll_ctl",
     "syscallWaitForEvents": "epoll_wait",
+    "syscallWaitForEventsWithSignalMask": "epoll_pwait",
     "syscallInitializeInodeNotifications": "inotify_init1",
     "syscallAddInodeNotificationWatch": "inotify_add_watch",
     "syscallRemoveInodeNotificationWatch": "inotify_rm_watch",
@@ -147,19 +149,61 @@ SYSCALL_TABLE: dict[str, str] = {
     "syscallControlProcess": "prctl",
 }
 
+_ARCHITECTURE_SYSCALLS: dict[str, dict[str, str]] = {
+    "syscallPollFileDescriptors": {
+        "x86_64": "poll",
+        "arm64": "ppoll",
+    },
+    "syscallWaitForEvents": {
+        "x86_64": "epoll_wait",
+        "arm64": "epoll_pwait",
+    },
+}
+
+# These expose the ARM64 alternatives directly. They are deliberately not
+# treated as portable aliases even on hosts whose kernel happens to provide
+# the same syscall name.
+_BUILTIN_ARCHITECTURES: dict[str, frozenset[str]] = {
+    "syscallPpollFileDescriptors": frozenset({"arm64"}),
+    "syscallWaitForEventsWithSignalMask": frozenset({"arm64"}),
+}
+
 
 def syscall_name_for_arch(builtin: str, architecture: str) -> str:
     """Return the Linux syscall used by a Lynxer built-in on one architecture.
 
-    ``poll`` has no ARM64 syscall number.  The compatibility built-in keeps
-    its three-argument millisecond API and is adapted to ARM64 ``ppoll`` by
-    :func:`invoke`.
+    Architecture-neutral built-ins can select a kernel alternative. For
+    example, ``syscallPollFileDescriptors`` selects ``poll`` on x86-64 and
+    ``ppoll`` on ARM64.
     """
     if builtin not in SYSCALL_TABLE:
         raise ValueError(f"unknown syscall built-in '{builtin}'")
-    if builtin == "syscallPollFileDescriptors" and architecture == "arm64":
-        return "ppoll"
+    alternatives = _ARCHITECTURE_SYSCALLS.get(builtin)
+    if alternatives is not None and architecture in alternatives:
+        return alternatives[architecture]
     return SYSCALL_TABLE[builtin]
+
+
+def syscall_builtin_supported_on_arch(builtin: str, architecture: str) -> bool:
+    """Return whether a named built-in is exposed on an architecture."""
+    if builtin not in SYSCALL_TABLE:
+        raise ValueError(f"unknown syscall built-in '{builtin}'")
+    return architecture in _BUILTIN_ARCHITECTURES.get(
+        builtin, frozenset(SUPPORTED_ARCHITECTURES)
+    )
+
+
+def syscall_argument_count(builtin: str, architecture: str) -> int | None:
+    """Return the exact public argument count for ABI-adapted syscalls."""
+    if builtin == "syscallPollFileDescriptors":
+        return 3
+    if builtin in {
+        "syscallPpollFileDescriptors",
+        "syscallWaitForEvents",
+        "syscallWaitForEventsWithSignalMask",
+    }:
+        return 5
+    return None
 
 
 def host_architecture() -> str:
@@ -254,9 +298,14 @@ def unavailable() -> list[str]:
     current host is missing rather than a property of the table itself.
     """
     missing = []
-    for builtin, name in SYSCALL_TABLE.items():
+    architecture = require_supported_platform()
+    for builtin in SYSCALL_TABLE:
         try:
-            _syscall_number(syscall_name_for_arch(builtin, require_supported_platform()))
+            if not syscall_builtin_supported_on_arch(builtin, architecture):
+                raise RuntimeError(
+                    f"syscall built-in '{builtin}' is not available on {architecture}"
+                )
+            _syscall_number(syscall_name_for_arch(builtin, architecture))
         except (RuntimeError, NotImplementedError, TypeError):
             missing.append(builtin)
     return sorted(missing)
@@ -287,6 +336,18 @@ def invoke(builtin: str, args: Sequence[int]) -> int:
     if any(isinstance(arg, bool) or not isinstance(arg, int) for arg in args):
         raise TypeError("syscall arguments must be integers")
     architecture = require_supported_platform()
+    if not syscall_builtin_supported_on_arch(builtin, architecture):
+        allowed = ", ".join(
+            sorted(_BUILTIN_ARCHITECTURES.get(builtin, frozenset()))
+        )
+        raise RuntimeError(
+            f"syscall built-in '{builtin}' is only available on {allowed}"
+        )
+    expected_count = syscall_argument_count(builtin, architecture)
+    if expected_count is not None and len(args) != expected_count:
+        raise ValueError(
+            f"{builtin} expects exactly {expected_count} arguments, received {len(args)}"
+        )
     syscall_name = syscall_name_for_arch(builtin, architecture)
     number = _syscall_number(syscall_name)
     if _libc is None:
@@ -295,10 +356,6 @@ def invoke(builtin: str, args: Sequence[int]) -> int:
     call_args = list(args)
     keepalive = None
     if syscall_name == "ppoll" and builtin == "syscallPollFileDescriptors":
-        if len(call_args) != 3:
-            raise ValueError(
-                "syscallPollFileDescriptors(fds, count, timeout_ms) expects three arguments"
-            )
         timeout_ms = call_args[2]
         if timeout_ms < 0:
             timeout_pointer = 0
@@ -320,6 +377,17 @@ def invoke(builtin: str, args: Sequence[int]) -> int:
             0,
             ctypes.sizeof(ctypes.c_ulong),
         ]
+    elif builtin == "syscallWaitForEvents":
+        if syscall_name == "epoll_wait":
+            # The portable API accepts a signal-mask slot so its signature is
+            # the same as ARM64 epoll_pwait; epoll_wait ignores that slot.
+            call_args = call_args[:4]
+        else:
+            # Linux's raw epoll_pwait syscall has a sixth sigsetsize word.
+            call_args.append(ctypes.sizeof(ctypes.c_ulong))
+    elif builtin == "syscallWaitForEventsWithSignalMask":
+        # Linux's raw epoll_pwait syscall has a sixth sigsetsize word.
+        call_args.append(ctypes.sizeof(ctypes.c_ulong))
     values = [_encode(arg) for arg in call_args]
     values.extend([0] * (MAX_SYSCALL_ARGS - len(values)))
     ctypes.set_errno(0)
