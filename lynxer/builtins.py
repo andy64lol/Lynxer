@@ -1634,6 +1634,14 @@ class BuiltInFunction(BaseFunction):
             return result
         return RTResult().success(String(result))
 
+    def execute_nativeThreadJoinAll(self, args, exec_ctx):
+        if len(args) != 0:
+            return self._failure(exec_ctx, "nativeThreadJoinAll() expects no arguments")
+        result = self._cpp(_MEMORY_LIB.nativeThreadJoinAll, [], exec_ctx)
+        if isinstance(result, RTResult):
+            return result
+        return RTResult().success(Number.null)
+
     def execute_nativeThreadIsAlive(self, args, exec_ctx):
         if len(args) != 1 or not _native_nonnegative(args[0]):
             return self._failure(exec_ctx, "nativeThreadIsAlive(handle) expects a thread handle")
@@ -2060,45 +2068,91 @@ class BuiltInFunction(BaseFunction):
         result = self._cpp(_MEMORY_LIB.memoryBlockLength, [args[0].value], exec_ctx)
         return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
+    def _struct_alignment(self, args, index, exec_ctx):
+        """Return the optional trailing struct alignment, or ``None``.
+
+        Returns an ``RTResult`` directly when the argument is invalid so
+        callers can propagate it without a separate isinstance check.
+        ``0`` means natural alignment.
+        """
+        if len(args) <= index:
+            return None
+        value = args[index]
+        if not isinstance(value, Number) or getattr(value, "is_bool", False):
+            return self._failure(exec_ctx, "struct alignment must be an integer")
+        alignment = int(value.value)
+        if alignment < 0:
+            return self._failure(exec_ctx, "struct alignment must not be negative")
+        return alignment
+
+    def _struct_args(self, args, index, exec_ctx, values):
+        """Append the optional alignment to *values*, or return an RTResult."""
+        alignment = self._struct_alignment(args, index, exec_ctx)
+        if isinstance(alignment, RTResult):
+            return alignment
+        if alignment is not None:
+            values.append(alignment)
+        return None
+
     def execute_memoryStructSize(self, args, exec_ctx):
-        if len(args) != 1 or not isinstance(args[0], String):
+        if not args or not isinstance(args[0], String):
             return self._failure(exec_ctx, "memoryStructSize(layout) expects fields like \"int32 id, float32 x\"")
-        result = self._cpp(_MEMORY_LIB.memoryStructSize, [args[0].value], exec_ctx)
+        values = [args[0].value]
+        failure = self._struct_args(args, 1, exec_ctx, values)
+        if failure is not None:
+            return failure
+        result = self._cpp(_MEMORY_LIB.memoryStructSize, values, exec_ctx)
         return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
     def execute_memoryStructFieldOffset(self, args, exec_ctx):
-        if len(args) != 2 or not isinstance(args[0], String) or not isinstance(args[1], String):
+        if len(args) < 2 or not isinstance(args[0], String) or not isinstance(args[1], String):
             return self._failure(
                 exec_ctx,
                 "memoryStructFieldOffset(layout, field) expects a layout and field name",
             )
-        result = self._cpp(_MEMORY_LIB.memoryStructFieldOffset, [args[0].value, args[1].value], exec_ctx)
+        values = [args[0].value, args[1].value]
+        failure = self._struct_args(args, 2, exec_ctx, values)
+        if failure is not None:
+            return failure
+        result = self._cpp(_MEMORY_LIB.memoryStructFieldOffset, values, exec_ctx)
         return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
     def execute_memoryStructFieldSize(self, args, exec_ctx):
-        if len(args) != 2 or not isinstance(args[0], String) or not isinstance(args[1], String):
+        if len(args) < 2 or not isinstance(args[0], String) or not isinstance(args[1], String):
             return self._failure(
                 exec_ctx,
                 "memoryStructFieldSize(layout, field) expects a layout and field name",
             )
-        result = self._cpp(_MEMORY_LIB.memoryStructFieldSize, [args[0].value, args[1].value], exec_ctx)
+        values = [args[0].value, args[1].value]
+        failure = self._struct_args(args, 2, exec_ctx, values)
+        if failure is not None:
+            return failure
+        result = self._cpp(_MEMORY_LIB.memoryStructFieldSize, values, exec_ctx)
         return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
     def execute_memoryStructAlignment(self, args, exec_ctx):
-        if len(args) != 1 or not isinstance(args[0], String):
+        if not args or not isinstance(args[0], String):
             return self._failure(exec_ctx, "memoryStructAlignment(layout) expects a layout string")
-        result = self._cpp(_MEMORY_LIB.memoryStructAlignment, [args[0].value], exec_ctx)
+        values = [args[0].value]
+        failure = self._struct_args(args, 1, exec_ctx, values)
+        if failure is not None:
+            return failure
+        result = self._cpp(_MEMORY_LIB.memoryStructAlignment, values, exec_ctx)
         return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
     def execute_memoryStructFieldCount(self, args, exec_ctx):
-        if len(args) != 1 or not isinstance(args[0], String):
+        if not args or not isinstance(args[0], String):
             return self._failure(exec_ctx, "memoryStructFieldCount(layout) expects a layout string")
-        result = self._cpp(_MEMORY_LIB.memoryStructFieldCount, [args[0].value], exec_ctx)
+        values = [args[0].value]
+        failure = self._struct_args(args, 1, exec_ctx, values)
+        if failure is not None:
+            return failure
+        result = self._cpp(_MEMORY_LIB.memoryStructFieldCount, values, exec_ctx)
         return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
     def execute_memoryStructFieldType(self, args, exec_ctx):
         if (
-            len(args) != 2
+            len(args) < 2
             or not isinstance(args[0], String)
             or not isinstance(args[1], String)
         ):
@@ -2106,11 +2160,11 @@ class BuiltInFunction(BaseFunction):
                 exec_ctx,
                 "memoryStructFieldType(layout, field) expects a layout and field name",
             )
-        result = self._cpp(
-            _MEMORY_LIB.memoryStructFieldType,
-            [args[0].value, args[1].value],
-            exec_ctx,
-        )
+        values = [args[0].value, args[1].value]
+        failure = self._struct_args(args, 2, exec_ctx, values)
+        if failure is not None:
+            return failure
+        result = self._cpp(_MEMORY_LIB.memoryStructFieldType, values, exec_ctx)
         return result if isinstance(result, RTResult) else RTResult().success(String(result))
 
     # Explicit names for FFI callers.  The memoryStruct implementation uses
@@ -2147,9 +2201,13 @@ class BuiltInFunction(BaseFunction):
         return self.execute_memoryStructSet(args, exec_ctx)
 
     def execute_memoryStructAllocate(self, args, exec_ctx):
-        if len(args) != 1 or not isinstance(args[0], String):
+        if not args or not isinstance(args[0], String):
             return self._failure(exec_ctx, "memoryStructAllocate(layout) expects fields like \"int32 id, float32 x\"")
-        result = self._cpp(_MEMORY_LIB.memoryStructAllocate, [args[0].value], exec_ctx)
+        values = [args[0].value]
+        failure = self._struct_args(args, 1, exec_ctx, values)
+        if failure is not None:
+            return failure
+        result = self._cpp(_MEMORY_LIB.memoryStructAllocate, values, exec_ctx)
         return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
     def execute_memoryStructGet(self, args, exec_ctx):
@@ -4566,6 +4624,7 @@ BUILTIN_FUNCTION_NAMES = (
     "nativeModuleClose",
     "nativeThreadStart",
     "nativeThreadJoin",
+    "nativeThreadJoinAll",
     "nativeThreadIsAlive",
     "nativeThreadStatus",
     "nativeThreadDetach",

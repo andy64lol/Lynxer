@@ -103,15 +103,20 @@ put behaviour in ordinary `global` functions for now.
 
 ## Bytecode and bundling
 
-Enums are part of the current bytecode format (version 8), so `.lynxc`
+Enums are part of the current bytecode format (version 9), so `.lynxc`
 programs and bundled executables keep their variants, payload types, and
 patterns. Stale bytecode is rejected with a recompile message.
 
+## Name collisions
+
+Enum names are source-wide and share one namespace with function names, so a
+duplicate `enum` declaration is a parse error, and an `enum` whose name matches
+a `func` (in either order) is a parse error too. The diagnostic names the
+original declaration and its line.
+
 ## Current limitations
 
-- Duplicate **enum names** in one file are not diagnosed; the last
-  declaration silently wins.
-- A name collision between an enum and a `func` declaration is not diagnosed.
+- The braced body is not executed (see [The braced body](#the-braced-body)).
 - Payload values are ordinary mutable values; they do not participate in the
   ownership transfer/borrow rules.
 - Payload types are validated when a value is constructed, not when a payload

@@ -92,6 +92,29 @@ through their offset and size; use native memory reads and writes at those
 locations rather than `memoryStructGet`/`memoryStructSet`, which operate on
 scalar fields.
 
+### Packed layouts
+
+Every `memoryStruct*` function that takes a layout string accepts an optional
+trailing `alignment` argument. It clamps the alignment of every field — and of
+any nested aggregate — to at most that value, which is how a packed struct is
+described:
+
+```lynx
+str layout = "int8 a, int32 b";
+println(memoryStructSize(layout));       // 8 — b is padded to offset 4
+println(memoryStructSize(layout, 1));    // 5 — no padding at all
+println(memoryStructFieldOffset(layout, "b", 1));  // 1
+```
+
+Pass `0` (or omit the argument) for natural C alignment. The value must be a
+power of two; anything else is rejected. `memoryStructAllocate(layout, 1)`
+stores the packed layout with the block, so `memoryStructGet` and
+`memoryStructSet` keep using the packed offsets without repeating the
+argument.
+
+Bit fields are **not** supported: field offsets are byte-granular and
+`memoryStructGet`/`memoryStructSet` operate on whole-byte scalars.
+
 ## C/C++ FFI
 
 The FFI helpers load shared libraries and expose symbols as function addresses:
@@ -109,8 +132,11 @@ default) and `stdcall` on Windows. Calls are dispatched through the host ABI,
 including floating-point register conventions, and all arguments must match
 the declared signature. `ffiCallback(signature, function)` creates a native
 callback address and keeps it alive until `ffiFreeCallback(callback)` is
-called. **Callbacks currently accept a single signature**,
-`cdecl:int32(int32,int32)`; any other signature is rejected at runtime.
+called. Callbacks accept the same signature grammar as calls: `void`, all
+signed and unsigned integer widths, `uintptr`, `float32`, `float64`, and up to
+six parameters. Two exceptions apply — a `cstring` **return** is rejected
+because a native caller could retain a pointer to a temporary string after the
+callback returns, and `stdcall` callbacks are only available on Windows.
 Native code must not retain a callback after it has been freed.
 
 ## Native threads
@@ -132,6 +158,11 @@ thread is still running.
 running.
 `nativeThreadDetach(handle)` releases ownership so it cleans itself up when it
 finishes. A thread handle must be joined or detached exactly once.
+
+`nativeThreadJoinAll()` takes no arguments and joins every thread the program
+left running that has not already been joined or detached. Use it before
+shutdown when handles were not tracked individually; the interpreter calls it
+as a safety net on exit as well.
 
 ## Synchronization
 

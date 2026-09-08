@@ -7,4 +7,3 @@ build/
 venv/
 dist/
 *.so
-docs/limitations.md

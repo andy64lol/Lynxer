@@ -77,8 +77,29 @@ global playSound(int soundIdx){
 }
 
 // Alias for playSound with an explicit one-shot name.
+// The body is inlined rather than delegating: a module cannot call its own
+// functions, so `playSound(soundIdx)` here would fail at run time.
 global playSoundOnce(int soundIdx){
-    return playSound(soundIdx);
+    bool result = false;
+    rawPy(){
+        import builtins
+        try:
+            import arcade
+            if 0 <= soundIdx < len(builtins._lx_sound_stdlib):
+                entry = builtins._lx_sound_stdlib[soundIdx]
+                if entry is not None:
+                    if entry["player"] is not None:
+                        try:
+                            arcade.stop_sound(entry["player"])
+                        except Exception:
+                            pass
+                    entry["player"] = arcade.play_sound(entry["sound"])
+                    entry["sound"].set_volume(entry["volume"], entry["player"])
+                    result = true
+        except Exception:
+            result = false
+    }
+    return result;
 }
 
 // Start looping playback. Returns true when playback starts.

@@ -100,9 +100,9 @@ lynxer --compile --no-cache program.lynx
 lynxer --compile --no-opt program.lynx
 ```
 
-Both flags apply to `--compile` only. Note that the optimizer is currently a
-pass-through: no optimization passes run, so `--no-opt` and the default output
-are identical today. See [limitations.md](limitations.md).
+Both flags apply to `--compile` only. The optimizer runs constant folding, so
+`--no-opt` now produces a genuinely different (unfolded) AST while keeping the
+same observable behaviour — see [bytecode.md](bytecode.md#what-changed-in-v9).
 
 ## Build a standalone executable
 

@@ -88,6 +88,18 @@ instruction reader looks the id up in that fixed table, allocates the class
 with `__new__`, and fills in its attributes.  A `Position` omits its original
 source text and stores only its location.
 
+### What changed in v9
+
+v9 enables the first real compiler optimization pass (constant folding) and
+bumps the compatibility version so that bytecode cached by an older compiler is
+recompiled instead of reused. The instruction stream format is unchanged.
+
+The compatibility version is the only cache-invalidation signal for a compiler
+change: a `.lynxc` file is considered current when its recorded source path,
+source hash, and compiler options match, and nothing in that comparison
+identifies the compiler that produced it. Any future pass that changes the
+emitted AST must therefore bump `BYTECODE_VERSION` too.
+
 ### What changed in v8
 
 v8 keeps the instruction stream format and bumps the compatibility version for

@@ -717,10 +717,14 @@ bool splitLayoutFields(const std::string &text, std::vector<std::string> *fields
     return true;
 }
 
-bool layoutFromText(const std::string &text, StructLayout *out, bool unionLayout);
+// ``maxAlignment`` of 0 means "use each type's natural alignment". Any other
+// value clamps every field (and any nested aggregate) to at most that
+// alignment, which is how a packed layout is requested.
+bool layoutFromText(const std::string &text, StructLayout *out, bool unionLayout,
+                    size_t maxAlignment = 0);
 size_t layoutAlignment(const StructLayout &layout);
 
-bool typeLayout(const std::string &rawType, MemoryType *out) {
+bool typeLayoutImpl(const std::string &rawType, MemoryType *out, size_t maxAlignment) {
     std::string type = trimLayoutText(rawType);
     if (memoryType(type, out)) return true;
     if (type.size() > 2 && type.back() == ']') {
@@ -732,7 +736,7 @@ bool typeLayout(const std::string &rawType, MemoryType *out) {
         if (!end || *end != '\0' || count == 0 ||
             count > std::numeric_limits<size_t>::max()) return false;
         MemoryType element;
-        if (!typeLayout(type.substr(0, open), &element) ||
+        if (!typeLayoutImpl(type.substr(0, open), &element, maxAlignment) ||
             count > std::numeric_limits<size_t>::max() / element.size) return false;
         out->size = element.size * static_cast<size_t>(count);
         out->alignment = element.alignment;
@@ -745,12 +749,18 @@ bool typeLayout(const std::string &rawType, MemoryType *out) {
         StructLayout nested;
         if (!layoutFromText(type.substr(type.find('{') + 1,
                                         type.size() - type.find('{') - 2),
-                            &nested, isUnion)) return false;
+                            &nested, isUnion, maxAlignment)) return false;
         out->size = nested.size;
         out->alignment = layoutAlignment(nested);
         return true;
     }
     return false;
+}
+
+bool typeLayout(const std::string &rawType, MemoryType *out, size_t maxAlignment = 0) {
+    if (!typeLayoutImpl(rawType, out, maxAlignment)) return false;
+    if (maxAlignment && out->alignment > maxAlignment) out->alignment = maxAlignment;
+    return true;
 }
 
 size_t layoutAlignment(const StructLayout &layout) {
@@ -759,7 +769,8 @@ size_t layoutAlignment(const StructLayout &layout) {
     return alignment;
 }
 
-bool layoutFromText(const std::string &text, StructLayout *out, bool unionLayout) {
+bool layoutFromText(const std::string &text, StructLayout *out, bool unionLayout,
+                    size_t maxAlignment) {
     *out = StructLayout{{}, 0};
     size_t offset = 0;
     size_t alignment = 1;
@@ -790,7 +801,7 @@ bool layoutFromText(const std::string &text, StructLayout *out, bool unionLayout
         std::string name = nameStart == std::string::npos
             ? "" : trimLayoutText(item.substr(nameStart));
         MemoryType info;
-        if (!typeLayout(type, &info) || !validFieldName(name) || names.count(name)) {
+        if (!typeLayout(type, &info, maxAlignment) || !validFieldName(name) || names.count(name)) {
             PyErr_SetString(PyExc_ValueError, "invalid or duplicate struct layout field");
             return false;
         }
@@ -826,10 +837,36 @@ bool layoutFromText(const std::string &text, StructLayout *out, bool unionLayout
     return true;
 }
 
-bool layoutFromObject(PyObject *object, StructLayout *out) {
+bool layoutFromObject(PyObject *object, StructLayout *out, size_t maxAlignment = 0) {
     const char *raw;
     if (!PyArg_Parse(object, "s", &raw)) return false;
-    return layoutFromText(raw, out, false);
+    return layoutFromText(raw, out, false, maxAlignment);
+}
+
+// Read an optional trailing alignment argument. ``0`` or ``None`` requests
+// natural alignment; any other value must be a power of two.
+bool optionalAlignment(PyObject *object, size_t *out) {
+    *out = 0;
+    if (object == nullptr || object == Py_None) return true;
+    unsigned long long value = PyLong_AsUnsignedLongLong(object);
+    if (PyErr_Occurred()) {
+        PyErr_Clear();
+        PyErr_SetString(PyExc_ValueError,
+                        "struct alignment must be a non-negative integer");
+        return false;
+    }
+    if (value == 0) return true;
+    if ((value & (value - 1)) != 0) {
+        PyErr_SetString(PyExc_ValueError, "struct alignment must be a power of two");
+        return false;
+    }
+    if (value > static_cast<unsigned long long>(
+                    std::numeric_limits<size_t>::max())) {
+        PyErr_SetString(PyExc_OverflowError, "struct alignment is too large");
+        return false;
+    }
+    *out = static_cast<size_t>(value);
+    return true;
 }
 
 bool blockField(PyObject *object, PyObject *indexObject, void **ptr, size_t *offset,
@@ -2665,34 +2702,46 @@ PyObject *pyMemoryBlockSet(PyObject *, PyObject *args) {
 
 PyObject *pyMemoryStructSize(PyObject *, PyObject *args) {
     PyObject *layoutObject;
-    if (!PyArg_ParseTuple(args, "O", &layoutObject)) return nullptr;
+    PyObject *alignmentObject = nullptr;
+    if (!PyArg_ParseTuple(args, "O|O", &layoutObject, &alignmentObject)) return nullptr;
+    size_t maxAlignment = 0;
+    if (!optionalAlignment(alignmentObject, &maxAlignment)) return nullptr;
     StructLayout layout;
-    if (!layoutFromObject(layoutObject, &layout)) return nullptr;
+    if (!layoutFromObject(layoutObject, &layout, maxAlignment)) return nullptr;
     return PyLong_FromSize_t(layout.size);
 }
 
 PyObject *pyMemoryStructAlignment(PyObject *, PyObject *args) {
     PyObject *layoutObject;
-    if (!PyArg_ParseTuple(args, "O", &layoutObject)) return nullptr;
+    PyObject *alignmentObject = nullptr;
+    if (!PyArg_ParseTuple(args, "O|O", &layoutObject, &alignmentObject)) return nullptr;
+    size_t maxAlignment = 0;
+    if (!optionalAlignment(alignmentObject, &maxAlignment)) return nullptr;
     StructLayout layout;
-    if (!layoutFromObject(layoutObject, &layout)) return nullptr;
+    if (!layoutFromObject(layoutObject, &layout, maxAlignment)) return nullptr;
     return PyLong_FromSize_t(layoutAlignment(layout));
 }
 
 PyObject *pyMemoryStructFieldCount(PyObject *, PyObject *args) {
     PyObject *layoutObject;
-    if (!PyArg_ParseTuple(args, "O", &layoutObject)) return nullptr;
+    PyObject *alignmentObject = nullptr;
+    if (!PyArg_ParseTuple(args, "O|O", &layoutObject, &alignmentObject)) return nullptr;
+    size_t maxAlignment = 0;
+    if (!optionalAlignment(alignmentObject, &maxAlignment)) return nullptr;
     StructLayout layout;
-    if (!layoutFromObject(layoutObject, &layout)) return nullptr;
+    if (!layoutFromObject(layoutObject, &layout, maxAlignment)) return nullptr;
     return PyLong_FromSize_t(layout.fields.size());
 }
 
 PyObject *pyMemoryStructFieldType(PyObject *, PyObject *args) {
     PyObject *layoutObject;
     const char *field;
-    if (!PyArg_ParseTuple(args, "Os", &layoutObject, &field)) return nullptr;
+    PyObject *alignmentObject = nullptr;
+    if (!PyArg_ParseTuple(args, "Os|O", &layoutObject, &field, &alignmentObject)) return nullptr;
+    size_t maxAlignment = 0;
+    if (!optionalAlignment(alignmentObject, &maxAlignment)) return nullptr;
     StructLayout layout;
-    if (!layoutFromObject(layoutObject, &layout)) return nullptr;
+    if (!layoutFromObject(layoutObject, &layout, maxAlignment)) return nullptr;
     for (const auto &item : layout.fields) {
         if (item.name == field) {
             return PyUnicode_FromString(item.type.c_str());
@@ -2705,9 +2754,12 @@ PyObject *pyMemoryStructFieldType(PyObject *, PyObject *args) {
 PyObject *pyMemoryStructAllocate(PyObject *, PyObject *args) {
     std::lock_guard<std::recursive_mutex> memoryLock(memoryMutex);
     PyObject *layoutObject;
-    if (!PyArg_ParseTuple(args, "O", &layoutObject)) return nullptr;
+    PyObject *alignmentObject = nullptr;
+    if (!PyArg_ParseTuple(args, "O|O", &layoutObject, &alignmentObject)) return nullptr;
+    size_t maxAlignment = 0;
+    if (!optionalAlignment(alignmentObject, &maxAlignment)) return nullptr;
     StructLayout layout;
-    if (!layoutFromObject(layoutObject, &layout)) return nullptr;
+    if (!layoutFromObject(layoutObject, &layout, maxAlignment)) return nullptr;
     void *ptr = std::calloc(1, layout.size);
     if (!ptr && layout.size) return PyErr_NoMemory();
     trackAllocation(ptr, layout.size);
@@ -2717,9 +2769,12 @@ PyObject *pyMemoryStructAllocate(PyObject *, PyObject *args) {
 
 PyObject *pyMemoryStructField(PyObject *, PyObject *args, bool wantSize) {
     PyObject *layoutObject; const char *field;
-    if (!PyArg_ParseTuple(args, "Os", &layoutObject, &field)) return nullptr;
+    PyObject *alignmentObject = nullptr;
+    if (!PyArg_ParseTuple(args, "Os|O", &layoutObject, &field, &alignmentObject)) return nullptr;
+    size_t maxAlignment = 0;
+    if (!optionalAlignment(alignmentObject, &maxAlignment)) return nullptr;
     StructLayout layout;
-    if (!layoutFromObject(layoutObject, &layout)) return nullptr;
+    if (!layoutFromObject(layoutObject, &layout, maxAlignment)) return nullptr;
     for (size_t i = 0; i < layout.fields.size(); ++i) {
         if (layout.fields[i].name == field) {
             return PyLong_FromSize_t(

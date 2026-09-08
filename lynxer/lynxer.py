@@ -1446,6 +1446,7 @@ class Parser:
         self._code_block_names = code_block_names if code_block_names is not None else {}
         self._file_func_names = {}
         self._declared_function_names = set()
+        self._enum_names = {}
         self._require_main = True
         self._inter_allowed = False  # whether inter"..." may appear right here
         self.current_tok: Token = (
@@ -1543,6 +1544,14 @@ class Parser:
                 "declared in this Lynxer file. Direct-call function names must "
                 "be unique and cannot shadow existing functions.",
             )
+        if name_tok.value in self._enum_names:
+            return InvalidSyntaxError(
+                name_tok.pos_start,
+                name_tok.pos_end,
+                f"'func {name_tok.value}()' conflicts with the 'enum' "
+                "declaration of the same name. Enum names and function names "
+                "share one namespace.",
+            )
         if name_tok.value in {"setup", "main"}:
             return InvalidSyntaxError(
                 name_tok.pos_start,
@@ -1563,7 +1572,45 @@ class Parser:
                 f"Function '{name_tok.value}' conflicts with the file-wide "
                 "'func' declaration of the same name.",
             )
+        if name_tok.value in self._enum_names:
+            return InvalidSyntaxError(
+                name_tok.pos_start,
+                name_tok.pos_end,
+                f"Function '{name_tok.value}' conflicts with the 'enum' "
+                "declaration of the same name. Enum names and function names "
+                "share one namespace.",
+            )
         self._declared_function_names.add(name_tok.value)
+        return None
+
+    def claim_enum_name(self, name_tok):
+        """Reserve an ``enum`` name for this source file.
+
+        Enum names are source-wide, like ``func`` names. Keeping the
+        declaration token lets duplicate-name diagnostics point at the
+        original declaration as well as the conflicting one.
+        """
+        previous = self._enum_names.get(name_tok.value)
+        if previous is not None:
+            return InvalidSyntaxError(
+                name_tok.pos_start,
+                name_tok.pos_end,
+                f"Duplicate 'enum' declaration '{name_tok.value}'. "
+                "An enum name may be declared only once in a Lynxer file "
+                f"(first declared at line {previous.pos_start.ln + 1}).",
+            )
+        if (
+            name_tok.value in self._file_func_names
+            or name_tok.value in self._declared_function_names
+        ):
+            return InvalidSyntaxError(
+                name_tok.pos_start,
+                name_tok.pos_end,
+                f"'enum {name_tok.value}' conflicts with a function "
+                "declaration of the same name. Enum names and function names "
+                "share one namespace.",
+            )
+        self._enum_names[name_tok.value] = name_tok
         return None
 
     def parse(self, require_main=True):
@@ -1777,6 +1824,9 @@ class Parser:
                 "Expected an enum name after 'enum'",
             ))
         name_tok = self.current_tok
+        name_error = self.claim_enum_name(name_tok)
+        if name_error:
+            return res.failure(name_error)
         res.register_advancement()
         self.advance()
         if self.current_tok.type != TT_EQ:
@@ -8103,6 +8153,13 @@ class SymbolTable:
         self._borrowers = parent._borrowers if parent is not None else {}
         self._borrow_modes = parent._borrow_modes if parent is not None else {}
         self._runtime_types = parent._runtime_types if parent is not None else {}
+        # Names introduced by ``switch`` pattern bindings. Shared with nested
+        # scopes like the ownership tables so a later switch in the same
+        # function may reuse a pattern name, while shadowing a real variable
+        # stays an error.
+        self._pattern_bindings = (
+            parent._pattern_bindings if parent is not None else set()
+        )
 
     def _find(self, name):
         table = self
@@ -9490,12 +9547,23 @@ class Interpreter:
             if pattern.kind == "wildcard":
                 return True, None
             if pattern.kind == "binding":
-                existing = context.symbol_table.get(pattern.value)
-                if existing is None:
-                    bindings[pattern.value] = value.copy()
-                    return True, None
-                equal, error = existing.get_comparison_eq(value)
-                return bool(equal and equal.is_true()), error
+                name = pattern.value
+                existing = context.symbol_table.get(name)
+                if (
+                    existing is not None
+                    and name not in context.symbol_table._pattern_bindings
+                ):
+                    return False, RTError(
+                        pattern.pos_start,
+                        pattern.pos_end,
+                        f"switch binding '{name}' shadows an existing variable. "
+                        "Rename the binding or remove the case; a pattern "
+                        "binding cannot silently compare against an existing "
+                        "value.",
+                        context,
+                    )
+                bindings[name] = value.copy()
+                return True, None
             if pattern.kind == "literal":
                 result = self.visit(pattern.value, context)
                 if result.error:
@@ -9559,6 +9627,7 @@ class Interpreter:
                         binding_name, binding_value,
                         decl_type=value_type_name(binding_value),
                     )
+                    context.symbol_table._pattern_bindings.add(binding_name)
                 res.register(self.visit(case.body_block, context))
                 if res.should_return():
                     return res

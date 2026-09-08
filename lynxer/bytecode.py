@@ -19,7 +19,7 @@ import zlib
 from typing import Any
 
 BYTECODE_MAGIC = b"LYNXC\x00"
-BYTECODE_VERSION = 8
+BYTECODE_VERSION = 9
 MAX_BYTECODE_FILE_SIZE = 64 * 1024 * 1024
 MAX_BYTECODE_PAYLOAD_SIZE = 256 * 1024 * 1024
 _NATIVE_IMPORT_RE = re.compile(
@@ -95,14 +95,137 @@ def _is_cache_current(data: dict[str, Any], fn: str, text: str, optimize: bool) 
     )
 
 
+_FOLD_IGNORED_ATTRS = frozenset({"pos_start", "pos_end"})
+
+
+def _foldable_types(runtime: Any) -> tuple[type[Any], ...]:
+    """Return the literal node types whose value is known at compile time."""
+    return (runtime.NumberNode, runtime.StringNode, runtime.BoolNode)
+
+
+def _folded_literal(
+    value: Any, runtime: Any, pos_start: Any, pos_end: Any
+) -> Any:
+    """Return a literal AST node for a folded constant, or ``None`` to skip.
+
+    Only constants the lexer could have produced on its own are folded back
+    into the tree, so an optimized program stays representable in exactly the
+    same bytecode format as an unoptimized one.
+    """
+    if isinstance(value, runtime.Number):
+        raw = value.value
+        if getattr(value, "is_bool", False):
+            return runtime.BoolNode(runtime.Token(
+                runtime.TT_KEYWORD, "true" if raw else "false",
+                pos_start, pos_end,
+            ))
+        if isinstance(raw, bool) or not isinstance(raw, (int, float)):
+            return None
+        token_type = runtime.TT_INT if isinstance(raw, int) else runtime.TT_FLOAT
+        return runtime.NumberNode(
+            runtime.Token(token_type, raw, pos_start, pos_end)
+        )
+    if isinstance(value, runtime.String):
+        return runtime.StringNode(
+            runtime.Token(runtime.TT_STRING, value.value, pos_start, pos_end)
+        )
+    return None
+
+
+# Roughly 128 KB of integer. Generous for any legitimate constant, small
+# enough that folding stays instant.
+_MAX_FOLD_BITS = 1 << 20
+
+
+def _power_is_foldable(node: Any, runtime: Any) -> bool:
+    """Refuse to fold exponentiation that would build an enormous integer.
+
+    Folding moves evaluation to compile time, so an expression such as
+    ``9 ** 9 ** 9`` -- which the program might never even execute -- would
+    otherwise hang the compiler rather than the program.
+    """
+    base = node.left_node.tok.value
+    exponent = node.right_node.tok.value
+    if isinstance(base, bool) or isinstance(exponent, bool):
+        return True
+    if not isinstance(exponent, int) or exponent <= 0:
+        return True
+    if not isinstance(base, int) or abs(base) <= 1:
+        return True
+    return exponent * base.bit_length() <= _MAX_FOLD_BITS
+
+
+def _fold_node(node: Any, runtime: Any, interp: Any, context: Any, literals: Any) -> Any:
+    """Return ``node``, or a constant literal that safely replaces it."""
+    operands: tuple[Any, ...] | None = None
+    if isinstance(node, runtime.BinOpNode):
+        operands = (node.left_node, node.right_node)
+    elif isinstance(node, runtime.UnaryOpNode):
+        operands = (node.node,)
+    if operands is None or not all(
+        isinstance(operand, literals) for operand in operands
+    ):
+        return node
+    if (
+        isinstance(node, runtime.BinOpNode)
+        and node.op_tok.type == runtime.TT_POW
+        and not _power_is_foldable(node, runtime)
+    ):
+        return node
+
+    # Fold with the interpreter itself rather than a parallel copy of the
+    # operator semantics, so a folded constant can never disagree with what
+    # the runtime would have computed.
+    try:
+        result = interp.visit(node, context)
+    except Exception:  # noqa: BLE001 - any failure just means "do not fold"
+        return node
+    if result.error is not None or result.value is None:
+        return node
+    folded = _folded_literal(result.value, runtime, node.pos_start, node.pos_end)
+    return node if folded is None else folded
+
+
+def _optimize_node(
+    node: Any, runtime: Any, interp: Any, context: Any,
+    literals: Any, nodes: tuple[type[Any], ...],
+) -> Any:
+    for attr, value in list(vars(node).items()):
+        if attr in _FOLD_IGNORED_ATTRS:
+            continue
+        if isinstance(value, nodes):
+            setattr(
+                node, attr,
+                _optimize_node(value, runtime, interp, context, literals, nodes),
+            )
+        elif isinstance(value, list):
+            value[:] = [
+                _optimize_node(item, runtime, interp, context, literals, nodes)
+                if isinstance(item, nodes) else item
+                for item in value
+            ]
+    return _fold_node(node, runtime, interp, context, literals)
+
+
 def _optimize_program(node: Any) -> Any:
     """Return an optimized AST.
 
-    This is intentionally conservative for now. The hook makes optimized and
-    unoptimized compilation explicit without risking behavior changes in the
-    interpreter's mutable AST nodes.
+    The only pass is constant folding over literal operands, and it is
+    deliberately narrow: an expression is replaced only when the interpreter
+    evaluates it without error, so folding can never turn a program that
+    fails at run time into one that succeeds -- ``1 / 0`` still raises
+    "Division by zero" instead of being folded away. Logical operators are
+    left alone because they short-circuit. Source positions are carried onto
+    the folded node so diagnostics still point at the original expression.
     """
-    return node
+    runtime = _runtime()
+    interp = runtime.Interpreter()
+    context = runtime.Context("<optimize>")
+    context.symbol_table = runtime.SymbolTable()
+    nodes = tuple(cls for cls in _registry()[0] if cls is not runtime.Token)
+    return _optimize_node(
+        node, runtime, interp, context, _foldable_types(runtime), nodes
+    )
 
 
 def _runtime() -> Any:
