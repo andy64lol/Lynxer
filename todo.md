@@ -142,7 +142,10 @@
 - [x] Add nested structs and unions with exact native size, alignment, and field-offset calculations.
 - [x] Add fixed-size and dynamically sized native arrays.
 - [x] Add function-pointer fields, values, callbacks, and typed invocation.
-- [x] Cover packing, padding, bit fields, signedness, and platform ABI differences with compiler-backed tests.
+- [x] Cover packing, padding, signedness, and platform ABI differences with compiler-backed tests.
+- [x] Implement deterministic integer bit-field layout and accessors with
+  regression coverage; compiler-specific allocation-order compatibility remains
+  documented as a portability limitation.
 
 ## Native module system
 
@@ -177,15 +180,16 @@
 
 ## Concurrency API
 
-- [x] expose threads and synchronization cleanly to Lynxer:
-- [x] add a high-level thread lifecycle and result/error propagation API
+- [ ] expose threads and synchronization cleanly to Lynxer:
+- [ ] add a high-level thread lifecycle and result/error propagation API
 - [x] add mutexes, condition variables, semaphores, and safe ownership
-- [x] define cancellation, shutdown, and deadlock-resistant cleanup rules.
+- [ ] define cancellation, shutdown, and deadlock-resistant cleanup rules.
 - [x] test contention, wakeups, failures, and interpreter shutdown
 
 ## async I/O
 
-- [x] Add epoll and event-driven APIs for serious servers:
+- [x] Add event-driven APIs for serious servers:
+- [ ] Make the high-level async poller epoll-backed where the platform permits.
 - [x] Provide registration, modification, removal, and event waiting.
 - [x] Integrate file, socket, timer, and wakeup events.
 - [x] Define callback/task scheduling, cancellation, and backpressure.
@@ -195,6 +199,7 @@
 
 - [x] Improve compiler performance and developer feedback:
 - [x] Add safe optimization passes and benchmark representative programs.
+- [ ] Add dead-code elimination and a pluggable optimization-pass pipeline.
 - [x] Improve source locations, type errors, runtime diagnostics, and actionable suggestions.
 - [x] Reduce compilation overhead through caching and incremental work.
 - [x] Add regression tests for optimized and unoptimized output.
@@ -274,7 +279,7 @@
     multiple read-only borrows may coexist and when a mutable borrow must be
     exclusive. Enforce these rules consistently in assignments, calls, returns,
     collection operations, and scope cleanup.
-  - Preserve ownership metadata through function parameters, return values,
+  - [ ] Preserve ownership metadata through function parameters, return values,
     lists, tuples, structs, modules, and bytecode serialization. Runtime errors
     must identify the variable and the conflicting ownership operation.
   - Ensure failed operations do not partially update either variable or the
@@ -353,10 +358,11 @@
     paths, repeated cleanup, volume boundaries, and backend failure reporting.
 
 - [x] Update the bytecode format for the new language features:
-  - Bump the bytecode format version and serialize the AST/runtime metadata
-    required for `func` declarations, ownership states, borrow relationships,
-    mutable type transitions, list/tuple switch patterns, enums, and the sound
-    module's import metadata.
+  - Bump the bytecode format version and serialize the AST metadata required
+    for `func` declarations, mutable type transitions, list/tuple switch
+    patterns, enums, and the sound module's import metadata.
+  - [ ] Serialize ownership states and borrow relationships, once a stable
+    static/runtime ownership representation exists.
   - Update compiler output, bytecode loading, inspection tools, imports, cache
     invalidation, and bundled executables together so source and `.lynxc`
     programs have the same semantics.

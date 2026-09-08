@@ -92,6 +92,8 @@ struct StructField {
     size_t offset;
     size_t size;
     size_t alignment;
+    size_t bitOffset{0};
+    size_t bitWidth{0};
 };
 
 struct StructLayout {
@@ -574,6 +576,13 @@ bool nativeIntegerType(const std::string &name) {
            name == "cstring";
 }
 
+bool bitFieldIntegerType(const std::string &name) {
+    return name == "byte" || name == "int8" || name == "uint8" ||
+           name == "int16" || name == "uint16" ||
+           name == "int32" || name == "uint32" ||
+           name == "int64" || name == "uint64";
+}
+
 bool parseNativeSignature(const char *signature, std::string *result,
                           std::vector<std::string> *parameters,
                           std::string *convention) {
@@ -774,6 +783,11 @@ bool layoutFromText(const std::string &text, StructLayout *out, bool unionLayout
     *out = StructLayout{{}, 0};
     size_t offset = 0;
     size_t alignment = 1;
+    bool activeBitUnit = false;
+    std::string activeBitType;
+    size_t activeBitOffset = 0;
+    size_t activeBitBits = 0;
+    size_t activeBitUsed = 0;
     std::unordered_set<std::string> names;
     std::vector<std::string> fields;
     if (!splitLayoutFields(text, &fields)) return false;
@@ -800,14 +814,85 @@ bool layoutFromText(const std::string &text, StructLayout *out, bool unionLayout
         size_t nameStart = item.find_first_not_of(" \t", split);
         std::string name = nameStart == std::string::npos
             ? "" : trimLayoutText(item.substr(nameStart));
+        size_t bitWidth = 0;
+        bool isBitField = false;
+        size_t colon = name.find(':');
+        if (colon != std::string::npos) {
+            isBitField = true;
+            std::string widthText = trimLayoutText(name.substr(colon + 1));
+            name = trimLayoutText(name.substr(0, colon));
+            if (widthText.empty()) {
+                PyErr_SetString(PyExc_ValueError,
+                                "bit-field width must be a positive integer");
+                return false;
+            }
+            char *widthEnd = nullptr;
+            unsigned long long parsedWidth =
+                std::strtoull(widthText.c_str(), &widthEnd, 10);
+            if (!widthEnd || *widthEnd != '\0' || parsedWidth == 0) {
+                PyErr_SetString(PyExc_ValueError,
+                                "bit-field width must be a positive integer");
+                return false;
+            }
+            if (parsedWidth > std::numeric_limits<size_t>::max()) {
+                PyErr_SetString(PyExc_OverflowError,
+                                "bit-field width is too large");
+                return false;
+            }
+            bitWidth = static_cast<size_t>(parsedWidth);
+        }
         MemoryType info;
         if (!typeLayout(type, &info, maxAlignment) || !validFieldName(name) || names.count(name)) {
             PyErr_SetString(PyExc_ValueError, "invalid or duplicate struct layout field");
             return false;
         }
+        if (isBitField) {
+            if (!bitFieldIntegerType(type)) {
+                PyErr_SetString(PyExc_ValueError,
+                                "bit-fields require an integer storage type");
+                return false;
+            }
+            if (bitWidth > info.size * 8) {
+                PyErr_SetString(PyExc_ValueError,
+                                "bit-field width exceeds its storage type");
+                return false;
+            }
+        } else {
+            activeBitUnit = false;
+        }
         names.insert(name);
         size_t fieldOffset = 0;
-        if (!unionLayout) {
+        size_t fieldBitOffset = 0;
+        if (isBitField && !unionLayout) {
+            size_t storageBits = info.size * 8;
+            bool canShare = activeBitUnit &&
+                activeBitType == type &&
+                activeBitUsed + bitWidth <= activeBitBits;
+            if (canShare) {
+                fieldOffset = activeBitOffset;
+                fieldBitOffset = activeBitUsed;
+                activeBitUsed += bitWidth;
+            } else {
+                size_t remainder = offset % info.alignment;
+                size_t padding = remainder == 0 ? 0 : info.alignment - remainder;
+                if (offset > std::numeric_limits<size_t>::max() - padding) {
+                    PyErr_SetString(PyExc_OverflowError, "struct layout offset overflow");
+                    return false;
+                }
+                fieldOffset = offset + padding;
+                fieldBitOffset = 0;
+                activeBitUnit = true;
+                activeBitType = type;
+                activeBitOffset = fieldOffset;
+                activeBitBits = storageBits;
+                activeBitUsed = bitWidth;
+                if (fieldOffset > std::numeric_limits<size_t>::max() - info.size) {
+                    PyErr_SetString(PyExc_OverflowError, "struct layout size overflow");
+                    return false;
+                }
+                offset = fieldOffset + info.size;
+            }
+        } else if (!unionLayout) {
             size_t remainder = offset % info.alignment;
             size_t padding = remainder == 0 ? 0 : info.alignment - remainder;
             if (offset > std::numeric_limits<size_t>::max() - padding) {
@@ -815,10 +900,16 @@ bool layoutFromText(const std::string &text, StructLayout *out, bool unionLayout
                 return false;
             }
             fieldOffset = offset + padding;
+        } else if (isBitField) {
+            fieldBitOffset = 0;
         }
-        out->fields.push_back({name, type, fieldOffset, info.size, info.alignment});
-        if (unionLayout) offset = std::max(offset, info.size);
-        else {
+        out->fields.push_back({
+            name, type, fieldOffset, info.size, info.alignment,
+            fieldBitOffset, isBitField ? bitWidth : 0
+        });
+        if (unionLayout) {
+            offset = std::max(offset, info.size);
+        } else if (!isBitField) {
             if (fieldOffset > std::numeric_limits<size_t>::max() - info.size) {
                 PyErr_SetString(PyExc_OverflowError, "struct layout size overflow");
                 return false;
@@ -2744,6 +2835,10 @@ PyObject *pyMemoryStructFieldType(PyObject *, PyObject *args) {
     if (!layoutFromObject(layoutObject, &layout, maxAlignment)) return nullptr;
     for (const auto &item : layout.fields) {
         if (item.name == field) {
+            if (item.bitWidth != 0) {
+                std::string type = item.type + ":" + std::to_string(item.bitWidth);
+                return PyUnicode_FromString(type.c_str());
+            }
             return PyUnicode_FromString(item.type.c_str());
         }
     }
@@ -2785,6 +2880,79 @@ PyObject *pyMemoryStructField(PyObject *, PyObject *args, bool wantSize) {
     return nullptr;
 }
 
+uint64_t bitFieldMask(size_t width) {
+    return width == 64 ? std::numeric_limits<uint64_t>::max()
+                       : ((uint64_t{1} << width) - 1);
+}
+
+bool bitFieldIsSigned(const std::string &type) {
+    return type == "int8" || type == "int16" ||
+           type == "int32" || type == "int64";
+}
+
+PyObject *readBitField(void *ptr, const StructField &field) {
+    if (!validateMemory(ptr, field.offset, field.size)) return nullptr;
+    uint64_t storage = 0;
+    std::memcpy(&storage, static_cast<unsigned char *>(ptr) + field.offset,
+                field.size);
+    uint64_t raw = (storage >> field.bitOffset) & bitFieldMask(field.bitWidth);
+    if (bitFieldIsSigned(field.type)) {
+        std::int64_t value;
+        if (field.bitWidth == 64) {
+            value = static_cast<std::int64_t>(raw);
+        } else {
+            uint64_t mask = bitFieldMask(field.bitWidth);
+            uint64_t sign = uint64_t{1} << (field.bitWidth - 1);
+            value = static_cast<std::int64_t>(
+                (raw & sign) != 0 ? (raw | ~mask) : raw);
+        }
+        return PyLong_FromLongLong(value);
+    }
+    return PyLong_FromUnsignedLongLong(raw);
+}
+
+bool parseBitFieldValue(PyObject *valueObject, const StructField &field,
+                        uint64_t *raw) {
+    if (bitFieldIsSigned(field.type)) {
+        long long value = PyLong_AsLongLong(valueObject);
+        if (PyErr_Occurred()) return false;
+        if (field.bitWidth < 64) {
+            long long minimum = -(int64_t{1} << (field.bitWidth - 1));
+            long long maximum = (int64_t{1} << (field.bitWidth - 1)) - 1;
+            if (value < minimum || value > maximum) {
+                PyErr_SetString(PyExc_OverflowError,
+                                "signed bit-field value is outside its declared width");
+                return false;
+            }
+        }
+        *raw = static_cast<uint64_t>(value) & bitFieldMask(field.bitWidth);
+        return true;
+    }
+    unsigned long long value = PyLong_AsUnsignedLongLong(valueObject);
+    if (PyErr_Occurred()) return false;
+    if (field.bitWidth < 64 && value > bitFieldMask(field.bitWidth)) {
+        PyErr_SetString(PyExc_OverflowError,
+                        "unsigned bit-field value is outside its declared width");
+        return false;
+    }
+    *raw = static_cast<uint64_t>(value);
+    return true;
+}
+
+bool writeBitField(void *ptr, const StructField &field, PyObject *valueObject) {
+    if (!validateMemory(ptr, field.offset, field.size)) return false;
+    uint64_t raw = 0;
+    if (!parseBitFieldValue(valueObject, field, &raw)) return false;
+    uint64_t storage = 0;
+    unsigned char *bytes = static_cast<unsigned char *>(ptr) + field.offset;
+    std::memcpy(&storage, bytes, field.size);
+    uint64_t mask = bitFieldMask(field.bitWidth) << field.bitOffset;
+    storage = (storage & ~mask) |
+              ((raw & bitFieldMask(field.bitWidth)) << field.bitOffset);
+    std::memcpy(bytes, &storage, field.size);
+    return true;
+}
+
 PyObject *pyMemoryStructGet(PyObject *, PyObject *args) {
     std::lock_guard<std::recursive_mutex> memoryLock(memoryMutex);
     PyObject *addressObject; const char *field;
@@ -2797,6 +2965,7 @@ PyObject *pyMemoryStructGet(PyObject *, PyObject *args) {
     }
     for (const auto &item : block->second.fields) {
         if (item.name == field) {
+            if (item.bitWidth != 0) return readBitField(ptr, item);
             MemoryType info;
             if (!memoryType(item.type, &info) ||
                 !validateMemory(ptr, item.offset, info.size)) {
@@ -2843,6 +3012,10 @@ PyObject *pyMemoryStructSet(PyObject *, PyObject *args) {
     }
     for (const auto &item : block->second.fields) {
         if (item.name == field) {
+            if (item.bitWidth != 0) {
+                if (!writeBitField(ptr, item, valueObject)) return nullptr;
+                Py_RETURN_NONE;
+            }
             MemoryType info;
             if (!memoryType(item.type, &info) ||
                 !validateMemory(ptr, item.offset, info.size)) {

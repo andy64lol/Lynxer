@@ -2,7 +2,9 @@
 
 Lynxer exposes a named, low-level wrapper for each syscall in the table below.
 Each wrapper resolves the Linux syscall number for the host architecture from
-the `system-calls` tables and issues the call through `ctypes`.
+the required `system-calls` tables and issues the call through `ctypes`.
+Install the project dependencies before importing Lynxer; a missing
+`system-calls` package is an installation error, not an optional feature.
 
 ## Naming
 
@@ -29,10 +31,9 @@ Lynxer currently permits these wrappers only on 64-bit Linux x86-64
 names before looking up numbers, and refuses unsupported architectures or
 32-bit Python ABIs instead of dispatching with the wrong table.
 
-Not every architecture provides every syscall in the tables below. Calling one
-that the host architecture is missing, such as `syscallPollFileDescriptors` on
-arm64, where the kernel only exposes `ppoll`, is a runtime error naming the
-syscall and the architecture.
+The built-in registry accounts for architecture-specific syscall names.
+`syscallPollFileDescriptors` uses `poll` on x86-64 and `ppoll` on ARM64, so
+the same Lynxer source works on both architectures.
 
 For example:
 
@@ -159,7 +160,7 @@ NUL, into the supplied buffer and returns its length including that NUL.
 
 | Built-in | Linux syscall | Arguments |
 | --- | --- | --- |
-| `syscallPollFileDescriptors(fds, count, timeout)` | `poll` | pollfd array address, count, timeout |
+| `syscallPollFileDescriptors(fds, count, timeout_ms)` | `poll` (x86-64), `ppoll` (ARM64) | pollfd array address, count, timeout in milliseconds |
 | `syscallCreateEventPoll(flags)` | `epoll_create1` | flags |
 | `syscallControlEventPoll(epoll, operation, fd, event)` | `epoll_ctl` | epoll descriptor, `EPOLL_CTL_*`, descriptor, event address |
 | `syscallWaitForEvents(epoll, events, maxevents, timeout)` | `epoll_wait` | epoll descriptor, event array, capacity, timeout |

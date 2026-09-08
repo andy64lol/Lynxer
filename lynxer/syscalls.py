@@ -19,8 +19,11 @@ from typing import Sequence
 
 try:
     import system_calls
-except ImportError:  # pragma: no cover - every build installs it
-    system_calls = None
+except ImportError as error:  # pragma: no cover - installation failure
+    raise ImportError(
+        "Lynxer requires the 'system-calls' package; "
+        "install dependencies from requirements_venv.txt"
+    ) from error
 
 MAX_SYSCALL_ARGS = 6
 SUPPORTED_ARCHITECTURES = frozenset({"arm64", "x86_64"})
@@ -145,6 +148,20 @@ SYSCALL_TABLE: dict[str, str] = {
 }
 
 
+def syscall_name_for_arch(builtin: str, architecture: str) -> str:
+    """Return the Linux syscall used by a Lynxer built-in on one architecture.
+
+    ``poll`` has no ARM64 syscall number.  The compatibility built-in keeps
+    its three-argument millisecond API and is adapted to ARM64 ``ppoll`` by
+    :func:`invoke`.
+    """
+    if builtin not in SYSCALL_TABLE:
+        raise ValueError(f"unknown syscall built-in '{builtin}'")
+    if builtin == "syscallPollFileDescriptors" and architecture == "arm64":
+        return "ppoll"
+    return SYSCALL_TABLE[builtin]
+
+
 def host_architecture() -> str:
     """Return the ``system_calls`` table name for the host architecture."""
     machine = os.uname().machine.lower() if hasattr(os, "uname") else sys.platform
@@ -212,8 +229,6 @@ def _syscall_number(name: str) -> int:
     number = _cache.get(cache_key)
     if number is not None:
         return number
-    if system_calls is None:
-        raise RuntimeError("the 'system-calls' package is required for named syscalls")
     if _table is None:
         _table = system_calls.syscalls()
     try:
@@ -241,7 +256,7 @@ def unavailable() -> list[str]:
     missing = []
     for builtin, name in SYSCALL_TABLE.items():
         try:
-            _syscall_number(name)
+            _syscall_number(syscall_name_for_arch(builtin, require_supported_platform()))
         except (RuntimeError, NotImplementedError, TypeError):
             missing.append(builtin)
     return sorted(missing)
@@ -271,11 +286,41 @@ def invoke(builtin: str, args: Sequence[int]) -> int:
         raise ValueError("syscalls accept at most six arguments")
     if any(isinstance(arg, bool) or not isinstance(arg, int) for arg in args):
         raise TypeError("syscall arguments must be integers")
-    number = _syscall_number(SYSCALL_TABLE[builtin])
+    architecture = require_supported_platform()
+    syscall_name = syscall_name_for_arch(builtin, architecture)
+    number = _syscall_number(syscall_name)
     if _libc is None:
         _libc = _load_libc()
     # ctypes requires every declared argument, so unused slots are padded.
-    values = [_encode(arg) for arg in args]
+    call_args = list(args)
+    keepalive = None
+    if syscall_name == "ppoll" and builtin == "syscallPollFileDescriptors":
+        if len(call_args) != 3:
+            raise ValueError(
+                "syscallPollFileDescriptors(fds, count, timeout_ms) expects three arguments"
+            )
+        timeout_ms = call_args[2]
+        if timeout_ms < 0:
+            timeout_pointer = 0
+        else:
+            class _Timespec(ctypes.Structure):
+                _fields_ = [
+                    ("tv_sec", ctypes.c_long),
+                    ("tv_nsec", ctypes.c_long),
+                ]
+
+            keepalive = _Timespec(timeout_ms // 1000, (timeout_ms % 1000) * 1_000_000)
+            timeout_pointer = ctypes.addressof(keepalive)
+        # ppoll(fds, nfds, timeout, sigmask, sigsetsize), with the same
+        # millisecond timeout API exposed by the existing Lynxer built-in.
+        call_args = [
+            call_args[0],
+            call_args[1],
+            timeout_pointer,
+            0,
+            ctypes.sizeof(ctypes.c_ulong),
+        ]
+    values = [_encode(arg) for arg in call_args]
     values.extend([0] * (MAX_SYSCALL_ARGS - len(values)))
     ctypes.set_errno(0)
     result = _libc.syscall(number, *values)

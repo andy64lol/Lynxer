@@ -49,7 +49,7 @@ built-in stdlib.
 
 ---
 
-## Bytecode format (v8)
+## Bytecode format (v9)
 
 | Field | Details |
 |-------|---------|

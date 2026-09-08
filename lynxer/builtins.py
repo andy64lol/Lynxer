@@ -25,7 +25,15 @@ from collections.abc import Callable
 from typing import Any, TypeVar, cast
 
 _runtime = importlib.import_module(".lynxer", package=__package__)
-_MEMORY_LIB = importlib.import_module(".cpp", package=__package__)
+try:
+    _MEMORY_LIB = importlib.import_module(".cpp", package=__package__)
+except ModuleNotFoundError as error:
+    if error.name != f"{__package__}.cpp":
+        raise
+    # Pure Lynxer programs do not need the optional native extension.  Keep
+    # the interpreter importable so callers can detect native capabilities
+    # and receive a normal runtime error only when they use one.
+    _MEMORY_LIB = None
 _syscalls = importlib.import_module(".syscalls", package=__package__)
 
 
@@ -47,7 +55,7 @@ type_matches = _runtime.type_matches
 value_type_name = _runtime.value_type_name
 _get_cython_inline = _runtime._get_cython_inline
 
-_MEMORY_TYPES = {
+_MEMORY_TYPES = {} if _MEMORY_LIB is None else {
     "byte": (1, _MEMORY_LIB.memoryReadByte, _MEMORY_LIB.memoryWriteByte, 0, 255),
     "int8": (1, _MEMORY_LIB.memoryReadInt8, _MEMORY_LIB.memoryWriteInt8, -(2**7), 2**7 - 1),
     "uint8": (1, _MEMORY_LIB.memoryReadUInt8, _MEMORY_LIB.memoryWriteUInt8, 0, 2**8 - 1),

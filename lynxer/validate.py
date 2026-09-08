@@ -89,8 +89,8 @@ def validate_syscall_layer():
         print("  unavailable on this architecture: " + ", ".join(missing))
     if len(missing) == total:
         raise ValidationFailure(
-            "no syscall built-ins can be dispatched; install the "
-            f"'system-calls' package and check support for {architecture}"
+            "no syscall built-ins can be dispatched; check the installed "
+            f"system-calls table for {architecture}"
         )
 
 

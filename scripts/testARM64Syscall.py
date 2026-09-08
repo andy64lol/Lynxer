@@ -26,21 +26,21 @@ except ImportError as exc:  # pragma: no cover - exercised by an incomplete env
     print(f"       {exc}", file=sys.stderr)
     raise SystemExit(1)
 
-from lynxer.syscalls import SYSCALL_TABLE  # noqa: E402
+from lynxer.syscalls import SYSCALL_TABLE, syscall_name_for_arch  # noqa: E402
 
 
 ARCHITECTURE = "arm64"
 # Linux ARM64 has ppoll and epoll_pwait, not the legacy poll and epoll_wait
-# syscalls.  Lynxer keeps those built-ins in its cross-architecture registry
-# and reports them unavailable.
-EXPECTED_UNAVAILABLE = {"poll", "epoll_wait"}
+# syscalls.  The poll-compatible Lynxer built-in is adapted to ppoll.
+EXPECTED_UNAVAILABLE = {"epoll_wait"}
 
 
 def main() -> int:
     database = system_calls.syscalls()
     table = database.load_arch_table(ARCHITECTURE)
     builtins_by_syscall: dict[str, list[str]] = {}
-    for builtin, syscall_name in SYSCALL_TABLE.items():
+    for builtin in SYSCALL_TABLE:
+        syscall_name = syscall_name_for_arch(builtin, ARCHITECTURE)
         builtins_by_syscall.setdefault(syscall_name, []).append(builtin)
 
     print(f"ARM64 syscall database: {len(table)} entries")
@@ -56,7 +56,8 @@ def main() -> int:
 
     print("\nExpected Lynxer ARM64 mappings:")
     failures: list[str] = []
-    for builtin, syscall_name in SYSCALL_TABLE.items():
+    for builtin in SYSCALL_TABLE:
+        syscall_name = syscall_name_for_arch(builtin, ARCHITECTURE)
         if syscall_name in table:
             print(f"  {builtin:<40} -> {syscall_name:<23} #{table[syscall_name]}")
         elif syscall_name in EXPECTED_UNAVAILABLE:

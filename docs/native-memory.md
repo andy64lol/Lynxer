@@ -92,6 +92,33 @@ through their offset and size; use native memory reads and writes at those
 locations rather than `memoryStructGet`/`memoryStructSet`, which operate on
 scalar fields.
 
+Integer bit-fields use the C-style `type name:width` spelling:
+
+```lynx
+str layout = "uint8 ready:1, uint8 mode:3, uint8 mask:4, uint16 count";
+int value = memoryStructAllocate(layout);
+memoryStructSet(value, "ready", 1);
+memoryStructSet(value, "mode", 5);
+memoryStructSet(value, "mask", 10);
+println(memoryStructGet(value, "mode")); // 5
+memoryFree(value);
+```
+
+Bit-fields are limited to `byte`, signed/unsigned 8-, 16-, 32-, and 64-bit
+integer storage types. The width must be positive and no wider than its
+storage type. Consecutive fields with the same storage type share one storage
+unit until it is full; a different storage type starts a new unit. Values are
+packed from the least-significant bit, signed fields are sign-extended on read,
+and writes validate the declared width. `memoryStructFieldOffset()` returns
+the storage-unit byte offset, `memoryStructFieldSize()` returns that unit's
+byte size, and `memoryStructFieldType()` includes the width (for example,
+`uint8:3`).
+
+This is a stable Lynxer layout rule rather than a promise to reproduce every
+compiler's implementation-defined C bit-field ABI. Use explicit byte/bit
+access when interoperating with an externally compiled struct whose compiler
+packing rules must be matched exactly.
+
 ### Packed layouts
 
 Every `memoryStruct*` function that takes a layout string accepts an optional
@@ -111,9 +138,6 @@ power of two; anything else is rejected. `memoryStructAllocate(layout, 1)`
 stores the packed layout with the block, so `memoryStructGet` and
 `memoryStructSet` keep using the packed offsets without repeating the
 argument.
-
-Bit fields are **not** supported: field offsets are byte-granular and
-`memoryStructGet`/`memoryStructSet` operate on whole-byte scalars.
 
 ## C/C++ FFI
 

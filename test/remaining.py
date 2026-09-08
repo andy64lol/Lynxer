@@ -90,6 +90,9 @@ def native_available() -> bool:
 # ---------------------------------------------------------------------------
 
 def test_mutable_ownership() -> None:
+    if not native_available():
+        print("SKIP  mutable ownership: native extension not built")
+        return
     require_output(
         """global setup(){}
 global main(){
@@ -111,6 +114,9 @@ global main(){
 
 
 def test_read_only_borrow_rejection() -> None:
+    if not native_available():
+        print("SKIP  read-only borrow rejection: native extension not built")
+        return
     require_error(
         """global setup(){}
 global main(){
@@ -213,6 +219,36 @@ global main(){
 }""",
         "1\n2\n",
         "reused switch binding name",
+    )
+
+
+def test_switch_duplicate_pattern_is_rejected() -> None:
+    require_error(
+        """global setup(){}
+global main(){
+    int value = 1;
+    switch(value){
+        case(1){ println("first"); }
+        case(1){ println("second"); }
+    }
+}""",
+        "Duplicate switch pattern",
+        "duplicate switch pattern",
+    )
+
+
+def test_switch_unreachable_pattern_is_rejected() -> None:
+    require_error(
+        """global setup(){}
+global main(){
+    int value = 1;
+    switch(value){
+        case(_){ println("everything"); }
+        case(1){ println("never"); }
+    }
+}""",
+        "Unreachable switch pattern",
+        "unreachable switch pattern",
     )
 
 
@@ -482,6 +518,8 @@ TESTS = [
     test_enum_payload_validation,
     test_switch_binding_shadowing_is_an_error,
     test_switch_binding_name_is_reusable,
+    test_switch_duplicate_pattern_is_rejected,
+    test_switch_unreachable_pattern_is_rejected,
     test_duplicate_enum_name,
     test_enum_conflicts_with_func,
     test_func_conflicts_with_enum,

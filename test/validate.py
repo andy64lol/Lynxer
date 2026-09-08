@@ -30,6 +30,7 @@ from lynxer.bytecode import compile_to_bytecode, load_bytecode, run_bytecode  # 
 from lynxer import bundle as bundle_module  # noqa: E402
 from lynxer.install import INSTALL_PATH, _is_elf, _matching_pids  # noqa: E402
 from lynxer.lynxer import Error, RTError, run  # noqa: E402
+from lynxer import syscalls as syscall_runtime  # noqa: E402
 
 
 class ValidationFailure(Exception):
@@ -41,6 +42,15 @@ def run_source(source: str, filename: str = "<validation>") -> tuple[str, Error 
     with contextlib.redirect_stdout(output):
         _, error = run(filename, source)
     return output.getvalue(), error
+
+
+def native_available() -> bool:
+    """Return whether the optional compiled native extension is importable."""
+    try:
+        import lynxer.cpp  # noqa: F401
+    except Exception:  # noqa: BLE001
+        return False
+    return True
 
 
 def require_output(source: str, expected: str, name: str) -> None:
@@ -142,6 +152,9 @@ global main(){
 
 
 def test_ownership_operations() -> None:
+    if not native_available():
+        print("SKIP  ownership operations: native extension not built")
+        return
     require_output(
         """global setup(){}
 global main(){
@@ -445,6 +458,9 @@ global main(){ println("cache"); }"""
 
 
 def test_low_level_memory() -> None:
+    if not native_available():
+        print("SKIP  low-level memory: native extension not built")
+        return
     source_path = ROOT / "test" / "test20.lynx"
     source = source_path.read_text(encoding="utf-8")
     expected = (
@@ -562,6 +578,54 @@ global main(){
 }""",
         "42\n2.5\n8\n4\n",
         "native struct layouts",
+    )
+    require_output(
+        """global setup(){}
+global main(){
+    str layout = "uint8 ready:1, uint8 mode:3, uint8 mask:4, uint16 count";
+    int value = memoryStructAllocate(layout);
+    memoryStructSet(value, "ready", 1);
+    memoryStructSet(value, "mode", 5);
+    memoryStructSet(value, "mask", 10);
+    memoryStructSet(value, "count", 513);
+    println(memoryStructGet(value, "ready"));
+    println(memoryStructGet(value, "mode"));
+    println(memoryStructGet(value, "mask"));
+    println(memoryStructGet(value, "count"));
+    println(memoryStructFieldOffset(layout, "mode"));
+    println(memoryStructFieldSize(layout, "mode"));
+    println(memoryStructFieldType(layout, "mode"));
+    println(memoryStructSize(layout));
+    memoryFree(value);
+}""",
+        "1\n5\n10\n513\n0\n1\nuint8:3\n4\n",
+        "native C bit-fields",
+    )
+    require_output(
+        """global setup(){}
+global main(){
+    str layout = "int8 signed:3, uint8 rest:5";
+    int value = memoryStructAllocate(layout);
+    memoryStructSet(value, "signed", -3);
+    memoryStructSet(value, "rest", 17);
+    println(memoryStructGet(value, "signed"));
+    println(memoryStructGet(value, "rest"));
+    memoryFree(value);
+}""",
+        "-3\n17\n",
+        "signed native C bit-fields",
+    )
+    require_error(
+        """global setup(){}
+global main(){ memoryStructSize("uint8 tooWide:9"); }""",
+        "bit-field width exceeds",
+        "bit-field width validation",
+    )
+    require_error(
+        """global setup(){}
+global main(){ memoryStructSize("float32 invalid:1"); }""",
+        "bit-fields require an integer",
+        "bit-field type validation",
     )
     require_output(
         """global setup(){}

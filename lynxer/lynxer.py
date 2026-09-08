@@ -4182,6 +4182,105 @@ class Parser:
 
         return res.success(DoWhileNode(condition, body, pos_start, body.pos_end))
 
+    def _switch_pattern_equal(self, left, right):
+        """Compare patterns without treating source locations as semantics.
+
+        Literal expressions are intentionally compared structurally.  That
+        catches repeated literal syntax such as ``case(2)``/``case(2)`` while
+        avoiding evaluation during parsing (``case(1 + 1)`` versus
+        ``case(2)`` remains a valid runtime-equivalence edge case).
+        """
+        if not isinstance(left, PatternNode) or not isinstance(right, PatternNode):
+            return False
+        if left.kind != right.kind:
+            return False
+        if left.kind in {"wildcard", "binding"}:
+            return left.kind == right.kind and (
+                left.kind == "wildcard" or left.value == right.value
+            )
+        if left.kind == "literal":
+            return self._switch_ast_equal(left.value, right.value)
+        if left.kind == "enum":
+            return (
+                left.value == right.value
+                and len(left.items) == len(right.items)
+                and all(
+                    self._switch_pattern_equal(a, b)
+                    for a, b in zip(left.items, right.items)
+                )
+            )
+        if left.kind in {"list", "tuple"}:
+            return len(left.items) == len(right.items) and all(
+                self._switch_pattern_equal(a, b)
+                for a, b in zip(left.items, right.items)
+            )
+        return False
+
+    def _switch_ast_equal(self, left, right):
+        """Compare literal AST values while ignoring positions."""
+        if type(left) is not type(right):
+            return False
+        if isinstance(left, Token):
+            return left.type == right.type and left.value == right.value
+        if isinstance(left, (str, int, float, bool, type(None))):
+            return left == right
+        if isinstance(left, list):
+            return len(left) == len(right) and all(
+                self._switch_ast_equal(a, b) for a, b in zip(left, right)
+            )
+        if not hasattr(left, "__dict__") or not hasattr(right, "__dict__"):
+            return left == right
+        left_attrs = {
+            key for key in vars(left) if key not in {"pos_start", "pos_end"}
+        }
+        right_attrs = {
+            key for key in vars(right) if key not in {"pos_start", "pos_end"}
+        }
+        if left_attrs != right_attrs:
+            return False
+        return all(
+            self._switch_ast_equal(getattr(left, key), getattr(right, key))
+            for key in left_attrs
+        )
+
+    @staticmethod
+    def _switch_pattern_is_universal(pattern):
+        """Whether a top-level pattern matches every scrutinee value."""
+        return (
+            isinstance(pattern, PatternNode)
+            and pattern.kind in {"wildcard", "binding"}
+        )
+
+    def _validate_switch_patterns(self, cases, res):
+        """Reject duplicate and obviously unreachable case patterns.
+
+        This is deliberately conservative: only structural duplicates and a
+        top-level wildcard/binding are diagnosed.  Proving equivalence of
+        arbitrary expressions or nested type patterns would require evaluating
+        user code during parsing and would be less safe than a runtime match.
+        """
+        seen = []
+        for case in cases:
+            if not isinstance(case, CaseNode):
+                continue
+            for previous in seen:
+                if self._switch_pattern_is_universal(previous):
+                    return res.failure(InvalidSyntaxError(
+                        case.pos_start,
+                        case.pos_end,
+                        "Unreachable switch pattern: a previous wildcard or "
+                        "binding pattern matches every value.",
+                    ))
+                if self._switch_pattern_equal(previous, case.match_node):
+                    return res.failure(InvalidSyntaxError(
+                        case.pos_start,
+                        case.pos_end,
+                        "Duplicate switch pattern: this case is already "
+                        "covered by an earlier case.",
+                    ))
+            seen.append(case.match_node)
+        return None
+
     def parse_switch(self):
         res = ParseResult()
         pos_start = self.current_tok.pos_start.copy()
@@ -4249,6 +4348,10 @@ class Parser:
                     case.pos_end,
                     "Only case(...){} or default(){} blocks are allowed directly inside a switch",
                 ))
+
+        pattern_error = self._validate_switch_patterns(cases, res)
+        if pattern_error is not None:
+            return pattern_error
 
         pos_end = body.pos_end
         return res.success(SwitchNode(value_node, cases, pos_start, pos_end))

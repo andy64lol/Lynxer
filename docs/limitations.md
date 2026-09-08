@@ -30,20 +30,24 @@ Still missing:
 The `--no-opt` flag is real now: it selects an unfolded AST and is recorded in
 the bytecode metadata.
 
-## C ABI: bit fields — not implemented
+## C ABI: compiler-specific bit-field ABI remains limited
 
-`todo.md` ("C ABI completeness") claims packing, padding, and bit fields.
+Native layouts now support explicit integer bit-fields such as
+`uint8 ready:1`, including allocation, introspection, signed reads, range
+validation, and read/modify/write access.
 
 **Packing is implemented.** Every `memoryStruct*` function that takes a layout
 string accepts an optional trailing alignment argument that clamps the
 alignment of every field and of any nested aggregate. See
 [native-memory.md](native-memory.md#packed-layouts).
 
-**Bit fields are not.** `StructField.offset` in `lynxer/cpp.cpp` is
-byte-granular, and `memoryStructGet`/`memoryStructSet` dispatch on the field
-type to whole-byte readers and writers that reject aggregates outright.
-Bit fields need bit-offset and bit-width metadata plus new bit-level read and
-write paths — a rewrite of the field accessors, not a tweak.
+**The remaining limitation is compiler ABI compatibility.** Lynxer uses a
+documented least-significant-bit-first storage rule and groups consecutive
+fields with the same declared integer storage type. C and C++ leave bit-field
+allocation order, cross-type grouping, and some signedness behavior
+implementation-defined, so this does not claim byte-for-byte compatibility
+with every external compiler's native struct layout. Use explicit layout
+metadata or byte-level access when an external compiler's ABI is authoritative.
 
 What is real: nested and inline structs/unions, fixed arrays, dynamically
 sized arrays via `memoryBlockAllocate`, function-pointer fields, host-derived
@@ -64,10 +68,13 @@ Fixed since this page was written: `nativeThreadJoinAll()` is now exposed as a
 Lynxer builtin, so a program can join every thread it left running instead of
 relying on the interpreter's exit-time safety net.
 
-## async I/O: `poll`, not `epoll`
+## async I/O: `poll`/`ppoll`, not `epoll`
 
 `todo.md` ("async I/O") asks for epoll. The implementation is a `select.poll`
-event loop (`lynxer/builtins.py`), which on Linux is a `poll(2)` wrapper.
+event loop (`lynxer/builtins.py`), which on Linux uses the host's poll
+interface. The raw `syscallPollFileDescriptors` builtin uses `poll(2)` on
+x86-64 and adapts its existing millisecond timeout API to `ppoll(2)` on ARM64,
+where the legacy `poll` syscall is absent.
 [async.md](async.md) describes it honestly as an event poller and never claims
 epoll. The `asyncPoll*` API and the syscall wrappers `syscallCreateEventPoll`,
 `syscallControlEventPoll`, and `syscallWaitForEvents` do expose real epoll when
@@ -89,17 +96,17 @@ Fixed since this page was written: duplicate enum names and enum/function name
 collisions are both diagnosed at parse time, with the original declaration's
 line in the message.
 
-## Switch patterns: no duplicate or unreachable-pattern diagnostics
+## Switch patterns: conservative duplicate and reachability diagnostics
 
-`todo.md` asks for diagnostics for duplicate and unreachable patterns. Neither
-exists.
+The parser now rejects structurally duplicate patterns and any case after a
+top-level wildcard or binding pattern. This catches the common accidental
+forms without evaluating user expressions during parsing.
 
-- Duplicate detection would need a structural comparator for `PatternNode`,
-  and "duplicate" is ill-defined for literal patterns because they hold an
-  *unevaluated* expression — `case(1+1)` and `case(2)` mean the same thing but
-  have different trees.
-- Unreachable detection (subsumption) is a lattice problem with no
-  infrastructure behind it.
+The analysis is intentionally conservative. Literal expressions remain
+unevaluated, so `case(1+1)` and `case(2)` are not diagnosed as duplicates even
+though they may match the same value at runtime. Nested subsumption (for
+example, proving that one enum or sequence pattern covers another) also
+remains unsupported.
 
 One case has been closed: a binding pattern whose name already refers to a real
 variable used to silently degrade into an equality comparison. It is now a

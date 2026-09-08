@@ -24,6 +24,7 @@ lynxer hello.lynx  # run a Lynxer source file
 
 - Python 3.14 or later
 - `cython` Python package (for `rawPyx` support)
+- `system-calls` Python package (required for the named Linux syscall built-ins)
 - `setuptools` Python package (Cython shim on Python 3.12+)
 - A C++ compiler (`g++` or `clang++`) for Lynxer's native memory extension
 - A C compiler (`gcc` or `cc`) for Cython compilation
@@ -38,9 +39,9 @@ make build
 
 The build automatically compiles `lynxer/cpp.cpp` for the active Python
 interpreter and includes the resulting native extension in the executable.
-It also installs and bundles the architecture-aware `system-calls` tables for
-the active Linux host. Run `make platform-check` to perform the same platform
-check without building.
+It also installs and bundles the required architecture-aware `system-calls`
+tables for the active Linux host. Run `make platform-check` to perform the
+same platform check without building.
 To compile only that extension during development, run:
 
 ```bash
