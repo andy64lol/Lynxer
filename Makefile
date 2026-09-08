@@ -19,8 +19,9 @@ CYTHON_COLLECT_ALL := --collect-all=Cython --collect-all=setuptools
 
 SYSTEM_CALLS_DEP := system-calls
 SYSTEM_CALLS := --hidden-import system_calls --hidden-import lynxer.syscalls --collect-submodules system_calls --collect-all=system_calls
+NATIVE_HIDDEN_IMPORTS := --hidden-import lynxer.cpp --hidden-import lynxer.bytecode_vm
 
-.PHONY: venv deps liteDeps platform-check build buildLite buildCpp test testAMR64 validate check clean cleanCpp cleanLynxc help
+.PHONY: venv deps liteDeps platform-check build buildLite buildCpp test testAMR64 validate check clean cleanC cleanCpp cleanLynxc cleanAll help
 
 venv:
 	@if [ ! -d "$(VENV)" ]; then \
@@ -97,8 +98,7 @@ build: platform-check buildCpp
 		--clean \
 		$(COLLECT_ALL) \
 		--name lynxer \
-		--hidden-import lynxer.cpp \
-	--hidden-import lynxer.bytecode_vm \
+		$(NATIVE_HIDDEN_IMPORTS) \
 		$(SYSTEM_CALLS) \
 		$(WARNING_DATA) \
 		--add-data "lynxer/stdlib:stdlib" \
@@ -121,8 +121,7 @@ buildLite: lite-platform-check buildCpp
 		$(CYTHON_COLLECT_ALL) \
 		--hidden-import Cython.Build.Inline \
 		--name lynxer-lite \
-		--hidden-import lynxer.cpp \
-	--hidden-import lynxer.bytecode_vm \
+		$(NATIVE_HIDDEN_IMPORTS) \
 		$(SYSTEM_CALLS) \
 		$(WARNING_DATA) \
 		--add-data "build/stdlib_pure:stdlib" \
@@ -142,16 +141,21 @@ clean:
 	@rm -rf build dist *.spec lynxer/build 2>/dev/null || true
 	@echo "✓ Cleaned."
 	@echo "  (kept stdlib/*.lynxc and the built native extensions;"
-	@echo "   run 'make cleanLynxc' or 'make cleanCpp' to remove those)"
+	@echo "   run 'make cleanLynxc' or 'make cleanC' to remove those)"
 
-cleanCpp:
+cleanC:
 	@rm -rf lynxer/build 2>/dev/null || true
 	@find lynxer -maxdepth 1 -name '*.so' -delete 2>/dev/null || true
 	@echo "✓ Cleaned the native extensions (lynxer/*.so)."
 
+cleanCpp: cleanC
+
 cleanLynxc:
 	@find . -name '*.lynxc' -delete 2>/dev/null || true
 	@echo "✓ Cleaned compiled bytecode (*.lynxc)."
+
+cleanAll: clean cleanC cleanLynxc
+	@echo "✓ Cleaned all generated build artifacts."
 
 help:
 	@echo "Lynxer build targets:"
@@ -166,8 +170,10 @@ help:
 	@echo "  make testAMR64"
 	@echo "  make check"
 	@echo "  make clean"
+	@echo "  make cleanC"
 	@echo "  make cleanCpp"
 	@echo "  make cleanLynxc"
+	@echo "  make cleanAll"
 	@echo "  make help"
 	@echo ""
 	@echo "Lynxer source commands:"
