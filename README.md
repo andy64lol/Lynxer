@@ -120,7 +120,7 @@ lynxer/
   shell.py          CLI entry point
   stdlib/           Standard library modules (.lynx files; native memory is built in)
   cpp.cpp           C++ implementation of core memory built-ins
-  bytecode_vm.c     C bytecode stack-machine executor
+  bytecode_vm.cpp    C++ bytecode stack-machine executor
   setup.py          Native extension build script
 docs/               Documentation
 syntax.lynx         Full syntax showcase

@@ -11,11 +11,9 @@ os.chdir(ROOT)
 if os.name == "nt":
     compile_args = ["/std:c++17"]
     link_args = []
-    bytecode_compile_args = ["/O2"]
 else:
     compile_args = ["-std=c++17", "-pthread"]
     link_args = ["-pthread"]
-    bytecode_compile_args = ["-O3"]
 
 setup(
     name="lynxer-cpp",
@@ -30,9 +28,10 @@ setup(
         ),
         Extension(
             "bytecode_vm",
-            sources=[str(ROOT / "bytecode_vm.c")],
-            language="c",
-            extra_compile_args=bytecode_compile_args,
+            sources=[str(ROOT / "bytecode_vm.cpp")],
+            language="c++",
+            extra_compile_args=compile_args,
+            extra_link_args=link_args,
         ),
     ],
 )

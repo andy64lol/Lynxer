@@ -130,7 +130,7 @@ buildLite: lite-platform-check buildCpp
 	@echo "✓ Lite build complete: dist/lynxer-lite"
 
 buildCpp: venv
-	@echo "Building Lynxer C++ memory extension..."
+	@echo "Building Lynxer C++ native extensions..."
 	@$(VENV_PY) lynxer/setup.py build_ext --inplace
 	@echo "✓ Native extensions built in lynxer/ (memory + bytecode VM)"
 
