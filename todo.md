@@ -422,99 +422,145 @@
 
 ## Python → C/C++ toolchain migration
 
-Move the ~20.5k lines of Python toolchain to a single native C++17
-executable. The ~18.5k lines of `.lynx` stdlib need no porting. Already
-native: `cpp.cpp` (memory/threads/FFI) and `bytecode_vm.cpp` (v9 AST
-decoder). PyInstaller disappears entirely; build moves to CMake.
+Two-stage plan: first rewrite the Python toolchain as clean, decoupled
+Python modules; once that is done, rewrite the whole project
+module-by-module to C/C++ instead of Python. Most of the ~18.5k lines
+of `.lynx` stdlib carries over, but modules that are thin wrappers
+around Python-hosted backends are not coming (see stdlib triage).
+Already native: `cpp.cpp`
+(memory/threads/FFI) and `bytecode_vm.cpp` (v9 AST decoder).
+PyInstaller disappears in the final stage; the build moves to CMake.
+
+Rationale: clean Python module boundaries make every later C++ port a
+mechanical translation of one unit behind a fixed API, instead of
+surgery on a monolith.
 
 ### Strategic decision (needed up front)
 
 - [ ] Decide the fate of Python-interop features (EmbedPy, raw `py`/`pyx`
   blocks, `exec` blocks, Cython inline, pyglet-backed games):
   - (a) embed libpython behind a build flag — full compat, Python stays
-  - (b) drop them in the native build, keep Python toolchain as
+  - (b) drop them in the native build, keep the Python toolchain as
     `lynxer-py` for a transition period (recommended start)
   - (c) reimplement natively per feature (ctypes FFI already exists in
     `cpp.cpp`; pyglet → SDL/sfml)
 
-### Phase 0 — Safety net
+### Stdlib triage
 
-- [ ] Golden-output corpus: run every `test/*.lynx` fixture + stdlib
-  through the Python implementation, capture stdout/stderr/error text
-- [ ] CI script diffing any candidate implementation byte-for-byte
-  against the corpus (template: `test_native_bytecode_vm`)
+Nearly every stdlib module currently reaches the Python host through
+`embedPy` bridges (measured: all 32 modules contain embedPy calls), so
+each module needs one of three outcomes before Stage 2 finishes.
 
-### Phase 1 — Native compiler front-end
+- Not coming (decided):
+  - [ ] Drop `tkinter.lynx` (1,242 lines) — pure Tk wrapper
+  - [ ] Drop `tkinterPlus.lynx` (2,198 lines) — customtkinter wrapper
+  - [ ] Native build raises a clear import-time error for dropped
+    modules: "module X is not available in the native build" (no
+    silent failure), with a pointer to the Python build for compat
+- Decide per module (Python-hosted backends, tied to the interop
+  decision):
+  - [ ] `turtle.lynx` (648) — wraps Python's `turtle`/Tk; drop or
+    native canvas reimplementation
+  - [ ] `venv.lynx` (164) — wraps Python venv; drop or reimplement
+  - [ ] `js.lynx` (133) / `lua.lynx` (129) — Python-hosted JS/Lua
+    runtimes; drop or embed native interpreters
+  - [ ] `game.lynx` (2,809) / `sound.lynx` (281) / `image.lynx`
+    (1,423) — pyglet/audio backends; native replacement is the
+    SDL/sfml path from the interop decision
+- Coming (replace the embedPy bridge with a native backend, keep the
+  `.lynx` API identical): `path`, `os`, `net`, `server`, `http`, `csv`,
+  `json`, `math`, `mathPlus`, `text`, `regex`, `re`, `time`, `sys`,
+  `cli`, `tui`, `fileIO`, `sqldb`, `random`, `colorlib`, `typing`,
+  `debug`, `multiprocessing`, `shell` — many map directly onto the
+  existing syscall layer and `cpp.cpp` primitives
+- [ ] Update the golden corpus to exclude dropped modules and add
+  fixtures asserting the import error for each
+- [ ] Document dropped modules in the stdlib docs and the bundle
+  failure diagnostics
 
-- [ ] Port `lexer.py` (669) to C++
-- [ ] Port `parser.py` (4,760) + `lynxerAst.py` (490) — direct
-  translation, already hand-written recursive descent
-- [ ] Port `bytecode.py`'s v9 *encoder*; reuse the existing decoder
-- [ ] Gate: C++-compiled `.lynxc` byte-identical to Python's for the
-  whole corpus; native decoder reconstructs identical ASTs
-- [ ] Deliverable: `lynxcc` binary
+### Stage 1 — Python module rewrite (no behavior change)
 
-### Phase 2 — Value & object model
+Goal: every Python module becomes a small, focused unit with a
+documented public API, zero circular imports, and a dependency graph
+that maps 1:1 onto future C++ translation units.
 
-- [ ] Reimplement `values.py` (2,914) as a refcounted C++ `Value`
-  hierarchy: Number/String/Char/List/LynxTuple/Null/Function/
-  ClassBlueprint/ClassInstance/Namespace/SymbolTable
-- [ ] `RTResult` error propagation + `error.py` exact message formats
-- [ ] Port `formatting.py` + `strings_with_arrows.py` (error display
-  parity — tests assert exact text)
-- [ ] Arbitrary-precision integers (bytecode relies on Python bigints —
-  needs a small bigint type)
-- [ ] Python-float `repr` parity, insertion-ordered dicts
+- [ ] Golden-output corpus first: run every `test/*.lynx` fixture +
+  stdlib through the current implementation, capture stdout/stderr/
+  error text; CI diff script — every Stage-1 step must keep it green
+- [ ] Define the target module layout and strict dependency direction,
+  e.g. error → lexer → ast → parser → bytecode (encode/decode) →
+  values → interpreter → builtins → stdlib glue → CLI
+- [ ] Break the existing circular imports (`lynxer.py` ↔ `runtime.py`
+  try/except cycle; values/builtins/runtime entanglement)
+- [ ] Split the monoliths into cohesive modules:
+  - [ ] `builtins.py` (4,816) → per-category modules (strings, lists,
+    dicts, io, ...)
+  - [ ] `parser.py` (4,760) → expression / statement / declaration /
+    pattern modules
+  - [ ] `runtime.py` (3,299) → interpreter core, async, embed-py,
+    native callbacks
+  - [ ] `values.py` (2,914) → value hierarchy vs type registry vs
+    Python conversions
+- [ ] Stop cross-module use of private (`_underscore`) names; promote
+  shared internals into a documented internal API module (warning and
+  error helpers, shared parameters logic)
+- [ ] Make runtime singletons explicit (class registry, warning state,
+  native VM cache) — passed-in context objects, not module globals
+- [ ] Keep the bytecode v9 encoder/decoder byte-identical (format
+  unchanged during Stage 1)
+- [ ] Gate: full test suite + golden corpus pass with identical
+  output; no API change visible outside the package
 
-### Phase 3 — Interpreter
+### Stage 2 — C/C++ rewrite (after Stage 1)
 
-- [ ] Port `runtime.py`'s `Interpreter` (3,299) to walk the AST decoded
-  by `bytecode_vm.cpp`
-- [ ] `async_visit_*` coroutines → C++20 coroutines or state machines
-- [ ] `_mp_workers.py` → threads/fork
-- [ ] Gate: all non-embedpy fixtures produce golden-identical output
-- [ ] Deliverable: native `lynxer` binary running `.lynxc` without CPython
+Each Stage-1 module is one porting unit with a defined API. Port in
+dependency order; keep both implementations runnable and diffable the
+whole time.
 
-### Phase 4 — Builtins
-
-- [ ] Port `builtins.py` (4,816 — biggest chunk, mostly repetitive
-  str/list/dict method surface)
-- [ ] Stdlib `.lynx` modules untouched
-- [ ] Re-target `cpp.cpp`'s memory/threads/FFI builtins to the new
-  Value model
-
-### Phase 5 — CLI, packaging, platform
-
-- [ ] `shell.py` → C++ `main()`
-- [ ] `syscalls.py` → direct syscalls (harness:
+- [ ] Port error / formatting / strings_with_arrows (exact message
+  parity)
+- [ ] Port lexer — gate: token-stream parity over the corpus
+- [ ] Port the AST as a C++ node hierarchy
+- [ ] Port parser — gate: structural AST parity
+- [ ] Port the bytecode encoder; reuse the existing `bytecode_vm.cpp`
+  decoder — gate: `.lynxc` output byte-identical
+- [ ] Port the value module → refcounted C++ `Value` hierarchy
+  (arbitrary-precision integers, Python-float `repr` parity,
+  insertion-ordered dicts)
+- [ ] Port the interpreter core; async → C++20 coroutines or explicit
+  state machines; multiprocessing workers → threads/fork — gate:
+  golden-identical output on all non-embedpy fixtures
+- [ ] Port the builtins modules; re-target `cpp.cpp` to the new Value
+  model
+- [ ] Stdlib: keep the "coming" `.lynx` modules as-is, replace each of
+  their `embedPy` bridges with a native backend (syscall layer /
+  `cpp.cpp`), and remove the dropped modules (tkinter,
+  tkinterPlus/customtkinter) per the triage above
+- [ ] Port syscalls → direct syscalls (harness:
   `scripts/testARM64Syscall.py`)
-- [ ] `bundle.py`/`install.py` shrink drastically — static native
-  binary needs no PyInstaller, no bootstrap download
-
-### Phase 6 — Python-interop features (per the strategic decision)
-
-- [ ] EmbedPy / raw-py blocks / Cython inline: libpython embedding or
-  native replacement, decided per feature from corpus usage data
-- [ ] Game fixtures (test37–40) unblocked here — they depend on
-  Python-side pyglet
-
-### Phase 7 — Retirement
-
-- [ ] Flip default to native
-- [ ] Keep the Python toolchain as reference implementation for one
-  release cycle
-- [ ] Delete the Python toolchain and the PyInstaller targets
+- [ ] Port the CLI (`shell.py` → `main()`); bundle/install shrink to
+  static-binary logic (no PyInstaller, no bootstrap download); switch
+  the build to CMake
+- [ ] Python-interop features (EmbedPy, raw-py blocks, exec, Cython
+  inline, pyglet games): implement per the strategic decision —
+  libpython embedding or native replacement; game fixtures (test37-40)
+  unblock here
+- [ ] Flip the default to native; keep the Python implementation for
+  one release cycle as the reference; then delete the Python
+  toolchain and PyInstaller targets
 
 ### Top risks
 
 1. `values.py` is the keystone — the whole runtime is typed against
-   Python's object model; the C++ hierarchy determines everything
+   Python's object model; Stage 1 must isolate it behind a narrow API
+   before the C++ hierarchy can be designed
 2. Error-message and repr parity (exact strings, `strOf`, float
    formatting, arrows in error display)
 3. Async/coroutine semantics (80+ touch points in runtime.py)
 4. Bigint literals — easy to miss until a fixture fails
-5. Game/interactive fixtures blocked on the Phase 6 decision
+5. Game/interactive fixtures blocked on the interop decision
 
-Roughly 60% of the port (lexer, parser, AST, encoder, syscalls, shell)
+Roughly 60% of the port (lexer, parser, AST, encoder, syscalls, CLI)
 is mechanical translation; the object model and interpreter are the
-hard 40%.
+hard 40%. Stage 1 exists to move as much of the hard 40% as possible
+into the mechanical column before C++ enters the picture.
