@@ -11,38 +11,14 @@ if TYPE_CHECKING:
     from types import ModuleType
 
 from . import error as _error
-from .error import _flush_deprecation_warnings
-from .lexer import Position
 from .bytecode import run_bytecode_file
-from .parser import Parser
-from .values import (
-    RTResult,
-    ClassBlueprint,
-    ClassInstance,
-    ClassRegistry,
-    CodeBlockValue,
-    Context,
-    CoroutineValue,
-    EmbedPyNamespace,
-    EnumValue,
-    Function,
-    List,
-    Module,
-    Namespace,
-    Number,
-    RTError,
-    String,
-    SymbolTable,
-    VarGroup,
-    type_matches,
-)
 from .error import (
+    _flush_deprecation_warnings,
     warn_forever_no_break,
     warn_legacy_syntax_position,
     warning_message,
 )
 from .lexer import (
-    Lexer,
     TT_AMP,
     TT_BITWISE_NAND,
     TT_BITWISE_NOR,
@@ -73,12 +49,14 @@ from .lexer import (
     TT_SHL,
     TT_SHR,
     TT_TILDE,
+    Lexer,
+    Position,
 )
 from .lynxerAst import (
     DefaultNode,
     DoWhileNode,
-    ForNode,
     ForeverNode,
+    ForNode,
     FuncDefNode,
     IfNode,
     IterateNode,
@@ -90,16 +68,36 @@ from .lynxerAst import (
     WhileNode,
     _uses_shared_parameters,
 )
+from .parser import Parser
 from .values import (
     AsyncFunction,
     BoundMethod,
     Char,
+    ClassBlueprint,
+    ClassInstance,
+    ClassRegistry,
+    CodeBlockValue,
+    Context,
+    CoroutineValue,
+    EmbedPyNamespace,
     EnumType,
+    EnumValue,
+    Function,
+    List,
     LynxTuple,
+    Module,
+    Namespace,
     Null,
+    Number,
+    RTError,
+    RTResult,
+    String,
     StructBlueprint,
+    SymbolTable,
+    VarGroup,
     _build_exec_bindings,
     _exec_codeblock_variable_names,
+    type_matches,
     value_type_name,
 )
 
@@ -2763,7 +2761,7 @@ class Interpreter:
                 if name not in py_ns:
                     if isinstance(val, Number):
                         py_ns[name] = bool(val.value) if val.is_bool else val.value
-                    elif isinstance(val, Char) or isinstance(val, String):
+                    elif isinstance(val, (Char, String)):
                         py_ns[name] = val.value
                     elif isinstance(val, LynxTuple):
                         py_ns[name] = tuple(
@@ -2795,7 +2793,7 @@ class Interpreter:
             new_val = None
             if isinstance(val, bool):
                 new_val = Number(1 if val else 0, is_bool=True)
-            elif isinstance(val, int) or isinstance(val, float):
+            elif isinstance(val, (int, float)):
                 new_val = Number(val)
             elif isinstance(val, str):
                 new_val = String(val)

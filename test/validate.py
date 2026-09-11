@@ -11,27 +11,24 @@ import contextlib
 import io
 import json
 import os
-import platform
+import re
+import socket
 import subprocess
 import sys
 import tempfile
-import re
 import threading
-import socket
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
-
 
 ROOT = Path(__file__).resolve().parents[1]
 SHELL = ROOT / "lynxer" / "shell.py"
 sys.path.insert(0, str(ROOT))
 
-from lynxer import bytecode as bytecode_module  # noqa: E402
-from lynxer.bytecode import compile_to_bytecode, load_bytecode, run_bytecode  # noqa: E402
-from lynxer import bundle as bundle_module  # noqa: E402
-from lynxer.install import INSTALL_PATH, _is_elf, _matching_pids  # noqa: E402
-from lynxer.lynxer import Error, RTError, run  # noqa: E402
-from lynxer import syscalls as syscall_runtime  # noqa: E402
+from lynxer import bundle as bundle_module
+from lynxer import bytecode as bytecode_module
+from lynxer.bytecode import compile_to_bytecode, load_bytecode, run_bytecode
+from lynxer.install import INSTALL_PATH, _is_elf, _matching_pids
+from lynxer.lynxer import Error, run
 
 
 class ValidationFailure(Exception):
@@ -1116,7 +1113,7 @@ def _game_window_available() -> bool:
         window = arcade.Window(1, 1, "lynxer-probe")
         window.close()
         return True
-    except Exception:
+    except Exception:  # noqa: BLE001
         return False
 
 
@@ -1630,7 +1627,7 @@ def test_networking_api(temp_root: Path) -> None:
             if connection.recv(32) != b"world":
                 raise AssertionError("networking client sent unexpected data")
             connection.close()
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             peer_error.append(exc)
         finally:
             listener.close()
@@ -1912,7 +1909,7 @@ def main() -> int:
         for name, test in tests:
             try:
                 test()
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
                 failed += 1
                 print(f"FAIL  {name}: {exc}", file=sys.stderr)
             else:

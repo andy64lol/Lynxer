@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
+
 from .error import (
     Error,
     InvalidSyntaxError,
@@ -11,10 +12,8 @@ from .error import (
     warning_message,
 )
 from .lexer import (
-    INTERPOLATION_BUILTINS,
     INTER_ESCAPE_MARK,
-    Lexer,
-    Position,
+    INTERPOLATION_BUILTINS,
     TT_AMP,
     TT_BITWISE_NAND,
     TT_BITWISE_NOR,
@@ -61,8 +60,8 @@ from .lexer import (
     TT_PLUSEQ,
     TT_POW,
     TT_POWEQ,
-    TT_RAWPYX_BLOCK,
     TT_RAWPY_BLOCK,
+    TT_RAWPYX_BLOCK,
     TT_RBRACE,
     TT_RBRACKET,
     TT_ROOT,
@@ -74,6 +73,8 @@ from .lexer import (
     TT_STRING,
     TT_TILDE,
     TYPE_KEYWORDS,
+    Lexer,
+    Position,
     Token,
 )
 from .lynxerAst import (
@@ -93,15 +94,15 @@ from .lynxerAst import (
     CodeBlockRefNode,
     ContinueNode,
     DefaultNode,
-    DoWhileNode,
     DotAccessNode,
     DotAssignNode,
+    DoWhileNode,
     EnumDefNode,
     ExecBlockNode,
     ExecCallNode,
     ExecFileNode,
-    ForNode,
     ForeverNode,
+    ForNode,
     FuncDefNode,
     IfNode,
     ImportAsNode,
