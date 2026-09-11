@@ -7,3 +7,5 @@ build/
 venv/
 dist/
 *.so
+tmp/
+temp/

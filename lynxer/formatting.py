@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from .lynxer import (
+from .lexer import (
     TT_COMMA,
     TT_DOCSTRING,
     TT_DOT,
@@ -17,10 +17,10 @@ from .lynxer import (
     TT_RBRACKET,
     TT_RPAREN,
     TT_SEMICOLON,
-    Lexer,
-    Parser,
     Token,
 )
+from .lexer import Lexer
+from .parser import Parser
 
 
 class FormattingError(Exception):

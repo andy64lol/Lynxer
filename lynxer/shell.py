@@ -8,6 +8,12 @@ import time
 
 _here = os.path.dirname(os.path.abspath(__file__))  # .../lynxer/
 _parent = os.path.dirname(_here)  # repo root
+# When this file is executed directly, Python places the package directory
+# itself at sys.path[0].  That would make lynxer/ast.py shadow the standard
+# library's ast module while dependencies import inspect.  The package parent
+# is the only path needed for the CLI imports below.
+if sys.path and os.path.abspath(sys.path[0]) == _here:
+    sys.path.pop(0)
 if _parent not in sys.path:
     sys.path.insert(0, _parent)
 
@@ -16,7 +22,9 @@ from lynxer.bundle import bundle_program
 from lynxer.bytecode import BYTECODE_VERSION, read_bytecode
 from lynxer.formatting import FormattingError, format_source, lint_source
 from lynxer.install import installer_main
-from lynxer.lynxer import Lexer, Parser, Token, stdlib_dir
+from lynxer.lexer import Lexer, Token
+from lynxer.parser import Parser
+from lynxer.lynxer import stdlib_dir
 
 
 def _extract_docstring(path):
