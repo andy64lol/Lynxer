@@ -419,3 +419,102 @@
   - Add documentation and regression fixtures for declaration, construction,
     payload access, matching, invalid payloads, duplicate variants, imports,
     bytecode, and bundling.
+
+## Python → C/C++ toolchain migration
+
+Move the ~20.5k lines of Python toolchain to a single native C++17
+executable. The ~18.5k lines of `.lynx` stdlib need no porting. Already
+native: `cpp.cpp` (memory/threads/FFI) and `bytecode_vm.cpp` (v9 AST
+decoder). PyInstaller disappears entirely; build moves to CMake.
+
+### Strategic decision (needed up front)
+
+- [ ] Decide the fate of Python-interop features (EmbedPy, raw `py`/`pyx`
+  blocks, `exec` blocks, Cython inline, pyglet-backed games):
+  - (a) embed libpython behind a build flag — full compat, Python stays
+  - (b) drop them in the native build, keep Python toolchain as
+    `lynxer-py` for a transition period (recommended start)
+  - (c) reimplement natively per feature (ctypes FFI already exists in
+    `cpp.cpp`; pyglet → SDL/sfml)
+
+### Phase 0 — Safety net
+
+- [ ] Golden-output corpus: run every `test/*.lynx` fixture + stdlib
+  through the Python implementation, capture stdout/stderr/error text
+- [ ] CI script diffing any candidate implementation byte-for-byte
+  against the corpus (template: `test_native_bytecode_vm`)
+
+### Phase 1 — Native compiler front-end
+
+- [ ] Port `lexer.py` (669) to C++
+- [ ] Port `parser.py` (4,760) + `lynxerAst.py` (490) — direct
+  translation, already hand-written recursive descent
+- [ ] Port `bytecode.py`'s v9 *encoder*; reuse the existing decoder
+- [ ] Gate: C++-compiled `.lynxc` byte-identical to Python's for the
+  whole corpus; native decoder reconstructs identical ASTs
+- [ ] Deliverable: `lynxcc` binary
+
+### Phase 2 — Value & object model
+
+- [ ] Reimplement `values.py` (2,914) as a refcounted C++ `Value`
+  hierarchy: Number/String/Char/List/LynxTuple/Null/Function/
+  ClassBlueprint/ClassInstance/Namespace/SymbolTable
+- [ ] `RTResult` error propagation + `error.py` exact message formats
+- [ ] Port `formatting.py` + `strings_with_arrows.py` (error display
+  parity — tests assert exact text)
+- [ ] Arbitrary-precision integers (bytecode relies on Python bigints —
+  needs a small bigint type)
+- [ ] Python-float `repr` parity, insertion-ordered dicts
+
+### Phase 3 — Interpreter
+
+- [ ] Port `runtime.py`'s `Interpreter` (3,299) to walk the AST decoded
+  by `bytecode_vm.cpp`
+- [ ] `async_visit_*` coroutines → C++20 coroutines or state machines
+- [ ] `_mp_workers.py` → threads/fork
+- [ ] Gate: all non-embedpy fixtures produce golden-identical output
+- [ ] Deliverable: native `lynxer` binary running `.lynxc` without CPython
+
+### Phase 4 — Builtins
+
+- [ ] Port `builtins.py` (4,816 — biggest chunk, mostly repetitive
+  str/list/dict method surface)
+- [ ] Stdlib `.lynx` modules untouched
+- [ ] Re-target `cpp.cpp`'s memory/threads/FFI builtins to the new
+  Value model
+
+### Phase 5 — CLI, packaging, platform
+
+- [ ] `shell.py` → C++ `main()`
+- [ ] `syscalls.py` → direct syscalls (harness:
+  `scripts/testARM64Syscall.py`)
+- [ ] `bundle.py`/`install.py` shrink drastically — static native
+  binary needs no PyInstaller, no bootstrap download
+
+### Phase 6 — Python-interop features (per the strategic decision)
+
+- [ ] EmbedPy / raw-py blocks / Cython inline: libpython embedding or
+  native replacement, decided per feature from corpus usage data
+- [ ] Game fixtures (test37–40) unblocked here — they depend on
+  Python-side pyglet
+
+### Phase 7 — Retirement
+
+- [ ] Flip default to native
+- [ ] Keep the Python toolchain as reference implementation for one
+  release cycle
+- [ ] Delete the Python toolchain and the PyInstaller targets
+
+### Top risks
+
+1. `values.py` is the keystone — the whole runtime is typed against
+   Python's object model; the C++ hierarchy determines everything
+2. Error-message and repr parity (exact strings, `strOf`, float
+   formatting, arrows in error display)
+3. Async/coroutine semantics (80+ touch points in runtime.py)
+4. Bigint literals — easy to miss until a fixture fails
+5. Game/interactive fixtures blocked on the Phase 6 decision
+
+Roughly 60% of the port (lexer, parser, AST, encoder, syscalls, shell)
+is mechanical translation; the object model and interpreter are the
+hard 40%.
