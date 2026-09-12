@@ -446,6 +446,12 @@ surgery on a monolith.
 
 ### Stdlib triage
 
+The stdlib structure changes in the new versions: the current single
+flat `.lynx` layout will not carry over as-is; CLynxer defines its own
+stdlib layout (module set and directory structure are re-decided
+there). The triage below decides which modules survive, not the final
+structure.
+
 Nearly every stdlib module currently reaches the Python host through
 `embedPy` bridges (measured: all 32 modules contain embedPy calls), so
 each module needs one of three outcomes before Stage 2 finishes.
@@ -514,6 +520,11 @@ that maps 1:1 onto future C++ translation units.
 
 ### Stage 2 — C/C++ rewrite (after Stage 1)
 
+**Location: Stage 2 is built in a separate directory, `CLynxer` —
+not inside the Lynxer tree.** The Lynxer Python tree stays untouched
+as the reference implementation; CLynxer grows the native one side
+by side so both remain runnable and diffable.
+
 Each Stage-1 module is one porting unit with a defined API. Port in
 dependency order; keep both implementations runnable and diffable the
 whole time.
@@ -535,17 +546,19 @@ whole time.
   model
 - [ ] Stdlib: keep the "coming" `.lynx` modules as-is, replace each of
   their `embedPy` bridges with a native backend (syscall layer /
-  `cpp.cpp`), and remove the dropped modules (tkinter,
-  tkinterPlus/customtkinter) per the triage above
+  `cpp.cpp`), restructure the stdlib layout for CLynxer (the current
+  flat structure does not carry over), and remove the dropped modules
+  (tkinter, tkinterPlus/customtkinter) per the triage above
 - [ ] Port syscalls → direct syscalls (harness:
   `scripts/testARM64Syscall.py`)
 - [ ] Port the CLI (`shell.py` → `main()`); bundle/install shrink to
   static-binary logic (no PyInstaller, no bootstrap download); switch
   the build to CMake
-- [ ] Python-interop features (EmbedPy, raw-py blocks, exec, Cython
-  inline, pyglet games): implement per the strategic decision —
-  libpython embedding or native replacement; game fixtures (test37-40)
-  unblock here
+- [ ] Python-interop features: `embedPy`, `rawPy` blocks and `rawPyx`
+  blocks **do not exist in the new versions** — dropped outright, no
+  libpython embedding, no native replacement, no silent fallback;
+  native builds raise explicit unavailable-feature errors. Game
+  fixtures (test37-40) stay blocked/dropped accordingly
 - [ ] Flip the default to native; keep the Python implementation for
   one release cycle as the reference; then delete the Python
   toolchain and PyInstaller targets
