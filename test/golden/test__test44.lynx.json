@@ -1,0 +1,11 @@
+{
+  "command_source": "test/test44.lynx",
+  "kind": "fixture",
+  "name": "test/test44.lynx",
+  "returncode": 0,
+  "skip_reason": null,
+  "source": "test/test44.lynx",
+  "status": "completed",
+  "stderr": "",
+  "stdout": "true\ntrue\n8\ntrue\ntrue\ntrue\n29\n2024-02-29\n-2\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\nint\n[debug.dump] type=list  value=[1, 2]\n0\n0\n0\n0\ntrue\nlynxer\ntrue\n"
+}

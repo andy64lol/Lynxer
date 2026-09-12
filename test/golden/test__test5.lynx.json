@@ -1,0 +1,11 @@
+{
+  "command_source": "test/test5.lynx",
+  "kind": "fixture",
+  "name": "test/test5.lynx",
+  "returncode": 0,
+  "skip_reason": null,
+  "source": "test/test5.lynx",
+  "status": "completed",
+  "stderr": "<project>/test/test5.lynx:17: LynxSyntaxDeprecationWarning: Legacy tuple syntax uses '[...]'. Use '(...)' with an explicit type before each element; square-bracket tuples are retained for compatibility and will be removed in a future release.\n  legacyTuple = [int 3, int 4];\n<project>/test/test5.lynx:15: LynxSyntaxDeprecationWarning: Legacy tuple syntax uses '[...]'. Use '(...)' with an explicit type before each element; square-bracket tuples are retained for compatibility and will be removed in a future release.\n  tuple legacyTuple = [int 1, int 2];\n<project>/test/test5.lynx:16: LynxSyntaxDeprecationWarning: Legacy vargroup syntax uses '[...]'. Use '{...}' for vargroups; square brackets are retained for compatibility and will be removed in a future release.\n  vargroup legacyGroup = [str name = \"legacy\"];\n",
+  "stdout": "(10, 20)\n((1, 2), ok)\n()\n3\n(3, 4)\nlegacy\n"
+}

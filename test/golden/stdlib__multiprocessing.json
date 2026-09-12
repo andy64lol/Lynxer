@@ -1,0 +1,11 @@
+{
+  "command_source": "lynxer/stdlib/multiprocessing.lynx",
+  "kind": "stdlib-import",
+  "name": "stdlib/multiprocessing",
+  "returncode": 0,
+  "skip_reason": null,
+  "source": "lynxer/stdlib/multiprocessing.lynx",
+  "status": "completed",
+  "stderr": "",
+  "stdout": ""
+}

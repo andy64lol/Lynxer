@@ -1,0 +1,11 @@
+{
+  "command_source": "test/test53.lynx",
+  "kind": "fixture",
+  "name": "test/test53.lynx",
+  "returncode": 0,
+  "skip_reason": null,
+  "source": "test/test53.lynx",
+  "status": "completed",
+  "stderr": "",
+  "stdout": ""
+}

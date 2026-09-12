@@ -1,0 +1,11 @@
+{
+  "command_source": "lynxer/stdlib/text.lynx",
+  "kind": "stdlib-import",
+  "name": "stdlib/text",
+  "returncode": 0,
+  "skip_reason": null,
+  "source": "lynxer/stdlib/text.lynx",
+  "status": "completed",
+  "stderr": "",
+  "stdout": ""
+}

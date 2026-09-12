@@ -1,0 +1,11 @@
+{
+  "command_source": "test/test43.lynx",
+  "kind": "fixture",
+  "name": "test/test43.lynx",
+  "returncode": 0,
+  "skip_reason": null,
+  "source": "test/test43.lynx",
+  "status": "completed",
+  "stderr": "",
+  "stdout": "true\nabc\n123\n[\"1\", \"2\", \"3\"]\na#b#\n[\"a\", \"b\", \"c\"]\na\\.b\\?\ntrue\n1\n{}\n[{}, {}]\n[\"b\", \"a\", \"n\"]\n1 X 3\n!!!!!\nv<12>\n3\n3\n1\n[\"1\", \"22\"]\n[\"digits\"]\n[]\n"
+}

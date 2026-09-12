@@ -1,0 +1,11 @@
+{
+  "command_source": "test/test30.lynx",
+  "kind": "fixture",
+  "name": "test/test30.lynx",
+  "returncode": 0,
+  "skip_reason": null,
+  "source": "test/test30.lynx",
+  "status": "completed",
+  "stderr": "",
+  "stdout": "Ada\n100\n90\n"
+}

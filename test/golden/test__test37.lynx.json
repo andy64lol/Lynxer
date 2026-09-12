@@ -1,0 +1,11 @@
+{
+  "command_source": null,
+  "kind": "fixture",
+  "name": "test/test37.lynx",
+  "returncode": null,
+  "skip_reason": "interactive game fixture; it waits for a window to close",
+  "source": "test/test37.lynx",
+  "status": "skipped",
+  "stderr": "",
+  "stdout": ""
+}

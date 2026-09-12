@@ -1,0 +1,11 @@
+{
+  "command_source": "test/test45.lynx",
+  "kind": "fixture",
+  "name": "test/test45.lynx",
+  "returncode": 0,
+  "skip_reason": null,
+  "source": "test/test45.lynx",
+  "status": "completed",
+  "stderr": "",
+  "stdout": "2\n2\n1\n[\"Ada\", \"Lin\"]\n[\"Lin\", \"12\"]\nname,score\nAda,10\n\nname\tscore\nAda\t10\nLin\t12\n\nname,score\nAda,10\n\nok\nok\n1\n10\ntrue\n[\"people\"]\n[{\"name\": \"Ada\", \"score\": 10}]\ntrue\ntrue\ntrue\nlynxer.txt\n/tmp\n/tmp/lynxer.txt\n"
+}

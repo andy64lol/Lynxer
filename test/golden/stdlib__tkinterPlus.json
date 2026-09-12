@@ -1,0 +1,11 @@
+{
+  "command_source": "lynxer/stdlib/tkinterPlus.lynx",
+  "kind": "stdlib-import",
+  "name": "stdlib/tkinterPlus",
+  "returncode": 0,
+  "skip_reason": null,
+  "source": "lynxer/stdlib/tkinterPlus.lynx",
+  "status": "completed",
+  "stderr": "",
+  "stdout": ""
+}

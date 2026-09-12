@@ -1,0 +1,11 @@
+{
+  "command_source": null,
+  "kind": "fixture",
+  "name": "test/test8.lynx",
+  "returncode": null,
+  "skip_reason": "unbounded fixture; it is intentionally not run by the corpus",
+  "source": "test/test8.lynx",
+  "status": "skipped",
+  "stderr": "",
+  "stdout": ""
+}

@@ -1,0 +1,11 @@
+{
+  "command_source": "lynxer/stdlib/game.lynx",
+  "kind": "stdlib-import",
+  "name": "stdlib/game",
+  "returncode": 0,
+  "skip_reason": null,
+  "source": "lynxer/stdlib/game.lynx",
+  "status": "completed",
+  "stderr": "",
+  "stdout": ""
+}

@@ -222,7 +222,10 @@ def _optimize_program(node: Any) -> Any:
     """
     runtime = _runtime()
     interp = runtime.Interpreter()
-    context = runtime.Context("<optimize>")
+    context = runtime.Context(
+        "<optimize>",
+        execution_state=runtime.execution_state,
+    )
     context.symbol_table = runtime.SymbolTable()
     nodes = tuple(cls for cls in _registry()[0] if cls is not runtime.Token)
     return _optimize_node(
@@ -1006,12 +1009,14 @@ def run_bytecode(fn: str, suppress_deprecation_warnings=False) -> tuple[Any, Any
     """Load and execute a pre-compiled ``.lynxc`` file."""
     runtime = _runtime()
     runtime.reset_runtime_state()
-    runtime._main_override = None
-    runtime._forever_delay = 0.02
-    runtime._forever_warning_suppressed = False
-    runtime._deprecation_warning_suppressed = bool(suppress_deprecation_warnings)
-    runtime._pending_deprecation_warnings.clear()
-    runtime._setup_in_progress = False
+    runtime.execution_state.main_override = None
+    runtime.execution_state.forever_delay = 0.02
+    runtime._error._forever_warning_suppressed = False
+    runtime._error._deprecation_warning_suppressed = bool(
+        suppress_deprecation_warnings
+    )
+    runtime._error._pending_deprecation_warnings.clear()
+    runtime.execution_state.setup_in_progress = False
 
     try:
         data = load_bytecode(fn)
@@ -1020,7 +1025,10 @@ def run_bytecode(fn: str, suppress_deprecation_warnings=False) -> tuple[Any, Any
 
     node = data["node"]
     interpreter = runtime.SHARED_INTERPRETER
-    context = runtime.Context("<program>")
+    context = runtime.Context(
+        "<program>",
+        execution_state=runtime.execution_state,
+    )
     context.symbol_table = runtime.global_symbol_table
     runtime.global_symbol_table.set("__file__", runtime.String(os.path.abspath(fn)))
     runtime.global_symbol_table.set(
@@ -1042,7 +1050,10 @@ def run_bytecode_file(fn: str, symbol_table: Any) -> Any:
 
     node = data["node"]
     interpreter = runtime.SHARED_INTERPRETER
-    context = runtime.Context(f"<import:{os.path.basename(fn)}>")
+    context = runtime.Context(
+        f"<import:{os.path.basename(fn)}>",
+        execution_state=runtime.execution_state,
+    )
     context.symbol_table = symbol_table
     symbol_table.set("__file__", runtime.String(os.path.abspath(fn)))
 
@@ -1053,13 +1064,13 @@ def run_bytecode_file(fn: str, symbol_table: Any) -> Any:
             return result.error
 
     if node.setup_func:
-        previous_setup_state = runtime._setup_in_progress
-        runtime._setup_in_progress = True
+        previous_setup_state = runtime.execution_state.setup_in_progress
+        runtime.execution_state.setup_in_progress = True
         try:
             result = interpreter.run_setup(node.setup_func, context)
             if result.error:
                 return result.error
         finally:
-            runtime._setup_in_progress = previous_setup_state
+            runtime.execution_state.setup_in_progress = previous_setup_state
 
     return None

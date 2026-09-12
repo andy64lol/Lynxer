@@ -1,0 +1,11 @@
+{
+  "command_source": "lynxer/stdlib/cli.lynx",
+  "kind": "stdlib-import",
+  "name": "stdlib/cli",
+  "returncode": 0,
+  "skip_reason": null,
+  "source": "lynxer/stdlib/cli.lynx",
+  "status": "completed",
+  "stderr": "",
+  "stdout": ""
+}

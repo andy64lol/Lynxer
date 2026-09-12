@@ -5,10 +5,7 @@ from __future__ import annotations
 import os
 import sys
 import textwrap
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from types import ModuleType
+from typing import Any
 
 from . import error as _error
 from .bytecode import run_bytecode_file
@@ -79,6 +76,7 @@ from .values import (
     CodeBlockValue,
     Context,
     CoroutineValue,
+    ExecutionState,
     EmbedPyNamespace,
     EnumType,
     EnumValue,
@@ -131,8 +129,13 @@ def stdlib_dir() -> str:
         if os.path.isdir(candidate):
             return candidate
     return candidates[0]
+# State shared by one interpreter execution.  Contexts carry this object into
+# values and builtins instead of importing this module to find live globals.
+_execution_state = ExecutionState()
+execution_state = _execution_state
+
 # importPy shared module registry
-_rawpy_global_modules: dict[str, ModuleType] = {}
+_rawpy_global_modules = _execution_state.rawpy_global_modules
 
 # Python callbacks registered by a standard-library module (for example the
 # Arcade game loop) need a way back into the currently running Lynxer program.
@@ -204,14 +207,7 @@ def _lynxer_callback_dispatcher(context):
 # Lynxer module registry.  Module names are intentionally global: importing
 # two different files with the same basename is ambiguous even when their
 # directories differ.
-_lynx_modules: dict[str, tuple[str, Module]] = {}
-
-# overrideMain entry-point registry
-_main_override: str | None = None
-
-# forever-loop configuration. These are reset for each top-level run.
-_forever_delay = 0.02
-_setup_in_progress = False
+_lynx_modules = _execution_state.lynx_modules
 # global call hierarchy helpers
 
 def _can_call_global(caller_path, callee_path):
@@ -845,7 +841,7 @@ class Interpreter:
             if res.loop_should_break:
                 return res.success(Number.null)
             res.loop_should_continue = False
-            time.sleep(_forever_delay)
+            time.sleep(context.require_execution_state().forever_delay)
 
     def visit_WhileNode(self, node, context):
         res = RTResult()
@@ -1677,7 +1673,7 @@ class Interpreter:
             if res.loop_should_break:
                 return res.success(Number.null)
             res.loop_should_continue = False
-            await asyncio.sleep(_forever_delay)
+            await asyncio.sleep(context.require_execution_state().forever_delay)
 
     async def async_visit_ForNode(self, node, context):
         res = RTResult()
@@ -2853,7 +2849,7 @@ class Interpreter:
             new_val = None
             if isinstance(val, bool):
                 new_val = Number(1 if val else 0, is_bool=True)
-            elif isinstance(val, int) or isinstance(val, float):
+            elif isinstance(val, (int, float)):
                 new_val = Number(val)
             elif isinstance(val, str):
                 new_val = String(val)
@@ -3079,6 +3075,12 @@ class Interpreter:
     def visit_ProgramNode(self, node, context):
         res = RTResult()
 
+        exec_state = context.execution_state
+        if exec_state is None:
+            raise RuntimeError(
+                "visit_ProgramNode requires a Context with an execution state"
+            )
+
         for decl in node.globals_list:
             res.register(self.visit(decl, context))
             if res.error:
@@ -3090,24 +3092,30 @@ class Interpreter:
                 return res
 
         if node.setup_func:
-            global _setup_in_progress
-            previous_setup_state = _setup_in_progress
-            _setup_in_progress = True
+            previous_setup_state = exec_state.setup_in_progress
+            exec_state.setup_in_progress = True
             try:
                 setup_res = self.run_setup(node.setup_func, context)
                 if setup_res.error:
                     return setup_res
             finally:
-                _setup_in_progress = previous_setup_state
+                exec_state.setup_in_progress = previous_setup_state
 
-        entry_name = _main_override if _main_override else "main"
+        entry_name = (
+            exec_state.main_override
+            if exec_state.main_override
+            else "main"
+        )
         entry_fn = context.symbol_table.get(entry_name)
         if entry_fn is None:
-            if _main_override:
+            if exec_state.main_override:
                 return res.failure(RTError(
                     node.pos_start, node.pos_end,
-                    f"overrideMain: no global function named '{_main_override}' found. "
-                    f"Make sure 'global {_main_override}(){{}}' is declared in the file.",
+                    f"overrideMain: no global function named "
+                    f"'{exec_state.main_override}' found. "
+                    f"Make sure 'global "
+                    f"{exec_state.main_override}(){{}}' is declared "
+                    "in the file.",
                     context,
                 ))
             else:
@@ -3128,31 +3136,17 @@ class Interpreter:
         return res.success(Number.null)
 
 def _register_builtins(symbol_table: SymbolTable) -> None:
-    """Load built-ins only after the runtime types have finished initializing.
-
-    Keeping this import inside the registration boundary makes ``lynxer`` and
-    ``builtins`` independently importable without a partially initialized
-    module cycle.
-    """
-    global _builtins_registration_deferred
-    builtins_module = sys.modules.get(f"{__package__}.builtins")
-    if builtins_module is not None and not hasattr(
-        builtins_module, "BuiltInFunction"
-    ):
-        _builtins_registration_deferred = True
-        return
+    """Install built-ins after the value and interpreter layers are ready."""
     from .builtins import BuiltInFunction, register_builtins
 
     globals()["BuiltInFunction"] = BuiltInFunction
-    register_builtins(symbol_table)
-    _builtins_registration_deferred = False
+    register_builtins(symbol_table, _execution_state)
 
 # global symbol table
 
-_builtins_registration_deferred = False
-
 def _new_global_symbol_table():
     table = SymbolTable()
+    _execution_state.global_symbol_table = table
     table.set("true", Number.true)
     table.set("false", Number.false)
     _register_builtins(table)
@@ -3163,6 +3157,7 @@ def _new_global_symbol_table():
 global_symbol_table = _new_global_symbol_table()
 
 SHARED_INTERPRETER = Interpreter()
+_execution_state.interpreter = SHARED_INTERPRETER
 
 
 def reset_runtime_state():
@@ -3199,14 +3194,13 @@ def _join_outstanding_native_threads():
 
 
 def run(fn, text, suppress_deprecation_warnings=False):
-    global _forever_delay, _setup_in_progress, _main_override
     reset_runtime_state()
-    _main_override = None
-    _forever_delay = 0.02
+    _execution_state.main_override = None
+    _execution_state.forever_delay = 0.02
     _error._forever_warning_suppressed = False
     _error._deprecation_warning_suppressed = bool(suppress_deprecation_warnings)
     _error._pending_deprecation_warnings.clear()
-    _setup_in_progress = False
+    _execution_state.setup_in_progress = False
     _error._deprecation_warning_deferred = True
 
     try:
@@ -3223,7 +3217,7 @@ def run(fn, text, suppress_deprecation_warnings=False):
         _error._deprecation_warning_deferred = False
 
     interpreter = SHARED_INTERPRETER
-    context = Context("<program>")
+    context = Context("<program>", execution_state=_execution_state)
     context.symbol_table = global_symbol_table
     global_symbol_table.set("__file__", String(os.path.abspath(fn)))
     global_symbol_table.set("global", Namespace(global_symbol_table))
@@ -3251,7 +3245,10 @@ def run_file(fn, text, symbol_table, execute_main=False):
         return ast.error
 
     interpreter = SHARED_INTERPRETER
-    context = Context(f"<import:{os.path.basename(fn)}>")
+    context = Context(
+        f"<import:{os.path.basename(fn)}>",
+        execution_state=_execution_state,
+    )
     context.symbol_table = symbol_table
     symbol_table.set("__file__", String(os.path.abspath(fn)))
 
@@ -3265,15 +3262,14 @@ def run_file(fn, text, symbol_table, execute_main=False):
                 return r.error
 
         if node.setup_func:
-            global _setup_in_progress
-            previous_setup_state = _setup_in_progress
-            _setup_in_progress = True
+            previous_setup_state = _execution_state.setup_in_progress
+            _execution_state.setup_in_progress = True
             try:
                 r = interpreter.run_setup(node.setup_func, context)
                 if r.error:
                     return r.error
             finally:
-                _setup_in_progress = previous_setup_state
+                _execution_state.setup_in_progress = previous_setup_state
 
         if execute_main and node.main_func is not None:
             main_decl_result = RTResult()

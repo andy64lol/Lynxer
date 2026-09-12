@@ -1,0 +1,11 @@
+{
+  "command_source": "test/test50.lynx",
+  "kind": "fixture",
+  "name": "test/test50.lynx",
+  "returncode": 1,
+  "skip_reason": null,
+  "source": "test/test50.lynx",
+  "status": "completed",
+  "stderr": "\n[Lynxer] Syntax Error\n  Expected function name\n  --> <project>/test/test50.lynx, line 3, column 6\n\n\nfunc if(){}\n     ^^\n",
+  "stdout": ""
+}

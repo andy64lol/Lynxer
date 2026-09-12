@@ -1,0 +1,11 @@
+{
+  "command_source": "lynxer/stdlib/regex.lynx",
+  "kind": "stdlib-import",
+  "name": "stdlib/regex",
+  "returncode": 0,
+  "skip_reason": null,
+  "source": "lynxer/stdlib/regex.lynx",
+  "status": "completed",
+  "stderr": "",
+  "stdout": ""
+}

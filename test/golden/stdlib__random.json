@@ -1,0 +1,11 @@
+{
+  "command_source": "lynxer/stdlib/random.lynx",
+  "kind": "stdlib-import",
+  "name": "stdlib/random",
+  "returncode": 0,
+  "skip_reason": null,
+  "source": "lynxer/stdlib/random.lynx",
+  "status": "completed",
+  "stderr": "",
+  "stdout": ""
+}

@@ -1,0 +1,11 @@
+{
+  "command_source": "lynxer/stdlib/venv.lynx",
+  "kind": "stdlib-import",
+  "name": "stdlib/venv",
+  "returncode": 0,
+  "skip_reason": null,
+  "source": "lynxer/stdlib/venv.lynx",
+  "status": "completed",
+  "stderr": "",
+  "stdout": ""
+}

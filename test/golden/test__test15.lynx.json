@@ -1,0 +1,11 @@
+{
+  "command_source": "test/test15.lynx",
+  "kind": "fixture",
+  "name": "test/test15.lynx",
+  "returncode": 0,
+  "skip_reason": null,
+  "source": "test/test15.lynx",
+  "status": "completed",
+  "stderr": "",
+  "stdout": "setup default\n42hello\n42world\nnested default\nnested override\nmethod default\nasync default\nasync override\n"
+}

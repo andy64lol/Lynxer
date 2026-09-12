@@ -1,0 +1,11 @@
+{
+  "command_source": "lynxer/stdlib/colorlib.lynx",
+  "kind": "stdlib-import",
+  "name": "stdlib/colorlib",
+  "returncode": 0,
+  "skip_reason": null,
+  "source": "lynxer/stdlib/colorlib.lynx",
+  "status": "completed",
+  "stderr": "",
+  "stdout": ""
+}

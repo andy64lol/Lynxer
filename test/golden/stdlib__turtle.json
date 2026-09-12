@@ -1,0 +1,11 @@
+{
+  "command_source": "lynxer/stdlib/turtle.lynx",
+  "kind": "stdlib-import",
+  "name": "stdlib/turtle",
+  "returncode": 0,
+  "skip_reason": null,
+  "source": "lynxer/stdlib/turtle.lynx",
+  "status": "completed",
+  "stderr": "",
+  "stdout": ""
+}

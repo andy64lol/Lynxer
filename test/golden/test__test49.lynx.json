@@ -1,0 +1,11 @@
+{
+  "command_source": "test/test49.lynx",
+  "kind": "fixture",
+  "name": "test/test49.lynx",
+  "returncode": 1,
+  "skip_reason": null,
+  "source": "test/test49.lynx",
+  "status": "completed",
+  "stderr": "\n[Lynxer] Syntax Error\n  'func setup()' conflicts with another function declared in this Lynxer file. Direct-call function names must be unique and cannot shadow existing functions.\n  --> <project>/test/test49.lynx, line 3, column 6\n\n\nfunc setup(){}\n     ^^^^^\n",
+  "stdout": ""
+}

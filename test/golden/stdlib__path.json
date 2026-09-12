@@ -1,0 +1,11 @@
+{
+  "command_source": "lynxer/stdlib/path.lynx",
+  "kind": "stdlib-import",
+  "name": "stdlib/path",
+  "returncode": 0,
+  "skip_reason": null,
+  "source": "lynxer/stdlib/path.lynx",
+  "status": "completed",
+  "stderr": "",
+  "stdout": ""
+}

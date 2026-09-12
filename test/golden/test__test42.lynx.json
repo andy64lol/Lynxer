@@ -1,0 +1,11 @@
+{
+  "command_source": "test/test42.lynx",
+  "kind": "fixture",
+  "name": "test/test42.lynx",
+  "returncode": 0,
+  "skip_reason": null,
+  "source": "test/test42.lynx",
+  "status": "completed",
+  "stderr": "",
+  "stdout": "true\ntrue\nalpha\nbeta\ngamma\ntrue\n3\nbeta\ntrue\n.txt\nlynxer-stdlib-fileio\ntrue\ntrue\ntrue\nlynxer-stdlib-fileio.txt\nlynxer-stdlib-fileio\n.txt\n/tmp\n/tmp/lynxer-stdlib-fileio.txt\n/tmp/lynxer/stdlib.txt\n/tmp/lynxer-stdlib-fileio.txt\ntrue\ntrue\ntrue\ntrue\ntrue\n"
+}

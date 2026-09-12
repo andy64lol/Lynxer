@@ -1,0 +1,11 @@
+{
+  "command_source": "lynxer/stdlib/tui.lynx",
+  "kind": "stdlib-import",
+  "name": "stdlib/tui",
+  "returncode": 0,
+  "skip_reason": null,
+  "source": "lynxer/stdlib/tui.lynx",
+  "status": "completed",
+  "stderr": "",
+  "stdout": ""
+}

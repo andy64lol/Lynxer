@@ -1,0 +1,11 @@
+{
+  "command_source": "test/test22.lynx",
+  "kind": "fixture",
+  "name": "test/test22.lynx",
+  "returncode": 0,
+  "skip_reason": null,
+  "source": "test/test22.lynx",
+  "status": "completed",
+  "stderr": "",
+  "stdout": "Zero-size allocation\nmemoryAllocate(0):<address>\nmemoryAllocateZeroed(0, 128):<address>\nmemoryAllocateZeroed(128, 0):<address>\n\nZero-size memory operations\nAfter memorySet(..., 0):\n123456\nAfter memoryCopy(..., 0):\n<unspecified-int>\n\nBoundary offsets\nLast byte:127\n\nInteger boundaries\nInt8 minimum:-128\nInt8 maximum:127\nUInt8 minimum:0\nUInt8 maximum:255\n\n16-bit boundaries\nInt16 minimum:-32768\nInt16 maximum:32767\nUInt16 minimum:0\nUInt16 maximum:65535\n\n32-bit boundaries\nInt32 minimum:-2147483648\nInt32 maximum:2147483647\nUInt32 minimum:0\nUInt32 maximum:4294967295\n\n64-bit boundaries\nInt64 minimum:-9223372036854775808\nInt64 maximum:9223372036854775807\nUInt64 minimum:0\nUInt64 maximum:18446744073709551615\n\nReallocation to zero\nBefore reallocating to zero:\n123456\nAfter reallocating to zero:\n0\n\nCleanup\nAll edge-case allocations cleaned up.\n"
+}

@@ -1,0 +1,11 @@
+{
+  "command_source": "test/test25.lynx",
+  "kind": "fixture",
+  "name": "test/test25.lynx",
+  "returncode": 1,
+  "skip_reason": null,
+  "source": "test/test25.lynx",
+  "status": "completed",
+  "stderr": "Traceback (most recent call last):\n  --> <project>/test/test25.lynx, line 3, in <program>\n  --> <project>/test/test25.lynx, line 6, in main\n  --> <project>/test/test25.lynx, line 6, in memoryFree\n\n[Lynxer] Runtime Error\n  address refers to freed memory\n\n\n    memoryFree(address);\n    ^^^^^^^^^^^^^^^^^^^\n",
+  "stdout": ""
+}

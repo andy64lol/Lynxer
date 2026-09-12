@@ -1,0 +1,11 @@
+{
+  "command_source": "test/test46.lynx",
+  "kind": "fixture",
+  "name": "test/test46.lynx",
+  "returncode": 1,
+  "skip_reason": null,
+  "source": "test/test46.lynx",
+  "status": "completed",
+  "stderr": "\n[Lynxer] Syntax Error\n  Duplicate 'func' declaration 'duplicate'. A func name may be declared only once in a Lynxer file (first declared at line 5).\n  --> <project>/test/test46.lynx, line 7, column 6\n\n\nfunc duplicate(){}\n     ^^^^^^^^^\n",
+  "stdout": ""
+}

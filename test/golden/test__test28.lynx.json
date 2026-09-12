@@ -1,0 +1,11 @@
+{
+  "command_source": "test/test28.lynx",
+  "kind": "fixture",
+  "name": "test/test28.lynx",
+  "returncode": 1,
+  "skip_reason": null,
+  "source": "test/test28.lynx",
+  "status": "completed",
+  "stderr": "Traceback (most recent call last):\n  --> <project>/test/test28.lynx, line 3, in <program>\n  --> <project>/test/test28.lynx, line 5, in main\n  --> <project>/test/test28.lynx, line 5, in memoryReadInt64\n\n[Lynxer] Runtime Error\n  memory access is out of bounds\n\n\n    memoryReadInt64(address, 1);\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n",
+  "stdout": ""
+}

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import itertools
-import sys
 from typing import Any, ClassVar
 
 from .error import RTError
@@ -23,33 +22,37 @@ def _get_cpp():
     """Load the optional native value-reference module once on first use."""
     global _cpp_module
     if _cpp_module is None:
-        from . import cpp
+        from . import cpp  # type: ignore[import-unresolved] — built extension module
         _cpp_module = cpp
     return _cpp_module
 
-def _shared_interpreter():
-    """Return the process-wide interpreter without importing runtime at load.
-
-    ``lynxer.runtime`` imports this module, so the reference has to be resolved
-    lazily at call time instead of import time.
-    """
-    from . import runtime
-
-    return runtime.SHARED_INTERPRETER
-
-
 def _is_builtin_function(v) -> bool:
-    """Check for ``BuiltInFunction`` without importing builtins at load time.
+    """Return whether a value implements the builtin-function protocol.
 
-    Mirrors the historical ``"BuiltInFunction" in globals()`` check that only
-    matched once ``lynxer.runtime._register_builtins`` had loaded the builtins
-    module.
+    Values deliberately do not import the builtin implementation layer.  The
+    marker is the small shared protocol needed by conversions and type
+    reporting, and keeps the dependency direction one-way.
     """
-    builtins_module = sys.modules.get(f"{__package__}.builtins")
-    if builtins_module is None:
-        return False
-    builtin_function = getattr(builtins_module, "BuiltInFunction", None)
-    return builtin_function is not None and isinstance(v, builtin_function)
+    return bool(getattr(v, "_is_builtin_function", False))
+
+
+class ExecutionState:
+    """Mutable state shared by one interpreter execution.
+
+    The value layer owns only this dependency-neutral state container.  The
+    interpreter fills in the concrete interpreter and symbol table, while
+    nested :class:`Context` objects carry the same state to values and
+    builtins without importing the interpreter module.
+    """
+
+    def __init__(self):
+        self.interpreter: Any = None
+        self.global_symbol_table: Any = None
+        self.rawpy_global_modules: dict[str, Any] = {}
+        self.lynx_modules: dict[str, Any] = {}
+        self.forever_delay = 0.02
+        self.setup_in_progress = False
+        self.main_override: str | None = None
 
 # runtime result
 
@@ -1040,9 +1043,15 @@ class BaseFunction(Value):
     def __init__(self, name):
         super().__init__()
         self.name = name or "<anonymous>"
+        self.execution_state: ExecutionState | None = None
 
     def generate_new_context(self):
-        new_context = Context(self.name, self.context, self.pos_start)
+        state = (
+            self.context.execution_state
+            if self.context is not None
+            else self.execution_state
+        )
+        new_context = Context(self.name, self.context, self.pos_start, state)
         parent_table = new_context.parent.symbol_table if new_context.parent else None
         new_context.symbol_table = SymbolTable(parent_table)
         return new_context
@@ -1106,7 +1115,9 @@ class BaseFunction(Value):
         for index in range(len(args), len(arg_names)):
             default_node = arg_defaults[index]
             default_value = res.register(
-                _shared_interpreter().visit(default_node, exec_ctx)
+                exec_ctx.require_execution_state().interpreter.visit(
+                    default_node, exec_ctx
+                )
             )
             if res.should_return():
                 return res
@@ -1151,8 +1162,8 @@ class Function(BaseFunction):
 
     def execute(self, args, code_blocks=None):
         res = RTResult()
-        interpreter = _shared_interpreter()
         exec_ctx = self.generate_new_context()
+        interpreter = exec_ctx.require_execution_state().interpreter
         exec_ctx.current_function = self  # track for inner-local/inner-global registration
         if self.is_global:
             exec_ctx.current_global_path = self.global_path  # for hierarchy enforcement
@@ -1286,7 +1297,9 @@ class AsyncFunction(BaseFunction):
         body_node = self.body_node
 
         async def _coro():
-            body_res = await _shared_interpreter().async_visit(body_node, exec_ctx)
+            body_res = await exec_ctx.require_execution_state().interpreter.async_visit(
+                body_node, exec_ctx
+            )
             if body_res.should_return() and body_res.func_return_value is None:
                 return body_res  # error / loop signal
             ret = (
@@ -1879,7 +1892,9 @@ class ClassBlueprint(Value):
 
         for field_type, field_name, value_node, is_const in self._field_defs:
             value = res.register(
-                _shared_interpreter().visit(value_node, init_context)
+                init_context.require_execution_state().interpreter.visit(
+                    value_node, init_context
+                )
             )
             if res.should_return():
                 return res
@@ -2114,8 +2129,8 @@ class BoundMethod(Value):
 
     def execute(self, args, code_blocks=None):
         res = RTResult()
-        interpreter = _shared_interpreter()
         exec_ctx = self.func.generate_new_context()
+        interpreter = exec_ctx.require_execution_state().interpreter
         exec_ctx.current_function = self.func
         receiver_type = (
             self.receiver.class_name
@@ -2259,7 +2274,13 @@ class VarGroup(Value):
 # context
 
 class Context:
-    def __init__(self, display_name, parent=None, parent_entry_pos=None):
+    def __init__(
+        self,
+        display_name,
+        parent=None,
+        parent_entry_pos=None,
+        execution_state: ExecutionState | None = None,
+    ):
         self.display_name = display_name
         self.parent = parent
         self.parent_entry_pos = parent_entry_pos
@@ -2267,6 +2288,24 @@ class Context:
         self.current_function: Any = None      # the Function/AsyncFunction currently executing
         self.current_global_path: list[str] | None = None
         self.code_blocks = parent.code_blocks if parent is not None else {}
+        self.execution_state = (
+            execution_state
+            if execution_state is not None
+            else parent.execution_state if parent is not None else None
+        )
+
+    def require_execution_state(self) -> ExecutionState:
+        """Return the context's execution state, hard-failing if absent.
+
+        Only root program contexts are created without one; any code that
+        reaches an attribute of the state must be running under a real run.
+        """
+        state = self.execution_state
+        if state is None:
+            raise RuntimeError(
+                f'Context "{self.display_name}" has no execution state'
+            )
+        return state
 
 # symbol table
 

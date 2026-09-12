@@ -1,0 +1,11 @@
+{
+  "command_source": "test/test41.lynx",
+  "kind": "fixture",
+  "name": "test/test41.lynx",
+  "returncode": 0,
+  "skip_reason": null,
+  "source": "test/test41.lynx",
+  "status": "completed",
+  "stderr": "",
+  "stdout": "xnyl\npadded\ntrue\ntrue\ntwo one\nMIXED\na|b|c\nbcd\n50\ntrue\ntrue\ntrue\n3\nA\ntrue\nlynxer\n3\ntrue\nfalse\n3\n\"quoted\"\ntrue\ntrue\ntrue\n"
+}

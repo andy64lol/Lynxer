@@ -1,0 +1,11 @@
+{
+  "command_source": "test/test11.lynx",
+  "kind": "fixture",
+  "name": "test/test11.lynx",
+  "returncode": 0,
+  "skip_reason": null,
+  "source": "test/test11.lynx",
+  "status": "completed",
+  "stderr": "<project>/test/test11.lynx:5: LynxSyntaxDeprecationWarning: Legacy equality operator 'is' is deprecated; use '==' instead.\n  assert(2 + 2 is 4, \"arithmetic is broken\");\n",
+  "stdout": "assert passed\n"
+}

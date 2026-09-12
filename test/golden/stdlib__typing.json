@@ -1,0 +1,11 @@
+{
+  "command_source": "lynxer/stdlib/typing.lynx",
+  "kind": "stdlib-import",
+  "name": "stdlib/typing",
+  "returncode": 0,
+  "skip_reason": null,
+  "source": "lynxer/stdlib/typing.lynx",
+  "status": "completed",
+  "stderr": "",
+  "stdout": ""
+}

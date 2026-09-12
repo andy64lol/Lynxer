@@ -1,0 +1,11 @@
+{
+  "command_source": "lynxer/stdlib/time.lynx",
+  "kind": "stdlib-import",
+  "name": "stdlib/time",
+  "returncode": 0,
+  "skip_reason": null,
+  "source": "lynxer/stdlib/time.lynx",
+  "status": "completed",
+  "stderr": "",
+  "stdout": ""
+}

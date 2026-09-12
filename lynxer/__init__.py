@@ -36,8 +36,13 @@ __all__ = [
 
 def __getattr__(name):
     if name in {"run", "run_file"}:
-        from . import lynxer as runtime
-        return getattr(runtime, name)
+        # The compatibility facade in ``lynxer.py`` re-exports the pipeline
+        # types, but the executable entry points live in ``runtime.py``.
+        # Import the owner explicitly here; ``from . import lynxer`` routes
+        # through the facade and makes the lazy package export fail.
+        from .runtime import run, run_file
+
+        return run if name == "run" else run_file
     if name in {
         "BYTECODE_MAGIC",
         "BYTECODE_VERSION",

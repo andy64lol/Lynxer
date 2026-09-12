@@ -1,0 +1,11 @@
+{
+  "command_source": "test/test20.lynx",
+  "kind": "fixture",
+  "name": "test/test20.lynx",
+  "returncode": 0,
+  "skip_reason": null,
+  "source": "test/test20.lynx",
+  "status": "completed",
+  "stderr": "",
+  "stdout": "-8\n-1600\n-320000\n-6400000000\n250\n65000\n4000000000\n16000000000\n1.5\n2.5\n4\n"
+}

@@ -15,14 +15,8 @@ This module re-exports the public surface so historic imports such as
 
 from __future__ import annotations
 
-# Attribute access on this module falls back to the owning submodule. This
-# serves two purposes: names that are rebound while the interpreter runs
-# (``global_symbol_table``, ``_setup_in_progress``, ...) and names that only
-# appear once the builtins module has been registered stay live, and partial
-# initialization keeps working when ``lynxer.builtins`` reaches back into
-# this module while ``lynxer.runtime`` is still executing -- exactly like the
-# pre-split monolith did. The fallback must be defined before the imports
-# below so it is active during this module's own initialization.
+# Attribute access on this compatibility facade falls back to the owning
+# submodule so historic imports continue to see live runtime names.
 _SUBMODULES = ("error", "lexer", "lynxerAst", "parser", "values", "runtime")
 
 
@@ -210,6 +204,29 @@ from .lynxerAst import (  # noqa: F401
     _uses_shared_parameters,
 )
 from .parser import Parser, ParseResult  # noqa: F401
+from .runtime import (  # noqa: F401
+    SHARED_INTERPRETER,
+    STDLIB_DIR,
+    Interpreter,
+    execution_state,
+    _can_call_global,
+    _get_current_global_path,
+    _get_cython_inline,
+    _interpreter_error,
+    _join_outstanding_native_threads,
+    _lynx_modules,
+    _lynxer_callback_dispatcher,
+    _module_path,
+    _new_global_symbol_table,
+    _preregister_nested_globals,
+    _python_to_lynxer_callback_value,
+    _rawpy_global_modules,
+    _register_builtins,
+    reset_runtime_state,
+    run,
+    run_file,
+    stdlib_dir,
+)
 from .values import (  # noqa: F401
     FLOAT_RANGES,
     INTEGER_RANGES,
@@ -225,6 +242,7 @@ from .values import (  # noqa: F401
     CodeBlockValue,
     Context,
     CoroutineValue,
+    ExecutionState,
     EmbedPyCallable,
     EmbedPyModule,
     EmbedPyNamespace,
@@ -259,30 +277,4 @@ from .values import (  # noqa: F401
     type_matches,
     value_type_name,
 )
-
-try:  # circular: lynxer.runtime may be mid-initialization via lynxer.builtins
-    from .runtime import (  # noqa: F401
-        SHARED_INTERPRETER,
-        STDLIB_DIR,
-        Interpreter,
-        _can_call_global,
-        _get_current_global_path,
-        _get_cython_inline,
-        _interpreter_error,
-        _join_outstanding_native_threads,
-        _lynx_modules,
-        _lynxer_callback_dispatcher,
-        _module_path,
-        _new_global_symbol_table,
-        _preregister_nested_globals,
-        _python_to_lynxer_callback_value,
-        _rawpy_global_modules,
-        _register_builtins,
-        reset_runtime_state,
-        run,
-        run_file,
-        stdlib_dir,
-    )
-except ImportError:  # attribute access falls back to lynxer.runtime
-    pass
 

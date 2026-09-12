@@ -21,7 +21,7 @@ SYSTEM_CALLS_DEP := system-calls
 SYSTEM_CALLS := --hidden-import system_calls --hidden-import lynxer.syscalls --collect-submodules system_calls --collect-all=system_calls
 NATIVE_HIDDEN_IMPORTS := --hidden-import lynxer.cpp --hidden-import lynxer.bytecode_vm
 
-.PHONY: venv deps liteDeps platform-check build buildLite buildCpp test testAMR64 validate check clean cleanC cleanCpp cleanLynxc cleanAll help
+.PHONY: venv deps liteDeps platform-check build buildLite buildCpp test testAMR64 validate golden check clean cleanC cleanCpp cleanLynxc cleanAll help
 
 venv:
 	@if [ ! -d "$(VENV)" ]; then \
@@ -67,6 +67,10 @@ testAMR64: buildCpp
 validate: buildCpp
 	@echo "Running validation..."
 	@$(VENV_PY) -u lynxer/validate.py
+
+golden:
+	@echo "Checking the Stage 1 golden corpus..."
+	@$(PYTHON) -u scripts/golden_corpus.py
 
 check: test
 	@for file in syntax.lynx test/*.lynx; do \
@@ -169,6 +173,7 @@ help:
 	@echo "  make test"
 	@echo "  make testAMR64"
 	@echo "  make check"
+	@echo "  make golden"
 	@echo "  make clean"
 	@echo "  make cleanC"
 	@echo "  make cleanCpp"

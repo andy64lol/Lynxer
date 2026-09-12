@@ -1,10 +1,4 @@
-"""Lynxer built-in functions, implementations, and runtime registry.
-
-The interpreter value types live in :mod:`lynxer.lynxer`.  This module is
-imported after those types have been defined, so it can own the complete
-implementation of every built-in without making the runtime import cycle
-fragile.
-"""
+"""Lynxer built-in functions, implementations, and runtime registry."""
 
 from __future__ import annotations
 
@@ -24,7 +18,39 @@ import time
 from collections.abc import Callable
 from typing import Any, TypeVar, cast
 
-_runtime = importlib.import_module(".lynxer", package=__package__)
+from . import error as _error
+from .values import (
+    Address,
+    BaseFunction,
+    Char,
+    CoroutineValue,
+    ExecutionState,
+    FunctionAddress,
+    List,
+    LynxTuple,
+    NativeHandle,
+    Null,
+    Number,
+    ObjectValue,
+    RTError,
+    RTResult,
+    Sentinel,
+    String,
+    VarGroup,
+    type_matches,
+    value_type_name,
+)
+
+
+def _get_cython_inline() -> Any:
+    """Lazily import Cython's inline compiler for the rawPyx builtin."""
+    from importlib import import_module
+
+    import setuptools  # noqa: F401 — patches distutils for Cython on py3.12+
+
+    return import_module("Cython.Build.Inline").cython_inline
+
+
 try:
     _MEMORY_LIB = importlib.import_module(".cpp", package=__package__)
 except ModuleNotFoundError as error:
@@ -37,23 +63,13 @@ except ModuleNotFoundError as error:
 _syscalls = importlib.import_module(".syscalls", package=__package__)
 
 
-BaseFunction = _runtime.BaseFunction
-CoroutineValue = _runtime.CoroutineValue
-List = _runtime.List
-LynxTuple = _runtime.LynxTuple
-VarGroup = _runtime.VarGroup
-Sentinel = _runtime.Sentinel
-ObjectValue = _runtime.ObjectValue
-Number = _runtime.Number
-Address = _runtime.Address
-FunctionAddress = _runtime.FunctionAddress
-NativeHandle = _runtime.NativeHandle
-RTError = _runtime.RTError
-RTResult = _runtime.RTResult
-String = _runtime.String
-type_matches = _runtime.type_matches
-value_type_name = _runtime.value_type_name
-_get_cython_inline = _runtime._get_cython_inline
+def _memory_lib() -> Any:
+    """Return the native extension module, hard-failing if it is not built."""
+    if _MEMORY_LIB is None:
+        raise RuntimeError(
+            "the native .cpp extension is not built; native builtins are unavailable"
+        )
+    return _MEMORY_LIB
 
 _MEMORY_TYPES = {} if _MEMORY_LIB is None else {
     "byte": (1, _MEMORY_LIB.memoryReadByte, _MEMORY_LIB.memoryWriteByte, 0, 255),
@@ -322,9 +338,9 @@ def _json_value(value):
         return bool(value.value) if value.is_bool else value.value
     if isinstance(value, String):
         return value.value
-    if isinstance(value, _runtime.Char):
+    if isinstance(value, Char):
         return value.value
-    if isinstance(value, _runtime.Null):
+    if isinstance(value, Null):
         return None
     if isinstance(value, List):
         return [_json_value(element) for element in value.elements]
@@ -358,7 +374,7 @@ def _load_native_module(path: str, imported: bool = False):
     an exported symbol and the existing Lynxer native-call signature grammar.
     """
     try:
-        state = _MEMORY_LIB.nativeModuleLoad(os.path.abspath(path))
+        state = _memory_lib().nativeModuleLoad(os.path.abspath(path))
     except Exception as exc:
         raise RuntimeError(f"could not load native module '{path}': {exc}") from exc
     state = dict(state)
@@ -439,7 +455,7 @@ class NativeModuleFunction(BaseFunction):
                 exec_ctx,
             ))
         try:
-            result = _MEMORY_LIB.nativeCall(
+            result = _memory_lib().nativeCall(
                 self.pointer, self.signature, [value.value for value in args]
             )
         except (RuntimeError, ValueError, OverflowError, MemoryError, OSError) as exc:
@@ -460,6 +476,8 @@ class NativeModuleFunction(BaseFunction):
 
 class BuiltInFunction(BaseFunction):
     """A callable implemented by Python and exposed to Lynxer programs."""
+
+    _is_builtin_function = True
 
     def execute(self, args):
         res = RTResult()
@@ -494,6 +512,7 @@ class BuiltInFunction(BaseFunction):
         c = BuiltInFunction(self.name)
         c.set_context(self.context)
         c.set_pos(self.pos_start, self.pos_end)
+        c.execution_state = self.execution_state
         return c
 
     def __repr__(self):
@@ -1242,7 +1261,7 @@ class BuiltInFunction(BaseFunction):
     def execute_nativeHandleAllocate(self, args, exec_ctx):
         if len(args) != 1 or not _native_nonnegative(args[0]):
             return self._failure(exec_ctx, "nativeHandleAllocate(size) expects a non-negative integer")
-        result = self._cpp(_MEMORY_LIB.memoryAllocate, [args[0].value], exec_ctx)
+        result = self._cpp(_memory_lib().memoryAllocate, [args[0].value], exec_ctx)
         if isinstance(result, RTResult):
             return result
         if result == 0:
@@ -1271,7 +1290,7 @@ class BuiltInFunction(BaseFunction):
         pointer, failure = self._native_handle_pointer(handle, exec_ctx, "nativeHandleFree")
         if failure:
             return failure
-        result = self._cpp(_MEMORY_LIB.memoryFree, [pointer], exec_ctx)
+        result = self._cpp(_memory_lib().memoryFree, [pointer], exec_ctx)
         if isinstance(result, RTResult):
             return result
         handle._state["active"] = False
@@ -1290,7 +1309,7 @@ class BuiltInFunction(BaseFunction):
             or not isinstance(args[2], String)
         ):
             return self._failure(exec_ctx, "atomicLoad(address, offset, type) expects an address, offset, and integer type")
-        result = self._cpp(_MEMORY_LIB.atomicLoad, [args[0].value, args[1].value, args[2].value], exec_ctx)
+        result = self._cpp(_memory_lib().atomicLoad, [args[0].value, args[1].value, args[2].value], exec_ctx)
         return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
     def execute_atomicStore(self, args, exec_ctx):
@@ -1303,7 +1322,7 @@ class BuiltInFunction(BaseFunction):
         ):
             return self._failure(exec_ctx, "atomicStore(address, offset, type, value) expects an address, offset, integer type, and integer")
         result = self._cpp(
-            _MEMORY_LIB.atomicStore,
+            _memory_lib().atomicStore,
             [args[0].value, args[1].value, args[2].value, args[3].value],
             exec_ctx,
         )
@@ -1319,7 +1338,7 @@ class BuiltInFunction(BaseFunction):
         ):
             return self._failure(exec_ctx, "atomicAdd(address, offset, type, value) expects an address, offset, integer type, and integer")
         result = self._cpp(
-            _MEMORY_LIB.atomicAdd,
+            _memory_lib().atomicAdd,
             [args[0].value, args[1].value, args[2].value, args[3].value],
             exec_ctx,
         )
@@ -1333,7 +1352,7 @@ class BuiltInFunction(BaseFunction):
             or not isinstance(args[2], String)
         ):
             return self._failure(exec_ctx, "volatileRead(address, offset, type) expects an address, offset, and type")
-        result = self._cpp(_MEMORY_LIB.volatileRead, [args[0].value, args[1].value, args[2].value], exec_ctx)
+        result = self._cpp(_memory_lib().volatileRead, [args[0].value, args[1].value, args[2].value], exec_ctx)
         return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
     def execute_volatileWrite(self, args, exec_ctx):
@@ -1346,7 +1365,7 @@ class BuiltInFunction(BaseFunction):
         ):
             return self._failure(exec_ctx, "volatileWrite(address, offset, type, value) expects an address, offset, type, and non-negative integer")
         result = self._cpp(
-            _MEMORY_LIB.volatileWrite,
+            _memory_lib().volatileWrite,
             [args[0].value, args[1].value, args[2].value, args[3].value],
             exec_ctx,
         )
@@ -1361,7 +1380,7 @@ class BuiltInFunction(BaseFunction):
         ):
             return self._failure(exec_ctx, "memoryProtect(address, size, mode) expects an address, size, and protection mode")
         result = self._cpp(
-            _MEMORY_LIB.memoryProtect,
+            _memory_lib().memoryProtect,
             [args[0].value, args[1].value, args[2].value],
             exec_ctx,
         )
@@ -1399,7 +1418,7 @@ class BuiltInFunction(BaseFunction):
                 )
             native_args.append(value.value)
         result = self._cpp(
-            _MEMORY_LIB.nativeCall,
+            _memory_lib().nativeCall,
             [pointer, args[1].value, native_args],
             exec_ctx,
         )
@@ -1413,7 +1432,7 @@ class BuiltInFunction(BaseFunction):
         if len(args) != 1 or not isinstance(args[0], String):
             return self._failure(exec_ctx, "ffiLoadLibrary(path) expects a library path")
         try:
-            handle = _MEMORY_LIB.ffiLoadLibrary(args[0].value)
+            handle = _memory_lib().ffiLoadLibrary(args[0].value)
         except Exception as exc:  # noqa: BLE001
             return self._failure(exec_ctx, f"ffiLoadLibrary() failed: {exc}")
         return RTResult().success(Number(handle))
@@ -1422,7 +1441,7 @@ class BuiltInFunction(BaseFunction):
         if len(args) != 2 or not _native_nonnegative(args[0]) or not isinstance(args[1], String):
             return self._failure(exec_ctx, "ffiLookup(library, symbol) expects a library handle and symbol")
         try:
-            pointer = _MEMORY_LIB.ffiLookup(args[0].value, args[1].value)
+            pointer = _memory_lib().ffiLookup(args[0].value, args[1].value)
         except Exception as exc:  # noqa: BLE001
             return self._failure(exec_ctx, f"ffiLookup() failed: {exc}")
         result = FunctionAddress(pointer)
@@ -1433,7 +1452,7 @@ class BuiltInFunction(BaseFunction):
         if len(args) != 1 or not _native_nonnegative(args[0]):
             return self._failure(exec_ctx, "ffiCloseLibrary(library) expects a library handle")
         try:
-            _MEMORY_LIB.ffiCloseLibrary(args[0].value)
+            _memory_lib().ffiCloseLibrary(args[0].value)
         except Exception as exc:  # noqa: BLE001
             return self._failure(exec_ctx, f"ffiCloseLibrary() failed: {exc}")
         return RTResult().success(Number.null)
@@ -1568,7 +1587,7 @@ class BuiltInFunction(BaseFunction):
                 "nativeModuleClose() cannot close a module imported into a namespace",
             )
         try:
-            _MEMORY_LIB.nativeModuleClose(args[0].value)
+            _memory_lib().nativeModuleClose(args[0].value)
         except Exception as exc:  # noqa: BLE001
             return self._failure(exec_ctx, f"nativeModuleClose() failed: {exc}")
         state["closed"] = True
@@ -1597,7 +1616,7 @@ class BuiltInFunction(BaseFunction):
                 ))
                 for value in args[2].elements
             ]
-            raw = _MEMORY_LIB.ffiCall(pointer, args[1].value, values)
+            raw = _memory_lib().ffiCall(pointer, args[1].value, values)
             result_name = args[1].value.split("(", 1)[0].split(":")[-1].strip()
             result = Number.null if result_name == "void" else (
                 String(raw) if result_name == "cstring" else Number(raw)
@@ -1610,7 +1629,7 @@ class BuiltInFunction(BaseFunction):
         if len(args) != 2 or not isinstance(args[0], String) or not hasattr(args[1], "execute"):
             return self._failure(exec_ctx, "ffiCallback(signature, function) expects a signature and Lynxer function")
         try:
-            pointer = _MEMORY_LIB.ffiCallback(args[0].value, args[1])
+            pointer = _memory_lib().ffiCallback(args[0].value, args[1])
         except Exception as exc:  # noqa: BLE001
             return self._failure(exec_ctx, f"ffiCallback() failed: {exc}")
         result = FunctionAddress(pointer)
@@ -1621,7 +1640,7 @@ class BuiltInFunction(BaseFunction):
         if len(args) != 1 or not isinstance(args[0], FunctionAddress):
             return self._failure(exec_ctx, "ffiFreeCallback(callback) expects a function address")
         try:
-            _MEMORY_LIB.ffiFreeCallback(args[0].pointer)
+            _memory_lib().ffiFreeCallback(args[0].pointer)
         except Exception as exc:  # noqa: BLE001
             return self._failure(exec_ctx, f"ffiFreeCallback() failed: {exc}")
         return RTResult().success(Number.null)
@@ -1629,7 +1648,7 @@ class BuiltInFunction(BaseFunction):
     def execute_nativeThreadStart(self, args, exec_ctx):
         if len(args) != 2 or not hasattr(args[0], "execute") or not isinstance(args[1], List):
             return self._failure(exec_ctx, "nativeThreadStart(function, arguments) expects a function and list")
-        result = self._cpp(_MEMORY_LIB.nativeThreadStart, [args[0], args[1].elements], exec_ctx)
+        result = self._cpp(_memory_lib().nativeThreadStart, [args[0], args[1].elements], exec_ctx)
         if isinstance(result, RTResult):
             return result
         return RTResult().success(Number(result))
@@ -1637,7 +1656,7 @@ class BuiltInFunction(BaseFunction):
     def execute_nativeThreadJoin(self, args, exec_ctx):
         if len(args) != 1 or not _native_nonnegative(args[0]):
             return self._failure(exec_ctx, "nativeThreadJoin(handle) expects a thread handle")
-        result = self._cpp(_MEMORY_LIB.nativeThreadJoin, [args[0].value], exec_ctx)
+        result = self._cpp(_memory_lib().nativeThreadJoin, [args[0].value], exec_ctx)
         if isinstance(result, RTResult):
             return result
         return RTResult().success(String(result))
@@ -1645,7 +1664,7 @@ class BuiltInFunction(BaseFunction):
     def execute_nativeThreadJoinAll(self, args, exec_ctx):
         if len(args) != 0:
             return self._failure(exec_ctx, "nativeThreadJoinAll() expects no arguments")
-        result = self._cpp(_MEMORY_LIB.nativeThreadJoinAll, [], exec_ctx)
+        result = self._cpp(_memory_lib().nativeThreadJoinAll, [], exec_ctx)
         if isinstance(result, RTResult):
             return result
         return RTResult().success(Number.null)
@@ -1653,7 +1672,7 @@ class BuiltInFunction(BaseFunction):
     def execute_nativeThreadIsAlive(self, args, exec_ctx):
         if len(args) != 1 or not _native_nonnegative(args[0]):
             return self._failure(exec_ctx, "nativeThreadIsAlive(handle) expects a thread handle")
-        result = self._cpp(_MEMORY_LIB.nativeThreadIsAlive, [args[0].value], exec_ctx)
+        result = self._cpp(_memory_lib().nativeThreadIsAlive, [args[0].value], exec_ctx)
         if isinstance(result, RTResult):
             return result
         return RTResult().success(Number(1 if result else 0, is_bool=True))
@@ -1661,7 +1680,7 @@ class BuiltInFunction(BaseFunction):
     def execute_nativeThreadStatus(self, args, exec_ctx):
         if len(args) != 1 or not _native_nonnegative(args[0]):
             return self._failure(exec_ctx, "nativeThreadStatus(handle) expects a thread handle")
-        result = self._cpp(_MEMORY_LIB.nativeThreadStatus, [args[0].value], exec_ctx)
+        result = self._cpp(_memory_lib().nativeThreadStatus, [args[0].value], exec_ctx)
         if isinstance(result, RTResult):
             return result
         return RTResult().success(String(result))
@@ -1669,7 +1688,7 @@ class BuiltInFunction(BaseFunction):
     def execute_nativeThreadDetach(self, args, exec_ctx):
         if len(args) != 1 or not _native_nonnegative(args[0]):
             return self._failure(exec_ctx, "nativeThreadDetach(handle) expects a thread handle")
-        result = self._cpp(_MEMORY_LIB.nativeThreadDetach, [args[0].value], exec_ctx)
+        result = self._cpp(_memory_lib().nativeThreadDetach, [args[0].value], exec_ctx)
         return result if isinstance(result, RTResult) else RTResult().success(Number.null)
 
     def _sync_handle(
@@ -1907,14 +1926,14 @@ class BuiltInFunction(BaseFunction):
     def execute_memoryTypeSize(self, args, exec_ctx):
         if len(args) != 1 or _memory_type(args[0]) not in _MEMORY_TYPES:
             return self._failure(exec_ctx, "memoryTypeSize(type) expects a supported memory type")
-        result = self._cpp(_MEMORY_LIB.memoryTypeSize, [_memory_type(args[0])], exec_ctx)
+        result = self._cpp(_memory_lib().memoryTypeSize, [_memory_type(args[0])], exec_ctx)
         return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
     def execute_memoryTypeAlignment(self, args, exec_ctx):
         if len(args) != 1 or _memory_type(args[0]) not in _MEMORY_TYPES:
             return self._failure(exec_ctx, "memoryTypeAlignment(type) expects a supported memory type")
         result = self._cpp(
-            _MEMORY_LIB.memoryTypeAlignment, [_memory_type(args[0])], exec_ctx
+            _memory_lib().memoryTypeAlignment, [_memory_type(args[0])], exec_ctx
         )
         return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
@@ -1932,7 +1951,7 @@ class BuiltInFunction(BaseFunction):
                 "an address, offset, supported type, and byte order",
             )
         result = self._cpp(
-            _MEMORY_LIB.memoryReadEndian,
+            _memory_lib().memoryReadEndian,
             [args[0].value, args[1].value, _memory_type(args[2]), args[3].value],
             exec_ctx,
         )
@@ -1954,7 +1973,7 @@ class BuiltInFunction(BaseFunction):
                 "an address, offset, supported type, byte order, and number",
             )
         result = self._cpp(
-            _MEMORY_LIB.memoryWriteEndian,
+            _memory_lib().memoryWriteEndian,
             [
                 args[0].value,
                 args[1].value,
@@ -1981,7 +2000,7 @@ class BuiltInFunction(BaseFunction):
         type_name = _memory_type(args[0])
         assert type_name is not None
         count = args[1].value
-        result = self._cpp(_MEMORY_LIB.memoryBlockAllocate, [type_name, count], exec_ctx)
+        result = self._cpp(_memory_lib().memoryBlockAllocate, [type_name, count], exec_ctx)
         return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
     def execute_memoryBlockView(self, args, exec_ctx):
@@ -2005,7 +2024,7 @@ class BuiltInFunction(BaseFunction):
         error = self._check_memory_address(address, exec_ctx)
         if error:
             return error
-        result = self._cpp(_MEMORY_LIB.memoryBlockView, [address, type_name, count], exec_ctx)
+        result = self._cpp(_memory_lib().memoryBlockView, [address, type_name, count], exec_ctx)
         return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
     def execute_memoryArrayAllocate(self, args, exec_ctx):
@@ -2053,7 +2072,7 @@ class BuiltInFunction(BaseFunction):
         if len(args) != 2 or not _native_nonnegative(args[0]) or not _native_nonnegative(args[1]):
             return self._failure(exec_ctx, "memoryBlockGet(address, index) expects non-negative integers")
         index = args[1].value
-        result = self._cpp(_MEMORY_LIB.memoryBlockGet, [args[0].value, index], exec_ctx)
+        result = self._cpp(_memory_lib().memoryBlockGet, [args[0].value, index], exec_ctx)
         return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
     def execute_memoryBlockSet(self, args, exec_ctx):
@@ -2067,13 +2086,13 @@ class BuiltInFunction(BaseFunction):
             return self._failure(exec_ctx, "memoryBlockSet(address, index, value) expects an address, index, and number")
         index = args[1].value
         value = args[2].value
-        result = self._cpp(_MEMORY_LIB.memoryBlockSet, [args[0].value, index, value], exec_ctx)
+        result = self._cpp(_memory_lib().memoryBlockSet, [args[0].value, index, value], exec_ctx)
         return result if isinstance(result, RTResult) else RTResult().success(Number.null)
 
     def execute_memoryBlockLength(self, args, exec_ctx):
         if len(args) != 1 or not _native_nonnegative(args[0]):
             return self._failure(exec_ctx, "memoryBlockLength(address) expects a non-negative integer address")
-        result = self._cpp(_MEMORY_LIB.memoryBlockLength, [args[0].value], exec_ctx)
+        result = self._cpp(_memory_lib().memoryBlockLength, [args[0].value], exec_ctx)
         return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
     def _struct_alignment(self, args, index, exec_ctx):
@@ -2109,7 +2128,7 @@ class BuiltInFunction(BaseFunction):
         failure = self._struct_args(args, 1, exec_ctx, values)
         if failure is not None:
             return failure
-        result = self._cpp(_MEMORY_LIB.memoryStructSize, values, exec_ctx)
+        result = self._cpp(_memory_lib().memoryStructSize, values, exec_ctx)
         return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
     def execute_memoryStructFieldOffset(self, args, exec_ctx):
@@ -2122,7 +2141,7 @@ class BuiltInFunction(BaseFunction):
         failure = self._struct_args(args, 2, exec_ctx, values)
         if failure is not None:
             return failure
-        result = self._cpp(_MEMORY_LIB.memoryStructFieldOffset, values, exec_ctx)
+        result = self._cpp(_memory_lib().memoryStructFieldOffset, values, exec_ctx)
         return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
     def execute_memoryStructFieldSize(self, args, exec_ctx):
@@ -2135,7 +2154,7 @@ class BuiltInFunction(BaseFunction):
         failure = self._struct_args(args, 2, exec_ctx, values)
         if failure is not None:
             return failure
-        result = self._cpp(_MEMORY_LIB.memoryStructFieldSize, values, exec_ctx)
+        result = self._cpp(_memory_lib().memoryStructFieldSize, values, exec_ctx)
         return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
     def execute_memoryStructAlignment(self, args, exec_ctx):
@@ -2145,7 +2164,7 @@ class BuiltInFunction(BaseFunction):
         failure = self._struct_args(args, 1, exec_ctx, values)
         if failure is not None:
             return failure
-        result = self._cpp(_MEMORY_LIB.memoryStructAlignment, values, exec_ctx)
+        result = self._cpp(_memory_lib().memoryStructAlignment, values, exec_ctx)
         return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
     def execute_memoryStructFieldCount(self, args, exec_ctx):
@@ -2155,7 +2174,7 @@ class BuiltInFunction(BaseFunction):
         failure = self._struct_args(args, 1, exec_ctx, values)
         if failure is not None:
             return failure
-        result = self._cpp(_MEMORY_LIB.memoryStructFieldCount, values, exec_ctx)
+        result = self._cpp(_memory_lib().memoryStructFieldCount, values, exec_ctx)
         return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
     def execute_memoryStructFieldType(self, args, exec_ctx):
@@ -2172,7 +2191,7 @@ class BuiltInFunction(BaseFunction):
         failure = self._struct_args(args, 2, exec_ctx, values)
         if failure is not None:
             return failure
-        result = self._cpp(_MEMORY_LIB.memoryStructFieldType, values, exec_ctx)
+        result = self._cpp(_memory_lib().memoryStructFieldType, values, exec_ctx)
         return result if isinstance(result, RTResult) else RTResult().success(String(result))
 
     # Explicit names for FFI callers.  The memoryStruct implementation uses
@@ -2215,13 +2234,13 @@ class BuiltInFunction(BaseFunction):
         failure = self._struct_args(args, 1, exec_ctx, values)
         if failure is not None:
             return failure
-        result = self._cpp(_MEMORY_LIB.memoryStructAllocate, values, exec_ctx)
+        result = self._cpp(_memory_lib().memoryStructAllocate, values, exec_ctx)
         return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
     def execute_memoryStructGet(self, args, exec_ctx):
         if len(args) != 2 or not _native_nonnegative(args[0]) or not isinstance(args[1], String):
             return self._failure(exec_ctx, "memoryStructGet(address, field) expects an address and field name")
-        result = self._cpp(_MEMORY_LIB.memoryStructGet, [args[0].value, args[1].value], exec_ctx)
+        result = self._cpp(_memory_lib().memoryStructGet, [args[0].value, args[1].value], exec_ctx)
         return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
     def execute_memoryStructSet(self, args, exec_ctx):
@@ -2233,13 +2252,13 @@ class BuiltInFunction(BaseFunction):
             or args[2].is_bool
         ):
             return self._failure(exec_ctx, "memoryStructSet(address, field, value) expects an address, field, and number")
-        result = self._cpp(_MEMORY_LIB.memoryStructSet, [args[0].value, args[1].value, args[2].value], exec_ctx)
+        result = self._cpp(_memory_lib().memoryStructSet, [args[0].value, args[1].value, args[2].value], exec_ctx)
         return result if isinstance(result, RTResult) else RTResult().success(Number.null)
 
     def execute_memoryAllocate(self, args, exec_ctx):
         if len(args) != 1 or not _native_nonnegative(args[0]):
             return self._failure(exec_ctx, "memoryAllocate(size) expects a non-negative integer size")
-        result = self._cpp(_MEMORY_LIB.memoryAllocate, [args[0].value], exec_ctx)
+        result = self._cpp(_memory_lib().memoryAllocate, [args[0].value], exec_ctx)
         return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
     def execute_memoryAllocateZeroed(self, args, exec_ctx):
@@ -2249,7 +2268,7 @@ class BuiltInFunction(BaseFunction):
                 "memoryAllocateZeroed(count, size) expects non-negative integer arguments",
             )
         result = self._cpp(
-            _MEMORY_LIB.memoryAllocateZeroed, [args[0].value, args[1].value], exec_ctx
+            _memory_lib().memoryAllocateZeroed, [args[0].value, args[1].value], exec_ctx
         )
         return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
@@ -2269,7 +2288,7 @@ class BuiltInFunction(BaseFunction):
             return error
         old_address = args[0].value
         result = self._cpp(
-            _MEMORY_LIB.memoryReallocate, [old_address, args[1].value], exec_ctx
+            _memory_lib().memoryReallocate, [old_address, args[1].value], exec_ctx
         )
         return result if isinstance(result, RTResult) else RTResult().success(Number(result))
 
@@ -2280,7 +2299,7 @@ class BuiltInFunction(BaseFunction):
         error = self._check_memory_address(address, exec_ctx)
         if error:
             return error
-        result = self._cpp(_MEMORY_LIB.memoryFree, [address], exec_ctx)
+        result = self._cpp(_memory_lib().memoryFree, [address], exec_ctx)
         if isinstance(result, RTResult):
             return result
         return RTResult().success(Number.null)
@@ -2307,7 +2326,7 @@ class BuiltInFunction(BaseFunction):
         if error:
             return error
         result = self._cpp(
-            _MEMORY_LIB.memorySet,
+            _memory_lib().memorySet,
             [args[0].value, args[1].value, args[2].value],
             exec_ctx,
         )
@@ -2329,7 +2348,7 @@ class BuiltInFunction(BaseFunction):
             if error:
                 return error
         result = self._cpp(
-            _MEMORY_LIB.memoryCopy,
+            _memory_lib().memoryCopy,
             [args[0].value, args[1].value, args[2].value],
             exec_ctx,
         )
@@ -2384,82 +2403,82 @@ class BuiltInFunction(BaseFunction):
 
     def execute_memoryReadInt8(self, args, exec_ctx):
         return self._memory_read_builtin(
-            args, exec_ctx, "memoryReadInt8", _MEMORY_LIB.memoryReadInt8
+            args, exec_ctx, "memoryReadInt8", _memory_lib().memoryReadInt8
         )
 
     def execute_memoryWriteInt8(self, args, exec_ctx):
         return self._memory_write_builtin(
-            args, exec_ctx, "memoryWriteInt8", _MEMORY_LIB.memoryWriteInt8, -(2**7), 2**7 - 1
+            args, exec_ctx, "memoryWriteInt8", _memory_lib().memoryWriteInt8, -(2**7), 2**7 - 1
         )
 
     def execute_memoryReadInt16(self, args, exec_ctx):
         return self._memory_read_builtin(
-            args, exec_ctx, "memoryReadInt16", _MEMORY_LIB.memoryReadInt16
+            args, exec_ctx, "memoryReadInt16", _memory_lib().memoryReadInt16
         )
 
     def execute_memoryWriteInt16(self, args, exec_ctx):
         return self._memory_write_builtin(
-            args, exec_ctx, "memoryWriteInt16", _MEMORY_LIB.memoryWriteInt16, -(2**15), 2**15 - 1
+            args, exec_ctx, "memoryWriteInt16", _memory_lib().memoryWriteInt16, -(2**15), 2**15 - 1
         )
 
     def execute_memoryReadInt32(self, args, exec_ctx):
         return self._memory_read_builtin(
-            args, exec_ctx, "memoryReadInt32", _MEMORY_LIB.memoryReadInt32
+            args, exec_ctx, "memoryReadInt32", _memory_lib().memoryReadInt32
         )
 
     def execute_memoryWriteInt32(self, args, exec_ctx):
         return self._memory_write_builtin(
-            args, exec_ctx, "memoryWriteInt32", _MEMORY_LIB.memoryWriteInt32, -(2**31), 2**31 - 1
+            args, exec_ctx, "memoryWriteInt32", _memory_lib().memoryWriteInt32, -(2**31), 2**31 - 1
         )
 
     def execute_memoryReadInt64(self, args, exec_ctx):
         return self._memory_read_builtin(
-            args, exec_ctx, "memoryReadInt64", _MEMORY_LIB.memoryReadInt64
+            args, exec_ctx, "memoryReadInt64", _memory_lib().memoryReadInt64
         )
 
     def execute_memoryWriteInt64(self, args, exec_ctx):
         return self._memory_write_builtin(
-            args, exec_ctx, "memoryWriteInt64", _MEMORY_LIB.memoryWriteInt64, -(2**63), 2**63 - 1
+            args, exec_ctx, "memoryWriteInt64", _memory_lib().memoryWriteInt64, -(2**63), 2**63 - 1
         )
 
     def execute_memoryReadUInt8(self, args, exec_ctx):
         return self._memory_read_builtin(
-            args, exec_ctx, "memoryReadUInt8", _MEMORY_LIB.memoryReadUInt8
+            args, exec_ctx, "memoryReadUInt8", _memory_lib().memoryReadUInt8
         )
 
     def execute_memoryWriteUInt8(self, args, exec_ctx):
         return self._memory_write_builtin(
-            args, exec_ctx, "memoryWriteUInt8", _MEMORY_LIB.memoryWriteUInt8, 0, 2**8 - 1
+            args, exec_ctx, "memoryWriteUInt8", _memory_lib().memoryWriteUInt8, 0, 2**8 - 1
         )
 
     def execute_memoryReadUInt16(self, args, exec_ctx):
         return self._memory_read_builtin(
-            args, exec_ctx, "memoryReadUInt16", _MEMORY_LIB.memoryReadUInt16
+            args, exec_ctx, "memoryReadUInt16", _memory_lib().memoryReadUInt16
         )
 
     def execute_memoryWriteUInt16(self, args, exec_ctx):
         return self._memory_write_builtin(
-            args, exec_ctx, "memoryWriteUInt16", _MEMORY_LIB.memoryWriteUInt16, 0, 2**16 - 1
+            args, exec_ctx, "memoryWriteUInt16", _memory_lib().memoryWriteUInt16, 0, 2**16 - 1
         )
 
     def execute_memoryReadUInt32(self, args, exec_ctx):
         return self._memory_read_builtin(
-            args, exec_ctx, "memoryReadUInt32", _MEMORY_LIB.memoryReadUInt32
+            args, exec_ctx, "memoryReadUInt32", _memory_lib().memoryReadUInt32
         )
 
     def execute_memoryWriteUInt32(self, args, exec_ctx):
         return self._memory_write_builtin(
-            args, exec_ctx, "memoryWriteUInt32", _MEMORY_LIB.memoryWriteUInt32, 0, 2**32 - 1
+            args, exec_ctx, "memoryWriteUInt32", _memory_lib().memoryWriteUInt32, 0, 2**32 - 1
         )
 
     def execute_memoryReadUInt64(self, args, exec_ctx):
         return self._memory_read_builtin(
-            args, exec_ctx, "memoryReadUInt64", _MEMORY_LIB.memoryReadUInt64
+            args, exec_ctx, "memoryReadUInt64", _memory_lib().memoryReadUInt64
         )
 
     def execute_memoryWriteUInt64(self, args, exec_ctx):
         return self._memory_write_builtin(
-            args, exec_ctx, "memoryWriteUInt64", _MEMORY_LIB.memoryWriteUInt64, 0, 2**64 - 1
+            args, exec_ctx, "memoryWriteUInt64", _memory_lib().memoryWriteUInt64, 0, 2**64 - 1
         )
 
     def _memory_read_float_builtin(self, args, exec_ctx, name, native_function):
@@ -2482,39 +2501,39 @@ class BuiltInFunction(BaseFunction):
 
     def execute_memoryReadFloat32(self, args, exec_ctx):
         return self._memory_read_float_builtin(
-            args, exec_ctx, "memoryReadFloat32", _MEMORY_LIB.memoryReadFloat32
+            args, exec_ctx, "memoryReadFloat32", _memory_lib().memoryReadFloat32
         )
 
     def execute_memoryWriteFloat32(self, args, exec_ctx):
         return self._memory_write_float_builtin(
-            args, exec_ctx, "memoryWriteFloat32", _MEMORY_LIB.memoryWriteFloat32
+            args, exec_ctx, "memoryWriteFloat32", _memory_lib().memoryWriteFloat32
         )
 
     def execute_memoryReadFloat64(self, args, exec_ctx):
         return self._memory_read_float_builtin(
-            args, exec_ctx, "memoryReadFloat64", _MEMORY_LIB.memoryReadFloat64
+            args, exec_ctx, "memoryReadFloat64", _memory_lib().memoryReadFloat64
         )
 
     def execute_memoryWriteFloat64(self, args, exec_ctx):
         return self._memory_write_float_builtin(
-            args, exec_ctx, "memoryWriteFloat64", _MEMORY_LIB.memoryWriteFloat64
+            args, exec_ctx, "memoryWriteFloat64", _memory_lib().memoryWriteFloat64
         )
 
     def execute_memoryReadByte(self, args, exec_ctx):
         return self._memory_read_builtin(
-            args, exec_ctx, "memoryReadByte", _MEMORY_LIB.memoryReadByte
+            args, exec_ctx, "memoryReadByte", _memory_lib().memoryReadByte
         )
 
     def execute_memoryWriteByte(self, args, exec_ctx):
         return self._memory_write_builtin(
-            args, exec_ctx, "memoryWriteByte", _MEMORY_LIB.memoryWriteByte, 0, 255
+            args, exec_ctx, "memoryWriteByte", _memory_lib().memoryWriteByte, 0, 255
         )
 
     def execute_sizeOf(self, args, exec_ctx):
         if len(args) != 1 or not isinstance(args[0], String):
             return self._failure(exec_ctx, "sizeOf(typeName) expects one string")
         try:
-            size = _MEMORY_LIB.sizeOf(args[0].value)
+            size = _memory_lib().sizeOf(args[0].value)
         except (TypeError, ValueError) as exc:
             return self._failure(exec_ctx, str(exc))
         return RTResult().success(Number(size))
@@ -2690,7 +2709,7 @@ class BuiltInFunction(BaseFunction):
                     exec_ctx,
                 )
             )
-        return RTResult().success(String(_runtime.value_type_name(args[0])))
+        return RTResult().success(String(value_type_name(args[0])))
 
     def execute_returnLength(self, args, exec_ctx):
         if len(args) != 1:
@@ -4337,7 +4356,7 @@ class BuiltInFunction(BaseFunction):
 
     def execute_foreverDelay(self, args, exec_ctx):
         """foreverDelay(seconds) — configure the delay used by forever()."""
-        if not _runtime._setup_in_progress:
+        if not exec_ctx.require_execution_state().setup_in_progress:
             return RTResult().failure(
                 RTError(
                     self.pos_start,
@@ -4365,12 +4384,12 @@ class BuiltInFunction(BaseFunction):
                     exec_ctx,
                 )
             )
-        setattr(_runtime, "_forever_delay", delay)  # noqa: B010
+        exec_ctx.require_execution_state().forever_delay = delay
         return RTResult().success(Number.null)
 
     def execute_suppressForeverWarning(self, args, exec_ctx):
         """Suppress the warning for forever() bodies without break."""
-        if not _runtime._setup_in_progress:
+        if not exec_ctx.require_execution_state().setup_in_progress:
             return RTResult().failure(
                 RTError(
                     self.pos_start,
@@ -4388,12 +4407,12 @@ class BuiltInFunction(BaseFunction):
                     exec_ctx,
                 )
             )
-        setattr(_runtime, "_forever_warning_suppressed", True)  # noqa: B010
+        _error._forever_warning_suppressed = True
         return RTResult().success(Number.null)
 
     def execute_suppressDeprecationWarning(self, args, exec_ctx):
         """Suppress legacy syntax deprecation warnings for this run."""
-        if not _runtime._setup_in_progress:
+        if not exec_ctx.require_execution_state().setup_in_progress:
             return RTResult().failure(
                 RTError(
                     self.pos_start,
@@ -4411,7 +4430,7 @@ class BuiltInFunction(BaseFunction):
                     exec_ctx,
                 )
             )
-        setattr(_runtime, "_deprecation_warning_suppressed", True)  # noqa: B010
+        _error._deprecation_warning_suppressed = True
         return RTResult().success(Number.null)
 
     def execute_overrideMain(self, args, exec_ctx):
@@ -4427,7 +4446,7 @@ class BuiltInFunction(BaseFunction):
                     exec_ctx,
                 )
             )
-        setattr(_runtime, "_main_override", args[0].value)  # noqa: B010
+        exec_ctx.require_execution_state().main_override = args[0].value
         return RTResult().success(Number.null)
 
     def execute_assert(self, args, exec_ctx):
@@ -4765,6 +4784,7 @@ BUILTIN_FUNCTION_NAMES = (
 
 
 BUILTIN_FUNCTIONS: dict[str, BuiltInFunction] = {}
+_ACTIVE_EXECUTION_STATE: ExecutionState | None = None
 
 
 def register_builtin(name: str, handler: BuiltinHandler | None = None) -> BuiltInFunction:
@@ -4781,18 +4801,24 @@ def register_builtin(name: str, handler: BuiltinHandler | None = None) -> BuiltI
     function = BuiltInFunction(name)
     setattr(BuiltInFunction, name, function)
     BUILTIN_FUNCTIONS[name] = function
-    # The global table is created after this module is imported, so the
-    # startup registrations are installed by lynxer.py.  Extensions added
-    # later should become available immediately as well.
-    global_symbol_table = getattr(_runtime, "global_symbol_table", None)
-    if global_symbol_table is not None:
-        global_symbol_table.set(name, function)
+    if _ACTIVE_EXECUTION_STATE is not None:
+        function.execution_state = _ACTIVE_EXECUTION_STATE
+        table = _ACTIVE_EXECUTION_STATE.global_symbol_table
+        if table is not None:
+            table.set(name, function)
     return function
 
 
-def register_builtins(symbol_table: Any) -> None:
+def register_builtins(
+    symbol_table: Any,
+    execution_state: ExecutionState | None = None,
+) -> None:
     """Install every registered builtin into a Lynxer symbol table."""
+    global _ACTIVE_EXECUTION_STATE
+    if execution_state is not None:
+        _ACTIVE_EXECUTION_STATE = execution_state
     for name, function in BUILTIN_FUNCTIONS.items():
+        function.execution_state = execution_state
         symbol_table.set(name, function)
 
 
@@ -4808,9 +4834,3 @@ def builtin(name: str) -> Callable[[BuiltinHandler], BuiltinHandler]:
 # Create the public instances from the complete implementation above.
 for _name in BUILTIN_FUNCTION_NAMES:
     register_builtin(_name)
-
-# If this module was imported first, lynxer.py had to defer registration
-# while this module was still being initialized. Complete it now that all
-# BuiltInFunction instances exist.
-if getattr(_runtime, "_builtins_registration_deferred", False):
-    _runtime._register_builtins(_runtime.global_symbol_table)

@@ -1,0 +1,11 @@
+{
+  "command_source": "lynxer/stdlib/math.lynx",
+  "kind": "stdlib-import",
+  "name": "stdlib/math",
+  "returncode": 0,
+  "skip_reason": null,
+  "source": "lynxer/stdlib/math.lynx",
+  "status": "completed",
+  "stderr": "",
+  "stdout": ""
+}

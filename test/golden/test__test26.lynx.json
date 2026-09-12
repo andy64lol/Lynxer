@@ -1,0 +1,11 @@
+{
+  "command_source": "test/test26.lynx",
+  "kind": "fixture",
+  "name": "test/test26.lynx",
+  "returncode": 1,
+  "skip_reason": null,
+  "source": "test/test26.lynx",
+  "status": "completed",
+  "stderr": "Traceback (most recent call last):\n  --> <project>/test/test26.lynx, line 3, in <program>\n  --> <project>/test/test26.lynx, line 4, in main\n  --> <project>/test/test26.lynx, line 4, in memoryReadInt32\n\n[Lynxer] Runtime Error\n  invalid native memory address\n\n\n    memoryReadInt32(12345, 0);\n    ^^^^^^^^^^^^^^^^^^^^^^^^^\n",
+  "stdout": ""
+}

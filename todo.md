@@ -437,13 +437,12 @@ surgery on a monolith.
 
 ### Strategic decision (needed up front)
 
-- [ ] Decide the fate of Python-interop features (EmbedPy, raw `py`/`pyx`
+- [x] Decide the fate of Python-interop features (EmbedPy, raw `py`/`pyx`
   blocks, `exec` blocks, Cython inline, pyglet-backed games):
-  - (a) embed libpython behind a build flag — full compat, Python stays
-  - (b) drop them in the native build, keep the Python toolchain as
-    `lynxer-py` for a transition period (recommended start)
-  - (c) reimplement natively per feature (ctypes FFI already exists in
-    `cpp.cpp`; pyglet → SDL/sfml)
+  - Selected **(b)**: drop them in the native build, keep the Python
+    toolchain as `lynxer-py` for a transition period. Native replacements
+    must report explicit unavailable-feature/module errors rather than
+    silently falling back to Python. See `docs/migration/README.md`.
 
 ### Stdlib triage
 
@@ -484,12 +483,14 @@ Goal: every Python module becomes a small, focused unit with a
 documented public API, zero circular imports, and a dependency graph
 that maps 1:1 onto future C++ translation units.
 
-- [ ] Golden-output corpus first: run every `test/*.lynx` fixture +
+- [x] Golden-output corpus first: run every `test/*.lynx` fixture +
   stdlib through the current implementation, capture stdout/stderr/
-  error text; CI diff script — every Stage-1 step must keep it green
-- [ ] Define the target module layout and strict dependency direction,
+  error text; `scripts/golden_corpus.py` provides the update/check command,
+  and interactive fixtures are recorded as explicit skips.
+- [x] Define the target module layout and strict dependency direction,
   e.g. error → lexer → ast → parser → bytecode (encode/decode) →
-  values → interpreter → builtins → stdlib glue → CLI
+  values → interpreter → builtins → stdlib glue → CLI. See
+  `docs/migration/README.md`.
 - [ ] Break the existing circular imports (`lynxer.py` ↔ `runtime.py`
   try/except cycle; values/builtins/runtime entanglement)
 - [ ] Split the monoliths into cohesive modules:
