@@ -2,7 +2,9 @@ CXX ?= c++
 CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -pedantic
 
 TARGET := clynxer
-SOURCE := main.cpp
+SOURCES := main.cpp lexer.cpp runtime.cpp ast.cpp parser.cpp
+HEADERS := $(wildcard *.hpp)
+OBJECTS := $(SOURCES:.cpp=.o)
 CONDITION_FIXTURE := examples/conditions.lynx
 LOOP_FIXTURE := examples/loops.lynx
 ERROR_FIXTURE := examples/control_flow_error.lynx
@@ -13,8 +15,11 @@ SETUP_ERROR_FIXTURE := examples/missing_setup.lynx
 
 all: $(TARGET)
 
-$(TARGET): $(SOURCE)
-	$(CXX) $(CXXFLAGS) $(SOURCE) -o $(TARGET)
+$(TARGET): $(OBJECTS)
+	$(CXX) $(CXXFLAGS) $(OBJECTS) -o $(TARGET)
+
+%.o: %.cpp $(HEADERS)
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 test: $(TARGET)
 	@output="$$(./$(TARGET) examples/hello.lynx)"; \
@@ -74,4 +79,4 @@ expected="clynxer: $(ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 	@echo "clynxer smoke test passed"
 
 clean:
-	rm -f $(TARGET)
+	rm -f $(TARGET) $(OBJECTS)
