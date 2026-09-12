@@ -1,0 +1,12 @@
+global setup(){}
+
+global main(){
+    ///
+        This block is ignored.
+        It can span multiple lines.
+    ///
+    int first = 1; /// same-line comment /// int second = 2;
+    str marker = "/// this is string content, not a comment";
+    println(first + second);
+    println(marker);
+}

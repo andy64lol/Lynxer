@@ -1,0 +1,7 @@
+global setup(){}
+
+global main(){
+    if(missing){
+        println("unreachable");
+    }
+}

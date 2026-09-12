@@ -1,0 +1,49 @@
+global setup(){
+    foreverDelay(0);
+}
+
+global main(){
+    int i = 0;
+    while(i < 3){
+        if(i == 1){
+            i += 1;
+            continue;
+        }
+        println("while " + i);
+        i += 1;
+    }
+
+    for(int j = 0; j < 2){
+        println("for " + j);
+    }
+
+    int doValue = 0;
+    doWhile(doValue < 3){
+        doValue += 1;
+        if(doValue == 2){
+            restart;
+        }
+        println("doWhile " + doValue);
+    }
+
+    int iterateValue = 0;
+    iterate(4){
+        if(iterateValue == 2){
+            break;
+        }
+        println("iterate " + iterateValue);
+        iterateValue += 1;
+    }
+
+    int foreverValue = 0;
+    forever(){
+        foreverValue += 1;
+        if(foreverValue == 1){
+            continue;
+        }
+        println("forever " + foreverValue);
+        if(foreverValue == 2){
+            break;
+        }
+    }
+}

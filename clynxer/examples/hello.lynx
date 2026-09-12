@@ -1,0 +1,8 @@
+global setup(){
+    str greeting = "Hello";
+}
+
+global main(){
+    str name = "Clynxer";
+    println(greeting + ", " + name + "!");
+}

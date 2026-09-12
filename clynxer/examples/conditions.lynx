@@ -1,0 +1,17 @@
+global setup(){}
+
+global main(){
+    int score = 2;
+
+    if(score > 1){
+        println("if branch");
+    } else {
+        println("if else branch");
+    }
+
+    if(score == 0){
+        println("wrong branch");
+    } else {
+        println("else branch");
+    }
+}
