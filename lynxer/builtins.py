@@ -19,6 +19,7 @@ from collections.abc import Callable
 from typing import Any, TypeVar, cast
 
 from . import error as _error
+from .builtin_registry import BuiltinRegistry
 from .values import (
     Address,
     BaseFunction,
@@ -363,7 +364,7 @@ def _native_module_state(handle):
     return state
 
 
-def _load_native_module(path: str, imported: bool = False):
+def load_native_module(path: str, imported: bool = False):
     """Load a native module and invoke its versioned registration entry point.
 
     Native modules export:
@@ -1481,7 +1482,7 @@ class BuiltInFunction(BaseFunction):
         if len(args) != 1 or not isinstance(args[0], String):
             return self._failure(exec_ctx, "nativeModuleLoad(path) expects a library path")
         try:
-            handle, _ = _load_native_module(args[0].value)
+            handle, _ = load_native_module(args[0].value)
         except RuntimeError as exc:
             return self._failure(exec_ctx, str(exc))
         return RTResult().success(Number(handle))
@@ -4407,7 +4408,7 @@ class BuiltInFunction(BaseFunction):
                     exec_ctx,
                 )
             )
-        _error._forever_warning_suppressed = True
+        _error.suppress_forever_warning()
         return RTResult().success(Number.null)
 
     def execute_suppressDeprecationWarning(self, args, exec_ctx):
@@ -4430,7 +4431,7 @@ class BuiltInFunction(BaseFunction):
                     exec_ctx,
                 )
             )
-        _error._deprecation_warning_suppressed = True
+        _error.suppress_deprecation_warnings()
         return RTResult().success(Number.null)
 
     def execute_overrideMain(self, args, exec_ctx):
@@ -4783,8 +4784,8 @@ BUILTIN_FUNCTION_NAMES = (
 )
 
 
-BUILTIN_FUNCTIONS: dict[str, BuiltInFunction] = {}
-_ACTIVE_EXECUTION_STATE: ExecutionState | None = None
+BUILTIN_REGISTRY = BuiltinRegistry(BuiltInFunction)
+BUILTIN_FUNCTIONS: dict[str, BuiltInFunction] = BUILTIN_REGISTRY.functions
 
 
 def register_builtin(name: str, handler: BuiltinHandler | None = None) -> BuiltInFunction:
@@ -4794,19 +4795,7 @@ def register_builtin(name: str, handler: BuiltinHandler | None = None) -> BuiltI
     exec_ctx)`` and returning an ``RTResult``. The common in-tree case is
     adding a name whose ``execute_<name>`` method is defined above.
     """
-    if not name.isidentifier():
-        raise ValueError(f"Invalid builtin name: {name!r}")
-    if handler is not None:
-        setattr(BuiltInFunction, f"execute_{name}", handler)
-    function = BuiltInFunction(name)
-    setattr(BuiltInFunction, name, function)
-    BUILTIN_FUNCTIONS[name] = function
-    if _ACTIVE_EXECUTION_STATE is not None:
-        function.execution_state = _ACTIVE_EXECUTION_STATE
-        table = _ACTIVE_EXECUTION_STATE.global_symbol_table
-        if table is not None:
-            table.set(name, function)
-    return function
+    return BUILTIN_REGISTRY.register(name, handler)
 
 
 def register_builtins(
@@ -4814,12 +4803,7 @@ def register_builtins(
     execution_state: ExecutionState | None = None,
 ) -> None:
     """Install every registered builtin into a Lynxer symbol table."""
-    global _ACTIVE_EXECUTION_STATE
-    if execution_state is not None:
-        _ACTIVE_EXECUTION_STATE = execution_state
-    for name, function in BUILTIN_FUNCTIONS.items():
-        function.execution_state = execution_state
-        symbol_table.set(name, function)
+    BUILTIN_REGISTRY.install(symbol_table, execution_state)
 
 
 def builtin(name: str) -> Callable[[BuiltinHandler], BuiltinHandler]:
@@ -4834,3 +4818,7 @@ def builtin(name: str) -> Callable[[BuiltinHandler], BuiltinHandler]:
 # Create the public instances from the complete implementation above.
 for _name in BUILTIN_FUNCTION_NAMES:
     register_builtin(_name)
+
+
+# Compatibility alias for extensions written against the pre-Stage-1 name.
+_load_native_module = load_native_module

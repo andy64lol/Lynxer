@@ -8,8 +8,10 @@ import textwrap
 from typing import Any
 
 from . import error as _error
-from .bytecode import run_bytecode_file
 from .error import (
+    begin_run,
+    end_parse,
+    finish_run,
     _flush_deprecation_warnings,
     warn_forever_no_break,
     warn_legacy_syntax_position,
@@ -49,6 +51,7 @@ from .lexer import (
     Lexer,
     Position,
 )
+from .runtime_state import RuntimeContext, new_runtime_context
 from .lynxerAst import (
     DefaultNode,
     DoWhileNode,
@@ -63,7 +66,7 @@ from .lynxerAst import (
     TryCatchNode,
     VarAccessNode,
     WhileNode,
-    _uses_shared_parameters,
+    uses_shared_parameters,
 )
 from .parser import Parser
 from .values import (
@@ -76,7 +79,6 @@ from .values import (
     CodeBlockValue,
     Context,
     CoroutineValue,
-    ExecutionState,
     EmbedPyNamespace,
     EnumType,
     EnumValue,
@@ -93,8 +95,8 @@ from .values import (
     StructBlueprint,
     SymbolTable,
     VarGroup,
-    _build_exec_bindings,
-    _exec_codeblock_variable_names,
+    build_exec_bindings,
+    exec_codeblock_variable_names,
     type_matches,
     value_type_name,
 )
@@ -129,12 +131,13 @@ def stdlib_dir() -> str:
         if os.path.isdir(candidate):
             return candidate
     return candidates[0]
-# State shared by one interpreter execution.  Contexts carry this object into
-# values and builtins instead of importing this module to find live globals.
-_execution_state = ExecutionState()
+# Compatibility code still looks up the active tables through this module.
+# Ownership now belongs to RuntimeContext; ``_activate_runtime`` only updates
+# these aliases while a legacy visitor is executing.
+_default_runtime = new_runtime_context()
+_active_runtime = _default_runtime
+_execution_state = _active_runtime.execution_state
 execution_state = _execution_state
-
-# importPy shared module registry
 _rawpy_global_modules = _execution_state.rawpy_global_modules
 
 # Python callbacks registered by a standard-library module (for example the
@@ -1799,7 +1802,7 @@ class Interpreter:
                 "exec() expects a code-block parameter reference",
                 context,
             ))
-        bindings, error = _build_exec_bindings(node, block, args, context)
+        bindings, error = build_exec_bindings(node, block, args, context)
         if error:
             return res.failure(error)
         assert bindings is not None
@@ -1875,7 +1878,7 @@ class Interpreter:
                 and isinstance(value_to_call, (Function, AsyncFunction))
                 and value_to_call.is_global
                 and not value_to_call.is_file_func
-                and not _uses_shared_parameters(value_to_call)):
+                and not uses_shared_parameters(value_to_call)):
             return res.failure(RTError(
                 node.pos_start, node.pos_end,
                 f"Global function '{value_to_call.name}' must be called as "
@@ -2095,7 +2098,7 @@ class Interpreter:
     def visit_CodeBlockLiteralNode(self, node, context):
         if node.param_toks is not None:
             declared_names = {name_tok.value for _, name_tok in node.param_toks}
-            used_names = _exec_codeblock_variable_names(node.body_block)
+            used_names = exec_codeblock_variable_names(node.body_block)
             undeclared = [name for name in used_names if name not in declared_names]
             if undeclared:
                 return RTResult().failure(RTError(
@@ -2153,7 +2156,7 @@ class Interpreter:
                 "exec() expects a code-block parameter reference",
                 context,
             ))
-        bindings, error = _build_exec_bindings(node, block, args, context)
+        bindings, error = build_exec_bindings(node, block, args, context)
         if error:
             return res.failure(error)
         assert bindings is not None
@@ -2259,7 +2262,7 @@ class Interpreter:
                 and isinstance(value_to_call, (Function, AsyncFunction))
                 and value_to_call.is_global
                 and not value_to_call.is_file_func
-                and not _uses_shared_parameters(value_to_call)):
+                and not uses_shared_parameters(value_to_call)):
             return res.failure(RTError(
                 node.pos_start, node.pos_end,
                 f"Global function '{value_to_call.name}' must be called as "
@@ -2918,8 +2921,8 @@ class Interpreter:
 
         if use_bytecode == "native":
             try:
-                from .builtins import _load_native_module, populate_native_module_table
-                _, native_state = _load_native_module(filepath, imported=True)
+                from .builtins import load_native_module, populate_native_module_table
+                _, native_state = load_native_module(filepath, imported=True)
                 populate_native_module_table(native_state, module_table)
                 error = None
             except Exception as e:  # noqa: BLE001
@@ -2930,6 +2933,7 @@ class Interpreter:
                 )
         elif use_bytecode:
             try:
+                from .bytecode import run_bytecode_file
                 error = run_bytecode_file(filepath, module_table)
             except Exception as e:  # noqa: BLE001
                 _lynx_modules.pop(module_name, None)
@@ -3027,8 +3031,8 @@ class Interpreter:
 
         if use_bytecode == "native":
             try:
-                from .builtins import _load_native_module, populate_native_module_table
-                _, native_state = _load_native_module(filepath, imported=True)
+                from .builtins import load_native_module, populate_native_module_table
+                _, native_state = load_native_module(filepath, imported=True)
                 populate_native_module_table(native_state, module_table)
                 error = None
             except Exception as e:  # noqa: BLE001
@@ -3039,6 +3043,7 @@ class Interpreter:
                 )
         elif use_bytecode:
             try:
+                from .bytecode import run_bytecode_file
                 error = run_bytecode_file(filepath, module_table)
             except Exception as e:  # noqa: BLE001
                 _lynx_modules.pop(module_name, None)
@@ -3135,37 +3140,66 @@ class Interpreter:
 
         return res.success(Number.null)
 
-def _register_builtins(symbol_table: SymbolTable) -> None:
+def _register_builtins(
+    symbol_table: SymbolTable,
+    state=None,
+) -> None:
     """Install built-ins after the value and interpreter layers are ready."""
     from .builtins import BuiltInFunction, register_builtins
 
     globals()["BuiltInFunction"] = BuiltInFunction
-    register_builtins(symbol_table, _execution_state)
+    register_builtins(symbol_table, state or _execution_state)
 
-# global symbol table
+# global symbol table compatibility helpers
 
-def _new_global_symbol_table():
+def _new_global_symbol_table(runtime: RuntimeContext | None = None):
+    runtime = runtime or _active_runtime
     table = SymbolTable()
-    _execution_state.global_symbol_table = table
+    table.runtime_context = runtime
+    runtime.global_symbol_table = table
+    runtime.execution_state.global_symbol_table = table
     table.set("true", Number.true)
     table.set("false", Number.false)
-    _register_builtins(table)
+    _register_builtins(table, runtime.execution_state)
     table.set("embedPy", EmbedPyNamespace())
     return table
 
 
-global_symbol_table = _new_global_symbol_table()
+global_symbol_table = _new_global_symbol_table(_default_runtime)
 
 SHARED_INTERPRETER = Interpreter()
-_execution_state.interpreter = SHARED_INTERPRETER
+_default_runtime.interpreter = SHARED_INTERPRETER
+_default_runtime.execution_state.interpreter = SHARED_INTERPRETER
 
 
-def reset_runtime_state():
+def _activate_runtime(runtime: RuntimeContext) -> None:
+    """Make a context available to legacy visitor paths for one invocation."""
+    global _active_runtime, _execution_state, execution_state
+    global _rawpy_global_modules, _lynx_modules, global_symbol_table
+    _active_runtime = runtime
+    _execution_state = runtime.execution_state
+    execution_state = _execution_state
+    _rawpy_global_modules = _execution_state.rawpy_global_modules
+    _lynx_modules = _execution_state.lynx_modules
+    global_symbol_table = runtime.global_symbol_table
+
+
+def activate_runtime(runtime: RuntimeContext) -> None:
+    """Activate a context for compatibility adapters such as bytecode loading."""
+    _activate_runtime(runtime)
+
+
+def reset_runtime_state(runtime: RuntimeContext | None = None) -> RuntimeContext:
     """Start a clean top-level runtime for an independent program run."""
-    global global_symbol_table
-    global_symbol_table = _new_global_symbol_table()
-    _rawpy_global_modules.clear()
-    _lynx_modules.clear()
+    runtime = runtime or _default_runtime
+    runtime.reset()
+    if runtime.interpreter is None:
+        runtime.interpreter = SHARED_INTERPRETER
+    runtime.execution_state.interpreter = runtime.interpreter
+    _activate_runtime(runtime)
+    runtime.global_symbol_table = _new_global_symbol_table(runtime)
+    _activate_runtime(runtime)
+    return runtime
 
 
 def _interpreter_error(fn, text, context_name, exc):
@@ -3193,15 +3227,17 @@ def _join_outstanding_native_threads():
         pass
 
 
-def run(fn, text, suppress_deprecation_warnings=False):
-    reset_runtime_state()
+def run(
+    fn,
+    text,
+    suppress_deprecation_warnings=False,
+    runtime_context: RuntimeContext | None = None,
+):
+    runtime = reset_runtime_state(runtime_context or new_runtime_context())
     _execution_state.main_override = None
     _execution_state.forever_delay = 0.02
-    _error._forever_warning_suppressed = False
-    _error._deprecation_warning_suppressed = bool(suppress_deprecation_warnings)
-    _error._pending_deprecation_warnings.clear()
+    begin_run(bool(suppress_deprecation_warnings))
     _execution_state.setup_in_progress = False
-    _error._deprecation_warning_deferred = True
 
     try:
         lexer = Lexer(fn, text)
@@ -3214,9 +3250,9 @@ def run(fn, text, suppress_deprecation_warnings=False):
         if ast.error:
             return None, ast.error
     finally:
-        _error._deprecation_warning_deferred = False
+        end_parse()
 
-    interpreter = SHARED_INTERPRETER
+    interpreter = runtime.interpreter
     context = Context("<program>", execution_state=_execution_state)
     context.symbol_table = global_symbol_table
     global_symbol_table.set("__file__", String(os.path.abspath(fn)))
@@ -3226,14 +3262,20 @@ def run(fn, text, suppress_deprecation_warnings=False):
     try:
         result = interpreter.visit(ast.node, context)
     except Exception as exc:  # noqa: BLE001
-        _flush_deprecation_warnings()
+        finish_run()
         _join_outstanding_native_threads()
         return None, _interpreter_error(fn, text, "<program>", exc)
-    _flush_deprecation_warnings()
+    finish_run()
     _join_outstanding_native_threads()
     return result.value, result.error
 
-def run_file(fn, text, symbol_table, execute_main=False):
+def run_file(
+    fn,
+    text,
+    symbol_table,
+    execute_main=False,
+    runtime_context: RuntimeContext | None = None,
+):
     lexer = Lexer(fn, text)
     tokens, error = lexer.make_tokens()
     if error:
@@ -3244,10 +3286,16 @@ def run_file(fn, text, symbol_table, execute_main=False):
     if ast.error:
         return ast.error
 
-    interpreter = SHARED_INTERPRETER
+    runtime = (
+        runtime_context
+        or getattr(symbol_table, "runtime_context", None)
+        or _active_runtime
+    )
+    _activate_runtime(runtime)
+    interpreter = runtime.interpreter or SHARED_INTERPRETER
     context = Context(
         f"<import:{os.path.basename(fn)}>",
-        execution_state=_execution_state,
+        execution_state=runtime.execution_state,
     )
     context.symbol_table = symbol_table
     symbol_table.set("__file__", String(os.path.abspath(fn)))
@@ -3262,14 +3310,14 @@ def run_file(fn, text, symbol_table, execute_main=False):
                 return r.error
 
         if node.setup_func:
-            previous_setup_state = _execution_state.setup_in_progress
-            _execution_state.setup_in_progress = True
+            previous_setup_state = runtime.execution_state.setup_in_progress
+            runtime.execution_state.setup_in_progress = True
             try:
                 r = interpreter.run_setup(node.setup_func, context)
                 if r.error:
                     return r.error
             finally:
-                _execution_state.setup_in_progress = previous_setup_state
+                runtime.execution_state.setup_in_progress = previous_setup_state
 
         if execute_main and node.main_func is not None:
             main_decl_result = RTResult()

@@ -87,6 +87,41 @@ _forever_warning_suppressed = False
 _deprecation_warning_suppressed = False
 _deprecation_warning_deferred = False
 _pending_deprecation_warnings: list[tuple[Any, str]] = []
+
+
+def begin_run(suppress_deprecation_warnings: bool = False) -> None:
+    """Reset warning state before compiling or executing one program."""
+    global _forever_warning_suppressed
+    global _deprecation_warning_suppressed, _deprecation_warning_deferred
+    _forever_warning_suppressed = False
+    _deprecation_warning_suppressed = suppress_deprecation_warnings
+    _deprecation_warning_deferred = True
+    _pending_deprecation_warnings.clear()
+
+
+def end_parse() -> None:
+    """Allow parser warnings to be emitted immediately after parsing."""
+    global _deprecation_warning_deferred
+    _deprecation_warning_deferred = False
+
+
+def suppress_forever_warning() -> None:
+    """Suppress the warning for forever loops without a visible break."""
+    global _forever_warning_suppressed
+    _forever_warning_suppressed = True
+
+
+def suppress_deprecation_warnings() -> None:
+    """Suppress deprecation warnings for the remainder of the current run."""
+    global _deprecation_warning_suppressed
+    _deprecation_warning_suppressed = True
+
+
+def finish_run() -> None:
+    """Flush deferred diagnostics and close the warning lifecycle."""
+    global _deprecation_warning_deferred
+    _deprecation_warning_deferred = False
+    _flush_deprecation_warnings()
 # errors
 
 class Error:

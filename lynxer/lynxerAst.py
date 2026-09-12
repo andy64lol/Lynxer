@@ -117,7 +117,7 @@ class SharedNode:
         self.pos_start = var_name_tok.pos_start
         self.pos_end = var_name_tok.pos_end
 
-def _uses_shared_parameters(function_value):
+def uses_shared_parameters(function_value):
     body = getattr(function_value, "body_node", None)
     statements = getattr(body, "statements", ())
     return any(isinstance(statement, SharedNode) for statement in statements)
@@ -397,30 +397,35 @@ class ProgramNode:
         self.pos_start = pos_start
         self.pos_end = pos_end
 
-def _block_contains_break(block_node):
+def block_contains_break(block_node):
     """Return whether a block contains a ``break`` statement."""
     if isinstance(block_node, IfNode):
-        if _block_contains_break(block_node.then_block):
+        if block_contains_break(block_node.then_block):
             return True
         return (
             block_node.else_block is not None
-            and _block_contains_break(block_node.else_block)
+            and block_contains_break(block_node.else_block)
         )
 
     for stmt in block_node.statements:
         if isinstance(stmt, BreakNode):
             return True
         if isinstance(stmt, IfNode):
-            if _block_contains_break(stmt.then_block):
+            if block_contains_break(stmt.then_block):
                 return True
-            if stmt.else_block is not None and _block_contains_break(stmt.else_block):
+            if stmt.else_block is not None and block_contains_break(stmt.else_block):
                 return True
         elif isinstance(stmt, TryCatchNode):
-            if _block_contains_break(stmt.try_block):
+            if block_contains_break(stmt.try_block):
                 return True
-            if stmt.catch_block is not None and _block_contains_break(stmt.catch_block):
+            if stmt.catch_block is not None and block_contains_break(stmt.catch_block):
                 return True
     return False
+
+
+# Compatibility aliases for older extensions importing the original helpers.
+_uses_shared_parameters = uses_shared_parameters
+_block_contains_break = block_contains_break
 
 class VarGroupDeclNode:
     def __init__(self, name_tok, fields, pos_start, pos_end, is_const=False,

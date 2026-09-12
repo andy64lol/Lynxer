@@ -1008,14 +1008,11 @@ def compile_to_bytecode(
 def run_bytecode(fn: str, suppress_deprecation_warnings=False) -> tuple[Any, Any]:
     """Load and execute a pre-compiled ``.lynxc`` file."""
     runtime = _runtime()
-    runtime.reset_runtime_state()
+    runtime_context = runtime.reset_runtime_state()
+    runtime.activate_runtime(runtime_context)
     runtime.execution_state.main_override = None
     runtime.execution_state.forever_delay = 0.02
-    runtime._error._forever_warning_suppressed = False
-    runtime._error._deprecation_warning_suppressed = bool(
-        suppress_deprecation_warnings
-    )
-    runtime._error._pending_deprecation_warnings.clear()
+    runtime._error.begin_run(bool(suppress_deprecation_warnings))
     runtime.execution_state.setup_in_progress = False
 
     try:
@@ -1024,17 +1021,17 @@ def run_bytecode(fn: str, suppress_deprecation_warnings=False) -> tuple[Any, Any
         raise RuntimeError(str(exc)) from exc
 
     node = data["node"]
-    interpreter = runtime.SHARED_INTERPRETER
+    interpreter = runtime_context.interpreter
     context = runtime.Context(
         "<program>",
-        execution_state=runtime.execution_state,
+        execution_state=runtime_context.execution_state,
     )
-    context.symbol_table = runtime.global_symbol_table
-    runtime.global_symbol_table.set("__file__", runtime.String(os.path.abspath(fn)))
-    runtime.global_symbol_table.set(
-        "global", runtime.Namespace(runtime.global_symbol_table)
+    context.symbol_table = runtime_context.global_symbol_table
+    runtime_context.global_symbol_table.set("__file__", runtime.String(os.path.abspath(fn)))
+    runtime_context.global_symbol_table.set(
+        "global", runtime.Namespace(runtime_context.global_symbol_table)
     )
-    runtime.global_symbol_table.set("class", runtime.ClassRegistry())
+    runtime_context.global_symbol_table.set("class", runtime.ClassRegistry())
 
     result = interpreter.visit(node, context)
     return result.value, result.error
@@ -1043,16 +1040,20 @@ def run_bytecode(fn: str, suppress_deprecation_warnings=False) -> tuple[Any, Any
 def run_bytecode_file(fn: str, symbol_table: Any) -> Any:
     """Load and execute a compiled module in an existing symbol table."""
     runtime = _runtime()
+    runtime_context = getattr(symbol_table, "runtime_context", None)
+    if runtime_context is None:
+        runtime_context = runtime.reset_runtime_state()
+    runtime.activate_runtime(runtime_context)
     try:
         data = load_bytecode(fn)
     except Exception as exc:
         raise RuntimeError(str(exc)) from exc
 
     node = data["node"]
-    interpreter = runtime.SHARED_INTERPRETER
+    interpreter = runtime_context.interpreter or runtime.SHARED_INTERPRETER
     context = runtime.Context(
         f"<import:{os.path.basename(fn)}>",
-        execution_state=runtime.execution_state,
+        execution_state=runtime_context.execution_state,
     )
     context.symbol_table = symbol_table
     symbol_table.set("__file__", runtime.String(os.path.abspath(fn)))

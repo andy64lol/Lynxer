@@ -6,6 +6,7 @@ import itertools
 from typing import Any, ClassVar
 
 from .error import RTError
+from .execution import ExecutionState, RTResult
 from .lexer import Token
 from .lynxerAst import (
     CallNode,
@@ -13,6 +14,13 @@ from .lynxerAst import (
     DotAccessNode,
     VarAccessNode,
     VarAssignNode,
+)
+from .type_registry import (
+    FLOAT_RANGES,
+    INTEGER_RANGES,
+    NUMERIC_TYPES,
+    type_matches,
+    value_type_name,
 )
 
 _cpp_module: Any = None
@@ -35,67 +43,6 @@ def _is_builtin_function(v) -> bool:
     """
     return bool(getattr(v, "_is_builtin_function", False))
 
-
-class ExecutionState:
-    """Mutable state shared by one interpreter execution.
-
-    The value layer owns only this dependency-neutral state container.  The
-    interpreter fills in the concrete interpreter and symbol table, while
-    nested :class:`Context` objects carry the same state to values and
-    builtins without importing the interpreter module.
-    """
-
-    def __init__(self):
-        self.interpreter: Any = None
-        self.global_symbol_table: Any = None
-        self.rawpy_global_modules: dict[str, Any] = {}
-        self.lynx_modules: dict[str, Any] = {}
-        self.forever_delay = 0.02
-        self.setup_in_progress = False
-        self.main_override: str | None = None
-
-# runtime result
-
-class RTResult:
-    def __init__(self):
-        self.reset()
-
-    def reset(self):
-        self.value = None
-        self.error = None
-        self.func_return_value = None
-        self.loop_should_continue = False
-        self.loop_should_break = False
-
-    def register(self, res):
-        self.error = res.error
-        self.func_return_value = res.func_return_value
-        self.loop_should_continue = res.loop_should_continue
-        self.loop_should_break = res.loop_should_break
-        return res.value
-
-    def success(self, value):
-        self.reset()
-        self.value = value
-        return self
-
-    def success_return(self, value):
-        self.reset()
-        self.func_return_value = value
-        return self
-
-    def failure(self, error):
-        self.reset()
-        self.error = error
-        return self
-
-    def should_return(self):
-        return (
-            self.error
-            or self.func_return_value is not None
-            or self.loop_should_continue
-            or self.loop_should_break
-        )
 
 # values
 
@@ -829,99 +776,7 @@ class LynxTuple(Value):
     def __repr__(self):
         return self.__str__()
 
-def value_type_name(v):
-    if isinstance(v, Null):
-        return "none"
-    if isinstance(v, Number):
-        if v.is_bool:
-            return "bool"
-        return "float" if isinstance(v.value, float) else "int"
-    if isinstance(v, Char):
-        return "char"
-    if isinstance(v, String):
-        return "str"
-    if isinstance(v, LynxTuple):
-        return "tuple"
-    if isinstance(v, List):
-        return "list"
-    if isinstance(v, Sentinel):
-        return "sentinel"
-    if isinstance(v, ObjectValue):
-        return "object"
-    if isinstance(v, ClassInstance):
-        return v.class_name
-    if isinstance(v, CodeBlockValue):
-        return "codeblock"
-    if isinstance(v, Address):
-        return "address"
-    if isinstance(v, FunctionAddress):
-        return "functionAddress"
-    if isinstance(v, NativeHandle):
-        return "nativeHandle"
-    if isinstance(v, EnumValue):
-        return v.enum_name
-    if isinstance(v, VarGroup):
-        return "vargroup"
-    if isinstance(v, Function) or _is_builtin_function(v):
-        return "function"
-    return "any"
-
-NUMERIC_TYPES = {"int", "float"}
-INTEGER_RANGES = {
-    "int8": (-128, 127),
-    "int16": (-32768, 32767),
-    "int32": (-2147483648, 2147483647),
-    "int64": (-9223372036854775808, 9223372036854775807),
-    "uint8": (0, 255),
-    "uint16": (0, 65535),
-    "uint32": (0, 4294967295),
-    "uint64": (0, 18446744073709551615),
-    "bit": (0, 1),
-    "numBool": (0, 1),
-    "byte": (0, 255),
-}
-FLOAT_RANGES = {
-    "float32": 3.4028234663852886e38,
-    "float64": 1.7976931348623157e308,
-}
-
-def type_matches(declared_type, value):
-    if declared_type in (None, "any"):
-        return True
-    actual = value_type_name(value)
-    if isinstance(value, EnumValue):
-        return declared_type == value.enum_name
-    if declared_type == "num":
-        return actual in NUMERIC_TYPES
-    if declared_type in NUMERIC_TYPES:
-        return actual in NUMERIC_TYPES
-    if declared_type in INTEGER_RANGES:
-        return (
-            isinstance(value, Number)
-            and not value.is_bool
-            and isinstance(value.value, int)
-            and INTEGER_RANGES[declared_type][0] <= value.value
-            <= INTEGER_RANGES[declared_type][1]
-        )
-    if declared_type in FLOAT_RANGES:
-        return (
-            isinstance(value, Number)
-            and not value.is_bool
-            and isinstance(value.value, (int, float))
-            and value.value == value.value
-            and abs(value.value) <= FLOAT_RANGES[declared_type]
-        )
-    if declared_type == "char":
-        return isinstance(value, Char)
-    if declared_type == "functionAddress":
-        return isinstance(value, FunctionAddress)
-    if declared_type == "nativeHandle":
-        return isinstance(value, NativeHandle)
-    if declared_type in ("vargroup", "struct"):
-        return actual == "vargroup"
-    return actual == declared_type
-
-def _exec_codeblock_variable_names(node):
+def exec_codeblock_variable_names(node):
     """Return user-variable references in a codeblock in source order."""
     names = []
     seen = set()
@@ -974,7 +829,7 @@ def _exec_codeblock_variable_names(node):
     visit(node)
     return names
 
-def _build_exec_bindings(node, block, args, context):
+def build_exec_bindings(node, block, args, context):
     """Build ``(name, declared_type, value)`` bindings for one exec call."""
     if block.param_toks is not None:
         if len(args) != len(block.param_toks):
@@ -1004,7 +859,7 @@ def _build_exec_bindings(node, block, args, context):
         return bindings, None
 
     if node.infer_params:
-        names = _exec_codeblock_variable_names(block.body_node)
+        names = exec_codeblock_variable_names(block.body_node)
         if len(args) != len(names):
             expected = ", ".join(names) if names else "no variables"
             return None, RTError(
@@ -1038,6 +893,11 @@ def _build_exec_bindings(node, block, args, context):
             )
         bindings.append((name, declared_type, value))
     return bindings, None
+
+
+# Compatibility aliases for third-party integrations using the old helpers.
+_exec_codeblock_variable_names = exec_codeblock_variable_names
+_build_exec_bindings = build_exec_bindings
 
 class BaseFunction(Value):
     def __init__(self, name):
@@ -2313,6 +2173,7 @@ class SymbolTable:
     def __init__(self, parent=None):
         self.symbols = {}
         self.constants = set()
+        self.runtime_context: Any = None
         self.types = {}
         self.aliases = {}
         self.references = {}

@@ -133,44 +133,9 @@ from .lynxerAst import (
     VarDeclNode,
     VarGroupDeclNode,
     WhileNode,
-    _block_contains_break,
+    block_contains_break,
 )
-
-# parse result
-
-class ParseResult:
-    def __init__(self):
-        self.error: Error | None = None
-        self.node: Any = None
-        self.last_registered_advance_count = 0
-        self.advance_count = 0
-        self.to_reverse_count = 0
-
-    def register_advancement(self):
-        self.last_registered_advance_count = 1
-        self.advance_count += 1
-
-    def register(self, res: ParseResult) -> Any:
-        self.last_registered_advance_count = res.advance_count
-        self.advance_count += res.advance_count
-        if res.error:
-            self.error = res.error
-        return res.node
-
-    def try_register(self, res):
-        if res.error:
-            self.to_reverse_count = res.advance_count
-            return None
-        return self.register(res)
-
-    def success(self, node):
-        self.node = node
-        return self
-
-    def failure(self, error):
-        if not self.error or self.last_registered_advance_count == 0:
-            self.error = error
-        return self
+from .parser_result import ParseResult
 
 # parser
 
@@ -2079,7 +2044,7 @@ class Parser:
                 body,
                 pos_start,
                 body.pos_end,
-                has_break=_block_contains_break(body),
+                has_break=block_contains_break(body),
             )
         )
 

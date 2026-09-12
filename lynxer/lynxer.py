@@ -200,8 +200,8 @@ from .lynxerAst import (  # noqa: F401
     VarDeclNode,
     VarGroupDeclNode,
     WhileNode,
-    _block_contains_break,
-    _uses_shared_parameters,
+    block_contains_break,
+    uses_shared_parameters,
 )
 from .parser import Parser, ParseResult  # noqa: F401
 from .runtime import (  # noqa: F401
@@ -269,8 +269,8 @@ from .values import (  # noqa: F401
     SymbolTable,
     Value,
     VarGroup,
-    _build_exec_bindings,
-    _exec_codeblock_variable_names,
+    build_exec_bindings,
+    exec_codeblock_variable_names,
     _get_cpp,
     _lynx_to_python,
     _python_to_lynx,
