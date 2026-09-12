@@ -23,7 +23,16 @@ std::vector<Token> Lexer::scan() {
             while (!atEnd() && isIdentifierPart(peek())) {
                 text += advance();
             }
-            tokens.push_back({TokenKind::Identifier, text, line, column});
+            if (text == "inter" && peek() == '"') {
+                // inter"..." — keep the raw content; the parser splits it
+                // into literal and interpolated parts.
+                advance();
+                tokens.push_back(
+                    {TokenKind::InterpString, readRawString(line, column),
+                     line, column});
+            } else {
+                tokens.push_back({TokenKind::Identifier, text, line, column});
+            }
         } else if (std::isdigit(static_cast<unsigned char>(current)) ||
                    (current == '.' &&
                     std::isdigit(static_cast<unsigned char>(peek())))) {
@@ -59,7 +68,7 @@ std::vector<Token> Lexer::scan() {
                 (current == '/' && next == '=') ||
                 (current == '%' && next == '=')) {
                 symbol += advance();
-            } else if (std::string("+-*/%<>=!;(),{}").find(current) ==
+            } else if (std::string("+-*/%<>=!;(),{}.[]").find(current) ==
                        std::string::npos) {
                 fail("unexpected character '" + std::string(1, current),
                      line, column);
@@ -164,6 +173,21 @@ std::string Lexer::readString(int line, int column) {
         } else {
             value += current;
         }
+    }
+    if (atEnd()) {
+        fail("unterminated string", line, column);
+    }
+    advance();
+    return value;
+}
+
+std::string Lexer::readRawString(int line, int column) {
+    std::string value;
+    while (!atEnd() && peek() != '"') {
+        if (peek() == '\n') {
+            fail("unterminated string", line, column);
+        }
+        value += advance();
     }
     if (atEnd()) {
         fail("unterminated string", line, column);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ast.hpp"
+#include "error.hpp"
 #include "lexer.hpp"
 
 #include <string>
@@ -17,6 +18,14 @@ public:
 
 private:
     StatementPtr parseStatement();
+
+    StatementPtr parseCallStatement();
+
+    ExpressionPtr parseCallExpression();
+
+    std::vector<ExpressionPtr> parseArguments(const std::string& name);
+
+    ExpressionPtr parseInterpString(const Token& token);
 
     StatementPtr parseSimpleStatement(bool requireSemicolon);
 
@@ -70,11 +79,17 @@ private:
 
     const Token& current() const;
 
+    const Token& peekAt(std::size_t offset) const;
+
     const Token& previous() const;
 
     Token advance();
 
     [[noreturn]] void fail(const std::string& message, const Token& token) const;
+
+    [[noreturn]] void fail(const std::string& message, int line, int column) const {
+        throw SourceError(message, line, column);
+    }
 
     std::vector<Token> tokens_;
     std::size_t index_ = 0;

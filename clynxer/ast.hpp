@@ -72,6 +72,55 @@ private:
     int column_;
 };
 
+class CallExpression final : public Expression {
+public:
+    CallExpression(std::string name, std::vector<ExpressionPtr> arguments,
+                   int line, int column);
+
+    Value evaluate(Environment& environment) const override;
+
+private:
+    std::string name_;
+    std::vector<ExpressionPtr> arguments_;
+    int line_;
+    int column_;
+};
+
+class ListLiteralExpression final : public Expression {
+public:
+    explicit ListLiteralExpression(std::vector<ExpressionPtr> elements);
+
+    Value evaluate(Environment& environment) const override;
+
+private:
+    std::vector<ExpressionPtr> elements_;
+};
+
+class TupleLiteralExpression final : public Expression {
+public:
+    explicit TupleLiteralExpression(std::vector<ExpressionPtr> elements);
+
+    Value evaluate(Environment& environment) const override;
+
+private:
+    std::vector<ExpressionPtr> elements_;
+};
+
+// inter"..." — an interpolated string; literal parts alternate with
+// expressions evaluated at runtime.
+class InterpStringExpression final : public Expression {
+public:
+    void addLiteral(std::string text);
+
+    void addExpression(ExpressionPtr expression);
+
+    Value evaluate(Environment& environment) const override;
+
+private:
+    std::vector<std::string> literals_;
+    std::vector<ExpressionPtr> expressions_;
+};
+
 class Statement {
 public:
     virtual ~Statement() = default;
@@ -121,29 +170,6 @@ private:
     int column_;
 };
 
-class PrintStatement final : public Statement {
-public:
-    PrintStatement(ExpressionPtr value, bool newline);
-
-    void execute(Environment& environment) const override;
-
-private:
-    ExpressionPtr value_;
-    bool newline_;
-};
-
-class ForeverDelayStatement final : public Statement {
-public:
-    ForeverDelayStatement(ExpressionPtr value, int line, int column);
-
-    void execute(Environment& environment) const override;
-
-private:
-    ExpressionPtr value_;
-    int line_;
-    int column_;
-};
-
 class LoopControlStatement final : public Statement {
 public:
     explicit LoopControlStatement(LoopControlKind kind);
@@ -154,6 +180,16 @@ private:
     LoopControlKind kind_;
 };
 
+class ExpressionStatement final : public Statement {
+public:
+    explicit ExpressionStatement(ExpressionPtr expression);
+
+    void execute(Environment& environment) const override;
+
+private:
+    ExpressionPtr expression_;
+};
+
 void executeStatements(const StatementList& statements, Environment& environment);
 
 class IfStatement final : public Statement {
@@ -162,6 +198,10 @@ public:
                 StatementList elseStatements, bool hasElse);
 
     void execute(Environment& environment) const override;
+
+    const StatementList& thenStatements() const { return thenStatements_; }
+
+    const StatementList& elseStatements() const { return elseStatements_; }
 
 private:
     ExpressionPtr condition_;
@@ -176,6 +216,8 @@ public:
 
     void execute(Environment& environment) const override;
 
+    const StatementList& statements() const { return statements_; }
+
 private:
     ExpressionPtr condition_;
     StatementList statements_;
@@ -187,6 +229,8 @@ public:
                  StatementPtr update, StatementList statements);
 
     void execute(Environment& environment) const override;
+
+    const StatementList& statements() const { return statements_; }
 
 private:
     StatementPtr initializer_;
@@ -201,6 +245,8 @@ public:
 
     void execute(Environment& environment) const override;
 
+    const StatementList& statements() const { return statements_; }
+
 private:
     ExpressionPtr condition_;
     StatementList statements_;
@@ -212,6 +258,8 @@ public:
                      int column);
 
     void execute(Environment& environment) const override;
+
+    const StatementList& statements() const { return statements_; }
 
 private:
     ExpressionPtr count_;
@@ -226,10 +274,15 @@ public:
 
     void execute(Environment& environment) const override;
 
+    const StatementList& statements() const { return statements_; }
+
 private:
+    bool containsBreak(const StatementList& statements) const;
+
     StatementList statements_;
     int line_;
     int column_;
+    mutable bool warned_ = false;
 };
 
 struct Function {

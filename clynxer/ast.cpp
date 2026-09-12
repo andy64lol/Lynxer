@@ -1,5 +1,7 @@
 #include "ast.hpp"
 
+#include "builtins.hpp"
+#include "config.hpp"
 #include "error.hpp"
 
 #include <chrono>
@@ -111,13 +113,7 @@ Value BinaryExpression::evaluate(Environment& environment) const {
         return std::get<std::int64_t>(left) % rhs;
     }
     if (operation_ == "==" || operation_ == "!=") {
-        bool equal = false;
-        if (isNumber(left) && isNumber(right)) {
-            equal = asNumber(left, line_, column_) ==
-                    asNumber(right, line_, column_);
-        } else {
-            equal = left == right;
-        }
+        const bool equal = valuesEqual(left, right);
         return operation_ == "==" ? equal : !equal;
     }
     if (operation_ == "<" || operation_ == "<=" || operation_ == ">" ||
@@ -170,6 +166,66 @@ bool BinaryExpression::compareStrings(const std::string& left,
     return left >= right;
 }
 
+CallExpression::CallExpression(std::string name,
+                               std::vector<ExpressionPtr> arguments, int line,
+                               int column)
+    : name_(std::move(name)), arguments_(std::move(arguments)), line_(line),
+      column_(column) {}
+
+Value CallExpression::evaluate(Environment& environment) const {
+    std::vector<Value> arguments;
+    arguments.reserve(arguments_.size());
+    for (const auto& argument : arguments_) {
+        arguments.push_back(argument->evaluate(environment));
+    }
+    return callBuiltin(name_, arguments, environment, line_, column_);
+}
+
+ListLiteralExpression::ListLiteralExpression(
+    std::vector<ExpressionPtr> elements)
+    : elements_(std::move(elements)) {}
+
+Value ListLiteralExpression::evaluate(Environment& environment) const {
+    std::vector<Value> values;
+    values.reserve(elements_.size());
+    for (const auto& element : elements_) {
+        values.push_back(element->evaluate(environment));
+    }
+    return std::make_shared<List>(List{std::move(values)});
+}
+
+TupleLiteralExpression::TupleLiteralExpression(
+    std::vector<ExpressionPtr> elements)
+    : elements_(std::move(elements)) {}
+
+Value TupleLiteralExpression::evaluate(Environment& environment) const {
+    std::vector<Value> values;
+    values.reserve(elements_.size());
+    for (const auto& element : elements_) {
+        values.push_back(element->evaluate(environment));
+    }
+    return std::make_shared<Tuple>(Tuple{std::move(values)});
+}
+
+void InterpStringExpression::addLiteral(std::string text) {
+    literals_.push_back(std::move(text));
+}
+
+void InterpStringExpression::addExpression(ExpressionPtr expression) {
+    expressions_.push_back(std::move(expression));
+}
+
+Value InterpStringExpression::evaluate(Environment& environment) const {
+    std::string output;
+    for (std::size_t index = 0; index < literals_.size(); ++index) {
+        output += literals_[index];
+        if (index < expressions_.size()) {
+            output += valueToString(expressions_[index]->evaluate(environment));
+        }
+    }
+    return output;
+}
+
 DeclarationStatement::DeclarationStatement(std::string type, std::string name,
                                            ExpressionPtr value, int line,
                                            int column)
@@ -193,38 +249,18 @@ void AssignmentStatement::execute(Environment& environment) const {
     environment.assign(name_, value_->evaluate(environment), line_, column_);
 }
 
-PrintStatement::PrintStatement(ExpressionPtr value, bool newline)
-    : value_(std::move(value)), newline_(newline) {}
-
-void PrintStatement::execute(Environment& environment) const {
-    std::cout << valueToString(value_->evaluate(environment));
-    if (newline_) {
-        std::cout << '\n';
-    }
-}
-
-ForeverDelayStatement::ForeverDelayStatement(ExpressionPtr value, int line,
-                                             int column)
-    : value_(std::move(value)), line_(line), column_(column) {}
-
-void ForeverDelayStatement::execute(Environment& environment) const {
-    const Value value = value_->evaluate(environment);
-    if (!isNumber(value)) {
-        throw SourceError("foreverDelay() requires a number", line_, column_);
-    }
-    const double seconds = asNumber(value, line_, column_);
-    if (seconds < 0.0) {
-        throw SourceError("foreverDelay() requires a non-negative number",
-                          line_, column_);
-    }
-    environment.setForeverDelay(seconds);
-}
-
 LoopControlStatement::LoopControlStatement(LoopControlKind kind)
     : kind_(kind) {}
 
 void LoopControlStatement::execute(Environment&) const {
     throw LoopControl(kind_);
+}
+
+ExpressionStatement::ExpressionStatement(ExpressionPtr expression)
+    : expression_(std::move(expression)) {}
+
+void ExpressionStatement::execute(Environment& environment) const {
+    expression_->evaluate(environment);
 }
 
 void executeStatements(const StatementList& statements,
@@ -335,6 +371,16 @@ ForeverStatement::ForeverStatement(StatementList statements, int line,
     : statements_(std::move(statements)), line_(line), column_(column) {}
 
 void ForeverStatement::execute(Environment& environment) const {
+    if (!warned_ && !environment.foreverWarningSuppressed() &&
+        !containsBreak(statements_)) {
+        warned_ = true;
+        const std::string& message = Config::instance().get(
+            "warning.forever_no_break",
+            "forever() has no break; it will run until the process is "
+            "stopped. Add break; or call suppressForeverWarning() in "
+            "global setup(){}.");
+        std::cerr << "Warning: " << message << '\n';
+    }
     for (;;) {
         bool shouldBreak = false;
         try {
@@ -351,6 +397,54 @@ void ForeverStatement::execute(Environment& environment) const {
                 std::chrono::duration<double>(seconds));
         }
     }
+}
+
+bool ForeverStatement::containsBreak(const StatementList& statements) const {
+    for (const auto& statement : statements) {
+        const LoopControlStatement* control =
+            dynamic_cast<const LoopControlStatement*>(statement.get());
+        if (control != nullptr) {
+            return true;
+        }
+        if (const auto* ifStatement =
+                dynamic_cast<const IfStatement*>(statement.get())) {
+            if (containsBreak(ifStatement->thenStatements()) ||
+                containsBreak(ifStatement->elseStatements())) {
+                return true;
+            }
+        }
+        if (const auto* whileStatement =
+                dynamic_cast<const WhileStatement*>(statement.get())) {
+            if (containsBreak(whileStatement->statements())) {
+                return true;
+            }
+        }
+        if (const auto* forStatement =
+                dynamic_cast<const ForStatement*>(statement.get())) {
+            if (containsBreak(forStatement->statements())) {
+                return true;
+            }
+        }
+        if (const auto* doWhileStatement =
+                dynamic_cast<const DoWhileStatement*>(statement.get())) {
+            if (containsBreak(doWhileStatement->statements())) {
+                return true;
+            }
+        }
+        if (const auto* iterateStatement =
+                dynamic_cast<const IterateStatement*>(statement.get())) {
+            if (containsBreak(iterateStatement->statements())) {
+                return true;
+            }
+        }
+        if (const auto* foreverStatement =
+                dynamic_cast<const ForeverStatement*>(statement.get())) {
+            if (containsBreak(foreverStatement->statements())) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 } // namespace clynxer

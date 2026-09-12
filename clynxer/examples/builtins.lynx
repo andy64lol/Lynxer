@@ -1,0 +1,113 @@
+global setup(){
+    suppressForeverWarning();
+}
+
+global main(){
+    // strings and conversions
+    println(strOf(99), " ", strOf(3.14), " ", strOf(true));
+    println(intOf("42"), " ", intOf(3.9));
+    println(floatOf("1.5"));
+
+    // sequences
+    println(range(5));
+    println(range(2, 8));
+    println(range(0, 10, 2));
+    println(range(10, 0, -1));
+    println(range(5, 5));
+    println(seqFromTo(0, 10, 2));
+
+    // lists (value semantics)
+    list numbers = [5, 3, 9, 1];
+    numbers = listPush(numbers, 7);
+    println(strOf(numbers));
+    println(listPop(numbers), " ", strOf(numbers));
+    println(listGet(numbers, -1));
+    println(strOf(listSet(numbers, 0, 100)));
+    println(strOf(listSlice(numbers, 1, 3)));
+    println(listContains(numbers, 3), " ", listContains(numbers, 42));
+    println(listIndex(numbers, 9), " ", listIndex(numbers, 42));
+    println(listJoin(numbers, "-"));
+    println(anyOf([false, 1]), " ", allOf([true, 1]), " ", allOf([true, 0]));
+    println(sumOf(numbers), " ", listAvg(numbers));
+    println(strOf(sortList(numbers)), " ", strOf(sortList(numbers, true)));
+    println(strOf(reverseList(numbers)));
+    println(listMin(numbers), " ", listMax(numbers));
+    println(strOf(listHead(numbers, 2)), " ", strOf(listTail(numbers, 2)));
+    println(listFirst(numbers), " ", listLast(numbers));
+    println(listCount(numbers, 3));
+    println(strOf(listExtend(numbers, [8, 8])));
+    println(strOf(listInsert(numbers, 1, 50)));
+    println(strOf(listFlatten([[1, 2], [3], 4])));
+    println(strOf(listUnique([8, 8, 8, 8])));
+    println(strOf(listRepeat("x", 3)));
+    println(strOf(listZip([1, 2, 3], ["a", "b"])));
+    println(listJsonArray([1, "two", true, none]));
+    println(listJsonObject(["name", "Ada", "age", 36]));
+    println(splitStr("a,b,c", ","));
+    println(contains([1, 2, 3], 2));
+
+    // tuples
+    tuple point = (10, 20);
+    tuple made = tupleCreate(1, "two", 3.0);
+    println(point, " ", made);
+    println(tupleLen(made), " ", tupleGet(made, 1), " ", tupleGet(made, -1));
+    println(tupleContains(point, 20), " ", tupleIndex(point, 10));
+    println(strOf(tupleSlice(point, 0, 1)));
+    println(tupleToList(point), " ", listToTuple([4, 5]));
+    println(tupleConcat(point, made));
+    println(tupleCount(made, 1));
+    println(tupleFirst(made), " ", tupleLast(made));
+    println(tupleJsonArray(point));
+    println(strOf(tupleReverse(point)));
+    println(strOf(tupleSort((3, 1, 2))), " ", strOf(tupleSortDesc((3, 1, 2))));
+    println(tupleMin(point), " ", tupleMax(point), " ", tupleSum(point));
+    println(tupleAny((false, true)), " ", tupleAll((true, true)));
+    println(strOf(tupleUnique((1, 1, 2))));
+    println(tupleMean((2.0, 4.0)));
+    println(strOf(tupleZip((1, 2), ("a", "b"))));
+    println(tupleJoin(point, "-"));
+
+    // introspection
+    println(returnType(42), " ", returnType(3.14), " ", returnType("hi"));
+    println(returnType(true), " ", returnType(none), " ", returnType(range(3)));
+    println(returnLength("hello"), " ", returnLength(range(5)));
+    sentinel missing = sentinel("MISSING");
+    any unnamed = sentinel();
+    any marker = object();
+    println(strOf(missing), " ", returnType(missing), " ", strOf(unnamed));
+    println(strOf(marker), " ", returnType(marker));
+    assert(missing == missing);
+    assert(missing != sentinel("MISSING"));
+    assert(marker != object());
+    assert(2 + 2 == 4, "arithmetic is broken");
+
+    // native memory
+    int address = memoryAllocate(16);
+    memorySet(address, 0, 16);
+    memoryWriteInt32(address, 0, 42);
+    println(memoryReadInt32(address, 0));
+    memoryWriteInt64(address, 8, -7);
+    println(memoryReadInt64(address, 8));
+    memoryWriteByte(address, 4, 200);
+    println(memoryReadUInt8(address, 4));
+    memoryWriteEndian(address, 12, "uint32", "big", 305419896);
+    println(memoryReadEndian(address, 12, "uint32", "big"));
+    memoryFree(address);
+    println(sizeOf("int"), " ", memoryTypeSize("float64"), " ", memoryTypeAlignment("int16"));
+
+    // interpolation
+    str name = "Ada";
+    int age = 36;
+    println(inter"Hello, {name}!");
+    println(inter"{name} is {age}");
+    print(inter"{age + 4}\n");
+    println("no {name} interpolation here");
+
+    // forever loop with break (warning suppressed in setup)
+    int count = 0;
+    forever() {
+        count = count + 1;
+        if (count == 3) { break; }
+    }
+    println(count);
+}

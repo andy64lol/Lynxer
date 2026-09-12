@@ -55,12 +55,164 @@ StatementPtr Parser::parseStatement() {
         checkText("restart")) {
         return parseLoopControl();
     }
+    if ((check(TokenKind::Identifier) && peekAt(1).text == "(") ||
+        (checkText("global") && peekAt(1).text == ".")) {
+        return parseCallStatement();
+    }
     return parseSimpleStatement(true);
+}
+
+StatementPtr Parser::parseCallStatement() {
+    ExpressionPtr call = parseCallExpression();
+    expectText(";", "expected ';' after call");
+    return std::make_unique<ExpressionStatement>(std::move(call));
+}
+
+ExpressionPtr Parser::parseCallExpression() {
+    const Token start = advance();
+    std::string name = start.text;
+    if (name == "global") {
+        expectText(".", "expected '.' after 'global'");
+        name = expect(TokenKind::Identifier,
+                      "expected function name after 'global.'")
+                   .text;
+    }
+    while (match(".")) {
+        const Token part =
+            expect(TokenKind::Identifier, "expected name after '.'");
+        name += "." + part.text;
+    }
+    expectText("(", "expected '(' after function name");
+    std::vector<ExpressionPtr> arguments = parseArguments(name);
+    return std::make_unique<CallExpression>(std::move(name),
+                                             std::move(arguments), start.line,
+                                             start.column);
+}
+
+std::vector<ExpressionPtr> Parser::parseArguments(const std::string& name) {
+    std::string resolved = name;
+    if (resolved.rfind("global.", 0) == 0) {
+        resolved = resolved.substr(7);
+    }
+    const bool allowInter = resolved == "print" || resolved == "println" ||
+                            resolved == "input" || resolved == "inputln";
+    std::vector<ExpressionPtr> arguments;
+    if (!checkText(")")) {
+        for (;;) {
+            if (allowInter && check(TokenKind::InterpString)) {
+                const Token token = advance();
+                arguments.push_back(parseInterpString(token));
+            } else {
+                arguments.push_back(parseExpression());
+            }
+            if (!match(",")) {
+                break;
+            }
+        }
+    }
+    expectText(")", "expected ')' after arguments");
+    return arguments;
+}
+
+ExpressionPtr Parser::parseInterpString(const Token& token) {
+    auto expression = std::make_unique<InterpStringExpression>();
+    const std::string& raw = token.text;
+    std::string literal;
+    std::size_t index = 0;
+    while (index < raw.size()) {
+        const char current = raw[index];
+        if (current == '\\' && index + 1 < raw.size()) {
+            const char escaped = raw[index + 1];
+            index += 2;
+            switch (escaped) {
+            case 'n':
+                literal += '\n';
+                break;
+            case 'r':
+                literal += '\r';
+                break;
+            case 't':
+                literal += '\t';
+                break;
+            case '\\':
+                literal += '\\';
+                break;
+            case '"':
+                literal += '"';
+                break;
+            case '{':
+                literal += '{';
+                break;
+            case '}':
+                literal += '}';
+                break;
+            default:
+                fail("unknown string escape \\" + std::string(1, escaped),
+                     token.line, token.column);
+            }
+            continue;
+        }
+        if (current == '{') {
+            std::size_t cursor = index + 1;
+            bool inString = false;
+            std::size_t end = std::string::npos;
+            while (cursor < raw.size()) {
+                const char inner = raw[cursor];
+                if (inString) {
+                    if (inner == '\\') {
+                        cursor += 2;
+                        continue;
+                    }
+                    if (inner == '"') {
+                        inString = false;
+                    }
+                } else if (inner == '"') {
+                    inString = true;
+                } else if (inner == '}') {
+                    end = cursor;
+                    break;
+                }
+                ++cursor;
+            }
+            if (end == std::string::npos) {
+                fail("missing '}' in interpolated string", token.line,
+                     token.column);
+            }
+            const std::string body = raw.substr(index + 1, end - index - 1);
+            if (body.find_first_not_of(" \t") == std::string::npos) {
+                fail("empty '{}' interpolation", token.line, token.column);
+            }
+            expression->addLiteral(literal);
+            literal.clear();
+            try {
+                Lexer lexer(body, "");
+                Parser parser(lexer.scan());
+                ExpressionPtr inner = parser.parseExpression();
+                if (!parser.check(TokenKind::End)) {
+                    fail("invalid expression in interpolated string",
+                         token.line, token.column);
+                }
+                expression->addExpression(std::move(inner));
+            } catch (const SourceError& error) {
+                fail(error.what(), token.line, token.column);
+            }
+            index = end + 1;
+            continue;
+        }
+        if (current == '}') {
+            fail("stray '}' in interpolated string", token.line, token.column);
+        }
+        literal += current;
+        ++index;
+    }
+    expression->addLiteral(literal);
+    return expression;
 }
 
 StatementPtr Parser::parseSimpleStatement(bool requireSemicolon) {
     if (checkText("int") || checkText("float") || checkText("str") ||
-        checkText("bool") || checkText("any")) {
+        checkText("bool") || checkText("any") || checkText("list") ||
+        checkText("tuple")) {
         const Token type = advance();
         const Token name = expect(TokenKind::Identifier, "expected variable name");
         expectText("=", "expected '=' in declaration");
@@ -72,28 +224,25 @@ StatementPtr Parser::parseSimpleStatement(bool requireSemicolon) {
             type.text, name.text, std::move(value), type.line, type.column);
     }
 
-    if (checkText("print") || checkText("println")) {
-        const bool newline = current().text == "println";
-        advance();
-        expectText("(", "expected '(' after print function");
+    if ((checkText("sentinel") || checkText("object")) &&
+        peekAt(1).kind == TokenKind::Identifier && peekAt(2).text == "=") {
+        const Token type = advance();
+        const Token name = expect(TokenKind::Identifier, "expected variable name");
+        expectText("=", "expected '=' in declaration");
         ExpressionPtr value = parseExpression();
-        expectText(")", "expected ')' after print argument");
         if (requireSemicolon) {
-            expectText(";", "expected ';' after print call");
+            expectText(";", "expected ';' after declaration");
         }
-        return std::make_unique<PrintStatement>(std::move(value), newline);
+        return std::make_unique<DeclarationStatement>(
+            type.text, name.text, std::move(value), type.line, type.column);
     }
 
-    if (checkText("foreverDelay")) {
-        const Token call = advance();
-        expectText("(", "expected '(' after foreverDelay");
-        ExpressionPtr value = parseExpression();
-        expectText(")", "expected ')' after foreverDelay argument");
+    if (check(TokenKind::Identifier) && peekAt(1).text == "(") {
+        ExpressionPtr call = parseCallExpression();
         if (requireSemicolon) {
-            expectText(";", "expected ';' after foreverDelay call");
+            expectText(";", "expected ';' after call");
         }
-        return std::make_unique<ForeverDelayStatement>(
-            std::move(value), call.line, call.column);
+        return std::make_unique<ExpressionStatement>(std::move(call));
     }
 
     const Token name = expect(TokenKind::Identifier,
@@ -153,7 +302,8 @@ StatementPtr Parser::parseFor() {
     const Token initStart = current();
     std::string initName;
     if (checkText("int") || checkText("float") || checkText("str") ||
-        checkText("bool") || checkText("any")) {
+        checkText("bool") || checkText("any") || checkText("list") ||
+        checkText("tuple")) {
         if (index_ + 1 < tokens_.size()) {
             initName = tokens_[index_ + 1].text;
         }
@@ -352,6 +502,11 @@ ExpressionPtr Parser::parsePrimary() {
     if (token.kind == TokenKind::String) {
         return std::make_unique<LiteralExpression>(token.text);
     }
+    if (token.kind == TokenKind::InterpString) {
+        fail("interpolated strings are only allowed as arguments of print, "
+             "println, input, and inputln",
+             token);
+    }
     if (token.kind == TokenKind::Identifier) {
         if (token.text == "true") {
             return std::make_unique<LiteralExpression>(true);
@@ -362,13 +517,52 @@ ExpressionPtr Parser::parsePrimary() {
         if (token.text == "none") {
             return std::make_unique<LiteralExpression>(Value{});
         }
+        if ((token.text == "global" && checkText(".")) || checkText("(") ||
+            checkText(".")) {
+            // A bare or dotted call such as print(...), global.print(...),
+            // or embedPy.len(...). Dotted names without a call are rejected
+            // by parseCallExpression with a clear error.
+            --index_;
+            return parseCallExpression();
+        }
         return std::make_unique<VariableExpression>(
             token.text, token.line, token.column);
     }
     if (token.text == "(") {
-        ExpressionPtr expression = parseExpression();
+        if (checkText(")")) {
+            advance();
+            return std::make_unique<TupleLiteralExpression>(
+                std::vector<ExpressionPtr>{});
+        }
+        ExpressionPtr first = parseExpression();
+        if (match(",")) {
+            std::vector<ExpressionPtr> elements;
+            elements.push_back(std::move(first));
+            while (!checkText(")")) {
+                elements.push_back(parseExpression());
+                if (!match(",")) {
+                    break;
+                }
+            }
+            expectText(")", "expected ')' after tuple");
+            return std::make_unique<TupleLiteralExpression>(
+                std::move(elements));
+        }
         expectText(")", "expected ')' after expression");
-        return expression;
+        return first;
+    }
+    if (token.text == "[") {
+        std::vector<ExpressionPtr> elements;
+        if (!checkText("]")) {
+            for (;;) {
+                elements.push_back(parseExpression());
+                if (!match(",")) {
+                    break;
+                }
+            }
+        }
+        expectText("]", "expected ']' after list literal");
+        return std::make_unique<ListLiteralExpression>(std::move(elements));
     }
     fail("expected an expression", token);
 }
@@ -402,6 +596,14 @@ Token Parser::expectText(const std::string& text, const std::string& message) {
 }
 
 const Token& Parser::current() const { return tokens_[index_]; }
+
+const Token& Parser::peekAt(std::size_t offset) const {
+    const std::size_t position = index_ + offset;
+    if (position >= tokens_.size()) {
+        return tokens_.back();
+    }
+    return tokens_[position];
+}
 
 const Token& Parser::previous() const { return tokens_[index_ - 1]; }
 
