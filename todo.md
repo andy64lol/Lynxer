@@ -125,8 +125,11 @@ runtime dependency and its internals are not copied into Clynxer.
   interpreter path (fixture parity is enforced by `make test`).
 - [x] Implement `--compile` (`-c`, `--no-cache`, `--no-opt`), direct `.lynxc`
   execution, and `--view-bytecode` disassembly.
-- [ ] Add an optimization pass beyond constant folding and a bytecode cache
-  location shared with the bundle workflow.
+- [x] Implement `--bundle <file.lynx> [name]`: compile to bytecode and append
+  it to a copy of the clynxer executable (`CLYXPAYLD` trailer); a bundled
+  executable detects its payload at startup and runs the embedded program
+  directly, with the same output parity as `.lynxc` runs.
+- [ ] Add an optimization pass beyond constant folding.
 
 ## Milestone 9 — compatibility gates
 

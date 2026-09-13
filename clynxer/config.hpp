@@ -8,6 +8,9 @@ namespace clynxer {
 // Directory containing the running executable (fallback: '.').
 std::string executableDirectory();
 
+// Full path of the running executable (fallback: empty).
+std::string executablePath();
+
 // Loads clynxer.config from the executable directory (or the working
 // directory). When the file is missing the compiled-in defaults are used, so
 // the binary behaves identically to a distribution that ships the file.

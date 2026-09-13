@@ -1,6 +1,7 @@
 #include "runtime.hpp"
 
 #include "error.hpp"
+#include "types.hpp"
 
 #include <charconv>
 #include <cmath>
@@ -11,10 +12,16 @@ namespace clynxer {
 
 void Environment::declare(const std::string& name, const std::string& type,
                           Value value, int line, int column) {
-    if (variables_.find(name) != variables_.end()) {
-        fail("variable '" + name + "' is already declared", line, column);
-    }
-    variables_.emplace(name, Variable{type, std::move(value)});
+    // Re-declaration replaces both the value and the recorded type.
+    variables_[name] = Variable{type, std::move(value), false};
+}
+
+void Environment::declareConstant(const std::string& name,
+                                  const std::string& type, Value value,
+                                  int line, int column) {
+    variables_[name] =
+        Variable{type, convertForType(std::move(value), type, line, column),
+                 true};
 }
 
 void Environment::assign(const std::string& name, Value value, int line,
@@ -22,6 +29,10 @@ void Environment::assign(const std::string& name, Value value, int line,
     auto found = variables_.find(name);
     if (found == variables_.end()) {
         fail("unknown variable '" + name + "'", line, column);
+    }
+    if (found->second.constant) {
+        fail("variable '" + name + "' is constant and cannot be reassigned",
+             line, column);
     }
     found->second.value =
         convertForType(std::move(value), found->second.type, line, column);
@@ -34,6 +45,23 @@ const Value& Environment::get(const std::string& name, int line,
         fail("unknown variable '" + name + "'", line, column);
     }
     return found->second.value;
+}
+
+bool Environment::hasVariable(const std::string& name) const {
+    return variables_.find(name) != variables_.end();
+}
+
+Variable Environment::variableSnapshot(const std::string& name) const {
+    return variables_.at(name);
+}
+
+void Environment::setVariableRaw(const std::string& name,
+                                 const Variable& variable) {
+    variables_[name] = variable;
+}
+
+void Environment::removeVariable(const std::string& name) {
+    variables_.erase(name);
 }
 
 void Environment::setSetupInProgress(bool value) { setupInProgress_ = value; }
@@ -53,6 +81,39 @@ void Environment::setForeverDelay(double seconds) {
 }
 
 double Environment::foreverDelay() const { return foreverDelaySeconds_; }
+
+namespace {
+
+// Documented fixed-width ranges (docs/types.md).
+bool integerValueInRange(const std::string& type, std::int64_t number) {
+    if (type == "numBool" || type == "bit") {
+        return number == 0 || number == 1;
+    }
+    if (type == "byte" || type == "uint8") {
+        return number >= 0 && number <= 255;
+    }
+    if (type == "uint16") {
+        return number >= 0 && number <= 65535;
+    }
+    if (type == "uint32") {
+        return number >= 0 && number <= 4294967295LL;
+    }
+    if (type == "uint64") {
+        return number >= 0;
+    }
+    if (type == "int8") {
+        return number >= -128 && number <= 127;
+    }
+    if (type == "int16") {
+        return number >= -32768 && number <= 32767;
+    }
+    if (type == "int32") {
+        return number >= -2147483648LL && number <= 2147483647LL;
+    }
+    return true;  // int64 covers the whole host range
+}
+
+} // namespace
 
 Value Environment::convertForType(Value value, const std::string& type,
                                   int line, int column) {
@@ -74,10 +135,30 @@ Value Environment::convertForType(Value value, const std::string& type,
         if (std::holds_alternative<double>(value)) {
             return value;
         }
+    } else if (type == "num") {
+        // Accepts int or float freely; the stored kind is untouched.
+        if (std::holds_alternative<std::int64_t>(value) ||
+            std::holds_alternative<double>(value)) {
+            return value;
+        }
     } else if (type == "str" && std::holds_alternative<std::string>(value)) {
         return value;
     } else if (type == "bool" && std::holds_alternative<bool>(value)) {
         return value;
+    } else if (type == "char") {
+        if (std::holds_alternative<CharValue>(value)) {
+            return value;
+        }
+        if (const auto* text = std::get_if<std::string>(&value);
+            text != nullptr && text->size() == 1) {
+            return CharValue{*text};
+        }
+        if (std::holds_alternative<std::string>(value)) {
+            fail("string length " +
+                     std::to_string(std::get<std::string>(value).size()) +
+                     " is not a char",
+                 line, column);
+        }
     } else if (type == "list" && std::holds_alternative<std::shared_ptr<List>>(value)) {
         return value;
     } else if (type == "tuple" && std::holds_alternative<std::shared_ptr<Tuple>>(value)) {
@@ -88,6 +169,50 @@ Value Environment::convertForType(Value value, const std::string& type,
     } else if (type == "object" &&
                std::holds_alternative<std::shared_ptr<ObjectValue>>(value)) {
         return value;
+    } else if (type == "codeblock" &&
+               std::holds_alternative<std::shared_ptr<CodeblockValue>>(value)) {
+        return value;
+    } else if (type == "numBool" || type == "bit" || type == "byte" ||
+               type == "uint8" || type == "uint16" || type == "uint32" ||
+               type == "uint64" || type == "int8" || type == "int16" ||
+               type == "int32" || type == "int64") {
+        if (const auto* integer = std::get_if<std::int64_t>(&value);
+            integer != nullptr && integerValueInRange(type, *integer)) {
+            return value;
+        }
+        fail(integerValueInRange(type, 0) &&
+                     std::holds_alternative<double>(value)
+                 ? "value cannot be assigned to type '" + type + "'"
+                 : "value " + valueToString(value) +
+                       " is out of range for type '" + type + "'",
+             line, column);
+    } else if (type == "float32" || type == "float64") {
+        if (std::holds_alternative<std::int64_t>(value)) {
+            return value;
+        }
+        if (const auto* number = std::get_if<double>(&value);
+            number != nullptr && std::isfinite(*number) &&
+            std::abs(*number) <= (type == "float32"
+                                      ? 3.4028234663852886e38
+                                      : 1.7976931348623157e308)) {
+            return value;
+        }
+        fail("value " + valueToString(value) + " is out of range for type '" +
+                 type + "'",
+             line, column);
+    } else if (TypeRegistry::instance().hasNamedType(type)) {
+        if (const auto* record = std::get_if<std::shared_ptr<RecordValue>>(&value);
+            record != nullptr && *record != nullptr &&
+            (*record)->typeName == type &&
+            ((*record)->kind == RecordKind::Struct) ==
+                (TypeRegistry::instance().findStruct(type) != nullptr)) {
+            return value;
+        }
+        if (const auto* enumValue = std::get_if<std::shared_ptr<EnumValue>>(&value);
+            enumValue != nullptr && *enumValue != nullptr &&
+            (*enumValue)->enumName == type) {
+            return value;
+        }
     }
     fail("value cannot be assigned to type '" + type + "'", line, column);
 }
@@ -159,6 +284,44 @@ std::string valueToString(const Value& value) {
     if (std::holds_alternative<std::shared_ptr<ObjectValue>>(value)) {
         return "<object>";
     }
+    if (const auto* character = std::get_if<CharValue>(&value)) {
+        return character->text;
+    }
+    if (const auto* record = std::get_if<std::shared_ptr<RecordValue>>(&value)) {
+        std::string parts;
+        for (std::size_t index = 0; index < (*record)->fields.size(); ++index) {
+            const RecordField& field = (*record)->fields[index];
+            if (index != 0) {
+                parts += ", ";
+            }
+            parts += field.type + " " + field.name + " = " +
+                     valueToString(field.value);
+        }
+        if ((*record)->kind == RecordKind::VarGroup) {
+            return "<vargroup " + (*record)->displayName + ">";
+        }
+        return "<" + (*record)->typeName +
+               ((*record)->kind == RecordKind::Struct ? " struct" : " instance") +
+               (parts.empty() ? "" : " fields=[" + parts + "]") + ">";
+    }
+    if (const auto* enumValue = std::get_if<std::shared_ptr<EnumValue>>(&value)) {
+        if ((*enumValue)->payload.empty()) {
+            return (*enumValue)->enumName + "." + (*enumValue)->variantName;
+        }
+        std::string parts;
+        for (std::size_t index = 0; index < (*enumValue)->payload.size();
+             ++index) {
+            if (index != 0) {
+                parts += ", ";
+            }
+            parts += valueToString((*enumValue)->payload[index]);
+        }
+        return (*enumValue)->enumName + "." + (*enumValue)->variantName + "(" +
+               parts + ")";
+    }
+    if (std::holds_alternative<std::shared_ptr<CodeblockValue>>(value)) {
+        return "<code block>";
+    }
     return "<unknown>";
 }
 
@@ -184,7 +347,8 @@ bool isTruthy(const Value& value) {
     if (const auto* tuple = std::get_if<std::shared_ptr<Tuple>>(&value)) {
         return !(*tuple)->elements.empty();
     }
-    // Sentinels and objects are always truthy, matching Lynxer.
+    // Sentinels, objects, chars, records, enums, and codeblocks are always
+    // truthy, matching Lynxer.
     return true;
 }
 
@@ -212,6 +376,24 @@ std::string typeNameOf(const Value& value) {
     }
     if (std::holds_alternative<std::shared_ptr<SentinelValue>>(value)) {
         return "sentinel";
+    }
+    if (std::holds_alternative<std::shared_ptr<ObjectValue>>(value)) {
+        return "object";
+    }
+    if (const auto* character = std::get_if<CharValue>(&value)) {
+        (void)character;
+        return "char";
+    }
+    if (const auto* record = std::get_if<std::shared_ptr<RecordValue>>(&value)) {
+        return (*record)->kind == RecordKind::VarGroup
+                   ? "vargroup"
+                   : (*record)->typeName;
+    }
+    if (const auto* enumValue = std::get_if<std::shared_ptr<EnumValue>>(&value)) {
+        return (*enumValue)->enumName;
+    }
+    if (std::holds_alternative<std::shared_ptr<CodeblockValue>>(value)) {
+        return "codeblock";
     }
     return "object";
 }
@@ -276,6 +458,9 @@ bool valuesEqual(const Value& left, const Value& right) {
             }
         }
         return true;
+    }
+    if (const auto* leftChar = std::get_if<CharValue>(&left)) {
+        return leftChar->text == std::get<CharValue>(right).text;
     }
     return left == right;
 }

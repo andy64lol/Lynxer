@@ -2,7 +2,7 @@ CXX ?= c++
 CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -pedantic
 
 TARGET := clynxer
-SOURCES := main.cpp shell.cpp lexer.cpp runtime.cpp builtins.cpp ops.cpp ast.cpp parser.cpp config.cpp compiler.cpp vm.cpp bytecode.cpp
+SOURCES := main.cpp shell.cpp lexer.cpp runtime.cpp builtins.cpp ops.cpp ast.cpp parser.cpp config.cpp compiler.cpp vm.cpp bytecode.cpp bundle.cpp
 HEADERS := $(wildcard *.hpp)
 OBJECTS := $(SOURCES:.cpp=.o)
 CONDITION_FIXTURE := examples/conditions.lynx
@@ -102,6 +102,7 @@ expected="clynxer: $(ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 	@./$(TARGET) --compile examples/hello.lynx | grep -q "bytecode is up to date" || { echo "bytecode cache check failed"; exit 1; }
 	@./$(TARGET) --view-bytecode examples/hello.lynxc | grep -q "PUSH_CONST" || { echo "view-bytecode smoke failed"; exit 1; }
 	@./$(TARGET) --view-bytecode examples/hello.lynxc | grep -q "HALT" || { echo "view-bytecode HALT smoke failed"; exit 1; }
+	@./$(TARGET) --bundle examples/hello.lynx /tmp/clynxer_bundled > /dev/null; 	bundled_output="$$(/tmp/clynxer_bundled)"; 	if [ "$$bundled_output" != "Hello, Clynxer!" ]; then 	echo "bundled executable output mismatch: $$bundled_output"; 	exit 1; 	fi; 	rm -f /tmp/clynxer_bundled
 	@printf 'CLYXC\x00\x01\x01not-real-bytecode' > /tmp/clynxer_bad.lynxc; \
 	if ./$(TARGET) /tmp/clynxer_bad.lynxc > /dev/null 2>/tmp/clynxer_bad.err; then \
 	echo "corrupt bytecode was accepted"; exit 1; \

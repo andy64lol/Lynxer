@@ -4,6 +4,7 @@
 #include "config.hpp"
 #include "error.hpp"
 #include "ops.hpp"
+#include "types.hpp"
 
 #include <chrono>
 #include <cstdint>
@@ -12,6 +13,493 @@
 #include <variant>
 
 namespace clynxer {
+
+
+// --- record/enum helpers -------------------------------------------------------
+
+namespace {
+
+RecordField* findRecordField(RecordValue& record, const std::string& name) {
+    for (auto& field : record.fields) {
+        if (field.name == name) {
+            return &field;
+        }
+    }
+    return nullptr;
+}
+
+// Field mutation with Lynxer error messages (docs: vargroups/structs/classes).
+void setRecordField(RecordValue& record, const std::string& name,
+                    const Value& value, int line, int column) {
+    RecordField* field = findRecordField(record, name);
+    if (field == nullptr) {
+        throw SourceError("Instance of class '" + record.typeName +
+                              "' has no field '" + name + "'",
+                          line, column);
+    }
+    if (field->constant) {
+        throw SourceError("Field '" + name + "' of instance '" +
+                              record.typeName +
+                              "' is const and cannot be changed",
+                          line, column);
+    }
+    if (!typeMatches(field->type, value)) {
+        throw SourceError("Field '" + name + "' of instance '" +
+                              record.typeName + "' is declared as '" +
+                              field->type + "' but received a '" +
+                              typeNameOf(value) + "' value",
+                          line, column);
+    }
+    field->value = value;
+}
+
+[[noreturn]] void noFieldError(const RecordValue& record,
+                               const std::string& name, int line,
+                               int column) {
+    if (record.kind == RecordKind::VarGroup) {
+        throw SourceError("vargroup '" + record.displayName +
+                              "' has no field '" + name + "'",
+                          line, column);
+    }
+    if (record.kind == RecordKind::Struct) {
+        throw SourceError("Struct '" + record.typeName + "' has no field '" +
+                              name + "'",
+                          line, column);
+    }
+    throw SourceError("Instance of class '" + record.typeName +
+                          "' has no field or method '" + name + "'",
+                      line, column);
+}
+
+std::string methodDisplayKey(const std::string& name) { return name; }
+
+// Runs a class method with `this` and parameter bindings; shared by method
+// calls and `new` construction.
+Value runClassMethod(const std::shared_ptr<RecordValue>& receiver,
+                     const ClassMethod& method, std::vector<Value> arguments,
+                     Environment& environment, int line, int column) {
+    if (arguments.size() != method.params.size()) {
+        throw SourceError("method '" + method.name + "' of class '" +
+                              receiver->typeName + "' expects " +
+                              std::to_string(method.params.size()) +
+                              " arguments, received " +
+                              std::to_string(arguments.size()),
+                          line, column);
+    }
+    const bool hadThis = environment.hasVariable("this");
+    const Variable savedThis =
+        hadThis ? environment.variableSnapshot("this") : Variable{};
+    environment.setVariableRaw(
+        "this", Variable{receiver->typeName, receiver, false});
+    for (std::size_t index = 0; index < method.params.size(); ++index) {
+        Value converted = Environment::convertForType(
+            std::move(arguments[index]), method.params[index].first, line,
+            column);
+        environment.setVariableRaw(
+            method.params[index].second,
+            Variable{method.params[index].first, std::move(converted), false});
+    }
+    try {
+        for (const auto& statement : method.body) {
+            statement->execute(environment);
+        }
+    } catch (const ReturnControl& control) {
+        // Restore `this` before leaving.
+        if (hadThis) {
+            environment.setVariableRaw("this", savedThis);
+        } else {
+            environment.removeVariable("this");
+        }
+        return control.hasValue ? control.value : Value{};
+    }
+    if (hadThis) {
+        environment.setVariableRaw("this", savedThis);
+    } else {
+        environment.removeVariable("this");
+    }
+    return Value{};
+}
+
+// Collects the user-variable names a codeblock body references, in source
+// order (used by exec's inferred bindings).
+template <typename StatementContainer>
+void collectNames(const StatementContainer& statements,
+                  std::vector<std::string>& names);
+
+void collectExpressionNames(const Expression& expression,
+                            std::vector<std::string>& names);
+
+void collectExpressionNames(const Expression& expression,
+                            std::vector<std::string>& names) {
+    if (const auto* variable = dynamic_cast<const VariableExpression*>(&expression)) {
+        names.push_back(variable->name());
+        return;
+    }
+    if (const auto* unary = dynamic_cast<const UnaryExpression*>(&expression)) {
+        collectExpressionNames(unary->operandExpr(), names);
+        return;
+    }
+    if (const auto* binary = dynamic_cast<const BinaryExpression*>(&expression)) {
+        collectExpressionNames(binary->leftExpr(), names);
+        collectExpressionNames(binary->rightExpr(), names);
+        return;
+    }
+    if (const auto* call = dynamic_cast<const CallExpression*>(&expression)) {
+        for (const auto& argument : call->arguments()) {
+            collectExpressionNames(*argument, names);
+        }
+        return;
+    }
+    if (const auto* method = dynamic_cast<const MethodCallExpression*>(&expression)) {
+        if (dynamic_cast<const VariableExpression*>(&method->receiver()) == nullptr) {
+            collectExpressionNames(method->receiver(), names);
+        }
+        for (const auto& argument : method->arguments()) {
+            collectExpressionNames(*argument, names);
+        }
+        return;
+    }
+    if (const auto* dot = dynamic_cast<const DotAccessExpression*>(&expression)) {
+        collectExpressionNames(dot->object(), names);
+        return;
+    }
+    if (const auto* interp = dynamic_cast<const InterpStringExpression*>(&expression)) {
+        for (const auto& part : interp->expressions()) {
+            collectExpressionNames(*part, names);
+        }
+        return;
+    }
+    if (const auto* list = dynamic_cast<const ListLiteralExpression*>(&expression)) {
+        for (const auto& element : list->elements()) {
+            collectExpressionNames(*element, names);
+        }
+        return;
+    }
+    if (const auto* tuple = dynamic_cast<const TupleLiteralExpression*>(&expression)) {
+        for (const auto& element : tuple->elements()) {
+            collectExpressionNames(*element, names);
+        }
+        return;
+    }
+    if (const auto* coerce = dynamic_cast<const TypeCoerceExpression*>(&expression)) {
+        collectExpressionNames(coerce->inner(), names);
+        return;
+    }
+    if (const auto* created = dynamic_cast<const NewExpression*>(&expression)) {
+        for (const auto& argument : created->arguments()) {
+            collectExpressionNames(*argument, names);
+        }
+        return;
+    }
+}
+
+template <typename StatementContainer>
+void collectNames(const StatementContainer& statements,
+                  std::vector<std::string>& names) {
+    for (const auto& statement : statements) {
+        if (const auto* assignment =
+                dynamic_cast<const AssignmentStatement*>(statement.get())) {
+            names.push_back(assignment->name());
+            collectExpressionNames(assignment->valueExpr(), names);
+            continue;
+        }
+        if (const auto* declaration =
+                dynamic_cast<const DeclarationStatement*>(statement.get())) {
+            collectExpressionNames(declaration->valueExpr(), names);
+            continue;
+        }
+        if (const auto* expressionStatement =
+                dynamic_cast<const ExpressionStatement*>(statement.get())) {
+            collectExpressionNames(expressionStatement->expression(), names);
+            continue;
+        }
+        if (const auto* ifStatement =
+                dynamic_cast<const IfStatement*>(statement.get())) {
+            collectExpressionNames(ifStatement->condition(), names);
+            collectNames(ifStatement->thenStatements(), names);
+            collectNames(ifStatement->elseStatements(), names);
+            continue;
+        }
+        if (const auto* whileStatement =
+                dynamic_cast<const WhileStatement*>(statement.get())) {
+            collectExpressionNames(whileStatement->condition(), names);
+            collectNames(whileStatement->statements(), names);
+            continue;
+        }
+        if (const auto* iterateStatement =
+                dynamic_cast<const IterateStatement*>(statement.get())) {
+            collectExpressionNames(iterateStatement->count(), names);
+            collectNames(iterateStatement->statements(), names);
+            continue;
+        }
+        if (const auto* foreverStatement =
+                dynamic_cast<const ForeverStatement*>(statement.get())) {
+            collectNames(foreverStatement->statements(), names);
+            continue;
+        }
+        if (const auto* printStatement =
+                dynamic_cast<const ExpressionStatement*>(statement.get())) {
+            (void)printStatement;
+            continue;
+        }
+    }
+}
+
+} // namespace
+
+
+Value TypeCoerceExpression::evaluate(Environment& environment) const {
+    return Environment::convertForType(inner_->evaluate(environment), type_,
+                                       0, 0);
+}
+
+Value DotAccessExpression::evaluate(Environment& environment) const {
+    // Enum namespace: identifier names a declared enum; the field is a
+    // variant constructed without a payload.
+    if (const auto* variable = dynamic_cast<const VariableExpression*>(object_.get())) {
+        if (!environment.hasVariable(variable->name())) {
+            if (const EnumDef* enumDef =
+                    TypeRegistry::instance().findEnum(variable->name())) {
+                for (const EnumVariant& variant : enumDef->variants) {
+                    if (variant.name == field_) {
+                        if (!variant.fields.empty()) {
+                            throw SourceError(
+                                "variant '" + field_ + "' of enum '" +
+                                    variable->name() +
+                                    "' requires payload values",
+                                line_, column_);
+                        }
+                        return std::make_shared<EnumValue>(
+                            EnumValue{variable->name(), field_, {}, {}});
+                    }
+                }
+                throw SourceError("enum '" + variable->name() +
+                                      "' has no variant '" + field_ + "'",
+                                  line_, column_);
+            }
+        }
+    }
+
+    const Value object = object_->evaluate(environment);
+    if (const auto* record = std::get_if<std::shared_ptr<RecordValue>>(&object)) {
+        if (*record == nullptr) {
+            throw SourceError("cannot access field of none", line_, column_);
+        }
+        const RecordField* field = findRecordField(**record, field_);
+        if (field == nullptr) {
+            noFieldError(**record, field_, line_, column_);
+        }
+        return field->value;
+    }
+    if (const auto* enumValue = std::get_if<std::shared_ptr<EnumValue>>(&object)) {
+        if (*enumValue == nullptr) {
+            throw SourceError("cannot access field of none", line_, column_);
+        }
+        for (std::size_t index = 0; index < (*enumValue)->fieldNames.size();
+             ++index) {
+            if ((*enumValue)->fieldNames[index] == field_) {
+                return (*enumValue)->payload[index];
+            }
+        }
+        throw SourceError("Enum variant '" + (*enumValue)->variantName +
+                              "' has no payload '" + field_ + "'",
+                          line_, column_);
+    }
+    throw SourceError("value of type '" + typeNameOf(object) +
+                          "' has no field '" + field_ + "'",
+                      line_, column_);
+}
+
+Value MethodCallExpression::evaluate(Environment& environment) const {
+    // global.<builtin>(...) keeps its builtin-call meaning.
+    if (const auto* variable = dynamic_cast<const VariableExpression*>(object_.get())) {
+        if (variable->name() == "global") {
+            std::vector<Value> arguments;
+            arguments.reserve(arguments_.size());
+            for (const auto& argument : arguments_) {
+                arguments.push_back(argument->evaluate(environment));
+            }
+            return callBuiltin(method_, arguments, environment, line_,
+                               column_);
+        }
+        if (variable->name() == "embedPy") {
+            throw SourceError(
+                "Python bridging (embedPy) is not supported in CLynxer",
+                line_, column_);
+        }
+        if (!environment.hasVariable(variable->name())) {
+            if (const EnumDef* enumDef =
+                    TypeRegistry::instance().findEnum(variable->name())) {
+                for (const EnumVariant& variant : enumDef->variants) {
+                    if (variant.name == method_) {
+                        if (arguments_.size() != variant.fields.size()) {
+                            throw SourceError(
+                                "variant '" + method_ + "' of enum '" +
+                                    variable->name() + "' expects " +
+                                    std::to_string(variant.fields.size()) +
+                                    " payload values, received " +
+                                    std::to_string(arguments_.size()),
+                                line_, column_);
+                        }
+                        std::vector<Value> payload;
+                        std::vector<std::string> fieldNames;
+                        for (std::size_t index = 0;
+                             index < variant.fields.size(); ++index) {
+                            payload.push_back(Environment::convertForType(
+                                arguments_[index]->evaluate(environment),
+                                variant.fields[index].type, line_, column_));
+                            fieldNames.push_back(variant.fields[index].name);
+                        }
+                        return std::make_shared<EnumValue>(EnumValue{
+                            variable->name(), method_, std::move(fieldNames),
+                            std::move(payload)});
+                    }
+                }
+                throw SourceError("enum '" + variable->name() +
+                                      "' has no variant '" + method_ + "'",
+                                  line_, column_);
+            }
+        }
+    }
+
+    const Value receiver = object_->evaluate(environment);
+    const auto* record = std::get_if<std::shared_ptr<RecordValue>>(&receiver);
+    if (record == nullptr || *record == nullptr) {
+        throw SourceError("value of type '" + typeNameOf(receiver) +
+                              "' has no method '" + method_ + "'",
+                          line_, column_);
+    }
+    if ((*record)->kind != RecordKind::Class) {
+        noFieldError(**record, method_, line_, column_);
+    }
+    const ClassDef* classDef =
+        TypeRegistry::instance().findClass((*record)->typeName);
+    if (classDef == nullptr) {
+        throw SourceError("unknown class '" + (*record)->typeName + "'",
+                          line_, column_);
+    }
+    for (const ClassMethod& method : classDef->methods) {
+        if (method.name == method_) {
+            std::vector<Value> arguments;
+            arguments.reserve(arguments_.size());
+            for (const auto& argument : arguments_) {
+                arguments.push_back(argument->evaluate(environment));
+            }
+            return runClassMethod(*record, method, std::move(arguments),
+                                  environment, line_, column_);
+        }
+    }
+    noFieldError(**record, method_, line_, column_);
+}
+
+Value NewExpression::evaluate(Environment& environment) const {
+    std::vector<Value> arguments;
+    arguments.reserve(arguments_.size());
+    for (const auto& argument : arguments_) {
+        arguments.push_back(argument->evaluate(environment));
+    }
+
+    if (const StructDef* structDef =
+            TypeRegistry::instance().findStruct(typeName_)) {
+        if (arguments.size() != structDef->fields.size()) {
+            throw SourceError("struct '" + typeName_ + "' expects " +
+                                  std::to_string(structDef->fields.size()) +
+                                  " arguments, received " +
+                                  std::to_string(arguments.size()),
+                              line_, column_);
+        }
+        auto record = std::make_shared<RecordValue>();
+        record->typeName = typeName_;
+        record->displayName = typeName_;
+        record->kind = RecordKind::Struct;
+        for (std::size_t index = 0; index < structDef->fields.size(); ++index) {
+            RecordField field;
+            field.type = structDef->fields[index].type;
+            field.name = structDef->fields[index].name;
+            field.value = Environment::convertForType(
+                std::move(arguments[index]), field.type, line_, column_);
+            record->fields.push_back(std::move(field));
+        }
+        return record;
+    }
+
+    if (const ClassDef* classDef =
+            TypeRegistry::instance().findClass(typeName_)) {
+        auto record = std::make_shared<RecordValue>();
+        record->typeName = typeName_;
+        record->displayName = typeName_;
+        record->kind = RecordKind::Class;
+        for (const ClassFieldDef& fieldDef : classDef->fields) {
+            RecordField field;
+            field.type = fieldDef.type;
+            field.name = fieldDef.name;
+            field.constant = fieldDef.constant;
+            field.value = fieldDef.initializer
+                              ? fieldDef.initializer->evaluate(environment)
+                              : Value{};
+            record->fields.push_back(std::move(field));
+        }
+        for (const ClassMethod& method : classDef->methods) {
+            if (method.name == "init") {
+                return runClassMethod(record, method, std::move(arguments),
+                                      environment, line_, column_);
+            }
+        }
+        if (!arguments.empty()) {
+            throw SourceError("class '" + typeName_ +
+                                  "' has no init() constructor but arguments "
+                                  "were given",
+                              line_, column_);
+        }
+        return record;
+    }
+
+    throw SourceError("unknown type '" + typeName_ + "'", line_, column_);
+}
+
+Value AddVarGroupExpression::evaluate(Environment& environment) const {
+    Value target = target_->evaluate(environment);
+    auto* record = std::get_if<std::shared_ptr<RecordValue>>(&target);
+    if (record == nullptr || *record == nullptr ||
+        (*record)->kind != RecordKind::VarGroup) {
+        throw SourceError("addVarGroup() expects a vargroup", line_, column_);
+    }
+    for (const RecordField& field : (*record)->fields) {
+        if (field.name == field_) {
+            throw SourceError("Duplicate field \"" + field_ +
+                                  "\" in vargroup '" + (*record)->displayName +
+                                  "'",
+                              line_, column_);
+        }
+    }
+    RecordField field;
+    field.type = type_;
+    field.name = field_;
+    field.value = Environment::convertForType(value_->evaluate(environment),
+                                              type_, line_, column_);
+    (*record)->fields.push_back(std::move(field));
+    return Value{};
+}
+
+Value RemoveVarGroupExpression::evaluate(Environment& environment) const {
+    Value target = target_->evaluate(environment);
+    auto* record = std::get_if<std::shared_ptr<RecordValue>>(&target);
+    if (record == nullptr || *record == nullptr ||
+        (*record)->kind != RecordKind::VarGroup) {
+        throw SourceError("removeVarGroup() expects a vargroup", line_,
+                          column_);
+    }
+    for (std::size_t index = 0; index < (*record)->fields.size(); ++index) {
+        if ((*record)->fields[index].name == field_) {
+            (*record)->fields.erase((*record)->fields.begin() +
+                                    static_cast<std::ptrdiff_t>(index));
+            return Value{};
+        }
+    }
+    throw SourceError("vargroup '" + (*record)->displayName +
+                          "' has no field '" + field_ + "'",
+                      line_, column_);
+}
 
 LiteralExpression::LiteralExpression(Value value) : value_(std::move(value)) {}
 
@@ -152,6 +640,310 @@ ExpressionStatement::ExpressionStatement(ExpressionPtr expression)
 
 void ExpressionStatement::execute(Environment& environment) const {
     expression_->evaluate(environment);
+}
+
+
+namespace {
+
+// Restores temporary bindings saved as (name, snapshot); an absent variable
+// is represented by a default-constructed Variable.
+void restoreSavedVariables(
+    const std::vector<std::pair<std::string, Variable>>& saved,
+    Environment& environment) {
+    for (const auto& restored : saved) {
+        if (restored.second.type.empty() &&
+            std::holds_alternative<std::monostate>(restored.second.value)) {
+            environment.removeVariable(restored.first);
+        } else {
+            environment.setVariableRaw(restored.first, restored.second);
+        }
+    }
+}
+
+} // namespace
+
+bool matchPattern(const Expression& pattern, const Value& value,
+                  std::vector<std::pair<std::string, Value>>& bindings,
+                  Environment& environment, int line, int column) {
+    (void)line;
+    (void)column;
+    if (const auto* variable = dynamic_cast<const VariableExpression*>(&pattern)) {
+        if (variable->name() == "_") {
+            return true;
+        }
+        bindings.emplace_back(variable->name(), value);
+        return true;
+    }
+    if (const auto* coerce = dynamic_cast<const TypeCoerceExpression*>(&pattern)) {
+        if (const auto* inner = dynamic_cast<const VariableExpression*>(&coerce->inner())) {
+            if (inner->name() == "_") {
+                return true;
+            }
+            bindings.emplace_back(inner->name(), value);
+            return true;
+        }
+        return valuesEqual(coerce->evaluate(environment), value);
+    }
+    if (const auto* listPattern =
+            dynamic_cast<const ListLiteralExpression*>(&pattern)) {
+        const auto* list = std::get_if<std::shared_ptr<List>>(&value);
+        if (list == nullptr || *list == nullptr ||
+            (*list)->elements.size() != listPattern->elements().size()) {
+            return false;
+        }
+        for (std::size_t index = 0; index < listPattern->elements().size();
+             ++index) {
+            if (!matchPattern(*listPattern->elements()[index],
+                              (*list)->elements[index], bindings, environment,
+                              line, column)) {
+                return false;
+            }
+        }
+        return true;
+    }
+    if (const auto* tuplePattern =
+            dynamic_cast<const TupleLiteralExpression*>(&pattern)) {
+        const auto* tuple = std::get_if<std::shared_ptr<Tuple>>(&value);
+        if (tuple == nullptr || *tuple == nullptr ||
+            (*tuple)->elements.size() != tuplePattern->elements().size()) {
+            return false;
+        }
+        for (std::size_t index = 0; index < tuplePattern->elements().size();
+             ++index) {
+            if (!matchPattern(*tuplePattern->elements()[index],
+                              (*tuple)->elements[index], bindings, environment,
+                              line, column)) {
+                return false;
+            }
+        }
+        return true;
+    }
+    if (const auto* method = dynamic_cast<const MethodCallExpression*>(&pattern)) {
+        const auto* receiver =
+            dynamic_cast<const VariableExpression*>(&method->receiver());
+        if (receiver == nullptr) {
+            return valuesEqual(method->evaluate(environment), value);
+        }
+        const auto* enumValue = std::get_if<std::shared_ptr<EnumValue>>(&value);
+        if (enumValue == nullptr || *enumValue == nullptr ||
+            (*enumValue)->enumName != receiver->name() ||
+            (*enumValue)->variantName != method->methodName() ||
+            (*enumValue)->payload.size() != method->arguments().size()) {
+            return false;
+        }
+        for (std::size_t index = 0; index < method->arguments().size();
+             ++index) {
+            if (!matchPattern(*method->arguments()[index],
+                              (*enumValue)->payload[index], bindings,
+                              environment, line, column)) {
+                return false;
+            }
+        }
+        return true;
+    }
+    if (const auto* dot = dynamic_cast<const DotAccessExpression*>(&pattern)) {
+        const auto* receiver =
+            dynamic_cast<const VariableExpression*>(&dot->object());
+        if (receiver == nullptr) {
+            return valuesEqual(dot->evaluate(environment), value);
+        }
+        const auto* enumValue = std::get_if<std::shared_ptr<EnumValue>>(&value);
+        return enumValue != nullptr && *enumValue != nullptr &&
+               (*enumValue)->enumName == receiver->name() &&
+               (*enumValue)->variantName == dot->fieldName() &&
+               (*enumValue)->payload.empty();
+    }
+    return valuesEqual(pattern.evaluate(environment), value);
+}
+
+DotAssignmentStatement::DotAssignmentStatement(std::vector<std::string> path,
+                                               std::string type,
+                                               ExpressionPtr value, int line,
+                                               int column)
+    : path_(std::move(path)), type_(std::move(type)),
+      value_(std::move(value)), line_(line), column_(column) {}
+
+void DotAssignmentStatement::execute(Environment& environment) const {
+    Value value = value_->evaluate(environment);
+    if (!type_.empty()) {
+        value = Environment::convertForType(std::move(value), type_, line_,
+                                            column_);
+    }
+    const Value& base = environment.get(path_[0], line_, column_);
+    const auto* baseRecord = std::get_if<std::shared_ptr<RecordValue>>(&base);
+    if (baseRecord == nullptr || *baseRecord == nullptr) {
+        throw SourceError("value of type '" + typeNameOf(base) +
+                              "' has no field '" + path_[1] + "'",
+                          line_, column_);
+    }
+    RecordValue* record = baseRecord->get();
+    for (std::size_t index = 1; index + 1 < path_.size(); ++index) {
+        const RecordField* field = findRecordField(*record, path_[index]);
+        if (field == nullptr) {
+            noFieldError(*record, path_[index], line_, column_);
+        }
+        const auto* nested =
+            std::get_if<std::shared_ptr<RecordValue>>(&field->value);
+        if (nested == nullptr || *nested == nullptr) {
+            throw SourceError("value of type '" + typeNameOf(field->value) +
+                                  "' has no field '" + path_[index + 1] + "'",
+                              line_, column_);
+        }
+        record = nested->get();
+    }
+    setRecordField(*record, path_.back(), value, line_, column_);
+}
+
+SwitchStatement::SwitchStatement(ExpressionPtr value,
+                                 std::vector<SwitchCase> cases)
+    : value_(std::move(value)), cases_(std::move(cases)) {}
+
+void SwitchStatement::execute(Environment& environment) const {
+    const Value value = value_->evaluate(environment);
+    std::vector<std::pair<std::string, Value>> bindings;
+    for (const SwitchCase& switchCase : cases_) {
+        if (switchCase.pattern == nullptr) {
+            executeStatements(switchCase.body, environment);
+            return;
+        }
+        bindings.clear();
+        if (matchPattern(*switchCase.pattern, value, bindings, environment,
+                         line_, column_)) {
+            std::vector<std::pair<std::string, Variable>> saved;
+            for (const auto& binding : bindings) {
+                saved.emplace_back(binding.first,
+                                   environment.hasVariable(binding.first)
+                                       ? environment.variableSnapshot(
+                                             binding.first)
+                                       : Variable{});
+                environment.setVariableRaw(
+                    binding.first, Variable{"any", binding.second, false});
+            }
+            executeStatements(switchCase.body, environment);
+            restoreSavedVariables(saved, environment);
+            return;
+        }
+    }
+}
+
+ReturnStatement::ReturnStatement(ExpressionPtr value, int line, int column)
+    : value_(std::move(value)), line_(line), column_(column) {}
+
+void ReturnStatement::execute(Environment& environment) const {
+    if (value_ != nullptr) {
+        throw ReturnControl{value_->evaluate(environment), true};
+    }
+    throw ReturnControl{Value{}, false};
+}
+
+CodeblockDeclarationStatement::CodeblockDeclarationStatement(
+    std::string name, std::vector<std::pair<std::string, std::string>> params,
+    std::vector<std::shared_ptr<Statement>> body, int line, int column)
+    : name_(std::move(name)), params_(std::move(params)),
+      body_(std::move(body)), line_(line), column_(column) {}
+
+void CodeblockDeclarationStatement::execute(Environment& environment) const {
+    auto block = std::make_shared<CodeblockValue>();
+    block->name = name_;
+    block->params = params_;
+    block->body = body_;
+    environment.declare(name_, "codeblock", block, line_, column_);
+}
+
+ExecStatement::ExecStatement(std::vector<ExpressionPtr> arguments,
+                             std::string blockName,
+                             std::vector<std::pair<std::string, std::string>> params,
+                             StatementList body, int line, int column)
+    : arguments_(std::move(arguments)), blockName_(std::move(blockName)),
+      params_(std::move(params)), body_(std::move(body)), line_(line),
+      column_(column) {}
+
+void ExecStatement::execute(Environment& environment) const {
+    if (!blockName_.empty()) {
+        // Named form: exec(args){{blockName}}
+        Value blockValue = environment.get(blockName_, line_, column_);
+        const auto* block =
+            std::get_if<std::shared_ptr<CodeblockValue>>(&blockValue);
+        if (block == nullptr || *block == nullptr) {
+            throw SourceError("'" + blockName_ + "' is not a codeblock",
+                              line_, column_);
+        }
+        std::vector<Value> arguments;
+        arguments.reserve(arguments_.size());
+        for (const auto& argument : arguments_) {
+            arguments.push_back(argument->evaluate(environment));
+        }
+        std::vector<std::pair<std::string, std::string>> params = (*block)->params;
+        if (params.empty()) {
+            // Infer names from the user variables the body references.
+            std::vector<std::string> ordered;
+            collectNames((*block)->body, ordered);
+            if (ordered.size() != arguments.size()) {
+                throw SourceError(
+                    "exec() expects " + std::to_string(ordered.size()) +
+                        " values for codeblock '" + blockName_ +
+                        "', received " + std::to_string(arguments.size()),
+                    line_, column_);
+            }
+            for (const std::string& name : ordered) {
+                params.emplace_back("any", name);
+            }
+        }
+        if (params.size() != arguments.size()) {
+            throw SourceError("exec() expects " +
+                                  std::to_string(params.size()) +
+                                  " values, received " +
+                                  std::to_string(arguments.size()),
+                              line_, column_);
+        }
+        std::vector<std::pair<std::string, Variable>> saved;
+        for (std::size_t index = 0; index < params.size(); ++index) {
+            Value converted = Environment::convertForType(
+                std::move(arguments[index]), params[index].first, line_,
+                column_);
+            saved.emplace_back(params[index].second,
+                               environment.hasVariable(params[index].second)
+                                   ? environment.variableSnapshot(
+                                         params[index].second)
+                                   : Variable{});
+            environment.setVariableRaw(
+                params[index].second,
+                Variable{params[index].first, std::move(converted), false});
+        }
+        std::vector<std::shared_ptr<Statement>>& body = (*block)->body;
+        try {
+            for (const auto& statement : body) {
+                statement->execute(environment);
+            }
+        } catch (...) {
+            restoreSavedVariables(saved, environment);
+            throw;
+        }
+        restoreSavedVariables(saved, environment);
+        return;
+    }
+
+    // Inline form: exec(params){ body } — values come from the surrounding
+    // scope by parameter name.
+    std::vector<std::pair<std::string, Variable>> saved;
+    for (const auto& param : params_) {
+        Value value = environment.get(param.second, line_, column_);
+        value = Environment::convertForType(std::move(value), param.first,
+                                            line_, column_);
+        saved.emplace_back(param.second,
+                           environment.hasVariable(param.second)
+                               ? environment.variableSnapshot(param.second)
+                               : Variable{});
+        environment.setVariableRaw(
+            param.second, Variable{param.first, std::move(value), false});
+    }
+    try {
+        executeStatements(body_, environment);
+    } catch (...) {
+        restoreSavedVariables(saved, environment);
+        throw;
+    }
+    restoreSavedVariables(saved, environment);
 }
 
 void executeStatements(const StatementList& statements,

@@ -39,6 +39,7 @@ public:
     void compile(ProgramEmitter& emitter) const override;
 
 private:
+    const std::string& name() const { return name_; }
     int line() const { return line_; }
 
     int column() const { return column_; }
@@ -58,6 +59,7 @@ public:
     void compile(ProgramEmitter& emitter) const override;
 
 private:
+    const Expression& operandExpr() const { return *operand_; }
     int line() const { return line_; }
 
     int column() const { return column_; }
@@ -78,6 +80,9 @@ public:
     void compile(ProgramEmitter& emitter) const override;
 
 private:
+    const Expression& leftExpr() const { return *left_; }
+
+    const Expression& rightExpr() const { return *right_; }
     int line() const { return line_; }
 
     int column() const { return column_; }
@@ -99,6 +104,7 @@ public:
     void compile(ProgramEmitter& emitter) const override;
 
 private:
+    const std::vector<ExpressionPtr>& arguments() const { return arguments_; }
     int line() const { return line_; }
 
     int column() const { return column_; }
@@ -118,6 +124,7 @@ public:
     void compile(ProgramEmitter& emitter) const override;
 
 private:
+    const std::vector<ExpressionPtr>& elements() const { return elements_; }
     std::vector<ExpressionPtr> elements_;
 };
 
@@ -130,7 +137,123 @@ public:
     void compile(ProgramEmitter& emitter) const override;
 
 private:
+    const std::vector<ExpressionPtr>& elements() const { return elements_; }
     std::vector<ExpressionPtr> elements_;
+};
+
+// Coerces a value to a declared type at evaluation time; used by typed
+// element literals such as [int 1, int 2].
+class TypeCoerceExpression final : public Expression {
+public:
+    TypeCoerceExpression(ExpressionPtr inner, std::string type);
+
+    Value evaluate(Environment& environment) const override;
+
+    const Expression& inner() const { return *inner_; }
+
+    const std::string& type() const { return type_; }
+
+private:
+    ExpressionPtr inner_;
+    std::string type_;
+};
+
+// Field access on records (vargroup/struct/class), enum payloads, and
+// paren-less enum variant construction (status.Ready).
+class DotAccessExpression final : public Expression {
+public:
+    DotAccessExpression(ExpressionPtr object, std::string field, int line,
+                        int column);
+
+    Value evaluate(Environment& environment) const override;
+
+    int line() const { return line_; }
+
+    int column() const { return column_; }
+
+private:
+    const Expression& object() const { return *object_; }
+    ExpressionPtr object_;
+    std::string field_;
+    int line_;
+    int column_;
+};
+
+// Method calls on class instances (instance.method(...)), enum variant
+// construction with payloads (status.Failed("x")), and global.-prefixed
+// builtin calls.
+class MethodCallExpression final : public Expression {
+public:
+    MethodCallExpression(ExpressionPtr object, std::string method,
+                         std::vector<ExpressionPtr> arguments, int line,
+                         int column);
+
+    Value evaluate(Environment& environment) const override;
+
+    int line() const { return line_; }
+
+    int column() const { return column_; }
+
+private:
+    const Expression& receiver() const { return *object_; }
+    ExpressionPtr object_;
+    std::string method_;
+    std::vector<ExpressionPtr> arguments_;
+    int line_;
+    int column_;
+};
+
+// new StructName(...) / new ClassName(...) construction.
+class NewExpression final : public Expression {
+public:
+    NewExpression(std::string typeName, std::vector<ExpressionPtr> arguments,
+                  int line, int column);
+
+    Value evaluate(Environment& environment) const override;
+
+    int line() const { return line_; }
+
+    int column() const { return column_; }
+
+private:
+    const std::vector<ExpressionPtr>& arguments() const { return arguments_; }
+    std::string typeName_;
+    std::vector<ExpressionPtr> arguments_;
+    int line_;
+    int column_;
+};
+
+// addVarGroup(player, str title = "Warrior") — vargroup field addition.
+class AddVarGroupExpression final : public Expression {
+public:
+    AddVarGroupExpression(ExpressionPtr target, std::string type,
+                          std::string field, ExpressionPtr value, int line,
+                          int column);
+
+    Value evaluate(Environment& environment) const override;
+
+private:
+    ExpressionPtr target_;
+    std::string type_;
+    std::string field_;
+    ExpressionPtr value_;
+    int line_;
+    int column_;
+};
+
+// removeVarGroup(player, title) — vargroup field removal by name.
+class RemoveVarGroupExpression final : public Expression {
+public:
+    RemoveVarGroupExpression(ExpressionPtr target, std::string field, int line,
+                             int column);
+
+    Value evaluate(Environment& environment) const override;
+
+private:
+    ExpressionPtr target_;
+    std::string field_;
+    int line_;
+    int column_;
 };
 
 // inter"..." — an interpolated string; literal parts alternate with
@@ -146,6 +269,7 @@ public:
     void compile(ProgramEmitter& emitter) const override;
 
 private:
+    const std::vector<ExpressionPtr>& expressions() const { return expressions_; }
     std::vector<std::string> literals_;
     std::vector<ExpressionPtr> expressions_;
 };
@@ -163,6 +287,12 @@ using StatementList = std::vector<StatementPtr>;
 
 // True when any statement in the list (at any nesting depth) is a break.
 bool statementsContainBreak(const StatementList& statements);
+
+// Matches a switch-case pattern against a runtime value, recording identifier
+// bindings in source order. Wildcard "_" matches without binding.
+bool matchPattern(const Expression& pattern, const Value& value,
+                  std::vector<std::pair<std::string, Value>>& bindings,
+                  Environment& environment, int line, int column);
 
 enum class LoopControlKind {
     Break,
@@ -185,6 +315,7 @@ public:
     void compile(ProgramEmitter& emitter) const override;
 
 private:
+    const Expression& valueExpr() const { return *value_; }
     int line() const { return line_; }
 
     int column() const { return column_; }
@@ -206,12 +337,104 @@ public:
     void compile(ProgramEmitter& emitter) const override;
 
 private:
+    const std::string& name() const { return name_; }
+
+    const Expression& valueExpr() const { return *value_; }
     int line() const { return line_; }
 
     int column() const { return column_; }
 
     std::string name_;
     ExpressionPtr value_;
+    int line_;
+    int column_;
+};
+
+// Assignment to a record field through a dotted path, optionally with a
+// declared type: int player.coins = 500; or player.health = 90;
+class DotAssignmentStatement final : public Statement {
+public:
+    DotAssignmentStatement(std::vector<std::string> path, std::string type,
+                           ExpressionPtr value, int line, int column);
+
+    void execute(Environment& environment) const override;
+
+private:
+    std::vector<std::string> path_;
+    std::string type_;
+    ExpressionPtr value_;
+    int line_;
+    int column_;
+};
+
+struct SwitchCase {
+    ExpressionPtr pattern;  // null for default
+    StatementList body;
+};
+
+class SwitchStatement final : public Statement {
+public:
+    SwitchStatement(ExpressionPtr value, std::vector<SwitchCase> cases);
+
+    void execute(Environment& environment) const override;
+
+private:
+    ExpressionPtr value_;
+    std::vector<SwitchCase> cases_;
+};
+
+struct ReturnControl {
+    Value value;
+    bool hasValue = false;
+};
+
+class ReturnStatement final : public Statement {
+public:
+    explicit ReturnStatement(ExpressionPtr value, int line, int column);
+
+    void execute(Environment& environment) const override;
+
+private:
+    ExpressionPtr value_;
+    int line_;
+    int column_;
+};
+
+class CodeblockDeclarationStatement final : public Statement {
+public:
+    CodeblockDeclarationStatement(
+        std::string name,
+        std::vector<std::pair<std::string, std::string>> params,
+        StatementList body, int line, int column);
+
+    void execute(Environment& environment) const override;
+
+private:
+    std::string name_;
+    std::vector<std::pair<std::string, std::string>> params_;
+    StatementList body_;
+    int line_;
+    int column_;
+};
+
+// exec(...){...} inline form and exec(...){{name}} named form.
+class ExecStatement final : public Statement {
+public:
+    ExecStatement(std::vector<ExpressionPtr> arguments, std::string blockName,
+                  std::vector<std::pair<std::string, std::string>> params,
+                  StatementList body, int line, int column);
+
+    void execute(Environment& environment) const override;
+
+private:
+    void runBody(const StatementList& body,
+                 std::vector<std::pair<std::string, Variable>>& saved,
+                 Environment& environment) const;
+
+    std::vector<ExpressionPtr> arguments_;  // named form
+    std::string blockName_;                 // named form
+    std::vector<std::pair<std::string, std::string>> params_;  // inline form
+    StatementList body_;                    // inline form
     int line_;
     int column_;
 };
@@ -237,6 +460,7 @@ public:
     void compile(ProgramEmitter& emitter) const override;
 
 private:
+    const Expression& expression() const { return *expression_; }
     ExpressionPtr expression_;
 };
 
@@ -256,6 +480,7 @@ public:
     const StatementList& elseStatements() const { return elseStatements_; }
 
 private:
+    const Expression& condition() const { return *condition_; }
     ExpressionPtr condition_;
     StatementList thenStatements_;
     StatementList elseStatements_;
@@ -273,6 +498,7 @@ public:
     const StatementList& statements() const { return statements_; }
 
 private:
+    const Expression& condition() const { return *condition_; }
     ExpressionPtr condition_;
     StatementList statements_;
 };
@@ -322,6 +548,7 @@ public:
     const StatementList& statements() const { return statements_; }
 
 private:
+    const Expression& count() const { return *count_; }
     int line() const { return line_; }
 
     int column() const { return column_; }

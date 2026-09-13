@@ -67,7 +67,9 @@ Value applyBinary(BinOp op, const Value& left, const Value& right, int line,
     switch (op) {
     case BinOp::Add:
         if (std::holds_alternative<std::string>(left) ||
-            std::holds_alternative<std::string>(right)) {
+            std::holds_alternative<std::string>(right) ||
+            std::holds_alternative<CharValue>(left) ||
+            std::holds_alternative<CharValue>(right)) {
             return valueToString(left) + valueToString(right);
         }
         requireNumbers("+", left, right, line, column);

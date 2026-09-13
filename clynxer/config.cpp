@@ -94,6 +94,18 @@ bool loadConfigFile(const std::string& path,
 
 std::string executableDirectory() { return executableDirectoryImpl(); }
 
+std::string executablePath() {
+#ifdef __linux__
+    char path[PATH_MAX];
+    const ssize_t length = readlink("/proc/self/exe", path, sizeof(path) - 1);
+    if (length > 0) {
+        path[length] = '\0';
+        return std::string(path);
+    }
+#endif
+    return "";
+}
+
 const Config& Config::instance() {
     static const Config config;
     return config;
@@ -132,6 +144,7 @@ Config::Config() {
     setDefault("status.compile_ok", "Compiled: {0}");
     setDefault("status.compile_skipped",
                "clynxer: bytecode is up to date: '{0}'");
+    setDefault("status.bundle_ok", "Bundled: {0}");
     setDefault("warning.forever_no_break",
                "forever() has no break; it will run until the process is "
                "stopped. Add break; or call suppressForeverWarning() in "

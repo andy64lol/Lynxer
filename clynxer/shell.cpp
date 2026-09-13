@@ -1,5 +1,6 @@
 #include "shell.hpp"
 
+#include "bundle.hpp"
 #include "compiler.hpp"
 #include "config.hpp"
 #include "error.hpp"
@@ -316,17 +317,10 @@ int compileFile(const std::string& display, const std::string& sourcePath,
     return 0;
 }
 
-int runBytecodeFile(const std::string& display, const std::string& path) {
-    std::ifstream input(path, std::ios::binary);
-    if (!input) {
-        std::cerr << Config::instance().format("error.file_not_found",
-                                               "clynxer: file not found: '{0}'",
-                                               "{0}", display)
-                  << '\n';
-        return 1;
-    }
-    std::vector<uint8_t> bytes((std::istreambuf_iterator<char>(input)),
-                               std::istreambuf_iterator<char>());
+// Loads, validates, and runs serialized bytecode; used for .lynxc files and
+// for the payload embedded in a bundled executable.
+int runBytecodeBytes(const std::vector<uint8_t>& bytes,
+                     const std::string& display) {
     CompiledProgram program;
     try {
         program = loadProgram(bytes);
@@ -352,6 +346,76 @@ int runBytecodeFile(const std::string& display, const std::string& path) {
                   << '\n';
         return 1;
     }
+}
+
+int runBytecodeFile(const std::string& display, const std::string& path) {
+    std::ifstream input(path, std::ios::binary);
+    if (!input) {
+        std::cerr << Config::instance().format("error.file_not_found",
+                                               "clynxer: file not found: '{0}'",
+                                               "{0}", display)
+                  << '\n';
+        return 1;
+    }
+    std::vector<uint8_t> bytes((std::istreambuf_iterator<char>(input)),
+                               std::istreambuf_iterator<char>());
+    return runBytecodeBytes(bytes, display);
+}
+
+int bundleProgram(const std::vector<std::string>& arguments) {
+    if (arguments.empty() || arguments.size() > 2) {
+        std::cerr << Config::instance().get(
+                             "error.bundle_usage",
+                             "clynxer: --bundle requires a .lynx file and "
+                             "optional output name")
+                  << '\n';
+        return 1;
+    }
+    const std::string& file = arguments[0];
+    bool ok = false;
+    const std::string source = readFile(file, file, ok);
+    if (!ok) {
+        return 1;
+    }
+    std::vector<uint8_t> bytecode;
+    try {
+        const CompiledProgram program =
+            compileProgram(parseSource(file, source), file, source, true);
+        bytecode = serializeProgram(program);
+    } catch (const SourceError& error) {
+        std::cerr << "clynxer: " << file << ':' << error.line << ':'
+                  << error.column << ": " << error.what() << '\n';
+        return 1;
+    }
+
+    std::string outputPath;
+    if (arguments.size() == 2) {
+        outputPath = arguments[1];
+    } else {
+        outputPath = file;
+        const std::size_t slash = outputPath.find_last_of('/');
+        if (slash != std::string::npos) {
+            outputPath = outputPath.substr(slash + 1);
+        }
+        if (outputPath.size() > 5 &&
+            outputPath.compare(outputPath.size() - 5, 5, ".lynx") == 0) {
+            outputPath.resize(outputPath.size() - 5);
+        }
+    }
+
+    std::string error;
+    if (!writeBundledExecutable(outputPath, makeBundlePayload(bytecode),
+                                error)) {
+        std::cerr << Config::instance().format(
+                         "error.bundle_failed", "clynxer: bundle failed: {0}",
+                         "{0}", error)
+                  << '\n';
+        return 1;
+    }
+    std::cout << Config::instance().format("status.bundle_ok",
+                                           "Bundled: {0}", "{0}", outputPath)
+              << '\n';
+    return 0;
 }
 
 int viewBytecodeFile(const std::string& display, const std::string& path) {
@@ -381,6 +445,17 @@ int viewBytecodeFile(const std::string& display, const std::string& path) {
 
 int shellMain(int argc, char** argv) {
     std::signal(SIGINT, handleInterrupt);
+
+    // A bundled executable runs its embedded program directly.
+    std::vector<uint8_t> selfPayload;
+    if (readSelfPayload(selfPayload)) {
+        const int exitCode = runBytecodeBytes(selfPayload, "bundled program");
+        if (interrupted != 0) {
+            std::cout << '\n';
+            return 130;
+        }
+        return exitCode;
+    }
 
     const std::vector<std::string> args(argv + 1, argv + argc);
     if (args.empty() || args[0] == "-h" || args[0] == "--help") {
@@ -442,7 +517,8 @@ int shellMain(int argc, char** argv) {
         return compileFile(file, sourcePath, source, optimize, useCache);
     }
     if (args[0] == "--bundle" || args[0] == "-bundle") {
-        return unsupportedFeature(args[0]);
+        return bundleProgram(std::vector<std::string>(args.begin() + 1,
+                                                       args.end()));
     }
     if (args[0] == "--view-bytecode" || args[0] == "--inspect-bytecode" ||
         args[0] == "--disasm") {
