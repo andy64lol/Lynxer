@@ -13,13 +13,25 @@ struct List;
 struct Tuple;
 struct SentinelValue;
 struct ObjectValue;
+struct RecordValue;
+struct EnumValue;
+struct CodeblockValue;
 class Statement;
 
 struct CharValue {
     std::string text;
+
+    bool operator==(const CharValue& other) const { return text == other.text; }
 };
 
 enum class RecordKind { VarGroup, Struct, Class };
+
+using Value = std::variant<
+    std::monostate, std::int64_t, double, bool, std::string,
+    std::shared_ptr<List>, std::shared_ptr<Tuple>,
+    std::shared_ptr<SentinelValue>, std::shared_ptr<ObjectValue>,
+    CharValue, std::shared_ptr<RecordValue>, std::shared_ptr<EnumValue>,
+    std::shared_ptr<CodeblockValue>>;
 
 struct RecordField {
     std::string type;
@@ -45,15 +57,10 @@ struct EnumValue {
 struct CodeblockValue {
     std::string name;
     std::vector<std::pair<std::string, std::string>> params;  // type, name
-    std::vector<std::shared_ptr<Statement>> body;
+    // The declaration AST owns these statements for the lifetime of the
+    // parsed program; codeblocks retain non-owning pointers into that AST.
+    std::vector<const Statement*> body;
 };
-
-using Value = std::variant<
-    std::monostate, std::int64_t, double, bool, std::string,
-    std::shared_ptr<List>, std::shared_ptr<Tuple>,
-    std::shared_ptr<SentinelValue>, std::shared_ptr<ObjectValue>,
-    CharValue, std::shared_ptr<RecordValue>, std::shared_ptr<EnumValue>,
-    std::shared_ptr<CodeblockValue>>;
 
 struct List {
     std::vector<Value> elements;
@@ -79,6 +86,11 @@ struct Variable {
 
 class Environment {
 public:
+    Environment();
+
+    void pushScope();
+    void popScope();
+
     void declare(const std::string& name, const std::string& type, Value value,
                  int line, int column);
 
@@ -94,6 +106,9 @@ public:
     Variable variableSnapshot(const std::string& name) const;
 
     void setVariableRaw(const std::string& name, const Variable& variable);
+
+    void setVariableRawCurrent(const std::string& name,
+                               const Variable& variable);
 
     void removeVariable(const std::string& name);
 
@@ -116,7 +131,7 @@ private:
     [[noreturn]] static void fail(const std::string& message, int line,
                                   int column);
 
-    std::unordered_map<std::string, Variable> variables_;
+    std::vector<std::unordered_map<std::string, Variable>> scopes_;
     bool setupInProgress_ = false;
     bool foreverWarningSuppressed_ = false;
     double foreverDelaySeconds_ = 0.02;

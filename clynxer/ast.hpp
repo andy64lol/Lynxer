@@ -38,8 +38,9 @@ public:
 
     void compile(ProgramEmitter& emitter) const override;
 
-private:
     const std::string& name() const { return name_; }
+
+private:
     int line() const { return line_; }
 
     int column() const { return column_; }
@@ -58,8 +59,9 @@ public:
 
     void compile(ProgramEmitter& emitter) const override;
 
-private:
     const Expression& operandExpr() const { return *operand_; }
+
+private:
     int line() const { return line_; }
 
     int column() const { return column_; }
@@ -79,10 +81,10 @@ public:
 
     void compile(ProgramEmitter& emitter) const override;
 
-private:
     const Expression& leftExpr() const { return *left_; }
-
     const Expression& rightExpr() const { return *right_; }
+
+private:
     int line() const { return line_; }
 
     int column() const { return column_; }
@@ -103,8 +105,9 @@ public:
 
     void compile(ProgramEmitter& emitter) const override;
 
-private:
     const std::vector<ExpressionPtr>& arguments() const { return arguments_; }
+
+private:
     int line() const { return line_; }
 
     int column() const { return column_; }
@@ -123,8 +126,9 @@ public:
 
     void compile(ProgramEmitter& emitter) const override;
 
-private:
     const std::vector<ExpressionPtr>& elements() const { return elements_; }
+
+private:
     std::vector<ExpressionPtr> elements_;
 };
 
@@ -136,8 +140,9 @@ public:
 
     void compile(ProgramEmitter& emitter) const override;
 
-private:
     const std::vector<ExpressionPtr>& elements() const { return elements_; }
+
+private:
     std::vector<ExpressionPtr> elements_;
 };
 
@@ -148,6 +153,7 @@ public:
     TypeCoerceExpression(ExpressionPtr inner, std::string type);
 
     Value evaluate(Environment& environment) const override;
+    void compile(ProgramEmitter& emitter) const override;
 
     const Expression& inner() const { return *inner_; }
 
@@ -166,13 +172,15 @@ public:
                         int column);
 
     Value evaluate(Environment& environment) const override;
+    void compile(ProgramEmitter& emitter) const override;
 
     int line() const { return line_; }
 
     int column() const { return column_; }
+    const Expression& object() const { return *object_; }
+    const std::string& fieldName() const { return field_; }
 
 private:
-    const Expression& object() const { return *object_; }
     ExpressionPtr object_;
     std::string field_;
     int line_;
@@ -189,13 +197,16 @@ public:
                          int column);
 
     Value evaluate(Environment& environment) const override;
+    void compile(ProgramEmitter& emitter) const override;
 
     int line() const { return line_; }
 
     int column() const { return column_; }
+    const Expression& receiver() const { return *object_; }
+    const std::string& methodName() const { return method_; }
+    const std::vector<ExpressionPtr>& arguments() const { return arguments_; }
 
 private:
-    const Expression& receiver() const { return *object_; }
     ExpressionPtr object_;
     std::string method_;
     std::vector<ExpressionPtr> arguments_;
@@ -210,13 +221,14 @@ public:
                   int line, int column);
 
     Value evaluate(Environment& environment) const override;
+    void compile(ProgramEmitter& emitter) const override;
 
     int line() const { return line_; }
 
     int column() const { return column_; }
+    const std::vector<ExpressionPtr>& arguments() const { return arguments_; }
 
 private:
-    const std::vector<ExpressionPtr>& arguments() const { return arguments_; }
     std::string typeName_;
     std::vector<ExpressionPtr> arguments_;
     int line_;
@@ -231,6 +243,7 @@ public:
                           int column);
 
     Value evaluate(Environment& environment) const override;
+    void compile(ProgramEmitter& emitter) const override;
 
 private:
     ExpressionPtr target_;
@@ -248,12 +261,31 @@ public:
                              int column);
 
     Value evaluate(Environment& environment) const override;
+    void compile(ProgramEmitter& emitter) const override;
 
 private:
     ExpressionPtr target_;
     std::string field_;
     int line_;
     int column_;
+};
+
+struct VarGroupFieldInit {
+    std::string type;
+    std::string name;
+    ExpressionPtr value;
+    bool constant = false;
+};
+
+class VarGroupLiteralExpression final : public Expression {
+public:
+    explicit VarGroupLiteralExpression(std::vector<VarGroupFieldInit> fields);
+
+    Value evaluate(Environment& environment) const override;
+    void compile(ProgramEmitter& emitter) const override;
+
+private:
+    std::vector<VarGroupFieldInit> fields_;
 };
 
 // inter"..." — an interpolated string; literal parts alternate with
@@ -267,9 +299,9 @@ public:
     Value evaluate(Environment& environment) const override;
 
     void compile(ProgramEmitter& emitter) const override;
+    const std::vector<ExpressionPtr>& expressions() const { return expressions_; }
 
 private:
-    const std::vector<ExpressionPtr>& expressions() const { return expressions_; }
     std::vector<std::string> literals_;
     std::vector<ExpressionPtr> expressions_;
 };
@@ -308,14 +340,15 @@ struct LoopControl {
 class DeclarationStatement final : public Statement {
 public:
     DeclarationStatement(std::string type, std::string name, ExpressionPtr value,
-                         int line, int column);
+                         int line, int column, bool constant = false);
 
     void execute(Environment& environment) const override;
 
     void compile(ProgramEmitter& emitter) const override;
+    const Expression& valueExpr() const { return *value_; }
+    bool isConstant() const { return constant_; }
 
 private:
-    const Expression& valueExpr() const { return *value_; }
     int line() const { return line_; }
 
     int column() const { return column_; }
@@ -325,6 +358,7 @@ private:
     ExpressionPtr value_;
     int line_;
     int column_;
+    bool constant_;
 };
 
 class AssignmentStatement final : public Statement {
@@ -335,11 +369,10 @@ public:
     void execute(Environment& environment) const override;
 
     void compile(ProgramEmitter& emitter) const override;
+    const std::string& name() const { return name_; }
+    const Expression& valueExpr() const { return *value_; }
 
 private:
-    const std::string& name() const { return name_; }
-
-    const Expression& valueExpr() const { return *value_; }
     int line() const { return line_; }
 
     int column() const { return column_; }
@@ -358,6 +391,7 @@ public:
                            ExpressionPtr value, int line, int column);
 
     void execute(Environment& environment) const override;
+    void compile(ProgramEmitter& emitter) const override;
 
 private:
     std::vector<std::string> path_;
@@ -377,6 +411,7 @@ public:
     SwitchStatement(ExpressionPtr value, std::vector<SwitchCase> cases);
 
     void execute(Environment& environment) const override;
+    void compile(ProgramEmitter& emitter) const override;
 
 private:
     ExpressionPtr value_;
@@ -393,6 +428,7 @@ public:
     explicit ReturnStatement(ExpressionPtr value, int line, int column);
 
     void execute(Environment& environment) const override;
+    void compile(ProgramEmitter& emitter) const override;
 
 private:
     ExpressionPtr value_;
@@ -408,6 +444,7 @@ public:
         StatementList body, int line, int column);
 
     void execute(Environment& environment) const override;
+    void compile(ProgramEmitter& emitter) const override;
 
 private:
     std::string name_;
@@ -425,6 +462,7 @@ public:
                   StatementList body, int line, int column);
 
     void execute(Environment& environment) const override;
+    void compile(ProgramEmitter& emitter) const override;
 
 private:
     void runBody(const StatementList& body,
@@ -458,9 +496,9 @@ public:
     void execute(Environment& environment) const override;
 
     void compile(ProgramEmitter& emitter) const override;
+    const Expression& expression() const { return *expression_; }
 
 private:
-    const Expression& expression() const { return *expression_; }
     ExpressionPtr expression_;
 };
 
@@ -478,9 +516,9 @@ public:
     const StatementList& thenStatements() const { return thenStatements_; }
 
     const StatementList& elseStatements() const { return elseStatements_; }
+    const Expression& condition() const { return *condition_; }
 
 private:
-    const Expression& condition() const { return *condition_; }
     ExpressionPtr condition_;
     StatementList thenStatements_;
     StatementList elseStatements_;
@@ -496,9 +534,9 @@ public:
     void compile(ProgramEmitter& emitter) const override;
 
     const StatementList& statements() const { return statements_; }
+    const Expression& condition() const { return *condition_; }
 
 private:
-    const Expression& condition() const { return *condition_; }
     ExpressionPtr condition_;
     StatementList statements_;
 };
@@ -546,9 +584,9 @@ public:
     void compile(ProgramEmitter& emitter) const override;
 
     const StatementList& statements() const { return statements_; }
+    const Expression& count() const { return *count_; }
 
 private:
-    const Expression& count() const { return *count_; }
     int line() const { return line_; }
 
     int column() const { return column_; }

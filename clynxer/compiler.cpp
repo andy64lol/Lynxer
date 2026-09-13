@@ -692,6 +692,10 @@ void InterpStringExpression::compile(ProgramEmitter& emitter) const {
 }
 
 void DeclarationStatement::compile(ProgramEmitter& emitter) const {
+    if (isConstant()) {
+        throw SourceError(
+            "bytecode compiler does not support const declarations", 0, 0);
+    }
     value_->compile(emitter);
     emitter.emitTwoVars(Op::DeclareVar, emitter.internString(name_),
                         emitter.internString(type_));

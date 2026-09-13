@@ -1,0 +1,74 @@
+global setup(){}
+
+struct Player {
+    int health;
+    str name;
+}
+
+class Counter {
+    int value = 0;
+
+    local init(int initial) {
+        this.value = initial;
+    }
+
+    local increment() {
+        this.value = this.value + 1;
+    }
+
+    local get() {
+        return this.value;
+    }
+}
+
+enum result = [Ok(int value), Err(str message)]{}
+
+global main(){
+    numBool enabled = 1;
+    bit ready = 0;
+    byte mask = 255;
+    int16 count = -12;
+    float32 ratio = 0.25;
+    char letter = 'A';
+    list values = [int 1, int 2, int 3];
+    tuple pair = (str "left", int 2);
+    const int stable = 7;
+
+    if(true){
+        int hidden = 9;
+        print(hidden); print("\n");
+    }
+
+    Player player = new Player(100, "Ada");
+    player.health = 90;
+    println(player.name);
+    println(player.health);
+
+    Counter counter = new Counter(4);
+    counter.increment();
+    println(counter.get());
+
+    vargroup profile = {
+        str title = "Engineer",
+        int years = 5
+    };
+    println(profile.title);
+    profile.years = 6;
+    println(profile.years);
+
+    any response = result.Ok(42);
+    switch(response){
+        case(result.Ok(number)){ println(number); }
+        case(result.Err(message)){ println(message); }
+        default(){ println("unknown"); }
+    }
+
+    println(enabled);
+    println(ready);
+    println(mask);
+    println(count);
+    println(ratio);
+    println(letter);
+    println(values);
+    println(pair);
+}

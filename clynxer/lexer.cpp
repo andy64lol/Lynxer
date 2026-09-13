@@ -53,6 +53,9 @@ std::vector<Token> Lexer::scan() {
         } else if (current == '"') {
             tokens.push_back(
                 {TokenKind::String, readString(line, column), line, column});
+        } else if (current == '\'') {
+            tokens.push_back(
+                {TokenKind::Char, readChar(line, column), line, column});
         } else {
             std::string symbol(1, current);
             const char next = peek();
@@ -176,6 +179,38 @@ std::string Lexer::readString(int line, int column) {
     }
     if (atEnd()) {
         fail("unterminated string", line, column);
+    }
+    advance();
+    return value;
+}
+
+std::string Lexer::readChar(int line, int column) {
+    if (atEnd() || peek() == '\n') {
+        fail("unterminated char literal", line, column);
+    }
+    std::string value;
+    char current = advance();
+    if (current == '\\') {
+        if (atEnd()) {
+            fail("unterminated char escape", line, column);
+        }
+        const char escaped = advance();
+        switch (escaped) {
+        case 'n': value = "\n"; break;
+        case 'r': value = "\r"; break;
+        case 't': value = "\t"; break;
+        case 'e': value = "\x1b"; break;
+        case '\\': value = "\\"; break;
+        case '\'': value = "'"; break;
+        default:
+            fail("unknown char escape \\" + std::string(1, escaped), line,
+                 column);
+        }
+    } else {
+        value += current;
+    }
+    if (atEnd() || peek() != '\'') {
+        fail("char literal must contain exactly one character", line, column);
     }
     advance();
     return value;

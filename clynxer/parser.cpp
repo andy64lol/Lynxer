@@ -1,14 +1,181 @@
 #include "parser.hpp"
 
 #include "error.hpp"
+#include "types.hpp"
 
 #include <cstdint>
+#include <unordered_set>
 
 namespace clynxer {
 
+std::string Parser::parseTypeName(const std::string& message) {
+    if (!check(TokenKind::Identifier)) {
+        fail(message, current());
+    }
+    return advance().text;
+}
+
+bool Parser::isTypeName(const Token& token) const {
+    if (token.kind != TokenKind::Identifier) {
+        return false;
+    }
+    static const std::unordered_set<std::string> scalarTypes = {
+        "any", "int", "float", "num", "char", "str", "bool", "numBool",
+        "bit", "byte", "int8", "int16", "int32", "int64", "uint8",
+        "uint16", "uint32", "uint64", "float32", "float64", "list",
+        "tuple", "sentinel", "object", "codeblock"};
+    return scalarTypes.count(token.text) != 0 ||
+           TypeRegistry::instance().hasNamedType(token.text);
+}
+
+std::vector<std::pair<std::string, std::string>> Parser::parseParameters() {
+    std::vector<std::pair<std::string, std::string>> parameters;
+    if (!checkText(")")) {
+        while (true) {
+            const std::string type = parseTypeName("expected parameter type");
+            const Token name =
+                expect(TokenKind::Identifier, "expected parameter name");
+            parameters.emplace_back(type, name.text);
+            if (!match(",")) {
+                break;
+            }
+        }
+    }
+    expectText(")", "expected ')' after parameters");
+    return parameters;
+}
+
+void Parser::parseStructDefinition() {
+    const Token start = expectText("struct", "expected 'struct'");
+    const Token name = expect(TokenKind::Identifier, "expected struct name");
+    if (TypeRegistry::instance().hasNamedType(name.text)) {
+        fail("duplicate named type '" + name.text + "'", name);
+    }
+    expectText("{", "expected '{' before struct fields");
+    StructDef definition;
+    definition.name = name.text;
+    while (!checkText("}")) {
+        const std::string type = parseTypeName("expected struct field type");
+        const Token field =
+            expect(TokenKind::Identifier, "expected struct field name");
+        expectText(";", "expected ';' after struct field");
+        definition.fields.push_back({type, field.text, false});
+    }
+    expectText("}", "expected '}' after struct definition");
+    TypeRegistry::instance().addStruct(std::move(definition));
+    (void)start;
+}
+
+void Parser::parseClassDefinition() {
+    expectText("class", "expected 'class'");
+    const Token name = expect(TokenKind::Identifier, "expected class name");
+    if (TypeRegistry::instance().hasNamedType(name.text)) {
+        fail("duplicate named type '" + name.text + "'", name);
+    }
+    expectText("{", "expected '{' before class body");
+    ClassDef definition;
+    definition.name = name.text;
+    while (!checkText("}")) {
+        if (checkText("local")) {
+            advance();
+            const Token method =
+                expect(TokenKind::Identifier, "expected method name");
+            expectText("(", "expected '(' after method name");
+            ClassMethod classMethod;
+            classMethod.name = method.text;
+            classMethod.params = parseParameters();
+            classMethod.body = parseBlock("method body");
+            definition.methods.push_back(std::move(classMethod));
+            continue;
+        }
+        bool constant = false;
+        if (checkText("const")) {
+            constant = true;
+            advance();
+        }
+        const std::string type = parseTypeName("expected class field type");
+        const Token field =
+            expect(TokenKind::Identifier, "expected class field name");
+        ExpressionPtr initializer;
+        if (match("=")) {
+            initializer = parseExpression();
+        }
+        expectText(";", "expected ';' after class field");
+        definition.fields.push_back(
+            {type, field.text, constant, std::move(initializer)});
+    }
+    expectText("}", "expected '}' after class definition");
+    TypeRegistry::instance().addClass(std::move(definition));
+}
+
+void Parser::parseEnumDefinition() {
+    expectText("enum", "expected 'enum'");
+    const Token name = expect(TokenKind::Identifier, "expected enum name");
+    if (TypeRegistry::instance().hasNamedType(name.text)) {
+        fail("duplicate named type '" + name.text + "'", name);
+    }
+    expectText("=", "expected '=' after enum name");
+    expectText("[", "expected '[' before enum variants");
+    EnumDef definition;
+    definition.name = name.text;
+    while (!checkText("]")) {
+        const Token variantName =
+            expect(TokenKind::Identifier, "expected enum variant name");
+        EnumVariant variant;
+        variant.name = variantName.text;
+        if (match("(")) {
+            if (!checkText(")")) {
+                while (true) {
+                    const std::string type =
+                        parseTypeName("expected enum payload type");
+                    const Token field = expect(
+                        TokenKind::Identifier, "expected enum payload name");
+                    variant.fields.push_back({type, field.text, false});
+                    if (!match(",")) {
+                        break;
+                    }
+                }
+            }
+            expectText(")", "expected ')' after enum payload");
+        }
+        definition.variants.push_back(std::move(variant));
+        if (!match(",")) {
+            break;
+        }
+    }
+    expectText("]", "expected ']' after enum variants");
+    expectText("{", "expected '{' after enum variants");
+    int depth = 1;
+    while (depth > 0) {
+        if (check(TokenKind::End)) {
+            fail("unterminated enum body", current());
+        }
+        if (checkText("{")) {
+            ++depth;
+        } else if (checkText("}")) {
+            --depth;
+        }
+        advance();
+    }
+    TypeRegistry::instance().addEnum(std::move(definition));
+}
+
 std::unordered_map<std::string, Function> Parser::parseProgram() {
+    TypeRegistry::reset();
     std::unordered_map<std::string, Function> functions;
     while (!check(TokenKind::End)) {
+        if (checkText("struct")) {
+            parseStructDefinition();
+            continue;
+        }
+        if (checkText("class")) {
+            parseClassDefinition();
+            continue;
+        }
+        if (checkText("enum")) {
+            parseEnumDefinition();
+            continue;
+        }
         expectText("global", "expected 'global' function declaration");
         const Token name = expect(TokenKind::Identifier, "expected function name");
         if (name.text != "setup" && name.text != "main") {
@@ -33,6 +200,15 @@ std::unordered_map<std::string, Function> Parser::parseProgram() {
 }
 
 StatementPtr Parser::parseStatement() {
+    if (checkText("return")) {
+        return parseReturn();
+    }
+    if (checkText("switch")) {
+        return parseSwitch();
+    }
+    if (checkText("exec")) {
+        return parseExec();
+    }
     if (checkText("if")) {
         return parseIf();
     }
@@ -55,7 +231,17 @@ StatementPtr Parser::parseStatement() {
         checkText("restart")) {
         return parseLoopControl();
     }
-    if ((check(TokenKind::Identifier) && peekAt(1).text == "(") ||
+    bool dottedCall = false;
+    if (check(TokenKind::Identifier) && peekAt(1).text == ".") {
+        std::size_t offset = 1;
+        while (peekAt(offset).text == "." &&
+               peekAt(offset + 1).kind == TokenKind::Identifier) {
+            offset += 2;
+        }
+        dottedCall = peekAt(offset).text == "(";
+    }
+    if ((check(TokenKind::Identifier) &&
+         (peekAt(1).text == "(" || dottedCall)) ||
         (checkText("global") && peekAt(1).text == ".")) {
         return parseCallStatement();
     }
@@ -63,7 +249,7 @@ StatementPtr Parser::parseStatement() {
 }
 
 StatementPtr Parser::parseCallStatement() {
-    ExpressionPtr call = parseCallExpression();
+    ExpressionPtr call = parseExpression();
     expectText(";", "expected ';' after call");
     return std::make_unique<ExpressionStatement>(std::move(call));
 }
@@ -209,32 +395,72 @@ ExpressionPtr Parser::parseInterpString(const Token& token) {
     return expression;
 }
 
-StatementPtr Parser::parseSimpleStatement(bool requireSemicolon) {
-    if (checkText("int") || checkText("float") || checkText("str") ||
-        checkText("bool") || checkText("any") || checkText("list") ||
-        checkText("tuple")) {
-        const Token type = advance();
-        const Token name = expect(TokenKind::Identifier, "expected variable name");
-        expectText("=", "expected '=' in declaration");
-        ExpressionPtr value = parseExpression();
-        if (requireSemicolon) {
-            expectText(";", "expected ';' after declaration");
-        }
-        return std::make_unique<DeclarationStatement>(
-            type.text, name.text, std::move(value), type.line, type.column);
+StatementPtr Parser::parseReturn() {
+    const Token token = expectText("return", "expected 'return'");
+    ExpressionPtr value;
+    if (!checkText(";")) {
+        value = parseExpression();
     }
+    expectText(";", "expected ';' after return");
+    return std::make_unique<ReturnStatement>(std::move(value), token.line,
+                                             token.column);
+}
 
-    if ((checkText("sentinel") || checkText("object")) &&
-        peekAt(1).kind == TokenKind::Identifier && peekAt(2).text == "=") {
-        const Token type = advance();
-        const Token name = expect(TokenKind::Identifier, "expected variable name");
-        expectText("=", "expected '=' in declaration");
-        ExpressionPtr value = parseExpression();
-        if (requireSemicolon) {
-            expectText(";", "expected ';' after declaration");
+StatementPtr Parser::parseSwitch() {
+    expectText("switch", "expected 'switch'");
+    expectText("(", "expected '(' after 'switch'");
+    ExpressionPtr value = parseExpression();
+    expectText(")", "expected ')' after switch value");
+    expectText("{", "expected '{' before switch cases");
+    std::vector<SwitchCase> cases;
+    bool sawDefault = false;
+    while (!checkText("}")) {
+        if (checkText("case")) {
+            advance();
+            expectText("(", "expected '(' after 'case'");
+            ExpressionPtr pattern = parseExpression();
+            expectText(")", "expected ')' after case pattern");
+            cases.push_back(
+                {std::move(pattern), parseBlock("case body")});
+            continue;
         }
-        return std::make_unique<DeclarationStatement>(
-            type.text, name.text, std::move(value), type.line, type.column);
+        if (checkText("default")) {
+            if (sawDefault) {
+                fail("switch may contain only one default case", current());
+            }
+            sawDefault = true;
+            advance();
+            expectText("(", "expected '(' after 'default'");
+            expectText(")", "expected ')' after 'default'");
+            cases.push_back({nullptr, parseBlock("default body")});
+            continue;
+        }
+        fail("expected 'case' or 'default' in switch", current());
+    }
+    expectText("}", "expected '}' after switch");
+    return std::make_unique<SwitchStatement>(std::move(value),
+                                              std::move(cases));
+}
+
+StatementPtr Parser::parseExec() {
+    fail("codeblock execution syntax is reserved for Milestone 5", current());
+}
+
+StatementPtr Parser::parseSimpleStatement(bool requireSemicolon) {
+    if (checkText("const")) {
+        advance();
+        if (checkText("vargroup")) {
+            return parseVargroupDeclaration(true);
+        }
+        return parseDeclaration(true);
+    }
+    if (checkText("vargroup")) {
+        return parseVargroupDeclaration(false);
+    }
+    if (isTypeName(current()) &&
+        peekAt(1).kind == TokenKind::Identifier &&
+        (peekAt(2).text == "=" || peekAt(2).text == ";")) {
+        return parseDeclaration(false);
     }
 
     if (check(TokenKind::Identifier) && peekAt(1).text == "(") {
@@ -245,8 +471,53 @@ StatementPtr Parser::parseSimpleStatement(bool requireSemicolon) {
         return std::make_unique<ExpressionStatement>(std::move(call));
     }
 
-    const Token name = expect(TokenKind::Identifier,
-                              "expected a declaration, assignment, or print call");
+    return parseAssignmentOrExpressionStatement(requireSemicolon);
+}
+
+StatementPtr Parser::parseDeclaration(bool constant) {
+    const Token type = advance();
+    const Token name =
+        expect(TokenKind::Identifier, "expected variable name");
+    expectText("=", "expected '=' in declaration");
+    ExpressionPtr value = parseExpression();
+    expectText(";", "expected ';' after declaration");
+    if (constant) {
+        return std::make_unique<DeclarationStatement>(
+            type.text, name.text, std::move(value), type.line, type.column,
+            true);
+    }
+    return std::make_unique<DeclarationStatement>(
+        type.text, name.text, std::move(value), type.line, type.column);
+}
+
+StatementPtr Parser::parseVargroupDeclaration(bool constant) {
+    const Token type = expectText("vargroup", "expected 'vargroup'");
+    const Token name = expect(TokenKind::Identifier, "expected variable name");
+    expectText("=", "expected '=' in vargroup declaration");
+    ExpressionPtr value = parsePrimary();
+    expectText(";", "expected ';' after vargroup declaration");
+    if (constant) {
+        return std::make_unique<DeclarationStatement>(
+            "vargroup", name.text, std::move(value), type.line, type.column,
+            true);
+    }
+    return std::make_unique<DeclarationStatement>(
+        "vargroup", name.text, std::move(value), type.line, type.column);
+}
+
+StatementPtr Parser::parseAssignmentOrExpressionStatement(bool requireSemicolon) {
+    const Token name = expect(
+        TokenKind::Identifier,
+        "expected a declaration, assignment, or print call");
+    if (checkText(".") || checkText("=") || checkText("+=") ||
+        checkText("-=") || checkText("*=") || checkText("/=") ||
+        checkText("%=")) {
+        std::vector<std::string> path{name.text};
+        while (match(".")) {
+            path.push_back(expect(TokenKind::Identifier,
+                                  "expected field name after '.'")
+                               .text);
+        }
     const Token operation = expectAssignmentOperator();
     ExpressionPtr value = parseExpression();
     if (requireSemicolon) {
@@ -260,8 +531,14 @@ StatementPtr Parser::parseSimpleStatement(bool requireSemicolon) {
                                                   name.column),
             std::move(value), operation.line, operation.column);
     }
-    return std::make_unique<AssignmentStatement>(
-        name.text, std::move(value), name.line, name.column);
+        if (path.size() == 1) {
+            return std::make_unique<AssignmentStatement>(
+                name.text, std::move(value), name.line, name.column);
+        }
+        return std::make_unique<DotAssignmentStatement>(
+            std::move(path), "", std::move(value), name.line, name.column);
+    }
+    fail("expected assignment or call", current());
 }
 
 StatementPtr Parser::parseIf() {
@@ -502,6 +779,9 @@ ExpressionPtr Parser::parsePrimary() {
     if (token.kind == TokenKind::String) {
         return std::make_unique<LiteralExpression>(token.text);
     }
+    if (token.kind == TokenKind::Char) {
+        return std::make_unique<LiteralExpression>(CharValue{token.text});
+    }
     if (token.kind == TokenKind::InterpString) {
         fail("interpolated strings are only allowed as arguments of print, "
              "println, input, and inputln",
@@ -517,22 +797,36 @@ ExpressionPtr Parser::parsePrimary() {
         if (token.text == "none") {
             return std::make_unique<LiteralExpression>(Value{});
         }
-        if ((token.text == "global" && checkText(".")) || checkText("(") ||
-            checkText(".")) {
-            // A bare or dotted call such as print(...), global.print(...),
-            // or embedPy.len(...). Dotted names without a call are rejected
-            // by parseCallExpression with a clear error.
-            --index_;
-            return parseCallExpression();
+        if (token.text == "new") {
+            const Token type =
+                expect(TokenKind::Identifier, "expected type after 'new'");
+            expectText("(", "expected '(' after type name");
+            return std::make_unique<NewExpression>(
+                type.text, parseArguments(type.text), token.line, token.column);
         }
-        return std::make_unique<VariableExpression>(
-            token.text, token.line, token.column);
+        return parsePostfix(
+            std::make_unique<VariableExpression>(token.text, token.line,
+                                                  token.column),
+            token);
     }
     if (token.text == "(") {
         if (checkText(")")) {
             advance();
             return std::make_unique<TupleLiteralExpression>(
                 std::vector<ExpressionPtr>{});
+        }
+        if (isTypeName(current()) && peekAt(1).kind != TokenKind::End) {
+            std::vector<ExpressionPtr> elements;
+            elements.push_back(parseTypedElement());
+            while (match(",")) {
+                if (checkText(")")) {
+                    break;
+                }
+                elements.push_back(parseTypedElement());
+            }
+            expectText(")", "expected ')' after tuple");
+            return std::make_unique<TupleLiteralExpression>(
+                std::move(elements));
         }
         ExpressionPtr first = parseExpression();
         if (match(",")) {
@@ -555,7 +849,11 @@ ExpressionPtr Parser::parsePrimary() {
         std::vector<ExpressionPtr> elements;
         if (!checkText("]")) {
             for (;;) {
-                elements.push_back(parseExpression());
+                if (isTypeName(current())) {
+                    elements.push_back(parseTypedElement());
+                } else {
+                    elements.push_back(parseExpression());
+                }
                 if (!match(",")) {
                     break;
                 }
@@ -564,7 +862,72 @@ ExpressionPtr Parser::parsePrimary() {
         expectText("]", "expected ']' after list literal");
         return std::make_unique<ListLiteralExpression>(std::move(elements));
     }
+    if (token.text == "{") {
+        std::vector<VarGroupFieldInit> fields;
+        while (!checkText("}")) {
+            bool constant = false;
+            if (checkText("const")) {
+                constant = true;
+                advance();
+            }
+            const std::string type = parseTypeName("expected vargroup field type");
+            const Token name =
+                expect(TokenKind::Identifier, "expected vargroup field name");
+            expectText("=", "expected '=' after vargroup field name");
+            fields.push_back(
+                {type, name.text, parseExpression(), constant});
+            if (!match(",")) {
+                match(";");
+                if (!checkText("}")) {
+                    fail("expected ',' or ';' between vargroup fields",
+                         current());
+                }
+            }
+        }
+        expectText("}", "expected '}' after vargroup literal");
+        return std::make_unique<VarGroupLiteralExpression>(std::move(fields));
+    }
     fail("expected an expression", token);
+}
+
+ExpressionPtr Parser::parseTypedElement() {
+    const std::string type = parseTypeName("expected element type");
+    if (checkText(",") || checkText("]") || checkText(")")) {
+        fail("expected value after element type", current());
+    }
+    return std::make_unique<TypeCoerceExpression>(parseUnary(), type);
+}
+
+ExpressionPtr Parser::parsePostfix(ExpressionPtr expression,
+                                   const Token& start) {
+    while (true) {
+        if (match("(")) {
+            auto* variable = dynamic_cast<VariableExpression*>(expression.get());
+            if (variable == nullptr) {
+                fail("only named functions can be called directly", current());
+            }
+            std::vector<ExpressionPtr> arguments = parseArguments(
+                variable->name());
+            expression = std::make_unique<CallExpression>(
+                variable->name(), std::move(arguments), start.line,
+                start.column);
+            continue;
+        }
+        if (!match(".")) {
+            break;
+        }
+        const Token field =
+            expect(TokenKind::Identifier, "expected name after '.'");
+        if (match("(")) {
+            expression = std::make_unique<MethodCallExpression>(
+                std::move(expression), field.text, parseArguments(field.text),
+                start.line, start.column);
+        } else {
+            expression = std::make_unique<DotAccessExpression>(
+                std::move(expression), field.text, start.line, start.column);
+        }
+    }
+    return expression;
 }
 
 bool Parser::check(TokenKind kind) const { return current().kind == kind; }

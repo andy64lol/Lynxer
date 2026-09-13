@@ -11,6 +11,7 @@ enum class TokenKind {
     Identifier,
     Number,
     String,
+    Char,
     InterpString,
     Symbol,
 };
@@ -43,6 +44,8 @@ private:
     void skipDelimitedComment();
 
     std::string readString(int line, int column);
+
+    std::string readChar(int line, int column);
 
     std::string readRawString(int line, int column);
 

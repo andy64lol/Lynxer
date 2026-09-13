@@ -10,58 +10,102 @@
 
 namespace clynxer {
 
+Environment::Environment() : scopes_(1) {}
+
+void Environment::pushScope() { scopes_.emplace_back(); }
+
+void Environment::popScope() {
+    if (scopes_.size() <= 1) {
+        throw SourceError("cannot pop the global scope", 0, 0);
+    }
+    scopes_.pop_back();
+}
+
 void Environment::declare(const std::string& name, const std::string& type,
                           Value value, int line, int column) {
     // Re-declaration replaces both the value and the recorded type.
-    variables_[name] = Variable{type, std::move(value), false};
+    scopes_.back()[name] = Variable{type, std::move(value), false};
 }
 
 void Environment::declareConstant(const std::string& name,
                                   const std::string& type, Value value,
                                   int line, int column) {
-    variables_[name] =
+    scopes_.back()[name] =
         Variable{type, convertForType(std::move(value), type, line, column),
                  true};
 }
 
 void Environment::assign(const std::string& name, Value value, int line,
                          int column) {
-    auto found = variables_.find(name);
-    if (found == variables_.end()) {
-        fail("unknown variable '" + name + "'", line, column);
+    for (auto scope = scopes_.rbegin(); scope != scopes_.rend(); ++scope) {
+        auto found = scope->find(name);
+        if (found == scope->end()) {
+            continue;
+        }
+        if (found->second.constant) {
+            fail("variable '" + name + "' is constant and cannot be reassigned",
+                 line, column);
+        }
+        found->second.value =
+            convertForType(std::move(value), found->second.type, line, column);
+        return;
     }
-    if (found->second.constant) {
-        fail("variable '" + name + "' is constant and cannot be reassigned",
-             line, column);
-    }
-    found->second.value =
-        convertForType(std::move(value), found->second.type, line, column);
+    fail("unknown variable '" + name + "'", line, column);
 }
 
 const Value& Environment::get(const std::string& name, int line,
                               int column) const {
-    auto found = variables_.find(name);
-    if (found == variables_.end()) {
-        fail("unknown variable '" + name + "'", line, column);
+    for (auto scope = scopes_.rbegin(); scope != scopes_.rend(); ++scope) {
+        auto found = scope->find(name);
+        if (found != scope->end()) {
+            return found->second.value;
+        }
     }
-    return found->second.value;
+    fail("unknown variable '" + name + "'", line, column);
 }
 
 bool Environment::hasVariable(const std::string& name) const {
-    return variables_.find(name) != variables_.end();
+    for (auto scope = scopes_.rbegin(); scope != scopes_.rend(); ++scope) {
+        if (scope->find(name) != scope->end()) {
+            return true;
+        }
+    }
+    return false;
 }
 
 Variable Environment::variableSnapshot(const std::string& name) const {
-    return variables_.at(name);
+    for (auto scope = scopes_.rbegin(); scope != scopes_.rend(); ++scope) {
+        auto found = scope->find(name);
+        if (found != scope->end()) {
+            return found->second;
+        }
+    }
+    throw std::out_of_range("unknown variable");
 }
 
 void Environment::setVariableRaw(const std::string& name,
                                  const Variable& variable) {
-    variables_[name] = variable;
+    for (auto scope = scopes_.rbegin(); scope != scopes_.rend(); ++scope) {
+        auto found = scope->find(name);
+        if (found != scope->end()) {
+            found->second = variable;
+            return;
+        }
+    }
+    scopes_.back()[name] = variable;
+}
+
+void Environment::setVariableRawCurrent(const std::string& name,
+                                        const Variable& variable) {
+    scopes_.back()[name] = variable;
 }
 
 void Environment::removeVariable(const std::string& name) {
-    variables_.erase(name);
+    for (auto scope = scopes_.rbegin(); scope != scopes_.rend(); ++scope) {
+        if (scope->erase(name) != 0) {
+            return;
+        }
+    }
 }
 
 void Environment::setSetupInProgress(bool value) { setupInProgress_ = value; }
@@ -169,6 +213,13 @@ Value Environment::convertForType(Value value, const std::string& type,
     } else if (type == "object" &&
                std::holds_alternative<std::shared_ptr<ObjectValue>>(value)) {
         return value;
+    } else if (type == "vargroup") {
+        if (const auto* record =
+                std::get_if<std::shared_ptr<RecordValue>>(&value);
+            record != nullptr && *record != nullptr &&
+            (*record)->kind == RecordKind::VarGroup) {
+            return value;
+        }
     } else if (type == "codeblock" &&
                std::holds_alternative<std::shared_ptr<CodeblockValue>>(value)) {
         return value;

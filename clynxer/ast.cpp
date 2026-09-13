@@ -86,16 +86,14 @@ Value runClassMethod(const std::shared_ptr<RecordValue>& receiver,
                               std::to_string(arguments.size()),
                           line, column);
     }
-    const bool hadThis = environment.hasVariable("this");
-    const Variable savedThis =
-        hadThis ? environment.variableSnapshot("this") : Variable{};
-    environment.setVariableRaw(
+    environment.pushScope();
+    environment.setVariableRawCurrent(
         "this", Variable{receiver->typeName, receiver, false});
     for (std::size_t index = 0; index < method.params.size(); ++index) {
         Value converted = Environment::convertForType(
             std::move(arguments[index]), method.params[index].first, line,
             column);
-        environment.setVariableRaw(
+        environment.setVariableRawCurrent(
             method.params[index].second,
             Variable{method.params[index].first, std::move(converted), false});
     }
@@ -104,19 +102,11 @@ Value runClassMethod(const std::shared_ptr<RecordValue>& receiver,
             statement->execute(environment);
         }
     } catch (const ReturnControl& control) {
-        // Restore `this` before leaving.
-        if (hadThis) {
-            environment.setVariableRaw("this", savedThis);
-        } else {
-            environment.removeVariable("this");
-        }
-        return control.hasValue ? control.value : Value{};
+        const Value result = control.hasValue ? control.value : Value{};
+        environment.popScope();
+        return result;
     }
-    if (hadThis) {
-        environment.setVariableRaw("this", savedThis);
-    } else {
-        environment.removeVariable("this");
-    }
+    environment.popScope();
     return Value{};
 }
 
@@ -125,6 +115,12 @@ Value runClassMethod(const std::shared_ptr<RecordValue>& receiver,
 template <typename StatementContainer>
 void collectNames(const StatementContainer& statements,
                   std::vector<std::string>& names);
+
+const Statement* rawStatement(const Statement* statement) { return statement; }
+
+const Statement* rawStatement(const StatementPtr& statement) {
+    return statement.get();
+}
 
 void collectExpressionNames(const Expression& expression,
                             std::vector<std::string>& names);
@@ -198,47 +194,47 @@ void collectNames(const StatementContainer& statements,
                   std::vector<std::string>& names) {
     for (const auto& statement : statements) {
         if (const auto* assignment =
-                dynamic_cast<const AssignmentStatement*>(statement.get())) {
+                dynamic_cast<const AssignmentStatement*>(rawStatement(statement))) {
             names.push_back(assignment->name());
             collectExpressionNames(assignment->valueExpr(), names);
             continue;
         }
         if (const auto* declaration =
-                dynamic_cast<const DeclarationStatement*>(statement.get())) {
+                dynamic_cast<const DeclarationStatement*>(rawStatement(statement))) {
             collectExpressionNames(declaration->valueExpr(), names);
             continue;
         }
         if (const auto* expressionStatement =
-                dynamic_cast<const ExpressionStatement*>(statement.get())) {
+                dynamic_cast<const ExpressionStatement*>(rawStatement(statement))) {
             collectExpressionNames(expressionStatement->expression(), names);
             continue;
         }
         if (const auto* ifStatement =
-                dynamic_cast<const IfStatement*>(statement.get())) {
+                dynamic_cast<const IfStatement*>(rawStatement(statement))) {
             collectExpressionNames(ifStatement->condition(), names);
             collectNames(ifStatement->thenStatements(), names);
             collectNames(ifStatement->elseStatements(), names);
             continue;
         }
         if (const auto* whileStatement =
-                dynamic_cast<const WhileStatement*>(statement.get())) {
+                dynamic_cast<const WhileStatement*>(rawStatement(statement))) {
             collectExpressionNames(whileStatement->condition(), names);
             collectNames(whileStatement->statements(), names);
             continue;
         }
         if (const auto* iterateStatement =
-                dynamic_cast<const IterateStatement*>(statement.get())) {
+                dynamic_cast<const IterateStatement*>(rawStatement(statement))) {
             collectExpressionNames(iterateStatement->count(), names);
             collectNames(iterateStatement->statements(), names);
             continue;
         }
         if (const auto* foreverStatement =
-                dynamic_cast<const ForeverStatement*>(statement.get())) {
+                dynamic_cast<const ForeverStatement*>(rawStatement(statement))) {
             collectNames(foreverStatement->statements(), names);
             continue;
         }
         if (const auto* printStatement =
-                dynamic_cast<const ExpressionStatement*>(statement.get())) {
+                dynamic_cast<const ExpressionStatement*>(rawStatement(statement))) {
             (void)printStatement;
             continue;
         }
@@ -247,6 +243,39 @@ void collectNames(const StatementContainer& statements,
 
 } // namespace
 
+
+TypeCoerceExpression::TypeCoerceExpression(ExpressionPtr inner,
+                                           std::string type)
+    : inner_(std::move(inner)), type_(std::move(type)) {}
+
+DotAccessExpression::DotAccessExpression(ExpressionPtr object, std::string field,
+                                         int line, int column)
+    : object_(std::move(object)), field_(std::move(field)), line_(line),
+      column_(column) {}
+
+MethodCallExpression::MethodCallExpression(
+    ExpressionPtr object, std::string method, std::vector<ExpressionPtr> arguments,
+    int line, int column)
+    : object_(std::move(object)), method_(std::move(method)),
+      arguments_(std::move(arguments)), line_(line), column_(column) {}
+
+NewExpression::NewExpression(std::string typeName,
+                             std::vector<ExpressionPtr> arguments, int line,
+                             int column)
+    : typeName_(std::move(typeName)), arguments_(std::move(arguments)),
+      line_(line), column_(column) {}
+
+AddVarGroupExpression::AddVarGroupExpression(
+    ExpressionPtr target, std::string type, std::string field,
+    ExpressionPtr value, int line, int column)
+    : target_(std::move(target)), type_(std::move(type)),
+      field_(std::move(field)), value_(std::move(value)), line_(line),
+      column_(column) {}
+
+RemoveVarGroupExpression::RemoveVarGroupExpression(
+    ExpressionPtr target, std::string field, int line, int column)
+    : target_(std::move(target)), field_(std::move(field)), line_(line),
+      column_(column) {}
 
 Value TypeCoerceExpression::evaluate(Environment& environment) const {
     return Environment::convertForType(inner_->evaluate(environment), type_,
@@ -435,14 +464,17 @@ Value NewExpression::evaluate(Environment& environment) const {
             field.name = fieldDef.name;
             field.constant = fieldDef.constant;
             field.value = fieldDef.initializer
-                              ? fieldDef.initializer->evaluate(environment)
+                              ? Environment::convertForType(
+                                    fieldDef.initializer->evaluate(environment),
+                                    fieldDef.type, line_, column_)
                               : Value{};
             record->fields.push_back(std::move(field));
         }
         for (const ClassMethod& method : classDef->methods) {
             if (method.name == "init") {
-                return runClassMethod(record, method, std::move(arguments),
-                                      environment, line_, column_);
+                runClassMethod(record, method, std::move(arguments), environment,
+                               line_, column_);
+                return record;
             }
         }
         if (!arguments.empty()) {
@@ -499,6 +531,62 @@ Value RemoveVarGroupExpression::evaluate(Environment& environment) const {
     throw SourceError("vargroup '" + (*record)->displayName +
                           "' has no field '" + field_ + "'",
                       line_, column_);
+}
+
+VarGroupLiteralExpression::VarGroupLiteralExpression(
+    std::vector<VarGroupFieldInit> fields)
+    : fields_(std::move(fields)) {}
+
+Value VarGroupLiteralExpression::evaluate(Environment& environment) const {
+    auto record = std::make_shared<RecordValue>();
+    record->kind = RecordKind::VarGroup;
+    record->displayName = "vargroup";
+    for (const auto& definition : fields_) {
+        RecordField field;
+        field.type = definition.type;
+        field.name = definition.name;
+        field.constant = definition.constant;
+        field.value = Environment::convertForType(
+            definition.value->evaluate(environment), definition.type, 0, 0);
+        record->fields.push_back(std::move(field));
+    }
+    return record;
+}
+
+void unsupportedRuntimeModelCompile(ProgramEmitter&, const char* feature,
+                                    int line, int column) {
+    throw SourceError(std::string("bytecode compiler does not support ") +
+                          feature,
+                      line, column);
+}
+
+void TypeCoerceExpression::compile(ProgramEmitter& emitter) const {
+    unsupportedRuntimeModelCompile(emitter, "typed element literals", 0, 0);
+}
+
+void DotAccessExpression::compile(ProgramEmitter& emitter) const {
+    unsupportedRuntimeModelCompile(emitter, "field access", line_, column_);
+}
+
+void MethodCallExpression::compile(ProgramEmitter& emitter) const {
+    unsupportedRuntimeModelCompile(emitter, "methods", line_, column_);
+}
+
+void NewExpression::compile(ProgramEmitter& emitter) const {
+    unsupportedRuntimeModelCompile(emitter, "named-type construction", line_,
+                                   column_);
+}
+
+void AddVarGroupExpression::compile(ProgramEmitter& emitter) const {
+    unsupportedRuntimeModelCompile(emitter, "vargroups", line_, column_);
+}
+
+void RemoveVarGroupExpression::compile(ProgramEmitter& emitter) const {
+    unsupportedRuntimeModelCompile(emitter, "vargroups", line_, column_);
+}
+
+void VarGroupLiteralExpression::compile(ProgramEmitter& emitter) const {
+    unsupportedRuntimeModelCompile(emitter, "vargroups", 0, 0);
 }
 
 LiteralExpression::LiteralExpression(Value value) : value_(std::move(value)) {}
@@ -607,16 +695,20 @@ Value InterpStringExpression::evaluate(Environment& environment) const {
 
 DeclarationStatement::DeclarationStatement(std::string type, std::string name,
                                            ExpressionPtr value, int line,
-                                           int column)
+                                           int column, bool constant)
     : type_(std::move(type)), name_(std::move(name)),
-      value_(std::move(value)), line_(line), column_(column) {}
+      value_(std::move(value)), line_(line), column_(column),
+      constant_(constant) {}
 
 void DeclarationStatement::execute(Environment& environment) const {
-    environment.declare(name_, type_,
-                        Environment::convertForType(
-                            value_->evaluate(environment), type_, line_,
-                            column_),
-                        line_, column_);
+    Value value = Environment::convertForType(value_->evaluate(environment),
+                                              type_, line_, column_);
+    if (constant_) {
+        environment.declareConstant(name_, type_, std::move(value), line_,
+                                     column_);
+    } else {
+        environment.declare(name_, type_, std::move(value), line_, column_);
+    }
 }
 
 AssignmentStatement::AssignmentStatement(std::string name, ExpressionPtr value,
@@ -794,6 +886,10 @@ void DotAssignmentStatement::execute(Environment& environment) const {
     setRecordField(*record, path_.back(), value, line_, column_);
 }
 
+void DotAssignmentStatement::compile(ProgramEmitter& emitter) const {
+    unsupportedRuntimeModelCompile(emitter, "field assignment", line_, column_);
+}
+
 SwitchStatement::SwitchStatement(ExpressionPtr value,
                                  std::vector<SwitchCase> cases)
     : value_(std::move(value)), cases_(std::move(cases)) {}
@@ -808,7 +904,7 @@ void SwitchStatement::execute(Environment& environment) const {
         }
         bindings.clear();
         if (matchPattern(*switchCase.pattern, value, bindings, environment,
-                         line_, column_)) {
+                         0, 0)) {
             std::vector<std::pair<std::string, Variable>> saved;
             for (const auto& binding : bindings) {
                 saved.emplace_back(binding.first,
@@ -816,7 +912,7 @@ void SwitchStatement::execute(Environment& environment) const {
                                        ? environment.variableSnapshot(
                                              binding.first)
                                        : Variable{});
-                environment.setVariableRaw(
+                environment.setVariableRawCurrent(
                     binding.first, Variable{"any", binding.second, false});
             }
             executeStatements(switchCase.body, environment);
@@ -824,6 +920,10 @@ void SwitchStatement::execute(Environment& environment) const {
             return;
         }
     }
+}
+
+void SwitchStatement::compile(ProgramEmitter& emitter) const {
+    unsupportedRuntimeModelCompile(emitter, "switch patterns", 0, 0);
 }
 
 ReturnStatement::ReturnStatement(ExpressionPtr value, int line, int column)
@@ -836,9 +936,13 @@ void ReturnStatement::execute(Environment& environment) const {
     throw ReturnControl{Value{}, false};
 }
 
+void ReturnStatement::compile(ProgramEmitter& emitter) const {
+    unsupportedRuntimeModelCompile(emitter, "return statements", line_, column_);
+}
+
 CodeblockDeclarationStatement::CodeblockDeclarationStatement(
     std::string name, std::vector<std::pair<std::string, std::string>> params,
-    std::vector<std::shared_ptr<Statement>> body, int line, int column)
+    StatementList body, int line, int column)
     : name_(std::move(name)), params_(std::move(params)),
       body_(std::move(body)), line_(line), column_(column) {}
 
@@ -846,8 +950,15 @@ void CodeblockDeclarationStatement::execute(Environment& environment) const {
     auto block = std::make_shared<CodeblockValue>();
     block->name = name_;
     block->params = params_;
-    block->body = body_;
+    block->body.clear();
+    for (const auto& statement : body_) {
+        block->body.push_back(statement.get());
+    }
     environment.declare(name_, "codeblock", block, line_, column_);
+}
+
+void CodeblockDeclarationStatement::compile(ProgramEmitter& emitter) const {
+    unsupportedRuntimeModelCompile(emitter, "codeblocks", line_, column_);
 }
 
 ExecStatement::ExecStatement(std::vector<ExpressionPtr> arguments,
@@ -910,7 +1021,7 @@ void ExecStatement::execute(Environment& environment) const {
                 params[index].second,
                 Variable{params[index].first, std::move(converted), false});
         }
-        std::vector<std::shared_ptr<Statement>>& body = (*block)->body;
+        const std::vector<const Statement*>& body = (*block)->body;
         try {
             for (const auto& statement : body) {
                 statement->execute(environment);
@@ -946,11 +1057,22 @@ void ExecStatement::execute(Environment& environment) const {
     restoreSavedVariables(saved, environment);
 }
 
+void ExecStatement::compile(ProgramEmitter& emitter) const {
+    unsupportedRuntimeModelCompile(emitter, "codeblocks", line_, column_);
+}
+
 void executeStatements(const StatementList& statements,
                        Environment& environment) {
-    for (const auto& statement : statements) {
-        statement->execute(environment);
+    environment.pushScope();
+    try {
+        for (const auto& statement : statements) {
+            statement->execute(environment);
+        }
+    } catch (...) {
+        environment.popScope();
+        throw;
     }
+    environment.popScope();
 }
 
 IfStatement::IfStatement(ExpressionPtr condition, StatementList thenStatements,

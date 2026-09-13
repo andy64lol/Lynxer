@@ -136,6 +136,14 @@ bool typeMatches(const std::string& type, const Value& value) {
     if (type == "object") {
         return std::holds_alternative<std::shared_ptr<ObjectValue>>(value);
     }
+    if (type == "vargroup") {
+        if (const auto* record =
+                std::get_if<std::shared_ptr<RecordValue>>(&value);
+            record != nullptr && *record != nullptr) {
+            return (*record)->kind == RecordKind::VarGroup;
+        }
+        return false;
+    }
     return false;
 }
 

@@ -17,6 +17,21 @@ public:
     std::unordered_map<std::string, Function> parseProgram();
 
 private:
+    void parseStructDefinition();
+    void parseClassDefinition();
+    void parseEnumDefinition();
+    std::vector<std::pair<std::string, std::string>> parseParameters();
+    std::string parseTypeName(const std::string& message);
+    bool isTypeName(const Token& token) const;
+    ExpressionPtr parsePostfix(ExpressionPtr expression, const Token& start);
+    ExpressionPtr parseTypedElement();
+    StatementPtr parseReturn();
+    StatementPtr parseSwitch();
+    StatementPtr parseExec();
+    StatementPtr parseVargroupDeclaration(bool constant);
+    StatementPtr parseDeclaration(bool constant);
+    StatementPtr parseAssignmentOrExpressionStatement(bool requireSemicolon);
+
     StatementPtr parseStatement();
 
     StatementPtr parseCallStatement();
