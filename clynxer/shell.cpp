@@ -1,10 +1,12 @@
 #include "shell.hpp"
 
+#include "compiler.hpp"
 #include "config.hpp"
 #include "error.hpp"
 #include "lexer.hpp"
 #include "parser.hpp"
 #include "runtime.hpp"
+#include "vm.hpp"
 
 #include <algorithm>
 #include <csignal>
@@ -226,6 +228,155 @@ int unsupportedFeature(const std::string& flag) {
     return 1;
 }
 
+// Lexes and parses a source file into the function map (shared by the run
+// and compile paths).
+std::unordered_map<std::string, Function> parseSource(const std::string& display,
+                                                       const std::string& source) {
+    Lexer lexer(source, display);
+    Parser parser(lexer.scan());
+    return parser.parseProgram();
+}
+
+// Two-placeholder message helper: replaces {0} and {1}.
+std::string message2(const char* key, const char* fallback,
+                     const std::string& first, const std::string& second) {
+    std::string value = Config::instance().get(key, fallback);
+    std::size_t position = value.find("{0}");
+    if (position != std::string::npos) {
+        value.replace(position, 3, first);
+    }
+    position = value.find("{1}");
+    if (position != std::string::npos) {
+        value.replace(position, 3, second);
+    }
+    return value;
+}
+
+int compileFile(const std::string& display, const std::string& sourcePath,
+                const std::string& source, bool optimize, bool useCache) {
+    const std::string outputPath =
+        sourcePath.substr(0, sourcePath.find_last_of('.')) + ".lynxc";
+
+    const uint64_t hash = fnv1a64(source);
+    if (useCache) {
+        try {
+            std::ifstream existing(outputPath, std::ios::binary);
+            if (existing) {
+                std::vector<uint8_t> bytes((std::istreambuf_iterator<char>(existing)),
+                                           std::istreambuf_iterator<char>());
+                const CompiledProgram cached = loadProgram(bytes);
+                if (cached.sourcePath == sourcePath && cached.sourceHash == hash &&
+                    (cached.flags & BYTECODE_FLAG_OPTIMIZED) ==
+                        (optimize ? BYTECODE_FLAG_OPTIMIZED : 0)) {
+                    std::cout << Config::instance().format(
+                                     "status.compile_skipped",
+                                     "clynxer: bytecode is up to date: '{0}'",
+                                     "{0}", outputPath)
+                              << '\n';
+                    return 0;
+                }
+            }
+        } catch (const BytecodeError&) {
+            // Stale or corrupt cache: recompile.
+        }
+    }
+
+    try {
+        const CompiledProgram program =
+            compileProgram(parseSource(display, source), sourcePath, source,
+                           optimize);
+        std::ofstream output(outputPath, std::ios::binary | std::ios::trunc);
+        if (!output) {
+            std::cerr << Config::instance().format(
+                             "error.bytecode_write_failed",
+                             "clynxer: could not write '{0}'", "{0}",
+                             outputPath)
+                      << '\n';
+            return 1;
+        }
+        const std::vector<uint8_t> bytes = serializeProgram(program);
+        output.write(reinterpret_cast<const char*>(bytes.data()),
+                     static_cast<std::streamsize>(bytes.size()));
+        if (!output) {
+            std::cerr << Config::instance().format(
+                             "error.bytecode_write_failed",
+                             "clynxer: could not write '{0}'", "{0}",
+                             outputPath)
+                      << '\n';
+            return 1;
+        }
+    } catch (const SourceError& error) {
+        std::cerr << "clynxer: " << display << ':' << error.line << ':'
+                  << error.column << ": " << error.what() << '\n';
+        return 1;
+    }
+    std::cout << Config::instance().format(
+                     "status.compile_ok", "Compiled: {0}", "{0}", outputPath)
+              << '\n';
+    return 0;
+}
+
+int runBytecodeFile(const std::string& display, const std::string& path) {
+    std::ifstream input(path, std::ios::binary);
+    if (!input) {
+        std::cerr << Config::instance().format("error.file_not_found",
+                                               "clynxer: file not found: '{0}'",
+                                               "{0}", display)
+                  << '\n';
+        return 1;
+    }
+    std::vector<uint8_t> bytes((std::istreambuf_iterator<char>(input)),
+                               std::istreambuf_iterator<char>());
+    CompiledProgram program;
+    try {
+        program = loadProgram(bytes);
+    } catch (const BytecodeError& error) {
+        std::cerr << message2("error.bytecode_invalid",
+                              "clynxer: invalid bytecode '{0}': {1}", display,
+                              error.what())
+                  << '\n';
+        return 1;
+    }
+    try {
+        Environment environment;
+        runProgram(program, environment);
+        return 0;
+    } catch (const SourceError& error) {
+        std::cerr << "clynxer: " << program.sourcePath << ':' << error.line
+                  << ':' << error.column << ": " << error.what() << '\n';
+        return 1;
+    } catch (const std::exception& error) {
+        std::cerr << message2("error.interpreter_failure",
+                              "clynxer: interpreter failure in '{0}': {1}",
+                              program.sourcePath, error.what())
+                  << '\n';
+        return 1;
+    }
+}
+
+int viewBytecodeFile(const std::string& display, const std::string& path) {
+    std::ifstream input(path, std::ios::binary);
+    if (!input) {
+        std::cerr << Config::instance().format("error.file_not_found",
+                                               "clynxer: file not found: '{0}'",
+                                               "{0}", display)
+                  << '\n';
+        return 1;
+    }
+    std::vector<uint8_t> bytes((std::istreambuf_iterator<char>(input)),
+                               std::istreambuf_iterator<char>());
+    try {
+        std::cout << disassembleProgram(loadProgram(bytes));
+        return 0;
+    } catch (const BytecodeError& error) {
+        std::cerr << message2("error.bytecode_invalid",
+                              "clynxer: invalid bytecode '{0}': {1}", display,
+                              error.what())
+                  << '\n';
+        return 1;
+    }
+}
+
 } // namespace
 
 int shellMain(int argc, char** argv) {
@@ -262,14 +413,48 @@ int shellMain(int argc, char** argv) {
     }
     if (args[0] == "--compile" || args[0] == "-c" || args[0] == "--c" ||
         args[0] == "-compile") {
-        return unsupportedFeature(args[0]);
+        bool optimize = true;
+        bool useCache = true;
+        std::vector<std::string> files;
+        for (std::size_t index = 1; index < args.size(); ++index) {
+            if (args[index] == "--no-opt") {
+                optimize = false;
+            } else if (args[index] == "--no-cache") {
+                useCache = false;
+            } else {
+                files.push_back(args[index]);
+            }
+        }
+        if (files.size() != 1) {
+            std::cerr << Config::instance().get(
+                                 "error.compile_requires_file",
+                                 "clynxer: --compile requires a file argument")
+                      << '\n';
+            return 1;
+        }
+        const std::string& file = files[0];
+        const std::string& sourcePath = file;
+        bool ok = false;
+        const std::string source = readFile(sourcePath, file, ok);
+        if (!ok) {
+            return 1;
+        }
+        return compileFile(file, sourcePath, source, optimize, useCache);
     }
     if (args[0] == "--bundle" || args[0] == "-bundle") {
         return unsupportedFeature(args[0]);
     }
     if (args[0] == "--view-bytecode" || args[0] == "--inspect-bytecode" ||
         args[0] == "--disasm") {
-        return unsupportedFeature(args[0]);
+        if (args.size() != 2) {
+            std::cerr << Config::instance().get(
+                                 "error.view_bytecode_usage",
+                                 "clynxer: --view-bytecode requires a .lynxc "
+                                 "file argument")
+                      << '\n';
+            return 1;
+        }
+        return viewBytecodeFile(args[1], args[1]);
     }
     if (args[0] == "--ast" || args[0] == "--format" ||
         args[0] == "--format-oneline") {
@@ -295,12 +480,7 @@ int shellMain(int argc, char** argv) {
     const std::string& display = args[0];
     if (display.size() > 6 &&
         display.compare(display.size() - 6, 6, ".lynxc") == 0) {
-        std::cerr << Config::instance().get(
-                         "error.bytecode_unsupported",
-                         "clynxer: running compiled .lynxc bytecode is not "
-                         "supported in CLynxer yet")
-                  << '\n';
-        return 1;
+        return runBytecodeFile(display, display);
     }
 
     bool ok = false;

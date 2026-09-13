@@ -123,11 +123,15 @@ Config::Config() {
                "clynxer: interpreter failure in '{0}': {1}");
     setDefault("error.unsupported",
                "clynxer: '{0}' is not available in CLynxer yet");
-    setDefault("error.bytecode_unsupported",
-               "clynxer: running compiled .lynxc bytecode is not supported in CLynxer yet");
     setDefault("error.validator_missing",
                "clynxer: comprehensive validator is not available");
+    setDefault("error.bytecode_invalid",
+               "clynxer: invalid bytecode '{0}': {1}");
+    setDefault("error.bytecode_write_failed", "clynxer: could not write '{0}'");
     setDefault("status.lint_ok", "Lint OK: {0}");
+    setDefault("status.compile_ok", "Compiled: {0}");
+    setDefault("status.compile_skipped",
+               "clynxer: bytecode is up to date: '{0}'");
     setDefault("warning.forever_no_break",
                "forever() has no break; it will run until the process is "
                "stopped. Add break; or call suppressForeverWarning() in "

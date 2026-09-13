@@ -7,10 +7,13 @@
 
 namespace clynxer {
 
+class ProgramEmitter;
+
 class Expression {
 public:
     virtual ~Expression() = default;
     virtual Value evaluate(Environment& environment) const = 0;
+    virtual void compile(ProgramEmitter& emitter) const = 0;
 };
 
 using ExpressionPtr = std::unique_ptr<Expression>;
@@ -20,6 +23,8 @@ public:
     explicit LiteralExpression(Value value);
 
     Value evaluate(Environment& environment) const override;
+
+    void compile(ProgramEmitter& emitter) const override;
 
 private:
     Value value_;
@@ -31,7 +36,13 @@ public:
 
     Value evaluate(Environment& environment) const override;
 
+    void compile(ProgramEmitter& emitter) const override;
+
 private:
+    int line() const { return line_; }
+
+    int column() const { return column_; }
+
     std::string name_;
     int line_;
     int column_;
@@ -44,7 +55,13 @@ public:
 
     Value evaluate(Environment& environment) const override;
 
+    void compile(ProgramEmitter& emitter) const override;
+
 private:
+    int line() const { return line_; }
+
+    int column() const { return column_; }
+
     std::string operation_;
     ExpressionPtr operand_;
     int line_;
@@ -58,12 +75,12 @@ public:
 
     Value evaluate(Environment& environment) const override;
 
+    void compile(ProgramEmitter& emitter) const override;
+
 private:
-    void requireNumbers(const Value& left, const Value& right) const;
+    int line() const { return line_; }
 
-    bool compareNumbers(double left, double right) const;
-
-    bool compareStrings(const std::string& left, const std::string& right) const;
+    int column() const { return column_; }
 
     std::string operation_;
     ExpressionPtr left_;
@@ -79,7 +96,13 @@ public:
 
     Value evaluate(Environment& environment) const override;
 
+    void compile(ProgramEmitter& emitter) const override;
+
 private:
+    int line() const { return line_; }
+
+    int column() const { return column_; }
+
     std::string name_;
     std::vector<ExpressionPtr> arguments_;
     int line_;
@@ -92,6 +115,8 @@ public:
 
     Value evaluate(Environment& environment) const override;
 
+    void compile(ProgramEmitter& emitter) const override;
+
 private:
     std::vector<ExpressionPtr> elements_;
 };
@@ -101,6 +126,8 @@ public:
     explicit TupleLiteralExpression(std::vector<ExpressionPtr> elements);
 
     Value evaluate(Environment& environment) const override;
+
+    void compile(ProgramEmitter& emitter) const override;
 
 private:
     std::vector<ExpressionPtr> elements_;
@@ -116,6 +143,8 @@ public:
 
     Value evaluate(Environment& environment) const override;
 
+    void compile(ProgramEmitter& emitter) const override;
+
 private:
     std::vector<std::string> literals_;
     std::vector<ExpressionPtr> expressions_;
@@ -125,10 +154,15 @@ class Statement {
 public:
     virtual ~Statement() = default;
     virtual void execute(Environment& environment) const = 0;
+    virtual void compile(ProgramEmitter& emitter) const = 0;
 };
+
 
 using StatementPtr = std::unique_ptr<Statement>;
 using StatementList = std::vector<StatementPtr>;
+
+// True when any statement in the list (at any nesting depth) is a break.
+bool statementsContainBreak(const StatementList& statements);
 
 enum class LoopControlKind {
     Break,
@@ -148,7 +182,13 @@ public:
 
     void execute(Environment& environment) const override;
 
+    void compile(ProgramEmitter& emitter) const override;
+
 private:
+    int line() const { return line_; }
+
+    int column() const { return column_; }
+
     std::string type_;
     std::string name_;
     ExpressionPtr value_;
@@ -163,7 +203,13 @@ public:
 
     void execute(Environment& environment) const override;
 
+    void compile(ProgramEmitter& emitter) const override;
+
 private:
+    int line() const { return line_; }
+
+    int column() const { return column_; }
+
     std::string name_;
     ExpressionPtr value_;
     int line_;
@@ -176,6 +222,8 @@ public:
 
     void execute(Environment& environment) const override;
 
+    void compile(ProgramEmitter& emitter) const override;
+
 private:
     LoopControlKind kind_;
 };
@@ -185,6 +233,8 @@ public:
     explicit ExpressionStatement(ExpressionPtr expression);
 
     void execute(Environment& environment) const override;
+
+    void compile(ProgramEmitter& emitter) const override;
 
 private:
     ExpressionPtr expression_;
@@ -198,6 +248,8 @@ public:
                 StatementList elseStatements, bool hasElse);
 
     void execute(Environment& environment) const override;
+
+    void compile(ProgramEmitter& emitter) const override;
 
     const StatementList& thenStatements() const { return thenStatements_; }
 
@@ -216,6 +268,8 @@ public:
 
     void execute(Environment& environment) const override;
 
+    void compile(ProgramEmitter& emitter) const override;
+
     const StatementList& statements() const { return statements_; }
 
 private:
@@ -229,6 +283,8 @@ public:
                  StatementPtr update, StatementList statements);
 
     void execute(Environment& environment) const override;
+
+    void compile(ProgramEmitter& emitter) const override;
 
     const StatementList& statements() const { return statements_; }
 
@@ -245,6 +301,8 @@ public:
 
     void execute(Environment& environment) const override;
 
+    void compile(ProgramEmitter& emitter) const override;
+
     const StatementList& statements() const { return statements_; }
 
 private:
@@ -259,9 +317,15 @@ public:
 
     void execute(Environment& environment) const override;
 
+    void compile(ProgramEmitter& emitter) const override;
+
     const StatementList& statements() const { return statements_; }
 
 private:
+    int line() const { return line_; }
+
+    int column() const { return column_; }
+
     ExpressionPtr count_;
     StatementList statements_;
     int line_;
@@ -274,9 +338,15 @@ public:
 
     void execute(Environment& environment) const override;
 
+    void compile(ProgramEmitter& emitter) const override;
+
     const StatementList& statements() const { return statements_; }
 
 private:
+    int line() const { return line_; }
+
+    int column() const { return column_; }
+
     bool containsBreak(const StatementList& statements) const;
 
     StatementList statements_;

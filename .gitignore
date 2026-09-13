@@ -10,3 +10,4 @@ dist/
 tmp/
 temp/
 *.o
+clynxer/examples/*.lynxc

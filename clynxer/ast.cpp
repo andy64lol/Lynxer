@@ -3,6 +3,7 @@
 #include "builtins.hpp"
 #include "config.hpp"
 #include "error.hpp"
+#include "ops.hpp"
 
 #include <chrono>
 #include <cstdint>
@@ -29,21 +30,8 @@ UnaryExpression::UnaryExpression(std::string operation, ExpressionPtr operand,
       line_(line), column_(column) {}
 
 Value UnaryExpression::evaluate(Environment& environment) const {
-    const Value value = operand_->evaluate(environment);
-    if (operation_ == "!") {
-        return !isTruthy(value);
-    }
-    if (operation_ == "-") {
-        if (!isNumber(value)) {
-            throw SourceError("unary '-' requires a number", line_, column_);
-        }
-        if (std::holds_alternative<std::int64_t>(value)) {
-            return -std::get<std::int64_t>(value);
-        }
-        return -std::get<double>(value);
-    }
-    throw SourceError("unsupported unary operator '" + operation_ + "'",
-                      line_, column_);
+    return applyUnary(operation_, operand_->evaluate(environment), line_,
+                      column_);
 }
 
 BinaryExpression::BinaryExpression(std::string operation, ExpressionPtr left,
@@ -67,103 +55,8 @@ Value BinaryExpression::evaluate(Environment& environment) const {
     if (operation_ == "||") {
         return isTruthy(right);
     }
-    if (operation_ == "+") {
-        if (std::holds_alternative<std::string>(left) ||
-            std::holds_alternative<std::string>(right)) {
-            return valueToString(left) + valueToString(right);
-        }
-        requireNumbers(left, right);
-        if (std::holds_alternative<std::int64_t>(left) &&
-            std::holds_alternative<std::int64_t>(right)) {
-            return std::get<std::int64_t>(left) +
-                   std::get<std::int64_t>(right);
-        }
-        return asNumber(left, line_, column_) + asNumber(right, line_, column_);
-    }
-    if (operation_ == "-" || operation_ == "*" || operation_ == "/") {
-        requireNumbers(left, right);
-        if (operation_ == "/" && asNumber(right, line_, column_) == 0.0) {
-            throw SourceError("division by zero", line_, column_);
-        }
-        if (std::holds_alternative<std::int64_t>(left) &&
-            std::holds_alternative<std::int64_t>(right) && operation_ != "/") {
-            const auto lhs = std::get<std::int64_t>(left);
-            const auto rhs = std::get<std::int64_t>(right);
-            return operation_ == "-" ? lhs - rhs : lhs * rhs;
-        }
-        const double lhs = asNumber(left, line_, column_);
-        const double rhs = asNumber(right, line_, column_);
-        if (operation_ == "-") {
-            return lhs - rhs;
-        }
-        if (operation_ == "*") {
-            return lhs * rhs;
-        }
-        return lhs / rhs;
-    }
-    if (operation_ == "%") {
-        if (!std::holds_alternative<std::int64_t>(left) ||
-            !std::holds_alternative<std::int64_t>(right)) {
-            throw SourceError("'%' requires integer operands", line_, column_);
-        }
-        const auto rhs = std::get<std::int64_t>(right);
-        if (rhs == 0) {
-            throw SourceError("division by zero", line_, column_);
-        }
-        return std::get<std::int64_t>(left) % rhs;
-    }
-    if (operation_ == "==" || operation_ == "!=") {
-        const bool equal = valuesEqual(left, right);
-        return operation_ == "==" ? equal : !equal;
-    }
-    if (operation_ == "<" || operation_ == "<=" || operation_ == ">" ||
-        operation_ == ">=") {
-        if (std::holds_alternative<std::string>(left) &&
-            std::holds_alternative<std::string>(right)) {
-            return compareStrings(std::get<std::string>(left),
-                                  std::get<std::string>(right));
-        }
-        requireNumbers(left, right);
-        return compareNumbers(asNumber(left, line_, column_),
-                              asNumber(right, line_, column_));
-    }
-    throw SourceError("unsupported binary operator '" + operation_ + "'",
-                      line_, column_);
-}
-
-void BinaryExpression::requireNumbers(const Value& left,
-                                      const Value& right) const {
-    if (!isNumber(left) || !isNumber(right)) {
-        throw SourceError("numeric operands required for '" + operation_ + "'",
-                          line_, column_);
-    }
-}
-
-bool BinaryExpression::compareNumbers(double left, double right) const {
-    if (operation_ == "<") {
-        return left < right;
-    }
-    if (operation_ == "<=") {
-        return left <= right;
-    }
-    if (operation_ == ">") {
-        return left > right;
-    }
-    return left >= right;
-}
-
-bool BinaryExpression::compareStrings(const std::string& left,
-                                      const std::string& right) const {
-    if (operation_ == "<") {
-        return left < right;
-    }
-    if (operation_ == "<=") {
-        return left <= right;
-    }
-    if (operation_ == ">") {
-        return left > right;
-    }
-    return left >= right;
+    return applyBinary(binOpFromString(operation_, line_, column_), left,
+                       right, line_, column_);
 }
 
 CallExpression::CallExpression(std::string name,
@@ -216,14 +109,12 @@ void InterpStringExpression::addExpression(ExpressionPtr expression) {
 }
 
 Value InterpStringExpression::evaluate(Environment& environment) const {
-    std::string output;
-    for (std::size_t index = 0; index < literals_.size(); ++index) {
-        output += literals_[index];
-        if (index < expressions_.size()) {
-            output += valueToString(expressions_[index]->evaluate(environment));
-        }
+    std::vector<Value> values;
+    values.reserve(expressions_.size());
+    for (const auto& expression : expressions_) {
+        values.push_back(expression->evaluate(environment));
     }
-    return output;
+    return assembleInterp(literals_, values);
 }
 
 DeclarationStatement::DeclarationStatement(std::string type, std::string name,
@@ -372,7 +263,7 @@ ForeverStatement::ForeverStatement(StatementList statements, int line,
 
 void ForeverStatement::execute(Environment& environment) const {
     if (!warned_ && !environment.foreverWarningSuppressed() &&
-        !containsBreak(statements_)) {
+        !statementsContainBreak(statements_)) {
         warned_ = true;
         const std::string& message = Config::instance().get(
             "warning.forever_no_break",
@@ -399,7 +290,7 @@ void ForeverStatement::execute(Environment& environment) const {
     }
 }
 
-bool ForeverStatement::containsBreak(const StatementList& statements) const {
+bool statementsContainBreak(const StatementList& statements) {
     for (const auto& statement : statements) {
         const LoopControlStatement* control =
             dynamic_cast<const LoopControlStatement*>(statement.get());
@@ -408,38 +299,38 @@ bool ForeverStatement::containsBreak(const StatementList& statements) const {
         }
         if (const auto* ifStatement =
                 dynamic_cast<const IfStatement*>(statement.get())) {
-            if (containsBreak(ifStatement->thenStatements()) ||
-                containsBreak(ifStatement->elseStatements())) {
+            if (statementsContainBreak(ifStatement->thenStatements()) ||
+                statementsContainBreak(ifStatement->elseStatements())) {
                 return true;
             }
         }
         if (const auto* whileStatement =
                 dynamic_cast<const WhileStatement*>(statement.get())) {
-            if (containsBreak(whileStatement->statements())) {
+            if (statementsContainBreak(whileStatement->statements())) {
                 return true;
             }
         }
         if (const auto* forStatement =
                 dynamic_cast<const ForStatement*>(statement.get())) {
-            if (containsBreak(forStatement->statements())) {
+            if (statementsContainBreak(forStatement->statements())) {
                 return true;
             }
         }
         if (const auto* doWhileStatement =
                 dynamic_cast<const DoWhileStatement*>(statement.get())) {
-            if (containsBreak(doWhileStatement->statements())) {
+            if (statementsContainBreak(doWhileStatement->statements())) {
                 return true;
             }
         }
         if (const auto* iterateStatement =
                 dynamic_cast<const IterateStatement*>(statement.get())) {
-            if (containsBreak(iterateStatement->statements())) {
+            if (statementsContainBreak(iterateStatement->statements())) {
                 return true;
             }
         }
         if (const auto* foreverStatement =
                 dynamic_cast<const ForeverStatement*>(statement.get())) {
-            if (containsBreak(foreverStatement->statements())) {
+            if (statementsContainBreak(foreverStatement->statements())) {
                 return true;
             }
         }

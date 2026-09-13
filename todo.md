@@ -113,13 +113,20 @@ runtime dependency and its internals are not copied into Clynxer.
 
 - [x] CLI parity for run/help/version/lint/list-stdlibs/easter egg via
   `shell.cpp`, with the version and message templates in `clynxer.config`.
-- [x] Fail explicitly for compile, bundle, view-bytecode, ast, format,
-  benchmark, validate, install, and `.lynxc` bytecode running.
-- [ ] Define a stable Clynxer AST and parser diagnostics.
-- [ ] Add bytecode generation and a native bytecode VM.
-- [ ] Implement `--compile`, `--bundle`, `--view-bytecode`, `--ast`,
-  `--format`, `--format-oneline`, `--benchmark-compile`,
-  `--validate-executeable`, and `--install`/`--uninstall`.
+- [x] Fail explicitly for bundle, ast, format, benchmark, validate, install.
+- [x] Define a stable Clynxer bytecode: opcode set, string table, constant
+  pool, per-section trap tables, and eager load validation (jump targets,
+  stack depths, table ranges) behind the `CLYXC` container (format v1,
+  uncompressed; intentionally unrelated to the Python `.lynxc` container).
+- [x] Add bytecode generation: AST-to-bytecode compiler with constant folding
+  (`--no-opt` disables) and jump backpatching for break/continue/restart.
+- [x] Add a native stack-machine VM executing `.lynxc` files with
+  byte-identical output, exit codes, and source-located errors versus the
+  interpreter path (fixture parity is enforced by `make test`).
+- [x] Implement `--compile` (`-c`, `--no-cache`, `--no-opt`), direct `.lynxc`
+  execution, and `--view-bytecode` disassembly.
+- [ ] Add an optimization pass beyond constant folding and a bytecode cache
+  location shared with the bundle workflow.
 
 ## Milestone 9 — compatibility gates
 
@@ -146,6 +153,8 @@ runtime dependency and its internals are not copied into Clynxer.
 Clynxer currently supports the core language, all loop forms, the extended
 value model (list/tuple/sentinel/object), the list/tuple/IO/conversion/
 introspection built-ins, the native-memory family, and the named syscalls.
+Programs can be compiled to `CLYXC` bytecode (`--compile`) and executed by
+the native stack-machine VM with output parity against the interpreter.
 Functions beyond setup/main, modules, classes/structs/enums/vargroups,
 bitwise and word operators, `const`, `switch`/`elif`, and `try`/`catch` are
 not implemented yet and must fail explicitly rather than silently invoking

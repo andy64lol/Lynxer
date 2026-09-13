@@ -2,7 +2,7 @@ CXX ?= c++
 CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -pedantic
 
 TARGET := clynxer
-SOURCES := main.cpp shell.cpp lexer.cpp runtime.cpp builtins.cpp ast.cpp parser.cpp config.cpp
+SOURCES := main.cpp shell.cpp lexer.cpp runtime.cpp builtins.cpp ops.cpp ast.cpp parser.cpp config.cpp compiler.cpp vm.cpp bytecode.cpp
 HEADERS := $(wildcard *.hpp)
 OBJECTS := $(SOURCES:.cpp=.o)
 CONDITION_FIXTURE := examples/conditions.lynx
@@ -85,6 +85,28 @@ expected="clynxer: $(ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 	printf '%s\n' "$$output"; \
 	exit 1; \
 	fi
+	@for fixture in hello conditions loops comments builtins; do \
+	./$(TARGET) examples/$$fixture.lynx > /tmp/clynxer_direct.out 2>/tmp/clynxer_direct.err; \
+	direct_status=$$?; \
+	./$(TARGET) --compile --no-cache examples/$$fixture.lynx > /dev/null; \
+	./$(TARGET) examples/$$fixture.lynxc > /tmp/clynxer_vm.out 2>/tmp/clynxer_vm.err; \
+	vm_status=$$?; \
+	if ! diff -q /tmp/clynxer_direct.out /tmp/clynxer_vm.out > /dev/null || \
+	   ! diff -q /tmp/clynxer_direct.err /tmp/clynxer_vm.err > /dev/null || \
+	   [ "$$direct_status" -ne "$$vm_status" ]; then \
+	echo "bytecode parity failed for $$fixture"; \
+	diff /tmp/clynxer_direct.out /tmp/clynxer_vm.out | head -5; \
+	exit 1; \
+	fi; \
+	done
+	@./$(TARGET) --compile examples/hello.lynx | grep -q "bytecode is up to date" || { echo "bytecode cache check failed"; exit 1; }
+	@./$(TARGET) --view-bytecode examples/hello.lynxc | grep -q "PUSH_CONST" || { echo "view-bytecode smoke failed"; exit 1; }
+	@./$(TARGET) --view-bytecode examples/hello.lynxc | grep -q "HALT" || { echo "view-bytecode HALT smoke failed"; exit 1; }
+	@printf 'CLYXC\x00\x01\x01not-real-bytecode' > /tmp/clynxer_bad.lynxc; \
+	if ./$(TARGET) /tmp/clynxer_bad.lynxc > /dev/null 2>/tmp/clynxer_bad.err; then \
+	echo "corrupt bytecode was accepted"; exit 1; \
+	fi; \
+	grep -q "invalid bytecode" /tmp/clynxer_bad.err || { echo "corrupt bytecode error missing"; exit 1; }
 	@echo "clynxer smoke test passed"
 
 clean:
