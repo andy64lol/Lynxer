@@ -21,7 +21,14 @@ SYSTEM_CALLS_DEP := system-calls
 SYSTEM_CALLS := --hidden-import system_calls --hidden-import lynxer.syscalls --collect-submodules system_calls --collect-all=system_calls
 NATIVE_HIDDEN_IMPORTS := --hidden-import lynxer.cpp --hidden-import lynxer.bytecode_vm
 
-.PHONY: venv deps liteDeps platform-check build buildLite buildCpp test testAMR64 validate golden check clean cleanC cleanCpp cleanLynxc cleanAll help
+CLYNXER_TARGET := clynxer/clynxer
+CLYNXER_SOURCES := $(addprefix clynxer/,main.cpp shell.cpp lexer.cpp runtime.cpp types.cpp builtins.cpp ops.cpp ast.cpp parser.cpp config.cpp compiler.cpp vm.cpp bytecode.cpp bundle.cpp)
+CLYNXER_OBJECTS := $(CLYNXER_SOURCES:.cpp=.o)
+CLYNXER_HEADERS := $(wildcard clynxer/*.hpp)
+CLYNXER_CXX ?= c++
+CLYNXER_CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -pedantic -fPIE
+
+.PHONY: venv deps liteDeps platform-check build buildAll buildLite buildCpp buildCLynxer test testCLynxer testAMR64 validate golden check clean cleanC cleanCpp cleanLynxc cleanCLynxer cleanAll help
 
 venv:
 	@if [ ! -d "$(VENV)" ]; then \
@@ -55,10 +62,13 @@ lite-platform-check: liteDeps
 	@echo "Checking Linux build platform..."
 	@$(VENV_PY) -c 'from lynxer.syscalls import require_supported_platform, WORD_BYTES; architecture = require_supported_platform(); print(f"  -> {architecture} ({WORD_BYTES * 8}-bit Python ABI)")'
 
-test: buildCpp
+test: buildCpp testCLynxer
 	@echo "Running tests..."
 	@$(VENV_PY) -u test/validate.py
 	@$(VENV_PY) -u test/remaining.py
+
+testCLynxer: buildCLynxer
+	@$(MAKE) -C clynxer test
 
 testAMR64: buildCpp
 	@echo "Running ARM64 syscall database test..."
@@ -82,7 +92,7 @@ check: test
 	done
 	@echo "✓ Lynxer checks passed."
 
-build: platform-check buildCpp
+build: platform-check buildCpp buildCLynxer
 	@echo "Patching Arcade PyInstaller hook... (due to a bug)"
 	@HOOK=$$($(VENV_PY) -c 'import arcade, os; print(os.path.join(os.path.dirname(arcade.__file__), "__pyinstaller", "hook-arcade.py"))'); \
 	if [ -f "$$HOOK" ]; then \
@@ -109,6 +119,8 @@ build: platform-check buildCpp
 		lynxer/shell.py
 
 	@echo "✓ Build complete: dist/lynxer"
+
+buildAll: build
 
 buildLite: lite-platform-check buildCpp
 	@echo "Installing PyInstaller..."
@@ -138,6 +150,15 @@ buildCpp: venv
 	@$(VENV_PY) lynxer/setup.py build_ext --inplace
 	@echo "✓ Native extensions built in lynxer/ (memory + bytecode VM)"
 
+buildCLynxer: $(CLYNXER_TARGET)
+	@echo "✓ Clynxer build complete: $(CLYNXER_TARGET)"
+
+$(CLYNXER_TARGET): $(CLYNXER_OBJECTS)
+	@$(CLYNXER_CXX) $(CLYNXER_CXXFLAGS) $(CLYNXER_OBJECTS) -o $@
+
+clynxer/%.o: clynxer/%.cpp $(CLYNXER_HEADERS)
+	@$(CLYNXER_CXX) $(CLYNXER_CXXFLAGS) -c $< -o $@
+
 clean:
 	@find . -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null || true
 	@find . -name '*.pyc' -delete 2>/dev/null || true
@@ -158,19 +179,27 @@ cleanLynxc:
 	@find . -name '*.lynxc' -delete 2>/dev/null || true
 	@echo "✓ Cleaned compiled bytecode (*.lynxc)."
 
+cleanCLynxer:
+	@rm -f $(CLYNXER_TARGET) $(CLYNXER_OBJECTS)
+	@echo "✓ Cleaned Clynxer build artifacts."
+
 cleanAll: clean cleanC cleanLynxc
+	@$(MAKE) cleanCLynxer
 	@echo "✓ Cleaned all generated build artifacts."
 
 help:
 	@echo "Lynxer build targets:"
 	@echo "  make build"
+	@echo "  make buildAll"
 	@echo "  make buildLite"
 	@echo "  make buildCpp"
+	@echo "  make buildCLynxer"
 	@echo "  make platform-check"
 	@echo "  make venv"
 	@echo "  make deps"
 	@echo "  make liteDeps"
 	@echo "  make test"
+	@echo "  make testCLynxer"
 	@echo "  make testAMR64"
 	@echo "  make check"
 	@echo "  make golden"
@@ -178,6 +207,7 @@ help:
 	@echo "  make cleanC"
 	@echo "  make cleanCpp"
 	@echo "  make cleanLynxc"
+	@echo "  make cleanCLynxer"
 	@echo "  make cleanAll"
 	@echo "  make help"
 	@echo ""
