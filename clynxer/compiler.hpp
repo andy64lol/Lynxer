@@ -38,6 +38,10 @@ public:
 
     void emitForeverBegin(uint32_t site, bool warn);
 
+    std::size_t emitTryBegin(uint32_t catchNameIndex);
+
+    void patchTryBegin(std::size_t operandOffset, std::size_t target);
+
     // Reserves a jump with a 4-byte delta operand; returns the operand
     // offset for patchJump.
     std::size_t emitJump(Op op);
@@ -45,6 +49,8 @@ public:
     void patchJump(std::size_t operandOffset, std::size_t target);
 
     void trap(int line, int column);
+
+    void setDepth(int depth);
 
     enum class LoopKind { Plain, Iterate };
 

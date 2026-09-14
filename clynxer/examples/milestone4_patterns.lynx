@@ -1,0 +1,9 @@
+global setup(){}
+
+global main(){
+    any value = [1, 2];
+    switch(value){
+        default(){ println("default"); }
+        case([1, item]){ println(item); }
+    }
+}

@@ -15,7 +15,10 @@ The first slice intentionally stays small:
 - arithmetic, comparison, equality, and boolean expressions
 - `while`, `for`, `doWhile`, `iterate`, and `forever` loops
 - `break`, `continue`, and `restart` loop controls
-- `if` / `else`, `while`, and C-style `for` loops
+- `if` / `elif` / `else`, `switch` / `case` / `default`, `try` / `catch`,
+  `while`, and C-style `for` loops
+- word and symbolic boolean operators, bitwise operators, exponentiation,
+  floor division, legacy equality warnings, and the `\e` string escape
 
 ## Build and run
 

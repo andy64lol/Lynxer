@@ -1,0 +1,7 @@
+global setup(){}
+
+global main(){
+    const int frozen = 9;
+    frozen = 10;
+    println(frozen);
+}

@@ -120,6 +120,14 @@ bool Environment::foreverWarningSuppressed() const {
     return foreverWarningSuppressed_;
 }
 
+void Environment::setDeprecationWarningSuppressed() {
+    deprecationWarningSuppressed_ = true;
+}
+
+bool Environment::deprecationWarningSuppressed() const {
+    return deprecationWarningSuppressed_;
+}
+
 void Environment::setForeverDelay(double seconds) {
     foreverDelaySeconds_ = seconds;
 }
@@ -180,11 +188,40 @@ Value Environment::convertForType(Value value, const std::string& type,
             return value;
         }
     } else if (type == "num") {
-        // Accepts int or float freely; the stored kind is untouched.
         if (std::holds_alternative<std::int64_t>(value) ||
             std::holds_alternative<double>(value)) {
             return value;
         }
+    } else if (type == "numBool" || type == "bit" || type == "byte" ||
+               type == "uint8" || type == "uint16" || type == "uint32" ||
+               type == "uint64" || type == "int8" || type == "int16" ||
+               type == "int32" || type == "int64") {
+        if (const auto* integer = std::get_if<std::int64_t>(&value)) {
+            if (integerValueInRange(type, *integer)) {
+                return value;
+            }
+            fail("value " + valueToString(value) +
+                     " is out of range for type '" + type + "'",
+                 line, column);
+        }
+        if (std::holds_alternative<double>(value)) {
+            fail("value cannot be assigned to type '" + type + "'", line,
+                 column);
+        }
+    } else if (type == "float32" || type == "float64") {
+        if (std::holds_alternative<std::int64_t>(value)) {
+            return value;
+        }
+        if (const auto* number = std::get_if<double>(&value);
+            number != nullptr && std::isfinite(*number) &&
+            std::abs(*number) <= (type == "float32"
+                                      ? 3.4028234663852886e38
+                                      : 1.7976931348623157e308)) {
+            return value;
+        }
+        fail("value " + valueToString(value) + " is out of range for type '" +
+                 type + "'",
+             line, column);
     } else if (type == "str" && std::holds_alternative<std::string>(value)) {
         return value;
     } else if (type == "bool" && std::holds_alternative<bool>(value)) {
@@ -223,34 +260,6 @@ Value Environment::convertForType(Value value, const std::string& type,
     } else if (type == "codeblock" &&
                std::holds_alternative<std::shared_ptr<CodeblockValue>>(value)) {
         return value;
-    } else if (type == "numBool" || type == "bit" || type == "byte" ||
-               type == "uint8" || type == "uint16" || type == "uint32" ||
-               type == "uint64" || type == "int8" || type == "int16" ||
-               type == "int32" || type == "int64") {
-        if (const auto* integer = std::get_if<std::int64_t>(&value);
-            integer != nullptr && integerValueInRange(type, *integer)) {
-            return value;
-        }
-        fail(integerValueInRange(type, 0) &&
-                     std::holds_alternative<double>(value)
-                 ? "value cannot be assigned to type '" + type + "'"
-                 : "value " + valueToString(value) +
-                       " is out of range for type '" + type + "'",
-             line, column);
-    } else if (type == "float32" || type == "float64") {
-        if (std::holds_alternative<std::int64_t>(value)) {
-            return value;
-        }
-        if (const auto* number = std::get_if<double>(&value);
-            number != nullptr && std::isfinite(*number) &&
-            std::abs(*number) <= (type == "float32"
-                                      ? 3.4028234663852886e38
-                                      : 1.7976931348623157e308)) {
-            return value;
-        }
-        fail("value " + valueToString(value) + " is out of range for type '" +
-                 type + "'",
-             line, column);
     } else if (TypeRegistry::instance().hasNamedType(type)) {
         if (const auto* record = std::get_if<std::shared_ptr<RecordValue>>(&value);
             record != nullptr && *record != nullptr &&

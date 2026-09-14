@@ -1376,7 +1376,7 @@ Value builtinSuppressDeprecationWarning(const std::vector<Value>& args,
     if (!args.empty()) {
         fail("suppressDeprecationWarning() takes no arguments", line, column);
     }
-    // CLynxer has no legacy syntax deprecation warnings yet; accept and ignore.
+    env.setDeprecationWarningSuppressed();
     return none();
 }
 

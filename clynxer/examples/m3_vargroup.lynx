@@ -1,0 +1,10 @@
+global setup(){}
+
+global main(){
+    vargroup profile = {
+        str title = "Engineer",
+        int years = 5
+    };
+    profile.years = 6;
+    println(profile.years);
+}

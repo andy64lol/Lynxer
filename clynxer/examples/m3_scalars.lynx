@@ -1,0 +1,51 @@
+global setup(){}
+
+global main(){
+    // All documented scalar types
+    num n = 3.5;
+    println(n);
+    char c = 'Z';
+    println(c);
+    numBool nb = 1;
+    println(nb);
+    bit b = 0;
+    println(b);
+    byte by = 255;
+    println(by);
+    int8 i8 = -128;
+    println(i8);
+    int16 i16 = -300;
+    println(i16);
+    int32 i32 = 100000;
+    println(i32);
+    int64 i64 = 5000000000;
+    println(i64);
+    uint8 u8 = 200;
+    println(u8);
+    uint16 u16 = 60000;
+    println(u16);
+    uint32 u32 = 3000000000;
+    println(u32);
+    uint64 u64 = 9000000000;
+    println(u64);
+    float32 f32 = 1.5;
+    println(f32);
+    float64 f64 = 2.25;
+    println(f64);
+
+    // Typed element literals for sequences
+    list nums = [int 1, int 2, int 3];
+    println(nums);
+    tuple pair = (int 10, int 20);
+    println(pair);
+
+    // Lexical scope lifetime: inner var not visible outside
+    if(true){
+        int scoped = 42;
+        println(scoped);
+    }
+
+    // const reassignment must error
+    const int frozen = 9;
+    println(frozen);
+}

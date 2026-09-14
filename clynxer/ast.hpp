@@ -26,6 +26,8 @@ public:
 
     void compile(ProgramEmitter& emitter) const override;
 
+    const Value& value() const { return value_; }
+
 private:
     Value value_;
 };
@@ -408,7 +410,8 @@ struct SwitchCase {
 
 class SwitchStatement final : public Statement {
 public:
-    SwitchStatement(ExpressionPtr value, std::vector<SwitchCase> cases);
+    SwitchStatement(ExpressionPtr value, std::vector<SwitchCase> cases,
+                    int line, int column);
 
     void execute(Environment& environment) const override;
     void compile(ProgramEmitter& emitter) const override;
@@ -416,6 +419,28 @@ public:
 private:
     ExpressionPtr value_;
     std::vector<SwitchCase> cases_;
+    int line_;
+    int column_;
+};
+
+class TryCatchStatement final : public Statement {
+public:
+    TryCatchStatement(StatementList tryStatements, std::string catchName,
+                      StatementList catchStatements, int line, int column);
+
+    void execute(Environment& environment) const override;
+    void compile(ProgramEmitter& emitter) const override;
+
+    const StatementList& tryStatements() const { return tryStatements_; }
+    const StatementList& catchStatements() const { return catchStatements_; }
+    const std::string& catchName() const { return catchName_; }
+
+private:
+    StatementList tryStatements_;
+    std::string catchName_;
+    StatementList catchStatements_;
+    int line_;
+    int column_;
 };
 
 struct ReturnControl {

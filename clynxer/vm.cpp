@@ -61,6 +61,18 @@ BinOp binOpOfOpcode(Op op) {
     case Op::Le: return BinOp::Le;
     case Op::Gt: return BinOp::Gt;
     case Op::Ge: return BinOp::Ge;
+    case Op::BitAnd: return BinOp::BitAnd;
+    case Op::BitOr: return BinOp::BitOr;
+    case Op::BitXor: return BinOp::BitXor;
+    case Op::BitNand: return BinOp::BitNand;
+    case Op::BitXnor: return BinOp::BitXnor;
+    case Op::BitNor: return BinOp::BitNor;
+    case Op::Shl: return BinOp::Shl;
+    case Op::Shr: return BinOp::Shr;
+    case Op::Exp: return BinOp::Exp;
+    case Op::FloorDiv: return BinOp::FloorDiv;
+    case Op::LogicNand: return BinOp::LogicNand;
+    case Op::LogicNor: return BinOp::LogicNor;
     default: fail("not a binary opcode");
     }
 }
@@ -99,6 +111,11 @@ void runSection(const CodeSection& section, const CompiledProgram& program,
     const auto& constants = program.constants;
     std::vector<Value> stack;
     stack.reserve(section.maxStack);
+    struct Handler {
+        std::size_t target = 0;
+        uint32_t nameIndex = UINT32_MAX;
+    };
+    std::vector<Handler> handlers;
 
     std::size_t pc = 0;
     while (pc < code.size()) {
@@ -112,6 +129,7 @@ void runSection(const CodeSection& section, const CompiledProgram& program,
                 ? 0
                 : static_cast<std::size_t>(startIt -
                                            section.instructionStarts.begin());
+        try {
         switch (op) {
         case Op::Halt:
             return;
@@ -166,13 +184,20 @@ void runSection(const CodeSection& section, const CompiledProgram& program,
             popStack(stack);
             break;
 
+        case Op::Dup:
+            if (stack.empty()) {
+                fail("operand stack underflow in dup");
+            }
+            stack.push_back(stack.back());
+            break;
+
         case Op::Neg:
-        case Op::Not: {
+        case Op::Not:
+        case Op::BitNot: {
             const auto [line, column] = positionOf(section, currentInstruction, opcodePc);
             Value value = popStack(stack);
-            stack.push_back(
-                applyUnary(op == Op::Neg ? "-" : "!", std::move(value), line,
-                           column));
+            const char* name = op == Op::Neg ? "-" : op == Op::BitNot ? "~" : "!!";
+            stack.push_back(applyUnary(name, std::move(value), line, column));
             break;
         }
 
@@ -271,6 +296,25 @@ void runSection(const CodeSection& section, const CompiledProgram& program,
             break;
         }
 
+        case Op::TryBegin: {
+            const int32_t delta = readJumpDelta(code, pc);
+            const uint64_t nameIndex = readVarint(code, pc);
+            if (nameIndex != UINT32_MAX && nameIndex >= strings.size()) {
+                fail("catch variable name index out of range");
+            }
+            handlers.push_back(
+                {static_cast<std::size_t>(static_cast<int64_t>(pc) + delta),
+                 static_cast<uint32_t>(nameIndex)});
+            break;
+        }
+
+        case Op::TryEnd:
+            if (handlers.empty()) {
+                fail("try handler stack underflow");
+            }
+            handlers.pop_back();
+            break;
+
         case Op::Add:
         case Op::Sub:
         case Op::Mul:
@@ -281,8 +325,27 @@ void runSection(const CodeSection& section, const CompiledProgram& program,
         case Op::Lt:
         case Op::Le:
         case Op::Gt:
-        case Op::Ge: {
-            const auto [line, column] = positionOf(section, currentInstruction, opcodePc);
+        case Op::Ge:
+        case Op::BitAnd:
+        case Op::BitOr:
+        case Op::BitXor:
+        case Op::BitNand:
+        case Op::BitXnor:
+        case Op::BitNor:
+        case Op::Shl:
+        case Op::Shr:
+        case Op::Exp:
+        case Op::FloorDiv:
+        case Op::LogicNand:
+        case Op::LogicNor: {
+            int line = 0;
+            int column = 0;
+            if (currentInstruction < section.traps.size() &&
+                section.traps[currentInstruction].line != 0) {
+                line = static_cast<int>(section.traps[currentInstruction].line);
+                column =
+                    static_cast<int>(section.traps[currentInstruction].column);
+            }
             Value right = popStack(stack);
             Value left = popStack(stack);
             stack.push_back(
@@ -352,6 +415,41 @@ void runSection(const CodeSection& section, const CompiledProgram& program,
             }
             break;
         }
+        }
+        } catch (const SourceError& error) {
+            if (handlers.empty()) {
+                throw;
+            }
+            const Handler handler = handlers.back();
+            handlers.pop_back();
+            stack.clear();
+            if (handler.nameIndex != UINT32_MAX) {
+                const auto [line, column] =
+                    positionOf(section, currentInstruction, opcodePc);
+                const std::string& name = strings[handler.nameIndex];
+                if (environment.hasVariable(name)) {
+                    const Variable existing = environment.variableSnapshot(name);
+                    if (existing.constant) {
+                        throw SourceError("Cannot bind catch variable '" + name +
+                                              "': it is declared as const",
+                                          line, column);
+                    }
+                    if (existing.type != "str" && existing.type != "any") {
+                        throw SourceError(
+                            "Cannot bind catch variable '" + name +
+                                "' as 'str': '" + name +
+                                "' is already declared as '" + existing.type +
+                                "'",
+                            line, column);
+                    }
+                    environment.assign(name, std::string(error.what()), line,
+                                       column);
+                } else {
+                    environment.declare(name, "str", std::string(error.what()),
+                                        line, column);
+                }
+            }
+            pc = handler.target;
         }
     }
     fail("bytecode section fell off the end without HALT");

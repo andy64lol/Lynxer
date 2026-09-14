@@ -59,10 +59,43 @@ std::vector<Token> Lexer::scan() {
         } else {
             std::string symbol(1, current);
             const char next = peek();
+            if (current == '!') {
+                // '!' begins several multi-character operators. A bare '!'
+                // is invalid in Lynxer (logical NOT is '!!' or 'not'); emit
+                // it as a single symbol so the parser rejects it with a clear
+                // syntax error, matching the Python reference.
+                if (next == '=' || next == '!' || next == '&' ||
+                    next == '^' || next == '|') {
+                    symbol += advance();
+                    if ((symbol == "!&" && peek() == '&') ||
+                        (symbol == "!|" && peek() == '|')) {
+                        symbol += advance();
+                    }
+                    tokens.push_back({TokenKind::Symbol, symbol, line, column});
+                    continue;
+                }
+                tokens.push_back({TokenKind::Symbol, symbol, line, column});
+                continue;
+            }
+            if (current == '*' && next == '*') {
+                symbol += advance();
+                if (peek() == '=') {
+                    symbol += advance();
+                }
+                tokens.push_back({TokenKind::Symbol, symbol, line, column});
+                continue;
+            }
+            if (current == '/' && next == '%') {
+                symbol += advance();
+                if (peek() == '=') {
+                    symbol += advance();
+                }
+                tokens.push_back({TokenKind::Symbol, symbol, line, column});
+                continue;
+            }
             if ((current == '=' && next == '=') ||
-                (current == '!' && next == '=') ||
-                (current == '<' && next == '=') ||
-                (current == '>' && next == '=') ||
+                (current == '<' && (next == '=' || next == '<')) ||
+                (current == '>' && (next == '=' || next == '>')) ||
                 (current == '&' && next == '&') ||
                 (current == '|' && next == '|') ||
                 (current == '+' && next == '=') ||
@@ -71,9 +104,13 @@ std::vector<Token> Lexer::scan() {
                 (current == '/' && next == '=') ||
                 (current == '%' && next == '=')) {
                 symbol += advance();
-            } else if (std::string("+-*/%<>=!;(),{}.[]").find(current) ==
-                       std::string::npos) {
-                fail("unexpected character '" + std::string(1, current),
+                tokens.push_back({TokenKind::Symbol, symbol, line, column});
+                continue;
+            }
+            if (std::string("+-*/%<>=!;(),{}.[]&|^~").find(current) ==
+                std::string::npos) {
+                fail("unexpected character '" + std::string(1, current) +
+                         "'",
                      line, column);
             }
             tokens.push_back({TokenKind::Symbol, symbol, line, column});
@@ -168,6 +205,9 @@ std::string Lexer::readString(int line, int column) {
                 break;
             case '"':
                 value += '"';
+                break;
+            case 'e':
+                value += '\x1b';
                 break;
             default:
                 fail("unknown string escape \\" + std::string(1, escaped),

@@ -16,7 +16,11 @@ namespace {
 bool isArith(Op op) {
     return op == Op::Add || op == Op::Sub || op == Op::Mul || op == Op::Div ||
            op == Op::Mod || op == Op::Eq || op == Op::Neq || op == Op::Lt ||
-           op == Op::Le || op == Op::Gt || op == Op::Ge;
+           op == Op::Le || op == Op::Gt || op == Op::Ge ||
+           op == Op::BitAnd || op == Op::BitOr || op == Op::BitXor ||
+           op == Op::BitNand || op == Op::BitXnor || op == Op::BitNor ||
+           op == Op::Shl || op == Op::Shr || op == Op::Exp ||
+           op == Op::FloorDiv || op == Op::LogicNand || op == Op::LogicNor;
 }
 
 BinOp binOpOf(Op op) {
@@ -32,6 +36,18 @@ BinOp binOpOf(Op op) {
     case Op::Le: return BinOp::Le;
     case Op::Gt: return BinOp::Gt;
     case Op::Ge: return BinOp::Ge;
+    case Op::BitAnd: return BinOp::BitAnd;
+    case Op::BitOr: return BinOp::BitOr;
+    case Op::BitXor: return BinOp::BitXor;
+    case Op::BitNand: return BinOp::BitNand;
+    case Op::BitXnor: return BinOp::BitXnor;
+    case Op::BitNor: return BinOp::BitNor;
+    case Op::Shl: return BinOp::Shl;
+    case Op::Shr: return BinOp::Shr;
+    case Op::Exp: return BinOp::Exp;
+    case Op::FloorDiv: return BinOp::FloorDiv;
+    case Op::LogicNand: return BinOp::LogicNand;
+    case Op::LogicNor: return BinOp::LogicNor;
     default: return BinOp::Add;
     }
 }
@@ -42,6 +58,8 @@ int stackEffect(Op op, uint64_t a) {
     case Op::PushConst:
     case Op::LoadVar:
     case Op::IterInit:
+        return 1;
+    case Op::Dup:
         return 1;
     case Op::DeclareVar:
     case Op::StoreVar:
@@ -67,6 +85,18 @@ int stackEffect(Op op, uint64_t a) {
     case Op::Le:
     case Op::Gt:
     case Op::Ge:
+    case Op::BitAnd:
+    case Op::BitOr:
+    case Op::BitXor:
+    case Op::BitNand:
+    case Op::BitXnor:
+    case Op::BitNor:
+    case Op::Shl:
+    case Op::Shr:
+    case Op::Exp:
+    case Op::FloorDiv:
+    case Op::LogicNand:
+    case Op::LogicNor:
         return -1;
     default:
         return 0;
@@ -140,6 +170,17 @@ std::vector<Decoded> decodeInstructions(const std::vector<uint8_t>& code) {
                                         code.begin() + cursor);
             break;
         }
+        case Op::TryBegin: {
+            const std::size_t operandStart = cursor;
+            if (cursor + 4 > code.size()) {
+                throw BytecodeError("truncated TryBegin jump operand");
+            }
+            cursor += 4;
+            (void)readVarintAt(code, cursor);
+            instruction.operands.assign(code.begin() + operandStart,
+                                        code.begin() + cursor);
+            break;
+        }
         case Op::Jump:
         case Op::JumpIfFalse:
         case Op::JumpIfTrue:
@@ -156,6 +197,8 @@ std::vector<Decoded> decodeInstructions(const std::vector<uint8_t>& code) {
         case Op::Pop:
         case Op::Neg:
         case Op::Not:
+        case Op::BitNot:
+        case Op::Dup:
         case Op::Truthy:
         case Op::ToString:
         case Op::IterInit:
@@ -170,7 +213,20 @@ std::vector<Decoded> decodeInstructions(const std::vector<uint8_t>& code) {
         case Op::Le:
         case Op::Gt:
         case Op::Ge:
+        case Op::BitAnd:
+        case Op::BitOr:
+        case Op::BitXor:
+        case Op::BitNand:
+        case Op::BitXnor:
+        case Op::BitNor:
+        case Op::Shl:
+        case Op::Shr:
+        case Op::Exp:
+        case Op::FloorDiv:
+        case Op::LogicNand:
+        case Op::LogicNor:
         case Op::ForeverSleep:
+        case Op::TryEnd:
             break;
         default:
             throw BytecodeError("unknown opcode 0x" + [&] {
@@ -223,7 +279,8 @@ bool attemptFold(CodeSection& section, std::vector<Value>& constants,
         }
         const std::size_t blockedKeyStart = index;
         if (instructions[index + 1].op == Op::Neg ||
-            instructions[index + 1].op == Op::Not) {
+            instructions[index + 1].op == Op::Not ||
+            instructions[index + 1].op == Op::BitNot) {
             patternOp = instructions[index + 1].op;
             patternLength = 2;
             if (std::find(blocked.begin(), blocked.end(), blockedKeyStart) ==
@@ -290,7 +347,8 @@ bool attemptFold(CodeSection& section, std::vector<Value>& constants,
                                ? 0
                                : static_cast<int>(trapIt->second.second);
         try {
-            folded = applyUnary(patternOp == Op::Neg ? "-" : "!",
+            folded = applyUnary(patternOp == Op::Neg ? "-"
+                                : patternOp == Op::BitNot ? "~" : "!!",
                                 constants[indexA], line, column);
         } catch (const SourceError&) {
             blocked.push_back(anchor);
@@ -425,6 +483,75 @@ void foldConstants(CodeSection& section, std::vector<Value>& constants) {
             break;
         }
     }
+    const std::vector<Decoded> instructions = decodeInstructions(section.code);
+    std::map<std::size_t, std::size_t> byOffset;
+    for (std::size_t index = 0; index < instructions.size(); ++index) {
+        byOffset[instructions[index].start] = index;
+    }
+    std::vector<std::pair<std::size_t, int>> work{{0, 0}};
+    std::map<std::size_t, int> seen;
+    int maximum = 0;
+    while (!work.empty()) {
+        const auto [offset, depth] = work.back();
+        work.pop_back();
+        if (seen.count(offset) != 0) {
+            continue;
+        }
+        seen[offset] = depth;
+        const auto found = byOffset.find(offset);
+        if (found == byOffset.end()) {
+            continue;
+        }
+        const Decoded& instruction = instructions[found->second];
+        maximum = std::max(maximum, depth);
+        if (instruction.op == Op::Halt) {
+            continue;
+        }
+        if (instruction.op == Op::Jump) {
+            work.emplace_back(
+                static_cast<std::size_t>(static_cast<int64_t>(instruction.end) +
+                                          jumpDelta(instruction)),
+                depth);
+            continue;
+        }
+        if (instruction.op == Op::JumpIfFalse ||
+            instruction.op == Op::JumpIfTrue) {
+            const int nextDepth = depth - 1;
+            work.emplace_back(instruction.end, nextDepth);
+            work.emplace_back(
+                static_cast<std::size_t>(static_cast<int64_t>(instruction.end) +
+                                          jumpDelta(instruction)),
+                nextDepth);
+            continue;
+        }
+        if (instruction.op == Op::IterNext) {
+            work.emplace_back(instruction.end, depth);
+            work.emplace_back(
+                static_cast<std::size_t>(static_cast<int64_t>(instruction.end) +
+                                          jumpDelta(instruction)),
+                depth - 2);
+            continue;
+        }
+        if (instruction.op == Op::TryBegin) {
+            work.emplace_back(instruction.end, depth);
+            work.emplace_back(
+                static_cast<std::size_t>(static_cast<int64_t>(instruction.end) +
+                                          jumpDelta(instruction)),
+                depth);
+            continue;
+        }
+        uint64_t operand = 0;
+        if (!instruction.operands.empty()) {
+            std::size_t cursor = 0;
+            operand = readVarintAt(instruction.operands, cursor);
+            if (instruction.op == Op::Call) {
+                operand = readVarintAt(instruction.operands, cursor);
+            }
+        }
+        work.emplace_back(instruction.end, depth + stackEffect(instruction.op,
+                                                                operand));
+    }
+    section.maxStack = static_cast<uint32_t>(std::max(0, maximum));
 }
 
 } // namespace
@@ -526,6 +653,28 @@ void ProgramEmitter::emitForeverBegin(uint32_t site, bool warn) {
     section_.code.push_back(warn ? 1 : 0);
 }
 
+std::size_t ProgramEmitter::emitTryBegin(uint32_t catchNameIndex) {
+    section_.code.push_back(static_cast<uint8_t>(Op::TryBegin));
+    const std::size_t operandOffset = section_.code.size();
+    section_.code.insert(section_.code.end(), 4, 0);
+    appendVarint(section_.code, catchNameIndex);
+    return operandOffset;
+}
+
+void ProgramEmitter::patchTryBegin(std::size_t operandOffset,
+                                   std::size_t target) {
+    std::size_t cursor = operandOffset + 4;
+    while (cursor < section_.code.size() &&
+           (section_.code[cursor++] & 0x80) != 0) {
+    }
+    const int32_t delta =
+        static_cast<int32_t>(static_cast<int64_t>(target) -
+                             static_cast<int64_t>(cursor));
+    std::memcpy(section_.code.data() +
+                    static_cast<std::ptrdiff_t>(operandOffset),
+                &delta, sizeof(delta));
+}
+
 std::size_t ProgramEmitter::emitJump(Op op) {
     const std::size_t operandOffset = offset() + 1;
     section_.code.push_back(static_cast<uint8_t>(op));
@@ -568,6 +717,13 @@ void ProgramEmitter::trap(int line, int column) {
     recorded.line = static_cast<uint32_t>(line);
     recorded.column = static_cast<uint32_t>(column);
     section_.traps.push_back(recorded);
+}
+
+void ProgramEmitter::setDepth(int depth) {
+    if (depth < 0) {
+        throw std::runtime_error("internal error: negative operand stack depth");
+    }
+    depth_ = depth;
 }
 
 void ProgramEmitter::pushLoop(LoopKind kind) {
@@ -616,7 +772,8 @@ void VariableExpression::compile(ProgramEmitter& emitter) const {
 
 void UnaryExpression::compile(ProgramEmitter& emitter) const {
     operand_->compile(emitter);
-    emitter.emit(operation_ == "-" ? Op::Neg : Op::Not);
+    emitter.emit(operation_ == "-" ? Op::Neg
+                  : operation_ == "~" ? Op::BitNot : Op::Not);
     emitter.trap(line_, column_);
 }
 
@@ -624,16 +781,16 @@ void BinaryExpression::compile(ProgramEmitter& emitter) const {
     if (operation_ == "&&" || operation_ == "||") {
         left_->compile(emitter);
         emitter.emit(Op::Truthy);
-        const std::size_t skip = emitter.emitJump(operation_ == "&&"
-                                                       ? Op::JumpIfFalse
-                                                       : Op::JumpIfTrue);
+        const std::size_t shortCircuit = emitter.emitJump(
+            operation_ == "&&" ? Op::JumpIfFalse : Op::JumpIfTrue);
+        right_->compile(emitter);
+        emitter.emit(Op::Truthy);
+        const std::size_t end = emitter.emitJump(Op::Jump);
+        emitter.patchJump(shortCircuit, emitter.offset());
+        emitter.setDepth(0);
         emitter.emitPushConst(
             emitter.internConstant(operation_ == "&&" ? Value{false}
                                                        : Value{true}));
-        const std::size_t end = emitter.emitJump(Op::Jump);
-        emitter.patchJump(skip, emitter.offset());
-        right_->compile(emitter);
-        emitter.emit(Op::Truthy);
         emitter.patchJump(end, emitter.offset());
         return;
     }
@@ -651,6 +808,20 @@ void BinaryExpression::compile(ProgramEmitter& emitter) const {
     else if (operation_ == "<=") op = Op::Le;
     else if (operation_ == ">") op = Op::Gt;
     else if (operation_ == ">=") op = Op::Ge;
+    else if (operation_ == "&") op = Op::BitAnd;
+    else if (operation_ == "|") op = Op::BitOr;
+    else if (operation_ == "^") op = Op::BitXor;
+    else if (operation_ == "!&") op = Op::BitNand;
+    else if (operation_ == "!^") op = Op::BitXnor;
+    else if (operation_ == "!|") op = Op::BitNor;
+    else if (operation_ == "<<") op = Op::Shl;
+    else if (operation_ == ">>") op = Op::Shr;
+    else if (operation_ == "**") op = Op::Exp;
+    else if (operation_ == "/%") op = Op::FloorDiv;
+    else if (operation_ == "!&&") op = Op::LogicNand;
+    else if (operation_ == "!||") op = Op::LogicNor;
+    else if (operation_ == "is") op = Op::Eq;
+    else if (operation_ == "not is") op = Op::Neq;
     emitter.emit(op);
     emitter.trap(line_, column_);
 }
@@ -1049,6 +1220,17 @@ void validateSection(CodeSection& section, const char* name) {
             successor(static_cast<std::size_t>(target), depth - 2);
             break;
         }
+        case Op::TryBegin: {
+            const int64_t target = static_cast<int64_t>(instruction.end) +
+                                   jumpDelta(instruction);
+            if (target < 0 ||
+                target > static_cast<int64_t>(section.code.size())) {
+                throw BytecodeError("try catch target out of range");
+            }
+            successor(static_cast<std::size_t>(target), depth);
+            successor(instruction.end, depth);
+            break;
+        }
         default: {
             int effect = 0;
             switch (instruction.op) {
@@ -1072,6 +1254,7 @@ void validateSection(CodeSection& section, const char* name) {
             case Op::PushConst:
             case Op::LoadVar:
             case Op::IterInit:
+            case Op::Dup:
                 effect = 1;
                 break;
             case Op::DeclareVar:
@@ -1088,6 +1271,18 @@ void validateSection(CodeSection& section, const char* name) {
             case Op::Le:
             case Op::Gt:
             case Op::Ge:
+            case Op::BitAnd:
+            case Op::BitOr:
+            case Op::BitXor:
+            case Op::BitNand:
+            case Op::BitXnor:
+            case Op::BitNor:
+            case Op::Shl:
+            case Op::Shr:
+            case Op::Exp:
+            case Op::FloorDiv:
+            case Op::LogicNand:
+            case Op::LogicNor:
                 effect = -1;
                 break;
             default:
@@ -1288,6 +1483,19 @@ CompiledProgram loadProgram(const std::vector<uint8_t>& bytes) {
                 }
                 break;
             }
+            case Op::TryBegin: {
+                if (instruction.operands.size() < 4) {
+                    throw BytecodeError("truncated try handler operand");
+                }
+                std::size_t nameCursor = 4;
+                const uint64_t nameIndex =
+                    readVarintAt(instruction.operands, nameCursor);
+                if (nameIndex != UINT32_MAX &&
+                    nameIndex >= program.strings.size()) {
+                    throw BytecodeError("catch variable name index out of range");
+                }
+                break;
+            }
             default:
                 break;
             }
@@ -1337,6 +1545,22 @@ const char* mnemonic(Op op) {
     case Op::IterNext: return "ITER_NEXT";
     case Op::ForeverBegin: return "FOREVER_BEGIN";
     case Op::ForeverSleep: return "FOREVER_SLEEP";
+    case Op::BitAnd: return "BIT_AND";
+    case Op::BitOr: return "BIT_OR";
+    case Op::BitXor: return "BIT_XOR";
+    case Op::BitNand: return "BIT_NAND";
+    case Op::BitXnor: return "BIT_XNOR";
+    case Op::BitNor: return "BIT_NOR";
+    case Op::Shl: return "SHL";
+    case Op::Shr: return "SHR";
+    case Op::Exp: return "EXP";
+    case Op::FloorDiv: return "FLOOR_DIV";
+    case Op::LogicNand: return "LOGIC_NAND";
+    case Op::LogicNor: return "LOGIC_NOR";
+    case Op::BitNot: return "BIT_NOT";
+    case Op::Dup: return "DUP";
+    case Op::TryBegin: return "TRY_BEGIN";
+    case Op::TryEnd: return "TRY_END";
     }
     return "UNKNOWN";
 }
@@ -1417,6 +1641,20 @@ void disassembleSection(const CodeSection& section, const char* name,
                        jumpDelta(instruction))
                 << std::dec;
             break;
+        case Op::TryBegin: {
+            std::size_t nameCursor = 4;
+            const uint64_t nameIndex =
+                readVarintAt(instruction.operands, nameCursor);
+            out << " -> 0x" << std::hex
+                << static_cast<std::size_t>(
+                       static_cast<int64_t>(instruction.end) +
+                       jumpDelta(instruction))
+                << std::dec << " " << nameIndex;
+            if (nameIndex < program.strings.size()) {
+                out << " ; " << program.strings[nameIndex];
+            }
+            break;
+        }
         default:
             break;
         }

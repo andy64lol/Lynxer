@@ -1,0 +1,44 @@
+global setup(){}
+
+global main(){
+    int left = 6;
+    int right = 3;
+    println(left & right);
+    println(left | right);
+    println(left ^ right);
+    println(left !& right);
+    println(left !^ right);
+    println(left !| right);
+    println(~left);
+    println(right << 2);
+    println(16 >> 2);
+    println(2 ** 5);
+    println(-7 /% right);
+    bool yes = true;
+    bool no = false;
+    println(yes !&& yes);
+    println(no !|| no);
+    println(yes and not no);
+
+    if(false){
+        println("wrong");
+    } elif(true){
+        println("elif");
+    } else {
+        println("wrong");
+    }
+
+    int selected = 2;
+    switch(selected){
+        case(1){ println("wrong"); }
+        case(2){ println("case"); }
+        default(){ println("wrong"); }
+    }
+
+    try {
+        intOf("not an integer");
+    } catch(str error) {
+        println("caught: " + error);
+    }
+    println("\e");
+}

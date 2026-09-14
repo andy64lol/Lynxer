@@ -1,5 +1,5 @@
 CXX ?= c++
-CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -pedantic
+CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -pedantic -fPIE
 
 TARGET := clynxer
 SOURCES := main.cpp shell.cpp lexer.cpp runtime.cpp types.cpp builtins.cpp ops.cpp ast.cpp parser.cpp config.cpp compiler.cpp vm.cpp bytecode.cpp bundle.cpp
@@ -10,6 +10,8 @@ LOOP_FIXTURE := examples/loops.lynx
 ERROR_FIXTURE := examples/control_flow_error.lynx
 COMMENT_FIXTURE := examples/comments.lynx
 SETUP_ERROR_FIXTURE := examples/missing_setup.lynx
+MILESTONE4_FIXTURE := examples/milestone4.lynx
+MILESTONE4_PATTERN_FIXTURE := examples/milestone4_patterns.lynx
 
 .PHONY: all clean test
 
@@ -66,6 +68,15 @@ expected="clynxer: $(SETUP_ERROR_FIXTURE):3:2: program must define global setup(
 	echo "received (status $$status): $$output"; \
 	exit 1; \
 	fi
+	@output="$$(./$(TARGET) $(MILESTONE4_FIXTURE))"; \
+	expected="$$(printf "2\\n7\\n5\\n-3\\n-6\\n-8\\n-7\\n12\\n4\\n32\\n-3\\nfalse\\ntrue\\ntrue\\nelif\\ncase\\ncaught: Cannot convert 'not an integer' to int\\n\\033")"; \
+	if [ "$$output" != "$$expected" ]; then \
+	echo "expected milestone4 output:"; printf '%s\n' "$$expected"; \
+	echo "received milestone4 output:"; printf '%s\n' "$$output"; exit 1; fi
+	@output="$$(./$(TARGET) $(MILESTONE4_PATTERN_FIXTURE))"; \
+	if [ "$$output" != "2" ]; then \
+	echo "expected milestone4 pattern output: 2"; \
+	echo "received: $$output"; exit 1; fi
 	@set +e; \
 	output="$$(./$(TARGET) $(ERROR_FIXTURE) 2>&1)"; \
 	status=$$?; \
@@ -85,29 +96,87 @@ expected="clynxer: $(ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 	printf '%s\n' "$$output"; \
 	exit 1; \
 	fi
-	@for fixture in hello conditions loops comments builtins; do \
-	./$(TARGET) examples/$$fixture.lynx > /tmp/clynxer_direct.out 2>/tmp/clynxer_direct.err; \
+	@for fixture in hello conditions loops comments builtins milestone4; do \
+	./$(TARGET) examples/$$fixture.lynx > .clynxer_direct.out 2>.clynxer_direct.err; \
 	direct_status=$$?; \
 	./$(TARGET) --compile --no-cache examples/$$fixture.lynx > /dev/null; \
-	./$(TARGET) examples/$$fixture.lynxc > /tmp/clynxer_vm.out 2>/tmp/clynxer_vm.err; \
+	./$(TARGET) examples/$$fixture.lynxc > .clynxer_vm.out 2>.clynxer_vm.err; \
 	vm_status=$$?; \
-	if ! diff -q /tmp/clynxer_direct.out /tmp/clynxer_vm.out > /dev/null || \
-	   ! diff -q /tmp/clynxer_direct.err /tmp/clynxer_vm.err > /dev/null || \
+	if ! diff -q .clynxer_direct.out .clynxer_vm.out > /dev/null || \
+	   ! diff -q .clynxer_direct.err .clynxer_vm.err > /dev/null || \
 	   [ "$$direct_status" -ne "$$vm_status" ]; then \
 	echo "bytecode parity failed for $$fixture"; \
-	diff /tmp/clynxer_direct.out /tmp/clynxer_vm.out | head -5; \
+	diff .clynxer_direct.out .clynxer_vm.out | head -5; \
 	exit 1; \
 	fi; \
 	done
 	@./$(TARGET) --compile examples/hello.lynx | grep -q "bytecode is up to date" || { echo "bytecode cache check failed"; exit 1; }
 	@./$(TARGET) --view-bytecode examples/hello.lynxc | grep -q "PUSH_CONST" || { echo "view-bytecode smoke failed"; exit 1; }
 	@./$(TARGET) --view-bytecode examples/hello.lynxc | grep -q "HALT" || { echo "view-bytecode HALT smoke failed"; exit 1; }
-	@./$(TARGET) --bundle examples/hello.lynx /tmp/clynxer_bundled > /dev/null; 	bundled_output="$$(/tmp/clynxer_bundled)"; 	if [ "$$bundled_output" != "Hello, Clynxer!" ]; then 	echo "bundled executable output mismatch: $$bundled_output"; 	exit 1; 	fi; 	rm -f /tmp/clynxer_bundled
-	@printf 'CLYXC\x00\x01\x01not-real-bytecode' > /tmp/clynxer_bad.lynxc; \
-	if ./$(TARGET) /tmp/clynxer_bad.lynxc > /dev/null 2>/tmp/clynxer_bad.err; then \
+	@./$(TARGET) --bundle examples/hello.lynx .clynxer_bundled > /dev/null; 	bundled_output="$$(./.clynxer_bundled)"; 	if [ "$$bundled_output" != "Hello, Clynxer!" ]; then 	echo "bundled executable output mismatch: $$bundled_output"; exit 1; 	fi; 	rm -f .clynxer_bundled
+	@printf 'CLYXC\x00\x01\x01not-real-bytecode' > .clynxer_bad.lynxc; \
+	if ./$(TARGET) .clynxer_bad.lynxc > /dev/null 2>.clynxer_bad.err; then \
 	echo "corrupt bytecode was accepted"; exit 1; \
 	fi; \
-	grep -q "invalid bytecode" /tmp/clynxer_bad.err || { echo "corrupt bytecode error missing"; exit 1; }
+	grep -q "invalid bytecode" .clynxer_bad.err || { echo "corrupt bytecode error missing"; exit 1; }; \
+	rm -f .clynxer_bad.lynxc .clynxer_bad.err .clynxer_direct.out .clynxer_direct.err .clynxer_vm.out .clynxer_vm.err
+	@output="$$(./$(TARGET) examples/milestone3.lynx)"; \
+	expected="$$(printf '9\nAda\n90\n5\nEngineer\n6\n42\n1\n0\n255\n-12\n0.25\nA\n[1, 2, 3]\n(left, 2)')"; \
+	if [ "$$output" != "$$expected" ]; then \
+	echo "expected milestone3 output:"; \
+	printf '%s\n' "$$expected"; \
+	echo "received milestone3 output:"; \
+	printf '%s\n' "$$output"; \
+	exit 1; \
+	fi
+	@output="$$(./$(TARGET) examples/m3_scalars.lynx)"; \
+	expected="$$(printf '3.5\nZ\n1\n0\n255\n-128\n-300\n100000\n5000000000\n200\n60000\n3000000000\n9000000000\n1.5\n2.25\n[1, 2, 3]\n(10, 20)\n42\n9')"; \
+	if [ "$$output" != "$$expected" ]; then \
+	echo "expected m3_scalars output:"; \
+	printf '%s\n' "$$expected"; \
+	echo "received m3_scalars output:"; \
+	printf '%s\n' "$$output"; \
+	exit 1; \
+	fi
+	@output="$$(./$(TARGET) examples/m3_scope.lynx)"; \
+	expected="$$(printf '1')"; \
+	if [ "$$output" != "$$expected" ]; then \
+	echo "expected m3_scope output (flat per-function scope):"; \
+	printf '%s\n' "$$expected"; \
+	echo "received m3_scope output:"; \
+	printf '%s\n' "$$output"; \
+	exit 1; \
+	fi
+	@set +e; \
+	output="$$(./$(TARGET) examples/m3_errors.lynx 2>&1)"; \
+	status=$$?; \
+	set -e; \
+	expected="clynxer: examples/m3_errors.lynx:4:5: value 200 is out of range for type 'int8'"; \
+	if [ "$$status" -ne 1 ] || [ "$$output" != "$$expected" ]; then \
+	echo "expected out-of-range error: $$expected"; \
+	echo "received (status $$status): $$output"; \
+	exit 1; \
+	fi
+	@set +e; \
+	output="$$(./$(TARGET) examples/m3_const.lynx 2>&1)"; \
+	status=$$?; \
+	set -e; \
+	expected="clynxer: examples/m3_const.lynx:5:5: variable 'frozen' is constant and cannot be reassigned"; \
+	if [ "$$status" -ne 1 ] || [ "$$output" != "$$expected" ]; then \
+	echo "expected const reassignment error: $$expected"; \
+	echo "received (status $$status): $$output"; \
+	exit 1; \
+	fi
+	@set +e; \
+	output="$$(./$(TARGET) examples/m3_vargroup.lynx 2>&1)"; \
+	status=$$?; \
+	set -e; \
+	expected="clynxer: examples/m3_vargroup.lynx:8:5: Vargroup and legacy class-field assignment requires an explicit type"; \
+	if [ "$$status" -ne 1 ] || [ "$$output" != "$$expected" ]; then \
+	echo "expected vargroup explicit-type error: $$expected"; \
+	echo "received (status $$status): $$output"; \
+	exit 1; \
+	fi
 	@echo "clynxer smoke test passed"
 
 clean:

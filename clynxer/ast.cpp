@@ -2,6 +2,7 @@
 
 #include "builtins.hpp"
 #include "config.hpp"
+#include "compiler.hpp"
 #include "error.hpp"
 #include "ops.hpp"
 #include "types.hpp"
@@ -631,6 +632,13 @@ Value BinaryExpression::evaluate(Environment& environment) const {
     if (operation_ == "||") {
         return isTruthy(right);
     }
+    if ((operation_ == "is" || operation_ == "not is") &&
+        !environment.deprecationWarningSuppressed()) {
+        std::cerr << "Warning: line " << line_ << ", column " << column_
+                  << ": Legacy equality operator '" << operation_
+                  << "' is deprecated; use '"
+                  << (operation_ == "is" ? "==" : "!=") << "' instead.\n";
+    }
     return applyBinary(binOpFromString(operation_, line_, column_), left,
                        right, line_, column_);
 }
@@ -869,6 +877,11 @@ void DotAssignmentStatement::execute(Environment& environment) const {
                           line_, column_);
     }
     RecordValue* record = baseRecord->get();
+    if (record->kind == RecordKind::VarGroup && type_.empty()) {
+        throw SourceError(
+            "Vargroup and legacy class-field assignment requires an explicit "
+            "type", line_, column_);
+    }
     for (std::size_t index = 1; index + 1 < path_.size(); ++index) {
         const RecordField* field = findRecordField(*record, path_[index]);
         if (field == nullptr) {
@@ -891,16 +904,19 @@ void DotAssignmentStatement::compile(ProgramEmitter& emitter) const {
 }
 
 SwitchStatement::SwitchStatement(ExpressionPtr value,
-                                 std::vector<SwitchCase> cases)
-    : value_(std::move(value)), cases_(std::move(cases)) {}
+                                 std::vector<SwitchCase> cases, int line,
+                                 int column)
+    : value_(std::move(value)), cases_(std::move(cases)), line_(line),
+      column_(column) {}
 
 void SwitchStatement::execute(Environment& environment) const {
     const Value value = value_->evaluate(environment);
     std::vector<std::pair<std::string, Value>> bindings;
+    const StatementList* defaultBody = nullptr;
     for (const SwitchCase& switchCase : cases_) {
         if (switchCase.pattern == nullptr) {
-            executeStatements(switchCase.body, environment);
-            return;
+            defaultBody = &switchCase.body;
+            continue;
         }
         bindings.clear();
         if (matchPattern(*switchCase.pattern, value, bindings, environment,
@@ -915,15 +931,120 @@ void SwitchStatement::execute(Environment& environment) const {
                 environment.setVariableRawCurrent(
                     binding.first, Variable{"any", binding.second, false});
             }
-            executeStatements(switchCase.body, environment);
+            try {
+                executeStatements(switchCase.body, environment);
+            } catch (...) {
+                restoreSavedVariables(saved, environment);
+                throw;
+            }
             restoreSavedVariables(saved, environment);
             return;
         }
     }
+    if (defaultBody != nullptr) {
+        executeStatements(*defaultBody, environment);
+    }
 }
 
 void SwitchStatement::compile(ProgramEmitter& emitter) const {
-    unsupportedRuntimeModelCompile(emitter, "switch patterns", 0, 0);
+    // Scalar literal cases can be represented directly in bytecode. Pattern
+    // bindings and sequence/enum patterns remain interpreter-only until the
+    // bytecode runtime grows a pattern instruction.
+    value_->compile(emitter);
+    std::vector<std::size_t> exits;
+    for (const SwitchCase& switchCase : cases_) {
+        if (switchCase.pattern == nullptr) {
+            continue;
+        }
+        const auto* literal =
+            dynamic_cast<const LiteralExpression*>(switchCase.pattern.get());
+        if (literal == nullptr) {
+            emitter.emit(Op::Pop);
+            unsupportedRuntimeModelCompile(emitter, "switch patterns", line_,
+                                           column_);
+        }
+        emitter.emit(Op::Dup);
+        literal->compile(emitter);
+        emitter.emit(Op::Eq);
+        const std::size_t next = emitter.emitJump(Op::JumpIfFalse);
+        emitter.emit(Op::Pop);
+        for (const auto& statement : switchCase.body) {
+            statement->compile(emitter);
+        }
+        exits.push_back(emitter.emitJump(Op::Jump));
+        emitter.patchJump(next, emitter.offset());
+        emitter.setDepth(1);
+    }
+    emitter.emit(Op::Pop);
+    for (const SwitchCase& switchCase : cases_) {
+        if (switchCase.pattern == nullptr) {
+            for (const auto& statement : switchCase.body) {
+                statement->compile(emitter);
+            }
+            break;
+        }
+    }
+    const std::size_t end = emitter.offset();
+    for (const std::size_t exit : exits) {
+        emitter.patchJump(exit, end);
+    }
+}
+
+TryCatchStatement::TryCatchStatement(StatementList tryStatements,
+                                     std::string catchName,
+                                     StatementList catchStatements, int line,
+                                     int column)
+    : tryStatements_(std::move(tryStatements)),
+      catchName_(std::move(catchName)),
+      catchStatements_(std::move(catchStatements)), line_(line),
+      column_(column) {}
+
+void TryCatchStatement::execute(Environment& environment) const {
+    try {
+        executeStatements(tryStatements_, environment);
+    } catch (const SourceError& error) {
+        if (!catchName_.empty()) {
+            if (environment.hasVariable(catchName_)) {
+                const Variable existing =
+                    environment.variableSnapshot(catchName_);
+                if (existing.constant) {
+                    throw SourceError("Cannot bind catch variable '" +
+                                          catchName_ +
+                                          "': it is declared as const",
+                                      line_, column_);
+                }
+                if (existing.type != "str" && existing.type != "any") {
+                    throw SourceError(
+                        "Cannot bind catch variable '" + catchName_ +
+                            "' as 'str': '" + catchName_ +
+                            "' is already declared as '" + existing.type + "'",
+                        line_, column_);
+                }
+                environment.assign(catchName_, std::string(error.what()), line_,
+                                   column_);
+            } else {
+                environment.declare(catchName_, "str",
+                                     std::string(error.what()), line_, column_);
+            }
+        }
+        executeStatements(catchStatements_, environment);
+    }
+}
+
+void TryCatchStatement::compile(ProgramEmitter& emitter) const {
+    const uint32_t catchName =
+        catchName_.empty() ? UINT32_MAX : emitter.internString(catchName_);
+    const std::size_t handler = emitter.emitTryBegin(catchName);
+    for (const auto& statement : tryStatements_) {
+        statement->compile(emitter);
+    }
+    emitter.emit(Op::TryEnd);
+    const std::size_t skipCatch = emitter.emitJump(Op::Jump);
+    emitter.patchTryBegin(handler, emitter.offset());
+    for (const auto& statement : catchStatements_) {
+        statement->compile(emitter);
+    }
+    emitter.patchJump(skipCatch, emitter.offset());
 }
 
 ReturnStatement::ReturnStatement(ExpressionPtr value, int line, int column)
@@ -1063,16 +1184,13 @@ void ExecStatement::compile(ProgramEmitter& emitter) const {
 
 void executeStatements(const StatementList& statements,
                        Environment& environment) {
-    environment.pushScope();
-    try {
-        for (const auto& statement : statements) {
-            statement->execute(environment);
-        }
-    } catch (...) {
-        environment.popScope();
-        throw;
+    // Lynxer uses a single flat scope per function: declarations inside
+    // control-flow blocks are visible in the enclosing (function) scope and
+    // re-declaring an existing name overwrites it, matching the Python
+    // reference. Only function/method invocation pushes a fresh scope.
+    for (const auto& statement : statements) {
+        statement->execute(environment);
     }
-    environment.popScope();
 }
 
 IfStatement::IfStatement(ExpressionPtr condition, StatementList thenStatements,

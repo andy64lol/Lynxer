@@ -206,6 +206,9 @@ StatementPtr Parser::parseStatement() {
     if (checkText("switch")) {
         return parseSwitch();
     }
+    if (checkText("try")) {
+        return parseTryCatch();
+    }
     if (checkText("exec")) {
         return parseExec();
     }
@@ -326,6 +329,9 @@ ExpressionPtr Parser::parseInterpString(const Token& token) {
             case '"':
                 literal += '"';
                 break;
+            case 'e':
+                literal += '\x1b';
+                break;
             case '{':
                 literal += '{';
                 break;
@@ -407,7 +413,7 @@ StatementPtr Parser::parseReturn() {
 }
 
 StatementPtr Parser::parseSwitch() {
-    expectText("switch", "expected 'switch'");
+    const Token start = expectText("switch", "expected 'switch'");
     expectText("(", "expected '(' after 'switch'");
     ExpressionPtr value = parseExpression();
     expectText(")", "expected ')' after switch value");
@@ -424,6 +430,7 @@ StatementPtr Parser::parseSwitch() {
                 {std::move(pattern), parseBlock("case body")});
             continue;
         }
+
         if (checkText("default")) {
             if (sawDefault) {
                 fail("switch may contain only one default case", current());
@@ -439,7 +446,35 @@ StatementPtr Parser::parseSwitch() {
     }
     expectText("}", "expected '}' after switch");
     return std::make_unique<SwitchStatement>(std::move(value),
-                                              std::move(cases));
+                                              std::move(cases), start.line,
+                                              start.column);
+}
+
+StatementPtr Parser::parseTryCatch() {
+    const Token start = expectText("try", "expected 'try'");
+    StatementList tryStatements = parseBlock("try body");
+    expectText("catch", "expected 'catch' after 'try' body");
+
+    std::string catchName;
+    int catchLine = start.line;
+    int catchColumn = start.column;
+    if (match("(")) {
+        const Token type =
+            expect(TokenKind::Identifier, "expected 'str' in catch clause");
+        if (type.text != "str") {
+            fail("expected 'str' type keyword for the catch variable", type);
+        }
+        const Token name =
+            expect(TokenKind::Identifier, "expected catch variable name");
+        catchName = name.text;
+        catchLine = name.line;
+        catchColumn = name.column;
+        expectText(")", "expected ')' after catch variable");
+    }
+    StatementList catchStatements = parseBlock("catch body");
+    return std::make_unique<TryCatchStatement>(
+        std::move(tryStatements), std::move(catchName),
+        std::move(catchStatements), catchLine, catchColumn);
 }
 
 StatementPtr Parser::parseExec() {
@@ -459,7 +494,11 @@ StatementPtr Parser::parseSimpleStatement(bool requireSemicolon) {
     }
     if (isTypeName(current()) &&
         peekAt(1).kind == TokenKind::Identifier &&
-        (peekAt(2).text == "=" || peekAt(2).text == ";")) {
+        (peekAt(2).text == "=" || peekAt(2).text == ";" ||
+         peekAt(2).text == ".")) {
+        if (peekAt(2).text == ".") {
+            return parseTypedDotAssignment();
+        }
         return parseDeclaration(false);
     }
 
@@ -490,6 +529,26 @@ StatementPtr Parser::parseDeclaration(bool constant) {
         type.text, name.text, std::move(value), type.line, type.column);
 }
 
+StatementPtr Parser::parseTypedDotAssignment() {
+    const Token type = advance();
+    std::vector<std::string> path{
+        expect(TokenKind::Identifier, "expected variable name").text};
+    while (match(".")) {
+        path.push_back(expect(TokenKind::Identifier,
+                              "expected field name after '.'")
+                           .text);
+    }
+    const Token operation = expectAssignmentOperator();
+    ExpressionPtr value = parseExpression();
+    expectText(";", "expected ';' after assignment");
+    if (operation.text != "=") {
+        fail("compound assignment is not supported for typed field assignment",
+             operation.line, operation.column);
+    }
+    return std::make_unique<DotAssignmentStatement>(
+        std::move(path), type.text, std::move(value), type.line, type.column);
+}
+
 StatementPtr Parser::parseVargroupDeclaration(bool constant) {
     const Token type = expectText("vargroup", "expected 'vargroup'");
     const Token name = expect(TokenKind::Identifier, "expected variable name");
@@ -511,7 +570,7 @@ StatementPtr Parser::parseAssignmentOrExpressionStatement(bool requireSemicolon)
         "expected a declaration, assignment, or print call");
     if (checkText(".") || checkText("=") || checkText("+=") ||
         checkText("-=") || checkText("*=") || checkText("/=") ||
-        checkText("%=")) {
+        checkText("%=") || checkText("**=") || checkText("/%=")) {
         std::vector<std::string> path{name.text};
         while (match(".")) {
             path.push_back(expect(TokenKind::Identifier,
@@ -524,7 +583,26 @@ StatementPtr Parser::parseAssignmentOrExpressionStatement(bool requireSemicolon)
         expectText(";", "expected ';' after assignment");
     }
     if (operation.text != "=") {
-        const std::string binaryOperation(1, operation.text[0]);
+        std::string binaryOperation;
+        if (operation.text == "+=") {
+            binaryOperation = "+";
+        } else if (operation.text == "-=") {
+            binaryOperation = "-";
+        } else if (operation.text == "*=") {
+            binaryOperation = "*";
+        } else if (operation.text == "/=") {
+            binaryOperation = "/";
+        } else if (operation.text == "%=") {
+            binaryOperation = "%";
+        } else if (operation.text == "**=") {
+            binaryOperation = "**";
+        } else if (operation.text == "/%=") {
+            binaryOperation = "/%";
+        } else {
+            fail("unsupported compound assignment operator '" +
+                     operation.text + "'",
+                 operation);
+        }
         value = std::make_unique<BinaryExpression>(
             binaryOperation,
             std::make_unique<VariableExpression>(name.text, name.line,
@@ -548,6 +626,15 @@ StatementPtr Parser::parseIf() {
     expectText(")", "expected ')' after condition");
     StatementList thenStatements = parseBlock("if body");
 
+    std::vector<std::pair<ExpressionPtr, StatementList>> branches;
+    while (checkText("elif")) {
+        advance();
+        expectText("(", "expected '(' after 'elif'");
+        ExpressionPtr elifCondition = parseExpression();
+        expectText(")", "expected ')' after 'elif' condition");
+        branches.emplace_back(std::move(elifCondition),
+                              parseBlock("elif body"));
+    }
     StatementList elseStatements;
     bool hasElse = false;
     if (checkText("else")) {
@@ -559,9 +646,19 @@ StatementPtr Parser::parseIf() {
             elseStatements = parseBlock("else body");
         }
     }
+    StatementList tail = std::move(elseStatements);
+    bool tailHasElse = hasElse;
+    for (auto branch = branches.rbegin(); branch != branches.rend(); ++branch) {
+        StatementList nested;
+        nested.push_back(std::make_unique<IfStatement>(
+            std::move(branch->first), std::move(branch->second),
+            std::move(tail), tailHasElse));
+        tail = std::move(nested);
+        tailHasElse = true;
+    }
     return std::make_unique<IfStatement>(
         std::move(condition), std::move(thenStatements),
-        std::move(elseStatements), hasElse);
+        std::move(tail), branches.empty() ? hasElse : true);
 }
 
 StatementPtr Parser::parseWhile() {
@@ -663,7 +760,8 @@ StatementPtr Parser::parseLoopControl() {
 
 Token Parser::expectAssignmentOperator() {
     if (checkText("=") || checkText("+=") || checkText("-=") ||
-        checkText("*=") || checkText("/=") || checkText("%=")) {
+        checkText("*=") || checkText("/=") || checkText("%=") ||
+        checkText("**=") || checkText("/%=")) {
         return advance();
     }
     fail("expected assignment operator", current());
@@ -689,79 +787,167 @@ StatementList Parser::parseLoopBlock(const std::string& description) {
     return statements;
 }
 
-ExpressionPtr Parser::parseExpression() { return parseLogicalOr(); }
+ExpressionPtr Parser::parseExpression() { return parseOrExpr(); }
 
-ExpressionPtr Parser::parseLogicalOr() {
-    ExpressionPtr expression = parseLogicalAnd();
-    while (match("||")) {
+// or / || / !||  (lowest precedence)
+ExpressionPtr Parser::parseOrExpr() {
+    ExpressionPtr expression = parseAndExpr();
+    while (match("||") || matchKeyword("or") || match("!||")) {
         const Token operation = previous();
+        const std::string op = operation.text == "or" ? "||" : operation.text;
         expression = std::make_unique<BinaryExpression>(
-            operation.text, std::move(expression), parseLogicalAnd(),
-            operation.line, operation.column);
-    }
-    return expression;
-}
-
-ExpressionPtr Parser::parseLogicalAnd() {
-    ExpressionPtr expression = parseEquality();
-    while (match("&&")) {
-        const Token operation = previous();
-        expression = std::make_unique<BinaryExpression>(
-            operation.text, std::move(expression), parseEquality(),
-            operation.line, operation.column);
-    }
-    return expression;
-}
-
-ExpressionPtr Parser::parseEquality() {
-    ExpressionPtr expression = parseComparison();
-    while (match("==") || match("!=")) {
-        const Token operation = previous();
-        expression = std::make_unique<BinaryExpression>(
-            operation.text, std::move(expression), parseComparison(),
-            operation.line, operation.column);
-    }
-    return expression;
-}
-
-ExpressionPtr Parser::parseComparison() {
-    ExpressionPtr expression = parseTerm();
-    while (match("<") || match("<=") || match(">") || match(">=")) {
-        const Token operation = previous();
-        expression = std::make_unique<BinaryExpression>(
-            operation.text, std::move(expression), parseTerm(), operation.line,
+            op, std::move(expression), parseAndExpr(), operation.line,
             operation.column);
     }
     return expression;
 }
 
-ExpressionPtr Parser::parseTerm() {
-    ExpressionPtr expression = parseFactor();
+// and / && / !&&
+ExpressionPtr Parser::parseAndExpr() {
+    ExpressionPtr expression = parseNotExpr();
+    while (match("&&") || matchKeyword("and") || match("!&&")) {
+        const Token operation = previous();
+        const std::string op = operation.text == "and" ? "&&" : operation.text;
+        expression = std::make_unique<BinaryExpression>(
+            op, std::move(expression), parseNotExpr(), operation.line,
+            operation.column);
+    }
+    return expression;
+}
+
+// unary logical NOT: '!!' or the 'not' keyword
+ExpressionPtr Parser::parseNotExpr() {
+    if (match("!!") || matchKeyword("not")) {
+        const Token operation = previous();
+        return std::make_unique<UnaryExpression>(
+            "!!", parseNotExpr(), operation.line, operation.column);
+    }
+    return parseCompExpr();
+}
+
+// comparisons, legacy 'is' / 'not is'
+ExpressionPtr Parser::parseCompExpr() {
+    ExpressionPtr expression = parseBitwiseOr();
+    if (checkKeyword("not") && peekAt(1).text == "is") {
+        const Token operation = advance();  // 'not'
+        advance();                          // 'is'
+        ExpressionPtr right = parseBitwiseOr();
+        expression = std::make_unique<BinaryExpression>(
+            "not is", std::move(expression), std::move(right), operation.line,
+            operation.column);
+        return expression;
+    }
+    if (matchKeyword("is")) {
+        const Token operation = previous();
+        ExpressionPtr right = parseBitwiseOr();
+        expression = std::make_unique<BinaryExpression>(
+            "is", std::move(expression), std::move(right), operation.line,
+            operation.column);
+        return expression;
+    }
+    while (match("==") || match("!=") || match("<") || match("<=") ||
+           match(">") || match(">=")) {
+        const Token operation = previous();
+        expression = std::make_unique<BinaryExpression>(
+            operation.text, std::move(expression), parseBitwiseOr(),
+            operation.line, operation.column);
+    }
+    return expression;
+}
+
+// | / !|
+ExpressionPtr Parser::parseBitwiseOr() {
+    ExpressionPtr expression = parseBitwiseXor();
+    while (match("|") || match("!|")) {
+        const Token operation = previous();
+        expression = std::make_unique<BinaryExpression>(
+            operation.text, std::move(expression), parseBitwiseXor(),
+            operation.line, operation.column);
+    }
+    return expression;
+}
+
+// ^ / !^
+ExpressionPtr Parser::parseBitwiseXor() {
+    ExpressionPtr expression = parseBitwiseAnd();
+    while (match("^") || match("!^")) {
+        const Token operation = previous();
+        expression = std::make_unique<BinaryExpression>(
+            operation.text, std::move(expression), parseBitwiseAnd(),
+            operation.line, operation.column);
+    }
+    return expression;
+}
+
+// & / !&
+ExpressionPtr Parser::parseBitwiseAnd() {
+    ExpressionPtr expression = parseShift();
+    while (match("&") || match("!&")) {
+        const Token operation = previous();
+        expression = std::make_unique<BinaryExpression>(
+            operation.text, std::move(expression), parseShift(),
+            operation.line, operation.column);
+    }
+    return expression;
+}
+
+// << >>
+ExpressionPtr Parser::parseShift() {
+    ExpressionPtr expression = parseArith();
+    while (match("<<") || match(">>")) {
+        const Token operation = previous();
+        expression = std::make_unique<BinaryExpression>(
+            operation.text, std::move(expression), parseArith(),
+            operation.line, operation.column);
+    }
+    return expression;
+}
+
+// + -
+ExpressionPtr Parser::parseArith() {
+    ExpressionPtr expression = parseTerm();
     while (match("+") || match("-")) {
         const Token operation = previous();
         expression = std::make_unique<BinaryExpression>(
-            operation.text, std::move(expression), parseFactor(), operation.line,
-            operation.column);
+            operation.text, std::move(expression), parseTerm(),
+            operation.line, operation.column);
     }
     return expression;
 }
 
-ExpressionPtr Parser::parseFactor() {
-    ExpressionPtr expression = parseUnary();
-    while (match("*") || match("/") || match("%")) {
+// * / % /%
+ExpressionPtr Parser::parseTerm() {
+    ExpressionPtr expression = parsePower();
+    while (match("*") || match("/") || match("%") || match("/%")) {
         const Token operation = previous();
         expression = std::make_unique<BinaryExpression>(
-            operation.text, std::move(expression), parseUnary(), operation.line,
+            operation.text, std::move(expression), parsePower(),
+            operation.line, operation.column);
+    }
+    return expression;
+}
+
+// **  (right-associative)
+ExpressionPtr Parser::parsePower() {
+    ExpressionPtr expression = parseFactor();
+    if (match("**")) {
+        const Token operation = previous();
+        expression = std::make_unique<BinaryExpression>(
+            "**", std::move(expression), parsePower(), operation.line,
             operation.column);
     }
     return expression;
 }
 
-ExpressionPtr Parser::parseUnary() {
-    if (match("!") || match("-")) {
+// unary + - ~  (highest precedence, recursive)
+ExpressionPtr Parser::parseFactor() {
+    if (match("+")) {
+        return parseFactor();
+    }
+    if (match("-") || match("~")) {
         const Token operation = previous();
         return std::make_unique<UnaryExpression>(
-            operation.text, parseUnary(), operation.line, operation.column);
+            operation.text, parseFactor(), operation.line, operation.column);
     }
     return parsePrimary();
 }
@@ -895,7 +1081,7 @@ ExpressionPtr Parser::parseTypedElement() {
     if (checkText(",") || checkText("]") || checkText(")")) {
         fail("expected value after element type", current());
     }
-    return std::make_unique<TypeCoerceExpression>(parseUnary(), type);
+    return std::make_unique<TypeCoerceExpression>(parseFactor(), type);
 }
 
 ExpressionPtr Parser::parsePostfix(ExpressionPtr expression,
@@ -936,8 +1122,20 @@ bool Parser::checkText(const std::string& text) const {
     return current().text == text;
 }
 
+bool Parser::checkKeyword(const std::string& text) const {
+    return current().kind == TokenKind::Identifier && current().text == text;
+}
+
 bool Parser::match(const std::string& text) {
     if (current().kind != TokenKind::Symbol || !checkText(text)) {
+        return false;
+    }
+    advance();
+    return true;
+}
+
+bool Parser::matchKeyword(const std::string& text) {
+    if (!checkKeyword(text)) {
         return false;
     }
     advance();

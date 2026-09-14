@@ -120,6 +120,10 @@ public:
 
     bool foreverWarningSuppressed() const;
 
+    void setDeprecationWarningSuppressed();
+
+    bool deprecationWarningSuppressed() const;
+
     void setForeverDelay(double seconds);
 
     double foreverDelay() const;
@@ -134,6 +138,7 @@ private:
     std::vector<std::unordered_map<std::string, Variable>> scopes_;
     bool setupInProgress_ = false;
     bool foreverWarningSuppressed_ = false;
+    bool deprecationWarningSuppressed_ = false;
     double foreverDelaySeconds_ = 0.02;
 };
 

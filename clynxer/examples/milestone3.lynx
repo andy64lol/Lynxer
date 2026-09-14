@@ -53,7 +53,7 @@ global main(){
         int years = 5
     };
     println(profile.title);
-    profile.years = 6;
+    int profile.years = 6;
     println(profile.years);
 
     any response = result.Ok(42);

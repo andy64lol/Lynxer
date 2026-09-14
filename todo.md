@@ -56,26 +56,26 @@ runtime dependency and its internals are not copied into Clynxer.
 - [x] Add `inter"..."` interpolation in `print`, `println`, `input`, and
   `inputln` arguments, including `\{`, `\}`, and `\\` escapes and the
   empty/missing/stray-brace syntax errors.
-- [ ] Add the remaining documented scalar types: `num`, `char`, `numBool`,
+- [x] Add the remaining documented scalar types: `num`, `char`, `numBool`,
   `bit`, `byte`, `int8`..`uint64`, `float32`/`float64`, and the `codeblock`
   type.
-- [ ] Add typed element literals for sequences: `[int 1, int 2]` and
+- [x] Add typed element literals for sequences: `[int 1, int 2]` and
   `(int 10, int 20)`.
-- [ ] Add lexical scopes and match Lynxer declaration lifetime rules.
-- [ ] Add `const` declarations whose reassignment is a runtime error.
-- [ ] Add structs, classes, enums, vargroups, and pattern matching.
+- [x] Add lexical scopes and match Lynxer declaration lifetime rules.
+- [x] Add `const` declarations whose reassignment is a runtime error.
+- [x] Add structs, classes, enums, vargroups, and pattern matching.
 
 ## Milestone 4 — operators, statements, and errors
 
-- [ ] Implement bitwise operators `&`, `|`, `^`, `!&`, `!^`, `!|`, `~`, `<<`,
+- [x] Implement bitwise operators `&`, `|`, `^`, `!&`, `!^`, `!|`, `~`, `<<`,
   `>>`, exponent `**`, and integer division `/%`.
-- [ ] Implement the NAND/NOR logic forms `!&&` and `!||`.
-- [ ] Implement the word operators `and`, `or`, and `not`.
-- [ ] Accept the legacy equality forms `is` and `not is` with deprecation
+- [x] Implement the NAND/NOR logic forms `!&&` and `!||`.
+- [x] Implement the word operators `and`, `or`, and `not`.
+- [x] Accept the legacy equality forms `is` and `not is` with deprecation
   warnings.
-- [ ] Implement `switch` / `case` / `default` and `elif`.
-- [ ] Support the `\e` string escape.
-- [ ] Implement `try` / `catch` with source-located error values.
+- [x] Implement `switch` / `case` / `default` and `elif`.
+- [x] Support the `\e` string escape.
+- [x] Implement `try` / `catch` with source-located error values.
 
 ## Milestone 5 — functions and code blocks
 
@@ -154,11 +154,16 @@ runtime dependency and its internals are not copied into Clynxer.
 ## Current boundary
 
 Clynxer currently supports the core language, all loop forms, the extended
-value model (list/tuple/sentinel/object), the list/tuple/IO/conversion/
-introspection built-ins, the native-memory family, and the named syscalls.
-Programs can be compiled to `CLYXC` bytecode (`--compile`) and executed by
-the native stack-machine VM with output parity against the interpreter.
-Functions beyond setup/main, modules, classes/structs/enums/vargroups,
-bitwise and word operators, `const`, `switch`/`elif`, and `try`/`catch` are
-not implemented yet and must fail explicitly rather than silently invoking
-Python.
+value model (list/tuple/sentinel/object/char/codeblock), the full documented
+scalar type set (`num`, `numBool`, `bit`, `byte`, `int8`..`uint64`,
+`float32`/`float64`), typed element literals (`[int 1, int 2]` and
+`(int 10, int 20)`), a flat per-function lexical scope, `const` with
+reassignment errors, and structs/classes/enums/vargroups with `switch` /
+pattern matching. The list/tuple/IO/conversion/introspection built-ins, the
+native-memory family, and the named syscalls are also implemented. Programs
+can be compiled to `CLYXC` bytecode (`--compile`) and executed by the native
+stack-machine VM with output parity against the interpreter. Functions beyond
+setup/main and modules remain outside this boundary. Bitwise and word
+operators, `elif`, scalar `switch` cases, and `try`/`catch` are supported in
+both execution paths; complex switch patterns remain interpreter-only and
+fail explicitly during bytecode compilation.

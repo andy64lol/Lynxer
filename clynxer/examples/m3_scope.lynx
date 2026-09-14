@@ -1,0 +1,10 @@
+global setup(){}
+
+global main(){
+    if(true){
+        int a = 1;
+    }
+    if(true){
+        println(a);
+    }
+}

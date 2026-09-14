@@ -1135,6 +1135,8 @@ try {
 
 - If a runtime error occurs in the `try` block, the `catch` block runs.
 - If no error occurs, the `catch` block is skipped.
+- A caught `str` contains the runtime error message; the uncaught form retains
+  the original source line and column in its diagnostic.
 - `return`, `break`, and `continue` inside try/catch behave normally.
 - Syntax and lexer errors are not catchable.
 

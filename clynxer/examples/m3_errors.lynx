@@ -1,0 +1,6 @@
+global setup(){}
+
+global main(){
+    int8 x = 200;
+    println(x);
+}

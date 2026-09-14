@@ -23,6 +23,18 @@ enum class BinOp {
     Le,
     Gt,
     Ge,
+    BitAnd,
+    BitOr,
+    BitXor,
+    BitNand,
+    BitXnor,
+    BitNor,
+    Shl,
+    Shr,
+    Exp,
+    FloorDiv,
+    LogicNand,
+    LogicNor,
 };
 
 // Maps a source-level operator symbol to its enum. Unknown symbols raise

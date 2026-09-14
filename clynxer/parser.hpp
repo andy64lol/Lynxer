@@ -27,9 +27,12 @@ private:
     ExpressionPtr parseTypedElement();
     StatementPtr parseReturn();
     StatementPtr parseSwitch();
+
+    StatementPtr parseTryCatch();
     StatementPtr parseExec();
     StatementPtr parseVargroupDeclaration(bool constant);
     StatementPtr parseDeclaration(bool constant);
+    StatementPtr parseTypedDotAssignment();
     StatementPtr parseAssignmentOrExpressionStatement(bool requireSemicolon);
 
     StatementPtr parseStatement();
@@ -66,19 +69,29 @@ private:
 
     ExpressionPtr parseExpression();
 
-    ExpressionPtr parseLogicalOr();
+    ExpressionPtr parseOrExpr();
 
-    ExpressionPtr parseLogicalAnd();
+    ExpressionPtr parseAndExpr();
 
-    ExpressionPtr parseEquality();
+    ExpressionPtr parseNotExpr();
 
-    ExpressionPtr parseComparison();
+    ExpressionPtr parseCompExpr();
+
+    ExpressionPtr parseBitwiseOr();
+
+    ExpressionPtr parseBitwiseXor();
+
+    ExpressionPtr parseBitwiseAnd();
+
+    ExpressionPtr parseShift();
+
+    ExpressionPtr parseArith();
 
     ExpressionPtr parseTerm();
 
-    ExpressionPtr parseFactor();
+    ExpressionPtr parsePower();
 
-    ExpressionPtr parseUnary();
+    ExpressionPtr parseFactor();
 
     ExpressionPtr parsePrimary();
 
@@ -86,7 +99,11 @@ private:
 
     bool checkText(const std::string& text) const;
 
+    bool checkKeyword(const std::string& text) const;
+
     bool match(const std::string& text);
+
+    bool matchKeyword(const std::string& text);
 
     Token expect(TokenKind kind, const std::string& message);
 

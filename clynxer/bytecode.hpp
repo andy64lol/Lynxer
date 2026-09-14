@@ -56,6 +56,22 @@ enum class Op : uint8_t {
     IterNext = 0x1D,     // s: exit delta; pops counter on exit branch
     ForeverBegin = 0x1E, // u: site index, u8: warn flag
     ForeverSleep = 0x1F,
+    BitAnd = 0x20,
+    BitOr = 0x21,
+    BitXor = 0x22,
+    BitNand = 0x23,
+    BitXnor = 0x24,
+    BitNor = 0x25,
+    Shl = 0x26,
+    Shr = 0x27,
+    Exp = 0x28,
+    FloorDiv = 0x29,
+    LogicNand = 0x2A,
+    LogicNor = 0x2B,
+    BitNot = 0x2C,
+    Dup = 0x2D,
+    TryBegin = 0x2E, // s: catch delta, u: catch variable name index
+    TryEnd = 0x2F,
 };
 
 // A source position attached to one trapping instruction.
