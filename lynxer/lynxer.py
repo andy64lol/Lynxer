@@ -15,6 +15,8 @@ This module re-exports the public surface so historic imports such as
 
 from __future__ import annotations
 
+from . import error as _error
+
 # Attribute access on this compatibility facade falls back to the owning
 # submodule so historic imports continue to see live runtime names.
 _SUBMODULES = ("error", "lexer", "lynxerAst", "parser", "values", "runtime")
@@ -228,9 +230,6 @@ from .runtime import (  # noqa: F401
     stdlib_dir,
 )
 from .values import (  # noqa: F401
-    FLOAT_RANGES,
-    INTEGER_RANGES,
-    NUMERIC_TYPES,
     Address,
     AsyncFunction,
     BaseFunction,
@@ -277,4 +276,4 @@ from .values import (  # noqa: F401
     type_matches,
     value_type_name,
 )
-
+from .type_registry import FLOAT_RANGES, INTEGER_RANGES, NUMERIC_TYPES
