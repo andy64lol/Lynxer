@@ -5,6 +5,11 @@ Adds typing convertion functions and other things about types.
 
 global setup(){}
 
+// Return the Lynxer type name of value.
+global typeOf(any value){
+    return returnType(value);
+}
+
 global toStr(int n){
     str result = "";
     rawPy(){

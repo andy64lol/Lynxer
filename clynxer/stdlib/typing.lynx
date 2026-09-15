@@ -1,5 +1,7 @@
 global setup(){}
 
+//// Return the Lynxer type name of value. ////
+global typeOf(any value) -> str { return returnType(value); }
 global toStr(any value) -> str { return strOf(value); }
 global toInt(any value) -> int { return intOf(value); }
 global toFloat(any value) -> float { return floatOf(value); }
