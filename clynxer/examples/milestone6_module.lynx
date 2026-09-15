@@ -5,6 +5,8 @@ global setup(){
     import("math");
     import("colorlib");
     import("typing");
+    import("random");
+    import("text");
 }
 
 global main(){
@@ -14,4 +16,7 @@ global main(){
     println(global.math.gcd(84, 30));
     println(global.typing.toStr(7));
     println(global.colorlib.red("ok"));
+    println(global.math.isPrime(97));
+    println(global.text.reverse("abc"));
+    println(global.random.randint(4, 4));
 }

@@ -130,16 +130,13 @@ global main(){
 
 | Module | Import | What it provides |
 |--------|--------|-----------------|
-| `math` | `import("math")` | Arithmetic, trig, rounding, random numbers |
+| `math` | `import("math")` | C++ ABI-backed integer arithmetic and number theory |
 | `colorlib` | `import("colorlib")` | ANSI terminal color and text styles |
 | `typing` | `import("typing")` | Package-free value conversions and integer checks |
-| `typing` | `import("typing")` | Type conversion, string manipulation, list utilities |
-| `fileIO` | `import("fileIO")` | Read, write, append, copy, move, delete files |
-| `shell` | `import("shell")` | Run external shell commands, capture output |
-| `os` | `import("os")` | Directory navigation, path utilities, environment vars |
-| `path` | `import("path")` | `pathlib.Path` manipulation, traversal, filesystem, and text helpers |
-| `json` | `import("json")` | JSON encode / decode / query |
-| `js` | `import("js")` | Run JavaScript via Node.js |
-| `sqldb` | `import("sqldb")` | SQLite database operations through Python `sqlite3` |
+| `random` | `import("random")` | Package-free deterministic pseudo-random helpers |
+| `text` | `import("text")` | Package-free basic string operations |
 
-See [stdlib.md](stdlib.md) for the full function reference.
+The Clynxer bundle intentionally includes only modules that can run without
+Python, third-party packages, or an external runtime. The remaining Lynxer
+stdlib modules are not silently advertised as available; add them as native
+ABI modules when their platform dependencies are acceptable.

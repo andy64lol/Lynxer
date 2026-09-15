@@ -2,6 +2,7 @@ CXX ?= c++
 CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -pedantic -fPIE
 
 TARGET := clynxer
+MATH_SO := stdlib/math.so
 SOURCES := main.cpp shell.cpp lexer.cpp runtime.cpp types.cpp builtins.cpp ops.cpp ast.cpp parser.cpp config.cpp compiler.cpp vm.cpp bytecode.cpp bundle.cpp
 HEADERS := $(wildcard *.hpp)
 OBJECTS := $(SOURCES:.cpp=.o)
@@ -26,7 +27,10 @@ $(TARGET): $(OBJECTS)
 %.o: %.cpp $(HEADERS)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-test: $(TARGET)
+$(MATH_SO): stdlib/math.cpp
+	$(CXX) -std=c++17 -O2 -Wall -Wextra -pedantic -fPIC -shared $< -o $@
+
+test: $(TARGET) $(MATH_SO)
 	@output="$$(./$(TARGET) examples/hello.lynx)"; \
 	expected='Hello, Clynxer!'; \
 	if [ "$$output" != "$$expected" ]; then \
@@ -191,7 +195,7 @@ expected="clynxer: $(ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 	echo "expected milestone5 codeblock output:"; printf '%s\n' "$$expected"; \
 	echo "received:"; printf '%s\n' "$$output"; exit 1; fi
 	@output="$$(./$(TARGET) $(MILESTONE6_FIXTURE))"; \
-	expected="$$(printf '6\n42\n6\n6\n7\n\033[31mok\033[0m')"; \
+	expected="$$(printf '6\n42\n6\n6\n7\n\033[31mok\033[0m\ntrue\ncba\n4')"; \
 	if [ "$$output" != "$$expected" ]; then \
 	echo "expected milestone6 output:"; printf '%s\n' "$$expected"; \
 	echo "received:"; printf '%s\n' "$$output"; exit 1; fi
@@ -208,4 +212,4 @@ expected="clynxer: $(ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 	@echo "clynxer smoke test passed"
 
 clean:
-	rm -f $(TARGET) $(OBJECTS)
+	rm -f $(TARGET) $(OBJECTS) $(MATH_SO)

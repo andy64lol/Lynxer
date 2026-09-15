@@ -1,0 +1,32 @@
+global setup(){ int state = 881726454; }
+
+global seed(int value) {
+    if(value == 0){ state = 881726454; }
+    else { state = value; }
+}
+
+global randint(int low, int high) -> int {
+    state = (state * 1103515245 + 12345) % 2147483647;
+    if(high <= low){ return low; }
+    return low + state % (high - low + 1);
+}
+
+global randrange(int start, int stop) -> int {
+    if(stop <= start){ return start; }
+    return randint(start, stop - 1);
+}
+
+global coinflip() -> bool { return randint(0, 1) == 1; }
+global randBool() -> bool { return coinflip(); }
+
+global choice(str items) -> str {
+    int count = returnLength(items);
+    if(count == 0){ return ""; }
+    return charAt(items, randint(0, count - 1));
+}
+
+global random() -> float { return randint(0, 1000000) / 1000000.0; }
+global uniform(float low, float high) -> float {
+    return low + (high - low) * global.random();
+}
+global main(){}

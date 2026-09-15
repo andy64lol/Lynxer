@@ -130,9 +130,9 @@ Value callNative(void* address, const std::string& signature,
                                              ? comma : comma - start));
         start = comma == std::string::npos ? params.size() : comma + 1;
     }
-    if (types.size() != args.size() || types.size() > 2) {
+    if (types.size() != args.size() || types.size() > 3) {
         throw SourceError(
-            "native call supports matching signatures with at most two arguments",
+            "native call supports matching signatures with at most three arguments",
             line, column);
     }
     if (types.empty() && resultType == "int64") {
@@ -145,6 +145,20 @@ Value callNative(void* address, const std::string& signature,
             reinterpret_cast<std::int64_t (*)(std::int64_t, std::int64_t)>(
                 address)(std::get<std::int64_t>(args[0]),
                          std::get<std::int64_t>(args[1])));
+    }
+    if (types.size() == 1 && types[0] == "int64" && resultType == "int64") {
+        return static_cast<std::int64_t>(
+            reinterpret_cast<std::int64_t (*)(std::int64_t)>(address)(
+                std::get<std::int64_t>(args[0])));
+    }
+    if (types.size() == 3 && types[0] == "int64" && types[1] == "int64" &&
+        types[2] == "int64" && resultType == "int64") {
+        return static_cast<std::int64_t>(
+            reinterpret_cast<std::int64_t (*)(std::int64_t, std::int64_t,
+                                              std::int64_t)>(address)(
+                std::get<std::int64_t>(args[0]),
+                std::get<std::int64_t>(args[1]),
+                std::get<std::int64_t>(args[2])));
     }
     if (types.size() == 1 && types[0] == "float64" &&
         resultType == "float64") {
@@ -1549,10 +1563,14 @@ void executeProgram(const std::unordered_map<std::string, Function>& functions,
 void ImportStatement::execute(Environment& environment) const {
     const std::string module = moduleNameFromPath(path_);
     const std::string namespaceName = alias_.empty() ? module : alias_;
+    const bool nativeImport =
+        path_.size() >= 3 &&
+        path_.compare(path_.size() - 3, 3, ".so") == 0;
+    const std::string importKey = nativeImport ? path_ : module;
     if (module.empty()) {
         throw SourceError("module path has no name", line_, column_);
     }
-    if (environment.hasImportedModule(module)) {
+    if (environment.hasImportedModule(importKey)) {
         if (!alias_.empty()) {
             const auto existing = environment.moduleNamespace(module);
             if (existing != nullptr) {
@@ -1607,7 +1625,7 @@ void ImportStatement::execute(Environment& environment) const {
             throw SourceError("native module lifecycle failure: " + detail,
                               line_, column_);
         }
-        environment.markImportedModule(module);
+        environment.markImportedModule(importKey);
         environment.retainNativeModule(
             std::shared_ptr<void>(handle, [](void* value) { dlclose(value); }));
         auto namespaceValue = std::make_shared<RecordValue>();

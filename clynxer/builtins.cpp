@@ -3,6 +3,7 @@
 #include "error.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <charconv>
 #include <cerrno>
 #include <chrono>
@@ -430,6 +431,104 @@ Value builtinReturnLength(const std::vector<Value>& args, Environment&, int line
     fail("returnLength() does not support values of type '" +
              typeNameOf(args[0]) + "'",
          line, column);
+}
+
+Value builtinCharAt(const std::vector<Value>& args, Environment&, int line,
+                    int column) {
+    if (args.size() != 2 || !std::holds_alternative<std::string>(args[0]) ||
+        !std::holds_alternative<std::int64_t>(args[1])) {
+        fail("charAt(str, int) expects a string and an index", line, column);
+    }
+    const auto& text = std::get<std::string>(args[0]);
+    const auto index = std::get<std::int64_t>(args[1]);
+    if (index < 0 || static_cast<std::size_t>(index) >= text.size()) {
+        fail("charAt() index is out of range", line, column);
+    }
+    return std::string(1, text[static_cast<std::size_t>(index)]);
+}
+
+Value builtinSubstring(const std::vector<Value>& args, Environment&, int line,
+                       int column) {
+    if (args.size() != 3 || !std::holds_alternative<std::string>(args[0]) ||
+        !std::holds_alternative<std::int64_t>(args[1]) ||
+        !std::holds_alternative<std::int64_t>(args[2])) {
+        fail("substring(str, start, end) expects a string and two indexes",
+             line, column);
+    }
+    const auto& text = std::get<std::string>(args[0]);
+    const auto start = std::get<std::int64_t>(args[1]);
+    const auto end = std::get<std::int64_t>(args[2]);
+    if (start < 0 || end < start ||
+        static_cast<std::size_t>(end) > text.size()) {
+        fail("substring() range is out of bounds", line, column);
+    }
+    return text.substr(static_cast<std::size_t>(start),
+                       static_cast<std::size_t>(end - start));
+}
+
+Value builtinTrim(const std::vector<Value>& args, Environment&, int line,
+                  int column) {
+    requireArity(args, 1, "trim() takes exactly 1 argument", line, column);
+    if (!std::holds_alternative<std::string>(args[0])) {
+        fail("trim() expects a string", line, column);
+    }
+    const auto& text = std::get<std::string>(args[0]);
+    const auto first = std::find_if_not(text.begin(), text.end(), [](unsigned char c) {
+        return std::isspace(c) != 0;
+    });
+    const auto last = std::find_if_not(text.rbegin(), text.rend(), [](unsigned char c) {
+        return std::isspace(c) != 0;
+    }).base();
+    if (first >= last) {
+        return std::string{};
+    }
+    return std::string(first, last);
+}
+
+Value builtinUpper(const std::vector<Value>& args, Environment&, int line,
+                   int column) {
+    requireArity(args, 1, "upper() takes exactly 1 argument", line, column);
+    if (!std::holds_alternative<std::string>(args[0])) {
+        fail("upper() expects a string", line, column);
+    }
+    auto result = std::get<std::string>(args[0]);
+    std::transform(result.begin(), result.end(), result.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+    return result;
+}
+
+Value builtinLower(const std::vector<Value>& args, Environment&, int line,
+                   int column) {
+    requireArity(args, 1, "lower() takes exactly 1 argument", line, column);
+    if (!std::holds_alternative<std::string>(args[0])) {
+        fail("lower() expects a string", line, column);
+    }
+    auto result = std::get<std::string>(args[0]);
+    std::transform(result.begin(), result.end(), result.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return result;
+}
+
+Value builtinReplace(const std::vector<Value>& args, Environment&, int line,
+                     int column) {
+    requireArity(args, 3, "replace() takes exactly 3 arguments", line, column);
+    if (!std::holds_alternative<std::string>(args[0]) ||
+        !std::holds_alternative<std::string>(args[1]) ||
+        !std::holds_alternative<std::string>(args[2])) {
+        fail("replace() expects three strings", line, column);
+    }
+    auto result = std::get<std::string>(args[0]);
+    const auto& oldValue = std::get<std::string>(args[1]);
+    const auto& newValue = std::get<std::string>(args[2]);
+    if (oldValue.empty()) {
+        return result;
+    }
+    std::size_t position = 0;
+    while ((position = result.find(oldValue, position)) != std::string::npos) {
+        result.replace(position, oldValue.size(), newValue);
+        position += newValue.size();
+    }
+    return result;
 }
 
 // --- sequences ----------------------------------------------------------------
@@ -2076,6 +2175,12 @@ const std::unordered_map<std::string, Handler>& handlerTable() {
         {"object", builtinObject},
         {"returnType", builtinReturnType},
         {"returnLength", builtinReturnLength},
+        {"charAt", builtinCharAt},
+        {"substring", builtinSubstring},
+        {"trim", builtinTrim},
+        {"upper", builtinUpper},
+        {"lower", builtinLower},
+        {"replace", builtinReplace},
         {"range", builtinRange},
         {"seqFromTo", builtinSeqFromTo},
         {"listJsonArray", builtinListJsonArray},

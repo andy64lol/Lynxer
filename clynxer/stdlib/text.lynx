@@ -1,0 +1,47 @@
+global setup(){}
+
+global reverse(str value) -> str {
+    str result = "";
+    int index = returnLength(value) - 1;
+    while(index >= 0){
+        result = result + charAt(value, index);
+        index = index - 1;
+    }
+    return result;
+}
+global repeat(str value, int count) -> str {
+    str result = "";
+    int index = 0;
+    while(index < count){ result = result + value; index = index + 1; }
+    return result;
+}
+global trim(str value) -> str { return global.trim(value); }
+global contains(str value, str needle) -> bool { return global.contains(value, needle); }
+global startsWith(str value, str prefix) -> bool {
+    return substring(value, 0, returnLength(prefix)) == prefix;
+}
+global endsWith(str value, str suffix) -> bool {
+    int start = returnLength(value) - returnLength(suffix);
+    if(start < 0){ return false; }
+    return substring(value, start, returnLength(value)) == suffix;
+}
+global count(str value, str needle) -> int {
+    if(needle == ""){ return 0; }
+    int total = 0;
+    int index = 0;
+    while(index <= returnLength(value) - returnLength(needle)){
+        if(substring(value, index, index + returnLength(needle)) == needle){
+            total = total + 1;
+            index = index + returnLength(needle);
+        } else { index = index + 1; }
+    }
+    return total;
+}
+global replace(str value, str oldValue, str newValue) -> str {
+    return global.replace(value, oldValue, newValue);
+}
+global upper(str value) -> str { return global.upper(value); }
+global lower(str value) -> str { return global.lower(value); }
+global isEmpty(str value) -> bool { return returnLength(value) == 0; }
+global isBlank(str value) -> bool { return returnLength(global.trim(value)) == 0; }
+global main(){}

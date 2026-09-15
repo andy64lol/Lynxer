@@ -25,7 +25,9 @@ The first slice intentionally stays small:
   `exec(){{name}}`, and `overrideMain`
 - source modules loaded with `import()`/`importAs()`, exposed through
   `global.<module>.<name>`, and optional `-> type` return annotations
-- bundled package-free stdlibs: `math`, `colorlib`, and `typing`
+- bundled package-free stdlibs: `math` (implemented by the C++ ABI module
+  `stdlib/math.cpp`), `colorlib`, `typing`,
+  `random`, and `text`
 - CLYXC compilation for Milestone 5 uses a validated source-fallback section
   so interpreter and bytecode entry points retain identical behavior
 

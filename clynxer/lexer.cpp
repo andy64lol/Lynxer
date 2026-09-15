@@ -140,7 +140,7 @@ void Lexer::skipWhitespaceAndComments() {
         while (!atEnd() && std::isspace(static_cast<unsigned char>(peek()))) {
             advance();
         }
-        if (startsWith("///")) {
+        if (startsWith("////") || startsWith("///")) {
             skipDelimitedComment();
             continue;
         }
@@ -160,21 +160,23 @@ bool Lexer::startsWith(const std::string& text) const {
 void Lexer::skipDelimitedComment() {
     const int startLine = line_;
     const int startColumn = column_;
-    advance();
-    advance();
-    advance();
+    const std::size_t delimiterLength = startsWith("////") ? 4 : 3;
+    for (std::size_t i = 0; i < delimiterLength; ++i) {
+        advance();
+    }
 
     while (!atEnd()) {
-        if (startsWith("///")) {
-            advance();
-            advance();
-            advance();
+        if ((delimiterLength == 4 && startsWith("////")) ||
+            (delimiterLength == 3 && startsWith("///"))) {
+            for (std::size_t i = 0; i < delimiterLength; ++i) {
+                advance();
+            }
             return;
         }
         advance();
     }
 
-    fail("unterminated multiline comment; expected closing '///'",
+    fail("unterminated multiline comment; expected matching slash delimiter",
          startLine, startColumn);
 }
 

@@ -1,67 +1,68 @@
-global setup(){}
+////
+Package-free integer mathematics for Clynxer.
 
-global abs(int value) -> int {
-    if(value < 0){ return value * -1; }
-    return value;
+The public API is implemented by the C++ ABI module in math.cpp and exposed
+through import("math"). The wrapper keeps the Lynxer-facing return types clear.
+////
+global setup(){
+    importAs("math.so", "nativeMath");
 }
 
+//// Return the absolute value of value. ////
+global abs(int value) -> int { return global.nativeMath.abs(value); }
+//// Return the greater of two values. ////
 global max(int left, int right) -> int {
-    if(left > right){ return left; }
-    return right;
+    return global.nativeMath.max(left, right);
 }
-
+//// Return the lesser of two values. ////
 global min(int left, int right) -> int {
-    if(left < right){ return left; }
-    return right;
+    return global.nativeMath.min(left, right);
 }
-
+//// Clamp value to the inclusive range [low, high]. ////
 global clamp(int value, int low, int high) -> int {
-    if(value < low){ return low; }
-    if(value > high){ return high; }
-    return value;
+    return global.nativeMath.clamp(value, low, high);
 }
-
+//// Raise base to a non-negative integer exponent. ////
 global pow(int base, int exponent) -> int {
-    int result = 1;
-    int index = 0;
-    while(index < exponent){
-        result = result * base;
-        index = index + 1;
-    }
-    return result;
+    return global.nativeMath.pow(base, exponent);
 }
-
-global sign(int value) -> int {
-    if(value < 0){ return -1; }
-    if(value > 0){ return 1; }
-    return 0;
+//// Return -1 for negative, 1 for positive, or 0 for zero. ////
+global sign(int value) -> int { return global.nativeMath.sign(value); }
+//// Return whether value is divisible by two. ////
+global isEven(int value) -> bool {
+    return global.nativeMath.sign(value % 2) == 0;
 }
-
-global isEven(int value) -> bool { return value % 2 == 0; }
-global isOdd(int value) -> bool { return value % 2 != 0; }
-
+//// Return whether value is not divisible by two. ////
+global isOdd(int value) -> bool {
+    return global.nativeMath.sign(value % 2) != 0;
+}
+//// Return value factorial, with factorial(0) equal to 1. ////
 global factorial(int value) -> int {
-    int result = 1;
-    int index = 2;
-    while(index <= value){
-        result = result * index;
-        index = index + 1;
-    }
-    return result;
+    return global.nativeMath.factorial(value);
 }
-
+//// Return the greatest common divisor of two values. ////
 global gcd(int left, int right) -> int {
-    while(right != 0){
-        int remainder = left % right;
-        left = right;
-        right = remainder;
-    }
-    return abs(left);
+    return global.nativeMath.gcd(left, right);
 }
-
+//// Return the least common multiple of two values. ////
 global lcm(int left, int right) -> int {
-    if(left == 0 or right == 0){ return 0; }
-    return abs((left / gcd(left, right)) * right);
+    return global.nativeMath.lcm(left, right);
+}
+//// Return whether value is prime. Values below two are not prime. ////
+global isPrime(int value) -> bool {
+    return global.nativeMath.isPrime(value) != 0;
+}
+//// Return the first prime strictly greater than value. ////
+global nextPrime(int value) -> int {
+    return global.nativeMath.nextPrime(value);
+}
+//// Return the binomial coefficient n choose k, or zero for invalid k. ////
+global binomial(int n, int k) -> int {
+    return global.nativeMath.binomial(n, k);
+}
+//// Return the inclusive sum of all integers from low through high. ////
+global sumRange(int low, int high) -> int {
+    return global.nativeMath.sumRange(low, high);
 }
 
 global main(){}
