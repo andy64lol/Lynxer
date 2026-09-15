@@ -131,6 +131,9 @@ global main(){
 | Module | Import | What it provides |
 |--------|--------|-----------------|
 | `math` | `import("math")` | C++ ABI-backed integer arithmetic and number theory |
+| `time` | `import("time")` | C++ chrono/time date and calendar helpers |
+| `shell` | `import("shell")` | C++ process and shell command helpers |
+| `sys` | `import("sys")` | C++ runtime and operating-system information |
 | `colorlib` | `import("colorlib")` | ANSI terminal color and text styles |
 | `typing` | `import("typing")` | Package-free value conversions and integer checks |
 | `random` | `import("random")` | Package-free deterministic pseudo-random helpers |

@@ -1,0 +1,36 @@
+////
+Time and calendar helpers backed by the native C++ chrono/time backend.
+////
+global setup(){ importAs("time.so", "nativeTime"); }
+global now() -> str { return global.nativeTime.now(); }
+global getTime() -> str { return global.nativeTime.getTime(); }
+global getDate() -> str { return global.nativeTime.getDate(); }
+global isoNow() -> str { return global.nativeTime.isoNow(); }
+global format(str pattern) -> str { return global.nativeTime.format(pattern); }
+global fromTimestamp(float value) -> str {
+    return global.nativeTime.fromTimestamp(value);
+}
+global toTimestamp(str value) -> float {
+    return global.nativeTime.toTimestamp(value);
+}
+global addDays(str date, int days) -> str {
+    return global.nativeTime.addDays(date, days);
+}
+global diffDays(str left, str right) -> int {
+    return global.nativeTime.diffDays(left, right);
+}
+global getYear() -> int { return global.nativeTime.getYear(); }
+global getMonth() -> int { return global.nativeTime.getMonth(); }
+global getDay() -> int { return global.nativeTime.getDay(); }
+global getHour() -> int { return global.nativeTime.getHour(); }
+global getMinute() -> int { return global.nativeTime.getMinute(); }
+global getSecond() -> int { return global.nativeTime.getSecond(); }
+global getWeekdayNum() -> int { return global.nativeTime.getWeekdayNum(); }
+global timestamp() -> float { return global.nativeTime.timestamp(); }
+global isLeapYear(int year) -> bool {
+    return global.nativeTime.isLeapYear(year) != 0;
+}
+global daysInMonth(int year, int month) -> int {
+    return global.nativeTime.daysInMonth(year, month);
+}
+global main(){}

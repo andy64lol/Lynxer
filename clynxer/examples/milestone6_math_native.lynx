@@ -1,0 +1,8 @@
+global setup(){ import("math"); }
+
+global main(){
+    println(global.math.sqrt(9.0));
+    println(global.math.sin(0.0));
+    println(global.math.isPrime(97));
+    println(global.math.isFinite(1.0));
+}

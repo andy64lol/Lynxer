@@ -131,8 +131,10 @@ If the named function does not exist, a runtime error is raised with the missing
 ///
 
 ////
-  This is a docstring
-  It should be called before global setup(){}
+  This is a file-level docstring.
+  It must be the first non-comment construct, before global setup().
+  Only this leading block is exposed as module documentation; later
+  //// blocks are ordinary comments.
 ////
 ```
 

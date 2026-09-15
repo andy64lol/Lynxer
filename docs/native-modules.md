@@ -78,6 +78,16 @@ symbols, missing registered symbols, duplicate registrations, and non-zero
 initializer returns are reported as explicit **native module lifecycle
 failure** errors with the relevant dependency or symbol.
 
+## Bundled C++ stdlibs
+
+Clynxer's `clynxer/Makefile` treats every `clynxer/stdlib/*.cpp` file as a
+native standard-library backend and builds its sibling `.so` inside the same
+`clynxer/stdlib/` directory during `make`.
+The corresponding `.lynx` file is the public wrapper when a Lynxer-compatible
+API or return-type conversion is useful. This keeps the ABI boundary uniform:
+adding a new dependency-free stdlib means adding its C++ implementation and
+wrapper, without adding Python packages.
+
 ## Explicit handle API
 
 For code that needs dynamic discovery, use:

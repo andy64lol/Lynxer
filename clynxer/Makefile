@@ -2,7 +2,8 @@ CXX ?= c++
 CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -pedantic -fPIE
 
 TARGET := clynxer
-MATH_SO := stdlib/math.so
+NATIVE_SOURCES := $(wildcard stdlib/*.cpp)
+NATIVE_MODULES := $(NATIVE_SOURCES:.cpp=.so)
 SOURCES := main.cpp shell.cpp lexer.cpp runtime.cpp types.cpp builtins.cpp ops.cpp ast.cpp parser.cpp config.cpp compiler.cpp vm.cpp bytecode.cpp bundle.cpp
 HEADERS := $(wildcard *.hpp)
 OBJECTS := $(SOURCES:.cpp=.o)
@@ -16,10 +17,12 @@ MILESTONE4_PATTERN_FIXTURE := examples/milestone4_patterns.lynx
 MILESTONE5_FIXTURE := examples/milestone5.lynx
 MILESTONE5_CODEBLOCK_FIXTURE := examples/milestone5_codeblocks.lynx
 MILESTONE6_FIXTURE := examples/milestone6_module.lynx
+MILESTONE6_MATH_FIXTURE := examples/milestone6_math_native.lynx
+NATIVE_STDLIB_FIXTURE := examples/native_stdlibs.lynx
 
 .PHONY: all clean test
 
-all: $(TARGET)
+all: $(TARGET) $(NATIVE_MODULES)
 
 $(TARGET): $(OBJECTS)
 	$(CXX) $(CXXFLAGS) $(OBJECTS) -o $(TARGET)
@@ -27,10 +30,10 @@ $(TARGET): $(OBJECTS)
 %.o: %.cpp $(HEADERS)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-$(MATH_SO): stdlib/math.cpp
+stdlib/%.so: stdlib/%.cpp
 	$(CXX) -std=c++17 -O2 -Wall -Wextra -pedantic -fPIC -shared $< -o $@
 
-test: $(TARGET) $(MATH_SO)
+test: $(TARGET) $(NATIVE_MODULES)
 	@output="$$(./$(TARGET) examples/hello.lynx)"; \
 	expected='Hello, Clynxer!'; \
 	if [ "$$output" != "$$expected" ]; then \
@@ -199,6 +202,16 @@ expected="clynxer: $(ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 	if [ "$$output" != "$$expected" ]; then \
 	echo "expected milestone6 output:"; printf '%s\n' "$$expected"; \
 	echo "received:"; printf '%s\n' "$$output"; exit 1; fi
+	@output="$$(./$(TARGET) $(MILESTONE6_MATH_FIXTURE))"; \
+	expected="$$(printf '3\n0\ntrue\ntrue')"; \
+	if [ "$$output" != "$$expected" ]; then \
+	echo "expected native math output:"; printf '%s\n' "$$expected"; \
+	echo "received native math output:"; printf '%s\n' "$$output"; exit 1; fi
+	@output="$$(./$(TARGET) $(NATIVE_STDLIB_FIXTURE))"; \
+	expected="$$(printf '3.141592653589793\n180\ntrue\ntrue\ntrue\nlinux')"; \
+	if [ "$$output" != "$$expected" ]; then \
+	echo "expected native stdlib output:"; printf '%s\n' "$$expected"; \
+	echo "received native stdlib output:"; printf '%s\n' "$$output"; exit 1; fi
 	@for fixture in $(MILESTONE5_FIXTURE:.lynx=) $(MILESTONE5_CODEBLOCK_FIXTURE:.lynx=); do \
 	./$(TARGET) --compile --no-cache $$fixture.lynx > /dev/null; \
 	./$(TARGET) $$fixture.lynxc > .clynxer_vm.out 2>.clynxer_vm.err; \
@@ -212,4 +225,4 @@ expected="clynxer: $(ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 	@echo "clynxer smoke test passed"
 
 clean:
-	rm -f $(TARGET) $(OBJECTS) $(MATH_SO)
+	rm -f $(TARGET) $(OBJECTS) $(NATIVE_MODULES)

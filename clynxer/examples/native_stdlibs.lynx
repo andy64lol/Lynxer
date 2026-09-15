@@ -1,0 +1,15 @@
+global setup(){
+    import("math");
+    import("time");
+    import("shell");
+    import("sys");
+}
+
+global main(){
+    println(global.math.pi());
+    println(global.math.degrees(global.math.pi()));
+    println(global.math.isPrime(97));
+    println(global.time.isLeapYear(2024));
+    println(global.shell.commandExists("sh"));
+    println(global.sys.platform());
+}

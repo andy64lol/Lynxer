@@ -43,3 +43,6 @@ This is a foundation rather than a complete port. Unsupported Lynxer language
 features fail with a source location instead of silently falling back to
 Python. Native `.so` modules remain governed by the shared registration ABI
 documented in `../docs/native-modules.md`; they are not reinterpreted as source.
+Every C++ stdlib backend placed in `stdlib/*.cpp` is built automatically as
+the matching `stdlib/*.so` by `make`; dependency-heavy libraries remain
+explicit opt-in modules rather than hidden package requirements.

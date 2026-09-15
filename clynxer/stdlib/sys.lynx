@@ -1,0 +1,20 @@
+////
+Runtime and operating-system information backed by the native C++ runtime.
+////
+global setup(){ importAs("sys.so", "nativeSys"); }
+global platform() -> str { return global.nativeSys.platform(); }
+global version() -> str { return global.nativeSys.version(); }
+global getpid() -> int { return global.nativeSys.getpid(); }
+global getMaxSize() -> int { return global.nativeSys.getMaxSize(); }
+global getByteOrder() -> str { return global.nativeSys.getByteOrder(); }
+global getDefaultEncoding() -> str {
+    return global.nativeSys.getDefaultEncoding();
+}
+global getFilesystemEncoding() -> str {
+    return global.nativeSys.getFilesystemEncoding();
+}
+global isatty() -> bool { return global.nativeSys.isatty() != 0; }
+global stdinName() -> str { return global.nativeSys.stdinName(); }
+global stdoutName() -> str { return global.nativeSys.stdoutName(); }
+global executable() -> str { return global.nativeSys.executable(); }
+global main(){}

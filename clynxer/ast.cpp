@@ -120,7 +120,10 @@ Value callNative(void* address, const std::string& signature,
     if (open == std::string::npos || close == std::string::npos) {
         throw SourceError("invalid native function signature", line, column);
     }
-    const std::string resultType = normalized.substr(0, open);
+    std::string resultType = normalized.substr(0, open);
+    if (resultType == "double") {
+        resultType = "float64";
+    }
     const std::string params = normalized.substr(open + 1, close - open - 1);
     std::vector<std::string> types;
     std::size_t start = 0;
@@ -128,6 +131,9 @@ Value callNative(void* address, const std::string& signature,
         const auto comma = params.find(',', start);
         types.push_back(params.substr(start, comma == std::string::npos
                                              ? comma : comma - start));
+        if (types.back() == "double") {
+            types.back() = "float64";
+        }
         start = comma == std::string::npos ? params.size() : comma + 1;
     }
     if (types.size() != args.size() || types.size() > 3) {
@@ -138,6 +144,14 @@ Value callNative(void* address, const std::string& signature,
     if (types.empty() && resultType == "int64") {
         return static_cast<std::int64_t>(
             reinterpret_cast<std::int64_t (*)()>(address)());
+    }
+    if (types.empty() && resultType == "float64") {
+        return reinterpret_cast<double (*)()>(address)();
+    }
+    if (types.empty() && resultType == "cstring") {
+        const auto result =
+            reinterpret_cast<const char* (*)()>(address)();
+        return std::string(result == nullptr ? "" : result);
     }
     if (types.size() == 2 && types[0] == "int64" && types[1] == "int64" &&
         resultType == "int64") {
@@ -150,6 +164,39 @@ Value callNative(void* address, const std::string& signature,
         return static_cast<std::int64_t>(
             reinterpret_cast<std::int64_t (*)(std::int64_t)>(address)(
                 std::get<std::int64_t>(args[0])));
+    }
+    if (types.size() == 1 && types[0] == "cstring" &&
+        resultType == "cstring") {
+        if (!std::holds_alternative<std::string>(args[0])) {
+            throw SourceError("native call expected a string argument", line,
+                              column);
+        }
+        const auto result = reinterpret_cast<const char* (*)(const char*)>(
+            address)(std::get<std::string>(args[0]).c_str());
+        return std::string(result == nullptr ? "" : result);
+    }
+    if (types.size() == 1 && types[0] == "cstring" &&
+        resultType == "int64") {
+        if (!std::holds_alternative<std::string>(args[0])) {
+            throw SourceError("native call expected a string argument", line,
+                              column);
+        }
+        return reinterpret_cast<std::int64_t (*)(const char*)>(address)(
+            std::get<std::string>(args[0]).c_str());
+    }
+    if (types.size() == 2 && types[0] == "cstring" &&
+        types[1] == "cstring" && resultType == "int64") {
+        return reinterpret_cast<std::int64_t (*)(const char*, const char*)>(
+            address)(std::get<std::string>(args[0]).c_str(),
+                     std::get<std::string>(args[1]).c_str());
+    }
+    if (types.size() == 2 && types[0] == "cstring" &&
+        types[1] == "int64" && resultType == "cstring") {
+        const auto result =
+            reinterpret_cast<const char* (*)(const char*, std::int64_t)>(
+                address)(std::get<std::string>(args[0]).c_str(),
+                         std::get<std::int64_t>(args[1]));
+        return std::string(result == nullptr ? "" : result);
     }
     if (types.size() == 3 && types[0] == "int64" && types[1] == "int64" &&
         types[2] == "int64" && resultType == "int64") {
@@ -164,6 +211,29 @@ Value callNative(void* address, const std::string& signature,
         resultType == "float64") {
         return reinterpret_cast<double (*)(double)>(address)(
             asNumber(args[0], line, column));
+    }
+    if (types.size() == 2 && types[0] == "float64" &&
+        types[1] == "float64" && resultType == "float64") {
+        return reinterpret_cast<double (*)(double, double)>(address)(
+            asNumber(args[0], line, column), asNumber(args[1], line, column));
+    }
+    if (types.size() == 3 && types[0] == "float64" &&
+        types[1] == "float64" && types[2] == "float64" &&
+        resultType == "float64") {
+        return reinterpret_cast<double (*)(double, double, double)>(address)(
+            asNumber(args[0], line, column), asNumber(args[1], line, column),
+            asNumber(args[2], line, column));
+    }
+    if (types.size() == 1 && types[0] == "float64" &&
+        resultType == "int64") {
+        return reinterpret_cast<std::int64_t (*)(double)>(address)(
+            asNumber(args[0], line, column));
+    }
+    if (types.size() == 2 && types[0] == "float64" &&
+        types[1] == "int64" && resultType == "float64") {
+        return reinterpret_cast<double (*)(double, std::int64_t)>(address)(
+            asNumber(args[0], line, column),
+            std::get<std::int64_t>(args[1]));
     }
     throw SourceError("unsupported native signature '" + signature + "'",
                       line, column);
