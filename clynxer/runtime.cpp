@@ -10,15 +10,19 @@
 
 namespace clynxer {
 
-Environment::Environment() : scopes_(1) {}
+Environment::Environment() : scopes_(1), functionScopes_(1) {}
 
-void Environment::pushScope() { scopes_.emplace_back(); }
+void Environment::pushScope() {
+    scopes_.emplace_back();
+    functionScopes_.emplace_back();
+}
 
 void Environment::popScope() {
     if (scopes_.size() <= 1) {
         throw SourceError("cannot pop the global scope", 0, 0);
     }
     scopes_.pop_back();
+    functionScopes_.pop_back();
 }
 
 void Environment::declare(const std::string& name, const std::string& type,
@@ -107,6 +111,43 @@ void Environment::removeVariable(const std::string& name) {
         }
     }
 }
+
+void Environment::registerFunction(const std::string& name,
+                                   std::shared_ptr<void> function) {
+    functionScopes_.back()[name] = std::move(function);
+}
+
+std::shared_ptr<void> Environment::findFunction(const std::string& name) const {
+    for (auto scope = functionScopes_.rbegin(); scope != functionScopes_.rend();
+         ++scope) {
+        const auto found = scope->find(name);
+        if (found != scope->end()) {
+            return found->second;
+        }
+    }
+    return nullptr;
+}
+
+void Environment::setUserFunctionHandler(UserFunctionHandler handler) {
+    userFunctionHandler_ = std::move(handler);
+}
+
+Value Environment::callUserFunction(
+    const std::string& name, const std::vector<Value>& arguments,
+    const std::vector<std::shared_ptr<CodeblockValue>>& codeblocks, int line,
+    int column) {
+    if (!userFunctionHandler_) {
+        throw SourceError("unknown function '" + name + "'", line, column);
+    }
+    return userFunctionHandler_(name, arguments, codeblocks, *this, line,
+                                column);
+}
+
+void Environment::setMainOverride(std::string name) {
+    mainOverride_ = std::move(name);
+}
+
+const std::string& Environment::mainOverride() const { return mainOverride_; }
 
 void Environment::setSetupInProgress(bool value) { setupInProgress_ = value; }
 

@@ -3,11 +3,15 @@
 #include "runtime.hpp"
 
 #include <memory>
+#include <unordered_map>
 #include <vector>
 
 namespace clynxer {
 
 class ProgramEmitter;
+class Statement;
+using StatementPtr = std::unique_ptr<Statement>;
+using StatementList = std::vector<StatementPtr>;
 
 class Expression {
 public:
@@ -108,6 +112,9 @@ public:
     void compile(ProgramEmitter& emitter) const override;
 
     const std::vector<ExpressionPtr>& arguments() const { return arguments_; }
+    const std::string& name() const { return name_; }
+    void addInlineCodeblock(StatementList body);
+    void addNamedCodeblock(std::string name);
 
 private:
     int line() const { return line_; }
@@ -116,6 +123,11 @@ private:
 
     std::string name_;
     std::vector<ExpressionPtr> arguments_;
+    struct CodeblockArgument {
+        std::string name;
+        StatementList body;
+    };
+    std::vector<CodeblockArgument> codeblocks_;
     int line_;
     int column_;
 };
@@ -316,9 +328,6 @@ public:
 };
 
 
-using StatementPtr = std::unique_ptr<Statement>;
-using StatementList = std::vector<StatementPtr>;
-
 // True when any statement in the list (at any nesting depth) is a break.
 bool statementsContainBreak(const StatementList& statements);
 
@@ -502,6 +511,34 @@ private:
     int column_;
 };
 
+struct Parameter {
+    std::string type = "any";
+    std::string name;
+    ExpressionPtr defaultValue;
+};
+
+struct Function {
+    std::string name;
+    std::vector<Parameter> parameters;
+    std::vector<std::string> codeblockParameters;
+    std::string returnType = "any";
+    bool isGlobal = false;
+    bool isFileFunction = false;
+    StatementList statements;
+};
+
+class FunctionDeclarationStatement final : public Statement {
+public:
+    explicit FunctionDeclarationStatement(std::shared_ptr<Function> function)
+        : function_(std::move(function)) {}
+
+    void execute(Environment& environment) const override;
+    void compile(ProgramEmitter& emitter) const override;
+
+private:
+    std::shared_ptr<Function> function_;
+};
+
 class LoopControlStatement final : public Statement {
 public:
     explicit LoopControlStatement(LoopControlKind kind);
@@ -645,8 +682,11 @@ private:
     mutable bool warned_ = false;
 };
 
-struct Function {
-    StatementList statements;
-};
+Value invokeFunction(const Function& function, const std::vector<Value>& args,
+                     const std::vector<std::shared_ptr<CodeblockValue>>& blocks,
+                     Environment& environment, int line, int column);
+
+void executeProgram(const std::unordered_map<std::string, Function>& functions,
+                    Environment& environment);
 
 } // namespace clynxer

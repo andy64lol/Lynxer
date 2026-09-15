@@ -79,13 +79,13 @@ runtime dependency and its internals are not copied into Clynxer.
 
 ## Milestone 5 — functions and code blocks
 
-- [ ] Support file-wide `func` declarations and named `global` functions
+- [x] Support file-wide `func` declarations and named `global` functions
   beyond `setup`/`main`.
-- [ ] Add typed and default parameters and return values.
-- [ ] Add local functions.
-- [ ] Add caller-supplied code blocks and multiple code blocks.
-- [ ] Add named `codeblock` values and `exec(){{name}}`.
-- [ ] Implement the `overrideMain` entry-point override.
+- [x] Add typed and default parameters and return values.
+- [x] Add local functions.
+- [x] Add caller-supplied code blocks and multiple code blocks.
+- [x] Add named `codeblock` values and `exec(){{name}}`.
+- [x] Implement the `overrideMain` entry-point override.
 
 ## Milestone 6 — module system and standard library
 
@@ -129,6 +129,9 @@ runtime dependency and its internals are not copied into Clynxer.
   it to a copy of the clynxer executable (`CLYXPAYLD` trailer); a bundled
   executable detects its payload at startup and runs the embedded program
   directly, with the same output parity as `.lynxc` runs.
+- [x] Merge the Lynxer and Clynxer Makefile entry points, including root
+  `buildCLynxer`, `testCLynxer`, `cleanCLynxer`, and combined build/test/clean
+  targets.
 - [ ] Add an optimization pass beyond constant folding.
 
 ## Milestone 9 — compatibility gates
@@ -162,8 +165,12 @@ reassignment errors, and structs/classes/enums/vargroups with `switch` /
 pattern matching. The list/tuple/IO/conversion/introspection built-ins, the
 native-memory family, and the named syscalls are also implemented. Programs
 can be compiled to `CLYXC` bytecode (`--compile`) and executed by the native
-stack-machine VM with output parity against the interpreter. Functions beyond
-setup/main and modules remain outside this boundary. Bitwise and word
+stack-machine VM with output parity against the interpreter. Milestone 5
+file-wide/global/local functions, typed/default parameters, return values,
+caller-supplied and named codeblocks, and `overrideMain` are supported by the
+interpreter and by validated CLYXC source-fallback sections. The root Makefile
+builds and tests both Lynxer and Clynxer targets. Modules remain outside this
+boundary. Bitwise and word
 operators, `elif`, scalar `switch` cases, and `try`/`catch` are supported in
 both execution paths; complex switch patterns remain interpreter-only and
 fail explicitly during bytecode compilation.

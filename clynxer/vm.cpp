@@ -3,7 +3,9 @@
 #include "builtins.hpp"
 #include "config.hpp"
 #include "error.hpp"
+#include "lexer.hpp"
 #include "ops.hpp"
+#include "parser.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -458,6 +460,13 @@ void runSection(const CodeSection& section, const CompiledProgram& program,
 } // namespace
 
 void runProgram(const CompiledProgram& program, Environment& environment) {
+    if ((program.flags & BYTECODE_FLAG_SOURCE_FALLBACK) != 0) {
+        Lexer lexer(program.sourceText, program.sourcePath);
+        Parser parser(lexer.scan());
+        auto functions = parser.parseProgram();
+        executeProgram(functions, environment);
+        return;
+    }
     std::vector<bool> foreverWarned(program.foreverSiteCount, false);
     environment.setSetupInProgress(true);
     runSection(program.setup, program, environment, foreverWarned);

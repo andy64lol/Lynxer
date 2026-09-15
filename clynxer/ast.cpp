@@ -649,11 +649,47 @@ CallExpression::CallExpression(std::string name,
     : name_(std::move(name)), arguments_(std::move(arguments)), line_(line),
       column_(column) {}
 
+void CallExpression::addInlineCodeblock(StatementList body) {
+    codeblocks_.push_back(CodeblockArgument{"", std::move(body)});
+}
+
+void CallExpression::addNamedCodeblock(std::string name) {
+    codeblocks_.push_back(CodeblockArgument{std::move(name), {}});
+}
+
 Value CallExpression::evaluate(Environment& environment) const {
     std::vector<Value> arguments;
     arguments.reserve(arguments_.size());
     for (const auto& argument : arguments_) {
         arguments.push_back(argument->evaluate(environment));
+    }
+    std::vector<std::shared_ptr<CodeblockValue>> blocks;
+    blocks.reserve(codeblocks_.size());
+    for (const auto& codeblock : codeblocks_) {
+        if (!codeblock.name.empty()) {
+            Value value = environment.get(codeblock.name, line_, column_);
+            const auto* stored =
+                std::get_if<std::shared_ptr<CodeblockValue>>(&value);
+            if (stored == nullptr || *stored == nullptr) {
+                throw SourceError("'" + codeblock.name + "' is not a codeblock",
+                                  line_, column_);
+            }
+            blocks.push_back(*stored);
+            continue;
+        }
+        auto block = std::make_shared<CodeblockValue>();
+        for (const auto& statement : codeblock.body) {
+            block->body.push_back(statement.get());
+        }
+        blocks.push_back(std::move(block));
+    }
+    try {
+        return environment.callUserFunction(name_, arguments, blocks, line_,
+                                            column_);
+    } catch (const SourceError& error) {
+        if (error.what() != std::string("unknown function '" + name_ + "'")) {
+            throw;
+        }
     }
     return callBuiltin(name_, arguments, environment, line_, column_);
 }
@@ -1180,6 +1216,145 @@ void ExecStatement::execute(Environment& environment) const {
 
 void ExecStatement::compile(ProgramEmitter& emitter) const {
     unsupportedRuntimeModelCompile(emitter, "codeblocks", line_, column_);
+}
+
+void FunctionDeclarationStatement::execute(Environment& environment) const {
+    environment.registerFunction(function_->name,
+                                 std::shared_ptr<void>(function_));
+}
+
+void FunctionDeclarationStatement::compile(ProgramEmitter& emitter) const {
+    unsupportedRuntimeModelCompile(emitter, "local functions", 0, 0);
+}
+
+Value invokeFunction(
+    const Function& function, const std::vector<Value>& args,
+    const std::vector<std::shared_ptr<CodeblockValue>>& blocks,
+    Environment& environment, int line, int column) {
+    if (args.size() > function.parameters.size()) {
+        throw SourceError(
+            "function '" + function.name + "' expects at most " +
+                std::to_string(function.parameters.size()) + " arguments, received " +
+                std::to_string(args.size()),
+            line, column);
+    }
+    if (blocks.size() != function.codeblockParameters.size()) {
+        throw SourceError(
+            "function '" + function.name + "' expects exactly " +
+                std::to_string(function.codeblockParameters.size()) +
+                " code block(s), but got " + std::to_string(blocks.size()),
+            line, column);
+    }
+
+    environment.pushScope();
+    try {
+        for (std::size_t index = 0; index < function.parameters.size(); ++index) {
+            Value value;
+            if (index < args.size()) {
+                value = args[index];
+            } else if (function.parameters[index].defaultValue != nullptr) {
+                value = function.parameters[index].defaultValue->evaluate(environment);
+            } else {
+                throw SourceError(
+                    "function '" + function.name + "' expects at least " +
+                        std::to_string(index + 1) + " arguments, received " +
+                        std::to_string(args.size()),
+                    line, column);
+            }
+            value = Environment::convertForType(
+                std::move(value), function.parameters[index].type, line, column);
+            environment.setVariableRawCurrent(
+                function.parameters[index].name,
+                Variable{function.parameters[index].type, std::move(value), false});
+        }
+        for (std::size_t index = 0; index < blocks.size(); ++index) {
+            const auto& block = blocks[index];
+            environment.setVariableRawCurrent(
+                function.codeblockParameters[index],
+                Variable{"codeblock", block, false});
+        }
+
+        Value result;
+        try {
+            executeStatements(function.statements, environment);
+        } catch (const ReturnControl& control) {
+            result = control.hasValue ? control.value : Value{};
+        }
+        if (function.returnType != "any") {
+            result = Environment::convertForType(std::move(result),
+                                                  function.returnType, line,
+                                                  column);
+        }
+        environment.popScope();
+        return result;
+    } catch (...) {
+        environment.popScope();
+        throw;
+    }
+}
+
+void executeProgram(const std::unordered_map<std::string, Function>& functions,
+                    Environment& environment) {
+    for (const auto& entry : functions) {
+        const Function* function = &entry.second;
+        environment.registerFunction(
+            entry.first,
+            std::shared_ptr<void>(const_cast<Function*>(function),
+                                  [](void*) {}));
+    }
+    environment.setUserFunctionHandler(
+        [&functions](const std::string& requested,
+                     const std::vector<Value>& args,
+                     const std::vector<std::shared_ptr<CodeblockValue>>& blocks,
+                     Environment& env, int line, int column) -> Value {
+            std::string name = requested;
+            const std::size_t dot = name.rfind('.');
+            if (dot != std::string::npos) {
+                name = name.substr(dot + 1);
+            }
+            if (const auto local = env.findFunction(name)) {
+                return invokeFunction(*std::static_pointer_cast<Function>(local),
+                                      args, blocks, env, line, column);
+            }
+            const auto found = functions.find(name);
+            if (found != functions.end()) {
+                return invokeFunction(found->second, args, blocks, env, line,
+                                      column);
+            }
+            return callBuiltin(requested, args, env, line, column);
+        });
+
+    const auto setup = functions.find("setup");
+    if (setup != functions.end()) {
+        environment.setSetupInProgress(true);
+        try {
+            for (const Parameter& parameter : setup->second.parameters) {
+                if (parameter.defaultValue == nullptr) {
+                    throw SourceError(
+                        "global setup() parameters must have defaults", 0, 0);
+                }
+                Value value = parameter.defaultValue->evaluate(environment);
+                value = Environment::convertForType(
+                    std::move(value), parameter.type, 0, 0);
+                environment.setVariableRawCurrent(
+                    parameter.name,
+                    Variable{parameter.type, std::move(value), false});
+            }
+            executeStatements(setup->second.statements, environment);
+        } catch (const ReturnControl&) {
+            // setup returns are ignored, matching the lifecycle entry point.
+        }
+    }
+    environment.setSetupInProgress(false);
+
+    const std::string entryName =
+        environment.mainOverride().empty() ? "main" : environment.mainOverride();
+    const auto entry = functions.find(entryName);
+    if (entry == functions.end()) {
+        throw SourceError("entry-point function '" + entryName + "' was not found",
+                          0, 0);
+    }
+    invokeFunction(entry->second, {}, {}, environment, 0, 0);
 }
 
 void executeStatements(const StatementList& statements,

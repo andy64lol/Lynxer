@@ -1010,6 +1010,33 @@ CompiledProgram compileProgram(
     program.flags = optimize ? BYTECODE_FLAG_OPTIMIZED : 0;
     program.sourcePath = sourcePath;
     program.sourceHash = fnv1a64(source);
+    program.sourceText = source;
+
+    bool interpreterFallback = false;
+    for (const auto& entry : functions) {
+        const Function& function = entry.second;
+        if (entry.first != "setup" && entry.first != "main") {
+            interpreterFallback = true;
+        }
+        if (!function.parameters.empty() ||
+            !function.codeblockParameters.empty() ||
+            function.returnType != "any") {
+            interpreterFallback = true;
+        }
+    }
+    if (source.find("codeblock") != std::string::npos ||
+        source.find("exec") != std::string::npos ||
+        source.find("local ") != std::string::npos ||
+        source.find("return") != std::string::npos ||
+        source.find("overrideMain") != std::string::npos) {
+        interpreterFallback = true;
+    }
+    if (interpreterFallback) {
+        program.flags |= BYTECODE_FLAG_SOURCE_FALLBACK;
+        program.setup.code.push_back(static_cast<uint8_t>(Op::Halt));
+        program.main.code.push_back(static_cast<uint8_t>(Op::Halt));
+        return program;
+    }
 
     CodeSection setupSection;
     CodeSection mainSection;
@@ -1060,6 +1087,10 @@ std::vector<uint8_t> serializeProgram(const CompiledProgram& program) {
     for (int index = 0; index < 8; ++index) {
         out.push_back(static_cast<uint8_t>((program.sourceHash >> (8 * index)) &
                                            0xFF));
+    }
+    if ((program.flags & BYTECODE_FLAG_SOURCE_FALLBACK) != 0) {
+        appendVarint(out, program.sourceText.size());
+        out.insert(out.end(), program.sourceText.begin(), program.sourceText.end());
     }
 
     appendVarint(out, program.strings.size());
@@ -1335,7 +1366,8 @@ CompiledProgram loadProgram(const std::vector<uint8_t>& bytes) {
                             "; recompile the program");
     }
     const uint8_t flags = reader.readByte();
-    if ((flags & ~BYTECODE_FLAG_OPTIMIZED) != 0) {
+    if ((flags & ~(BYTECODE_FLAG_OPTIMIZED | BYTECODE_FLAG_SOURCE_FALLBACK)) !=
+        0) {
         throw BytecodeError("unknown bytecode flags");
     }
 
@@ -1343,6 +1375,9 @@ CompiledProgram loadProgram(const std::vector<uint8_t>& bytes) {
     program.flags = flags;
     program.sourcePath = reader.readVarintString();
     program.sourceHash = reader.readU64();
+    if ((flags & BYTECODE_FLAG_SOURCE_FALLBACK) != 0) {
+        program.sourceText = reader.readVarintString();
+    }
 
     const uint64_t stringCount = reader.readVarint();
     if (stringCount > MAX_TABLE_ENTRIES) {

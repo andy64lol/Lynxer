@@ -18,6 +18,7 @@ namespace clynxer {
 inline constexpr char BYTECODE_MAGIC[6] = {'C', 'L', 'Y', 'X', 'C', '\0'};
 inline constexpr uint8_t BYTECODE_FORMAT_VERSION = 1;
 inline constexpr uint8_t BYTECODE_FLAG_OPTIMIZED = 0x01;
+inline constexpr uint8_t BYTECODE_FLAG_SOURCE_FALLBACK = 0x02;
 
 inline constexpr std::size_t MAX_BYTECODE_FILE_SIZE = 64ull * 1024 * 1024;
 inline constexpr std::size_t MAX_CODE_SECTION_SIZE = 16ull * 1024 * 1024;
@@ -92,6 +93,7 @@ struct CompiledProgram {
     uint8_t flags = 0;
     std::string sourcePath;
     uint64_t sourceHash = 0;
+    std::string sourceText;
     std::vector<std::string> strings;
     std::vector<Value> constants;
     CodeSection setup;

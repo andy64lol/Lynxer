@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -17,6 +18,7 @@ struct RecordValue;
 struct EnumValue;
 struct CodeblockValue;
 class Statement;
+struct Function;
 
 struct CharValue {
     std::string text;
@@ -86,6 +88,11 @@ struct Variable {
 
 class Environment {
 public:
+    using UserFunctionHandler = std::function<Value(
+        const std::string&, const std::vector<Value>&,
+        const std::vector<std::shared_ptr<CodeblockValue>>&, Environment&, int,
+        int)>;
+
     Environment();
 
     void pushScope();
@@ -112,6 +119,22 @@ public:
 
     void removeVariable(const std::string& name);
 
+    void registerFunction(const std::string& name,
+                          std::shared_ptr<void> function);
+
+    std::shared_ptr<void> findFunction(const std::string& name) const;
+
+    void setUserFunctionHandler(UserFunctionHandler handler);
+
+    Value callUserFunction(
+        const std::string& name, const std::vector<Value>& arguments,
+        const std::vector<std::shared_ptr<CodeblockValue>>& codeblocks, int line,
+        int column);
+
+    void setMainOverride(std::string name);
+
+    const std::string& mainOverride() const;
+
     void setSetupInProgress(bool value);
 
     bool setupInProgress() const;
@@ -136,6 +159,10 @@ private:
                                   int column);
 
     std::vector<std::unordered_map<std::string, Variable>> scopes_;
+    std::vector<std::unordered_map<std::string, std::shared_ptr<void>>>
+        functionScopes_;
+    UserFunctionHandler userFunctionHandler_;
+    std::string mainOverride_;
     bool setupInProgress_ = false;
     bool foreverWarningSuppressed_ = false;
     bool deprecationWarningSuppressed_ = false;

@@ -11,3 +11,4 @@ tmp/
 temp/
 *.o
 clynxer/examples/*.lynxc
+clynxer/clynxer

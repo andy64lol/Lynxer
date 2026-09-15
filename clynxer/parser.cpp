@@ -3,7 +3,9 @@
 #include "error.hpp"
 #include "types.hpp"
 
+#include <algorithm>
 #include <cstdint>
+#include <functional>
 #include <unordered_set>
 
 namespace clynxer {
@@ -45,6 +47,169 @@ std::vector<std::pair<std::string, std::string>> Parser::parseParameters() {
     return parameters;
 }
 
+std::vector<Parameter> Parser::parseFunctionParameters() {
+    std::vector<Parameter> parameters;
+    std::unordered_set<std::string> names;
+    bool sawDefault = false;
+    if (!checkText(")")) {
+        while (true) {
+            std::string type = "any";
+            if (isTypeName(current()) && peekAt(1).kind == TokenKind::Identifier) {
+                type = advance().text;
+            }
+            const Token name =
+                expect(TokenKind::Identifier, "expected parameter name");
+            if (!names.insert(name.text).second) {
+                fail("duplicate parameter name '" + name.text + "'", name);
+            }
+            ExpressionPtr defaultValue;
+            if (match("=")) {
+                sawDefault = true;
+                defaultValue = parseExpression();
+            } else if (sawDefault) {
+                fail("required parameters cannot follow a parameter with a default value",
+                     name);
+            }
+            parameters.push_back(
+                {std::move(type), name.text, std::move(defaultValue)});
+            if (!match(",")) {
+                break;
+            }
+            if (checkText(")")) {
+                fail("expected parameter after ','", current());
+            }
+        }
+    }
+    expectText(")", "expected ')' after parameters");
+    return parameters;
+}
+
+bool Parser::looksLikeCodeblockSignature() const {
+    if (!checkText("{")) {
+        return false;
+    }
+    int depth = 0;
+    for (std::size_t cursor = index_; cursor < tokens_.size(); ++cursor) {
+        if (tokens_[cursor].text == "{") {
+            ++depth;
+        } else if (tokens_[cursor].text == "}") {
+            --depth;
+            if (depth == 0) {
+                return cursor + 1 < tokens_.size() &&
+                       tokens_[cursor + 1].text == "{";
+            }
+        }
+    }
+    return false;
+}
+
+std::vector<std::string> Parser::parseCodeblockSignature() {
+    expectText("{", "expected '{' before codeblock parameters");
+    std::vector<std::string> names;
+    while (!checkText("}")) {
+        names.push_back(
+            expect(TokenKind::Identifier, "expected codeblock parameter name")
+                .text);
+        if (!match(",")) {
+            break;
+        }
+        if (checkText("}")) {
+            fail("expected codeblock parameter after ','", current());
+        }
+    }
+    expectText("}", "expected '}' after codeblock parameters");
+    return names;
+}
+
+Function Parser::parseFunction(const std::string& kind, bool topLevel) {
+    const Token keyword = expectText(kind, "expected function declaration");
+    const Token name = expect(TokenKind::Identifier, "expected function name");
+    expectText("(", "expected '(' after function name");
+    Function function;
+    function.name = name.text;
+    function.isGlobal = kind == "global";
+    function.isFileFunction = kind == "func";
+    function.parameters = parseFunctionParameters();
+    if (match("-")) {
+        expectText(">", "expected '>' after '-' in return type");
+        function.returnType = parseTypeName("expected return type after '->'");
+    } else if (match(":")) {
+        function.returnType = parseTypeName("expected return type after ':'");
+    }
+    while (looksLikeCodeblockSignature()) {
+        std::vector<std::string> names = parseCodeblockSignature();
+        for (const std::string& blockName : names) {
+            if (std::find(function.codeblockParameters.begin(),
+                          function.codeblockParameters.end(),
+                          blockName) != function.codeblockParameters.end()) {
+                fail("duplicate codeblock parameter '" + blockName + "'", name);
+            }
+            if (!codeblockNames_.insert(blockName).second) {
+                fail("duplicate codeblock name '" + blockName + "'", name);
+            }
+            if (std::find_if(function.parameters.begin(),
+                             function.parameters.end(),
+                             [&](const Parameter& parameter) {
+                                 return parameter.name == blockName;
+                             }) != function.parameters.end()) {
+                fail("duplicate function parameter/codeblock name '" + blockName +
+                         "'",
+                     name);
+            }
+            function.codeblockParameters.push_back(blockName);
+        }
+    }
+    if ((name.text == "setup" || name.text == "main") &&
+        !function.codeblockParameters.empty()) {
+        fail("entry-point functions cannot declare codeblock parameters", name);
+    }
+    function.statements = parseBlock("function body");
+    (void)keyword;
+    (void)topLevel;
+    return function;
+}
+
+StatementPtr Parser::parseLocalFunction() {
+    const Token keyword = expectText("local", "expected 'local' function");
+    const Token name = expect(TokenKind::Identifier, "expected function name");
+    expectText("(", "expected '(' after function name");
+    auto function = std::make_shared<Function>();
+    function->name = name.text;
+    function->parameters = parseFunctionParameters();
+    if (match("-")) {
+        expectText(">", "expected '>' after '-' in return type");
+        function->returnType = parseTypeName("expected return type");
+    } else if (match(":")) {
+        function->returnType = parseTypeName("expected return type");
+    }
+    while (looksLikeCodeblockSignature()) {
+        std::vector<std::string> names = parseCodeblockSignature();
+        for (const std::string& blockName : names) {
+            if (std::find(function->codeblockParameters.begin(),
+                          function->codeblockParameters.end(),
+                          blockName) != function->codeblockParameters.end()) {
+                fail("duplicate codeblock parameter '" + blockName + "'", name);
+            }
+            if (!codeblockNames_.insert(blockName).second) {
+                fail("duplicate codeblock name '" + blockName + "'", name);
+            }
+            if (std::find_if(function->parameters.begin(),
+                             function->parameters.end(),
+                             [&](const Parameter& parameter) {
+                                 return parameter.name == blockName;
+                             }) != function->parameters.end()) {
+                fail("duplicate function parameter/codeblock name '" + blockName +
+                         "'",
+                     name);
+            }
+            function->codeblockParameters.push_back(blockName);
+        }
+    }
+    function->statements = parseBlock("local function body");
+    (void)keyword;
+    return std::make_unique<FunctionDeclarationStatement>(std::move(function));
+}
+
 void Parser::parseStructDefinition() {
     const Token start = expectText("struct", "expected 'struct'");
     const Token name = expect(TokenKind::Identifier, "expected struct name");
@@ -76,7 +241,8 @@ void Parser::parseClassDefinition() {
     ClassDef definition;
     definition.name = name.text;
     while (!checkText("}")) {
-        if (checkText("local")) {
+        if (checkText("local") && peekAt(1).kind == TokenKind::Identifier &&
+            peekAt(2).text == "(") {
             advance();
             const Token method =
                 expect(TokenKind::Identifier, "expected method name");
@@ -163,43 +329,97 @@ void Parser::parseEnumDefinition() {
 std::unordered_map<std::string, Function> Parser::parseProgram() {
     TypeRegistry::reset();
     std::unordered_map<std::string, Function> functions;
+    bool sawSetup = false;
+    bool sawMain = false;
+    bool sawAnyDeclaration = false;
     while (!check(TokenKind::End)) {
         if (checkText("struct")) {
+            if (sawMain) {
+                fail("declarations may not follow global main()", current());
+            }
             parseStructDefinition();
+            sawAnyDeclaration = true;
             continue;
         }
         if (checkText("class")) {
+            if (sawMain) {
+                fail("declarations may not follow global main()", current());
+            }
             parseClassDefinition();
+            sawAnyDeclaration = true;
             continue;
         }
         if (checkText("enum")) {
+            if (sawMain) {
+                fail("declarations may not follow global main()", current());
+            }
             parseEnumDefinition();
+            sawAnyDeclaration = true;
             continue;
         }
-        expectText("global", "expected 'global' function declaration");
-        const Token name = expect(TokenKind::Identifier, "expected function name");
-        if (name.text != "setup" && name.text != "main") {
-            fail("only global setup() and global main() are supported", name);
+        if (checkText("func")) {
+            const Token name = peekAt(1);
+            if (sawMain) {
+                fail("declarations may not follow global main()", current());
+            }
+            Function function = parseFunction("func", true);
+            if (functions.find(function.name) != functions.end()) {
+                fail("duplicate function '" + function.name + "'", name);
+            }
+            functions.emplace(function.name, std::move(function));
+            sawAnyDeclaration = true;
+            continue;
         }
-        expectText("(", "expected '(' after function name");
-        expectText(")", "clynxer functions do not take parameters");
-        Function function;
-        function.statements = parseBlock("function body");
-        if (functions.find(name.text) != functions.end()) {
-            fail("duplicate function '" + name.text + "'", name);
+        if (!checkText("global")) {
+            fail("expected top-level function declaration", current());
         }
-        functions.emplace(name.text, std::move(function));
+        const Token name = peekAt(1);
+        if (name.text == "setup") {
+            if (sawSetup || sawAnyDeclaration || sawMain) {
+                fail("global setup() must be the first declaration", name);
+            }
+            Function function = parseFunction("global", true);
+            if (function.name != "setup") {
+                fail("global setup() must be the first declaration", name);
+            }
+            functions.emplace(function.name, std::move(function));
+            sawSetup = true;
+            sawAnyDeclaration = true;
+            continue;
+        }
+        Function function = parseFunction("global", true);
+        if (functions.find(function.name) != functions.end()) {
+            fail("duplicate function '" + function.name + "'", name);
+        }
+        if (function.name == "main") {
+            sawMain = true;
+        } else if (sawMain) {
+            fail("declarations may not follow global main()", name);
+        }
+        functions.emplace(function.name, std::move(function));
+        sawAnyDeclaration = true;
     }
     if (functions.find("setup") == functions.end()) {
         fail("program must define global setup()", current());
-    }
-    if (functions.find("main") == functions.end()) {
-        fail("program must define global main()", current());
     }
     return functions;
 }
 
 StatementPtr Parser::parseStatement() {
+    if (checkText("local") && peekAt(1).kind == TokenKind::Identifier &&
+        peekAt(2).text == "(") {
+        return parseLocalFunction();
+    }
+    if (checkText("func")) {
+        fail("file-wide func declarations are only allowed at top level",
+             current());
+    }
+    if (checkText("global") && peekAt(1).kind == TokenKind::Identifier &&
+        peekAt(2).text == "(") {
+        Function function = parseFunction("global", false);
+        auto owned = std::make_shared<Function>(std::move(function));
+        return std::make_unique<FunctionDeclarationStatement>(std::move(owned));
+    }
     if (checkText("return")) {
         return parseReturn();
     }
@@ -253,7 +473,31 @@ StatementPtr Parser::parseStatement() {
 
 StatementPtr Parser::parseCallStatement() {
     ExpressionPtr call = parseExpression();
-    expectText(";", "expected ';' after call");
+    auto* callExpression = dynamic_cast<CallExpression*>(call.get());
+    bool hadCodeblocks = false;
+    if (callExpression != nullptr) {
+        while (checkText("{")) {
+            hadCodeblocks = true;
+            if (peekAt(1).text == "{") {
+                advance();
+                advance();
+                const std::string name =
+                    expect(TokenKind::Identifier,
+                           "expected codeblock name inside '{{...}}'")
+                        .text;
+                expectText("}", "expected '}' after codeblock name");
+                expectText("}", "expected '}' after codeblock reference");
+                callExpression->addNamedCodeblock(name);
+            } else {
+                callExpression->addInlineCodeblock(parseBlock("codeblock"));
+            }
+        }
+    }
+    if (checkText(";")) {
+        advance();
+    } else if (!hadCodeblocks) {
+        fail("expected ';' after call", current());
+    }
     return std::make_unique<ExpressionStatement>(std::move(call));
 }
 
@@ -478,10 +722,46 @@ StatementPtr Parser::parseTryCatch() {
 }
 
 StatementPtr Parser::parseExec() {
-    fail("codeblock execution syntax is reserved for Milestone 5", current());
+    const Token start = expectText("exec", "expected 'exec'");
+    expectText("(", "expected '(' after exec");
+    std::vector<ExpressionPtr> arguments;
+    if (!checkText(")")) {
+        while (true) {
+            arguments.push_back(parseExpression());
+            if (!match(",")) {
+                break;
+            }
+        }
+    }
+    expectText(")", "expected ')' after exec arguments");
+    if (checkText("{") && peekAt(1).text == "{") {
+        advance();
+        advance();
+        const std::string name =
+            expect(TokenKind::Identifier, "expected codeblock name").text;
+        expectText("}", "expected '}' after codeblock name");
+        expectText("}", "expected '}' after codeblock reference");
+        if (checkText(";")) {
+            advance();
+        }
+        return std::make_unique<ExecStatement>(
+            std::move(arguments), name,
+            std::vector<std::pair<std::string, std::string>>{}, StatementList{},
+            start.line, start.column);
+    }
+    StatementList body = parseBlock("codeblock");
+    if (checkText(";")) {
+        advance();
+    }
+    return std::make_unique<ExecStatement>(
+        std::move(arguments), "", std::vector<std::pair<std::string, std::string>>{},
+        std::move(body), start.line, start.column);
 }
 
 StatementPtr Parser::parseSimpleStatement(bool requireSemicolon) {
+    if (checkText("codeblock")) {
+        return parseCodeblockDeclaration();
+    }
     if (checkText("const")) {
         advance();
         if (checkText("vargroup")) {
@@ -511,6 +791,39 @@ StatementPtr Parser::parseSimpleStatement(bool requireSemicolon) {
     }
 
     return parseAssignmentOrExpressionStatement(requireSemicolon);
+}
+
+StatementPtr Parser::parseCodeblockDeclaration() {
+    const Token keyword = expectText("codeblock", "expected 'codeblock'");
+    const Token name = expect(TokenKind::Identifier, "expected codeblock name");
+    if (!codeblockNames_.insert(name.text).second) {
+        fail("duplicate codeblock name '" + name.text + "'", name);
+    }
+    expectText("=", "expected '=' in codeblock declaration");
+    StatementList body = parseBlock("codeblock");
+    std::vector<std::pair<std::string, std::string>> params;
+    if (match("[")) {
+        while (!checkText("]")) {
+            std::string type = "any";
+            if (isTypeName(current()) &&
+                peekAt(1).kind == TokenKind::Identifier) {
+                type = advance().text;
+            }
+            const Token param = expect(TokenKind::Identifier,
+                                       "expected codeblock parameter name");
+            params.emplace_back(std::move(type), param.text);
+            if (!match(",")) {
+                break;
+            }
+        }
+        expectText("]", "expected ']' after codeblock parameters");
+    }
+    if (checkText(";")) {
+        advance();
+    }
+    return std::make_unique<CodeblockDeclarationStatement>(
+        name.text, std::move(params), std::move(body), keyword.line,
+        keyword.column);
 }
 
 StatementPtr Parser::parseDeclaration(bool constant) {
@@ -1089,13 +1402,39 @@ ExpressionPtr Parser::parsePostfix(ExpressionPtr expression,
     while (true) {
         if (match("(")) {
             auto* variable = dynamic_cast<VariableExpression*>(expression.get());
-            if (variable == nullptr) {
+            if (variable != nullptr) {
+                std::vector<ExpressionPtr> arguments =
+                    parseArguments(variable->name());
+                expression = std::make_unique<CallExpression>(
+                    variable->name(), std::move(arguments), start.line,
+                    start.column);
+                continue;
+            }
+            std::function<bool(const Expression&, std::string&)> qualify =
+                [&](const Expression& node, std::string& result) {
+                    if (const auto* root =
+                            dynamic_cast<const VariableExpression*>(&node)) {
+                        result = root->name();
+                        return true;
+                    }
+                    const auto* access =
+                        dynamic_cast<const DotAccessExpression*>(&node);
+                    if (access == nullptr || !qualify(access->object(), result)) {
+                        return false;
+                    }
+                    result += "." + access->fieldName();
+                    return true;
+                };
+            std::string qualified;
+            if (!qualify(*expression, qualified) ||
+                (qualified.rfind("global.", 0) != 0 &&
+                 qualified.rfind("local.", 0) != 0)) {
                 fail("only named functions can be called directly", current());
             }
-            std::vector<ExpressionPtr> arguments = parseArguments(
-                variable->name());
+            std::vector<ExpressionPtr> arguments =
+                parseArguments(qualified);
             expression = std::make_unique<CallExpression>(
-                variable->name(), std::move(arguments), start.line,
+                std::move(qualified), std::move(arguments), start.line,
                 start.column);
             continue;
         }
@@ -1105,9 +1444,35 @@ ExpressionPtr Parser::parsePostfix(ExpressionPtr expression,
         const Token field =
             expect(TokenKind::Identifier, "expected name after '.'");
         if (match("(")) {
-            expression = std::make_unique<MethodCallExpression>(
-                std::move(expression), field.text, parseArguments(field.text),
-                start.line, start.column);
+            std::function<bool(const Expression&, std::string&)> qualify =
+                [&](const Expression& node, std::string& result) {
+                    if (const auto* root =
+                            dynamic_cast<const VariableExpression*>(&node)) {
+                        result = root->name();
+                        return true;
+                    }
+                    const auto* access =
+                        dynamic_cast<const DotAccessExpression*>(&node);
+                    if (access == nullptr || !qualify(access->object(), result)) {
+                        return false;
+                    }
+                    result += "." + access->fieldName();
+                    return true;
+                };
+            std::string qualified;
+            if (qualify(*expression, qualified) &&
+                (qualified == "global" || qualified == "local" ||
+                 qualified.rfind("global.", 0) == 0 ||
+                 qualified.rfind("local.", 0) == 0)) {
+                qualified += "." + field.text;
+                expression = std::make_unique<CallExpression>(
+                    std::move(qualified), parseArguments(field.text), start.line,
+                    start.column);
+            } else {
+                expression = std::make_unique<MethodCallExpression>(
+                    std::move(expression), field.text, parseArguments(field.text),
+                    start.line, start.column);
+            }
         } else {
             expression = std::make_unique<DotAccessExpression>(
                 std::move(expression), field.text, start.line, start.column);

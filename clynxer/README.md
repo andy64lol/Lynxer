@@ -19,6 +19,12 @@ The first slice intentionally stays small:
   `while`, and C-style `for` loops
 - word and symbolic boolean operators, bitwise operators, exponentiation,
   floor division, legacy equality warnings, and the `\e` string escape
+- file-wide `func`, named `global`, and nested `local` functions with typed
+  parameters, defaults, returns, and lexical call frames
+- caller-supplied/multiple codeblocks, stored `codeblock` values,
+  `exec(){{name}}`, and `overrideMain`
+- CLYXC compilation for Milestone 5 uses a validated source-fallback section
+  so interpreter and bytecode entry points retain identical behavior
 
 ## Build and run
 
@@ -30,4 +36,5 @@ make test
 
 This is a foundation rather than a complete port. Unsupported Lynxer language
 features fail with a source location instead of silently falling back to
-Python.
+Python; module imports and later native APIs remain outside the current
+boundary.

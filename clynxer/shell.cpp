@@ -195,17 +195,7 @@ int runProgram(const std::string& display, const std::string& source) {
         Parser parser(lexer.scan());
         auto functions = parser.parseProgram();
         Environment environment;
-        for (const std::string functionName : {"setup", "main"}) {
-            auto found = functions.find(functionName);
-            if (found == functions.end()) {
-                continue;
-            }
-            environment.setSetupInProgress(functionName == "setup");
-            for (const auto& statement : found->second.statements) {
-                statement->execute(environment);
-            }
-        }
-        environment.setSetupInProgress(false);
+        executeProgram(functions, environment);
         return 0;
     } catch (const SourceError& error) {
         std::cerr << "clynxer: " << display << ':' << error.line << ':'

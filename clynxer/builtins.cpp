@@ -1380,6 +1380,21 @@ Value builtinSuppressDeprecationWarning(const std::vector<Value>& args,
     return none();
 }
 
+Value builtinOverrideMain(const std::vector<Value>& args, Environment& env,
+                          int line, int column) {
+    if (!env.setupInProgress()) {
+        fail("overrideMain() may only be called inside global setup(){}", line,
+             column);
+    }
+    if (args.size() != 1 || !std::holds_alternative<std::string>(args[0])) {
+        fail("overrideMain() expects exactly one string argument — the name "
+             "of the global function to use as the program entry point",
+             line, column);
+    }
+    env.setMainOverride(std::get<std::string>(args[0]));
+    return none();
+}
+
 } // namespace
 
 // --- native memory ---------------------------------------------------------------
@@ -2127,6 +2142,7 @@ const std::unordered_map<std::string, Handler>& handlerTable() {
         {"foreverDelay", builtinForeverDelay},
         {"suppressForeverWarning", builtinSuppressForeverWarning},
         {"suppressDeprecationWarning", builtinSuppressDeprecationWarning},
+        {"overrideMain", builtinOverrideMain},
         {"memoryAllocate", builtinMemoryAllocate},
         {"memoryAllocateZeroed", builtinMemoryAllocateZeroed},
         {"memoryReallocate", builtinMemoryReallocate},
@@ -2174,7 +2190,7 @@ const std::unordered_set<std::string>& unsupportedTable() {
         "asyncWakeupClose", "asyncSleep",
         "soundLoad", "soundPlay", "soundLoop", "soundStop", "soundPause",
         "soundResume", "soundSetVolume", "soundIsPlaying", "soundRelease",
-        "overrideMain", "unshare",
+        "unshare",
         "varTransfer", "varTransferMutate", "varBorrow", "varBorrowMutate",
         "varSwapAll", "varSwapVal", "varEndBorrow", "borrowing", "beingBorrowed",
         "getAddress", "modifyAddressValue", "getAddressValue", "functionAddress",

@@ -5,6 +5,7 @@
 #include "lexer.hpp"
 
 #include <string>
+#include <unordered_set>
 #include <unordered_map>
 #include <vector>
 
@@ -21,6 +22,12 @@ private:
     void parseClassDefinition();
     void parseEnumDefinition();
     std::vector<std::pair<std::string, std::string>> parseParameters();
+    std::vector<Parameter> parseFunctionParameters();
+    Function parseFunction(const std::string& kind, bool topLevel);
+    StatementPtr parseLocalFunction();
+    bool looksLikeCodeblockSignature() const;
+    std::vector<std::string> parseCodeblockSignature();
+    StatementPtr parseCodeblockDeclaration();
     std::string parseTypeName(const std::string& message);
     bool isTypeName(const Token& token) const;
     ExpressionPtr parsePostfix(ExpressionPtr expression, const Token& start);
@@ -126,6 +133,7 @@ private:
     std::vector<Token> tokens_;
     std::size_t index_ = 0;
     int loopDepth_ = 0;
+    std::unordered_set<std::string> codeblockNames_;
 };
 
 } // namespace clynxer

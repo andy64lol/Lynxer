@@ -1,0 +1,20 @@
+global setup(){}
+
+global runTwice(){first}{second}{
+    exec(){{first}}
+    exec(){{second}}
+}
+
+global main(){
+    codeblock saved = {
+        println("saved");
+    };
+    global.runTwice(){
+        println("one");
+    }{
+        println("two");
+    }
+    global.runTwice(){{saved}}{
+        println("after");
+    }
+}

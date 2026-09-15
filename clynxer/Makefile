@@ -12,6 +12,8 @@ COMMENT_FIXTURE := examples/comments.lynx
 SETUP_ERROR_FIXTURE := examples/missing_setup.lynx
 MILESTONE4_FIXTURE := examples/milestone4.lynx
 MILESTONE4_PATTERN_FIXTURE := examples/milestone4_patterns.lynx
+MILESTONE5_FIXTURE := examples/milestone5.lynx
+MILESTONE5_CODEBLOCK_FIXTURE := examples/milestone5_codeblocks.lynx
 
 .PHONY: all clean test
 
@@ -177,6 +179,26 @@ expected="clynxer: $(ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 	echo "received (status $$status): $$output"; \
 	exit 1; \
 	fi
+	@output="$$(./$(TARGET) $(MILESTONE5_FIXTURE))"; \
+	expected="$$(printf '5\n7\n25')"; \
+	if [ "$$output" != "$$expected" ]; then \
+	echo "expected milestone5 output:"; printf '%s\n' "$$expected"; \
+	echo "received:"; printf '%s\n' "$$output"; exit 1; fi
+	@output="$$(./$(TARGET) $(MILESTONE5_CODEBLOCK_FIXTURE))"; \
+	expected="$$(printf 'one\ntwo\nsaved\nafter')"; \
+	if [ "$$output" != "$$expected" ]; then \
+	echo "expected milestone5 codeblock output:"; printf '%s\n' "$$expected"; \
+	echo "received:"; printf '%s\n' "$$output"; exit 1; fi
+	@for fixture in $(MILESTONE5_FIXTURE:.lynx=) $(MILESTONE5_CODEBLOCK_FIXTURE:.lynx=); do \
+	./$(TARGET) --compile --no-cache $$fixture.lynx > /dev/null; \
+	./$(TARGET) $$fixture.lynxc > .clynxer_vm.out 2>.clynxer_vm.err; \
+	./$(TARGET) $$fixture.lynx > .clynxer_direct.out 2>.clynxer_direct.err; \
+	if ! diff -q .clynxer_direct.out .clynxer_vm.out > /dev/null || \
+	   ! diff -q .clynxer_direct.err .clynxer_vm.err > /dev/null; then \
+	echo "bytecode parity failed for $$fixture"; exit 1; fi; \
+	done; \
+	rm -f .clynxer_vm.out .clynxer_vm.err .clynxer_direct.out .clynxer_direct.err \
+	$(MILESTONE5_FIXTURE:.lynx=.lynxc) $(MILESTONE5_CODEBLOCK_FIXTURE:.lynx=.lynxc)
 	@echo "clynxer smoke test passed"
 
 clean:
