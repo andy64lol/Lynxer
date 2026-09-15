@@ -5,13 +5,21 @@
 #include "compiler.hpp"
 #include "error.hpp"
 #include "ops.hpp"
+#include "parser.hpp"
 #include "types.hpp"
 
 #include <chrono>
+#include <cctype>
 #include <cstdint>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
+#include <sstream>
 #include <thread>
 #include <variant>
+#if defined(__unix__) || defined(__APPLE__)
+#include <dlfcn.h>
+#endif
 
 namespace clynxer {
 
@@ -19,6 +27,182 @@ namespace clynxer {
 // --- record/enum helpers -------------------------------------------------------
 
 namespace {
+
+std::string moduleNameFromPath(const std::string& path) {
+    std::filesystem::path name(path);
+    std::string value = name.filename().string();
+    for (const std::string& suffix : {".lynx", ".lynxc", ".so"}) {
+        if (value.size() > suffix.size() &&
+            value.compare(value.size() - suffix.size(), suffix.size(),
+                          suffix) == 0) {
+            value.resize(value.size() - suffix.size());
+            break;
+        }
+    }
+    return value;
+}
+
+struct NativeRegistration {
+    void* handle = nullptr;
+    std::unordered_map<std::string, std::pair<void*, std::string>> functions;
+    std::unordered_map<std::string, std::int64_t> constants;
+    std::unordered_map<std::string, std::string> types;
+    std::string error;
+};
+
+thread_local NativeRegistration* activeNativeRegistration = nullptr;
+
+bool validNativeName(const char* name) {
+    if (name == nullptr || *name == '\0' ||
+        !(std::isalpha(static_cast<unsigned char>(*name)) || *name == '_')) {
+        return false;
+    }
+    for (const char* cursor = name + 1; *cursor; ++cursor) {
+        if (!(std::isalnum(static_cast<unsigned char>(*cursor)) ||
+              *cursor == '_')) {
+            return false;
+        }
+    }
+    return true;
+}
+
+int nativeRegisterFunction(const char* name, const char* symbol,
+                           const char* signature) {
+#if defined(__unix__) || defined(__APPLE__)
+    if (activeNativeRegistration == nullptr || !validNativeName(name) ||
+        symbol == nullptr || signature == nullptr) {
+        return 0;
+    }
+    void* address = dlsym(activeNativeRegistration->handle, symbol);
+    if (activeNativeRegistration->functions.count(name) ||
+        activeNativeRegistration->constants.count(name) ||
+        activeNativeRegistration->types.count(name)) {
+        activeNativeRegistration->error = "duplicate native registration";
+        return 0;
+    }
+    if (address == nullptr) {
+        activeNativeRegistration->error = "registered symbol not found";
+        return 0;
+    }
+    activeNativeRegistration->functions[name] = {address, signature};
+    return 1;
+#else
+    (void)name;
+    (void)symbol;
+    (void)signature;
+    return 0;
+#endif
+}
+
+int nativeRegisterConstant(const char* name, std::int64_t value) {
+    if (activeNativeRegistration == nullptr || !validNativeName(name)) {
+        return 0;
+    }
+    activeNativeRegistration->constants[name] = value;
+    return 1;
+}
+
+int nativeRegisterType(const char* name, const char* layout) {
+    if (activeNativeRegistration == nullptr || !validNativeName(name) ||
+        layout == nullptr) {
+        return 0;
+    }
+    activeNativeRegistration->types[name] = layout;
+    return 1;
+}
+
+Value callNative(void* address, const std::string& signature,
+                 const std::vector<Value>& args, int line, int column) {
+    const std::string normalized =
+        signature.rfind("cdecl:", 0) == 0 ? signature.substr(6) : signature;
+    const auto open = normalized.find('(');
+    const auto close = normalized.rfind(')');
+    if (open == std::string::npos || close == std::string::npos) {
+        throw SourceError("invalid native function signature", line, column);
+    }
+    const std::string resultType = normalized.substr(0, open);
+    const std::string params = normalized.substr(open + 1, close - open - 1);
+    std::vector<std::string> types;
+    std::size_t start = 0;
+    while (start < params.size()) {
+        const auto comma = params.find(',', start);
+        types.push_back(params.substr(start, comma == std::string::npos
+                                             ? comma : comma - start));
+        start = comma == std::string::npos ? params.size() : comma + 1;
+    }
+    if (types.size() != args.size() || types.size() > 2) {
+        throw SourceError(
+            "native call supports matching signatures with at most two arguments",
+            line, column);
+    }
+    if (types.empty() && resultType == "int64") {
+        return static_cast<std::int64_t>(
+            reinterpret_cast<std::int64_t (*)()>(address)());
+    }
+    if (types.size() == 2 && types[0] == "int64" && types[1] == "int64" &&
+        resultType == "int64") {
+        return static_cast<std::int64_t>(
+            reinterpret_cast<std::int64_t (*)(std::int64_t, std::int64_t)>(
+                address)(std::get<std::int64_t>(args[0]),
+                         std::get<std::int64_t>(args[1])));
+    }
+    if (types.size() == 1 && types[0] == "float64" &&
+        resultType == "float64") {
+        return reinterpret_cast<double (*)(double)>(address)(
+            asNumber(args[0], line, column));
+    }
+    throw SourceError("unsupported native signature '" + signature + "'",
+                      line, column);
+}
+
+std::string findSourceModule(const Environment& environment,
+                             const std::string& requested) {
+    const std::filesystem::path input(requested);
+    std::vector<std::filesystem::path> candidates;
+    if (input.has_extension()) {
+        candidates.push_back(input);
+    } else {
+        candidates.push_back(input.string() + ".lynx");
+        candidates.push_back(input.string() + ".lynxc");
+    }
+
+    if (!environment.sourceDirectory().empty()) {
+        for (const auto& candidate : candidates) {
+            if (std::filesystem::exists(candidate)) {
+                return candidate.string();
+            }
+        }
+        for (const auto& candidate : candidates) {
+            const auto path =
+                std::filesystem::path(environment.sourceDirectory()) / candidate;
+            if (std::filesystem::exists(path)) {
+                return path.string();
+            }
+        }
+    }
+    for (const auto& candidate : candidates) {
+        if (std::filesystem::exists(candidate)) {
+            return candidate.string();
+        }
+    }
+    const auto stdlib = std::filesystem::path("stdlib");
+    for (const auto& candidate : candidates) {
+        const auto path = stdlib / candidate.filename();
+        if (std::filesystem::exists(path)) {
+            return path.string();
+        }
+    }
+    for (const auto& root : {std::filesystem::path("clynxer/stdlib"),
+                             std::filesystem::path("../clynxer/stdlib")}) {
+        for (const auto& candidate : candidates) {
+            const auto path = root / candidate.filename();
+            if (std::filesystem::exists(path)) {
+                return path.string();
+            }
+        }
+    }
+    return "";
+}
 
 RecordField* findRecordField(RecordValue& record, const std::string& name) {
     for (auto& field : record.fields) {
@@ -284,6 +468,11 @@ Value TypeCoerceExpression::evaluate(Environment& environment) const {
 }
 
 Value DotAccessExpression::evaluate(Environment& environment) const {
+    if (const auto* global =
+            dynamic_cast<const VariableExpression*>(object_.get());
+        global != nullptr && global->name() == "global") {
+        return environment.get(field_, line_, column_);
+    }
     // Enum namespace: identifier names a declared enum; the field is a
     // variant constructed without a payload.
     if (const auto* variable = dynamic_cast<const VariableExpression*>(object_.get())) {
@@ -1355,6 +1544,190 @@ void executeProgram(const std::unordered_map<std::string, Function>& functions,
                           0, 0);
     }
     invokeFunction(entry->second, {}, {}, environment, 0, 0);
+}
+
+void ImportStatement::execute(Environment& environment) const {
+    const std::string module = moduleNameFromPath(path_);
+    const std::string namespaceName = alias_.empty() ? module : alias_;
+    if (module.empty()) {
+        throw SourceError("module path has no name", line_, column_);
+    }
+    if (environment.hasImportedModule(module)) {
+        if (!alias_.empty()) {
+            const auto existing = environment.moduleNamespace(module);
+            if (existing != nullptr) {
+                environment.registerModuleNamespace(alias_, existing);
+                environment.aliasModuleFunctions(module, alias_);
+            }
+        }
+        return;
+    }
+    if (path_.size() >= 3 &&
+        path_.compare(path_.size() - 3, 3, ".so") == 0) {
+#if defined(__unix__) || defined(__APPLE__)
+        const std::string nativePath =
+            findSourceModule(environment, path_).empty()
+                ? path_
+                : findSourceModule(environment, path_);
+        const std::string loadPath =
+            std::filesystem::path(nativePath).is_relative()
+                ? (std::filesystem::current_path() /
+                   std::filesystem::path(nativePath))
+                      .string()
+                : nativePath;
+        void* handle = dlopen(loadPath.c_str(), RTLD_NOW | RTLD_LOCAL);
+        if (handle == nullptr) {
+            throw SourceError("could not load native module '" + path_ + "'",
+                              line_, column_);
+        }
+        auto initializer =
+            reinterpret_cast<int (*)(int (*)(const char*, const char*,
+                                             const char*),
+                                     int (*)(const char*, std::int64_t),
+                                     int (*)(const char*, const char*))>(
+                dlsym(handle, "lynxer_module_init_v1"));
+        if (initializer == nullptr) {
+            dlclose(handle);
+            throw SourceError("native module lifecycle failure: missing "
+                              "lynxer_module_init_v1 entry point",
+                              line_, column_);
+        }
+        NativeRegistration registration;
+        registration.handle = handle;
+        activeNativeRegistration = &registration;
+        const int status = initializer(nativeRegisterFunction,
+                                        nativeRegisterConstant,
+                                        nativeRegisterType);
+        activeNativeRegistration = nullptr;
+        if (status != 0 || !registration.error.empty()) {
+            const std::string detail = registration.error.empty()
+                                            ? "initializer returned non-zero"
+                                            : registration.error;
+            dlclose(handle);
+            throw SourceError("native module lifecycle failure: " + detail,
+                              line_, column_);
+        }
+        environment.markImportedModule(module);
+        environment.retainNativeModule(
+            std::shared_ptr<void>(handle, [](void* value) { dlclose(value); }));
+        auto namespaceValue = std::make_shared<RecordValue>();
+        namespaceValue->typeName = "module";
+        namespaceValue->displayName = namespaceName;
+        namespaceValue->kind = RecordKind::VarGroup;
+        for (const auto& entry : registration.constants) {
+            namespaceValue->fields.push_back(
+                RecordField{"int", entry.first, entry.second, true});
+        }
+        for (const auto& entry : registration.types) {
+            namespaceValue->fields.push_back(
+                RecordField{"str", entry.first, entry.second, true});
+        }
+        environment.registerModuleNamespace(namespaceName, namespaceValue);
+        for (const auto& entry : registration.functions) {
+            environment.registerModuleFunction(
+                namespaceName + "." + entry.first,
+                [address = entry.second.first, signature = entry.second.second](
+                    const std::string&, const std::vector<Value>& args,
+                    const std::vector<std::shared_ptr<CodeblockValue>>&,
+                    Environment&, int line, int column) {
+                    return callNative(address, signature, args, line, column);
+                });
+        }
+        return;
+#else
+        throw SourceError("native modules are only supported on POSIX hosts",
+                          line_, column_);
+#endif
+    }
+    const std::string resolved = findSourceModule(environment, path_);
+    if (resolved.empty()) {
+        throw SourceError("module '" + path_ + "' was not found", line_, column_);
+    }
+    std::ifstream input(resolved);
+    std::ostringstream content;
+    content << input.rdbuf();
+    const std::string source = content.str();
+    Lexer lexer(source, resolved);
+    Parser parser(lexer.scan());
+    auto functions = std::make_shared<std::unordered_map<std::string, Function>>(
+        parser.parseProgram());
+
+    auto moduleEnvironment = std::make_shared<Environment>();
+    moduleEnvironment->setSourceDirectory(
+        std::filesystem::path(resolved).parent_path().string());
+    for (const auto& entry : *functions) {
+        moduleEnvironment->registerFunction(
+            entry.first,
+            std::shared_ptr<void>(const_cast<Function*>(&entry.second),
+                                  [](void*) {}));
+    }
+    moduleEnvironment->setUserFunctionHandler(
+        [functions](const std::string& requested,
+                     const std::vector<Value>& args,
+                     const std::vector<std::shared_ptr<CodeblockValue>>& blocks,
+                     Environment& env, int line, int column) -> Value {
+            const auto found = functions->find(requested);
+            if (found != functions->end()) {
+                return invokeFunction(found->second, args, blocks, env, line,
+                                      column);
+            }
+            return callBuiltin(requested, args, env, line, column);
+        });
+    environment.markImportedModule(module);
+    const auto setup = functions->find("setup");
+    if (setup != functions->end()) {
+        moduleEnvironment->setSetupInProgress(true);
+        try {
+            for (const auto& parameter : setup->second.parameters) {
+                if (parameter.defaultValue == nullptr) {
+                    throw SourceError(
+                        "global setup() parameters must have defaults", line_,
+                        column_);
+                }
+                moduleEnvironment->setVariableRawCurrent(
+                    parameter.name,
+                    Variable{parameter.type,
+                             Environment::convertForType(
+                                 parameter.defaultValue->evaluate(
+                                     *moduleEnvironment),
+                                 parameter.type, line_, column_),
+                             false});
+            }
+            executeStatements(setup->second.statements, *moduleEnvironment);
+        } catch (...) {
+            moduleEnvironment->setSetupInProgress(false);
+            throw;
+        }
+        moduleEnvironment->setSetupInProgress(false);
+    }
+    auto namespaceValue = std::make_shared<RecordValue>();
+    namespaceValue->typeName = "module";
+    namespaceValue->displayName = namespaceName;
+    namespaceValue->kind = RecordKind::VarGroup;
+    for (const auto& variable : moduleEnvironment->currentVariables()) {
+        namespaceValue->fields.push_back(
+            RecordField{variable.second.type, variable.first,
+                        variable.second.value, variable.second.constant});
+    }
+    environment.registerModuleNamespace(namespaceName, namespaceValue);
+    for (const auto& entry : *functions) {
+        if (entry.first == "setup" || entry.first == "main") {
+            continue;
+        }
+        environment.registerModuleFunction(
+            namespaceName + "." + entry.first,
+            [moduleEnvironment, functions, functionName = entry.first](
+                const std::string&, const std::vector<Value>& args,
+                const std::vector<std::shared_ptr<CodeblockValue>>& blocks,
+                Environment&, int line, int column) {
+                return invokeFunction(functions->at(functionName), args, blocks,
+                                      *moduleEnvironment, line, column);
+            });
+    }
+}
+
+void ImportStatement::compile(ProgramEmitter& emitter) const {
+    unsupportedRuntimeModelCompile(emitter, "module imports", line_, column_);
 }
 
 void executeStatements(const StatementList& statements,

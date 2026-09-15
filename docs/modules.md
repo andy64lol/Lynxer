@@ -131,6 +131,8 @@ global main(){
 | Module | Import | What it provides |
 |--------|--------|-----------------|
 | `math` | `import("math")` | Arithmetic, trig, rounding, random numbers |
+| `colorlib` | `import("colorlib")` | ANSI terminal color and text styles |
+| `typing` | `import("typing")` | Package-free value conversions and integer checks |
 | `typing` | `import("typing")` | Type conversion, string manipulation, list utilities |
 | `fileIO` | `import("fileIO")` | Read, write, append, copy, move, delete files |
 | `shell` | `import("shell")` | Run external shell commands, capture output |

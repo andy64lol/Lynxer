@@ -1,0 +1,24 @@
+global setup(){}
+
+global toStr(any value) -> str { return strOf(value); }
+global toInt(any value) -> int { return intOf(value); }
+global toFloat(any value) -> float { return floatOf(value); }
+global toBool(any value) -> bool { return value != 0; }
+global isNumeric(any value) -> bool {
+    return returnType(value) == "int" or returnType(value) == "float";
+}
+global lenStr(str value) -> int { return returnLength(value); }
+global isInt8(any value) -> bool {
+    return returnType(value) == "int" and value >= -128 and value <= 127;
+}
+global isInt16(any value) -> bool {
+    return returnType(value) == "int" and value >= -32768 and value <= 32767;
+}
+global isInt32(any value) -> bool {
+    return returnType(value) == "int" and value >= -2147483648 and value <= 2147483647;
+}
+global isByte(any value) -> bool {
+    return returnType(value) == "int" and value >= 0 and value <= 255;
+}
+
+global main(){}

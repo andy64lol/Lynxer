@@ -1,4 +1,4 @@
-"""Abstract-syntax-tree nodes produced by the Lynxer parser."""
+"""Abstract-syntax-tree nodes produced by the Lynxer parser."""  # noqa: N999
 
 from __future__ import annotations
 
@@ -492,4 +492,3 @@ class StructDefNode:
         self.is_native = is_native
         self.pos_start = pos_start
         self.pos_end = pos_end
-

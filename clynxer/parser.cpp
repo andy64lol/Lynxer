@@ -406,10 +406,17 @@ std::unordered_map<std::string, Function> Parser::parseProgram() {
 }
 
 StatementPtr Parser::parseStatement() {
+    if (checkText("import")) {
+        return parseImport();
+    }
+    if (checkText("importAs")) {
+        return parseImportAs();
+    }
     if (checkText("local") && peekAt(1).kind == TokenKind::Identifier &&
         peekAt(2).text == "(") {
         return parseLocalFunction();
     }
+
     if (checkText("func")) {
         fail("file-wide func declarations are only allowed at top level",
              current());
@@ -469,6 +476,28 @@ StatementPtr Parser::parseStatement() {
         return parseCallStatement();
     }
     return parseSimpleStatement(true);
+}
+
+StatementPtr Parser::parseImport() {
+    const Token keyword = expectText("import", "expected 'import'");
+    expectText("(", "expected '(' after import");
+    const Token path = expect(TokenKind::String, "expected module path string");
+    expectText(")", "expected ')' after module path");
+    expectText(";", "expected ';' after import");
+    return std::make_unique<ImportStatement>(path.text, "", keyword.line,
+                                              keyword.column);
+}
+
+StatementPtr Parser::parseImportAs() {
+    const Token keyword = expectText("importAs", "expected 'importAs'");
+    expectText("(", "expected '(' after importAs");
+    const Token path = expect(TokenKind::String, "expected module path string");
+    expectText(",", "expected ',' after module path");
+    const Token alias = expect(TokenKind::String, "expected module alias string");
+    expectText(")", "expected ')' after importAs arguments");
+    expectText(";", "expected ';' after importAs");
+    return std::make_unique<ImportStatement>(path.text, alias.text, keyword.line,
+                                              keyword.column);
 }
 
 StatementPtr Parser::parseCallStatement() {

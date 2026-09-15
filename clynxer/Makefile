@@ -14,6 +14,7 @@ MILESTONE4_FIXTURE := examples/milestone4.lynx
 MILESTONE4_PATTERN_FIXTURE := examples/milestone4_patterns.lynx
 MILESTONE5_FIXTURE := examples/milestone5.lynx
 MILESTONE5_CODEBLOCK_FIXTURE := examples/milestone5_codeblocks.lynx
+MILESTONE6_FIXTURE := examples/milestone6_module.lynx
 
 .PHONY: all clean test
 
@@ -188,6 +189,11 @@ expected="clynxer: $(ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 	expected="$$(printf 'one\ntwo\nsaved\nafter')"; \
 	if [ "$$output" != "$$expected" ]; then \
 	echo "expected milestone5 codeblock output:"; printf '%s\n' "$$expected"; \
+	echo "received:"; printf '%s\n' "$$output"; exit 1; fi
+	@output="$$(./$(TARGET) $(MILESTONE6_FIXTURE))"; \
+	expected="$$(printf '6\n42\n6\n6\n7\n\033[31mok\033[0m')"; \
+	if [ "$$output" != "$$expected" ]; then \
+	echo "expected milestone6 output:"; printf '%s\n' "$$expected"; \
 	echo "received:"; printf '%s\n' "$$output"; exit 1; fi
 	@for fixture in $(MILESTONE5_FIXTURE:.lynx=) $(MILESTONE5_CODEBLOCK_FIXTURE:.lynx=); do \
 	./$(TARGET) --compile --no-cache $$fixture.lynx > /dev/null; \

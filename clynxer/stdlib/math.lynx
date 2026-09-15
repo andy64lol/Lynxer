@@ -1,0 +1,67 @@
+global setup(){}
+
+global abs(int value) -> int {
+    if(value < 0){ return value * -1; }
+    return value;
+}
+
+global max(int left, int right) -> int {
+    if(left > right){ return left; }
+    return right;
+}
+
+global min(int left, int right) -> int {
+    if(left < right){ return left; }
+    return right;
+}
+
+global clamp(int value, int low, int high) -> int {
+    if(value < low){ return low; }
+    if(value > high){ return high; }
+    return value;
+}
+
+global pow(int base, int exponent) -> int {
+    int result = 1;
+    int index = 0;
+    while(index < exponent){
+        result = result * base;
+        index = index + 1;
+    }
+    return result;
+}
+
+global sign(int value) -> int {
+    if(value < 0){ return -1; }
+    if(value > 0){ return 1; }
+    return 0;
+}
+
+global isEven(int value) -> bool { return value % 2 == 0; }
+global isOdd(int value) -> bool { return value % 2 != 0; }
+
+global factorial(int value) -> int {
+    int result = 1;
+    int index = 2;
+    while(index <= value){
+        result = result * index;
+        index = index + 1;
+    }
+    return result;
+}
+
+global gcd(int left, int right) -> int {
+    while(right != 0){
+        int remainder = left % right;
+        left = right;
+        right = remainder;
+    }
+    return abs(left);
+}
+
+global lcm(int left, int right) -> int {
+    if(left == 0 or right == 0){ return 0; }
+    return abs((left / gcd(left, right)) * right);
+}
+
+global main(){}

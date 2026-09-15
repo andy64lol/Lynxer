@@ -1,0 +1,22 @@
+global setup(){}
+
+global ansi(str text, str code) -> str { return "\e[" + code + "m" + text + "\e[0m"; }
+global reset() -> str { return "\e[0m"; }
+global black(str text) -> str { return ansi(text, "30"); }
+global red(str text) -> str { return ansi(text, "31"); }
+global green(str text) -> str { return ansi(text, "32"); }
+global yellow(str text) -> str { return ansi(text, "33"); }
+global blue(str text) -> str { return ansi(text, "34"); }
+global magenta(str text) -> str { return ansi(text, "35"); }
+global cyan(str text) -> str { return ansi(text, "36"); }
+global white(str text) -> str { return ansi(text, "37"); }
+global bold(str text) -> str { return ansi(text, "1"); }
+global dim(str text) -> str { return ansi(text, "2"); }
+global italic(str text) -> str { return ansi(text, "3"); }
+global underline(str text) -> str { return ansi(text, "4"); }
+global inverse(str text) -> str { return ansi(text, "7"); }
+global strike(str text) -> str { return ansi(text, "9"); }
+global clearScreen() -> str { return "\e[2J\e[H"; }
+global cursorHome() -> str { return "\e[H"; }
+
+global main(){}

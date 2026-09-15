@@ -24,18 +24,20 @@ use the existing `cdecl:` native-call grammar.
 
 Example:
 
-```c
-#include <stdint.h>
+```cpp
+#include <cstdint>
 
-typedef int (*register_function)(const char *, const char *, const char *);
-typedef int (*register_constant)(const char *, int64_t);
-typedef int (*register_type)(const char *, const char *);
+using RegisterFunction = int (*)(const char *, const char *, const char *);
+using RegisterConstant = int (*)(const char *, std::int64_t);
+using RegisterType = int (*)(const char *, const char *);
 
-static int add(int64_t a, int64_t b) { return a + b; }
+extern "C" std::int64_t add(std::int64_t left, std::int64_t right) {
+    return left + right;
+}
 
-int lynxer_module_init_v1(register_function function,
-                          register_constant constant,
-                          register_type type) {
+extern "C" int lynxer_module_init_v1(RegisterFunction function,
+                                      RegisterConstant constant,
+                                      RegisterType type) {
     if (!function("add", "add", "cdecl:int64(int64,int64)")) return 1;
     if (!constant("version", 1)) return 2;
     if (!type("pair", "int64 left, int64 right")) return 3;

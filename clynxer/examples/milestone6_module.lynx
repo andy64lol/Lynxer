@@ -1,0 +1,17 @@
+global setup(){
+    import("milestone6_lib.lynx");
+    import("milestone6_lib.lynx");
+    importAs("milestone6_lib.lynx", "lib");
+    import("math");
+    import("colorlib");
+    import("typing");
+}
+
+global main(){
+    println(global.milestone6_lib.VERSION);
+    println(global.milestone6_lib.double(21));
+    println(global.lib.double(3));
+    println(global.math.gcd(84, 30));
+    println(global.typing.toStr(7));
+    println(global.colorlib.red("ok"));
+}

@@ -86,14 +86,17 @@ runtime dependency and its internals are not copied into Clynxer.
 - [x] Add caller-supplied code blocks and multiple code blocks.
 - [x] Add named `codeblock` values and `exec(){{name}}`.
 - [x] Implement the `overrideMain` entry-point override.
+- [x] Implement classes and class methods.
 
 ## Milestone 6 — module system and standard library
 
-- [ ] Implement `import` and `importAs` with nested/path-based imports.
-- [ ] Support calling module functions and accessing module globals.
+- [x] Implement `import` and `importAs` with nested/path-based imports.
+- [x] Support calling module functions and accessing module globals.
 - [ ] Serve `--list-stdlibs` from Clynxer's own stdlib directory.
 - [ ] Port standard-library modules one small module at a time (29 modules in
-  `lynxer/stdlib/`).
+  `lynxer/stdlib/`, not every module is possible, so implement what can be implemented).
+- [x] Keep optional `-> type` return annotations available while stdlibs use
+  the shared registration ABI.
 
 ## Milestone 7 — native APIs
 

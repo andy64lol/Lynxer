@@ -7,12 +7,10 @@ import sys
 import textwrap
 from typing import Any
 
-from . import error as _error
 from .error import (
     begin_run,
     end_parse,
     finish_run,
-    _flush_deprecation_warnings,
     warn_forever_no_break,
     warn_legacy_syntax_position,
     warning_message,
@@ -51,7 +49,6 @@ from .lexer import (
     Lexer,
     Position,
 )
-from .runtime_state import RuntimeContext, new_runtime_context
 from .lynxerAst import (
     DefaultNode,
     DoWhileNode,
@@ -69,6 +66,7 @@ from .lynxerAst import (
     uses_shared_parameters,
 )
 from .parser import Parser
+from .runtime_state import RuntimeContext, new_runtime_context
 from .values import (
     AsyncFunction,
     BoundMethod,
@@ -3340,4 +3338,3 @@ def run_file(
         return _interpreter_error(fn, text, f"<import:{os.path.basename(fn)}>", exc)
 
     return None
-

@@ -195,6 +195,10 @@ int runProgram(const std::string& display, const std::string& source) {
         Parser parser(lexer.scan());
         auto functions = parser.parseProgram();
         Environment environment;
+        const std::size_t slash = display.find_last_of('/');
+        if (slash != std::string::npos) {
+            environment.setSourceDirectory(display.substr(0, slash));
+        }
         executeProgram(functions, environment);
         return 0;
     } catch (const SourceError& error) {

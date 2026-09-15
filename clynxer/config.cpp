@@ -1,7 +1,6 @@
 #include "config.hpp"
 
 #include <fstream>
-#include <sstream>
 
 #ifdef __linux__
 #include <limits.h>

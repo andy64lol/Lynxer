@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 from .error import (
-    Error,
     InvalidSyntaxError,
     warn_legacy_syntax,
     warn_legacy_syntax_position,
@@ -4722,4 +4719,3 @@ class Parser:
         pos_end = self.current_tok.pos_end.copy()
         res.register_advancement(); self.advance()  # consume ')'
         return res.success(AsyncDotCallNode(name_tok, arg_nodes, pos_start, pos_end))
-

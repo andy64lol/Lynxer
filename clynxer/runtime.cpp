@@ -5,8 +5,6 @@
 
 #include <charconv>
 #include <cmath>
-#include <iomanip>
-#include <sstream>
 
 namespace clynxer {
 
@@ -87,6 +85,10 @@ Variable Environment::variableSnapshot(const std::string& name) const {
     throw std::out_of_range("unknown variable");
 }
 
+std::unordered_map<std::string, Variable> Environment::currentVariables() const {
+    return scopes_.back();
+}
+
 void Environment::setVariableRaw(const std::string& name,
                                  const Variable& variable) {
     for (auto scope = scopes_.rbegin(); scope != scopes_.rend(); ++scope) {
@@ -136,6 +138,15 @@ Value Environment::callUserFunction(
     const std::string& name, const std::vector<Value>& arguments,
     const std::vector<std::shared_ptr<CodeblockValue>>& codeblocks, int line,
     int column) {
+    std::string qualified = name;
+    if (qualified.rfind("global.", 0) == 0) {
+        qualified.erase(0, 7);
+    }
+    const auto module = moduleFunctions_.find(qualified);
+    if (module != moduleFunctions_.end()) {
+        return module->second(qualified, arguments, codeblocks, *this, line,
+                              column);
+    }
     if (!userFunctionHandler_) {
         throw SourceError("unknown function '" + name + "'", line, column);
     }
@@ -152,6 +163,58 @@ const std::string& Environment::mainOverride() const { return mainOverride_; }
 void Environment::setSetupInProgress(bool value) { setupInProgress_ = value; }
 
 bool Environment::setupInProgress() const { return setupInProgress_; }
+
+void Environment::setSourceDirectory(std::string directory) {
+    sourceDirectory_ = std::move(directory);
+}
+
+const std::string& Environment::sourceDirectory() const {
+    return sourceDirectory_;
+}
+
+void Environment::registerModuleFunction(const std::string& qualifiedName,
+                                         ModuleFunction function) {
+    moduleFunctions_[qualifiedName] = std::move(function);
+}
+
+void Environment::aliasModuleFunctions(const std::string& from,
+                                       const std::string& to) {
+    const std::string prefix = from + ".";
+    std::vector<std::pair<std::string, ModuleFunction>> aliases;
+    for (const auto& entry : moduleFunctions_) {
+        if (entry.first.rfind(prefix, 0) == 0) {
+            aliases.emplace_back(to + entry.first.substr(from.size()),
+                                 entry.second);
+        }
+    }
+    for (auto& alias : aliases) {
+        moduleFunctions_[std::move(alias.first)] = std::move(alias.second);
+    }
+}
+
+void Environment::retainNativeModule(std::shared_ptr<void> handle) {
+    nativeModules_.push_back(std::move(handle));
+}
+
+bool Environment::hasImportedModule(const std::string& name) const {
+    return importedModules_.find(name) != importedModules_.end();
+}
+
+void Environment::markImportedModule(const std::string& name) {
+    importedModules_.insert(name);
+}
+
+void Environment::registerModuleNamespace(
+    const std::string& name, std::shared_ptr<RecordValue> namespaceValue) {
+    modules_[name] = std::move(namespaceValue);
+    setVariableRawCurrent(name, Variable{"module", modules_[name], true});
+}
+
+std::shared_ptr<RecordValue> Environment::moduleNamespace(
+    const std::string& name) const {
+    const auto found = modules_.find(name);
+    return found == modules_.end() ? nullptr : found->second;
+}
 
 void Environment::setForeverWarningSuppressed() {
     foreverWarningSuppressed_ = true;

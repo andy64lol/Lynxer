@@ -564,6 +564,22 @@ private:
     ExpressionPtr expression_;
 };
 
+class ImportStatement final : public Statement {
+public:
+    ImportStatement(std::string path, std::string alias, int line, int column)
+        : path_(std::move(path)), alias_(std::move(alias)), line_(line),
+          column_(column) {}
+
+    void execute(Environment& environment) const override;
+    void compile(ProgramEmitter& emitter) const override;
+
+private:
+    std::string path_;
+    std::string alias_;
+    int line_;
+    int column_;
+};
+
 void executeStatements(const StatementList& statements, Environment& environment);
 
 class IfStatement final : public Statement {

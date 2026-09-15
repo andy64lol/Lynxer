@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <variant>
 #include <vector>
 
@@ -92,6 +93,7 @@ public:
         const std::string&, const std::vector<Value>&,
         const std::vector<std::shared_ptr<CodeblockValue>>&, Environment&, int,
         int)>;
+    using ModuleFunction = UserFunctionHandler;
 
     Environment();
 
@@ -111,6 +113,7 @@ public:
     bool hasVariable(const std::string& name) const;
 
     Variable variableSnapshot(const std::string& name) const;
+    std::unordered_map<std::string, Variable> currentVariables() const;
 
     void setVariableRaw(const std::string& name, const Variable& variable);
 
@@ -139,6 +142,19 @@ public:
 
     bool setupInProgress() const;
 
+    void setSourceDirectory(std::string directory);
+    const std::string& sourceDirectory() const;
+    void registerModuleFunction(const std::string& qualifiedName,
+                                ModuleFunction function);
+    void aliasModuleFunctions(const std::string& from,
+                              const std::string& to);
+    void retainNativeModule(std::shared_ptr<void> handle);
+    bool hasImportedModule(const std::string& name) const;
+    void markImportedModule(const std::string& name);
+    void registerModuleNamespace(const std::string& name,
+                                 std::shared_ptr<RecordValue> namespaceValue);
+    std::shared_ptr<RecordValue> moduleNamespace(const std::string& name) const;
+
     void setForeverWarningSuppressed();
 
     bool foreverWarningSuppressed() const;
@@ -162,6 +178,11 @@ private:
     std::vector<std::unordered_map<std::string, std::shared_ptr<void>>>
         functionScopes_;
     UserFunctionHandler userFunctionHandler_;
+    std::unordered_map<std::string, ModuleFunction> moduleFunctions_;
+    std::unordered_map<std::string, std::shared_ptr<RecordValue>> modules_;
+    std::unordered_set<std::string> importedModules_;
+    std::vector<std::shared_ptr<void>> nativeModules_;
+    std::string sourceDirectory_;
     std::string mainOverride_;
     bool setupInProgress_ = false;
     bool foreverWarningSuppressed_ = false;

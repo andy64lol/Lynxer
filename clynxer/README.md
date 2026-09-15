@@ -23,6 +23,9 @@ The first slice intentionally stays small:
   parameters, defaults, returns, and lexical call frames
 - caller-supplied/multiple codeblocks, stored `codeblock` values,
   `exec(){{name}}`, and `overrideMain`
+- source modules loaded with `import()`/`importAs()`, exposed through
+  `global.<module>.<name>`, and optional `-> type` return annotations
+- bundled package-free stdlibs: `math`, `colorlib`, and `typing`
 - CLYXC compilation for Milestone 5 uses a validated source-fallback section
   so interpreter and bytecode entry points retain identical behavior
 
@@ -36,5 +39,5 @@ make test
 
 This is a foundation rather than a complete port. Unsupported Lynxer language
 features fail with a source location instead of silently falling back to
-Python; module imports and later native APIs remain outside the current
-boundary.
+Python. Native `.so` modules remain governed by the shared registration ABI
+documented in `../docs/native-modules.md`; they are not reinterpreted as source.

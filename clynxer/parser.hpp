@@ -45,6 +45,8 @@ private:
     StatementPtr parseStatement();
 
     StatementPtr parseCallStatement();
+    StatementPtr parseImport();
+    StatementPtr parseImportAs();
 
     ExpressionPtr parseCallExpression();
 

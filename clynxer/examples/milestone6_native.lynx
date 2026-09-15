@@ -1,0 +1,2 @@
+global setup(){ import("milestone6_native.so"); }
+global main(){ println(global.milestone6_native.version); println(global.milestone6_native.add(2, 4)); }

@@ -16,9 +16,6 @@ from .lynxerAst import (
     VarAssignNode,
 )
 from .type_registry import (
-    FLOAT_RANGES,
-    INTEGER_RANGES,
-    NUMERIC_TYPES,
     type_matches,
     value_type_name,
 )
@@ -2811,4 +2808,3 @@ class SymbolTable:
 
     def remove(self, name):
         del self.symbols[name]
-
