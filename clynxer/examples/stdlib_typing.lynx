@@ -1,0 +1,24 @@
+////
+Fixture for the typing stdlib (pure Lynxer, no shared library).
+////
+global setup(){ import("typing"); }
+
+global main(){
+    println(global.typing.typeOf(1));
+    println(global.typing.typeOf(1.5));
+    println(global.typing.typeOf("x"));
+    println(global.typing.typeOf(true));
+    println(global.typing.toStr(42));
+    println(global.typing.toInt("42"));
+    println(global.typing.toFloat("1.5"));
+    println(global.typing.toBool(1));
+    println(global.typing.isNumeric(3));
+    println(global.typing.isNumeric("3"));
+    println(global.typing.lenStr("abcd"));
+    println(global.typing.isByte(200));
+    println(global.typing.isByte(300));
+    println(global.typing.isInt8(200));
+    println(global.typing.isInt8(-5));
+    println(global.typing.isInt16(40000));
+    println(global.typing.isInt32(2147483647));
+}

@@ -1,0 +1,36 @@
+////
+Fixture for the re stdlib. Interpreted only (module imports are not
+bytecode-compilable).
+////
+global setup(){ import("re"); }
+
+global main(){
+    println(global.re.test("\\d+", "abc123"));
+    println(global.re.test("^\\d+$", "abc"));
+    println(global.re.match("\\d+", "42abc"));
+    println(global.re.matchFull("\\d+", "42abc"));
+    println(global.re.search("\\d+", "abc123def"));
+    println(global.re.findall("\\d+", "a1 b22 c333"));
+    println(global.re.count("\\d+", "a1 b22 c333"));
+    println(global.re.groups("(\\w+)@(\\w+)", "user@host"));
+    println(global.re.groupsAll("(\\w+)=(\\d+)", "x=1 y=2"));
+    println(global.re.named("(?P<user>\\w+)@(?P<host>\\w+)", "alice@example"));
+    println(global.re.sub("\\d+", "#", "a1b22"));
+    println(global.re.subN("\\d+", "#", "a1b22", 1));
+    println(global.re.subn("\\d+", "#", "a1b22"));
+    println(global.re.split("\\s+", "one  two   three"));
+    println(global.re.splitN("\\s+", "a b c d", 2));
+    println(global.re.escape("a.b+c"));
+    println(global.re.matchStart("\\d+", "ab12"));
+    println(global.re.matchEnd("\\d+", "ab12"));
+    println(global.re.findSpans("\\d+", "a12b34"));
+    println(global.re.testIgnoreCase("abc", "ABC"));
+    println(global.re.searchIgnoreCase("abc", "xABCy"));
+    println(global.re.subIgnoreCase("abc", "-", "aBc"));
+    println(global.re.findallMultiline("^\\w+", "ab\ncd"));
+    println(global.re.subMultiline("^", "> ", "a\nb"));
+    println(global.re.searchDotall("a.b", "a\nb"));
+    println(global.re.split("", "abc"));
+    println(global.re.sub("(?P<w>\\w+)", "[\\g<w>]", "hi there"));
+    println(global.re.matchFull("[a-z]+", "hello"));
+}

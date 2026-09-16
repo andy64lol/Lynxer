@@ -3,6 +3,6 @@ global setup(){
 }
 
 global main(){
-    str name = "Clynxer";
+    str name = input("What's your name? ");
     println(greeting + ", " + name + "!");
 }

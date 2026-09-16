@@ -1,0 +1,75 @@
+////
+Fixture for the path stdlib. Interpreted only (module imports are not
+bytecode-compilable). Uses a repo-local scratch directory and removes it.
+////
+global setup(){ import("path"); import("os"); import("fileIO"); }
+
+global main(){
+    println(global.path.name("/x/y.txt"));
+    println(global.path.stem("/x/y.txt"));
+    println(global.path.suffix("/x/y.txt"));
+    println(global.path.suffixes("archive.tar.gz"));
+    println(global.path.suffixes("notes.txt"));
+    println(global.path.suffixes(".bashrc"));
+    println(global.path.parent("/x/y.txt"));
+    println(global.path.anchor("/x/y"));
+    println(global.path.anchor("x/y") == "");
+    println(global.path.root("/x/y"));
+    println(global.path.drive("/x/y") == "");
+    println(global.path.isAbsolute("/x"));
+    println(global.path.isAbsolute("x"));
+    println(global.path.parts("/a/b/c"));
+    println(global.path.parts("a/b"));
+    println(global.path.join("a", "b"));
+    println(global.path.join3("a", "b", "c"));
+    println(global.path.normalize("a/./b/../c"));
+    println(global.path.match("a/b.py", "*.py"));
+    println(global.path.match("/a/b/c.py", "b/*.py"));
+    println(global.path.match("/a/b/c.py", "*.txt"));
+    println(global.path.relativeTo("/a/b/c", "/a/b"));
+    println(global.path.relativeTo("/a/b", "/x") == "");
+    println(global.path.withName("/a/b.txt", "c.md"));
+    println(global.path.withSuffix("/a/b.txt", ".md"));
+    println(global.path.withSuffix("/a/b.txt", ""));
+    println(global.path.withName("b.txt", "c.md"));
+    println(global.path.withSuffix("noext", ".txt"));
+    println(global.path.expandUser("~") == global.path.home());
+    println(returnLength(global.path.cwd()) > 0);
+    println(global.path.asUri("/tmp/a b"));
+
+    str root = ".clynxer_scratch_path";
+    if(global.os.exists(root)){ global.os.rmTree(root); }
+    println(global.path.mkdir(root));
+    println(global.path.mkdir(root));
+    println(global.path.mkdirs(root + "/sub/deep"));
+    println(global.path.isDir(root + "/sub"));
+    println(global.path.isSymlink(root + "/sub"));
+    global.fileIO.writeFile(root + "/a.txt", "alpha");
+    global.fileIO.writeFile(root + "/b.log", "beta");
+    global.fileIO.writeFile(root + "/sub/c.txt", "gamma");
+    println(global.path.iterDir(root));
+    println(global.path.glob(root, "*.txt"));
+    println(global.path.glob(root, "sub/*.txt"));
+    println(global.path.rglob(root, "*.txt"));
+    println(global.path.readText(root + "/a.txt"));
+    println(global.path.writeText(root + "/b.log", "BETA"));
+    println(global.path.appendText(root + "/b.log", "!"));
+    println(global.path.readText(root + "/b.log"));
+    println(global.path.size(root + "/a.txt"));
+    println(global.path.isFile(root + "/a.txt"));
+    println(global.path.sameFile(root + "/a.txt", root + "/a.txt"));
+    println(global.path.sameFile(root + "/a.txt", root + "/b.log"));
+    println(global.path.modifiedTime(root + "/a.txt") > 0.0);
+    println(global.path.unlink(root + "/a.txt"));
+    println(global.path.unlinkMissingOk(root + "/missing.txt"));
+    println(global.path.touch(root + "/touched.txt"));
+    println(global.path.exists(root + "/touched.txt"));
+    println(global.path.rename(root + "/touched.txt", root + "/moved.txt"));
+    println(global.path.exists(root + "/moved.txt"));
+    println(global.path.readText(root + "/missing") == "");
+    println(global.path.size(root + "/missing"));
+    println(global.path.modifiedTime(root + "/missing"));
+    println(global.path.mkdirs(root + "/sub/deep"));
+    println(global.os.rmTree(root));
+    println(global.path.exists(root));
+}

@@ -1,0 +1,38 @@
+////
+Fixture for the debug stdlib. Interpreted only (module imports are not
+bytecode-compilable). Logging helpers are omitted because they embed wall-clock
+timestamps.
+////
+global setup(){ import("debug"); }
+
+global main(){
+    println(global.debug.typeOf(42));
+    println(global.debug.typeOf(3.5));
+    println(global.debug.typeOf("text"));
+    println(global.debug.typeOf(true));
+    println(global.debug.typeOf(none));
+    println(global.debug.typeOf(seqFromTo(1, 3, 1)));
+    println(global.debug.inspect(42));
+    println(global.debug.inspect("text"));
+    global.debug.dump(7);
+    global.debug.pp(seqFromTo(1, 4, 1));
+
+    global.debug.assert(true, "should pass");
+    global.debug.assertEq("a", "a", "equal");
+    global.debug.assertNotEq("a", "b", "different");
+    global.debug.assertGt(2.0, 1.0, "greater");
+    global.debug.assertLt(1.0, 2.0, "lesser");
+    global.debug.assertContains("hello world", "lo wo", "contains");
+    println("assertions ok");
+
+    println(global.debug.stopTimer("missing"));
+    println(global.debug.elapsed("missing"));
+    println(global.debug.clock() > 0.0);
+    global.debug.startTimer("t");
+    println(global.debug.stopTimer("t") >= 0.0);
+    println(global.debug.elapsed("t"));
+
+    println(global.debug.envGet("CLYNXER_DEBUG_TEST") == "");
+    println(global.debug.envAll() != "");
+    println(global.debug.getMemory() > 0.0);
+}

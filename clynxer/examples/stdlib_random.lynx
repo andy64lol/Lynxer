@@ -1,0 +1,20 @@
+////
+Fixture for the random stdlib. Interpreted only (module imports are not
+bytecode-compilable). Seeded, so output is reproducible.
+////
+global setup(){ import("random"); }
+
+global main(){
+    global.random.seed(7);
+    println(global.random.randint(1, 6));
+    println(global.random.randrange(0, 10));
+    println(global.random.choice("abc"));
+    println(global.random.coinflip());
+    println(global.random.randBool());
+    println(global.random.uniform(0.0, 1.0));
+    println(global.random.random() < 1.0);
+    println(global.random.randint(5, 5));
+    println(global.random.choice(""));
+    global.random.seed(0);
+    println(global.random.randint(0, 100));
+}

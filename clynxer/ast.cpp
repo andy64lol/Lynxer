@@ -111,6 +111,288 @@ int nativeRegisterType(const char* name, const char* layout) {
     return 1;
 }
 
+const std::string& nativeStringArg(const std::vector<Value>& args,
+                                   std::size_t index, int line, int column) {
+    if (index >= args.size() ||
+        !std::holds_alternative<std::string>(args[index])) {
+        throw SourceError("native call expected a string argument", line, column);
+    }
+    return std::get<std::string>(args[index]);
+}
+
+std::int64_t nativeIntArg(const std::vector<Value>& args, std::size_t index,
+                          int line, int column) {
+    if (index >= args.size() ||
+        !std::holds_alternative<std::int64_t>(args[index])) {
+        throw SourceError("native call expected an integer argument", line,
+                          column);
+    }
+    return std::get<std::int64_t>(args[index]);
+}
+
+const char* nativeStringResult(const char* result) {
+    return result == nullptr ? "" : result;
+}
+
+using NativeCall = Value (*)(void*, const std::vector<Value>&, int, int);
+
+const std::unordered_map<std::string, NativeCall>& nativeCallTable() {
+    static const std::unordered_map<std::string, NativeCall> table = {
+        {"int64()",
+         [](void* address, const std::vector<Value>&, int, int) -> Value {
+             return static_cast<std::int64_t>(
+                 reinterpret_cast<std::int64_t (*)()>(address)());
+         }},
+        {"float64()",
+         [](void* address, const std::vector<Value>&, int, int) -> Value {
+             return reinterpret_cast<double (*)()>(address)();
+         }},
+        {"cstring()",
+         [](void* address, const std::vector<Value>&, int, int) -> Value {
+             return std::string(nativeStringResult(
+                 reinterpret_cast<const char* (*)()>(address)()));
+         }},
+        {"int64(int64,int64)",
+         [](void* address, const std::vector<Value>& args, int line,
+            int column) -> Value {
+             return static_cast<std::int64_t>(
+                 reinterpret_cast<std::int64_t (*)(std::int64_t, std::int64_t)>(
+                     address)(nativeIntArg(args, 0, line, column),
+                              nativeIntArg(args, 1, line, column)));
+         }},
+        {"int64(int64)",
+         [](void* address, const std::vector<Value>& args, int line,
+            int column) -> Value {
+             return static_cast<std::int64_t>(
+                 reinterpret_cast<std::int64_t (*)(std::int64_t)>(address)(
+                     nativeIntArg(args, 0, line, column)));
+         }},
+        {"cstring(cstring)",
+         [](void* address, const std::vector<Value>& args, int line,
+            int column) -> Value {
+             return std::string(nativeStringResult(
+                 reinterpret_cast<const char* (*)(const char*)>(address)(
+                     nativeStringArg(args, 0, line, column).c_str())));
+         }},
+        {"int64(cstring)",
+         [](void* address, const std::vector<Value>& args, int line,
+            int column) -> Value {
+             return static_cast<std::int64_t>(
+                 reinterpret_cast<std::int64_t (*)(const char*)>(address)(
+                     nativeStringArg(args, 0, line, column).c_str()));
+         }},
+        {"int64(cstring,cstring)",
+         [](void* address, const std::vector<Value>& args, int line,
+            int column) -> Value {
+             return static_cast<std::int64_t>(
+                 reinterpret_cast<std::int64_t (*)(const char*, const char*)>(
+                     address)(nativeStringArg(args, 0, line, column).c_str(),
+                              nativeStringArg(args, 1, line, column).c_str()));
+         }},
+        {"cstring(cstring,int64)",
+         [](void* address, const std::vector<Value>& args, int line,
+            int column) -> Value {
+             return std::string(nativeStringResult(
+                 reinterpret_cast<const char* (*)(const char*, std::int64_t)>(
+                     address)(nativeStringArg(args, 0, line, column).c_str(),
+                              nativeIntArg(args, 1, line, column))));
+         }},
+        {"int64(int64,int64,int64)",
+         [](void* address, const std::vector<Value>& args, int line,
+            int column) -> Value {
+             return static_cast<std::int64_t>(
+                 reinterpret_cast<std::int64_t (*)(std::int64_t, std::int64_t,
+                                                   std::int64_t)>(address)(
+                     nativeIntArg(args, 0, line, column),
+                     nativeIntArg(args, 1, line, column),
+                     nativeIntArg(args, 2, line, column)));
+         }},
+        {"float64(float64)",
+         [](void* address, const std::vector<Value>& args, int line,
+            int column) -> Value {
+             return reinterpret_cast<double (*)(double)>(address)(
+                 asNumber(args[0], line, column));
+         }},
+        {"float64(float64,float64)",
+         [](void* address, const std::vector<Value>& args, int line,
+            int column) -> Value {
+             return reinterpret_cast<double (*)(double, double)>(address)(
+                 asNumber(args[0], line, column),
+                 asNumber(args[1], line, column));
+         }},
+        {"float64(float64,float64,float64)",
+         [](void* address, const std::vector<Value>& args, int line,
+            int column) -> Value {
+             return reinterpret_cast<double (*)(double, double, double)>(
+                 address)(asNumber(args[0], line, column),
+                          asNumber(args[1], line, column),
+                          asNumber(args[2], line, column));
+         }},
+        {"int64(float64)",
+         [](void* address, const std::vector<Value>& args, int line,
+            int column) -> Value {
+             return static_cast<std::int64_t>(
+                 reinterpret_cast<std::int64_t (*)(double)>(address)(
+                     asNumber(args[0], line, column)));
+         }},
+        {"float64(float64,int64)",
+         [](void* address, const std::vector<Value>& args, int line,
+            int column) -> Value {
+             return reinterpret_cast<double (*)(double, std::int64_t)>(address)(
+                 asNumber(args[0], line, column),
+                 nativeIntArg(args, 1, line, column));
+         }},
+        {"cstring(float64)",
+         [](void* address, const std::vector<Value>& args, int line,
+            int column) -> Value {
+             return std::string(nativeStringResult(
+                 reinterpret_cast<const char* (*)(double)>(address)(
+                     asNumber(args[0], line, column))));
+         }},
+        {"float64(cstring)",
+         [](void* address, const std::vector<Value>& args, int line,
+            int column) -> Value {
+             return reinterpret_cast<double (*)(const char*)>(address)(
+                 nativeStringArg(args, 0, line, column).c_str());
+         }},
+        {"cstring(cstring,cstring)",
+         [](void* address, const std::vector<Value>& args, int line,
+            int column) -> Value {
+             return std::string(nativeStringResult(
+                 reinterpret_cast<const char* (*)(const char*, const char*)>(
+                     address)(nativeStringArg(args, 0, line, column).c_str(),
+                              nativeStringArg(args, 1, line, column).c_str())));
+         }},
+        {"float64(cstring,cstring)",
+         [](void* address, const std::vector<Value>& args, int line,
+            int column) -> Value {
+             return reinterpret_cast<double (*)(const char*, const char*)>(
+                 address)(nativeStringArg(args, 0, line, column).c_str(),
+                          nativeStringArg(args, 1, line, column).c_str());
+         }},
+        {"cstring(cstring,cstring,cstring)",
+         [](void* address, const std::vector<Value>& args, int line,
+            int column) -> Value {
+             return std::string(nativeStringResult(
+                 reinterpret_cast<const char* (*)(const char*, const char*,
+                                                  const char*)>(address)(
+                     nativeStringArg(args, 0, line, column).c_str(),
+                     nativeStringArg(args, 1, line, column).c_str(),
+                     nativeStringArg(args, 2, line, column).c_str())));
+         }},
+        {"cstring(cstring,cstring,int64)",
+         [](void* address, const std::vector<Value>& args, int line,
+            int column) -> Value {
+             return std::string(nativeStringResult(
+                 reinterpret_cast<const char* (*)(const char*, const char*,
+                                                  std::int64_t)>(address)(
+                     nativeStringArg(args, 0, line, column).c_str(),
+                     nativeStringArg(args, 1, line, column).c_str(),
+                     nativeIntArg(args, 2, line, column))));
+         }},
+        {"cstring(cstring,cstring,cstring,int64)",
+         [](void* address, const std::vector<Value>& args, int line,
+            int column) -> Value {
+             return std::string(nativeStringResult(
+                 reinterpret_cast<const char* (*)(const char*, const char*,
+                                                  const char*, std::int64_t)>(
+                     address)(nativeStringArg(args, 0, line, column).c_str(),
+                              nativeStringArg(args, 1, line, column).c_str(),
+                              nativeStringArg(args, 2, line, column).c_str(),
+                              nativeIntArg(args, 3, line, column))));
+         }},
+        {"cstring(cstring,cstring,cstring,cstring)",
+         [](void* address, const std::vector<Value>& args, int line,
+            int column) -> Value {
+             return std::string(nativeStringResult(
+                 reinterpret_cast<const char* (*)(const char*, const char*,
+                                                  const char*, const char*)>(
+                     address)(nativeStringArg(args, 0, line, column).c_str(),
+                              nativeStringArg(args, 1, line, column).c_str(),
+                              nativeStringArg(args, 2, line, column).c_str(),
+                              nativeStringArg(args, 3, line, column).c_str())));
+         }},
+        {"int64(cstring,cstring,cstring)",
+         [](void* address, const std::vector<Value>& args, int line,
+            int column) -> Value {
+             return static_cast<std::int64_t>(
+                 reinterpret_cast<std::int64_t (*)(const char*, const char*,
+                                                   const char*)>(address)(
+                     nativeStringArg(args, 0, line, column).c_str(),
+                     nativeStringArg(args, 1, line, column).c_str(),
+                     nativeStringArg(args, 2, line, column).c_str()));
+         }},
+        {"int64(cstring,int64)",
+         [](void* address, const std::vector<Value>& args, int line,
+            int column) -> Value {
+             return static_cast<std::int64_t>(
+                 reinterpret_cast<std::int64_t (*)(const char*, std::int64_t)>(
+                     address)(nativeStringArg(args, 0, line, column).c_str(),
+                              nativeIntArg(args, 1, line, column)));
+         }},
+        {"cstring(int64)",
+         [](void* address, const std::vector<Value>& args, int line,
+            int column) -> Value {
+             return std::string(nativeStringResult(
+                 reinterpret_cast<const char* (*)(std::int64_t)>(address)(
+                     nativeIntArg(args, 0, line, column))));
+         }},
+        {"cstring(int64,int64)",
+         [](void* address, const std::vector<Value>& args, int line,
+            int column) -> Value {
+             return std::string(nativeStringResult(
+                 reinterpret_cast<const char* (*)(std::int64_t,
+                                                  std::int64_t)>(address)(
+                     nativeIntArg(args, 0, line, column),
+                     nativeIntArg(args, 1, line, column))));
+         }},
+        {"float64(int64)",
+         [](void* address, const std::vector<Value>& args, int line,
+            int column) -> Value {
+             return reinterpret_cast<double (*)(std::int64_t)>(address)(
+                 nativeIntArg(args, 0, line, column));
+         }},
+        {"int64(cstring,int64,int64)",
+         [](void* address, const std::vector<Value>& args, int line,
+            int column) -> Value {
+             return static_cast<std::int64_t>(
+                 reinterpret_cast<std::int64_t (*)(const char*, std::int64_t,
+                                                   std::int64_t)>(address)(
+                     nativeStringArg(args, 0, line, column).c_str(),
+                     nativeIntArg(args, 1, line, column),
+                     nativeIntArg(args, 2, line, column)));
+         }},
+        {"float64(cstring,float64)",
+         [](void* address, const std::vector<Value>& args, int line,
+            int column) -> Value {
+             return reinterpret_cast<double (*)(const char*, double)>(address)(
+                 nativeStringArg(args, 0, line, column).c_str(),
+                 asNumber(args[1], line, column));
+         }},
+        {"cstring(float64,float64,int64)",
+         [](void* address, const std::vector<Value>& args, int line,
+            int column) -> Value {
+             return std::string(nativeStringResult(
+                 reinterpret_cast<const char* (*)(double, double,
+                                                  std::int64_t)>(address)(
+                     asNumber(args[0], line, column),
+                     asNumber(args[1], line, column),
+                     nativeIntArg(args, 2, line, column))));
+         }},
+        {"cstring(cstring,float64,float64)",
+         [](void* address, const std::vector<Value>& args, int line,
+            int column) -> Value {
+             return std::string(nativeStringResult(
+                 reinterpret_cast<const char* (*)(const char*, double,
+                                                  double)>(address)(
+                     nativeStringArg(args, 0, line, column).c_str(),
+                     asNumber(args[1], line, column),
+                     asNumber(args[2], line, column))));
+         }},
+    };
+    return table;
+}
+
 Value callNative(void* address, const std::string& signature,
                  const std::vector<Value>& args, int line, int column) {
     const std::string normalized =
@@ -136,107 +418,26 @@ Value callNative(void* address, const std::string& signature,
         }
         start = comma == std::string::npos ? params.size() : comma + 1;
     }
-    if (types.size() != args.size() || types.size() > 3) {
-        throw SourceError(
-            "native call supports matching signatures with at most three arguments",
-            line, column);
-    }
-    if (types.empty() && resultType == "int64") {
-        return static_cast<std::int64_t>(
-            reinterpret_cast<std::int64_t (*)()>(address)());
-    }
-    if (types.empty() && resultType == "float64") {
-        return reinterpret_cast<double (*)()>(address)();
-    }
-    if (types.empty() && resultType == "cstring") {
-        const auto result =
-            reinterpret_cast<const char* (*)()>(address)();
-        return std::string(result == nullptr ? "" : result);
-    }
-    if (types.size() == 2 && types[0] == "int64" && types[1] == "int64" &&
-        resultType == "int64") {
-        return static_cast<std::int64_t>(
-            reinterpret_cast<std::int64_t (*)(std::int64_t, std::int64_t)>(
-                address)(std::get<std::int64_t>(args[0]),
-                         std::get<std::int64_t>(args[1])));
-    }
-    if (types.size() == 1 && types[0] == "int64" && resultType == "int64") {
-        return static_cast<std::int64_t>(
-            reinterpret_cast<std::int64_t (*)(std::int64_t)>(address)(
-                std::get<std::int64_t>(args[0])));
-    }
-    if (types.size() == 1 && types[0] == "cstring" &&
-        resultType == "cstring") {
-        if (!std::holds_alternative<std::string>(args[0])) {
-            throw SourceError("native call expected a string argument", line,
-                              column);
+    std::string shape = resultType + "(";
+    for (std::size_t index = 0; index < types.size(); ++index) {
+        if (index > 0) {
+            shape += ",";
         }
-        const auto result = reinterpret_cast<const char* (*)(const char*)>(
-            address)(std::get<std::string>(args[0]).c_str());
-        return std::string(result == nullptr ? "" : result);
+        shape += types[index];
     }
-    if (types.size() == 1 && types[0] == "cstring" &&
-        resultType == "int64") {
-        if (!std::holds_alternative<std::string>(args[0])) {
-            throw SourceError("native call expected a string argument", line,
-                              column);
-        }
-        return reinterpret_cast<std::int64_t (*)(const char*)>(address)(
-            std::get<std::string>(args[0]).c_str());
+    shape += ")";
+    const auto& shapes = nativeCallTable();
+    const auto found = shapes.find(shape);
+    if (found == shapes.end()) {
+        throw SourceError("unsupported native signature '" + signature + "'",
+                          line, column);
     }
-    if (types.size() == 2 && types[0] == "cstring" &&
-        types[1] == "cstring" && resultType == "int64") {
-        return reinterpret_cast<std::int64_t (*)(const char*, const char*)>(
-            address)(std::get<std::string>(args[0]).c_str(),
-                     std::get<std::string>(args[1]).c_str());
+    if (types.size() != args.size()) {
+        throw SourceError("native call argument count does not match signature '" +
+                              signature + "'",
+                          line, column);
     }
-    if (types.size() == 2 && types[0] == "cstring" &&
-        types[1] == "int64" && resultType == "cstring") {
-        const auto result =
-            reinterpret_cast<const char* (*)(const char*, std::int64_t)>(
-                address)(std::get<std::string>(args[0]).c_str(),
-                         std::get<std::int64_t>(args[1]));
-        return std::string(result == nullptr ? "" : result);
-    }
-    if (types.size() == 3 && types[0] == "int64" && types[1] == "int64" &&
-        types[2] == "int64" && resultType == "int64") {
-        return static_cast<std::int64_t>(
-            reinterpret_cast<std::int64_t (*)(std::int64_t, std::int64_t,
-                                              std::int64_t)>(address)(
-                std::get<std::int64_t>(args[0]),
-                std::get<std::int64_t>(args[1]),
-                std::get<std::int64_t>(args[2])));
-    }
-    if (types.size() == 1 && types[0] == "float64" &&
-        resultType == "float64") {
-        return reinterpret_cast<double (*)(double)>(address)(
-            asNumber(args[0], line, column));
-    }
-    if (types.size() == 2 && types[0] == "float64" &&
-        types[1] == "float64" && resultType == "float64") {
-        return reinterpret_cast<double (*)(double, double)>(address)(
-            asNumber(args[0], line, column), asNumber(args[1], line, column));
-    }
-    if (types.size() == 3 && types[0] == "float64" &&
-        types[1] == "float64" && types[2] == "float64" &&
-        resultType == "float64") {
-        return reinterpret_cast<double (*)(double, double, double)>(address)(
-            asNumber(args[0], line, column), asNumber(args[1], line, column),
-            asNumber(args[2], line, column));
-    }
-    if (types.size() == 1 && types[0] == "float64" &&
-        resultType == "int64") {
-        return reinterpret_cast<std::int64_t (*)(double)>(address)(
-            asNumber(args[0], line, column));
-    }
-    if (types.size() == 2 && types[0] == "float64" &&
-        types[1] == "int64" && resultType == "float64") {
-        return reinterpret_cast<double (*)(double, std::int64_t)>(address)(
-            asNumber(args[0], line, column),
-            std::get<std::int64_t>(args[1]));
-    }
-    throw SourceError("unsupported native signature '" + signature + "'",
-                      line, column);
+    return found->second(address, args, line, column);
 }
 
 std::string findSourceModule(const Environment& environment,

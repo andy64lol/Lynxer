@@ -1,0 +1,84 @@
+////
+Lynxer standard library: os.
+Operating system, filesystem, environment and platform helpers backed by the
+native C++ module `stdlib/os.so`.
+
+Directory listings return newline-joined entries; the wrapper splits them into
+lists. Platform helpers report the host through uname(2); because Clynxer has no
+Python runtime, `getPythonVersion()` returns "" and
+`getPythonImplementation()` returns "CLynxer".
+////
+global setup(){ importAs("os.so", "nativeOs"); }
+
+// ---------- Files and directories ----------
+global getcwd() -> str { return global.nativeOs.getcwd(); }
+global chdir(str path) -> bool { return global.nativeOs.chdir(path) != 0; }
+global listdir(str path) -> list {
+    str raw = global.nativeOs.listdir(path);
+    if(raw == ""){ return seqFromTo(0, 0, 1); }
+    return splitStr(raw, "\n");
+}
+global mkdir(str path) -> bool { return global.nativeOs.mkdir(path) != 0; }
+global makedirs(str path) -> bool { return global.nativeOs.makedirs(path) != 0; }
+global rmdir(str path) -> bool { return global.nativeOs.rmdir(path) != 0; }
+global remove(str path) -> bool { return global.nativeOs.remove(path) != 0; }
+global rename(str src, str dst) -> bool {
+    return global.nativeOs.rename(src, dst) != 0;
+}
+global exists(str path) -> bool { return global.nativeOs.exists(path) != 0; }
+global isFile(str path) -> bool { return global.nativeOs.isFile(path) != 0; }
+global isDir(str path) -> bool { return global.nativeOs.isDir(path) != 0; }
+global rmTree(str path) -> bool { return global.nativeOs.rmTree(path) != 0; }
+global copyTree(str src, str dst) -> bool {
+    return global.nativeOs.copyTree(src, dst) != 0;
+}
+global listdirExt(str path, str ext) -> list {
+    str raw = global.nativeOs.listdirExt(path, ext);
+    if(raw == ""){ return seqFromTo(0, 0, 1); }
+    return splitStr(raw, "\n");
+}
+global walkFiles(str path) -> str { return global.nativeOs.walkFiles(path); }
+
+// ---------- Paths and environment ----------
+global joinPath(str a, str b) -> str { return global.nativeOs.joinPath(a, b); }
+global basename(str path) -> str { return global.nativeOs.basename(path); }
+global dirname(str path) -> str { return global.nativeOs.dirname(path); }
+global absPath(str path) -> str { return global.nativeOs.absPath(path); }
+global extname(str path) -> str { return global.nativeOs.extname(path); }
+global normPath(str path) -> str { return global.nativeOs.normPath(path); }
+global expandUser(str path) -> str { return global.nativeOs.expandUser(path); }
+global sep() -> str { return global.nativeOs.sep(); }
+global getenv(str key) -> str { return global.nativeOs.getenv(key); }
+global setenv(str key, str val) -> bool {
+    return global.nativeOs.setenv(key, val) != 0;
+}
+global tempDir() -> str { return global.nativeOs.tempDir(); }
+global homedir() -> str { return global.nativeOs.homedir(); }
+global username() -> str { return global.nativeOs.username(); }
+global hostname() -> str { return global.nativeOs.hostname(); }
+global getpid() -> int { return global.nativeOs.getpid(); }
+global cpuCount() -> int { return global.nativeOs.cpuCount(); }
+global diskTotal(str path) -> int { return global.nativeOs.diskTotal(path); }
+global diskFree(str path) -> int { return global.nativeOs.diskFree(path); }
+
+// ---------- Platform and runtime information ----------
+global getSystemName() -> str { return global.nativeOs.getSystemName(); }
+global getSystemRelease() -> str { return global.nativeOs.getSystemRelease(); }
+global getSystemVersion() -> str { return global.nativeOs.getSystemVersion(); }
+global getSystemMachine() -> str { return global.nativeOs.getSystemMachine(); }
+global getSystemProcessor() -> str {
+    return global.nativeOs.getSystemProcessor();
+}
+global getSystemArchitecture() -> str {
+    return global.nativeOs.getSystemArchitecture();
+}
+global getSystemNode() -> str { return global.nativeOs.getSystemNode(); }
+global getPythonVersion() -> str { return global.nativeOs.getPythonVersion(); }
+global getPythonImplementation() -> str {
+    return global.nativeOs.getPythonImplementation();
+}
+global getSystemUname() -> str { return global.nativeOs.getSystemUname(); }
+global getSystemInfo() -> str { return global.nativeOs.getSystemInfo(); }
+global getSystemDistro() -> str { return global.nativeOs.getSystemDistro(); }
+
+global main(){}

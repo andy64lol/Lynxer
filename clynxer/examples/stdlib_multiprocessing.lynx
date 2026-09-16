@@ -1,0 +1,21 @@
+////
+Fixture for the multiprocessing stdlib. Interpreted only (module imports are not
+bytecode-compilable). Commands are chosen so results are order-independent and
+contain no newlines.
+////
+global setup(){ import("multiprocessing"); }
+
+global main(){
+    println(global.multiprocessing.workerCount() > 0);
+
+    list commands = listPush(listPush(listPush(listRepeat("", 0), "printf a"), "printf b"), "printf c");
+    println(global.multiprocessing.runParallel(commands));
+    println(global.multiprocessing.runParallelProcess(commands));
+
+    list silent = listPush(listPush(listRepeat("", 0), "true"), "false");
+    println(global.multiprocessing.runParallelSilent(silent));
+
+    list items = listPush(listPush(listRepeat("", 0), "x"), "y");
+    println(global.multiprocessing.mapShell("printf {}", items));
+    println(global.multiprocessing.threadMap("printf {}", items));
+}

@@ -26,6 +26,7 @@ global getHour() -> int { return global.nativeTime.getHour(); }
 global getMinute() -> int { return global.nativeTime.getMinute(); }
 global getSecond() -> int { return global.nativeTime.getSecond(); }
 global getWeekdayNum() -> int { return global.nativeTime.getWeekdayNum(); }
+global getWeekday() -> str { return global.nativeTime.getWeekday(); }
 global timestamp() -> float { return global.nativeTime.timestamp(); }
 global isLeapYear(int year) -> bool {
     return global.nativeTime.isLeapYear(year) != 0;

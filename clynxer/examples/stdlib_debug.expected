@@ -1,0 +1,23 @@
+int
+float
+str
+bool
+null
+list
+{"type": "int", "value": "42"}
+{"type": "str", "value": "text"}
+[debug.dump] type=int  value=7
+[
+    1,
+    2,
+    3
+]
+assertions ok
+-1
+-1
+true
+true
+-1
+true
+true
+true

@@ -1,0 +1,18 @@
+////
+Fixture for the colorlib stdlib (pure Lynxer, no shared library). Raw escape
+sequences are not printed; the assertions compare styled output against the
+low-level ansi() helper instead.
+////
+global setup(){ import("colorlib"); }
+
+global main(){
+    println(global.colorlib.red("x") == global.colorlib.ansi("x", "31"));
+    println(global.colorlib.bgBlue("x") == global.colorlib.ansi("x", "44"));
+    println(global.colorlib.bold("x") == global.colorlib.ansi("x", "1"));
+    println(global.colorlib.error("x") == global.colorlib.ansi("x", "1;31"));
+    println(global.colorlib.success("x") == global.colorlib.ansi("x", "1;32"));
+    println(returnLength(global.colorlib.reset()) > 0);
+    println(returnLength(global.colorlib.clearScreen()) > 0);
+    println(returnLength(global.colorlib.cursorHome()) > 0);
+    println(global.colorlib.ansi("x", "90") != global.colorlib.ansi("x", "30"));
+}

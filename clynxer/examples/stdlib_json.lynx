@@ -1,0 +1,38 @@
+////
+Fixture for the json stdlib. Interpreted only (module imports are not
+bytecode-compilable).
+////
+global setup(){ import("json"); }
+
+global main(){
+    str object = "{\"name\": \"Ada\", \"age\": 36, \"active\": true}";
+    println(global.json.jsonValid(object));
+    println(global.json.jsonValid("{bad"));
+    println(global.json.jsonParse("{\"a\": 1, \"b\": [1, 2]}"));
+    println(global.json.jsonPretty("{\"a\": 1}"));
+    println(global.json.jsonGet(object, "name"));
+    println(global.json.jsonGet(object, "age"));
+    println(global.json.jsonGetInt(object, "age"));
+    println(global.json.jsonGetFloat(object, "age"));
+    println(global.json.jsonGetBool(object, "active"));
+    println(global.json.jsonGet(object, "missing"));
+    println(global.json.jsonKeys(object));
+    println(global.json.jsonHas(object, "age"));
+    println(global.json.jsonHas(object, "nope"));
+    println(global.json.jsonLength(object));
+    println(global.json.jsonLength("[1, 2, 3]"));
+    println(global.json.jsonStringify("he\"llo"));
+    println(global.json.jsonSet("{\"a\": 1}", "b", "2"));
+    println(global.json.jsonSet("{\"a\": 1}", "b", "hello"));
+    println(global.json.jsonSetInt("{\"a\": 1}", "b", 5));
+    println(global.json.jsonDelete("{\"a\": 1, \"b\": 2}", "a"));
+    println(global.json.jsonMerge("{\"a\": 1, \"b\": 2}", "{\"b\": 3, \"c\": 4}"));
+    println(global.json.jsonType(object, "name"));
+    println(global.json.jsonType(object, "age"));
+    println(global.json.jsonType(object, "active"));
+    println(global.json.jsonType(object, "missing"));
+    println(global.json.jsonBuild("name=Alice|age=30"));
+    println(global.json.jsonArray(listRepeat(7, 3)));
+    list pairs = listPush(listPush(listPush(listPush(listRepeat("", 0), "a"), 1), "b"), 2);
+    println(global.json.jsonObject(pairs));
+}

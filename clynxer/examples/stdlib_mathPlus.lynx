@@ -1,0 +1,40 @@
+////
+Fixture for the mathPlus stdlib. Interpreted only (module imports are not
+bytecode-compilable).
+////
+global setup(){ import("mathPlus"); }
+
+global main(){
+    println(global.mathPlus.abs(-5));
+    println(global.mathPlus.max(3, 9));
+    println(global.mathPlus.sqrt(16.0));
+    println(global.mathPlus.pi());
+    println(global.mathPlus.gcd(12, 18));
+    println(global.mathPlus.isPrime(97));
+    println(global.mathPlus.median(seqFromTo(1, 5, 1)));
+    println(global.mathPlus.median(seqFromTo(1, 4, 1)));
+    println(global.mathPlus.mean(seqFromTo(1, 4, 1)));
+    println(global.mathPlus.std(seqFromTo(1, 5, 1)));
+    println(global.mathPlus.variance(seqFromTo(1, 5, 1)));
+    println(global.mathPlus.percentile(seqFromTo(1, 5, 1), 50.0));
+    println(global.mathPlus.prod(seqFromTo(1, 4, 1)));
+    println(global.mathPlus.norm(seqFromTo(3, 4, 1)));
+    println(global.mathPlus.argmax(seqFromTo(1, 5, 1)));
+    println(global.mathPlus.argmin(seqFromTo(5, 1, -1)));
+    println(global.mathPlus.dot(seqFromTo(1, 3, 1), seqFromTo(4, 6, 1)));
+    println(global.mathPlus.corrcoef(seqFromTo(1, 3, 1), seqFromTo(2, 6, 2)));
+    println(global.mathPlus.linspace(0.0, 1.0, 5));
+    println(global.mathPlus.cumsum(seqFromTo(1, 4, 1)));
+    println(global.mathPlus.diff(seqFromTo(1, 4, 1)));
+    println(global.mathPlus.clip(seqFromTo(1, 5, 1), 2.0, 4.0));
+    println(global.mathPlus.normalize(seqFromTo(3, 4, 1)));
+    println(global.mathPlus.roundTo(3.14159, 2));
+    println(global.mathPlus.sin(0.0));
+    println(global.mathPlus.sign(-3.5));
+
+    list pair = listPush(listPush(listRepeat(0, 0), 3), 4);
+    println(global.mathPlus.normalize(pair));
+    println(global.mathPlus.dot(pair, pair));
+    println(global.mathPlus.median(pair));
+    println(global.mathPlus.percentile(pair, 25.0));
+}

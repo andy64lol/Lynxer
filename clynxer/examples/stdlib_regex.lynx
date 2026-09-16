@@ -1,0 +1,35 @@
+////
+Fixture for the regex stdlib. Interpreted only (module imports are not
+bytecode-compilable).
+////
+global setup(){ import("regex"); }
+
+global main(){
+    global.regex.compile("digits", "\\d+", "");
+    println(global.regex.testCompiled("digits", "abc123"));
+    println(global.regex.matchCompiled("digits", "abc123def"));
+    println(global.regex.findallCompiled("digits", "a1 b22"));
+    println(global.regex.subCompiled("digits", "#", "a1 b22"));
+    global.regex.compile("shout", "abc", "I");
+    println(global.regex.testCompiled("shout", "ABC"));
+    println(global.regex.cacheKeys());
+    println(global.regex.isValid("\\d+"));
+    println(global.regex.isValid("(unclosed"));
+    println(global.regex.extract("(?P<user>\\w+)@(?P<host>\\w+)", "alice@example"));
+    println(global.regex.extractAll("(?P<k>\\w+)=(?P<v>\\d+)", "x=1 y=2"));
+    println(global.regex.unique("\\w", "aabbc"));
+    println(global.regex.lastMatch("\\d+", "a1 b22"));
+    println(global.regex.findallOverlapping("aa", "aaaa"));
+    println(global.regex.replaceNth("\\d", "#", "a1b2c3", 2));
+    println(global.regex.replaceAllLiteral("\\d+", "\\1", "a1b22"));
+    println(global.regex.highlight("\\d+", "**", "**", "score: 42"));
+    println(global.regex.splitKeep("[,;]", "a,b;c"));
+    println(global.regex.findLetters("ab12cd"));
+    println(global.regex.findDigits("ab12cd"));
+    println(global.regex.globToRegex("*.txt"));
+    println(global.regex.countMatches("\\d+", "a1 b22 c333"));
+    println(global.regex.firstMatchPos("\\d+", "ab12"));
+    println(global.regex.truncateMatch("\\d+", "abcdef123456ghij", 7));
+    global.regex.clearCache();
+    println(global.regex.cacheKeys());
+}

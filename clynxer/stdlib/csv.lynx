@@ -1,0 +1,91 @@
+////
+Lynxer standard library: csv.
+CSV and TSV data helpers backed by the native C++ module `stdlib/csv.so`.
+
+Rows are exchanged as JSON strings. Parsing and writing follow Python's `csv`
+module defaults: ',' delimiter, '"' quoting with '""' escaping, and "\r\n" line
+terminators on output. Non-string JSON values are rendered as "" / true / false.
+////
+global setup(){ importAs("csv.so", "nativeCsv"); }
+
+// ── Read / Write ──
+// Read a CSV file and return its raw content. Returns "ERROR: ..." on failure.
+global readCSV(str path) -> str { return global.nativeCsv.readCSV(path); }
+// Write a CSV file from a JSON array of objects and a comma-separated header list.
+global writeCSV(str path, str jsonRows, str headers) -> str {
+    return global.nativeCsv.writeCSV(path, jsonRows, headers);
+}
+// Append a single row (JSON array of values) to an existing CSV string.
+global appendRow(str csvStr, str jsonRow) -> str {
+    return global.nativeCsv.appendRow(csvStr, jsonRow);
+}
+// Build a CSV string from a JSON array of objects and a header list.
+global buildCSV(str jsonRows, str headers) -> str {
+    return global.nativeCsv.buildCSV(jsonRows, headers);
+}
+
+// ── Parsing ──
+// Parse a CSV string into a JSON array-of-arrays (includes the header row).
+global parseRows(str csvStr) -> str { return global.nativeCsv.parseRows(csvStr); }
+// Return the header row as a JSON array.
+global parseHeaders(str csvStr) -> str {
+    return global.nativeCsv.parseHeaders(csvStr);
+}
+// Parse a CSV string into a JSON array of objects (first row = keys).
+global parseToJson(str csvStr) -> str {
+    return global.nativeCsv.parseToJson(csvStr);
+}
+
+// ── Column and row access ──
+// Return a JSON array of all values in the named column (excludes header).
+global getColumn(str csvStr, str colName) -> str {
+    return global.nativeCsv.getColumn(csvStr, colName);
+}
+// Return a JSON array of values for data row rowIdx (0-based).
+global getRow(str csvStr, int rowIdx) -> str {
+    return global.nativeCsv.getRow(csvStr, rowIdx);
+}
+// Return the number of data rows (excluding the header).
+global rowCount(str csvStr) -> int { return global.nativeCsv.rowCount(csvStr); }
+// Return the number of columns in the header row.
+global colCount(str csvStr) -> int { return global.nativeCsv.colCount(csvStr); }
+// Return 1 if the CSV has a column with the given name, else 0.
+global hasColumn(str csvStr, str colName) -> int {
+    return global.nativeCsv.hasColumn(csvStr, colName);
+}
+
+// ── Filtering and sorting ──
+// Return a CSV string with only rows where colName equals value.
+global filterRows(str csvStr, str colName, str value) -> str {
+    return global.nativeCsv.filterRows(csvStr, colName, value);
+}
+// Return a CSV string sorted ascending by colName (lexicographic).
+global sortCSV(str csvStr, str colName) -> str {
+    return global.nativeCsv.sortCSV(csvStr, colName);
+}
+// Return a CSV string sorted descending by colName.
+global sortCSVDesc(str csvStr, str colName) -> str {
+    return global.nativeCsv.sortCSVDesc(csvStr, colName);
+}
+
+// ── Column statistics ──
+// Return JSON {count, min, max, sum, mean} for a numeric column, or "{}".
+global columnStats(str csvStr, str colName) -> str {
+    return global.nativeCsv.columnStats(csvStr, colName);
+}
+
+// ── TSV ──
+// Convert a CSV string to TSV.
+global toTSV(str csvStr) -> str { return global.nativeCsv.toTSV(csvStr); }
+// Convert a TSV string to CSV.
+global fromTSV(str tsvStr) -> str { return global.nativeCsv.fromTSV(tsvStr); }
+// Read a file using a custom delimiter (returns raw content).
+global readWithDelimiter(str path, str delimiter) -> str {
+    return global.nativeCsv.readWithDelimiter(path, delimiter);
+}
+// Parse a custom-delimited string into a JSON array of objects.
+global parseDelimited(str csvStr, str delimiter) -> str {
+    return global.nativeCsv.parseDelimited(csvStr, delimiter);
+}
+
+global main(){}

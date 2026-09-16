@@ -16,7 +16,17 @@ global repeat(str value, int count) -> str {
     return result;
 }
 global trim(str value) -> str { return global.trim(value); }
-global contains(str value, str needle) -> bool { return global.contains(value, needle); }
+global contains(str value, str needle) -> bool {
+    if(needle == ""){ return true; }
+    int index = 0;
+    while(index <= returnLength(value) - returnLength(needle)){
+        if(substring(value, index, index + returnLength(needle)) == needle){
+            return true;
+        }
+        index = index + 1;
+    }
+    return false;
+}
 global startsWith(str value, str prefix) -> bool {
     return substring(value, 0, returnLength(prefix)) == prefix;
 }

@@ -1,0 +1,48 @@
+[["name", "age", "city"], ["alpha", "30", "London"], ["beta", "25", "Paris"], ["gamma", "30", "London"]]
+["name", "age", "city"]
+[{"name": "alpha", "age": "30", "city": "London"}, {"name": "beta", "age": "25", "city": "Paris"}, {"name": "gamma", "age": "30", "city": "London"}]
+["alpha", "beta", "gamma"]
+["beta", "25", "Paris"]
+[]
+3
+3
+1
+0
+[""]
+name,age
+alpha,30
+beta,25
+
+a,b
+1,2
+x,y
+
+name,age,city
+alpha,30,London
+gamma,30,London
+
+name,age,city
+alpha,30,London
+beta,25,Paris
+gamma,30,London
+
+name,age,city
+gamma,30,London
+beta,25,Paris
+alpha,30,London
+
+{"count": 3, "min": 25.0, "max": 30.0, "sum": 85.0, "mean": 28.333333333333332}
+{}
+name	age	city
+alpha	30	London
+beta	25	Paris
+gamma	30	London
+
+a,b
+1,2
+
+[{"a": "1", "b": "2"}]
+[["name", "note"], ["alpha", "hello, world"], ["beta", "say \"hi\""]]
+name,note
+alpha,"a,b"
+

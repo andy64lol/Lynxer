@@ -1,0 +1,25 @@
+////
+Fixture for the text stdlib (pure Lynxer, no shared library).
+////
+global setup(){ import("text"); }
+
+global main(){
+    println(global.text.reverse("abc"));
+    println(global.text.repeat("ab", 3));
+    println(global.text.trim("  hi  "));
+    println(global.text.contains("hello", "ell"));
+    println(global.text.contains("hello", ""));
+    println(global.text.contains("hello", "z"));
+    println(global.text.startsWith("hello", "he"));
+    println(global.text.startsWith("hello", "lo"));
+    println(global.text.endsWith("hello", "lo"));
+    println(global.text.count("banana", "na"));
+    println(global.text.count("banana", ""));
+    println(global.text.replace("aaa", "a", "b"));
+    println(global.text.upper("abc"));
+    println(global.text.lower("ABC"));
+    println(global.text.isEmpty(""));
+    println(global.text.isEmpty("a"));
+    println(global.text.isBlank("  "));
+    println(global.text.isBlank(" a "));
+}

@@ -1,0 +1,61 @@
+y.txt
+y
+.txt
+[.tar, .gz]
+[.txt]
+[]
+/x
+/
+true
+/
+true
+true
+false
+[/, a, b, c]
+[a, b]
+a/b
+a/b/c
+a/c
+true
+true
+false
+c
+true
+/a/c.md
+/a/b.md
+/a/b
+c.md
+noext.txt
+true
+true
+file:///tmp/a%20b
+true
+false
+true
+true
+false
+[.clynxer_scratch_path/a.txt, .clynxer_scratch_path/b.log, .clynxer_scratch_path/sub]
+[.clynxer_scratch_path/a.txt]
+[.clynxer_scratch_path/sub/c.txt]
+[.clynxer_scratch_path/a.txt, .clynxer_scratch_path/sub/c.txt]
+alpha
+true
+true
+BETA!
+5
+true
+true
+false
+true
+true
+true
+true
+true
+.clynxer_scratch_path/moved.txt
+true
+true
+-1
+-1
+true
+true
+false

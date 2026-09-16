@@ -1,32 +1,34 @@
-global setup(){ int state = 881726454; }
+////
+Lynxer standard library: random.
+Random number and character helpers backed by the native C++ module
+`stdlib/random.so`.
 
-global seed(int value) {
-    if(value == 0){ state = 881726454; }
-    else { state = value; }
-}
+The generator is a seeded linear congruential sequence, so a given seed always
+produces the same sequence. `seed(0)` restores the default seed.
+////
+global setup(){ importAs("random.so", "nativeRandom"); }
 
+// Reseed the generator; 0 restores the default seed.
+global seed(int value) { global.nativeRandom.seed(value); }
+// Uniform integer in [low, high]. Returns low when high <= low.
 global randint(int low, int high) -> int {
-    state = (state * 1103515245 + 12345) % 2147483647;
-    if(high <= low){ return low; }
-    return low + state % (high - low + 1);
+    return global.nativeRandom.randint(low, high);
 }
-
+// Uniform integer in [start, stop). Returns start when stop <= start.
 global randrange(int start, int stop) -> int {
-    if(stop <= start){ return start; }
-    return randint(start, stop - 1);
+    return global.nativeRandom.randrange(start, stop);
 }
-
-global coinflip() -> bool { return randint(0, 1) == 1; }
-global randBool() -> bool { return coinflip(); }
-
-global choice(str items) -> str {
-    int count = returnLength(items);
-    if(count == 0){ return ""; }
-    return charAt(items, randint(0, count - 1));
-}
-
-global random() -> float { return randint(0, 1000000) / 1000000.0; }
+// Float in [0.0, 1.0).
+global random() -> float { return global.nativeRandom.random(); }
+// Float in [low, high].
 global uniform(float low, float high) -> float {
-    return low + (high - low) * global.random();
+    return global.nativeRandom.uniform(low, high);
 }
+// Equal-probability boolean.
+global coinflip() -> bool { return global.nativeRandom.coinflip() != 0; }
+// Alias of coinflip.
+global randBool() -> bool { return global.nativeRandom.coinflip() != 0; }
+// Pick one character of the input string, or "" when it is empty.
+global choice(str items) -> str { return global.nativeRandom.choice(items); }
+
 global main(){}

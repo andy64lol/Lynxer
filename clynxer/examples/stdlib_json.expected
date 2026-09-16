@@ -1,0 +1,36 @@
+true
+false
+{
+  "a": 1,
+  "b": [
+    1,
+    2
+  ]
+}
+{
+    "a": 1
+}
+Ada
+36
+36
+36
+true
+
+name,age,active
+true
+false
+3
+3
+"he\"llo"
+{"a": 1, "b": 2}
+{"a": 1, "b": "hello"}
+{"a": 1, "b": 5}
+{"b": 2}
+{"a": 1, "b": 3, "c": 4}
+string
+int
+bool
+null
+{"name": "Alice", "age": "30"}
+[7, 7, 7]
+{"a": 1, "b": 2}

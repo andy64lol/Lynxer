@@ -1,0 +1,107 @@
+////
+Lynxer standard library: re.
+Regular expression helpers backed by the native C++ module `stdlib/re.so`.
+
+Patterns use Python syntax where the underlying engine supports it. Named
+groups `(?P<name>...)` are translated; lookbehind, atomic groups and `\p{...}`
+Unicode property escapes are not supported and yield sentinel results
+(false / "" / -1).
+////
+global setup(){ importAs("re.so", "nativeRe"); }
+
+// Return true if pattern matches anywhere in string.
+global test(str pattern, str string) -> bool {
+    return global.nativeRe.test(pattern, string) != 0;
+}
+// Match pattern at the start of string; returns the match or "".
+global match(str pattern, str string) -> str {
+    return global.nativeRe.match(pattern, string);
+}
+// Match pattern against the entire string; returns the match or "".
+global matchFull(str pattern, str string) -> str {
+    return global.nativeRe.matchFull(pattern, string);
+}
+// Return the first match anywhere, or "".
+global search(str pattern, str string) -> str {
+    return global.nativeRe.search(pattern, string);
+}
+// Return a JSON array of all non-overlapping matches.
+global findall(str pattern, str string) -> str {
+    return global.nativeRe.findall(pattern, string);
+}
+// Return the number of non-overlapping matches.
+global count(str pattern, str string) -> int {
+    return global.nativeRe.count(pattern, string);
+}
+// Return a JSON array of capture groups from the first match, or "[]".
+global groups(str pattern, str string) -> str {
+    return global.nativeRe.groups(pattern, string);
+}
+// Return a JSON array-of-arrays of capture groups for every match.
+global groupsAll(str pattern, str string) -> str {
+    return global.nativeRe.groupsAll(pattern, string);
+}
+// Return a JSON object of named capture groups from the first match.
+global named(str pattern, str string) -> str {
+    return global.nativeRe.named(pattern, string);
+}
+// Replace all occurrences with repl (\\1 and \\g<name> backreferences work).
+global sub(str pattern, str repl, str string) -> str {
+    return global.nativeRe.sub(pattern, repl, string);
+}
+// Replace the first n occurrences.
+global subN(str pattern, str repl, str string, int n) -> str {
+    return global.nativeRe.subN(pattern, repl, string, n);
+}
+// Replace all and report the count: {"result": "...", "count": N}.
+global subn(str pattern, str repl, str string) -> str {
+    return global.nativeRe.subn(pattern, repl, string);
+}
+// Split string by every occurrence of pattern; returns a JSON array.
+global split(str pattern, str string) -> str {
+    return global.nativeRe.split(pattern, string);
+}
+// Split string by pattern at most maxSplit times.
+global splitN(str pattern, str string, int maxSplit) -> str {
+    return global.nativeRe.splitN(pattern, string, maxSplit);
+}
+// Escape all special regex characters so string matches literally.
+global escape(str string) -> str { return global.nativeRe.escape(string); }
+// Return the start index of the first match, or -1.
+global matchStart(str pattern, str string) -> int {
+    return global.nativeRe.matchStart(pattern, string);
+}
+// Return the end index of the first match, or -1.
+global matchEnd(str pattern, str string) -> int {
+    return global.nativeRe.matchEnd(pattern, string);
+}
+// Return a JSON array of {start, end, match} for every match.
+global findSpans(str pattern, str string) -> str {
+    return global.nativeRe.findSpans(pattern, string);
+}
+global testIgnoreCase(str pattern, str string) -> bool {
+    return global.nativeRe.testIgnoreCase(pattern, string) != 0;
+}
+global matchIgnoreCase(str pattern, str string) -> str {
+    return global.nativeRe.matchIgnoreCase(pattern, string);
+}
+global searchIgnoreCase(str pattern, str string) -> str {
+    return global.nativeRe.searchIgnoreCase(pattern, string);
+}
+global findallIgnoreCase(str pattern, str string) -> str {
+    return global.nativeRe.findallIgnoreCase(pattern, string);
+}
+global subIgnoreCase(str pattern, str repl, str string) -> str {
+    return global.nativeRe.subIgnoreCase(pattern, repl, string);
+}
+global findallMultiline(str pattern, str string) -> str {
+    return global.nativeRe.findallMultiline(pattern, string);
+}
+global subMultiline(str pattern, str repl, str string) -> str {
+    return global.nativeRe.subMultiline(pattern, repl, string);
+}
+global searchDotall(str pattern, str string) -> str {
+    return global.nativeRe.searchDotall(pattern, string);
+}
+
+global main(){}

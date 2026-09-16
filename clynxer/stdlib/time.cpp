@@ -75,6 +75,7 @@ extern "C" std::int64_t time_getHour() { return localTime(std::time(nullptr)).tm
 extern "C" std::int64_t time_getMinute() { return localTime(std::time(nullptr)).tm_min; }
 extern "C" std::int64_t time_getSecond() { return localTime(std::time(nullptr)).tm_sec; }
 extern "C" std::int64_t time_getWeekdayNum() { return localTime(std::time(nullptr)).tm_wday == 0 ? 6 : localTime(std::time(nullptr)).tm_wday - 1; }
+extern "C" const char* time_getWeekday() { return stable(formatNow("%A")); }
 extern "C" double time_timestamp() { return static_cast<double>(std::time(nullptr)); }
 extern "C" std::int64_t time_isLeapYear(std::int64_t year) {
     return (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)) ? 1 : 0;
@@ -101,6 +102,7 @@ extern "C" int lynxer_module_init_v1(RegisterFunction f, RegisterConstant, Regis
            f("getMinute","time_getMinute","cdecl:int64()") &&
            f("getSecond","time_getSecond","cdecl:int64()") &&
            f("getWeekdayNum","time_getWeekdayNum","cdecl:int64()") &&
+           f("getWeekday","time_getWeekday","cdecl:cstring()") &&
            f("timestamp","time_timestamp","cdecl:double()") &&
            f("isLeapYear","time_isLeapYear","cdecl:int64(int64)") &&
            f("daysInMonth","time_daysInMonth","cdecl:int64(int64,int64)") ? 0 : 1;

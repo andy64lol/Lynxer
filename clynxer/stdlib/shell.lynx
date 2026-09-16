@@ -30,4 +30,11 @@ global currentShell() -> str { return global.nativeShell.currentShell(); }
 global shellPath(str command) -> str {
     return global.nativeShell.shellPath(command);
 }
+global runShellErr(str command) -> str {
+    return global.nativeShell.runShellErr(command);
+}
+global shellVersion(str shell) -> str {
+    return global.nativeShell.shellVersion(shell);
+}
+global availableShells() -> str { return global.nativeShell.availableShells(); }
 global main(){}

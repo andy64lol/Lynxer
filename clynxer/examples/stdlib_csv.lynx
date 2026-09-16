@@ -1,0 +1,35 @@
+////
+Fixture for the csv stdlib. Interpreted only (module imports are not
+bytecode-compilable).
+////
+global setup(){ import("csv"); }
+
+global main(){
+    str data = "name,age,city\nalpha,30,London\nbeta,25,Paris\ngamma,30,London\n";
+    println(global.csv.parseRows(data));
+    println(global.csv.parseHeaders(data));
+    println(global.csv.parseToJson(data));
+    println(global.csv.getColumn(data, "name"));
+    println(global.csv.getRow(data, 1));
+    println(global.csv.getRow(data, 9));
+    println(global.csv.rowCount(data));
+    println(global.csv.colCount(data));
+    println(global.csv.hasColumn(data, "age"));
+    println(global.csv.hasColumn(data, "nope"));
+    println(global.csv.getColumn("a,b\n1,2\n", "missing"));
+
+    println(global.csv.buildCSV("[{\"name\": \"alpha\", \"age\": 30}, {\"name\": \"beta\", \"age\": 25}]", "name,age"));
+    println(global.csv.appendRow("a,b\n1,2\n", "[\"x\", \"y\"]"));
+    println(global.csv.filterRows(data, "city", "London"));
+    println(global.csv.sortCSV(data, "name"));
+    println(global.csv.sortCSVDesc(data, "name"));
+    println(global.csv.columnStats(data, "age"));
+    println(global.csv.columnStats(data, "name"));
+    println(global.csv.toTSV(data));
+    println(global.csv.fromTSV("a\tb\n1\t2\n"));
+    println(global.csv.parseDelimited("a;b\n1;2\n", ";"));
+
+    str quoted = "name,note\nalpha,\"hello, world\"\nbeta,\"say \"\"hi\"\"\"\n";
+    println(global.csv.parseRows(quoted));
+    println(global.csv.buildCSV("[{\"name\": \"alpha\", \"note\": \"a,b\"}]", "name,note"));
+}

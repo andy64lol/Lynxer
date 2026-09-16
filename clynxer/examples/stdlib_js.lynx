@@ -1,0 +1,14 @@
+////
+Fixture for the js stdlib. Interpreted only (module imports are not
+bytecode-compilable). Requires Node.js on PATH; the version string itself is not
+asserted because it varies by host.
+////
+global setup(){ import("js"); }
+
+global main(){
+    println(global.js.nodeExists());
+    println(returnLength(global.js.nodeVersion()) > 0);
+    println(global.js.evalJS("1 + 2"));
+    println(global.js.evalJS("'a' + 'b'"));
+    println(global.js.runJS("console.log('hello from js');"));
+}

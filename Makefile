@@ -151,6 +151,7 @@ buildCpp: venv
 	@echo "✓ Native extensions built in lynxer/ (memory + bytecode VM)"
 
 buildCLynxer: $(CLYNXER_TARGET)
+	@$(MAKE) -C clynxer all
 	@echo "✓ Clynxer build complete: $(CLYNXER_TARGET)"
 
 $(CLYNXER_TARGET): $(CLYNXER_OBJECTS)

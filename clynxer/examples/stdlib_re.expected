@@ -1,0 +1,30 @@
+true
+false
+42
+
+123
+["1", "22", "333"]
+3
+["user", "host"]
+[["x", "1"], ["y", "2"]]
+{"user": "alice", "host": "example"}
+a#b#
+a#b22
+{"result": "a#b#", "count": 2}
+["one", "two", "three"]
+["a", "b", "c d"]
+a\.b\+c
+2
+4
+[{"start": 1, "end": 3, "match": "12"}, {"start": 4, "end": 6, "match": "34"}]
+true
+ABC
+-
+["ab", "cd"]
+> a
+> b
+a
+b
+["", "a", "b", "c", ""]
+[hi] [there]
+hello

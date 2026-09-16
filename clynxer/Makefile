@@ -4,6 +4,22 @@ CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -pedantic -fPIE
 TARGET := clynxer
 NATIVE_SOURCES := $(wildcard stdlib/*.cpp)
 NATIVE_MODULES := $(NATIVE_SOURCES:.cpp=.so)
+include stdlib/libs.mk
+
+# Native modules that need an opt-in system library. When the package cannot be
+# resolved by pkg-config the module is skipped with a warning, so a plain build
+# never fails because an optional dependency is absent.
+OPTIONAL_MODULE_NAMES := http lua tui image game
+OPTIONAL_MODULE_PATHS := $(OPTIONAL_MODULE_NAMES:%=stdlib/%.so)
+OPTIONAL_NATIVE_MODULES := $(filter $(NATIVE_MODULES),$(OPTIONAL_MODULE_PATHS))
+$(foreach path,$(OPTIONAL_NATIVE_MODULES),$(eval MODULE_NAME_$(path) := $(patsubst stdlib/%.so,%,$(path))))
+$(foreach path,$(OPTIONAL_NATIVE_MODULES),$(eval HAVE_$(path) := $(shell pkg-config --exists $(MODULE_PKG_$(MODULE_NAME_$(path))) 2>/dev/null && echo 1)))
+OPTIONAL_MODULES_PRESENT := $(foreach path,$(OPTIONAL_NATIVE_MODULES),$(if $(HAVE_$(path)),$(path)))
+OPTIONAL_MODULES_SKIPPED := $(filter-out $(OPTIONAL_MODULES_PRESENT),$(OPTIONAL_NATIVE_MODULES))
+CORE_MODULES := $(filter-out $(OPTIONAL_MODULE_PATHS),$(NATIVE_MODULES))
+NATIVE_BUILT := $(CORE_MODULES) $(OPTIONAL_MODULES_PRESENT)
+$(foreach path,$(OPTIONAL_MODULES_SKIPPED),$(warning clynxer: skipping $(path): pkg-config package '$(MODULE_PKG_$(MODULE_NAME_$(path)))' not found))
+
 SOURCES := main.cpp shell.cpp lexer.cpp runtime.cpp types.cpp builtins.cpp ops.cpp ast.cpp parser.cpp config.cpp compiler.cpp vm.cpp bytecode.cpp bundle.cpp
 HEADERS := $(wildcard *.hpp)
 OBJECTS := $(SOURCES:.cpp=.o)
@@ -19,10 +35,15 @@ MILESTONE5_CODEBLOCK_FIXTURE := examples/milestone5_codeblocks.lynx
 MILESTONE6_FIXTURE := examples/milestone6_module.lynx
 MILESTONE6_MATH_FIXTURE := examples/milestone6_math_native.lynx
 NATIVE_STDLIB_FIXTURE := examples/native_stdlibs.lynx
+NATIVE_SIGNATURE_SOURCE := examples/native_signatures.cpp
+NATIVE_SIGNATURE_MODULE := examples/native_signatures.so
+NATIVE_SIGNATURE_FIXTURE := examples/native_signatures.lynx
+# Every examples/stdlib_<name>.lynx must ship a sibling .expected file.
+STDLIB_FIXTURES := $(wildcard examples/stdlib_*.lynx)
 
 .PHONY: all clean test
 
-all: $(TARGET) $(NATIVE_MODULES)
+all: $(TARGET) $(NATIVE_BUILT)
 
 $(TARGET): $(OBJECTS)
 	$(CXX) $(CXXFLAGS) $(OBJECTS) -o $(TARGET)
@@ -31,16 +52,21 @@ $(TARGET): $(OBJECTS)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 stdlib/%.so: stdlib/%.cpp
+	$(eval _pkg := $(MODULE_PKG_$*))
+	$(eval _cflags := $(if $(strip $(_pkg)),$(shell pkg-config --cflags $(_pkg) 2>/dev/null)))
+	$(eval _libs := $(if $(strip $(_pkg)),$(shell pkg-config --libs $(_pkg) 2>/dev/null)))
+	$(CXX) -std=c++17 -O2 -Wall -Wextra -pedantic -fPIC -shared $(_cflags) $< -o $@ $(_libs) $(MODULE_FLAGS_$*)
+
+$(NATIVE_SIGNATURE_MODULE): $(NATIVE_SIGNATURE_SOURCE)
 	$(CXX) -std=c++17 -O2 -Wall -Wextra -pedantic -fPIC -shared $< -o $@
 
-test: $(TARGET) $(NATIVE_MODULES)
-	@output="$$(./$(TARGET) examples/hello.lynx)"; \
-	expected='Hello, Clynxer!'; \
-	if [ "$$output" != "$$expected" ]; then \
-		echo "expected: $$expected"; \
-		echo "received: $$output"; \
-		exit 1; \
-	fi
+test: $(TARGET) $(NATIVE_BUILT) $(NATIVE_SIGNATURE_MODULE)
+	@printf 'Clynxer\n' > .clynxer_stdin
+	@output="$$(./$(TARGET) examples/hello.lynx < .clynxer_stdin)"; \
+	case "$$output" in \
+	*"Hello, Clynxer!") ;; \
+	*) echo "expected greeting 'Hello, Clynxer!', received: $$output"; exit 1;; \
+	esac
 	@output="$$(./$(TARGET) $(CONDITION_FIXTURE))"; \
 	expected="$$(printf 'if branch\nelse branch')"; \
 	if [ "$$output" != "$$expected" ]; then \
@@ -107,10 +133,10 @@ expected="clynxer: $(ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 	exit 1; \
 	fi
 	@for fixture in hello conditions loops comments builtins milestone4; do \
-	./$(TARGET) examples/$$fixture.lynx > .clynxer_direct.out 2>.clynxer_direct.err; \
+	./$(TARGET) examples/$$fixture.lynx < .clynxer_stdin > .clynxer_direct.out 2>.clynxer_direct.err; \
 	direct_status=$$?; \
 	./$(TARGET) --compile --no-cache examples/$$fixture.lynx > /dev/null; \
-	./$(TARGET) examples/$$fixture.lynxc > .clynxer_vm.out 2>.clynxer_vm.err; \
+	./$(TARGET) examples/$$fixture.lynxc < .clynxer_stdin > .clynxer_vm.out 2>.clynxer_vm.err; \
 	vm_status=$$?; \
 	if ! diff -q .clynxer_direct.out .clynxer_vm.out > /dev/null || \
 	   ! diff -q .clynxer_direct.err .clynxer_vm.err > /dev/null || \
@@ -123,7 +149,7 @@ expected="clynxer: $(ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 	@./$(TARGET) --compile examples/hello.lynx | grep -q "bytecode is up to date" || { echo "bytecode cache check failed"; exit 1; }
 	@./$(TARGET) --view-bytecode examples/hello.lynxc | grep -q "PUSH_CONST" || { echo "view-bytecode smoke failed"; exit 1; }
 	@./$(TARGET) --view-bytecode examples/hello.lynxc | grep -q "HALT" || { echo "view-bytecode HALT smoke failed"; exit 1; }
-	@./$(TARGET) --bundle examples/hello.lynx .clynxer_bundled > /dev/null; 	bundled_output="$$(./.clynxer_bundled)"; 	if [ "$$bundled_output" != "Hello, Clynxer!" ]; then 	echo "bundled executable output mismatch: $$bundled_output"; exit 1; 	fi; 	rm -f .clynxer_bundled
+	@./$(TARGET) --bundle examples/hello.lynx .clynxer_bundled > /dev/null; 	bundled_output="$$(./.clynxer_bundled < .clynxer_stdin)"; 	case "$$bundled_output" in 	*"Hello, Clynxer!") ;; 	*) echo "bundled executable output mismatch: $$bundled_output"; exit 1;; 	esac; 	rm -f .clynxer_bundled
 	@printf 'CLYXC\x00\x01\x01not-real-bytecode' > .clynxer_bad.lynxc; \
 	if ./$(TARGET) .clynxer_bad.lynxc > /dev/null 2>.clynxer_bad.err; then \
 	echo "corrupt bytecode was accepted"; exit 1; \
@@ -212,6 +238,11 @@ expected="clynxer: $(ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 	if [ "$$output" != "$$expected" ]; then \
 	echo "expected native stdlib output:"; printf '%s\n' "$$expected"; \
 	echo "received native stdlib output:"; printf '%s\n' "$$output"; exit 1; fi
+	@output="$$(./$(TARGET) $(NATIVE_SIGNATURE_FIXTURE))"; \
+	expected="$$(printf '7\n2.5\nzero\n7\n9\ncopy\n4\n1\n---\n6\n1.25\n4\n6.5\n4\n3.5\n1.500000\n2.75\nabcd\n3.75\nabc\nab5\nabc5\n7\nn12\n3\n9')"; \
+	if [ "$$output" != "$$expected" ]; then \
+	echo "expected native signature output:"; printf '%s\n' "$$expected"; \
+	echo "received native signature output:"; printf '%s\n' "$$output"; exit 1; fi
 	@for fixture in $(MILESTONE5_FIXTURE:.lynx=) $(MILESTONE5_CODEBLOCK_FIXTURE:.lynx=); do \
 	./$(TARGET) --compile --no-cache $$fixture.lynx > /dev/null; \
 	./$(TARGET) $$fixture.lynxc > .clynxer_vm.out 2>.clynxer_vm.err; \
@@ -222,7 +253,21 @@ expected="clynxer: $(ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 	done; \
 	rm -f .clynxer_vm.out .clynxer_vm.err .clynxer_direct.out .clynxer_direct.err \
 	$(MILESTONE5_FIXTURE:.lynx=.lynxc) $(MILESTONE5_CODEBLOCK_FIXTURE:.lynx=.lynxc)
+	@for fixture in $(STDLIB_FIXTURES); do \
+	expected="$${fixture%.lynx}.expected"; \
+	if [ ! -f "$$expected" ]; then \
+	echo "missing expected output for $$fixture"; exit 1; fi; \
+	if ! ./$(TARGET) "$$fixture" > .clynxer_stdlib.out 2>&1; then \
+	echo "stdlib fixture failed: $$fixture"; cat .clynxer_stdlib.out; \
+	rm -f .clynxer_stdlib.out; exit 1; fi; \
+	if ! diff -u "$$expected" .clynxer_stdlib.out > .clynxer_stdlib.diff; then \
+	echo "stdlib fixture output mismatch: $$fixture"; \
+	cat .clynxer_stdlib.diff; \
+	rm -f .clynxer_stdlib.out .clynxer_stdlib.diff; exit 1; fi; \
+	done; \
+	rm -f .clynxer_stdlib.out .clynxer_stdlib.diff
+	@rm -f .clynxer_stdin
 	@echo "clynxer smoke test passed"
 
 clean:
-	rm -f $(TARGET) $(OBJECTS) $(NATIVE_MODULES)
+	rm -f $(TARGET) $(OBJECTS) $(NATIVE_MODULES) $(NATIVE_SIGNATURE_MODULE) .clynxer_stdin
