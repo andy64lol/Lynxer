@@ -203,7 +203,7 @@ expected="clynxer: $(ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 	echo "expected milestone6 output:"; printf '%s\n' "$$expected"; \
 	echo "received:"; printf '%s\n' "$$output"; exit 1; fi
 	@output="$$(./$(TARGET) $(MILESTONE6_MATH_FIXTURE))"; \
-	expected="$$(printf '3\n0\ntrue\ntrue')"; \
+	expected="$$(printf '3\n0\ntrue\ntrue\ntrue is now a string.\n42 is a integer.\nint is the type of number.')"; \
 	if [ "$$output" != "$$expected" ]; then \
 	echo "expected native math output:"; printf '%s\n' "$$expected"; \
 	echo "received native math output:"; printf '%s\n' "$$output"; exit 1; fi
