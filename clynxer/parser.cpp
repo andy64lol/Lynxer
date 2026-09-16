@@ -484,6 +484,8 @@ StatementPtr Parser::parseImport() {
     const Token path = expect(TokenKind::String, "expected module path string");
     expectText(")", "expected ')' after module path");
     expectText(";", "expected ';' after import");
+    imports_.push_back(ImportRecord{path.text, "", keyword.line,
+                                    keyword.column});
     return std::make_unique<ImportStatement>(path.text, "", keyword.line,
                                               keyword.column);
 }
@@ -496,6 +498,8 @@ StatementPtr Parser::parseImportAs() {
     const Token alias = expect(TokenKind::String, "expected module alias string");
     expectText(")", "expected ')' after importAs arguments");
     expectText(";", "expected ';' after importAs");
+    imports_.push_back(ImportRecord{path.text, alias.text, keyword.line,
+                                    keyword.column});
     return std::make_unique<ImportStatement>(path.text, alias.text, keyword.line,
                                               keyword.column);
 }

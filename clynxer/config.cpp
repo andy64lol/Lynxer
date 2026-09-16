@@ -119,30 +119,23 @@ Config::Config() {
     setDefault("error.could_not_read", "clynxer: could not read '{0}': {1}");
     setDefault("error.requires_one_file",
                "clynxer: {0} requires exactly one file argument");
-    setDefault("error.compile_requires_file",
-               "clynxer: --compile requires a file argument");
-    setDefault("error.bundle_usage",
-               "clynxer: --bundle requires a .lynx file and optional output name");
-    setDefault("error.bundle_failed", "clynxer: bundle failed: {0}");
-    setDefault("error.view_bytecode_usage",
-               "clynxer: --view-bytecode requires a .lynxc file argument");
-    setDefault("error.benchmark_usage",
-               "clynxer: --benchmark-compile requires at least one .lynx file");
-    setDefault("error.could_not_run_bytecode",
-               "clynxer: could not run bytecode '{0}': {1}");
+    setDefault("error.compile_usage",
+               "clynxer: --compile requires a .lynx file and an optional "
+               "output name");
+    setDefault("error.compile_failed", "clynxer: compile failed: {0}");
+    setDefault("error.payload_invalid",
+               "clynxer: the embedded program payload is invalid");
+    setDefault("error.bytecode_removed",
+               "clynxer: bytecode files are no longer supported; compile the "
+               ".lynx source with --compile instead");
     setDefault("error.interpreter_failure",
                "clynxer: interpreter failure in '{0}': {1}");
     setDefault("error.unsupported",
                "clynxer: '{0}' is not available in CLynxer yet");
     setDefault("error.validator_missing",
                "clynxer: comprehensive validator is not available");
-    setDefault("error.bytecode_invalid",
-               "clynxer: invalid bytecode '{0}': {1}");
-    setDefault("error.bytecode_write_failed", "clynxer: could not write '{0}'");
     setDefault("status.lint_ok", "Lint OK: {0}");
     setDefault("status.compile_ok", "Compiled: {0}");
-    setDefault("status.compile_skipped",
-               "clynxer: bytecode is up to date: '{0}'");
     setDefault("status.bundle_ok", "Bundled: {0}");
     setDefault("warning.forever_no_break",
                "forever() has no break; it will run until the process is "

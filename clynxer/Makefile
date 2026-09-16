@@ -20,7 +20,7 @@ CORE_MODULES := $(filter-out $(OPTIONAL_MODULE_PATHS),$(NATIVE_MODULES))
 NATIVE_BUILT := $(CORE_MODULES) $(OPTIONAL_MODULES_PRESENT)
 $(foreach path,$(OPTIONAL_MODULES_SKIPPED),$(warning clynxer: skipping $(path): pkg-config package '$(MODULE_PKG_$(MODULE_NAME_$(path)))' not found))
 
-SOURCES := main.cpp shell.cpp lexer.cpp runtime.cpp types.cpp builtins.cpp ops.cpp ast.cpp parser.cpp config.cpp compiler.cpp vm.cpp bytecode.cpp bundle.cpp
+SOURCES := main.cpp shell.cpp lexer.cpp runtime.cpp types.cpp builtins.cpp ops.cpp ast.cpp parser.cpp config.cpp bundle.cpp
 HEADERS := $(wildcard *.hpp)
 OBJECTS := $(SOURCES:.cpp=.o)
 CONDITION_FIXTURE := examples/conditions.lynx
@@ -132,30 +132,48 @@ expected="clynxer: $(ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 	printf '%s\n' "$$output"; \
 	exit 1; \
 	fi
-	@for fixture in hello conditions loops comments builtins milestone4; do \
+	@for fixture in hello conditions loops comments builtins milestone4 milestone5 milestone5_codeblocks; do \
 	./$(TARGET) examples/$$fixture.lynx < .clynxer_stdin > .clynxer_direct.out 2>.clynxer_direct.err; \
 	direct_status=$$?; \
-	./$(TARGET) --compile --no-cache examples/$$fixture.lynx > /dev/null; \
-	./$(TARGET) examples/$$fixture.lynxc < .clynxer_stdin > .clynxer_vm.out 2>.clynxer_vm.err; \
-	vm_status=$$?; \
-	if ! diff -q .clynxer_direct.out .clynxer_vm.out > /dev/null || \
-	   ! diff -q .clynxer_direct.err .clynxer_vm.err > /dev/null || \
-	   [ "$$direct_status" -ne "$$vm_status" ]; then \
-	echo "bytecode parity failed for $$fixture"; \
-	diff .clynxer_direct.out .clynxer_vm.out | head -5; \
+	if ! ./$(TARGET) --compile examples/$$fixture.lynx .clynxer_compiled > /dev/null; then \
+	echo "compile failed for $$fixture"; exit 1; fi; \
+	./.clynxer_compiled < .clynxer_stdin > .clynxer_compiled.out 2>.clynxer_compiled.err; \
+	compiled_status=$$?; \
+	if ! diff -q .clynxer_direct.out .clynxer_compiled.out > /dev/null || \
+	   ! diff -q .clynxer_direct.err .clynxer_compiled.err > /dev/null || \
+	   [ "$$direct_status" -ne "$$compiled_status" ]; then \
+	echo "compiled-executable parity failed for $$fixture"; \
+	diff .clynxer_direct.out .clynxer_compiled.out | head -5; \
 	exit 1; \
 	fi; \
 	done
-	@./$(TARGET) --compile examples/hello.lynx | grep -q "bytecode is up to date" || { echo "bytecode cache check failed"; exit 1; }
-	@./$(TARGET) --view-bytecode examples/hello.lynxc | grep -q "PUSH_CONST" || { echo "view-bytecode smoke failed"; exit 1; }
-	@./$(TARGET) --view-bytecode examples/hello.lynxc | grep -q "HALT" || { echo "view-bytecode HALT smoke failed"; exit 1; }
-	@./$(TARGET) --bundle examples/hello.lynx .clynxer_bundled > /dev/null; 	bundled_output="$$(./.clynxer_bundled < .clynxer_stdin)"; 	case "$$bundled_output" in 	*"Hello, Clynxer!") ;; 	*) echo "bundled executable output mismatch: $$bundled_output"; exit 1;; 	esac; 	rm -f .clynxer_bundled
+	@for fixture in native_stdlibs milestone6_module milestone6_math_native stdlib_json stdlib_re stdlib_path; do \
+	./$(TARGET) examples/$$fixture.lynx > .clynxer_direct.out 2>&1; \
+	direct_status=$$?; \
+	if ! ./$(TARGET) --compile examples/$$fixture.lynx .clynxer_compiled > /dev/null; then \
+	echo "compile failed for $$fixture (imports)"; exit 1; fi; \
+	./.clynxer_compiled > .clynxer_compiled.out 2>&1; \
+	compiled_status=$$?; \
+	if ! diff -q .clynxer_direct.out .clynxer_compiled.out > /dev/null || \
+	   [ "$$direct_status" -ne "$$compiled_status" ]; then \
+	echo "compiled import parity failed for $$fixture"; \
+	diff .clynxer_direct.out .clynxer_compiled.out | head -5; \
+	exit 1; \
+	fi; \
+	done
+	@./$(TARGET) --bundle examples/hello.lynx .clynxer_bundled > /dev/null; \
+	bundled_output="$$(./.clynxer_bundled < .clynxer_stdin)"; \
+	case "$$bundled_output" in \
+	*"Hello, Clynxer!") ;; \
+	*) echo "bundled executable output mismatch: $$bundled_output"; exit 1;; \
+	esac
 	@printf 'CLYXC\x00\x01\x01not-real-bytecode' > .clynxer_bad.lynxc; \
 	if ./$(TARGET) .clynxer_bad.lynxc > /dev/null 2>.clynxer_bad.err; then \
-	echo "corrupt bytecode was accepted"; exit 1; \
+	echo "legacy bytecode file was accepted"; exit 1; \
 	fi; \
-	grep -q "invalid bytecode" .clynxer_bad.err || { echo "corrupt bytecode error missing"; exit 1; }; \
-	rm -f .clynxer_bad.lynxc .clynxer_bad.err .clynxer_direct.out .clynxer_direct.err .clynxer_vm.out .clynxer_vm.err
+	grep -q "no longer supported" .clynxer_bad.err || { echo "bytecode removal error missing"; exit 1; }; \
+	rm -f .clynxer_bad.lynxc .clynxer_bad.err .clynxer_direct.out .clynxer_direct.err \
+	.clynxer_compiled.out .clynxer_compiled.err .clynxer_compiled .clynxer_bundled
 	@output="$$(./$(TARGET) examples/milestone3.lynx)"; \
 	expected="$$(printf '9\nAda\n90\n5\nEngineer\n6\n42\n1\n0\n255\n-12\n0.25\nA\n[1, 2, 3]\n(left, 2)')"; \
 	if [ "$$output" != "$$expected" ]; then \
@@ -243,16 +261,6 @@ expected="clynxer: $(ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 	if [ "$$output" != "$$expected" ]; then \
 	echo "expected native signature output:"; printf '%s\n' "$$expected"; \
 	echo "received native signature output:"; printf '%s\n' "$$output"; exit 1; fi
-	@for fixture in $(MILESTONE5_FIXTURE:.lynx=) $(MILESTONE5_CODEBLOCK_FIXTURE:.lynx=); do \
-	./$(TARGET) --compile --no-cache $$fixture.lynx > /dev/null; \
-	./$(TARGET) $$fixture.lynxc > .clynxer_vm.out 2>.clynxer_vm.err; \
-	./$(TARGET) $$fixture.lynx > .clynxer_direct.out 2>.clynxer_direct.err; \
-	if ! diff -q .clynxer_direct.out .clynxer_vm.out > /dev/null || \
-	   ! diff -q .clynxer_direct.err .clynxer_vm.err > /dev/null; then \
-	echo "bytecode parity failed for $$fixture"; exit 1; fi; \
-	done; \
-	rm -f .clynxer_vm.out .clynxer_vm.err .clynxer_direct.out .clynxer_direct.err \
-	$(MILESTONE5_FIXTURE:.lynx=.lynxc) $(MILESTONE5_CODEBLOCK_FIXTURE:.lynx=.lynxc)
 	@for fixture in $(STDLIB_FIXTURES); do \
 	expected="$${fixture%.lynx}.expected"; \
 	if [ ! -f "$$expected" ]; then \

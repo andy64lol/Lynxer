@@ -1,0 +1,70 @@
+name: Build Clynxer
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show the C++ toolchain
+        run: c++ --version
+
+      - name: Build the interpreter and the native stdlib modules
+        run: make buildCLynxer
+
+      - name: Check that the native modules were produced
+        run: |
+          echo "Built modules:"
+          ls -1 clynxer/stdlib/*.so
+          test -f clynxer/stdlib/math.so
+          test -f clynxer/stdlib/json.so
+          test -f clynxer/stdlib/path.so
+
+      - name: List the available stdlib modules
+        run: ./clynxer/clynxer --list-stdlibs
+
+      - name: Run the Clynxer test suite
+        run: make testCLynxer
+
+      - name: Compile a program to a standalone executable and run it
+        run: |
+          ./clynxer/clynxer --compile clynxer/examples/milestone5.lynx /tmp/clynxer-smoke
+          output="$(/tmp/clynxer-smoke)"
+          expected="$(printf '5\n7\n25')"
+          if [ "$output" != "$expected" ]; then
+            echo "expected: $expected"
+            echo "received: $output"
+            exit 1
+          fi
+          echo "compiled executable output OK"
+
+      - name: Compile a program that imports stdlib modules
+        run: |
+          cat > /tmp/import-smoke.lynx <<'LYNX'
+          global setup(){
+              import("math");
+              import("json");
+          }
+
+          global main(){
+              println(global.math.max(2, 5));
+              println(global.json.jsonGet("{\"a\": 1}", "a"));
+          }
+          LYNX
+          ./clynxer/clynxer --compile /tmp/import-smoke.lynx /tmp/clynxer-import-smoke
+          output="$(/tmp/clynxer-import-smoke)"
+          expected="$(printf '5\n1')"
+          if [ "$output" != "$expected" ]; then
+            echo "expected: $expected"
+            echo "received: $output"
+            exit 1
+          fi
+          echo "import-using executable output OK"

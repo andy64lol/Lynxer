@@ -17,6 +17,9 @@ public:
 
     std::unordered_map<std::string, Function> parseProgram();
 
+    // Every import declared while parsing, in source order.
+    const std::vector<ImportRecord>& imports() const { return imports_; }
+
 private:
     void parseStructDefinition();
     void parseClassDefinition();
@@ -136,6 +139,7 @@ private:
     std::size_t index_ = 0;
     int loopDepth_ = 0;
     std::unordered_set<std::string> codeblockNames_;
+    std::vector<ImportRecord> imports_;
 };
 
 } // namespace clynxer

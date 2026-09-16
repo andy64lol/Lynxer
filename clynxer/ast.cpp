@@ -2,7 +2,6 @@
 
 #include "builtins.hpp"
 #include "config.hpp"
-#include "compiler.hpp"
 #include "error.hpp"
 #include "ops.hpp"
 #include "parser.hpp"
@@ -440,26 +439,85 @@ Value callNative(void* address, const std::string& signature,
     return found->second(address, args, line, column);
 }
 
-std::string findSourceModule(const Environment& environment,
-                             const std::string& requested) {
+// Module sources and libraries carried by a compiled executable. Sources stay
+// in memory; libraries are materialized to a temporary file at startup because
+// dlopen needs a real path.
+std::map<std::string, std::string>& embeddedModuleSources() {
+    static std::map<std::string, std::string> instance;
+    return instance;
+}
+
+std::map<std::string, std::string>& embeddedModuleLibraries() {
+    static std::map<std::string, std::string> instance;
+    return instance;
+}
+
+// Lookup keys for an embedded module: the reference as written, the reference
+// plus ".lynx" when it has no extension, and the bare file name.
+std::vector<std::string> embeddedLookupKeys(const std::string& requested) {
+    std::vector<std::string> keys{requested};
+    if (!std::filesystem::path(requested).has_extension()) {
+        keys.push_back(requested + ".lynx");
+    }
+    keys.push_back(std::filesystem::path(requested).filename().string());
+    return keys;
+}
+
+const std::string* findEmbeddedSource(const std::string& requested) {
+    for (const auto& key : embeddedLookupKeys(requested)) {
+        const auto found = embeddedModuleSources().find(key);
+        if (found != embeddedModuleSources().end()) {
+            return &found->second;
+        }
+    }
+    return nullptr;
+}
+
+std::string findEmbeddedLibrary(const std::string& requested) {
+    for (const auto& key : embeddedLookupKeys(requested)) {
+        const auto found = embeddedModuleLibraries().find(key);
+        if (found != embeddedModuleLibraries().end()) {
+            return found->second;
+        }
+    }
+    return "";
+}
+
+}  // namespace
+
+void setEmbeddedModuleSources(std::map<std::string, std::string> sources) {
+    embeddedModuleSources() = std::move(sources);
+}
+
+void setEmbeddedModuleLibraries(std::map<std::string, std::string> libraries) {
+    embeddedModuleLibraries() = std::move(libraries);
+}
+
+std::vector<ImportRecord> collectImports(const std::string& source,
+                                         const std::string& display) {
+    Lexer lexer(source, display);
+    Parser parser(lexer.scan());
+    parser.parseProgram();
+    return parser.imports();
+}
+
+std::string resolveModulePath(const std::string& sourceDirectory,
+                              const std::string& requested) {
+    const std::string embedded = findEmbeddedLibrary(requested);
+    if (!embedded.empty()) {
+        return embedded;
+    }
     const std::filesystem::path input(requested);
     std::vector<std::filesystem::path> candidates;
     if (input.has_extension()) {
         candidates.push_back(input);
     } else {
         candidates.push_back(input.string() + ".lynx");
-        candidates.push_back(input.string() + ".lynxc");
     }
 
-    if (!environment.sourceDirectory().empty()) {
+    if (!sourceDirectory.empty()) {
         for (const auto& candidate : candidates) {
-            if (std::filesystem::exists(candidate)) {
-                return candidate.string();
-            }
-        }
-        for (const auto& candidate : candidates) {
-            const auto path =
-                std::filesystem::path(environment.sourceDirectory()) / candidate;
+            const auto path = std::filesystem::path(sourceDirectory) / candidate;
             if (std::filesystem::exists(path)) {
                 return path.string();
             }
@@ -487,6 +545,13 @@ std::string findSourceModule(const Environment& environment,
         }
     }
     return "";
+}
+
+namespace {
+
+std::string findSourceModule(const Environment& environment,
+                             const std::string& requested) {
+    return resolveModulePath(environment.sourceDirectory(), requested);
 }
 
 RecordField* findRecordField(RecordValue& record, const std::string& name) {
@@ -1028,42 +1093,6 @@ Value VarGroupLiteralExpression::evaluate(Environment& environment) const {
     return record;
 }
 
-void unsupportedRuntimeModelCompile(ProgramEmitter&, const char* feature,
-                                    int line, int column) {
-    throw SourceError(std::string("bytecode compiler does not support ") +
-                          feature,
-                      line, column);
-}
-
-void TypeCoerceExpression::compile(ProgramEmitter& emitter) const {
-    unsupportedRuntimeModelCompile(emitter, "typed element literals", 0, 0);
-}
-
-void DotAccessExpression::compile(ProgramEmitter& emitter) const {
-    unsupportedRuntimeModelCompile(emitter, "field access", line_, column_);
-}
-
-void MethodCallExpression::compile(ProgramEmitter& emitter) const {
-    unsupportedRuntimeModelCompile(emitter, "methods", line_, column_);
-}
-
-void NewExpression::compile(ProgramEmitter& emitter) const {
-    unsupportedRuntimeModelCompile(emitter, "named-type construction", line_,
-                                   column_);
-}
-
-void AddVarGroupExpression::compile(ProgramEmitter& emitter) const {
-    unsupportedRuntimeModelCompile(emitter, "vargroups", line_, column_);
-}
-
-void RemoveVarGroupExpression::compile(ProgramEmitter& emitter) const {
-    unsupportedRuntimeModelCompile(emitter, "vargroups", line_, column_);
-}
-
-void VarGroupLiteralExpression::compile(ProgramEmitter& emitter) const {
-    unsupportedRuntimeModelCompile(emitter, "vargroups", 0, 0);
-}
-
 LiteralExpression::LiteralExpression(Value value) : value_(std::move(value)) {}
 
 Value LiteralExpression::evaluate(Environment&) const { return value_; }
@@ -1409,10 +1438,6 @@ void DotAssignmentStatement::execute(Environment& environment) const {
     setRecordField(*record, path_.back(), value, line_, column_);
 }
 
-void DotAssignmentStatement::compile(ProgramEmitter& emitter) const {
-    unsupportedRuntimeModelCompile(emitter, "field assignment", line_, column_);
-}
-
 SwitchStatement::SwitchStatement(ExpressionPtr value,
                                  std::vector<SwitchCase> cases, int line,
                                  int column)
@@ -1453,50 +1478,6 @@ void SwitchStatement::execute(Environment& environment) const {
     }
     if (defaultBody != nullptr) {
         executeStatements(*defaultBody, environment);
-    }
-}
-
-void SwitchStatement::compile(ProgramEmitter& emitter) const {
-    // Scalar literal cases can be represented directly in bytecode. Pattern
-    // bindings and sequence/enum patterns remain interpreter-only until the
-    // bytecode runtime grows a pattern instruction.
-    value_->compile(emitter);
-    std::vector<std::size_t> exits;
-    for (const SwitchCase& switchCase : cases_) {
-        if (switchCase.pattern == nullptr) {
-            continue;
-        }
-        const auto* literal =
-            dynamic_cast<const LiteralExpression*>(switchCase.pattern.get());
-        if (literal == nullptr) {
-            emitter.emit(Op::Pop);
-            unsupportedRuntimeModelCompile(emitter, "switch patterns", line_,
-                                           column_);
-        }
-        emitter.emit(Op::Dup);
-        literal->compile(emitter);
-        emitter.emit(Op::Eq);
-        const std::size_t next = emitter.emitJump(Op::JumpIfFalse);
-        emitter.emit(Op::Pop);
-        for (const auto& statement : switchCase.body) {
-            statement->compile(emitter);
-        }
-        exits.push_back(emitter.emitJump(Op::Jump));
-        emitter.patchJump(next, emitter.offset());
-        emitter.setDepth(1);
-    }
-    emitter.emit(Op::Pop);
-    for (const SwitchCase& switchCase : cases_) {
-        if (switchCase.pattern == nullptr) {
-            for (const auto& statement : switchCase.body) {
-                statement->compile(emitter);
-            }
-            break;
-        }
-    }
-    const std::size_t end = emitter.offset();
-    for (const std::size_t exit : exits) {
-        emitter.patchJump(exit, end);
     }
 }
 
@@ -1541,22 +1522,6 @@ void TryCatchStatement::execute(Environment& environment) const {
     }
 }
 
-void TryCatchStatement::compile(ProgramEmitter& emitter) const {
-    const uint32_t catchName =
-        catchName_.empty() ? UINT32_MAX : emitter.internString(catchName_);
-    const std::size_t handler = emitter.emitTryBegin(catchName);
-    for (const auto& statement : tryStatements_) {
-        statement->compile(emitter);
-    }
-    emitter.emit(Op::TryEnd);
-    const std::size_t skipCatch = emitter.emitJump(Op::Jump);
-    emitter.patchTryBegin(handler, emitter.offset());
-    for (const auto& statement : catchStatements_) {
-        statement->compile(emitter);
-    }
-    emitter.patchJump(skipCatch, emitter.offset());
-}
-
 ReturnStatement::ReturnStatement(ExpressionPtr value, int line, int column)
     : value_(std::move(value)), line_(line), column_(column) {}
 
@@ -1565,10 +1530,6 @@ void ReturnStatement::execute(Environment& environment) const {
         throw ReturnControl{value_->evaluate(environment), true};
     }
     throw ReturnControl{Value{}, false};
-}
-
-void ReturnStatement::compile(ProgramEmitter& emitter) const {
-    unsupportedRuntimeModelCompile(emitter, "return statements", line_, column_);
 }
 
 CodeblockDeclarationStatement::CodeblockDeclarationStatement(
@@ -1586,10 +1547,6 @@ void CodeblockDeclarationStatement::execute(Environment& environment) const {
         block->body.push_back(statement.get());
     }
     environment.declare(name_, "codeblock", block, line_, column_);
-}
-
-void CodeblockDeclarationStatement::compile(ProgramEmitter& emitter) const {
-    unsupportedRuntimeModelCompile(emitter, "codeblocks", line_, column_);
 }
 
 ExecStatement::ExecStatement(std::vector<ExpressionPtr> arguments,
@@ -1688,17 +1645,9 @@ void ExecStatement::execute(Environment& environment) const {
     restoreSavedVariables(saved, environment);
 }
 
-void ExecStatement::compile(ProgramEmitter& emitter) const {
-    unsupportedRuntimeModelCompile(emitter, "codeblocks", line_, column_);
-}
-
 void FunctionDeclarationStatement::execute(Environment& environment) const {
     environment.registerFunction(function_->name,
                                  std::shared_ptr<void>(function_));
-}
-
-void FunctionDeclarationStatement::compile(ProgramEmitter& emitter) const {
-    unsupportedRuntimeModelCompile(emitter, "local functions", 0, 0);
 }
 
 Value invokeFunction(
@@ -1928,22 +1877,35 @@ void ImportStatement::execute(Environment& environment) const {
                           line_, column_);
 #endif
     }
-    const std::string resolved = findSourceModule(environment, path_);
-    if (resolved.empty()) {
-        throw SourceError("module '" + path_ + "' was not found", line_, column_);
+    // A compiled executable carries its module sources in memory; otherwise the
+    // module is read from the filesystem.
+    std::string source;
+    std::string resolved;
+    if (const std::string* embedded = findEmbeddedSource(path_);
+        embedded != nullptr) {
+        resolved = path_;
+        source = *embedded;
+    } else {
+        resolved = findSourceModule(environment, path_);
+        if (resolved.empty()) {
+            throw SourceError("module '" + path_ + "' was not found", line_,
+                              column_);
+        }
+        std::ifstream input(resolved);
+        std::ostringstream content;
+        content << input.rdbuf();
+        source = content.str();
     }
-    std::ifstream input(resolved);
-    std::ostringstream content;
-    content << input.rdbuf();
-    const std::string source = content.str();
     Lexer lexer(source, resolved);
     Parser parser(lexer.scan());
     auto functions = std::make_shared<std::unordered_map<std::string, Function>>(
         parser.parseProgram());
 
     auto moduleEnvironment = std::make_shared<Environment>();
-    moduleEnvironment->setSourceDirectory(
-        std::filesystem::path(resolved).parent_path().string());
+    const std::filesystem::path resolvedPath(resolved);
+    if (resolvedPath.has_parent_path()) {
+        moduleEnvironment->setSourceDirectory(resolvedPath.parent_path().string());
+    }
     for (const auto& entry : *functions) {
         moduleEnvironment->registerFunction(
             entry.first,
@@ -2013,10 +1975,6 @@ void ImportStatement::execute(Environment& environment) const {
                                       *moduleEnvironment, line, column);
             });
     }
-}
-
-void ImportStatement::compile(ProgramEmitter& emitter) const {
-    unsupportedRuntimeModelCompile(emitter, "module imports", line_, column_);
 }
 
 void executeStatements(const StatementList& statements,

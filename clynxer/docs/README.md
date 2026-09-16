@@ -32,6 +32,9 @@ marked *pure* are written in Lynxer only and need no shared library. Modules
 marked *opt-in* are skipped with a warning when their system library is missing,
 so a plain `make` never fails on absent optional dependencies.
 
+There is no bytecode backend: `--compile` produces a standalone ELF executable
+that embeds the program, its imported module sources and its native libraries.
+
 | Module | Implementation | Backend |
 | --- | --- | --- |
 | [cli](stdlib/cli.md) | native | POSIX process/env/terminal APIs |
@@ -41,8 +44,7 @@ so a plain `make` never fails on absent optional dependencies.
 | [fileIO](stdlib/fileIO.md) | native | `<fstream>`, `<filesystem>` |
 | [js](stdlib/js.md) | native | the `node` binary |
 | [json](stdlib/json.md) | native | hand-written JSON parser (`native_json.hpp`) |
-| [math](stdlib/math.md) | native | `<cmath>` |
-| [mathPlus](stdlib/mathPlus.md) | native + pure | `<cmath>` statistics and vector helpers |
+| [math](stdlib/math.md) | native | `<cmath>` plus statistics and vector helpers |
 | [multiprocessing](stdlib/multiprocessing.md) | native + pure | `std::thread` and shell subprocesses |
 | [os](stdlib/os.md) | native | `<filesystem>`, POSIX |
 | [path](stdlib/path.md) | native | `<filesystem>`, POSIX `stat` |
@@ -77,5 +79,6 @@ Planned opt-in modules that are not part of the build yet: `http` (libcurl),
    file. `make test` runs every `examples/stdlib_*.lynx` and diffs it against
    its `.expected` output.
 
-Module imports cannot be bytecode-compiled, so stdlib fixtures run interpreted
-only.
+A module that imports native libraries is picked up automatically by
+`--compile`: every transitively imported `.lynx` source and `.so` library is
+embedded in the resulting executable.

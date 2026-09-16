@@ -2,13 +2,14 @@
 
 #include "runtime.hpp"
 
+#include <map>
 #include <memory>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
 namespace clynxer {
 
-class ProgramEmitter;
 class Statement;
 using StatementPtr = std::unique_ptr<Statement>;
 using StatementList = std::vector<StatementPtr>;
@@ -17,7 +18,6 @@ class Expression {
 public:
     virtual ~Expression() = default;
     virtual Value evaluate(Environment& environment) const = 0;
-    virtual void compile(ProgramEmitter& emitter) const = 0;
 };
 
 using ExpressionPtr = std::unique_ptr<Expression>;
@@ -28,7 +28,6 @@ public:
 
     Value evaluate(Environment& environment) const override;
 
-    void compile(ProgramEmitter& emitter) const override;
 
     const Value& value() const { return value_; }
 
@@ -42,7 +41,6 @@ public:
 
     Value evaluate(Environment& environment) const override;
 
-    void compile(ProgramEmitter& emitter) const override;
 
     const std::string& name() const { return name_; }
 
@@ -63,7 +61,6 @@ public:
 
     Value evaluate(Environment& environment) const override;
 
-    void compile(ProgramEmitter& emitter) const override;
 
     const Expression& operandExpr() const { return *operand_; }
 
@@ -85,7 +82,6 @@ public:
 
     Value evaluate(Environment& environment) const override;
 
-    void compile(ProgramEmitter& emitter) const override;
 
     const Expression& leftExpr() const { return *left_; }
     const Expression& rightExpr() const { return *right_; }
@@ -109,7 +105,6 @@ public:
 
     Value evaluate(Environment& environment) const override;
 
-    void compile(ProgramEmitter& emitter) const override;
 
     const std::vector<ExpressionPtr>& arguments() const { return arguments_; }
     const std::string& name() const { return name_; }
@@ -138,7 +133,6 @@ public:
 
     Value evaluate(Environment& environment) const override;
 
-    void compile(ProgramEmitter& emitter) const override;
 
     const std::vector<ExpressionPtr>& elements() const { return elements_; }
 
@@ -152,7 +146,6 @@ public:
 
     Value evaluate(Environment& environment) const override;
 
-    void compile(ProgramEmitter& emitter) const override;
 
     const std::vector<ExpressionPtr>& elements() const { return elements_; }
 
@@ -167,7 +160,6 @@ public:
     TypeCoerceExpression(ExpressionPtr inner, std::string type);
 
     Value evaluate(Environment& environment) const override;
-    void compile(ProgramEmitter& emitter) const override;
 
     const Expression& inner() const { return *inner_; }
 
@@ -186,7 +178,6 @@ public:
                         int column);
 
     Value evaluate(Environment& environment) const override;
-    void compile(ProgramEmitter& emitter) const override;
 
     int line() const { return line_; }
 
@@ -211,7 +202,6 @@ public:
                          int column);
 
     Value evaluate(Environment& environment) const override;
-    void compile(ProgramEmitter& emitter) const override;
 
     int line() const { return line_; }
 
@@ -235,7 +225,6 @@ public:
                   int line, int column);
 
     Value evaluate(Environment& environment) const override;
-    void compile(ProgramEmitter& emitter) const override;
 
     int line() const { return line_; }
 
@@ -257,7 +246,6 @@ public:
                           int column);
 
     Value evaluate(Environment& environment) const override;
-    void compile(ProgramEmitter& emitter) const override;
 
 private:
     ExpressionPtr target_;
@@ -275,7 +263,6 @@ public:
                              int column);
 
     Value evaluate(Environment& environment) const override;
-    void compile(ProgramEmitter& emitter) const override;
 
 private:
     ExpressionPtr target_;
@@ -296,7 +283,6 @@ public:
     explicit VarGroupLiteralExpression(std::vector<VarGroupFieldInit> fields);
 
     Value evaluate(Environment& environment) const override;
-    void compile(ProgramEmitter& emitter) const override;
 
 private:
     std::vector<VarGroupFieldInit> fields_;
@@ -312,7 +298,6 @@ public:
 
     Value evaluate(Environment& environment) const override;
 
-    void compile(ProgramEmitter& emitter) const override;
     const std::vector<ExpressionPtr>& expressions() const { return expressions_; }
 
 private:
@@ -324,7 +309,6 @@ class Statement {
 public:
     virtual ~Statement() = default;
     virtual void execute(Environment& environment) const = 0;
-    virtual void compile(ProgramEmitter& emitter) const = 0;
 };
 
 
@@ -355,7 +339,6 @@ public:
 
     void execute(Environment& environment) const override;
 
-    void compile(ProgramEmitter& emitter) const override;
     const Expression& valueExpr() const { return *value_; }
     bool isConstant() const { return constant_; }
 
@@ -379,7 +362,6 @@ public:
 
     void execute(Environment& environment) const override;
 
-    void compile(ProgramEmitter& emitter) const override;
     const std::string& name() const { return name_; }
     const Expression& valueExpr() const { return *value_; }
 
@@ -402,7 +384,6 @@ public:
                            ExpressionPtr value, int line, int column);
 
     void execute(Environment& environment) const override;
-    void compile(ProgramEmitter& emitter) const override;
 
 private:
     std::vector<std::string> path_;
@@ -423,7 +404,6 @@ public:
                     int line, int column);
 
     void execute(Environment& environment) const override;
-    void compile(ProgramEmitter& emitter) const override;
 
 private:
     ExpressionPtr value_;
@@ -438,7 +418,6 @@ public:
                       StatementList catchStatements, int line, int column);
 
     void execute(Environment& environment) const override;
-    void compile(ProgramEmitter& emitter) const override;
 
     const StatementList& tryStatements() const { return tryStatements_; }
     const StatementList& catchStatements() const { return catchStatements_; }
@@ -462,7 +441,6 @@ public:
     explicit ReturnStatement(ExpressionPtr value, int line, int column);
 
     void execute(Environment& environment) const override;
-    void compile(ProgramEmitter& emitter) const override;
 
 private:
     ExpressionPtr value_;
@@ -478,7 +456,6 @@ public:
         StatementList body, int line, int column);
 
     void execute(Environment& environment) const override;
-    void compile(ProgramEmitter& emitter) const override;
 
 private:
     std::string name_;
@@ -496,7 +473,6 @@ public:
                   StatementList body, int line, int column);
 
     void execute(Environment& environment) const override;
-    void compile(ProgramEmitter& emitter) const override;
 
 private:
     void runBody(const StatementList& body,
@@ -533,7 +509,6 @@ public:
         : function_(std::move(function)) {}
 
     void execute(Environment& environment) const override;
-    void compile(ProgramEmitter& emitter) const override;
 
 private:
     std::shared_ptr<Function> function_;
@@ -545,7 +520,6 @@ public:
 
     void execute(Environment& environment) const override;
 
-    void compile(ProgramEmitter& emitter) const override;
 
 private:
     LoopControlKind kind_;
@@ -557,7 +531,6 @@ public:
 
     void execute(Environment& environment) const override;
 
-    void compile(ProgramEmitter& emitter) const override;
     const Expression& expression() const { return *expression_; }
 
 private:
@@ -571,7 +544,6 @@ public:
           column_(column) {}
 
     void execute(Environment& environment) const override;
-    void compile(ProgramEmitter& emitter) const override;
 
 private:
     std::string path_;
@@ -589,7 +561,6 @@ public:
 
     void execute(Environment& environment) const override;
 
-    void compile(ProgramEmitter& emitter) const override;
 
     const StatementList& thenStatements() const { return thenStatements_; }
 
@@ -609,7 +580,6 @@ public:
 
     void execute(Environment& environment) const override;
 
-    void compile(ProgramEmitter& emitter) const override;
 
     const StatementList& statements() const { return statements_; }
     const Expression& condition() const { return *condition_; }
@@ -626,7 +596,6 @@ public:
 
     void execute(Environment& environment) const override;
 
-    void compile(ProgramEmitter& emitter) const override;
 
     const StatementList& statements() const { return statements_; }
 
@@ -643,7 +612,6 @@ public:
 
     void execute(Environment& environment) const override;
 
-    void compile(ProgramEmitter& emitter) const override;
 
     const StatementList& statements() const { return statements_; }
 
@@ -659,7 +627,6 @@ public:
 
     void execute(Environment& environment) const override;
 
-    void compile(ProgramEmitter& emitter) const override;
 
     const StatementList& statements() const { return statements_; }
     const Expression& count() const { return *count_; }
@@ -681,7 +648,6 @@ public:
 
     void execute(Environment& environment) const override;
 
-    void compile(ProgramEmitter& emitter) const override;
 
     const StatementList& statements() const { return statements_; }
 
@@ -704,5 +670,28 @@ Value invokeFunction(const Function& function, const std::vector<Value>& args,
 
 void executeProgram(const std::unordered_map<std::string, Function>& functions,
                     Environment& environment);
+
+// One `import`/`importAs` occurrence found while parsing.
+struct ImportRecord {
+    std::string path;
+    std::string alias;
+    int line = 0;
+    int column = 0;
+};
+
+// Lexes and parses `source`, returning every import it declares in source order.
+std::vector<ImportRecord> collectImports(const std::string& source,
+                                         const std::string& display);
+
+// Resolves a module reference the way the interpreter does, starting from
+// `sourceDirectory`. Embedded modules take priority; returns "" when nothing
+// matches.
+std::string resolveModulePath(const std::string& sourceDirectory,
+                              const std::string& requested);
+
+// Installs the module sources and native library paths carried by a compiled
+// executable.
+void setEmbeddedModuleSources(std::map<std::string, std::string> sources);
+void setEmbeddedModuleLibraries(std::map<std::string, std::string> libraries);
 
 } // namespace clynxer

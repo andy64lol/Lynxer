@@ -4,6 +4,35 @@ Clynxer is the standalone C++ implementation being rebuilt beside the original
 Python Lynxer. The Python implementation is the behavior reference; it is not a
 runtime dependency and its internals are not copied into Clynxer.
 
+## Next up — compiler pivot and stdlib consolidation
+
+Planned order of work, newest direction first.
+
+- [x] Merge `mathPlus` into `math`: the statistics/vector helpers (`median`,
+  `std`, `variance`, `percentile`, `corrcoef`, `dot`, `linspace`, `cumsum`,
+  `diff`, `clip`, `normalize`) now live in `stdlib/math.cpp` + `math.lynx`, and
+  `maxInt()`/`minInt()` are exposed on the `math` namespace. `stdlib/mathPlus.*`,
+  its fixture and its docs page are gone; coverage moved to
+  `examples/stdlib_math.lynx`.
+- [x] Add a GitHub Actions workflow that builds Clynxer and runs
+  `make testCLynxer` on push and pull request
+  (`.github/workflows/buildCLynxer.yml`), plus compile-and-run smoke checks for a
+  plain program and for a program that imports stdlib modules.
+- [x] Remove the Clynxer bytecode stack: `bytecode.*`, `vm.*`, `compiler.*`, the
+  `CLYXC` container, `.lynxc` execution, `--view-bytecode`,
+  `--benchmark-compile`, `--no-cache`, `--no-opt`, and the per-AST-node
+  `compile(ProgramEmitter&)` methods are gone. `--compile` produces an ELF
+  executable (the former `--bundle`); `--bundle` remains an alias, and a
+  `.lynxc` argument now reports that bytecode is no longer supported.
+- [x] Make compiled executables support module imports: the payload carries the
+  program source, every transitively imported `.lynx` module source, and every
+  imported native `.so`. Native libraries are materialized into a temporary
+  directory at startup for `dlopen` and removed at exit, so the executable is
+  self-contained and needs nothing from the build tree. Imports, stdlibs and
+  every language feature behave exactly as in an interpreted run — including the
+  features the old bytecode compiler rejected (field access, methods, codeblocks,
+  switch patterns, local functions, imports).
+
 ## Rebuild rules
 
 - Keep Clynxer under `clynxer/`, separate from `lynxer/`.
@@ -114,6 +143,10 @@ runtime dependency and its internals are not copied into Clynxer.
 
 ## Milestone 8 — compiler, bytecode, and CLI surface
 
+> Superseded by the compiler pivot above: bytecode, the `CLYXC` container and
+> `--view-bytecode` are being removed, and `--compile` now produces an ELF
+> executable. The checked items below record what was built before the pivot.
+
 - [x] CLI parity for run/help/version/lint/list-stdlibs/easter egg via
   `shell.cpp`, with the version and message templates in `clynxer.config`.
 - [x] Fail explicitly for bundle, ast, format, benchmark, validate, install.
@@ -166,14 +199,15 @@ scalar type set (`num`, `numBool`, `bit`, `byte`, `int8`..`uint64`,
 `(int 10, int 20)`), a flat per-function lexical scope, `const` with
 reassignment errors, and structs/classes/enums/vargroups with `switch` /
 pattern matching. The list/tuple/IO/conversion/introspection built-ins, the
-native-memory family, and the named syscalls are also implemented. Programs
-can be compiled to `CLYXC` bytecode (`--compile`) and executed by the native
-stack-machine VM with output parity against the interpreter. Milestone 5
-file-wide/global/local functions, typed/default parameters, return values,
-caller-supplied and named codeblocks, and `overrideMain` are supported by the
-interpreter and by validated CLYXC source-fallback sections. The root Makefile
-builds and tests both Lynxer and Clynxer targets. Modules remain outside this
-boundary. Bitwise and word
-operators, `elif`, scalar `switch` cases, and `try`/`catch` are supported in
-both execution paths; complex switch patterns remain interpreter-only and
-fail explicitly during bytecode compilation.
+native-memory family, and the named syscalls are also implemented.
+
+There is no bytecode backend: `--compile` writes a standalone ELF executable
+that embeds the program, every transitively imported module source, and every
+imported native library, so a compiled program supports imports and stdlibs and
+behaves exactly like an interpreted one. The root Makefile builds and tests both
+Lynxer and Clynxer targets, and a GitHub Actions workflow builds Clynxer and runs
+its suite. The bundled standard library covers `math`, `json`, `re`, `regex`,
+`os`, `path`, `fileIO`, `csv`, `time`, `debug`, `sys`, `shell`, `cli`, `js`,
+`multiprocessing`, `random` and `text`/`typing`/`colorlib`; the remaining
+optional modules (`http`, `net`, `lua`, `tui`, `image`, `game`) are still to be
+ported, and their system-library build table already exists.

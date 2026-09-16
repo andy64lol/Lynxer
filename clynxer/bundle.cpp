@@ -2,19 +2,89 @@
 
 #include "config.hpp"
 
+#include <algorithm>
+#include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <sys/stat.h>
+#include <unistd.h>
 
 namespace clynxer {
 
 namespace {
 
-// Trailer appended to a bundled executable:
-//   ... executable bytes ... | magic (10) | u64le payload size | payload
-inline constexpr char BUNDLE_MAGIC[10] = {'C', 'L', 'Y', 'X', 'P',
-                                          'A', 'Y', 'L', 'D', '\0'};
+// Trailer appended to a compiled executable:
+//   ... executable bytes ... | magic (10) | u64le body size | body
+inline constexpr char BUNDLE_MAGIC[10] = {'C', 'L', 'Y', 'X', 'S',
+                                          'R', 'C', 'P', 'A', 'Y'};
 inline constexpr std::size_t BUNDLE_TRAILER = sizeof(BUNDLE_MAGIC) + 8;
+
+/* ---------- little-endian helpers ---------- */
+
+void appendU64(std::vector<uint8_t>& output, std::uint64_t value) {
+    for (int index = 0; index < 8; ++index) {
+        output.push_back(static_cast<uint8_t>((value >> (8 * index)) & 0xFF));
+    }
+}
+
+void appendBlob(std::vector<uint8_t>& output, const std::string& text) {
+    appendU64(output, text.size());
+    output.insert(output.end(), text.begin(), text.end());
+}
+
+void appendBytes(std::vector<uint8_t>& output,
+                 const std::vector<uint8_t>& bytes) {
+    appendU64(output, bytes.size());
+    output.insert(output.end(), bytes.begin(), bytes.end());
+}
+
+// Cursor over a payload body; every read is bounds checked.
+class Reader {
+public:
+    explicit Reader(const std::vector<uint8_t>& bytes) : bytes_(bytes) {}
+
+    bool readU64(std::uint64_t& value) {
+        if (position_ + 8 > bytes_.size()) {
+            return false;
+        }
+        value = 0;
+        for (int index = 7; index >= 0; --index) {
+            value = (value << 8) | bytes_[position_ + index];
+        }
+        position_ += 8;
+        return true;
+    }
+
+    bool readBlob(std::string& text) {
+        std::uint64_t size = 0;
+        if (!readU64(size) || position_ + size > bytes_.size()) {
+            return false;
+        }
+        text.assign(reinterpret_cast<const char*>(bytes_.data() + position_),
+                    static_cast<std::size_t>(size));
+        position_ += static_cast<std::size_t>(size);
+        return true;
+    }
+
+    bool readBytes(std::vector<uint8_t>& bytes) {
+        std::uint64_t size = 0;
+        if (!readU64(size) || position_ + size > bytes_.size()) {
+            return false;
+        }
+        bytes.assign(bytes_.begin() + static_cast<std::ptrdiff_t>(position_),
+                     bytes_.begin() +
+                         static_cast<std::ptrdiff_t>(position_ + size));
+        position_ += static_cast<std::size_t>(size);
+        return true;
+    }
+
+    bool atEnd() const { return position_ == bytes_.size(); }
+
+private:
+    const std::vector<uint8_t>& bytes_;
+    std::size_t position_ = 0;
+};
 
 bool readTrailer(std::ifstream& input, std::vector<uint8_t>& payload) {
     input.seekg(0, std::ios::end);
@@ -48,7 +118,7 @@ bool readTrailer(std::ifstream& input, std::vector<uint8_t>& payload) {
 }
 
 // Bytes of 'path' to carry into a new bundle: the whole file when it has no
-// payload, or everything before an existing payload when re-bundling.
+// payload, or everything before an existing payload when re-compiling.
 std::size_t executableCopySize(const std::string& path) {
     std::ifstream input(path, std::ios::binary);
     if (!input) {
@@ -78,6 +148,26 @@ std::size_t executableCopySize(const std::string& path) {
            static_cast<std::size_t>(size);
 }
 
+std::string temporaryDirectory() {
+    char pattern[] = "/tmp/clynxer-bundle-XXXXXX";
+    if (::mkdtemp(pattern) == nullptr) {
+        return "";
+    }
+    return pattern;
+}
+
+// Registered with std::atexit: native libraries stay mapped after their files
+// are removed, so the directory can be cleaned up when the process ends.
+std::string& cleanupDirectory() {
+    static std::string path;
+    return path;
+}
+
+void removeCleanupDirectory() {
+    std::error_code error;
+    std::filesystem::remove_all(cleanupDirectory(), error);
+}
+
 } // namespace
 
 bool readSelfPayload(std::vector<uint8_t>& payload) {
@@ -92,16 +182,49 @@ bool readSelfPayload(std::vector<uint8_t>& payload) {
     return readTrailer(self, payload);
 }
 
-std::vector<uint8_t> makeBundlePayload(const std::vector<uint8_t>& bytecode) {
+bool decodeProgramArchive(const std::vector<uint8_t>& payload,
+                          ProgramArchive& archive) {
+    Reader reader(payload);
+    if (!reader.readBlob(archive.mainPath)) {
+        return false;
+    }
+    if (!reader.readBlob(archive.mainSource)) {
+        return false;
+    }
+    std::uint64_t count = 0;
+    if (!reader.readU64(count)) {
+        return false;
+    }
+    for (std::uint64_t index = 0; index < count; ++index) {
+        ArchiveModule module;
+        if (!reader.readBlob(module.name)) {
+            return false;
+        }
+        if (!reader.readBlob(module.source)) {
+            return false;
+        }
+        if (!reader.readBytes(module.library)) {
+            return false;
+        }
+        archive.modules.push_back(std::move(module));
+    }
+    return reader.atEnd();
+}
+
+std::vector<uint8_t> makeBundlePayload(const ProgramArchive& archive) {
     std::vector<uint8_t> payload;
-    payload.reserve(bytecode.size() + BUNDLE_TRAILER);
-    payload.insert(payload.end(), bytecode.begin(), bytecode.end());
+    appendBlob(payload, archive.mainPath);
+    appendBlob(payload, archive.mainSource);
+    appendU64(payload, archive.modules.size());
+    for (const auto& module : archive.modules) {
+        appendBlob(payload, module.name);
+        appendBlob(payload, module.source);
+        appendBytes(payload, module.library);
+    }
+    const std::uint64_t bodySize = payload.size();
     payload.insert(payload.end(), BUNDLE_MAGIC,
                    BUNDLE_MAGIC + sizeof(BUNDLE_MAGIC));
-    const uint64_t size = bytecode.size();
-    for (int index = 0; index < 8; ++index) {
-        payload.push_back(static_cast<uint8_t>((size >> (8 * index)) & 0xFF));
-    }
+    appendU64(payload, bodySize);
     return payload;
 }
 
@@ -114,8 +237,8 @@ bool writeBundledExecutable(const std::string& outputPath,
         return false;
     }
 
-    // Copy the executable, stripping any payload it already carries so a
-    // bundle built from a bundled binary stays valid.
+    // Copy the executable, stripping any payload it already carries so a bundle
+    // built from a bundled binary stays valid.
     std::ifstream source(selfPath, std::ios::binary);
     if (!source) {
         error = "cannot read '" + selfPath + "'";
@@ -151,6 +274,53 @@ bool writeBundledExecutable(const std::string& outputPath,
     if (::chmod(outputPath.c_str(), 0755) != 0) {
         error = "cannot mark '" + outputPath + "' executable";
         return false;
+    }
+    return true;
+}
+
+bool materializeLibraries(const std::vector<ArchiveModule>& modules,
+                          std::map<std::string, std::string>& paths,
+                          std::string& error) {
+    bool hasLibrary = false;
+    for (const auto& module : modules) {
+        if (!module.library.empty()) {
+            hasLibrary = true;
+            break;
+        }
+    }
+    if (!hasLibrary) {
+        return true;
+    }
+
+    const std::string directory = temporaryDirectory();
+    if (directory.empty()) {
+        error = "cannot create a temporary directory for native modules";
+        return false;
+    }
+    cleanupDirectory() = directory;
+    std::atexit(removeCleanupDirectory);
+
+    for (const auto& module : modules) {
+        if (module.library.empty()) {
+            continue;
+        }
+        const std::string name =
+            std::filesystem::path(module.name).filename().string();
+        const std::string path = directory + "/" + name;
+        std::ofstream output(path, std::ios::binary | std::ios::trunc);
+        if (!output) {
+            error = "cannot write native module '" + name + "'";
+            return false;
+        }
+        output.write(reinterpret_cast<const char*>(module.library.data()),
+                     static_cast<std::streamsize>(module.library.size()));
+        output.close();
+        if (::chmod(path.c_str(), 0755) != 0) {
+            error = "cannot mark native module '" + name + "' loadable";
+            return false;
+        }
+        paths[name] = path;
+        paths[module.name] = path;
     }
     return true;
 }

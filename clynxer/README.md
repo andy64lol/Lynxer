@@ -25,7 +25,8 @@ The first slice intentionally stays small:
   `exec(){{name}}`, and `overrideMain`
 - source modules loaded with `import()`/`importAs()`, exposed through
   `global.<module>.<name>`, and optional `-> type` return annotations
-- bundled package-free stdlibs: `math`, `mathPlus`, `json`, `re`, `regex`, `os`,
+- bundled package-free stdlibs: `math` (including the statistics and vector
+  helpers formerly in `mathPlus`), `json`, `re`, `regex`, `os`,
   `path`, `fileIO`, `csv`, `time`, `debug`, `multiprocessing`, `cli`, `js`,
   `shell`, `sys`, `random` and `text`/`typing`/`colorlib`. Native modules are
   built from `stdlib/<name>.cpp` into `stdlib/<name>.so` and wrapped by
@@ -34,8 +35,13 @@ The first slice intentionally stays small:
 - `stdlib/libs.mk` declares optional system-library dependencies (SDL2, ncurses,
   libcurl, Lua, libpng). Modules whose library is missing are skipped with a
   warning, so a plain `make` never depends on them
-- CLYXC compilation for Milestone 5 uses a validated source-fallback section
-  so interpreter and bytecode entry points retain identical behavior
+- `--compile` builds a standalone ELF executable that embeds the program source,
+  the source of every transitively imported `.lynx` module, and the bytes of every
+  imported native `.so`. Running it needs nothing from the build tree. `--bundle`
+  is an alias
+- CLYXC bytecode, the stack-machine VM, `--view-bytecode`, `--benchmark-compile`,
+  `--no-cache` and the `--compile` cache were removed in favour of the executable
+  backend above
 
 ## Build and run
 

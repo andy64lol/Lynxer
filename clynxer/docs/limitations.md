@@ -21,8 +21,17 @@ on a module.
   There is no `\x`/`\u` escape, so byte values such as `\x1f` cannot be written
   in Lynxer source. Modules that need such a separator use a writable one
   (for example a tab) instead.
-- **Module imports are interpreter-only.** `--compile` rejects programs that
-  import modules, so stdlib consumers cannot be compiled to bytecode.
+- **There is no bytecode backend.** `.lynxc` files, `--view-bytecode`,
+  `--benchmark-compile`, `--no-cache` and `--no-opt` were removed. `--compile`
+  now produces a standalone ELF executable (the old `--bundle`); `--bundle`
+  remains as an alias. Running a `.lynxc` file reports that bytecode is no longer
+  supported.
+- **Compiled executables embed their modules.** The payload carries the program
+  source, the source of every transitively imported `.lynx` module, and the bytes
+  of every imported native `.so`. Native modules are written to a temporary
+  directory at startup so `dlopen` can load them, and the directory is removed
+  when the process exits. Both `--compile` and `--bundle` accept an optional
+  output name; without one the executable is named after the input file.
 
 ## Native module ABI
 
@@ -127,13 +136,17 @@ Python's `re`:
 - `log`/`info`/`warn`/`error`/`debug` embed a wall-clock timestamp, so they are
   not covered by the fixture suite.
 
-## `mathPlus`
+## `math`
 
-- The NumPy-backed statistics are reimplemented natively with population
-  variance/standard deviation and NumPy's linear percentile interpolation.
-  NumPy itself is not required.
+- The NumPy-backed statistics (`median`, `std`, `variance`, `percentile`,
+  `corrcoef`, `dot`, `linspace`, `cumsum`, `diff`, `clip`, `normalize`) are
+  reimplemented natively — NumPy is not required. Population variance and
+  standard deviation are used, and `percentile` follows NumPy's linear
+  interpolation.
 - Lists cross the native boundary as tab-separated strings, and list results are
   returned the same way.
+- The former separate `mathPlus` module has been merged into `math`; the
+  float-accepting `sign` from `mathPlus` is available as `signFloat`.
 
 ## Testing notes
 

@@ -22,7 +22,7 @@ SYSTEM_CALLS := --hidden-import system_calls --hidden-import lynxer.syscalls --c
 NATIVE_HIDDEN_IMPORTS := --hidden-import lynxer.cpp --hidden-import lynxer.bytecode_vm
 
 CLYNXER_TARGET := clynxer/clynxer
-CLYNXER_SOURCES := $(addprefix clynxer/,main.cpp shell.cpp lexer.cpp runtime.cpp types.cpp builtins.cpp ops.cpp ast.cpp parser.cpp config.cpp compiler.cpp vm.cpp bytecode.cpp bundle.cpp)
+CLYNXER_SOURCES := $(addprefix clynxer/,main.cpp shell.cpp lexer.cpp runtime.cpp types.cpp builtins.cpp ops.cpp ast.cpp parser.cpp config.cpp bundle.cpp)
 CLYNXER_OBJECTS := $(CLYNXER_SOURCES:.cpp=.o)
 CLYNXER_HEADERS := $(wildcard clynxer/*.hpp)
 CLYNXER_CXX ?= c++
