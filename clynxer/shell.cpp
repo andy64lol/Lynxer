@@ -48,18 +48,20 @@ std::string readFile(const std::string& path, const std::string& display,
 void printUsage() {
     std::cout << "\n";
     std::cout << "Usage:\n";
-    std::cout << "  clynxer <file.lynx>                   Run a Lynxer source file\n";
-    std::cout << "  clynxer --compile <file.lynx> [name]  Compile to a standalone executable\n";
-    std::cout << "  clynxer --bundle <file.lynx> [name]   Alias of --compile\n";
-    std::cout << "  clynxer --ast <file.lynx>             Parse and print the abstract syntax tree\n";
-    std::cout << "  clynxer --format <file.lynx>          Format a Lynxer source file in place\n";
-    std::cout << "  clynxer --format-oneline <file.lynx>  Compact a Lynxer source file to one line\n";
-    std::cout << "  clynxer --lint <file.lynx>            Check Lynxer syntax without running it\n";
-    std::cout << "  clynxer --validate-executeable        Run the comprehensive interpreter validator\n";
-    std::cout << "  clynxer --version                     Print version\n";
-    std::cout << "  clynxer --list-stdlibs                List available Lynxer stdlib modules\n";
-    std::cout << "  clynxer --install                     Install the compiled executable as /usr/bin/lynxer, may require sudo\n";
-    std::cout << "  clynxer --uninstall                   Remove /usr/bin/lynxer, also may require sudo\n";
+    std::cout << "  clynxer <file.lynx>                          Run a Lynxer source file\n";
+    std::cout << "  clynxer --compile <a.lynx> [options] [name]  Compile input files into one executable\n";
+    std::cout << "  clynxer --bundle <a.lynx> [options] [name]   Alias of --compile\n";
+    std::cout << "      --include <file>                         Embed a module, native library or data file\n";
+    std::cout << "      -o, --output <name>                      Name the output executable\n";
+    std::cout << "  clynxer --ast <file.lynx>                    Parse and print the abstract syntax tree\n";
+    std::cout << "  clynxer --format <file.lynx>                 Format a Lynxer source file in place\n";
+    std::cout << "  clynxer --format-oneline <file.lynx>         Compact a Lynxer source file to one line\n";
+    std::cout << "  clynxer --lint <file.lynx>                   Check Lynxer syntax without running it\n";
+    std::cout << "  clynxer --validate-executeable               Run the comprehensive interpreter validator\n";
+    std::cout << "  clynxer --version                            Print version\n";
+    std::cout << "  clynxer --list-stdlibs                       List available Lynxer stdlib modules\n";
+    std::cout << "  clynxer --install                            Install the compiled executable as /usr/bin/lynxer, may require sudo\n";
+    std::cout << "  clynxer --uninstall                          Remove /usr/bin/lynxer, also may require sudo\n";
     std::cout << "\n";
     std::cout << "  BTW, please run the install and uninstall with the executeable, not shell.cpp nor anything else.\n";
     std::cout << "  If you are running from source, use the compiled executable instead located in GitHub Releases.\n";
@@ -218,21 +220,123 @@ int unsupportedFeature(const std::string& flag) {
     return 1;
 }
 
-// Recursively collects `source` and every module it imports into `archive`.
-// Source modules are embedded as text; native modules are embedded as library
-// bytes so the compiled executable does not need the build tree at run time.
-bool collectArchive(const std::string& displayPath, const std::string& source,
+bool endsWith(const std::string& value, const std::string& suffix) {
+    return value.size() > suffix.size() &&
+           value.compare(value.size() - suffix.size(), suffix.size(), suffix) ==
+               0;
+}
+
+// Resolves a file named directly on the command line: the path as written when
+// it exists, otherwise the same search `import` uses.
+std::string resolveExplicitPath(const std::string& given) {
+    std::error_code error;
+    if (std::filesystem::is_regular_file(given, error)) {
+        return given;
+    }
+    return resolveModulePath("", given);
+}
+
+std::string baseName(const std::string& path) {
+    return std::filesystem::path(path).filename().string();
+}
+
+// Recursively collects `mainSource` and every module it imports into `archive`,
+// then embeds each file named explicitly on the command line. Source modules are
+// embedded as text; native modules are embedded as library bytes so the compiled
+// executable does not need the build tree at run time.
+bool collectArchive(const std::string& mainPath, const std::string& mainSource,
+                    const std::vector<std::string>& extraInputs,
                     ProgramArchive& archive, std::string& error) {
     std::map<std::string, bool> collectedSources;
     std::map<std::string, bool> collectedLibraries;
+    std::map<std::string, bool> collectedAssets;
 
     struct Pending {
         std::string path;
         std::string source;
     };
     std::vector<Pending> queue;
-    queue.push_back(Pending{displayPath, source});
-    collectedSources[displayPath] = true;
+    queue.push_back(Pending{mainPath, mainSource});
+    collectedSources[mainPath] = true;
+
+    // Explicit inputs are embedded first so they take part in the same
+    // de-duplication as imported modules, so a source input has its own imports
+    // walked below, and so `import` can resolve them by name even when they live
+    // outside the normal module search path. Inputs that are neither `.lynx` nor
+    // `.so` are embedded as data files.
+    std::map<std::string, bool> extraKeys;
+    const auto recordExtraKeys = [&extraKeys](const std::string& given) {
+        const std::string bare = baseName(given);
+        extraKeys[given] = true;
+        extraKeys[bare] = true;
+        if (endsWith(bare, ".lynx")) {
+            extraKeys[bare.substr(0, bare.size() - 5)] = true;
+        }
+    };
+
+    for (const auto& given : extraInputs) {
+        const bool native = endsWith(given, ".so");
+        const bool sourceModule = endsWith(given, ".lynx");
+        const std::string resolved = resolveExplicitPath(given);
+        if (resolved.empty()) {
+            error = "input file '" + given + "' was not found";
+            return false;
+        }
+        if (native || sourceModule) {
+            recordExtraKeys(given);
+            recordExtraKeys(resolved);
+        }
+        if (native) {
+            if (collectedLibraries.count(resolved) != 0) {
+                continue;
+            }
+            std::ifstream input(resolved, std::ios::binary);
+            if (!input) {
+                error = "cannot read native module '" + resolved + "'";
+                return false;
+            }
+            ArchiveModule module;
+            module.name = given;
+            module.library.assign(std::istreambuf_iterator<char>(input),
+                                  std::istreambuf_iterator<char>());
+            collectedLibraries[resolved] = true;
+            archive.modules.push_back(std::move(module));
+            continue;
+        }
+        if (!sourceModule) {
+            if (collectedAssets.count(resolved) != 0) {
+                continue;
+            }
+            std::ifstream input(resolved, std::ios::binary);
+            if (!input) {
+                error = "cannot read included file '" + resolved + "'";
+                return false;
+            }
+            ArchiveModule module;
+            module.name = given;
+            module.asset.assign(std::istreambuf_iterator<char>(input),
+                                std::istreambuf_iterator<char>());
+            collectedAssets[resolved] = true;
+            archive.modules.push_back(std::move(module));
+            continue;
+        }
+        if (collectedSources.count(resolved) != 0) {
+            continue;
+        }
+        std::ifstream input(resolved);
+        if (!input) {
+            error = "cannot read module '" + resolved + "'";
+            return false;
+        }
+        std::ostringstream content;
+        content << input.rdbuf();
+        ArchiveModule module;
+        module.name = given;
+        module.source = content.str();
+        collectedSources[resolved] = true;
+        queue.push_back(Pending{resolved, module.source});
+        archive.modules.push_back(std::move(module));
+    }
 
     while (!queue.empty()) {
         const Pending current = queue.back();
@@ -254,9 +358,11 @@ bool collectArchive(const std::string& displayPath, const std::string& source,
         }
 
         for (const auto& import : imports) {
-            const bool native =
-                import.path.size() >= 3 &&
-                import.path.compare(import.path.size() - 3, 3, ".so") == 0;
+            const bool native = endsWith(import.path, ".so");
+            // An explicitly supplied input already satisfies the import.
+            if (extraKeys.count(import.path) != 0) {
+                continue;
+            }
             const std::string resolved =
                 resolveModulePath(directory, import.path);
             if (resolved.empty()) {
@@ -317,17 +423,65 @@ int removedFlag(const std::string& flag, const std::string& replacement) {
     return 1;
 }
 
-// Builds a standalone ELF executable carrying the program and its modules.
+// Builds a standalone ELF executable carrying one or more input files and every
+// module they import.
 int compileProgramToExecutable(const std::vector<std::string>& arguments) {
-    if (arguments.empty() || arguments.size() > 2) {
+    std::vector<std::string> inputs;
+    std::string outputName;
+    for (std::size_t index = 0; index < arguments.size(); ++index) {
+        const std::string& argument = arguments[index];
+        if (argument == "-o" || argument == "--output" ||
+            argument == "-name" || argument == "--name") {
+            if (index + 1 >= arguments.size()) {
+                std::cerr << "clynxer: " << argument << " requires a name\n";
+                return 1;
+            }
+            if (!outputName.empty()) {
+                std::cerr << "clynxer: the output name was given twice\n";
+                return 1;
+            }
+            outputName = arguments[++index];
+            continue;
+        }
+        // --include takes any file: a .lynx module, a native .so, or a data
+        // file that the program reads with bundledFile().
+        if (argument == "--include" || argument == "-i") {
+            if (index + 1 >= arguments.size()) {
+                std::cerr << "clynxer: " << argument << " requires a file\n";
+                return 1;
+            }
+            inputs.push_back(arguments[++index]);
+            continue;
+        }
+        // Anything that looks like a source or library file is an input; a
+        // bare name is the output.
+        if (endsWith(argument, ".lynx") || endsWith(argument, ".so")) {
+            inputs.push_back(argument);
+            continue;
+        }
+        if (!outputName.empty()) {
+            std::cerr << "clynxer: unexpected extra argument '" << argument
+                      << "'\n";
+            return 1;
+        }
+        outputName = argument;
+    }
+
+    if (inputs.empty()) {
         std::cerr << Config::instance().get(
                          "error.compile_usage",
-                         "clynxer: --compile requires a .lynx file and an "
-                         "optional output name")
+                         "clynxer: --compile requires a .lynx file, optionally "
+                         "followed by --include <file> inputs and an output "
+                         "name")
                   << '\n';
         return 1;
     }
-    const std::string& file = arguments[0];
+    if (!endsWith(inputs.front(), ".lynx")) {
+        std::cerr << "clynxer: the first input must be a .lynx program file\n";
+        return 1;
+    }
+
+    const std::string& file = inputs.front();
     bool ok = false;
     const std::string source = readFile(file, file, ok);
     if (!ok) {
@@ -337,8 +491,9 @@ int compileProgramToExecutable(const std::vector<std::string>& arguments) {
     ProgramArchive archive;
     archive.mainPath = file;
     archive.mainSource = source;
+    const std::vector<std::string> extras(inputs.begin() + 1, inputs.end());
     std::string error;
-    if (!collectArchive(file, source, archive, error)) {
+    if (!collectArchive(file, source, extras, archive, error)) {
         // An empty message means the failure was already reported with a source
         // location.
         if (error.empty()) {
@@ -348,17 +503,10 @@ int compileProgramToExecutable(const std::vector<std::string>& arguments) {
                         error);
     }
 
-    std::string outputPath;
-    if (arguments.size() == 2) {
-        outputPath = arguments[1];
-    } else {
-        outputPath = file;
-        const std::size_t slash = outputPath.find_last_of('/');
-        if (slash != std::string::npos) {
-            outputPath = outputPath.substr(slash + 1);
-        }
-        if (outputPath.size() > 5 &&
-            outputPath.compare(outputPath.size() - 5, 5, ".lynx") == 0) {
+    std::string outputPath = outputName;
+    if (outputPath.empty()) {
+        outputPath = baseName(file);
+        if (endsWith(outputPath, ".lynx")) {
             outputPath.resize(outputPath.size() - 5);
         }
     }
@@ -386,23 +534,28 @@ int runCompiledPayload(const std::vector<uint8_t>& payload) {
     }
 
     std::map<std::string, std::string> libraries;
+    std::map<std::string, std::string> assets;
     std::string error;
-    if (!materializeLibraries(archive.modules, libraries, error)) {
+    if (!materializeBundle(archive.modules, libraries, assets, error)) {
         return failWith("error.compile_failed", "clynxer: compile failed: {0}",
                         error);
     }
+    setBundledAssets(std::move(assets));
 
     std::map<std::string, std::string> sources;
     for (const auto& module : archive.modules) {
         if (!module.library.empty()) {
             continue;
         }
-        const std::string bare =
-            std::filesystem::path(module.name).filename().string();
+        const std::string bare = baseName(module.name);
         sources[module.name] = module.source;
         sources[bare] = module.source;
-        if (!std::filesystem::path(module.name).has_extension()) {
-            sources[module.name + ".lynx"] = module.source;
+        // Register both the bare module name and its `.lynx` file name so
+        // `import("name")` resolves whether or not the extension was written.
+        if (endsWith(bare, ".lynx")) {
+            sources[bare.substr(0, bare.size() - 5)] = module.source;
+        } else {
+            sources[bare + ".lynx"] = module.source;
         }
     }
     setEmbeddedModuleSources(std::move(sources));

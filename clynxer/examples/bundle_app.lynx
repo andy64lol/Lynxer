@@ -1,0 +1,15 @@
+////
+Program used by the multi-file bundling check in `make test`. It imports two
+modules that live in `examples/bundle_extras/`, which the interpreter cannot
+resolve on its own — they are only reachable when they are passed to
+`--compile` as extra input files.
+////
+global setup(){
+    import("greeter");
+    import("counter");
+}
+
+global main(){
+    println(global.greeter.greet("lynxer"));
+    println(global.counter.countTo(3));
+}

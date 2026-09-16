@@ -30,8 +30,19 @@ on a module.
   source, the source of every transitively imported `.lynx` module, and the bytes
   of every imported native `.so`. Native modules are written to a temporary
   directory at startup so `dlopen` can load them, and the directory is removed
-  when the process exits. Both `--compile` and `--bundle` accept an optional
-  output name; without one the executable is named after the input file.
+  when the process exits.
+- **`--compile` accepts several input files.** The first `.lynx` file is the
+  program; any further `.lynx` or `.so` files — given positionally or with
+  `--include <file>` — are embedded and become importable by name, even when they
+  live outside the module search path. `import` inside the program can resolve
+  them, so a program may import a module that only exists as an explicit input.
+  The output name comes from `-o <name>`/`--name <name>`, or from a trailing bare
+  argument, and defaults to the first input without its `.lynx` extension.
+- **`--include` also takes data files.** A file that is neither `.lynx` nor `.so`
+  is embedded as an asset, written to the executable's private temporary
+  directory at startup, and reachable with `bundledFile(name)` (a path) or listed
+  with `bundledFiles()`. Interpreted runs see neither and return `""` / an empty
+  list, so a program must tolerate missing assets when run from source.
 
 ## Native module ABI
 

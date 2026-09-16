@@ -36,7 +36,7 @@ jobs:
 
       - name: Compile a program to a standalone executable and run it
         run: |
-          ./clynxer/clynxer --compile clynxer/examples/milestone5.lynx /tmp/clynxer-smoke
+          ./clynxer/clynxer --compile clynxer/examples/milestone5.lynx -o /tmp/clynxer-smoke
           output="$(/tmp/clynxer-smoke)"
           expected="$(printf '5\n7\n25')"
           if [ "$output" != "$expected" ]; then
@@ -45,6 +45,38 @@ jobs:
             exit 1
           fi
           echo "compiled executable output OK"
+
+      - name: Compile several input files into one executable and run it
+        run: |
+          # bundle_app.lynx imports modules that only exist as extra inputs, so
+          # this only works if all three files land in the same executable.
+          ./clynxer/clynxer --compile \
+            clynxer/examples/bundle_app.lynx \
+            clynxer/examples/bundle_extras/greeter.lynx \
+            clynxer/examples/bundle_extras/counter.lynx \
+            -o /tmp/clynxer-multi
+          output="$(cd / && /tmp/clynxer-multi)"
+          expected="$(printf 'hello, LYNXER!\n1,2,3')"
+          if [ "$output" != "$expected" ]; then
+            echo "expected: $expected"
+            echo "received: $output"
+            exit 1
+          fi
+          echo "multi-file executable output OK"
+
+      - name: Include a data file and read it from the executable
+        run: |
+          printf 'bundled payload\n' > /tmp/message.txt
+          ./clynxer/clynxer --compile clynxer/examples/bundle_assets.lynx \
+            --include /tmp/message.txt -o /tmp/clynxer-assets
+          output="$(cd / && /tmp/clynxer-assets)"
+          expected="$(printf '[message.txt]\nbundled payload')"
+          if [ "$output" != "$expected" ]; then
+            echo "expected: $expected"
+            echo "received: $output"
+            exit 1
+          fi
+          echo "included data file output OK"
 
       - name: Compile a program that imports stdlib modules
         run: |
@@ -59,7 +91,7 @@ jobs:
               println(global.json.jsonGet("{\"a\": 1}", "a"));
           }
           LYNX
-          ./clynxer/clynxer --compile /tmp/import-smoke.lynx /tmp/clynxer-import-smoke
+          ./clynxer/clynxer --compile /tmp/import-smoke.lynx -o /tmp/clynxer-import-smoke
           output="$(/tmp/clynxer-import-smoke)"
           expected="$(printf '5\n1')"
           if [ "$output" != "$expected" ]; then

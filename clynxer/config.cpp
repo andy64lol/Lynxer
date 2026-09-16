@@ -120,8 +120,8 @@ Config::Config() {
     setDefault("error.requires_one_file",
                "clynxer: {0} requires exactly one file argument");
     setDefault("error.compile_usage",
-               "clynxer: --compile requires a .lynx file and an optional "
-               "output name");
+               "clynxer: --compile requires a .lynx file, optionally followed "
+               "by --include <file> inputs and an output name");
     setDefault("error.compile_failed", "clynxer: compile failed: {0}");
     setDefault("error.payload_invalid",
                "clynxer: the embedded program payload is invalid");

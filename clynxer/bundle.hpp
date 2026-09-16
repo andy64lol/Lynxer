@@ -7,12 +7,14 @@
 
 namespace clynxer {
 
-// One module carried by a compiled executable: Lynxer source for `.lynx`
-// modules, or the shared library bytes for native `.so` modules.
+// One file carried by a compiled executable: Lynxer source for a `.lynx`
+// module, shared library bytes for a native `.so` module, or raw bytes for an
+// included data file.
 struct ArchiveModule {
     std::string name;
     std::string source;
     std::vector<uint8_t> library;
+    std::vector<uint8_t> asset;
 };
 
 // A program together with every module it needs to run.
@@ -37,10 +39,12 @@ bool writeBundledExecutable(const std::string& outputPath,
                             const std::vector<uint8_t>& payload,
                             std::string& error);
 
-// Writes every native module to a private temporary directory and reports a
-// module name to filesystem path mapping. The directory is removed at exit.
-bool materializeLibraries(const std::vector<ArchiveModule>& modules,
-                          std::map<std::string, std::string>& paths,
-                          std::string& error);
+// Writes every native module and included data file to a private temporary
+// directory and reports `name -> filesystem path` mappings. The directory is
+// removed when the process exits.
+bool materializeBundle(const std::vector<ArchiveModule>& modules,
+                       std::map<std::string, std::string>& libraries,
+                       std::map<std::string, std::string>& assets,
+                       std::string& error);
 
 } // namespace clynxer

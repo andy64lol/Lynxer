@@ -35,6 +35,17 @@ so a plain `make` never fails on absent optional dependencies.
 There is no bytecode backend: `--compile` produces a standalone ELF executable
 that embeds the program, its imported module sources and its native libraries.
 
+Every module the program **imports** is collected automatically, and several
+inputs can be bundled into the one executable — the first `.lynx` file is the
+program, and any further `.lynx` or `.so` files are embedded and importable by
+name. `--include <file>` adds a file of any kind; a non-`.lynx`/`.so` file is
+embedded as data that the program reads through `bundledFile()`:
+
+```bash
+clynxer --compile app.lynx extras/helpers.lynx --include vendor/libcustom.so \
+        --include assets/message.txt -o app
+```
+
 | Module | Implementation | Backend |
 | --- | --- | --- |
 | [cli](stdlib/cli.md) | native | POSIX process/env/terminal APIs |

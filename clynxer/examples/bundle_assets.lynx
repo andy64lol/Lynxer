@@ -1,0 +1,12 @@
+////
+Program used by the `--include` data-file check in `make test`. It reads a data
+file that is not a module: the file only exists inside the compiled executable,
+and `bundledFile()` hands back the path it was materialized to.
+////
+global setup(){ import("fileIO"); }
+
+global main(){
+    println(bundledFiles());
+    // The file ends with a newline, so print it without adding another.
+    print(global.fileIO.readFile(bundledFile("message.txt")));
+}

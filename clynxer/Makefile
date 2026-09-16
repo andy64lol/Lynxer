@@ -167,13 +167,24 @@ expected="clynxer: $(ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 	*"Hello, Clynxer!") ;; \
 	*) echo "bundled executable output mismatch: $$bundled_output"; exit 1;; \
 	esac
+	@./$(TARGET) --compile examples/bundle_app.lynx examples/bundle_extras/greeter.lynx examples/bundle_extras/counter.lynx -o .clynxer_multi > /dev/null; \
+	multi_output="$$(./.clynxer_multi)"; \
+	expected="$$(printf 'hello, LYNXER!\n1,2,3')"; \
+	if [ "$$multi_output" != "$$expected" ]; then \
+	echo "multi-file bundle output mismatch:"; printf '%s\n' "$$multi_output"; exit 1; fi
+	@./$(TARGET) --compile examples/bundle_assets.lynx --include examples/bundle_extras/message.txt -o .clynxer_assets > /dev/null; \
+	assets_output="$$(./.clynxer_assets)"; \
+	expected="$$(printf '[message.txt]\nbundled payload')"; \
+	if [ "$$assets_output" != "$$expected" ]; then \
+	echo "included data file output mismatch:"; printf '%s\n' "$$assets_output"; exit 1; fi
 	@printf 'CLYXC\x00\x01\x01not-real-bytecode' > .clynxer_bad.lynxc; \
 	if ./$(TARGET) .clynxer_bad.lynxc > /dev/null 2>.clynxer_bad.err; then \
 	echo "legacy bytecode file was accepted"; exit 1; \
 	fi; \
 	grep -q "no longer supported" .clynxer_bad.err || { echo "bytecode removal error missing"; exit 1; }; \
 	rm -f .clynxer_bad.lynxc .clynxer_bad.err .clynxer_direct.out .clynxer_direct.err \
-	.clynxer_compiled.out .clynxer_compiled.err .clynxer_compiled .clynxer_bundled
+	.clynxer_compiled.out .clynxer_compiled.err .clynxer_compiled .clynxer_bundled \
+	.clynxer_multi .clynxer_assets
 	@output="$$(./$(TARGET) examples/milestone3.lynx)"; \
 	expected="$$(printf '9\nAda\n90\n5\nEngineer\n6\n42\n1\n0\n255\n-12\n0.25\nA\n[1, 2, 3]\n(left, 2)')"; \
 	if [ "$$output" != "$$expected" ]; then \

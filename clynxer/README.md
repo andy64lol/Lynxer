@@ -35,10 +35,13 @@ The first slice intentionally stays small:
 - `stdlib/libs.mk` declares optional system-library dependencies (SDL2, ncurses,
   libcurl, Lua, libpng). Modules whose library is missing are skipped with a
   warning, so a plain `make` never depends on them
-- `--compile` builds a standalone ELF executable that embeds the program source,
-  the source of every transitively imported `.lynx` module, and the bytes of every
-  imported native `.so`. Running it needs nothing from the build tree. `--bundle`
-  is an alias
+- `--compile <a.lynx> [more.lynx|lib.so ...] [--include <file> ...] [-o name]`
+  builds one standalone ELF executable. The program's **imported modules are
+  collected automatically**, and every later input is embedded too: `.lynx`
+  modules and `.so` libraries become importable by name, and any other file
+  becomes a data asset readable with `bundledFile(name)` and listed by
+  `bundledFiles()`. Running the result needs nothing from the build tree.
+  `--bundle` is an alias
 - CLYXC bytecode, the stack-machine VM, `--view-bytecode`, `--benchmark-compile`,
   `--no-cache` and the `--compile` cache were removed in favour of the executable
   backend above

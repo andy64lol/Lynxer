@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -201,5 +202,15 @@ double asNumber(const Value& value, int line, int column);
 std::string typeNameOf(const Value& value);
 
 bool valuesEqual(const Value& left, const Value& right);
+
+// Files carried by a compiled executable and materialized into its private
+// temporary directory at startup. `setBundledAssets` is called once by the
+// bundle runner; the accessors back the `bundledFile()`/`bundledFiles()`
+// builtins and return nothing when the program is not bundled.
+void setBundledAssets(std::map<std::string, std::string> assets);
+
+std::string bundledAssetPath(const std::string& name);
+
+std::vector<std::string> bundledAssetNames();
 
 } // namespace clynxer

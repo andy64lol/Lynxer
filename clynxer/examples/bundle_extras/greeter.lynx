@@ -1,0 +1,11 @@
+////
+Extra module for the multi-file bundling check. It imports a stdlib module, so
+the bundler has to walk its imports recursively as well.
+////
+global setup(){ import("text"); }
+
+global greet(str name) -> str {
+    return "hello, " + global.text.upper(name) + "!";
+}
+
+global main(){}

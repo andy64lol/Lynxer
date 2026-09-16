@@ -20,6 +20,10 @@ inline constexpr char BUNDLE_MAGIC[10] = {'C', 'L', 'Y', 'X', 'S',
                                           'R', 'C', 'P', 'A', 'Y'};
 inline constexpr std::size_t BUNDLE_TRAILER = sizeof(BUNDLE_MAGIC) + 8;
 
+// Body layout version. Bump when the payload layout changes so an older or
+// newer executable rejects the payload instead of misreading it.
+inline constexpr std::uint64_t BUNDLE_FORMAT_VERSION = 2;
+
 /* ---------- little-endian helpers ---------- */
 
 void appendU64(std::vector<uint8_t>& output, std::uint64_t value) {
@@ -185,6 +189,10 @@ bool readSelfPayload(std::vector<uint8_t>& payload) {
 bool decodeProgramArchive(const std::vector<uint8_t>& payload,
                           ProgramArchive& archive) {
     Reader reader(payload);
+    std::uint64_t version = 0;
+    if (!reader.readU64(version) || version != BUNDLE_FORMAT_VERSION) {
+        return false;
+    }
     if (!reader.readBlob(archive.mainPath)) {
         return false;
     }
@@ -206,6 +214,9 @@ bool decodeProgramArchive(const std::vector<uint8_t>& payload,
         if (!reader.readBytes(module.library)) {
             return false;
         }
+        if (!reader.readBytes(module.asset)) {
+            return false;
+        }
         archive.modules.push_back(std::move(module));
     }
     return reader.atEnd();
@@ -213,6 +224,7 @@ bool decodeProgramArchive(const std::vector<uint8_t>& payload,
 
 std::vector<uint8_t> makeBundlePayload(const ProgramArchive& archive) {
     std::vector<uint8_t> payload;
+    appendU64(payload, BUNDLE_FORMAT_VERSION);
     appendBlob(payload, archive.mainPath);
     appendBlob(payload, archive.mainSource);
     appendU64(payload, archive.modules.size());
@@ -220,6 +232,7 @@ std::vector<uint8_t> makeBundlePayload(const ProgramArchive& archive) {
         appendBlob(payload, module.name);
         appendBlob(payload, module.source);
         appendBytes(payload, module.library);
+        appendBytes(payload, module.asset);
     }
     const std::uint64_t bodySize = payload.size();
     payload.insert(payload.end(), BUNDLE_MAGIC,
@@ -278,49 +291,58 @@ bool writeBundledExecutable(const std::string& outputPath,
     return true;
 }
 
-bool materializeLibraries(const std::vector<ArchiveModule>& modules,
-                          std::map<std::string, std::string>& paths,
-                          std::string& error) {
-    bool hasLibrary = false;
+bool materializeBundle(const std::vector<ArchiveModule>& modules,
+                       std::map<std::string, std::string>& libraries,
+                       std::map<std::string, std::string>& assets,
+                       std::string& error) {
+    bool needsDirectory = false;
     for (const auto& module : modules) {
-        if (!module.library.empty()) {
-            hasLibrary = true;
+        if (!module.library.empty() || !module.asset.empty()) {
+            needsDirectory = true;
             break;
         }
     }
-    if (!hasLibrary) {
+    if (!needsDirectory) {
         return true;
     }
 
     const std::string directory = temporaryDirectory();
     if (directory.empty()) {
-        error = "cannot create a temporary directory for native modules";
+        error = "cannot create a temporary directory for bundled files";
         return false;
     }
     cleanupDirectory() = directory;
     std::atexit(removeCleanupDirectory);
 
     for (const auto& module : modules) {
-        if (module.library.empty()) {
+        if (module.library.empty() && module.asset.empty()) {
             continue;
         }
         const std::string name =
             std::filesystem::path(module.name).filename().string();
         const std::string path = directory + "/" + name;
+        const bool isLibrary = !module.library.empty();
+        const std::vector<uint8_t>& bytes =
+            isLibrary ? module.library : module.asset;
         std::ofstream output(path, std::ios::binary | std::ios::trunc);
         if (!output) {
-            error = "cannot write native module '" + name + "'";
+            error = "cannot write bundled file '" + name + "'";
             return false;
         }
-        output.write(reinterpret_cast<const char*>(module.library.data()),
-                     static_cast<std::streamsize>(module.library.size()));
+        output.write(reinterpret_cast<const char*>(bytes.data()),
+                     static_cast<std::streamsize>(bytes.size()));
         output.close();
-        if (::chmod(path.c_str(), 0755) != 0) {
-            error = "cannot mark native module '" + name + "' loadable";
-            return false;
+        if (isLibrary) {
+            if (::chmod(path.c_str(), 0755) != 0) {
+                error = "cannot mark native module '" + name + "' loadable";
+                return false;
+            }
+            libraries[name] = path;
+            libraries[module.name] = path;
+        } else {
+            assets[name] = path;
+            assets[module.name] = path;
         }
-        paths[name] = path;
-        paths[module.name] = path;
     }
     return true;
 }

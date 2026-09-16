@@ -433,6 +433,28 @@ Value builtinReturnLength(const std::vector<Value>& args, Environment&, int line
          line, column);
 }
 
+// Returns the filesystem path of a file included in the running compiled
+// executable, or "" when the program is not compiled or the file is absent.
+Value builtinBundledFile(const std::vector<Value>& args, Environment&, int line,
+                         int column) {
+    if (args.size() != 1 ||
+        !std::holds_alternative<std::string>(args[0])) {
+        fail("bundledFile(name) expects a string file name", line, column);
+    }
+    return bundledAssetPath(std::get<std::string>(args[0]));
+}
+
+// Returns the names of every file included in the running compiled executable.
+Value builtinBundledFiles(const std::vector<Value>& args, Environment&, int line,
+                          int column) {
+    requireArity(args, 0, "bundledFiles() takes no arguments", line, column);
+    std::vector<Value> names;
+    for (auto& name : bundledAssetNames()) {
+        names.push_back(std::move(name));
+    }
+    return makeList(std::move(names));
+}
+
 Value builtinCharAt(const std::vector<Value>& args, Environment&, int line,
                     int column) {
     if (args.size() != 2 || !std::holds_alternative<std::string>(args[0]) ||
@@ -2175,6 +2197,8 @@ const std::unordered_map<std::string, Handler>& handlerTable() {
         {"object", builtinObject},
         {"returnType", builtinReturnType},
         {"returnLength", builtinReturnLength},
+        {"bundledFile", builtinBundledFile},
+        {"bundledFiles", builtinBundledFiles},
         {"charAt", builtinCharAt},
         {"substring", builtinSubstring},
         {"trim", builtinTrim},

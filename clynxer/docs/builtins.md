@@ -96,6 +96,28 @@ generic syscall dispatcher instead.
 | `suppressDeprecationWarning()` | Silences legacy-syntax warnings (only in `setup()`) |
 | `overrideMain(name)` | Runs `name` instead of `main` (only in `setup()`) |
 
+## Bundled files
+
+Available to programs run from a compiled executable; a normal interpreted run
+returns empty results.
+
+| Builtin | Notes |
+| --- | --- |
+| `bundledFile(name)` | Filesystem path of a file included with `--include`, or `""` when the program is not compiled or does not carry that file |
+| `bundledFiles()` | List of the bare names of every included file |
+
+Included files are written to a private temporary directory when the executable
+starts, and that directory is removed when the process exits.
+
+```lynx
+global setup(){ import("fileIO"); }
+
+global main(){
+    println(bundledFiles());
+    println(global.fileIO.readFile(bundledFile("message.txt")));
+}
+```
+
 ## Native memory
 
 | Builtin | Notes |

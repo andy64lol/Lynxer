@@ -3,8 +3,10 @@
 #include "error.hpp"
 #include "types.hpp"
 
+#include <algorithm>
 #include <charconv>
 #include <cmath>
+#include <filesystem>
 
 namespace clynxer {
 
@@ -627,6 +629,39 @@ bool valuesEqual(const Value& left, const Value& right) {
         return leftChar->text == std::get<CharValue>(right).text;
     }
     return left == right;
+}
+
+namespace {
+
+std::map<std::string, std::string>& bundledAssets() {
+    static std::map<std::string, std::string> instance;
+    return instance;
+}
+
+} // namespace
+
+void setBundledAssets(std::map<std::string, std::string> assets) {
+    bundledAssets() = std::move(assets);
+}
+
+std::string bundledAssetPath(const std::string& name) {
+    const auto found = bundledAssets().find(name);
+    return found == bundledAssets().end() ? std::string() : found->second;
+}
+
+std::vector<std::string> bundledAssetNames() {
+    std::vector<std::string> names;
+    for (const auto& entry : bundledAssets()) {
+        // Assets are registered under both the path as included and the bare
+        // file name; report the friendly bare names only.
+        if (entry.first ==
+            std::filesystem::path(entry.first).filename().string()) {
+            names.push_back(entry.first);
+        }
+    }
+    std::sort(names.begin(), names.end());
+    names.erase(std::unique(names.begin(), names.end()), names.end());
+    return names;
 }
 
 } // namespace clynxer

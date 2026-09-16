@@ -32,6 +32,19 @@ Planned order of work, newest direction first.
   every language feature behave exactly as in an interpreted run — including the
   features the old bytecode compiler rejected (field access, methods, codeblocks,
   switch patterns, local functions, imports).
+- [x] Let `--compile` bundle more than one input file into a single executable:
+  the first `.lynx` file is the program, and further `.lynx`/`.so` inputs are
+  embedded and resolvable by `import` even when they live outside the module
+  search path. `-o`/`--name` sets the output, and a trailing bare argument still
+  works as the output name. Covered by the `bundle_app`/`bundle_extras` check in
+  `make test`.
+- [x] Add `--include <file>` for including further files in a compiled
+  executable. Modules the program imports are still collected automatically;
+  `--include` additionally embeds modules, native libraries, and data files of
+  any other kind. Data files are materialized into the executable's private
+  temporary directory at startup and exposed through the new `bundledFile(name)`
+  and `bundledFiles()` builtins. Covered by the `bundle_assets` check in
+  `make test`.
 
 ## Rebuild rules
 
