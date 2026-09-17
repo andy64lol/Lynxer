@@ -1,5 +1,10 @@
 # Installation
 
+The repository contains two implementations: the original Python Lynxer and
+the standalone Clynxer implementation. Clynxer build instructions and its
+native dependency policy are documented in
+[clynxer/docs/install.md](../clynxer/docs/install.md).
+
 ## Option 1 — Download the executable (recommended)
 
 Download the latest pre-built binary for your platform from the

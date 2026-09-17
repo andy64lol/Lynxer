@@ -74,9 +74,12 @@ extern "C" const char* server_routeGet(const char* path, const char* body) {
     if (hasRoute(crow::HTTPMethod::GET, route_path)) {
         return stable(errorText("GET route already registered"));
     }
+    // Fixed route bodies are rendered as HTML by the server stdlib. Keep the
+    // charset explicit so browsers and clients do not have to guess how to
+    // decode the response.
     g_routes.push_back(
         FixedRoute{crow::HTTPMethod::GET, route_path, textOrEmpty(body),
-                   "text/plain", false});
+                   "text/html; charset=utf-8", false});
     return stable("ok");
 }
 
@@ -94,7 +97,7 @@ extern "C" const char* server_routePost(const char* path, const char* body) {
     }
     g_routes.push_back(
         FixedRoute{crow::HTTPMethod::POST, route_path, textOrEmpty(body),
-                   "text/plain", false});
+                   "text/html; charset=utf-8", false});
     return stable("ok");
 }
 

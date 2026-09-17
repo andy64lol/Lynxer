@@ -11,7 +11,7 @@
 #   this only when pkg-config does not describe the full requirement.
 #
 # network / server are built through CMake (see CMakeLists.txt) after
-# `make deps` stages cpp-httplib and Crow under third_party/.
+# `make deps` stages cpp-httplib, Crow, and nlohmann/json under third_party/.
 
 MODULE_PKG_lua   := lua5.4
 MODULE_PKG_tui   := ncursesw
@@ -22,3 +22,4 @@ MODULE_FLAGS_lua   :=
 MODULE_FLAGS_tui   :=
 MODULE_FLAGS_image :=
 MODULE_FLAGS_game  :=
+MODULE_FLAGS_json  := -I$(CURDIR)/third_party/json/single_include

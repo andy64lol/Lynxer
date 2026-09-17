@@ -11,18 +11,23 @@ shared libraries.
 | [builtins.md](builtins.md) | Every function implemented by the interpreter itself |
 | [native-module-abi.md](native-module-abi.md) | How to write a native `.so` module: entry point, signatures, data conventions |
 | [stdlib/](stdlib/) | One page per standard-library module |
+| [language.md](language.md) | Clynxer syntax, including `global`, `func`, and `local` functions |
+| [install.md](install.md) | Build commands, dependency staging, and installation |
 | [limitations.md](limitations.md) | Divergences from the Python implementation, and what is not ported |
 
 ## Build and run
 
 ```bash
-make                     # build the interpreter and every dependency-free stdlib
+make                     # wipe and re-fetch third-party headers, then build
 clynxer program.lynx     # run a program
 clynxer --list-stdlibs   # list available modules with their docstrings
 ```
 
 From the repository root, `make buildCLynxer` builds the binary and the native
-modules. `make testCLynxer` additionally runs the smoke and stdlib fixtures.
+modules. Each Clynxer build removes `third_party/` and the staged
+`stdlib/httplib.h` first, then fetches clean copies of cpp-httplib, Crow, and
+nlohmann/json. `make testCLynxer` additionally runs the smoke and stdlib
+fixtures.
 
 ## Standard library modules
 
@@ -54,7 +59,7 @@ clynxer --compile app.lynx extras/helpers.lynx --include vendor/libcustom.so \
 | [debug](stdlib/debug.md) | native + pure | `<chrono>`, `getrusage`, assertions in Lynxer |
 | [fileIO](stdlib/fileIO.md) | native | `<fstream>`, `<filesystem>` |
 | [js](stdlib/js.md) | native | the `node` binary |
-| [json](stdlib/json.md) | native | hand-written JSON parser (`native_json.hpp`) |
+| [json](stdlib/json.md) | native | nlohmann/json (`third_party/json`) |
 | [math](stdlib/math.md) | native | `<cmath>` plus statistics and vector helpers |
 | [multiprocessing](stdlib/multiprocessing.md) | native + pure | `std::thread` and shell subprocesses |
 | [network](stdlib/network.md) | native | cpp-httplib HTTP + WebSocket client |
@@ -70,9 +75,12 @@ clynxer --compile app.lynx extras/helpers.lynx --include vendor/libcustom.so \
 | [time](stdlib/time.md) | native | `<chrono>`, `<ctime>` |
 | [typing](stdlib/typing.md) | pure | Lynxer type builtins |
 
-`network` and `server` are staged through CMake (`make -C clynxer deps`):
-cpp-httplib's `httplib.h` is copied into `stdlib/`, and Crow lives under
-`third_party/Crow`. Planned opt-in modules that are not part of the build yet:
+`network`, `server`, and `json` are staged through CMake
+(`make -C clynxer deps`): cpp-httplib's `httplib.h` is copied into `stdlib/`,
+Crow lives under `third_party/Crow`, and nlohmann/json is included from
+`third_party/json/single_include`. Both the Makefile path and the CMake
+dependency target start from a clean `third_party/` directory on every build.
+Planned opt-in modules that are not part of the build yet:
 `lua` (Lua 5.4), `tui` (ncurses/ANSI), `image` (libpng), `game` (SDL2). `venv`
 is intentionally excluded — see [limitations.md](limitations.md).
 
@@ -97,3 +105,25 @@ is intentionally excluded — see [limitations.md](limitations.md).
 A module that imports native libraries is picked up automatically by
 `--compile`: every transitively imported `.lynx` source and `.so` library is
 embedded in the resulting executable.
+
+## File-wide functions
+
+Use `func` for a helper that belongs to the current source file:
+
+```c
+global setup(){}
+
+func double(int value) -> int {
+    return value * 2;
+}
+
+global main(){
+    println(double(21));
+}
+```
+
+`func` declarations must be top-level and appear between `global setup()` and
+`global main()`. They are called by bare name in their defining file. When a
+file is imported as a module, callers use
+`global.moduleName.functionName(...)`. `func` names are file-scoped, so two
+different imported files may define the same helper name.

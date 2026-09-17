@@ -11,6 +11,20 @@ global routeGet(str path, str body) -> str {
 global routePost(str path, str body) -> str {
     return global.nativeServer.routePost(path, body);
 }
+// Register fixed HTML responses. These aliases match the higher-level server
+// API while routeGet/routePost remain available for existing Clynxer programs.
+global get(str path, str html) -> str {
+    return routeGet(path, html);
+}
+global post(str path, str html) -> str {
+    return routePost(path, html);
+}
+global htmlGet(str path, str html) -> str {
+    return routeGet(path, html);
+}
+global htmlPost(str path, str html) -> str {
+    return routePost(path, html);
+}
 global routeEcho(str path) -> str { return global.nativeServer.routeEcho(path); }
 global wsEcho(str path) -> str { return global.nativeServer.wsEcho(path); }
 global clearRoutes() -> str { return global.nativeServer.clearRoutes(); }

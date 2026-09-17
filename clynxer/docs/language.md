@@ -162,6 +162,11 @@ Behaviour:
 - Stdlib wrappers use `-> type` widely (for example
   `global get(str url) -> str { ... }` in `network`).
 
+`func` definitions must be top-level and must appear between `global setup()`
+and `global main()`. They are scoped to the file where they are defined:
+within that file call them by bare name, while imported callers use the module
+namespace. Two imported files may therefore use the same `func` name.
+
 Typed parameters, defaults, and nested `local` functions work as in Lynxer.
 Parameters without a type are treated as `any`.
 

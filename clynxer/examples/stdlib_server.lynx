@@ -5,15 +5,17 @@ localhost, and verifies them with the network HTTP client.
 global setup(){
     import("server");
     import("network");
+    import("text");
 }
 
 global main(){
     println(global.server.clearRoutes());
-    println(global.server.routeGet("/hello", "world"));
-    println(global.server.routePost("/fixed", "posted"));
+    println(global.server.get("/hello", "<!doctype html><html><body>world</body></html>"));
+    println(global.server.post("/fixed", "<p>posted</p>"));
     println(global.server.start(18124));
     sleep(0.2);
     println(global.network.get("http://127.0.0.1:18124/hello"));
+    println(global.text.contains(global.network.getHeaders("http://127.0.0.1:18124/hello"), "Content-Type: text/html; charset=utf-8"));
     println(global.network.post("http://127.0.0.1:18124/fixed", "ignored", "text/plain"));
     println(global.server.stop());
 }

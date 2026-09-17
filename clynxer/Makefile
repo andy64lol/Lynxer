@@ -47,7 +47,19 @@ NATIVE_SIGNATURE_FIXTURE := examples/native_signatures.lynx
 # Every examples/stdlib_<name>.lynx must ship a sibling .expected file.
 STDLIB_FIXTURES := $(wildcard examples/stdlib_*.lynx)
 
-.PHONY: all clean test cmake deps cmake-modules
+.PHONY: all clean clean-third-party test cmake deps cmake-modules
+
+# Third-party checkouts and staged headers are disposable build inputs. Remove
+# them before every build so a fresh checkout is always used.
+clean-third-party:
+	 rm -rf third_party/* stdlib/httplib.h
+
+# The JSON module includes nlohmann/json, so it must wait for dependency
+# staging. The CMake modules reach the same target through cmake-modules.
+stdlib/json.so: deps
+
+# Ensure every direct build path clears third-party inputs first.
+$(TARGET) $(NATIVE_MODULES): | clean-third-party
 
 all: $(TARGET) $(NATIVE_BUILT) cmake-modules
 
@@ -64,7 +76,7 @@ stdlib/%.so: stdlib/%.cpp
 	$(CXX) -std=c++17 -O2 -Wall -Wextra -pedantic -fPIC -shared $(_cflags) $< -o $@ $(_libs) $(MODULE_FLAGS_$*)
 
 # Configure the CMake build tree used for deps + network/server.
-cmake:
+cmake: clean-third-party
 	@command -v $(CMAKE) >/dev/null || { echo "clynxer: cmake not found in PATH"; exit 1; }
 	@$(CMAKE) -S . -B $(CMAKE_BUILD_DIR)
 

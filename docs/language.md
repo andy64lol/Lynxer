@@ -83,6 +83,10 @@ For example, an imported module and its caller may both define
 `fixtureGreeting()`; the caller uses `fixtureGreeting()` for its own function
 and `global.module.fixtureGreeting()` for the imported one.
 
+`func` is the file-wide function definition form. It is not an alias for
+`global`: use `global` for functions exposed through the current program's
+global namespace and `local` for functions nested inside another function.
+
 ---
 
 ## Overriding the entry point
