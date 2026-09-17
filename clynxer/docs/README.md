@@ -57,21 +57,24 @@ clynxer --compile app.lynx extras/helpers.lynx --include vendor/libcustom.so \
 | [json](stdlib/json.md) | native | hand-written JSON parser (`native_json.hpp`) |
 | [math](stdlib/math.md) | native | `<cmath>` plus statistics and vector helpers |
 | [multiprocessing](stdlib/multiprocessing.md) | native + pure | `std::thread` and shell subprocesses |
+| [network](stdlib/network.md) | native | cpp-httplib HTTP + WebSocket client |
 | [os](stdlib/os.md) | native | `<filesystem>`, POSIX |
 | [path](stdlib/path.md) | native | `<filesystem>`, POSIX `stat` |
 | [random](stdlib/random.md) | pure | deterministic LCG in Lynxer |
 | [re](stdlib/re.md) | native | `std::regex` |
 | [regex](stdlib/regex.md) | native | `std::regex` with a named-pattern cache |
+| [server](stdlib/server.md) | native | Crow HTTP + WebSocket server |
 | [shell](stdlib/shell.md) | native | `popen`, `std::system` |
 | [sys](stdlib/sys.md) | native | C++ runtime and POSIX |
 | [text](stdlib/text.md) | pure | Lynxer string builtins |
 | [time](stdlib/time.md) | native | `<chrono>`, `<ctime>` |
 | [typing](stdlib/typing.md) | pure | Lynxer type builtins |
 
-Planned opt-in modules that are not part of the build yet: `http` (libcurl),
-`net` (POSIX sockets), `lua` (Lua 5.4), `tui` (ncurses/ANSI), `image` (libpng),
-`game` (SDL2). `venv` is intentionally excluded — see
-[limitations.md](limitations.md).
+`network` and `server` are staged through CMake (`make -C clynxer deps`):
+cpp-httplib's `httplib.h` is copied into `stdlib/`, and Crow lives under
+`third_party/Crow`. Planned opt-in modules that are not part of the build yet:
+`lua` (Lua 5.4), `tui` (ncurses/ANSI), `image` (libpng), `game` (SDL2). `venv`
+is intentionally excluded — see [limitations.md](limitations.md).
 
 ## Adding a stdlib module
 
@@ -85,7 +88,8 @@ Planned opt-in modules that are not part of the build yet: `http` (libcurl),
    `////` docstring — `clynxer --list-stdlibs` prints it.
 3. If the module needs a system library, add it to `stdlib/libs.mk`
    (`MODULE_PKG_<name>`) and to `OPTIONAL_MODULE_NAMES` in the Makefile so it is
-   skipped when the library is absent.
+   skipped when the library is absent. Dependency-heavy modules such as
+   `network`/`server` are built via `CMakeLists.txt` after `make deps`.
 4. Add `examples/stdlib_<name>.lynx` plus a sibling `stdlib_<name>.expected`
    file. `make test` runs every `examples/stdlib_*.lynx` and diffs it against
    its `.expected` output.

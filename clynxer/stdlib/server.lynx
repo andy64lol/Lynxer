@@ -1,0 +1,22 @@
+////
+Lynxer standard library: server.
+HTTP and WebSocket server backed by Crow (`stdlib/server.so`).
+Register routes, then start/stop an async listener on localhost.
+////
+global setup(){ importAs("server.so", "nativeServer"); }
+
+global routeGet(str path, str body) -> str {
+    return global.nativeServer.routeGet(path, body);
+}
+global routePost(str path, str body) -> str {
+    return global.nativeServer.routePost(path, body);
+}
+global routeEcho(str path) -> str { return global.nativeServer.routeEcho(path); }
+global wsEcho(str path) -> str { return global.nativeServer.wsEcho(path); }
+global clearRoutes() -> str { return global.nativeServer.clearRoutes(); }
+global start(int port) -> str { return global.nativeServer.start(port); }
+global stop() -> str { return global.nativeServer.stop(); }
+global running() -> bool { return global.nativeServer.running() != 0; }
+global port() -> int { return global.nativeServer.port(); }
+
+global main(){}

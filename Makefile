@@ -28,7 +28,7 @@ CLYNXER_HEADERS := $(wildcard clynxer/*.hpp)
 CLYNXER_CXX ?= c++
 CLYNXER_CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -pedantic -fPIE
 
-.PHONY: venv deps liteDeps platform-check build buildAll buildLite buildCpp buildCLynxer test testCLynxer testAMR64 validate golden check clean cleanC cleanCpp cleanLynxc cleanCLynxer cleanAll help
+.PHONY: venv deps liteDeps clynxerDeps cmake platform-check build buildAll buildLite buildCpp buildCLynxer test testCLynxer testAMR64 validate golden check clean cleanC cleanCpp cleanLynxc cleanCLynxer cleanAll help
 
 venv:
 	@if [ ! -d "$(VENV)" ]; then \
@@ -151,8 +151,17 @@ buildCpp: venv
 	@echo "✓ Native extensions built in lynxer/ (memory + bytecode VM)"
 
 buildCLynxer: $(CLYNXER_TARGET)
+	@$(MAKE) -C clynxer cmake
 	@$(MAKE) -C clynxer all
 	@echo "✓ Clynxer build complete: $(CLYNXER_TARGET)"
+
+cmake:
+	@$(MAKE) -C clynxer cmake
+	@echo "✓ Clynxer CMake configured: clynxer/build"
+
+clynxerDeps:
+	@$(MAKE) -C clynxer deps
+	@echo "✓ Clynxer native deps ready (cpp-httplib + Crow)"
 
 $(CLYNXER_TARGET): $(CLYNXER_OBJECTS)
 	@$(CLYNXER_CXX) $(CLYNXER_CXXFLAGS) $(CLYNXER_OBJECTS) -o $@
@@ -182,6 +191,7 @@ cleanLynxc:
 
 cleanCLynxer:
 	@rm -f $(CLYNXER_TARGET) $(CLYNXER_OBJECTS)
+	@$(MAKE) -C clynxer clean
 	@echo "✓ Cleaned Clynxer build artifacts."
 
 cleanAll: clean cleanC cleanLynxc
@@ -195,6 +205,8 @@ help:
 	@echo "  make buildLite"
 	@echo "  make buildCpp"
 	@echo "  make buildCLynxer"
+	@echo "  make cmake"
+	@echo "  make clynxerDeps"
 	@echo "  make platform-check"
 	@echo "  make venv"
 	@echo "  make deps"

@@ -2,14 +2,20 @@ CXX ?= c++
 CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -pedantic -fPIE
 
 TARGET := clynxer
-NATIVE_SOURCES := $(wildcard stdlib/*.cpp)
+# network/server are built by CMake after deps stage cpp-httplib + Crow.
+CMAKE_MODULE_SOURCES := stdlib/network.cpp stdlib/server.cpp
+NATIVE_SOURCES := $(filter-out $(CMAKE_MODULE_SOURCES),$(wildcard stdlib/*.cpp))
 NATIVE_MODULES := $(NATIVE_SOURCES:.cpp=.so)
+CMAKE_MODULES := stdlib/network.so stdlib/server.so
 include stdlib/libs.mk
+
+CMAKE_BUILD_DIR := build
+CMAKE ?= cmake
 
 # Native modules that need an opt-in system library. When the package cannot be
 # resolved by pkg-config the module is skipped with a warning, so a plain build
 # never fails because an optional dependency is absent.
-OPTIONAL_MODULE_NAMES := http lua tui image game
+OPTIONAL_MODULE_NAMES := lua tui image game
 OPTIONAL_MODULE_PATHS := $(OPTIONAL_MODULE_NAMES:%=stdlib/%.so)
 OPTIONAL_NATIVE_MODULES := $(filter $(NATIVE_MODULES),$(OPTIONAL_MODULE_PATHS))
 $(foreach path,$(OPTIONAL_NATIVE_MODULES),$(eval MODULE_NAME_$(path) := $(patsubst stdlib/%.so,%,$(path))))
@@ -41,9 +47,9 @@ NATIVE_SIGNATURE_FIXTURE := examples/native_signatures.lynx
 # Every examples/stdlib_<name>.lynx must ship a sibling .expected file.
 STDLIB_FIXTURES := $(wildcard examples/stdlib_*.lynx)
 
-.PHONY: all clean test
+.PHONY: all clean test cmake deps cmake-modules
 
-all: $(TARGET) $(NATIVE_BUILT)
+all: $(TARGET) $(NATIVE_BUILT) cmake-modules
 
 $(TARGET): $(OBJECTS)
 	$(CXX) $(CXXFLAGS) $(OBJECTS) -o $(TARGET)
@@ -57,10 +63,25 @@ stdlib/%.so: stdlib/%.cpp
 	$(eval _libs := $(if $(strip $(_pkg)),$(shell pkg-config --libs $(_pkg) 2>/dev/null)))
 	$(CXX) -std=c++17 -O2 -Wall -Wextra -pedantic -fPIC -shared $(_cflags) $< -o $@ $(_libs) $(MODULE_FLAGS_$*)
 
+# Configure the CMake build tree used for deps + network/server.
+cmake:
+	@command -v $(CMAKE) >/dev/null || { echo "clynxer: cmake not found in PATH"; exit 1; }
+	@$(CMAKE) -S . -B $(CMAKE_BUILD_DIR)
+
+# Stage cpp-httplib (httplib.h) and Crow under third_party/.
+deps: cmake
+	@$(CMAKE) --build $(CMAKE_BUILD_DIR) --target clynxer_deps
+
+# Build the network/server stdlibs that replace the old http/net stack.
+cmake-modules: deps
+	@$(CMAKE) --build $(CMAKE_BUILD_DIR) --target network server
+	@test -f stdlib/network.so || { echo "clynxer: network.so was not built"; exit 1; }
+	@test -f stdlib/server.so || { echo "clynxer: server.so was not built"; exit 1; }
+
 $(NATIVE_SIGNATURE_MODULE): $(NATIVE_SIGNATURE_SOURCE)
 	$(CXX) -std=c++17 -O2 -Wall -Wextra -pedantic -fPIC -shared $< -o $@
 
-test: $(TARGET) $(NATIVE_BUILT) $(NATIVE_SIGNATURE_MODULE)
+test: $(TARGET) $(NATIVE_BUILT) cmake-modules $(NATIVE_SIGNATURE_MODULE)
 	@printf 'Clynxer\n' > .clynxer_stdin
 	@output="$$(./$(TARGET) examples/hello.lynx < .clynxer_stdin)"; \
 	case "$$output" in \
@@ -289,4 +310,5 @@ expected="clynxer: $(ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 	@echo "clynxer smoke test passed"
 
 clean:
-	rm -f $(TARGET) $(OBJECTS) $(NATIVE_MODULES) $(NATIVE_SIGNATURE_MODULE) .clynxer_stdin
+	rm -f $(TARGET) $(OBJECTS) $(NATIVE_MODULES) $(CMAKE_MODULES) $(NATIVE_SIGNATURE_MODULE) .clynxer_stdin
+	rm -rf $(CMAKE_BUILD_DIR)

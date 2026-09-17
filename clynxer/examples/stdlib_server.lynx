@@ -1,0 +1,19 @@
+////
+Fixture for the server stdlib. Registers Crow routes, serves them on
+localhost, and verifies them with the network HTTP client.
+////
+global setup(){
+    import("server");
+    import("network");
+}
+
+global main(){
+    println(global.server.clearRoutes());
+    println(global.server.routeGet("/hello", "world"));
+    println(global.server.routePost("/fixed", "posted"));
+    println(global.server.start(18124));
+    sleep(0.2);
+    println(global.network.get("http://127.0.0.1:18124/hello"));
+    println(global.network.post("http://127.0.0.1:18124/fixed", "ignored", "text/plain"));
+    println(global.server.stop());
+}

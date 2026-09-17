@@ -9,14 +9,15 @@
 # MODULE_FLAGS_<name>
 #   Extra raw compiler/linker flags appended after the pkg-config flags. Use
 #   this only when pkg-config does not describe the full requirement.
+#
+# network / server are built through CMake (see CMakeLists.txt) after
+# `make deps` stages cpp-httplib and Crow under third_party/.
 
-MODULE_PKG_http  := libcurl
 MODULE_PKG_lua   := lua5.4
 MODULE_PKG_tui   := ncursesw
 MODULE_PKG_image := libpng zlib
 MODULE_PKG_game  := sdl2
 
-MODULE_FLAGS_http  :=
 MODULE_FLAGS_lua   :=
 MODULE_FLAGS_tui   :=
 MODULE_FLAGS_image :=

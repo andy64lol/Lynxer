@@ -58,12 +58,13 @@ on a module.
 Deliberately **not implemented**. A virtual-environment manager is a Python
 concept with no C++ runtime equivalent.
 
-Modules not yet ported: `game`, `image`, `tui`, `http`, `net`, `lua`.
-(`http`/`net` need libcurl/Boost.Asio-class dependencies; `game`/`image` need
-SDL2 and an image codec; `lua` embeds the Lua runtime. These are planned as
+Modules not yet ported: `game`, `image`, `tui`, `lua`.
+(`network`/`server` use cpp-httplib + Crow via CMake/`make deps`; `game`/`image`
+need SDL2 and an image codec; `lua` embeds the Lua runtime. These are planned as
 opt-in modules so the core build never depends on them.) The Python reference's
-`tkinter`, `tkinterPlus`, `turtle`, `sound`, `server` and `sqldb` modules are
-out of scope.
+`tkinter`, `tkinterPlus`, `turtle`, `sound`, and `sqldb` modules are out of
+scope. The older Python `http`/`net` modules are superseded by Clynxer's
+`network` + `server` pair.
 
 ## `json`
 

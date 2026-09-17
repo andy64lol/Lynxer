@@ -15,7 +15,14 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Show the C++ toolchain
-        run: c++ --version
+        run: |
+          c++ --version
+          cmake --version
+
+      - name: Install native stdlib build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev libboost-dev
 
       - name: Build the interpreter and the native stdlib modules
         run: make buildCLynxer
@@ -27,6 +34,8 @@ jobs:
           test -f clynxer/stdlib/math.so
           test -f clynxer/stdlib/json.so
           test -f clynxer/stdlib/path.so
+          test -f clynxer/stdlib/network.so
+          test -f clynxer/stdlib/server.so
 
       - name: List the available stdlib modules
         run: ./clynxer/clynxer --list-stdlibs
