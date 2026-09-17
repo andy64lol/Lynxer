@@ -1,0 +1,13 @@
+global setup() {
+    import("server");
+}
+
+global main() {
+    global.server.routeGet("/", "<!DOCTYPE html><html><body><h1>Hello World!</h1></body></html>");
+    global.server.start(8080);
+
+    println("Server running at http://127.0.0.1:8080");
+
+    while (global.server.running()) {
+    }
+}

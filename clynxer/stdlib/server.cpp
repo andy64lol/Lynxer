@@ -39,7 +39,7 @@ struct FixedRoute {
     crow::HTTPMethod method = crow::HTTPMethod::GET;
     std::string path;
     std::string body;
-    std::string content_type = "text/plain";
+    std::string content_type = "text/html";
     bool echo = false;
 };
 
