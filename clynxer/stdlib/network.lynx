@@ -1,7 +1,11 @@
 ////
 Lynxer standard library: network.
-HTTP and WebSocket client backed by cpp-httplib (`stdlib/network.so`).
-Replaces the older `http` and `net` modules for Clynxer.
+HTTP and WebSocket client backed by Rust (`ureq` + rustls + `tungstenite`),
+exposed through the native module `stdlib/network.so`. Replaces the older
+`http` and `net` modules for Clynxer; HTTPS/WSS need no system OpenSSL.
+
+Requires a Rust toolchain to build (see `rust/network`); the module is skipped
+when `cargo` is unavailable.
 ////
 global setup(){ importAs("network.so", "nativeNetwork"); }
 

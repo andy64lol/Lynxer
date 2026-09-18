@@ -13,6 +13,30 @@ cam=100,50 zoom=2
 key=false mouse=false
 5,2
 24,40
+resized=400x300
+fps=0 open=true
+angle=90 scale=2 alpha=128
+scaled=20x40 visible=false
+angVel=45
+toward=-4,0
+facing=0
+near2=false
+listHit=true
+[1]
+gone=false count3=0
+tex=-1 spr=-1
+smooth=150,50 zoom=2
+dt>0=true t=0
+xy=0,0
+moved=1,2
+after=1,2
+bigCount=1
+cleared=0
+mouse=0,0 scroll=0,0
+deltas=0,0
+keys=false false false
+buttons=false false false false false 0
+keyCode=32
 update 0.016666666666666666
 draw
 update 0.016666666666666666

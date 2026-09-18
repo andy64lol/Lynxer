@@ -253,10 +253,11 @@ Other deviations:
 
 ## Rust / C ABI
 
-`stdlib/game.cpp` is a thin shim. The ops are `cdecl:<ret>(...)` functions
-exported by the Rust static library and linked with `--whole-archive`; the shim
-only owns the registration table and the frame-callback glue. It uses two
-additive native-module ABI extensions documented in
+The module is a single Rust `cdylib` (`rust/game`, crate `clynxer_game`); there
+is no C++ shim. It exports `lynxer_module_init_v1`, every op as
+`cdecl:<ret>(...)`, and `lynxer_module_attach_v1`. Macroquad owns the window and
+event loop, and each frame it invokes the registered Lynxer callbacks through
+the host API. It uses two additive native-module ABI extensions documented in
 [`docs/native-module-abi.md`](../native-module-abi.md):
 
 - the packed `...` signature, which passes any number of numeric/string

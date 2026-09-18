@@ -62,6 +62,114 @@ global main(){
     println(global.game.screenToTile(80.0, 40.0, 16));
     println(global.game.tileToScreen(1, 2, 16));
 
+    // --- extended coverage --------------------------------------------------
+
+    // Window helpers.
+    global.game.setBackground(10, 20, 30);
+    global.game.setFPSCap(60);
+    global.game.setResizable(true);
+    global.game.setFullscreen(false);
+    global.game.setMouseVisible(true);
+    global.game.setWindowSize(400, 300);
+    println("resized=", global.game.getWidth(), "x", global.game.getHeight());
+    println("fps=", global.game.getFPS(), " open=", global.game.isOpen());
+
+    // Sprite transforms and state.
+    global.game.setSpriteAngle(a, 90.0);
+    global.game.setSpriteScale(a, 2.0);
+    global.game.setSpriteAlpha(a, 128);
+    global.game.setSpriteVisible(a, false);
+    println("angle=", global.game.getSpriteAngle(a), " scale=", global.game.getSpriteScale(a), " alpha=", global.game.getSpriteAlpha(a));
+    println("scaled=", global.game.getSpriteWidth(a), "x", global.game.getSpriteHeight(a), " visible=", global.game.getSpriteVisible(a));
+    global.game.setSpriteVisible(a, true);
+    global.game.setSpriteAngularVelocity(b, 45.0);
+    println("angVel=", global.game.getSpriteAngularVelocity(b));
+    global.game.moveSpriteToward(b, 0.0, 0.0, 4.0);
+    println("toward=", global.game.getSpriteVX(b), ",", global.game.getSpriteVY(b));
+    global.game.faceSpriteTo(b, 16.0, 0.0);
+    println("facing=", global.game.getSpriteAngle(b));
+    println("near2=", global.game.spriteNear(a, 100.0, 100.0, 5.0));
+
+    // Collision queries against a sprite list.
+    println("listHit=", global.game.spriteCollidesWithList(a, list));
+    println(global.game.getCollidingSprites(a, list));
+
+    // Removing a sprite also drops it from the lists.
+    global.game.destroySprite(b);
+    println("gone=", global.game.spriteExists(b), " count3=", global.game.getSpriteListCount(list));
+
+    // A missing image cannot be loaded (headless mode never touches the GPU).
+    println("tex=", global.game.loadTexture("missing.png"), " spr=", global.game.loadSprite("missing.png", 1.0, 0.0, 0.0));
+
+    // Camera activation and smoothing.
+    global.game.useCamera(cam);
+    global.game.smoothScrollCamera(cam, 200.0, 50.0, 0.5);
+    println("smooth=", global.game.getCameraX(cam), ",", global.game.getCameraY(cam), " zoom=", global.game.getCameraZoom(cam));
+    global.game.resetCamera();
+
+    // Every remaining draw primitive. Headless no-ops, but they exercise the
+    // packed-argument ABI, including the long argument lists and the
+    // coordinate/text forms.
+    global.game.beginDraw();
+    global.game.drawRectOutline(10.0, 10.0, 20.0, 20.0, 255, 0, 0, 1.0);
+    global.game.drawCircleOutline(50.0, 50.0, 5.0, 0, 255, 0, 1.0);
+    global.game.drawEllipse(20.0, 20.0, 30.0, 10.0, 1, 2, 3);
+    global.game.drawEllipseOutline(20.0, 20.0, 30.0, 10.0, 1, 2, 3, 1.0);
+    global.game.drawTriangleOutline(0.0, 0.0, 10.0, 0.0, 5.0, 8.0, 1, 2, 3, 1.0);
+    global.game.drawPoint(1.0, 2.0, 1, 2, 3, 2.0);
+    global.game.drawRectRoundedFilled(10.0, 10.0, 20.0, 20.0, 1, 2, 3, 4.0);
+    global.game.drawRectRoundedOutline(10.0, 10.0, 20.0, 20.0, 1, 2, 3, 4.0, 1.0);
+    global.game.drawStar(10.0, 10.0, 8.0, 4.0, 5, 1, 2, 3);
+    global.game.drawDashedLine(0.0, 0.0, 10.0, 0.0, 1, 2, 3, 1.0, 2.0);
+    global.game.drawCross(5.0, 5.0, 3.0, 1, 2, 3, 1.0);
+    global.game.drawGradientRect(10.0, 10.0, 20.0, 20.0, 1, 2, 3, 4, 5, 6);
+    global.game.drawArc(10.0, 10.0, 20.0, 20.0, 1, 2, 3, 0.0, 90.0, 1.0);
+    global.game.drawArcFilled(10.0, 10.0, 20.0, 20.0, 1, 2, 3, 0.0, 90.0);
+    global.game.drawPolygonOutline("0,0,10,0,5,8", 1, 2, 3, 1.0);
+    global.game.drawPolyline("0,0,5,5,10,0", 1, 2, 3, 1.0);
+    global.game.drawPoints("1,2 3,4", 1, 2, 3, 2.0);
+    global.game.drawLines("0,0,10,10", 1, 2, 3, 1.0);
+    global.game.drawTextStyled("styled", 5.0, 5.0, 255, 255, 255, 12, "sans", true, false, "center");
+    global.game.drawTextAnchored("anchored", 50.0, 50.0, 255, 255, 255, 12, "center", "top");
+    global.game.setSpriteTexture(a, 0);
+    global.game.drawSprite(a);
+    global.game.drawTexture(0, 10.0, 10.0, 4.0, 4.0, 0.0);
+    global.game.drawTextureAt("missing.png", 10.0, 10.0, 1.0);
+    global.game.drawTextureRect(0, 0.0, 0.0, 4.0, 4.0);
+    global.game.endDraw();
+
+    // Title/cursor helpers and timing.
+    global.game.setTitle("renamed");
+    global.game.hideCursor();
+    global.game.showCursor();
+    println("dt>0=", global.game.deltaTime() > 0.0, " t=", global.game.getTime());
+
+    // Sprite reads, aliases and mutation.
+    println("xy=", global.game.getSpriteX(a), ",", global.game.getSpriteY(a));
+    global.game.setSpritePosition(a, 1.0, 2.0);
+    println("moved=", global.game.getSpritePosition(a));
+    global.game.setSpriteColor(a, 1, 2, 3, 255);
+    global.game.flipSpriteH(a);
+    global.game.flipSpriteV(a);
+    global.game.updateSprite(a);
+    println("after=", global.game.getSpriteX(a), ",", global.game.getSpriteY(a));
+
+    // Sprite lists: update, draw and clear.
+    int big = global.game.makeSpriteList();
+    global.game.addToList(big, a);
+    global.game.updateSpriteList(big);
+    global.game.drawSpriteList(big);
+    println("bigCount=", global.game.getSpriteListCount(big));
+    global.game.clearSpriteList(big);
+    println("cleared=", global.game.getSpriteListCount(big));
+
+    // Input reads are deterministic in headless mode.
+    println("mouse=", global.game.mouseX(), ",", global.game.mouseY(), " scroll=", global.game.mouseScrollX(), ",", global.game.mouseScrollY());
+    println("deltas=", global.game.mouseDeltaX(), ",", global.game.mouseDeltaY());
+    println("keys=", global.game.keyPressed("A"), " ", global.game.keyReleased("A"), " ", global.game.keyUp("A"));
+    println("buttons=", global.game.mouseLeft(), " ", global.game.mouseMiddle(), " ", global.game.mouseRight(), " ", global.game.mouseButtonPressed("LEFT"), " ", global.game.mouseButtonReleased("LEFT"), " ", global.game.mouseButtonCode("LEFT"));
+    println("keyCode=", global.game.keyCode("SPACE"));
+
     global.game.setUpdateCallback("onUpdate");
     global.game.setDrawCallback("onDraw");
     global.game.run();

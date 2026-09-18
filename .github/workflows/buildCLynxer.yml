@@ -9,20 +9,25 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Show the C++ toolchain
+      # game/json/network/server are Rust crates built by cargo.
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: clynxer/rust -> ../build/rust
+
+      - name: Show the toolchains
         run: |
           c++ --version
-          cmake --version
-
-      - name: Install native stdlib build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libssl-dev libboost-dev
+          rustc --version
+          cargo --version
 
       - name: Build the interpreter and the native stdlib modules
         run: make buildCLynxer
@@ -32,6 +37,7 @@ jobs:
           echo "Built modules:"
           ls -1 clynxer/stdlib/*.so
           test -f clynxer/stdlib/math.so
+          test -f clynxer/stdlib/game.so
           test -f clynxer/stdlib/json.so
           test -f clynxer/stdlib/path.so
           test -f clynxer/stdlib/network.so

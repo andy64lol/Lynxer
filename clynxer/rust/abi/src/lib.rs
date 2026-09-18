@@ -15,10 +15,57 @@
 //!
 //! See `clynxer/docs/native-module-abi.md`.
 
-use core::ffi::c_char;
+use core::ffi::{c_char, c_int, c_void};
 use std::cell::RefCell;
 use std::ffi::{CStr, CString};
 use std::panic::{catch_unwind, AssertUnwindSafe};
+
+/// Host services supplied by the interpreter through `lynxer_module_attach_v1`.
+///
+/// Layout matches `LynxerHostApi` in `clynxer/stdlib/lynxer_native_abi.h`.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct LynxerHostApi {
+    pub version: c_int,
+    pub context: *mut c_void,
+    pub invoke: Option<unsafe extern "C" fn(*mut c_void, *const c_char, c_int, f64) -> c_int>,
+    pub interrupted: Option<unsafe extern "C" fn(*mut c_void) -> c_int>,
+}
+
+// The interpreter stores the host API in a `static`, and the callbacks it
+// points at are only ever invoked from the interpreter thread. Marking the
+// struct `Send`/`Sync` keeps it usable from a static container.
+unsafe impl Send for LynxerHostApi {}
+unsafe impl Sync for LynxerHostApi {}
+
+/// The only host API version the interpreter currently offers.
+pub const HOST_API_VERSION: c_int = 1;
+
+/// Runs the Lynxer function `name` with no argument or one numeric argument.
+/// Returns 0 on success and non-zero when the callback failed.
+pub fn invoke(host: &LynxerHostApi, name: &str, argument: Option<f64>) -> c_int {
+    let callback = match host.invoke {
+        Some(callback) => callback,
+        None => return 1,
+    };
+    let name = match CString::new(name) {
+        Ok(name) => name,
+        Err(_) => return 1,
+    };
+    let (has_argument, value) = match argument {
+        Some(value) => (1, value),
+        None => (0, 0.0),
+    };
+    unsafe { callback(host.context, name.as_ptr(), has_argument, value) }
+}
+
+/// True once the process has received SIGINT.
+pub fn interrupted(host: &LynxerHostApi) -> bool {
+    match host.interrupted {
+        Some(callback) => unsafe { callback(host.context) != 0 },
+        None => false,
+    }
+}
 
 /// Signature of the interpreter's `nativeRegisterFunction` callback.
 pub type RegisterFunction =

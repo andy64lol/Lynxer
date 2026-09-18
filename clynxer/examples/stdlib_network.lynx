@@ -10,9 +10,16 @@ global setup(){
 }
 
 global main(){
+    // Offline URL helpers.
     println(global.network.urlScheme("https://example.com:8443/v1/x?q=1#top"));
     println(global.network.urlHost("https://example.com:8443/v1/x"));
+    // Default ports are omitted from urlHost.
+    println(global.network.urlHost("https://example.com/v1/x"));
     println(global.network.urlPath("https://example.com:8443/v1/x"));
+    // An unparseable URL keeps the default path but has no scheme or host.
+    println(global.network.urlPath("not a url"));
+    println(global.network.urlScheme("not a url"));
+    println(global.network.urlHost("not a url"));
     str parsed = global.network.urlParse("https://example.com:8443/v1/x?q=1#top");
     println(global.json.jsonGet(parsed, "scheme"));
     println(global.json.jsonGet(parsed, "host"));
@@ -20,8 +27,13 @@ global main(){
     println(global.json.jsonGet(parsed, "query"));
     println(global.json.jsonGet(parsed, "fragment"));
     println(global.network.urlencode("hello world"));
+    println(global.network.urlencode("a b&c=d"));
+    // The parsed port defaults to the scheme's default.
+    println(global.json.jsonGet(global.network.urlParse("http://example.com/"), "port"));
     println(returnLength(global.network.getHostname()) > 0);
+    println(global.network.resolveHost("localhost"));
 
+    // Local server for the HTTP and WebSocket round-trips.
     println(global.server.clearRoutes());
     println(global.server.routeGet("/hi", "hello-crow"));
     println(global.server.routeEcho("/echo"));
@@ -32,14 +44,34 @@ global main(){
 
     sleep(0.2);
 
+    // HTTP.
     println(global.network.get("http://127.0.0.1:18123/hi"));
+    println(global.network.getJson("http://127.0.0.1:18123/hi"));
     println(global.network.getStatus("http://127.0.0.1:18123/hi"));
-    println(global.network.post("http://127.0.0.1:18123/echo", "ping", "text/plain"));
     println(global.network.httpHead("http://127.0.0.1:18123/hi"));
+    println(global.network.post("http://127.0.0.1:18123/echo", "ping", "text/plain"));
+    println(global.network.postJson("http://127.0.0.1:18123/echo", "{\"k\": 1}"));
+    // Unknown paths and unsupported methods surface the HTTP status.
+    println(global.network.getStatus("http://127.0.0.1:18123/missing"));
+    println(global.network.httpHead("http://127.0.0.1:18123/missing"));
+    println(global.network.getHeaders("http://127.0.0.1:18123/missing"));
+    println(global.network.get("http://127.0.0.1:18123/missing"));
+    println(global.network.put("http://127.0.0.1:18123/missing", "x", "text/plain"));
+    println(global.network.delete("http://127.0.0.1:18123/missing"));
+    println(global.network.patch("http://127.0.0.1:18123/missing", "x", "text/plain"));
+    println(global.network.download("http://127.0.0.1:18123/missing", "/tmp/clynxer-missing.txt"));
 
+    // WebSocket.
     println(global.network.wsConnect("echo", "ws://127.0.0.1:18123/ws"));
     println(global.network.wsConnected("echo"));
+    println(global.network.wsSend("echo", "one"));
+    println(global.network.wsReceive("echo"));
     println(global.network.wsSendReceive("echo", "Lynxer-ws"));
+    // Unknown connection names are errors, and closing removes the entry.
+    println(global.network.wsConnected("nope"));
+    println(global.network.wsReceive("nope"));
+    println(global.network.wsSend("nope", "x"));
+    println(global.network.wsClose("nope"));
     println(global.network.wsClose("echo"));
     println(global.network.wsConnected("echo"));
 

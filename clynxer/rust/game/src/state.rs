@@ -114,6 +114,9 @@ pub struct State {
     pub mouse_query_y: f32,
     pub scroll_x: f32,
     pub scroll_y: f32,
+    /// Lynxer function names registered with setDrawCallback/setUpdateCallback.
+    pub draw_callback: String,
+    pub update_callback: String,
 }
 
 impl State {
@@ -139,6 +142,8 @@ impl State {
             mouse_query_y: 0.0,
             scroll_x: 0.0,
             scroll_y: 0.0,
+            draw_callback: String::new(),
+            update_callback: String::new(),
         }
     }
 

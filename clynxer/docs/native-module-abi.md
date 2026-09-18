@@ -6,11 +6,11 @@ module must implement. It applies to the bundled `stdlib/*.so` modules exactly
 as it applies to third-party modules.
 
 A module may be written in C++ (`stdlib/<name>.cpp`) or in Rust. The Rust
-backends — `game`, `json`, `network`, `server` — live under `rust/`: `game` is a
-`staticlib` linked into a C++ shim, while `json`/`network`/`server` are
-`cdylib`s that export `lynxer_module_init_v1` and their ops directly. The
-`clynxer_abi` crate provides the shared FFI plumbing (packed-argument view,
-panic guards, string result buffer, and registration helper).
+backends — `game`, `json`, `network`, `server` — live under `rust/` and are all
+`cdylib`s that export `lynxer_module_init_v1`, their ops, and (for `game`)
+`lynxer_module_attach_v1` directly; there is no C++ shim. The `clynxer_abi`
+crate provides the shared FFI plumbing (packed-argument view, panic guards,
+string result buffer, host API, and the registration helper).
 
 ## Entry point
 

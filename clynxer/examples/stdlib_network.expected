@@ -1,13 +1,20 @@
 https
 example.com:8443
+example.com
 /v1/x
+/
+
+
 https
 example.com
 /v1/x
 q=1
 top
 hello+world
+a+b%26c%3Dd
+80
 true
+127.0.0.1
 ok
 ok
 ok
@@ -16,12 +23,28 @@ ok
 true
 18123
 hello-crow
+hello-crow
+200
 200
 ping
-200
+{"k": 1}
+404
+404
+ERROR: HTTP 404
+ERROR: HTTP 404 Not Found
+ERROR: HTTP 404 Not Found
+ERROR: HTTP 404 Not Found
+ERROR: HTTP 404 Not Found
+ERROR: HTTP 404 Not Found
 ok
 true
+ok
+one
 Lynxer-ws
+false
+ERROR: no connection named 'nope'
+ERROR: no connection named 'nope'
+ERROR: no connection named 'nope'
 ok
 false
 ok

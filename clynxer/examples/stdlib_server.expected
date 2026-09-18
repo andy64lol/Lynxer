@@ -1,8 +1,37 @@
+false
+0
+ERROR: server is not running
+ERROR: path must start with '/'
+ERROR: path must start with '/'
+ERROR: path must start with '/'
+ERROR: path must start with '/'
+ok
+ok
+ERROR: GET route already registered
+ok
+ERROR: POST route already registered
 ok
 ok
 ok
+ERROR: POST route already registered
 ok
+ERROR: WebSocket route already registered
+ERROR: invalid port
+ERROR: invalid port
+ok
+true
+18124
+ERROR: server already running
+ERROR: server already running
+ERROR: server already running
 <!doctype html><html><body>world</body></html>
 true
 <p>posted</p>
+ping
+{"k": 1}
+200
+ERROR: HTTP 404 Not Found
 ok
+false
+0
+ERROR: server is not running

@@ -1,7 +1,11 @@
 ////
 Lynxer standard library: server.
-HTTP and WebSocket server backed by Crow (`stdlib/server.so`).
-Register routes, then start/stop an async listener on localhost.
+HTTP and WebSocket server backed by Rust (`axum` on `tokio`), exposed through
+the native module `stdlib/server.so`. Register routes, then start/stop a
+listener on 127.0.0.1.
+
+Requires a Rust toolchain to build (see `rust/server`); the module is skipped
+when `cargo` is unavailable.
 ////
 global setup(){ importAs("server.so", "nativeServer"); }
 

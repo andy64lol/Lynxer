@@ -7,11 +7,12 @@ publish = false
 
 [lib]
 name = "clynxer_game"
-# A staticlib is linked into `clynxer/stdlib/game.so`, so the shared object is
-# self-contained and needs no rpath or sidecar library.
-crate-type = ["staticlib"]
+# A cdylib that exports lynxer_module_init_v1 and its ops directly, like the
+# json/network/server modules: no C++ shim and no --whole-archive linking.
+crate-type = ["cdylib"]
 
 [dependencies]
+clynxer_abi = { path = "../abi" }
 macroquad = "0.4"
 
 # The release profile lives in the workspace root (clynxer/rust/Cargo.toml).

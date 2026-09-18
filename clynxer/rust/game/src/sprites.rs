@@ -4,6 +4,7 @@
 //! integer handle (`-1` means "not available"). Collisions are axis-aligned
 //! box tests against the sprite's scaled size.
 
+use clynxer_abi::{export_float, export_int, export_string};
 use macroquad::math::vec2;
 use macroquad::shapes::draw_rectangle;
 use macroquad::texture::{DrawTextureParams, Texture2D};
@@ -58,7 +59,7 @@ fn collides(a: &Sprite, b: &Sprite) -> bool {
 
 // --- creation ---------------------------------------------------------------
 
-game_export_int!(lynxer_game_make_solid_sprite, args, {
+export_int!(lynxer_game_make_solid_sprite, args, {
     with(|state| {
         let sprite = Sprite::solid(
             args.float(5),
@@ -72,7 +73,7 @@ game_export_int!(lynxer_game_make_solid_sprite, args, {
     })
 });
 
-game_export_int!(lynxer_game_load_sprite, args, {
+export_int!(lynxer_game_load_sprite, args, {
     let path = args.string(0).to_string();
     if with(|state| state.headless) {
         return -1;
@@ -102,7 +103,7 @@ game_export_int!(lynxer_game_load_sprite, args, {
     })
 });
 
-game_export_int!(lynxer_game_load_texture, args, {
+export_int!(lynxer_game_load_texture, args, {
     let path = args.string(0).to_string();
     if with(|state| state.headless) {
         return -1;
@@ -116,7 +117,7 @@ game_export_int!(lynxer_game_load_texture, args, {
     }
 });
 
-game_export_int!(lynxer_game_set_sprite_texture, args, {
+export_int!(lynxer_game_set_sprite_texture, args, {
     let index = args.int(0);
     let texture_index = args.int(1);
     with(|state| {
@@ -139,15 +140,15 @@ game_export_int!(lynxer_game_set_sprite_texture, args, {
 
 // --- getters ----------------------------------------------------------------
 
-game_export_float!(lynxer_game_get_sprite_x, args, {
+export_float!(lynxer_game_get_sprite_x, args, {
     with(|state| state.sprite(args.int(0)).map(|s| s.x as f64).unwrap_or(0.0))
 });
 
-game_export_float!(lynxer_game_get_sprite_y, args, {
+export_float!(lynxer_game_get_sprite_y, args, {
     with(|state| state.sprite(args.int(0)).map(|s| s.y as f64).unwrap_or(0.0))
 });
 
-game_export_float!(lynxer_game_get_sprite_angle, args, {
+export_float!(lynxer_game_get_sprite_angle, args, {
     with(|state| {
         state
             .sprite(args.int(0))
@@ -156,7 +157,7 @@ game_export_float!(lynxer_game_get_sprite_angle, args, {
     })
 });
 
-game_export_float!(lynxer_game_get_sprite_scale, args, {
+export_float!(lynxer_game_get_sprite_scale, args, {
     with(|state| {
         state
             .sprite(args.int(0))
@@ -165,7 +166,7 @@ game_export_float!(lynxer_game_get_sprite_scale, args, {
     })
 });
 
-game_export_float!(lynxer_game_get_sprite_width, args, {
+export_float!(lynxer_game_get_sprite_width, args, {
     with(|state| {
         state
             .sprite(args.int(0))
@@ -174,7 +175,7 @@ game_export_float!(lynxer_game_get_sprite_width, args, {
     })
 });
 
-game_export_float!(lynxer_game_get_sprite_height, args, {
+export_float!(lynxer_game_get_sprite_height, args, {
     with(|state| {
         state
             .sprite(args.int(0))
@@ -183,7 +184,7 @@ game_export_float!(lynxer_game_get_sprite_height, args, {
     })
 });
 
-game_export_float!(lynxer_game_get_sprite_vx, args, {
+export_float!(lynxer_game_get_sprite_vx, args, {
     with(|state| {
         state
             .sprite(args.int(0))
@@ -192,7 +193,7 @@ game_export_float!(lynxer_game_get_sprite_vx, args, {
     })
 });
 
-game_export_float!(lynxer_game_get_sprite_vy, args, {
+export_float!(lynxer_game_get_sprite_vy, args, {
     with(|state| {
         state
             .sprite(args.int(0))
@@ -201,7 +202,7 @@ game_export_float!(lynxer_game_get_sprite_vy, args, {
     })
 });
 
-game_export_float!(lynxer_game_get_sprite_angular_velocity, args, {
+export_float!(lynxer_game_get_sprite_angular_velocity, args, {
     with(|state| {
         state
             .sprite(args.int(0))
@@ -210,7 +211,7 @@ game_export_float!(lynxer_game_get_sprite_angular_velocity, args, {
     })
 });
 
-game_export_int!(lynxer_game_get_sprite_alpha, args, {
+export_int!(lynxer_game_get_sprite_alpha, args, {
     with(|state| {
         state
             .sprite(args.int(0))
@@ -219,7 +220,7 @@ game_export_int!(lynxer_game_get_sprite_alpha, args, {
     })
 });
 
-game_export_int!(lynxer_game_get_sprite_visible, args, {
+export_int!(lynxer_game_get_sprite_visible, args, {
     with(|state| {
         state
             .sprite(args.int(0))
@@ -228,11 +229,11 @@ game_export_int!(lynxer_game_get_sprite_visible, args, {
     })
 });
 
-game_export_int!(lynxer_game_sprite_exists, args, {
+export_int!(lynxer_game_sprite_exists, args, {
     with(|state| (state.sprite(args.int(0)).is_some()) as i64)
 });
 
-game_export_string!(lynxer_game_get_sprite_position, args, {
+export_string!(lynxer_game_get_sprite_position, args, {
     with(|state| match state.sprite(args.int(0)) {
         Some(sprite) => format!("{},{}", sprite.x, sprite.y),
         None => "0,0".to_string(),
@@ -241,7 +242,7 @@ game_export_string!(lynxer_game_get_sprite_position, args, {
 
 // --- setters ----------------------------------------------------------------
 
-game_export_int!(lynxer_game_set_sprite_pos, args, {
+export_int!(lynxer_game_set_sprite_pos, args, {
     let index = args.int(0);
     let x = args.float(1);
     let y = args.float(2);
@@ -254,7 +255,7 @@ game_export_int!(lynxer_game_set_sprite_pos, args, {
     })
 });
 
-game_export_int!(lynxer_game_set_sprite_angle, args, {
+export_int!(lynxer_game_set_sprite_angle, args, {
     let index = args.int(0);
     let angle = args.float(1);
     with(|state| {
@@ -265,7 +266,7 @@ game_export_int!(lynxer_game_set_sprite_angle, args, {
     })
 });
 
-game_export_int!(lynxer_game_set_sprite_scale, args, {
+export_int!(lynxer_game_set_sprite_scale, args, {
     let index = args.int(0);
     let scale = args.float(1);
     with(|state| {
@@ -276,7 +277,7 @@ game_export_int!(lynxer_game_set_sprite_scale, args, {
     })
 });
 
-game_export_int!(lynxer_game_set_sprite_velocity, args, {
+export_int!(lynxer_game_set_sprite_velocity, args, {
     let index = args.int(0);
     let vx = args.float(1);
     let vy = args.float(2);
@@ -289,7 +290,7 @@ game_export_int!(lynxer_game_set_sprite_velocity, args, {
     })
 });
 
-game_export_int!(lynxer_game_set_sprite_angular_velocity, args, {
+export_int!(lynxer_game_set_sprite_angular_velocity, args, {
     let index = args.int(0);
     let value = args.float(1);
     with(|state| {
@@ -300,7 +301,7 @@ game_export_int!(lynxer_game_set_sprite_angular_velocity, args, {
     })
 });
 
-game_export_int!(lynxer_game_stop_sprite, args, {
+export_int!(lynxer_game_stop_sprite, args, {
     let index = args.int(0);
     with(|state| {
         if let Some(sprite) = state.sprite_mut(index) {
@@ -311,7 +312,7 @@ game_export_int!(lynxer_game_stop_sprite, args, {
     })
 });
 
-game_export_int!(lynxer_game_move_sprite_toward, args, {
+export_int!(lynxer_game_move_sprite_toward, args, {
     let index = args.int(0);
     let target_x = args.float(1);
     let target_y = args.float(2);
@@ -333,7 +334,7 @@ game_export_int!(lynxer_game_move_sprite_toward, args, {
     })
 });
 
-game_export_int!(lynxer_game_face_sprite_to, args, {
+export_int!(lynxer_game_face_sprite_to, args, {
     let index = args.int(0);
     let target_x = args.float(1);
     let target_y = args.float(2);
@@ -347,7 +348,7 @@ game_export_int!(lynxer_game_face_sprite_to, args, {
     })
 });
 
-game_export_int!(lynxer_game_set_sprite_alpha, args, {
+export_int!(lynxer_game_set_sprite_alpha, args, {
     let index = args.int(0);
     let alpha = args.int(1).clamp(0, 255) as u8;
     with(|state| {
@@ -358,7 +359,7 @@ game_export_int!(lynxer_game_set_sprite_alpha, args, {
     })
 });
 
-game_export_int!(lynxer_game_set_sprite_color, args, {
+export_int!(lynxer_game_set_sprite_color, args, {
     let index = args.int(0);
     let color = color_of_a(args.int(1), args.int(2), args.int(3), args.int(4));
     with(|state| {
@@ -369,7 +370,7 @@ game_export_int!(lynxer_game_set_sprite_color, args, {
     })
 });
 
-game_export_int!(lynxer_game_set_sprite_visible, args, {
+export_int!(lynxer_game_set_sprite_visible, args, {
     let index = args.int(0);
     let visible = args.int(1) != 0;
     with(|state| {
@@ -380,7 +381,7 @@ game_export_int!(lynxer_game_set_sprite_visible, args, {
     })
 });
 
-game_export_int!(lynxer_game_flip_sprite_h, args, {
+export_int!(lynxer_game_flip_sprite_h, args, {
     let index = args.int(0);
     with(|state| {
         if let Some(sprite) = state.sprite_mut(index) {
@@ -390,7 +391,7 @@ game_export_int!(lynxer_game_flip_sprite_h, args, {
     })
 });
 
-game_export_int!(lynxer_game_flip_sprite_v, args, {
+export_int!(lynxer_game_flip_sprite_v, args, {
     let index = args.int(0);
     with(|state| {
         if let Some(sprite) = state.sprite_mut(index) {
@@ -400,7 +401,7 @@ game_export_int!(lynxer_game_flip_sprite_v, args, {
     })
 });
 
-game_export_int!(lynxer_game_destroy_sprite, args, {
+export_int!(lynxer_game_destroy_sprite, args, {
     let index = args.int(0);
     with(|state| {
         if index >= 0 && (index as usize) < state.sprites.len() {
@@ -415,7 +416,7 @@ game_export_int!(lynxer_game_destroy_sprite, args, {
 
 // --- update / draw ----------------------------------------------------------
 
-game_export_int!(lynxer_game_update_sprite, args, {
+export_int!(lynxer_game_update_sprite, args, {
     let index = args.int(0);
     with(|state| {
         let dt = state.dt as f32;
@@ -428,7 +429,7 @@ game_export_int!(lynxer_game_update_sprite, args, {
     })
 });
 
-game_export_int!(lynxer_game_draw_sprite, args, {
+export_int!(lynxer_game_draw_sprite, args, {
     let index = args.int(0);
     with(|state| {
         if !state.headless {
@@ -438,7 +439,7 @@ game_export_int!(lynxer_game_draw_sprite, args, {
     })
 });
 
-game_export_int!(lynxer_game_draw_texture, args, {
+export_int!(lynxer_game_draw_texture, args, {
     if with(|state| state.headless) {
         return 0;
     }
@@ -475,7 +476,7 @@ game_export_int!(lynxer_game_draw_texture, args, {
     })
 });
 
-game_export_int!(lynxer_game_draw_texture_at, args, {
+export_int!(lynxer_game_draw_texture_at, args, {
     let path = args.string(0).to_string();
     if with(|state| state.headless) {
         return 0;
@@ -504,7 +505,7 @@ game_export_int!(lynxer_game_draw_texture_at, args, {
     })
 });
 
-game_export_int!(lynxer_game_draw_texture_rect, args, {
+export_int!(lynxer_game_draw_texture_rect, args, {
     if with(|state| state.headless) {
         return 0;
     }
@@ -535,7 +536,7 @@ game_export_int!(lynxer_game_draw_texture_rect, args, {
 
 // --- collisions and queries -------------------------------------------------
 
-game_export_int!(lynxer_game_sprite_collides, args, {
+export_int!(lynxer_game_sprite_collides, args, {
     let first = args.int(0);
     let second = args.int(1);
     with(|state| match (state.sprite(first), state.sprite(second)) {
@@ -544,7 +545,7 @@ game_export_int!(lynxer_game_sprite_collides, args, {
     })
 });
 
-game_export_int!(lynxer_game_sprite_collides_with_list, args, {
+export_int!(lynxer_game_sprite_collides_with_list, args, {
     let index = args.int(0);
     let list_index = args.int(1);
     with(|state| {
@@ -567,7 +568,7 @@ game_export_int!(lynxer_game_sprite_collides_with_list, args, {
     })
 });
 
-game_export_string!(lynxer_game_get_colliding_sprites, args, {
+export_string!(lynxer_game_get_colliding_sprites, args, {
     let index = args.int(0);
     let list_index = args.int(1);
     with(|state| {
@@ -591,7 +592,7 @@ game_export_string!(lynxer_game_get_colliding_sprites, args, {
     })
 });
 
-game_export_float!(lynxer_game_sprite_distance, args, {
+export_float!(lynxer_game_sprite_distance, args, {
     let first = args.int(0);
     let second = args.int(1);
     with(|state| match (state.sprite(first), state.sprite(second)) {
@@ -604,7 +605,7 @@ game_export_float!(lynxer_game_sprite_distance, args, {
     })
 });
 
-game_export_int!(lynxer_game_sprite_near, args, {
+export_int!(lynxer_game_sprite_near, args, {
     let index = args.int(0);
     let target_x = args.float(1);
     let target_y = args.float(2);
@@ -621,7 +622,7 @@ game_export_int!(lynxer_game_sprite_near, args, {
 
 // --- sprite lists -----------------------------------------------------------
 
-game_export_int!(lynxer_game_make_sprite_list, args, {
+export_int!(lynxer_game_make_sprite_list, args, {
     let _ = args;
     with(|state| {
         state.lists.push(Vec::new());
@@ -629,7 +630,7 @@ game_export_int!(lynxer_game_make_sprite_list, args, {
     })
 });
 
-game_export_int!(lynxer_game_add_to_list, args, {
+export_int!(lynxer_game_add_to_list, args, {
     let list_index = args.int(0);
     let sprite_index = args.int(1);
     with(|state| {
@@ -642,7 +643,7 @@ game_export_int!(lynxer_game_add_to_list, args, {
     })
 });
 
-game_export_int!(lynxer_game_remove_sprite_from_list, args, {
+export_int!(lynxer_game_remove_sprite_from_list, args, {
     let list_index = args.int(0);
     let sprite_index = args.int(1);
     with(|state| {
@@ -653,7 +654,7 @@ game_export_int!(lynxer_game_remove_sprite_from_list, args, {
     })
 });
 
-game_export_int!(lynxer_game_clear_sprite_list, args, {
+export_int!(lynxer_game_clear_sprite_list, args, {
     let list_index = args.int(0);
     with(|state| {
         if let Some(list) = state.lists.get_mut(list_index.max(0) as usize) {
@@ -663,7 +664,7 @@ game_export_int!(lynxer_game_clear_sprite_list, args, {
     })
 });
 
-game_export_int!(lynxer_game_get_sprite_list_count, args, {
+export_int!(lynxer_game_get_sprite_list_count, args, {
     let list_index = args.int(0);
     with(|state| {
         state
@@ -674,7 +675,7 @@ game_export_int!(lynxer_game_get_sprite_list_count, args, {
     })
 });
 
-game_export_int!(lynxer_game_draw_sprite_list, args, {
+export_int!(lynxer_game_draw_sprite_list, args, {
     let list_index = args.int(0);
     with(|state| {
         if state.headless {
@@ -691,7 +692,7 @@ game_export_int!(lynxer_game_draw_sprite_list, args, {
     })
 });
 
-game_export_int!(lynxer_game_update_sprite_list, args, {
+export_int!(lynxer_game_update_sprite_list, args, {
     let list_index = args.int(0);
     with(|state| {
         let dt = state.dt as f32;

@@ -34,3 +34,39 @@ null
 {"name": "Alice", "age": "30"}
 [7, 7, 7]
 {"a": 1, "b": 2}
+true
+true
+
+{
+    "a": [
+        1,
+        2
+    ]
+}
+1
+0
+0
+42
+3
+0
+1
+2.5
+1
+false
+false
+false
+true
+float
+array
+object
+unknown
+true
+false
+
+"42"
+[1, 2]
+[1, 2]
+[1, 2]
+[1]
+{}
+{"a": "1", "b": "2"}

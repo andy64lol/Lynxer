@@ -5,29 +5,26 @@ TARGET := clynxer
 NATIVE_SOURCES := $(wildcard stdlib/*.cpp)
 NATIVE_MODULES := $(NATIVE_SOURCES:.cpp=.so)
 
-# Rust backends. `game` is a staticlib linked into a C++ shim; json/network/
-# server are self-contained cdylibs that the interpreter dlopens directly.
+# Rust backends: self-contained cdylibs that the interpreter dlopens directly.
 RUST_DIR := rust
 RUST_TARGET_DIR := build/rust
 RUST_MANIFEST := $(RUST_DIR)/Cargo.toml
 RUST_SOURCES := $(wildcard $(RUST_DIR)/*/src/*.rs) \
                 $(wildcard $(RUST_DIR)/*/Cargo.toml) $(RUST_MANIFEST) \
                 $(RUST_DIR)/Cargo.lock
-GAME_STATICLIB := $(RUST_TARGET_DIR)/release/libclynxer_game.a
-RUST_MODULE_NAMES := json network server
+RUST_MODULE_NAMES := game json network server
 RUST_MODULES := $(RUST_MODULE_NAMES:%=stdlib/%.so)
-include stdlib/libs.mk
 
 # Rust-backed modules are gated on the Rust toolchain.
 HAVE_CARGO := $(shell command -v cargo >/dev/null 2>&1 && echo 1)
 ifeq ($(HAVE_CARGO),1)
-RUST_BUILT := stdlib/game.so $(RUST_MODULES)
+RUST_BUILT := $(RUST_MODULES)
 else
 RUST_BUILT :=
 $(warning clynxer: skipping Rust modules (game, $(RUST_MODULE_NAMES)): cargo not found in PATH)
 endif
 
-CORE_MODULES := $(filter-out stdlib/game.so $(RUST_MODULES),$(NATIVE_MODULES))
+CORE_MODULES := $(filter-out $(RUST_MODULES),$(NATIVE_MODULES))
 NATIVE_BUILT := $(CORE_MODULES) $(RUST_BUILT)
 
 SOURCES := main.cpp shell.cpp lexer.cpp runtime.cpp types.cpp builtins.cpp ops.cpp ast.cpp parser.cpp config.cpp bundle.cpp interrupt.cpp
@@ -55,10 +52,10 @@ STDLIB_FIXTURES := $(wildcard examples/stdlib_*.lynx)
 
 all: $(TARGET) $(NATIVE_BUILT)
 
-# Build every Rust artifact (`rust`) and the game module (`game`). Skipped with
-# a message when cargo is not installed.
+# Build every Rust backend (`rust`) or just the game module (`game`). Skipped
+# with a message when cargo is not installed.
 ifeq ($(HAVE_CARGO),1)
-rust: $(GAME_STATICLIB) $(RUST_MODULES)
+rust: $(RUST_MODULES)
 game: stdlib/game.so
 else
 rust:
@@ -73,26 +70,15 @@ $(TARGET): $(OBJECTS)
 %.o: %.cpp $(HEADERS)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-# Remaining C++ stdlib modules. MODULE_FLAGS_<name> (see stdlib/libs.mk) carries
-# extra link flags; today only game.so uses it, to link the Rust staticlib.
+# Remaining C++ stdlib modules, compiled to stdlib/<name>.so.
 stdlib/%.so: stdlib/%.cpp
-	$(CXX) -std=c++17 -O2 -Wall -Wextra -pedantic -fPIC -shared $< -o $@ $(MODULE_FLAGS_$*)
+	$(CXX) -std=c++17 -O2 -Wall -Wextra -pedantic -fPIC -shared $< -o $@
 
 # --- Rust backends ----------------------------------------------------------
 
-# game: a staticlib linked into stdlib/game.so with --whole-archive (see
-# stdlib/libs.mk) so every op symbol ends up in the module's dynamic symbol
-# table for the interpreter's dlsym lookup.
-$(GAME_STATICLIB): $(RUST_SOURCES)
-	@command -v cargo >/dev/null || { echo "clynxer: cargo not found in PATH"; exit 1; }
-	RUSTFLAGS="-C relocation-model=pic" cargo build -p clynxer_game --release \
-	    --manifest-path $(RUST_MANIFEST) --target-dir $(RUST_TARGET_DIR)
-
-# Build order only, so `$<` in the pattern rule stays stdlib/game.cpp.
-stdlib/game.so: | $(GAME_STATICLIB)
-
-# json/network/server: self-contained cdylibs exporting lynxer_module_init_v1
-# and their ops, copied to stdlib/<name>.so for the interpreter to dlopen.
+# game/json/network/server: self-contained cdylibs exporting
+# lynxer_module_init_v1 and their ops, copied to stdlib/<name>.so for the
+# interpreter to dlopen.
 $(RUST_TARGET_DIR)/release/libclynxer_%.so: $(RUST_SOURCES)
 	@command -v cargo >/dev/null || { echo "clynxer: cargo not found in PATH"; exit 1; }
 	RUSTFLAGS="-C relocation-model=pic" cargo build -p clynxer_$* --release \
@@ -333,9 +319,11 @@ expected="clynxer: $(ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 	rm -f .clynxer_stdlib.out .clynxer_stdlib.diff; exit 1; fi; \
 	done; \
 	rm -f .clynxer_stdlib.out .clynxer_stdlib.diff
+	@CLYNXER_GAME_HEADLESS=1 ./$(TARGET) examples/game_clicker.lynx >/dev/null 2>&1 || \
+	{ echo "example failed: examples/game_clicker.lynx"; exit 1; }
 	@rm -f .clynxer_stdin
 	@echo "clynxer smoke test passed"
 
 clean:
 	rm -f $(TARGET) $(OBJECTS) $(NATIVE_MODULES) $(NATIVE_SIGNATURE_MODULE) .clynxer_stdin
-	rm -rf build $(RUST_DIR)/*/target
+	rm -rf build $(RUST_DIR)/target $(RUST_DIR)/*/target

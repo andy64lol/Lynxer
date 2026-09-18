@@ -6,6 +6,7 @@
 //! arrive in separate arrays, so a string argument's index is independent of
 //! the numeric ones.
 
+use clynxer_abi::{export_int, export_string};
 use macroquad::color::Color;
 use macroquad::math::vec2;
 use macroquad::shapes::{
@@ -101,7 +102,7 @@ fn draw_anchored_text(
     draw_text(text, sx - offset_x, sy - offset_y, font_size, color);
 }
 
-game_export_int!(lynxer_game_begin_draw, args, {
+export_int!(lynxer_game_begin_draw, args, {
     let _ = args;
     if !headless() {
         clear_background(background());
@@ -109,12 +110,12 @@ game_export_int!(lynxer_game_begin_draw, args, {
     0
 });
 
-game_export_int!(lynxer_game_end_draw, args, {
+export_int!(lynxer_game_end_draw, args, {
     let _ = args;
     0
 });
 
-game_export_int!(lynxer_game_draw_rect, args, {
+export_int!(lynxer_game_draw_rect, args, {
     if headless() {
         return 0;
     }
@@ -128,7 +129,7 @@ game_export_int!(lynxer_game_draw_rect, args, {
     })
 });
 
-game_export_int!(lynxer_game_draw_rect_outline, args, {
+export_int!(lynxer_game_draw_rect_outline, args, {
     if headless() {
         return 0;
     }
@@ -150,7 +151,7 @@ game_export_int!(lynxer_game_draw_rect_outline, args, {
     })
 });
 
-game_export_int!(lynxer_game_draw_circle, args, {
+export_int!(lynxer_game_draw_circle, args, {
     if headless() {
         return 0;
     }
@@ -166,7 +167,7 @@ game_export_int!(lynxer_game_draw_circle, args, {
     })
 });
 
-game_export_int!(lynxer_game_draw_circle_outline, args, {
+export_int!(lynxer_game_draw_circle_outline, args, {
     if headless() {
         return 0;
     }
@@ -184,7 +185,7 @@ game_export_int!(lynxer_game_draw_circle_outline, args, {
     })
 });
 
-game_export_int!(lynxer_game_draw_ellipse, args, {
+export_int!(lynxer_game_draw_ellipse, args, {
     if headless() {
         return 0;
     }
@@ -203,7 +204,7 @@ game_export_int!(lynxer_game_draw_ellipse, args, {
     })
 });
 
-game_export_int!(lynxer_game_draw_ellipse_outline, args, {
+export_int!(lynxer_game_draw_ellipse_outline, args, {
     if headless() {
         return 0;
     }
@@ -223,7 +224,7 @@ game_export_int!(lynxer_game_draw_ellipse_outline, args, {
     })
 });
 
-game_export_int!(lynxer_game_draw_line, args, {
+export_int!(lynxer_game_draw_line, args, {
     if headless() {
         return 0;
     }
@@ -242,7 +243,7 @@ game_export_int!(lynxer_game_draw_line, args, {
     })
 });
 
-game_export_int!(lynxer_game_draw_triangle, args, {
+export_int!(lynxer_game_draw_triangle, args, {
     if headless() {
         return 0;
     }
@@ -260,7 +261,7 @@ game_export_int!(lynxer_game_draw_triangle, args, {
     })
 });
 
-game_export_int!(lynxer_game_draw_triangle_outline, args, {
+export_int!(lynxer_game_draw_triangle_outline, args, {
     if headless() {
         return 0;
     }
@@ -279,7 +280,7 @@ game_export_int!(lynxer_game_draw_triangle_outline, args, {
     })
 });
 
-game_export_int!(lynxer_game_draw_point, args, {
+export_int!(lynxer_game_draw_point, args, {
     if headless() {
         return 0;
     }
@@ -297,7 +298,7 @@ game_export_int!(lynxer_game_draw_point, args, {
     })
 });
 
-game_export_int!(lynxer_game_draw_rect_rounded_filled, args, {
+export_int!(lynxer_game_draw_rect_rounded_filled, args, {
     if headless() {
         return 0;
     }
@@ -341,7 +342,7 @@ game_export_int!(lynxer_game_draw_rect_rounded_filled, args, {
     })
 });
 
-game_export_int!(lynxer_game_draw_rect_rounded_outline, args, {
+export_int!(lynxer_game_draw_rect_rounded_outline, args, {
     if headless() {
         return 0;
     }
@@ -428,7 +429,7 @@ game_export_int!(lynxer_game_draw_rect_rounded_outline, args, {
     })
 });
 
-game_export_int!(lynxer_game_draw_star, args, {
+export_int!(lynxer_game_draw_star, args, {
     if headless() {
         return 0;
     }
@@ -470,7 +471,7 @@ game_export_int!(lynxer_game_draw_star, args, {
     })
 });
 
-game_export_int!(lynxer_game_draw_dashed_line, args, {
+export_int!(lynxer_game_draw_dashed_line, args, {
     if headless() {
         return 0;
     }
@@ -508,7 +509,7 @@ game_export_int!(lynxer_game_draw_dashed_line, args, {
     })
 });
 
-game_export_int!(lynxer_game_draw_cross, args, {
+export_int!(lynxer_game_draw_cross, args, {
     if headless() {
         return 0;
     }
@@ -523,7 +524,7 @@ game_export_int!(lynxer_game_draw_cross, args, {
     })
 });
 
-game_export_int!(lynxer_game_draw_gradient_rect, args, {
+export_int!(lynxer_game_draw_gradient_rect, args, {
     if headless() {
         return 0;
     }
@@ -550,7 +551,7 @@ game_export_int!(lynxer_game_draw_gradient_rect, args, {
     })
 });
 
-game_export_int!(lynxer_game_draw_arc, args, {
+export_int!(lynxer_game_draw_arc, args, {
     if headless() {
         return 0;
     }
@@ -570,7 +571,7 @@ game_export_int!(lynxer_game_draw_arc, args, {
     })
 });
 
-game_export_int!(lynxer_game_draw_arc_filled, args, {
+export_int!(lynxer_game_draw_arc_filled, args, {
     if headless() {
         return 0;
     }
@@ -589,7 +590,7 @@ game_export_int!(lynxer_game_draw_arc_filled, args, {
     })
 });
 
-game_export_int!(lynxer_game_draw_text, args, {
+export_int!(lynxer_game_draw_text, args, {
     if headless() {
         return 0;
     }
@@ -609,7 +610,7 @@ game_export_int!(lynxer_game_draw_text, args, {
     })
 });
 
-game_export_int!(lynxer_game_draw_text_styled, args, {
+export_int!(lynxer_game_draw_text_styled, args, {
     if headless() {
         return 0;
     }
@@ -629,7 +630,7 @@ game_export_int!(lynxer_game_draw_text_styled, args, {
     })
 });
 
-game_export_int!(lynxer_game_draw_text_anchored, args, {
+export_int!(lynxer_game_draw_text_anchored, args, {
     if headless() {
         return 0;
     }
@@ -649,7 +650,7 @@ game_export_int!(lynxer_game_draw_text_anchored, args, {
     })
 });
 
-game_export_int!(lynxer_game_draw_polygon, args, {
+export_int!(lynxer_game_draw_polygon, args, {
     if headless() {
         return 0;
     }
@@ -675,7 +676,7 @@ game_export_int!(lynxer_game_draw_polygon, args, {
     })
 });
 
-game_export_int!(lynxer_game_draw_polygon_outline, args, {
+export_int!(lynxer_game_draw_polygon_outline, args, {
     if headless() {
         return 0;
     }
@@ -704,7 +705,7 @@ game_export_int!(lynxer_game_draw_polygon_outline, args, {
     })
 });
 
-game_export_int!(lynxer_game_draw_polyline, args, {
+export_int!(lynxer_game_draw_polyline, args, {
     if headless() {
         return 0;
     }
@@ -730,7 +731,7 @@ game_export_int!(lynxer_game_draw_polyline, args, {
     })
 });
 
-game_export_int!(lynxer_game_draw_points, args, {
+export_int!(lynxer_game_draw_points, args, {
     if headless() {
         return 0;
     }
@@ -746,7 +747,7 @@ game_export_int!(lynxer_game_draw_points, args, {
     })
 });
 
-game_export_int!(lynxer_game_draw_lines, args, {
+export_int!(lynxer_game_draw_lines, args, {
     if headless() {
         return 0;
     }
@@ -763,7 +764,7 @@ game_export_int!(lynxer_game_draw_lines, args, {
     })
 });
 
-game_export_string!(lynxer_game_screen_to_tile, args, {
+export_string!(lynxer_game_screen_to_tile, args, {
     let size = args.float(2);
     if size <= 0.0 {
         "0,0".to_string()
@@ -776,7 +777,7 @@ game_export_string!(lynxer_game_screen_to_tile, args, {
     }
 });
 
-game_export_string!(lynxer_game_tile_to_screen, args, {
+export_string!(lynxer_game_tile_to_screen, args, {
     let size = args.float(2);
     let center = size / 2.0;
     format!(

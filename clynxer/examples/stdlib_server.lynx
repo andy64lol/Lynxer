@@ -1,6 +1,7 @@
 ////
 Fixture for the server stdlib. Registers routes, serves them on localhost, and
-verifies them with the network HTTP client.
+verifies them with the network HTTP client. Also pins the route/port/state
+error handling.
 ////
 global setup(){
     import("server");
@@ -9,13 +10,59 @@ global setup(){
 }
 
 global main(){
+    // Idle state: not running, no port, and stopping is an error.
+    println(global.server.running());
+    println(global.server.port());
+    println(global.server.stop());
+
+    // Every registration validates the path.
+    println(global.server.routeGet("bad", "x"));
+    println(global.server.routePost("", "x"));
+    println(global.server.routeEcho("echo"));
+    println(global.server.wsEcho("ws"));
+
+    // Register routes through the aliases and the direct forms, rejecting
+    // duplicates for each method.
     println(global.server.clearRoutes());
     println(global.server.get("/hello", "<!doctype html><html><body>world</body></html>"));
-    println(global.server.post("/fixed", "<p>posted</p>"));
+    println(global.server.routeGet("/hello", "other"));
+    println(global.server.htmlPost("/fixed", "<p>posted</p>"));
+    println(global.server.routePost("/fixed", "other"));
+    println(global.server.post("/plain", "<p>plain</p>"));
+    println(global.server.htmlGet("/alt", "<p>alt</p>"));
+    println(global.server.routeEcho("/echo"));
+    println(global.server.routeEcho("/echo"));
+    println(global.server.wsEcho("/ws"));
+    println(global.server.wsEcho("/ws"));
+
+    // Port validation.
+    println(global.server.start(0));
+    println(global.server.start(70000));
+
+    // Start and observe the running state.
     println(global.server.start(18124));
+    println(global.server.running());
+    println(global.server.port());
+
+    // The route table is frozen while the server runs.
+    println(global.server.routeGet("/late", "x"));
+    println(global.server.clearRoutes());
+    println(global.server.start(18125));
+
     sleep(0.2);
+
+    // Serve the registered routes.
     println(global.network.get("http://127.0.0.1:18124/hello"));
     println(global.text.contains(global.network.getHeaders("http://127.0.0.1:18124/hello"), "Content-Type: text/html; charset=utf-8"));
     println(global.network.post("http://127.0.0.1:18124/fixed", "ignored", "text/plain"));
+    println(global.network.post("http://127.0.0.1:18124/echo", "ping", "text/plain"));
+    println(global.network.postJson("http://127.0.0.1:18124/echo", "{\"k\": 1}"));
+    println(global.network.getStatus("http://127.0.0.1:18124/hello"));
+    println(global.network.get("http://127.0.0.1:18124/missing"));
+
+    // Stop returns the server to the idle state.
+    println(global.server.stop());
+    println(global.server.running());
+    println(global.server.port());
     println(global.server.stop());
 }

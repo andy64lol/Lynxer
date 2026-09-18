@@ -176,6 +176,7 @@ version = "0.1.0"
 name = "clynxer_game"
 version = "0.1.0"
 dependencies = [
+ "clynxer_abi",
  "macroquad",
 ]
 

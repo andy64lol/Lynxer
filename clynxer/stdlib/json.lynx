@@ -1,10 +1,13 @@
 ////
 Lynxer standard library: json.
-JSON encoding and decoding helpers backed by the native C++ module
-`stdlib/json.so`.
+JSON encoding and decoding helpers backed by Rust (`serde_json`), exposed
+through the native module `stdlib/json.so`.
 
 Objects keep their key insertion order. Non-finite numbers are encoded as
 `null` so that every emitted document is valid JSON.
+
+Requires a Rust toolchain to build (see `rust/json`); the module is skipped
+when `cargo` is unavailable.
 ////
 global setup(){ importAs("json.so", "nativeJson"); }
 

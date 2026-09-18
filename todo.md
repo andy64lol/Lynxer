@@ -22,9 +22,10 @@ Planned order of work, newest direction first.
   migrated): `lua`, `tui`, `image`. Docs: `docs/install.md`, `docs/README.md`,
   `docs/stdlib/{json,network,server}.md`.
 - [x] Add the `game` stdlib module: `stdlib/game.lynx` wraps `stdlib/game.so`,
-  which is a thin C++ shim over a Rust + macroquad backend
-  (`rust/game`, a static library linked in with `--whole-archive`) exposed
-  through a C ABI. Covers the window, draw loop with `setUpdateCallback` /
+  a Rust + macroquad backend (`rust/game`, a `cdylib` exporting
+  `lynxer_module_init_v1`/`lynxer_module_attach_v1` directly) exposed through
+  the native-module C ABI. An example clicker lives in
+  `examples/game_clicker.lynx`. Covers the window, draw loop with `setUpdateCallback` /
   `setDrawCallback`, shapes, text, input, sprites, sprite lists, textures,
   camera and grid helpers. Two additive native-module ABI extensions make this
   possible: the packed `cdecl:<ret>(...)` signature, and the optional
