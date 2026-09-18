@@ -1,0 +1,22 @@
+320x200
+a=0 b=1 exists=true
+size=10x20
+dist=5
+near=true
+pos=8,0
+collide=true
+vx=5
+vx2=0
+count=2
+count2=1
+cam=100,50 zoom=2
+key=false mouse=false
+5,2
+24,40
+update 0.016666666666666666
+draw
+update 0.016666666666666666
+draw
+update 0.016666666666666666
+draw
+done

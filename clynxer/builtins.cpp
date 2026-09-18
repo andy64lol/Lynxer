@@ -1,6 +1,7 @@
 #include "builtins.hpp"
 
 #include "error.hpp"
+#include "interrupt.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -283,6 +284,11 @@ Value builtinPrintln(const std::vector<Value>& args, Environment&, int, int) {
 std::string readLine(int line, int column) {
     std::string text;
     if (!std::getline(std::cin, text)) {
+        // A signal handler without SA_RESTART makes the read fail with EINTR
+        // when Ctrl-C arrives, so surface it as an interrupt, not an error.
+        if (interruptRequested()) {
+            throw InterruptError();
+        }
         if (std::cin.eof()) {
             fail("input(): end of input while reading stdin", line, column);
         }
@@ -1451,7 +1457,15 @@ Value builtinSleep(const std::vector<Value>& args, Environment&, int line,
     if (seconds < 0.0) {
         fail("sleep() duration cannot be negative", line, column);
     }
-    std::this_thread::sleep_for(std::chrono::duration<double>(seconds));
+    const auto deadline = std::chrono::steady_clock::now() +
+                          std::chrono::duration<double>(seconds);
+    while (std::chrono::steady_clock::now() < deadline) {
+        throwIfInterrupted();
+        const std::chrono::duration<double> remaining =
+            deadline - std::chrono::steady_clock::now();
+        std::this_thread::sleep_for(
+            std::min(std::chrono::duration<double>(0.05), remaining));
+    }
     return none();
 }
 

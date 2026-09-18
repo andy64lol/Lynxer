@@ -8,6 +8,18 @@ runtime dependency and its internals are not copied into Clynxer.
 
 Planned order of work, newest direction first.
 
+- [x] Add the `game` stdlib module: `stdlib/game.lynx` wraps `stdlib/game.so`,
+  which is a thin C++ shim over a Rust + macroquad backend
+  (`rust/game`, a static library linked in with `--whole-archive`) exposed
+  through a C ABI. Covers the window, draw loop with `setUpdateCallback` /
+  `setDrawCallback`, shapes, text, input, sprites, sprite lists, textures,
+  camera and grid helpers. Two additive native-module ABI extensions make this
+  possible: the packed `cdecl:<ret>(...)` signature, and the optional
+  `lynxer_module_attach_v1` host API that lets a module call a Lynxer function
+  by name. `CLYNXER_GAME_HEADLESS=1` runs the module without a display; the
+  `examples/stdlib_game.lynx` fixture exercises it in `make test`. Deferred:
+  sound, scenes, tilemaps, physics, shape batches, animated sprites. Docs:
+  `docs/stdlib/game.md`, `docs/native-module-abi.md`.
 - [x] Merge `mathPlus` into `math`: the statistics/vector helpers (`median`,
   `std`, `variance`, `percentile`, `corrcoef`, `dot`, `linspace`, `cumsum`,
   `diff`, `clip`, `normalize`) now live in `stdlib/math.cpp` + `math.lynx`, and

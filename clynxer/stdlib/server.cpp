@@ -157,6 +157,7 @@ extern "C" const char* server_start(std::int64_t port) {
 
     crow::logger::setLogLevel(crow::LogLevel::Error);
     g_app = std::make_unique<crow::SimpleApp>();
+    g_app->signal_clear();
 
     for (const auto& route : g_routes) {
         if (route.echo) {

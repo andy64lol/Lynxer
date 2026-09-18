@@ -1,0 +1,70 @@
+////
+Smoke test for the `game` stdlib module. It runs in headless mode (the test
+runner sets CLYNXER_GAME_HEADLESS=1), so no window is opened and drawing calls
+are no-ops, but the whole API surface and the frame-callback bridge are
+exercised deterministically.
+////
+global setup(){ import("game"); }
+
+global onUpdate(float dt){
+    println("update ", dt);
+}
+
+global onDraw(){
+    println("draw");
+}
+
+global main(){
+    global.game.init("smoke", 320, 200);
+    println(global.game.getWidth(), "x", global.game.getHeight());
+
+    // Drawing is a no-op headless but must not fail.
+    global.game.beginDraw();
+    global.game.drawRect(10.0, 10.0, 20.0, 20.0, 255, 0, 0);
+    global.game.drawCircle(50.0, 50.0, 5.0, 0, 255, 0);
+    global.game.drawLine(0.0, 0.0, 100.0, 100.0, 0, 0, 255, 1.0);
+    global.game.drawTriangle(0.0, 0.0, 10.0, 0.0, 5.0, 8.0, 255, 255, 0);
+    global.game.drawText("hi", 5.0, 5.0, 255, 255, 255, 12);
+    global.game.drawPolygon("0,0,10,0,5,8", 0, 255, 255);
+    global.game.endDraw();
+
+    int a = global.game.makeSolidSprite(10, 20, 255, 0, 0, 0.0, 0.0);
+    int b = global.game.makeSolidSprite(10, 20, 0, 255, 0, 3.0, 4.0);
+    println("a=", a, " b=", b, " exists=", global.game.spriteExists(a));
+    println("size=", global.game.getSpriteWidth(a), "x", global.game.getSpriteHeight(a));
+    println("dist=", global.game.spriteDistance(a, b));
+    println("near=", global.game.spriteNear(a, 3.0, 4.0, 5.0));
+
+    global.game.setSpritePos(b, 8.0, 0.0);
+    println("pos=", global.game.getSpritePosition(b));
+    println("collide=", global.game.spriteCollides(a, b));
+
+    global.game.setSpriteVelocity(b, 5.0, 0.0);
+    println("vx=", global.game.getSpriteVX(b));
+    global.game.stopSprite(b);
+    println("vx2=", global.game.getSpriteVX(b));
+
+    int list = global.game.makeSpriteList();
+    global.game.addToList(list, a);
+    global.game.addToList(list, b);
+    println("count=", global.game.getSpriteListCount(list));
+    global.game.removeSpriteFromList(list, a);
+    println("count2=", global.game.getSpriteListCount(list));
+
+    int cam = global.game.makeCamera();
+    global.game.setCameraPos(cam, 100.0, 50.0);
+    global.game.zoomCamera(cam, 2.0);
+    println("cam=", global.game.getCameraX(cam), ",", global.game.getCameraY(cam), " zoom=", global.game.getCameraZoom(cam));
+    global.game.resetCamera();
+
+    println("key=", global.game.keyDown("SPACE"), " mouse=", global.game.mouseButtonDown("LEFT"));
+
+    println(global.game.screenToTile(80.0, 40.0, 16));
+    println(global.game.tileToScreen(1, 2, 16));
+
+    global.game.setUpdateCallback("onUpdate");
+    global.game.setDrawCallback("onDraw");
+    global.game.run();
+    global.game.close();
+    println("done");
+}

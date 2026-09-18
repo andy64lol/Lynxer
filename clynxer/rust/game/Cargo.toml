@@ -1,0 +1,18 @@
+[package]
+name = "clynxer_game"
+version = "0.1.0"
+edition = "2021"
+description = "macroquad backend for the Clynxer `game` stdlib module"
+publish = false
+
+[lib]
+name = "clynxer_game"
+# A staticlib is linked into `clynxer/stdlib/game.so`, so the shared object is
+# self-contained and needs no rpath or sidecar library.
+crate-type = ["staticlib"]
+
+[dependencies]
+macroquad = "0.4"
+
+[profile.release]
+opt-level = 3

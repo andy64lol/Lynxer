@@ -3,12 +3,12 @@
 #include "bundle.hpp"
 #include "config.hpp"
 #include "error.hpp"
+#include "interrupt.hpp"
 #include "lexer.hpp"
 #include "parser.hpp"
 #include "runtime.hpp"
 
 #include <algorithm>
-#include <csignal>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -23,10 +23,6 @@
 namespace clynxer {
 
 namespace {
-
-volatile std::sig_atomic_t interrupted = 0;
-
-void handleInterrupt(int) { interrupted = 1; }
 
 std::string readFile(const std::string& path, const std::string& display,
                      bool& ok) {
@@ -198,6 +194,8 @@ int runProgram(const std::string& display, const std::string& source) {
         }
         executeProgram(functions, environment);
         return 0;
+    } catch (const InterruptError&) {
+        return 130;
     } catch (const SourceError& error) {
         std::cerr << "clynxer: " << display << ':' << error.line << ':'
                   << error.column << ": " << error.what() << '\n';
@@ -566,13 +564,13 @@ int runCompiledPayload(const std::vector<uint8_t>& payload) {
 } // namespace
 
 int shellMain(int argc, char** argv) {
-    std::signal(SIGINT, handleInterrupt);
+    installInterruptHandler();
 
     // A compiled executable runs its embedded program directly.
     std::vector<uint8_t> selfPayload;
     if (readSelfPayload(selfPayload)) {
         const int exitCode = runCompiledPayload(selfPayload);
-        if (interrupted != 0) {
+        if (interruptRequested()) {
             std::cout << '\n';
             return 130;
         }
@@ -659,7 +657,7 @@ int shellMain(int argc, char** argv) {
         return 1;
     }
     const int exitCode = runProgram(display, source);
-    if (interrupted != 0) {
+    if (interruptRequested()) {
         std::cout << '\n';
         return 130;
     }

@@ -1,0 +1,292 @@
+////
+Lynxer standard library: game.
+
+2-D game toolkit backed by Rust + macroquad, exposed through the native module
+`stdlib/game.so`. It provides a window, drawing primitives, sprites, sprite
+lists, a camera, input polling and frame timing through the `global.game`
+namespace.
+
+Coordinates use a bottom-left origin with +Y pointing up. Register frame
+callbacks by name with `setDrawCallback` / `setUpdateCallback`, then call
+`run()`, which blocks and drives the window until it is closed or the program
+is interrupted (Ctrl-C exits with code 130).
+
+Set the environment variable `CLYNXER_GAME_HEADLESS=1` to run without a window:
+`run()` executes a few deterministic frames and drawing is a no-op, which is
+useful for tests.
+
+Requires a Rust toolchain to build (see `rust/game`); the compiled module is
+optional and skipped when `cargo` is unavailable.
+////
+global setup(){ importAs("game.so", "nativeGame"); }
+
+// ── Window ──────────────────────────────────────────────────────────────────
+
+// Create the game window. Must be called before any other game function.
+global init(str title, int width, int height){ global.nativeGame.init(title, width, height); }
+// Change the window title. Applied when run() opens the window.
+global setTitle(str title){ global.nativeGame.setTitle(title); }
+// Set the background clear colour (0-255 per channel).
+global setBackground(int r, int g, int b){ global.nativeGame.setBackground(r, g, b); }
+// Window width in pixels.
+global getWidth() -> int { return global.nativeGame.getWidth(); }
+// Window height in pixels.
+global getHeight() -> int { return global.nativeGame.getHeight(); }
+// Resize the window.
+global setWindowSize(int width, int height){ global.nativeGame.setWindowSize(width, height); }
+// Accepted for API compatibility (the window is resizable by default).
+global setResizable(bool enabled){ global.nativeGame.setResizable(enabled); }
+// Enter or leave fullscreen.
+global setFullscreen(bool enabled){ global.nativeGame.setFullscreen(enabled); }
+// Show or hide the mouse cursor.
+global setMouseVisible(bool visible){ global.nativeGame.setMouseVisible(visible); }
+// Alias of setMouseVisible(false)/setMouseVisible(true).
+global hideCursor(){ global.nativeGame.setMouseVisible(false); }
+global showCursor(){ global.nativeGame.setMouseVisible(true); }
+// Cap the frame rate (0 disables the cap).
+global setFPSCap(int fps){ global.nativeGame.setFPSCap(fps); }
+// Current frames per second (0 in headless mode).
+global getFPS() -> int { return global.nativeGame.getFPS(); }
+// Ask the window to close at the end of the current frame.
+global close(){ global.nativeGame.close(); }
+// True while the window is open.
+global isOpen() -> bool { return global.nativeGame.isOpen() != 0; }
+
+// ── App lifecycle ───────────────────────────────────────────────────────────
+
+// Blocking frame loop. Invokes the update callback (with the frame time in
+// seconds) and then the draw callback once per frame.
+global run(){ global.nativeGame.run(); }
+// Name of the Lynxer function called once per frame to draw.
+global setDrawCallback(str callbackName){ global.nativeGame.setDrawCallback(callbackName); }
+// Name of the Lynxer function called once per frame with the delta time.
+global setUpdateCallback(str callbackName){ global.nativeGame.setUpdateCallback(callbackName); }
+// Seconds since the previous frame.
+global deltaTime() -> float { return global.nativeGame.deltaTime(); }
+// Seconds since the program started.
+global getTime() -> float { return global.nativeGame.getTime(); }
+
+// ── Draw loop ───────────────────────────────────────────────────────────────
+
+// Clear the screen to the background colour.
+global beginDraw(){ global.nativeGame.beginDraw(); }
+// No-op, kept for symmetry with beginDraw.
+global endDraw(){ global.nativeGame.endDraw(); }
+
+// ── Shapes ──────────────────────────────────────────────────────────────────
+
+global drawRect(float cx, float cy, float width, float height, int r, int g, int b){
+    global.nativeGame.drawRect(cx, cy, width, height, r, g, b);
+}
+global drawRectOutline(float cx, float cy, float width, float height, int r, int g, int b, float lineWidth){
+    global.nativeGame.drawRectOutline(cx, cy, width, height, r, g, b, lineWidth);
+}
+global drawCircle(float cx, float cy, float radius, int r, int g, int b){
+    global.nativeGame.drawCircle(cx, cy, radius, r, g, b);
+}
+global drawCircleOutline(float cx, float cy, float radius, int r, int g, int b, float lineWidth){
+    global.nativeGame.drawCircleOutline(cx, cy, radius, r, g, b, lineWidth);
+}
+global drawEllipse(float cx, float cy, float width, float height, int r, int g, int b){
+    global.nativeGame.drawEllipse(cx, cy, width, height, r, g, b);
+}
+global drawEllipseOutline(float cx, float cy, float width, float height, int r, int g, int b, float lineWidth){
+    global.nativeGame.drawEllipseOutline(cx, cy, width, height, r, g, b, lineWidth);
+}
+global drawLine(float x1, float y1, float x2, float y2, int r, int g, int b, float lineWidth){
+    global.nativeGame.drawLine(x1, y1, x2, y2, r, g, b, lineWidth);
+}
+global drawTriangle(float x1, float y1, float x2, float y2, float x3, float y3, int r, int g, int b){
+    global.nativeGame.drawTriangle(x1, y1, x2, y2, x3, y3, r, g, b);
+}
+global drawTriangleOutline(float x1, float y1, float x2, float y2, float x3, float y3, int r, int g, int b, float lineWidth){
+    global.nativeGame.drawTriangleOutline(x1, y1, x2, y2, x3, y3, r, g, b, lineWidth);
+}
+global drawPoint(float x, float y, int r, int g, int b, float size){
+    global.nativeGame.drawPoint(x, y, r, g, b, size);
+}
+global drawRectRoundedFilled(float cx, float cy, float width, float height, int r, int g, int b, float cornerRadius){
+    global.nativeGame.drawRectRoundedFilled(cx, cy, width, height, r, g, b, cornerRadius);
+}
+global drawRectRoundedOutline(float cx, float cy, float width, float height, int r, int g, int b, float cornerRadius, float lineWidth){
+    global.nativeGame.drawRectRoundedOutline(cx, cy, width, height, r, g, b, cornerRadius, lineWidth);
+}
+global drawStar(float cx, float cy, float outerRadius, float innerRadius, int points, int r, int g, int b){
+    global.nativeGame.drawStar(cx, cy, outerRadius, innerRadius, points, r, g, b);
+}
+global drawDashedLine(float x1, float y1, float x2, float y2, int r, int g, int b, float lineWidth, float dashLength){
+    global.nativeGame.drawDashedLine(x1, y1, x2, y2, r, g, b, lineWidth, dashLength);
+}
+global drawCross(float cx, float cy, float size, int r, int g, int b, float lineWidth){
+    global.nativeGame.drawCross(cx, cy, size, r, g, b, lineWidth);
+}
+global drawGradientRect(float cx, float cy, float width, float height, int r1, int g1, int b1, int r2, int g2, int b2){
+    global.nativeGame.drawGradientRect(cx, cy, width, height, r1, g1, b1, r2, g2, b2);
+}
+global drawArc(float cx, float cy, float width, float height, int r, int g, int b, float startAngle, float endAngle, float lineWidth){
+    global.nativeGame.drawArc(cx, cy, width, height, r, g, b, startAngle, endAngle, lineWidth);
+}
+global drawArcFilled(float cx, float cy, float width, float height, int r, int g, int b, float startAngle, float endAngle){
+    global.nativeGame.drawArcFilled(cx, cy, width, height, r, g, b, startAngle, endAngle);
+}
+// coordsJson is a flat "x,y,x,y,..." list.
+global drawPolygon(str coordsJson, int r, int g, int b){ global.nativeGame.drawPolygon(coordsJson, r, g, b); }
+global drawPolygonOutline(str coordsJson, int r, int g, int b, float lineWidth){
+    global.nativeGame.drawPolygonOutline(coordsJson, r, g, b, lineWidth);
+}
+global drawPolyline(str coordsJson, int r, int g, int b, float lineWidth){
+    global.nativeGame.drawPolyline(coordsJson, r, g, b, lineWidth);
+}
+global drawPoints(str coordsJson, int r, int g, int b, float size){
+    global.nativeGame.drawPoints(coordsJson, r, g, b, size);
+}
+// segmentsJson is a flat "x1,y1,x2,y2,..." list of segment endpoints.
+global drawLines(str segmentsJson, int r, int g, int b, float lineWidth){
+    global.nativeGame.drawLines(segmentsJson, r, g, b, lineWidth);
+}
+
+// ── Text ────────────────────────────────────────────────────────────────────
+
+global drawText(str text, float x, float y, int r, int g, int b, int size){
+    global.nativeGame.drawText(text, x, y, r, g, b, size);
+}
+// anchorX is "left", "center" or "right"; fontName may be "".
+global drawTextStyled(str text, float x, float y, int r, int g, int b, int size, str fontName, bool bold, bool italic, str anchorX){
+    global.nativeGame.drawTextStyled(text, x, y, r, g, b, size, fontName, bold, italic, anchorX);
+}
+// anchorX/anchorY are "left"/"center"/"right" and "bottom"/"center"/"top".
+global drawTextAnchored(str text, float x, float y, int r, int g, int b, int size, str anchorX, str anchorY){
+    global.nativeGame.drawTextAnchored(text, x, y, r, g, b, size, anchorX, anchorY);
+}
+
+// ── Input ───────────────────────────────────────────────────────────────────
+
+global keyDown(str key) -> bool { return global.nativeGame.keyDown(key) != 0; }
+global keyUp(str key) -> bool { return global.nativeGame.keyUp(key) != 0; }
+global keyPressed(str key) -> bool { return global.nativeGame.keyPressed(key) != 0; }
+global keyReleased(str key) -> bool { return global.nativeGame.keyReleased(key) != 0; }
+// Numeric key code used by this backend (macroquad/keysym), or -1.
+global keyCode(str key) -> int { return global.nativeGame.keyCode(key); }
+global mouseX() -> float { return global.nativeGame.mouseX(); }
+global mouseY() -> float { return global.nativeGame.mouseY(); }
+global mouseDeltaX() -> float { return global.nativeGame.mouseDeltaX(); }
+global mouseDeltaY() -> float { return global.nativeGame.mouseDeltaY(); }
+global mouseScrollX() -> float { return global.nativeGame.mouseScrollX(); }
+global mouseScrollY() -> float { return global.nativeGame.mouseScrollY(); }
+global mouseLeft() -> bool { return global.nativeGame.mouseLeft() != 0; }
+global mouseRight() -> bool { return global.nativeGame.mouseRight() != 0; }
+global mouseMiddle() -> bool { return global.nativeGame.mouseMiddle() != 0; }
+global mouseButtonDown(str button) -> bool { return global.nativeGame.mouseButtonDown(button) != 0; }
+global mouseButtonPressed(str button) -> bool { return global.nativeGame.mouseButtonPressed(button) != 0; }
+global mouseButtonReleased(str button) -> bool { return global.nativeGame.mouseButtonReleased(button) != 0; }
+global mouseButtonCode(str button) -> int { return global.nativeGame.mouseButtonCode(button); }
+
+// ── Textures ────────────────────────────────────────────────────────────────
+
+// Load and cache a texture. Returns a texture index or -1.
+global loadTexture(str imagePath) -> int { return global.nativeGame.loadTexture(imagePath); }
+global drawTexture(int texIdx, float cx, float cy, float width, float height, float angle){
+    global.nativeGame.drawTexture(texIdx, cx, cy, width, height, angle);
+}
+global drawTextureAt(str imagePath, float cx, float cy, float scale){
+    global.nativeGame.drawTextureAt(imagePath, cx, cy, scale);
+}
+global drawTextureRect(int texIdx, float left, float bottom, float width, float height){
+    global.nativeGame.drawTextureRect(texIdx, left, bottom, width, height);
+}
+
+// ── Sprites ─────────────────────────────────────────────────────────────────
+
+// Coloured rectangle sprite. Returns a sprite index.
+global makeSolidSprite(int width, int height, int r, int g, int b, float x, float y) -> int {
+    return global.nativeGame.makeSolidSprite(width, height, r, g, b, x, y);
+}
+// Image sprite. Returns a sprite index, or -1 on error.
+global loadSprite(str path, float scale, float x, float y) -> int {
+    return global.nativeGame.loadSprite(path, scale, x, y);
+}
+global setSpriteTexture(int idx, int texIdx){ global.nativeGame.setSpriteTexture(idx, texIdx); }
+global getSpriteX(int idx) -> float { return global.nativeGame.getSpriteX(idx); }
+global getSpriteY(int idx) -> float { return global.nativeGame.getSpriteY(idx); }
+global getSpriteAngle(int idx) -> float { return global.nativeGame.getSpriteAngle(idx); }
+global getSpriteScale(int idx) -> float { return global.nativeGame.getSpriteScale(idx); }
+global getSpriteWidth(int idx) -> float { return global.nativeGame.getSpriteWidth(idx); }
+global getSpriteHeight(int idx) -> float { return global.nativeGame.getSpriteHeight(idx); }
+global getSpriteVX(int idx) -> float { return global.nativeGame.getSpriteVX(idx); }
+global getSpriteVY(int idx) -> float { return global.nativeGame.getSpriteVY(idx); }
+global getSpriteAngularVelocity(int idx) -> float { return global.nativeGame.getSpriteAngularVelocity(idx); }
+global getSpriteAlpha(int idx) -> int { return global.nativeGame.getSpriteAlpha(idx); }
+global getSpriteVisible(int idx) -> bool { return global.nativeGame.getSpriteVisible(idx) != 0; }
+// Returns "x,y".
+global getSpritePosition(int idx) -> str { return global.nativeGame.getSpritePosition(idx); }
+global setSpritePos(int idx, float x, float y){ global.nativeGame.setSpritePos(idx, x, y); }
+global setSpritePosition(int idx, float x, float y){ global.nativeGame.setSpritePosition(idx, x, y); }
+global setSpriteAngle(int idx, float angle){ global.nativeGame.setSpriteAngle(idx, angle); }
+global setSpriteScale(int idx, float scale){ global.nativeGame.setSpriteScale(idx, scale); }
+// Velocity is in pixels per second.
+global setSpriteVelocity(int idx, float vx, float vy){ global.nativeGame.setSpriteVelocity(idx, vx, vy); }
+global setSpriteAngularVelocity(int idx, float degreesPerSecond){
+    global.nativeGame.setSpriteAngularVelocity(idx, degreesPerSecond);
+}
+global stopSprite(int idx){ global.nativeGame.stopSprite(idx); }
+global moveSpriteToward(int idx, float tx, float ty, float speed){ global.nativeGame.moveSpriteToward(idx, tx, ty, speed); }
+global faceSpriteTo(int idx, float tx, float ty){ global.nativeGame.faceSpriteTo(idx, tx, ty); }
+global setSpriteAlpha(int idx, int alpha){ global.nativeGame.setSpriteAlpha(idx, alpha); }
+global setSpriteColor(int idx, int r, int g, int b, int a){ global.nativeGame.setSpriteColor(idx, r, g, b, a); }
+global setSpriteVisible(int idx, bool visible){ global.nativeGame.setSpriteVisible(idx, visible); }
+global flipSpriteH(int idx){ global.nativeGame.flipSpriteH(idx); }
+global flipSpriteV(int idx){ global.nativeGame.flipSpriteV(idx); }
+global destroySprite(int idx){ global.nativeGame.destroySprite(idx); }
+global spriteExists(int idx) -> bool { return global.nativeGame.spriteExists(idx) != 0; }
+// Apply velocity for one frame.
+global updateSprite(int idx){ global.nativeGame.updateSprite(idx); }
+global drawSprite(int idx){ global.nativeGame.drawSprite(idx); }
+global spriteCollides(int idxA, int idxB) -> bool { return global.nativeGame.spriteCollides(idxA, idxB) != 0; }
+global spriteCollidesWithList(int sprIdx, int listIdx) -> bool {
+    return global.nativeGame.spriteCollidesWithList(sprIdx, listIdx) != 0;
+}
+// Colliding sprite indexes as a flat "[1,2]" string.
+global getCollidingSprites(int sprIdx, int listIdx) -> str {
+    return global.nativeGame.getCollidingSprites(sprIdx, listIdx);
+}
+global spriteDistance(int idxA, int idxB) -> float { return global.nativeGame.spriteDistance(idxA, idxB); }
+global spriteNear(int idx, float tx, float ty, float range) -> bool {
+    return global.nativeGame.spriteNear(idx, tx, ty, range) != 0;
+}
+
+// ── Sprite lists ────────────────────────────────────────────────────────────
+
+global makeSpriteList() -> int { return global.nativeGame.makeSpriteList(); }
+global addToList(int listIdx, int sprIdx){ global.nativeGame.addToList(listIdx, sprIdx); }
+global removeSpriteFromList(int listIdx, int sprIdx){ global.nativeGame.removeSpriteFromList(listIdx, sprIdx); }
+global clearSpriteList(int listIdx){ global.nativeGame.clearSpriteList(listIdx); }
+global getSpriteListCount(int listIdx) -> int { return global.nativeGame.getSpriteListCount(listIdx); }
+global drawSpriteList(int listIdx){ global.nativeGame.drawSpriteList(listIdx); }
+global updateSpriteList(int listIdx){ global.nativeGame.updateSpriteList(listIdx); }
+
+// ── Camera ──────────────────────────────────────────────────────────────────
+
+global makeCamera() -> int { return global.nativeGame.makeCamera(); }
+global useCamera(int camIdx){ global.nativeGame.useCamera(camIdx); }
+global setCameraPos(int camIdx, float x, float y){ global.nativeGame.setCameraPos(camIdx, x, y); }
+global getCameraX(int camIdx) -> float { return global.nativeGame.getCameraX(camIdx); }
+global getCameraY(int camIdx) -> float { return global.nativeGame.getCameraY(camIdx); }
+global zoomCamera(int camIdx, float zoom){ global.nativeGame.zoomCamera(camIdx, zoom); }
+global getCameraZoom(int camIdx) -> float { return global.nativeGame.getCameraZoom(camIdx); }
+global smoothScrollCamera(int camIdx, float tx, float ty, float speed){
+    global.nativeGame.smoothScrollCamera(camIdx, tx, ty, speed);
+}
+global resetCamera(){ global.nativeGame.resetCamera(); }
+
+// ── Grid helpers ────────────────────────────────────────────────────────────
+
+// Pixel -> tile coordinate, returned as "tx,ty".
+global screenToTile(float x, float y, int tileSize) -> str {
+    return global.nativeGame.screenToTile(x, y, tileSize);
+}
+// Tile -> pixel centre, returned as "sx,sy".
+global tileToScreen(int tx, int ty, int tileSize) -> str {
+    return global.nativeGame.tileToScreen(tx, ty, tileSize);
+}
+
+global main(){}

@@ -114,6 +114,63 @@ Numeric arguments are read leniently where the shape is numeric
 (`asNumber` accepts an `int` or a `float`); integer and string arguments are
 strict and raise a located `SourceError` on a type mismatch.
 
+### Packed arguments (`...`)
+
+An API with long or variadic argument lists can use the wildcard parameter
+token `...` instead of a fixed shape:
+
+```
+cdecl:int64(...)
+cdecl:float64(...)
+cdecl:cstring(...)
+```
+
+The function then receives every argument as four scalars:
+
+```c
+int64_t function(const double* nums, int64_t num_count,
+                 const char* const* strs, int64_t str_count);
+double  function(const double* nums, int64_t num_count,
+                 const char* const* strs, int64_t str_count);
+const char* function(const double* nums, int64_t num_count,
+                     const char* const* strs, int64_t str_count);
+```
+
+Numbers (Lynxer `int`, `float`, and `bool` as `0`/`1`) arrive in `nums` in their
+original order; strings arrive in `strs` in theirs. Either pointer may be null
+when its count is zero, and at most 64 of each are accepted. Any other argument
+type raises a located `SourceError`. `clynxer/stdlib/lynxer_native_abi.h`
+documents the convention for module authors.
+
+## Calling back into Lynxer
+
+A module may additionally export
+
+```c
+int lynxer_module_attach_v1(const LynxerHostApi *host);
+```
+
+and the interpreter calls it (via `dlsym`) right after
+`lynxer_module_init_v1` succeeds. Returning non-zero rejects the module:
+
+```c
+typedef struct LynxerHostApi {
+    int version; // 1
+    void *context;
+    int (*invoke)(void *context, const char *name, int has_arg, double arg);
+    int (*interrupted)(void *context);
+} LynxerHostApi;
+```
+
+- `invoke` runs the Lynxer function `name` with no argument or one numeric
+  argument, and returns `0` on success.
+- `interrupted` returns non-zero once the process has received SIGINT.
+
+The `context` pointer is opaque to the module. `invoke` resolves against the
+top-level program, so frame callbacks registered by a module imported from a
+source wrapper still reach the program's own functions. This entry point is
+optional; modules that do not export it behave as before.
+
 ## Data conventions
 
 The ABI has no aggregate types, so modules follow these conventions.

@@ -3,13 +3,16 @@
 #include "builtins.hpp"
 #include "config.hpp"
 #include "error.hpp"
+#include "interrupt.hpp"
 #include "ops.hpp"
 #include "parser.hpp"
+#include "stdlib/lynxer_native_abi.h"
 #include "types.hpp"
 
 #include <chrono>
 #include <cctype>
 #include <cstdint>
+#include <exception>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -131,6 +134,89 @@ std::int64_t nativeIntArg(const std::vector<Value>& args, std::size_t index,
 
 const char* nativeStringResult(const char* result) {
     return result == nullptr ? "" : result;
+}
+
+// A callback invoked by a native module can raise a C++ exception, but it
+// cannot unwind through the native frames in between. `lynxerHostInvoke`
+// stashes it here and `callNative` rethrows it once the native call returns.
+std::exception_ptr deferredNativeError;
+
+// The top-level program environment, for callbacks that must resolve against
+// the program's own functions rather than a module's. Set by executeProgram.
+Environment* hostInvokeEnvironment = nullptr;
+
+int lynxerHostInvoke(void* context, const char* name, int hasArg, double arg) {
+    Environment* environment = hostInvokeEnvironment != nullptr
+                                   ? hostInvokeEnvironment
+                                   : static_cast<Environment*>(context);
+    if (environment == nullptr) {
+        return 1;
+    }
+    try {
+        std::vector<Value> arguments;
+        if (hasArg != 0) {
+            arguments.push_back(arg);
+        }
+        environment->callUserFunction(
+            name, arguments,
+            std::vector<std::shared_ptr<CodeblockValue>>(), 0, 0);
+        return 0;
+    } catch (const InterruptError&) {
+        return 1;
+    } catch (...) {
+        deferredNativeError = std::current_exception();
+        return 1;
+    }
+}
+
+int lynxerHostInterrupted(void*) { return interruptRequested() ? 1 : 0; }
+
+// Storage for the packed arguments of a `cdecl:<ret>(...)` native call. The
+// string pointers stay valid until the vectors are destroyed, which outlives
+// the call itself.
+struct PackedNativeArgs {
+    std::vector<double> numbers;
+    std::vector<std::string> strings;
+    std::vector<const char*> stringPointers;
+};
+
+// The C prototype a `cdecl:<ret>(...)` function must export is
+// `<ret>(const double* nums, int64_t num_count, const char* const* strs,
+// int64_t str_count)`. Passing four scalars rather than a struct lets a Rust
+// `extern "C" fn` match it directly.
+LynxerArgs packNativeArgs(const std::vector<Value>& args,
+                          PackedNativeArgs& storage, int line, int column) {
+    constexpr std::size_t kMaxPackedArgs = 64;
+    if (args.size() > kMaxPackedArgs) {
+        throw SourceError("native call has too many packed arguments", line,
+                          column);
+    }
+    for (const auto& argument : args) {
+        if (std::holds_alternative<std::int64_t>(argument)) {
+            storage.numbers.push_back(
+                static_cast<double>(std::get<std::int64_t>(argument)));
+        } else if (std::holds_alternative<double>(argument)) {
+            storage.numbers.push_back(std::get<double>(argument));
+        } else if (std::holds_alternative<bool>(argument)) {
+            storage.numbers.push_back(std::get<bool>(argument) ? 1.0 : 0.0);
+        } else if (std::holds_alternative<std::string>(argument)) {
+            storage.strings.push_back(std::get<std::string>(argument));
+        } else {
+            throw SourceError(
+                "native call argument is not a number or string", line, column);
+        }
+    }
+    storage.stringPointers.reserve(storage.strings.size());
+    for (const auto& text : storage.strings) {
+        storage.stringPointers.push_back(text.c_str());
+    }
+    LynxerArgs packed{};
+    packed.num_count = static_cast<std::int64_t>(storage.numbers.size());
+    packed.nums = storage.numbers.empty() ? nullptr : storage.numbers.data();
+    packed.str_count = static_cast<std::int64_t>(storage.stringPointers.size());
+    packed.strs =
+        storage.stringPointers.empty() ? nullptr : storage.stringPointers.data();
+    return packed;
 }
 
 using NativeCall = Value (*)(void*, const std::vector<Value>&, int, int);
@@ -388,12 +474,58 @@ const std::unordered_map<std::string, NativeCall>& nativeCallTable() {
                      asNumber(args[1], line, column),
                      asNumber(args[2], line, column))));
          }},
+        // Packed-argument shapes: `<ret>(...)` passes the numbers and strings
+        // as four scalars, so modules are not limited to four typed
+        // parameters and a Rust `extern "C" fn` matches the prototype
+        // directly.
+        {"int64(...)",
+         [](void* address, const std::vector<Value>& args, int line,
+            int column) -> Value {
+             PackedNativeArgs storage;
+             const LynxerArgs packed =
+                 packNativeArgs(args, storage, line, column);
+             return static_cast<std::int64_t>(
+                 reinterpret_cast<std::int64_t (*)(const double*, std::int64_t,
+                                                   const char* const*,
+                                                   std::int64_t)>(address)(
+                     packed.nums, packed.num_count, packed.strs,
+                     packed.str_count));
+         }},
+        {"float64(...)",
+         [](void* address, const std::vector<Value>& args, int line,
+            int column) -> Value {
+             PackedNativeArgs storage;
+             const LynxerArgs packed =
+                 packNativeArgs(args, storage, line, column);
+             return reinterpret_cast<double (*)(const double*, std::int64_t,
+                                                const char* const*,
+                                                std::int64_t)>(address)(
+                 packed.nums, packed.num_count, packed.strs, packed.str_count);
+         }},
+        {"cstring(...)",
+         [](void* address, const std::vector<Value>& args, int line,
+            int column) -> Value {
+             PackedNativeArgs storage;
+             const LynxerArgs packed =
+                 packNativeArgs(args, storage, line, column);
+             return std::string(nativeStringResult(
+                 reinterpret_cast<const char* (*)(const double*, std::int64_t,
+                                                  const char* const*,
+                                                  std::int64_t)>(address)(
+                     packed.nums, packed.num_count, packed.strs,
+                     packed.str_count)));
+         }},
     };
     return table;
 }
 
 Value callNative(void* address, const std::string& signature,
                  const std::vector<Value>& args, int line, int column) {
+    struct InterruptHandlerRestore {
+        ~InterruptHandlerRestore() { installInterruptHandler(); }
+    } restoreInterruptHandler;
+
+    throwIfInterrupted();
     const std::string normalized =
         signature.rfind("cdecl:", 0) == 0 ? signature.substr(6) : signature;
     const auto open = normalized.find('(');
@@ -431,12 +563,22 @@ Value callNative(void* address, const std::string& signature,
         throw SourceError("unsupported native signature '" + signature + "'",
                           line, column);
     }
-    if (types.size() != args.size()) {
+    const bool packed = types.size() == 1 && types[0] == "...";
+    if (!packed && types.size() != args.size()) {
         throw SourceError("native call argument count does not match signature '" +
                               signature + "'",
                           line, column);
     }
-    return found->second(address, args, line, column);
+    Value result = found->second(address, args, line, column);
+    // A native module may have invoked a Lynxer callback that failed; surface
+    // that error instead of a silent success.
+    if (deferredNativeError != nullptr) {
+        const std::exception_ptr pending = deferredNativeError;
+        deferredNativeError = nullptr;
+        std::rethrow_exception(pending);
+    }
+    throwIfInterrupted();
+    return result;
 }
 
 // Module sources and libraries carried by a compiled executable. Sources stay
@@ -1718,6 +1860,12 @@ Value invokeFunction(
 
 void executeProgram(const std::unordered_map<std::string, Function>& functions,
                     Environment& environment) {
+    // Native modules are often imported from inside a source module (for
+    // example `game.lynx` importing `game.so`), so the environment captured at
+    // attach time belongs to that module and only knows its own functions.
+    // Frame callbacks must resolve against the top-level program, so record it
+    // here for `lynxerHostInvoke`.
+    hostInvokeEnvironment = &environment;
     for (const auto& entry : functions) {
         const Function* function = &entry.second;
         environment.registerFunction(
@@ -1844,6 +1992,23 @@ void ImportStatement::execute(Environment& environment) const {
             dlclose(handle);
             throw SourceError("native module lifecycle failure: " + detail,
                               line_, column_);
+        }
+        // Optional host API: lets a module call back into the interpreter
+        // (frame callbacks) and query the interrupt flag.
+        auto attach = reinterpret_cast<int (*)(const LynxerHostApi*)>(
+            dlsym(handle, "lynxer_module_attach_v1"));
+        if (attach != nullptr) {
+            LynxerHostApi host{};
+            host.version = 1;
+            host.context = &environment;
+            host.invoke = lynxerHostInvoke;
+            host.interrupted = lynxerHostInterrupted;
+            if (attach(&host) != 0) {
+                dlclose(handle);
+                throw SourceError("native module lifecycle failure: attach "
+                                  "rejected the host API",
+                                  line_, column_);
+            }
         }
         environment.markImportedModule(importKey);
         environment.retainNativeModule(
@@ -1984,6 +2149,7 @@ void executeStatements(const StatementList& statements,
     // re-declaring an existing name overwrites it, matching the Python
     // reference. Only function/method invocation pushes a fresh scope.
     for (const auto& statement : statements) {
+        throwIfInterrupted();
         statement->execute(environment);
     }
 }
@@ -2007,6 +2173,7 @@ WhileStatement::WhileStatement(ExpressionPtr condition, StatementList statements
 
 void WhileStatement::execute(Environment& environment) const {
     while (isTruthy(condition_->evaluate(environment))) {
+        throwIfInterrupted();
         try {
             executeStatements(statements_, environment);
         } catch (const LoopControl& control) {
@@ -2027,6 +2194,7 @@ ForStatement::ForStatement(StatementPtr initializer, ExpressionPtr condition,
 void ForStatement::execute(Environment& environment) const {
     initializer_->execute(environment);
     while (isTruthy(condition_->evaluate(environment))) {
+        throwIfInterrupted();
         bool shouldBreak = false;
         try {
             executeStatements(statements_, environment);
@@ -2046,6 +2214,7 @@ DoWhileStatement::DoWhileStatement(ExpressionPtr condition,
 
 void DoWhileStatement::execute(Environment& environment) const {
     for (;;) {
+        throwIfInterrupted();
         try {
             executeStatements(statements_, environment);
         } catch (const LoopControl& control) {
@@ -2073,6 +2242,7 @@ void IterateStatement::execute(Environment& environment) const {
     }
     const auto count = std::get<std::int64_t>(countValue);
     for (std::int64_t index = 0; index < count; ++index) {
+        throwIfInterrupted();
         try {
             executeStatements(statements_, environment);
         } catch (const LoopControl& control) {
@@ -2100,6 +2270,7 @@ void ForeverStatement::execute(Environment& environment) const {
         std::cerr << "Warning: " << message << '\n';
     }
     for (;;) {
+        throwIfInterrupted();
         bool shouldBreak = false;
         try {
             executeStatements(statements_, environment);
@@ -2111,8 +2282,15 @@ void ForeverStatement::execute(Environment& environment) const {
         }
         const double seconds = environment.foreverDelay();
         if (seconds > 0.0) {
-            std::this_thread::sleep_for(
-                std::chrono::duration<double>(seconds));
+            const auto deadline = std::chrono::steady_clock::now() +
+                                  std::chrono::duration<double>(seconds);
+            while (std::chrono::steady_clock::now() < deadline) {
+                throwIfInterrupted();
+                const std::chrono::duration<double> remaining =
+                    deadline - std::chrono::steady_clock::now();
+                std::this_thread::sleep_for(
+                    std::min(std::chrono::duration<double>(0.05), remaining));
+            }
         }
     }
 }

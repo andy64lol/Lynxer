@@ -7,6 +7,12 @@ CMAKE_MODULE_SOURCES := stdlib/network.cpp stdlib/server.cpp
 NATIVE_SOURCES := $(filter-out $(CMAKE_MODULE_SOURCES),$(wildcard stdlib/*.cpp))
 NATIVE_MODULES := $(NATIVE_SOURCES:.cpp=.so)
 CMAKE_MODULES := stdlib/network.so stdlib/server.so
+
+# game.so links the Rust + macroquad static library built from rust/game.
+GAME_DIR := rust/game
+GAME_TARGET_DIR := build/rust
+GAME_STATICLIB := $(GAME_TARGET_DIR)/release/libclynxer_game.a
+GAME_SOURCES := $(wildcard $(GAME_DIR)/src/*.rs) $(GAME_DIR)/Cargo.toml
 include stdlib/libs.mk
 
 CMAKE_BUILD_DIR := build
@@ -15,18 +21,28 @@ CMAKE ?= cmake
 # Native modules that need an opt-in system library. When the package cannot be
 # resolved by pkg-config the module is skipped with a warning, so a plain build
 # never fails because an optional dependency is absent.
-OPTIONAL_MODULE_NAMES := lua tui image game
+OPTIONAL_MODULE_NAMES := lua tui image
 OPTIONAL_MODULE_PATHS := $(OPTIONAL_MODULE_NAMES:%=stdlib/%.so)
 OPTIONAL_NATIVE_MODULES := $(filter $(NATIVE_MODULES),$(OPTIONAL_MODULE_PATHS))
 $(foreach path,$(OPTIONAL_NATIVE_MODULES),$(eval MODULE_NAME_$(path) := $(patsubst stdlib/%.so,%,$(path))))
 $(foreach path,$(OPTIONAL_NATIVE_MODULES),$(eval HAVE_$(path) := $(shell pkg-config --exists $(MODULE_PKG_$(MODULE_NAME_$(path))) 2>/dev/null && echo 1)))
 OPTIONAL_MODULES_PRESENT := $(foreach path,$(OPTIONAL_NATIVE_MODULES),$(if $(HAVE_$(path)),$(path)))
 OPTIONAL_MODULES_SKIPPED := $(filter-out $(OPTIONAL_MODULES_PRESENT),$(OPTIONAL_NATIVE_MODULES))
-CORE_MODULES := $(filter-out $(OPTIONAL_MODULE_PATHS),$(NATIVE_MODULES))
-NATIVE_BUILT := $(CORE_MODULES) $(OPTIONAL_MODULES_PRESENT)
+
+# game.so is gated on the Rust toolchain rather than pkg-config.
+HAVE_CARGO := $(shell command -v cargo >/dev/null 2>&1 && echo 1)
+ifeq ($(HAVE_CARGO),1)
+GAME_MODULE := stdlib/game.so
+else
+GAME_MODULE :=
+$(warning clynxer: skipping stdlib/game.so: cargo not found in PATH)
+endif
+
+CORE_MODULES := $(filter-out $(OPTIONAL_MODULE_PATHS) stdlib/game.so,$(NATIVE_MODULES))
+NATIVE_BUILT := $(CORE_MODULES) $(OPTIONAL_MODULES_PRESENT) $(GAME_MODULE)
 $(foreach path,$(OPTIONAL_MODULES_SKIPPED),$(warning clynxer: skipping $(path): pkg-config package '$(MODULE_PKG_$(MODULE_NAME_$(path)))' not found))
 
-SOURCES := main.cpp shell.cpp lexer.cpp runtime.cpp types.cpp builtins.cpp ops.cpp ast.cpp parser.cpp config.cpp bundle.cpp
+SOURCES := main.cpp shell.cpp lexer.cpp runtime.cpp types.cpp builtins.cpp ops.cpp ast.cpp parser.cpp config.cpp bundle.cpp interrupt.cpp
 HEADERS := $(wildcard *.hpp)
 OBJECTS := $(SOURCES:.cpp=.o)
 CONDITION_FIXTURE := examples/conditions.lynx
@@ -47,7 +63,7 @@ NATIVE_SIGNATURE_FIXTURE := examples/native_signatures.lynx
 # Every examples/stdlib_<name>.lynx must ship a sibling .expected file.
 STDLIB_FIXTURES := $(wildcard examples/stdlib_*.lynx)
 
-.PHONY: all clean clean-third-party test cmake deps cmake-modules
+.PHONY: all clean clean-third-party test cmake deps cmake-modules rust game
 
 # Third-party checkouts and staged headers are disposable build inputs. Remove
 # them before every build so a fresh checkout is always used.
@@ -63,6 +79,19 @@ $(TARGET) $(NATIVE_MODULES): | clean-third-party
 
 all: $(TARGET) $(NATIVE_BUILT) cmake-modules
 
+# Build the Rust + macroquad backend (`rust`) and the game module (`game`).
+# Both are skipped with a message when cargo is not installed, matching the
+# other optional modules.
+ifeq ($(HAVE_CARGO),1)
+rust: $(GAME_STATICLIB)
+game: stdlib/game.so
+else
+rust:
+	@echo "clynxer: skipping the Rust game backend: cargo not found in PATH"
+game:
+	@echo "clynxer: skipping stdlib/game.so: cargo not found in PATH"
+endif
+
 $(TARGET): $(OBJECTS)
 	$(CXX) $(CXXFLAGS) $(OBJECTS) -o $(TARGET)
 
@@ -74,6 +103,16 @@ stdlib/%.so: stdlib/%.cpp
 	$(eval _cflags := $(if $(strip $(_pkg)),$(shell pkg-config --cflags $(_pkg) 2>/dev/null)))
 	$(eval _libs := $(if $(strip $(_pkg)),$(shell pkg-config --libs $(_pkg) 2>/dev/null)))
 	$(CXX) -std=c++17 -O2 -Wall -Wextra -pedantic -fPIC -shared $(_cflags) $< -o $@ $(_libs) $(MODULE_FLAGS_$*)
+
+# Rust + macroquad backend for game.so. The static library is linked with
+# --whole-archive (see stdlib/libs.mk) so every op symbol ends up in the
+# module's dynamic symbol table for the interpreter's dlsym lookup.
+$(GAME_STATICLIB): $(GAME_SOURCES)
+	@command -v cargo >/dev/null || { echo "clynxer: cargo not found in PATH"; exit 1; }
+	RUSTFLAGS="-C relocation-model=pic" cargo build --release --manifest-path $(GAME_DIR)/Cargo.toml --target-dir $(GAME_TARGET_DIR)
+
+# Build order only, so `$<` in the pattern rule stays stdlib/game.cpp.
+stdlib/game.so: | $(GAME_STATICLIB)
 
 # Configure the CMake build tree used for deps + network/server.
 cmake: clean-third-party
@@ -309,7 +348,8 @@ expected="clynxer: $(ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 	expected="$${fixture%.lynx}.expected"; \
 	if [ ! -f "$$expected" ]; then \
 	echo "missing expected output for $$fixture"; exit 1; fi; \
-	if ! ./$(TARGET) "$$fixture" > .clynxer_stdlib.out 2>&1; then \
+	CLYNXER_GAME_HEADLESS=1 ./$(TARGET) "$$fixture" > .clynxer_stdlib.out 2>&1; \
+	if [ $$? -ne 0 ]; then \
 	echo "stdlib fixture failed: $$fixture"; cat .clynxer_stdlib.out; \
 	rm -f .clynxer_stdlib.out; exit 1; fi; \
 	if ! diff -u "$$expected" .clynxer_stdlib.out > .clynxer_stdlib.diff; then \
@@ -323,4 +363,4 @@ expected="clynxer: $(ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 
 clean:
 	rm -f $(TARGET) $(OBJECTS) $(NATIVE_MODULES) $(CMAKE_MODULES) $(NATIVE_SIGNATURE_MODULE) .clynxer_stdin
-	rm -rf $(CMAKE_BUILD_DIR)
+	rm -rf $(CMAKE_BUILD_DIR) $(GAME_DIR)/target

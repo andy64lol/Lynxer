@@ -58,6 +58,7 @@ clynxer --compile app.lynx extras/helpers.lynx --include vendor/libcustom.so \
 | [csv](stdlib/csv.md) | native | hand-written CSV/TSV reader and writer |
 | [debug](stdlib/debug.md) | native + pure | `<chrono>`, `getrusage`, assertions in Lynxer |
 | [fileIO](stdlib/fileIO.md) | native | `<fstream>`, `<filesystem>` |
+| [game](stdlib/game.md) | native | Rust + macroquad behind a C ABI (`rust/game`) |
 | [js](stdlib/js.md) | native | the `node` binary |
 | [json](stdlib/json.md) | native | nlohmann/json (`third_party/json`) |
 | [math](stdlib/math.md) | native | `<cmath>` plus statistics and vector helpers |

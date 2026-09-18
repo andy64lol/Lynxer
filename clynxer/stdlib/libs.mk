@@ -16,10 +16,13 @@
 MODULE_PKG_lua   := lua5.4
 MODULE_PKG_tui   := ncursesw
 MODULE_PKG_image := libpng zlib
-MODULE_PKG_game  := sdl2
 
 MODULE_FLAGS_lua   :=
 MODULE_FLAGS_tui   :=
 MODULE_FLAGS_image :=
-MODULE_FLAGS_game  :=
+# The game backend is a Rust static library (see GAME_STATICLIB in the
+# Makefile) rather than a pkg-config package. --whole-archive keeps every
+# exported op symbol, and the interpreter resolves them from game.so with
+# dlsym.
+MODULE_FLAGS_game  := -Wl,--whole-archive $(CURDIR)/$(GAME_STATICLIB) -Wl,--no-whole-archive -lpthread -ldl -lm
 MODULE_FLAGS_json  := -I$(CURDIR)/third_party/json/single_include
