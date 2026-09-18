@@ -1,3 +1,9 @@
+////
+Lynxer standard library: text.
+Pure Lynxer string helpers: searching, replacing, case conversion and
+repetition.
+////
+
 global setup(){}
 
 global reverse(str value) -> str {

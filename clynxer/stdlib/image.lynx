@@ -1,0 +1,121 @@
+////
+Lynxer standard library: image.
+Image loading, creation, transforms, pixels and encoding backed by Rust's
+`image` crate. Image values are integer handles owned by the native module.
+
+The backend supports PNG, JPEG, GIF, BMP, TIFF and WebP through the enabled
+Rust codecs. Transform functions return new handles unless documented as
+mutating (`setPixel`, `setPixelA`, `fill`, `paste`, and `pasteWithAlpha`).
+////
+global setup(){ importAs("image.so", "nativeImage"); }
+
+global open(str path) -> int { return global.nativeImage.open(path); }
+global create(int width, int height, str mode, int r, int g, int b) -> int {
+    return global.nativeImage.create(width, height, mode, r, g, b);
+}
+global save(int idx, str path) -> bool { return global.nativeImage.save(idx, path) == 0; }
+global saveQuality(int idx, str path, int quality) -> bool {
+    return global.nativeImage.saveQuality(idx, path, quality) == 0;
+}
+global copy(int idx) -> int { return global.nativeImage.copy(idx); }
+global close(int idx) -> bool { return global.nativeImage.close(idx) == 0; }
+global getWidth(int idx) -> int { return global.nativeImage.getWidth(idx); }
+global getHeight(int idx) -> int { return global.nativeImage.getHeight(idx); }
+global getMode(int idx) -> str { return global.nativeImage.getMode(idx); }
+global getFormat(int idx) -> str { return global.nativeImage.getFormat(idx); }
+global info(int idx) -> str { return global.nativeImage.info(idx); }
+
+global resize(int idx, int width, int height) -> int {
+    return global.nativeImage.resize(idx, width, height);
+}
+global thumbnail(int idx, int width, int height) -> int {
+    return global.nativeImage.thumbnail(idx, width, height);
+}
+global scale(int idx, float factor) -> int {
+    return global.nativeImage.scale(idx, factor);
+}
+global crop(int idx, int x1, int y1, int x2, int y2) -> int {
+    return global.nativeImage.crop(idx, x1, y1, x2, y2);
+}
+global rotate(int idx, float angle, bool expand) -> int {
+    return global.nativeImage.rotate(idx, angle, expand);
+}
+global flipH(int idx) -> int { return global.nativeImage.flipH(idx); }
+global flipV(int idx) -> int { return global.nativeImage.flipV(idx); }
+global pad(int idx, int top, int right, int bottom, int left, int r, int g, int b) -> int {
+    return global.nativeImage.pad(idx, top, right, bottom, left, r, g, b);
+}
+
+global convert(int idx, str mode) -> int { return global.nativeImage.convert(idx, mode); }
+global grayscale(int idx) -> int { return global.nativeImage.grayscale(idx); }
+global toRGB(int idx) -> int { return global.nativeImage.toRGB(idx); }
+global toRGBA(int idx) -> int { return global.nativeImage.toRGBA(idx); }
+global toBinary(int idx, int threshold) -> int {
+    return global.nativeImage.toBinary(idx, threshold);
+}
+global brightness(int idx, float factor) -> int {
+    return global.nativeImage.brightness(idx, factor);
+}
+global contrast(int idx, float factor) -> int {
+    return global.nativeImage.contrast(idx, factor);
+}
+global invert(int idx) -> int { return global.nativeImage.invert(idx); }
+global blur(int idx, float radius) -> int { return global.nativeImage.blur(idx, radius); }
+global boxBlur(int idx, float radius) -> int {
+    return global.nativeImage.boxBlur(idx, radius);
+}
+global unsharpMask(int idx, float radius, int percent, int threshold) -> int {
+    return global.nativeImage.unsharpMask(idx, radius, threshold);
+}
+global sharpen(int idx) -> int { return global.nativeImage.sharpen(idx); }
+
+global getPixel(int idx, int x, int y) -> str {
+    return global.nativeImage.getPixel(idx, x, y);
+}
+global setPixel(int idx, int x, int y, int r, int g, int b) -> bool {
+    return global.nativeImage.setPixel(idx, x, y, r, g, b) == 0;
+}
+global setPixelA(int idx, int x, int y, int r, int g, int b, int a) -> bool {
+    return global.nativeImage.setPixelA(idx, x, y, r, g, b, a) == 0;
+}
+global fill(int idx, int r, int g, int b) -> bool {
+    return global.nativeImage.fill(idx, r, g, b) == 0;
+}
+global paste(int dstIdx, int srcIdx, int x, int y) -> bool {
+    return global.nativeImage.paste(dstIdx, srcIdx, x, y) == 0;
+}
+global pasteWithAlpha(int dstIdx, int srcIdx, int x, int y) -> bool {
+    return global.nativeImage.pasteWithAlpha(dstIdx, srcIdx, x, y) == 0;
+}
+global blend(int idx1, int idx2, float alpha) -> int {
+    return global.nativeImage.blend(idx1, idx2, alpha);
+}
+global addAlpha(int idx) -> int { return global.nativeImage.addAlpha(idx); }
+global setAlpha(int idx, int alpha) -> int {
+    return global.nativeImage.setAlpha(idx, alpha);
+}
+global removeAlpha(int idx) -> int { return global.nativeImage.removeAlpha(idx); }
+
+global getAverageColor(int idx) -> str {
+    return global.nativeImage.getAverageColor(idx);
+}
+global getDominantColor(int idx) -> str {
+    return global.nativeImage.getDominantColor(idx);
+}
+global getHistogram(int idx) -> str {
+    return global.nativeImage.getHistogram(idx);
+}
+global tile(int idx, int cols, int rows) -> int {
+    return global.nativeImage.tile(idx, cols, rows);
+}
+global toBase64(int idx, str format) -> str {
+    return global.nativeImage.toBase64(idx, format);
+}
+global fromBase64(str value) -> int {
+    return global.nativeImage.fromBase64(value);
+}
+global toDataUrl(int idx, str format) -> str {
+    return global.nativeImage.toDataUrl(idx, format);
+}
+
+global main(){}

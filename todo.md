@@ -160,9 +160,13 @@ Planned order of work, newest direction first.
 
 - [x] Implement `import` and `importAs` with nested/path-based imports.
 - [x] Support calling module functions and accessing module globals.
-- [ ] Serve `--list-stdlibs` from Clynxer's own stdlib directory.
-- [ ] Port standard-library modules one small module at a time (29 modules in
-  `lynxer/stdlib/`, not every module is possible, so implement what can be implemented).
+- [x] Serve `--list-stdlibs` from Clynxer's own stdlib directory. The command
+  resolves the directory next to the running executable, so it works from any
+  current working directory, and lists only regular `.lynx` module files.
+- [x] Port standard-library modules one small module at a time. Clynxer ships
+  every feasible package-free module from `lynxer/stdlib/`; `mathPlus` is merged
+  into `math`, `http`/`net` are replaced by `network`, and the unsupported
+  modules are documented in `clynxer/docs/limitations.md`.
 - [x] Keep optional `-> type` return annotations available while stdlibs use
   the shared registration ABI.
 

@@ -12,7 +12,7 @@ RUST_MANIFEST := $(RUST_DIR)/Cargo.toml
 RUST_SOURCES := $(wildcard $(RUST_DIR)/*/src/*.rs) \
                 $(wildcard $(RUST_DIR)/*/Cargo.toml) $(RUST_MANIFEST) \
                 $(RUST_DIR)/Cargo.lock
-RUST_MODULE_NAMES := game json network server
+RUST_MODULE_NAMES := game image json lua network server
 RUST_MODULES := $(RUST_MODULE_NAMES:%=stdlib/%.so)
 
 # Rust-backed modules are gated on the Rust toolchain.
@@ -21,7 +21,7 @@ ifeq ($(HAVE_CARGO),1)
 RUST_BUILT := $(RUST_MODULES)
 else
 RUST_BUILT :=
-$(warning clynxer: skipping Rust modules (game, $(RUST_MODULE_NAMES)): cargo not found in PATH)
+$(warning clynxer: skipping Rust modules ($(RUST_MODULE_NAMES)): cargo not found in PATH)
 endif
 
 CORE_MODULES := $(filter-out $(RUST_MODULES),$(NATIVE_MODULES))
@@ -47,6 +47,8 @@ NATIVE_SIGNATURE_MODULE := examples/native_signatures.so
 NATIVE_SIGNATURE_FIXTURE := examples/native_signatures.lynx
 # Every examples/stdlib_<name>.lynx must ship a sibling .expected file.
 STDLIB_FIXTURES := $(wildcard examples/stdlib_*.lynx)
+LIST_STDLIB_MODULES := cli colorlib csv debug fileIO game js json math \
+	multiprocessing network os path random re regex server shell sys text time typing
 
 .PHONY: all clean test rust game
 
@@ -305,6 +307,11 @@ expected="clynxer: $(ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 	if [ "$$output" != "$$expected" ]; then \
 	echo "expected native signature output:"; printf '%s\n' "$$expected"; \
 	echo "received native signature output:"; printf '%s\n' "$$output"; exit 1; fi
+	@list_output="$$(cd /tmp && "$(CURDIR)/$(TARGET)" --list-stdlibs)"; \
+	for module in $(LIST_STDLIB_MODULES); do \
+	if ! printf '%s\n' "$$list_output" | grep -Fqx "  $$module"; then \
+	echo "stdlib listing is missing module: $$module"; exit 1; fi; \
+	done
 	@for fixture in $(STDLIB_FIXTURES); do \
 	expected="$${fixture%.lynx}.expected"; \
 	if [ ! -f "$$expected" ]; then \

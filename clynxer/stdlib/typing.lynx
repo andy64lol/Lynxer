@@ -1,3 +1,8 @@
+////
+Lynxer standard library: typing.
+Pure Lynxer type inspection, conversion and integer-range helpers.
+////
+
 global setup(){}
 
 //// Return the Lynxer type name of value. ////

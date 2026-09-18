@@ -1,0 +1,14 @@
+////
+Lynxer standard library: lua.
+Embedded Lua 5.4 execution backed by Rust `mlua` with vendored Lua sources.
+Lua print output is captured and returned as a string.
+////
+global setup(){ importAs("lua.so", "nativeLua"); }
+
+global runLua(str code) -> str { return global.nativeLua.runLua(code); }
+global runLuaFile(str path) -> str { return global.nativeLua.runLuaFile(path); }
+global evalLua(str expr) -> str { return global.nativeLua.evalLua(expr); }
+global luaVersion() -> str { return global.nativeLua.luaVersion(); }
+global luaExists() -> bool { return global.nativeLua.luaExists() != 0; }
+
+global main(){}

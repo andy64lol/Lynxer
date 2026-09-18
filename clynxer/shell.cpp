@@ -18,8 +18,6 @@
 #include <string>
 #include <vector>
 
-#include <dirent.h>
-
 namespace clynxer {
 
 namespace {
@@ -121,19 +119,29 @@ std::string extractDocstring(const std::string& path) {
 }
 
 int listStdlibs() {
-    const std::string stdlibPath = executableDirectory() + "/stdlib";
+    const std::filesystem::path stdlibPath =
+        std::filesystem::path(executableDirectory()) / "stdlib";
     std::vector<std::string> files;
-    if (DIR* directory = opendir(stdlibPath.c_str())) {
-        while (const dirent* entry = readdir(directory)) {
-            const std::string name = entry->d_name;
-            if (name.size() > 5 &&
-                name.compare(name.size() - 5, 5, ".lynx") == 0) {
-                files.push_back(name);
-            }
-        }
-        closedir(directory);
-    } else {
+    std::error_code directoryError;
+    if (!std::filesystem::is_directory(stdlibPath, directoryError)) {
         std::cout << "No stdlib directory found.\n";
+        return 1;
+    }
+    for (const auto& entry :
+         std::filesystem::directory_iterator(stdlibPath, directoryError)) {
+        if (directoryError) {
+            break;
+        }
+        const std::filesystem::path path = entry.path();
+        const std::string name = path.filename().string();
+        if (entry.is_regular_file() && name.size() > 5 &&
+            name.compare(name.size() - 5, 5, ".lynx") == 0) {
+            files.push_back(name);
+        }
+    }
+    if (directoryError) {
+        std::cout << "Could not read stdlib directory: " << directoryError.message()
+                  << "\n";
         return 1;
     }
     std::sort(files.begin(), files.end());
@@ -143,7 +151,7 @@ int listStdlibs() {
     }
     std::cout << "Available Lynxer stdlib modules:\n\n";
     for (const auto& file : files) {
-        const std::string path = stdlibPath + "/" + file;
+        const std::string path = (stdlibPath / file).string();
         const std::string name = file.substr(0, file.size() - 5);
         const std::string docstring = extractDocstring(path);
         if (!docstring.empty()) {
