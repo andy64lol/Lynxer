@@ -1,6 +1,6 @@
 ////
-Fixture for the server stdlib. Registers Crow routes, serves them on
-localhost, and verifies them with the network HTTP client.
+Fixture for the server stdlib. Registers routes, serves them on localhost, and
+verifies them with the network HTTP client.
 ////
 global setup(){
     import("server");

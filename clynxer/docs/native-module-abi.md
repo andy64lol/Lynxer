@@ -5,6 +5,13 @@ macOS) loaded at runtime with `dlopen`. This document is the contract a native
 module must implement. It applies to the bundled `stdlib/*.so` modules exactly
 as it applies to third-party modules.
 
+A module may be written in C++ (`stdlib/<name>.cpp`) or in Rust. The Rust
+backends — `game`, `json`, `network`, `server` — live under `rust/`: `game` is a
+`staticlib` linked into a C++ shim, while `json`/`network`/`server` are
+`cdylib`s that export `lynxer_module_init_v1` and their ops directly. The
+`clynxer_abi` crate provides the shared FFI plumbing (packed-argument view,
+panic guards, string result buffer, and registration helper).
+
 ## Entry point
 
 Every module exports one C symbol:

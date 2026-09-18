@@ -13,6 +13,5 @@ temp/
 clynxer/examples/*.lynxc
 clynxer/clynxer
 clynxer/build/
-clynxer/third_party/
-clynxer/stdlib/httplib.h
+clynxer/rust/target/
 clynxer/rust/*/target/

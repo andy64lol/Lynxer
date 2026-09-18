@@ -6,42 +6,38 @@ Clynxer is a C++17 Linux executable. It does **not** need Python.
 
 - A C++17 compiler (`g++` or `clang++`)
 - `make`
-- `cmake` (for `network` / `server` and their deps)
-- OpenSSL + Boost (for `network.so` / `server.so`)
-- Git and network access for the header-only native dependencies:
-  cpp-httplib, Crow, and nlohmann/json
+- A Rust toolchain (`cargo`) for the `game`, `json`, `network` and `server`
+  modules. They are skipped with a warning when `cargo` is not on `PATH`; the
+  rest of Clynxer still builds.
+- Git and network access for the first `cargo` build (crates are fetched from
+  crates.io). Nothing is compiled from vendored C/C++ sources any more.
 
-Optional system libraries (skipped with a warning when missing): SDL2, ncurses,
-Lua 5.4, libpng — see `stdlib/libs.mk`.
+No system OpenSSL, Boost, CMake, cpp-httplib, Crow or nlohmann/json is needed:
+TLS is `rustls`, the HTTP stack is `ureq`/`tungstenite`/`axum`, and JSON is
+`serde_json`.
 
 ## Build from the repository root
 
 ```bash
-make cmake              # wipe third_party/, then configure clynxer/build
-make clynxerDeps        # fetch cpp-httplib + Crow + nlohmann/json
-make buildCLynxer       # clean third-party inputs, fetch deps, build everything
+make cargo              # build the Rust backends (game, json, network, server)
+make buildCLynxer       # build the interpreter and every native stdlib module
 make testCLynxer        # smoke + stdlib fixtures
 ```
 
 Or from `clynxer/`:
 
 ```bash
-make cmake              # also clears third_party/ before configuring
-make deps               # fetches clean copies of all native headers
-make all                # rebuilds the interpreter and native stdlibs
+make rust               # build the Rust backends
+make all                # rebuild the interpreter and native stdlibs
 make test
 ```
 
 Outputs:
 
 - `clynxer/clynxer` — interpreter
-- `clynxer/stdlib/*.so` — native stdlib backends (including `network.so` /
-  `server.so` via CMake)
-
-Every Clynxer build intentionally removes `third_party/*` and the staged
-`stdlib/httplib.h` before fetching dependencies again. This avoids reusing
-partial or stale third-party checkouts. The JSON backend includes
-`third_party/json/single_include/nlohmann/json.hpp`.
+- `clynxer/stdlib/*.so` — stdlib backends. `game`, `json`, `network` and
+  `server` are produced by `cargo` (`clynxer/build/rust`); the rest are
+  compiled from `stdlib/*.cpp`.
 
 ## Install
 

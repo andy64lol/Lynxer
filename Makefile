@@ -28,7 +28,7 @@ CLYNXER_HEADERS := $(wildcard clynxer/*.hpp)
 CLYNXER_CXX ?= c++
 CLYNXER_CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -pedantic -fPIE
 
-.PHONY: venv deps liteDeps clynxerDeps cmake cargo platform-check build buildAll buildLite buildCpp buildCLynxer test testCLynxer testAMR64 validate golden check clean cleanC cleanCpp cleanLynxc cleanCLynxer cleanAll help
+.PHONY: venv deps liteDeps cargo platform-check build buildAll buildLite buildCpp buildCLynxer test testCLynxer testAMR64 validate golden check clean cleanC cleanCpp cleanLynxc cleanCLynxer cleanAll help
 
 venv:
 	@if [ ! -d "$(VENV)" ]; then \
@@ -151,24 +151,15 @@ buildCpp: venv
 	@echo "✓ Native extensions built in lynxer/ (memory + bytecode VM)"
 
 buildCLynxer: $(CLYNXER_TARGET)
-	@$(MAKE) -C clynxer cmake
 	@$(MAKE) -C clynxer rust
 	@$(MAKE) -C clynxer all
 	@echo "✓ Clynxer build complete: $(CLYNXER_TARGET)"
 
-cmake:
-	@$(MAKE) -C clynxer cmake
-	@echo "✓ Clynxer CMake configured: clynxer/build"
-
-clynxerDeps:
-	@$(MAKE) -C clynxer deps
-	@echo "✓ Clynxer native deps ready (cpp-httplib + Crow)"
-
-# Build the Rust + macroquad static library used by stdlib/game.so. No-op with a
-# message when cargo is not installed; the rest of Clynxer still builds.
+# Build the Rust backends (game, json, network, server). No-op with a message
+# when cargo is not installed; the C++ part of Clynxer still builds.
 cargo:
 	@$(MAKE) -C clynxer rust
-	@echo "✓ Clynxer Rust game backend ready (clynxer/build/rust)"
+	@echo "✓ Clynxer Rust backends ready (clynxer/build/rust)"
 
 $(CLYNXER_TARGET): $(CLYNXER_OBJECTS)
 	@$(CLYNXER_CXX) $(CLYNXER_CXXFLAGS) $(CLYNXER_OBJECTS) -o $@
@@ -212,9 +203,7 @@ help:
 	@echo "  make buildLite"
 	@echo "  make buildCpp"
 	@echo "  make buildCLynxer"
-	@echo "  make cmake"
 	@echo "  make cargo"
-	@echo "  make clynxerDeps"
 	@echo "  make platform-check"
 	@echo "  make venv"
 	@echo "  make deps"

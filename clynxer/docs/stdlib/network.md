@@ -1,6 +1,7 @@
 # network
 
-HTTP and WebSocket client backed by [cpp-httplib](https://github.com/yhirose/cpp-httplib).
+HTTP and WebSocket client backed by Rust [`ureq`](https://docs.rs/ureq) with
+[`rustls`](https://docs.rs/rustls) and [`tungstenite`](https://docs.rs/tungstenite).
 This is the Clynxer replacement for the older Python `http` and `net` modules.
 
 ```c
@@ -9,7 +10,8 @@ global setup(){
 }
 ```
 
-Requires OpenSSL (HTTPS/WSS) and `stdlib/httplib.h` staged by `make -C clynxer deps`.
+HTTPS/WSS use `rustls`, so there is no system OpenSSL dependency. Built from the
+Rust crate `rust/network`.
 
 ## HTTP client
 

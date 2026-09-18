@@ -1,0 +1,8 @@
+[workspace]
+resolver = "2"
+members = ["abi", "game", "json", "network", "server"]
+
+# Every module is built by the clynxer Makefile with an explicit --target-dir
+# (clynxer/build/rust), so this profile applies to the whole workspace.
+[profile.release]
+opt-level = 3

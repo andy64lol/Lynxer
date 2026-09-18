@@ -2,10 +2,10 @@
 
 JSON encoding, decoding, querying and mutation.
 
-**Backend:** native — `stdlib/json.so`, built from `stdlib/json.cpp` over the
-header-only [nlohmann/json](https://github.com/nlohmann/json) dependency staged
-at `third_party/json/single_include`. The checkout is refreshed on every
-Clynxer build.
+**Backend:** native — `stdlib/json.so`, built from the Rust crate `rust/json`
+over [`serde_json`](https://docs.rs/serde_json) with the `preserve_order`
+feature so object keys keep their insertion order. Output spacing and the
+pretty-print indents match the previous nlohmann-based backend byte for byte.
 **Import:** `import("json")` → `global.json.*`
 
 Objects preserve key insertion order, and non-finite numbers are written as

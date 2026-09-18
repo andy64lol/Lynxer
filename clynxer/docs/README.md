@@ -24,17 +24,18 @@ clynxer --list-stdlibs   # list available modules with their docstrings
 ```
 
 From the repository root, `make buildCLynxer` builds the binary and the native
-modules. Each Clynxer build removes `third_party/` and the staged
-`stdlib/httplib.h` first, then fetches clean copies of cpp-httplib, Crow, and
-nlohmann/json. `make testCLynxer` additionally runs the smoke and stdlib
+modules. The `game`, `json`, `network` and `server` modules are Rust crates
+under `rust/` (see `make cargo`); the rest are C++ `stdlib/*.cpp`. A Rust
+toolchain (`cargo`) is required for those four modules; they are skipped with a
+warning when cargo is absent. `make testCLynxer` runs the smoke and stdlib
 fixtures.
 
 ## Standard library modules
 
-Every module below is implemented by `stdlib/<name>.cpp`, compiled to
-`stdlib/<name>.so`, and exposed to Lynxer by `stdlib/<name>.lynx`. Modules
-marked *pure* are written in Lynxer only and need no shared library. Modules
-marked *opt-in* are skipped with a warning when their system library is missing,
+Every module below is implemented by a `stdlib/<name>.so` backend — C++
+(`stdlib/<name>.cpp`) or, for the Rust-backed ones, a crate under `rust/` — and
+exposed to Lynxer by `stdlib/<name>.lynx`. Modules marked *pure* are written in
+Lynxer only and need no shared library. Modules marked *opt-in* are skipped with a warning when their system library is missing,
 so a plain `make` never fails on absent optional dependencies.
 
 There is no bytecode backend: `--compile` produces a standalone ELF executable
@@ -60,30 +61,30 @@ clynxer --compile app.lynx extras/helpers.lynx --include vendor/libcustom.so \
 | [fileIO](stdlib/fileIO.md) | native | `<fstream>`, `<filesystem>` |
 | [game](stdlib/game.md) | native | Rust + macroquad behind a C ABI (`rust/game`) |
 | [js](stdlib/js.md) | native | the `node` binary |
-| [json](stdlib/json.md) | native | nlohmann/json (`third_party/json`) |
+| [json](stdlib/json.md) | native | Rust `serde_json` (`rust/json`) |
 | [math](stdlib/math.md) | native | `<cmath>` plus statistics and vector helpers |
 | [multiprocessing](stdlib/multiprocessing.md) | native + pure | `std::thread` and shell subprocesses |
-| [network](stdlib/network.md) | native | cpp-httplib HTTP + WebSocket client |
+| [network](stdlib/network.md) | native | Rust `ureq` + `tungstenite` (rustls) |
 | [os](stdlib/os.md) | native | `<filesystem>`, POSIX |
 | [path](stdlib/path.md) | native | `<filesystem>`, POSIX `stat` |
 | [random](stdlib/random.md) | pure | deterministic LCG in Lynxer |
 | [re](stdlib/re.md) | native | `std::regex` |
 | [regex](stdlib/regex.md) | native | `std::regex` with a named-pattern cache |
-| [server](stdlib/server.md) | native | Crow HTTP + WebSocket server |
+| [server](stdlib/server.md) | native | Rust `axum` + `tokio` |
 | [shell](stdlib/shell.md) | native | `popen`, `std::system` |
 | [sys](stdlib/sys.md) | native | C++ runtime and POSIX |
 | [text](stdlib/text.md) | pure | Lynxer string builtins |
 | [time](stdlib/time.md) | native | `<chrono>`, `<ctime>` |
 | [typing](stdlib/typing.md) | pure | Lynxer type builtins |
 
-`network`, `server`, and `json` are staged through CMake
-(`make -C clynxer deps`): cpp-httplib's `httplib.h` is copied into `stdlib/`,
-Crow lives under `third_party/Crow`, and nlohmann/json is included from
-`third_party/json/single_include`. Both the Makefile path and the CMake
-dependency target start from a clean `third_party/` directory on every build.
-Planned opt-in modules that are not part of the build yet:
-`lua` (Lua 5.4), `tui` (ncurses/ANSI), `image` (libpng), `game` (SDL2). `venv`
-is intentionally excluded — see [limitations.md](limitations.md).
+`game`, `json`, `network`, and `server` are Rust crates under `rust/`, built by
+`cargo` and installed as `stdlib/<name>.so` (see `make cargo`). The rest are C++
+compiled from `stdlib/*.cpp`. There is no CMake staging step and no
+`third_party/` directory any more: TLS is `rustls` (no system OpenSSL) and the
+HTTP/WebSocket stack is pure Rust.
+
+Modules not implemented yet: `lua`, `tui`, `image`. `venv` is intentionally
+excluded — see [limitations.md](limitations.md).
 
 ## Adding a stdlib module
 
@@ -95,10 +96,13 @@ is intentionally excluded — see [limitations.md](limitations.md).
    `importAs("<name>.so", "native<Name>")`, and forward each function as
    `global f(...) { return global.nativeName.f(...); }`. Start the file with a
    `////` docstring — `clynxer --list-stdlibs` prints it.
-3. If the module needs a system library, add it to `stdlib/libs.mk`
-   (`MODULE_PKG_<name>`) and to `OPTIONAL_MODULE_NAMES` in the Makefile so it is
-   skipped when the library is absent. Dependency-heavy modules such as
-   `network`/`server` are built via `CMakeLists.txt` after `make deps`.
+3. A module can also be a Rust crate under `rust/`, as `game`, `json`, `network`
+   and `server` are. Export `lynxer_module_init_v1` plus one `#[no_mangle]
+   extern "C"` op per entry (the `clynxer_abi` crate provides the packing,
+   panic guards and registration helper), add the crate to the workspace, and
+   add its name to `RUST_MODULE_NAMES` in the Makefile. Rust modules are skipped
+   with a warning when `cargo` is absent. For a C++ module with extra link
+   flags, add `MODULE_FLAGS_<name>` to `stdlib/libs.mk`.
 4. Add `examples/stdlib_<name>.lynx` plus a sibling `stdlib_<name>.expected`
    file. `make test` runs every `examples/stdlib_*.lynx` and diffs it against
    its `.expected` output.

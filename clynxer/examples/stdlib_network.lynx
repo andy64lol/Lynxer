@@ -1,7 +1,7 @@
 ////
-Fixture for the network + server stdlibs. Spins a local Crow server and
-exercises HTTP + WebSocket clients through cpp-httplib. Offline helpers are
-checked without touching the public internet.
+Fixture for the network + server stdlibs. Spins a local server and exercises
+the HTTP + WebSocket clients against it. Offline helpers are checked without
+touching the public internet.
 ////
 global setup(){
     import("network");

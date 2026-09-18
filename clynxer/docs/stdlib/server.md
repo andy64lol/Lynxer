@@ -1,7 +1,7 @@
 # server
 
-HTTP and WebSocket server backed by [Crow](https://github.com/CrowCpp/Crow)
-(Boost.Asio). Pair it with `network` for local round-trip tests.
+HTTP and WebSocket server backed by Rust [`axum`](https://docs.rs/axum) on
+[`tokio`](https://docs.rs/tokio). Pair it with `network` for local round-trip tests.
 
 ```c
 global setup(){
@@ -10,7 +10,7 @@ global setup(){
 }
 ```
 
-Requires Boost and Crow headers staged by `make -C clynxer deps`.
+Built from the Rust crate `rust/server`; no Boost or Crow dependency.
 
 ## API
 
@@ -32,7 +32,7 @@ Register routes while the server is stopped, then `start(port)` / `stop()`.
 | `running()` | `true` while listening |
 | `port()` | Bound port, or `0` |
 
-Paths must start with `/`. Crow logging is quieted to errors only.
+Paths must start with `/`. The listener binds to `127.0.0.1` only.
 
 HTML is supplied as a normal Lynxer string and is returned unchanged. For
 example:

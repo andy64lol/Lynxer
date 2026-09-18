@@ -14,5 +14,4 @@ crate-type = ["staticlib"]
 [dependencies]
 macroquad = "0.4"
 
-[profile.release]
-opt-level = 3
+# The release profile lives in the workspace root (clynxer/rust/Cargo.toml).
