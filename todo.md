@@ -8,7 +8,7 @@ runtime dependency and its internals are not copied into Clynxer.
 
 Planned order of work, newest direction first.
 
-- [x] Migrate every remaining third-party backend to Rust behind the same C ABI.
+- [x] Migrate every implemented third-party backend to Rust behind the same C ABI.
   `json` is now `serde_json` (+`preserve_order`, byte-identical output),
   `network` is `ureq` (rustls) + `tungstenite`, and `server` is `axum` + `tokio`;
   `image` uses the Rust `image` crate and `lua` uses vendored Lua through
@@ -21,7 +21,8 @@ Planned order of work, newest direction first.
   `stdlib/server.cpp` and `stdlib/json.cpp` are deleted. Still C++ and not
   third-party: `native_json.hpp`, `native_regex.hpp`. The optional `image`
   (`image` crate) and `lua` (vendored `mlua`) backends now use the same Rust
-  `cdylib` + C ABI path. `tui` remains intentionally unsupported. Docs:
+  `cdylib` + C ABI path. `tui` remains intentionally unsupported and is tracked
+  below. Docs:
   `docs/install.md`, `docs/README.md`, `docs/stdlib/{json,network,server}.md`.
 - [x] Add the `game` stdlib module: `stdlib/game.lynx` wraps `stdlib/game.so`,
   a Rust + macroquad backend (`rust/game`, a `cdylib` exporting
@@ -171,6 +172,48 @@ Planned order of work, newest direction first.
   modules are documented in `clynxer/docs/limitations.md`.
 - [x] Keep optional `-> type` return annotations available while stdlibs use
   the shared registration ABI.
+- [x] Implement the first Rust-backed third-party set: `game`, `image`, `json`,
+  `lua`, `network`, and `server` as self-contained `cdylib` modules exporting
+  the shared ABI directly. Their Rust implementations and Clynxer wrappers are
+  complete; future work below is about portability and parity, not initial
+  Rust ports.
+- [ ] Implement the remaining Python third-party stdlib alternatives as Rust
+  `cdylib` backends behind the shared C ABI. The Lynxer-facing
+  `stdlib/<name>.lynx` module is the wrapper; its `setup()` imports
+  `stdlib/<name>.so`, and the Rust backend registers the native operations that
+  the wrapper calls. Use the Python implementation and package behavior as the
+  reference, not as a Clynxer runtime dependency:
+  - [ ] `sound`: replace the Python Arcade audio backend with Rust
+    `rodio`/`cpal`, adding `symphonia` where decoding is needed. Preserve
+    loading, streaming, play/loop/stop, pause/resume, volume, duration, and
+    release handles.
+  - [ ] `sqldb`: replace Python `sqlite3` with Rust `rusqlite`/`libsqlite3-sys`.
+    Preserve execute, scripts, parameterized queries, JSON row results, scalar
+    values, last-insert IDs, table inspection, and cleanup.
+  - [ ] `tui`: replace Python Rich with Rust `ratatui`/`crossterm` or a
+    deliberately smaller terminal backend. Preserve styled text, Markdown,
+    panels, tables, prompts, progress, and recorded console output, with a
+    headless rendering mode for fixtures.
+- [ ] Decide whether `tkinter`, `tkinterPlus`, and `turtle` belong in this Rust
+  backend phase. If they do, define Rust GUI/drawing candidates and the
+  wrapper/ABI contracts first; otherwise document them as intentionally
+  deferred rather than implying they are already ported.
+- [ ] For every new Rust backend, add the crate to the Rust workspace, export
+  `lynxer_module_init_v1` through `clynxer_abi`, add the module to the Makefile,
+  create the matching `stdlib/<name>.lynx` forwarding wrapper, document the
+  API, and add a sibling expected-output fixture.
+- [ ] Freeze each module's operation names, signatures, handle ownership,
+  string lifetime, error sentinels, callbacks, interruption behavior, and
+  cleanup before introducing a second backend. Keep third-party calls behind
+  backend-local adapters so the Lynxer wrapper never depends on crate-specific
+  types or APIs.
+- [ ] Add Rust-backend fixtures for success, malformed input, invalid handles,
+  missing files, timeouts, cleanup, optional-dependency failures, and the
+  compiled/bundled executable path. Compare the wrapper's behavior with the
+  Python reference where the API is intended to remain compatible.
+- [ ] Only extend the ABI when a real module cannot be expressed with its
+  scalar/string/handle conventions; every additive ABI change needs C and Rust
+  examples, compatibility coverage, and documentation.
 
 ## Milestone 7 — native APIs
 
@@ -183,8 +226,6 @@ Planned order of work, newest direction first.
   errno surfaced as source-located errors.
 - [ ] Port the managed filesystem, process, networking, async, sound, FFI,
   and native-thread APIs.
-- [ ] Keep rawPy, rawPyx, and embedPy unsupported with explicit errors
-  (intentional difference; document in Milestone 9).
 
 ## Milestone 8 — compiler, bytecode, and CLI surface
 
@@ -253,6 +294,7 @@ behaves exactly like an interpreted one. The root Makefile builds and tests both
 Lynxer and Clynxer targets, and a GitHub Actions workflow builds Clynxer and runs
 its suite. The bundled standard library covers `math`, `json`, `re`, `regex`,
 `os`, `path`, `fileIO`, `csv`, `time`, `debug`, `sys`, `shell`, `cli`, `js`,
-`multiprocessing`, `random` and `text`/`typing`/`colorlib`; the remaining
-optional modules (`http`, `net`, `lua`, `tui`, `image`, `game`) are still to be
-ported, and their system-library build table already exists.
+`multiprocessing`, `random`, `image`, `lua`, `game`, `network`, `server`, and
+`text`/`typing`/`colorlib`. The remaining Python reference modules not yet
+ported are `sound`, `sqldb`, `tui`, `tkinter`, `tkinterPlus`, and `turtle`;
+the older `http`/`net` modules are superseded by `network`/`server`.

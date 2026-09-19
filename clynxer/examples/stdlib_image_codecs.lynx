@@ -1,0 +1,90 @@
+////
+Fixture for filesystem image codec round trips. It generates one deterministic
+RGB image, saves and reopens it through each enabled filesystem codec, and
+removes the repo-local scratch files.
+////
+global setup(){ import("image"); import("os"); }
+
+global main(){
+    str root = ".clynxer_image_codecs";
+    if(global.os.exists(root)){ global.os.rmTree(root); }
+    println(global.os.mkdir(root));
+
+    int source = global.image.create(3, 2, "RGB", 128, 128, 128);
+
+    str png = root + "/roundtrip.png";
+    println(global.image.save(source, png));
+    println(global.os.isFile(png));
+    int pngImage = global.image.open(png);
+    println(pngImage >= 0);
+    println(global.image.getFormat(pngImage));
+    println(global.image.getWidth(pngImage), "x", global.image.getHeight(pngImage));
+    println(global.image.getMode(pngImage));
+    println(global.image.getPixel(pngImage, 1, 1));
+    println(global.image.close(pngImage));
+    println(global.os.remove(png));
+
+    str jpeg = root + "/roundtrip.jpeg";
+    println(global.image.save(source, jpeg));
+    println(global.os.isFile(jpeg));
+    int jpegImage = global.image.open(jpeg);
+    println(jpegImage >= 0);
+    println(global.image.getFormat(jpegImage));
+    println(global.image.getWidth(jpegImage), "x", global.image.getHeight(jpegImage));
+    println(global.image.getMode(jpegImage));
+    println(global.image.getPixel(jpegImage, 1, 1));
+    println(global.image.close(jpegImage));
+    println(global.os.remove(jpeg));
+
+    str gif = root + "/roundtrip.gif";
+    println(global.image.save(source, gif));
+    println(global.os.isFile(gif));
+    int gifImage = global.image.open(gif);
+    println(gifImage >= 0);
+    println(global.image.getFormat(gifImage));
+    println(global.image.getWidth(gifImage), "x", global.image.getHeight(gifImage));
+    println(global.image.getMode(gifImage));
+    println(global.image.getPixel(gifImage, 1, 1));
+    println(global.image.close(gifImage));
+    println(global.os.remove(gif));
+
+    str bmp = root + "/roundtrip.bmp";
+    println(global.image.save(source, bmp));
+    println(global.os.isFile(bmp));
+    int bmpImage = global.image.open(bmp);
+    println(bmpImage >= 0);
+    println(global.image.getFormat(bmpImage));
+    println(global.image.getWidth(bmpImage), "x", global.image.getHeight(bmpImage));
+    println(global.image.getMode(bmpImage));
+    println(global.image.getPixel(bmpImage, 1, 1));
+    println(global.image.close(bmpImage));
+    println(global.os.remove(bmp));
+
+    str tiff = root + "/roundtrip.tiff";
+    println(global.image.save(source, tiff));
+    println(global.os.isFile(tiff));
+    int tiffImage = global.image.open(tiff);
+    println(tiffImage >= 0);
+    println(global.image.getFormat(tiffImage));
+    println(global.image.getWidth(tiffImage), "x", global.image.getHeight(tiffImage));
+    println(global.image.getMode(tiffImage));
+    println(global.image.getPixel(tiffImage, 1, 1));
+    println(global.image.close(tiffImage));
+    println(global.os.remove(tiff));
+
+    str webp = root + "/roundtrip.webp";
+    println(global.image.save(source, webp));
+    println(global.os.isFile(webp));
+    int webpImage = global.image.open(webp);
+    println(webpImage >= 0);
+    println(global.image.getFormat(webpImage));
+    println(global.image.getWidth(webpImage), "x", global.image.getHeight(webpImage));
+    println(global.image.getMode(webpImage));
+    println(global.image.getPixel(webpImage, 1, 1));
+    println(global.image.close(webpImage));
+    println(global.os.remove(webp));
+
+    println(global.image.close(source));
+    println(global.os.rmTree(root));
+    println(global.os.exists(root));
+}
