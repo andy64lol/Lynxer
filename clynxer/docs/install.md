@@ -19,7 +19,7 @@ TLS is `rustls`, the HTTP stack is `ureq`/`tungstenite`/`axum`, and JSON is
 ## Build from the repository root
 
 ```bash
-make cargo              # build the Rust backends (game, json, network, server)
+make rust               # build the Rust backends (game, image, json, lua, network, server)
 make buildCLynxer       # build the interpreter and every native stdlib module
 make testCLynxer        # smoke + stdlib fixtures
 ```

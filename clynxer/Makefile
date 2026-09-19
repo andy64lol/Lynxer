@@ -35,6 +35,7 @@ LOOP_FIXTURE := examples/loops.lynx
 ERROR_FIXTURE := examples/control_flow_error.lynx
 COMMENT_FIXTURE := examples/comments.lynx
 SETUP_ERROR_FIXTURE := examples/missing_setup.lynx
+INPUTLN_FIXTURE := examples/inputln.lynx
 MILESTONE4_FIXTURE := examples/milestone4.lynx
 MILESTONE4_PATTERN_FIXTURE := examples/milestone4_patterns.lynx
 MILESTONE5_FIXTURE := examples/milestone5.lynx
@@ -47,7 +48,7 @@ NATIVE_SIGNATURE_MODULE := examples/native_signatures.so
 NATIVE_SIGNATURE_FIXTURE := examples/native_signatures.lynx
 # Every examples/stdlib_<name>.lynx must ship a sibling .expected file.
 STDLIB_FIXTURES := $(wildcard examples/stdlib_*.lynx)
-LIST_STDLIB_MODULES := cli colorlib csv debug fileIO game js json math \
+LIST_STDLIB_MODULES := cli colorlib csv debug fileIO game image js json lua math \
 	multiprocessing network os path random re regex server shell sys text time typing
 
 .PHONY: all clean test rust game
@@ -78,7 +79,7 @@ stdlib/%.so: stdlib/%.cpp
 
 # --- Rust backends ----------------------------------------------------------
 
-# game/json/network/server: self-contained cdylibs exporting
+# game/image/json/lua/network/server: self-contained cdylibs exporting
 # lynxer_module_init_v1 and their ops, copied to stdlib/<name>.so for the
 # interpreter to dlopen.
 $(RUST_TARGET_DIR)/release/libclynxer_%.so: $(RUST_SOURCES)
@@ -129,6 +130,11 @@ test: $(TARGET) $(NATIVE_BUILT) $(NATIVE_SIGNATURE_MODULE)
 	printf '%s\n' "$$output"; \
 	exit 1; \
 	fi
+	@output="$$(./$(TARGET) $(INPUTLN_FIXTURE) < .clynxer_stdin)"; \
+	expected="$$(printf 'Hello, world!\nClynxer')"; \
+	if [ "$$output" != "$$expected" ]; then \
+	echo "expected inputln output:"; printf '%s\n' "$$expected"; \
+	echo "received inputln output:"; printf '%s\n' "$$output"; exit 1; fi
 	@set +e; \
 	output="$$(./$(TARGET) $(SETUP_ERROR_FIXTURE) 2>&1)"; \
 	status=$$?; \

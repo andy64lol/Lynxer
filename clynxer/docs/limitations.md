@@ -58,11 +58,11 @@ on a module.
 Deliberately **not implemented**. A virtual-environment manager is a Python
 concept with no C++ runtime equivalent.
 
-Modules not yet ported: `image`, `tui`, `lua`. (`image` needs an image codec;
-`tui` needs a full-screen terminal library; `lua` embeds the Lua runtime. These
-would be opt-in Rust crates so the core build never depends on them.) `game` is
-implemented as a Rust + macroquad module, and `network`/`server`/`json` are Rust
-crates (`ureq` + `tungstenite`, `axum` + `tokio`, `serde_json`). The Python
+`tui` remains intentionally unimplemented because it needs a full-screen
+terminal library. `game`, `image`, and `lua` are opt-in Rust modules
+(`macroquad`, `image`, and vendored Lua through `mlua`), and
+`network`/`server`/`json` are Rust crates (`ureq` + `tungstenite`, `axum` +
+`tokio`, `serde_json`). The Python
 reference's `tkinter`, `tkinterPlus`, `turtle`, `sound`, and `sqldb` modules are
 out of scope. The older Python `http`/`net` modules are superseded by Clynxer's
 `network` + `server` pair.

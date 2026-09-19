@@ -10,17 +10,19 @@ Planned order of work, newest direction first.
 
 - [x] Migrate every remaining third-party backend to Rust behind the same C ABI.
   `json` is now `serde_json` (+`preserve_order`, byte-identical output),
-  `network` is `ureq` (rustls) + `tungstenite`, and `server` is `axum` + `tokio`
-  — removing nlohmann/json, cpp-httplib, Crow, Boost and the system OpenSSL
-  dependency. The three are self-contained `cdylib`s under `rust/` that export
-  `lynxer_module_init_v1` and their ops directly (no C++ shim, no
+  `network` is `ureq` (rustls) + `tungstenite`, and `server` is `axum` + `tokio`;
+  `image` uses the Rust `image` crate and `lua` uses vendored Lua through
+  `mlua` — removing nlohmann/json, cpp-httplib, Crow, Boost and the system
+  OpenSSL dependency. All six are self-contained `cdylib`s under `rust/` that
+  export `lynxer_module_init_v1` and their ops directly (no C++ shim, no
   `--whole-archive`); `rust/abi` (`clynxer_abi`) holds the shared FFI helpers.
   CMake, `cmake/FetchDeps.cmake`, `third_party/` and the `make cmake` /
   `clynxerDeps` / `cmake-modules` targets are gone. `stdlib/network.cpp`,
   `stdlib/server.cpp` and `stdlib/json.cpp` are deleted. Still C++ and not
-  third-party: `native_json.hpp`, `native_regex.hpp`. Not implemented (so not
-  migrated): `lua`, `tui`, `image`. Docs: `docs/install.md`, `docs/README.md`,
-  `docs/stdlib/{json,network,server}.md`.
+  third-party: `native_json.hpp`, `native_regex.hpp`. The optional `image`
+  (`image` crate) and `lua` (vendored `mlua`) backends now use the same Rust
+  `cdylib` + C ABI path. `tui` remains intentionally unsupported. Docs:
+  `docs/install.md`, `docs/README.md`, `docs/stdlib/{json,network,server}.md`.
 - [x] Add the `game` stdlib module: `stdlib/game.lynx` wraps `stdlib/game.so`,
   a Rust + macroquad backend (`rust/game`, a `cdylib` exporting
   `lynxer_module_init_v1`/`lynxer_module_attach_v1` directly) exposed through

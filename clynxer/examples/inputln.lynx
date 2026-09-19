@@ -1,0 +1,6 @@
+global setup(){}
+
+global main(){
+    str answer = inputln("Hello, world!");
+    println(answer);
+}

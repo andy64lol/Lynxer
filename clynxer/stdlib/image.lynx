@@ -65,7 +65,7 @@ global boxBlur(int idx, float radius) -> int {
     return global.nativeImage.boxBlur(idx, radius);
 }
 global unsharpMask(int idx, float radius, int percent, int threshold) -> int {
-    return global.nativeImage.unsharpMask(idx, radius, threshold);
+    return global.nativeImage.unsharpMask(idx, radius, percent, threshold);
 }
 global sharpen(int idx) -> int { return global.nativeImage.sharpen(idx); }
 

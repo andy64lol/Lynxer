@@ -25,7 +25,7 @@ clynxer --list-stdlibs   # list available modules with their docstrings
 
 From the repository root, `make buildCLynxer` builds the binary and the native
 modules. The `game`, `json`, `network` and `server` modules are Rust crates
-under `rust/` (see `make cargo`); the rest are C++ `stdlib/*.cpp`. A Rust
+under `rust/` (see `make rust`); the rest are C++ `stdlib/*.cpp`. A Rust
 toolchain (`cargo`) is required for those four modules; they are skipped with a
 warning when cargo is absent. `make testCLynxer` runs the smoke and stdlib
 fixtures.
@@ -60,8 +60,10 @@ clynxer --compile app.lynx extras/helpers.lynx --include vendor/libcustom.so \
 | [debug](stdlib/debug.md) | native + pure | `<chrono>`, `getrusage`, assertions in Lynxer |
 | [fileIO](stdlib/fileIO.md) | native | `<fstream>`, `<filesystem>` |
 | [game](stdlib/game.md) | native | Rust `macroquad` (`rust/game`) |
+| [image](stdlib/image.md) | native | Rust `image` (`rust/image`) |
 | [js](stdlib/js.md) | native | the `node` binary |
 | [json](stdlib/json.md) | native | Rust `serde_json` (`rust/json`) |
+| [lua](stdlib/lua.md) | native | Rust `mlua` with vendored Lua 5.4 (`rust/lua`) |
 | [math](stdlib/math.md) | native | `<cmath>` plus statistics and vector helpers |
 | [multiprocessing](stdlib/multiprocessing.md) | native + pure | `std::thread` and shell subprocesses |
 | [network](stdlib/network.md) | native | Rust `ureq` + `tungstenite` (rustls) |
@@ -77,14 +79,14 @@ clynxer --compile app.lynx extras/helpers.lynx --include vendor/libcustom.so \
 | [time](stdlib/time.md) | native | `<chrono>`, `<ctime>` |
 | [typing](stdlib/typing.md) | pure | Lynxer type builtins |
 
-`game`, `json`, `network`, and `server` are Rust crates under `rust/`, built by
-`cargo` and installed as `stdlib/<name>.so` (see `make cargo`). The rest are C++
-compiled from `stdlib/*.cpp`. There is no CMake staging step and no
-`third_party/` directory any more: TLS is `rustls` (no system OpenSSL) and the
-HTTP/WebSocket stack is pure Rust.
+`game`, `image`, `json`, `lua`, `network`, and `server` are Rust crates under
+`rust/`, built by `cargo` and installed as `stdlib/<name>.so` (see `make rust`).
+The rest are C++ compiled from `stdlib/*.cpp`. There is no CMake staging step
+and no `third_party/` directory any more: TLS is `rustls` (no system OpenSSL)
+and the HTTP/WebSocket stack is pure Rust.
 
-Modules not implemented yet: `lua`, `tui`, `image`. `venv` is intentionally
-excluded — see [limitations.md](limitations.md).
+`tui` is not implemented yet. `venv` is intentionally excluded — see
+[limitations.md](limitations.md).
 
 ## Adding a stdlib module
 

@@ -315,10 +315,10 @@ Value builtinInputln(const std::vector<Value>& args, Environment&, int line,
         fail("inputln() takes 0 or 1 arguments", line, column);
     }
     if (!args.empty()) {
-        std::cout << valueToString(args[0]);
+        std::cout << valueToString(args[0]) << '\n';
         std::cout.flush();
     }
-    return readLine(line, column) + "\n";
+    return readLine(line, column);
 }
 
 // --- conversion and introspection --------------------------------------------

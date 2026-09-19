@@ -10,7 +10,6 @@ use image::imageops::{self, FilterType};
 use image::{DynamicImage, GenericImage, GenericImageView, ImageFormat, ImageReader, Rgba};
 use std::fs::File;
 use std::io::Cursor;
-use std::path::Path;
 use std::sync::{Mutex, OnceLock};
 
 struct Entry {
@@ -96,11 +95,11 @@ fn path_format(path: &str) -> Option<ImageFormat> {
     ImageFormat::from_path(path).ok()
 }
 
-fn color(args: &clynxer_abi::Args<'_>, alpha: u8) -> Rgba<u8> {
+fn color(args: &clynxer_abi::Args<'_>, offset: usize, alpha: u8) -> Rgba<u8> {
     Rgba([
-        args.int(0).clamp(0, 255) as u8,
-        args.int(1).clamp(0, 255) as u8,
-        args.int(2).clamp(0, 255) as u8,
+        args.int(offset).clamp(0, 255) as u8,
+        args.int(offset + 1).clamp(0, 255) as u8,
+        args.int(offset + 2).clamp(0, 255) as u8,
         alpha,
     ])
 }
@@ -122,7 +121,7 @@ fn encode_image(image: &DynamicImage, format: ImageFormat, quality: Option<u8>) 
     bytes
 }
 
-fn image_format(text: &str) -> Option<ImageFormat> {
+fn format_from_text(text: &str) -> Option<ImageFormat> {
     match text.to_ascii_lowercase().as_str() {
         "png" => Some(ImageFormat::Png),
         "jpg" | "jpeg" => Some(ImageFormat::Jpeg),
@@ -200,7 +199,7 @@ export_int!(image_create, args, {
             width as u32,
             height as u32,
             args.string(0),
-            color(args, 255),
+            color(&args, 2, 255),
         )
         .map(|image| store(image, None))
         .unwrap_or(-1)
@@ -332,7 +331,7 @@ export_int!(image_pad, args, {
     let mut result = DynamicImage::ImageRgba8(image::ImageBuffer::from_pixel(
         width,
         height,
-        color(args, 255),
+        color(&args, 5, 255),
     ));
     imageops::overlay(&mut result, &source, i64::from(left), i64::from(top));
     store(result, None)
@@ -391,7 +390,7 @@ export_int!(image_box_blur, args, {
     get(args.int(0)).map(|image| store(image.blur(args.num(1) as f32), None)).unwrap_or(-1)
 });
 export_int!(image_unsharp, args, {
-    get(args.int(0)).map(|image| store(image.unsharpen(args.num(1) as f32, args.int(2) as i32), None)).unwrap_or(-1)
+    get(args.int(0)).map(|image| store(image.unsharpen(args.num(1) as f32, args.int(3) as i32), None)).unwrap_or(-1)
 });
 export_int!(image_sharpen, args, {
     get(args.int(0)).map(|image| store(image.unsharpen(1.0, 1), None)).unwrap_or(-1)
@@ -415,7 +414,7 @@ export_int!(image_set_pixel, args, {
     if x < 0 || y < 0 || x >= image.width() as i64 || y >= image.height() as i64 {
         -1
     } else {
-        image.put_pixel(x as u32, y as u32, color(args, 255));
+        image.put_pixel(x as u32, y as u32, color(&args, 3, 255));
         if update(args.int(0), image, None) { 0 } else { -1 }
     }
 });
@@ -427,7 +426,11 @@ export_int!(image_set_pixel_a, args, {
     if x < 0 || y < 0 || x >= image.width() as i64 || y >= image.height() as i64 {
         -1
     } else {
-        image.put_pixel(x as u32, y as u32, color(args, args.int(3).clamp(0, 255) as u8));
+        image.put_pixel(
+            x as u32,
+            y as u32,
+            color(&args, 3, args.int(6).clamp(0, 255) as u8),
+        );
         if update(args.int(0), image, None) { 0 } else { -1 }
     }
 });
@@ -436,7 +439,7 @@ export_int!(image_fill, args, {
     let Some(mut image) = get(args.int(0)) else { return -1 };
     for y in 0..image.height() {
         for x in 0..image.width() {
-            image.put_pixel(x, y, color(args, 255));
+            image.put_pixel(x, y, color(&args, 1, 255));
         }
     }
     if update(args.int(0), image, None) { 0 } else { -1 }
@@ -459,7 +462,7 @@ export_int!(image_paste_alpha, args, {
 export_int!(image_blend, args, {
     let Some(first) = get(args.int(0)) else { return -1 };
     let Some(second) = get(args.int(1)) else { return -1 };
-    let alpha = args.num(0).clamp(0.0, 1.0);
+    let alpha = args.num(2).clamp(0.0, 1.0);
     let width = first.width().min(second.width());
     let height = first.height().min(second.height());
     let mut result = first.to_rgba8();
@@ -542,7 +545,9 @@ export_int!(image_tile, args, {
 
 export_string!(image_base64, args, {
     let Some(image) = get(args.int(0)) else { return String::new() };
-    let format = image_format(args.string(0)).or_else(|| get_format(args.int(0))).unwrap_or(ImageFormat::Png);
+    let format = format_from_text(args.string(0))
+        .or_else(|| get_format(args.int(0)))
+        .unwrap_or(ImageFormat::Png);
     STANDARD.encode(encode_image(&image, format, None))
 });
 
@@ -553,7 +558,7 @@ export_int!(image_from_base64, args, {
 
 export_string!(image_data_url, args, {
     let Some(image) = get(args.int(0)) else { return String::new() };
-    let format = image_format(args.string(0)).unwrap_or(ImageFormat::Png);
+    let format = format_from_text(args.string(0)).unwrap_or(ImageFormat::Png);
     let mime = match format { ImageFormat::Jpeg => "image/jpeg", ImageFormat::WebP => "image/webp", ImageFormat::Gif => "image/gif", _ => "image/png" };
     format!("data:{mime};base64,{}", STANDARD.encode(encode_image(&image, format, None)))
 });
