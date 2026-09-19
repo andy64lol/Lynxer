@@ -48,6 +48,8 @@ NATIVE_SIGNATURE_MODULE := examples/native_signatures.so
 NATIVE_SIGNATURE_FIXTURE := examples/native_signatures.lynx
 # Every examples/stdlib_<name>.lynx must ship a sibling .expected file.
 STDLIB_FIXTURES := $(wildcard examples/stdlib_*.lynx)
+# Single self-checking test that exercises every stdlib module at once.
+STDLIB_TEST_ALL := examples/stdlibTestAll.lynx
 LIST_STDLIB_MODULES := cli colorlib csv debug fileIO game image js json lua math \
 	multiprocessing network os path random re regex server shell sys text time typing
 
@@ -332,6 +334,12 @@ expected="clynxer: $(ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 	rm -f .clynxer_stdlib.out .clynxer_stdlib.diff; exit 1; fi; \
 	done; \
 	rm -f .clynxer_stdlib.out .clynxer_stdlib.diff
+	@CLYNXER_GAME_HEADLESS=1 ./$(TARGET) $(STDLIB_TEST_ALL) > .clynxer_stdlib_all.out 2>&1; \
+	if [ $$? -ne 0 ]; then \
+	echo "consolidated stdlib test failed: $(STDLIB_TEST_ALL)"; \
+	cat .clynxer_stdlib_all.out; \
+	rm -f .clynxer_stdlib_all.out; exit 1; fi; \
+	rm -f .clynxer_stdlib_all.out
 	@CLYNXER_GAME_HEADLESS=1 ./$(TARGET) examples/game_clicker.lynx >/dev/null 2>&1 || \
 	{ echo "example failed: examples/game_clicker.lynx"; exit 1; }
 	@rm -f .clynxer_stdin
@@ -339,4 +347,5 @@ expected="clynxer: $(ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 
 clean:
 	rm -f $(TARGET) $(OBJECTS) $(NATIVE_MODULES) $(NATIVE_SIGNATURE_MODULE) .clynxer_stdin
+	rm -f .clynxer_stdlib_all.out
 	rm -rf build $(RUST_DIR)/target $(RUST_DIR)/*/target
