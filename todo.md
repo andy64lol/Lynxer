@@ -197,7 +197,7 @@ Planned order of work, newest direction first.
 - [ ] Decide whether `tkinter`, `tkinterPlus`, and `turtle` belong in this Rust
   backend phase. If they do, define Rust GUI/drawing candidates and the
   wrapper/ABI contracts first; otherwise document them as intentionally
-deferred rather than implying they are already ported. UPDATE: no they won't, we'll make graphics.lynx to replace python tkinter using iced from rust, turtle will be left behind as the rust crate turtle was updated last in 2019, and turtle doesn't offer .
+deferred rather than implying they are already ported. UPDATE: no they won't, we'll make graphics.lynx to replace python tkinter using iced from rust, turtle will be left behind as the rust crate turtle was updated last in 2019, and turtle_rs doesn't offer the same experience.
 - [x] For every new Rust backend, add the crate to the Rust workspace, export
   `lynxer_module_init_v1` through `clynxer_abi`, add the module to the Makefile,
   create the matching `stdlib/<name>.lynx` forwarding wrapper, document the
@@ -214,6 +214,7 @@ deferred rather than implying they are already ported. UPDATE: no they won't, we
 - [ ] Only extend the ABI when a real module cannot be expressed with its
   scalar/string/handle conventions; every additive ABI change needs C and Rust
   examples, compatibility coverage, and documentation.
+- [ ] Add a detailed extending.md for making modules for CLynxer.
 
 ## Milestone 7 — native APIs
 
