@@ -689,6 +689,81 @@ std::string resolveModulePath(const std::string& sourceDirectory,
     return "";
 }
 
+// --- Bridged bundled modules -----------------------------------------------
+//
+// A few built-in families are implemented by a bundled native module rather
+// than by the interpreter itself: `sound*` reuses the Rust `sound` stdlib
+// module, which already owns the audio backend. The module is loaded on first
+// use and its operations are called through the same packed ABI an imported
+// module uses, so there is one audio implementation rather than two.
+
+namespace {
+
+std::unordered_map<std::string, NativeRegistration>& bridgedModules() {
+    static std::unordered_map<std::string, NativeRegistration> modules;
+    return modules;
+}
+
+}  // namespace
+
+const NativeRegistration* loadBridgedModule(const std::string& module) {
+#if defined(__unix__) || defined(__APPLE__)
+    auto& modules = bridgedModules();
+    const auto found = modules.find(module);
+    if (found != modules.end()) {
+        return &found->second;
+    }
+    const std::string resolved = resolveModulePath("", module);
+    if (resolved.empty()) {
+        return nullptr;
+    }
+    void* handle = dlopen(resolved.c_str(), RTLD_NOW | RTLD_LOCAL);
+    if (handle == nullptr) {
+        return nullptr;
+    }
+    auto initializer =
+        reinterpret_cast<int (*)(int (*)(const char*, const char*, const char*),
+                                 int (*)(const char*, std::int64_t),
+                                 int (*)(const char*, const char*))>(
+            dlsym(handle, "lynxer_module_init_v1"));
+    if (initializer == nullptr) {
+        dlclose(handle);
+        return nullptr;
+    }
+    NativeRegistration registration;
+    registration.handle = handle;
+    activeNativeRegistration = &registration;
+    const int status = initializer(nativeRegisterFunction,
+                                   nativeRegisterConstant, nativeRegisterType);
+    activeNativeRegistration = nullptr;
+    if (status != 0) {
+        dlclose(handle);
+        return nullptr;
+    }
+    return &modules.emplace(module, std::move(registration)).first->second;
+#else
+    (void)module;
+    return nullptr;
+#endif
+}
+
+Value callBridgedModule(const std::string& module, const std::string& operation,
+                        const std::vector<Value>& args, int line, int column) {
+    const NativeRegistration* registration = loadBridgedModule(module);
+    if (registration == nullptr) {
+        throw SourceError("cannot load the bundled '" + module +
+                              "' backend that '" + operation + "' needs",
+                          line, column);
+    }
+    const auto found = registration->functions.find(operation);
+    if (found == registration->functions.end()) {
+        throw SourceError("'" + module + "' does not provide '" + operation + "'",
+                          line, column);
+    }
+    return callNative(found->second.first, found->second.second, args, line,
+                      column);
+}
+
 namespace {
 
 std::string findSourceModule(const Environment& environment,

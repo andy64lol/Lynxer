@@ -261,29 +261,34 @@ surface — `rawPy`/`rawPyx`, the `varBorrow*` family, the FFI and native-module
 handles, and the mutual-exclusion primitives (`nativeMutex*`,
 `nativeCondition*`, `nativeSemaphore*`).
 
-The managed `filesystem*`, `process*` and `networking*` families **are**
-implemented and are documented in [builtins.md](builtins.md). Four families
-remain, and unlike those three they are not a straight port — each needs a
-decision first:
+The managed `filesystem*`, `process*`, `networking*` and `sound*` families
+**are** implemented and are documented in [builtins.md](builtins.md). Three
+families remain, and unlike those four they are not a straight port — each needs
+a decision first:
 
-### `sound*` — needs a backend decision
+### `sound*` — implemented, with three deliberate divergences
 
-The reference builds these on **Arcade** (`import arcade`), a Python game
-library. Clynxer has two options and neither is free:
+The built-ins are a thin layer over the bundled Rust `sound` stdlib module
+rather than the reference's Arcade backend. That is a deliberate choice: it
+reuses the implementation Clynxer already ships and keeps the audio dependency
+out of the interpreter binary. It produces three differences from the reference:
 
-- grow a C++ audio stack (ALSA or PulseAudio plus WAV/OGG/MP3/FLAC decoding),
-  which duplicates the Rust `sound` stdlib module and adds an audio dependency
-  to the interpreter binary; or
-- bridge the built-ins to that existing Rust module, which means the
-  interpreter reaches into the module system for a built-in.
+- the backend's failure text is the module's, not Arcade's exception text
+  (`audio backend failed to load sound: '<path>'` rather than
+  `audio backend failed to load sound: <exc>`);
+- `soundPause` and `soundResume` **work**, where the reference deliberately fails
+  with "audio backend does not support portable pause/resume" — Arcade has no
+  portable pause, rodio does;
+- `soundStop` works. On the Arcade version currently installed the reference
+  fails with `audio backend failed to stop sound: 'Player' object has no
+  attribute 'stop'`, which is an environment artefact rather than a design
+  decision.
 
-Whichever is chosen, the error text cannot match the reference: it comes from
-Arcade's exceptions (`audio backend failed to load sound: <exc>`), and neither
-option produces it. Note also that the reference's `soundPause` and
-`soundResume` **fail by design** — "audio backend does not support portable
-pause/resume" — while the Rust `sound` module supports both, so mirroring the
-reference exactly would make the built-ins less capable than the module that
-already ships.
+The built-in layer keeps the reference's validation and messages exactly: the
+missing-file, unsupported-format, wrong-argument-type, out-of-range volume and
+invalid-handle errors are identical. One consequence worth knowing: a compiled
+executable carries `stdlib/sound.so` only when the program also has
+`import("sound")`, because bundling follows imports.
 
 ### `nativeThread*` — needs an interpreter-threading decision
 

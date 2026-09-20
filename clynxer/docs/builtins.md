@@ -245,3 +245,36 @@ the value-less operations return `0` for the same `Number.null` reason as the
 filesystem family.
 
 On a host without POSIX sockets, the whole family stays in the unsupported set.
+
+## Managed sound
+
+Audio playback for programs that do not want to import a module. These built-ins
+are a thin layer over the bundled Rust **`sound` stdlib module** — the module
+owns the audio backend (`rodio`/`cpal`/`symphonia`), so there is one audio
+implementation rather than one per interface, and the interpreter binary keeps
+no audio dependency. The built-in layer owns its own handle registry: a handle
+is valid only if `soundLoad` returned it, and `soundRelease` invalidates it.
+
+| Builtin | Notes |
+| --- | --- |
+| `soundLoad(path)` | Returns a handle. The file must exist and end in `.wav`, `.ogg`, `.mp3` or `.flac` |
+| `soundPlay(handle)` | Plays once |
+| `soundLoop(handle)` | Plays, looping |
+| `soundStop(handle)` | Stops playback |
+| `soundPause(handle)` / `soundResume(handle)` | Pause and resume an active player |
+| `soundSetVolume(handle, volume)` | Volume in `[0, 1]` |
+| `soundIsPlaying(handle)` | Whether a player is currently running |
+| `soundRelease(handle)` | Releases the handle |
+
+Playback needs an audio device; without one, `soundPlay` and `soundLoop` report
+that playback did not start. Loading, `soundStop`, `soundSetVolume`,
+`soundIsPlaying` and `soundRelease` are device-independent.
+
+`stdlib/sound.so` must be reachable — next to the interpreter, in `stdlib/`, or
+under `clynxer/stdlib`. A **compiled executable** only carries it if the program
+also has `import("sound")`, because bundling follows imports.
+
+Three deliberate divergences from the Python reference, all recorded in
+[limitations.md](limitations.md): the backend's own failure text is not Arcade's;
+`soundPause`/`soundResume` work, where the reference fails by design; and
+`soundStop` works, where the reference's Arcade version has no `Player.stop`.

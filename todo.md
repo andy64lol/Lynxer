@@ -254,8 +254,9 @@ Planned order of work, newest direction first.
   and native-thread APIs. One family at a time, each with a fixture that is
   byte-diffed against the Python reference where the API is meant to be
   compatible. 69 built-ins in total, all currently failing with
-  `<name>() is not supported in CLynxer yet` from `unsupportedTable()` in
-  `builtins.cpp`; the port moves each name to `handlerTable()`.
+  a message like `ffiCall() is not supported in CLynxer yet` (the called name,
+  then `()`) from `unsupportedTable()` in `builtins.cpp`; the port moves each
+  name to `handlerTable()`.
   - [x] `filesystem*` (12): `Open`, `Read`, `Write`, `Close`, `Stat`, `List`,
     `Mkdir`, `Remove`, `Rename`, `Link`, `ReadLink`, `Chmod`. POSIX
     `open`/`read`/`stat`/`dirent`, handles in a registry, errno preserved in
@@ -285,11 +286,16 @@ Planned order of work, newest direction first.
     TCP, UDP, Unix sockets, resolution and ten error paths. It binds to an
     ephemeral port and reads it back from `networkingAddress`, so no fixed port
     can collide.
-  - [ ] `sound*` (9): `Load`, `Play`, `Loop`, `Stop`, `Pause`, `Resume`,
-    `SetVolume`, `IsPlaying`, `Release`. **Blocked on a backend decision** — the
-    reference uses Arcade, and Clynxer must either grow a C++ audio stack or
-    bridge the built-ins to the existing Rust `sound` module. Error text cannot
-    match the reference either way. Recorded in `clynxer/docs/limitations.md`.
+  - [x] `sound*` (9): `Load`, `Play`, `Loop`, `Stop`, `Pause`, `Resume`,
+    `SetVolume`, `IsPlaying`, `Release`. Backed by the Rust `sound` stdlib
+    module rather than a second audio stack: `callBridgedModule()` in
+    `ast.cpp` loads `sound.so` on first use through the same `dlopen` +
+    `lynxer_module_init_v1` path an import uses, and the built-ins add the
+    reference's validation and their own handle registry on top. Three
+    deliberate divergences, recorded in `clynxer/docs/limitations.md`: the
+    backend's failure text is not Arcade's, `soundPause`/`soundResume` work
+    (the reference fails by design), and `soundStop` works (the installed
+    Arcade has no `Player.stop`). Fixture: `examples/builtin_sound.lynx`.
   - [ ] `nativeThread*` (6): `Start`, `Join`, `JoinAll`, `IsAlive`, `Status`,
     `Detach`. **Blocked on an interpreter-threading decision** —
     `nativeThreadStart` takes a Lynxer function and runs it on another thread;

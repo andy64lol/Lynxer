@@ -38,6 +38,10 @@ see §12.
 > 33 of 69 built-ins now ported and byte-identical to the reference. The four
 > remaining families each need a decision before they can be written; see
 > §13.4.
+>
+> **Revision 8 (22:16 CEST)** adds `sound*` (9), bridged to the Rust `sound`
+> stdlib module — 42 of 69. Three remaining families are still blocked on
+> decisions. See §13.6.
 
 ---
 
@@ -1193,18 +1197,18 @@ Fixture: `examples/builtin_filesystem.lynx` + `.expected`, cwd-independent, run
 by a new `builtin_*` fixture glob in `clynxer/Makefile` that diffs against a
 sibling `.expected` exactly like the `stdlib_*` loop.
 
-### 13.4 Remaining
+### 13.4 Remaining families need decisions, not effort
 
-`sound*` (9), `nativeThread*` (6), `ffi*` (6) and `async*` (15) — 36 built-ins.
-Unlike the three ported families, **each of these needs a decision before it can
-be written**, because none of them is a straight POSIX port:
+`sound*` (9), `nativeThread*` (6), `ffi*` (6) and `async*` (15) were the four not
+yet ported as of revision 7. `sound*` was then resolved by bridging it to the
+Rust module (§13.6). The other three are still blocked, because none is a
+straight POSIX port:
 
 | Family | The question |
 | --- | --- |
-| `sound*` | The reference implements these on **Arcade** (`import arcade`) — a Python game library. Clynxer would either grow its own C++ audio stack (ALSA/PulseAudio plus WAV/OGG/MP3/FLAC decoding) or reuse the existing Rust `sound` module by linking its crate into the interpreter. Note the reference's `soundPause`/`soundResume` deliberately **fail** ("audio backend does not support portable pause/resume"), while Clynxer's `sound` module supports both — so mirroring the reference exactly would make the built-ins *less* capable than the module that already exists. |
-| `nativeThread*` | Needs a thread registry and a way for a spawned thread to call back into Lynxer. Whether the interpreter can be entered from a second thread is a real question, not an implementation detail. |
-| `ffi*` | Needs a calling-convention layer. `libffi` is a new build dependency; hand-rolling covers only a few signatures. Also the largest security surface of the four. |
-| `async*` | ~370 reference lines and an event loop, on top of a language that Clynxer does not currently run asynchronously. Worth deciding whether the built-ins should exist at all before building the machinery. |
+| `nativeThread*` | Needs a thread registry and a way for a spawned thread to call back into Lynxer. The reference relies on CPython's GIL — `lynxer/cpp.cpp` calls `PyGILState_Ensure` then invokes the function object. Clynxer has **no interpreter lock**: `Environment` (`runtime.hpp:180-191`) is unsynchronised state and the evaluator is a tree-walking interpreter with no re-entrancy, so running a Lynxer function on a second thread today would be a data race. |
+| `ffi*` | Needs a calling-convention layer. `libffi` is a new build dependency for the interpreter; hand-rolling covers only a few signatures. Largest security surface of the three. |
+| `async*` | ~370 reference lines and an event loop, for a language Clynxer does not currently run asynchronously. Worth deciding whether the built-ins should exist at all before building the machinery. |
 
 ### 13.5 Families ported so far
 
@@ -1213,12 +1217,59 @@ be written**, because none of them is a straight POSIX port:
 | `filesystem*` | 12 | **Byte-identical** to the reference, all 11 error strings included |
 | `process*` | 8 | **Byte-identical**, including the CLOEXEC exec-error report and 15 error paths |
 | `networking*` | 13 | **Byte-identical** across TCP, UDP, Unix sockets, resolution and 10 error paths |
+| `sound*` | 9 | Bridged to the Rust `sound` module — validation identical, three documented divergences |
 
-33 of 69 built-ins. Each has a fixture under `examples/builtin_*.lynx`, run by a
+42 of 69 built-ins. Each has a fixture under `examples/builtin_*.lynx`, run by a
 `builtin_*` glob in `clynxer/Makefile` that diffs against a sibling `.expected`,
 and each was compared against the Python reference by running the same program
-through both. All three fixtures are cwd-independent and deterministic across
+through both. All four fixtures are cwd-independent and deterministic across
 repeated runs.
+
+### 13.6 `sound*` — the bridge
+
+The reference implements `sound*` on **Arcade**. Clynxer instead bridges the
+built-ins to the Rust `sound` stdlib module it already ships, so there is one
+audio implementation and the interpreter binary keeps no audio dependency.
+
+- `callBridgedModule(module, operation, args, line, column)` in `ast.cpp`
+  (declared in `ast.hpp`) loads `sound.so` on first use through the same
+  `resolveModulePath` + `dlopen` + `lynxer_module_init_v1` path an `import`
+  uses, caches the registrations, and dispatches through `callNative`. It
+  reuses `resolveModulePath`, so the module resolves from the cwd, `stdlib/`,
+  `clynxer/stdlib/`, or an embedded library in a compiled executable.
+- The nine built-ins add the reference's validation and their **own** handle
+  registry on top, mirroring how the reference keeps `_SOUNDS` separate from the
+  `sound` module's list. A handle is valid only if `soundLoad` returned it.
+- One consequence is documented and verified: a compiled executable carries
+  `stdlib/sound.so` only if the program also has `import("sound")`, because
+  bundling follows imports. Run from a directory with no stdlib, the built-in
+  fails with `cannot load the bundled 'sound.so' backend that 'load' needs` —
+  confirmed by building the fixture and running it from `/tmp`.
+
+Three deliberate divergences, all in `limitations.md`:
+
+1. the backend's failure text is the module's, not Arcade's exception text;
+2. `soundPause`/`soundResume` **work** — the reference fails by design ("audio
+   backend does not support portable pause/resume") because Arcade has no
+   portable pause, while rodio does;
+3. `soundStop` works — on the installed Arcade the reference fails with
+   `'Player' object has no attribute 'stop'`, an environment artefact rather
+   than a decision.
+
+Everything the built-in layer controls is identical to the reference: missing
+file, unsupported format, wrong argument type, out-of-range volume and
+invalid-handle messages all match, which the side-by-side comparison confirms —
+the only diff lines are the two pause/resume results and the reference's
+failure to stop.
+
+### 13.7 Remaining
+
+`nativeThread*` (6), `ffi*` (6) and `async*` (15) — 27 built-ins. Each is
+blocked on a decision rather than on effort; the specific reasons are in
+`clynxer/docs/limitations.md` under "Built-in families that are not ported" and
+summarised in §13.4 above. `nativeThread*` is the one to take next if
+interpreter thread-safety is on the table, since it is the only one of the three
+whose semantics are otherwise clear.
 
 Two things worth carrying forward:
 

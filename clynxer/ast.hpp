@@ -689,6 +689,12 @@ std::vector<ImportRecord> collectImports(const std::string& source,
 std::string resolveModulePath(const std::string& sourceDirectory,
                               const std::string& requested);
 
+// Calls an operation on a bundled native module that a built-in family is
+// implemented behind — `sound*` uses the `sound` module. The module is loaded
+// on first use, so a program that never touches the family never needs it.
+Value callBridgedModule(const std::string& module, const std::string& operation,
+                        const std::vector<Value>& args, int line, int column);
+
 // Installs the module sources and native library paths carried by a compiled
 // executable.
 void setEmbeddedModuleSources(std::map<std::string, std::string> sources);

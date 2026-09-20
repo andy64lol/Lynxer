@@ -1,5 +1,6 @@
 #include "builtins.hpp"
 
+#include "ast.hpp"
 #include "error.hpp"
 #include "interrupt.hpp"
 
@@ -12,6 +13,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <iostream>
 #include <memory>
 #include <thread>
@@ -3395,6 +3397,192 @@ Value builtinNetworkingAddress(const std::vector<Value>& args, Environment&,
            std::to_string(::ntohs(address->sin_port)) + "]";
 }
 
+// --- Managed sound built-ins ------------------------------------------------
+//
+// `sound*` is implemented by the bundled Rust `sound` stdlib module, which owns
+// the audio backend (rodio/cpal/symphonia). Keeping one implementation avoids
+// duplicating an audio stack in C++ and keeps the audio dependency out of the
+// interpreter binary. The built-in layer keeps the reference's validation
+// messages and its own registry — a handle is valid only if this layer loaded
+// it — and defers the audio work to the module.
+
+std::unordered_set<std::int64_t>& liveSounds() {
+    static std::unordered_set<std::int64_t> sounds;
+    return sounds;
+}
+
+Value callSoundModule(const std::string& operation,
+                      const std::vector<Value>& args, int line, int column) {
+    return callBridgedModule("sound.so", operation, args, line, column);
+}
+
+bool isNumberValue(const Value& value) {
+    return std::holds_alternative<std::int64_t>(value) ||
+           std::holds_alternative<double>(value) ||
+           std::holds_alternative<bool>(value);
+}
+
+double numberOf(const Value& value) {
+    if (const auto* integer = std::get_if<std::int64_t>(&value)) {
+        return static_cast<double>(*integer);
+    }
+    if (const auto* number = std::get_if<double>(&value)) {
+        return *number;
+    }
+    if (const auto* flag = std::get_if<bool>(&value)) {
+        return *flag ? 1.0 : 0.0;
+    }
+    return 0.0;
+}
+
+// True when the module reported success for a `int64` 0/1 result.
+bool moduleSucceeded(const Value& result) {
+    const auto* flag = std::get_if<std::int64_t>(&result);
+    return flag != nullptr && *flag != 0;
+}
+
+std::int64_t requireSoundHandle(const std::vector<Value>& args, const char* name,
+                                int line, int column) {
+    if (args.size() != 1 || std::holds_alternative<bool>(args[0])) {
+        fail(std::string(name) + "(handle) expects one handle", line, column);
+    }
+    const auto* handle = std::get_if<std::int64_t>(&args[0]);
+    if (handle == nullptr) {
+        fail(std::string(name) + "(handle) expects one handle", line, column);
+    }
+    if (liveSounds().find(*handle) == liveSounds().end()) {
+        fail(std::string(name) + " received an invalid sound handle", line,
+             column);
+    }
+    return *handle;
+}
+
+Value builtinSoundLoad(const std::vector<Value>& args, Environment&, int line,
+                       int column) {
+    if (args.size() != 1 || !std::holds_alternative<std::string>(args[0])) {
+        fail("soundLoad(path) expects one string path", line, column);
+    }
+    const std::string& path = std::get<std::string>(args[0]);
+    std::error_code error;
+    if (!std::filesystem::is_regular_file(path, error)) {
+        fail("sound file does not exist: '" + path + "'", line, column);
+    }
+    std::string extension = std::filesystem::path(path).extension().string();
+    std::transform(extension.begin(), extension.end(), extension.begin(),
+                   [](unsigned char character) {
+                       return static_cast<char>(std::tolower(character));
+                   });
+    if (extension != ".wav" && extension != ".ogg" && extension != ".mp3" &&
+        extension != ".flac") {
+        fail("unsupported sound format; use WAV, OGG, MP3, or FLAC", line,
+             column);
+    }
+    const Value loaded = callSoundModule("load", {Value(path)}, line, column);
+    const auto* handle = std::get_if<std::int64_t>(&loaded);
+    if (handle == nullptr || *handle < 0) {
+        // The reference surfaces the backend's own exception text here; this
+        // path reports what the module's sentinel means instead.
+        fail("audio backend failed to load sound: '" + path + "'", line, column);
+    }
+    liveSounds().insert(*handle);
+    return *handle;
+}
+
+Value builtinSoundPlay(const std::vector<Value>& args, Environment&, int line,
+                       int column) {
+    const std::int64_t handle =
+        requireSoundHandle(args, "soundPlay", line, column);
+    if (!moduleSucceeded(callSoundModule("play", {Value(handle)}, line, column))) {
+        fail("audio backend failed to play sound: playback did not start", line,
+             column);
+    }
+    return std::int64_t{0};
+}
+
+Value builtinSoundLoop(const std::vector<Value>& args, Environment&, int line,
+                       int column) {
+    const std::int64_t handle =
+        requireSoundHandle(args, "soundLoop", line, column);
+    if (!moduleSucceeded(callSoundModule("loop", {Value(handle)}, line, column))) {
+        fail("audio backend failed to loop sound: playback did not start", line,
+             column);
+    }
+    return std::int64_t{0};
+}
+
+Value builtinSoundStop(const std::vector<Value>& args, Environment&, int line,
+                       int column) {
+    const std::int64_t handle =
+        requireSoundHandle(args, "soundStop", line, column);
+    callSoundModule("stop", {Value(handle)}, line, column);
+    return std::int64_t{0};
+}
+
+// The reference fails here: "audio backend does not support portable
+// pause/resume", because Arcade has no portable pause. The Rust module does, so
+// these two are a deliberate improvement over the reference. Recorded in
+// clynxer/docs/limitations.md.
+Value builtinSoundPause(const std::vector<Value>& args, Environment&, int line,
+                        int column) {
+    const std::int64_t handle =
+        requireSoundHandle(args, "soundPause", line, column);
+    if (!moduleSucceeded(callSoundModule("pause", {Value(handle)}, line, column))) {
+        fail("audio backend failed to pause sound: no player is active", line,
+             column);
+    }
+    return std::int64_t{0};
+}
+
+Value builtinSoundResume(const std::vector<Value>& args, Environment&, int line,
+                         int column) {
+    const std::int64_t handle =
+        requireSoundHandle(args, "soundResume", line, column);
+    if (!moduleSucceeded(
+            callSoundModule("resume", {Value(handle)}, line, column))) {
+        fail("audio backend failed to resume sound: no player is active", line,
+             column);
+    }
+    return std::int64_t{0};
+}
+
+Value builtinSoundSetVolume(const std::vector<Value>& args, Environment&, int line,
+                            int column) {
+    if (args.size() != 2 || !isNumberValue(args[0]) || !isNumberValue(args[1])) {
+        fail("soundSetVolume(handle, volume) expects numbers", line, column);
+    }
+    const std::int64_t handle = static_cast<std::int64_t>(numberOf(args[0]));
+    if (liveSounds().find(handle) == liveSounds().end()) {
+        fail("soundSetVolume received an invalid sound handle", line, column);
+    }
+    const double volume = numberOf(args[1]);
+    if (!(volume >= 0.0 && volume <= 1.0)) {
+        fail("sound volume must be between 0.0 and 1.0", line, column);
+    }
+    callSoundModule("setVolume", {Value(handle), Value(volume)}, line, column);
+    return std::int64_t{0};
+}
+
+Value builtinSoundIsPlaying(const std::vector<Value>& args, Environment&, int line,
+                            int column) {
+    const std::int64_t handle =
+        requireSoundHandle(args, "soundIsPlaying", line, column);
+    return moduleSucceeded(
+        callSoundModule("isPlaying", {Value(handle)}, line, column));
+}
+
+Value builtinSoundRelease(const std::vector<Value>& args, Environment&, int line,
+                          int column) {
+    if (args.size() != 1 || !isNumberValue(args[0])) {
+        fail("soundRelease(handle) expects one handle", line, column);
+    }
+    const std::int64_t handle = static_cast<std::int64_t>(numberOf(args[0]));
+    if (liveSounds().erase(handle) == 0) {
+        fail("soundRelease received an invalid sound handle", line, column);
+    }
+    callSoundModule("release", {Value(handle)}, line, column);
+    return std::int64_t{0};
+}
+
 #endif  // CLYNXER_POSIX_BUILTINS
 
 const std::unordered_map<std::string, Handler>& handlerTable() {
@@ -3556,6 +3744,16 @@ const std::unordered_map<std::string, Handler>& handlerTable() {
         {"networkingOption", builtinNetworkingOption},
         {"networkingResolve", builtinNetworkingResolve},
         {"networkingAddress", builtinNetworkingAddress},
+        // Managed sound API, bridged to the Rust `sound` stdlib module.
+        {"soundLoad", builtinSoundLoad},
+        {"soundPlay", builtinSoundPlay},
+        {"soundLoop", builtinSoundLoop},
+        {"soundStop", builtinSoundStop},
+        {"soundPause", builtinSoundPause},
+        {"soundResume", builtinSoundResume},
+        {"soundSetVolume", builtinSoundSetVolume},
+        {"soundIsPlaying", builtinSoundIsPlaying},
+        {"soundRelease", builtinSoundRelease},
 #endif
     };
     return handlers;
@@ -3569,8 +3767,10 @@ const std::unordered_set<std::string>& unsupportedTable() {
         "asyncPollDispatch", "asyncPollClose", "asyncTimerCreate",
         "asyncTimerCancel", "asyncWakeupCreate", "asyncWakeupSignal",
         "asyncWakeupClose", "asyncSleep",
+#if !CLYNXER_POSIX_BUILTINS
         "soundLoad", "soundPlay", "soundLoop", "soundStop", "soundPause",
         "soundResume", "soundSetVolume", "soundIsPlaying", "soundRelease",
+#endif
         "unshare",
         "varTransfer", "varTransferMutate", "varBorrow", "varBorrowMutate",
         "varSwapAll", "varSwapVal", "varEndBorrow", "borrowing", "beingBorrowed",

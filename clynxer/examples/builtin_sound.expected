@@ -1,0 +1,23 @@
+missing: sound file does not exist: '.clynxer_scratch_missing.wav'
+format: unsupported sound format; use WAV, OGG, MP3, or FLAC
+argtype: soundLoad(path) expects one string path
+true
+false
+0
+volume: sound volume must be between 0.0 and 1.0
+volume-low: sound volume must be between 0.0 and 1.0
+volumeargs: soundSetVolume(handle, volume) expects numbers
+volumehandle: soundSetVolume received an invalid sound handle
+play: soundPlay received an invalid sound handle
+loop: soundLoop received an invalid sound handle
+stop: soundStop received an invalid sound handle
+pause: soundPause received an invalid sound handle
+resume: soundResume received an invalid sound handle
+playing: soundIsPlaying received an invalid sound handle
+release: soundRelease received an invalid sound handle
+0
+0
+rerelease: soundRelease received an invalid sound handle
+stoplater: soundStop received an invalid sound handle
+0
+0
