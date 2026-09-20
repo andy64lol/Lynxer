@@ -16,6 +16,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <mutex>
 #include <sstream>
 #include <thread>
 #include <variant>
@@ -1038,6 +1039,15 @@ Value DotAccessExpression::evaluate(Environment& environment) const {
     if (const auto* global =
             dynamic_cast<const VariableExpression*>(object_.get());
         global != nullptr && global->name() == "global") {
+        // `global.name` is a variable when one exists, and otherwise names a
+        // global function used as a value — which is how a callback is passed
+        // to a built-in such as `nativeThreadStart`.
+        if (!environment.hasVariable(field_) &&
+            environment.findFunction(field_) != nullptr) {
+            auto function = std::make_shared<CodeblockValue>();
+            function->name = field_;
+            return function;
+        }
         return environment.get(field_, line_, column_);
     }
     // Enum namespace: identifier names a declared enum; the field is a
@@ -1404,6 +1414,18 @@ Value CallExpression::evaluate(Environment& environment) const {
         blocks.push_back(std::move(block));
     }
     try {
+        // A variable holding a function value is called through the name that
+        // value carries, so `f(1)` works for `codeblock f = global.worker`.
+        if (environment.hasVariable(name_)) {
+            const Value stored = environment.get(name_, line_, column_);
+            const auto* function =
+                std::get_if<std::shared_ptr<CodeblockValue>>(&stored);
+            if (function != nullptr && *function != nullptr &&
+                !(*function)->name.empty()) {
+                return environment.callUserFunction((*function)->name, arguments,
+                                                    blocks, line_, column_);
+            }
+        }
         return environment.callUserFunction(name_, arguments, blocks, line_,
                                             column_);
     } catch (const SourceError& error) {
@@ -1933,8 +1955,34 @@ Value invokeFunction(
     }
 }
 
+// One lock guards every evaluation of Lynxer code. It is recursive because a
+// nested evaluation (a callback into Lynxer from a native module, say) happens
+// on the thread that already holds it.
+namespace {
+
+std::recursive_mutex& interpreterLock() {
+    static std::recursive_mutex lock;
+    return lock;
+}
+
+}  // namespace
+
+void lockInterpreter() { interpreterLock().lock(); }
+
+void unlockInterpreter() { interpreterLock().unlock(); }
+
 void executeProgram(const std::unordered_map<std::string, Function>& functions,
                     Environment& environment) {
+    // The interpreter is not re-entrant: exactly one thread evaluates Lynxer
+    // code at a time. `nativeThread*` runs a callback on another thread, and it
+    // releases this lock only while it is blocked waiting for that thread, so
+    // the two never evaluate at once. See `nativeThreadJoin` in builtins.cpp.
+    std::lock_guard<std::recursive_mutex> interpreterGuard(interpreterLock());
+    // A program may leave a native thread running. Join it before the
+    // environment it captured goes away — including when main throws.
+    struct ThreadReaper {
+        ~ThreadReaper() { joinNativeThreadsAtExit(); }
+    } threadReaper;
     // Native modules are often imported from inside a source module (for
     // example `game.lynx` importing `game.so`), so the environment captured at
     // attach time belongs to that module and only knows its own functions.

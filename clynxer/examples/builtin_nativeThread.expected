@@ -1,0 +1,18 @@
+join: unknown or already released native thread
+alive: unknown or already released native thread
+status: unknown or already released native thread
+detach: unknown or already released native thread
+start: nativeThreadStart(function, arguments) expects a function and list
+args: nativeThreadStart(function, arguments) expects a function and list
+joinargs: nativeThreadJoin(handle) expects a thread handle
+joinallargs: nativeThreadJoinAll() expects no arguments
+true
+running
+worker 42
+completed
+rejoin: unknown or already released native thread
+true
+0
+0
+detachedjoin: cannot join a detached native thread
+boom

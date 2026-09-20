@@ -689,6 +689,12 @@ std::vector<ImportRecord> collectImports(const std::string& source,
 std::string resolveModulePath(const std::string& sourceDirectory,
                               const std::string& requested);
 
+// The interpreter evaluates Lynxer code on one thread at a time. A built-in
+// that blocks on another thread holding this lock (see `nativeThreadJoin`)
+// releases it while it waits.
+void lockInterpreter();
+void unlockInterpreter();
+
 // Calls an operation on a bundled native module that a built-in family is
 // implemented behind — `sound*` uses the `sound` module. The module is loaded
 // on first use, so a program that never touches the family never needs it.

@@ -16,6 +16,7 @@
 #include <filesystem>
 #include <iostream>
 #include <memory>
+#include <mutex>
 #include <thread>
 #include <unordered_map>
 #include <unordered_set>
@@ -3583,6 +3584,237 @@ Value builtinSoundRelease(const std::vector<Value>& args, Environment&, int line
     return std::int64_t{0};
 }
 
+// --- Managed native-thread built-ins ----------------------------------------
+//
+// `nativeThreadStart` runs a Lynxer function on a `std::thread`. The interpreter
+// evaluates Lynxer code under one lock (see `executeProgram`), and a worker
+// takes that lock before calling back in, so two threads never evaluate at
+// once. A worker therefore runs while the thread that started it is blocked in
+// `nativeThreadJoin`/`nativeThreadJoinAll`, which release the lock before
+// waiting: cooperative threads, safe by construction rather than by careful
+// locking.
+
+struct NativeThreadEntry {
+    std::thread worker;
+    std::mutex statusMutex;
+    std::string status = "running";
+    bool alive = false;
+    bool detached = false;
+    std::int64_t handle = 0;
+};
+
+std::unordered_map<std::int64_t, std::shared_ptr<NativeThreadEntry>>&
+nativeThreads() {
+    static std::unordered_map<std::int64_t, std::shared_ptr<NativeThreadEntry>>
+        threads;
+    return threads;
+}
+
+std::mutex& nativeThreadsMutex() {
+    static std::mutex mutex;
+    return mutex;
+}
+
+std::int64_t nextThreadHandle() {
+    static std::int64_t next = 1;
+    return next++;
+}
+
+std::shared_ptr<NativeThreadEntry> requireThread(const std::vector<Value>& args,
+                                                 const char* name, int line,
+                                                 int column) {
+    if (args.size() != 1 || !isNonNegativeInt(args[0])) {
+        fail(std::string(name) + "(handle) expects a thread handle", line,
+             column);
+    }
+    const std::int64_t handle = std::get<std::int64_t>(args[0]);
+    if (handle == 0) {
+        fail("invalid native thread handle", line, column);
+    }
+    std::lock_guard<std::mutex> guard(nativeThreadsMutex());
+    const auto found = nativeThreads().find(handle);
+    if (found == nativeThreads().end()) {
+        fail("unknown or already released native thread", line, column);
+    }
+    return found->second;
+}
+
+// Joins `entry`, releasing the interpreter lock while it waits so the worker
+// can take it. Erases the handle, so a second join is an unknown handle.
+std::string joinThread(std::int64_t handle,
+                       const std::shared_ptr<NativeThreadEntry>& entry,
+                       int line, int column) {
+    if (entry->detached) {
+        fail("cannot join a detached native thread", line, column);
+    }
+    unlockInterpreter();
+    if (entry->worker.joinable()) {
+        entry->worker.join();
+    }
+    lockInterpreter();
+    std::string status;
+    {
+        std::lock_guard<std::mutex> guard(entry->statusMutex);
+        status = entry->status;
+    }
+    {
+        std::lock_guard<std::mutex> guard(nativeThreadsMutex());
+        nativeThreads().erase(handle);
+    }
+    return status;
+}
+
+Value builtinNativeThreadStart(const std::vector<Value>& args, Environment& environment,
+                               int line, int column) {
+    if (args.size() != 2 || !std::holds_alternative<std::shared_ptr<List>>(args[1])) {
+        fail("nativeThreadStart(function, arguments) expects a function and list",
+             line, column);
+    }
+    const auto* function =
+        std::get_if<std::shared_ptr<CodeblockValue>>(&args[0]);
+    if (function == nullptr || *function == nullptr ||
+        (*function)->name.empty()) {
+        fail("nativeThreadStart(function, arguments) expects a function and list",
+             line, column);
+    }
+    std::vector<Value> arguments = (*std::get_if<std::shared_ptr<List>>(&args[1]))
+                                       ->elements;
+    const std::string name = (*function)->name;
+
+    auto entry = std::make_shared<NativeThreadEntry>();
+    entry->alive = true;
+    std::weak_ptr<NativeThreadEntry> weak = entry;
+    entry->worker = std::thread([weak, &environment, name,
+                                 arguments = std::move(arguments)]() {
+        lockInterpreter();
+        std::string status;
+        try {
+            environment.callUserFunction(name, arguments, {}, 0, 0);
+            status = "completed";
+        } catch (const std::exception& error) {
+            status = error.what();
+        } catch (...) {
+            status = "native thread callback failed";
+        }
+        // Release before touching the registry so the two locks are never held
+        // in opposite orders.
+        unlockInterpreter();
+        if (auto entry = weak.lock()) {
+            {
+                std::lock_guard<std::mutex> guard(entry->statusMutex);
+                entry->status = status;
+                entry->alive = false;
+            }
+            // A detached thread owns itself: it leaves the registry once it is
+            // done, so nothing has to join it.
+            if (entry->detached) {
+                std::lock_guard<std::mutex> guard(nativeThreadsMutex());
+                nativeThreads().erase(entry->handle);
+            }
+        }
+    });
+
+    const std::int64_t handle = nextThreadHandle();
+    entry->handle = handle;
+    {
+        std::lock_guard<std::mutex> guard(nativeThreadsMutex());
+        nativeThreads()[handle] = entry;
+    }
+    return handle;
+}
+
+Value builtinNativeThreadJoin(const std::vector<Value>& args, Environment&,
+                              int line, int column) {
+    const std::shared_ptr<NativeThreadEntry> entry =
+        requireThread(args, "nativeThreadJoin", line, column);
+    return joinThread(std::get<std::int64_t>(args[0]), entry, line,
+                      column);
+}
+
+Value builtinNativeThreadJoinAll(const std::vector<Value>& args, Environment&,
+                                 int line, int column) {
+    if (!args.empty()) {
+        fail("nativeThreadJoinAll() expects no arguments", line, column);
+    }
+    std::vector<std::pair<std::int64_t, std::shared_ptr<NativeThreadEntry>>>
+        pending;
+    {
+        std::lock_guard<std::mutex> guard(nativeThreadsMutex());
+        for (const auto& pair : nativeThreads()) {
+            if (!pair.second->detached) {
+                pending.push_back(pair);
+            }
+        }
+    }
+    for (const auto& pair : pending) {
+        joinThread(pair.first, pair.second, line, column);
+    }
+    return std::int64_t{0};
+}
+
+Value builtinNativeThreadIsAlive(const std::vector<Value>& args, Environment&,
+                                 int line, int column) {
+    const std::shared_ptr<NativeThreadEntry> entry =
+        requireThread(args, "nativeThreadIsAlive", line, column);
+    std::lock_guard<std::mutex> guard(entry->statusMutex);
+    return entry->alive;
+}
+
+Value builtinNativeThreadStatus(const std::vector<Value>& args, Environment&,
+                                int line, int column) {
+    const std::shared_ptr<NativeThreadEntry> entry =
+        requireThread(args, "nativeThreadStatus", line, column);
+    std::lock_guard<std::mutex> guard(entry->statusMutex);
+    return entry->status;
+}
+
+Value builtinNativeThreadDetach(const std::vector<Value>& args, Environment&,
+                                int line, int column) {
+    const std::shared_ptr<NativeThreadEntry> entry =
+        requireThread(args, "nativeThreadDetach", line, column);
+    {
+        std::lock_guard<std::mutex> guard(nativeThreadsMutex());
+        if (entry->detached) {
+            fail("native thread is already detached", line, column);
+        }
+        entry->detached = true;
+    }
+    if (entry->worker.joinable()) {
+        entry->worker.detach();
+    }
+    return std::int64_t{0};
+}
+
+void joinNativeThreadsAtExitInternal() {
+#if CLYNXER_POSIX_BUILTINS
+    // A program may start a thread and never join it. Such a worker calls back
+    // into the interpreter, so it has to finish before the environment it
+    // captured goes away.
+    std::vector<std::pair<std::int64_t, std::shared_ptr<NativeThreadEntry>>>
+        pending;
+    {
+        std::lock_guard<std::mutex> guard(nativeThreadsMutex());
+        for (const auto& pair : nativeThreads()) {
+            if (!pair.second->detached) {
+                pending.push_back(pair);
+            }
+        }
+    }
+    for (const auto& pair : pending) {
+        if (pair.second->detached) {
+            continue;
+        }
+        unlockInterpreter();
+        if (pair.second->worker.joinable()) {
+            pair.second->worker.join();
+        }
+        lockInterpreter();
+        std::lock_guard<std::mutex> guard(nativeThreadsMutex());
+        nativeThreads().erase(pair.first);
+    }
+#endif
+}
+
 #endif  // CLYNXER_POSIX_BUILTINS
 
 const std::unordered_map<std::string, Handler>& handlerTable() {
@@ -3754,6 +3986,13 @@ const std::unordered_map<std::string, Handler>& handlerTable() {
         {"soundSetVolume", builtinSoundSetVolume},
         {"soundIsPlaying", builtinSoundIsPlaying},
         {"soundRelease", builtinSoundRelease},
+        // Managed native threads.
+        {"nativeThreadStart", builtinNativeThreadStart},
+        {"nativeThreadJoin", builtinNativeThreadJoin},
+        {"nativeThreadJoinAll", builtinNativeThreadJoinAll},
+        {"nativeThreadIsAlive", builtinNativeThreadIsAlive},
+        {"nativeThreadStatus", builtinNativeThreadStatus},
+        {"nativeThreadDetach", builtinNativeThreadDetach},
 #endif
     };
     return handlers;
@@ -3781,8 +4020,10 @@ const std::unordered_set<std::string>& unsupportedTable() {
         "nativeModuleLoad", "nativeModuleName", "nativeModuleFunction",
         "nativeModuleConstant", "nativeModuleType", "nativeModuleError",
         "nativeModuleDependencies", "nativeModuleClose",
+#if !CLYNXER_POSIX_BUILTINS
         "nativeThreadStart", "nativeThreadJoin", "nativeThreadJoinAll",
         "nativeThreadIsAlive", "nativeThreadStatus", "nativeThreadDetach",
+#endif
         "nativeMutexCreate", "nativeMutexLock", "nativeMutexTryLock",
         "nativeMutexUnlock", "nativeMutexClose",
         "nativeConditionCreate", "nativeConditionWait", "nativeConditionNotify",
@@ -3863,6 +4104,12 @@ const std::unordered_set<std::string>& unsupportedTable() {
 }
 
 } // namespace
+
+void joinNativeThreadsAtExit() {
+#if CLYNXER_POSIX_BUILTINS
+    joinNativeThreadsAtExitInternal();
+#endif
+}
 
 bool isBuiltinName(const std::string& name) {
     const auto& handlers = handlerTable();

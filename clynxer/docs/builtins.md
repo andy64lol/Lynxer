@@ -9,9 +9,9 @@ the module's own function of that name — see
 [limitations](limitations.md#module-self-calls).
 
 Names that are known but not implemented (for example `rawPy`, `ffiCall`,
-`nativeModuleLoad`, `async*`, `sound*`, and mutual-exclusion primitives) fail
-with `<name>() is not supported in CLynxer yet`. The `syscall*` family is routed
-to a generic syscall dispatcher instead.
+`nativeModuleLoad`, `async*`, and the mutual-exclusion primitives) fail with
+`<name>() is not supported in CLynxer yet`. The `syscall*` family is routed to a
+generic syscall dispatcher instead.
 
 ## Input, output and conversion
 
@@ -278,3 +278,30 @@ Three deliberate divergences from the Python reference, all recorded in
 [limitations.md](limitations.md): the backend's own failure text is not Arcade's;
 `soundPause`/`soundResume` work, where the reference fails by design; and
 `soundStop` works, where the reference's Arcade version has no `Player.stop`.
+
+## Native threads
+
+`nativeThreadStart(function, arguments)` runs a Lynxer function on a
+`std::thread`. The function is named as a value — `nativeThreadStart(global.worker, [int 42])`
+— which is what makes `global.<name>` resolve to a callable when no variable has
+that name.
+
+| Builtin | Notes |
+| --- | --- |
+| `nativeThreadStart(function, arguments)` | Returns a thread handle. `function` is a named global function; `arguments` is a list |
+| `nativeThreadJoin(handle)` | Waits for the thread and returns `completed`, or the callback's error text. Joining releases the handle |
+| `nativeThreadJoinAll()` | Joins every thread that has neither been joined nor detached |
+| `nativeThreadIsAlive(handle)` | Whether the thread is still running |
+| `nativeThreadStatus(handle)` | `running` while it is, then `completed` or the error text |
+| `nativeThreadDetach(handle)` | Gives up the handle; the thread leaves the registry when it finishes |
+
+**Threads are cooperative.** The interpreter evaluates Lynxer code on one thread
+at a time, and a worker takes that lock before calling back in, so a thread runs
+while the thread that started it is blocked in `nativeThreadJoin` or
+`nativeThreadJoinAll`, which release the lock before waiting. Two threads never
+evaluate at once — that is why no data race is possible — and it is why a
+worker's own output appears at the join rather than during the main body.
+Programs that leave a thread running have it joined when the program finishes.
+
+`sound*` and `nativeThread*` are the two families a program reaches through a
+callback or a module; everything else in this page is self-contained.

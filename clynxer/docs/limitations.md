@@ -290,40 +290,27 @@ invalid-handle errors are identical. One consequence worth knowing: a compiled
 executable carries `stdlib/sound.so` only when the program also has
 `import("sound")`, because bundling follows imports.
 
-### `nativeThread*` — needs two prerequisites Clynxer does not have
+### `nativeThread*` — implemented, on a cooperative model
 
-`docs/native-memory.md` documents the shape:
+`nativeThreadStart(global.worker, [int 42])` passes a named global function, so
+Clynxer now resolves `global.<name>` to a callable value when no variable has
+that name — the one language feature this family needed. `returnType` reports
+`codeblock` for such a value where the reference says `function`.
 
-```lynx
-global worker(int value){ println(value); }
-int thread = nativeThreadStart(global.worker, [int 42]);
-```
+Threads are **cooperative**: the interpreter evaluates Lynxer code on one thread
+at a time, guarded by one lock, and a worker takes that lock before calling back
+in. A thread therefore runs while the thread that started it is blocked in
+`nativeThreadJoin`/`nativeThreadJoinAll`, which release the lock before waiting.
+No two threads ever evaluate at once, so no data race is possible — that safety
+is by construction rather than by careful locking. The trade-off is that a
+thread does not make progress while the main body is running, which is the
+opposite of the reference, where CPython's GIL lets a worker interleave with the
+main thread.
 
-That needs both of the following, and neither exists today:
-
-**1. References to a named global function as a value.** The call passes
-`global.worker`, which the reference evaluates to a `function` value —
-`returnType(global.worker)` answers `function` and printing it gives
-`<function worker>`. Clynxer has no function value type: its value model knows
-`codeblock` only (`types.cpp`), codeblocks are created from *literals*
-(`codeblock saved = { ... }`) or passed inline, and `global.worker` is not
-resolvable at all — it reports `unknown variable 'worker'`. So this built-in
-family is blocked on a **language feature**, not on native code: named global
-functions must become first-class values that can be passed and invoked.
-
-**2. Interpreter thread-safety.** The thread runs a Lynxer function, so a second
-thread must enter the evaluator. The reference can do this because CPython has a
-GIL — `lynxer/cpp.cpp` calls `PyGILState_Ensure` and then invokes the function
-object. Clynxer has no equivalent: there is no interpreter lock anywhere, the
-`Environment` is plain unsynchronised state (`runtime.hpp`), and the evaluator is
-a tree-walking interpreter with no re-entrancy. Running a Lynxer function on a
-second thread today would be a data race.
-
-A safe implementation is possible — one interpreter lock held by whichever
-thread is evaluating, released while a thread blocks in `nativeThreadJoin`
-(effectively cooperative threads, with no concurrent evaluation at all) — but it
-is an interpreter change, and it is only worth starting once function values
-exist.
+Two smaller differences follow from the same design: `nativeThreadIsAlive` is
+true and `nativeThreadStatus` is `running` immediately after `nativeThreadStart`,
+deterministically, because the worker cannot have started yet; and a thread a
+program leaves running is joined when the program finishes.
 
 ### `ffi*` — needs a calling-convention decision
 

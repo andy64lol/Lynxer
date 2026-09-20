@@ -1,0 +1,52 @@
+////
+Fixture for the managed `nativeThread*` built-ins. The interpreter evaluates
+Lynxer code on one thread at a time, and a worker takes that lock before calling
+back in, so a thread runs only while the starter is blocked in
+`nativeThreadJoin`/`nativeThreadJoinAll`. That makes the output order fixed: a
+worker's own prints appear at the join, not before it. Workers started for
+`nativeThreadJoinAll` do not print, since their relative order is not defined.
+////
+global setup(){}
+
+global worker(int value){ println("worker ", value); }
+global quietWorker(int value){ int doubled = value * 2; }
+global failing(){ assert(false, "boom"); }
+
+global main(){
+    // Handles and arguments are validated the way the reference does.
+    try { nativeThreadJoin(9999); } catch(str e) { println("join: ", e); }
+    try { nativeThreadIsAlive(9999); } catch(str e) { println("alive: ", e); }
+    try { nativeThreadStatus(9999); } catch(str e) { println("status: ", e); }
+    try { nativeThreadDetach(9999); } catch(str e) { println("detach: ", e); }
+    try { nativeThreadStart(1, [int 1]); } catch(str e) { println("start: ", e); }
+    try { nativeThreadStart(global.worker, "not a list"); } catch(str e) { println("args: ", e); }
+    try { nativeThreadJoin(); } catch(str e) { println("joinargs: ", e); }
+    try { nativeThreadJoinAll(1); } catch(str e) { println("joinallargs: ", e); }
+
+    // A started thread has not run yet: the starter holds the lock until it
+    // waits, so `alive` is true and the status is `running`.
+    int thread = nativeThreadStart(global.worker, [int 42]);
+    println(nativeThreadIsAlive(thread));
+    println(nativeThreadStatus(thread));
+
+    // The worker's output appears here, while the starter waits.
+    println(nativeThreadJoin(thread));
+
+    // Joining erases the handle, so a second join is an unknown handle.
+    try { nativeThreadJoin(thread); } catch(str e) { println("rejoin: ", e); }
+
+    // Join-all joins every thread that is still running.
+    int first = nativeThreadStart(global.quietWorker, [int 1]);
+    int second = nativeThreadStart(global.quietWorker, [int 2]);
+    println(first != second);
+    println(nativeThreadJoinAll());
+
+    // A detached thread is never joined, and says so.
+    int detached = nativeThreadStart(global.quietWorker, [int 3]);
+    println(nativeThreadDetach(detached));
+    try { nativeThreadJoin(detached); } catch(str e) { println("detachedjoin: ", e); }
+
+    // A failing callback reports its own message as the join result.
+    int failingThread = nativeThreadStart(global.failing, seqFromTo(0, 0, 1));
+    println(nativeThreadJoin(failingThread));
+}

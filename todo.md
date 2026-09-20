@@ -296,17 +296,17 @@ Planned order of work, newest direction first.
     backend's failure text is not Arcade's, `soundPause`/`soundResume` work
     (the reference fails by design), and `soundStop` works (the installed
     Arcade has no `Player.stop`). Fixture: `examples/builtin_sound.lynx`.
-  - [ ] `nativeThread*` (6): `Start`, `Join`, `JoinAll`, `IsAlive`, `Status`,
-    `Detach`. **Blocked on two prerequisites Clynxer does not have**, both
-    verified: (1) `nativeThreadStart(global.worker, [int 42])` passes a named
-    global function as a value, and Clynxer has no function value type — its
-    value model knows `codeblock` only, and `global.worker` reports
-    `unknown variable 'worker'`, where the reference answers `returnType` →
-    `function`; (2) the thread runs Lynxer code, which needs an interpreter
-    lock and a re-entrant evaluator — the reference relies on CPython's GIL
-    (`lynxer/cpp.cpp` calls `PyGILState_Ensure`), and Clynxer has no lock at
-    all. The `nativeMutex*`/`nativeCondition*`/`nativeSemaphore*` families are
-    not in this milestone's list and stay unsupported.
+  - [x] `nativeThread*` (6): `Start`, `Join`, `JoinAll`, `IsAlive`, `Status`,
+    `Detach`. Needed one language feature first: `global.<name>` now resolves to
+    a callable value when no variable has that name, which is what
+    `nativeThreadStart(global.worker, [int 42])` passes. Threads are cooperative
+    — one interpreter lock, held while evaluating and released while a thread
+    blocks in `Join`/`JoinAll` — so two threads never evaluate at once and no
+    data race is possible; a thread runs while its starter waits. Program exit
+    joins anything left running. Fixture: `examples/builtin_nativeThread.lynx`,
+    deterministic across repeated runs. Divergences from the reference (which
+    lets a worker interleave via the GIL, and reports `function` rather than
+    `codeblock`) are in `clynxer/docs/limitations.md`.
   - [ ] `ffi*` (6): `LoadLibrary`, `Lookup`, `CloseLibrary`, `Call`,
     `Callback`, `FreeCallback`. **Blocked on a dependency decision** — `libffi`
     is a new build dependency, hand-rolling covers few signatures. Largest
