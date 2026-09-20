@@ -286,18 +286,25 @@ Planned order of work, newest direction first.
     ephemeral port and reads it back from `networkingAddress`, so no fixed port
     can collide.
   - [ ] `sound*` (9): `Load`, `Play`, `Loop`, `Stop`, `Pause`, `Resume`,
-    `SetVolume`, `IsPlaying`, `Release`. Overlaps the Rust `sound` stdlib
-    module, but these are the built-in names the reference exposes.
+    `SetVolume`, `IsPlaying`, `Release`. **Blocked on a backend decision** — the
+    reference uses Arcade, and Clynxer must either grow a C++ audio stack or
+    bridge the built-ins to the existing Rust `sound` module. Error text cannot
+    match the reference either way. Recorded in `clynxer/docs/limitations.md`.
   - [ ] `nativeThread*` (6): `Start`, `Join`, `JoinAll`, `IsAlive`, `Status`,
-    `Detach`. Needs a thread registry and a Lynxer callback entry point; note
-    the `nativeMutex*`/`nativeCondition*`/`nativeSemaphore*` families are not
-    in this milestone's list and stay unsupported.
+    `Detach`. **Blocked on an interpreter-threading decision** —
+    `nativeThreadStart` takes a Lynxer function and runs it on another thread;
+    the reference relies on CPython's GIL, and Clynxer has no interpreter lock
+    or re-entrant evaluator. The `nativeMutex*`/`nativeCondition*`/
+    `nativeSemaphore*` families are not in this milestone's list and stay
+    unsupported.
   - [ ] `ffi*` (6): `LoadLibrary`, `Lookup`, `CloseLibrary`, `Call`,
-    `Callback`, `FreeCallback`. Largest risk: arbitrary native calls and
-    callback marshalling.
+    `Callback`, `FreeCallback`. **Blocked on a dependency decision** — `libffi`
+    is a new build dependency, hand-rolling covers few signatures. Largest
+    security surface of the four.
   - [ ] `async*` (15): `Run`, `Gather`, `Sleep`, the `Poll*` family, the
-    `Timer*` pair and the `Wakeup*` trio. Largest single family (~370 lines in
-    the reference) and needs an event loop.
+    `Timer*` pair and the `Wakeup*` trio. **Blocked on a scope decision** —
+    ~370 reference lines plus an event loop, for a language Clynxer does not
+    currently run asynchronously.
 
 ## Milestone 8 — compiler, bytecode, and CLI surface
 

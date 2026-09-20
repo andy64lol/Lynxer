@@ -252,6 +252,68 @@ equivalent:
 - A Lua runtime error is reported the same way and its text includes a Lua
   traceback, so the fixture asserts only that a message came back.
 
+## Built-in families that are not ported
+
+`builtins.cpp` keeps an `unsupportedTable()` of names that are recognised but
+deliberately unimplemented; calling one raises
+`<name>() is not supported in CLynxer yet`. Most of that table is Python-only
+surface — `rawPy`/`rawPyx`, the `varBorrow*` family, the FFI and native-module
+handles, and the mutual-exclusion primitives (`nativeMutex*`,
+`nativeCondition*`, `nativeSemaphore*`).
+
+The managed `filesystem*`, `process*` and `networking*` families **are**
+implemented and are documented in [builtins.md](builtins.md). Four families
+remain, and unlike those three they are not a straight port — each needs a
+decision first:
+
+### `sound*` — needs a backend decision
+
+The reference builds these on **Arcade** (`import arcade`), a Python game
+library. Clynxer has two options and neither is free:
+
+- grow a C++ audio stack (ALSA or PulseAudio plus WAV/OGG/MP3/FLAC decoding),
+  which duplicates the Rust `sound` stdlib module and adds an audio dependency
+  to the interpreter binary; or
+- bridge the built-ins to that existing Rust module, which means the
+  interpreter reaches into the module system for a built-in.
+
+Whichever is chosen, the error text cannot match the reference: it comes from
+Arcade's exceptions (`audio backend failed to load sound: <exc>`), and neither
+option produces it. Note also that the reference's `soundPause` and
+`soundResume` **fail by design** — "audio backend does not support portable
+pause/resume" — while the Rust `sound` module supports both, so mirroring the
+reference exactly would make the built-ins less capable than the module that
+already ships.
+
+### `nativeThread*` — needs an interpreter-threading decision
+
+`nativeThreadStart(function, arguments)` takes a **Lynxer function** and runs it
+on another thread (`docs/native-memory.md`). The reference can do this because
+CPython has a GIL: the C++ extension calls `PyGILState_Ensure` and invokes the
+function object safely.
+
+Clynxer has no equivalent. There is no interpreter lock anywhere — the
+`Environment` is plain unsynchronised state (`runtime.hpp`) and the evaluator is
+a tree-walking interpreter with no re-entrancy. Running a Lynxer function on a
+second thread today would be a data race, so this family needs either an
+interpreter lock and a re-entrant evaluation path, or a different model
+altogether.
+
+### `ffi*` — needs a calling-convention decision
+
+`ffiCall` must describe and perform arbitrary native calls. `libffi` is the
+usual answer and is a **new build dependency** for the interpreter; hand-rolling
+covers only a few fixed signatures. This is also the largest security surface of
+the four families, since it turns a Lynxer program into arbitrary native code.
+
+### `async*` — needs a scope decision
+
+About 370 lines in the reference, covering `Run`, `Gather`, `Sleep`, a `Poll*`
+family, timers and wakeups. It requires an event loop, and Clynxer does not
+currently run anything asynchronously — there is no `async` language support to
+serve. Worth deciding whether these built-ins should exist at all before
+building the machinery behind them.
+
 ## Testing notes
 
 `make -C clynxer test` runs one fixture per `examples/stdlib_*.lynx` and diffs
