@@ -198,12 +198,13 @@ expected="clynxer: $(ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 	exit 1; \
 	fi; \
 	done
-	@for fixture in native_stdlibs milestone6_module milestone6_math_native stdlib_json stdlib_re stdlib_path; do \
-	./$(TARGET) examples/$$fixture.lynx > .clynxer_direct.out 2>&1; \
+	@for fixture in native_stdlibs milestone6_module milestone6_math_native stdlib_json stdlib_re stdlib_path \
+	                stdlib_game stdlib_image stdlib_lua stdlib_sound stdlib_sqldb stdlib_tui; do \
+	CLYNXER_GAME_HEADLESS=1 ./$(TARGET) examples/$$fixture.lynx > .clynxer_direct.out 2>&1; \
 	direct_status=$$?; \
 	if ! ./$(TARGET) --compile examples/$$fixture.lynx .clynxer_compiled > /dev/null; then \
 	echo "compile failed for $$fixture (imports)"; exit 1; fi; \
-	./.clynxer_compiled > .clynxer_compiled.out 2>&1; \
+	CLYNXER_GAME_HEADLESS=1 ./.clynxer_compiled > .clynxer_compiled.out 2>&1; \
 	compiled_status=$$?; \
 	if ! diff -q .clynxer_direct.out .clynxer_compiled.out > /dev/null || \
 	   [ "$$direct_status" -ne "$$compiled_status" ]; then \

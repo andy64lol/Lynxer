@@ -1,15 +1,16 @@
 # Clynxer Investigation Report
 
-**Date and Time:** 2026-09-20 11:35 CEST (2026-09-20 09:35 UTC)
+**Date and Time:** 2026-09-20 20:26 CEST (2026-09-20 18:26 UTC)
 **Author:** investigation session (automated)
 **Scope:** Clynxer source tree under `clynxer/`, the `sound`/`sqldb`/`tui` stdlib
 modules, the native-module ABI, the build and test system, and the state of
 `todo.md` and the Clynxer documentation.
 **Result:** `make buildCLynxer` and `make testCLynxer` both pass. **Six classes of
-defect** were found in the three newest stdlib modules — **all six are now
-fixed**. Eleven documentation inconsistencies were catalogued and all corrected.
-A new automated check (`clynxer/scripts/check_module_contracts.py`) now guards
-against the two classes of defect the fixture suite could not see.
+defect** were found in the three newest stdlib modules — **all six fixed**.
+Eleven documentation inconsistencies were catalogued and corrected. A new
+automated check (`clynxer/scripts/check_module_contracts.py`) guards the two
+defect classes the fixture suite could not see. **Milestone 6 is complete** —
+see §12.
 
 > **This revision replaces the earlier version of this report.** The earlier
 > version was dated `2026-09-20 14:30 UTC` (a future timestamp, and therefore
@@ -18,13 +19,17 @@ against the two classes of defect the fixture suite could not see.
 > for Clynxer" exists. Both are contradicted by `todo.md` and by the shipped
 > `--compile`/`--bundle` backend. See §9.1 for the corrections.
 >
-> **Revision 3 (2026-09-20 11:15 CEST)** added Findings E and F, recorded the
-> documentation fixes applied in §9, and confirmed byte-identical `sqldb` output
-> against the Python reference.
+> **Revision 3 (11:15 CEST)** added Findings E and F, recorded the documentation
+> fixes in §9, and confirmed byte-identical `sqldb` output against the Python
+> reference.
 >
-> **Revision 4 (2026-09-20 11:35 CEST)** fixed Finding F, and added the
-> `check_module_contracts.py` static check now wired into `make test`. The check
-> found an **18th** bad index that manual inspection had missed.
+> **Revision 4 (11:35 CEST)** fixed Finding F and added
+> `check_module_contracts.py`, now wired into `make test`. It found an **18th**
+> bad index that manual inspection had missed.
+>
+> **Revision 5 (20:26 CEST)** completes Milestone 6: the frozen contracts
+> document, failure-path fixtures for every Rust backend with compiled/bundled
+> parity, the ABI extension policy, and `extending.md`. See §12.
 
 ---
 
@@ -447,7 +452,7 @@ version of this report got several of these wrong (§9.1).
 | **3 — runtime model** | **Complete** | Extended value model, lists/tuples, `inter"..."`, full scalar type set, `const`, structs/classes/enums/vargroups, pattern matching. |
 | **4 — operators, statements, errors** | **Complete** | Bitwise/word operators, `switch`, `try`/`catch`; `examples/milestone4.lynx`. |
 | **5 — functions and code blocks** | **Complete** | `func`/`global`/`local`, codeblocks, `exec(){{name}}`, `overrideMain`, class methods. |
-| **6 — module system and stdlib** | **Complete for the ported set** | 27 modules; Rust migration done (`todo.md:11-26`). Remaining sub-items are about freezing contracts and adding failure-path fixtures (`todo.md:204-215`), not about missing modules. |
+| **6 — module system and stdlib** | **Complete** | 27 modules, all with a wrapper, a backend, a doc page and a fixture. See §12 for what closed it out (`clynxer/docs/stdlib-contracts.md`, `clynxer/docs/extending.md`, failure-path fixtures, ABI policy). |
 | **7 — native APIs** | **Complete for what is ported** | Built-ins with explicit unsupported-feature errors, native-memory family, Linux syscalls. Managed filesystem/process/async/sound/FFI/native-thread APIs remain (`todo.md:226-227`). |
 | **8 — compiler, bytecode, CLI surface** | **Superseded, then complete** | CLI parity done. The bytecode/`CLYXC`/VM stack was **removed** (`todo.md:50-55`); `--compile` now emits a standalone ELF with fully-working imports (`todo.md:56-63`), including multi-file and `--include` bundling. Only "add an optimization pass" is open (`todo.md:256`). |
 | **9 — compatibility gates** | **Partially done** | Baseline comparison exists (15/55 at 2026-09-13, `todo.md:260`). Lexer/parser/runtime comparison, golden output tests, and full-suite-per-milestone are open (`todo.md:263-267`). |
@@ -998,6 +1003,126 @@ placeholders. Full list: `clynxer/docs/limitations.md`, which now documents the
 
 ---
 
+## 12. Milestone 6 closed (2026-09-20 20:26 CEST)
+
+Milestone 6 had five open items. All five are done, plus four further defects
+that closing them surfaced.
+
+### 12.1 The five items
+
+| Item (`todo.md`) | Delivered |
+| --- | --- |
+| The `tkinter`/`tkinterPlus`/`turtle` decision | Recorded as decided: not ported. `tkinter` is replaced by a planned `graphics` module on Rust `iced`; `turtle` is dropped. Reflected in `limitations.md` and `todo.md`. |
+| Freeze the per-module contract | **`clynxer/docs/stdlib-contracts.md`** — the frozen contract at CLynxer 0.1.8. States the conventions that apply to all modules (operation naming, argument order and types, handles, string lifetime, error sentinels, callbacks, interruption, cleanup) and a per-module table of the dimensions that vary: identity model and cleanup owner for all 27 modules. Also defines what changing a contract requires. |
+| Rust-backend failure-path fixtures | `sound`, `image`, `lua` and `tui` fixtures rewritten; `sqldb` and `json` already covered. All hermetic Rust fixtures added to the compiled/bundled parity loop. |
+| ABI extension policy | `native-module-abi.md` § "Extending the ABI" — the five conventions a module must try first, and the four requirements for any additive change (C example, Rust example, compatibility coverage, documentation). No shape has been added since the packed form. |
+| `extending.md` | **`clynxer/docs/extending.md`** — choosing C++ or Rust, the wrapper/backend pair, the packed ABI and per-kind indexing, build wiring, what a fixture must cover, the contract check, and a completion checklist. |
+
+### 12.2 Four further defects found while closing it
+
+**a. `evalLua` leaked a Rust source path into user output.**
+`eval_source` called `lua.load(...)` without `set_name`, so mlua named the chunk
+after the call site and a syntax error read
+`Error: syntax error: lua/src/lib.rs:51:1: unexpected symbol near ')'` — an
+implementation detail in a user-facing message, and one that would shift
+whenever the file was edited. `run_source` already passed `clynxer.lua`; `eval`
+now does too.
+
+**b. `image.fromBase64` forgot the image format.**
+It stored `None` as the format, so `getFormat` returned `""` and `info` reported
+`"format":""` for an image whose bytes plainly say `PNG`. The comparison against
+the Python reference — where Pillow reports `PNG` — is what exposed it. Now uses
+`image::guess_format` on the decoded bytes. This changed one assertion in
+`examples/stdlibTestAll.lynx`, which the consolidated test caught immediately.
+
+**c. `tui.clear()`'s output could be emitted out of order.**
+The `tui` backend writes its fallback text straight to stdout rather than
+through the interpreter, so its output interleaves with the interpreter's only
+because both are line-buffered. `clear()` writes its ANSI sequence with **no**
+trailing newline, so it sat in Rust's buffer and appeared *after* whatever the
+interpreter printed next — `setWidth(80)` came out before the clear sequence
+that preceded it. It now flushes explicitly. Verified stable across three
+consecutive runs.
+
+**d. The compiled/interpreted parity loop did not set the headless flag.**
+Adding `stdlib_game` to it hung the suite: the loop ran without
+`CLYNXER_GAME_HEADLESS=1`, so `game` tried to open a window. The fixture loop
+below it already set the variable; the parity loop did not. Both commands in the
+loop now set it.
+
+### 12.3 Fixture coverage added
+
+| Fixture | Before | After |
+| --- | --- | --- |
+| `sound` | 2 invalid-handle calls | Missing file, a real committed asset (`examples/assets/tone.wav`, 0.25 s, 44.1 kHz PCM), duration, handle bookkeeping, all four invalid-handle playback ops, volume clamping, playback-then-stop, double release, count after cleanup |
+| `image` | Success path only | Plus missing file, a file that is not an image, malformed base64, and six invalid-handle reads |
+| `lua` | Success path only | Plus two syntax errors, a missing script file, and a runtime error |
+| `tui` | 6 calls | 60 calls: the full fallback path, all configuration ops, every stateful placeholder family, and the prompt variants |
+| `sqldb` | (rewritten earlier) | Real round-trip, error path, cleanup |
+
+`enter()`/`exit()` are deliberately excluded from the `tui` fixture: they put the
+controlling terminal into raw mode, which a fixture must not do. That is stated
+in the fixture.
+
+**Every fixture stays runnable from any directory.** The first draft of the
+`sound` and `image` fixtures referenced `examples/assets/...`, which works under
+`make test` (cwd is `clynxer/`) but breaks a by-hand run from the repository
+root — a rule this project had already learned once and recorded. Both were
+reworked: absent files now use scratch names under the cwd, the "not an image"
+file is created and deleted with `fileIO`, and the one genuine binary asset is
+resolved by probing both layouts so the output is identical either way. All Rust
+backend fixtures were then verified from both directories.
+
+### 12.4 Reference comparison
+
+The item asked for the wrapper's behaviour to be compared with the Python
+reference where the API is intended to remain compatible. That was done by
+running each fixture through `venv/bin/python lynxer/shell.py` from the same
+working directory and diffing:
+
+| Module | Result |
+| --- | --- |
+| `sound` | **Byte-identical**, including the duration and the cleanup counts |
+| `sqldb` | **Byte-identical** |
+| `lua` | Diverges: `luaExists()` returns `bool` vs the reference's `1`; `luaVersion()` reports the vendored 5.4 vs the system's; error strings differ in prefix and chunk name |
+| `image` | Diverges: pixel getters return a bracketed list vs a comma-joined string; mutating ops return `bool` vs `0`; `grayscale` keeps alpha (`LA` vs `L`); `info` emits compact JSON |
+
+All four divergences are documented in `limitations.md` under `image` and `lua`.
+Two of them — the pixel formatting and the `bool` returns — are pre-existing
+shipped API choices, not defects, so they are documented rather than changed.
+
+This is also where a methodology point landed: the Python comparison initially
+failed for `sound` because the fixture was run from the repository root while
+the fixture's relative asset path assumes `clynxer/`. Re-run from the matching
+directory it was byte-identical. Cross-implementation diffs need a matching
+working directory — the same hazard already noted for the `test/` parity work.
+
+### 12.5 Verification
+
+| Check | Result |
+| --- | --- |
+| `make buildCLynxer` | passes |
+| `make testCLynxer` | passes |
+| Contract check | 24 backends, 686 op calls, 0 skipped, 0 errors, 0 warnings |
+| Stdlib fixtures | all 27 pass, byte-diffed |
+| Compiled/bundled parity | 12 fixtures now, including `game`, `image`, `lua`, `sound`, `sqldb`, `tui` |
+| Consolidated `stdlibTestAll` | passes (one assertion updated for the corrected `image.info`) |
+| Determinism | the `tui` fixture is byte-identical across three consecutive runs |
+
+### 12.6 What Milestone 6 does not claim
+
+- `tui`'s rendering, prompt and stateful families are still placeholders; the
+  contract is frozen, the implementation is not finished. That is recorded in
+  `limitations.md` and is a Milestone 6 *contract* statement, not a completion
+  claim.
+- The contract check covers names and argument bounds. The semantic half — which
+  argument means what — is documented in `stdlib-contracts.md` for a human
+  reviewer; it cannot be checked mechanically.
+- `sound`'s playback itself is device-dependent and therefore not asserted by
+  the fixture. It was verified by hand against a generated WAV (§8.10).
+
+---
+
 ## Appendix A — file and line index
 
 Everything cited in this report, for fast navigation.
@@ -1019,9 +1144,14 @@ Everything cited in this report, for fast navigation.
 | --- | --- |
 | `clynxer/rust/sound/src/lib.rs` | `SoundEntry { path, volume, sink }`, `SoundState { entries, output }`, `start_playback()`, all 12 ops, `OPS` table |
 | `clynxer/rust/sqldb/src/lib.rs` | Path-based rewrite: `with_conn()`, `query_rows()`, `list_tables()`, `json_dumps()`, `value_to_scalar()`, `parse_params_json()`, `value_to_json()`, `OPS` table (10 ops, `open` removed) |
-| `clynxer/rust/tui/src/lib.rs` | `tui_enter`, `println!("{}", "─".repeat(40))`, `OPS` table (70 ops). All 18 positional-index reads corrected; `confirm` split from `confirmDefault` |
+| `clynxer/rust/tui/src/lib.rs` | `tui_enter`, `println!("{}", "─".repeat(40))`, `OPS` table (70 ops). All 18 positional-index reads corrected; `confirm` split from `confirmDefault`; `tui_clear` flushes stdout |
+| `clynxer/rust/lua/src/lib.rs` | `eval_source` sets a `clynxer.lua` chunk name |
+| `clynxer/rust/image/src/lib.rs` | `image_from_base64` records the guessed format |
 | `clynxer/scripts/check_module_contracts.py` | **New.** Static wrapper/backend contract check, run by `make test`; see §8.9 |
-| `clynxer/Makefile` (`PYTHON`, `CONTRACT_CHECK`, first line of `test`) | Wires the check into the suite |
+| `clynxer/Makefile` (`PYTHON`, `CONTRACT_CHECK`, `test` recipe, parity loop) | Wires the check in and extends the compiled-parity loop |
+| `clynxer/docs/stdlib-contracts.md` | **New.** Frozen per-module contracts (§12) |
+| `clynxer/docs/extending.md` | **New.** Module authoring guide (§12) |
+| `clynxer/examples/assets/tone.wav` | **New.** 0.25 s 44.1 kHz PCM asset for the `sound` fixture |
 | `clynxer/examples/stdlib_sqldb.lynx`, `.expected` | Rewritten to a real round-trip against `.clynxer_scratch_sqldb.db`; byte-identical to the Python reference |
 | `clynxer/examples/stdlib_tui.lynx`, `.expected` | Corrected `tuiExists`/`tuiVersion` calls and `true`/`true` |
 | `clynxer/stdlib/{sound,sqldb,tui}.lynx` | The Lynxer-facing wrappers (unchanged — they were the correct side of Finding E) |

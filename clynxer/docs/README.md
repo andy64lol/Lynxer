@@ -10,6 +10,8 @@ shared libraries.
 | --- | --- |
 | [builtins.md](builtins.md) | Every function implemented by the interpreter itself |
 | [native-module-abi.md](native-module-abi.md) | How to write a native `.so` module: entry point, signatures, data conventions |
+| [stdlib-contracts.md](stdlib-contracts.md) | The frozen contract every module wrapper and backend must satisfy |
+| [extending.md](extending.md) | Adding a stdlib module end to end: wrapper, backend, build, fixtures, checks |
 | [stdlib/](stdlib/) | One page per standard-library module |
 | [language.md](language.md) | Clynxer syntax, including `global`, `func`, and `local` functions |
 | [install.md](install.md) | Build commands, dependency staging, and installation |

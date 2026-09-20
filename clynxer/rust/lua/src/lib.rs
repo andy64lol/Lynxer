@@ -48,7 +48,12 @@ fn run_source(source: &str, name: &str) -> String {
 
 fn eval_source(expression: &str) -> String {
     let lua = Lua::new();
-    match lua.load(format!("return ({expression})")).eval::<Value>() {
+    // Without an explicit name mlua names the chunk after the Rust call site,
+    // which would leak `lua/src/lib.rs:51` into the user-facing error.
+    let chunk = lua
+        .load(format!("return ({expression})"))
+        .set_name("clynxer.lua");
+    match chunk.eval::<Value>() {
         Ok(value) => value_text(value),
         Err(error) => format!("Error: {error}"),
     }

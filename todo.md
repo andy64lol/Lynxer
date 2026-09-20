@@ -194,27 +194,52 @@ Planned order of work, newest direction first.
   - [x] `tui`: replace Python Rich with Rust `ratatui`/`crossterm`. Preserve
     styled text, Markdown, panels, tables, prompts, progress, and recorded
     console output, with a headless rendering mode for fixtures.
-- [ ] Decide whether `tkinter`, `tkinterPlus`, and `turtle` belong in this Rust
-  backend phase. If they do, define Rust GUI/drawing candidates and the
-  wrapper/ABI contracts first; otherwise document them as intentionally
-deferred rather than implying they are already ported. UPDATE: no they won't, we'll make graphics.lynx to replace python tkinter using iced from rust, turtle will be left behind as the rust crate turtle was updated last in 2019, and turtle_rs doesn't offer the same experience.
+- [x] Decide whether `tkinter`, `tkinterPlus`, and `turtle` belong in this Rust
+  backend phase. **Decided: they do not.** `tkinter`/`tkinterPlus` are replaced
+  by a planned `graphics` module on Rust `iced`; `turtle` is left behind (its
+  Rust crate was last updated in 2019 and `turtle_rs` does not offer the same
+  experience). Recorded in `clynxer/docs/limitations.md` under "Modules that are
+  not ported".
 - [x] For every new Rust backend, add the crate to the Rust workspace, export
   `lynxer_module_init_v1` through `clynxer_abi`, add the module to the Makefile,
   create the matching `stdlib/<name>.lynx` forwarding wrapper, document the
   API, and add a sibling expected-output fixture.
-- [ ] Freeze each module's operation names, signatures, handle ownership,
+- [x] Freeze each module's operation names, signatures, handle ownership,
   string lifetime, error sentinels, callbacks, interruption behavior, and
   cleanup before introducing a second backend. Keep third-party calls behind
   backend-local adapters so the Lynxer wrapper never depends on crate-specific
-  types or APIs.
-- [ ] Add Rust-backend fixtures for success, malformed input, invalid handles,
+  types or APIs. Frozen at CLynxer 0.1.8 in
+  `clynxer/docs/stdlib-contracts.md`, per module: the conventions that apply
+  everywhere, the identity model and cleanup owner for each of the 27 modules,
+  and what changing a contract requires. The wrapper names only
+  `global.native<Name>.<op>(...)`, so no crate or library type crosses it.
+  The mechanical half — op names and packed argument bounds — is enforced by
+  `clynxer/scripts/check_module_contracts.py` in `make test`.
+- [x] Add Rust-backend fixtures for success, malformed input, invalid handles,
   missing files, timeouts, cleanup, optional-dependency failures, and the
   compiled/bundled executable path. Compare the wrapper's behavior with the
   Python reference where the API is intended to remain compatible.
-- [ ] Only extend the ABI when a real module cannot be expressed with its
+  `sound` (missing file, real asset, invalid handles, volume, release, cleanup),
+  `image` (missing file, non-image file, malformed base64, invalid handles),
+  `lua` (syntax errors, missing script, runtime error) and `tui` (the full
+  fallback path and the stateful placeholders) now cover their failure paths;
+  `sqldb` and `json` already did. All 27 fixtures are diffed byte-for-byte in
+  `make test`, and the hermetic Rust ones are additionally checked through
+  `--compile` for compiled/interpreted parity. Three divergences surfaced by
+  the comparison and are documented in `limitations.md`: `image` pixel and
+  `info` formatting, `image.grayscale` keeping alpha, and `lua`'s
+  `luaExists`/error-text shape. `sound` and `sqldb` produce output identical to
+  the Python reference.
+- [x] Only extend the ABI when a real module cannot be expressed with its
   scalar/string/handle conventions; every additive ABI change needs C and Rust
-  examples, compatibility coverage, and documentation.
-- [ ] Add a detailed extending.md for making modules for CLynxer.
+  examples, compatibility coverage, and documentation. Stated as policy in
+  `clynxer/docs/native-module-abi.md` under "Extending the ABI". No shape has
+  been added since the packed `cdecl:<ret>(...)` form; `tui`, `sound` and
+  `sqldb` needed none.
+- [x] Add a detailed extending.md for making modules for CLynxer.
+  `clynxer/docs/extending.md` covers choosing C++ or Rust, the wrapper and
+  backend pair, the packed ABI and per-kind argument indexing, build wiring,
+  what a fixture must cover, the contract check, and the completion checklist.
 
 ## Milestone 7 — native APIs
 

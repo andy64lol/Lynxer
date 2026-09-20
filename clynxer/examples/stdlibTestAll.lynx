@@ -704,7 +704,7 @@ global main(){
     fails += global.check(global.image.toDataUrl(img, "png") != "", "true", "image.toDataUrl");
     int decoded = global.image.fromBase64(encoded);
     fails += global.check(strOf(global.image.getWidth(decoded)) + "x" + strOf(global.image.getHeight(decoded)), "2x2", "image.fromBase64");
-    fails += global.check(global.image.info(decoded), "{\"width\":2,\"height\":2,\"mode\":\"RGBA\",\"format\":\"\"}", "image.info");
+    fails += global.check(global.image.info(decoded), "{\"width\":2,\"height\":2,\"mode\":\"RGBA\",\"format\":\"PNG\"}", "image.info");
     fails += global.check(global.image.close(img), "true", "image.close");
     fails += global.check(global.image.close(padded), "true", "image.close.padded");
     fails += global.check(global.image.close(resized), "true", "image.close.resized");

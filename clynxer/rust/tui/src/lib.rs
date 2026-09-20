@@ -54,9 +54,7 @@ fn with_state<F: FnOnce(&mut TuiState) -> R, R>(f: F) -> R {
 export_int!(tui_exists, args, { 1 });
 
 // Returns the ratatui version string, or "" if unavailable.
-export_string!(tui_version, args, {
-    env!("CARGO_PKG_VERSION").to_string()
-});
+export_string!(tui_version, args, { env!("CARGO_PKG_VERSION").to_string() });
 
 // Print text with markup support. Returns 0 on success.
 export_int!(tui_print_text, args, {
@@ -116,9 +114,7 @@ export_int!(tui_panel, args, {
         if let Some(terminal) = &mut state.terminal {
             let _ = terminal.draw(|frame| {
                 let area = frame.size();
-                let block = Block::default()
-                    .borders(Borders::ALL)
-                    .title(title);
+                let block = Block::default().borders(Borders::ALL).title(title);
                 let widget = Paragraph::new(text).block(block);
                 frame.render_widget(widget, area);
             });
@@ -211,7 +207,12 @@ export_int!(tui_table, args, {
                 frame.render_widget(widget, area);
             });
         }
-        println!("table: {} | {} | {}", args.string(0), args.string(1), args.string(2));
+        println!(
+            "table: {} | {} | {}",
+            args.string(0),
+            args.string(1),
+            args.string(2)
+        );
     });
     0
 });
@@ -222,8 +223,12 @@ export_int!(tui_clear, args, {
         if let Some(terminal) = &mut state.terminal {
             let _ = terminal.clear();
         }
-        // Also clear stdout in headless mode.
+        // Also clear stdout in headless mode. The sequence has no trailing
+        // newline, so flush explicitly: stdout is line-buffered, and otherwise
+        // these bytes would be emitted after whatever the interpreter prints
+        // next instead of before it.
         print!("\x1B[2J\x1B[1;1H");
+        let _ = std::io::Write::flush(&mut std::io::stdout());
     });
     0
 });
@@ -664,7 +669,11 @@ const OPS: &[(&str, &str, &str)] = &[
     ("printAligned", "tui_print_aligned", "cdecl:int64(...)"),
     ("printPadded", "tui_print_padded", "cdecl:int64(...)"),
     ("printException", "tui_print_exception", "cdecl:int64(...)"),
-    ("installTraceback", "tui_install_traceback", "cdecl:int64(...)"),
+    (
+        "installTraceback",
+        "tui_install_traceback",
+        "cdecl:int64(...)",
+    ),
     // Panels and rules
     ("panel", "tui_panel", "cdecl:int64(...)"),
     ("panelStyled", "tui_panel_styled", "cdecl:int64(...)"),
@@ -675,7 +684,11 @@ const OPS: &[(&str, &str, &str)] = &[
     ("tableCreate", "tui_table_create", "cdecl:int64(...)"),
     ("tableAddColumn", "tui_table_add_column", "cdecl:int64(...)"),
     ("tableAddRow", "tui_table_add_row", "cdecl:int64(...)"),
-    ("tableSetCaption", "tui_table_set_caption", "cdecl:int64(...)"),
+    (
+        "tableSetCaption",
+        "tui_table_set_caption",
+        "cdecl:int64(...)",
+    ),
     ("tableSetHeader", "tui_table_set_header", "cdecl:int64(...)"),
     ("tableSetLines", "tui_table_set_lines", "cdecl:int64(...)"),
     ("tableSetBox", "tui_table_set_box", "cdecl:int64(...)"),
@@ -687,15 +700,31 @@ const OPS: &[(&str, &str, &str)] = &[
     ("treePrint", "tui_tree_print", "cdecl:int64(...)"),
     // Layout
     ("layoutCreate", "tui_layout_create", "cdecl:int64(...)"),
-    ("layoutSplitRows", "tui_layout_split_rows", "cdecl:int64(...)"),
-    ("layoutSplitColumns", "tui_layout_split_columns", "cdecl:int64(...)"),
+    (
+        "layoutSplitRows",
+        "tui_layout_split_rows",
+        "cdecl:int64(...)",
+    ),
+    (
+        "layoutSplitColumns",
+        "tui_layout_split_columns",
+        "cdecl:int64(...)",
+    ),
     ("layoutUpdate", "tui_layout_update", "cdecl:int64(...)"),
     ("layoutPanel", "tui_layout_panel", "cdecl:int64(...)"),
     ("layoutPrint", "tui_layout_print", "cdecl:int64(...)"),
     // Progress
     ("progressStart", "tui_progress_start", "cdecl:int64(...)"),
-    ("progressAddTask", "tui_progress_add_task", "cdecl:int64(...)"),
-    ("progressAdvance", "tui_progress_advance", "cdecl:int64(...)"),
+    (
+        "progressAddTask",
+        "tui_progress_add_task",
+        "cdecl:int64(...)",
+    ),
+    (
+        "progressAdvance",
+        "tui_progress_advance",
+        "cdecl:int64(...)",
+    ),
     ("progressUpdate", "tui_progress_update", "cdecl:int64(...)"),
     ("progressStop", "tui_progress_stop", "cdecl:int64(...)"),
     // Status
@@ -715,8 +744,16 @@ const OPS: &[(&str, &str, &str)] = &[
     ("setHighlight", "tui_set_highlight", "cdecl:int64(...)"),
     ("setSoftWrap", "tui_set_soft_wrap", "cdecl:int64(...)"),
     ("consoleLog", "tui_console_log", "cdecl:int64(...)"),
-    ("consoleSaveText", "tui_console_save_text", "cdecl:cstring(...)"),
-    ("consoleSaveHtml", "tui_console_save_html", "cdecl:cstring(...)"),
+    (
+        "consoleSaveText",
+        "tui_console_save_text",
+        "cdecl:cstring(...)",
+    ),
+    (
+        "consoleSaveHtml",
+        "tui_console_save_html",
+        "cdecl:cstring(...)",
+    ),
     // Markup and styles
     ("markupEscape", "tui_markup_escape", "cdecl:cstring(...)"),
     ("styleValid", "tui_style_valid", "cdecl:int64(...)"),

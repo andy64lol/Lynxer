@@ -24,7 +24,9 @@ fn images() -> &'static Mutex<Vec<Option<Entry>>> {
 }
 
 fn store(image: DynamicImage, format: Option<ImageFormat>) -> i64 {
-    let mut table = images().lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    let mut table = images()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     table.push(Some(Entry { image, format }));
     (table.len() - 1) as i64
 }
@@ -34,7 +36,10 @@ fn get(index: i64) -> Option<DynamicImage> {
         return None;
     }
     let table = images().lock().ok()?;
-    table.get(index as usize)?.as_ref().map(|entry| entry.image.clone())
+    table
+        .get(index as usize)?
+        .as_ref()
+        .map(|entry| entry.image.clone())
 }
 
 fn get_format(index: i64) -> Option<ImageFormat> {
@@ -70,9 +75,7 @@ fn mode(image: &DynamicImage) -> &'static str {
         image::ColorType::L8 | image::ColorType::L16 => "L",
         image::ColorType::La8 | image::ColorType::La16 => "LA",
         image::ColorType::Rgb8 | image::ColorType::Rgb16 | image::ColorType::Rgb32F => "RGB",
-        image::ColorType::Rgba8
-        | image::ColorType::Rgba16
-        | image::ColorType::Rgba32F => "RGBA",
+        image::ColorType::Rgba8 | image::ColorType::Rgba16 | image::ColorType::Rgba32F => "RGBA",
         _ => "RGB",
     }
 }
@@ -165,8 +168,7 @@ fn set_channels(image: &mut DynamicImage, factor: f64, alpha: bool) {
     let mut rgba = image.to_rgba8();
     for pixel in rgba.pixels_mut() {
         for channel in 0..3 {
-            pixel[channel] = ((f64::from(pixel[channel]) * factor).round())
-                .clamp(0.0, 255.0) as u8;
+            pixel[channel] = ((f64::from(pixel[channel]) * factor).round()).clamp(0.0, 255.0) as u8;
         }
         if !alpha {
             pixel[3] = 255;
@@ -207,13 +209,21 @@ export_int!(image_create, args, {
 });
 
 export_int!(image_save, args, {
-    let Some(image) = get(args.int(0)) else { return -1 };
+    let Some(image) = get(args.int(0)) else {
+        return -1;
+    };
     let path = args.string(0);
-    if image.save(path).is_ok() { 0 } else { -1 }
+    if image.save(path).is_ok() {
+        0
+    } else {
+        -1
+    }
 });
 
 export_int!(image_save_quality, args, {
-    let Some(image) = get(args.int(0)) else { return -1 };
+    let Some(image) = get(args.int(0)) else {
+        return -1;
+    };
     let path = args.string(0);
     let quality = args.int(1).clamp(1, 95) as u8;
     if matches!(path_format(path), Some(ImageFormat::Jpeg)) {
@@ -221,7 +231,11 @@ export_int!(image_save_quality, args, {
             Ok(mut file) => {
                 let rgb = image.to_rgb8();
                 let mut encoder = JpegEncoder::new_with_quality(&mut file, quality);
-                if encoder.encode_image(&rgb).is_ok() { 0 } else { -1 }
+                if encoder.encode_image(&rgb).is_ok() {
+                    0
+                } else {
+                    -1
+                }
             }
             Err(_) => -1,
         }
@@ -233,14 +247,18 @@ export_int!(image_save_quality, args, {
 });
 
 export_int!(image_copy, args, {
-    get(args.int(0)).map(|image| store(image, get_format(args.int(0)))).unwrap_or(-1)
+    get(args.int(0))
+        .map(|image| store(image, get_format(args.int(0))))
+        .unwrap_or(-1)
 });
 
 export_int!(image_close, args, {
     if args.int(0) < 0 {
         -1
     } else {
-        let mut table = images().lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let mut table = images()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         if let Some(slot) = table.get_mut(args.int(0) as usize) {
             *slot = None;
             0
@@ -250,10 +268,22 @@ export_int!(image_close, args, {
     }
 });
 
-export_int!(image_width, args, { get(args.int(0)).map(|image| image.width() as i64).unwrap_or(0) });
-export_int!(image_height, args, { get(args.int(0)).map(|image| image.height() as i64).unwrap_or(0) });
+export_int!(image_width, args, {
+    get(args.int(0))
+        .map(|image| image.width() as i64)
+        .unwrap_or(0)
+});
+export_int!(image_height, args, {
+    get(args.int(0))
+        .map(|image| image.height() as i64)
+        .unwrap_or(0)
+});
 
-export_string!(image_mode, args, { get(args.int(0)).map(|image| mode(&image).to_string()).unwrap_or_default() });
+export_string!(image_mode, args, {
+    get(args.int(0))
+        .map(|image| mode(&image).to_string())
+        .unwrap_or_default()
+});
 export_string!(image_format, args, { format_name(get_format(args.int(0))) });
 
 export_string!(image_info, args, {
@@ -271,18 +301,25 @@ export_string!(image_info, args, {
 });
 
 export_int!(image_resize, args, {
-    let Some(image) = get(args.int(0)) else { return -1 };
+    let Some(image) = get(args.int(0)) else {
+        return -1;
+    };
     let width = args.int(1);
     let height = args.int(2);
     if width <= 0 || height <= 0 {
         -1
     } else {
-        store(image.resize_exact(width as u32, height as u32, FilterType::Lanczos3), None)
+        store(
+            image.resize_exact(width as u32, height as u32, FilterType::Lanczos3),
+            None,
+        )
     }
 });
 
 export_int!(image_thumbnail, args, {
-    let Some(image) = get(args.int(0)) else { return -1 };
+    let Some(image) = get(args.int(0)) else {
+        return -1;
+    };
     let width = args.int(1);
     let height = args.int(2);
     if width <= 0 || height <= 0 {
@@ -293,14 +330,21 @@ export_int!(image_thumbnail, args, {
 });
 
 export_int!(image_scale, args, {
-    let Some(image) = get(args.int(0)) else { return -1 };
+    let Some(image) = get(args.int(0)) else {
+        return -1;
+    };
     let width = (f64::from(image.width()) * args.num(1)).round().max(1.0) as u32;
     let height = (f64::from(image.height()) * args.num(1)).round().max(1.0) as u32;
-    store(image.resize_exact(width, height, FilterType::Lanczos3), None)
+    store(
+        image.resize_exact(width, height, FilterType::Lanczos3),
+        None,
+    )
 });
 
 export_int!(image_crop, args, {
-    let Some(image) = get(args.int(0)) else { return -1 };
+    let Some(image) = get(args.int(0)) else {
+        return -1;
+    };
     let x1 = args.int(1).max(0) as u32;
     let y1 = args.int(2).max(0) as u32;
     let x2 = args.int(3).max(args.int(1)) as u32;
@@ -315,13 +359,25 @@ export_int!(image_crop, args, {
 });
 
 export_int!(image_rotate, args, {
-    get(args.int(0)).map(|image| store(rotate(image, args.num(1)), None)).unwrap_or(-1)
+    get(args.int(0))
+        .map(|image| store(rotate(image, args.num(1)), None))
+        .unwrap_or(-1)
 });
-export_int!(image_flip_h, args, { get(args.int(0)).map(|image| store(image.fliph(), None)).unwrap_or(-1) });
-export_int!(image_flip_v, args, { get(args.int(0)).map(|image| store(image.flipv(), None)).unwrap_or(-1) });
+export_int!(image_flip_h, args, {
+    get(args.int(0))
+        .map(|image| store(image.fliph(), None))
+        .unwrap_or(-1)
+});
+export_int!(image_flip_v, args, {
+    get(args.int(0))
+        .map(|image| store(image.flipv(), None))
+        .unwrap_or(-1)
+});
 
 export_int!(image_pad, args, {
-    let Some(source) = get(args.int(0)) else { return -1 };
+    let Some(source) = get(args.int(0)) else {
+        return -1;
+    };
     let top = args.int(1).max(0) as u32;
     let right = args.int(2).max(0) as u32;
     let bottom = args.int(3).max(0) as u32;
@@ -338,16 +394,24 @@ export_int!(image_pad, args, {
 });
 
 export_int!(image_grayscale, args, {
-    get(args.int(0)).map(|image| store(image.grayscale(), None)).unwrap_or(-1)
+    get(args.int(0))
+        .map(|image| store(image.grayscale(), None))
+        .unwrap_or(-1)
 });
 export_int!(image_to_rgb, args, {
-    get(args.int(0)).map(|image| store(DynamicImage::ImageRgb8(image.to_rgb8()), None)).unwrap_or(-1)
+    get(args.int(0))
+        .map(|image| store(DynamicImage::ImageRgb8(image.to_rgb8()), None))
+        .unwrap_or(-1)
 });
 export_int!(image_to_rgba, args, {
-    get(args.int(0)).map(|image| store(DynamicImage::ImageRgba8(image.to_rgba8()), None)).unwrap_or(-1)
+    get(args.int(0))
+        .map(|image| store(DynamicImage::ImageRgba8(image.to_rgba8()), None))
+        .unwrap_or(-1)
 });
 export_int!(image_to_binary, args, {
-    let Some(image) = get(args.int(0)) else { return -1 };
+    let Some(image) = get(args.int(0)) else {
+        return -1;
+    };
     let threshold = args.int(1).clamp(0, 255) as u8;
     let mut result = image.to_luma8();
     for pixel in result.pixels_mut() {
@@ -357,7 +421,9 @@ export_int!(image_to_binary, args, {
 });
 
 export_int!(image_convert, args, {
-    let Some(image) = get(args.int(0)) else { return -1 };
+    let Some(image) = get(args.int(0)) else {
+        return -1;
+    };
     match args.string(0).to_ascii_uppercase().as_str() {
         "L" => store(image.grayscale(), None),
         "RGB" => store(DynamicImage::ImageRgb8(image.to_rgb8()), None),
@@ -367,37 +433,61 @@ export_int!(image_convert, args, {
 });
 
 export_int!(image_brightness, args, {
-    let Some(mut image) = get(args.int(0)) else { return -1 };
+    let Some(mut image) = get(args.int(0)) else {
+        return -1;
+    };
     set_channels(&mut image, args.num(1), true);
     store(image, None)
 });
 
 export_int!(image_contrast, args, {
-    let Some(image) = get(args.int(0)) else { return -1 };
-    store(image.adjust_contrast(((args.num(1) - 1.0) * 100.0) as f32), None)
+    let Some(image) = get(args.int(0)) else {
+        return -1;
+    };
+    store(
+        image.adjust_contrast(((args.num(1) - 1.0) * 100.0) as f32),
+        None,
+    )
 });
 
 export_int!(image_invert, args, {
-    let Some(mut image) = get(args.int(0)) else { return -1 };
+    let Some(mut image) = get(args.int(0)) else {
+        return -1;
+    };
     image.invert();
     store(image, None)
 });
 
 export_int!(image_blur, args, {
-    get(args.int(0)).map(|image| store(image.blur(args.num(1) as f32), None)).unwrap_or(-1)
+    get(args.int(0))
+        .map(|image| store(image.blur(args.num(1) as f32), None))
+        .unwrap_or(-1)
 });
 export_int!(image_box_blur, args, {
-    get(args.int(0)).map(|image| store(image.blur(args.num(1) as f32), None)).unwrap_or(-1)
+    get(args.int(0))
+        .map(|image| store(image.blur(args.num(1) as f32), None))
+        .unwrap_or(-1)
 });
 export_int!(image_unsharp, args, {
-    get(args.int(0)).map(|image| store(image.unsharpen(args.num(1) as f32, args.int(3) as i32), None)).unwrap_or(-1)
+    get(args.int(0))
+        .map(|image| {
+            store(
+                image.unsharpen(args.num(1) as f32, args.int(3) as i32),
+                None,
+            )
+        })
+        .unwrap_or(-1)
 });
 export_int!(image_sharpen, args, {
-    get(args.int(0)).map(|image| store(image.unsharpen(1.0, 1), None)).unwrap_or(-1)
+    get(args.int(0))
+        .map(|image| store(image.unsharpen(1.0, 1), None))
+        .unwrap_or(-1)
 });
 
 export_string!(image_get_pixel, args, {
-    let Some(image) = get(args.int(0)) else { return "[]".to_string() };
+    let Some(image) = get(args.int(0)) else {
+        return "[]".to_string();
+    };
     let x = args.int(1);
     let y = args.int(2);
     if x < 0 || y < 0 || x >= image.width() as i64 || y >= image.height() as i64 {
@@ -408,19 +498,27 @@ export_string!(image_get_pixel, args, {
 });
 
 export_int!(image_set_pixel, args, {
-    let Some(mut image) = get(args.int(0)) else { return -1 };
+    let Some(mut image) = get(args.int(0)) else {
+        return -1;
+    };
     let x = args.int(1);
     let y = args.int(2);
     if x < 0 || y < 0 || x >= image.width() as i64 || y >= image.height() as i64 {
         -1
     } else {
         image.put_pixel(x as u32, y as u32, color(&args, 3, 255));
-        if update(args.int(0), image, None) { 0 } else { -1 }
+        if update(args.int(0), image, None) {
+            0
+        } else {
+            -1
+        }
     }
 });
 
 export_int!(image_set_pixel_a, args, {
-    let Some(mut image) = get(args.int(0)) else { return -1 };
+    let Some(mut image) = get(args.int(0)) else {
+        return -1;
+    };
     let x = args.int(1);
     let y = args.int(2);
     if x < 0 || y < 0 || x >= image.width() as i64 || y >= image.height() as i64 {
@@ -431,37 +529,67 @@ export_int!(image_set_pixel_a, args, {
             y as u32,
             color(&args, 3, args.int(6).clamp(0, 255) as u8),
         );
-        if update(args.int(0), image, None) { 0 } else { -1 }
+        if update(args.int(0), image, None) {
+            0
+        } else {
+            -1
+        }
     }
 });
 
 export_int!(image_fill, args, {
-    let Some(mut image) = get(args.int(0)) else { return -1 };
+    let Some(mut image) = get(args.int(0)) else {
+        return -1;
+    };
     for y in 0..image.height() {
         for x in 0..image.width() {
             image.put_pixel(x, y, color(&args, 1, 255));
         }
     }
-    if update(args.int(0), image, None) { 0 } else { -1 }
+    if update(args.int(0), image, None) {
+        0
+    } else {
+        -1
+    }
 });
 
 export_int!(image_paste, args, {
-    let Some(mut destination) = get(args.int(0)) else { return -1 };
-    let Some(source) = get(args.int(1)) else { return -1 };
+    let Some(mut destination) = get(args.int(0)) else {
+        return -1;
+    };
+    let Some(source) = get(args.int(1)) else {
+        return -1;
+    };
     imageops::replace(&mut destination, &source, args.int(2), args.int(3));
-    if update(args.int(0), destination, None) { 0 } else { -1 }
+    if update(args.int(0), destination, None) {
+        0
+    } else {
+        -1
+    }
 });
 
 export_int!(image_paste_alpha, args, {
-    let Some(mut destination) = get(args.int(0)) else { return -1 };
-    let Some(source) = get(args.int(1)) else { return -1 };
+    let Some(mut destination) = get(args.int(0)) else {
+        return -1;
+    };
+    let Some(source) = get(args.int(1)) else {
+        return -1;
+    };
     imageops::overlay(&mut destination, &source, args.int(2), args.int(3));
-    if update(args.int(0), destination, None) { 0 } else { -1 }
+    if update(args.int(0), destination, None) {
+        0
+    } else {
+        -1
+    }
 });
 
 export_int!(image_blend, args, {
-    let Some(first) = get(args.int(0)) else { return -1 };
-    let Some(second) = get(args.int(1)) else { return -1 };
+    let Some(first) = get(args.int(0)) else {
+        return -1;
+    };
+    let Some(second) = get(args.int(1)) else {
+        return -1;
+    };
     let alpha = args.num(2).clamp(0.0, 1.0);
     let width = first.width().min(second.width());
     let height = first.height().min(second.height());
@@ -472,8 +600,7 @@ export_int!(image_blend, args, {
             let a = result.get_pixel_mut(x, y);
             let b = other.get_pixel(x, y);
             for channel in 0..4 {
-                a[channel] = (f64::from(a[channel]) * (1.0 - alpha)
-                    + f64::from(b[channel]) * alpha)
+                a[channel] = (f64::from(a[channel]) * (1.0 - alpha) + f64::from(b[channel]) * alpha)
                     .round() as u8;
             }
         }
@@ -482,69 +609,131 @@ export_int!(image_blend, args, {
 });
 
 export_int!(image_add_alpha, args, {
-    get(args.int(0)).map(|image| store(DynamicImage::ImageRgba8(image.to_rgba8()), None)).unwrap_or(-1)
+    get(args.int(0))
+        .map(|image| store(DynamicImage::ImageRgba8(image.to_rgba8()), None))
+        .unwrap_or(-1)
 });
 export_int!(image_set_alpha, args, {
-    let Some(image) = get(args.int(0)) else { return -1 };
+    let Some(image) = get(args.int(0)) else {
+        return -1;
+    };
     let mut result = image.to_rgba8();
     let alpha = args.int(1).clamp(0, 255) as u8;
-    for pixel in result.pixels_mut() { pixel[3] = alpha; }
+    for pixel in result.pixels_mut() {
+        pixel[3] = alpha;
+    }
     store(DynamicImage::ImageRgba8(result), None)
 });
 export_int!(image_remove_alpha, args, {
-    get(args.int(0)).map(|image| store(DynamicImage::ImageRgb8(image.to_rgb8()), None)).unwrap_or(-1)
+    get(args.int(0))
+        .map(|image| store(DynamicImage::ImageRgb8(image.to_rgb8()), None))
+        .unwrap_or(-1)
 });
 
 export_string!(image_average_color, args, {
-    let Some(image) = get(args.int(0)) else { return "[]".to_string() };
+    let Some(image) = get(args.int(0)) else {
+        return "[]".to_string();
+    };
     let rgba = image.to_rgba8();
     let count = f64::from(rgba.width()) * f64::from(rgba.height());
-    if count == 0.0 { return "[]".to_string(); }
+    if count == 0.0 {
+        return "[]".to_string();
+    }
     let mut sums = [0.0; 4];
     for pixel in rgba.pixels() {
-        for channel in 0..4 { sums[channel] += f64::from(pixel[channel]); }
+        for channel in 0..4 {
+            sums[channel] += f64::from(pixel[channel]);
+        }
     }
-    format!("[{:.0},{:.0},{:.0},{:.0}]", sums[0] / count, sums[1] / count, sums[2] / count, sums[3] / count)
+    format!(
+        "[{:.0},{:.0},{:.0},{:.0}]",
+        sums[0] / count,
+        sums[1] / count,
+        sums[2] / count,
+        sums[3] / count
+    )
 });
 
 export_string!(image_dominant_color, args, {
-    let Some(image) = get(args.int(0)) else { return "[]".to_string() };
+    let Some(image) = get(args.int(0)) else {
+        return "[]".to_string();
+    };
     let mut buckets = std::collections::HashMap::<[u8; 4], usize>::new();
     for pixel in image.to_rgba8().pixels() {
-        let bucket = [pixel[0] / 16 * 16, pixel[1] / 16 * 16, pixel[2] / 16 * 16, pixel[3]];
+        let bucket = [
+            pixel[0] / 16 * 16,
+            pixel[1] / 16 * 16,
+            pixel[2] / 16 * 16,
+            pixel[3],
+        ];
         *buckets.entry(bucket).or_default() += 1;
     }
-    buckets.into_iter().max_by_key(|(_, count)| *count).map(|(pixel, _)| json_pixel(Rgba(pixel))).unwrap_or_else(|| "[]".to_string())
+    buckets
+        .into_iter()
+        .max_by_key(|(_, count)| *count)
+        .map(|(pixel, _)| json_pixel(Rgba(pixel)))
+        .unwrap_or_else(|| "[]".to_string())
 });
 
 export_string!(image_histogram, args, {
-    let Some(image) = get(args.int(0)) else { return "{}".to_string() };
+    let Some(image) = get(args.int(0)) else {
+        return "{}".to_string();
+    };
     let mut channels = [[0usize; 256]; 4];
     for pixel in image.to_rgba8().pixels() {
-        for channel in 0..4 { channels[channel][pixel[channel] as usize] += 1; }
+        for channel in 0..4 {
+            channels[channel][pixel[channel] as usize] += 1;
+        }
     }
     let channel_json = |values: &[usize; 256]| -> String {
-        format!("[{}]", values.iter().map(|value| value.to_string()).collect::<Vec<_>>().join(","))
+        format!(
+            "[{}]",
+            values
+                .iter()
+                .map(|value| value.to_string())
+                .collect::<Vec<_>>()
+                .join(",")
+        )
     };
-    format!(r#"{{"r":{},"g":{},"b":{},"a":{}}}"#, channel_json(&channels[0]), channel_json(&channels[1]), channel_json(&channels[2]), channel_json(&channels[3]))
+    format!(
+        r#"{{"r":{},"g":{},"b":{},"a":{}}}"#,
+        channel_json(&channels[0]),
+        channel_json(&channels[1]),
+        channel_json(&channels[2]),
+        channel_json(&channels[3])
+    )
 });
 
 export_int!(image_tile, args, {
-    let Some(image) = get(args.int(0)) else { return -1 };
+    let Some(image) = get(args.int(0)) else {
+        return -1;
+    };
     let cols = args.int(1);
     let rows = args.int(2);
-    if cols <= 0 || rows <= 0 { return -1; }
-    let mut result = DynamicImage::ImageRgba8(image::ImageBuffer::new(image.width() * cols as u32, image.height() * rows as u32));
+    if cols <= 0 || rows <= 0 {
+        return -1;
+    }
+    let mut result = DynamicImage::ImageRgba8(image::ImageBuffer::new(
+        image.width() * cols as u32,
+        image.height() * rows as u32,
+    ));
     for row in 0..rows {
         for col in 0..cols {
-            imageops::overlay(&mut result, &image, i64::from(col) * i64::from(image.width()), i64::from(row) * i64::from(image.height()));
+            imageops::overlay(
+                &mut result,
+                &image,
+                i64::from(col) * i64::from(image.width()),
+                i64::from(row) * i64::from(image.height()),
+            );
         }
     }
     store(result, None)
 });
 
 export_string!(image_base64, args, {
-    let Some(image) = get(args.int(0)) else { return String::new() };
+    let Some(image) = get(args.int(0)) else {
+        return String::new();
+    };
     let format = format_from_text(args.string(0))
         .or_else(|| get_format(args.int(0)))
         .unwrap_or(ImageFormat::Png);
@@ -552,15 +741,34 @@ export_string!(image_base64, args, {
 });
 
 export_int!(image_from_base64, args, {
-    let bytes = match STANDARD.decode(args.string(0)) { Ok(bytes) => bytes, Err(_) => return -1 };
-    match image::load_from_memory(&bytes) { Ok(image) => store(image, None), Err(_) => -1 }
+    let bytes = match STANDARD.decode(args.string(0)) {
+        Ok(bytes) => bytes,
+        Err(_) => return -1,
+    };
+    // The bytes carry their format, so record it rather than storing `None`:
+    // `getFormat` and `info` report it, and the reference does too.
+    let format = image::guess_format(&bytes).ok();
+    match image::load_from_memory(&bytes) {
+        Ok(image) => store(image, format),
+        Err(_) => -1,
+    }
 });
 
 export_string!(image_data_url, args, {
-    let Some(image) = get(args.int(0)) else { return String::new() };
+    let Some(image) = get(args.int(0)) else {
+        return String::new();
+    };
     let format = format_from_text(args.string(0)).unwrap_or(ImageFormat::Png);
-    let mime = match format { ImageFormat::Jpeg => "image/jpeg", ImageFormat::WebP => "image/webp", ImageFormat::Gif => "image/gif", _ => "image/png" };
-    format!("data:{mime};base64,{}", STANDARD.encode(encode_image(&image, format, None)))
+    let mime = match format {
+        ImageFormat::Jpeg => "image/jpeg",
+        ImageFormat::WebP => "image/webp",
+        ImageFormat::Gif => "image/gif",
+        _ => "image/png",
+    };
+    format!(
+        "data:{mime};base64,{}",
+        STANDARD.encode(encode_image(&image, format, None))
+    )
 });
 
 const OPS: &[(&str, &str, &str)] = &[
@@ -605,8 +813,16 @@ const OPS: &[(&str, &str, &str)] = &[
     ("addAlpha", "image_add_alpha", "cdecl:int64(...)"),
     ("setAlpha", "image_set_alpha", "cdecl:int64(...)"),
     ("removeAlpha", "image_remove_alpha", "cdecl:int64(...)"),
-    ("getAverageColor", "image_average_color", "cdecl:cstring(...)"),
-    ("getDominantColor", "image_dominant_color", "cdecl:cstring(...)"),
+    (
+        "getAverageColor",
+        "image_average_color",
+        "cdecl:cstring(...)",
+    ),
+    (
+        "getDominantColor",
+        "image_dominant_color",
+        "cdecl:cstring(...)",
+    ),
     ("getHistogram", "image_histogram", "cdecl:cstring(...)"),
     ("tile", "image_tile", "cdecl:int64(...)"),
     ("toBase64", "image_base64", "cdecl:cstring(...)"),

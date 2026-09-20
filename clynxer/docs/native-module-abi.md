@@ -287,6 +287,34 @@ global main(){
 }
 ```
 
+## Extending the ABI
+
+The ABI is deliberately small and changes only when a real module cannot be
+expressed with the conventions above. Before adding anything, a module must
+first try to fit one of them:
+
+| Convention | Use it for |
+| --- | --- |
+| Numbers (`int64`, `float64`, `bool` as `0`/`1`) | countable, measurable or flag-like values |
+| Strings (`cstring`) | text, and paths |
+| Integer handles | anything the module owns and must outlive a call |
+| JSON strings | stateless structured data — lists, tuples and records |
+| Named callbacks (`lynxer_module_attach_v1`) | the module driving Lynxer code |
+
+An additive ABI change is only merged with all four of:
+
+1. **a C example** — `clynxer/examples/native_signatures.cpp` is the pattern,
+   and `make test` compiles and runs it;
+2. **a Rust example** — through `clynxer_abi`, because that is how the bundled
+   backends are written;
+3. **compatibility coverage** — the shape added to `nativeCallTable()` plus a
+   fixture that exercises it, so a regression fails `make test`;
+4. **documentation** — this page, and
+   [stdlib-contracts.md](stdlib-contracts.md) when the change alters what a
+   module may rely on.
+
+An additive change must not alter how existing shapes or signatures behave.
+
 ## Platform support
 
 Native modules require a POSIX host. On other platforms every `.so` import

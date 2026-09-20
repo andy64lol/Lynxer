@@ -218,6 +218,39 @@ equivalent:
 - `markupEscape`, `enter` and `exit` (raw mode plus the alternate screen) are
   real implementations. `tuiVersion` reports the backend crate's version, not
   ratatui's.
+- The module writes its fallback output straight to stdout rather than through
+  the interpreter. Both sides are line-buffered, so lines interleave in order,
+  but a write with no trailing newline would not: `clear()` emits its ANSI
+  sequence without one and flushes explicitly for that reason.
+
+## `image`
+
+- The pixel getters return a bracketed list (`[10,20,30,255]`); the reference
+  returns a comma-joined string (`10,20,30,255`).
+- The mutating operations (`save`, `saveQuality`, `setPixel`, `setPixelA`,
+  `fill`, `paste`, `pasteWithAlpha`, `close`) return a boolean, where the
+  reference returns `0` on success.
+- `grayscale` keeps the alpha channel, so an `RGBA` image becomes `LA`; the
+  reference produces `L`.
+- `info` returns compact JSON, not the spaced form Python's `json.dumps`
+  produces. The `json` module matches Python's spacing; `info` does not.
+- `getFormat` and `info` report the detected format (`PNG`, `JPEG`, ...) for
+  images decoded with `fromBase64`, not just for images opened from a file.
+
+## `lua`
+
+- `luaExists()` returns a `bool`; the reference returns an integer `0`/`1`.
+- `luaVersion()` reports the vendored engine (`Lua 5.4`). The reference reports
+  whichever version the system's `lupa` links against, so the strings differ by
+  environment rather than by design.
+- Error strings differ in both prefix and chunk name. Clynxer names the kind of
+  failure and the chunk, e.g.
+  `Error: syntax error: [string "clynxer.lua"]:1: syntax error near 'is'`,
+  whereas the reference emits
+  `Error: error loading code: [string "<python>"]:1: syntax error near 'is'`.
+  The trailing part comes from Lua itself and is the same on both sides.
+- A Lua runtime error is reported the same way and its text includes a Lua
+  traceback, so the fixture asserts only that a message came back.
 
 ## Testing notes
 

@@ -10,3 +10,7 @@ hello	42
 CLYNXER
 
 
+Error: syntax error: [string "clynxer.lua"]:1: syntax error near 'is'
+Error: syntax error: [string "clynxer.lua"]:1: unexpected symbol near ')'
+true
+true

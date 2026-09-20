@@ -3,4 +3,32 @@
 &lt;hello &amp; 'world'&gt;
 true
 true
+plain
+styled: styled
+────────────────────────────────────────
+panel [Title]: body
+markdown: # Heading
+json pretty: {"a": 1}
+table: T | ["a"] | [[1]]
+raw
+pretty: value
+[2J[1;1H80
+log: logged
+ok
+ok
+0
+table print
+0
+0
+0
+0
+0
+0
+0
 
+
+0
+0
+
+false
+false

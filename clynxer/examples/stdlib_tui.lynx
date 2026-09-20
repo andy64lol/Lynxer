@@ -1,15 +1,89 @@
 ////
-Fixture for the tui stdlib. Interpreted only (module imports
-are not bytecode-compilable). Tests headless-safe operations.
+Fixture for the Rust-backed tui stdlib. It runs without a terminal, so the
+rendering operations take their plain-text fallback path and the stateful
+handles are the documented placeholders. `enter()`/`exit()` are deliberately
+not exercised: they put the controlling terminal into raw mode, which a fixture
+must not do.
 ////
-
 global setup(){ import("tui"); }
 
 global main(){
+    // Existence, version, markup and style validation.
     println(global.tui.tuiExists());
     println(global.tui.tuiVersion());
     println(global.tui.markupEscape("<hello & 'world'>"));
     println(global.tui.styleValid("bold green"));
     println(global.tui.styleValid("not-a-style"));
+
+    // Rendering with no terminal active prints a plain-text line; the wrappers
+    // return nothing, so the calls stand alone.
+    global.tui.printText("plain");
+    global.tui.printStyled("styled", "bold green");
+    global.tui.rule("Section");
+    global.tui.panel("body", "Title");
+    global.tui.markdown("# Heading");
+    global.tui.jsonPretty("{\"a\": 1}");
+    global.tui.table("T", "[\"a\"]", "[[1]]");
+    global.tui.printTextPlain("raw");
+    global.tui.printPretty("value");
+    global.tui.printColumns("[\"a\"]", true, false);
+    global.tui.printAligned("text", "left", false);
+    global.tui.printPadded("text", 1, 2, 3, 4);
+    global.tui.printException();
+    global.tui.installTraceback(true);
+    // `clear()` writes the raw ANSI "erase display" sequence with no trailing
+    // newline, so the expected output joins it to the next printed value.
+    global.tui.clear();
+
+    // Console configuration.
+    global.tui.init("truecolor");
+    println(global.tui.setWidth(80));
+    global.tui.setMarkup(true);
+    global.tui.setEmoji(false);
+    global.tui.setHighlight(true);
+    global.tui.setSoftWrap(false);
+    global.tui.consoleLog("logged");
+    println(global.tui.consoleSaveText("unused.txt"));
+    println(global.tui.consoleSaveHtml("unused.html"));
+
+    // Stateful handles are placeholders: they return a handle and keep no state.
+    println(global.tui.tableCreate("t"));
+    global.tui.tableAddColumn(0, "header", "bold");
+    global.tui.tableAddRow(0, "[[1]]");
+    global.tui.tableSetCaption(0, "caption");
+    global.tui.tableSetHeader(0, true);
+    global.tui.tableSetLines(0, true);
+    global.tui.tableSetBox(0, "square");
+    global.tui.tableSetExpand(0, true);
+    global.tui.tablePrint(0);
+    println(global.tui.treeCreate("root"));
+    println(global.tui.treeAdd(0, "child"));
+    global.tui.treePrint(0);
+    println(global.tui.layoutCreate("l"));
+    global.tui.layoutSplitRows(0, "[\"a\"]");
+    global.tui.layoutSplitColumns(0, "[\"b\"]");
+    global.tui.layoutUpdate(0, "a", "text");
+    global.tui.layoutPanel(0, "a", "text", "title");
+    global.tui.layoutPrint(0);
+    println(global.tui.progressStart());
+    println(global.tui.progressAddTask(0, "task", 10.0));
+    global.tui.progressAdvance(0, 0, 1.0);
+    global.tui.progressUpdate(0, 0, 5.0, 10.0);
+    global.tui.progressStop(0);
+    println(global.tui.statusStart("s"));
+    global.tui.statusUpdate(0, "still running");
+    global.tui.statusStop(0);
+    println(global.tui.liveStart("l", 4.0));
+    global.tui.liveUpdate(0, "text");
+    global.tui.livePanel(0, "text", "title");
+    global.tui.liveStop(0);
+
+    // Prompt variants return their empty/zero defaults without reading input.
     println(global.tui.ask("prompt"));
+    println(global.tui.askPassword("p"));
+    println(global.tui.askInt("n"));
+    println(global.tui.askFloat("f"));
+    println(global.tui.askDefault("d", "x"));
+    println(global.tui.confirm("ok?"));
+    println(global.tui.confirmDefault("ok?", true));
 }
