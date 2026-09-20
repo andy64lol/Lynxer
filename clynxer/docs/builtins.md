@@ -9,10 +9,10 @@ the module's own function of that name — see
 [limitations](limitations.md#module-self-calls).
 
 Names that are known but not implemented (for example `rawPy`, `ffiCall`,
-`nativeModuleLoad`, `async*`, `sound*`, the `process*`/`filesystem*`/
-`networking*` families, and mutual-exclusion primitives) fail with
-`<name>() is not supported in CLynxer yet`. The `syscall*` family is routed to a
-generic syscall dispatcher instead.
+`nativeModuleLoad`, `async*`, `sound*`, the `process*`/`networking*` families,
+and mutual-exclusion primitives) fail with `<name>() is not supported in
+CLynxer yet`. The `syscall*` family is routed to a generic syscall dispatcher
+instead.
 
 ## Input, output and conversion
 
@@ -141,3 +141,37 @@ global main(){
 through the platform syscall layer. `syscallPollFileDescriptors` takes three
 arguments; `syscallPpollFileDescriptors`, `syscallWaitForEvents` and
 `syscallWaitForEventsWithSignalMask` take five.
+
+## Managed filesystem
+
+A small handle-based filesystem API, separate from the `fileIO`, `os` and `path`
+stdlib modules. Handles are non-negative integers; the interpreter owns the
+descriptor behind one, and an unknown or already-closed handle is a runtime
+error rather than a silent failure. Failures preserve the operation and the
+original errno in the message, for example
+`filesystemOpen() failed: [2] No such file or directory`. Descriptors a program
+leaves open are closed when the process exits.
+
+| Builtin | Notes |
+| --- | --- |
+| `filesystemOpen(path, mode, permissions?)` | Returns a file handle. Modes are `r`, `w`, `a`, `r+`, `w+`, `a+`; permissions default to `0666` |
+| `filesystemRead(handle, maxBytes)` | Reads and returns UTF-8 text; bytes that are not valid UTF-8 become U+FFFD |
+| `filesystemWrite(handle, data)` | Writes UTF-8 text and returns the byte count |
+| `filesystemClose(handle)` | Closes the descriptor and releases the handle |
+| `filesystemStat(path)` | JSON `{type, size, mode, modifiedTime, accessTime, changeTime}`. Does not follow a symlink, so `type` can be `symlink`, `file`, `dir` or `other` |
+| `filesystemList(path)` | Sorted direct child names |
+| `filesystemMkdir(path, parents?)` | Creates a directory; `parents` also creates missing parents and tolerates an existing directory |
+| `filesystemRemove(path)` | Removes a file, symlink or empty directory |
+| `filesystemRename(source, target)` | Renames an entry |
+| `filesystemLink(source, target, symbolic?)` | Hard link, or a symbolic link when `symbolic` is true |
+| `filesystemReadLink(path)` | Reads a symbolic link target |
+| `filesystemChmod(path, mode)` | Sets numeric permission bits |
+
+The family follows the Python reference exactly, including its error text. One
+consequence is worth noting: the reference's `Number.null` is `0`, so the
+operations that yield "no value" (`filesystemClose`, `filesystemRemove`,
+`filesystemRename`, `filesystemLink`, `filesystemChmod`) return `0` rather than
+Clynxer's own `none`.
+
+On a host without POSIX `open`/`stat`/`dirent`, the whole family stays in the
+unsupported set.

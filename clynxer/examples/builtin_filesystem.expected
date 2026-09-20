@@ -1,0 +1,35 @@
+true
+true
+true
+6
+0
+hello
+
+
+0
+file 6 420
+[nested, notes.txt]
+0
+.clynxer_scratch_fs/notes.txt
+symlink
+0
+0
+[nested, renamed.txt]
+0
+384
+mode: filesystemOpen() mode must be r, w, a, r+, w+, or a+
+open: filesystemOpen() failed: [2] No such file or directory
+handle: filesystemRead() received an unknown or closed file handle
+closed: filesystemRead() received an unknown or closed file handle
+stat: filesystemStat() failed: [2] No such file or directory
+list: filesystemList() failed: [2] No such file or directory
+remove: filesystemRemove() failed: [2] No such file or directory
+readlink: filesystemReadLink() failed: [2] No such file or directory
+chmod: filesystemChmod() failed: [2] No such file or directory
+rename: filesystemRename() failed: [2] No such file or directory
+link: filesystemLink() failed: [2] No such file or directory
+nonempty: filesystemRemove() failed: [39] Directory not empty
+0
+0
+0
+0

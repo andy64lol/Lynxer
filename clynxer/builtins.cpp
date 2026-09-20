@@ -23,6 +23,19 @@
 #include <unistd.h>
 #endif
 
+// The managed `filesystem*` built-ins follow the Python reference, which is
+// built on POSIX `open`/`read`/`stat`/`dirent` calls. On a non-POSIX host the
+// names stay in `unsupportedTable()` instead.
+#if defined(__unix__) || defined(__APPLE__)
+#define CLYNXER_POSIX_BUILTINS 1
+#include <dirent.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#else
+#define CLYNXER_POSIX_BUILTINS 0
+#endif
+
 namespace clynxer {
 
 namespace {
@@ -2198,6 +2211,383 @@ Value builtinSyscall(const std::string& name, const std::vector<Value>& args,
 
 // --- registry ---------------------------------------------------------------------
 
+// --- Managed filesystem built-ins -------------------------------------------
+//
+// `filesystem*` is a small handle-based API that preserves errno in its
+// messages, mirroring the Python reference. Open descriptors live in a registry
+// keyed by a non-negative handle; anything a program leaves open is closed by
+// the operating system when the process exits.
+
+#if CLYNXER_POSIX_BUILTINS
+
+std::unordered_map<std::int64_t, int>& openFiles() {
+    static std::unordered_map<std::int64_t, int> files;
+    return files;
+}
+
+std::int64_t nextFileHandle() {
+    static std::int64_t next = 1;
+    return next++;
+}
+
+// Reports the failure of `name`, preserving the errno of the call that failed.
+[[noreturn]] void failErrno(const std::string& name, int line, int column) {
+    const int code = errno;
+    fail(name + "() failed: [" + std::to_string(code) + "] " +
+             std::strerror(code),
+         line, column);
+}
+
+bool asBool(const Value& value) {
+    if (const auto* flag = std::get_if<bool>(&value)) {
+        return *flag;
+    }
+    if (const auto* integer = std::get_if<std::int64_t>(&value)) {
+        return *integer != 0;
+    }
+    return false;
+}
+
+bool isNonNegativeInt(const Value& value) {
+    const auto* integer = std::get_if<std::int64_t>(&value);
+    return integer != nullptr && *integer >= 0;
+}
+
+// Resolves a handle argument to a live descriptor, or fails with the
+// reference's wording.
+int requireOpenFile(const Value& value, const char* name, int line,
+                    int column) {
+    const auto* handle = std::get_if<std::int64_t>(&value);
+    if (handle == nullptr || *handle < 0) {
+        fail(std::string(name) + "() expects a file handle", line, column);
+    }
+    const auto found = openFiles().find(*handle);
+    if (found == openFiles().end()) {
+        fail(std::string(name) + "() received an unknown or closed file handle",
+             line, column);
+    }
+    return found->second;
+}
+
+// Replaces bytes that are not valid UTF-8 with U+FFFD, like the reference's
+// `bytes.decode("utf-8", errors="replace")`.
+std::string utf8Replace(const std::string& bytes) {
+    std::string out;
+    out.reserve(bytes.size());
+    std::size_t index = 0;
+    while (index < bytes.size()) {
+        const auto lead = static_cast<unsigned char>(bytes[index]);
+        std::size_t length = 0;
+        if (lead < 0x80) {
+            length = 1;
+        } else if ((lead & 0xE0) == 0xC0) {
+            length = 2;
+        } else if ((lead & 0xF0) == 0xE0) {
+            length = 3;
+        } else if ((lead & 0xF8) == 0xF0) {
+            length = 4;
+        }
+        bool valid = length > 0 && index + length <= bytes.size();
+        for (std::size_t offset = 1; valid && offset < length; ++offset) {
+            const auto next =
+                static_cast<unsigned char>(bytes[index + offset]);
+            if ((next & 0xC0) != 0x80) {
+                valid = false;
+            }
+        }
+        if (!valid) {
+            out += "\xEF\xBF\xBD";
+            ++index;
+            continue;
+        }
+        out.append(bytes, index, length);
+        index += length;
+    }
+    return out;
+}
+
+std::string requirePathArg(const std::vector<Value>& args, std::size_t index,
+                           const char* usage, int line, int column) {
+    if (!std::holds_alternative<std::string>(args[index])) {
+        fail(usage, line, column);
+    }
+    return std::get<std::string>(args[index]);
+}
+
+double statSeconds(const timespec& time) {
+    return static_cast<double>(time.tv_sec) +
+           static_cast<double>(time.tv_nsec) / 1e9;
+}
+
+Value builtinFilesystemOpen(const std::vector<Value>& args, Environment&,
+                            int line, int column) {
+    const char* usage =
+        "filesystemOpen(path, mode, permissions?) expects strings and an "
+        "optional integer";
+    if (args.size() != 2 && args.size() != 3) {
+        fail(usage, line, column);
+    }
+    if (!std::holds_alternative<std::string>(args[0]) ||
+        !std::holds_alternative<std::string>(args[1]) ||
+        (args.size() == 3 && !isNonNegativeInt(args[2]))) {
+        fail(usage, line, column);
+    }
+    const std::string& mode = std::get<std::string>(args[1]);
+    int flags = 0;
+    if (mode == "r") {
+        flags = O_RDONLY;
+    } else if (mode == "w") {
+        flags = O_WRONLY | O_CREAT | O_TRUNC;
+    } else if (mode == "a") {
+        flags = O_WRONLY | O_CREAT | O_APPEND;
+    } else if (mode == "r+") {
+        flags = O_RDWR;
+    } else if (mode == "w+") {
+        flags = O_RDWR | O_CREAT | O_TRUNC;
+    } else if (mode == "a+") {
+        flags = O_RDWR | O_CREAT | O_APPEND;
+    } else {
+        fail("filesystemOpen() mode must be r, w, a, r+, w+, or a+", line,
+             column);
+    }
+    const mode_t permissions =
+        args.size() == 3 ? static_cast<mode_t>(std::get<std::int64_t>(args[2]))
+                         : 0666;
+    const std::string path = std::get<std::string>(args[0]);
+    const int descriptor = ::open(path.c_str(), flags, permissions);
+    if (descriptor < 0) {
+        failErrno("filesystemOpen", line, column);
+    }
+    const std::int64_t handle = nextFileHandle();
+    openFiles()[handle] = descriptor;
+    return handle;
+}
+
+Value builtinFilesystemRead(const std::vector<Value>& args, Environment&,
+                            int line, int column) {
+    if (args.size() != 2 || !isNonNegativeInt(args[1])) {
+        fail("filesystemRead(handle, maxBytes) expects a non-negative byte "
+             "count",
+             line, column);
+    }
+    const int descriptor =
+        requireOpenFile(args[0], "filesystemRead", line, column);
+    const auto wanted = static_cast<std::size_t>(std::get<std::int64_t>(args[1]));
+    std::string buffer(wanted, '\0');
+    const ssize_t count = ::read(descriptor, buffer.data(), wanted);
+    if (count < 0) {
+        failErrno("filesystemRead", line, column);
+    }
+    buffer.resize(static_cast<std::size_t>(count));
+    return utf8Replace(buffer);
+}
+
+Value builtinFilesystemWrite(const std::vector<Value>& args, Environment&,
+                             int line, int column) {
+    if (args.size() != 2 || !std::holds_alternative<std::string>(args[1])) {
+        fail("filesystemWrite(handle, data) expects a file handle and string",
+             line, column);
+    }
+    const int descriptor =
+        requireOpenFile(args[0], "filesystemWrite", line, column);
+    const std::string& data = std::get<std::string>(args[1]);
+    const ssize_t count = ::write(descriptor, data.data(), data.size());
+    if (count < 0) {
+        failErrno("filesystemWrite", line, column);
+    }
+    return static_cast<std::int64_t>(count);
+}
+
+Value builtinFilesystemClose(const std::vector<Value>& args, Environment&,
+                             int line, int column) {
+    if (args.size() != 1) {
+        fail("filesystemClose(handle) expects a file handle", line, column);
+    }
+    const int descriptor =
+        requireOpenFile(args[0], "filesystemClose", line, column);
+    if (::close(descriptor) != 0) {
+        failErrno("filesystemClose", line, column);
+    }
+    openFiles().erase(std::get<std::int64_t>(args[0]));
+    return std::int64_t{0};
+}
+
+Value builtinFilesystemStat(const std::vector<Value>& args, Environment&,
+                            int line, int column) {
+    const std::string path = requirePathArg(
+        args, 0, "filesystemStat(path) expects a path string", line, column);
+    struct stat info {};
+    if (::lstat(path.c_str(), &info) != 0) {
+        failErrno("filesystemStat", line, column);
+    }
+    const char* kind = "other";
+    if (S_ISLNK(info.st_mode)) {
+        kind = "symlink";
+    } else if (S_ISREG(info.st_mode)) {
+        kind = "file";
+    } else if (S_ISDIR(info.st_mode)) {
+        kind = "dir";
+    }
+    return std::string("{\"type\":") + jsonString(kind) +
+           ",\"size\":" + std::to_string(info.st_size) +
+           ",\"mode\":" + std::to_string(info.st_mode & 07777) +
+           ",\"modifiedTime\":" + jsonDouble(statSeconds(info.st_mtim)) +
+           ",\"accessTime\":" + jsonDouble(statSeconds(info.st_atim)) +
+           ",\"changeTime\":" + jsonDouble(statSeconds(info.st_ctim)) + "}";
+}
+
+Value builtinFilesystemList(const std::vector<Value>& args, Environment&,
+                            int line, int column) {
+    const std::string path =
+        requirePathArg(args, 0,
+                       "filesystemList(path) expects a directory path string",
+                       line, column);
+    DIR* directory = ::opendir(path.c_str());
+    if (directory == nullptr) {
+        failErrno("filesystemList", line, column);
+    }
+    std::vector<std::string> names;
+    while (const dirent* entry = ::readdir(directory)) {
+        const std::string name = entry->d_name;
+        if (name != "." && name != "..") {
+            names.push_back(name);
+        }
+    }
+    ::closedir(directory);
+    std::sort(names.begin(), names.end());
+    std::vector<Value> elements;
+    elements.reserve(names.size());
+    for (const auto& name : names) {
+        elements.emplace_back(name);
+    }
+    return makeList(std::move(elements));
+}
+
+Value builtinFilesystemMkdir(const std::vector<Value>& args, Environment&,
+                             int line, int column) {
+    const char* usage =
+        "filesystemMkdir(path, parents?) expects a path and optional boolean";
+    if ((args.size() != 1 && args.size() != 2) ||
+        !std::holds_alternative<std::string>(args[0]) ||
+        (args.size() == 2 && !std::holds_alternative<bool>(args[1]) &&
+         !std::holds_alternative<std::int64_t>(args[1]))) {
+        fail(usage, line, column);
+    }
+    const std::string path = std::get<std::string>(args[0]);
+    if (args.size() == 2 && asBool(args[1])) {
+        // Create missing parents, tolerating a directory that already exists.
+        std::string partial;
+        std::size_t index = 0;
+        while (index <= path.size()) {
+            const std::size_t slash = path.find('/', index);
+            const std::size_t end =
+                slash == std::string::npos ? path.size() : slash;
+            partial = path.substr(0, end);
+            if (!partial.empty() && ::mkdir(partial.c_str(), 0777) != 0 &&
+                errno != EEXIST) {
+                failErrno("filesystemMkdir", line, column);
+            }
+            if (slash == std::string::npos) {
+                break;
+            }
+            index = slash + 1;
+        }
+    } else if (::mkdir(path.c_str(), 0777) != 0) {
+        failErrno("filesystemMkdir", line, column);
+    }
+    return true;
+}
+
+Value builtinFilesystemRemove(const std::vector<Value>& args, Environment&,
+                              int line, int column) {
+    const std::string path = requirePathArg(
+        args, 0, "filesystemRemove(path) expects a path string", line, column);
+    struct stat info {};
+    const bool isDirectory =
+        ::lstat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode) &&
+        !S_ISLNK(info.st_mode);
+    const int result = isDirectory ? ::rmdir(path.c_str()) : ::unlink(path.c_str());
+    if (result != 0) {
+        failErrno("filesystemRemove", line, column);
+    }
+    return std::int64_t{0};
+}
+
+Value builtinFilesystemRename(const std::vector<Value>& args, Environment&,
+                              int line, int column) {
+    if (args.size() != 2 ||
+        !std::holds_alternative<std::string>(args[0]) ||
+        !std::holds_alternative<std::string>(args[1])) {
+        fail("filesystemRename(source, target) expects two path strings", line,
+             column);
+    }
+    if (::rename(std::get<std::string>(args[0]).c_str(),
+                 std::get<std::string>(args[1]).c_str()) != 0) {
+        failErrno("filesystemRename", line, column);
+    }
+    return std::int64_t{0};
+}
+
+Value builtinFilesystemLink(const std::vector<Value>& args, Environment&,
+                            int line, int column) {
+    const char* usage =
+        "filesystemLink(source, target, symbolic?) expects paths and an "
+        "optional boolean";
+    if ((args.size() != 2 && args.size() != 3) ||
+        !std::holds_alternative<std::string>(args[0]) ||
+        !std::holds_alternative<std::string>(args[1]) ||
+        (args.size() == 3 && !std::holds_alternative<bool>(args[2]) &&
+         !std::holds_alternative<std::int64_t>(args[2]))) {
+        fail(usage, line, column);
+    }
+    const std::string source = std::get<std::string>(args[0]);
+    const std::string target = std::get<std::string>(args[1]);
+    const bool symbolic = args.size() == 3 && asBool(args[2]);
+    const int result = symbolic ? ::symlink(source.c_str(), target.c_str())
+                                : ::link(source.c_str(), target.c_str());
+    if (result != 0) {
+        failErrno("filesystemLink", line, column);
+    }
+    return std::int64_t{0};
+}
+
+Value builtinFilesystemReadLink(const std::vector<Value>& args, Environment&,
+                                int line, int column) {
+    const std::string path = requirePathArg(
+        args, 0, "filesystemReadLink(path) expects a path string", line,
+        column);
+    std::vector<char> buffer(256);
+    for (;;) {
+        const ssize_t count =
+            ::readlink(path.c_str(), buffer.data(), buffer.size());
+        if (count < 0) {
+            failErrno("filesystemReadLink", line, column);
+        }
+        if (static_cast<std::size_t>(count) < buffer.size()) {
+            return std::string(buffer.data(), static_cast<std::size_t>(count));
+        }
+        buffer.resize(buffer.size() * 2);
+    }
+}
+
+Value builtinFilesystemChmod(const std::vector<Value>& args, Environment&,
+                             int line, int column) {
+    const char* usage =
+        "filesystemChmod(path, mode) expects a path and non-negative integer "
+        "mode";
+    if (args.size() != 2 || !std::holds_alternative<std::string>(args[0]) ||
+        !isNonNegativeInt(args[1])) {
+        fail(usage, line, column);
+    }
+    if (::chmod(std::get<std::string>(args[0]).c_str(),
+                static_cast<mode_t>(std::get<std::int64_t>(args[1]))) != 0) {
+        failErrno("filesystemChmod", line, column);
+    }
+    return std::int64_t{0};
+}
+
+#endif  // CLYNXER_POSIX_BUILTINS
+
 const std::unordered_map<std::string, Handler>& handlerTable() {
     static const std::unordered_map<std::string, Handler> handlers = {
         {"print", builtinPrint},
@@ -2319,6 +2709,22 @@ const std::unordered_map<std::string, Handler>& handlerTable() {
         {"memoryTypeSize", builtinMemoryTypeSize},
         {"memoryTypeAlignment", builtinMemoryTypeAlignment},
         {"sizeOf", builtinSizeOf},
+#if CLYNXER_POSIX_BUILTINS
+        // Managed filesystem API. Kept in `unsupportedTable()` on a host
+        // without POSIX `open`/`stat`/`dirent`.
+        {"filesystemOpen", builtinFilesystemOpen},
+        {"filesystemRead", builtinFilesystemRead},
+        {"filesystemWrite", builtinFilesystemWrite},
+        {"filesystemClose", builtinFilesystemClose},
+        {"filesystemStat", builtinFilesystemStat},
+        {"filesystemList", builtinFilesystemList},
+        {"filesystemMkdir", builtinFilesystemMkdir},
+        {"filesystemRemove", builtinFilesystemRemove},
+        {"filesystemRename", builtinFilesystemRename},
+        {"filesystemLink", builtinFilesystemLink},
+        {"filesystemReadLink", builtinFilesystemReadLink},
+        {"filesystemChmod", builtinFilesystemChmod},
+#endif
     };
     return handlers;
 }
@@ -2355,10 +2761,12 @@ const std::unordered_set<std::string>& unsupportedTable() {
         "nativeHandleIsAlive",
         "processSpawn", "processWrite", "processCloseInput", "processRead",
         "processPoll", "processWait", "processSendSignal", "processClose",
+#if !CLYNXER_POSIX_BUILTINS
         "filesystemOpen", "filesystemRead", "filesystemWrite", "filesystemClose",
         "filesystemStat", "filesystemList", "filesystemMkdir", "filesystemRemove",
         "filesystemRename", "filesystemLink", "filesystemReadLink",
         "filesystemChmod",
+#endif
         "networkingOpen", "networkingBind", "networkingListen",
         "networkingAccept", "networkingConnect", "networkingSend",
         "networkingReceive", "networkingClose", "networkingShutdown",

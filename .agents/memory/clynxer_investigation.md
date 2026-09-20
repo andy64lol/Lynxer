@@ -30,6 +30,10 @@ see §12.
 > **Revision 5 (20:26 CEST)** completes Milestone 6: the frozen contracts
 > document, failure-path fixtures for every Rust backend with compiled/bundled
 > parity, the ABI extension policy, and `extending.md`. See §12.
+>
+> **Revision 6 (21:06 CEST)** starts Milestone 7: the managed `filesystem*`
+> family is ported, byte-identical to the Python reference. Six families
+> (57 built-ins) remain — see §13.
 
 ---
 
@@ -1120,6 +1124,78 @@ working directory — the same hazard already noted for the `test/` parity work.
   reviewer; it cannot be checked mechanically.
 - `sound`'s playback itself is device-dependent and therefore not asserted by
   the fixture. It was verified by hand against a generated WAV (§8.10).
+
+---
+
+## 13. Milestone 7 — first family ported (2026-09-20 21:05 CEST)
+
+### 13.1 What the item actually covers
+
+`todo.md`'s one open Milestone 7 item names seven API families. Measured against
+the Python reference, that is **69 built-ins and ~1,110 lines of Python**:
+
+| Family | Built-ins | Reference lines |
+| --- | --- | --- |
+| `async*` | 15 | 370 |
+| `networking*` | 13 | 177 |
+| `process*` | 8 | 171 |
+| `filesystem*` | 12 | 149 |
+| `sound*` | 9 | 119 |
+| `ffi*` | 6 | 82 |
+| `nativeThread*` | 6 | 46 |
+
+All 69 are already *registered* in Clynxer: `builtins.cpp` has a
+`handlerTable()` of implemented built-ins and an `unsupportedTable()` whose
+entries fail with `<name>() is not supported in CLynxer yet`. Porting a family
+means implementing it and moving its names from the second table to the first.
+The direction is therefore unambiguous — no design decision was needed about
+built-ins versus stdlib modules, even though Clynxer already provides
+filesystem/process/networking/sound functionality through modules.
+
+### 13.2 Method
+
+The project's own rule (`todo.md`, "Rebuild rules") is to build one small
+vertical slice at a time with a fixture and a passing `make test`. That also
+matches what this session has learned the hard way: the three stdlib modules
+written in one pass were broken in four ways. So the families are being ported
+one at a time, each verified against the Python reference by running the same
+program through both implementations.
+
+### 13.3 `filesystem*` — done
+
+12 built-ins: `Open`, `Read`, `Write`, `Close`, `Stat`, `List`, `Mkdir`,
+`Remove`, `Rename`, `Link`, `ReadLink`, `Chmod`. 408 lines added to
+`builtins.cpp`, guarded by a `CLYNXER_POSIX_BUILTINS` macro so a host without
+POSIX `open`/`stat`/`dirent` keeps them in the unsupported set.
+
+- Handles are non-negative integers in a registry (`openFiles()`); unknown and
+  already-closed handles are runtime errors, not silent failures.
+- Every failure preserves the operation and errno:
+  `filesystemOpen() failed: [2] No such file or directory`.
+- `filesystemStat` uses `lstat`, so a symlink reports `type: "symlink"` rather
+  than being followed.
+- `filesystemRead` replaces bytes that are not valid UTF-8 with U+FFFD, matching
+  the reference's `errors="replace"`.
+- **Output is byte-identical to the Python reference**, including all eleven
+  error strings, over a program that exercises every function plus twelve
+  failure paths.
+
+One finding worth recording: the reference's `Number.null` is `Number(0)`
+(`lynxer/values.py:535`), so the value-less operations (`Close`, `Remove`,
+`Rename`, `Link`, `Chmod`) must return the integer `0`, not Clynxer's `none`.
+Returning `none` produced the only difference in the first comparison run.
+
+Fixture: `examples/builtin_filesystem.lynx` + `.expected`, cwd-independent, run
+by a new `builtin_*` fixture glob in `clynxer/Makefile` that diffs against a
+sibling `.expected` exactly like the `stdlib_*` loop.
+
+### 13.4 Remaining
+
+`process*` (8), `networking*` (13), `sound*` (9), `nativeThread*` (6),
+`ffi*` (6) and `async*` (15) — 57 built-ins. `todo.md` now carries them as a
+checklist under the item, with the shape of each recorded. `ffi*` (arbitrary
+native calls and callback marshalling) and `async*` (an event loop, the largest
+single family) are the two that need the most care.
 
 ---
 

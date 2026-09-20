@@ -54,6 +54,8 @@ NATIVE_SIGNATURE_MODULE := examples/native_signatures.so
 NATIVE_SIGNATURE_FIXTURE := examples/native_signatures.lynx
 # Every examples/stdlib_<name>.lynx must ship a sibling .expected file.
 STDLIB_FIXTURES := $(wildcard examples/stdlib_*.lynx)
+# Built-in-family fixtures (examples/builtin_<name>.lynx) do too.
+BUILTIN_FIXTURES := $(wildcard examples/builtin_*.lynx)
 # Single self-checking test that exercises every stdlib module at once.
 STDLIB_TEST_ALL := examples/stdlibTestAll.lynx
 LIST_STDLIB_MODULES := cli colorlib csv debug fileIO game image js json lua math \
@@ -343,6 +345,20 @@ expected="clynxer: $(ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 	rm -f .clynxer_stdlib.out .clynxer_stdlib.diff; exit 1; fi; \
 	done; \
 	rm -f .clynxer_stdlib.out .clynxer_stdlib.diff
+	@for fixture in $(BUILTIN_FIXTURES); do \
+	expected="$${fixture%.lynx}.expected"; \
+	if [ ! -f "$$expected" ]; then \
+	echo "missing expected output for $$fixture"; exit 1; fi; \
+	./$(TARGET) "$$fixture" > .clynxer_builtin.out 2>&1; \
+	if [ $$? -ne 0 ]; then \
+	echo "builtin fixture failed: $$fixture"; cat .clynxer_builtin.out; \
+	rm -f .clynxer_builtin.out; exit 1; fi; \
+	if ! diff -u "$$expected" .clynxer_builtin.out > .clynxer_builtin.diff; then \
+	echo "builtin fixture output mismatch: $$fixture"; \
+	cat .clynxer_builtin.diff; \
+	rm -f .clynxer_builtin.out .clynxer_builtin.diff; exit 1; fi; \
+	done; \
+	rm -f .clynxer_builtin.out .clynxer_builtin.diff
 	@CLYNXER_GAME_HEADLESS=1 ./$(TARGET) $(STDLIB_TEST_ALL) > .clynxer_stdlib_all.out 2>&1; \
 	if [ $$? -ne 0 ]; then \
 	echo "consolidated stdlib test failed: $(STDLIB_TEST_ALL)"; \

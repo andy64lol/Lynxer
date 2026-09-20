@@ -251,7 +251,40 @@ Planned order of work, newest direction first.
 - [x] Port the named Linux syscall wrappers through a host syscall table with
   errno surfaced as source-located errors.
 - [ ] Port the managed filesystem, process, networking, async, sound, FFI,
-  and native-thread APIs.
+  and native-thread APIs. One family at a time, each with a fixture that is
+  byte-diffed against the Python reference where the API is meant to be
+  compatible. 69 built-ins in total, all currently failing with
+  `<name>() is not supported in CLynxer yet` from `unsupportedTable()` in
+  `builtins.cpp`; the port moves each name to `handlerTable()`.
+  - [x] `filesystem*` (12): `Open`, `Read`, `Write`, `Close`, `Stat`, `List`,
+    `Mkdir`, `Remove`, `Rename`, `Link`, `ReadLink`, `Chmod`. POSIX
+    `open`/`read`/`stat`/`dirent`, handles in a registry, errno preserved in
+    every message. Output is byte-identical to the reference, including all
+    eleven error strings, and covers the failure paths (bad mode, missing
+    path, unknown and closed handle, non-empty directory). Fixture:
+    `examples/builtin_filesystem.lynx`; the `builtin_*` fixture glob and its
+    `.expected` check are new in the Makefile. Divergence worth remembering:
+    the reference's `Number.null` is `0`, so the value-less operations return
+    `0`, not Clynxer's `none`.
+  - [ ] `process*` (8): `Spawn`, `Write`, `CloseInput`, `Read`, `Poll`, `Wait`,
+    `SendSignal`, `Close`. Managed subprocesses with per-stream pipes,
+    environment overrides, timeouts and signal sending.
+  - [ ] `networking*` (13): `Open`, `Bind`, `Listen`, `Accept`, `Connect`,
+    `Send`, `Receive`, `Close`, `Shutdown`, `Blocking`, `Option`, `Resolve`,
+    `Address`. Managed TCP, UDP and Unix-domain sockets.
+  - [ ] `sound*` (9): `Load`, `Play`, `Loop`, `Stop`, `Pause`, `Resume`,
+    `SetVolume`, `IsPlaying`, `Release`. Overlaps the Rust `sound` stdlib
+    module, but these are the built-in names the reference exposes.
+  - [ ] `nativeThread*` (6): `Start`, `Join`, `JoinAll`, `IsAlive`, `Status`,
+    `Detach`. Needs a thread registry and a Lynxer callback entry point; note
+    the `nativeMutex*`/`nativeCondition*`/`nativeSemaphore*` families are not
+    in this milestone's list and stay unsupported.
+  - [ ] `ffi*` (6): `LoadLibrary`, `Lookup`, `CloseLibrary`, `Call`,
+    `Callback`, `FreeCallback`. Largest risk: arbitrary native calls and
+    callback marshalling.
+  - [ ] `async*` (15): `Run`, `Gather`, `Sleep`, the `Poll*` family, the
+    `Timer*` pair and the `Wakeup*` trio. Largest single family (~370 lines in
+    the reference) and needs an event loop.
 
 ## Milestone 8 — compiler, bytecode, and CLI surface
 
