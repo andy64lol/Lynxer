@@ -28,14 +28,14 @@ The first slice intentionally stays small:
 - bundled package-free stdlibs: `math` (including the statistics and vector
   helpers formerly in `mathPlus`), `json`, `re`, `regex`, `os`,
   `path`, `fileIO`, `csv`, `time`, `debug`, `multiprocessing`, `cli`, `js`,
-  `shell`, `sys`, `random`, `image`, `lua`, `game`, `network`, `server` and
-  `text`/`typing`/`colorlib`. Native modules are built from either
-  `stdlib/<name>.cpp` or the Rust crates under `rust/` into
+  `shell`, `sys`, `random`, `image`, `lua`, `game`, `network`, `server`,
+  `sound`, `sqldb`, `tui` and `text`/`typing`/`colorlib`. Native modules are
+  built from either `stdlib/<name>.cpp` or the Rust crates under `rust/` into
   `stdlib/<name>.so` and wrapped by `stdlib/<name>.lynx`; see `docs/README.md`
   for the full reference and `docs/native-module-abi.md` for the shared C ABI
-- `stdlib/libs.mk` declares optional system-library dependencies (SDL2, ncurses,
-  libcurl, Lua, libpng). Modules whose library is missing are skipped with a
-  warning, so a plain `make` never depends on them
+- Rust-backed modules (`game`, `image`, `json`, `lua`, `network`, `server`,
+  `sound`, `sqldb`, `tui`) are skipped with a warning when `cargo` is missing, so
+  a plain `make` never depends on a Rust toolchain
 - `--compile <a.lynx> [more.lynx|lib.so ...] [--include <file> ...] [-o name]`
   builds one standalone ELF executable. The program's **imported modules are
   collected automatically**, and every later input is embedded too: `.lynx`

@@ -2,319 +2,250 @@
 //!
 //! Replaces Python's sqlite3 with Rust `rusqlite`.
 //! The Lynxer-facing contract matches `lynxer/stdlib/sqldb.lynx`:
-//! structured results are returned as JSON strings, errors as
-//! `"ERROR: <message>"`.
+//! every operation names a database **path**, opens a connection, does its
+//! work and closes it again. Structured results are returned as JSON strings,
+//! errors as `"ERROR: <message>"`.
 
 use clynxer_abi::{export_int, export_string, lynxer_module};
-use rusqlite::{Connection, Result as SqlResult, params};
+use rusqlite::{Connection, Result as SqlResult};
 use std::path::Path;
-use std::sync::Mutex;
 
-// --- Handle registry -------------------------------------------------------
-// Each entry holds an open Connection. Handles are integer indices.
+// --- Connection handling ---------------------------------------------------
+//
+// There is no handle registry: the reference opens and closes a connection per
+// call, so `path` is the only state an operation needs.
 
-struct SqlDbState {
-    connections: Vec<Option<Connection>>,
-}
-
-impl SqlDbState {
-    fn new() -> Self {
-        SqlDbState {
-            connections: Vec::new(),
-        }
-    }
-}
-
-thread_local! {
-    static STATE: Mutex<Option<SqlDbState>> = Mutex::new(None);
-}
-
-fn with_state<F: FnOnce(&mut SqlDbState) -> R, R>(f: F) -> R {
-    STATE.with(|cell| {
-        let mut guard = cell.lock().unwrap();
-        if guard.is_none() {
-            *guard = Some(SqlDbState::new());
-        }
-        f(guard.as_mut().unwrap())
-    })
+// Opens `path` for the duration of `f` and closes it (on drop) afterwards.
+// Everything a connection can fail with surfaces as a `rusqlite::Error`, which
+// each op renders into its own sentinel.
+fn with_conn<T, F>(path: &str, f: F) -> SqlResult<T>
+where
+    F: FnOnce(&Connection) -> SqlResult<T>,
+{
+    let conn = Connection::open(Path::new(path))?;
+    f(&conn)
 }
 
 // --- Ops -------------------------------------------------------------------
 
-// Open a database and return a handle, or -1 on error.
-export_int!(sqldb_open, args, {
-    let path = args.string(0).to_string();
-    with_state(|state| {
-        match Connection::open(Path::new(&path)) {
-            Ok(conn) => {
-                let idx = state.connections.len();
-                state.connections.push(Some(conn));
-                idx as i64
-            }
-            Err(_) => -1,
-        }
-    })
-});
-
 // Execute one SQL statement and commit. Returns "ok" or "ERROR: <message>".
 export_string!(sqldb_execute, args, {
-    let idx = args.int(0) as usize;
-    let sql = args.string(1).to_string();
-    with_state(|state| {
-        let conn = match state.connections.get(idx).and_then(|c| c.as_ref()) {
-            Some(c) => c,
-            None => return "ERROR: invalid handle".to_string(),
-        };
-        match conn.execute(&sql, []) {
-            Ok(_) => "ok".to_string(),
-            Err(e) => format!("ERROR: {}", e),
-        }
-    })
+    let path = args.string(0);
+    let sql = args.string(1);
+    match with_conn(path, |conn| conn.execute(sql, [])) {
+        Ok(_) => "ok".to_string(),
+        Err(e) => format!("ERROR: {}", e),
+    }
 });
 
 // Execute one parameterized SQL statement. paramsJson must be a JSON array.
 // Returns "ok" or "ERROR: <message>".
 export_string!(sqldb_execute_args, args, {
-    let idx = args.int(0) as usize;
-    let sql = args.string(1).to_string();
-    let params_json = args.string(2);
-    with_state(|state| {
-        let conn = match state.connections.get(idx).and_then(|c| c.as_ref()) {
-            Some(c) => c,
-            None => return "ERROR: invalid handle".to_string(),
-        };
-        let params: Vec<rusqlite::types::Value> = match parse_params_json(params_json) {
-            Ok(p) => p,
-            Err(e) => return format!("ERROR: {}", e),
-        };
-        match conn.execute(&sql, rusqlite::params_from_iter(params)) {
-            Ok(_) => "ok".to_string(),
-            Err(e) => format!("ERROR: {}", e),
-        }
-    })
+    let path = args.string(0);
+    let sql = args.string(1);
+    let params = match parse_params_json(args.string(2)) {
+        Ok(params) => params,
+        Err(e) => return format!("ERROR: {}", e),
+    };
+    match with_conn(path, |conn| {
+        conn.execute(sql, rusqlite::params_from_iter(params))
+    }) {
+        Ok(_) => "ok".to_string(),
+        Err(e) => format!("ERROR: {}", e),
+    }
 });
 
 // Execute multiple SQL statements as one transaction. Returns "ok" or "ERROR: <message>".
 export_string!(sqldb_script, args, {
-    let idx = args.int(0) as usize;
-    let script = args.string(1).to_string();
-    with_state(|state| {
-        let conn = match state.connections.get(idx).and_then(|c| c.as_ref()) {
-            Some(c) => c,
-            None => return "ERROR: invalid handle".to_string(),
-        };
-        match conn.execute_batch(&script) {
-            Ok(_) => "ok".to_string(),
-            Err(e) => format!("ERROR: {}", e),
-        }
-    })
+    let path = args.string(0);
+    let script = args.string(1);
+    match with_conn(path, |conn| conn.execute_batch(script)) {
+        Ok(_) => "ok".to_string(),
+        Err(e) => format!("ERROR: {}", e),
+    }
 });
 
 // Query rows and return a JSON array of objects.
 export_string!(sqldb_query, args, {
-    let idx = args.int(0) as usize;
-    let sql = args.string(1).to_string();
-    with_state(|state| {
-        let conn = match state.connections.get(idx).and_then(|c| c.as_ref()) {
-            Some(c) => c,
-            None => return "ERROR: invalid handle".to_string(),
-        };
-        let mut stmt = match conn.prepare(&sql) {
-            Ok(s) => s,
-            Err(e) => return format!("ERROR: {}", e),
-        };
-        let columns: Vec<String> = stmt
-            .column_names()
-            .iter()
-            .map(|name| name.to_string())
-            .collect();
-        let rows = match stmt.query_map([], |row| {
-            let mut map = serde_json::Map::new();
-            for (i, col) in columns.iter().enumerate() {
-                let value = match row.get::<usize, rusqlite::types::Value>(i) {
-                    Ok(v) => value_to_json(v),
-                    Err(_) => serde_json::Value::Null,
-                };
-                map.insert(col.to_string(), value);
-            }
-            Ok(serde_json::Value::Object(map))
-        }) {
-            Ok(r) => r,
-            Err(e) => return format!("ERROR: {}", e),
-        };
-        let mut result = Vec::new();
-        for row in rows {
-            match row {
-                Ok(v) => result.push(v),
-                Err(e) => return format!("ERROR: {}", e),
-            }
-        }
-        serde_json::to_string(&result).unwrap_or_else(|_| "[]".to_string())
-    })
+    let path = args.string(0);
+    let sql = args.string(1);
+    match with_conn(path, |conn| query_rows(conn, sql, Vec::new())) {
+        Ok(json) => json,
+        Err(e) => format!("ERROR: {}", e),
+    }
 });
 
 // Parameterized form of query().
 export_string!(sqldb_query_args, args, {
-    let idx = args.int(0) as usize;
-    let sql = args.string(1).to_string();
-    let params_json = args.string(2);
-    with_state(|state| {
-        let conn = match state.connections.get(idx).and_then(|c| c.as_ref()) {
-            Some(c) => c,
-            None => return "ERROR: invalid handle".to_string(),
-        };
-        let params: Vec<rusqlite::types::Value> = match parse_params_json(params_json) {
-            Ok(p) => p,
-            Err(e) => return format!("ERROR: {}", e),
-        };
-        let mut stmt = match conn.prepare(&sql) {
-            Ok(s) => s,
-            Err(e) => return format!("ERROR: {}", e),
-        };
-        let columns: Vec<String> = stmt
-            .column_names()
-            .iter()
-            .map(|name| name.to_string())
-            .collect();
-        let rows = match stmt.query_map(rusqlite::params_from_iter(params), |row| {
-            let mut map = serde_json::Map::new();
-            for (i, col) in columns.iter().enumerate() {
-                let value = match row.get::<usize, rusqlite::types::Value>(i) {
-                    Ok(v) => value_to_json(v),
-                    Err(_) => serde_json::Value::Null,
-                };
-                map.insert(col.to_string(), value);
-            }
-            Ok(serde_json::Value::Object(map))
-        }) {
-            Ok(r) => r,
-            Err(e) => return format!("ERROR: {}", e),
-        };
-        let mut result = Vec::new();
-        for row in rows {
-            match row {
-                Ok(v) => result.push(v),
-                Err(e) => return format!("ERROR: {}", e),
-            }
-        }
-        serde_json::to_string(&result).unwrap_or_else(|_| "[]".to_string())
-    })
+    let path = args.string(0);
+    let sql = args.string(1);
+    let params = match parse_params_json(args.string(2)) {
+        Ok(params) => params,
+        Err(e) => return format!("ERROR: {}", e),
+    };
+    match with_conn(path, |conn| query_rows(conn, sql, params)) {
+        Ok(json) => json,
+        Err(e) => format!("ERROR: {}", e),
+    }
 });
 
 // Return the first column of the first row as a string, or "" when absent.
 export_string!(sqldb_scalar, args, {
-    let idx = args.int(0) as usize;
-    let sql = args.string(1).to_string();
-    with_state(|state| {
-        let conn = match state.connections.get(idx).and_then(|c| c.as_ref()) {
-            Some(c) => c,
-            None => return "ERROR: invalid handle".to_string(),
-        };
-        match conn.query_row(&sql, [], |row| row.get::<_, String>(0)) {
-            Ok(v) => v,
-            Err(_) => "".to_string(),
-        }
-    })
+    let path = args.string(0);
+    let sql = args.string(1);
+    match with_conn(path, |conn| {
+        conn.query_row(sql, [], |row| row.get::<usize, rusqlite::types::Value>(0))
+    }) {
+        Ok(value) => value_to_scalar(value),
+        // An absent row is "" rather than an error, matching the reference.
+        Err(rusqlite::Error::QueryReturnedNoRows) => String::new(),
+        Err(e) => format!("ERROR: {}", e),
+    }
 });
 
 // Parameterized form of scalar().
 export_string!(sqldb_scalar_args, args, {
-    let idx = args.int(0) as usize;
-    let sql = args.string(1).to_string();
-    let params_json = args.string(2);
-    with_state(|state| {
-        let conn = match state.connections.get(idx).and_then(|c| c.as_ref()) {
-            Some(c) => c,
-            None => return "ERROR: invalid handle".to_string(),
-        };
-        let params: Vec<rusqlite::types::Value> = match parse_params_json(params_json) {
-            Ok(p) => p,
-            Err(e) => return format!("ERROR: {}", e),
-        };
-        match conn.query_row(&sql, rusqlite::params_from_iter(params), |row| row.get::<_, String>(0)) {
-            Ok(v) => v,
-            Err(_) => "".to_string(),
-        }
-    })
+    let path = args.string(0);
+    let sql = args.string(1);
+    let params = match parse_params_json(args.string(2)) {
+        Ok(params) => params,
+        Err(e) => return format!("ERROR: {}", e),
+    };
+    match with_conn(path, |conn| {
+        conn.query_row(sql, rusqlite::params_from_iter(params), |row| {
+            row.get::<usize, rusqlite::types::Value>(0)
+        })
+    }) {
+        Ok(value) => value_to_scalar(value),
+        Err(rusqlite::Error::QueryReturnedNoRows) => String::new(),
+        Err(e) => format!("ERROR: {}", e),
+    }
 });
 
 // Execute an insert/update and return SQLite's lastrowid as an integer.
-// Returns -1 on error.
+// Returns -1 on error or when SQLite reports no row id.
 export_int!(sqldb_last_insert_id, args, {
-    let idx = args.int(0) as usize;
-    let sql = args.string(1).to_string();
-    let params_json = args.string(2);
-    with_state(|state| {
-        let conn = match state.connections.get(idx).and_then(|c| c.as_ref()) {
-            Some(c) => c,
-            None => return -1,
-        };
-        let params: Vec<rusqlite::types::Value> = match parse_params_json(params_json) {
-            Ok(p) => p,
-            Err(_) => return -1,
-        };
-        match conn.execute(&sql, rusqlite::params_from_iter(params)) {
-            Ok(_) => {
-                match conn.last_insert_rowid() {
-                    id if id > 0 => id,
-                    _ => -1,
-                }
-            }
-            Err(_) => -1,
-        }
-    })
+    let path = args.string(0);
+    let sql = args.string(1);
+    let params = match parse_params_json(args.string(2)) {
+        Ok(params) => params,
+        Err(_) => return -1,
+    };
+    // The row id is only meaningful on the connection that ran the insert, so
+    // it is read before `with_conn` closes it.
+    match with_conn(path, |conn| {
+        conn.execute(sql, rusqlite::params_from_iter(params))?;
+        Ok(conn.last_insert_rowid())
+    }) {
+        Ok(id) if id > 0 => id,
+        _ => -1,
+    }
 });
 
 // Return whether a table exists in the database.
 export_int!(sqldb_table_exists, args, {
-    let idx = args.int(0) as usize;
+    let path = args.string(0);
     let table_name = args.string(1);
-    with_state(|state| {
-        let conn = match state.connections.get(idx).and_then(|c| c.as_ref()) {
-            Some(c) => c,
-            None => return 0,
-        };
-        match conn.query_row(
+    match with_conn(path, |conn| {
+        conn.query_row(
             "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
             rusqlite::params![table_name],
             |_| Ok(()),
-        ) {
-            Ok(_) => 1,
-            Err(_) => 0,
-        }
-    })
+        )
+    }) {
+        Ok(_) => 1,
+        Err(_) => 0,
+    }
 });
 
 // Return table names as a JSON array.
 export_string!(sqldb_tables, args, {
-    let idx = args.int(0) as usize;
-    with_state(|state| {
-        let conn = match state.connections.get(idx).and_then(|c| c.as_ref()) {
-            Some(c) => c,
-            None => return "ERROR: invalid handle".to_string(),
-        };
-        let mut stmt = match conn.prepare(
-            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
-        ) {
-            Ok(s) => s,
-            Err(e) => return format!("ERROR: {}", e),
-        };
-        let rows = match stmt.query_map([], |row| row.get::<_, String>(0)) {
-            Ok(r) => r,
-            Err(e) => return format!("ERROR: {}", e),
-        };
-        let mut names = Vec::new();
-        for row in rows {
-            match row {
-                Ok(name) => names.push(serde_json::Value::String(name)),
-                Err(e) => return format!("ERROR: {}", e),
-            }
-        }
-        serde_json::to_string(&names).unwrap_or_else(|_| "[]".to_string())
-    })
+    let path = args.string(0);
+    match with_conn(path, list_tables) {
+        Ok(json) => json,
+        Err(e) => format!("ERROR: {}", e),
+    }
 });
 
 // --- Helpers ---------------------------------------------------------------
+
+/// Serialises `value` the way Python's `json.dumps` does by default: compact,
+/// but with one space after every `:` and `,` outside a string. `sqldb`'s
+/// reference output goes through `json.dumps`, so byte-identical output needs
+/// the separators to match. `rust/json` duplicates this helper for the same
+/// reason; each `.so` stays self-contained.
+fn json_dumps(value: &serde_json::Value) -> String {
+    let raw = serde_json::to_string(value).unwrap_or_else(|_| "null".to_string());
+    let mut output = String::with_capacity(raw.len() + raw.len() / 8);
+    let mut in_string = false;
+    let mut escaped = false;
+    for character in raw.chars() {
+        if in_string {
+            output.push(character);
+            if escaped {
+                escaped = false;
+            } else if character == '\\' {
+                escaped = true;
+            } else if character == '"' {
+                in_string = false;
+            }
+            continue;
+        }
+        match character {
+            '"' => {
+                in_string = true;
+                output.push(character);
+            }
+            ':' | ',' => {
+                output.push(character);
+                output.push(' ');
+            }
+            _ => output.push(character),
+        }
+    }
+    output
+}
+
+// Runs `sql` and renders every row as a JSON object keyed by column name.
+fn query_rows(
+    conn: &Connection,
+    sql: &str,
+    params: Vec<rusqlite::types::Value>,
+) -> SqlResult<String> {
+    let mut stmt = conn.prepare(sql)?;
+    let columns: Vec<String> = stmt
+        .column_names()
+        .iter()
+        .map(|name| name.to_string())
+        .collect();
+    let rows = stmt.query_map(rusqlite::params_from_iter(params), |row| {
+        let mut map = serde_json::Map::new();
+        for (index, column) in columns.iter().enumerate() {
+            let value = row
+                .get::<usize, rusqlite::types::Value>(index)
+                .map_or(serde_json::Value::Null, value_to_json);
+            map.insert(column.clone(), value);
+        }
+        Ok(serde_json::Value::Object(map))
+    })?;
+    let mut result = Vec::new();
+    for row in rows {
+        result.push(row?);
+    }
+    Ok(json_dumps(&serde_json::Value::Array(result)))
+}
+
+fn list_tables(conn: &Connection) -> SqlResult<String> {
+    let mut stmt = conn.prepare(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
+    )?;
+    let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
+    let mut names = Vec::new();
+    for row in rows {
+        names.push(serde_json::Value::String(row?));
+    }
+    Ok(json_dumps(&serde_json::Value::Array(names)))
+}
 
 fn parse_params_json(json: &str) -> Result<Vec<rusqlite::types::Value>, String> {
     let parsed: Vec<serde_json::Value> = serde_json::from_str(json)
@@ -364,8 +295,18 @@ fn value_to_json(value: rusqlite::types::Value) -> serde_json::Value {
     }
 }
 
+// Renders one value the way the reference's `str()` does for `scalar()`.
+fn value_to_scalar(value: rusqlite::types::Value) -> String {
+    match value {
+        rusqlite::types::Value::Null => String::new(),
+        rusqlite::types::Value::Integer(i) => i.to_string(),
+        rusqlite::types::Value::Real(f) => f.to_string(),
+        rusqlite::types::Value::Text(s) => s,
+        rusqlite::types::Value::Blob(b) => base64::encode(&b),
+    }
+}
+
 const OPS: &[(&str, &str, &str)] = &[
-    ("open", "sqldb_open", "cdecl:int64(...)"),
     ("execute", "sqldb_execute", "cdecl:cstring(...)"),
     ("executeArgs", "sqldb_execute_args", "cdecl:cstring(...)"),
     ("script", "sqldb_script", "cdecl:cstring(...)"),

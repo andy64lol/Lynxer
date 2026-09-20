@@ -1,10 +1,14 @@
-ERROR: invalid handle
-ERROR: invalid handle
-ERROR: invalid handle
-ERROR: invalid handle
-ERROR: invalid handle
-ERROR: invalid handle
-ERROR: invalid handle
--1
+ok
+ok
+ok
+[{"id": 1, "name": "Ada", "score": 36.5}, {"id": 2, "name": "Bob", "score": 41.0}]
+[{"name": "Bob"}]
+2
+
+["users"]
+true
 false
-ERROR: invalid handle
+3
+ok
+["t2", "users"]
+ERROR: no such table: missing_table

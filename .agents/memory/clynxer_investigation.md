@@ -1,20 +1,30 @@
 # Clynxer Investigation Report
 
-**Date and Time:** 2026-09-20 10:53 CEST (2026-09-20 08:53 UTC)
+**Date and Time:** 2026-09-20 11:35 CEST (2026-09-20 09:35 UTC)
 **Author:** investigation session (automated)
 **Scope:** Clynxer source tree under `clynxer/`, the `sound`/`sqldb`/`tui` stdlib
 modules, the native-module ABI, the build and test system, and the state of
 `todo.md` and the Clynxer documentation.
-**Result:** `make buildCLynxer` and `make testCLynxer` both pass. Four classes of
-defect were found and fixed in the three new stdlib modules; ten documentation
-inconsistencies were catalogued.
+**Result:** `make buildCLynxer` and `make testCLynxer` both pass. **Six classes of
+defect** were found in the three newest stdlib modules — **all six are now
+fixed**. Eleven documentation inconsistencies were catalogued and all corrected.
+A new automated check (`clynxer/scripts/check_module_contracts.py`) now guards
+against the two classes of defect the fixture suite could not see.
 
 > **This revision replaces the earlier version of this report.** The earlier
 > version was dated `2026-09-20 14:30 UTC` (a future timestamp, and therefore
 > not a real measurement), and several of its claims were wrong — most notably
 > that Milestone 9 was "not yet implemented" and that "no standalone compiler
 > for Clynxer" exists. Both are contradicted by `todo.md` and by the shipped
-> `--compile`/`--bundle` backend. See §9 for the corrections.
+> `--compile`/`--bundle` backend. See §9.1 for the corrections.
+>
+> **Revision 3 (2026-09-20 11:15 CEST)** added Findings E and F, recorded the
+> documentation fixes applied in §9, and confirmed byte-identical `sqldb` output
+> against the Python reference.
+>
+> **Revision 4 (2026-09-20 11:35 CEST)** fixed Finding F, and added the
+> `check_module_contracts.py` static check now wired into `make test`. The check
+> found an **18th** bad index that manual inspection had missed.
 
 ---
 
@@ -453,7 +463,7 @@ Clynxer compiler" was based on a misreading.
 
 ### 8.1 Summary
 
-The session began with `make cleanAll && make buildCLynxer` failing. Four
+The session began with `make cleanAll && make buildCLynxer` failing. Six
 independent classes of defect were found, **all of them in the three stdlib
 modules added most recently — `sound`, `sqldb` and `tui`**:
 
@@ -463,9 +473,20 @@ modules added most recently — `sound`, `sqldb` and `tui`**:
 | B | Wrong native-module signature family | **segfault at first call** | sound, sqldb, tui (94 registrations) |
 | C | Dropped `Sink` → no audio | silent wrong behaviour | sound |
 | D | Fixture/expectation drift vs the wrapper contract | test fails | tui |
+| E | Wrapper/backend contract mismatch (path vs handle) | **every call fails** | sqldb |
+| F | Per-type argument indices used positionally | latent wrong reads (stubbed) | tui (18 ops) |
 
 The pre-existing 24 modules were unaffected, which is what made B diagnosable:
 they all use the packed signature family.
+
+**All six are fixed.** A and B were found by building and running the fixtures.
+C and D were found by reading the code against the reference. E and F were found
+only because a *different* question was asked — whether the module satisfied the
+contract its own wrapper advertises. That is the general lesson: this suite's
+fixtures cannot detect a module that is broken in the same way on both sides of
+the comparison, because they assert what the code does rather than what the
+contract says. `clynxer/scripts/check_module_contracts.py` (§8.9) now tests the
+contract directly.
 
 ### 8.2 Finding A — the new modules did not compile
 
@@ -626,41 +647,247 @@ Two further corrections were made while here:
   simplicity"*). The corrected `.expected` therefore records the stub's
   behaviour, not Rich's — `styleValid("not-a-style")` is not genuinely tested.
 
-### 8.6 Verification performed
+### 8.6 Finding E — `sqldb` was entirely non-functional
+
+**Symptom.** Every `sqldb` function returned `"ERROR: invalid handle"` for any
+input, valid or not. The module's own fixture "passed" because its expected file
+recorded exactly that: ten lines of `ERROR: invalid handle`.
+
+**Root cause.** A wrapper/backend contract mismatch over what argument 0 means.
+
+| Layer | Says argument 0 is |
+| --- | --- |
+| Python reference `lynxer/stdlib/sqldb.lynx` | a database **path** |
+| C++ wrapper `clynxer/stdlib/sqldb.lynx` | a database **path** |
+| `clynxer/docs/stdlib/sqldb.md` | a database **path** |
+| Fixture `examples/stdlib_sqldb.lynx` | a database **path** |
+| **Rust backend** `rust/sqldb/src/lib.rs` | an integer **handle index** |
+
+The backend implemented a handle registry (`SqlDbState { connections }`, with a
+`sqldb_open` op returning an index) while every other layer passed a path. Each
+op did `let idx = args.int(0) as usize;` — but argument 0 is a *string*, so it
+lands in `strs`, not `nums`, and `args.int(0)` reads `nums[0]` of an empty list
+and returns **`0`**. `connections.get(0)` was therefore always `None` (nothing
+had ever called `open`, which the wrapper does not expose), and every call
+returned `"ERROR: invalid handle"`.
+
+Calling the native module directly confirmed the backend was also broken on its
+own terms: `open()` returned handle `0`, after which `execute(0, "CREATE ...")`
+returned `"ERROR: not an error"` — the SQL was read from `args.string(1)`, i.e.
+the *second* string, which does not exist in a two-argument call.
+
+**Fix.** Rewrote the backend to match the contract the other four layers already
+agreed on: every op takes a path, opens a connection for the duration of the
+call, and closes it — which is exactly what the Python reference does
+(`_conn = _sqlite3.connect(path) … _conn.close()`). The handle registry,
+`SqlDbState`, `with_state`, the `STATE` thread-local and the `sqldb_open` op are
+gone; `with_conn(path, f)` replaced them. Because the API is now string-in, the
+per-type indices line up naturally (`args.string(0)` = path, `args.string(1)` =
+SQL).
+
+Three further corrections were needed to reach parity:
+
+- **`scalar` read the value as `String`**, so `SELECT COUNT(*)` (an integer)
+  failed to convert and returned `""`. The reference does `str(_row[0])`, so the
+  column is now read as `rusqlite::types::Value` and rendered with a
+  `value_to_scalar()` helper. `SELECT COUNT(*)` now returns `2` where it
+  previously returned `""`.
+- **`scalar` returned `""` on every error**, including a failure to open the
+  database. The reference returns `"ERROR: <message>"` for a genuine exception
+  and `""` only for a missing row or NULL. An absent row is now matched
+  explicitly via `rusqlite::Error::QueryReturnedNoRows`.
+- **JSON separators did not match.** `query`/`queryArgs`/`tables` used
+  `serde_json::to_string` (compact: `{"id":1}`) while the reference emits
+  Python `json.dumps` defaults (`{"id": 1}`). `rust/json` already solves this
+  with a `compact()` helper, so `sqldb` now carries an equivalent
+  `json_dumps()`. The helper is duplicated rather than shared because the
+  workspace's `.so`s are intentionally self-contained (the same reason the C++
+  side embeds `native_json.hpp` into each module) and `clynxer_abi` is
+  deliberately dependency-light.
+
+**Result.** The fixture was rewritten to exercise real behaviour against a
+repo-local scratch database (following the `fileIO` fixture's convention) and
+its output is now **byte-identical to the Python reference** — verified by
+running the same fixture through both implementations and diffing.
+
+**Why this matters beyond `sqldb`.** `todo.md:186-195` marks `sqldb` complete and
+`clynxer/docs/README.md` listed it as a working module. The only thing standing
+between "documented as working" and "returns an error for every call" was a
+fixture that asserted the bug. This is the same failure mode as Finding B: the
+test suite compared the implementation against itself, not against the contract.
+
+### 8.7 Finding F — `tui` reads packed arguments by position instead of by type
+
+**Symptom.** None today — which is the point.
+
+**Root cause.** Packed arguments are delivered as **two separate lists**, so
+argument *n* of a given type must be read at index *n* **within that type**:
+`args.int(i)` reads `nums[i]`, `args.string(i)` reads `strs[i]`. `tui` reads most
+of its arguments as if a single positional list existed, e.g.
+`tableAddColumn(idx, header, style)` does:
+
+```rust
+let _idx = args.int(0);        // correct (nums[0])
+let _header = args.string(1);  // WRONG — strs[1] is the *style*
+let _style = args.string(2);   // WRONG — out of bounds → ""
+```
+
+The established modules use the correct convention — `image_save(handle, path)`
+reads `args.int(0)` **and** `args.string(0)`, and
+`image_save_quality(handle, path, quality)` reads `args.int(0)`,
+`args.string(0)`, `args.int(1)`.
+
+**Eighteen of the 70 `tui` ops** were affected:
+
+| Op | Wrong read | Correct read |
+| --- | --- | --- |
+| `printSyntax(code, lexer, lineNumbers)` | `int(2)` | `int(0)` |
+| `printColumns(itemsJson, equal, expand)` | `int(1)`, `int(2)` | `int(0)`, `int(1)` |
+| `printAligned(text, align, pad)` | `int(2)` | `int(0)` |
+| `printPadded(text, top, right, bottom, left)` | `int(1)..int(4)` | `int(0)..int(3)` |
+| `tableAddColumn(idx, header, style)` | `string(1)`, `string(2)` | `string(0)`, `string(1)` |
+| `tableAddRow(idx, valuesJson)` | `string(1)` | `string(0)` |
+| `tableSetCaption(idx, caption)` | `string(1)` | `string(0)` |
+| `tableSetBox(idx, boxName)` | `string(1)` | `string(0)` |
+| `treeAdd(parentIdx, label)` | `string(1)` | `string(0)` |
+| `layoutSplitRows(idx, namesJson)` | `string(1)` | `string(0)` |
+| `layoutSplitColumns(idx, namesJson)` | `string(1)` | `string(0)` |
+| `layoutUpdate(idx, name, text)` | `string(1)`, `string(2)` | `string(0)`, `string(1)` |
+| `layoutPanel(idx, name, text, title)` | `string(1)..string(3)` | `string(0)..string(2)` |
+| `progressAddTask(idx, description, total)` | `string(1)`, `float(2)` | `string(0)`, `float(1)` |
+| `statusUpdate(idx, text)` | `string(1)` | `string(0)` |
+| `liveUpdate(idx, text)` | `string(1)` | `string(0)` |
+| `livePanel(idx, text, title)` | `string(1)`, `string(2)` | `string(0)`, `string(1)` |
+| `confirm(prompt)` | `int(0)` | *(none — see below)* |
+
+The ops whose arguments are all strings or all numbers are correct — most of the
+module, including `printStyled`, `panel`, `panelStyled`, `ruleStyled`, `table`,
+`progressAdvance`, `progressUpdate` and the `tableSet*` numeric setters.
+
+**Why it was invisible.** Almost all of them are placeholders that bind their
+arguments to `_`-prefixed locals and return `0`, so the values are discarded.
+The reads also fail *silently*: `Args` returns `0` / `""` past the end of a list
+rather than raising, so there is no error to notice.
+
+**Two of them were worse than the others.** `tableAddColumn` and
+`layoutUpdate`/`layoutPanel` read a **shifted but in-bounds** value — they would
+bind the style where the header belongs, and the title where the text belongs.
+Those would have produced wrong data, not empty data, the moment the ops were
+implemented.
+
+**`confirm` was the 18th, and manual inspection had missed it.** Its read is at
+index **0**, so a grep for "non-zero index reads" — the method used to build the
+original 17-item list — could not see it. `tui_confirm_default` was registered
+under *two* Lynxer names with different arities (`confirm(prompt)` and
+`confirmDefault(prompt, defaultValue)`) while reading `int(0)` for the default;
+`confirm(prompt)` passes no number at all. The fix splits the registration:
+`confirm` now has its own op reading only the prompt, and `confirmDefault` keeps
+the two-argument form. This is exactly the kind of thing the automated check
+exists to catch, and it did so on its first run.
+
+**Fixed.** All 18 sites corrected, `confirm` split, and
+`clynxer/scripts/check_module_contracts.py` now enforces the convention (§8.9).
+
+### 8.9 The new contract check
+
+`clynxer/scripts/check_module_contracts.py` tests, for every
+`stdlib/<name>.lynx` that imports `stdlib/<name>.so`:
+
+1. **Op coverage** — every `global.native<Alias>.<op>(...)` call names an op the
+   backend registers. *(failure)*
+2. **Packed argument bounds** — for a Rust backend, where every op uses the
+   packed signature, the highest index an op reads for a given kind must be
+   lower than the number of arguments of that kind the wrapper passes. Numbers
+   and strings are counted separately, which is how `clynxer_abi` delivers them.
+   *(failure)*
+3. **Unused registrations** — an op no wrapper function calls. *(warning)*
+
+C++ backends register a fixed shape, which the interpreter already type-checks
+per argument when the op is called (`native call argument count does not match
+signature`), so only rule 1 applies to them.
+
+A wrapper function whose argument kinds cannot be inferred (an expression, a
+nested call, an untyped parameter) is reported as *skipped* rather than guessed
+at, so the check never fails on something it cannot read. In practice nothing is
+skipped: the run reports **24 backends, 686 op calls checked, 0 skipped**.
+
+It is wired into the first line of the `test` recipe in `clynxer/Makefile`, so
+`make testCLynxer` and CI both run it, and it fails with a clear message if
+`python3` is absent rather than silently skipping.
+
+**Validated by injecting both historical bugs back in:**
+
+| Injected fault | Detected |
+| --- | --- |
+| `tui::printAligned` reads `args.int(2)` instead of `args.int(0)` | yes — `'printAligned' reads args.int(2), but the wrapper tui.lynx passes 1 number argument(s)` |
+| `sqldb::execute` reads `args.int(0)` for the path (the Finding E bug) | yes — `'execute' reads args.int(0), but the wrapper sqldb.lynx passes 0 number argument(s)` |
+
+Both were reverted and the check returned to 0 errors. A check that cannot fail
+is worthless, so this mattered more than the clean run.
+
+**What it does not catch.** The two *shifted but in-bounds* reads
+(`tableAddColumn`, `layoutUpdate`/`layoutPanel`) are within range, so the bounds
+rule alone cannot see them — it only caught them because
+`tableAddColumn`/`layoutPanel` also had an out-of-range read alongside. A
+general "every argument is read exactly once" rule would catch all cases but
+would false-positive on ops that deliberately ignore an argument (the `tui`
+placeholders do exactly that). The bounds rule is the sweet spot: it catches
+every case where a wrong index reads past the end, with no false positives.
+
+### 8.10 Verification performed
 
 | Check | Result |
 | --- | --- |
 | `make buildCLynxer` | passes — binary + 24 native modules |
-| `make testCLynxer` | passes — all 9 stages of §5 |
+| `make testCLynxer` | passes — all 9 stages of §5, including the new contract check |
+| **Contract check** (§8.9) | **24 backends, 686 op calls checked, 0 skipped, 0 errors, 0 warnings** |
+| Contract check negative tests | both historical bugs (Finding E, Finding F) re-injected and detected, then reverted |
 | All 25 `examples/stdlib_*.lynx` fixtures | pass, diffed against `.expected` |
 | `examples/stdlib_sound.lynx` | passes (previously SIGSEGV) |
-| `examples/stdlib_sqldb.lynx` | passes |
+| `examples/stdlib_sqldb.lynx` | passes, and **byte-identical to the Python reference** |
 | `examples/stdlib_tui.lynx` | passes (previously two distinct failures) |
-| Real playback lifecycle | verified end-to-end against a generated 10 s 440 Hz WAV: `load`→ok, `count`=1, `length`=10, `isPlaying`=false, `play`→true, `isPlaying`=**true**, `pause`→true, `isPlaying`=false, `resume`→true, `isPlaying`=true, `setVolume`→true, `loop`→true, `isPlaying`=true, `stop`→true, `isPlaying`=false, `release`→true, `release` again→false, `count`=0. |
+| Real playback lifecycle (sound) | verified end-to-end against a generated 10 s 440 Hz WAV: `load`→ok, `count`=1, `length`=10, `isPlaying`=false, `play`→true, `isPlaying`=**true**, `pause`→true, `isPlaying`=false, `resume`→true, `isPlaying`=true, `setVolume`→true, `loop`→true, `isPlaying`=true, `stop`→true, `isPlaying`=false, `release`→true, `release` again→false, `count`=0. |
+| Real database lifecycle (sqldb) | `execute`, `executeArgs`, `query`, `queryArgs`, `scalar`, `tables`, `tableExists`, `lastInsertId`, `script` and the error path all behave correctly against a real SQLite file |
+| Cross-implementation diff | the rewritten `sqldb` fixture produces output **identical** to `venv/bin/python lynxer/shell.py` on the same file — the strongest available evidence of parity |
+| Workspace left clean | no scratch database or journal file remains after the run (`git status` clean apart from intended edits) |
 
 The `isPlaying == true` immediately after `play` is the specific assertion that
-could not have held before Finding C was fixed.
+could not have held before Finding C was fixed. The `sqldb` diff is the
+assertion that could not have passed before Finding E.
+
+**A note on the parity method.** Comparing Clynxer against the Python reference
+worked here because the program is deterministic and self-contained. That is not
+generally true — several fixtures in `test/` are nondeterministic, `PYTHONPATH`
+shadowing can make the Python side import the wrong tree, and `_here`-relative
+paths resolve differently between the two runners. The `sqldb` comparison was
+run with `PYTHONPATH=` cleared and an explicit database path for that reason.
 
 ---
 
 ## 9. Documentation inconsistencies
 
-Ten were catalogued. Items 1-6 and 9 are **stale documentation**, i.e. the code
-is right and the prose is wrong. Items 7-8 and 10 are ambiguities or internal
-contradictions that should be resolved deliberately.
+Eleven were catalogued and **all eleven have been corrected** (see the status
+column). Items 1-7 and 9-11 were **stale or incomplete documentation**, i.e. the
+code is right and the prose was wrong or missing. Item 8 was an internal
+contradiction in `todo.md`.
 
-| # | Location | Problem |
-| --- | --- | --- |
-| 1 | `clynxer/docs/limitations.md:61-68` | Says "`tui` remains intentionally unimplemented because it needs a full-screen terminal library" and that the Python `sound` and `sqldb` modules are "out of scope". **All three are now implemented, built and tested.** |
-| 2 | `clynxer/docs/README.md:88` | "`tui` is not implemented yet." Now false. |
-| 3 | `clynxer/docs/README.md:55-80` | The module table lists 25 modules and **omits `sound`, `sqldb` and `tui`** entirely. |
-| 4 | `clynxer/docs/README.md:72` | Lists `random` as "*pure* — deterministic LCG in Lynxer", but `random` is **native**: `clynxer/stdlib/random.cpp` exists, `stdlib/random.so` is built, and `clynxer/stdlib/random.lynx:9` does `importAs("random.so", "nativeRandom")`. |
-| 5 | `clynxer/docs/README.md:21` | `make` is documented as "wipe and re-fetch third-party headers, then build". There is no `third_party/` and no CMake staging any more (`todo.md:19-20`). |
-| 6 | `clynxer/docs/README.md:26-31, 82-86` | Repeats "the `game`, `json`, `network` and `server` modules are Rust crates". There are **nine** Rust modules. |
-| 7 | `clynxer/docs/native-module-abi.md:8-11` | Same thing — names only `game`, `json`, `network`, `server` as Rust backends. |
-| 8 | `todo.md:298` vs `todo.md:186-195` | Internal contradiction: the "Current boundary" section says "the remaining Python reference modules not yet ported are `sound`, `sqldb`, `tui`, `tkinter`, `tkinterPlus`, and `turtle`", while the milestone list marks `sound`, `sqldb` and `tui` as **`[x]` complete**. |
-| 9 | `clynxer/docs/limitations.md:49` | "At most four arguments per native signature" contradicts the packed section of `native-module-abi.md:124-150`, where a packed call carries up to 64 numbers and 64 strings. The "four" refers to the four C parameters of the packed prototype, not to argument count. |
-| 10 | `clynxer/docs/native-module-abi.md:124-134` | Presents the packed `...` form as optional. For Rust `cdylib` modules using `clynxer_abi` it is effectively mandatory, and getting it wrong segfaults at call time (§8.3). This gap directly caused Finding B. |
+| # | Location | Problem | Status |
+| --- | --- | --- | --- |
+| 1 | `clynxer/docs/limitations.md:64-71` | Said "`tui` remains intentionally unimplemented because it needs a full-screen terminal library" and that the Python `sound` and `sqldb` modules were "out of scope". All three are implemented, built and tested. | **Fixed** — replaced with a "Modules that are not ported" section naming only `tkinter`/`tkinterPlus`/`turtle`, plus new `sound`, `sqldb` and `tui` divergence sections. |
+| 2 | `clynxer/docs/README.md:88` | "`tui` is not implemented yet." | **Fixed** — sentence removed. |
+| 3 | `clynxer/docs/README.md:55-80` | Module table listed 25 modules and omitted `sound`, `sqldb` and `tui`. | **Fixed** — three rows added; all 27 modules now have a row and a doc page. |
+| 4 | `clynxer/docs/README.md:72` | Listed `random` as "*pure* — deterministic LCG in Lynxer", but it is native (`stdlib/random.cpp`, `stdlib/random.so`, `importAs` at `stdlib/random.lynx:9`). | **Fixed** — now "native \| seeded linear congruential generator in C++". |
+| 5 | `clynxer/docs/README.md:21` | `make` documented as "wipe and re-fetch third-party headers, then build". There is no `third_party/` or CMake staging any more. | **Fixed** — now "build the interpreter and every native stdlib module". |
+| 6 | `clynxer/docs/README.md:26-31, 82-86, 106-112` | Repeated "the `game`, `json`, `network` and `server` modules are Rust crates"; there are **nine**. Also referenced a non-existent `stdlib/libs.mk`. | **Fixed** — all three places list the nine modules; the `libs.mk` sentence removed. |
+| 7 | `clynxer/docs/native-module-abi.md:8-11` | Same thing — named only four Rust backends. | **Fixed** — now lists all nine. |
+| 8 | `todo.md:24-25`, `todo.md:294-299` vs `todo.md:186-195` | Internal contradiction: "Current boundary" listed `sound`, `sqldb`, `tui` as "not yet ported" while the milestone list marked all three `[x]`; and an earlier bullet still said "`tui` remains intentionally unsupported". | **Fixed** — the stale bullet now lists sound/sqldb/tui as Rust backends, and the boundary paragraph lists only `tkinter`/`tkinterPlus`/`turtle` as unported. |
+| 9 | `clynxer/docs/limitations.md:49` | "At most four arguments per native signature" contradicted the packed section, where a call carries at most 64 arguments. | **Fixed** — restated as "at most four arguments" for fixed shapes, "at most 64 arguments in total" for packed. |
+| 10 | `clynxer/docs/native-module-abi.md:124-134` | Presented the packed `...` form as **optional**. For a Rust `cdylib` using `clynxer_abi` it is mandatory, and using a fixed shape compiles cleanly and segfaults at call time. **This gap directly caused Finding B.** | **Fixed** — a callout now states the requirement and the failure mode, the "Adding a stdlib module" recipe in `docs/README.md` repeats it, and `limitations.md` points at it. |
+| 11 | `clynxer/docs/native-module-abi.md:124-150` | The packed section did not document that arguments are indexed **per type**, and wrongly implied "at most 64 of each" (the real limit is 64 arguments in total, `kMaxPackedArgs`). Without this, Finding F is easy to reproduce. | **Fixed** — added a per-type indexing subsection with a worked `save(handle, path, quality)` example and a warning that out-of-range reads yield `0`/`""` silently. |
+
+**Files touched by the documentation pass:** `clynxer/docs/README.md`,
+`clynxer/docs/limitations.md`, `clynxer/docs/native-module-abi.md`,
+`clynxer/README.md`, `todo.md`.
 
 ### 9.1 Corrections to the previous version of this report
 
@@ -688,7 +915,9 @@ contradictions that should be resolved deliberately.
 
 These three are the same class of problem this session found in `sound`: a
 process-level crash where a sentinel or located error is expected. They are
-worth attacking together.
+worth attacking together, and `sound`'s device-init fix (`OutputStream::try_default().ok()`
+instead of `.unwrap()`) is the pattern to follow — a missing capability must
+degrade to a sentinel, never to a panic or an abort.
 
 ### 10.2 Open roadmap items
 
@@ -696,12 +925,16 @@ worth attacking together.
   now says no, with a `graphics.lynx` module on Rust `iced` planned instead.
 - Freeze each module's operation names, signatures, handle ownership, string
   lifetime, error sentinels, callbacks, interruption behaviour and cleanup before
-  a second backend is introduced (`todo.md:204-208`). **Finding B is direct
-  evidence for why this matters.**
+  a second backend is introduced (`todo.md:204-208`). **Findings B and E are both
+  direct evidence for why this matters** — one is a signature contract violated
+  three ways, the other a wrapper/backend contract violated once. Had the
+  contract been frozen and written down per module, neither could have survived
+  a single review.
 - Rust-backend failure-path fixtures: success, malformed input, invalid handles,
   missing files, timeouts, cleanup, optional-dependency failures, and the
-  compiled/bundled path (`todo.md:209-212`). The current `sound` and `sqldb`
-  fixtures only exercise invalid handles.
+  compiled/bundled path (`todo.md:209-212`). `sqldb` now has real success-path
+  and error-path coverage; `sound` and `tui` still only exercise invalid handles
+  and would not notice a regression in their main code paths.
 - Managed filesystem / process / networking / async / sound / FFI / native-thread
   APIs (Milestone 7, `todo.md:226-227`).
 - An optimization pass beyond constant folding (Milestone 8, `todo.md:256`).
@@ -713,36 +946,55 @@ worth attacking together.
 `venv` is deliberately absent; `re`/`regex` run on `std::regex` (ECMAScript
 grammar) and report lookbehind, atomic groups and `\p{...}` as errors;
 `cli`'s Click/Typer builders are hard "unknown function" errors; `js` requires
-`node` and applies no timeout. Full list: `clynxer/docs/limitations.md`.
+`node` and applies no timeout. The `tui` rendering/prompt/handle families are
+placeholders. Full list: `clynxer/docs/limitations.md`, which now documents the
+`sound`, `sqldb` and `tui` divergences as well.
 
 ---
 
 ## 11. Recommendations
 
-1. **Update the documentation before writing more modules.** Items 1-7 and 9-10
-   in §9 are stale-but-shipped documentation that will mislead the next port.
-   The single highest-value edit is `native-module-abi.md`: state that a Rust
-   `cdylib` must use the packed `...` form, and record the segfault failure mode.
-2. **Resolve the `todo.md` contradiction (#8).** `sound`, `sqldb` and `tui` are
-   done; the "Current boundary" paragraph still lists them as unported.
-3. **Document the two-family dispatch rule prominently.** "Fixed shape → exact C
-   prototype; `...` → packed four-scalar prototype; pick by language, not by
-   argument count" deserves to be the first thing in the ABI doc, because the
-   failure is a silent SIGSEGV rather than a build error.
-4. **Add failure-path fixtures for the three new modules** (`todo.md:209-212`).
-   The current fixtures only cover invalid handles, so Findings C and D were
-   invisible to the suite — a working playback test would have caught C.
-5. **Replace the `tui.styleValid` stub** with real style validation, or record in
+1. ~~Update the documentation before writing more modules.~~ **Done** — §9 lists
+   the eleven items and their fixes. The highest-value change was documenting the
+   packed-signature requirement and the per-type argument indexing in
+   `native-module-abi.md`.
+2. ~~Fix Finding F (the `tui` argument indices).~~ **Done** — all 18 sites
+   corrected, and `confirm` given its own registration. The automated check
+   guarantees it stays fixed.
+3. **Make the contract explicit per module before adding a second backend.** The
+   freeze item at `todo.md:204-208` is the one that would have prevented both B
+   and E. For a new module, write down — for each op — the Lynxer-facing name,
+   the argument types *and order*, which argument is the handle/path, the error
+   sentinel, and who owns cleanup. The wrapper already encodes most of this, and
+   §8.9's check now enforces the mechanical half of it; the semantic half (which
+   argument *means* what) still needs human agreement when a second backend
+   appears.
+4. ~~Add a "does the module satisfy its own wrapper?" check to the suite.~~
+   **Done** — `clynxer/scripts/check_module_contracts.py`, wired into the first
+   line of `clynxer/Makefile`'s `test` recipe. It found an 18th `tui` defect that
+   manual inspection had missed, on its first run.
+5. **Add failure-path fixtures for `sound` and `tui`** (`todo.md:209-212`). A
+   playback test would have caught Finding C on day one; `sqldb`'s rewritten
+   fixture shows what that coverage looks like. `sound` and `tui` still only
+   exercise invalid handles and would not notice a regression in their main code
+   paths.
+6. **Replace the `tui.styleValid` stub** with real style validation, or record in
    `.expected` that the "not-a-style" case is a known stub. As it stands the
    fixture asserts a value that is true only because nothing is implemented.
-6. **Consider a build-time guard against Finding B.** Since the interpreter
-   already knows which shapes are packed, a one-line check at registration time
-   could reject a fixed-shape signature for a module that exports the packed
-   prototype — turning a SIGSEGV into a located error. This is the same
-   "prefer explicit errors over crashes" principle as the known parity bugs.
-7. **Attack the three crash-vs-error parity bugs (§10.1) as one unit.** They are
-   mechanically similar and all three are the only remaining places where a
-   user action can abort the process.
+7. **Consider a build-time guard against Finding B.** The interpreter already
+   knows which shapes are packed, so a registration-time check could reject a
+   fixed-shape signature — turning a SIGSEGV into a located error. Same
+   "prefer explicit errors over crashes" principle as the parity bugs. (The
+   static check covers this for the bundled modules; a runtime guard would also
+   cover third-party `.so` files, which the script cannot see.)
+8. **Attack the three crash-vs-error parity bugs (§10.1) as one unit.** They are
+   mechanically similar and all three are the only remaining places where a user
+   action can abort the process.
+9. **Extend the contract check if the placeholder families get implemented.** The
+   bounds rule has one blind spot: a shifted but in-bounds read is invisible
+   unless the op also reads past the end (§8.9). Before `tui`'s table/tree/layout
+   ops become real, either tighten the rule to "every argument is read exactly
+   once" for the ops that opt in, or review those 18 sites by hand.
 
 ---
 
@@ -761,26 +1013,34 @@ Everything cited in this report, for fast navigation.
 | `clynxer/ast.cpp:566` | `const bool packed = types.size() == 1 && types[0] == "..."` — **the packed/fixed selector** |
 | `clynxer/rust/abi/src/lib.rs:199-269` | `export_int!` / `export_float!` / `export_string!` / `lynxer_module!` |
 
-**Newly fixed modules**
+**Modules fixed and documented**
 
 | Reference | What it is |
 | --- | --- |
 | `clynxer/rust/sound/src/lib.rs` | `SoundEntry { path, volume, sink }`, `SoundState { entries, output }`, `start_playback()`, all 12 ops, `OPS` table |
-| `clynxer/rust/sqldb/src/lib.rs` | `value_to_json()`, owned column-name collection, `OPS` table |
-| `clynxer/rust/tui/src/lib.rs` | `tui_enter`, `println!("{}", "─".repeat(40))`, `OPS` table (71 entries) |
+| `clynxer/rust/sqldb/src/lib.rs` | Path-based rewrite: `with_conn()`, `query_rows()`, `list_tables()`, `json_dumps()`, `value_to_scalar()`, `parse_params_json()`, `value_to_json()`, `OPS` table (10 ops, `open` removed) |
+| `clynxer/rust/tui/src/lib.rs` | `tui_enter`, `println!("{}", "─".repeat(40))`, `OPS` table (70 ops). All 18 positional-index reads corrected; `confirm` split from `confirmDefault` |
+| `clynxer/scripts/check_module_contracts.py` | **New.** Static wrapper/backend contract check, run by `make test`; see §8.9 |
+| `clynxer/Makefile` (`PYTHON`, `CONTRACT_CHECK`, first line of `test`) | Wires the check into the suite |
+| `clynxer/examples/stdlib_sqldb.lynx`, `.expected` | Rewritten to a real round-trip against `.clynxer_scratch_sqldb.db`; byte-identical to the Python reference |
 | `clynxer/examples/stdlib_tui.lynx`, `.expected` | Corrected `tuiExists`/`tuiVersion` calls and `true`/`true` |
-| `clynxer/stdlib/{sound,sqldb,tui}.lynx` | The Lynxer-facing wrappers (unchanged) |
+| `clynxer/stdlib/{sound,sqldb,tui}.lynx` | The Lynxer-facing wrappers (unchanged — they were the correct side of Finding E) |
 
 **Contract and reference**
 
 | Reference | What it is |
 | --- | --- |
-| `clynxer/docs/native-module-abi.md` | The ABI contract; `:82-115` fixed shapes, `:124-150` packed |
+| `clynxer/docs/native-module-abi.md` | The ABI contract; `:82-115` fixed shapes, `:124-160` packed + the per-type indexing rule |
 | `clynxer/docs/limitations.md:24-33` | No bytecode backend; `--compile` embeds modules |
-| `clynxer/docs/limitations.md:61-68` | **Stale** — claims sound/sqldb/tui out of scope |
+| `clynxer/docs/limitations.md:61-72` | "Modules that are not ported" — now accurate |
+| `clynxer/docs/limitations.md` (`sound`, `sqldb`, `tui` sections) | Per-module divergences, added this revision |
 | `lynxer/stdlib/sound.lynx` | The Python reference semantics for `sound` |
+| `lynxer/stdlib/sqldb.lynx` | The Python reference semantics for `sqldb` — path-based, connect/close per call |
 | `lynxer/stdlib/tui.lynx:9,22` | `tuiExists` / `tuiVersion` — the canonical names |
 | `clynxer/stdlib/tui.lynx:81` | `styleValid(...) -> bool` |
+| `clynxer/rust/image/src/lib.rs:209-218` | The correct per-type indexing convention (`args.int(0)` + `args.string(0)`) |
+| `clynxer/rust/json/src/lib.rs:21-50` | The `compact()` helper `sqldb`'s `json_dumps()` mirrors |
+| `clynxer/ast.cpp` (`kMaxPackedArgs`) | The 64-argument total limit for packed calls |
 
 **Build and test**
 
@@ -810,9 +1070,8 @@ Everything cited in this report, for fast navigation.
 | `todo.md:256` | Open: optimization pass |
 | `todo.md:260-267` | Milestone 9 baseline and open gates |
 | `todo.md:269-276` | The three known parity bugs |
-| `todo.md:298` | **Stale** — lists sound/sqldb/tui as unported |
-| `clynxer/docs/README.md:55-80` | Module table (missing sound/sqldb/tui) |
-| `clynxer/docs/README.md:91-110` | "Adding a stdlib module" recipe |
+| `clynxer/docs/README.md` (module table) | All 27 modules, sound/sqldb/tui included |
+| `clynxer/docs/README.md` ("Adding a stdlib module") | 4-step recipe, including the packed-signature requirement |
 | `README.md:6-14` | What Lynxer is; Linux-only, amd64/aarch64 |
 | `clynxer/README.md:1-9` | What Clynxer is |
 

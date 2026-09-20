@@ -46,8 +46,11 @@ on a module.
 
 ## Native module ABI
 
-- At most four arguments per native signature, and only the shapes listed in
-  [native-module-abi.md](native-module-abi.md) are callable.
+- A native signature uses either one of the fixed shapes listed in
+  [native-module-abi.md](native-module-abi.md) — at most four arguments — or the
+  packed `...` form, which passes every argument as two arrays and accepts at
+  most 64 arguments in total. A Rust `cdylib` must use the packed form; see that
+  page for why a fixed shape segfaults instead of failing to build.
 - No aggregate types cross the ABI: lists, tuples and records are exchanged as
   JSON strings or handles.
 - Only one live string result per call (`thread_local` buffer).
@@ -58,14 +61,20 @@ on a module.
 Deliberately **not implemented**. A virtual-environment manager is a Python
 concept with no C++ runtime equivalent.
 
-`tui` remains intentionally unimplemented because it needs a full-screen
-terminal library. `game`, `image`, and `lua` are opt-in Rust modules
-(`macroquad`, `image`, and vendored Lua through `mlua`), and
-`network`/`server`/`json` are Rust crates (`ureq` + `tungstenite`, `axum` +
-`tokio`, `serde_json`). The Python
-reference's `tkinter`, `tkinterPlus`, `turtle`, `sound`, and `sqldb` modules are
-out of scope. The older Python `http`/`net` modules are superseded by Clynxer's
-`network` + `server` pair.
+## Modules that are not ported
+
+`tkinter`, `tkinterPlus` and `turtle` have no Clynxer equivalent. The plan is a
+`graphics` module backed by Rust `iced` instead of tkinter, and Rust's `turtle`
+crate has not been maintained since 2019. The Python `http`/`net` modules are
+superseded by Clynxer's `network` + `server` pair, and `mathPlus` is merged into
+`math`.
+
+Every other Python module has a native backend. Nine of them are Rust crates —
+`game` (`macroquad`), `image`, `json` (`serde_json`), `lua` (vendored Lua through
+`mlua`), `network` (`ureq` + `tungstenite`), `server` (`axum` + `tokio`),
+`sound` (`rodio`/`cpal`), `sqldb` (`rusqlite`) and `tui` (`ratatui`/`crossterm`).
+They are skipped with a warning when `cargo` is missing, so the rest of Clynxer
+still builds without a Rust toolchain.
 
 ## `json`
 
@@ -161,9 +170,69 @@ Python's `re`:
 - The former separate `mathPlus` module has been merged into `math`; the
   float-accepting `sign` from `mathPlus` is available as `signFloat`.
 
+## `sound`
+
+- `loadSound` and `loadSoundStreaming` are the same operation. rodio decodes
+  from the file handle either way, so there is no static/streaming split; both
+  register a handle and return its index.
+- Playback needs an audio device. When none can be opened, `playSound` and
+  `loopSound` report `false` instead of aborting — loading, `soundCount()` and
+  `releaseSound` keep working.
+- `pauseSound` and `resumeSound` require a player that has actually been
+  started. They return `false` for a valid handle that has not been played yet,
+  matching the reference's check for a live player.
+- `releaseSound` returns `false` for an already-released handle, and
+  `soundCount()` counts only the handles that have not been released.
+- `getSoundLength` re-decodes the file on each call, so it returns `0.0` if the
+  file has been moved or deleted since it was loaded.
+
+## `sqldb`
+
+- Every function takes a database path and opens a connection for the duration
+  of the call, matching the reference. There is no connection handle to manage
+  and nothing for the caller to close.
+- Failures are returned in band as `"ERROR: <message>"` — and as `-1` / `false`
+  for the integer and boolean functions — rather than being raised.
+- `query`, `queryArgs` and `tables` emit JSON with Python's `json.dumps`
+  separators (`": "` and `", "`), so their output is byte-identical to the
+  reference.
+- SQLite BLOB values are rendered as base64 strings, because JSON has no byte
+  type.
+- `scalar` converts the first column of the first row the way `str()` would, and
+  returns `""` when the query yields no row or the value is NULL.
+
+## `tui`
+
+The API surface is complete, but the backend is a placeholder rather than a Rich
+equivalent:
+
+- The rendering operations do not reproduce Rich's output. With an active
+  terminal they draw a fixed placeholder through `ratatui`; otherwise they print
+  a plain-text line such as `markdown: ...` or `table: ...`.
+- The prompt operations (`ask`, `askPassword`, `askInt`, `askFloat`,
+  `askDefault`) return empty or zero defaults; they do not read input.
+- `styleValid` reports every style as valid, including invalid ones.
+- The stateful families (`table*`, `tree*`, `layout*`, `progress*`, `status*`,
+  `live*`) return success and placeholder handles but keep no state between
+  calls.
+- `markupEscape`, `enter` and `exit` (raw mode plus the alternate screen) are
+  real implementations. `tuiVersion` reports the backend crate's version, not
+  ratatui's.
+
 ## Testing notes
 
 `make -C clynxer test` runs one fixture per `examples/stdlib_*.lynx` and diffs
 its output against a sibling `.expected` file. Fixtures that would print
 host-specific values (Node version, terminal size, `uname` strings) assert a
 boolean property instead.
+
+Before the fixtures, it runs `scripts/check_module_contracts.py`, a static
+comparison of every `stdlib/<name>.lynx` wrapper against its backend. The
+fixture suite alone cannot detect a backend that contradicts its own wrapper,
+because a fixture records what the code does — a module can be broken in exactly
+the way its `.expected` file asserts. The check verifies that every
+`global.native<Alias>.<op>(...)` call names a registered op, and that a Rust
+backend's packed `args.<kind>(i)` reads are in range for the arguments the
+wrapper actually passes. Both of the contract defects found in `sqldb` and
+`tui` are caught by it. It requires `python3`; `make test` fails with a clear
+message if it is missing rather than skipping the check.

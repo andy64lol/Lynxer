@@ -183,7 +183,7 @@ export_int!(tui_json_pretty, args, {
 export_int!(tui_print_syntax, args, {
     let _code = args.string(0);
     let _lexer = args.string(1);
-    let _line_numbers = args.int(2);
+    let _line_numbers = args.int(0);
     with_state(|state| {
         if let Some(terminal) = &mut state.terminal {
             let _ = terminal.draw(|frame| {
@@ -373,8 +373,8 @@ export_int!(tui_print_pretty, args, {
 // Print columns. Returns 0 on success.
 export_int!(tui_print_columns, args, {
     let _items_json = args.string(0);
-    let _equal = args.int(1);
-    let _expand = args.int(2);
+    let _equal = args.int(0);
+    let _expand = args.int(1);
     0
 });
 
@@ -382,17 +382,17 @@ export_int!(tui_print_columns, args, {
 export_int!(tui_print_aligned, args, {
     let _text = args.string(0);
     let _align = args.string(1);
-    let _pad = args.int(2);
+    let _pad = args.int(0);
     0
 });
 
 // Print padded text. Returns 0 on success.
 export_int!(tui_print_padded, args, {
     let _text = args.string(0);
-    let _top = args.int(1);
-    let _right = args.int(2);
-    let _bottom = args.int(3);
-    let _left = args.int(4);
+    let _top = args.int(0);
+    let _right = args.int(1);
+    let _bottom = args.int(2);
+    let _left = args.int(3);
     0
 });
 
@@ -420,22 +420,22 @@ export_int!(tui_table_create, args, {
 // Add a column to a table. Returns 0 on success.
 export_int!(tui_table_add_column, args, {
     let _idx = args.int(0);
-    let _header = args.string(1);
-    let _style = args.string(2);
+    let _header = args.string(0);
+    let _style = args.string(1);
     0
 });
 
 // Add a row to a table. Returns 0 on success.
 export_int!(tui_table_add_row, args, {
     let _idx = args.int(0);
-    let _values_json = args.string(1);
+    let _values_json = args.string(0);
     0
 });
 
 // Set table caption. Returns 0 on success.
 export_int!(tui_table_set_caption, args, {
     let _idx = args.int(0);
-    let _caption = args.string(1);
+    let _caption = args.string(0);
     0
 });
 
@@ -456,7 +456,7 @@ export_int!(tui_table_set_lines, args, {
 // Set table box style. Returns 0 on success.
 export_int!(tui_table_set_box, args, {
     let _idx = args.int(0);
-    let _box_name = args.string(1);
+    let _box_name = args.string(0);
     0
 });
 
@@ -485,7 +485,7 @@ export_int!(tui_tree_create, args, {
 // Add a child to a tree. Returns the child handle, or -1 on error.
 export_int!(tui_tree_add, args, {
     let _parent_idx = args.int(0);
-    let _label = args.string(1);
+    let _label = args.string(0);
     0
 });
 
@@ -506,31 +506,31 @@ export_int!(tui_layout_create, args, {
 // Split layout rows. Returns 0 on success.
 export_int!(tui_layout_split_rows, args, {
     let _idx = args.int(0);
-    let _names_json = args.string(1);
+    let _names_json = args.string(0);
     0
 });
 
 // Split layout columns. Returns 0 on success.
 export_int!(tui_layout_split_columns, args, {
     let _idx = args.int(0);
-    let _names_json = args.string(1);
+    let _names_json = args.string(0);
     0
 });
 
 // Update layout section. Returns 0 on success.
 export_int!(tui_layout_update, args, {
     let _idx = args.int(0);
-    let _name = args.string(1);
-    let _text = args.string(2);
+    let _name = args.string(0);
+    let _text = args.string(1);
     0
 });
 
 // Set layout panel. Returns 0 on success.
 export_int!(tui_layout_panel, args, {
     let _idx = args.int(0);
-    let _name = args.string(1);
-    let _text = args.string(2);
-    let _title = args.string(3);
+    let _name = args.string(0);
+    let _text = args.string(1);
+    let _title = args.string(2);
     0
 });
 
@@ -548,8 +548,8 @@ export_int!(tui_progress_start, args, { 0 });
 // Add a task to a progress bar. Returns the task ID, or -1 on error.
 export_int!(tui_progress_add_task, args, {
     let _idx = args.int(0);
-    let _description = args.string(1);
-    let _total = args.float(2);
+    let _description = args.string(0);
+    let _total = args.float(1);
     0
 });
 
@@ -584,7 +584,7 @@ export_int!(tui_status_start, args, { 0 });
 // Update a status. Returns 0 on success.
 export_int!(tui_status_update, args, {
     let _idx = args.int(0);
-    let _text = args.string(1);
+    let _text = args.string(0);
     0
 });
 
@@ -602,15 +602,15 @@ export_int!(tui_live_start, args, { 0 });
 // Update a live display. Returns 0 on success.
 export_int!(tui_live_update, args, {
     let _idx = args.int(0);
-    let _text = args.string(1);
+    let _text = args.string(0);
     0
 });
 
 // Update a live display with a panel. Returns 0 on success.
 export_int!(tui_live_panel, args, {
     let _idx = args.int(0);
-    let _text = args.string(1);
-    let _title = args.string(2);
+    let _text = args.string(0);
+    let _title = args.string(1);
     0
 });
 
@@ -634,8 +634,15 @@ export_float!(tui_ask_float, args, { 0.0 });
 // Read input with a default. Returns the input string, or "Error: <message>".
 export_string!(tui_ask_default, args, { "".to_string() });
 
-// Confirm with a default. Returns true/false.
+// Read a yes/no answer. Returns true/false.
+export_int!(tui_confirm, args, {
+    let _prompt = args.string(0);
+    0
+});
+
+// Read a yes/no answer, falling back to `defaultValue` when nothing is entered.
 export_int!(tui_confirm_default, args, {
+    let _prompt = args.string(0);
     let _default = args.int(0);
     0
 });
@@ -720,7 +727,7 @@ const OPS: &[(&str, &str, &str)] = &[
     ("askInt", "tui_ask_int", "cdecl:int64(...)"),
     ("askFloat", "tui_ask_float", "cdecl:float64(...)"),
     ("askDefault", "tui_ask_default", "cdecl:cstring(...)"),
-    ("confirm", "tui_confirm_default", "cdecl:int64(...)"),
+    ("confirm", "tui_confirm", "cdecl:int64(...)"),
     ("confirmDefault", "tui_confirm_default", "cdecl:int64(...)"),
     // TUI mode
     ("enter", "tui_enter", "cdecl:int64(...)"),

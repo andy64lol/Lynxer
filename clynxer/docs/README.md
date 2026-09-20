@@ -18,25 +18,27 @@ shared libraries.
 ## Build and run
 
 ```bash
-make                     # wipe and re-fetch third-party headers, then build
+make                     # build the interpreter and every native stdlib module
 clynxer program.lynx     # run a program
 clynxer --list-stdlibs   # list available modules with their docstrings
 ```
 
 From the repository root, `make buildCLynxer` builds the binary and the native
-modules. The `game`, `json`, `network` and `server` modules are Rust crates
-under `rust/` (see `make rust`); the rest are C++ `stdlib/*.cpp`. A Rust
-toolchain (`cargo`) is required for those four modules; they are skipped with a
-warning when cargo is absent. `make testCLynxer` runs the smoke and stdlib
-fixtures.
+modules. The `game`, `image`, `json`, `lua`, `network`, `server`, `sound`,
+`sqldb` and `tui` modules are Rust crates under `rust/` (see `make rust`); the
+rest are C++ `stdlib/*.cpp`. A Rust toolchain (`cargo`) is required for those
+nine modules; they are skipped with a warning when cargo is absent.
+`make testCLynxer` runs the smoke and stdlib fixtures.
 
 ## Standard library modules
 
 Every module below is implemented by a `stdlib/<name>.so` backend — C++
 (`stdlib/<name>.cpp`) or, for the Rust-backed ones, a crate under `rust/` — and
 exposed to Lynxer by `stdlib/<name>.lynx`. Modules marked *pure* are written in
-Lynxer only and need no shared library. Modules marked *opt-in* are skipped with a warning when their system library is missing,
-so a plain `make` never fails on absent optional dependencies.
+Lynxer only and need no shared library. Modules marked *native* need a
+compiler: the C++ ones need only a C++17 toolchain, and the Rust ones are
+skipped with a warning when `cargo` is missing, so a plain `make` never fails on
+an absent Rust toolchain.
 
 There is no bytecode backend: `--compile` produces a standalone ELF executable
 that embeds the program, its imported module sources and its native libraries.
@@ -69,24 +71,27 @@ clynxer --compile app.lynx extras/helpers.lynx --include vendor/libcustom.so \
 | [network](stdlib/network.md) | native | Rust `ureq` + `tungstenite` (rustls) |
 | [os](stdlib/os.md) | native | `<filesystem>`, POSIX |
 | [path](stdlib/path.md) | native | `<filesystem>`, POSIX `stat` |
-| [random](stdlib/random.md) | pure | deterministic LCG in Lynxer |
+| [random](stdlib/random.md) | native | seeded linear congruential generator in C++ |
 | [re](stdlib/re.md) | native | `std::regex` |
 | [regex](stdlib/regex.md) | native | `std::regex` with a named-pattern cache |
 | [server](stdlib/server.md) | native | Rust `axum` + `tokio` |
 | [shell](stdlib/shell.md) | native | `popen`, `std::system` |
+| [sound](stdlib/sound.md) | native | Rust `rodio` + `cpal` + `symphonia` |
+| [sqldb](stdlib/sqldb.md) | native | Rust `rusqlite` (bundled SQLite) |
 | [sys](stdlib/sys.md) | native | C++ runtime and POSIX |
 | [text](stdlib/text.md) | pure | Lynxer string builtins |
 | [time](stdlib/time.md) | native | `<chrono>`, `<ctime>` |
+| [tui](stdlib/tui.md) | native | Rust `ratatui` + `crossterm` |
 | [typing](stdlib/typing.md) | pure | Lynxer type builtins |
 
-`game`, `image`, `json`, `lua`, `network`, and `server` are Rust crates under
-`rust/`, built by `cargo` and installed as `stdlib/<name>.so` (see `make rust`).
-The rest are C++ compiled from `stdlib/*.cpp`. There is no CMake staging step
-and no `third_party/` directory any more: TLS is `rustls` (no system OpenSSL)
-and the HTTP/WebSocket stack is pure Rust.
+`game`, `image`, `json`, `lua`, `network`, `server`, `sound`, `sqldb` and `tui`
+are Rust crates under `rust/`, built by `cargo` and installed as
+`stdlib/<name>.so` (see `make rust`). The rest are C++ compiled from
+`stdlib/*.cpp`. There is no CMake staging step and no `third_party/` directory
+any more: TLS is `rustls` (no system OpenSSL) and the HTTP/WebSocket stack is
+pure Rust.
 
-`tui` is not implemented yet. `venv` is intentionally excluded — see
-[limitations.md](limitations.md).
+`venv` is intentionally excluded — see [limitations.md](limitations.md).
 
 ## Adding a stdlib module
 
@@ -98,16 +103,30 @@ and the HTTP/WebSocket stack is pure Rust.
    `importAs("<name>.so", "native<Name>")`, and forward each function as
    `global f(...) { return global.nativeName.f(...); }`. Start the file with a
    `////` docstring — `clynxer --list-stdlibs` prints it.
-3. A module can also be a Rust crate under `rust/`, as `game`, `json`, `network`
-   and `server` are. Export `lynxer_module_init_v1` plus one `#[no_mangle]
-   extern "C"` op per entry (the `clynxer_abi` crate provides the packing,
-   panic guards and registration helper), add the crate to the workspace, and
-   add its name to `RUST_MODULE_NAMES` in the Makefile. Rust modules are skipped
-   with a warning when `cargo` is absent. For a C++ module with extra link
-   flags, add `MODULE_FLAGS_<name>` to `stdlib/libs.mk`.
+3. A module can also be a Rust crate under `rust/`, as `game`, `image`, `json`,
+   `lua`, `network`, `server`, `sound`, `sqldb` and `tui` are. Export
+   `lynxer_module_init_v1` plus one `#[no_mangle] extern "C"` op per entry (the
+   `clynxer_abi` crate provides the packing, panic guards and registration
+   helper), add the crate to the workspace, and add its name to
+   `RUST_MODULE_NAMES` in the Makefile. Rust modules are skipped with a warning
+   when `cargo` is absent.
+
+   **A Rust op must be registered with a packed signature** — `cdecl:int64(...)`,
+   `cdecl:float64(...)` or `cdecl:cstring(...)` — never a fixed shape such as
+   `cdecl:int64(int64)`. The `export_*!` macros generate the four-scalar packed
+   prototype, so a fixed-shape declaration calls the symbol through the wrong C
+   prototype and **segfaults on the first call**, with no build-time warning. See
+   [native-module-abi.md](native-module-abi.md).
 4. Add `examples/stdlib_<name>.lynx` plus a sibling `stdlib_<name>.expected`
    file. `make test` runs every `examples/stdlib_*.lynx` and diffs it against
    its `.expected` output.
+5. Run `make test`. It first runs `scripts/check_module_contracts.py`, which
+   compares the wrapper against the backend: every
+   `global.native<Alias>.<op>(...)` call must name a registered op, and for a
+   Rust backend every `args.<kind>(i)` read must be in range for the arguments
+   the wrapper passes. This catches contract mismatches that a fixture cannot —
+   a fixture records what the code does, so it will happily assert a module that
+   is broken in a way the fixture reproduces.
 
 A module that imports native libraries is picked up automatically by
 `--compile`: every transitively imported `.lynx` source and `.so` library is

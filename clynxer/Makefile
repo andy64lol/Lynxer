@@ -1,6 +1,12 @@
 CXX ?= c++
 CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -pedantic -fPIE
 
+# Static check comparing every stdlib/<name>.lynx wrapper with its backend.
+# The fixture suite cannot catch a backend that disagrees with its own wrapper,
+# because a fixture records what the code does; see the script's docstring.
+PYTHON ?= $(shell command -v python3 2>/dev/null || command -v python 2>/dev/null)
+CONTRACT_CHECK := scripts/check_module_contracts.py
+
 TARGET := clynxer
 NATIVE_SOURCES := $(wildcard stdlib/*.cpp)
 NATIVE_MODULES := $(NATIVE_SOURCES:.cpp=.so)
@@ -99,6 +105,8 @@ $(NATIVE_SIGNATURE_MODULE): $(NATIVE_SIGNATURE_SOURCE)
 	$(CXX) -std=c++17 -O2 -Wall -Wextra -pedantic -fPIC -shared $< -o $@
 
 test: $(TARGET) $(NATIVE_BUILT) $(NATIVE_SIGNATURE_MODULE)
+	@test -n "$(PYTHON)" || { echo "clynxer: python3 is required for $(CONTRACT_CHECK)"; exit 1; }
+	@$(PYTHON) $(CONTRACT_CHECK)
 	@printf 'Clynxer\n' > .clynxer_stdin
 	@output="$$(./$(TARGET) examples/hello.lynx < .clynxer_stdin)"; \
 	case "$$output" in \

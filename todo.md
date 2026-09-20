@@ -20,10 +20,11 @@ Planned order of work, newest direction first.
   `clynxerDeps` / `cmake-modules` targets are gone. `stdlib/network.cpp`,
   `stdlib/server.cpp` and `stdlib/json.cpp` are deleted. Still C++ and not
   third-party: `native_json.hpp`, `native_regex.hpp`. The optional `image`
-  (`image` crate) and `lua` (vendored `mlua`) backends now use the same Rust
-  `cdylib` + C ABI path. `tui` remains intentionally unsupported and is tracked
-  below. Docs:
-  `docs/install.md`, `docs/README.md`, `docs/stdlib/{json,network,server}.md`.
+  (`image` crate), `lua` (vendored `mlua`), `sound` (`rodio`/`cpal`), `sqldb`
+  (`rusqlite`) and `tui` (`ratatui`/`crossterm`) backends now use the same Rust
+  `cdylib` + C ABI path. Docs:
+  `docs/install.md`, `docs/README.md`,
+  `docs/stdlib/{json,network,server,sound,sqldb,tui}.md`.
 - [x] Add the `game` stdlib module: `stdlib/game.lynx` wraps `stdlib/game.so`,
   a Rust + macroquad backend (`rust/game`, a `cdylib` exporting
   `lynxer_module_init_v1`/`lynxer_module_attach_v1` directly) exposed through
@@ -293,7 +294,8 @@ behaves exactly like an interpreted one. The root Makefile builds and tests both
 Lynxer and Clynxer targets, and a GitHub Actions workflow builds Clynxer and runs
 its suite. The bundled standard library covers `math`, `json`, `re`, `regex`,
 `os`, `path`, `fileIO`, `csv`, `time`, `debug`, `sys`, `shell`, `cli`, `js`,
-`multiprocessing`, `random`, `image`, `lua`, `game`, `network`, `server`, and
-`text`/`typing`/`colorlib`. The remaining Python reference modules not yet
-ported are `sound`, `sqldb`, `tui`, `tkinter`, `tkinterPlus`, and `turtle`;
-the older `http`/`net` modules are superseded by `network`/`server`.
+`multiprocessing`, `random`, `image`, `lua`, `game`, `network`, `server`,
+`sound`, `sqldb`, `tui`, and `text`/`typing`/`colorlib`. The remaining Python
+reference modules not yet ported are `tkinter`, `tkinterPlus`, and `turtle` —
+a `graphics` module on Rust `iced` is planned in place of tkinter; the older
+`http`/`net` modules are superseded by `network`/`server`.
