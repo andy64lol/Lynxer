@@ -1,0 +1,45 @@
+true
+hello world
+
+0
+0
+0
+test
+0
+0
+5
+0
+ping
+
+0
+0
+3
+0
+oops
+0
+0
+-1
+0
+-15
+0
+-1
+-1
+0
+spawn: processSpawn() failed: [Errno 2] No such file or directory: '/bin/no-such-command-xyz'
+arity: processSpawn(command, arguments, environment?) expects a command and a list of string arguments
+argtype: processSpawn(command, arguments, environment?) expects a command and a list of string arguments
+env: processSpawn environment must be a list of KEY=VALUE strings
+envkey: processSpawn environment keys must not be empty
+handle: processRead() received an unknown process handle
+write: processWrite() received an unknown process handle
+poll: processPoll() received an unknown process handle
+wait: processWait() received an unknown process handle
+signal: processSendSignal() received an unknown process handle
+closeinput: processCloseInput() received an unknown process handle
+close: processClose() received an unknown process handle
+stream: processRead(handle, stream, maxBytes) expects stdout/stderr and a non-negative byte count
+maxbytes: processRead(handle, stream, maxBytes) expects stdout/stderr and a non-negative byte count
+timeout: processWait(handle, timeoutSeconds) expects a non-negative timeout
+closed: processWrite() failed: write to closed file
+0
+reclose: processClose() received an unknown process handle

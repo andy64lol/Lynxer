@@ -266,12 +266,25 @@ Planned order of work, newest direction first.
     `.expected` check are new in the Makefile. Divergence worth remembering:
     the reference's `Number.null` is `0`, so the value-less operations return
     `0`, not Clynxer's `none`.
-  - [ ] `process*` (8): `Spawn`, `Write`, `CloseInput`, `Read`, `Poll`, `Wait`,
-    `SendSignal`, `Close`. Managed subprocesses with per-stream pipes,
-    environment overrides, timeouts and signal sending.
-  - [ ] `networking*` (13): `Open`, `Bind`, `Listen`, `Accept`, `Connect`,
+  - [x] `process*` (8): `Spawn`, `Write`, `CloseInput`, `Read`, `Poll`, `Wait`,
+    `SendSignal`, `Close`. POSIX `fork`/`exec` with one pipe per standard
+    stream, environment overrides, timeouts and signals; the child's exec
+    failure is reported through a CLOEXEC pipe so the message matches the
+    reference (`processSpawn() failed: [Errno 2] No such file or directory:
+    '<cmd>'`). Commands are never shell-parsed. A signal death reports the
+    negative signal number. SIGPIPE is ignored process-wide so a write to a
+    dead child reports EPIPE instead of killing the interpreter. Fixture:
+    `examples/builtin_process.lynx`, byte-identical to the reference across
+    success, stderr, exit-status, signal, timeout and fifteen error paths.
+  - [x] `networking*` (13): `Open`, `Bind`, `Listen`, `Accept`, `Connect`,
     `Send`, `Receive`, `Close`, `Shutdown`, `Blocking`, `Option`, `Resolve`,
-    `Address`. Managed TCP, UDP and Unix-domain sockets.
+    `Address`. Managed TCP, UDP and Unix-domain sockets over POSIX
+    `socket`/`bind`/`listen`/`accept`/`send`/`recv`; `Accept` allocates from
+    the same handle registry as `Open`. Fixture:
+    `examples/builtin_networking.lynx`, byte-identical to the reference across
+    TCP, UDP, Unix sockets, resolution and ten error paths. It binds to an
+    ephemeral port and reads it back from `networkingAddress`, so no fixed port
+    can collide.
   - [ ] `sound*` (9): `Load`, `Play`, `Loop`, `Stop`, `Pause`, `Resume`,
     `SetVolume`, `IsPlaying`, `Release`. Overlaps the Rust `sound` stdlib
     module, but these are the built-in names the reference exposes.

@@ -9,10 +9,9 @@ the module's own function of that name — see
 [limitations](limitations.md#module-self-calls).
 
 Names that are known but not implemented (for example `rawPy`, `ffiCall`,
-`nativeModuleLoad`, `async*`, `sound*`, the `process*`/`networking*` families,
-and mutual-exclusion primitives) fail with `<name>() is not supported in
-CLynxer yet`. The `syscall*` family is routed to a generic syscall dispatcher
-instead.
+`nativeModuleLoad`, `async*`, `sound*`, and mutual-exclusion primitives) fail
+with `<name>() is not supported in CLynxer yet`. The `syscall*` family is routed
+to a generic syscall dispatcher instead.
 
 ## Input, output and conversion
 
@@ -175,3 +174,74 @@ Clynxer's own `none`.
 
 On a host without POSIX `open`/`stat`/`dirent`, the whole family stays in the
 unsupported set.
+
+## Managed processes
+
+A managed subprocess abstraction: each child gets one pipe per standard stream
+and a handle the program owns. Commands are **not** shell-parsed — the first
+argument names an executable and the second is its argv, so shell syntax needs
+an explicit shell. Closing the handle closes every pipe and terminates a child
+that is still running.
+
+| Builtin | Notes |
+| --- | --- |
+| `processSpawn(command, arguments, environment?)` | Returns a process handle. `arguments` is a list of strings; `environment` is an optional list of `KEY=VALUE` strings that overrides those keys and inherits the rest |
+| `processWrite(handle, data)` | Writes UTF-8 data to stdin and returns the byte count |
+| `processCloseInput(handle)` | Closes stdin so the child sees end-of-file |
+| `processRead(handle, stream, maxBytes)` | Reads up to `maxBytes` from `"stdout"` or `"stderr"`, blocking until that many bytes or end-of-file. Bytes that are not valid UTF-8 become U+FFFD |
+| `processPoll(handle)` | Returns `-1` while the child runs, otherwise its exit status |
+| `processWait(handle, timeoutSeconds)` | Waits up to the timeout; `-1` on timeout, otherwise the exit status |
+| `processSendSignal(handle, signal)` | Sends an operating-system signal |
+| `processClose(handle)` | Closes the pipes, terminates a running child, and releases the handle |
+
+A child killed by a signal reports the **negative** signal number, matching
+POSIX convention. Poll and wait report `-1` both for "still running" and for a
+timeout, which is why the reference pairs a timeout with a following poll.
+
+Unknown, already closed or invalid handles are runtime errors rather than silent
+failures, as are writes to a stream the program has already closed.
+
+SIGPIPE is ignored for the whole process, as it is in the reference: writing to
+a pipe whose reader has exited must report `EPIPE`, not kill the interpreter.
+
+The family follows the Python reference exactly, including its error text, and
+the value-less operations return `0` for the same `Number.null` reason as the
+filesystem family.
+
+On a host without POSIX `fork`/`pipe`/`waitpid`, the whole family stays in the
+unsupported set.
+
+## Managed networking
+
+Managed TCP, UDP and Unix-domain sockets. Addresses stay as host/path strings
+plus an integer port, so no native address structure crosses the API. Sockets
+are closed explicitly; anything left open is closed when the process exits.
+
+| Builtin | Notes |
+| --- | --- |
+| `networkingOpen(kind)` | Creates a socket and returns a handle. `kind` is `tcp`, `udp` or `unix` (case-insensitive) |
+| `networkingBind(handle, address, port?)` | Binds to an IPv4 host and port, or to a Unix socket path when the port is omitted |
+| `networkingListen(handle, backlog?)` | Listens on a stream socket; the backlog defaults to 128 |
+| `networkingAccept(handle)` | Accepts a connection and returns a **new** handle |
+| `networkingConnect(handle, address, port?)` | Connects to an IPv4 host and port, or to a Unix socket path |
+| `networkingSend(handle, data)` | Sends UTF-8 data and returns the byte count |
+| `networkingReceive(handle, maxBytes)` | Receives and returns UTF-8 text; invalid bytes become U+FFFD |
+| `networkingClose(handle)` | Closes the socket and releases the handle |
+| `networkingShutdown(handle, how)` | Shuts down `read`, `write` or `both` |
+| `networkingBlocking(handle, enabled)` | Enables or disables blocking mode |
+| `networkingOption(handle, name, value)` | Sets `reuseAddr`, `keepAlive` or `broadcast` to an integer value |
+| `networkingResolve(host, port)` | Resolves a host over `SOCK_STREAM` and returns the **sorted, de-duplicated** list of address strings |
+| `networkingAddress(handle)` | JSON for the local address: `["127.0.0.1",41234]` for IPv4, or the path string for a Unix socket |
+
+`networkingAccept` and `networkingOpen` both allocate handles from the same
+registry, so handles are not reusable indices into a fixed table.
+
+`networkingSend` performs a single `send`, so a short write is possible on a
+stream socket; the returned count is what actually left. `networkingReceive`
+performs a single `recv`.
+
+The family follows the Python reference exactly, including its error text, and
+the value-less operations return `0` for the same `Number.null` reason as the
+filesystem family.
+
+On a host without POSIX sockets, the whole family stays in the unsupported set.

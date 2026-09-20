@@ -28,10 +28,18 @@
 // names stay in `unsupportedTable()` instead.
 #if defined(__unix__) || defined(__APPLE__)
 #define CLYNXER_POSIX_BUILTINS 1
+#include <arpa/inet.h>
+#include <csignal>
 #include <dirent.h>
 #include <fcntl.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/un.h>
+#include <sys/wait.h>
+#include <unistd.h>
 #else
 #define CLYNXER_POSIX_BUILTINS 0
 #endif
@@ -2586,6 +2594,807 @@ Value builtinFilesystemChmod(const std::vector<Value>& args, Environment&,
     return std::int64_t{0};
 }
 
+// --- Managed process built-ins ----------------------------------------------
+//
+// `process*` spawns a child with one pipe per standard stream and keeps it in a
+// registry keyed by a handle. Commands are never shell-parsed: the caller names
+// an executable and passes its argv. This mirrors the Python reference, whose
+// messages are reproduced verbatim.
+
+struct ChildProcess {
+    pid_t pid = -1;
+    int input = -1;
+    int output = -1;
+    int error = -1;
+    bool reaped = false;
+    int status = 0;
+};
+
+std::unordered_map<std::int64_t, ChildProcess>& childProcesses() {
+    static std::unordered_map<std::int64_t, ChildProcess> processes;
+    return processes;
+}
+
+std::int64_t nextProcessHandle() {
+    static std::int64_t next = 1;
+    return next++;
+}
+
+// Python ignores SIGPIPE at startup; without the same here, writing to a pipe
+// whose reader has gone would kill the interpreter instead of reporting EPIPE.
+void ignoreSigpipeOnce() {
+    static const bool once = [] {
+        ::signal(SIGPIPE, SIG_IGN);
+        return true;
+    }();
+    (void)once;
+}
+
+ChildProcess* requireProcess(const Value& value, const char* name, int line,
+                             int column) {
+    const auto* handle = std::get_if<std::int64_t>(&value);
+    if (handle == nullptr || *handle < 0) {
+        fail(std::string(name) + "() expects a process handle", line, column);
+    }
+    const auto found = childProcesses().find(*handle);
+    if (found == childProcesses().end()) {
+        fail(std::string(name) + "() received an unknown process handle", line,
+             column);
+    }
+    return &found->second;
+}
+
+// `waitpid` reports a signal death as a negative status, like Python's
+// `returncode`.
+int decodeStatus(int status) {
+    if (WIFEXITED(status)) {
+        return WEXITSTATUS(status);
+    }
+    if (WIFSIGNALED(status)) {
+        return -WTERMSIG(status);
+    }
+    return 0;
+}
+
+// Returns the exit status, or -1 while the child is still running. The child is
+// reaped at most once and the status cached.
+int pollProcess(ChildProcess& child) {
+    if (child.reaped) {
+        return child.status;
+    }
+    int status = 0;
+    const pid_t result = ::waitpid(child.pid, &status, WNOHANG);
+    if (result == child.pid) {
+        child.reaped = true;
+        child.status = decodeStatus(status);
+        return child.status;
+    }
+    return -1;
+}
+
+// Reads up to `wanted` bytes, looping the way Python's buffered `read(n)` does,
+// and returns what arrived before end of file.
+std::string readStream(int descriptor, std::size_t wanted) {
+    std::string out;
+    out.reserve(wanted);
+    while (out.size() < wanted) {
+        char buffer[4096];
+        const std::size_t remaining = wanted - out.size();
+        const std::size_t chunk = std::min(remaining, sizeof(buffer));
+        const ssize_t count = ::read(descriptor, buffer, chunk);
+        if (count <= 0) {
+            break;
+        }
+        out.append(buffer, static_cast<std::size_t>(count));
+    }
+    return out;
+}
+
+Value builtinProcessSpawn(const std::vector<Value>& args, Environment&, int line,
+                          int column) {
+    ignoreSigpipeOnce();
+    const char* usage =
+        "processSpawn(command, arguments, environment?) expects a command and a "
+        "list of string arguments";
+    if (args.size() < 2 || args.size() > 3 ||
+        !std::holds_alternative<std::string>(args[0])) {
+        fail(usage, line, column);
+    }
+    const auto* argumentList = asList(args[1]);
+    if (argumentList == nullptr) {
+        fail(usage, line, column);
+    }
+    std::vector<std::string> arguments;
+    for (const auto& element : (*argumentList)->elements) {
+        if (!std::holds_alternative<std::string>(element)) {
+            fail(usage, line, column);
+        }
+        arguments.push_back(std::get<std::string>(element));
+    }
+
+    std::vector<std::string> environment;
+    if (args.size() == 3) {
+        const auto* overrideList = asList(args[2]);
+        if (overrideList == nullptr) {
+            fail("processSpawn environment must be a list of KEY=VALUE strings",
+                 line, column);
+        }
+        std::unordered_map<std::string, std::string> merged;
+        for (char** entry = ::environ; entry != nullptr && *entry != nullptr;
+             ++entry) {
+            const std::string item = *entry;
+            const auto equals = item.find('=');
+            merged[item.substr(0, equals)] = item.substr(equals + 1);
+        }
+        for (const auto& element : (*overrideList)->elements) {
+            if (!std::holds_alternative<std::string>(element)) {
+                fail(
+                    "processSpawn environment must be a list of KEY=VALUE "
+                    "strings",
+                    line, column);
+            }
+            const std::string& item = std::get<std::string>(element);
+            const auto equals = item.find('=');
+            if (equals == std::string::npos) {
+                fail(
+                    "processSpawn environment must be a list of KEY=VALUE "
+                    "strings",
+                    line, column);
+            }
+            if (equals == 0) {
+                fail("processSpawn environment keys must not be empty", line,
+                     column);
+            }
+            merged[item.substr(0, equals)] = item.substr(equals + 1);
+        }
+        for (const auto& pair : merged) {
+            environment.push_back(pair.first + "=" + pair.second);
+        }
+    }
+
+    const std::string& command = std::get<std::string>(args[0]);
+    int input[2] = {-1, -1};
+    int output[2] = {-1, -1};
+    int error[2] = {-1, -1};
+    int report[2] = {-1, -1};
+    if (::pipe2(input, 0) != 0 || ::pipe2(output, 0) != 0 ||
+        ::pipe2(error, 0) != 0 || ::pipe2(report, O_CLOEXEC) != 0) {
+        const int code = errno;
+        for (int descriptor : {input[0], input[1], output[0], output[1],
+                               error[0], error[1], report[0], report[1]}) {
+            if (descriptor >= 0) {
+                ::close(descriptor);
+            }
+        }
+        fail("processSpawn() failed: [Errno " + std::to_string(code) + "] " +
+                 std::strerror(code),
+             line, column);
+    }
+
+    const pid_t pid = ::fork();
+    if (pid < 0) {
+        const int code = errno;
+        for (int descriptor : {input[0], input[1], output[0], output[1],
+                               error[0], error[1], report[0], report[1]}) {
+            ::close(descriptor);
+        }
+        fail("processSpawn() failed: [Errno " + std::to_string(code) + "] " +
+                 std::strerror(code),
+             line, column);
+    }
+
+    if (pid == 0) {
+        // Child. Report any failure through `report` so the parent can format
+        // the same message Python's subprocess module does.
+        ::dup2(input[0], STDIN_FILENO);
+        ::dup2(output[1], STDOUT_FILENO);
+        ::dup2(error[1], STDERR_FILENO);
+        ::close(input[0]);
+        ::close(input[1]);
+        ::close(output[0]);
+        ::close(output[1]);
+        ::close(error[0]);
+        ::close(error[1]);
+        std::vector<char*> argv;
+        argv.push_back(const_cast<char*>(command.c_str()));
+        for (auto& argument : arguments) {
+            argv.push_back(const_cast<char*>(argument.c_str()));
+        }
+        argv.push_back(nullptr);
+        if (environment.empty()) {
+            ::execvp(command.c_str(), argv.data());
+        } else {
+            std::vector<char*> envp;
+            for (auto& item : environment) {
+                envp.push_back(const_cast<char*>(item.c_str()));
+            }
+            envp.push_back(nullptr);
+            ::execvpe(command.c_str(), argv.data(), envp.data());
+        }
+        const int code = errno;
+        const auto ignored = ::write(report[1], &code, sizeof(code));
+        (void)ignored;
+        ::_exit(127);
+    }
+
+    ::close(input[0]);
+    ::close(output[1]);
+    ::close(error[1]);
+    ::close(report[1]);
+    int childError = 0;
+    const ssize_t reported = ::read(report[0], &childError, sizeof(childError));
+    ::close(report[0]);
+    if (reported == static_cast<ssize_t>(sizeof(childError))) {
+        ::close(input[1]);
+        ::close(output[0]);
+        ::close(error[0]);
+        int status = 0;
+        ::waitpid(pid, &status, 0);
+        fail("processSpawn() failed: [Errno " + std::to_string(childError) +
+                 "] " + std::strerror(childError) + ": '" + command + "'",
+             line, column);
+    }
+
+    ChildProcess child;
+    child.pid = pid;
+    child.input = input[1];
+    child.output = output[0];
+    child.error = error[0];
+    const std::int64_t handle = nextProcessHandle();
+    childProcesses()[handle] = child;
+    return handle;
+}
+
+Value builtinProcessWrite(const std::vector<Value>& args, Environment&, int line,
+                          int column) {
+    if (args.size() != 2 || !std::holds_alternative<std::string>(args[1])) {
+        fail("processWrite(handle, data) expects a handle and string", line,
+             column);
+    }
+    ChildProcess* child = requireProcess(args[0], "processWrite", line, column);
+    if (child->input < 0) {
+        // Python's stream object reports a closed file with this text.
+        fail("processWrite() failed: write to closed file", line, column);
+    }
+    const std::string& data = std::get<std::string>(args[1]);
+    std::size_t written = 0;
+    while (written < data.size()) {
+        const ssize_t count =
+            ::write(child->input, data.data() + written, data.size() - written);
+        if (count < 0) {
+            const int code = errno;
+            fail("processWrite() failed: [Errno " + std::to_string(code) +
+                     "] " + std::strerror(code),
+                 line, column);
+        }
+        written += static_cast<std::size_t>(count);
+    }
+    return static_cast<std::int64_t>(written);
+}
+
+Value builtinProcessCloseInput(const std::vector<Value>& args, Environment&,
+                               int line, int column) {
+    if (args.size() != 1) {
+        fail("processCloseInput(handle) expects a process handle", line, column);
+    }
+    ChildProcess* child =
+        requireProcess(args[0], "processCloseInput", line, column);
+    if (child->input >= 0) {
+        if (::close(child->input) != 0) {
+            failErrno("processCloseInput", line, column);
+        }
+        child->input = -1;
+    }
+    return std::int64_t{0};
+}
+
+Value builtinProcessRead(const std::vector<Value>& args, Environment&, int line,
+                         int column) {
+    const char* usage =
+        "processRead(handle, stream, maxBytes) expects stdout/stderr and a "
+        "non-negative byte count";
+    if (args.size() != 3 || !std::holds_alternative<std::string>(args[1]) ||
+        !isNonNegativeInt(args[2])) {
+        fail(usage, line, column);
+    }
+    const std::string& stream = std::get<std::string>(args[1]);
+    if (stream != "stdout" && stream != "stderr") {
+        fail(usage, line, column);
+    }
+    ChildProcess* child = requireProcess(args[0], "processRead", line, column);
+    const int descriptor = stream == "stdout" ? child->output : child->error;
+    if (descriptor < 0) {
+        fail("processRead() stream is closed", line, column);
+    }
+    const auto wanted = static_cast<std::size_t>(std::get<std::int64_t>(args[2]));
+    const std::string bytes = readStream(descriptor, wanted);
+    return utf8Replace(bytes);
+}
+
+Value builtinProcessPoll(const std::vector<Value>& args, Environment&, int line,
+                         int column) {
+    if (args.size() != 1) {
+        fail("processPoll(handle) expects a process handle", line, column);
+    }
+    ChildProcess* child = requireProcess(args[0], "processPoll", line, column);
+    return static_cast<std::int64_t>(pollProcess(*child));
+}
+
+Value builtinProcessWait(const std::vector<Value>& args, Environment&, int line,
+                         int column) {
+    const char* usage =
+        "processWait(handle, timeoutSeconds) expects a non-negative timeout";
+    if (args.size() != 2 || std::holds_alternative<bool>(args[1])) {
+        fail(usage, line, column);
+    }
+    double timeout = 0.0;
+    if (const auto* integer = std::get_if<std::int64_t>(&args[1])) {
+        if (*integer < 0) {
+            fail(usage, line, column);
+        }
+        timeout = static_cast<double>(*integer);
+    } else if (const auto* number = std::get_if<double>(&args[1])) {
+        if (*number < 0) {
+            fail(usage, line, column);
+        }
+        timeout = *number;
+    } else {
+        fail(usage, line, column);
+    }
+    ChildProcess* child = requireProcess(args[0], "processWait", line, column);
+    const auto deadline = std::chrono::steady_clock::now() +
+                          std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+                              std::chrono::duration<double>(timeout));
+    for (;;) {
+        const int status = pollProcess(*child);
+        if (status != -1 || std::chrono::steady_clock::now() >= deadline) {
+            return static_cast<std::int64_t>(status);
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+}
+
+Value builtinProcessSendSignal(const std::vector<Value>& args, Environment&,
+                               int line, int column) {
+    if (args.size() != 2 || !isNonNegativeInt(args[1])) {
+        fail("processSendSignal(handle, signal) expects a signal number", line,
+             column);
+    }
+    ChildProcess* child =
+        requireProcess(args[0], "processSendSignal", line, column);
+    if (pollProcess(*child) != -1) {
+        fail("processSendSignal() process has already exited", line, column);
+    }
+    if (::kill(child->pid, static_cast<int>(std::get<std::int64_t>(args[1]))) !=
+        0) {
+        const int code = errno;
+        fail("processSendSignal() failed: [Errno " + std::to_string(code) +
+                 "] " + std::strerror(code),
+             line, column);
+    }
+    return std::int64_t{0};
+}
+
+Value builtinProcessClose(const std::vector<Value>& args, Environment&, int line,
+                          int column) {
+    if (args.size() != 1) {
+        fail("processClose(handle) expects a process handle", line, column);
+    }
+    ChildProcess* child = requireProcess(args[0], "processClose", line, column);
+    for (int* descriptor : {&child->input, &child->output, &child->error}) {
+        if (*descriptor >= 0) {
+            ::close(*descriptor);
+            *descriptor = -1;
+        }
+    }
+    if (pollProcess(*child) == -1) {
+        ::kill(child->pid, SIGTERM);
+        for (int attempt = 0; attempt < 200 && pollProcess(*child) == -1;
+             ++attempt) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        if (pollProcess(*child) == -1) {
+            ::kill(child->pid, SIGKILL);
+            ::waitpid(child->pid, nullptr, 0);
+            child->reaped = true;
+        }
+    }
+    childProcesses().erase(std::get<std::int64_t>(args[0]));
+    return std::int64_t{0};
+}
+
+// --- Managed networking built-ins -------------------------------------------
+//
+// `networking*` hands out managed TCP, UDP and Unix-domain sockets. Addresses
+// stay as host/path strings plus an integer port so the API never exposes a
+// native address structure. Messages match the Python reference verbatim.
+
+struct ManagedSocket {
+    int descriptor = -1;
+    int family = AF_INET;
+};
+
+std::unordered_map<std::int64_t, ManagedSocket>& openSockets() {
+    static std::unordered_map<std::int64_t, ManagedSocket> sockets;
+    return sockets;
+}
+
+std::int64_t nextSocketHandle() {
+    static std::int64_t next = 1;
+    return next++;
+}
+
+ManagedSocket* requireSocket(const Value& value, const char* name, int line,
+                             int column) {
+    const auto* handle = std::get_if<std::int64_t>(&value);
+    if (handle == nullptr || *handle < 0) {
+        fail(std::string(name) + "() expects a socket handle", line, column);
+    }
+    const auto found = openSockets().find(*handle);
+    if (found == openSockets().end()) {
+        fail(std::string(name) + "() received an unknown or closed socket handle",
+             line, column);
+    }
+    return &found->second;
+}
+
+std::string lowercase(std::string text) {
+    std::transform(text.begin(), text.end(), text.begin(),
+                   [](unsigned char c) {
+                       return static_cast<char>(std::tolower(c));
+                   });
+    return text;
+}
+
+// Fills an IPv4 address from a host string and port, resolving host names.
+bool resolveIpv4(const std::string& host, std::int64_t port, int socketType,
+                 sockaddr_in& out) {
+    addrinfo hints {};
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = socketType;
+    addrinfo* results = nullptr;
+    const std::string service = std::to_string(port);
+    if (::getaddrinfo(host.empty() ? nullptr : host.c_str(), service.c_str(),
+                      &hints, &results) != 0 ||
+        results == nullptr) {
+        return false;
+    }
+    std::memcpy(&out, results->ai_addr, sizeof(sockaddr_in));
+    ::freeaddrinfo(results);
+    return true;
+}
+
+// `networkingBind`/`networkingConnect` accept either a bare address (a Unix
+// socket path) or a host and port.
+bool socketAddress(const std::vector<Value>& args, sockaddr_storage& storage,
+                   socklen_t& length) {
+    if (args.size() == 2 && std::holds_alternative<std::string>(args[1])) {
+        sockaddr_un address {};
+        address.sun_family = AF_UNIX;
+        const std::string& path = std::get<std::string>(args[1]);
+        if (path.size() >= sizeof(address.sun_path)) {
+            return false;
+        }
+        std::memcpy(address.sun_path, path.c_str(), path.size() + 1);
+        std::memcpy(&storage, &address, sizeof(address));
+        length = sizeof(address);
+        return true;
+    }
+    if (args.size() == 3 && std::holds_alternative<std::string>(args[1]) &&
+        isNonNegativeInt(args[2])) {
+        sockaddr_in address {};
+        if (!resolveIpv4(std::get<std::string>(args[1]),
+                         std::get<std::int64_t>(args[2]), 0, address)) {
+            return false;
+        }
+        std::memcpy(&storage, &address, sizeof(address));
+        length = sizeof(address);
+        return true;
+    }
+    return false;
+}
+
+Value builtinNetworkingOpen(const std::vector<Value>& args, Environment&, int line,
+                            int column) {
+    if (args.size() != 1 || !std::holds_alternative<std::string>(args[0])) {
+        fail("networkingOpen(kind) expects tcp, udp, or unix", line, column);
+    }
+    const std::string kind = lowercase(std::get<std::string>(args[0]));
+    int family = AF_INET;
+    int socketType = SOCK_STREAM;
+    if (kind == "tcp") {
+        socketType = SOCK_STREAM;
+    } else if (kind == "udp") {
+        socketType = SOCK_DGRAM;
+    } else if (kind == "unix") {
+        family = AF_UNIX;
+        socketType = SOCK_STREAM;
+    } else {
+        fail("networkingOpen() kind must be tcp, udp, or unix", line, column);
+    }
+    const int descriptor = ::socket(family, socketType, 0);
+    if (descriptor < 0) {
+        failErrno("networkingOpen", line, column);
+    }
+    const std::int64_t handle = nextSocketHandle();
+    openSockets()[handle] = ManagedSocket{descriptor, family};
+    return handle;
+}
+
+Value builtinNetworkingBind(const std::vector<Value>& args, Environment&, int line,
+                            int column) {
+    if (args.empty()) {
+        fail("networkingBind(handle, address, port?) expects a socket handle",
+             line, column);
+    }
+    ManagedSocket* socket = requireSocket(args[0], "networkingBind", line, column);
+    sockaddr_storage storage {};
+    socklen_t length = 0;
+    if (!socketAddress(args, storage, length)) {
+        fail("networkingBind(handle, address, port?) expects an address and "
+             "optional non-negative port",
+             line, column);
+    }
+    if (::bind(socket->descriptor, reinterpret_cast<sockaddr*>(&storage),
+               length) != 0) {
+        failErrno("networkingBind", line, column);
+    }
+    return std::int64_t{0};
+}
+
+Value builtinNetworkingListen(const std::vector<Value>& args, Environment&,
+                              int line, int column) {
+    if ((args.size() != 1 && args.size() != 2) ||
+        (args.size() == 2 && !isNonNegativeInt(args[1]))) {
+        fail("networkingListen(handle, backlog?) expects a socket handle and "
+             "optional integer",
+             line, column);
+    }
+    ManagedSocket* socket =
+        requireSocket(args[0], "networkingListen", line, column);
+    const int backlog =
+        args.size() == 2 ? static_cast<int>(std::get<std::int64_t>(args[1])) : 128;
+    if (::listen(socket->descriptor, backlog) != 0) {
+        failErrno("networkingListen", line, column);
+    }
+    return std::int64_t{0};
+}
+
+Value builtinNetworkingAccept(const std::vector<Value>& args, Environment&,
+                              int line, int column) {
+    if (args.size() != 1) {
+        fail("networkingAccept(handle) expects a socket handle", line, column);
+    }
+    ManagedSocket* socket =
+        requireSocket(args[0], "networkingAccept", line, column);
+    const int accepted =
+        ::accept(socket->descriptor, nullptr, nullptr);
+    if (accepted < 0) {
+        failErrno("networkingAccept", line, column);
+    }
+    const std::int64_t handle = nextSocketHandle();
+    openSockets()[handle] = ManagedSocket{accepted, socket->family};
+    return handle;
+}
+
+Value builtinNetworkingConnect(const std::vector<Value>& args, Environment&,
+                               int line, int column) {
+    if (args.empty()) {
+        fail("networkingConnect(handle, address, port?) expects a socket handle",
+             line, column);
+    }
+    ManagedSocket* socket =
+        requireSocket(args[0], "networkingConnect", line, column);
+    sockaddr_storage storage {};
+    socklen_t length = 0;
+    if (!socketAddress(args, storage, length)) {
+        fail("networkingConnect(handle, address, port?) expects an address and "
+             "optional non-negative port",
+             line, column);
+    }
+    if (::connect(socket->descriptor, reinterpret_cast<sockaddr*>(&storage),
+                  length) != 0) {
+        failErrno("networkingConnect", line, column);
+    }
+    return std::int64_t{0};
+}
+
+Value builtinNetworkingSend(const std::vector<Value>& args, Environment&, int line,
+                            int column) {
+    if (args.size() != 2 || !std::holds_alternative<std::string>(args[1])) {
+        fail("networkingSend(handle, data) expects a socket handle and string",
+             line, column);
+    }
+    ManagedSocket* socket = requireSocket(args[0], "networkingSend", line, column);
+    const std::string& data = std::get<std::string>(args[1]);
+    const ssize_t count = ::send(socket->descriptor, data.data(), data.size(), 0);
+    if (count < 0) {
+        failErrno("networkingSend", line, column);
+    }
+    return static_cast<std::int64_t>(count);
+}
+
+Value builtinNetworkingReceive(const std::vector<Value>& args, Environment&,
+                               int line, int column) {
+    if (args.size() != 2 || !isNonNegativeInt(args[1])) {
+        fail("networkingReceive(handle, maxBytes) expects a non-negative byte "
+             "count",
+             line, column);
+    }
+    ManagedSocket* socket =
+        requireSocket(args[0], "networkingReceive", line, column);
+    const auto wanted = static_cast<std::size_t>(std::get<std::int64_t>(args[1]));
+    std::string buffer(wanted, '\0');
+    const ssize_t count = ::recv(socket->descriptor, buffer.data(), wanted, 0);
+    if (count < 0) {
+        failErrno("networkingReceive", line, column);
+    }
+    buffer.resize(static_cast<std::size_t>(count));
+    return utf8Replace(buffer);
+}
+
+Value builtinNetworkingClose(const std::vector<Value>& args, Environment&,
+                             int line, int column) {
+    if (args.size() != 1) {
+        fail("networkingClose(handle) expects a socket handle", line, column);
+    }
+    ManagedSocket* socket =
+        requireSocket(args[0], "networkingClose", line, column);
+    if (::close(socket->descriptor) != 0) {
+        failErrno("networkingClose", line, column);
+    }
+    openSockets().erase(std::get<std::int64_t>(args[0]));
+    return std::int64_t{0};
+}
+
+Value builtinNetworkingShutdown(const std::vector<Value>& args, Environment&,
+                                int line, int column) {
+    if (args.size() != 2 || !std::holds_alternative<std::string>(args[1])) {
+        fail("networkingShutdown(handle, how) expects read, write, or both", line,
+             column);
+    }
+    ManagedSocket* socket =
+        requireSocket(args[0], "networkingShutdown", line, column);
+    const std::string& how = std::get<std::string>(args[1]);
+    int mode = 0;
+    if (how == "read") {
+        mode = SHUT_RD;
+    } else if (how == "write") {
+        mode = SHUT_WR;
+    } else if (how == "both") {
+        mode = SHUT_RDWR;
+    } else {
+        fail("networkingShutdown(handle, how) expects read, write, or both", line,
+             column);
+    }
+    if (::shutdown(socket->descriptor, mode) != 0) {
+        failErrno("networkingShutdown", line, column);
+    }
+    return std::int64_t{0};
+}
+
+Value builtinNetworkingBlocking(const std::vector<Value>& args, Environment&,
+                                int line, int column) {
+    if (args.size() != 2 || std::holds_alternative<std::monostate>(args[1]) ||
+        std::holds_alternative<std::string>(args[1]) ||
+        asList(args[1]) != nullptr ||
+        std::holds_alternative<std::shared_ptr<Tuple>>(args[1])) {
+        fail("networkingBlocking(handle, enabled) expects a socket handle and "
+             "boolean",
+             line, column);
+    }
+    ManagedSocket* socket =
+        requireSocket(args[0], "networkingBlocking", line, column);
+    const bool enabled = asBool(args[1]);
+    int flags = ::fcntl(socket->descriptor, F_GETFL, 0);
+    if (flags < 0) {
+        failErrno("networkingBlocking", line, column);
+    }
+    flags = enabled ? (flags & ~O_NONBLOCK) : (flags | O_NONBLOCK);
+    if (::fcntl(socket->descriptor, F_SETFL, flags) != 0) {
+        failErrno("networkingBlocking", line, column);
+    }
+    return std::int64_t{0};
+}
+
+Value builtinNetworkingOption(const std::vector<Value>& args, Environment&,
+                              int line, int column) {
+    if (args.size() != 3 || !std::holds_alternative<std::string>(args[1]) ||
+        std::holds_alternative<std::monostate>(args[2]) ||
+        std::holds_alternative<std::string>(args[2])) {
+        fail("networkingOption(handle, name, value) expects a socket handle, "
+             "name, and integer",
+             line, column);
+    }
+    const std::string& name = std::get<std::string>(args[1]);
+    int option = 0;
+    if (name == "reuseAddr") {
+        option = SO_REUSEADDR;
+    } else if (name == "keepAlive") {
+        option = SO_KEEPALIVE;
+    } else if (name == "broadcast") {
+        option = SO_BROADCAST;
+    } else {
+        fail("networkingOption() supports reuseAddr, keepAlive, and broadcast",
+             line, column);
+    }
+    ManagedSocket* socket =
+        requireSocket(args[0], "networkingOption", line, column);
+    const int value = asBool(args[2]) ? 1 : static_cast<int>(toInt(args[2], line, column));
+    if (::setsockopt(socket->descriptor, SOL_SOCKET, option, &value,
+                     sizeof(value)) != 0) {
+        failErrno("networkingOption", line, column);
+    }
+    return std::int64_t{0};
+}
+
+Value builtinNetworkingResolve(const std::vector<Value>& args, Environment&,
+                               int line, int column) {
+    if (args.size() != 2 || !std::holds_alternative<std::string>(args[0]) ||
+        !isNonNegativeInt(args[1])) {
+        fail("networkingResolve(host, port) expects a host and non-negative port",
+             line, column);
+    }
+    addrinfo hints {};
+    hints.ai_socktype = SOCK_STREAM;
+    addrinfo* results = nullptr;
+    const std::string service = std::to_string(std::get<std::int64_t>(args[1]));
+    const int status = ::getaddrinfo(std::get<std::string>(args[0]).c_str(),
+                                     service.c_str(), &hints, &results);
+    if (status != 0) {
+        fail("networkingResolve() failed: [" + std::to_string(status) + "] " +
+                 ::gai_strerror(status),
+             line, column);
+    }
+    std::vector<std::string> addresses;
+    for (addrinfo* entry = results; entry != nullptr; entry = entry->ai_next) {
+        char text[INET6_ADDRSTRLEN] = {0};
+        const void* source =
+            entry->ai_family == AF_INET
+                ? static_cast<const void*>(
+                      &reinterpret_cast<sockaddr_in*>(entry->ai_addr)->sin_addr)
+                : static_cast<const void*>(
+                      &reinterpret_cast<sockaddr_in6*>(entry->ai_addr)->sin6_addr);
+        if (::inet_ntop(entry->ai_family, source, text, sizeof(text)) != nullptr) {
+            addresses.push_back(text);
+        }
+    }
+    ::freeaddrinfo(results);
+    std::sort(addresses.begin(), addresses.end());
+    addresses.erase(std::unique(addresses.begin(), addresses.end()),
+                    addresses.end());
+    std::vector<Value> elements;
+    elements.reserve(addresses.size());
+    for (auto& address : addresses) {
+        elements.emplace_back(address);
+    }
+    return makeList(std::move(elements));
+}
+
+Value builtinNetworkingAddress(const std::vector<Value>& args, Environment&,
+                               int line, int column) {
+    if (args.size() != 1) {
+        fail("networkingAddress(handle) expects a socket handle", line, column);
+    }
+    ManagedSocket* socket =
+        requireSocket(args[0], "networkingAddress", line, column);
+    sockaddr_storage storage {};
+    socklen_t length = sizeof(storage);
+    if (::getsockname(socket->descriptor,
+                      reinterpret_cast<sockaddr*>(&storage), &length) != 0) {
+        failErrno("networkingAddress", line, column);
+    }
+    if (storage.ss_family == AF_UNIX) {
+        const auto* address = reinterpret_cast<const sockaddr_un*>(&storage);
+        return jsonString(address->sun_path);
+    }
+    const auto* address = reinterpret_cast<const sockaddr_in*>(&storage);
+    char text[INET_ADDRSTRLEN] = {0};
+    ::inet_ntop(AF_INET, &address->sin_addr, text, sizeof(text));
+    return std::string("[") + jsonString(text) + "," +
+           std::to_string(::ntohs(address->sin_port)) + "]";
+}
+
 #endif  // CLYNXER_POSIX_BUILTINS
 
 const std::unordered_map<std::string, Handler>& handlerTable() {
@@ -2724,6 +3533,29 @@ const std::unordered_map<std::string, Handler>& handlerTable() {
         {"filesystemLink", builtinFilesystemLink},
         {"filesystemReadLink", builtinFilesystemReadLink},
         {"filesystemChmod", builtinFilesystemChmod},
+        // Managed process API.
+        {"processSpawn", builtinProcessSpawn},
+        {"processWrite", builtinProcessWrite},
+        {"processCloseInput", builtinProcessCloseInput},
+        {"processRead", builtinProcessRead},
+        {"processPoll", builtinProcessPoll},
+        {"processWait", builtinProcessWait},
+        {"processSendSignal", builtinProcessSendSignal},
+        {"processClose", builtinProcessClose},
+        // Managed networking API.
+        {"networkingOpen", builtinNetworkingOpen},
+        {"networkingBind", builtinNetworkingBind},
+        {"networkingListen", builtinNetworkingListen},
+        {"networkingAccept", builtinNetworkingAccept},
+        {"networkingConnect", builtinNetworkingConnect},
+        {"networkingSend", builtinNetworkingSend},
+        {"networkingReceive", builtinNetworkingReceive},
+        {"networkingClose", builtinNetworkingClose},
+        {"networkingShutdown", builtinNetworkingShutdown},
+        {"networkingBlocking", builtinNetworkingBlocking},
+        {"networkingOption", builtinNetworkingOption},
+        {"networkingResolve", builtinNetworkingResolve},
+        {"networkingAddress", builtinNetworkingAddress},
 #endif
     };
     return handlers;
@@ -2759,19 +3591,19 @@ const std::unordered_set<std::string>& unsupportedTable() {
         "nativeSemaphorePost", "nativeSemaphoreClose",
         "nativeHandleAllocate", "nativeHandleAddress", "nativeHandleFree",
         "nativeHandleIsAlive",
+#if !CLYNXER_POSIX_BUILTINS
         "processSpawn", "processWrite", "processCloseInput", "processRead",
         "processPoll", "processWait", "processSendSignal", "processClose",
-#if !CLYNXER_POSIX_BUILTINS
         "filesystemOpen", "filesystemRead", "filesystemWrite", "filesystemClose",
         "filesystemStat", "filesystemList", "filesystemMkdir", "filesystemRemove",
         "filesystemRename", "filesystemLink", "filesystemReadLink",
         "filesystemChmod",
-#endif
         "networkingOpen", "networkingBind", "networkingListen",
         "networkingAccept", "networkingConnect", "networkingSend",
         "networkingReceive", "networkingClose", "networkingShutdown",
         "networkingBlocking", "networkingOption", "networkingResolve",
         "networkingAddress",
+#endif
         "atomicLoad", "atomicStore", "atomicAdd", "volatileRead", "volatileWrite",
         "memoryProtect",
         "memoryBlockAllocate", "memoryBlockView", "memoryBlockGet",

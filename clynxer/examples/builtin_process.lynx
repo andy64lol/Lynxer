@@ -1,0 +1,79 @@
+////
+Fixture for the managed `process*` built-ins. Spawns only short-lived commands
+and always reaps them, and asserts exit statuses rather than process ids, so the
+output is deterministic. Commands are named explicitly: `processSpawn` never
+shell-parses.
+////
+global setup(){}
+
+global main(){
+    // Success: capture stdout, then wait, poll and close.
+    int echo = processSpawn("/bin/echo", [str "hello", str "world"]);
+    println(echo > 0);
+    println(processRead(echo, "stdout", 64));
+    println(processWait(echo, 5));
+    println(processPoll(echo));
+    println(processClose(echo));
+
+    // The optional environment overrides the parent's, keeping the rest.
+    int env = processSpawn("/bin/sh", [str "-c", str "printf '%s' \"$APP_MODE\""], [str "APP_MODE=test"]);
+    println(processRead(env, "stdout", 64));
+    println(processWait(env, 5));
+    println(processClose(env));
+
+    // stdin: write, close so the child sees end-of-file, then read the echo.
+    int cat = processSpawn("/bin/cat", seqFromTo(0, 0, 1));
+    println(processWrite(cat, "ping\n"));
+    println(processCloseInput(cat));
+    println(processRead(cat, "stdout", 64));
+    println(processWait(cat, 5));
+    println(processClose(cat));
+
+    // Exit status is the child's, and stderr is a separate stream.
+    int code = processSpawn("/bin/sh", [str "-c", str "exit 3"]);
+    println(processWait(code, 5));
+    println(processClose(code));
+
+    int errors = processSpawn("/bin/sh", [str "-c", str "printf 'oops' 1>&2"]);
+    println(processRead(errors, "stderr", 64));
+    println(processWait(errors, 5));
+    println(processClose(errors));
+
+    // A child killed by a signal reports the negative signal number.
+    int sleeper = processSpawn("/bin/sleep", [str "30"]);
+    println(processPoll(sleeper));
+    println(processSendSignal(sleeper, 15));
+    println(processWait(sleeper, 5));
+    println(processClose(sleeper));
+
+    // A short timeout returns -1 while the child is still running.
+    int slow = processSpawn("/bin/sleep", [str "30"]);
+    println(processPoll(slow));
+    println(processWait(slow, 0));
+    println(processClose(slow));
+
+    // Failures are runtime errors carrying the reference's wording.
+    try { processSpawn("/bin/no-such-command-xyz", seqFromTo(0, 0, 1)); } catch(str e) { println("spawn: ", e); }
+    try { processSpawn("/bin/echo"); } catch(str e) { println("arity: ", e); }
+    try { processSpawn("/bin/echo", [int 1]); } catch(str e) { println("argtype: ", e); }
+    try { processSpawn("/bin/echo", seqFromTo(0, 0, 1), [str "NOEQUALS"]); } catch(str e) { println("env: ", e); }
+    try { processSpawn("/bin/echo", seqFromTo(0, 0, 1), [str "=value"]); } catch(str e) { println("envkey: ", e); }
+    try { processRead(9999, "stdout", 8); } catch(str e) { println("handle: ", e); }
+    try { processWrite(9999, "x"); } catch(str e) { println("write: ", e); }
+    try { processPoll(9999); } catch(str e) { println("poll: ", e); }
+    try { processWait(9999, 1); } catch(str e) { println("wait: ", e); }
+    try { processSendSignal(9999, 15); } catch(str e) { println("signal: ", e); }
+    try { processCloseInput(9999); } catch(str e) { println("closeinput: ", e); }
+    try { processClose(9999); } catch(str e) { println("close: ", e); }
+
+    int bad = processSpawn("/bin/cat", seqFromTo(0, 0, 1));
+    try { processRead(bad, "nope", 4); } catch(str e) { println("stream: ", e); }
+    try { processRead(bad, "stdout", -1); } catch(str e) { println("maxbytes: ", e); }
+    try { processWait(bad, -1); } catch(str e) { println("timeout: ", e); }
+    processCloseInput(bad);
+    processWait(bad, 5);
+    // Writing to a stream the program already closed reports it as closed.
+    try { processWrite(bad, "late"); } catch(str e) { println("closed: ", e); }
+    println(processClose(bad));
+    try { processClose(bad); } catch(str e) { println("reclose: ", e); }
+}

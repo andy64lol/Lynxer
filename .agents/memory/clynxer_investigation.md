@@ -32,8 +32,12 @@ see §12.
 > parity, the ABI extension policy, and `extending.md`. See §12.
 >
 > **Revision 6 (21:06 CEST)** starts Milestone 7: the managed `filesystem*`
-> family is ported, byte-identical to the Python reference. Six families
-> (57 built-ins) remain — see §13.
+> family is ported, byte-identical to the Python reference.
+>
+> **Revision 7 (21:38 CEST)** adds `process*` and `networking*` the same way —
+> 33 of 69 built-ins now ported and byte-identical to the reference. The four
+> remaining families each need a decision before they can be written; see
+> §13.4.
 
 ---
 
@@ -1191,11 +1195,41 @@ sibling `.expected` exactly like the `stdlib_*` loop.
 
 ### 13.4 Remaining
 
-`process*` (8), `networking*` (13), `sound*` (9), `nativeThread*` (6),
-`ffi*` (6) and `async*` (15) — 57 built-ins. `todo.md` now carries them as a
-checklist under the item, with the shape of each recorded. `ffi*` (arbitrary
-native calls and callback marshalling) and `async*` (an event loop, the largest
-single family) are the two that need the most care.
+`sound*` (9), `nativeThread*` (6), `ffi*` (6) and `async*` (15) — 36 built-ins.
+Unlike the three ported families, **each of these needs a decision before it can
+be written**, because none of them is a straight POSIX port:
+
+| Family | The question |
+| --- | --- |
+| `sound*` | The reference implements these on **Arcade** (`import arcade`) — a Python game library. Clynxer would either grow its own C++ audio stack (ALSA/PulseAudio plus WAV/OGG/MP3/FLAC decoding) or reuse the existing Rust `sound` module by linking its crate into the interpreter. Note the reference's `soundPause`/`soundResume` deliberately **fail** ("audio backend does not support portable pause/resume"), while Clynxer's `sound` module supports both — so mirroring the reference exactly would make the built-ins *less* capable than the module that already exists. |
+| `nativeThread*` | Needs a thread registry and a way for a spawned thread to call back into Lynxer. Whether the interpreter can be entered from a second thread is a real question, not an implementation detail. |
+| `ffi*` | Needs a calling-convention layer. `libffi` is a new build dependency; hand-rolling covers only a few signatures. Also the largest security surface of the four. |
+| `async*` | ~370 reference lines and an event loop, on top of a language that Clynxer does not currently run asynchronously. Worth deciding whether the built-ins should exist at all before building the machinery. |
+
+### 13.5 Families ported so far
+
+| Family | Built-ins | Result |
+| --- | --- | --- |
+| `filesystem*` | 12 | **Byte-identical** to the reference, all 11 error strings included |
+| `process*` | 8 | **Byte-identical**, including the CLOEXEC exec-error report and 15 error paths |
+| `networking*` | 13 | **Byte-identical** across TCP, UDP, Unix sockets, resolution and 10 error paths |
+
+33 of 69 built-ins. Each has a fixture under `examples/builtin_*.lynx`, run by a
+`builtin_*` glob in `clynxer/Makefile` that diffs against a sibling `.expected`,
+and each was compared against the Python reference by running the same program
+through both. All three fixtures are cwd-independent and deterministic across
+repeated runs.
+
+Two things worth carrying forward:
+
+- **`Number.null` is `0`.** Every value-less operation in these families returns
+  the integer `0`, not Clynxer's `none`. Getting this wrong was the only
+  difference in the first `filesystem*` comparison.
+- **`substring` is a Clynxer extension.** The Python reference has no such
+  built-in (it reports `'substring' is not defined`), so a fixture meant to be
+  diffed against the reference must avoid it — the networking fixture parses an
+  ephemeral port with `splitStr`/`listInt` instead. The reference also rejects
+  `-> int` on a `global` function, which Clynxer accepts.
 
 ---
 
