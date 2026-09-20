@@ -1,0 +1,48 @@
+//// Lynxer standard library: sqldb.
+SQLite database module backed by Rust (`rusqlite`), exposed through the native module `stdlib/sqldb.so`.
+Requires a Rust toolchain to build (see `rust/sqldb`); the module is skipped when `cargo` is unavailable.
+////
+
+global setup(){ importAs("sqldb.so", "nativeSqlDb"); }
+
+// Execute one SQL statement and commit. Returns "ok" or "ERROR: <message>".
+global execute(str path, str sql) -> str { return global.nativeSqlDb.execute(path, sql); }
+
+// Execute one parameterized SQL statement. paramsJson must be a JSON array.
+global executeArgs(str path, str sql, str paramsJson) -> str {
+    return global.nativeSqlDb.executeArgs(path, sql, paramsJson);
+}
+
+// Execute multiple SQL statements and commit them as one transaction.
+// Returns "ok" or "ERROR: <message>".
+global script(str path, str sqlScript) -> str { return global.nativeSqlDb.script(path, sqlScript); }
+
+// Query rows and return a JSON array of objects.
+global query(str path, str sql) -> str { return global.nativeSqlDb.query(path, sql); }
+
+// Parameterized form of query().
+global queryArgs(str path, str sql, str paramsJson) -> str {
+    return global.nativeSqlDb.queryArgs(path, sql, paramsJson);
+}
+
+// Return the first column of the first row as a string, or "" when absent.
+global scalar(str path, str sql) -> str { return global.nativeSqlDb.scalar(path, sql); }
+
+// Parameterized form of scalar().
+global scalarArgs(str path, str sql, str paramsJson) -> str {
+    return global.nativeSqlDb.scalarArgs(path, sql, paramsJson);
+}
+
+// Execute an insert/update and return SQLite's lastrowid as an integer.
+// Returns -1 on error or when SQLite does not provide a row id.
+global lastInsertId(str path, str sql, str paramsJson) -> int {
+    return global.nativeSqlDb.lastInsertId(path, sql, paramsJson);
+}
+
+// Return whether a table exists in the database.
+global tableExists(str path, str tableName) -> bool {
+    return global.nativeSqlDb.tableExists(path, tableName) != 0;
+}
+
+// Return table names as a JSON array.
+global tables(str path) -> str { return global.nativeSqlDb.tables(path); }

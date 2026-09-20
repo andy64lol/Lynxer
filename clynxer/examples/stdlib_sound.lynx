@@ -1,0 +1,23 @@
+////
+Fixture for the sound stdlib. Interpreted only (module imports are
+not bytecode-compilable). Tests headless-safe behavior on invalid
+handles.
+////
+
+global setup(){ import("sound"); }
+
+global main(){
+    println(global.sound.loadSound("does-not-exist.wav"));
+    println(global.sound.loadSoundStreaming("does-not-exist.wav"));
+    println(global.sound.playSound(-1));
+    println(global.sound.playSoundOnce(-1));
+    println(global.sound.loopSound(-1));
+    println(global.sound.stopSound(-1));
+    println(global.sound.pauseSound(-1));
+    println(global.sound.resumeSound(-1));
+    println(global.sound.setSoundVolume(-1, 0.5));
+    println(global.sound.isSoundPlaying(-1));
+    println(global.sound.getSoundLength(-1));
+    println(global.sound.releaseSound(-1));
+    println(global.sound.soundCount());
+}

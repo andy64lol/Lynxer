@@ -1,0 +1,47 @@
+//// Lynxer standard library: sound.
+Audio playback module backed by Rust (`rodio`/`cpal`), exposed through the native module `stdlib/sound.so`.
+Requires a Rust toolchain to build (see `rust/sound`); the module is skipped when `cargo` is unavailable.
+////
+
+global setup(){ importAs("sound.so", "nativeSound"); }
+
+// Load an audio file. Returns a stable handle, or -1 on failure.
+global loadSound(str path) -> int { return global.nativeSound.load(path); }
+
+// Load a streaming audio file. Returns a stable handle, or -1 on failure.
+global loadSoundStreaming(str path) -> int { return global.nativeSound.loadStreaming(path); }
+
+// Play a loaded sound once. Returns true when playback starts.
+global playSound(int soundIdx) -> bool { return global.nativeSound.play(soundIdx) != 0; }
+
+// Alias for playSound with an explicit one-shot name.
+global playSoundOnce(int soundIdx) -> bool { return global.nativeSound.play(soundIdx) != 0; }
+
+// Start looping playback. Returns true when playback starts.
+global loopSound(int soundIdx) -> bool { return global.nativeSound.loop(soundIdx) != 0; }
+
+// Stop playback. Returns true when the handle was valid.
+global stopSound(int soundIdx) -> bool { return global.nativeSound.stop(soundIdx) != 0; }
+
+// Pause an active player. Returns false when the handle is invalid.
+global pauseSound(int soundIdx) -> bool { return global.nativeSound.pause(soundIdx) != 0; }
+
+// Resume a paused player. Returns false when the handle is invalid.
+global resumeSound(int soundIdx) -> bool { return global.nativeSound.resume(soundIdx) != 0; }
+
+// Change the stored volume and update an active player. Clamps to [0, 1].
+global setSoundVolume(int soundIdx, float volume) -> bool {
+    return global.nativeSound.setVolume(soundIdx, volume) != 0;
+}
+
+// Return whether an active player is currently playing.
+global isSoundPlaying(int soundIdx) -> bool { return global.nativeSound.isPlaying(soundIdx) != 0; }
+
+// Return the decoded duration in seconds, or 0.0 for an invalid handle.
+global getSoundLength(int soundIdx) -> float { return global.nativeSound.length(soundIdx); }
+
+// Release a loaded sound and invalidate its handle. Returns true on success.
+global releaseSound(int soundIdx) -> bool { return global.nativeSound.release(soundIdx) != 0; }
+
+// Return the number of currently loaded sound handles.
+global soundCount() -> int { return global.nativeSound.count(); }

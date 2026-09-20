@@ -1,0 +1,20 @@
+////
+Fixture for the sqldb stdlib. Interpreted only (module imports
+are not bytecode-compilable). Tests headless-safe behavior on
+invalid handles.
+////
+
+global setup(){ import("sqldb"); }
+
+global main(){
+    println(global.sqldb.execute("does-not-exist.db", "SELECT 1"));
+    println(global.sqldb.executeArgs("does-not-exist.db", "SELECT 1", "[]"));
+    println(global.sqldb.script("does-not-exist.db", "SELECT 1"));
+    println(global.sqldb.query("does-not-exist.db", "SELECT 1"));
+    println(global.sqldb.queryArgs("does-not-exist.db", "SELECT 1", "[]"));
+    println(global.sqldb.scalar("does-not-exist.db", "SELECT 1"));
+    println(global.sqldb.scalarArgs("does-not-exist.db", "SELECT 1", "[]"));
+    println(global.sqldb.lastInsertId("does-not-exist.db", "SELECT 1", "[]"));
+    println(global.sqldb.tableExists("does-not-exist.db", "users"));
+    println(global.sqldb.tables("does-not-exist.db"));
+}

@@ -1,0 +1,15 @@
+////
+Fixture for the tui stdlib. Interpreted only (module imports
+are not bytecode-compilable). Tests headless-safe operations.
+////
+
+global setup(){ import("tui"); }
+
+global main(){
+    println(global.tui.tuiExists());
+    println(global.tui.tuiVersion());
+    println(global.tui.markupEscape("<hello & 'world'>"));
+    println(global.tui.styleValid("bold green"));
+    println(global.tui.styleValid("not-a-style"));
+    println(global.tui.ask("prompt"));
+}

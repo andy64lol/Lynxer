@@ -12,7 +12,7 @@ RUST_MANIFEST := $(RUST_DIR)/Cargo.toml
 RUST_SOURCES := $(wildcard $(RUST_DIR)/*/src/*.rs) \
                 $(wildcard $(RUST_DIR)/*/Cargo.toml) $(RUST_MANIFEST) \
                 $(RUST_DIR)/Cargo.lock
-RUST_MODULE_NAMES := game image json lua network server
+RUST_MODULE_NAMES := game image json lua network server sound sqldb tui
 RUST_MODULES := $(RUST_MODULE_NAMES:%=stdlib/%.so)
 
 # Rust-backed modules are gated on the Rust toolchain.
@@ -51,7 +51,7 @@ STDLIB_FIXTURES := $(wildcard examples/stdlib_*.lynx)
 # Single self-checking test that exercises every stdlib module at once.
 STDLIB_TEST_ALL := examples/stdlibTestAll.lynx
 LIST_STDLIB_MODULES := cli colorlib csv debug fileIO game image js json lua math \
-	multiprocessing network os path random re regex server shell sys text time typing
+	multiprocessing network os path random re regex server shell sound sqldb sys text time tui typing
 
 .PHONY: all clean test rust game
 

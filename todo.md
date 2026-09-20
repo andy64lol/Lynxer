@@ -177,28 +177,27 @@ Planned order of work, newest direction first.
   the shared ABI directly. Their Rust implementations and Clynxer wrappers are
   complete; future work below is about portability and parity, not initial
   Rust ports.
-- [ ] Implement the remaining Python third-party stdlib alternatives as Rust
+- [x] Implement the remaining Python third-party stdlib alternatives as Rust
   `cdylib` backends behind the shared C ABI. The Lynxer-facing
   `stdlib/<name>.lynx` module is the wrapper; its `setup()` imports
   `stdlib/<name>.so`, and the Rust backend registers the native operations that
   the wrapper calls. Use the Python implementation and package behavior as the
   reference, not as a Clynxer runtime dependency:
-  - [ ] `sound`: replace the Python Arcade audio backend with Rust
+  - [x] `sound`: replace the Python Arcade audio backend with Rust
     `rodio`/`cpal`, adding `symphonia` where decoding is needed. Preserve
     loading, streaming, play/loop/stop, pause/resume, volume, duration, and
     release handles.
-  - [ ] `sqldb`: replace Python `sqlite3` with Rust `rusqlite`/`libsqlite3-sys`.
+  - [x] `sqldb`: replace Python `sqlite3` with Rust `rusqlite`/`libsqlite3-sys`.
     Preserve execute, scripts, parameterized queries, JSON row results, scalar
     values, last-insert IDs, table inspection, and cleanup.
-  - [ ] `tui`: replace Python Rich with Rust `ratatui`/`crossterm` or a
-    deliberately smaller terminal backend. Preserve styled text, Markdown,
-    panels, tables, prompts, progress, and recorded console output, with a
-    headless rendering mode for fixtures.
+  - [x] `tui`: replace Python Rich with Rust `ratatui`/`crossterm`. Preserve
+    styled text, Markdown, panels, tables, prompts, progress, and recorded
+    console output, with a headless rendering mode for fixtures.
 - [ ] Decide whether `tkinter`, `tkinterPlus`, and `turtle` belong in this Rust
   backend phase. If they do, define Rust GUI/drawing candidates and the
   wrapper/ABI contracts first; otherwise document them as intentionally
 deferred rather than implying they are already ported. UPDATE: no they won't, we'll make graphics.lynx to replace python tkinter using iced from rust, turtle will be left behind as the rust crate turtle was updated last in 2019, and turtle doesn't offer .
-- [ ] For every new Rust backend, add the crate to the Rust workspace, export
+- [x] For every new Rust backend, add the crate to the Rust workspace, export
   `lynxer_module_init_v1` through `clynxer_abi`, add the module to the Makefile,
   create the matching `stdlib/<name>.lynx` forwarding wrapper, document the
   API, and add a sibling expected-output fixture.
