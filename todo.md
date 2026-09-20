@@ -297,12 +297,16 @@ Planned order of work, newest direction first.
     (the reference fails by design), and `soundStop` works (the installed
     Arcade has no `Player.stop`). Fixture: `examples/builtin_sound.lynx`.
   - [ ] `nativeThread*` (6): `Start`, `Join`, `JoinAll`, `IsAlive`, `Status`,
-    `Detach`. **Blocked on an interpreter-threading decision** —
-    `nativeThreadStart` takes a Lynxer function and runs it on another thread;
-    the reference relies on CPython's GIL, and Clynxer has no interpreter lock
-    or re-entrant evaluator. The `nativeMutex*`/`nativeCondition*`/
-    `nativeSemaphore*` families are not in this milestone's list and stay
-    unsupported.
+    `Detach`. **Blocked on two prerequisites Clynxer does not have**, both
+    verified: (1) `nativeThreadStart(global.worker, [int 42])` passes a named
+    global function as a value, and Clynxer has no function value type — its
+    value model knows `codeblock` only, and `global.worker` reports
+    `unknown variable 'worker'`, where the reference answers `returnType` →
+    `function`; (2) the thread runs Lynxer code, which needs an interpreter
+    lock and a re-entrant evaluator — the reference relies on CPython's GIL
+    (`lynxer/cpp.cpp` calls `PyGILState_Ensure`), and Clynxer has no lock at
+    all. The `nativeMutex*`/`nativeCondition*`/`nativeSemaphore*` families are
+    not in this milestone's list and stay unsupported.
   - [ ] `ffi*` (6): `LoadLibrary`, `Lookup`, `CloseLibrary`, `Call`,
     `Callback`, `FreeCallback`. **Blocked on a dependency decision** — `libffi`
     is a new build dependency, hand-rolling covers few signatures. Largest

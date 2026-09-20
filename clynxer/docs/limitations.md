@@ -290,19 +290,40 @@ invalid-handle errors are identical. One consequence worth knowing: a compiled
 executable carries `stdlib/sound.so` only when the program also has
 `import("sound")`, because bundling follows imports.
 
-### `nativeThread*` — needs an interpreter-threading decision
+### `nativeThread*` — needs two prerequisites Clynxer does not have
 
-`nativeThreadStart(function, arguments)` takes a **Lynxer function** and runs it
-on another thread (`docs/native-memory.md`). The reference can do this because
-CPython has a GIL: the C++ extension calls `PyGILState_Ensure` and invokes the
-function object safely.
+`docs/native-memory.md` documents the shape:
 
-Clynxer has no equivalent. There is no interpreter lock anywhere — the
-`Environment` is plain unsynchronised state (`runtime.hpp`) and the evaluator is
+```lynx
+global worker(int value){ println(value); }
+int thread = nativeThreadStart(global.worker, [int 42]);
+```
+
+That needs both of the following, and neither exists today:
+
+**1. References to a named global function as a value.** The call passes
+`global.worker`, which the reference evaluates to a `function` value —
+`returnType(global.worker)` answers `function` and printing it gives
+`<function worker>`. Clynxer has no function value type: its value model knows
+`codeblock` only (`types.cpp`), codeblocks are created from *literals*
+(`codeblock saved = { ... }`) or passed inline, and `global.worker` is not
+resolvable at all — it reports `unknown variable 'worker'`. So this built-in
+family is blocked on a **language feature**, not on native code: named global
+functions must become first-class values that can be passed and invoked.
+
+**2. Interpreter thread-safety.** The thread runs a Lynxer function, so a second
+thread must enter the evaluator. The reference can do this because CPython has a
+GIL — `lynxer/cpp.cpp` calls `PyGILState_Ensure` and then invokes the function
+object. Clynxer has no equivalent: there is no interpreter lock anywhere, the
+`Environment` is plain unsynchronised state (`runtime.hpp`), and the evaluator is
 a tree-walking interpreter with no re-entrancy. Running a Lynxer function on a
-second thread today would be a data race, so this family needs either an
-interpreter lock and a re-entrant evaluation path, or a different model
-altogether.
+second thread today would be a data race.
+
+A safe implementation is possible — one interpreter lock held by whichever
+thread is evaluating, released while a thread blocks in `nativeThreadJoin`
+(effectively cooperative threads, with no concurrent evaluation at all) — but it
+is an interpreter change, and it is only worth starting once function values
+exist.
 
 ### `ffi*` — needs a calling-convention decision
 

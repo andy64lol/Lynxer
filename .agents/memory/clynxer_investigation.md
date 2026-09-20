@@ -42,6 +42,10 @@ see §12.
 > **Revision 8 (22:16 CEST)** adds `sound*` (9), bridged to the Rust `sound`
 > stdlib module — 42 of 69. Three remaining families are still blocked on
 > decisions. See §13.6.
+>
+> **Revision 9 (22:35 CEST)** finds that `nativeThread*` needs a **missing
+> language feature** (named global functions as values) on top of the
+> threading work, so it was not started. See §13.8.
 
 ---
 
@@ -1267,9 +1271,47 @@ failure to stop.
 `nativeThread*` (6), `ffi*` (6) and `async*` (15) — 27 built-ins. Each is
 blocked on a decision rather than on effort; the specific reasons are in
 `clynxer/docs/limitations.md` under "Built-in families that are not ported" and
-summarised in §13.4 above. `nativeThread*` is the one to take next if
-interpreter thread-safety is on the table, since it is the only one of the three
-whose semantics are otherwise clear.
+summarised in §13.4 above.
+
+**`nativeThread*` turned out to need two prerequisites, not one** (established in
+revision 9 below), so it is not the easy next step it looked like.
+
+### 13.8 `nativeThread*` needs a missing language feature (revision 9)
+
+Investigating it to start work turned up a second blocker, verified by running
+the same program on both implementations:
+
+```lynx
+global worker(int value){ println(value); }
+global main(){ println(returnType(global.worker)); }
+```
+
+| | Result |
+| --- | --- |
+| Python reference | `function`, and printing the value gives `<function worker>` |
+| Clynxer | `clynxer: /tmp/fn.lynx:4:24: unknown variable 'worker'` |
+
+So `nativeThreadStart(global.worker, [int 42])` cannot be written in Clynxer at
+all: **named global functions are not first-class values**. Clynxer's value model
+knows `codeblock` only (`types.cpp`), and codeblocks come from literals
+(`codeblock saved = { ... }`) or inline arguments. The other four families needed
+native code; this one needs a **language feature** first.
+
+The second prerequisite stands as previously recorded: the thread runs a Lynxer
+function, so a second thread must enter the evaluator, and Clynxer has no
+interpreter lock — the reference relies on CPython's GIL
+(`lynxer/cpp.cpp` → `PyGILState_Ensure`), while `Environment` is unsynchronised
+state.
+
+A safe design exists: one interpreter lock held by whichever thread is
+evaluating, released while a thread blocks in `nativeThreadJoin`, so no two
+threads ever evaluate concurrently (cooperative threads). That is an interpreter
+change and is only worth starting once function values exist.
+
+**Not started.** Doing it now would mean adding a language feature, an
+interpreter lock and six built-ins in one pass — exactly the pattern that
+produced the four defects in the three stdlib modules earlier in this session.
+Recorded in `limitations.md` and `todo.md` instead.
 
 Two things worth carrying forward:
 
