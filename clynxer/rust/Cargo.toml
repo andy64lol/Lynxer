@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["abi", "game", "image", "json", "lua", "network", "server", "sound", "sqldb", "tui"]
+members = ["abi", "game", "image", "json", "lua", "network", "server", "sound", "sqldb", "tui", "ffi"]
 
 # Every module is built by the clynxer Makefile with an explicit --target-dir
 # (clynxer/build/rust), so this profile applies to the whole workspace.

@@ -308,6 +308,14 @@ name = "clynxer_abi"
 version = "0.1.0"
 
 [[package]]
+name = "clynxer_ffi"
+version = "0.1.0"
+dependencies = [
+ "clynxer_abi",
+ "libc",
+]
+
+[[package]]
 name = "clynxer_game"
 version = "0.1.0"
 dependencies = [

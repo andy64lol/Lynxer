@@ -10,3 +10,4 @@ crate-type = ["cdylib"]
 
 [dependencies]
 clynxer_abi = { path = "../abi" }
+libc = "0.2"

@@ -28,7 +28,7 @@ CLYNXER_HEADERS := $(wildcard clynxer/*.hpp)
 CLYNXER_CXX ?= c++
 CLYNXER_CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -pedantic -fPIE
 
-.PHONY: venv deps liteDeps cargo platform-check build buildAll buildLite buildCpp buildCLynxer test testCLynxer testAMR64 validate golden check clean cleanC cleanCpp cleanLynxc cleanCLynxer cleanAll help
+.PHONY: venv deps liteDeps cargo platform-check build buildAll buildLite buildCpp buildCLynxer buildLynxer test testCLynxer testAMR64 validate golden check clean cleanC cleanCpp cleanLynxc cleanCLynxer cleanAll help
 
 venv:
 	@if [ ! -d "$(VENV)" ]; then \
@@ -92,7 +92,7 @@ check: test
 	done
 	@echo "✓ Lynxer checks passed."
 
-build: platform-check buildCpp buildCLynxer
+build: platform-check buildCpp buildCLynxer buildLynxer
 	@echo "Patching Arcade PyInstaller hook... (due to a bug)"
 	@HOOK=$$($(VENV_PY) -c 'import arcade, os; print(os.path.join(os.path.dirname(arcade.__file__), "__pyinstaller", "hook-arcade.py"))'); \
 	if [ -f "$$HOOK" ]; then \
@@ -150,22 +150,38 @@ buildCpp: venv
 	@$(VENV_PY) lynxer/setup.py build_ext --inplace
 	@echo "✓ Native extensions built in lynxer/ (memory + bytecode VM)"
 
-buildCLynxer: $(CLYNXER_TARGET)
+buildLynxer: platform-check
+	@echo "Building Lynxer (Python)..."
+	@$(PYINSTALLER) \
+		--onefile \
+		--clean \
+		$(COLLECT_ALL) \
+		--name lynxer \
+		$(NATIVE_HIDDEN_IMPORTS) \
+		$(SYSTEM_CALLS) \
+		$(WARNING_DATA) \
+		--add-data "lynxer/stdlib:stdlib" \
+		lynxer/shell.py
+	@echo "✓ Lynxer build complete: dist/lynxer"
+
+# Build Clynxer (C++ binary + Rust stdlib backends). Delegates all compilation
+# to clynxer/Makefile; the root Makefile no longer owns .cpp→.o rules.
+buildCLynxer:
 	@$(MAKE) -C clynxer rust
 	@$(MAKE) -C clynxer all
 	@echo "✓ Clynxer build complete: $(CLYNXER_TARGET)"
 
-# Build the Rust backends (game, json, network, server). No-op with a message
-# when cargo is not installed; the C++ part of Clynxer still builds.
+# Build Clynxer for ARM64 (aarch64). Requires aarch64-linux-gnu-g++ installed.
+buildCLynxerArm64:
+	@command -v aarch64-linux-gnu-g++ >/dev/null || { echo "error: aarch64-linux-gnu-g++ not found"; exit 1; }
+	@$(MAKE) -C clynxer rust
+	@$(MAKE) -C clynxer arm64
+	@echo "✓ Clynxer ARM64 build complete: $(CLYNXER_TARGET)-arm64"
+
+# Build Rust backends only. No-op when cargo is not installed.
 cargo:
 	@$(MAKE) -C clynxer rust
 	@echo "✓ Clynxer Rust backends ready (clynxer/build/rust)"
-
-$(CLYNXER_TARGET): $(CLYNXER_OBJECTS)
-	@$(CLYNXER_CXX) $(CLYNXER_CXXFLAGS) $(CLYNXER_OBJECTS) -o $@
-
-clynxer/%.o: clynxer/%.cpp $(CLYNXER_HEADERS)
-	@$(CLYNXER_CXX) $(CLYNXER_CXXFLAGS) -c $< -o $@
 
 clean:
 	@find . -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null || true
@@ -203,6 +219,7 @@ help:
 	@echo "  make buildLite"
 	@echo "  make buildCpp"
 	@echo "  make buildCLynxer"
+	@echo "  make buildLynxer"
 	@echo "  make cargo"
 	@echo "  make platform-check"
 	@echo "  make venv"
