@@ -1,0 +1,32 @@
+name: Build Lynxer on AMD64
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    name: Build Lynxer on AMD64
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements_venv.txt
+
+      - name: Build Lynxer for AMD64
+        run: make build
+
+      - name: Run Lynxer tests on AMD64
+        run: make test

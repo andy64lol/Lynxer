@@ -1,0 +1,41 @@
+name: Build Clynxer on AMD64
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    name: Build and Test Clynxer on AMD64
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: clynxer/rust -> ../build/rust
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Build Clynxer for AMD64
+        run: make buildCLynxer
+
+      - name: Test Clynxer AMD64 binary
+        run: |
+          cd clynxer
+          ./clynxer examples/builtin_ffi.lynx | grep -q "5\n5"
+          ./clynxer examples/builtin_async.lynx | grep -q "true\ntrue\ntrue\ntrue"
+
+      - name: Run Clynxer tests for AMD64
+        run: make testCLynxer
