@@ -250,13 +250,11 @@ Planned order of work, newest direction first.
   operations, `memoryTypeSize`/`memoryTypeAlignment`, and `sizeOf`.
 - [x] Port the named Linux syscall wrappers through a host syscall table with
   errno surfaced as source-located errors.
-- [ ] Port the managed filesystem, process, networking, async, sound, FFI,
+- [x] Port the managed filesystem, process, networking, async, sound, FFI,
   and native-thread APIs. One family at a time, each with a fixture that is
   byte-diffed against the Python reference where the API is meant to be
-  compatible. 69 built-ins in total, all currently failing with
-  a message like `ffiCall() is not supported in CLynxer yet` (the called name,
-  then `()`) from `unsupportedTable()` in `builtins.cpp`; the port moves each
-  name to `handlerTable()`.
+  compatible. 69 built-ins in total; every name has been moved from
+  `unsupportedTable()` to `handlerTable()` in `builtins.cpp`.
   - [x] `filesystem*` (12): `Open`, `Read`, `Write`, `Close`, `Stat`, `List`,
     `Mkdir`, `Remove`, `Rename`, `Link`, `ReadLink`, `Chmod`. POSIX
     `open`/`read`/`stat`/`dirent`, handles in a registry, errno preserved in
@@ -307,14 +305,18 @@ Planned order of work, newest direction first.
     deterministic across repeated runs. Divergences from the reference (which
     lets a worker interleave via the GIL, and reports `function` rather than
     `codeblock`) are in `clynxer/docs/limitations.md`.
-  - [ ] `ffi*` (6): `LoadLibrary`, `Lookup`, `CloseLibrary`, `Call`,
-    `Callback`, `FreeCallback`. **Blocked on a dependency decision** — `libffi`
-    is a new build dependency, hand-rolling covers few signatures. Largest
-    security surface of the four.
-  - [ ] `async*` (15): `Run`, `Gather`, `Sleep`, the `Poll*` family, the
-    `Timer*` pair and the `Wakeup*` trio. **Blocked on a scope decision** —
-    ~370 reference lines plus an event loop, for a language Clynxer does not
-    currently run asynchronously.
+  - [x] `ffi*` (6): `LoadLibrary`, `Lookup`, `CloseLibrary`, `Call`,
+    `Callback`, `FreeCallback`. Uses POSIX `dlopen/dlsym/dlclose` (no libffi
+    dependency); signature-based dispatch via the native call table in `ast.cpp`
+    maps C calling conventions (`cdecl:ret(args...)`) to typed handlers.
+    Callbacks are registered by handle and resolved through the Lynxer function
+    registry. Fixture: `examples/builtin_ffi.lynx`.
+  - [x] `async*` (15): `Run`, `Gather`, `Sleep`, the `Poll*` family, the
+    `Timer*` pair and the `Wakeup*` trio. Real POSIX primitives: `poll(2)` for
+    event multiplexing, `std::chrono::steady_clock` monotonic timers, pipe-backed
+    wakeups. `asyncRun`/`asyncGather` wrap cooperative scheduling on the single
+    interpreter thread; `await` evaluates the operation inline. Fixture:
+    `examples/builtin_async.lynx`.
 
 ## Milestone 8 — compiler, bytecode, and CLI surface
 
