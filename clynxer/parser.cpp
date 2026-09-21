@@ -1285,6 +1285,36 @@ ExpressionPtr Parser::parsePower() {
     return expression;
 }
 
+// Integer literals may be as large as 2^64-1: the unsigned memory accessors
+// need the full range, and the reference (Python) has unbounded integers.
+// A value that fits a signed 64-bit integer stays `int64_t`; a larger
+// non-negative value becomes `UInt64Value`. Anything beyond 2^64-1 is an error
+// rather than a silent wrap.
+static Value integerLiteralValue(const std::string& text, const Token& token) {
+    try {
+        std::size_t consumed = 0;
+        const long long value = std::stoll(text, &consumed);
+        if (consumed == text.size()) {
+            return static_cast<std::int64_t>(value);
+        }
+    } catch (const std::exception&) {
+        // Fall through to the unsigned form.
+    }
+    if (!text.empty() && text[0] != '-') {
+        try {
+            std::size_t consumed = 0;
+            const unsigned long long value = std::stoull(text, &consumed);
+            if (consumed == text.size()) {
+                return UInt64Value{static_cast<std::uint64_t>(value)};
+            }
+        } catch (const std::exception&) {
+            // Fall through to the error below.
+        }
+    }
+    throw SourceError("integer literal '" + text + "' is out of range",
+                      token.line, token.column);
+}
+
 // unary + - ~  (highest precedence, recursive)
 ExpressionPtr Parser::parseFactor() {
     if (match("+")) {
@@ -1292,6 +1322,17 @@ ExpressionPtr Parser::parseFactor() {
     }
     if (match("-") || match("~")) {
         const Token operation = previous();
+        // Fold a leading '-' into the literal so that -9223372036854775808
+        // (INT64_MIN, whose magnitude does not fit a signed 64-bit integer)
+        // parses exactly, as it does in the reference.
+        if (operation.text == "-" && check(TokenKind::Number)) {
+            const std::string& text = current().text;
+            if (text.find('.') == std::string::npos) {
+                const Token number = advance();
+                return std::make_unique<LiteralExpression>(
+                    integerLiteralValue("-" + text, number));
+            }
+        }
         return std::make_unique<UnaryExpression>(
             operation.text, parseFactor(), operation.line, operation.column);
     }
@@ -1306,7 +1347,7 @@ ExpressionPtr Parser::parsePrimary() {
                 std::stod(token.text));
         }
         return std::make_unique<LiteralExpression>(
-            static_cast<std::int64_t>(std::stoll(token.text)));
+            integerLiteralValue(token.text, token));
     }
     if (token.kind == TokenKind::String) {
         return std::make_unique<LiteralExpression>(token.text);

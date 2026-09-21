@@ -1,0 +1,19 @@
+// Test FFI built-ins
+// This example tests basic FFI functionality by calling a simple function from libc.
+global main() {
+    // Load libc
+    handle = ffiLoadLibrary("libc.so.6");
+    println("Loaded libc: ", handle);
+    
+    // Lookup strlen function
+    strlenPtr = ffiLookup(handle, "strlen");
+    println("Found strlen: ", strlenPtr);
+    
+    // Call strlen with a string
+    result = ffiCall(strlenPtr, "hello");
+    println("strlen('hello') = ", result);
+    
+    // Close the library
+    ffiCloseLibrary(handle);
+    println("Closed library");
+}

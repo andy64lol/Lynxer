@@ -28,6 +28,18 @@ struct CharValue {
     bool operator==(const CharValue& other) const { return text == other.text; }
 };
 
+// An unsigned 64-bit integer that does not fit in the signed `std::int64_t`
+// representation (`18446744073709551615` and friends). It exists so the
+// unsigned memory accessors can round-trip their full range; it is a plain
+// scalar value otherwise, with no arithmetic beyond numeric coercion.
+struct UInt64Value {
+    std::uint64_t value = 0;
+
+    bool operator==(const UInt64Value& other) const {
+        return value == other.value;
+    }
+};
+
 enum class RecordKind { VarGroup, Struct, Class };
 
 using Value = std::variant<
@@ -35,7 +47,7 @@ using Value = std::variant<
     std::shared_ptr<List>, std::shared_ptr<Tuple>,
     std::shared_ptr<SentinelValue>, std::shared_ptr<ObjectValue>,
     CharValue, std::shared_ptr<RecordValue>, std::shared_ptr<EnumValue>,
-    std::shared_ptr<CodeblockValue>>;
+    std::shared_ptr<CodeblockValue>, UInt64Value>;
 
 struct RecordField {
     std::string type;

@@ -1,0 +1,4 @@
+Loaded libc: 1
+Found strlen: 140123456789012
+strlen('hello') = 5
+Closed library

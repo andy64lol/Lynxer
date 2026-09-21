@@ -282,6 +282,11 @@ Value Environment::convertForType(Value value, const std::string& type,
         if (std::holds_alternative<std::int64_t>(value)) {
             return value;
         }
+        if (std::holds_alternative<UInt64Value>(value)) {
+            fail("value " + valueToString(value) +
+                     " is out of range for type 'int'",
+                 line, column);
+        }
         if (const auto* number = std::get_if<double>(&value);
             number != nullptr && *number == static_cast<std::int64_t>(*number)) {
             return static_cast<std::int64_t>(*number);
@@ -290,18 +295,30 @@ Value Environment::convertForType(Value value, const std::string& type,
         if (std::holds_alternative<std::int64_t>(value)) {
             return static_cast<double>(std::get<std::int64_t>(value));
         }
+        if (const auto* wide = std::get_if<UInt64Value>(&value)) {
+            return static_cast<double>(wide->value);
+        }
         if (std::holds_alternative<double>(value)) {
             return value;
         }
     } else if (type == "num") {
         if (std::holds_alternative<std::int64_t>(value) ||
-            std::holds_alternative<double>(value)) {
+            std::holds_alternative<double>(value) ||
+            std::holds_alternative<UInt64Value>(value)) {
             return value;
         }
     } else if (type == "numBool" || type == "bit" || type == "byte" ||
                type == "uint8" || type == "uint16" || type == "uint32" ||
                type == "uint64" || type == "int8" || type == "int16" ||
                type == "int32" || type == "int64") {
+        if (const auto* wide = std::get_if<UInt64Value>(&value)) {
+            if (type == "uint64") {
+                return value;
+            }
+            fail("value " + valueToString(value) +
+                     " is out of range for type '" + type + "'",
+                 line, column);
+        }
         if (const auto* integer = std::get_if<std::int64_t>(&value)) {
             if (integerValueInRange(type, *integer)) {
                 return value;
@@ -317,6 +334,9 @@ Value Environment::convertForType(Value value, const std::string& type,
     } else if (type == "float32" || type == "float64") {
         if (std::holds_alternative<std::int64_t>(value)) {
             return value;
+        }
+        if (const auto* wide = std::get_if<UInt64Value>(&value)) {
+            return static_cast<double>(wide->value);
         }
         if (const auto* number = std::get_if<double>(&value);
             number != nullptr && std::isfinite(*number) &&
@@ -410,6 +430,9 @@ std::string valueToString(const Value& value) {
     if (const auto* number = std::get_if<double>(&value)) {
         return formatDouble(*number);
     }
+    if (const auto* wide = std::get_if<UInt64Value>(&value)) {
+        return std::to_string(wide->value);
+    }
     if (const auto* boolean = std::get_if<bool>(&value)) {
         return *boolean ? "true" : "false";
     }
@@ -501,6 +524,9 @@ bool isTruthy(const Value& value) {
     if (const auto* number = std::get_if<double>(&value)) {
         return *number != 0.0;
     }
+    if (const auto* wide = std::get_if<UInt64Value>(&value)) {
+        return wide->value != 0;
+    }
     if (const auto* boolean = std::get_if<bool>(&value)) {
         return *boolean;
     }
@@ -527,6 +553,9 @@ std::string typeNameOf(const Value& value) {
     }
     if (std::holds_alternative<double>(value)) {
         return "float";
+    }
+    if (std::holds_alternative<UInt64Value>(value)) {
+        return "int";
     }
     if (std::holds_alternative<bool>(value)) {
         return "bool";
@@ -566,7 +595,8 @@ std::string typeNameOf(const Value& value) {
 
 bool isNumber(const Value& value) {
     return std::holds_alternative<std::int64_t>(value) ||
-           std::holds_alternative<double>(value);
+           std::holds_alternative<double>(value) ||
+           std::holds_alternative<UInt64Value>(value);
 }
 
 double asNumber(const Value& value, int line, int column) {
@@ -575,6 +605,9 @@ double asNumber(const Value& value, int line, int column) {
     }
     if (const auto* number = std::get_if<double>(&value)) {
         return *number;
+    }
+    if (const auto* wide = std::get_if<UInt64Value>(&value)) {
+        return static_cast<double>(wide->value);
     }
     throw SourceError("numeric value required", line, column);
 }

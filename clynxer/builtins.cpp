@@ -18,6 +18,7 @@
 #include <memory>
 #include <mutex>
 #include <thread>
+#include <dlfcn.h>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -62,6 +63,8 @@ constexpr bool kX86_64 = false;
 constexpr bool kArm64 = false;
 #endif
 
+
+
 [[noreturn]] void fail(const std::string& message, int line, int column) {
     throw SourceError(message, line, column);
 }
@@ -102,6 +105,9 @@ std::int64_t toInt(const Value& value, int line, int column) {
     if (const auto* number = std::get_if<double>(&value)) {
         return static_cast<std::int64_t>(*number);
     }
+    if (const auto* wide = std::get_if<UInt64Value>(&value)) {
+        return static_cast<std::int64_t>(wide->value);
+    }
     fail("an integer value is required", line, column);
 }
 
@@ -127,7 +133,8 @@ void requireTuple(const std::vector<Value>& args, const char* usage, int line,
 }
 
 bool isIntegerValue(const Value& value) {
-    return std::holds_alternative<std::int64_t>(value);
+    return std::holds_alternative<std::int64_t>(value) ||
+           std::holds_alternative<UInt64Value>(value);
 }
 
 // Python-style slicing with negative indices and clamping.
@@ -1560,9 +1567,52 @@ Value builtinOverrideMain(const std::vector<Value>& args, Environment& env,
 
 namespace {
 
+// Native-memory registry. Every allocation is tracked with its size so that a
+// double free, a stale pointer, or an out-of-bounds access becomes a
+// source-located Lynxer error instead of corrupting the process (the Python
+// reference behaves the same way; docs: builtins.md).
+std::recursive_mutex& memoryRegistryMutex() {
+    static std::recursive_mutex mutex;
+    return mutex;
+}
+
+std::unordered_map<void*, std::size_t>& liveAllocations() {
+    static std::unordered_map<void*, std::size_t> allocations;
+    return allocations;
+}
+
+std::unordered_set<void*>& freedAllocations() {
+    static std::unordered_set<void*> freed;
+    return freed;
+}
+
+void trackAllocation(void* pointer, std::size_t size) {
+    std::lock_guard<std::recursive_mutex> guard(memoryRegistryMutex());
+    if (pointer != nullptr) {
+        liveAllocations()[pointer] = size;
+        freedAllocations().erase(pointer);
+    }
+}
+
+void validateMemory(void* pointer, std::size_t offset, std::size_t bytes,
+                    int line, int column) {
+    std::lock_guard<std::recursive_mutex> guard(memoryRegistryMutex());
+    if (freedAllocations().find(pointer) != freedAllocations().end()) {
+        fail("address refers to freed memory", line, column);
+    }
+    const auto allocation = liveAllocations().find(pointer);
+    if (allocation == liveAllocations().end()) {
+        fail("invalid native memory address", line, column);
+    }
+    if (offset > allocation->second || bytes > allocation->second - offset) {
+        fail("memory access is out of bounds", line, column);
+    }
+}
+
 std::uint8_t* memoryPointer(const std::vector<Value>& args,
                             std::size_t addressIndex, std::size_t offsetIndex,
-                            const char* who, int line, int column) {
+                            const char* who, int line, int column,
+                            std::size_t bytes = 0) {
     const std::int64_t address = toInt(args[addressIndex], line, column);
     if (address < 0) {
         fail(std::string(who) + " address cannot be negative", line, column);
@@ -1574,6 +1624,8 @@ std::uint8_t* memoryPointer(const std::vector<Value>& args,
     if (offset < 0) {
         fail(std::string(who) + " offset cannot be negative", line, column);
     }
+    void* base = reinterpret_cast<void*>(static_cast<std::uintptr_t>(address));
+    validateMemory(base, static_cast<std::size_t>(offset), bytes, line, column);
     std::uint8_t* pointer = reinterpret_cast<std::uint8_t*>(
         static_cast<std::uintptr_t>(address) + static_cast<std::size_t>(offset));
     return pointer;
@@ -1584,7 +1636,7 @@ std::int64_t allocationArg(const std::vector<Value>& args, std::size_t index,
     if (index >= args.size() || !isIntegerValue(args[index])) {
         fail(std::string(who) + " expects integer arguments", line, column);
     }
-    return std::get<std::int64_t>(args[index]);
+    return toInt(args[index], line, column);
 }
 
 Value builtinMemoryAllocate(const std::vector<Value>& args, Environment&,
@@ -1598,6 +1650,7 @@ Value builtinMemoryAllocate(const std::vector<Value>& args, Environment&,
     if (pointer == nullptr && size != 0) {
         fail("memoryAllocate() failed: out of memory", line, column);
     }
+    trackAllocation(pointer, static_cast<std::size_t>(size));
     return static_cast<std::int64_t>(reinterpret_cast<std::uintptr_t>(pointer));
 }
 
@@ -1615,6 +1668,7 @@ Value builtinMemoryAllocateZeroed(const std::vector<Value>& args, Environment&,
     if (pointer == nullptr && count * size != 0) {
         fail("memoryAllocateZeroed() failed: out of memory", line, column);
     }
+    trackAllocation(pointer, static_cast<std::size_t>(count * size));
     return static_cast<std::int64_t>(reinterpret_cast<std::uintptr_t>(pointer));
 }
 
@@ -1627,12 +1681,23 @@ Value builtinMemoryReallocate(const std::vector<Value>& args, Environment&,
     if (address < 0 || size < 0) {
         fail("memoryReallocate() arguments cannot be negative", line, column);
     }
-    void* pointer = std::realloc(
-        reinterpret_cast<void*>(static_cast<std::uintptr_t>(address)),
-        static_cast<std::size_t>(size));
+    void* base = reinterpret_cast<void*>(static_cast<std::uintptr_t>(address));
+    if (address != 0) {
+        validateMemory(base, 0, 0, line, column);
+    }
+    void* pointer =
+        std::realloc(base, static_cast<std::size_t>(size));
     if (pointer == nullptr && size != 0) {
         fail("memoryReallocate() failed: out of memory", line, column);
     }
+    if (address != 0) {
+        std::lock_guard<std::recursive_mutex> guard(memoryRegistryMutex());
+        liveAllocations().erase(base);
+        if (pointer != base) {
+            freedAllocations().insert(base);
+        }
+    }
+    trackAllocation(pointer, static_cast<std::size_t>(size));
     return static_cast<std::int64_t>(reinterpret_cast<std::uintptr_t>(pointer));
 }
 
@@ -1643,8 +1708,13 @@ Value builtinMemoryFree(const std::vector<Value>& args, Environment&, int line,
     if (address < 0) {
         fail("memoryFree() address cannot be negative", line, column);
     }
-    if (address != 0) {
-        std::free(reinterpret_cast<void*>(static_cast<std::uintptr_t>(address)));
+    void* base = reinterpret_cast<void*>(static_cast<std::uintptr_t>(address));
+    validateMemory(base, 0, 0, line, column);
+    std::free(base);
+    {
+        std::lock_guard<std::recursive_mutex> guard(memoryRegistryMutex());
+        liveAllocations().erase(base);
+        freedAllocations().insert(base);
     }
     return none();
 }
@@ -1663,8 +1733,8 @@ Value builtinMemorySet(const std::vector<Value>& args, Environment&, int line,
         fail("memorySet() size cannot be negative", line, column);
     }
     std::uint8_t* pointer =
-        memoryPointer(args, 0, args.size(),
-                      "memorySet()", line, column);
+        memoryPointer(args, 0, args.size(), "memorySet()", line, column,
+                      static_cast<std::size_t>(size));
     std::memset(pointer, static_cast<int>(value & 0xFF),
                 static_cast<std::size_t>(size));
     return none();
@@ -1683,11 +1753,11 @@ Value builtinMemoryCopy(const std::vector<Value>& args, Environment&, int line,
         fail("memoryCopy() size cannot be negative", line, column);
     }
     std::uint8_t* destination =
-        memoryPointer(args, 0, args.size(),
-                      "memoryCopy()", line, column);
+        memoryPointer(args, 0, args.size(), "memoryCopy()", line, column,
+                      static_cast<std::size_t>(size));
     std::uint8_t* source =
-        memoryPointer(args, 1, args.size(),
-                      "memoryCopy()", line, column);
+        memoryPointer(args, 1, args.size(), "memoryCopy()", line, column,
+                      static_cast<std::size_t>(size));
     std::memcpy(destination, source, static_cast<std::size_t>(size));
     return none();
 }
@@ -1714,7 +1784,7 @@ Value typedRead(const std::string& type, const std::vector<Value>& args,
                 int line, int column) {
     const TypedKind& kind = typedKinds().at(type);
     std::uint8_t* pointer =
-        memoryPointer(args, 0, 1, "memoryRead", line, column);
+        memoryPointer(args, 0, 1, "memoryRead", line, column, kind.size);
     if (kind.isFloat) {
         if (kind.size == 4) {
             float value = 0.0f;
@@ -1768,7 +1838,7 @@ Value typedRead(const std::string& type, const std::vector<Value>& args,
     default: {
         std::uint64_t value = 0;
         std::memcpy(&value, pointer, sizeof(value));
-        return static_cast<std::int64_t>(value);
+        return UInt64Value{value};
     }
     }
 }
@@ -1782,7 +1852,7 @@ Value typedWrite(const std::string& type, const std::vector<Value>& args,
              line, column);
     }
     std::uint8_t* pointer =
-        memoryPointer(args, 0, 1, "memoryWrite", line, column);
+        memoryPointer(args, 0, 1, "memoryWrite", line, column, kind.size);
     const double raw = asNumber(args[2], line, column);
     if (kind.isFloat) {
         if (kind.size == 4) {
@@ -1795,6 +1865,15 @@ Value typedWrite(const std::string& type, const std::vector<Value>& args,
         return none();
     }
     const auto integer = static_cast<std::int64_t>(raw);
+    if (kind.size == 8 && !kind.isSigned) {
+        // Preserve the full unsigned range; the double coercion above cannot.
+        const std::uint64_t value =
+            std::holds_alternative<UInt64Value>(args[2])
+                ? std::get<UInt64Value>(args[2]).value
+                : static_cast<std::uint64_t>(integer);
+        std::memcpy(pointer, &value, sizeof(value));
+        return none();
+    }
     switch (kind.size) {
     case 1: {
         const std::int8_t value = static_cast<std::int8_t>(integer);
@@ -1864,7 +1943,7 @@ Value builtinMemoryReadEndian(const std::vector<Value>& args, Environment&,
     }
     const TypedKind& kind = kindFound->second;
     std::uint8_t* pointer =
-        memoryPointer(args, 0, 1, "memoryReadEndian()", line, column);
+        memoryPointer(args, 0, 1, "memoryReadEndian()", line, column, kind.size);
     std::uint8_t buffer[8];
     if (bigEndian) {
         for (std::size_t index = 0; index < kind.size; ++index) {
@@ -1886,6 +1965,11 @@ Value builtinMemoryReadEndian(const std::vector<Value>& args, Environment&,
     std::int64_t unsignedValue = 0;
     std::memcpy(&unsignedValue, buffer, kind.size);
     if (!kind.isSigned) {
+        if (kind.size == 8) {
+            std::uint64_t wide = 0;
+            std::memcpy(&wide, buffer, sizeof(wide));
+            return UInt64Value{wide};
+        }
         return unsignedValue;
     }
     switch (kind.size) {
@@ -1921,7 +2005,7 @@ Value builtinMemoryWriteEndian(const std::vector<Value>& args, Environment&,
     }
     const TypedKind& kind = kindFound->second;
     std::uint8_t* pointer =
-        memoryPointer(args, 0, 1, "memoryWriteEndian()", line, column);
+        memoryPointer(args, 0, 1, "memoryWriteEndian()", line, column, kind.size);
     std::uint8_t buffer[8];
     const double raw = asNumber(args[4], line, column);
     if (kind.isFloat) {
@@ -1932,6 +2016,12 @@ Value builtinMemoryWriteEndian(const std::vector<Value>& args, Environment&,
             const double value = raw;
             std::memcpy(buffer, &value, sizeof(value));
         }
+    } else if (kind.size == 8 && !kind.isSigned) {
+        const std::uint64_t value =
+            std::holds_alternative<UInt64Value>(args[4])
+                ? std::get<UInt64Value>(args[4]).value
+                : static_cast<std::uint64_t>(static_cast<std::int64_t>(raw));
+        std::memcpy(buffer, &value, sizeof(value));
     } else {
         const auto integer = static_cast<std::int64_t>(raw);
         std::memcpy(buffer, &integer, kind.size);
@@ -3584,6 +3674,10 @@ Value builtinSoundRelease(const std::vector<Value>& args, Environment&, int line
     return std::int64_t{0};
 }
 
+// --- FFI Built-ins -------------------------------------------------------------
+
+
+
 // --- Managed native-thread built-ins ----------------------------------------
 //
 // `nativeThreadStart` runs a Lynxer function on a `std::thread`. The interpreter
@@ -4015,8 +4109,7 @@ const std::unordered_set<std::string>& unsupportedTable() {
         "varSwapAll", "varSwapVal", "varEndBorrow", "borrowing", "beingBorrowed",
         "getAddress", "modifyAddressValue", "getAddressValue", "functionAddress",
         "nativeFunctionAddress", "nativeCall",
-        "ffiLoadLibrary", "ffiLookup", "ffiCloseLibrary", "ffiCall",
-        "ffiCallback", "ffiFreeCallback",
+
         "nativeModuleLoad", "nativeModuleName", "nativeModuleFunction",
         "nativeModuleConstant", "nativeModuleType", "nativeModuleError",
         "nativeModuleDependencies", "nativeModuleClose",

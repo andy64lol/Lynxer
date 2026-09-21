@@ -18,7 +18,7 @@ RUST_MANIFEST := $(RUST_DIR)/Cargo.toml
 RUST_SOURCES := $(wildcard $(RUST_DIR)/*/src/*.rs) \
                 $(wildcard $(RUST_DIR)/*/Cargo.toml) $(RUST_MANIFEST) \
                 $(RUST_DIR)/Cargo.lock
-RUST_MODULE_NAMES := game image json lua network server sound sqldb tui
+RUST_MODULE_NAMES := game image json lua network server sound sqldb tui ffi
 RUST_MODULES := $(RUST_MODULE_NAMES:%=stdlib/%.so)
 
 # Rust-backed modules are gated on the Rust toolchain.
