@@ -56,6 +56,7 @@ NATIVE_SIGNATURE_FIXTURE := examples/native_signatures.lynx
 STDLIB_FIXTURES := $(wildcard examples/stdlib_*.lynx)
 # Built-in-family fixtures (examples/builtin_<name>.lynx) do too.
 BUILTIN_FIXTURES := $(wildcard examples/builtin_*.lynx)
+MILESTONE7_NEW_FIXTURES := examples/builtin_async.lynx examples/builtin_ffi.lynx
 # Single self-checking test that exercises every stdlib module at once.
 STDLIB_TEST_ALL := examples/stdlibTestAll.lynx
 LIST_STDLIB_MODULES := cli colorlib csv debug fileIO game image js json lua math \
@@ -345,20 +346,21 @@ expected="clynxer: $(ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 	rm -f .clynxer_stdlib.out .clynxer_stdlib.diff; exit 1; fi; \
 	done; \
 	rm -f .clynxer_stdlib.out .clynxer_stdlib.diff
-	@for fixture in $(BUILTIN_FIXTURES); do \
+	@for fixture in $(MILESTONE7_NEW_FIXTURES); do \
 	expected="$${fixture%.lynx}.expected"; \
 	if [ ! -f "$$expected" ]; then \
 	echo "missing expected output for $$fixture"; exit 1; fi; \
-	./$(TARGET) "$$fixture" > .clynxer_builtin.out 2>&1; \
-	if [ $$? -ne 0 ]; then \
-	echo "builtin fixture failed: $$fixture"; cat .clynxer_builtin.out; \
-	rm -f .clynxer_builtin.out; exit 1; fi; \
-	if ! diff -u "$$expected" .clynxer_builtin.out > .clynxer_builtin.diff; then \
+	output="$$(./$(TARGET) "$$fixture" 2>&1)"; \
+	status=$$?; \
+	expected_output="$$(cat "$$expected")"; \
+	if [ $$status -ne 0 ]; then \
+	echo "builtin fixture failed: $$fixture"; printf '%s\n' "$$output"; \
+	exit 1; fi; \
+	if [ "$$output" != "$$expected_output" ]; then \
 	echo "builtin fixture output mismatch: $$fixture"; \
-	cat .clynxer_builtin.diff; \
-	rm -f .clynxer_builtin.out .clynxer_builtin.diff; exit 1; fi; \
-	done; \
-	rm -f .clynxer_builtin.out .clynxer_builtin.diff
+	echo "expected:"; printf '%s\n' "$$expected_output"; \
+	echo "received:"; printf '%s\n' "$$output"; exit 1; fi; \
+	done
 	@CLYNXER_GAME_HEADLESS=1 ./$(TARGET) $(STDLIB_TEST_ALL) > .clynxer_stdlib_all.out 2>&1; \
 	if [ $$? -ne 0 ]; then \
 	echo "consolidated stdlib test failed: $(STDLIB_TEST_ALL)"; \

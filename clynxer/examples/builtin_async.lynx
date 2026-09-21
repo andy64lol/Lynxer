@@ -1,0 +1,33 @@
+global setup(){}
+
+global onEvent(str event){
+    println(returnLength(event) > 0);
+}
+
+global main(){
+    int poll = asyncPollCreate();
+    int file = filesystemOpen("/etc/hosts", "r");
+    async run(){
+        asyncPollRegister(poll, file, "read", "file");
+        any fileEvents = await asyncPollWait(poll, 1000, 4);
+        println(returnLength(fileEvents) > 0);
+        asyncPollModify(poll, file, "readwrite", "modified");
+        asyncPollRemove(poll, file);
+
+        int timer = asyncTimerCreate(poll, 1, "timer");
+        any timerEvents = await asyncPollWait(poll, 1000);
+        println(returnLength(timerEvents) > 0);
+        asyncTimerCancel(timer);
+
+        int wakeup = asyncWakeupCreate(poll, "wake");
+        asyncWakeupSignal(wakeup);
+        any wakeEvents = await asyncPollWait(poll, 1000);
+        println(returnLength(wakeEvents) > 0);
+        asyncWakeupSignal(wakeup);
+        await asyncPollDispatch(poll, global.onEvent, 1000, 1);
+        asyncWakeupClose(wakeup);
+    }
+    async.run();
+    filesystemClose(file);
+    asyncPollClose(poll);
+}

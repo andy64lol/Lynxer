@@ -348,6 +348,10 @@ Value Environment::convertForType(Value value, const std::string& type,
         fail("value " + valueToString(value) + " is out of range for type '" +
                  type + "'",
              line, column);
+    } else if (type == "functionAddress" &&
+               (std::holds_alternative<std::int64_t>(value) ||
+                std::holds_alternative<UInt64Value>(value))) {
+        return value;
     } else if (type == "str" && std::holds_alternative<std::string>(value)) {
         return value;
     } else if (type == "bool" && std::holds_alternative<bool>(value)) {

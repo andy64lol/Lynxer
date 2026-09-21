@@ -520,8 +520,9 @@ const std::unordered_map<std::string, NativeCall>& nativeCallTable() {
     return table;
 }
 
-Value callNative(void* address, const std::string& signature,
-                 const std::vector<Value>& args, int line, int column) {
+Value callNativeInternal(void* address, const std::string& signature,
+                         const std::vector<Value>& args, int line,
+                         int column) {
     struct InterruptHandlerRestore {
         ~InterruptHandlerRestore() { installInterruptHandler(); }
     } restoreInterruptHandler;
@@ -538,6 +539,12 @@ Value callNative(void* address, const std::string& signature,
     if (resultType == "double") {
         resultType = "float64";
     }
+    if (resultType == "uintptr" || resultType == "uint64" ||
+        resultType == "int32" || resultType == "uint32" ||
+        resultType == "int16" || resultType == "uint16" ||
+        resultType == "int8" || resultType == "uint8") {
+        resultType = "int64";
+    }
     const std::string params = normalized.substr(open + 1, close - open - 1);
     std::vector<std::string> types;
     std::size_t start = 0;
@@ -547,6 +554,12 @@ Value callNative(void* address, const std::string& signature,
                                              ? comma : comma - start));
         if (types.back() == "double") {
             types.back() = "float64";
+        }
+        if (types.back() == "uintptr" || types.back() == "uint64" ||
+            types.back() == "int32" || types.back() == "uint32" ||
+            types.back() == "int16" || types.back() == "uint16" ||
+            types.back() == "int8" || types.back() == "uint8") {
+            types.back() = "int64";
         }
         start = comma == std::string::npos ? params.size() : comma + 1;
     }
@@ -627,6 +640,11 @@ std::string findEmbeddedLibrary(const std::string& requested) {
 }
 
 }  // namespace
+
+Value callNative(void* address, const std::string& signature,
+                 const std::vector<Value>& args, int line, int column) {
+    return callNativeInternal(address, signature, args, line, column);
+}
 
 void setEmbeddedModuleSources(std::map<std::string, std::string> sources) {
     embeddedModuleSources() = std::move(sources);
@@ -1122,6 +1140,15 @@ Value MethodCallExpression::evaluate(Environment& environment) const {
             throw SourceError(
                 "Python bridging (embedPy) is not supported in CLynxer",
                 line_, column_);
+        }
+        if (variable->name() == "async") {
+            std::vector<Value> arguments;
+            arguments.reserve(arguments_.size());
+            for (const auto& argument : arguments_) {
+                arguments.push_back(argument->evaluate(environment));
+            }
+            return environment.callUserFunction(method_, arguments, {}, line_,
+                                                column_);
         }
         if (!environment.hasVariable(variable->name())) {
             if (const EnumDef* enumDef =

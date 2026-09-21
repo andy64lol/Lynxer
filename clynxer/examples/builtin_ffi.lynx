@@ -1,0 +1,15 @@
+global setup(){}
+
+global add(int a, int b){
+    return a + b;
+}
+
+global main(){
+    int libc = ffiLoadLibrary("libc.so.6");
+    functionAddress strlen = ffiLookup(libc, "strlen");
+    println(ffiCall(strlen, "cdecl:uintptr(cstring)", [str "hello"]));
+    functionAddress callback = ffiCallback("cdecl:int32(int32,int32)", global.add);
+    println(ffiCall(callback, "cdecl:int32(int32,int32)", [int 2, int 3]));
+    ffiFreeCallback(callback);
+    ffiCloseLibrary(libc);
+}

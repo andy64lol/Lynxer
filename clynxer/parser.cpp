@@ -25,7 +25,7 @@ bool Parser::isTypeName(const Token& token) const {
         "any", "int", "float", "num", "char", "str", "bool", "numBool",
         "bit", "byte", "int8", "int16", "int32", "int64", "uint8",
         "uint16", "uint32", "uint64", "float32", "float64", "list",
-        "tuple", "sentinel", "object", "codeblock"};
+        "tuple", "sentinel", "object", "codeblock", "functionAddress"};
     return scalarTypes.count(token.text) != 0 ||
            TypeRegistry::instance().hasNamedType(token.text);
 }
@@ -416,6 +416,13 @@ StatementPtr Parser::parseStatement() {
         peekAt(2).text == "(") {
         return parseLocalFunction();
     }
+    if (checkText("async") && peekAt(1).kind == TokenKind::Identifier &&
+        peekAt(2).text == "(") {
+        Function function = parseFunction("async", false);
+        auto owned = std::make_shared<Function>(std::move(function));
+        return std::make_unique<FunctionDeclarationStatement>(
+            std::move(owned));
+    }
 
     if (checkText("func")) {
         fail("file-wide func declarations are only allowed at top level",
@@ -460,6 +467,9 @@ StatementPtr Parser::parseStatement() {
     if (checkText("break") || checkText("continue") ||
         checkText("restart")) {
         return parseLoopControl();
+    }
+    if (checkText("await")) {
+        return parseCallStatement();
     }
     bool dottedCall = false;
     if (check(TokenKind::Identifier) && peekAt(1).text == ".") {
@@ -1341,6 +1351,9 @@ ExpressionPtr Parser::parseFactor() {
 
 ExpressionPtr Parser::parsePrimary() {
     const Token token = advance();
+    if (token.kind == TokenKind::Identifier && token.text == "await") {
+        return std::make_unique<AwaitExpression>(parsePrimary());
+    }
     if (token.kind == TokenKind::Number) {
         if (token.text.find('.') != std::string::npos) {
             return std::make_unique<LiteralExpression>(

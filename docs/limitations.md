@@ -87,6 +87,21 @@ This is unlikely to change: `asyncPoll*` accepts arbitrary file descriptors
 including regular files, which epoll cannot watch (`EPERM`) but `poll` can, and
 the syscall layer is Linux-only.
 
+## Clynxer async and FFI execution model
+
+Clynxer accepts the `async` local-function and `await` syntax, but its
+interpreter remains single-threaded and cooperative: async calls run to
+completion synchronously. `asyncPoll*`, timers, and wakeups are real POSIX
+resources; `asyncGather` preserves the supplied results but does not run them
+concurrently.
+
+The Clynxer FFI call path uses the existing checked native signature dispatcher
+and supports the signatures covered by that dispatcher. `ffiCallback` creates
+an interpreter callback handle for `ffiCall` rather than a libffi closure that
+arbitrary external native code can invoke. This keeps callback execution inside
+the interpreter lock; code that needs a native callback trampoline still
+requires the Python implementation or a future libffi backend.
+
 ## Enums: braced body is inert
 
 `todo.md` ("Rust-style enums") describes the braced section as

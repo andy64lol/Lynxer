@@ -38,6 +38,7 @@
 #include <fcntl.h>
 #include <netdb.h>
 #include <netinet/in.h>
+#include <poll.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -3879,6 +3880,699 @@ Value builtinNativeThreadDetach(const std::vector<Value>& args, Environment&,
     return std::int64_t{0};
 }
 
+// --- Native FFI --------------------------------------------------------------
+
+struct FfiCallbackRecord {
+    std::string signature;
+    std::string function;
+};
+
+std::unordered_map<void*, void*>& ffiLibraries() {
+    static std::unordered_map<void*, void*> libraries;
+    return libraries;
+}
+
+std::unordered_map<void*, void*>& ffiFunctions() {
+    static std::unordered_map<void*, void*> functions;
+    return functions;
+}
+
+std::unordered_map<std::int64_t, FfiCallbackRecord>& ffiCallbacks() {
+    static std::unordered_map<std::int64_t, FfiCallbackRecord> callbacks;
+    return callbacks;
+}
+
+std::int64_t nextFfiCallbackHandle() {
+    static std::int64_t next = -1;
+    return next--;
+}
+
+Value builtinFfiLoadLibrary(const std::vector<Value>& args, Environment&, int line,
+                            int column) {
+    if (args.size() != 1 || !std::holds_alternative<std::string>(args[0])) {
+        fail("ffiLoadLibrary(path) expects a library path", line, column);
+    }
+    void* handle = ::dlopen(std::get<std::string>(args[0]).c_str(),
+                            RTLD_NOW | RTLD_LOCAL);
+    if (handle == nullptr) {
+        fail("ffiLoadLibrary() failed: " +
+                 std::string(::dlerror() == nullptr ? "unknown error"
+                                                     : ::dlerror()),
+             line, column);
+    }
+    ffiLibraries()[handle] = handle;
+    return static_cast<std::int64_t>(reinterpret_cast<std::intptr_t>(handle));
+}
+
+void* ffiAddress(const Value& value, const char* name, int line, int column) {
+    const auto* integer = std::get_if<std::int64_t>(&value);
+    if (integer == nullptr || *integer == 0) {
+        fail(std::string(name) + "() expects a non-zero native address", line,
+             column);
+    }
+    return reinterpret_cast<void*>(static_cast<std::intptr_t>(*integer));
+}
+
+Value builtinFfiLookup(const std::vector<Value>& args, Environment&, int line,
+                       int column) {
+    if (args.size() != 2 || !std::holds_alternative<std::string>(args[1])) {
+        fail("ffiLookup(library, symbol) expects a library handle and symbol",
+             line, column);
+    }
+    void* library = ffiAddress(args[0], "ffiLookup", line, column);
+    if (ffiLibraries().find(library) == ffiLibraries().end()) {
+        fail("ffiLookup() received an unknown library handle", line, column);
+    }
+    void* symbol = ::dlsym(library, std::get<std::string>(args[1]).c_str());
+    if (symbol == nullptr) {
+        const char* error = ::dlerror();
+        fail("ffiLookup() failed: " +
+                 std::string(error == nullptr ? "symbol not found" : error),
+             line, column);
+    }
+    ffiFunctions()[symbol] = library;
+    return static_cast<std::int64_t>(
+        reinterpret_cast<std::intptr_t>(symbol));
+}
+
+Value builtinFfiCloseLibrary(const std::vector<Value>& args, Environment&,
+                             int line, int column) {
+    if (args.size() != 1) {
+        fail("ffiCloseLibrary(library) expects a library handle", line, column);
+    }
+    void* library = ffiAddress(args[0], "ffiCloseLibrary", line, column);
+    const auto found = ffiLibraries().find(library);
+    if (found == ffiLibraries().end()) {
+        fail("ffiCloseLibrary() received an unknown library handle", line,
+             column);
+    }
+    ::dlclose(library);
+    ffiLibraries().erase(found);
+    return std::int64_t{0};
+}
+
+Value builtinFfiCall(const std::vector<Value>& args, Environment& environment,
+                    int line, int column) {
+    if (args.size() != 3 || !std::holds_alternative<std::string>(args[1]) ||
+        asList(args[2]) == nullptr) {
+        fail("ffiCall(address, signature, arguments) expects an address, "
+             "signature, and list",
+             line, column);
+    }
+    const auto* address = std::get_if<std::int64_t>(&args[0]);
+    if (address == nullptr || *address == 0) {
+        fail("ffiCall() expects a non-zero function address", line, column);
+    }
+    const auto callback = ffiCallbacks().find(*address);
+    const auto& values = listElements(args[2]);
+    if (callback != ffiCallbacks().end()) {
+        if (values.size() != 2) {
+            fail("ffiCall() callback expects two arguments", line, column);
+        }
+        return environment.callUserFunction(callback->second.function, values,
+                                            {}, line, column);
+    }
+    const void* nativeAddress =
+        reinterpret_cast<void*>(static_cast<std::intptr_t>(*address));
+    const auto owner = ffiFunctions().find(const_cast<void*>(nativeAddress));
+    if (owner != ffiFunctions().end() &&
+        ffiLibraries().find(owner->second) == ffiLibraries().end()) {
+        fail("ffiCall() function address belongs to a closed library", line,
+             column);
+    }
+    return callNative(const_cast<void*>(nativeAddress), std::get<std::string>(args[1]),
+                      values, line, column);
+}
+
+Value builtinFfiCallback(const std::vector<Value>& args, Environment&, int line,
+                         int column) {
+    if (args.size() != 2 || !std::holds_alternative<std::string>(args[0])) {
+        fail("ffiCallback(signature, function) expects a signature and Lynxer "
+             "function",
+             line, column);
+    }
+    const auto* function = std::get_if<std::shared_ptr<CodeblockValue>>(&args[1]);
+    if (function == nullptr || *function == nullptr || (*function)->name.empty()) {
+        fail("ffiCallback() expects a function", line, column);
+    }
+    const std::int64_t handle = nextFfiCallbackHandle();
+    ffiCallbacks()[handle] =
+        FfiCallbackRecord{std::get<std::string>(args[0]), (*function)->name};
+    return handle;
+}
+
+Value builtinFfiFreeCallback(const std::vector<Value>& args, Environment&,
+                             int line, int column) {
+    if (args.size() != 1) {
+        fail("ffiFreeCallback(callback) expects a function address", line,
+             column);
+    }
+    const auto* handle = std::get_if<std::int64_t>(&args[0]);
+    if (handle == nullptr || ffiCallbacks().erase(*handle) == 0) {
+        fail("ffiFreeCallback() received an unknown callback", line, column);
+    }
+    return std::int64_t{0};
+}
+
+// --- Cooperative async helpers ----------------------------------------------
+//
+// Clynxer has one interpreter thread, so async functions are represented by
+// ordinary local functions and `await` evaluates their operation immediately.
+// The resource side of the API is still real: poll(2), monotonic timers, and
+// pipe-backed wakeups are managed here and use the same file/socket handles as
+// the other native APIs.
+
+struct AsyncRegistration {
+    std::string token;
+    std::string events;
+    short mask = 0;
+};
+
+struct AsyncTimer {
+    std::int64_t poll = 0;
+    std::chrono::steady_clock::time_point deadline;
+    std::chrono::milliseconds repeat{0};
+    std::string token;
+};
+
+struct AsyncWakeup {
+    std::int64_t poll = 0;
+    int read = -1;
+    int write = -1;
+    std::string token;
+};
+
+struct AsyncPoll {
+    std::unordered_map<int, AsyncRegistration> registrations;
+    std::unordered_map<std::int64_t, AsyncTimer> timers;
+    std::vector<std::int64_t> wakeups;
+    bool closed = false;
+};
+
+std::unordered_map<std::int64_t, AsyncPoll>& asyncPolls() {
+    static std::unordered_map<std::int64_t, AsyncPoll> values;
+    return values;
+}
+
+std::unordered_map<std::int64_t, AsyncTimer>& asyncTimers() {
+    static std::unordered_map<std::int64_t, AsyncTimer> values;
+    return values;
+}
+
+std::unordered_map<std::int64_t, AsyncWakeup>& asyncWakeups() {
+    static std::unordered_map<std::int64_t, AsyncWakeup> values;
+    return values;
+}
+
+std::int64_t nextAsyncHandle() {
+    static std::int64_t next = 1;
+    return next++;
+}
+
+AsyncPoll& requireAsyncPoll(const Value& value, const char* name, int line,
+                            int column) {
+    const auto* handle = std::get_if<std::int64_t>(&value);
+    if (handle == nullptr || *handle < 0) {
+        fail(std::string(name) + "(poll) expects a poll handle", line, column);
+    }
+    const auto found = asyncPolls().find(*handle);
+    if (found == asyncPolls().end() || found->second.closed) {
+        fail(std::string(name) + "() received an unknown or closed poll handle",
+             line, column);
+    }
+    return found->second;
+}
+
+int asyncResourceFd(const Value& value, const char* name, int line,
+                    int column) {
+    const auto* handle = std::get_if<std::int64_t>(&value);
+    if (handle == nullptr || *handle < 0) {
+        fail(std::string(name) + "() expects a resource handle", line, column);
+    }
+    const auto file = openFiles().find(*handle);
+    if (file != openFiles().end()) {
+        return file->second;
+    }
+    const auto socket = openSockets().find(*handle);
+    if (socket != openSockets().end()) {
+        return socket->second.descriptor;
+    }
+    const auto process = childProcesses().find(*handle);
+    if (process != childProcesses().end()) {
+        if (process->second.output >= 0) {
+            return process->second.output;
+        }
+        if (process->second.error >= 0) {
+            return process->second.error;
+        }
+    }
+    fail(std::string(name) + "() received an unknown resource handle", line,
+         column);
+}
+
+short asyncMask(const Value& value, const char* name, std::string& normalized,
+                int line, int column) {
+    if (!std::holds_alternative<std::string>(value)) {
+        fail(std::string(name) + "() events must be read, write, or readwrite",
+             line, column);
+    }
+    normalized = lowercase(std::get<std::string>(value));
+    if (normalized == "read") {
+        return POLLIN;
+    }
+    if (normalized == "write") {
+        return POLLOUT;
+    }
+    if (normalized == "readwrite") {
+        return POLLIN | POLLOUT;
+    }
+    fail(std::string(name) + "() events must be read, write, or readwrite",
+         line, column);
+}
+
+std::string asyncEventJson(const std::string& kind, const std::string& token,
+                           int fd, const std::string& events) {
+    std::string result = "{\"kind\":\"" + kind + "\",\"token\":\"";
+    for (char character : token) {
+        if (character == '"' || character == '\\') {
+            result += '\\';
+        }
+        result += character;
+    }
+    result += "\"";
+    if (fd >= 0) {
+        result += ",\"fd\":" + std::to_string(fd);
+    }
+    if (!events.empty()) {
+        result += ",\"events\":[";
+        bool first = true;
+        if (events == "read" || events == "readwrite") {
+            result += "\"read\"";
+            first = false;
+        }
+        if (events == "write" || events == "readwrite") {
+            if (!first) {
+                result += ",";
+            }
+            result += "\"write\"";
+        }
+        result += "]";
+    }
+    return result + "}";
+}
+
+Value builtinAsyncPollCreate(const std::vector<Value>& args, Environment&,
+                             int line, int column) {
+    if (!args.empty()) {
+        fail("asyncPollCreate() expects no arguments", line, column);
+    }
+    const std::int64_t handle = nextAsyncHandle();
+    asyncPolls().emplace(handle, AsyncPoll{});
+    return handle;
+}
+
+Value builtinAsyncPollRegister(const std::vector<Value>& args, Environment&,
+                               int line, int column) {
+    if (args.size() != 4 || !std::holds_alternative<std::string>(args[3])) {
+        fail("asyncPollRegister(poll, resource, events, token) expects four "
+             "arguments",
+             line, column);
+    }
+    const auto* pollHandle = std::get_if<std::int64_t>(&args[0]);
+    if (pollHandle == nullptr) {
+        fail("asyncPollRegister() expects a poll handle", line, column);
+    }
+    AsyncPoll& poll = requireAsyncPoll(args[0], "asyncPollRegister", line,
+                                       column);
+    const int fd = asyncResourceFd(args[1], "asyncPollRegister", line, column);
+    std::string events;
+    const short mask =
+        asyncMask(args[2], "asyncPollRegister", events, line, column);
+    if (poll.registrations.count(fd) != 0) {
+        fail("asyncPollRegister() resource is already registered", line,
+             column);
+    }
+    poll.registrations.emplace(
+        fd, AsyncRegistration{std::get<std::string>(args[3]), events, mask});
+    return std::int64_t{0};
+}
+
+Value builtinAsyncPollModify(const std::vector<Value>& args, Environment&,
+                             int line, int column) {
+    if (args.size() != 4 || !std::holds_alternative<std::string>(args[3])) {
+        fail("asyncPollModify(poll, resource, events, token) expects four "
+             "arguments",
+             line, column);
+    }
+    AsyncPoll& poll = requireAsyncPoll(args[0], "asyncPollModify", line,
+                                       column);
+    const int fd = asyncResourceFd(args[1], "asyncPollModify", line, column);
+    std::string events;
+    const short mask =
+        asyncMask(args[2], "asyncPollModify", events, line, column);
+    const auto found = poll.registrations.find(fd);
+    if (found == poll.registrations.end()) {
+        fail("asyncPollModify() resource is not registered", line, column);
+    }
+    found->second = AsyncRegistration{std::get<std::string>(args[3]), events,
+                                      mask};
+    return std::int64_t{0};
+}
+
+Value builtinAsyncPollRemove(const std::vector<Value>& args, Environment&,
+                             int line, int column) {
+    if (args.size() != 2) {
+        fail("asyncPollRemove(poll, resource) expects two arguments", line,
+             column);
+    }
+    AsyncPoll& poll = requireAsyncPoll(args[0], "asyncPollRemove", line,
+                                       column);
+    const int fd = asyncResourceFd(args[1], "asyncPollRemove", line, column);
+    if (poll.registrations.erase(fd) == 0) {
+        fail("asyncPollRemove() resource is not registered", line, column);
+    }
+    return std::int64_t{0};
+}
+
+Value asyncPollWaitValues(AsyncPoll& poll, std::int64_t timeout,
+                          std::int64_t maximum, int line, int column) {
+    if (maximum <= 0) {
+        fail("asyncPollWait max_events must be positive", line, column);
+    }
+    std::vector<struct pollfd> descriptors;
+    std::vector<int> fds;
+    for (const auto& entry : poll.registrations) {
+        descriptors.push_back(pollfd{entry.first, entry.second.mask, 0});
+        fds.push_back(entry.first);
+    }
+    for (const auto handle : poll.wakeups) {
+        const auto found = asyncWakeups().find(handle);
+        if (found != asyncWakeups().end()) {
+            descriptors.push_back(pollfd{found->second.read, POLLIN, 0});
+            fds.push_back(found->second.read);
+        }
+    }
+    int waitMs = timeout < 0 ? -1 : static_cast<int>(std::min<std::int64_t>(
+                                              timeout, 2147483647));
+    const auto now = std::chrono::steady_clock::now();
+    for (const auto& entry : poll.timers) {
+        const auto duration = entry.second.deadline - now;
+        const auto remaining = std::chrono::duration_cast<
+            std::chrono::milliseconds>(duration).count();
+        // Round up so a sub-millisecond remainder does not turn into a
+        // zero-time poll immediately before a timer is due.
+        const std::int64_t rounded =
+            duration <= std::chrono::steady_clock::duration::zero()
+                ? 0
+                : remaining + 1;
+        waitMs = waitMs < 0
+                     ? static_cast<int>(std::min<std::int64_t>(
+                           2147483647, rounded))
+                     : std::min(waitMs, static_cast<int>(std::min<std::int64_t>(
+                                             2147483647, rounded)));
+    }
+    const int status = ::poll(descriptors.data(), descriptors.size(), waitMs);
+    if (status < 0) {
+        if (errno == EINTR) {
+            return {};
+        }
+        failErrno("asyncPollWait", line, column);
+    }
+    std::vector<Value> events;
+    for (std::size_t index = 0; index < descriptors.size() &&
+                                events.size() < static_cast<std::size_t>(maximum);
+         ++index) {
+        if (descriptors[index].revents == 0) {
+            continue;
+        }
+        bool isWakeup = false;
+        for (const auto wakeHandle : poll.wakeups) {
+            const auto found = asyncWakeups().find(wakeHandle);
+            if (found != asyncWakeups().end() &&
+                found->second.read == fds[index]) {
+                char buffer[64];
+                (void)::read(found->second.read, buffer, sizeof(buffer));
+                events.push_back(asyncEventJson("wakeup", found->second.token,
+                                                -1, ""));
+                isWakeup = true;
+                break;
+            }
+        }
+        if (isWakeup) {
+            continue;
+        }
+        const auto registration = poll.registrations.find(fds[index]);
+        if (registration != poll.registrations.end()) {
+            std::string ready;
+            if (descriptors[index].revents & POLLIN) {
+                ready = "read";
+            }
+            if (descriptors[index].revents & POLLOUT) {
+                ready = ready.empty() ? "write" : "readwrite";
+            }
+            events.push_back(asyncEventJson("io", registration->second.token,
+                                            fds[index], ready));
+        }
+    }
+    const auto after = std::chrono::steady_clock::now();
+    for (auto& entry : poll.timers) {
+        if (events.size() >= static_cast<std::size_t>(maximum) ||
+            after < entry.second.deadline) {
+            continue;
+        }
+        events.push_back(
+            asyncEventJson("timer", entry.second.token, -1, ""));
+        if (entry.second.repeat.count() > 0) {
+            entry.second.deadline = after + entry.second.repeat;
+        } else {
+            entry.second.deadline = after + std::chrono::hours(24 * 365);
+        }
+    }
+    return makeList(std::move(events));
+}
+
+Value builtinAsyncPollWait(const std::vector<Value>& args, Environment&,
+                           int line, int column) {
+    if (args.size() < 1 || args.size() > 3) {
+        fail("asyncPollWait(poll, timeout_ms?, max_events?) expects one to "
+             "three arguments",
+             line, column);
+    }
+    std::int64_t timeout = args.size() > 1 ? toInt(args[1], line, column) : -1;
+    std::int64_t maximum = args.size() > 2 ? toInt(args[2], line, column) : 64;
+    return asyncPollWaitValues(
+        requireAsyncPoll(args[0], "asyncPollWait", line, column), timeout,
+        maximum, line, column);
+}
+
+Value builtinAsyncPollDispatch(const std::vector<Value>& args,
+                               Environment& environment, int line, int column) {
+    if (args.size() < 2 || args.size() > 4) {
+        fail("asyncPollDispatch(poll, callback, timeout_ms?, max_events?) "
+             "expects two to four arguments",
+             line, column);
+    }
+    const auto* callback = std::get_if<std::shared_ptr<CodeblockValue>>(&args[1]);
+    if (callback == nullptr || *callback == nullptr || (*callback)->name.empty()) {
+        fail("asyncPollDispatch() callback must be a function", line, column);
+    }
+    const std::int64_t timeout = args.size() > 2 ? toInt(args[2], line, column)
+                                                 : -1;
+    const std::int64_t maximum = args.size() > 3 ? toInt(args[3], line, column)
+                                                  : 64;
+    const Value values = asyncPollWaitValues(
+        requireAsyncPoll(args[0], "asyncPollDispatch", line, column), timeout,
+        maximum, line, column);
+    const auto* list = asList(values);
+    for (const Value& event : (*list)->elements) {
+        environment.callUserFunction((*callback)->name, {event}, {}, line,
+                                     column);
+    }
+    return static_cast<std::int64_t>((*list)->elements.size());
+}
+
+Value builtinAsyncPollClose(const std::vector<Value>& args, Environment&,
+                            int line, int column) {
+    if (args.size() != 1) {
+        fail("asyncPollClose(poll) expects one poll handle", line, column);
+    }
+    const auto* handle = std::get_if<std::int64_t>(&args[0]);
+    AsyncPoll& poll = requireAsyncPoll(args[0], "asyncPollClose", line, column);
+    for (const auto wakeHandle : poll.wakeups) {
+        const auto found = asyncWakeups().find(wakeHandle);
+        if (found != asyncWakeups().end()) {
+            ::close(found->second.read);
+            ::close(found->second.write);
+            asyncWakeups().erase(found);
+        }
+    }
+    for (const auto& timer : poll.timers) {
+        asyncTimers().erase(timer.first);
+    }
+    poll.closed = true;
+    asyncPolls().erase(*handle);
+    return std::int64_t{0};
+}
+
+Value builtinAsyncTimerCreate(const std::vector<Value>& args, Environment&,
+                              int line, int column) {
+    if (args.size() != 3 && args.size() != 4) {
+        fail("asyncTimerCreate(poll, milliseconds, token, repeat_ms?) expects "
+             "three or four arguments",
+             line, column);
+    }
+    if (!std::holds_alternative<std::string>(args[2])) {
+        fail("asyncTimerCreate token must be a string", line, column);
+    }
+    const std::int64_t delay = toInt(args[1], line, column);
+    const std::int64_t repeat = args.size() == 4 ? toInt(args[3], line, column) : 0;
+    if (delay < 0 || repeat < 0) {
+        fail("asyncTimerCreate milliseconds must be nonnegative", line, column);
+    }
+    const auto* pollHandle = std::get_if<std::int64_t>(&args[0]);
+    if (pollHandle == nullptr) {
+        fail("asyncTimerCreate() expects a poll handle", line, column);
+    }
+    AsyncPoll& poll = requireAsyncPoll(args[0], "asyncTimerCreate", line, column);
+    const std::int64_t handle = nextAsyncHandle();
+    AsyncTimer timer{*pollHandle, std::chrono::steady_clock::now() +
+                                      std::chrono::milliseconds(delay),
+                     std::chrono::milliseconds(repeat),
+                     std::get<std::string>(args[2])};
+    poll.timers.emplace(handle, timer);
+    asyncTimers().emplace(handle, timer);
+    return handle;
+}
+
+Value builtinAsyncTimerCancel(const std::vector<Value>& args, Environment&,
+                              int line, int column) {
+    if (args.size() != 1) {
+        fail("asyncTimerCancel(timer) expects a valid timer handle", line,
+             column);
+    }
+    const auto* handle = std::get_if<std::int64_t>(&args[0]);
+    const auto found = asyncTimers().find(handle == nullptr ? -1 : *handle);
+    if (found == asyncTimers().end()) {
+        fail("asyncTimerCancel() received an unknown or cancelled timer", line,
+             column);
+    }
+    const auto poll = asyncPolls().find(found->second.poll);
+    if (poll != asyncPolls().end()) {
+        poll->second.timers.erase(found->first);
+    }
+    asyncTimers().erase(found);
+    return std::int64_t{0};
+}
+
+Value builtinAsyncWakeupCreate(const std::vector<Value>& args, Environment&,
+                               int line, int column) {
+    if (args.size() != 2 || !std::holds_alternative<std::string>(args[1])) {
+        fail("asyncWakeupCreate(poll, token) expects a poll and string token",
+             line, column);
+    }
+    const auto* pollHandle = std::get_if<std::int64_t>(&args[0]);
+    AsyncPoll& poll = requireAsyncPoll(args[0], "asyncWakeupCreate", line,
+                                       column);
+    int descriptors[2];
+    if (::pipe(descriptors) != 0) {
+        failErrno("asyncWakeupCreate", line, column);
+    }
+    const std::int64_t handle = nextAsyncHandle();
+    asyncWakeups().emplace(
+        handle, AsyncWakeup{*pollHandle, descriptors[0], descriptors[1],
+                            std::get<std::string>(args[1])});
+    poll.wakeups.push_back(handle);
+    return handle;
+}
+
+Value builtinAsyncWakeupSignal(const std::vector<Value>& args, Environment&,
+                               int line, int column) {
+    if (args.size() != 1) {
+        fail("asyncWakeupSignal(wakeup) expects one wakeup handle", line,
+             column);
+    }
+    const auto* handle = std::get_if<std::int64_t>(&args[0]);
+    const auto found = asyncWakeups().find(handle == nullptr ? -1 : *handle);
+    if (found == asyncWakeups().end()) {
+        fail("asyncWakeupSignal() received an unknown wakeup handle", line,
+             column);
+    }
+    const char value = 1;
+    if (::write(found->second.write, &value, 1) < 0 && errno != EAGAIN) {
+        failErrno("asyncWakeupSignal", line, column);
+    }
+    return std::int64_t{0};
+}
+
+Value builtinAsyncWakeupClose(const std::vector<Value>& args, Environment&,
+                              int line, int column) {
+    if (args.size() != 1) {
+        fail("asyncWakeupClose(wakeup) expects one wakeup handle", line,
+             column);
+    }
+    const auto* handle = std::get_if<std::int64_t>(&args[0]);
+    const auto found = asyncWakeups().find(handle == nullptr ? -1 : *handle);
+    if (found == asyncWakeups().end()) {
+        fail("asyncWakeupClose() received an unknown wakeup handle", line,
+             column);
+    }
+    auto poll = asyncPolls().find(found->second.poll);
+    if (poll != asyncPolls().end()) {
+        poll->second.wakeups.erase(
+            std::remove(poll->second.wakeups.begin(), poll->second.wakeups.end(),
+                        *handle),
+            poll->second.wakeups.end());
+    }
+    ::close(found->second.read);
+    ::close(found->second.write);
+    asyncWakeups().erase(found);
+    return std::int64_t{0};
+}
+
+Value builtinAsyncSleep(const std::vector<Value>& args, Environment&, int line,
+                        int column) {
+    if (args.size() != 1 || !isNumber(args[0])) {
+        fail("asyncSleep(seconds) expects a single numeric argument", line,
+             column);
+    }
+    const double seconds = asNumber(args[0], line, column);
+    if (seconds < 0) {
+        fail("asyncSleep(seconds) expects a non-negative duration", line,
+             column);
+    }
+    std::this_thread::sleep_for(std::chrono::duration<double>(seconds));
+    return Value{};
+}
+
+Value builtinAsyncRun(const std::vector<Value>& args, Environment& environment,
+                      int line, int column) {
+    if (args.empty()) {
+        fail("asyncRun(function, arguments?) expects a function", line, column);
+    }
+    const auto* function = std::get_if<std::shared_ptr<CodeblockValue>>(&args[0]);
+    if (function == nullptr || *function == nullptr || (*function)->name.empty()) {
+        fail("asyncRun() expects a function", line, column);
+    }
+    std::vector<Value> arguments;
+    if (args.size() == 2) {
+        const auto* list = asList(args[1]);
+        if (list == nullptr) {
+            fail("asyncRun() arguments must be a list", line, column);
+        }
+        arguments = (*list)->elements;
+    } else if (args.size() > 2) {
+        fail("asyncRun(function, arguments?) expects one or two arguments", line,
+             column);
+    }
+    return environment.callUserFunction((*function)->name, arguments, {}, line,
+                                        column);
+}
+
+Value builtinAsyncGather(const std::vector<Value>& args, Environment&,
+                         int, int) {
+    return makeList(args);
+}
+
 void joinNativeThreadsAtExitInternal() {
 #if CLYNXER_POSIX_BUILTINS
     // A program may start a thread and never join it. Such a worker calls back
@@ -4087,6 +4781,29 @@ const std::unordered_map<std::string, Handler>& handlerTable() {
         {"nativeThreadIsAlive", builtinNativeThreadIsAlive},
         {"nativeThreadStatus", builtinNativeThreadStatus},
         {"nativeThreadDetach", builtinNativeThreadDetach},
+        // Cooperative async API.
+        {"asyncRun", builtinAsyncRun},
+        {"asyncGather", builtinAsyncGather},
+        {"asyncPollCreate", builtinAsyncPollCreate},
+        {"asyncPollRegister", builtinAsyncPollRegister},
+        {"asyncPollModify", builtinAsyncPollModify},
+        {"asyncPollRemove", builtinAsyncPollRemove},
+        {"asyncPollWait", builtinAsyncPollWait},
+        {"asyncPollDispatch", builtinAsyncPollDispatch},
+        {"asyncPollClose", builtinAsyncPollClose},
+        {"asyncTimerCreate", builtinAsyncTimerCreate},
+        {"asyncTimerCancel", builtinAsyncTimerCancel},
+        {"asyncWakeupCreate", builtinAsyncWakeupCreate},
+        {"asyncWakeupSignal", builtinAsyncWakeupSignal},
+        {"asyncWakeupClose", builtinAsyncWakeupClose},
+        {"asyncSleep", builtinAsyncSleep},
+        // Dynamic libraries and typed native calls.
+        {"ffiLoadLibrary", builtinFfiLoadLibrary},
+        {"ffiLookup", builtinFfiLookup},
+        {"ffiCloseLibrary", builtinFfiCloseLibrary},
+        {"ffiCall", builtinFfiCall},
+        {"ffiCallback", builtinFfiCallback},
+        {"ffiFreeCallback", builtinFfiFreeCallback},
 #endif
     };
     return handlers;
@@ -4095,11 +4812,18 @@ const std::unordered_map<std::string, Handler>& handlerTable() {
 const std::unordered_set<std::string>& unsupportedTable() {
     static const std::unordered_set<std::string> unsupported = {
         "rawPy", "rawPyx", "cleanRawPyxCache",
+#if !CLYNXER_POSIX_BUILTINS
         "asyncRun", "asyncGather", "asyncPollCreate", "asyncPollRegister",
         "asyncPollModify", "asyncPollRemove", "asyncPollWait",
         "asyncPollDispatch", "asyncPollClose", "asyncTimerCreate",
         "asyncTimerCancel", "asyncWakeupCreate", "asyncWakeupSignal",
         "asyncWakeupClose", "asyncSleep",
+#endif
+        // These names are explicit unsupported features on non-POSIX hosts.
+#if !CLYNXER_POSIX_BUILTINS
+        "ffiLoadLibrary", "ffiLookup", "ffiCloseLibrary", "ffiCall",
+        "ffiCallback", "ffiFreeCallback",
+#endif
 #if !CLYNXER_POSIX_BUILTINS
         "soundLoad", "soundPlay", "soundLoop", "soundStop", "soundPause",
         "soundResume", "soundSetVolume", "soundIsPlaying", "soundRelease",

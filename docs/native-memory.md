@@ -65,11 +65,9 @@ The wrapper is useful for declarations and APIs that should reject ordinary
 integers and data addresses. It does not validate that the pointer is
 executable; the caller remains responsible for supplying a valid ABI.
 Native library function addresses are invalidated when their library is closed;
-a subsequent call fails instead of jumping into unmapped code. Each
-`ffiCallback` has an independent ABI-correct trampoline. Callback return type
-`cstring` is rejected because a native caller could retain a pointer to a
-temporary string after the callback returns. Callbacks must be freed only after
-the native caller has stopped invoking them.
+a subsequent call fails instead of jumping into unmapped code. Clynxer's
+`ffiCallback` handle is interpreter-mediated and is accepted by `ffiCall`; it
+is not yet an ABI-correct trampoline for arbitrary external native code.
 
 ## C ABI layouts
 
@@ -150,18 +148,14 @@ println(ffiCall(strlen, "cdecl:uintptr(cstring)", [str "hello"]));
 ffiCloseLibrary(libc);
 ```
 
-FFI signatures support `void`, all signed and unsigned integer widths,
-`uintptr`, `float32`, `float64`, and `cstring`. Calls accept `cdecl` (the
-default) and `stdcall` on Windows. Calls are dispatched through the host ABI,
-including floating-point register conventions, and all arguments must match
-the declared signature. `ffiCallback(signature, function)` creates a native
-callback address and keeps it alive until `ffiFreeCallback(callback)` is
-called. Callbacks accept the same signature grammar as calls: `void`, all
-signed and unsigned integer widths, `uintptr`, `float32`, `float64`, and up to
-six parameters. Two exceptions apply — a `cstring` **return** is rejected
-because a native caller could retain a pointer to a temporary string after the
-callback returns, and `stdcall` callbacks are only available on Windows.
-Native code must not retain a callback after it has been freed.
+FFI signatures are validated by Clynxer's native dispatcher. The currently
+supported direct-call surface includes the packed numeric/string forms used by
+the built-ins and `cdecl:` aliases such as `uintptr(cstring)` and
+`int32(int64,int64)`. `ffiCallback(signature, function)` creates an
+interpreter callback handle that can be passed back to `ffiCall`; it is not yet
+a libffi closure for arbitrary external native code. Native callback trampolines
+and the complete documented ABI grammar remain a future dependency-backed
+extension.
 
 ## Native threads
 

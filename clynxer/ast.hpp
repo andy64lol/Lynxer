@@ -75,6 +75,22 @@ private:
     int column_;
 };
 
+// Clynxer executes async functions cooperatively on the interpreter thread.
+// Await is therefore an explicit expression node even though evaluating it
+// currently resumes the already-synchronous operation immediately.
+class AwaitExpression final : public Expression {
+public:
+    explicit AwaitExpression(ExpressionPtr expression)
+        : expression_(std::move(expression)) {}
+
+    Value evaluate(Environment& environment) const override {
+        return expression_->evaluate(environment);
+    }
+
+private:
+    ExpressionPtr expression_;
+};
+
 class BinaryExpression final : public Expression {
 public:
     BinaryExpression(std::string operation, ExpressionPtr left,
@@ -700,6 +716,11 @@ void unlockInterpreter();
 // on first use, so a program that never touches the family never needs it.
 Value callBridgedModule(const std::string& module, const std::string& operation,
                         const std::vector<Value>& args, int line, int column);
+
+// Calls a native function using the Clynxer signature grammar. The FFI
+// built-ins reuse the same checked dispatcher as imported native modules.
+Value callNative(void* address, const std::string& signature,
+                 const std::vector<Value>& args, int line, int column);
 
 // Installs the module sources and native library paths carried by a compiled
 // executable.
