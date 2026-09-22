@@ -45,7 +45,7 @@ def run_source(source: str, filename: str = "<validation>") -> tuple[str, Error 
 def native_available() -> bool:
     """Return whether the optional compiled native extension is importable."""
     try:
-        import lynxer.cpp  # noqa: F401
+        import lynxer.cpp  # noqa: F401  # type: ignore[import-unresolved] — built extension module
     except Exception:  # noqa: BLE001
         return False
     return True

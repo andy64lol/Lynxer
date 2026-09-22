@@ -9,7 +9,7 @@ global main(){
     println(global.math.sin(0.0));
     println(global.math.isPrime(97));
     println(global.math.isFinite(1.0));
-    println(global.typing.toStr(!!false), " is now a string.");
+    println(global.typing.toStr(not false), " is now a string.");
     println(number, " is a integer.");
     println(global.typing.typeOf(number), " is the type of number.");
 }

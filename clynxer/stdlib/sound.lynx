@@ -12,36 +12,36 @@ global loadSound(str path) -> int { return global.nativeSound.load(path); }
 global loadSoundStreaming(str path) -> int { return global.nativeSound.loadStreaming(path); }
 
 // Play a loaded sound once. Returns true when playback starts.
-global playSound(int soundIdx) -> bool { return global.nativeSound.play(soundIdx) != 0; }
+global playSound(int soundIdx) -> bool { return global.nativeSound.play(soundIdx) isnt 0; }
 
 // Alias for playSound with an explicit one-shot name.
-global playSoundOnce(int soundIdx) -> bool { return global.nativeSound.play(soundIdx) != 0; }
+global playSoundOnce(int soundIdx) -> bool { return global.nativeSound.play(soundIdx) isnt 0; }
 
 // Start looping playback. Returns true when playback starts.
-global loopSound(int soundIdx) -> bool { return global.nativeSound.loop(soundIdx) != 0; }
+global loopSound(int soundIdx) -> bool { return global.nativeSound.loop(soundIdx) isnt 0; }
 
 // Stop playback. Returns true when the handle was valid.
-global stopSound(int soundIdx) -> bool { return global.nativeSound.stop(soundIdx) != 0; }
+global stopSound(int soundIdx) -> bool { return global.nativeSound.stop(soundIdx) isnt 0; }
 
 // Pause an active player. Returns false when the handle is invalid.
-global pauseSound(int soundIdx) -> bool { return global.nativeSound.pause(soundIdx) != 0; }
+global pauseSound(int soundIdx) -> bool { return global.nativeSound.pause(soundIdx) isnt 0; }
 
 // Resume a paused player. Returns false when the handle is invalid.
-global resumeSound(int soundIdx) -> bool { return global.nativeSound.resume(soundIdx) != 0; }
+global resumeSound(int soundIdx) -> bool { return global.nativeSound.resume(soundIdx) isnt 0; }
 
 // Change the stored volume and update an active player. Clamps to [0, 1].
 global setSoundVolume(int soundIdx, float volume) -> bool {
-    return global.nativeSound.setVolume(soundIdx, volume) != 0;
+    return global.nativeSound.setVolume(soundIdx, volume) isnt 0;
 }
 
 // Return whether an active player is currently playing.
-global isSoundPlaying(int soundIdx) -> bool { return global.nativeSound.isPlaying(soundIdx) != 0; }
+global isSoundPlaying(int soundIdx) -> bool { return global.nativeSound.isPlaying(soundIdx) isnt 0; }
 
 // Return the decoded duration in seconds, or 0.0 for an invalid handle.
 global getSoundLength(int soundIdx) -> float { return global.nativeSound.length(soundIdx); }
 
 // Release a loaded sound and invalidate its handle. Returns true on success.
-global releaseSound(int soundIdx) -> bool { return global.nativeSound.release(soundIdx) != 0; }
+global releaseSound(int soundIdx) -> bool { return global.nativeSound.release(soundIdx) isnt 0; }
 
 // Return the number of currently loaded sound handles.
 global soundCount() -> int { return global.nativeSound.count(); }

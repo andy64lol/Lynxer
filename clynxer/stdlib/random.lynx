@@ -25,9 +25,9 @@ global uniform(float low, float high) -> float {
     return global.nativeRandom.uniform(low, high);
 }
 // Equal-probability boolean.
-global coinflip() -> bool { return global.nativeRandom.coinflip() != 0; }
+global coinflip() -> bool { return global.nativeRandom.coinflip() isnt 0; }
 // Alias of coinflip.
-global randBool() -> bool { return global.nativeRandom.coinflip() != 0; }
+global randBool() -> bool { return global.nativeRandom.coinflip() isnt 0; }
 // Pick one character of the input string, or "" when it is empty.
 global choice(str items) -> str { return global.nativeRandom.choice(items); }
 

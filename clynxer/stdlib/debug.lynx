@@ -19,11 +19,11 @@ global assert(bool cond, str msg) {
 }
 // Raise a runtime error if a and b are not equal.
 global assertEq(str a, str b, str msg) {
-    if(a != b){ global.assert(false, msg); }
+    if(a isnt b){ global.assert(false, msg); }
 }
 // Raise a runtime error if a and b are equal.
 global assertNotEq(str a, str b, str msg) {
-    if(a == b){ global.assert(false, msg); }
+    if(a is b){ global.assert(false, msg); }
 }
 // Raise a runtime error if a is not greater than b.
 global assertGt(float a, float b, str msg) {
@@ -36,26 +36,26 @@ global assertLt(float a, float b, str msg) {
 // Raise a runtime error if needle is not a substring of haystack.
 global assertContains(str haystack, str needle, str msg) {
     bool found = false;
-    if(needle == ""){
+    if(needle is ""){
         found = true;
     } else {
         int index = 0;
         while(index <= returnLength(haystack) - returnLength(needle)){
-            if(substring(haystack, index, index + returnLength(needle)) == needle){
+            if(substring(haystack, index, index + returnLength(needle)) is needle){
                 found = true;
                 break;
             }
             index = index + 1;
         }
     }
-    if(found == false){ global.assert(false, msg); }
+    if(found is false){ global.assert(false, msg); }
 }
 
 // ── Type inspection ──
 // Return the type name of a value: int, float, str, bool, list, tuple or null.
 global typeOf(any val) -> str {
     str name = returnType(val);
-    if(name == "none"){ return "null"; }
+    if(name is "none"){ return "null"; }
     return name;
 }
 // Print the type and value of val to stdout.
@@ -73,7 +73,7 @@ global inspect(any val) -> str {
 }
 // Pretty-print val to stdout (indented JSON for lists).
 global pp(any val) {
-    if(returnType(val) == "list"){
+    if(returnType(val) is "list"){
         println(global.json.jsonPretty(listJsonArray(val)));
         return;
     }

@@ -50,7 +50,7 @@ global getFPS() -> int { return global.nativeGame.getFPS(); }
 // Ask the window to close at the end of the current frame.
 global close(){ global.nativeGame.close(); }
 // True while the window is open.
-global isOpen() -> bool { return global.nativeGame.isOpen() != 0; }
+global isOpen() -> bool { return global.nativeGame.isOpen() isnt 0; }
 
 // ── App lifecycle ───────────────────────────────────────────────────────────
 
@@ -161,10 +161,10 @@ global drawTextAnchored(str text, float x, float y, int r, int g, int b, int siz
 
 // ── Input ───────────────────────────────────────────────────────────────────
 
-global keyDown(str key) -> bool { return global.nativeGame.keyDown(key) != 0; }
-global keyUp(str key) -> bool { return global.nativeGame.keyUp(key) != 0; }
-global keyPressed(str key) -> bool { return global.nativeGame.keyPressed(key) != 0; }
-global keyReleased(str key) -> bool { return global.nativeGame.keyReleased(key) != 0; }
+global keyDown(str key) -> bool { return global.nativeGame.keyDown(key) isnt 0; }
+global keyUp(str key) -> bool { return global.nativeGame.keyUp(key) isnt 0; }
+global keyPressed(str key) -> bool { return global.nativeGame.keyPressed(key) isnt 0; }
+global keyReleased(str key) -> bool { return global.nativeGame.keyReleased(key) isnt 0; }
 // Numeric key code used by this backend (macroquad/keysym), or -1.
 global keyCode(str key) -> int { return global.nativeGame.keyCode(key); }
 global mouseX() -> float { return global.nativeGame.mouseX(); }
@@ -173,12 +173,12 @@ global mouseDeltaX() -> float { return global.nativeGame.mouseDeltaX(); }
 global mouseDeltaY() -> float { return global.nativeGame.mouseDeltaY(); }
 global mouseScrollX() -> float { return global.nativeGame.mouseScrollX(); }
 global mouseScrollY() -> float { return global.nativeGame.mouseScrollY(); }
-global mouseLeft() -> bool { return global.nativeGame.mouseLeft() != 0; }
-global mouseRight() -> bool { return global.nativeGame.mouseRight() != 0; }
-global mouseMiddle() -> bool { return global.nativeGame.mouseMiddle() != 0; }
-global mouseButtonDown(str button) -> bool { return global.nativeGame.mouseButtonDown(button) != 0; }
-global mouseButtonPressed(str button) -> bool { return global.nativeGame.mouseButtonPressed(button) != 0; }
-global mouseButtonReleased(str button) -> bool { return global.nativeGame.mouseButtonReleased(button) != 0; }
+global mouseLeft() -> bool { return global.nativeGame.mouseLeft() isnt 0; }
+global mouseRight() -> bool { return global.nativeGame.mouseRight() isnt 0; }
+global mouseMiddle() -> bool { return global.nativeGame.mouseMiddle() isnt 0; }
+global mouseButtonDown(str button) -> bool { return global.nativeGame.mouseButtonDown(button) isnt 0; }
+global mouseButtonPressed(str button) -> bool { return global.nativeGame.mouseButtonPressed(button) isnt 0; }
+global mouseButtonReleased(str button) -> bool { return global.nativeGame.mouseButtonReleased(button) isnt 0; }
 global mouseButtonCode(str button) -> int { return global.nativeGame.mouseButtonCode(button); }
 
 // ── Textures ────────────────────────────────────────────────────────────────
@@ -216,7 +216,7 @@ global getSpriteVX(int idx) -> float { return global.nativeGame.getSpriteVX(idx)
 global getSpriteVY(int idx) -> float { return global.nativeGame.getSpriteVY(idx); }
 global getSpriteAngularVelocity(int idx) -> float { return global.nativeGame.getSpriteAngularVelocity(idx); }
 global getSpriteAlpha(int idx) -> int { return global.nativeGame.getSpriteAlpha(idx); }
-global getSpriteVisible(int idx) -> bool { return global.nativeGame.getSpriteVisible(idx) != 0; }
+global getSpriteVisible(int idx) -> bool { return global.nativeGame.getSpriteVisible(idx) isnt 0; }
 // Returns "x,y".
 global getSpritePosition(int idx) -> str { return global.nativeGame.getSpritePosition(idx); }
 global setSpritePos(int idx, float x, float y){ global.nativeGame.setSpritePos(idx, x, y); }
@@ -237,13 +237,13 @@ global setSpriteVisible(int idx, bool visible){ global.nativeGame.setSpriteVisib
 global flipSpriteH(int idx){ global.nativeGame.flipSpriteH(idx); }
 global flipSpriteV(int idx){ global.nativeGame.flipSpriteV(idx); }
 global destroySprite(int idx){ global.nativeGame.destroySprite(idx); }
-global spriteExists(int idx) -> bool { return global.nativeGame.spriteExists(idx) != 0; }
+global spriteExists(int idx) -> bool { return global.nativeGame.spriteExists(idx) isnt 0; }
 // Apply velocity for one frame.
 global updateSprite(int idx){ global.nativeGame.updateSprite(idx); }
 global drawSprite(int idx){ global.nativeGame.drawSprite(idx); }
-global spriteCollides(int idxA, int idxB) -> bool { return global.nativeGame.spriteCollides(idxA, idxB) != 0; }
+global spriteCollides(int idxA, int idxB) -> bool { return global.nativeGame.spriteCollides(idxA, idxB) isnt 0; }
 global spriteCollidesWithList(int sprIdx, int listIdx) -> bool {
-    return global.nativeGame.spriteCollidesWithList(sprIdx, listIdx) != 0;
+    return global.nativeGame.spriteCollidesWithList(sprIdx, listIdx) isnt 0;
 }
 // Colliding sprite indexes as a flat "[1,2]" string.
 global getCollidingSprites(int sprIdx, int listIdx) -> str {
@@ -251,7 +251,7 @@ global getCollidingSprites(int sprIdx, int listIdx) -> str {
 }
 global spriteDistance(int idxA, int idxB) -> float { return global.nativeGame.spriteDistance(idxA, idxB); }
 global spriteNear(int idx, float tx, float ty, float range) -> bool {
-    return global.nativeGame.spriteNear(idx, tx, ty, range) != 0;
+    return global.nativeGame.spriteNear(idx, tx, ty, range) isnt 0;
 }
 
 // ── Sprite lists ────────────────────────────────────────────────────────────

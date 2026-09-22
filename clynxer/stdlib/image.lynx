@@ -13,12 +13,12 @@ global open(str path) -> int { return global.nativeImage.open(path); }
 global create(int width, int height, str mode, int r, int g, int b) -> int {
     return global.nativeImage.create(width, height, mode, r, g, b);
 }
-global save(int idx, str path) -> bool { return global.nativeImage.save(idx, path) == 0; }
+global save(int idx, str path) -> bool { return global.nativeImage.save(idx, path) is 0; }
 global saveQuality(int idx, str path, int quality) -> bool {
-    return global.nativeImage.saveQuality(idx, path, quality) == 0;
+    return global.nativeImage.saveQuality(idx, path, quality) is 0;
 }
 global copy(int idx) -> int { return global.nativeImage.copy(idx); }
-global close(int idx) -> bool { return global.nativeImage.close(idx) == 0; }
+global close(int idx) -> bool { return global.nativeImage.close(idx) is 0; }
 global getWidth(int idx) -> int { return global.nativeImage.getWidth(idx); }
 global getHeight(int idx) -> int { return global.nativeImage.getHeight(idx); }
 global getMode(int idx) -> str { return global.nativeImage.getMode(idx); }
@@ -73,19 +73,19 @@ global getPixel(int idx, int x, int y) -> str {
     return global.nativeImage.getPixel(idx, x, y);
 }
 global setPixel(int idx, int x, int y, int r, int g, int b) -> bool {
-    return global.nativeImage.setPixel(idx, x, y, r, g, b) == 0;
+    return global.nativeImage.setPixel(idx, x, y, r, g, b) is 0;
 }
 global setPixelA(int idx, int x, int y, int r, int g, int b, int a) -> bool {
-    return global.nativeImage.setPixelA(idx, x, y, r, g, b, a) == 0;
+    return global.nativeImage.setPixelA(idx, x, y, r, g, b, a) is 0;
 }
 global fill(int idx, int r, int g, int b) -> bool {
-    return global.nativeImage.fill(idx, r, g, b) == 0;
+    return global.nativeImage.fill(idx, r, g, b) is 0;
 }
 global paste(int dstIdx, int srcIdx, int x, int y) -> bool {
-    return global.nativeImage.paste(dstIdx, srcIdx, x, y) == 0;
+    return global.nativeImage.paste(dstIdx, srcIdx, x, y) is 0;
 }
 global pasteWithAlpha(int dstIdx, int srcIdx, int x, int y) -> bool {
-    return global.nativeImage.pasteWithAlpha(dstIdx, srcIdx, x, y) == 0;
+    return global.nativeImage.pasteWithAlpha(dstIdx, srcIdx, x, y) is 0;
 }
 global blend(int idx1, int idx2, float alpha) -> int {
     return global.nativeImage.blend(idx1, idx2, alpha);

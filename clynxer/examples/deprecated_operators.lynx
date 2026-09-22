@@ -1,0 +1,35 @@
+////
+Compatibility fixture for the deprecated symbolic operators.
+
+Every spelling on the right is still accepted, but emits a deprecation warning
+naming its keyword replacement, so the warnings are suppressed here. Each pair
+prints the canonical keyword form first and the deprecated form second; the two
+lines must always agree.
+////
+
+global setup(){ suppressDeprecationWarning(); }
+
+global main(){
+    // equality and inequality
+    println(1 is 1);          println(1 == 1);
+    println(1 isnt 2);        println(1 != 2);
+    println(1 isnt 2);        println(1 not is 2);
+
+    // logical
+    println(true and false);  println(true && false);
+    println(true or false);   println(true || false);
+    println(not false);       println(!!false);
+    println(true nand true);  println(true !&& true);
+    println(false nor false); println(false !|| false);
+
+    // bitwise
+    println(6 bitand 3);      println(6 & 3);
+    println(6 bitor 3);       println(6 | 3);
+    println(6 bitxor 3);      println(6 ^ 3);
+    println(6 bitnand 3);     println(6 !& 3);
+    println(6 bitnor 3);      println(6 !| 3);
+    println(6 bitxnor 3);     println(6 !^ 3);
+    println(bitnot 6);        println(~6);
+    println(1 bitleft 4);     println(1 << 4);
+    println(32 bitright 2);   println(32 >> 2);
+}

@@ -32,7 +32,7 @@ global main(){
     println(global.debug.stopTimer("t") >= 0.0);
     println(global.debug.elapsed("t"));
 
-    println(global.debug.envGet("CLYNXER_DEBUG_TEST") == "");
-    println(global.debug.envAll() != "");
+    println(global.debug.envGet("CLYNXER_DEBUG_TEST") is "");
+    println(global.debug.envAll() isnt "");
     println(global.debug.getMemory() > 0.0);
 }

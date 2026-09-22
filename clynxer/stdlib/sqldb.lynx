@@ -41,7 +41,7 @@ global lastInsertId(str path, str sql, str paramsJson) -> int {
 
 // Return whether a table exists in the database.
 global tableExists(str path, str tableName) -> bool {
-    return global.nativeSqlDb.tableExists(path, tableName) != 0;
+    return global.nativeSqlDb.tableExists(path, tableName) isnt 0;
 }
 
 // Return table names as a JSON array.

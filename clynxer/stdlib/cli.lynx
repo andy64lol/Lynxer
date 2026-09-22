@@ -25,17 +25,17 @@ global getArg(int index) -> str { return global.nativeCli.getArg(index); }
 // Return an environment variable's value, or "".
 global envGet(str name) -> str { return global.nativeCli.envGet(name); }
 // Return true if the environment variable is set.
-global envHas(str name) -> bool { return global.nativeCli.envHas(name) != 0; }
+global envHas(str name) -> bool { return global.nativeCli.envHas(name) isnt 0; }
 // Return all environment variables as a JSON object.
 global envAll() -> str { return global.nativeCli.envAll(); }
 // Return the current working directory.
 global cwd() -> str { return global.nativeCli.cwd(); }
 // Change the working directory.
-global chdir(str path) -> bool { return global.nativeCli.chdir(path) != 0; }
+global chdir(str path) -> bool { return global.nativeCli.chdir(path) isnt 0; }
 // Return true if stdin is a terminal.
-global stdinIsTty() -> bool { return global.nativeCli.stdinIsTty() != 0; }
+global stdinIsTty() -> bool { return global.nativeCli.stdinIsTty() isnt 0; }
 // Return true if stdout is a terminal.
-global stdoutIsTty() -> bool { return global.nativeCli.stdoutIsTty() != 0; }
+global stdoutIsTty() -> bool { return global.nativeCli.stdoutIsTty() isnt 0; }
 // Read all of stdin.
 global readStdin() -> str { return global.nativeCli.readStdin(); }
 // Write text to stdout.
@@ -48,13 +48,13 @@ global terminalSize() -> str { return global.nativeCli.terminalSize(); }
 global exit(int code) { global.nativeCli.exit(code); }
 // Return true if the path exists.
 global pathExists(str path) -> bool {
-    return global.nativeCli.pathExists(path) != 0;
+    return global.nativeCli.pathExists(path) isnt 0;
 }
 // Return true if the path is a regular file.
-global isFile(str path) -> bool { return global.nativeCli.isFile(path) != 0; }
+global isFile(str path) -> bool { return global.nativeCli.isFile(path) isnt 0; }
 // Return true if the path is a directory.
 global isDirectory(str path) -> bool {
-    return global.nativeCli.isDirectory(path) != 0;
+    return global.nativeCli.isDirectory(path) isnt 0;
 }
 // Resolve an executable on PATH, or "".
 global which(str executable) -> str { return global.nativeCli.which(executable); }

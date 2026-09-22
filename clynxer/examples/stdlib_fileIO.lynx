@@ -28,9 +28,9 @@ global main(){
     println(global.fileIO.deleteFile(path + ".mov"));
     println(global.fileIO.fileExists(path + ".mov"));
     println(global.fileIO.deleteFile(path));
-    println(global.fileIO.readFile(path) == "");
+    println(global.fileIO.readFile(path) is "");
     println(returnLength(global.fileIO.readLines(path)));
-    println(global.fileIO.fileModTime(path) == "");
+    println(global.fileIO.fileModTime(path) is "");
     println(global.fileIO.countLines(path));
 
     str temp = global.fileIO.tempFile(".tmp");

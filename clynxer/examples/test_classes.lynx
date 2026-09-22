@@ -27,10 +27,10 @@ global main(){
     first.increment();
     second.increment();
 
-    assert(first.get() == 3);
-    assert(second.get() == 11);
-    assert(global.readCounter(first) == 3);
-    assert(returnType(first) == "Counter");
+    assert(first.get() is 3);
+    assert(second.get() is 11);
+    assert(global.readCounter(first) is 3);
+    assert(returnType(first) is "Counter");
     println(global.readCounter(first));
     println(global.readCounter(second));
 }

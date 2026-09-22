@@ -20,7 +20,7 @@ global main(){
     global.fileIO.writeFile(root + "/three.log", "3");
     println(sortList(global.os.listdir(root)));
     println(sortList(global.os.listdirExt(root, ".txt")));
-    println(global.os.walkFiles(root) == "");
+    println(global.os.walkFiles(root) is "");
     println(global.os.isFile(root + "/one.txt"));
 
     println(global.os.joinPath("a", "b"));
@@ -39,8 +39,8 @@ global main(){
     println(global.os.diskFree(root) > 0);
     println(global.os.setenv("CLYNXER_OS_TEST", "hello"));
     println(global.os.getenv("CLYNXER_OS_TEST"));
-    println(global.os.getenv("CLYNXER_OS_MISSING") == "");
-    println(global.os.expandUser("~") == global.os.homedir());
+    println(global.os.getenv("CLYNXER_OS_MISSING") is "");
+    println(global.os.expandUser("~") is global.os.homedir());
     println(returnLength(global.os.homedir()) > 0);
     println(returnLength(global.os.username()) > 0);
     println(returnLength(global.os.hostname()) > 0);
@@ -56,9 +56,9 @@ global main(){
 
     println(returnLength(global.os.getSystemName()) > 0);
     println(global.os.getSystemArchitecture());
-    println(global.os.getSystemUname() != "{}");
+    println(global.os.getSystemUname() isnt "{}");
     println(returnLength(global.os.getSystemDistro()) > 2);
-    println(global.os.getPythonVersion() == "");
+    println(global.os.getPythonVersion() is "");
     println(global.os.getPythonImplementation());
     println(returnLength(global.os.getSystemInfo()) > 2);
 }

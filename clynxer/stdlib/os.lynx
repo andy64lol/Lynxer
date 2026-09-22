@@ -12,29 +12,29 @@ global setup(){ importAs("os.so", "nativeOs"); }
 
 // ---------- Files and directories ----------
 global getcwd() -> str { return global.nativeOs.getcwd(); }
-global chdir(str path) -> bool { return global.nativeOs.chdir(path) != 0; }
+global chdir(str path) -> bool { return global.nativeOs.chdir(path) isnt 0; }
 global listdir(str path) -> list {
     str raw = global.nativeOs.listdir(path);
-    if(raw == ""){ return seqFromTo(0, 0, 1); }
+    if(raw is ""){ return seqFromTo(0, 0, 1); }
     return splitStr(raw, "\n");
 }
-global mkdir(str path) -> bool { return global.nativeOs.mkdir(path) != 0; }
-global makedirs(str path) -> bool { return global.nativeOs.makedirs(path) != 0; }
-global rmdir(str path) -> bool { return global.nativeOs.rmdir(path) != 0; }
-global remove(str path) -> bool { return global.nativeOs.remove(path) != 0; }
+global mkdir(str path) -> bool { return global.nativeOs.mkdir(path) isnt 0; }
+global makedirs(str path) -> bool { return global.nativeOs.makedirs(path) isnt 0; }
+global rmdir(str path) -> bool { return global.nativeOs.rmdir(path) isnt 0; }
+global remove(str path) -> bool { return global.nativeOs.remove(path) isnt 0; }
 global rename(str src, str dst) -> bool {
-    return global.nativeOs.rename(src, dst) != 0;
+    return global.nativeOs.rename(src, dst) isnt 0;
 }
-global exists(str path) -> bool { return global.nativeOs.exists(path) != 0; }
-global isFile(str path) -> bool { return global.nativeOs.isFile(path) != 0; }
-global isDir(str path) -> bool { return global.nativeOs.isDir(path) != 0; }
-global rmTree(str path) -> bool { return global.nativeOs.rmTree(path) != 0; }
+global exists(str path) -> bool { return global.nativeOs.exists(path) isnt 0; }
+global isFile(str path) -> bool { return global.nativeOs.isFile(path) isnt 0; }
+global isDir(str path) -> bool { return global.nativeOs.isDir(path) isnt 0; }
+global rmTree(str path) -> bool { return global.nativeOs.rmTree(path) isnt 0; }
 global copyTree(str src, str dst) -> bool {
-    return global.nativeOs.copyTree(src, dst) != 0;
+    return global.nativeOs.copyTree(src, dst) isnt 0;
 }
 global listdirExt(str path, str ext) -> list {
     str raw = global.nativeOs.listdirExt(path, ext);
-    if(raw == ""){ return seqFromTo(0, 0, 1); }
+    if(raw is ""){ return seqFromTo(0, 0, 1); }
     return splitStr(raw, "\n");
 }
 global walkFiles(str path) -> str { return global.nativeOs.walkFiles(path); }
@@ -50,7 +50,7 @@ global expandUser(str path) -> str { return global.nativeOs.expandUser(path); }
 global sep() -> str { return global.nativeOs.sep(); }
 global getenv(str key) -> str { return global.nativeOs.getenv(key); }
 global setenv(str key, str val) -> bool {
-    return global.nativeOs.setenv(key, val) != 0;
+    return global.nativeOs.setenv(key, val) isnt 0;
 }
 global tempDir() -> str { return global.nativeOs.tempDir(); }
 global homedir() -> str { return global.nativeOs.homedir(); }

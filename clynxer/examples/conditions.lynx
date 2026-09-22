@@ -9,7 +9,7 @@ global main(){
         println("if else branch");
     }
 
-    if(score == 0){
+    if(score is 0){
         println("wrong branch");
     } else {
         println("else branch");

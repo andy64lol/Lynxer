@@ -12,7 +12,7 @@ when `cargo` is unavailable.
 global setup(){ importAs("json.so", "nativeJson"); }
 
 // Returns true if s is valid JSON, false otherwise.
-global jsonValid(str s) -> bool { return global.nativeJson.valid(s) != 0; }
+global jsonValid(str s) -> bool { return global.nativeJson.valid(s) isnt 0; }
 // Pretty-prints a JSON string with 2-space indent. Returns "" on parse error.
 global jsonParse(str s) -> str { return global.nativeJson.parse(s); }
 // Gets the value at key as text. Returns "" if missing.
@@ -27,7 +27,7 @@ global jsonGetFloat(str s, str key) -> float {
 }
 // Gets a bool value at key. Returns false on error.
 global jsonGetBool(str s, str key) -> bool {
-    return global.nativeJson.getBool(s, key) != 0;
+    return global.nativeJson.getBool(s, key) isnt 0;
 }
 // Returns the top-level keys of a JSON object as a comma-separated string.
 global jsonKeys(str s) -> str { return global.nativeJson.keys(s); }
@@ -41,7 +41,7 @@ global jsonArray(list lst) -> str { return listJsonArray(lst); }
 global jsonObject(list lst) -> str { return listJsonObject(lst); }
 // Returns true if key exists in the JSON object (or as an array element).
 global jsonHas(str s, str key) -> bool {
-    return global.nativeJson.has(s, key) != 0;
+    return global.nativeJson.has(s, key) isnt 0;
 }
 // Returns the number of top-level keys or elements. Returns 0 on error.
 global jsonLength(str s) -> int { return global.nativeJson.length(s); }

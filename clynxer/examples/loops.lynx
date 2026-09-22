@@ -5,7 +5,7 @@ global setup(){
 global main(){
     int i = 0;
     while(i < 3){
-        if(i == 1){
+        if(i is 1){
             i += 1;
             continue;
         }
@@ -20,7 +20,7 @@ global main(){
     int doValue = 0;
     doWhile(doValue < 3){
         doValue += 1;
-        if(doValue == 2){
+        if(doValue is 2){
             restart;
         }
         println("doWhile " + doValue);
@@ -28,7 +28,7 @@ global main(){
 
     int iterateValue = 0;
     iterate(4){
-        if(iterateValue == 2){
+        if(iterateValue is 2){
             break;
         }
         println("iterate " + iterateValue);
@@ -38,11 +38,11 @@ global main(){
     int foreverValue = 0;
     forever(){
         foreverValue += 1;
-        if(foreverValue == 1){
+        if(foreverValue is 1){
             continue;
         }
         println("forever " + foreverValue);
-        if(foreverValue == 2){
+        if(foreverValue is 2){
             break;
         }
     }

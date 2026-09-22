@@ -24,10 +24,10 @@ from lynxer.bytecode import (
     load_bytecode,
     run_bytecode,
 )
-from lynxer.lynxer import BinOpNode, Lexer, NumberNode, Parser, Token, run
+from lynxer.lynxer import BinOpNode, Error, Lexer, NumberNode, Parser, Token, run
 
 
-def execute(source: str, filename: str) -> tuple[str, object]:
+def execute(source: str, filename: str) -> tuple[str, Error | None]:
     output = io.StringIO()
     with contextlib.redirect_stdout(output):
         _, error = run(filename, source)
@@ -79,7 +79,7 @@ def collect(node, node_type, found=None):
 def native_available() -> bool:
     """Return whether the compiled native extension can be imported."""
     try:
-        import lynxer.cpp  # noqa: F401
+        import lynxer.cpp  # noqa: F401  # type: ignore[import-unresolved] — built extension module
     except Exception:  # noqa: BLE001
         return False
     return True
@@ -419,7 +419,7 @@ def test_ffi_callback_signatures() -> None:
     if not native_available():
         print("SKIP  ffiCallback signatures: native extension not built")
         return
-    import lynxer.cpp as cpp
+    from lynxer import cpp  # type: ignore[import-unresolved] — built extension module
 
     class _Target:
         def execute(self, *args):

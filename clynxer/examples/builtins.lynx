@@ -76,10 +76,10 @@ global main(){
     any marker = object();
     println(strOf(missing), " ", returnType(missing), " ", strOf(unnamed));
     println(strOf(marker), " ", returnType(marker));
-    assert(missing == missing);
-    assert(missing != sentinel("MISSING"));
-    assert(marker != object());
-    assert(2 + 2 == 4, "arithmetic is broken");
+    assert(missing is missing);
+    assert(missing isnt sentinel("MISSING"));
+    assert(marker isnt object());
+    assert(2 + 2 is 4, "arithmetic is broken");
 
     // native memory
     int address = memoryAllocate(16);
@@ -107,7 +107,7 @@ global main(){
     int count = 0;
     forever() {
         count = count + 1;
-        if (count == 3) { break; }
+        if (count is 3) { break; }
     }
     println(count);
 }

@@ -62,6 +62,6 @@ global main(){
 
     list empty = listRepeat(0, 0);
     println(global.math.median(empty));
-    println(global.math.median(empty) == 0.0);
+    println(global.math.median(empty) is 0.0);
     println(global.math.linspace(0.0, 1.0, 0));
 }

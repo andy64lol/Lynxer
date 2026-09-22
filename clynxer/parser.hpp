@@ -83,6 +83,8 @@ private:
 
     ExpressionPtr parseOrExpr();
 
+    ExpressionPtr parseXorExpr();
+
     ExpressionPtr parseAndExpr();
 
     ExpressionPtr parseNotExpr();

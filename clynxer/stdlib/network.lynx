@@ -51,7 +51,7 @@ global wsSendReceive(str name, str message) -> str {
 }
 global wsClose(str name) -> str { return global.nativeNetwork.wsClose(name); }
 global wsConnected(str name) -> bool {
-    return global.nativeNetwork.wsConnected(name) != 0;
+    return global.nativeNetwork.wsConnected(name) isnt 0;
 }
 
 global main(){}

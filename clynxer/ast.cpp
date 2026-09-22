@@ -1363,38 +1363,79 @@ UnaryExpression::UnaryExpression(std::string operation, ExpressionPtr operand,
     : operation_(std::move(operation)), operand_(std::move(operand)),
       line_(line), column_(column) {}
 
-Value UnaryExpression::evaluate(Environment& environment) const {
-    return applyUnary(operation_, operand_->evaluate(environment), line_,
-                      column_);
-}
-
 BinaryExpression::BinaryExpression(std::string operation, ExpressionPtr left,
                                    ExpressionPtr right, int line, int column)
     : operation_(std::move(operation)), left_(std::move(left)),
       right_(std::move(right)), line_(line), column_(column) {}
 
+namespace {
+
+// Symbolic spellings are kept working so existing sources still run, but the
+// keyword form is the one to use. Each returns the replacement keyword, or
+// nullptr when the spelling is already canonical.
+const char* deprecatedBinaryReplacement(const std::string& operation) {
+    if (operation == "==") return "is";
+    if (operation == "!=") return "isnt";
+    if (operation == "not is") return "isnt";
+    if (operation == "&&") return "and";
+    if (operation == "||") return "or";
+    if (operation == "!&&") return "nand";
+    if (operation == "!||") return "nor";
+    if (operation == "&") return "bitand";
+    if (operation == "|") return "bitor";
+    if (operation == "^") return "bitxor";
+    if (operation == "!&") return "bitnand";
+    if (operation == "!|") return "bitnor";
+    if (operation == "!^") return "bitxnor";
+    if (operation == "<<") return "bitleft";
+    if (operation == ">>") return "bitright";
+    return nullptr;
+}
+
+const char* deprecatedUnaryReplacement(const std::string& operation) {
+    if (operation == "!!") return "not";
+    if (operation == "~") return "bitnot";
+    return nullptr;
+}
+
+} // namespace
+
+Value UnaryExpression::evaluate(Environment& environment) const {
+    if (!warned_ && !environment.deprecationWarningSuppressed()) {
+        if (const char* replacement = deprecatedUnaryReplacement(operation_)) {
+            warned_ = true;
+            std::cerr << "Warning: line " << line_ << ", column " << column_
+                      << ": operator '" << operation_ << "' is deprecated; use '"
+                      << replacement << "' instead.\n";
+        }
+    }
+    return applyUnary(operation_, operand_->evaluate(environment), line_,
+                      column_);
+}
+
 Value BinaryExpression::evaluate(Environment& environment) const {
     const Value left = left_->evaluate(environment);
-    if (operation_ == "&&" && !isTruthy(left)) {
+    const bool isAnd = operation_ == "&&" || operation_ == "and";
+    const bool isOr = operation_ == "||" || operation_ == "or";
+    if (isAnd && !isTruthy(left)) {
         return false;
     }
-    if (operation_ == "||" && isTruthy(left)) {
+    if (isOr && isTruthy(left)) {
         return true;
     }
     const Value right = right_->evaluate(environment);
 
-    if (operation_ == "&&") {
+    if (isAnd || isOr) {
         return isTruthy(right);
     }
-    if (operation_ == "||") {
-        return isTruthy(right);
-    }
-    if ((operation_ == "is" || operation_ == "not is") &&
-        !environment.deprecationWarningSuppressed()) {
-        std::cerr << "Warning: line " << line_ << ", column " << column_
-                  << ": Legacy equality operator '" << operation_
-                  << "' is deprecated; use '"
-                  << (operation_ == "is" ? "==" : "!=") << "' instead.\n";
+    if (!warned_ && !environment.deprecationWarningSuppressed()) {
+        if (const char* replacement =
+                deprecatedBinaryReplacement(operation_)) {
+            warned_ = true;
+            std::cerr << "Warning: line " << line_ << ", column " << column_
+                      << ": operator '" << operation_ << "' is deprecated; use '"
+                      << replacement << "' instead.\n";
+        }
     }
     return applyBinary(binOpFromString(operation_, line_, column_), left,
                        right, line_, column_);

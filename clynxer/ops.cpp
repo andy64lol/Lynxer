@@ -107,7 +107,24 @@ BinOp binOpFromString(const std::string& operation, int line, int column) {
     if (operation == "/%") return BinOp::FloorDiv;
     if (operation == "!&&") return BinOp::LogicNand;
     if (operation == "!||") return BinOp::LogicNor;
+    // Keyword operators. These are the preferred spellings; the symbolic forms
+    // above are kept working so that existing sources still run. `and`/`or` are
+    // absent here on purpose: they short-circuit in BinaryExpression::evaluate
+    // and never reach this table.
     if (operation == "is") return BinOp::Eq;
+    if (operation == "isnt") return BinOp::Neq;
+    if (operation == "nand") return BinOp::LogicNand;
+    if (operation == "nor") return BinOp::LogicNor;
+    if (operation == "xor") return BinOp::LogicXor;
+    if (operation == "xnor") return BinOp::LogicXnor;
+    if (operation == "bitand") return BinOp::BitAnd;
+    if (operation == "bitor") return BinOp::BitOr;
+    if (operation == "bitxor") return BinOp::BitXor;
+    if (operation == "bitnand") return BinOp::BitNand;
+    if (operation == "bitnor") return BinOp::BitNor;
+    if (operation == "bitxnor") return BinOp::BitXnor;
+    if (operation == "bitleft") return BinOp::Shl;
+    if (operation == "bitright") return BinOp::Shr;
     if (operation == "not is") return BinOp::Neq;
     throw SourceError("unsupported binary operator '" + operation + "'",
                       line, column);
@@ -237,11 +254,21 @@ Value applyBinary(BinOp op, const Value& left, const Value& right, int line,
         }
 
     case BinOp::LogicNand:
-    case BinOp::LogicNor: {
+    case BinOp::LogicNor:
+    case BinOp::LogicXor:
+    case BinOp::LogicXnor: {
         const bool leftTruthy = isTruthy(left);
         const bool rightTruthy = isTruthy(right);
-        if (op == BinOp::LogicNand) return !(leftTruthy && rightTruthy);
-        return !(leftTruthy || rightTruthy);
+        switch (op) {
+        case BinOp::LogicNand:
+            return !(leftTruthy && rightTruthy);
+        case BinOp::LogicNor:
+            return !(leftTruthy || rightTruthy);
+        case BinOp::LogicXor:
+            return leftTruthy != rightTruthy;
+        default:
+            return leftTruthy == rightTruthy;
+        }
     }
 
     case BinOp::Eq:
@@ -273,12 +300,14 @@ Value applyBinary(BinOp op, const Value& left, const Value& right, int line,
 
 Value applyUnary(const std::string& operation, const Value& value, int line,
                  int column) {
-    if (operation == "!!") {
+    if (operation == "!!" || operation == "not") {
         return !isTruthy(value);
     }
-    if (operation == "~") {
+    if (operation == "~" || operation == "bitnot") {
         if (!std::holds_alternative<std::int64_t>(value)) {
-            throw SourceError("'~' requires an integer operand", line, column);
+            throw SourceError("'" + operation +
+                                  "' requires an integer operand",
+                              line, column);
         }
         return ~std::get<std::int64_t>(value);
     }

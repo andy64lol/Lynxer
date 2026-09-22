@@ -56,7 +56,7 @@ global clear() { global.nativeTui.clear(); }
 global ask(str prompt) -> str { return global.nativeTui.ask(prompt); }
 
 // Reads a yes/no answer. Returns 1 for yes and 0 for no.
-global confirm(str prompt) -> bool { return global.nativeTui.confirm(prompt) != 0; }
+global confirm(str prompt) -> bool { return global.nativeTui.confirm(prompt) isnt 0; }
 
 // ── Console configuration ─────────────────────────────────────────────
 
@@ -78,7 +78,7 @@ global consoleSaveHtml(str path) -> str { return global.nativeTui.consoleSaveHtm
 
 // Markup and styles.
 global markupEscape(str text) -> str { return global.nativeTui.markupEscape(text); }
-global styleValid(str style) -> bool { return global.nativeTui.styleValid(style) != 0; }
+global styleValid(str style) -> bool { return global.nativeTui.styleValid(style) isnt 0; }
 
 global printTextStyle(str text, str style) { global.nativeTui.printTextStyle(text, style); }
 global printTextPlain(str text) { global.nativeTui.printTextPlain(text); }
@@ -143,7 +143,7 @@ global askInt(str prompt) -> int { return global.nativeTui.askInt(prompt); }
 global askFloat(str prompt) -> float { return global.nativeTui.askFloat(prompt); }
 global askDefault(str prompt, str defaultValue) -> str { return global.nativeTui.askDefault(prompt, defaultValue); }
 global confirmDefault(str prompt, bool defaultValue) -> bool {
-    return global.nativeTui.confirmDefault(prompt, defaultValue) != 0;
+    return global.nativeTui.confirmDefault(prompt, defaultValue) isnt 0;
 }
 
 // ── TUI mode ──────────────────────────────────────────────────────────

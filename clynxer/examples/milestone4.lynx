@@ -3,21 +3,21 @@ global setup(){}
 global main(){
     int left = 6;
     int right = 3;
-    println(left & right);
-    println(left | right);
-    println(left ^ right);
-    println(left !& right);
-    println(left !^ right);
-    println(left !| right);
-    println(~left);
-    println(right << 2);
-    println(16 >> 2);
+    println(left bitand right);
+    println(left bitor right);
+    println(left bitxor right);
+    println(left bitnand right);
+    println(left bitxnor right);
+    println(left bitnor right);
+    println(bitnot left);
+    println(right bitleft 2);
+    println(16 bitright 2);
     println(2 ** 5);
     println(-7 /% right);
     bool yes = true;
     bool no = false;
-    println(yes !&& yes);
-    println(no !|| no);
+    println(yes nand yes);
+    println(no nor no);
     println(yes and not no);
 
     if(false){

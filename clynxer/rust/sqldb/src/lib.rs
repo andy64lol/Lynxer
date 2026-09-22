@@ -6,6 +6,8 @@
 //! work and closes it again. Structured results are returned as JSON strings,
 //! errors as `"ERROR: <message>"`.
 
+use base64::engine::general_purpose::STANDARD;
+use base64::Engine as _;
 use clynxer_abi::{export_int, export_string, lynxer_module};
 use rusqlite::{Connection, Result as SqlResult};
 use std::path::Path;
@@ -254,9 +256,7 @@ fn parse_params_json(json: &str) -> Result<Vec<rusqlite::types::Value>, String> 
     for value in parsed {
         params.push(match value {
             serde_json::Value::Null => rusqlite::types::Value::Null,
-            serde_json::Value::Bool(b) => {
-                rusqlite::types::Value::Integer(b as i64)
-            }
+            serde_json::Value::Bool(b) => rusqlite::types::Value::Integer(b as i64),
             serde_json::Value::Number(n) => {
                 if let Some(i) = n.as_i64() {
                     rusqlite::types::Value::Integer(i)
@@ -266,9 +266,7 @@ fn parse_params_json(json: &str) -> Result<Vec<rusqlite::types::Value>, String> 
                     return Err("Invalid number".to_string());
                 }
             }
-            serde_json::Value::String(s) => {
-                rusqlite::types::Value::Text(s)
-            }
+            serde_json::Value::String(s) => rusqlite::types::Value::Text(s),
             _ => return Err("Unsupported parameter type".to_string()),
         });
     }
@@ -278,18 +276,15 @@ fn parse_params_json(json: &str) -> Result<Vec<rusqlite::types::Value>, String> 
 fn value_to_json(value: rusqlite::types::Value) -> serde_json::Value {
     match value {
         rusqlite::types::Value::Null => serde_json::Value::Null,
-        rusqlite::types::Value::Integer(i) => serde_json::Value::Number(
-            serde_json::Number::from(i),
-        ),
-        rusqlite::types::Value::Real(f) => {
-            serde_json::Number::from_f64(f).map_or(serde_json::Value::Null, |n| {
-                serde_json::Value::Number(n)
-            })
+        rusqlite::types::Value::Integer(i) => {
+            serde_json::Value::Number(serde_json::Number::from(i))
         }
+        rusqlite::types::Value::Real(f) => serde_json::Number::from_f64(f)
+            .map_or(serde_json::Value::Null, |n| serde_json::Value::Number(n)),
         rusqlite::types::Value::Text(s) => serde_json::Value::String(s),
         rusqlite::types::Value::Blob(b) => {
             // Encode blobs as base64 strings for JSON compatibility.
-            let b64 = base64::encode(&b);
+            let b64 = STANDARD.encode(&b);
             serde_json::Value::String(b64)
         }
     }

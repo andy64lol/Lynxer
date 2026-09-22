@@ -11,7 +11,7 @@ global setup(){ importAs("re.so", "nativeRe"); }
 
 // Return true if pattern matches anywhere in string.
 global test(str pattern, str string) -> bool {
-    return global.nativeRe.test(pattern, string) != 0;
+    return global.nativeRe.test(pattern, string) isnt 0;
 }
 // Match pattern at the start of string; returns the match or "".
 global match(str pattern, str string) -> str {
@@ -80,7 +80,7 @@ global findSpans(str pattern, str string) -> str {
     return global.nativeRe.findSpans(pattern, string);
 }
 global testIgnoreCase(str pattern, str string) -> bool {
-    return global.nativeRe.testIgnoreCase(pattern, string) != 0;
+    return global.nativeRe.testIgnoreCase(pattern, string) isnt 0;
 }
 global matchIgnoreCase(str pattern, str string) -> str {
     return global.nativeRe.matchIgnoreCase(pattern, string);

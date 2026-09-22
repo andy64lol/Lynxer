@@ -47,7 +47,7 @@ global setup(){
 // without aborting so a single run lists every failing check.
 global check(any actual, str expected, str label){
     str rendered = strOf(actual);
-    if(rendered == expected){
+    if(rendered is expected){
         println("ok   ", label);
         return 0;
     }
@@ -122,7 +122,7 @@ global main(){
     fails += global.check(global.math.percentile(pair, 25.0), "3.25", "math.percentile.pair");
     list noneList = listRepeat(0, 0);
     fails += global.check(global.math.median(noneList), "0", "math.median.empty");
-    fails += global.check(global.math.median(noneList) == 0.0, "true", "math.median.empty.eq");
+    fails += global.check(global.math.median(noneList) is 0.0, "true", "math.median.empty.eq");
     fails += global.check(global.math.linspace(0.0, 1.0, 0), "[]", "math.linspace.empty");
 
     // ---------------------------------------------------------------- typing
@@ -168,15 +168,15 @@ global main(){
 
     // -------------------------------------------------------------- colorlib
     println("== colorlib ==");
-    fails += global.check(global.colorlib.red("x") == global.colorlib.ansi("x", "31"), "true", "colorlib.red");
-    fails += global.check(global.colorlib.bgBlue("x") == global.colorlib.ansi("x", "44"), "true", "colorlib.bgBlue");
-    fails += global.check(global.colorlib.bold("x") == global.colorlib.ansi("x", "1"), "true", "colorlib.bold");
-    fails += global.check(global.colorlib.error("x") == global.colorlib.ansi("x", "1;31"), "true", "colorlib.error");
-    fails += global.check(global.colorlib.success("x") == global.colorlib.ansi("x", "1;32"), "true", "colorlib.success");
+    fails += global.check(global.colorlib.red("x") is global.colorlib.ansi("x", "31"), "true", "colorlib.red");
+    fails += global.check(global.colorlib.bgBlue("x") is global.colorlib.ansi("x", "44"), "true", "colorlib.bgBlue");
+    fails += global.check(global.colorlib.bold("x") is global.colorlib.ansi("x", "1"), "true", "colorlib.bold");
+    fails += global.check(global.colorlib.error("x") is global.colorlib.ansi("x", "1;31"), "true", "colorlib.error");
+    fails += global.check(global.colorlib.success("x") is global.colorlib.ansi("x", "1;32"), "true", "colorlib.success");
     fails += global.check(returnLength(global.colorlib.reset()) > 0, "true", "colorlib.reset");
     fails += global.check(returnLength(global.colorlib.clearScreen()) > 0, "true", "colorlib.clearScreen");
     fails += global.check(returnLength(global.colorlib.cursorHome()) > 0, "true", "colorlib.cursorHome");
-    fails += global.check(global.colorlib.ansi("x", "90") != global.colorlib.ansi("x", "30"), "true", "colorlib.brightDistinct");
+    fails += global.check(global.colorlib.ansi("x", "90") isnt global.colorlib.ansi("x", "30"), "true", "colorlib.brightDistinct");
 
     // ------------------------------------------------------------------ json
     println("== json ==");
@@ -341,9 +341,9 @@ global main(){
     fails += global.check(global.path.suffixes(".bashrc"), "[]", "path.suffixes.none");
     fails += global.check(global.path.parent("/x/y.txt"), "/x", "path.parent");
     fails += global.check(global.path.anchor("/x/y"), "/", "path.anchor");
-    fails += global.check(global.path.anchor("x/y") == "", "true", "path.anchor.empty");
+    fails += global.check(global.path.anchor("x/y") is "", "true", "path.anchor.empty");
     fails += global.check(global.path.root("/x/y"), "/", "path.root");
-    fails += global.check(global.path.drive("/x/y") == "", "true", "path.drive");
+    fails += global.check(global.path.drive("/x/y") is "", "true", "path.drive");
     fails += global.check(global.path.isAbsolute("/x"), "true", "path.isAbsolute.true");
     fails += global.check(global.path.isAbsolute("x"), "false", "path.isAbsolute.false");
     fails += global.check(global.path.parts("/a/b/c"), "[/, a, b, c]", "path.parts.absolute");
@@ -355,13 +355,13 @@ global main(){
     fails += global.check(global.path.match("/a/b/c.py", "b/*.py"), "true", "path.match.glob");
     fails += global.check(global.path.match("/a/b/c.py", "*.txt"), "false", "path.match.false");
     fails += global.check(global.path.relativeTo("/a/b/c", "/a/b"), "c", "path.relativeTo");
-    fails += global.check(global.path.relativeTo("/a/b", "/x") == "", "true", "path.relativeTo.empty");
+    fails += global.check(global.path.relativeTo("/a/b", "/x") is "", "true", "path.relativeTo.empty");
     fails += global.check(global.path.withName("/a/b.txt", "c.md"), "/a/c.md", "path.withName");
     fails += global.check(global.path.withSuffix("/a/b.txt", ".md"), "/a/b.md", "path.withSuffix");
     fails += global.check(global.path.withSuffix("/a/b.txt", ""), "/a/b", "path.withSuffix.none");
     fails += global.check(global.path.withName("b.txt", "c.md"), "c.md", "path.withName.relative");
     fails += global.check(global.path.withSuffix("noext", ".txt"), "noext.txt", "path.withSuffix.noext");
-    fails += global.check(global.path.expandUser("~") == global.path.home(), "true", "path.expandUser");
+    fails += global.check(global.path.expandUser("~") is global.path.home(), "true", "path.expandUser");
     fails += global.check(returnLength(global.path.cwd()) > 0, "true", "path.cwd");
     fails += global.check(global.path.asUri("/tmp/a b"), "file:///tmp/a%20b", "path.asUri");
 
@@ -394,7 +394,7 @@ global main(){
     fails += global.check(global.path.exists(pathRoot + "/touched.txt"), "true", "path.exists.touched");
     fails += global.check(global.path.rename(pathRoot + "/touched.txt", pathRoot + "/moved.txt"), ".clynxer_scratch_path/moved.txt", "path.rename");
     fails += global.check(global.path.exists(pathRoot + "/moved.txt"), "true", "path.exists.moved");
-    fails += global.check(global.path.readText(pathRoot + "/missing") == "", "true", "path.readText.missing");
+    fails += global.check(global.path.readText(pathRoot + "/missing") is "", "true", "path.readText.missing");
     fails += global.check(global.path.size(pathRoot + "/missing"), "-1", "path.size.missing");
     fails += global.check(global.path.modifiedTime(pathRoot + "/missing"), "-1", "path.modifiedTime.missing");
     fails += global.check(global.path.mkdirs(pathRoot + "/sub/deep"), "true", "path.mkdirs.existing");
@@ -417,7 +417,7 @@ global main(){
     global.fileIO.writeFile(osRoot + "/three.log", "3");
     fails += global.check(sortList(global.os.listdir(osRoot)), "[a, one.txt, three.log, two.txt]", "os.listdir");
     fails += global.check(sortList(global.os.listdirExt(osRoot, ".txt")), "[one.txt, two.txt]", "os.listdirExt");
-    fails += global.check(global.os.walkFiles(osRoot) == "", "false", "os.walkFiles");
+    fails += global.check(global.os.walkFiles(osRoot) is "", "false", "os.walkFiles");
     fails += global.check(global.os.isFile(osRoot + "/one.txt"), "true", "os.isFile");
     fails += global.check(global.os.joinPath("a", "b"), "a/b", "os.joinPath");
     fails += global.check(global.os.joinPath("a/", "b"), "a/b", "os.joinPath.trailing");
@@ -435,8 +435,8 @@ global main(){
     fails += global.check(global.os.diskFree(osRoot) > 0, "true", "os.diskFree");
     fails += global.check(global.os.setenv("CLYNXER_OS_TEST", "hello"), "true", "os.setenv");
     fails += global.check(global.os.getenv("CLYNXER_OS_TEST"), "hello", "os.getenv");
-    fails += global.check(global.os.getenv("CLYNXER_OS_MISSING") == "", "true", "os.getenv.missing");
-    fails += global.check(global.os.expandUser("~") == global.os.homedir(), "true", "os.expandUser");
+    fails += global.check(global.os.getenv("CLYNXER_OS_MISSING") is "", "true", "os.getenv.missing");
+    fails += global.check(global.os.expandUser("~") is global.os.homedir(), "true", "os.expandUser");
     fails += global.check(returnLength(global.os.homedir()) > 0, "true", "os.homedir");
     fails += global.check(returnLength(global.os.username()) > 0, "true", "os.username");
     fails += global.check(returnLength(global.os.hostname()) > 0, "true", "os.hostname");
@@ -451,9 +451,9 @@ global main(){
     fails += global.check(global.os.exists(osRoot), "false", "os.rmTree.exists");
     fails += global.check(returnLength(global.os.getSystemName()) > 0, "true", "os.getSystemName");
     fails += global.check(global.os.getSystemArchitecture(), "64bit", "os.getSystemArchitecture");
-    fails += global.check(global.os.getSystemUname() != "{}", "true", "os.getSystemUname");
+    fails += global.check(global.os.getSystemUname() isnt "{}", "true", "os.getSystemUname");
     fails += global.check(returnLength(global.os.getSystemDistro()) > 2, "true", "os.getSystemDistro");
-    fails += global.check(global.os.getPythonVersion() == "", "true", "os.getPythonVersion");
+    fails += global.check(global.os.getPythonVersion() is "", "true", "os.getPythonVersion");
     fails += global.check(global.os.getPythonImplementation(), "CLynxer", "os.getPythonImplementation");
     fails += global.check(returnLength(global.os.getSystemInfo()) > 2, "true", "os.getSystemInfo");
 
@@ -482,9 +482,9 @@ global main(){
     fails += global.check(global.fileIO.deleteFile(scratch + ".mov"), "true", "fileIO.deleteFile");
     fails += global.check(global.fileIO.fileExists(scratch + ".mov"), "false", "fileIO.deleteFile.gone");
     fails += global.check(global.fileIO.deleteFile(scratch), "true", "fileIO.deleteFile.main");
-    fails += global.check(global.fileIO.readFile(scratch) == "", "true", "fileIO.readFile.missing");
+    fails += global.check(global.fileIO.readFile(scratch) is "", "true", "fileIO.readFile.missing");
     fails += global.check(returnLength(global.fileIO.readLines(scratch)), "0", "fileIO.readLines.missing");
-    fails += global.check(global.fileIO.fileModTime(scratch) == "", "true", "fileIO.fileModTime.missing");
+    fails += global.check(global.fileIO.fileModTime(scratch) is "", "true", "fileIO.fileModTime.missing");
     fails += global.check(global.fileIO.countLines(scratch), "-1", "fileIO.countLines.missing");
     str temp = global.fileIO.tempFile(".tmp");
     fails += global.check(returnLength(temp) > 0, "true", "fileIO.tempFile");
@@ -526,11 +526,11 @@ global main(){
     println("== cli ==");
     fails += global.check(global.cli.clickExists(), "false", "cli.clickExists");
     fails += global.check(global.cli.typerExists(), "false", "cli.typerExists");
-    fails += global.check(global.cli.clickVersion() == "", "true", "cli.clickVersion");
-    fails += global.check(global.cli.typerVersion() == "", "true", "cli.typerVersion");
+    fails += global.check(global.cli.clickVersion() is "", "true", "cli.clickVersion");
+    fails += global.check(global.cli.typerVersion() is "", "true", "cli.typerVersion");
     fails += global.check(global.cli.argCount() >= 2, "true", "cli.argCount");
-    fails += global.check(global.cli.getArg(0) != "", "true", "cli.getArg");
-    fails += global.check(global.cli.getArg(99) == "", "true", "cli.getArg.oob");
+    fails += global.check(global.cli.getArg(0) isnt "", "true", "cli.getArg");
+    fails += global.check(global.cli.getArg(99) is "", "true", "cli.getArg.oob");
     global.os.setenv("CLYNXER_CLI_TEST", "hello");
     fails += global.check(global.cli.envGet("CLYNXER_CLI_TEST"), "hello", "cli.envGet");
     fails += global.check(global.cli.envHas("CLYNXER_CLI_TEST"), "true", "cli.envHas.true");
@@ -549,8 +549,8 @@ global main(){
     fails += global.check(global.cli.isDirectory(cliScratch), "true", "cli.isDirectory");
     fails += global.check(global.cli.isDirectory(cliScratch + "/probe.txt"), "false", "cli.isDirectory.file");
     fails += global.check(global.os.rmTree(cliScratch), "true", "cli.scratch.cleanup");
-    fails += global.check(global.cli.which("sh") != "", "true", "cli.which.true");
-    fails += global.check(global.cli.which("definitely-not-a-command") == "", "true", "cli.which.false");
+    fails += global.check(global.cli.which("sh") isnt "", "true", "cli.which.true");
+    fails += global.check(global.cli.which("definitely-not-a-command") is "", "true", "cli.which.false");
     global.cli.writeStdout("written\n");
     fails += global.check(global.cli.run("printf cli-ok", true), "cli-ok", "cli.run.capture");
     fails += global.check(global.cli.run("true", false), "0", "cli.run.ok");
@@ -582,8 +582,8 @@ global main(){
     global.debug.startTimer("t");
     fails += global.check(global.debug.stopTimer("t") >= 0.0, "true", "debug.stopTimer");
     fails += global.check(global.debug.elapsed("t"), "-1", "debug.elapsed.stopped");
-    fails += global.check(global.debug.envGet("CLYNXER_DEBUG_TEST") == "", "true", "debug.envGet.missing");
-    fails += global.check(global.debug.envAll() != "", "true", "debug.envAll");
+    fails += global.check(global.debug.envGet("CLYNXER_DEBUG_TEST") is "", "true", "debug.envGet.missing");
+    fails += global.check(global.debug.envAll() isnt "", "true", "debug.envAll");
     fails += global.check(global.debug.getMemory() > 0.0, "true", "debug.getMemory");
 
     // ------------------------------------------------------------------ time
@@ -642,7 +642,7 @@ global main(){
     fails += global.check(returnLength(global.sys.apiVersion()) > 0, "true", "sys.apiVersion");
     fails += global.check(global.sys.isFrozen(), "false", "sys.isFrozen");
     fails += global.check(global.sys.getpid() > 0, "true", "sys.getpid");
-    fails += global.check(global.sys.getMaxSize() != 0, "true", "sys.getMaxSize");
+    fails += global.check(global.sys.getMaxSize() isnt 0, "true", "sys.getMaxSize");
     fails += global.check(global.sys.getByteOrder(), "little", "sys.getByteOrder");
     fails += global.check(global.sys.getDefaultEncoding(), "utf-8", "sys.getDefaultEncoding");
     fails += global.check(global.sys.getFilesystemEncoding(), "utf-8", "sys.getFilesystemEncoding");
@@ -651,7 +651,7 @@ global main(){
     fails += global.check(returnLength(global.sys.executable()) > 0, "true", "sys.executable");
     fails += global.check(returnLength(global.sys.prefix()) > 0, "true", "sys.prefix");
     fails += global.check(returnLength(global.sys.execPrefix()) > 0, "true", "sys.execPrefix");
-    fails += global.check(global.sys.argv() != "", "true", "sys.argv");
+    fails += global.check(global.sys.argv() isnt "", "true", "sys.argv");
     fails += global.check(global.sys.argCount() >= 2, "true", "sys.argCount");
     fails += global.check(returnLength(global.sys.getArg(0)) > 0, "true", "sys.getArg");
 
@@ -701,7 +701,7 @@ global main(){
     fails += global.check(strOf(global.image.getWidth(blended)) + "x" + strOf(global.image.getHeight(blended)), "2x2", "image.blend");
     str encoded = global.image.toBase64(img, "png");
     fails += global.check(returnLength(encoded) > 0, "true", "image.toBase64");
-    fails += global.check(global.image.toDataUrl(img, "png") != "", "true", "image.toDataUrl");
+    fails += global.check(global.image.toDataUrl(img, "png") isnt "", "true", "image.toDataUrl");
     int decoded = global.image.fromBase64(encoded);
     fails += global.check(strOf(global.image.getWidth(decoded)) + "x" + strOf(global.image.getHeight(decoded)), "2x2", "image.fromBase64");
     fails += global.check(global.image.info(decoded), "{\"width\":2,\"height\":2,\"mode\":\"RGBA\",\"format\":\"PNG\"}", "image.info");
@@ -1085,5 +1085,5 @@ global main(){
     // ===== END CHECKS =====
 
     println("=== stdlibTestAll: ", strOf(fails), " failure(s) ===");
-    assert(fails == 0, "stdlibTestAll: " + strOf(fails) + " check(s) failed");
+    assert(fails is 0, "stdlibTestAll: " + strOf(fails) + " check(s) failed");
 }

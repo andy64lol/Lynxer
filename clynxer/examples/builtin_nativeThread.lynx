@@ -38,7 +38,7 @@ global main(){
     // Join-all joins every thread that is still running.
     int first = nativeThreadStart(global.quietWorker, [int 1]);
     int second = nativeThreadStart(global.quietWorker, [int 2]);
-    println(first != second);
+    println(first isnt second);
     println(nativeThreadJoinAll());
 
     // A detached thread is never joined, and says so.

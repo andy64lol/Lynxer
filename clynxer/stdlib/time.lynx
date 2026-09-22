@@ -29,7 +29,7 @@ global getWeekdayNum() -> int { return global.nativeTime.getWeekdayNum(); }
 global getWeekday() -> str { return global.nativeTime.getWeekday(); }
 global timestamp() -> float { return global.nativeTime.timestamp(); }
 global isLeapYear(int year) -> bool {
-    return global.nativeTime.isLeapYear(year) != 0;
+    return global.nativeTime.isLeapYear(year) isnt 0;
 }
 global daysInMonth(int year, int month) -> int {
     return global.nativeTime.daysInMonth(year, month);

@@ -8,11 +8,11 @@ global setup(){ import("cli"); import("os"); import("fileIO"); }
 global main(){
     println(global.cli.clickExists());
     println(global.cli.typerExists());
-    println(global.cli.clickVersion() == "");
-    println(global.cli.typerVersion() == "");
+    println(global.cli.clickVersion() is "");
+    println(global.cli.typerVersion() is "");
     println(global.cli.argCount() >= 2);
-    println(global.cli.getArg(0) != "");
-    println(global.cli.getArg(99) == "");
+    println(global.cli.getArg(0) isnt "");
+    println(global.cli.getArg(99) is "");
 
     global.os.setenv("CLYNXER_CLI_TEST", "hello");
     println(global.cli.envGet("CLYNXER_CLI_TEST"));
@@ -30,8 +30,8 @@ global main(){
     println(global.cli.isFile(scratch));
     println(global.cli.isDirectory("."));
     global.fileIO.deleteFile(scratch);
-    println(global.cli.which("sh") != "");
-    println(global.cli.which("definitely-not-a-command") == "");
+    println(global.cli.which("sh") isnt "");
+    println(global.cli.which("definitely-not-a-command") is "");
 
     global.cli.writeStdout("written\n");
     println(global.cli.run("printf cli-ok", true));

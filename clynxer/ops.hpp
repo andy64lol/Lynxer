@@ -35,6 +35,8 @@ enum class BinOp {
     FloorDiv,
     LogicNand,
     LogicNor,
+    LogicXor,
+    LogicXnor,
 };
 
 // Maps a source-level operator symbol to its enum. Unknown symbols raise

@@ -34,7 +34,7 @@ global wsEcho(str path) -> str { return global.nativeServer.wsEcho(path); }
 global clearRoutes() -> str { return global.nativeServer.clearRoutes(); }
 global start(int port) -> str { return global.nativeServer.start(port); }
 global stop() -> str { return global.nativeServer.stop(); }
-global running() -> bool { return global.nativeServer.running() != 0; }
+global running() -> bool { return global.nativeServer.running() isnt 0; }
 global port() -> int { return global.nativeServer.port(); }
 
 global main(){}

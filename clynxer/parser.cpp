@@ -1145,43 +1145,58 @@ StatementList Parser::parseLoopBlock(const std::string& description) {
 
 ExpressionPtr Parser::parseExpression() { return parseOrExpr(); }
 
-// or / || / !||  (lowest precedence)
+// or / nor  (lowest precedence). The symbolic || and !|| are the deprecated
+// spellings; the operator is stored as written so the runtime can warn.
 ExpressionPtr Parser::parseOrExpr() {
-    ExpressionPtr expression = parseAndExpr();
-    while (match("||") || matchKeyword("or") || match("!||")) {
+    ExpressionPtr expression = parseXorExpr();
+    while (matchKeyword("or") || matchKeyword("nor") || match("||") ||
+           match("!||")) {
         const Token operation = previous();
-        const std::string op = operation.text == "or" ? "||" : operation.text;
         expression = std::make_unique<BinaryExpression>(
-            op, std::move(expression), parseAndExpr(), operation.line,
-            operation.column);
+            operation.text, std::move(expression), parseXorExpr(),
+            operation.line, operation.column);
     }
     return expression;
 }
 
-// and / && / !&&
+// Logical xor / xnor. These are new operations with no symbolic predecessor,
+// so they sit on their own level between `or` and `and`.
+ExpressionPtr Parser::parseXorExpr() {
+    ExpressionPtr expression = parseAndExpr();
+    while (matchKeyword("xor") || matchKeyword("xnor")) {
+        const Token operation = previous();
+        expression = std::make_unique<BinaryExpression>(
+            operation.text, std::move(expression), parseAndExpr(),
+            operation.line, operation.column);
+    }
+    return expression;
+}
+
+// and / nand
 ExpressionPtr Parser::parseAndExpr() {
     ExpressionPtr expression = parseNotExpr();
-    while (match("&&") || matchKeyword("and") || match("!&&")) {
+    while (matchKeyword("and") || matchKeyword("nand") || match("&&") ||
+           match("!&&")) {
         const Token operation = previous();
-        const std::string op = operation.text == "and" ? "&&" : operation.text;
         expression = std::make_unique<BinaryExpression>(
-            op, std::move(expression), parseNotExpr(), operation.line,
-            operation.column);
+            operation.text, std::move(expression), parseNotExpr(),
+            operation.line, operation.column);
     }
     return expression;
 }
 
-// unary logical NOT: '!!' or the 'not' keyword
+// unary logical NOT: the 'not' keyword; '!!' is the deprecated spelling.
 ExpressionPtr Parser::parseNotExpr() {
-    if (match("!!") || matchKeyword("not")) {
+    if (matchKeyword("not") || match("!!")) {
         const Token operation = previous();
         return std::make_unique<UnaryExpression>(
-            "!!", parseNotExpr(), operation.line, operation.column);
+            operation.text, parseNotExpr(), operation.line, operation.column);
     }
     return parseCompExpr();
 }
 
-// comparisons, legacy 'is' / 'not is'
+// Equality ('is' / 'isnt'; '==', '!=' and 'not is' are deprecated), then the
+// ordering comparisons, which keep their symbolic spelling.
 ExpressionPtr Parser::parseCompExpr() {
     ExpressionPtr expression = parseBitwiseOr();
     if (checkKeyword("not") && peekAt(1).text == "is") {
@@ -1193,12 +1208,12 @@ ExpressionPtr Parser::parseCompExpr() {
             operation.column);
         return expression;
     }
-    if (matchKeyword("is")) {
+    if (matchKeyword("is") || matchKeyword("isnt")) {
         const Token operation = previous();
         ExpressionPtr right = parseBitwiseOr();
         expression = std::make_unique<BinaryExpression>(
-            "is", std::move(expression), std::move(right), operation.line,
-            operation.column);
+            operation.text, std::move(expression), std::move(right),
+            operation.line, operation.column);
         return expression;
     }
     while (match("==") || match("!=") || match("<") || match("<=") ||
@@ -1211,10 +1226,11 @@ ExpressionPtr Parser::parseCompExpr() {
     return expression;
 }
 
-// | / !|
+// bitor / bitnor  (| and !| are the deprecated spellings)
 ExpressionPtr Parser::parseBitwiseOr() {
     ExpressionPtr expression = parseBitwiseXor();
-    while (match("|") || match("!|")) {
+    while (matchKeyword("bitor") || matchKeyword("bitnor") || match("|") ||
+           match("!|")) {
         const Token operation = previous();
         expression = std::make_unique<BinaryExpression>(
             operation.text, std::move(expression), parseBitwiseXor(),
@@ -1223,10 +1239,11 @@ ExpressionPtr Parser::parseBitwiseOr() {
     return expression;
 }
 
-// ^ / !^
+// bitxor / bitxnor  (^ and !^ are deprecated)
 ExpressionPtr Parser::parseBitwiseXor() {
     ExpressionPtr expression = parseBitwiseAnd();
-    while (match("^") || match("!^")) {
+    while (matchKeyword("bitxor") || matchKeyword("bitxnor") || match("^") ||
+           match("!^")) {
         const Token operation = previous();
         expression = std::make_unique<BinaryExpression>(
             operation.text, std::move(expression), parseBitwiseAnd(),
@@ -1235,10 +1252,11 @@ ExpressionPtr Parser::parseBitwiseXor() {
     return expression;
 }
 
-// & / !&
+// bitand / bitnand  (& and !& are deprecated)
 ExpressionPtr Parser::parseBitwiseAnd() {
     ExpressionPtr expression = parseShift();
-    while (match("&") || match("!&")) {
+    while (matchKeyword("bitand") || matchKeyword("bitnand") || match("&") ||
+           match("!&")) {
         const Token operation = previous();
         expression = std::make_unique<BinaryExpression>(
             operation.text, std::move(expression), parseShift(),
@@ -1247,10 +1265,11 @@ ExpressionPtr Parser::parseBitwiseAnd() {
     return expression;
 }
 
-// << >>
+// bitleft / bitright  (<< and >> are deprecated)
 ExpressionPtr Parser::parseShift() {
     ExpressionPtr expression = parseArith();
-    while (match("<<") || match(">>")) {
+    while (matchKeyword("bitleft") || matchKeyword("bitright") ||
+           match("<<") || match(">>")) {
         const Token operation = previous();
         expression = std::make_unique<BinaryExpression>(
             operation.text, std::move(expression), parseArith(),
@@ -1325,12 +1344,12 @@ static Value integerLiteralValue(const std::string& text, const Token& token) {
                       token.line, token.column);
 }
 
-// unary + - ~  (highest precedence, recursive)
+// unary + - bitnot  (~ is the deprecated spelling, highest precedence, recursive)
 ExpressionPtr Parser::parseFactor() {
     if (match("+")) {
         return parseFactor();
     }
-    if (match("-") || match("~")) {
+    if (match("-") || match("~") || matchKeyword("bitnot")) {
         const Token operation = previous();
         // Fold a leading '-' into the literal so that -9223372036854775808
         // (INT64_MIN, whose magnitude does not fit a signed 64-bit integer)

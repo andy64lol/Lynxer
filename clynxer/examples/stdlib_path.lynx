@@ -13,9 +13,9 @@ global main(){
     println(global.path.suffixes(".bashrc"));
     println(global.path.parent("/x/y.txt"));
     println(global.path.anchor("/x/y"));
-    println(global.path.anchor("x/y") == "");
+    println(global.path.anchor("x/y") is "");
     println(global.path.root("/x/y"));
-    println(global.path.drive("/x/y") == "");
+    println(global.path.drive("/x/y") is "");
     println(global.path.isAbsolute("/x"));
     println(global.path.isAbsolute("x"));
     println(global.path.parts("/a/b/c"));
@@ -27,13 +27,13 @@ global main(){
     println(global.path.match("/a/b/c.py", "b/*.py"));
     println(global.path.match("/a/b/c.py", "*.txt"));
     println(global.path.relativeTo("/a/b/c", "/a/b"));
-    println(global.path.relativeTo("/a/b", "/x") == "");
+    println(global.path.relativeTo("/a/b", "/x") is "");
     println(global.path.withName("/a/b.txt", "c.md"));
     println(global.path.withSuffix("/a/b.txt", ".md"));
     println(global.path.withSuffix("/a/b.txt", ""));
     println(global.path.withName("b.txt", "c.md"));
     println(global.path.withSuffix("noext", ".txt"));
-    println(global.path.expandUser("~") == global.path.home());
+    println(global.path.expandUser("~") is global.path.home());
     println(returnLength(global.path.cwd()) > 0);
     println(global.path.asUri("/tmp/a b"));
 
@@ -66,7 +66,7 @@ global main(){
     println(global.path.exists(root + "/touched.txt"));
     println(global.path.rename(root + "/touched.txt", root + "/moved.txt"));
     println(global.path.exists(root + "/moved.txt"));
-    println(global.path.readText(root + "/missing") == "");
+    println(global.path.readText(root + "/missing") is "");
     println(global.path.size(root + "/missing"));
     println(global.path.modifiedTime(root + "/missing"));
     println(global.path.mkdirs(root + "/sub/deep"));

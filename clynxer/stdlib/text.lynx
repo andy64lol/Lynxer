@@ -23,10 +23,10 @@ global repeat(str value, int count) -> str {
 }
 global trim(str value) -> str { return global.trim(value); }
 global contains(str value, str needle) -> bool {
-    if(needle == ""){ return true; }
+    if(needle is ""){ return true; }
     int index = 0;
     while(index <= returnLength(value) - returnLength(needle)){
-        if(substring(value, index, index + returnLength(needle)) == needle){
+        if(substring(value, index, index + returnLength(needle)) is needle){
             return true;
         }
         index = index + 1;
@@ -34,19 +34,19 @@ global contains(str value, str needle) -> bool {
     return false;
 }
 global startsWith(str value, str prefix) -> bool {
-    return substring(value, 0, returnLength(prefix)) == prefix;
+    return substring(value, 0, returnLength(prefix)) is prefix;
 }
 global endsWith(str value, str suffix) -> bool {
     int start = returnLength(value) - returnLength(suffix);
     if(start < 0){ return false; }
-    return substring(value, start, returnLength(value)) == suffix;
+    return substring(value, start, returnLength(value)) is suffix;
 }
 global count(str value, str needle) -> int {
-    if(needle == ""){ return 0; }
+    if(needle is ""){ return 0; }
     int total = 0;
     int index = 0;
     while(index <= returnLength(value) - returnLength(needle)){
-        if(substring(value, index, index + returnLength(needle)) == needle){
+        if(substring(value, index, index + returnLength(needle)) is needle){
             total = total + 1;
             index = index + returnLength(needle);
         } else { index = index + 1; }
@@ -58,6 +58,6 @@ global replace(str value, str oldValue, str newValue) -> str {
 }
 global upper(str value) -> str { return global.upper(value); }
 global lower(str value) -> str { return global.lower(value); }
-global isEmpty(str value) -> bool { return returnLength(value) == 0; }
-global isBlank(str value) -> bool { return returnLength(global.trim(value)) == 0; }
+global isEmpty(str value) -> bool { return returnLength(value) is 0; }
+global isBlank(str value) -> bool { return returnLength(global.trim(value)) is 0; }
 global main(){}

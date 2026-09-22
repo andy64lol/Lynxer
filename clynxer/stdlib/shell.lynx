@@ -12,10 +12,10 @@ global runShellSilent(str command) -> int {
     return global.nativeShell.runShellSilent(command);
 }
 global commandExists(str command) -> bool {
-    return global.nativeShell.commandExists(command) != 0;
+    return global.nativeShell.commandExists(command) isnt 0;
 }
 global checkShell(str shell) -> bool {
-    return global.nativeShell.checkShell(shell) != 0;
+    return global.nativeShell.checkShell(shell) isnt 0;
 }
 global runShellCode(str command) -> int {
     return global.nativeShell.runShellCode(command);

@@ -73,6 +73,9 @@ private:
     ExpressionPtr operand_;
     int line_;
     int column_;
+    // The deprecated-spelling warning is emitted once per source location, not
+    // once per evaluation, so a loop body cannot flood stderr.
+    mutable bool warned_ = false;
 };
 
 // Clynxer executes async functions cooperatively on the interpreter thread.
@@ -112,6 +115,8 @@ private:
     ExpressionPtr right_;
     int line_;
     int column_;
+    // See UnaryExpression::warned_.
+    mutable bool warned_ = false;
 };
 
 class CallExpression final : public Expression {

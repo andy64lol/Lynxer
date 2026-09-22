@@ -1,7 +1,5 @@
 #include "types.hpp"
 
-#include "error.hpp"
-
 #include <cmath>
 #include <variant>
 
