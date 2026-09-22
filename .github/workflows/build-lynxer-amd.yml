@@ -28,10 +28,10 @@ jobs:
           sudo apt-get install -y libasound2-dev pkg-config
 
       - name: Build Lynxer (Python) Lite for AMD64
-        run: make buildLite
+        run: make buildLynxerLite
 
       - name: Build Lynxer (Python) Full for AMD64
-        run: make build
+        run: make buildLynxer
 
       - name: Run Lynxer (Python) tests on AMD64
-        run: make test
+        run: make testLynxer

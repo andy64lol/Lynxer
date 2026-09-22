@@ -34,7 +34,7 @@ def executable_path() -> str:
     if not getattr(sys, "frozen", False):
         raise RuntimeError(
             "installation requires the compiled Lynxer ELF executable; "
-            "build it first with 'make build' or 'make buildLite'"
+            "build it first with 'make build', 'make buildLynxer' or 'make buildLynxerLite'"
         )
 
     path = os.path.realpath(sys.executable)

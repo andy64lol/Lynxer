@@ -329,10 +329,10 @@ building the machinery behind them.
 
 ## Testing notes
 
-`make -C clynxer test` runs one fixture per `examples/stdlib_*.lynx` and diffs
-its output against a sibling `.expected` file. Fixtures that would print
-host-specific values (Node version, terminal size, `uname` strings) assert a
-boolean property instead.
+`make testCLynxer` (from the repo root) runs one fixture per
+`examples/stdlib_*.lynx` and diffs its output against a sibling `.expected`
+file. Fixtures that would print host-specific values (Node version, terminal
+size, `uname` strings) assert a boolean property instead.
 
 Before the fixtures, it runs `scripts/check_module_contracts.py`, a static
 comparison of every `stdlib/<name>.lynx` wrapper against its backend. The

@@ -4,8 +4,8 @@ Embedded Lua 5.4 execution backed by Rust `mlua` with vendored Lua sources.
 The module is a `cdylib` installed as `stdlib/lua.so`; it does not require a
 system Lua installation.
 
-> **Requires:** a Rust toolchain (`cargo`). Build it with `make rust` or
-> `make all`.
+> **Requires:** a Rust toolchain (`cargo`). Build it with `make cargo` or
+> `make buildCLynxer`.
 
 ```lynx
 global setup(){ import("lua"); }

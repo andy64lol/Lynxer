@@ -15,7 +15,7 @@ The extension build selects the appropriate C++17 and thread-linker flags for
 the host compiler: MSVC on Windows, and POSIX-compatible compiler flags on
 Unix-like systems.
 
-The normal `make build` and `make buildLite` targets run this step
+The normal `make buildLynxer` and `make buildLynxerLite` targets run this step
 automatically before packaging Lynxer. A C++ compiler and the active Python
 development headers are required. Native addresses are
 represented as Lynxer integers and are unmanaged: callers own allocations and

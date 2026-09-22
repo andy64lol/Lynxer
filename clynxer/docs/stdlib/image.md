@@ -5,8 +5,8 @@ Rust `cdylib` built with the `image` crate and installed as
 `stdlib/image.so`. Images are process-local integer handles; `-1` indicates a
 failed operation.
 
-> **Requires:** a Rust toolchain (`cargo`). Build it with `make rust` or
-> `make all`. The module supports PNG, JPEG, GIF, BMP, TIFF, and WebP.
+> **Requires:** a Rust toolchain (`cargo`). Build it with `make cargo` or
+> `make buildCLynxer`. The module supports PNG, JPEG, GIF, BMP, TIFF, and WebP.
 
 ```lynx
 global setup(){ import("image"); }

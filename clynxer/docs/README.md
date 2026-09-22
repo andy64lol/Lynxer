@@ -27,7 +27,7 @@ clynxer --list-stdlibs   # list available modules with their docstrings
 
 From the repository root, `make buildCLynxer` builds the binary and the native
 modules. The `game`, `image`, `json`, `lua`, `network`, `server`, `sound`,
-`sqldb` and `tui` modules are Rust crates under `rust/` (see `make rust`); the
+`sqldb` and `tui` modules are Rust crates under `rust/` (see `make cargo`); the
 rest are C++ `stdlib/*.cpp`. A Rust toolchain (`cargo`) is required for those
 nine modules; they are skipped with a warning when cargo is absent.
 `make testCLynxer` runs the smoke and stdlib fixtures.
@@ -88,7 +88,7 @@ clynxer --compile app.lynx extras/helpers.lynx --include vendor/libcustom.so \
 
 `game`, `image`, `json`, `lua`, `network`, `server`, `sound`, `sqldb` and `tui`
 are Rust crates under `rust/`, built by `cargo` and installed as
-`stdlib/<name>.so` (see `make rust`). The rest are C++ compiled from
+`stdlib/<name>.so` (see `make cargo`). The rest are C++ compiled from
 `stdlib/*.cpp`. There is no CMake staging step and no `third_party/` directory
 any more: TLS is `rustls` (no system OpenSSL) and the HTTP/WebSocket stack is
 pure Rust.

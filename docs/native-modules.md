@@ -80,7 +80,7 @@ failure** errors with the relevant dependency or symbol.
 
 ## Bundled C++ stdlibs
 
-Clynxer's `clynxer/Makefile` treats every `clynxer/stdlib/*.cpp` file as a
+The root `Makefile` treats every `clynxer/stdlib/*.cpp` file as a
 native standard-library backend and builds its sibling `.so` inside the same
 `clynxer/stdlib/` directory during `make`.
 The corresponding `.lynx` file is the public wrapper when a Lynxer-compatible

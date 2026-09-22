@@ -38,9 +38,9 @@ jobs:
 
       - name: Test Clynxer AMD64 binary
         run: |
-          cd clynxer
-          ./clynxer examples/builtin_ffi.lynx | grep -q "5\n5"
-          ./clynxer examples/builtin_async.lynx | grep -q "true\ntrue\ntrue\ntrue"
+          # Command substitution drops the trailing newline the .expected fixtures omit.
+          test "$(./clynxer/clynxer clynxer/examples/builtin_ffi.lynx)" = "$(cat clynxer/examples/builtin_ffi.expected)"
+          test "$(./clynxer/clynxer clynxer/examples/builtin_async.lynx)" = "$(cat clynxer/examples/builtin_async.expected)"
 
       - name: Run Clynxer tests for AMD64
         run: make testCLynxer

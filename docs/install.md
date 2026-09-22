@@ -39,7 +39,7 @@ lynxer hello.lynx  # run a Lynxer source file
 Bundles the complete standard library (all stdlib modules included, heavier):
 
 ```bash
-make build
+make buildLynxer
 ```
 
 The build automatically compiles `lynxer/cpp.cpp` for the active Python
@@ -61,7 +61,7 @@ Produces a smaller binary with a reduced standard library — useful for
 embedding or size-constrained targets where the full stdlib is not needed:
 
 ```bash
-make buildLite
+make buildLynxerLite
 ```
 
 Produces `dist/lynxer-lite`. The lite build excludes heavier optional stdlib
@@ -73,8 +73,10 @@ modules while keeping the core language and essential utilities.
 
 | Target | Description |
 |--------|-------------|
-| `make build` | Full build — all stdlib modules included |
-| `make buildLite` | Lite build — reduced stdlib, smaller binary |
+| `make build` | Everything — Python full + lite, plus Clynxer |
+| `make buildLynxer` | Python full build — all stdlib modules included (`dist/lynxer`) |
+| `make buildLynxerLite` | Python lite build — reduced stdlib, smaller binary (`dist/lynxer-lite`) |
+| `make buildCLynxer` | Clynxer binary plus its C++/Rust stdlib backends |
 | `make buildCpp` | Compile the native C++ memory extension in place |
 | `make clean` | Remove `__pycache__` and `.pyc` files |
 | `make help` | Print available targets |

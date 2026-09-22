@@ -19,18 +19,15 @@ TLS is `rustls`, the HTTP stack is `ureq`/`tungstenite`/`axum`, and JSON is
 ## Build from the repository root
 
 ```bash
-make rust               # build the Rust backends (game, image, json, lua, network, server)
+make cargo              # build the Rust backends (game, image, json, lua, network, server, sound, sqldb, tui, ffi)
 make buildCLynxer       # build the interpreter and every native stdlib module
-make testCLynxer        # smoke + stdlib fixtures
+make testCLynxer        # contract check + smoke + stdlib fixtures
 ```
 
-Or from `clynxer/`:
-
-```bash
-make rust               # build the Rust backends
-make all                # rebuild the interpreter and native stdlibs
-make test
-```
+`buildCLynxer` already pulls in `cargo`, so the first line is only needed to
+build the Rust backends on their own. The Makefile lives at the repository
+root and builds both Lynxer and Clynxer; there is no separate
+`clynxer/Makefile`.
 
 Outputs:
 

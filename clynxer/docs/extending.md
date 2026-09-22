@@ -182,7 +182,7 @@ crate instead.
 **Rust** needs two edits:
 
 1. add the crate to the workspace members in `rust/Cargo.toml`;
-2. add its name to `RUST_MODULE_NAMES` in `clynxer/Makefile`.
+2. add its name to `RUST_MODULE_NAMES` in the root `Makefile`.
 
 Rust modules are skipped with a warning when `cargo` is absent, so Clynxer still
 builds without a Rust toolchain. Keep `rust/Cargo.lock` committed: the module
@@ -215,7 +215,7 @@ be host-specific, assert a property instead (`returnLength(x) > 0`) rather than
 the exact text.
 
 If the module is Rust-backed and hermetic, add its fixture name to the
-compiled/bundled parity loop in `clynxer/Makefile` so it is also checked when
+compiled/bundled parity loop in the root `Makefile` so it is also checked when
 compiled into a standalone executable.
 
 ---
@@ -256,7 +256,7 @@ Every module is finished when all of these are true:
       argument
 - [ ] `examples/stdlib_<name>.lynx` + `.expected`, covering the failure paths
 - [ ] the new name added to the module table in `clynxer/docs/README.md` and to
-      `LIST_STDLIB_MODULES` in `clynxer/Makefile`
+      `LIST_STDLIB_MODULES` in the root `Makefile`
 - [ ] the identity model recorded in the table in
       [stdlib-contracts.md](stdlib-contracts.md)
 - [ ] deliberate divergences from `lynxer/stdlib/<name>.lynx` written down in

@@ -5,6 +5,12 @@
 **Scope:** Clynxer source tree under `clynxer/`, the `sound`/`sqldb`/`tui` stdlib
 modules, the native-module ABI, the build and test system, and the state of
 `todo.md` and the Clynxer documentation.
+
+> **Build-system note (2026-09-22):** `clynxer/Makefile` has since been merged
+> into the root `Makefile`, so every `clynxer/Makefile:NNN` citation below is a
+> historical reference to a file that no longer exists. The Clynxer target
+> names are unchanged (`make buildCLynxer`, `make testCLynxer`, `make cargo`),
+> and the suite now runs from the repo root.
 **Result:** `make buildCLynxer` and `make testCLynxer` both pass. **Six classes of
 defect** were found in the three newest stdlib modules — **all six fixed**.
 Eleven documentation inconsistencies were catalogued and corrected. A new
@@ -86,7 +92,7 @@ Python. Source files use the `.lynx` extension (`README.md:6-7`).
   and Cython** directly in a `.lynx` program (`docs/rawpy.md`). Most Python
   stdlib wrappers use `rawPy` internally.
 - Linux only, x86-64 (`amd64`) and ARM64 (`aarch64`) (`README.md:9-14`).
-- Distributed as a PyInstaller one-file binary (`make build`, `make buildLite`).
+- Distributed as a PyInstaller one-file binary (`make buildLynxer`, `make buildLynxerLite`).
 
 ### 1.2 Clynxer — the rebuild (C++)
 
@@ -349,8 +355,9 @@ warning and the rest of Clynxer still builds (`clynxer/Makefile:19-25`).
 | `make buildCLynxer` | **The main target.** Builds `clynxer/clynxer`, then `make -C clynxer rust` and `make -C clynxer all` (`Makefile:153-156`). |
 | `make testCLynxer` | `buildCLynxer`, then `make -C clynxer test` (`Makefile:70-71`). |
 | `make test` | `buildCpp` + `testCLynxer` + the Python suites (`test/validate.py`, `test/remaining.py`). |
-| `make build` / `buildAll` | Full Python Lynxer PyInstaller build (`dist/lynxer`). |
-| `make buildLite` | Python Lynxer "lite" build — pure-stdlib modules only. |
+| `make build` / `buildAll` | Everything: `buildLynxer` + `buildLynxerLite` + `buildCLynxer`. |
+| `make buildLynxer` | Full Python Lynxer PyInstaller build (`dist/lynxer`). |
+| `make buildLynxerLite` | Python Lynxer "lite" build — pure-stdlib modules only (`dist/lynxer-lite`). |
 | `make buildCpp` | The Python Lynxer C++ extension (`lynxer/setup.py build_ext --inplace`). |
 | `make cargo` | Just the Rust backends. |
 | `make venv` / `deps` / `liteDeps` / `platform-check` | Python toolchain setup. |
