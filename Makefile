@@ -76,13 +76,30 @@ CLYNXER_SIGNATURE_SOURCE := $(CLYNXER_DIR)/examples/native_signatures.cpp
 CLYNXER_SIGNATURE_MODULE := $(CLYNXER_DIR)/examples/native_signatures.so
 CLYNXER_SIGNATURE_FIXTURE := $(CLYNXER_DIR)/examples/native_signatures.lynx
 # Every clynxer/examples/stdlib_<name>.lynx must ship a sibling .expected file.
-CLYNXER_STDLIB_FIXTURES := $(wildcard $(CLYNXER_DIR)/examples/stdlib_*.lynx)
+# The sound fixture is split out: although the backend tolerates a missing
+# output device, several of its assertions (playback, stop, per-handle volume)
+# only hold on a host with a real ALSA card. Hosts without one — CI containers,
+# headless boxes — skip it and say so instead of failing.
+HAVE_AUDIO := $(if $(wildcard /dev/snd/controlC*),1,)
+CLYNXER_SOUND_FIXTURE := $(CLYNXER_DIR)/examples/stdlib_sound.lynx
+CLYNXER_STDLIB_FIXTURES := $(filter-out $(CLYNXER_SOUND_FIXTURE),$(wildcard $(CLYNXER_DIR)/examples/stdlib_*.lynx))
+ifeq ($(HAVE_AUDIO),1)
+CLYNXER_AUDIO_FIXTURES := $(CLYNXER_SOUND_FIXTURE)
+else
+CLYNXER_AUDIO_FIXTURES :=
+endif
 # Built-in-family fixtures (clynxer/examples/builtin_<name>.lynx) do too.
 CLYNXER_MILESTONE7_NEW_FIXTURES := $(CLYNXER_DIR)/examples/builtin_async.lynx $(CLYNXER_DIR)/examples/builtin_ffi.lynx
 # Single self-checking test that exercises every stdlib module at once.
 CLYNXER_STDLIB_TEST_ALL := $(CLYNXER_DIR)/examples/stdlibTestAll.lynx
 CLYNXER_LIST_STDLIB_MODULES := cli colorlib csv debug fileIO game image js json lua math \
 	multiprocessing network os path random re regex server shell sound sqldb sys text time tui typing
+# Import-parity fixtures (interpreted vs compiled). The sound one needs a device.
+CLYNXER_PARITY_FIXTURES := native_stdlibs milestone6_module milestone6_math_native stdlib_json \
+	stdlib_re stdlib_path stdlib_game stdlib_image stdlib_lua stdlib_sqldb stdlib_tui
+ifeq ($(HAVE_AUDIO),1)
+CLYNXER_PARITY_FIXTURES += stdlib_sound
+endif
 
 # Recipe shorthands: the interpreter, and the temp-file prefix for the suite.
 CLYX := ./$(CLYNXER_TARGET)
@@ -369,8 +386,7 @@ expected="clynxer: $(CLYNXER_ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 	exit 1; \
 	fi; \
 	done
-	@for fixture in native_stdlibs milestone6_module milestone6_math_native stdlib_json stdlib_re stdlib_path \
-	                stdlib_game stdlib_image stdlib_lua stdlib_sound stdlib_sqldb stdlib_tui; do \
+	@for fixture in $(CLYNXER_PARITY_FIXTURES); do \
 	CLYNXER_GAME_HEADLESS=1 $(CLYX) $(CLYNXER_DIR)/examples/$$fixture.lynx > $(CLYX_TMP)_direct.out 2>&1; \
 	direct_status=$$?; \
 	if ! $(CLYX) --compile $(CLYNXER_DIR)/examples/$$fixture.lynx $(CLYX_TMP)_compiled > /dev/null; then \
@@ -500,7 +516,9 @@ expected="clynxer: $(CLYNXER_ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 	if ! printf '%s\n' "$$list_output" | grep -Fqx "  $$module"; then \
 	echo "stdlib listing is missing module: $$module"; exit 1; fi; \
 	done
-	@for fixture in $(CLYNXER_STDLIB_FIXTURES); do \
+	@if [ -z "$(HAVE_AUDIO)" ]; then \
+	echo "clynxer: skipping $(notdir $(CLYNXER_SOUND_FIXTURE)): no audio device (/dev/snd/controlC*) on this host"; fi
+	@for fixture in $(CLYNXER_STDLIB_FIXTURES) $(CLYNXER_AUDIO_FIXTURES); do \
 	expected="$${fixture%.lynx}.expected"; \
 	if [ ! -f "$$expected" ]; then \
 	echo "missing expected output for $$fixture"; exit 1; fi; \

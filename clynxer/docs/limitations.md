@@ -334,6 +334,19 @@ building the machinery behind them.
 file. Fixtures that would print host-specific values (Node version, terminal
 size, `uname` strings) assert a boolean property instead.
 
+The `sound` fixture is the exception: several of its assertions (starting and
+stopping playback, per-handle volume) only hold on a host with a real ALSA
+card. When there is no `/dev/snd/controlC*`, `make testCLynxer` skips
+`stdlib_sound.lynx` — in both the `.expected` diff and the interpreted-vs-
+compiled parity loop — and prints
+
+```
+clynxer: skipping stdlib_sound.lynx: no audio device (/dev/snd/controlC*) on this host
+```
+
+Everything else about the module (loading, decoding, handle bookkeeping, the
+error paths) is device-independent and stays covered.
+
 Before the fixtures, it runs `scripts/check_module_contracts.py`, a static
 comparison of every `stdlib/<name>.lynx` wrapper against its backend. The
 fixture suite alone cannot detect a backend that contradicts its own wrapper,

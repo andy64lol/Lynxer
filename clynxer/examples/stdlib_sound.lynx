@@ -1,8 +1,8 @@
 ////
-Fixture for the Rust-backed sound stdlib. It needs no audio device: loading,
-duration, handle bookkeeping and every error path are device-independent.
-Playback itself depends on the device, so `playSound` is exercised but its result
-is not asserted.
+Fixture for the Rust-backed sound stdlib. Loading, duration, handle bookkeeping
+and every error path are device-independent; playback, stop and per-handle
+volume are not, and only hold on a host with a real ALSA card. `make testCLynxer`
+skips this fixture (with a message) when there is no `/dev/snd/controlC*`.
 ////
 
 global setup(){ import("sound"); import("fileIO"); }
