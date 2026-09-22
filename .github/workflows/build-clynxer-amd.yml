@@ -28,6 +28,11 @@ jobs:
         with:
           python-version: "3.14"
 
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev pkg-config
+
       - name: Build Clynxer for AMD64
         run: make buildCLynxer
 
