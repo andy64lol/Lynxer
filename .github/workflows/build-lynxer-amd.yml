@@ -1,4 +1,4 @@
-name: Build Lynxer on AMD64
+name: Build Lynxer (Python) on AMD64
 
 on:
   push:
@@ -8,9 +8,9 @@ on:
 
 jobs:
   build:
-    name: Build Lynxer on AMD64
+    name: Build and Test Lynxer (Python) on AMD64
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
       - uses: actions/checkout@v4
@@ -25,8 +25,11 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements_venv.txt
 
-      - name: Build Lynxer for AMD64
+      - name: Build Lynxer (Python) Lite for AMD64
+        run: make buildLite
+
+      - name: Build Lynxer (Python) Full for AMD64
         run: make build
 
-      - name: Run Lynxer tests on AMD64
+      - name: Run Lynxer (Python) tests on AMD64
         run: make test
