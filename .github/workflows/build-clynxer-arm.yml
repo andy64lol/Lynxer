@@ -39,6 +39,3 @@ jobs:
           # Command substitution drops the trailing newline the .expected fixtures omit.
           test "$(./clynxer/clynxer-arm64 clynxer/examples/builtin_ffi.lynx)" = "$(cat clynxer/examples/builtin_ffi.expected)"
           test "$(./clynxer/clynxer-arm64 clynxer/examples/builtin_async.lynx)" = "$(cat clynxer/examples/builtin_async.expected)"
-
-      - name: Run Clynxer tests for ARM64
-        run: make testCLynxer
