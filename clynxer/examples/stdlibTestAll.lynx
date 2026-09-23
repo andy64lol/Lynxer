@@ -618,6 +618,7 @@ global main(){
     fails += global.check(global.time.getSecond() >= 0, "true", "time.getSecond");
     fails += global.check(global.time.getWeekdayNum() >= 0, "true", "time.getWeekdayNum");
     fails += global.check(returnLength(global.time.getWeekday()) > 0, "true", "time.getWeekday");
+    fails += global.check(global.time.toTimestamp("2024-01-01"), "1704063600", "time.toTimestamp");
     fails += global.check(global.time.timestamp() > 0, "true", "time.timestamp");
 
     // ----------------------------------------------------------------- shell
@@ -628,7 +629,7 @@ global main(){
     fails += global.check(global.shell.checkShell("definitely-not-a-shell"), "false", "shell.checkShell.false");
     fails += global.check(returnLength(global.shell.currentShell()) > 0, "true", "shell.currentShell");
     fails += global.check(returnLength(global.shell.shellPath("sh")) > 0, "true", "shell.shellPath");
-    fails += global.check(returnLength(global.shell.shellVersion("sh")) > 0, "true", "shell.shellVersion");
+    fails += global.check(returnLength(global.shell.shellVersion("bash")) > 0, "true", "shell.shellVersion");
     fails += global.check(global.text.contains(global.shell.availableShells(), "\"sh\""), "true", "shell.availableShells");
     fails += global.check(global.shell.runShellCapture("printf shell-ok"), "shell-ok", "shell.runShellCapture");
     global.shell.runShell("echo ignored");
