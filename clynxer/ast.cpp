@@ -5,6 +5,7 @@
 #include "error.hpp"
 #include "interrupt.hpp"
 #include "ops.hpp"
+#include "optimizer.hpp"
 #include "parser.hpp"
 #include "stdlib/lynxer_native_abi.h"
 #include "types.hpp"
@@ -16,6 +17,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <mutex>
 #include <sstream>
 #include <thread>
@@ -2256,6 +2258,9 @@ void ImportStatement::execute(Environment& environment) const {
     Parser parser(lexer.scan());
     auto functions = std::make_shared<std::unordered_map<std::string, Function>>(
         parser.parseProgram());
+    if (optimizerEnabled()) {
+        optimizeProgram(*functions, optimizationStats());
+    }
 
     auto moduleEnvironment = std::make_shared<Environment>();
     const std::filesystem::path resolvedPath(resolved);
@@ -2532,6 +2537,323 @@ bool statementsContainBreak(const StatementList& statements) {
         }
     }
     return false;
+}
+
+// --- AST optimization pass ---------------------------------------------------
+//
+// Runs once, after parsing and before execution, in interpreted and compiled
+// runs alike. It must be semantics-preserving: a folded node computes exactly
+// what the interpreter would have, and anything that could throw, warn, or
+// otherwise behave differently is left alone so the runtime keeps the original
+// behaviour at the original source location.
+
+ExpressionPtr Expression::optimize(OptimizationStats&) { return nullptr; }
+
+void Statement::optimizeChildren(OptimizationStats&) {}
+
+bool Statement::rewrite(StatementList&, OptimizationStats&) { return false; }
+
+namespace {
+
+// A literal whose value is safe to fold into a replacement literal. UInt64 and
+// container-like values are excluded: `applyUnary` mishandles UInt64, and
+// caching a list/tuple/record/object/codeblock Value would alias one mutable
+// object across evaluations or hold non-owning AST pointers.
+bool foldableLiteral(const Expression* expression, Value& value) {
+    const auto* literal = dynamic_cast<const LiteralExpression*>(expression);
+    if (literal == nullptr) {
+        return false;
+    }
+    if (std::holds_alternative<UInt64Value>(literal->value())) {
+        return false;
+    }
+    value = literal->value();
+    return true;
+}
+
+} // namespace
+
+ExpressionPtr UnaryExpression::optimize(OptimizationStats& stats) {
+    operand_ = optimizeExpression(std::move(operand_), stats);
+    Value operand;
+    if (!foldableLiteral(operand_.get(), operand)) {
+        return nullptr;
+    }
+    // Deprecated spellings must reach the runtime so they still warn.
+    if (deprecatedUnaryReplacement(operation_) != nullptr) {
+        return nullptr;
+    }
+    // Negating INT64_MIN is signed overflow; leave it to the runtime.
+    if (operation_ == "-") {
+        if (const auto* integer = std::get_if<std::int64_t>(&operand)) {
+            if (*integer == std::numeric_limits<std::int64_t>::min()) {
+                return nullptr;
+            }
+        }
+    }
+    try {
+        Value folded = applyUnary(operation_, operand, line_, column_);
+        ++stats.constantFolds;
+        return std::make_unique<LiteralExpression>(folded);
+    } catch (const std::exception&) {
+        // A literal-only operation that raises stays a runtime error; do not
+        // fold it and do not count it.
+        return nullptr;
+    }
+}
+
+ExpressionPtr BinaryExpression::optimize(OptimizationStats& stats) {
+    left_ = optimizeExpression(std::move(left_), stats);
+    right_ = optimizeExpression(std::move(right_), stats);
+
+    const bool isAnd = operation_ == "&&" || operation_ == "and";
+    const bool isOr = operation_ == "||" || operation_ == "or";
+    Value left;
+    Value right;
+    const bool leftLiteral = foldableLiteral(left_.get(), left);
+    const bool rightLiteral = foldableLiteral(right_.get(), right);
+
+    // When the left operand decides the result, the runtime never evaluates the
+    // right side either, so dropping it is exact.
+    if (isAnd && leftLiteral && !isTruthy(left)) {
+        ++stats.shortCircuits;
+        return std::make_unique<LiteralExpression>(false);
+    }
+    if (isOr && leftLiteral && isTruthy(left)) {
+        ++stats.shortCircuits;
+        return std::make_unique<LiteralExpression>(true);
+    }
+    if (isAnd || isOr) {
+        // A non-deciding and/or returns isTruthy(right); both operands must be
+        // literals for the fold to be free of side effects.
+        if (leftLiteral && rightLiteral) {
+            ++stats.constantFolds;
+            return std::make_unique<LiteralExpression>(isTruthy(right));
+        }
+        return nullptr;
+    }
+
+    if (!leftLiteral || !rightLiteral) {
+        return nullptr;
+    }
+    // Deprecated spellings must reach the runtime so they still warn.
+    if (deprecatedBinaryReplacement(operation_) != nullptr) {
+        return nullptr;
+    }
+    // Integer exponentiation can overflow (signed UB) or iterate for an
+    // unbounded time; leave it to the runtime, which already defines it.
+    if (operation_ == "**" && std::holds_alternative<std::int64_t>(left) &&
+        std::holds_alternative<std::int64_t>(right)) {
+        return nullptr;
+    }
+    try {
+        Value folded = applyBinary(binOpFromString(operation_, line_, column_),
+                                   left, right, line_, column_);
+        ++stats.constantFolds;
+        return std::make_unique<LiteralExpression>(folded);
+    } catch (const std::exception&) {
+        return nullptr;
+    }
+}
+
+ExpressionPtr AwaitExpression::optimize(OptimizationStats& stats) {
+    expression_ = optimizeExpression(std::move(expression_), stats);
+    return nullptr;
+}
+
+ExpressionPtr CallExpression::optimize(OptimizationStats& stats) {
+    for (auto& argument : arguments_) {
+        argument = optimizeExpression(std::move(argument), stats);
+    }
+    for (auto& codeblock : codeblocks_) {
+        optimizeStatementList(codeblock.body, stats);
+    }
+    return nullptr;
+}
+
+ExpressionPtr ListLiteralExpression::optimize(OptimizationStats& stats) {
+    for (auto& element : elements_) {
+        element = optimizeExpression(std::move(element), stats);
+    }
+    return nullptr;
+}
+
+ExpressionPtr TupleLiteralExpression::optimize(OptimizationStats& stats) {
+    for (auto& element : elements_) {
+        element = optimizeExpression(std::move(element), stats);
+    }
+    return nullptr;
+}
+
+ExpressionPtr TypeCoerceExpression::optimize(OptimizationStats& stats) {
+    inner_ = optimizeExpression(std::move(inner_), stats);
+    return nullptr;
+}
+
+ExpressionPtr DotAccessExpression::optimize(OptimizationStats& stats) {
+    object_ = optimizeExpression(std::move(object_), stats);
+    return nullptr;
+}
+
+ExpressionPtr MethodCallExpression::optimize(OptimizationStats& stats) {
+    object_ = optimizeExpression(std::move(object_), stats);
+    for (auto& argument : arguments_) {
+        argument = optimizeExpression(std::move(argument), stats);
+    }
+    return nullptr;
+}
+
+ExpressionPtr NewExpression::optimize(OptimizationStats& stats) {
+    for (auto& argument : arguments_) {
+        argument = optimizeExpression(std::move(argument), stats);
+    }
+    return nullptr;
+}
+
+ExpressionPtr AddVarGroupExpression::optimize(OptimizationStats& stats) {
+    target_ = optimizeExpression(std::move(target_), stats);
+    value_ = optimizeExpression(std::move(value_), stats);
+    return nullptr;
+}
+
+ExpressionPtr RemoveVarGroupExpression::optimize(OptimizationStats& stats) {
+    target_ = optimizeExpression(std::move(target_), stats);
+    return nullptr;
+}
+
+ExpressionPtr VarGroupLiteralExpression::optimize(OptimizationStats& stats) {
+    for (auto& field : fields_) {
+        field.value = optimizeExpression(std::move(field.value), stats);
+    }
+    return nullptr;
+}
+
+ExpressionPtr InterpStringExpression::optimize(OptimizationStats& stats) {
+    for (auto& expression : expressions_) {
+        expression = optimizeExpression(std::move(expression), stats);
+    }
+    return nullptr;
+}
+
+void DeclarationStatement::optimizeChildren(OptimizationStats& stats) {
+    value_ = optimizeExpression(std::move(value_), stats);
+}
+
+void AssignmentStatement::optimizeChildren(OptimizationStats& stats) {
+    value_ = optimizeExpression(std::move(value_), stats);
+}
+
+void DotAssignmentStatement::optimizeChildren(OptimizationStats& stats) {
+    value_ = optimizeExpression(std::move(value_), stats);
+}
+
+void ReturnStatement::optimizeChildren(OptimizationStats& stats) {
+    value_ = optimizeExpression(std::move(value_), stats);
+}
+
+void ExpressionStatement::optimizeChildren(OptimizationStats& stats) {
+    expression_ = optimizeExpression(std::move(expression_), stats);
+}
+
+void IfStatement::optimizeChildren(OptimizationStats& stats) {
+    condition_ = optimizeExpression(std::move(condition_), stats);
+    optimizeStatementList(thenStatements_, stats);
+    optimizeStatementList(elseStatements_, stats);
+}
+
+bool IfStatement::rewrite(StatementList& out, OptimizationStats& stats) {
+    const auto* literal =
+        dynamic_cast<const LiteralExpression*>(condition_.get());
+    if (literal == nullptr) {
+        return false;
+    }
+    ++stats.deadBranches;
+    out = isTruthy(literal->value()) ? std::move(thenStatements_)
+                                     : std::move(elseStatements_);
+    return true;
+}
+
+void WhileStatement::optimizeChildren(OptimizationStats& stats) {
+    condition_ = optimizeExpression(std::move(condition_), stats);
+    optimizeStatementList(statements_, stats);
+}
+
+bool WhileStatement::rewrite(StatementList&, OptimizationStats& stats) {
+    const auto* literal =
+        dynamic_cast<const LiteralExpression*>(condition_.get());
+    if (literal == nullptr || isTruthy(literal->value())) {
+        return false;
+    }
+    ++stats.deadBranches;
+    return true;
+}
+
+void ForStatement::optimizeChildren(OptimizationStats& stats) {
+    if (initializer_) {
+        initializer_->optimizeChildren(stats);
+    }
+    condition_ = optimizeExpression(std::move(condition_), stats);
+    if (update_) {
+        update_->optimizeChildren(stats);
+    }
+    optimizeStatementList(statements_, stats);
+}
+
+void DoWhileStatement::optimizeChildren(OptimizationStats& stats) {
+    condition_ = optimizeExpression(std::move(condition_), stats);
+    optimizeStatementList(statements_, stats);
+}
+
+void IterateStatement::optimizeChildren(OptimizationStats& stats) {
+    count_ = optimizeExpression(std::move(count_), stats);
+    optimizeStatementList(statements_, stats);
+}
+
+bool IterateStatement::rewrite(StatementList&, OptimizationStats& stats) {
+    const auto* literal = dynamic_cast<const LiteralExpression*>(count_.get());
+    if (literal == nullptr) {
+        return false;
+    }
+    const auto* count = std::get_if<std::int64_t>(&literal->value());
+    if (count == nullptr || *count > 0) {
+        return false;
+    }
+    ++stats.deadBranches;
+    return true;
+}
+
+void ForeverStatement::optimizeChildren(OptimizationStats& stats) {
+    optimizeStatementList(statements_, stats);
+}
+
+void SwitchStatement::optimizeChildren(OptimizationStats& stats) {
+    value_ = optimizeExpression(std::move(value_), stats);
+    for (auto& switchCase : cases_) {
+        // Patterns bind identifiers when they match, so they are left intact.
+        optimizeStatementList(switchCase.body, stats);
+    }
+}
+
+void TryCatchStatement::optimizeChildren(OptimizationStats& stats) {
+    optimizeStatementList(tryStatements_, stats);
+    optimizeStatementList(catchStatements_, stats);
+}
+
+void CodeblockDeclarationStatement::optimizeChildren(OptimizationStats& stats) {
+    optimizeStatementList(body_, stats);
+}
+
+void ExecStatement::optimizeChildren(OptimizationStats& stats) {
+    for (auto& argument : arguments_) {
+        argument = optimizeExpression(std::move(argument), stats);
+    }
+    optimizeStatementList(body_, stats);
+}
+
+void FunctionDeclarationStatement::optimizeChildren(OptimizationStats& stats) {
+    if (function_) {
+        optimizeFunction(*function_, stats);
+    }
 }
 
 } // namespace clynxer

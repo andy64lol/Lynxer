@@ -1,0 +1,8 @@
+yield 0
+tid positive true
+cwd length positive true
+cwd absolute true
+random bytes 16
+clock resolution rc 0
+bad descriptor raised true
+done

@@ -1,0 +1,6 @@
+// Clynxer accepts only \n \r \t \\ \" \e string escapes; there is no \x.
+global setup() {}
+
+global main() {
+    println("a\x1f");
+}

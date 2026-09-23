@@ -10,17 +10,27 @@
 
 namespace clynxer {
 
+// Counters for the AST optimization pass (defined in optimizer.hpp). Only a
+// forward declaration is needed here; the pass itself lives in optimizer.cpp
+// and each node's transformation is implemented in ast.cpp.
+struct OptimizationStats;
+
 class Statement;
 using StatementPtr = std::unique_ptr<Statement>;
 using StatementList = std::vector<StatementPtr>;
+
+class Expression;
+using ExpressionPtr = std::unique_ptr<Expression>;
 
 class Expression {
 public:
     virtual ~Expression() = default;
     virtual Value evaluate(Environment& environment) const = 0;
-};
 
-using ExpressionPtr = std::unique_ptr<Expression>;
+    // AST optimization hook. Recurses into owned children and returns a
+    // replacement node, or nullptr to keep this node as it is.
+    virtual ExpressionPtr optimize(OptimizationStats& stats);
+};
 
 class LiteralExpression final : public Expression {
 public:
@@ -61,6 +71,7 @@ public:
 
     Value evaluate(Environment& environment) const override;
 
+    ExpressionPtr optimize(OptimizationStats& stats) override;
 
     const Expression& operandExpr() const { return *operand_; }
 
@@ -90,6 +101,8 @@ public:
         return expression_->evaluate(environment);
     }
 
+    ExpressionPtr optimize(OptimizationStats& stats) override;
+
 private:
     ExpressionPtr expression_;
 };
@@ -101,6 +114,7 @@ public:
 
     Value evaluate(Environment& environment) const override;
 
+    ExpressionPtr optimize(OptimizationStats& stats) override;
 
     const Expression& leftExpr() const { return *left_; }
     const Expression& rightExpr() const { return *right_; }
@@ -126,6 +140,7 @@ public:
 
     Value evaluate(Environment& environment) const override;
 
+    ExpressionPtr optimize(OptimizationStats& stats) override;
 
     const std::vector<ExpressionPtr>& arguments() const { return arguments_; }
     const std::string& name() const { return name_; }
@@ -154,6 +169,7 @@ public:
 
     Value evaluate(Environment& environment) const override;
 
+    ExpressionPtr optimize(OptimizationStats& stats) override;
 
     const std::vector<ExpressionPtr>& elements() const { return elements_; }
 
@@ -167,6 +183,7 @@ public:
 
     Value evaluate(Environment& environment) const override;
 
+    ExpressionPtr optimize(OptimizationStats& stats) override;
 
     const std::vector<ExpressionPtr>& elements() const { return elements_; }
 
@@ -181,6 +198,8 @@ public:
     TypeCoerceExpression(ExpressionPtr inner, std::string type);
 
     Value evaluate(Environment& environment) const override;
+
+    ExpressionPtr optimize(OptimizationStats& stats) override;
 
     const Expression& inner() const { return *inner_; }
 
@@ -199,6 +218,8 @@ public:
                         int column);
 
     Value evaluate(Environment& environment) const override;
+
+    ExpressionPtr optimize(OptimizationStats& stats) override;
 
     int line() const { return line_; }
 
@@ -224,6 +245,8 @@ public:
 
     Value evaluate(Environment& environment) const override;
 
+    ExpressionPtr optimize(OptimizationStats& stats) override;
+
     int line() const { return line_; }
 
     int column() const { return column_; }
@@ -247,6 +270,8 @@ public:
 
     Value evaluate(Environment& environment) const override;
 
+    ExpressionPtr optimize(OptimizationStats& stats) override;
+
     int line() const { return line_; }
 
     int column() const { return column_; }
@@ -268,6 +293,8 @@ public:
 
     Value evaluate(Environment& environment) const override;
 
+    ExpressionPtr optimize(OptimizationStats& stats) override;
+
 private:
     ExpressionPtr target_;
     std::string type_;
@@ -284,6 +311,8 @@ public:
                              int column);
 
     Value evaluate(Environment& environment) const override;
+
+    ExpressionPtr optimize(OptimizationStats& stats) override;
 
 private:
     ExpressionPtr target_;
@@ -305,6 +334,8 @@ public:
 
     Value evaluate(Environment& environment) const override;
 
+    ExpressionPtr optimize(OptimizationStats& stats) override;
+
 private:
     std::vector<VarGroupFieldInit> fields_;
 };
@@ -319,6 +350,8 @@ public:
 
     Value evaluate(Environment& environment) const override;
 
+    ExpressionPtr optimize(OptimizationStats& stats) override;
+
     const std::vector<ExpressionPtr>& expressions() const { return expressions_; }
 
 private:
@@ -330,6 +363,12 @@ class Statement {
 public:
     virtual ~Statement() = default;
     virtual void execute(Environment& environment) const = 0;
+
+    // AST optimization hooks. `optimizeChildren` recurses into owned children;
+    // `rewrite` may replace this statement with zero or more statements in
+    // `out` and returns true when it did (used for dead-branch elimination).
+    virtual void optimizeChildren(OptimizationStats& stats);
+    virtual bool rewrite(StatementList& out, OptimizationStats& stats);
 };
 
 
@@ -360,6 +399,8 @@ public:
 
     void execute(Environment& environment) const override;
 
+    void optimizeChildren(OptimizationStats& stats) override;
+
     const Expression& valueExpr() const { return *value_; }
     bool isConstant() const { return constant_; }
 
@@ -382,6 +423,8 @@ public:
                         int column);
 
     void execute(Environment& environment) const override;
+
+    void optimizeChildren(OptimizationStats& stats) override;
 
     const std::string& name() const { return name_; }
     const Expression& valueExpr() const { return *value_; }
@@ -406,6 +449,8 @@ public:
 
     void execute(Environment& environment) const override;
 
+    void optimizeChildren(OptimizationStats& stats) override;
+
 private:
     std::vector<std::string> path_;
     std::string type_;
@@ -426,6 +471,8 @@ public:
 
     void execute(Environment& environment) const override;
 
+    void optimizeChildren(OptimizationStats& stats) override;
+
 private:
     ExpressionPtr value_;
     std::vector<SwitchCase> cases_;
@@ -439,6 +486,8 @@ public:
                       StatementList catchStatements, int line, int column);
 
     void execute(Environment& environment) const override;
+
+    void optimizeChildren(OptimizationStats& stats) override;
 
     const StatementList& tryStatements() const { return tryStatements_; }
     const StatementList& catchStatements() const { return catchStatements_; }
@@ -463,6 +512,8 @@ public:
 
     void execute(Environment& environment) const override;
 
+    void optimizeChildren(OptimizationStats& stats) override;
+
 private:
     ExpressionPtr value_;
     int line_;
@@ -477,6 +528,8 @@ public:
         StatementList body, int line, int column);
 
     void execute(Environment& environment) const override;
+
+    void optimizeChildren(OptimizationStats& stats) override;
 
 private:
     std::string name_;
@@ -494,6 +547,8 @@ public:
                   StatementList body, int line, int column);
 
     void execute(Environment& environment) const override;
+
+    void optimizeChildren(OptimizationStats& stats) override;
 
 private:
     void runBody(const StatementList& body,
@@ -531,6 +586,8 @@ public:
 
     void execute(Environment& environment) const override;
 
+    void optimizeChildren(OptimizationStats& stats) override;
+
 private:
     std::shared_ptr<Function> function_;
 };
@@ -551,6 +608,8 @@ public:
     explicit ExpressionStatement(ExpressionPtr expression);
 
     void execute(Environment& environment) const override;
+
+    void optimizeChildren(OptimizationStats& stats) override;
 
     const Expression& expression() const { return *expression_; }
 
@@ -582,6 +641,8 @@ public:
 
     void execute(Environment& environment) const override;
 
+    void optimizeChildren(OptimizationStats& stats) override;
+    bool rewrite(StatementList& out, OptimizationStats& stats) override;
 
     const StatementList& thenStatements() const { return thenStatements_; }
 
@@ -601,6 +662,8 @@ public:
 
     void execute(Environment& environment) const override;
 
+    void optimizeChildren(OptimizationStats& stats) override;
+    bool rewrite(StatementList& out, OptimizationStats& stats) override;
 
     const StatementList& statements() const { return statements_; }
     const Expression& condition() const { return *condition_; }
@@ -617,6 +680,7 @@ public:
 
     void execute(Environment& environment) const override;
 
+    void optimizeChildren(OptimizationStats& stats) override;
 
     const StatementList& statements() const { return statements_; }
 
@@ -633,6 +697,7 @@ public:
 
     void execute(Environment& environment) const override;
 
+    void optimizeChildren(OptimizationStats& stats) override;
 
     const StatementList& statements() const { return statements_; }
 
@@ -648,6 +713,8 @@ public:
 
     void execute(Environment& environment) const override;
 
+    void optimizeChildren(OptimizationStats& stats) override;
+    bool rewrite(StatementList& out, OptimizationStats& stats) override;
 
     const StatementList& statements() const { return statements_; }
     const Expression& count() const { return *count_; }
@@ -669,6 +736,7 @@ public:
 
     void execute(Environment& environment) const override;
 
+    void optimizeChildren(OptimizationStats& stats) override;
 
     const StatementList& statements() const { return statements_; }
 

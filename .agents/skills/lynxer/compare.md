@@ -15,8 +15,8 @@ This document compares the **Python `lynxer`** and **C++ `clynxer`** implementat
 | **Comment Syntax**          | ✅ `//`, `/// ... ///`                   | ✅ `//`, `/// ... ///`                 | Neither supports `/* ... */`.                                            |
 | **String Escapes**          | ✅ Basic (`\n`, `\t`, etc.)           | ✅ Basic (`\n`, `\t`, etc.)         | Neither supports `\x` or `\u`.                                          |
 | **Bytecode Support**        | ✅ `.lynxc` files                      | ❌ No (removed)                        | `clynxer` focuses on standalone executables.                         |
-| **FFI Support**             | ✅ Yes (Python FFI)                     | ❌ No (not implemented)               | `clynxer` lacks Foreign Function Interface support.                  |
-| **Async Support**           | ✅ Yes (Python `async/await`)           | ❌ No (not implemented)               | `clynxer` does not support async features.                           |
+| **FFI Support**             | ✅ Yes (ctypes)                         | ✅ Yes (`ffi*` built-ins)              | `clynxer` dispatches by signature string over `dlopen`/`dlsym`; no libffi. |
+| **Async Support**           | ✅ Yes (Python `async/await`)           | ⚠️ Partial                             | `clynxer` has `async*` built-ins and an `await` expression, evaluated cooperatively inline (no event loop). |
 | **Debugging Tools**         | ✅ Full Python debugger integration    | ❌ Limited (C++ debugging)             | Python `lynxer` integrates better with Python tools.                |
 | **`venv` Support**           | ✅ Yes                                   | ❌ No (excluded)                       | Python `lynxer` supports virtual environments.                      |
 | **Multiprocessing**         | ✅ Preemptive threading                | ✅ Cooperative threading               | `clynxer` uses a cooperative model.                                     |
@@ -40,10 +40,11 @@ This document compares the **Python `lynxer`** and **C++ `clynxer`** implementat
 ## Key Takeaways
 
 1. **`clynxer` is the preferred choice for production** due to its performance, portability, and native module support.
-2. **Python `lynxer` is better for development and debugging** due to its integration with Python tools and support for advanced features like FFI and async.
+2. **Python `lynxer` is better for development and debugging** due to its Python tooling; `clynxer` provides FFI built-ins and cooperative `async*` built-ins instead.
 
 ---
 
 ### References
 - [clynxer Documentation](clynxer/docs/README.md)
 - [clynxer Limitations](clynxer/docs/limitations.md)
+- [Parity scope](clynxer/docs/parity.md)

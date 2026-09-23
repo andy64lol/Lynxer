@@ -1,0 +1,118 @@
+////
+Low-level native-memory test.
+
+Runs unchanged on amd64 and arm64: it asserts only host-independent behaviour —
+the fixed width of each typed kind, the LP64 C sizes, explicit byte order — and
+prints no raw addresses, uninitialised memory, or environment paths.
+
+The int64 / uint64 round-trips are the regression test for typed 8-byte writes,
+which used to lose precision by coercing the value through a double, so
+INT64_MAX (and anything above 2^53 a double cannot represent) came back wrong.
+////
+
+global setup() {}
+
+global main() {
+    println("== type sizes ==");
+    println("int8 ", memoryTypeSize("int8"), " uint8 ", memoryTypeSize("uint8"),
+            " int16 ", memoryTypeSize("int16"), " uint16 ", memoryTypeSize("uint16"));
+    println("int32 ", memoryTypeSize("int32"), " uint32 ", memoryTypeSize("uint32"),
+            " int64 ", memoryTypeSize("int64"), " uint64 ", memoryTypeSize("uint64"));
+    println("float32 ", memoryTypeSize("float32"), " float64 ", memoryTypeSize("float64"));
+
+    println("== type alignments ==");
+    println("int8 ", memoryTypeAlignment("int8"), " int16 ", memoryTypeAlignment("int16"),
+            " int32 ", memoryTypeAlignment("int32"), " int64 ", memoryTypeAlignment("int64"));
+    println("float32 ", memoryTypeAlignment("float32"), " float64 ", memoryTypeAlignment("float64"));
+
+    println("== C sizes ==");
+    println("char ", sizeOf("char"), " short ", sizeOf("short"), " int ", sizeOf("int"),
+            " long ", sizeOf("long"), " longlong ", sizeOf("long long"));
+    println("float ", sizeOf("float"), " double ", sizeOf("double"), " void* ", sizeOf("void*"),
+            " size_t ", sizeOf("size_t"), " uintptr_t ", sizeOf("uintptr_t"));
+
+    int buffer = memoryAllocate(256);
+
+    println("== signed round-trips ==");
+    memoryWriteInt8(buffer, 0, -128);
+    memoryWriteInt8(buffer, 1, 127);
+    println("int8 ", memoryReadInt8(buffer, 0), " ", memoryReadInt8(buffer, 1));
+
+    memoryWriteInt16(buffer, 2, -32768);
+    memoryWriteInt16(buffer, 4, 32767);
+    println("int16 ", memoryReadInt16(buffer, 2), " ", memoryReadInt16(buffer, 4));
+
+    memoryWriteInt32(buffer, 8, -2147483648);
+    memoryWriteInt32(buffer, 12, 2147483647);
+    println("int32 ", memoryReadInt32(buffer, 8), " ", memoryReadInt32(buffer, 12));
+
+    memoryWriteInt64(buffer, 16, -9223372036854775808);
+    memoryWriteInt64(buffer, 24, 9223372036854775807);
+    println("int64 ", memoryReadInt64(buffer, 16), " ", memoryReadInt64(buffer, 24));
+
+    // 2^53 + 1 is the smallest positive integer a double cannot represent.
+    memoryWriteInt64(buffer, 32, 9007199254740993);
+    println("int64 2^53+1 ", memoryReadInt64(buffer, 32));
+
+    println("== unsigned round-trips ==");
+    memoryWriteUInt8(buffer, 40, 255);
+    memoryWriteUInt16(buffer, 42, 65535);
+    memoryWriteUInt32(buffer, 44, 4294967295);
+    memoryWriteUInt64(buffer, 48, 18446744073709551615);
+    println("uint8 ", memoryReadUInt8(buffer, 40));
+    println("uint16 ", memoryReadUInt16(buffer, 42));
+    println("uint32 ", memoryReadUInt32(buffer, 44));
+    println("uint64 ", memoryReadUInt64(buffer, 48));
+
+    println("== floats ==");
+    memoryWriteFloat32(buffer, 56, 1.5);
+    memoryWriteFloat64(buffer, 60, 2.25);
+    println("float32 ", memoryReadFloat32(buffer, 56), " float64 ", memoryReadFloat64(buffer, 60));
+
+    println("== explicit byte order ==");
+    memoryWriteEndian(buffer, 72, "int64", "little", 9223372036854775807);
+    println("le int64 ", memoryReadEndian(buffer, 72, "int64", "little"));
+    memoryWriteEndian(buffer, 80, "int64", "big", 9223372036854775807);
+    println("be int64 ", memoryReadEndian(buffer, 80, "int64", "big"));
+    // 0x01020304: the byte sequence must follow the requested order, not the host.
+    memoryWriteEndian(buffer, 88, "int32", "little", 16909060);
+    println("le int32 bytes ", memoryReadByte(buffer, 88), " ", memoryReadByte(buffer, 89),
+            " ", memoryReadByte(buffer, 90), " ", memoryReadByte(buffer, 91));
+    memoryWriteEndian(buffer, 92, "int32", "big", 16909060);
+    println("be int32 bytes ", memoryReadByte(buffer, 92), " ", memoryReadByte(buffer, 93),
+            " ", memoryReadByte(buffer, 94), " ", memoryReadByte(buffer, 95));
+
+    println("== set, copy, reallocate ==");
+    int source = memoryAllocate(16);
+    memorySet(source, 255, 16);
+    println("set byte ", memoryReadByte(source, 5));
+    int destination = memoryAllocate(16);
+    memoryCopy(destination, source, 16);
+    println("copied byte ", memoryReadByte(destination, 5));
+    int resized = memoryAllocate(8);
+    memoryWriteInt32(resized, 0, 123456);
+    resized = memoryReallocate(resized, 32);
+    println("reallocated contents ", memoryReadInt32(resized, 0));
+
+    println("== error paths ==");
+    try {
+        memoryReadInt32(destination, 9999);
+    } catch (str error) {
+        println("out of bounds: ", error);
+    }
+    memoryFree(source);
+    memoryFree(destination);
+    memoryFree(resized);
+    memoryFree(buffer);
+    try {
+        memoryReadInt32(source, 0);
+    } catch (str error) {
+        println("freed: ", error);
+    }
+    try {
+        memoryReadInt32(12345, 0);
+    } catch (str error) {
+        println("invalid: ", error);
+    }
+    println("done");
+}

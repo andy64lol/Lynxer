@@ -5,6 +5,7 @@
 #include "error.hpp"
 #include "interrupt.hpp"
 #include "lexer.hpp"
+#include "optimizer.hpp"
 #include "parser.hpp"
 #include "runtime.hpp"
 
@@ -43,6 +44,7 @@ void printUsage() {
     std::cout << "\n";
     std::cout << "Usage:\n";
     std::cout << "  clynxer <file.lynx>                          Run a Lynxer source file\n";
+    std::cout << "  clynxer --no-opt <file.lynx>                 Run without the AST optimizer\n";
     std::cout << "  clynxer --compile <a.lynx> [options] [name]  Compile input files into one executable\n";
     std::cout << "  clynxer --bundle <a.lynx> [options] [name]   Alias of --compile\n";
     std::cout << "      --include <file>                         Embed a module, native library or data file\n";
@@ -190,17 +192,33 @@ int lintFile(const std::string& display, const std::string& source) {
     return 0;
 }
 
+// The optimizer report is diagnostic only: it goes to stderr and only when
+// CLYNXER_OPT_REPORT is set, so no program output ever depends on it.
+void reportOptimization() {
+    if (std::getenv("CLYNXER_OPT_REPORT") == nullptr) {
+        return;
+    }
+    const OptimizationStats& stats = optimizationStats();
+    std::cerr << "optimizer: constant folds=" << stats.constantFolds
+              << ", short-circuits=" << stats.shortCircuits
+              << ", dead branches=" << stats.deadBranches << '\n';
+}
+
 int runProgram(const std::string& display, const std::string& source) {
     try {
         Lexer lexer(source, display);
         Parser parser(lexer.scan());
         auto functions = parser.parseProgram();
+        if (optimizerEnabled()) {
+            optimizeProgram(functions, optimizationStats());
+        }
         Environment environment;
         const std::size_t slash = display.find_last_of('/');
         if (slash != std::string::npos) {
             environment.setSourceDirectory(display.substr(0, slash));
         }
         executeProgram(functions, environment);
+        reportOptimization();
         return 0;
     } catch (const InterruptError&) {
         return 130;
@@ -585,7 +603,18 @@ int shellMain(int argc, char** argv) {
         return exitCode;
     }
 
-    const std::vector<std::string> args(argv + 1, argv + argc);
+    std::vector<std::string> args(argv + 1, argv + argc);
+    // `--no-opt` disables the AST optimization pass for this run. It is a
+    // run-time switch: a compiled executable ignores its command line and
+    // always optimizes.
+    for (auto it = args.begin(); it != args.end();) {
+        if (*it == "--no-opt" || *it == "-no-opt") {
+            setOptimizerEnabled(false);
+            it = args.erase(it);
+        } else {
+            ++it;
+        }
+    }
     if (args.empty() || args[0] == "-h" || args[0] == "--help") {
         printUsage();
         return 0;
@@ -624,7 +653,7 @@ int shellMain(int argc, char** argv) {
         args[0] == "--disasm") {
         return removedFlag(args[0], "clynxer --compile");
     }
-    if (args[0] == "--no-cache" || args[0] == "--no-opt") {
+    if (args[0] == "--no-cache") {
         return removedFlag(args[0], "clynxer --compile");
     }
     if (args[0] == "--ast" || args[0] == "--format" ||

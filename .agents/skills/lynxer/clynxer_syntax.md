@@ -2,6 +2,10 @@
 
 This document provides a **summarized syntax guide** for the **C++-based `clynxer`** implementation of the Lynxer language, including key differences from the Python `lynxer`.
 
+> Updated 2026-09-23. The examples below are the Clynxer form and all parse in
+> Clynxer; the intended parity scope with Python is `clynxer/docs/parity.md` and
+> the divergence register is `clynxer/docs/limitations.md`.
+
 ---
 
 ## Basic Syntax
@@ -19,20 +23,14 @@ any value = x; // `any` type
 
 ### Functions
 ```lynx
-// Global function
-global func add(int a, int b) -> int {
+// File-level function (`global name(...)` is the global form; `global func` is invalid)
+func add(int a, int b) -> int {
     return a + b;
 }
 
-// Local function
-func subtract(int a, int b) -> int {
-    return a - b;
-}
-
-// Main entry point
+// Entry point
 global main() {
     println(add(5, 3));
-    println(subtract(5, 3));
 }
 ```
 
@@ -50,32 +48,31 @@ if (x > 10) {
 // Loops
 while (x > 0) {
     println(x);
-    x--;
+    x -= 1;
 }
 
-for (int i = 0; i < 5; i++) {
+for (int i = 0; i < 5) {   // the update is implicit: i = i + 1
     println(i);
 }
 
-// Switch-case
+// Switch-case (`case(x)`, no colon and no `break`)
 switch (x) {
-    case 1: println("One"); break;
-    case 2: println("Two"); break;
-    default: println("Other");
+    case(1){ println("One"); }
+    case(2){ println("Two"); }
+    default(){ println("Other"); }
 }
 ```
 
 ### Modules and Imports
 ```lynx
-// Import a module
-import math;
+global setup() {
+    // Imports are statements, so they run from setup() or main().
+    importAs("stdlib/os", "os");
+}
 
-// Use a function from the module
-println(math.sqrt(16));
-
-// Import with an alias
-importAs("stdlib/os", "os");
-println(os.getcwd());
+global main() {
+    println(os.getcwd());
+}
 ```
 
 ---
@@ -137,11 +134,16 @@ make
 
 - No support for `/* ... */` comments.
 - No support for hex (`\x`) or Unicode (`\u`) escapes.
-- No FFI or async support.
-- No `venv` support.
+- No `venv` support, and no language-level `async`/`await` concurrency: the
+  `async*` built-ins and the `await` expression evaluate cooperatively inline.
+- FFI is available as the `ffi*` built-ins (`dlopen`/`dlsym` plus
+  signature-string dispatch), not through libffi.
+- The full list is `clynxer/docs/limitations.md`; the parity scope is
+  `clynxer/docs/parity.md`.
 
 ---
 
 ### References
 - [clynxer Documentation](clynxer/docs/README.md)
 - [clynxer Limitations](clynxer/docs/limitations.md)
+- [Parity scope](clynxer/docs/parity.md)

@@ -2,6 +2,7 @@
 
 #include "ast.hpp"
 
+#include <functional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -63,6 +64,10 @@ public:
     EnumDef* findEnum(const std::string& name);
 
     bool hasNamedType(const std::string& name) const;
+
+    // Visits every registered class in place, for whole-program passes such as
+    // the AST optimizer that must reach class members the parser stored here.
+    void forEachClass(const std::function<void(ClassDef&)>& visitor);
 
     void addStruct(StructDef def);
     void addClass(ClassDef def);

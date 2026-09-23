@@ -1,0 +1,7 @@
+// A deprecated symbolic operator must still warn after optimization: the pass
+// deliberately skips deprecated spellings so their runtime warning survives.
+global setup() {}
+
+global main() {
+    println(1 & 1);
+}

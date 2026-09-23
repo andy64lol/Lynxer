@@ -1,0 +1,13 @@
+setup 5
+5
+ab
+true
+true
+true
+5
+18
+false
+true
+a0
+caught: division by zero
+1

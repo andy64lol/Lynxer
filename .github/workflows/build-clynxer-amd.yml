@@ -32,10 +32,7 @@ jobs:
         run: make buildCLynxer
 
       - name: Test Clynxer AMD64 binary
-        run: |
-          # Command substitution drops the trailing newline the .expected fixtures omit.
-          test "$(./clynxer/clynxer clynxer/examples/builtin_ffi.lynx)" = "$(cat clynxer/examples/builtin_ffi.expected)"
-          test "$(./clynxer/clynxer clynxer/examples/builtin_async.lynx)" = "$(cat clynxer/examples/builtin_async.expected)"
+        run: make testCLynxer CLYNXER_SKIP_DISPLAY=1
       - name: Upload AMD64 binary
         uses: actions/upload-artifact@v4
         with:

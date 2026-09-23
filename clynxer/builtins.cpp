@@ -1844,6 +1844,30 @@ Value typedRead(const std::string& type, const std::vector<Value>& args,
     }
 }
 
+// A typed 64-bit write must not round-trip through a double: INT64_MAX becomes
+// 2^63 as a double and the cast back is out of range. Pull the payload from the
+// integer alternatives directly, so signed and unsigned 8-byte writes preserve
+// the full range, the way the reference's exact integers do.
+std::int64_t signedMemoryPayload(const Value& value) {
+    if (const auto* integer = std::get_if<std::int64_t>(&value)) {
+        return *integer;
+    }
+    if (const auto* wide = std::get_if<UInt64Value>(&value)) {
+        return static_cast<std::int64_t>(wide->value);
+    }
+    return static_cast<std::int64_t>(asNumber(value, 0, 0));
+}
+
+std::uint64_t unsignedMemoryPayload(const Value& value) {
+    if (const auto* wide = std::get_if<UInt64Value>(&value)) {
+        return wide->value;
+    }
+    if (const auto* integer = std::get_if<std::int64_t>(&value)) {
+        return static_cast<std::uint64_t>(*integer);
+    }
+    return static_cast<std::uint64_t>(asNumber(value, 0, 0));
+}
+
 Value typedWrite(const std::string& type, const std::vector<Value>& args,
                  int line, int column) {
     const TypedKind& kind = typedKinds().at(type);
@@ -1854,8 +1878,8 @@ Value typedWrite(const std::string& type, const std::vector<Value>& args,
     }
     std::uint8_t* pointer =
         memoryPointer(args, 0, 1, "memoryWrite", line, column, kind.size);
-    const double raw = asNumber(args[2], line, column);
     if (kind.isFloat) {
+        const double raw = asNumber(args[2], line, column);
         if (kind.size == 4) {
             const float value = static_cast<float>(raw);
             std::memcpy(pointer, &value, sizeof(value));
@@ -1865,16 +1889,17 @@ Value typedWrite(const std::string& type, const std::vector<Value>& args,
         }
         return none();
     }
-    const auto integer = static_cast<std::int64_t>(raw);
-    if (kind.size == 8 && !kind.isSigned) {
-        // Preserve the full unsigned range; the double coercion above cannot.
-        const std::uint64_t value =
-            std::holds_alternative<UInt64Value>(args[2])
-                ? std::get<UInt64Value>(args[2]).value
-                : static_cast<std::uint64_t>(integer);
-        std::memcpy(pointer, &value, sizeof(value));
+    if (kind.size == 8) {
+        if (kind.isSigned) {
+            const std::int64_t value = signedMemoryPayload(args[2]);
+            std::memcpy(pointer, &value, sizeof(value));
+        } else {
+            const std::uint64_t value = unsignedMemoryPayload(args[2]);
+            std::memcpy(pointer, &value, sizeof(value));
+        }
         return none();
     }
+    const auto integer = signedMemoryPayload(args[2]);
     switch (kind.size) {
     case 1: {
         const std::int8_t value = static_cast<std::int8_t>(integer);
@@ -2008,8 +2033,8 @@ Value builtinMemoryWriteEndian(const std::vector<Value>& args, Environment&,
     std::uint8_t* pointer =
         memoryPointer(args, 0, 1, "memoryWriteEndian()", line, column, kind.size);
     std::uint8_t buffer[8];
-    const double raw = asNumber(args[4], line, column);
     if (kind.isFloat) {
+        const double raw = asNumber(args[4], line, column);
         if (kind.size == 4) {
             const float value = static_cast<float>(raw);
             std::memcpy(buffer, &value, sizeof(value));
@@ -2017,14 +2042,16 @@ Value builtinMemoryWriteEndian(const std::vector<Value>& args, Environment&,
             const double value = raw;
             std::memcpy(buffer, &value, sizeof(value));
         }
-    } else if (kind.size == 8 && !kind.isSigned) {
-        const std::uint64_t value =
-            std::holds_alternative<UInt64Value>(args[4])
-                ? std::get<UInt64Value>(args[4]).value
-                : static_cast<std::uint64_t>(static_cast<std::int64_t>(raw));
-        std::memcpy(buffer, &value, sizeof(value));
+    } else if (kind.size == 8) {
+        if (kind.isSigned) {
+            const std::int64_t value = signedMemoryPayload(args[4]);
+            std::memcpy(buffer, &value, sizeof(value));
+        } else {
+            const std::uint64_t value = unsignedMemoryPayload(args[4]);
+            std::memcpy(buffer, &value, sizeof(value));
+        }
     } else {
-        const auto integer = static_cast<std::int64_t>(raw);
+        const std::int64_t integer = signedMemoryPayload(args[4]);
         std::memcpy(buffer, &integer, kind.size);
     }
     if (bigEndian) {

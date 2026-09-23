@@ -1,0 +1,81 @@
+////
+AST optimizer fixture.
+
+The transcript proves the pass folds constants, simplifies short circuits and
+removes dead branches without changing behaviour. The negative cases matter as
+much as the folds: "a" + 0 must stay a string concatenation, 1 / 0 must still
+raise and be caught, and a doWhile must still run its body once even when its
+condition is false.
+
+The deprecated-operator warning is checked separately, because a warning goes
+to stderr and the optimized/unoptimized split would make the line ordering
+against stdout unstable.
+////
+
+global setup() {
+    println("setup " + (2 + 3));
+}
+
+func label(int value = 2 + 3) -> int {
+    return value + 0;
+}
+
+class Box {
+    int size = 2 * 4;
+
+    local init(int base) {
+        this.size = this.size + base;
+    }
+
+    local doubled() {
+        return this.size * 2;
+    }
+}
+
+global main() {
+    // constant folding
+    println(2 + 3);
+    println("a" + "b");
+    println(not false);
+    println(1 < 2);
+    println(true xor false);
+
+    // folding in a default parameter and a function body
+    println(label());
+
+    // class field initializer and method body
+    Box box = new Box(1);
+    println(box.doubled());
+
+    // short circuit: the right-hand side is never evaluated
+    println(false and missing);
+    println(true or missing);
+
+    // dead branches: none of these bodies run
+    if (false) {
+        println(1 / 0);
+    }
+    while (false) {
+        println("never");
+    }
+    iterate (0) {
+        println("never");
+    }
+
+    // a string plus an int must stay a concatenation
+    println("a" + 0);
+
+    // a real runtime error must still be raised and caught
+    try {
+        println(1 / 0);
+    } catch (str error) {
+        println("caught: " + error);
+    }
+
+    // doWhile runs its body once even with a false condition
+    int ran = 0;
+    doWhile (false) {
+        ran = ran + 1;
+    }
+    println(ran);
+}

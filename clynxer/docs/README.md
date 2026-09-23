@@ -16,6 +16,7 @@ shared libraries.
 | [language.md](language.md) | Clynxer syntax, including `global`, `func`, and `local` functions |
 | [install.md](install.md) | Build commands, dependency staging, and installation |
 | [limitations.md](limitations.md) | Divergences from the Python implementation, and what is not ported |
+| [parity.md](parity.md) | What is a parity target with the Python implementation, and what is deliberately different |
 
 ## Build and run
 
@@ -30,7 +31,12 @@ modules. The `game`, `image`, `json`, `lua`, `network`, `server`, `sound`,
 `sqldb` and `tui` modules are Rust crates under `rust/` (see `make cargo`); the
 rest are C++ `stdlib/*.cpp`. A Rust toolchain (`cargo`) is required for those
 nine modules; they are skipped with a warning when cargo is absent.
-`make testCLynxer` runs the smoke and stdlib fixtures.
+`make testCLynxer` runs the whole suite: the module/backend contract check, the
+CLI and diagnostic golden cases (`scripts/check_golden.py`), every
+`examples/*.expected` fixture — including the low-level native-memory and
+syscall fixtures — and interpreted-versus-`--compile` parity. Both Clynxer CI
+workflows run it with `CLYNXER_SKIP_DISPLAY=1`, which drops the fixtures that
+need a display or an audio device.
 
 ## Standard library modules
 

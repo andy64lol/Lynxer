@@ -1,0 +1,37 @@
+////
+Low-level named-syscall test.
+
+Runs unchanged on amd64 and arm64: every assertion is a property that holds on
+both, and only portable calls are used (the calls whose syscall number differs
+between the two architectures are the ones that need a raw descriptor, buffer
+layout or signal mask, and are covered by the interpreter's own built-ins). The
+failure path of the `syscall*` family is a source-located error, checked here.
+////
+
+global setup() {}
+
+global main() {
+    println("yield ", syscallYieldProcessor());
+    println("tid positive ", syscallGetThreadId() > 0);
+
+    int buffer = memoryAllocate(256);
+    int length = syscallGetCurrentDirectory(buffer, 256);
+    println("cwd length positive ", length > 0);
+    println("cwd absolute ", memoryReadByte(buffer, 0) is 47);
+
+    int randomBytes = syscallGetRandomBytes(buffer, 16);
+    println("random bytes ", randomBytes);
+
+    println("clock resolution rc ", syscallGetClockResolution(1, buffer));
+
+    // The failure path is a raised, source-located error rather than a sentinel.
+    try {
+        syscallRead(-1, buffer, 16);
+        println("bad descriptor raised false");
+    } catch (str error) {
+        println("bad descriptor raised true");
+    }
+
+    memoryFree(buffer);
+    println("done");
+}

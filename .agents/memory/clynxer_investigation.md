@@ -52,6 +52,19 @@ see §12.
 > **Revision 9 (22:35 CEST)** finds that `nativeThread*` needs a **missing
 > language feature** (named global functions as values) on top of the
 > threading work, so it was not started. See §13.8.
+>
+> **Revision 10 (2026-09-23)** records everything since 2026-09-22, after the
+> compiler pivot: bytecode, `.lynxc`, `--view-bytecode`, `--benchmark-compile`
+> and `--no-cache` are gone and `--compile` writes an ELF that embeds source; an
+> AST optimizer (`clynxer/optimizer.cpp`, `--no-opt`, `CLYNXER_OPT_REPORT`)
+> landed; the CLI/diagnostic golden gate (`clynxer/scripts/check_golden.py`) and
+> the low-level amd64/arm64 fixtures (`examples/lowlevel_memory.lynx`,
+> `examples/lowlevel_syscalls.lynx`) run in `make testCLynxer`, which both
+> Clynxer CI workflows now run with `CLYNXER_SKIP_DISPLAY=1` (the display and
+> audio tests are skipped on a runner). **Milestones 8 and 9 are complete**;
+> every entry in §10.1 is resolved; `clynxer/docs/parity.md` is the parity
+> scope. The repo-root `Makefile` is authoritative — the `clynxer/Makefile`
+> citations below are historical (see the build-system note).
 
 ---
 
@@ -477,8 +490,8 @@ version of this report got several of these wrong (§9.1).
 | **5 — functions and code blocks** | **Complete** | `func`/`global`/`local`, codeblocks, `exec(){{name}}`, `overrideMain`, class methods. |
 | **6 — module system and stdlib** | **Complete** | 27 modules, all with a wrapper, a backend, a doc page and a fixture. See §12 for what closed it out (`clynxer/docs/stdlib-contracts.md`, `clynxer/docs/extending.md`, failure-path fixtures, ABI policy). |
 | **7 — native APIs** | **Complete for what is ported** | Built-ins with explicit unsupported-feature errors, native-memory family, Linux syscalls. Managed filesystem/process/async/sound/FFI/native-thread APIs remain (`todo.md:226-227`). |
-| **8 — compiler, bytecode, CLI surface** | **Superseded, then complete** | CLI parity done. The bytecode/`CLYXC`/VM stack was **removed** (`todo.md:50-55`); `--compile` now emits a standalone ELF with fully-working imports (`todo.md:56-63`), including multi-file and `--include` bundling. Only "add an optimization pass" is open (`todo.md:256`). |
-| **9 — compatibility gates** | **Partially done** | Baseline comparison exists (15/55 at 2026-09-13, `todo.md:260`). Lexer/parser/runtime comparison, golden output tests, and full-suite-per-milestone are open (`todo.md:263-267`). |
+| **8 — compiler, bytecode, CLI surface** | **Complete** | The bytecode/`CLYXC`/VM stack was **removed**; `--compile` emits a standalone ELF with fully-working imports, multi-file and `--include` bundling. The post-pivot optimization item is now done as the AST optimizer (`clynxer/optimizer.cpp`). |
+| **9 — compatibility gates** | **Complete** | Baseline comparison (15/55 at 2026-09-13) plus the divergence-aware gates: lexical-divergence fixtures, `clynxer/scripts/check_golden.py` for the CLI/diagnostic text, low-level amd64/arm64 fixtures, `make testCLynxer` in CI, and `clynxer/docs/parity.md` as the parity scope. |
 
 **Bottom line on the earlier report's claim:** the "compiler pivot" the old report
 described as missing is present. `--compile`/`--bundle` are implemented and
@@ -931,21 +944,24 @@ contradiction in `todo.md`.
 
 ## 10. Open items and known bugs
 
-### 10.1 Known parity bugs (`todo.md:269-276`)
+### 10.1 Known parity bugs (`todo.md:269-276`) — all resolved (2026-09-23)
 
-- **test25** — a double `memoryFree()` aborts with a glibc double-free instead of
-  raising a source-located error. Python raises *"address refers to freed
-  memory"*.
-- **test26** — reading an invalid address segfaults instead of raising
-  *"invalid native memory address"*.
-- **test22** — the zero-size allocation path crashes with a `stoll` interpreter
-  failure instead of a clean error.
+- **test25** — **fixed.** A double `memoryFree()` now raises
+  `address refers to freed memory` with a source location.
+- **test26** — **fixed.** Reading an invalid address now raises
+  `invalid native memory address` with a source location.
+- **test22** — **fixed.** The crash is gone, and the typed 8-byte write path no
+  longer coerces through a `double`, so `memoryWriteInt64` /
+  `memoryWriteEndian(..., "int64", ...)` round-trip INT64_MAX and any value above
+  2^53 a double cannot represent (`clynxer/builtins.cpp`, `signedMemoryPayload` /
+  `unsignedMemoryPayload`). Direction confirmed as *lynxer → clynxer*: the
+  reference (`lynxer/builtins.py:83`) range-checks and stores the exact integer.
 
-These three are the same class of problem this session found in `sound`: a
-process-level crash where a sentinel or located error is expected. They are
-worth attacking together, and `sound`'s device-init fix (`OutputStream::try_default().ok()`
-instead of `.unwrap()`) is the pattern to follow — a missing capability must
-degrade to a sentinel, never to a panic or an abort.
+The first two were the same class of problem this session found in `sound`: a
+process-level crash where a sentinel or located error is expected, fixed with the
+allocation registry in `builtins.cpp` (`validateMemory`). Regression coverage is
+`examples/lowlevel_memory.lynx`, which asserts the round-trips and the three
+memory error messages.
 
 ### 10.2 Open roadmap items
 
@@ -965,9 +981,11 @@ degrade to a sentinel, never to a panic or an abort.
   and would not notice a regression in their main code paths.
 - Managed filesystem / process / networking / async / sound / FFI / native-thread
   APIs (Milestone 7, `todo.md:226-227`).
-- An optimization pass beyond constant folding (Milestone 8, `todo.md:256`).
-- Lexer/parser/runtime comparison against Python, golden output tests, and
-  running the full suite every milestone (Milestone 9, `todo.md:263-267`).
+- ~~An optimization pass beyond constant folding (Milestone 8).~~ **Done** —
+  `clynxer/optimizer.cpp`.
+- ~~Lexer/parser/runtime comparison against Python, golden output tests, and
+  running the full suite every milestone (Milestone 9).~~ **Done** — see the
+  Revision 10 note and `clynxer/docs/parity.md`.
 
 ### 10.3 Known limitations intentionally kept
 

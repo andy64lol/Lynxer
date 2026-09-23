@@ -1,0 +1,37 @@
+== type sizes ==
+int8 1 uint8 1 int16 2 uint16 2
+int32 4 uint32 4 int64 8 uint64 8
+float32 4 float64 8
+== type alignments ==
+int8 1 int16 2 int32 4 int64 8
+float32 4 float64 8
+== C sizes ==
+char 1 short 2 int 4 long 8 longlong 8
+float 4 double 8 void* 8 size_t 8 uintptr_t 8
+== signed round-trips ==
+int8 -128 127
+int16 -32768 32767
+int32 -2147483648 2147483647
+int64 -9223372036854775808 9223372036854775807
+int64 2^53+1 9007199254740993
+== unsigned round-trips ==
+uint8 255
+uint16 65535
+uint32 4294967295
+uint64 18446744073709551615
+== floats ==
+float32 1.5 float64 2.25
+== explicit byte order ==
+le int64 9223372036854775807
+be int64 9223372036854775807
+le int32 bytes 4 3 2 1
+be int32 bytes 1 2 3 4
+== set, copy, reallocate ==
+set byte 255
+copied byte 255
+reallocated contents 123456
+== error paths ==
+out of bounds: memory access is out of bounds
+freed: address refers to freed memory
+invalid: invalid native memory address
+done

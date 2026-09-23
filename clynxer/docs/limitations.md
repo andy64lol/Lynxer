@@ -5,6 +5,10 @@ replacement for the Python implementation, and several stdlib behaviours
 deliberately differ. This page lists everything you need to know before relying
 on a module.
 
+This page is the canonical register of differences. For the summary used to
+decide whether a test may compare Clynxer with the Python reference, see
+[parity.md](parity.md).
+
 ## Language and toolchain
 
 - **Module self-calls.** Inside a module, `global.name(...)` resolves to a *core
@@ -22,10 +26,9 @@ on a module.
   in Lynxer source. Modules that need such a separator use a writable one
   (for example a tab) instead.
 - **There is no bytecode backend.** `.lynxc` files, `--view-bytecode`,
-  `--benchmark-compile`, `--no-cache` and `--no-opt` were removed. `--compile`
-  now produces a standalone ELF executable (the old `--bundle`); `--bundle`
-  remains as an alias. Running a `.lynxc` file reports that bytecode is no longer
-  supported.
+  `--benchmark-compile` and `--no-cache` were removed. `--compile` now produces
+  a standalone ELF executable (the old `--bundle`); `--bundle` remains as an
+  alias. Running a `.lynxc` file reports that bytecode is no longer supported.
 - **Compiled executables embed their modules.** The payload carries the program
   source, the source of every transitively imported `.lynx` module, and the bytes
   of every imported native `.so`. Native modules are written to a temporary
@@ -43,6 +46,21 @@ on a module.
   directory at startup, and reachable with `bundledFile(name)` (a path) or listed
   with `bundledFiles()`. Interpreted runs see neither and return `""` / an empty
   list, so a program must tolerate missing assets when run from source.
+
+## Optimizer
+
+Before execution Clynxer runs a semantics-preserving AST optimization pass:
+constant folding of literal-only expressions, short-circuit simplification of
+constant `and`/`or`, and dead-branch elimination for a constant `if`,
+`while (false)` and `iterate (0)`. It is not allowed to change behaviour, so
+anything that could raise, warn or coerce differently — a division by zero, a
+deprecated symbolic operator, a string plus an int — is left for the runtime,
+at its original source location.
+
+- `--no-opt` runs the program without the pass. It is a run-time switch: a
+  compiled executable ignores its command line and always optimizes.
+- `CLYNXER_OPT_REPORT=1` prints one line of transformation counts to stderr
+  after the program runs. It is diagnostic only and never affects output.
 
 ## Native module ABI
 

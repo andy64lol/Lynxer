@@ -46,8 +46,9 @@ Planned order of work, newest direction first.
   `examples/stdlib_math.lynx`.
 - [x] Add a GitHub Actions workflow that builds Clynxer and runs
   `make testCLynxer` on push and pull request
-  (`.github/workflows/buildCLynxer.yml`), plus compile-and-run smoke checks for a
-  plain program and for a program that imports stdlib modules.
+  (`.github/workflows/build-clynxer-amd.yml` and `build-clynxer-arm.yml`). The
+  CI run passes `CLYNXER_SKIP_DISPLAY=1` so the tests that need a display or
+  audio device are skipped on a runner.
 - [x] Remove the Clynxer bytecode stack: `bytecode.*`, `vm.*`, `compiler.*`, the
   `CLYXC` container, `.lynxc` execution, `--view-bytecode`,
   `--benchmark-compile`, `--no-cache`, `--no-opt`, and the per-AST-node
@@ -321,8 +322,10 @@ Planned order of work, newest direction first.
 ## Milestone 8 — compiler, bytecode, and CLI surface
 
 > Superseded by the compiler pivot above: bytecode, the `CLYXC` container and
-> `--view-bytecode` are being removed, and `--compile` now produces an ELF
-> executable. The checked items below record what was built before the pivot.
+> `--view-bytecode` were removed, and `--compile` now produces an ELF executable
+> that embeds source and re-parses it at startup. The checked items below record
+> what was built before the pivot; the optimization item is the post-pivot
+> replacement of the old bytecode optimizer.
 
 - [x] CLI parity for run/help/version/lint/list-stdlibs/easter egg via
   `shell.cpp`, with the version and message templates in `clynxer.config`.
@@ -345,27 +348,85 @@ Planned order of work, newest direction first.
 - [x] Merge the Lynxer and Clynxer Makefile entry points, including root
   `buildCLynxer`, `testCLynxer`, `cleanCLynxer`, and combined build/test/clean
   targets.
-- [ ] Add an optimization pass beyond constant folding.
+- [x] Add the AST optimization pass (`clynxer/optimizer.{hpp,cpp}`): constant
+  folding of literal-only expressions, short-circuit simplification of constant
+  `and`/`or`, and dead-branch elimination for a constant `if`, `while (false)`
+  and `iterate (0)`. It runs after parsing and before execution in interpreted
+  and compiled runs and for imported modules, and builds on the shared
+  `applyBinary`/`applyUnary` semantics. Anything that could raise, warn or
+  coerce differently is left for the runtime, so output is byte-identical with
+  and without the pass. `--no-opt` disables it; `CLYNXER_OPT_REPORT=1` reports
+  counts. Covered by `examples/optimizer.lynx` (plus
+  `examples/optimizer_deprecated.lynx` for the warning path) and a `make test`
+  gate that diffs the optimized and `--no-opt` runs.
 
 ## Milestone 9 — compatibility gates
 
+Clynxer is the behaviour reference for its own surface, not a byte-for-byte
+clone of the Python implementation, and it has deliberately diverged — no
+bytecode, an ELF `--compile`, Rust stdlib backends, cooperative threads and
+several re-implemented modules. These gates therefore compare only where parity
+is intended and assert Clynxer's own behaviour everywhere else; the canonical
+divergence register is `clynxer/docs/limitations.md`, and
+`clynxer/docs/parity.md` summarises what is and is not a parity target.
+
 - [x] Baseline comparison against the Python test fixtures: 15 of 55 pass
-  (2026-09-13); failure causes catalogued (functions, bitwise/word operators,
-  `const`, typed element literals, module imports, unsupported native APIs).
-- [ ] Compare lexer output against the original implementation.
-- [ ] Compare parser and runtime behavior for supported fixtures.
-- [ ] Add golden tests for output and diagnostic text.
-- [ ] Run the complete Clynxer test suite on every milestone.
-- [ ] Document intentional differences and dropped Python-only features.
+  (2026-09-13). The failures are now mostly surface Clynxer implements itself
+  (functions, bitwise/word operators, `const`, typed element literals, module
+  imports, native APIs) rather than genuinely missing features.
+- [x] Do **not** compare lexer/token streams: the two implementations have
+  different token models, so a token diff is noise. Each lexical divergence is
+  now gated by a Clynxer fixture — `examples/lexical_bang.lynx`,
+  `lexical_block_comment.lynx`, `lexical_hex_escape.lynx` and
+  `lexical_unicode_escape.lynx` — asserted through the golden CLI cases, and the
+  list lives in `clynxer/docs/limitations.md`.
+- [x] Compare parser and runtime behaviour only where parity is meant to hold.
+  `clynxer/docs/parity.md` records the parity allowlist (the language core and
+  the stdlib APIs whose docs claim parity) and the divergence denylist
+  (`image`/`lua` formatting, cooperative `nativeThread*`, working
+  `soundPause`/`soundStop`, re-implemented `math` statistics, the `std::regex`
+  grammar in `re`/`regex`, `json` non-finite numbers, and the rest of
+  `limitations.md`).
+- [x] Golden tests for Clynxer's **own** output and diagnostic text:
+  `clynxer/scripts/check_golden.py` runs `clynxer/golden/cases.json` and pins
+  the CLI surface (`--version`, removed/unsupported flags, file-not-found,
+  `--lint` success and error) and the source-located error strings. Wired into
+  `make testCLynxer`.
+- [x] Run the complete Clynxer test suite on every milestone. The GitHub Actions
+  workflows (`.github/workflows/build-clynxer-amd.yml` and
+  `.github/workflows/build-clynxer-arm.yml`) now run
+  `make testCLynxer CLYNXER_SKIP_DISPLAY=1` on push and pull request.
+  `CLYNXER_SKIP_DISPLAY=1` drops the tests that need a display or an audio
+  device (`stdlib_game`, `stdlib_sound`, `stdlibTestAll`, `game_clicker`),
+  because a runner has neither and the graphics backend crashes without a
+  display.
+- [x] Low-level tests that run on both architectures:
+  `examples/lowlevel_memory.lynx` (typed and endian native memory, the int64
+  round-trip regression, and the three memory error messages) and
+  `examples/lowlevel_syscalls.lynx` (the portable named syscalls and their
+  raised-error path). Both are `.expected`-diffed and compiled in
+  `make testCLynxer`, so the amd64 and arm64 CI jobs both run them.
+- [x] Document intentional differences and dropped Python-only features.
+  `clynxer/docs/limitations.md` is the canonical register; `parity.md`
+  summarises what is and is not a parity target, and `docs/limitations.md`
+  keeps the "will not be done" framing on the Python side.
+- [x] Treat differences with no Python counterpart as out of scope for parity,
+  listed in `clynxer/docs/parity.md`: the `--compile` ELF executable, bundling
+  and `bundledFile()`, the Rust `cdylib` ABI, `network`/`server`, cooperative
+  `nativeThread*`, the AST optimizer and `--no-opt`/`CLYNXER_OPT_REPORT`, and
+  `--validate-executeable`.
 
 ## Known parity bugs
 
-- [ ] test25: a double `memoryFree()` must raise a source-located error, not
-  abort with a glibc double-free (Python: "address refers to freed memory").
-- [ ] test26: reading an invalid address must raise "invalid native memory
-  address", not segfault.
-- [ ] test22: the zero-size allocation path crashes with a `stoll` interpreter
-  failure instead of a clean error.
+None open. All three original entries are resolved (2026-09-23). `test25` (a
+double `memoryFree`) and `test26` (an invalid address) raise `address refers to
+freed memory` and `invalid native memory address` with source locations through
+the allocation registry in `builtins.cpp`. `test22`'s typed 8-byte writes now
+preserve the full signed and unsigned range: `typedWrite`/`typedWriteEndian` no
+longer coerce the value through a `double`, so
+`memoryWriteInt64(p, off, 9223372036854775807)` round-trips and any value above
+2^53 a double cannot represent is no longer corrupted. Covered by
+`examples/lowlevel_memory.lynx`.
 
 ## Current boundary
 
@@ -381,9 +442,14 @@ native-memory family, and the named syscalls are also implemented.
 There is no bytecode backend: `--compile` writes a standalone ELF executable
 that embeds the program, every transitively imported module source, and every
 imported native library, so a compiled program supports imports and stdlibs and
-behaves exactly like an interpreted one. The root Makefile builds and tests both
-Lynxer and Clynxer targets, and a GitHub Actions workflow builds Clynxer and runs
-its suite. The bundled standard library covers `math`, `json`, `re`, `regex`,
+behaves exactly like an interpreted one. An AST optimizer runs before execution
+(`--no-opt` disables it). The root Makefile builds and tests both Lynxer and
+Clynxer targets; `make testCLynxer` runs the module-contract check, the
+CLI/diagnostic golden cases, every `.expected` fixture (including the low-level
+native-memory and syscall fixtures), and interpreted-versus-compiled parity, and
+the two Clynxer GitHub Actions workflows run it on push and pull request with
+`CLYNXER_SKIP_DISPLAY=1` (the display/audio tests are skipped on a runner). The
+bundled standard library covers `math`, `json`, `re`, `regex`,
 `os`, `path`, `fileIO`, `csv`, `time`, `debug`, `sys`, `shell`, `cli`, `js`,
 `multiprocessing`, `random`, `image`, `lua`, `game`, `network`, `server`,
 `sound`, `sqldb`, `tui`, and `text`/`typing`/`colorlib`. The remaining Python

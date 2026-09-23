@@ -11,9 +11,16 @@ make buildCLynxer
 
 ```bash
 clynxer program.lynx
+clynxer --no-opt program.lynx    # run without the AST optimizer
 ```
 
 Exit code `0` on success, `1` on error.
+
+Before execution Clynxer optimizes the parsed program (constant folding,
+short-circuit simplification, dead-branch elimination). The pass is
+semantics-preserving and can be disabled with `--no-opt`; setting
+`CLYNXER_OPT_REPORT=1` prints the transformation counts to stderr. See
+[limitations.md](limitations.md#optimizer).
 
 ## Inspect and format
 
@@ -48,8 +55,9 @@ non-`.lynx`/`.so` includes. See [builtins.md](builtins.md#bundled-files).
 
 | Flag | Effect |
 |------|--------|
+| `--no-opt` | Run without the AST optimizer |
 | `--list-stdlibs` | List stdlib modules and their `////` docstrings |
-| `--validate-executeable` | Run the interpreter self-check |
+| `--validate-executeable` | Reported as not available in Clynxer |
 | `--version` | Print version |
 | `--install` | Install as `/usr/bin/lynxer` (may need sudo) |
 | `--uninstall` | Remove `/usr/bin/lynxer` |

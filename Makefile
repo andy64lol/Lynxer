@@ -25,7 +25,7 @@ NATIVE_HIDDEN_IMPORTS := --hidden-import lynxer.cpp --hidden-import lynxer.bytec
 # Every path is repo-root relative: this Makefile owns both implementations.
 CLYNXER_DIR := clynxer
 CLYNXER_TARGET := $(CLYNXER_DIR)/clynxer
-CLYNXER_SOURCES := $(addprefix $(CLYNXER_DIR)/,main.cpp shell.cpp lexer.cpp runtime.cpp types.cpp builtins.cpp ops.cpp ast.cpp parser.cpp config.cpp bundle.cpp interrupt.cpp)
+CLYNXER_SOURCES := $(addprefix $(CLYNXER_DIR)/,main.cpp shell.cpp lexer.cpp runtime.cpp types.cpp builtins.cpp ops.cpp ast.cpp optimizer.cpp parser.cpp config.cpp bundle.cpp interrupt.cpp)
 CLYNXER_OBJECTS := $(CLYNXER_SOURCES:.cpp=.o)
 CLYNXER_OBJECTS_ARM64 := $(CLYNXER_SOURCES:.cpp=.o-arm64)
 CLYNXER_HEADERS := $(wildcard $(CLYNXER_DIR)/*.hpp)
@@ -59,6 +59,7 @@ CLYNXER_NATIVE_BUILT := $(CLYNXER_CORE_MODULES) $(CLYNXER_RUST_BUILT)
 
 # Clynxer suite fixtures and static contract check.
 CLYNXER_CONTRACT_CHECK := $(CLYNXER_DIR)/scripts/check_module_contracts.py
+CLYNXER_GOLDEN_CHECK := $(CLYNXER_DIR)/scripts/check_golden.py
 CLYNXER_CONDITION_FIXTURE := $(CLYNXER_DIR)/examples/conditions.lynx
 CLYNXER_LOOP_FIXTURE := $(CLYNXER_DIR)/examples/loops.lynx
 CLYNXER_ERROR_FIXTURE := $(CLYNXER_DIR)/examples/control_flow_error.lynx
@@ -82,28 +83,50 @@ CLYNXER_SIGNATURE_FIXTURE := $(CLYNXER_DIR)/examples/native_signatures.lynx
 # headless boxes — skip it and say so instead of failing.
 HAVE_AUDIO := $(if $(wildcard /dev/snd/controlC*),1,)
 CLYNXER_SOUND_FIXTURE := $(CLYNXER_DIR)/examples/stdlib_sound.lynx
-CLYNXER_STDLIB_FIXTURES := $(filter-out $(CLYNXER_SOUND_FIXTURE),$(wildcard $(CLYNXER_DIR)/examples/stdlib_*.lynx))
+# Display/audio tests. CI runners have neither a display nor an audio device, and
+# the graphics backend crashes without a display, so the workflows pass
+# CLYNXER_SKIP_DISPLAY=1 to drop the fixtures that need one.
+CLYNXER_SKIP_DISPLAY ?= 0
+ifeq ($(CLYNXER_SKIP_DISPLAY),1)
+CLYNXER_DISPLAY_FIXTURES := stdlib_game stdlib_sound
+else
+CLYNXER_DISPLAY_FIXTURES :=
+endif
+CLYNXER_DISPLAY_FIXTURE_FILES := $(CLYNXER_DISPLAY_FIXTURES:%=$(CLYNXER_DIR)/examples/%.lynx)
+CLYNXER_STDLIB_FIXTURES := $(filter-out $(CLYNXER_SOUND_FIXTURE) $(CLYNXER_DISPLAY_FIXTURE_FILES),$(wildcard $(CLYNXER_DIR)/examples/stdlib_*.lynx))
 ifeq ($(HAVE_AUDIO),1)
-CLYNXER_AUDIO_FIXTURES := $(CLYNXER_SOUND_FIXTURE)
+CLYNXER_AUDIO_FIXTURES := $(filter-out $(CLYNXER_DISPLAY_FIXTURE_FILES),$(CLYNXER_SOUND_FIXTURE))
 else
 CLYNXER_AUDIO_FIXTURES :=
 endif
 # Built-in-family fixtures (clynxer/examples/builtin_<name>.lynx) do too.
 CLYNXER_MILESTONE7_NEW_FIXTURES := $(CLYNXER_DIR)/examples/builtin_async.lynx $(CLYNXER_DIR)/examples/builtin_ffi.lynx
+# Low-level fixtures: native-memory typed/endian access and the portable named
+# syscalls. They assert only host-independent behaviour, so the same expected
+# output holds on amd64 and arm64, and both CI jobs run them.
+CLYNXER_LOWLEVEL_FIXTURES := $(CLYNXER_DIR)/examples/lowlevel_memory.lynx \
+	$(CLYNXER_DIR)/examples/lowlevel_syscalls.lynx
 # Compatibility fixture for the deprecated symbolic operator spellings. It is
 # diffed like a stdlib fixture and also compiled, so the old spellings keep
 # working through both the interpreter and --compile.
 CLYNXER_DEPRECATED_FIXTURES := $(CLYNXER_DIR)/examples/deprecated_operators.lynx
 # Single self-checking test that exercises every stdlib module at once.
 CLYNXER_STDLIB_TEST_ALL := $(CLYNXER_DIR)/examples/stdlibTestAll.lynx
+# AST optimizer: fixture plus its expected stdout+stderr, so an optimized run,
+# a --no-opt run and the report all have something to compare against.
+CLYNXER_OPTIMIZER_FIXTURE := $(CLYNXER_DIR)/examples/optimizer.lynx
+CLYNXER_OPTIMIZER_EXPECTED := $(CLYNXER_DIR)/examples/optimizer.expected
+CLYNXER_OPTIMIZER_DEPRECATED_FIXTURE := $(CLYNXER_DIR)/examples/optimizer_deprecated.lynx
 CLYNXER_LIST_STDLIB_MODULES := cli colorlib csv debug fileIO game image js json lua math \
 	multiprocessing network os path random re regex server shell sound sqldb sys text time tui typing
 # Import-parity fixtures (interpreted vs compiled). The sound one needs a device.
 CLYNXER_PARITY_FIXTURES := native_stdlibs milestone6_module milestone6_math_native stdlib_json \
-	stdlib_re stdlib_path stdlib_game stdlib_image stdlib_lua stdlib_sqldb stdlib_tui deprecated_operators
+	stdlib_re stdlib_path stdlib_game stdlib_image stdlib_lua stdlib_sqldb stdlib_tui deprecated_operators optimizer \
+	lowlevel_memory lowlevel_syscalls
 ifeq ($(HAVE_AUDIO),1)
 CLYNXER_PARITY_FIXTURES += stdlib_sound
 endif
+CLYNXER_PARITY_FIXTURES := $(filter-out $(CLYNXER_DISPLAY_FIXTURES),$(CLYNXER_PARITY_FIXTURES))
 
 # Recipe shorthands: the interpreter, and the temp-file prefix for the suite.
 CLYX := ./$(CLYNXER_TARGET)
@@ -299,6 +322,7 @@ $(CLYNXER_SIGNATURE_MODULE): $(CLYNXER_SIGNATURE_SOURCE)
 testCLynxer: $(CLYNXER_TARGET) $(CLYNXER_NATIVE_BUILT) $(CLYNXER_SIGNATURE_MODULE)
 	@test -n "$(PYTHON)" || { echo "clynxer: python3 is required for $(CLYNXER_CONTRACT_CHECK)"; exit 1; }
 	@$(PYTHON) $(CLYNXER_CONTRACT_CHECK)
+	@$(PYTHON) $(CLYNXER_GOLDEN_CHECK) --clynxer $(CLYX)
 	@printf 'Clynxer\n' > $(CLYX_TMP)_stdin
 	@output="$$($(CLYX) $(CLYNXER_DIR)/examples/hello.lynx < $(CLYX_TMP)_stdin)"; \
 	case "$$output" in \
@@ -536,7 +560,7 @@ expected="clynxer: $(CLYNXER_ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 	rm -f $(CLYX_TMP)_stdlib.out $(CLYX_TMP)_stdlib.diff; exit 1; fi; \
 	done; \
 	rm -f $(CLYX_TMP)_stdlib.out $(CLYX_TMP)_stdlib.diff
-	@for fixture in $(CLYNXER_MILESTONE7_NEW_FIXTURES); do \
+	@for fixture in $(CLYNXER_MILESTONE7_NEW_FIXTURES) $(CLYNXER_LOWLEVEL_FIXTURES); do \
 	expected="$${fixture%.lynx}.expected"; \
 	if [ ! -f "$$expected" ]; then \
 	echo "missing expected output for $$fixture"; exit 1; fi; \
@@ -551,14 +575,48 @@ expected="clynxer: $(CLYNXER_ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 	echo "expected:"; printf '%s\n' "$$expected_output"; \
 	echo "received:"; printf '%s\n' "$$output"; exit 1; fi; \
 	done
-	@CLYNXER_GAME_HEADLESS=1 $(CLYX) $(CLYNXER_STDLIB_TEST_ALL) > $(CLYX_TMP)_stdlib_all.out 2>&1; \
+	@$(CLYX) $(CLYNXER_OPTIMIZER_FIXTURE) > $(CLYX_TMP)_opt.out 2>&1; \
+	if [ $$? -ne 0 ]; then \
+	echo "optimizer fixture failed: $(CLYNXER_OPTIMIZER_FIXTURE)"; \
+	cat $(CLYX_TMP)_opt.out; rm -f $(CLYX_TMP)_opt.out; exit 1; fi; \
+	if ! diff -u $(CLYNXER_OPTIMIZER_EXPECTED) $(CLYX_TMP)_opt.out; then \
+	echo "optimizer fixture output mismatch"; rm -f $(CLYX_TMP)_opt.out; exit 1; fi
+	@$(CLYX) --no-opt $(CLYNXER_OPTIMIZER_FIXTURE) > $(CLYX_TMP)_noopt.out 2>&1; \
+	if ! diff -u $(CLYX_TMP)_opt.out $(CLYX_TMP)_noopt.out; then \
+	echo "optimized and --no-opt runs of the optimizer fixture differ"; \
+	rm -f $(CLYX_TMP)_opt.out $(CLYX_TMP)_noopt.out; exit 1; fi; \
+	rm -f $(CLYX_TMP)_opt.out $(CLYX_TMP)_noopt.out
+	@CLYNXER_OPT_REPORT=1 $(CLYX) $(CLYNXER_OPTIMIZER_FIXTURE) > /dev/null 2> $(CLYX_TMP)_opt.report; \
+	if ! grep -Eq 'constant folds=[1-9][0-9]*' $(CLYX_TMP)_opt.report || \
+	   ! grep -Eq 'short-circuits=[1-9][0-9]*' $(CLYX_TMP)_opt.report || \
+	   ! grep -Eq 'dead branches=[1-9][0-9]*' $(CLYX_TMP)_opt.report; then \
+	echo "optimizer did not exercise every transformation class:"; \
+	cat $(CLYX_TMP)_opt.report; rm -f $(CLYX_TMP)_opt.report; exit 1; fi; \
+	rm -f $(CLYX_TMP)_opt.report
+	@$(CLYX) $(CLYNXER_OPTIMIZER_DEPRECATED_FIXTURE) > $(CLYX_TMP)_dep.out 2> $(CLYX_TMP)_dep.err; \
+	if [ "$$(cat $(CLYX_TMP)_dep.out)" != "1" ]; then \
+	echo "deprecated operator result changed under optimization"; \
+	rm -f $(CLYX_TMP)_dep.out $(CLYX_TMP)_dep.err; exit 1; fi; \
+	if ! grep -q "operator '&' is deprecated" $(CLYX_TMP)_dep.err; then \
+	echo "optimizer swallowed the deprecation warning"; \
+	rm -f $(CLYX_TMP)_dep.out $(CLYX_TMP)_dep.err; exit 1; fi; \
+	rm -f $(CLYX_TMP)_dep.out $(CLYX_TMP)_dep.err
+	@if [ "$(CLYNXER_SKIP_DISPLAY)" = "1" ]; then \
+	echo "clynxer: skipping $(notdir $(CLYNXER_STDLIB_TEST_ALL)): display tests disabled (CLYNXER_SKIP_DISPLAY=1)"; \
+	else \
+	CLYNXER_GAME_HEADLESS=1 $(CLYX) $(CLYNXER_STDLIB_TEST_ALL) > $(CLYX_TMP)_stdlib_all.out 2>&1; \
 	if [ $$? -ne 0 ]; then \
 	echo "consolidated stdlib test failed: $(CLYNXER_STDLIB_TEST_ALL)"; \
 	cat $(CLYX_TMP)_stdlib_all.out; \
 	rm -f $(CLYX_TMP)_stdlib_all.out; exit 1; fi; \
-	rm -f $(CLYX_TMP)_stdlib_all.out
-	@CLYNXER_GAME_HEADLESS=1 $(CLYX) $(CLYNXER_DIR)/examples/game_clicker.lynx >/dev/null 2>&1 || \
-	{ echo "example failed: $(CLYNXER_DIR)/examples/game_clicker.lynx"; exit 1; }
+	rm -f $(CLYX_TMP)_stdlib_all.out; \
+	fi
+	@if [ "$(CLYNXER_SKIP_DISPLAY)" = "1" ]; then \
+	echo "clynxer: skipping game_clicker.lynx: display tests disabled (CLYNXER_SKIP_DISPLAY=1)"; \
+	else \
+	CLYNXER_GAME_HEADLESS=1 $(CLYX) $(CLYNXER_DIR)/examples/game_clicker.lynx >/dev/null 2>&1 || \
+	{ echo "example failed: $(CLYNXER_DIR)/examples/game_clicker.lynx"; exit 1; }; \
+	fi
 	@rm -f $(CLYX_TMP)_stdin
 	@echo "clynxer smoke test passed"
 

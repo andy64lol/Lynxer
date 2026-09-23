@@ -36,6 +36,13 @@ bool TypeRegistry::hasNamedType(const std::string& name) const {
            enums_.count(name) != 0;
 }
 
+void TypeRegistry::forEachClass(
+    const std::function<void(ClassDef&)>& visitor) {
+    for (auto& entry : classes_) {
+        visitor(entry.second);
+    }
+}
+
 void TypeRegistry::addStruct(StructDef def) {
     structs_.emplace(def.name, std::move(def));
 }
