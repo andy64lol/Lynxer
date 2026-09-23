@@ -67,13 +67,32 @@ def main() -> int:
     for name, case in cases.items():
         checked += 1
         expected_exit = case.get("exit", 0)
-        completed = subprocess.run(
-            [str(binary), *case.get("args", [])],
-            cwd=ROOT,
-            input=case.get("stdin", ""),
-            capture_output=True,
-            text=True,
-        )
+        # A case may create a scratch file from a fixture, so a case that
+        # rewrites a file (--format) can be tested without touching the
+        # repository. `{scratch}` in an argument expands to its path.
+        scratch = case.get("scratch")
+        scratch_path = None
+        if scratch:
+            scratch_path = ROOT / scratch
+            source_path = ROOT / case["sourceFile"]
+            scratch_path.write_text(
+                source_path.read_text(encoding="utf-8"), encoding="utf-8"
+            )
+        args = [
+            argument.replace("{scratch}", scratch or "")
+            for argument in case.get("args", [])
+        ]
+        try:
+            completed = subprocess.run(
+                [str(binary), *args],
+                cwd=ROOT,
+                input=case.get("stdin", ""),
+                capture_output=True,
+                text=True,
+            )
+        finally:
+            if scratch_path is not None:
+                scratch_path.unlink(missing_ok=True)
 
         problems = []
         if completed.returncode != expected_exit:

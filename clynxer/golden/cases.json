@@ -124,5 +124,70 @@
     ],
     "exit": 1,
     "stderr": "clynxer: file not found: 'does_not_exist.lynx'"
+  },
+  "format_success": {
+    "args": [
+      "--format",
+      "{scratch}"
+    ],
+    "scratch": ".clynxer_golden_format.lynx",
+    "sourceFile": "clynxer/examples/formatter_input.lynx",
+    "exit": 0,
+    "stdout": "Formatted .clynxer_golden_format.lynx"
+  },
+  "format_oneline_success": {
+    "args": [
+      "--format-oneline",
+      "{scratch}"
+    ],
+    "scratch": ".clynxer_golden_format.lynx",
+    "sourceFile": "clynxer/examples/formatter_input.lynx",
+    "exit": 0,
+    "stdout": "Formatted .clynxer_golden_format.lynx"
+  },
+  "format_parse_error": {
+    "args": [
+      "--format",
+      "clynxer/examples/lexical_bang.lynx"
+    ],
+    "exit": 1,
+    "stderr": "clynxer: clynxer/examples/lexical_bang.lynx:6:13: expected an expression"
+  },
+  "easter_egg": {
+    "args": [
+      "--easterEgg"
+    ],
+    "exit": 0,
+    "stdout": "Easter Egg found!\nWanna do sudo rm -rf / --no-preserve-root? Just kidding, don't do that.\nBut seriously, don't do that. It's a bad idea.\nThat will erase the entire linux OS and all your files. You will lose everything."
+  },
+  "version_short": {
+    "args": [
+      "-v"
+    ],
+    "exit": 0,
+    "stdout": "CLynxer 0.1.8"
+  },
+  "disasm_removed": {
+    "args": [
+      "--disasm",
+      "x.lynxc"
+    ],
+    "exit": 1,
+    "stderr": "clynxer: '--disasm' was removed with the bytecode backend; use clynxer --compile instead"
+  },
+  "bench_compile_alias": {
+    "args": [
+      "--bench-compile",
+      "x.lynx"
+    ],
+    "exit": 1,
+    "stderr": "clynxer: '--bench-compile' was removed with the bytecode backend; use clynxer --compile instead"
+  },
+  "run_program": {
+    "args": [
+      "clynxer/examples/milestone5.lynx"
+    ],
+    "exit": 0,
+    "stdout": "5\n7\n25"
   }
 }
