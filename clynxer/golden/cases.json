@@ -11,7 +11,7 @@
       "--help"
     ],
     "exit": 0,
-    "stdout": "\nUsage:\n  clynxer <file.lynx>                          Run a Lynxer source file\n  clynxer --no-opt <file.lynx>                 Run without the AST optimizer\n  clynxer --lint <file.lynx>                   Check Lynxer syntax without running it\n  clynxer --compile <a.lynx> [options] [name]  Compile input files into one executable\n  clynxer --bundle <a.lynx> [options] [name]   Alias of --compile\n      --include <file>                         Embed a module, native library or data file\n      -o, --output <name>                      Name the output executable\n  clynxer --version                            Print version\n  clynxer --list-stdlibs                       List available Lynxer stdlib modules\n\nNot available in CLynxer (reported as an explicit error):\n  --ast, --format, --format-oneline, --validate-executeable, --install,\n  --uninstall\n\nRemoved with the bytecode backend (use --compile):\n  --view-bytecode, --benchmark-compile, --no-cache\n\n"
+    "stdout": "\nUsage:\n  clynxer <file.lynx>                          Run a Lynxer source file\n  clynxer --no-opt <file.lynx>                 Run without the AST optimizer\n  clynxer --lint <file.lynx>                   Check Lynxer syntax without running it\n  clynxer --format <file.lynx>                 Rewrite a file with canonical spacing\n  clynxer --format-oneline <file.lynx>         Collapse a file onto one physical line\n  clynxer --compile <a.lynx> [options] [name]  Compile input files into one executable\n  clynxer --bundle <a.lynx> [options] [name]   Alias of --compile\n      --include <file>                         Embed a module, native library or data file\n      -o, --output <name>                      Name the output executable\n  clynxer --validate-executeable               Run the interpreter self-check\n  clynxer --version                            Print version\n  clynxer --list-stdlibs                       List available Lynxer stdlib modules\n  clynxer --install                            Install the executable as /usr/bin/lynxer\n  clynxer --uninstall                          Remove /usr/bin/lynxer\n\nNot available in CLynxer (reported as an explicit error):\n  --ast\n\nRemoved with the bytecode backend (use --compile):\n  --view-bytecode, --benchmark-compile, --no-cache\n\n"
   },
   "file_not_found": {
     "args": [
@@ -59,43 +59,6 @@
     "exit": 1,
     "stderr": "clynxer: '--ast' is not available in CLynxer yet"
   },
-  "format_unsupported": {
-    "args": [
-      "--format",
-      "x.lynx"
-    ],
-    "exit": 1,
-    "stderr": "clynxer: '--format' is not available in CLynxer yet"
-  },
-  "format_oneline_unsupported": {
-    "args": [
-      "--format-oneline",
-      "x.lynx"
-    ],
-    "exit": 1,
-    "stderr": "clynxer: '--format-oneline' is not available in CLynxer yet"
-  },
-  "install_unsupported": {
-    "args": [
-      "--install"
-    ],
-    "exit": 1,
-    "stderr": "clynxer: '--install' is not available in CLynxer yet"
-  },
-  "uninstall_unsupported": {
-    "args": [
-      "--uninstall"
-    ],
-    "exit": 1,
-    "stderr": "clynxer: '--uninstall' is not available in CLynxer yet"
-  },
-  "validate_unsupported": {
-    "args": [
-      "--validate-executeable"
-    ],
-    "exit": 1,
-    "stderr": "clynxer: '--validate-executeable' is not available in CLynxer yet"
-  },
   "lint_ok": {
     "args": [
       "--lint",
@@ -139,5 +102,27 @@
     ],
     "exit": 1,
     "stderr": "clynxer: clynxer/examples/lexical_unicode_escape.lynx:5:13: unknown string escape \\u"
+  },
+  "validate": {
+    "args": [
+      "--validate-executeable"
+    ],
+    "exit": 0,
+    "stdout": "ok   arithmetic\nok   floor-division\nok   word-operators\nok   int-range\nok   unknown-variable\nok   division-by-zero\nok   const-reassign\nok   field-compound\nok   none-return\nok   list-value-semantics\nok   int64-memory\nok   freed-memory\nok   invalid-address\nok   enum-switch\nok   default-parameter\nok   try-catch\nok   typing-guard\nvalidator: 17 checks, 0 failure(s)\n"
+  },
+  "format_no_file": {
+    "args": [
+      "--format"
+    ],
+    "exit": 1,
+    "stderr": "clynxer: --format requires exactly one file argument"
+  },
+  "format_missing_file": {
+    "args": [
+      "--format",
+      "does_not_exist.lynx"
+    ],
+    "exit": 1,
+    "stderr": "clynxer: file not found: 'does_not_exist.lynx'"
   }
 }

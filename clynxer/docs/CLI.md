@@ -1,9 +1,7 @@
 # CLI
 
-The Clynxer executable is `clynxer`. There is **no** install step: `--install`
-and `--uninstall` are reported as unavailable (see
-[Not available](#not-available)), so the binary is always run from where it was
-built.
+The Clynxer executable is `clynxer`. `--install` copies it to `/usr/bin/lynxer`
+and `--uninstall` removes it; otherwise run it from where it was built.
 
 ```bash
 make buildCLynxer
@@ -60,6 +58,36 @@ A clean file prints `Lint OK: <path>` and exits `0`. It requires exactly one
 file; otherwise it prints
 `clynxer: --lint requires exactly one file argument`.
 
+## Formatting
+
+```bash
+clynxer --format program.lynx
+clynxer --format-oneline program.lynx
+```
+
+Both rewrite the file **in place**. `--format` gives canonical spacing and
+four-space indentation; `--format-oneline` collapses everything onto a single
+physical line, turning each `//` comment into the delimited `///...///` form so
+it survives next to code. Comments — line and `///`/`////` blocks — are
+preserved verbatim, and formatting is idempotent (running it twice changes
+nothing). The file is parsed first, so a syntax error is reported with its
+source location and the file is left untouched. Each flag requires exactly one
+file argument.
+
+The formatter never changes tokens or reorders them; it only decides spacing and
+line breaks.
+
+## Interpreter self-check
+
+```bash
+clynxer --validate-executeable
+```
+
+Runs a built-in corpus of small programs that must either run cleanly or raise a
+specific source-located error, and prints `ok <name>` per case plus a summary.
+It exits `1` if any check fails. It needs no external files, so it also works
+from an installed binary. The alias `--validate-executable` is accepted.
+
 ## Compiling to an executable
 
 `--compile` builds one standalone ELF that embeds the program, every
@@ -110,14 +138,23 @@ The version string comes from the `version` key in `clynxer/clynxer.config`
 
 ## Not available
 
-These names are recognised so the failure is explicit, and each exits `1` with
-`clynxer: '<flag>' is not available in CLynxer yet`:
+`--ast` is recognised so the failure is explicit: it exits `1` with
+`clynxer: '--ast' is not available in CLynxer yet`. Use `--format` to rewrite a
+file or `--lint` to check it.
 
-`--ast`, `--format`, `--format-oneline`, `--validate-executeable` (alias
-`--validate-executable`), `--install`, `--uninstall`.
+## Installing
 
-`--validate-executeable` in particular does **not** run a validator; the message
-is the whole behaviour.
+```bash
+sudo clynxer --install      # copy this executable to /usr/bin/lynxer
+sudo clynxer --uninstall    # remove /usr/bin/lynxer
+```
+
+`--install` copies the running executable (resolved through `/proc/self/exe`)
+to `/usr/bin/lynxer` and makes it executable. Keep the matching `stdlib/`
+directory next to the installed binary, or imports will not resolve. Without
+write permission it prints the failure and a `sudo` hint and exits `1`.
+`--uninstall` removes `/usr/bin/lynxer`; if it is absent it reports why and
+exits `1`.
 
 ## Removed with the bytecode backend
 

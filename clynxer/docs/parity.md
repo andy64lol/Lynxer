@@ -98,4 +98,7 @@ gated by Clynxer's own tests and the golden CLI cases.
 - the `network` + `server` modules (the Python side has the older `http`/`net`);
 - cooperative `nativeThread*` execution;
 - the AST optimizer, `--no-opt` and `CLYNXER_OPT_REPORT`;
-- `--validate-executeable`, which Clynxer explicitly reports as unavailable.
+- the `--format`/`--format-oneline` formatter (it preserves `//` and
+  `///`/`////` comments verbatim and is idempotent), the
+  `--validate-executeable` self-check, and `--install`/`--uninstall`;
+- `--ast`, which Clynxer reports as unavailable.

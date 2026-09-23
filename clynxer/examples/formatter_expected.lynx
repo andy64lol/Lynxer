@@ -1,0 +1,38 @@
+////
+Formatter fixture: the suite formats a copy of this file and compares the
+result with formatter_expected.lynx, then formats it again to prove the
+formatter is idempotent, then runs the formatted file.
+////
+global setup() {
+}
+class Counter {
+    int value = 0;
+    local init(int initial) {
+        this.value = initial;
+    }
+    local bump() {
+        this.value += 1;
+    }
+}
+// a trailing line comment
+global main() {
+    int total = 0;
+    for(int i = 0; i < 3; i += 1) {
+        total += i;
+    }
+    if(total > 2) {
+        println("total ", total);
+    } else {
+        println("small");
+    }
+    try {
+        Counter c = new Counter(1);
+        c.bump();
+        println("counter ", c.value);
+    } catch(str error) {
+        println("error ", error);
+    }
+}
+///
+Multi-line delimited comment.
+///

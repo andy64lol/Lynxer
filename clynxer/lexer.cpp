@@ -16,7 +16,15 @@ std::vector<Token> Lexer::scan() {
 
         const int line = line_;
         const int column = column_;
+        const std::size_t tokenStart = index_;
         const char current = advance();
+        // Records the token with its byte range. The trailing line/column
+        // arguments mirror the old call shape and are ignored in favour of the
+        // captured ones.
+        auto emit = [&](TokenKind kind, std::string text, int, int) {
+            tokens.push_back({kind, std::move(text), line, column, tokenStart,
+                              index_});
+        };
 
         if (isIdentifierStart(current)) {
             std::string text(1, current);
@@ -27,11 +35,10 @@ std::vector<Token> Lexer::scan() {
                 // inter"..." — keep the raw content; the parser splits it
                 // into literal and interpolated parts.
                 advance();
-                tokens.push_back(
-                    {TokenKind::InterpString, readRawString(line, column),
-                     line, column});
+                emit(TokenKind::InterpString, readRawString(line, column),
+                     line, column);
             } else {
-                tokens.push_back({TokenKind::Identifier, text, line, column});
+                emit(TokenKind::Identifier, text, line, column);
             }
         } else if (std::isdigit(static_cast<unsigned char>(current)) ||
                    (current == '.' &&
@@ -49,13 +56,11 @@ std::vector<Token> Lexer::scan() {
                     break;
                 }
             }
-            tokens.push_back({TokenKind::Number, text, line, column});
+            emit(TokenKind::Number, text, line, column);
         } else if (current == '"') {
-            tokens.push_back(
-                {TokenKind::String, readString(line, column), line, column});
+            emit(TokenKind::String, readString(line, column), line, column);
         } else if (current == '\'') {
-            tokens.push_back(
-                {TokenKind::Char, readChar(line, column), line, column});
+            emit(TokenKind::Char, readChar(line, column), line, column);
         } else {
             std::string symbol(1, current);
             const char next = peek();
@@ -71,10 +76,10 @@ std::vector<Token> Lexer::scan() {
                         (symbol == "!|" && peek() == '|')) {
                         symbol += advance();
                     }
-                    tokens.push_back({TokenKind::Symbol, symbol, line, column});
+                    emit(TokenKind::Symbol, symbol, line, column);
                     continue;
                 }
-                tokens.push_back({TokenKind::Symbol, symbol, line, column});
+                emit(TokenKind::Symbol, symbol, line, column);
                 continue;
             }
             if (current == '*' && next == '*') {
@@ -82,7 +87,7 @@ std::vector<Token> Lexer::scan() {
                 if (peek() == '=') {
                     symbol += advance();
                 }
-                tokens.push_back({TokenKind::Symbol, symbol, line, column});
+                emit(TokenKind::Symbol, symbol, line, column);
                 continue;
             }
             if (current == '/' && next == '%') {
@@ -90,7 +95,7 @@ std::vector<Token> Lexer::scan() {
                 if (peek() == '=') {
                     symbol += advance();
                 }
-                tokens.push_back({TokenKind::Symbol, symbol, line, column});
+                emit(TokenKind::Symbol, symbol, line, column);
                 continue;
             }
             if ((current == '=' && next == '=') ||
@@ -104,7 +109,7 @@ std::vector<Token> Lexer::scan() {
                 (current == '/' && next == '=') ||
                 (current == '%' && next == '=')) {
                 symbol += advance();
-                tokens.push_back({TokenKind::Symbol, symbol, line, column});
+                emit(TokenKind::Symbol, symbol, line, column);
                 continue;
             }
             if (std::string("+-*/%<>=!;(),{}.[]&|^~").find(current) ==
@@ -113,10 +118,10 @@ std::vector<Token> Lexer::scan() {
                          "'",
                      line, column);
             }
-            tokens.push_back({TokenKind::Symbol, symbol, line, column});
+            emit(TokenKind::Symbol, symbol, line, column);
         }
     }
-    tokens.push_back({TokenKind::End, "", line_, column_});
+    tokens.push_back({TokenKind::End, "", line_, column_, index_, index_});
     return tokens;
 }
 

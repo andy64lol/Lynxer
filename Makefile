@@ -25,7 +25,7 @@ NATIVE_HIDDEN_IMPORTS := --hidden-import lynxer.cpp --hidden-import lynxer.bytec
 # Every path is repo-root relative: this Makefile owns both implementations.
 CLYNXER_DIR := clynxer
 CLYNXER_TARGET := $(CLYNXER_DIR)/clynxer
-CLYNXER_SOURCES := $(addprefix $(CLYNXER_DIR)/,main.cpp shell.cpp lexer.cpp runtime.cpp types.cpp builtins.cpp ops.cpp ast.cpp optimizer.cpp parser.cpp config.cpp bundle.cpp interrupt.cpp)
+CLYNXER_SOURCES := $(addprefix $(CLYNXER_DIR)/,main.cpp shell.cpp lexer.cpp runtime.cpp types.cpp builtins.cpp ops.cpp ast.cpp optimizer.cpp formatter.cpp parser.cpp config.cpp bundle.cpp interrupt.cpp)
 CLYNXER_OBJECTS := $(CLYNXER_SOURCES:.cpp=.o)
 CLYNXER_OBJECTS_ARM64 := $(CLYNXER_SOURCES:.cpp=.o-arm64)
 CLYNXER_HEADERS := $(wildcard $(CLYNXER_DIR)/*.hpp)
@@ -119,6 +119,9 @@ CLYNXER_STDLIB_TEST_ALL := $(CLYNXER_DIR)/examples/stdlibTestAll.lynx
 CLYNXER_OPTIMIZER_FIXTURE := $(CLYNXER_DIR)/examples/optimizer.lynx
 CLYNXER_OPTIMIZER_EXPECTED := $(CLYNXER_DIR)/examples/optimizer.expected
 CLYNXER_OPTIMIZER_DEPRECATED_FIXTURE := $(CLYNXER_DIR)/examples/optimizer_deprecated.lynx
+# Formatter fixture: a deliberately messy source file and its canonical form.
+CLYNXER_FORMATTER_INPUT := $(CLYNXER_DIR)/examples/formatter_input.lynx
+CLYNXER_FORMATTER_EXPECTED := $(CLYNXER_DIR)/examples/formatter_expected.lynx
 CLYNXER_LIST_STDLIB_MODULES := cli colorlib csv debug fileIO game image js json lua math \
 	multiprocessing network os path random re regex server shell sound sqldb sys text time tui typing
 # Import-parity fixtures (interpreted vs compiled). The sound one needs a device.
@@ -603,6 +606,32 @@ expected="clynxer: $(CLYNXER_ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 	echo "optimizer swallowed the deprecation warning"; \
 	rm -f $(CLYX_TMP)_dep.out $(CLYX_TMP)_dep.err; exit 1; fi; \
 	rm -f $(CLYX_TMP)_dep.out $(CLYX_TMP)_dep.err
+	@cp $(CLYNXER_FORMATTER_INPUT) $(CLYX_TMP)_format.lynx; \
+	$(CLYX) --format $(CLYX_TMP)_format.lynx > /dev/null || \
+	{ echo "clynxer --format failed on the formatter fixture"; \
+	rm -f $(CLYX_TMP)_format.lynx; exit 1; }; \
+	if ! diff -u $(CLYNXER_FORMATTER_EXPECTED) $(CLYX_TMP)_format.lynx; then \
+	echo "formatter output mismatch"; rm -f $(CLYX_TMP)_format.lynx; exit 1; fi; \
+	cp $(CLYX_TMP)_format.lynx $(CLYX_TMP)_format2.lynx; \
+	$(CLYX) --format $(CLYX_TMP)_format2.lynx > /dev/null || \
+	{ echo "second --format pass failed"; exit 1; }; \
+	if ! diff -u $(CLYX_TMP)_format.lynx $(CLYX_TMP)_format2.lynx; then \
+	echo "formatter is not idempotent"; \
+	rm -f $(CLYX_TMP)_format.lynx $(CLYX_TMP)_format2.lynx; exit 1; fi; \
+	$(CLYX) $(CLYX_TMP)_format.lynx > /dev/null || \
+	{ echo "formatted file does not run"; exit 1; }; \
+	cp $(CLYNXER_FORMATTER_INPUT) $(CLYX_TMP)_oneline.lynx; \
+	$(CLYX) --format-oneline $(CLYX_TMP)_oneline.lynx > /dev/null || \
+	{ echo "clynxer --format-oneline failed"; exit 1; }; \
+	if [ "$$(wc -l < $(CLYX_TMP)_oneline.lynx)" -ne 0 ]; then \
+	echo "one-line formatter left newlines in the file"; \
+	rm -f $(CLYX_TMP)_oneline.lynx; exit 1; fi; \
+	$(CLYX) $(CLYX_TMP)_oneline.lynx > /dev/null || \
+	{ echo "one-line formatted file does not run"; exit 1; }; \
+	rm -f $(CLYX_TMP)_format.lynx $(CLYX_TMP)_format2.lynx $(CLYX_TMP)_oneline.lynx
+	@$(CLYX) --validate-executeable > /dev/null || \
+	{ echo "clynxer --validate-executeable reported a failure:"; \
+	$(CLYX) --validate-executeable; exit 1; }
 	@CLYNXER_GAME_HEADLESS=1 CLYNXER_SKIP_DISPLAY=$(CLYNXER_SKIP_DISPLAY) $(CLYX) $(CLYNXER_STDLIB_TEST_ALL) > $(CLYX_TMP)_stdlib_all.out 2>&1; \
 	if [ $$? -ne 0 ]; then \
 	echo "consolidated stdlib test failed: $(CLYNXER_STDLIB_TEST_ALL)"; \

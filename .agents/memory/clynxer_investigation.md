@@ -81,6 +81,16 @@ see §12.
 > language bugs found while verifying the Clynxer docs were fixed: compound
 > assignment on a field, and `-> none` return annotations
 > (`examples/language_fields.lynx`).
+>
+> **Revision 12 (2026-09-23, later)** records that most of the remaining CLI
+> surface is now implemented: `--format`/`--format-oneline` (a token-based
+> formatter in `clynxer/formatter.cpp` that preserves comments verbatim and is
+> idempotent, with a fixture gate), `--validate-executeable` (a 17-case built-in
+> interpreter self-check, gated in `make testCLynxer`), and
+> `--install`/`--uninstall` (copy/remove `/usr/bin/lynxer`). Supporting changes:
+> lexer tokens carry byte offsets, and `Parser::parseProgram(false)` validates a
+> file with no entry points. `--ast` remains the one flag Clynxer reports as
+> unavailable.
 
 ---
 

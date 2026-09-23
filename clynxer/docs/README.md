@@ -62,7 +62,10 @@ The root `Makefile` builds both implementations; `make` alone builds everything.
 3. Every `clynxer/examples/*.expected` fixture, diffed on stdout+stderr,
    including the optimizer and low-level native-memory/syscall fixtures.
 4. Interpreted-versus-`--compile` parity for a set of fixtures.
-5. The bundled-executable, `--include`, and bytecode-removal checks.
+5. The `--format`/`--format-oneline` formatter fixture (output, idempotence, and
+   that the formatted file still runs) and the `--validate-executeable`
+   self-check.
+6. The bundled-executable, `--include`, and bytecode-removal checks.
 
 Both Clynxer CI workflows (`.github/workflows/build-clynxer-amd.yml` and
 `build-clynxer-arm.yml`) run `make testCLynxer CLYNXER_SKIP_DISPLAY=1`, which

@@ -318,7 +318,7 @@ Value Environment::convertForType(Value value, const std::string& type,
                type == "uint8" || type == "uint16" || type == "uint32" ||
                type == "uint64" || type == "int8" || type == "int16" ||
                type == "int32" || type == "int64") {
-        if (const auto* wide = std::get_if<UInt64Value>(&value)) {
+        if (std::holds_alternative<UInt64Value>(value)) {
             if (type == "uint64") {
                 return value;
             }

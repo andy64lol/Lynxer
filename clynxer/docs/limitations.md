@@ -347,6 +347,19 @@ currently run anything asynchronously — there is no `async` language support t
 serve. Worth deciding whether these built-ins should exist at all before
 building the machinery behind them.
 
+## CLI tools
+
+`--lint`, `--format`, `--format-oneline`, `--validate-executeable` and
+`--install`/`--uninstall` are implemented. `--ast` is **not**: it is recognised
+only to report `clynxer: '--ast' is not available in CLynxer yet`. The list of
+flags removed with the bytecode backend (`--view-bytecode`,
+`--benchmark-compile`, `--no-cache`) is in [CLI.md](CLI.md).
+
+The formatter is token-based: it never changes tokens, and it preserves line
+comments and `///`/`////` blocks verbatim. This is deliberately stricter than
+the Python formatter, whose gap handling can drop a comment; formatting is also
+idempotent in Clynxer.
+
 ## Testing notes
 
 `make testCLynxer` (from the repo root) runs one fixture per

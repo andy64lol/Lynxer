@@ -3,6 +3,7 @@
 #include "bundle.hpp"
 #include "config.hpp"
 #include "error.hpp"
+#include "formatter.hpp"
 #include "interrupt.hpp"
 #include "lexer.hpp"
 #include "optimizer.hpp"
@@ -18,6 +19,10 @@
 #include <sstream>
 #include <string>
 #include <vector>
+
+#if defined(__linux__)
+#include <unistd.h>
+#endif
 
 namespace clynxer {
 
@@ -46,16 +51,20 @@ void printUsage() {
     std::cout << "  clynxer <file.lynx>                          Run a Lynxer source file\n";
     std::cout << "  clynxer --no-opt <file.lynx>                 Run without the AST optimizer\n";
     std::cout << "  clynxer --lint <file.lynx>                   Check Lynxer syntax without running it\n";
+    std::cout << "  clynxer --format <file.lynx>                 Rewrite a file with canonical spacing\n";
+    std::cout << "  clynxer --format-oneline <file.lynx>         Collapse a file onto one physical line\n";
     std::cout << "  clynxer --compile <a.lynx> [options] [name]  Compile input files into one executable\n";
     std::cout << "  clynxer --bundle <a.lynx> [options] [name]   Alias of --compile\n";
     std::cout << "      --include <file>                         Embed a module, native library or data file\n";
     std::cout << "      -o, --output <name>                      Name the output executable\n";
+    std::cout << "  clynxer --validate-executeable               Run the interpreter self-check\n";
     std::cout << "  clynxer --version                            Print version\n";
     std::cout << "  clynxer --list-stdlibs                       List available Lynxer stdlib modules\n";
+    std::cout << "  clynxer --install                            Install the executable as /usr/bin/lynxer\n";
+    std::cout << "  clynxer --uninstall                          Remove /usr/bin/lynxer\n";
     std::cout << "\n";
     std::cout << "Not available in CLynxer (reported as an explicit error):\n";
-    std::cout << "  --ast, --format, --format-oneline, --validate-executeable, --install,\n";
-    std::cout << "  --uninstall\n";
+    std::cout << "  --ast\n";
     std::cout << "\n";
     std::cout << "Removed with the bytecode backend (use --compile):\n";
     std::cout << "  --view-bytecode, --benchmark-compile, --no-cache\n";
@@ -188,6 +197,160 @@ int lintFile(const std::string& display, const std::string& source) {
                                            "{0}", display)
               << '\n';
     return 0;
+}
+
+// Rewrites `display` in place with canonical spacing. `oneline` collapses the
+// whole file onto one line, converting `//` comments to the delimited form.
+int formatFile(const std::string& display, const std::string& source,
+               bool oneline) {
+    try {
+        const std::string formatted = formatSource(source, display, oneline);
+        std::ofstream output(display, std::ios::binary | std::ios::trunc);
+        output << formatted;
+        if (!output) {
+            std::cerr << "clynxer: could not write '" << display << "'\n";
+            return 1;
+        }
+    } catch (const SourceError& error) {
+        std::cerr << "clynxer: " << display << ':' << error.line << ':'
+                  << error.column << ": " << error.what() << '\n';
+        return 1;
+    }
+    std::cout << Config::instance().format("status.format_ok", "Formatted {0}",
+                                           "{0}", display)
+              << '\n';
+    return 0;
+}
+
+// The path of the running executable, resolved through /proc where possible so
+// a relative invocation still works.
+std::string runningExecutable(const char* argv0) {
+#if defined(__linux__)
+    std::vector<char> buffer(4096);
+    const ssize_t length =
+        ::readlink("/proc/self/exe", buffer.data(), buffer.size() - 1);
+    if (length > 0) {
+        return std::string(buffer.data(), static_cast<std::size_t>(length));
+    }
+#endif
+    return argv0 != nullptr ? std::string(argv0) : std::string();
+}
+
+int installBinary(const char* argv0) {
+    const std::filesystem::path target = "/usr/bin/lynxer";
+    const std::string self = runningExecutable(argv0);
+    if (self.empty()) {
+        std::cerr << "clynxer: could not locate the running executable\n";
+        return 1;
+    }
+    try {
+        std::filesystem::copy_file(self, target,
+                                   std::filesystem::copy_options::overwrite_existing);
+        std::filesystem::permissions(
+            target,
+            std::filesystem::perms::owner_all |
+                std::filesystem::perms::group_read |
+                std::filesystem::perms::group_exec |
+                std::filesystem::perms::others_read |
+                std::filesystem::perms::others_exec,
+            std::filesystem::perm_options::replace);
+    } catch (const std::filesystem::filesystem_error& error) {
+        std::cerr << "clynxer: install failed: " << error.what() << '\n';
+        std::cerr << "clynxer: re-run with permission to write " << target
+                  << " (for example with sudo)\n";
+        return 1;
+    }
+    std::cout << "Installed " << target << "\n";
+    std::cout << "Keep the matching stdlib/ directory next to the installed "
+                 "binary so imports resolve.\n";
+    return 0;
+}
+
+int uninstallBinary() {
+    const std::filesystem::path target = "/usr/bin/lynxer";
+    std::error_code error;
+    if (!std::filesystem::remove(target, error)) {
+        std::cerr << "clynxer: could not remove " << target << ": "
+                  << (error ? error.message() : std::string("no such file"))
+                  << '\n';
+        return 1;
+    }
+    std::cout << "Removed " << target << '\n';
+    return 0;
+}
+
+// A self-check of the interpreter: each case must either run cleanly or raise a
+// source-located error containing the expected fragment. It needs no external
+// files, so `--validate-executeable` works from an installed binary.
+struct ValidationCase {
+    const char* name;
+    const char* source;
+    const char* error;
+};
+
+const std::vector<ValidationCase>& validationCases() {
+    static const std::vector<ValidationCase> cases = {
+        {"arithmetic", "global setup(){}\nglobal main(){ int x = 2 + 3 * 4; assert(x is 14); }", ""},
+        {"floor-division", "global setup(){}\nglobal main(){ assert(7 /% 3 is 2); assert(-7 /% 3 is -3); }", ""},
+        {"word-operators", "global setup(){}\nglobal main(){ assert(true nand true is false); assert(6 bitand 3 is 2); }", ""},
+        {"int-range", "global setup(){}\nglobal main(){ int8 small = 200; }", "out of range"},
+        {"unknown-variable", "global setup(){}\nglobal main(){ println(missing); }", "unknown variable 'missing'"},
+        {"division-by-zero", "global setup(){}\nglobal main(){ int z = 1 /% 0; }", "division by zero"},
+        {"const-reassign", "global setup(){}\nglobal main(){ const int n = 1; n = 2; }", "constant"},
+        {"field-compound", "global setup(){}\nclass C { int v = 1; }\nglobal main(){ C c = new C(); c.v += 2; c.v *= 3; assert(c.v is 9); }", ""},
+        {"none-return", "global setup(){}\nglobal log(str m) -> none { }\nglobal main(){ global.log(\"x\"); }", ""},
+        {"list-value-semantics", "global setup(){}\nglobal main(){ list a = [1, 2]; list b = listPush(a, 3); assert(returnLength(a) is 2); assert(returnLength(b) is 3); }", ""},
+        {"int64-memory", "global setup(){}\nglobal main(){ int p = memoryAllocate(16); memoryWriteInt64(p, 0, 9223372036854775807); assert(memoryReadInt64(p, 0) is 9223372036854775807); memoryFree(p); }", ""},
+        {"freed-memory", "global setup(){}\nglobal main(){ int p = memoryAllocate(8); memoryFree(p); memoryReadInt32(p, 0); }", "freed memory"},
+        {"invalid-address", "global setup(){}\nglobal main(){ memoryReadInt32(12345, 0); }", "invalid native memory address"},
+        {"enum-switch", "global setup(){}\nenum s = [ Ok(int v), Err(str m) ]{}\nglobal main(){ any e = s.Ok(5); int seen = 0; switch(e){ case(s.Ok(v)){ seen = v; } default(){ seen = -1; } } assert(seen is 5); }", ""},
+        {"default-parameter", "global setup(){}\nfunc add(int a, int b = 2) -> int { return a + b; }\nglobal main(){ assert(add(1) is 3); }", ""},
+        {"try-catch", "global setup(){}\nglobal main(){ int caught = 0; try { int z = 1 /% 0; } catch (str e) { caught = 1; } assert(caught is 1); }", ""},
+        {"typing-guard", "global setup(){}\nglobal main(){ int n = 1.5; }", "cannot be assigned"},
+    };
+    return cases;
+}
+
+int validateInterpreter() {
+    int failures = 0;
+    for (const ValidationCase& test : validationCases()) {
+        try {
+            // The lexer keeps a reference to the source, so it must outlive it.
+            const std::string source(test.source);
+            Lexer lexer(source, test.name);
+            Parser parser(lexer.scan());
+            auto functions = parser.parseProgram();
+            if (optimizerEnabled()) {
+                optimizeProgram(functions, optimizationStats());
+            }
+            Environment environment;
+            executeProgram(functions, environment);
+            if (test.error[0] != '\0') {
+                std::cerr << "FAIL " << test.name << ": expected an error containing '"
+                          << test.error << "'\n";
+                ++failures;
+            } else {
+                std::cout << "ok   " << test.name << '\n';
+            }
+        } catch (const SourceError& error) {
+            const std::string message = error.what();
+            if (test.error[0] != '\0' &&
+                message.find(test.error) != std::string::npos) {
+                std::cout << "ok   " << test.name << '\n';
+            } else {
+                std::cerr << "FAIL " << test.name << ": unexpected error: " << message
+                          << '\n';
+                ++failures;
+            }
+        } catch (const std::exception& error) {
+            std::cerr << "FAIL " << test.name << ": unexpected exception: "
+                      << error.what() << '\n';
+            ++failures;
+        }
+    }
+    std::cout << "validator: " << validationCases().size() << " checks, "
+              << failures << " failure(s)\n";
+    return failures == 0 ? 0 : 1;
 }
 
 // The optimizer report is diagnostic only: it goes to stderr and only when
@@ -631,12 +794,15 @@ int shellMain(int argc, char** argv) {
         args[0] == "-stdlibs" || args[0] == "-list-stdlibs") {
         return listStdlibs();
     }
-    if (args[0] == "--install" || args[0] == "--uninstall") {
-        return unsupportedFeature(args[0]);
+    if (args[0] == "--install") {
+        return installBinary(argv[0]);
+    }
+    if (args[0] == "--uninstall") {
+        return uninstallBinary();
     }
     if (args[0] == "--validate-executeable" ||
         args[0] == "--validate-executable") {
-        return unsupportedFeature(args[0]);
+        return validateInterpreter();
     }
     if (args[0] == "--benchmark-compile" || args[0] == "--bench-compile") {
         return removedFlag(args[0], "clynxer --compile");
@@ -654,8 +820,20 @@ int shellMain(int argc, char** argv) {
     if (args[0] == "--no-cache") {
         return removedFlag(args[0], "clynxer --compile");
     }
-    if (args[0] == "--ast" || args[0] == "--format" ||
-        args[0] == "--format-oneline") {
+    if (args[0] == "--format" || args[0] == "--format-oneline") {
+        if (args.size() != 2) {
+            std::cerr << "clynxer: " << args[0]
+                      << " requires exactly one file argument\n";
+            return 1;
+        }
+        bool ok = false;
+        const std::string source = readFile(args[1], args[1], ok);
+        if (!ok) {
+            return 1;
+        }
+        return formatFile(args[1], source, args[0] == "--format-oneline");
+    }
+    if (args[0] == "--ast") {
         return unsupportedFeature(args[0]);
     }
     if (args[0] == "--lint") {

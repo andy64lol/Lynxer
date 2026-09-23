@@ -51,18 +51,14 @@ implemented in C++.
 
 ## Install
 
-There is **no** install step. `--install` and `--uninstall` are recognised only
-to report that they are unavailable:
-
-```console
-$ ./clynxer/clynxer --install
-clynxer: '--install' is not available in CLynxer yet
-$ echo $?
-1
+```bash
+sudo ./clynxer/clynxer --install      # copy to /usr/bin/lynxer
+sudo ./clynxer/clynxer --uninstall    # remove /usr/bin/lynxer
 ```
 
-Run the interpreter from where it was built (or copy it yourself and keep the
-matching `stdlib/` directory beside it).
+`--install` copies the running executable to `/usr/bin/lynxer`; `--uninstall`
+removes it. Keep the matching `stdlib/` directory next to the installed binary,
+or imports will not resolve. See [CLI.md](CLI.md#installing).
 
 ## Quick run
 

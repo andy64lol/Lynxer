@@ -326,7 +326,8 @@ void Parser::parseEnumDefinition() {
     TypeRegistry::instance().addEnum(std::move(definition));
 }
 
-std::unordered_map<std::string, Function> Parser::parseProgram() {
+std::unordered_map<std::string, Function> Parser::parseProgram(
+    bool requireEntryPoints) {
     TypeRegistry::reset();
     std::unordered_map<std::string, Function> functions;
     bool sawSetup = false;
@@ -400,7 +401,9 @@ std::unordered_map<std::string, Function> Parser::parseProgram() {
         sawAnyDeclaration = true;
     }
     if (functions.find("setup") == functions.end()) {
-        fail("program must define global setup()", current());
+        if (requireEntryPoints) {
+            fail("program must define global setup()", current());
+        }
     }
     return functions;
 }

@@ -442,8 +442,18 @@ divergence register is `clynxer/docs/limitations.md`, and
 - [x] Treat differences with no Python counterpart as out of scope for parity,
   listed in `clynxer/docs/parity.md`: the `--compile` ELF executable, bundling
   and `bundledFile()`, the Rust `cdylib` ABI, `network`/`server`, cooperative
-  `nativeThread*`, the AST optimizer and `--no-opt`/`CLYNXER_OPT_REPORT`, and
-  `--validate-executeable`.
+  `nativeThread*`, the AST optimizer and `--no-opt`/`CLYNXER_OPT_REPORT`, the
+  formatter and `--validate-executeable`. `--ast` is the only flag still
+  reported as unavailable.
+- [x] Implement the remaining CLI tools: a token-based formatter for
+  `--format`/`--format-oneline` (`clynxer/formatter.cpp`; comments preserved
+  verbatim, idempotent, never changes tokens), a built-in interpreter self-check
+  for `--validate-executeable` (17 cases, no external files), and
+  `--install`/`--uninstall` (`/usr/bin/lynxer`). The lexer's tokens now carry
+  byte offsets, and `Parser::parseProgram(false)` allows tooling to validate a
+  file that has no entry points. Covered by the formatter fixture gate, the
+  `--validate-executeable` gate, and new golden CLI cases. `--ast` still reports
+  unavailable.
 
 ## Known parity bugs
 

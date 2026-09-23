@@ -21,6 +21,10 @@ struct Token {
     std::string text;
     int line;
     int column;
+    // Byte range in the source, so tooling (the formatter) can recover the raw
+    // text of a token and the gaps between tokens where comments live.
+    std::size_t start = 0;
+    std::size_t end = 0;
 };
 
 class Lexer {

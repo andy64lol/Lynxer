@@ -15,7 +15,8 @@ class Parser {
 public:
     explicit Parser(std::vector<Token> tokens) : tokens_(std::move(tokens)) {}
 
-    std::unordered_map<std::string, Function> parseProgram();
+    std::unordered_map<std::string, Function> parseProgram(
+        bool requireEntryPoints = true);
 
     // Every import declared while parsing, in source order.
     const std::vector<ImportRecord>& imports() const { return imports_; }
