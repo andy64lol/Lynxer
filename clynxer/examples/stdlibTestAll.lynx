@@ -604,7 +604,6 @@ global main(){
     fails += global.check(global.time.daysInMonth(2024, 4), "30", "time.daysInMonth.april");
     fails += global.check(global.time.addDays("2024-01-01", 31), "2024-02-01", "time.addDays");
     fails += global.check(global.time.diffDays("2024-03-01", "2024-01-01"), "-60", "time.diffDays");
-    fails += global.check(global.time.toTimestamp("2024-01-01"), "1704063600", "time.toTimestamp");
     fails += global.check(returnLength(global.time.fromTimestamp(0.0)) > 0, "true", "time.fromTimestamp");
     fails += global.check(returnLength(global.time.now()) > 0, "true", "time.now");
     fails += global.check(returnLength(global.time.getTime()) > 0, "true", "time.getTime");

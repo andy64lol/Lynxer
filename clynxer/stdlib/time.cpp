@@ -238,13 +238,22 @@ extern "C" const char* time_fromTimestamp(double value) {
 }
 
 extern "C" double time_toTimestamp(const char* text) {
-    std::int64_t seconds = 0;
+    std::tm value{};
+    std::istringstream input(text);
 
-    if (!parseTimestamp(text, seconds)) {
-        return -1.0;
+    input >> std::get_time(&value, "%Y-%m-%d %H:%M:%S");
+
+    if (input.fail()) {
+        input.clear();
+        input.str(text);
+        value = {};
+        input >> std::get_time(&value, "%Y-%m-%d");
     }
 
-    return static_cast<double>(seconds);
+    if (input.fail()) return -1.0;
+
+    value.tm_isdst = -1;
+    return static_cast<double>(std::mktime(&value));
 }
 
 extern "C" const char* time_addDays(const char* text,
