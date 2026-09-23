@@ -1,5 +1,15 @@
 # Lynxer
 
+> **Status (2026-09-23): this Python implementation is the frozen behaviour
+> reference.** Clynxer — the standalone C++ implementation under `clynxer/` —
+> is the primary implementation and has surpassed it for real use: it ships
+> standalone ELF executables, 27 natively backed stdlib modules, an AST
+> optimizer, a frozen native-module ABI, and a full test suite on both amd64
+> and arm64. The files under `lynxer/` and `test/` are kept for reference and
+> receive no new features; parity fixes are made in Clynxer. See
+> `clynxer/docs/parity.md` (what is a parity target) and
+> `clynxer/docs/limitations.md` (the divergence register).
+
 ![Lynxer logo](assets/lynxer.png)
 ![](https://img.shields.io/badge/-Custom%20programming%20language-blue?style=for-the-badge)
 

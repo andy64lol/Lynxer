@@ -1,4 +1,5 @@
-//// Lynxer standard library: sqldb.
+////
+Lynxer standard library: sqldb.
 SQLite database module backed by Rust (`rusqlite`), exposed through the native module `stdlib/sqldb.so`.
 Requires a Rust toolchain to build (see `rust/sqldb`); the module is skipped when `cargo` is unavailable.
 ////

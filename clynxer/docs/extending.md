@@ -22,7 +22,7 @@ conventions your module has to follow, and
 
 | | C++ (`stdlib/<name>.cpp`) | Rust (`rust/<name>/`) |
 | --- | --- | --- |
-| Build | Built by the `stdlib/*.cpp` wildcard, no new Makefile entry | Add the crate to the workspace **and** its name to `RUST_MODULE_NAMES` |
+| Build | Built by the `stdlib/*.cpp` wildcard, no new Makefile entry | Add the crate to the workspace **and** its name to `CLYNXER_RUST_MODULE_NAMES` |
 | Dependencies | Standard library only | Any crate, but it must build offline after `Cargo.lock` is committed |
 | Best for | POSIX calls, `<filesystem>`, `<chrono>`, small hand-written parsers | Anything with a real third-party crate: formats, protocols, GUI, audio, databases |
 | Signature | Either a fixed shape or the packed `...` form | **Must** be the packed `...` form |
@@ -182,11 +182,17 @@ crate instead.
 **Rust** needs two edits:
 
 1. add the crate to the workspace members in `rust/Cargo.toml`;
-2. add its name to `RUST_MODULE_NAMES` in the root `Makefile`.
+2. add its name to `CLYNXER_RUST_MODULE_NAMES` in the root `Makefile`.
 
 Rust modules are skipped with a warning when `cargo` is absent, so Clynxer still
 builds without a Rust toolchain. Keep `rust/Cargo.lock` committed: the module
 must build offline.
+
+A crate is allowed to register **nothing**: `rust/ffi` is an intentional no-op
+`cdylib` that keeps the workspace uniform. A C++ module that needs POSIX is
+gated with `CLYNXER_POSIX_BUILTINS`, as the managed
+`filesystem*`/`process*`/`networking*` families are, and falls back to
+`unsupportedTable()` otherwise.
 
 ---
 
@@ -256,7 +262,7 @@ Every module is finished when all of these are true:
       argument
 - [ ] `examples/stdlib_<name>.lynx` + `.expected`, covering the failure paths
 - [ ] the new name added to the module table in `clynxer/docs/README.md` and to
-      `LIST_STDLIB_MODULES` in the root `Makefile`
+      `CLYNXER_LIST_STDLIB_MODULES` in the root `Makefile`
 - [ ] the identity model recorded in the table in
       [stdlib-contracts.md](stdlib-contracts.md)
 - [ ] deliberate divergences from `lynxer/stdlib/<name>.lynx` written down in

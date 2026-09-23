@@ -885,6 +885,36 @@ StatementPtr Parser::parseDeclaration(bool constant) {
         type.text, name.text, std::move(value), type.line, type.column);
 }
 
+namespace {
+
+// Builds `a.b.c` as a chain of DotAccessExpression nodes, so a compound
+// assignment can read the same field it is about to write.
+ExpressionPtr dottedAccess(const std::vector<std::string>& path, int line,
+                           int column) {
+    ExpressionPtr target =
+        std::make_unique<VariableExpression>(path.front(), line, column);
+    for (std::size_t index = 1; index < path.size(); ++index) {
+        target = std::make_unique<DotAccessExpression>(
+            std::move(target), path[index], line, column);
+    }
+    return target;
+}
+
+// The arithmetic operator a compound assignment expands to, or "" when the
+// operator is not one of the compound forms.
+std::string compoundOperator(const std::string& assignment) {
+    if (assignment == "+=") return "+";
+    if (assignment == "-=") return "-";
+    if (assignment == "*=") return "*";
+    if (assignment == "/=") return "/";
+    if (assignment == "%=") return "%";
+    if (assignment == "**=") return "**";
+    if (assignment == "/%=") return "/%";
+    return "";
+}
+
+} // namespace
+
 StatementPtr Parser::parseTypedDotAssignment() {
     const Token type = advance();
     std::vector<std::string> path{
@@ -898,8 +928,15 @@ StatementPtr Parser::parseTypedDotAssignment() {
     ExpressionPtr value = parseExpression();
     expectText(";", "expected ';' after assignment");
     if (operation.text != "=") {
-        fail("compound assignment is not supported for typed field assignment",
-             operation.line, operation.column);
+        const std::string binaryOperation = compoundOperator(operation.text);
+        if (binaryOperation.empty()) {
+            fail("unsupported compound assignment operator '" + operation.text +
+                     "'",
+                 operation.line, operation.column);
+        }
+        value = std::make_unique<BinaryExpression>(
+            binaryOperation, dottedAccess(path, type.line, type.column),
+            std::move(value), operation.line, operation.column);
     }
     return std::make_unique<DotAssignmentStatement>(
         std::move(path), type.text, std::move(value), type.line, type.column);
@@ -933,38 +970,24 @@ StatementPtr Parser::parseAssignmentOrExpressionStatement(bool requireSemicolon)
                                   "expected field name after '.'")
                                .text);
         }
-    const Token operation = expectAssignmentOperator();
-    ExpressionPtr value = parseExpression();
-    if (requireSemicolon) {
-        expectText(";", "expected ';' after assignment");
-    }
-    if (operation.text != "=") {
-        std::string binaryOperation;
-        if (operation.text == "+=") {
-            binaryOperation = "+";
-        } else if (operation.text == "-=") {
-            binaryOperation = "-";
-        } else if (operation.text == "*=") {
-            binaryOperation = "*";
-        } else if (operation.text == "/=") {
-            binaryOperation = "/";
-        } else if (operation.text == "%=") {
-            binaryOperation = "%";
-        } else if (operation.text == "**=") {
-            binaryOperation = "**";
-        } else if (operation.text == "/%=") {
-            binaryOperation = "/%";
-        } else {
-            fail("unsupported compound assignment operator '" +
-                     operation.text + "'",
-                 operation);
+        const Token operation = expectAssignmentOperator();
+        ExpressionPtr value = parseExpression();
+        if (requireSemicolon) {
+            expectText(";", "expected ';' after assignment");
         }
-        value = std::make_unique<BinaryExpression>(
-            binaryOperation,
-            std::make_unique<VariableExpression>(name.text, name.line,
-                                                  name.column),
-            std::move(value), operation.line, operation.column);
-    }
+        if (operation.text != "=") {
+            const std::string binaryOperation = compoundOperator(operation.text);
+            if (binaryOperation.empty()) {
+                fail("unsupported compound assignment operator '" +
+                         operation.text + "'",
+                     operation.line, operation.column);
+            }
+            // Read the field itself, not the leading identifier: `c.v += 1`
+            // must compute `c.v + 1`, not `c + 1`.
+            value = std::make_unique<BinaryExpression>(
+                binaryOperation, dottedAccess(path, name.line, name.column),
+                std::move(value), operation.line, operation.column);
+        }
         if (path.size() == 1) {
             return std::make_unique<AssignmentStatement>(
                 name.text, std::move(value), name.line, name.column);

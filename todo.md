@@ -406,6 +406,35 @@ divergence register is `clynxer/docs/limitations.md`, and
   `examples/lowlevel_syscalls.lynx` (the portable named syscalls and their
   raised-error path). Both are `.expected`-diffed and compiled in
   `make testCLynxer`, so the amd64 and arm64 CI jobs both run them.
+- [x] Architecture-dependent tests that need neither graphics nor sound:
+  `examples/lowlevel_arch.lynx` (LP64 sizes, host endianness, and the named
+  syscalls `yield`/`gettid`/`getpid`/`getppid`/`clock_gettime`/`clock_getres`/
+  `pipe2`/`read`/`write`/`close`), plus `examples/lowlevel_memory.lynx`,
+  `lowlevel_syscalls.lynx` and `language_fields.lynx`. All are
+  `.expected`-diffed and compiled, so both the amd64 and arm64 CI jobs run them.
+  `stdlibTestAll` now skips only its `game` section under
+  `CLYNXER_SKIP_DISPLAY=1`, so the rest of its coverage runs on a runner too.
+- [x] Fixed the two language bugs found while verifying the docs: compound
+  assignment on a field (`this.v += x`, `instance.field *= x`, and the typed
+  vargroup form `int p.n += x`) desugared to `field op x` instead of
+  `object.field op x`; and `-> none` return annotations failed in
+  `Environment::convertForType`. Regression fixture:
+  `examples/language_fields.lynx`.
+- [x] Clynxer is the primary implementation (2026-09-23). It has surpassed the
+  Python reference for real use; the state is flagged on `README.md`,
+  `lynxer/__init__.py` and `lynxer/shell.py`, and recorded in
+  `.agents/memory/clynxer_investigation.md` (Revision 11).
+- [x] Rework the documentation set so it matches the implementation. Every
+  `clynxer/docs/*.md` page was restructured with headings and cross-links and
+  its examples re-verified against the interpreter; `language.md`, `types.md`,
+  `lists.md`, `structs.md`, `classes.md`, `enums.md`, `vargroups.md`,
+  `modules.md`, `importAs.md`, `CLI.md`, `install.md` and `README.md` were
+  rewritten, and `builtins.md` corrected (async and FFI **are** implemented; the
+  exact typed memory names; the unsupported-name table). The 27 `stdlib/*.md`
+  pages got a uniform footer and the flagged errors were fixed. The built-in
+  `--help` text no longer advertises the six unsupported flags and is now a
+  golden case; the `sound`, `sqldb` and `tui` wrappers use a standalone `////`
+  docstring line so `--list-stdlibs` prints their descriptions.
 - [x] Document intentional differences and dropped Python-only features.
   `clynxer/docs/limitations.md` is the canonical register; `parity.md`
   summarises what is and is not a parity target, and `docs/limitations.md`

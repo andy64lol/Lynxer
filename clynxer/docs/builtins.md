@@ -6,12 +6,17 @@ by their bare name or with a `global.` prefix (`print(...)` and
 
 Inside a module, `global.name(...)` always resolves to a *core builtin*, never to
 the module's own function of that name — see
-[limitations](limitations.md#module-self-calls).
+[limitations](limitations.md#language-and-toolchain).
 
-Names that are known but not implemented (for example `rawPy`, `ffiCall`,
-`nativeModuleLoad`, `async*`, and the mutual-exclusion primitives) fail with
-`<name>() is not supported in CLynxer yet`. The `syscall*` family is routed to a
-generic syscall dispatcher instead.
+Names that CLynxer recognises but does not implement fail with a source-located
+`<name>() is not supported in CLynxer yet`. On a Linux/POSIX build the
+**supported** families include the `ffi*`, `async*`, `sound*`, `filesystem*`,
+`process*`, `networking*`, `nativeThread*` and `syscall*` builtins; the
+unsupported set is listed under [Unsupported names](#unsupported-names) and is
+defined by `unsupportedTable()` in `clynxer/builtins.cpp`. On a build without
+POSIX support, the `filesystem*`/`process*`/`networking*`/`sound*` families join
+the unsupported set. The `syscall*` family is routed to a generic syscall
+dispatcher rather than to a per-name handler.
 
 ## Input, output and conversion
 
@@ -49,27 +54,27 @@ generic syscall dispatcher instead.
 | `seqFromTo(start, stop, step)` | Integer sequence, `stop` exclusive |
 | `listJsonArray(list)` | Encodes a list as a JSON array string |
 | `listJsonObject(flatList)` | Encodes alternating key/value pairs as a JSON object |
-| `listFlatten(list)` / `listUnique(list)` | Flatten / de-duplicate |
-| `listPush(list, value)` | Appends, returns the list |
-| `listPop(list)` | Removes and returns the last element |
-| `listGet(list, index)` | Element access |
-| `listSet(list, index, value)` | Element assignment |
+| `listFlatten(list)` / `listUnique(list)` | Flatten / de-duplicate, returning a new list |
+| `listPush(list, value)` | Appends, **returning a new list** — the argument is unchanged |
+| `listPop(list)` | Returns the **last element**; the list is unchanged |
+| `listGet(list, index)` | Element access (negative indices count from the end) |
+| `listSet(list, index, value)` | Returns a **new list** with the element replaced |
 | `listSlice(list, start, stop)` | Half-open slice |
 | `listContains(list, value)` | Membership |
 | `listJoin(list, separator)` | Joins elements into a string |
-| `listIndex(list, value)` | Index of a value |
-| `listRemove(list, index)` | Removes at an index |
+| `listIndex(list, value)` | Index of a value, or `-1` |
+| `listRemove(list, index)` | Returns a new list without that element |
 | `anyOf(list)` / `allOf(list)` | Truthiness reductions |
 | `sumOf(list)` | Numeric sum |
-| `sortList(list[, reverse])` | Sorts in place / returns the list |
-| `reverseList(list)` | Reverses |
+| `sortList(list[, reverse])` | Returns a **sorted copy**; the argument is unchanged |
+| `reverseList(list)` | Returns a reversed copy |
 | `listMin(list)` / `listMax(list)` | Extremes |
 | `listFirst(list)` / `listLast(list)` | Ends |
 | `listHead(list, count)` / `listTail(list, count)` | Prefix / suffix |
 | `listCount(list, value)` | Number of occurrences |
-| `listExtend(list, other)` | Concatenates in place |
-| `listInsert(list, index, value)` | Inserts |
-| `listClear(list)` | Empties |
+| `listExtend(list, other)` | Returns a new list with `other` appended |
+| `listInsert(list, index, value)` | Returns a new list with `value` inserted |
+| `listClear(list)` | Returns an empty list |
 | `listRepeat(value, count)` | List of `count` copies |
 | `listAvg(list)` | Arithmetic mean |
 | `listZip(first, second)` | Pairs elements |
@@ -112,8 +117,11 @@ starts, and that directory is removed when the process exits.
 global setup(){ import("fileIO"); }
 
 global main(){
-    println(bundledFiles());
-    println(global.fileIO.readFile(bundledFile("message.txt")));
+    list files = bundledFiles();
+    println(files);                 // [] in an interpreted run
+    if (returnLength(files) > 0) {
+        println(global.fileIO.readFile(bundledFile("message.txt")));
+    }
 }
 ```
 
@@ -127,12 +135,22 @@ global main(){
 | `memoryFree(address)` | Releases an allocation |
 | `memorySet(address, value, size)` | Fills memory |
 | `memoryCopy(destination, source, size)` | Copies memory |
-| `memoryRead<Type>(address, offset)` | Typed read; `<Type>` is one of `byte`, `int8`, `uint8`, `int16`, `uint16`, `int32`, `uint32`, `int64`, `uint64`, `float32`, `float64` |
-| `memoryWrite<Type>(address, offset, value)` | Typed write |
-| `memoryReadEndian(address, offset, type, order)` | Read with explicit byte order (`little`/`le`, `big`/`be`) |
+| `memoryReadByte(address, offset)` / `memoryWriteByte(address, offset, value)` | 1-byte unsigned access |
+| `memoryReadInt8` / `memoryWriteInt8`, `memoryReadUInt8` / `memoryWriteUInt8` | 8-bit access |
+| `memoryReadInt16` / `memoryWriteInt16`, `memoryReadUInt16` / `memoryWriteUInt16` | 16-bit access |
+| `memoryReadInt32` / `memoryWriteInt32`, `memoryReadUInt32` / `memoryWriteUInt32` | 32-bit access |
+| `memoryReadInt64` / `memoryWriteInt64`, `memoryReadUInt64` / `memoryWriteUInt64` | 64-bit access |
+| `memoryReadFloat32` / `memoryWriteFloat32`, `memoryReadFloat64` / `memoryWriteFloat64` | floating-point access |
+| `memoryReadEndian(address, offset, type, order)` | Read with explicit byte order (`little`/`le`, `big`/`be`). `type` is a **lowercase string**: `byte`, `int8`…`uint64`, `float32`, `float64` |
 | `memoryWriteEndian(address, offset, type, order, value)` | Write with explicit byte order |
-| `memoryTypeSize(type)` / `memoryTypeAlignment(type)` | Layout queries |
-| `sizeOf(typeName)` | Size of a named type |
+| `memoryTypeSize(type)` / `memoryTypeAlignment(type)` | Layout queries for a lowercase type string |
+| `sizeOf(typeName)` | Size of a C type name (`char`, `int`, `long`, `void*`, `size_t`, `int64`, …) |
+
+Every typed read/write validates the address against the allocation registry and
+checks the access against the allocation's length, so an unknown address, a
+freed address, and an out-of-bounds access are source-located errors rather than
+crashes. 64-bit writes preserve the full signed and unsigned range (see
+[types.md](types.md)).
 
 ## Syscalls
 
@@ -303,5 +321,80 @@ evaluate at once — that is why no data race is possible — and it is why a
 worker's own output appears at the join rather than during the main body.
 Programs that leave a thread running have it joined when the program finishes.
 
-`sound*` and `nativeThread*` are the two families a program reaches through a
-callback or a module; everything else in this page is self-contained.
+## FFI
+
+The `ffi*` family loads a native shared library and calls a symbol by signature
+at run time, with no build step. It is implemented in C++ over `dlopen`/`dlsym`
+(there is no libffi), so the same call site can call any symbol whose signature
+is in the supported table.
+
+| Builtin | Notes |
+| --- | --- |
+| `ffiLoadLibrary(path)` | Loads a shared library and returns a handle |
+| `ffiLookup(handle, symbol)` | Resolves a symbol to a `functionAddress` |
+| `ffiCall(address, signature, arguments)` | Calls the symbol. `signature` is a packed string such as `"cdecl:int32(int32,int32)"`; `arguments` is a list |
+| `ffiCallback(signature, function)` | Wraps a Lynxer function as a C callback the native code can call |
+| `ffiFreeCallback(callback)` | Releases a callback created by `ffiCallback` |
+| `ffiCloseLibrary(handle)` | Unloads the library and invalidates its symbols |
+
+The signatures use the same grammar as native modules; see
+[native-module-abi.md](native-module-abi.md#signatures).
+`clynxer/examples/builtin_ffi.lynx` demonstrates the full round trip (calling
+`strlen` and passing a Lynxer function back as a C callback).
+
+## Async
+
+The `async*` family performs I/O without a language-level event loop.
+`asyncRun(function, arguments?)` starts a Lynxer function in the async runtime,
+and `await` in the caller yields until the operation completes. Timers, wakeups
+and file/IO readiness sources are registered on a poll set and awaited with
+`asyncPollWait`; `asyncPollDispatch` awaits them and invokes a Lynxer callback
+for each ready event. Evaluation stays cooperative — the interpreter runs one
+Lynxer frame at a time.
+
+| Builtin | Notes |
+| --- | --- |
+| `asyncRun(function, arguments?)` | Starts a function; returns a handle |
+| `asyncGather(values...)` | Collects its arguments into a list |
+| `asyncSleep(seconds)` | Suspends the current task for a non-negative duration |
+| `asyncPollCreate()` | Creates a poll set and returns a handle |
+| `asyncPollRegister(poll, resource, events, token)` | Registers a resource for `read`, `write` or `readwrite` |
+| `asyncPollModify(poll, resource, events, token)` | Changes the interest and token |
+| `asyncPollRemove(poll, resource)` | Removes a resource |
+| `asyncPollWait(poll, timeoutMs?, maxEvents?)` | Awaits ready events |
+| `asyncPollDispatch(poll, callback, timeoutMs?, maxEvents?)` | Awaits events and calls a Lynxer callback for each |
+| `asyncPollClose(poll)` | Releases the poll set |
+| `asyncTimerCreate(poll, milliseconds, token, repeatMs?)` | Schedules a timer |
+| `asyncTimerCancel(timer)` | Cancels a timer |
+| `asyncWakeupCreate(poll, token)` | Creates a wakeup handle |
+| `asyncWakeupSignal(wakeup)` | Signals a wakeup |
+| `asyncWakeupClose(wakeup)` | Releases a wakeup |
+
+See `clynxer/examples/builtin_async.lynx` for a runnable example, and
+[language.md](language.md) for the `async`/`await` syntax.
+
+## Unsupported names
+
+Names CLynxer recognises but does not implement on Linux/POSIX. Each fails with
+`<name>() is not supported in CLynxer yet`, except `embedPy`, whose message is
+`Python bridging (embedPy) is not supported in CLynxer`.
+
+| Family | Names |
+| --- | --- |
+| Python bridging | `rawPy`, `rawPyx`, `cleanRawPyxCache`, `embedPy` |
+| Namespaces | `unshare` |
+| Borrow / transfer | `varTransfer`, `varTransferMutate`, `varBorrow`, `varBorrowMutate`, `varSwapAll`, `varSwapVal`, `varEndBorrow`, `borrowing`, `beingBorrowed` |
+| Raw addresses | `getAddress`, `modifyAddressValue`, `getAddressValue`, `functionAddress`, `nativeFunctionAddress`, `nativeCall` |
+| Native module introspection | `nativeModuleLoad`, `nativeModuleName`, `nativeModuleFunction`, `nativeModuleConstant`, `nativeModuleType`, `nativeModuleError`, `nativeModuleDependencies`, `nativeModuleClose` |
+| Native sync primitives | `nativeMutex*`, `nativeCondition*`, `nativeSemaphore*`, `nativeHandle*` |
+| Atomics | `atomicLoad`, `atomicStore`, `atomicAdd`, `volatileRead`, `volatileWrite` |
+| Advanced memory | `memoryProtect`, `memoryBlock*`, `memoryArray*`, `memoryView*`, `memoryStruct*`, `nativeStruct*`, `nativeTypeAlignment` |
+
+The authoritative list is `unsupportedTable()` in `clynxer/builtins.cpp`; this
+table is the POSIX-visible subset. A build without POSIX support adds the
+`filesystem*`, `process*`, `networking*`, `sound*`, `async*` and `nativeThread*`
+families. See [limitations.md](limitations.md) for the rationale.
+
+`sound*`, `ffi*`, `async*` and `nativeThread*` are the families that reach
+outside the interpreter (a device, a shared library, a runtime, or a worker
+thread); everything else on this page is self-contained.

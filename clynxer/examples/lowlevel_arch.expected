@@ -1,0 +1,21 @@
+== data model ==
+void* 8 true
+long 8 true
+size_t 8 true
+uintptr_t 8 true
+int 4 true
+host little-endian true
+== naming and clocks ==
+yield 0 true
+tid positive true
+pid positive true
+ppid non-negative true
+clock_gettime true
+clock_getres true
+== pipe round trip ==
+pipe created true
+descriptors non-negative true
+write 2 bytes true
+read 2 bytes true
+bytes match true
+done

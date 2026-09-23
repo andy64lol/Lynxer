@@ -1,52 +1,92 @@
 # Build and install
 
-Clynxer is a C++17 Linux executable. It does **not** need Python.
+Clynxer is a C++17 Linux executable. Building and running it does **not** need
+Python; only the two check scripts in the test suite do.
 
 ## Requirements
 
-- A C++17 compiler (`g++` or `clang++`)
-- `make`
-- A Rust toolchain (`cargo`) for the `game`, `json`, `network` and `server`
-  modules. They are skipped with a warning when `cargo` is not on `PATH`; the
-  rest of Clynxer still builds.
-- Git and network access for the first `cargo` build (crates are fetched from
-  crates.io). Nothing is compiled from vendored C/C++ sources any more.
+- A C++17 compiler (`g++` or `clang++`) and `make`.
+- `python3` to run `make testCLynxer` (the contract and golden checks).
+- Optional: a Rust toolchain (`cargo`) for the nine Rust-backed modules. They
+  are **skipped with a warning** when `cargo` is not on `PATH`; the rest of
+  Clynxer still builds.
+- Git and network access for the first `cargo` build: crates are fetched from
+  crates.io. Nothing is compiled from vendored C/C++ sources.
 
-No system OpenSSL, Boost, CMake, cpp-httplib, Crow or nlohmann/json is needed:
+No system OpenSSL, Boost, CMake, cpp-httplib, Crow, or nlohmann/json is needed:
 TLS is `rustls`, the HTTP stack is `ureq`/`tungstenite`/`axum`, and JSON is
 `serde_json`.
 
 ## Build from the repository root
 
 ```bash
-make cargo              # build the Rust backends (game, image, json, lua, network, server, sound, sqldb, tui, ffi)
-make buildCLynxer       # build the interpreter and every native stdlib module
-make testCLynxer        # contract check + smoke + stdlib fixtures
+make buildCLynxer       # interpreter + every native stdlib module
+make testCLynxer        # the full suite (see README.md)
 ```
 
-`buildCLynxer` already pulls in `cargo`, so the first line is only needed to
-build the Rust backends on their own. The Makefile lives at the repository
-root and builds both Lynxer and Clynxer; there is no separate
-`clynxer/Makefile`.
+`buildCLynxer` already builds the Rust backends, so a separate `make cargo` is
+only useful to build them on their own:
 
-Outputs:
+```bash
+make cargo              # just the Rust backends
+make buildCLynxerArm64  # cross-build the ARM64 interpreter
+```
 
-- `clynxer/clynxer` — interpreter
-- `clynxer/stdlib/*.so` — stdlib backends. `game`, `json`, `network` and
-  `server` are produced by `cargo` (`clynxer/build/rust`); the rest are
-  compiled from `stdlib/*.cpp`.
+The Makefile lives at the repository root and builds **both** implementations;
+there is no separate `clynxer/Makefile`.
+
+## Artifacts
+
+- `clynxer/clynxer` — the interpreter.
+- `clynxer/clynxer-arm64` — the ARM64 interpreter, from `buildCLynxerArm64`.
+- `clynxer/stdlib/*.so` — the stdlib backends. The Rust-backed modules are
+  produced by `cargo` under `clynxer/build/rust`; the C++ ones are compiled
+  from `stdlib/*.cpp`.
+
+The Rust workspace has ten member crates
+(`CLYNXER_RUST_MODULE_NAMES` in the Makefile): the nine module backends `game`,
+`image`, `json`, `lua`, `network`, `server`, `sound`, `sqldb`, `tui`, plus
+`ffi`, which is an intentional no-op cdylib — the `ffi*` builtins are
+implemented in C++.
 
 ## Install
 
-```bash
-./clynxer/clynxer --install     # copies to /usr/bin/lynxer
-./clynxer/clynxer --uninstall
+There is **no** install step. `--install` and `--uninstall` are recognised only
+to report that they are unavailable:
+
+```console
+$ ./clynxer/clynxer --install
+clynxer: '--install' is not available in CLynxer yet
+$ echo $?
+1
 ```
+
+Run the interpreter from where it was built (or copy it yourself and keep the
+matching `stdlib/` directory beside it).
 
 ## Quick run
 
 ```bash
-./clynxer/clynxer examples/hello.lynx
+./clynxer/clynxer clynxer/examples/milestone5.lynx
 ./clynxer/clynxer --list-stdlibs
-./clynxer/clynxer --compile examples/milestone5.lynx -o /tmp/demo
+./clynxer/clynxer --compile clynxer/examples/milestone5.lynx -o /tmp/demo
 ```
+
+Example programs live under `clynxer/examples/`, so run them with that prefix
+from the repository root.
+
+## Environment variables
+
+| Variable | Used by | Effect |
+|----------|---------|--------|
+| `CLYNXER_OPT_REPORT=1` | the interpreter | print the AST optimizer counts to stderr after the run |
+| `CLYNXER_GAME_HEADLESS=1` | the `game` module | run without opening a window |
+| `CLYNXER_SKIP_DISPLAY=1` | `make testCLynxer` | skip the display and audio fixtures (used by CI) |
+
+The first three are described in more detail in
+[CLI.md](CLI.md#environment-variables) and [limitations.md](limitations.md).
+
+## See also
+
+- [README.md](README.md) — the documentation index and what `make testCLynxer` runs.
+- [CLI.md](CLI.md) — every flag and exit code.

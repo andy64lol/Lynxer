@@ -40,7 +40,14 @@ global setup(){
     import("path");
     import("json");
     import("network");
-    import("game");
+    // Graphics needs a display, which a CI runner does not have. When the suite
+    // sets CLYNXER_SKIP_DISPLAY=1 the game module is not imported and the game
+    // section below is skipped; every other module still runs.
+    str skipDisplayValue = global.os.getenv("CLYNXER_SKIP_DISPLAY");
+    bool skipDisplay = skipDisplayValue is "1";
+    if(not skipDisplay){
+        import("game");
+    }
 }
 
 // Compare the rendered form of `actual` to `expected`, reporting mismatches
@@ -930,6 +937,7 @@ global main(){
     fails += global.check(global.server.port(), "0", "server.port.stopped");
 
     // ----------------------------------------------------------------- game
+    if(not skipDisplay){
     println("== game ==");
     // Force the game backend into headless mode so the run is deterministic and
     // needs no display, whether or not the caller exported the variable.
@@ -1081,6 +1089,9 @@ global main(){
     global.game.setDrawCallback("onDraw");
     global.game.run();
     global.game.close();
+    } else {
+        println("== game (skipped: CLYNXER_SKIP_DISPLAY=1) ==");
+    }
 
     // ===== END CHECKS =====
 

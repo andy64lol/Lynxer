@@ -1,4 +1,5 @@
-//// Lynxer standard library: sound.
+////
+Lynxer standard library: sound.
 Audio playback module backed by Rust (`rodio`/`cpal`), exposed through the native module `stdlib/sound.so`.
 Requires a Rust toolchain to build (see `rust/sound`); the module is skipped when `cargo` is unavailable.
 ////

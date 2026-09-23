@@ -92,7 +92,9 @@ Every other Python module has a native backend. Nine of them are Rust crates —
 `mlua`), `network` (`ureq` + `tungstenite`), `server` (`axum` + `tokio`),
 `sound` (`rodio`/`cpal`), `sqldb` (`rusqlite`) and `tui` (`ratatui`/`crossterm`).
 They are skipped with a warning when `cargo` is missing, so the rest of Clynxer
-still builds without a Rust toolchain.
+still builds without a Rust toolchain. The Rust workspace also has an `ffi`
+member, an intentional no-op `cdylib`: the `ffi*` builtins are implemented in
+C++.
 
 ## `json`
 

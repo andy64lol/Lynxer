@@ -45,22 +45,20 @@ void printUsage() {
     std::cout << "Usage:\n";
     std::cout << "  clynxer <file.lynx>                          Run a Lynxer source file\n";
     std::cout << "  clynxer --no-opt <file.lynx>                 Run without the AST optimizer\n";
+    std::cout << "  clynxer --lint <file.lynx>                   Check Lynxer syntax without running it\n";
     std::cout << "  clynxer --compile <a.lynx> [options] [name]  Compile input files into one executable\n";
     std::cout << "  clynxer --bundle <a.lynx> [options] [name]   Alias of --compile\n";
     std::cout << "      --include <file>                         Embed a module, native library or data file\n";
     std::cout << "      -o, --output <name>                      Name the output executable\n";
-    std::cout << "  clynxer --ast <file.lynx>                    Parse and print the abstract syntax tree\n";
-    std::cout << "  clynxer --format <file.lynx>                 Format a Lynxer source file in place\n";
-    std::cout << "  clynxer --format-oneline <file.lynx>         Compact a Lynxer source file to one line\n";
-    std::cout << "  clynxer --lint <file.lynx>                   Check Lynxer syntax without running it\n";
-    std::cout << "  clynxer --validate-executeable               Run the comprehensive interpreter validator\n";
     std::cout << "  clynxer --version                            Print version\n";
     std::cout << "  clynxer --list-stdlibs                       List available Lynxer stdlib modules\n";
-    std::cout << "  clynxer --install                            Install the compiled executable as /usr/bin/lynxer, may require sudo\n";
-    std::cout << "  clynxer --uninstall                          Remove /usr/bin/lynxer, also may require sudo\n";
     std::cout << "\n";
-    std::cout << "  BTW, please run the install and uninstall with the executeable, not shell.cpp nor anything else.\n";
-    std::cout << "  If you are running from source, use the compiled executable instead located in GitHub Releases.\n";
+    std::cout << "Not available in CLynxer (reported as an explicit error):\n";
+    std::cout << "  --ast, --format, --format-oneline, --validate-executeable, --install,\n";
+    std::cout << "  --uninstall\n";
+    std::cout << "\n";
+    std::cout << "Removed with the bytecode backend (use --compile):\n";
+    std::cout << "  --view-bytecode, --benchmark-compile, --no-cache\n";
     std::cout << "\n";
 }
 

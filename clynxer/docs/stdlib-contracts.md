@@ -78,8 +78,9 @@ picks one family and applies it consistently:
 | Family | Shape | Modules |
 | --- | --- | --- |
 | Scalar sentinel | `-1` for indices and sizes, `0` / `0.0` for numbers, `false` for predicates, `""` for strings | `cli`, `debug`, `fileIO`, `game`, `image`, `json`, `math`, `multiprocessing`, `os`, `path`, `random`, `re`, `regex`, `sound`, `sys`, `time` |
-| Status string | `"ok"` on success; `"ERROR: <message>"` on failure | `csv`, `sqldb`, `network` |
-| Error string | `"Error: <message>"` | `js`, `lua` |
+| Process exit code | the command's exit status; a negative value when it did not run | `shell` |
+| Status string | `"ok"` on success; `"ERROR: <message>"` on failure | `csv`, `sqldb`, `network`, `server` |
+| Error string | `"Error: <message>"` | `js`, `lua`, `tui` |
 
 `csv` mixes the first two: its table-returning operations answer with the status
 string (`"ok"` / `"ERROR: ..."`), and the rest use scalar sentinels.
@@ -88,7 +89,7 @@ report across.
 
 Operations returning a JSON document return `[]` or `{}` for an empty result
 and an error string for a failure — never an exception. `jsonParse` on malformed
-input yields `[]`.
+input yields the **empty string** (`""`), not `[]`; test the result for `""`.
 
 A failure sentinel is a result, not a diagnostic: a program checks it and
 decides what to do. No bundled module aborts the process, and none panics across

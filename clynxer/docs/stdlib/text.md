@@ -33,3 +33,14 @@ global main(){
     println(global.text.count("banana", "na"));
 }
 ```
+
+---
+
+## See also
+
+- [stdlib-contracts.md](../stdlib-contracts.md) — the contract this module
+  implements, including the error sentinel family it uses.
+- [builtins.md](../builtins.md) — the functions the interpreter implements
+  itself.
+- [parity.md](../parity.md) — the parity scope with Python Lynxer.
+- [limitations.md](../limitations.md) — the full divergence register.

@@ -1,5 +1,10 @@
 """Public package exports.
 
+**Frozen behaviour reference (2026-09-23).** Clynxer (`clynxer/`) is the primary
+implementation and has superseded this Python package for real use. This package
+receives no new features: it is kept so the reference behaviour stays available,
+and parity fixes are made in Clynxer. See `clynxer/docs/parity.md`.
+
 The interpreter and built-in registry depend on each other during startup.
 Keep package exports lazy so importing a submodule such as
 ``lynxer.builtins`` does not eagerly start the interpreter first.

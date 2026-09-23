@@ -2,149 +2,191 @@
 
 Clynxer is the standalone C++ implementation of Lynxer. It runs `.lynx`
 programs without a Python runtime and ships its standard library as native
-shared libraries.
+shared libraries. It is the **primary** implementation and has superseded the
+Python implementation for real use — standalone ELF executables, 27 natively
+backed modules, an AST optimizer, a frozen native-module ABI, and CI on amd64
+and arm64. The Python package is kept only as the frozen behaviour reference;
+see [parity.md](parity.md) and [limitations.md](limitations.md).
 
 ## Contents
 
+**Getting started**
+
 | Document | What it covers |
 | --- | --- |
-| [builtins.md](builtins.md) | Every function implemented by the interpreter itself |
-| [native-module-abi.md](native-module-abi.md) | How to write a native `.so` module: entry point, signatures, data conventions |
-| [stdlib-contracts.md](stdlib-contracts.md) | The frozen contract every module wrapper and backend must satisfy |
-| [extending.md](extending.md) | Adding a stdlib module end to end: wrapper, backend, build, fixtures, checks |
+| [install.md](install.md) | Requirements, build commands, artifacts, environment variables |
+| [CLI.md](CLI.md) | Every flag, exit code, and error behaviour of the `clynxer` executable |
+
+**The language**
+
+| Document | What it covers |
+| --- | --- |
+| [language.md](language.md) | Program structure, comments, variables, operators, control flow, functions, scoping, interpolation |
+| [types.md](types.md) | Every type name, ranges, and conversion rules |
+| [lists.md](lists.md) | `list` and `tuple` values and their builtins |
+| [structs.md](structs.md) | Data-only records |
+| [classes.md](classes.md) | Fields plus `local` methods |
+| [enums.md](enums.md) | Tagged unions and `switch` patterns |
+| [vargroups.md](vargroups.md) | Records with defaulted fields |
+| [modules.md](modules.md) | `import`, search order, module member access |
+| [importAs.md](importAs.md) | Aliasing an imported module |
+
+**Internals and reference**
+
+| Document | What it covers |
+| --- | --- |
+| [builtins.md](builtins.md) | Every function the interpreter implements itself |
+| [native-module-abi.md](native-module-abi.md) | Writing a native `.so` module: entry point, signatures, data conventions |
+| [stdlib-contracts.md](stdlib-contracts.md) | The frozen contract every wrapper and backend must satisfy |
+| [extending.md](extending.md) | Adding a stdlib module end to end |
 | [stdlib/](stdlib/) | One page per standard-library module |
-| [language.md](language.md) | Clynxer syntax, including `global`, `func`, and `local` functions |
-| [install.md](install.md) | Build commands, dependency staging, and installation |
-| [limitations.md](limitations.md) | Divergences from the Python implementation, and what is not ported |
-| [parity.md](parity.md) | What is a parity target with the Python implementation, and what is deliberately different |
+| [limitations.md](limitations.md) | Divergences from Python, and what is not ported |
+| [parity.md](parity.md) | What is a parity target and what is deliberately different |
 
 ## Build and run
 
 ```bash
-make                     # build the interpreter and every native stdlib module
-clynxer program.lynx     # run a program
-clynxer --list-stdlibs   # list available modules with their docstrings
+make buildCLynxer        # interpreter + every native stdlib module
+clynxer/clynxer program.lynx
+clynxer/clynxer --list-stdlibs
 ```
 
-From the repository root, `make buildCLynxer` builds the binary and the native
-modules. The `game`, `image`, `json`, `lua`, `network`, `server`, `sound`,
-`sqldb` and `tui` modules are Rust crates under `rust/` (see `make cargo`); the
-rest are C++ `stdlib/*.cpp`. A Rust toolchain (`cargo`) is required for those
-nine modules; they are skipped with a warning when cargo is absent.
-`make testCLynxer` runs the whole suite: the module/backend contract check, the
-CLI and diagnostic golden cases (`scripts/check_golden.py`), every
-`examples/*.expected` fixture — including the low-level native-memory and
-syscall fixtures — and interpreted-versus-`--compile` parity. Both Clynxer CI
-workflows run it with `CLYNXER_SKIP_DISPLAY=1`, which drops the fixtures that
-need a display or an audio device.
+The root `Makefile` builds both implementations; `make` alone builds everything.
+`make buildCLynxer` builds the interpreter and the native modules, and
+`make buildCLynxerArm64` cross-builds the ARM64 interpreter.
+`make testCLynxer` runs the whole suite:
+
+1. `clynxer/scripts/check_module_contracts.py` — wrapper/backend contract check.
+2. `clynxer/scripts/check_golden.py` — the CLI and diagnostic golden cases in
+   `clynxer/golden/cases.json`.
+3. Every `clynxer/examples/*.expected` fixture, diffed on stdout+stderr,
+   including the optimizer and low-level native-memory/syscall fixtures.
+4. Interpreted-versus-`--compile` parity for a set of fixtures.
+5. The bundled-executable, `--include`, and bytecode-removal checks.
+
+Both Clynxer CI workflows (`.github/workflows/build-clynxer-amd.yml` and
+`build-clynxer-arm.yml`) run `make testCLynxer CLYNXER_SKIP_DISPLAY=1`, which
+drops the fixtures that need a display or an audio device (a CI runner has
+neither, and the graphics backend crashes without a display).
+
+A Rust toolchain is optional: the nine Rust-backed modules are skipped with a
+warning when `cargo` is absent, and everything else still builds. `python3` is
+required for the two check scripts in the test suite.
 
 ## Standard library modules
 
-Every module below is implemented by a `stdlib/<name>.so` backend — C++
-(`stdlib/<name>.cpp`) or, for the Rust-backed ones, a crate under `rust/` — and
-exposed to Lynxer by `stdlib/<name>.lynx`. Modules marked *pure* are written in
-Lynxer only and need no shared library. Modules marked *native* need a
-compiler: the C++ ones need only a C++17 toolchain, and the Rust ones are
-skipped with a warning when `cargo` is missing, so a plain `make` never fails on
-an absent Rust toolchain.
+There are 27 bundled modules. A module is exposed to Lynxer by
+`stdlib/<name>.lynx` and backed by a `stdlib/<name>.so`. The backends marked
+*Rust* come from a crate under `rust/`; *pure* modules are written in Lynxer
+only and need no shared library.
 
-There is no bytecode backend: `--compile` produces a standalone ELF executable
-that embeds the program, its imported module sources and its native libraries.
-
-Every module the program **imports** is collected automatically, and several
-inputs can be bundled into the one executable — the first `.lynx` file is the
-program, and any further `.lynx` or `.so` files are embedded and importable by
-name. `--include <file>` adds a file of any kind; a non-`.lynx`/`.so` file is
-embedded as data that the program reads through `bundledFile()`:
-
-```bash
-clynxer --compile app.lynx extras/helpers.lynx --include vendor/libcustom.so \
-        --include assets/message.txt -o app
-```
-
-| Module | Implementation | Backend |
+| Module | Backend | Implementation |
 | --- | --- | --- |
 | [cli](stdlib/cli.md) | native | POSIX process/env/terminal APIs |
 | [colorlib](stdlib/colorlib.md) | pure | ANSI escape sequences |
 | [csv](stdlib/csv.md) | native | hand-written CSV/TSV reader and writer |
 | [debug](stdlib/debug.md) | native + pure | `<chrono>`, `getrusage`, assertions in Lynxer |
 | [fileIO](stdlib/fileIO.md) | native | `<fstream>`, `<filesystem>` |
-| [game](stdlib/game.md) | native | Rust `macroquad` (`rust/game`) |
-| [image](stdlib/image.md) | native | Rust `image` (`rust/image`) |
+| [game](stdlib/game.md) | Rust | `macroquad` (`rust/game`) |
+| [image](stdlib/image.md) | Rust | `image` (`rust/image`) |
 | [js](stdlib/js.md) | native | the `node` binary |
-| [json](stdlib/json.md) | native | Rust `serde_json` (`rust/json`) |
-| [lua](stdlib/lua.md) | native | Rust `mlua` with vendored Lua 5.4 (`rust/lua`) |
+| [json](stdlib/json.md) | Rust | `serde_json` (`rust/json`) |
+| [lua](stdlib/lua.md) | Rust | `mlua` with vendored Lua 5.4 (`rust/lua`) |
 | [math](stdlib/math.md) | native | `<cmath>` plus statistics and vector helpers |
 | [multiprocessing](stdlib/multiprocessing.md) | native + pure | `std::thread` and shell subprocesses |
-| [network](stdlib/network.md) | native | Rust `ureq` + `tungstenite` (rustls) |
+| [network](stdlib/network.md) | Rust | `ureq` + `tungstenite` over `rustls` |
 | [os](stdlib/os.md) | native | `<filesystem>`, POSIX |
 | [path](stdlib/path.md) | native | `<filesystem>`, POSIX `stat` |
 | [random](stdlib/random.md) | native | seeded linear congruential generator in C++ |
 | [re](stdlib/re.md) | native | `std::regex` |
 | [regex](stdlib/regex.md) | native | `std::regex` with a named-pattern cache |
-| [server](stdlib/server.md) | native | Rust `axum` + `tokio` |
+| [server](stdlib/server.md) | Rust | `axum` + `tokio` |
 | [shell](stdlib/shell.md) | native | `popen`, `std::system` |
-| [sound](stdlib/sound.md) | native | Rust `rodio` + `cpal` + `symphonia` |
-| [sqldb](stdlib/sqldb.md) | native | Rust `rusqlite` (bundled SQLite) |
+| [sound](stdlib/sound.md) | Rust | `rodio` + `cpal` + `symphonia` |
+| [sqldb](stdlib/sqldb.md) | Rust | `rusqlite` (bundled SQLite) |
 | [sys](stdlib/sys.md) | native | C++ runtime and POSIX |
 | [text](stdlib/text.md) | pure | Lynxer string builtins |
 | [time](stdlib/time.md) | native | `<chrono>`, `<ctime>` |
-| [tui](stdlib/tui.md) | native | Rust `ratatui` + `crossterm` |
+| [tui](stdlib/tui.md) | Rust | `ratatui` + `crossterm` |
 | [typing](stdlib/typing.md) | pure | Lynxer type builtins |
 
-`game`, `image`, `json`, `lua`, `network`, `server`, `sound`, `sqldb` and `tui`
-are Rust crates under `rust/`, built by `cargo` and installed as
-`stdlib/<name>.so` (see `make cargo`). The rest are C++ compiled from
-`stdlib/*.cpp`. There is no CMake staging step and no `third_party/` directory
-any more: TLS is `rustls` (no system OpenSSL) and the HTTP/WebSocket stack is
-pure Rust.
+The Rust workspace has ten member crates
+(`CLYNXER_RUST_MODULE_NAMES` in the Makefile): the nine module backends listed
+above, plus `ffi`, an intentional **no-op** cdylib — the `ffi*` builtins are
+implemented in C++ (`clynxer/builtins.cpp`), not by that crate. There is no
+CMake staging step and no `third_party/` directory: TLS is `rustls` (no system
+OpenSSL) and the HTTP/WebSocket stack is pure Rust.
 
-`venv` is intentionally excluded — see [limitations.md](limitations.md).
+`venv` and the Python-only modules (`tkinter`, `tkinterPlus`, `turtle`) are
+intentionally excluded — see [limitations.md](limitations.md).
+
+## Compiling a program
+
+`--compile` (alias `--bundle`) produces one standalone ELF executable that
+embeds the program, every transitively imported `.lynx` source and `.so`
+library, plus anything added with `--include`:
+
+```bash
+clynxer/clynxer --compile app.lynx extras/helpers.lynx \
+        --include vendor/libcustom.so --include assets/message.txt -o app
+```
+
+The first `.lynx` file is the program; further `.lynx`/`.so` inputs are embedded
+and importable by name. A non-`.lynx`/`.so` include is embedded as data and read
+with `bundledFile(name)` / `bundledFiles()`. See [CLI.md](CLI.md#compile-to-an-executable).
 
 ## Adding a stdlib module
 
-1. Write `stdlib/<name>.cpp` exporting `lynxer_module_init_v1` and one
-   `extern "C"` function per entry; see
-   [native-module-abi.md](native-module-abi.md). It is picked up automatically
-   by the `stdlib/*.cpp` wildcard.
-2. Write `stdlib/<name>.lynx` whose `setup()` imports the library with
-   `importAs("<name>.so", "native<Name>")`, and forward each function as
-   `global f(...) { return global.nativeName.f(...); }`. Start the file with a
-   `////` docstring — `clynxer --list-stdlibs` prints it.
-3. A module can also be a Rust crate under `rust/`, as `game`, `image`, `json`,
-   `lua`, `network`, `server`, `sound`, `sqldb` and `tui` are. Export
-   `lynxer_module_init_v1` plus one `#[no_mangle] extern "C"` op per entry (the
-   `clynxer_abi` crate provides the packing, panic guards and registration
-   helper), add the crate to the workspace, and add its name to
-   `RUST_MODULE_NAMES` in the Makefile. Rust modules are skipped with a warning
-   when `cargo` is absent.
-
-   **A Rust op must be registered with a packed signature** — `cdecl:int64(...)`,
-   `cdecl:float64(...)` or `cdecl:cstring(...)` — never a fixed shape such as
-   `cdecl:int64(int64)`. The `export_*!` macros generate the four-scalar packed
-   prototype, so a fixed-shape declaration calls the symbol through the wrong C
-   prototype and **segfaults on the first call**, with no build-time warning. See
+1. Write the backend. A C++ module is `stdlib/<name>.cpp` exporting
+   `lynxer_module_init_v1` and one `extern "C"` function per entry; it is picked
+   up automatically by the `stdlib/*.cpp` wildcard. A Rust module is a crate
+   under `rust/` exporting the same entry point plus one
+   `#[no_mangle] extern "C"` op per entry (the `clynxer_abi` crate provides the
+   packing, panic guards, and registration helper); add it to the workspace and
+   to `CLYNXER_RUST_MODULE_NAMES` in the root Makefile. See
    [native-module-abi.md](native-module-abi.md).
-4. Add `examples/stdlib_<name>.lynx` plus a sibling `stdlib_<name>.expected`
-   file. `make test` runs every `examples/stdlib_*.lynx` and diffs it against
-   its `.expected` output.
-5. Run `make test`. It first runs `scripts/check_module_contracts.py`, which
-   compares the wrapper against the backend: every
-   `global.native<Alias>.<op>(...)` call must name a registered op, and for a
-   Rust backend every `args.<kind>(i)` read must be in range for the arguments
-   the wrapper passes. This catches contract mismatches that a fixture cannot —
-   a fixture records what the code does, so it will happily assert a module that
-   is broken in a way the fixture reproduces.
 
-A module that imports native libraries is picked up automatically by
-`--compile`: every transitively imported `.lynx` source and `.so` library is
-embedded in the resulting executable.
+   **A Rust op must be registered with a packed signature** —
+   `cdecl:int64(...)`, `cdecl:float64(...)`, or `cdecl:cstring(...)` — never a
+   fixed shape such as `cdecl:int64(int64)`. The `export_*!` macros generate a
+   four-scalar packed prototype, so a fixed-shape declaration calls the symbol
+   through the wrong C prototype and **segfaults on the first call**, with no
+   build-time warning.
+
+2. Write `stdlib/<name>.lynx`. Its `setup()` imports the library with
+   `importAs("<name>.so", "native<Name>")` and forwards each function as
+   `global f(...) { return global.nativeName.f(...); }`. Start the file with a
+   line containing exactly `////`, then the description, then another `////`;
+   `clynxer --list-stdlibs` prints that block.
+
+3. Add `examples/stdlib_<name>.lynx` plus a sibling `stdlib_<name>.expected`.
+   The suite runs every `examples/stdlib_*.lynx` and diffs it against its
+   `.expected` output.
+
+4. Run `make testCLynxer`. It runs
+   `clynxer/scripts/check_module_contracts.py`, which compares the wrapper
+   against the backend: every `global.native<Alias>.<op>(...)` call must name a
+   registered op, and for a Rust backend every `args.<kind>(i)` read must be in
+   range for the arguments the wrapper passes. This catches contract mismatches
+   a fixture cannot — a fixture records what the code does, so it will happily
+   assert a broken module whose behaviour it reproduces.
+
+See [extending.md](extending.md) and [stdlib-contracts.md](stdlib-contracts.md)
+for the full checklist and the contract.
+
+## Environment variables
+
+| Variable | Effect |
+|----------|--------|
+| `CLYNXER_OPT_REPORT=1` | Print the AST optimizer's transformation counts to stderr after the run |
+| `CLYNXER_GAME_HEADLESS=1` | Run the `game` module without opening a window |
+| `CLYNXER_SKIP_DISPLAY=1` | `make testCLynxer` skips the display/audio fixtures (used by CI) |
 
 ## File-wide functions
 
 Use `func` for a helper that belongs to the current source file:
 
-```c
+```lynx
 global setup(){}
 
 func double(int value) -> int {
@@ -152,12 +194,13 @@ func double(int value) -> int {
 }
 
 global main(){
-    println(double(21));
+    println(double(21));   // 42
 }
 ```
 
 `func` declarations must be top-level and appear between `global setup()` and
 `global main()`. They are called by bare name in their defining file. When a
-file is imported as a module, callers use
-`global.moduleName.functionName(...)`. `func` names are file-scoped, so two
-different imported files may define the same helper name.
+file is imported as a module, callers use `global.moduleName.functionName(...)`.
+`func` names are file-scoped, so two different imported files may define the
+same helper name. `global func name(...)` is not valid syntax; see
+[language.md](language.md#functions).

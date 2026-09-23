@@ -28,3 +28,14 @@ global main(){
 Lua `print` arguments are joined with tabs. Each captured output string ends
 with a newline when the script printed at least one line. Runtime and file
 errors are returned as strings beginning with `Error:`.
+
+---
+
+## See also
+
+- [stdlib-contracts.md](../stdlib-contracts.md) — the contract this module
+  implements, including the error sentinel family it uses.
+- [builtins.md](../builtins.md) — the functions the interpreter implements
+  itself.
+- [parity.md](../parity.md) — the parity scope with Python Lynxer.
+- [limitations.md](../limitations.md) — the full divergence register.

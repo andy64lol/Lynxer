@@ -109,3 +109,14 @@ global main(){
 
 `seqFromTo` and `range` exclude their `stop` value, so `seqFromTo(1, 5, 1)` is
 `[1, 2, 3, 4]`.
+
+---
+
+## See also
+
+- [stdlib-contracts.md](../stdlib-contracts.md) — the contract this module
+  implements, including the error sentinel family it uses.
+- [builtins.md](../builtins.md) — the functions the interpreter implements
+  itself.
+- [parity.md](../parity.md) — the parity scope with Python Lynxer.
+- [limitations.md](../limitations.md) — the full divergence register.

@@ -278,7 +278,14 @@ Value Environment::convertForType(Value value, const std::string& type,
     if (type == "any") {
         return value;
     }
-    if (type == "int") {
+    if (type == "none") {
+        // A `-> none` function (or a value-less builtin) converts to `none`,
+        // and only to `none`. Without this branch every `-> none` call failed
+        // with "value cannot be assigned to type 'none'".
+        if (std::holds_alternative<std::monostate>(value)) {
+            return value;
+        }
+    } else if (type == "int") {
         if (std::holds_alternative<std::int64_t>(value)) {
             return value;
         }

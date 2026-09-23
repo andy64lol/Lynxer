@@ -1,0 +1,52 @@
+////
+Architecture fixture: asserts the LP64 / little-endian properties that amd64 and
+arm64 share, and exercises the named syscalls whose kernel numbers differ per
+architecture. Every assertion is a property (a boolean or a small derived
+value), never a host constant, so one expected file holds on both targets.
+////
+
+global setup(){}
+
+global main(){
+    println("== data model ==");
+    println("void* 8 ", sizeOf("void*") is 8);
+    println("long 8 ", sizeOf("long") is 8);
+    println("size_t 8 ", sizeOf("size_t") is 8);
+    println("uintptr_t 8 ", sizeOf("uintptr_t") is 8);
+    println("int 4 ", sizeOf("int") is 4);
+
+    int buffer = memoryAllocate(64);
+
+    // Both amd64 and arm64 are little-endian: an int32 written in natural order
+    // reads back least-significant byte first.
+    memoryWriteInt32(buffer, 0, 16909060);   // 0x01020304
+    println("host little-endian ", memoryReadByte(buffer, 0) is 4);
+
+    println("== naming and clocks ==");
+    println("yield 0 ", syscallYieldProcessor() is 0);
+    println("tid positive ", syscallGetThreadId() > 0);
+    println("pid positive ", syscallGetProcessId() > 0);
+    println("ppid non-negative ", syscallGetParentProcessId() >= 0);
+    println("clock_gettime ", syscallGetClockTime(1, buffer) is 0);
+    println("clock_getres ", syscallGetClockResolution(1, buffer) is 0);
+
+    println("== pipe round trip ==");
+    int pipe = memoryAllocate(16);
+    println("pipe created ", syscallCreatePipe(pipe) is 0);
+    int readFd = memoryReadInt32(pipe, 0);
+    int writeFd = memoryReadInt32(pipe, 4);
+    println("descriptors non-negative ", readFd >= 0 and writeFd >= 0);
+
+    memoryWriteByte(buffer, 32, 104);   // 'h'
+    memoryWriteByte(buffer, 33, 105);   // 'i'
+    println("write 2 bytes ", syscallWrite(writeFd, buffer + 32, 2) is 2);
+    println("read 2 bytes ", syscallRead(readFd, buffer + 40, 2) is 2);
+    println("bytes match ", memoryReadByte(buffer, 40) is 104 and
+                              memoryReadByte(buffer, 41) is 105);
+
+    syscallClose(readFd);
+    syscallClose(writeFd);
+    memoryFree(pipe);
+    memoryFree(buffer);
+    println("done");
+}

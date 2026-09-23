@@ -11,7 +11,7 @@ The `sound` module provides audio playback functionality using Rust's `rodio` an
 ## Functions
 
 - `loadSound(path: string) -> int`
-  Loads an audio file (MP3, WAV). Returns a stable handle, or `-1` on failure.
+  Loads an audio file (WAV, OGG, MP3 or FLAC). Returns a stable handle, or `-1` on failure.
 
 - `loadSoundStreaming(path: string) -> int`
   Loads a streaming audio file. Returns a stable handle, or `-1` on failure.

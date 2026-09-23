@@ -1,48 +1,79 @@
 # Modules
 
+`import` and `importAs` load a module and bind its members under a namespace.
+
 ## Importing
 
-`import` and `importAs` may only run inside `setup()`.
+Imports are **statements**, so they run from a function body — `setup()` is the
+conventional place, but any function works:
 
-```c
+```lynx
 global setup(){
     import("math");
-    import("network");
     importAs("json", "j");
-    import("mylib.so");          // native shared library
 }
+
+global main(){}
 ```
 
-Search order:
+A native shared library is named with its `.so` suffix:
 
-1. Directory of the running program (or bundled payload for compiled apps)
-2. `clynxer/stdlib/`
+```lynx
+import("mylib.so");          // loads ./mylib.so or an stdlib library
+```
 
-`import("math")` and `import("math.lynx")` are equivalent. Native modules use
-the `.so` suffix (`import("math.so")` or via the `.lynx` wrapper that loads it).
+A bare `import("math");` at file scope is a syntax error
+(`expected top-level function declaration`).
 
-Imports are idempotent: a second load of the same module is a no-op.
+Both arguments must be **string literals**; an expression such as
+`importAs(path, "m")` is rejected with `expected module path string`. See
+[importAs.md](importAs.md) for the alias rules.
+
+## Search order
+
+1. The directory of the running program (for a compiled executable, the modules
+   embedded in its payload).
+2. `clynxer/stdlib/`, next to the interpreter.
+
+- `import("math")` and `import("math.lynx")` are equivalent.
+- A native library is named with its `.so` suffix; the stdlib `.lynx` wrappers
+  load their own `.so` (for example `math.lynx` imports `math.so` as
+  `nativeMath`).
+- Imports are idempotent: importing the same module twice is a no-op.
+- A module that cannot be found reports
+  `module 'nope' was not found` with the importing source location.
 
 There is **no** `.lynxc` bytecode import in Clynxer.
 
 ## Calling module members
 
-```c
+Members are reached through the module namespace: `global.<module>.<name>(...)`
+(or `global.<alias>.<name>(...)` after `importAs`).
+
+```lynx
+global setup(){
+    import("math");
+    importAs("json", "j");
+}
+
 global main(){
-    println(global.math.max(2, 5));
-    println(global.j.jsonGet("{\"a\": 1}", "a"));
+    println(global.math.max(2, 5));                    // 5
+    println(global.j.jsonGet("{\"a\": 1}", "a"));      // 1
 }
 ```
 
-Bare names resolve inside the module file itself; from the importing program,
-use `global.<module>.<name>(...)`.
+Inside the module file itself, call its own functions by **bare name** — using
+`global.<name>(...)` inside a module resolves to a core builtin, not the
+module's own function (see [limitations.md](limitations.md)). A file-level
+`func` in a module is reached from the importer as `global.<module>.<name>`
+just like a `global` function.
 
 ## Writing a module
 
-Any `.lynx` file with `setup` / helpers / `main` is a module. Prefer a leading
-`////` docstring so `--list-stdlibs` can describe it.
+Any `.lynx` file with `setup` and helpers is a module. Open it with a `////`
+docstring line so `--list-stdlibs` can describe it:
 
-```c
+```lynx
 ////
 Small helper module.
 ////
@@ -55,11 +86,18 @@ global twice(int n) -> int {
 global main(){}
 ```
 
-Native backends export `lynxer_module_init_v1` — see
+A native backend exports `lynxer_module_init_v1`; see
 [native-module-abi.md](native-module-abi.md).
 
 ## Compiled programs
 
-`--compile` embeds every transitively imported `.lynx` source and `.so`
-library. Extra inputs and `--include` files are embedded too. See
+`--compile` embeds every transitively imported `.lynx` source and `.so` library
+into the executable, so a compiled program needs nothing from the build tree.
+Positional extra inputs and `--include` files are embedded too. See
 [CLI.md](CLI.md).
+
+## See also
+
+- [importAs.md](importAs.md)
+- [native-module-abi.md](native-module-abi.md)
+- [builtins.md](builtins.md) — the builtins available without an import.

@@ -1,91 +1,142 @@
 {
   "version": {
-    "args": ["--version"],
+    "args": [
+      "--version"
+    ],
     "exit": 0,
     "stdout": "CLynxer 0.1.8"
   },
+  "help": {
+    "args": [
+      "--help"
+    ],
+    "exit": 0,
+    "stdout": "\nUsage:\n  clynxer <file.lynx>                          Run a Lynxer source file\n  clynxer --no-opt <file.lynx>                 Run without the AST optimizer\n  clynxer --lint <file.lynx>                   Check Lynxer syntax without running it\n  clynxer --compile <a.lynx> [options] [name]  Compile input files into one executable\n  clynxer --bundle <a.lynx> [options] [name]   Alias of --compile\n      --include <file>                         Embed a module, native library or data file\n      -o, --output <name>                      Name the output executable\n  clynxer --version                            Print version\n  clynxer --list-stdlibs                       List available Lynxer stdlib modules\n\nNot available in CLynxer (reported as an explicit error):\n  --ast, --format, --format-oneline, --validate-executeable, --install,\n  --uninstall\n\nRemoved with the bytecode backend (use --compile):\n  --view-bytecode, --benchmark-compile, --no-cache\n\n"
+  },
   "file_not_found": {
-    "args": ["does_not_exist.lynx"],
+    "args": [
+      "does_not_exist.lynx"
+    ],
     "exit": 1,
     "stderr": "clynxer: file not found: 'does_not_exist.lynx'"
   },
   "bytecode_removed": {
-    "args": ["legacy.lynxc"],
+    "args": [
+      "legacy.lynxc"
+    ],
     "exit": 1,
     "stderr": "clynxer: bytecode files are no longer supported; compile the .lynx source with --compile instead"
   },
   "view_bytecode_removed": {
-    "args": ["--view-bytecode", "x.lynx"],
+    "args": [
+      "--view-bytecode",
+      "x.lynx"
+    ],
     "exit": 1,
     "stderr": "clynxer: '--view-bytecode' was removed with the bytecode backend; use clynxer --compile instead"
   },
   "benchmark_removed": {
-    "args": ["--benchmark-compile", "x.lynx"],
+    "args": [
+      "--benchmark-compile",
+      "x.lynx"
+    ],
     "exit": 1,
     "stderr": "clynxer: '--benchmark-compile' was removed with the bytecode backend; use clynxer --compile instead"
   },
   "no_cache_removed": {
-    "args": ["--no-cache", "x.lynx"],
+    "args": [
+      "--no-cache",
+      "x.lynx"
+    ],
     "exit": 1,
     "stderr": "clynxer: '--no-cache' was removed with the bytecode backend; use clynxer --compile instead"
   },
   "ast_unsupported": {
-    "args": ["--ast", "x.lynx"],
+    "args": [
+      "--ast",
+      "x.lynx"
+    ],
     "exit": 1,
     "stderr": "clynxer: '--ast' is not available in CLynxer yet"
   },
   "format_unsupported": {
-    "args": ["--format", "x.lynx"],
+    "args": [
+      "--format",
+      "x.lynx"
+    ],
     "exit": 1,
     "stderr": "clynxer: '--format' is not available in CLynxer yet"
   },
   "format_oneline_unsupported": {
-    "args": ["--format-oneline", "x.lynx"],
+    "args": [
+      "--format-oneline",
+      "x.lynx"
+    ],
     "exit": 1,
     "stderr": "clynxer: '--format-oneline' is not available in CLynxer yet"
   },
   "install_unsupported": {
-    "args": ["--install"],
+    "args": [
+      "--install"
+    ],
     "exit": 1,
     "stderr": "clynxer: '--install' is not available in CLynxer yet"
   },
   "uninstall_unsupported": {
-    "args": ["--uninstall"],
+    "args": [
+      "--uninstall"
+    ],
     "exit": 1,
     "stderr": "clynxer: '--uninstall' is not available in CLynxer yet"
   },
   "validate_unsupported": {
-    "args": ["--validate-executeable"],
+    "args": [
+      "--validate-executeable"
+    ],
     "exit": 1,
     "stderr": "clynxer: '--validate-executeable' is not available in CLynxer yet"
   },
   "lint_ok": {
-    "args": ["--lint", "clynxer/examples/hello.lynx"],
+    "args": [
+      "--lint",
+      "clynxer/examples/hello.lynx"
+    ],
     "exit": 0,
     "stdout": "Lint OK: clynxer/examples/hello.lynx"
   },
   "lint_error": {
-    "args": ["--lint", "clynxer/examples/lexical_bang.lynx"],
+    "args": [
+      "--lint",
+      "clynxer/examples/lexical_bang.lynx"
+    ],
     "exit": 1,
     "stderr": "clynxer: clynxer/examples/lexical_bang.lynx:6:13: expected an expression"
   },
   "lexical_bang": {
-    "args": ["clynxer/examples/lexical_bang.lynx"],
+    "args": [
+      "clynxer/examples/lexical_bang.lynx"
+    ],
     "exit": 1,
     "stderr": "clynxer: clynxer/examples/lexical_bang.lynx:6:13: expected an expression"
   },
   "lexical_block_comment": {
-    "args": ["clynxer/examples/lexical_block_comment.lynx"],
+    "args": [
+      "clynxer/examples/lexical_block_comment.lynx"
+    ],
     "exit": 1,
     "stderr": "clynxer: clynxer/examples/lexical_block_comment.lynx:6:5: expected a declaration, assignment, or print call"
   },
   "lexical_hex_escape": {
-    "args": ["clynxer/examples/lexical_hex_escape.lynx"],
+    "args": [
+      "clynxer/examples/lexical_hex_escape.lynx"
+    ],
     "exit": 1,
     "stderr": "clynxer: clynxer/examples/lexical_hex_escape.lynx:5:13: unknown string escape \\x"
   },
   "lexical_unicode_escape": {
-    "args": ["clynxer/examples/lexical_unicode_escape.lynx"],
+    "args": [
+      "clynxer/examples/lexical_unicode_escape.lynx"
+    ],
     "exit": 1,
     "stderr": "clynxer: clynxer/examples/lexical_unicode_escape.lynx:5:13: unknown string escape \\u"
   }

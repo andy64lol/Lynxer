@@ -13,6 +13,11 @@ backends — `game`, `image`, `json`, `lua`, `network`, `server`, `sound`,
 crate provides the shared FFI plumbing (packed-argument view, panic guards,
 string result buffer, host API, and the registration helper).
 
+The workspace has one more member, `rust/ffi`, which is an intentional **no-op**
+`cdylib`: its `lynxer_module_init_v1` registers nothing and returns `0`. The
+`ffi*` builtins are implemented in C++, not by that crate, so the crate exists
+only to keep the workspace uniform and should not be read as dead code.
+
 ## Entry point
 
 Every module exports one C symbol:
@@ -28,7 +33,10 @@ int lynxer_module_init_v1(
 
 Return `0` after registering everything. A non-zero return, an invalid
 identifier, a duplicate name, or a `symbol` that `dlsym` cannot resolve rejects
-the module with a *native module lifecycle failure* error naming the symbol.
+the whole module: the load fails with a *native module lifecycle failure*, and
+the interpreter reports the short reason it recorded — `registered symbol not
+found` for an unresolved symbol, `duplicate native registration` for a repeated
+name — not the offending name.
 
 - `register_function(name, symbol, signature)` — `name` is the Lynxer-facing
   name under the module namespace; `symbol` is the exported C name; `signature`
@@ -67,11 +75,19 @@ alias is given.
 cdecl:<return>(<arg>,<arg>,...)
 ```
 
-Type tokens are `int64` (Lynxer `int`), `double` (Lynxer `float`) and `cstring`
-(Lynxer `str`). `double` and `float64` are interchangeable — the dispatcher
-normalizes `double` to `float64`. Argument lists may be empty.
+Type tokens are `int64` (Lynxer `int`), `double`/`float64` (Lynxer `float`) and
+`cstring` (Lynxer `str`). Argument lists may be empty.
 
-`cdecl:` is optional; the bare `<return>(<args>)` form is accepted too.
+Before looking a signature up, the dispatcher **normalizes** the tokens: every
+integer width is rewritten to `int64` (`int8`, `int16`, `int32`, `uint8`,
+`uint16`, `uint32`, `uint64` and `uintptr`), and `double` is rewritten to
+`float64`. So `cdecl:int32(int32)` and `cdecl:int64(int64)` resolve to the same
+shipped shape. The supported table is the *normalized* set; the tokens above are
+accepted spellings, not distinct shapes.
+
+`cdecl:` is optional; the bare `<return>(<args>)` form is accepted too. The
+packed form is selected when the argument list is exactly the single token `...`
+(`types.size() == 1 && types[0] == "..."`).
 
 ## Supported signature shapes
 

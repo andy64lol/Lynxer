@@ -1,0 +1,46 @@
+////
+Regression fixture for two language fixes: compound assignment on a field
+(`this.value += x`, `instance.field *= x`, and the typed vargroup form
+`int p.n += x`), and `-> none` return annotations.
+////
+
+global setup(){}
+
+class Counter {
+    int value = 0;
+    const int step = 1;
+
+    local init(int initial) {
+        this.value = initial;
+    }
+
+    local bump() {
+        this.value += this.step;
+    }
+
+    local add(int amount) {
+        this.value += amount;
+    }
+}
+
+global log(str message) -> none {
+    println("log: ", message);
+}
+
+global main(){
+    Counter counter = new Counter(10);
+    counter.bump();
+    counter.add(5);
+    counter.value *= 2;
+    println("counter ", counter.value);
+
+    vargroup record = { int total = 3 };
+    int record.total += 4;
+    println("record ", record.total);
+
+    int plain = 1;
+    plain += 2;
+    println("plain ", plain);
+
+    global.log("done");
+}

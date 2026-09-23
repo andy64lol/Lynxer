@@ -65,6 +65,22 @@ see §12.
 > every entry in §10.1 is resolved; `clynxer/docs/parity.md` is the parity
 > scope. The repo-root `Makefile` is authoritative — the `clynxer/Makefile`
 > citations below are historical (see the build-system note).
+>
+> **Revision 11 (2026-09-23, later)** records that **Clynxer has surpassed the
+> Python implementation for real use** and is the primary implementation.
+> Evidence: 27 natively backed stdlib modules (the Python set of 33 includes
+> seven that are Python-only or superseded — `http`, `net`, `mathPlus`,
+> `tkinter`, `tkinterPlus`, `turtle`, `venv`), a standalone ELF `--compile`, an
+> AST optimizer, a frozen native-module ABI with a Rust `cdylib` target,
+> cooperative threads plus an async family, ~14k lines of C++ and ~9.8k of Rust
+> against ~20.8k of Python, and 73 example fixtures (38 with pinned output) run
+> through the contract/golden/parity gates on amd64 **and** arm64 in CI. The
+> remaining Python-only surface is documented as "will not be done" in
+> `docs/limitations.md`. The Python package is flagged as the frozen behaviour
+> reference in `README.md`, `lynxer/__init__.py` and `lynxer/shell.py`. Two
+> language bugs found while verifying the Clynxer docs were fixed: compound
+> assignment on a field, and `-> none` return annotations
+> (`examples/language_fields.lynx`).
 
 ---
 

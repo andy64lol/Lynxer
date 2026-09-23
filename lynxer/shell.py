@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""CLI entry point for Lynxer. Run with: python lynxer/shell.py <file.lynx>"""
+"""CLI entry point for Lynxer. Run with: python lynxer/shell.py <file.lynx>
+
+Frozen behaviour reference: Clynxer (`clynxer/`) is the primary implementation
+and has superseded this for real use. See `clynxer/docs/parity.md`.
+"""
 
 import os
 import subprocess

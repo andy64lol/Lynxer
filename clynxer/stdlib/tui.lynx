@@ -1,4 +1,5 @@
-//// Lynxer standard library — tui
+////
+Lynxer standard library - tui.
 Terminal UI helpers backed by Rust (`ratatui`/`crossterm`), exposed through the native module `stdlib/tui.so`.
 Requires a Rust toolchain to build (see `rust/tui`); the module is skipped when `cargo` is unavailable.
 ////

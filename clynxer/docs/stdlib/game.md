@@ -22,7 +22,7 @@ counter-clockwise.
 `run()` is blocking. Register the two frame callbacks by name, then call
 `run()`:
 
-```c
+```lynx
 global setup(){ import("game"); }
 
 global onUpdate(float dt){
@@ -264,3 +264,14 @@ the host API. It uses two additive native-module ABI extensions documented in
   arguments; and
 - the optional `lynxer_module_attach_v1` entry point, which provides an
   `invoke` callback so a module can call a Lynxer function by name.
+
+---
+
+## See also
+
+- [stdlib-contracts.md](../stdlib-contracts.md) — the contract this module
+  implements, including the error sentinel family it uses.
+- [builtins.md](../builtins.md) — the functions the interpreter implements
+  itself.
+- [parity.md](../parity.md) — the parity scope with Python Lynxer.
+- [limitations.md](../limitations.md) — the full divergence register.

@@ -3,7 +3,7 @@
 HTTP and WebSocket server backed by Rust [`axum`](https://docs.rs/axum) on
 [`tokio`](https://docs.rs/tokio). Pair it with `network` for local round-trip tests.
 
-```c
+```lynx
 global setup(){
     import("server");
     import("network");
@@ -37,10 +37,21 @@ Paths must start with `/`. The listener binds to `127.0.0.1` only.
 HTML is supplied as a normal Lynxer string and is returned unchanged. For
 example:
 
-```c
+```lynx
 global main(){
     global.server.get("/", "<!doctype html><html><body><h1>Hello</h1></body></html>");
     println(global.server.start(8080));
     while (global.server.running()) {}
 }
 ```
+
+---
+
+## See also
+
+- [stdlib-contracts.md](../stdlib-contracts.md) — the contract this module
+  implements, including the error sentinel family it uses.
+- [builtins.md](../builtins.md) — the functions the interpreter implements
+  itself.
+- [parity.md](../parity.md) — the parity scope with Python Lynxer.
+- [limitations.md](../limitations.md) — the full divergence register.

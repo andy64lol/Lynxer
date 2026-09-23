@@ -105,7 +105,9 @@ CLYNXER_MILESTONE7_NEW_FIXTURES := $(CLYNXER_DIR)/examples/builtin_async.lynx $(
 # syscalls. They assert only host-independent behaviour, so the same expected
 # output holds on amd64 and arm64, and both CI jobs run them.
 CLYNXER_LOWLEVEL_FIXTURES := $(CLYNXER_DIR)/examples/lowlevel_memory.lynx \
-	$(CLYNXER_DIR)/examples/lowlevel_syscalls.lynx
+	$(CLYNXER_DIR)/examples/lowlevel_syscalls.lynx \
+	$(CLYNXER_DIR)/examples/lowlevel_arch.lynx \
+	$(CLYNXER_DIR)/examples/language_fields.lynx
 # Compatibility fixture for the deprecated symbolic operator spellings. It is
 # diffed like a stdlib fixture and also compiled, so the old spellings keep
 # working through both the interpreter and --compile.
@@ -122,7 +124,7 @@ CLYNXER_LIST_STDLIB_MODULES := cli colorlib csv debug fileIO game image js json 
 # Import-parity fixtures (interpreted vs compiled). The sound one needs a device.
 CLYNXER_PARITY_FIXTURES := native_stdlibs milestone6_module milestone6_math_native stdlib_json \
 	stdlib_re stdlib_path stdlib_game stdlib_image stdlib_lua stdlib_sqldb stdlib_tui deprecated_operators optimizer \
-	lowlevel_memory lowlevel_syscalls
+	lowlevel_memory lowlevel_syscalls lowlevel_arch language_fields
 ifeq ($(HAVE_AUDIO),1)
 CLYNXER_PARITY_FIXTURES += stdlib_sound
 endif
@@ -601,16 +603,12 @@ expected="clynxer: $(CLYNXER_ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 	echo "optimizer swallowed the deprecation warning"; \
 	rm -f $(CLYX_TMP)_dep.out $(CLYX_TMP)_dep.err; exit 1; fi; \
 	rm -f $(CLYX_TMP)_dep.out $(CLYX_TMP)_dep.err
-	@if [ "$(CLYNXER_SKIP_DISPLAY)" = "1" ]; then \
-	echo "clynxer: skipping $(notdir $(CLYNXER_STDLIB_TEST_ALL)): display tests disabled (CLYNXER_SKIP_DISPLAY=1)"; \
-	else \
-	CLYNXER_GAME_HEADLESS=1 $(CLYX) $(CLYNXER_STDLIB_TEST_ALL) > $(CLYX_TMP)_stdlib_all.out 2>&1; \
+	@CLYNXER_GAME_HEADLESS=1 CLYNXER_SKIP_DISPLAY=$(CLYNXER_SKIP_DISPLAY) $(CLYX) $(CLYNXER_STDLIB_TEST_ALL) > $(CLYX_TMP)_stdlib_all.out 2>&1; \
 	if [ $$? -ne 0 ]; then \
 	echo "consolidated stdlib test failed: $(CLYNXER_STDLIB_TEST_ALL)"; \
 	cat $(CLYX_TMP)_stdlib_all.out; \
 	rm -f $(CLYX_TMP)_stdlib_all.out; exit 1; fi; \
-	rm -f $(CLYX_TMP)_stdlib_all.out; \
-	fi
+	rm -f $(CLYX_TMP)_stdlib_all.out
 	@if [ "$(CLYNXER_SKIP_DISPLAY)" = "1" ]; then \
 	echo "clynxer: skipping game_clicker.lynx: display tests disabled (CLYNXER_SKIP_DISPLAY=1)"; \
 	else \

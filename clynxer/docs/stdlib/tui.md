@@ -95,11 +95,14 @@ The `tui` module provides terminal UI functionality using Rust's `ratatui` and `
 ### TUI Mode
 - `enter() -> int` — Enters TUI mode.
 - `exit() -> int` — Exits TUI mode.
+- `clear() -> int` — Clears the terminal screen.
 
 ## Example
 
 ```lynx
-import("tui")
+global setup(){
+    import("tui")
+}
 
 global main(){
     global.tui.init("truecolor");
@@ -108,3 +111,14 @@ global main(){
     global.tui.clear();
 }
 ```
+
+---
+
+## See also
+
+- [stdlib-contracts.md](../stdlib-contracts.md) — the contract this module
+  implements, including the error sentinel family it uses.
+- [builtins.md](../builtins.md) — the functions the interpreter implements
+  itself.
+- [parity.md](../parity.md) — the parity scope with Python Lynxer.
+- [limitations.md](../limitations.md) — the full divergence register.

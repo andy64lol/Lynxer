@@ -19,9 +19,21 @@ what a test may compare.
    its native backend;
 2. `clynxer/scripts/check_golden.py` — the CLI surface and source-located
    diagnostic text (`clynxer/golden/cases.json`);
-3. every `examples/*.expected` fixture, diffed byte-for-byte on stdout+stderr;
-4. interpreted-versus-`--compile` parity for a set of fixtures;
-5. the bundled-executable, `--include`, and bytecode-removal checks.
+3. the optimizer fixture, diffed against `--no-opt` byte-for-byte, with its
+   transformation counts asserted from `CLYNXER_OPT_REPORT`;
+4. the deprecated-operator fixture, whose warning must still reach stderr;
+5. every `examples/*.expected` fixture, diffed byte-for-byte on stdout+stderr —
+   including the lexical-divergence, low-level native-memory, and syscall
+   fixtures;
+6. interpreted-versus-`--compile` parity for a set of fixtures;
+7. the `--list-stdlibs` module coverage, native-signature module, and
+   bundled-executable / `--include` / bytecode-removal checks.
+
+Both Clynxer CI workflows run it as
+`make testCLynxer CLYNXER_SKIP_DISPLAY=1`, which drops the fixtures that need a
+display or an audio device (`stdlib_game`, `stdlib_sound`, `stdlibTestAll`,
+`game_clicker`). `CLYNXER_GAME_HEADLESS=1` is the separate run-time switch that
+lets the `game` module run without a window on a host that has a display.
 
 All of these pin **Clynxer's own** output. Nothing in CI runs the Python
 implementation, so a Clynxer fixture records Clynxer's behaviour by design — a
