@@ -60,4 +60,169 @@ global upper(str value) -> str { return global.upper(value); }
 global lower(str value) -> str { return global.lower(value); }
 global isEmpty(str value) -> bool { return returnLength(value) is 0; }
 global isBlank(str value) -> bool { return returnLength(global.trim(value)) is 0; }
+
+// Space, tab, carriage return and newline. Python's text helpers strip all
+// Unicode whitespace; the ASCII set is what Clynxer matches.
+func textIsSpace(str value) -> bool {
+    return returnLength(value) is 1 and contains(" \t\n\r", value);
+}
+
+// Forwarders to the interpreter's own string builtins, so that
+// `global.text.<name>` resolves like the reference module.
+global substring(str value, int start, int end) -> str {
+    return global.substring(value, start, end);
+}
+global charAt(str value, int index) -> str {
+    return global.charAt(value, index);
+}
+global split(str value, str separator) -> list {
+    return global.splitStr(value, separator);
+}
+global join(list parts, str separator) -> str {
+    return global.listJoin(parts, separator);
+}
+global trimLeft(str value) -> str {
+    int index = 0;
+    while(index < returnLength(value) and textIsSpace(charAt(value, index))){
+        index = index + 1;
+    }
+    return substring(value, index, returnLength(value));
+}
+global trimRight(str value) -> str {
+    int end = returnLength(value);
+    while(end > 0 and textIsSpace(charAt(value, end - 1))){
+        end = end - 1;
+    }
+    return substring(value, 0, end);
+}
+global replaceFirst(str value, str oldValue, str newValue) -> str {
+    if(returnLength(oldValue) is 0){ return value; }
+    int index = 0;
+    while(index <= returnLength(value) - returnLength(oldValue)){
+        if(substring(value, index, index + returnLength(oldValue)) is oldValue){
+            return substring(value, 0, index) + newValue +
+                   substring(value, index + returnLength(oldValue),
+                             returnLength(value));
+        }
+        index = index + 1;
+    }
+    return value;
+}
+global remove(str value, str target) -> str {
+    return global.replace(value, target, "");
+}
+global capitalize(str value) -> str {
+    if(returnLength(value) is 0){ return ""; }
+    return upper(charAt(value, 0)) + lower(substring(value, 1, returnLength(value)));
+}
+global swapCase(str value) -> str {
+    str result = "";
+    int index = 0;
+    while(index < returnLength(value)){
+        str character = charAt(value, index);
+        if(lower(character) isnt character){
+            result = result + lower(character);
+        } elif(upper(character) isnt character){
+            result = result + upper(character);
+        } else {
+            result = result + character;
+        }
+        index = index + 1;
+    }
+    return result;
+}
+global title(str value) -> str {
+    str result = "";
+    bool boundary = true;
+    int index = 0;
+    while(index < returnLength(value)){
+        str character = charAt(value, index);
+        if(textIsSpace(character)){
+            result = result + character;
+            boundary = true;
+        } elif(boundary){
+            result = result + upper(lower(character));
+            boundary = false;
+        } else {
+            result = result + lower(character);
+        }
+        index = index + 1;
+    }
+    return result;
+}
+global isAlpha(str value) -> bool {
+    if(returnLength(value) is 0){ return false; }
+    int index = 0;
+    while(index < returnLength(value)){
+        str character = charAt(value, index);
+        if(upper(character) is lower(character)){ return false; }
+        index = index + 1;
+    }
+    return true;
+}
+global isNumeric(str value) -> bool {
+    if(returnLength(value) is 0){ return false; }
+    int index = 0;
+    while(index < returnLength(value)){
+        str character = charAt(value, index);
+        if(character < "0" or character > "9"){ return false; }
+        index = index + 1;
+    }
+    return true;
+}
+global isAlphaNumeric(str value) -> bool {
+    if(returnLength(value) is 0){ return false; }
+    int index = 0;
+    while(index < returnLength(value)){
+        str character = charAt(value, index);
+        if(isAlpha(character) is false and isNumeric(character) is false){
+            return false;
+        }
+        index = index + 1;
+    }
+    return true;
+}
+global padLeft(str value, int width, str fill) -> str {
+    int missing = width - returnLength(value);
+    if(missing <= 0 or returnLength(fill) is 0){ return value; }
+    str padding = repeat(fill, missing /% returnLength(fill) + 1);
+    return substring(padding, 0, missing) + value;
+}
+global padRight(str value, int width, str fill) -> str {
+    int missing = width - returnLength(value);
+    if(missing <= 0 or returnLength(fill) is 0){ return value; }
+    str padding = repeat(fill, missing /% returnLength(fill) + 1);
+    return value + substring(padding, 0, missing);
+}
+global center(str value, int width, str fill) -> str {
+    int margin = width - returnLength(value);
+    if(margin <= 0 or returnLength(fill) is 0){ return value; }
+    int left = margin /% 2 + (margin % 2) * (width % 2);
+    return padLeft("", left, fill) + value + padLeft("", margin - left, fill);
+}
+global splitLines(str value) -> list {
+    list parts = [];
+    str current = "";
+    int index = 0;
+    while(index < returnLength(value)){
+        str character = charAt(value, index);
+        if(character is "\n"){
+            if(returnLength(current) > 0 and
+               charAt(current, returnLength(current) - 1) is "\r"){
+                current = substring(current, 0, returnLength(current) - 1);
+            }
+            parts = listPush(parts, current);
+            current = "";
+        } else {
+            current = current + character;
+        }
+        index = index + 1;
+    }
+    if(returnLength(current) > 0){ parts = listPush(parts, current); }
+    return parts;
+}
+global indent(str value, str prefix) -> str {
+    return prefix + global.replace(value, "\n", "\n" + prefix);
+}
+
 global main(){}

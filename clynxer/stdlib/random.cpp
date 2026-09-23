@@ -5,6 +5,7 @@
 // lives here instead of in the wrapper. The generator is a linear congruential
 // sequence; seeding makes results reproducible.
 
+#include <cmath>
 #include <cstdint>
 #include <string>
 
@@ -78,6 +79,31 @@ extern "C" const char* random_choice(const char* items) {
     return stable(std::string(1, text[static_cast<std::size_t>(index)]));
 }
 
+// Gaussian via Box-Muller. CPython caches a second value from one pair; the
+// distribution is the same, the exact sequence is not (the generators differ).
+extern "C" double random_gauss(double mu, double sigma) {
+    double u1 = random_random();
+    if (u1 <= 0.0) {
+        u1 = 1e-12;
+    }
+    const double u2 = random_random();
+    const double magnitude = std::sqrt(-2.0 * std::log(u1));
+    return mu + sigma * magnitude * std::cos(2.0 * 3.14159265358979323846 * u2);
+}
+
+// Triangular distribution by inverse CDF, matching Python's triangular().
+extern "C" double random_triangular(double low, double high, double mode) {
+    if (high <= low) {
+        return low;
+    }
+    const double u = random_random();
+    const double split = (mode - low) / (high - low);
+    if (u < split) {
+        return low + std::sqrt(u * (high - low) * (mode - low));
+    }
+    return high - std::sqrt((1.0 - u) * (high - low) * (high - mode));
+}
+
 extern "C" int lynxer_module_init_v1(RegisterFunction function,
                                      RegisterConstant, RegisterType) {
     return function("seed", "random_seed", "cdecl:int64(int64)") &&
@@ -89,6 +115,10 @@ extern "C" int lynxer_module_init_v1(RegisterFunction function,
                    function("uniform", "random_uniform",
                             "cdecl:double(double,double)") &&
                    function("coinflip", "random_coinflip", "cdecl:int64()") &&
+                   function("gauss", "random_gauss",
+                            "cdecl:double(double,double)") &&
+                   function("triangular", "random_triangular",
+                            "cdecl:double(double,double,double)") &&
                    function("choice", "random_choice",
                             "cdecl:cstring(cstring)")
                ? 0
