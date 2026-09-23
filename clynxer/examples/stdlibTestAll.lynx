@@ -618,7 +618,7 @@ global main(){
     fails += global.check(global.time.getSecond() >= 0, "true", "time.getSecond");
     fails += global.check(global.time.getWeekdayNum() >= 0, "true", "time.getWeekdayNum");
     fails += global.check(returnLength(global.time.getWeekday()) > 0, "true", "time.getWeekday");
-    str timestamp = global.time.toTimestamp("2024-01-01");
+    int timestamp = global.time.toTimestamp("2024-01-01");
     if (timestamp == 1704067200) {
         fails += global.check(timestamp, 1704067200, "time.toTimestamp");
     } else {
