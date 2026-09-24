@@ -1,6 +1,6 @@
-// Clynxer `debug` stdlib backend: timers, timestamps, environment and memory.
+// Lynxer `debug` stdlib backend: timers, timestamps, environment and memory.
 //
-// The assertion, logging and inspection helpers are written in pure Clynxer in
+// The assertion, logging and inspection helpers are written in pure Lynxer in
 // the wrapper; only the nondeterministic/OS-dependent pieces live here.
 
 #include "native_json.hpp"

@@ -4,12 +4,12 @@ Lynxer grows in three ways:
 
 | Extension | Written in | Use it when |
 | --- | --- | --- |
-| **Pure Clynxer module** | Clynxer, in `lynxer/stdlib/<name>.lynx` | The behaviour is expressible in Clynxer itself. `colorlib`, `text` and `typing` are examples; they ship no shared library. |
+| **Pure Lynxer module** | Lynxer, in `lynxer/stdlib/<name>.lynx` | The behaviour is expressible in Lynxer itself. `colorlib`, `text` and `typing` are examples; they ship no shared library. |
 | **Native module** | C++ in `stdlib/<name>.cpp`, or Rust in `rust/<name>/` | The behaviour needs a system API, a file format, a device, or a third-party crate. |
 | **Built-in** | C++ in `lynxer/builtins.cpp` | The operation is a language primitive that must be available without `import`. |
 
 Almost everything belongs in the middle row. A built-in is not available to a
-module author — it changes the language — and a pure Clynxer module is just a
+module author — it changes the language — and a pure Lynxer module is just a
 module with no backend, so both are covered by the same wrapper rules.
 
 Read [stdlib-contracts.md](stdlib-contracts.md) before you start: it states the
@@ -34,12 +34,12 @@ implementation is a few calls into the standard library or POSIX.
 
 ## 2. Write the wrapper
 
-The wrapper is what Clynxer programs see. It is always
+The wrapper is what Lynxer programs see. It is always
 `stdlib/<name>.lynx`, and it always has the same shape:
 
 ```lynx
 ////
-Clynxer standard library: example.
+Lynxer standard library: example.
 One-line summary, then anything a user needs to know.
 
 Extra paragraphs here are printed by `lynxer --list-stdlibs`, so keep them

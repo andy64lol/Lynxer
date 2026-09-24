@@ -299,7 +299,7 @@ Three deliberate divergences from the Python reference, all recorded in
 
 ## Native threads
 
-`nativeThreadStart(function, arguments)` runs a Clynxer function on a
+`nativeThreadStart(function, arguments)` runs a Lynxer function on a
 `std::thread`. The function is named as a value — `nativeThreadStart(global.worker, [int 42])`
 — which is what makes `global.<name>` resolve to a callable when no variable has
 that name.
@@ -313,7 +313,7 @@ that name.
 | `nativeThreadStatus(handle)` | `running` while it is, then `completed` or the error text |
 | `nativeThreadDetach(handle)` | Gives up the handle; the thread leaves the registry when it finishes |
 
-**Threads are cooperative.** The interpreter evaluates Clynxer code on one thread
+**Threads are cooperative.** The interpreter evaluates Lynxer code on one thread
 at a time, and a worker takes that lock before calling back in, so a thread runs
 while the thread that started it is blocked in `nativeThreadJoin` or
 `nativeThreadJoinAll`, which release the lock before waiting. Two threads never
@@ -333,24 +333,24 @@ is in the supported table.
 | `ffiLoadLibrary(path)` | Loads a shared library and returns a handle |
 | `ffiLookup(handle, symbol)` | Resolves a symbol to a `functionAddress` |
 | `ffiCall(address, signature, arguments)` | Calls the symbol. `signature` is a packed string such as `"cdecl:int32(int32,int32)"`; `arguments` is a list |
-| `ffiCallback(signature, function)` | Wraps a Clynxer function as a C callback the native code can call |
+| `ffiCallback(signature, function)` | Wraps a Lynxer function as a C callback the native code can call |
 | `ffiFreeCallback(callback)` | Releases a callback created by `ffiCallback` |
 | `ffiCloseLibrary(handle)` | Unloads the library and invalidates its symbols |
 
 The signatures use the same grammar as native modules; see
 [native-module-abi.md](native-module-abi.md#signatures).
 `lynxer/examples/builtin_ffi.lynx` demonstrates the full round trip (calling
-`strlen` and passing a Clynxer function back as a C callback).
+`strlen` and passing a Lynxer function back as a C callback).
 
 ## Async
 
 The `async*` family performs I/O without a language-level event loop.
-`asyncRun(function, arguments?)` starts a Clynxer function in the async runtime,
+`asyncRun(function, arguments?)` starts a Lynxer function in the async runtime,
 and `await` in the caller yields until the operation completes. Timers, wakeups
 and file/IO readiness sources are registered on a poll set and awaited with
-`asyncPollWait`; `asyncPollDispatch` awaits them and invokes a Clynxer callback
+`asyncPollWait`; `asyncPollDispatch` awaits them and invokes a Lynxer callback
 for each ready event. Evaluation stays cooperative — the interpreter runs one
-Clynxer frame at a time.
+Lynxer frame at a time.
 
 | Builtin | Notes |
 | --- | --- |
@@ -362,7 +362,7 @@ Clynxer frame at a time.
 | `asyncPollModify(poll, resource, events, token)` | Changes the interest and token |
 | `asyncPollRemove(poll, resource)` | Removes a resource |
 | `asyncPollWait(poll, timeoutMs?, maxEvents?)` | Awaits ready events |
-| `asyncPollDispatch(poll, callback, timeoutMs?, maxEvents?)` | Awaits events and calls a Clynxer callback for each |
+| `asyncPollDispatch(poll, callback, timeoutMs?, maxEvents?)` | Awaits events and calls a Lynxer callback for each |
 | `asyncPollClose(poll)` | Releases the poll set |
 | `asyncTimerCreate(poll, milliseconds, token, repeatMs?)` | Schedules a timer |
 | `asyncTimerCancel(timer)` | Cancels a timer |

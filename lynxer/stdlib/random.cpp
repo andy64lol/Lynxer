@@ -1,7 +1,7 @@
-// Clynxer `random` stdlib backend: a small seeded pseudo-random generator.
+// Lynxer `random` stdlib backend: a small seeded pseudo-random generator.
 //
 // The Python reference delegated to the `random` module. Lynxer needs explicit
-// state, and Clynxer modules cannot declare module-level variables, so the state
+// state, and Lynxer modules cannot declare module-level variables, so the state
 // lives here instead of in the wrapper. The generator is a linear congruential
 // sequence; seeding makes results reproducible.
 

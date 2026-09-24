@@ -1,10 +1,10 @@
 ////
-Clynxer standard library: debug.
+Lynxer standard library: debug.
 Debugging, logging, and inspection helpers backed by the native C++ module
 `stdlib/debug.so` (timers, timestamps, environment, memory).
 
-Divergence: `typeOf` reports Clynxer's own type names ("none" is mapped to
-"null" for parity with the Python reference), and `dump`/`pp` print Clynxer's
+Divergence: `typeOf` reports Lynxer's own type names ("none" is mapped to
+"null" for parity with the Python reference), and `dump`/`pp` print Lynxer's
 `strOf` rendering instead of Python's `repr`.
 ////
 global setup(){

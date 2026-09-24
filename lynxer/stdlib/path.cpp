@@ -1,4 +1,4 @@
-// Clynxer `path` stdlib backend: pathlib-style path manipulation built on
+// Lynxer `path` stdlib backend: pathlib-style path manipulation built on
 // <filesystem> plus POSIX stat calls.
 
 #include <algorithm>

@@ -4,7 +4,7 @@ Assertions, type inspection, structured logging, timers and process metrics.
 
 **Backend:** native + pure — `stdlib/debug.so` (`stdlib/debug.cpp`) provides
 timers, timestamps, environment and memory; the assertions and logging helpers
-are written in Clynxer in `stdlib/debug.lynx`.
+are written in Lynxer in `stdlib/debug.lynx`.
 **Import:** `import("debug")` → `global.debug.*`
 
 ## Assertions
@@ -74,5 +74,5 @@ global main(){
   implements, including the error sentinel family it uses.
 - [builtins.md](../builtins.md) — the functions the interpreter implements
   itself.
-- [parity.md](../parity.md) — the parity scope with Python Clynxer.
+- [parity.md](../parity.md) — the parity scope with Python Lynxer.
 - [limitations.md](../limitations.md) — the full divergence register.

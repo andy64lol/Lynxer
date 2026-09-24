@@ -2,7 +2,7 @@
 
 ## Program structure
 
-Every Clynxer program has one required top-level declaration and one customisable entry point:
+Every Lynxer program has one required top-level declaration and one customisable entry point:
 
 1. **`global setup(){}`** — must be the **very first** declaration. The only place to declare global variables and call `import()`. Required even when empty.
 2. **Entry point** — by default this is `global main(){}`, which must be the last declaration. You can replace it with any global function using [`overrideMain()`](#overriding-the-entry-point).
@@ -24,7 +24,7 @@ global greet(str name){
 
 // A file-wide func is called directly, without the global namespace.
 func banner(){
-    return "Clynxer";
+    return "Lynxer";
 }
 
 class Config {
@@ -91,7 +91,7 @@ global namespace and `local` for functions nested inside another function.
 
 ## Overriding the entry point
 
-By default Clynxer calls `global main(){}` after setup finishes. You can redirect this to any other global function with `overrideMain("funcName")` inside `setup()`:
+By default Lynxer calls `global main(){}` after setup finishes. You can redirect this to any other global function with `overrideMain("funcName")` inside `setup()`:
 
 ```c
 global setup(){
@@ -193,7 +193,7 @@ Built-in functions are conventionally called **directly** (without `global.`). M
 | `float64`  | double-precision float    | finite range up to approximately `1.7976931e308` |
 | `tuple`    | `(int 1, int 2, int 3)`   | immutable, fixed-length sequence; see [tuples.md](tuples.md) |
 | `sentinel` | `sentinel("MISSING")`     | unique identity marker; compare with `is` / `not is` |
-| `codeblock`| `{ println("hi"); }`      | stored Clynxer statements; execute with `exec(){{name}}` |
+| `codeblock`| `{ println("hi"); }`      | stored Lynxer statements; execute with `exec(){{name}}` |
 | `list`     | `range(5)`                | ordered mutable sequence; declare with `list` keyword |
 | `vargroup` | `vargroup p = {...}`      | named typed record with dot-accessed fields; see [vargroups.md](vargroups.md) |
 | `any`      | anything, including `none`| no type check at assignment |
@@ -289,7 +289,7 @@ Use `typing` helpers for char-specific operations:
 
 ### The `list` type
 
-Lists are first-class values. `returnType()` returns `"list"` for them. They are created with `range()` or `seqFromTo()`, or built up with `listPush()`. Because Clynxer uses value semantics, mutating built-ins like `listPush` and `listSet` return a **new** list — always reassign the result:
+Lists are first-class values. `returnType()` returns `"list"` for them. They are created with `range()` or `seqFromTo()`, or built up with `listPush()`. Because Lynxer uses value semantics, mutating built-ins like `listPush` and `listSet` return a **new** list — always reassign the result:
 
 ```c
 list lst = range(5);             // [0, 1, 2, 3, 4]
@@ -704,7 +704,7 @@ and `forever` loops. They are **not** valid outside a loop.
 
 ## Functions
 
-Clynxer has two kinds of functions with distinct scopes:
+Lynxer has two kinds of functions with distinct scopes:
 
 | Kind | Keyword | Where | Visible from |
 |------|---------|-------|--------------|
@@ -820,7 +820,7 @@ global main(){
 }
 ```
 
-`exec(){{body}}` runs the supplied Clynxer code at that point in the function.
+`exec(){{body}}` runs the supplied Lynxer code at that point in the function.
 The code runs in the callee's context, so it can use the function's parameters
 and local variables. It can call existing functions, use control flow, and
 return from the callee.
@@ -887,7 +887,7 @@ A function without an explicit `return` produces `none`.
 
 ### Named codeblock values and `exec`
 
-Use the `codeblock` type to store Clynxer statements in a variable:
+Use the `codeblock` type to store Lynxer statements in a variable:
 
 ```c
 codeblock helloWorld = {
@@ -1018,7 +1018,7 @@ global main(){
 
 ### exec block
 
-`exec(){...}` parses and runs the Clynxer statements inside the block directly
+`exec(){...}` parses and runs the Lynxer statements inside the block directly
 in the current function context. Variables, control flow, `return`, and calls
 therefore behave as if the statements had been written at the `exec` location.
 
@@ -1052,7 +1052,7 @@ global main(){
 
 ### rawPy block
 
-Embeds a Python code block inside a Clynxer function. Variables from the surrounding Clynxer scope are bridged into and out of the block.
+Embeds a Python code block inside a Lynxer function. Variables from the surrounding Lynxer scope are bridged into and out of the block.
 
 ```c
 global main(){
@@ -1068,7 +1068,7 @@ global main(){
 
 **Into Python (what Python can see):**
 
-| Clynxer type | Python value |
+| Lynxer type | Python value |
 |-------------|--------------|
 | `int` | `int` |
 | `float` | `float` |
@@ -1080,7 +1080,7 @@ global main(){
 
 **Out of Python (what gets written back):**
 
-| Python type | Clynxer value |
+| Python type | Lynxer value |
 |-------------|--------------|
 | `bool` | `bool` (`true` / `false`) |
 | `int` | `int` |
@@ -1089,8 +1089,8 @@ global main(){
 | anything else | ignored |
 
 **Rules:**
-- Only variables that already exist in Clynxer scope can be updated.
-- Python code can read and update `int`, `float`, and `str` Clynxer variables.
+- Only variables that already exist in Lynxer scope can be updated.
+- Python code can read and update `int`, `float`, and `str` Lynxer variables.
 - `list` values are visible as Python `list` inside rawPy blocks but are read-only (changes are not written back).
 - Any `import` inside a rawPy block uses Python's import system.
 
@@ -1163,7 +1163,7 @@ global setup(){
 
 **Search order:**
 1. Same directory as the running script
-2. The `stdlib/` folder bundled with Clynxer
+2. The `stdlib/` folder bundled with Lynxer
 
 **Idempotency:** Importing the same module twice is safe and has no effect the second time.
 
@@ -1178,7 +1178,7 @@ global setup(){ import("lib/features.lynx"); }
 global main(){ global.features.run(); }
 ```
 
-If `lib/features.lynx` contains `import("helpers/format.lynx");`, Clynxer
+If `lib/features.lynx` contains `import("helpers/format.lynx");`, Lynxer
 looks for `helpers/format.lynx` relative to the `lib/` directory, not relative
 to `app.lynx`. The module name is the filename without its extension
 (`features` and `format` in this example).

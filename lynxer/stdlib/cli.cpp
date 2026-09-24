@@ -1,4 +1,4 @@
-// Clynxer `cli` stdlib backend: argument, environment, terminal and process
+// Lynxer `cli` stdlib backend: argument, environment, terminal and process
 // helpers for command-line programs.
 //
 // The Python reference also exposes Click/Typer command builders; those wrap

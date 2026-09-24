@@ -1,5 +1,5 @@
 ////
-Clynxer standard library: os.
+Lynxer standard library: os.
 Operating system, filesystem, environment and platform helpers backed by the
 native C++ module `stdlib/os.so`.
 

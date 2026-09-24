@@ -1,7 +1,7 @@
 //! Lynxer `network` stdlib backend: HTTP + WebSocket client.
 //!
 //! Replaces the previous cpp-httplib backend (and its OpenSSL dependency) with
-//! `ureq` (rustls) for HTTP and `tungstenite` for WebSockets. The Clynxer-facing
+//! `ureq` (rustls) for HTTP and `tungstenite` for WebSockets. The Lynxer-facing
 //! contract is unchanged, including the `"ERROR: ..."` sentinels and the
 //! `"receive timeout"` / `"receive failed"` WebSocket messages.
 
@@ -277,7 +277,7 @@ struct Connection {
 }
 
 thread_local! {
-    // Named connections. Every Clynxer call happens on the interpreter thread,
+    // Named connections. Every Lynxer call happens on the interpreter thread,
     // so a thread-local registry avoids any cross-thread requirements.
     static CONNECTIONS: RefCell<HashMap<String, Connection>> =
         RefCell::new(HashMap::new());

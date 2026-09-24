@@ -1,7 +1,7 @@
 //! Lynxer `sqldb` stdlib backend: SQLite database operations.
 //!
 //! Replaces Python's sqlite3 with Rust `rusqlite`.
-//! The Clynxer-facing contract matches `clynxer/stdlib/sqldb.lynx`:
+//! The Lynxer-facing contract matches `clynxer/stdlib/sqldb.lynx`:
 //! every operation names a database **path**, opens a connection, does its
 //! work and closes it again. Structured results are returned as JSON strings,
 //! errors as `"ERROR: <message>"`.

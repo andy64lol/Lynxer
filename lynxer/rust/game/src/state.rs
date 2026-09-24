@@ -114,7 +114,7 @@ pub struct State {
     pub mouse_query_y: f32,
     pub scroll_x: f32,
     pub scroll_y: f32,
-    /// Clynxer function names registered with setDrawCallback/setUpdateCallback.
+    /// Lynxer function names registered with setDrawCallback/setUpdateCallback.
     pub draw_callback: String,
     pub update_callback: String,
 }
@@ -122,7 +122,7 @@ pub struct State {
 impl State {
     fn new() -> Self {
         State {
-            title: "Clynxer".to_string(),
+            title: "Lynxer".to_string(),
             width: 800.0,
             height: 600.0,
             background: BLACK,

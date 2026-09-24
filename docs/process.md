@@ -2,7 +2,7 @@
 
 Process built-ins provide a managed subprocess abstraction. They use the
 platform process facilities while keeping the interface available directly in
-Clynxer programs.
+Lynxer programs.
 
 ## Spawn
 
@@ -53,4 +53,4 @@ when checked with `processPoll` afterward.
 
 Process handles are owned by the program. Close every handle after collecting
 the output and exit status. Unknown, already closed, invalid, or failed
-process operations return Clynxer runtime errors rather than silently failing.
+process operations return Lynxer runtime errors rather than silently failing.

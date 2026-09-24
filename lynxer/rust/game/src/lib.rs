@@ -2,7 +2,7 @@
 //!
 //! This crate is the whole module: it exports `clynxer_module_init_v1`, every op,
 //! and `clynxer_module_attach_v1`. There is no C++ shim. Macroquad owns the
-//! window and event loop; once per frame it invokes the registered Clynxer
+//! window and event loop; once per frame it invokes the registered Lynxer
 //! `update(dt)` and `draw()` callbacks through the host API.
 //!
 //! All coordinates are bottom-left / +Y up (Arcade convention); the draw helpers
@@ -28,13 +28,13 @@ use macroquad::window::{
 };
 use macroquad::Window;
 
-use lynxer_abi::ClynxerHostApi;
+use lynxer_abi::LynxerHostApi;
 
 use crate::state::{color_of, headless_requested, with, HEADLESS_DT, HEADLESS_FRAMES};
 
-/// Runs the Clynxer update and draw callbacks for one frame. Returns false when
+/// Runs the Lynxer update and draw callbacks for one frame. Returns false when
 /// a callback failed, so the loop stops and the interpreter can rethrow.
-fn run_frame(host: &'static ClynxerHostApi, update: &str, draw: &str, dt: f64) -> bool {
+fn run_frame(host: &'static LynxerHostApi, update: &str, draw: &str, dt: f64) -> bool {
     if !update.is_empty() && lynxer_abi::invoke(host, update, Some(dt)) != 0 {
         return false;
     }
@@ -51,7 +51,7 @@ export_int!(clynxer_game_init, args, {
     with(|state| {
         state.reset();
         state.title = if title.is_empty() {
-            "Clynxer".to_string()
+            "Lynxer".to_string()
         } else {
             title
         };

@@ -1,6 +1,6 @@
 # image
 
-Comprehensive image processing library for Clynxer, wrapping Python's [Pillow](https://pillow.readthedocs.io/) (PIL Fork). Load, transform, filter, draw on, composite, and export images — all referenced by integer indexes like tkinter widgets.
+Comprehensive image processing library for Lynxer, wrapping Python's [Pillow](https://pillow.readthedocs.io/) (PIL Fork). Load, transform, filter, draw on, composite, and export images — all referenced by integer indexes like tkinter widgets.
 
 > **Requires:** `pip install Pillow`
 
@@ -207,7 +207,7 @@ global setup(){ import("image"); }
 global main(){
     int img  = global.image.open("input.jpg");
     int sm   = global.image.resize(img, 640, 480);
-    global.image.drawText(sm, 10, 10, "© 2026 Clynxer",
+    global.image.drawText(sm, 10, 10, "© 2026 Lynxer",
                           255, 255, 255, 18);
     global.image.save(sm, "output.jpg");
 }

@@ -1,5 +1,5 @@
 ////
-Clynxer standard library: random.
+Lynxer standard library: random.
 Random number and character helpers backed by the native C++ module
 `stdlib/random.so`.
 

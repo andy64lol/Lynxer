@@ -1,6 +1,6 @@
 # Standard Library
 
-Clynxer ships a set of standard library modules in the `stdlib/` folder. Import any of them inside `setup()`:
+Lynxer ships a set of standard library modules in the `stdlib/` folder. Import any of them inside `setup()`:
 
 ```c
 global setup(){
@@ -76,7 +76,7 @@ Requires: `pip install numpy` (for NumPy-backed functions).
 
 See [docs/stdlib/math.md](stdlib/math.md) for the full reference.
 
-**Core (Python `math` / pure Clynxer)**
+**Core (Python `math` / pure Lynxer)**
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
@@ -302,7 +302,7 @@ JSON encode / decode via Python's `json` module.
 | `jsonGetBool` | `jsonGetBool(str s, str key)` | Get bool value at key |
 | `jsonKeys` | `jsonKeys(str s)` | Top-level keys as comma-separated string |
 | `jsonStringify` | `jsonStringify(str s)` | JSON-encode a raw string value |
-| `jsonArray` | `jsonArray(list lst)` | Serialize a Clynxer list to a JSON array string |
+| `jsonArray` | `jsonArray(list lst)` | Serialize a Lynxer list to a JSON array string |
 | `jsonObject` | `jsonObject(list lst)` | Build JSON object from flat alternating key/value list |
 | `jsonHas` | `jsonHas(str s, str key)` | `true` if key exists in JSON object |
 | `jsonLength` | `jsonLength(str s)` | Number of keys in JSON object |
@@ -486,7 +486,7 @@ Pattern strings use Python regex syntax. Multi-match results are returned as JSO
 
 ## colorlib
 
-Terminal colour and text-style helpers using ANSI escape sequences. Written entirely in Clynxer — no Python dependencies.
+Terminal colour and text-style helpers using ANSI escape sequences. Written entirely in Lynxer — no Python dependencies.
 
 See [docs/stdlib/colorlib.md](stdlib/colorlib.md) for the complete reference.
 

@@ -1,5 +1,5 @@
 ////
-Fixture for the text stdlib (pure Clynxer, no shared library).
+Fixture for the text stdlib (pure Lynxer, no shared library).
 ////
 global setup(){ import("text"); }
 

@@ -1,5 +1,5 @@
 ////
-Clynxer standard library: cli.
+Lynxer standard library: cli.
 Command-line helpers backed by the native C++ module `stdlib/cli.so`:
 arguments, environment, terminal queries and process execution.
 

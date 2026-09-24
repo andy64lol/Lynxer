@@ -1,5 +1,5 @@
 ////
-Clynxer standard library: game.
+Lynxer standard library: game.
 
 2-D game toolkit backed by Rust + macroquad, exposed through the native module
 `stdlib/game.so`. It provides a window, drawing primitives, sprites, sprite
@@ -57,9 +57,9 @@ global isOpen() -> bool { return global.nativeGame.isOpen() isnt 0; }
 // Blocking frame loop. Invokes the update callback (with the frame time in
 // seconds) and then the draw callback once per frame.
 global run(){ global.nativeGame.run(); }
-// Name of the Clynxer function called once per frame to draw.
+// Name of the Lynxer function called once per frame to draw.
 global setDrawCallback(str callbackName){ global.nativeGame.setDrawCallback(callbackName); }
-// Name of the Clynxer function called once per frame with the delta time.
+// Name of the Lynxer function called once per frame with the delta time.
 global setUpdateCallback(str callbackName){ global.nativeGame.setUpdateCallback(callbackName); }
 // Seconds since the previous frame.
 global deltaTime() -> float { return global.nativeGame.deltaTime(); }

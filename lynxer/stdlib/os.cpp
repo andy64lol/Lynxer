@@ -1,4 +1,4 @@
-// Clynxer `os` stdlib backend: filesystem, process, environment and platform
+// Lynxer `os` stdlib backend: filesystem, process, environment and platform
 // helpers implemented with <filesystem> plus POSIX APIs.
 
 #include "native_json.hpp"

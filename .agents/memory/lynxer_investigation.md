@@ -96,7 +96,7 @@ see §12.
 
 ## Table of Contents
 
-1. [What is Lynxer, and how does it differ from Clynxer?](#1-what-is-lynxer-and-how-does-it-differ-from-clynxer)
+1. [What is Lynxer, and how does it differ from Lynxer?](#1-what-is-lynxer-and-how-does-it-differ-from-clynxer)
 2. [Repository map — the important directories](#2-repository-map--the-important-directories)
 3. [Architecture](#3-architecture)
 4. [Build system](#4-build-system)
@@ -111,11 +111,11 @@ see §12.
 
 ---
 
-## 1. What is Lynxer, and how does it differ from Clynxer?
+## 1. What is Lynxer, and how does it differ from Lynxer?
 
-### 1.1 Clynxer — the original (Python)
+### 1.1 Lynxer — the original (Python)
 
-Clynxer is **a statically-flavoured, C-style scripting language** that runs on
+Lynxer is **a statically-flavoured, C-style scripting language** that runs on
 Python. Source files use the `.lynx` extension (`README.md:6-7`).
 
 - Implemented in Python under `clynxer/`. The interpreter pipeline
@@ -131,12 +131,12 @@ Python. Source files use the `.lynx` extension (`README.md:6-7`).
   and Cython** directly in a `.lynx` program (`docs/rawpy.md`). Most Python
   stdlib wrappers use `rawPy` internally.
 - Linux only, x86-64 (`amd64`) and ARM64 (`aarch64`) (`README.md:9-14`).
-- Distributed as a PyInstaller one-file binary (`make buildClynxer`, `make buildClynxerLite`).
+- Distributed as a PyInstaller one-file binary (`make buildLynxer`, `make buildLynxerLite`).
 
 ### 1.2 Lynxer — the rebuild (C++)
 
 Lynxer is **the standalone C++ implementation being rebuilt beside the original
-Python Clynxer** (`todo.md:3-5`, `lynxer/README.md:1-9`).
+Python Lynxer** (`todo.md:3-5`, `lynxer/README.md:1-9`).
 
 - C++17 only. **No Python runtime and no third-party C++ dependencies** for the
   interpreter itself.
@@ -157,7 +157,7 @@ Python Clynxer** (`todo.md:3-5`, `lynxer/README.md:1-9`).
 
 ### 1.3 Side-by-side
 
-| Dimension | Clynxer (`clynxer/`) | Lynxer (`lynxer/`) |
+| Dimension | Lynxer (`clynxer/`) | Lynxer (`lynxer/`) |
 | --- | --- | --- |
 | Language | Python 3 | C++17 |
 | Role | the original implementation | the rebuild |
@@ -194,7 +194,7 @@ semantics — but the C++ `lynxer/stdlib/<name>.lynx` wrapper defines the
 | --- | --- |
 | `clynxer/` | **Python implementation.** The frozen behaviour reference. Also holds the C++ extension sources (`cpp.cpp`, `bytecode_vm.cpp`) and its own `stdlib/`. |
 | `lynxer/` | **C++ implementation.** The whole active project. |
-| `docs/` | Documentation **for the Python Clynxer** (`language.md`, `bytecode.md`, `native-modules.md`, `stdlib/`, …). |
+| `docs/` | Documentation **for the Python Lynxer** (`language.md`, `bytecode.md`, `native-modules.md`, `stdlib/`, …). |
 | `lynxer/docs/` | Documentation **for Lynxer** (`language.md`, `native-module-abi.md`, `limitations.md`, `stdlib/`, …). |
 | `test/` | The 55 Python test fixtures `test*.lynx`, the runners `validate.py` / `remaining.py`, and `test/golden/` (the Stage-1 golden corpus + `manifest.json`). |
 | `scripts/` | `golden_corpus.py`, `benchmark_pipeline.py`, `select_pure_stdlib.py`, `testARM64Syscall.py`, `post-merge.sh`. |
@@ -204,7 +204,7 @@ semantics — but the C++ `lynxer/stdlib/<name>.lynx` wrapper defines the
 | `Makefile` | Root build/test orchestration for **both** implementations. |
 | `.github/workflows/` | `buildLynxer.yml` (builds + runs `make testLynxer` on push/PR, ubuntu-latest) and `buildArmLinux.yml`. |
 | `.agents/memory/` | Where this report lives. |
-| `venv/` | Python virtualenv for the Python Clynxer toolchain. |
+| `venv/` | Python virtualenv for the Python Lynxer toolchain. |
 | `.clangd`, `.ruff_cache/` | Editor/linter caches. |
 
 ### 2.2 `lynxer/` internals
@@ -230,7 +230,7 @@ Supporting directories:
 
 | Path | What it is |
 | --- | --- |
-| `lynxer/stdlib/*.lynx` | **27** Clynxer-facing stdlib wrappers. Each `setup()` does `importAs("<name>.so", "native<Name>")` and each public function forwards to `global.native<Name>.<fn>()`. |
+| `lynxer/stdlib/*.lynx` | **27** Lynxer-facing stdlib wrappers. Each `setup()` does `importAs("<name>.so", "native<Name>")` and each public function forwards to `global.native<Name>.<fn>()`. |
 | `lynxer/stdlib/*.cpp` | **15** C++ native backends, compiled to the sibling `.so` by a wildcard rule. |
 | `lynxer/stdlib/*.so` | Built native modules (24 total = 15 C++ + 9 Rust). |
 | `lynxer/rust/` | **Cargo workspace with 10 crates** (~6.5k lines of Rust): `abi`, `game`, `image`, `json`, `lua`, `network`, `server`, `sound`, `sqldb`, `tui`. |
@@ -285,7 +285,7 @@ startup. That is why compiled and interpreted runs are asserted to be identical
 
 Every stdlib module is a **pair**:
 
-1. `lynxer/stdlib/<name>.lynx` — the Clynxer-facing module. Its `setup()`
+1. `lynxer/stdlib/<name>.lynx` — the Lynxer-facing module. Its `setup()`
    imports the shared library under a namespace, and each public function
    forwards to it:
 
@@ -294,13 +294,13 @@ Every stdlib module is a **pair**:
    global playSound(int soundIdx) -> bool { return global.nativeSound.play(soundIdx) != 0; }
    ```
 
-   This layer exists so the Clynxer-visible API never depends on native types:
+   This layer exists so the Lynxer-visible API never depends on native types:
    booleans come back as `int64` `0`/`1` and are converted with `!= 0`.
 
 2. `lynxer/stdlib/<name>.so` — the native backend, built either from
    `lynxer/stdlib/<name>.cpp` **or** from a Rust crate under `lynxer/rust/<name>/`.
 
-Three modules are **pure Clynxer** (no `.so`): `colorlib`, `text`, `typing`.
+Three modules are **pure Lynxer** (no `.so`): `colorlib`, `text`, `typing`.
 
 ### 3.3 The native module ABI
 
@@ -317,7 +317,7 @@ int clynxer_module_init_v1(
 
 `ast.cpp` `dlopen`s with `RTLD_NOW | RTLD_LOCAL` and invokes the initialiser with
 those three callbacks. A module may optionally also export
-`clynxer_module_attach_v1(const ClynxerHostApi *)` to call back into Clynxer (used by
+`clynxer_module_attach_v1(const LynxerHostApi *)` to call back into Lynxer (used by
 `game` for frame callbacks).
 
 **Signature grammar.** `cdecl:<return>(<arg>,<arg>,...)`, with type tokens
@@ -342,7 +342,7 @@ const char* op(const double *nums, int64_t num_count,
                const char *const *strs, int64_t str_count);
 ```
 
-Numbers (Clynxer `int`, `float`, and `bool` as `0`/`1`) arrive in `nums` in
+Numbers (Lynxer `int`, `float`, and `bool` as `0`/`1`) arrive in `nums` in
 original order; strings in `strs`. Either pointer may be null when its count is
 zero; at most 64 of each are accepted (`native-module-abi.md:124-150`).
 
@@ -358,7 +358,7 @@ raises `unsupported native signature '<sig>'`.
 **The `lynxer_abi` crate** (`lynxer/rust/abi`) removes the boilerplate for Rust
 modules: the packed-argument `Args` view, panic guards (`guard_int` /
 `guard_float` / `guard_string`, so a Rust panic never unwinds across the C ABI),
-the single `thread_local` string-result buffer, the `ClynxerHostApi`, and the
+the single `thread_local` string-result buffer, the `LynxerHostApi`, and the
 `export_int!` / `export_float!` / `export_string!` / `clynxer_module!` macros.
 
 ### 3.4 Rust backends
@@ -394,10 +394,10 @@ warning and the rest of Lynxer still builds (`lynxer/Makefile:19-25`).
 | `make buildLynxer` | **The main target.** Builds `lynxer/lynxer`, then `make -C lynxer rust` and `make -C lynxer all` (`Makefile:153-156`). |
 | `make testLynxer` | `buildLynxer`, then `make -C lynxer test` (`Makefile:70-71`). |
 | `make test` | `buildCpp` + `testLynxer` + the Python suites (`test/validate.py`, `test/remaining.py`). |
-| `make build` / `buildAll` | Everything: `buildClynxer` + `buildClynxerLite` + `buildLynxer`. |
-| `make buildClynxer` | Full Python Clynxer PyInstaller build (`dist/clynxer`). |
-| `make buildClynxerLite` | Python Clynxer "lite" build — pure-stdlib modules only (`dist/clynxer-lite`). |
-| `make buildCpp` | The Python Clynxer C++ extension (`clynxer/setup.py build_ext --inplace`). |
+| `make build` / `buildAll` | Everything: `buildLynxer` + `buildLynxerLite` + `buildLynxer`. |
+| `make buildLynxer` | Full Python Lynxer PyInstaller build (`dist/clynxer`). |
+| `make buildLynxerLite` | Python Lynxer "lite" build — pure-stdlib modules only (`dist/clynxer-lite`). |
+| `make buildCpp` | The Python Lynxer C++ extension (`clynxer/setup.py build_ext --inplace`). |
 | `make cargo` | Just the Rust backends. |
 | `make venv` / `deps` / `liteDeps` / `platform-check` | Python toolchain setup. |
 | `make validate` / `golden` / `check` | Python-side validation, the golden corpus, and linting. |
@@ -484,7 +484,7 @@ runners.
 | --- | --- | --- |
 | C++ (`stdlib/*.cpp`) | 15 | `cli`, `csv`, `debug`, `fileIO`, `js`, `math`, `multiprocessing`, `os`, `path`, `random`, `re`, `regex`, `shell`, `sys`, `time` |
 | Rust (`rust/<name>/`) | 9 | `game`, `image`, `json`, `lua`, `network`, `server`, `sound`, `sqldb`, `tui` |
-| Pure Clynxer | 3 | `colorlib`, `text`, `typing` |
+| Pure Lynxer | 3 | `colorlib`, `text`, `typing` |
 | **Total** | **27** | |
 
 ### 6.2 Python modules with no Lynxer equivalent
@@ -845,7 +845,7 @@ implemented.
 **`confirm` was the 18th, and manual inspection had missed it.** Its read is at
 index **0**, so a grep for "non-zero index reads" — the method used to build the
 original 17-item list — could not see it. `tui_confirm_default` was registered
-under *two* Clynxer names with different arities (`confirm(prompt)` and
+under *two* Lynxer names with different arities (`confirm(prompt)` and
 `confirmDefault(prompt, defaultValue)`) while reading `int(0)` for the default;
 `confirm(prompt)` passes no number at all. The fix splits the registration:
 `confirm` now has its own op reading only the prompt, and `confirmDefault` keeps
@@ -943,7 +943,7 @@ contradiction in `todo.md`.
 | 1 | `lynxer/docs/limitations.md:64-71` | Said "`tui` remains intentionally unimplemented because it needs a full-screen terminal library" and that the Python `sound` and `sqldb` modules were "out of scope". All three are implemented, built and tested. | **Fixed** — replaced with a "Modules that are not ported" section naming only `tkinter`/`tkinterPlus`/`turtle`, plus new `sound`, `sqldb` and `tui` divergence sections. |
 | 2 | `lynxer/docs/README.md:88` | "`tui` is not implemented yet." | **Fixed** — sentence removed. |
 | 3 | `lynxer/docs/README.md:55-80` | Module table listed 25 modules and omitted `sound`, `sqldb` and `tui`. | **Fixed** — three rows added; all 27 modules now have a row and a doc page. |
-| 4 | `lynxer/docs/README.md:72` | Listed `random` as "*pure* — deterministic LCG in Clynxer", but it is native (`stdlib/random.cpp`, `stdlib/random.so`, `importAs` at `stdlib/random.lynx:9`). | **Fixed** — now "native \| seeded linear congruential generator in C++". |
+| 4 | `lynxer/docs/README.md:72` | Listed `random` as "*pure* — deterministic LCG in Lynxer", but it is native (`stdlib/random.cpp`, `stdlib/random.so`, `importAs` at `stdlib/random.lynx:9`). | **Fixed** — now "native \| seeded linear congruential generator in C++". |
 | 5 | `lynxer/docs/README.md:21` | `make` documented as "wipe and re-fetch third-party headers, then build". There is no `third_party/` or CMake staging any more. | **Fixed** — now "build the interpreter and every native stdlib module". |
 | 6 | `lynxer/docs/README.md:26-31, 82-86, 106-112` | Repeated "the `game`, `json`, `network` and `server` modules are Rust crates"; there are **nine**. Also referenced a non-existent `stdlib/libs.mk`. | **Fixed** — all three places list the nine modules; the `libs.mk` sentence removed. |
 | 7 | `lynxer/docs/native-module-abi.md:8-11` | Same thing — named only four Rust backends. | **Fixed** — now lists all nine. |
@@ -1035,7 +1035,7 @@ placeholders. Full list: `lynxer/docs/limitations.md`, which now documents the
    guarantees it stays fixed.
 3. **Make the contract explicit per module before adding a second backend.** The
    freeze item at `todo.md:204-208` is the one that would have prevented both B
-   and E. For a new module, write down — for each op — the Clynxer-facing name,
+   and E. For a new module, write down — for each op — the Lynxer-facing name,
    the argument types *and order*, which argument is the handle/path, the error
    sentinel, and who owns cleanup. The wrapper already encodes most of this, and
    §8.9's check now enforces the mechanical half of it; the semantic half (which
@@ -1261,7 +1261,7 @@ straight POSIX port:
 
 | Family | The question |
 | --- | --- |
-| `nativeThread*` | Needs a thread registry and a way for a spawned thread to call back into Clynxer. The reference relies on CPython's GIL — `clynxer/cpp.cpp` calls `PyGILState_Ensure` then invokes the function object. Lynxer has **no interpreter lock**: `Environment` (`runtime.hpp:180-191`) is unsynchronised state and the evaluator is a tree-walking interpreter with no re-entrancy, so running a Clynxer function on a second thread today would be a data race. |
+| `nativeThread*` | Needs a thread registry and a way for a spawned thread to call back into Lynxer. The reference relies on CPython's GIL — `clynxer/cpp.cpp` calls `PyGILState_Ensure` then invokes the function object. Lynxer has **no interpreter lock**: `Environment` (`runtime.hpp:180-191`) is unsynchronised state and the evaluator is a tree-walking interpreter with no re-entrancy, so running a Lynxer function on a second thread today would be a data race. |
 | `ffi*` | Needs a calling-convention layer. `libffi` is a new build dependency for the interpreter; hand-rolling covers only a few signatures. Largest security surface of the three. |
 | `async*` | ~370 reference lines and an event loop, for a language Lynxer does not currently run asynchronously. Worth deciding whether the built-ins should exist at all before building the machinery. |
 
@@ -1348,7 +1348,7 @@ knows `codeblock` only (`types.cpp`), and codeblocks come from literals
 (`codeblock saved = { ... }`) or inline arguments. The other four families needed
 native code; this one needs a **language feature** first.
 
-The second prerequisite stands as previously recorded: the thread runs a Clynxer
+The second prerequisite stands as previously recorded: the thread runs a Lynxer
 function, so a second thread must enter the evaluator, and Lynxer has no
 interpreter lock — the reference relies on CPython's GIL
 (`clynxer/cpp.cpp` → `PyGILState_Ensure`), while `Environment` is unsynchronised
@@ -1408,7 +1408,7 @@ Everything cited in this report, for fast navigation.
 | `lynxer/examples/assets/tone.wav` | **New.** 0.25 s 44.1 kHz PCM asset for the `sound` fixture |
 | `lynxer/examples/stdlib_sqldb.lynx`, `.expected` | Rewritten to a real round-trip against `.lynxer_scratch_sqldb.db`; byte-identical to the Python reference |
 | `lynxer/examples/stdlib_tui.lynx`, `.expected` | Corrected `tuiExists`/`tuiVersion` calls and `true`/`true` |
-| `lynxer/stdlib/{sound,sqldb,tui}.lynx` | The Clynxer-facing wrappers (unchanged — they were the correct side of Finding E) |
+| `lynxer/stdlib/{sound,sqldb,tui}.lynx` | The Lynxer-facing wrappers (unchanged — they were the correct side of Finding E) |
 
 **Contract and reference**
 
@@ -1456,7 +1456,7 @@ Everything cited in this report, for fast navigation.
 | `todo.md:269-276` | The three known parity bugs |
 | `lynxer/docs/README.md` (module table) | All 27 modules, sound/sqldb/tui included |
 | `lynxer/docs/README.md` ("Adding a stdlib module") | 4-step recipe, including the packed-signature requirement |
-| `README.md:6-14` | What Clynxer is; Linux-only, amd64/aarch64 |
+| `README.md:6-14` | What Lynxer is; Linux-only, amd64/aarch64 |
 | `lynxer/README.md:1-9` | What Lynxer is |
 
 ---

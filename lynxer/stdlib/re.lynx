@@ -1,5 +1,5 @@
 ////
-Clynxer standard library: re.
+Lynxer standard library: re.
 Regular expression helpers backed by the native C++ module `stdlib/re.so`.
 
 Patterns use Python syntax where the underlying engine supports it. Named

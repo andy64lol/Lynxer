@@ -1,5 +1,5 @@
 ////
-Clynxer standard library: fileIO.
+Lynxer standard library: fileIO.
 File and text input/output helpers.
 ////
 
@@ -230,7 +230,7 @@ global stemName(str path){
 }
 
 // Read path and return its content split into lines, joined by a custom separator sep.
-// Useful for processing files line-by-line as a Clynxer list.
+// Useful for processing files line-by-line as a Lynxer list.
 // Returns "" on error.
 global readFileLines(str path, str sep){
     str result = "";

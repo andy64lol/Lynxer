@@ -48,9 +48,9 @@ std::string readFile(const std::string& path, const std::string& display,
 void printUsage() {
     std::cout << "\n";
     std::cout << "Usage:\n";
-    std::cout << "  lynxer <file.lynx>                          Run a Clynxer source file\n";
+    std::cout << "  lynxer <file.lynx>                          Run a Lynxer source file\n";
     std::cout << "  lynxer --no-opt <file.lynx>                 Run without the AST optimizer\n";
-    std::cout << "  lynxer --lint <file.lynx>                   Check Clynxer syntax without running it\n";
+    std::cout << "  lynxer --lint <file.lynx>                   Check Lynxer syntax without running it\n";
     std::cout << "  lynxer --ast <file.lynx>                    Parse and print the abstract syntax tree\n";
     std::cout << "  lynxer --format <file.lynx>                 Rewrite a file with canonical spacing\n";
     std::cout << "  lynxer --format-oneline <file.lynx>         Collapse a file onto one physical line\n";
@@ -60,7 +60,7 @@ void printUsage() {
     std::cout << "      -o, --output <name>                      Name the output executable\n";
     std::cout << "  lynxer --validate-executeable               Run the interpreter self-check\n";
     std::cout << "  lynxer --version                            Print version\n";
-    std::cout << "  lynxer --list-stdlibs                       List available Clynxer stdlib modules\n";
+    std::cout << "  lynxer --list-stdlibs                       List available Lynxer stdlib modules\n";
     std::cout << "  lynxer --install                            Install the executable as /usr/bin/clynxer\n";
     std::cout << "  lynxer --uninstall                          Remove /usr/bin/clynxer\n";
     std::cout << "\n";
@@ -153,10 +153,10 @@ int listStdlibs() {
     }
     std::sort(files.begin(), files.end());
     if (files.empty()) {
-        std::cout << "No Clynxer stdlib modules found.\n";
+        std::cout << "No Lynxer stdlib modules found.\n";
         return 0;
     }
-    std::cout << "Available Clynxer stdlib modules:\n\n";
+    std::cout << "Available Lynxer stdlib modules:\n\n";
     for (const auto& file : files) {
         const std::string path = (stdlibPath / file).string();
         const std::string name = file.substr(0, file.size() - 5);
@@ -212,7 +212,7 @@ int astFile(const std::string& display, const std::string& source) {
                 ordered.push_back(&found->second);
             }
         }
-        std::cout << "Clynxer AST\n===========\n";
+        std::cout << "Lynxer AST\n===========\n";
         dumpProgram(std::cout, ordered);
     } catch (const SourceError& error) {
         std::cerr << "lynxer: " << display << ':' << error.line << ':'

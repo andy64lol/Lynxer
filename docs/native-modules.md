@@ -19,7 +19,7 @@ int clynxer_module_init_v1(
 
 Return zero after all registrations succeed. Returning a non-zero value, using
 an invalid identifier, registering duplicates, or naming a missing symbol
-rejects the module. Names must be valid Clynxer identifiers. Function signatures
+rejects the module. Names must be valid Lynxer identifiers. Function signatures
 use the existing `cdecl:` native-call grammar.
 
 Example:
@@ -47,7 +47,7 @@ extern "C" int clynxer_module_init_v1(RegisterFunction function,
 
 ## Importing
 
-Import a shared library from `setup()` just like a Clynxer module:
+Import a shared library from `setup()` just like a Lynxer module:
 
 ```lynx
 global setup() {
@@ -67,7 +67,7 @@ lifetime of their namespace. This prevents function pointers from becoming
 invalid while a module is still in use.
 
 The loader, registration callbacks, symbol lookup, and library lifetime are
-implemented by Clynxer's C++ extension. The Python runtime does not use
+implemented by Lynxer's C++ extension. The Python runtime does not use
 `ctypes`, which means the same low-level path is used by source, bytecode, and
 PyInstaller-bundled programs.
 
@@ -83,7 +83,7 @@ failure** errors with the relevant dependency or symbol.
 The root `Makefile` treats every `lynxer/stdlib/*.cpp` file as a
 native standard-library backend and builds its sibling `.so` inside the same
 `lynxer/stdlib/` directory during `make`.
-The corresponding `.lynx` file is the public wrapper when a Clynxer-compatible
+The corresponding `.lynx` file is the public wrapper when a Lynxer-compatible
 API or return-type conversion is useful. This keeps the ABI boundary uniform:
 adding a new dependency-free stdlib means adding its C++ implementation and
 wrapper, without adding Python packages.
@@ -108,7 +108,7 @@ function address. Closing a handle invalidates it and releases its registration
 callbacks. Retained function addresses from that module fail cleanly after
 close instead of calling unmapped code. Imported modules cannot be explicitly
 closed; their namespace owns their lifetime. Invalid handles and failed
-registrations produce normal Clynxer runtime errors. The low-level FFI entry
+registrations produce normal Lynxer runtime errors. The low-level FFI entry
 points are `ffiLoadLibrary`,
 `ffiLookup`, `ffiCall`, `ffiCallback`, `ffiFreeCallback`, and
 `ffiCloseLibrary`; unsupported callback signatures fail clearly. Dependency inspection is informational and

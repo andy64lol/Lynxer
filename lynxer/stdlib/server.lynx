@@ -1,5 +1,5 @@
 ////
-Clynxer standard library: server.
+Lynxer standard library: server.
 HTTP and WebSocket server backed by Rust (`axum` on `tokio`), exposed through
 the native module `stdlib/server.so`. Register routes, then start/stop a
 listener on 127.0.0.1.

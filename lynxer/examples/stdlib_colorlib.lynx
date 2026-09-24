@@ -1,5 +1,5 @@
 ////
-Fixture for the colorlib stdlib (pure Clynxer, no shared library). Raw escape
+Fixture for the colorlib stdlib (pure Lynxer, no shared library). Raw escape
 sequences are not printed; the assertions compare styled output against the
 low-level ansi() helper instead.
 ////

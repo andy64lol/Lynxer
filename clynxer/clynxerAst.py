@@ -1,4 +1,4 @@
-"""Abstract-syntax-tree nodes produced by the Clynxer parser."""  # noqa: N999
+"""Abstract-syntax-tree nodes produced by the Lynxer parser."""  # noqa: N999
 
 from __future__ import annotations
 
@@ -317,7 +317,7 @@ class ExecCallNode:
 
 
 class ExecFileNode:
-    """Execute a Clynxer source file at the current execution point."""
+    """Execute a Lynxer source file at the current execution point."""
 
     def __init__(self, path_node, pos_start, pos_end):
         self.path_node = path_node
@@ -365,7 +365,7 @@ class RawPyxBlockNode:
         self.pos_end = pos_end
 
 class ExecBlockNode:
-    """Clynxer code injected into and executed in the current context."""
+    """Lynxer code injected into and executed in the current context."""
     def __init__(self, body_block, pos_start, pos_end):
         self.body_block = body_block
         self.pos_start = pos_start

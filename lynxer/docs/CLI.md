@@ -65,7 +65,7 @@ lynxer --ast program.lynx
 ```
 
 `--ast` lexes and parses the file and prints the resulting tree without running
-it: the header `Clynxer AST` / `===========`, then a position-free, indented
+it: the header `Lynxer AST` / `===========`, then a position-free, indented
 dump of every top-level function and its statements. Source line/column are
 omitted. A syntax error is reported with its source location and exits `1`; the
 flag requires exactly one file argument.
@@ -190,4 +190,4 @@ makes `make testLynxer` skip the display and audio fixtures. See
 
 - [install.md](install.md) — build commands and artifacts.
 - [modules.md](modules.md) — imports and `--compile` resolution.
-- [parity.md](parity.md) — what is deliberately different from Python Clynxer.
+- [parity.md](parity.md) — what is deliberately different from Python Lynxer.

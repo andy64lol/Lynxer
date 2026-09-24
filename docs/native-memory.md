@@ -1,6 +1,6 @@
 # Native memory built-ins
 
-Native memory is part of Clynxer’s built-in API, not a standard-library module.
+Native memory is part of Lynxer’s built-in API, not a standard-library module.
 The functions below are available directly in every program; they never need
 `import()`. The implementation uses the optional C++ extension in
 `clynxer/cpp.cpp`.
@@ -15,10 +15,10 @@ The extension build selects the appropriate C++17 and thread-linker flags for
 the host compiler: MSVC on Windows, and POSIX-compatible compiler flags on
 Unix-like systems.
 
-The normal `make buildClynxer` and `make buildClynxerLite` targets run this step
-automatically before packaging Clynxer. A C++ compiler and the active Python
+The normal `make buildLynxer` and `make buildLynxerLite` targets run this step
+automatically before packaging Lynxer. A C++ compiler and the active Python
 development headers are required. Native addresses are
-represented as Clynxer integers and are unmanaged: callers own allocations and
+represented as Lynxer integers and are unmanaged: callers own allocations and
 must release them exactly once.
 
 ## Raw allocation
@@ -112,7 +112,7 @@ the storage-unit byte offset, `memoryStructFieldSize()` returns that unit's
 byte size, and `memoryStructFieldType()` includes the width (for example,
 `uint8:3`).
 
-This is a stable Clynxer layout rule rather than a promise to reproduce every
+This is a stable Lynxer layout rule rather than a promise to reproduce every
 compiler's implementation-defined C bit-field ABI. Use explicit byte/bit
 access when interoperating with an externally compiled struct whose compiler
 packing rules must be matched exactly.
@@ -159,7 +159,7 @@ extension.
 
 ## Native threads
 
-Native threads run a Clynxer function on a C++ `std::thread` while acquiring the
+Native threads run a Lynxer function on a C++ `std::thread` while acquiring the
 interpreter lock for each callback. Start a thread with a function and a list of
 arguments, then join it:
 

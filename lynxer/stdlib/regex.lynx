@@ -1,5 +1,5 @@
 ////
-Clynxer standard library: regex.
+Lynxer standard library: regex.
 Extended regular-expression helpers backed by the native C++ module
 `stdlib/regex.so`.
 

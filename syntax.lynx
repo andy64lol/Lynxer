@@ -1,4 +1,4 @@
-//// syntax.lynx — Clynxer language syntax showcase ////
+//// syntax.lynx — Lynxer language syntax showcase ////
 
 // Comments:
 // single-line comments start with //
@@ -24,7 +24,7 @@ global identity(any value){
 }
 
 global main(){
-    println("=== Clynxer syntax showcase ===");
+    println("=== Lynxer syntax showcase ===");
 
     // Primitive types and constants.
     int number = 42;
@@ -38,7 +38,7 @@ global main(){
 
     // Functions and multiple arguments.
     println("add(10, 3) = ", global.add(10, 3));
-    println("identity(\"Clynxer\") = ", global.identity("Clynxer"));
+    println("identity(\"Lynxer\") = ", global.identity("Lynxer"));
     println("math alias m.sqrt(144) = ", global.m.sqrt(144));
 
     // Arithmetic, comparisons, logic, and bitwise operators.

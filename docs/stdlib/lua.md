@@ -1,6 +1,6 @@
 # lua
 
-Run Lua code inside Clynxer with the embedded [`lupa`](https://pypi.org/project/lupa/)
+Run Lua code inside Lynxer with the embedded [`lupa`](https://pypi.org/project/lupa/)
 runtime. Lua does not need to be installed separately or available on `PATH`.
 
 Install the dependency in the project virtual environment with:

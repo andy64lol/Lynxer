@@ -1,7 +1,7 @@
 # Lynxer rebuild from scratch
 
 Lynxer is the standalone C++ implementation being rebuilt beside the original
-Python Clynxer. The Python implementation is the behavior reference; it is not a
+Python Lynxer. The Python implementation is the behavior reference; it is not a
 runtime dependency and its internals are not copied into Lynxer.
 
 ## Next up — compiler pivot and stdlib consolidation
@@ -33,7 +33,7 @@ Planned order of work, newest direction first.
   `setDrawCallback`, shapes, text, input, sprites, sprite lists, textures,
   camera and grid helpers. Two additive native-module ABI extensions make this
   possible: the packed `cdecl:<ret>(...)` signature, and the optional
-  `clynxer_module_attach_v1` host API that lets a module call a Clynxer function
+  `clynxer_module_attach_v1` host API that lets a module call a Lynxer function
   by name. `LYNXER_GAME_HEADLESS=1` runs the module without a display; the
   `examples/stdlib_game.lynx` fixture exercises it in `make test`. Deferred:
   sound, scenes, tilemaps, physics, shape batches, animated sprites. Docs:
@@ -86,7 +86,7 @@ Planned order of work, newest direction first.
   fixture, and a passing `make test`.
 - Prefer explicit source-located errors over partial support or Python fallback.
 - Add a focused `.lynx` fixture for every user-visible language feature.
-- Keep the original Clynxer runnable so behavior can be compared during the
+- Keep the original Lynxer runnable so behavior can be compared during the
   rewrite.
 
 ## Milestone 0 — small executable
@@ -124,7 +124,7 @@ Planned order of work, newest direction first.
   list, tuple, sentinel, and object values with identity comparison, plus
   Python-style number formatting.
 - [x] Add list and tuple literal syntax and the list/tuple built-in families
-  with Clynxer value semantics (new-list results, negative indices,
+  with Lynxer value semantics (new-list results, negative indices,
   string-based membership).
 - [x] Add `inter"..."` interpolation in `print`, `println`, `input`, and
   `inputln` arguments, including `\{`, `\}`, and `\\` escapes and the
@@ -134,7 +134,7 @@ Planned order of work, newest direction first.
   type.
 - [x] Add typed element literals for sequences: `[int 1, int 2]` and
   `(int 10, int 20)`.
-- [x] Add lexical scopes and match Clynxer declaration lifetime rules.
+- [x] Add lexical scopes and match Lynxer declaration lifetime rules.
 - [x] Add `const` declarations whose reassignment is a runtime error.
 - [x] Add structs, classes, enums, vargroups, and pattern matching.
 
@@ -180,7 +180,7 @@ Planned order of work, newest direction first.
   complete; future work below is about portability and parity, not initial
   Rust ports.
 - [x] Implement the remaining Python third-party stdlib alternatives as Rust
-  `cdylib` backends behind the shared C ABI. The Clynxer-facing
+  `cdylib` backends behind the shared C ABI. The Lynxer-facing
   `stdlib/<name>.lynx` module is the wrapper; its `setup()` imports
   `stdlib/<name>.so`, and the Rust backend registers the native operations that
   the wrapper calls. Use the Python implementation and package behavior as the
@@ -208,7 +208,7 @@ Planned order of work, newest direction first.
 - [x] Freeze each module's operation names, signatures, handle ownership,
   string lifetime, error sentinels, callbacks, interruption behavior, and
   cleanup before introducing a second backend. Keep third-party calls behind
-  backend-local adapters so the Clynxer wrapper never depends on crate-specific
+  backend-local adapters so the Lynxer wrapper never depends on crate-specific
   types or APIs. Frozen at Lynxer 0.1.8 in
   `lynxer/docs/stdlib-contracts.md`, per module: the conventions that apply
   everywhere, the identity model and cleanup owner for each of the 27 modules,
@@ -310,7 +310,7 @@ Planned order of work, newest direction first.
     `Callback`, `FreeCallback`. Uses POSIX `dlopen/dlsym/dlclose` (no libffi
     dependency); signature-based dispatch via the native call table in `ast.cpp`
     maps C calling conventions (`cdecl:ret(args...)`) to typed handlers.
-    Callbacks are registered by handle and resolved through the Clynxer function
+    Callbacks are registered by handle and resolved through the Lynxer function
     registry. Fixture: `examples/builtin_ffi.lynx`.
   - [x] `async*` (15): `Run`, `Gather`, `Sleep`, the `Poll*` family, the
     `Timer*` pair and the `Wakeup*` trio. Real POSIX primitives: `poll(2)` for
@@ -345,7 +345,7 @@ Planned order of work, newest direction first.
   it to a copy of the lynxer executable (`CLYXPAYLD` trailer); a bundled
   executable detects its payload at startup and runs the embedded program
   directly, with the same output parity as `.lynxc` runs.
-- [x] Merge the Clynxer and Lynxer Makefile entry points, including root
+- [x] Merge the Lynxer and Lynxer Makefile entry points, including root
   `buildLynxer`, `testLynxer`, `cleanLynxer`, and combined build/test/clean
   targets.
 - [x] Add the AST optimization pass (`lynxer/optimizer.{hpp,cpp}`): constant
@@ -482,7 +482,7 @@ There is no bytecode backend: `--compile` writes a standalone ELF executable
 that embeds the program, every transitively imported module source, and every
 imported native library, so a compiled program supports imports and stdlibs and
 behaves exactly like an interpreted one. An AST optimizer runs before execution
-(`--no-opt` disables it). The root Makefile builds and tests both Clynxer and
+(`--no-opt` disables it). The root Makefile builds and tests both Lynxer and
 Lynxer targets; `make testLynxer` runs the module-contract check, the
 CLI/diagnostic golden cases, every `.expected` fixture (including the low-level
 native-memory and syscall fixtures), and interpreted-versus-compiled parity, and

@@ -1,11 +1,11 @@
 ////
-Clynxer standard library: typing.
-Pure Clynxer type inspection, conversion and integer-range helpers.
+Lynxer standard library: typing.
+Pure Lynxer type inspection, conversion and integer-range helpers.
 ////
 
 global setup(){}
 
-//// Return the Clynxer type name of value. ////
+//// Return the Lynxer type name of value. ////
 global typeOf(any value) -> str { return returnType(value); }
 global toStr(any value) -> str { return strOf(value); }
 global toInt(any value) -> int { return intOf(value); }

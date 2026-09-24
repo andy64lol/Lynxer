@@ -1,7 +1,7 @@
 //! Lynxer `tui` stdlib backend: terminal UI helpers.
 //!
 //! Replaces Python Rich with Rust `ratatui`/`crossterm`.
-//! The Clynxer-facing contract matches `clynxer/stdlib/tui.lynx`:
+//! The Lynxer-facing contract matches `clynxer/stdlib/tui.lynx`:
 //! structured data crosses as JSON strings, errors as
 //! `"Error: <message>"`.
 
@@ -242,7 +242,7 @@ export_string!(tui_ask, args, {
         // stdin in a blocking manner.
     });
     // Simplified: return empty string since we can't do interactive
-    // input in the packed ABI. The Clynxer wrapper would handle this
+    // input in the packed ABI. The Lynxer wrapper would handle this
     // differently in practice.
     "".to_string()
 });

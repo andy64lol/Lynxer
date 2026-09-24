@@ -35,9 +35,9 @@ global main(){
     int x = 42;
     global.debug.assert(x > 0, "x must be positive");     // passes
 
-    str name = "Clynxer";
-    global.debug.assertEq(name, "Clynxer", "name mismatch");   // passes
-    global.debug.assertContains("Hello, Clynxer!", "Clynxer", "greeting missing name");
+    str name = "Lynxer";
+    global.debug.assertEq(name, "Lynxer", "name mismatch");   // passes
+    global.debug.assertContains("Hello, Lynxer!", "Lynxer", "greeting missing name");
 
     global.debug.assertGt(10.0, 5.0, "10 should be > 5");     // passes
 }
@@ -49,7 +49,7 @@ global main(){
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `typeOf` | `typeOf(any val)` | Return the Clynxer type name as a string: `"int"`, `"float"`, `"str"`, `"bool"`, `"list"`, `"null"`. |
+| `typeOf` | `typeOf(any val)` | Return the Lynxer type name as a string: `"int"`, `"float"`, `"str"`, `"bool"`, `"list"`, `"null"`. |
 | `dump` | `dump(any val)` | Print `[debug.dump] type=... value=...` to stdout. |
 | `inspect` | `inspect(any val)` | Return a JSON string `{"type":"...","value":"..."}`. |
 | `pp` | `pp(any val)` | Pretty-print `val` to stdout (alias for `dump`). |
@@ -159,6 +159,6 @@ global main(){
 
 ## Notes
 
-- `typeOf` maps Python internals to Clynxer types: `bool` is checked before `int` because Python's `bool` is a subclass of `int`.
+- `typeOf` maps Python internals to Lynxer types: `bool` is checked before `int` because Python's `bool` is a subclass of `int`.
 - Timers are stored by name in a global table — `stopTimer` does not remove them, so you can call `elapsed` after `stopTimer`.
 - `getMemory` tries `resource.getrusage` (Unix) and falls back to `psutil` if available, then returns `-1.0`.

@@ -1,5 +1,5 @@
 ////
-Clynxer standard library: os.
+Lynxer standard library: os.
 Operating system and path helpers.
 ////
 
@@ -29,7 +29,7 @@ global chdir(str path){
     return ok;
 }
 
-// Returns directory entries as a Clynxer list.
+// Returns directory entries as a Lynxer list.
 // Returns an empty list on error or if the directory is empty.
 global listdir(str path){
     str raw = "";
@@ -478,7 +478,7 @@ global getSystemNode(){
     return result;
 }
 
-// Return the Python runtime version used by Clynxer.
+// Return the Python runtime version used by Lynxer.
 global getPythonVersion(){
     str result = "";
     rawPy(){

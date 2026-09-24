@@ -1,4 +1,4 @@
-"""Build a standalone executable for a Clynxer source program."""
+"""Build a standalone executable for a Lynxer source program."""
 
 from __future__ import annotations
 

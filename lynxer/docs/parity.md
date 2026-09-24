@@ -1,6 +1,6 @@
 # Parity scope
 
-Lynxer is a standalone C++ implementation of Clynxer, not a drop-in clone of the
+Lynxer is a standalone C++ implementation of Lynxer, not a drop-in clone of the
 Python implementation. The Python implementation is the behaviour reference, but
 Lynxer has deliberately diverged in several places, so "does it match Python?"
 is only a meaningful question for part of the surface. This page draws that

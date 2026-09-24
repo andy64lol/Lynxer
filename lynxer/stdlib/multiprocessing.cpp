@@ -1,4 +1,4 @@
-// Clynxer `multiprocessing` stdlib backend: run shell commands in parallel.
+// Lynxer `multiprocessing` stdlib backend: run shell commands in parallel.
 //
 // Results are returned through an integer handle registry rather than a joined
 // string, because command output can contain any character (including the

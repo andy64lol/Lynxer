@@ -66,7 +66,7 @@ std::vector<Token> Lexer::scan() {
             const char next = peek();
             if (current == '!') {
                 // '!' begins several multi-character operators. A bare '!'
-                // is invalid in Clynxer (logical NOT is '!!' or 'not'); emit
+                // is invalid in Lynxer (logical NOT is '!!' or 'not'); emit
                 // it as a single symbol so the parser rejects it with a clear
                 // syntax error, matching the Python reference.
                 if (next == '=' || next == '!' || next == '&' ||

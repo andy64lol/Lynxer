@@ -1,4 +1,4 @@
-"""Lexical analysis for Clynxer source code.
+"""Lexical analysis for Lynxer source code.
 
 Token types, keywords, :class:`Position`, :class:`Token`, and the
 :class:`Lexer` itself.
@@ -139,7 +139,7 @@ INTERPOLATION_BUILTINS = ("print", "println", "input", "inputln")
 # Marker written in front of a character that came from an escape sequence
 # inside an ``inter"..."`` body. It lets the parser tell a real ``{``/``}``
 # interpolation delimiter from an escaped ``\{``/``\}`` one. ``\x01`` cannot be
-# produced by any documented Clynxer escape sequence.
+# produced by any documented Lynxer escape sequence.
 INTER_ESCAPE_MARK = "\x01"
 
 class Token:

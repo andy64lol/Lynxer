@@ -1,5 +1,5 @@
 ////
-Clynxer standard library: multiprocessing.
+Lynxer standard library: multiprocessing.
 Run shell commands in parallel, backed by the native C++ module
 `stdlib/multiprocessing.so`.
 

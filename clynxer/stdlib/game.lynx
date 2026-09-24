@@ -1,5 +1,5 @@
 ////
-Clynxer standard library: game.
+Lynxer standard library: game.
 2D game helpers using Arcade. Requires Arcade.
 ////
 
@@ -203,7 +203,7 @@ global run(){
     }
 }
 
-// Register Clynxer functions as Arcade event callbacks.  The functions are
+// Register Lynxer functions as Arcade event callbacks.  The functions are
 // named to keep callback registration simple and predictable:
 // draw(), update(float dt), keyPress(int symbol, int modifiers), etc.
 global setDrawCallback(str callbackName){
@@ -284,7 +284,7 @@ global setMouseScrollCallback(str callbackName){
     }
 }
 
-// Schedule a named Clynxer function through Arcade's clock.  The callback
+// Schedule a named Lynxer function through Arcade's clock.  The callback
 // receives one float argument: elapsed seconds since the previous call.
 global schedule(str callbackName, float interval){
     rawPy(){

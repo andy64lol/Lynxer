@@ -1,6 +1,6 @@
 # Limitations and divergences
 
-Lynxer is a standalone C++ implementation of Clynxer. It is not a drop-in
+Lynxer is a standalone C++ implementation of Lynxer. It is not a drop-in
 replacement for the Python implementation, and several stdlib behaviours
 deliberately differ. This page lists everything you need to know before relying
 on a module.
@@ -23,7 +23,7 @@ decide whether a test may compare Lynxer with the Python reference, see
   `!=` is fine.
 - **String escapes.** Only `\n`, `\r`, `\t`, `\\`, `\"` and `\e` are accepted.
   There is no `\x`/`\u` escape, so byte values such as `\x1f` cannot be written
-  in Clynxer source. Modules that need such a separator use a writable one
+  in Lynxer source. Modules that need such a separator use a writable one
   (for example a tab) instead.
 - **There is no bytecode backend.** `.lynxc` files, `--view-bytecode`,
   `--benchmark-compile` and `--no-cache` were removed. `--compile` now produces
@@ -317,7 +317,7 @@ Lynxer now resolves `global.<name>` to a callable value when no variable has
 that name — the one language feature this family needed. `returnType` reports
 `codeblock` for such a value where the reference says `function`.
 
-Threads are **cooperative**: the interpreter evaluates Clynxer code on one thread
+Threads are **cooperative**: the interpreter evaluates Lynxer code on one thread
 at a time, guarded by one lock, and a worker takes that lock before calling back
 in. A thread therefore runs while the thread that started it is blocked in
 `nativeThreadJoin`/`nativeThreadJoinAll`, which release the lock before waiting.
@@ -337,7 +337,7 @@ program leaves running is joined when the program finishes.
 `ffiCall` must describe and perform arbitrary native calls. `libffi` is the
 usual answer and is a **new build dependency** for the interpreter; hand-rolling
 covers only a few fixed signatures. This is also the largest security surface of
-the four families, since it turns a Clynxer program into arbitrary native code.
+the four families, since it turns a Lynxer program into arbitrary native code.
 
 ### `async*` — needs a scope decision
 
