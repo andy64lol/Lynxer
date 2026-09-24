@@ -190,4 +190,3 @@ makes `make testLynxer` skip the display and audio fixtures. See
 
 - [install.md](install.md) — build commands and artifacts.
 - [modules.md](modules.md) — imports and `--compile` resolution.
-- [parity.md](parity.md) — what is deliberately different from Python Lynxer.

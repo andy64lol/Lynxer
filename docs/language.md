@@ -1,10 +1,9 @@
 # The Lynxer language
 
-Lynxer is the standalone C++ implementation of Lynxer. This page describes the
-language **as Lynxer actually parses and runs it**, with every example verified
-against the interpreter. For the differences from the older Python
-implementation, see [limitations.md](limitations.md) and
-[parity.md](parity.md).
+This page describes the Lynxer language **as the interpreter actually parses and
+runs it**, with every example verified against the interpreter. For the
+behaviour that is deliberately constrained or not implemented, see
+[limitations.md](limitations.md).
 
 Related pages: [types.md](types.md), [lists.md](lists.md),
 [structs.md](structs.md), [classes.md](classes.md), [enums.md](enums.md),

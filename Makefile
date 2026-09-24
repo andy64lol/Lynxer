@@ -1,28 +1,7 @@
 PYTHON   ?= $(shell command -v python3 2>/dev/null || command -v python 2>/dev/null || echo python3)
-VENV     := venv
-VENV_PY  := $(VENV)/bin/python
-VENV_PIP := $(VENV_PY) -m pip
-PYINSTALLER := $(VENV)/bin/pyinstaller
 
-WARNING_FILE := clynxer/warnings.txt
-WARNING_DATA := --add-data "$(WARNING_FILE):clynxer"
-
-COLLECT_ALL := $(shell \
-	sed 's/#.*//' requirements_venv.txt | \
-	sed '/^[[:space:]]*$$/d' | \
-	sed 's/[<>=!~].*//' | \
-	sed 's/\[.*\]//' | \
-	xargs -I{} printf -- "--collect-all=%s " "{}" \
-)
-
-CYTHON_COLLECT_ALL := --collect-all=Cython --collect-all=setuptools
-
-SYSTEM_CALLS_DEP := system-calls
-SYSTEM_CALLS := --hidden-import system_calls --hidden-import clynxer.syscalls --collect-submodules system_calls --collect-all=system_calls
-NATIVE_HIDDEN_IMPORTS := --hidden-import clynxer.cpp --hidden-import clynxer.bytecode_vm
-
-# --- Lynxer (the C++/Rust rebuild) -----------------------------------------
-# Every path is repo-root relative: this Makefile owns both implementations.
+# --- Lynxer: the standalone C++ implementation -----------------------------
+# Every path is repo-root relative.
 LYNXER_DIR := lynxer
 LYNXER_TARGET := $(LYNXER_DIR)/lynxer
 LYNXER_SOURCES := $(addprefix $(LYNXER_DIR)/,main.cpp shell.cpp lexer.cpp runtime.cpp types.cpp builtins.cpp ops.cpp ast.cpp optimizer.cpp formatter.cpp parser.cpp config.cpp bundle.cpp interrupt.cpp)
@@ -145,134 +124,26 @@ LYNXER_PARITY_FIXTURES := $(filter-out $(LYNXER_DISPLAY_FIXTURES),$(LYNXER_PARIT
 CLYX := ./$(LYNXER_TARGET)
 CLYX_TMP := $(LYNXER_DIR)/.lynxer
 
-.PHONY: all venv deps liteDeps pyinstaller cargo platform-check lite-platform-check build buildAll buildClynxer buildClynxerLite buildCpp buildLynxer buildLynxerArm64 test testClynxer testLynxer testLynxerAmd64Syscalls testLynxerArm64Syscalls testAMR64 validate golden check clean cleanC cleanCpp cleanLynxc cleanLynxer cleanAll help
+.PHONY: all cargo build buildAll buildLynxer buildLynxerArm64 test testLynxer testLynxerAmd64Syscalls testLynxerArm64Syscalls check clean cleanLynxer cleanAll help
 
-venv:
-	@if [ ! -d "$(VENV)" ]; then \
-		echo "Creating virtual environment '$(VENV)'..."; \
-		$(PYTHON) -m venv $(VENV); \
-	else \
-		echo "Using existing virtual environment '$(VENV)'."; \
-	fi
-	@echo "Upgrading pip and setuptools..."
-	@$(VENV_PIP) install --upgrade pip setuptools
+test: testLynxer
 
-deps: venv
-	@echo "Installing full dependencies..."
-	@$(VENV_PIP) install --upgrade -r requirements_venv.txt
-
-	@echo "Installing the Linux syscall tables..."
-	@$(VENV_PIP) install --upgrade $(SYSTEM_CALLS_DEP)
-
-liteDeps: venv
-	@echo "Installing Lite dependencies..."
-	@$(VENV_PIP) install --upgrade cython setuptools
-
-	@echo "Installing the Linux syscall tables..."
-	@$(VENV_PIP) install --upgrade $(SYSTEM_CALLS_DEP)
-
-platform-check: deps
-	@echo "Checking Linux build platform..."
-	@$(VENV_PY) -c 'from clynxer.syscalls import require_supported_platform, WORD_BYTES; architecture = require_supported_platform(); print(f"  -> {architecture} ({WORD_BYTES * 8}-bit Python ABI)")'
-
-lite-platform-check: liteDeps
-	@echo "Checking Linux build platform..."
-	@$(VENV_PY) -c 'from clynxer.syscalls import require_supported_platform, WORD_BYTES; architecture = require_supported_platform(); print(f"  -> {architecture} ({WORD_BYTES * 8}-bit Python ABI)")'
-
-test: testClynxer testLynxer
-
-# Python-only suite: the Lynxer suite below is gated on a Rust toolchain, so
-# CI jobs that only install Python use this target instead of `test`.
-testClynxer: buildCpp
-	@echo "Running Lynxer tests..."
-	@$(VENV_PY) -u test/validate.py
-	@$(VENV_PY) -u test/remaining.py
-
-testAMR64: buildCpp
-	@echo "Running ARM64 syscall database test..."
-	@$(VENV_PY) -u scripts/testARM64Syscall.py
-
-validate: buildCpp
-	@echo "Running validation..."
-	@$(VENV_PY) -u clynxer/validate.py
-
-golden:
-	@echo "Checking the Stage 1 golden corpus..."
-	@$(PYTHON) -u scripts/golden_corpus.py
-
-check: test
-	@for file in syntax.lynx test/*.lynx; do \
-		if grep -q '^// EXPECT_ERROR:' "$$file"; then \
-			echo "Skipping expected-error fixture: $$file"; \
-			continue; \
-		fi; \
-		$(VENV_PY) clynxer/shell.py --lint "$$file" >/dev/null || exit $$?; \
+# Lint the syntax showcase, then run the suite.
+check: testLynxer
+	@for file in syntax.lynx; do \
+		$(CLYX) --lint "$$file" >/dev/null || exit $$?; \
 	done
 	@echo "✓ Lynxer checks passed."
 
-# Conventional alias for a full build (kept out of first position so a bare
-# `make` does not trigger the ~13-minute PyInstaller lite analysis).
+# Conventional alias for a full build.
 all: build
 
-# Everything: both Python binaries plus Lynxer.
-build: buildClynxer buildClynxerLite buildLynxer
-	@echo "✓ Full build complete: dist/clynxer, dist/clynxer-lite, $(LYNXER_TARGET)"
+# The interpreter, the native (C++) stdlib modules, and the Rust backends.
+build: buildLynxer
+	@echo "✓ Full build complete: $(LYNXER_TARGET)"
 
 buildAll: build
 
-# Shared Python-build prerequisite: PyInstaller plus the Arcade hook patch.
-pyinstaller: venv
-	@echo "Patching Arcade PyInstaller hook... (due to a bug)"
-	@HOOK=$$($(VENV_PY) -c 'import arcade, os; print(os.path.join(os.path.dirname(arcade.__file__), "__pyinstaller", "hook-arcade.py"))'); \
-	if [ -f "$$HOOK" ]; then \
-		sed -i.bak 's|"./arcade/VERSION"|"./arcade"|g' "$$HOOK"; \
-		rm -f "$$HOOK.bak"; \
-		echo "  -> Patched $$HOOK"; \
-	else \
-		echo "  -> Hook file not found (Arcade may not be installed?)"; \
-	fi
-	@echo "Installing PyInstaller..."
-	@$(VENV_PIP) install --upgrade pyinstaller
-
-# Python full build: every stdlib module bundled into dist/clynxer.
-buildClynxer: platform-check buildCpp pyinstaller
-	@echo "Building Lynxer (Python)..."
-	@$(PYINSTALLER) \
-		--onefile \
-		--clean \
-		$(COLLECT_ALL) \
-		--name clynxer \
-		$(NATIVE_HIDDEN_IMPORTS) \
-		$(SYSTEM_CALLS) \
-		$(WARNING_DATA) \
-		--add-data "clynxer/stdlib:stdlib" \
-		clynxer/shell.py
-	@echo "✓ Lynxer build complete: dist/clynxer"
-
-# Python lite build: Cython support and only pure stdlib modules, dist/clynxer-lite.
-buildClynxerLite: lite-platform-check buildCpp pyinstaller
-	@echo "Selecting pure stdlib .lynx modules..."
-	@rm -rf build/stdlib_pure || true
-	@$(VENV_PY) scripts/select_pure_stdlib.py clynxer/stdlib build/stdlib_pure
-
-	@echo "Building Lynxer (lite) with Cython support and only pure stdlib modules..."
-	@$(PYINSTALLER) \
-		--onefile \
-		--clean \
-		$(CYTHON_COLLECT_ALL) \
-		--hidden-import Cython.Build.Inline \
-		--name clynxer-lite \
-		$(NATIVE_HIDDEN_IMPORTS) \
-		$(SYSTEM_CALLS) \
-		$(WARNING_DATA) \
-		--add-data "build/stdlib_pure:stdlib" \
-		clynxer/shell.py
-	@echo "✓ Lite build complete: dist/clynxer-lite"
-
-buildCpp: venv
-	@echo "Building Lynxer C++ native extensions..."
-	@$(VENV_PY) clynxer/setup.py build_ext --inplace
-	@echo "✓ Native extensions built in clynxer/ (memory + bytecode VM)"
 
 # ---------------------------------------------------------------------------
 # Lynxer: the C++ interpreter, its native (C++) stdlib modules, and the Rust
@@ -314,7 +185,7 @@ $(LYNXER_DIR)/%.o-arm64: $(LYNXER_DIR)/%.cpp $(LYNXER_HEADERS)
 $(LYNXER_DIR)/stdlib/%.so: $(LYNXER_DIR)/stdlib/%.cpp
 	$(LYNXER_CXX) -std=c++17 -O2 -Wall -Wextra -pedantic -fPIC -shared $< -o $@
 
-# Rust backends: self-contained cdylibs exporting clynxer_module_init_v1 and
+# Rust backends: self-contained cdylibs exporting lynxer_module_init_v1 and
 # their ops, copied to lynxer/stdlib/<name>.so for the interpreter to dlopen.
 $(LYNXER_RUST_TARGET_DIR)/release/liblynxer_%.so: $(LYNXER_RUST_SOURCES)
 	@command -v cargo >/dev/null || { echo "lynxer: cargo not found in PATH"; exit 1; }
@@ -691,22 +562,8 @@ testLynxerArm64Syscalls: $(LYNXER_TARGET)
 clean:
 	@find . -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null || true
 	@find . -name '*.pyc' -delete 2>/dev/null || true
-	@find . -name '*.lynxc' -not -path '*/stdlib/*' -delete 2>/dev/null || true
-	@rm -rf build dist *.spec clynxer/build 2>/dev/null || true
-	@echo "✓ Cleaned."
-	@echo "  (kept stdlib/*.lynxc and the built native extensions;"
-	@echo "   run 'make cleanLynxc' or 'make cleanC' to remove those)"
-
-cleanC:
-	@rm -rf clynxer/build 2>/dev/null || true
-	@find clynxer -maxdepth 1 -name '*.so' -delete 2>/dev/null || true
-	@echo "✓ Cleaned the native extensions (clynxer/*.so)."
-
-cleanCpp: cleanC
-
-cleanLynxc:
-	@find . -name '*.lynxc' -delete 2>/dev/null || true
-	@echo "✓ Cleaned compiled bytecode (*.lynxc)."
+	@rm -f $(CLYX_TMP)_* 2>/dev/null || true
+	@echo "✓ Cleaned transient files."
 
 cleanLynxer:
 	@rm -f $(LYNXER_TARGET) $(LYNXER_TARGET)-arm64 $(LYNXER_OBJECTS) $(LYNXER_OBJECTS_ARM64)
@@ -714,41 +571,28 @@ cleanLynxer:
 	@rm -rf $(LYNXER_DIR)/build $(LYNXER_RUST_DIR)/target $(LYNXER_RUST_DIR)/*/target
 	@echo "✓ Cleaned Lynxer build artifacts."
 
-cleanAll: clean cleanC cleanLynxc cleanLynxer
+cleanAll: clean cleanLynxer
 	@echo "✓ Cleaned all generated build artifacts."
 
 help:
 	@echo "Lynxer build targets:"
-	@echo "  make build              (everything: Python full + lite + Lynxer)"
+	@echo "  make build              (interpreter + native stdlib modules)"
 	@echo "  make buildAll           (alias for build)"
-	@echo "  make buildClynxer        (Python full -> dist/clynxer)"
-	@echo "  make buildClynxerLite    (Python lite -> dist/clynxer-lite)"
-	@echo "  make buildCpp"
 	@echo "  make buildLynxer"
 	@echo "  make buildLynxerArm64"
 	@echo "  make cargo"
-	@echo "  make platform-check"
-	@echo "  make venv"
-	@echo "  make deps"
-	@echo "  make liteDeps"
-	@echo "  make test               (everything: Lynxer + Lynxer suites)"
-	@echo "  make testClynxer         (Python suite only)"
+	@echo "  make test               (Lynxer suite)"
 	@echo "  make testLynxer        (Lynxer suite only)"
 	@echo "  make testLynxerAmd64Syscalls   (amd64 syscall fixture; x86_64 host)"
 	@echo "  make testLynxerArm64Syscalls   (arm64 syscall fixture; aarch64 host)"
-	@echo "  make testAMR64"
 	@echo "  make check"
-	@echo "  make golden"
 	@echo "  make clean"
-	@echo "  make cleanC"
-	@echo "  make cleanCpp"
-	@echo "  make cleanLynxc"
 	@echo "  make cleanLynxer"
 	@echo "  make cleanAll"
 	@echo "  make help"
 	@echo ""
 	@echo "Lynxer source commands:"
-	@echo "  clynxer --format <file.lynx>"
-	@echo "  clynxer --format-oneline <file.lynx>"
-	@echo "  clynxer --ast <file.lynx>"
-	@echo "  clynxer --lint <file.lynx>"
+	@echo "  ./lynxer/lynxer --format <file.lynx>"
+	@echo "  ./lynxer/lynxer --format-oneline <file.lynx>"
+	@echo "  ./lynxer/lynxer --ast <file.lynx>"
+	@echo "  ./lynxer/lynxer --lint <file.lynx>"

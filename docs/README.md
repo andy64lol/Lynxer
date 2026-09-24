@@ -2,13 +2,10 @@
 
 Lynxer is a small, standalone C++ toolchain for the Lynxer language. It runs
 `.lynx` programs without a Python runtime and ships its standard library as
-native shared libraries. It is the **primary** implementation and has
-superseded the Python implementation for real use — standalone ELF executables,
-27 natively backed modules, an AST optimizer, a frozen native-module ABI, and
-CI on amd64 and arm64. The Python package (`clynxer`) is kept only as the frozen
-behaviour reference; its historical reference pages live under
-[reference/](reference/). See [parity.md](parity.md) and
-[limitations.md](limitations.md) for what is and is not a parity target.
+native shared libraries. It provides standalone ELF executables, 27 natively
+backed modules, an AST optimizer, a frozen native-module ABI, and CI on amd64
+and arm64. See [limitations.md](limitations.md) for the behaviour that is
+deliberately constrained or not implemented.
 
 ## Contents
 
@@ -42,8 +39,7 @@ behaviour reference; its historical reference pages live under
 | [stdlib-contracts.md](stdlib-contracts.md) | The frozen contract every wrapper and backend must satisfy |
 | [extending.md](extending.md) | Adding a stdlib module end to end |
 | [stdlib/](stdlib/) | One page per standard-library module |
-| [limitations.md](limitations.md) | Divergences from Python, and what is not ported |
-| [parity.md](parity.md) | What is a parity target and what is deliberately different |
+| [limitations.md](limitations.md) | Deliberate constraints and what is not implemented |
 
 ## Build and run
 
@@ -122,8 +118,8 @@ implemented in C++ (`lynxer/builtins.cpp`), not by that crate. There is no
 CMake staging step and no `third_party/` directory: TLS is `rustls` (no system
 OpenSSL) and the HTTP/WebSocket stack is pure Rust.
 
-`venv` and the Python-only modules (`tkinter`, `tkinterPlus`, `turtle`) are
-intentionally excluded — see [limitations.md](limitations.md).
+`venv` and the GUI/turtle modules are intentionally excluded — see
+[limitations.md](limitations.md).
 
 ## Compiling a program
 
@@ -208,4 +204,7 @@ global main(){
 file is imported as a module, callers use `global.moduleName.functionName(...)`.
 `func` names are file-scoped, so two different imported files may define the
 same helper name. `global func name(...)` is not valid syntax; see
+[language.md](language.md#functions).
+[language.md](language.md#functions).
+lobal func name(...)` is not valid syntax; see
 [language.md](language.md#functions).

@@ -1,5 +1,0 @@
-global setup(){}
-global main(){
-    global.print("hello world\n");
-    // it works!
-}

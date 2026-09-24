@@ -1,13 +1,8 @@
-# Limitations and divergences
+# Limitations and non-goals
 
-Lynxer is a standalone C++ implementation of Lynxer. It is not a drop-in
-replacement for the Python implementation, and several stdlib behaviours
-deliberately differ. This page lists everything you need to know before relying
-on a module.
-
-This page is the canonical register of differences. For the summary used to
-decide whether a test may compare Lynxer with the Python reference, see
-[parity.md](parity.md).
+Several stdlib behaviours are deliberately constrained, and some features are
+not implemented at all. This page is the canonical register: it lists everything
+you need to know before relying on a module.
 
 ## Language and toolchain
 
@@ -18,9 +13,9 @@ decide whether a test may compare Lynxer with the Python reference, see
   name (`round(...)`); use `global.name(...)` only for builtins such as
   `assert`, `trim` or `upper`.
 - **Comments.** Only `//` line comments and `/// ... ///` / `//// ... ////`
-  delimiters are supported. `/* ... */` is a syntax error.
+  delimiters are supported. `/* ... */` is a syntax error (by design).
 - **Logical NOT.** A bare `!` is invalid; use `!!value` or `not value`.
-  `!=` is fine.
+  `!=` is fine (but won't be supported in the future same as some deprecated comparators and bitwise operators).
 - **String escapes.** Only `\n`, `\r`, `\t`, `\\`, `\"` and `\e` are accepted.
   There is no `\x`/`\u` escape, so byte values such as `\x1f` cannot be written
   in Lynxer source. Modules that need such a separator use a writable one
@@ -28,7 +23,7 @@ decide whether a test may compare Lynxer with the Python reference, see
 - **There is no bytecode backend.** `.lynxc` files, `--view-bytecode`,
   `--benchmark-compile` and `--no-cache` were removed. `--compile` now produces
   a standalone ELF executable (the old `--bundle`); `--bundle` remains as an
-  alias. Running a `.lynxc` file reports that bytecode is no longer supported.
+  alias. Running a `.lynxc` file reports that bytecode is no longer supported (by design obviously).
 - **Compiled executables embed their modules.** The payload carries the program
   source, the source of every transitively imported `.lynx` module, and the bytes
   of every imported native `.so`. Native modules are written to a temporary

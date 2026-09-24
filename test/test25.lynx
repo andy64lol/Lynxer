@@ -1,7 +1,0 @@
-// EXPECT_ERROR: address refers to freed memory
-global setup(){}
-global main(){
-    int address = memoryAllocate(8);
-    memoryFree(address);
-    memoryFree(address);
-}

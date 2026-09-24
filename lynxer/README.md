@@ -1,8 +1,8 @@
 # Lynxer
 
-`lynxer` is the small, standalone C++ implementation of Lynxer. It is built
-beside the frozen Python reference implementation in `../clynxer`, so the two
-implementations can evolve independently.
+`lynxer` is the small, standalone C++ implementation of Lynxer. It runs `.lynx`
+programs without a Python runtime and ships its standard library as native
+shared libraries.
 
 The first slice intentionally stays small:
 
@@ -56,10 +56,9 @@ make test
 ```
 
 This is a foundation rather than a complete port. Unsupported Lynxer language
-features fail with a source location instead of silently falling back to
-Python. Native `.so` modules remain governed by the shared registration ABI
-documented in `../docs/reference/native-modules.md`; they are not reinterpreted
-as source.
+features fail with a source location. Native `.so` modules remain governed by
+the shared registration ABI documented in `../docs/native-module-abi.md`; they
+are not reinterpreted as source.
 Every C++ stdlib backend placed in `stdlib/*.cpp` is built automatically as
 the matching `stdlib/*.so` by `make`; dependency-heavy libraries remain
-explicit opt-in modules rather than hidden package requirements.
+explicit opt-in modules rather than hidden package requirements.n package requirements.

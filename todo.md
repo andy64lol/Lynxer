@@ -1,9 +1,8 @@
 # Lynxer rebuild from scratch
 
-Lynxer is the standalone C++ implementation, built beside the frozen Python
-reference implementation in `clynxer/`. The Python implementation is the
-behavior reference; it is not a runtime dependency and its internals are not
-copied into Lynxer.
+Lynxer is a standalone C++ implementation of the Lynxer language. The
+interpreter, its native (C++ and Rust) stdlib modules, and the test suite live
+in `lynxer/`.
 
 ## Next up — compiler pivot and stdlib consolidation
 
@@ -15,7 +14,7 @@ Planned order of work, newest direction first.
   `image` uses the Rust `image` crate and `lua` uses vendored Lua through
   `mlua` — removing nlohmann/json, cpp-httplib, Crow, Boost and the system
   OpenSSL dependency. All six are self-contained `cdylib`s under `rust/` that
-  export `clynxer_module_init_v1` and their ops directly (no C++ shim, no
+  export `lynxer_module_init_v1` and their ops directly (no C++ shim, no
   `--whole-archive`); `rust/abi` (`lynxer_abi`) holds the shared FFI helpers.
   CMake, `cmake/FetchDeps.cmake`, `third_party/` and the `make cmake` /
   `lynxerDeps` / `cmake-modules` targets are gone. `stdlib/network.cpp`,
@@ -28,13 +27,13 @@ Planned order of work, newest direction first.
   `docs/stdlib/{json,network,server,sound,sqldb,tui}.md`.
 - [x] Add the `game` stdlib module: `stdlib/game.lynx` wraps `stdlib/game.so`,
   a Rust + macroquad backend (`rust/game`, a `cdylib` exporting
-  `clynxer_module_init_v1`/`clynxer_module_attach_v1` directly) exposed through
+  `lynxer_module_init_v1`/`lynxer_module_attach_v1` directly) exposed through
   the native-module C ABI. An example clicker lives in
   `examples/game_clicker.lynx`. Covers the window, draw loop with `setUpdateCallback` /
   `setDrawCallback`, shapes, text, input, sprites, sprite lists, textures,
   camera and grid helpers. Two additive native-module ABI extensions make this
   possible: the packed `cdecl:<ret>(...)` signature, and the optional
-  `clynxer_module_attach_v1` host API that lets a module call a Lynxer function
+  `lynxer_module_attach_v1` host API that lets a module call a Lynxer function
   by name. `LYNXER_GAME_HEADLESS=1` runs the module without a display; the
   `examples/stdlib_game.lynx` fixture exercises it in `make test`. Deferred:
   sound, scenes, tilemaps, physics, shape batches, animated sprites. Docs:
@@ -80,7 +79,7 @@ Planned order of work, newest direction first.
 
 ## Rebuild rules
 
-- Keep Lynxer under `lynxer/`, separate from `clynxer/`.
+- Keep everything under `lynxer/`.
 - Use C++17 and the standard library only unless a future milestone explicitly
   adds a native dependency.
 - Build one small vertical slice at a time: lexer, parser, runtime, CLI,
@@ -170,7 +169,7 @@ Planned order of work, newest direction first.
   resolves the directory next to the running executable, so it works from any
   current working directory, and lists only regular `.lynx` module files.
 - [x] Port standard-library modules one small module at a time. Lynxer ships
-  every feasible package-free module from `clynxer/stdlib/`; `mathPlus` is merged
+  every feasible package-free module under `lynxer/stdlib/`; `mathPlus` is merged
   into `math`, `http`/`net` are replaced by `network`, and the unsupported
   modules are documented in `docs/limitations.md`.
 - [x] Keep optional `-> type` return annotations available while stdlibs use
@@ -203,7 +202,7 @@ Planned order of work, newest direction first.
   experience). Recorded in `docs/limitations.md` under "Modules that are
   not ported".
 - [x] For every new Rust backend, add the crate to the Rust workspace, export
-  `clynxer_module_init_v1` through `lynxer_abi`, add the module to the Makefile,
+  `lynxer_module_init_v1` through `lynxer_abi`, add the module to the Makefile,
   create the matching `stdlib/<name>.lynx` forwarding wrapper, document the
   API, and add a sibling expected-output fixture.
 - [x] Freeze each module's operation names, signatures, handle ownership,
@@ -290,7 +289,7 @@ Planned order of work, newest direction first.
     `SetVolume`, `IsPlaying`, `Release`. Backed by the Rust `sound` stdlib
     module rather than a second audio stack: `callBridgedModule()` in
     `ast.cpp` loads `sound.so` on first use through the same `dlopen` +
-    `clynxer_module_init_v1` path an import uses, and the built-ins add the
+    `lynxer_module_init_v1` path an import uses, and the built-ins add the
     reference's validation and their own handle registry on top. Three
     deliberate divergences, recorded in `docs/limitations.md`: the
     backend's failure text is not Arcade's, `soundPause`/`soundResume` work
@@ -366,10 +365,8 @@ Planned order of work, newest direction first.
 Lynxer is the behaviour reference for its own surface, not a byte-for-byte
 clone of the Python implementation, and it has deliberately diverged — no
 bytecode, an ELF `--compile`, Rust stdlib backends, cooperative threads and
-several re-implemented modules. These gates therefore compare only where parity
-is intended and assert Lynxer's own behaviour everywhere else; the canonical
-divergence register is `docs/limitations.md`, and
-`docs/parity.md` summarises what is and is not a parity target.
+several re-implemented modules. The suite therefore asserts Lynxer's own
+behaviour; the canonical register is `docs/limitations.md`.
 
 - [x] Baseline comparison against the Python test fixtures: 15 of 55 pass
   (2026-09-13). The failures are now mostly surface Lynxer implements itself
@@ -381,13 +378,11 @@ divergence register is `docs/limitations.md`, and
   `lexical_block_comment.lynx`, `lexical_hex_escape.lynx` and
   `lexical_unicode_escape.lynx` — asserted through the golden CLI cases, and the
   list lives in `docs/limitations.md`.
-- [x] Compare parser and runtime behaviour only where parity is meant to hold.
-  `docs/parity.md` records the parity allowlist (the language core and
-  the stdlib APIs whose docs claim parity) and the divergence denylist
+- [x] Assert the interpreter's own parser and runtime behaviour.
+  `docs/limitations.md` records the deliberate constraints
   (`image`/`lua` formatting, cooperative `nativeThread*`, working
   `soundPause`/`soundStop`, re-implemented `math` statistics, the `std::regex`
-  grammar in `re`/`regex`, `json` non-finite numbers, and the rest of
-  `limitations.md`).
+  grammar in `re`/`regex`, `json` non-finite numbers, and the rest).
 - [x] Golden tests for Lynxer's **own** output and diagnostic text:
   `lynxer/scripts/check_golden.py` runs `lynxer/golden/cases.json` and pins
   the CLI surface (`--version`, removed/unsupported flags, file-not-found,
@@ -421,10 +416,8 @@ divergence register is `docs/limitations.md`, and
   `object.field op x`; and `-> none` return annotations failed in
   `Environment::convertForType`. Regression fixture:
   `examples/language_fields.lynx`.
-- [x] Lynxer is the primary implementation (2026-09-23). It has surpassed the
-  Python reference for real use; the state is flagged on `README.md`,
-  `clynxer/__init__.py` and `clynxer/shell.py`, and recorded in
-  `.agents/memory/lynxer_investigation.md` (Revision 11).
+- [x] Lynxer is the standalone implementation. The state is flagged on
+  `README.md` and recorded in `.agents/memory/lynxer_investigation.md`.
 - [x] Rework the documentation set so it matches the implementation. Every
   `docs/*.md` page was restructured with headings and cross-links and
   its examples re-verified against the interpreter; `language.md`, `types.md`,
@@ -436,21 +429,17 @@ divergence register is `docs/limitations.md`, and
   `--help` text no longer advertises the six unsupported flags and is now a
   golden case; the `sound`, `sqldb` and `tui` wrappers use a standalone `////`
   docstring line so `--list-stdlibs` prints their descriptions.
-- [x] Document intentional differences and dropped Python-only features.
-  `docs/limitations.md` is the canonical register; `parity.md`
-  summarises what is and is not a parity target, and `docs/limitations.md`
-  keeps the "will not be done" framing on the Python side.
-- [x] Treat differences with no Python counterpart as out of scope for parity,
-  listed in `docs/parity.md`: the `--compile` ELF executable, bundling
+- [x] Document the deliberate constraints and dropped features.
+  `docs/limitations.md` is the canonical register.
+- [x] Lynxer-only surface: the `--compile` ELF executable, bundling
   and `bundledFile()`, the Rust `cdylib` ABI, `network`/`server`, cooperative
   `nativeThread*`, the AST optimizer and `--no-opt`/`LYNXER_OPT_REPORT`, the
-  formatter and `--validate-executeable`. `--ast` is the only flag still
-  reported as unavailable.
+  formatter, `--ast` and `--validate-executeable`.
 - [x] Implement the remaining CLI tools: a token-based formatter for
   `--format`/`--format-oneline` (`lynxer/formatter.cpp`; comments preserved
   verbatim, idempotent, never changes tokens), a built-in interpreter self-check
   for `--validate-executeable` (17 cases, no external files), and
-  `--install`/`--uninstall` (`/usr/bin/clynxer`). The lexer's tokens now carry
+  `--install`/`--uninstall` (`/usr/bin/lynxer`). The lexer's tokens now carry
   byte offsets, and `Parser::parseProgram(false)` allows tooling to validate a
   file that has no entry points. Covered by the formatter fixture gate, the
   `--validate-executeable` gate, and new golden CLI cases. `--ast` still reports

@@ -1,13 +1,10 @@
 # Lynxer
 
-> **Status (2026-09-24): Lynxer is the standalone C++ implementation and the
-> primary one.** It ships standalone ELF executables, 27 natively backed stdlib
-> modules, an AST optimizer, a frozen native-module ABI, and a full test suite
-> on both amd64 and arm64. The original Python implementation is now `clynxer/`
-> and is kept only as the **frozen behaviour reference**: it receives no new
-> features, and parity fixes are made in Lynxer. See
-> [docs/parity.md](docs/parity.md) (what is a parity target) and
-> [docs/limitations.md](docs/limitations.md) (the divergence register).
+> **Status (2026-09-24): Lynxer is a standalone C++ implementation.** It ships
+> standalone ELF executables, 27 natively backed stdlib modules, an AST
+> optimizer, a frozen native-module ABI, and a full test suite on both amd64 and
+> arm64. See [docs/limitations.md](docs/limitations.md) for the behaviour that
+> is deliberately constrained or not implemented.
 
 ![Lynxer logo](assets/lynxer.png)
 ![](https://img.shields.io/badge/-Custom%20programming%20language-blue?style=for-the-badge)
@@ -83,9 +80,7 @@ global main(){
 
 ## Documentation
 
-The canonical documentation lives in [`docs/`](docs/README.md). The Python
-reference implementation's own pages are archived under
-[`docs/reference/`](docs/reference/) for historical comparison.
+The documentation lives in [`docs/`](docs/README.md).
 
 | Page | Contents |
 |------|----------|
@@ -104,24 +99,18 @@ reference implementation's own pages are archived under
 | [Structs](docs/structs.md) | Data-only named types with positional constructors |
 | [Classes](docs/classes.md) | Instances, constructors, fields, and methods |
 | [Enums](docs/enums.md) | Rust-style tagged unions, payloads, and pattern matching |
-| [Parity](docs/parity.md) | What is deliberately different from the Python reference |
-| [Limitations](docs/limitations.md) | The divergence register |
-| [Python reference](docs/reference/) | Archived pages for the frozen `clynxer/` implementation |
+| [Limitations](docs/limitations.md) | Deliberate constraints and what is not implemented |
 
 ---
 
 ## Project layout
 
 ```
-lynxer/             Standalone C++ implementation (the primary one)
+lynxer/             The interpreter and its standard library
   *.cpp, *.hpp      Lexer, parser, interpreter, optimizer, formatter, CLI
   stdlib/           Native and pure stdlib modules
   rust/             Rust-backed native modules
-  docs -> ../docs   Documentation (relocated to the repo root)
-clynxer/            Frozen Python reference implementation
-docs/               Canonical documentation
-docs/reference/     Archived Python-reference documentation
-test/               Python-reference fixtures
+docs/               Documentation
 syntax.lynx         Full syntax showcase
 Makefile
 README.md

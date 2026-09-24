@@ -87,7 +87,7 @@ see §12.
 > formatter in `lynxer/formatter.cpp` that preserves comments verbatim and is
 > idempotent, with a fixture gate), `--validate-executeable` (a 17-case built-in
 > interpreter self-check, gated in `make testLynxer`), and
-> `--install`/`--uninstall` (copy/remove `/usr/bin/clynxer`). Supporting changes:
+> `--install`/`--uninstall` (copy/remove `/usr/bin/lynxer`). Supporting changes:
 > lexer tokens carry byte offsets, and `Parser::parseProgram(false)` validates a
 > file with no entry points. `--ast` remains the one flag Lynxer reports as
 > unavailable.
@@ -309,7 +309,7 @@ Defined in `docs/native-module-abi.md`; implemented in `lynxer/ast.cpp`.
 **Entry point.** Every module exports exactly one C symbol:
 
 ```c
-int clynxer_module_init_v1(
+int lynxer_module_init_v1(
     int (*register_function)(const char *name, const char *symbol, const char *signature),
     int (*register_constant)(const char *name, int64_t value),
     int (*register_type)(const char *name, const char *layout));
@@ -317,7 +317,7 @@ int clynxer_module_init_v1(
 
 `ast.cpp` `dlopen`s with `RTLD_NOW | RTLD_LOCAL` and invokes the initialiser with
 those three callbacks. A module may optionally also export
-`clynxer_module_attach_v1(const ClynxerHostApi *)` to call back into Lynxer (used by
+`lynxer_module_attach_v1(const ClynxerHostApi *)` to call back into Lynxer (used by
 `game` for frame callbacks).
 
 **Signature grammar.** `cdecl:<return>(<arg>,<arg>,...)`, with type tokens
@@ -365,7 +365,7 @@ the single `thread_local` string-result buffer, the `ClynxerHostApi`, and the
 
 Nine of the 24 native modules are Rust `cdylib`s, declared in
 `lynxer/Makefile:15` (`RUST_MODULE_NAMES := game image json lua network server
-sound sqldb tui`). Each exports `clynxer_module_init_v1` and its ops directly —
+sound sqldb tui`). Each exports `lynxer_module_init_v1` and its ops directly —
 **there is no C++ shim**.
 
 | Crate | Key dependencies | Replaces (Python) |
@@ -1288,7 +1288,7 @@ audio implementation and the interpreter binary keeps no audio dependency.
 
 - `callBridgedModule(module, operation, args, line, column)` in `ast.cpp`
   (declared in `ast.hpp`) loads `sound.so` on first use through the same
-  `resolveModulePath` + `dlopen` + `clynxer_module_init_v1` path an `import`
+  `resolveModulePath` + `dlopen` + `lynxer_module_init_v1` path an `import`
   uses, caches the registrations, and dispatches through `callNative`. It
   reuses `resolveModulePath`, so the module resolves from the cwd, `stdlib/`,
   `lynxer/stdlib/`, or an embedded library in a compiled executable.

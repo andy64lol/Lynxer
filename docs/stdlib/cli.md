@@ -76,5 +76,4 @@ global main(){
   implements, including the error sentinel family it uses.
 - [builtins.md](../builtins.md) — the functions the interpreter implements
   itself.
-- [parity.md](../parity.md) — the parity scope with Python Lynxer.
 - [limitations.md](../limitations.md) — the full divergence register.

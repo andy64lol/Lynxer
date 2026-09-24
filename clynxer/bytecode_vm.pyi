@@ -1,3 +1,0 @@
-from collections.abc import Callable, Sequence
-
-def decode(code: bytes, classes: Sequence[type], position_type: Callable[..., object]) -> object: ...
