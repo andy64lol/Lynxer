@@ -1,70 +1,280 @@
 ////
 Lynxer standard library: json.
-JSON encoding and decoding helpers backed by Rust (`serde_json`), exposed
-through the native module `stdlib/json.so`.
-
-Objects keep their key insertion order. Non-finite numbers are encoded as
-`null` so that every emitted document is valid JSON.
-
-Requires a Rust toolchain to build (see `rust/json`); the module is skipped
-when `cargo` is unavailable.
+JSON encoding and decoding helpers.
 ////
-global setup(){ importAs("json.so", "nativeJson"); }
+
+global setup(){}
 
 // Returns true if s is valid JSON, false otherwise.
-global jsonValid(str s) -> bool { return global.nativeJson.valid(s) isnt 0; }
+global jsonValid(str s){
+    bool result = false;
+    rawPy(){
+        import json as _json
+        try:
+            _json.loads(s)
+            result = True
+        except Exception:
+            result = False
+    }
+    return result;
+}
+
 // Pretty-prints a JSON string with 2-space indent. Returns "" on parse error.
-global jsonParse(str s) -> str { return global.nativeJson.parse(s); }
-// Gets the value at key as text. Returns "" if missing.
-global jsonGet(str s, str key) -> str { return global.nativeJson.get(s, key); }
-// Gets an integer value at key. Returns 0 on error.
-global jsonGetInt(str s, str key) -> int {
-    return global.nativeJson.getInt(s, key);
+global jsonParse(str s){
+    str result = "";
+    rawPy(){
+        import json as _json
+        try:
+            result = _json.dumps(_json.loads(s), indent=2)
+        except Exception:
+            result = ""
+    }
+    return result;
 }
-// Gets a float value at key. Returns 0.0 on error.
-global jsonGetFloat(str s, str key) -> float {
-    return global.nativeJson.getFloat(s, key);
+
+// Gets the string value at key from a JSON object string. Returns "" if missing or wrong type.
+global jsonGet(str s, str key){
+    str result = "";
+    rawPy(){
+        import json as _json
+        try:
+            obj = _json.loads(s)
+            val = obj.get(key, "")
+            result = str(val) if val is not None else ""
+        except Exception:
+            result = ""
+    }
+    return result;
 }
-// Gets a bool value at key. Returns false on error.
-global jsonGetBool(str s, str key) -> bool {
-    return global.nativeJson.getBool(s, key) isnt 0;
+
+// Gets an integer value at key from a JSON object string. Returns 0 on error.
+global jsonGetInt(str s, str key){
+    int result = 0;
+    rawPy(){
+        import json as _json
+        try:
+            obj = _json.loads(s)
+            result = int(obj[key])
+        except Exception:
+            result = 0
+    }
+    return result;
 }
+
+// Gets a float value at key from a JSON object string. Returns 0.0 on error.
+global jsonGetFloat(str s, str key){
+    float result = 0.0;
+    rawPy(){
+        import json as _json
+        try:
+            obj = _json.loads(s)
+            result = float(obj[key])
+        except Exception:
+            result = 0.0
+    }
+    return result;
+}
+
+// Gets a bool value at key from a JSON object string. Returns false on error.
+global jsonGetBool(str s, str key){
+    bool result = false;
+    rawPy(){
+        import json as _json
+        try:
+            obj = _json.loads(s)
+            result = bool(obj[key])
+        except Exception:
+            result = False
+    }
+    return result;
+}
+
 // Returns the top-level keys of a JSON object as a comma-separated string.
-global jsonKeys(str s) -> str { return global.nativeJson.keys(s); }
-// JSON-encodes a Lynxer string (adds quotes and escapes).
-global jsonStringify(str s) -> str {
-    return global.nativeJson.stringify(s);
+global jsonKeys(str s){
+    str result = "";
+    rawPy(){
+        import json as _json
+        try:
+            obj = _json.loads(s)
+            result = ",".join(str(k) for k in obj.keys())
+        except Exception:
+            result = ""
+    }
+    return result;
 }
+
+// JSON-encodes a Lynxer string value (adds quotes and escapes).
+global jsonStringify(str s){
+    str result = "";
+    rawPy(){
+        import json as _json
+        result = _json.dumps(s)
+    }
+    return result;
+}
+
 // Builds a JSON array from a Lynxer list of values.
-global jsonArray(list lst) -> str { return listJsonArray(lst); }
-// Builds a JSON object from a flat list of key, value, key, value, ...
-global jsonObject(list lst) -> str { return listJsonObject(lst); }
-// Returns true if key exists in the JSON object (or as an array element).
-global jsonHas(str s, str key) -> bool {
-    return global.nativeJson.has(s, key) isnt 0;
+global jsonArray(list lst){
+    return listJsonArray(lst);
 }
-// Returns the number of top-level keys or elements. Returns 0 on error.
-global jsonLength(str s) -> int { return global.nativeJson.length(s); }
-// Sets key to the JSON-encoded value val. Returns the new JSON string.
-global jsonSet(str s, str key, str val) -> str {
-    return global.nativeJson.set(s, key, val);
+
+// Builds a JSON object from a flat Lynxer list alternating key, value, key, value…
+global jsonObject(list lst){
+    return listJsonObject(lst);
 }
-// Sets key to an integer value. Returns the updated JSON string.
-global jsonSetInt(str s, str key, int value) -> str {
-    return global.nativeJson.setInt(s, key, value);
+
+// Returns true if key exists in the JSON object string s.
+global jsonHas(str s, str key){
+    int result = 0;
+    rawPy(){
+        import json as _json
+        try:
+            obj = _json.loads(s)
+            result = 1 if key in obj else 0
+        except Exception:
+            result = 0
+    }
+    if(result != 0){ return true; }
+    return false;
 }
-// Removes key from the JSON object. Returns the new JSON string.
-global jsonDelete(str s, str key) -> str {
-    return global.nativeJson.delete(s, key);
+
+// Returns the number of top-level keys (object) or elements (array) in s. Returns 0 on error.
+global jsonLength(str s){
+    int result = 0;
+    rawPy(){
+        import json as _json
+        try:
+            result = len(_json.loads(s))
+        except Exception:
+            result = 0
+    }
+    return result;
 }
-// Merges two JSON objects; keys from b overwrite keys from a.
-global jsonMerge(str a, str b) -> str { return global.nativeJson.merge(a, b); }
-// Pretty-prints a JSON string with 4-space indent. Returns "" on parse error.
-global jsonPretty(str s) -> str { return global.nativeJson.pretty(s); }
-// Returns the JSON type at key: string, int, float, bool, null, object, array
-// or unknown.
-global jsonType(str s, str key) -> str { return global.nativeJson.type(s, key); }
-// Builds a JSON object from "key=value|key=value" pairs (values are strings).
-global jsonBuild(str pairs) -> str { return global.nativeJson.build(pairs); }
+
+// Set key to the JSON-encoded value val in the JSON object s. Returns the new JSON string.
+global jsonSet(str s, str key, str val){
+    str result = "";
+    rawPy(){
+        import json as _json
+        try:
+            obj = _json.loads(s)
+            try:
+                obj[key] = _json.loads(val)
+            except Exception:
+                obj[key] = val
+            result = _json.dumps(obj)
+        except Exception:
+            result = s
+    }
+    return result;
+}
+
+// Remove key from the JSON object s. Returns the new JSON string.
+global jsonDelete(str s, str key){
+    str result = "";
+    rawPy(){
+        import json as _json
+        try:
+            obj = _json.loads(s)
+            obj.pop(key, None)
+            result = _json.dumps(obj)
+        except Exception:
+            result = s
+    }
+    return result;
+}
+
+// Merge two JSON objects. Keys from b overwrite keys from a. Returns the merged JSON string.
+global jsonMerge(str a, str b){
+    str result = "";
+    rawPy(){
+        import json as _json
+        try:
+            obj_a = _json.loads(a)
+            obj_b = _json.loads(b)
+            merged = {**obj_a, **obj_b}
+            result = _json.dumps(merged)
+        except Exception:
+            result = a
+    }
+    return result;
+}
+
+// Set a key to an int value in a JSON object string. Returns updated JSON.
+global jsonSetInt(str s, str key, int value){
+    str result = "";
+    rawPy(){
+        import json as _json
+        try:
+            obj = _json.loads(s)
+            obj[key] = value
+            result = _json.dumps(obj)
+        except Exception:
+            result = s
+    }
+    return result;
+}
+
+// Pretty-print a JSON string with 4-space indent. Returns "" on parse error.
+global jsonPretty(str s){
+    str result = "";
+    rawPy(){
+        import json as _json
+        try:
+            result = _json.dumps(_json.loads(s), indent=4)
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+// Return the JSON type of the value at key as a string:
+// "string", "int", "float", "bool", "null", "object", "array", or "unknown".
+global jsonType(str s, str key){
+    str result = "unknown";
+    rawPy(){
+        import json as _json
+        try:
+            obj = _json.loads(s)
+            val = obj.get(key)
+            if val is None:
+                result = "null"
+            elif isinstance(val, bool):
+                result = "bool"
+            elif isinstance(val, int):
+                result = "int"
+            elif isinstance(val, float):
+                result = "float"
+            elif isinstance(val, str):
+                result = "string"
+            elif isinstance(val, list):
+                result = "array"
+            elif isinstance(val, dict):
+                result = "object"
+        except Exception:
+            result = "unknown"
+    }
+    return result;
+}
+
+// Build a JSON object from a Lynxer string of alternating key=value pairs separated by "|".
+// e.g. jsonBuild("name=Alice|age=30") → '{"name": "Alice", "age": "30"}'
+global jsonBuild(str pairs){
+    str result = "";
+    rawPy(){
+        import json as _json
+        try:
+            obj = {}
+            for pair in pairs.split("|"):
+                pair = pair.strip()
+                if "=" in pair:
+                    k, _, v = pair.partition("=")
+                    obj[k.strip()] = v.strip()
+            result = _json.dumps(obj)
+        except Exception:
+            result = "{}"
+    }
+    return result;
+}
 
 global main(){}

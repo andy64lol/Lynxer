@@ -1,22 +1,133 @@
 ////
 Lynxer standard library: js.
-JavaScript execution helpers backed by the native C++ module `stdlib/js.so`,
-which runs Node.js as a subprocess. Requires `node` on PATH.
-
-Functions return the subprocess stdout; missing Node is reported as
-"Error: node not found on PATH". A timeout is not applied.
+JavaScript execution helpers using Node.js. Requires Node.js.
 ////
-global setup(){ importAs("js.so", "nativeJs"); }
 
-// Run a JavaScript source string. Returns stdout.
-global runJS(str code) -> str { return global.nativeJs.runJS(code); }
-// Run a .js file. Returns stdout.
-global runJSFile(str path) -> str { return global.nativeJs.runJSFile(path); }
-// Evaluate a JS expression (wrapped in console.log) and return its result.
-global evalJS(str expr) -> str { return global.nativeJs.evalJS(expr); }
-// Return the Node.js version string (e.g. "v20.11.0"), or "".
-global nodeVersion() -> str { return global.nativeJs.nodeVersion(); }
-// Return 1 if Node.js is available on PATH, else 0.
-global nodeExists() -> int { return global.nativeJs.nodeExists(); }
+global setup(){}
+
+// Runs a JS code string with Node.js. Returns stdout as str, or an error message on failure.
+global runJS(str code){
+    str result = "";
+    rawPy(){
+        import subprocess, tempfile, os as _os
+        tmp = None
+        try:
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".js",
+                                             delete=False, encoding="utf-8") as f:
+                f.write(code)
+                tmp = f.name
+            proc = subprocess.run(
+                ["node", tmp],
+                capture_output=True, text=True, timeout=30
+            )
+            result = proc.stdout
+            if proc.returncode != 0 and not result:
+                result = proc.stderr
+        except FileNotFoundError:
+            result = "Error: node not found on PATH"
+        except Exception as e:
+            result = "Error: " + str(e)
+        finally:
+            if tmp is not None:
+                try:
+                    _os.remove(tmp)
+                except Exception:
+                    pass
+    }
+    return result;
+}
+
+// Runs a .js file with Node.js. Returns stdout as str, or "" on error.
+global runJSFile(str path){
+    str result = "";
+    rawPy(){
+        import subprocess
+        try:
+            proc = subprocess.run(
+                ["node", path],
+                capture_output=True, text=True, timeout=30
+            )
+            result = proc.stdout
+            if proc.returncode != 0 and not result:
+                result = proc.stderr
+        except FileNotFoundError:
+            result = "Error: node not found on PATH"
+        except Exception as e:
+            result = "Error: " + str(e)
+    }
+    return result;
+}
+
+// Evaluates a JS expression and returns the result as a string.
+// Wraps the expression in console.log() automatically.
+global evalJS(str expr){
+    str result = "";
+    rawPy(){
+        import subprocess, tempfile, os as _os
+        tmp = None
+        js_code = "console.log(" + expr + ");"
+        try:
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".js",
+                                             delete=False, encoding="utf-8") as f:
+                f.write(js_code)
+                tmp = f.name
+            proc = subprocess.run(
+                ["node", tmp],
+                capture_output=True, text=True, timeout=10
+            )
+            result = proc.stdout.rstrip("\n")
+            if proc.returncode != 0 and not result:
+                result = proc.stderr.strip()
+        except FileNotFoundError:
+            result = "Error: node not found on PATH"
+        except Exception as e:
+            result = "Error: " + str(e)
+        finally:
+            if tmp is not None:
+                try:
+                    _os.remove(tmp)
+                except Exception:
+                    pass
+    }
+    return result;
+}
+
+// Returns the Node.js version string (e.g. "v20.11.0"), or "" if node is not found.
+global nodeVersion(){
+    str result = "";
+    rawPy(){
+        import subprocess
+        try:
+            proc = subprocess.run(
+                ["node", "--version"],
+                capture_output=True, text=True, timeout=5
+            )
+            result = proc.stdout.strip()
+        except FileNotFoundError:
+            result = ""
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+// Returns 1 if Node.js is available on PATH, 0 otherwise.
+global nodeExists(){
+    int result = 0;
+    rawPy(){
+        import subprocess
+        try:
+            subprocess.run(
+                ["node", "--version"],
+                capture_output=True, timeout=5
+            )
+            result = 1
+        except FileNotFoundError:
+            result = 0
+        except Exception:
+            result = 0
+    }
+    return result;
+}
 
 global main(){}

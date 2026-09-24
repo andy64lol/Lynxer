@@ -1,91 +1,380 @@
 ////
 Lynxer standard library: csv.
-CSV and TSV data helpers backed by the native C++ module `stdlib/csv.so`.
-
-Rows are exchanged as JSON strings. Parsing and writing follow Python's `csv`
-module defaults: ',' delimiter, '"' quoting with '""' escaping, and "\r\n" line
-terminators on output. Non-string JSON values are rendered as "" / true / false.
+CSV and TSV data helpers.
 ////
-global setup(){ importAs("csv.so", "nativeCsv"); }
 
-// ── Read / Write ──
-// Read a CSV file and return its raw content. Returns "ERROR: ..." on failure.
-global readCSV(str path) -> str { return global.nativeCsv.readCSV(path); }
+global setup(){}
+
+// ── Read / Write ─────────────────────────────────────────────────────────────
+
+// Read a CSV file and return its raw content as a string.
+// Returns "ERROR: ..." on failure.
+global readCSV(str path){
+    str result = "";
+    rawPy(){
+        try:
+            with open(path, "r", encoding="utf-8", newline="") as _f:
+                result = _f.read()
+        except Exception as e:
+            result = "ERROR: " + str(e)
+    }
+    return result;
+}
+
 // Write a CSV file from a JSON array of objects and a comma-separated header list.
-global writeCSV(str path, str jsonRows, str headers) -> str {
-    return global.nativeCsv.writeCSV(path, jsonRows, headers);
+// headers is a comma-separated string of column names, e.g. "name,age,city".
+// jsonRows is a JSON array of objects, e.g. '[{"name":"Alice","age":"30"}]'.
+// Returns "ok" or "ERROR: ...".
+global writeCSV(str path, str jsonRows, str headers){
+    str result = "";
+    rawPy(){
+        import csv as _csv, json as _json, io as _io
+        try:
+            cols = [c.strip() for c in headers.split(",") if c.strip()]
+            rows = _json.loads(jsonRows)
+            with open(path, "w", encoding="utf-8", newline="") as _f:
+                w = _csv.DictWriter(_f, fieldnames=cols, extrasaction="ignore")
+                w.writeheader()
+                for r in rows:
+                    w.writerow({c: str(r.get(c, "")) for c in cols})
+            result = "ok"
+        except Exception as e:
+            result = "ERROR: " + str(e)
+    }
+    return result;
 }
+
 // Append a single row (JSON array of values) to an existing CSV string.
-global appendRow(str csvStr, str jsonRow) -> str {
-    return global.nativeCsv.appendRow(csvStr, jsonRow);
-}
-// Build a CSV string from a JSON array of objects and a header list.
-global buildCSV(str jsonRows, str headers) -> str {
-    return global.nativeCsv.buildCSV(jsonRows, headers);
+// jsonRow is a JSON array of string values matching the column order.
+// Returns the new CSV string, or "ERROR: ...".
+global appendRow(str csvStr, str jsonRow){
+    str result = "";
+    rawPy(){
+        import csv as _csv, json as _json, io as _io
+        try:
+            new_vals = _json.loads(jsonRow)
+            buf = _io.StringIO()
+            buf.write(csvStr.rstrip("\n") + "\n")
+            w = _csv.writer(buf)
+            w.writerow([str(v) for v in new_vals])
+            result = buf.getvalue()
+        except Exception as e:
+            result = "ERROR: " + str(e)
+    }
+    return result;
 }
 
-// ── Parsing ──
-// Parse a CSV string into a JSON array-of-arrays (includes the header row).
-global parseRows(str csvStr) -> str { return global.nativeCsv.parseRows(csvStr); }
-// Return the header row as a JSON array.
-global parseHeaders(str csvStr) -> str {
-    return global.nativeCsv.parseHeaders(csvStr);
-}
-// Parse a CSV string into a JSON array of objects (first row = keys).
-global parseToJson(str csvStr) -> str {
-    return global.nativeCsv.parseToJson(csvStr);
+// Build a CSV string from a JSON array of objects and a comma-separated header list.
+// Does not write to disk; returns the CSV as a string.
+global buildCSV(str jsonRows, str headers){
+    str result = "";
+    rawPy(){
+        import csv as _csv, json as _json, io as _io
+        try:
+            cols = [c.strip() for c in headers.split(",") if c.strip()]
+            rows = _json.loads(jsonRows)
+            buf = _io.StringIO()
+            w = _csv.DictWriter(buf, fieldnames=cols, extrasaction="ignore")
+            w.writeheader()
+            for r in rows:
+                w.writerow({c: str(r.get(c, "")) for c in cols})
+            result = buf.getvalue()
+        except Exception as e:
+            result = "ERROR: " + str(e)
+    }
+    return result;
 }
 
-// ── Column and row access ──
-// Return a JSON array of all values in the named column (excludes header).
-global getColumn(str csvStr, str colName) -> str {
-    return global.nativeCsv.getColumn(csvStr, colName);
+// ── Parsing ──────────────────────────────────────────────────────────────────
+
+// Parse a CSV string into a JSON array-of-arrays (includes header row).
+// Example: parseRows(csv) → '[["name","age"],["Alice","30"],["Bob","25"]]'
+global parseRows(str csvStr){
+    str result = "";
+    rawPy(){
+        import csv as _csv, json as _json, io as _io
+        try:
+            rows = list(_csv.reader(_io.StringIO(csvStr)))
+            result = _json.dumps(rows)
+        except Exception as e:
+            result = "[]"
+    }
+    return result;
 }
-// Return a JSON array of values for data row rowIdx (0-based).
-global getRow(str csvStr, int rowIdx) -> str {
-    return global.nativeCsv.getRow(csvStr, rowIdx);
+
+// Return a JSON array of column header names (first row).
+// Example: parseHeaders(csv) → '["name","age","city"]'
+global parseHeaders(str csvStr){
+    str result = "";
+    rawPy(){
+        import csv as _csv, json as _json, io as _io
+        try:
+            rows = list(_csv.reader(_io.StringIO(csvStr)))
+            result = _json.dumps(rows[0] if rows else [])
+        except Exception as e:
+            result = "[]"
+    }
+    return result;
 }
+
+// Parse a CSV string into a JSON array of objects using the first row as keys.
+// Example: parseToJson(csv) → '[{"name":"Alice","age":"30"},{"name":"Bob","age":"25"}]'
+global parseToJson(str csvStr){
+    str result = "";
+    rawPy(){
+        import csv as _csv, json as _json, io as _io
+        try:
+            reader = _csv.DictReader(_io.StringIO(csvStr))
+            rows = [dict(r) for r in reader]
+            result = _json.dumps(rows)
+        except Exception as e:
+            result = "[]"
+    }
+    return result;
+}
+
+// ── Column and row access ─────────────────────────────────────────────────────
+
+// Return a JSON array of all values in the named column (excludes header row).
+// Returns "[]" if column does not exist.
+global getColumn(str csvStr, str colName){
+    str result = "";
+    rawPy(){
+        import csv as _csv, json as _json, io as _io
+        try:
+            reader = _csv.DictReader(_io.StringIO(csvStr))
+            vals = [str(r.get(colName, "")) for r in reader]
+            result = _json.dumps(vals)
+        except Exception as e:
+            result = "[]"
+    }
+    return result;
+}
+
+// Return a JSON array of values for data row at rowIdx (0-indexed, excluding header).
+// Returns "[]" if out of range.
+global getRow(str csvStr, int rowIdx){
+    str result = "";
+    rawPy(){
+        import csv as _csv, json as _json, io as _io
+        try:
+            rows = list(_csv.reader(_io.StringIO(csvStr)))
+            data = rows[1:]  # skip header
+            if 0 <= rowIdx < len(data):
+                result = _json.dumps(data[rowIdx])
+            else:
+                result = "[]"
+        except Exception as e:
+            result = "[]"
+    }
+    return result;
+}
+
 // Return the number of data rows (excluding the header).
-global rowCount(str csvStr) -> int { return global.nativeCsv.rowCount(csvStr); }
-// Return the number of columns in the header row.
-global colCount(str csvStr) -> int { return global.nativeCsv.colCount(csvStr); }
-// Return 1 if the CSV has a column with the given name, else 0.
-global hasColumn(str csvStr, str colName) -> int {
-    return global.nativeCsv.hasColumn(csvStr, colName);
+global rowCount(str csvStr){
+    int result = 0;
+    rawPy(){
+        import csv as _csv, io as _io
+        try:
+            rows = list(_csv.reader(_io.StringIO(csvStr)))
+            result = max(0, len(rows) - 1)
+        except Exception:
+            result = 0
+    }
+    return result;
 }
 
-// ── Filtering and sorting ──
-// Return a CSV string with only rows where colName equals value.
-global filterRows(str csvStr, str colName, str value) -> str {
-    return global.nativeCsv.filterRows(csvStr, colName, value);
+// Return the number of columns (from the header row).
+global colCount(str csvStr){
+    int result = 0;
+    rawPy(){
+        import csv as _csv, io as _io
+        try:
+            rows = list(_csv.reader(_io.StringIO(csvStr)))
+            result = len(rows[0]) if rows else 0
+        except Exception:
+            result = 0
+    }
+    return result;
 }
+
+// Return 1 if the CSV contains a column with the given name, else 0.
+global hasColumn(str csvStr, str colName){
+    int result = 0;
+    rawPy(){
+        import csv as _csv, io as _io
+        try:
+            rows = list(_csv.reader(_io.StringIO(csvStr)))
+            result = 1 if rows and colName in rows[0] else 0
+        except Exception:
+            result = 0
+    }
+    return result;
+}
+
+// ── Filtering and sorting ─────────────────────────────────────────────────────
+
+// Return a CSV string containing only rows where colName equals value.
+// The header row is always included.
+global filterRows(str csvStr, str colName, str value){
+    str result = "";
+    rawPy(){
+        import csv as _csv, json as _json, io as _io
+        try:
+            reader = _csv.DictReader(_io.StringIO(csvStr))
+            fieldnames = reader.fieldnames or []
+            matched = [r for r in reader if r.get(colName, "") == value]
+            buf = _io.StringIO()
+            w = _csv.DictWriter(buf, fieldnames=fieldnames, extrasaction="ignore")
+            w.writeheader()
+            w.writerows(matched)
+            result = buf.getvalue()
+        except Exception as e:
+            result = ""
+    }
+    return result;
+}
+
 // Return a CSV string sorted ascending by colName (lexicographic).
-global sortCSV(str csvStr, str colName) -> str {
-    return global.nativeCsv.sortCSV(csvStr, colName);
+// The header row is preserved as the first row.
+global sortCSV(str csvStr, str colName){
+    str result = "";
+    rawPy(){
+        import csv as _csv, io as _io
+        try:
+            reader = _csv.DictReader(_io.StringIO(csvStr))
+            fieldnames = reader.fieldnames or []
+            rows = sorted(list(reader), key=lambda r: r.get(colName, ""))
+            buf = _io.StringIO()
+            w = _csv.DictWriter(buf, fieldnames=fieldnames, extrasaction="ignore")
+            w.writeheader()
+            w.writerows(rows)
+            result = buf.getvalue()
+        except Exception as e:
+            result = ""
+    }
+    return result;
 }
+
 // Return a CSV string sorted descending by colName.
-global sortCSVDesc(str csvStr, str colName) -> str {
-    return global.nativeCsv.sortCSVDesc(csvStr, colName);
+global sortCSVDesc(str csvStr, str colName){
+    str result = "";
+    rawPy(){
+        import csv as _csv, io as _io
+        try:
+            reader = _csv.DictReader(_io.StringIO(csvStr))
+            fieldnames = reader.fieldnames or []
+            rows = sorted(list(reader), key=lambda r: r.get(colName, ""), reverse=True)
+            buf = _io.StringIO()
+            w = _csv.DictWriter(buf, fieldnames=fieldnames, extrasaction="ignore")
+            w.writeheader()
+            w.writerows(rows)
+            result = buf.getvalue()
+        except Exception as e:
+            result = ""
+    }
+    return result;
 }
 
-// ── Column statistics ──
-// Return JSON {count, min, max, sum, mean} for a numeric column, or "{}".
-global columnStats(str csvStr, str colName) -> str {
-    return global.nativeCsv.columnStats(csvStr, colName);
+// ── Column statistics ─────────────────────────────────────────────────────────
+
+// Return JSON statistics for a numeric column: {min, max, mean, sum, count}.
+// Non-numeric values are ignored. Returns "{}" on error.
+global columnStats(str csvStr, str colName){
+    str result = "";
+    rawPy(){
+        import csv as _csv, json as _json, io as _io
+        try:
+            reader = _csv.DictReader(_io.StringIO(csvStr))
+            nums = []
+            for r in reader:
+                try:
+                    nums.append(float(r.get(colName, "")))
+                except (ValueError, TypeError):
+                    pass
+            if nums:
+                result = _json.dumps({
+                    "count": len(nums),
+                    "min": min(nums),
+                    "max": max(nums),
+                    "sum": sum(nums),
+                    "mean": sum(nums) / len(nums)
+                })
+            else:
+                result = "{}"
+        except Exception as e:
+            result = "{}"
+    }
+    return result;
 }
 
-// ── TSV ──
-// Convert a CSV string to TSV.
-global toTSV(str csvStr) -> str { return global.nativeCsv.toTSV(csvStr); }
+// ── TSV (tab-separated) ───────────────────────────────────────────────────────
+
+// Convert a CSV string to TSV (tab-separated values).
+global toTSV(str csvStr){
+    str result = "";
+    rawPy(){
+        import csv as _csv, io as _io
+        try:
+            reader = _csv.reader(_io.StringIO(csvStr))
+            buf = _io.StringIO()
+            w = _csv.writer(buf, delimiter="\t")
+            for row in reader:
+                w.writerow(row)
+            result = buf.getvalue()
+        except Exception as e:
+            result = ""
+    }
+    return result;
+}
+
 // Convert a TSV string to CSV.
-global fromTSV(str tsvStr) -> str { return global.nativeCsv.fromTSV(tsvStr); }
-// Read a file using a custom delimiter (returns raw content).
-global readWithDelimiter(str path, str delimiter) -> str {
-    return global.nativeCsv.readWithDelimiter(path, delimiter);
+global fromTSV(str tsvStr){
+    str result = "";
+    rawPy(){
+        import csv as _csv, io as _io
+        try:
+            reader = _csv.reader(_io.StringIO(tsvStr), delimiter="\t")
+            buf = _io.StringIO()
+            w = _csv.writer(buf)
+            for row in reader:
+                w.writerow(row)
+            result = buf.getvalue()
+        except Exception as e:
+            result = ""
+    }
+    return result;
 }
-// Parse a custom-delimited string into a JSON array of objects.
-global parseDelimited(str csvStr, str delimiter) -> str {
-    return global.nativeCsv.parseDelimited(csvStr, delimiter);
+
+// Read a file using a custom delimiter (e.g. ";" for semicolon-separated).
+// Returns raw file content.
+global readWithDelimiter(str path, str delimiter){
+    str result = "";
+    rawPy(){
+        try:
+            with open(path, "r", encoding="utf-8", newline="") as _f:
+                result = _f.read()
+        except Exception as e:
+            result = "ERROR: " + str(e)
+    }
+    return result;
+}
+
+// Parse a delimited string (custom delimiter) into a JSON array of objects.
+// delimiter is a single character, e.g. ";".
+global parseDelimited(str csvStr, str delimiter){
+    str result = "";
+    rawPy(){
+        import csv as _csv, json as _json, io as _io
+        try:
+            _delim = delimiter[0] if delimiter else ","
+            reader = _csv.DictReader(_io.StringIO(csvStr), delimiter=_delim)
+            rows = [dict(r) for r in reader]
+            result = _json.dumps(rows)
+        except Exception as e:
+            result = "[]"
+    }
+    return result;
 }
 
 global main(){}

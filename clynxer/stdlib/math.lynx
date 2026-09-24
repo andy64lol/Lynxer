@@ -1,283 +1,360 @@
 ////
-Math standard library backed by the native C++ module `stdlib/math.so`.
-
-Importing `math` loads the C++ ABI implementation and exposes integer,
-floating-point, number-theory, rounding, logarithmic, and trigonometric
-helpers through the Lynxer-facing wrapper API.
+Lynxer standard library: math.
+Math and number helpers.
 ////
-global setup(){
-    importAs("math.so", "nativeMath");
+
+global setup(){}
+
+global abs(int n){
+    if(n < 0){ return n * -1; }
+    return n;
 }
 
-// Return the absolute value of value.
-global abs(int value) -> int { return global.nativeMath.abs(value); }
-// Return the absolute value of a floating-point value.
-global absFloat(float value) -> float {
-    return global.nativeMath.absFloat(value);
+global max(int a, int b){
+    if(a > b){ return a; }
+    return b;
 }
-// Return the greater of two values.
-global max(int left, int right) -> int {
-    return global.nativeMath.max(left, right);
+
+global min(int a, int b){
+    if(a < b){ return a; }
+    return b;
 }
-// Return the lesser of two values.
-global min(int left, int right) -> int {
-    return global.nativeMath.min(left, right);
+
+global clamp(int val, int lo, int hi){
+    if(val < lo){ return lo; }
+    if(val > hi){ return hi; }
+    return val;
 }
-// Return the greater of two floating-point values.
-global maxFloat(float left, float right) -> float {
-    return global.nativeMath.maxFloat(left, right);
-}
-// Return the lesser of two floating-point values.
-global minFloat(float left, float right) -> float {
-    return global.nativeMath.minFloat(left, right);
-}
-// Clamp value to the inclusive range [low, high].
-global clamp(int value, int low, int high) -> int {
-    return global.nativeMath.clamp(value, low, high);
-}
-// Clamp a floating-point value to the inclusive range.
-global clampFloat(float value, float low, float high) -> float {
-    return global.nativeMath.clampFloat(value, low, high);
-}
-// Raise base to a non-negative integer exponent.
-global pow(int base, int exponent) -> int {
-    return global.nativeMath.pow(base, exponent);
-}
-// Raise a floating-point base to a floating-point exponent.
-global powFloat(float base, float exponent) -> float {
-    return global.nativeMath.powFloat(base, exponent);
-}
-// Return the square root of value.
-global sqrt(float value) -> float { return global.nativeMath.sqrt(value); }
-// Return the cube root of value.
-global cbrt(float value) -> float { return global.nativeMath.cbrt(value); }
-// Return the hypotenuse for x and y.
-global hypot(float x, float y) -> float {
-    return global.nativeMath.hypot(x, y);
-}
-// Return -1 for negative, 1 for positive, or 0 for zero.
-global sign(int value) -> int { return global.nativeMath.sign(value); }
-// Return the sign of a floating-point value.
-global signFloat(float value) -> float {
-    return global.nativeMath.signFloat(value);
-}
-// Return whether value is divisible by two.
-global isEven(int value) -> bool {
-    return global.nativeMath.sign(value % 2) is 0;
-}
-// Return whether value is not divisible by two.
-global isOdd(int value) -> bool {
-    return global.nativeMath.sign(value % 2) isnt 0;
-}
-// Return value factorial, with factorial(0) equal to 1.
-global factorial(int value) -> int {
-    return global.nativeMath.factorial(value);
-}
-// Return the greatest common divisor of two values.
-global gcd(int left, int right) -> int {
-    return global.nativeMath.gcd(left, right);
-}
-// Return the least common multiple of two values.
-global lcm(int left, int right) -> int {
-    return global.nativeMath.lcm(left, right);
-}
-// Return whether value is prime. Values below two are not prime.
-global isPrime(int value) -> bool {
-    return global.nativeMath.isPrime(value) isnt 0;
-}
-// Return the first prime strictly greater than value.
-global nextPrime(int value) -> int {
-    return global.nativeMath.nextPrime(value);
-}
-// Return the binomial coefficient n choose k, or zero for invalid k.
-global binomial(int n, int k) -> int {
-    return global.nativeMath.binomial(n, k);
-}
-// Return the inclusive sum of all integers from low through high.
-global sumRange(int low, int high) -> int {
-    return global.nativeMath.sumRange(low, high);
-}
-// Apply common rounding operations.
-global floor(float value) -> float { return global.nativeMath.floor(value); }
-global ceil(float value) -> float { return global.nativeMath.ceil(value); }
-global round(float value) -> float { return global.nativeMath.round(value); }
-global trunc(float value) -> float { return global.nativeMath.trunc(value); }
-// Apply exponential, logarithmic, and trigonometric operations.
-global exp(float value) -> float { return global.nativeMath.exp(value); }
-global exp2(float value) -> float { return global.nativeMath.exp2(value); }
-global log(float value) -> float { return global.nativeMath.log(value); }
-global log10(float value) -> float { return global.nativeMath.log10(value); }
-global log2(float value) -> float { return global.nativeMath.log2(value); }
-global sin(float value) -> float { return global.nativeMath.sin(value); }
-global cos(float value) -> float { return global.nativeMath.cos(value); }
-global tan(float value) -> float { return global.nativeMath.tan(value); }
-global asin(float value) -> float { return global.nativeMath.asin(value); }
-global acos(float value) -> float { return global.nativeMath.acos(value); }
-global atan(float value) -> float { return global.nativeMath.atan(value); }
-global atan2(float y, float x) -> float {
-    return global.nativeMath.atan2(y, x);
-}
-global sinh(float value) -> float { return global.nativeMath.sinh(value); }
-global cosh(float value) -> float { return global.nativeMath.cosh(value); }
-global tanh(float value) -> float { return global.nativeMath.tanh(value); }
-global isFinite(float value) -> bool {
-    return global.nativeMath.isFinite(value) isnt 0;
-}
-global isNaN(float value) -> bool {
-    return global.nativeMath.isNaN(value) isnt 0;
-}
-global isInfinite(float value) -> bool {
-    return global.nativeMath.isInfinite(value) isnt 0;
-}
-global fmod(float left, float right) -> float {
-    return global.nativeMath.fmod(left, right);
-}
-global remainder(float left, float right) -> float {
-    return global.nativeMath.remainder(left, right);
-}
-global roundNum(float value) -> float { return global.round(value); }
-global pi() -> float { return global.nativeMath.pi(); }
-global PI() -> float { return global.pi(); }
-global Pi() -> float { return global.pi(); }
-global e() -> float { return global.nativeMath.e(); }
-global degrees(float value) -> float {
-    return global.nativeMath.degrees(value);
-}
-global radians(float value) -> float {
-    return global.nativeMath.radians(value);
-}
-global truncate(float value) -> int {
-    return global.nativeMath.truncate(value);
-}
-global randInt(int low, int high) -> int {
-    return global.nativeMath.randInt(low, high);
-}
-global randFloat(float low, float high) -> float {
-    return global.nativeMath.randFloat(low, high);
-}
-global tau() -> float { return global.nativeMath.tau(); }
-global isqrt(int value) -> int { return global.nativeMath.isqrt(value); }
-global lerp(float low, float high, float t) -> float {
-    return global.nativeMath.lerp(low, high, t);
-}
-global roundTo(float value, int decimals) -> float {
-    return global.nativeMath.roundTo(value, decimals);
-}
-global mapRange(float value, float inLo, float inHi,
-                float outLo, float outHi) -> float {
-    if(inHi is inLo){ return outLo; }
-    return outLo + (value - inLo) * (outHi - outLo) / (inHi - inLo);
-}
-global arcsin(float value) -> float { return global.asin(value); }
-global arccos(float value) -> float { return global.acos(value); }
-global arctan(float value) -> float { return global.atan(value); }
-global arctan2(float y, float x) -> float { return global.atan2(y, x); }
-global mean(list values) -> float {
-    if(returnLength(values) is 0){ return 0.0; }
-    return sumOf(values) / returnLength(values);
-}
-global prod(list values) -> float {
-    float result = 1.0;
-    int index = 0;
-    while(index < returnLength(values)){
-        result = result * listGet(values, index);
-        index = index + 1;
+
+global pow(int base, int exp){
+    int result = 1;
+    int i = 0;
+    while(i < exp){
+        result = result * base;
+        i = i + 1;
     }
     return result;
 }
-global norm(list values) -> float {
-    float total = 0.0;
-    int index = 0;
-    while(index < returnLength(values)){
-        float item = listGet(values, index);
-        total = total + item * item;
-        index = index + 1;
+
+global floor(float n){
+    rawPy(){
+        import math as _m
+        n = float(_m.floor(n))
     }
-    return sqrt(total);
-}
-global argmax(list values) -> int {
-    if(returnLength(values) is 0){ return 0; }
-    int best = 0;
-    int index = 1;
-    while(index < returnLength(values)){
-        if(listGet(values, index) > listGet(values, best)){ best = index; }
-        index = index + 1;
-    }
-    return best;
-}
-global argmin(list values) -> int {
-    if(returnLength(values) is 0){ return 0; }
-    int best = 0;
-    int index = 1;
-    while(index < returnLength(values)){
-        if(listGet(values, index) < listGet(values, best)){ best = index; }
-        index = index + 1;
-    }
-    return best;
+    return n;
 }
 
-// ── Constants ──
-// The native module registers `maxInt`/`minInt` as integer constants on its own
-// namespace; these wrappers expose them on the `math` namespace.
-global maxInt() -> int { return global.nativeMath.maxInt; }
-global minInt() -> int { return global.nativeMath.minInt; }
+global ceil(float n){
+    rawPy(){
+        import math as _m
+        n = float(_m.ceil(n))
+    }
+    return n;
+}
 
-// ── Statistics and vectors ──
-// List arguments cross the native ABI as tab-separated numbers; tab is
-// unambiguous because every element is a formatted number.
-// Return the middle value, averaging the two middle values for even lengths.
-global median(list values) -> float {
-    return global.nativeMath.median(listJoin(values, "\t"));
+global sqrt(float n){
+    rawPy(){
+        import math as _m
+        n = _m.sqrt(n)
+    }
+    return n;
 }
-// Return the population standard deviation.
-global std(list values) -> float {
-    return global.nativeMath.std(listJoin(values, "\t"));
+
+global round(float n){
+    rawPy(){
+        n = float(round(n))
+    }
+    return n;
 }
-// Return the population variance.
-global variance(list values) -> float {
-    return global.nativeMath.variance(listJoin(values, "\t"));
+
+global roundNum(float n){
+    return global.round(n);
 }
-// Return the p-th percentile using linear interpolation between order statistics.
-global percentile(list values, float p) -> float {
-    return global.nativeMath.percentile(listJoin(values, "\t"), p);
+
+global pi(){
+    float result = 0.0;
+    rawPy(){
+        import math as _m
+        result = _m.pi
+    }
+    return result;
 }
-// Return the Pearson correlation coefficient of two equal-length lists.
-global corrcoef(list a, list b) -> float {
-    return global.nativeMath.corrcoef(listJoin(a, "\t"), listJoin(b, "\t"));
+
+global PI(){ return global.pi(); }
+global Pi(){ return global.pi(); }
+
+global e(){
+    float result = 0.0;
+    rawPy(){
+        import math as _m
+        result = _m.e
+    }
+    return result;
 }
-// Return the dot product of two equal-length lists.
-global dot(list a, list b) -> float {
-    return global.nativeMath.dot(listJoin(a, "\t"), listJoin(b, "\t"));
+
+global log(float n){
+    float result = 0.0;
+    rawPy(){
+        import math as _m
+        try:
+            result = _m.log(n)
+        except Exception:
+            result = 0.0
+    }
+    return result;
 }
-// Return n evenly spaced values from start to stop, inclusive.
-global linspace(float start, float stop, int n) -> list {
-    str raw = global.nativeMath.linspace(start, stop, n);
-    if(raw is ""){ return seqFromTo(0, 0, 1); }
-    return splitStr(raw, "\t");
+
+global log2(float n){
+    float result = 0.0;
+    rawPy(){
+        import math as _m
+        try:
+            result = _m.log2(n)
+        except Exception:
+            result = 0.0
+    }
+    return result;
 }
-// Return the running sums of the list.
-global cumsum(list values) -> list {
-    str raw = global.nativeMath.cumsum(listJoin(values, "\t"));
-    if(raw is ""){ return seqFromTo(0, 0, 1); }
-    return splitStr(raw, "\t");
+
+global log10(float n){
+    float result = 0.0;
+    rawPy(){
+        import math as _m
+        try:
+            result = _m.log10(n)
+        except Exception:
+            result = 0.0
+    }
+    return result;
 }
-// Return the consecutive differences of the list.
-global diff(list values) -> list {
-    str raw = global.nativeMath.diff(listJoin(values, "\t"));
-    if(raw is ""){ return seqFromTo(0, 0, 1); }
-    return splitStr(raw, "\t");
+
+global sin(float n){
+    float result = 0.0;
+    rawPy(){
+        import math as _m
+        result = _m.sin(n)
+    }
+    return result;
 }
-// Return the list with every element clamped to [lo, hi].
-global clip(list values, float lo, float hi) -> list {
-    str raw = global.nativeMath.clip(listJoin(values, "\t"), lo, hi);
-    if(raw is ""){ return seqFromTo(0, 0, 1); }
-    return splitStr(raw, "\t");
+
+global cos(float n){
+    float result = 0.0;
+    rawPy(){
+        import math as _m
+        result = _m.cos(n)
+    }
+    return result;
 }
-// Return the list scaled to unit norm (unchanged when the norm is zero).
-global normalize(list values) -> list {
-    str raw = global.nativeMath.normalize(listJoin(values, "\t"));
-    if(raw is ""){ return seqFromTo(0, 0, 1); }
-    return splitStr(raw, "\t");
+
+global tan(float n){
+    float result = 0.0;
+    rawPy(){
+        import math as _m
+        result = _m.tan(n)
+    }
+    return result;
+}
+
+global degrees(float n){
+    float result = 0.0;
+    rawPy(){
+        import math as _m
+        result = _m.degrees(n)
+    }
+    return result;
+}
+
+global radians(float n){
+    float result = 0.0;
+    rawPy(){
+        import math as _m
+        result = _m.radians(n)
+    }
+    return result;
+}
+
+global sign(float n){
+    if(n < 0){ return -1; }
+    if(n > 0){ return 1; }
+    return 0;
+}
+
+global isEven(int n){
+    if(n % 2 == 0){ return true; }
+    return false;
+}
+
+global isOdd(int n){
+    if(n % 2 != 0){ return true; }
+    return false;
+}
+
+global factorial(int n){
+    int result = 1;
+    rawPy(){
+        import math as _m
+        try:
+            result = _m.factorial(n)
+        except Exception:
+            result = 1
+    }
+    return result;
+}
+
+global gcd(int a, int b){
+    int result = 0;
+    rawPy(){
+        import math as _m
+        result = _m.gcd(a, b)
+    }
+    return result;
+}
+
+global hypot(float a, float b){
+    float result = 0.0;
+    rawPy(){
+        import math as _m
+        result = _m.hypot(a, b)
+    }
+    return result;
+}
+
+global truncate(float n){
+    int result = 0;
+    rawPy(){
+        import math as _m
+        result = _m.trunc(n)
+    }
+    return result;
+}
+
+global randInt(int lo, int hi){
+    int result = 0;
+    rawPy(){
+        import random as _r
+        result = _r.randint(lo, hi)
+    }
+    return result;
+}
+
+global randFloat(float lo, float hi){
+    float result = 0.0;
+    rawPy(){
+        import random as _r
+        result = _r.uniform(lo, hi)
+    }
+    return result;
+}
+
+global lcm(int a, int b){
+    int result = 0;
+    rawPy(){
+        import math as _m
+        try:
+            result = _m.lcm(a, b)
+        except AttributeError:
+            g = _m.gcd(a, b)
+            result = abs(a * b) // g if g else 0
+    }
+    return result;
+}
+
+global isPrime(int n){
+    bool result = false;
+    rawPy(){
+        import math as _m
+        if n < 2:
+            result = False
+        elif n == 2:
+            result = True
+        elif n % 2 == 0:
+            result = False
+        else:
+            result = all(n % i != 0 for i in range(3, _m.isqrt(n) + 1, 2))
+    }
+    return result;
+}
+
+global nextPrime(int n){
+    int result = 2;
+    rawPy(){
+        import math as _m
+        candidate = n + 1
+        while True:
+            if candidate < 2:
+                candidate = 2
+                continue
+            if candidate == 2:
+                result = 2
+                break
+            if candidate % 2 == 0:
+                candidate += 1
+                continue
+            ok = all(candidate % i != 0 for i in range(3, _m.isqrt(candidate) + 1, 2))
+            if ok:
+                result = candidate
+                break
+            candidate += 1
+    }
+    return result;
+}
+
+global binomial(int n, int k){
+    int result = 0;
+    rawPy(){
+        import math as _m
+        try:
+            result = _m.comb(n, k)
+        except Exception:
+            result = 0
+    }
+    return result;
+}
+
+global isqrt(int n){
+    int result = 0;
+    rawPy(){
+        import math as _m
+        try:
+            result = _m.isqrt(n)
+        except Exception:
+            result = 0
+    }
+    return result;
+}
+
+global sumRange(int lo, int hi){
+    int result = 0;
+    rawPy(){
+        result = sum(range(lo, hi + 1))
+    }
+    return result;
+}
+
+global lerp(float lo, float hi, float t){
+    float result = 0.0;
+    rawPy(){
+        result = lo + t * (hi - lo)
+    }
+    return result;
+}
+
+global clampFloat(float val, float lo, float hi){
+    if(val < lo){ return lo; }
+    if(val > hi){ return hi; }
+    return val;
+}
+
+global mapRange(float value, float inLo, float inHi, float outLo, float outHi){
+    float result = 0.0;
+    rawPy(){
+        if inHi == inLo:
+            result = outLo
+        else:
+            t = (value - inLo) / (inHi - inLo)
+            result = outLo + t * (outHi - outLo)
+    }
+    return result;
 }
 
 global main(){}

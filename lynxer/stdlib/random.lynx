@@ -1,187 +1,135 @@
 ////
 Lynxer standard library: random.
-Random value helpers.
+Random number and character helpers backed by the native C++ module
+`stdlib/random.so`.
+
+The generator is a seeded linear congruential sequence, so a given seed always
+produces the same sequence. `seed(0)` restores the default seed.
 ////
+global setup(){ importAs("random.so", "nativeRandom"); }
 
-global setup(){}
-
-// Seed the random number generator. Pass 0 to use system entropy.
-global seed(int n){
-    rawPy(){
-        import random as _r
-        _r.seed(n if n != 0 else None)
-    }
+// Reseed the generator; 0 restores the default seed.
+global seed(int value) { global.nativeRandom.seed(value); }
+// Uniform integer in [low, high]. Returns low when high <= low.
+global randint(int low, int high) -> int {
+    return global.nativeRandom.randint(low, high);
 }
-
-// Random float in [0.0, 1.0).
-global random(){
-    float result = 0.0;
-    rawPy(){
-        import random as _r
-        result = _r.random()
-    }
-    return result;
+// Uniform integer in [start, stop). Returns start when stop <= start.
+global randrange(int start, int stop) -> int {
+    return global.nativeRandom.randrange(start, stop);
 }
-
-// Random integer in [a, b] inclusive.
-global randint(int a, int b){
-    int result = 0;
-    rawPy(){
-        import random as _r
-        result = _r.randint(a, b)
-    }
-    return result;
+// Float in [0.0, 1.0).
+global random() -> float { return global.nativeRandom.random(); }
+// Float in [low, high].
+global uniform(float low, float high) -> float {
+    return global.nativeRandom.uniform(low, high);
 }
+// Equal-probability boolean.
+global coinflip() -> bool { return global.nativeRandom.coinflip() isnt 0; }
+// Alias of coinflip.
+global randBool() -> bool { return global.nativeRandom.coinflip() isnt 0; }
+// Pick one character of the input string, or "" when it is empty.
+global choice(str items) -> str { return global.nativeRandom.choice(items); }
 
-// Random float in [a, b].
-global uniform(float a, float b){
-    float result = 0.0;
-    rawPy(){
-        import random as _r
-        result = _r.uniform(a, b)
-    }
-    return result;
-}
-
-global randrange(int start, int stop){
-    int result = 0;
-    rawPy(){
-        import random as _r
-        result = _r.randrange(start, stop)
-    }
-    return result;
-}
-
-global randrangeStep(int start, int stop, int step){
-    int result = 0;
-    rawPy(){
-        import random as _r
-        result = _r.randrange(start, stop, step)
-    }
-    return result;
-}
-
-global gauss(float mu, float sigma){
-    float result = 0.0;
-    rawPy(){
-        import random as _r
-        result = _r.gauss(mu, sigma)
-    }
-    return result;
-}
-
-// Returns true or false with equal probability.
-global coinflip(){
-    int result = 0;
-    rawPy(){
-        import random as _r
-        result = _r.randint(0, 1)
-    }
-    if(result == 1){ return true; }
-    return false;
-}
-
-global sampleInt(str items){
-    int result = 0;
-    rawPy(){
-        import random as _r
-        parts = [x.strip() for x in items.split("|") if x.strip()]
-        if parts:
-            try:
-                result = int(_r.choice(parts))
-            except ValueError:
-                result = 0
-    }
-    return result;
-}
-
-global sampleStr(str items){
+// A random lowercase hex string of `n` characters.
+global randHex(int n) -> str {
+    str digits = "0123456789abcdef";
     str result = "";
-    rawPy(){
-        import random as _r
-        parts = [x.strip() for x in items.split("|") if x.strip()]
-        if parts:
-            result = _r.choice(parts)
+    int index = 0;
+    while(index < n){
+        result = result + global.charAt(digits, randint(0, 15));
+        index = index + 1;
     }
     return result;
 }
-
-// Shuffle a pipe-separated list of strings and return a new pipe-separated string.
-// e.g. shuffle("a|b|c|d") → "c|a|d|b"
-global shuffle(str items){
-    str result = "";
-    rawPy(){
-        import random as _r
-        parts = [x for x in items.split("|") if x]
-        _r.shuffle(parts)
-        result = "|".join(parts)
-    }
-    return result;
+// Uniform multiple of `step` in [start, stop). Returns start when the range is
+// empty or `step` is not positive.
+global randrangeStep(int start, int stop, int step) -> int {
+    if(step <= 0 or start >= stop){ return start; }
+    int terms = (stop - start + step - 1) /% step;
+    return start + randint(0, terms - 1) * step;
 }
-
-// Return a random float drawn from a triangular distribution with
-// low=lo, high=hi, mode=mode.
-global triangular(float lo, float hi, float mid){
-    float result = 0.0;
-    rawPy(){
-        import random as _r
-        result = _r.triangular(lo, hi, mid)
+// The non-empty "|"-separated parts of `items`.
+func splitParts(str items) -> list {
+    list parts = global.splitStr(items, "|");
+    list kept = [];
+    int index = 0;
+    while(index < returnLength(parts)){
+        str part = global.listGet(parts, index);
+        if(returnLength(part) > 0){ kept = global.listPush(kept, part); }
+        index = index + 1;
     }
-    return result;
+    return kept;
 }
-
-// Generate a UUID4 string (e.g. "f47ac10b-58cc-4372-a567-0e02b2c3d479").
-global uuid4(){
-    str result = "";
-    rawPy(){
-        import uuid as _u
-        result = str(_u.uuid4())
-    }
-    return result;
+// A random non-empty part of a "|"-separated list, trimmed; "" when there is none.
+global sampleStr(str items) -> str {
+    list kept = splitParts(items);
+    if(returnLength(kept) is 0){ return ""; }
+    return global.trim(global.listGet(kept, randint(0, returnLength(kept) - 1)));
 }
-
-// Return n random hex characters (lowercase), e.g. randHex(8) → "a3f9c201".
-global randHex(int n){
-    str result = "";
-    rawPy(){
-        import random as _r, string as _s
-        result = "".join(_r.choices(_s.hexdigits[:16], k=n))
+// Like sampleStr, parsed as an integer; 0 when the part is missing or not a number.
+global sampleInt(str items) -> int {
+    str chosen = sampleStr(items);
+    if(returnLength(chosen) is 0){ return 0; }
+    try {
+        return global.intOf(chosen);
+    } catch (str error) {
+        return 0;
     }
-    return result;
 }
-
-// Return a random element from a pipe-separated list of strings.
-// Returns "" if the list is empty.
-global choice(str items){
-    str result = "";
-    rawPy(){
-        import random as _r
-        parts = [x for x in items.split("|") if x]
-        result = _r.choice(parts) if parts else ""
+// `k` distinct parts chosen without replacement, joined by "|".
+global sample(str items, int k) -> str {
+    list kept = splitParts(items);
+    int count = returnLength(kept);
+    if(k > count){ k = count; }
+    int position = 0;
+    while(position < k){
+        int pick = randint(position, count - 1);
+        str temporary = global.listGet(kept, position);
+        kept = global.listSet(kept, position, global.listGet(kept, pick));
+        kept = global.listSet(kept, pick, temporary);
+        position = position + 1;
     }
-    return result;
+    list chosen = [];
+    position = 0;
+    while(position < k){
+        chosen = global.listPush(chosen, global.listGet(kept, position));
+        position = position + 1;
+    }
+    return global.listJoin(chosen, "|");
 }
-
-// Pick k unique items from a pipe-separated list and return them pipe-separated.
-global sample(str items, int k){
-    str result = "";
-    rawPy(){
-        import random as _r
-        parts = [x for x in items.split("|") if x]
-        k = min(k, len(parts))
-        result = "|".join(_r.sample(parts, k))
+// A shuffled copy of the non-empty parts, joined by "|".
+global shuffle(str items) -> str {
+    list kept = splitParts(items);
+    int last = returnLength(kept) - 1;
+    while(last > 0){
+        int pick = randint(0, last);
+        str temporary = global.listGet(kept, last);
+        kept = global.listSet(kept, last, global.listGet(kept, pick));
+        kept = global.listSet(kept, pick, temporary);
+        last = last - 1;
     }
-    return result;
+    return global.listJoin(kept, "|");
 }
-
-// Return a random boolean (true or false with equal probability).
-global randBool(){
-    bool result = false;
-    rawPy(){
-        import random as _r
-        result = _r.random() < 0.5
-    }
-    return result;
+// Gaussian sample with mean `mu` and standard deviation `sigma`.
+global gauss(float mu, float sigma) -> float {
+    return global.nativeRandom.gauss(mu, sigma);
+}
+// Triangular sample over [low, high] peaking at `mid`.
+global triangular(float low, float high, float mid) -> float {
+    return global.nativeRandom.triangular(low, high, mid);
+}
+// A random RFC 4122 version-4 UUID, lowercase.
+global uuid4() -> str {
+    str raw = randHex(32);
+    str versioned = global.substring(raw, 0, 12) + "4" +
+                    global.substring(raw, 13, 16) + "8" +
+                    global.substring(raw, 17, 32);
+    return global.substring(versioned, 0, 8) + "-" +
+           global.substring(versioned, 8, 12) + "-" +
+           global.substring(versioned, 12, 16) + "-" +
+           global.substring(versioned, 16, 20) + "-" +
+           global.substring(versioned, 20, 32);
 }
 
 global main(){}

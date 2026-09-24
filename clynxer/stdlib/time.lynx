@@ -1,37 +1,227 @@
 ////
-Time and calendar helpers backed by the native C++ chrono/time backend.
+Lynxer standard library — time
+Time and date utilities.
 ////
-global setup(){ importAs("time.so", "nativeTime"); }
-global now() -> str { return global.nativeTime.now(); }
-global getTime() -> str { return global.nativeTime.getTime(); }
-global getDate() -> str { return global.nativeTime.getDate(); }
-global isoNow() -> str { return global.nativeTime.isoNow(); }
-global format(str pattern) -> str { return global.nativeTime.format(pattern); }
-global fromTimestamp(float value) -> str {
-    return global.nativeTime.fromTimestamp(value);
+
+global setup(){}
+
+// Current datetime as "YYYY-MM-DD HH:MM:SS".
+global now(){
+    str result = "";
+    rawPy(){
+        from datetime import datetime as _dt
+        result = _dt.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
+    return result;
 }
-global toTimestamp(str value) -> float {
-    return global.nativeTime.toTimestamp(value);
+
+// Current time as "HH:MM:SS".
+global getTime(){
+    str result = "";
+    rawPy(){
+        from datetime import datetime as _dt
+        result = _dt.now().strftime("%H:%M:%S")
+    }
+    return result;
 }
-global addDays(str date, int days) -> str {
-    return global.nativeTime.addDays(date, days);
+
+// Current date as "YYYY-MM-DD".
+global getDate(){
+    str result = "";
+    rawPy(){
+        from datetime import datetime as _dt
+        result = _dt.now().strftime("%Y-%m-%d")
+    }
+    return result;
 }
-global diffDays(str left, str right) -> int {
-    return global.nativeTime.diffDays(left, right);
+
+// Current four-digit year, e.g. 2025.
+global getYear(){
+    int result = 0;
+    rawPy(){
+        from datetime import datetime as _dt
+        result = _dt.now().year
+    }
+    return result;
 }
-global getYear() -> int { return global.nativeTime.getYear(); }
-global getMonth() -> int { return global.nativeTime.getMonth(); }
-global getDay() -> int { return global.nativeTime.getDay(); }
-global getHour() -> int { return global.nativeTime.getHour(); }
-global getMinute() -> int { return global.nativeTime.getMinute(); }
-global getSecond() -> int { return global.nativeTime.getSecond(); }
-global getWeekdayNum() -> int { return global.nativeTime.getWeekdayNum(); }
-global getWeekday() -> str { return global.nativeTime.getWeekday(); }
-global timestamp() -> float { return global.nativeTime.timestamp(); }
-global isLeapYear(int year) -> bool {
-    return global.nativeTime.isLeapYear(year) isnt 0;
+
+// Current month as 1-12.
+global getMonth(){
+    int result = 0;
+    rawPy(){
+        from datetime import datetime as _dt
+        result = _dt.now().month
+    }
+    return result;
 }
-global daysInMonth(int year, int month) -> int {
-    return global.nativeTime.daysInMonth(year, month);
+
+// Current day of the month as 1-31.
+global getDay(){
+    int result = 0;
+    rawPy(){
+        from datetime import datetime as _dt
+        result = _dt.now().day
+    }
+    return result;
 }
+
+// Current hour as 0-23.
+global getHour(){
+    int result = 0;
+    rawPy(){
+        from datetime import datetime as _dt
+        result = _dt.now().hour
+    }
+    return result;
+}
+
+// Current minute as 0-59.
+global getMinute(){
+    int result = 0;
+    rawPy(){
+        from datetime import datetime as _dt
+        result = _dt.now().minute
+    }
+    return result;
+}
+
+// Current second as 0-59.
+global getSecond(){
+    int result = 0;
+    rawPy(){
+        from datetime import datetime as _dt
+        result = _dt.now().second
+    }
+    return result;
+}
+
+// Full weekday name for today, e.g. "Monday".
+global getWeekday(){
+    str result = "";
+    rawPy(){
+        from datetime import datetime as _dt
+        result = _dt.now().strftime("%A")
+    }
+    return result;
+}
+
+// Weekday number for today: 0 = Monday, 6 = Sunday.
+global getWeekdayNum(){
+    int result = 0;
+    rawPy(){
+        from datetime import datetime as _dt
+        result = _dt.now().weekday()
+    }
+    return result;
+}
+
+// Current datetime in ISO 8601 format, e.g. "2025-07-21T14:30:00".
+global isoNow(){
+    str result = "";
+    rawPy(){
+        from datetime import datetime as _dt
+        result = _dt.now().strftime("%Y-%m-%dT%H:%M:%S")
+    }
+    return result;
+}
+
+// Format the current datetime with a strftime pattern.
+// Example: global.time.format("%d/%m/%Y")  returns  "21/07/2025"
+// See Python strftime docs for pattern tokens.
+global format(str pattern){
+    str result = "";
+    rawPy(){
+        from datetime import datetime as _dt
+        result = _dt.now().strftime(pattern)
+    }
+    return result;
+}
+
+// Unix epoch timestamp (seconds since 1970-01-01 UTC) as a float.
+global timestamp(){
+    float result = 0.0;
+    rawPy(){
+        from datetime import datetime as _dt, timezone as _tz
+        result = _dt.now(_tz.utc).timestamp()
+    }
+    return result;
+}
+
+// Convert a Unix timestamp to a local "YYYY-MM-DD HH:MM:SS" string.
+// Pass the float returned by timestamp() or toTimestamp().
+global fromTimestamp(float ts){
+    str result = "";
+    rawPy(){
+        from datetime import datetime as _dt
+        result = _dt.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
+    }
+    return result;
+}
+
+// Parse a "YYYY-MM-DD HH:MM:SS" string and return its Unix timestamp.
+// Returns -1.0 if the string cannot be parsed.
+global toTimestamp(str dt){
+    float result = 0.0;
+    rawPy(){
+        from datetime import datetime as _dt
+        try:
+            result = _dt.strptime(dt, "%Y-%m-%d %H:%M:%S").timestamp()
+        except Exception:
+            result = -1.0
+    }
+    return result;
+}
+
+// Add days to a "YYYY-MM-DD" date string, return new "YYYY-MM-DD".
+// Use a negative number to subtract days. Returns "" on bad input.
+global addDays(str date, int days){
+    str result = "";
+    rawPy(){
+        from datetime import datetime as _dt, timedelta as _td
+        try:
+            d = _dt.strptime(date, "%Y-%m-%d") + _td(days=days)
+            result = d.strftime("%Y-%m-%d")
+        except Exception:
+            result = ""
+    }
+    return result;
+}
+
+// Days between two "YYYY-MM-DD" strings (date2 - date1).
+// Returns 0 if either string cannot be parsed.
+global diffDays(str date1, str date2){
+    int result = 0;
+    rawPy(){
+        from datetime import datetime as _dt
+        try:
+            d1 = _dt.strptime(date1, "%Y-%m-%d")
+            d2 = _dt.strptime(date2, "%Y-%m-%d")
+            result = (d2 - d1).days
+        except Exception:
+            result = 0
+    }
+    return result;
+}
+
+// Returns true if year is a leap year.
+global isLeapYear(int year){
+    int result = 0;
+    rawPy(){
+        import calendar as _cal
+        result = 1 if _cal.isleap(year) else 0
+    }
+    if(result != 0){ return true; }
+    return false;
+}
+
+// Number of days in the given month (1-12) of year.
+global daysInMonth(int year, int month){
+    int result = 0;
+    rawPy(){
+        import calendar as _cal
+        result = _cal.monthrange(year, month)[1]
+    }
+    return result;
+}
+
 global main(){}

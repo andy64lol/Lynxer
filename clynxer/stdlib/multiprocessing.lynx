@@ -1,61 +1,112 @@
 ////
 Lynxer standard library: multiprocessing.
-Run shell commands in parallel, backed by the native C++ module
-`stdlib/multiprocessing.so`.
-
-Commands run in worker threads (one shell subprocess each) and results are kept
-in input order. The Python reference's process-pool variant is an alias here,
-since every command already runs in its own process.
+Parallel shell and process helpers.
 ////
-global setup(){ importAs("multiprocessing.so", "nativeMp"); }
 
-// Read a captured-output handle back into a list of strings.
-global _collectOutputs(int handle) -> list {
-    list out = listRepeat("", 0);
-    int count = global.nativeMp.resultCount(handle);
-    int index = 0;
-    while(index < count){
-        out = listPush(out, global.nativeMp.resultAt(handle, index));
-        index = index + 1;
-    }
-    global.nativeMp.release(handle);
-    return out;
-}
-// Read a captured-exit-code handle back into a list of integers.
-global _collectCodes(int handle) -> list {
-    list out = listRepeat(0, 0);
-    int count = global.nativeMp.resultCount(handle);
-    int index = 0;
-    while(index < count){
-        out = listPush(out, global.nativeMp.codeAt(handle, index));
-        index = index + 1;
-    }
-    global.nativeMp.release(handle);
-    return out;
+global setup(){
+    import("typing");
 }
 
-// Return the number of CPU cores available, or 1.
-global workerCount() -> int { return global.nativeMp.workerCount(); }
-// Run commands in parallel; returns a list of stdout strings in input order.
-global runParallel(list commands) -> list {
-    return _collectOutputs(global.nativeMp.runParallel(listJsonArray(commands)));
+// Return the number of available CPU cores.
+global workerCount(){
+    int count = 1;
+    rawPy(){
+        import multiprocessing as _mp
+        try:
+            count = _mp.cpu_count()
+        except Exception:
+            count = 1
+    }
+    return count;
 }
-// Run commands in parallel; returns a list of exit codes.
-global runParallelSilent(list commands) -> list {
-    return _collectCodes(global.nativeMp.runParallelSilent(listJsonArray(commands)));
+
+// Run a list of shell commands in parallel using a thread pool.
+// Returns a list of stdout strings (stripped). Failed commands return stderr.
+// Internal newlines in any single output are replaced with a space.
+global runParallel(list commands){
+    str _raw = "";
+    rawPy(){
+        from concurrent.futures import ThreadPoolExecutor
+        from lynxer._mp_workers import run_cmd
+
+        if commands:
+            workers = min(len(commands), 64)
+            with ThreadPoolExecutor(max_workers=workers) as ex:
+                results = list(ex.map(run_cmd, commands))
+            _raw = "\n".join(results)
+    }
+    if(returnLength(_raw) == 0){
+        return seqFromTo(0, -1, 1);
+    }
+    return global.typing.splitToList(_raw, "\n");
 }
-// Run commands in parallel using the process pool (alias of runParallel).
-global runParallelProcess(list commands) -> list {
-    return _collectOutputs(global.nativeMp.runParallelProcess(listJsonArray(commands)));
+
+// Run a shell command template for each item in a list, in parallel.
+// The placeholder {} in the template is replaced by each item's string value.
+// Returns a list of stdout strings.
+global mapShell(str template, list items){
+    str _raw = "";
+    rawPy(){
+        from concurrent.futures import ThreadPoolExecutor
+        from lynxer._mp_workers import run_cmd_template
+
+        if items:
+            pairs = [(template, str(item)) for item in items]
+            workers = min(len(pairs), 64)
+            with ThreadPoolExecutor(max_workers=workers) as ex:
+                results = list(ex.map(run_cmd_template, pairs))
+            _raw = "\n".join(results)
+    }
+    if(returnLength(_raw) == 0){
+        return seqFromTo(0, -1, 1);
+    }
+    return global.typing.splitToList(_raw, "\n");
 }
-// Substitute each item into the "{}" placeholder of a command template and run
-// the commands in parallel; returns a list of stdout strings.
-global mapShell(str template, list items) -> list {
-    return _collectOutputs(global.nativeMp.mapShell(template, listJsonArray(items)));
+
+// Alias for mapShell (thread-based command mapping).
+global threadMap(str cmd_template, list items){
+    return global.multiprocessing.mapShell(cmd_template, items);
 }
-// Alias for mapShell.
-global threadMap(str template, list items) -> list {
-    return mapShell(template, items);
+
+// Run commands in parallel, discard output. Returns a list of integer exit codes.
+global runParallelSilent(list commands){
+    str _raw = "";
+    rawPy(){
+        from concurrent.futures import ThreadPoolExecutor
+        from lynxer._mp_workers import run_cmd_silent
+
+        if commands:
+            workers = min(len(commands), 64)
+            with ThreadPoolExecutor(max_workers=workers) as ex:
+                codes = list(ex.map(run_cmd_silent, commands))
+            _raw = "\n".join(str(c) for c in codes)
+    }
+    if(returnLength(_raw) == 0){
+        return seqFromTo(0, -1, 1);
+    }
+    return global.typing.splitToList(_raw, "\n");
+}
+
+// Run commands in parallel using a process pool (better for CPU-bound tasks).
+// Worker functions are loaded from lynxer._mp_workers (top-level, picklable).
+// Returns a list of stdout strings.
+global runParallelProcess(list commands){
+    str _raw = "";
+    rawPy(){
+        from concurrent.futures import ProcessPoolExecutor
+        from lynxer._mp_workers import run_cmd
+        import multiprocessing as _mp
+
+        if commands:
+            workers = min(len(commands), _mp.cpu_count())
+            with ProcessPoolExecutor(max_workers=workers) as ex:
+                results = list(ex.map(run_cmd, commands))
+            _raw = "\n".join(results)
+    }
+    if(returnLength(_raw) == 0){
+        return seqFromTo(0, -1, 1);
+    }
+    return global.typing.splitToList(_raw, "\n");
 }
 
 global main(){}
