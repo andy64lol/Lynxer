@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Lynxer - Documentation</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<header>
+    <h1>Lynxer documentation</h1>
+    <p>Language reference, command line, standard library and native modules</p>
+</header>
+
+<nav>
+    <a href="index.html">Home</a>
+    <a href="docs.html">Docs</a>
+    <a href="#getting-started">Getting started</a>
+    <a href="#cli">Command line</a>
+    <a href="#structure">Language</a>
+    <a href="#stdlib">Standard library</a>
+    <a href="#native">Native modules</a>
+    <a href="#limitations">Limitations</a>
+</nav>
+
+<main>
+
+    <section id="toc">
+        <h2>Contents</h2>
+        <ul class="toc">
+            <li><a href="#getting-started">Getting started</a></li>
+            <li><a href="#cli">Command line</a></li>
+            <li><a href="#structure">Program structure</a></li>
+            <li><a href="#types">Types</a></li>
+            <li><a href="#control-flow">Control flow</a></li>
+            <li><a href="#functions">Functions and codeblocks</a></li>
+            <li><a href="#records">Structs, classes and enums</a></li>
+            <li><a href="#modules">Modules</a></li>
+            <li><a href="#stdlib">Standard library</a></li>
+            <li><a href="#native">Native modules</a></li>
+            <li><a href="#limitations">Limitations and non-goals</a></li>
+            <li><a href="#further">Further reading</a></li>
+        </ul>
+    </section>
+
+
+    <section id="getting-started">
+        <h2>Getting started</h2>
+
+        <p>Build the interpreter and every native module from a checkout:</p>
+
+        <pre><code>make                    # interpreter + native (C++ and Rust) modules
+./lynxer/lynxer prog.lynx
+./lynxer/lynxer --compile prog.lynx -o prog   # standalone executable
+./prog</code></pre>
+
+        <p>
+            <code>cargo</code> is optional: without it the Rust-backed modules are
+            skipped with a warning and everything else still builds. The interpreter
+            runs on Linux, on amd64 and ARM64.
+        </p>
+    </section>
+
+
+    <section id="cli">
+        <h2>Command line</h2>
+
+        <table>
+            <tr><th>Command</th><th>What it does</th></tr>
+            <tr><td><code>lynxer &lt;file.lynx&gt;</code></td><td>Run a source file</td></tr>
+            <tr><td><code>lynxer --no-opt &lt;file.lynx&gt;</code></td><td>Run without the AST optimizer</td></tr>
+            <tr><td><code>lynxer --lint &lt;file.lynx&gt;</code></td><td>Check syntax without running</td></tr>
+            <tr><td><code>lynxer --ast &lt;file.lynx&gt;</code></td><td>Print the abstract syntax tree</td></tr>
+            <tr><td><code>lynxer --format &lt;file.lynx&gt;</code></td><td>Rewrite a file with canonical spacing</td></tr>
+            <tr><td><code>lynxer --format-oneline &lt;file.lynx&gt;</code></td><td>Collapse a file onto one line</td></tr>
+            <tr><td><code>lynxer --compile &lt;a.lynx&gt; [-o name]</code></td><td>Build a standalone executable (<code>--bundle</code> is an alias)</td></tr>
+            <tr><td><code>lynxer --validate-executeable</code></td><td>Run the interpreter self-check</td></tr>
+            <tr><td><code>lynxer --list-stdlibs</code></td><td>List the available standard-library modules</td></tr>
+            <tr><td><code>lynxer --version</code> / <code>--help</code></td><td>Version and usage</td></tr>
+            <tr><td><code>lynxer --install</code> / <code>--uninstall</code></td><td>Copy or remove <code>/usr/bin/lynxer</code></td></tr>
+        </table>
+
+        <p>
+            <code>--compile</code> embeds the program, every transitively imported
+            <code>.lynx</code> module and every imported native <code>.so</code>.
+            Extra <code>--include &lt;file&gt;</code> inputs become importable modules or
+            data assets readable with <code>bundledFile()</code>. The output name comes
+            from <code>-o</code>/<code>--name</code>, or defaults to the first input
+            without its <code>.lynx</code> extension.
+        </p>
+    </section>
+
+
+    <section id="structure">
+        <h2>Program structure</h2>
+
+        <p>
+            A program declares <code>global setup()</code> first and
+            <code>global main()</code> last. <code>setup()</code> is where imports and
+            constants live; <code>main()</code> is the entry point.
+        </p>
+
+        <pre><code>global setup(){
+    importAs("math", "m");
+    const str LANG = "Lynxer";
+}
+
+global main(){
+    println("Hello, ", LANG, " ", m.sqrt(144));
+}</code></pre>
+    </section>
+
+
+    <section id="types">
+        <h2>Types</h2>
+
+        <table>
+            <tr><th>Type</th><th>Notes</th></tr>
+            <tr><td><code>int</code>, <code>float</code></td><td>Numeric types</td></tr>
+            <tr><td><code>str</code>, <code>bool</code></td><td>Text and boolean</td></tr>
+            <tr><td><code>any</code></td><td>Holds a value of any type</td></tr>
+            <tr><td><code>list</code>, <code>tuple</code></td><td>Ordered collections with their own builtins</td></tr>
+            <tr><td><code>sentinel</code></td><td>Identity-comparable marker values</td></tr>
+            <tr><td><code>codeblock</code></td><td>A stored block of statements, run with <code>exec</code></td></tr>
+        </table>
+
+        <p>
+            Declarations are typed and may be <code>const</code>. Fixed-width integer
+            and float types are also available; see the full
+            <a href="https://github.com/andy64lol/Lynxer/blob/main/docs/types.md">type reference</a>.
+        </p>
+    </section>
+
+
+    <section id="control-flow">
+        <h2>Control flow</h2>
+
+        <pre><code>if (x &gt; 10) { println("large"); }
+elif (x &gt; 5) { println("medium"); }
+else { println("small"); }
+
+while (x &gt; 0) { x -= 1; }
+for (int i = 0; i &lt; 5; i = i + 1) { println(i); }
+doWhile (x &lt; 3) { x += 1; }
+iterate 3 { println("tick"); }
+forever { break; }
+
+switch (x) {
+    case 1 { println("one"); }
+    default { println("other"); }
+}
+
+try { int z = 1 /% 0; } catch (str error) { println(error); }</code></pre>
+
+        <p>
+            <code>break</code>, <code>continue</code> and <code>restart</code> control
+            loops. Word operators are canonical (<code>and</code>, <code>or</code>,
+            <code>not</code>, <code>is</code>, <code>isnt</code>, <code>bitand</code>,
+            …); floor division is <code>/%</code> and exponentiation <code>^</code>.
+        </p>
+    </section>
+
+
+    <section id="functions">
+        <h2>Functions and codeblocks</h2>
+
+        <pre><code>global greet(str who) -&gt; str { return "Hello, " + who; }
+func helper(int a) -&gt; int { return a + 1; }   // file-wide
+
+global main(){
+    local doubleIt(int a) -&gt; int { return a * 2; }
+    println(greet("Lynxer"), " ", doubleIt(21));
+}
+
+codeblock hello = { println("hi"); };
+exec(){{hello}}</code></pre>
+
+        <p>
+            Parameters may have types and defaults, return types are optional, and
+            functions can be passed around as <code>codeblock</code> values.
+        </p>
+    </section>
+
+
+    <section id="records">
+        <h2>Structs, classes and enums</h2>
+
+        <pre><code>struct Point { int x; int y; }
+vargroup Player { str name = "Ada"; int score = 0; }
+class Counter { int value = 0; local inc() -&gt; int { this.value += 1; return this.value; } }
+enum status = [ Ready, Failed(str reason) ]{}</code></pre>
+
+        <p>
+            Enums are tagged unions with payloads and <code>switch</code> pattern
+            matching; structs and vargroups are typed records; classes add fields and
+            <code>local</code> methods.
+        </p>
+    </section>
+
+
+    <section id="modules">
+        <h2>Modules</h2>
+
+        <pre><code>import("math");               // global.math.sqrt(...)
+importAs("os", "operating");  // global.operating.getcwd()</code></pre>
+
+        <p>
+            Modules are <code>.lynx</code> files exposing functions under a namespace,
+            or native <code>.so</code> backends behind the same import surface.
+        </p>
+    </section>
+
+
+    <section id="stdlib">
+        <h2>Standard library</h2>
+
+        <p>Lynxer ships 27 modules, each with a native backend:</p>
+
+        <table>
+            <tr><th>Area</th><th>Modules</th></tr>
+            <tr>
+                <td>Core and utility</td>
+                <td><code>math</code>, <code>random</code>, <code>time</code>,
+                    <code>sys</code>, <code>os</code>, <code>path</code>,
+                    <code>fileIO</code>, <code>text</code>, <code>typing</code>,
+                    <code>debug</code>, <code>colorlib</code>, <code>cli</code>,
+                    <code>shell</code></td>
+            </tr>
+            <tr>
+                <td>Data and text</td>
+                <td><code>json</code>, <code>csv</code>, <code>re</code>,
+                    <code>regex</code>, <code>sqldb</code>, <code>lua</code>,
+                    <code>js</code></td>
+            </tr>
+            <tr>
+                <td>Systems and network</td>
+                <td><code>multiprocessing</code>, <code>network</code>,
+                    <code>server</code></td>
+            </tr>
+            <tr>
+                <td>Media and interaction</td>
+                <td><code>image</code>, <code>sound</code>, <code>game</code>,
+                    <code>tui</code></td>
+            </tr>
+        </table>
+
+        <p>
+            <code>lynxer --list-stdlibs</code> prints the modules present next to the
+            interpreter, with their docstrings.
+        </p>
+    </section>
+
+
+    <section id="native">
+        <h2>Native modules</h2>
+
+        <p>
+            A native module is a shared library that registers operations through one
+            frozen C ABI (<code>lynxer_module_init_v1</code>). The same ABI is used by
+            the C++ backends in <code>lynxer/stdlib/*.cpp</code> and the Rust crates
+            under <code>lynxer/rust/</code>, and an optional host API
+            (<code>lynxer_module_attach_v1</code>) lets a module call back into Lynxer.
+        </p>
+
+        <p>
+            See the
+            <a href="https://github.com/andy64lol/Lynxer/blob/main/docs/native-module-abi.md">native-module ABI</a>
+            and
+            <a href="https://github.com/andy64lol/Lynxer/blob/main/docs/extending.md">extending guide</a>.
+        </p>
+    </section>
+
+
+    <section id="limitations">
+        <h2>Limitations and non-goals</h2>
+
+        <p>Some features are deliberately not implemented. These are permanent non-goals:</p>
+
+        <table>
+            <tr><th>Not planned</th><th>Why</th></tr>
+            <tr><td>Bytecode (the <code>.lynxc</code> format)</td><td>Replaced by standalone <code>--compile</code> executables</td></tr>
+            <tr><td><code>rawPy</code> / Python embedding</td><td>Lynxer has no Python runtime</td></tr>
+            <tr><td><code>tkinter</code>, <code>turtle</code></td><td>No Python GUI toolkit; a future GUI would be Rust-backed</td></tr>
+            <tr><td><code>http</code> / <code>net</code> modules</td><td>Replaced by <code>network</code> + <code>server</code></td></tr>
+            <tr><td>Click / Typer builders</td><td>The <code>cli</code> module does not depend on them</td></tr>
+            <tr><td>Python runtime introspection</td><td>There is no Python runtime to introspect</td></tr>
+            <tr><td><code>async*</code> built-ins</td><td>No <code>async</code> language support or event loop</td></tr>
+            <tr><td><code>/* ... */</code> comments, bare <code>!</code>, <code>\x</code>/<code>\u</code> escapes</td><td>Not part of the grammar</td></tr>
+        </table>
+
+        <p>
+            Other behaviour is implemented but constrained — see the full
+            <a href="https://github.com/andy64lol/Lynxer/blob/main/docs/limitations.md">limitations register</a>.
+        </p>
+    </section>
+
+
+    <section id="further">
+        <h2>Further reading</h2>
+
+        <ul>
+            <li><a href="https://github.com/andy64lol/Lynxer/blob/main/docs/language.md">Language reference</a></li>
+            <li><a href="https://github.com/andy64lol/Lynxer/blob/main/docs/CLI.md">CLI reference</a></li>
+            <li><a href="https://github.com/andy64lol/Lynxer/blob/main/docs/builtins.md">Built-ins</a></li>
+            <li><a href="https://github.com/andy64lol/Lynxer/blob/main/docs/stdlib/">Standard library modules</a></li>
+            <li><a href="https://github.com/andy64lol/Lynxer/blob/main/docs/native-module-abi.md">Native-module ABI</a></li>
+            <li><a href="https://github.com/andy64lol/Lynxer/blob/main/docs/install.md">Installation</a></li>
+            <li><a href="https://github.com/andy64lol/Lynxer/blob/main/docs/limitations.md">Limitations and non-goals</a></li>
+        </ul>
+    </section>
+
+</main>
+
+<footer>
+    Lynxer &middot; MIT License
+</footer>
+
+</body>
+</html>
