@@ -2,7 +2,7 @@
 """CLI entry point for Lynxer. Run with: python clynxer/shell.py <file.lynx>
 
 Frozen behaviour reference: Lynxer (`lynxer/`) is the primary implementation
-and has superseded this for real use. See `lynxer/docs/parity.md`.
+and has superseded this for real use. See `docs/parity.md`.
 """
 
 import os

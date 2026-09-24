@@ -5,8 +5,8 @@ This skill provides a structured comparison between the **Python `clynxer`** and
 > **Updated 2026-09-23.** Lynxer is the primary implementation. It has
 > deliberately diverged from the Python reference (no bytecode, an ELF
 > `--compile`, Rust stdlib backends, cooperative threads), so the intended
-> parity scope is `lynxer/docs/parity.md` and the full divergence register is
-> `lynxer/docs/limitations.md`. The syntax below is the **Lynxer** form, which
+> parity scope is `docs/parity.md` and the full divergence register is
+> `docs/limitations.md`. The syntax below is the **Lynxer** form, which
 > is what new code should use.
 
 ---
@@ -193,12 +193,12 @@ make
 
 - For **production use**, prefer `lynxer`.
 - For **development and prototyping**, use Python `clynxer`.
-- Check the [limitations](lynxer/docs/limitations.md) for `lynxer` to understand unsupported features.
+- Check the [limitations](../../docs/limitations.md) for `lynxer` to understand unsupported features.
 
 ---
 
 ### References
-- [lynxer Documentation](lynxer/docs/README.md)
-- [lynxer Limitations](lynxer/docs/limitations.md)
-- [Parity scope](lynxer/docs/parity.md)
-- [Lynxer Language Guide](lynxer/docs/language.md)
+- [lynxer Documentation](../../docs/README.md)
+- [lynxer Limitations](../../docs/limitations.md)
+- [Parity scope](../../docs/parity.md)
+- [Lynxer Language Guide](../../docs/language.md)

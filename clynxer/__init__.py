@@ -3,7 +3,7 @@
 **Frozen behaviour reference (2026-09-23).** Lynxer (`lynxer/`) is the primary
 implementation and has superseded this Python package for real use. This package
 receives no new features: it is kept so the reference behaviour stays available,
-and parity fixes are made in Lynxer. See `lynxer/docs/parity.md`.
+and parity fixes are made in Lynxer. See `docs/parity.md`.
 
 The interpreter and built-in registry depend on each other during startup.
 Keep package exports lazy so importing a submodule such as

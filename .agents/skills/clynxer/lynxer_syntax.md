@@ -3,8 +3,8 @@
 This document provides a **summarized syntax guide** for the **C++-based `lynxer`** implementation of the Lynxer language, including key differences from the Python `clynxer`.
 
 > Updated 2026-09-23. The examples below are the Lynxer form and all parse in
-> Lynxer; the intended parity scope with Python is `lynxer/docs/parity.md` and
-> the divergence register is `lynxer/docs/limitations.md`.
+> Lynxer; the intended parity scope with Python is `docs/parity.md` and
+> the divergence register is `docs/limitations.md`.
 
 ---
 
@@ -138,12 +138,12 @@ make
   `async*` built-ins and the `await` expression evaluate cooperatively inline.
 - FFI is available as the `ffi*` built-ins (`dlopen`/`dlsym` plus
   signature-string dispatch), not through libffi.
-- The full list is `lynxer/docs/limitations.md`; the parity scope is
-  `lynxer/docs/parity.md`.
+- The full list is `docs/limitations.md`; the parity scope is
+  `docs/parity.md`.
 
 ---
 
 ### References
-- [lynxer Documentation](lynxer/docs/README.md)
-- [lynxer Limitations](lynxer/docs/limitations.md)
-- [Parity scope](lynxer/docs/parity.md)
+- [lynxer Documentation](../../../docs/README.md)
+- [lynxer Limitations](../../../docs/limitations.md)
+- [Parity scope](../../../docs/parity.md)

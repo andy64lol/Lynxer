@@ -1,7 +1,7 @@
-# lynxer
+# Lynxer
 
-`lynxer` is the small, standalone C++ implementation of Lynxer. It is being
-built beside the original Python implementation in `../lynxer`, so the two
+`lynxer` is the small, standalone C++ implementation of Lynxer. It is built
+beside the frozen Python reference implementation in `../clynxer`, so the two
 implementations can evolve independently.
 
 The first slice intentionally stays small:
@@ -31,8 +31,8 @@ The first slice intentionally stays small:
   `shell`, `sys`, `random`, `image`, `lua`, `game`, `network`, `server`,
   `sound`, `sqldb`, `tui` and `text`/`typing`/`colorlib`. Native modules are
   built from either `stdlib/<name>.cpp` or the Rust crates under `rust/` into
-  `stdlib/<name>.so` and wrapped by `stdlib/<name>.lynx`; see `docs/README.md`
-  for the full reference and `docs/native-module-abi.md` for the shared C ABI
+  `stdlib/<name>.so` and wrapped by `stdlib/<name>.lynx`; see `../docs/README.md`
+  for the full reference and `../docs/native-module-abi.md` for the shared C ABI
 - Rust-backed modules (`game`, `image`, `json`, `lua`, `network`, `server`,
   `sound`, `sqldb`, `tui`) are skipped with a warning when `cargo` is missing, so
   a plain `make` never depends on a Rust toolchain
@@ -58,7 +58,8 @@ make test
 This is a foundation rather than a complete port. Unsupported Lynxer language
 features fail with a source location instead of silently falling back to
 Python. Native `.so` modules remain governed by the shared registration ABI
-documented in `../docs/native-modules.md`; they are not reinterpreted as source.
+documented in `../docs/reference/native-modules.md`; they are not reinterpreted
+as source.
 Every C++ stdlib backend placed in `stdlib/*.cpp` is built automatically as
 the matching `stdlib/*.so` by `make`; dependency-heavy libraries remain
 explicit opt-in modules rather than hidden package requirements.

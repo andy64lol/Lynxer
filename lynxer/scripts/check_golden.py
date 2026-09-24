@@ -5,7 +5,7 @@ Each case in ``lynxer/golden/cases.json`` names the argv to run, the exit code
 and the exact stdout/stderr the interpreter must produce. This pins Lynxer's
 *own* output -- source-located error strings and CLI messages -- rather than the
 Python implementation's exception text, which Lynxer has deliberately diverged
-from. See ``lynxer/docs/parity.md``.
+from. See ``docs/parity.md``.
 
 A trailing newline is ignored on both sides so an editor's final newline never
 causes a false failure. Only the standard library is needed. Run it against the

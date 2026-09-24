@@ -1,271 +1,276 @@
 # Extending Lynxer
 
-Lynxer has two extension layers:
+Lynxer grows in three ways:
 
-| Extension | Implementation | Use it when |
+| Extension | Written in | Use it when |
 | --- | --- | --- |
-| **Built-in function** | Python in `clynxer/builtins.py` | The operation needs Python libraries, system access, or a runtime primitive. |
-| **Standard-library module** | Lynxer in `clynxer/stdlib/<name>.lynx` | The operation can be expressed as Lynxer code or should be a normal imported module. |
+| **Pure Lynxer module** | Lynxer, in `lynxer/stdlib/<name>.lynx` | The behaviour is expressible in Lynxer itself. `colorlib`, `text` and `typing` are examples; they ship no shared library. |
+| **Native module** | C++ in `stdlib/<name>.cpp`, or Rust in `rust/<name>/` | The behaviour needs a system API, a file format, a device, or a third-party crate. |
+| **Built-in** | C++ in `lynxer/builtins.cpp` | The operation is a language primitive that must be available without `import`. |
 
-Native shared libraries can also be imported as first-class modules when they
-export the versioned registration ABI described in
-[Native modules](native-modules.md).
+Almost everything belongs in the middle row. A built-in is not available to a
+module author — it changes the language — and a pure Lynxer module is just a
+module with no backend, so both are covered by the same wrapper rules.
 
-Built-ins are available without `import()`. Standard-library modules are loaded
-with `import("name")` and expose their global functions through
-`global.name.function(...)`.
+Read [stdlib-contracts.md](stdlib-contracts.md) before you start: it states the
+conventions your module has to follow, and
+[native-module-abi.md](native-module-abi.md) is the ABI reference.
 
 ---
 
-## Part 1 — Add a built-in function
+## 1. Choose C++ or Rust
 
-All built-in definitions and their implementations live in
-`clynxer/builtins.py`. The interpreter only imports the module after its runtime
-value classes have been defined, then installs the registered functions into
-the global and module symbol tables.
-
-### The built-in class
-
-`BuiltInFunction` is a `BaseFunction` whose `execute()` method dispatches by
-name:
-
-```python
-method_name = f"execute_{self.name}"
-method = getattr(self, method_name, self.no_visit_method)
-return_value = res.register(method(args, exec_ctx))
-```
-
-Consequently, a built-in named `clamp` is implemented by a method named
-`execute_clamp`. The method receives:
-
-* `args`: a list of Lynxer runtime `Value` objects;
-* `exec_ctx`: the call's runtime `Context`.
-
-Return an `RTResult`: use `success(value)` for a Lynxer value and
-`failure(RTError(...))` for a Lynxer runtime error.
-
-### Example: `clamp(value, low, high)`
-
-Add the name to `BUILTIN_FUNCTION_NAMES` and add its implementation to
-`BuiltInFunction`:
-
-```python
-# in BUILTIN_FUNCTION_NAMES
-"clamp",
-
-class BuiltInFunction(BaseFunction):
-    # ...
-    def execute_clamp(self, args, exec_ctx):
-        if len(args) != 3 or not all(isinstance(arg, Number) for arg in args):
-            return RTResult().failure(
-                RTError(
-                    self.pos_start,
-                    self.pos_end,
-                    "clamp(value, low, high) expects three numbers",
-                    exec_ctx,
-                )
-            )
-
-        value, low, high = (arg.value for arg in args)
-        return RTResult().success(Number(max(low, min(value, high))))
-```
-
-The registry at the bottom of `builtins.py` creates the function instance and
-installs it:
-
-```python
-for name in BUILTIN_FUNCTION_NAMES:
-    register_builtin(name)
-```
-
-Do **not** add registrations to `clynxer.py`. The list and the `execute_...`
-methods in `builtins.py` are the complete built-in definition.
-
-### Runtime values
-
-Arguments and return values must use Lynxer's runtime classes:
-
-| Lynxer value | Runtime class | Python payload |
+| | C++ (`stdlib/<name>.cpp`) | Rust (`rust/<name>/`) |
 | --- | --- | --- |
-| `int`, `float`, `bool` | `Number` | `.value`; booleans also set `is_bool=True` |
-| `str` | `String` | `.value` |
-| `char` | `Char` | `.value` |
-| `list` | `List` | `.elements`, a list of runtime values |
-| `tuple` | `LynxTuple` | `.elements`, a list of runtime values |
-| `none` | `Null` | no payload |
-| async result | `CoroutineValue` | `.coro`, a Python coroutine |
+| Build | Built by the `stdlib/*.cpp` wildcard, no new Makefile entry | Add the crate to the workspace **and** its name to `LYNXER_RUST_MODULE_NAMES` |
+| Dependencies | Standard library only | Any crate, but it must build offline after `Cargo.lock` is committed |
+| Best for | POSIX calls, `<filesystem>`, `<chrono>`, small hand-written parsers | Anything with a real third-party crate: formats, protocols, GUI, audio, databases |
+| Signature | Either a fixed shape or the packed `...` form | **Must** be the packed `...` form |
 
-Use the singletons for language booleans and `none`:
+If a crate exists for the job, use Rust. Write C++ when the whole
+implementation is a few calls into the standard library or POSIX.
 
-```python
-return RTResult().success(Number.true)
-return RTResult().success(Number.false)
-return RTResult().success(Number.null)
-```
+---
 
-For a new list or tuple, wrap the elements:
+## 2. Write the wrapper
 
-```python
-return RTResult().success(List([Number(1), String("two")]))
-return RTResult().success(LynxTuple([Number(1), String("two")]))
-```
-
-`Value.set_context()` and `Value.set_pos()` are available when a newly created
-value needs source/runtime metadata. The call visitor applies the call's
-position and context to the returned value automatically.
-
-### Validate arguments and report errors
-
-Validate arity and runtime types before reading `.value` or `.elements`.
-Errors should point to `self.pos_start` and `self.pos_end`:
-
-```python
-if len(args) != 1 or not isinstance(args[0], String):
-    return RTResult().failure(
-        RTError(
-            self.pos_start,
-            self.pos_end,
-            'slugify(text) expects one string argument',
-            exec_ctx,
-        )
-    )
-```
-
-Do not raise an ordinary Python exception for user input errors. Return an
-`RTError` so Lynxer can show its normal traceback and source excerpt. Python
-exceptions from an external library should generally be caught and converted
-to an `RTError` as well.
-
-### Register an implementation dynamically
-
-`register_builtin` is also available for extensions that need to register a
-handler after importing Lynxer:
-
-```python
-from clynxer.builtins import register_builtin
-
-def execute_clamp(builtin, args, exec_ctx):
-    # Return RTResult.success(...) or RTResult.failure(...)
-    ...
-
-register_builtin("clamp", execute_clamp)
-```
-
-The handler is attached to `BuiltInFunction`, an instance is stored in
-`BUILTIN_FUNCTIONS`, and the global symbol table is updated immediately when
-it has already been created. For an in-tree built-in, prefer the class method
-plus `BUILTIN_FUNCTION_NAMES`; that keeps the complete built-in inventory
-reviewable in one file.
-
-The `@builtin("name")` decorator is equivalent to
-`register_builtin("name", handler)`:
-
-```python
-@builtin("clamp")
-def execute_clamp(builtin, args, exec_ctx):
-    ...
-```
-
-### Testing a built-in
-
-Create a small Lynxer program that calls the function directly and through an
-imported module if the module path matters:
+The wrapper is what Lynxer programs see. It is always
+`stdlib/<name>.lynx`, and it always has the same shape:
 
 ```lynx
-global setup() {}
+////
+Lynxer standard library: example.
+One-line summary, then anything a user needs to know.
 
-global main() {
-    println(clamp(12, 0, 10));
+Extra paragraphs here are printed by `lynxer --list-stdlibs`, so keep them
+useful and do not leave placeholder prose in a shipped module.
+////
+
+global setup(){ importAs("example.so", "nativeExample"); }
+
+// Double the value. Returns the result, or -1 on failure.
+global doubleIt(int value) -> int { return global.nativeExample.doubleIt(value); }
+
+// Join two words. Returns the joined string.
+global join(str left, str right) -> str { return global.nativeExample.join(left, right); }
+```
+
+Rules the wrapper must follow:
+
+- **`setup()` is the only import.** Import the backend once, with
+  `importAs("<name>.so", "native<Name>")`.
+- **One `global` function per operation**, named as the user calls it.
+- **Convert the backend's flat results here.** A backend returns `int64` `0`/`1`
+  for booleans, so the wrapper writes `!= 0` and declares `-> bool`.
+- **Never expose a backend type.** No crate names, no pointers, no structs.
+- **Do not add logic.** If the wrapper starts computing, the calculation belongs
+  in the backend where it can be tested and reused.
+- Start the file with a `////` docstring. The first line is the module summary
+  in `--list-stdlibs`; the rest is printed verbatim, so it is real documentation.
+
+If the module needs no native code, write the functions directly and skip
+`setup()` entirely — like `stdlib/text.lynx`.
+
+---
+
+## 3. Write the backend
+
+### 3a. In Rust
+
+Add `rust/<name>/Cargo.toml` with `crate-type = ["cdylib"]`, depend on
+`lynxer_abi` by path, and write `rust/<name>/src/lib.rs`:
+
+```rust
+//! `example` stdlib backend: double a number, join two words.
+
+use lynxer_abi::{export_int, export_string, lynxer_module};
+
+export_int!(example_double_it, args, {
+    let value = args.int(0);
+    value * 2
+});
+
+export_string!(example_join, args, {
+    let left = args.string(0);
+    let right = args.string(1);
+    format!("{left}{right}")
+});
+
+const OPS: &[(&str, &str, &str)] = &[
+    ("doubleIt", "example_double_it", "cdecl:int64(...)"),
+    ("join", "example_join", "cdecl:cstring(...)"),
+];
+
+lynxer_module!(OPS);
+```
+
+Three things to get right, all of which have caused real defects here:
+
+1. **Every signature is packed** — `cdecl:int64(...)`, `cdecl:float64(...)` or
+   `cdecl:cstring(...)`. The `export_*!` macros generate the four-scalar packed
+   prototype, so registering a fixed shape (`cdecl:int64(int64)`) calls the
+   symbol through the wrong C prototype and **segfaults on the first call**,
+   with no build-time warning.
+2. **Arguments are indexed per kind, not positionally.** `args.int(i)` reads the
+   *i*-th number and `args.string(i)` the *i*-th string. For
+   `save(handle, path, quality)` the reads are `args.int(0)`, `args.string(0)`,
+   `args.int(1)`. Reading past the end of either list yields `0` / `""` **in
+   silence**, so a wrong index produces a zero value rather than an error.
+   `scripts/check_module_contracts.py` catches this; see §6.
+3. **The macros guard panics for you.** `export_int!` and friends wrap the body
+   in a panic guard that returns the module's sentinel, so a `panic!` or an
+   `unwrap()` on `None` becomes a failure result instead of unwinding across the
+   C boundary and killing the interpreter. Do not add your own `catch_unwind`.
+
+Keep resources that must outlive a call in a registry you own — a
+`Vec<Option<T>>` behind a `thread_local`, indexed by an integer handle. The
+`image` and `sound` backends are the reference implementations.
+
+### 3b. In C++
+
+Write `stdlib/<name>.cpp` and export one entry point plus one
+`extern "C"` function per operation. Read
+[native-module-abi.md](native-module-abi.md) first; the worked example there is
+complete. The short version:
+
+```cpp
+#include <cstdint>
+#include <string>
+
+using RegisterFunction = int (*)(const char*, const char*, const char*);
+using RegisterConstant = int (*)(const char*, std::int64_t);
+using RegisterType = int (*)(const char*, const char*);
+
+static const char* stable(std::string value) {
+    thread_local std::string result;
+    result = std::move(value);
+    return result.c_str();
 }
-```
 
-Run it from the repository root:
-
-```sh
-python3 clynxer/shell.py /path/to/check.lynx
-```
-
-Also run the existing examples/tests after changing runtime code:
-
-```sh
-python3 clynxer/shell.py test/test.lynx
-python3 clynxer/shell.py test/test2.lynx
-```
-
----
-
-## Part 2 — Add a standard-library module
-
-Put a module in `clynxer/stdlib/`. Its filename becomes its import name:
-
-```text
-clynxer/stdlib/mylib.lynx  ->  import("mylib")
-```
-
-A module has `setup()` and `main()` declarations. `main()` is required by
-the module parser even though `run_file()` does not execute it as an entry
-point:
-
-```lynx
-/// Small example module ///
-
-global setup() {}
-
-global double(int value) {
+extern "C" std::int64_t example_double_it(std::int64_t value) {
     return value * 2;
 }
 
-global main() {}
-```
-
-Use it from a program like this:
-
-```lynx
-global setup() {
-    import("mylib");
+extern "C" const char* example_join(const char* left, const char* right) {
+    return stable(std::string(left) + right);
 }
 
-global main() {
-    println(global.mylib.double(21));
+extern "C" int lynxer_module_init_v1(RegisterFunction f, RegisterConstant,
+                                    RegisterType) {
+    return f("doubleIt", "example_double_it", "cdecl:int64(int64)") &&
+                   f("join", "example_join", "cdecl:cstring(cstring,cstring)")
+               ? 0
+               : 1;
 }
 ```
 
-Every built-in is seeded into the module's symbol table before the module is
-run, so module code can call `print`, `range`, `listPush`, and the other
-built-ins directly.
+A returned `const char*` must stay valid until the interpreter copies it, which
+happens immediately after the call — hence the `thread_local` buffer and the
+"one live string result per call" rule. C++ modules may use either a fixed shape
+or the packed form; fixed shapes are type-checked per argument at call time, so
+a mistake fails with a located error instead of corrupting the stack.
 
-### Calling Python from a module
+---
 
-Use a `rawPy` block when a standard-library function needs Python:
+## 4. Wire it into the build
 
-```lynx
-global sqrt(float value) {
-    float result = 0.0;
-    rawPy() {
-        import math as _math
-        result = _math.sqrt(value)
-    }
-    return result;
-}
+**C++** needs nothing: `stdlib/*.cpp` is a wildcard, so the new file becomes
+`stdlib/<name>.so` automatically. If the file needs extra link flags, that is
+not yet supported — a module with system-library dependencies should be a Rust
+crate instead.
+
+**Rust** needs two edits:
+
+1. add the crate to the workspace members in `rust/Cargo.toml`;
+2. add its name to `LYNXER_RUST_MODULE_NAMES` in the root `Makefile`.
+
+Rust modules are skipped with a warning when `cargo` is absent, so Lynxer still
+builds without a Rust toolchain. Keep `rust/Cargo.lock` committed: the module
+must build offline.
+
+A crate is allowed to register **nothing**: `rust/ffi` is an intentional no-op
+`cdylib` that keeps the workspace uniform. A C++ module that needs POSIX is
+gated with `LYNXER_POSIX_BUILTINS`, as the managed
+`filesystem*`/`process*`/`networking*` families are, and falls back to
+`unsupportedTable()` otherwise.
+
+---
+
+## 5. Test it
+
+Add `examples/stdlib_<name>.lynx` and a sibling
+`examples/stdlib_<name>.expected`. `make test` runs every
+`examples/stdlib_*.lynx` and diffs its output against the `.expected` file, so
+the fixture is the specification for anything a user can observe.
+
+Cover, as applicable:
+
+| Case | What to assert |
+| --- | --- |
+| Success | The normal path, including the boundary of any range |
+| Malformed input | A sentinel — never a crash or a panic |
+| Invalid handles | `-1`, an out-of-range index, and a released handle |
+| Missing files | `-1` or an error string, depending on the module's family |
+| Cleanup | Releasing twice returns the failure sentinel; the registry count drops |
+| Optional dependencies | The behaviour when the system binary/crate feature is absent |
+
+Keep the fixture **hermetic**: no network, no wall-clock time, no host-specific
+strings. Where a module needs a file, commit a small asset under
+`examples/assets/` rather than generating one at test time. Where output would
+be host-specific, assert a property instead (`returnLength(x) > 0`) rather than
+the exact text.
+
+If the module is Rust-backed and hermetic, add its fixture name to the
+compiled/bundled parity loop in the root `Makefile` so it is also checked when
+compiled into a standalone executable.
+
+---
+
+## 6. Let the checks catch what tests cannot
+
+A fixture records what the code *does*, so it cannot detect a module that is
+broken in exactly the way the fixture reproduces. Two bundled modules shipped
+that way: `sqldb` passed a path through its wrapper while the backend read an
+integer handle, and every call returned `ERROR: invalid handle` — which is what
+the fixture asserted. `tui` read packed arguments positionally.
+
+`scripts/check_module_contracts.py` runs first in `make test` and compares the
+wrapper against the backend structurally:
+
+- every `global.native<Alias>.<op>(...)` call names a registered op;
+- a Rust backend's packed reads are in range for the arguments the wrapper
+  passes;
+- any registered op no wrapper calls is reported as a warning.
+
+Run it on its own while iterating:
+
+```bash
+python3 lynxer/scripts/check_module_contracts.py --verbose
 ```
 
-Variables declared in the same Lynxer function scope are bridged into the
-block and assignments to those names are copied back. Python-only temporaries
-should use underscore-prefixed names. `rawPy` blocks do not automatically
-expose arbitrary Python objects as Lynxer values; convert results to numbers,
-strings, or booleans before assigning them back.
+---
 
-For Cython-backed code, use `rawPyx` and keep the same conversion rule. The
-string built-ins `rawPy("...")` and `rawPyx("...")` execute one-line code
-without Lynxer variable bridging.
+## 7. Document it
 
-### Module checklist
+Every module is finished when all of these are true:
 
-1. Add `clynxer/stdlib/<name>.lynx`.
-2. Include empty or real `global setup() {}` and `global main() {}`.
-3. Export functions as top-level `global` functions.
-4. Import the module in a test program.
-5. Run the test program and the existing interpreter tests.
+- [ ] `stdlib/<name>.lynx` with a real `////` docstring, visible in
+      `--list-stdlibs`
+- [ ] the backend under `stdlib/<name>.cpp` or `rust/<name>/`, registered in the
+      Makefile
+- [ ] `stdlib/<name>.md` — the operation table, argument by
+      argument
+- [ ] `examples/stdlib_<name>.lynx` + `.expected`, covering the failure paths
+- [ ] the new name added to the module table in `README.md` and to
+      `LYNXER_LIST_STDLIB_MODULES` in the root `Makefile`
+- [ ] the identity model recorded in the table in
+      [stdlib-contracts.md](stdlib-contracts.md)
+- [ ] deliberate divergences from `lynxer/stdlib/<name>.lynx` written down in
+      [limitations.md](limitations.md), with the reason
+- [ ] `make test` green, including the contract check and the compiled/bundled
+      parity run
 
-No changes to `clynxer.py` are needed for a normal built-in or standard-library
-extension.
+Compare against `lynxer/stdlib/<name>.lynx` — the Python implementation is the
+behaviour reference — and either match it or record why not. Byte-identical
+output is achievable more often than it looks: `sqldb` and `sound` both produce
+output identical to the reference, including their error strings.

@@ -1,57 +1,61 @@
-# sqldb
+# SQLite Database Module
 
-SQLite helpers backed by Python's standard-library `sqlite3` module. Import the
-module in `setup()`:
-
-```lynx
-global setup(){
-    import("sqldb");
-}
-```
-
-All operations receive a database path and open a short-lived connection. This
-keeps the API compatible with `rawPy`, whose Python namespace is isolated for
-each block. SQLite creates the database file automatically when a write
-operation uses a new path.
+The `sqldb` module provides SQLite database functionality using Rust's `rusqlite` crate.
 
 ## Functions
 
-| Function | Signature | Returns |
-|----------|-----------|---------|
-| `execute` | `execute(str path, str sql)` | `"ok"` or `"ERROR: ..."` |
-| `executeArgs` | `executeArgs(str path, str sql, str paramsJson)` | `"ok"` or `"ERROR: ..."` |
-| `script` | `script(str path, str sqlScript)` | `"ok"` or `"ERROR: ..."` |
-| `query` | `query(str path, str sql)` | JSON array of row objects |
-| `queryArgs` | `queryArgs(str path, str sql, str paramsJson)` | JSON array of row objects |
-| `scalar` | `scalar(str path, str sql)` | First column of first row as a string |
-| `scalarArgs` | `scalarArgs(str path, str sql, str paramsJson)` | Parameterized `scalar` |
-| `lastInsertId` | `lastInsertId(str path, str sql, str paramsJson)` | Insert row id, or `-1` |
-| `tableExists` | `tableExists(str path, str tableName)` | Boolean |
-| `tables` | `tables(str path)` | JSON array of table names |
+- `execute(path: string, sql: string) -> string`
+  Executes one SQL statement and commits it. Returns `"ok"` or `"ERROR: <message>"`.
 
-`paramsJson` must be a JSON array. Use parameterized functions for values
-instead of interpolating user input into SQL:
+- `executeArgs(path: string, sql: string, paramsJson: string) -> string`
+  Executes one parameterized SQL statement. `paramsJson` must be a JSON array.
+  Returns `"ok"` or `"ERROR: <message>"`.
+
+- `script(path: string, sqlScript: string) -> string`
+  Executes multiple SQL statements as one transaction. Returns `"ok"` or `"ERROR: <message>"`.
+
+- `query(path: string, sql: string) -> string`
+  Query rows and return a JSON array of objects.
+
+- `queryArgs(path: string, sql: string, paramsJson: string) -> string`
+  Parameterized form of `query()`.
+
+- `scalar(path: string, sql: string) -> string`
+  Returns the first column of the first row as a string, or `""` when absent.
+
+- `scalarArgs(path: string, sql: string, paramsJson: string) -> string`
+  Parameterized form of `scalar()`.
+
+- `lastInsertId(path: string, sql: string, paramsJson: string) -> int`
+  Executes an insert/update and returns SQLite's lastrowid. Returns `-1` on error.
+
+- `tableExists(path: string, tableName: string) -> bool`
+  Returns whether a table exists in the database.
+
+- `tables(path: string) -> string`
+  Returns table names as a JSON array.
+
+## Example
 
 ```lynx
+global setup(){
+    import("sqldb")
+}
+
 global main(){
-    str db = "people.sqlite3";
-    str created = global.sqldb.execute(
-        db,
-        "CREATE TABLE IF NOT EXISTS people (id INTEGER PRIMARY KEY, name TEXT, age INTEGER)"
-    );
-    int id = global.sqldb.lastInsertId(
-        db,
-        "INSERT INTO people (name, age) VALUES (?, ?)",
-        "[\"Ada\", 37]"
-    );
-    str rows = global.sqldb.queryArgs(
-        db,
-        "SELECT id, name, age FROM people WHERE age >= ?",
-        "[18]"
-    );
-    println(rows);
+    global.sqldb.execute("database.db", "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)");
+    global.sqldb.execute("database.db", "INSERT INTO users (name) VALUES ('Alice')");
+    println(global.sqldb.query("database.db", "SELECT * FROM users"));
 }
 ```
 
-Errors are returned as strings beginning with `"ERROR: "` for query and
-write operations. `tableExists` returns `false` on an error.
+---
+
+## See also
+
+- [stdlib-contracts.md](../stdlib-contracts.md) — the contract this module
+  implements, including the error sentinel family it uses.
+- [builtins.md](../builtins.md) — the functions the interpreter implements
+  itself.
+- [parity.md](../parity.md) — the parity scope with Python Lynxer.
+- [limitations.md](../limitations.md) — the full divergence register.

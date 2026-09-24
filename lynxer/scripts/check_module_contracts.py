@@ -516,7 +516,7 @@ def main() -> int:
         print(
             "Packed arguments are indexed per kind: args.int(i) reads the i-th "
             "number and args.string(i) the i-th string. See "
-            "lynxer/docs/native-module-abi.md.",
+            "docs/native-module-abi.md.",
             file=sys.stderr,
         )
         return 1

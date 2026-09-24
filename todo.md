@@ -171,7 +171,7 @@ Planned order of work, newest direction first.
 - [x] Port standard-library modules one small module at a time. Lynxer ships
   every feasible package-free module from `clynxer/stdlib/`; `mathPlus` is merged
   into `math`, `http`/`net` are replaced by `network`, and the unsupported
-  modules are documented in `lynxer/docs/limitations.md`.
+  modules are documented in `docs/limitations.md`.
 - [x] Keep optional `-> type` return annotations available while stdlibs use
   the shared registration ABI.
 - [x] Implement the first Rust-backed third-party set: `game`, `image`, `json`,
@@ -199,7 +199,7 @@ Planned order of work, newest direction first.
   backend phase. **Decided: they do not.** `tkinter`/`tkinterPlus` are replaced
   by a planned `graphics` module on Rust `iced`; `turtle` is left behind (its
   Rust crate was last updated in 2019 and `turtle_rs` does not offer the same
-  experience). Recorded in `lynxer/docs/limitations.md` under "Modules that are
+  experience). Recorded in `docs/limitations.md` under "Modules that are
   not ported".
 - [x] For every new Rust backend, add the crate to the Rust workspace, export
   `clynxer_module_init_v1` through `lynxer_abi`, add the module to the Makefile,
@@ -210,7 +210,7 @@ Planned order of work, newest direction first.
   cleanup before introducing a second backend. Keep third-party calls behind
   backend-local adapters so the Lynxer wrapper never depends on crate-specific
   types or APIs. Frozen at Lynxer 0.1.8 in
-  `lynxer/docs/stdlib-contracts.md`, per module: the conventions that apply
+  `docs/stdlib-contracts.md`, per module: the conventions that apply
   everywhere, the identity model and cleanup owner for each of the 27 modules,
   and what changing a contract requires. The wrapper names only
   `global.native<Name>.<op>(...)`, so no crate or library type crosses it.
@@ -234,11 +234,11 @@ Planned order of work, newest direction first.
 - [x] Only extend the ABI when a real module cannot be expressed with its
   scalar/string/handle conventions; every additive ABI change needs C and Rust
   examples, compatibility coverage, and documentation. Stated as policy in
-  `lynxer/docs/native-module-abi.md` under "Extending the ABI". No shape has
+  `docs/native-module-abi.md` under "Extending the ABI". No shape has
   been added since the packed `cdecl:<ret>(...)` form; `tui`, `sound` and
   `sqldb` needed none.
 - [x] Add a detailed extending.md for making modules for Lynxer.
-  `lynxer/docs/extending.md` covers choosing C++ or Rust, the wrapper and
+  `docs/extending.md` covers choosing C++ or Rust, the wrapper and
   backend pair, the packed ABI and per-kind argument indexing, build wiring,
   what a fixture must cover, the contract check, and the completion checklist.
 
@@ -291,7 +291,7 @@ Planned order of work, newest direction first.
     `ast.cpp` loads `sound.so` on first use through the same `dlopen` +
     `clynxer_module_init_v1` path an import uses, and the built-ins add the
     reference's validation and their own handle registry on top. Three
-    deliberate divergences, recorded in `lynxer/docs/limitations.md`: the
+    deliberate divergences, recorded in `docs/limitations.md`: the
     backend's failure text is not Arcade's, `soundPause`/`soundResume` work
     (the reference fails by design), and `soundStop` works (the installed
     Arcade has no `Player.stop`). Fixture: `examples/builtin_sound.lynx`.
@@ -305,7 +305,7 @@ Planned order of work, newest direction first.
     joins anything left running. Fixture: `examples/builtin_nativeThread.lynx`,
     deterministic across repeated runs. Divergences from the reference (which
     lets a worker interleave via the GIL, and reports `function` rather than
-    `codeblock`) are in `lynxer/docs/limitations.md`.
+    `codeblock`) are in `docs/limitations.md`.
   - [x] `ffi*` (6): `LoadLibrary`, `Lookup`, `CloseLibrary`, `Call`,
     `Callback`, `FreeCallback`. Uses POSIX `dlopen/dlsym/dlclose` (no libffi
     dependency); signature-based dispatch via the native call table in `ast.cpp`
@@ -367,8 +367,8 @@ clone of the Python implementation, and it has deliberately diverged — no
 bytecode, an ELF `--compile`, Rust stdlib backends, cooperative threads and
 several re-implemented modules. These gates therefore compare only where parity
 is intended and assert Lynxer's own behaviour everywhere else; the canonical
-divergence register is `lynxer/docs/limitations.md`, and
-`lynxer/docs/parity.md` summarises what is and is not a parity target.
+divergence register is `docs/limitations.md`, and
+`docs/parity.md` summarises what is and is not a parity target.
 
 - [x] Baseline comparison against the Python test fixtures: 15 of 55 pass
   (2026-09-13). The failures are now mostly surface Lynxer implements itself
@@ -379,9 +379,9 @@ divergence register is `lynxer/docs/limitations.md`, and
   now gated by a Lynxer fixture — `examples/lexical_bang.lynx`,
   `lexical_block_comment.lynx`, `lexical_hex_escape.lynx` and
   `lexical_unicode_escape.lynx` — asserted through the golden CLI cases, and the
-  list lives in `lynxer/docs/limitations.md`.
+  list lives in `docs/limitations.md`.
 - [x] Compare parser and runtime behaviour only where parity is meant to hold.
-  `lynxer/docs/parity.md` records the parity allowlist (the language core and
+  `docs/parity.md` records the parity allowlist (the language core and
   the stdlib APIs whose docs claim parity) and the divergence denylist
   (`image`/`lua` formatting, cooperative `nativeThread*`, working
   `soundPause`/`soundStop`, re-implemented `math` statistics, the `std::regex`
@@ -425,7 +425,7 @@ divergence register is `lynxer/docs/limitations.md`, and
   `clynxer/__init__.py` and `clynxer/shell.py`, and recorded in
   `.agents/memory/lynxer_investigation.md` (Revision 11).
 - [x] Rework the documentation set so it matches the implementation. Every
-  `lynxer/docs/*.md` page was restructured with headings and cross-links and
+  `docs/*.md` page was restructured with headings and cross-links and
   its examples re-verified against the interpreter; `language.md`, `types.md`,
   `lists.md`, `structs.md`, `classes.md`, `enums.md`, `vargroups.md`,
   `modules.md`, `importAs.md`, `CLI.md`, `install.md` and `README.md` were
@@ -436,11 +436,11 @@ divergence register is `lynxer/docs/limitations.md`, and
   golden case; the `sound`, `sqldb` and `tui` wrappers use a standalone `////`
   docstring line so `--list-stdlibs` prints their descriptions.
 - [x] Document intentional differences and dropped Python-only features.
-  `lynxer/docs/limitations.md` is the canonical register; `parity.md`
+  `docs/limitations.md` is the canonical register; `parity.md`
   summarises what is and is not a parity target, and `docs/limitations.md`
   keeps the "will not be done" framing on the Python side.
 - [x] Treat differences with no Python counterpart as out of scope for parity,
-  listed in `lynxer/docs/parity.md`: the `--compile` ELF executable, bundling
+  listed in `docs/parity.md`: the `--compile` ELF executable, bundling
   and `bundledFile()`, the Rust `cdylib` ABI, `network`/`server`, cooperative
   `nativeThread*`, the AST optimizer and `--no-opt`/`LYNXER_OPT_REPORT`, the
   formatter and `--validate-executeable`. `--ast` is the only flag still

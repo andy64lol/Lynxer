@@ -3640,7 +3640,7 @@ Value builtinSoundStop(const std::vector<Value>& args, Environment&, int line,
 // The reference fails here: "audio backend does not support portable
 // pause/resume", because Arcade has no portable pause. The Rust module does, so
 // these two are a deliberate improvement over the reference. Recorded in
-// lynxer/docs/limitations.md.
+// docs/limitations.md.
 Value builtinSoundPause(const std::vector<Value>& args, Environment&, int line,
                         int column) {
     const std::int64_t handle =

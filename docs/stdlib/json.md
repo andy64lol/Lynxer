@@ -1,25 +1,61 @@
 # json
 
-JSON helpers built on Python's `json` module.
+JSON encoding, decoding, querying and mutation.
 
-Functions and behaviors:
+**Backend:** native — `stdlib/json.so`, built from the Rust crate `rust/json`
+over [`serde_json`](https://docs.rs/serde_json) with the `preserve_order`
+feature so object keys keep their insertion order. Output spacing and the
+pretty-print indents match the previous nlohmann-based backend byte for byte.
+**Import:** `import("json")` → `global.json.*`
 
-- `jsonValid(s)` → `true` if `s` is valid JSON, otherwise `false`.
-- `jsonParse(s)` → pretty-printed JSON (2-space indent) or `""` on parse error.
-- `jsonGet(s, key)` → string value for `key` or `""` if missing/wrong type.
-- `jsonGetInt(s, key)`, `jsonGetFloat(s, key)`, `jsonGetBool(s, key)` → typed getters returning `0`, `0.0`, or `false` on error.
-- `jsonKeys(s)` → top-level keys as a comma-separated string or `""` on error.
-- `jsonStringify(s)` → JSON-encode a Lynxer string value.
-- `jsonArray(lst)`, `jsonObject(lst)` → helpers to build JSON structures from Lynxer lists.
-- `jsonHas(s, key)` → `true` if `key` exists.
-- `jsonLength(s)` → number of top-level keys/elements or `0` on error.
-- `jsonSet(s, key, val)` → set a key to JSON value `val` (if `val` parses as JSON) or string `val` otherwise; returns updated JSON string.
-- `jsonDelete(s, key)` → returns updated JSON string with `key` removed.
-- `jsonMerge(a, b)` → merge JSON objects with `b` overwriting `a`.
-- `jsonSetInt(s, key, value)` → set integer value.
-- `jsonPretty(s)` → pretty-print with 4-space indent.
-- `jsonType(s, key)` → returns JSON type name for key (e.g. `string`, `int`, `array`, `object`, `null`).
-- `jsonBuild(pairs)` → build object from `key=value|key2=v2` string.
+Objects preserve key insertion order, and non-finite numbers are written as
+`null` so output is always valid JSON.
 
-Notes:
-- Many functions return safe defaults on error; validate before use when necessary.
+| Function | Signature | Returns |
+| --- | --- | --- |
+| `jsonValid` | `(str s)` | `true` if `s` parses as JSON |
+| `jsonParse` | `(str s)` | `s` re-indented with 2 spaces, or `""` on error |
+| `jsonPretty` | `(str s)` | `s` re-indented with 4 spaces, or `""` on error |
+| `jsonGet` | `(str s, str key)` | Value at `key` rendered as text, or `""` |
+| `jsonGetInt` | `(str s, str key)` | Integer at `key`, or `0` |
+| `jsonGetFloat` | `(str s, str key)` | Float at `key`, or `0.0` |
+| `jsonGetBool` | `(str s, str key)` | Truthiness of the value at `key` |
+| `jsonKeys` | `(str s)` | Top-level keys, comma-separated |
+| `jsonStringify` | `(str s)` | `s` quoted and escaped as a JSON string |
+| `jsonArray` | `(list lst)` | JSON array built from a Lynxer list |
+| `jsonObject` | `(list lst)` | JSON object from a flat key, value, key, value list |
+| `jsonHas` | `(str s, str key)` | `true` if the object has `key` (or the array contains it) |
+| `jsonLength` | `(str s)` | Key, element or character count; `0` on error |
+| `jsonSet` | `(str s, str key, str val)` | Updated JSON; `val` is parsed as JSON when possible |
+| `jsonSetInt` | `(str s, str key, int value)` | Updated JSON with an integer value |
+| `jsonDelete` | `(str s, str key)` | Updated JSON without `key` |
+| `jsonMerge` | `(str a, str b)` | Shallow merge; `b` wins |
+| `jsonType` | `(str s, str key)` | `string`, `int`, `float`, `bool`, `null`, `object`, `array` or `unknown` |
+| `jsonBuild` | `(str pairs)` | Object from `"k=v\|k=v"` (values are strings) |
+
+`jsonGet` renders arrays and objects as compact JSON text, and booleans as
+`true`/`false`.
+
+## Example
+
+```lynx
+global setup(){ import("json"); }
+
+global main(){
+    str doc = "{\"name\": \"Ada\", \"age\": 36}";
+    println(global.json.jsonGet(doc, "name"));
+    println(global.json.jsonSetInt(doc, "age", 37));
+    println(global.json.jsonParse("[1,2]"));
+}
+```
+
+---
+
+## See also
+
+- [stdlib-contracts.md](../stdlib-contracts.md) — the contract this module
+  implements, including the error sentinel family it uses.
+- [builtins.md](../builtins.md) — the functions the interpreter implements
+  itself.
+- [parity.md](../parity.md) — the parity scope with Python Lynxer.
+- [limitations.md](../limitations.md) — the full divergence register.

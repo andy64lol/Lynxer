@@ -1,32 +1,81 @@
 # VarGroups
 
-See [Language Reference — VarGroups](language.md#vargroups) for the full reference.
+A `vargroup` is an inline typed record: a set of named fields, each with a type
+and a default value, created from a `{ ... }` literal and read with dot access.
 
-A **vargroup** is a named, typed record with dot-accessed fields — similar to a C struct. Fields must be declared with explicit types and default values.
+## Literal
 
-Vargroups use `{...}` so they are visually distinct from lists and tuples. The older
-`[...]` form is still accepted for compatibility, but it is deprecated and should
-not be used in new code.
-
-```c
+```lynx
 vargroup player = {
-    str  username = "Andy",
-    int  coins    = 250,
-    bool online   = true,
-    vargroup stats = {
-        int   level = 5,
-        float speed = 3.5
-    }
+    str username = "Ada",
+    int coins = 250,
+    bool online = true
 };
-
-print(player.username);      // Andy
-print(player.stats.level);   // 5
-
-int player.coins = 500;           // dot-assignment (type must match)
-int player.stats.level = 10;      // nested dot-assignment
-
-addVarGroup(player, str title = "Warrior");   // add a new field
-removeVarGroup(player, title);               // remove a field
 ```
 
-For the complete reference including `const` fields, global vargroups, and `any`-typed fields, see [language.md](language.md#vargroups).
+- The literal is `{ type name = value, ... }`. Only the brace form exists —
+  `[ ... ]` is always a **list** literal, not a vargroup.
+- Fields are separated by commas. A single trailing `;` before the closing `}`
+  is also accepted.
+- Every field needs an explicit type and a default value.
+- A field may be `const`.
+
+## Access and assignment
+
+Read a field with dot access. **Assigning** to a field requires the field's
+type prefix:
+
+```lynx
+println(player.username);   // Ada
+int player.coins = 500;     // required form
+println(player.coins);      // 500
+```
+
+Omitting the prefix fails with
+`Vargroup and legacy class-field assignment requires an explicit type`, and a
+prefix that does not match the declared field type fails with
+`Field 'coins' of instance '' is declared as 'int' but received a 'str' value`.
+
+Assigning to a `const` field fails with
+`Field 'n' of instance '' is const and cannot be changed`.
+
+(This is stricter than [classes](classes.md), where an instance field may be
+written as `instance.field = value;`.)
+
+## Nesting
+
+Fields may themselves be vargroups, and nested fields are reached by repeating
+the path:
+
+```lynx
+vargroup nested = { int n = 1, vargroup sub = { str k = "x" } };
+println(nested.sub.k);   // x
+```
+
+## Full example
+
+```lynx
+global setup(){}
+
+global main(){
+    vargroup player = {
+        str username = "Ada",
+        int coins = 250,
+        bool online = true
+    };
+
+    println(player.username);   // Ada
+    println(player.online);     // true
+
+    int player.coins = 500;
+    println(player.coins);      // 500
+
+    vargroup nested = { int n = 1, vargroup sub = { str k = "x" } };
+    println(nested.sub.k);      // x
+}
+```
+
+## See also
+
+- [structs.md](structs.md) — positional constructor, no defaults, no methods.
+- [classes.md](classes.md) — fields plus methods.

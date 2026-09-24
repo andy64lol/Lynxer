@@ -62,7 +62,7 @@ see §12.
 > `examples/lowlevel_syscalls.lynx`) run in `make testLynxer`, which both
 > Lynxer CI workflows now run with `LYNXER_SKIP_DISPLAY=1` (the display and
 > audio tests are skipped on a runner). **Milestones 8 and 9 are complete**;
-> every entry in §10.1 is resolved; `lynxer/docs/parity.md` is the parity
+> every entry in §10.1 is resolved; `docs/parity.md` is the parity
 > scope. The repo-root `Makefile` is authoritative — the `lynxer/Makefile`
 > citations below are historical (see the build-system note).
 >
@@ -142,7 +142,7 @@ Python Lynxer** (`todo.md:3-5`, `lynxer/README.md:1-9`).
   interpreter itself.
 - The same `.lynx` language and the same `global setup(){}` / `global main(){}`
   entry points.
-- **There is no bytecode backend** (`lynxer/docs/limitations.md:24-28`).
+- **There is no bytecode backend** (`docs/limitations.md:24-28`).
   `--compile` writes a **standalone ELF executable** (the former `--bundle`)
   that embeds the program source, every transitively imported `.lynx` module
   source, and the bytes of every imported native `.so`. Native libraries are
@@ -176,7 +176,7 @@ Python Lynxer** (`todo.md:3-5`, `lynxer/README.md:1-9`).
 **The Python implementation is the behaviour reference, but it is not a runtime
 dependency, and its internals are not copied into Lynxer** (`todo.md:3-5`).
 Where Lynxer deliberately diverges, the divergence is supposed to be written
-down in `lynxer/docs/limitations.md`. That file is therefore the contract for
+down in `docs/limitations.md`. That file is therefore the contract for
 "what Lynxer does differently", and §9 shows it has drifted out of date.
 
 Consequence for the current work: when porting a Python stdlib module to a Rust
@@ -195,7 +195,7 @@ semantics — but the C++ `lynxer/stdlib/<name>.lynx` wrapper defines the
 | `clynxer/` | **Python implementation.** The frozen behaviour reference. Also holds the C++ extension sources (`cpp.cpp`, `bytecode_vm.cpp`) and its own `stdlib/`. |
 | `lynxer/` | **C++ implementation.** The whole active project. |
 | `docs/` | Documentation **for the Python Lynxer** (`language.md`, `bytecode.md`, `native-modules.md`, `stdlib/`, …). |
-| `lynxer/docs/` | Documentation **for Lynxer** (`language.md`, `native-module-abi.md`, `limitations.md`, `stdlib/`, …). |
+| `docs/` | Documentation **for Lynxer** (`language.md`, `native-module-abi.md`, `limitations.md`, `stdlib/`, …). |
 | `test/` | The 55 Python test fixtures `test*.lynx`, the runners `validate.py` / `remaining.py`, and `test/golden/` (the Stage-1 golden corpus + `manifest.json`). |
 | `scripts/` | `golden_corpus.py`, `benchmark_pipeline.py`, `select_pure_stdlib.py`, `testARM64Syscall.py`, `post-merge.sh`. |
 | `assets/` | Logo and images. |
@@ -235,7 +235,7 @@ Supporting directories:
 | `lynxer/stdlib/*.so` | Built native modules (24 total = 15 C++ + 9 Rust). |
 | `lynxer/rust/` | **Cargo workspace with 10 crates** (~6.5k lines of Rust): `abi`, `game`, `image`, `json`, `lua`, `network`, `server`, `sound`, `sqldb`, `tui`. |
 | `lynxer/examples/` | 55 `.lynx` fixtures, 25 of them `stdlib_*.lynx` with a sibling `.expected`. |
-| `lynxer/docs/` | Lynxer docs; `native-module-abi.md` is the ABI contract. |
+| `docs/` | Lynxer docs; `native-module-abi.md` is the ABI contract. |
 | `lynxer/build/rust/` | Cargo `--target-dir` output (intermediate). |
 | `lynxer/Makefile` | Builds the binary, the C++ modules, the Rust modules, and runs the suite. |
 
@@ -252,9 +252,9 @@ Supporting directories:
 
 | I want to… | Look at |
 | --- | --- |
-| add a new stdlib module | `lynxer/docs/README.md:91-110` (4-step recipe), then `rust/<name>/` |
-| understand the native ABI | `lynxer/docs/native-module-abi.md` |
-| know why Lynxer differs from Python | `lynxer/docs/limitations.md` |
+| add a new stdlib module | `docs/README.md:91-110` (4-step recipe), then `rust/<name>/` |
+| understand the native ABI | `docs/native-module-abi.md` |
+| know why Lynxer differs from Python | `docs/limitations.md` |
 | know what's done / not done | `todo.md` |
 | see the CLI surface | `lynxer --help`, `lynxer/shell.cpp` |
 | add a test | `lynxer/examples/stdlib_<name>.lynx` + `.expected` |
@@ -304,7 +304,7 @@ Three modules are **pure Lynxer** (no `.so`): `colorlib`, `text`, `typing`.
 
 ### 3.3 The native module ABI
 
-Defined in `lynxer/docs/native-module-abi.md`; implemented in `lynxer/ast.cpp`.
+Defined in `docs/native-module-abi.md`; implemented in `lynxer/ast.cpp`.
 
 **Entry point.** Every module exports exactly one C symbol:
 
@@ -514,10 +514,10 @@ version of this report got several of these wrong (§9.1).
 | **3 — runtime model** | **Complete** | Extended value model, lists/tuples, `inter"..."`, full scalar type set, `const`, structs/classes/enums/vargroups, pattern matching. |
 | **4 — operators, statements, errors** | **Complete** | Bitwise/word operators, `switch`, `try`/`catch`; `examples/milestone4.lynx`. |
 | **5 — functions and code blocks** | **Complete** | `func`/`global`/`local`, codeblocks, `exec(){{name}}`, `overrideMain`, class methods. |
-| **6 — module system and stdlib** | **Complete** | 27 modules, all with a wrapper, a backend, a doc page and a fixture. See §12 for what closed it out (`lynxer/docs/stdlib-contracts.md`, `lynxer/docs/extending.md`, failure-path fixtures, ABI policy). |
+| **6 — module system and stdlib** | **Complete** | 27 modules, all with a wrapper, a backend, a doc page and a fixture. See §12 for what closed it out (`docs/stdlib-contracts.md`, `docs/extending.md`, failure-path fixtures, ABI policy). |
 | **7 — native APIs** | **Complete for what is ported** | Built-ins with explicit unsupported-feature errors, native-memory family, Linux syscalls. Managed filesystem/process/async/sound/FFI/native-thread APIs remain (`todo.md:226-227`). |
 | **8 — compiler, bytecode, CLI surface** | **Complete** | The bytecode/`CLYXC`/VM stack was **removed**; `--compile` emits a standalone ELF with fully-working imports, multi-file and `--include` bundling. The post-pivot optimization item is now done as the AST optimizer (`lynxer/optimizer.cpp`). |
-| **9 — compatibility gates** | **Complete** | Baseline comparison (15/55 at 2026-09-13) plus the divergence-aware gates: lexical-divergence fixtures, `lynxer/scripts/check_golden.py` for the CLI/diagnostic text, low-level amd64/arm64 fixtures, `make testLynxer` in CI, and `lynxer/docs/parity.md` as the parity scope. |
+| **9 — compatibility gates** | **Complete** | Baseline comparison (15/55 at 2026-09-13) plus the divergence-aware gates: lexical-divergence fixtures, `lynxer/scripts/check_golden.py` for the CLI/diagnostic text, low-level amd64/arm64 fixtures, `make testLynxer` in CI, and `docs/parity.md` as the parity scope. |
 
 **Bottom line on the earlier report's claim:** the "compiler pivot" the old report
 described as missing is present. `--compile`/`--bundle` are implemented and
@@ -649,7 +649,7 @@ the outliers.
 
 **Fix.** All signatures normalised to `cdecl:{int64,float64,cstring}(...)`.
 
-**Documentation gap.** `lynxer/docs/native-module-abi.md:124-134` presents the
+**Documentation gap.** `docs/native-module-abi.md:124-134` presents the
 packed form as an *option* — "An API with long or variadic argument lists **can**
 use the wildcard parameter token `...`" — which reads as a convenience rather
 than a requirement. For a Rust `cdylib` behind `lynxer_abi` it is effectively
@@ -726,7 +726,7 @@ recorded exactly that: ten lines of `ERROR: invalid handle`.
 | --- | --- |
 | Python reference `clynxer/stdlib/sqldb.lynx` | a database **path** |
 | C++ wrapper `lynxer/stdlib/sqldb.lynx` | a database **path** |
-| `lynxer/docs/stdlib/sqldb.md` | a database **path** |
+| `docs/stdlib/sqldb.md` | a database **path** |
 | Fixture `examples/stdlib_sqldb.lynx` | a database **path** |
 | **Rust backend** `rust/sqldb/src/lib.rs` | an integer **handle index** |
 
@@ -778,7 +778,7 @@ its output is now **byte-identical to the Python reference** — verified by
 running the same fixture through both implementations and diffing.
 
 **Why this matters beyond `sqldb`.** `todo.md:186-195` marks `sqldb` complete and
-`lynxer/docs/README.md` listed it as a working module. The only thing standing
+`docs/README.md` listed it as a working module. The only thing standing
 between "documented as working" and "returns an error for every call" was a
 fixture that asserted the bug. This is the same failure mode as Finding B: the
 test suite compared the implementation against itself, not against the contract.
@@ -940,20 +940,20 @@ contradiction in `todo.md`.
 
 | # | Location | Problem | Status |
 | --- | --- | --- | --- |
-| 1 | `lynxer/docs/limitations.md:64-71` | Said "`tui` remains intentionally unimplemented because it needs a full-screen terminal library" and that the Python `sound` and `sqldb` modules were "out of scope". All three are implemented, built and tested. | **Fixed** — replaced with a "Modules that are not ported" section naming only `tkinter`/`tkinterPlus`/`turtle`, plus new `sound`, `sqldb` and `tui` divergence sections. |
-| 2 | `lynxer/docs/README.md:88` | "`tui` is not implemented yet." | **Fixed** — sentence removed. |
-| 3 | `lynxer/docs/README.md:55-80` | Module table listed 25 modules and omitted `sound`, `sqldb` and `tui`. | **Fixed** — three rows added; all 27 modules now have a row and a doc page. |
-| 4 | `lynxer/docs/README.md:72` | Listed `random` as "*pure* — deterministic LCG in Lynxer", but it is native (`stdlib/random.cpp`, `stdlib/random.so`, `importAs` at `stdlib/random.lynx:9`). | **Fixed** — now "native \| seeded linear congruential generator in C++". |
-| 5 | `lynxer/docs/README.md:21` | `make` documented as "wipe and re-fetch third-party headers, then build". There is no `third_party/` or CMake staging any more. | **Fixed** — now "build the interpreter and every native stdlib module". |
-| 6 | `lynxer/docs/README.md:26-31, 82-86, 106-112` | Repeated "the `game`, `json`, `network` and `server` modules are Rust crates"; there are **nine**. Also referenced a non-existent `stdlib/libs.mk`. | **Fixed** — all three places list the nine modules; the `libs.mk` sentence removed. |
-| 7 | `lynxer/docs/native-module-abi.md:8-11` | Same thing — named only four Rust backends. | **Fixed** — now lists all nine. |
+| 1 | `docs/limitations.md:64-71` | Said "`tui` remains intentionally unimplemented because it needs a full-screen terminal library" and that the Python `sound` and `sqldb` modules were "out of scope". All three are implemented, built and tested. | **Fixed** — replaced with a "Modules that are not ported" section naming only `tkinter`/`tkinterPlus`/`turtle`, plus new `sound`, `sqldb` and `tui` divergence sections. |
+| 2 | `docs/README.md:88` | "`tui` is not implemented yet." | **Fixed** — sentence removed. |
+| 3 | `docs/README.md:55-80` | Module table listed 25 modules and omitted `sound`, `sqldb` and `tui`. | **Fixed** — three rows added; all 27 modules now have a row and a doc page. |
+| 4 | `docs/README.md:72` | Listed `random` as "*pure* — deterministic LCG in Lynxer", but it is native (`stdlib/random.cpp`, `stdlib/random.so`, `importAs` at `stdlib/random.lynx:9`). | **Fixed** — now "native \| seeded linear congruential generator in C++". |
+| 5 | `docs/README.md:21` | `make` documented as "wipe and re-fetch third-party headers, then build". There is no `third_party/` or CMake staging any more. | **Fixed** — now "build the interpreter and every native stdlib module". |
+| 6 | `docs/README.md:26-31, 82-86, 106-112` | Repeated "the `game`, `json`, `network` and `server` modules are Rust crates"; there are **nine**. Also referenced a non-existent `stdlib/libs.mk`. | **Fixed** — all three places list the nine modules; the `libs.mk` sentence removed. |
+| 7 | `docs/native-module-abi.md:8-11` | Same thing — named only four Rust backends. | **Fixed** — now lists all nine. |
 | 8 | `todo.md:24-25`, `todo.md:294-299` vs `todo.md:186-195` | Internal contradiction: "Current boundary" listed `sound`, `sqldb`, `tui` as "not yet ported" while the milestone list marked all three `[x]`; and an earlier bullet still said "`tui` remains intentionally unsupported". | **Fixed** — the stale bullet now lists sound/sqldb/tui as Rust backends, and the boundary paragraph lists only `tkinter`/`tkinterPlus`/`turtle` as unported. |
-| 9 | `lynxer/docs/limitations.md:49` | "At most four arguments per native signature" contradicted the packed section, where a call carries at most 64 arguments. | **Fixed** — restated as "at most four arguments" for fixed shapes, "at most 64 arguments in total" for packed. |
-| 10 | `lynxer/docs/native-module-abi.md:124-134` | Presented the packed `...` form as **optional**. For a Rust `cdylib` using `lynxer_abi` it is mandatory, and using a fixed shape compiles cleanly and segfaults at call time. **This gap directly caused Finding B.** | **Fixed** — a callout now states the requirement and the failure mode, the "Adding a stdlib module" recipe in `docs/README.md` repeats it, and `limitations.md` points at it. |
-| 11 | `lynxer/docs/native-module-abi.md:124-150` | The packed section did not document that arguments are indexed **per type**, and wrongly implied "at most 64 of each" (the real limit is 64 arguments in total, `kMaxPackedArgs`). Without this, Finding F is easy to reproduce. | **Fixed** — added a per-type indexing subsection with a worked `save(handle, path, quality)` example and a warning that out-of-range reads yield `0`/`""` silently. |
+| 9 | `docs/limitations.md:49` | "At most four arguments per native signature" contradicted the packed section, where a call carries at most 64 arguments. | **Fixed** — restated as "at most four arguments" for fixed shapes, "at most 64 arguments in total" for packed. |
+| 10 | `docs/native-module-abi.md:124-134` | Presented the packed `...` form as **optional**. For a Rust `cdylib` using `lynxer_abi` it is mandatory, and using a fixed shape compiles cleanly and segfaults at call time. **This gap directly caused Finding B.** | **Fixed** — a callout now states the requirement and the failure mode, the "Adding a stdlib module" recipe in `docs/README.md` repeats it, and `limitations.md` points at it. |
+| 11 | `docs/native-module-abi.md:124-150` | The packed section did not document that arguments are indexed **per type**, and wrongly implied "at most 64 of each" (the real limit is 64 arguments in total, `kMaxPackedArgs`). Without this, Finding F is easy to reproduce. | **Fixed** — added a per-type indexing subsection with a worked `save(handle, path, quality)` example and a warning that out-of-range reads yield `0`/`""` silently. |
 
-**Files touched by the documentation pass:** `lynxer/docs/README.md`,
-`lynxer/docs/limitations.md`, `lynxer/docs/native-module-abi.md`,
+**Files touched by the documentation pass:** `docs/README.md`,
+`docs/limitations.md`, `docs/native-module-abi.md`,
 `lynxer/README.md`, `todo.md`.
 
 ### 9.1 Corrections to the previous version of this report
@@ -1011,7 +1011,7 @@ memory error messages.
   `lynxer/optimizer.cpp`.
 - ~~Lexer/parser/runtime comparison against Python, golden output tests, and
   running the full suite every milestone (Milestone 9).~~ **Done** — see the
-  Revision 10 note and `lynxer/docs/parity.md`.
+  Revision 10 note and `docs/parity.md`.
 
 ### 10.3 Known limitations intentionally kept
 
@@ -1019,7 +1019,7 @@ memory error messages.
 grammar) and report lookbehind, atomic groups and `\p{...}` as errors;
 `cli`'s Click/Typer builders are hard "unknown function" errors; `js` requires
 `node` and applies no timeout. The `tui` rendering/prompt/handle families are
-placeholders. Full list: `lynxer/docs/limitations.md`, which now documents the
+placeholders. Full list: `docs/limitations.md`, which now documents the
 `sound`, `sqldb` and `tui` divergences as well.
 
 ---
@@ -1080,10 +1080,10 @@ that closing them surfaced.
 | Item (`todo.md`) | Delivered |
 | --- | --- |
 | The `tkinter`/`tkinterPlus`/`turtle` decision | Recorded as decided: not ported. `tkinter` is replaced by a planned `graphics` module on Rust `iced`; `turtle` is dropped. Reflected in `limitations.md` and `todo.md`. |
-| Freeze the per-module contract | **`lynxer/docs/stdlib-contracts.md`** — the frozen contract at Lynxer 0.1.8. States the conventions that apply to all modules (operation naming, argument order and types, handles, string lifetime, error sentinels, callbacks, interruption, cleanup) and a per-module table of the dimensions that vary: identity model and cleanup owner for all 27 modules. Also defines what changing a contract requires. |
+| Freeze the per-module contract | **`docs/stdlib-contracts.md`** — the frozen contract at Lynxer 0.1.8. States the conventions that apply to all modules (operation naming, argument order and types, handles, string lifetime, error sentinels, callbacks, interruption, cleanup) and a per-module table of the dimensions that vary: identity model and cleanup owner for all 27 modules. Also defines what changing a contract requires. |
 | Rust-backend failure-path fixtures | `sound`, `image`, `lua` and `tui` fixtures rewritten; `sqldb` and `json` already covered. All hermetic Rust fixtures added to the compiled/bundled parity loop. |
 | ABI extension policy | `native-module-abi.md` § "Extending the ABI" — the five conventions a module must try first, and the four requirements for any additive change (C example, Rust example, compatibility coverage, documentation). No shape has been added since the packed form. |
-| `extending.md` | **`lynxer/docs/extending.md`** — choosing C++ or Rust, the wrapper/backend pair, the packed ABI and per-kind indexing, build wiring, what a fixture must cover, the contract check, and a completion checklist. |
+| `extending.md` | **`docs/extending.md`** — choosing C++ or Rust, the wrapper/backend pair, the packed ABI and per-kind indexing, build wiring, what a fixture must cover, the contract check, and a completion checklist. |
 
 ### 12.2 Four further defects found while closing it
 
@@ -1321,7 +1321,7 @@ failure to stop.
 
 `nativeThread*` (6), `ffi*` (6) and `async*` (15) — 27 built-ins. Each is
 blocked on a decision rather than on effort; the specific reasons are in
-`lynxer/docs/limitations.md` under "Built-in families that are not ported" and
+`docs/limitations.md` under "Built-in families that are not ported" and
 summarised in §13.4 above.
 
 **`nativeThread*` turned out to need two prerequisites, not one** (established in
@@ -1403,8 +1403,8 @@ Everything cited in this report, for fast navigation.
 | `lynxer/rust/image/src/lib.rs` | `image_from_base64` records the guessed format |
 | `lynxer/scripts/check_module_contracts.py` | **New.** Static wrapper/backend contract check, run by `make test`; see §8.9 |
 | `lynxer/Makefile` (`PYTHON`, `CONTRACT_CHECK`, `test` recipe, parity loop) | Wires the check in and extends the compiled-parity loop |
-| `lynxer/docs/stdlib-contracts.md` | **New.** Frozen per-module contracts (§12) |
-| `lynxer/docs/extending.md` | **New.** Module authoring guide (§12) |
+| `docs/stdlib-contracts.md` | **New.** Frozen per-module contracts (§12) |
+| `docs/extending.md` | **New.** Module authoring guide (§12) |
 | `lynxer/examples/assets/tone.wav` | **New.** 0.25 s 44.1 kHz PCM asset for the `sound` fixture |
 | `lynxer/examples/stdlib_sqldb.lynx`, `.expected` | Rewritten to a real round-trip against `.lynxer_scratch_sqldb.db`; byte-identical to the Python reference |
 | `lynxer/examples/stdlib_tui.lynx`, `.expected` | Corrected `tuiExists`/`tuiVersion` calls and `true`/`true` |
@@ -1414,10 +1414,10 @@ Everything cited in this report, for fast navigation.
 
 | Reference | What it is |
 | --- | --- |
-| `lynxer/docs/native-module-abi.md` | The ABI contract; `:82-115` fixed shapes, `:124-160` packed + the per-type indexing rule |
-| `lynxer/docs/limitations.md:24-33` | No bytecode backend; `--compile` embeds modules |
-| `lynxer/docs/limitations.md:61-72` | "Modules that are not ported" — now accurate |
-| `lynxer/docs/limitations.md` (`sound`, `sqldb`, `tui` sections) | Per-module divergences, added this revision |
+| `docs/native-module-abi.md` | The ABI contract; `:82-115` fixed shapes, `:124-160` packed + the per-type indexing rule |
+| `docs/limitations.md:24-33` | No bytecode backend; `--compile` embeds modules |
+| `docs/limitations.md:61-72` | "Modules that are not ported" — now accurate |
+| `docs/limitations.md` (`sound`, `sqldb`, `tui` sections) | Per-module divergences, added this revision |
 | `clynxer/stdlib/sound.lynx` | The Python reference semantics for `sound` |
 | `clynxer/stdlib/sqldb.lynx` | The Python reference semantics for `sqldb` — path-based, connect/close per call |
 | `clynxer/stdlib/tui.lynx:9,22` | `tuiExists` / `tuiVersion` — the canonical names |
@@ -1454,8 +1454,8 @@ Everything cited in this report, for fast navigation.
 | `todo.md:256` | Open: optimization pass |
 | `todo.md:260-267` | Milestone 9 baseline and open gates |
 | `todo.md:269-276` | The three known parity bugs |
-| `lynxer/docs/README.md` (module table) | All 27 modules, sound/sqldb/tui included |
-| `lynxer/docs/README.md` ("Adding a stdlib module") | 4-step recipe, including the packed-signature requirement |
+| `docs/README.md` (module table) | All 27 modules, sound/sqldb/tui included |
+| `docs/README.md` ("Adding a stdlib module") | 4-step recipe, including the packed-signature requirement |
 | `README.md:6-14` | What Lynxer is; Linux-only, amd64/aarch64 |
 | `lynxer/README.md:1-9` | What Lynxer is |
 

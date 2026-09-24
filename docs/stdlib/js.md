@@ -1,14 +1,40 @@
 # js
 
-Run JavaScript using Node.js as a subprocess. Requires `node` on `PATH`.
+Run JavaScript through a Node.js subprocess.
 
-Functions:
+**Backend:** native — `stdlib/js.so`, built from `stdlib/js.cpp`.
+**Import:** `import("js")` → `global.js.*`
 
-- `runJS(code)` → stdout of running `code` with Node or an error message.
-- `runJSFile(path)` → stdout of running the `.js` file or `""` on error.
-- `evalJS(expr)` → evaluates `expr` (wrapped with `console.log`) and returns output string.
-- `nodeVersion()` → Node version string (e.g. `v20.11.0`) or `""` if not available.
-- `nodeExists()` → `1` if node is available, otherwise `0`.
+Requires `node` on `PATH`; when it is missing, every runner returns
+`"Error: node not found on PATH"`. No timeout is applied, and `stderr` is
+inherited rather than captured.
 
-Notes:
-- Long-running or blocking JS may be terminated by the subprocess timeout (10–30s depending on call).
+| Function | Signature | Notes |
+| --- | --- | --- |
+| `runJS` | `(str code) -> str` | Writes the code to a temporary `.js` file, runs it, returns stdout |
+| `runJSFile` | `(str path) -> str` | Runs a `.js` file and returns stdout |
+| `evalJS` | `(str expr) -> str` | Wraps `expr` in `console.log(...)`, returns the trimmed result |
+| `nodeVersion` | `() -> str` | `node --version`, or `""` |
+| `nodeExists` | `() -> int` | `1` when `node` runs |
+
+## Example
+
+```lynx
+global setup(){ import("js"); }
+
+global main(){
+    println(global.js.evalJS("1 + 2"));
+    println(global.js.runJS("console.log('hello from js');"));
+}
+```
+
+---
+
+## See also
+
+- [stdlib-contracts.md](../stdlib-contracts.md) — the contract this module
+  implements, including the error sentinel family it uses.
+- [builtins.md](../builtins.md) — the functions the interpreter implements
+  itself.
+- [parity.md](../parity.md) — the parity scope with Python Lynxer.
+- [limitations.md](../limitations.md) — the full divergence register.

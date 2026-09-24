@@ -1,145 +1,103 @@
-# Module System
+# Modules
 
-> See also: [importAs](importAs.md) for importing a module under a custom alias.
+`import` and `importAs` load a module and bind its members under a namespace.
 
 ## Importing
 
-`import()` loads a `.lynx`, `.lynxc`, or registered native `.so` module and may
-only be called inside `setup()`. See [Native modules](native-modules.md) for
-the shared-library registration ABI.
+Imports are **statements**, so they run from a function body — `setup()` is the
+conventional place, but any function works:
 
-```c
-global setup(){
-    import("math");           // stdlib module
-    import("mylib");          // local file: mylib.lynx (or mylib.lynxc if present)
-    import("mylib.lynxc");    // explicit bytecode import
-}
-```
-
-**Search order:**
-1. Same directory as the running script — checks for a compiled `.lynxc` first, then `.lynx`
-2. The `stdlib/` folder bundled with Lynxer
-
-The `.lynx` extension is optional — `import("math")` and `import("math.lynx")` are equivalent.  
-You may also pass `.lynxc` explicitly: `import("mylib.lynxc")`.
-
-**Bytecode auto-detection:** when you call `import("name")` without an extension, Lynxer looks for `name.lynxc` in the same directory first.  If found, the bytecode is loaded instead of the source.  This lets you distribute compiled modules alongside (or in place of) source files transparently.
-
-**Idempotency:** Importing the same module twice is safe. The second call is ignored — the module is executed once and cached.
-
----
-
-## Calling module functions
-
-Use `global.<module>.<function>()`:
-
-```c
+```lynx
 global setup(){
     import("math");
-    import("typing");
-}
-
-global main(){
-    print(global.math.sqrt(144));          // 12
-    print(global.typing.toStr(99));        // 99
-    print(global.typing.isNumeric("3.5")); // true
-}
-```
-
----
-
-## Accessing module globals
-
-Constants and variables declared in a module's `setup()` are accessible via `global.<module>.<name>`:
-
-```c
-/// config.lynx ///
-global setup(){
-    const str HOST = "localhost";
-    const int PORT  = 8080;
-}
-global main(){}
-```
-
-```c
-global setup(){ import("config"); }
-global main(){
-    print(global.config.HOST); print("\n");   // localhost
-    print(global.config.PORT); print("\n");   // 8080
-}
-```
-
----
-
-## Writing your own module
-
-Any `.lynx` file is a valid module. Declare globals in `setup()`, implement
-`global` functions or file-wide `func` declarations in between, and include a
-no-op `global main(){}`:
-
-```c
-/// greetlib.lynx ///
-global setup(){
-    const str VERSION = "1.0";
-}
-
-global sayHi(){
-    print("Hi!\n");
-}
-
-global greet(str name){
-    print("Hello, "); print(name); print("!\n");
+    importAs("json", "j");
 }
 
 global main(){}
 ```
 
-```c
-global setup(){ import("greetlib"); }
+A native shared library is named with its `.so` suffix:
+
+```lynx
+import("mylib.so");          // loads ./mylib.so or an stdlib library
+```
+
+A bare `import("math");` at file scope is a syntax error
+(`expected top-level function declaration`).
+
+Both arguments must be **string literals**; an expression such as
+`importAs(path, "m")` is rejected with `expected module path string`. See
+[importAs.md](importAs.md) for the alias rules.
+
+## Search order
+
+1. The directory of the running program (for a compiled executable, the modules
+   embedded in its payload).
+2. `lynxer/stdlib/`, next to the interpreter.
+
+- `import("math")` and `import("math.lynx")` are equivalent.
+- A native library is named with its `.so` suffix; the stdlib `.lynx` wrappers
+  load their own `.so` (for example `math.lynx` imports `math.so` as
+  `nativeMath`).
+- Imports are idempotent: importing the same module twice is a no-op.
+- A module that cannot be found reports
+  `module 'nope' was not found` with the importing source location.
+
+There is **no** `.lynxc` bytecode import in Lynxer.
+
+## Calling module members
+
+Members are reached through the module namespace: `global.<module>.<name>(...)`
+(or `global.<alias>.<name>(...)` after `importAs`).
+
+```lynx
+global setup(){
+    import("math");
+    importAs("json", "j");
+}
 
 global main(){
-    print(global.greetlib.VERSION); print("\n");   // 1.0
-    global.greetlib.sayHi();
-    global.greetlib.greet("World");
+    println(global.math.max(2, 5));                    // 5
+    println(global.j.jsonGet("{\"a\": 1}", "a"));      // 1
 }
 ```
 
-File-wide funcs are exported through the module namespace just like other
-top-level functions. Their names are isolated per file, so a caller may define
-a same-named local file-wide func without a collision:
+Inside the module file itself, call its own functions by **bare name** — using
+`global.<name>(...)` inside a module resolves to a core builtin, not the
+module's own function (see [limitations.md](limitations.md)). A file-level
+`func` in a module is reached from the importer as `global.<module>.<name>`
+just like a `global` function.
 
-```c
-// greetlib.lynx
+## Writing a module
+
+Any `.lynx` file with `setup` and helpers is a module. Open it with a `////`
+docstring line so `--list-stdlibs` can describe it:
+
+```lynx
+////
+Small helper module.
+////
 global setup(){}
-func greeting(){ return "library"; }
+
+global twice(int n) -> int {
+    return n * 2;
+}
+
 global main(){}
 ```
 
-```c
-global setup(){ import("greetlib"); }
-func greeting(){ return "caller"; }
-global main(){
-    println(greeting());                 // caller
-    println(global.greetlib.greeting());  // library
-}
-```
+A native backend exports `lynxer_module_init_v1`; see
+[native-module-abi.md](native-module-abi.md).
 
----
+## Compiled programs
 
-## Available stdlib modules
+`--compile` embeds every transitively imported `.lynx` source and `.so` library
+into the executable, so a compiled program needs nothing from the build tree.
+Positional extra inputs and `--include` files are embedded too. See
+[CLI.md](CLI.md).
 
-| Module | Import | What it provides |
-|--------|--------|-----------------|
-| `math` | `import("math")` | C++ ABI-backed integer arithmetic and number theory |
-| `time` | `import("time")` | C++ chrono/time date and calendar helpers |
-| `shell` | `import("shell")` | C++ process and shell command helpers |
-| `sys` | `import("sys")` | C++ runtime and operating-system information |
-| `colorlib` | `import("colorlib")` | ANSI terminal color and text styles |
-| `typing` | `import("typing")` | Package-free value conversions and integer checks |
-| `random` | `import("random")` | Package-free deterministic pseudo-random helpers |
-| `text` | `import("text")` | Package-free basic string operations |
+## See also
 
-The Lynxer bundle intentionally includes only modules that can run without
-Python, third-party packages, or an external runtime. The remaining Lynxer
-stdlib modules are not silently advertised as available; add them as native
-ABI modules when their platform dependencies are acceptable.
+- [importAs.md](importAs.md)
+- [native-module-abi.md](native-module-abi.md)
+- [builtins.md](builtins.md) — the builtins available without an import.

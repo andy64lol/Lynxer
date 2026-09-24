@@ -3,7 +3,7 @@
 //
 // The Python reference also exposes Click/Typer command builders; those wrap
 // Python packages and have no Lynxer equivalent, so they are intentionally
-// absent (see lynxer/docs/limitations.md).
+// absent (see docs/limitations.md).
 
 #include "native_json.hpp"
 

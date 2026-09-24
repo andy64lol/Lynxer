@@ -45,6 +45,6 @@ This document compares the **Python `clynxer`** and **C++ `lynxer`** implementat
 ---
 
 ### References
-- [lynxer Documentation](lynxer/docs/README.md)
-- [lynxer Limitations](lynxer/docs/limitations.md)
-- [Parity scope](lynxer/docs/parity.md)
+- [lynxer Documentation](../../../docs/README.md)
+- [lynxer Limitations](../../../docs/limitations.md)
+- [Parity scope](../../../docs/parity.md)

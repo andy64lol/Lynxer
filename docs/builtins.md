@@ -1,561 +1,400 @@
-# Built-in Functions
-
-Built-in functions are always available — no `import()` needed. Call them directly by name, or via `global.<name>(...)`.
-
-The complete implementation and registry for Lynxer language built-ins lives in
-`clynxer/builtins.py`. The interpreter imports and registers that module after
-its runtime value types have been defined.
-
----
-
-## I/O
-
-### `print(v, ...)`
-
-Prints one or more values with **no automatic newline**. Multiple arguments are concatenated.
-
-```c
-print("Hello, "); print("World\n");  // Hello, World
-print("x=", 10, " y=", 20, "\n");   // x=10 y=20
-```
-
-### `println(v, ...)`
-
-Prints one or more values followed by a newline. Equivalent to `print(v, "\n")`.
-
-```c
-println("Hello, World");   // Hello, World\n
-println(42);               // 42\n
-println(true);             // true\n
-println("x=", 10);        // x=10\n
-```
-
-### `input(prompt?)`
-
-Prints the optional prompt, reads a line from stdin, and returns it as `str`.
-
-```c
-str name = input("Name: ");
-str raw  = input();   // no prompt
-```
-
-### `inputln(prompt?)`
-
-Like `input()` but appends a newline to the returned string.
-
-### String interpolation: `inter"..."`
-
-`inter` is a **reserved keyword**. Written directly in front of a string
-literal — with no comma — it turns the literal into an interpolated string:
-every `{...}` inside it is replaced by the value of that variable or path.
-
-```c
-str name = "Ada";
-int  age = 36;
-
-println(inter"Hello, {name}!");      // Hello, Ada!
-println(inter"{name} is {age}");     // Ada is 36
-print(inter"{age + 4}\n");           // 40
-str answer = input(inter"Name for {name}: ");
-```
-
-Rules:
-
-- `inter"..."` is only accepted as an argument of `print`, `println`, `input`,
-  and `inputln`. Anywhere else — including `str s = inter"...";` — is a
-  syntax error.
-- A `{...}` body may be a variable, a dotted path such as `player.stats.level`,
-  or any single expression (`{age + 4}`, `{items[0]}`). It is evaluated in the
-  surrounding scope and converted with `strOf`-style stringification, so an
-  undefined name is the usual `'name' is not defined` runtime error.
-- There may be no comma between `inter` and the string: `print(inter"hi")`,
-  never `print(inter, "hi")`.
-- Ordinary strings are never interpolated: `println("{name}")` prints
-  `{name}`.
-- Escape sequences work as in any string. Write `\{` and `\}` for a literal
-  brace, and `\\` for a literal backslash.
-- Empty `{}`, a missing `}`, and a stray `}` are syntax errors, as is an
-  `inter` that is not followed by a string literal.
-
-The formatter keeps `inter"..."` glued together, and interpolated strings
-compile to bytecode unchanged, so source and `.lynxc` runs agree.
-
----
-
-## Native memory
-
-Lynxer includes unmanaged native-memory built-ins backed by the bundled C++
-extension. No import is required. Native addresses are integer values and must
-be freed exactly once.
-
-```c
-int address = memoryAllocate(16);
-memorySet(address, 0, 16);
-memoryWriteInt32(address, 0, 42);
-println(memoryReadInt32(address, 0));
-memoryFree(address);
-```
-
-### Named Linux syscall built-ins
-
-The named `syscall*` built-ins are documented in the complete
-[Linux syscall reference](syscalls.md). They are always available as language
-built-ins, are dispatched through `ctypes` with syscall numbers from the host
-architecture's Linux syscall table, and are available at runtime on Linux only.
-
-### Process API
-
-The process built-ins provide managed subprocesses, pipes, environment
-overrides, signals, timeouts, and exit-status inspection. See the complete
-[Process API reference](process.md).
-
-### Filesystem and networking APIs
-
-The managed filesystem functions are documented in the
-[Filesystem API reference](filesystem.md), and managed TCP, UDP, and Unix
-sockets are documented in the [Networking API reference](networking.md).
-
----
-
-## Complete builtin index
-
-The following is the complete public builtin registry, including the named
-Linux syscall wrappers. This index is generated from `clynxer/builtins.py`; the
-individual API references above and the linked subsystem references describe
-the argument and return-value contracts.
-
-```text
-print println input inputln rawPy rawPyx strOf intOf floatOf sentinel object returnType
-returnLength seqFromTo range cleanRawPyxCache listJsonArray listJsonObject splitStr
-listFlatten listUnique listPush listPop listGet listSet listSlice listContains contains
-listJoin listIndex listRemove anyOf allOf sumOf sortList reverseList listMin listMax
-listFirst listLast listHead listTail listCount listExtend listInsert listClear listRepeat
-listAvg listZip asyncRun asyncGather asyncPollCreate asyncPollRegister asyncPollModify
-asyncPollRemove asyncPollWait asyncPollDispatch asyncPollClose asyncTimerCreate
-asyncTimerCancel asyncWakeupCreate asyncWakeupSignal asyncWakeupClose sleep asyncSleep
-foreverDelay suppressForeverWarning suppressDeprecationWarning tupleCreate tupleGet tupleLen
-tupleContains tupleIndex tupleSlice tupleToList listToTuple tupleConcat tupleCount
-tupleFirst tupleLast tupleJsonArray tupleReverse tupleSort tupleSortDesc tupleMin tupleMax
-tupleSum tupleAny tupleAll tupleUnique tupleMean tupleFlatten tupleZip tupleJoin assert
-overrideMain unshare varTransfer varTransferMutate varBorrow varBorrowMutate varSwapAll
-varSwapVal varEndBorrow borrowing beingBorrowed soundLoad soundPlay soundLoop soundStop
-soundPause soundResume soundSetVolume soundIsPlaying soundRelease getAddress
-modifyAddressValue getAddressValue functionAddress nativeFunctionAddress ffiLoadLibrary
-ffiLookup ffiCloseLibrary ffiCall ffiCallback ffiFreeCallback nativeModuleLoad
-nativeModuleName nativeModuleFunction nativeModuleConstant nativeModuleType
-nativeModuleError nativeModuleDependencies nativeModuleClose nativeThreadStart
-nativeThreadJoin nativeThreadJoinAll nativeThreadIsAlive nativeThreadStatus nativeThreadDetach nativeMutexCreate
-nativeMutexLock nativeMutexTryLock nativeMutexUnlock nativeMutexClose nativeConditionCreate
-nativeConditionWait nativeConditionNotify nativeConditionNotifyAll nativeConditionClose
-nativeSemaphoreCreate nativeSemaphoreWait nativeSemaphoreTryWait nativeSemaphorePost
-nativeSemaphoreClose nativeHandleAllocate nativeHandleAddress nativeHandleFree
-nativeHandleIsAlive nativeCall processSpawn processWrite processCloseInput processRead
-processPoll processWait processSendSignal processClose filesystemOpen filesystemRead
-filesystemWrite filesystemClose filesystemStat filesystemList filesystemMkdir
-filesystemRemove filesystemRename filesystemLink filesystemReadLink filesystemChmod
-networkingOpen networkingBind networkingListen networkingAccept networkingConnect
-networkingSend networkingReceive networkingClose networkingShutdown networkingBlocking
-networkingOption networkingResolve networkingAddress syscallGetCurrentDirectory
-syscallChangeDirectory syscallControlInputOutput syscallRead syscallWrite
-syscallPositionedRead64 syscallPositionedWrite64 syscallOpenAt syscallClose
-syscallReadVector syscallWriteVector syscallSeekFile syscallGetFileStatus
-syscallGetFileStatusAt syscallTruncateFile syscallCheckFileAccessAt syscallSynchronizeFile
-syscallSynchronizeFileData syscallDuplicateFileDescriptor syscallDuplicateFileDescriptorAt
-syscallCreatePipe syscallControlFileDescriptor syscallGetDirectoryEntries
-syscallReadSymbolicLink syscallCreateDirectoryAt syscallRemoveFileAt syscallRenameFileAt
-syscallCreateHardLinkAt syscallCreateSymbolicLinkAt syscallChangeFilePermissions
-syscallChangeFileDescriptorPermissions syscallChangeFileOwner
-syscallChangeFileDescriptorOwner syscallMemoryMap syscallMemoryUnmap syscallMemoryProtect
-syscallMemoryAdvise syscallMemoryRemap syscallAdjustProgramBreak syscallExecuteProgram
-syscallExecuteProgramAt syscallExitProcess syscallExitAllThreads syscallWaitForProcess
-syscallGetProcessId syscallGetParentProcessId syscallSendSignal syscallCreateThread
-syscallGetThreadId syscallWaitOnMemory syscallSetThreadIdAddress syscallSetRobustThreadList
-syscallGetRobustThreadList syscallYieldProcessor syscallGetClockTime
-syscallGetClockResolution syscallSleep syscallGetRandomBytes syscallCreateSocket
-syscallCreateSocketPair syscallBindSocket syscallListenSocket syscallAcceptConnection
-syscallConnectSocket syscallSendData syscallReceiveData syscallSendMessage
-syscallReceiveMessage syscallShutdownSocket syscallGetSocketAddress syscallGetPeerAddress
-syscallSetSocketOption syscallGetSocketOption syscallPollFileDescriptors
-syscallCreateEventPoll syscallControlEventPoll syscallWaitForEvents
-syscallInitializeInodeNotifications syscallAddInodeNotificationWatch
-syscallRemoveInodeNotificationWatch syscallGetSystemInformation syscallGetUnixSystemName
-syscallGetExtendedFileStatus syscallGetResourceUsage syscallGetResourceLimit
-syscallSetResourceLimit syscallControlProcess atomicLoad atomicStore atomicAdd volatileRead
-volatileWrite memoryProtect memoryTypeSize memoryTypeAlignment memoryReadEndian
-memoryWriteEndian memoryBlockAllocate memoryBlockView memoryBlockGet memoryBlockSet
-memoryBlockLength memoryArrayAllocate memoryArrayView memoryArrayGet memoryArraySet
-memoryArrayLength memoryViewGet memoryViewSet memoryViewLength memoryStructSize
-memoryStructFieldOffset memoryStructFieldSize memoryStructAlignment memoryStructFieldCount
-memoryStructFieldType memoryStructAllocate memoryStructGet memoryStructSet nativeStructSize
-nativeStructAllocate nativeStructFieldOffset nativeStructFieldSize nativeTypeAlignment
-nativeStructAlignment nativeStructFieldCount nativeStructFieldType nativeStructGet
-nativeStructSet memoryAllocate memoryAllocateZeroed memoryReallocate memoryFree memorySet
-memoryCopy memoryReadInt32 memoryWriteInt32 memoryReadInt8 memoryWriteInt8 memoryReadInt16
-memoryWriteInt16 memoryReadInt64 memoryWriteInt64 memoryReadUInt8 memoryWriteUInt8
-memoryReadUInt16 memoryWriteUInt16 memoryReadUInt32 memoryWriteUInt32 memoryReadUInt64
-memoryWriteUInt64 memoryReadFloat32 memoryWriteFloat32 memoryReadFloat64 memoryWriteFloat64
-memoryReadByte memoryWriteByte sizeOf
-```
-
-The allocator is also available as `memoryAllocate`, `memoryAllocateZeroed`,
-`memoryReallocate`, `memoryFree`, `memorySet`, and `memoryCopy`. Typed
-read/write functions are available for signed and unsigned 8/16/32/64-bit
-integers, plus Float32 and Float64. `sizeOf(typeName)` returns the size of a
-supported native C type.
-
-The native extension does not perform pointer ownership or bounds tracking.
-Callers must release each allocation once with `memoryFree` and must not use
-pointers after `memoryFree` or `memoryReallocate`.
-
----
-
-## Assertions
-
-### `assert(condition[, message])`
-
-Checks a boolean or numeric condition. A zero or `false` condition raises a
-runtime error; a non-zero condition succeeds. The optional message is shown
-as the runtime error details.
-
-```c
-assert(true);
-assert(2 + 2 == 4, "arithmetic is broken");
-```
-
-Assertions are always available and do not require importing the `debug`
-module. The debug module also provides more specialized helpers such as
-`global.debug.assertEq()` and `global.debug.assertContains()`.
-
----
-
-## Type conversion
-
-### `strOf(v)`
-
-Converts any value to its string representation.
-
-```c
-str s = strOf(99);      // "99"
-str f = strOf(3.14);    // "3.14"
-str b = strOf(true);    // "true"
-str l = strOf(range(3)); // "[0, 1, 2]"
-```
-
-### `intOf(v)`
-
-Parses a value as an integer. Raises a runtime error on failure (use `try/catch` to handle).
-
-```c
-int n = intOf("42");    // 42
-int m = intOf(3.9);     // 3
-```
-
-### `floatOf(v)`
-
-Parses a value as a float. Raises a runtime error on failure.
-
-```c
-float f = floatOf("1.5");    // 1.5
-```
-
----
-
-## Introspection
-
-### `returnType(v)`
-
-Returns the type name of `v` as a `str`.
-
-| Value | Result |
-|-------|--------|
-| `42` | `"int"` |
-| `3.14` | `"float"` |
-| `"hi"` | `"str"` |
-| `true` / `false` | `"bool"` |
-| `none` | `"none"` |
-| `sentinel("MISSING")` | `"sentinel"` |
-| `object()` | `"object"` |
-| list | `"list"` |
-| tuple | `"tuple"` |
-| vargroup | `"vargroup"` |
-| a function | `"function"` |
-
-```c
-print(returnType(42));            // int
-print(returnType("hello"));      // str
-print(returnType(true));         // bool
-print(returnType(range(3)));     // list
-
-vargroup cfg = {str host = "localhost", int port = 8080};
-print(returnType(cfg));           // vargroup
-```
-
-### `sentinel([name])` → `sentinel`
-
-Creates a unique marker value. Pass one string to give it a readable display
-name; omit it for an unnamed sentinel. Every call creates a distinct value,
-even when the names match. Sentinel values compare by identity and are useful
-for distinguishing “missing” from `none`.
-
-```c
-sentinel missing = sentinel("MISSING");
-any unnamed = sentinel();
-
-print(strOf(missing));            // MISSING
-print(returnType(missing));       // sentinel
-assert(missing == missing);
-assert(missing != sentinel("MISSING"));
-```
-
-Sentinel variables retain identity when read or assigned. Two separately
-created sentinels are different even when they have the same display name.
-
-### `object()` → `object`
-
-Creates a unique unnamed opaque value. It accepts no arguments and cannot
-define a display name. Object values compare by identity and are useful as
-private marker values.
-
-```c
-any marker = object();
-any other = object();
-
-print(strOf(marker));             // <object>
-print(returnType(marker));        // object
-assert(marker == marker);
-assert(marker != other);
-```
-
-### `returnLength(v)`
-
-Returns the number of characters in a `str`, or the number of elements in a `list` or `tuple`.
-
-```c
-print(returnLength("hello"));     // 5
-print(returnLength(range(5)));    // 5
-```
-
----
+# Built-in functions
+
+Functions implemented directly by the Lynxer interpreter. They can be called
+by their bare name or with a `global.` prefix (`print(...)` and
+`global.print(...)` are the same call).
+
+Inside a module, `global.name(...)` always resolves to a *core builtin*, never to
+the module's own function of that name — see
+[limitations](limitations.md#language-and-toolchain).
+
+Names that Lynxer recognises but does not implement fail with a source-located
+`<name>() is not supported in Lynxer yet`. On a Linux/POSIX build the
+**supported** families include the `ffi*`, `async*`, `sound*`, `filesystem*`,
+`process*`, `networking*`, `nativeThread*` and `syscall*` builtins; the
+unsupported set is listed under [Unsupported names](#unsupported-names) and is
+defined by `unsupportedTable()` in `lynxer/builtins.cpp`. On a build without
+POSIX support, the `filesystem*`/`process*`/`networking*`/`sound*` families join
+the unsupported set. The `syscall*` family is routed to a generic syscall
+dispatcher rather than to a per-name handler.
+
+## Input, output and conversion
+
+| Builtin | Notes |
+| --- | --- |
+| `print(value...)` | Writes each argument with no separator |
+| `println(value...)` | Like `print` plus a trailing newline |
+| `input([prompt])` | Prints the prompt, reads one line from stdin |
+| `inputln([prompt])` | As `input`, but keeps the newline |
+| `strOf(value)` | Value rendered as text |
+| `intOf(value)` | Value converted to an integer |
+| `floatOf(value)` | Value converted to a float |
+| `sentinel([name])` | Creates a unique sentinel value |
+| `object()` | Creates an empty object value |
+| `returnType(value)` | Type name, e.g. `int`, `float`, `str`, `bool`, `list`, `tuple`, `none` |
+| `returnLength(value)` | Length of a `str`, `list` or `tuple` |
+
+## Strings
+
+| Builtin | Notes |
+| --- | --- |
+| `charAt(text, index)` | One-character string at `index` |
+| `substring(text, start, end)` | Half-open slice `[start, end)` |
+| `trim(text)` | Removes leading and trailing whitespace |
+| `upper(text)` / `lower(text)` | Case conversion |
+| `replace(text, old, new)` | Replaces every occurrence |
+| `splitStr(text, separator)` | Splits into a list |
+| `contains(container, value)` | Membership test for a **list or tuple** only |
 
 ## Sequences
 
-### `range(stop)` / `range(start, stop)` / `range(start, stop, step)`
+| Builtin | Notes |
+| --- | --- |
+| `range(stop)` / `range(start, stop)` / `range(start, stop, step)` | Integer sequence |
+| `seqFromTo(start, stop, step)` | Integer sequence, `stop` exclusive |
+| `listJsonArray(list)` | Encodes a list as a JSON array string |
+| `listJsonObject(flatList)` | Encodes alternating key/value pairs as a JSON object |
+| `listFlatten(list)` / `listUnique(list)` | Flatten / de-duplicate, returning a new list |
+| `listPush(list, value)` | Appends, **returning a new list** — the argument is unchanged |
+| `listPop(list)` | Returns the **last element**; the list is unchanged |
+| `listGet(list, index)` | Element access (negative indices count from the end) |
+| `listSet(list, index, value)` | Returns a **new list** with the element replaced |
+| `listSlice(list, start, stop)` | Half-open slice |
+| `listContains(list, value)` | Membership |
+| `listJoin(list, separator)` | Joins elements into a string |
+| `listIndex(list, value)` | Index of a value, or `-1` |
+| `listRemove(list, index)` | Returns a new list without that element |
+| `anyOf(list)` / `allOf(list)` | Truthiness reductions |
+| `sumOf(list)` | Numeric sum |
+| `sortList(list[, reverse])` | Returns a **sorted copy**; the argument is unchanged |
+| `reverseList(list)` | Returns a reversed copy |
+| `listMin(list)` / `listMax(list)` | Extremes |
+| `listFirst(list)` / `listLast(list)` | Ends |
+| `listHead(list, count)` / `listTail(list, count)` | Prefix / suffix |
+| `listCount(list, value)` | Number of occurrences |
+| `listExtend(list, other)` | Returns a new list with `other` appended |
+| `listInsert(list, index, value)` | Returns a new list with `value` inserted |
+| `listClear(list)` | Returns an empty list |
+| `listRepeat(value, count)` | List of `count` copies |
+| `listAvg(list)` | Arithmetic mean |
+| `listZip(first, second)` | Pairs elements |
 
-Returns a `list` of integers, mirroring Python's `range()`:
-- `start` is **included**, `stop` is **excluded**, `step` defaults to `1`.
-- `step` must not be `0`.
+## Tuples
 
-```c
-any r = range(5);            // [0, 1, 2, 3, 4]
-any r2 = range(2, 8);        // [2, 3, 4, 5, 6, 7]
-any r3 = range(0, 10, 2);    // [0, 2, 4, 6, 8]
-any r4 = range(10, 0, -1);   // [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
-any empty = range(5, 5);     // []
-```
+`tupleCreate(...)`, `tupleGet(t, i)`, `tupleLen(t)`, `tupleContains(t, v)`,
+`tupleIndex(t, v)`, `tupleSlice(t, start, stop)`, `tupleToList(t)`,
+`listToTuple(list)`, `tupleConcat(a, b)`, `tupleCount(t, v)`, `tupleFirst(t)`,
+`tupleLast(t)`, `tupleJsonArray(t)`, `tupleReverse(t)`, `tupleSort(t)`,
+`tupleSortDesc(t)`, `tupleMin(t)`, `tupleMax(t)`, `tupleSum(t)`, `tupleAny(t)`,
+`tupleAll(t)`, `tupleUnique(t)`, `tupleMean(t)`, `tupleFlatten(t)`,
+`tupleZip(a, b)`, `tupleJoin(t, separator)`.
 
-### `seqFromTo(start, stop, step)`
+## Control, runtime and assertions
 
-Legacy alias similar to `range()` but always requires all 3 arguments.
+| Builtin | Notes |
+| --- | --- |
+| `assert(condition[, message])` | Fails with the message when the condition is false |
+| `sleep(seconds)` | Suspends the current process |
+| `foreverDelay(seconds)` | Sets the `forever` loop delay (only in `setup()`) |
+| `suppressForeverWarning()` | Silences the empty-`forever` warning (only in `setup()`) |
+| `suppressDeprecationWarning()` | Silences legacy-syntax warnings (only in `setup()`) |
+| `overrideMain(name)` | Runs `name` instead of `main` (only in `setup()`) |
 
-```c
-any nums = seqFromTo(0, 10, 2);  // [0, 2, 4, 6, 8]
-```
+## Bundled files
 
----
+Available to programs run from a compiled executable; a normal interpreted run
+returns empty results.
 
-## List operations
+| Builtin | Notes |
+| --- | --- |
+| `bundledFile(name)` | Filesystem path of a file included with `--include`, or `""` when the program is not compiled or does not carry that file |
+| `bundledFiles()` | List of the bare names of every included file |
 
-All list operations work with values produced by `range()`, `seqFromTo()`, or built up with `listPush()`. Declare list variables with the `list` keyword.
+Included files are written to a private temporary directory when the executable
+starts, and that directory is removed when the process exits.
 
-> **Value semantics:** `listPush`, `listSet`, and `listRemove` return a **new** list. Always reassign:
-> ```c
-> lst = listPush(lst, val);   // ✓ correct
-> listPush(lst, val);          // ✗ original unchanged
-> ```
+```lynx
+global setup(){ import("fileIO"); }
 
-### `listPush(lst, val)` → `list`
-Return new list with `val` appended.
-
-### `listPop(lst)` → value
-Return the last element (does not modify the original).
-
-### `listGet(lst, idx)` → value
-Return element at `idx`. Negative indices count from the end (`-1` = last).
-
-### `listSet(lst, idx, val)` → `list`
-Return new list with element at `idx` replaced.
-
-### `listRemove(lst, idx)` → `list`
-Return new list with element at `idx` removed.
-
-### `listSlice(lst, start, stop)` → `list`
-Return new list with elements from `start` up to (not including) `stop`.
-
-### `listContains(lst, val)` → `bool`
-Return `true` if `val` is in `lst`.
-
-### `contains(sequence, val)` → `bool`
-Return `true` if `val` is in a `list` or `tuple`. This is the common membership
-built-in for both sequence types.
-
-```c
-list numbers = [1, 2, 3];
-tuple point = [10, 20];
-
-bool hasTwo = contains(numbers, 2);  // true
-bool has20 = contains(point, 20);    // true
-bool hasNine = contains(point, 9);   // false
-```
-
-### `listJoin(lst, sep)` → `str`
-Concatenate all elements as strings, separated by `sep`.
-
-### `listIndex(lst, val)` → `int`
-Return the index of the first match, or `-1` if not found.
-
-### `anyOf(lst)` → `bool`
-Return `true` if at least one element is truthy.
-
-### `allOf(lst)` → `bool`
-Return `true` if every element is truthy.
-
-### `sumOf(lst)` → number
-Return the sum of all numeric elements.
-
-### `sortList(lst)` / `sortList(lst, reverse)` → `list`
-Return new sorted list. Pass `true` as second argument to sort descending.
-
-### `reverseList(lst)` → `list`
-Return new list with elements in reverse order.
-
-### `listMin(lst)` → value
-Return the smallest element.
-
-### `listMax(lst)` → value
-Return the largest element.
-
-### `splitStr(s, sep)` → `list`
-Split string `s` by separator `sep` and return a list of strings.
-
-```c
-any parts = splitStr("a,b,c", ",");  // [a, b, c]
-```
-
-### `listFlatten(lst)` → `list`
-Flatten one level of nested lists.
-
-### `listUnique(lst)` → `list`
-Return new list with duplicate values removed (order preserved).
-
-### `listJsonArray(lst)` → `str`
-Serialize a list to a JSON array string.
-
-### `listJsonObject(lst)` → `str`
-Build a JSON object string from a flat alternating key/value list. The list must have an even number of elements.
-
----
-
-## Repeat loop
-
-### `iterate(count) { body }`
-
-Runs `body` exactly `count` times. `count` can be any integer expression. `break`, `continue`, and `restart` work as normal.
-
-```c
-iterate(3) {
-    println("hello");
-}
-
-int n = 5;
-iterate(n) {
-    println("again");
-}
-```
-
----
-
-## Forever loop
-
-### `forever() { body }`
-
-Runs `body` repeatedly until it executes `break;`. The loop waits `0.02`
-seconds between iterations by default. Configure the delay once from
-`global setup()` with `foreverDelay(seconds)`.
-
-```c
-global setup() {
-    foreverDelay(0.05);
-}
-
-global main() {
-    int count = 0;
-    forever() {
-        count = count + 1;
-        println(count); 
-        if(count == 3) { break; }
+global main(){
+    list files = bundledFiles();
+    println(files);                 // [] in an interpreted run
+    if (returnLength(files) > 0) {
+        println(global.fileIO.readFile(bundledFile("message.txt")));
     }
 }
 ```
 
-Lynxer warns when a `forever()` body contains no `break;`, because it may run
-until the process is stopped. If the loop is intentionally unbounded, suppress
-that warning from `setup()`:
+## Native memory
 
-```c
-global setup() {
-    suppressForeverWarning();
-}
-```
+| Builtin | Notes |
+| --- | --- |
+| `memoryAllocate(size)` | Allocates raw bytes |
+| `memoryAllocateZeroed(count, size)` | Allocates zeroed elements |
+| `memoryReallocate(address, size)` | Resizes an allocation |
+| `memoryFree(address)` | Releases an allocation |
+| `memorySet(address, value, size)` | Fills memory |
+| `memoryCopy(destination, source, size)` | Copies memory |
+| `memoryReadByte(address, offset)` / `memoryWriteByte(address, offset, value)` | 1-byte unsigned access |
+| `memoryReadInt8` / `memoryWriteInt8`, `memoryReadUInt8` / `memoryWriteUInt8` | 8-bit access |
+| `memoryReadInt16` / `memoryWriteInt16`, `memoryReadUInt16` / `memoryWriteUInt16` | 16-bit access |
+| `memoryReadInt32` / `memoryWriteInt32`, `memoryReadUInt32` / `memoryWriteUInt32` | 32-bit access |
+| `memoryReadInt64` / `memoryWriteInt64`, `memoryReadUInt64` / `memoryWriteUInt64` | 64-bit access |
+| `memoryReadFloat32` / `memoryWriteFloat32`, `memoryReadFloat64` / `memoryWriteFloat64` | floating-point access |
+| `memoryReadEndian(address, offset, type, order)` | Read with explicit byte order (`little`/`le`, `big`/`be`). `type` is a **lowercase string**: `byte`, `int8`…`uint64`, `float32`, `float64` |
+| `memoryWriteEndian(address, offset, type, order, value)` | Write with explicit byte order |
+| `memoryTypeSize(type)` / `memoryTypeAlignment(type)` | Layout queries for a lowercase type string |
+| `sizeOf(typeName)` | Size of a C type name (`char`, `int`, `long`, `void*`, `size_t`, `int64`, …) |
 
-`foreverDelay()` and `suppressForeverWarning()` are setup-only functions.
-`break`, `continue`, and `restart` work inside `forever()` like they do in
-the other loop forms.
+Every typed read/write validates the address against the allocation registry and
+checks the access against the allocation's length, so an unknown address, a
+freed address, and an out-of-bounds access are source-located errors rather than
+crashes. 64-bit writes preserve the full signed and unsigned range (see
+[types.md](types.md)).
 
----
+## Syscalls
 
-## Timing
+`syscall*(...)` entries take integer arguments only (at most six) and dispatch
+through the platform syscall layer. `syscallPollFileDescriptors` takes three
+arguments; `syscallPpollFileDescriptors`, `syscallWaitForEvents` and
+`syscallWaitForEventsWithSignalMask` take five.
 
-### `sleep(num)`
+## Managed filesystem
 
-Blocks the current execution for the given number of seconds. The argument
-may be an `int` or `float`; negative durations and other value types raise a
-runtime error.
+A small handle-based filesystem API, separate from the `fileIO`, `os` and `path`
+stdlib modules. Handles are non-negative integers; the interpreter owns the
+descriptor behind one, and an unknown or already-closed handle is a runtime
+error rather than a silent failure. Failures preserve the operation and the
+original errno in the message, for example
+`filesystemOpen() failed: [2] No such file or directory`. Descriptors a program
+leaves open are closed when the process exits.
 
-```c
-sleep(1);       // one second
-sleep(0.25);    // 250 milliseconds
-```
+| Builtin | Notes |
+| --- | --- |
+| `filesystemOpen(path, mode, permissions?)` | Returns a file handle. Modes are `r`, `w`, `a`, `r+`, `w+`, `a+`; permissions default to `0666` |
+| `filesystemRead(handle, maxBytes)` | Reads and returns UTF-8 text; bytes that are not valid UTF-8 become U+FFFD |
+| `filesystemWrite(handle, data)` | Writes UTF-8 text and returns the byte count |
+| `filesystemClose(handle)` | Closes the descriptor and releases the handle |
+| `filesystemStat(path)` | JSON `{type, size, mode, modifiedTime, accessTime, changeTime}`. Does not follow a symlink, so `type` can be `symlink`, `file`, `dir` or `other` |
+| `filesystemList(path)` | Sorted direct child names |
+| `filesystemMkdir(path, parents?)` | Creates a directory; `parents` also creates missing parents and tolerates an existing directory |
+| `filesystemRemove(path)` | Removes a file, symlink or empty directory |
+| `filesystemRename(source, target)` | Renames an entry |
+| `filesystemLink(source, target, symbolic?)` | Hard link, or a symbolic link when `symbolic` is true |
+| `filesystemReadLink(path)` | Reads a symbolic link target |
+| `filesystemChmod(path, mode)` | Sets numeric permission bits |
 
----
+The family follows the Python reference exactly, including its error text. One
+consequence is worth noting: the reference's `Number.null` is `0`, so the
+operations that yield "no value" (`filesystemClose`, `filesystemRemove`,
+`filesystemRename`, `filesystemLink`, `filesystemChmod`) return `0` rather than
+Lynxer's own `none`.
 
-## rawPy / rawPyx
+On a host without POSIX `open`/`stat`/`dirent`, the whole family stays in the
+unsupported set.
 
-See [language.md](language.md#rawpy-and-rawpyx) for full bridging rules.
+## Managed processes
 
-### `rawPy("code")`
+A managed subprocess abstraction: each child gets one pipe per standard stream
+and a handle the program owns. Commands are **not** shell-parsed — the first
+argument names an executable and the second is its argv, so shell syntax needs
+an explicit shell. Closing the handle closes every pipe and terminates a child
+that is still running.
 
-Execute a Python one-liner. No variable bridging — stdout only.
+| Builtin | Notes |
+| --- | --- |
+| `processSpawn(command, arguments, environment?)` | Returns a process handle. `arguments` is a list of strings; `environment` is an optional list of `KEY=VALUE` strings that overrides those keys and inherits the rest |
+| `processWrite(handle, data)` | Writes UTF-8 data to stdin and returns the byte count |
+| `processCloseInput(handle)` | Closes stdin so the child sees end-of-file |
+| `processRead(handle, stream, maxBytes)` | Reads up to `maxBytes` from `"stdout"` or `"stderr"`, blocking until that many bytes or end-of-file. Bytes that are not valid UTF-8 become U+FFFD |
+| `processPoll(handle)` | Returns `-1` while the child runs, otherwise its exit status |
+| `processWait(handle, timeoutSeconds)` | Waits up to the timeout; `-1` on timeout, otherwise the exit status |
+| `processSendSignal(handle, signal)` | Sends an operating-system signal |
+| `processClose(handle)` | Closes the pipes, terminates a running child, and releases the handle |
 
-```c
-rawPy("print('hello from Python')");
-```
+A child killed by a signal reports the **negative** signal number, matching
+POSIX convention. Poll and wait report `-1` both for "still running" and for a
+timeout, which is why the reference pairs a timeout with a following poll.
 
-### `rawPyx("code")`
+Unknown, already closed or invalid handles are runtime errors rather than silent
+failures, as are writes to a stream the program has already closed.
 
-Compile and execute a Cython one-liner. Requires Cython.
+SIGPIPE is ignored for the whole process, as it is in the reference: writing to
+a pipe whose reader has exited must report `EPIPE`, not kill the interpreter.
 
-```c
-rawPyx("print('hello from Cython')");
-```
+The family follows the Python reference exactly, including its error text, and
+the value-less operations return `0` for the same `Number.null` reason as the
+filesystem family.
 
----
+On a host without POSIX `fork`/`pipe`/`waitpid`, the whole family stays in the
+unsupported set.
 
-## Cache
+## Managed networking
 
-### `cleanRawPyxCache()`
+Managed TCP, UDP and Unix-domain sockets. Addresses stay as host/path strings
+plus an integer port, so no native address structure crosses the API. Sockets
+are closed explicitly; anything left open is closed when the process exits.
 
-Deletes the Cython inline cache (`~/.cython/inline/`). Useful when a cached `.so` becomes corrupted.
+| Builtin | Notes |
+| --- | --- |
+| `networkingOpen(kind)` | Creates a socket and returns a handle. `kind` is `tcp`, `udp` or `unix` (case-insensitive) |
+| `networkingBind(handle, address, port?)` | Binds to an IPv4 host and port, or to a Unix socket path when the port is omitted |
+| `networkingListen(handle, backlog?)` | Listens on a stream socket; the backlog defaults to 128 |
+| `networkingAccept(handle)` | Accepts a connection and returns a **new** handle |
+| `networkingConnect(handle, address, port?)` | Connects to an IPv4 host and port, or to a Unix socket path |
+| `networkingSend(handle, data)` | Sends UTF-8 data and returns the byte count |
+| `networkingReceive(handle, maxBytes)` | Receives and returns UTF-8 text; invalid bytes become U+FFFD |
+| `networkingClose(handle)` | Closes the socket and releases the handle |
+| `networkingShutdown(handle, how)` | Shuts down `read`, `write` or `both` |
+| `networkingBlocking(handle, enabled)` | Enables or disables blocking mode |
+| `networkingOption(handle, name, value)` | Sets `reuseAddr`, `keepAlive` or `broadcast` to an integer value |
+| `networkingResolve(host, port)` | Resolves a host over `SOCK_STREAM` and returns the **sorted, de-duplicated** list of address strings |
+| `networkingAddress(handle)` | JSON for the local address: `["127.0.0.1",41234]` for IPv4, or the path string for a Unix socket |
 
-```c
-cleanRawPyxCache();
-```
+`networkingAccept` and `networkingOpen` both allocate handles from the same
+registry, so handles are not reusable indices into a fixed table.
+
+`networkingSend` performs a single `send`, so a short write is possible on a
+stream socket; the returned count is what actually left. `networkingReceive`
+performs a single `recv`.
+
+The family follows the Python reference exactly, including its error text, and
+the value-less operations return `0` for the same `Number.null` reason as the
+filesystem family.
+
+On a host without POSIX sockets, the whole family stays in the unsupported set.
+
+## Managed sound
+
+Audio playback for programs that do not want to import a module. These built-ins
+are a thin layer over the bundled Rust **`sound` stdlib module** — the module
+owns the audio backend (`rodio`/`cpal`/`symphonia`), so there is one audio
+implementation rather than one per interface, and the interpreter binary keeps
+no audio dependency. The built-in layer owns its own handle registry: a handle
+is valid only if `soundLoad` returned it, and `soundRelease` invalidates it.
+
+| Builtin | Notes |
+| --- | --- |
+| `soundLoad(path)` | Returns a handle. The file must exist and end in `.wav`, `.ogg`, `.mp3` or `.flac` |
+| `soundPlay(handle)` | Plays once |
+| `soundLoop(handle)` | Plays, looping |
+| `soundStop(handle)` | Stops playback |
+| `soundPause(handle)` / `soundResume(handle)` | Pause and resume an active player |
+| `soundSetVolume(handle, volume)` | Volume in `[0, 1]` |
+| `soundIsPlaying(handle)` | Whether a player is currently running |
+| `soundRelease(handle)` | Releases the handle |
+
+Playback needs an audio device; without one, `soundPlay` and `soundLoop` report
+that playback did not start. Loading, `soundStop`, `soundSetVolume`,
+`soundIsPlaying` and `soundRelease` are device-independent.
+
+`stdlib/sound.so` must be reachable — next to the interpreter, in `stdlib/`, or
+under `lynxer/stdlib`. A **compiled executable** only carries it if the program
+also has `import("sound")`, because bundling follows imports.
+
+Three deliberate divergences from the Python reference, all recorded in
+[limitations.md](limitations.md): the backend's own failure text is not Arcade's;
+`soundPause`/`soundResume` work, where the reference fails by design; and
+`soundStop` works, where the reference's Arcade version has no `Player.stop`.
+
+## Native threads
+
+`nativeThreadStart(function, arguments)` runs a Lynxer function on a
+`std::thread`. The function is named as a value — `nativeThreadStart(global.worker, [int 42])`
+— which is what makes `global.<name>` resolve to a callable when no variable has
+that name.
+
+| Builtin | Notes |
+| --- | --- |
+| `nativeThreadStart(function, arguments)` | Returns a thread handle. `function` is a named global function; `arguments` is a list |
+| `nativeThreadJoin(handle)` | Waits for the thread and returns `completed`, or the callback's error text. Joining releases the handle |
+| `nativeThreadJoinAll()` | Joins every thread that has neither been joined nor detached |
+| `nativeThreadIsAlive(handle)` | Whether the thread is still running |
+| `nativeThreadStatus(handle)` | `running` while it is, then `completed` or the error text |
+| `nativeThreadDetach(handle)` | Gives up the handle; the thread leaves the registry when it finishes |
+
+**Threads are cooperative.** The interpreter evaluates Lynxer code on one thread
+at a time, and a worker takes that lock before calling back in, so a thread runs
+while the thread that started it is blocked in `nativeThreadJoin` or
+`nativeThreadJoinAll`, which release the lock before waiting. Two threads never
+evaluate at once — that is why no data race is possible — and it is why a
+worker's own output appears at the join rather than during the main body.
+Programs that leave a thread running have it joined when the program finishes.
+
+## FFI
+
+The `ffi*` family loads a native shared library and calls a symbol by signature
+at run time, with no build step. It is implemented in C++ over `dlopen`/`dlsym`
+(there is no libffi), so the same call site can call any symbol whose signature
+is in the supported table.
+
+| Builtin | Notes |
+| --- | --- |
+| `ffiLoadLibrary(path)` | Loads a shared library and returns a handle |
+| `ffiLookup(handle, symbol)` | Resolves a symbol to a `functionAddress` |
+| `ffiCall(address, signature, arguments)` | Calls the symbol. `signature` is a packed string such as `"cdecl:int32(int32,int32)"`; `arguments` is a list |
+| `ffiCallback(signature, function)` | Wraps a Lynxer function as a C callback the native code can call |
+| `ffiFreeCallback(callback)` | Releases a callback created by `ffiCallback` |
+| `ffiCloseLibrary(handle)` | Unloads the library and invalidates its symbols |
+
+The signatures use the same grammar as native modules; see
+[native-module-abi.md](native-module-abi.md#signatures).
+`lynxer/examples/builtin_ffi.lynx` demonstrates the full round trip (calling
+`strlen` and passing a Lynxer function back as a C callback).
+
+## Async
+
+The `async*` family performs I/O without a language-level event loop.
+`asyncRun(function, arguments?)` starts a Lynxer function in the async runtime,
+and `await` in the caller yields until the operation completes. Timers, wakeups
+and file/IO readiness sources are registered on a poll set and awaited with
+`asyncPollWait`; `asyncPollDispatch` awaits them and invokes a Lynxer callback
+for each ready event. Evaluation stays cooperative — the interpreter runs one
+Lynxer frame at a time.
+
+| Builtin | Notes |
+| --- | --- |
+| `asyncRun(function, arguments?)` | Starts a function; returns a handle |
+| `asyncGather(values...)` | Collects its arguments into a list |
+| `asyncSleep(seconds)` | Suspends the current task for a non-negative duration |
+| `asyncPollCreate()` | Creates a poll set and returns a handle |
+| `asyncPollRegister(poll, resource, events, token)` | Registers a resource for `read`, `write` or `readwrite` |
+| `asyncPollModify(poll, resource, events, token)` | Changes the interest and token |
+| `asyncPollRemove(poll, resource)` | Removes a resource |
+| `asyncPollWait(poll, timeoutMs?, maxEvents?)` | Awaits ready events |
+| `asyncPollDispatch(poll, callback, timeoutMs?, maxEvents?)` | Awaits events and calls a Lynxer callback for each |
+| `asyncPollClose(poll)` | Releases the poll set |
+| `asyncTimerCreate(poll, milliseconds, token, repeatMs?)` | Schedules a timer |
+| `asyncTimerCancel(timer)` | Cancels a timer |
+| `asyncWakeupCreate(poll, token)` | Creates a wakeup handle |
+| `asyncWakeupSignal(wakeup)` | Signals a wakeup |
+| `asyncWakeupClose(wakeup)` | Releases a wakeup |
+
+See `lynxer/examples/builtin_async.lynx` for a runnable example, and
+[language.md](language.md) for the `async`/`await` syntax.
+
+## Unsupported names
+
+Names Lynxer recognises but does not implement on Linux/POSIX. Each fails with
+`<name>() is not supported in Lynxer yet`, except `embedPy`, whose message is
+`Python bridging (embedPy) is not supported in Lynxer`.
+
+| Family | Names |
+| --- | --- |
+| Python bridging | `rawPy`, `rawPyx`, `cleanRawPyxCache`, `embedPy` |
+| Namespaces | `unshare` |
+| Borrow / transfer | `varTransfer`, `varTransferMutate`, `varBorrow`, `varBorrowMutate`, `varSwapAll`, `varSwapVal`, `varEndBorrow`, `borrowing`, `beingBorrowed` |
+| Raw addresses | `getAddress`, `modifyAddressValue`, `getAddressValue`, `functionAddress`, `nativeFunctionAddress`, `nativeCall` |
+| Native module introspection | `nativeModuleLoad`, `nativeModuleName`, `nativeModuleFunction`, `nativeModuleConstant`, `nativeModuleType`, `nativeModuleError`, `nativeModuleDependencies`, `nativeModuleClose` |
+| Native sync primitives | `nativeMutex*`, `nativeCondition*`, `nativeSemaphore*`, `nativeHandle*` |
+| Atomics | `atomicLoad`, `atomicStore`, `atomicAdd`, `volatileRead`, `volatileWrite` |
+| Advanced memory | `memoryProtect`, `memoryBlock*`, `memoryArray*`, `memoryView*`, `memoryStruct*`, `nativeStruct*`, `nativeTypeAlignment` |
+
+The authoritative list is `unsupportedTable()` in `lynxer/builtins.cpp`; this
+table is the POSIX-visible subset. A build without POSIX support adds the
+`filesystem*`, `process*`, `networking*`, `sound*`, `async*` and `nativeThread*`
+families. See [limitations.md](limitations.md) for the rationale.
+
+`sound*`, `ffi*`, `async*` and `nativeThread*` are the families that reach
+outside the interpreter (a device, a shared library, a runtime, or a worker
+thread); everything else on this page is self-contained.

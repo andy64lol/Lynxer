@@ -112,4 +112,4 @@ python -m clynxer hello.lynx
 ---
 
 ### References
-- [Lynxer Language Guide](lynxer/docs/language.md)
+- [Lynxer Language Guide](../../../docs/language.md)

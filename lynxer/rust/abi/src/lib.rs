@@ -13,7 +13,7 @@
 //! not unwind across the C ABI and abort the interpreter), the single
 //! thread-local string result buffer, and the module registration helper.
 //!
-//! See `lynxer/docs/native-module-abi.md`.
+//! See `docs/native-module-abi.md`.
 
 use core::ffi::{c_char, c_int, c_void};
 use std::cell::RefCell;
