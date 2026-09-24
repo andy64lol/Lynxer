@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Lynxer - Programming Language</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<header>
+    <h1>Lynxer</h1>
+    <p>A small, statically-flavoured C-style programming language</p>
+</header>
+
+<nav>
+    <a href="index.html">Home</a>
+    <a href="docs/index.html">Docs</a>
+    <a href="#about">About</a>
+    <a href="#example">Example</a>
+    <a href="#features">Features</a>
+    <a href="#links">Links</a>
+</nav>
+
+<main>
+
+    <section id="about">
+        <h2>About Lynxer</h2>
+
+        <p>
+            Lynxer is a statically-flavoured, C-style programming language with a
+            standalone native runtime. Source files use the <b>.lynx</b> extension,
+            and every program defines <code>global setup()</code> followed by
+            <code>global main()</code>.
+        </p>
+
+        <p>
+            The interpreter is written in C++17 and runs programs without a Python
+            runtime. Its standard library ships as native shared libraries — C++ and
+            Rust backends behind one documented C ABI — so a program can open
+            sockets, decode images, play sound, query SQLite or drive a windowed game
+            loop without pulling in a scripting host.
+        </p>
+
+        <p>
+            A single <code>--compile</code> command turns a program and everything it
+            imports into one standalone ELF executable that needs nothing from the
+            build tree.
+        </p>
+
+        <p>
+            <span class="status">Standalone C++ / Rust runtime</span>
+            <span class="status">Linux</span>
+            <span class="status">amd64 / ARM64</span>
+            <span class="status">MIT licensed</span>
+        </p>
+    </section>
+
+
+    <section id="example">
+        <h2>Basic example</h2>
+
+        <pre><code>global setup(){
+    str name = input("What's your name? ");
+}
+
+global main(){
+    println("Hello, ", name, "!");
+}</code></pre>
+
+        <p>
+            Save it as <code>hello.lynx</code>, then run it with
+            <code>./lynxer/lynxer hello.lynx</code>.
+        </p>
+
+        <h3>A little more</h3>
+
+        <pre><code>global setup(){
+    importAs("math", "m");
+}
+
+global main(){
+    for(int i = 1; i &lt; 4; i = i + 1){
+        println("sqrt(", i, ") = ", m.sqrt(i));
+    }
+}</code></pre>
+    </section>
+
+
+    <section id="features">
+        <h2>Features</h2>
+
+        <ul>
+            <li>C-style syntax with required <code>setup()</code> / <code>main()</code> entry points</li>
+            <li>Standalone native interpreter — no Python or other host runtime</li>
+            <li>Single-file <code>--compile</code> builds that embed the program and its modules</li>
+            <li>Semantics-preserving AST optimizer (<code>--no-opt</code> to disable)</li>
+            <li>27 standard-library modules with native C++ and Rust backends</li>
+            <li>Frozen native-module ABI for C++ and Rust extensions</li>
+            <li>Enums, structs, classes, vargroups, tuples, codeblocks and pattern matching</li>
+            <li>Tooling: <code>--lint</code>, <code>--ast</code>, <code>--format</code>, <code>--validate-executeable</code></li>
+            <li>Linux on amd64 and ARM64</li>
+        </ul>
+    </section>
+
+
+    <section id="docs">
+        <h2>Documentation</h2>
+
+        <p>
+            The reference documentation covers the language, the command line, every
+            standard-library module and the native-module ABI.
+        </p>
+
+        <ul>
+            <li><a href="docs/index.html">Documentation overview</a> — start here</li>
+            <li><a href="docs/install.html">Installation</a></li>
+            <li><a href="docs/language.html">Language reference</a></li>
+            <li><a href="docs/CLI.html">CLI reference</a></li>
+            <li><a href="docs/builtins.html">Built-ins</a></li>
+            <li><a href="docs/stdlib/index.html">Standard library</a></li>
+            <li><a href="docs/native-module-abi.html">Native-module ABI</a></li>
+            <li><a href="docs/limitations.html">Limitations and non-goals</a></li>
+        </ul>
+    </section>
+
+
+    <section id="links">
+        <h2>Links</h2>
+
+        <p>
+            <a href="https://github.com/andy64lol/Lynxer">
+                GitHub repository
+            </a>
+        </p>
+
+        <p>
+            <a href="https://github.com/andy64lol/Lynxer/blob/main/docs/install.md">
+                Installation
+            </a>
+        </p>
+
+        <p>
+            <a href="https://github.com/andy64lol/Lynxer/blob/main/LICENSE">
+                License (MIT)
+            </a>
+        </p>
+    </section>
+
+</main>
+
+<footer>
+    <a class="github" href="https://github.com/andy64lol/Lynxer" aria-label="Lynxer on GitHub" title="Lynxer on GitHub"><svg role="img" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a>
+    <span>Lynxer &middot; MIT License</span>
+</footer>
+
+</body>
+</html>

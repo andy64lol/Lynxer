@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Classes - Lynxer</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<header>
+    <h1><a href="../index.html">Lynxer</a></h1>
+    <p>Documentation</p>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3>Overview</h3><ul>
+<li><a href="index.html">README</a></li>
+</ul>
+<h3>Getting started</h3><ul>
+<li><a href="install.html">install</a></li>
+<li><a href="CLI.html">CLI</a></li>
+</ul>
+<h3>Language</h3><ul>
+<li><a href="language.html">language</a></li>
+<li><a href="types.html">types</a></li>
+<li><a href="lists.html">lists</a></li>
+<li><a href="modules.html">modules</a></li>
+<li><a href="importAs.html">importAs</a></li>
+</ul>
+<h3>Records</h3><ul>
+<li><a href="structs.html">structs</a></li>
+<li><a href="classes.html" class="active">classes</a></li>
+<li><a href="enums.html">enums</a></li>
+<li><a href="vargroups.html">vargroups</a></li>
+</ul>
+<h3>Built-ins and modules</h3><ul>
+<li><a href="builtins.html">builtins</a></li>
+<li><a href="native-module-abi.html">native-module-abi</a></li>
+<li><a href="stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="extending.html">extending</a></li>
+</ul>
+<h3>Reference</h3><ul>
+<li><a href="limitations.html">limitations</a></li>
+</ul>
+<h3>Standard library</h3><ul>
+<li><a href="stdlib/index.html">All modules</a></li>
+<li><a href="stdlib/cli.html">cli</a></li>
+<li><a href="stdlib/colorlib.html">colorlib</a></li>
+<li><a href="stdlib/csv.html">csv</a></li>
+<li><a href="stdlib/debug.html">debug</a></li>
+<li><a href="stdlib/fileIO.html">fileIO</a></li>
+<li><a href="stdlib/game.html">game</a></li>
+<li><a href="stdlib/image.html">image</a></li>
+<li><a href="stdlib/js.html">js</a></li>
+<li><a href="stdlib/json.html">json</a></li>
+<li><a href="stdlib/lua.html">lua</a></li>
+<li><a href="stdlib/math.html">math</a></li>
+<li><a href="stdlib/multiprocessing.html">multiprocessing</a></li>
+<li><a href="stdlib/network.html">network</a></li>
+<li><a href="stdlib/os.html">os</a></li>
+<li><a href="stdlib/path.html">path</a></li>
+<li><a href="stdlib/random.html">random</a></li>
+<li><a href="stdlib/re.html">re</a></li>
+<li><a href="stdlib/regex.html">regex</a></li>
+<li><a href="stdlib/server.html">server</a></li>
+<li><a href="stdlib/shell.html">shell</a></li>
+<li><a href="stdlib/sound.html">sound</a></li>
+<li><a href="stdlib/sqldb.html">sqldb</a></li>
+<li><a href="stdlib/sys.html">sys</a></li>
+<li><a href="stdlib/text.html">text</a></li>
+<li><a href="stdlib/time.html">time</a></li>
+<li><a href="stdlib/tui.html">tui</a></li>
+<li><a href="stdlib/typing.html">typing</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+<h1 id="classes">Classes</h1>
+<p>A <code>class</code> is a named type with typed fields and <code>local</code> methods, constructed with <code>new</code>. Declare it between <code>global setup()</code> and <code>global main()</code>.</p>
+<h2 id="declaration">Declaration</h2>
+<pre><code>class Counter {
+    int value = 0;
+    const int step = 1;
+
+    local init(int initial) {
+        this.value = initial;
+    }
+
+    local increment() {
+        this.value += this.step;
+    }
+
+    local get() {
+        return this.value;
+    }
+}</code></pre>
+<ul>
+<li>Fields are <code>type name = initialValue;</code>. A field may be <code>const</code>, which makes later writes an error: <code>Field &#x27;step&#x27; of instance &#x27;Counter&#x27; is const and cannot be changed</code>.</li>
+<li><code>local init(...)</code> is the constructor. It runs on <code>new</code> and receives the constructor arguments through <code>this</code>.</li>
+<li>Methods use <code>this.field</code> to read and write fields.</li>
+</ul>
+<h2 id="construction">Construction</h2>
+<pre><code>Counter first = new Counter(1);</code></pre>
+<p><code>new</code> runs <code>init</code> with the given arguments. A typed variable (<code>Counter first</code>) enforces the class: assigning an unrelated value fails with <code>value cannot be assigned to type &#x27;Counter&#x27;</code>.</p>
+<h2 id="methods">Methods</h2>
+<p>Call a method on an instance with <code>instance.method(...)</code>:</p>
+<pre><code>first.increment();
+println(first.get());   // 2</code></pre>
+<p>Two restrictions distinguish methods from <a href="language.html#functions">ordinary functions</a>:</p>
+<ul>
+<li>Methods take <strong>no</strong> return annotation. <code>local get() -&gt; int { ... }</code> fails with <code>expected &#x27;{&#x27; before method body</code>. Return the value with a bare <code>return</code>.</li>
+<li>Method parameters may be typed but may <strong>not</strong> have default values. <code>local set(int x = 2)</code> fails with <code>expected &#x27;)&#x27; after parameters</code>.</li>
+</ul>
+<h2 id="fields-and-assignment">Fields and assignment</h2>
+<p>Reading and writing a field on an instance needs no type prefix, and compound assignment works on fields as well as on plain variables:</p>
+<pre><code>first.value = 90;
+first.value += 10;         // 100</code></pre>
+<p>Inside a method, use <code>this</code>:</p>
+<pre><code>this.value += this.step;</code></pre>
+<h2 id="full-example">Full example</h2>
+<pre><code>global setup(){}
+
+class Counter {
+    int value = 0;
+    const int step = 1;
+
+    local init(int initial) {
+        this.value = initial;
+    }
+
+    local increment() {
+        this.value += this.step;
+    }
+
+    local get() {
+        return this.value;
+    }
+}
+
+global main(){
+    Counter first = new Counter(1);
+    first.increment();
+    println(first.get());     // 2
+    println(first.value);     // 2
+}</code></pre>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="structs.html">structs</a> — data-only records, positionally constructed.</li>
+<li><a href="vargroups.html">vargroups</a> — records with defaulted fields.</li>
+<li><a href="enums.html">enums</a> — tagged unions.</li>
+</ul>
+    </main>
+</div>
+
+<footer>
+    <a class="github" href="https://github.com/andy64lol/Lynxer" aria-label="Lynxer on GitHub" title="Lynxer on GitHub"><svg role="img" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a>
+    <span>Lynxer &middot; MIT License</span>
+</footer>
+
+</body>
+</html>

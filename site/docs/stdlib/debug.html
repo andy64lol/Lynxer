@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>debug - Lynxer</title>
+    <link rel="stylesheet" href="../../style.css">
+</head>
+<body>
+
+<header>
+    <h1><a href="../../index.html">Lynxer</a></h1>
+    <p>Documentation</p>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3>Overview</h3><ul>
+<li><a href="../index.html">README</a></li>
+</ul>
+<h3>Getting started</h3><ul>
+<li><a href="../install.html">install</a></li>
+<li><a href="../CLI.html">CLI</a></li>
+</ul>
+<h3>Language</h3><ul>
+<li><a href="../language.html">language</a></li>
+<li><a href="../types.html">types</a></li>
+<li><a href="../lists.html">lists</a></li>
+<li><a href="../modules.html">modules</a></li>
+<li><a href="../importAs.html">importAs</a></li>
+</ul>
+<h3>Records</h3><ul>
+<li><a href="../structs.html">structs</a></li>
+<li><a href="../classes.html">classes</a></li>
+<li><a href="../enums.html">enums</a></li>
+<li><a href="../vargroups.html">vargroups</a></li>
+</ul>
+<h3>Built-ins and modules</h3><ul>
+<li><a href="../builtins.html">builtins</a></li>
+<li><a href="../native-module-abi.html">native-module-abi</a></li>
+<li><a href="../stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="../extending.html">extending</a></li>
+</ul>
+<h3>Reference</h3><ul>
+<li><a href="../limitations.html">limitations</a></li>
+</ul>
+<h3>Standard library</h3><ul>
+<li><a href="index.html">All modules</a></li>
+<li><a href="cli.html">cli</a></li>
+<li><a href="colorlib.html">colorlib</a></li>
+<li><a href="csv.html">csv</a></li>
+<li><a href="debug.html" class="active">debug</a></li>
+<li><a href="fileIO.html">fileIO</a></li>
+<li><a href="game.html">game</a></li>
+<li><a href="image.html">image</a></li>
+<li><a href="js.html">js</a></li>
+<li><a href="json.html">json</a></li>
+<li><a href="lua.html">lua</a></li>
+<li><a href="math.html">math</a></li>
+<li><a href="multiprocessing.html">multiprocessing</a></li>
+<li><a href="network.html">network</a></li>
+<li><a href="os.html">os</a></li>
+<li><a href="path.html">path</a></li>
+<li><a href="random.html">random</a></li>
+<li><a href="re.html">re</a></li>
+<li><a href="regex.html">regex</a></li>
+<li><a href="server.html">server</a></li>
+<li><a href="shell.html">shell</a></li>
+<li><a href="sound.html">sound</a></li>
+<li><a href="sqldb.html">sqldb</a></li>
+<li><a href="sys.html">sys</a></li>
+<li><a href="text.html">text</a></li>
+<li><a href="time.html">time</a></li>
+<li><a href="tui.html">tui</a></li>
+<li><a href="typing.html">typing</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+<h1 id="debug">debug</h1>
+<p>Assertions, type inspection, structured logging, timers and process metrics.</p>
+<p><strong>Backend:</strong> native + pure — <code>stdlib/debug.so</code> (<code>stdlib/debug.cpp</code>) provides timers, timestamps, environment and memory; the assertions and logging helpers are written in Lynxer in <code>stdlib/debug.lynx</code>. <strong>Import:</strong> <code>import(&quot;debug&quot;)</code> → <code>global.debug.*</code></p>
+<h2 id="assertions">Assertions</h2>
+<table>
+<tr><th>Function</th><th>Signature</th><th>Notes</th></tr>
+<tr><td><code>assert</code></td><td><code>(bool cond, str msg)</code></td><td>Fails with <code>msg</code> when <code>cond</code> is false</td></tr>
+<tr><td><code>assertEq</code></td><td><code>(str a, str b, str msg)</code></td><td>Fails unless the strings are equal</td></tr>
+<tr><td><code>assertNotEq</code></td><td><code>(str a, str b, str msg)</code></td><td>Fails when the strings are equal</td></tr>
+<tr><td><code>assertGt</code></td><td><code>(float a, float b, str msg)</code></td><td>Fails unless <code>a &gt; b</code></td></tr>
+<tr><td><code>assertLt</code></td><td><code>(float a, float b, str msg)</code></td><td>Fails unless <code>a &lt; b</code></td></tr>
+<tr><td><code>assertContains</code></td><td><code>(str haystack, str needle, str msg)</code></td><td>Fails unless <code>needle</code> is a substring</td></tr>
+</table>
+<h2 id="inspection">Inspection</h2>
+<table>
+<tr><th>Function</th><th>Signature</th><th>Notes</th></tr>
+<tr><td><code>typeOf</code></td><td><code>(any val) -&gt; str</code></td><td><code>int</code>, <code>float</code>, <code>str</code>, <code>bool</code>, <code>list</code>, <code>tuple</code> or <code>null</code></td></tr>
+<tr><td><code>dump</code></td><td><code>(any val)</code></td><td>Prints <code>[debug.dump] type=T  value=V</code></td></tr>
+<tr><td><code>inspect</code></td><td><code>(any val) -&gt; str</code></td><td>JSON <code>{&quot;type&quot;: ..., &quot;value&quot;: ...}</code></td></tr>
+<tr><td><code>pp</code></td><td><code>(any val)</code></td><td>Indented JSON for lists, plain text otherwise</td></tr>
+</table>
+<p><code>typeOf</code> maps the interpreter's <code>none</code> to <code>null</code>. <code>dump</code>/<code>pp</code> use <code>strOf</code> rendering, so strings are not quoted.</p>
+<h2 id="logging">Logging</h2>
+<p><code>log(str level, str msg)</code>, <code>info(str msg)</code>, <code>warn(str msg)</code>, <code>error(str msg)</code>, <code>debug(str msg)</code> — each prints <code>[LEVEL HH:MM:SS] message</code>. The timestamp makes these unsuitable for exact-output tests.</p>
+<h2 id="timers">Timers</h2>
+<table>
+<tr><th>Function</th><th>Signature</th><th>Notes</th></tr>
+<tr><td><code>startTimer</code></td><td><code>(str label)</code></td><td>Records a monotonic start time</td></tr>
+<tr><td><code>stopTimer</code></td><td><code>(str label) -&gt; float</code></td><td>Milliseconds since start, removes the timer; <code>-1.0</code> if unknown</td></tr>
+<tr><td><code>elapsed</code></td><td><code>(str label) -&gt; float</code></td><td>Milliseconds without stopping; <code>-1.0</code> if unknown</td></tr>
+<tr><td><code>clock</code></td><td><code>() -&gt; float</code></td><td>Monotonic milliseconds since an arbitrary origin</td></tr>
+</table>
+<h2 id="environment-and-memory">Environment and memory</h2>
+<table>
+<tr><th>Function</th><th>Signature</th><th>Notes</th></tr>
+<tr><td><code>envGet</code></td><td><code>(str key) -&gt; str</code></td><td>Value, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>envAll</code></td><td><code>() -&gt; str</code></td><td>All variables as a JSON object</td></tr>
+<tr><td><code>getMemory</code></td><td><code>() -&gt; float</code></td><td>Peak RSS in megabytes (<code>getrusage</code>), or <code>-1.0</code></td></tr>
+</table>
+<h2 id="example">Example</h2>
+<pre><code>global setup(){ import(&quot;debug&quot;); }
+
+global main(){
+    global.debug.assertEq(global.debug.typeOf(1), &quot;int&quot;, &quot;int type&quot;);
+    global.debug.startTimer(&quot;work&quot;);
+    println(global.debug.stopTimer(&quot;work&quot;) &gt;= 0.0);
+    println(global.debug.inspect(&quot;text&quot;));
+}</code></pre>
+<hr>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="../stdlib-contracts.html">stdlib-contracts</a> — the contract this module implements, including the error sentinel family it uses.</li>
+<li><a href="../builtins.html">builtins</a> — the functions the interpreter implements itself.</li>
+<li><a href="../limitations.html">limitations</a> — the full divergence register.</li>
+</ul>
+    </main>
+</div>
+
+<footer>
+    <a class="github" href="https://github.com/andy64lol/Lynxer" aria-label="Lynxer on GitHub" title="Lynxer on GitHub"><svg role="img" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a>
+    <span>Lynxer &middot; MIT License</span>
+</footer>
+
+</body>
+</html>

@@ -88,6 +88,7 @@ def main() -> int:
                 input=case.get("stdin", ""),
                 capture_output=True,
                 text=True,
+                check=False,
             )
         finally:
             if scratch_path is not None:

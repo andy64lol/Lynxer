@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>VarGroups - Lynxer</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<header>
+    <h1><a href="../index.html">Lynxer</a></h1>
+    <p>Documentation</p>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3>Overview</h3><ul>
+<li><a href="index.html">README</a></li>
+</ul>
+<h3>Getting started</h3><ul>
+<li><a href="install.html">install</a></li>
+<li><a href="CLI.html">CLI</a></li>
+</ul>
+<h3>Language</h3><ul>
+<li><a href="language.html">language</a></li>
+<li><a href="types.html">types</a></li>
+<li><a href="lists.html">lists</a></li>
+<li><a href="modules.html">modules</a></li>
+<li><a href="importAs.html">importAs</a></li>
+</ul>
+<h3>Records</h3><ul>
+<li><a href="structs.html">structs</a></li>
+<li><a href="classes.html">classes</a></li>
+<li><a href="enums.html">enums</a></li>
+<li><a href="vargroups.html" class="active">vargroups</a></li>
+</ul>
+<h3>Built-ins and modules</h3><ul>
+<li><a href="builtins.html">builtins</a></li>
+<li><a href="native-module-abi.html">native-module-abi</a></li>
+<li><a href="stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="extending.html">extending</a></li>
+</ul>
+<h3>Reference</h3><ul>
+<li><a href="limitations.html">limitations</a></li>
+</ul>
+<h3>Standard library</h3><ul>
+<li><a href="stdlib/index.html">All modules</a></li>
+<li><a href="stdlib/cli.html">cli</a></li>
+<li><a href="stdlib/colorlib.html">colorlib</a></li>
+<li><a href="stdlib/csv.html">csv</a></li>
+<li><a href="stdlib/debug.html">debug</a></li>
+<li><a href="stdlib/fileIO.html">fileIO</a></li>
+<li><a href="stdlib/game.html">game</a></li>
+<li><a href="stdlib/image.html">image</a></li>
+<li><a href="stdlib/js.html">js</a></li>
+<li><a href="stdlib/json.html">json</a></li>
+<li><a href="stdlib/lua.html">lua</a></li>
+<li><a href="stdlib/math.html">math</a></li>
+<li><a href="stdlib/multiprocessing.html">multiprocessing</a></li>
+<li><a href="stdlib/network.html">network</a></li>
+<li><a href="stdlib/os.html">os</a></li>
+<li><a href="stdlib/path.html">path</a></li>
+<li><a href="stdlib/random.html">random</a></li>
+<li><a href="stdlib/re.html">re</a></li>
+<li><a href="stdlib/regex.html">regex</a></li>
+<li><a href="stdlib/server.html">server</a></li>
+<li><a href="stdlib/shell.html">shell</a></li>
+<li><a href="stdlib/sound.html">sound</a></li>
+<li><a href="stdlib/sqldb.html">sqldb</a></li>
+<li><a href="stdlib/sys.html">sys</a></li>
+<li><a href="stdlib/text.html">text</a></li>
+<li><a href="stdlib/time.html">time</a></li>
+<li><a href="stdlib/tui.html">tui</a></li>
+<li><a href="stdlib/typing.html">typing</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+<h1 id="vargroups">VarGroups</h1>
+<p>A <code>vargroup</code> is an inline typed record: a set of named fields, each with a type and a default value, created from a <code>{ ... }</code> literal and read with dot access.</p>
+<h2 id="literal">Literal</h2>
+<pre><code>vargroup player = {
+    str username = &quot;Ada&quot;,
+    int coins = 250,
+    bool online = true
+};</code></pre>
+<ul>
+<li>The literal is <code>{ type name = value, ... }</code>. Only the brace form exists — <code>[ ... ]</code> is always a <strong>list</strong> literal, not a vargroup.</li>
+<li>Fields are separated by commas. A single trailing <code>;</code> before the closing <code>}</code> is also accepted.</li>
+<li>Every field needs an explicit type and a default value.</li>
+<li>A field may be <code>const</code>.</li>
+</ul>
+<h2 id="access-and-assignment">Access and assignment</h2>
+<p>Read a field with dot access. <strong>Assigning</strong> to a field requires the field's type prefix:</p>
+<pre><code>println(player.username);   // Ada
+int player.coins = 500;     // required form
+println(player.coins);      // 500</code></pre>
+<p>Omitting the prefix fails with <code>Vargroup and legacy class-field assignment requires an explicit type</code>, and a prefix that does not match the declared field type fails with <code>Field &#x27;coins&#x27; of instance &#x27;&#x27; is declared as &#x27;int&#x27; but received a &#x27;str&#x27; value</code>.</p>
+<p>Assigning to a <code>const</code> field fails with <code>Field &#x27;n&#x27; of instance &#x27;&#x27; is const and cannot be changed</code>.</p>
+<p>(This is stricter than <a href="classes.html">classes</a>, where an instance field may be written as <code>instance.field = value;</code>.)</p>
+<h2 id="nesting">Nesting</h2>
+<p>Fields may themselves be vargroups, and nested fields are reached by repeating the path:</p>
+<pre><code>vargroup nested = { int n = 1, vargroup sub = { str k = &quot;x&quot; } };
+println(nested.sub.k);   // x</code></pre>
+<h2 id="full-example">Full example</h2>
+<pre><code>global setup(){}
+
+global main(){
+    vargroup player = {
+        str username = &quot;Ada&quot;,
+        int coins = 250,
+        bool online = true
+    };
+
+    println(player.username);   // Ada
+    println(player.online);     // true
+
+    int player.coins = 500;
+    println(player.coins);      // 500
+
+    vargroup nested = { int n = 1, vargroup sub = { str k = &quot;x&quot; } };
+    println(nested.sub.k);      // x
+}</code></pre>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="structs.html">structs</a> — positional constructor, no defaults, no methods.</li>
+<li><a href="classes.html">classes</a> — fields plus methods.</li>
+</ul>
+    </main>
+</div>
+
+<footer>
+    <a class="github" href="https://github.com/andy64lol/Lynxer" aria-label="Lynxer on GitHub" title="Lynxer on GitHub"><svg role="img" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a>
+    <span>Lynxer &middot; MIT License</span>
+</footer>
+
+</body>
+</html>

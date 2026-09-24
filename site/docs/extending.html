@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Extending Lynxer - Lynxer</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<header>
+    <h1><a href="../index.html">Lynxer</a></h1>
+    <p>Documentation</p>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3>Overview</h3><ul>
+<li><a href="index.html">README</a></li>
+</ul>
+<h3>Getting started</h3><ul>
+<li><a href="install.html">install</a></li>
+<li><a href="CLI.html">CLI</a></li>
+</ul>
+<h3>Language</h3><ul>
+<li><a href="language.html">language</a></li>
+<li><a href="types.html">types</a></li>
+<li><a href="lists.html">lists</a></li>
+<li><a href="modules.html">modules</a></li>
+<li><a href="importAs.html">importAs</a></li>
+</ul>
+<h3>Records</h3><ul>
+<li><a href="structs.html">structs</a></li>
+<li><a href="classes.html">classes</a></li>
+<li><a href="enums.html">enums</a></li>
+<li><a href="vargroups.html">vargroups</a></li>
+</ul>
+<h3>Built-ins and modules</h3><ul>
+<li><a href="builtins.html">builtins</a></li>
+<li><a href="native-module-abi.html">native-module-abi</a></li>
+<li><a href="stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="extending.html" class="active">extending</a></li>
+</ul>
+<h3>Reference</h3><ul>
+<li><a href="limitations.html">limitations</a></li>
+</ul>
+<h3>Standard library</h3><ul>
+<li><a href="stdlib/index.html">All modules</a></li>
+<li><a href="stdlib/cli.html">cli</a></li>
+<li><a href="stdlib/colorlib.html">colorlib</a></li>
+<li><a href="stdlib/csv.html">csv</a></li>
+<li><a href="stdlib/debug.html">debug</a></li>
+<li><a href="stdlib/fileIO.html">fileIO</a></li>
+<li><a href="stdlib/game.html">game</a></li>
+<li><a href="stdlib/image.html">image</a></li>
+<li><a href="stdlib/js.html">js</a></li>
+<li><a href="stdlib/json.html">json</a></li>
+<li><a href="stdlib/lua.html">lua</a></li>
+<li><a href="stdlib/math.html">math</a></li>
+<li><a href="stdlib/multiprocessing.html">multiprocessing</a></li>
+<li><a href="stdlib/network.html">network</a></li>
+<li><a href="stdlib/os.html">os</a></li>
+<li><a href="stdlib/path.html">path</a></li>
+<li><a href="stdlib/random.html">random</a></li>
+<li><a href="stdlib/re.html">re</a></li>
+<li><a href="stdlib/regex.html">regex</a></li>
+<li><a href="stdlib/server.html">server</a></li>
+<li><a href="stdlib/shell.html">shell</a></li>
+<li><a href="stdlib/sound.html">sound</a></li>
+<li><a href="stdlib/sqldb.html">sqldb</a></li>
+<li><a href="stdlib/sys.html">sys</a></li>
+<li><a href="stdlib/text.html">text</a></li>
+<li><a href="stdlib/time.html">time</a></li>
+<li><a href="stdlib/tui.html">tui</a></li>
+<li><a href="stdlib/typing.html">typing</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+<h1 id="extending-lynxer">Extending Lynxer</h1>
+<p>Lynxer grows in three ways:</p>
+<table>
+<tr><th>Extension</th><th>Written in</th><th>Use it when</th></tr>
+<tr><td><strong>Pure Lynxer module</strong></td><td>Lynxer, in <code>lynxer/stdlib/&lt;name&gt;.lynx</code></td><td>The behaviour is expressible in Lynxer itself. <code>colorlib</code>, <code>text</code> and <code>typing</code> are examples; they ship no shared library.</td></tr>
+<tr><td><strong>Native module</strong></td><td>C++ in <code>stdlib/&lt;name&gt;.cpp</code>, or Rust in <code>rust/&lt;name&gt;/</code></td><td>The behaviour needs a system API, a file format, a device, or a third-party crate.</td></tr>
+<tr><td><strong>Built-in</strong></td><td>C++ in <code>lynxer/builtins.cpp</code></td><td>The operation is a language primitive that must be available without <code>import</code>.</td></tr>
+</table>
+<p>Almost everything belongs in the middle row. A built-in is not available to a module author — it changes the language — and a pure Lynxer module is just a module with no backend, so both are covered by the same wrapper rules.</p>
+<p>Read <a href="stdlib-contracts.html">stdlib-contracts</a> before you start: it states the conventions your module has to follow, and <a href="native-module-abi.html">native-module-abi</a> is the ABI reference.</p>
+<hr>
+<h2 id="1-choose-c-or-rust">1. Choose C++ or Rust</h2>
+<table>
+<tr><th></th><th>C++ (<code>stdlib/&lt;name&gt;.cpp</code>)</th><th>Rust (<code>rust/&lt;name&gt;/</code>)</th></tr>
+<tr><td>Build</td><td>Built by the <code>stdlib/*.cpp</code> wildcard, no new Makefile entry</td><td>Add the crate to the workspace <strong>and</strong> its name to <code>LYNXER_RUST_MODULE_NAMES</code></td></tr>
+<tr><td>Dependencies</td><td>Standard library only</td><td>Any crate, but it must build offline after <code>Cargo.lock</code> is committed</td></tr>
+<tr><td>Best for</td><td>POSIX calls, <code>&lt;filesystem&gt;</code>, <code>&lt;chrono&gt;</code>, small hand-written parsers</td><td>Anything with a real third-party crate: formats, protocols, GUI, audio, databases</td></tr>
+<tr><td>Signature</td><td>Either a fixed shape or the packed <code>...</code> form</td><td><strong>Must</strong> be the packed <code>...</code> form</td></tr>
+</table>
+<p>If a crate exists for the job, use Rust. Write C++ when the whole implementation is a few calls into the standard library or POSIX.</p>
+<hr>
+<h2 id="2-write-the-wrapper">2. Write the wrapper</h2>
+<p>The wrapper is what Lynxer programs see. It is always <code>stdlib/&lt;name&gt;.lynx</code>, and it always has the same shape:</p>
+<pre><code>////
+Lynxer standard library: example.
+One-line summary, then anything a user needs to know.
+
+Extra paragraphs here are printed by `lynxer --list-stdlibs`, so keep them
+useful and do not leave placeholder prose in a shipped module.
+////
+
+global setup(){ importAs(&quot;example.so&quot;, &quot;nativeExample&quot;); }
+
+// Double the value. Returns the result, or -1 on failure.
+global doubleIt(int value) -&gt; int { return global.nativeExample.doubleIt(value); }
+
+// Join two words. Returns the joined string.
+global join(str left, str right) -&gt; str { return global.nativeExample.join(left, right); }</code></pre>
+<p>Rules the wrapper must follow:</p>
+<ul>
+<li><strong><code>setup()</code> is the only import.</strong> Import the backend once, with <code>importAs(&quot;&lt;name&gt;.so&quot;, &quot;native&lt;Name&gt;&quot;)</code>.</li>
+<li><strong>One <code>global</code> function per operation</strong>, named as the user calls it.</li>
+<li><strong>Convert the backend's flat results here.</strong> A backend returns <code>int64</code> <code>0</code>/<code>1</code> for booleans, so the wrapper writes <code>!= 0</code> and declares <code>-&gt; bool</code>.</li>
+<li><strong>Never expose a backend type.</strong> No crate names, no pointers, no structs.</li>
+<li><strong>Do not add logic.</strong> If the wrapper starts computing, the calculation belongs in the backend where it can be tested and reused.</li>
+<li>Start the file with a <code>////</code> docstring. The first line is the module summary in <code>--list-stdlibs</code>; the rest is printed verbatim, so it is real documentation.</li>
+</ul>
+<p>If the module needs no native code, write the functions directly and skip <code>setup()</code> entirely — like <code>stdlib/text.lynx</code>.</p>
+<hr>
+<h2 id="3-write-the-backend">3. Write the backend</h2>
+<h3 id="3a-in-rust">3a. In Rust</h3>
+<p>Add <code>rust/&lt;name&gt;/Cargo.toml</code> with <code>crate-type = [&quot;cdylib&quot;]</code>, depend on <code>lynxer_abi</code> by path, and write <code>rust/&lt;name&gt;/src/lib.rs</code>:</p>
+<pre><code>//! `example` stdlib backend: double a number, join two words.
+
+use lynxer_abi::{export_int, export_string, lynxer_module};
+
+export_int!(example_double_it, args, {
+    let value = args.int(0);
+    value * 2
+});
+
+export_string!(example_join, args, {
+    let left = args.string(0);
+    let right = args.string(1);
+    format!(&quot;{left}{right}&quot;)
+});
+
+const OPS: &amp;[(&amp;str, &amp;str, &amp;str)] = &amp;[
+    (&quot;doubleIt&quot;, &quot;example_double_it&quot;, &quot;cdecl:int64(...)&quot;),
+    (&quot;join&quot;, &quot;example_join&quot;, &quot;cdecl:cstring(...)&quot;),
+];
+
+lynxer_module!(OPS);</code></pre>
+<p>Three things to get right, all of which have caused real defects here:</p>
+<ol>
+<li><strong>Every signature is packed</strong> — <code>cdecl:int64(...)</code>, <code>cdecl:float64(...)</code> or <code>cdecl:cstring(...)</code>. The <code>export_*!</code> macros generate the four-scalar packed prototype, so registering a fixed shape (<code>cdecl:int64(int64)</code>) calls the symbol through the wrong C prototype and <strong>segfaults on the first call</strong>, with no build-time warning.</li>
+<li><strong>Arguments are indexed per kind, not positionally.</strong> <code>args.int(i)</code> reads the <em>i</em>-th number and <code>args.string(i)</code> the <em>i</em>-th string. For <code>save(handle, path, quality)</code> the reads are <code>args.int(0)</code>, <code>args.string(0)</code>, <code>args.int(1)</code>. Reading past the end of either list yields <code>0</code> / <code>&quot;&quot;</code> <strong>in silence</strong>, so a wrong index produces a zero value rather than an error. <code>scripts/check_module_contracts.py</code> catches this; see §6.</li>
+<li><strong>The macros guard panics for you.</strong> <code>export_int!</code> and friends wrap the body in a panic guard that returns the module's sentinel, so a <code>panic!</code> or an <code>unwrap()</code> on <code>None</code> becomes a failure result instead of unwinding across the C boundary and killing the interpreter. Do not add your own <code>catch_unwind</code>.</li>
+</ol>
+<p>Keep resources that must outlive a call in a registry you own — a <code>Vec&lt;Option&lt;T&gt;&gt;</code> behind a <code>thread_local</code>, indexed by an integer handle. The <code>image</code> and <code>sound</code> backends are the canonical examples.</p>
+<h3 id="3b-in-c">3b. In C++</h3>
+<p>Write <code>stdlib/&lt;name&gt;.cpp</code> and export one entry point plus one <code>extern &quot;C&quot;</code> function per operation. Read <a href="native-module-abi.html">native-module-abi</a> first; the worked example there is complete. The short version:</p>
+<pre><code>#include &lt;cstdint&gt;
+#include &lt;string&gt;
+
+using RegisterFunction = int (*)(const char*, const char*, const char*);
+using RegisterConstant = int (*)(const char*, std::int64_t);
+using RegisterType = int (*)(const char*, const char*);
+
+static const char* stable(std::string value) {
+    thread_local std::string result;
+    result = std::move(value);
+    return result.c_str();
+}
+
+extern &quot;C&quot; std::int64_t example_double_it(std::int64_t value) {
+    return value * 2;
+}
+
+extern &quot;C&quot; const char* example_join(const char* left, const char* right) {
+    return stable(std::string(left) + right);
+}
+
+extern &quot;C&quot; int lynxer_module_init_v1(RegisterFunction f, RegisterConstant,
+                                    RegisterType) {
+    return f(&quot;doubleIt&quot;, &quot;example_double_it&quot;, &quot;cdecl:int64(int64)&quot;) &amp;&amp;
+                   f(&quot;join&quot;, &quot;example_join&quot;, &quot;cdecl:cstring(cstring,cstring)&quot;)
+               ? 0
+               : 1;
+}</code></pre>
+<p>A returned <code>const char*</code> must stay valid until the interpreter copies it, which happens immediately after the call — hence the <code>thread_local</code> buffer and the "one live string result per call" rule. C++ modules may use either a fixed shape or the packed form; fixed shapes are type-checked per argument at call time, so a mistake fails with a located error instead of corrupting the stack.</p>
+<hr>
+<h2 id="4-wire-it-into-the-build">4. Wire it into the build</h2>
+<p><strong>C++</strong> needs nothing: <code>stdlib/*.cpp</code> is a wildcard, so the new file becomes <code>stdlib/&lt;name&gt;.so</code> automatically. If the file needs extra link flags, that is not yet supported — a module with system-library dependencies should be a Rust crate instead.</p>
+<p><strong>Rust</strong> needs two edits:</p>
+<ol>
+<li>add the crate to the workspace members in <code>rust/Cargo.toml</code>;</li>
+<li>add its name to <code>LYNXER_RUST_MODULE_NAMES</code> in the root <code>Makefile</code>.</li>
+</ol>
+<p>Rust modules are skipped with a warning when <code>cargo</code> is absent, so Lynxer still builds without a Rust toolchain. Keep <code>rust/Cargo.lock</code> committed: the module must build offline.</p>
+<p>A crate is allowed to register <strong>nothing</strong>: <code>rust/ffi</code> is an intentional no-op <code>cdylib</code> that keeps the workspace uniform. A C++ module that needs POSIX is gated with <code>LYNXER_POSIX_BUILTINS</code>, as the managed <code>filesystem*</code>/<code>process*</code>/<code>networking*</code> families are, and falls back to <code>unsupportedTable()</code> otherwise.</p>
+<hr>
+<h2 id="5-test-it">5. Test it</h2>
+<p>Add <code>examples/stdlib_&lt;name&gt;.lynx</code> and a sibling <code>examples/stdlib_&lt;name&gt;.expected</code>. <code>make test</code> runs every <code>examples/stdlib_*.lynx</code> and diffs its output against the <code>.expected</code> file, so the fixture is the specification for anything a user can observe.</p>
+<p>Cover, as applicable:</p>
+<table>
+<tr><th>Case</th><th>What to assert</th></tr>
+<tr><td>Success</td><td>The normal path, including the boundary of any range</td></tr>
+<tr><td>Malformed input</td><td>A sentinel — never a crash or a panic</td></tr>
+<tr><td>Invalid handles</td><td><code>-1</code>, an out-of-range index, and a released handle</td></tr>
+<tr><td>Missing files</td><td><code>-1</code> or an error string, depending on the module's family</td></tr>
+<tr><td>Cleanup</td><td>Releasing twice returns the failure sentinel; the registry count drops</td></tr>
+<tr><td>Optional dependencies</td><td>The behaviour when the system binary/crate feature is absent</td></tr>
+</table>
+<p>Keep the fixture <strong>hermetic</strong>: no network, no wall-clock time, no host-specific strings. Where a module needs a file, commit a small asset under <code>examples/assets/</code> rather than generating one at test time. Where output would be host-specific, assert a property instead (<code>returnLength(x) &gt; 0</code>) rather than the exact text.</p>
+<p>If the module is Rust-backed and hermetic, add its fixture name to the compiled/bundled parity loop in the root <code>Makefile</code> so it is also checked when compiled into a standalone executable.</p>
+<hr>
+<h2 id="6-let-the-checks-catch-what-tests-cannot">6. Let the checks catch what tests cannot</h2>
+<p>A fixture records what the code <em>does</em>, so it cannot detect a module that is broken in exactly the way the fixture reproduces. Two bundled modules shipped that way: <code>sqldb</code> passed a path through its wrapper while the backend read an integer handle, and every call returned <code>ERROR: invalid handle</code> — which is what the fixture asserted. <code>tui</code> read packed arguments positionally.</p>
+<p><code>scripts/check_module_contracts.py</code> runs first in <code>make test</code> and compares the wrapper against the backend structurally:</p>
+<ul>
+<li>every <code>global.native&lt;Alias&gt;.&lt;op&gt;(...)</code> call names a registered op;</li>
+<li>a Rust backend's packed reads are in range for the arguments the wrapper passes;</li>
+<li>any registered op no wrapper calls is reported as a warning.</li>
+</ul>
+<p>Run it on its own while iterating:</p>
+<pre><code>python3 lynxer/scripts/check_module_contracts.py --verbose</code></pre>
+<hr>
+<h2 id="7-document-it">7. Document it</h2>
+<p>Every module is finished when all of these are true:</p>
+<ul>
+<li>[ ] <code>stdlib/&lt;name&gt;.lynx</code> with a real <code>////</code> docstring, visible in <code>--list-stdlibs</code></li>
+<li>[ ] the backend under <code>stdlib/&lt;name&gt;.cpp</code> or <code>rust/&lt;name&gt;/</code>, registered in the Makefile</li>
+<li>[ ] <code>stdlib/&lt;name&gt;.md</code> — the operation table, argument by argument</li>
+<li>[ ] <code>examples/stdlib_&lt;name&gt;.lynx</code> + <code>.expected</code>, covering the failure paths</li>
+<li>[ ] the new name added to the module table in <code>README.md</code> and to <code>LYNXER_LIST_STDLIB_MODULES</code> in the root <code>Makefile</code></li>
+<li>[ ] the identity model recorded in the table in <a href="stdlib-contracts.html">stdlib-contracts</a></li>
+<li>[ ] deliberate divergences from <code>lynxer/stdlib/&lt;name&gt;.lynx</code> written down in <a href="limitations.html">limitations</a>, with the reason</li>
+<li>[ ] <code>make test</code> green, including the contract check and the compiled/bundled parity run</li>
+</ul>
+<p>Compare against <code>lynxer/stdlib/&lt;name&gt;.lynx</code> — the <code>.lynx</code> wrapper is the behaviour reference — and either match it or record why not. Byte-identical output is achievable more often than it looks: <code>sqldb</code> and <code>sound</code> both produce output identical to the reference, including their error strings.</p>
+    </main>
+</div>
+
+<footer>
+    <a class="github" href="https://github.com/andy64lol/Lynxer" aria-label="Lynxer on GitHub" title="Lynxer on GitHub"><svg role="img" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a>
+    <span>Lynxer &middot; MIT License</span>
+</footer>
+
+</body>
+</html>

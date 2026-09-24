@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>json - Lynxer</title>
+    <link rel="stylesheet" href="../../style.css">
+</head>
+<body>
+
+<header>
+    <h1><a href="../../index.html">Lynxer</a></h1>
+    <p>Documentation</p>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3>Overview</h3><ul>
+<li><a href="../index.html">README</a></li>
+</ul>
+<h3>Getting started</h3><ul>
+<li><a href="../install.html">install</a></li>
+<li><a href="../CLI.html">CLI</a></li>
+</ul>
+<h3>Language</h3><ul>
+<li><a href="../language.html">language</a></li>
+<li><a href="../types.html">types</a></li>
+<li><a href="../lists.html">lists</a></li>
+<li><a href="../modules.html">modules</a></li>
+<li><a href="../importAs.html">importAs</a></li>
+</ul>
+<h3>Records</h3><ul>
+<li><a href="../structs.html">structs</a></li>
+<li><a href="../classes.html">classes</a></li>
+<li><a href="../enums.html">enums</a></li>
+<li><a href="../vargroups.html">vargroups</a></li>
+</ul>
+<h3>Built-ins and modules</h3><ul>
+<li><a href="../builtins.html">builtins</a></li>
+<li><a href="../native-module-abi.html">native-module-abi</a></li>
+<li><a href="../stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="../extending.html">extending</a></li>
+</ul>
+<h3>Reference</h3><ul>
+<li><a href="../limitations.html">limitations</a></li>
+</ul>
+<h3>Standard library</h3><ul>
+<li><a href="index.html">All modules</a></li>
+<li><a href="cli.html">cli</a></li>
+<li><a href="colorlib.html">colorlib</a></li>
+<li><a href="csv.html">csv</a></li>
+<li><a href="debug.html">debug</a></li>
+<li><a href="fileIO.html">fileIO</a></li>
+<li><a href="game.html">game</a></li>
+<li><a href="image.html">image</a></li>
+<li><a href="js.html">js</a></li>
+<li><a href="json.html" class="active">json</a></li>
+<li><a href="lua.html">lua</a></li>
+<li><a href="math.html">math</a></li>
+<li><a href="multiprocessing.html">multiprocessing</a></li>
+<li><a href="network.html">network</a></li>
+<li><a href="os.html">os</a></li>
+<li><a href="path.html">path</a></li>
+<li><a href="random.html">random</a></li>
+<li><a href="re.html">re</a></li>
+<li><a href="regex.html">regex</a></li>
+<li><a href="server.html">server</a></li>
+<li><a href="shell.html">shell</a></li>
+<li><a href="sound.html">sound</a></li>
+<li><a href="sqldb.html">sqldb</a></li>
+<li><a href="sys.html">sys</a></li>
+<li><a href="text.html">text</a></li>
+<li><a href="time.html">time</a></li>
+<li><a href="tui.html">tui</a></li>
+<li><a href="typing.html">typing</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+<h1 id="json">json</h1>
+<p>JSON encoding, decoding, querying and mutation.</p>
+<p><strong>Backend:</strong> native — <code>stdlib/json.so</code>, built from the Rust crate <code>rust/json</code> over <a href="https://docs.rs/serde_json"><code>serde_json</code></a> with the <code>preserve_order</code> feature so object keys keep their insertion order. Output spacing and the pretty-print indents match the previous nlohmann-based backend byte for byte. <strong>Import:</strong> <code>import(&quot;json&quot;)</code> → <code>global.json.*</code></p>
+<p>Objects preserve key insertion order, and non-finite numbers are written as <code>null</code> so output is always valid JSON.</p>
+<table>
+<tr><th>Function</th><th>Signature</th><th>Returns</th></tr>
+<tr><td><code>jsonValid</code></td><td><code>(str s)</code></td><td><code>true</code> if <code>s</code> parses as JSON</td></tr>
+<tr><td><code>jsonParse</code></td><td><code>(str s)</code></td><td><code>s</code> re-indented with 2 spaces, or <code>&quot;&quot;</code> on error</td></tr>
+<tr><td><code>jsonPretty</code></td><td><code>(str s)</code></td><td><code>s</code> re-indented with 4 spaces, or <code>&quot;&quot;</code> on error</td></tr>
+<tr><td><code>jsonGet</code></td><td><code>(str s, str key)</code></td><td>Value at <code>key</code> rendered as text, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>jsonGetInt</code></td><td><code>(str s, str key)</code></td><td>Integer at <code>key</code>, or <code>0</code></td></tr>
+<tr><td><code>jsonGetFloat</code></td><td><code>(str s, str key)</code></td><td>Float at <code>key</code>, or <code>0.0</code></td></tr>
+<tr><td><code>jsonGetBool</code></td><td><code>(str s, str key)</code></td><td>Truthiness of the value at <code>key</code></td></tr>
+<tr><td><code>jsonKeys</code></td><td><code>(str s)</code></td><td>Top-level keys, comma-separated</td></tr>
+<tr><td><code>jsonStringify</code></td><td><code>(str s)</code></td><td><code>s</code> quoted and escaped as a JSON string</td></tr>
+<tr><td><code>jsonArray</code></td><td><code>(list lst)</code></td><td>JSON array built from a Lynxer list</td></tr>
+<tr><td><code>jsonObject</code></td><td><code>(list lst)</code></td><td>JSON object from a flat key, value, key, value list</td></tr>
+<tr><td><code>jsonHas</code></td><td><code>(str s, str key)</code></td><td><code>true</code> if the object has <code>key</code> (or the array contains it)</td></tr>
+<tr><td><code>jsonLength</code></td><td><code>(str s)</code></td><td>Key, element or character count; <code>0</code> on error</td></tr>
+<tr><td><code>jsonSet</code></td><td><code>(str s, str key, str val)</code></td><td>Updated JSON; <code>val</code> is parsed as JSON when possible</td></tr>
+<tr><td><code>jsonSetInt</code></td><td><code>(str s, str key, int value)</code></td><td>Updated JSON with an integer value</td></tr>
+<tr><td><code>jsonDelete</code></td><td><code>(str s, str key)</code></td><td>Updated JSON without <code>key</code></td></tr>
+<tr><td><code>jsonMerge</code></td><td><code>(str a, str b)</code></td><td>Shallow merge; <code>b</code> wins</td></tr>
+<tr><td><code>jsonType</code></td><td><code>(str s, str key)</code></td><td><code>string</code>, <code>int</code>, <code>float</code>, <code>bool</code>, <code>null</code>, <code>object</code>, <code>array</code> or <code>unknown</code></td></tr>
+<tr><td><code>jsonBuild</code></td><td><code>(str pairs)</code></td><td>Object from <code>&quot;k=v|k=v&quot;</code> (values are strings)</td></tr>
+</table>
+<p><code>jsonGet</code> renders arrays and objects as compact JSON text, and booleans as <code>true</code>/<code>false</code>.</p>
+<h2 id="example">Example</h2>
+<pre><code>global setup(){ import(&quot;json&quot;); }
+
+global main(){
+    str doc = &quot;{\&quot;name\&quot;: \&quot;Ada\&quot;, \&quot;age\&quot;: 36}&quot;;
+    println(global.json.jsonGet(doc, &quot;name&quot;));
+    println(global.json.jsonSetInt(doc, &quot;age&quot;, 37));
+    println(global.json.jsonParse(&quot;[1,2]&quot;));
+}</code></pre>
+<hr>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="../stdlib-contracts.html">stdlib-contracts</a> — the contract this module implements, including the error sentinel family it uses.</li>
+<li><a href="../builtins.html">builtins</a> — the functions the interpreter implements itself.</li>
+<li><a href="../limitations.html">limitations</a> — the full divergence register.</li>
+</ul>
+    </main>
+</div>
+
+<footer>
+    <a class="github" href="https://github.com/andy64lol/Lynxer" aria-label="Lynxer on GitHub" title="Lynxer on GitHub"><svg role="img" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a>
+    <span>Lynxer &middot; MIT License</span>
+</footer>
+
+</body>
+</html>

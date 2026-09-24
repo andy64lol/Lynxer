@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Native module ABI - Lynxer</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<header>
+    <h1><a href="../index.html">Lynxer</a></h1>
+    <p>Documentation</p>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3>Overview</h3><ul>
+<li><a href="index.html">README</a></li>
+</ul>
+<h3>Getting started</h3><ul>
+<li><a href="install.html">install</a></li>
+<li><a href="CLI.html">CLI</a></li>
+</ul>
+<h3>Language</h3><ul>
+<li><a href="language.html">language</a></li>
+<li><a href="types.html">types</a></li>
+<li><a href="lists.html">lists</a></li>
+<li><a href="modules.html">modules</a></li>
+<li><a href="importAs.html">importAs</a></li>
+</ul>
+<h3>Records</h3><ul>
+<li><a href="structs.html">structs</a></li>
+<li><a href="classes.html">classes</a></li>
+<li><a href="enums.html">enums</a></li>
+<li><a href="vargroups.html">vargroups</a></li>
+</ul>
+<h3>Built-ins and modules</h3><ul>
+<li><a href="builtins.html">builtins</a></li>
+<li><a href="native-module-abi.html" class="active">native-module-abi</a></li>
+<li><a href="stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="extending.html">extending</a></li>
+</ul>
+<h3>Reference</h3><ul>
+<li><a href="limitations.html">limitations</a></li>
+</ul>
+<h3>Standard library</h3><ul>
+<li><a href="stdlib/index.html">All modules</a></li>
+<li><a href="stdlib/cli.html">cli</a></li>
+<li><a href="stdlib/colorlib.html">colorlib</a></li>
+<li><a href="stdlib/csv.html">csv</a></li>
+<li><a href="stdlib/debug.html">debug</a></li>
+<li><a href="stdlib/fileIO.html">fileIO</a></li>
+<li><a href="stdlib/game.html">game</a></li>
+<li><a href="stdlib/image.html">image</a></li>
+<li><a href="stdlib/js.html">js</a></li>
+<li><a href="stdlib/json.html">json</a></li>
+<li><a href="stdlib/lua.html">lua</a></li>
+<li><a href="stdlib/math.html">math</a></li>
+<li><a href="stdlib/multiprocessing.html">multiprocessing</a></li>
+<li><a href="stdlib/network.html">network</a></li>
+<li><a href="stdlib/os.html">os</a></li>
+<li><a href="stdlib/path.html">path</a></li>
+<li><a href="stdlib/random.html">random</a></li>
+<li><a href="stdlib/re.html">re</a></li>
+<li><a href="stdlib/regex.html">regex</a></li>
+<li><a href="stdlib/server.html">server</a></li>
+<li><a href="stdlib/shell.html">shell</a></li>
+<li><a href="stdlib/sound.html">sound</a></li>
+<li><a href="stdlib/sqldb.html">sqldb</a></li>
+<li><a href="stdlib/sys.html">sys</a></li>
+<li><a href="stdlib/text.html">text</a></li>
+<li><a href="stdlib/time.html">time</a></li>
+<li><a href="stdlib/tui.html">tui</a></li>
+<li><a href="stdlib/typing.html">typing</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+<h1 id="native-module-abi">Native module ABI</h1>
+<p>Lynxer's standard libraries are shared libraries (<code>.so</code> on Linux, <code>.dylib</code> on macOS) loaded at runtime with <code>dlopen</code>. This document is the contract a native module must implement. It applies to the bundled <code>stdlib/*.so</code> modules exactly as it applies to third-party modules.</p>
+<p>A module may be written in C++ (<code>stdlib/&lt;name&gt;.cpp</code>) or in Rust. The Rust backends — <code>game</code>, <code>image</code>, <code>json</code>, <code>lua</code>, <code>network</code>, <code>server</code>, <code>sound</code>, <code>sqldb</code> and <code>tui</code> — live under <code>rust/</code> and are all <code>cdylib</code>s that export <code>lynxer_module_init_v1</code>, their ops, and (for <code>game</code>) <code>lynxer_module_attach_v1</code> directly; there is no C++ shim. The <code>lynxer_abi</code> crate provides the shared FFI plumbing (packed-argument view, panic guards, string result buffer, host API, and the registration helper).</p>
+<p>The workspace has one more member, <code>rust/ffi</code>, which is an intentional <strong>no-op</strong> <code>cdylib</code>: its <code>lynxer_module_init_v1</code> registers nothing and returns <code>0</code>. The <code>ffi*</code> builtins are implemented in C++, not by that crate, so the crate exists only to keep the workspace uniform and should not be read as dead code.</p>
+<h2 id="entry-point">Entry point</h2>
+<p>Every module exports one C symbol:</p>
+<pre><code>int lynxer_module_init_v1(
+    int (*register_function)(const char *name, const char *symbol,
+                             const char *signature),
+    int (*register_constant)(const char *name, int64_t value),
+    int (*register_type)(const char *name, const char *layout)
+);</code></pre>
+<p>Return <code>0</code> after registering everything. A non-zero return, an invalid identifier, a duplicate name, or a <code>symbol</code> that <code>dlsym</code> cannot resolve rejects the whole module: the load fails with a <em>native module lifecycle failure</em>, and the interpreter reports the short reason it recorded — <code>registered symbol not found</code> for an unresolved symbol, <code>duplicate native registration</code> for a repeated name — not the offending name.</p>
+<ul>
+<li><code>register_function(name, symbol, signature)</code> — <code>name</code> is the Lynxer-facing name under the module namespace; <code>symbol</code> is the exported C name; <code>signature</code> uses the grammar below.</li>
+<li><code>register_constant(name, value)</code> — exposed as a read-only integer field on the module namespace.</li>
+<li><code>register_type(name, layout)</code> — exposed as a string field holding a native memory layout (used with the <code>memory*</code> builtins).</li>
+</ul>
+<p>Loading happens in <code>lynxer/ast.cpp</code> (<code>ImportStatement::execute</code>), where <code>dlopen</code> is called with <code>RTLD_NOW | RTLD_LOCAL</code> and the initializer is invoked with the three callbacks. Modules are kept loaded for the lifetime of their namespace so registered function pointers cannot dangle.</p>
+<h2 id="importing">Importing</h2>
+<p>Import the library from <code>setup()</code> with any of the <code>import</code> forms:</p>
+<pre><code>global setup(){
+    importAs(&quot;math.so&quot;, &quot;nativeMath&quot;);
+}
+
+global main(){
+    println(global.nativeMath.abs(-3));
+}</code></pre>
+<p>A path ending in <code>.so</code> is treated as a native module; anything else is compiled as Lynxer source. The namespace is the import alias, or the file stem when no alias is given.</p>
+<h2 id="signature-grammar">Signature grammar</h2>
+<pre><code>cdecl:&lt;return&gt;(&lt;arg&gt;,&lt;arg&gt;,...)</code></pre>
+<p>Type tokens are <code>int64</code> (Lynxer <code>int</code>), <code>double</code>/<code>float64</code> (Lynxer <code>float</code>) and <code>cstring</code> (Lynxer <code>str</code>). Argument lists may be empty.</p>
+<p>Before looking a signature up, the dispatcher <strong>normalizes</strong> the tokens: every integer width is rewritten to <code>int64</code> (<code>int8</code>, <code>int16</code>, <code>int32</code>, <code>uint8</code>, <code>uint16</code>, <code>uint32</code>, <code>uint64</code> and <code>uintptr</code>), and <code>double</code> is rewritten to <code>float64</code>. So <code>cdecl:int32(int32)</code> and <code>cdecl:int64(int64)</code> resolve to the same shipped shape. The supported table is the <em>normalized</em> set; the tokens above are accepted spellings, not distinct shapes.</p>
+<p><code>cdecl:</code> is optional; the bare <code>&lt;return&gt;(&lt;args&gt;)</code> form is accepted too. The packed form is selected when the argument list is exactly the single token <code>...</code> (<code>types.size() == 1 &amp;&amp; types[0] == &quot;...&quot;</code>).</p>
+<h2 id="supported-signature-shapes">Supported signature shapes</h2>
+<p>The dispatcher in <code>lynxer/ast.cpp</code> builds the normalized shape string and looks it up in a table. Only the shapes below are callable — anything else raises <code>unsupported native signature &#x27;&lt;sig&gt;&#x27;</code>, and a shape/argument-count mismatch raises <code>native call argument count does not match signature &#x27;&lt;sig&gt;&#x27;</code>.</p>
+<table>
+<tr><th>#</th><th>Return</th><th>Arguments</th></tr>
+<tr><td>1</td><td><code>int64</code></td><td><em>(none)</em></td></tr>
+<tr><td>2</td><td><code>float64</code></td><td><em>(none)</em></td></tr>
+<tr><td>3</td><td><code>cstring</code></td><td><em>(none)</em></td></tr>
+<tr><td>4</td><td><code>int64</code></td><td><code>int64, int64</code></td></tr>
+<tr><td>5</td><td><code>int64</code></td><td><code>int64</code></td></tr>
+<tr><td>6</td><td><code>cstring</code></td><td><code>cstring</code></td></tr>
+<tr><td>7</td><td><code>int64</code></td><td><code>cstring</code></td></tr>
+<tr><td>8</td><td><code>int64</code></td><td><code>cstring, cstring</code></td></tr>
+<tr><td>9</td><td><code>cstring</code></td><td><code>cstring, int64</code></td></tr>
+<tr><td>10</td><td><code>int64</code></td><td><code>int64, int64, int64</code></td></tr>
+<tr><td>11</td><td><code>float64</code></td><td><code>float64</code></td></tr>
+<tr><td>12</td><td><code>float64</code></td><td><code>float64, float64</code></td></tr>
+<tr><td>13</td><td><code>float64</code></td><td><code>float64, float64, float64</code></td></tr>
+<tr><td>14</td><td><code>int64</code></td><td><code>float64</code></td></tr>
+<tr><td>15</td><td><code>float64</code></td><td><code>float64, int64</code></td></tr>
+<tr><td>16</td><td><code>cstring</code></td><td><code>float64</code></td></tr>
+<tr><td>17</td><td><code>float64</code></td><td><code>cstring</code></td></tr>
+<tr><td>18</td><td><code>cstring</code></td><td><code>cstring, cstring</code></td></tr>
+<tr><td>19</td><td><code>float64</code></td><td><code>cstring, cstring</code></td></tr>
+<tr><td>20</td><td><code>cstring</code></td><td><code>cstring, cstring, cstring</code></td></tr>
+<tr><td>21</td><td><code>cstring</code></td><td><code>cstring, cstring, int64</code></td></tr>
+<tr><td>22</td><td><code>cstring</code></td><td><code>cstring, cstring, cstring, int64</code></td></tr>
+<tr><td>23</td><td><code>cstring</code></td><td><code>cstring, cstring, cstring, cstring</code></td></tr>
+<tr><td>24</td><td><code>int64</code></td><td><code>cstring, cstring, cstring</code></td></tr>
+<tr><td>25</td><td><code>int64</code></td><td><code>cstring, int64</code></td></tr>
+<tr><td>26</td><td><code>cstring</code></td><td><code>int64</code></td></tr>
+<tr><td>27</td><td><code>cstring</code></td><td><code>int64, int64</code></td></tr>
+<tr><td>28</td><td><code>float64</code></td><td><code>int64</code></td></tr>
+<tr><td>29</td><td><code>int64</code></td><td><code>cstring, int64, int64</code></td></tr>
+<tr><td>30</td><td><code>float64</code></td><td><code>cstring, float64</code></td></tr>
+<tr><td>31</td><td><code>cstring</code></td><td><code>float64, float64, int64</code></td></tr>
+<tr><td>32</td><td><code>cstring</code></td><td><code>cstring, float64, float64</code></td></tr>
+</table>
+<p>Adding a shape is a one-line table entry plus a <code>reinterpret_cast</code> with the matching C++ prototype; keep <code>stdlib/</code> in sync when you do.</p>
+<p>Numeric arguments are read leniently where the shape is numeric (<code>asNumber</code> accepts an <code>int</code> or a <code>float</code>); integer and string arguments are strict and raise a located <code>SourceError</code> on a type mismatch.</p>
+<h3 id="packed-arguments-">Packed arguments (<code>...</code>)</h3>
+<p>An API with long or variadic argument lists can use the wildcard parameter token <code>...</code> instead of a fixed shape:</p>
+<pre><code>cdecl:int64(...)
+cdecl:float64(...)
+cdecl:cstring(...)</code></pre>
+<p>Only these three shapes are packed; the return type selects which one. This is the form the <code>lynxer_abi</code> macros generate.</p>
+<blockquote><strong>A Rust <code>cdylib</code> must use a packed signature.</strong> The <code>export_int!</code>, <code>export_float!</code> and <code>export_string!</code> macros expand to the four-scalar prototype below, so registering such an op with a <em>fixed</em> shape is a hard error that is <strong>not</strong> caught at build time: the interpreter calls the symbol through the fixed shape's C prototype (<code>int64_t(*)(int64_t)</code>, <code>const char*(*)(const char*)</code>, …), which does not match the real function, and the process <strong>segfaults on the first call</strong> to that op. <code>dlopen</code> and registration both succeed, so the mistake only shows up at run time. (The one benign exception is a shape that is not in the fixed-shape table at all, which fails fast with <code>unsupported native signature &#x27;&lt;sig&gt;&#x27;</code>.)  Because the packed form accepts any number of arguments, a wrong signature is never an argument-count error — it is a call through the wrong ABI.</blockquote>
+<p>The function receives every argument as four scalars:</p>
+<pre><code>int64_t function(const double* nums, int64_t num_count,
+                 const char* const* strs, int64_t str_count);
+double  function(const double* nums, int64_t num_count,
+                 const char* const* strs, int64_t str_count);
+const char* function(const double* nums, int64_t num_count,
+                     const char* const* strs, int64_t str_count);</code></pre>
+<p>Numbers (Lynxer <code>int</code>, <code>float</code>, and <code>bool</code> as <code>0</code>/<code>1</code>) arrive in <code>nums</code> in their original order; strings arrive in <code>strs</code> in theirs. Either pointer is null when its count is zero, and at most 64 arguments <strong>in total</strong> are accepted across both lists (<code>kMaxPackedArgs</code> in <code>lynxer/ast.cpp</code>); a call with more raises a located <code>SourceError</code>. Any other argument type raises a located <code>SourceError</code>. <code>lynxer/stdlib/lynxer_native_abi.h</code> documents the convention for module authors.</p>
+<p><strong>Arguments are indexed per type, not by position.</strong> <code>nums</code> and <code>strs</code> are separate lists, so the <em>n</em>-th string argument is <code>strs[n]</code> and the <em>n</em>-th numeric argument is <code>nums[n]</code>, regardless of how they were interleaved at the call site. The <code>lynxer_abi</code> <code>Args</code> view enforces this: <code>args.int(i)</code> / <code>args.float(i)</code> read <code>nums[i]</code> and <code>args.string(i)</code> reads <code>strs[i]</code>. For <code>save(handle, path, quality)</code> the correct reads are <code>args.int(0)</code> for the handle, <code>args.string(0)</code> for the path and <code>args.int(1)</code> for the quality — <strong>not</strong> <code>args.int(0)</code>, <code>args.string(1)</code>, <code>args.int(2)</code>. Reading past the end of either list yields <code>0</code> / <code>&quot;&quot;</code> instead of failing, so a wrong index silently produces a zero value rather than an error.</p>
+<p>Because that failure is silent, <code>make test</code> runs <code>lynxer/scripts/check_module_contracts.py</code>, which reads each <code>stdlib/&lt;name&gt;.lynx</code> wrapper and fails if a packed op reads an argument that the wrapper never passes — or if a wrapper calls an op the backend does not register. Write the reads the way the wrapper passes them, and the check stays quiet.</p>
+<h2 id="calling-back-into-lynxer">Calling back into Lynxer</h2>
+<p>A module may additionally export</p>
+<pre><code>int lynxer_module_attach_v1(const LynxerHostApi *host);</code></pre>
+<p>and the interpreter calls it (via <code>dlsym</code>) right after <code>lynxer_module_init_v1</code> succeeds. Returning non-zero rejects the module:</p>
+<pre><code>typedef struct LynxerHostApi {
+    int version; // 1
+    void *context;
+    int (*invoke)(void *context, const char *name, int has_arg, double arg);
+    int (*interrupted)(void *context);
+} LynxerHostApi;</code></pre>
+<ul>
+<li><code>invoke</code> runs the Lynxer function <code>name</code> with no argument or one numeric argument, and returns <code>0</code> on success.</li>
+<li><code>interrupted</code> returns non-zero once the process has received SIGINT.</li>
+</ul>
+<p>The <code>context</code> pointer is opaque to the module. <code>invoke</code> resolves against the top-level program, so frame callbacks registered by a module imported from a source wrapper still reach the program's own functions. This entry point is optional; modules that do not export it behave as before.</p>
+<h2 id="data-conventions">Data conventions</h2>
+<p>The ABI has no aggregate types, so modules follow these conventions.</p>
+<p><strong>Booleans</strong> are <code>int64</code> <code>0</code>/<code>1</code>; the <code>.lynx</code> wrapper converts with <code>!= 0</code>.</p>
+<p><strong>Errors</strong> are in-band sentinels, because there is no error channel: <code>-1</code> / <code>-1.0</code> for indices and sizes, <code>&quot;&quot;</code> for strings, <code>&quot;ERROR: ...&quot;</code> for <code>csv</code>, and <code>&quot;Error: ...&quot;</code> for <code>js</code>.</p>
+<p><strong>Stateless structured data</strong> crosses as a JSON string. The native side encodes with <code>stdlib/native_json.hpp</code> (a header-only value/parser/serializer embedded into each <code>.so</code>, so no module depends on another module's symbols), and the wrapper either forwards the string or post-processes it with <code>listJson*</code> / <code>splitStr</code>.</p>
+<p><strong>List results</strong> use whichever encoding the data allows:</p>
+<ul>
+<li>values that cannot contain the separator: a joined <code>cstring</code> that the wrapper splits with <code>splitStr</code> (newline for paths, tab for numeric vectors);</li>
+<li>arbitrary strings (command output): an <code>int64</code> handle into a module-local registry, read back with <code>resultCount</code>/<code>resultAt</code>/<code>codeAt</code> and released with <code>release</code> — see <code>stdlib/multiprocessing.cpp</code>.</li>
+</ul>
+<p><strong>Cstring lifetime.</strong> Returned <code>const char*</code> values must stay valid until the interpreter copies them, which happens immediately after the call. Modules return a <code>thread_local std::string</code> from a <code>stable()</code> helper and therefore support exactly one live string result per call.</p>
+<h2 id="worked-example">Worked example</h2>
+<pre><code>#include &lt;cstdint&gt;
+#include &lt;string&gt;
+
+using RegisterFunction = int (*)(const char*, const char*, const char*);
+using RegisterConstant = int (*)(const char*, std::int64_t);
+using RegisterType = int (*)(const char*, const char*);
+
+static const char* stable(std::string value) {
+    thread_local std::string result;
+    result = std::move(value);
+    return result.c_str();
+}
+
+extern &quot;C&quot; std::int64_t pair_sum(std::int64_t left, std::int64_t right) {
+    return left + right;
+}
+
+extern &quot;C&quot; const char* pair_label(const char* name, std::int64_t count) {
+    return stable(std::string(name) + &quot;:&quot; + std::to_string(count));
+}
+
+extern &quot;C&quot; int lynxer_module_init_v1(RegisterFunction function,
+                                     RegisterConstant,
+                                     RegisterType) {
+    return function(&quot;sum&quot;, &quot;pair_sum&quot;, &quot;cdecl:int64(int64,int64)&quot;) &amp;&amp;
+                   function(&quot;label&quot;, &quot;pair_label&quot;, &quot;cdecl:cstring(cstring,int64)&quot;)
+               ? 0
+               : 1;
+}</code></pre>
+<pre><code>global setup(){ importAs(&quot;pair.so&quot;, &quot;pair&quot;); }
+global main(){
+    println(global.pair.sum(2, 3));
+    println(global.pair.label(&quot;items&quot;, 4));
+}</code></pre>
+<h2 id="extending-the-abi">Extending the ABI</h2>
+<p>The ABI is deliberately small and changes only when a real module cannot be expressed with the conventions above. Before adding anything, a module must first try to fit one of them:</p>
+<table>
+<tr><th>Convention</th><th>Use it for</th></tr>
+<tr><td>Numbers (<code>int64</code>, <code>float64</code>, <code>bool</code> as <code>0</code>/<code>1</code>)</td><td>countable, measurable or flag-like values</td></tr>
+<tr><td>Strings (<code>cstring</code>)</td><td>text, and paths</td></tr>
+<tr><td>Integer handles</td><td>anything the module owns and must outlive a call</td></tr>
+<tr><td>JSON strings</td><td>stateless structured data — lists, tuples and records</td></tr>
+<tr><td>Named callbacks (<code>lynxer_module_attach_v1</code>)</td><td>the module driving Lynxer code</td></tr>
+</table>
+<p>An additive ABI change is only merged with all four of:</p>
+<ol>
+<li><strong>a C example</strong> — <code>lynxer/examples/native_signatures.cpp</code> is the pattern, and <code>make test</code> compiles and runs it;</li>
+<li><strong>a Rust example</strong> — through <code>lynxer_abi</code>, because that is how the bundled backends are written;</li>
+<li><strong>compatibility coverage</strong> — the shape added to <code>nativeCallTable()</code> plus a fixture that exercises it, so a regression fails <code>make test</code>;</li>
+<li><strong>documentation</strong> — this page, and <a href="stdlib-contracts.html">stdlib-contracts</a> when the change alters what a module may rely on.</li>
+</ol>
+<p>An additive change must not alter how existing shapes or signatures behave.</p>
+<h2 id="platform-support">Platform support</h2>
+<p>Native modules require a POSIX host. On other platforms every <code>.so</code> import fails with <code>native modules are only supported on POSIX hosts</code>.</p>
+    </main>
+</div>
+
+<footer>
+    <a class="github" href="https://github.com/andy64lol/Lynxer" aria-label="Lynxer on GitHub" title="Lynxer on GitHub"><svg role="img" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a>
+    <span>Lynxer &middot; MIT License</span>
+</footer>
+
+</body>
+</html>
