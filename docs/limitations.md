@@ -78,7 +78,7 @@ concept with no C++ runtime equivalent.
 
 `tkinter`, `tkinterPlus` and `turtle` have no Lynxer equivalent. The plan is a
 `graphics` module backed by Rust `iced` instead of tkinter, and Rust's `turtle`
-crate has not been maintained since 2019. The Python `http`/`net` modules are
+crate has not been maintained since 2019 (reason why we won't port it). The Python `http`/`net` modules are
 superseded by Lynxer's `network` + `server` pair, and `mathPlus` is merged into
 `math`.
 
