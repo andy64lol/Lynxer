@@ -367,6 +367,7 @@ std::unordered_map<std::string, Function> Parser::parseProgram(
             if (functions.find(function.name) != functions.end()) {
                 fail("duplicate function '" + function.name + "'", name);
             }
+            programOrder_.push_back(function.name);
             functions.emplace(function.name, std::move(function));
             sawAnyDeclaration = true;
             continue;
@@ -383,6 +384,7 @@ std::unordered_map<std::string, Function> Parser::parseProgram(
             if (function.name != "setup") {
                 fail("global setup() must be the first declaration", name);
             }
+            programOrder_.push_back(function.name);
             functions.emplace(function.name, std::move(function));
             sawSetup = true;
             sawAnyDeclaration = true;
@@ -397,6 +399,7 @@ std::unordered_map<std::string, Function> Parser::parseProgram(
         } else if (sawMain) {
             fail("declarations may not follow global main()", name);
         }
+        programOrder_.push_back(function.name);
         functions.emplace(function.name, std::move(function));
         sawAnyDeclaration = true;
     }

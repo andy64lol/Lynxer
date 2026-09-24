@@ -2856,4 +2856,479 @@ void FunctionDeclarationStatement::optimizeChildren(OptimizationStats& stats) {
     }
 }
 
+// --- AST dump -----------------------------------------------------------------
+//
+// Renders the parsed program as a position-free, indented tree for `--ast`.
+// The layout mirrors the Python reference's `_ast_lines`: a node prints its
+// class name, then each field as `name:` one level deeper with the value two
+// levels deeper, lists as `list[` ... `]`, and source positions are omitted.
+
+namespace {
+
+std::string reprString(const std::string& text) {
+    std::string out = "'";
+    for (char character : text) {
+        switch (character) {
+            case '\\': out += "\\\\"; break;
+            case '\'': out += "\\'"; break;
+            case '\n': out += "\\n"; break;
+            case '\t': out += "\\t"; break;
+            case '\r': out += "\\r"; break;
+            default: out += character;
+        }
+    }
+    out += "'";
+    return out;
+}
+
+std::string astValueRepr(const Value& value) {
+    if (std::holds_alternative<std::monostate>(value)) {
+        return "none";
+    }
+    if (const auto* text = std::get_if<std::string>(&value)) {
+        return reprString(*text);
+    }
+    if (const auto* character = std::get_if<CharValue>(&value)) {
+        return reprString(character->text);
+    }
+    return valueToString(value);
+}
+
+void writeIndent(std::ostream& out, int indent) {
+    out << std::string(static_cast<std::size_t>(indent), ' ');
+}
+
+void dumpScalarLine(std::ostream& out, int indent, const std::string& text) {
+    writeIndent(out, indent);
+    out << text << '\n';
+}
+
+void dumpString(std::ostream& out, int indent, const std::string& text) {
+    dumpScalarLine(out, indent, reprString(text));
+}
+
+void dumpValueLine(std::ostream& out, int indent, const Value& value) {
+    dumpScalarLine(out, indent, astValueRepr(value));
+}
+
+void dumpNode(std::ostream& out, int indent, const Expression* expression) {
+    if (expression == nullptr) {
+        dumpScalarLine(out, indent, "none");
+        return;
+    }
+    expression->dump(out, indent);
+}
+
+void dumpNode(std::ostream& out, int indent, const Statement* statement) {
+    if (statement == nullptr) {
+        dumpScalarLine(out, indent, "none");
+        return;
+    }
+    statement->dump(out, indent);
+}
+
+// Field label at nodeIndent+2; its value follows at nodeIndent+4.
+void dumpFieldLabel(std::ostream& out, int nodeIndent, const char* name) {
+    writeIndent(out, nodeIndent + 2);
+    out << name << ":\n";
+}
+
+void dumpExprField(std::ostream& out, int nodeIndent, const char* name,
+                   const Expression* expression) {
+    dumpFieldLabel(out, nodeIndent, name);
+    dumpNode(out, nodeIndent + 4, expression);
+}
+
+void dumpStmtField(std::ostream& out, int nodeIndent, const char* name,
+                   const Statement* statement) {
+    dumpFieldLabel(out, nodeIndent, name);
+    dumpNode(out, nodeIndent + 4, statement);
+}
+
+void dumpStringField(std::ostream& out, int nodeIndent, const char* name,
+                     const std::string& text) {
+    dumpFieldLabel(out, nodeIndent, name);
+    dumpString(out, nodeIndent + 4, text);
+}
+
+void dumpValueField(std::ostream& out, int nodeIndent, const char* name,
+                    const Value& value) {
+    dumpFieldLabel(out, nodeIndent, name);
+    dumpValueLine(out, nodeIndent + 4, value);
+}
+
+void dumpBoolField(std::ostream& out, int nodeIndent, const char* name,
+                   bool value) {
+    dumpFieldLabel(out, nodeIndent, name);
+    dumpScalarLine(out, nodeIndent + 4, value ? "true" : "false");
+}
+
+void dumpExprList(std::ostream& out, int indent,
+                  const std::vector<ExpressionPtr>& items) {
+    if (items.empty()) {
+        dumpScalarLine(out, indent, "list[]");
+        return;
+    }
+    dumpScalarLine(out, indent, "list[");
+    for (const auto& item : items) {
+        dumpNode(out, indent + 2, item.get());
+    }
+    dumpScalarLine(out, indent, "]");
+}
+
+void dumpStmtList(std::ostream& out, int indent, const StatementList& items) {
+    if (items.empty()) {
+        dumpScalarLine(out, indent, "list[]");
+        return;
+    }
+    dumpScalarLine(out, indent, "list[");
+    for (const auto& item : items) {
+        dumpNode(out, indent + 2, item.get());
+    }
+    dumpScalarLine(out, indent, "]");
+}
+
+void dumpStringList(std::ostream& out, int indent,
+                    const std::vector<std::string>& items) {
+    if (items.empty()) {
+        dumpScalarLine(out, indent, "list[]");
+        return;
+    }
+    dumpScalarLine(out, indent, "list[");
+    for (const auto& item : items) {
+        dumpString(out, indent + 2, item);
+    }
+    dumpScalarLine(out, indent, "]");
+}
+
+void dumpExprListField(std::ostream& out, int nodeIndent, const char* name,
+                       const std::vector<ExpressionPtr>& items) {
+    dumpFieldLabel(out, nodeIndent, name);
+    dumpExprList(out, nodeIndent + 4, items);
+}
+
+void dumpStmtListField(std::ostream& out, int nodeIndent, const char* name,
+                       const StatementList& items) {
+    dumpFieldLabel(out, nodeIndent, name);
+    dumpStmtList(out, nodeIndent + 4, items);
+}
+
+void dumpStringListField(std::ostream& out, int nodeIndent, const char* name,
+                         const std::vector<std::string>& items) {
+    dumpFieldLabel(out, nodeIndent, name);
+    dumpStringList(out, nodeIndent + 4, items);
+}
+
+void dumpParamPairs(std::ostream& out, int indent,
+                    const std::vector<std::pair<std::string, std::string>>& params) {
+    if (params.empty()) {
+        dumpScalarLine(out, indent, "list[]");
+        return;
+    }
+    dumpScalarLine(out, indent, "list[");
+    for (const auto& param : params) {
+        dumpScalarLine(out, indent + 2, "Parameter");
+        dumpStringField(out, indent + 2, "type", param.first);
+        dumpStringField(out, indent + 2, "name", param.second);
+    }
+    dumpScalarLine(out, indent, "]");
+}
+
+void dumpParamsField(std::ostream& out, int nodeIndent, const char* name,
+                     const std::vector<std::pair<std::string, std::string>>& params) {
+    dumpFieldLabel(out, nodeIndent, name);
+    dumpParamPairs(out, nodeIndent + 4, params);
+}
+
+void dumpFunction(std::ostream& out, const Function& function, int indent) {
+    dumpScalarLine(out, indent, "Function");
+    dumpStringField(out, indent, "name", function.name);
+    dumpFieldLabel(out, indent, "parameters");
+    if (function.parameters.empty()) {
+        dumpScalarLine(out, indent + 4, "list[]");
+    } else {
+        dumpScalarLine(out, indent + 4, "list[");
+        for (const Parameter& parameter : function.parameters) {
+            dumpScalarLine(out, indent + 6, "Parameter");
+            dumpStringField(out, indent + 6, "type", parameter.type);
+            dumpStringField(out, indent + 6, "name", parameter.name);
+            dumpExprField(out, indent + 6, "defaultValue",
+                          parameter.defaultValue.get());
+        }
+        dumpScalarLine(out, indent + 4, "]");
+    }
+    dumpStringListField(out, indent, "codeblockParameters",
+                        function.codeblockParameters);
+    dumpStringField(out, indent, "returnType", function.returnType);
+    dumpBoolField(out, indent, "isGlobal", function.isGlobal);
+    dumpBoolField(out, indent, "isFileFunction", function.isFileFunction);
+    dumpStmtListField(out, indent, "statements", function.statements);
+}
+
+} // namespace
+
+void LiteralExpression::dump(std::ostream& out, int indent) const {
+    dumpScalarLine(out, indent, "LiteralExpression");
+    dumpValueField(out, indent, "value", value_);
+}
+
+void VariableExpression::dump(std::ostream& out, int indent) const {
+    dumpScalarLine(out, indent, "VariableExpression");
+    dumpStringField(out, indent, "name", name_);
+}
+
+void UnaryExpression::dump(std::ostream& out, int indent) const {
+    dumpScalarLine(out, indent, "UnaryExpression");
+    dumpStringField(out, indent, "operation", operation_);
+    dumpExprField(out, indent, "operand", operand_.get());
+}
+
+void AwaitExpression::dump(std::ostream& out, int indent) const {
+    dumpScalarLine(out, indent, "AwaitExpression");
+    dumpExprField(out, indent, "expression", expression_.get());
+}
+
+void BinaryExpression::dump(std::ostream& out, int indent) const {
+    dumpScalarLine(out, indent, "BinaryExpression");
+    dumpStringField(out, indent, "operation", operation_);
+    dumpExprField(out, indent, "left", left_.get());
+    dumpExprField(out, indent, "right", right_.get());
+}
+
+void CallExpression::dump(std::ostream& out, int indent) const {
+    dumpScalarLine(out, indent, "CallExpression");
+    dumpStringField(out, indent, "name", name_);
+    dumpExprListField(out, indent, "arguments", arguments_);
+    dumpFieldLabel(out, indent, "codeblocks");
+    if (codeblocks_.empty()) {
+        dumpScalarLine(out, indent + 4, "list[]");
+    } else {
+        dumpScalarLine(out, indent + 4, "list[");
+        for (const CodeblockArgument& codeblock : codeblocks_) {
+            dumpScalarLine(out, indent + 6, "CodeblockArgument");
+            dumpStringField(out, indent + 6, "name", codeblock.name);
+            dumpStmtListField(out, indent + 6, "body", codeblock.body);
+        }
+        dumpScalarLine(out, indent + 4, "]");
+    }
+}
+
+void ListLiteralExpression::dump(std::ostream& out, int indent) const {
+    dumpScalarLine(out, indent, "ListLiteralExpression");
+    dumpExprListField(out, indent, "elements", elements_);
+}
+
+void TupleLiteralExpression::dump(std::ostream& out, int indent) const {
+    dumpScalarLine(out, indent, "TupleLiteralExpression");
+    dumpExprListField(out, indent, "elements", elements_);
+}
+
+void TypeCoerceExpression::dump(std::ostream& out, int indent) const {
+    dumpScalarLine(out, indent, "TypeCoerceExpression");
+    dumpExprField(out, indent, "inner", inner_.get());
+    dumpStringField(out, indent, "type", type_);
+}
+
+void DotAccessExpression::dump(std::ostream& out, int indent) const {
+    dumpScalarLine(out, indent, "DotAccessExpression");
+    dumpExprField(out, indent, "object", object_.get());
+    dumpStringField(out, indent, "field", field_);
+}
+
+void MethodCallExpression::dump(std::ostream& out, int indent) const {
+    dumpScalarLine(out, indent, "MethodCallExpression");
+    dumpExprField(out, indent, "receiver", object_.get());
+    dumpStringField(out, indent, "method", method_);
+    dumpExprListField(out, indent, "arguments", arguments_);
+}
+
+void NewExpression::dump(std::ostream& out, int indent) const {
+    dumpScalarLine(out, indent, "NewExpression");
+    dumpStringField(out, indent, "typeName", typeName_);
+    dumpExprListField(out, indent, "arguments", arguments_);
+}
+
+void AddVarGroupExpression::dump(std::ostream& out, int indent) const {
+    dumpScalarLine(out, indent, "AddVarGroupExpression");
+    dumpExprField(out, indent, "target", target_.get());
+    dumpStringField(out, indent, "type", type_);
+    dumpStringField(out, indent, "field", field_);
+    dumpExprField(out, indent, "value", value_.get());
+}
+
+void RemoveVarGroupExpression::dump(std::ostream& out, int indent) const {
+    dumpScalarLine(out, indent, "RemoveVarGroupExpression");
+    dumpExprField(out, indent, "target", target_.get());
+    dumpStringField(out, indent, "field", field_);
+}
+
+void VarGroupLiteralExpression::dump(std::ostream& out, int indent) const {
+    dumpScalarLine(out, indent, "VarGroupLiteralExpression");
+    dumpFieldLabel(out, indent, "fields");
+    if (fields_.empty()) {
+        dumpScalarLine(out, indent + 4, "list[]");
+        return;
+    }
+    dumpScalarLine(out, indent + 4, "list[");
+    for (const VarGroupFieldInit& field : fields_) {
+        dumpScalarLine(out, indent + 6, "VarGroupFieldInit");
+        dumpStringField(out, indent + 6, "type", field.type);
+        dumpStringField(out, indent + 6, "name", field.name);
+        dumpBoolField(out, indent + 6, "constant", field.constant);
+        dumpExprField(out, indent + 6, "value", field.value.get());
+    }
+    dumpScalarLine(out, indent + 4, "]");
+}
+
+void InterpStringExpression::dump(std::ostream& out, int indent) const {
+    dumpScalarLine(out, indent, "InterpStringExpression");
+    dumpStringListField(out, indent, "literals", literals_);
+    dumpExprListField(out, indent, "expressions", expressions_);
+}
+
+void DeclarationStatement::dump(std::ostream& out, int indent) const {
+    dumpScalarLine(out, indent, "DeclarationStatement");
+    dumpStringField(out, indent, "type", type_);
+    dumpStringField(out, indent, "name", name_);
+    dumpBoolField(out, indent, "constant", constant_);
+    dumpExprField(out, indent, "value", value_.get());
+}
+
+void AssignmentStatement::dump(std::ostream& out, int indent) const {
+    dumpScalarLine(out, indent, "AssignmentStatement");
+    dumpStringField(out, indent, "name", name_);
+    dumpExprField(out, indent, "value", value_.get());
+}
+
+void DotAssignmentStatement::dump(std::ostream& out, int indent) const {
+    dumpScalarLine(out, indent, "DotAssignmentStatement");
+    dumpStringListField(out, indent, "path", path_);
+    dumpStringField(out, indent, "type", type_);
+    dumpExprField(out, indent, "value", value_.get());
+}
+
+void SwitchStatement::dump(std::ostream& out, int indent) const {
+    dumpScalarLine(out, indent, "SwitchStatement");
+    dumpExprField(out, indent, "value", value_.get());
+    dumpFieldLabel(out, indent, "cases");
+    if (cases_.empty()) {
+        dumpScalarLine(out, indent + 4, "list[]");
+        return;
+    }
+    dumpScalarLine(out, indent + 4, "list[");
+    for (const SwitchCase& switchCase : cases_) {
+        dumpScalarLine(out, indent + 6, "SwitchCase");
+        dumpExprField(out, indent + 6, "pattern", switchCase.pattern.get());
+        dumpStmtListField(out, indent + 6, "body", switchCase.body);
+    }
+    dumpScalarLine(out, indent + 4, "]");
+}
+
+void TryCatchStatement::dump(std::ostream& out, int indent) const {
+    dumpScalarLine(out, indent, "TryCatchStatement");
+    dumpStringField(out, indent, "catchName", catchName_);
+    dumpStmtListField(out, indent, "try", tryStatements_);
+    dumpStmtListField(out, indent, "catch", catchStatements_);
+}
+
+void ReturnStatement::dump(std::ostream& out, int indent) const {
+    dumpScalarLine(out, indent, "ReturnStatement");
+    dumpExprField(out, indent, "value", value_.get());
+}
+
+void CodeblockDeclarationStatement::dump(std::ostream& out, int indent) const {
+    dumpScalarLine(out, indent, "CodeblockDeclarationStatement");
+    dumpStringField(out, indent, "name", name_);
+    dumpParamsField(out, indent, "parameters", params_);
+    dumpStmtListField(out, indent, "body", body_);
+}
+
+void ExecStatement::dump(std::ostream& out, int indent) const {
+    dumpScalarLine(out, indent, "ExecStatement");
+    dumpExprListField(out, indent, "arguments", arguments_);
+    dumpStringField(out, indent, "blockName", blockName_);
+    dumpParamsField(out, indent, "parameters", params_);
+    dumpStmtListField(out, indent, "body", body_);
+}
+
+void FunctionDeclarationStatement::dump(std::ostream& out, int indent) const {
+    dumpScalarLine(out, indent, "FunctionDeclarationStatement");
+    dumpFieldLabel(out, indent, "function");
+    if (function_ == nullptr) {
+        dumpScalarLine(out, indent + 4, "none");
+        return;
+    }
+    dumpFunction(out, *function_, indent + 4);
+}
+
+void LoopControlStatement::dump(std::ostream& out, int indent) const {
+    dumpScalarLine(out, indent, "LoopControlStatement");
+    dumpStringField(out, indent, "kind",
+                    kind_ == LoopControlKind::Break ? "break" : "continue");
+}
+
+void ExpressionStatement::dump(std::ostream& out, int indent) const {
+    dumpScalarLine(out, indent, "ExpressionStatement");
+    dumpExprField(out, indent, "expression", expression_.get());
+}
+
+void ImportStatement::dump(std::ostream& out, int indent) const {
+    dumpScalarLine(out, indent, "ImportStatement");
+    dumpStringField(out, indent, "path", path_);
+    dumpStringField(out, indent, "alias", alias_);
+}
+
+void IfStatement::dump(std::ostream& out, int indent) const {
+    dumpScalarLine(out, indent, "IfStatement");
+    dumpExprField(out, indent, "condition", condition_.get());
+    dumpBoolField(out, indent, "hasElse", hasElse_);
+    dumpStmtListField(out, indent, "then", thenStatements_);
+    dumpStmtListField(out, indent, "else", elseStatements_);
+}
+
+void WhileStatement::dump(std::ostream& out, int indent) const {
+    dumpScalarLine(out, indent, "WhileStatement");
+    dumpExprField(out, indent, "condition", condition_.get());
+    dumpStmtListField(out, indent, "body", statements_);
+}
+
+void ForStatement::dump(std::ostream& out, int indent) const {
+    dumpScalarLine(out, indent, "ForStatement");
+    dumpStmtField(out, indent, "initializer", initializer_.get());
+    dumpExprField(out, indent, "condition", condition_.get());
+    dumpStmtField(out, indent, "update", update_.get());
+    dumpStmtListField(out, indent, "body", statements_);
+}
+
+void DoWhileStatement::dump(std::ostream& out, int indent) const {
+    dumpScalarLine(out, indent, "DoWhileStatement");
+    dumpExprField(out, indent, "condition", condition_.get());
+    dumpStmtListField(out, indent, "body", statements_);
+}
+
+void IterateStatement::dump(std::ostream& out, int indent) const {
+    dumpScalarLine(out, indent, "IterateStatement");
+    dumpExprField(out, indent, "count", count_.get());
+    dumpStmtListField(out, indent, "body", statements_);
+}
+
+void ForeverStatement::dump(std::ostream& out, int indent) const {
+    dumpScalarLine(out, indent, "ForeverStatement");
+    dumpStmtListField(out, indent, "body", statements_);
+}
+
+void dumpProgram(std::ostream& out, const std::vector<const Function*>& functions) {
+    dumpScalarLine(out, 0, "Program");
+    dumpFieldLabel(out, 0, "functions");
+    if (functions.empty()) {
+        dumpScalarLine(out, 4, "list[]");
+        return;
+    }
+    dumpScalarLine(out, 4, "list[");
+    for (const Function* function : functions) {
+        dumpFunction(out, *function, 6);
+    }
+    dumpScalarLine(out, 4, "]");
+}
+
 } // namespace clynxer

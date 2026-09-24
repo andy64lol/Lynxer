@@ -130,8 +130,6 @@ Config::Config() {
                ".lynx source with --compile instead");
     setDefault("error.interpreter_failure",
                "clynxer: interpreter failure in '{0}': {1}");
-    setDefault("error.unsupported",
-               "clynxer: '{0}' is not available in CLynxer yet");
     setDefault("error.validator_missing",
                "clynxer: comprehensive validator is not available");
     setDefault("status.lint_ok", "Lint OK: {0}");

@@ -349,11 +349,13 @@ building the machinery behind them.
 
 ## CLI tools
 
-`--lint`, `--format`, `--format-oneline`, `--validate-executeable` and
-`--install`/`--uninstall` are implemented. `--ast` is **not**: it is recognised
-only to report `clynxer: '--ast' is not available in CLynxer yet`. The list of
-flags removed with the bytecode backend (`--view-bytecode`,
-`--benchmark-compile`, `--no-cache`) is in [CLI.md](CLI.md).
+`--lint`, `--ast`, `--format`, `--format-oneline`, `--validate-executeable` and
+`--install`/`--uninstall` are implemented. `--ast` prints Clynxer's own node and
+field names, so its output is not byte-comparable to the Python reference, and
+it covers the executable AST (functions and statements) rather than the named
+type declarations held in the type registry. The list of flags removed with the
+bytecode backend (`--view-bytecode`, `--benchmark-compile`, `--no-cache`) is in
+[CLI.md](CLI.md).
 
 The formatter is token-based: it never changes tokens, and it preserves line
 comments and `///`/`////` blocks verbatim. This is deliberately stricter than

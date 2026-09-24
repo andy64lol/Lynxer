@@ -51,6 +51,7 @@ void printUsage() {
     std::cout << "  clynxer <file.lynx>                          Run a Lynxer source file\n";
     std::cout << "  clynxer --no-opt <file.lynx>                 Run without the AST optimizer\n";
     std::cout << "  clynxer --lint <file.lynx>                   Check Lynxer syntax without running it\n";
+    std::cout << "  clynxer --ast <file.lynx>                    Parse and print the abstract syntax tree\n";
     std::cout << "  clynxer --format <file.lynx>                 Rewrite a file with canonical spacing\n";
     std::cout << "  clynxer --format-oneline <file.lynx>         Collapse a file onto one physical line\n";
     std::cout << "  clynxer --compile <a.lynx> [options] [name]  Compile input files into one executable\n";
@@ -62,9 +63,6 @@ void printUsage() {
     std::cout << "  clynxer --list-stdlibs                       List available Lynxer stdlib modules\n";
     std::cout << "  clynxer --install                            Install the executable as /usr/bin/lynxer\n";
     std::cout << "  clynxer --uninstall                          Remove /usr/bin/lynxer\n";
-    std::cout << "\n";
-    std::cout << "Not available in CLynxer (reported as an explicit error):\n";
-    std::cout << "  --ast\n";
     std::cout << "\n";
     std::cout << "Removed with the bytecode backend (use --compile):\n";
     std::cout << "  --view-bytecode, --benchmark-compile, --no-cache\n";
@@ -196,6 +194,31 @@ int lintFile(const std::string& display, const std::string& source) {
     std::cout << Config::instance().format("status.lint_ok", "Lint OK: {0}",
                                            "{0}", display)
               << '\n';
+    return 0;
+}
+
+// Parses `display` and prints its AST without executing it.
+int astFile(const std::string& display, const std::string& source) {
+    try {
+        // The lexer keeps a reference to the source, so it must outlive it.
+        Lexer lexer(source, display);
+        Parser parser(lexer.scan());
+        const auto functions = parser.parseProgram();
+        std::vector<const Function*> ordered;
+        ordered.reserve(parser.programOrder().size());
+        for (const std::string& name : parser.programOrder()) {
+            const auto found = functions.find(name);
+            if (found != functions.end()) {
+                ordered.push_back(&found->second);
+            }
+        }
+        std::cout << "Lynxer AST\n===========\n";
+        dumpProgram(std::cout, ordered);
+    } catch (const SourceError& error) {
+        std::cerr << "clynxer: " << display << ':' << error.line << ':'
+                  << error.column << ": " << error.what() << '\n';
+        return 1;
+    }
     return 0;
 }
 
@@ -395,14 +418,6 @@ int runProgram(const std::string& display, const std::string& source) {
                   << ": " << error.what() << '\n';
         return 1;
     }
-}
-
-int unsupportedFeature(const std::string& flag) {
-    std::cerr << Config::instance().format("error.unsupported",
-                                           "clynxer: '{0}' is not available in CLynxer yet",
-                                           "{0}", flag)
-              << '\n';
-    return 1;
 }
 
 bool endsWith(const std::string& value, const std::string& suffix) {
@@ -834,7 +849,20 @@ int shellMain(int argc, char** argv) {
         return formatFile(args[1], source, args[0] == "--format-oneline");
     }
     if (args[0] == "--ast") {
-        return unsupportedFeature(args[0]);
+        if (args.size() != 2) {
+            std::cerr << Config::instance().format(
+                                 "error.requires_one_file",
+                                 "clynxer: {0} requires exactly one file argument",
+                                 "{0}", args[0])
+                      << '\n';
+            return 1;
+        }
+        bool ok = false;
+        const std::string source = readFile(args[1], args[1], ok);
+        if (!ok) {
+            return 1;
+        }
+        return astFile(args[1], source);
     }
     if (args[0] == "--lint") {
         if (args.size() != 2) {

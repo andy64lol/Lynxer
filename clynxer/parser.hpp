@@ -21,6 +21,11 @@ public:
     // Every import declared while parsing, in source order.
     const std::vector<ImportRecord>& imports() const { return imports_; }
 
+    // Every top-level function declared while parsing, in source order.
+    const std::vector<std::string>& programOrder() const {
+        return programOrder_;
+    }
+
 private:
     void parseStructDefinition();
     void parseClassDefinition();
@@ -143,6 +148,7 @@ private:
     int loopDepth_ = 0;
     std::unordered_set<std::string> codeblockNames_;
     std::vector<ImportRecord> imports_;
+    std::vector<std::string> programOrder_;
 };
 
 } // namespace clynxer

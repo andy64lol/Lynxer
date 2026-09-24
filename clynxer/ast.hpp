@@ -2,6 +2,7 @@
 
 #include "runtime.hpp"
 
+#include <iosfwd>
 #include <map>
 #include <memory>
 #include <string>
@@ -30,10 +31,14 @@ public:
     // AST optimization hook. Recurses into owned children and returns a
     // replacement node, or nullptr to keep this node as it is.
     virtual ExpressionPtr optimize(OptimizationStats& stats);
+
+    // Prints this node as an indented, position-free tree; see `dumpProgram`.
+    virtual void dump(std::ostream& out, int indent) const = 0;
 };
 
 class LiteralExpression final : public Expression {
 public:
+    void dump(std::ostream& out, int indent) const override;
     explicit LiteralExpression(Value value);
 
     Value evaluate(Environment& environment) const override;
@@ -47,6 +52,7 @@ private:
 
 class VariableExpression final : public Expression {
 public:
+    void dump(std::ostream& out, int indent) const override;
     VariableExpression(std::string name, int line, int column);
 
     Value evaluate(Environment& environment) const override;
@@ -66,6 +72,7 @@ private:
 
 class UnaryExpression final : public Expression {
 public:
+    void dump(std::ostream& out, int indent) const override;
     UnaryExpression(std::string operation, ExpressionPtr operand, int line,
                     int column);
 
@@ -94,6 +101,7 @@ private:
 // currently resumes the already-synchronous operation immediately.
 class AwaitExpression final : public Expression {
 public:
+    void dump(std::ostream& out, int indent) const override;
     explicit AwaitExpression(ExpressionPtr expression)
         : expression_(std::move(expression)) {}
 
@@ -109,6 +117,7 @@ private:
 
 class BinaryExpression final : public Expression {
 public:
+    void dump(std::ostream& out, int indent) const override;
     BinaryExpression(std::string operation, ExpressionPtr left,
                      ExpressionPtr right, int line, int column);
 
@@ -135,6 +144,7 @@ private:
 
 class CallExpression final : public Expression {
 public:
+    void dump(std::ostream& out, int indent) const override;
     CallExpression(std::string name, std::vector<ExpressionPtr> arguments,
                    int line, int column);
 
@@ -165,6 +175,7 @@ private:
 
 class ListLiteralExpression final : public Expression {
 public:
+    void dump(std::ostream& out, int indent) const override;
     explicit ListLiteralExpression(std::vector<ExpressionPtr> elements);
 
     Value evaluate(Environment& environment) const override;
@@ -179,6 +190,7 @@ private:
 
 class TupleLiteralExpression final : public Expression {
 public:
+    void dump(std::ostream& out, int indent) const override;
     explicit TupleLiteralExpression(std::vector<ExpressionPtr> elements);
 
     Value evaluate(Environment& environment) const override;
@@ -195,6 +207,7 @@ private:
 // element literals such as [int 1, int 2].
 class TypeCoerceExpression final : public Expression {
 public:
+    void dump(std::ostream& out, int indent) const override;
     TypeCoerceExpression(ExpressionPtr inner, std::string type);
 
     Value evaluate(Environment& environment) const override;
@@ -214,6 +227,7 @@ private:
 // paren-less enum variant construction (status.Ready).
 class DotAccessExpression final : public Expression {
 public:
+    void dump(std::ostream& out, int indent) const override;
     DotAccessExpression(ExpressionPtr object, std::string field, int line,
                         int column);
 
@@ -239,6 +253,7 @@ private:
 // builtin calls.
 class MethodCallExpression final : public Expression {
 public:
+    void dump(std::ostream& out, int indent) const override;
     MethodCallExpression(ExpressionPtr object, std::string method,
                          std::vector<ExpressionPtr> arguments, int line,
                          int column);
@@ -265,6 +280,7 @@ private:
 // new StructName(...) / new ClassName(...) construction.
 class NewExpression final : public Expression {
 public:
+    void dump(std::ostream& out, int indent) const override;
     NewExpression(std::string typeName, std::vector<ExpressionPtr> arguments,
                   int line, int column);
 
@@ -287,6 +303,7 @@ private:
 // addVarGroup(player, str title = "Warrior") — vargroup field addition.
 class AddVarGroupExpression final : public Expression {
 public:
+    void dump(std::ostream& out, int indent) const override;
     AddVarGroupExpression(ExpressionPtr target, std::string type,
                           std::string field, ExpressionPtr value, int line,
                           int column);
@@ -307,6 +324,7 @@ private:
 // removeVarGroup(player, title) — vargroup field removal by name.
 class RemoveVarGroupExpression final : public Expression {
 public:
+    void dump(std::ostream& out, int indent) const override;
     RemoveVarGroupExpression(ExpressionPtr target, std::string field, int line,
                              int column);
 
@@ -330,6 +348,7 @@ struct VarGroupFieldInit {
 
 class VarGroupLiteralExpression final : public Expression {
 public:
+    void dump(std::ostream& out, int indent) const override;
     explicit VarGroupLiteralExpression(std::vector<VarGroupFieldInit> fields);
 
     Value evaluate(Environment& environment) const override;
@@ -344,6 +363,7 @@ private:
 // expressions evaluated at runtime.
 class InterpStringExpression final : public Expression {
 public:
+    void dump(std::ostream& out, int indent) const override;
     void addLiteral(std::string text);
 
     void addExpression(ExpressionPtr expression);
@@ -369,6 +389,9 @@ public:
     // `out` and returns true when it did (used for dead-branch elimination).
     virtual void optimizeChildren(OptimizationStats& stats);
     virtual bool rewrite(StatementList& out, OptimizationStats& stats);
+
+    // Prints this node as an indented, position-free tree; see `dumpProgram`.
+    virtual void dump(std::ostream& out, int indent) const = 0;
 };
 
 
@@ -394,6 +417,7 @@ struct LoopControl {
 
 class DeclarationStatement final : public Statement {
 public:
+    void dump(std::ostream& out, int indent) const override;
     DeclarationStatement(std::string type, std::string name, ExpressionPtr value,
                          int line, int column, bool constant = false);
 
@@ -419,6 +443,7 @@ private:
 
 class AssignmentStatement final : public Statement {
 public:
+    void dump(std::ostream& out, int indent) const override;
     AssignmentStatement(std::string name, ExpressionPtr value, int line,
                         int column);
 
@@ -444,6 +469,7 @@ private:
 // declared type: int player.coins = 500; or player.health = 90;
 class DotAssignmentStatement final : public Statement {
 public:
+    void dump(std::ostream& out, int indent) const override;
     DotAssignmentStatement(std::vector<std::string> path, std::string type,
                            ExpressionPtr value, int line, int column);
 
@@ -466,6 +492,7 @@ struct SwitchCase {
 
 class SwitchStatement final : public Statement {
 public:
+    void dump(std::ostream& out, int indent) const override;
     SwitchStatement(ExpressionPtr value, std::vector<SwitchCase> cases,
                     int line, int column);
 
@@ -482,6 +509,7 @@ private:
 
 class TryCatchStatement final : public Statement {
 public:
+    void dump(std::ostream& out, int indent) const override;
     TryCatchStatement(StatementList tryStatements, std::string catchName,
                       StatementList catchStatements, int line, int column);
 
@@ -508,6 +536,7 @@ struct ReturnControl {
 
 class ReturnStatement final : public Statement {
 public:
+    void dump(std::ostream& out, int indent) const override;
     explicit ReturnStatement(ExpressionPtr value, int line, int column);
 
     void execute(Environment& environment) const override;
@@ -522,6 +551,7 @@ private:
 
 class CodeblockDeclarationStatement final : public Statement {
 public:
+    void dump(std::ostream& out, int indent) const override;
     CodeblockDeclarationStatement(
         std::string name,
         std::vector<std::pair<std::string, std::string>> params,
@@ -542,6 +572,7 @@ private:
 // exec(...){...} inline form and exec(...){{name}} named form.
 class ExecStatement final : public Statement {
 public:
+    void dump(std::ostream& out, int indent) const override;
     ExecStatement(std::vector<ExpressionPtr> arguments, std::string blockName,
                   std::vector<std::pair<std::string, std::string>> params,
                   StatementList body, int line, int column);
@@ -581,6 +612,7 @@ struct Function {
 
 class FunctionDeclarationStatement final : public Statement {
 public:
+    void dump(std::ostream& out, int indent) const override;
     explicit FunctionDeclarationStatement(std::shared_ptr<Function> function)
         : function_(std::move(function)) {}
 
@@ -594,6 +626,7 @@ private:
 
 class LoopControlStatement final : public Statement {
 public:
+    void dump(std::ostream& out, int indent) const override;
     explicit LoopControlStatement(LoopControlKind kind);
 
     void execute(Environment& environment) const override;
@@ -605,6 +638,7 @@ private:
 
 class ExpressionStatement final : public Statement {
 public:
+    void dump(std::ostream& out, int indent) const override;
     explicit ExpressionStatement(ExpressionPtr expression);
 
     void execute(Environment& environment) const override;
@@ -619,6 +653,7 @@ private:
 
 class ImportStatement final : public Statement {
 public:
+    void dump(std::ostream& out, int indent) const override;
     ImportStatement(std::string path, std::string alias, int line, int column)
         : path_(std::move(path)), alias_(std::move(alias)), line_(line),
           column_(column) {}
@@ -636,6 +671,7 @@ void executeStatements(const StatementList& statements, Environment& environment
 
 class IfStatement final : public Statement {
 public:
+    void dump(std::ostream& out, int indent) const override;
     IfStatement(ExpressionPtr condition, StatementList thenStatements,
                 StatementList elseStatements, bool hasElse);
 
@@ -658,6 +694,7 @@ private:
 
 class WhileStatement final : public Statement {
 public:
+    void dump(std::ostream& out, int indent) const override;
     WhileStatement(ExpressionPtr condition, StatementList statements);
 
     void execute(Environment& environment) const override;
@@ -675,6 +712,7 @@ private:
 
 class ForStatement final : public Statement {
 public:
+    void dump(std::ostream& out, int indent) const override;
     ForStatement(StatementPtr initializer, ExpressionPtr condition,
                  StatementPtr update, StatementList statements);
 
@@ -693,6 +731,7 @@ private:
 
 class DoWhileStatement final : public Statement {
 public:
+    void dump(std::ostream& out, int indent) const override;
     DoWhileStatement(ExpressionPtr condition, StatementList statements);
 
     void execute(Environment& environment) const override;
@@ -708,6 +747,7 @@ private:
 
 class IterateStatement final : public Statement {
 public:
+    void dump(std::ostream& out, int indent) const override;
     IterateStatement(ExpressionPtr count, StatementList statements, int line,
                      int column);
 
@@ -732,6 +772,7 @@ private:
 
 class ForeverStatement final : public Statement {
 public:
+    void dump(std::ostream& out, int indent) const override;
     ForeverStatement(StatementList statements, int line, int column);
 
     void execute(Environment& environment) const override;
@@ -759,6 +800,10 @@ Value invokeFunction(const Function& function, const std::vector<Value>& args,
 
 void executeProgram(const std::unordered_map<std::string, Function>& functions,
                     Environment& environment);
+
+// Prints the parsed program as the position-free tree used by `--ast`.
+// `functions` is the order they were declared in (see Parser::programOrder).
+void dumpProgram(std::ostream& out, const std::vector<const Function*>& functions);
 
 // One `import`/`importAs` occurrence found while parsing.
 struct ImportRecord {

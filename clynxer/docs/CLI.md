@@ -58,6 +58,23 @@ A clean file prints `Lint OK: <path>` and exits `0`. It requires exactly one
 file; otherwise it prints
 `clynxer: --lint requires exactly one file argument`.
 
+## Printing the AST
+
+```bash
+clynxer --ast program.lynx
+```
+
+`--ast` lexes and parses the file and prints the resulting tree without running
+it: the header `Lynxer AST` / `===========`, then a position-free, indented
+dump of every top-level function and its statements. Source line/column are
+omitted. A syntax error is reported with its source location and exits `1`; the
+flag requires exactly one file argument.
+
+The tree uses Clynxer's own node and field names, so it is not byte-comparable
+to the Python reference's `--ast`. Named-type declarations (`struct`, `class`,
+`enum`) are parse-time metadata held in the type registry rather than part of
+the returned program, so `--ast` shows the executable AST only.
+
 ## Formatting
 
 ```bash
@@ -135,12 +152,6 @@ interpreter's `stdlib/` directory together with its `////` docstring, and exits
 
 The version string comes from the `version` key in `clynxer/clynxer.config`
 (currently `0.1.8`).
-
-## Not available
-
-`--ast` is recognised so the failure is explicit: it exits `1` with
-`clynxer: '--ast' is not available in CLynxer yet`. Use `--format` to rewrite a
-file or `--lint` to check it.
 
 ## Installing
 

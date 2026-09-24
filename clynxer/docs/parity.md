@@ -81,6 +81,7 @@ them; comparing against Python for these would be a false failure.
 | `multiprocessing` | worker threads, not processes | [limitations.md](limitations.md#multiprocessing) |
 | `js` | requires `node`; no timeout | [limitations.md](limitations.md#js) |
 | `debug` | `dump`/`pp` use `strOf`, not `repr` | [limitations.md](limitations.md#debug) |
+| `--ast` | prints Clynxer's own node/field names over the executable AST | [limitations.md](limitations.md#cli-tools) |
 | `math` | statistics reimplemented without NumPy | [limitations.md](limitations.md#math) |
 | `tui` | placeholder backend, not Rich | [limitations.md](limitations.md#tui) |
 | `sqldb` | failures returned in band | [limitations.md](limitations.md#sqldb) |
@@ -101,4 +102,3 @@ gated by Clynxer's own tests and the golden CLI cases.
 - the `--format`/`--format-oneline` formatter (it preserves `//` and
   `///`/`////` comments verbatim and is idempotent), the
   `--validate-executeable` self-check, and `--install`/`--uninstall`;
-- `--ast`, which Clynxer reports as unavailable.
