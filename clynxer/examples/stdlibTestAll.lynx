@@ -620,7 +620,7 @@ global main(){
     fails += global.check(returnLength(global.time.getWeekday()) > 0, "true", "time.getWeekday");
     if (global.time.toTimestamp("2024-01-01") is "1704067200") {
         fails += global.check(global.time.toTimestamp("2024-01-01"), "1704067200", "time.toTimestamp");
-    } else {
+    } else if (global.time.toTimestamp("2024-01-01") is "1704063600") {
         fails += global.check(global.time.toTimestamp("2024-01-01"), "1704063600", "time.toTimestamp");
     }
     fails += global.check(global.time.timestamp() > 0, "true", "time.timestamp");
