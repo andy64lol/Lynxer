@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>time - Lynxer</title>
+    <link rel="stylesheet" href="../../style.css">
+</head>
+<body>
+
+<header>
+    <h1><a href="../../index.html">Lynxer</a></h1>
+    <p>Documentation</p>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3>Overview</h3><ul>
+<li><a href="../index.html">README</a></li>
+</ul>
+<h3>Getting started</h3><ul>
+<li><a href="../install.html">install</a></li>
+<li><a href="../CLI.html">CLI</a></li>
+</ul>
+<h3>Language</h3><ul>
+<li><a href="../language.html">language</a></li>
+<li><a href="../types.html">types</a></li>
+<li><a href="../lists.html">lists</a></li>
+<li><a href="../modules.html">modules</a></li>
+<li><a href="../importAs.html">importAs</a></li>
+</ul>
+<h3>Records</h3><ul>
+<li><a href="../structs.html">structs</a></li>
+<li><a href="../classes.html">classes</a></li>
+<li><a href="../enums.html">enums</a></li>
+<li><a href="../vargroups.html">vargroups</a></li>
+</ul>
+<h3>Built-ins and modules</h3><ul>
+<li><a href="../builtins.html">builtins</a></li>
+<li><a href="../native-module-abi.html">native-module-abi</a></li>
+<li><a href="../stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="../extending.html">extending</a></li>
+</ul>
+<h3>Reference</h3><ul>
+<li><a href="../limitations.html">limitations</a></li>
+</ul>
+<h3>Standard library</h3><ul>
+<li><a href="index.html">All modules</a></li>
+<li><a href="cli.html">cli</a></li>
+<li><a href="colorlib.html">colorlib</a></li>
+<li><a href="csv.html">csv</a></li>
+<li><a href="debug.html">debug</a></li>
+<li><a href="fileIO.html">fileIO</a></li>
+<li><a href="game.html">game</a></li>
+<li><a href="image.html">image</a></li>
+<li><a href="js.html">js</a></li>
+<li><a href="json.html">json</a></li>
+<li><a href="lua.html">lua</a></li>
+<li><a href="math.html">math</a></li>
+<li><a href="multiprocessing.html">multiprocessing</a></li>
+<li><a href="network.html">network</a></li>
+<li><a href="os.html">os</a></li>
+<li><a href="path.html">path</a></li>
+<li><a href="random.html">random</a></li>
+<li><a href="re.html">re</a></li>
+<li><a href="regex.html">regex</a></li>
+<li><a href="server.html">server</a></li>
+<li><a href="shell.html">shell</a></li>
+<li><a href="sound.html">sound</a></li>
+<li><a href="sqldb.html">sqldb</a></li>
+<li><a href="sys.html">sys</a></li>
+<li><a href="text.html">text</a></li>
+<li><a href="time.html" class="active">time</a></li>
+<li><a href="tui.html">tui</a></li>
+<li><a href="typing.html">typing</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+<h1 id="time">time</h1>
+<p>Date and time helpers.</p>
+<p><strong>Backend:</strong> native — <code>stdlib/time.so</code>, built from <code>stdlib/time.cpp</code> over <code>&lt;chrono&gt;</code> and <code>&lt;ctime&gt;</code>. <strong>Import:</strong> <code>import(&quot;time&quot;)</code> → <code>global.time.*</code></p>
+<table>
+<tr><th>Function</th><th>Signature</th><th>Notes</th></tr>
+<tr><td><code>now</code></td><td><code>() -&gt; str</code></td><td><code>YYYY-MM-DD HH:MM:SS</code> local time</td></tr>
+<tr><td><code>getTime</code></td><td><code>() -&gt; str</code></td><td><code>HH:MM:SS</code></td></tr>
+<tr><td><code>getDate</code></td><td><code>() -&gt; str</code></td><td><code>YYYY-MM-DD</code></td></tr>
+<tr><td><code>isoNow</code></td><td><code>() -&gt; str</code></td><td><code>YYYY-MM-DDTHH:MM:SS</code></td></tr>
+<tr><td><code>format</code></td><td><code>(str pattern) -&gt; str</code></td><td><code>strftime</code> with the current local time</td></tr>
+<tr><td><code>fromTimestamp</code></td><td><code>(float value) -&gt; str</code></td><td>Formats a Unix timestamp as <code>YYYY-MM-DD HH:MM:SS</code></td></tr>
+<tr><td><code>toTimestamp</code></td><td><code>(str value) -&gt; float</code></td><td>Parses <code>YYYY-MM-DD[ HH:MM:SS]</code>; <code>-1.0</code> on error</td></tr>
+<tr><td><code>addDays</code></td><td><code>(str date, int days) -&gt; str</code></td><td>Adds days to a <code>YYYY-MM-DD</code> date; <code>&quot;&quot;</code> on error</td></tr>
+<tr><td><code>diffDays</code></td><td><code>(str left, str right) -&gt; int</code></td><td>Whole days from <code>left</code> to <code>right</code></td></tr>
+<tr><td><code>timestamp</code></td><td><code>() -&gt; float</code></td><td>Current Unix time</td></tr>
+<tr><td><code>getYear</code> … <code>getSecond</code></td><td><code>() -&gt; int</code></td><td>Local clock fields</td></tr>
+<tr><td><code>getWeekdayNum</code></td><td><code>() -&gt; int</code></td><td>Weekday number, Monday = <code>0</code></td></tr>
+<tr><td><code>getWeekday</code></td><td><code>() -&gt; str</code></td><td>Full weekday name, e.g. <code>Wednesday</code></td></tr>
+<tr><td><code>isLeapYear</code></td><td><code>(int year) -&gt; bool</code></td><td>Leap-year test</td></tr>
+<tr><td><code>daysInMonth</code></td><td><code>(int year, int month) -&gt; int</code></td><td><code>0</code> for an out-of-range month</td></tr>
+</table>
+<h2 id="example">Example</h2>
+<pre><code>global setup(){ import(&quot;time&quot;); }
+
+global main(){
+    println(global.time.getDate());
+    println(global.time.addDays(&quot;2026-02-27&quot;, 2));
+    println(global.time.daysInMonth(2024, 2));
+}</code></pre>
+<hr>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="../stdlib-contracts.html">stdlib-contracts</a> — the contract this module implements, including the error sentinel family it uses.</li>
+<li><a href="../builtins.html">builtins</a> — the functions the interpreter implements itself.</li>
+<li><a href="../limitations.html">limitations</a> — the full divergence register.</li>
+</ul>
+    </main>
+</div>
+
+<footer>
+    Lynxer &middot; MIT License
+</footer>
+
+</body>
+</html>

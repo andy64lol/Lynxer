@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>math - Lynxer</title>
+    <link rel="stylesheet" href="../../style.css">
+</head>
+<body>
+
+<header>
+    <h1><a href="../../index.html">Lynxer</a></h1>
+    <p>Documentation</p>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3>Overview</h3><ul>
+<li><a href="../index.html">README</a></li>
+</ul>
+<h3>Getting started</h3><ul>
+<li><a href="../install.html">install</a></li>
+<li><a href="../CLI.html">CLI</a></li>
+</ul>
+<h3>Language</h3><ul>
+<li><a href="../language.html">language</a></li>
+<li><a href="../types.html">types</a></li>
+<li><a href="../lists.html">lists</a></li>
+<li><a href="../modules.html">modules</a></li>
+<li><a href="../importAs.html">importAs</a></li>
+</ul>
+<h3>Records</h3><ul>
+<li><a href="../structs.html">structs</a></li>
+<li><a href="../classes.html">classes</a></li>
+<li><a href="../enums.html">enums</a></li>
+<li><a href="../vargroups.html">vargroups</a></li>
+</ul>
+<h3>Built-ins and modules</h3><ul>
+<li><a href="../builtins.html">builtins</a></li>
+<li><a href="../native-module-abi.html">native-module-abi</a></li>
+<li><a href="../stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="../extending.html">extending</a></li>
+</ul>
+<h3>Reference</h3><ul>
+<li><a href="../limitations.html">limitations</a></li>
+</ul>
+<h3>Standard library</h3><ul>
+<li><a href="index.html">All modules</a></li>
+<li><a href="cli.html">cli</a></li>
+<li><a href="colorlib.html">colorlib</a></li>
+<li><a href="csv.html">csv</a></li>
+<li><a href="debug.html">debug</a></li>
+<li><a href="fileIO.html">fileIO</a></li>
+<li><a href="game.html">game</a></li>
+<li><a href="image.html">image</a></li>
+<li><a href="js.html">js</a></li>
+<li><a href="json.html">json</a></li>
+<li><a href="lua.html">lua</a></li>
+<li><a href="math.html" class="active">math</a></li>
+<li><a href="multiprocessing.html">multiprocessing</a></li>
+<li><a href="network.html">network</a></li>
+<li><a href="os.html">os</a></li>
+<li><a href="path.html">path</a></li>
+<li><a href="random.html">random</a></li>
+<li><a href="re.html">re</a></li>
+<li><a href="regex.html">regex</a></li>
+<li><a href="server.html">server</a></li>
+<li><a href="shell.html">shell</a></li>
+<li><a href="sound.html">sound</a></li>
+<li><a href="sqldb.html">sqldb</a></li>
+<li><a href="sys.html">sys</a></li>
+<li><a href="text.html">text</a></li>
+<li><a href="time.html">time</a></li>
+<li><a href="tui.html">tui</a></li>
+<li><a href="typing.html">typing</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+<h1 id="math">math</h1>
+<p>Integer, floating-point, number-theory, rounding, logarithmic and trigonometric helpers.</p>
+<p><strong>Backend:</strong> native — <code>stdlib/math.so</code>, built from <code>stdlib/math.cpp</code> over <code>&lt;cmath&gt;</code>. <strong>Import:</strong> <code>import(&quot;math&quot;)</code> → <code>global.math.*</code></p>
+<h2 id="integers-and-number-theory">Integers and number theory</h2>
+<table>
+<tr><th>Function</th><th>Signature</th><th>Notes</th></tr>
+<tr><td><code>abs</code></td><td><code>(int value) -&gt; int</code></td><td>Saturates at <code>maxInt</code> for the minimum integer</td></tr>
+<tr><td><code>max</code> / <code>min</code></td><td><code>(int, int) -&gt; int</code></td><td>Larger / smaller of two integers</td></tr>
+<tr><td><code>clamp</code></td><td><code>(int value, int low, int high) -&gt; int</code></td><td>Inclusive clamp</td></tr>
+<tr><td><code>pow</code></td><td><code>(int base, int exponent) -&gt; int</code></td><td>Integer exponentiation; <code>0</code> for negative exponents</td></tr>
+<tr><td><code>sign</code></td><td><code>(int value) -&gt; int</code></td><td><code>-1</code>, <code>0</code> or <code>1</code></td></tr>
+<tr><td><code>isEven</code> / <code>isOdd</code></td><td><code>(int value) -&gt; bool</code></td><td>Parity</td></tr>
+<tr><td><code>factorial</code></td><td><code>(int value) -&gt; int</code></td><td><code>0</code> for negative input</td></tr>
+<tr><td><code>gcd</code> / <code>lcm</code></td><td><code>(int, int) -&gt; int</code></td><td>Greatest common divisor / least common multiple</td></tr>
+<tr><td><code>isPrime</code></td><td><code>(int value) -&gt; bool</code></td><td>Values below two are not prime</td></tr>
+<tr><td><code>nextPrime</code></td><td><code>(int value) -&gt; int</code></td><td>First prime strictly greater than <code>value</code></td></tr>
+<tr><td><code>binomial</code></td><td><code>(int n, int k) -&gt; int</code></td><td><code>n</code> choose <code>k</code>; <code>0</code> for invalid <code>k</code></td></tr>
+<tr><td><code>sumRange</code></td><td><code>(int low, int high) -&gt; int</code></td><td>Inclusive sum; <code>0</code> when <code>low &gt; high</code></td></tr>
+<tr><td><code>isqrt</code></td><td><code>(int value) -&gt; int</code></td><td>Integer square root; <code>0</code> for negatives</td></tr>
+</table>
+<h2 id="floating-point">Floating point</h2>
+<table>
+<tr><th>Function</th><th>Signature</th><th>Notes</th></tr>
+<tr><td><code>absFloat</code></td><td><code>(float value) -&gt; float</code></td><td>Absolute value</td></tr>
+<tr><td><code>maxFloat</code> / <code>minFloat</code></td><td><code>(float, float) -&gt; float</code></td><td>Larger / smaller (NaN-aware)</td></tr>
+<tr><td><code>clampFloat</code></td><td><code>(float value, float low, float high) -&gt; float</code></td><td>Inclusive clamp</td></tr>
+<tr><td><code>powFloat</code></td><td><code>(float base, float exponent) -&gt; float</code></td><td><code>std::pow</code></td></tr>
+<tr><td><code>sqrt</code>, <code>cbrt</code></td><td><code>(float value) -&gt; float</code></td><td>Square / cube root</td></tr>
+<tr><td><code>hypot</code></td><td><code>(float x, float y) -&gt; float</code></td><td><code>sqrt(x² + y²)</code></td></tr>
+<tr><td><code>signFloat</code></td><td><code>(float value) -&gt; float</code></td><td><code>-1.0</code>, <code>0.0</code> or <code>1.0</code></td></tr>
+<tr><td><code>fmod</code> / <code>remainder</code></td><td><code>(float, float) -&gt; float</code></td><td>Remainder operations</td></tr>
+<tr><td><code>truncate</code></td><td><code>(float value) -&gt; int</code></td><td>Truncates toward zero</td></tr>
+<tr><td><code>floor</code>, <code>ceil</code>, <code>round</code>, <code>trunc</code></td><td><code>(float value) -&gt; float</code></td><td>Rounding</td></tr>
+<tr><td><code>roundNum</code></td><td><code>(float value) -&gt; float</code></td><td>Alias of <code>round</code></td></tr>
+<tr><td><code>roundTo</code></td><td><code>(float value, int decimals) -&gt; float</code></td><td>Rounds to <code>decimals</code> places</td></tr>
+<tr><td><code>lerp</code></td><td><code>(float low, float high, float t) -&gt; float</code></td><td>Linear interpolation</td></tr>
+<tr><td><code>mapRange</code></td><td><code>(float value, float inLo, float inHi, float outLo, float outHi) -&gt; float</code></td><td>Re-maps between ranges; returns <code>outLo</code> when the input range is empty</td></tr>
+<tr><td><code>degrees</code> / <code>radians</code></td><td><code>(float value) -&gt; float</code></td><td>Angle conversion</td></tr>
+<tr><td><code>isFinite</code>, <code>isNaN</code>, <code>isInfinite</code></td><td><code>(float value) -&gt; bool</code></td><td>Floating-point classification</td></tr>
+</table>
+<h2 id="exponential-logarithmic-and-trigonometric">Exponential, logarithmic and trigonometric</h2>
+<p><code>exp</code>, <code>exp2</code>, <code>log</code>, <code>log10</code>, <code>log2</code>, <code>sin</code>, <code>cos</code>, <code>tan</code>, <code>asin</code>, <code>acos</code>, <code>atan</code>, <code>atan2(y, x)</code>, <code>sinh</code>, <code>cosh</code>, <code>tanh</code> — all <code>(float) -&gt; float</code> (plus <code>atan2(float y, float x)</code>), and the aliases <code>arcsin</code>, <code>arccos</code>, <code>arctan</code>, <code>arctan2</code>.</p>
+<h2 id="constants-and-randomness">Constants and randomness</h2>
+<table>
+<tr><th>Function</th><th>Signature</th></tr>
+<tr><td><code>pi()</code> / <code>PI()</code> / <code>Pi()</code></td><td><code>-&gt; float</code></td></tr>
+<tr><td><code>e()</code></td><td><code>-&gt; float</code></td></tr>
+<tr><td><code>tau()</code></td><td><code>-&gt; float</code></td></tr>
+<tr><td><code>randInt(int low, int high) -&gt; int</code></td><td>Uniform integer in <code>[low, high]</code></td></tr>
+<tr><td><code>randFloat(float low, float high) -&gt; float</code></td><td>Uniform float in <code>[low, high]</code></td></tr>
+</table>
+<p><code>maxInt</code> and <code>minInt</code> are exposed as functions returning the largest and smallest 64-bit integers: <code>global.math.maxInt()</code> / <code>global.math.minInt()</code>.</p>
+<h2 id="statistics-and-vector-helpers">Statistics and vector helpers</h2>
+<p>These were previously a separate <code>mathPlus</code> module; they now live in <code>math</code>. These were originally implemented with NumPy, which Lynxer does not need — the results match NumPy's defaults. List arguments cross the native ABI as tab-separated numbers, which is unambiguous because every element is a formatted number; list results are returned as Lynxer lists.</p>
+<table>
+<tr><th>Function</th><th>Signature</th><th>Notes</th></tr>
+<tr><td><code>mean</code></td><td><code>(list values) -&gt; float</code></td><td>Arithmetic mean</td></tr>
+<tr><td><code>median</code></td><td><code>(list values) -&gt; float</code></td><td>Averages the two middle values for even lengths</td></tr>
+<tr><td><code>std</code></td><td><code>(list values) -&gt; float</code></td><td>Population standard deviation (<code>ddof = 0</code>)</td></tr>
+<tr><td><code>variance</code></td><td><code>(list values) -&gt; float</code></td><td>Population variance</td></tr>
+<tr><td><code>percentile</code></td><td><code>(list values, float p) -&gt; float</code></td><td>Linear interpolation between order statistics</td></tr>
+<tr><td><code>prod</code></td><td><code>(list values) -&gt; float</code></td><td>Product of the elements</td></tr>
+<tr><td><code>norm</code></td><td><code>(list values) -&gt; float</code></td><td>Euclidean norm</td></tr>
+<tr><td><code>dot</code></td><td><code>(list a, list b) -&gt; float</code></td><td>Dot product; <code>0.0</code> when lengths differ</td></tr>
+<tr><td><code>corrcoef</code></td><td><code>(list a, list b) -&gt; float</code></td><td>Pearson correlation; <code>0.0</code> on a length mismatch or a constant series</td></tr>
+<tr><td><code>argmax</code> / <code>argmin</code></td><td><code>(list values) -&gt; int</code></td><td>Index of the largest / smallest element</td></tr>
+<tr><td><code>linspace</code></td><td><code>(float start, float stop, int n) -&gt; list</code></td><td><code>n</code> evenly spaced values including both ends; empty for <code>n &lt;= 0</code></td></tr>
+<tr><td><code>cumsum</code></td><td><code>(list values) -&gt; list</code></td><td>Running sums</td></tr>
+<tr><td><code>diff</code></td><td><code>(list values) -&gt; list</code></td><td>Consecutive differences (one shorter)</td></tr>
+<tr><td><code>clip</code></td><td><code>(list values, float lo, float hi) -&gt; list</code></td><td>Element-wise clamp</td></tr>
+<tr><td><code>normalize</code></td><td><code>(list values) -&gt; list</code></td><td>Scales to unit norm; returns the input when the norm is <code>0</code></td></tr>
+</table>
+<p>Empty input yields <code>0.0</code> for the scalar helpers and an empty list for the list-returning helpers.</p>
+<h2 id="example">Example</h2>
+<pre><code>global setup(){ import(&quot;math&quot;); }
+
+global main(){
+    println(global.math.pi());
+    println(global.math.mean(seqFromTo(1, 5, 1)));   // [1,2,3,4] -&gt; 2.5
+    println(global.math.linspace(0.0, 1.0, 5));
+    println(global.math.cumsum(seqFromTo(1, 4, 1)));
+}</code></pre>
+<p><code>seqFromTo</code> and <code>range</code> exclude their <code>stop</code> value, so <code>seqFromTo(1, 5, 1)</code> is <code>[1, 2, 3, 4]</code>.</p>
+<hr>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="../stdlib-contracts.html">stdlib-contracts</a> — the contract this module implements, including the error sentinel family it uses.</li>
+<li><a href="../builtins.html">builtins</a> — the functions the interpreter implements itself.</li>
+<li><a href="../limitations.html">limitations</a> — the full divergence register.</li>
+</ul>
+    </main>
+</div>
+
+<footer>
+    Lynxer &middot; MIT License
+</footer>
+
+</body>
+</html>

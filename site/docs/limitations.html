@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Limitations and non-goals - Lynxer</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<header>
+    <h1><a href="../index.html">Lynxer</a></h1>
+    <p>Documentation</p>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3>Overview</h3><ul>
+<li><a href="index.html">README</a></li>
+</ul>
+<h3>Getting started</h3><ul>
+<li><a href="install.html">install</a></li>
+<li><a href="CLI.html">CLI</a></li>
+</ul>
+<h3>Language</h3><ul>
+<li><a href="language.html">language</a></li>
+<li><a href="types.html">types</a></li>
+<li><a href="lists.html">lists</a></li>
+<li><a href="modules.html">modules</a></li>
+<li><a href="importAs.html">importAs</a></li>
+</ul>
+<h3>Records</h3><ul>
+<li><a href="structs.html">structs</a></li>
+<li><a href="classes.html">classes</a></li>
+<li><a href="enums.html">enums</a></li>
+<li><a href="vargroups.html">vargroups</a></li>
+</ul>
+<h3>Built-ins and modules</h3><ul>
+<li><a href="builtins.html">builtins</a></li>
+<li><a href="native-module-abi.html">native-module-abi</a></li>
+<li><a href="stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="extending.html">extending</a></li>
+</ul>
+<h3>Reference</h3><ul>
+<li><a href="limitations.html" class="active">limitations</a></li>
+</ul>
+<h3>Standard library</h3><ul>
+<li><a href="stdlib/index.html">All modules</a></li>
+<li><a href="stdlib/cli.html">cli</a></li>
+<li><a href="stdlib/colorlib.html">colorlib</a></li>
+<li><a href="stdlib/csv.html">csv</a></li>
+<li><a href="stdlib/debug.html">debug</a></li>
+<li><a href="stdlib/fileIO.html">fileIO</a></li>
+<li><a href="stdlib/game.html">game</a></li>
+<li><a href="stdlib/image.html">image</a></li>
+<li><a href="stdlib/js.html">js</a></li>
+<li><a href="stdlib/json.html">json</a></li>
+<li><a href="stdlib/lua.html">lua</a></li>
+<li><a href="stdlib/math.html">math</a></li>
+<li><a href="stdlib/multiprocessing.html">multiprocessing</a></li>
+<li><a href="stdlib/network.html">network</a></li>
+<li><a href="stdlib/os.html">os</a></li>
+<li><a href="stdlib/path.html">path</a></li>
+<li><a href="stdlib/random.html">random</a></li>
+<li><a href="stdlib/re.html">re</a></li>
+<li><a href="stdlib/regex.html">regex</a></li>
+<li><a href="stdlib/server.html">server</a></li>
+<li><a href="stdlib/shell.html">shell</a></li>
+<li><a href="stdlib/sound.html">sound</a></li>
+<li><a href="stdlib/sqldb.html">sqldb</a></li>
+<li><a href="stdlib/sys.html">sys</a></li>
+<li><a href="stdlib/text.html">text</a></li>
+<li><a href="stdlib/time.html">time</a></li>
+<li><a href="stdlib/tui.html">tui</a></li>
+<li><a href="stdlib/typing.html">typing</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+<h1 id="limitations-and-non-goals">Limitations and non-goals</h1>
+<p>Lynxer is a standalone C++/Rust runtime. This page is the canonical register of what it deliberately does <strong>not</strong> do and of the behaviour that is constrained. Everything here is a decision, not an accident.</p>
+<p>Entries are marked:</p>
+<ul>
+<li><strong>Not planned</strong> — deliberately will not be implemented. These are permanent non-goals; do not expect them to appear later.</li>
+<li><strong>Constrained</strong> — implemented, but with behaviour you should know before relying on it.</li>
+</ul>
+<h2 id="not-planned-will-not-be-implemented">Not planned (will not be implemented)</h2>
+<table>
+<tr><th>Feature</th><th>Status</th><th>Why</th></tr>
+<tr><td><code>venv</code> module</td><td><strong>Not planned</strong></td><td>A virtual-environment manager is a Python concept with no equivalent in a standalone runtime.</td></tr>
+<tr><td><code>rawPy</code>, <code>rawPyx</code>, <code>cleanRawPyxCache</code>, <code>embedPy</code></td><td><strong>Not planned</strong></td><td>Embedding CPython/Cython. Lynxer does not ship or link a Python runtime.</td></tr>
+<tr><td><code>tkinter</code>, <code>tkinterPlus</code></td><td><strong>Not planned</strong></td><td>No Python GUI toolkit. A future <code>graphics</code> module, if any, would be Rust-backed.</td></tr>
+<tr><td><code>turtle</code></td><td><strong>Not planned</strong></td><td>Rust's <code>turtle</code> crate has not been maintained since 2019.</td></tr>
+<tr><td><code>http</code>, <code>net</code> modules</td><td><strong>Not planned</strong></td><td>Superseded by <code>network</code> + <code>server</code>.</td></tr>
+<tr><td>Click/Typer builders (<code>click*</code>, <code>typer*</code>)</td><td><strong>Not planned</strong></td><td>The <code>cli</code> module does not depend on Python's Click or Typer.</td></tr>
+<tr><td>Python runtime introspection (<code>sys.path</code>, <code>addPath</code>, <code>prependPath</code>, <code>removeFromPath</code>, <code>getModules</code>, <code>isModuleLoaded</code>, <code>getRecursionLimit</code>, <code>setRecursionLimit</code>, <code>os.getPythonVersion</code>, <code>os.getPythonImplementation</code>)</td><td><strong>Not planned</strong></td><td>There is no Python runtime to introspect. The <code>os</code> getters return <code>&quot;&quot;</code> / <code>&quot;Lynxer&quot;</code> for compatibility and will be removed.</td></tr>
+<tr><td>Bytecode (<code>.lynxc</code>, <code>--view-bytecode</code>, <code>--benchmark-compile</code>, <code>--no-cache</code>)</td><td><strong>Not planned</strong></td><td>Removed with the bytecode backend; <code>--compile</code> produces a standalone ELF executable instead (<code>--bundle</code> is an alias). Running a <code>.lynxc</code> file reports that bytecode is unsupported.</td></tr>
+<tr><td><code>varBorrow*</code> family</td><td><strong>Not planned</strong></td><td>Python's borrowed references have no meaning across the native ABI.</td></tr>
+<tr><td>FFI / native-module handle built-ins</td><td><strong>Not planned</strong></td><td>Superseded by direct <code>import</code> of a native <code>.so</code> through the documented ABI.</td></tr>
+<tr><td><code>nativeMutex*</code>, <code>nativeCondition*</code>, <code>nativeSemaphore*</code></td><td><strong>Not planned</strong></td><td>Lynxer runs cooperatively on one interpreter thread; there is one global lock and no shared mutable state to protect.</td></tr>
+<tr><td><code>async*</code> family (<code>Run</code>, <code>Gather</code>, <code>Sleep</code>, <code>Poll*</code>, timers, wakeups)</td><td><strong>Not planned</strong></td><td>Lynxer has no <code>async</code> language support and no event loop to serve.</td></tr>
+<tr><td><code>/* ... */</code> block comments</td><td><strong>Not planned</strong></td><td>Only <code>//</code> and <code>/// ... ///</code> / <code>//// ... ////</code> are supported.</td></tr>
+<tr><td>Bare <code>!</code> as logical NOT</td><td><strong>Not planned</strong></td><td>Use <code>!!value</code> or <code>not value</code>. Symbolic comparators/bitwise spellings (<code>==</code>, <code>&amp;&amp;</code>, <code>||</code>, <code>&amp;</code>, <code>|</code>, <code>&lt;&lt;</code>, <code>&gt;&gt;</code>) still parse but warn and are on the way out.</td></tr>
+<tr><td><code>\x</code> / <code>\u</code> string escapes</td><td><strong>Not planned</strong></td><td>Only <code>\n</code>, <code>\r</code>, <code>\t</code>, <code>\\</code>, <code>\&quot;</code> and <code>\e</code> are accepted. Modules that need a separator use a writable one (for example a tab).</td></tr>
+</table>
+<h2 id="language-and-toolchain">Language and toolchain</h2>
+<ul>
+<li><strong>Module self-calls.</strong> Inside a module, <code>global.name(...)</code> resolves to a <em>core builtin</em> named <code>name</code>, not to the module's own <code>global name</code>. A module calling <code>global.round(...)</code> when it defines its own <code>round</code> fails with <code>unknown function &#x27;global.round&#x27;</code>. Call the module's own functions with a bare name (<code>round(...)</code>); use <code>global.name(...)</code> only for builtins such as <code>assert</code>, <code>trim</code> or <code>upper</code>.</li>
+<li><strong>Compiled executables embed their modules.</strong> The payload carries the program source, the source of every transitively imported <code>.lynx</code> module, and the bytes of every imported native <code>.so</code>. Native modules are written to a temporary directory at startup so <code>dlopen</code> can load them, and the directory is removed when the process exits.</li>
+<li><strong><code>--compile</code> accepts several input files.</strong> The first <code>.lynx</code> file is the program; any further <code>.lynx</code> or <code>.so</code> files — given positionally or with <code>--include &lt;file&gt;</code> — are embedded and become importable by name, even when they live outside the module search path. The output name comes from <code>-o &lt;name&gt;</code>/<code>--name &lt;name&gt;</code>, or from a trailing bare argument, and defaults to the first input without its <code>.lynx</code> extension.</li>
+<li><strong><code>--include</code> also takes data files.</strong> A file that is neither <code>.lynx</code> nor <code>.so</code> is embedded as an asset, written to the executable's private temporary directory at startup, and reachable with <code>bundledFile(name)</code> (a path) or listed with <code>bundledFiles()</code>. Interpreted runs see neither and return <code>&quot;&quot;</code> / an empty list, so a program must tolerate missing assets when run from source.</li>
+</ul>
+<h2 id="optimizer">Optimizer</h2>
+<p>Before execution Lynxer runs a semantics-preserving AST optimization pass: constant folding of literal-only expressions, short-circuit simplification of constant <code>and</code>/<code>or</code>, and dead-branch elimination for a constant <code>if</code>, <code>while (false)</code> and <code>iterate (0)</code>. It may not change behaviour, so anything that could raise, warn or coerce differently — a division by zero, a deprecated symbolic operator, a string plus an int — is left for the runtime at its original source location.</p>
+<ul>
+<li><code>--no-opt</code> runs the program without the pass. It is a run-time switch: a compiled executable ignores its command line and always optimizes.</li>
+<li><code>LYNXER_OPT_REPORT=1</code> prints one line of transformation counts to stderr after the program runs. It is diagnostic only and never affects output.</li>
+</ul>
+<h2 id="native-module-abi">Native module ABI</h2>
+<ul>
+<li>A native signature uses either one of the fixed shapes listed in <a href="native-module-abi.html">native-module-abi</a> — at most four arguments — or the packed <code>...</code> form, which passes every argument as two arrays and accepts at most 64 arguments in total. A Rust <code>cdylib</code> must use the packed form; see that page for why a fixed shape segfaults instead of failing to build.</li>
+<li>No aggregate types cross the ABI: lists, tuples and records are exchanged as JSON strings or handles.</li>
+<li>Only one live string result per call (<code>thread_local</code> buffer).</li>
+<li>Linux/POSIX only: <code>.so</code> imports are not available on Windows.</li>
+</ul>
+<h2 id="standard-library">Standard library</h2>
+<h3 id="modules-that-are-not-ported">Modules that are not ported</h3>
+<p><code>tkinter</code>, <code>tkinterPlus</code> and <code>turtle</code> have no Lynxer equivalent (<strong>not planned</strong>, see the table above). The <code>http</code>/<code>net</code> modules are replaced by <code>network</code> + <code>server</code>, and the old <code>mathPlus</code> is merged into <code>math</code>.</p>
+<p>The modules Lynxer ships are backed natively. Nine of them are Rust crates — <code>game</code> (<code>macroquad</code>), <code>image</code>, <code>json</code> (<code>serde_json</code>), <code>lua</code> (vendored Lua through <code>mlua</code>), <code>network</code> (<code>ureq</code> + <code>tungstenite</code>), <code>server</code> (<code>axum</code> + <code>tokio</code>), <code>sound</code> (<code>rodio</code>/<code>cpal</code>), <code>sqldb</code> (<code>rusqlite</code>) and <code>tui</code> (<code>ratatui</code>/<code>crossterm</code>). They are skipped with a warning when <code>cargo</code> is missing, so the rest of Lynxer still builds without a Rust toolchain. The Rust workspace also has an <code>ffi</code> member, an intentional no-op <code>cdylib</code>: the <code>ffi*</code> builtins are implemented in C++.</p>
+<h3 id="json--constrained"><code>json</code> — <strong>constrained</strong></h3>
+<ul>
+<li>Non-finite numbers (<code>NaN</code>, <code>Infinity</code>) encode as <code>null</code> so output is always valid JSON.</li>
+<li>Object key order is insertion order.</li>
+<li><code>jsonGet</code> renders booleans as <code>true</code>/<code>false</code>.</li>
+</ul>
+<h3 id="re-and-regex--constrained"><code>re</code> and <code>regex</code> — <strong>constrained</strong></h3>
+<p>Both run on <code>std::regex</code> with the ECMAScript grammar, which is narrower than full PCRE:</p>
+<ul>
+<li>Unsupported and reported as an error result: lookbehind <code>(?&lt;=...)</code>/<code>(?&lt;!...)</code>, atomic groups <code>(?&gt;...)</code>, and Unicode property escapes such as <code>\p{L}</code>.</li>
+<li><code>(?P&lt;name&gt;...)</code> is translated to a plain capturing group with the name recorded, so <code>named</code>/<code>extract</code>/<code>extractAll</code> work; <code>(?P=name)</code> becomes a numeric backreference.</li>
+<li>Inline flags <code>(?i)</code>, <code>(?m)</code>, <code>(?s)</code> are applied to the whole pattern rather than from the point they appear. <code>(?x)</code> verbose mode is ignored.</li>
+<li>Invalid or unsupported patterns produce sentinel results (predicates <code>false</code>, strings <code>&quot;&quot;</code>, index helpers <code>-1</code>) instead of raising.</li>
+<li><code>findLetters</code>/<code>findDigits</code> match ASCII letter and digit runs.</li>
+<li><code>findall</code> with two or more capture groups returns arrays of groups.</li>
+</ul>
+<h3 id="csv--constrained"><code>csv</code> — <strong>constrained</strong></h3>
+<ul>
+<li>Output uses <code>\r\n</code> line terminators.</li>
+<li>Non-string JSON values are rendered as <code>&quot;&quot;</code> / <code>true</code> / <code>false</code>.</li>
+<li>Values beyond the header width are dropped, and missing columns become <code>&quot;&quot;</code>.</li>
+<li>The rendered <code>docs/stdlib/csv.md</code> describes a different, older API than the shipped <code>csv.lynx</code>; Lynxer implements the shipped API.</li>
+</ul>
+<h3 id="os-and-path--constrained"><code>os</code> and <code>path</code> — <strong>constrained</strong></h3>
+<ul>
+<li><code>os.getPythonVersion()</code> returns <code>&quot;&quot;</code> and <code>os.getPythonImplementation()</code> returns <code>&quot;Lynxer&quot;</code> (<strong>not planned</strong>, see above).</li>
+<li><code>path.readTextEncoding</code> / <code>path.writeTextEncoding</code> accept an encoding argument for API compatibility but always use UTF-8.</li>
+<li>Platform helpers report the host through <code>uname(2)</code>.</li>
+</ul>
+<h3 id="sys--constrained"><code>sys</code> — <strong>constrained</strong></h3>
+<ul>
+<li><code>version()</code> returns the Lynxer version (for example <code>Lynxer 0.1.8</code>).</li>
+<li>Python-runtime concepts are <strong>not planned</strong> and are not defined (<code>sys.path</code>, <code>addPath</code>, <code>prependPath</code>, <code>removeFromPath</code>, <code>getModules</code>, <code>isModuleLoaded</code>, <code>getRecursionLimit</code>, <code>setRecursionLimit</code>).</li>
+<li>Lynxer does not forward extra arguments to a program, so <code>argv()</code>, <code>getArg</code> and <code>argCount</code> describe the <code>lynxer</code> process command line.</li>
+<li><code>exit()</code> calls <code>std::exit</code> directly; interpreter cleanup does not run.</li>
+</ul>
+<h3 id="cli--constrained"><code>cli</code> — <strong>constrained</strong></h3>
+<ul>
+<li>The Click/Typer builder functions (<code>click*</code>, <code>typer*</code>) are <strong>not planned</strong>; calling one is a hard "unknown function" error. <code>clickExists()</code>/<code>typerExists()</code> return <code>false</code> and the version helpers return <code>&quot;&quot;</code>, which is accurate.</li>
+</ul>
+<h3 id="multiprocessing--constrained"><code>multiprocessing</code> — <strong>constrained</strong></h3>
+<ul>
+<li>Commands run in worker threads, each spawning its own shell subprocess, so the <code>runParallelProcess</code> variant is an alias of <code>runParallel</code>.</li>
+<li>No timeout is applied. Results are collected through a native handle and must be released; the wrappers do this automatically.</li>
+</ul>
+<h3 id="js--constrained"><code>js</code> — <strong>constrained</strong></h3>
+<ul>
+<li>Requires <code>node</code> on <code>PATH</code>. No timeout is applied. <code>stderr</code> is inherited rather than captured.</li>
+</ul>
+<h3 id="debug--constrained"><code>debug</code> — <strong>constrained</strong></h3>
+<ul>
+<li><code>typeOf</code> maps the interpreter's <code>none</code> to <code>null</code>.</li>
+<li><code>dump</code> and <code>pp</code> print <code>strOf</code> rendering, so strings are not quoted.</li>
+<li><code>log</code>/<code>info</code>/<code>warn</code>/<code>error</code>/<code>debug</code> embed a wall-clock timestamp, so they are not covered by the fixture suite.</li>
+</ul>
+<h3 id="math--constrained"><code>math</code> — <strong>constrained</strong></h3>
+<ul>
+<li>The NumPy-backed statistics (<code>median</code>, <code>std</code>, <code>variance</code>, <code>percentile</code>, <code>corrcoef</code>, <code>dot</code>, <code>linspace</code>, <code>cumsum</code>, <code>diff</code>, <code>clip</code>, <code>normalize</code>) are reimplemented natively — NumPy is not required. Population variance and standard deviation are used, and <code>percentile</code> follows NumPy's linear interpolation.</li>
+<li>Lists cross the native boundary as tab-separated strings, and list results are returned the same way.</li>
+<li><code>mathPlus</code> is merged into <code>math</code>; its float-accepting <code>sign</code> is available as <code>signFloat</code>.</li>
+</ul>
+<h3 id="sound--constrained"><code>sound</code> — <strong>constrained</strong></h3>
+<ul>
+<li><code>loadSound</code> and <code>loadSoundStreaming</code> are the same operation: rodio decodes from the file handle either way, so there is no static/streaming split; both register a handle and return its index.</li>
+<li>Playback needs an audio device. When none can be opened, <code>playSound</code> and <code>loopSound</code> report <code>false</code> instead of aborting — loading, <code>soundCount()</code> and <code>releaseSound</code> keep working.</li>
+<li><code>pauseSound</code> and <code>resumeSound</code> require a player that has actually been started; they return <code>false</code> for a valid handle that has not been played yet.</li>
+<li><code>releaseSound</code> returns <code>false</code> for an already-released handle, and <code>soundCount()</code> counts only handles that have not been released.</li>
+<li><code>getSoundLength</code> re-decodes the file on each call, so it returns <code>0.0</code> if the file has been moved or deleted since it was loaded.</li>
+</ul>
+<h3 id="sqldb--constrained"><code>sqldb</code> — <strong>constrained</strong></h3>
+<ul>
+<li>Every function takes a database path and opens a connection for the duration of the call; there is no connection handle to manage and nothing to close.</li>
+<li>Failures are returned in band as <code>&quot;ERROR: &lt;message&gt;&quot;</code> — and as <code>-1</code> / <code>false</code> for the integer and boolean functions — rather than being raised.</li>
+<li><code>query</code>, <code>queryArgs</code> and <code>tables</code> emit JSON with <code>&quot;: &quot;</code> and <code>&quot;, &quot;</code> separators.</li>
+<li>SQLite BLOB values are rendered as base64 strings, because JSON has no byte type.</li>
+<li><code>scalar</code> converts the first column of the first row with <code>strOf</code>, and returns <code>&quot;&quot;</code> when the query yields no row or the value is NULL.</li>
+</ul>
+<h3 id="tui--constrained-placeholder-backend"><code>tui</code> — <strong>constrained (placeholder backend)</strong></h3>
+<p>The API surface is complete, but the backend is a placeholder rather than a Rich equivalent:</p>
+<ul>
+<li>Rendering does not reproduce Rich's output. With an active terminal it draws a fixed placeholder through <code>ratatui</code>; otherwise it prints a plain-text line such as <code>markdown: ...</code> or <code>table: ...</code>.</li>
+<li>The prompt operations (<code>ask</code>, <code>askPassword</code>, <code>askInt</code>, <code>askFloat</code>, <code>askDefault</code>) return empty or zero defaults; they do not read input.</li>
+<li><code>styleValid</code> reports every style as valid, including invalid ones.</li>
+<li>The stateful families (<code>table*</code>, <code>tree*</code>, <code>layout*</code>, <code>progress*</code>, <code>status*</code>, <code>live*</code>) return success and placeholder handles but keep no state between calls.</li>
+<li><code>markupEscape</code>, <code>enter</code> and <code>exit</code> (raw mode plus the alternate screen) are real implementations. <code>tuiVersion</code> reports the backend crate's version.</li>
+<li>The module writes its fallback output straight to stdout rather than through the interpreter. Both sides are line-buffered, so lines interleave in order, but a write with no trailing newline would not: <code>clear()</code> emits its ANSI sequence without one and flushes explicitly for that reason.</li>
+</ul>
+<h3 id="image--constrained"><code>image</code> — <strong>constrained</strong></h3>
+<ul>
+<li>The pixel getters return a bracketed list (<code>[10,20,30,255]</code>).</li>
+<li>The mutating operations (<code>save</code>, <code>saveQuality</code>, <code>setPixel</code>, <code>setPixelA</code>, <code>fill</code>, <code>paste</code>, <code>pasteWithAlpha</code>, <code>close</code>) return a boolean.</li>
+<li><code>grayscale</code> keeps the alpha channel, so an <code>RGBA</code> image becomes <code>LA</code>.</li>
+<li><code>info</code> returns compact JSON, not the spaced form the <code>json</code> module produces.</li>
+<li><code>getFormat</code> and <code>info</code> report the detected format (<code>PNG</code>, <code>JPEG</code>, ...) for images decoded with <code>fromBase64</code>, not just for images opened from a file.</li>
+</ul>
+<h3 id="lua--constrained"><code>lua</code> — <strong>constrained</strong></h3>
+<ul>
+<li><code>luaExists()</code> returns a <code>bool</code>.</li>
+<li><code>luaVersion()</code> reports the vendored engine (<code>Lua 5.4</code>).</li>
+<li>Error strings name the failure kind and the chunk, e.g. <code>Error: syntax error: [string &quot;lynxer.lua&quot;]:1: syntax error near &#x27;is&#x27;</code>.</li>
+<li>A Lua runtime error is reported the same way and its text includes a Lua traceback, so the fixture asserts only that a message came back.</li>
+</ul>
+<h2 id="built-in-families">Built-in families</h2>
+<p>The managed <code>filesystem*</code>, <code>process*</code>, <code>networking*</code> and <code>sound*</code> families are implemented and documented in <a href="builtins.html">builtins</a>.</p>
+<p><code>builtins.cpp</code> keeps an <code>unsupportedTable()</code> of names that are recognised but deliberately unimplemented; calling one raises <code>&lt;name&gt;() is not supported in Lynxer yet</code>. That table is the <strong>not planned</strong> surface listed at the top of this page — <code>rawPy</code>/<code>rawPyx</code>, <code>varBorrow*</code>, the FFI and native-module handles, and the mutual-exclusion primitives — plus the <code>async*</code> family.</p>
+<h3 id="nativethread--constrained-cooperative-model"><code>nativeThread*</code> — <strong>constrained (cooperative model)</strong></h3>
+<p><code>nativeThreadStart(global.worker, [int 42])</code> passes a named global function, so Lynxer resolves <code>global.&lt;name&gt;</code> to a callable value when no variable has that name. <code>returnType</code> reports <code>codeblock</code> for such a value.</p>
+<p>Threads are <strong>cooperative</strong>: the interpreter evaluates Lynxer code on one thread at a time, guarded by one lock, and a worker takes that lock before calling back in. A thread therefore runs while the thread that started it is blocked in <code>nativeThreadJoin</code>/<code>nativeThreadJoinAll</code>, which release the lock before waiting. No two threads ever evaluate at once, so no data race is possible — by construction, not by careful locking. The trade-off is that a thread does not make progress while the main body is running.</p>
+<p>Two smaller consequences: <code>nativeThreadIsAlive</code> is true and <code>nativeThreadStatus</code> is <code>running</code> immediately after <code>nativeThreadStart</code>, deterministically, because the worker cannot have started yet; and a thread a program leaves running is joined when the program finishes.</p>
+<h2 id="cli-tools">CLI tools</h2>
+<p><code>--lint</code>, <code>--ast</code>, <code>--format</code>, <code>--format-oneline</code>, <code>--validate-executeable</code> and <code>--install</code>/<code>--uninstall</code> are implemented. <code>--ast</code> prints Lynxer's own node and field names and covers the executable AST (functions and statements) rather than the named type declarations held in the type registry. The flags removed with the bytecode backend (<code>--view-bytecode</code>, <code>--benchmark-compile</code>, <code>--no-cache</code>) are listed in <a href="CLI.html">CLI</a>.</p>
+<p>The formatter is token-based: it never changes tokens, preserves line comments and <code>///</code>/<code>////</code> blocks verbatim, and is idempotent.</p>
+<h2 id="testing-notes">Testing notes</h2>
+<p><code>make testLynxer</code> (from the repo root) runs one fixture per <code>examples/stdlib_*.lynx</code> and diffs its output against a sibling <code>.expected</code> file. Fixtures that would print host-specific values (Node version, terminal size, <code>uname</code> strings) assert a boolean property instead.</p>
+<p>The <code>sound</code> fixture is the exception: several of its assertions (starting and stopping playback, per-handle volume) only hold on a host with a real ALSA card. When there is no <code>/dev/snd/controlC*</code>, <code>make testLynxer</code> skips <code>stdlib_sound.lynx</code> — in both the <code>.expected</code> diff and the interpreted-vs-compiled parity loop — and prints</p>
+<pre><code>lynxer: skipping stdlib_sound.lynx: no audio device (/dev/snd/controlC*) on this host</code></pre>
+<p>Everything else about the module (loading, decoding, handle bookkeeping, the error paths) is device-independent and stays covered.</p>
+<p>Before the fixtures, it runs <code>scripts/check_module_contracts.py</code>, a static comparison of every <code>stdlib/&lt;name&gt;.lynx</code> wrapper against its backend. The fixture suite alone cannot detect a backend that contradicts its own wrapper, because a fixture records what the code does — a module can be broken in exactly the way its <code>.expected</code> file asserts. The check verifies that every <code>global.native&lt;Alias&gt;.&lt;op&gt;(...)</code> call names a registered op, and that a Rust backend's packed <code>args.&lt;kind&gt;(i)</code> reads are in range for the arguments the wrapper actually passes. It requires <code>python3</code>; <code>make test</code> fails with a clear message if it is missing rather than skipping the check.</p>
+    </main>
+</div>
+
+<footer>
+    Lynxer &middot; MIT License
+</footer>
+
+</body>
+</html>

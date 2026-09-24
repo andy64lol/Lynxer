@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Lists and tuples - Lynxer</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<header>
+    <h1><a href="../index.html">Lynxer</a></h1>
+    <p>Documentation</p>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3>Overview</h3><ul>
+<li><a href="index.html">README</a></li>
+</ul>
+<h3>Getting started</h3><ul>
+<li><a href="install.html">install</a></li>
+<li><a href="CLI.html">CLI</a></li>
+</ul>
+<h3>Language</h3><ul>
+<li><a href="language.html">language</a></li>
+<li><a href="types.html">types</a></li>
+<li><a href="lists.html" class="active">lists</a></li>
+<li><a href="modules.html">modules</a></li>
+<li><a href="importAs.html">importAs</a></li>
+</ul>
+<h3>Records</h3><ul>
+<li><a href="structs.html">structs</a></li>
+<li><a href="classes.html">classes</a></li>
+<li><a href="enums.html">enums</a></li>
+<li><a href="vargroups.html">vargroups</a></li>
+</ul>
+<h3>Built-ins and modules</h3><ul>
+<li><a href="builtins.html">builtins</a></li>
+<li><a href="native-module-abi.html">native-module-abi</a></li>
+<li><a href="stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="extending.html">extending</a></li>
+</ul>
+<h3>Reference</h3><ul>
+<li><a href="limitations.html">limitations</a></li>
+</ul>
+<h3>Standard library</h3><ul>
+<li><a href="stdlib/index.html">All modules</a></li>
+<li><a href="stdlib/cli.html">cli</a></li>
+<li><a href="stdlib/colorlib.html">colorlib</a></li>
+<li><a href="stdlib/csv.html">csv</a></li>
+<li><a href="stdlib/debug.html">debug</a></li>
+<li><a href="stdlib/fileIO.html">fileIO</a></li>
+<li><a href="stdlib/game.html">game</a></li>
+<li><a href="stdlib/image.html">image</a></li>
+<li><a href="stdlib/js.html">js</a></li>
+<li><a href="stdlib/json.html">json</a></li>
+<li><a href="stdlib/lua.html">lua</a></li>
+<li><a href="stdlib/math.html">math</a></li>
+<li><a href="stdlib/multiprocessing.html">multiprocessing</a></li>
+<li><a href="stdlib/network.html">network</a></li>
+<li><a href="stdlib/os.html">os</a></li>
+<li><a href="stdlib/path.html">path</a></li>
+<li><a href="stdlib/random.html">random</a></li>
+<li><a href="stdlib/re.html">re</a></li>
+<li><a href="stdlib/regex.html">regex</a></li>
+<li><a href="stdlib/server.html">server</a></li>
+<li><a href="stdlib/shell.html">shell</a></li>
+<li><a href="stdlib/sound.html">sound</a></li>
+<li><a href="stdlib/sqldb.html">sqldb</a></li>
+<li><a href="stdlib/sys.html">sys</a></li>
+<li><a href="stdlib/text.html">text</a></li>
+<li><a href="stdlib/time.html">time</a></li>
+<li><a href="stdlib/tui.html">tui</a></li>
+<li><a href="stdlib/typing.html">typing</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+<h1 id="lists-and-tuples">Lists and tuples</h1>
+<p>Lynxer has two sequence types: <code>list</code> (built with <code>[...]</code>) and <code>tuple</code> (built with <code>(...)</code>). Both use <strong>value semantics</strong> — see below — and share a large family of builtins.</p>
+<h2 id="value-semantics">Value semantics</h2>
+<p>A list or tuple is copied on assignment, and <strong>no list builtin mutates its argument</strong>. The collection builtins return a new value that you assign back:</p>
+<pre><code>list xs = [1, 2, 3];
+xs = listPush(xs, 4);     // listPush returns a new list; assign it back
+list ys = xs;             // ys is a copy
+xs = listSet(xs, 0, 9);
+println(ys);              // [1, 2, 3, 4]  (unchanged)</code></pre>
+<p><code>listPush(xs, 4);</code> on its own discards the result and leaves <code>xs</code> unchanged. The same is true of <code>sortList</code>, <code>reverseList</code>, <code>listExtend</code>, <code>listInsert</code>, <code>listRemove</code>, <code>listSet</code> and <code>listClear</code>: each returns a new list.</p>
+<p>The one exception is <code>listPop(list)</code>, which returns the <strong>element</strong> it removed and leaves the list unchanged:</p>
+<pre><code>list xs = [1, 2, 3];
+println(listPop(xs));   // 3
+println(xs);            // [1, 2, 3]</code></pre>
+<h2 id="indexing">Indexing</h2>
+<p>Indices are zero-based and may be negative (<code>-1</code> is the last element). An index outside the list is a source-located error, for example <code>listGet() index -5 out of range for list of length 3</code>.</p>
+<pre><code>list xs = [1, 2, 3];
+println(listGet(xs, 0));    // 1
+println(listGet(xs, -1));   // 3
+println(listSlice(xs, 1, 3));  // [2, 3]  (start inclusive, end exclusive)</code></pre>
+<h2 id="typed-element-literals">Typed element literals</h2>
+<p>An element may be prefixed with a type, which is validated:</p>
+<pre><code>list nums = [int 1, int 2];
+tuple pair = (int 10, int 20);</code></pre>
+<h2 id="creating-sequences">Creating sequences</h2>
+<table>
+<tr><th>Builtin</th><th>Result</th></tr>
+<tr><td><code>range(n)</code></td><td><code>0 .. n-1</code></td></tr>
+<tr><td><code>seqFromTo(start, end)</code></td><td>the inclusive numeric range</td></tr>
+<tr><td><code>listRepeat(value, n)</code></td><td><code>n</code> copies of <code>value</code></td></tr>
+<tr><td><code>tupleCreate(a, b, ...)</code></td><td>a tuple from the arguments</td></tr>
+</table>
+<h2 id="list-builtins">List builtins</h2>
+<table>
+<tr><th>Builtin</th><th>Notes</th></tr>
+<tr><td><code>listPush(list, value)</code></td><td>new list with <code>value</code> appended</td></tr>
+<tr><td><code>listPop(list)</code></td><td>returns the <strong>last element</strong>; the list is unchanged</td></tr>
+<tr><td><code>listInsert(list, index, value)</code></td><td>new list with <code>value</code> inserted</td></tr>
+<tr><td><code>listRemove(list, index)</code></td><td>new list without that element</td></tr>
+<tr><td><code>listClear(list)</code></td><td>an empty list</td></tr>
+<tr><td><code>listGet(list, index)</code> / <code>listSet(list, index, value)</code></td><td>element access / new list with the element replaced</td></tr>
+<tr><td><code>listSlice(list, start, end)</code></td><td>sub-list, <code>start</code> inclusive and <code>end</code> exclusive</td></tr>
+<tr><td><code>listContains(list, value)</code></td><td>membership</td></tr>
+<tr><td><code>listIndex(list, value)</code></td><td>first index of <code>value</code>, or <code>-1</code></td></tr>
+<tr><td><code>listCount(list, value)</code></td><td>number of occurrences of <code>value</code></td></tr>
+<tr><td><code>listJoin(list, separator)</code></td><td>join into a string</td></tr>
+<tr><td><code>listExtend(list, other)</code></td><td>new list, both concatenated</td></tr>
+<tr><td><code>listZip(list, other)</code></td><td>pair elements into <code>{a, b}</code> records</td></tr>
+<tr><td><code>listFlatten(list)</code></td><td>flatten one level</td></tr>
+<tr><td><code>listUnique(list)</code></td><td>de-duplicate</td></tr>
+<tr><td><code>sortList(list)</code> / <code>sortList(list, true)</code></td><td>ascending / descending copy</td></tr>
+<tr><td><code>reverseList(list)</code></td><td>reversed copy</td></tr>
+<tr><td><code>listHead(list, count)</code> / <code>listTail(list, count)</code></td><td>first / last <code>count</code> elements</td></tr>
+<tr><td><code>listFirst(list)</code> / <code>listLast(list)</code></td><td>first / last element</td></tr>
+<tr><td><code>listMin(list)</code>, <code>listMax(list)</code>, <code>listAvg(list)</code></td><td>aggregates</td></tr>
+<tr><td><code>sumOf(list)</code></td><td>sum of the elements</td></tr>
+<tr><td><code>listToTuple(list)</code></td><td>convert to a tuple</td></tr>
+<tr><td><code>listJsonArray</code>, <code>listJsonObject</code></td><td>JSON conversion</td></tr>
+</table>
+<p>The length of a list, tuple, or string is <code>returnLength(value)</code>, and <code>contains(container, value)</code> tests membership.</p>
+<h2 id="tuple-builtins">Tuple builtins</h2>
+<table>
+<tr><th>Builtin</th><th>Notes</th></tr>
+<tr><td><code>tupleGet(tuple, index)</code>, <code>tupleSlice(tuple, start, end)</code></td><td>access</td></tr>
+<tr><td><code>tupleLen(tuple)</code>, <code>tupleCount(tuple, value)</code></td><td>length / occurrences</td></tr>
+<tr><td><code>tupleContains(tuple, value)</code>, <code>tupleIndex(tuple, value)</code></td><td>membership / position</td></tr>
+<tr><td><code>tupleConcat(a, b)</code>, <code>tupleJoin(a, b)</code>, <code>tupleZip(a, b)</code></td><td>combination</td></tr>
+<tr><td><code>tupleFlatten</code>, <code>tupleReverse</code>, <code>tupleUnique</code></td><td>reshaping</td></tr>
+<tr><td><code>tupleSort</code>, <code>tupleSortDesc</code></td><td>ordering</td></tr>
+<tr><td><code>tupleAll</code>, <code>tupleAny</code></td><td>predicates</td></tr>
+<tr><td><code>tupleMin</code>, <code>tupleMax</code>, <code>tupleSum</code>, <code>tupleMean</code></td><td>aggregates</td></tr>
+<tr><td><code>tupleFirst</code>, <code>tupleLast</code>, <code>tupleToList</code>, <code>tupleCreate</code></td><td>ends / conversion</td></tr>
+<tr><td><code>tupleJsonArray</code></td><td>JSON conversion</td></tr>
+</table>
+<p>There is no <code>tupleSet</code>; use a <code>list</code> when you need to replace elements.</p>
+<h2 id="example">Example</h2>
+<pre><code>global setup(){}
+
+global main(){
+    list xs = [1, 2, 3];
+    xs = listPush(xs, 4);
+    println(xs);                 // [1, 2, 3, 4]
+    println(listGet(xs, -1));    // 4
+    println(contains(xs, 9));    // false
+
+    list ys = xs;                // a copy
+    xs = listSet(xs, 0, 9);
+    println(ys);                 // [1, 2, 3, 4]
+
+    tuple pair = (10, 20);
+    println(tupleGet(pair, 1));  // 20
+    println(returnLength(pair)); // 2
+}</code></pre>
+<p>See <a href="builtins.html#sequences">builtins</a> for the full builtin reference and <a href="types.html">types</a> for how <code>list</code> and <code>tuple</code> behave as declared types.</p>
+    </main>
+</div>
+
+<footer>
+    Lynxer &middot; MIT License
+</footer>
+
+</body>
+</html>

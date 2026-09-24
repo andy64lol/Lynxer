@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Build and install - Lynxer</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<header>
+    <h1><a href="../index.html">Lynxer</a></h1>
+    <p>Documentation</p>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3>Overview</h3><ul>
+<li><a href="index.html">README</a></li>
+</ul>
+<h3>Getting started</h3><ul>
+<li><a href="install.html" class="active">install</a></li>
+<li><a href="CLI.html">CLI</a></li>
+</ul>
+<h3>Language</h3><ul>
+<li><a href="language.html">language</a></li>
+<li><a href="types.html">types</a></li>
+<li><a href="lists.html">lists</a></li>
+<li><a href="modules.html">modules</a></li>
+<li><a href="importAs.html">importAs</a></li>
+</ul>
+<h3>Records</h3><ul>
+<li><a href="structs.html">structs</a></li>
+<li><a href="classes.html">classes</a></li>
+<li><a href="enums.html">enums</a></li>
+<li><a href="vargroups.html">vargroups</a></li>
+</ul>
+<h3>Built-ins and modules</h3><ul>
+<li><a href="builtins.html">builtins</a></li>
+<li><a href="native-module-abi.html">native-module-abi</a></li>
+<li><a href="stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="extending.html">extending</a></li>
+</ul>
+<h3>Reference</h3><ul>
+<li><a href="limitations.html">limitations</a></li>
+</ul>
+<h3>Standard library</h3><ul>
+<li><a href="stdlib/index.html">All modules</a></li>
+<li><a href="stdlib/cli.html">cli</a></li>
+<li><a href="stdlib/colorlib.html">colorlib</a></li>
+<li><a href="stdlib/csv.html">csv</a></li>
+<li><a href="stdlib/debug.html">debug</a></li>
+<li><a href="stdlib/fileIO.html">fileIO</a></li>
+<li><a href="stdlib/game.html">game</a></li>
+<li><a href="stdlib/image.html">image</a></li>
+<li><a href="stdlib/js.html">js</a></li>
+<li><a href="stdlib/json.html">json</a></li>
+<li><a href="stdlib/lua.html">lua</a></li>
+<li><a href="stdlib/math.html">math</a></li>
+<li><a href="stdlib/multiprocessing.html">multiprocessing</a></li>
+<li><a href="stdlib/network.html">network</a></li>
+<li><a href="stdlib/os.html">os</a></li>
+<li><a href="stdlib/path.html">path</a></li>
+<li><a href="stdlib/random.html">random</a></li>
+<li><a href="stdlib/re.html">re</a></li>
+<li><a href="stdlib/regex.html">regex</a></li>
+<li><a href="stdlib/server.html">server</a></li>
+<li><a href="stdlib/shell.html">shell</a></li>
+<li><a href="stdlib/sound.html">sound</a></li>
+<li><a href="stdlib/sqldb.html">sqldb</a></li>
+<li><a href="stdlib/sys.html">sys</a></li>
+<li><a href="stdlib/text.html">text</a></li>
+<li><a href="stdlib/time.html">time</a></li>
+<li><a href="stdlib/tui.html">tui</a></li>
+<li><a href="stdlib/typing.html">typing</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+<h1 id="build-and-install">Build and install</h1>
+<p>Lynxer is a C++17 Linux executable. Building and running it does <strong>not</strong> need Python; only the two check scripts in the test suite do.</p>
+<h2 id="requirements">Requirements</h2>
+<ul>
+<li>A C++17 compiler (<code>g++</code> or <code>clang++</code>) and <code>make</code>.</li>
+<li><code>python3</code> to run <code>make testLynxer</code> (the contract and golden checks).</li>
+<li>Optional: a Rust toolchain (<code>cargo</code>) for the nine Rust-backed modules. They are <strong>skipped with a warning</strong> when <code>cargo</code> is not on <code>PATH</code>; the rest of Lynxer still builds.</li>
+<li>Git and network access for the first <code>cargo</code> build: crates are fetched from crates.io. Nothing is compiled from vendored C/C++ sources.</li>
+</ul>
+<p>No system OpenSSL, Boost, CMake, cpp-httplib, Crow, or nlohmann/json is needed: TLS is <code>rustls</code>, the HTTP stack is <code>ureq</code>/<code>tungstenite</code>/<code>axum</code>, and JSON is <code>serde_json</code>.</p>
+<h2 id="build-from-the-repository-root">Build from the repository root</h2>
+<pre><code>make buildLynxer       # interpreter + every native stdlib module
+make testLynxer        # the full suite (see README.md)</code></pre>
+<p><code>buildLynxer</code> already builds the Rust backends, so a separate <code>make cargo</code> is only useful to build them on their own:</p>
+<pre><code>make cargo              # just the Rust backends
+make buildLynxerArm64  # cross-build the ARM64 interpreter</code></pre>
+<p>The Makefile lives at the repository root and builds <strong>both</strong> implementations; there is no separate <code>lynxer/Makefile</code>.</p>
+<h2 id="artifacts">Artifacts</h2>
+<ul>
+<li><code>lynxer/lynxer</code> — the interpreter.</li>
+<li><code>lynxer/lynxer-arm64</code> — the ARM64 interpreter, from <code>buildLynxerArm64</code>.</li>
+<li><code>lynxer/stdlib/*.so</code> — the stdlib backends. The Rust-backed modules are produced by <code>cargo</code> under <code>lynxer/build/rust</code>; the C++ ones are compiled from <code>stdlib/*.cpp</code>.</li>
+</ul>
+<p>The Rust workspace has ten member crates (<code>LYNXER_RUST_MODULE_NAMES</code> in the Makefile): the nine module backends <code>game</code>, <code>image</code>, <code>json</code>, <code>lua</code>, <code>network</code>, <code>server</code>, <code>sound</code>, <code>sqldb</code>, <code>tui</code>, plus <code>ffi</code>, which is an intentional no-op cdylib — the <code>ffi*</code> builtins are implemented in C++.</p>
+<h2 id="install">Install</h2>
+<pre><code>sudo ./lynxer/lynxer --install      # copy to /usr/bin/lynxer
+sudo ./lynxer/lynxer --uninstall    # remove /usr/bin/lynxer</code></pre>
+<p><code>--install</code> copies the running executable to <code>/usr/bin/lynxer</code>; <code>--uninstall</code> removes it. Keep the matching <code>stdlib/</code> directory next to the installed binary, or imports will not resolve. See <a href="CLI.html#installing">CLI</a>.</p>
+<h2 id="quick-run">Quick run</h2>
+<pre><code>./lynxer/lynxer lynxer/examples/milestone5.lynx
+./lynxer/lynxer --list-stdlibs
+./lynxer/lynxer --compile lynxer/examples/milestone5.lynx -o /tmp/demo</code></pre>
+<p>Example programs live under <code>lynxer/examples/</code>, so run them with that prefix from the repository root.</p>
+<h2 id="environment-variables">Environment variables</h2>
+<table>
+<tr><th>Variable</th><th>Used by</th><th>Effect</th></tr>
+<tr><td><code>LYNXER_OPT_REPORT=1</code></td><td>the interpreter</td><td>print the AST optimizer counts to stderr after the run</td></tr>
+<tr><td><code>LYNXER_GAME_HEADLESS=1</code></td><td>the <code>game</code> module</td><td>run without opening a window</td></tr>
+<tr><td><code>LYNXER_SKIP_DISPLAY=1</code></td><td><code>make testLynxer</code></td><td>skip the display and audio fixtures (used by CI)</td></tr>
+</table>
+<p>The first three are described in more detail in <a href="CLI.html#environment-variables">CLI</a> and <a href="limitations.html">limitations</a>.</p>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="index.html">README</a> — the documentation index and what <code>make testLynxer</code> runs.</li>
+<li><a href="CLI.html">CLI</a> — every flag and exit code.</li>
+</ul>
+    </main>
+</div>
+
+<footer>
+    Lynxer &middot; MIT License
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Lynxer documentation - Lynxer</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<header>
+    <h1><a href="../index.html">Lynxer</a></h1>
+    <p>Documentation</p>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3>Overview</h3><ul>
+<li><a href="index.html" class="active">README</a></li>
+</ul>
+<h3>Getting started</h3><ul>
+<li><a href="install.html">install</a></li>
+<li><a href="CLI.html">CLI</a></li>
+</ul>
+<h3>Language</h3><ul>
+<li><a href="language.html">language</a></li>
+<li><a href="types.html">types</a></li>
+<li><a href="lists.html">lists</a></li>
+<li><a href="modules.html">modules</a></li>
+<li><a href="importAs.html">importAs</a></li>
+</ul>
+<h3>Records</h3><ul>
+<li><a href="structs.html">structs</a></li>
+<li><a href="classes.html">classes</a></li>
+<li><a href="enums.html">enums</a></li>
+<li><a href="vargroups.html">vargroups</a></li>
+</ul>
+<h3>Built-ins and modules</h3><ul>
+<li><a href="builtins.html">builtins</a></li>
+<li><a href="native-module-abi.html">native-module-abi</a></li>
+<li><a href="stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="extending.html">extending</a></li>
+</ul>
+<h3>Reference</h3><ul>
+<li><a href="limitations.html">limitations</a></li>
+</ul>
+<h3>Standard library</h3><ul>
+<li><a href="stdlib/index.html">All modules</a></li>
+<li><a href="stdlib/cli.html">cli</a></li>
+<li><a href="stdlib/colorlib.html">colorlib</a></li>
+<li><a href="stdlib/csv.html">csv</a></li>
+<li><a href="stdlib/debug.html">debug</a></li>
+<li><a href="stdlib/fileIO.html">fileIO</a></li>
+<li><a href="stdlib/game.html">game</a></li>
+<li><a href="stdlib/image.html">image</a></li>
+<li><a href="stdlib/js.html">js</a></li>
+<li><a href="stdlib/json.html">json</a></li>
+<li><a href="stdlib/lua.html">lua</a></li>
+<li><a href="stdlib/math.html">math</a></li>
+<li><a href="stdlib/multiprocessing.html">multiprocessing</a></li>
+<li><a href="stdlib/network.html">network</a></li>
+<li><a href="stdlib/os.html">os</a></li>
+<li><a href="stdlib/path.html">path</a></li>
+<li><a href="stdlib/random.html">random</a></li>
+<li><a href="stdlib/re.html">re</a></li>
+<li><a href="stdlib/regex.html">regex</a></li>
+<li><a href="stdlib/server.html">server</a></li>
+<li><a href="stdlib/shell.html">shell</a></li>
+<li><a href="stdlib/sound.html">sound</a></li>
+<li><a href="stdlib/sqldb.html">sqldb</a></li>
+<li><a href="stdlib/sys.html">sys</a></li>
+<li><a href="stdlib/text.html">text</a></li>
+<li><a href="stdlib/time.html">time</a></li>
+<li><a href="stdlib/tui.html">tui</a></li>
+<li><a href="stdlib/typing.html">typing</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+<h1 id="lynxer-documentation">Lynxer documentation</h1>
+<p>Lynxer is a small, standalone C++ toolchain for the Lynxer language. It runs <code>.lynx</code> programs without a Python runtime and ships its standard library as native shared libraries. It provides standalone ELF executables, 27 natively backed modules, an AST optimizer, a frozen native-module ABI, and CI on amd64 and arm64. See <a href="limitations.html">limitations</a> for the behaviour that is deliberately constrained or not implemented.</p>
+<h2 id="contents">Contents</h2>
+<p><strong>Getting started</strong></p>
+<table>
+<tr><th>Document</th><th>What it covers</th></tr>
+<tr><td><a href="install.html">install</a></td><td>Requirements, build commands, artifacts, environment variables</td></tr>
+<tr><td><a href="CLI.html">CLI</a></td><td>Every flag, exit code, and error behaviour of the <code>lynxer</code> executable</td></tr>
+</table>
+<p><strong>The language</strong></p>
+<table>
+<tr><th>Document</th><th>What it covers</th></tr>
+<tr><td><a href="language.html">language</a></td><td>Program structure, comments, variables, operators, control flow, functions, scoping, interpolation</td></tr>
+<tr><td><a href="types.html">types</a></td><td>Every type name, ranges, and conversion rules</td></tr>
+<tr><td><a href="lists.html">lists</a></td><td><code>list</code> and <code>tuple</code> values and their builtins</td></tr>
+<tr><td><a href="structs.html">structs</a></td><td>Data-only records</td></tr>
+<tr><td><a href="classes.html">classes</a></td><td>Fields plus <code>local</code> methods</td></tr>
+<tr><td><a href="enums.html">enums</a></td><td>Tagged unions and <code>switch</code> patterns</td></tr>
+<tr><td><a href="vargroups.html">vargroups</a></td><td>Records with defaulted fields</td></tr>
+<tr><td><a href="modules.html">modules</a></td><td><code>import</code>, search order, module member access</td></tr>
+<tr><td><a href="importAs.html">importAs</a></td><td>Aliasing an imported module</td></tr>
+</table>
+<p><strong>Internals and reference</strong></p>
+<table>
+<tr><th>Document</th><th>What it covers</th></tr>
+<tr><td><a href="builtins.html">builtins</a></td><td>Every function the interpreter implements itself</td></tr>
+<tr><td><a href="native-module-abi.html">native-module-abi</a></td><td>Writing a native <code>.so</code> module: entry point, signatures, data conventions</td></tr>
+<tr><td><a href="stdlib-contracts.html">stdlib-contracts</a></td><td>The frozen contract every wrapper and backend must satisfy</td></tr>
+<tr><td><a href="extending.html">extending</a></td><td>Adding a stdlib module end to end</td></tr>
+<tr><td><a href="stdlib/">stdlib/</a></td><td>One page per standard-library module</td></tr>
+<tr><td><a href="limitations.html">limitations</a></td><td>Deliberate constraints and what is not implemented</td></tr>
+</table>
+<h2 id="build-and-run">Build and run</h2>
+<pre><code>make buildLynxer        # interpreter + every native stdlib module
+lynxer/lynxer program.lynx
+lynxer/lynxer --list-stdlibs</code></pre>
+<p>The root <code>Makefile</code> builds both implementations; <code>make</code> alone builds everything. <code>make buildLynxer</code> builds the interpreter and the native modules, and <code>make buildLynxerArm64</code> cross-builds the ARM64 interpreter. <code>make testLynxer</code> runs the whole suite:</p>
+<ol>
+<li><code>lynxer/scripts/check_module_contracts.py</code> — wrapper/backend contract check.</li>
+<li><code>lynxer/scripts/check_golden.py</code> — the CLI and diagnostic golden cases in <code>lynxer/golden/cases.json</code>.</li>
+<li>Every <code>lynxer/examples/*.expected</code> fixture, diffed on stdout+stderr, including the optimizer and low-level native-memory/syscall fixtures.</li>
+<li>Interpreted-versus-<code>--compile</code> parity for a set of fixtures.</li>
+<li>The <code>--format</code>/<code>--format-oneline</code> formatter fixture (output, idempotence, and that the formatted file still runs) and the <code>--validate-executeable</code> self-check.</li>
+<li>The bundled-executable, <code>--include</code>, and bytecode-removal checks.</li>
+</ol>
+<p>Both Lynxer CI workflows (<code>.github/workflows/build-lynxer-amd.yml</code> and <code>build-lynxer-arm.yml</code>) run <code>make testLynxer LYNXER_SKIP_DISPLAY=1</code>, which drops the fixtures that need a display or an audio device (a CI runner has neither, and the graphics backend crashes without a display).</p>
+<p>A Rust toolchain is optional: the nine Rust-backed modules are skipped with a warning when <code>cargo</code> is absent, and everything else still builds. <code>python3</code> is required for the two check scripts in the test suite.</p>
+<h2 id="standard-library-modules">Standard library modules</h2>
+<p>There are 27 bundled modules. A module is exposed to Lynxer by <code>stdlib/&lt;name&gt;.lynx</code> and backed by a <code>stdlib/&lt;name&gt;.so</code>. The backends marked <em>Rust</em> come from a crate under <code>rust/</code>; <em>pure</em> modules are written in Lynxer only and need no shared library.</p>
+<table>
+<tr><th>Module</th><th>Backend</th><th>Implementation</th></tr>
+<tr><td><a href="stdlib/cli.html">cli</a></td><td>native</td><td>POSIX process/env/terminal APIs</td></tr>
+<tr><td><a href="stdlib/colorlib.html">colorlib</a></td><td>pure</td><td>ANSI escape sequences</td></tr>
+<tr><td><a href="stdlib/csv.html">csv</a></td><td>native</td><td>hand-written CSV/TSV reader and writer</td></tr>
+<tr><td><a href="stdlib/debug.html">debug</a></td><td>native + pure</td><td><code>&lt;chrono&gt;</code>, <code>getrusage</code>, assertions in Lynxer</td></tr>
+<tr><td><a href="stdlib/fileIO.html">fileIO</a></td><td>native</td><td><code>&lt;fstream&gt;</code>, <code>&lt;filesystem&gt;</code></td></tr>
+<tr><td><a href="stdlib/game.html">game</a></td><td>Rust</td><td><code>macroquad</code> (<code>rust/game</code>)</td></tr>
+<tr><td><a href="stdlib/image.html">image</a></td><td>Rust</td><td><code>image</code> (<code>rust/image</code>)</td></tr>
+<tr><td><a href="stdlib/js.html">js</a></td><td>native</td><td>the <code>node</code> binary</td></tr>
+<tr><td><a href="stdlib/json.html">json</a></td><td>Rust</td><td><code>serde_json</code> (<code>rust/json</code>)</td></tr>
+<tr><td><a href="stdlib/lua.html">lua</a></td><td>Rust</td><td><code>mlua</code> with vendored Lua 5.4 (<code>rust/lua</code>)</td></tr>
+<tr><td><a href="stdlib/math.html">math</a></td><td>native</td><td><code>&lt;cmath&gt;</code> plus statistics and vector helpers</td></tr>
+<tr><td><a href="stdlib/multiprocessing.html">multiprocessing</a></td><td>native + pure</td><td><code>std::thread</code> and shell subprocesses</td></tr>
+<tr><td><a href="stdlib/network.html">network</a></td><td>Rust</td><td><code>ureq</code> + <code>tungstenite</code> over <code>rustls</code></td></tr>
+<tr><td><a href="stdlib/os.html">os</a></td><td>native</td><td><code>&lt;filesystem&gt;</code>, POSIX</td></tr>
+<tr><td><a href="stdlib/path.html">path</a></td><td>native</td><td><code>&lt;filesystem&gt;</code>, POSIX <code>stat</code></td></tr>
+<tr><td><a href="stdlib/random.html">random</a></td><td>native</td><td>seeded linear congruential generator in C++</td></tr>
+<tr><td><a href="stdlib/re.html">re</a></td><td>native</td><td><code>std::regex</code></td></tr>
+<tr><td><a href="stdlib/regex.html">regex</a></td><td>native</td><td><code>std::regex</code> with a named-pattern cache</td></tr>
+<tr><td><a href="stdlib/server.html">server</a></td><td>Rust</td><td><code>axum</code> + <code>tokio</code></td></tr>
+<tr><td><a href="stdlib/shell.html">shell</a></td><td>native</td><td><code>popen</code>, <code>std::system</code></td></tr>
+<tr><td><a href="stdlib/sound.html">sound</a></td><td>Rust</td><td><code>rodio</code> + <code>cpal</code> + <code>symphonia</code></td></tr>
+<tr><td><a href="stdlib/sqldb.html">sqldb</a></td><td>Rust</td><td><code>rusqlite</code> (bundled SQLite)</td></tr>
+<tr><td><a href="stdlib/sys.html">sys</a></td><td>native</td><td>C++ runtime and POSIX</td></tr>
+<tr><td><a href="stdlib/text.html">text</a></td><td>pure</td><td>Lynxer string builtins</td></tr>
+<tr><td><a href="stdlib/time.html">time</a></td><td>native</td><td><code>&lt;chrono&gt;</code>, <code>&lt;ctime&gt;</code></td></tr>
+<tr><td><a href="stdlib/tui.html">tui</a></td><td>Rust</td><td><code>ratatui</code> + <code>crossterm</code></td></tr>
+<tr><td><a href="stdlib/typing.html">typing</a></td><td>pure</td><td>Lynxer type builtins</td></tr>
+</table>
+<p>The Rust workspace has ten member crates (<code>LYNXER_RUST_MODULE_NAMES</code> in the Makefile): the nine module backends listed above, plus <code>ffi</code>, an intentional <strong>no-op</strong> cdylib — the <code>ffi*</code> builtins are implemented in C++ (<code>lynxer/builtins.cpp</code>), not by that crate. There is no CMake staging step and no <code>third_party/</code> directory: TLS is <code>rustls</code> (no system OpenSSL) and the HTTP/WebSocket stack is pure Rust.</p>
+<p><code>venv</code> and the GUI/turtle modules are intentionally excluded — see <a href="limitations.html">limitations</a>.</p>
+<h2 id="compiling-a-program">Compiling a program</h2>
+<p><code>--compile</code> (alias <code>--bundle</code>) produces one standalone ELF executable that embeds the program, every transitively imported <code>.lynx</code> source and <code>.so</code> library, plus anything added with <code>--include</code>:</p>
+<pre><code>lynxer/lynxer --compile app.lynx extras/helpers.lynx \
+        --include vendor/libcustom.so --include assets/message.txt -o app</code></pre>
+<p>The first <code>.lynx</code> file is the program; further <code>.lynx</code>/<code>.so</code> inputs are embedded and importable by name. A non-<code>.lynx</code>/<code>.so</code> include is embedded as data and read with <code>bundledFile(name)</code> / <code>bundledFiles()</code>. See <a href="CLI.html#compiling-to-an-executable">CLI</a>.</p>
+<h2 id="adding-a-stdlib-module">Adding a stdlib module</h2>
+<ol>
+<li>Write the backend. A C++ module is <code>stdlib/&lt;name&gt;.cpp</code> exporting <code>lynxer_module_init_v1</code> and one <code>extern &quot;C&quot;</code> function per entry; it is picked up automatically by the <code>stdlib/*.cpp</code> wildcard. A Rust module is a crate under <code>rust/</code> exporting the same entry point plus one <code>#[no_mangle] extern &quot;C&quot;</code> op per entry (the <code>lynxer_abi</code> crate provides the packing, panic guards, and registration helper); add it to the workspace and to <code>LYNXER_RUST_MODULE_NAMES</code> in the root Makefile. See <a href="native-module-abi.html">native-module-abi</a>.</li>
+</ol>
+<p><strong>A Rust op must be registered with a packed signature</strong> — <code>cdecl:int64(...)</code>, <code>cdecl:float64(...)</code>, or <code>cdecl:cstring(...)</code> — never a fixed shape such as <code>cdecl:int64(int64)</code>. The <code>export_*!</code> macros generate a four-scalar packed prototype, so a fixed-shape declaration calls the symbol through the wrong C prototype and <strong>segfaults on the first call</strong>, with no build-time warning.</p>
+<ol>
+<li>Write <code>stdlib/&lt;name&gt;.lynx</code>. Its <code>setup()</code> imports the library with <code>importAs(&quot;&lt;name&gt;.so&quot;, &quot;native&lt;Name&gt;&quot;)</code> and forwards each function as <code>global f(...) { return global.nativeName.f(...); }</code>. Start the file with a line containing exactly <code>////</code>, then the description, then another <code>////</code>; <code>lynxer --list-stdlibs</code> prints that block.</li>
+</ol>
+<ol>
+<li>Add <code>examples/stdlib_&lt;name&gt;.lynx</code> plus a sibling <code>stdlib_&lt;name&gt;.expected</code>. The suite runs every <code>examples/stdlib_*.lynx</code> and diffs it against its <code>.expected</code> output.</li>
+</ol>
+<ol>
+<li>Run <code>make testLynxer</code>. It runs <code>lynxer/scripts/check_module_contracts.py</code>, which compares the wrapper against the backend: every <code>global.native&lt;Alias&gt;.&lt;op&gt;(...)</code> call must name a registered op, and for a Rust backend every <code>args.&lt;kind&gt;(i)</code> read must be in range for the arguments the wrapper passes. This catches contract mismatches a fixture cannot — a fixture records what the code does, so it will happily assert a broken module whose behaviour it reproduces.</li>
+</ol>
+<p>See <a href="extending.html">extending</a> and <a href="stdlib-contracts.html">stdlib-contracts</a> for the full checklist and the contract.</p>
+<h2 id="environment-variables">Environment variables</h2>
+<table>
+<tr><th>Variable</th><th>Effect</th></tr>
+<tr><td><code>LYNXER_OPT_REPORT=1</code></td><td>Print the AST optimizer's transformation counts to stderr after the run</td></tr>
+<tr><td><code>LYNXER_GAME_HEADLESS=1</code></td><td>Run the <code>game</code> module without opening a window</td></tr>
+<tr><td><code>LYNXER_SKIP_DISPLAY=1</code></td><td><code>make testLynxer</code> skips the display/audio fixtures (used by CI)</td></tr>
+</table>
+<h2 id="file-wide-functions">File-wide functions</h2>
+<p>Use <code>func</code> for a helper that belongs to the current source file:</p>
+<pre><code>global setup(){}
+
+func double(int value) -&gt; int {
+    return value * 2;
+}
+
+global main(){
+    println(double(21));   // 42
+}</code></pre>
+<p><code>func</code> declarations must be top-level and appear between <code>global setup()</code> and <code>global main()</code>. They are called by bare name in their defining file. When a file is imported as a module, callers use <code>global.moduleName.functionName(...)</code>. <code>func</code> names are file-scoped, so two different imported files may define the same helper name. <code>global func name(...)</code> is not valid syntax; see <a href="language.html#functions">language</a>. <a href="language.html#functions">language</a>. lobal func name(...)` is not valid syntax; see <a href="language.html#functions">language</a>.</p>
+    </main>
+</div>
+
+<footer>
+    Lynxer &middot; MIT License
+</footer>
+
+</body>
+</html>

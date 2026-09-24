@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Modules - Lynxer</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<header>
+    <h1><a href="../index.html">Lynxer</a></h1>
+    <p>Documentation</p>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3>Overview</h3><ul>
+<li><a href="index.html">README</a></li>
+</ul>
+<h3>Getting started</h3><ul>
+<li><a href="install.html">install</a></li>
+<li><a href="CLI.html">CLI</a></li>
+</ul>
+<h3>Language</h3><ul>
+<li><a href="language.html">language</a></li>
+<li><a href="types.html">types</a></li>
+<li><a href="lists.html">lists</a></li>
+<li><a href="modules.html" class="active">modules</a></li>
+<li><a href="importAs.html">importAs</a></li>
+</ul>
+<h3>Records</h3><ul>
+<li><a href="structs.html">structs</a></li>
+<li><a href="classes.html">classes</a></li>
+<li><a href="enums.html">enums</a></li>
+<li><a href="vargroups.html">vargroups</a></li>
+</ul>
+<h3>Built-ins and modules</h3><ul>
+<li><a href="builtins.html">builtins</a></li>
+<li><a href="native-module-abi.html">native-module-abi</a></li>
+<li><a href="stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="extending.html">extending</a></li>
+</ul>
+<h3>Reference</h3><ul>
+<li><a href="limitations.html">limitations</a></li>
+</ul>
+<h3>Standard library</h3><ul>
+<li><a href="stdlib/index.html">All modules</a></li>
+<li><a href="stdlib/cli.html">cli</a></li>
+<li><a href="stdlib/colorlib.html">colorlib</a></li>
+<li><a href="stdlib/csv.html">csv</a></li>
+<li><a href="stdlib/debug.html">debug</a></li>
+<li><a href="stdlib/fileIO.html">fileIO</a></li>
+<li><a href="stdlib/game.html">game</a></li>
+<li><a href="stdlib/image.html">image</a></li>
+<li><a href="stdlib/js.html">js</a></li>
+<li><a href="stdlib/json.html">json</a></li>
+<li><a href="stdlib/lua.html">lua</a></li>
+<li><a href="stdlib/math.html">math</a></li>
+<li><a href="stdlib/multiprocessing.html">multiprocessing</a></li>
+<li><a href="stdlib/network.html">network</a></li>
+<li><a href="stdlib/os.html">os</a></li>
+<li><a href="stdlib/path.html">path</a></li>
+<li><a href="stdlib/random.html">random</a></li>
+<li><a href="stdlib/re.html">re</a></li>
+<li><a href="stdlib/regex.html">regex</a></li>
+<li><a href="stdlib/server.html">server</a></li>
+<li><a href="stdlib/shell.html">shell</a></li>
+<li><a href="stdlib/sound.html">sound</a></li>
+<li><a href="stdlib/sqldb.html">sqldb</a></li>
+<li><a href="stdlib/sys.html">sys</a></li>
+<li><a href="stdlib/text.html">text</a></li>
+<li><a href="stdlib/time.html">time</a></li>
+<li><a href="stdlib/tui.html">tui</a></li>
+<li><a href="stdlib/typing.html">typing</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+<h1 id="modules">Modules</h1>
+<p><code>import</code> and <code>importAs</code> load a module and bind its members under a namespace.</p>
+<h2 id="importing">Importing</h2>
+<p>Imports are <strong>statements</strong>, so they run from a function body — <code>setup()</code> is the conventional place, but any function works:</p>
+<pre><code>global setup(){
+    import(&quot;math&quot;);
+    importAs(&quot;json&quot;, &quot;j&quot;);
+}
+
+global main(){}</code></pre>
+<p>A native shared library is named with its <code>.so</code> suffix:</p>
+<pre><code>import(&quot;mylib.so&quot;);          // loads ./mylib.so or an stdlib library</code></pre>
+<p>A bare <code>import(&quot;math&quot;);</code> at file scope is a syntax error (<code>expected top-level function declaration</code>).</p>
+<p>Both arguments must be <strong>string literals</strong>; an expression such as <code>importAs(path, &quot;m&quot;)</code> is rejected with <code>expected module path string</code>. See <a href="importAs.html">importAs</a> for the alias rules.</p>
+<h2 id="search-order">Search order</h2>
+<ol>
+<li>The directory of the running program (for a compiled executable, the modules embedded in its payload).</li>
+<li><code>lynxer/stdlib/</code>, next to the interpreter.</li>
+</ol>
+<ul>
+<li><code>import(&quot;math&quot;)</code> and <code>import(&quot;math.lynx&quot;)</code> are equivalent.</li>
+<li>A native library is named with its <code>.so</code> suffix; the stdlib <code>.lynx</code> wrappers load their own <code>.so</code> (for example <code>math.lynx</code> imports <code>math.so</code> as <code>nativeMath</code>).</li>
+<li>Imports are idempotent: importing the same module twice is a no-op.</li>
+<li>A module that cannot be found reports <code>module &#x27;nope&#x27; was not found</code> with the importing source location.</li>
+</ul>
+<p>There is <strong>no</strong> <code>.lynxc</code> bytecode import in Lynxer.</p>
+<h2 id="calling-module-members">Calling module members</h2>
+<p>Members are reached through the module namespace: <code>global.&lt;module&gt;.&lt;name&gt;(...)</code> (or <code>global.&lt;alias&gt;.&lt;name&gt;(...)</code> after <code>importAs</code>).</p>
+<pre><code>global setup(){
+    import(&quot;math&quot;);
+    importAs(&quot;json&quot;, &quot;j&quot;);
+}
+
+global main(){
+    println(global.math.max(2, 5));                    // 5
+    println(global.j.jsonGet(&quot;{\&quot;a\&quot;: 1}&quot;, &quot;a&quot;));      // 1
+}</code></pre>
+<p>Inside the module file itself, call its own functions by <strong>bare name</strong> — using <code>global.&lt;name&gt;(...)</code> inside a module resolves to a core builtin, not the module's own function (see <a href="limitations.html">limitations</a>). A file-level <code>func</code> in a module is reached from the importer as <code>global.&lt;module&gt;.&lt;name&gt;</code> just like a <code>global</code> function.</p>
+<h2 id="writing-a-module">Writing a module</h2>
+<p>Any <code>.lynx</code> file with <code>setup</code> and helpers is a module. Open it with a <code>////</code> docstring line so <code>--list-stdlibs</code> can describe it:</p>
+<pre><code>////
+Small helper module.
+////
+global setup(){}
+
+global twice(int n) -&gt; int {
+    return n * 2;
+}
+
+global main(){}</code></pre>
+<p>A native backend exports <code>lynxer_module_init_v1</code>; see <a href="native-module-abi.html">native-module-abi</a>.</p>
+<h2 id="compiled-programs">Compiled programs</h2>
+<p><code>--compile</code> embeds every transitively imported <code>.lynx</code> source and <code>.so</code> library into the executable, so a compiled program needs nothing from the build tree. Positional extra inputs and <code>--include</code> files are embedded too. See <a href="CLI.html">CLI</a>.</p>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="importAs.html">importAs</a></li>
+<li><a href="native-module-abi.html">native-module-abi</a></li>
+<li><a href="builtins.html">builtins</a> — the builtins available without an import.</li>
+</ul>
+    </main>
+</div>
+
+<footer>
+    Lynxer &middot; MIT License
+</footer>
+
+</body>
+</html>

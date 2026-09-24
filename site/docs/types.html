@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Types - Lynxer</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<header>
+    <h1><a href="../index.html">Lynxer</a></h1>
+    <p>Documentation</p>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3>Overview</h3><ul>
+<li><a href="index.html">README</a></li>
+</ul>
+<h3>Getting started</h3><ul>
+<li><a href="install.html">install</a></li>
+<li><a href="CLI.html">CLI</a></li>
+</ul>
+<h3>Language</h3><ul>
+<li><a href="language.html">language</a></li>
+<li><a href="types.html" class="active">types</a></li>
+<li><a href="lists.html">lists</a></li>
+<li><a href="modules.html">modules</a></li>
+<li><a href="importAs.html">importAs</a></li>
+</ul>
+<h3>Records</h3><ul>
+<li><a href="structs.html">structs</a></li>
+<li><a href="classes.html">classes</a></li>
+<li><a href="enums.html">enums</a></li>
+<li><a href="vargroups.html">vargroups</a></li>
+</ul>
+<h3>Built-ins and modules</h3><ul>
+<li><a href="builtins.html">builtins</a></li>
+<li><a href="native-module-abi.html">native-module-abi</a></li>
+<li><a href="stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="extending.html">extending</a></li>
+</ul>
+<h3>Reference</h3><ul>
+<li><a href="limitations.html">limitations</a></li>
+</ul>
+<h3>Standard library</h3><ul>
+<li><a href="stdlib/index.html">All modules</a></li>
+<li><a href="stdlib/cli.html">cli</a></li>
+<li><a href="stdlib/colorlib.html">colorlib</a></li>
+<li><a href="stdlib/csv.html">csv</a></li>
+<li><a href="stdlib/debug.html">debug</a></li>
+<li><a href="stdlib/fileIO.html">fileIO</a></li>
+<li><a href="stdlib/game.html">game</a></li>
+<li><a href="stdlib/image.html">image</a></li>
+<li><a href="stdlib/js.html">js</a></li>
+<li><a href="stdlib/json.html">json</a></li>
+<li><a href="stdlib/lua.html">lua</a></li>
+<li><a href="stdlib/math.html">math</a></li>
+<li><a href="stdlib/multiprocessing.html">multiprocessing</a></li>
+<li><a href="stdlib/network.html">network</a></li>
+<li><a href="stdlib/os.html">os</a></li>
+<li><a href="stdlib/path.html">path</a></li>
+<li><a href="stdlib/random.html">random</a></li>
+<li><a href="stdlib/re.html">re</a></li>
+<li><a href="stdlib/regex.html">regex</a></li>
+<li><a href="stdlib/server.html">server</a></li>
+<li><a href="stdlib/shell.html">shell</a></li>
+<li><a href="stdlib/sound.html">sound</a></li>
+<li><a href="stdlib/sqldb.html">sqldb</a></li>
+<li><a href="stdlib/sys.html">sys</a></li>
+<li><a href="stdlib/text.html">text</a></li>
+<li><a href="stdlib/time.html">time</a></li>
+<li><a href="stdlib/tui.html">tui</a></li>
+<li><a href="stdlib/typing.html">typing</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+<h1 id="types">Types</h1>
+<p>Every declaration, parameter, assignment, and <code>-&gt; type</code> return annotation is validated against a type name. This page lists the names, what they accept, and how values are converted. For a runnable overview see <a href="language.html">language</a>.</p>
+<h2 id="scalar-and-container-types">Scalar and container types</h2>
+<table>
+<tr><th>Type</th><th>Accepts</th><th>Notes</th></tr>
+<tr><td><code>any</code></td><td>anything</td><td>no checking</td></tr>
+<tr><td><code>int</code></td><td>integers, or a float with no fractional part</td><td><code>2.0</code> → <code>2</code>; <code>1.5</code> is rejected</td></tr>
+<tr><td><code>float</code></td><td>any number</td><td>an <code>int</code> is widened</td></tr>
+<tr><td><code>num</code></td><td><code>int</code> or <code>float</code></td><td></td></tr>
+<tr><td><code>bool</code></td><td><code>true</code> / <code>false</code></td><td>an integer <code>1</code> is <strong>not</strong> accepted</td></tr>
+<tr><td><code>numBool</code></td><td><code>0</code> or <code>1</code></td><td>out-of-range values fail</td></tr>
+<tr><td><code>bit</code></td><td><code>0</code> or <code>1</code></td><td>alias of the <code>numBool</code> range</td></tr>
+<tr><td><code>char</code></td><td>one character, or a one-character string</td><td><code>&quot;AB&quot;</code> fails with <code>string length 2 is not a char</code></td></tr>
+<tr><td><code>str</code></td><td>text</td><td>a number is <strong>not</strong> accepted</td></tr>
+<tr><td><code>list</code></td><td>a list value</td><td>see <a href="lists.html">lists</a></td></tr>
+<tr><td><code>tuple</code></td><td>a tuple value</td><td>see <a href="lists.html">lists</a></td></tr>
+<tr><td><code>sentinel</code></td><td>a sentinel value</td><td>built with <code>sentinel()</code> / <code>sentinel(&quot;NAME&quot;)</code></td></tr>
+<tr><td><code>object</code></td><td>an object value</td><td>built with <code>object()</code></td></tr>
+<tr><td><code>codeblock</code></td><td>a stored block</td><td>see <a href="language.html#codeblocks">language</a></td></tr>
+<tr><td><code>functionAddress</code></td><td>a native function address</td><td>integer handle</td></tr>
+<tr><td><code>struct</code> / <code>class</code> / <code>enum</code> name</td><td>a value of that named type</td><td>see the dedicated pages</td></tr>
+</table>
+<p><code>none</code> is a <strong>value</strong>, not a declarator type: write <code>any x = none;</code>. It may be used as a return annotation (<code>-&gt; none</code>), where it accepts only the no-value result. See <a href="#return-annotations">Return annotations</a>.</p>
+<h2 id="fixed-width-numeric-types">Fixed-width numeric types</h2>
+<table>
+<tr><th>Type</th><th>Range</th></tr>
+<tr><td><code>int8</code></td><td><code>-128 .. 127</code></td></tr>
+<tr><td><code>int16</code></td><td><code>-32768 .. 32767</code></td></tr>
+<tr><td><code>int32</code></td><td><code>-2147483648 .. 2147483647</code></td></tr>
+<tr><td><code>int64</code></td><td>the full signed 64-bit range</td></tr>
+<tr><td><code>uint8</code> / <code>byte</code></td><td><code>0 .. 255</code></td></tr>
+<tr><td><code>uint16</code></td><td><code>0 .. 65535</code></td></tr>
+<tr><td><code>uint32</code></td><td><code>0 .. 4294967295</code></td></tr>
+<tr><td><code>uint64</code></td><td>the full unsigned 64-bit range</td></tr>
+<tr><td><code>float32</code></td><td>finite values up to about <code>3.4e38</code></td></tr>
+<tr><td><code>float64</code></td><td>finite values up to about <code>1.8e308</code></td></tr>
+</table>
+<p>Fixed-width values are checked at <strong>every</strong> boundary — declaration, parameter, assignment, and return — and an out-of-range value is a source-located error, for example <code>value 200 is out of range for type &#x27;int8&#x27;</code>.</p>
+<p><code>uint64</code> values above <code>2^63 - 1</code> are held in a separate internal representation so the full range survives; <code>18446744073709551615</code> prints and round-trips exactly, including through the native-memory writes in <a href="builtins.html#native-memory">builtins</a>.</p>
+<pre><code>global setup(){}
+
+func scaled(int16 n) -&gt; int32 {
+    return n * 2;
+}
+
+global main(){
+    numBool enabled = 1;
+    byte mask = 255;
+    float32 ratio = 0.25;
+    char initial = &quot;Z&quot;;
+    println(scaled(12));   // 24
+    println(mask);         // 255
+    println(ratio);        // 0.25
+    println(initial);      // Z
+}</code></pre>
+<h2 id="conversion-rules">Conversion rules</h2>
+<ul>
+<li>A float assigned to an <code>int</code> must have no fractional part (<code>2.0</code> is accepted, <code>2.5</code> is not).</li>
+<li>A one-character string may be assigned to a <code>char</code>.</li>
+<li>A number may <strong>not</strong> be assigned to a <code>str</code>; use <code>strOf(value)</code>.</li>
+<li>A <code>bool</code> must be a real boolean; <code>1</code> does not convert to <code>true</code>.</li>
+<li>A named type is enforced (assigning an unrelated value fails, e.g. <code>value cannot be assigned to type &#x27;Counter&#x27;</code>).</li>
+</ul>
+<h2 id="return-annotations">Return annotations</h2>
+<p>Use the arrow form:</p>
+<pre><code>global f(int x) -&gt; int { return x + 1; }
+func label(str name) -&gt; str { return &quot;hi &quot; + name; }</code></pre>
+<ul>
+<li><code>: type</code> is <strong>not</strong> valid syntax (<code>unexpected character &#x27;:&#x27;</code>).</li>
+<li>Omit the annotation (or write <code>-&gt; any</code>) to leave the result unchecked.</li>
+<li>When a return type is set, the value is validated with the same rules as a typed parameter, and a mismatch is a source-located runtime error.</li>
+<li><code>-&gt; none</code> is accepted: the function must return nothing (a returned value fails with <code>value cannot be assigned to type &#x27;none&#x27;</code>). Class methods take <strong>no</strong> return annotation at all; see <a href="classes.html">classes</a>.</li>
+</ul>
+    </main>
+</div>
+
+<footer>
+    Lynxer &middot; MIT License
+</footer>
+
+</body>
+</html>

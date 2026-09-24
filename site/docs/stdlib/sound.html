@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Sound Module - Lynxer</title>
+    <link rel="stylesheet" href="../../style.css">
+</head>
+<body>
+
+<header>
+    <h1><a href="../../index.html">Lynxer</a></h1>
+    <p>Documentation</p>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3>Overview</h3><ul>
+<li><a href="../index.html">README</a></li>
+</ul>
+<h3>Getting started</h3><ul>
+<li><a href="../install.html">install</a></li>
+<li><a href="../CLI.html">CLI</a></li>
+</ul>
+<h3>Language</h3><ul>
+<li><a href="../language.html">language</a></li>
+<li><a href="../types.html">types</a></li>
+<li><a href="../lists.html">lists</a></li>
+<li><a href="../modules.html">modules</a></li>
+<li><a href="../importAs.html">importAs</a></li>
+</ul>
+<h3>Records</h3><ul>
+<li><a href="../structs.html">structs</a></li>
+<li><a href="../classes.html">classes</a></li>
+<li><a href="../enums.html">enums</a></li>
+<li><a href="../vargroups.html">vargroups</a></li>
+</ul>
+<h3>Built-ins and modules</h3><ul>
+<li><a href="../builtins.html">builtins</a></li>
+<li><a href="../native-module-abi.html">native-module-abi</a></li>
+<li><a href="../stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="../extending.html">extending</a></li>
+</ul>
+<h3>Reference</h3><ul>
+<li><a href="../limitations.html">limitations</a></li>
+</ul>
+<h3>Standard library</h3><ul>
+<li><a href="index.html">All modules</a></li>
+<li><a href="cli.html">cli</a></li>
+<li><a href="colorlib.html">colorlib</a></li>
+<li><a href="csv.html">csv</a></li>
+<li><a href="debug.html">debug</a></li>
+<li><a href="fileIO.html">fileIO</a></li>
+<li><a href="game.html">game</a></li>
+<li><a href="image.html">image</a></li>
+<li><a href="js.html">js</a></li>
+<li><a href="json.html">json</a></li>
+<li><a href="lua.html">lua</a></li>
+<li><a href="math.html">math</a></li>
+<li><a href="multiprocessing.html">multiprocessing</a></li>
+<li><a href="network.html">network</a></li>
+<li><a href="os.html">os</a></li>
+<li><a href="path.html">path</a></li>
+<li><a href="random.html">random</a></li>
+<li><a href="re.html">re</a></li>
+<li><a href="regex.html">regex</a></li>
+<li><a href="server.html">server</a></li>
+<li><a href="shell.html">shell</a></li>
+<li><a href="sound.html" class="active">sound</a></li>
+<li><a href="sqldb.html">sqldb</a></li>
+<li><a href="sys.html">sys</a></li>
+<li><a href="text.html">text</a></li>
+<li><a href="time.html">time</a></li>
+<li><a href="tui.html">tui</a></li>
+<li><a href="typing.html">typing</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+<h1 id="sound-module">Sound Module</h1>
+<p>The <code>sound</code> module provides audio playback functionality using Rust's <code>rodio</code> and <code>cpal</code> crates.</p>
+<blockquote><strong>Requires:</strong> a Rust toolchain (<code>cargo</code>) to build it, and an ALSA sound card to play. Loading, decoding, handle bookkeeping and the error paths work without a device; playback simply reports "did not start". <code>make testLynxer</code> skips <code>stdlib_sound.lynx</code>, with a printed message, on hosts without <code>/dev/snd/controlC*</code>.</blockquote>
+<h2 id="functions">Functions</h2>
+<ul>
+<li><code>loadSound(path: string) -&gt; int</code> Loads an audio file (WAV, OGG, MP3 or FLAC). Returns a stable handle, or <code>-1</code> on failure.</li>
+</ul>
+<ul>
+<li><code>loadSoundStreaming(path: string) -&gt; int</code> Loads a streaming audio file. Returns a stable handle, or <code>-1</code> on failure.</li>
+</ul>
+<ul>
+<li><code>playSound(handle: int) -&gt; bool</code> Plays a loaded sound once. Returns <code>true</code> when playback starts.</li>
+</ul>
+<ul>
+<li><code>playSoundOnce(handle: int) -&gt; bool</code> Alias for <code>playSound</code>.</li>
+</ul>
+<ul>
+<li><code>loopSound(handle: int) -&gt; bool</code> Starts looping playback. Returns <code>true</code> when playback starts.</li>
+</ul>
+<ul>
+<li><code>stopSound(handle: int) -&gt; bool</code> Stops playback. Returns <code>true</code> when the handle was valid.</li>
+</ul>
+<ul>
+<li><code>pauseSound(handle: int) -&gt; bool</code> Pauses an active player. Returns <code>false</code> when the handle is invalid.</li>
+</ul>
+<ul>
+<li><code>resumeSound(handle: int) -&gt; bool</code> Resumes a paused player. Returns <code>false</code> when the handle is invalid.</li>
+</ul>
+<ul>
+<li><code>setSoundVolume(handle: int, volume: float) -&gt; bool</code> Sets the volume, clamped to <code>[0, 1]</code>. Returns <code>true</code> on success.</li>
+</ul>
+<ul>
+<li><code>isSoundPlaying(handle: int) -&gt; bool</code> Returns <code>true</code> if an active player is currently playing.</li>
+</ul>
+<ul>
+<li><code>getSoundLength(handle: int) -&gt; float</code> Returns the decoded duration in seconds, or <code>0.0</code> for an invalid handle.</li>
+</ul>
+<ul>
+<li><code>releaseSound(handle: int) -&gt; bool</code> Releases a loaded sound and invalidates its handle. Returns <code>true</code> on success.</li>
+</ul>
+<ul>
+<li><code>soundCount() -&gt; int</code> Returns the number of currently loaded sound handles.</li>
+</ul>
+<h2 id="example">Example</h2>
+<pre><code>import(&quot;sound&quot;)
+
+global main(){
+    int music = global.sound.loadSound(&quot;theme.wav&quot;);
+    if(music &gt;= 0){
+        global.sound.setSoundVolume(music, 0.5);
+        global.sound.loopSound(music);
+        println(global.sound.getSoundLength(music));
+        global.sound.stopSound(music);
+        global.sound.releaseSound(music);
+    }
+}</code></pre>
+    </main>
+</div>
+
+<footer>
+    Lynxer &middot; MIT License
+</footer>
+
+</body>
+</html>

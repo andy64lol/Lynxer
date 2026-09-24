@@ -134,7 +134,7 @@ lynxer/lynxer --compile app.lynx extras/helpers.lynx \
 
 The first `.lynx` file is the program; further `.lynx`/`.so` inputs are embedded
 and importable by name. A non-`.lynx`/`.so` include is embedded as data and read
-with `bundledFile(name)` / `bundledFiles()`. See [CLI.md](CLI.md#compile-to-an-executable).
+with `bundledFile(name)` / `bundledFiles()`. See [CLI.md](CLI.md#compiling-to-an-executable).
 
 ## Adding a stdlib module
 

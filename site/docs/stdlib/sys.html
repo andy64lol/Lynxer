@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>sys - Lynxer</title>
+    <link rel="stylesheet" href="../../style.css">
+</head>
+<body>
+
+<header>
+    <h1><a href="../../index.html">Lynxer</a></h1>
+    <p>Documentation</p>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3>Overview</h3><ul>
+<li><a href="../index.html">README</a></li>
+</ul>
+<h3>Getting started</h3><ul>
+<li><a href="../install.html">install</a></li>
+<li><a href="../CLI.html">CLI</a></li>
+</ul>
+<h3>Language</h3><ul>
+<li><a href="../language.html">language</a></li>
+<li><a href="../types.html">types</a></li>
+<li><a href="../lists.html">lists</a></li>
+<li><a href="../modules.html">modules</a></li>
+<li><a href="../importAs.html">importAs</a></li>
+</ul>
+<h3>Records</h3><ul>
+<li><a href="../structs.html">structs</a></li>
+<li><a href="../classes.html">classes</a></li>
+<li><a href="../enums.html">enums</a></li>
+<li><a href="../vargroups.html">vargroups</a></li>
+</ul>
+<h3>Built-ins and modules</h3><ul>
+<li><a href="../builtins.html">builtins</a></li>
+<li><a href="../native-module-abi.html">native-module-abi</a></li>
+<li><a href="../stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="../extending.html">extending</a></li>
+</ul>
+<h3>Reference</h3><ul>
+<li><a href="../limitations.html">limitations</a></li>
+</ul>
+<h3>Standard library</h3><ul>
+<li><a href="index.html">All modules</a></li>
+<li><a href="cli.html">cli</a></li>
+<li><a href="colorlib.html">colorlib</a></li>
+<li><a href="csv.html">csv</a></li>
+<li><a href="debug.html">debug</a></li>
+<li><a href="fileIO.html">fileIO</a></li>
+<li><a href="game.html">game</a></li>
+<li><a href="image.html">image</a></li>
+<li><a href="js.html">js</a></li>
+<li><a href="json.html">json</a></li>
+<li><a href="lua.html">lua</a></li>
+<li><a href="math.html">math</a></li>
+<li><a href="multiprocessing.html">multiprocessing</a></li>
+<li><a href="network.html">network</a></li>
+<li><a href="os.html">os</a></li>
+<li><a href="path.html">path</a></li>
+<li><a href="random.html">random</a></li>
+<li><a href="re.html">re</a></li>
+<li><a href="regex.html">regex</a></li>
+<li><a href="server.html">server</a></li>
+<li><a href="shell.html">shell</a></li>
+<li><a href="sound.html">sound</a></li>
+<li><a href="sqldb.html">sqldb</a></li>
+<li><a href="sys.html" class="active">sys</a></li>
+<li><a href="text.html">text</a></li>
+<li><a href="time.html">time</a></li>
+<li><a href="tui.html">tui</a></li>
+<li><a href="typing.html">typing</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+<h1 id="sys">sys</h1>
+<p>Runtime, process and platform information.</p>
+<p><strong>Backend:</strong> native — <code>stdlib/sys.so</code>, built from <code>stdlib/sys.cpp</code>. <strong>Import:</strong> <code>import(&quot;sys&quot;)</code> → <code>global.sys.*</code></p>
+<table>
+<tr><th>Function</th><th>Signature</th><th>Notes</th></tr>
+<tr><td><code>platform</code></td><td><code>() -&gt; str</code></td><td><code>linux</code>, <code>darwin</code>, <code>win32</code> or <code>unknown</code></td></tr>
+<tr><td><code>version</code></td><td><code>() -&gt; str</code></td><td>Lynxer version, e.g. <code>Lynxer 0.1.8</code></td></tr>
+<tr><td><code>versionInfo</code></td><td><code>() -&gt; str</code></td><td>JSON <code>{major, minor, micro, releaselevel, serial}</code></td></tr>
+<tr><td><code>implementation</code></td><td><code>() -&gt; str</code></td><td><code>Lynxer</code></td></tr>
+<tr><td><code>apiVersion</code></td><td><code>() -&gt; str</code></td><td><code>0.1</code></td></tr>
+<tr><td><code>isFrozen</code></td><td><code>() -&gt; bool</code></td><td>Always <code>false</code></td></tr>
+<tr><td><code>getpid</code></td><td><code>() -&gt; int</code></td><td>Process id</td></tr>
+<tr><td><code>getMaxSize</code></td><td><code>() -&gt; int</code></td><td>Maximum value of <code>size_t</code></td></tr>
+<tr><td><code>getByteOrder</code></td><td><code>() -&gt; str</code></td><td><code>little</code> or <code>big</code></td></tr>
+<tr><td><code>getDefaultEncoding</code></td><td><code>() -&gt; str</code></td><td><code>utf-8</code></td></tr>
+<tr><td><code>getFilesystemEncoding</code></td><td><code>() -&gt; str</code></td><td><code>utf-8</code></td></tr>
+<tr><td><code>isatty</code></td><td><code>() -&gt; bool</code></td><td>Whether stdout is a terminal</td></tr>
+<tr><td><code>stdinName</code> / <code>stdoutName</code></td><td><code>() -&gt; str</code></td><td><code>&lt;stdin&gt;</code> / <code>&lt;stdout&gt;</code></td></tr>
+<tr><td><code>executable</code></td><td><code>() -&gt; str</code></td><td>Path of the running executable</td></tr>
+<tr><td><code>prefix</code> / <code>execPrefix</code></td><td><code>() -&gt; str</code></td><td>Directory containing the executable</td></tr>
+<tr><td><code>argv</code></td><td><code>() -&gt; str</code></td><td>Process command line as a JSON array</td></tr>
+<tr><td><code>argCount</code></td><td><code>() -&gt; int</code></td><td>Number of command-line entries</td></tr>
+<tr><td><code>getArg</code></td><td><code>(int index) -&gt; str</code></td><td>Entry at <code>index</code>, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>exit</code></td><td><code>(int code)</code></td><td>Exits immediately with <code>code</code></td></tr>
+<tr><td><code>exitOk</code> / <code>exitError</code></td><td><code>()</code></td><td>Exits with <code>0</code> / <code>1</code></td></tr>
+</table>
+<p>Because Lynxer has no Python runtime, <code>version()</code> reports the Lynxer version and there is no <code>sys.path</code>, <code>sys.modules</code> or recursion-limit surface. Lynxer does not forward extra arguments to a program, so <code>argv</code> describes the <code>lynxer</code> process itself.</p>
+<h2 id="example">Example</h2>
+<pre><code>global setup(){ import(&quot;sys&quot;); }
+
+global main(){
+    println(global.sys.platform());
+    println(global.sys.version());
+    println(global.sys.argCount());
+}</code></pre>
+<hr>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="../stdlib-contracts.html">stdlib-contracts</a> — the contract this module implements, including the error sentinel family it uses.</li>
+<li><a href="../builtins.html">builtins</a> — the functions the interpreter implements itself.</li>
+<li><a href="../limitations.html">limitations</a> — the full divergence register.</li>
+</ul>
+    </main>
+</div>
+
+<footer>
+    Lynxer &middot; MIT License
+</footer>
+
+</body>
+</html>

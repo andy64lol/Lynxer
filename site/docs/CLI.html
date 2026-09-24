@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CLI - Lynxer</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<header>
+    <h1><a href="../index.html">Lynxer</a></h1>
+    <p>Documentation</p>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3>Overview</h3><ul>
+<li><a href="index.html">README</a></li>
+</ul>
+<h3>Getting started</h3><ul>
+<li><a href="install.html">install</a></li>
+<li><a href="CLI.html" class="active">CLI</a></li>
+</ul>
+<h3>Language</h3><ul>
+<li><a href="language.html">language</a></li>
+<li><a href="types.html">types</a></li>
+<li><a href="lists.html">lists</a></li>
+<li><a href="modules.html">modules</a></li>
+<li><a href="importAs.html">importAs</a></li>
+</ul>
+<h3>Records</h3><ul>
+<li><a href="structs.html">structs</a></li>
+<li><a href="classes.html">classes</a></li>
+<li><a href="enums.html">enums</a></li>
+<li><a href="vargroups.html">vargroups</a></li>
+</ul>
+<h3>Built-ins and modules</h3><ul>
+<li><a href="builtins.html">builtins</a></li>
+<li><a href="native-module-abi.html">native-module-abi</a></li>
+<li><a href="stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="extending.html">extending</a></li>
+</ul>
+<h3>Reference</h3><ul>
+<li><a href="limitations.html">limitations</a></li>
+</ul>
+<h3>Standard library</h3><ul>
+<li><a href="stdlib/index.html">All modules</a></li>
+<li><a href="stdlib/cli.html">cli</a></li>
+<li><a href="stdlib/colorlib.html">colorlib</a></li>
+<li><a href="stdlib/csv.html">csv</a></li>
+<li><a href="stdlib/debug.html">debug</a></li>
+<li><a href="stdlib/fileIO.html">fileIO</a></li>
+<li><a href="stdlib/game.html">game</a></li>
+<li><a href="stdlib/image.html">image</a></li>
+<li><a href="stdlib/js.html">js</a></li>
+<li><a href="stdlib/json.html">json</a></li>
+<li><a href="stdlib/lua.html">lua</a></li>
+<li><a href="stdlib/math.html">math</a></li>
+<li><a href="stdlib/multiprocessing.html">multiprocessing</a></li>
+<li><a href="stdlib/network.html">network</a></li>
+<li><a href="stdlib/os.html">os</a></li>
+<li><a href="stdlib/path.html">path</a></li>
+<li><a href="stdlib/random.html">random</a></li>
+<li><a href="stdlib/re.html">re</a></li>
+<li><a href="stdlib/regex.html">regex</a></li>
+<li><a href="stdlib/server.html">server</a></li>
+<li><a href="stdlib/shell.html">shell</a></li>
+<li><a href="stdlib/sound.html">sound</a></li>
+<li><a href="stdlib/sqldb.html">sqldb</a></li>
+<li><a href="stdlib/sys.html">sys</a></li>
+<li><a href="stdlib/text.html">text</a></li>
+<li><a href="stdlib/time.html">time</a></li>
+<li><a href="stdlib/tui.html">tui</a></li>
+<li><a href="stdlib/typing.html">typing</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+<h1 id="cli">CLI</h1>
+<p>The Lynxer executable is <code>lynxer</code>. <code>--install</code> copies it to <code>/usr/bin/lynxer</code> and <code>--uninstall</code> removes it; otherwise run it from where it was built.</p>
+<pre><code>make buildLynxer
+lynxer/lynxer --help</code></pre>
+<p><code>--help</code> (or <code>-h</code>, or no arguments at all) prints the usage summary and exits <code>0</code>. The rest of this page is the authoritative description of every flag.</p>
+<h2 id="running-a-program">Running a program</h2>
+<pre><code>lynxer program.lynx
+lynxer --no-opt program.lynx    # run without the AST optimizer</code></pre>
+<p>Anything the parser does not recognise as a flag is treated as a <strong>file path</strong>, not an option. <code>lynxer --bogus-flag</code> therefore reports <code>lynxer: file not found: &#x27;--bogus-flag&#x27;</code> and exits <code>1</code>.</p>
+<p>A <code>.lynxc</code> argument is rejected explicitly: <code>lynxer: bytecode files are no longer supported; compile the .lynx source with --compile instead</code>.</p>
+<h2 id="exit-codes">Exit codes</h2>
+<table>
+<tr><th>Code</th><th>Meaning</th></tr>
+<tr><td><code>0</code></td><td>success (also <code>--help</code>, <code>--version</code>, a clean <code>--lint</code>)</td></tr>
+<tr><td><code>1</code></td><td>any error: a missing file, a parse error, a runtime error, an unsupported flag</td></tr>
+<tr><td><code>130</code></td><td>interrupted (SIGINT)</td></tr>
+</table>
+<h2 id="the-ast-optimizer">The AST optimizer</h2>
+<p>Before execution Lynxer rewrites the parsed program: constant folding, short-circuit simplification of constant <code>and</code>/<code>or</code>, and dead-branch elimination for a constant <code>if</code>, <code>while (false)</code>, and <code>iterate (0)</code>. The pass is semantics-preserving, so output and exit codes are identical with and without it. <code>--no-opt</code> (or <code>-no-opt</code>) disables it for the run; a <strong>compiled</strong> executable ignores its command line and always optimizes.</p>
+<p><code>LYNXER_OPT_REPORT=1</code> prints one line of transformation counts to stderr after the program runs, for example <code>optimizer: constant folds=10, short-circuits=2, dead branches=3</code>. See <a href="limitations.html#optimizer">limitations</a>.</p>
+<h2 id="checking-syntax">Checking syntax</h2>
+<pre><code>lynxer --lint program.lynx</code></pre>
+<p><code>--lint</code> parses the file and reports the first syntax error without running it. A clean file prints <code>Lint OK: &lt;path&gt;</code> and exits <code>0</code>. It requires exactly one file; otherwise it prints <code>lynxer: --lint requires exactly one file argument</code>.</p>
+<h2 id="printing-the-ast">Printing the AST</h2>
+<pre><code>lynxer --ast program.lynx</code></pre>
+<p><code>--ast</code> lexes and parses the file and prints the resulting tree without running it: the header <code>Lynxer AST</code> / <code>===========</code>, then a position-free, indented dump of every top-level function and its statements. Source line/column are omitted. A syntax error is reported with its source location and exits <code>1</code>; the flag requires exactly one file argument.</p>
+<p>The tree uses Lynxer's own node and field names, so it is not byte-comparable to an earlier implementation's <code>--ast</code>. Named-type declarations (<code>struct</code>, <code>class</code>, <code>enum</code>) are parse-time metadata held in the type registry rather than part of the returned program, so <code>--ast</code> shows the executable AST only.</p>
+<h2 id="formatting">Formatting</h2>
+<pre><code>lynxer --format program.lynx
+lynxer --format-oneline program.lynx</code></pre>
+<p>Both rewrite the file <strong>in place</strong>. <code>--format</code> gives canonical spacing and four-space indentation; <code>--format-oneline</code> collapses everything onto a single physical line, turning each <code>//</code> comment into the delimited <code>///...///</code> form so it survives next to code. Comments — line and <code>///</code>/<code>////</code> blocks — are preserved verbatim, and formatting is idempotent (running it twice changes nothing). The file is parsed first, so a syntax error is reported with its source location and the file is left untouched. Each flag requires exactly one file argument.</p>
+<p>The formatter never changes tokens or reorders them; it only decides spacing and line breaks.</p>
+<h2 id="interpreter-self-check">Interpreter self-check</h2>
+<pre><code>lynxer --validate-executeable</code></pre>
+<p>Runs a built-in corpus of small programs that must either run cleanly or raise a specific source-located error, and prints <code>ok &lt;name&gt;</code> per case plus a summary. It exits <code>1</code> if any check fails. It needs no external files, so it also works from an installed binary. The alias <code>--validate-executable</code> is accepted.</p>
+<h2 id="compiling-to-an-executable">Compiling to an executable</h2>
+<p><code>--compile</code> builds one standalone ELF that embeds the program, every transitively imported <code>.lynx</code> module and <code>.so</code> library, and any additional inputs. <code>--bundle</code> is an exact alias. There is <strong>no</strong> <code>.lynxc</code> bytecode path.</p>
+<pre><code>lynxer --compile app.lynx -o app
+lynxer --compile app.lynx helpers.lynx vendor/lib.so \
+        --include assets/message.txt -o app</code></pre>
+<table>
+<tr><th>Flag</th><th>Aliases</th><th>Effect</th></tr>
+<tr><td><code>--compile</code></td><td><code>-c</code>, <code>--c</code>, <code>-compile</code>, <code>--bundle</code>, <code>-bundle</code></td><td>compile the input files</td></tr>
+<tr><td><code>--include &lt;file&gt;</code></td><td><code>-i</code></td><td>embed an extra module, native library, or data file</td></tr>
+<tr><td><code>-o &lt;name&gt;</code></td><td><code>--output</code>, <code>-name</code>, <code>--name</code></td><td>name the output executable</td></tr>
+</table>
+<p>The first <code>.lynx</code> input is the program; any further <code>.lynx</code> or <code>.so</code> input is embedded and importable by name. A <code>--include</code> file that is not <code>.lynx</code>/<code>.so</code> is embedded as data and read from the program with <code>bundledFile(name)</code> / <code>bundledFiles()</code>; see <a href="builtins.html#bundled-files">builtins</a>.</p>
+<p>Inside a compiled executable, <code>--no-opt</code> has no effect: the payload is always optimized.</p>
+<h2 id="listing-the-standard-library">Listing the standard library</h2>
+<pre><code>lynxer --list-stdlibs</code></pre>
+<p>Aliases: <code>--stdlibs</code>, <code>-stdlibs</code>, <code>-list-stdlibs</code>. It lists every module in the interpreter's <code>stdlib/</code> directory together with its <code>////</code> docstring, and exits <code>1</code> with <code>No stdlib directory found.</code> when that directory is missing. See <a href="modules.html">modules</a> for the docstring format.</p>
+<h2 id="version-help-easter-egg">Version, help, easter egg</h2>
+<table>
+<tr><th>Flag</th><th>Aliases</th><th>Effect</th></tr>
+<tr><td><code>--version</code></td><td><code>-v</code>, <code>-version</code>, <code>--v</code></td><td>print <code>Lynxer &lt;version&gt;</code></td></tr>
+<tr><td><code>--help</code></td><td><code>-h</code></td><td>print the usage summary</td></tr>
+<tr><td><code>--easterEgg</code></td><td><code>-easterEgg</code>, <code>--idklmao</code>, <code>-wnwnerbcyunwrbygnubeuyxnqybxun</code></td><td>print the easter egg</td></tr>
+</table>
+<p>The version string comes from the <code>version</code> key in <code>lynxer/lynxer.config</code> (currently <code>0.1.8</code>).</p>
+<h2 id="installing">Installing</h2>
+<pre><code>sudo lynxer --install      # copy this executable to /usr/bin/lynxer
+sudo lynxer --uninstall    # remove /usr/bin/lynxer</code></pre>
+<p><code>--install</code> copies the running executable (resolved through <code>/proc/self/exe</code>) to <code>/usr/bin/lynxer</code> and makes it executable. Keep the matching <code>stdlib/</code> directory next to the installed binary, or imports will not resolve. Without write permission it prints the failure and a <code>sudo</code> hint and exits <code>1</code>. <code>--uninstall</code> removes <code>/usr/bin/lynxer</code>; if it is absent it reports why and exits <code>1</code>.</p>
+<h2 id="removed-with-the-bytecode-backend">Removed with the bytecode backend</h2>
+<p>These are recognised and exit <code>1</code> with <code>lynxer: &#x27;&lt;flag&gt;&#x27; was removed with the bytecode backend; use lynxer --compile instead</code>:</p>
+<p><code>--view-bytecode</code> (aliases <code>--inspect-bytecode</code>, <code>--disasm</code>), <code>--benchmark-compile</code> (alias <code>--bench-compile</code>), <code>--no-cache</code>.</p>
+<h2 id="environment-variables">Environment variables</h2>
+<table>
+<tr><th>Variable</th><th>Effect</th></tr>
+<tr><td><code>LYNXER_OPT_REPORT=1</code></td><td>print the optimizer counts to stderr after the run</td></tr>
+<tr><td><code>LYNXER_GAME_HEADLESS=1</code></td><td>run the <code>game</code> module without opening a window</td></tr>
+</table>
+<p><code>LYNXER_SKIP_DISPLAY=1</code> is a <strong>build/test</strong> variable, not a run-time one: it makes <code>make testLynxer</code> skip the display and audio fixtures. See <a href="install.html#environment-variables">install</a>.</p>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="install.html">install</a> — build commands and artifacts.</li>
+<li><a href="modules.html">modules</a> — imports and <code>--compile</code> resolution.</li>
+</ul>
+    </main>
+</div>
+
+<footer>
+    Lynxer &middot; MIT License
+</footer>
+
+</body>
+</html>

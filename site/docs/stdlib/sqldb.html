@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SQLite Database Module - Lynxer</title>
+    <link rel="stylesheet" href="../../style.css">
+</head>
+<body>
+
+<header>
+    <h1><a href="../../index.html">Lynxer</a></h1>
+    <p>Documentation</p>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3>Overview</h3><ul>
+<li><a href="../index.html">README</a></li>
+</ul>
+<h3>Getting started</h3><ul>
+<li><a href="../install.html">install</a></li>
+<li><a href="../CLI.html">CLI</a></li>
+</ul>
+<h3>Language</h3><ul>
+<li><a href="../language.html">language</a></li>
+<li><a href="../types.html">types</a></li>
+<li><a href="../lists.html">lists</a></li>
+<li><a href="../modules.html">modules</a></li>
+<li><a href="../importAs.html">importAs</a></li>
+</ul>
+<h3>Records</h3><ul>
+<li><a href="../structs.html">structs</a></li>
+<li><a href="../classes.html">classes</a></li>
+<li><a href="../enums.html">enums</a></li>
+<li><a href="../vargroups.html">vargroups</a></li>
+</ul>
+<h3>Built-ins and modules</h3><ul>
+<li><a href="../builtins.html">builtins</a></li>
+<li><a href="../native-module-abi.html">native-module-abi</a></li>
+<li><a href="../stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="../extending.html">extending</a></li>
+</ul>
+<h3>Reference</h3><ul>
+<li><a href="../limitations.html">limitations</a></li>
+</ul>
+<h3>Standard library</h3><ul>
+<li><a href="index.html">All modules</a></li>
+<li><a href="cli.html">cli</a></li>
+<li><a href="colorlib.html">colorlib</a></li>
+<li><a href="csv.html">csv</a></li>
+<li><a href="debug.html">debug</a></li>
+<li><a href="fileIO.html">fileIO</a></li>
+<li><a href="game.html">game</a></li>
+<li><a href="image.html">image</a></li>
+<li><a href="js.html">js</a></li>
+<li><a href="json.html">json</a></li>
+<li><a href="lua.html">lua</a></li>
+<li><a href="math.html">math</a></li>
+<li><a href="multiprocessing.html">multiprocessing</a></li>
+<li><a href="network.html">network</a></li>
+<li><a href="os.html">os</a></li>
+<li><a href="path.html">path</a></li>
+<li><a href="random.html">random</a></li>
+<li><a href="re.html">re</a></li>
+<li><a href="regex.html">regex</a></li>
+<li><a href="server.html">server</a></li>
+<li><a href="shell.html">shell</a></li>
+<li><a href="sound.html">sound</a></li>
+<li><a href="sqldb.html" class="active">sqldb</a></li>
+<li><a href="sys.html">sys</a></li>
+<li><a href="text.html">text</a></li>
+<li><a href="time.html">time</a></li>
+<li><a href="tui.html">tui</a></li>
+<li><a href="typing.html">typing</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+<h1 id="sqlite-database-module">SQLite Database Module</h1>
+<p>The <code>sqldb</code> module provides SQLite database functionality using Rust's <code>rusqlite</code> crate.</p>
+<h2 id="functions">Functions</h2>
+<ul>
+<li><code>execute(path: string, sql: string) -&gt; string</code> Executes one SQL statement and commits it. Returns <code>&quot;ok&quot;</code> or <code>&quot;ERROR: &lt;message&gt;&quot;</code>.</li>
+</ul>
+<ul>
+<li><code>executeArgs(path: string, sql: string, paramsJson: string) -&gt; string</code> Executes one parameterized SQL statement. <code>paramsJson</code> must be a JSON array. Returns <code>&quot;ok&quot;</code> or <code>&quot;ERROR: &lt;message&gt;&quot;</code>.</li>
+</ul>
+<ul>
+<li><code>script(path: string, sqlScript: string) -&gt; string</code> Executes multiple SQL statements as one transaction. Returns <code>&quot;ok&quot;</code> or <code>&quot;ERROR: &lt;message&gt;&quot;</code>.</li>
+</ul>
+<ul>
+<li><code>query(path: string, sql: string) -&gt; string</code> Query rows and return a JSON array of objects.</li>
+</ul>
+<ul>
+<li><code>queryArgs(path: string, sql: string, paramsJson: string) -&gt; string</code> Parameterized form of <code>query()</code>.</li>
+</ul>
+<ul>
+<li><code>scalar(path: string, sql: string) -&gt; string</code> Returns the first column of the first row as a string, or <code>&quot;&quot;</code> when absent.</li>
+</ul>
+<ul>
+<li><code>scalarArgs(path: string, sql: string, paramsJson: string) -&gt; string</code> Parameterized form of <code>scalar()</code>.</li>
+</ul>
+<ul>
+<li><code>lastInsertId(path: string, sql: string, paramsJson: string) -&gt; int</code> Executes an insert/update and returns SQLite's lastrowid. Returns <code>-1</code> on error.</li>
+</ul>
+<ul>
+<li><code>tableExists(path: string, tableName: string) -&gt; bool</code> Returns whether a table exists in the database.</li>
+</ul>
+<ul>
+<li><code>tables(path: string) -&gt; string</code> Returns table names as a JSON array.</li>
+</ul>
+<h2 id="example">Example</h2>
+<pre><code>global setup(){
+    import(&quot;sqldb&quot;)
+}
+
+global main(){
+    global.sqldb.execute(&quot;database.db&quot;, &quot;CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)&quot;);
+    global.sqldb.execute(&quot;database.db&quot;, &quot;INSERT INTO users (name) VALUES (&#x27;Alice&#x27;)&quot;);
+    println(global.sqldb.query(&quot;database.db&quot;, &quot;SELECT * FROM users&quot;));
+}</code></pre>
+<hr>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="../stdlib-contracts.html">stdlib-contracts</a> — the contract this module implements, including the error sentinel family it uses.</li>
+<li><a href="../builtins.html">builtins</a> — the functions the interpreter implements itself.</li>
+<li><a href="../limitations.html">limitations</a> — the full divergence register.</li>
+</ul>
+    </main>
+</div>
+
+<footer>
+    Lynxer &middot; MIT License
+</footer>
+
+</body>
+</html>

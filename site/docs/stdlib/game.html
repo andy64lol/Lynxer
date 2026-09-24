@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>game - Lynxer</title>
+    <link rel="stylesheet" href="../../style.css">
+</head>
+<body>
+
+<header>
+    <h1><a href="../../index.html">Lynxer</a></h1>
+    <p>Documentation</p>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3>Overview</h3><ul>
+<li><a href="../index.html">README</a></li>
+</ul>
+<h3>Getting started</h3><ul>
+<li><a href="../install.html">install</a></li>
+<li><a href="../CLI.html">CLI</a></li>
+</ul>
+<h3>Language</h3><ul>
+<li><a href="../language.html">language</a></li>
+<li><a href="../types.html">types</a></li>
+<li><a href="../lists.html">lists</a></li>
+<li><a href="../modules.html">modules</a></li>
+<li><a href="../importAs.html">importAs</a></li>
+</ul>
+<h3>Records</h3><ul>
+<li><a href="../structs.html">structs</a></li>
+<li><a href="../classes.html">classes</a></li>
+<li><a href="../enums.html">enums</a></li>
+<li><a href="../vargroups.html">vargroups</a></li>
+</ul>
+<h3>Built-ins and modules</h3><ul>
+<li><a href="../builtins.html">builtins</a></li>
+<li><a href="../native-module-abi.html">native-module-abi</a></li>
+<li><a href="../stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="../extending.html">extending</a></li>
+</ul>
+<h3>Reference</h3><ul>
+<li><a href="../limitations.html">limitations</a></li>
+</ul>
+<h3>Standard library</h3><ul>
+<li><a href="index.html">All modules</a></li>
+<li><a href="cli.html">cli</a></li>
+<li><a href="colorlib.html">colorlib</a></li>
+<li><a href="csv.html">csv</a></li>
+<li><a href="debug.html">debug</a></li>
+<li><a href="fileIO.html">fileIO</a></li>
+<li><a href="game.html" class="active">game</a></li>
+<li><a href="image.html">image</a></li>
+<li><a href="js.html">js</a></li>
+<li><a href="json.html">json</a></li>
+<li><a href="lua.html">lua</a></li>
+<li><a href="math.html">math</a></li>
+<li><a href="multiprocessing.html">multiprocessing</a></li>
+<li><a href="network.html">network</a></li>
+<li><a href="os.html">os</a></li>
+<li><a href="path.html">path</a></li>
+<li><a href="random.html">random</a></li>
+<li><a href="re.html">re</a></li>
+<li><a href="regex.html">regex</a></li>
+<li><a href="server.html">server</a></li>
+<li><a href="shell.html">shell</a></li>
+<li><a href="sound.html">sound</a></li>
+<li><a href="sqldb.html">sqldb</a></li>
+<li><a href="sys.html">sys</a></li>
+<li><a href="text.html">text</a></li>
+<li><a href="time.html">time</a></li>
+<li><a href="tui.html">tui</a></li>
+<li><a href="typing.html">typing</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+<h1 id="game">game</h1>
+<p>2-D game toolkit for Lynxer. The drawing, input and window layer is a Rust library built on <a href="https://macroquad.rs">macroquad</a>, linked into <code>stdlib/game.so</code> and reached through <code>global.game</code>.</p>
+<blockquote><strong>Requires:</strong> a Rust toolchain (<code>cargo</code>). <code>stdlib/game.so</code> is optional: it is skipped with a warning when <code>cargo</code> is not on <code>PATH</code>. The Rust source lives in <code>rust/game/</code>; build it with <code>make cargo</code> or <code>make buildLynxer</code>.</blockquote>
+<hr>
+<h2 id="coordinates">Coordinates</h2>
+<p>World coordinates use <strong>bottom-left origin, +Y up</strong>, matching the reference <code>game</code> module. The Rust layer flips Y for macroquad internally, and mouse coordinates are reported from the bottom-left. Angles are degrees, counter-clockwise.</p>
+<h2 id="frames-and-callbacks">Frames and callbacks</h2>
+<p><code>run()</code> is blocking. Register the two frame callbacks by name, then call <code>run()</code>:</p>
+<pre><code>global setup(){ import(&quot;game&quot;); }
+
+global onUpdate(float dt){
+    // advance the world; dt is seconds since the previous frame
+}
+
+global onDraw(){
+    global.game.beginDraw();
+    global.game.drawRect(100.0, 100.0, 40.0, 40.0, 255, 0, 0);
+    global.game.drawText(&quot;hello&quot;, 10.0, 10.0, 255, 255, 255, 16);
+    global.game.endDraw();
+}
+
+global main(){
+    global.game.init(&quot;Demo&quot;, 800, 600);
+    global.game.setBackground(20, 20, 30);
+    global.game.setUpdateCallback(&quot;onUpdate&quot;);
+    global.game.setDrawCallback(&quot;onDraw&quot;);
+    global.game.run();
+}</code></pre>
+<p>Each frame the module calls <code>onUpdate(dt)</code> and then <code>onDraw()</code>. If either callback raises an error the loop stops and the error is reported at the <code>run()</code> call site. Ctrl-C stops the loop and exits with code 130.</p>
+<h2 id="headless-mode">Headless mode</h2>
+<p>Set <code>LYNXER_GAME_HEADLESS=1</code> to run without a window. <code>run()</code> then executes a fixed number of deterministic frames (<code>dt = 1/60</code>) and every drawing call is a no-op, so the API and the callback bridge can be tested without a display. The <code>make test</code> fixture runner sets this variable; see <code>examples/stdlib_game.lynx</code>.</p>
+<hr>
+<h2 id="window">Window</h2>
+<table>
+<tr><th>Function</th><th>Signature</th><th>Description</th></tr>
+<tr><td><code>init</code></td><td><code>init(str title, int width, int height)</code></td><td>Configure the window. Call first.</td></tr>
+<tr><td><code>setTitle</code></td><td><code>setTitle(str title)</code></td><td>Set the title used when <code>run()</code> opens the window.</td></tr>
+<tr><td><code>setBackground</code></td><td><code>setBackground(int r, int g, int b)</code></td><td>Clear colour (0–255).</td></tr>
+<tr><td><code>getWidth</code> / <code>getHeight</code></td><td><code>getWidth() -&gt; int</code></td><td>Current window size.</td></tr>
+<tr><td><code>setWindowSize</code></td><td><code>setWindowSize(int width, int height)</code></td><td>Resize the window.</td></tr>
+<tr><td><code>setResizable</code></td><td><code>setResizable(bool enabled)</code></td><td>Accepted and ignored (window is resizable by default).</td></tr>
+<tr><td><code>setFullscreen</code></td><td><code>setFullscreen(bool enabled)</code></td><td>Enter/leave fullscreen.</td></tr>
+<tr><td><code>setMouseVisible</code></td><td><code>setMouseVisible(bool visible)</code></td><td>Show/hide the cursor.</td></tr>
+<tr><td><code>hideCursor</code> / <code>showCursor</code></td><td><code>hideCursor()</code></td><td>Cursor convenience wrappers.</td></tr>
+<tr><td><code>setFPSCap</code></td><td><code>setFPSCap(int fps)</code></td><td>Frame-rate cap (0 disables).</td></tr>
+<tr><td><code>getFPS</code></td><td><code>getFPS() -&gt; int</code></td><td>Current FPS (0 headless).</td></tr>
+<tr><td><code>close</code></td><td><code>close()</code></td><td>Ask the loop to stop after the current frame.</td></tr>
+<tr><td><code>isOpen</code></td><td><code>isOpen() -&gt; bool</code></td><td>True while the window is open.</td></tr>
+</table>
+<h2 id="lifecycle-and-timing">Lifecycle and timing</h2>
+<table>
+<tr><th>Function</th><th>Signature</th><th>Description</th></tr>
+<tr><td><code>run</code></td><td><code>run()</code></td><td>Start the blocking frame loop.</td></tr>
+<tr><td><code>setUpdateCallback</code></td><td><code>setUpdateCallback(str name)</code></td><td>Per-frame callback receiving <code>dt</code>.</td></tr>
+<tr><td><code>setDrawCallback</code></td><td><code>setDrawCallback(str name)</code></td><td>Per-frame draw callback.</td></tr>
+<tr><td><code>deltaTime</code></td><td><code>deltaTime() -&gt; float</code></td><td>Seconds since the previous frame.</td></tr>
+<tr><td><code>getTime</code></td><td><code>getTime() -&gt; float</code></td><td>Seconds since the program started.</td></tr>
+<tr><td><code>beginDraw</code> / <code>endDraw</code></td><td><code>beginDraw()</code></td><td>Clear the screen / no-op.</td></tr>
+</table>
+<h2 id="shapes">Shapes</h2>
+<p>All colours are <code>int r, g, b</code> (0–255); all coordinates are world coordinates.</p>
+<table>
+<tr><th>Function</th><th>Signature</th></tr>
+<tr><td><code>drawRect</code></td><td><code>drawRect(float cx, float cy, float w, float h, int r, int g, int b)</code></td></tr>
+<tr><td><code>drawRectOutline</code></td><td><code>drawRectOutline(cx, cy, w, h, r, g, b, float lineWidth)</code></td></tr>
+<tr><td><code>drawCircle</code></td><td><code>drawCircle(cx, cy, float radius, r, g, b)</code></td></tr>
+<tr><td><code>drawCircleOutline</code></td><td><code>drawCircleOutline(cx, cy, radius, r, g, b, lineWidth)</code></td></tr>
+<tr><td><code>drawEllipse</code></td><td><code>drawEllipse(cx, cy, float w, float h, r, g, b)</code></td></tr>
+<tr><td><code>drawEllipseOutline</code></td><td><code>drawEllipseOutline(cx, cy, w, h, r, g, b, lineWidth)</code></td></tr>
+<tr><td><code>drawLine</code></td><td><code>drawLine(float x1, float y1, float x2, float y2, r, g, b, lineWidth)</code></td></tr>
+<tr><td><code>drawTriangle</code></td><td><code>drawTriangle(x1, y1, x2, y2, x3, y3, r, g, b)</code></td></tr>
+<tr><td><code>drawTriangleOutline</code></td><td><code>drawTriangleOutline(x1, y1, x2, y2, x3, y3, r, g, b, lineWidth)</code></td></tr>
+<tr><td><code>drawPoint</code></td><td><code>drawPoint(float x, float y, r, g, b, float size)</code></td></tr>
+<tr><td><code>drawRectRoundedFilled</code></td><td><code>drawRectRoundedFilled(cx, cy, w, h, r, g, b, float cornerRadius)</code></td></tr>
+<tr><td><code>drawRectRoundedOutline</code></td><td><code>drawRectRoundedOutline(cx, cy, w, h, r, g, b, cornerRadius, lineWidth)</code></td></tr>
+<tr><td><code>drawStar</code></td><td><code>drawStar(cx, cy, float outerR, float innerR, int points, r, g, b)</code></td></tr>
+<tr><td><code>drawDashedLine</code></td><td><code>drawDashedLine(x1, y1, x2, y2, r, g, b, lineWidth, float dashLength)</code></td></tr>
+<tr><td><code>drawCross</code></td><td><code>drawCross(cx, cy, float size, r, g, b, lineWidth)</code></td></tr>
+<tr><td><code>drawGradientRect</code></td><td><code>drawGradientRect(cx, cy, w, h, r1, g1, b1, r2, g2, b2)</code></td></tr>
+<tr><td><code>drawArc</code></td><td><code>drawArc(cx, cy, w, h, r, g, b, float startAngle, float endAngle, lineWidth)</code></td></tr>
+<tr><td><code>drawArcFilled</code></td><td><code>drawArcFilled(cx, cy, w, h, r, g, b, startAngle, endAngle)</code></td></tr>
+<tr><td><code>drawPolygon</code></td><td><code>drawPolygon(str coords, r, g, b)</code></td></tr>
+<tr><td><code>drawPolygonOutline</code></td><td><code>drawPolygonOutline(str coords, r, g, b, lineWidth)</code></td></tr>
+<tr><td><code>drawPolyline</code></td><td><code>drawPolyline(str coords, r, g, b, lineWidth)</code></td></tr>
+<tr><td><code>drawPoints</code></td><td><code>drawPoints(str coords, r, g, b, float size)</code></td></tr>
+<tr><td><code>drawLines</code></td><td><code>drawLines(str segments, r, g, b, lineWidth)</code></td></tr>
+</table>
+<p><code>coords</code> is a flat <code>&quot;x,y,x,y,...&quot;</code> list and <code>segments</code> a flat <code>&quot;x1,y1,x2,y2,...&quot;</code> list of endpoints. (The reference module took JSON; this backend accepts any non-numeric separator, so <code>&quot;1,2 3,4&quot;</code> and <code>&quot;[1,2,3,4]&quot;</code> both work.)</p>
+<h2 id="text">Text</h2>
+<table>
+<tr><th>Function</th><th>Signature</th><th>Description</th></tr>
+<tr><td><code>drawText</code></td><td><code>drawText(str text, float x, float y, r, g, b, int size)</code></td><td>Bottom-left anchored at <code>(x, y)</code>.</td></tr>
+<tr><td><code>drawTextStyled</code></td><td><code>drawTextStyled(text, x, y, r, g, b, size, str font, bool bold, bool italic, str anchorX)</code></td><td><code>anchorX</code> is <code>&quot;left&quot;</code>/<code>&quot;center&quot;</code>/<code>&quot;right&quot;</code>; <code>font</code> is ignored.</td></tr>
+<tr><td><code>drawTextAnchored</code></td><td><code>drawTextAnchored(text, x, y, r, g, b, size, str anchorX, str anchorY)</code></td><td><code>anchorY</code> is <code>&quot;bottom&quot;</code>/<code>&quot;center&quot;</code>/<code>&quot;top&quot;</code>.</td></tr>
+</table>
+<h2 id="input">Input</h2>
+<p>Key names are case-insensitive: <code>&quot;UP&quot;</code>, <code>&quot;DOWN&quot;</code>, <code>&quot;LEFT&quot;</code>, <code>&quot;RIGHT&quot;</code>, <code>&quot;SPACE&quot;</code>, <code>&quot;ENTER&quot;</code>, <code>&quot;ESCAPE&quot;</code>, <code>&quot;TAB&quot;</code>, <code>&quot;BACKSPACE&quot;</code>, <code>&quot;SHIFT&quot;</code>, <code>&quot;CTRL&quot;</code>, <code>&quot;ALT&quot;</code>, <code>&quot;A&quot;</code>–<code>&quot;Z&quot;</code>, <code>&quot;0&quot;</code>–<code>&quot;9&quot;</code>, <code>&quot;F1&quot;</code>–<code>&quot;F12&quot;</code>. Button names are <code>&quot;LEFT&quot;</code>, <code>&quot;RIGHT&quot;</code>, <code>&quot;MIDDLE&quot;</code>.</p>
+<table>
+<tr><th>Function</th><th>Signature</th></tr>
+<tr><td><code>keyDown</code> / <code>keyUp</code></td><td><code>(str key) -&gt; bool</code></td></tr>
+<tr><td><code>keyPressed</code> / <code>keyReleased</code></td><td><code>(str key) -&gt; bool</code> (once per event)</td></tr>
+<tr><td><code>keyCode</code></td><td><code>(str key) -&gt; int</code> (backend key code, <code>-1</code> unknown)</td></tr>
+<tr><td><code>mouseX</code> / <code>mouseY</code></td><td><code>() -&gt; float</code> (bottom-left origin)</td></tr>
+<tr><td><code>mouseDeltaX</code> / <code>mouseDeltaY</code></td><td><code>() -&gt; float</code>, reset on read</td></tr>
+<tr><td><code>mouseScrollX</code> / <code>mouseScrollY</code></td><td><code>() -&gt; float</code>, reset on read</td></tr>
+<tr><td><code>mouseLeft</code> / <code>mouseRight</code> / <code>mouseMiddle</code></td><td><code>() -&gt; bool</code></td></tr>
+<tr><td><code>mouseButtonDown</code> / <code>mouseButtonPressed</code> / <code>mouseButtonReleased</code></td><td><code>(str button) -&gt; bool</code></td></tr>
+<tr><td><code>mouseButtonCode</code></td><td><code>(str button) -&gt; int</code></td></tr>
+</table>
+<h2 id="sprites">Sprites</h2>
+<p>Sprites are referenced by an integer index (<code>-1</code> means "not available"). <code>setSpriteVelocity</code> is in <strong>pixels per second</strong>; <code>updateSprite</code> applies the last frame's <code>deltaTime()</code>.</p>
+<table>
+<tr><th>Function</th><th>Signature</th><th>Description</th></tr>
+<tr><td><code>makeSolidSprite</code></td><td><code>(int w, int h, r, g, b, float x, float y) -&gt; int</code></td><td>Coloured rectangle sprite.</td></tr>
+<tr><td><code>loadSprite</code></td><td><code>(str path, float scale, float x, float y) -&gt; int</code></td><td>Image sprite.</td></tr>
+<tr><td><code>setSpriteTexture</code></td><td><code>(int idx, int texIdx)</code></td><td>Apply a cached texture.</td></tr>
+<tr><td><code>getSpriteX</code> / <code>getSpriteY</code></td><td><code>(int idx) -&gt; float</code></td><td>Position.</td></tr>
+<tr><td><code>getSpriteAngle</code> / <code>getSpriteScale</code></td><td><code>(int idx) -&gt; float</code></td><td>Rotation / scale.</td></tr>
+<tr><td><code>getSpriteWidth</code> / <code>getSpriteHeight</code></td><td><code>(int idx) -&gt; float</code></td><td>Scaled size.</td></tr>
+<tr><td><code>getSpriteVX</code> / <code>getSpriteVY</code></td><td><code>(int idx) -&gt; float</code></td><td>Velocity (px/s).</td></tr>
+<tr><td><code>getSpriteAngularVelocity</code></td><td><code>(int idx) -&gt; float</code></td><td>Degrees per second.</td></tr>
+<tr><td><code>getSpriteAlpha</code></td><td><code>(int idx) -&gt; int</code></td><td>Opacity 0–255.</td></tr>
+<tr><td><code>getSpriteVisible</code></td><td><code>(int idx) -&gt; bool</code></td><td>Visibility.</td></tr>
+<tr><td><code>getSpritePosition</code></td><td><code>(int idx) -&gt; str</code></td><td><code>&quot;x,y&quot;</code>.</td></tr>
+<tr><td><code>setSpritePos</code> / <code>setSpritePosition</code></td><td><code>(int idx, float x, float y)</code></td><td>Move.</td></tr>
+<tr><td><code>setSpriteAngle</code> / <code>setSpriteScale</code></td><td><code>(int idx, float value)</code></td><td>Transform.</td></tr>
+<tr><td><code>setSpriteVelocity</code></td><td><code>(int idx, float vx, float vy)</code></td><td>Velocity in px/s.</td></tr>
+<tr><td><code>setSpriteAngularVelocity</code></td><td><code>(int idx, float degreesPerSecond)</code></td><td>Spin.</td></tr>
+<tr><td><code>stopSprite</code></td><td><code>(int idx)</code></td><td>Zero velocity.</td></tr>
+<tr><td><code>moveSpriteToward</code></td><td><code>(int idx, float tx, float ty, float speed)</code></td><td>Aim velocity at a point.</td></tr>
+<tr><td><code>faceSpriteTo</code></td><td><code>(int idx, float tx, float ty)</code></td><td>Aim rotation at a point.</td></tr>
+<tr><td><code>setSpriteAlpha</code></td><td><code>(int idx, int alpha)</code></td><td>Opacity 0–255.</td></tr>
+<tr><td><code>setSpriteColor</code></td><td><code>(int idx, r, g, b, a)</code></td><td>Tint.</td></tr>
+<tr><td><code>setSpriteVisible</code></td><td><code>(int idx, bool visible)</code></td><td>Show/hide.</td></tr>
+<tr><td><code>flipSpriteH</code> / <code>flipSpriteV</code></td><td><code>(int idx)</code></td><td>Mirror.</td></tr>
+<tr><td><code>destroySprite</code></td><td><code>(int idx)</code></td><td>Remove from registries and lists.</td></tr>
+<tr><td><code>spriteExists</code></td><td><code>(int idx) -&gt; bool</code></td><td>Live check.</td></tr>
+<tr><td><code>updateSprite</code></td><td><code>(int idx)</code></td><td>Apply velocity for one frame.</td></tr>
+<tr><td><code>drawSprite</code></td><td><code>(int idx)</code></td><td>Draw.</td></tr>
+<tr><td><code>spriteCollides</code></td><td><code>(int a, int b) -&gt; bool</code></td><td>Axis-aligned overlap.</td></tr>
+<tr><td><code>spriteCollidesWithList</code></td><td><code>(int spr, int list) -&gt; bool</code></td><td>Overlap with any list member.</td></tr>
+<tr><td><code>getCollidingSprites</code></td><td><code>(int spr, int list) -&gt; str</code></td><td><code>&quot;[1,2]&quot;</code>.</td></tr>
+<tr><td><code>spriteDistance</code></td><td><code>(int a, int b) -&gt; float</code></td><td>Centre distance.</td></tr>
+<tr><td><code>spriteNear</code></td><td><code>(int idx, float tx, float ty, float range) -&gt; bool</code></td><td>Within range.</td></tr>
+</table>
+<h2 id="sprite-lists">Sprite lists</h2>
+<table>
+<tr><th>Function</th><th>Signature</th></tr>
+<tr><td><code>makeSpriteList</code></td><td><code>() -&gt; int</code></td></tr>
+<tr><td><code>addToList</code></td><td><code>(int list, int sprite)</code></td></tr>
+<tr><td><code>removeSpriteFromList</code></td><td><code>(int list, int sprite)</code></td></tr>
+<tr><td><code>clearSpriteList</code></td><td><code>(int list)</code></td></tr>
+<tr><td><code>getSpriteListCount</code></td><td><code>(int list) -&gt; int</code></td></tr>
+<tr><td><code>drawSpriteList</code></td><td><code>(int list)</code></td></tr>
+<tr><td><code>updateSpriteList</code></td><td><code>(int list)</code></td></tr>
+</table>
+<h2 id="textures">Textures</h2>
+<table>
+<tr><th>Function</th><th>Signature</th><th>Description</th></tr>
+<tr><td><code>loadTexture</code></td><td><code>(str path) -&gt; int</code></td><td>Cache and return a texture index.</td></tr>
+<tr><td><code>drawTexture</code></td><td><code>(int tex, float cx, float cy, float w, float h, float angle)</code></td><td>Draw a cached texture.</td></tr>
+<tr><td><code>drawTextureAt</code></td><td><code>(str path, float cx, float cy, float scale)</code></td><td>Load and draw directly.</td></tr>
+<tr><td><code>drawTextureRect</code></td><td><code>(int tex, float left, float bottom, float w, float h)</code></td><td>Draw into a rectangle.</td></tr>
+</table>
+<h2 id="camera">Camera</h2>
+<p>The camera is a transform applied by the draw calls.</p>
+<table>
+<tr><th>Function</th><th>Signature</th></tr>
+<tr><td><code>makeCamera</code></td><td><code>() -&gt; int</code></td></tr>
+<tr><td><code>useCamera</code></td><td><code>(int cam)</code></td></tr>
+<tr><td><code>setCameraPos</code></td><td><code>(int cam, float x, float y)</code></td></tr>
+<tr><td><code>getCameraX</code> / <code>getCameraY</code></td><td><code>(int cam) -&gt; float</code></td></tr>
+<tr><td><code>zoomCamera</code> / <code>getCameraZoom</code></td><td><code>(int cam, float zoom)</code> / <code>(int cam) -&gt; float</code></td></tr>
+<tr><td><code>smoothScrollCamera</code></td><td><code>(int cam, float tx, float ty, float speed)</code></td></tr>
+<tr><td><code>resetCamera</code></td><td><code>()</code></td></tr>
+</table>
+<h2 id="grid-helpers">Grid helpers</h2>
+<table>
+<tr><th>Function</th><th>Signature</th><th>Description</th></tr>
+<tr><td><code>screenToTile</code></td><td><code>(float x, float y, int tileSize) -&gt; str</code></td><td>Pixel → <code>&quot;tx,ty&quot;</code>.</td></tr>
+<tr><td><code>tileToScreen</code></td><td><code>(int tx, int ty, int tileSize) -&gt; str</code></td><td>Tile → <code>&quot;sx,sy&quot;</code> centre.</td></tr>
+</table>
+<hr>
+<h2 id="notes-and-current-limitations">Notes and current limitations</h2>
+<p>This is the first Lynxer cut of the module. The following reference features are <strong>not implemented yet</strong>: sound and music, scenes, tilemaps (Tiled), the platformer physics engine, shape batches, animated sprite sheets, text labels (use <code>drawText</code>), screenshots, <code>setWindowPos</code>, <code>setVSync</code>, <code>getDisplaySize</code>, and the <code>rawPy</code> escape hatch.</p>
+<p>Other deviations:</p>
+<ul>
+<li><code>setResizable</code> is accepted and ignored; <code>setTitle</code> applies when <code>run()</code> opens the window.</li>
+<li><code>drawPolygon</code>/<code>drawPolyline</code>/<code>drawLines</code>/<code>drawPoints</code> take a flat coordinate string rather than JSON.</li>
+<li><code>keyCode</code> returns this backend's key code, not Arcade's.</li>
+<li><code>moveSpriteToward</code> sets velocity in px/s (the reference used px/frame).</li>
+</ul>
+<h2 id="rust--c-abi">Rust / C ABI</h2>
+<p>The module is a single Rust <code>cdylib</code> (<code>rust/game</code>, crate <code>lynxer_game</code>); there is no C++ shim. It exports <code>lynxer_module_init_v1</code>, every op as <code>cdecl:&lt;ret&gt;(...)</code>, and <code>lynxer_module_attach_v1</code>. Macroquad owns the window and event loop, and each frame it invokes the registered Lynxer callbacks through the host API. It uses two additive native-module ABI extensions documented in <a href="../native-module-abi.html"><code>docs/native-module-abi.md</code></a>:</p>
+<ul>
+<li>the packed <code>...</code> signature, which passes any number of numeric/string arguments; and</li>
+<li>the optional <code>lynxer_module_attach_v1</code> entry point, which provides an <code>invoke</code> callback so a module can call a Lynxer function by name.</li>
+</ul>
+<hr>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="../stdlib-contracts.html">stdlib-contracts</a> — the contract this module implements, including the error sentinel family it uses.</li>
+<li><a href="../builtins.html">builtins</a> — the functions the interpreter implements itself.</li>
+<li><a href="../limitations.html">limitations</a> — the full divergence register.</li>
+</ul>
+    </main>
+</div>
+
+<footer>
+    Lynxer &middot; MIT License
+</footer>
+
+</body>
+</html>

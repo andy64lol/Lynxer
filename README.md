@@ -110,7 +110,8 @@ lynxer/             The interpreter and its standard library
   *.cpp, *.hpp      Lexer, parser, interpreter, optimizer, formatter, CLI
   stdlib/           Native and pure stdlib modules
   rust/             Rust-backed native modules
-docs/               Documentation
+docs/               Documentation (Markdown source)
+site/               Static website: home page plus `docs/` rendered to HTML
 syntax.lynx         Full syntax showcase
 Makefile
 README.md

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>regex - Lynxer</title>
+    <link rel="stylesheet" href="../../style.css">
+</head>
+<body>
+
+<header>
+    <h1><a href="../../index.html">Lynxer</a></h1>
+    <p>Documentation</p>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3>Overview</h3><ul>
+<li><a href="../index.html">README</a></li>
+</ul>
+<h3>Getting started</h3><ul>
+<li><a href="../install.html">install</a></li>
+<li><a href="../CLI.html">CLI</a></li>
+</ul>
+<h3>Language</h3><ul>
+<li><a href="../language.html">language</a></li>
+<li><a href="../types.html">types</a></li>
+<li><a href="../lists.html">lists</a></li>
+<li><a href="../modules.html">modules</a></li>
+<li><a href="../importAs.html">importAs</a></li>
+</ul>
+<h3>Records</h3><ul>
+<li><a href="../structs.html">structs</a></li>
+<li><a href="../classes.html">classes</a></li>
+<li><a href="../enums.html">enums</a></li>
+<li><a href="../vargroups.html">vargroups</a></li>
+</ul>
+<h3>Built-ins and modules</h3><ul>
+<li><a href="../builtins.html">builtins</a></li>
+<li><a href="../native-module-abi.html">native-module-abi</a></li>
+<li><a href="../stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="../extending.html">extending</a></li>
+</ul>
+<h3>Reference</h3><ul>
+<li><a href="../limitations.html">limitations</a></li>
+</ul>
+<h3>Standard library</h3><ul>
+<li><a href="index.html">All modules</a></li>
+<li><a href="cli.html">cli</a></li>
+<li><a href="colorlib.html">colorlib</a></li>
+<li><a href="csv.html">csv</a></li>
+<li><a href="debug.html">debug</a></li>
+<li><a href="fileIO.html">fileIO</a></li>
+<li><a href="game.html">game</a></li>
+<li><a href="image.html">image</a></li>
+<li><a href="js.html">js</a></li>
+<li><a href="json.html">json</a></li>
+<li><a href="lua.html">lua</a></li>
+<li><a href="math.html">math</a></li>
+<li><a href="multiprocessing.html">multiprocessing</a></li>
+<li><a href="network.html">network</a></li>
+<li><a href="os.html">os</a></li>
+<li><a href="path.html">path</a></li>
+<li><a href="random.html">random</a></li>
+<li><a href="re.html">re</a></li>
+<li><a href="regex.html" class="active">regex</a></li>
+<li><a href="server.html">server</a></li>
+<li><a href="shell.html">shell</a></li>
+<li><a href="sound.html">sound</a></li>
+<li><a href="sqldb.html">sqldb</a></li>
+<li><a href="sys.html">sys</a></li>
+<li><a href="text.html">text</a></li>
+<li><a href="time.html">time</a></li>
+<li><a href="tui.html">tui</a></li>
+<li><a href="typing.html">typing</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+<h1 id="regex">regex</h1>
+<p>Extended regular-expression helpers with a named compiled-pattern cache.</p>
+<p><strong>Backend:</strong> native — <code>stdlib/regex.so</code>, built from <code>stdlib/regex.cpp</code> and <code>stdlib/native_regex.hpp</code>. <strong>Import:</strong> <code>import(&quot;regex&quot;)</code> → <code>global.regex.*</code></p>
+<p>Compiled patterns live in a module-local cache keyed by name. This module mirrors the <code>re</code>-fallback path: the third-party <code>regex</code> package is not available, so <code>findLetters</code>/<code>findDigits</code> are ASCII and <code>findallOverlapping</code> is emulated.</p>
+<table>
+<tr><th>Function</th><th>Signature</th><th>Returns</th></tr>
+<tr><td><code>compile</code></td><td><code>(str name, str pattern, str flags)</code></td><td>Compiles and caches a pattern; flags are any of <code>I</code>, <code>M</code>, <code>S</code> (<code>X</code> is ignored)</td></tr>
+<tr><td><code>testCompiled</code></td><td><code>(str name, str string)</code></td><td><code>1</code> or <code>0</code></td></tr>
+<tr><td><code>matchCompiled</code></td><td><code>(str name, str string)</code></td><td>First match, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>findallCompiled</code></td><td><code>(str name, str string)</code></td><td>JSON array of matches</td></tr>
+<tr><td><code>subCompiled</code></td><td><code>(str name, str repl, str string)</code></td><td>Replaces all matches</td></tr>
+<tr><td><code>clearCache</code></td><td><code>()</code></td><td>Empties the cache</td></tr>
+<tr><td><code>cacheKeys</code></td><td><code>()</code></td><td>JSON array of cached pattern names</td></tr>
+<tr><td><code>isValid</code></td><td><code>(str pattern)</code></td><td><code>1</code> if the pattern compiles</td></tr>
+<tr><td><code>extract</code></td><td><code>(str pattern, str string)</code></td><td>JSON object of named groups of the first match</td></tr>
+<tr><td><code>extractAll</code></td><td><code>(str pattern, str string)</code></td><td>JSON array of named-group objects</td></tr>
+<tr><td><code>unique</code></td><td><code>(str pattern, str string)</code></td><td>JSON array of distinct matches</td></tr>
+<tr><td><code>lastMatch</code></td><td><code>(str pattern, str string)</code></td><td>Last match, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>findallOverlapping</code></td><td><code>(str pattern, str string)</code></td><td>JSON array of overlapping matches</td></tr>
+<tr><td><code>replaceNth</code></td><td><code>(str pattern, str repl, str string, int n)</code></td><td>Replaces only the <code>n</code>-th match, 1-indexed</td></tr>
+<tr><td><code>replaceAllLiteral</code></td><td><code>(str pattern, str repl, str string)</code></td><td>Replaces all matches without backreference expansion</td></tr>
+<tr><td><code>highlight</code></td><td><code>(str pattern, str before, str after, str string)</code></td><td>Wraps every match</td></tr>
+<tr><td><code>splitKeep</code></td><td><code>(str pattern, str string)</code></td><td>JSON array that keeps the separators</td></tr>
+<tr><td><code>findLetters</code></td><td><code>(str string)</code></td><td>JSON array of ASCII letter runs</td></tr>
+<tr><td><code>findDigits</code></td><td><code>(str string)</code></td><td>JSON array of digit runs</td></tr>
+<tr><td><code>globToRegex</code></td><td><code>(str glob)</code></td><td>Anchored regex equivalent of a glob</td></tr>
+<tr><td><code>countMatches</code></td><td><code>(str pattern, str string)</code></td><td>Number of matches</td></tr>
+<tr><td><code>firstMatchPos</code></td><td><code>(str pattern, str string)</code></td><td>Start index of the first match, or <code>-1</code></td></tr>
+<tr><td><code>truncateMatch</code></td><td><code>(str pattern, str string, int maxLen)</code></td><td><code>maxLen</code>-character window centred on the first match</td></tr>
+</table>
+<p>Pattern syntax limits are the same as <a href="re.html">re</a>.</p>
+<h2 id="example">Example</h2>
+<pre><code>global setup(){ import(&quot;regex&quot;); }
+
+global main(){
+    global.regex.compile(&quot;digits&quot;, &quot;\\d+&quot;, &quot;&quot;);
+    println(global.regex.testCompiled(&quot;digits&quot;, &quot;abc123&quot;));
+    println(global.regex.findallCompiled(&quot;digits&quot;, &quot;a1 b22&quot;));
+}</code></pre>
+<hr>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="../stdlib-contracts.html">stdlib-contracts</a> — the contract this module implements, including the error sentinel family it uses.</li>
+<li><a href="../builtins.html">builtins</a> — the functions the interpreter implements itself.</li>
+<li><a href="../limitations.html">limitations</a> — the full divergence register.</li>
+</ul>
+    </main>
+</div>
+
+<footer>
+    Lynxer &middot; MIT License
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>random - Lynxer</title>
+    <link rel="stylesheet" href="../../style.css">
+</head>
+<body>
+
+<header>
+    <h1><a href="../../index.html">Lynxer</a></h1>
+    <p>Documentation</p>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3>Overview</h3><ul>
+<li><a href="../index.html">README</a></li>
+</ul>
+<h3>Getting started</h3><ul>
+<li><a href="../install.html">install</a></li>
+<li><a href="../CLI.html">CLI</a></li>
+</ul>
+<h3>Language</h3><ul>
+<li><a href="../language.html">language</a></li>
+<li><a href="../types.html">types</a></li>
+<li><a href="../lists.html">lists</a></li>
+<li><a href="../modules.html">modules</a></li>
+<li><a href="../importAs.html">importAs</a></li>
+</ul>
+<h3>Records</h3><ul>
+<li><a href="../structs.html">structs</a></li>
+<li><a href="../classes.html">classes</a></li>
+<li><a href="../enums.html">enums</a></li>
+<li><a href="../vargroups.html">vargroups</a></li>
+</ul>
+<h3>Built-ins and modules</h3><ul>
+<li><a href="../builtins.html">builtins</a></li>
+<li><a href="../native-module-abi.html">native-module-abi</a></li>
+<li><a href="../stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="../extending.html">extending</a></li>
+</ul>
+<h3>Reference</h3><ul>
+<li><a href="../limitations.html">limitations</a></li>
+</ul>
+<h3>Standard library</h3><ul>
+<li><a href="index.html">All modules</a></li>
+<li><a href="cli.html">cli</a></li>
+<li><a href="colorlib.html">colorlib</a></li>
+<li><a href="csv.html">csv</a></li>
+<li><a href="debug.html">debug</a></li>
+<li><a href="fileIO.html">fileIO</a></li>
+<li><a href="game.html">game</a></li>
+<li><a href="image.html">image</a></li>
+<li><a href="js.html">js</a></li>
+<li><a href="json.html">json</a></li>
+<li><a href="lua.html">lua</a></li>
+<li><a href="math.html">math</a></li>
+<li><a href="multiprocessing.html">multiprocessing</a></li>
+<li><a href="network.html">network</a></li>
+<li><a href="os.html">os</a></li>
+<li><a href="path.html">path</a></li>
+<li><a href="random.html" class="active">random</a></li>
+<li><a href="re.html">re</a></li>
+<li><a href="regex.html">regex</a></li>
+<li><a href="server.html">server</a></li>
+<li><a href="shell.html">shell</a></li>
+<li><a href="sound.html">sound</a></li>
+<li><a href="sqldb.html">sqldb</a></li>
+<li><a href="sys.html">sys</a></li>
+<li><a href="text.html">text</a></li>
+<li><a href="time.html">time</a></li>
+<li><a href="tui.html">tui</a></li>
+<li><a href="typing.html">typing</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+<h1 id="random">random</h1>
+<p>Seeded pseudo-random number and character helpers.</p>
+<p><strong>Backend:</strong> native — <code>stdlib/random.so</code>, built from <code>stdlib/random.cpp</code>. The generator is a linear congruential sequence, so a given seed always produces the same sequence (there is no process-global <code>random</code> state). <strong>Import:</strong> <code>import(&quot;random&quot;)</code> → <code>global.random.*</code></p>
+<table>
+<tr><th>Function</th><th>Signature</th><th>Notes</th></tr>
+<tr><td><code>seed</code></td><td><code>(int value)</code></td><td>Reseeds the generator; <code>0</code> restores the default seed</td></tr>
+<tr><td><code>randint</code></td><td><code>(int low, int high) -&gt; int</code></td><td>Uniform integer in <code>[low, high]</code>; returns <code>low</code> when <code>high &lt;= low</code></td></tr>
+<tr><td><code>randrange</code></td><td><code>(int start, int stop) -&gt; int</code></td><td>Uniform integer in <code>[start, stop)</code></td></tr>
+<tr><td><code>random</code></td><td><code>() -&gt; float</code></td><td>Float in <code>[0.0, 1.0)</code></td></tr>
+<tr><td><code>uniform</code></td><td><code>(float low, float high) -&gt; float</code></td><td>Float in <code>[low, high]</code></td></tr>
+<tr><td><code>coinflip</code></td><td><code>() -&gt; bool</code></td><td>Equal-probability boolean</td></tr>
+<tr><td><code>randBool</code></td><td><code>() -&gt; bool</code></td><td>Alias of <code>coinflip</code></td></tr>
+<tr><td><code>choice</code></td><td><code>(str items) -&gt; str</code></td><td>Picks one <strong>character</strong> of the input, or <code>&quot;&quot;</code> when empty</td></tr>
+</table>
+<p>This is a subset of the original 17 functions; <code>sampleInt</code>, <code>sampleStr</code>, <code>shuffle</code>, <code>triangular</code>, <code>gauss</code>, <code>uuid4</code> and <code>randHex</code> are not ported.</p>
+<h2 id="example">Example</h2>
+<pre><code>global setup(){ import(&quot;random&quot;); }
+
+global main(){
+    global.random.seed(7);
+    println(global.random.randint(1, 6));   // 4
+    println(global.random.choice(&quot;abc&quot;));   // b
+    println(global.random.uniform(0.0, 1.0));
+}</code></pre>
+<hr>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="../stdlib-contracts.html">stdlib-contracts</a> — the contract this module implements, including the error sentinel family it uses.</li>
+<li><a href="../builtins.html">builtins</a> — the functions the interpreter implements itself.</li>
+<li><a href="../limitations.html">limitations</a> — the full divergence register.</li>
+</ul>
+    </main>
+</div>
+
+<footer>
+    Lynxer &middot; MIT License
+</footer>
+
+</body>
+</html>

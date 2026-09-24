@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Built-in functions - Lynxer</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<header>
+    <h1><a href="../index.html">Lynxer</a></h1>
+    <p>Documentation</p>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3>Overview</h3><ul>
+<li><a href="index.html">README</a></li>
+</ul>
+<h3>Getting started</h3><ul>
+<li><a href="install.html">install</a></li>
+<li><a href="CLI.html">CLI</a></li>
+</ul>
+<h3>Language</h3><ul>
+<li><a href="language.html">language</a></li>
+<li><a href="types.html">types</a></li>
+<li><a href="lists.html">lists</a></li>
+<li><a href="modules.html">modules</a></li>
+<li><a href="importAs.html">importAs</a></li>
+</ul>
+<h3>Records</h3><ul>
+<li><a href="structs.html">structs</a></li>
+<li><a href="classes.html">classes</a></li>
+<li><a href="enums.html">enums</a></li>
+<li><a href="vargroups.html">vargroups</a></li>
+</ul>
+<h3>Built-ins and modules</h3><ul>
+<li><a href="builtins.html" class="active">builtins</a></li>
+<li><a href="native-module-abi.html">native-module-abi</a></li>
+<li><a href="stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="extending.html">extending</a></li>
+</ul>
+<h3>Reference</h3><ul>
+<li><a href="limitations.html">limitations</a></li>
+</ul>
+<h3>Standard library</h3><ul>
+<li><a href="stdlib/index.html">All modules</a></li>
+<li><a href="stdlib/cli.html">cli</a></li>
+<li><a href="stdlib/colorlib.html">colorlib</a></li>
+<li><a href="stdlib/csv.html">csv</a></li>
+<li><a href="stdlib/debug.html">debug</a></li>
+<li><a href="stdlib/fileIO.html">fileIO</a></li>
+<li><a href="stdlib/game.html">game</a></li>
+<li><a href="stdlib/image.html">image</a></li>
+<li><a href="stdlib/js.html">js</a></li>
+<li><a href="stdlib/json.html">json</a></li>
+<li><a href="stdlib/lua.html">lua</a></li>
+<li><a href="stdlib/math.html">math</a></li>
+<li><a href="stdlib/multiprocessing.html">multiprocessing</a></li>
+<li><a href="stdlib/network.html">network</a></li>
+<li><a href="stdlib/os.html">os</a></li>
+<li><a href="stdlib/path.html">path</a></li>
+<li><a href="stdlib/random.html">random</a></li>
+<li><a href="stdlib/re.html">re</a></li>
+<li><a href="stdlib/regex.html">regex</a></li>
+<li><a href="stdlib/server.html">server</a></li>
+<li><a href="stdlib/shell.html">shell</a></li>
+<li><a href="stdlib/sound.html">sound</a></li>
+<li><a href="stdlib/sqldb.html">sqldb</a></li>
+<li><a href="stdlib/sys.html">sys</a></li>
+<li><a href="stdlib/text.html">text</a></li>
+<li><a href="stdlib/time.html">time</a></li>
+<li><a href="stdlib/tui.html">tui</a></li>
+<li><a href="stdlib/typing.html">typing</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+<h1 id="built-in-functions">Built-in functions</h1>
+<p>Functions implemented directly by the Lynxer interpreter. They can be called by their bare name or with a <code>global.</code> prefix (<code>print(...)</code> and <code>global.print(...)</code> are the same call).</p>
+<p>Inside a module, <code>global.name(...)</code> always resolves to a <em>core builtin</em>, never to the module's own function of that name — see <a href="limitations.html#language-and-toolchain">limitations</a>.</p>
+<p>Names that Lynxer recognises but does not implement fail with a source-located <code>&lt;name&gt;() is not supported in Lynxer yet</code>. On a Linux/POSIX build the <strong>supported</strong> families include the <code>ffi*</code>, <code>async*</code>, <code>sound*</code>, <code>filesystem*</code>, <code>process*</code>, <code>networking*</code>, <code>nativeThread*</code> and <code>syscall*</code> builtins; the unsupported set is listed under <a href="#unsupported-names">Unsupported names</a> and is defined by <code>unsupportedTable()</code> in <code>lynxer/builtins.cpp</code>. On a build without POSIX support, the <code>filesystem*</code>/<code>process*</code>/<code>networking*</code>/<code>sound*</code> families join the unsupported set. The <code>syscall*</code> family is routed to a generic syscall dispatcher rather than to a per-name handler.</p>
+<h2 id="input-output-and-conversion">Input, output and conversion</h2>
+<table>
+<tr><th>Builtin</th><th>Notes</th></tr>
+<tr><td><code>print(value...)</code></td><td>Writes each argument with no separator</td></tr>
+<tr><td><code>println(value...)</code></td><td>Like <code>print</code> plus a trailing newline</td></tr>
+<tr><td><code>input([prompt])</code></td><td>Prints the prompt, reads one line from stdin</td></tr>
+<tr><td><code>inputln([prompt])</code></td><td>As <code>input</code>, but keeps the newline</td></tr>
+<tr><td><code>strOf(value)</code></td><td>Value rendered as text</td></tr>
+<tr><td><code>intOf(value)</code></td><td>Value converted to an integer</td></tr>
+<tr><td><code>floatOf(value)</code></td><td>Value converted to a float</td></tr>
+<tr><td><code>sentinel([name])</code></td><td>Creates a unique sentinel value</td></tr>
+<tr><td><code>object()</code></td><td>Creates an empty object value</td></tr>
+<tr><td><code>returnType(value)</code></td><td>Type name, e.g. <code>int</code>, <code>float</code>, <code>str</code>, <code>bool</code>, <code>list</code>, <code>tuple</code>, <code>none</code></td></tr>
+<tr><td><code>returnLength(value)</code></td><td>Length of a <code>str</code>, <code>list</code> or <code>tuple</code></td></tr>
+</table>
+<h2 id="strings">Strings</h2>
+<table>
+<tr><th>Builtin</th><th>Notes</th></tr>
+<tr><td><code>charAt(text, index)</code></td><td>One-character string at <code>index</code></td></tr>
+<tr><td><code>substring(text, start, end)</code></td><td>Half-open slice <code>[start, end)</code></td></tr>
+<tr><td><code>trim(text)</code></td><td>Removes leading and trailing whitespace</td></tr>
+<tr><td><code>upper(text)</code> / <code>lower(text)</code></td><td>Case conversion</td></tr>
+<tr><td><code>replace(text, old, new)</code></td><td>Replaces every occurrence</td></tr>
+<tr><td><code>splitStr(text, separator)</code></td><td>Splits into a list</td></tr>
+<tr><td><code>contains(container, value)</code></td><td>Membership test for a <strong>list or tuple</strong> only</td></tr>
+</table>
+<h2 id="sequences">Sequences</h2>
+<table>
+<tr><th>Builtin</th><th>Notes</th></tr>
+<tr><td><code>range(stop)</code> / <code>range(start, stop)</code> / <code>range(start, stop, step)</code></td><td>Integer sequence</td></tr>
+<tr><td><code>seqFromTo(start, stop, step)</code></td><td>Integer sequence, <code>stop</code> exclusive</td></tr>
+<tr><td><code>listJsonArray(list)</code></td><td>Encodes a list as a JSON array string</td></tr>
+<tr><td><code>listJsonObject(flatList)</code></td><td>Encodes alternating key/value pairs as a JSON object</td></tr>
+<tr><td><code>listFlatten(list)</code> / <code>listUnique(list)</code></td><td>Flatten / de-duplicate, returning a new list</td></tr>
+<tr><td><code>listPush(list, value)</code></td><td>Appends, <strong>returning a new list</strong> — the argument is unchanged</td></tr>
+<tr><td><code>listPop(list)</code></td><td>Returns the <strong>last element</strong>; the list is unchanged</td></tr>
+<tr><td><code>listGet(list, index)</code></td><td>Element access (negative indices count from the end)</td></tr>
+<tr><td><code>listSet(list, index, value)</code></td><td>Returns a <strong>new list</strong> with the element replaced</td></tr>
+<tr><td><code>listSlice(list, start, stop)</code></td><td>Half-open slice</td></tr>
+<tr><td><code>listContains(list, value)</code></td><td>Membership</td></tr>
+<tr><td><code>listJoin(list, separator)</code></td><td>Joins elements into a string</td></tr>
+<tr><td><code>listIndex(list, value)</code></td><td>Index of a value, or <code>-1</code></td></tr>
+<tr><td><code>listRemove(list, index)</code></td><td>Returns a new list without that element</td></tr>
+<tr><td><code>anyOf(list)</code> / <code>allOf(list)</code></td><td>Truthiness reductions</td></tr>
+<tr><td><code>sumOf(list)</code></td><td>Numeric sum</td></tr>
+<tr><td><code>sortList(list[, reverse])</code></td><td>Returns a <strong>sorted copy</strong>; the argument is unchanged</td></tr>
+<tr><td><code>reverseList(list)</code></td><td>Returns a reversed copy</td></tr>
+<tr><td><code>listMin(list)</code> / <code>listMax(list)</code></td><td>Extremes</td></tr>
+<tr><td><code>listFirst(list)</code> / <code>listLast(list)</code></td><td>Ends</td></tr>
+<tr><td><code>listHead(list, count)</code> / <code>listTail(list, count)</code></td><td>Prefix / suffix</td></tr>
+<tr><td><code>listCount(list, value)</code></td><td>Number of occurrences</td></tr>
+<tr><td><code>listExtend(list, other)</code></td><td>Returns a new list with <code>other</code> appended</td></tr>
+<tr><td><code>listInsert(list, index, value)</code></td><td>Returns a new list with <code>value</code> inserted</td></tr>
+<tr><td><code>listClear(list)</code></td><td>Returns an empty list</td></tr>
+<tr><td><code>listRepeat(value, count)</code></td><td>List of <code>count</code> copies</td></tr>
+<tr><td><code>listAvg(list)</code></td><td>Arithmetic mean</td></tr>
+<tr><td><code>listZip(first, second)</code></td><td>Pairs elements</td></tr>
+</table>
+<h2 id="tuples">Tuples</h2>
+<p><code>tupleCreate(...)</code>, <code>tupleGet(t, i)</code>, <code>tupleLen(t)</code>, <code>tupleContains(t, v)</code>, <code>tupleIndex(t, v)</code>, <code>tupleSlice(t, start, stop)</code>, <code>tupleToList(t)</code>, <code>listToTuple(list)</code>, <code>tupleConcat(a, b)</code>, <code>tupleCount(t, v)</code>, <code>tupleFirst(t)</code>, <code>tupleLast(t)</code>, <code>tupleJsonArray(t)</code>, <code>tupleReverse(t)</code>, <code>tupleSort(t)</code>, <code>tupleSortDesc(t)</code>, <code>tupleMin(t)</code>, <code>tupleMax(t)</code>, <code>tupleSum(t)</code>, <code>tupleAny(t)</code>, <code>tupleAll(t)</code>, <code>tupleUnique(t)</code>, <code>tupleMean(t)</code>, <code>tupleFlatten(t)</code>, <code>tupleZip(a, b)</code>, <code>tupleJoin(t, separator)</code>.</p>
+<h2 id="control-runtime-and-assertions">Control, runtime and assertions</h2>
+<table>
+<tr><th>Builtin</th><th>Notes</th></tr>
+<tr><td><code>assert(condition[, message])</code></td><td>Fails with the message when the condition is false</td></tr>
+<tr><td><code>sleep(seconds)</code></td><td>Suspends the current process</td></tr>
+<tr><td><code>foreverDelay(seconds)</code></td><td>Sets the <code>forever</code> loop delay (only in <code>setup()</code>)</td></tr>
+<tr><td><code>suppressForeverWarning()</code></td><td>Silences the empty-<code>forever</code> warning (only in <code>setup()</code>)</td></tr>
+<tr><td><code>suppressDeprecationWarning()</code></td><td>Silences legacy-syntax warnings (only in <code>setup()</code>)</td></tr>
+<tr><td><code>overrideMain(name)</code></td><td>Runs <code>name</code> instead of <code>main</code> (only in <code>setup()</code>)</td></tr>
+</table>
+<h2 id="bundled-files">Bundled files</h2>
+<p>Available to programs run from a compiled executable; a normal interpreted run returns empty results.</p>
+<table>
+<tr><th>Builtin</th><th>Notes</th></tr>
+<tr><td><code>bundledFile(name)</code></td><td>Filesystem path of a file included with <code>--include</code>, or <code>&quot;&quot;</code> when the program is not compiled or does not carry that file</td></tr>
+<tr><td><code>bundledFiles()</code></td><td>List of the bare names of every included file</td></tr>
+</table>
+<p>Included files are written to a private temporary directory when the executable starts, and that directory is removed when the process exits.</p>
+<pre><code>global setup(){ import(&quot;fileIO&quot;); }
+
+global main(){
+    list files = bundledFiles();
+    println(files);                 // [] in an interpreted run
+    if (returnLength(files) &gt; 0) {
+        println(global.fileIO.readFile(bundledFile(&quot;message.txt&quot;)));
+    }
+}</code></pre>
+<h2 id="native-memory">Native memory</h2>
+<table>
+<tr><th>Builtin</th><th>Notes</th></tr>
+<tr><td><code>memoryAllocate(size)</code></td><td>Allocates raw bytes</td></tr>
+<tr><td><code>memoryAllocateZeroed(count, size)</code></td><td>Allocates zeroed elements</td></tr>
+<tr><td><code>memoryReallocate(address, size)</code></td><td>Resizes an allocation</td></tr>
+<tr><td><code>memoryFree(address)</code></td><td>Releases an allocation</td></tr>
+<tr><td><code>memorySet(address, value, size)</code></td><td>Fills memory</td></tr>
+<tr><td><code>memoryCopy(destination, source, size)</code></td><td>Copies memory</td></tr>
+<tr><td><code>memoryReadByte(address, offset)</code> / <code>memoryWriteByte(address, offset, value)</code></td><td>1-byte unsigned access</td></tr>
+<tr><td><code>memoryReadInt8</code> / <code>memoryWriteInt8</code>, <code>memoryReadUInt8</code> / <code>memoryWriteUInt8</code></td><td>8-bit access</td></tr>
+<tr><td><code>memoryReadInt16</code> / <code>memoryWriteInt16</code>, <code>memoryReadUInt16</code> / <code>memoryWriteUInt16</code></td><td>16-bit access</td></tr>
+<tr><td><code>memoryReadInt32</code> / <code>memoryWriteInt32</code>, <code>memoryReadUInt32</code> / <code>memoryWriteUInt32</code></td><td>32-bit access</td></tr>
+<tr><td><code>memoryReadInt64</code> / <code>memoryWriteInt64</code>, <code>memoryReadUInt64</code> / <code>memoryWriteUInt64</code></td><td>64-bit access</td></tr>
+<tr><td><code>memoryReadFloat32</code> / <code>memoryWriteFloat32</code>, <code>memoryReadFloat64</code> / <code>memoryWriteFloat64</code></td><td>floating-point access</td></tr>
+<tr><td><code>memoryReadEndian(address, offset, type, order)</code></td><td>Read with explicit byte order (<code>little</code>/<code>le</code>, <code>big</code>/<code>be</code>). <code>type</code> is a <strong>lowercase string</strong>: <code>byte</code>, <code>int8</code>…<code>uint64</code>, <code>float32</code>, <code>float64</code></td></tr>
+<tr><td><code>memoryWriteEndian(address, offset, type, order, value)</code></td><td>Write with explicit byte order</td></tr>
+<tr><td><code>memoryTypeSize(type)</code> / <code>memoryTypeAlignment(type)</code></td><td>Layout queries for a lowercase type string</td></tr>
+<tr><td><code>sizeOf(typeName)</code></td><td>Size of a C type name (<code>char</code>, <code>int</code>, <code>long</code>, <code>void*</code>, <code>size_t</code>, <code>int64</code>, …)</td></tr>
+</table>
+<p>Every typed read/write validates the address against the allocation registry and checks the access against the allocation's length, so an unknown address, a freed address, and an out-of-bounds access are source-located errors rather than crashes. 64-bit writes preserve the full signed and unsigned range (see <a href="types.html">types</a>).</p>
+<h2 id="syscalls">Syscalls</h2>
+<p><code>syscall*(...)</code> entries take integer arguments only (at most six) and dispatch through the platform syscall layer. <code>syscallPollFileDescriptors</code> takes three arguments; <code>syscallPpollFileDescriptors</code>, <code>syscallWaitForEvents</code> and <code>syscallWaitForEventsWithSignalMask</code> take five.</p>
+<h2 id="managed-filesystem">Managed filesystem</h2>
+<p>A small handle-based filesystem API, separate from the <code>fileIO</code>, <code>os</code> and <code>path</code> stdlib modules. Handles are non-negative integers; the interpreter owns the descriptor behind one, and an unknown or already-closed handle is a runtime error rather than a silent failure. Failures preserve the operation and the original errno in the message, for example <code>filesystemOpen() failed: [2] No such file or directory</code>. Descriptors a program leaves open are closed when the process exits.</p>
+<table>
+<tr><th>Builtin</th><th>Notes</th></tr>
+<tr><td><code>filesystemOpen(path, mode, permissions?)</code></td><td>Returns a file handle. Modes are <code>r</code>, <code>w</code>, <code>a</code>, <code>r+</code>, <code>w+</code>, <code>a+</code>; permissions default to <code>0666</code></td></tr>
+<tr><td><code>filesystemRead(handle, maxBytes)</code></td><td>Reads and returns UTF-8 text; bytes that are not valid UTF-8 become U+FFFD</td></tr>
+<tr><td><code>filesystemWrite(handle, data)</code></td><td>Writes UTF-8 text and returns the byte count</td></tr>
+<tr><td><code>filesystemClose(handle)</code></td><td>Closes the descriptor and releases the handle</td></tr>
+<tr><td><code>filesystemStat(path)</code></td><td>JSON <code>{type, size, mode, modifiedTime, accessTime, changeTime}</code>. Does not follow a symlink, so <code>type</code> can be <code>symlink</code>, <code>file</code>, <code>dir</code> or <code>other</code></td></tr>
+<tr><td><code>filesystemList(path)</code></td><td>Sorted direct child names</td></tr>
+<tr><td><code>filesystemMkdir(path, parents?)</code></td><td>Creates a directory; <code>parents</code> also creates missing parents and tolerates an existing directory</td></tr>
+<tr><td><code>filesystemRemove(path)</code></td><td>Removes a file, symlink or empty directory</td></tr>
+<tr><td><code>filesystemRename(source, target)</code></td><td>Renames an entry</td></tr>
+<tr><td><code>filesystemLink(source, target, symbolic?)</code></td><td>Hard link, or a symbolic link when <code>symbolic</code> is true</td></tr>
+<tr><td><code>filesystemReadLink(path)</code></td><td>Reads a symbolic link target</td></tr>
+<tr><td><code>filesystemChmod(path, mode)</code></td><td>Sets numeric permission bits</td></tr>
+</table>
+<p>The family is a faithful native implementation, including its error text. One consequence is worth noting: the reference's <code>Number.null</code> is <code>0</code>, so the operations that yield "no value" (<code>filesystemClose</code>, <code>filesystemRemove</code>, <code>filesystemRename</code>, <code>filesystemLink</code>, <code>filesystemChmod</code>) return <code>0</code> rather than Lynxer's own <code>none</code>.</p>
+<p>On a host without POSIX <code>open</code>/<code>stat</code>/<code>dirent</code>, the whole family stays in the unsupported set.</p>
+<h2 id="managed-processes">Managed processes</h2>
+<p>A managed subprocess abstraction: each child gets one pipe per standard stream and a handle the program owns. Commands are <strong>not</strong> shell-parsed — the first argument names an executable and the second is its argv, so shell syntax needs an explicit shell. Closing the handle closes every pipe and terminates a child that is still running.</p>
+<table>
+<tr><th>Builtin</th><th>Notes</th></tr>
+<tr><td><code>processSpawn(command, arguments, environment?)</code></td><td>Returns a process handle. <code>arguments</code> is a list of strings; <code>environment</code> is an optional list of <code>KEY=VALUE</code> strings that overrides those keys and inherits the rest</td></tr>
+<tr><td><code>processWrite(handle, data)</code></td><td>Writes UTF-8 data to stdin and returns the byte count</td></tr>
+<tr><td><code>processCloseInput(handle)</code></td><td>Closes stdin so the child sees end-of-file</td></tr>
+<tr><td><code>processRead(handle, stream, maxBytes)</code></td><td>Reads up to <code>maxBytes</code> from <code>&quot;stdout&quot;</code> or <code>&quot;stderr&quot;</code>, blocking until that many bytes or end-of-file. Bytes that are not valid UTF-8 become U+FFFD</td></tr>
+<tr><td><code>processPoll(handle)</code></td><td>Returns <code>-1</code> while the child runs, otherwise its exit status</td></tr>
+<tr><td><code>processWait(handle, timeoutSeconds)</code></td><td>Waits up to the timeout; <code>-1</code> on timeout, otherwise the exit status</td></tr>
+<tr><td><code>processSendSignal(handle, signal)</code></td><td>Sends an operating-system signal</td></tr>
+<tr><td><code>processClose(handle)</code></td><td>Closes the pipes, terminates a running child, and releases the handle</td></tr>
+</table>
+<p>A child killed by a signal reports the <strong>negative</strong> signal number, matching POSIX convention. Poll and wait report <code>-1</code> both for "still running" and for a timeout, which is why the reference pairs a timeout with a following poll.</p>
+<p>Unknown, already closed or invalid handles are runtime errors rather than silent failures, as are writes to a stream the program has already closed.</p>
+<p>SIGPIPE is ignored for the whole process, as it is in the reference: writing to a pipe whose reader has exited must report <code>EPIPE</code>, not kill the interpreter.</p>
+<p>The family is a faithful native implementation, including its error text, and the value-less operations return <code>0</code> for the same <code>Number.null</code> reason as the filesystem family.</p>
+<p>On a host without POSIX <code>fork</code>/<code>pipe</code>/<code>waitpid</code>, the whole family stays in the unsupported set.</p>
+<h2 id="managed-networking">Managed networking</h2>
+<p>Managed TCP, UDP and Unix-domain sockets. Addresses stay as host/path strings plus an integer port, so no native address structure crosses the API. Sockets are closed explicitly; anything left open is closed when the process exits.</p>
+<table>
+<tr><th>Builtin</th><th>Notes</th></tr>
+<tr><td><code>networkingOpen(kind)</code></td><td>Creates a socket and returns a handle. <code>kind</code> is <code>tcp</code>, <code>udp</code> or <code>unix</code> (case-insensitive)</td></tr>
+<tr><td><code>networkingBind(handle, address, port?)</code></td><td>Binds to an IPv4 host and port, or to a Unix socket path when the port is omitted</td></tr>
+<tr><td><code>networkingListen(handle, backlog?)</code></td><td>Listens on a stream socket; the backlog defaults to 128</td></tr>
+<tr><td><code>networkingAccept(handle)</code></td><td>Accepts a connection and returns a <strong>new</strong> handle</td></tr>
+<tr><td><code>networkingConnect(handle, address, port?)</code></td><td>Connects to an IPv4 host and port, or to a Unix socket path</td></tr>
+<tr><td><code>networkingSend(handle, data)</code></td><td>Sends UTF-8 data and returns the byte count</td></tr>
+<tr><td><code>networkingReceive(handle, maxBytes)</code></td><td>Receives and returns UTF-8 text; invalid bytes become U+FFFD</td></tr>
+<tr><td><code>networkingClose(handle)</code></td><td>Closes the socket and releases the handle</td></tr>
+<tr><td><code>networkingShutdown(handle, how)</code></td><td>Shuts down <code>read</code>, <code>write</code> or <code>both</code></td></tr>
+<tr><td><code>networkingBlocking(handle, enabled)</code></td><td>Enables or disables blocking mode</td></tr>
+<tr><td><code>networkingOption(handle, name, value)</code></td><td>Sets <code>reuseAddr</code>, <code>keepAlive</code> or <code>broadcast</code> to an integer value</td></tr>
+<tr><td><code>networkingResolve(host, port)</code></td><td>Resolves a host over <code>SOCK_STREAM</code> and returns the <strong>sorted, de-duplicated</strong> list of address strings</td></tr>
+<tr><td><code>networkingAddress(handle)</code></td><td>JSON for the local address: <code>[&quot;127.0.0.1&quot;,41234]</code> for IPv4, or the path string for a Unix socket</td></tr>
+</table>
+<p><code>networkingAccept</code> and <code>networkingOpen</code> both allocate handles from the same registry, so handles are not reusable indices into a fixed table.</p>
+<p><code>networkingSend</code> performs a single <code>send</code>, so a short write is possible on a stream socket; the returned count is what actually left. <code>networkingReceive</code> performs a single <code>recv</code>.</p>
+<p>The family is a faithful native implementation, including its error text, and the value-less operations return <code>0</code> for the same <code>Number.null</code> reason as the filesystem family.</p>
+<p>On a host without POSIX sockets, the whole family stays in the unsupported set.</p>
+<h2 id="managed-sound">Managed sound</h2>
+<p>Audio playback for programs that do not want to import a module. These built-ins are a thin layer over the bundled Rust <strong><code>sound</code> stdlib module</strong> — the module owns the audio backend (<code>rodio</code>/<code>cpal</code>/<code>symphonia</code>), so there is one audio implementation rather than one per interface, and the interpreter binary keeps no audio dependency. The built-in layer owns its own handle registry: a handle is valid only if <code>soundLoad</code> returned it, and <code>soundRelease</code> invalidates it.</p>
+<table>
+<tr><th>Builtin</th><th>Notes</th></tr>
+<tr><td><code>soundLoad(path)</code></td><td>Returns a handle. The file must exist and end in <code>.wav</code>, <code>.ogg</code>, <code>.mp3</code> or <code>.flac</code></td></tr>
+<tr><td><code>soundPlay(handle)</code></td><td>Plays once</td></tr>
+<tr><td><code>soundLoop(handle)</code></td><td>Plays, looping</td></tr>
+<tr><td><code>soundStop(handle)</code></td><td>Stops playback</td></tr>
+<tr><td><code>soundPause(handle)</code> / <code>soundResume(handle)</code></td><td>Pause and resume an active player</td></tr>
+<tr><td><code>soundSetVolume(handle, volume)</code></td><td>Volume in <code>[0, 1]</code></td></tr>
+<tr><td><code>soundIsPlaying(handle)</code></td><td>Whether a player is currently running</td></tr>
+<tr><td><code>soundRelease(handle)</code></td><td>Releases the handle</td></tr>
+</table>
+<p>Playback needs an audio device; without one, <code>soundPlay</code> and <code>soundLoop</code> report that playback did not start. Loading, <code>soundStop</code>, <code>soundSetVolume</code>, <code>soundIsPlaying</code> and <code>soundRelease</code> are device-independent.</p>
+<p><code>stdlib/sound.so</code> must be reachable — next to the interpreter, in <code>stdlib/</code>, or under <code>lynxer/stdlib</code>. A <strong>compiled executable</strong> only carries it if the program also has <code>import(&quot;sound&quot;)</code>, because bundling follows imports.</p>
+<p>Three deliberate constraints, all recorded in <a href="limitations.html">limitations</a>: the backend's own failure text is not Arcade's; <code>soundPause</code>/<code>soundResume</code> work, where the reference fails by design; and <code>soundStop</code> works, where the reference's Arcade version has no <code>Player.stop</code>.</p>
+<h2 id="native-threads">Native threads</h2>
+<p><code>nativeThreadStart(function, arguments)</code> runs a Lynxer function on a <code>std::thread</code>. The function is named as a value — <code>nativeThreadStart(global.worker, [int 42])</code> — which is what makes <code>global.&lt;name&gt;</code> resolve to a callable when no variable has that name.</p>
+<table>
+<tr><th>Builtin</th><th>Notes</th></tr>
+<tr><td><code>nativeThreadStart(function, arguments)</code></td><td>Returns a thread handle. <code>function</code> is a named global function; <code>arguments</code> is a list</td></tr>
+<tr><td><code>nativeThreadJoin(handle)</code></td><td>Waits for the thread and returns <code>completed</code>, or the callback's error text. Joining releases the handle</td></tr>
+<tr><td><code>nativeThreadJoinAll()</code></td><td>Joins every thread that has neither been joined nor detached</td></tr>
+<tr><td><code>nativeThreadIsAlive(handle)</code></td><td>Whether the thread is still running</td></tr>
+<tr><td><code>nativeThreadStatus(handle)</code></td><td><code>running</code> while it is, then <code>completed</code> or the error text</td></tr>
+<tr><td><code>nativeThreadDetach(handle)</code></td><td>Gives up the handle; the thread leaves the registry when it finishes</td></tr>
+</table>
+<p><strong>Threads are cooperative.</strong> The interpreter evaluates Lynxer code on one thread at a time, and a worker takes that lock before calling back in, so a thread runs while the thread that started it is blocked in <code>nativeThreadJoin</code> or <code>nativeThreadJoinAll</code>, which release the lock before waiting. Two threads never evaluate at once — that is why no data race is possible — and it is why a worker's own output appears at the join rather than during the main body. Programs that leave a thread running have it joined when the program finishes.</p>
+<h2 id="ffi">FFI</h2>
+<p>The <code>ffi*</code> family loads a native shared library and calls a symbol by signature at run time, with no build step. It is implemented in C++ over <code>dlopen</code>/<code>dlsym</code> (there is no libffi), so the same call site can call any symbol whose signature is in the supported table.</p>
+<table>
+<tr><th>Builtin</th><th>Notes</th></tr>
+<tr><td><code>ffiLoadLibrary(path)</code></td><td>Loads a shared library and returns a handle</td></tr>
+<tr><td><code>ffiLookup(handle, symbol)</code></td><td>Resolves a symbol to a <code>functionAddress</code></td></tr>
+<tr><td><code>ffiCall(address, signature, arguments)</code></td><td>Calls the symbol. <code>signature</code> is a packed string such as <code>&quot;cdecl:int32(int32,int32)&quot;</code>; <code>arguments</code> is a list</td></tr>
+<tr><td><code>ffiCallback(signature, function)</code></td><td>Wraps a Lynxer function as a C callback the native code can call</td></tr>
+<tr><td><code>ffiFreeCallback(callback)</code></td><td>Releases a callback created by <code>ffiCallback</code></td></tr>
+<tr><td><code>ffiCloseLibrary(handle)</code></td><td>Unloads the library and invalidates its symbols</td></tr>
+</table>
+<p>The signatures use the same grammar as native modules; see <a href="native-module-abi.html#signature-grammar">native-module-abi</a>. <code>lynxer/examples/builtin_ffi.lynx</code> demonstrates the full round trip (calling <code>strlen</code> and passing a Lynxer function back as a C callback).</p>
+<h2 id="async">Async</h2>
+<p>The <code>async*</code> family performs I/O without a language-level event loop. <code>asyncRun(function, arguments?)</code> starts a Lynxer function in the async runtime, and <code>await</code> in the caller yields until the operation completes. Timers, wakeups and file/IO readiness sources are registered on a poll set and awaited with <code>asyncPollWait</code>; <code>asyncPollDispatch</code> awaits them and invokes a Lynxer callback for each ready event. Evaluation stays cooperative — the interpreter runs one Lynxer frame at a time.</p>
+<table>
+<tr><th>Builtin</th><th>Notes</th></tr>
+<tr><td><code>asyncRun(function, arguments?)</code></td><td>Starts a function; returns a handle</td></tr>
+<tr><td><code>asyncGather(values...)</code></td><td>Collects its arguments into a list</td></tr>
+<tr><td><code>asyncSleep(seconds)</code></td><td>Suspends the current task for a non-negative duration</td></tr>
+<tr><td><code>asyncPollCreate()</code></td><td>Creates a poll set and returns a handle</td></tr>
+<tr><td><code>asyncPollRegister(poll, resource, events, token)</code></td><td>Registers a resource for <code>read</code>, <code>write</code> or <code>readwrite</code></td></tr>
+<tr><td><code>asyncPollModify(poll, resource, events, token)</code></td><td>Changes the interest and token</td></tr>
+<tr><td><code>asyncPollRemove(poll, resource)</code></td><td>Removes a resource</td></tr>
+<tr><td><code>asyncPollWait(poll, timeoutMs?, maxEvents?)</code></td><td>Awaits ready events</td></tr>
+<tr><td><code>asyncPollDispatch(poll, callback, timeoutMs?, maxEvents?)</code></td><td>Awaits events and calls a Lynxer callback for each</td></tr>
+<tr><td><code>asyncPollClose(poll)</code></td><td>Releases the poll set</td></tr>
+<tr><td><code>asyncTimerCreate(poll, milliseconds, token, repeatMs?)</code></td><td>Schedules a timer</td></tr>
+<tr><td><code>asyncTimerCancel(timer)</code></td><td>Cancels a timer</td></tr>
+<tr><td><code>asyncWakeupCreate(poll, token)</code></td><td>Creates a wakeup handle</td></tr>
+<tr><td><code>asyncWakeupSignal(wakeup)</code></td><td>Signals a wakeup</td></tr>
+<tr><td><code>asyncWakeupClose(wakeup)</code></td><td>Releases a wakeup</td></tr>
+</table>
+<p>See <code>lynxer/examples/builtin_async.lynx</code> for a runnable example, and <a href="language.html">language</a> for the <code>async</code>/<code>await</code> syntax.</p>
+<h2 id="unsupported-names">Unsupported names</h2>
+<p>Names Lynxer recognises but does not implement on Linux/POSIX. Each fails with <code>&lt;name&gt;() is not supported in Lynxer yet</code>, except <code>embedPy</code>, whose message is <code>Python bridging (embedPy) is not supported in Lynxer</code>.</p>
+<table>
+<tr><th>Family</th><th>Names</th></tr>
+<tr><td>Python bridging</td><td><code>rawPy</code>, <code>rawPyx</code>, <code>cleanRawPyxCache</code>, <code>embedPy</code></td></tr>
+<tr><td>Namespaces</td><td><code>unshare</code></td></tr>
+<tr><td>Borrow / transfer</td><td><code>varTransfer</code>, <code>varTransferMutate</code>, <code>varBorrow</code>, <code>varBorrowMutate</code>, <code>varSwapAll</code>, <code>varSwapVal</code>, <code>varEndBorrow</code>, <code>borrowing</code>, <code>beingBorrowed</code></td></tr>
+<tr><td>Raw addresses</td><td><code>getAddress</code>, <code>modifyAddressValue</code>, <code>getAddressValue</code>, <code>functionAddress</code>, <code>nativeFunctionAddress</code>, <code>nativeCall</code></td></tr>
+<tr><td>Native module introspection</td><td><code>nativeModuleLoad</code>, <code>nativeModuleName</code>, <code>nativeModuleFunction</code>, <code>nativeModuleConstant</code>, <code>nativeModuleType</code>, <code>nativeModuleError</code>, <code>nativeModuleDependencies</code>, <code>nativeModuleClose</code></td></tr>
+<tr><td>Native sync primitives</td><td><code>nativeMutex*</code>, <code>nativeCondition*</code>, <code>nativeSemaphore*</code>, <code>nativeHandle*</code></td></tr>
+<tr><td>Atomics</td><td><code>atomicLoad</code>, <code>atomicStore</code>, <code>atomicAdd</code>, <code>volatileRead</code>, <code>volatileWrite</code></td></tr>
+<tr><td>Advanced memory</td><td><code>memoryProtect</code>, <code>memoryBlock*</code>, <code>memoryArray*</code>, <code>memoryView*</code>, <code>memoryStruct*</code>, <code>nativeStruct*</code>, <code>nativeTypeAlignment</code></td></tr>
+</table>
+<p>The authoritative list is <code>unsupportedTable()</code> in <code>lynxer/builtins.cpp</code>; this table is the POSIX-visible subset. A build without POSIX support adds the <code>filesystem*</code>, <code>process*</code>, <code>networking*</code>, <code>sound*</code>, <code>async*</code> and <code>nativeThread*</code> families. See <a href="limitations.html">limitations</a> for the rationale.</p>
+<p><code>sound*</code>, <code>ffi*</code>, <code>async*</code> and <code>nativeThread*</code> are the families that reach outside the interpreter (a device, a shared library, a runtime, or a worker thread); everything else on this page is self-contained.</p>
+    </main>
+</div>
+
+<footer>
+    Lynxer &middot; MIT License
+</footer>
+
+</body>
+</html>

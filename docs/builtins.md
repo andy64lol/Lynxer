@@ -338,7 +338,7 @@ is in the supported table.
 | `ffiCloseLibrary(handle)` | Unloads the library and invalidates its symbols |
 
 The signatures use the same grammar as native modules; see
-[native-module-abi.md](native-module-abi.md#signatures).
+[native-module-abi.md](native-module-abi.md#signature-grammar).
 `lynxer/examples/builtin_ffi.lynx` demonstrates the full round trip (calling
 `strlen` and passing a Lynxer function back as a C callback).
 

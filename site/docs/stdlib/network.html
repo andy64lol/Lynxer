@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>network - Lynxer</title>
+    <link rel="stylesheet" href="../../style.css">
+</head>
+<body>
+
+<header>
+    <h1><a href="../../index.html">Lynxer</a></h1>
+    <p>Documentation</p>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3>Overview</h3><ul>
+<li><a href="../index.html">README</a></li>
+</ul>
+<h3>Getting started</h3><ul>
+<li><a href="../install.html">install</a></li>
+<li><a href="../CLI.html">CLI</a></li>
+</ul>
+<h3>Language</h3><ul>
+<li><a href="../language.html">language</a></li>
+<li><a href="../types.html">types</a></li>
+<li><a href="../lists.html">lists</a></li>
+<li><a href="../modules.html">modules</a></li>
+<li><a href="../importAs.html">importAs</a></li>
+</ul>
+<h3>Records</h3><ul>
+<li><a href="../structs.html">structs</a></li>
+<li><a href="../classes.html">classes</a></li>
+<li><a href="../enums.html">enums</a></li>
+<li><a href="../vargroups.html">vargroups</a></li>
+</ul>
+<h3>Built-ins and modules</h3><ul>
+<li><a href="../builtins.html">builtins</a></li>
+<li><a href="../native-module-abi.html">native-module-abi</a></li>
+<li><a href="../stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="../extending.html">extending</a></li>
+</ul>
+<h3>Reference</h3><ul>
+<li><a href="../limitations.html">limitations</a></li>
+</ul>
+<h3>Standard library</h3><ul>
+<li><a href="index.html">All modules</a></li>
+<li><a href="cli.html">cli</a></li>
+<li><a href="colorlib.html">colorlib</a></li>
+<li><a href="csv.html">csv</a></li>
+<li><a href="debug.html">debug</a></li>
+<li><a href="fileIO.html">fileIO</a></li>
+<li><a href="game.html">game</a></li>
+<li><a href="image.html">image</a></li>
+<li><a href="js.html">js</a></li>
+<li><a href="json.html">json</a></li>
+<li><a href="lua.html">lua</a></li>
+<li><a href="math.html">math</a></li>
+<li><a href="multiprocessing.html">multiprocessing</a></li>
+<li><a href="network.html" class="active">network</a></li>
+<li><a href="os.html">os</a></li>
+<li><a href="path.html">path</a></li>
+<li><a href="random.html">random</a></li>
+<li><a href="re.html">re</a></li>
+<li><a href="regex.html">regex</a></li>
+<li><a href="server.html">server</a></li>
+<li><a href="shell.html">shell</a></li>
+<li><a href="sound.html">sound</a></li>
+<li><a href="sqldb.html">sqldb</a></li>
+<li><a href="sys.html">sys</a></li>
+<li><a href="text.html">text</a></li>
+<li><a href="time.html">time</a></li>
+<li><a href="tui.html">tui</a></li>
+<li><a href="typing.html">typing</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+<h1 id="network">network</h1>
+<p>HTTP and WebSocket client backed by Rust <a href="https://docs.rs/ureq"><code>ureq</code></a> with <a href="https://docs.rs/rustls"><code>rustls</code></a> and <a href="https://docs.rs/tungstenite"><code>tungstenite</code></a>. This replaces the older <code>http</code> and <code>net</code> modules.</p>
+<pre><code>global setup(){
+    import(&quot;network&quot;);
+}</code></pre>
+<p>HTTPS/WSS use <code>rustls</code>, so there is no system OpenSSL dependency. Built from the Rust crate <code>rust/network</code>.</p>
+<h2 id="http-client">HTTP client</h2>
+<table>
+<tr><th>Function</th><th>Description</th></tr>
+<tr><td><code>get(url)</code></td><td>Response body, or <code>ERROR: ...</code></td></tr>
+<tr><td><code>getStatus(url)</code></td><td>Status code, or <code>-1</code></td></tr>
+<tr><td><code>getHeaders(url)</code></td><td>Newline-separated headers, or <code>ERROR: ...</code></td></tr>
+<tr><td><code>post(url, body, contentType)</code></td><td>POST body</td></tr>
+<tr><td><code>put(url, body, contentType)</code></td><td>PUT body</td></tr>
+<tr><td><code>delete(url)</code></td><td>DELETE body</td></tr>
+<tr><td><code>patch(url, body, contentType)</code></td><td>PATCH body</td></tr>
+<tr><td><code>getJson(url)</code></td><td>GET with <code>Accept: application/json</code></td></tr>
+<tr><td><code>postJson(url, jsonBody)</code></td><td>POST JSON</td></tr>
+<tr><td><code>download(url, filepath)</code></td><td>Write body to disk (<code>&quot;ok&quot;</code> / <code>ERROR:</code>)</td></tr>
+<tr><td><code>urlencode(text)</code></td><td>Plus-style query encoding</td></tr>
+<tr><td><code>httpHead(url)</code></td><td>HEAD status, or <code>-1</code></td></tr>
+</table>
+<h2 id="websocket-client">WebSocket client</h2>
+<p>Connections are keyed by a name string.</p>
+<table>
+<tr><th>Function</th><th>Description</th></tr>
+<tr><td><code>wsConnect(name, uri)</code></td><td>Open <code>ws://</code> or <code>wss://</code> (<code>&quot;ok&quot;</code> / <code>ERROR:</code>)</td></tr>
+<tr><td><code>wsSend(name, message)</code></td><td>Send text</td></tr>
+<tr><td><code>wsReceive(name)</code></td><td>Wait for the next message</td></tr>
+<tr><td><code>wsSendReceive(name, message)</code></td><td>Round-trip helper</td></tr>
+<tr><td><code>wsClose(name)</code></td><td>Close and forget</td></tr>
+<tr><td><code>wsConnected(name)</code></td><td><code>true</code> while open</td></tr>
+</table>
+<h2 id="url-helpers">URL helpers</h2>
+<p><code>urlScheme</code>, <code>urlHost</code>, <code>urlPath</code>, <code>urlParse</code> (JSON object with <code>scheme</code>/<code>host</code>/<code>port</code>/<code>path</code>/<code>query</code>/<code>fragment</code>), <code>getHostname</code>, and <code>resolveHost</code>.</p>
+<hr>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="../stdlib-contracts.html">stdlib-contracts</a> — the contract this module implements, including the error sentinel family it uses.</li>
+<li><a href="../builtins.html">builtins</a> — the functions the interpreter implements itself.</li>
+<li><a href="../limitations.html">limitations</a> — the full divergence register.</li>
+</ul>
+    </main>
+</div>
+
+<footer>
+    Lynxer &middot; MIT License
+</footer>
+
+</body>
+</html>

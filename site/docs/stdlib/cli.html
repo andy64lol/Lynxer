@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>cli - Lynxer</title>
+    <link rel="stylesheet" href="../../style.css">
+</head>
+<body>
+
+<header>
+    <h1><a href="../../index.html">Lynxer</a></h1>
+    <p>Documentation</p>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3>Overview</h3><ul>
+<li><a href="../index.html">README</a></li>
+</ul>
+<h3>Getting started</h3><ul>
+<li><a href="../install.html">install</a></li>
+<li><a href="../CLI.html">CLI</a></li>
+</ul>
+<h3>Language</h3><ul>
+<li><a href="../language.html">language</a></li>
+<li><a href="../types.html">types</a></li>
+<li><a href="../lists.html">lists</a></li>
+<li><a href="../modules.html">modules</a></li>
+<li><a href="../importAs.html">importAs</a></li>
+</ul>
+<h3>Records</h3><ul>
+<li><a href="../structs.html">structs</a></li>
+<li><a href="../classes.html">classes</a></li>
+<li><a href="../enums.html">enums</a></li>
+<li><a href="../vargroups.html">vargroups</a></li>
+</ul>
+<h3>Built-ins and modules</h3><ul>
+<li><a href="../builtins.html">builtins</a></li>
+<li><a href="../native-module-abi.html">native-module-abi</a></li>
+<li><a href="../stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="../extending.html">extending</a></li>
+</ul>
+<h3>Reference</h3><ul>
+<li><a href="../limitations.html">limitations</a></li>
+</ul>
+<h3>Standard library</h3><ul>
+<li><a href="index.html">All modules</a></li>
+<li><a href="cli.html" class="active">cli</a></li>
+<li><a href="colorlib.html">colorlib</a></li>
+<li><a href="csv.html">csv</a></li>
+<li><a href="debug.html">debug</a></li>
+<li><a href="fileIO.html">fileIO</a></li>
+<li><a href="game.html">game</a></li>
+<li><a href="image.html">image</a></li>
+<li><a href="js.html">js</a></li>
+<li><a href="json.html">json</a></li>
+<li><a href="lua.html">lua</a></li>
+<li><a href="math.html">math</a></li>
+<li><a href="multiprocessing.html">multiprocessing</a></li>
+<li><a href="network.html">network</a></li>
+<li><a href="os.html">os</a></li>
+<li><a href="path.html">path</a></li>
+<li><a href="random.html">random</a></li>
+<li><a href="re.html">re</a></li>
+<li><a href="regex.html">regex</a></li>
+<li><a href="server.html">server</a></li>
+<li><a href="shell.html">shell</a></li>
+<li><a href="sound.html">sound</a></li>
+<li><a href="sqldb.html">sqldb</a></li>
+<li><a href="sys.html">sys</a></li>
+<li><a href="text.html">text</a></li>
+<li><a href="time.html">time</a></li>
+<li><a href="tui.html">tui</a></li>
+<li><a href="typing.html">typing</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+<h1 id="cli">cli</h1>
+<p>Command-line helpers: arguments, environment, terminal queries and process execution.</p>
+<p><strong>Backend:</strong> native — <code>stdlib/cli.so</code>, built from <code>stdlib/cli.cpp</code> over POSIX APIs. <strong>Import:</strong> <code>import(&quot;cli&quot;)</code> → <code>global.cli.*</code></p>
+<h2 id="click--typer-compatibility">Click / Typer compatibility</h2>
+<table>
+<tr><th>Function</th><th>Signature</th><th>Returns</th></tr>
+<tr><td><code>clickExists</code> / <code>typerExists</code></td><td><code>() -&gt; bool</code></td><td>Always <code>false</code></td></tr>
+<tr><td><code>clickVersion</code> / <code>typerVersion</code></td><td><code>() -&gt; str</code></td><td>Always <code>&quot;&quot;</code></td></tr>
+</table>
+<p>Click and Typer are Python packages with no Lynxer equivalent, so the <code>click*</code>/<code>typer*</code> builder functions are <strong>not defined</strong> — calling one is a hard "unknown function" error.</p>
+<h2 id="arguments-and-environment">Arguments and environment</h2>
+<table>
+<tr><th>Function</th><th>Signature</th><th>Notes</th></tr>
+<tr><td><code>argv</code></td><td><code>() -&gt; str</code></td><td>Process command line as a JSON array</td></tr>
+<tr><td><code>argCount</code></td><td><code>() -&gt; int</code></td><td>Number of command-line entries</td></tr>
+<tr><td><code>getArg</code></td><td><code>(int index) -&gt; str</code></td><td>Entry at <code>index</code>, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>envGet</code></td><td><code>(str name) -&gt; str</code></td><td>Value, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>envHas</code></td><td><code>(str name) -&gt; bool</code></td><td>Whether the variable is set</td></tr>
+<tr><td><code>envAll</code></td><td><code>() -&gt; str</code></td><td>All variables as a JSON object</td></tr>
+</table>
+<p>Lynxer does not forward extra arguments to a program, so <code>argv</code> describes the <code>lynxer</code> process itself.</p>
+<h2 id="terminal-and-io">Terminal and IO</h2>
+<table>
+<tr><th>Function</th><th>Signature</th><th>Notes</th></tr>
+<tr><td><code>cwd</code></td><td><code>() -&gt; str</code></td><td>Working directory</td></tr>
+<tr><td><code>chdir</code></td><td><code>(str path) -&gt; bool</code></td><td>Changes the working directory</td></tr>
+<tr><td><code>stdinIsTty</code> / <code>stdoutIsTty</code></td><td><code>() -&gt; bool</code></td><td>Terminal detection</td></tr>
+<tr><td><code>readStdin</code></td><td><code>() -&gt; str</code></td><td>Reads all of stdin</td></tr>
+<tr><td><code>writeStdout</code> / <code>writeStderr</code></td><td><code>(str text)</code></td><td>Writes without a trailing newline</td></tr>
+<tr><td><code>terminalSize</code></td><td><code>() -&gt; str</code></td><td>JSON <code>{&quot;columns&quot;: N, &quot;lines&quot;: M}</code></td></tr>
+<tr><td><code>exit</code></td><td><code>(int code)</code></td><td>Exits the process immediately</td></tr>
+</table>
+<h2 id="paths-and-processes">Paths and processes</h2>
+<table>
+<tr><th>Function</th><th>Signature</th><th>Notes</th></tr>
+<tr><td><code>pathExists</code></td><td><code>(str path) -&gt; bool</code></td><td><code>access(2)</code></td></tr>
+<tr><td><code>isFile</code> / <code>isDirectory</code></td><td><code>(str path) -&gt; bool</code></td><td><code>stat(2)</code> type tests</td></tr>
+<tr><td><code>which</code></td><td><code>(str executable) -&gt; str</code></td><td>Resolves on <code>PATH</code>, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>run</code></td><td><code>(str command, bool capture) -&gt; str</code></td><td>With <code>capture</code> returns stdout, otherwise the exit code as text</td></tr>
+<tr><td><code>runCode</code></td><td><code>(str command) -&gt; int</code></td><td>Runs silently and returns the exit code</td></tr>
+</table>
+<h2 id="example">Example</h2>
+<pre><code>global setup(){ import(&quot;cli&quot;); }
+
+global main(){
+    println(global.cli.argCount());
+    if(global.cli.envHas(&quot;HOME&quot;)){
+        println(global.cli.envGet(&quot;HOME&quot;));
+    }
+    println(global.cli.run(&quot;printf ok&quot;, true));
+    println(global.cli.runCode(&quot;false&quot;));
+}</code></pre>
+<hr>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="../stdlib-contracts.html">stdlib-contracts</a> — the contract this module implements, including the error sentinel family it uses.</li>
+<li><a href="../builtins.html">builtins</a> — the functions the interpreter implements itself.</li>
+<li><a href="../limitations.html">limitations</a> — the full divergence register.</li>
+</ul>
+    </main>
+</div>
+
+<footer>
+    Lynxer &middot; MIT License
+</footer>
+
+</body>
+</html>

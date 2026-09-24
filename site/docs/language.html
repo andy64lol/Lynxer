@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>The Lynxer language - Lynxer</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<header>
+    <h1><a href="../index.html">Lynxer</a></h1>
+    <p>Documentation</p>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3>Overview</h3><ul>
+<li><a href="index.html">README</a></li>
+</ul>
+<h3>Getting started</h3><ul>
+<li><a href="install.html">install</a></li>
+<li><a href="CLI.html">CLI</a></li>
+</ul>
+<h3>Language</h3><ul>
+<li><a href="language.html" class="active">language</a></li>
+<li><a href="types.html">types</a></li>
+<li><a href="lists.html">lists</a></li>
+<li><a href="modules.html">modules</a></li>
+<li><a href="importAs.html">importAs</a></li>
+</ul>
+<h3>Records</h3><ul>
+<li><a href="structs.html">structs</a></li>
+<li><a href="classes.html">classes</a></li>
+<li><a href="enums.html">enums</a></li>
+<li><a href="vargroups.html">vargroups</a></li>
+</ul>
+<h3>Built-ins and modules</h3><ul>
+<li><a href="builtins.html">builtins</a></li>
+<li><a href="native-module-abi.html">native-module-abi</a></li>
+<li><a href="stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="extending.html">extending</a></li>
+</ul>
+<h3>Reference</h3><ul>
+<li><a href="limitations.html">limitations</a></li>
+</ul>
+<h3>Standard library</h3><ul>
+<li><a href="stdlib/index.html">All modules</a></li>
+<li><a href="stdlib/cli.html">cli</a></li>
+<li><a href="stdlib/colorlib.html">colorlib</a></li>
+<li><a href="stdlib/csv.html">csv</a></li>
+<li><a href="stdlib/debug.html">debug</a></li>
+<li><a href="stdlib/fileIO.html">fileIO</a></li>
+<li><a href="stdlib/game.html">game</a></li>
+<li><a href="stdlib/image.html">image</a></li>
+<li><a href="stdlib/js.html">js</a></li>
+<li><a href="stdlib/json.html">json</a></li>
+<li><a href="stdlib/lua.html">lua</a></li>
+<li><a href="stdlib/math.html">math</a></li>
+<li><a href="stdlib/multiprocessing.html">multiprocessing</a></li>
+<li><a href="stdlib/network.html">network</a></li>
+<li><a href="stdlib/os.html">os</a></li>
+<li><a href="stdlib/path.html">path</a></li>
+<li><a href="stdlib/random.html">random</a></li>
+<li><a href="stdlib/re.html">re</a></li>
+<li><a href="stdlib/regex.html">regex</a></li>
+<li><a href="stdlib/server.html">server</a></li>
+<li><a href="stdlib/shell.html">shell</a></li>
+<li><a href="stdlib/sound.html">sound</a></li>
+<li><a href="stdlib/sqldb.html">sqldb</a></li>
+<li><a href="stdlib/sys.html">sys</a></li>
+<li><a href="stdlib/text.html">text</a></li>
+<li><a href="stdlib/time.html">time</a></li>
+<li><a href="stdlib/tui.html">tui</a></li>
+<li><a href="stdlib/typing.html">typing</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+<h1 id="the-lynxer-language">The Lynxer language</h1>
+<p>This page describes the Lynxer language <strong>as the interpreter actually parses and runs it</strong>, with every example verified against the interpreter. For the behaviour that is deliberately constrained or not implemented, see <a href="limitations.html">limitations</a>.</p>
+<p>Related pages: <a href="types.html">types</a>, <a href="lists.html">lists</a>, <a href="structs.html">structs</a>, <a href="classes.html">classes</a>, <a href="enums.html">enums</a>, <a href="vargroups.html">vargroups</a>, <a href="modules.html">modules</a>, and <a href="builtins.html">builtins</a>.</p>
+<h2 id="a-first-program">A first program</h2>
+<pre><code>global setup() {
+    println(&quot;ready&quot;);
+}
+
+global main() {
+    println(&quot;Hello, Lynxer!&quot;);
+}</code></pre>
+<p>Requires the interpreter (see <a href="install.html">install</a>) and runs with <code>lynxer hello.lynx</code>. If <code>setup</code> or <code>main</code> is missing, the parser reports it with a source location, for example <code>lynxer: hello.lynx:2:2: program must define global setup()</code>.</p>
+<h2 id="program-structure">Program structure</h2>
+<p>A file is a sequence of top-level declarations, in this order:</p>
+<ol>
+<li><strong><code>global setup()</code></strong> — must be the <strong>first</strong> declaration. The interpreter raises <code>global setup() must be the first declaration</code> otherwise.</li>
+<li><strong>Anything else</strong> — file-level <code>func</code>s, <code>global</code> functions, <code>struct</code>, <code>class</code> and <code>enum</code> definitions, in any order before <code>main</code>.</li>
+<li><strong><code>global main()</code></strong> — the default entry point, and the last declaration. A declaration after <code>main</code> fails with <code>declarations may not follow global main()</code>.</li>
+</ol>
+<p>Executable code outside a function body is a syntax error (<code>expected top-level function declaration</code>).</p>
+<p><code>setup()</code> and <code>main()</code> may take <strong>defaulted parameters</strong>; they are filled in before the body runs:</p>
+<pre><code>global setup(int retries = 3) {
+    println(&quot;retries &quot;, retries);   // retries 3
+}
+
+global main() {
+    println(&quot;main&quot;);
+}</code></pre>
+<h3 id="overridemain"><code>overrideMain</code></h3>
+<p>When <code>setup()</code> calls <code>overrideMain(&quot;name&quot;)</code>, the named global function runs instead of <code>main</code>, and <code>main</code> becomes optional:</p>
+<pre><code>global setup() {
+    overrideMain(&quot;start&quot;);
+}
+
+global start() {
+    println(&quot;started&quot;);   // printed
+}
+
+global main() {
+    println(&quot;unused&quot;);
+}</code></pre>
+<h2 id="comments-and-docstrings">Comments and docstrings</h2>
+<pre><code>// a single-line comment
+
+///
+  a multi-line delimiter comment;
+  the closing delimiter is the same slash run
+///
+
+////
+  a file docstring. `--list-stdlibs` prints this block for a module.
+////</code></pre>
+<ul>
+<li><code>//</code> runs to end of line.</li>
+<li><code>/// ... ///</code> and <code>//// ... ////</code> are multi-line blocks opened and closed by the <em>same</em> slash run.</li>
+<li><code>/* ... */</code> is <strong>not</strong> a comment — it fails to parse (<code>expected a declaration, assignment, or print call</code>).</li>
+<li>The docstring form recognised by <code>--list-stdlibs</code> is a line that is exactly <code>////</code>; a module that opens with <code>//// text</code> on the same line will not have its docstring extracted.</li>
+</ul>
+<p>Comment markers inside string literals are ordinary text.</p>
+<h2 id="variables-and-declarations">Variables and declarations</h2>
+<pre><code>global setup() {
+    int count = 0;
+    const str APP = &quot;demo&quot;;
+    println(APP, &quot; &quot;, count);   // demo 0
+}
+
+global main() {
+    float ratio = 1.5;
+    ratio += 0.5;
+    println(ratio);             // 2
+}</code></pre>
+<ul>
+<li>A declaration is <code>type name = value;</code>.</li>
+<li><code>const</code> makes later assignment a runtime error: <code>variable &#x27;frozen&#x27; is constant and cannot be reassigned</code>.</li>
+<li>Fixed-width types reject out-of-range values at the declaration, parameter, assignment, and return boundaries (see <a href="types.html">types</a>).</li>
+<li>A declaration inside a loop or <code>if</code> body belongs to the enclosing top-level scope, not a nested one (see <a href="#scoping">Scoping</a>).</li>
+</ul>
+<h2 id="types">Types</h2>
+<p>The complete type list, ranges, and conversion rules live in <a href="types.html">types</a>. The scalar names are <code>int</code>, <code>float</code>, <code>num</code>, <code>bool</code>, <code>str</code>, <code>char</code>, <code>numBool</code>, <code>bit</code>, <code>byte</code>, <code>int8</code>/<code>int16</code>/<code>int32</code>/<code>int64</code>, <code>uint8</code>/<code>uint16</code>/<code>uint32</code>/<code>uint64</code>, <code>float32</code>/<code>float64</code>, plus <code>any</code>, <code>none</code>, <code>list</code>, <code>tuple</code>, <code>codeblock</code>, and the named <code>struct</code>/<code>class</code>/<code>enum</code> types.</p>
+<h2 id="operators">Operators</h2>
+<h3 id="arithmetic-and-text">Arithmetic and text</h3>
+<table>
+<tr><th>Operator</th><th>Meaning</th></tr>
+<tr><td><code>+</code></td><td>Addition, or string/char concatenation</td></tr>
+<tr><td><code>-</code> <code>*</code> <code>/</code></td><td>Subtraction, multiplication, division</td></tr>
+<tr><td><code>%</code></td><td>Modulo (integers only)</td></tr>
+<tr><td><code>/%</code></td><td>Floor division (integers only)</td></tr>
+<tr><td><code>**</code></td><td>Exponentiation (right-associative)</td></tr>
+<tr><td>unary <code>-</code></td><td>Negation</td></tr>
+</table>
+<p><code>//</code> is a comment, not division — integer division is <code>/%</code>.</p>
+<h3 id="comparison-and-equality">Comparison and equality</h3>
+<table>
+<tr><th>Operator</th><th>Meaning</th></tr>
+<tr><td><code>is</code></td><td>Equal (preferred)</td></tr>
+<tr><td><code>isnt</code></td><td>Not equal (preferred)</td></tr>
+<tr><td><code>&lt;</code> <code>&lt;=</code> <code>&gt;</code> <code>&gt;=</code></td><td>Ordering (numbers, or two strings)</td></tr>
+</table>
+<p><code>==</code>, <code>!=</code> and <code>not is</code> still work but are <strong>deprecated</strong> and print a warning naming <code>is</code>/<code>isnt</code>.</p>
+<h3 id="boolean-logic">Boolean logic</h3>
+<table>
+<tr><th>Operator</th><th>Meaning</th></tr>
+<tr><td><code>and</code></td><td>Short-circuit AND</td></tr>
+<tr><td><code>or</code></td><td>Short-circuit OR</td></tr>
+<tr><td><code>not</code></td><td>Unary NOT</td></tr>
+<tr><td><code>xor</code> <code>xnor</code></td><td>Logical XOR / XNOR (no short-circuit)</td></tr>
+<tr><td><code>nand</code> <code>nor</code></td><td>Logical NAND / NOR (no short-circuit)</td></tr>
+</table>
+<p>A bare <code>!</code> is invalid. <code>&amp;&amp;</code>, <code>||</code>, <code>!!</code>, <code>!&amp;&amp;</code> and <code>!||</code> are deprecated spellings of <code>and</code>, <code>or</code>, <code>not</code>, <code>nand</code> and <code>nor</code>.</p>
+<h3 id="bitwise-and-shifts">Bitwise and shifts</h3>
+<table>
+<tr><th>Operator</th><th>Meaning</th></tr>
+<tr><td><code>bitand</code> <code>bitor</code> <code>bitxor</code></td><td>Bitwise AND / OR / XOR</td></tr>
+<tr><td><code>bitnand</code> <code>bitnor</code> <code>bitxnor</code></td><td>Bitwise NAND / NOR / XNOR</td></tr>
+<tr><td><code>bitnot</code></td><td>Bitwise NOT</td></tr>
+<tr><td><code>bitleft</code> <code>bitright</code></td><td>Shifts</td></tr>
+</table>
+<p>These require <code>int64</code> operands. The symbolic spellings <code>&amp;</code>, <code>|</code>, <code>^</code>, <code>!&amp;</code>, <code>!|</code>, <code>!^</code>, <code>~</code>, <code>&lt;&lt;</code>, <code>&gt;&gt;</code> are deprecated.</p>
+<h3 id="compound-assignment">Compound assignment</h3>
+<p><code>+=</code>, <code>-=</code>, <code>*=</code>, <code>/=</code>, <code>%=</code>, <code>**=</code> are accepted. The result is validated against the variable's type, so <code>int x = 5; x /= 2;</code> is an error rather than a silent truncation.</p>
+<h3 id="precedence">Precedence</h3>
+<p>Lowest to highest: <code>or</code>/<code>nor</code> → <code>xor</code>/<code>xnor</code> → <code>and</code>/<code>nand</code> → <code>not</code> → equality and ordering → <code>bitor</code> → <code>bitxor</code> → <code>bitand</code> → shifts → <code>+</code>/<code>-</code> → <code>*</code> <code>/</code> <code>%</code> <code>/%</code> → <code>**</code> → unary → postfix/primary. Parenthesise when in doubt; the parser follows this chain exactly.</p>
+<h2 id="control-flow">Control flow</h2>
+<h3 id="if--elif--else"><code>if</code> / <code>elif</code> / <code>else</code></h3>
+<pre><code>if (n &gt; 0) {
+    println(&quot;positive&quot;);
+} elif (n is 0) {
+    println(&quot;zero&quot;);
+} else {
+    println(&quot;negative&quot;);
+}</code></pre>
+<p><code>else if</code> is also accepted and behaves like <code>elif</code>.</p>
+<h3 id="switch--case--default"><code>switch</code> / <code>case</code> / <code>default</code></h3>
+<p>Cases are written <code>case(pattern){ ... }</code>; there is <strong>no colon form and no <code>break</code></strong> — the first matching case runs, then the <code>switch</code> ends.</p>
+<pre><code>switch (x) {
+    case(1){ println(&quot;one&quot;); }
+    case(2){ println(&quot;two&quot;); }
+    default(){ println(&quot;other&quot;); }
+}</code></pre>
+<p>A pattern may destructure an enum payload and binds names for the body (see <a href="enums.html">enums</a>):</p>
+<pre><code>switch (result) {
+    case(status.Ok(value)){ println(&quot;ok &quot;, value); }
+    case(status.Failed(reason)){ println(&quot;failed &quot;, reason); }
+}</code></pre>
+<h3 id="while-for-dowhile-iterate-forever"><code>while</code>, <code>for</code>, <code>doWhile</code>, <code>iterate</code>, <code>forever</code></h3>
+<pre><code>while (n &gt; 0) {
+    n -= 1;
+}
+
+for (int i = 0; i &lt; 3) {   // the update is implicit: i = i + 1
+    println(i);
+}
+
+doWhile (n &lt; 3) {          // tests before each pass after the first
+    n += 1;
+}
+
+doWhile(){                 // no-condition form: loops until `break`
+    n += 1;
+    if (n &gt; 9) { break; }
+}
+
+iterate (4) {              // exactly four iterations
+    println(&quot;tick&quot;);
+}
+
+forever(){                 // loops until `break`
+    if (done) { break; }
+}</code></pre>
+<ul>
+<li>Every loop keyword takes parentheses. <code>forever</code> and the condition-less <code>doWhile</code> are written <code>forever(){ ... }</code> and <code>doWhile(){ ... }</code>.</li>
+<li><code>for</code> takes an optional update clause; <strong><code>i++</code> and <code>i--</code> do not exist</strong>. Use the implicit update, <code>i = i + 1</code>, or <code>i += 1</code>.</li>
+<li><code>iterate(count)</code> requires an integer count.</li>
+</ul>
+<h3 id="break-continue-restart"><code>break</code>, <code>continue</code>, <code>restart</code></h3>
+<ul>
+<li><code>break</code> leaves the innermost loop or runs the <code>switch</code> default.</li>
+<li><code>continue</code> jumps to the next iteration.</li>
+<li><code>restart</code> re-runs the current iteration from the top.</li>
+</ul>
+<h3 id="try--catch"><code>try</code> / <code>catch</code></h3>
+<pre><code>try {
+    println(1 /% 0);
+} catch (str error) {
+    println(&quot;caught &quot;, error);   // caught division by zero
+}</code></pre>
+<p>The catch clause requires a type, normally <code>(str error)</code>. The caught value is the message string.</p>
+<h3 id="return"><code>return</code></h3>
+<p><code>return expr;</code> returns a value; a bare <code>return;</code> returns nothing. The value is checked against the function's return annotation, if any.</p>
+<h2 id="functions">Functions</h2>
+<p>There are three declaration forms:</p>
+<table>
+<tr><th>Form</th><th>Written</th><th>Where</th><th>Called from</th></tr>
+<tr><td>Global function</td><td><code>global name(...)</code></td><td>between <code>setup</code> and <code>main</code></td><td><code>global.name(...)</code> or a bare name in the same file</td></tr>
+<tr><td>File-level function</td><td><code>func name(...)</code></td><td>between <code>setup</code> and <code>main</code></td><td>a bare name in the same file; <code>global.module.name(...)</code> from an importer</td></tr>
+<tr><td>Local function</td><td><code>local name(...)</code></td><td>inside another function body</td><td>a bare name, or <code>local.name(...)</code></td></tr>
+</table>
+<p><code>global func name(...)</code> is <strong>not</strong> valid syntax; use <code>func name(...)</code> for a file-level function.</p>
+<pre><code>func double(int n) -&gt; int {
+    return n * 2;
+}
+
+global add(int a, int b = 1) -&gt; int {
+    return a + b;
+}
+
+global main() {
+    local square(int n) -&gt; int {
+        return n * n;
+    }
+    println(double(4));        // 8
+    println(global.add(2));    // 3
+    println(square(3));        // 9
+}</code></pre>
+<h3 id="parameters-and-defaults">Parameters and defaults</h3>
+<ul>
+<li>Parameters may be typed (<code>int n</code>) or untyped (treated as <code>any</code>).</li>
+<li>A parameter may have a default (<code>int b = 1</code>).</li>
+<li>A required parameter may <strong>not</strong> follow one with a default: <code>required parameters cannot follow a parameter with a default value</code>.</li>
+<li>Class methods are the exception: their parameters are typed but may <strong>not</strong> have defaults (see <a href="classes.html">classes</a>).</li>
+</ul>
+<h3 id="return-annotations">Return annotations</h3>
+<p>Only the arrow form is accepted:</p>
+<pre><code>global f(int x) -&gt; int { return x + 1; }</code></pre>
+<ul>
+<li><code>: int</code> is <strong>not</strong> valid syntax (<code>unexpected character &#x27;:&#x27;</code>).</li>
+<li>Omit the annotation, or use <code>-&gt; any</code>, to leave the result unchecked.</li>
+<li><code>-&gt; none</code> is accepted: the function must return nothing, and a returned value fails with <code>value cannot be assigned to type &#x27;none&#x27;</code>.</li>
+<li>A mismatched return is a source-located runtime error.</li>
+<li>Named types (a <code>struct</code>, <code>class</code>, or <code>enum</code>) may be used as the annotation.</li>
+</ul>
+<h3 id="codeblocks">Codeblocks</h3>
+<p>A function may declare caller-supplied blocks after its parameters, and invoke them with <code>exec()</code>:</p>
+<pre><code>global repeat(str label){body} {
+    print(label);
+    print(&quot;: &quot;);
+    exec(){{body}}
+    println(&quot;&quot;);
+}
+
+global main() {
+    global.repeat(&quot;msg&quot;) {
+        print(&quot;hello&quot;);
+    }
+}</code></pre>
+<p><code>exec({{name}})</code> runs a previously declared named codeblock. <code>setup</code> and <code>main</code> cannot take codeblock parameters.</p>
+<h2 id="scoping">Scoping</h2>
+<p>Lynxer has <strong>no nested block scopes</strong>, and blocks do not shadow:</p>
+<ul>
+<li><code>setup()</code> and <code>main()</code> share one top-level scope. A variable declared in either — including inside an <code>if</code>, <code>while</code>, <code>for</code>, <code>switch</code>, or <code>try</code> body — is visible in the other and to any function called later.</li>
+<li>Declaring the same name again overwrites the previous value rather than shadowing it.</li>
+<li>A function or method call gets a fresh scope for its parameters and locals. Those do not leak out, but the function can read and update the top-level variables it closes over.</li>
+</ul>
+<pre><code>global setup() {
+    int total = 0;
+}
+
+func add(int n) {
+    total += n;        // updates the top-level variable
+    int scratch = n;   // local to add(); not visible outside
+}
+
+global main() {
+    add(2);
+    add(3);
+    println(total);    // 5
+}</code></pre>
+<h2 id="string-interpolation">String interpolation</h2>
+<p><code>inter&quot;...&quot;</code> interpolates <code>{expr}</code> inside a string, with <code>\{</code>, <code>\}</code>, and <code>\\</code> as escapes:</p>
+<pre><code>global main() {
+    int n = 3;
+    println(inter&quot;n is {n}&quot;);   // n is 3
+}</code></pre>
+<p>Interpolation is available in the arguments of <code>print</code>, <code>println</code>, <code>input</code>, and <code>inputln</code>; elsewhere it is a syntax error.</p>
+<h2 id="modules">Modules</h2>
+<p><code>import(&quot;name&quot;)</code> and <code>importAs(&quot;name&quot;, &quot;alias&quot;)</code> load <code>.lynx</code> source modules or native <code>.so</code> libraries. They are <strong>statements</strong>, so they run from any function body — most often <code>setup()</code> — not at file scope. Both arguments must be string <strong>literals</strong>. See <a href="modules.html">modules</a>.</p>
+<h2 id="aggregate-types">Aggregate types</h2>
+<ul>
+<li><a href="structs.html">structs</a> — data-only records built with <code>new</code>.</li>
+<li><a href="classes.html">classes</a> — fields plus <code>local</code> methods.</li>
+<li><a href="enums.html">enums</a> — tagged unions with payloads and <code>switch</code> patterns.</li>
+<li><a href="vargroups.html">vargroups</a> — typed records with defaults and dot access.</li>
+<li><a href="lists.html">lists</a> — <code>list</code> and <code>tuple</code> values and their builtins.</li>
+</ul>
+<h2 id="not-supported">Not supported</h2>
+<p>See <a href="limitations.html">limitations</a> for the complete list. The most common surprises are a bare <code>!</code>, <code>/* ... */</code> comments, <code>\x</code>/<code>\u</code> escapes, the <code>.lynxc</code> bytecode format, and the not-planned modules (<code>tkinter</code>, <code>tkinterPlus</code>, <code>turtle</code>, <code>venv</code>).</p>
+    </main>
+</div>
+
+<footer>
+    Lynxer &middot; MIT License
+</footer>
+
+</body>
+</html>

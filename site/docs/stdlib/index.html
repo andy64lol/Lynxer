@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Standard library - Lynxer</title>
+    <link rel="stylesheet" href="../../style.css">
+</head>
+<body>
+
+<header>
+    <h1><a href="../../index.html">Lynxer</a></h1>
+    <p>Documentation</p>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3>Overview</h3><ul>
+<li><a href="../index.html">README</a></li>
+</ul>
+<h3>Getting started</h3><ul>
+<li><a href="../install.html">install</a></li>
+<li><a href="../CLI.html">CLI</a></li>
+</ul>
+<h3>Language</h3><ul>
+<li><a href="../language.html">language</a></li>
+<li><a href="../types.html">types</a></li>
+<li><a href="../lists.html">lists</a></li>
+<li><a href="../modules.html">modules</a></li>
+<li><a href="../importAs.html">importAs</a></li>
+</ul>
+<h3>Records</h3><ul>
+<li><a href="../structs.html">structs</a></li>
+<li><a href="../classes.html">classes</a></li>
+<li><a href="../enums.html">enums</a></li>
+<li><a href="../vargroups.html">vargroups</a></li>
+</ul>
+<h3>Built-ins and modules</h3><ul>
+<li><a href="../builtins.html">builtins</a></li>
+<li><a href="../native-module-abi.html">native-module-abi</a></li>
+<li><a href="../stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="../extending.html">extending</a></li>
+</ul>
+<h3>Reference</h3><ul>
+<li><a href="../limitations.html">limitations</a></li>
+</ul>
+<h3>Standard library</h3><ul>
+<li><a href="index.html" class="active">All modules</a></li>
+<li><a href="cli.html">cli</a></li>
+<li><a href="colorlib.html">colorlib</a></li>
+<li><a href="csv.html">csv</a></li>
+<li><a href="debug.html">debug</a></li>
+<li><a href="fileIO.html">fileIO</a></li>
+<li><a href="game.html">game</a></li>
+<li><a href="image.html">image</a></li>
+<li><a href="js.html">js</a></li>
+<li><a href="json.html">json</a></li>
+<li><a href="lua.html">lua</a></li>
+<li><a href="math.html">math</a></li>
+<li><a href="multiprocessing.html">multiprocessing</a></li>
+<li><a href="network.html">network</a></li>
+<li><a href="os.html">os</a></li>
+<li><a href="path.html">path</a></li>
+<li><a href="random.html">random</a></li>
+<li><a href="re.html">re</a></li>
+<li><a href="regex.html">regex</a></li>
+<li><a href="server.html">server</a></li>
+<li><a href="shell.html">shell</a></li>
+<li><a href="sound.html">sound</a></li>
+<li><a href="sqldb.html">sqldb</a></li>
+<li><a href="sys.html">sys</a></li>
+<li><a href="text.html">text</a></li>
+<li><a href="time.html">time</a></li>
+<li><a href="tui.html">tui</a></li>
+<li><a href="typing.html">typing</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+<h1 id="standard-library">Standard library</h1>
+<p>Lynxer ships 27 modules. Each has a <code>.lynx</code> wrapper and a native backend behind the shared native-module ABI; pick one below or from the sidebar.</p>
+<ul>
+<li><a href="cli.html"><code>cli</code></a> — Command-line helpers: arguments, environment, terminal queries and process execution.</li>
+<li><a href="colorlib.html"><code>colorlib</code></a> — ANSI colour and text-style helpers for terminal output.</li>
+<li><a href="csv.html"><code>csv</code></a> — CSV and TSV parsing, writing and transformation.</li>
+<li><a href="debug.html"><code>debug</code></a> — Assertions, type inspection, structured logging, timers and process metrics.</li>
+<li><a href="fileIO.html"><code>fileIO</code></a> — File reading, writing, copying, moving and metadata helpers.</li>
+<li><a href="game.html"><code>game</code></a> — 2-D game toolkit for Lynxer. The drawing, input and window layer is a Rust library built on…</li>
+<li><a href="image.html"><code>image</code></a> — Image loading, creation, transforms, pixels, and encoding. The backend is a Rust <code>cdylib</code> built with the <code>image</code>…</li>
+<li><a href="js.html"><code>js</code></a> — Run JavaScript through a Node.js subprocess.</li>
+<li><a href="json.html"><code>json</code></a> — JSON encoding, decoding, querying and mutation.</li>
+<li><a href="lua.html"><code>lua</code></a> — Embedded Lua 5.4 execution backed by Rust <code>mlua</code> with vendored Lua sources. The module is a <code>cdylib</code> installed as…</li>
+<li><a href="math.html"><code>math</code></a> — Integer, floating-point, number-theory, rounding, logarithmic and trigonometric helpers.</li>
+<li><a href="multiprocessing.html"><code>multiprocessing</code></a> — Run shell commands in parallel.</li>
+<li><a href="network.html"><code>network</code></a> — HTTP and WebSocket client backed by Rust <a href="https://docs.rs/ureq"><code>ureq</code></a> with <a href="https://docs.rs/rustls"><code>rustls</code></a> and…</li>
+<li><a href="os.html"><code>os</code></a> — Filesystem, process, environment and platform helpers.</li>
+<li><a href="path.html"><code>path</code></a> — <code>pathlib</code>-style path manipulation and filesystem helpers.</li>
+<li><a href="random.html"><code>random</code></a> — Seeded pseudo-random number and character helpers.</li>
+<li><a href="re.html"><code>re</code></a> — Regular expressions over <code>std::regex</code> with familiar pattern syntax.</li>
+<li><a href="regex.html"><code>regex</code></a> — Extended regular-expression helpers with a named compiled-pattern cache.</li>
+<li><a href="server.html"><code>server</code></a> — HTTP and WebSocket server backed by Rust <a href="https://docs.rs/axum"><code>axum</code></a> on <a href="https://docs.rs/tokio"><code>tokio</code></a>. Pair it…</li>
+<li><a href="shell.html"><code>shell</code></a> — Run external shell commands and inspect available shells.</li>
+<li><a href="sound.html"><code>sound</code></a> — The <code>sound</code> module provides audio playback functionality using Rust's <code>rodio</code> and <code>cpal</code> crates.</li>
+<li><a href="sqldb.html"><code>sqldb</code></a> — The <code>sqldb</code> module provides SQLite database functionality using Rust's <code>rusqlite</code> crate.</li>
+<li><a href="sys.html"><code>sys</code></a> — Runtime, process and platform information.</li>
+<li><a href="text.html"><code>text</code></a> — Basic string helpers.</li>
+<li><a href="time.html"><code>time</code></a> — Date and time helpers.</li>
+<li><a href="tui.html"><code>tui</code></a> — The <code>tui</code> module provides terminal UI functionality using Rust's <code>ratatui</code> and <code>crossterm</code> crates.</li>
+<li><a href="typing.html"><code>typing</code></a> — Type conversion and numeric-range predicates.</li>
+</ul>
+    </main>
+</div>
+
+<footer>
+    Lynxer &middot; MIT License
+</footer>
+
+</body>
+</html>
