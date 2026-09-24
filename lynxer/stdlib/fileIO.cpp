@@ -1,4 +1,4 @@
-// Lynxer `fileIO` stdlib backend: file reading, writing and metadata.
+// Clynxer `fileIO` stdlib backend: file reading, writing and metadata.
 
 #include <chrono>
 #include <cstdint>
@@ -203,7 +203,7 @@ extern "C" std::int64_t fileIO_fileIsEmpty(const char* path) {
 
 extern "C" const char* fileIO_tempFile(const char* suffix) {
     const std::string suffixText = textOrEmpty(suffix);
-    std::string pattern = temporaryDirectory() + "/clynxerXXXXXX" + suffixText;
+    std::string pattern = temporaryDirectory() + "/lynxerXXXXXX" + suffixText;
     std::vector<char> buffer(pattern.begin(), pattern.end());
     buffer.push_back('\0');
     const int descriptor =
@@ -216,7 +216,7 @@ extern "C" const char* fileIO_tempFile(const char* suffix) {
 }
 
 extern "C" const char* fileIO_tempDir() {
-    std::string pattern = temporaryDirectory() + "/clynxerXXXXXX";
+    std::string pattern = temporaryDirectory() + "/lynxerXXXXXX";
     std::vector<char> buffer(pattern.begin(), pattern.end());
     buffer.push_back('\0');
     if (::mkdtemp(buffer.data()) == nullptr) {
@@ -247,7 +247,7 @@ extern "C" const char* fileIO_readFileLines(const char* path,
     return stable(std::move(result));
 }
 
-extern "C" int lynxer_module_init_v1(RegisterFunction function,
+extern "C" int clynxer_module_init_v1(RegisterFunction function,
                                      RegisterConstant, RegisterType) {
     return function("readFile", "fileIO_readFile", "cdecl:cstring(cstring)") &&
                    function("writeFile", "fileIO_writeFile",

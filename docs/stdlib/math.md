@@ -152,7 +152,7 @@ global main(){
 
 ## List statistics *(NumPy)*
 
-These functions accept a Lynxer list of numbers and return a scalar.
+These functions accept a Clynxer list of numbers and return a scalar.
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
@@ -213,7 +213,7 @@ global main(){
 
 ## List-returning functions *(NumPy)*
 
-These return a **Lynxer list of strings**. Each element is the string representation of a float.  
+These return a **Clynxer list of strings**. Each element is the string representation of a float.  
 Use `floatOf(listGet(lst, i))` to convert an element to a number for arithmetic.
 
 | Function | Signature | Description |

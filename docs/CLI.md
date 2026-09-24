@@ -1,30 +1,30 @@
-# Lynxer CLI
+# Clynxer CLI
 
-The CLI is available as `lynxer` after installation. When running from the
+The CLI is available as `clynxer` after installation. When running from the
 source checkout, use:
 
 ```bash
-python3 lynxer/shell.py <command>
+python3 clynxer/shell.py <command>
 ```
 
-Run `lynxer --help` at any time for the short command list.
+Run `clynxer --help` at any time for the short command list.
 
 ## Run a program
 
-Run a Lynxer source file:
+Run a Clynxer source file:
 
 ```bash
-lynxer program.lynx
+clynxer program.lynx
 ```
 
 Run a compiled bytecode file:
 
 ```bash
-lynxer program.lynxc
+clynxer program.lynxc
 ```
 
 The process exits with code `0` when the program succeeds and `1` when the
-file is missing or Lynxer reports an error. `Ctrl-C` exits with code `130`.
+file is missing or Clynxer reports an error. `Ctrl-C` exits with code `130`.
 
 ## Inspect and validate source
 
@@ -33,7 +33,7 @@ file is missing or Lynxer reports an error. `Ctrl-C` exits with code `130`.
 Tokenize and parse a source file without executing it:
 
 ```bash
-lynxer --lint program.lynx
+clynxer --lint program.lynx
 ```
 
 This prints `Lint OK` for valid source and reports the syntax error otherwise.
@@ -43,7 +43,7 @@ This prints `Lint OK` for valid source and reports the syntax error otherwise.
 Parse a source file and print its abstract syntax tree without executing it:
 
 ```bash
-lynxer --ast program.lynx
+clynxer --ast program.lynx
 ```
 
 The output is a readable tree of parser nodes and tokens. Source positions are
@@ -54,7 +54,7 @@ omitted so the output remains stable and useful for inspection.
 Format a source file in place with readable indentation and spacing:
 
 ```bash
-lynxer --format program.lynx
+clynxer --format program.lynx
 ```
 
 Ordinary comments are preserved.
@@ -64,7 +64,7 @@ Ordinary comments are preserved.
 Format valid source in place as one physical line:
 
 ```bash
-lynxer --format-oneline program.lynx
+clynxer --format-oneline program.lynx
 ```
 
 Single-line comments are converted to safe `/// ... ///` delimited comments so
@@ -75,7 +75,7 @@ they do not comment out the remainder of the generated line.
 Compile a `.lynx` file to a `.lynxc` file:
 
 ```bash
-lynxer --compile program.lynx
+clynxer --compile program.lynx
 ```
 
 Aliases for `--compile` are `-c`, `--c`, and `-compile`.
@@ -83,7 +83,7 @@ Aliases for `--compile` are `-c`, `--c`, and `-compile`.
 Inspect bytecode metadata and its stored top-level structure:
 
 ```bash
-lynxer --view-bytecode program.lynxc
+clynxer --view-bytecode program.lynxc
 ```
 
 Aliases are `--inspect-bytecode` and `--disasm`.
@@ -96,8 +96,8 @@ Aliases are `--inspect-bytecode` and `--disasm`.
 | `--no-opt` | Skip the optimization hook (recorded in the bytecode metadata) |
 
 ```bash
-lynxer --compile --no-cache program.lynx
-lynxer --compile --no-opt program.lynx
+clynxer --compile --no-cache program.lynx
+clynxer --compile --no-opt program.lynx
 ```
 
 Both flags apply to `--compile` only. The optimizer runs constant folding, so
@@ -106,10 +106,10 @@ same observable behaviour — see [bytecode.md](bytecode.md#what-changed-in-v9).
 
 ## Build a standalone executable
 
-Bundle a Lynxer source program into a single native executable:
+Bundle a Clynxer source program into a single native executable:
 
 ```bash
-lynxer --bundle program.lynx
+clynxer --bundle program.lynx
 ```
 
 The compiled bytecode is stored in `build/bytecode/` and the executable is
@@ -121,7 +121,7 @@ wrong table.
 An optional second argument selects the executable name:
 
 ```bash
-lynxer --bundle program.lynx my-program
+clynxer --bundle program.lynx my-program
 ```
 
 Bundling requires PyInstaller, a working C++ extension build, and the
@@ -131,10 +131,10 @@ the host architecture's syscall table.
 
 ## Discover modules and runtime information
 
-Print the installed Lynxer version:
+Print the installed Clynxer version:
 
 ```bash
-lynxer --version
+clynxer --version
 ```
 
 Version aliases are `-v`, `-version`, and `--v`.
@@ -142,23 +142,23 @@ Version aliases are `-v`, `-version`, and `--v`.
 List standard-library modules available to `import()`:
 
 ```bash
-lynxer --list-stdlibs
+clynxer --list-stdlibs
 ```
 
 Aliases are `--stdlibs`, `-stdlibs`, and `-list-stdlibs`.
 
 ## Installation commands
 
-Install the compiled executable as `/usr/bin/lynxer`:
+Install the compiled executable as `/usr/bin/clynxer`:
 
 ```bash
-lynxer --install
+clynxer --install
 ```
 
 Remove that installed executable:
 
 ```bash
-lynxer --uninstall
+clynxer --uninstall
 ```
 
 These operations may require administrator privileges. They are intended for
@@ -170,10 +170,10 @@ directly instead.
 Show the built-in usage summary:
 
 ```bash
-lynxer --help
+clynxer --help
 ```
 
-`-h` is an alias. Running `lynxer` without arguments also prints the help
+`-h` is an alias. Running `clynxer` without arguments also prints the help
 summary.
 
 ## Common workflows
@@ -181,16 +181,16 @@ summary.
 Validate, inspect, then run a source file:
 
 ```bash
-lynxer --lint program.lynx
-lynxer --ast program.lynx
-lynxer program.lynx
+clynxer --lint program.lynx
+clynxer --ast program.lynx
+clynxer program.lynx
 ```
 
 Format, compile, inspect, and run bytecode:
 
 ```bash
-lynxer --format program.lynx
-lynxer --compile program.lynx
-lynxer --view-bytecode program.lynxc
-lynxer program.lynxc
+clynxer --format program.lynx
+clynxer --compile program.lynx
+clynxer --view-bytecode program.lynxc
+clynxer program.lynxc
 ```

@@ -1,7 +1,7 @@
 *.pyc
-lynxer/build/
-lynxer/dist/
-lynxer/__pycache__/
+clynxer/build/
+clynxer/dist/
+clynxer/__pycache__/
 *.spec
 build/
 venv/
@@ -10,8 +10,8 @@ dist/
 tmp/
 temp/
 *.o
-clynxer/examples/*.lynxc
-clynxer/clynxer
-clynxer/build/
-clynxer/rust/target/
-clynxer/rust/*/target/
+lynxer/examples/*.lynxc
+lynxer/lynxer
+lynxer/build/
+lynxer/rust/target/
+lynxer/rust/*/target/

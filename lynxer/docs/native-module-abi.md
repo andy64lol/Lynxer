@@ -1,6 +1,6 @@
 # Native module ABI
 
-Clynxer's standard libraries are shared libraries (`.so` on Linux, `.dylib` on
+Lynxer's standard libraries are shared libraries (`.so` on Linux, `.dylib` on
 macOS) loaded at runtime with `dlopen`. This document is the contract a native
 module must implement. It applies to the bundled `stdlib/*.so` modules exactly
 as it applies to third-party modules.
@@ -8,13 +8,13 @@ as it applies to third-party modules.
 A module may be written in C++ (`stdlib/<name>.cpp`) or in Rust. The Rust
 backends — `game`, `image`, `json`, `lua`, `network`, `server`, `sound`,
 `sqldb` and `tui` — live under `rust/` and are all `cdylib`s that export
-`lynxer_module_init_v1`, their ops, and (for `game`)
-`lynxer_module_attach_v1` directly; there is no C++ shim. The `clynxer_abi`
+`clynxer_module_init_v1`, their ops, and (for `game`)
+`clynxer_module_attach_v1` directly; there is no C++ shim. The `lynxer_abi`
 crate provides the shared FFI plumbing (packed-argument view, panic guards,
 string result buffer, host API, and the registration helper).
 
 The workspace has one more member, `rust/ffi`, which is an intentional **no-op**
-`cdylib`: its `lynxer_module_init_v1` registers nothing and returns `0`. The
+`cdylib`: its `clynxer_module_init_v1` registers nothing and returns `0`. The
 `ffi*` builtins are implemented in C++, not by that crate, so the crate exists
 only to keep the workspace uniform and should not be read as dead code.
 
@@ -23,7 +23,7 @@ only to keep the workspace uniform and should not be read as dead code.
 Every module exports one C symbol:
 
 ```c
-int lynxer_module_init_v1(
+int clynxer_module_init_v1(
     int (*register_function)(const char *name, const char *symbol,
                              const char *signature),
     int (*register_constant)(const char *name, int64_t value),
@@ -38,7 +38,7 @@ the interpreter reports the short reason it recorded — `registered symbol not
 found` for an unresolved symbol, `duplicate native registration` for a repeated
 name — not the offending name.
 
-- `register_function(name, symbol, signature)` — `name` is the Lynxer-facing
+- `register_function(name, symbol, signature)` — `name` is the Clynxer-facing
   name under the module namespace; `symbol` is the exported C name; `signature`
   uses the grammar below.
 - `register_constant(name, value)` — exposed as a read-only integer field on the
@@ -46,7 +46,7 @@ name — not the offending name.
 - `register_type(name, layout)` — exposed as a string field holding a native
   memory layout (used with the `memory*` builtins).
 
-Loading happens in `clynxer/ast.cpp` (`ImportStatement::execute`), where
+Loading happens in `lynxer/ast.cpp` (`ImportStatement::execute`), where
 `dlopen` is called with `RTLD_NOW | RTLD_LOCAL` and the initializer is invoked
 with the three callbacks. Modules are kept loaded for the lifetime of their
 namespace so registered function pointers cannot dangle.
@@ -66,7 +66,7 @@ global main(){
 ```
 
 A path ending in `.so` is treated as a native module; anything else is compiled
-as Lynxer source. The namespace is the import alias, or the file stem when no
+as Clynxer source. The namespace is the import alias, or the file stem when no
 alias is given.
 
 ## Signature grammar
@@ -75,8 +75,8 @@ alias is given.
 cdecl:<return>(<arg>,<arg>,...)
 ```
 
-Type tokens are `int64` (Lynxer `int`), `double`/`float64` (Lynxer `float`) and
-`cstring` (Lynxer `str`). Argument lists may be empty.
+Type tokens are `int64` (Clynxer `int`), `double`/`float64` (Clynxer `float`) and
+`cstring` (Clynxer `str`). Argument lists may be empty.
 
 Before looking a signature up, the dispatcher **normalizes** the tokens: every
 integer width is rewritten to `int64` (`int8`, `int16`, `int32`, `uint8`,
@@ -91,7 +91,7 @@ packed form is selected when the argument list is exactly the single token `...`
 
 ## Supported signature shapes
 
-The dispatcher in `clynxer/ast.cpp` builds the normalized shape string and looks
+The dispatcher in `lynxer/ast.cpp` builds the normalized shape string and looks
 it up in a table. Only the shapes below are callable — anything else raises
 `unsupported native signature '<sig>'`, and a shape/argument-count mismatch
 raises `native call argument count does not match signature '<sig>'`.
@@ -132,7 +132,7 @@ raises `native call argument count does not match signature '<sig>'`.
 | 32 | `cstring` | `cstring, float64, float64` |
 
 Adding a shape is a one-line table entry plus a `reinterpret_cast` with the
-matching C++ prototype; keep `clynxer/docs/stdlib/` in sync when you do.
+matching C++ prototype; keep `lynxer/docs/stdlib/` in sync when you do.
 
 Numeric arguments are read leniently where the shape is numeric
 (`asNumber` accepts an `int` or a `float`); integer and string arguments are
@@ -150,7 +150,7 @@ cdecl:cstring(...)
 ```
 
 Only these three shapes are packed; the return type selects which one. This is
-the form the `clynxer_abi` macros generate.
+the form the `lynxer_abi` macros generate.
 
 > **A Rust `cdylib` must use a packed signature.** The `export_int!`,
 > `export_float!` and `export_string!` macros expand to the four-scalar
@@ -177,18 +177,18 @@ const char* function(const double* nums, int64_t num_count,
                      const char* const* strs, int64_t str_count);
 ```
 
-Numbers (Lynxer `int`, `float`, and `bool` as `0`/`1`) arrive in `nums` in their
+Numbers (Clynxer `int`, `float`, and `bool` as `0`/`1`) arrive in `nums` in their
 original order; strings arrive in `strs` in theirs. Either pointer is null when
 its count is zero, and at most 64 arguments **in total** are accepted across
-both lists (`kMaxPackedArgs` in `clynxer/ast.cpp`); a call with more raises a
+both lists (`kMaxPackedArgs` in `lynxer/ast.cpp`); a call with more raises a
 located `SourceError`. Any other argument type raises a located `SourceError`.
-`clynxer/stdlib/lynxer_native_abi.h` documents the convention for module
+`lynxer/stdlib/clynxer_native_abi.h` documents the convention for module
 authors.
 
 **Arguments are indexed per type, not by position.** `nums` and `strs` are
 separate lists, so the *n*-th string argument is `strs[n]` and the *n*-th
 numeric argument is `nums[n]`, regardless of how they were interleaved at the
-call site. The `clynxer_abi` `Args` view enforces this: `args.int(i)` /
+call site. The `lynxer_abi` `Args` view enforces this: `args.int(i)` /
 `args.float(i)` read `nums[i]` and `args.string(i)` reads `strs[i]`.
 For `save(handle, path, quality)` the correct reads are `args.int(0)` for the
 handle, `args.string(0)` for the path and `args.int(1)` for the quality —
@@ -197,33 +197,33 @@ either list yields `0` / `""` instead of failing, so a wrong index silently
 produces a zero value rather than an error.
 
 Because that failure is silent, `make test` runs
-`clynxer/scripts/check_module_contracts.py`, which reads each
+`lynxer/scripts/check_module_contracts.py`, which reads each
 `stdlib/<name>.lynx` wrapper and fails if a packed op reads an argument that the
 wrapper never passes — or if a wrapper calls an op the backend does not
 register. Write the reads the way the wrapper passes them, and the check stays
 quiet.
 
-## Calling back into Lynxer
+## Calling back into Clynxer
 
 A module may additionally export
 
 ```c
-int lynxer_module_attach_v1(const LynxerHostApi *host);
+int clynxer_module_attach_v1(const ClynxerHostApi *host);
 ```
 
 and the interpreter calls it (via `dlsym`) right after
-`lynxer_module_init_v1` succeeds. Returning non-zero rejects the module:
+`clynxer_module_init_v1` succeeds. Returning non-zero rejects the module:
 
 ```c
-typedef struct LynxerHostApi {
+typedef struct ClynxerHostApi {
     int version; // 1
     void *context;
     int (*invoke)(void *context, const char *name, int has_arg, double arg);
     int (*interrupted)(void *context);
-} LynxerHostApi;
+} ClynxerHostApi;
 ```
 
-- `invoke` runs the Lynxer function `name` with no argument or one numeric
+- `invoke` runs the Clynxer function `name` with no argument or one numeric
   argument, and returns `0` on success.
 - `interrupted` returns non-zero once the process has received SIGINT.
 
@@ -285,7 +285,7 @@ extern "C" const char* pair_label(const char* name, std::int64_t count) {
     return stable(std::string(name) + ":" + std::to_string(count));
 }
 
-extern "C" int lynxer_module_init_v1(RegisterFunction function,
+extern "C" int clynxer_module_init_v1(RegisterFunction function,
                                      RegisterConstant,
                                      RegisterType) {
     return function("sum", "pair_sum", "cdecl:int64(int64,int64)") &&
@@ -315,13 +315,13 @@ first try to fit one of them:
 | Strings (`cstring`) | text, and paths |
 | Integer handles | anything the module owns and must outlive a call |
 | JSON strings | stateless structured data — lists, tuples and records |
-| Named callbacks (`lynxer_module_attach_v1`) | the module driving Lynxer code |
+| Named callbacks (`clynxer_module_attach_v1`) | the module driving Clynxer code |
 
 An additive ABI change is only merged with all four of:
 
-1. **a C example** — `clynxer/examples/native_signatures.cpp` is the pattern,
+1. **a C example** — `lynxer/examples/native_signatures.cpp` is the pattern,
    and `make test` compiles and runs it;
-2. **a Rust example** — through `clynxer_abi`, because that is how the bundled
+2. **a Rust example** — through `lynxer_abi`, because that is how the bundled
    backends are written;
 3. **compatibility coverage** — the shape added to `nativeCallTable()` plus a
    fixture that exercises it, so a regression fails `make test`;

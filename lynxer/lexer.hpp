@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-namespace clynxer {
+namespace lynxer {
 
 enum class TokenKind {
     End,
@@ -66,4 +66,4 @@ private:
     int column_ = 1;
 };
 
-} // namespace clynxer
+} // namespace lynxer

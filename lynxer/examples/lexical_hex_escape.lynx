@@ -1,4 +1,4 @@
-// Clynxer accepts only \n \r \t \\ \" \e string escapes; there is no \x.
+// Lynxer accepts only \n \r \t \\ \" \e string escapes; there is no \x.
 global setup() {}
 
 global main() {

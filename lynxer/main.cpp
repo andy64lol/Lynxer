@@ -1,3 +1,3 @@
 #include "shell.hpp"
 
-int main(int argc, char** argv) { return clynxer::shellMain(argc, argv); }
+int main(int argc, char** argv) { return lynxer::shellMain(argc, argv); }

@@ -2,7 +2,7 @@
 resolver = "2"
 members = ["abi", "game", "image", "json", "lua", "network", "server", "sound", "sqldb", "tui", "ffi"]
 
-# Every module is built by the clynxer Makefile with an explicit --target-dir
-# (clynxer/build/rust), so this profile applies to the whole workspace.
+# Every module is built by the lynxer Makefile with an explicit --target-dir
+# (lynxer/build/rust), so this profile applies to the whole workspace.
 [profile.release]
 opt-level = 3

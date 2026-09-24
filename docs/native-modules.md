@@ -9,7 +9,7 @@ accepted on their respective platforms.
 Each module must export this C symbol:
 
 ```c
-int lynxer_module_init_v1(
+int clynxer_module_init_v1(
     int (*register_function)(const char *name, const char *symbol,
                              const char *signature),
     int (*register_constant)(const char *name, int64_t value),
@@ -19,7 +19,7 @@ int lynxer_module_init_v1(
 
 Return zero after all registrations succeed. Returning a non-zero value, using
 an invalid identifier, registering duplicates, or naming a missing symbol
-rejects the module. Names must be valid Lynxer identifiers. Function signatures
+rejects the module. Names must be valid Clynxer identifiers. Function signatures
 use the existing `cdecl:` native-call grammar.
 
 Example:
@@ -35,7 +35,7 @@ extern "C" std::int64_t add(std::int64_t left, std::int64_t right) {
     return left + right;
 }
 
-extern "C" int lynxer_module_init_v1(RegisterFunction function,
+extern "C" int clynxer_module_init_v1(RegisterFunction function,
                                       RegisterConstant constant,
                                       RegisterType type) {
     if (!function("add", "add", "cdecl:int64(int64,int64)")) return 1;
@@ -47,7 +47,7 @@ extern "C" int lynxer_module_init_v1(RegisterFunction function,
 
 ## Importing
 
-Import a shared library from `setup()` just like a Lynxer module:
+Import a shared library from `setup()` just like a Clynxer module:
 
 ```lynx
 global setup() {
@@ -67,23 +67,23 @@ lifetime of their namespace. This prevents function pointers from becoming
 invalid while a module is still in use.
 
 The loader, registration callbacks, symbol lookup, and library lifetime are
-implemented by Lynxer's C++ extension. The Python runtime does not use
+implemented by Clynxer's C++ extension. The Python runtime does not use
 `ctypes`, which means the same low-level path is used by source, bytecode, and
 PyInstaller-bundled programs.
 
 Native dependencies compiled into bytecode are recorded in its dependency
 manifest. `--bundle` copies each declared library into the executable's
-extraction directory. Missing libraries, missing `lynxer_module_init_v1`
+extraction directory. Missing libraries, missing `clynxer_module_init_v1`
 symbols, missing registered symbols, duplicate registrations, and non-zero
 initializer returns are reported as explicit **native module lifecycle
 failure** errors with the relevant dependency or symbol.
 
 ## Bundled C++ stdlibs
 
-The root `Makefile` treats every `clynxer/stdlib/*.cpp` file as a
+The root `Makefile` treats every `lynxer/stdlib/*.cpp` file as a
 native standard-library backend and builds its sibling `.so` inside the same
-`clynxer/stdlib/` directory during `make`.
-The corresponding `.lynx` file is the public wrapper when a Lynxer-compatible
+`lynxer/stdlib/` directory during `make`.
+The corresponding `.lynx` file is the public wrapper when a Clynxer-compatible
 API or return-type conversion is useful. This keeps the ABI boundary uniform:
 adding a new dependency-free stdlib means adding its C++ implementation and
 wrapper, without adding Python packages.
@@ -108,7 +108,7 @@ function address. Closing a handle invalidates it and releases its registration
 callbacks. Retained function addresses from that module fail cleanly after
 close instead of calling unmapped code. Imported modules cannot be explicitly
 closed; their namespace owns their lifetime. Invalid handles and failed
-registrations produce normal Lynxer runtime errors. The low-level FFI entry
+registrations produce normal Clynxer runtime errors. The low-level FFI entry
 points are `ffiLoadLibrary`,
 `ffiLookup`, `ffiCall`, `ffiCallback`, `ffiFreeCallback`, and
 `ffiCloseLibrary`; unsupported callback signatures fail clearly. Dependency inspection is informational and

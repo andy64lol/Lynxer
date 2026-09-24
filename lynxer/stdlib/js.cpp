@@ -1,4 +1,4 @@
-// Lynxer `js` stdlib backend: run JavaScript through a Node.js subprocess.
+// Clynxer `js` stdlib backend: run JavaScript through a Node.js subprocess.
 
 #include <array>
 #include <cstdint>
@@ -71,7 +71,7 @@ static std::string runNodeSource(const std::string& source) {
     if (!nodeAvailable()) {
         return "Error: node not found on PATH";
     }
-    char pattern[] = "/tmp/clynxerXXXXXX.js";
+    char pattern[] = "/tmp/lynxerXXXXXX.js";
     const int descriptor = ::mkstemps(pattern, 3);
     if (descriptor < 0) {
         return "Error: could not create temporary file";
@@ -131,7 +131,7 @@ extern "C" const char* js_nodeVersion() {
     return stable(status == 0 ? output : std::string());
 }
 
-extern "C" int lynxer_module_init_v1(RegisterFunction function,
+extern "C" int clynxer_module_init_v1(RegisterFunction function,
                                      RegisterConstant, RegisterType) {
     return function("runJS", "js_runJS", "cdecl:cstring(cstring)") &&
                    function("runJSFile", "js_runJSFile",

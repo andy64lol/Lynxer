@@ -2,11 +2,11 @@
 Runtime and operating-system information backed by the native C++ module
 `stdlib/sys.so`.
 
-Clynxer has no Python runtime, so `version()` reports the CLynxer version and
-`implementation()` returns "CLynxer". The Python-specific surface
+Lynxer has no Python runtime, so `version()` reports the Lynxer version and
+`implementation()` returns "Lynxer". The Python-specific surface
 (sys.path, sys.modules, recursion limits) is not applicable and is deliberately
-absent. Because Clynxer does not forward extra arguments to a program,
-`argv()`/`getArg()` describe the clynxer process command line.
+absent. Because Lynxer does not forward extra arguments to a program,
+`argv()`/`getArg()` describe the lynxer process command line.
 ////
 global setup(){ importAs("sys.so", "nativeSys"); }
 global platform() -> str { return global.nativeSys.platform(); }

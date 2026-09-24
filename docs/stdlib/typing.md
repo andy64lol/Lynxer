@@ -3,7 +3,7 @@
 > **Note on tuples:** The core tuple built-ins (`tupleCreate`, `tupleGet`, `tupleLen`, `tupleContains`, `tupleIndex`, `tupleSlice`, `tupleToList`, `listToTuple`, `tupleConcat`, `tupleCount`, `tupleFirst`, `tupleLast`, `tupleJsonArray`) are always available without any import — they are language built-ins. This module provides higher-level utilities that compose those primitives.
 
 String, list, number, char, tuple, and type-check utilities. Most helpers are
-small wrappers around the corresponding Lynxer built-ins or Python string
+small wrappers around the corresponding Clynxer built-ins or Python string
 operations.
 
 ```c
@@ -63,7 +63,7 @@ global main(){
 | `toBit` | `toBit(any value)` | `bit` | Normalize a value to `0` or `1` |
 | `toByte` | `toByte(any value)` | `byte` | Convert and clamp a value to `0..255` |
 | `toChar` | `toChar(any val)` | `char` | String of length 1 or int code-point → `char`; `"\0"` on error |
-| `toString` | `toString(any val)` | `str` | Convert any Lynxer value to its display string |
+| `toString` | `toString(any val)` | `str` | Convert any Clynxer value to its display string |
 | `toNumber` | `toNumber(any val)` | `float` | Convert a number-like value to a float; `0.0` on error |
 
 The type predicates `isNumBool`, `isBit`, `isByte`, `isInt8`, `isInt16`,

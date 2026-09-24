@@ -17,7 +17,7 @@ global main(){
     println(global.csv.toTSV(csvText));
     println(global.csv.fromTSV("name\tscore\nAda\t10\n"));
 
-    str db = "/tmp/lynxer-stdlib-test.sqlite";
+    str db = "/tmp/clynxer-stdlib-test.sqlite";
     global.fileIO.deleteFile(db);
     println(global.sqldb.execute(db, "create table people(name text, score int)"));
     println(global.sqldb.executeArgs(db, "insert into people values(?, ?)", "[\"Ada\", 10]"));
@@ -31,7 +31,7 @@ global main(){
     println(returnLength(global.os.getcwd()) > 0);
     println(global.os.exists("/tmp"));
     println(global.os.isDir("/tmp"));
-    println(global.os.basename("/tmp/lynxer.txt"));
-    println(global.os.dirname("/tmp/lynxer.txt"));
-    println(global.os.joinPath("/tmp", "lynxer.txt"));
+    println(global.os.basename("/tmp/clynxer.txt"));
+    println(global.os.dirname("/tmp/clynxer.txt"));
+    println(global.os.joinPath("/tmp", "clynxer.txt"));
 }

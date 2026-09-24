@@ -1,10 +1,10 @@
 ////
-Lynxer standard library: regex.
+Clynxer standard library: regex.
 Extended regular-expression helpers backed by the native C++ module
 `stdlib/regex.so`.
 
 Named patterns are compiled once and cached by name. The Python reference
-prefers the third-party `regex` package and falls back to `re`; Clynxer always
+prefers the third-party `regex` package and falls back to `re`; Lynxer always
 uses the `re`-equivalent engine, so `findLetters`/`findDigits` match ASCII
 letters/digits and `findallOverlapping` is emulated over the std::regex engine.
 ////

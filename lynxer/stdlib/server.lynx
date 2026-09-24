@@ -1,5 +1,5 @@
 ////
-Lynxer standard library: server.
+Clynxer standard library: server.
 HTTP and WebSocket server backed by Rust (`axum` on `tokio`), exposed through
 the native module `stdlib/server.so`. Register routes, then start/stop a
 listener on 127.0.0.1.
@@ -16,7 +16,7 @@ global routePost(str path, str body) -> str {
     return global.nativeServer.routePost(path, body);
 }
 // Register fixed HTML responses. These aliases match the higher-level server
-// API while routeGet/routePost remain available for existing Clynxer programs.
+// API while routeGet/routePost remain available for existing Lynxer programs.
 global get(str path, str html) -> str {
     return routeGet(path, html);
 }

@@ -18,12 +18,12 @@ global setup(){
 
 **Search order:**
 1. Same directory as the running script — checks for a compiled `.lynxc` first, then `.lynx`
-2. The `stdlib/` folder bundled with Lynxer
+2. The `stdlib/` folder bundled with Clynxer
 
 The `.lynx` extension is optional — `import("math")` and `import("math.lynx")` are equivalent.  
 You may also pass `.lynxc` explicitly: `import("mylib.lynxc")`.
 
-**Bytecode auto-detection:** when you call `import("name")` without an extension, Lynxer looks for `name.lynxc` in the same directory first.  If found, the bytecode is loaded instead of the source.  This lets you distribute compiled modules alongside (or in place of) source files transparently.
+**Bytecode auto-detection:** when you call `import("name")` without an extension, Clynxer looks for `name.lynxc` in the same directory first.  If found, the bytecode is loaded instead of the source.  This lets you distribute compiled modules alongside (or in place of) source files transparently.
 
 **Idempotency:** Importing the same module twice is safe. The second call is ignored — the module is executed once and cached.
 
@@ -139,7 +139,7 @@ global main(){
 | `random` | `import("random")` | Package-free deterministic pseudo-random helpers |
 | `text` | `import("text")` | Package-free basic string operations |
 
-The Clynxer bundle intentionally includes only modules that can run without
-Python, third-party packages, or an external runtime. The remaining Lynxer
+The Lynxer bundle intentionally includes only modules that can run without
+Python, third-party packages, or an external runtime. The remaining Clynxer
 stdlib modules are not silently advertised as available; add them as native
 ABI modules when their platform dependencies are acceptable.

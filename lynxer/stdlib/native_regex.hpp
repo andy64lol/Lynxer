@@ -1,5 +1,5 @@
-#ifndef CLYNXER_NATIVE_REGEX_HPP
-#define CLYNXER_NATIVE_REGEX_HPP
+#ifndef LYNXER_NATIVE_REGEX_HPP
+#define LYNXER_NATIVE_REGEX_HPP
 
 // Python-flavoured regular-expression helpers built on std::regex.
 //
@@ -316,4 +316,4 @@ inline bool searchFirst(const std::string& raw, int flags,
 
 }  // namespace native_regex
 
-#endif  // CLYNXER_NATIVE_REGEX_HPP
+#endif  // LYNXER_NATIVE_REGEX_HPP

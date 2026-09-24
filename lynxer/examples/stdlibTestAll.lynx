@@ -1,5 +1,5 @@
 ////
-stdlibTestAll.lynx — one self-checking test for every clynxer stdlib module.
+stdlibTestAll.lynx — one self-checking test for every lynxer stdlib module.
 
 It imports every stdlib module in `setup()` and then asserts the behaviour of
 each one against the values pinned by the per-module `stdlib_*.lynx` fixtures.
@@ -13,7 +13,7 @@ The test is location-independent: it works from any working directory (all
 filesystem checks use scratch files it creates and removes) and forces the game
 module into headless mode itself, so no environment variable is required:
 
-    ./clynxer examples/stdlibTestAll.lynx
+    ./lynxer examples/stdlibTestAll.lynx
 ////
 
 global setup(){
@@ -41,9 +41,9 @@ global setup(){
     import("json");
     import("network");
     // Graphics needs a display, which a CI runner does not have. When the suite
-    // sets CLYNXER_SKIP_DISPLAY=1 the game module is not imported and the game
+    // sets LYNXER_SKIP_DISPLAY=1 the game module is not imported and the game
     // section below is skipped; every other module still runs.
-    str skipDisplayValue = global.os.getenv("CLYNXER_SKIP_DISPLAY");
+    str skipDisplayValue = global.os.getenv("LYNXER_SKIP_DISPLAY");
     bool skipDisplay = skipDisplayValue is "1";
     if(not skipDisplay){
         import("game");
@@ -372,7 +372,7 @@ global main(){
     fails += global.check(returnLength(global.path.cwd()) > 0, "true", "path.cwd");
     fails += global.check(global.path.asUri("/tmp/a b"), "file:///tmp/a%20b", "path.asUri");
 
-    str pathRoot = ".clynxer_scratch_path";
+    str pathRoot = ".lynxer_scratch_path";
     if(global.os.exists(pathRoot)){ global.os.rmTree(pathRoot); }
     fails += global.check(global.path.mkdir(pathRoot), "true", "path.mkdir");
     fails += global.check(global.path.mkdir(pathRoot), "false", "path.mkdir.duplicate");
@@ -382,10 +382,10 @@ global main(){
     global.fileIO.writeFile(pathRoot + "/a.txt", "alpha");
     global.fileIO.writeFile(pathRoot + "/b.log", "beta");
     global.fileIO.writeFile(pathRoot + "/sub/c.txt", "gamma");
-    fails += global.check(sortList(global.path.iterDir(pathRoot)), "[.clynxer_scratch_path/a.txt, .clynxer_scratch_path/b.log, .clynxer_scratch_path/sub]", "path.iterDir");
-    fails += global.check(global.path.glob(pathRoot, "*.txt"), "[.clynxer_scratch_path/a.txt]", "path.glob");
-    fails += global.check(global.path.glob(pathRoot, "sub/*.txt"), "[.clynxer_scratch_path/sub/c.txt]", "path.glob.sub");
-    fails += global.check(global.path.rglob(pathRoot, "*.txt"), "[.clynxer_scratch_path/a.txt, .clynxer_scratch_path/sub/c.txt]", "path.rglob");
+    fails += global.check(sortList(global.path.iterDir(pathRoot)), "[.lynxer_scratch_path/a.txt, .lynxer_scratch_path/b.log, .lynxer_scratch_path/sub]", "path.iterDir");
+    fails += global.check(global.path.glob(pathRoot, "*.txt"), "[.lynxer_scratch_path/a.txt]", "path.glob");
+    fails += global.check(global.path.glob(pathRoot, "sub/*.txt"), "[.lynxer_scratch_path/sub/c.txt]", "path.glob.sub");
+    fails += global.check(global.path.rglob(pathRoot, "*.txt"), "[.lynxer_scratch_path/a.txt, .lynxer_scratch_path/sub/c.txt]", "path.rglob");
     fails += global.check(global.path.readText(pathRoot + "/a.txt"), "alpha", "path.readText");
     fails += global.check(global.path.writeText(pathRoot + "/b.log", "BETA"), "true", "path.writeText");
     fails += global.check(global.path.appendText(pathRoot + "/b.log", "!"), "true", "path.appendText");
@@ -399,7 +399,7 @@ global main(){
     fails += global.check(global.path.unlinkMissingOk(pathRoot + "/missing.txt"), "true", "path.unlinkMissingOk");
     fails += global.check(global.path.touch(pathRoot + "/touched.txt"), "true", "path.touch");
     fails += global.check(global.path.exists(pathRoot + "/touched.txt"), "true", "path.exists.touched");
-    fails += global.check(global.path.rename(pathRoot + "/touched.txt", pathRoot + "/moved.txt"), ".clynxer_scratch_path/moved.txt", "path.rename");
+    fails += global.check(global.path.rename(pathRoot + "/touched.txt", pathRoot + "/moved.txt"), ".lynxer_scratch_path/moved.txt", "path.rename");
     fails += global.check(global.path.exists(pathRoot + "/moved.txt"), "true", "path.exists.moved");
     fails += global.check(global.path.readText(pathRoot + "/missing") is "", "true", "path.readText.missing");
     fails += global.check(global.path.size(pathRoot + "/missing"), "-1", "path.size.missing");
@@ -410,7 +410,7 @@ global main(){
 
     // -------------------------------------------------------------------- os
     println("== os ==");
-    str osRoot = ".clynxer_scratch_os";
+    str osRoot = ".lynxer_scratch_os";
     if(global.os.exists(osRoot)){ global.os.rmTree(osRoot); }
     fails += global.check(global.os.mkdir(osRoot), "true", "os.mkdir");
     fails += global.check(global.os.mkdir(osRoot), "false", "os.mkdir.duplicate");
@@ -440,9 +440,9 @@ global main(){
     fails += global.check(global.os.cpuCount() > 0, "true", "os.cpuCount");
     fails += global.check(global.os.diskTotal(osRoot) > 0, "true", "os.diskTotal");
     fails += global.check(global.os.diskFree(osRoot) > 0, "true", "os.diskFree");
-    fails += global.check(global.os.setenv("CLYNXER_OS_TEST", "hello"), "true", "os.setenv");
-    fails += global.check(global.os.getenv("CLYNXER_OS_TEST"), "hello", "os.getenv");
-    fails += global.check(global.os.getenv("CLYNXER_OS_MISSING") is "", "true", "os.getenv.missing");
+    fails += global.check(global.os.setenv("LYNXER_OS_TEST", "hello"), "true", "os.setenv");
+    fails += global.check(global.os.getenv("LYNXER_OS_TEST"), "hello", "os.getenv");
+    fails += global.check(global.os.getenv("LYNXER_OS_MISSING") is "", "true", "os.getenv.missing");
     fails += global.check(global.os.expandUser("~") is global.os.homedir(), "true", "os.expandUser");
     fails += global.check(returnLength(global.os.homedir()) > 0, "true", "os.homedir");
     fails += global.check(returnLength(global.os.username()) > 0, "true", "os.username");
@@ -461,12 +461,12 @@ global main(){
     fails += global.check(global.os.getSystemUname() isnt "{}", "true", "os.getSystemUname");
     fails += global.check(returnLength(global.os.getSystemDistro()) > 2, "true", "os.getSystemDistro");
     fails += global.check(global.os.getPythonVersion() is "", "true", "os.getPythonVersion");
-    fails += global.check(global.os.getPythonImplementation(), "CLynxer", "os.getPythonImplementation");
+    fails += global.check(global.os.getPythonImplementation(), "Lynxer", "os.getPythonImplementation");
     fails += global.check(returnLength(global.os.getSystemInfo()) > 2, "true", "os.getSystemInfo");
 
     // ---------------------------------------------------------------- fileIO
     println("== fileIO ==");
-    str scratch = ".clynxer_scratch_fileio.txt";
+    str scratch = ".lynxer_scratch_fileio.txt";
     fails += global.check(global.fileIO.writeFile(scratch, "line1\nline2\nline3\n"), "true", "fileIO.writeFile");
     fails += global.check(global.fileIO.fileExists(scratch), "true", "fileIO.fileExists");
     fails += global.check(global.fileIO.readFile(scratch), "line1\nline2\nline3\n", "fileIO.readFile");
@@ -476,7 +476,7 @@ global main(){
     fails += global.check(global.fileIO.readLine(scratch, 99), "", "fileIO.readLine.oob");
     fails += global.check(global.fileIO.fileSize(scratch), "18", "fileIO.fileSize");
     fails += global.check(global.fileIO.fileExtension(scratch), ".txt", "fileIO.fileExtension");
-    fails += global.check(global.fileIO.stemName(scratch), ".clynxer_scratch_fileio", "fileIO.stemName");
+    fails += global.check(global.fileIO.stemName(scratch), ".lynxer_scratch_fileio", "fileIO.stemName");
     fails += global.check(global.fileIO.fileIsEmpty(scratch), "false", "fileIO.fileIsEmpty");
     fails += global.check(global.fileIO.appendFile(scratch, "line4\n"), "true", "fileIO.appendFile");
     fails += global.check(global.fileIO.countLines(scratch), "4", "fileIO.countLines.appended");
@@ -538,14 +538,14 @@ global main(){
     fails += global.check(global.cli.argCount() >= 2, "true", "cli.argCount");
     fails += global.check(global.cli.getArg(0) isnt "", "true", "cli.getArg");
     fails += global.check(global.cli.getArg(99) is "", "true", "cli.getArg.oob");
-    global.os.setenv("CLYNXER_CLI_TEST", "hello");
-    fails += global.check(global.cli.envGet("CLYNXER_CLI_TEST"), "hello", "cli.envGet");
-    fails += global.check(global.cli.envHas("CLYNXER_CLI_TEST"), "true", "cli.envHas.true");
-    fails += global.check(global.cli.envHas("CLYNXER_CLI_MISSING"), "false", "cli.envHas.false");
+    global.os.setenv("LYNXER_CLI_TEST", "hello");
+    fails += global.check(global.cli.envGet("LYNXER_CLI_TEST"), "hello", "cli.envGet");
+    fails += global.check(global.cli.envHas("LYNXER_CLI_TEST"), "true", "cli.envHas.true");
+    fails += global.check(global.cli.envHas("LYNXER_CLI_MISSING"), "false", "cli.envHas.false");
     fails += global.check(returnLength(global.cli.envAll()) > 10, "true", "cli.envAll");
     fails += global.check(returnLength(global.cli.cwd()) > 0, "true", "cli.cwd");
     fails += global.check(returnLength(global.cli.terminalSize()) > 2, "true", "cli.terminalSize");
-    str cliScratch = ".clynxer_scratch_cli";
+    str cliScratch = ".lynxer_scratch_cli";
     if(global.os.exists(cliScratch)){ global.os.rmTree(cliScratch); }
     fails += global.check(global.os.mkdir(cliScratch), "true", "cli.scratch.mkdir");
     fails += global.check(global.fileIO.writeFile(cliScratch + "/probe.txt", "x"), "true", "cli.scratch.write");
@@ -589,7 +589,7 @@ global main(){
     global.debug.startTimer("t");
     fails += global.check(global.debug.stopTimer("t") >= 0.0, "true", "debug.stopTimer");
     fails += global.check(global.debug.elapsed("t"), "-1", "debug.elapsed.stopped");
-    fails += global.check(global.debug.envGet("CLYNXER_DEBUG_TEST") is "", "true", "debug.envGet.missing");
+    fails += global.check(global.debug.envGet("LYNXER_DEBUG_TEST") is "", "true", "debug.envGet.missing");
     fails += global.check(global.debug.envAll() isnt "", "true", "debug.envAll");
     fails += global.check(global.debug.getMemory() > 0.0, "true", "debug.getMemory");
 
@@ -647,8 +647,8 @@ global main(){
     // ------------------------------------------------------------------- sys
     println("== sys ==");
     fails += global.check(global.sys.platform(), "linux", "sys.platform");
-    fails += global.check(global.sys.implementation(), "CLynxer", "sys.implementation");
-    fails += global.check(global.text.contains(global.sys.version(), "CLynxer"), "true", "sys.version");
+    fails += global.check(global.sys.implementation(), "Lynxer", "sys.implementation");
+    fails += global.check(global.text.contains(global.sys.version(), "Lynxer"), "true", "sys.version");
     fails += global.check(global.text.contains(global.sys.versionInfo(), "major"), "true", "sys.versionInfo");
     fails += global.check(returnLength(global.sys.apiVersion()) > 0, "true", "sys.apiVersion");
     fails += global.check(global.sys.isFrozen(), "false", "sys.isFrozen");
@@ -681,9 +681,9 @@ global main(){
     fails += global.check(global.lua.evalLua("1 + 2 * 3"), "7", "lua.evalLua");
     fails += global.check(global.lua.runLua("print('hello', 42)"), "hello\t42\n", "lua.runLua");
     fails += global.check(global.lua.runLua("for i = 1, 3 do print(i) end"), "1\n2\n3\n", "lua.runLua.loop");
-    fails += global.check(global.lua.runLua("print(string.upper('clynxer'))"), "CLYNXER\n", "lua.runLua.stdlib");
+    fails += global.check(global.lua.runLua("print(string.upper('lynxer'))"), "LYNXER\n", "lua.runLua.stdlib");
     fails += global.check(global.lua.runLua("returnValue = 9"), "", "lua.runLua.silent");
-    str luaFile = ".clynxer_scratch_lua.lua";
+    str luaFile = ".lynxer_scratch_lua.lua";
     fails += global.check(global.fileIO.writeFile(luaFile, "print('from file', 5)\nfor i=1,2 do print(i) end\n"), "true", "lua.runLuaFile.write");
     fails += global.check(global.lua.runLuaFile(luaFile), "from file\t5\n1\n2\n", "lua.runLuaFile");
     fails += global.check(global.fileIO.deleteFile(luaFile), "true", "lua.runLuaFile.cleanup");
@@ -789,14 +789,14 @@ global main(){
     int imgTile = global.image.tile(rustSrc, 2, 2);
     fails += global.check(strOf(global.image.getWidth(imgTile)) + "x" + strOf(global.image.getHeight(imgTile)), "8x8", "image.tile");
     fails += global.check(global.image.getPixel(imgTile, 4, 0), "[255,0,0,255]", "image.tile.pixel");
-    str qualityPath = ".clynxer_scratch_quality.jpg";
+    str qualityPath = ".lynxer_scratch_quality.jpg";
     fails += global.check(global.image.saveQuality(rustSrc, qualityPath, 80), "true", "image.saveQuality");
     fails += global.check(global.os.isFile(qualityPath), "true", "image.saveQuality.exists");
     fails += global.check(global.os.remove(qualityPath), "true", "image.saveQuality.cleanup");
 
     // --------------------------------------------------------- image codecs
     println("== image codecs ==");
-    str codecRoot = ".clynxer_scratch_codecs";
+    str codecRoot = ".lynxer_scratch_codecs";
     if(global.os.exists(codecRoot)){ global.os.rmTree(codecRoot); }
     global.os.mkdir(codecRoot);
     int codecSource = global.image.create(3, 2, "RGB", 128, 128, 128);
@@ -924,12 +924,12 @@ global main(){
     fails += global.check(global.network.put("http://127.0.0.1:18140/missing", "x", "text/plain"), "ERROR: HTTP 404 Not Found", "network.put.404");
     fails += global.check(global.network.delete("http://127.0.0.1:18140/missing"), "ERROR: HTTP 404 Not Found", "network.delete.404");
     fails += global.check(global.network.patch("http://127.0.0.1:18140/missing", "x", "text/plain"), "ERROR: HTTP 404 Not Found", "network.patch.404");
-    fails += global.check(global.network.download("http://127.0.0.1:18140/missing", "/tmp/clynxer-missing.txt"), "ERROR: HTTP 404 Not Found", "network.download.404");
+    fails += global.check(global.network.download("http://127.0.0.1:18140/missing", "/tmp/lynxer-missing.txt"), "ERROR: HTTP 404 Not Found", "network.download.404");
     fails += global.check(global.network.wsConnect("echo", "ws://127.0.0.1:18140/ws"), "ok", "network.wsConnect");
     fails += global.check(global.network.wsConnected("echo"), "true", "network.wsConnected");
     fails += global.check(global.network.wsSend("echo", "one"), "ok", "network.wsSend");
     fails += global.check(global.network.wsReceive("echo"), "one", "network.wsReceive");
-    fails += global.check(global.network.wsSendReceive("echo", "Lynxer-ws"), "Lynxer-ws", "network.wsSendReceive");
+    fails += global.check(global.network.wsSendReceive("echo", "Clynxer-ws"), "Clynxer-ws", "network.wsSendReceive");
     fails += global.check(global.network.wsConnected("nope"), "false", "network.wsConnected.nope");
     fails += global.check(global.network.wsReceive("nope"), "ERROR: no connection named 'nope'", "network.wsReceive.nope");
     fails += global.check(global.network.wsSend("nope", "x"), "ERROR: no connection named 'nope'", "network.wsSend.nope");
@@ -945,7 +945,7 @@ global main(){
     println("== game ==");
     // Force the game backend into headless mode so the run is deterministic and
     // needs no display, whether or not the caller exported the variable.
-    global.os.setenv("CLYNXER_GAME_HEADLESS", "1");
+    global.os.setenv("LYNXER_GAME_HEADLESS", "1");
     global.game.init("stdlibTestAll", 320, 200);
     fails += global.check(strOf(global.game.getWidth()) + "x" + strOf(global.game.getHeight()), "320x200", "game.size");
     global.game.beginDraw();
@@ -1094,7 +1094,7 @@ global main(){
     global.game.run();
     global.game.close();
     } else {
-        println("== game (skipped: CLYNXER_SKIP_DISPLAY=1) ==");
+        println("== game (skipped: LYNXER_SKIP_DISPLAY=1) ==");
     }
 
     // ===== END CHECKS =====

@@ -1,4 +1,4 @@
-// Lynxer `re` stdlib backend: Python-flavoured regular expressions on top of
+// Clynxer `re` stdlib backend: Python-flavoured regular expressions on top of
 // std::regex. See native_regex.hpp for the translation rules and divergences.
 
 #include "native_json.hpp"
@@ -520,7 +520,7 @@ extern "C" const char* re_searchDotall(const char* pattern,
                            native_regex::DotAll));
 }
 
-extern "C" int lynxer_module_init_v1(RegisterFunction function,
+extern "C" int clynxer_module_init_v1(RegisterFunction function,
                                      RegisterConstant, RegisterType) {
     return function("test", "re_test", "cdecl:int64(cstring,cstring)") &&
                    function("match", "re_match",

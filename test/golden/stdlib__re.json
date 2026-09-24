@@ -1,10 +1,10 @@
 {
-  "command_source": "lynxer/stdlib/re.lynx",
+  "command_source": "clynxer/stdlib/re.lynx",
   "kind": "stdlib-import",
   "name": "stdlib/re",
   "returncode": 0,
   "skip_reason": null,
-  "source": "lynxer/stdlib/re.lynx",
+  "source": "clynxer/stdlib/re.lynx",
   "status": "completed",
   "stderr": "",
   "stdout": ""

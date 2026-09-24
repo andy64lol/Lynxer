@@ -33,7 +33,7 @@ Both arguments must be **string literals**; an expression such as
 
 1. The directory of the running program (for a compiled executable, the modules
    embedded in its payload).
-2. `clynxer/stdlib/`, next to the interpreter.
+2. `lynxer/stdlib/`, next to the interpreter.
 
 - `import("math")` and `import("math.lynx")` are equivalent.
 - A native library is named with its `.so` suffix; the stdlib `.lynx` wrappers
@@ -43,7 +43,7 @@ Both arguments must be **string literals**; an expression such as
 - A module that cannot be found reports
   `module 'nope' was not found` with the importing source location.
 
-There is **no** `.lynxc` bytecode import in Clynxer.
+There is **no** `.lynxc` bytecode import in Lynxer.
 
 ## Calling module members
 
@@ -86,7 +86,7 @@ global twice(int n) -> int {
 global main(){}
 ```
 
-A native backend exports `lynxer_module_init_v1`; see
+A native backend exports `clynxer_module_init_v1`; see
 [native-module-abi.md](native-module-abi.md).
 
 ## Compiled programs

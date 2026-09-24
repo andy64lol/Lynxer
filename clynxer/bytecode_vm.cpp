@@ -8,7 +8,7 @@
 #include <vector>
 
 /*
- * Native executor for Lynxer's postfix instruction stream.
+ * Native executor for Clynxer's postfix instruction stream.
  *
  * The instruction format is intentionally duplicated here instead of
  * importing implementation details from Python.  These values are part of
@@ -672,7 +672,7 @@ PyMethodDef module_methods[] = {
         "decode",
         py_decode,
         METH_VARARGS,
-        "Execute a Lynxer postfix bytecode stream and return its program node.",
+        "Execute a Clynxer postfix bytecode stream and return its program node.",
     },
     {NULL, NULL, 0, NULL},
 };
@@ -680,7 +680,7 @@ PyMethodDef module_methods[] = {
 PyModuleDef module_definition = {
     PyModuleDef_HEAD_INIT,
     "bytecode_vm",
-    "Native Lynxer bytecode stack-machine executor.",
+    "Native Clynxer bytecode stack-machine executor.",
     -1,
     module_methods,
     NULL,

@@ -1,6 +1,6 @@
-# Lynxer types
+# Clynxer types
 
-Lynxer has ordinary dynamic numeric values plus declarations that validate
+Clynxer has ordinary dynamic numeric values plus declarations that validate
 fixed-width integer and floating-point ranges.
 
 ## Primitive types

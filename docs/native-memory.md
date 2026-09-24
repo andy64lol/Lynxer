@@ -1,9 +1,9 @@
 # Native memory built-ins
 
-Native memory is part of Lynxer’s built-in API, not a standard-library module.
+Native memory is part of Clynxer’s built-in API, not a standard-library module.
 The functions below are available directly in every program; they never need
 `import()`. The implementation uses the optional C++ extension in
-`lynxer/cpp.cpp`.
+`clynxer/cpp.cpp`.
 
 ## Build the extension
 
@@ -15,10 +15,10 @@ The extension build selects the appropriate C++17 and thread-linker flags for
 the host compiler: MSVC on Windows, and POSIX-compatible compiler flags on
 Unix-like systems.
 
-The normal `make buildLynxer` and `make buildLynxerLite` targets run this step
-automatically before packaging Lynxer. A C++ compiler and the active Python
+The normal `make buildClynxer` and `make buildClynxerLite` targets run this step
+automatically before packaging Clynxer. A C++ compiler and the active Python
 development headers are required. Native addresses are
-represented as Lynxer integers and are unmanaged: callers own allocations and
+represented as Clynxer integers and are unmanaged: callers own allocations and
 must release them exactly once.
 
 ## Raw allocation
@@ -65,7 +65,7 @@ The wrapper is useful for declarations and APIs that should reject ordinary
 integers and data addresses. It does not validate that the pointer is
 executable; the caller remains responsible for supplying a valid ABI.
 Native library function addresses are invalidated when their library is closed;
-a subsequent call fails instead of jumping into unmapped code. Clynxer's
+a subsequent call fails instead of jumping into unmapped code. Lynxer's
 `ffiCallback` handle is interpreter-mediated and is accepted by `ffiCall`; it
 is not yet an ABI-correct trampoline for arbitrary external native code.
 
@@ -112,7 +112,7 @@ the storage-unit byte offset, `memoryStructFieldSize()` returns that unit's
 byte size, and `memoryStructFieldType()` includes the width (for example,
 `uint8:3`).
 
-This is a stable Lynxer layout rule rather than a promise to reproduce every
+This is a stable Clynxer layout rule rather than a promise to reproduce every
 compiler's implementation-defined C bit-field ABI. Use explicit byte/bit
 access when interoperating with an externally compiled struct whose compiler
 packing rules must be matched exactly.
@@ -148,7 +148,7 @@ println(ffiCall(strlen, "cdecl:uintptr(cstring)", [str "hello"]));
 ffiCloseLibrary(libc);
 ```
 
-FFI signatures are validated by Clynxer's native dispatcher. The currently
+FFI signatures are validated by Lynxer's native dispatcher. The currently
 supported direct-call surface includes the packed numeric/string forms used by
 the built-ins and `cdecl:` aliases such as `uintptr(cstring)` and
 `int32(int64,int64)`. `ffiCallback(signature, function)` creates an
@@ -159,7 +159,7 @@ extension.
 
 ## Native threads
 
-Native threads run a Lynxer function on a C++ `std::thread` while acquiring the
+Native threads run a Clynxer function on a C++ `std::thread` while acquiring the
 interpreter lock for each callback. Start a thread with a function and a list of
 arguments, then join it:
 

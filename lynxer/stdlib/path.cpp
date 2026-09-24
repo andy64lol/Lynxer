@@ -1,4 +1,4 @@
-// Lynxer `path` stdlib backend: pathlib-style path manipulation built on
+// Clynxer `path` stdlib backend: pathlib-style path manipulation built on
 // <filesystem> plus POSIX stat calls.
 
 #include <algorithm>
@@ -639,7 +639,7 @@ extern "C" const char* path_asUri(const char* value) {
     return stable(std::move(uri));
 }
 
-extern "C" int lynxer_module_init_v1(RegisterFunction function,
+extern "C" int clynxer_module_init_v1(RegisterFunction function,
                                      RegisterConstant, RegisterType) {
     return function("cwd", "path_cwd", "cdecl:cstring()") &&
                    function("home", "path_home", "cdecl:cstring()") &&

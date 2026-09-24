@@ -12,7 +12,7 @@ The native build follows option **(b)** from `todo.md`:
 - the native build does not embed `libpython`;
 - EmbedPy, `rawPy`/`rawPyx`, `exec`, Cython-inline blocks, and Python-hosted
   graphical/audio backends remain available in the Python toolchain;
-- the Python toolchain is the `lynxer-py` reference during the transition;
+- the Python toolchain is the `clynxer-py` reference during the transition;
 - native replacements are added behind native APIs rather than making C++
   depend on Python;
 - native execution reports an explicit “module or feature is not available in
@@ -63,7 +63,7 @@ The following boundaries are intentional:
 | `stdlib glue` | `.lynx` module discovery and native module bridge | compiler internals |
 | `CLI` | command-line behavior, bundling, installation | language semantics |
 
-`lynxer.py` remains a compatibility facade while this work is in progress.
+`clynxer.py` remains a compatibility facade while this work is in progress.
 New code should import the owning layer directly; it should not add another
 re-export to the facade.
 

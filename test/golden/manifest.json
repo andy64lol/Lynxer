@@ -390,231 +390,231 @@
       "kind": "stdlib-import",
       "name": "stdlib/cli",
       "skip_reason": null,
-      "source": "lynxer/stdlib/cli.lynx"
+      "source": "clynxer/stdlib/cli.lynx"
     },
     {
       "command_source": null,
       "kind": "stdlib-import",
       "name": "stdlib/colorlib",
       "skip_reason": null,
-      "source": "lynxer/stdlib/colorlib.lynx"
+      "source": "clynxer/stdlib/colorlib.lynx"
     },
     {
       "command_source": null,
       "kind": "stdlib-import",
       "name": "stdlib/csv",
       "skip_reason": null,
-      "source": "lynxer/stdlib/csv.lynx"
+      "source": "clynxer/stdlib/csv.lynx"
     },
     {
       "command_source": null,
       "kind": "stdlib-import",
       "name": "stdlib/debug",
       "skip_reason": null,
-      "source": "lynxer/stdlib/debug.lynx"
+      "source": "clynxer/stdlib/debug.lynx"
     },
     {
       "command_source": null,
       "kind": "stdlib-import",
       "name": "stdlib/fileIO",
       "skip_reason": null,
-      "source": "lynxer/stdlib/fileIO.lynx"
+      "source": "clynxer/stdlib/fileIO.lynx"
     },
     {
       "command_source": null,
       "kind": "stdlib-import",
       "name": "stdlib/game",
       "skip_reason": null,
-      "source": "lynxer/stdlib/game.lynx"
+      "source": "clynxer/stdlib/game.lynx"
     },
     {
       "command_source": null,
       "kind": "stdlib-import",
       "name": "stdlib/http",
       "skip_reason": null,
-      "source": "lynxer/stdlib/http.lynx"
+      "source": "clynxer/stdlib/http.lynx"
     },
     {
       "command_source": null,
       "kind": "stdlib-import",
       "name": "stdlib/image",
       "skip_reason": null,
-      "source": "lynxer/stdlib/image.lynx"
+      "source": "clynxer/stdlib/image.lynx"
     },
     {
       "command_source": null,
       "kind": "stdlib-import",
       "name": "stdlib/js",
       "skip_reason": null,
-      "source": "lynxer/stdlib/js.lynx"
+      "source": "clynxer/stdlib/js.lynx"
     },
     {
       "command_source": null,
       "kind": "stdlib-import",
       "name": "stdlib/json",
       "skip_reason": null,
-      "source": "lynxer/stdlib/json.lynx"
+      "source": "clynxer/stdlib/json.lynx"
     },
     {
       "command_source": null,
       "kind": "stdlib-import",
       "name": "stdlib/lua",
       "skip_reason": null,
-      "source": "lynxer/stdlib/lua.lynx"
+      "source": "clynxer/stdlib/lua.lynx"
     },
     {
       "command_source": null,
       "kind": "stdlib-import",
       "name": "stdlib/math",
       "skip_reason": null,
-      "source": "lynxer/stdlib/math.lynx"
+      "source": "clynxer/stdlib/math.lynx"
     },
     {
       "command_source": null,
       "kind": "stdlib-import",
       "name": "stdlib/mathPlus",
       "skip_reason": null,
-      "source": "lynxer/stdlib/mathPlus.lynx"
+      "source": "clynxer/stdlib/mathPlus.lynx"
     },
     {
       "command_source": null,
       "kind": "stdlib-import",
       "name": "stdlib/multiprocessing",
       "skip_reason": null,
-      "source": "lynxer/stdlib/multiprocessing.lynx"
+      "source": "clynxer/stdlib/multiprocessing.lynx"
     },
     {
       "command_source": null,
       "kind": "stdlib-import",
       "name": "stdlib/net",
       "skip_reason": null,
-      "source": "lynxer/stdlib/net.lynx"
+      "source": "clynxer/stdlib/net.lynx"
     },
     {
       "command_source": null,
       "kind": "stdlib-import",
       "name": "stdlib/os",
       "skip_reason": null,
-      "source": "lynxer/stdlib/os.lynx"
+      "source": "clynxer/stdlib/os.lynx"
     },
     {
       "command_source": null,
       "kind": "stdlib-import",
       "name": "stdlib/path",
       "skip_reason": null,
-      "source": "lynxer/stdlib/path.lynx"
+      "source": "clynxer/stdlib/path.lynx"
     },
     {
       "command_source": null,
       "kind": "stdlib-import",
       "name": "stdlib/random",
       "skip_reason": null,
-      "source": "lynxer/stdlib/random.lynx"
+      "source": "clynxer/stdlib/random.lynx"
     },
     {
       "command_source": null,
       "kind": "stdlib-import",
       "name": "stdlib/re",
       "skip_reason": null,
-      "source": "lynxer/stdlib/re.lynx"
+      "source": "clynxer/stdlib/re.lynx"
     },
     {
       "command_source": null,
       "kind": "stdlib-import",
       "name": "stdlib/regex",
       "skip_reason": null,
-      "source": "lynxer/stdlib/regex.lynx"
+      "source": "clynxer/stdlib/regex.lynx"
     },
     {
       "command_source": null,
       "kind": "stdlib-import",
       "name": "stdlib/server",
       "skip_reason": null,
-      "source": "lynxer/stdlib/server.lynx"
+      "source": "clynxer/stdlib/server.lynx"
     },
     {
       "command_source": null,
       "kind": "stdlib-import",
       "name": "stdlib/shell",
       "skip_reason": null,
-      "source": "lynxer/stdlib/shell.lynx"
+      "source": "clynxer/stdlib/shell.lynx"
     },
     {
       "command_source": null,
       "kind": "stdlib-import",
       "name": "stdlib/sound",
       "skip_reason": null,
-      "source": "lynxer/stdlib/sound.lynx"
+      "source": "clynxer/stdlib/sound.lynx"
     },
     {
       "command_source": null,
       "kind": "stdlib-import",
       "name": "stdlib/sqldb",
       "skip_reason": null,
-      "source": "lynxer/stdlib/sqldb.lynx"
+      "source": "clynxer/stdlib/sqldb.lynx"
     },
     {
       "command_source": null,
       "kind": "stdlib-import",
       "name": "stdlib/sys",
       "skip_reason": null,
-      "source": "lynxer/stdlib/sys.lynx"
+      "source": "clynxer/stdlib/sys.lynx"
     },
     {
       "command_source": null,
       "kind": "stdlib-import",
       "name": "stdlib/text",
       "skip_reason": null,
-      "source": "lynxer/stdlib/text.lynx"
+      "source": "clynxer/stdlib/text.lynx"
     },
     {
       "command_source": null,
       "kind": "stdlib-import",
       "name": "stdlib/time",
       "skip_reason": null,
-      "source": "lynxer/stdlib/time.lynx"
+      "source": "clynxer/stdlib/time.lynx"
     },
     {
       "command_source": null,
       "kind": "stdlib-import",
       "name": "stdlib/tkinter",
       "skip_reason": null,
-      "source": "lynxer/stdlib/tkinter.lynx"
+      "source": "clynxer/stdlib/tkinter.lynx"
     },
     {
       "command_source": null,
       "kind": "stdlib-import",
       "name": "stdlib/tkinterPlus",
       "skip_reason": null,
-      "source": "lynxer/stdlib/tkinterPlus.lynx"
+      "source": "clynxer/stdlib/tkinterPlus.lynx"
     },
     {
       "command_source": null,
       "kind": "stdlib-import",
       "name": "stdlib/tui",
       "skip_reason": null,
-      "source": "lynxer/stdlib/tui.lynx"
+      "source": "clynxer/stdlib/tui.lynx"
     },
     {
       "command_source": null,
       "kind": "stdlib-import",
       "name": "stdlib/turtle",
       "skip_reason": null,
-      "source": "lynxer/stdlib/turtle.lynx"
+      "source": "clynxer/stdlib/turtle.lynx"
     },
     {
       "command_source": null,
       "kind": "stdlib-import",
       "name": "stdlib/typing",
       "skip_reason": null,
-      "source": "lynxer/stdlib/typing.lynx"
+      "source": "clynxer/stdlib/typing.lynx"
     },
     {
       "command_source": null,
       "kind": "stdlib-import",
       "name": "stdlib/venv",
       "skip_reason": null,
-      "source": "lynxer/stdlib/venv.lynx"
+      "source": "clynxer/stdlib/venv.lynx"
     }
   ],
   "format": 1

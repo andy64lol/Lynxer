@@ -1,6 +1,6 @@
-# Clynxer documentation
+# Lynxer documentation
 
-Clynxer is the standalone C++ implementation of Lynxer. It runs `.lynx`
+Lynxer is the standalone C++ implementation of Clynxer. It runs `.lynx`
 programs without a Python runtime and ships its standard library as native
 shared libraries. It is the **primary** implementation and has superseded the
 Python implementation for real use — standalone ELF executables, 27 natively
@@ -15,7 +15,7 @@ see [parity.md](parity.md) and [limitations.md](limitations.md).
 | Document | What it covers |
 | --- | --- |
 | [install.md](install.md) | Requirements, build commands, artifacts, environment variables |
-| [CLI.md](CLI.md) | Every flag, exit code, and error behaviour of the `clynxer` executable |
+| [CLI.md](CLI.md) | Every flag, exit code, and error behaviour of the `lynxer` executable |
 
 **The language**
 
@@ -46,20 +46,20 @@ see [parity.md](parity.md) and [limitations.md](limitations.md).
 ## Build and run
 
 ```bash
-make buildCLynxer        # interpreter + every native stdlib module
-clynxer/clynxer program.lynx
-clynxer/clynxer --list-stdlibs
+make buildLynxer        # interpreter + every native stdlib module
+lynxer/lynxer program.lynx
+lynxer/lynxer --list-stdlibs
 ```
 
 The root `Makefile` builds both implementations; `make` alone builds everything.
-`make buildCLynxer` builds the interpreter and the native modules, and
-`make buildCLynxerArm64` cross-builds the ARM64 interpreter.
-`make testCLynxer` runs the whole suite:
+`make buildLynxer` builds the interpreter and the native modules, and
+`make buildLynxerArm64` cross-builds the ARM64 interpreter.
+`make testLynxer` runs the whole suite:
 
-1. `clynxer/scripts/check_module_contracts.py` — wrapper/backend contract check.
-2. `clynxer/scripts/check_golden.py` — the CLI and diagnostic golden cases in
-   `clynxer/golden/cases.json`.
-3. Every `clynxer/examples/*.expected` fixture, diffed on stdout+stderr,
+1. `lynxer/scripts/check_module_contracts.py` — wrapper/backend contract check.
+2. `lynxer/scripts/check_golden.py` — the CLI and diagnostic golden cases in
+   `lynxer/golden/cases.json`.
+3. Every `lynxer/examples/*.expected` fixture, diffed on stdout+stderr,
    including the optimizer and low-level native-memory/syscall fixtures.
 4. Interpreted-versus-`--compile` parity for a set of fixtures.
 5. The `--format`/`--format-oneline` formatter fixture (output, idempotence, and
@@ -67,8 +67,8 @@ The root `Makefile` builds both implementations; `make` alone builds everything.
    self-check.
 6. The bundled-executable, `--include`, and bytecode-removal checks.
 
-Both Clynxer CI workflows (`.github/workflows/build-clynxer-amd.yml` and
-`build-clynxer-arm.yml`) run `make testCLynxer CLYNXER_SKIP_DISPLAY=1`, which
+Both Lynxer CI workflows (`.github/workflows/build-lynxer-amd.yml` and
+`build-lynxer-arm.yml`) run `make testLynxer LYNXER_SKIP_DISPLAY=1`, which
 drops the fixtures that need a display or an audio device (a CI runner has
 neither, and the graphics backend crashes without a display).
 
@@ -78,9 +78,9 @@ required for the two check scripts in the test suite.
 
 ## Standard library modules
 
-There are 27 bundled modules. A module is exposed to Lynxer by
+There are 27 bundled modules. A module is exposed to Clynxer by
 `stdlib/<name>.lynx` and backed by a `stdlib/<name>.so`. The backends marked
-*Rust* come from a crate under `rust/`; *pure* modules are written in Lynxer
+*Rust* come from a crate under `rust/`; *pure* modules are written in Clynxer
 only and need no shared library.
 
 | Module | Backend | Implementation |
@@ -88,7 +88,7 @@ only and need no shared library.
 | [cli](stdlib/cli.md) | native | POSIX process/env/terminal APIs |
 | [colorlib](stdlib/colorlib.md) | pure | ANSI escape sequences |
 | [csv](stdlib/csv.md) | native | hand-written CSV/TSV reader and writer |
-| [debug](stdlib/debug.md) | native + pure | `<chrono>`, `getrusage`, assertions in Lynxer |
+| [debug](stdlib/debug.md) | native + pure | `<chrono>`, `getrusage`, assertions in Clynxer |
 | [fileIO](stdlib/fileIO.md) | native | `<fstream>`, `<filesystem>` |
 | [game](stdlib/game.md) | Rust | `macroquad` (`rust/game`) |
 | [image](stdlib/image.md) | Rust | `image` (`rust/image`) |
@@ -108,15 +108,15 @@ only and need no shared library.
 | [sound](stdlib/sound.md) | Rust | `rodio` + `cpal` + `symphonia` |
 | [sqldb](stdlib/sqldb.md) | Rust | `rusqlite` (bundled SQLite) |
 | [sys](stdlib/sys.md) | native | C++ runtime and POSIX |
-| [text](stdlib/text.md) | pure | Lynxer string builtins |
+| [text](stdlib/text.md) | pure | Clynxer string builtins |
 | [time](stdlib/time.md) | native | `<chrono>`, `<ctime>` |
 | [tui](stdlib/tui.md) | Rust | `ratatui` + `crossterm` |
-| [typing](stdlib/typing.md) | pure | Lynxer type builtins |
+| [typing](stdlib/typing.md) | pure | Clynxer type builtins |
 
 The Rust workspace has ten member crates
-(`CLYNXER_RUST_MODULE_NAMES` in the Makefile): the nine module backends listed
+(`LYNXER_RUST_MODULE_NAMES` in the Makefile): the nine module backends listed
 above, plus `ffi`, an intentional **no-op** cdylib — the `ffi*` builtins are
-implemented in C++ (`clynxer/builtins.cpp`), not by that crate. There is no
+implemented in C++ (`lynxer/builtins.cpp`), not by that crate. There is no
 CMake staging step and no `third_party/` directory: TLS is `rustls` (no system
 OpenSSL) and the HTTP/WebSocket stack is pure Rust.
 
@@ -130,7 +130,7 @@ embeds the program, every transitively imported `.lynx` source and `.so`
 library, plus anything added with `--include`:
 
 ```bash
-clynxer/clynxer --compile app.lynx extras/helpers.lynx \
+lynxer/lynxer --compile app.lynx extras/helpers.lynx \
         --include vendor/libcustom.so --include assets/message.txt -o app
 ```
 
@@ -141,12 +141,12 @@ with `bundledFile(name)` / `bundledFiles()`. See [CLI.md](CLI.md#compile-to-an-e
 ## Adding a stdlib module
 
 1. Write the backend. A C++ module is `stdlib/<name>.cpp` exporting
-   `lynxer_module_init_v1` and one `extern "C"` function per entry; it is picked
+   `clynxer_module_init_v1` and one `extern "C"` function per entry; it is picked
    up automatically by the `stdlib/*.cpp` wildcard. A Rust module is a crate
    under `rust/` exporting the same entry point plus one
-   `#[no_mangle] extern "C"` op per entry (the `clynxer_abi` crate provides the
+   `#[no_mangle] extern "C"` op per entry (the `lynxer_abi` crate provides the
    packing, panic guards, and registration helper); add it to the workspace and
-   to `CLYNXER_RUST_MODULE_NAMES` in the root Makefile. See
+   to `LYNXER_RUST_MODULE_NAMES` in the root Makefile. See
    [native-module-abi.md](native-module-abi.md).
 
    **A Rust op must be registered with a packed signature** —
@@ -160,14 +160,14 @@ with `bundledFile(name)` / `bundledFiles()`. See [CLI.md](CLI.md#compile-to-an-e
    `importAs("<name>.so", "native<Name>")` and forwards each function as
    `global f(...) { return global.nativeName.f(...); }`. Start the file with a
    line containing exactly `////`, then the description, then another `////`;
-   `clynxer --list-stdlibs` prints that block.
+   `lynxer --list-stdlibs` prints that block.
 
 3. Add `examples/stdlib_<name>.lynx` plus a sibling `stdlib_<name>.expected`.
    The suite runs every `examples/stdlib_*.lynx` and diffs it against its
    `.expected` output.
 
-4. Run `make testCLynxer`. It runs
-   `clynxer/scripts/check_module_contracts.py`, which compares the wrapper
+4. Run `make testLynxer`. It runs
+   `lynxer/scripts/check_module_contracts.py`, which compares the wrapper
    against the backend: every `global.native<Alias>.<op>(...)` call must name a
    registered op, and for a Rust backend every `args.<kind>(i)` read must be in
    range for the arguments the wrapper passes. This catches contract mismatches
@@ -181,9 +181,9 @@ for the full checklist and the contract.
 
 | Variable | Effect |
 |----------|--------|
-| `CLYNXER_OPT_REPORT=1` | Print the AST optimizer's transformation counts to stderr after the run |
-| `CLYNXER_GAME_HEADLESS=1` | Run the `game` module without opening a window |
-| `CLYNXER_SKIP_DISPLAY=1` | `make testCLynxer` skips the display/audio fixtures (used by CI) |
+| `LYNXER_OPT_REPORT=1` | Print the AST optimizer's transformation counts to stderr after the run |
+| `LYNXER_GAME_HEADLESS=1` | Run the `game` module without opening a window |
+| `LYNXER_SKIP_DISPLAY=1` | `make testLynxer` skips the display/audio fixtures (used by CI) |
 
 ## File-wide functions
 

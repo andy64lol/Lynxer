@@ -1,5 +1,5 @@
 ////
-Fixture for the typing stdlib (pure Lynxer, no shared library).
+Fixture for the typing stdlib (pure Clynxer, no shared library).
 ////
 global setup(){ import("typing"); }
 

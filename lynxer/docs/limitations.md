@@ -1,12 +1,12 @@
 # Limitations and divergences
 
-Clynxer is a standalone C++ implementation of Lynxer. It is not a drop-in
+Lynxer is a standalone C++ implementation of Clynxer. It is not a drop-in
 replacement for the Python implementation, and several stdlib behaviours
 deliberately differ. This page lists everything you need to know before relying
 on a module.
 
 This page is the canonical register of differences. For the summary used to
-decide whether a test may compare Clynxer with the Python reference, see
+decide whether a test may compare Lynxer with the Python reference, see
 [parity.md](parity.md).
 
 ## Language and toolchain
@@ -23,7 +23,7 @@ decide whether a test may compare Clynxer with the Python reference, see
   `!=` is fine.
 - **String escapes.** Only `\n`, `\r`, `\t`, `\\`, `\"` and `\e` are accepted.
   There is no `\x`/`\u` escape, so byte values such as `\x1f` cannot be written
-  in Lynxer source. Modules that need such a separator use a writable one
+  in Clynxer source. Modules that need such a separator use a writable one
   (for example a tab) instead.
 - **There is no bytecode backend.** `.lynxc` files, `--view-bytecode`,
   `--benchmark-compile` and `--no-cache` were removed. `--compile` now produces
@@ -49,7 +49,7 @@ decide whether a test may compare Clynxer with the Python reference, see
 
 ## Optimizer
 
-Before execution Clynxer runs a semantics-preserving AST optimization pass:
+Before execution Lynxer runs a semantics-preserving AST optimization pass:
 constant folding of literal-only expressions, short-circuit simplification of
 constant `and`/`or`, and dead-branch elimination for a constant `if`,
 `while (false)` and `iterate (0)`. It is not allowed to change behaviour, so
@@ -59,7 +59,7 @@ at its original source location.
 
 - `--no-opt` runs the program without the pass. It is a run-time switch: a
   compiled executable ignores its command line and always optimizes.
-- `CLYNXER_OPT_REPORT=1` prints one line of transformation counts to stderr
+- `LYNXER_OPT_REPORT=1` prints one line of transformation counts to stderr
   after the program runs. It is diagnostic only and never affects output.
 
 ## Native module ABI
@@ -81,17 +81,17 @@ concept with no C++ runtime equivalent.
 
 ## Modules that are not ported
 
-`tkinter`, `tkinterPlus` and `turtle` have no Clynxer equivalent. The plan is a
+`tkinter`, `tkinterPlus` and `turtle` have no Lynxer equivalent. The plan is a
 `graphics` module backed by Rust `iced` instead of tkinter, and Rust's `turtle`
 crate has not been maintained since 2019. The Python `http`/`net` modules are
-superseded by Clynxer's `network` + `server` pair, and `mathPlus` is merged into
+superseded by Lynxer's `network` + `server` pair, and `mathPlus` is merged into
 `math`.
 
 Every other Python module has a native backend. Nine of them are Rust crates —
 `game` (`macroquad`), `image`, `json` (`serde_json`), `lua` (vendored Lua through
 `mlua`), `network` (`ureq` + `tungstenite`), `server` (`axum` + `tokio`),
 `sound` (`rodio`/`cpal`), `sqldb` (`rusqlite`) and `tui` (`ratatui`/`crossterm`).
-They are skipped with a warning when `cargo` is missing, so the rest of Clynxer
+They are skipped with a warning when `cargo` is missing, so the rest of Lynxer
 still builds without a Rust toolchain. The Rust workspace also has an `ffi`
 member, an intentional no-op `cdylib`: the `ffi*` builtins are implemented in
 C++.
@@ -131,25 +131,25 @@ Python's `re`:
 - Values beyond the header width are dropped, and missing columns become `""`
   (Python's `DictReader` uses `restkey`/`restval`).
 - The bundled reference `docs/stdlib/csv.md` describes a different, older API
-  than the shipped `csv.lynx`; Clynxer implements the shipped API.
+  than the shipped `csv.lynx`; Lynxer implements the shipped API.
 
 ## `os` and `path`
 
 - `os.getPythonVersion()` returns `""` and `os.getPythonImplementation()`
-  returns `"CLynxer"` — there is no Python runtime.
+  returns `"Lynxer"` — there is no Python runtime.
 - `path.readTextEncoding` / `path.writeTextEncoding` accept an encoding argument
   for API compatibility but always use UTF-8.
 - Platform helpers report the host through `uname(2)`.
 
 ## `sys`
 
-- `version()` returns the CLynxer version (for example `CLynxer 0.1.8`), not a
+- `version()` returns the Lynxer version (for example `Lynxer 0.1.8`), not a
   Python version string.
 - Python-runtime concepts have no equivalent and are not defined: `sys.path`,
   `addPath`, `prependPath`, `removeFromPath`, `getModules`, `isModuleLoaded`,
   `getRecursionLimit`, `setRecursionLimit`.
-- Clynxer does not forward extra arguments to a program, so `argv()`, `getArg`
-  and `argCount` describe the `clynxer` process command line.
+- Lynxer does not forward extra arguments to a program, so `argv()`, `getArg`
+  and `argCount` describe the `lynxer` process command line.
 - `exit()` calls `std::exit` directly; interpreter cleanup does not run.
 
 ## `cli`
@@ -263,9 +263,9 @@ equivalent:
 - `luaVersion()` reports the vendored engine (`Lua 5.4`). The reference reports
   whichever version the system's `lupa` links against, so the strings differ by
   environment rather than by design.
-- Error strings differ in both prefix and chunk name. Clynxer names the kind of
+- Error strings differ in both prefix and chunk name. Lynxer names the kind of
   failure and the chunk, e.g.
-  `Error: syntax error: [string "clynxer.lua"]:1: syntax error near 'is'`,
+  `Error: syntax error: [string "lynxer.lua"]:1: syntax error near 'is'`,
   whereas the reference emits
   `Error: error loading code: [string "<python>"]:1: syntax error near 'is'`.
   The trailing part comes from Lua itself and is the same on both sides.
@@ -276,7 +276,7 @@ equivalent:
 
 `builtins.cpp` keeps an `unsupportedTable()` of names that are recognised but
 deliberately unimplemented; calling one raises
-`<name>() is not supported in CLynxer yet`. Most of that table is Python-only
+`<name>() is not supported in Lynxer yet`. Most of that table is Python-only
 surface — `rawPy`/`rawPyx`, the `varBorrow*` family, the FFI and native-module
 handles, and the mutual-exclusion primitives (`nativeMutex*`,
 `nativeCondition*`, `nativeSemaphore*`).
@@ -290,7 +290,7 @@ a decision first:
 
 The built-ins are a thin layer over the bundled Rust `sound` stdlib module
 rather than the reference's Arcade backend. That is a deliberate choice: it
-reuses the implementation Clynxer already ships and keeps the audio dependency
+reuses the implementation Lynxer already ships and keeps the audio dependency
 out of the interpreter binary. It produces three differences from the reference:
 
 - the backend's failure text is the module's, not Arcade's exception text
@@ -313,11 +313,11 @@ executable carries `stdlib/sound.so` only when the program also has
 ### `nativeThread*` — implemented, on a cooperative model
 
 `nativeThreadStart(global.worker, [int 42])` passes a named global function, so
-Clynxer now resolves `global.<name>` to a callable value when no variable has
+Lynxer now resolves `global.<name>` to a callable value when no variable has
 that name — the one language feature this family needed. `returnType` reports
 `codeblock` for such a value where the reference says `function`.
 
-Threads are **cooperative**: the interpreter evaluates Lynxer code on one thread
+Threads are **cooperative**: the interpreter evaluates Clynxer code on one thread
 at a time, guarded by one lock, and a worker takes that lock before calling back
 in. A thread therefore runs while the thread that started it is blocked in
 `nativeThreadJoin`/`nativeThreadJoinAll`, which release the lock before waiting.
@@ -337,12 +337,12 @@ program leaves running is joined when the program finishes.
 `ffiCall` must describe and perform arbitrary native calls. `libffi` is the
 usual answer and is a **new build dependency** for the interpreter; hand-rolling
 covers only a few fixed signatures. This is also the largest security surface of
-the four families, since it turns a Lynxer program into arbitrary native code.
+the four families, since it turns a Clynxer program into arbitrary native code.
 
 ### `async*` — needs a scope decision
 
 About 370 lines in the reference, covering `Run`, `Gather`, `Sleep`, a `Poll*`
-family, timers and wakeups. It requires an event loop, and Clynxer does not
+family, timers and wakeups. It requires an event loop, and Lynxer does not
 currently run anything asynchronously — there is no `async` language support to
 serve. Worth deciding whether these built-ins should exist at all before
 building the machinery behind them.
@@ -350,7 +350,7 @@ building the machinery behind them.
 ## CLI tools
 
 `--lint`, `--ast`, `--format`, `--format-oneline`, `--validate-executeable` and
-`--install`/`--uninstall` are implemented. `--ast` prints Clynxer's own node and
+`--install`/`--uninstall` are implemented. `--ast` prints Lynxer's own node and
 field names, so its output is not byte-comparable to the Python reference, and
 it covers the executable AST (functions and statements) rather than the named
 type declarations held in the type registry. The list of flags removed with the
@@ -360,23 +360,23 @@ bytecode backend (`--view-bytecode`, `--benchmark-compile`, `--no-cache`) is in
 The formatter is token-based: it never changes tokens, and it preserves line
 comments and `///`/`////` blocks verbatim. This is deliberately stricter than
 the Python formatter, whose gap handling can drop a comment; formatting is also
-idempotent in Clynxer.
+idempotent in Lynxer.
 
 ## Testing notes
 
-`make testCLynxer` (from the repo root) runs one fixture per
+`make testLynxer` (from the repo root) runs one fixture per
 `examples/stdlib_*.lynx` and diffs its output against a sibling `.expected`
 file. Fixtures that would print host-specific values (Node version, terminal
 size, `uname` strings) assert a boolean property instead.
 
 The `sound` fixture is the exception: several of its assertions (starting and
 stopping playback, per-handle volume) only hold on a host with a real ALSA
-card. When there is no `/dev/snd/controlC*`, `make testCLynxer` skips
+card. When there is no `/dev/snd/controlC*`, `make testLynxer` skips
 `stdlib_sound.lynx` — in both the `.expected` diff and the interpreted-vs-
 compiled parity loop — and prints
 
 ```
-clynxer: skipping stdlib_sound.lynx: no audio device (/dev/snd/controlC*) on this host
+lynxer: skipping stdlib_sound.lynx: no audio device (/dev/snd/controlC*) on this host
 ```
 
 Everything else about the module (loading, decoding, handle bookkeeping, the

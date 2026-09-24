@@ -4,7 +4,7 @@ Run shell commands in parallel.
 
 **Backend:** native + pure — `stdlib/multiprocessing.so`
 (`stdlib/multiprocessing.cpp`) runs the commands; `stdlib/multiprocessing.lynx`
-reads the results back into Lynxer lists.
+reads the results back into Clynxer lists.
 **Import:** `import("multiprocessing")` → `global.multiprocessing.*`
 
 Commands run in worker threads, each spawning its own shell subprocess. Results
@@ -46,5 +46,5 @@ global main(){
   implements, including the error sentinel family it uses.
 - [builtins.md](../builtins.md) — the functions the interpreter implements
   itself.
-- [parity.md](../parity.md) — the parity scope with Python Lynxer.
+- [parity.md](../parity.md) — the parity scope with Python Clynxer.
 - [limitations.md](../limitations.md) — the full divergence register.

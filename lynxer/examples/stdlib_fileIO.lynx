@@ -5,7 +5,7 @@ bytecode-compilable). Uses a repo-local scratch file and removes it afterwards.
 global setup(){ import("fileIO"); import("os"); }
 
 global main(){
-    str path = ".clynxer_scratch_fileio.txt";
+    str path = ".lynxer_scratch_fileio.txt";
     println(global.fileIO.writeFile(path, "line1\nline2\nline3\n"));
     println(global.fileIO.fileExists(path));
     println(global.fileIO.readFile(path));

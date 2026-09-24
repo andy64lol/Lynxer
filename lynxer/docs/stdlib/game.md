@@ -1,12 +1,12 @@
 # game
 
-2-D game toolkit for Clynxer. The drawing, input and window layer is a Rust
+2-D game toolkit for Lynxer. The drawing, input and window layer is a Rust
 library built on [macroquad](https://macroquad.rs), linked into
 `stdlib/game.so` and reached through `global.game`.
 
 > **Requires:** a Rust toolchain (`cargo`). `stdlib/game.so` is optional: it is
 > skipped with a warning when `cargo` is not on `PATH`. The Rust source lives in
-> `rust/game/`; build it with `make cargo` or `make buildCLynxer`.
+> `rust/game/`; build it with `make cargo` or `make buildLynxer`.
 
 ---
 
@@ -51,7 +51,7 @@ callback raises an error the loop stops and the error is reported at the
 
 ## Headless mode
 
-Set `CLYNXER_GAME_HEADLESS=1` to run without a window. `run()` then executes a
+Set `LYNXER_GAME_HEADLESS=1` to run without a window. `run()` then executes a
 fixed number of deterministic frames (`dt = 1/60`) and every drawing call is a
 no-op, so the API and the callback bridge can be tested without a display. The
 `make test` fixture runner sets this variable; see
@@ -236,7 +236,7 @@ The camera is a transform applied by the draw calls.
 
 ## Notes and current limitations
 
-This is the first Clynxer cut of the module. The following reference features
+This is the first Lynxer cut of the module. The following reference features
 are **not implemented yet**: sound and music, scenes, tilemaps (Tiled),
 the platformer physics engine, shape batches, animated sprite sheets, text
 labels (use `drawText`), screenshots, `setWindowPos`, `setVSync`,
@@ -253,17 +253,17 @@ Other deviations:
 
 ## Rust / C ABI
 
-The module is a single Rust `cdylib` (`rust/game`, crate `clynxer_game`); there
-is no C++ shim. It exports `lynxer_module_init_v1`, every op as
-`cdecl:<ret>(...)`, and `lynxer_module_attach_v1`. Macroquad owns the window and
-event loop, and each frame it invokes the registered Lynxer callbacks through
+The module is a single Rust `cdylib` (`rust/game`, crate `lynxer_game`); there
+is no C++ shim. It exports `clynxer_module_init_v1`, every op as
+`cdecl:<ret>(...)`, and `clynxer_module_attach_v1`. Macroquad owns the window and
+event loop, and each frame it invokes the registered Clynxer callbacks through
 the host API. It uses two additive native-module ABI extensions documented in
 [`docs/native-module-abi.md`](../native-module-abi.md):
 
 - the packed `...` signature, which passes any number of numeric/string
   arguments; and
-- the optional `lynxer_module_attach_v1` entry point, which provides an
-  `invoke` callback so a module can call a Lynxer function by name.
+- the optional `clynxer_module_attach_v1` entry point, which provides an
+  `invoke` callback so a module can call a Clynxer function by name.
 
 ---
 
@@ -273,5 +273,5 @@ the host API. It uses two additive native-module ABI extensions documented in
   implements, including the error sentinel family it uses.
 - [builtins.md](../builtins.md) — the functions the interpreter implements
   itself.
-- [parity.md](../parity.md) — the parity scope with Python Lynxer.
+- [parity.md](../parity.md) — the parity scope with Python Clynxer.
 - [limitations.md](../limitations.md) — the full divergence register.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Benchmark Lynxer pipeline stages.
+"""Benchmark Clynxer pipeline stages.
 
 This intentionally excludes builtins implementation work.  It reports the
 current Python lexer/parser/runtime timings and, when the native extension is
@@ -22,10 +22,10 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from lynxer import run
-from lynxer.bytecode import compile_to_bytecode, run_bytecode
-from lynxer.lexer import Lexer
-from lynxer.parser import Parser
+from clynxer import run
+from clynxer.bytecode import compile_to_bytecode, run_bytecode
+from clynxer.lexer import Lexer
+from clynxer.parser import Parser
 
 
 SOURCE = """\
@@ -66,7 +66,7 @@ def main() -> int:
     if args.iterations < 1:
         parser.error("--iterations must be positive")
 
-    with tempfile.TemporaryDirectory(prefix="lynxer-benchmark-") as directory:
+    with tempfile.TemporaryDirectory(prefix="clynxer-benchmark-") as directory:
         source_path = Path(directory) / "benchmark.lynx"
         source_path.write_text(SOURCE, encoding="utf-8")
 
@@ -128,7 +128,7 @@ def main() -> int:
         report("bytecode compile (Python)", measure(compile_source, args.iterations))
 
         try:
-            import lynxer.bytecode_vm  # noqa: F401  # type: ignore[import-unresolved] — built extension module
+            import clynxer.bytecode_vm  # noqa: F401  # type: ignore[import-unresolved] — built extension module
         except ImportError:
             print("bytecode runtime (C++): unavailable")
         else:

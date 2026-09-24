@@ -31,7 +31,7 @@
 // built on POSIX `open`/`read`/`stat`/`dirent` calls. On a non-POSIX host the
 // names stay in `unsupportedTable()` instead.
 #if defined(__unix__) || defined(__APPLE__)
-#define CLYNXER_POSIX_BUILTINS 1
+#define LYNXER_POSIX_BUILTINS 1
 #include <arpa/inet.h>
 #include <csignal>
 #include <dirent.h>
@@ -46,10 +46,10 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #else
-#define CLYNXER_POSIX_BUILTINS 0
+#define LYNXER_POSIX_BUILTINS 0
 #endif
 
-namespace clynxer {
+namespace lynxer {
 
 namespace {
 
@@ -1570,7 +1570,7 @@ namespace {
 
 // Native-memory registry. Every allocation is tracked with its size so that a
 // double free, a stale pointer, or an out-of-bounds access becomes a
-// source-located Lynxer error instead of corrupting the process (the Python
+// source-located Clynxer error instead of corrupting the process (the Python
 // reference behaves the same way; docs: builtins.md).
 std::recursive_mutex& memoryRegistryMutex() {
     static std::recursive_mutex mutex;
@@ -2347,7 +2347,7 @@ Value builtinSyscall(const std::string& name, const std::vector<Value>& args,
 // keyed by a non-negative handle; anything a program leaves open is closed by
 // the operating system when the process exits.
 
-#if CLYNXER_POSIX_BUILTINS
+#if LYNXER_POSIX_BUILTINS
 
 std::unordered_map<std::int64_t, int>& openFiles() {
     static std::unordered_map<std::int64_t, int> files;
@@ -3640,7 +3640,7 @@ Value builtinSoundStop(const std::vector<Value>& args, Environment&, int line,
 // The reference fails here: "audio backend does not support portable
 // pause/resume", because Arcade has no portable pause. The Rust module does, so
 // these two are a deliberate improvement over the reference. Recorded in
-// clynxer/docs/limitations.md.
+// lynxer/docs/limitations.md.
 Value builtinSoundPause(const std::vector<Value>& args, Environment&, int line,
                         int column) {
     const std::int64_t handle =
@@ -3708,8 +3708,8 @@ Value builtinSoundRelease(const std::vector<Value>& args, Environment&, int line
 
 // --- Managed native-thread built-ins ----------------------------------------
 //
-// `nativeThreadStart` runs a Lynxer function on a `std::thread`. The interpreter
-// evaluates Lynxer code under one lock (see `executeProgram`), and a worker
+// `nativeThreadStart` runs a Clynxer function on a `std::thread`. The interpreter
+// evaluates Clynxer code under one lock (see `executeProgram`), and a worker
 // takes that lock before calling back in, so two threads never evaluate at
 // once. A worker therefore runs while the thread that started it is blocked in
 // `nativeThreadJoin`/`nativeThreadJoinAll`, which release the lock before
@@ -4034,7 +4034,7 @@ Value builtinFfiCall(const std::vector<Value>& args, Environment& environment,
 Value builtinFfiCallback(const std::vector<Value>& args, Environment&, int line,
                          int column) {
     if (args.size() != 2 || !std::holds_alternative<std::string>(args[0])) {
-        fail("ffiCallback(signature, function) expects a signature and Lynxer "
+        fail("ffiCallback(signature, function) expects a signature and Clynxer "
              "function",
              line, column);
     }
@@ -4063,7 +4063,7 @@ Value builtinFfiFreeCallback(const std::vector<Value>& args, Environment&,
 
 // --- Cooperative async helpers ----------------------------------------------
 //
-// Clynxer has one interpreter thread, so async functions are represented by
+// Lynxer has one interpreter thread, so async functions are represented by
 // ordinary local functions and `await` evaluates their operation immediately.
 // The resource side of the API is still real: poll(2), monotonic timers, and
 // pipe-backed wakeups are managed here and use the same file/socket handles as
@@ -4601,7 +4601,7 @@ Value builtinAsyncGather(const std::vector<Value>& args, Environment&,
 }
 
 void joinNativeThreadsAtExitInternal() {
-#if CLYNXER_POSIX_BUILTINS
+#if LYNXER_POSIX_BUILTINS
     // A program may start a thread and never join it. Such a worker calls back
     // into the interpreter, so it has to finish before the environment it
     // captured goes away.
@@ -4630,7 +4630,7 @@ void joinNativeThreadsAtExitInternal() {
 #endif
 }
 
-#endif  // CLYNXER_POSIX_BUILTINS
+#endif  // LYNXER_POSIX_BUILTINS
 
 const std::unordered_map<std::string, Handler>& handlerTable() {
     static const std::unordered_map<std::string, Handler> handlers = {
@@ -4753,7 +4753,7 @@ const std::unordered_map<std::string, Handler>& handlerTable() {
         {"memoryTypeSize", builtinMemoryTypeSize},
         {"memoryTypeAlignment", builtinMemoryTypeAlignment},
         {"sizeOf", builtinSizeOf},
-#if CLYNXER_POSIX_BUILTINS
+#if LYNXER_POSIX_BUILTINS
         // Managed filesystem API. Kept in `unsupportedTable()` on a host
         // without POSIX `open`/`stat`/`dirent`.
         {"filesystemOpen", builtinFilesystemOpen},
@@ -4839,7 +4839,7 @@ const std::unordered_map<std::string, Handler>& handlerTable() {
 const std::unordered_set<std::string>& unsupportedTable() {
     static const std::unordered_set<std::string> unsupported = {
         "rawPy", "rawPyx", "cleanRawPyxCache",
-#if !CLYNXER_POSIX_BUILTINS
+#if !LYNXER_POSIX_BUILTINS
         "asyncRun", "asyncGather", "asyncPollCreate", "asyncPollRegister",
         "asyncPollModify", "asyncPollRemove", "asyncPollWait",
         "asyncPollDispatch", "asyncPollClose", "asyncTimerCreate",
@@ -4847,11 +4847,11 @@ const std::unordered_set<std::string>& unsupportedTable() {
         "asyncWakeupClose", "asyncSleep",
 #endif
         // These names are explicit unsupported features on non-POSIX hosts.
-#if !CLYNXER_POSIX_BUILTINS
+#if !LYNXER_POSIX_BUILTINS
         "ffiLoadLibrary", "ffiLookup", "ffiCloseLibrary", "ffiCall",
         "ffiCallback", "ffiFreeCallback",
 #endif
-#if !CLYNXER_POSIX_BUILTINS
+#if !LYNXER_POSIX_BUILTINS
         "soundLoad", "soundPlay", "soundLoop", "soundStop", "soundPause",
         "soundResume", "soundSetVolume", "soundIsPlaying", "soundRelease",
 #endif
@@ -4864,7 +4864,7 @@ const std::unordered_set<std::string>& unsupportedTable() {
         "nativeModuleLoad", "nativeModuleName", "nativeModuleFunction",
         "nativeModuleConstant", "nativeModuleType", "nativeModuleError",
         "nativeModuleDependencies", "nativeModuleClose",
-#if !CLYNXER_POSIX_BUILTINS
+#if !LYNXER_POSIX_BUILTINS
         "nativeThreadStart", "nativeThreadJoin", "nativeThreadJoinAll",
         "nativeThreadIsAlive", "nativeThreadStatus", "nativeThreadDetach",
 #endif
@@ -4876,7 +4876,7 @@ const std::unordered_set<std::string>& unsupportedTable() {
         "nativeSemaphorePost", "nativeSemaphoreClose",
         "nativeHandleAllocate", "nativeHandleAddress", "nativeHandleFree",
         "nativeHandleIsAlive",
-#if !CLYNXER_POSIX_BUILTINS
+#if !LYNXER_POSIX_BUILTINS
         "processSpawn", "processWrite", "processCloseInput", "processRead",
         "processPoll", "processWait", "processSendSignal", "processClose",
         "filesystemOpen", "filesystemRead", "filesystemWrite", "filesystemClose",
@@ -4950,7 +4950,7 @@ const std::unordered_set<std::string>& unsupportedTable() {
 } // namespace
 
 void joinNativeThreadsAtExit() {
-#if CLYNXER_POSIX_BUILTINS
+#if LYNXER_POSIX_BUILTINS
     joinNativeThreadsAtExitInternal();
 #endif
 }
@@ -4975,7 +4975,7 @@ Value callBuiltin(const std::string& name, const std::vector<Value>& args,
         resolved = resolved.substr(7);
     }
     if (resolved == "embedPy" || resolved.rfind("embedPy.", 0) == 0) {
-        fail("Python bridging (embedPy) is not supported in CLynxer", line,
+        fail("Python bridging (embedPy) is not supported in Lynxer", line,
              column);
     }
     const auto& handlers = handlerTable();
@@ -4990,9 +4990,9 @@ Value callBuiltin(const std::string& name, const std::vector<Value>& args,
         }
     }
     if (unsupportedTable().find(resolved) != unsupportedTable().end()) {
-        fail(resolved + "() is not supported in CLynxer yet", line, column);
+        fail(resolved + "() is not supported in Lynxer yet", line, column);
     }
     fail("unknown function '" + name + "'", line, column);
 }
 
-} // namespace clynxer
+} // namespace lynxer

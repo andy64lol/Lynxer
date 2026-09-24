@@ -5,9 +5,9 @@ global setup(){
 }
 
 global main(){
-    str base = "/tmp/lynxer-stdlib-fileio.txt";
-    str copyPath = "/tmp/lynxer-stdlib-fileio-copy.txt";
-    str movedPath = "/tmp/lynxer-stdlib-fileio-moved.txt";
+    str base = "/tmp/clynxer-stdlib-fileio.txt";
+    str copyPath = "/tmp/clynxer-stdlib-fileio-copy.txt";
+    str movedPath = "/tmp/clynxer-stdlib-fileio-moved.txt";
 
     global.fileIO.deleteFile(base);
     global.fileIO.deleteFile(copyPath);
@@ -30,9 +30,9 @@ global main(){
     println(global.path.stem(base));
     println(global.path.suffix(base));
     println(global.path.parent(base));
-    println(global.path.join("/tmp", "lynxer-stdlib-fileio.txt"));
-    println(global.path.join3("/tmp", "lynxer", "stdlib.txt"));
-    println(global.path.normalize("/tmp/lynxer/../lynxer-stdlib-fileio.txt"));
+    println(global.path.join("/tmp", "clynxer-stdlib-fileio.txt"));
+    println(global.path.join3("/tmp", "clynxer", "stdlib.txt"));
+    println(global.path.normalize("/tmp/clynxer/../clynxer-stdlib-fileio.txt"));
     println(global.path.isAbsolute(base));
     println(global.path.exists(base));
     println(global.path.isFile(base));

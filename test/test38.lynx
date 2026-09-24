@@ -1,6 +1,6 @@
 // Interactive game: an animated showcase of every drawing primitive.
 // Shapes pulse, sprites bounce off the walls and flash on contact.
-// SPACE pauses, ESC quits.  Run with `lynxer test38.lynx`.
+// SPACE pauses, ESC quits.  Run with `clynxer test38.lynx`.
 global setup(){
     import("game");
     float clock = 0.0;

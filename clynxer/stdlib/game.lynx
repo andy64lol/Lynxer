@@ -1,5 +1,5 @@
 ////
-Lynxer standard library: game.
+Clynxer standard library: game.
 2D game helpers using Arcade. Requires Arcade.
 ////
 
@@ -203,14 +203,14 @@ global run(){
     }
 }
 
-// Register Lynxer functions as Arcade event callbacks.  The functions are
+// Register Clynxer functions as Arcade event callbacks.  The functions are
 // named to keep callback registration simple and predictable:
 // draw(), update(float dt), keyPress(int symbol, int modifiers), etc.
 global setDrawCallback(str callbackName){
     rawPy(){
         import builtins
         builtins._lx_game_win._draw_fn = (
-            lambda: builtins._lx_invoke_lynxer(callbackName)
+            lambda: builtins._lx_invoke_clynxer(callbackName)
         )
     }
 }
@@ -219,7 +219,7 @@ global setUpdateCallback(str callbackName){
     rawPy(){
         import builtins
         builtins._lx_game_win._update_fn = (
-            lambda dt: builtins._lx_invoke_lynxer(callbackName, dt)
+            lambda dt: builtins._lx_invoke_clynxer(callbackName, dt)
         )
     }
 }
@@ -229,7 +229,7 @@ global setKeyPressCallback(str callbackName){
         import builtins
         builtins._lx_game_win._key_press_fn = (
             lambda symbol, modifiers:
-                builtins._lx_invoke_lynxer(callbackName, symbol, modifiers)
+                builtins._lx_invoke_clynxer(callbackName, symbol, modifiers)
         )
     }
 }
@@ -239,7 +239,7 @@ global setKeyReleaseCallback(str callbackName){
         import builtins
         builtins._lx_game_win._key_release_fn = (
             lambda symbol, modifiers:
-                builtins._lx_invoke_lynxer(callbackName, symbol, modifiers)
+                builtins._lx_invoke_clynxer(callbackName, symbol, modifiers)
         )
     }
 }
@@ -249,7 +249,7 @@ global setMousePressCallback(str callbackName){
         import builtins
         builtins._lx_game_win._mouse_press_fn = (
             lambda x, y, button, modifiers:
-                builtins._lx_invoke_lynxer(callbackName, x, y, button, modifiers)
+                builtins._lx_invoke_clynxer(callbackName, x, y, button, modifiers)
         )
     }
 }
@@ -259,7 +259,7 @@ global setMouseReleaseCallback(str callbackName){
         import builtins
         builtins._lx_game_win._mouse_release_fn = (
             lambda x, y, button, modifiers:
-                builtins._lx_invoke_lynxer(callbackName, x, y, button, modifiers)
+                builtins._lx_invoke_clynxer(callbackName, x, y, button, modifiers)
         )
     }
 }
@@ -269,7 +269,7 @@ global setMouseMotionCallback(str callbackName){
         import builtins
         builtins._lx_game_win._mouse_motion_fn = (
             lambda x, y, dx, dy:
-                builtins._lx_invoke_lynxer(callbackName, x, y, dx, dy)
+                builtins._lx_invoke_clynxer(callbackName, x, y, dx, dy)
         )
     }
 }
@@ -279,18 +279,18 @@ global setMouseScrollCallback(str callbackName){
         import builtins
         builtins._lx_game_win._mouse_scroll_fn = (
             lambda x, y, sx, sy:
-                builtins._lx_invoke_lynxer(callbackName, x, y, sx, sy)
+                builtins._lx_invoke_clynxer(callbackName, x, y, sx, sy)
         )
     }
 }
 
-// Schedule a named Lynxer function through Arcade's clock.  The callback
+// Schedule a named Clynxer function through Arcade's clock.  The callback
 // receives one float argument: elapsed seconds since the previous call.
 global schedule(str callbackName, float interval){
     rawPy(){
         import arcade, builtins
         def _scheduled(dt):
-            builtins._lx_invoke_lynxer(callbackName, dt)
+            builtins._lx_invoke_clynxer(callbackName, dt)
         old = builtins._lx_scheduled_callbacks.get(callbackName)
         if old is not None:
             arcade.unschedule(old)

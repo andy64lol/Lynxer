@@ -1,11 +1,11 @@
-//! Clynxer `tui` stdlib backend: terminal UI helpers.
+//! Lynxer `tui` stdlib backend: terminal UI helpers.
 //!
 //! Replaces Python Rich with Rust `ratatui`/`crossterm`.
-//! The Lynxer-facing contract matches `lynxer/stdlib/tui.lynx`:
+//! The Clynxer-facing contract matches `clynxer/stdlib/tui.lynx`:
 //! structured data crosses as JSON strings, errors as
 //! `"Error: <message>"`.
 
-use clynxer_abi::{export_float, export_int, export_string, lynxer_module};
+use lynxer_abi::{export_float, export_int, export_string, clynxer_module};
 use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
@@ -242,7 +242,7 @@ export_string!(tui_ask, args, {
         // stdin in a blocking manner.
     });
     // Simplified: return empty string since we can't do interactive
-    // input in the packed ABI. The Lynxer wrapper would handle this
+    // input in the packed ABI. The Clynxer wrapper would handle this
     // differently in practice.
     "".to_string()
 });
@@ -771,4 +771,4 @@ const OPS: &[(&str, &str, &str)] = &[
     ("exit", "tui_exit", "cdecl:int64(...)"),
 ];
 
-lynxer_module!(OPS);
+clynxer_module!(OPS);

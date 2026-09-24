@@ -1,4 +1,4 @@
-"""Lynxer built-in functions, implementations, and runtime registry."""
+"""Clynxer built-in functions, implementations, and runtime registry."""
 
 from __future__ import annotations
 
@@ -57,7 +57,7 @@ try:
 except ModuleNotFoundError as error:
     if error.name != f"{__package__}.cpp":
         raise
-    # Pure Lynxer programs do not need the optional native extension.  Keep
+    # Pure Clynxer programs do not need the optional native extension.  Keep
     # the interpreter importable so callers can detect native capabilities
     # and receive a normal runtime error only when they use one.
     _MEMORY_LIB = None
@@ -334,7 +334,7 @@ def _native_nonnegative(value):
 
 
 def _json_value(value):
-    """Convert a Lynxer value into a JSON-compatible Python value."""
+    """Convert a Clynxer value into a JSON-compatible Python value."""
     if isinstance(value, Number):
         return bool(value.value) if value.is_bool else value.value
     if isinstance(value, String):
@@ -368,11 +368,11 @@ def load_native_module(path: str, imported: bool = False):
     """Load a native module and invoke its versioned registration entry point.
 
     Native modules export:
-      int lynxer_module_init_v1(register_function, register_constant,
+      int clynxer_module_init_v1(register_function, register_constant,
                                 register_type)
 
     Registration callbacks receive UTF-8 names. Functions additionally provide
-    an exported symbol and the existing Lynxer native-call signature grammar.
+    an exported symbol and the existing Clynxer native-call signature grammar.
     """
     try:
         state = _memory_lib().nativeModuleLoad(os.path.abspath(path))
@@ -420,7 +420,7 @@ def _native_module_dependencies(path: str) -> list[str]:
 
 
 def populate_native_module_table(state, symbol_table):
-    """Bind a loaded module's registered ABI surface into a Lynxer namespace."""
+    """Bind a loaded module's registered ABI surface into a Clynxer namespace."""
     for name, info in state["functions"].items():
         symbol_table.set(name, NativeModuleFunction(
             name, info["pointer"], info["signature"]
@@ -476,7 +476,7 @@ class NativeModuleFunction(BaseFunction):
 
 
 class BuiltInFunction(BaseFunction):
-    """A callable implemented by Python and exposed to Lynxer programs."""
+    """A callable implemented by Python and exposed to Clynxer programs."""
 
     _is_builtin_function = True
 
@@ -503,7 +503,7 @@ class BuiltInFunction(BaseFunction):
         )
 
     def _cpp(self, method, values, exec_ctx):
-        """Call a native primitive and translate its exception to Lynxer."""
+        """Call a native primitive and translate its exception to Clynxer."""
         try:
             return method(*values)
         except (RuntimeError, ValueError, OverflowError, MemoryError, OSError) as exc:
@@ -537,7 +537,7 @@ class BuiltInFunction(BaseFunction):
         # The AST-level variable name is attached by the interpreter before
         # calling this built-in; values alone are intentionally not enough to
         # identify an alias.
-        name = getattr(args[0], "_lynxer_name", None)
+        name = getattr(args[0], "_clynxer_name", None)
         if not isinstance(name, str) or not exec_ctx.symbol_table.unshare(name):
             return self._failure(exec_ctx, "unshare() expects a shared variable name")
         return RTResult().success(Number.null)
@@ -550,7 +550,7 @@ class BuiltInFunction(BaseFunction):
             )
         references = []
         for index, value in enumerate(args, 1):
-            reference = getattr(value, "_lynxer_ref", None)
+            reference = getattr(value, "_clynxer_ref", None)
             if (
                 not isinstance(reference, tuple)
                 or len(reference) != 2
@@ -650,7 +650,7 @@ class BuiltInFunction(BaseFunction):
         """Return an address pointing at a variable argument."""
         if len(args) != 1:
             return self._failure(exec_ctx, "getAddress() expects exactly one variable")
-        reference = getattr(args[0], "_lynxer_ref", None)
+        reference = getattr(args[0], "_clynxer_ref", None)
         if reference is None:
             return self._failure(
                 exec_ctx,
@@ -908,7 +908,7 @@ class BuiltInFunction(BaseFunction):
         return RTResult().success(Number.null)
 
     # The filesystem* API is intentionally small and handle-based.  It keeps the
-    # low-level syscall builtins available while giving Lynxer programs one
+    # low-level syscall builtins available while giving Clynxer programs one
     # consistent, errno-preserving filesystem surface.
     def execute_filesystemOpen(self, args, exec_ctx):
         if (
@@ -1066,7 +1066,7 @@ class BuiltInFunction(BaseFunction):
 
     # Managed TCP, UDP, and Unix-domain sockets. Addresses are deliberately
     # represented by host/path strings plus an integer port so the API stays
-    # straightforward in Lynxer source.
+    # straightforward in Clynxer source.
     def execute_networkingOpen(self, args, exec_ctx):
         if len(args) != 1 or not isinstance(args[0], String):
             return self._failure(exec_ctx, "networkingOpen(kind) expects tcp, udp, or unix")
@@ -1628,7 +1628,7 @@ class BuiltInFunction(BaseFunction):
 
     def execute_ffiCallback(self, args, exec_ctx):
         if len(args) != 2 or not isinstance(args[0], String) or not hasattr(args[1], "execute"):
-            return self._failure(exec_ctx, "ffiCallback(signature, function) expects a signature and Lynxer function")
+            return self._failure(exec_ctx, "ffiCallback(signature, function) expects a signature and Clynxer function")
         try:
             pointer = _memory_lib().ffiCallback(args[0].value, args[1])
         except Exception as exc:  # noqa: BLE001
@@ -4802,7 +4802,7 @@ def register_builtins(
     symbol_table: Any,
     execution_state: ExecutionState | None = None,
 ) -> None:
-    """Install every registered builtin into a Lynxer symbol table."""
+    """Install every registered builtin into a Clynxer symbol table."""
     BUILTIN_REGISTRY.install(symbol_table, execution_state)
 
 

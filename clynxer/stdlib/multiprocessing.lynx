@@ -1,5 +1,5 @@
 ////
-Lynxer standard library: multiprocessing.
+Clynxer standard library: multiprocessing.
 Parallel shell and process helpers.
 ////
 
@@ -27,7 +27,7 @@ global runParallel(list commands){
     str _raw = "";
     rawPy(){
         from concurrent.futures import ThreadPoolExecutor
-        from lynxer._mp_workers import run_cmd
+        from clynxer._mp_workers import run_cmd
 
         if commands:
             workers = min(len(commands), 64)
@@ -48,7 +48,7 @@ global mapShell(str template, list items){
     str _raw = "";
     rawPy(){
         from concurrent.futures import ThreadPoolExecutor
-        from lynxer._mp_workers import run_cmd_template
+        from clynxer._mp_workers import run_cmd_template
 
         if items:
             pairs = [(template, str(item)) for item in items]
@@ -73,7 +73,7 @@ global runParallelSilent(list commands){
     str _raw = "";
     rawPy(){
         from concurrent.futures import ThreadPoolExecutor
-        from lynxer._mp_workers import run_cmd_silent
+        from clynxer._mp_workers import run_cmd_silent
 
         if commands:
             workers = min(len(commands), 64)
@@ -88,13 +88,13 @@ global runParallelSilent(list commands){
 }
 
 // Run commands in parallel using a process pool (better for CPU-bound tasks).
-// Worker functions are loaded from lynxer._mp_workers (top-level, picklable).
+// Worker functions are loaded from clynxer._mp_workers (top-level, picklable).
 // Returns a list of stdout strings.
 global runParallelProcess(list commands){
     str _raw = "";
     rawPy(){
         from concurrent.futures import ProcessPoolExecutor
-        from lynxer._mp_workers import run_cmd
+        from clynxer._mp_workers import run_cmd
         import multiprocessing as _mp
 
         if commands:

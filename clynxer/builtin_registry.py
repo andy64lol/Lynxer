@@ -1,6 +1,6 @@
 """Builtin registration independent of builtin implementations.
 
-The implementation class remains in :mod:`lynxer.builtins` for compatibility,
+The implementation class remains in :mod:`clynxer.builtins` for compatibility,
 but registry lifecycle and the public registration API live here.  Keeping
 this module free of imports from the implementation avoids the old
 runtime → builtins → runtime startup cycle.

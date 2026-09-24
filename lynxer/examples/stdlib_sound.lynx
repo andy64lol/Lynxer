@@ -1,7 +1,7 @@
 ////
 Fixture for the Rust-backed sound stdlib. Loading, duration, handle bookkeeping
 and every error path are device-independent; playback, stop and per-handle
-volume are not, and only hold on a host with a real ALSA card. `make testCLynxer`
+volume are not, and only hold on a host with a real ALSA card. `make testLynxer`
 skips this fixture (with a message) when there is no `/dev/snd/controlC*`.
 ////
 
@@ -9,13 +9,13 @@ global setup(){ import("sound"); import("fileIO"); }
 
 global main(){
     // Scratch names under the cwd, so the fixture works from any directory.
-    str missing = ".clynxer_scratch_missing.wav";
+    str missing = ".lynxer_scratch_missing.wav";
 
-    // `make test` runs fixtures from `clynxer/`, but they are also expected to
+    // `make test` runs fixtures from `lynxer/`, but they are also expected to
     // run from the repository root, so resolve the asset against both layouts.
     str toneFile = "examples/assets/tone.wav";
     if(not global.fileIO.fileExists(toneFile)){
-        toneFile = "clynxer/examples/assets/tone.wav";
+        toneFile = "lynxer/examples/assets/tone.wav";
     }
 
     // A missing file is a sentinel, not an exception.

@@ -7,7 +7,7 @@
 #include <unistd.h>
 #endif
 
-namespace clynxer {
+namespace lynxer {
 
 namespace {
 
@@ -111,27 +111,27 @@ const Config& Config::instance() {
 }
 
 Config::Config() {
-    // Compiled-in copy of clynxer.config; the external file overrides these.
-    setDefault("name", "CLynxer");
+    // Compiled-in copy of lynxer.config; the external file overrides these.
+    setDefault("name", "Lynxer");
     setDefault("version", "0.1.8");
-    setDefault("version.line", "CLynxer {0}");
-    setDefault("error.file_not_found", "clynxer: file not found: '{0}'");
-    setDefault("error.could_not_read", "clynxer: could not read '{0}': {1}");
+    setDefault("version.line", "Lynxer {0}");
+    setDefault("error.file_not_found", "lynxer: file not found: '{0}'");
+    setDefault("error.could_not_read", "lynxer: could not read '{0}': {1}");
     setDefault("error.requires_one_file",
-               "clynxer: {0} requires exactly one file argument");
+               "lynxer: {0} requires exactly one file argument");
     setDefault("error.compile_usage",
-               "clynxer: --compile requires a .lynx file, optionally followed "
+               "lynxer: --compile requires a .lynx file, optionally followed "
                "by --include <file> inputs and an output name");
-    setDefault("error.compile_failed", "clynxer: compile failed: {0}");
+    setDefault("error.compile_failed", "lynxer: compile failed: {0}");
     setDefault("error.payload_invalid",
-               "clynxer: the embedded program payload is invalid");
+               "lynxer: the embedded program payload is invalid");
     setDefault("error.bytecode_removed",
-               "clynxer: bytecode files are no longer supported; compile the "
+               "lynxer: bytecode files are no longer supported; compile the "
                ".lynx source with --compile instead");
     setDefault("error.interpreter_failure",
-               "clynxer: interpreter failure in '{0}': {1}");
+               "lynxer: interpreter failure in '{0}': {1}");
     setDefault("error.validator_missing",
-               "clynxer: comprehensive validator is not available");
+               "lynxer: comprehensive validator is not available");
     setDefault("status.lint_ok", "Lint OK: {0}");
     setDefault("status.compile_ok", "Compiled: {0}");
     setDefault("status.bundle_ok", "Bundled: {0}");
@@ -141,10 +141,10 @@ Config::Config() {
                "global setup(){}.");
 
     const std::string directory = executableDirectoryImpl();
-    if (loadConfigFile(directory + "/clynxer.config", values_)) {
+    if (loadConfigFile(directory + "/lynxer.config", values_)) {
         return;
     }
-    loadConfigFile("clynxer.config", values_);
+    loadConfigFile("lynxer.config", values_);
 }
 
 void Config::setDefault(const std::string& key, const std::string& value) {
@@ -173,4 +173,4 @@ std::string Config::format(const std::string& key,
     return value;
 }
 
-} // namespace clynxer
+} // namespace lynxer

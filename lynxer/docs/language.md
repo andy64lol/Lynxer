@@ -1,7 +1,7 @@
-# The Clynxer language
+# The Lynxer language
 
-Clynxer is the standalone C++ implementation of Lynxer. This page describes the
-language **as Clynxer actually parses and runs it**, with every example verified
+Lynxer is the standalone C++ implementation of Clynxer. This page describes the
+language **as Lynxer actually parses and runs it**, with every example verified
 against the interpreter. For the differences from the older Python
 implementation, see [limitations.md](limitations.md) and
 [parity.md](parity.md).
@@ -19,14 +19,14 @@ global setup() {
 }
 
 global main() {
-    println("Hello, Clynxer!");
+    println("Hello, Lynxer!");
 }
 ```
 
 Requires the interpreter (see [install.md](install.md)) and runs with
-`clynxer hello.lynx`. If `setup` or `main` is missing, the parser reports it
+`lynxer hello.lynx`. If `setup` or `main` is missing, the parser reports it
 with a source location, for example
-`clynxer: hello.lynx:2:2: program must define global setup()`.
+`lynxer: hello.lynx:2:2: program must define global setup()`.
 
 ## Program structure
 
@@ -376,7 +376,7 @@ cannot take codeblock parameters.
 
 ## Scoping
 
-Clynxer has **no nested block scopes**, and blocks do not shadow:
+Lynxer has **no nested block scopes**, and blocks do not shadow:
 
 - `setup()` and `main()` share one top-level scope. A variable declared in
   either — including inside an `if`, `while`, `for`, `switch`, or `try` body —

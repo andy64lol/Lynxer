@@ -4,7 +4,7 @@ The `sound` module provides audio playback functionality using Rust's `rodio` an
 
 > **Requires:** a Rust toolchain (`cargo`) to build it, and an ALSA sound card
 > to play. Loading, decoding, handle bookkeeping and the error paths work
-> without a device; playback simply reports "did not start". `make testCLynxer`
+> without a device; playback simply reports "did not start". `make testLynxer`
 > skips `stdlib_sound.lynx`, with a printed message, on hosts without
 > `/dev/snd/controlC*`.
 

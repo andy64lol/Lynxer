@@ -26,7 +26,7 @@ For every ``stdlib/<name>.lynx`` that imports ``stdlib/<name>.so``:
    registered with the packed ``cdecl:<ret>(...)`` signature, the highest index
    an op reads for a given argument kind must be lower than the number of
    arguments of that kind the wrapper passes. Numbers (``int``/``float``/
-   ``bool``) and strings are counted separately, which is what ``clynxer_abi``
+   ``bool``) and strings are counted separately, which is what ``lynxer_abi``
    delivers them as. (failure)
 3. **Unused registrations** — an op the backend registers that no wrapper
    function calls. (warning)
@@ -41,7 +41,7 @@ guessed at, so the check never fails on something it cannot read.
 
 Usage
 -----
-    python3 clynxer/scripts/check_module_contracts.py [--verbose]
+    python3 lynxer/scripts/check_module_contracts.py [--verbose]
 
 Exits 0 when no failures were found, 1 otherwise.
 """
@@ -53,11 +53,11 @@ import re
 import sys
 from pathlib import Path
 
-CLYNXER_ROOT = Path(__file__).resolve().parents[1]
-STDLIB_DIR = CLYNXER_ROOT / "stdlib"
-RUST_DIR = CLYNXER_ROOT / "rust"
+LYNXER_ROOT = Path(__file__).resolve().parents[1]
+STDLIB_DIR = LYNXER_ROOT / "stdlib"
+RUST_DIR = LYNXER_ROOT / "rust"
 
-# Argument kinds as `clynxer_abi` delivers them: numbers and strings travel in
+# Argument kinds as `lynxer_abi` delivers them: numbers and strings travel in
 # two independent lists, so indices are per kind.
 NUMBER = "number"
 STRING = "string"
@@ -82,7 +82,7 @@ NUMBER_TYPES = {
     "float64",
 }
 
-# Mirrors `Args` in clynxer/rust/abi/src/lib.rs: which list each accessor reads.
+# Mirrors `Args` in lynxer/rust/abi/src/lib.rs: which list each accessor reads.
 ACCESSOR_KIND = {
     "int": NUMBER,
     "float": NUMBER,
@@ -103,7 +103,7 @@ class Finding:
 
     def render(self) -> str:
         try:
-            shown = self.path.relative_to(CLYNXER_ROOT.parent)
+            shown = self.path.relative_to(LYNXER_ROOT.parent)
         except ValueError:
             shown = self.path
         location = f"{shown}:{self.line}" if self.line > 0 else str(shown)
@@ -213,7 +213,7 @@ def line_of(text: str, index: int) -> int:
 
 
 class Backend:
-    """Ops a native module registers, keyed by Lynxer-facing name."""
+    """Ops a native module registers, keyed by Clynxer-facing name."""
 
     def __init__(self, path: Path):
         self.path = path
@@ -516,7 +516,7 @@ def main() -> int:
         print(
             "Packed arguments are indexed per kind: args.int(i) reads the i-th "
             "number and args.string(i) the i-th string. See "
-            "clynxer/docs/native-module-abi.md.",
+            "lynxer/docs/native-module-abi.md.",
             file=sys.stderr,
         )
         return 1

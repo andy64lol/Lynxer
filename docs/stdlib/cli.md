@@ -1,10 +1,10 @@
 # cli
 
-Extended command-line helpers for Lynxer. The module combines Python process
+Extended command-line helpers for Clynxer. The module combines Python process
 and terminal utilities with indexed Click and Typer builders.
 
 Click and Typer objects are represented by integer handles. Structured
-arguments and results use JSON strings so they can cross the Lynxer/Python
+arguments and results use JSON strings so they can cross the Clynxer/Python
 bridge reliably.
 
 ## Availability

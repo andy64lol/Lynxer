@@ -1,10 +1,10 @@
 {
-  "command_source": "lynxer/stdlib/sound.lynx",
+  "command_source": "clynxer/stdlib/sound.lynx",
   "kind": "stdlib-import",
   "name": "stdlib/sound",
   "returncode": 0,
   "skip_reason": null,
-  "source": "lynxer/stdlib/sound.lynx",
+  "source": "clynxer/stdlib/sound.lynx",
   "status": "completed",
   "stderr": "",
   "stdout": ""

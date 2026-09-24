@@ -1,15 +1,15 @@
-# Extending Clynxer
+# Extending Lynxer
 
-Clynxer grows in three ways:
+Lynxer grows in three ways:
 
 | Extension | Written in | Use it when |
 | --- | --- | --- |
-| **Pure Lynxer module** | Lynxer, in `clynxer/stdlib/<name>.lynx` | The behaviour is expressible in Lynxer itself. `colorlib`, `text` and `typing` are examples; they ship no shared library. |
+| **Pure Clynxer module** | Clynxer, in `lynxer/stdlib/<name>.lynx` | The behaviour is expressible in Clynxer itself. `colorlib`, `text` and `typing` are examples; they ship no shared library. |
 | **Native module** | C++ in `stdlib/<name>.cpp`, or Rust in `rust/<name>/` | The behaviour needs a system API, a file format, a device, or a third-party crate. |
-| **Built-in** | C++ in `clynxer/builtins.cpp` | The operation is a language primitive that must be available without `import`. |
+| **Built-in** | C++ in `lynxer/builtins.cpp` | The operation is a language primitive that must be available without `import`. |
 
 Almost everything belongs in the middle row. A built-in is not available to a
-module author — it changes the language — and a pure Lynxer module is just a
+module author — it changes the language — and a pure Clynxer module is just a
 module with no backend, so both are covered by the same wrapper rules.
 
 Read [stdlib-contracts.md](stdlib-contracts.md) before you start: it states the
@@ -22,7 +22,7 @@ conventions your module has to follow, and
 
 | | C++ (`stdlib/<name>.cpp`) | Rust (`rust/<name>/`) |
 | --- | --- | --- |
-| Build | Built by the `stdlib/*.cpp` wildcard, no new Makefile entry | Add the crate to the workspace **and** its name to `CLYNXER_RUST_MODULE_NAMES` |
+| Build | Built by the `stdlib/*.cpp` wildcard, no new Makefile entry | Add the crate to the workspace **and** its name to `LYNXER_RUST_MODULE_NAMES` |
 | Dependencies | Standard library only | Any crate, but it must build offline after `Cargo.lock` is committed |
 | Best for | POSIX calls, `<filesystem>`, `<chrono>`, small hand-written parsers | Anything with a real third-party crate: formats, protocols, GUI, audio, databases |
 | Signature | Either a fixed shape or the packed `...` form | **Must** be the packed `...` form |
@@ -34,15 +34,15 @@ implementation is a few calls into the standard library or POSIX.
 
 ## 2. Write the wrapper
 
-The wrapper is what Lynxer programs see. It is always
+The wrapper is what Clynxer programs see. It is always
 `stdlib/<name>.lynx`, and it always has the same shape:
 
 ```lynx
 ////
-Lynxer standard library: example.
+Clynxer standard library: example.
 One-line summary, then anything a user needs to know.
 
-Extra paragraphs here are printed by `clynxer --list-stdlibs`, so keep them
+Extra paragraphs here are printed by `lynxer --list-stdlibs`, so keep them
 useful and do not leave placeholder prose in a shipped module.
 ////
 
@@ -78,12 +78,12 @@ If the module needs no native code, write the functions directly and skip
 ### 3a. In Rust
 
 Add `rust/<name>/Cargo.toml` with `crate-type = ["cdylib"]`, depend on
-`clynxer_abi` by path, and write `rust/<name>/src/lib.rs`:
+`lynxer_abi` by path, and write `rust/<name>/src/lib.rs`:
 
 ```rust
 //! `example` stdlib backend: double a number, join two words.
 
-use clynxer_abi::{export_int, export_string, lynxer_module};
+use lynxer_abi::{export_int, export_string, clynxer_module};
 
 export_int!(example_double_it, args, {
     let value = args.int(0);
@@ -101,7 +101,7 @@ const OPS: &[(&str, &str, &str)] = &[
     ("join", "example_join", "cdecl:cstring(...)"),
 ];
 
-lynxer_module!(OPS);
+clynxer_module!(OPS);
 ```
 
 Three things to get right, all of which have caused real defects here:
@@ -155,7 +155,7 @@ extern "C" const char* example_join(const char* left, const char* right) {
     return stable(std::string(left) + right);
 }
 
-extern "C" int lynxer_module_init_v1(RegisterFunction f, RegisterConstant,
+extern "C" int clynxer_module_init_v1(RegisterFunction f, RegisterConstant,
                                     RegisterType) {
     return f("doubleIt", "example_double_it", "cdecl:int64(int64)") &&
                    f("join", "example_join", "cdecl:cstring(cstring,cstring)")
@@ -182,15 +182,15 @@ crate instead.
 **Rust** needs two edits:
 
 1. add the crate to the workspace members in `rust/Cargo.toml`;
-2. add its name to `CLYNXER_RUST_MODULE_NAMES` in the root `Makefile`.
+2. add its name to `LYNXER_RUST_MODULE_NAMES` in the root `Makefile`.
 
-Rust modules are skipped with a warning when `cargo` is absent, so Clynxer still
+Rust modules are skipped with a warning when `cargo` is absent, so Lynxer still
 builds without a Rust toolchain. Keep `rust/Cargo.lock` committed: the module
 must build offline.
 
 A crate is allowed to register **nothing**: `rust/ffi` is an intentional no-op
 `cdylib` that keeps the workspace uniform. A C++ module that needs POSIX is
-gated with `CLYNXER_POSIX_BUILTINS`, as the managed
+gated with `LYNXER_POSIX_BUILTINS`, as the managed
 `filesystem*`/`process*`/`networking*` families are, and falls back to
 `unsupportedTable()` otherwise.
 
@@ -245,7 +245,7 @@ wrapper against the backend structurally:
 Run it on its own while iterating:
 
 ```bash
-python3 clynxer/scripts/check_module_contracts.py --verbose
+python3 lynxer/scripts/check_module_contracts.py --verbose
 ```
 
 ---
@@ -258,19 +258,19 @@ Every module is finished when all of these are true:
       `--list-stdlibs`
 - [ ] the backend under `stdlib/<name>.cpp` or `rust/<name>/`, registered in the
       Makefile
-- [ ] `clynxer/docs/stdlib/<name>.md` — the operation table, argument by
+- [ ] `lynxer/docs/stdlib/<name>.md` — the operation table, argument by
       argument
 - [ ] `examples/stdlib_<name>.lynx` + `.expected`, covering the failure paths
-- [ ] the new name added to the module table in `clynxer/docs/README.md` and to
-      `CLYNXER_LIST_STDLIB_MODULES` in the root `Makefile`
+- [ ] the new name added to the module table in `lynxer/docs/README.md` and to
+      `LYNXER_LIST_STDLIB_MODULES` in the root `Makefile`
 - [ ] the identity model recorded in the table in
       [stdlib-contracts.md](stdlib-contracts.md)
-- [ ] deliberate divergences from `lynxer/stdlib/<name>.lynx` written down in
+- [ ] deliberate divergences from `clynxer/stdlib/<name>.lynx` written down in
       [limitations.md](limitations.md), with the reason
 - [ ] `make test` green, including the contract check and the compiled/bundled
       parity run
 
-Compare against `lynxer/stdlib/<name>.lynx` — the Python implementation is the
+Compare against `clynxer/stdlib/<name>.lynx` — the Python implementation is the
 behaviour reference — and either match it or record why not. Byte-identical
 output is achievable more often than it looks: `sqldb` and `sound` both produce
 output identical to the reference, including their error strings.

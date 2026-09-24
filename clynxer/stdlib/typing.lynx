@@ -1,11 +1,11 @@
 ////
-Lynxer Standard Library — typing
+Clynxer Standard Library — typing
 Adds typing convertion functions and other things about types.  
 ////
 
 global setup(){}
 
-// Return the Lynxer type name of value.
+// Return the Clynxer type name of value.
 global typeOf(any value){
     return returnType(value);
 }
@@ -250,7 +250,7 @@ global lenSequence(any val){
     return 0;
 }
 
-// Convert any Lynxer value to its display string.
+// Convert any Clynxer value to its display string.
 global toString(any val){
     return strOf(val);
 }

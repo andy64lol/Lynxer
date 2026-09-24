@@ -59,8 +59,8 @@ JSON-returning helpers:
 | `getSystemInfo` | `() -> str` | The same fields plus `architecture`, `python`, `pythonImplementation`, `pythonExecutable` |
 | `getSystemDistro` | `() -> str` | Parsed `/etc/os-release`, or `{}` |
 
-Because Clynxer has no Python runtime, `getPythonVersion()` returns `""`,
-`getPythonImplementation()` returns `"CLynxer"`, and the `python*` fields of
+Because Lynxer has no Python runtime, `getPythonVersion()` returns `""`,
+`getPythonImplementation()` returns `"Lynxer"`, and the `python*` fields of
 `getSystemInfo` mirror that.
 
 ## Example
@@ -84,5 +84,5 @@ global main(){
   implements, including the error sentinel family it uses.
 - [builtins.md](../builtins.md) — the functions the interpreter implements
   itself.
-- [parity.md](../parity.md) — the parity scope with Python Lynxer.
+- [parity.md](../parity.md) — the parity scope with Python Clynxer.
 - [limitations.md](../limitations.md) — the full divergence register.

@@ -6,7 +6,7 @@ Rust `cdylib` built with the `image` crate and installed as
 failed operation.
 
 > **Requires:** a Rust toolchain (`cargo`). Build it with `make cargo` or
-> `make buildCLynxer`. The module supports PNG, JPEG, GIF, BMP, TIFF, and WebP.
+> `make buildLynxer`. The module supports PNG, JPEG, GIF, BMP, TIFF, and WebP.
 
 ```lynx
 global setup(){ import("image"); }
@@ -60,5 +60,5 @@ new handles.
   implements, including the error sentinel family it uses.
 - [builtins.md](../builtins.md) — the functions the interpreter implements
   itself.
-- [parity.md](../parity.md) — the parity scope with Python Lynxer.
+- [parity.md](../parity.md) — the parity scope with Python Clynxer.
 - [limitations.md](../limitations.md) — the full divergence register.

@@ -1,8 +1,8 @@
-# Clynxer rebuild from scratch
+# Lynxer rebuild from scratch
 
-Clynxer is the standalone C++ implementation being rebuilt beside the original
-Python Lynxer. The Python implementation is the behavior reference; it is not a
-runtime dependency and its internals are not copied into Clynxer.
+Lynxer is the standalone C++ implementation being rebuilt beside the original
+Python Clynxer. The Python implementation is the behavior reference; it is not a
+runtime dependency and its internals are not copied into Lynxer.
 
 ## Next up — compiler pivot and stdlib consolidation
 
@@ -14,10 +14,10 @@ Planned order of work, newest direction first.
   `image` uses the Rust `image` crate and `lua` uses vendored Lua through
   `mlua` — removing nlohmann/json, cpp-httplib, Crow, Boost and the system
   OpenSSL dependency. All six are self-contained `cdylib`s under `rust/` that
-  export `lynxer_module_init_v1` and their ops directly (no C++ shim, no
-  `--whole-archive`); `rust/abi` (`clynxer_abi`) holds the shared FFI helpers.
+  export `clynxer_module_init_v1` and their ops directly (no C++ shim, no
+  `--whole-archive`); `rust/abi` (`lynxer_abi`) holds the shared FFI helpers.
   CMake, `cmake/FetchDeps.cmake`, `third_party/` and the `make cmake` /
-  `clynxerDeps` / `cmake-modules` targets are gone. `stdlib/network.cpp`,
+  `lynxerDeps` / `cmake-modules` targets are gone. `stdlib/network.cpp`,
   `stdlib/server.cpp` and `stdlib/json.cpp` are deleted. Still C++ and not
   third-party: `native_json.hpp`, `native_regex.hpp`. The optional `image`
   (`image` crate), `lua` (vendored `mlua`), `sound` (`rodio`/`cpal`), `sqldb`
@@ -27,14 +27,14 @@ Planned order of work, newest direction first.
   `docs/stdlib/{json,network,server,sound,sqldb,tui}.md`.
 - [x] Add the `game` stdlib module: `stdlib/game.lynx` wraps `stdlib/game.so`,
   a Rust + macroquad backend (`rust/game`, a `cdylib` exporting
-  `lynxer_module_init_v1`/`lynxer_module_attach_v1` directly) exposed through
+  `clynxer_module_init_v1`/`clynxer_module_attach_v1` directly) exposed through
   the native-module C ABI. An example clicker lives in
   `examples/game_clicker.lynx`. Covers the window, draw loop with `setUpdateCallback` /
   `setDrawCallback`, shapes, text, input, sprites, sprite lists, textures,
   camera and grid helpers. Two additive native-module ABI extensions make this
   possible: the packed `cdecl:<ret>(...)` signature, and the optional
-  `lynxer_module_attach_v1` host API that lets a module call a Lynxer function
-  by name. `CLYNXER_GAME_HEADLESS=1` runs the module without a display; the
+  `clynxer_module_attach_v1` host API that lets a module call a Clynxer function
+  by name. `LYNXER_GAME_HEADLESS=1` runs the module without a display; the
   `examples/stdlib_game.lynx` fixture exercises it in `make test`. Deferred:
   sound, scenes, tilemaps, physics, shape batches, animated sprites. Docs:
   `docs/stdlib/game.md`, `docs/native-module-abi.md`.
@@ -44,12 +44,12 @@ Planned order of work, newest direction first.
   `maxInt()`/`minInt()` are exposed on the `math` namespace. `stdlib/mathPlus.*`,
   its fixture and its docs page are gone; coverage moved to
   `examples/stdlib_math.lynx`.
-- [x] Add a GitHub Actions workflow that builds Clynxer and runs
-  `make testCLynxer` on push and pull request
-  (`.github/workflows/build-clynxer-amd.yml` and `build-clynxer-arm.yml`). The
-  CI run passes `CLYNXER_SKIP_DISPLAY=1` so the tests that need a display or
+- [x] Add a GitHub Actions workflow that builds Lynxer and runs
+  `make testLynxer` on push and pull request
+  (`.github/workflows/build-lynxer-amd.yml` and `build-lynxer-arm.yml`). The
+  CI run passes `LYNXER_SKIP_DISPLAY=1` so the tests that need a display or
   audio device are skipped on a runner.
-- [x] Remove the Clynxer bytecode stack: `bytecode.*`, `vm.*`, `compiler.*`, the
+- [x] Remove the Lynxer bytecode stack: `bytecode.*`, `vm.*`, `compiler.*`, the
   `CLYXC` container, `.lynxc` execution, `--view-bytecode`,
   `--benchmark-compile`, `--no-cache`, `--no-opt`, and the per-AST-node
   `compile(ProgramEmitter&)` methods are gone. `--compile` produces an ELF
@@ -79,14 +79,14 @@ Planned order of work, newest direction first.
 
 ## Rebuild rules
 
-- Keep Clynxer under `clynxer/`, separate from `lynxer/`.
+- Keep Lynxer under `lynxer/`, separate from `clynxer/`.
 - Use C++17 and the standard library only unless a future milestone explicitly
   adds a native dependency.
 - Build one small vertical slice at a time: lexer, parser, runtime, CLI,
   fixture, and a passing `make test`.
 - Prefer explicit source-located errors over partial support or Python fallback.
 - Add a focused `.lynx` fixture for every user-visible language feature.
-- Keep the original Lynxer runnable so behavior can be compared during the
+- Keep the original Clynxer runnable so behavior can be compared during the
   rewrite.
 
 ## Milestone 0 — small executable
@@ -124,7 +124,7 @@ Planned order of work, newest direction first.
   list, tuple, sentinel, and object values with identity comparison, plus
   Python-style number formatting.
 - [x] Add list and tuple literal syntax and the list/tuple built-in families
-  with Lynxer value semantics (new-list results, negative indices,
+  with Clynxer value semantics (new-list results, negative indices,
   string-based membership).
 - [x] Add `inter"..."` interpolation in `print`, `println`, `input`, and
   `inputln` arguments, including `\{`, `\}`, and `\\` escapes and the
@@ -134,7 +134,7 @@ Planned order of work, newest direction first.
   type.
 - [x] Add typed element literals for sequences: `[int 1, int 2]` and
   `(int 10, int 20)`.
-- [x] Add lexical scopes and match Lynxer declaration lifetime rules.
+- [x] Add lexical scopes and match Clynxer declaration lifetime rules.
 - [x] Add `const` declarations whose reassignment is a runtime error.
 - [x] Add structs, classes, enums, vargroups, and pattern matching.
 
@@ -165,26 +165,26 @@ Planned order of work, newest direction first.
 
 - [x] Implement `import` and `importAs` with nested/path-based imports.
 - [x] Support calling module functions and accessing module globals.
-- [x] Serve `--list-stdlibs` from Clynxer's own stdlib directory. The command
+- [x] Serve `--list-stdlibs` from Lynxer's own stdlib directory. The command
   resolves the directory next to the running executable, so it works from any
   current working directory, and lists only regular `.lynx` module files.
-- [x] Port standard-library modules one small module at a time. Clynxer ships
-  every feasible package-free module from `lynxer/stdlib/`; `mathPlus` is merged
+- [x] Port standard-library modules one small module at a time. Lynxer ships
+  every feasible package-free module from `clynxer/stdlib/`; `mathPlus` is merged
   into `math`, `http`/`net` are replaced by `network`, and the unsupported
-  modules are documented in `clynxer/docs/limitations.md`.
+  modules are documented in `lynxer/docs/limitations.md`.
 - [x] Keep optional `-> type` return annotations available while stdlibs use
   the shared registration ABI.
 - [x] Implement the first Rust-backed third-party set: `game`, `image`, `json`,
   `lua`, `network`, and `server` as self-contained `cdylib` modules exporting
-  the shared ABI directly. Their Rust implementations and Clynxer wrappers are
+  the shared ABI directly. Their Rust implementations and Lynxer wrappers are
   complete; future work below is about portability and parity, not initial
   Rust ports.
 - [x] Implement the remaining Python third-party stdlib alternatives as Rust
-  `cdylib` backends behind the shared C ABI. The Lynxer-facing
+  `cdylib` backends behind the shared C ABI. The Clynxer-facing
   `stdlib/<name>.lynx` module is the wrapper; its `setup()` imports
   `stdlib/<name>.so`, and the Rust backend registers the native operations that
   the wrapper calls. Use the Python implementation and package behavior as the
-  reference, not as a Clynxer runtime dependency:
+  reference, not as a Lynxer runtime dependency:
   - [x] `sound`: replace the Python Arcade audio backend with Rust
     `rodio`/`cpal`, adding `symphonia` where decoding is needed. Preserve
     loading, streaming, play/loop/stop, pause/resume, volume, duration, and
@@ -199,23 +199,23 @@ Planned order of work, newest direction first.
   backend phase. **Decided: they do not.** `tkinter`/`tkinterPlus` are replaced
   by a planned `graphics` module on Rust `iced`; `turtle` is left behind (its
   Rust crate was last updated in 2019 and `turtle_rs` does not offer the same
-  experience). Recorded in `clynxer/docs/limitations.md` under "Modules that are
+  experience). Recorded in `lynxer/docs/limitations.md` under "Modules that are
   not ported".
 - [x] For every new Rust backend, add the crate to the Rust workspace, export
-  `lynxer_module_init_v1` through `clynxer_abi`, add the module to the Makefile,
+  `clynxer_module_init_v1` through `lynxer_abi`, add the module to the Makefile,
   create the matching `stdlib/<name>.lynx` forwarding wrapper, document the
   API, and add a sibling expected-output fixture.
 - [x] Freeze each module's operation names, signatures, handle ownership,
   string lifetime, error sentinels, callbacks, interruption behavior, and
   cleanup before introducing a second backend. Keep third-party calls behind
-  backend-local adapters so the Lynxer wrapper never depends on crate-specific
-  types or APIs. Frozen at CLynxer 0.1.8 in
-  `clynxer/docs/stdlib-contracts.md`, per module: the conventions that apply
+  backend-local adapters so the Clynxer wrapper never depends on crate-specific
+  types or APIs. Frozen at Lynxer 0.1.8 in
+  `lynxer/docs/stdlib-contracts.md`, per module: the conventions that apply
   everywhere, the identity model and cleanup owner for each of the 27 modules,
   and what changing a contract requires. The wrapper names only
   `global.native<Name>.<op>(...)`, so no crate or library type crosses it.
   The mechanical half — op names and packed argument bounds — is enforced by
-  `clynxer/scripts/check_module_contracts.py` in `make test`.
+  `lynxer/scripts/check_module_contracts.py` in `make test`.
 - [x] Add Rust-backend fixtures for success, malformed input, invalid handles,
   missing files, timeouts, cleanup, optional-dependency failures, and the
   compiled/bundled executable path. Compare the wrapper's behavior with the
@@ -234,11 +234,11 @@ Planned order of work, newest direction first.
 - [x] Only extend the ABI when a real module cannot be expressed with its
   scalar/string/handle conventions; every additive ABI change needs C and Rust
   examples, compatibility coverage, and documentation. Stated as policy in
-  `clynxer/docs/native-module-abi.md` under "Extending the ABI". No shape has
+  `lynxer/docs/native-module-abi.md` under "Extending the ABI". No shape has
   been added since the packed `cdecl:<ret>(...)` form; `tui`, `sound` and
   `sqldb` needed none.
-- [x] Add a detailed extending.md for making modules for CLynxer.
-  `clynxer/docs/extending.md` covers choosing C++ or Rust, the wrapper and
+- [x] Add a detailed extending.md for making modules for Lynxer.
+  `lynxer/docs/extending.md` covers choosing C++ or Rust, the wrapper and
   backend pair, the packed ABI and per-kind argument indexing, build wiring,
   what a fixture must cover, the contract check, and the completion checklist.
 
@@ -265,7 +265,7 @@ Planned order of work, newest direction first.
     `examples/builtin_filesystem.lynx`; the `builtin_*` fixture glob and its
     `.expected` check are new in the Makefile. Divergence worth remembering:
     the reference's `Number.null` is `0`, so the value-less operations return
-    `0`, not Clynxer's `none`.
+    `0`, not Lynxer's `none`.
   - [x] `process*` (8): `Spawn`, `Write`, `CloseInput`, `Read`, `Poll`, `Wait`,
     `SendSignal`, `Close`. POSIX `fork`/`exec` with one pipe per standard
     stream, environment overrides, timeouts and signals; the child's exec
@@ -289,9 +289,9 @@ Planned order of work, newest direction first.
     `SetVolume`, `IsPlaying`, `Release`. Backed by the Rust `sound` stdlib
     module rather than a second audio stack: `callBridgedModule()` in
     `ast.cpp` loads `sound.so` on first use through the same `dlopen` +
-    `lynxer_module_init_v1` path an import uses, and the built-ins add the
+    `clynxer_module_init_v1` path an import uses, and the built-ins add the
     reference's validation and their own handle registry on top. Three
-    deliberate divergences, recorded in `clynxer/docs/limitations.md`: the
+    deliberate divergences, recorded in `lynxer/docs/limitations.md`: the
     backend's failure text is not Arcade's, `soundPause`/`soundResume` work
     (the reference fails by design), and `soundStop` works (the installed
     Arcade has no `Player.stop`). Fixture: `examples/builtin_sound.lynx`.
@@ -305,12 +305,12 @@ Planned order of work, newest direction first.
     joins anything left running. Fixture: `examples/builtin_nativeThread.lynx`,
     deterministic across repeated runs. Divergences from the reference (which
     lets a worker interleave via the GIL, and reports `function` rather than
-    `codeblock`) are in `clynxer/docs/limitations.md`.
+    `codeblock`) are in `lynxer/docs/limitations.md`.
   - [x] `ffi*` (6): `LoadLibrary`, `Lookup`, `CloseLibrary`, `Call`,
     `Callback`, `FreeCallback`. Uses POSIX `dlopen/dlsym/dlclose` (no libffi
     dependency); signature-based dispatch via the native call table in `ast.cpp`
     maps C calling conventions (`cdecl:ret(args...)`) to typed handlers.
-    Callbacks are registered by handle and resolved through the Lynxer function
+    Callbacks are registered by handle and resolved through the Clynxer function
     registry. Fixture: `examples/builtin_ffi.lynx`.
   - [x] `async*` (15): `Run`, `Gather`, `Sleep`, the `Poll*` family, the
     `Timer*` pair and the `Wakeup*` trio. Real POSIX primitives: `poll(2)` for
@@ -328,9 +328,9 @@ Planned order of work, newest direction first.
 > replacement of the old bytecode optimizer.
 
 - [x] CLI parity for run/help/version/lint/list-stdlibs/easter egg via
-  `shell.cpp`, with the version and message templates in `clynxer.config`.
+  `shell.cpp`, with the version and message templates in `lynxer.config`.
 - [x] Fail explicitly for bundle, ast, format, benchmark, validate, install.
-- [x] Define a stable Clynxer bytecode: opcode set, string table, constant
+- [x] Define a stable Lynxer bytecode: opcode set, string table, constant
   pool, per-section trap tables, and eager load validation (jump targets,
   stack depths, table ranges) behind the `CLYXC` container (format v1,
   uncompressed; intentionally unrelated to the Python `.lynxc` container).
@@ -342,61 +342,61 @@ Planned order of work, newest direction first.
 - [x] Implement `--compile` (`-c`, `--no-cache`, `--no-opt`), direct `.lynxc`
   execution, and `--view-bytecode` disassembly.
 - [x] Implement `--bundle <file.lynx> [name]`: compile to bytecode and append
-  it to a copy of the clynxer executable (`CLYXPAYLD` trailer); a bundled
+  it to a copy of the lynxer executable (`CLYXPAYLD` trailer); a bundled
   executable detects its payload at startup and runs the embedded program
   directly, with the same output parity as `.lynxc` runs.
-- [x] Merge the Lynxer and Clynxer Makefile entry points, including root
-  `buildCLynxer`, `testCLynxer`, `cleanCLynxer`, and combined build/test/clean
+- [x] Merge the Clynxer and Lynxer Makefile entry points, including root
+  `buildLynxer`, `testLynxer`, `cleanLynxer`, and combined build/test/clean
   targets.
-- [x] Add the AST optimization pass (`clynxer/optimizer.{hpp,cpp}`): constant
+- [x] Add the AST optimization pass (`lynxer/optimizer.{hpp,cpp}`): constant
   folding of literal-only expressions, short-circuit simplification of constant
   `and`/`or`, and dead-branch elimination for a constant `if`, `while (false)`
   and `iterate (0)`. It runs after parsing and before execution in interpreted
   and compiled runs and for imported modules, and builds on the shared
   `applyBinary`/`applyUnary` semantics. Anything that could raise, warn or
   coerce differently is left for the runtime, so output is byte-identical with
-  and without the pass. `--no-opt` disables it; `CLYNXER_OPT_REPORT=1` reports
+  and without the pass. `--no-opt` disables it; `LYNXER_OPT_REPORT=1` reports
   counts. Covered by `examples/optimizer.lynx` (plus
   `examples/optimizer_deprecated.lynx` for the warning path) and a `make test`
   gate that diffs the optimized and `--no-opt` runs.
 
 ## Milestone 9 — compatibility gates
 
-Clynxer is the behaviour reference for its own surface, not a byte-for-byte
+Lynxer is the behaviour reference for its own surface, not a byte-for-byte
 clone of the Python implementation, and it has deliberately diverged — no
 bytecode, an ELF `--compile`, Rust stdlib backends, cooperative threads and
 several re-implemented modules. These gates therefore compare only where parity
-is intended and assert Clynxer's own behaviour everywhere else; the canonical
-divergence register is `clynxer/docs/limitations.md`, and
-`clynxer/docs/parity.md` summarises what is and is not a parity target.
+is intended and assert Lynxer's own behaviour everywhere else; the canonical
+divergence register is `lynxer/docs/limitations.md`, and
+`lynxer/docs/parity.md` summarises what is and is not a parity target.
 
 - [x] Baseline comparison against the Python test fixtures: 15 of 55 pass
-  (2026-09-13). The failures are now mostly surface Clynxer implements itself
+  (2026-09-13). The failures are now mostly surface Lynxer implements itself
   (functions, bitwise/word operators, `const`, typed element literals, module
   imports, native APIs) rather than genuinely missing features.
 - [x] Do **not** compare lexer/token streams: the two implementations have
   different token models, so a token diff is noise. Each lexical divergence is
-  now gated by a Clynxer fixture — `examples/lexical_bang.lynx`,
+  now gated by a Lynxer fixture — `examples/lexical_bang.lynx`,
   `lexical_block_comment.lynx`, `lexical_hex_escape.lynx` and
   `lexical_unicode_escape.lynx` — asserted through the golden CLI cases, and the
-  list lives in `clynxer/docs/limitations.md`.
+  list lives in `lynxer/docs/limitations.md`.
 - [x] Compare parser and runtime behaviour only where parity is meant to hold.
-  `clynxer/docs/parity.md` records the parity allowlist (the language core and
+  `lynxer/docs/parity.md` records the parity allowlist (the language core and
   the stdlib APIs whose docs claim parity) and the divergence denylist
   (`image`/`lua` formatting, cooperative `nativeThread*`, working
   `soundPause`/`soundStop`, re-implemented `math` statistics, the `std::regex`
   grammar in `re`/`regex`, `json` non-finite numbers, and the rest of
   `limitations.md`).
-- [x] Golden tests for Clynxer's **own** output and diagnostic text:
-  `clynxer/scripts/check_golden.py` runs `clynxer/golden/cases.json` and pins
+- [x] Golden tests for Lynxer's **own** output and diagnostic text:
+  `lynxer/scripts/check_golden.py` runs `lynxer/golden/cases.json` and pins
   the CLI surface (`--version`, removed/unsupported flags, file-not-found,
   `--lint` success and error) and the source-located error strings. Wired into
-  `make testCLynxer`.
-- [x] Run the complete Clynxer test suite on every milestone. The GitHub Actions
-  workflows (`.github/workflows/build-clynxer-amd.yml` and
-  `.github/workflows/build-clynxer-arm.yml`) now run
-  `make testCLynxer CLYNXER_SKIP_DISPLAY=1` on push and pull request.
-  `CLYNXER_SKIP_DISPLAY=1` drops the tests that need a display or an audio
+  `make testLynxer`.
+- [x] Run the complete Lynxer test suite on every milestone. The GitHub Actions
+  workflows (`.github/workflows/build-lynxer-amd.yml` and
+  `.github/workflows/build-lynxer-arm.yml`) now run
+  `make testLynxer LYNXER_SKIP_DISPLAY=1` on push and pull request.
+  `LYNXER_SKIP_DISPLAY=1` drops the tests that need a display or an audio
   device (`stdlib_game`, `stdlib_sound`, `stdlibTestAll`, `game_clicker`),
   because a runner has neither and the graphics backend crashes without a
   display.
@@ -405,7 +405,7 @@ divergence register is `clynxer/docs/limitations.md`, and
   round-trip regression, and the three memory error messages) and
   `examples/lowlevel_syscalls.lynx` (the portable named syscalls and their
   raised-error path). Both are `.expected`-diffed and compiled in
-  `make testCLynxer`, so the amd64 and arm64 CI jobs both run them.
+  `make testLynxer`, so the amd64 and arm64 CI jobs both run them.
 - [x] Architecture-dependent tests that need neither graphics nor sound:
   `examples/lowlevel_arch.lynx` (LP64 sizes, host endianness, and the named
   syscalls `yield`/`gettid`/`getpid`/`getppid`/`clock_gettime`/`clock_getres`/
@@ -413,19 +413,19 @@ divergence register is `clynxer/docs/limitations.md`, and
   `lowlevel_syscalls.lynx` and `language_fields.lynx`. All are
   `.expected`-diffed and compiled, so both the amd64 and arm64 CI jobs run them.
   `stdlibTestAll` now skips only its `game` section under
-  `CLYNXER_SKIP_DISPLAY=1`, so the rest of its coverage runs on a runner too.
+  `LYNXER_SKIP_DISPLAY=1`, so the rest of its coverage runs on a runner too.
 - [x] Fixed the two language bugs found while verifying the docs: compound
   assignment on a field (`this.v += x`, `instance.field *= x`, and the typed
   vargroup form `int p.n += x`) desugared to `field op x` instead of
   `object.field op x`; and `-> none` return annotations failed in
   `Environment::convertForType`. Regression fixture:
   `examples/language_fields.lynx`.
-- [x] Clynxer is the primary implementation (2026-09-23). It has surpassed the
+- [x] Lynxer is the primary implementation (2026-09-23). It has surpassed the
   Python reference for real use; the state is flagged on `README.md`,
-  `lynxer/__init__.py` and `lynxer/shell.py`, and recorded in
-  `.agents/memory/clynxer_investigation.md` (Revision 11).
+  `clynxer/__init__.py` and `clynxer/shell.py`, and recorded in
+  `.agents/memory/lynxer_investigation.md` (Revision 11).
 - [x] Rework the documentation set so it matches the implementation. Every
-  `clynxer/docs/*.md` page was restructured with headings and cross-links and
+  `lynxer/docs/*.md` page was restructured with headings and cross-links and
   its examples re-verified against the interpreter; `language.md`, `types.md`,
   `lists.md`, `structs.md`, `classes.md`, `enums.md`, `vargroups.md`,
   `modules.md`, `importAs.md`, `CLI.md`, `install.md` and `README.md` were
@@ -436,20 +436,20 @@ divergence register is `clynxer/docs/limitations.md`, and
   golden case; the `sound`, `sqldb` and `tui` wrappers use a standalone `////`
   docstring line so `--list-stdlibs` prints their descriptions.
 - [x] Document intentional differences and dropped Python-only features.
-  `clynxer/docs/limitations.md` is the canonical register; `parity.md`
+  `lynxer/docs/limitations.md` is the canonical register; `parity.md`
   summarises what is and is not a parity target, and `docs/limitations.md`
   keeps the "will not be done" framing on the Python side.
 - [x] Treat differences with no Python counterpart as out of scope for parity,
-  listed in `clynxer/docs/parity.md`: the `--compile` ELF executable, bundling
+  listed in `lynxer/docs/parity.md`: the `--compile` ELF executable, bundling
   and `bundledFile()`, the Rust `cdylib` ABI, `network`/`server`, cooperative
-  `nativeThread*`, the AST optimizer and `--no-opt`/`CLYNXER_OPT_REPORT`, the
+  `nativeThread*`, the AST optimizer and `--no-opt`/`LYNXER_OPT_REPORT`, the
   formatter and `--validate-executeable`. `--ast` is the only flag still
   reported as unavailable.
 - [x] Implement the remaining CLI tools: a token-based formatter for
-  `--format`/`--format-oneline` (`clynxer/formatter.cpp`; comments preserved
+  `--format`/`--format-oneline` (`lynxer/formatter.cpp`; comments preserved
   verbatim, idempotent, never changes tokens), a built-in interpreter self-check
   for `--validate-executeable` (17 cases, no external files), and
-  `--install`/`--uninstall` (`/usr/bin/lynxer`). The lexer's tokens now carry
+  `--install`/`--uninstall` (`/usr/bin/clynxer`). The lexer's tokens now carry
   byte offsets, and `Parser::parseProgram(false)` allows tooling to validate a
   file that has no entry points. Covered by the formatter fixture gate, the
   `--validate-executeable` gate, and new golden CLI cases. `--ast` still reports
@@ -469,7 +469,7 @@ longer coerce the value through a `double`, so
 
 ## Current boundary
 
-Clynxer currently supports the core language, all loop forms, the extended
+Lynxer currently supports the core language, all loop forms, the extended
 value model (list/tuple/sentinel/object/char/codeblock), the full documented
 scalar type set (`num`, `numBool`, `bit`, `byte`, `int8`..`uint64`,
 `float32`/`float64`), typed element literals (`[int 1, int 2]` and
@@ -482,12 +482,12 @@ There is no bytecode backend: `--compile` writes a standalone ELF executable
 that embeds the program, every transitively imported module source, and every
 imported native library, so a compiled program supports imports and stdlibs and
 behaves exactly like an interpreted one. An AST optimizer runs before execution
-(`--no-opt` disables it). The root Makefile builds and tests both Lynxer and
-Clynxer targets; `make testCLynxer` runs the module-contract check, the
+(`--no-opt` disables it). The root Makefile builds and tests both Clynxer and
+Lynxer targets; `make testLynxer` runs the module-contract check, the
 CLI/diagnostic golden cases, every `.expected` fixture (including the low-level
 native-memory and syscall fixtures), and interpreted-versus-compiled parity, and
-the two Clynxer GitHub Actions workflows run it on push and pull request with
-`CLYNXER_SKIP_DISPLAY=1` (the display/audio tests are skipped on a runner). The
+the two Lynxer GitHub Actions workflows run it on push and pull request with
+`LYNXER_SKIP_DISPLAY=1` (the display/audio tests are skipped on a runner). The
 bundled standard library covers `math`, `json`, `re`, `regex`,
 `os`, `path`, `fileIO`, `csv`, `time`, `debug`, `sys`, `shell`, `cli`, `js`,
 `multiprocessing`, `random`, `image`, `lua`, `game`, `network`, `server`,

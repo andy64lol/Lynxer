@@ -4,7 +4,7 @@
 #include <string>
 #include <utility>
 
-namespace clynxer {
+namespace lynxer {
 
 struct SourceError : std::runtime_error {
     SourceError(std::string message, int line, int column)
@@ -14,4 +14,4 @@ struct SourceError : std::runtime_error {
     int column;
 };
 
-} // namespace clynxer
+} // namespace lynxer

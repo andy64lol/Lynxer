@@ -7,7 +7,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace clynxer {
+namespace lynxer {
 
 // Program-level named types (structs, classes, enums). Declared between
 // global setup() and global main(); the parser fills the registry and the
@@ -81,8 +81,8 @@ private:
     std::unordered_map<std::string, EnumDef> enums_;
 };
 
-// Whether a runtime value satisfies a Lynxer declaration type (docs/types.md
+// Whether a runtime value satisfies a Clynxer declaration type (docs/types.md
 // and the Python type_matches semantics: checks without coercion).
 bool typeMatches(const std::string& type, const Value& value);
 
-} // namespace clynxer
+} // namespace lynxer

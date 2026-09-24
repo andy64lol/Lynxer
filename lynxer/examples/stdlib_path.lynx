@@ -37,7 +37,7 @@ global main(){
     println(returnLength(global.path.cwd()) > 0);
     println(global.path.asUri("/tmp/a b"));
 
-    str root = ".clynxer_scratch_path";
+    str root = ".lynxer_scratch_path";
     if(global.os.exists(root)){ global.os.rmTree(root); }
     println(global.path.mkdir(root));
     println(global.path.mkdir(root));

@@ -23,7 +23,7 @@ global main(){
     println(global.typing.lenList([int 1, int 2, int 3]));
     println(global.typing.charOf(65));
 
-    str data = "{\"name\":\"lynxer\",\"count\":3,\"ok\":true}";
+    str data = "{\"name\":\"clynxer\",\"count\":3,\"ok\":true}";
     println(global.json.jsonValid(data));
     println(global.json.jsonGet(data, "name"));
     println(global.json.jsonGetInt(data, "count"));

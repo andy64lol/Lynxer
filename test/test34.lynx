@@ -2,7 +2,7 @@
 global setup(){}
 
 global main(){
-    str root = "/tmp/lynxer-filesystem-fixture";
+    str root = "/tmp/clynxer-filesystem-fixture";
     str file = root + ".txt";
     str renamed = root + "-renamed.txt";
     str link = root + "-link";

@@ -1,22 +1,22 @@
-# Clynxer Syntax Guide (C++ Implementation)
+# Lynxer Syntax Guide (C++ Implementation)
 
-This document provides a **summarized syntax guide** for the **C++-based `clynxer`** implementation of the Lynxer language, including key differences from the Python `lynxer`.
+This document provides a **summarized syntax guide** for the **C++-based `lynxer`** implementation of the Clynxer language, including key differences from the Python `clynxer`.
 
-> Updated 2026-09-23. The examples below are the Clynxer form and all parse in
-> Clynxer; the intended parity scope with Python is `clynxer/docs/parity.md` and
-> the divergence register is `clynxer/docs/limitations.md`.
+> Updated 2026-09-23. The examples below are the Lynxer form and all parse in
+> Lynxer; the intended parity scope with Python is `lynxer/docs/parity.md` and
+> the divergence register is `lynxer/docs/limitations.md`.
 
 ---
 
 ## Basic Syntax
 
-Clynxer shares **most syntax** with Python `lynxer`, but has **key differences** in behavior and supported features. Below is a summary of the core syntax.
+Lynxer shares **most syntax** with Python `clynxer`, but has **key differences** in behavior and supported features. Below is a summary of the core syntax.
 
 ### Variables and Types
 ```lynx
 int x = 42;
 float y = 3.14;
-str name = "Lynxer";
+str name = "Clynxer";
 bool flag = true;
 any value = x; // `any` type
 ```
@@ -80,20 +80,20 @@ global main() {
 ## Key Syntax Differences
 
 ### 1. **Logical NOT Operator**
-- **Python `lynxer`**: Supports `!value`.
-- **`clynxer`**: **Does not support `!`**. Use `not value` or `!!value`.
+- **Python `clynxer`**: Supports `!value`.
+- **`lynxer`**: **Does not support `!`**. Use `not value` or `!!value`.
 
 ### 2. **Module Self-Calls**
-- In `clynxer`, `global.name(...)` resolves to **core builtins**, not module functions.
+- In `lynxer`, `global.name(...)` resolves to **core builtins**, not module functions.
 - Use **bare names** for module functions.
 
 ### 3. **Bytecode and Compilation**
-- **Python `lynxer`**: Supports `.lynxc` bytecode files.
-- **`clynxer`**: **No bytecode support**. Compiles directly to standalone executables.
+- **Python `clynxer`**: Supports `.lynxc` bytecode files.
+- **`lynxer`**: **No bytecode support**. Compiles directly to standalone executables.
 
 ### 4. **Error Handling**
-- **Python `lynxer`**: Uses Python’s exception system.
-- **`clynxer`**: Uses Lynxer’s `try/catch` blocks, but some error messages may differ.
+- **Python `clynxer`**: Uses Python’s exception system.
+- **`lynxer`**: Uses Clynxer’s `try/catch` blocks, but some error messages may differ.
 
 ---
 
@@ -102,20 +102,20 @@ global main() {
 ```lynx
 // hello.lynx
 global main() {
-    println("Hello, Lynxer!");
+    println("Hello, Clynxer!");
 }
 ```
 
 Compile and run with:
 ```bash
 make
-./clynxer hello.lynx
+./lynxer hello.lynx
 ```
 
 Or compile to a standalone executable:
 ```bash
 make
-./clynxer --compile hello.lynx -o hello
+./lynxer --compile hello.lynx -o hello
 ./hello
 ```
 
@@ -123,7 +123,7 @@ make
 
 ## Key Features
 
-- **Standalone executables**: Compile Lynxer programs to ELF binaries.
+- **Standalone executables**: Compile Clynxer programs to ELF binaries.
 - **Native modules**: Supports Rust and C++ `.so` libraries.
 - **Bundling**: Embed multiple `.lynx` files and `.so` libraries into a single executable.
 - **Cooperative threading**: Supports `multiprocessing` but uses a cooperative model.
@@ -138,12 +138,12 @@ make
   `async*` built-ins and the `await` expression evaluate cooperatively inline.
 - FFI is available as the `ffi*` built-ins (`dlopen`/`dlsym` plus
   signature-string dispatch), not through libffi.
-- The full list is `clynxer/docs/limitations.md`; the parity scope is
-  `clynxer/docs/parity.md`.
+- The full list is `lynxer/docs/limitations.md`; the parity scope is
+  `lynxer/docs/parity.md`.
 
 ---
 
 ### References
-- [clynxer Documentation](clynxer/docs/README.md)
-- [clynxer Limitations](clynxer/docs/limitations.md)
-- [Parity scope](clynxer/docs/parity.md)
+- [lynxer Documentation](lynxer/docs/README.md)
+- [lynxer Limitations](lynxer/docs/limitations.md)
+- [Parity scope](lynxer/docs/parity.md)

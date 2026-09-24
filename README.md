@@ -1,22 +1,22 @@
-# Lynxer
+# Clynxer
 
 > **Status (2026-09-23): this Python implementation is the frozen behaviour
-> reference.** Clynxer — the standalone C++ implementation under `clynxer/` —
+> reference.** Lynxer — the standalone C++ implementation under `lynxer/` —
 > is the primary implementation and has surpassed it for real use: it ships
 > standalone ELF executables, 27 natively backed stdlib modules, an AST
 > optimizer, a frozen native-module ABI, and a full test suite on both amd64
-> and arm64. The files under `lynxer/` and `test/` are kept for reference and
-> receive no new features; parity fixes are made in Clynxer. See
-> `clynxer/docs/parity.md` (what is a parity target) and
-> `clynxer/docs/limitations.md` (the divergence register).
+> and arm64. The files under `clynxer/` and `test/` are kept for reference and
+> receive no new features; parity fixes are made in Lynxer. See
+> `lynxer/docs/parity.md` (what is a parity target) and
+> `lynxer/docs/limitations.md` (the divergence register).
 
-![Lynxer logo](assets/lynxer.png)
+![Clynxer logo](assets/lynxer.png)
 ![](https://img.shields.io/badge/-Custom%20programming%20language-blue?style=for-the-badge)
 
 A statically-flavoured, C-style scripting language that runs on Python.
 Files use the `.lynx` extension.
 
-> **Linux only:** Lynxer is currently supported for Linux users and Linux
+> **Linux only:** Clynxer is currently supported for Linux users and Linux
 > distributions. The native C++ extension, standalone bundler, and Linux
 > system-level `os` calls require Linux. Native builds support 64-bit
 > x86-64 (`amd64`) and ARM64 (`aarch64`) hosts. Builds fail early on other
@@ -42,11 +42,11 @@ global main(){
 ## Quick start
 
 ```bash
-lynxer syntax.lynx           # run a source file
-lynxer --compile syntax.lynx # compile to bytecode (syntax.lynxc)
-lynxer syntax.lynxc          # run compiled bytecode directly
-lynxer --version             # print version
-lynxer --help                # print help
+clynxer syntax.lynx           # run a source file
+clynxer --compile syntax.lynx # compile to bytecode (syntax.lynxc)
+clynxer syntax.lynxc          # run compiled bytecode directly
+clynxer --version             # print version
+clynxer --help                # print help
 ```
 
 ---
@@ -56,7 +56,7 @@ lynxer --help                # print help
 ```c
 global setup(){
     import("math");
-    const str LANG = "Lynxer";
+    const str LANG = "Clynxer";
 }
 
 global greet(str name){
@@ -96,7 +96,7 @@ global main(){
 
 | Page | Contents |
 |------|----------|
-| [Installation](docs/install.md) | How to install and run Lynxer |
+| [Installation](docs/install.md) | How to install and run Clynxer |
 | [CLI reference](docs/CLI.md) | Complete command-line usage |
 | [Language reference](docs/language.md) | Types, variables, operators, control flow, functions |
 | [Type reference](docs/types.md) | Primitive, fixed-width integer, and fixed-width float types |
@@ -124,8 +124,8 @@ global main(){
 ## Project layout
 
 ```
-lynxer/
-  lynxer.py         Lexer + parser + interpreter + bytecode compiler
+clynxer/
+  clynxer.py         Lexer + parser + interpreter + bytecode compiler
   builtins.py       Language builtin implementations and registry
   shell.py          CLI entry point
   stdlib/           Standard library modules (.lynx files; native memory is built in)

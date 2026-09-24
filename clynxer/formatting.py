@@ -1,4 +1,4 @@
-"""Formatting and syntax-checking helpers for Lynxer source files."""
+"""Formatting and syntax-checking helpers for Clynxer source files."""
 
 from __future__ import annotations
 
@@ -80,7 +80,7 @@ def _comments_in_gap(gap: str, include_delimited: bool = False) -> list[str]:
 
 
 def _as_multiline_comment(comment: str) -> str:
-    """Convert an ordinary ``//`` comment to Lynxer's delimited form."""
+    """Convert an ordinary ``//`` comment to Clynxer's delimited form."""
     return f"///{comment[2:]} ///"
 
 
@@ -209,7 +209,7 @@ class _Writer:
 
 
 def format_source(filename: str, source: str, oneline: bool = False) -> str:
-    """Return consistently spaced Lynxer source without changing its tokens."""
+    """Return consistently spaced Clynxer source without changing its tokens."""
     tokens = _tokens(filename, source)
     writer = _Writer(oneline)
     previous: Token | None = None

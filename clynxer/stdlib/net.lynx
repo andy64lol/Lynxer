@@ -1,5 +1,5 @@
 ////
-Lynxer standard library: net.
+Clynxer standard library: net.
 Networking helpers. Requires websockets.
 ////
 

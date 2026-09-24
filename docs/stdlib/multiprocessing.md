@@ -24,7 +24,7 @@ global setup(){
 ### Thread pool vs process pool
 
 - `runParallel`, `mapShell`, `threadMap`, and `runParallelSilent` use **threads** (`ThreadPoolExecutor`). This is the right choice for shell commands, which spawn separate OS processes — the GIL is never held during the actual work.
-- `runParallelProcess` uses **processes** (`ProcessPoolExecutor`) via picklable top-level workers in `lynxer/_mp_workers.py`. Use it when the shell commands are CPU-heavy Python scripts and you want true process isolation.
+- `runParallelProcess` uses **processes** (`ProcessPoolExecutor`) via picklable top-level workers in `clynxer/_mp_workers.py`. Use it when the shell commands are CPU-heavy Python scripts and you want true process isolation.
 
 ## Examples
 

@@ -4,28 +4,28 @@
       "--version"
     ],
     "exit": 0,
-    "stdout": "CLynxer 0.1.8"
+    "stdout": "Lynxer 0.1.8"
   },
   "help": {
     "args": [
       "--help"
     ],
     "exit": 0,
-    "stdout": "\nUsage:\n  clynxer <file.lynx>                          Run a Lynxer source file\n  clynxer --no-opt <file.lynx>                 Run without the AST optimizer\n  clynxer --lint <file.lynx>                   Check Lynxer syntax without running it\n  clynxer --ast <file.lynx>                    Parse and print the abstract syntax tree\n  clynxer --format <file.lynx>                 Rewrite a file with canonical spacing\n  clynxer --format-oneline <file.lynx>         Collapse a file onto one physical line\n  clynxer --compile <a.lynx> [options] [name]  Compile input files into one executable\n  clynxer --bundle <a.lynx> [options] [name]   Alias of --compile\n      --include <file>                         Embed a module, native library or data file\n      -o, --output <name>                      Name the output executable\n  clynxer --validate-executeable               Run the interpreter self-check\n  clynxer --version                            Print version\n  clynxer --list-stdlibs                       List available Lynxer stdlib modules\n  clynxer --install                            Install the executable as /usr/bin/lynxer\n  clynxer --uninstall                          Remove /usr/bin/lynxer\n\nRemoved with the bytecode backend (use --compile):\n  --view-bytecode, --benchmark-compile, --no-cache"
+    "stdout": "\nUsage:\n  lynxer <file.lynx>                          Run a Clynxer source file\n  lynxer --no-opt <file.lynx>                 Run without the AST optimizer\n  lynxer --lint <file.lynx>                   Check Clynxer syntax without running it\n  lynxer --ast <file.lynx>                    Parse and print the abstract syntax tree\n  lynxer --format <file.lynx>                 Rewrite a file with canonical spacing\n  lynxer --format-oneline <file.lynx>         Collapse a file onto one physical line\n  lynxer --compile <a.lynx> [options] [name]  Compile input files into one executable\n  lynxer --bundle <a.lynx> [options] [name]   Alias of --compile\n      --include <file>                         Embed a module, native library or data file\n      -o, --output <name>                      Name the output executable\n  lynxer --validate-executeable               Run the interpreter self-check\n  lynxer --version                            Print version\n  lynxer --list-stdlibs                       List available Clynxer stdlib modules\n  lynxer --install                            Install the executable as /usr/bin/clynxer\n  lynxer --uninstall                          Remove /usr/bin/clynxer\n\nRemoved with the bytecode backend (use --compile):\n  --view-bytecode, --benchmark-compile, --no-cache"
   },
   "file_not_found": {
     "args": [
       "does_not_exist.lynx"
     ],
     "exit": 1,
-    "stderr": "clynxer: file not found: 'does_not_exist.lynx'"
+    "stderr": "lynxer: file not found: 'does_not_exist.lynx'"
   },
   "bytecode_removed": {
     "args": [
       "legacy.lynxc"
     ],
     "exit": 1,
-    "stderr": "clynxer: bytecode files are no longer supported; compile the .lynx source with --compile instead"
+    "stderr": "lynxer: bytecode files are no longer supported; compile the .lynx source with --compile instead"
   },
   "view_bytecode_removed": {
     "args": [
@@ -33,7 +33,7 @@
       "x.lynx"
     ],
     "exit": 1,
-    "stderr": "clynxer: '--view-bytecode' was removed with the bytecode backend; use clynxer --compile instead"
+    "stderr": "lynxer: '--view-bytecode' was removed with the bytecode backend; use lynxer --compile instead"
   },
   "benchmark_removed": {
     "args": [
@@ -41,7 +41,7 @@
       "x.lynx"
     ],
     "exit": 1,
-    "stderr": "clynxer: '--benchmark-compile' was removed with the bytecode backend; use clynxer --compile instead"
+    "stderr": "lynxer: '--benchmark-compile' was removed with the bytecode backend; use lynxer --compile instead"
   },
   "no_cache_removed": {
     "args": [
@@ -49,59 +49,59 @@
       "x.lynx"
     ],
     "exit": 1,
-    "stderr": "clynxer: '--no-cache' was removed with the bytecode backend; use clynxer --compile instead"
+    "stderr": "lynxer: '--no-cache' was removed with the bytecode backend; use lynxer --compile instead"
   },
   "ast": {
     "args": [
       "--ast",
-      "clynxer/examples/hello.lynx"
+      "lynxer/examples/hello.lynx"
     ],
     "exit": 0,
-    "stdout": "Lynxer AST\n===========\nProgram\n  functions:\n    list[\n      Function\n        name:\n          'setup'\n        parameters:\n          list[]\n        codeblockParameters:\n          list[]\n        returnType:\n          'any'\n        isGlobal:\n          true\n        isFileFunction:\n          false\n        statements:\n          list[\n            DeclarationStatement\n              type:\n                'str'\n              name:\n                'greeting'\n              constant:\n                false\n              value:\n                LiteralExpression\n                  value:\n                    'Hello'\n          ]\n      Function\n        name:\n          'main'\n        parameters:\n          list[]\n        codeblockParameters:\n          list[]\n        returnType:\n          'any'\n        isGlobal:\n          true\n        isFileFunction:\n          false\n        statements:\n          list[\n            DeclarationStatement\n              type:\n                'str'\n              name:\n                'name'\n              constant:\n                false\n              value:\n                CallExpression\n                  name:\n                    'input'\n                  arguments:\n                    list[\n                      LiteralExpression\n                        value:\n                          'What\\'s your name? '\n                    ]\n                  codeblocks:\n                    list[]\n            ExpressionStatement\n              expression:\n                CallExpression\n                  name:\n                    'println'\n                  arguments:\n                    list[\n                      BinaryExpression\n                        operation:\n                          '+'\n                        left:\n                          BinaryExpression\n                            operation:\n                              '+'\n                            left:\n                              BinaryExpression\n                                operation:\n                                  '+'\n                                left:\n                                  VariableExpression\n                                    name:\n                                      'greeting'\n                                right:\n                                  LiteralExpression\n                                    value:\n                                      ', '\n                            right:\n                              VariableExpression\n                                name:\n                                  'name'\n                        right:\n                          LiteralExpression\n                            value:\n                              '!'\n                    ]\n                  codeblocks:\n                    list[]\n          ]\n    ]"
+    "stdout": "Clynxer AST\n===========\nProgram\n  functions:\n    list[\n      Function\n        name:\n          'setup'\n        parameters:\n          list[]\n        codeblockParameters:\n          list[]\n        returnType:\n          'any'\n        isGlobal:\n          true\n        isFileFunction:\n          false\n        statements:\n          list[\n            DeclarationStatement\n              type:\n                'str'\n              name:\n                'greeting'\n              constant:\n                false\n              value:\n                LiteralExpression\n                  value:\n                    'Hello'\n          ]\n      Function\n        name:\n          'main'\n        parameters:\n          list[]\n        codeblockParameters:\n          list[]\n        returnType:\n          'any'\n        isGlobal:\n          true\n        isFileFunction:\n          false\n        statements:\n          list[\n            DeclarationStatement\n              type:\n                'str'\n              name:\n                'name'\n              constant:\n                false\n              value:\n                CallExpression\n                  name:\n                    'input'\n                  arguments:\n                    list[\n                      LiteralExpression\n                        value:\n                          'What\\'s your name? '\n                    ]\n                  codeblocks:\n                    list[]\n            ExpressionStatement\n              expression:\n                CallExpression\n                  name:\n                    'println'\n                  arguments:\n                    list[\n                      BinaryExpression\n                        operation:\n                          '+'\n                        left:\n                          BinaryExpression\n                            operation:\n                              '+'\n                            left:\n                              BinaryExpression\n                                operation:\n                                  '+'\n                                left:\n                                  VariableExpression\n                                    name:\n                                      'greeting'\n                                right:\n                                  LiteralExpression\n                                    value:\n                                      ', '\n                            right:\n                              VariableExpression\n                                name:\n                                  'name'\n                        right:\n                          LiteralExpression\n                            value:\n                              '!'\n                    ]\n                  codeblocks:\n                    list[]\n          ]\n    ]"
   },
   "lint_ok": {
     "args": [
       "--lint",
-      "clynxer/examples/hello.lynx"
+      "lynxer/examples/hello.lynx"
     ],
     "exit": 0,
-    "stdout": "Lint OK: clynxer/examples/hello.lynx"
+    "stdout": "Lint OK: lynxer/examples/hello.lynx"
   },
   "lint_error": {
     "args": [
       "--lint",
-      "clynxer/examples/lexical_bang.lynx"
+      "lynxer/examples/lexical_bang.lynx"
     ],
     "exit": 1,
-    "stderr": "clynxer: clynxer/examples/lexical_bang.lynx:6:13: expected an expression"
+    "stderr": "lynxer: lynxer/examples/lexical_bang.lynx:6:13: expected an expression"
   },
   "lexical_bang": {
     "args": [
-      "clynxer/examples/lexical_bang.lynx"
+      "lynxer/examples/lexical_bang.lynx"
     ],
     "exit": 1,
-    "stderr": "clynxer: clynxer/examples/lexical_bang.lynx:6:13: expected an expression"
+    "stderr": "lynxer: lynxer/examples/lexical_bang.lynx:6:13: expected an expression"
   },
   "lexical_block_comment": {
     "args": [
-      "clynxer/examples/lexical_block_comment.lynx"
+      "lynxer/examples/lexical_block_comment.lynx"
     ],
     "exit": 1,
-    "stderr": "clynxer: clynxer/examples/lexical_block_comment.lynx:6:5: expected a declaration, assignment, or print call"
+    "stderr": "lynxer: lynxer/examples/lexical_block_comment.lynx:6:5: expected a declaration, assignment, or print call"
   },
   "lexical_hex_escape": {
     "args": [
-      "clynxer/examples/lexical_hex_escape.lynx"
+      "lynxer/examples/lexical_hex_escape.lynx"
     ],
     "exit": 1,
-    "stderr": "clynxer: clynxer/examples/lexical_hex_escape.lynx:5:13: unknown string escape \\x"
+    "stderr": "lynxer: lynxer/examples/lexical_hex_escape.lynx:5:13: unknown string escape \\x"
   },
   "lexical_unicode_escape": {
     "args": [
-      "clynxer/examples/lexical_unicode_escape.lynx"
+      "lynxer/examples/lexical_unicode_escape.lynx"
     ],
     "exit": 1,
-    "stderr": "clynxer: clynxer/examples/lexical_unicode_escape.lynx:5:13: unknown string escape \\u"
+    "stderr": "lynxer: lynxer/examples/lexical_unicode_escape.lynx:5:13: unknown string escape \\u"
   },
   "validate": {
     "args": [
@@ -115,7 +115,7 @@
       "--format"
     ],
     "exit": 1,
-    "stderr": "clynxer: --format requires exactly one file argument"
+    "stderr": "lynxer: --format requires exactly one file argument"
   },
   "format_missing_file": {
     "args": [
@@ -123,35 +123,35 @@
       "does_not_exist.lynx"
     ],
     "exit": 1,
-    "stderr": "clynxer: file not found: 'does_not_exist.lynx'"
+    "stderr": "lynxer: file not found: 'does_not_exist.lynx'"
   },
   "format_success": {
     "args": [
       "--format",
       "{scratch}"
     ],
-    "scratch": ".clynxer_golden_format.lynx",
-    "sourceFile": "clynxer/examples/formatter_input.lynx",
+    "scratch": ".lynxer_golden_format.lynx",
+    "sourceFile": "lynxer/examples/formatter_input.lynx",
     "exit": 0,
-    "stdout": "Formatted .clynxer_golden_format.lynx"
+    "stdout": "Formatted .lynxer_golden_format.lynx"
   },
   "format_oneline_success": {
     "args": [
       "--format-oneline",
       "{scratch}"
     ],
-    "scratch": ".clynxer_golden_format.lynx",
-    "sourceFile": "clynxer/examples/formatter_input.lynx",
+    "scratch": ".lynxer_golden_format.lynx",
+    "sourceFile": "lynxer/examples/formatter_input.lynx",
     "exit": 0,
-    "stdout": "Formatted .clynxer_golden_format.lynx"
+    "stdout": "Formatted .lynxer_golden_format.lynx"
   },
   "format_parse_error": {
     "args": [
       "--format",
-      "clynxer/examples/lexical_bang.lynx"
+      "lynxer/examples/lexical_bang.lynx"
     ],
     "exit": 1,
-    "stderr": "clynxer: clynxer/examples/lexical_bang.lynx:6:13: expected an expression"
+    "stderr": "lynxer: lynxer/examples/lexical_bang.lynx:6:13: expected an expression"
   },
   "easter_egg": {
     "args": [
@@ -165,7 +165,7 @@
       "-v"
     ],
     "exit": 0,
-    "stdout": "CLynxer 0.1.8"
+    "stdout": "Lynxer 0.1.8"
   },
   "disasm_removed": {
     "args": [
@@ -173,7 +173,7 @@
       "x.lynxc"
     ],
     "exit": 1,
-    "stderr": "clynxer: '--disasm' was removed with the bytecode backend; use clynxer --compile instead"
+    "stderr": "lynxer: '--disasm' was removed with the bytecode backend; use lynxer --compile instead"
   },
   "bench_compile_alias": {
     "args": [
@@ -181,11 +181,11 @@
       "x.lynx"
     ],
     "exit": 1,
-    "stderr": "clynxer: '--bench-compile' was removed with the bytecode backend; use clynxer --compile instead"
+    "stderr": "lynxer: '--bench-compile' was removed with the bytecode backend; use lynxer --compile instead"
   },
   "run_program": {
     "args": [
-      "clynxer/examples/milestone5.lynx"
+      "lynxer/examples/milestone5.lynx"
     ],
     "exit": 0,
     "stdout": "5\n7\n25"

@@ -7,7 +7,7 @@ deterministic fields are asserted.
 global setup(){ import("json"); }
 
 global main(){
-    str dir = ".clynxer_scratch_fs";
+    str dir = ".lynxer_scratch_fs";
     str file = dir + "/notes.txt";
     str link = dir + "/notes.link";
 

@@ -3,7 +3,7 @@
 #include <cmath>
 #include <variant>
 
-namespace clynxer {
+namespace lynxer {
 
 TypeRegistry& TypeRegistry::instance() {
     static TypeRegistry registry;
@@ -154,4 +154,4 @@ bool typeMatches(const std::string& type, const Value& value) {
     return false;
 }
 
-} // namespace clynxer
+} // namespace lynxer

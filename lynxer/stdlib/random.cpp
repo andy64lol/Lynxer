@@ -1,7 +1,7 @@
-// Lynxer `random` stdlib backend: a small seeded pseudo-random generator.
+// Clynxer `random` stdlib backend: a small seeded pseudo-random generator.
 //
-// The Python reference delegated to the `random` module. Clynxer needs explicit
-// state, and Lynxer modules cannot declare module-level variables, so the state
+// The Python reference delegated to the `random` module. Lynxer needs explicit
+// state, and Clynxer modules cannot declare module-level variables, so the state
 // lives here instead of in the wrapper. The generator is a linear congruential
 // sequence; seeding makes results reproducible.
 
@@ -104,7 +104,7 @@ extern "C" double random_triangular(double low, double high, double mode) {
     return high - std::sqrt((1.0 - u) * (high - low) * (high - mode));
 }
 
-extern "C" int lynxer_module_init_v1(RegisterFunction function,
+extern "C" int clynxer_module_init_v1(RegisterFunction function,
                                      RegisterConstant, RegisterType) {
     return function("seed", "random_seed", "cdecl:int64(int64)") &&
                    function("randint", "random_randint",

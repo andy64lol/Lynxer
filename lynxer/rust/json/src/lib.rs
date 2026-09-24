@@ -1,4 +1,4 @@
-//! Clynxer `json` stdlib backend, reimplemented on `serde_json`.
+//! Lynxer `json` stdlib backend, reimplemented on `serde_json`.
 //!
 //! Structured values cross the native ABI as JSON strings; the `.lynx` wrapper
 //! only forwards, except for list-building helpers implemented with builtins.
@@ -10,7 +10,7 @@
 //!     `": "` / `,\n` separators (which is what nlohmann's `dump(n)` uses);
 //!   * the compact helpers use `": "` and `", "`.
 
-use clynxer_abi::{export_float, export_int, export_string, lynxer_module};
+use lynxer_abi::{export_float, export_int, export_string, clynxer_module};
 use serde::Serialize;
 use serde_json::Value;
 
@@ -352,4 +352,4 @@ const OPS: &[(&str, &str, &str)] = &[
     ("build", "json_build", "cdecl:cstring(...)"),
 ];
 
-lynxer_module!(OPS);
+clynxer_module!(OPS);

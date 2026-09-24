@@ -59,14 +59,14 @@ global main(){
     println(global.network.put("http://127.0.0.1:18123/missing", "x", "text/plain"));
     println(global.network.delete("http://127.0.0.1:18123/missing"));
     println(global.network.patch("http://127.0.0.1:18123/missing", "x", "text/plain"));
-    println(global.network.download("http://127.0.0.1:18123/missing", "/tmp/clynxer-missing.txt"));
+    println(global.network.download("http://127.0.0.1:18123/missing", "/tmp/lynxer-missing.txt"));
 
     // WebSocket.
     println(global.network.wsConnect("echo", "ws://127.0.0.1:18123/ws"));
     println(global.network.wsConnected("echo"));
     println(global.network.wsSend("echo", "one"));
     println(global.network.wsReceive("echo"));
-    println(global.network.wsSendReceive("echo", "Lynxer-ws"));
+    println(global.network.wsSendReceive("echo", "Clynxer-ws"));
     // Unknown connection names are errors, and closing removes the entry.
     println(global.network.wsConnected("nope"));
     println(global.network.wsReceive("nope"));

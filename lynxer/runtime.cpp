@@ -8,7 +8,7 @@
 #include <cmath>
 #include <filesystem>
 
-namespace clynxer {
+namespace lynxer {
 
 Environment::Environment() : scopes_(1), functionScopes_(1) {}
 
@@ -551,7 +551,7 @@ bool isTruthy(const Value& value) {
         return !(*tuple)->elements.empty();
     }
     // Sentinels, objects, chars, records, enums, and codeblocks are always
-    // truthy, matching Lynxer.
+    // truthy, matching Clynxer.
     return true;
 }
 
@@ -708,4 +708,4 @@ std::vector<std::string> bundledAssetNames() {
     return names;
 }
 
-} // namespace clynxer
+} // namespace lynxer

@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-namespace clynxer {
+namespace lynxer {
 
 namespace {
 
@@ -340,4 +340,4 @@ std::string formatSource(const std::string& source, const std::string& display,
     return writer.finish();
 }
 
-} // namespace clynxer
+} // namespace lynxer

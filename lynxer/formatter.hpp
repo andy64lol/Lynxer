@@ -2,9 +2,9 @@
 
 #include <string>
 
-namespace clynxer {
+namespace lynxer {
 
-// Reformats Lynxer source without changing its tokens: canonical spacing,
+// Reformats Clynxer source without changing its tokens: canonical spacing,
 // four-space indentation, comments preserved. With `oneline`, everything is
 // collapsed onto a single physical line and `//` comments become `///...///`.
 //
@@ -13,4 +13,4 @@ namespace clynxer {
 std::string formatSource(const std::string& source, const std::string& display,
                          bool oneline);
 
-} // namespace clynxer
+} // namespace lynxer

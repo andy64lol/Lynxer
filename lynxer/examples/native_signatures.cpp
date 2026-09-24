@@ -1,7 +1,7 @@
 // Test-only native module used by examples/native_signatures.lynx.
 //
 // It registers exactly one function per native-call signature shape supported
-// by clynxer's `callNative` dispatcher, so the fixture fails loudly if any
+// by lynxer's `callNative` dispatcher, so the fixture fails loudly if any
 // shape regresses. Every function returns a deterministic value.
 
 #include <cstdint>
@@ -81,7 +81,7 @@ extern "C" std::int64_t sig_sii(const char* a, std::int64_t n, std::int64_t m) {
     return static_cast<std::int64_t>(std::strlen(a)) + n + m;
 }
 
-extern "C" int lynxer_module_init_v1(RegisterFunction f, RegisterConstant,
+extern "C" int clynxer_module_init_v1(RegisterFunction f, RegisterConstant,
                                      RegisterType) {
     return f("v", "sig_v", "cdecl:int64()") &&
                    f("d", "sig_d", "cdecl:double()") &&

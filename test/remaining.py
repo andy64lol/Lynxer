@@ -17,14 +17,14 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from lynxer.bytecode import (
+from clynxer.bytecode import (
     BYTECODE_VERSION,
     _optimize_program,
     compile_to_bytecode,
     load_bytecode,
     run_bytecode,
 )
-from lynxer.lynxer import BinOpNode, Error, Lexer, NumberNode, Parser, Token, run
+from clynxer.clynxer import BinOpNode, Error, Lexer, NumberNode, Parser, Token, run
 
 
 def execute(source: str, filename: str) -> tuple[str, Error | None]:
@@ -79,7 +79,7 @@ def collect(node, node_type, found=None):
 def native_available() -> bool:
     """Return whether the compiled native extension can be imported."""
     try:
-        import lynxer.cpp  # noqa: F401  # type: ignore[import-unresolved] — built extension module
+        import clynxer.cpp  # noqa: F401  # type: ignore[import-unresolved] — built extension module
     except Exception:  # noqa: BLE001
         return False
     return True
@@ -345,7 +345,7 @@ def test_optimized_and_unoptimized_agree() -> None:
     expected = "14\nab\n2.5\n1\ntrue\n"
     require_output(_DIFFERENTIAL_SOURCE, expected, "differential source run")
 
-    with tempfile.TemporaryDirectory(prefix="lynxer-opt-") as directory:
+    with tempfile.TemporaryDirectory(prefix="clynxer-opt-") as directory:
         root = Path(directory)
         outputs = {}
         for label, optimize in (("optimized", True), ("unoptimized", False)):
@@ -371,7 +371,7 @@ def test_optimized_and_unoptimized_agree() -> None:
 
 
 def test_bytecode_roundtrip() -> None:
-    with tempfile.TemporaryDirectory(prefix="lynxer-remaining-") as directory:
+    with tempfile.TemporaryDirectory(prefix="clynxer-remaining-") as directory:
         source_path = Path(directory) / "features.lynx"
         source = """global setup(){}
 enum result = [Ok(int value), Err(str message)]{}
@@ -419,7 +419,7 @@ def test_ffi_callback_signatures() -> None:
     if not native_available():
         print("SKIP  ffiCallback signatures: native extension not built")
         return
-    from lynxer import cpp  # type: ignore[import-unresolved] — built extension module
+    from clynxer import cpp  # type: ignore[import-unresolved] — built extension module
 
     class _Target:
         def execute(self, *args):

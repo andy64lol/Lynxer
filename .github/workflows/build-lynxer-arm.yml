@@ -1,4 +1,4 @@
-name: Build Clynxer on ARM64
+name: Build Lynxer on ARM64
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    name: Build and Test Clynxer on ARM64
+    name: Build and Test Lynxer on ARM64
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
 
@@ -21,7 +21,7 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: clynxer/rust -> ../build/rust
+          workspaces: lynxer/rust -> ../build/rust
 
       - name: Set up Python 3.14
         uses: actions/setup-python@v5
@@ -31,15 +31,15 @@ jobs:
       - name: Install ARM64 toolchain
         run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu libasound2-dev pkg-config
 
-      - name: Build Clynxer for ARM64
-        run: make buildCLynxerArm64
+      - name: Build Lynxer for ARM64
+        run: make buildLynxerArm64
 
-      - name: Test Clynxer ARM64 binary
-        run: make testCLynxer CLYNXER_SKIP_DISPLAY=1
+      - name: Test Lynxer ARM64 binary
+        run: make testLynxer LYNXER_SKIP_DISPLAY=1
       - name: Run the ARM64 syscall fixture
-        run: make testCLynxerArm64Syscalls
+        run: make testLynxerArm64Syscalls
       - name: Upload ARM64 binary
         uses: actions/upload-artifact@v4
         with:
-          name: clynxer-arm64
-          path: clynxer/clynxer
+          name: lynxer-arm64
+          path: lynxer/lynxer

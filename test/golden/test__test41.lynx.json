@@ -7,5 +7,5 @@
   "source": "test/test41.lynx",
   "status": "completed",
   "stderr": "",
-  "stdout": "xnyl\npadded\ntrue\ntrue\ntwo one\nMIXED\na|b|c\nbcd\n50\ntrue\ntrue\ntrue\n3\nA\ntrue\nlynxer\n3\ntrue\nfalse\n3\n\"quoted\"\ntrue\ntrue\ntrue\n"
+  "stdout": "xnyl\npadded\ntrue\ntrue\ntwo one\nMIXED\na|b|c\nbcd\n50\ntrue\ntrue\ntrue\n3\nA\ntrue\nclynxer\n3\ntrue\nfalse\n3\n\"quoted\"\ntrue\ntrue\ntrue\n"
 }

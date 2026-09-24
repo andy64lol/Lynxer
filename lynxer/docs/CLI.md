@@ -1,11 +1,11 @@
 # CLI
 
-The Clynxer executable is `clynxer`. `--install` copies it to `/usr/bin/lynxer`
+The Lynxer executable is `lynxer`. `--install` copies it to `/usr/bin/clynxer`
 and `--uninstall` removes it; otherwise run it from where it was built.
 
 ```bash
-make buildCLynxer
-clynxer/clynxer --help
+make buildLynxer
+lynxer/lynxer --help
 ```
 
 `--help` (or `-h`, or no arguments at all) prints the usage summary and exits
@@ -14,16 +14,16 @@ clynxer/clynxer --help
 ## Running a program
 
 ```bash
-clynxer program.lynx
-clynxer --no-opt program.lynx    # run without the AST optimizer
+lynxer program.lynx
+lynxer --no-opt program.lynx    # run without the AST optimizer
 ```
 
 Anything the parser does not recognise as a flag is treated as a **file path**,
-not an option. `clynxer --bogus-flag` therefore reports
-`clynxer: file not found: '--bogus-flag'` and exits `1`.
+not an option. `lynxer --bogus-flag` therefore reports
+`lynxer: file not found: '--bogus-flag'` and exits `1`.
 
 A `.lynxc` argument is rejected explicitly:
-`clynxer: bytecode files are no longer supported; compile the .lynx source with --compile instead`.
+`lynxer: bytecode files are no longer supported; compile the .lynx source with --compile instead`.
 
 ## Exit codes
 
@@ -35,14 +35,14 @@ A `.lynxc` argument is rejected explicitly:
 
 ## The AST optimizer
 
-Before execution Clynxer rewrites the parsed program: constant folding,
+Before execution Lynxer rewrites the parsed program: constant folding,
 short-circuit simplification of constant `and`/`or`, and dead-branch
 elimination for a constant `if`, `while (false)`, and `iterate (0)`. The pass is
 semantics-preserving, so output and exit codes are identical with and without
 it. `--no-opt` (or `-no-opt`) disables it for the run; a **compiled** executable
 ignores its command line and always optimizes.
 
-`CLYNXER_OPT_REPORT=1` prints one line of transformation counts to stderr after
+`LYNXER_OPT_REPORT=1` prints one line of transformation counts to stderr after
 the program runs, for example
 `optimizer: constant folds=10, short-circuits=2, dead branches=3`. See
 [limitations.md](limitations.md#optimizer).
@@ -50,27 +50,27 @@ the program runs, for example
 ## Checking syntax
 
 ```bash
-clynxer --lint program.lynx
+lynxer --lint program.lynx
 ```
 
 `--lint` parses the file and reports the first syntax error without running it.
 A clean file prints `Lint OK: <path>` and exits `0`. It requires exactly one
 file; otherwise it prints
-`clynxer: --lint requires exactly one file argument`.
+`lynxer: --lint requires exactly one file argument`.
 
 ## Printing the AST
 
 ```bash
-clynxer --ast program.lynx
+lynxer --ast program.lynx
 ```
 
 `--ast` lexes and parses the file and prints the resulting tree without running
-it: the header `Lynxer AST` / `===========`, then a position-free, indented
+it: the header `Clynxer AST` / `===========`, then a position-free, indented
 dump of every top-level function and its statements. Source line/column are
 omitted. A syntax error is reported with its source location and exits `1`; the
 flag requires exactly one file argument.
 
-The tree uses Clynxer's own node and field names, so it is not byte-comparable
+The tree uses Lynxer's own node and field names, so it is not byte-comparable
 to the Python reference's `--ast`. Named-type declarations (`struct`, `class`,
 `enum`) are parse-time metadata held in the type registry rather than part of
 the returned program, so `--ast` shows the executable AST only.
@@ -78,8 +78,8 @@ the returned program, so `--ast` shows the executable AST only.
 ## Formatting
 
 ```bash
-clynxer --format program.lynx
-clynxer --format-oneline program.lynx
+lynxer --format program.lynx
+lynxer --format-oneline program.lynx
 ```
 
 Both rewrite the file **in place**. `--format` gives canonical spacing and
@@ -97,7 +97,7 @@ line breaks.
 ## Interpreter self-check
 
 ```bash
-clynxer --validate-executeable
+lynxer --validate-executeable
 ```
 
 Runs a built-in corpus of small programs that must either run cleanly or raise a
@@ -112,8 +112,8 @@ transitively imported `.lynx` module and `.so` library, and any additional
 inputs. `--bundle` is an exact alias. There is **no** `.lynxc` bytecode path.
 
 ```bash
-clynxer --compile app.lynx -o app
-clynxer --compile app.lynx helpers.lynx vendor/lib.so \
+lynxer --compile app.lynx -o app
+lynxer --compile app.lynx helpers.lynx vendor/lib.so \
         --include assets/message.txt -o app
 ```
 
@@ -134,7 +134,7 @@ optimized.
 ## Listing the standard library
 
 ```bash
-clynxer --list-stdlibs
+lynxer --list-stdlibs
 ```
 
 Aliases: `--stdlibs`, `-stdlibs`, `-list-stdlibs`. It lists every module in the
@@ -146,31 +146,31 @@ interpreter's `stdlib/` directory together with its `////` docstring, and exits
 
 | Flag | Aliases | Effect |
 |------|---------|--------|
-| `--version` | `-v`, `-version`, `--v` | print `CLynxer <version>` |
+| `--version` | `-v`, `-version`, `--v` | print `Lynxer <version>` |
 | `--help` | `-h` | print the usage summary |
 | `--easterEgg` | `-easterEgg`, `--idklmao`, `-wnwnerbcyunwrbygnubeuyxnqybxun` | print the easter egg |
 
-The version string comes from the `version` key in `clynxer/clynxer.config`
+The version string comes from the `version` key in `lynxer/lynxer.config`
 (currently `0.1.8`).
 
 ## Installing
 
 ```bash
-sudo clynxer --install      # copy this executable to /usr/bin/lynxer
-sudo clynxer --uninstall    # remove /usr/bin/lynxer
+sudo lynxer --install      # copy this executable to /usr/bin/clynxer
+sudo lynxer --uninstall    # remove /usr/bin/clynxer
 ```
 
 `--install` copies the running executable (resolved through `/proc/self/exe`)
-to `/usr/bin/lynxer` and makes it executable. Keep the matching `stdlib/`
+to `/usr/bin/clynxer` and makes it executable. Keep the matching `stdlib/`
 directory next to the installed binary, or imports will not resolve. Without
 write permission it prints the failure and a `sudo` hint and exits `1`.
-`--uninstall` removes `/usr/bin/lynxer`; if it is absent it reports why and
+`--uninstall` removes `/usr/bin/clynxer`; if it is absent it reports why and
 exits `1`.
 
 ## Removed with the bytecode backend
 
 These are recognised and exit `1` with
-`clynxer: '<flag>' was removed with the bytecode backend; use clynxer --compile instead`:
+`lynxer: '<flag>' was removed with the bytecode backend; use lynxer --compile instead`:
 
 `--view-bytecode` (aliases `--inspect-bytecode`, `--disasm`),
 `--benchmark-compile` (alias `--bench-compile`), `--no-cache`.
@@ -179,15 +179,15 @@ These are recognised and exit `1` with
 
 | Variable | Effect |
 |----------|--------|
-| `CLYNXER_OPT_REPORT=1` | print the optimizer counts to stderr after the run |
-| `CLYNXER_GAME_HEADLESS=1` | run the `game` module without opening a window |
+| `LYNXER_OPT_REPORT=1` | print the optimizer counts to stderr after the run |
+| `LYNXER_GAME_HEADLESS=1` | run the `game` module without opening a window |
 
-`CLYNXER_SKIP_DISPLAY=1` is a **build/test** variable, not a run-time one: it
-makes `make testCLynxer` skip the display and audio fixtures. See
+`LYNXER_SKIP_DISPLAY=1` is a **build/test** variable, not a run-time one: it
+makes `make testLynxer` skip the display and audio fixtures. See
 [install.md](install.md#environment-variables).
 
 ## See also
 
 - [install.md](install.md) — build commands and artifacts.
 - [modules.md](modules.md) — imports and `--compile` resolution.
-- [parity.md](parity.md) — what is deliberately different from Python Lynxer.
+- [parity.md](parity.md) — what is deliberately different from Python Clynxer.

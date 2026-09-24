@@ -1,15 +1,15 @@
 [package]
-name = "clynxer_server"
+name = "lynxer_server"
 version = "0.1.0"
 edition = "2021"
-description = "axum backend for the Clynxer `server` stdlib module"
+description = "axum backend for the Lynxer `server` stdlib module"
 publish = false
 
 [lib]
-name = "clynxer_server"
+name = "lynxer_server"
 crate-type = ["cdylib"]
 
 [dependencies]
-clynxer_abi = { path = "../abi" }
+lynxer_abi = { path = "../abi" }
 axum = { version = "0.8", features = ["ws"] }
 tokio = { version = "1", features = ["rt", "net", "sync"] }

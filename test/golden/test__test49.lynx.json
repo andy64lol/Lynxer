@@ -6,6 +6,6 @@
   "skip_reason": null,
   "source": "test/test49.lynx",
   "status": "completed",
-  "stderr": "\n[Lynxer] Syntax Error\n  'func setup()' conflicts with another function declared in this Lynxer file. Direct-call function names must be unique and cannot shadow existing functions.\n  --> <project>/test/test49.lynx, line 3, column 6\n\n\nfunc setup(){}\n     ^^^^^\n",
+  "stderr": "\n[Clynxer] Syntax Error\n  'func setup()' conflicts with another function declared in this Clynxer file. Direct-call function names must be unique and cannot shadow existing functions.\n  --> <project>/test/test49.lynx, line 3, column 6\n\n\nfunc setup(){}\n     ^^^^^\n",
   "stdout": ""
 }

@@ -1,5 +1,5 @@
 ////
-Lynxer standard library: js.
+Clynxer standard library: js.
 JavaScript execution helpers backed by the native C++ module `stdlib/js.so`,
 which runs Node.js as a subprocess. Requires `node` on PATH.
 

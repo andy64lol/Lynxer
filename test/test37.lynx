@@ -1,6 +1,6 @@
 // Interactive game: a clicker.
 // Click the button to score; the window stays open until you close it or
-// press ESC.  Run with `lynxer test37.lynx` — this is a playable example,
+// press ESC.  Run with `clynxer test37.lynx` — this is a playable example,
 // not a one-frame smoke test.
 global setup(){
     import("game");

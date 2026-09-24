@@ -1,6 +1,6 @@
 // Interactive game: a small platformer.
 // Arrow keys or A/D to run, SPACE (or UP) to jump, the camera follows the
-// player.  ESC quits.  Run with `lynxer test39.lynx`.
+// player.  ESC quits.  Run with `clynxer test39.lynx`.
 global setup(){
     import("game");
     int player = -1;

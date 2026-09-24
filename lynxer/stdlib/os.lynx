@@ -1,12 +1,12 @@
 ////
-Lynxer standard library: os.
+Clynxer standard library: os.
 Operating system, filesystem, environment and platform helpers backed by the
 native C++ module `stdlib/os.so`.
 
 Directory listings return newline-joined entries; the wrapper splits them into
-lists. Platform helpers report the host through uname(2); because Clynxer has no
+lists. Platform helpers report the host through uname(2); because Lynxer has no
 Python runtime, `getPythonVersion()` returns "" and
-`getPythonImplementation()` returns "CLynxer".
+`getPythonImplementation()` returns "Lynxer".
 ////
 global setup(){ importAs("os.so", "nativeOs"); }
 

@@ -1,6 +1,6 @@
 # Networking API
 
-Lynxer exposes managed TCP, UDP, and Unix-domain sockets through concise
+Clynxer exposes managed TCP, UDP, and Unix-domain sockets through concise
 camelCase `networking*` built-ins. Socket handles are closed explicitly with
 `networkingClose` and any handles left open are cleaned up when the runtime
 exits. Errors include the original operating-system errno.

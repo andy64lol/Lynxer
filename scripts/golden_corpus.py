@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Capture and verify Lynxer's Stage 1 behavior corpus.
+"""Capture and verify Clynxer's Stage 1 behavior corpus.
 
 The corpus stores the exact command-line result for every runnable
 ``test/*.lynx`` fixture and an import smoke test for every stdlib module.
@@ -24,7 +24,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SHELL = ROOT / "lynxer" / "shell.py"
+SHELL = ROOT / "clynxer" / "shell.py"
 CORPUS_DIR = ROOT / "test" / "golden"
 MANIFEST = CORPUS_DIR / "manifest.json"
 TIMEOUT_SECONDS = 15
@@ -74,7 +74,7 @@ def discover_cases() -> list[Case]:
             )
         )
 
-    for source in sorted((ROOT / "lynxer" / "stdlib").glob("*.lynx")):
+    for source in sorted((ROOT / "clynxer" / "stdlib").glob("*.lynx")):
         cases.append(
             Case(
                 name=f"stdlib/{source.stem}",
@@ -199,7 +199,7 @@ def _read_result(path: Path) -> Result:
 
 def update_corpus(cases: list[Case]) -> int:
     CORPUS_DIR.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix="lynxer-golden-") as directory:
+    with tempfile.TemporaryDirectory(prefix="clynxer-golden-") as directory:
         temporary_root = Path(directory)
         results = [run_case(case, temporary_root) for case in cases]
 
@@ -244,7 +244,7 @@ def check_corpus(cases: list[Case]) -> int:
         return 1
 
     failures = 0
-    with tempfile.TemporaryDirectory(prefix="lynxer-golden-") as directory:
+    with tempfile.TemporaryDirectory(prefix="clynxer-golden-") as directory:
         temporary_root = Path(directory)
         for case in cases:
             path = _result_path(case.name)

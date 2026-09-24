@@ -1,10 +1,10 @@
 {
-  "command_source": "lynxer/stdlib/js.lynx",
+  "command_source": "clynxer/stdlib/js.lynx",
   "kind": "stdlib-import",
   "name": "stdlib/js",
   "returncode": 0,
   "skip_reason": null,
-  "source": "lynxer/stdlib/js.lynx",
+  "source": "clynxer/stdlib/js.lynx",
   "status": "completed",
   "stderr": "",
   "stdout": ""

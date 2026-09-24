@@ -175,4 +175,4 @@ println(global.re.searchDotall("<div>(.*)</div>", html));
 | Hex colour | `#[0-9a-fA-F]{6}` |
 | IPv4 address | `\\d{1,3}(\\.\\d{1,3}){3}` |
 
-> **Escape reminder:** In Lynxer string literals `\\` produces a single backslash, so `\\d` in a Lynxer string becomes `\d` in the regex engine — exactly what Python expects.
+> **Escape reminder:** In Clynxer string literals `\\` produces a single backslash, so `\\d` in a Clynxer string becomes `\d` in the regex engine — exactly what Python expects.

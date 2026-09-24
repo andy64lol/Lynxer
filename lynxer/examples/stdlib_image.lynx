@@ -46,9 +46,9 @@ global main(){
     // Failure paths return a sentinel rather than raising: a missing file, a
     // file that is not an image, malformed base64, and invalid handles. Scratch
     // names under the cwd, so the fixture works from any directory.
-    str notAnImage = ".clynxer_scratch_not_an_image.txt";
+    str notAnImage = ".lynxer_scratch_not_an_image.txt";
     global.fileIO.writeFile(notAnImage, "this is text, not an image\n");
-    println(global.image.open(".clynxer_scratch_missing.png"));
+    println(global.image.open(".lynxer_scratch_missing.png"));
     println(global.image.open(notAnImage));
     println(global.image.fromBase64("not base64 !!"));
     println(global.image.getWidth(-1));
@@ -56,7 +56,7 @@ global main(){
     println(global.image.info(-1));
     println(global.image.copy(-1));
     println(global.image.close(-1));
-    println(global.image.save(-1, ".clynxer_scratch_unused.png"));
+    println(global.image.save(-1, ".lynxer_scratch_unused.png"));
     println(global.image.resize(-1, 2, 2));
     println(global.fileIO.deleteFile(notAnImage));
 }

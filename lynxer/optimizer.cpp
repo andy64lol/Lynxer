@@ -4,7 +4,7 @@
 
 #include <utility>
 
-namespace clynxer {
+namespace lynxer {
 
 namespace {
 
@@ -76,4 +76,4 @@ void optimizeProgram(std::unordered_map<std::string, Function>& functions,
     });
 }
 
-} // namespace clynxer
+} // namespace lynxer

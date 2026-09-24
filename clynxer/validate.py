@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Comprehensive source-tree and executable validator for Lynxer.
+"""Comprehensive source-tree and executable validator for Clynxer.
 
 The focused regression suite lives in ``test/validate.py``.  This runner adds
 interpreter coverage audits, parser/stdlib sweeps, bytecode corruption checks,
-and optional validation of a packaged Lynxer executable.
+and optional validation of a packaged Clynxer executable.
 """
 
 from __future__ import annotations
@@ -33,8 +33,8 @@ if not list(PACKAGE_ROOT.glob("cpp*.so")):
         raise SystemExit("could not build the native extension")
 sys.path.insert(0, str(ROOT))
 
-from lynxer import builtins, lynxer, syscalls
-from lynxer.bytecode import (
+from clynxer import builtins, clynxer, syscalls
+from clynxer.bytecode import (
     BYTECODE_MAGIC,
     BYTECODE_VERSION,
     compile_to_bytecode,
@@ -60,7 +60,7 @@ def check(name, fn):
 def run_source(source: str):
     output = io.StringIO()
     with contextlib.redirect_stdout(output):
-        _, error = lynxer.run("<comprehensive-validation>", source)
+        _, error = clynxer.run("<comprehensive-validation>", source)
     if error is not None:
         raise ValidationFailure(error.as_string())
     return output.getvalue()
@@ -96,13 +96,13 @@ def validate_syscall_layer():
 
 def validate_source_tree():
     failures = []
-    for path in sorted((ROOT / "lynxer").rglob("*.lynx")):
+    for path in sorted((ROOT / "clynxer").rglob("*.lynx")):
         source = path.read_text(encoding="utf-8")
-        tokens, error = lynxer.Lexer(str(path), source).make_tokens()
+        tokens, error = clynxer.Lexer(str(path), source).make_tokens()
         if error:
             failures.append(f"{path}: lexer: {error.as_string()}")
             continue
-        parsed = lynxer.Parser(tokens).parse()
+        parsed = clynxer.Parser(tokens).parse()
         if parsed.error:
             failures.append(f"{path}: parser: {parsed.error.as_string()}")
     if failures:
@@ -130,7 +130,7 @@ global main(){
 
 def validate_bytecode_security():
     source = "global setup(){}\nglobal main(){ println(42); }\n"
-    with tempfile.TemporaryDirectory(prefix="lynxer-comprehensive-") as directory:
+    with tempfile.TemporaryDirectory(prefix="clynxer-comprehensive-") as directory:
         source_path = Path(directory) / "case.lynx"
         source_path.write_text(source, encoding="utf-8")
         bytecode_path, error = compile_to_bytecode(str(source_path), source)
@@ -154,7 +154,7 @@ def validate_bytecode_security():
 
         # A payload that is not a tag stream must be rejected.
         corrupt = Path(directory) / "corrupt.lynxc"
-        corrupt.write_bytes(BYTECODE_MAGIC + zlib.compress(b"not a lynxer payload"))
+        corrupt.write_bytes(BYTECODE_MAGIC + zlib.compress(b"not a clynxer payload"))
         try:
             load_bytecode(str(corrupt))
         except ValueError:
@@ -175,10 +175,10 @@ def validate_bytecode_security():
 
 
 def validate_cli():
-    with tempfile.TemporaryDirectory(prefix="lynxer-cli-") as directory:
+    with tempfile.TemporaryDirectory(prefix="clynxer-cli-") as directory:
         source = Path(directory) / "cli.lynx"
         source.write_text("global setup(){}\nglobal main(){ println(\"ok\"); }\n", encoding="utf-8")
-        command = [sys.executable, str(ROOT / "lynxer" / "shell.py")]
+        command = [sys.executable, str(ROOT / "clynxer" / "shell.py")]
         result = subprocess.run(
             command + [str(source)], cwd=ROOT, capture_output=True, text=True, check=False
         )
@@ -196,9 +196,9 @@ def validate_cli():
 
 
 def executable_candidates():
-    configured = os.environ.get("LYNXER_EXECUTABLE")
+    configured = os.environ.get("CLYNXER_EXECUTABLE")
     candidates = [Path(configured)] if configured else []
-    candidates += [ROOT / "dist" / "lynxer", ROOT / "lynxer" / "dist" / "lynxer", Path("/usr/bin/lynxer")]
+    candidates += [ROOT / "dist" / "clynxer", ROOT / "clynxer" / "dist" / "clynxer", Path("/usr/bin/clynxer")]
     return [path for path in candidates if path.is_file() and os.access(path, os.X_OK)]
 
 
@@ -206,13 +206,13 @@ def validate_executable():
     candidates = executable_candidates()
     if not candidates:
         raise ValidationFailure(
-            "no executable found; build one first or set LYNXER_EXECUTABLE"
+            "no executable found; build one first or set CLYNXER_EXECUTABLE"
         )
     for executable in candidates:
         version = subprocess.run(
             [str(executable), "--version"], capture_output=True, text=True, check=False
         )
-        if version.returncode != 0 or not version.stdout.startswith("Lynxer "):
+        if version.returncode != 0 or not version.stdout.startswith("Clynxer "):
             raise ValidationFailure(f"{executable}: --version failed")
     print("  checked: " + ", ".join(str(path) for path in candidates))
 

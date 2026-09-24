@@ -40,7 +40,7 @@ ok
 true
 ok
 one
-Lynxer-ws
+Clynxer-ws
 false
 ERROR: no connection named 'nope'
 ERROR: no connection named 'nope'

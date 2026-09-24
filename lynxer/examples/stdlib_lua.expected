@@ -7,10 +7,10 @@ hello	42
 2
 3
 
-CLYNXER
+LYNXER
 
 
-Error: syntax error: [string "clynxer.lua"]:1: syntax error near 'is'
-Error: syntax error: [string "clynxer.lua"]:1: unexpected symbol near ')'
+Error: syntax error: [string "lynxer.lua"]:1: syntax error near 'is'
+Error: syntax error: [string "lynxer.lua"]:1: unexpected symbol near ')'
 true
 true

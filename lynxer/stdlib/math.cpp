@@ -607,7 +607,7 @@ extern "C" const char* math_normalize(const char* text) {
 
 /* ---------- Registration ---------- */
 
-extern "C" int lynxer_module_init_v1(
+extern "C" int clynxer_module_init_v1(
     RegisterFunction function,
     RegisterConstant constant,
     RegisterType

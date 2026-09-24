@@ -1,6 +1,6 @@
-//! Clynxer `lua` stdlib backend using an embedded Lua 5.4 runtime.
+//! Lynxer `lua` stdlib backend using an embedded Lua 5.4 runtime.
 
-use clynxer_abi::{export_int, export_string, lynxer_module};
+use lynxer_abi::{export_int, export_string, clynxer_module};
 use mlua::{Lua, Value, Variadic};
 use std::fs;
 use std::rc::Rc;
@@ -52,7 +52,7 @@ fn eval_source(expression: &str) -> String {
     // which would leak `lua/src/lib.rs:51` into the user-facing error.
     let chunk = lua
         .load(format!("return ({expression})"))
-        .set_name("clynxer.lua");
+        .set_name("lynxer.lua");
     match chunk.eval::<Value>() {
         Ok(value) => value_text(value),
         Err(error) => format!("Error: {error}"),
@@ -60,7 +60,7 @@ fn eval_source(expression: &str) -> String {
 }
 
 export_string!(lua_run, args, {
-    run_source(args.string(0), "clynxer.lua")
+    run_source(args.string(0), "lynxer.lua")
 });
 
 export_string!(lua_run_file, args, {
@@ -91,4 +91,4 @@ const OPS: &[(&str, &str, &str)] = &[
     ("luaExists", "lua_exists", "cdecl:int64(...)"),
 ];
 
-lynxer_module!(OPS);
+clynxer_module!(OPS);

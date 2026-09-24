@@ -1,14 +1,14 @@
 [package]
-name = "clynxer_tui"
+name = "lynxer_tui"
 version = "0.1.0"
 edition = "2021"
-description = "Rust backend for the Clynxer `tui` stdlib module"
+description = "Rust backend for the Lynxer `tui` stdlib module"
 
 [lib]
-name = "clynxer_tui"
+name = "lynxer_tui"
 crate-type = ["cdylib"]
 
 [dependencies]
-clynxer_abi = { path = "../abi" }
+lynxer_abi = { path = "../abi" }
 ratatui = "0.24"
 crossterm = "0.27"

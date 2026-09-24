@@ -1,6 +1,6 @@
-//! Shared C-ABI plumbing for Clynxer's Rust stdlib modules.
+//! Shared C-ABI plumbing for Lynxer's Rust stdlib modules.
 //!
-//! Every module is a `cdylib` that exports `lynxer_module_init_v1` and one
+//! Every module is a `cdylib` that exports `clynxer_module_init_v1` and one
 //! `#[no_mangle] extern "C"` function per op. Ops use the packed signature
 //! `cdecl:<ret>(...)`, so the interpreter calls them as
 //!
@@ -13,19 +13,19 @@
 //! not unwind across the C ABI and abort the interpreter), the single
 //! thread-local string result buffer, and the module registration helper.
 //!
-//! See `clynxer/docs/native-module-abi.md`.
+//! See `lynxer/docs/native-module-abi.md`.
 
 use core::ffi::{c_char, c_int, c_void};
 use std::cell::RefCell;
 use std::ffi::{CStr, CString};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 
-/// Host services supplied by the interpreter through `lynxer_module_attach_v1`.
+/// Host services supplied by the interpreter through `clynxer_module_attach_v1`.
 ///
-/// Layout matches `LynxerHostApi` in `clynxer/stdlib/lynxer_native_abi.h`.
+/// Layout matches `ClynxerHostApi` in `lynxer/stdlib/clynxer_native_abi.h`.
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct LynxerHostApi {
+pub struct ClynxerHostApi {
     pub version: c_int,
     pub context: *mut c_void,
     pub invoke: Option<unsafe extern "C" fn(*mut c_void, *const c_char, c_int, f64) -> c_int>,
@@ -35,15 +35,15 @@ pub struct LynxerHostApi {
 // The interpreter stores the host API in a `static`, and the callbacks it
 // points at are only ever invoked from the interpreter thread. Marking the
 // struct `Send`/`Sync` keeps it usable from a static container.
-unsafe impl Send for LynxerHostApi {}
-unsafe impl Sync for LynxerHostApi {}
+unsafe impl Send for ClynxerHostApi {}
+unsafe impl Sync for ClynxerHostApi {}
 
 /// The only host API version the interpreter currently offers.
 pub const HOST_API_VERSION: c_int = 1;
 
-/// Runs the Lynxer function `name` with no argument or one numeric argument.
+/// Runs the Clynxer function `name` with no argument or one numeric argument.
 /// Returns 0 on success and non-zero when the callback failed.
-pub fn invoke(host: &LynxerHostApi, name: &str, argument: Option<f64>) -> c_int {
+pub fn invoke(host: &ClynxerHostApi, name: &str, argument: Option<f64>) -> c_int {
     let callback = match host.invoke {
         Some(callback) => callback,
         None => return 1,
@@ -60,7 +60,7 @@ pub fn invoke(host: &LynxerHostApi, name: &str, argument: Option<f64>) -> c_int 
 }
 
 /// True once the process has received SIGINT.
-pub fn interrupted(host: &LynxerHostApi) -> bool {
+pub fn interrupted(host: &ClynxerHostApi) -> bool {
     match host.interrupted {
         Some(callback) => unsafe { callback(host.context) != 0 },
         None => false,
@@ -176,11 +176,11 @@ pub fn guard_string<F: FnOnce() -> String>(body: F) -> *const c_char {
 
 /// Registers every `(name, symbol, signature)` entry through the interpreter's
 /// callback. Returns 0 on success and 1 on the first failure, matching
-/// `lynxer_module_init_v1`'s contract.
+/// `clynxer_module_init_v1`'s contract.
 ///
 /// # Safety
 /// `register_function` must be the callback the interpreter passed to
-/// `lynxer_module_init_v1`.
+/// `clynxer_module_init_v1`.
 pub unsafe fn register_all(
     table: &[(&str, &str, &str)],
     register_function: RegisterFunction,
@@ -253,12 +253,12 @@ macro_rules! export_string {
     };
 }
 
-/// Emits the module's `lynxer_module_init_v1` entry point from an op table.
+/// Emits the module's `clynxer_module_init_v1` entry point from an op table.
 #[macro_export]
-macro_rules! lynxer_module {
+macro_rules! clynxer_module {
     ($table:expr) => {
         #[no_mangle]
-        pub unsafe extern "C" fn lynxer_module_init_v1(
+        pub unsafe extern "C" fn clynxer_module_init_v1(
             register_function: $crate::RegisterFunction,
             _register_constant: $crate::RegisterConstant,
             _register_type: $crate::RegisterType,

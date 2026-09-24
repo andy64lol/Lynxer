@@ -1,52 +1,52 @@
-# Lynxer Implementation Comparison
+# Clynxer Implementation Comparison
 
-This skill provides a structured comparison between the **Python `lynxer`** and **C++ `clynxer`** implementations of the Lynxer language, along with syntax guidelines and usage examples.
+This skill provides a structured comparison between the **Python `clynxer`** and **C++ `lynxer`** implementations of the Clynxer language, along with syntax guidelines and usage examples.
 
-> **Updated 2026-09-23.** Clynxer is the primary implementation. It has
+> **Updated 2026-09-23.** Lynxer is the primary implementation. It has
 > deliberately diverged from the Python reference (no bytecode, an ELF
 > `--compile`, Rust stdlib backends, cooperative threads), so the intended
-> parity scope is `clynxer/docs/parity.md` and the full divergence register is
-> `clynxer/docs/limitations.md`. The syntax below is the **Clynxer** form, which
+> parity scope is `lynxer/docs/parity.md` and the full divergence register is
+> `lynxer/docs/limitations.md`. The syntax below is the **Lynxer** form, which
 > is what new code should use.
 
 ---
 
 ## Overview
 
-| Feature                     | Python `lynxer`                          | C++ `clynxer`                          | Notes                                                                 |
+| Feature                     | Python `clynxer`                          | C++ `lynxer`                          | Notes                                                                 |
 |-----------------------------|----------------------------------------|---------------------------------------|----------------------------------------------------------------------|
-| **Language**                | Python                                  | C++                                   | `clynxer` is faster and more efficient.                                |
-| **Performance**             | Slower (Python overhead)                | Faster (C++ optimized)                 | `clynxer` excels in production environments.                        |
-| **Standalone Execution**    | ❌ No (requires Python)                 | ✅ Yes (ELF executables)               | `clynxer` can compile to standalone binaries.                       |
-| **Native Modules**          | ❌ Limited (Python-based)               | ✅ Yes (Rust/C++ `.so` libraries)      | `clynxer` supports Rust and C++ native modules.                     |
+| **Language**                | Python                                  | C++                                   | `lynxer` is faster and more efficient.                                |
+| **Performance**             | Slower (Python overhead)                | Faster (C++ optimized)                 | `lynxer` excels in production environments.                        |
+| **Standalone Execution**    | ❌ No (requires Python)                 | ✅ Yes (ELF executables)               | `lynxer` can compile to standalone binaries.                       |
+| **Native Modules**          | ❌ Limited (Python-based)               | ✅ Yes (Rust/C++ `.so` libraries)      | `lynxer` supports Rust and C++ native modules.                     |
 | **Comment Syntax**          | ✅ `//`, `/// ... ///`                   | ✅ `//`, `/// ... ///`                 | Neither supports `/* ... */`.                                            |
 | **String Escapes**          | ✅ Basic (`\n`, `\t`, etc.)           | ✅ Basic (`\n`, `\t`, etc.)         | Neither supports `\x` or `\u`.                                          |
-| **Bytecode Support**        | ✅ `.lynxc` files                      | ❌ No (removed)                        | `clynxer` focuses on standalone executables.                         |
-| **FFI Support**             | ✅ Yes (ctypes)                         | ✅ Yes (`ffi*` built-ins)              | `clynxer` dispatches by signature string over `dlopen`/`dlsym`; no libffi. |
-| **Async Support**           | ✅ Yes (`async`/`await`)                | ⚠️ Partial                             | `clynxer` has `async*` built-ins and an `await` expression, evaluated cooperatively inline (no event loop). |
-| **Debugging Tools**         | ✅ Full Python debugger integration    | ❌ Limited (C++ debugging)             | Python `lynxer` integrates better with Python tools.                |
-| **`venv` Support**           | ✅ Yes                                   | ❌ No (excluded)                       | Python `lynxer` supports virtual environments.                      |
-| **Multiprocessing**         | ✅ Preemptive threading                | ✅ Cooperative threading               | `clynxer` uses a cooperative model.                                     |
+| **Bytecode Support**        | ✅ `.lynxc` files                      | ❌ No (removed)                        | `lynxer` focuses on standalone executables.                         |
+| **FFI Support**             | ✅ Yes (ctypes)                         | ✅ Yes (`ffi*` built-ins)              | `lynxer` dispatches by signature string over `dlopen`/`dlsym`; no libffi. |
+| **Async Support**           | ✅ Yes (`async`/`await`)                | ⚠️ Partial                             | `lynxer` has `async*` built-ins and an `await` expression, evaluated cooperatively inline (no event loop). |
+| **Debugging Tools**         | ✅ Full Python debugger integration    | ❌ Limited (C++ debugging)             | Python `clynxer` integrates better with Python tools.                |
+| **`venv` Support**           | ✅ Yes                                   | ❌ No (excluded)                       | Python `clynxer` supports virtual environments.                      |
+| **Multiprocessing**         | ✅ Preemptive threading                | ✅ Cooperative threading               | `lynxer` uses a cooperative model.                                     |
 
 ---
 
 ## When to Use Which
 
-### Use **Python `lynxer`** if:
+### Use **Python `clynxer`** if:
 - You need **rapid prototyping** or **debugging**.
 - You rely on **Python-specific features** (e.g., `venv`, FFI, async).
 - You want **easier development** (no compilation needed).
 
-### Use **C++ `clynxer`** if:
+### Use **C++ `lynxer`** if:
 - You need **high performance** and **standalone executables**.
-- You want to **deploy Lynxer programs** without Python dependencies.
+- You want to **deploy Clynxer programs** without Python dependencies.
 - You rely on **native modules** (Rust/C++).
 
 ---
 
-## Lynxer Syntax Summary
+## Clynxer Syntax Summary
 
-Lynxer is a **statically-typed, imperative** language with support for functions, loops, and modules. Below is a **summarized syntax guide** for both implementations.
+Clynxer is a **statically-typed, imperative** language with support for functions, loops, and modules. Below is a **summarized syntax guide** for both implementations.
 
 ### Basic Syntax
 
@@ -54,7 +54,7 @@ Lynxer is a **statically-typed, imperative** language with support for functions
 ```lynx
 int x = 42;
 float y = 3.14;
-str name = "Lynxer";
+str name = "Clynxer";
 bool flag = true;
 any value = x; // `any` type
 ```
@@ -115,13 +115,13 @@ global main() {
 
 ---
 
-## Key Syntax Differences Between `lynxer` and `clynxer`
+## Key Syntax Differences Between `clynxer` and `lynxer`
 
-While the **core syntax** of Lynxer is identical between `lynxer` and `clynxer`, there are **key differences** in behavior and supported features.
+While the **core syntax** of Clynxer is identical between `clynxer` and `lynxer`, there are **key differences** in behavior and supported features.
 
 ### 1. **Logical NOT Operator**
-- **Python `lynxer`**: Supports `!value`.
-- **`clynxer`**: **Does not support `!`**. Use `not value` or `!!value`.
+- **Python `clynxer`**: Supports `!value`.
+- **`lynxer`**: **Does not support `!`**. Use `not value` or `!!value`.
 
 ### 2. **String Escapes**
 - Both support basic escapes (`\n`, `\t`, etc.), but **neither supports `\x` or `\u`**.
@@ -130,51 +130,51 @@ While the **core syntax** of Lynxer is identical between `lynxer` and `clynxer`,
 - Both support `//` and `/// ... ///`, but **neither supports `/* ... */`**.
 
 ### 4. **Bytecode and Compilation**
-- **Python `lynxer`**: Supports `.lynxc` bytecode files.
-- **`clynxer`**: **No bytecode support**. Compiles directly to standalone executables.
+- **Python `clynxer`**: Supports `.lynxc` bytecode files.
+- **`lynxer`**: **No bytecode support**. Compiles directly to standalone executables.
 
 ### 5. **Module Self-Calls**
-- In `clynxer`, `global.name(...)` resolves to **core builtins**, not module functions. Use **bare names** for module functions.
+- In `lynxer`, `global.name(...)` resolves to **core builtins**, not module functions. Use **bare names** for module functions.
 
 ### 6. **Error Handling**
-- **Python `lynxer`**: Uses Python’s exception system.
-- **`clynxer`**: Uses Lynxer’s `try/catch` blocks, but some error messages may differ.
+- **Python `clynxer`**: Uses Python’s exception system.
+- **`lynxer`**: Uses Clynxer’s `try/catch` blocks, but some error messages may differ.
 
 ---
 
 ## Example: Writing a Simple Program
 
-### Python `lynxer` Example
+### Python `clynxer` Example
 ```lynx
 // hello.lynx
 global main() {
-    println("Hello, Lynxer!");
+    println("Hello, Clynxer!");
 }
 ```
 
 Run with:
 ```bash
-python -m lynxer hello.lynx
+python -m clynxer hello.lynx
 ```
 
-### `clynxer` Example
+### `lynxer` Example
 ```lynx
 // hello.lynx
 global main() {
-    println("Hello, Lynxer!");
+    println("Hello, Clynxer!");
 }
 ```
 
 Compile and run with:
 ```bash
 make
-./clynxer hello.lynx
+./lynxer hello.lynx
 ```
 
 Or compile to a standalone executable:
 ```bash
 make
-./clynxer --compile hello.lynx -o hello
+./lynxer --compile hello.lynx -o hello
 ./hello
 ```
 
@@ -182,23 +182,23 @@ make
 
 ## Key Takeaways
 
-1. **`clynxer` is the preferred choice for production** due to its performance, portability, and native module support.
-2. **Python `lynxer` is better for development and debugging** due to its Python tooling; `clynxer` provides FFI built-ins and cooperative `async*` built-ins instead.
+1. **`lynxer` is the preferred choice for production** due to its performance, portability, and native module support.
+2. **Python `clynxer` is better for development and debugging** due to its Python tooling; `lynxer` provides FFI built-ins and cooperative `async*` built-ins instead.
 3. **Neither supports `/* ... */` comments or `\x`/`\u` escapes**—both use basic escape sequences.
-4. **`clynxer` has stricter syntax rules** (e.g., no `!` operator, different module resolution).
+4. **`lynxer` has stricter syntax rules** (e.g., no `!` operator, different module resolution).
 
 ---
 
 ## Next Steps
 
-- For **production use**, prefer `clynxer`.
-- For **development and prototyping**, use Python `lynxer`.
-- Check the [limitations](clynxer/docs/limitations.md) for `clynxer` to understand unsupported features.
+- For **production use**, prefer `lynxer`.
+- For **development and prototyping**, use Python `clynxer`.
+- Check the [limitations](lynxer/docs/limitations.md) for `lynxer` to understand unsupported features.
 
 ---
 
 ### References
-- [clynxer Documentation](clynxer/docs/README.md)
-- [clynxer Limitations](clynxer/docs/limitations.md)
-- [Parity scope](clynxer/docs/parity.md)
-- [Lynxer Language Guide](clynxer/docs/language.md)
+- [lynxer Documentation](lynxer/docs/README.md)
+- [lynxer Limitations](lynxer/docs/limitations.md)
+- [Parity scope](lynxer/docs/parity.md)
+- [Clynxer Language Guide](lynxer/docs/language.md)

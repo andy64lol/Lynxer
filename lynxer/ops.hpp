@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace clynxer {
+namespace lynxer {
 
 // Shared operator semantics used by BOTH the AST interpreter (ast.cpp) and
 // the bytecode VM (vm.cpp). Keeping one implementation prevents drift: a
@@ -57,4 +57,4 @@ Value applyUnary(const std::string& operation, const Value& value, int line,
 std::string assembleInterp(const std::vector<std::string>& literals,
                            const std::vector<Value>& values);
 
-} // namespace clynxer
+} // namespace lynxer

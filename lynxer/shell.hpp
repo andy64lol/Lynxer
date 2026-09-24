@@ -1,8 +1,8 @@
 #pragma once
 
-namespace clynxer {
+namespace lynxer {
 
-// CLI entry point, mirroring lynxer/shell.py. Returns the process exit code.
+// CLI entry point, mirroring clynxer/shell.py. Returns the process exit code.
 int shellMain(int argc, char** argv);
 
-} // namespace clynxer
+} // namespace lynxer

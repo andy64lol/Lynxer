@@ -1,4 +1,4 @@
-"""The Lynxer interpreter, execution contexts, and program entry points."""
+"""The Clynxer interpreter, execution contexts, and program entry points."""
 
 from __future__ import annotations
 
@@ -49,7 +49,7 @@ from .lexer import (
     Lexer,
     Position,
 )
-from .lynxerAst import (
+from .clynxerAst import (
     DefaultNode,
     DoWhileNode,
     ForeverNode,
@@ -106,7 +106,7 @@ def _get_cython_inline() -> Any:
     """Lazily import Cython's inline compiler (needs setuptools' distutils shim)."""
     global _cython_inline_fn
     if _cython_inline_fn is None:
-        # Import by name so Pyright can analyze Lynxer without requiring the
+        # Import by name so Pyright can analyze Clynxer without requiring the
         # optional Cython package to be installed in its analysis environment.
         from importlib import import_module
 
@@ -122,7 +122,7 @@ def stdlib_dir() -> str:
         candidates.extend(
             [
                 os.path.join(frozen_root, "stdlib"),
-                os.path.join(frozen_root, "lynxer", "stdlib"),
+                os.path.join(frozen_root, "clynxer", "stdlib"),
             ]
         )
     for candidate in candidates:
@@ -139,11 +139,11 @@ execution_state = _execution_state
 _rawpy_global_modules = _execution_state.rawpy_global_modules
 
 # Python callbacks registered by a standard-library module (for example the
-# Arcade game loop) need a way back into the currently running Lynxer program.
+# Arcade game loop) need a way back into the currently running Clynxer program.
 # rawPy already runs with the active interpreter context, so the bridge is
 # installed lazily for the lifetime of each rawPy block and can safely be
 # captured by a host callback.
-def _python_to_lynxer_callback_value(value):
+def _python_to_clynxer_callback_value(value):
     """Convert the small set of values host event loops pass to callbacks."""
     if isinstance(value, bool):
         return Number(1 if value else 0, is_bool=True)
@@ -156,11 +156,11 @@ def _python_to_lynxer_callback_value(value):
     return String(str(value))
 
 
-def _lynxer_callback_dispatcher(context):
-    """Return a Python callable that invokes a Lynxer function by name.
+def _clynxer_callback_dispatcher(context):
+    """Return a Python callable that invokes a Clynxer function by name.
 
     Names may be plain function names or dotted global paths such as
-    ``global.update``.  The dispatcher intentionally accepts only Lynxer
+    ``global.update``.  The dispatcher intentionally accepts only Clynxer
     functions; arbitrary Python objects are never exposed through this hook.
     """
     def dispatch(callback_name, *python_args):
@@ -185,11 +185,11 @@ def _lynxer_callback_dispatcher(context):
 
         if not isinstance(target, Function):
             raise RuntimeError(  # noqa: TRY004
-                f"game callback '{callback_name}' is not a synchronous Lynxer function"
+                f"game callback '{callback_name}' is not a synchronous Clynxer function"
             )
 
         args = [
-            _python_to_lynxer_callback_value(value)
+            _python_to_clynxer_callback_value(value)
             for value in python_args
         ]
         result = target.execute(args)
@@ -205,7 +205,7 @@ def _lynxer_callback_dispatcher(context):
     return dispatch
 
 
-# Lynxer module registry.  Module names are intentionally global: importing
+# Clynxer module registry.  Module names are intentionally global: importing
 # two different files with the same basename is ambiguous even when their
 # directories differ.
 _lynx_modules = _execution_state.lynx_modules
@@ -553,7 +553,7 @@ class Interpreter:
         res = RTResult()
         name = node.var_name_tok.value
         value = context.symbol_table.get(name)
-        reference = getattr(value, "_lynxer_ref", None) if value is not None else None
+        reference = getattr(value, "_clynxer_ref", None) if value is not None else None
         if not (
             isinstance(reference, tuple)
             and len(reference) == 2
@@ -1825,7 +1825,7 @@ class Interpreter:
         return self.visit_ExecFileNode(node, context)
 
     async def async_visit_NewNode(self, node, context):
-        # Constructors are synchronous Lynxer methods, but argument
+        # Constructors are synchronous Clynxer methods, but argument
         # expressions may still be evaluated from an async function.
         res = RTResult()
         class_registry = context.symbol_table.get("class")
@@ -1851,7 +1851,7 @@ class Interpreter:
                 and isinstance(arg_node, VarAccessNode)
                 and arg_value is not None
             ):
-                arg_value._lynxer_name = arg_node.var_name_tok.value
+                arg_value._clynxer_name = arg_node.var_name_tok.value
             args.append(arg_value)
             if res.should_return():
                 return res
@@ -1939,7 +1939,7 @@ class Interpreter:
             else:
                 arg_value = res.register(await self.async_visit(arg_node, context))
             if isinstance(arg_node, VarAccessNode) and arg_value is not None:
-                arg_value._lynxer_ref = (context.symbol_table, arg_node.var_name_tok.value)
+                arg_value._clynxer_ref = (context.symbol_table, arg_node.var_name_tok.value)
             args.append(arg_value)
             if res.should_return():
                 return res
@@ -2241,7 +2241,7 @@ class Interpreter:
             return res.failure(RTError(
                 node.pos_start,
                 node.pos_end,
-                f"Error executing Lynxer file '{requested_path}':\n{error.as_string()}",
+                f"Error executing Clynxer file '{requested_path}':\n{error.as_string()}",
                 context,
             ))
         return res.success(Number.null)
@@ -2340,14 +2340,14 @@ class Interpreter:
             else:
                 arg_value = res.register(self.visit(arg_node, context))
             if isinstance(arg_node, VarAccessNode) and arg_value is not None:
-                arg_value._lynxer_ref = (context.symbol_table, arg_node.var_name_tok.value)
+                arg_value._clynxer_ref = (context.symbol_table, arg_node.var_name_tok.value)
             if (
                 isinstance(node.node_to_call, VarAccessNode)
                 and node.node_to_call.var_name_tok.value == "unshare"
                 and isinstance(arg_node, VarAccessNode)
                 and arg_value is not None
             ):
-                arg_value._lynxer_name = arg_node.var_name_tok.value
+                arg_value._clynxer_name = arg_node.var_name_tok.value
             args.append(arg_value)
             if res.should_return():
                 return res
@@ -2749,8 +2749,8 @@ class Interpreter:
         # part of the builtins module's declared interface.
         setattr(  # noqa: B010
             _host_builtins,
-            "_lx_invoke_lynxer",
-            _lynxer_callback_dispatcher(context),
+            "_lx_invoke_clynxer",
+            _clynxer_callback_dispatcher(context),
         )
         tbl = context.symbol_table
         while tbl is not None:
@@ -2800,7 +2800,7 @@ class Interpreter:
         return res.success(Number.null)
 
     def visit_ExecBlockNode(self, node, context):
-        """Run injected Lynxer statements in the surrounding context."""
+        """Run injected Clynxer statements in the surrounding context."""
         return self.visit(node.body_block, context)
 
     def visit_RawPyxBlockNode(self, node, context):
@@ -3201,7 +3201,7 @@ def reset_runtime_state(runtime: RuntimeContext | None = None) -> RuntimeContext
 
 
 def _interpreter_error(fn, text, context_name, exc):
-    """Turn an unexpected host exception into a normal Lynxer error."""
+    """Turn an unexpected host exception into a normal Clynxer error."""
     context = Context(context_name)
     start = Position(0, 0, 0, fn, text)
     details = str(exc).strip() or type(exc).__name__
@@ -3216,7 +3216,7 @@ def _join_outstanding_native_threads():
     A worker calls back into Python, so it must finish while the interpreter is
     still alive; leaving one behind races the teardown and aborts the process.
     """
-    module = sys.modules.get("lynxer.cpp") or sys.modules.get("cpp")
+    module = sys.modules.get("clynxer.cpp") or sys.modules.get("cpp")
     if module is None:
         return
     try:

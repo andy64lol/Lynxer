@@ -1,10 +1,10 @@
 {
-  "command_source": "lynxer/stdlib/regex.lynx",
+  "command_source": "clynxer/stdlib/regex.lynx",
   "kind": "stdlib-import",
   "name": "stdlib/regex",
   "returncode": 0,
   "skip_reason": null,
-  "source": "lynxer/stdlib/regex.lynx",
+  "source": "clynxer/stdlib/regex.lynx",
   "status": "completed",
   "stderr": "",
   "stdout": ""

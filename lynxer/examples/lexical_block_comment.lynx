@@ -1,4 +1,4 @@
-// `/* ... */` is not a comment in Clynxer. Only `//` and the `///`/`////`
+// `/* ... */` is not a comment in Lynxer. Only `//` and the `///`/`////`
 // delimiters are comments.
 global setup() {}
 

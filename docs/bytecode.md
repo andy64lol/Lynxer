@@ -1,6 +1,6 @@
 # Bytecode Compilation (.lynxc)
 
-Lynxer can pre-compile a `.lynx` source file into a compact binary bytecode
+Clynxer can pre-compile a `.lynx` source file into a compact binary bytecode
 file with the `.lynxc` extension.  The bytecode is a compressed stack-machine
 instruction stream, so the lexer and parser are skipped at load time — useful
 for distributing code without shipping readable source, or for shaving parse
@@ -11,7 +11,7 @@ overhead on larger programs.
 ## Compiling a source file
 
 ```bash
-lynxer --compile myfile.lynx      # produces myfile.lynxc in the same directory
+clynxer --compile myfile.lynx      # produces myfile.lynxc in the same directory
 ```
 
 The `--compile` flag (short form `-c`) reads the source, parses it, and writes
@@ -22,10 +22,10 @@ The `--compile` flag (short form `-c`) reads the source, parses it, and writes
 ## Running a bytecode file
 
 ```bash
-lynxer myfile.lynxc
+clynxer myfile.lynxc
 ```
 
-Pass a `.lynxc` path directly — Lynxer detects the extension and skips the
+Pass a `.lynxc` path directly — Clynxer detects the extension and skips the
 lexer / parser entirely.
 
 ---
@@ -43,7 +43,7 @@ global setup(){
 ```
 
 **Auto-detection rule:** when you call `import("name")` (no extension),
-Lynxer checks for `name.lynxc` in the same directory first.  If found, it
+Clynxer checks for `name.lynxc` in the same directory first.  If found, it
 loads the bytecode.  If not, it falls back to `name.lynx` and then to the
 built-in stdlib.
 
@@ -66,7 +66,7 @@ pickled Python objects or an AST object graph.
 Instructions are executed by a postfix stack machine while loading the
 program. Constants push values onto the stack; `BUILD_*` instructions pop
 their operands and push a container, source position, or AST node. The final
-stack value must be one `ProgramNode`, which is then executed by the Lynxer
+stack value must be one `ProgramNode`, which is then executed by the Clynxer
 runtime.
 
 | Opcode | Meaning | Body |
@@ -83,7 +83,7 @@ runtime.
 
 The class id is an index into the fixed table of encodable AST classes — every
 `*Node` class plus `Token`, sorted by name and derived from the running
-Lynxer interpreter.  Loading never imports or calls a class by name: the native
+Clynxer interpreter.  Loading never imports or calls a class by name: the native
 instruction reader looks the id up in that fixed table, allocates the class
 with `__new__`, and fills in its attributes.  When the native extension is not
 built, the Python instruction reader is used as a compatible fallback.  A
@@ -129,17 +129,17 @@ The earlier v7 changes were:
 
 6. **Restricted loading and size limits** — malformed streams are rejected
    before execution. Do not treat `.lynxc` files from an untrusted source as an
-   authorization boundary; a Lynxer program can still intentionally execute
+   authorization boundary; a Clynxer program can still intentionally execute
    `rawPy` code after it has been loaded.
 
 ### Compatibility
 
-The bytecode format is tied to the Python version and the Lynxer instruction
+The bytecode format is tied to the Python version and the Clynxer instruction
 set/AST class table — it is **not** portable across major Python versions or
-Lynxer releases.
+Clynxer releases.
 
 If you load an older `.lynxc` file with the current runtime you will see a
-clear error asking you to recompile. Always recompile after upgrading Lynxer.
+clear error asking you to recompile. Always recompile after upgrading Clynxer.
 
 ---
 
@@ -163,8 +163,8 @@ clear error asking you to recompile. Always recompile after upgrading Lynxer.
 |--------|---------|
 | `make clean` | `__pycache__`, `*.pyc`, `build/`, `dist/`, `*.spec`, and `.lynxc` files outside `stdlib/` |
 | `make cleanLynxc` | every `.lynxc` file, including the pre-compiled stdlib modules |
-| `make cleanCpp` | the built C++ extension (`lynxer/*.so`) and its build tree |
+| `make cleanCpp` | the built C++ extension (`clynxer/*.so`) and its build tree |
 
 Recompiling the stdlib is slow, so a plain `make clean` leaves those `.lynxc`
 files in place; use `make cleanLynxc` when you want a fully source-only tree
-(for example after upgrading Lynxer, since bytecode is version-locked).
+(for example after upgrading Clynxer, since bytecode is version-locked).

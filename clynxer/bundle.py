@@ -1,4 +1,4 @@
-"""Build a standalone executable for a Lynxer source program."""
+"""Build a standalone executable for a Clynxer source program."""
 
 from __future__ import annotations
 
@@ -22,8 +22,8 @@ def _launcher_source(bytecode_name: str, expected_architecture: str) -> str:
 import os
 import sys
 
-from lynxer.bytecode import run_bytecode
-from lynxer.syscalls import SYSCALL_TABLE, require_supported_platform, unavailable
+from clynxer.bytecode import run_bytecode
+from clynxer.syscalls import SYSCALL_TABLE, require_supported_platform, unavailable
 
 EXPECTED_ARCHITECTURE = {expected_architecture!r}
 
@@ -32,11 +32,11 @@ def main():
     try:
         architecture = require_supported_platform()
     except Exception as exc:
-        print(f"lynxer: bundled executable cannot run its Linux runtime: {{exc}}", file=sys.stderr)
+        print(f"clynxer: bundled executable cannot run its Linux runtime: {{exc}}", file=sys.stderr)
         return 1
     if architecture != EXPECTED_ARCHITECTURE:
         print(
-            "lynxer: bundled executable was built for "
+            "clynxer: bundled executable was built for "
             f"{{EXPECTED_ARCHITECTURE}} but is running on {{architecture}}",
             file=sys.stderr,
         )
@@ -44,7 +44,7 @@ def main():
     missing_syscalls = unavailable()
     if len(missing_syscalls) == len(SYSCALL_TABLE):
         print(
-            "lynxer: bundled syscall tables are unavailable; "
+            "clynxer: bundled syscall tables are unavailable; "
             "rebuild with the system-calls package included",
             file=sys.stderr,
         )
@@ -54,7 +54,7 @@ def main():
     try:
         _, error = run_bytecode(bytecode)
     except Exception as exc:
-        print(f"lynxer: could not run bundled program: {{exc}}", file=sys.stderr)
+        print(f"clynxer: could not run bundled program: {{exc}}", file=sys.stderr)
         return 1
     if error:
         print(error.as_string(), file=sys.stderr)
@@ -74,7 +74,7 @@ import sys
 root = getattr(sys, "_MEIPASS", os.path.dirname(__file__))
 stdlib = os.path.join(root, "stdlib")
 if os.path.isdir(stdlib):
-    os.environ["LYNXER_STDLIB"] = stdlib
+    os.environ["CLYNXER_STDLIB"] = stdlib
 """
 
 
@@ -152,9 +152,9 @@ def bundle_program(source_path: str, output_name: str | None = None) -> Path:
         "--paths",
         str(root),
         "--hidden-import",
-        "lynxer.cpp",
+        "clynxer.cpp",
         "--hidden-import",
-        "lynxer.syscalls",
+        "clynxer.syscalls",
         "--collect-submodules",
         "system_calls",
         "--collect-all",
@@ -164,9 +164,9 @@ def bundle_program(source_path: str, output_name: str | None = None) -> Path:
         "--add-data",
         f"{bytecode_path}:bytecode",
         "--add-data",
-        f"{root / 'lynxer' / 'stdlib'}:stdlib",
+        f"{root / 'clynxer' / 'stdlib'}:stdlib",
         "--add-data",
-        f"{root / 'lynxer' / 'warnings.txt'}:lynxer",
+        f"{root / 'clynxer' / 'warnings.txt'}:clynxer",
         str(launcher),
     ]
     for native_path in staged_native:

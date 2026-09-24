@@ -1,11 +1,11 @@
-# Extending Lynxer
+# Extending Clynxer
 
-Lynxer has two extension layers:
+Clynxer has two extension layers:
 
 | Extension | Implementation | Use it when |
 | --- | --- | --- |
-| **Built-in function** | Python in `lynxer/builtins.py` | The operation needs Python libraries, system access, or a runtime primitive. |
-| **Standard-library module** | Lynxer in `lynxer/stdlib/<name>.lynx` | The operation can be expressed as Lynxer code or should be a normal imported module. |
+| **Built-in function** | Python in `clynxer/builtins.py` | The operation needs Python libraries, system access, or a runtime primitive. |
+| **Standard-library module** | Clynxer in `clynxer/stdlib/<name>.lynx` | The operation can be expressed as Clynxer code or should be a normal imported module. |
 
 Native shared libraries can also be imported as first-class modules when they
 export the versioned registration ABI described in
@@ -20,7 +20,7 @@ with `import("name")` and expose their global functions through
 ## Part 1 — Add a built-in function
 
 All built-in definitions and their implementations live in
-`lynxer/builtins.py`. The interpreter only imports the module after its runtime
+`clynxer/builtins.py`. The interpreter only imports the module after its runtime
 value classes have been defined, then installs the registered functions into
 the global and module symbol tables.
 
@@ -38,11 +38,11 @@ return_value = res.register(method(args, exec_ctx))
 Consequently, a built-in named `clamp` is implemented by a method named
 `execute_clamp`. The method receives:
 
-* `args`: a list of Lynxer runtime `Value` objects;
+* `args`: a list of Clynxer runtime `Value` objects;
 * `exec_ctx`: the call's runtime `Context`.
 
-Return an `RTResult`: use `success(value)` for a Lynxer value and
-`failure(RTError(...))` for a Lynxer runtime error.
+Return an `RTResult`: use `success(value)` for a Clynxer value and
+`failure(RTError(...))` for a Clynxer runtime error.
 
 ### Example: `clamp(value, low, high)`
 
@@ -78,14 +78,14 @@ for name in BUILTIN_FUNCTION_NAMES:
     register_builtin(name)
 ```
 
-Do **not** add registrations to `lynxer.py`. The list and the `execute_...`
+Do **not** add registrations to `clynxer.py`. The list and the `execute_...`
 methods in `builtins.py` are the complete built-in definition.
 
 ### Runtime values
 
-Arguments and return values must use Lynxer's runtime classes:
+Arguments and return values must use Clynxer's runtime classes:
 
-| Lynxer value | Runtime class | Python payload |
+| Clynxer value | Runtime class | Python payload |
 | --- | --- | --- |
 | `int`, `float`, `bool` | `Number` | `.value`; booleans also set `is_bool=True` |
 | `str` | `String` | `.value` |
@@ -132,17 +132,17 @@ if len(args) != 1 or not isinstance(args[0], String):
 ```
 
 Do not raise an ordinary Python exception for user input errors. Return an
-`RTError` so Lynxer can show its normal traceback and source excerpt. Python
+`RTError` so Clynxer can show its normal traceback and source excerpt. Python
 exceptions from an external library should generally be caught and converted
 to an `RTError` as well.
 
 ### Register an implementation dynamically
 
 `register_builtin` is also available for extensions that need to register a
-handler after importing Lynxer:
+handler after importing Clynxer:
 
 ```python
-from lynxer.builtins import register_builtin
+from clynxer.builtins import register_builtin
 
 def execute_clamp(builtin, args, exec_ctx):
     # Return RTResult.success(...) or RTResult.failure(...)
@@ -168,7 +168,7 @@ def execute_clamp(builtin, args, exec_ctx):
 
 ### Testing a built-in
 
-Create a small Lynxer program that calls the function directly and through an
+Create a small Clynxer program that calls the function directly and through an
 imported module if the module path matters:
 
 ```lynx
@@ -182,24 +182,24 @@ global main() {
 Run it from the repository root:
 
 ```sh
-python3 lynxer/shell.py /path/to/check.lynx
+python3 clynxer/shell.py /path/to/check.lynx
 ```
 
 Also run the existing examples/tests after changing runtime code:
 
 ```sh
-python3 lynxer/shell.py test/test.lynx
-python3 lynxer/shell.py test/test2.lynx
+python3 clynxer/shell.py test/test.lynx
+python3 clynxer/shell.py test/test2.lynx
 ```
 
 ---
 
 ## Part 2 — Add a standard-library module
 
-Put a module in `lynxer/stdlib/`. Its filename becomes its import name:
+Put a module in `clynxer/stdlib/`. Its filename becomes its import name:
 
 ```text
-lynxer/stdlib/mylib.lynx  ->  import("mylib")
+clynxer/stdlib/mylib.lynx  ->  import("mylib")
 ```
 
 A module has `setup()` and `main()` declarations. `main()` is required by
@@ -249,23 +249,23 @@ global sqrt(float value) {
 }
 ```
 
-Variables declared in the same Lynxer function scope are bridged into the
+Variables declared in the same Clynxer function scope are bridged into the
 block and assignments to those names are copied back. Python-only temporaries
 should use underscore-prefixed names. `rawPy` blocks do not automatically
-expose arbitrary Python objects as Lynxer values; convert results to numbers,
+expose arbitrary Python objects as Clynxer values; convert results to numbers,
 strings, or booleans before assigning them back.
 
 For Cython-backed code, use `rawPyx` and keep the same conversion rule. The
 string built-ins `rawPy("...")` and `rawPyx("...")` execute one-line code
-without Lynxer variable bridging.
+without Clynxer variable bridging.
 
 ### Module checklist
 
-1. Add `lynxer/stdlib/<name>.lynx`.
+1. Add `clynxer/stdlib/<name>.lynx`.
 2. Include empty or real `global setup() {}` and `global main() {}`.
 3. Export functions as top-level `global` functions.
 4. Import the module in a test program.
 5. Run the test program and the existing interpreter tests.
 
-No changes to `lynxer.py` are needed for a normal built-in or standard-library
+No changes to `clynxer.py` are needed for a normal built-in or standard-library
 extension.

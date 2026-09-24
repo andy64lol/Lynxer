@@ -1,4 +1,4 @@
-// Lynxer `multiprocessing` stdlib backend: run shell commands in parallel.
+// Clynxer `multiprocessing` stdlib backend: run shell commands in parallel.
 //
 // Results are returned through an integer handle registry rather than a joined
 // string, because command output can contain any character (including the
@@ -215,7 +215,7 @@ extern "C" std::int64_t multiprocessing_release(std::int64_t handle) {
     return jobs().erase(handle) > 0 ? 1 : 0;
 }
 
-extern "C" int lynxer_module_init_v1(RegisterFunction function,
+extern "C" int clynxer_module_init_v1(RegisterFunction function,
                                      RegisterConstant, RegisterType) {
     return function("workerCount", "multiprocessing_workerCount",
                             "cdecl:int64()") &&

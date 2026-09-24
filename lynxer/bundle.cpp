@@ -10,7 +10,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-namespace clynxer {
+namespace lynxer {
 
 namespace {
 
@@ -153,7 +153,7 @@ std::size_t executableCopySize(const std::string& path) {
 }
 
 std::string temporaryDirectory() {
-    char pattern[] = "/tmp/clynxer-bundle-XXXXXX";
+    char pattern[] = "/tmp/lynxer-bundle-XXXXXX";
     if (::mkdtemp(pattern) == nullptr) {
         return "";
     }
@@ -347,4 +347,4 @@ bool materializeBundle(const std::vector<ArchiveModule>& modules,
     return true;
 }
 
-} // namespace clynxer
+} // namespace lynxer

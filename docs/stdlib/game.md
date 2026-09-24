@@ -1,6 +1,6 @@
 # game
 
-2-D game development toolkit for Lynxer, wrapping Python's [Arcade](https://api.arcade.academy/) library. Provides a window, drawing primitives, sprites, input polling, sound, scenes, tilemaps, camera, physics, shape batches, and more through the `global.game` namespace.
+2-D game development toolkit for Clynxer, wrapping Python's [Arcade](https://api.arcade.academy/) library. Provides a window, drawing primitives, sprites, input polling, sound, scenes, tilemaps, camera, physics, shape batches, and more through the `global.game` namespace.
 
 > **Requires:** `pip install arcade`
 
@@ -8,12 +8,12 @@
 
 ## Quick start
 
-The draw and update callbacks are ordinary Lynxer functions. Register them by
+The draw and update callbacks are ordinary Clynxer functions. Register them by
 name with `setDrawCallback` and `setUpdateCallback`; all drawing and input
 access stays inside the wrapped `global.game.*` API. Mouse and keyboard
 callbacks can be registered with the corresponding `set*Callback` functions.
 
-For a full example, see [`test/test37.lynx`](https://github.com/andy64lol/Lynxer/blob/main/test/test37.lynx).
+For a full example, see [`test/test37.lynx`](https://github.com/andy64lol/Clynxer/blob/main/test/test37.lynx).
 
 ---
 

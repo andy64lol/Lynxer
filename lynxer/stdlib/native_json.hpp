@@ -1,7 +1,7 @@
-#ifndef CLYNXER_NATIVE_JSON_HPP
-#define CLYNXER_NATIVE_JSON_HPP
+#ifndef LYNXER_NATIVE_JSON_HPP
+#define LYNXER_NATIVE_JSON_HPP
 
-// Minimal, dependency-free JSON value / parser / serializer used by clynxer's
+// Minimal, dependency-free JSON value / parser / serializer used by lynxer's
 // native stdlib modules. This header is included privately by each .so so that
 // no module depends on another module's symbols.
 //
@@ -593,4 +593,4 @@ inline std::string dump(const Value& value) { return dump(value, false, 2); }
 
 }  // namespace native_json
 
-#endif  // CLYNXER_NATIVE_JSON_HPP
+#endif  // LYNXER_NATIVE_JSON_HPP

@@ -1,9 +1,9 @@
 ////
-Lynxer standard library: path.
+Clynxer standard library: path.
 Path manipulation and filesystem helpers backed by Python's pathlib.Path.
 
 Paths are represented as strings so they can be passed between functions and
-stored in ordinary Lynxer variables. Functions return an empty string, empty
+stored in ordinary Clynxer variables. Functions return an empty string, empty
 list, false, or -1 when pathlib reports an error.
 ////
 

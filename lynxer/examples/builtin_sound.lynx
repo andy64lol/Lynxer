@@ -8,18 +8,18 @@ asserted.
 global setup(){ import("fileIO"); }
 
 global main(){
-    // The fixture runs from `clynxer/` under `make test` and from the
+    // The fixture runs from `lynxer/` under `make test` and from the
     // repository root by hand, so resolve the asset against both layouts.
     str toneFile = "examples/assets/tone.wav";
     if(not global.fileIO.fileExists(toneFile)){
-        toneFile = "clynxer/examples/assets/tone.wav";
+        toneFile = "lynxer/examples/assets/tone.wav";
     }
 
     // Validation happens before the backend is touched. The not-an-audio file
     // is a scratch file under the cwd, so it exists from any directory.
-    str notAudio = ".clynxer_scratch_not_audio.txt";
+    str notAudio = ".lynxer_scratch_not_audio.txt";
     global.fileIO.writeFile(notAudio, "not audio\n");
-    try { soundLoad(".clynxer_scratch_missing.wav"); } catch(str e) { println("missing: ", e); }
+    try { soundLoad(".lynxer_scratch_missing.wav"); } catch(str e) { println("missing: ", e); }
     try { soundLoad(notAudio); } catch(str e) { println("format: ", e); }
     try { soundLoad(0); } catch(str e) { println("argtype: ", e); }
     global.fileIO.deleteFile(notAudio);

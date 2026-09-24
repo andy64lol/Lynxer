@@ -1,5 +1,5 @@
 ////
-Lynxer standard library — lua
+Clynxer standard library — lua
 Lua execution helpers using the lupa embedded Lua runtime.
 ////
 

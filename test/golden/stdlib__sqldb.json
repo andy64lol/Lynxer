@@ -1,10 +1,10 @@
 {
-  "command_source": "lynxer/stdlib/sqldb.lynx",
+  "command_source": "clynxer/stdlib/sqldb.lynx",
   "kind": "stdlib-import",
   "name": "stdlib/sqldb",
   "returncode": 0,
   "skip_reason": null,
-  "source": "lynxer/stdlib/sqldb.lynx",
+  "source": "clynxer/stdlib/sqldb.lynx",
   "status": "completed",
   "stderr": "",
   "stdout": ""

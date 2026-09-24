@@ -1,6 +1,6 @@
 # Built-in functions
 
-Functions implemented directly by the Clynxer interpreter. They can be called
+Functions implemented directly by the Lynxer interpreter. They can be called
 by their bare name or with a `global.` prefix (`print(...)` and
 `global.print(...)` are the same call).
 
@@ -8,12 +8,12 @@ Inside a module, `global.name(...)` always resolves to a *core builtin*, never t
 the module's own function of that name — see
 [limitations](limitations.md#language-and-toolchain).
 
-Names that CLynxer recognises but does not implement fail with a source-located
-`<name>() is not supported in CLynxer yet`. On a Linux/POSIX build the
+Names that Lynxer recognises but does not implement fail with a source-located
+`<name>() is not supported in Lynxer yet`. On a Linux/POSIX build the
 **supported** families include the `ffi*`, `async*`, `sound*`, `filesystem*`,
 `process*`, `networking*`, `nativeThread*` and `syscall*` builtins; the
 unsupported set is listed under [Unsupported names](#unsupported-names) and is
-defined by `unsupportedTable()` in `clynxer/builtins.cpp`. On a build without
+defined by `unsupportedTable()` in `lynxer/builtins.cpp`. On a build without
 POSIX support, the `filesystem*`/`process*`/`networking*`/`sound*` families join
 the unsupported set. The `syscall*` family is routed to a generic syscall
 dispatcher rather than to a per-name handler.
@@ -188,7 +188,7 @@ The family follows the Python reference exactly, including its error text. One
 consequence is worth noting: the reference's `Number.null` is `0`, so the
 operations that yield "no value" (`filesystemClose`, `filesystemRemove`,
 `filesystemRename`, `filesystemLink`, `filesystemChmod`) return `0` rather than
-Clynxer's own `none`.
+Lynxer's own `none`.
 
 On a host without POSIX `open`/`stat`/`dirent`, the whole family stays in the
 unsupported set.
@@ -289,7 +289,7 @@ that playback did not start. Loading, `soundStop`, `soundSetVolume`,
 `soundIsPlaying` and `soundRelease` are device-independent.
 
 `stdlib/sound.so` must be reachable — next to the interpreter, in `stdlib/`, or
-under `clynxer/stdlib`. A **compiled executable** only carries it if the program
+under `lynxer/stdlib`. A **compiled executable** only carries it if the program
 also has `import("sound")`, because bundling follows imports.
 
 Three deliberate divergences from the Python reference, all recorded in
@@ -299,7 +299,7 @@ Three deliberate divergences from the Python reference, all recorded in
 
 ## Native threads
 
-`nativeThreadStart(function, arguments)` runs a Lynxer function on a
+`nativeThreadStart(function, arguments)` runs a Clynxer function on a
 `std::thread`. The function is named as a value — `nativeThreadStart(global.worker, [int 42])`
 — which is what makes `global.<name>` resolve to a callable when no variable has
 that name.
@@ -313,7 +313,7 @@ that name.
 | `nativeThreadStatus(handle)` | `running` while it is, then `completed` or the error text |
 | `nativeThreadDetach(handle)` | Gives up the handle; the thread leaves the registry when it finishes |
 
-**Threads are cooperative.** The interpreter evaluates Lynxer code on one thread
+**Threads are cooperative.** The interpreter evaluates Clynxer code on one thread
 at a time, and a worker takes that lock before calling back in, so a thread runs
 while the thread that started it is blocked in `nativeThreadJoin` or
 `nativeThreadJoinAll`, which release the lock before waiting. Two threads never
@@ -333,24 +333,24 @@ is in the supported table.
 | `ffiLoadLibrary(path)` | Loads a shared library and returns a handle |
 | `ffiLookup(handle, symbol)` | Resolves a symbol to a `functionAddress` |
 | `ffiCall(address, signature, arguments)` | Calls the symbol. `signature` is a packed string such as `"cdecl:int32(int32,int32)"`; `arguments` is a list |
-| `ffiCallback(signature, function)` | Wraps a Lynxer function as a C callback the native code can call |
+| `ffiCallback(signature, function)` | Wraps a Clynxer function as a C callback the native code can call |
 | `ffiFreeCallback(callback)` | Releases a callback created by `ffiCallback` |
 | `ffiCloseLibrary(handle)` | Unloads the library and invalidates its symbols |
 
 The signatures use the same grammar as native modules; see
 [native-module-abi.md](native-module-abi.md#signatures).
-`clynxer/examples/builtin_ffi.lynx` demonstrates the full round trip (calling
-`strlen` and passing a Lynxer function back as a C callback).
+`lynxer/examples/builtin_ffi.lynx` demonstrates the full round trip (calling
+`strlen` and passing a Clynxer function back as a C callback).
 
 ## Async
 
 The `async*` family performs I/O without a language-level event loop.
-`asyncRun(function, arguments?)` starts a Lynxer function in the async runtime,
+`asyncRun(function, arguments?)` starts a Clynxer function in the async runtime,
 and `await` in the caller yields until the operation completes. Timers, wakeups
 and file/IO readiness sources are registered on a poll set and awaited with
-`asyncPollWait`; `asyncPollDispatch` awaits them and invokes a Lynxer callback
+`asyncPollWait`; `asyncPollDispatch` awaits them and invokes a Clynxer callback
 for each ready event. Evaluation stays cooperative — the interpreter runs one
-Lynxer frame at a time.
+Clynxer frame at a time.
 
 | Builtin | Notes |
 | --- | --- |
@@ -362,7 +362,7 @@ Lynxer frame at a time.
 | `asyncPollModify(poll, resource, events, token)` | Changes the interest and token |
 | `asyncPollRemove(poll, resource)` | Removes a resource |
 | `asyncPollWait(poll, timeoutMs?, maxEvents?)` | Awaits ready events |
-| `asyncPollDispatch(poll, callback, timeoutMs?, maxEvents?)` | Awaits events and calls a Lynxer callback for each |
+| `asyncPollDispatch(poll, callback, timeoutMs?, maxEvents?)` | Awaits events and calls a Clynxer callback for each |
 | `asyncPollClose(poll)` | Releases the poll set |
 | `asyncTimerCreate(poll, milliseconds, token, repeatMs?)` | Schedules a timer |
 | `asyncTimerCancel(timer)` | Cancels a timer |
@@ -370,14 +370,14 @@ Lynxer frame at a time.
 | `asyncWakeupSignal(wakeup)` | Signals a wakeup |
 | `asyncWakeupClose(wakeup)` | Releases a wakeup |
 
-See `clynxer/examples/builtin_async.lynx` for a runnable example, and
+See `lynxer/examples/builtin_async.lynx` for a runnable example, and
 [language.md](language.md) for the `async`/`await` syntax.
 
 ## Unsupported names
 
-Names CLynxer recognises but does not implement on Linux/POSIX. Each fails with
-`<name>() is not supported in CLynxer yet`, except `embedPy`, whose message is
-`Python bridging (embedPy) is not supported in CLynxer`.
+Names Lynxer recognises but does not implement on Linux/POSIX. Each fails with
+`<name>() is not supported in Lynxer yet`, except `embedPy`, whose message is
+`Python bridging (embedPy) is not supported in Lynxer`.
 
 | Family | Names |
 | --- | --- |
@@ -390,7 +390,7 @@ Names CLynxer recognises but does not implement on Linux/POSIX. Each fails with
 | Atomics | `atomicLoad`, `atomicStore`, `atomicAdd`, `volatileRead`, `volatileWrite` |
 | Advanced memory | `memoryProtect`, `memoryBlock*`, `memoryArray*`, `memoryView*`, `memoryStruct*`, `nativeStruct*`, `nativeTypeAlignment` |
 
-The authoritative list is `unsupportedTable()` in `clynxer/builtins.cpp`; this
+The authoritative list is `unsupportedTable()` in `lynxer/builtins.cpp`; this
 table is the POSIX-visible subset. A build without POSIX support adds the
 `filesystem*`, `process*`, `networking*`, `sound*`, `async*` and `nativeThread*`
 families. See [limitations.md](limitations.md) for the rationale.

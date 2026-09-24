@@ -8,7 +8,7 @@
 #include <functional>
 #include <unordered_set>
 
-namespace clynxer {
+namespace lynxer {
 
 std::string Parser::parseTypeName(const std::string& message) {
     if (!check(TokenKind::Identifier)) {
@@ -1680,4 +1680,4 @@ void Parser::fail(const std::string& message, const Token& token) const {
     throw SourceError(message, token.line, token.column);
 }
 
-} // namespace clynxer
+} // namespace lynxer

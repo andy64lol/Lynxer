@@ -1,5 +1,5 @@
 ////
-Lynxer standard library: server.
+Clynxer standard library: server.
 HTTP server helpers using Flask. Requires Flask.
 ////
 
@@ -14,7 +14,7 @@ global init(str host, int port){
         import os
         from flask import Flask
         import builtins
-        builtins._lx_flask = Flask("lynxer",root_path=os.getcwd())
+        builtins._lx_flask = Flask("clynxer",root_path=os.getcwd())
         builtins._lx_host         = host
         builtins._lx_port         = port
         builtins._lx_debug        = False
@@ -522,7 +522,7 @@ global enableLogging(){
         from flask import request as _req
         @builtins._lx_flask.after_request
         def _log(resp):
-            print(f"[Lynxer server] {_req.method} {_req.path} -> {resp.status_code}")
+            print(f"[Clynxer server] {_req.method} {_req.path} -> {resp.status_code}")
             return resp
     }
 }
@@ -755,7 +755,7 @@ global run(){
         _h = builtins._lx_host
         _p = builtins._lx_port
         _d = getattr(builtins, "_lx_debug", False)
-        print("[Lynxer server] Running on http://" + str(_h) + ":" + str(_p))
+        print("[Clynxer server] Running on http://" + str(_h) + ":" + str(_p))
         builtins._lx_flask.run(host=_h, port=_p, debug=_d)
     }
 }
@@ -770,7 +770,7 @@ global runHTTPS(str cert, str key){
         _d    = getattr(builtins, "_lx_debug", False)
         _cert = cert
         _key  = key
-        print("[Lynxer server] Running on https://" + str(_h) + ":" + str(_p))
+        print("[Clynxer server] Running on https://" + str(_h) + ":" + str(_p))
         builtins._lx_flask.run(host=_h, port=_p, debug=_d, ssl_context=(_cert, _key))
     }
 }
@@ -782,7 +782,7 @@ global runSSLAdhoc(){
         _h = builtins._lx_host
         _p = builtins._lx_port
         _d = getattr(builtins, "_lx_debug", False)
-        print("[Lynxer server] Running on https://" + str(_h) + ":" + str(_p) + " (adhoc SSL)")
+        print("[Clynxer server] Running on https://" + str(_h) + ":" + str(_p) + " (adhoc SSL)")
         builtins._lx_flask.run(host=_h, port=_p, debug=_d, ssl_context="adhoc")
     }
 }

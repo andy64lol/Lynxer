@@ -1,4 +1,4 @@
-missing: sound file does not exist: '.clynxer_scratch_missing.wav'
+missing: sound file does not exist: '.lynxer_scratch_missing.wav'
 format: unsupported sound format; use WAV, OGG, MP3, or FLAC
 argtype: soundLoad(path) expects one string path
 true

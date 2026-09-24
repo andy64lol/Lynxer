@@ -7,5 +7,5 @@
   "source": "test/test42.lynx",
   "status": "completed",
   "stderr": "",
-  "stdout": "true\ntrue\nalpha\nbeta\ngamma\ntrue\n3\nbeta\ntrue\n.txt\nlynxer-stdlib-fileio\ntrue\ntrue\ntrue\nlynxer-stdlib-fileio.txt\nlynxer-stdlib-fileio\n.txt\n/tmp\n/tmp/lynxer-stdlib-fileio.txt\n/tmp/lynxer/stdlib.txt\n/tmp/lynxer-stdlib-fileio.txt\ntrue\ntrue\ntrue\ntrue\ntrue\n"
+  "stdout": "true\ntrue\nalpha\nbeta\ngamma\ntrue\n3\nbeta\ntrue\n.txt\nclynxer-stdlib-fileio\ntrue\ntrue\ntrue\nclynxer-stdlib-fileio.txt\nclynxer-stdlib-fileio\n.txt\n/tmp\n/tmp/clynxer-stdlib-fileio.txt\n/tmp/clynxer/stdlib.txt\n/tmp/clynxer-stdlib-fileio.txt\ntrue\ntrue\ntrue\ntrue\ntrue\n"
 }

@@ -1,10 +1,10 @@
 {
-  "command_source": "lynxer/stdlib/net.lynx",
+  "command_source": "clynxer/stdlib/net.lynx",
   "kind": "stdlib-import",
   "name": "stdlib/net",
   "returncode": 0,
   "skip_reason": null,
-  "source": "lynxer/stdlib/net.lynx",
+  "source": "clynxer/stdlib/net.lynx",
   "status": "completed",
   "stderr": "",
   "stdout": ""

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Broad regression validator for Lynxer.
-BTW ALL generated Lynxer files are created below a temp dir and rm
+"""Broad regression validator for Clynxer.
+BTW ALL generated Clynxer files are created below a temp dir and rm
 auto. Existing ``test/*.lynx`` fixtures are checked but never edited
 or deleted (obviously dude).
 """
@@ -21,14 +21,14 @@ from collections.abc import Callable
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SHELL = ROOT / "lynxer" / "shell.py"
+SHELL = ROOT / "clynxer" / "shell.py"
 sys.path.insert(0, str(ROOT))
 
-from lynxer import bundle as bundle_module
-from lynxer import bytecode as bytecode_module
-from lynxer.bytecode import compile_to_bytecode, load_bytecode, run_bytecode
-from lynxer.install import INSTALL_PATH, _is_elf, _matching_pids
-from lynxer.lynxer import Error, run
+from clynxer import bundle as bundle_module
+from clynxer import bytecode as bytecode_module
+from clynxer.bytecode import compile_to_bytecode, load_bytecode, run_bytecode
+from clynxer.install import INSTALL_PATH, _is_elf, _matching_pids
+from clynxer.clynxer import Error, run
 
 
 class ValidationFailure(Exception):
@@ -45,7 +45,7 @@ def run_source(source: str, filename: str = "<validation>") -> tuple[str, Error 
 def native_available() -> bool:
     """Return whether the optional compiled native extension is importable."""
     try:
-        import lynxer.cpp  # noqa: F401  # type: ignore[import-unresolved] — built extension module
+        import clynxer.cpp  # noqa: F401  # type: ignore[import-unresolved] — built extension module
     except Exception:  # noqa: BLE001
         return False
     return True
@@ -1110,7 +1110,7 @@ def _game_window_available() -> bool:
     try:
         import arcade
 
-        window = arcade.Window(1, 1, "lynxer-probe")
+        window = arcade.Window(1, 1, "clynxer-probe")
         window.close()
         return True
     except Exception:  # noqa: BLE001
@@ -1149,7 +1149,7 @@ typedef int (*register_function)(const char *, const char *, const char *);
 typedef int (*register_constant)(const char *, int64_t);
 typedef int (*register_type)(const char *, const char *);
 int add_values(int64_t a, int64_t b) { return (int)(a + b); }
-int lynxer_module_init_v1(register_function function,
+int clynxer_module_init_v1(register_function function,
                           register_constant constant,
                           register_type type) {
     if (!function("add", "add_values", "cdecl:int32(int64,int64)")) return 1;
@@ -1545,12 +1545,12 @@ def test_process_api() -> None:
     executable = json.dumps(sys.executable)
     child = json.dumps(
         "import os,sys; data=sys.stdin.read(); "
-        "sys.stdout.write(os.environ['LYNXER_PROCESS_TEST'] + ':' + data)"
+        "sys.stdout.write(os.environ['CLYNXER_PROCESS_TEST'] + ':' + data)"
     )
     require_output(
         f"""global setup(){{}}
 global main(){{
-    int process = processSpawn({executable}, [str "-c", str {child}], [str "LYNXER_PROCESS_TEST=ok"]);
+    int process = processSpawn({executable}, [str "-c", str {child}], [str "CLYNXER_PROCESS_TEST=ok"]);
     println(processPoll(process) == -1);
     println(processWrite(process, "hello") == 5);
     processCloseInput(process);
@@ -1634,7 +1634,7 @@ def test_networking_api(temp_root: Path) -> None:
 
     peer = threading.Thread(target=serve)
     peer.start()
-    unix_path = temp_root / "lynxer.sock"
+    unix_path = temp_root / "clynxer.sock"
     source = f"""global setup(){{}}
 global main(){{
     int tcp = networkingOpen("tcp");
@@ -1730,7 +1730,7 @@ global main(){ println("cli works"); }
         text=True,
         check=False,
     )
-    if inspect_result.returncode != 0 or "Lynxer Bytecode Inspector" not in inspect_result.stdout:
+    if inspect_result.returncode != 0 or "Clynxer Bytecode Inspector" not in inspect_result.stdout:
         raise ValidationFailure(
             f"CLI bytecode inspection failed: rc={inspect_result.returncode}, "
             f"stdout={inspect_result.stdout!r}, stderr={inspect_result.stderr!r}"
@@ -1784,7 +1784,7 @@ global main(){ println("bundled"); }
     if executable != ROOT / "dist" / "bundle-smoke" or not executable.exists():
         raise ValidationFailure(f"bundle smoke did not create expected executable: {executable}")
     hook = ROOT / "build" / "hooks" / "bundle-smoke_runtime_hook.py"
-    if not hook.exists() or "LYNXER_STDLIB" not in hook.read_text(encoding="utf-8"):
+    if not hook.exists() or "CLYNXER_STDLIB" not in hook.read_text(encoding="utf-8"):
         raise ValidationFailure("bundle runtime hook was not staged")
     launcher = ROOT / "build" / "launchers" / "bundle-smoke.py"
     launcher_text = launcher.read_text(encoding="utf-8")
@@ -1828,7 +1828,7 @@ def test_installer_safety() -> None:
             f"installer: existing {INSTALL_PATH} is not an ELF executable"
         )
     if os.geteuid() != 0 and _matching_pids(INSTALL_PATH):
-        raise ValidationFailure("installer: found unexpected Lynxer processes")
+        raise ValidationFailure("installer: found unexpected Clynxer processes")
 
 
 def test_existing_fixtures() -> None:
@@ -1884,7 +1884,7 @@ TESTS: list[tuple[str, Callable[[], None]]] = [
 def main() -> int:
     passed = 0
     failed = 0
-    with tempfile.TemporaryDirectory(prefix="lynxer-validation-") as directory:
+    with tempfile.TemporaryDirectory(prefix="clynxer-validation-") as directory:
         temp_root = Path(directory)
         tests = TESTS + [
             ("compiler feedback and cache", lambda: test_compiler_feedback_and_cache(temp_root)),

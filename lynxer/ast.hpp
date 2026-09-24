@@ -9,7 +9,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace clynxer {
+namespace lynxer {
 
 // Counters for the AST optimization pass (defined in optimizer.hpp). Only a
 // forward declaration is needed here; the pass itself lives in optimizer.cpp
@@ -96,7 +96,7 @@ private:
     mutable bool warned_ = false;
 };
 
-// Clynxer executes async functions cooperatively on the interpreter thread.
+// Lynxer executes async functions cooperatively on the interpreter thread.
 // Await is therefore an explicit expression node even though evaluating it
 // currently resumes the already-synchronous operation immediately.
 class AwaitExpression final : public Expression {
@@ -823,7 +823,7 @@ std::vector<ImportRecord> collectImports(const std::string& source,
 std::string resolveModulePath(const std::string& sourceDirectory,
                               const std::string& requested);
 
-// The interpreter evaluates Lynxer code on one thread at a time. A built-in
+// The interpreter evaluates Clynxer code on one thread at a time. A built-in
 // that blocks on another thread holding this lock (see `nativeThreadJoin`)
 // releases it while it waits.
 void lockInterpreter();
@@ -835,7 +835,7 @@ void unlockInterpreter();
 Value callBridgedModule(const std::string& module, const std::string& operation,
                         const std::vector<Value>& args, int line, int column);
 
-// Calls a native function using the Clynxer signature grammar. The FFI
+// Calls a native function using the Lynxer signature grammar. The FFI
 // built-ins reuse the same checked dispatcher as imported native modules.
 Value callNative(void* address, const std::string& signature,
                  const std::vector<Value>& args, int line, int column);
@@ -845,4 +845,4 @@ Value callNative(void* address, const std::string& signature,
 void setEmbeddedModuleSources(std::map<std::string, std::string> sources);
 void setEmbeddedModuleLibraries(std::map<std::string, std::string> libraries);
 
-} // namespace clynxer
+} // namespace lynxer

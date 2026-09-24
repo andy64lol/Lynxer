@@ -6,7 +6,7 @@
 #include <cstdint>
 #include <variant>
 
-namespace clynxer {
+namespace lynxer {
 
 namespace {
 
@@ -336,4 +336,4 @@ std::string assembleInterp(const std::vector<std::string>& literals,
     return output;
 }
 
-} // namespace clynxer
+} // namespace lynxer

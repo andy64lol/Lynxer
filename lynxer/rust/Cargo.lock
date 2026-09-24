@@ -304,95 +304,95 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4bfbf56724aa9eca8afa4fcfadeb479e722935bb2a0900c2d37e0cc477af0688"
 
 [[package]]
-name = "clynxer_abi"
+name = "lynxer_abi"
 version = "0.1.0"
 
 [[package]]
-name = "clynxer_ffi"
+name = "lynxer_ffi"
 version = "0.1.0"
 dependencies = [
- "clynxer_abi",
+ "lynxer_abi",
  "libc",
 ]
 
 [[package]]
-name = "clynxer_game"
+name = "lynxer_game"
 version = "0.1.0"
 dependencies = [
- "clynxer_abi",
+ "lynxer_abi",
  "macroquad",
 ]
 
 [[package]]
-name = "clynxer_image"
+name = "lynxer_image"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
- "clynxer_abi",
+ "lynxer_abi",
  "image 0.25.10",
 ]
 
 [[package]]
-name = "clynxer_json"
+name = "lynxer_json"
 version = "0.1.0"
 dependencies = [
- "clynxer_abi",
+ "lynxer_abi",
  "serde",
  "serde_json",
 ]
 
 [[package]]
-name = "clynxer_lua"
+name = "lynxer_lua"
 version = "0.1.0"
 dependencies = [
- "clynxer_abi",
+ "lynxer_abi",
  "mlua",
 ]
 
 [[package]]
-name = "clynxer_network"
+name = "lynxer_network"
 version = "0.1.0"
 dependencies = [
- "clynxer_abi",
+ "lynxer_abi",
  "libc",
  "tungstenite 0.30.0",
  "ureq",
 ]
 
 [[package]]
-name = "clynxer_server"
+name = "lynxer_server"
 version = "0.1.0"
 dependencies = [
  "axum",
- "clynxer_abi",
+ "lynxer_abi",
  "tokio",
 ]
 
 [[package]]
-name = "clynxer_sound"
+name = "lynxer_sound"
 version = "0.1.0"
 dependencies = [
- "clynxer_abi",
+ "lynxer_abi",
  "cpal",
  "rodio",
  "symphonia",
 ]
 
 [[package]]
-name = "clynxer_sqldb"
+name = "lynxer_sqldb"
 version = "0.1.0"
 dependencies = [
  "base64 0.21.7",
- "clynxer_abi",
+ "lynxer_abi",
  "rusqlite",
  "serde_json",
 ]
 
 [[package]]
-name = "clynxer_tui"
+name = "lynxer_tui"
 version = "0.1.0"
 dependencies = [
- "clynxer_abi",
+ "lynxer_abi",
  "crossterm",
  "ratatui",
 ]

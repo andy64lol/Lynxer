@@ -1,13 +1,13 @@
 # Python Bridge: rawPy, rawPyx, importPy, embedPy
 
-Lynxer offers four ways to reach into Python from Lynxer code.
+Clynxer offers four ways to reach into Python from Clynxer code.
 
 | Feature | What it does |
 |---------|-------------|
 | [`rawPy{}`](#rawpy--inline-python) | Drop a block of Python code inline inside a function |
 | [`rawPyx{}`](#rawpyx--inline-cython) | Same as `rawPy`, but compiled with Cython for native speed |
 | [`importPy(){}`](#importpy--pre-import-python-modules) | Pre-import Python modules once in `setup()` so they are available in every `rawPy`/`rawPyx` block |
-| [`embedPy`](#embedpy--call-python-functions-directly) | Call Python functions and access Python modules directly with Lynxer syntax — no block required |
+| [`embedPy`](#embedpy--call-python-functions-directly) | Call Python functions and access Python modules directly with Clynxer syntax — no block required |
 
 ---
 
@@ -16,14 +16,14 @@ Lynxer offers four ways to reach into Python from Lynxer code.
 ### Block form
 
 Write any Python code inside `rawPy(){  }`. Variables declared in the enclosing
-Lynxer scope are visible inside the block. When the block exits, any changes to
+Clynxer scope are visible inside the block. When the block exits, any changes to
 those variables are written back.
 
 ```c
 global main(){
     int x = 0;
     rawPy(){
-        x = 7 * 6          // x is 42 in Lynxer after this block
+        x = 7 * 6          // x is 42 in Clynxer after this block
     }
     print(x); print("\n"); // 42
 
@@ -38,9 +38,9 @@ global main(){
 Only `int`, `float`, `str`, and `bool` values are bridged back on write-back. Other Python
 objects (dicts, custom instances, …) are ignored on write-back.
 
-> **Lists:** Lynxer `List` values are visible inside a `rawPy`/`rawPyx` block as a Python
+> **Lists:** Clynxer `List` values are visible inside a `rawPy`/`rawPyx` block as a Python
 > `list`, but they are **read-only** — changes made to the list inside the block are not
-> written back to the Lynxer variable after the block exits.
+> written back to the Clynxer variable after the block exits.
 
 ---
 
@@ -48,7 +48,7 @@ objects (dicts, custom instances, …) are ignored on write-back.
 
 **Each `rawPy` block runs in its own isolated Python `exec` scope.**
 
-Variables are re-bridged from Lynxer into a fresh namespace every time the block
+Variables are re-bridged from Clynxer into a fresh namespace every time the block
 executes. No state — Python imports, helper variables, module aliases — persists
 between blocks. Side effects that touch the filesystem or network do persist, but
 the Python namespace itself is always clean at the start of each block.
@@ -187,7 +187,7 @@ global parseVersion(str text){
 
 ### Error handling
 
-If a module name cannot be imported, Lynxer raises a runtime error with the
+If a module name cannot be imported, Clynxer raises a runtime error with the
 module name and the underlying Python `ImportError` message.
 
 ---
@@ -195,7 +195,7 @@ module name and the underlying Python `ImportError` message.
 ## embedPy — call Python functions directly
 
 `embedPy` is a built-in namespace that lets you call Python functions and access
-Python modules with ordinary Lynxer syntax — no `rawPy` block required.
+Python modules with ordinary Clynxer syntax — no `rawPy` block required.
 
 ```c
 global main(){
@@ -236,21 +236,21 @@ global main(){
 
 ### Type conversions
 
-Values crossing the Lynxer ↔ Python boundary are converted automatically:
+Values crossing the Clynxer ↔ Python boundary are converted automatically:
 
-| Python type | Lynxer type |
+| Python type | Clynxer type |
 |-------------|-------------|
 | `int` | `int` |
 | `float` | `float` |
 | `str` | `str` |
 | `bool` | `bool` (`1` / `0`) |
 | `bytes` | `str` (UTF-8 decoded) |
-| `list` / `tuple` | Lynxer list |
+| `list` / `tuple` | Clynxer list |
 | `dict` | `str` (JSON-serialised) |
 | anything else | opaque `embedPy` object |
 
 Opaque `embedPy` objects support further attribute access and calling, so you
-can chain calls on objects that have no Lynxer equivalent:
+can chain calls on objects that have no Clynxer equivalent:
 
 ```c
 global main(){
@@ -263,11 +263,11 @@ global main(){
 
 ### Storing embedPy results in typed variables
 
-Assign a return value to a typed variable and Lynxer will coerce it:
+Assign a return value to a typed variable and Clynxer will coerce it:
 
 ```c
 global main(){
-    int   length  = embedPy.len("Lynxer");    // 6
+    int   length  = embedPy.len("Clynxer");    // 6
     float root    = embedPy.math.sqrt(2.0);   // 1.41…
     str   joined  = embedPy.os.path.join("/tmp", "out.txt");
     bool  exists  = embedPy.os.path.exists("/tmp");
@@ -279,10 +279,10 @@ global main(){
 | | `rawPy{}` | `embedPy` |
 |-|-----------|-----------|
 | Syntax | Block of Python code | Single-expression calls |
-| Variable bridging | Reads and writes Lynxer vars | Return value only |
+| Variable bridging | Reads and writes Clynxer vars | Return value only |
 | Arbitrary Python | ✓ (any statements) | ✗ (function calls / attribute access) |
 | Multi-line logic | ✓ | ✗ |
 | Imports needed | Only via `importPy` or inline | Never (auto-imported on access) |
 
-Use `rawPy` for multi-line logic or when you need to set multiple Lynxer
+Use `rawPy` for multi-line logic or when you need to set multiple Clynxer
 variables at once. Use `embedPy` for concise one-liner calls.

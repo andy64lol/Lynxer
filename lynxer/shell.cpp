@@ -24,7 +24,7 @@
 #include <unistd.h>
 #endif
 
-namespace clynxer {
+namespace lynxer {
 
 namespace {
 
@@ -33,7 +33,7 @@ std::string readFile(const std::string& path, const std::string& display,
     std::ifstream input(path);
     if (!input) {
         std::cerr << Config::instance().format("error.file_not_found",
-                                               "clynxer: file not found: '{0}'",
+                                               "lynxer: file not found: '{0}'",
                                                "{0}", display)
                   << '\n';
         ok = false;
@@ -48,21 +48,21 @@ std::string readFile(const std::string& path, const std::string& display,
 void printUsage() {
     std::cout << "\n";
     std::cout << "Usage:\n";
-    std::cout << "  clynxer <file.lynx>                          Run a Lynxer source file\n";
-    std::cout << "  clynxer --no-opt <file.lynx>                 Run without the AST optimizer\n";
-    std::cout << "  clynxer --lint <file.lynx>                   Check Lynxer syntax without running it\n";
-    std::cout << "  clynxer --ast <file.lynx>                    Parse and print the abstract syntax tree\n";
-    std::cout << "  clynxer --format <file.lynx>                 Rewrite a file with canonical spacing\n";
-    std::cout << "  clynxer --format-oneline <file.lynx>         Collapse a file onto one physical line\n";
-    std::cout << "  clynxer --compile <a.lynx> [options] [name]  Compile input files into one executable\n";
-    std::cout << "  clynxer --bundle <a.lynx> [options] [name]   Alias of --compile\n";
+    std::cout << "  lynxer <file.lynx>                          Run a Clynxer source file\n";
+    std::cout << "  lynxer --no-opt <file.lynx>                 Run without the AST optimizer\n";
+    std::cout << "  lynxer --lint <file.lynx>                   Check Clynxer syntax without running it\n";
+    std::cout << "  lynxer --ast <file.lynx>                    Parse and print the abstract syntax tree\n";
+    std::cout << "  lynxer --format <file.lynx>                 Rewrite a file with canonical spacing\n";
+    std::cout << "  lynxer --format-oneline <file.lynx>         Collapse a file onto one physical line\n";
+    std::cout << "  lynxer --compile <a.lynx> [options] [name]  Compile input files into one executable\n";
+    std::cout << "  lynxer --bundle <a.lynx> [options] [name]   Alias of --compile\n";
     std::cout << "      --include <file>                         Embed a module, native library or data file\n";
     std::cout << "      -o, --output <name>                      Name the output executable\n";
-    std::cout << "  clynxer --validate-executeable               Run the interpreter self-check\n";
-    std::cout << "  clynxer --version                            Print version\n";
-    std::cout << "  clynxer --list-stdlibs                       List available Lynxer stdlib modules\n";
-    std::cout << "  clynxer --install                            Install the executable as /usr/bin/lynxer\n";
-    std::cout << "  clynxer --uninstall                          Remove /usr/bin/lynxer\n";
+    std::cout << "  lynxer --validate-executeable               Run the interpreter self-check\n";
+    std::cout << "  lynxer --version                            Print version\n";
+    std::cout << "  lynxer --list-stdlibs                       List available Clynxer stdlib modules\n";
+    std::cout << "  lynxer --install                            Install the executable as /usr/bin/clynxer\n";
+    std::cout << "  lynxer --uninstall                          Remove /usr/bin/clynxer\n";
     std::cout << "\n";
     std::cout << "Removed with the bytecode backend (use --compile):\n";
     std::cout << "  --view-bytecode, --benchmark-compile, --no-cache\n";
@@ -71,7 +71,7 @@ void printUsage() {
 
 void printVersion() {
     const Config& config = Config::instance();
-    std::cout << config.format("version.line", "CLynxer {0}", "{0}",
+    std::cout << config.format("version.line", "Lynxer {0}", "{0}",
                                config.get("version", "0.1.8"))
               << '\n';
 }
@@ -153,10 +153,10 @@ int listStdlibs() {
     }
     std::sort(files.begin(), files.end());
     if (files.empty()) {
-        std::cout << "No Lynxer stdlib modules found.\n";
+        std::cout << "No Clynxer stdlib modules found.\n";
         return 0;
     }
-    std::cout << "Available Lynxer stdlib modules:\n\n";
+    std::cout << "Available Clynxer stdlib modules:\n\n";
     for (const auto& file : files) {
         const std::string path = (stdlibPath / file).string();
         const std::string name = file.substr(0, file.size() - 5);
@@ -187,7 +187,7 @@ int lintFile(const std::string& display, const std::string& source) {
     try {
         parser.parseProgram();
     } catch (const SourceError& error) {
-        std::cerr << "clynxer: " << display << ':' << error.line << ':'
+        std::cerr << "lynxer: " << display << ':' << error.line << ':'
                   << error.column << ": " << error.what() << '\n';
         return 1;
     }
@@ -212,10 +212,10 @@ int astFile(const std::string& display, const std::string& source) {
                 ordered.push_back(&found->second);
             }
         }
-        std::cout << "Lynxer AST\n===========\n";
+        std::cout << "Clynxer AST\n===========\n";
         dumpProgram(std::cout, ordered);
     } catch (const SourceError& error) {
-        std::cerr << "clynxer: " << display << ':' << error.line << ':'
+        std::cerr << "lynxer: " << display << ':' << error.line << ':'
                   << error.column << ": " << error.what() << '\n';
         return 1;
     }
@@ -231,11 +231,11 @@ int formatFile(const std::string& display, const std::string& source,
         std::ofstream output(display, std::ios::binary | std::ios::trunc);
         output << formatted;
         if (!output) {
-            std::cerr << "clynxer: could not write '" << display << "'\n";
+            std::cerr << "lynxer: could not write '" << display << "'\n";
             return 1;
         }
     } catch (const SourceError& error) {
-        std::cerr << "clynxer: " << display << ':' << error.line << ':'
+        std::cerr << "lynxer: " << display << ':' << error.line << ':'
                   << error.column << ": " << error.what() << '\n';
         return 1;
     }
@@ -260,10 +260,10 @@ std::string runningExecutable(const char* argv0) {
 }
 
 int installBinary(const char* argv0) {
-    const std::filesystem::path target = "/usr/bin/lynxer";
+    const std::filesystem::path target = "/usr/bin/clynxer";
     const std::string self = runningExecutable(argv0);
     if (self.empty()) {
-        std::cerr << "clynxer: could not locate the running executable\n";
+        std::cerr << "lynxer: could not locate the running executable\n";
         return 1;
     }
     try {
@@ -278,8 +278,8 @@ int installBinary(const char* argv0) {
                 std::filesystem::perms::others_exec,
             std::filesystem::perm_options::replace);
     } catch (const std::filesystem::filesystem_error& error) {
-        std::cerr << "clynxer: install failed: " << error.what() << '\n';
-        std::cerr << "clynxer: re-run with permission to write " << target
+        std::cerr << "lynxer: install failed: " << error.what() << '\n';
+        std::cerr << "lynxer: re-run with permission to write " << target
                   << " (for example with sudo)\n";
         return 1;
     }
@@ -290,10 +290,10 @@ int installBinary(const char* argv0) {
 }
 
 int uninstallBinary() {
-    const std::filesystem::path target = "/usr/bin/lynxer";
+    const std::filesystem::path target = "/usr/bin/clynxer";
     std::error_code error;
     if (!std::filesystem::remove(target, error)) {
-        std::cerr << "clynxer: could not remove " << target << ": "
+        std::cerr << "lynxer: could not remove " << target << ": "
                   << (error ? error.message() : std::string("no such file"))
                   << '\n';
         return 1;
@@ -377,9 +377,9 @@ int validateInterpreter() {
 }
 
 // The optimizer report is diagnostic only: it goes to stderr and only when
-// CLYNXER_OPT_REPORT is set, so no program output ever depends on it.
+// LYNXER_OPT_REPORT is set, so no program output ever depends on it.
 void reportOptimization() {
-    if (std::getenv("CLYNXER_OPT_REPORT") == nullptr) {
+    if (std::getenv("LYNXER_OPT_REPORT") == nullptr) {
         return;
     }
     const OptimizationStats& stats = optimizationStats();
@@ -407,13 +407,13 @@ int runProgram(const std::string& display, const std::string& source) {
     } catch (const InterruptError&) {
         return 130;
     } catch (const SourceError& error) {
-        std::cerr << "clynxer: " << display << ':' << error.line << ':'
+        std::cerr << "lynxer: " << display << ':' << error.line << ':'
                   << error.column << ": " << error.what() << '\n';
         return 1;
     } catch (const std::exception& error) {
         std::cerr << Config::instance().format(
                          "error.interpreter_failure",
-                         "clynxer: interpreter failure in '{0}': {1}", "{0}",
+                         "lynxer: interpreter failure in '{0}': {1}", "{0}",
                          display)
                   << ": " << error.what() << '\n';
         return 1;
@@ -551,7 +551,7 @@ bool collectArchive(const std::string& mainPath, const std::string& mainSource,
         try {
             imports = collectImports(current.source, current.path);
         } catch (const SourceError& importError) {
-            std::cerr << "clynxer: " << current.path << ':' << importError.line
+            std::cerr << "lynxer: " << current.path << ':' << importError.line
                       << ':' << importError.column << ": " << importError.what()
                       << '\n';
             return false;
@@ -614,7 +614,7 @@ int failWith(const char* key, const char* fallback, const std::string& value) {
 }
 
 int removedFlag(const std::string& flag, const std::string& replacement) {
-    std::cerr << "clynxer: '" << flag
+    std::cerr << "lynxer: '" << flag
               << "' was removed with the bytecode backend";
     if (!replacement.empty()) {
         std::cerr << "; use " << replacement << " instead";
@@ -633,11 +633,11 @@ int compileProgramToExecutable(const std::vector<std::string>& arguments) {
         if (argument == "-o" || argument == "--output" ||
             argument == "-name" || argument == "--name") {
             if (index + 1 >= arguments.size()) {
-                std::cerr << "clynxer: " << argument << " requires a name\n";
+                std::cerr << "lynxer: " << argument << " requires a name\n";
                 return 1;
             }
             if (!outputName.empty()) {
-                std::cerr << "clynxer: the output name was given twice\n";
+                std::cerr << "lynxer: the output name was given twice\n";
                 return 1;
             }
             outputName = arguments[++index];
@@ -647,7 +647,7 @@ int compileProgramToExecutable(const std::vector<std::string>& arguments) {
         // file that the program reads with bundledFile().
         if (argument == "--include" || argument == "-i") {
             if (index + 1 >= arguments.size()) {
-                std::cerr << "clynxer: " << argument << " requires a file\n";
+                std::cerr << "lynxer: " << argument << " requires a file\n";
                 return 1;
             }
             inputs.push_back(arguments[++index]);
@@ -660,7 +660,7 @@ int compileProgramToExecutable(const std::vector<std::string>& arguments) {
             continue;
         }
         if (!outputName.empty()) {
-            std::cerr << "clynxer: unexpected extra argument '" << argument
+            std::cerr << "lynxer: unexpected extra argument '" << argument
                       << "'\n";
             return 1;
         }
@@ -670,14 +670,14 @@ int compileProgramToExecutable(const std::vector<std::string>& arguments) {
     if (inputs.empty()) {
         std::cerr << Config::instance().get(
                          "error.compile_usage",
-                         "clynxer: --compile requires a .lynx file, optionally "
+                         "lynxer: --compile requires a .lynx file, optionally "
                          "followed by --include <file> inputs and an output "
                          "name")
                   << '\n';
         return 1;
     }
     if (!endsWith(inputs.front(), ".lynx")) {
-        std::cerr << "clynxer: the first input must be a .lynx program file\n";
+        std::cerr << "lynxer: the first input must be a .lynx program file\n";
         return 1;
     }
 
@@ -699,7 +699,7 @@ int compileProgramToExecutable(const std::vector<std::string>& arguments) {
         if (error.empty()) {
             return 1;
         }
-        return failWith("error.compile_failed", "clynxer: compile failed: {0}",
+        return failWith("error.compile_failed", "lynxer: compile failed: {0}",
                         error);
     }
 
@@ -713,7 +713,7 @@ int compileProgramToExecutable(const std::vector<std::string>& arguments) {
 
     if (!writeBundledExecutable(outputPath, makeBundlePayload(archive),
                                 error)) {
-        return failWith("error.compile_failed", "clynxer: compile failed: {0}",
+        return failWith("error.compile_failed", "lynxer: compile failed: {0}",
                         error);
     }
     std::cout << Config::instance().format("status.compile_ok",
@@ -728,7 +728,7 @@ int runCompiledPayload(const std::vector<uint8_t>& payload) {
     if (!decodeProgramArchive(payload, archive)) {
         std::cerr << Config::instance().get(
                          "error.payload_invalid",
-                         "clynxer: the embedded program payload is invalid")
+                         "lynxer: the embedded program payload is invalid")
                   << '\n';
         return 1;
     }
@@ -737,7 +737,7 @@ int runCompiledPayload(const std::vector<uint8_t>& payload) {
     std::map<std::string, std::string> assets;
     std::string error;
     if (!materializeBundle(archive.modules, libraries, assets, error)) {
-        return failWith("error.compile_failed", "clynxer: compile failed: {0}",
+        return failWith("error.compile_failed", "lynxer: compile failed: {0}",
                         error);
     }
     setBundledAssets(std::move(assets));
@@ -820,7 +820,7 @@ int shellMain(int argc, char** argv) {
         return validateInterpreter();
     }
     if (args[0] == "--benchmark-compile" || args[0] == "--bench-compile") {
-        return removedFlag(args[0], "clynxer --compile");
+        return removedFlag(args[0], "lynxer --compile");
     }
     if (args[0] == "--compile" || args[0] == "-c" || args[0] == "--c" ||
         args[0] == "-compile" || args[0] == "--bundle" ||
@@ -830,14 +830,14 @@ int shellMain(int argc, char** argv) {
     }
     if (args[0] == "--view-bytecode" || args[0] == "--inspect-bytecode" ||
         args[0] == "--disasm") {
-        return removedFlag(args[0], "clynxer --compile");
+        return removedFlag(args[0], "lynxer --compile");
     }
     if (args[0] == "--no-cache") {
-        return removedFlag(args[0], "clynxer --compile");
+        return removedFlag(args[0], "lynxer --compile");
     }
     if (args[0] == "--format" || args[0] == "--format-oneline") {
         if (args.size() != 2) {
-            std::cerr << "clynxer: " << args[0]
+            std::cerr << "lynxer: " << args[0]
                       << " requires exactly one file argument\n";
             return 1;
         }
@@ -852,7 +852,7 @@ int shellMain(int argc, char** argv) {
         if (args.size() != 2) {
             std::cerr << Config::instance().format(
                                  "error.requires_one_file",
-                                 "clynxer: {0} requires exactly one file argument",
+                                 "lynxer: {0} requires exactly one file argument",
                                  "{0}", args[0])
                       << '\n';
             return 1;
@@ -868,7 +868,7 @@ int shellMain(int argc, char** argv) {
         if (args.size() != 2) {
             std::cerr << Config::instance().format(
                                  "error.requires_one_file",
-                                 "clynxer: {0} requires exactly one file argument",
+                                 "lynxer: {0} requires exactly one file argument",
                                  "{0}", args[0])
                       << '\n';
             return 1;
@@ -886,7 +886,7 @@ int shellMain(int argc, char** argv) {
         display.compare(display.size() - 6, 6, ".lynxc") == 0) {
         std::cerr << Config::instance().get(
                          "error.bytecode_removed",
-                         "clynxer: bytecode files are no longer supported; "
+                         "lynxer: bytecode files are no longer supported; "
                          "compile the .lynx source with --compile instead")
                   << '\n';
         return 1;
@@ -905,4 +905,4 @@ int shellMain(int argc, char** argv) {
     return exitCode;
 }
 
-} // namespace clynxer
+} // namespace lynxer

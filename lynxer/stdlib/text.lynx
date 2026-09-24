@@ -1,6 +1,6 @@
 ////
-Lynxer standard library: text.
-Pure Lynxer string helpers: searching, replacing, case conversion and
+Clynxer standard library: text.
+Pure Clynxer string helpers: searching, replacing, case conversion and
 repetition.
 ////
 
@@ -62,7 +62,7 @@ global isEmpty(str value) -> bool { return returnLength(value) is 0; }
 global isBlank(str value) -> bool { return returnLength(global.trim(value)) is 0; }
 
 // Space, tab, carriage return and newline. Python's text helpers strip all
-// Unicode whitespace; the ASCII set is what Clynxer matches.
+// Unicode whitespace; the ASCII set is what Lynxer matches.
 func textIsSpace(str value) -> bool {
     return returnLength(value) is 1 and contains(" \t\n\r", value);
 }

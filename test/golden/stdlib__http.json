@@ -1,10 +1,10 @@
 {
-  "command_source": "lynxer/stdlib/http.lynx",
+  "command_source": "clynxer/stdlib/http.lynx",
   "kind": "stdlib-import",
   "name": "stdlib/http",
   "returncode": 0,
   "skip_reason": null,
-  "source": "lynxer/stdlib/http.lynx",
+  "source": "clynxer/stdlib/http.lynx",
   "status": "completed",
   "stderr": "",
   "stdout": ""

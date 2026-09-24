@@ -1,4 +1,4 @@
-// A bare `!` is not valid in Clynxer; use `not` or `!!`. The Python reference
+// A bare `!` is not valid in Lynxer; use `not` or `!!`. The Python reference
 // accepts `!value`, which makes this a deliberate lexical divergence.
 global setup() {}
 

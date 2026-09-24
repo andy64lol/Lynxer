@@ -1,10 +1,10 @@
 {
-  "command_source": "lynxer/stdlib/json.lynx",
+  "command_source": "clynxer/stdlib/json.lynx",
   "kind": "stdlib-import",
   "name": "stdlib/json",
   "returncode": 0,
   "skip_reason": null,
-  "source": "lynxer/stdlib/json.lynx",
+  "source": "clynxer/stdlib/json.lynx",
   "status": "completed",
   "stderr": "",
   "stdout": ""

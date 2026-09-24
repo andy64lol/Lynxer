@@ -114,7 +114,7 @@ pub struct State {
     pub mouse_query_y: f32,
     pub scroll_x: f32,
     pub scroll_y: f32,
-    /// Lynxer function names registered with setDrawCallback/setUpdateCallback.
+    /// Clynxer function names registered with setDrawCallback/setUpdateCallback.
     pub draw_callback: String,
     pub update_callback: String,
 }
@@ -122,7 +122,7 @@ pub struct State {
 impl State {
     fn new() -> Self {
         State {
-            title: "Lynxer".to_string(),
+            title: "Clynxer".to_string(),
             width: 800.0,
             height: 600.0,
             background: BLACK,
@@ -206,7 +206,7 @@ pub fn with<R>(body: impl FnOnce(&mut State) -> R) -> R {
 }
 
 pub fn headless_requested() -> bool {
-    match std::env::var("CLYNXER_GAME_HEADLESS") {
+    match std::env::var("LYNXER_GAME_HEADLESS") {
         Ok(value) => !value.is_empty() && value != "0",
         Err(_) => false,
     }

@@ -5,7 +5,7 @@ The module is a `cdylib` installed as `stdlib/lua.so`; it does not require a
 system Lua installation.
 
 > **Requires:** a Rust toolchain (`cargo`). Build it with `make cargo` or
-> `make buildCLynxer`.
+> `make buildLynxer`.
 
 ```lynx
 global setup(){ import("lua"); }
@@ -37,5 +37,5 @@ errors are returned as strings beginning with `Error:`.
   implements, including the error sentinel family it uses.
 - [builtins.md](../builtins.md) — the functions the interpreter implements
   itself.
-- [parity.md](../parity.md) — the parity scope with Python Lynxer.
+- [parity.md](../parity.md) — the parity scope with Python Clynxer.
 - [limitations.md](../limitations.md) — the full divergence register.

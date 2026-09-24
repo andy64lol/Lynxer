@@ -1,6 +1,6 @@
 ////
 Smoke test for the `game` stdlib module. It runs in headless mode (the test
-runner sets CLYNXER_GAME_HEADLESS=1), so no window is opened and drawing calls
+runner sets LYNXER_GAME_HEADLESS=1), so no window is opened and drawing calls
 are no-ops, but the whole API surface and the frame-callback bridge are
 exercised deterministically.
 ////

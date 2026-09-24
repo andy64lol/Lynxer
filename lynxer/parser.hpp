@@ -9,7 +9,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace clynxer {
+namespace lynxer {
 
 class Parser {
 public:
@@ -151,4 +151,4 @@ private:
     std::vector<std::string> programOrder_;
 };
 
-} // namespace clynxer
+} // namespace lynxer

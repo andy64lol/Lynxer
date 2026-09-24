@@ -1,6 +1,6 @@
-// Lynxer `debug` stdlib backend: timers, timestamps, environment and memory.
+// Clynxer `debug` stdlib backend: timers, timestamps, environment and memory.
 //
-// The assertion, logging and inspection helpers are written in pure Lynxer in
+// The assertion, logging and inspection helpers are written in pure Clynxer in
 // the wrapper; only the nondeterministic/OS-dependent pieces live here.
 
 #include "native_json.hpp"
@@ -109,7 +109,7 @@ extern "C" double debug_elapsed(const char* label) {
     return nowMilliseconds() - found->second;
 }
 
-extern "C" int lynxer_module_init_v1(RegisterFunction function,
+extern "C" int clynxer_module_init_v1(RegisterFunction function,
                                      RegisterConstant, RegisterType) {
     return function("timestamp", "debug_timestamp", "cdecl:cstring()") &&
                    function("clock", "debug_clock", "cdecl:double()") &&

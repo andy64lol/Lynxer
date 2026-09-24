@@ -1,4 +1,4 @@
-// Lynxer `os` stdlib backend: filesystem, process, environment and platform
+// Clynxer `os` stdlib backend: filesystem, process, environment and platform
 // helpers implemented with <filesystem> plus POSIX APIs.
 
 #include "native_json.hpp"
@@ -343,9 +343,9 @@ extern "C" const char* os_getSystemNode() {
     return readUname(info) ? stable(std::string(info.nodename)) : stable("");
 }
 
-// Clynxer has no Python runtime; these report the host implementation instead.
+// Lynxer has no Python runtime; these report the host implementation instead.
 extern "C" const char* os_getPythonVersion() { return ""; }
-extern "C" const char* os_getPythonImplementation() { return "CLynxer"; }
+extern "C" const char* os_getPythonImplementation() { return "Lynxer"; }
 
 static std::string executablePath() {
     char buffer[4096];
@@ -403,7 +403,7 @@ extern "C" const char* os_getSystemInfo() {
     native_json::setField(object, "python",
                           native_json::makeString(""));
     native_json::setField(object, "pythonImplementation",
-                          native_json::makeString("CLynxer"));
+                          native_json::makeString("Lynxer"));
     native_json::setField(object, "pythonExecutable",
                           native_json::makeString(executablePath()));
     return stable(native_json::dump(object, false));
@@ -434,7 +434,7 @@ extern "C" const char* os_getSystemDistro() {
     return stable(native_json::dump(object, false));
 }
 
-extern "C" int lynxer_module_init_v1(RegisterFunction function,
+extern "C" int clynxer_module_init_v1(RegisterFunction function,
                                      RegisterConstant, RegisterType) {
     return function("getcwd", "os_getcwd", "cdecl:cstring()") &&
                    function("chdir", "os_chdir", "cdecl:int64(cstring)") &&

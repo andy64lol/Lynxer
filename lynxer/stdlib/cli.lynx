@@ -1,16 +1,16 @@
 ////
-Lynxer standard library: cli.
+Clynxer standard library: cli.
 Command-line helpers backed by the native C++ module `stdlib/cli.so`:
 arguments, environment, terminal queries and process execution.
 
 The Python reference also wraps Click and Typer command builders. Those are
-Python packages with no Clynxer equivalent, so `clickExists()`/`typerExists()`
+Python packages with no Lynxer equivalent, so `clickExists()`/`typerExists()`
 return false and the `click*`/`typer*` builders are not defined; calling one is
 a hard "unknown function" error rather than a silent no-op.
 ////
 global setup(){ importAs("cli.so", "nativeCli"); }
 
-// Click/Typer are Python packages and are never available under Clynxer.
+// Click/Typer are Python packages and are never available under Lynxer.
 global clickExists() -> bool { return false; }
 global typerExists() -> bool { return false; }
 global clickVersion() -> str { return ""; }

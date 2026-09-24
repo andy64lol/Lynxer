@@ -8,9 +8,9 @@ Runtime, process and platform information.
 | Function | Signature | Notes |
 | --- | --- | --- |
 | `platform` | `() -> str` | `linux`, `darwin`, `win32` or `unknown` |
-| `version` | `() -> str` | CLynxer version, e.g. `CLynxer 0.1.8` |
+| `version` | `() -> str` | Lynxer version, e.g. `Lynxer 0.1.8` |
 | `versionInfo` | `() -> str` | JSON `{major, minor, micro, releaselevel, serial}` |
-| `implementation` | `() -> str` | `CLynxer` |
+| `implementation` | `() -> str` | `Lynxer` |
 | `apiVersion` | `() -> str` | `0.1` |
 | `isFrozen` | `() -> bool` | Always `false` |
 | `getpid` | `() -> int` | Process id |
@@ -28,9 +28,9 @@ Runtime, process and platform information.
 | `exit` | `(int code)` | Exits immediately with `code` |
 | `exitOk` / `exitError` | `()` | Exits with `0` / `1` |
 
-Because Clynxer has no Python runtime, `version()` reports the CLynxer version
-and there is no `sys.path`, `sys.modules` or recursion-limit surface. Clynxer
-does not forward extra arguments to a program, so `argv` describes the `clynxer`
+Because Lynxer has no Python runtime, `version()` reports the Lynxer version
+and there is no `sys.path`, `sys.modules` or recursion-limit surface. Lynxer
+does not forward extra arguments to a program, so `argv` describes the `lynxer`
 process itself.
 
 ## Example
@@ -53,5 +53,5 @@ global main(){
   implements, including the error sentinel family it uses.
 - [builtins.md](../builtins.md) — the functions the interpreter implements
   itself.
-- [parity.md](../parity.md) — the parity scope with Python Lynxer.
+- [parity.md](../parity.md) — the parity scope with Python Clynxer.
 - [limitations.md](../limitations.md) — the full divergence register.

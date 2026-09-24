@@ -36,6 +36,6 @@ global main(){
     println(global.debug.assertContains("stdlib", "lib", "contains"));
 
     println(global.shell.commandExists("python3") or global.shell.commandExists("python"));
-    println(global.shell.runShellCapture("printf lynxer"));
+    println(global.shell.runShellCapture("printf clynxer"));
     println(global.shell.runShellCode("true") == 0);
 }

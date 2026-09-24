@@ -13,7 +13,7 @@ APIs. **Import:** `import("cli")` → `global.cli.*`
 | `clickExists` / `typerExists` | `() -> bool` | Always `false` |
 | `clickVersion` / `typerVersion` | `() -> str` | Always `""` |
 
-Click and Typer are Python packages with no Clynxer equivalent, so the
+Click and Typer are Python packages with no Lynxer equivalent, so the
 `click*`/`typer*` builder functions are **not defined** — calling one is a hard
 "unknown function" error.
 
@@ -28,8 +28,8 @@ Click and Typer are Python packages with no Clynxer equivalent, so the
 | `envHas` | `(str name) -> bool` | Whether the variable is set |
 | `envAll` | `() -> str` | All variables as a JSON object |
 
-Clynxer does not forward extra arguments to a program, so `argv` describes the
-`clynxer` process itself.
+Lynxer does not forward extra arguments to a program, so `argv` describes the
+`lynxer` process itself.
 
 ## Terminal and IO
 
@@ -76,5 +76,5 @@ global main(){
   implements, including the error sentinel family it uses.
 - [builtins.md](../builtins.md) — the functions the interpreter implements
   itself.
-- [parity.md](../parity.md) — the parity scope with Python Lynxer.
+- [parity.md](../parity.md) — the parity scope with Python Clynxer.
 - [limitations.md](../limitations.md) — the full divergence register.

@@ -2,7 +2,7 @@
 
 HTTP and WebSocket client backed by Rust [`ureq`](https://docs.rs/ureq) with
 [`rustls`](https://docs.rs/rustls) and [`tungstenite`](https://docs.rs/tungstenite).
-This is the Clynxer replacement for the older Python `http` and `net` modules.
+This is the Lynxer replacement for the older Python `http` and `net` modules.
 
 ```lynx
 global setup(){
@@ -57,5 +57,5 @@ Connections are keyed by a name string.
   implements, including the error sentinel family it uses.
 - [builtins.md](../builtins.md) — the functions the interpreter implements
   itself.
-- [parity.md](../parity.md) — the parity scope with Python Lynxer.
+- [parity.md](../parity.md) — the parity scope with Python Clynxer.
 - [limitations.md](../limitations.md) — the full divergence register.

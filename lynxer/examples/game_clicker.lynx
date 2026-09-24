@@ -5,10 +5,10 @@ A small clicker game built on the `game` stdlib.
   * Buy the orange upgrade to earn more per click.
   * Press ESC (or close the window) to quit.
 
-Run it with a window:    clynxer examples/game_clicker.lynx
-Headless smoke test:     CLYNXER_GAME_HEADLESS=1 clynxer examples/game_clicker.lynx
+Run it with a window:    lynxer examples/game_clicker.lynx
+Headless smoke test:     LYNXER_GAME_HEADLESS=1 lynxer examples/game_clicker.lynx
 
-Lynxer has no module-level variables, so two callbacks cannot share a Lynxer
+Clynxer has no module-level variables, so two callbacks cannot share a Clynxer
 variable. This example keeps its state in an invisible 1x1 "save" sprite that
 `init()` always puts at index 0: its x is the score and its y is the points per
 click. Sprite 1 is the click button and sprite 2 the upgrade button. `init()`
@@ -68,7 +68,7 @@ global onDraw(){
 }
 
 global main(){
-    global.game.init("Lynxer Clicker", 720, 480);
+    global.game.init("Clynxer Clicker", 720, 480);
     global.game.setBackground(24, 26, 34);
     global.game.setFPSCap(60);
 

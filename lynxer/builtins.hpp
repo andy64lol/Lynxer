@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace clynxer {
+namespace lynxer {
 
 // True when 'name' (already stripped of a 'global.' prefix) is a known
 // built-in, whether it is implemented here or registered as an explicit
@@ -22,4 +22,4 @@ void joinNativeThreadsAtExit();
 Value callBuiltin(const std::string& name, const std::vector<Value>& args,
                   Environment& environment, int line, int column);
 
-} // namespace clynxer
+} // namespace lynxer

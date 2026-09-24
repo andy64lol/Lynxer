@@ -2,7 +2,7 @@
 
 #include <csignal>
 
-namespace clynxer {
+namespace lynxer {
 
 namespace {
 
@@ -37,4 +37,4 @@ void installInterruptHandler() {
 #endif
 }
 
-} // namespace clynxer
+} // namespace lynxer

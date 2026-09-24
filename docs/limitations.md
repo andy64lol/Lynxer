@@ -11,7 +11,7 @@ Every entry below was verified against the source.
 ## Compiler optimization — constant folding only
 
 `todo.md` ("Compiler improvements") claims safe optimization passes. Constant
-folding is now implemented: `_optimize_program()` in `lynxer/bytecode.py`
+folding is now implemented: `_optimize_program()` in `clynxer/bytecode.py`
 replaces an arithmetic or comparison expression with a literal when every
 operand is a literal, and it does so by asking the interpreter itself to
 evaluate the expression. An expression that the interpreter evaluates with an
@@ -41,7 +41,7 @@ string accepts an optional trailing alignment argument that clamps the
 alignment of every field and of any nested aggregate. See
 [native-memory.md](native-memory.md#packed-layouts).
 
-**The remaining limitation is compiler ABI compatibility.** Lynxer uses a
+**The remaining limitation is compiler ABI compatibility.** Clynxer uses a
 documented least-significant-bit-first storage rule and groups consecutive
 fields with the same declared integer storage type. C and C++ leave bit-field
 allocation order, cross-type grouping, and some signedness behavior
@@ -60,18 +60,18 @@ thread API.
 
 - **Cancellation is still cooperative only** — there is no thread-cancellation
   builtin. (`asyncTimerCancel` cancels a *timer*, not a thread.)
-- **There is no `lynxer/stdlib/` concurrency module.** The API is the raw
+- **There is no `clynxer/stdlib/` concurrency module.** The API is the raw
   `nativeThread*`, `nativeMutex*`, `nativeCondition*`, and `nativeSemaphore*`
   builtins documented in [native-memory.md](native-memory.md).
 
 Fixed since this page was written: `nativeThreadJoinAll()` is now exposed as a
-Lynxer builtin, so a program can join every thread it left running instead of
+Clynxer builtin, so a program can join every thread it left running instead of
 relying on the interpreter's exit-time safety net.
 
 ## async I/O: `poll`/`ppoll`, not `epoll`
 
 `todo.md` ("async I/O") asks for epoll. The implementation is a `select.poll`
-event loop (`lynxer/builtins.py`), which on Linux uses the host's poll
+event loop (`clynxer/builtins.py`), which on Linux uses the host's poll
 interface. The raw `syscallPollFileDescriptors` builtin uses `poll(2)` on
 x86-64 and adapts its existing millisecond timeout API to `ppoll(2)` on ARM64,
 where the legacy `poll` syscall is absent. `syscallPpollFileDescriptors` is
@@ -87,15 +87,15 @@ This is unlikely to change: `asyncPoll*` accepts arbitrary file descriptors
 including regular files, which epoll cannot watch (`EPERM`) but `poll` can, and
 the syscall layer is Linux-only.
 
-## Clynxer async and FFI execution model
+## Lynxer async and FFI execution model
 
-Clynxer accepts the `async` local-function and `await` syntax, but its
+Lynxer accepts the `async` local-function and `await` syntax, but its
 interpreter remains single-threaded and cooperative: async calls run to
 completion synchronously. `asyncPoll*`, timers, and wakeups are real POSIX
 resources; `asyncGather` preserves the supplied results but does not run them
 concurrently.
 
-The Clynxer FFI call path uses the existing checked native signature dispatcher
+The Lynxer FFI call path uses the existing checked native signature dispatcher
 and supports the signatures covered by that dispatcher. `ffiCallback` creates
 an interpreter callback handle for `ffiCall` rather than a libffi closure that
 arbitrary external native code can invoke. This keeps callback execution inside
@@ -154,7 +154,7 @@ Beyond that, `test_bundle_smoke_and_diagnostics` in `test/validate.py` replaces
 `subprocess.run` with a stub, so PyInstaller is never actually invoked and no
 executable is produced by the suite. The launcher, architecture guard, syscall
 self-check, and diagnostics are all covered, and other tests in that file do
-run the real `lynxer` CLI; it is specifically the packaging step that is not
+run the real `clynxer` CLI; it is specifically the packaging step that is not
 exercised.
 
 ---

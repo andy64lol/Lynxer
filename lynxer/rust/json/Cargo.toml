@@ -1,16 +1,16 @@
 [package]
-name = "clynxer_json"
+name = "lynxer_json"
 version = "0.1.0"
 edition = "2021"
-description = "serde_json backend for the Clynxer `json` stdlib module"
+description = "serde_json backend for the Lynxer `json` stdlib module"
 publish = false
 
 [lib]
-name = "clynxer_json"
+name = "lynxer_json"
 crate-type = ["cdylib"]
 
 [dependencies]
-clynxer_abi = { path = "../abi" }
+lynxer_abi = { path = "../abi" }
 serde = "1"
 # preserve_order keeps object keys in insertion order, matching the previous
 # nlohmann::ordered_json backend.

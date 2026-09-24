@@ -6,7 +6,7 @@ Standalone audio loading and playback that does **not** need a game window.
 import("sound");
 ```
 
-The module is implemented in `lynxer/stdlib/sound.lynx` on top of
+The module is implemented in `clynxer/stdlib/sound.lynx` on top of
 [`arcade`](https://pypi.org/project/arcade/), so `pip install arcade` is
 required. Every function works from source, imported modules, bytecode, and
 bundled programs.
@@ -75,7 +75,7 @@ global main(){
 
 - Any missing file, unsupported format, missing `arcade` package, or audio
   backend failure is reported as a return value (`-1` / `false`), never as a
-  Lynxer runtime error.
+  Clynxer runtime error.
 - A headless machine with no audio device fails at load time, so
   `loadSound` returns `-1` and the rest of the API stays safe to call.
 - Supported formats are whatever `arcade` can decode (WAV, OGG, MP3, FLAC

@@ -6,7 +6,7 @@ removes the repo-local scratch files.
 global setup(){ import("image"); import("os"); }
 
 global main(){
-    str root = ".clynxer_image_codecs";
+    str root = ".lynxer_image_codecs";
     if(global.os.exists(root)){ global.os.rmTree(root); }
     println(global.os.mkdir(root));
 

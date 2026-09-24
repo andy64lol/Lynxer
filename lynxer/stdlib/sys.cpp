@@ -17,11 +17,11 @@ using RegisterFunction = int (*)(const char*, const char*, const char*);
 using RegisterConstant = int (*)(const char*, std::int64_t);
 using RegisterType = int (*)(const char*, const char*);
 
-// Keep in sync with the default `version` in clynxer/clynxer.config.
-#define CLYNXER_VERSION_TEXT "CLynxer 0.1.8"
-#define CLYNXER_VERSION_MAJOR 0
-#define CLYNXER_VERSION_MINOR 1
-#define CLYNXER_VERSION_MICRO 8
+// Keep in sync with the default `version` in lynxer/lynxer.config.
+#define LYNXER_VERSION_TEXT "Lynxer 0.1.8"
+#define LYNXER_VERSION_MAJOR 0
+#define LYNXER_VERSION_MINOR 1
+#define LYNXER_VERSION_MICRO 8
 
 static const char* stable(std::string value) { thread_local std::string r; r=std::move(value); return r.c_str(); }
 
@@ -62,19 +62,19 @@ extern "C" const char* sys_platform() {
     return "unknown";
 #endif
 }
-// The Python reference returns the interpreter's version string; Clynxer has no
-// Python runtime, so this reports the CLynxer version instead.
-extern "C" const char* sys_version() { return CLYNXER_VERSION_TEXT; }
+// The Python reference returns the interpreter's version string; Lynxer has no
+// Python runtime, so this reports the Lynxer version instead.
+extern "C" const char* sys_version() { return LYNXER_VERSION_TEXT; }
 extern "C" const char* sys_versionInfo() {
     native_json::Value object = native_json::makeObject();
-    native_json::setField(object, "major", native_json::makeInteger(CLYNXER_VERSION_MAJOR));
-    native_json::setField(object, "minor", native_json::makeInteger(CLYNXER_VERSION_MINOR));
-    native_json::setField(object, "micro", native_json::makeInteger(CLYNXER_VERSION_MICRO));
+    native_json::setField(object, "major", native_json::makeInteger(LYNXER_VERSION_MAJOR));
+    native_json::setField(object, "minor", native_json::makeInteger(LYNXER_VERSION_MINOR));
+    native_json::setField(object, "micro", native_json::makeInteger(LYNXER_VERSION_MICRO));
     native_json::setField(object, "releaselevel", native_json::makeString("final"));
     native_json::setField(object, "serial", native_json::makeInteger(0));
     return stable(native_json::dump(object, false));
 }
-extern "C" const char* sys_implementation() { return "CLynxer"; }
+extern "C" const char* sys_implementation() { return "Lynxer"; }
 extern "C" const char* sys_apiVersion() { return "0.1"; }
 extern "C" std::int64_t sys_isFrozen() { return 0; }
 extern "C" std::int64_t sys_getpid() { return static_cast<std::int64_t>(getpid()); }
@@ -93,8 +93,8 @@ extern "C" const char* sys_prefix() {
 }
 extern "C" const char* sys_execPrefix() { return sys_prefix(); }
 
-// Process arguments, not script arguments: Clynxer does not forward extra
-// arguments to the program, so argv[0] is the clynxer executable.
+// Process arguments, not script arguments: Lynxer does not forward extra
+// arguments to the program, so argv[0] is the lynxer executable.
 extern "C" const char* sys_argv() {
     native_json::Value array = native_json::makeArray();
     for (const auto& argument : processArguments()) {
@@ -118,7 +118,7 @@ extern "C" std::int64_t sys_exit(std::int64_t code) {
     return 0;
 }
 
-extern "C" int lynxer_module_init_v1(RegisterFunction f, RegisterConstant, RegisterType) {
+extern "C" int clynxer_module_init_v1(RegisterFunction f, RegisterConstant, RegisterType) {
     return f("platform","sys_platform","cdecl:cstring()") &&
            f("version","sys_version","cdecl:cstring()") &&
            f("versionInfo","sys_versionInfo","cdecl:cstring()") &&

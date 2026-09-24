@@ -1,4 +1,4 @@
-// Lynxer `regex` stdlib backend: extended helpers with a named compiled-pattern
+// Clynxer `regex` stdlib backend: extended helpers with a named compiled-pattern
 // cache. Behaves like the Python reference's `re` fallback path (the third
 // party `regex` package is not available, so Unicode `\p{...}` helpers fall
 // back to ASCII classes and overlapping matching is emulated).
@@ -616,7 +616,7 @@ extern "C" const char* regex_truncateMatch(const char* pattern,
                                   static_cast<int>(maxLen)));
 }
 
-extern "C" int lynxer_module_init_v1(RegisterFunction function,
+extern "C" int clynxer_module_init_v1(RegisterFunction function,
                                      RegisterConstant, RegisterType) {
     return function("compile", "regex_compile",
                             "cdecl:int64(cstring,cstring,cstring)") &&

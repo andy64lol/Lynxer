@@ -1,5 +1,5 @@
 ////
-Lynxer standard library: debug.
+Clynxer standard library: debug.
 Debugging, logging, and inspection helpers.
 ////
 
@@ -58,12 +58,12 @@ global assertContains(str haystack, str needle, str msg){
 
 // ── Type inspection ───────────────────────────────────────────────────────────
 
-// Return the Lynxer type name of a value as a string.
+// Return the Clynxer type name of a value as a string.
 // Returns one of: "int", "float", "str", "bool", "list", "null".
 global typeOf(any val){
     str result = "";
     rawPy(){
-        # val comes from Lynxer bridging: Number, String, or a Python list
+        # val comes from Clynxer bridging: Number, String, or a Python list
         if isinstance(val, list):
             result = "list"
         elif isinstance(val, bool):

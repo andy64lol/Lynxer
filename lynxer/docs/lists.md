@@ -1,6 +1,6 @@
 # Lists and tuples
 
-Clynxer has two sequence types: `list` (built with `[...]`) and `tuple` (built
+Lynxer has two sequence types: `list` (built with `[...]`) and `tuple` (built
 with `(...)`). Both use **value semantics** — see below — and share a large
 family of builtins.
 

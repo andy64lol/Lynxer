@@ -47,7 +47,7 @@ global main(){
     println(networkingClose(udpClient));
     println(networkingClose(udpServer));
 
-    str path = ".clynxer_scratch_net.sock";
+    str path = ".lynxer_scratch_net.sock";
     global.fileIO.deleteFile(path);
     int unixServer = networkingOpen("unix");
     println(networkingBind(unixServer, path));

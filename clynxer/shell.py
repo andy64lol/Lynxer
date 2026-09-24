@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""CLI entry point for Lynxer. Run with: python lynxer/shell.py <file.lynx>
+"""CLI entry point for Clynxer. Run with: python clynxer/shell.py <file.lynx>
 
-Frozen behaviour reference: Clynxer (`clynxer/`) is the primary implementation
-and has superseded this for real use. See `clynxer/docs/parity.md`.
+Frozen behaviour reference: Lynxer (`lynxer/`) is the primary implementation
+and has superseded this for real use. See `lynxer/docs/parity.md`.
 """
 
 import os
@@ -10,10 +10,10 @@ import subprocess
 import sys
 import time
 
-_here = os.path.dirname(os.path.abspath(__file__))  # .../lynxer/
+_here = os.path.dirname(os.path.abspath(__file__))  # .../clynxer/
 _parent = os.path.dirname(_here)  # repo root
 # When this file is executed directly, Python places the package directory
-# itself at sys.path[0].  That would make lynxer/ast.py shadow the standard
+# itself at sys.path[0].  That would make clynxer/ast.py shadow the standard
 # library's ast module while dependencies import inspect.  The package parent
 # is the only path needed for the CLI imports below.
 if sys.path and os.path.abspath(sys.path[0]) == _here:
@@ -21,18 +21,18 @@ if sys.path and os.path.abspath(sys.path[0]) == _here:
 if _parent not in sys.path:
     sys.path.insert(0, _parent)
 
-from lynxer import compile_to_bytecode, run, run_bytecode
-from lynxer.bundle import bundle_program
-from lynxer.bytecode import BYTECODE_VERSION, read_bytecode
-from lynxer.formatting import FormattingError, format_source, lint_source
-from lynxer.install import installer_main
-from lynxer.lexer import Lexer, Token
-from lynxer.parser import Parser
-from lynxer.lynxer import stdlib_dir
+from clynxer import compile_to_bytecode, run, run_bytecode
+from clynxer.bundle import bundle_program
+from clynxer.bytecode import BYTECODE_VERSION, read_bytecode
+from clynxer.formatting import FormattingError, format_source, lint_source
+from clynxer.install import installer_main
+from clynxer.lexer import Lexer, Token
+from clynxer.parser import Parser
+from clynxer.clynxer import stdlib_dir
 
 
 def _extract_docstring(path):
-    """Return the text inside the first //// ... //// block in a Lynxer file, or None."""
+    """Return the text inside the first //// ... //// block in a Clynxer file, or None."""
     lines = []
     inside = False
     try:
@@ -71,7 +71,7 @@ def _view_bytecode(filepath):
         else "✗ (runtime expects v{})".format(BYTECODE_VERSION)
     )
 
-    print("Lynxer Bytecode Inspector")
+    print("Clynxer Bytecode Inspector")
     print("─" * 44)
     print(f"  File   : {filepath}")
     print(f"  Source : {source}")
@@ -182,7 +182,7 @@ def _ast_lines(value, indent=0):
 
 
 def _print_ast(filepath, source):
-    """Parse and print a Lynxer source AST without executing it."""
+    """Parse and print a Clynxer source AST without executing it."""
     lexer = Lexer(filepath, source)
     tokens, error = lexer.make_tokens()
     if error:
@@ -194,7 +194,7 @@ def _print_ast(filepath, source):
         print(result.error.as_string(), file=sys.stderr)
         return 1
 
-    print("Lynxer AST")
+    print("Clynxer AST")
     print("===========")
     print("\n".join(_ast_lines(result.node)))
     return 0
@@ -205,46 +205,46 @@ def main():
     if not argv or argv[0] in ("-h", "--help"):
         print()
         print("Usage:")
-        print("  lynxer <file.lynx>                    Run a Lynxer source file")
-        print("  lynxer --compile <file.lynx>          Compile to bytecode (.lynxc)")
+        print("  clynxer <file.lynx>                    Run a Clynxer source file")
+        print("  clynxer --compile <file.lynx>          Compile to bytecode (.lynxc)")
         print(
-            "  lynxer --compile --no-cache <file>    Recompile even when bytecode is current"
+            "  clynxer --compile --no-cache <file>    Recompile even when bytecode is current"
         )
         print(
-            "  lynxer --compile --no-opt <file>      Compile without optimization passes"
+            "  clynxer --compile --no-opt <file>      Compile without optimization passes"
         )
-        print("  lynxer --bundle <file.lynx> [name]     Build a standalone native executable")
-        print("  lynxer <file.lynxc>                   Run a compiled bytecode file")
+        print("  clynxer --bundle <file.lynx> [name]     Build a standalone native executable")
+        print("  clynxer <file.lynxc>                   Run a compiled bytecode file")
         print(
-            "  lynxer --view-bytecode <file.lynxc>   Inspect bytecode metadata and structure"
-        )
-        print(
-            "  lynxer --ast <file.lynx>              Parse and print the abstract syntax tree"
+            "  clynxer --view-bytecode <file.lynxc>   Inspect bytecode metadata and structure"
         )
         print(
-            "  lynxer --benchmark-compile <files...> Benchmark optimized and unoptimized compilation"
+            "  clynxer --ast <file.lynx>              Parse and print the abstract syntax tree"
         )
         print(
-            "  lynxer --format <file.lynx>           Format a Lynxer source file in place"
+            "  clynxer --benchmark-compile <files...> Benchmark optimized and unoptimized compilation"
         )
         print(
-            "  lynxer --format-oneline <file.lynx>   Compact a Lynxer source file to one line"
+            "  clynxer --format <file.lynx>           Format a Clynxer source file in place"
         )
         print(
-            "  lynxer --lint <file.lynx>             Check Lynxer syntax without running it"
+            "  clynxer --format-oneline <file.lynx>   Compact a Clynxer source file to one line"
         )
         print(
-            "  lynxer --validate-executeable         Run the comprehensive interpreter validator"
-        )
-        print("  lynxer --version                      Print version")
-        print(
-            "  lynxer --list-stdlibs                 List available Lynxer stdlib modules"
+            "  clynxer --lint <file.lynx>             Check Clynxer syntax without running it"
         )
         print(
-            "  lynxer --install                      Install the compiled executable as /usr/bin/lynxer, may require sudo"
+            "  clynxer --validate-executeable         Run the comprehensive interpreter validator"
+        )
+        print("  clynxer --version                      Print version")
+        print(
+            "  clynxer --list-stdlibs                 List available Clynxer stdlib modules"
         )
         print(
-            "  lynxer --uninstall                    Remove /usr/bin/lynxer, also may require sudo"
+            "  clynxer --install                      Install the compiled executable as /usr/bin/clynxer, may require sudo"
+        )
+        print(
+            "  clynxer --uninstall                    Remove /usr/bin/clynxer, also may require sudo"
         )
         print()
         print(
@@ -256,7 +256,7 @@ def main():
         print()
         return 0
     if argv[0] in ("-v", "--version", "-version", "--v"):
-        print("Lynxer 0.1.8")
+        print("Clynxer 0.1.8")
         return 0
     if argv[0] in ("--validate-executeable", "--validate-executable"):
         validator = os.path.join(_here, "validate.py")
@@ -292,9 +292,9 @@ def main():
             f for f in os.listdir(stdlib_path) if f.endswith(".lynx")
         )
         if not files:
-            print("No Lynxer stdlib modules found.")
+            print("No Clynxer stdlib modules found.")
             return 0
-        print("Available Lynxer stdlib modules:\n")
+        print("Available Clynxer stdlib modules:\n")
         for fn in files:
             path = os.path.join(stdlib_path, fn)
             name = os.path.splitext(fn)[0]

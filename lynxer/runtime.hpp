@@ -10,7 +10,7 @@
 #include <variant>
 #include <vector>
 
-namespace clynxer {
+namespace lynxer {
 
 struct List;
 struct Tuple;
@@ -225,4 +225,4 @@ std::string bundledAssetPath(const std::string& name);
 
 std::vector<std::string> bundledAssetNames();
 
-} // namespace clynxer
+} // namespace lynxer

@@ -1,16 +1,16 @@
-"""Lynxer compiler and interpreter pipeline.
+"""Clynxer compiler and interpreter pipeline.
 
 The implementation lives in the focused submodules:
 
-* :mod:`lynxer.error` -- diagnostics and deprecation-warning machinery
-* :mod:`lynxer.lexer` -- tokens, keywords, and the lexer
-* :mod:`lynxer.lynxerAst` -- abstract-syntax-tree nodes
-* :mod:`lynxer.parser` -- the recursive-descent parser
-* :mod:`lynxer.values` -- runtime values, results, contexts, symbol tables
-* :mod:`lynxer.runtime` -- the interpreter and program entry points
+* :mod:`clynxer.error` -- diagnostics and deprecation-warning machinery
+* :mod:`clynxer.lexer` -- tokens, keywords, and the lexer
+* :mod:`clynxer.clynxerAst` -- abstract-syntax-tree nodes
+* :mod:`clynxer.parser` -- the recursive-descent parser
+* :mod:`clynxer.values` -- runtime values, results, contexts, symbol tables
+* :mod:`clynxer.runtime` -- the interpreter and program entry points
 
 This module re-exports the public surface so historic imports such as
-``from lynxer.lynxer import run, Lexer, Parser`` keep working.
+``from clynxer.clynxer import run, Lexer, Parser`` keep working.
 """
 
 from __future__ import annotations
@@ -19,14 +19,14 @@ from . import error as _error
 
 # Attribute access on this compatibility facade falls back to the owning
 # submodule so historic imports continue to see live runtime names.
-_SUBMODULES = ("error", "lexer", "lynxerAst", "parser", "values", "runtime")
+_SUBMODULES = ("error", "lexer", "clynxerAst", "parser", "values", "runtime")
 
 
 def __getattr__(name):
     import sys as _sys
 
     for module_name in _SUBMODULES:
-        module = _sys.modules.get(f"lynxer.{module_name}")
+        module = _sys.modules.get(f"clynxer.{module_name}")
         if module is not None and hasattr(module, name):
             return getattr(module, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
@@ -37,7 +37,7 @@ def __dir__():
 
     module_names = set(globals())
     for module_name in _SUBMODULES:
-        module = _sys.modules.get(f"lynxer.{module_name}")
+        module = _sys.modules.get(f"clynxer.{module_name}")
         if module is not None:
             module_names.update(dir(module))
     return sorted(module_names)
@@ -63,7 +63,7 @@ from .error import (  # noqa: F401
     ExpectedCharError,
     IllegalCharError,
     InvalidSyntaxError,
-    LynxerForeverWarning,
+    ClynxerForeverWarning,
     LynxSyntaxDeprecationWarning,
     RTError,
     _emit_deprecation_warning,
@@ -145,7 +145,7 @@ from .lexer import (  # noqa: F401
     Position,
     Token,
 )
-from .lynxerAst import (  # noqa: F401
+from .clynxerAst import (  # noqa: F401
     AddVarGroupNode,
     AsyncDotCallNode,
     AsyncLocalDefNode,
@@ -217,11 +217,11 @@ from .runtime import (  # noqa: F401
     _interpreter_error,
     _join_outstanding_native_threads,
     _lynx_modules,
-    _lynxer_callback_dispatcher,
+    _clynxer_callback_dispatcher,
     _module_path,
     _new_global_symbol_table,
     _preregister_nested_globals,
-    _python_to_lynxer_callback_value,
+    _python_to_clynxer_callback_value,
     _rawpy_global_modules,
     _register_builtins,
     reset_runtime_state,

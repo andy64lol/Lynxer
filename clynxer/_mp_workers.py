@@ -1,5 +1,5 @@
 """
-Top-level worker callables for lynxer/stdlib/multiprocessing.lynx.
+Top-level worker callables for clynxer/stdlib/multiprocessing.lynx.
 
 Functions must live at module top-level so Python's multiprocessing can
 pickle and send them to worker processes.  This module is also used by

@@ -1,4 +1,4 @@
-"""Build Lynxer's bundled native extensions."""
+"""Build Clynxer's bundled native extensions."""
 
 import os
 from pathlib import Path
@@ -16,7 +16,7 @@ else:
     link_args = ["-pthread"]
 
 setup(
-    name="lynxer-cpp",
+    name="clynxer-cpp",
     version="0.2.0",
     ext_modules=[
         Extension(

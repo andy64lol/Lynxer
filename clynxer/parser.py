@@ -1,4 +1,4 @@
-"""The Lynxer recursive-descent parser."""
+"""The Clynxer recursive-descent parser."""
 
 from __future__ import annotations
 
@@ -74,7 +74,7 @@ from .lexer import (
     Position,
     Token,
 )
-from .lynxerAst import (
+from .clynxerAst import (
     AddVarGroupNode,
     AsyncDotCallNode,
     AsyncLocalDefNode,
@@ -235,7 +235,7 @@ class Parser:
                 name_tok.pos_start,
                 name_tok.pos_end,
                 f"Duplicate 'func' declaration '{name_tok.value}'. "
-                "A func name may be declared only once in a Lynxer file "
+                "A func name may be declared only once in a Clynxer file "
                 f"(first declared at line {previous.pos_start.ln + 1}).",
             )
         if name_tok.value in self._declared_function_names:
@@ -243,7 +243,7 @@ class Parser:
                 name_tok.pos_start,
                 name_tok.pos_end,
                 f"'func {name_tok.value}()' conflicts with another function "
-                "declared in this Lynxer file. Direct-call function names must "
+                "declared in this Clynxer file. Direct-call function names must "
                 "be unique and cannot shadow existing functions.",
             )
         if name_tok.value in self._enum_names:
@@ -298,7 +298,7 @@ class Parser:
                 name_tok.pos_start,
                 name_tok.pos_end,
                 f"Duplicate 'enum' declaration '{name_tok.value}'. "
-                "An enum name may be declared only once in a Lynxer file "
+                "An enum name may be declared only once in a Clynxer file "
                 f"(first declared at line {previous.pos_start.ln + 1}).",
             )
         if (
@@ -1188,7 +1188,7 @@ class Parser:
                 self.current_tok.pos_start,
                 self.current_tok.pos_end,
                 "'func' declarations are only allowed at the top level of a "
-                "Lynxer file; local function bodies cannot declare file-wide funcs",
+                "Clynxer file; local function bodies cannot declare file-wide funcs",
             ))
 
         next_tok = self.peek(1)

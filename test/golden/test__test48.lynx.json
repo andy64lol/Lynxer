@@ -6,6 +6,6 @@
   "skip_reason": null,
   "source": "test/test48.lynx",
   "status": "completed",
-  "stderr": "\n[Lynxer] Syntax Error\n  'func main()' is reserved for the program lifecycle and must be declared with its required global form.\n  --> <project>/test/test48.lynx, line 3, column 6\n\n\nfunc main(){}\n     ^^^^\n",
+  "stderr": "\n[Clynxer] Syntax Error\n  'func main()' is reserved for the program lifecycle and must be declared with its required global form.\n  --> <project>/test/test48.lynx, line 3, column 6\n\n\nfunc main(){}\n     ^^^^\n",
   "stdout": ""
 }

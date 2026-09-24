@@ -5,7 +5,7 @@ bytecode-compilable). Uses a repo-local scratch directory and removes it.
 global setup(){ import("os"); import("fileIO"); }
 
 global main(){
-    str root = ".clynxer_scratch_os";
+    str root = ".lynxer_scratch_os";
     if(global.os.exists(root)){ global.os.rmTree(root); }
     println(global.os.mkdir(root));
     println(global.os.mkdir(root));
@@ -37,9 +37,9 @@ global main(){
     println(global.os.cpuCount() > 0);
     println(global.os.diskTotal(root) > 0);
     println(global.os.diskFree(root) > 0);
-    println(global.os.setenv("CLYNXER_OS_TEST", "hello"));
-    println(global.os.getenv("CLYNXER_OS_TEST"));
-    println(global.os.getenv("CLYNXER_OS_MISSING") is "");
+    println(global.os.setenv("LYNXER_OS_TEST", "hello"));
+    println(global.os.getenv("LYNXER_OS_TEST"));
+    println(global.os.getenv("LYNXER_OS_MISSING") is "");
     println(global.os.expandUser("~") is global.os.homedir());
     println(returnLength(global.os.homedir()) > 0);
     println(returnLength(global.os.username()) > 0);

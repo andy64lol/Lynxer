@@ -20,9 +20,9 @@ global main(){
     networkingClose(udp);
 
     int unixSocket = networkingOpen("unix");
-    networkingBind(unixSocket, "/tmp/lynxer-networking-fixture.sock");
+    networkingBind(unixSocket, "/tmp/clynxer-networking-fixture.sock");
     println(returnLength(networkingAddress(unixSocket)) > 0);
     networkingClose(unixSocket);
-    filesystemRemove("/tmp/lynxer-networking-fixture.sock");
+    filesystemRemove("/tmp/clynxer-networking-fixture.sock");
     println(returnLength(networkingResolve("localhost", 80)) > 0);
 }

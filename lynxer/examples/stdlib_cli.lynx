@@ -14,16 +14,16 @@ global main(){
     println(global.cli.getArg(0) isnt "");
     println(global.cli.getArg(99) is "");
 
-    global.os.setenv("CLYNXER_CLI_TEST", "hello");
-    println(global.cli.envGet("CLYNXER_CLI_TEST"));
-    println(global.cli.envHas("CLYNXER_CLI_TEST"));
-    println(global.cli.envHas("CLYNXER_CLI_MISSING"));
+    global.os.setenv("LYNXER_CLI_TEST", "hello");
+    println(global.cli.envGet("LYNXER_CLI_TEST"));
+    println(global.cli.envHas("LYNXER_CLI_TEST"));
+    println(global.cli.envHas("LYNXER_CLI_MISSING"));
     println(returnLength(global.cli.envAll()) > 10);
 
     println(returnLength(global.cli.cwd()) > 0);
     println(returnLength(global.cli.terminalSize()) > 2);
     // Scratch file, so this fixture does not depend on the working directory.
-    str scratch = ".clynxer_scratch_cli";
+    str scratch = ".lynxer_scratch_cli";
     global.fileIO.writeFile(scratch, "x");
     println(global.cli.pathExists(scratch));
     println(global.cli.pathExists("definitely-missing-file"));

@@ -2,7 +2,7 @@
 
 #include <stdexcept>
 
-namespace clynxer {
+namespace lynxer {
 
 struct InterruptError : std::runtime_error {
     InterruptError() : std::runtime_error("interrupted") {}
@@ -13,4 +13,4 @@ bool interruptRequested();
 void throwIfInterrupted();
 void installInterruptHandler();
 
-} // namespace clynxer
+} // namespace lynxer

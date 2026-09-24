@@ -7,7 +7,7 @@ afterwards.
 global setup(){ import("sqldb"); import("fileIO"); }
 
 global main(){
-    str db = ".clynxer_scratch_sqldb.db";
+    str db = ".lynxer_scratch_sqldb.db";
 
     // Start from a clean database even if an earlier run was interrupted.
     global.fileIO.deleteFile(db);

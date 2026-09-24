@@ -1,10 +1,10 @@
-//! Clynxer `image` stdlib backend using the Rust `image` crate.
+//! Lynxer `image` stdlib backend using the Rust `image` crate.
 //!
 //! Images are kept in a process-local handle table. Structured results cross
-//! the native ABI as JSON strings, matching the rest of Clynxer's stdlib ABI.
+//! the native ABI as JSON strings, matching the rest of Lynxer's stdlib ABI.
 
 use base64::{engine::general_purpose::STANDARD, Engine};
-use clynxer_abi::{export_int, export_string, lynxer_module};
+use lynxer_abi::{export_int, export_string, clynxer_module};
 use image::codecs::jpeg::JpegEncoder;
 use image::imageops::{self, FilterType};
 use image::{DynamicImage, GenericImage, GenericImageView, ImageFormat, ImageReader, Rgba};
@@ -98,7 +98,7 @@ fn path_format(path: &str) -> Option<ImageFormat> {
     ImageFormat::from_path(path).ok()
 }
 
-fn color(args: &clynxer_abi::Args<'_>, offset: usize, alpha: u8) -> Rgba<u8> {
+fn color(args: &lynxer_abi::Args<'_>, offset: usize, alpha: u8) -> Rgba<u8> {
     Rgba([
         args.int(offset).clamp(0, 255) as u8,
         args.int(offset + 1).clamp(0, 255) as u8,
@@ -830,4 +830,4 @@ const OPS: &[(&str, &str, &str)] = &[
     ("toDataUrl", "image_data_url", "cdecl:cstring(...)"),
 ];
 
-lynxer_module!(OPS);
+clynxer_module!(OPS);

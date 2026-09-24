@@ -52,7 +52,7 @@ global main(){
 
 ## Aliases must be valid identifiers
 
-The alias must be a valid Lynxer identifier (letters, digits, underscores, not starting with a digit). The interpreter rejects invalid aliases at runtime.
+The alias must be a valid Clynxer identifier (letters, digits, underscores, not starting with a digit). The interpreter rejects invalid aliases at runtime.
 
 ```c
 importAs("math", "my-math");   // error — hyphens not allowed in identifiers

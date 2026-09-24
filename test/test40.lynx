@@ -1,6 +1,6 @@
 // Interactive game: scenes, a live HUD, tile helpers and window lifecycle.
 // Click to drop a block, C cycles the palette, R clears, ESC quits.
-// Run with `lynxer test40.lynx`.
+// Run with `clynxer test40.lynx`.
 global setup(){
     import("game");
     int scene = -1;

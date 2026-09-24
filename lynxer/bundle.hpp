@@ -5,9 +5,9 @@
 #include <string>
 #include <vector>
 
-namespace clynxer {
+namespace lynxer {
 
-// One file carried by a compiled executable: Lynxer source for a `.lynx`
+// One file carried by a compiled executable: Clynxer source for a `.lynx`
 // module, shared library bytes for a native `.so` module, or raw bytes for an
 // included data file.
 struct ArchiveModule {
@@ -47,4 +47,4 @@ bool materializeBundle(const std::vector<ArchiveModule>& modules,
                        std::map<std::string, std::string>& assets,
                        std::string& error);
 
-} // namespace clynxer
+} // namespace lynxer
