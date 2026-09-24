@@ -71,7 +71,7 @@ omitted. A syntax error is reported with its source location and exits `1`; the
 flag requires exactly one file argument.
 
 The tree uses Lynxer's own node and field names, so it is not byte-comparable
-to the Python reference's `--ast`. Named-type declarations (`struct`, `class`,
+to an earlier implementation's `--ast`. Named-type declarations (`struct`, `class`,
 `enum`) are parse-time metadata held in the type registry rather than part of
 the returned program, so `--ast` shows the executable AST only.
 

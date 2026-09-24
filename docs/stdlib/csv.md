@@ -33,7 +33,7 @@ arrays of objects for keyed access, so `csv` pairs naturally with
 | `readWithDelimiter` | `(str path, str delimiter)` | Raw file content |
 | `parseDelimited` | `(str csvStr, str delimiter)` | JSON array of objects using a custom delimiter |
 
-Dialect follows Python's `csv` module: `,` delimiter, `"` quoting with `""`
+Dialect follows the standard `csv` format: `,` delimiter, `"` quoting with `""`
 escaping, and `\r\n` line terminators on output. Non-string JSON values are
 rendered as `""` / `true` / `false`.
 

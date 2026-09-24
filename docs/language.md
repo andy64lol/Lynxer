@@ -437,5 +437,5 @@ body — most often `setup()` — not at file scope. Both arguments must be stri
 
 See [limitations.md](limitations.md) for the complete list. The most common
 surprises are a bare `!`, `/* ... */` comments, `\x`/`\u` escapes, the `.lynxc`
-bytecode format, and the Python-only modules (`tkinter`, `tkinterPlus`,
+bytecode format, and the not-planned modules (`tkinter`, `tkinterPlus`,
 `turtle`, `venv`).

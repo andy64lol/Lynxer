@@ -184,7 +184,7 @@ leaves open are closed when the process exits.
 | `filesystemReadLink(path)` | Reads a symbolic link target |
 | `filesystemChmod(path, mode)` | Sets numeric permission bits |
 
-The family follows the Python reference exactly, including its error text. One
+The family is a faithful native implementation, including its error text. One
 consequence is worth noting: the reference's `Number.null` is `0`, so the
 operations that yield "no value" (`filesystemClose`, `filesystemRemove`,
 `filesystemRename`, `filesystemLink`, `filesystemChmod`) return `0` rather than
@@ -222,7 +222,7 @@ failures, as are writes to a stream the program has already closed.
 SIGPIPE is ignored for the whole process, as it is in the reference: writing to
 a pipe whose reader has exited must report `EPIPE`, not kill the interpreter.
 
-The family follows the Python reference exactly, including its error text, and
+The family is a faithful native implementation, including its error text, and
 the value-less operations return `0` for the same `Number.null` reason as the
 filesystem family.
 
@@ -258,7 +258,7 @@ registry, so handles are not reusable indices into a fixed table.
 stream socket; the returned count is what actually left. `networkingReceive`
 performs a single `recv`.
 
-The family follows the Python reference exactly, including its error text, and
+The family is a faithful native implementation, including its error text, and
 the value-less operations return `0` for the same `Number.null` reason as the
 filesystem family.
 
@@ -292,7 +292,7 @@ that playback did not start. Loading, `soundStop`, `soundSetVolume`,
 under `lynxer/stdlib`. A **compiled executable** only carries it if the program
 also has `import("sound")`, because bundling follows imports.
 
-Three deliberate divergences from the Python reference, all recorded in
+Three deliberate constraints, all recorded in
 [limitations.md](limitations.md): the backend's own failure text is not Arcade's;
 `soundPause`/`soundResume` work, where the reference fails by design; and
 `soundStop` works, where the reference's Arcade version has no `Player.stop`.

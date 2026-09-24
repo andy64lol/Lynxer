@@ -68,7 +68,7 @@ smallest 64-bit integers: `global.math.maxInt()` / `global.math.minInt()`.
 ## Statistics and vector helpers
 
 These were previously a separate `mathPlus` module; they now live in `math`.
-The Python reference implemented them with NumPy, which Lynxer does not need —
+These were originally implemented with NumPy, which Lynxer does not need —
 the results match NumPy's defaults. List arguments cross the native ABI as
 tab-separated numbers, which is unambiguous because every element is a formatted
 number; list results are returned as Lynxer lists.

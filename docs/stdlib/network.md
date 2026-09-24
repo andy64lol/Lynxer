@@ -2,7 +2,7 @@
 
 HTTP and WebSocket client backed by Rust [`ureq`](https://docs.rs/ureq) with
 [`rustls`](https://docs.rs/rustls) and [`tungstenite`](https://docs.rs/tungstenite).
-This is the Lynxer replacement for the older Python `http` and `net` modules.
+This replaces the older `http` and `net` modules.
 
 ```lynx
 global setup(){

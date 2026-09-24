@@ -124,7 +124,7 @@ Three things to get right, all of which have caused real defects here:
 
 Keep resources that must outlive a call in a registry you own — a
 `Vec<Option<T>>` behind a `thread_local`, indexed by an integer handle. The
-`image` and `sound` backends are the reference implementations.
+`image` and `sound` backends are the canonical examples.
 
 ### 3b. In C++
 
@@ -270,7 +270,7 @@ Every module is finished when all of these are true:
 - [ ] `make test` green, including the contract check and the compiled/bundled
       parity run
 
-Compare against `lynxer/stdlib/<name>.lynx` — the Python implementation is the
+Compare against `lynxer/stdlib/<name>.lynx` — the `.lynx` wrapper is the
 behaviour reference — and either match it or record why not. Byte-identical
 output is achievable more often than it looks: `sqldb` and `sound` both produce
 output identical to the reference, including their error strings.

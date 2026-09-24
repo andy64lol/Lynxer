@@ -6,7 +6,7 @@ Extended regular-expression helpers with a named compiled-pattern cache.
 `stdlib/native_regex.hpp`. **Import:** `import("regex")` → `global.regex.*`
 
 Compiled patterns live in a module-local cache keyed by name. This module
-mirrors the Python reference's `re`-fallback path: the third-party `regex`
+mirrors the `re`-fallback path: the third-party `regex`
 package is not available, so `findLetters`/`findDigits` are ASCII and
 `findallOverlapping` is emulated.
 

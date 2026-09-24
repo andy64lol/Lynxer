@@ -1,6 +1,6 @@
 # re
 
-Regular expressions over `std::regex` with Python-style pattern syntax.
+Regular expressions over `std::regex` with familiar pattern syntax.
 
 **Backend:** native — `stdlib/re.so`, built from `stdlib/re.cpp` and the
 translation layer in `stdlib/native_regex.hpp`. **Import:** `import("re")` →

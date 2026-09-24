@@ -4,8 +4,7 @@ Seeded pseudo-random number and character helpers.
 
 **Backend:** native — `stdlib/random.so`, built from `stdlib/random.cpp`. The
 generator is a linear congruential sequence, so a given seed always produces the
-same sequence (unlike the Python reference, which used the global `random`
-module state).
+same sequence (there is no process-global `random` state).
 **Import:** `import("random")` → `global.random.*`
 
 | Function | Signature | Notes |
@@ -19,7 +18,7 @@ module state).
 | `randBool` | `() -> bool` | Alias of `coinflip` |
 | `choice` | `(str items) -> str` | Picks one **character** of the input, or `""` when empty |
 
-This is a subset of the Python reference's 17 functions; `sampleInt`,
+This is a subset of the original 17 functions; `sampleInt`,
 `sampleStr`, `shuffle`, `triangular`, `gauss`, `uuid4` and `randHex` are not
 ported.
 

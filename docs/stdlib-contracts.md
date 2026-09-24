@@ -166,7 +166,7 @@ Any future callback must be declared here before the module ships.
 | `tui` | Rust | placeholder indices only; no state is kept | none |
 | `typing` | pure Lynxer | none | none |
 
-Per-module divergences from the Python reference are recorded in
+Per-module constraints are recorded in
 [limitations.md](limitations.md), not here: this page fixes what Lynxer's own
 contract *is*, and that page records where it deliberately differs.
 

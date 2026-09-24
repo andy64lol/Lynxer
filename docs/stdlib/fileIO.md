@@ -30,7 +30,7 @@ Functions return `""`, `false` or `-1` on error.
 | `readFileLines` | `(str path, str sep) -> str` | Lines joined with `sep` |
 
 `readLines` splits the raw file content on `\n`, so a file that ends with a
-newline produces a trailing empty element — matching the Python reference.
+newline produces a trailing empty element — by design.
 
 ## Example
 

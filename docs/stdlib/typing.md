@@ -19,7 +19,7 @@ builtins. **Import:** `import("typing")` → `global.typing.*`
 | `isInt32` | `(any value) -> bool` | Fits in a signed 32-bit range |
 | `isByte` | `(any value) -> bool` | Fits in an unsigned 8-bit range |
 
-This is a subset of the Python reference's 109 functions; the remaining
+This is a subset of the original 109 functions; the remaining
 conversions and list/tuple helpers are not ported yet.
 
 ## Example
