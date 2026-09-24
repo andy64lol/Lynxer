@@ -131,6 +131,23 @@ footer {
     padding: 20px;
 }
 
+footer .github {
+    display: inline-flex;
+    align-items: center;
+    vertical-align: middle;
+    margin-right: 6px;
+    color: #7a858c;
+    text-decoration: none;
+}
+
+footer .github:hover {
+    color: #303840;
+}
+
+footer .github svg {
+    display: block;
+}
+
 header h1 a {
     color: inherit;
     text-decoration: none;
