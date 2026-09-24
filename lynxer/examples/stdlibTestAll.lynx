@@ -929,7 +929,7 @@ global main(){
     fails += global.check(global.network.wsConnected("echo"), "true", "network.wsConnected");
     fails += global.check(global.network.wsSend("echo", "one"), "ok", "network.wsSend");
     fails += global.check(global.network.wsReceive("echo"), "one", "network.wsReceive");
-    fails += global.check(global.network.wsSendReceive("echo", "Clynxer-ws"), "Clynxer-ws", "network.wsSendReceive");
+    fails += global.check(global.network.wsSendReceive("echo", "Lynxer-ws"), "Lynxer-ws", "network.wsSendReceive");
     fails += global.check(global.network.wsConnected("nope"), "false", "network.wsConnected.nope");
     fails += global.check(global.network.wsReceive("nope"), "ERROR: no connection named 'nope'", "network.wsReceive.nope");
     fails += global.check(global.network.wsSend("nope", "x"), "ERROR: no connection named 'nope'", "network.wsSend.nope");

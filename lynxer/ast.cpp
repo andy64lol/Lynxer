@@ -7,7 +7,7 @@
 #include "ops.hpp"
 #include "optimizer.hpp"
 #include "parser.hpp"
-#include "stdlib/clynxer_native_abi.h"
+#include "stdlib/lynxer_native_abi.h"
 #include "types.hpp"
 
 #include <chrono>
@@ -140,7 +140,7 @@ const char* nativeStringResult(const char* result) {
 }
 
 // A callback invoked by a native module can raise a C++ exception, but it
-// cannot unwind through the native frames in between. `clynxerHostInvoke`
+// cannot unwind through the native frames in between. `lynxerHostInvoke`
 // stashes it here and `callNative` rethrows it once the native call returns.
 std::exception_ptr deferredNativeError;
 
@@ -148,7 +148,7 @@ std::exception_ptr deferredNativeError;
 // the program's own functions rather than a module's. Set by executeProgram.
 Environment* hostInvokeEnvironment = nullptr;
 
-int clynxerHostInvoke(void* context, const char* name, int hasArg, double arg) {
+int lynxerHostInvoke(void* context, const char* name, int hasArg, double arg) {
     Environment* environment = hostInvokeEnvironment != nullptr
                                    ? hostInvokeEnvironment
                                    : static_cast<Environment*>(context);
@@ -172,7 +172,7 @@ int clynxerHostInvoke(void* context, const char* name, int hasArg, double arg) {
     }
 }
 
-int clynxerHostInterrupted(void*) { return interruptRequested() ? 1 : 0; }
+int lynxerHostInterrupted(void*) { return interruptRequested() ? 1 : 0; }
 
 // Storage for the packed arguments of a `cdecl:<ret>(...)` native call. The
 // string pointers stay valid until the vectors are destroyed, which outlives
@@ -187,7 +187,7 @@ struct PackedNativeArgs {
 // `<ret>(const double* nums, int64_t num_count, const char* const* strs,
 // int64_t str_count)`. Passing four scalars rather than a struct lets a Rust
 // `extern "C" fn` match it directly.
-ClynxerArgs packNativeArgs(const std::vector<Value>& args,
+LynxerArgs packNativeArgs(const std::vector<Value>& args,
                           PackedNativeArgs& storage, int line, int column) {
     constexpr std::size_t kMaxPackedArgs = 64;
     if (args.size() > kMaxPackedArgs) {
@@ -213,7 +213,7 @@ ClynxerArgs packNativeArgs(const std::vector<Value>& args,
     for (const auto& text : storage.strings) {
         storage.stringPointers.push_back(text.c_str());
     }
-    ClynxerArgs packed{};
+    LynxerArgs packed{};
     packed.num_count = static_cast<std::int64_t>(storage.numbers.size());
     packed.nums = storage.numbers.empty() ? nullptr : storage.numbers.data();
     packed.str_count = static_cast<std::int64_t>(storage.stringPointers.size());
@@ -485,7 +485,7 @@ const std::unordered_map<std::string, NativeCall>& nativeCallTable() {
          [](void* address, const std::vector<Value>& args, int line,
             int column) -> Value {
              PackedNativeArgs storage;
-             const ClynxerArgs packed =
+             const LynxerArgs packed =
                  packNativeArgs(args, storage, line, column);
              return static_cast<std::int64_t>(
                  reinterpret_cast<std::int64_t (*)(const double*, std::int64_t,
@@ -498,7 +498,7 @@ const std::unordered_map<std::string, NativeCall>& nativeCallTable() {
          [](void* address, const std::vector<Value>& args, int line,
             int column) -> Value {
              PackedNativeArgs storage;
-             const ClynxerArgs packed =
+             const LynxerArgs packed =
                  packNativeArgs(args, storage, line, column);
              return reinterpret_cast<double (*)(const double*, std::int64_t,
                                                 const char* const*,
@@ -509,7 +509,7 @@ const std::unordered_map<std::string, NativeCall>& nativeCallTable() {
          [](void* address, const std::vector<Value>& args, int line,
             int column) -> Value {
              PackedNativeArgs storage;
-             const ClynxerArgs packed =
+             const LynxerArgs packed =
                  packNativeArgs(args, storage, line, column);
              return std::string(nativeStringResult(
                  reinterpret_cast<const char* (*)(const double*, std::int64_t,
@@ -586,7 +586,7 @@ Value callNativeInternal(void* address, const std::string& signature,
                           line, column);
     }
     Value result = found->second(address, args, line, column);
-    // A native module may have invoked a Clynxer callback that failed; surface
+    // A native module may have invoked a Lynxer callback that failed; surface
     // that error instead of a silent success.
     if (deferredNativeError != nullptr) {
         const std::exception_ptr pending = deferredNativeError;
@@ -746,7 +746,7 @@ const NativeRegistration* loadBridgedModule(const std::string& module) {
         reinterpret_cast<int (*)(int (*)(const char*, const char*, const char*),
                                  int (*)(const char*, std::int64_t),
                                  int (*)(const char*, const char*))>(
-            dlsym(handle, "clynxer_module_init_v1"));
+            dlsym(handle, "lynxer_module_init_v1"));
     if (initializer == nullptr) {
         dlclose(handle);
         return nullptr;
@@ -801,7 +801,7 @@ RecordField* findRecordField(RecordValue& record, const std::string& name) {
     return nullptr;
 }
 
-// Field mutation with Clynxer error messages (docs: vargroups/structs/classes).
+// Field mutation with Lynxer error messages (docs: vargroups/structs/classes).
 void setRecordField(RecordValue& record, const std::string& name,
                     const Value& value, int line, int column) {
     RecordField* field = findRecordField(record, name);
@@ -2025,8 +2025,8 @@ Value invokeFunction(
     }
 }
 
-// One lock guards every evaluation of Clynxer code. It is recursive because a
-// nested evaluation (a callback into Clynxer from a native module, say) happens
+// One lock guards every evaluation of Lynxer code. It is recursive because a
+// nested evaluation (a callback into Lynxer from a native module, say) happens
 // on the thread that already holds it.
 namespace {
 
@@ -2043,7 +2043,7 @@ void unlockInterpreter() { interpreterLock().unlock(); }
 
 void executeProgram(const std::unordered_map<std::string, Function>& functions,
                     Environment& environment) {
-    // The interpreter is not re-entrant: exactly one thread evaluates Clynxer
+    // The interpreter is not re-entrant: exactly one thread evaluates Lynxer
     // code at a time. `nativeThread*` runs a callback on another thread, and it
     // releases this lock only while it is blocked waiting for that thread, so
     // the two never evaluate at once. See `nativeThreadJoin` in builtins.cpp.
@@ -2057,7 +2057,7 @@ void executeProgram(const std::unordered_map<std::string, Function>& functions,
     // example `game.lynx` importing `game.so`), so the environment captured at
     // attach time belongs to that module and only knows its own functions.
     // Frame callbacks must resolve against the top-level program, so record it
-    // here for `clynxerHostInvoke`.
+    // here for `lynxerHostInvoke`.
     hostInvokeEnvironment = &environment;
     for (const auto& entry : functions) {
         const Function* function = &entry.second;
@@ -2164,11 +2164,11 @@ void ImportStatement::execute(Environment& environment) const {
                                              const char*),
                                      int (*)(const char*, std::int64_t),
                                      int (*)(const char*, const char*))>(
-                dlsym(handle, "clynxer_module_init_v1"));
+                dlsym(handle, "lynxer_module_init_v1"));
         if (initializer == nullptr) {
             dlclose(handle);
             throw SourceError("native module lifecycle failure: missing "
-                              "clynxer_module_init_v1 entry point",
+                              "lynxer_module_init_v1 entry point",
                               line_, column_);
         }
         NativeRegistration registration;
@@ -2188,14 +2188,14 @@ void ImportStatement::execute(Environment& environment) const {
         }
         // Optional host API: lets a module call back into the interpreter
         // (frame callbacks) and query the interrupt flag.
-        auto attach = reinterpret_cast<int (*)(const ClynxerHostApi*)>(
-            dlsym(handle, "clynxer_module_attach_v1"));
+        auto attach = reinterpret_cast<int (*)(const LynxerHostApi*)>(
+            dlsym(handle, "lynxer_module_attach_v1"));
         if (attach != nullptr) {
-            ClynxerHostApi host{};
+            LynxerHostApi host{};
             host.version = 1;
             host.context = &environment;
-            host.invoke = clynxerHostInvoke;
-            host.interrupted = clynxerHostInterrupted;
+            host.invoke = lynxerHostInvoke;
+            host.interrupted = lynxerHostInterrupted;
             if (attach(&host) != 0) {
                 dlclose(handle);
                 throw SourceError("native module lifecycle failure: attach "
@@ -2340,7 +2340,7 @@ void ImportStatement::execute(Environment& environment) const {
 
 void executeStatements(const StatementList& statements,
                        Environment& environment) {
-    // Clynxer uses a single flat scope per function: declarations inside
+    // Lynxer uses a single flat scope per function: declarations inside
     // control-flow blocks are visible in the enclosing (function) scope and
     // re-declaring an existing name overwrites it, matching the Python
     // reference. Only function/method invocation pushes a fresh scope.

@@ -1178,7 +1178,7 @@ PyObject *pyRefGet(PyObject *, PyObject *args) {
     std::lock_guard<std::mutex> lock(referenceCellsMutex);
     auto it = referenceCells.find(static_cast<uintptr_t>(rawHandle));
     if (it == referenceCells.end() || it->second->value == nullptr) {
-        PyErr_SetString(PyExc_RuntimeError, "invalid Clynxer reference pointer");
+        PyErr_SetString(PyExc_RuntimeError, "invalid Lynxer reference pointer");
         return nullptr;
     }
     Py_INCREF(it->second->value);
@@ -1203,7 +1203,7 @@ PyObject *pyRefSet(PyObject *, PyObject *args) {
         auto it = referenceCells.find(static_cast<uintptr_t>(rawHandle));
         if (it == referenceCells.end() || it->second->value == nullptr) {
             Py_DECREF(value);
-            PyErr_SetString(PyExc_RuntimeError, "invalid Clynxer reference pointer");
+            PyErr_SetString(PyExc_RuntimeError, "invalid Lynxer reference pointer");
             return nullptr;
         }
         oldValue = it->second->value;
@@ -1228,7 +1228,7 @@ PyObject *pyRefFree(PyObject *, PyObject *args) {
         std::lock_guard<std::mutex> lock(referenceCellsMutex);
         auto it = referenceCells.find(static_cast<uintptr_t>(rawHandle));
         if (it == referenceCells.end()) {
-            PyErr_SetString(PyExc_RuntimeError, "invalid or already freed Clynxer reference");
+            PyErr_SetString(PyExc_RuntimeError, "invalid or already freed Lynxer reference");
             return nullptr;
         }
         cell = std::move(it->second);
@@ -1825,7 +1825,7 @@ PyObject *legacyThreadStart(PyObject *, PyObject *args) {
     PyObject *execute = PyObject_GetAttrString(callback, "execute");
     if (execute == nullptr || !PyCallable_Check(execute)) {
         Py_XDECREF(execute);
-        PyErr_SetString(PyExc_TypeError, "nativeThreadStart callback must be a Clynxer function");
+        PyErr_SetString(PyExc_TypeError, "nativeThreadStart callback must be a Lynxer function");
         return nullptr;
     }
     Py_INCREF(callbackArgs);
@@ -1984,7 +1984,7 @@ std::shared_ptr<NativeThread> findNativeThread(PyObject *handle) {
     return it->second;
 }
 
-// A Clynxer program may start a thread and never join or detach it.  Such a
+// A Lynxer program may start a thread and never join or detach it.  Such a
 // worker still calls back into Python, so it has to finish before the
 // interpreter goes away; otherwise it touches a half-torn-down runtime (or
 // destroys a joinable std::thread, which aborts the process).
@@ -2049,7 +2049,7 @@ PyObject *pyThreadStart(PyObject *, PyObject *args) {
     if (!execute || !PyCallable_Check(execute)) {
         Py_XDECREF(execute);
         PyErr_SetString(PyExc_TypeError,
-                        "nativeThreadStart callback must be a Clynxer function");
+                        "nativeThreadStart callback must be a Lynxer function");
         return nullptr;
     }
     Py_INCREF(callbackArgs);
@@ -3122,24 +3122,24 @@ PyObject *pyMemoryStructFieldSize(PyObject *self, PyObject *args) {
 }
 
 PyMethodDef methods[] = {
-    {"refCreate", SAFE_NATIVE_METHOD(pyRefCreate), METH_VARARGS, "Create a native Clynxer reference cell."},
-    {"refGet", SAFE_NATIVE_METHOD(pyRefGet), METH_VARARGS, "Read a native Clynxer reference cell."},
-    {"refSet", SAFE_NATIVE_METHOD(pyRefSet), METH_VARARGS, "Write a native Clynxer reference cell."},
-    {"refFree", SAFE_NATIVE_METHOD(pyRefFree), METH_VARARGS, "Free a native Clynxer reference cell."},
+    {"refCreate", SAFE_NATIVE_METHOD(pyRefCreate), METH_VARARGS, "Create a native Lynxer reference cell."},
+    {"refGet", SAFE_NATIVE_METHOD(pyRefGet), METH_VARARGS, "Read a native Lynxer reference cell."},
+    {"refSet", SAFE_NATIVE_METHOD(pyRefSet), METH_VARARGS, "Write a native Lynxer reference cell."},
+    {"refFree", SAFE_NATIVE_METHOD(pyRefFree), METH_VARARGS, "Free a native Lynxer reference cell."},
     {"nativeCall", SAFE_NATIVE_METHOD(pyNativeCall), METH_VARARGS, "Call a low-level native function address."},
     {"ffiCall", SAFE_NATIVE_METHOD(pyFfiCall), METH_VARARGS, "Call a typed native function address."},
     {"ffiCallback", SAFE_NATIVE_METHOD(pyFfiCallback), METH_VARARGS, "Create a native callback trampoline."},
     {"ffiFreeCallback", SAFE_NATIVE_METHOD(pyFfiFreeCallback), METH_VARARGS, "Release a native callback trampoline."},
-    {"nativeModuleLoad", SAFE_NATIVE_METHOD(pyNativeModuleLoad), METH_VARARGS, "Load and initialize a Clynxer native module."},
-    {"nativeModuleClose", SAFE_NATIVE_METHOD(pyNativeModuleClose), METH_VARARGS, "Close a Clynxer native module."},
+    {"nativeModuleLoad", SAFE_NATIVE_METHOD(pyNativeModuleLoad), METH_VARARGS, "Load and initialize a Lynxer native module."},
+    {"nativeModuleClose", SAFE_NATIVE_METHOD(pyNativeModuleClose), METH_VARARGS, "Close a Lynxer native module."},
     {"ffiLoadLibrary", SAFE_NATIVE_METHOD(pyFfiLoadLibrary), METH_VARARGS, "Load a dynamic library."},
     {"ffiLookup", SAFE_NATIVE_METHOD(pyFfiLookup), METH_VARARGS, "Resolve a dynamic library symbol."},
     {"ffiCloseLibrary", SAFE_NATIVE_METHOD(pyFfiCloseLibrary), METH_VARARGS, "Close a dynamic library."},
-    {"nativeThreadStart", SAFE_NATIVE_METHOD(pyThreadStart), METH_VARARGS, "Start a native thread running a Clynxer function."},
-    {"nativeThreadJoin", SAFE_NATIVE_METHOD(pyThreadJoin), METH_VARARGS, "Join a native Clynxer thread."},
-    {"nativeThreadIsAlive", SAFE_NATIVE_METHOD(pyThreadIsAlive), METH_VARARGS, "Check whether a native Clynxer thread is running."},
-    {"nativeThreadStatus", SAFE_NATIVE_METHOD(pyThreadStatus), METH_VARARGS, "Get the status of a native Clynxer thread."},
-    {"nativeThreadDetach", SAFE_NATIVE_METHOD(pyThreadDetach), METH_VARARGS, "Detach a native Clynxer thread."},
+    {"nativeThreadStart", SAFE_NATIVE_METHOD(pyThreadStart), METH_VARARGS, "Start a native thread running a Lynxer function."},
+    {"nativeThreadJoin", SAFE_NATIVE_METHOD(pyThreadJoin), METH_VARARGS, "Join a native Lynxer thread."},
+    {"nativeThreadIsAlive", SAFE_NATIVE_METHOD(pyThreadIsAlive), METH_VARARGS, "Check whether a native Lynxer thread is running."},
+    {"nativeThreadStatus", SAFE_NATIVE_METHOD(pyThreadStatus), METH_VARARGS, "Get the status of a native Lynxer thread."},
+    {"nativeThreadDetach", SAFE_NATIVE_METHOD(pyThreadDetach), METH_VARARGS, "Detach a native Lynxer thread."},
     {"nativeThreadJoinAll", SAFE_NATIVE_METHOD(pyThreadJoinAll), METH_VARARGS, "Wait for every native thread that was neither joined nor detached."},
     {"atomicLoad", SAFE_NATIVE_METHOD(pyAtomicLoad), METH_VARARGS, "Atomically load a native integer."},
     {"atomicStore", SAFE_NATIVE_METHOD(pyAtomicStore), METH_VARARGS, "Atomically store a native integer."},
@@ -3200,7 +3200,7 @@ PyMethodDef methods[] = {
 PyModuleDef module = {
     PyModuleDef_HEAD_INIT,
     "cpp",
-    "Low-level C++ memory primitives for Clynxer.",
+    "Low-level C++ memory primitives for Lynxer.",
     -1,
     methods,
 };

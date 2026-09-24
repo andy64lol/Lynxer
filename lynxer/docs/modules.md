@@ -86,7 +86,7 @@ global twice(int n) -> int {
 global main(){}
 ```
 
-A native backend exports `clynxer_module_init_v1`; see
+A native backend exports `lynxer_module_init_v1`; see
 [native-module-abi.md](native-module-abi.md).
 
 ## Compiled programs

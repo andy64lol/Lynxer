@@ -1,6 +1,6 @@
 # Installation
 
-The repository contains two implementations: the original Python Clynxer and
+The repository contains two implementations: the original Python Lynxer and
 the standalone Lynxer implementation. Lynxer build instructions and its
 native dependency policy are documented in
 [lynxer/docs/install.md](../lynxer/docs/install.md).
@@ -18,7 +18,7 @@ native extensions and syscall tables cannot be mixed.
 
 ```bash
 clynxer --version   # confirm it works
-clynxer hello.lynx  # run a Clynxer source file
+clynxer hello.lynx  # run a Lynxer source file
 ```
 
 ---
@@ -31,7 +31,7 @@ clynxer hello.lynx  # run a Clynxer source file
 - `cython` Python package (for `rawPyx` support)
 - `system-calls` Python package (required for the named Linux syscall built-ins)
 - `setuptools` Python package (Cython shim on Python 3.12+)
-- A C++ compiler (`g++` or `clang++`) for Clynxer's native memory extension
+- A C++ compiler (`g++` or `clang++`) for Lynxer's native memory extension
 - A C compiler (`gcc` or `cc`) for Cython compilation
 
 ### Full build
@@ -88,7 +88,7 @@ modules while keeping the core language and essential utilities.
 See the complete [CLI reference](CLI.md) for every command and alias.
 
 ```bash
-clynxer --version        # Clynxer 0.1.8
+clynxer --version        # Lynxer 0.1.8
 clynxer --compile a.lynx # compile to bytecode
 clynxer a.lynxc          # run compiled bytecode
 clynxer --format a.lynx  # format the source file in place

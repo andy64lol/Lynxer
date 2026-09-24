@@ -71,7 +71,7 @@ List all virtual environments found in the **current working directory** by
 scanning for directories that contain a `pyvenv.cfg` file.
 
 > **Note:** the function is named `listVenvs` rather than `list` because `list`
-> is a reserved type keyword in Clynxer.
+> is a reserved type keyword in Lynxer.
 
 **Returns** a JSON array of venv names, e.g. `["dev-env", "my-env", "test-env"]`.
 

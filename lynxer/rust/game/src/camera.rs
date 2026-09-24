@@ -5,7 +5,7 @@
 use lynxer_abi::{export_float, export_int};
 use crate::state::{with, Camera};
 
-export_int!(clynxer_game_make_camera, args, {
+export_int!(lynxer_game_make_camera, args, {
     let _ = args;
     with(|state| {
         state.cameras.push(Camera::new());
@@ -13,7 +13,7 @@ export_int!(clynxer_game_make_camera, args, {
     })
 });
 
-export_int!(clynxer_game_use_camera, args, {
+export_int!(lynxer_game_use_camera, args, {
     let index = args.int(0);
     with(|state| {
         if index >= 0 && (index as usize) < state.cameras.len() {
@@ -23,7 +23,7 @@ export_int!(clynxer_game_use_camera, args, {
     })
 });
 
-export_int!(clynxer_game_set_camera_pos, args, {
+export_int!(lynxer_game_set_camera_pos, args, {
     let index = args.int(0);
     let x = args.float(1);
     let y = args.float(2);
@@ -36,7 +36,7 @@ export_int!(clynxer_game_set_camera_pos, args, {
     })
 });
 
-export_float!(clynxer_game_get_camera_x, args, {
+export_float!(lynxer_game_get_camera_x, args, {
     let index = args.int(0);
     with(|state| {
         state
@@ -47,7 +47,7 @@ export_float!(clynxer_game_get_camera_x, args, {
     })
 });
 
-export_float!(clynxer_game_get_camera_y, args, {
+export_float!(lynxer_game_get_camera_y, args, {
     let index = args.int(0);
     with(|state| {
         state
@@ -58,7 +58,7 @@ export_float!(clynxer_game_get_camera_y, args, {
     })
 });
 
-export_int!(clynxer_game_zoom_camera, args, {
+export_int!(lynxer_game_zoom_camera, args, {
     let index = args.int(0);
     let zoom = args.float(1);
     with(|state| {
@@ -69,7 +69,7 @@ export_int!(clynxer_game_zoom_camera, args, {
     })
 });
 
-export_float!(clynxer_game_get_camera_zoom, args, {
+export_float!(lynxer_game_get_camera_zoom, args, {
     let index = args.int(0);
     with(|state| {
         state
@@ -80,7 +80,7 @@ export_float!(clynxer_game_get_camera_zoom, args, {
     })
 });
 
-export_int!(clynxer_game_smooth_scroll_camera, args, {
+export_int!(lynxer_game_smooth_scroll_camera, args, {
     let index = args.int(0);
     let target_x = args.float(1);
     let target_y = args.float(2);
@@ -94,7 +94,7 @@ export_int!(clynxer_game_smooth_scroll_camera, args, {
     })
 });
 
-export_int!(clynxer_game_reset_camera, args, {
+export_int!(lynxer_game_reset_camera, args, {
     let _ = args;
     with(|state| {
         state.active_camera = None;

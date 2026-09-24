@@ -7,7 +7,7 @@ publish = false
 
 [lib]
 name = "lynxer_game"
-# A cdylib that exports clynxer_module_init_v1 and its ops directly, like the
+# A cdylib that exports lynxer_module_init_v1 and its ops directly, like the
 # json/network/server modules: no C++ shim and no --whole-archive linking.
 crate-type = ["cdylib"]
 

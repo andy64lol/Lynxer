@@ -1,6 +1,6 @@
 //! Lynxer `server` stdlib backend: HTTP/WebSocket server on axum + tokio.
 //!
-//! Replaces the previous Crow/Boost.Asio backend. The Clynxer-facing contract is
+//! Replaces the previous Crow/Boost.Asio backend. The Lynxer-facing contract is
 //! unchanged: routes may only be registered while stopped, duplicates and
 //! invalid paths are rejected, fixed routes serve HTML, `routeEcho` returns
 //! `text/plain` with the request body, WebSocket routes echo text/binary, and
@@ -14,7 +14,7 @@ use axum::response::Response;
 use axum::routing::{get, post};
 use axum::Router;
 
-use lynxer_abi::{export_int, export_string, clynxer_module};
+use lynxer_abi::{export_int, export_string, lynxer_module};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Method {
@@ -307,4 +307,4 @@ const OPS: &[(&str, &str, &str)] = &[
     ("port", "server_port", "cdecl:int64(...)"),
 ];
 
-clynxer_module!(OPS);
+lynxer_module!(OPS);

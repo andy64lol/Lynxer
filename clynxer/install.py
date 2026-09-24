@@ -1,4 +1,4 @@
-"""Install and uninstall the frozen Clynxer executable on Linux."""
+"""Install and uninstall the frozen Lynxer executable on Linux."""
 
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ def executable_path() -> str:
     """Return the current frozen executable or raise for source execution."""
     if not getattr(sys, "frozen", False):
         raise RuntimeError(
-            "installation requires the compiled Clynxer ELF executable; "
+            "installation requires the compiled Lynxer ELF executable; "
             "build it first with 'make build', 'make buildClynxer' or 'make buildClynxerLite'"
         )
 
@@ -82,7 +82,7 @@ def _signal_pids(pids: Iterable[int], sig: int) -> None:
         except ProcessLookupError:
             pass
         except PermissionError as exc:
-            raise RuntimeError(f"could not signal Clynxer process {pid}: {exc}") from exc
+            raise RuntimeError(f"could not signal Lynxer process {pid}: {exc}") from exc
 
 
 def stop_installed_processes(path: str = INSTALL_PATH) -> list[int]:
@@ -107,7 +107,7 @@ def stop_installed_processes(path: str = INSTALL_PATH) -> list[int]:
 
     if remaining:
         joined = ", ".join(str(pid) for pid in remaining)
-        raise RuntimeError(f"could not stop Clynxer process(es): {joined}")
+        raise RuntimeError(f"could not stop Lynxer process(es): {joined}")
     return pids
 
 
@@ -148,7 +148,7 @@ def install_executable(
                 pass
 
     if stopped:
-        print(f"Stopped {len(stopped)} existing Clynxer process(es).")
+        print(f"Stopped {len(stopped)} existing Lynxer process(es).")
     return target_path
 
 
@@ -172,14 +172,14 @@ def uninstall_executable(target: str = INSTALL_PATH) -> bool:
         raise RuntimeError(f"could not remove '{target_path}': {exc}") from exc
 
     if stopped:
-        print(f"Stopped {len(stopped)} existing Clynxer process(es).")
+        print(f"Stopped {len(stopped)} existing Lynxer process(es).")
     return True
 
 
 def _sudo_reexec(action: str) -> int:
     sudo = shutil.which("sudo")
     if sudo is None:
-        print("Error: sudo is required for Clynxer installation.", file=sys.stderr)
+        print("Error: sudo is required for Lynxer installation.", file=sys.stderr)
         return 1
 
     result = subprocess.run([sudo, sys.executable, action], check=False)
@@ -204,12 +204,12 @@ def installer_main(action: str) -> int:
     try:
         if action == "--install":
             path = install_executable()
-            print(f"Installed Clynxer as {path}.")
+            print(f"Installed Lynxer as {path}.")
         else:
             if uninstall_executable():
-                print(f"Uninstalled Clynxer from {INSTALL_PATH}.")
+                print(f"Uninstalled Lynxer from {INSTALL_PATH}.")
             else:
-                print(f"Clynxer is not installed at {INSTALL_PATH}.")
+                print(f"Lynxer is not installed at {INSTALL_PATH}.")
     except (OSError, RuntimeError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1

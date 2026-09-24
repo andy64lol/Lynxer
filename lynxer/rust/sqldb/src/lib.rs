@@ -1,14 +1,14 @@
 //! Lynxer `sqldb` stdlib backend: SQLite database operations.
 //!
 //! Replaces Python's sqlite3 with Rust `rusqlite`.
-//! The Clynxer-facing contract matches `clynxer/stdlib/sqldb.lynx`:
+//! The Lynxer-facing contract matches `lynxer/stdlib/sqldb.lynx`:
 //! every operation names a database **path**, opens a connection, does its
 //! work and closes it again. Structured results are returned as JSON strings,
 //! errors as `"ERROR: <message>"`.
 
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine as _;
-use lynxer_abi::{export_int, export_string, clynxer_module};
+use lynxer_abi::{export_int, export_string, lynxer_module};
 use rusqlite::{Connection, Result as SqlResult};
 use std::path::Path;
 
@@ -314,4 +314,4 @@ const OPS: &[(&str, &str, &str)] = &[
     ("tables", "sqldb_tables", "cdecl:cstring(...)"),
 ];
 
-clynxer_module!(OPS);
+lynxer_module!(OPS);

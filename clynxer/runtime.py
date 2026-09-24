@@ -1,4 +1,4 @@
-"""The Clynxer interpreter, execution contexts, and program entry points."""
+"""The Lynxer interpreter, execution contexts, and program entry points."""
 
 from __future__ import annotations
 
@@ -106,7 +106,7 @@ def _get_cython_inline() -> Any:
     """Lazily import Cython's inline compiler (needs setuptools' distutils shim)."""
     global _cython_inline_fn
     if _cython_inline_fn is None:
-        # Import by name so Pyright can analyze Clynxer without requiring the
+        # Import by name so Pyright can analyze Lynxer without requiring the
         # optional Cython package to be installed in its analysis environment.
         from importlib import import_module
 
@@ -139,7 +139,7 @@ execution_state = _execution_state
 _rawpy_global_modules = _execution_state.rawpy_global_modules
 
 # Python callbacks registered by a standard-library module (for example the
-# Arcade game loop) need a way back into the currently running Clynxer program.
+# Arcade game loop) need a way back into the currently running Lynxer program.
 # rawPy already runs with the active interpreter context, so the bridge is
 # installed lazily for the lifetime of each rawPy block and can safely be
 # captured by a host callback.
@@ -157,10 +157,10 @@ def _python_to_clynxer_callback_value(value):
 
 
 def _clynxer_callback_dispatcher(context):
-    """Return a Python callable that invokes a Clynxer function by name.
+    """Return a Python callable that invokes a Lynxer function by name.
 
     Names may be plain function names or dotted global paths such as
-    ``global.update``.  The dispatcher intentionally accepts only Clynxer
+    ``global.update``.  The dispatcher intentionally accepts only Lynxer
     functions; arbitrary Python objects are never exposed through this hook.
     """
     def dispatch(callback_name, *python_args):
@@ -185,7 +185,7 @@ def _clynxer_callback_dispatcher(context):
 
         if not isinstance(target, Function):
             raise RuntimeError(  # noqa: TRY004
-                f"game callback '{callback_name}' is not a synchronous Clynxer function"
+                f"game callback '{callback_name}' is not a synchronous Lynxer function"
             )
 
         args = [
@@ -205,7 +205,7 @@ def _clynxer_callback_dispatcher(context):
     return dispatch
 
 
-# Clynxer module registry.  Module names are intentionally global: importing
+# Lynxer module registry.  Module names are intentionally global: importing
 # two different files with the same basename is ambiguous even when their
 # directories differ.
 _lynx_modules = _execution_state.lynx_modules
@@ -1825,7 +1825,7 @@ class Interpreter:
         return self.visit_ExecFileNode(node, context)
 
     async def async_visit_NewNode(self, node, context):
-        # Constructors are synchronous Clynxer methods, but argument
+        # Constructors are synchronous Lynxer methods, but argument
         # expressions may still be evaluated from an async function.
         res = RTResult()
         class_registry = context.symbol_table.get("class")
@@ -2241,7 +2241,7 @@ class Interpreter:
             return res.failure(RTError(
                 node.pos_start,
                 node.pos_end,
-                f"Error executing Clynxer file '{requested_path}':\n{error.as_string()}",
+                f"Error executing Lynxer file '{requested_path}':\n{error.as_string()}",
                 context,
             ))
         return res.success(Number.null)
@@ -2800,7 +2800,7 @@ class Interpreter:
         return res.success(Number.null)
 
     def visit_ExecBlockNode(self, node, context):
-        """Run injected Clynxer statements in the surrounding context."""
+        """Run injected Lynxer statements in the surrounding context."""
         return self.visit(node.body_block, context)
 
     def visit_RawPyxBlockNode(self, node, context):
@@ -3201,7 +3201,7 @@ def reset_runtime_state(runtime: RuntimeContext | None = None) -> RuntimeContext
 
 
 def _interpreter_error(fn, text, context_name, exc):
-    """Turn an unexpected host exception into a normal Clynxer error."""
+    """Turn an unexpected host exception into a normal Lynxer error."""
     context = Context(context_name)
     start = Position(0, 0, 0, fn, text)
     details = str(exc).strip() or type(exc).__name__

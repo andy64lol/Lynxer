@@ -184,7 +184,7 @@ test: testClynxer testLynxer
 # Python-only suite: the Lynxer suite below is gated on a Rust toolchain, so
 # CI jobs that only install Python use this target instead of `test`.
 testClynxer: buildCpp
-	@echo "Running Clynxer tests..."
+	@echo "Running Lynxer tests..."
 	@$(VENV_PY) -u test/validate.py
 	@$(VENV_PY) -u test/remaining.py
 
@@ -208,7 +208,7 @@ check: test
 		fi; \
 		$(VENV_PY) clynxer/shell.py --lint "$$file" >/dev/null || exit $$?; \
 	done
-	@echo "✓ Clynxer checks passed."
+	@echo "✓ Lynxer checks passed."
 
 # Conventional alias for a full build (kept out of first position so a bare
 # `make` does not trigger the ~13-minute PyInstaller lite analysis).
@@ -236,7 +236,7 @@ pyinstaller: venv
 
 # Python full build: every stdlib module bundled into dist/clynxer.
 buildClynxer: platform-check buildCpp pyinstaller
-	@echo "Building Clynxer (Python)..."
+	@echo "Building Lynxer (Python)..."
 	@$(PYINSTALLER) \
 		--onefile \
 		--clean \
@@ -247,7 +247,7 @@ buildClynxer: platform-check buildCpp pyinstaller
 		$(WARNING_DATA) \
 		--add-data "clynxer/stdlib:stdlib" \
 		clynxer/shell.py
-	@echo "✓ Clynxer build complete: dist/clynxer"
+	@echo "✓ Lynxer build complete: dist/clynxer"
 
 # Python lite build: Cython support and only pure stdlib modules, dist/clynxer-lite.
 buildClynxerLite: lite-platform-check buildCpp pyinstaller
@@ -255,7 +255,7 @@ buildClynxerLite: lite-platform-check buildCpp pyinstaller
 	@rm -rf build/stdlib_pure || true
 	@$(VENV_PY) scripts/select_pure_stdlib.py clynxer/stdlib build/stdlib_pure
 
-	@echo "Building Clynxer (lite) with Cython support and only pure stdlib modules..."
+	@echo "Building Lynxer (lite) with Cython support and only pure stdlib modules..."
 	@$(PYINSTALLER) \
 		--onefile \
 		--clean \
@@ -270,7 +270,7 @@ buildClynxerLite: lite-platform-check buildCpp pyinstaller
 	@echo "✓ Lite build complete: dist/clynxer-lite"
 
 buildCpp: venv
-	@echo "Building Clynxer C++ native extensions..."
+	@echo "Building Lynxer C++ native extensions..."
 	@$(VENV_PY) clynxer/setup.py build_ext --inplace
 	@echo "✓ Native extensions built in clynxer/ (memory + bytecode VM)"
 
@@ -449,7 +449,7 @@ expected="lynxer: $(LYNXER_ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 	esac
 	@$(CLYX) --compile $(LYNXER_DIR)/examples/bundle_app.lynx $(LYNXER_DIR)/examples/bundle_extras/greeter.lynx $(LYNXER_DIR)/examples/bundle_extras/counter.lynx -o $(CLYX_TMP)_multi > /dev/null; \
 	multi_output="$$($(CLYX_TMP)_multi)"; \
-	expected="$$(printf 'hello, CLYNXER!\n1,2,3')"; \
+	expected="$$(printf 'hello, LYNXER!\n1,2,3')"; \
 	if [ "$$multi_output" != "$$expected" ]; then \
 	echo "multi-file bundle output mismatch:"; printf '%s\n' "$$multi_output"; exit 1; fi
 	@$(CLYX) --compile $(LYNXER_DIR)/examples/bundle_assets.lynx --include $(LYNXER_DIR)/examples/bundle_extras/message.txt -o $(CLYX_TMP)_assets > /dev/null; \
@@ -718,7 +718,7 @@ cleanAll: clean cleanC cleanLynxc cleanLynxer
 	@echo "✓ Cleaned all generated build artifacts."
 
 help:
-	@echo "Clynxer build targets:"
+	@echo "Lynxer build targets:"
 	@echo "  make build              (everything: Python full + lite + Lynxer)"
 	@echo "  make buildAll           (alias for build)"
 	@echo "  make buildClynxer        (Python full -> dist/clynxer)"
@@ -731,7 +731,7 @@ help:
 	@echo "  make venv"
 	@echo "  make deps"
 	@echo "  make liteDeps"
-	@echo "  make test               (everything: Clynxer + Lynxer suites)"
+	@echo "  make test               (everything: Lynxer + Lynxer suites)"
 	@echo "  make testClynxer         (Python suite only)"
 	@echo "  make testLynxer        (Lynxer suite only)"
 	@echo "  make testLynxerAmd64Syscalls   (amd64 syscall fixture; x86_64 host)"
@@ -747,7 +747,7 @@ help:
 	@echo "  make cleanAll"
 	@echo "  make help"
 	@echo ""
-	@echo "Clynxer source commands:"
+	@echo "Lynxer source commands:"
 	@echo "  clynxer --format <file.lynx>"
 	@echo "  clynxer --format-oneline <file.lynx>"
 	@echo "  clynxer --ast <file.lynx>"

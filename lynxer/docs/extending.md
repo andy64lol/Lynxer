@@ -4,12 +4,12 @@ Lynxer grows in three ways:
 
 | Extension | Written in | Use it when |
 | --- | --- | --- |
-| **Pure Clynxer module** | Clynxer, in `lynxer/stdlib/<name>.lynx` | The behaviour is expressible in Clynxer itself. `colorlib`, `text` and `typing` are examples; they ship no shared library. |
+| **Pure Lynxer module** | Lynxer, in `lynxer/stdlib/<name>.lynx` | The behaviour is expressible in Lynxer itself. `colorlib`, `text` and `typing` are examples; they ship no shared library. |
 | **Native module** | C++ in `stdlib/<name>.cpp`, or Rust in `rust/<name>/` | The behaviour needs a system API, a file format, a device, or a third-party crate. |
 | **Built-in** | C++ in `lynxer/builtins.cpp` | The operation is a language primitive that must be available without `import`. |
 
 Almost everything belongs in the middle row. A built-in is not available to a
-module author — it changes the language — and a pure Clynxer module is just a
+module author — it changes the language — and a pure Lynxer module is just a
 module with no backend, so both are covered by the same wrapper rules.
 
 Read [stdlib-contracts.md](stdlib-contracts.md) before you start: it states the
@@ -34,12 +34,12 @@ implementation is a few calls into the standard library or POSIX.
 
 ## 2. Write the wrapper
 
-The wrapper is what Clynxer programs see. It is always
+The wrapper is what Lynxer programs see. It is always
 `stdlib/<name>.lynx`, and it always has the same shape:
 
 ```lynx
 ////
-Clynxer standard library: example.
+Lynxer standard library: example.
 One-line summary, then anything a user needs to know.
 
 Extra paragraphs here are printed by `lynxer --list-stdlibs`, so keep them
@@ -83,7 +83,7 @@ Add `rust/<name>/Cargo.toml` with `crate-type = ["cdylib"]`, depend on
 ```rust
 //! `example` stdlib backend: double a number, join two words.
 
-use lynxer_abi::{export_int, export_string, clynxer_module};
+use lynxer_abi::{export_int, export_string, lynxer_module};
 
 export_int!(example_double_it, args, {
     let value = args.int(0);
@@ -101,7 +101,7 @@ const OPS: &[(&str, &str, &str)] = &[
     ("join", "example_join", "cdecl:cstring(...)"),
 ];
 
-clynxer_module!(OPS);
+lynxer_module!(OPS);
 ```
 
 Three things to get right, all of which have caused real defects here:
@@ -155,7 +155,7 @@ extern "C" const char* example_join(const char* left, const char* right) {
     return stable(std::string(left) + right);
 }
 
-extern "C" int clynxer_module_init_v1(RegisterFunction f, RegisterConstant,
+extern "C" int lynxer_module_init_v1(RegisterFunction f, RegisterConstant,
                                     RegisterType) {
     return f("doubleIt", "example_double_it", "cdecl:int64(int64)") &&
                    f("join", "example_join", "cdecl:cstring(cstring,cstring)")
@@ -265,12 +265,12 @@ Every module is finished when all of these are true:
       `LYNXER_LIST_STDLIB_MODULES` in the root `Makefile`
 - [ ] the identity model recorded in the table in
       [stdlib-contracts.md](stdlib-contracts.md)
-- [ ] deliberate divergences from `clynxer/stdlib/<name>.lynx` written down in
+- [ ] deliberate divergences from `lynxer/stdlib/<name>.lynx` written down in
       [limitations.md](limitations.md), with the reason
 - [ ] `make test` green, including the contract check and the compiled/bundled
       parity run
 
-Compare against `clynxer/stdlib/<name>.lynx` — the Python implementation is the
+Compare against `lynxer/stdlib/<name>.lynx` — the Python implementation is the
 behaviour reference — and either match it or record why not. Byte-identical
 output is achievable more often than it looks: `sqldb` and `sound` both produce
 output identical to the reference, including their error strings.

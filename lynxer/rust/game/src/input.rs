@@ -89,7 +89,7 @@ fn mouse_button(name: &str) -> Option<MouseButton> {
     })
 }
 
-export_int!(clynxer_game_key_down, args, {
+export_int!(lynxer_game_key_down, args, {
     if headless() {
         return 0;
     }
@@ -99,7 +99,7 @@ export_int!(clynxer_game_key_down, args, {
     }
 });
 
-export_int!(clynxer_game_key_up, args, {
+export_int!(lynxer_game_key_up, args, {
     if headless() {
         return 0;
     }
@@ -109,7 +109,7 @@ export_int!(clynxer_game_key_up, args, {
     }
 });
 
-export_int!(clynxer_game_key_pressed, args, {
+export_int!(lynxer_game_key_pressed, args, {
     if headless() {
         return 0;
     }
@@ -119,7 +119,7 @@ export_int!(clynxer_game_key_pressed, args, {
     }
 });
 
-export_int!(clynxer_game_key_released, args, {
+export_int!(lynxer_game_key_released, args, {
     if headless() {
         return 0;
     }
@@ -129,14 +129,14 @@ export_int!(clynxer_game_key_released, args, {
     }
 });
 
-export_int!(clynxer_game_key_code, args, {
+export_int!(lynxer_game_key_code, args, {
     match key_code(args.string(0)) {
         Some(code) => code as u16 as i64,
         None => -1,
     }
 });
 
-export_float!(clynxer_game_mouse_x, args, {
+export_float!(lynxer_game_mouse_x, args, {
     let _ = args;
     if headless() {
         return 0.0;
@@ -144,7 +144,7 @@ export_float!(clynxer_game_mouse_x, args, {
     mouse_position().0 as f64
 });
 
-export_float!(clynxer_game_mouse_y, args, {
+export_float!(lynxer_game_mouse_y, args, {
     let _ = args;
     if headless() {
         return 0.0;
@@ -152,7 +152,7 @@ export_float!(clynxer_game_mouse_y, args, {
     (screen_height() - mouse_position().1) as f64
 });
 
-export_float!(clynxer_game_mouse_delta_x, args, {
+export_float!(lynxer_game_mouse_delta_x, args, {
     let _ = args;
     if headless() {
         return 0.0;
@@ -165,7 +165,7 @@ export_float!(clynxer_game_mouse_delta_x, args, {
     })
 });
 
-export_float!(clynxer_game_mouse_delta_y, args, {
+export_float!(lynxer_game_mouse_delta_y, args, {
     let _ = args;
     if headless() {
         return 0.0;
@@ -178,7 +178,7 @@ export_float!(clynxer_game_mouse_delta_y, args, {
     })
 });
 
-export_int!(clynxer_game_mouse_left, args, {
+export_int!(lynxer_game_mouse_left, args, {
     let _ = args;
     if headless() {
         return 0;
@@ -186,7 +186,7 @@ export_int!(clynxer_game_mouse_left, args, {
     is_mouse_button_down(MouseButton::Left) as i64
 });
 
-export_int!(clynxer_game_mouse_right, args, {
+export_int!(lynxer_game_mouse_right, args, {
     let _ = args;
     if headless() {
         return 0;
@@ -194,7 +194,7 @@ export_int!(clynxer_game_mouse_right, args, {
     is_mouse_button_down(MouseButton::Right) as i64
 });
 
-export_int!(clynxer_game_mouse_middle, args, {
+export_int!(lynxer_game_mouse_middle, args, {
     let _ = args;
     if headless() {
         return 0;
@@ -202,7 +202,7 @@ export_int!(clynxer_game_mouse_middle, args, {
     is_mouse_button_down(MouseButton::Middle) as i64
 });
 
-export_int!(clynxer_game_mouse_button_down, args, {
+export_int!(lynxer_game_mouse_button_down, args, {
     if headless() {
         return 0;
     }
@@ -212,7 +212,7 @@ export_int!(clynxer_game_mouse_button_down, args, {
     }
 });
 
-export_int!(clynxer_game_mouse_button_pressed, args, {
+export_int!(lynxer_game_mouse_button_pressed, args, {
     if headless() {
         return 0;
     }
@@ -222,7 +222,7 @@ export_int!(clynxer_game_mouse_button_pressed, args, {
     }
 });
 
-export_int!(clynxer_game_mouse_button_released, args, {
+export_int!(lynxer_game_mouse_button_released, args, {
     if headless() {
         return 0;
     }
@@ -232,7 +232,7 @@ export_int!(clynxer_game_mouse_button_released, args, {
     }
 });
 
-export_int!(clynxer_game_mouse_button_code, args, {
+export_int!(lynxer_game_mouse_button_code, args, {
     match mouse_button(args.string(0)) {
         Some(MouseButton::Left) => 0,
         Some(MouseButton::Middle) => 1,
@@ -241,7 +241,7 @@ export_int!(clynxer_game_mouse_button_code, args, {
     }
 });
 
-export_float!(clynxer_game_mouse_scroll_y, args, {
+export_float!(lynxer_game_mouse_scroll_y, args, {
     let _ = args;
     with(|state| {
         let value = state.scroll_y;
@@ -250,7 +250,7 @@ export_float!(clynxer_game_mouse_scroll_y, args, {
     })
 });
 
-export_float!(clynxer_game_mouse_scroll_x, args, {
+export_float!(lynxer_game_mouse_scroll_x, args, {
     let _ = args;
     with(|state| {
         let value = state.scroll_x;

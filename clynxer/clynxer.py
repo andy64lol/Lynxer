@@ -1,4 +1,4 @@
-"""Clynxer compiler and interpreter pipeline.
+"""Lynxer compiler and interpreter pipeline.
 
 The implementation lives in the focused submodules:
 

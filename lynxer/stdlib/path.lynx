@@ -1,5 +1,5 @@
 ////
-Clynxer standard library: path.
+Lynxer standard library: path.
 pathlib-style path manipulation backed by the native C++ module
 `stdlib/path.so`.
 

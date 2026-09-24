@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""CLI entry point for Clynxer. Run with: python clynxer/shell.py <file.lynx>
+"""CLI entry point for Lynxer. Run with: python clynxer/shell.py <file.lynx>
 
 Frozen behaviour reference: Lynxer (`lynxer/`) is the primary implementation
 and has superseded this for real use. See `lynxer/docs/parity.md`.
@@ -32,7 +32,7 @@ from clynxer.clynxer import stdlib_dir
 
 
 def _extract_docstring(path):
-    """Return the text inside the first //// ... //// block in a Clynxer file, or None."""
+    """Return the text inside the first //// ... //// block in a Lynxer file, or None."""
     lines = []
     inside = False
     try:
@@ -71,7 +71,7 @@ def _view_bytecode(filepath):
         else "✗ (runtime expects v{})".format(BYTECODE_VERSION)
     )
 
-    print("Clynxer Bytecode Inspector")
+    print("Lynxer Bytecode Inspector")
     print("─" * 44)
     print(f"  File   : {filepath}")
     print(f"  Source : {source}")
@@ -182,7 +182,7 @@ def _ast_lines(value, indent=0):
 
 
 def _print_ast(filepath, source):
-    """Parse and print a Clynxer source AST without executing it."""
+    """Parse and print a Lynxer source AST without executing it."""
     lexer = Lexer(filepath, source)
     tokens, error = lexer.make_tokens()
     if error:
@@ -194,7 +194,7 @@ def _print_ast(filepath, source):
         print(result.error.as_string(), file=sys.stderr)
         return 1
 
-    print("Clynxer AST")
+    print("Lynxer AST")
     print("===========")
     print("\n".join(_ast_lines(result.node)))
     return 0
@@ -205,7 +205,7 @@ def main():
     if not argv or argv[0] in ("-h", "--help"):
         print()
         print("Usage:")
-        print("  clynxer <file.lynx>                    Run a Clynxer source file")
+        print("  clynxer <file.lynx>                    Run a Lynxer source file")
         print("  clynxer --compile <file.lynx>          Compile to bytecode (.lynxc)")
         print(
             "  clynxer --compile --no-cache <file>    Recompile even when bytecode is current"
@@ -225,20 +225,20 @@ def main():
             "  clynxer --benchmark-compile <files...> Benchmark optimized and unoptimized compilation"
         )
         print(
-            "  clynxer --format <file.lynx>           Format a Clynxer source file in place"
+            "  clynxer --format <file.lynx>           Format a Lynxer source file in place"
         )
         print(
-            "  clynxer --format-oneline <file.lynx>   Compact a Clynxer source file to one line"
+            "  clynxer --format-oneline <file.lynx>   Compact a Lynxer source file to one line"
         )
         print(
-            "  clynxer --lint <file.lynx>             Check Clynxer syntax without running it"
+            "  clynxer --lint <file.lynx>             Check Lynxer syntax without running it"
         )
         print(
             "  clynxer --validate-executeable         Run the comprehensive interpreter validator"
         )
         print("  clynxer --version                      Print version")
         print(
-            "  clynxer --list-stdlibs                 List available Clynxer stdlib modules"
+            "  clynxer --list-stdlibs                 List available Lynxer stdlib modules"
         )
         print(
             "  clynxer --install                      Install the compiled executable as /usr/bin/clynxer, may require sudo"
@@ -256,7 +256,7 @@ def main():
         print()
         return 0
     if argv[0] in ("-v", "--version", "-version", "--v"):
-        print("Clynxer 0.1.8")
+        print("Lynxer 0.1.8")
         return 0
     if argv[0] in ("--validate-executeable", "--validate-executable"):
         validator = os.path.join(_here, "validate.py")
@@ -292,9 +292,9 @@ def main():
             f for f in os.listdir(stdlib_path) if f.endswith(".lynx")
         )
         if not files:
-            print("No Clynxer stdlib modules found.")
+            print("No Lynxer stdlib modules found.")
             return 0
-        print("Available Clynxer stdlib modules:\n")
+        print("Available Lynxer stdlib modules:\n")
         for fn in files:
             path = os.path.join(stdlib_path, fn)
             name = os.path.splitext(fn)[0]

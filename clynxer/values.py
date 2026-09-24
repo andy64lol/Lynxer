@@ -1,4 +1,4 @@
-"""Clynxer runtime values, execution results, contexts, and symbol tables."""
+"""Lynxer runtime values, execution results, contexts, and symbol tables."""
 
 from __future__ import annotations
 
@@ -182,7 +182,7 @@ class CodeBlockValue(Value):
         return "<code block>"
 
 class Address(Value):
-    """A native C++ pointer to a Clynxer reference cell."""
+    """A native C++ pointer to a Lynxer reference cell."""
 
     def __init__(self, pointer, symbol_table=None, name=None):
         super().__init__()
@@ -1388,7 +1388,7 @@ class LocalNamespace(Value):
 # embedPy.requests.get("https://example.com")   →  calls requests.get(...)
 # embedPy.len("hello")                           →  calls builtins.len("hello")
 def _lynx_to_python(val):
-    """Convert a Clynxer Value → plain Python value suitable for passing to Python code."""
+    """Convert a Lynxer Value → plain Python value suitable for passing to Python code."""
     if isinstance(val, Number):
         return val.value
     if isinstance(val, String):
@@ -1402,7 +1402,7 @@ def _lynx_to_python(val):
     return None
 
 def _python_to_lynx(py_val, context=None, pos_start=None, pos_end=None):
-    """Convert a plain Python value → the nearest Clynxer Value equivalent."""
+    """Convert a plain Python value → the nearest Lynxer Value equivalent."""
     if py_val is None:
         return Number.null
     if isinstance(py_val, bool):
@@ -1488,7 +1488,7 @@ class EmbedPyObject(Value):
         return str(self.py_obj)
 
 class EmbedPyCallable(Value):
-    """Wraps a Python callable (function, method, class, lambda) for Clynxer calls."""
+    """Wraps a Python callable (function, method, class, lambda) for Lynxer calls."""
 
     def __init__(self, py_callable, name="<python>"):
         super().__init__()
@@ -1677,7 +1677,7 @@ class ClassRegistry(Value):
         return f"<class registry: {list(self._classes.keys())}>"
 
 class ClassBlueprint(Value):
-    """The reusable definition of a Clynxer class.
+    """The reusable definition of a Lynxer class.
 
     A blueprint keeps the legacy ``global.class.Name`` access path, but
     ``new Name(...)`` creates a separate :class:`ClassInstance` from it.

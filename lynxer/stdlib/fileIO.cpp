@@ -1,4 +1,4 @@
-// Clynxer `fileIO` stdlib backend: file reading, writing and metadata.
+// Lynxer `fileIO` stdlib backend: file reading, writing and metadata.
 
 #include <chrono>
 #include <cstdint>
@@ -247,7 +247,7 @@ extern "C" const char* fileIO_readFileLines(const char* path,
     return stable(std::move(result));
 }
 
-extern "C" int clynxer_module_init_v1(RegisterFunction function,
+extern "C" int lynxer_module_init_v1(RegisterFunction function,
                                      RegisterConstant, RegisterType) {
     return function("readFile", "fileIO_readFile", "cdecl:cstring(cstring)") &&
                    function("writeFile", "fileIO_writeFile",

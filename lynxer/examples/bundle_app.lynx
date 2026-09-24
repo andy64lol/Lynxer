@@ -10,6 +10,6 @@ global setup(){
 }
 
 global main(){
-    println(global.greeter.greet("clynxer"));
+    println(global.greeter.greet("lynxer"));
     println(global.counter.countTo(3));
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Broad regression validator for Clynxer.
-BTW ALL generated Clynxer files are created below a temp dir and rm
+"""Broad regression validator for Lynxer.
+BTW ALL generated Lynxer files are created below a temp dir and rm
 auto. Existing ``test/*.lynx`` fixtures are checked but never edited
 or deleted (obviously dude).
 """
@@ -1730,7 +1730,7 @@ global main(){ println("cli works"); }
         text=True,
         check=False,
     )
-    if inspect_result.returncode != 0 or "Clynxer Bytecode Inspector" not in inspect_result.stdout:
+    if inspect_result.returncode != 0 or "Lynxer Bytecode Inspector" not in inspect_result.stdout:
         raise ValidationFailure(
             f"CLI bytecode inspection failed: rc={inspect_result.returncode}, "
             f"stdout={inspect_result.stdout!r}, stderr={inspect_result.stderr!r}"
@@ -1828,7 +1828,7 @@ def test_installer_safety() -> None:
             f"installer: existing {INSTALL_PATH} is not an ELF executable"
         )
     if os.geteuid() != 0 and _matching_pids(INSTALL_PATH):
-        raise ValidationFailure("installer: found unexpected Clynxer processes")
+        raise ValidationFailure("installer: found unexpected Lynxer processes")
 
 
 def test_existing_fixtures() -> None:

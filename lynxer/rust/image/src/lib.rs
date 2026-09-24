@@ -4,7 +4,7 @@
 //! the native ABI as JSON strings, matching the rest of Lynxer's stdlib ABI.
 
 use base64::{engine::general_purpose::STANDARD, Engine};
-use lynxer_abi::{export_int, export_string, clynxer_module};
+use lynxer_abi::{export_int, export_string, lynxer_module};
 use image::codecs::jpeg::JpegEncoder;
 use image::imageops::{self, FilterType};
 use image::{DynamicImage, GenericImage, GenericImageView, ImageFormat, ImageReader, Rgba};
@@ -830,4 +830,4 @@ const OPS: &[(&str, &str, &str)] = &[
     ("toDataUrl", "image_data_url", "cdecl:cstring(...)"),
 ];
 
-clynxer_module!(OPS);
+lynxer_module!(OPS);

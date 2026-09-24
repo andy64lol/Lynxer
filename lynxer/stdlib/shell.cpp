@@ -86,7 +86,7 @@ extern "C" const char* shell_availableShells() {
     json += "]";
     return stable(json);
 }
-extern "C" int clynxer_module_init_v1(RegisterFunction f, RegisterConstant, RegisterType) {
+extern "C" int lynxer_module_init_v1(RegisterFunction f, RegisterConstant, RegisterType) {
     return f("runShell","shell_runShell","cdecl:int64(cstring)") &&
            f("runShellCapture","shell_runShellCapture","cdecl:cstring(cstring)") &&
            f("runShellSilent","shell_runShellSilent","cdecl:int64(cstring)") &&

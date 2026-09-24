@@ -1,5 +1,5 @@
 ////
-Clynxer Standard Library — venv
+Lynxer Standard Library — venv
 Virtual environment management via Python's built-in venv module.
 ////
 
@@ -55,7 +55,7 @@ global venv(){
 
     // List all virtual environments in the current working directory.
     // Detects venvs by checking for a pyvenv.cfg inside each subdirectory.
-    // Named listVenvs because "list" is a reserved keyword in Clynxer.
+    // Named listVenvs because "list" is a reserved keyword in Lynxer.
     // Returns: JSON array of venv names, e.g. ["my-env", "test-env"]
     global listVenvs(){
         str result = "";

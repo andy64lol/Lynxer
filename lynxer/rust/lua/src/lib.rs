@@ -1,6 +1,6 @@
 //! Lynxer `lua` stdlib backend using an embedded Lua 5.4 runtime.
 
-use lynxer_abi::{export_int, export_string, clynxer_module};
+use lynxer_abi::{export_int, export_string, lynxer_module};
 use mlua::{Lua, Value, Variadic};
 use std::fs;
 use std::rc::Rc;
@@ -91,4 +91,4 @@ const OPS: &[(&str, &str, &str)] = &[
     ("luaExists", "lua_exists", "cdecl:int64(...)"),
 ];
 
-clynxer_module!(OPS);
+lynxer_module!(OPS);

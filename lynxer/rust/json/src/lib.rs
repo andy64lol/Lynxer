@@ -10,7 +10,7 @@
 //!     `": "` / `,\n` separators (which is what nlohmann's `dump(n)` uses);
 //!   * the compact helpers use `": "` and `", "`.
 
-use lynxer_abi::{export_float, export_int, export_string, clynxer_module};
+use lynxer_abi::{export_float, export_int, export_string, lynxer_module};
 use serde::Serialize;
 use serde_json::Value;
 
@@ -352,4 +352,4 @@ const OPS: &[(&str, &str, &str)] = &[
     ("build", "json_build", "cdecl:cstring(...)"),
 ];
 
-clynxer_module!(OPS);
+lynxer_module!(OPS);

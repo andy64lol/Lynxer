@@ -1,5 +1,5 @@
 ////
-Clynxer standard library: network.
+Lynxer standard library: network.
 HTTP and WebSocket client backed by Rust (`ureq` + rustls + `tungstenite`),
 exposed through the native module `stdlib/network.so`. Replaces the older
 `http` and `net` modules for Lynxer; HTTPS/WSS need no system OpenSSL.

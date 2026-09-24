@@ -368,7 +368,7 @@ extern "C" std::int64_t time_daysInMonth(
            (month == 2 && time_isLeapYear(year) ? 1 : 0);
 }
 
-extern "C" int clynxer_module_init_v1(
+extern "C" int lynxer_module_init_v1(
     RegisterFunction f,
     RegisterConstant,
     RegisterType) {

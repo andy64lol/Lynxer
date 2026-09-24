@@ -1,5 +1,5 @@
 ////
-Clynxer standard library: sqldb.
+Lynxer standard library: sqldb.
 Small SQLite helpers backed by Python's sqlite3 module.
 ////
 

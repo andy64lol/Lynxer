@@ -1,6 +1,6 @@
-# Clynxer Implementation Comparison
+# Lynxer Implementation Comparison
 
-This skill provides a structured comparison between the **Python `clynxer`** and **C++ `lynxer`** implementations of the Clynxer language, along with syntax guidelines and usage examples.
+This skill provides a structured comparison between the **Python `clynxer`** and **C++ `lynxer`** implementations of the Lynxer language, along with syntax guidelines and usage examples.
 
 > **Updated 2026-09-23.** Lynxer is the primary implementation. It has
 > deliberately diverged from the Python reference (no bytecode, an ELF
@@ -39,14 +39,14 @@ This skill provides a structured comparison between the **Python `clynxer`** and
 
 ### Use **C++ `lynxer`** if:
 - You need **high performance** and **standalone executables**.
-- You want to **deploy Clynxer programs** without Python dependencies.
+- You want to **deploy Lynxer programs** without Python dependencies.
 - You rely on **native modules** (Rust/C++).
 
 ---
 
-## Clynxer Syntax Summary
+## Lynxer Syntax Summary
 
-Clynxer is a **statically-typed, imperative** language with support for functions, loops, and modules. Below is a **summarized syntax guide** for both implementations.
+Lynxer is a **statically-typed, imperative** language with support for functions, loops, and modules. Below is a **summarized syntax guide** for both implementations.
 
 ### Basic Syntax
 
@@ -54,7 +54,7 @@ Clynxer is a **statically-typed, imperative** language with support for function
 ```lynx
 int x = 42;
 float y = 3.14;
-str name = "Clynxer";
+str name = "Lynxer";
 bool flag = true;
 any value = x; // `any` type
 ```
@@ -117,7 +117,7 @@ global main() {
 
 ## Key Syntax Differences Between `clynxer` and `lynxer`
 
-While the **core syntax** of Clynxer is identical between `clynxer` and `lynxer`, there are **key differences** in behavior and supported features.
+While the **core syntax** of Lynxer is identical between `clynxer` and `lynxer`, there are **key differences** in behavior and supported features.
 
 ### 1. **Logical NOT Operator**
 - **Python `clynxer`**: Supports `!value`.
@@ -138,7 +138,7 @@ While the **core syntax** of Clynxer is identical between `clynxer` and `lynxer`
 
 ### 6. **Error Handling**
 - **Python `clynxer`**: Uses Python’s exception system.
-- **`lynxer`**: Uses Clynxer’s `try/catch` blocks, but some error messages may differ.
+- **`lynxer`**: Uses Lynxer’s `try/catch` blocks, but some error messages may differ.
 
 ---
 
@@ -148,7 +148,7 @@ While the **core syntax** of Clynxer is identical between `clynxer` and `lynxer`
 ```lynx
 // hello.lynx
 global main() {
-    println("Hello, Clynxer!");
+    println("Hello, Lynxer!");
 }
 ```
 
@@ -161,7 +161,7 @@ python -m clynxer hello.lynx
 ```lynx
 // hello.lynx
 global main() {
-    println("Hello, Clynxer!");
+    println("Hello, Lynxer!");
 }
 ```
 
@@ -201,4 +201,4 @@ make
 - [lynxer Documentation](lynxer/docs/README.md)
 - [lynxer Limitations](lynxer/docs/limitations.md)
 - [Parity scope](lynxer/docs/parity.md)
-- [Clynxer Language Guide](lynxer/docs/language.md)
+- [Lynxer Language Guide](lynxer/docs/language.md)

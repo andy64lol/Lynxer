@@ -1,4 +1,4 @@
-"""Linux syscall dispatch behind Clynxer's named ``syscall*`` built-ins.
+"""Linux syscall dispatch behind Lynxer's named ``syscall*`` built-ins.
 
 Syscall numbers are resolved for the host architecture with the
 ``system_calls`` tables and the calls are issued through ``ctypes``, so
@@ -21,7 +21,7 @@ try:
     import system_calls
 except ImportError as error:  # pragma: no cover - installation failure
     raise ImportError(
-        "Clynxer requires the 'system-calls' package; "
+        "Lynxer requires the 'system-calls' package; "
         "install dependencies from requirements_venv.txt"
     ) from error
 
@@ -55,7 +55,7 @@ _WORD_MASK = (1 << _WORD_BITS) - 1
 _WORD_MIN = -(1 << (_WORD_BITS - 1))
 _WORD_TYPE = ctypes.c_ulonglong if WORD_BYTES >= 8 else ctypes.c_uint32
 
-# Clynxer built-in name -> Linux syscall name.  ``clynxer.builtins`` derives the
+# Lynxer built-in name -> Linux syscall name.  ``clynxer.builtins`` derives the
 # built-in names from this table, keeping it the single source of truth.
 SYSCALL_TABLE: dict[str, str] = {
     "syscallGetCurrentDirectory": "getcwd",
@@ -170,7 +170,7 @@ _BUILTIN_ARCHITECTURES: dict[str, frozenset[str]] = {
 
 
 def syscall_name_for_arch(builtin: str, architecture: str) -> str:
-    """Return the Linux syscall used by a Clynxer built-in on one architecture.
+    """Return the Linux syscall used by a Lynxer built-in on one architecture.
 
     Architecture-neutral built-ins can select a kernel alternative. For
     example, ``syscallPollFileDescriptors`` selects ``poll`` on x86-64 and
@@ -232,7 +232,7 @@ def platform_error() -> str | None:
     if WORD_BYTES != 8:
         return (
             f"unsupported {WORD_BYTES * 8}-bit Python ABI on {architecture}; "
-            "Clynxer syscall builds require a 64-bit Python runtime"
+            "Lynxer syscall builds require a 64-bit Python runtime"
         )
     return None
 
@@ -369,7 +369,7 @@ def invoke(builtin: str, args: Sequence[int]) -> int:
             keepalive = _Timespec(timeout_ms // 1000, (timeout_ms % 1000) * 1_000_000)
             timeout_pointer = ctypes.addressof(keepalive)
         # ppoll(fds, nfds, timeout, sigmask, sigsetsize), with the same
-        # millisecond timeout API exposed by the existing Clynxer built-in.
+        # millisecond timeout API exposed by the existing Lynxer built-in.
         call_args = [
             call_args[0],
             call_args[1],

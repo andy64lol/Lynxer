@@ -823,7 +823,7 @@ std::vector<ImportRecord> collectImports(const std::string& source,
 std::string resolveModulePath(const std::string& sourceDirectory,
                               const std::string& requested);
 
-// The interpreter evaluates Clynxer code on one thread at a time. A built-in
+// The interpreter evaluates Lynxer code on one thread at a time. A built-in
 // that blocks on another thread holding this lock (see `nativeThreadJoin`)
 // releases it while it waits.
 void lockInterpreter();

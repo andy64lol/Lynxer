@@ -52,11 +52,11 @@ implemented in C++.
 ## Install
 
 ```bash
-sudo ./lynxer/lynxer --install      # copy to /usr/bin/clynxer
-sudo ./lynxer/lynxer --uninstall    # remove /usr/bin/clynxer
+sudo ./lynxer/lynxer --install      # copy to /usr/bin/lynxer
+sudo ./lynxer/lynxer --uninstall    # remove /usr/bin/lynxer
 ```
 
-`--install` copies the running executable to `/usr/bin/clynxer`; `--uninstall`
+`--install` copies the running executable to `/usr/bin/lynxer`; `--uninstall`
 removes it. Keep the matching `stdlib/` directory next to the installed binary,
 or imports will not resolve. See [CLI.md](CLI.md#installing).
 

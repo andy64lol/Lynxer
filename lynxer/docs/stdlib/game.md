@@ -254,16 +254,16 @@ Other deviations:
 ## Rust / C ABI
 
 The module is a single Rust `cdylib` (`rust/game`, crate `lynxer_game`); there
-is no C++ shim. It exports `clynxer_module_init_v1`, every op as
-`cdecl:<ret>(...)`, and `clynxer_module_attach_v1`. Macroquad owns the window and
-event loop, and each frame it invokes the registered Clynxer callbacks through
+is no C++ shim. It exports `lynxer_module_init_v1`, every op as
+`cdecl:<ret>(...)`, and `lynxer_module_attach_v1`. Macroquad owns the window and
+event loop, and each frame it invokes the registered Lynxer callbacks through
 the host API. It uses two additive native-module ABI extensions documented in
 [`docs/native-module-abi.md`](../native-module-abi.md):
 
 - the packed `...` signature, which passes any number of numeric/string
   arguments; and
-- the optional `clynxer_module_attach_v1` entry point, which provides an
-  `invoke` callback so a module can call a Clynxer function by name.
+- the optional `lynxer_module_attach_v1` entry point, which provides an
+  `invoke` callback so a module can call a Lynxer function by name.
 
 ---
 
@@ -273,5 +273,5 @@ the host API. It uses two additive native-module ABI extensions documented in
   implements, including the error sentinel family it uses.
 - [builtins.md](../builtins.md) — the functions the interpreter implements
   itself.
-- [parity.md](../parity.md) — the parity scope with Python Clynxer.
+- [parity.md](../parity.md) — the parity scope with Python Lynxer.
 - [limitations.md](../limitations.md) — the full divergence register.

@@ -1,6 +1,6 @@
 # CLI
 
-The Lynxer executable is `lynxer`. `--install` copies it to `/usr/bin/clynxer`
+The Lynxer executable is `lynxer`. `--install` copies it to `/usr/bin/lynxer`
 and `--uninstall` removes it; otherwise run it from where it was built.
 
 ```bash
@@ -65,7 +65,7 @@ lynxer --ast program.lynx
 ```
 
 `--ast` lexes and parses the file and prints the resulting tree without running
-it: the header `Clynxer AST` / `===========`, then a position-free, indented
+it: the header `Lynxer AST` / `===========`, then a position-free, indented
 dump of every top-level function and its statements. Source line/column are
 omitted. A syntax error is reported with its source location and exits `1`; the
 flag requires exactly one file argument.
@@ -156,15 +156,15 @@ The version string comes from the `version` key in `lynxer/lynxer.config`
 ## Installing
 
 ```bash
-sudo lynxer --install      # copy this executable to /usr/bin/clynxer
-sudo lynxer --uninstall    # remove /usr/bin/clynxer
+sudo lynxer --install      # copy this executable to /usr/bin/lynxer
+sudo lynxer --uninstall    # remove /usr/bin/lynxer
 ```
 
 `--install` copies the running executable (resolved through `/proc/self/exe`)
-to `/usr/bin/clynxer` and makes it executable. Keep the matching `stdlib/`
+to `/usr/bin/lynxer` and makes it executable. Keep the matching `stdlib/`
 directory next to the installed binary, or imports will not resolve. Without
 write permission it prints the failure and a `sudo` hint and exits `1`.
-`--uninstall` removes `/usr/bin/clynxer`; if it is absent it reports why and
+`--uninstall` removes `/usr/bin/lynxer`; if it is absent it reports why and
 exits `1`.
 
 ## Removed with the bytecode backend
@@ -190,4 +190,4 @@ makes `make testLynxer` skip the display and audio fixtures. See
 
 - [install.md](install.md) — build commands and artifacts.
 - [modules.md](modules.md) — imports and `--compile` resolution.
-- [parity.md](parity.md) — what is deliberately different from Python Clynxer.
+- [parity.md](parity.md) — what is deliberately different from Python Lynxer.

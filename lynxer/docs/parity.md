@@ -1,6 +1,6 @@
 # Parity scope
 
-Lynxer is a standalone C++ implementation of Clynxer, not a drop-in clone of the
+Lynxer is a standalone C++ implementation of Lynxer, not a drop-in clone of the
 Python implementation. The Python implementation is the behaviour reference, but
 Lynxer has deliberately diverged in several places, so "does it match Python?"
 is only a meaningful question for part of the surface. This page draws that
@@ -94,8 +94,8 @@ gated by Lynxer's own tests and the golden CLI cases.
 
 - the `--compile` ELF executable and `--bundle` alias;
 - `--include` and the `bundledFile()` / `bundledFiles()` builtins;
-- the Rust `cdylib` native-module ABI and its `clynxer_module_init_v1` /
-  `clynxer_module_attach_v1` entry points;
+- the Rust `cdylib` native-module ABI and its `lynxer_module_init_v1` /
+  `lynxer_module_attach_v1` entry points;
 - the `network` + `server` modules (the Python side has the older `http`/`net`);
 - cooperative `nativeThread*` execution;
 - the AST optimizer, `--no-opt` and `LYNXER_OPT_REPORT`;

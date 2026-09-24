@@ -1,5 +1,5 @@
 ////
-Clynxer standard library: csv.
+Lynxer standard library: csv.
 CSV and TSV data helpers backed by the native C++ module `stdlib/csv.so`.
 
 Rows are exchanged as JSON strings. Parsing and writing follow Python's `csv`

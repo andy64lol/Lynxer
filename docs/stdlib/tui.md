@@ -98,9 +98,9 @@ global setup(){
 }
 
 global main(){
-    global.tui.printStyled("Clynxer is ready", "bold green");
+    global.tui.printStyled("Lynxer is ready", "bold green");
     global.tui.rule("Status");
-    global.tui.panel("Rich terminal output from Clynxer.", "tui");
+    global.tui.panel("Rich terminal output from Lynxer.", "tui");
     global.tui.table(
         "Users",
         "[\"Name\", \"Role\"]",
@@ -110,6 +110,6 @@ global main(){
 ```
 
 Rendering functions write directly to the terminal. If Rich is unavailable,
-they print an `Error: ...` message instead of raising a Clynxer runtime error.
+they print an `Error: ...` message instead of raising a Lynxer runtime error.
 Progress, status, live, table, tree, and layout handles remain valid until the
-Clynxer process exits or `init()` resets them.
+Lynxer process exits or `init()` resets them.

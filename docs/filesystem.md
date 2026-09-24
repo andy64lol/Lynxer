@@ -1,6 +1,6 @@
 # Filesystem API
 
-Clynxer exposes a small handle-based filesystem API through concise camelCase
+Lynxer exposes a small handle-based filesystem API through concise camelCase
 `filesystem*` built-ins. Paths are passed as strings and filesystem failures are
 reported as runtime errors containing both the operation and the original
 errno number/text.
@@ -31,5 +31,5 @@ global main() {
 | `filesystemReadLink(path)` | Read a symbolic link target. |
 | `filesystemChmod(path, mode)` | Set numeric permission bits. |
 
-Handles left open by a program are closed when the Clynxer runtime exits. An
+Handles left open by a program are closed when the Lynxer runtime exits. An
 unknown or already closed handle is an error rather than an implicit fallback.

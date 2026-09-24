@@ -8,13 +8,13 @@ as it applies to third-party modules.
 A module may be written in C++ (`stdlib/<name>.cpp`) or in Rust. The Rust
 backends — `game`, `image`, `json`, `lua`, `network`, `server`, `sound`,
 `sqldb` and `tui` — live under `rust/` and are all `cdylib`s that export
-`clynxer_module_init_v1`, their ops, and (for `game`)
-`clynxer_module_attach_v1` directly; there is no C++ shim. The `lynxer_abi`
+`lynxer_module_init_v1`, their ops, and (for `game`)
+`lynxer_module_attach_v1` directly; there is no C++ shim. The `lynxer_abi`
 crate provides the shared FFI plumbing (packed-argument view, panic guards,
 string result buffer, host API, and the registration helper).
 
 The workspace has one more member, `rust/ffi`, which is an intentional **no-op**
-`cdylib`: its `clynxer_module_init_v1` registers nothing and returns `0`. The
+`cdylib`: its `lynxer_module_init_v1` registers nothing and returns `0`. The
 `ffi*` builtins are implemented in C++, not by that crate, so the crate exists
 only to keep the workspace uniform and should not be read as dead code.
 
@@ -23,7 +23,7 @@ only to keep the workspace uniform and should not be read as dead code.
 Every module exports one C symbol:
 
 ```c
-int clynxer_module_init_v1(
+int lynxer_module_init_v1(
     int (*register_function)(const char *name, const char *symbol,
                              const char *signature),
     int (*register_constant)(const char *name, int64_t value),
@@ -38,7 +38,7 @@ the interpreter reports the short reason it recorded — `registered symbol not
 found` for an unresolved symbol, `duplicate native registration` for a repeated
 name — not the offending name.
 
-- `register_function(name, symbol, signature)` — `name` is the Clynxer-facing
+- `register_function(name, symbol, signature)` — `name` is the Lynxer-facing
   name under the module namespace; `symbol` is the exported C name; `signature`
   uses the grammar below.
 - `register_constant(name, value)` — exposed as a read-only integer field on the
@@ -66,7 +66,7 @@ global main(){
 ```
 
 A path ending in `.so` is treated as a native module; anything else is compiled
-as Clynxer source. The namespace is the import alias, or the file stem when no
+as Lynxer source. The namespace is the import alias, or the file stem when no
 alias is given.
 
 ## Signature grammar
@@ -75,8 +75,8 @@ alias is given.
 cdecl:<return>(<arg>,<arg>,...)
 ```
 
-Type tokens are `int64` (Clynxer `int`), `double`/`float64` (Clynxer `float`) and
-`cstring` (Clynxer `str`). Argument lists may be empty.
+Type tokens are `int64` (Lynxer `int`), `double`/`float64` (Lynxer `float`) and
+`cstring` (Lynxer `str`). Argument lists may be empty.
 
 Before looking a signature up, the dispatcher **normalizes** the tokens: every
 integer width is rewritten to `int64` (`int8`, `int16`, `int32`, `uint8`,
@@ -177,12 +177,12 @@ const char* function(const double* nums, int64_t num_count,
                      const char* const* strs, int64_t str_count);
 ```
 
-Numbers (Clynxer `int`, `float`, and `bool` as `0`/`1`) arrive in `nums` in their
+Numbers (Lynxer `int`, `float`, and `bool` as `0`/`1`) arrive in `nums` in their
 original order; strings arrive in `strs` in theirs. Either pointer is null when
 its count is zero, and at most 64 arguments **in total** are accepted across
 both lists (`kMaxPackedArgs` in `lynxer/ast.cpp`); a call with more raises a
 located `SourceError`. Any other argument type raises a located `SourceError`.
-`lynxer/stdlib/clynxer_native_abi.h` documents the convention for module
+`lynxer/stdlib/lynxer_native_abi.h` documents the convention for module
 authors.
 
 **Arguments are indexed per type, not by position.** `nums` and `strs` are
@@ -203,27 +203,27 @@ wrapper never passes — or if a wrapper calls an op the backend does not
 register. Write the reads the way the wrapper passes them, and the check stays
 quiet.
 
-## Calling back into Clynxer
+## Calling back into Lynxer
 
 A module may additionally export
 
 ```c
-int clynxer_module_attach_v1(const ClynxerHostApi *host);
+int lynxer_module_attach_v1(const LynxerHostApi *host);
 ```
 
 and the interpreter calls it (via `dlsym`) right after
-`clynxer_module_init_v1` succeeds. Returning non-zero rejects the module:
+`lynxer_module_init_v1` succeeds. Returning non-zero rejects the module:
 
 ```c
-typedef struct ClynxerHostApi {
+typedef struct LynxerHostApi {
     int version; // 1
     void *context;
     int (*invoke)(void *context, const char *name, int has_arg, double arg);
     int (*interrupted)(void *context);
-} ClynxerHostApi;
+} LynxerHostApi;
 ```
 
-- `invoke` runs the Clynxer function `name` with no argument or one numeric
+- `invoke` runs the Lynxer function `name` with no argument or one numeric
   argument, and returns `0` on success.
 - `interrupted` returns non-zero once the process has received SIGINT.
 
@@ -285,7 +285,7 @@ extern "C" const char* pair_label(const char* name, std::int64_t count) {
     return stable(std::string(name) + ":" + std::to_string(count));
 }
 
-extern "C" int clynxer_module_init_v1(RegisterFunction function,
+extern "C" int lynxer_module_init_v1(RegisterFunction function,
                                      RegisterConstant,
                                      RegisterType) {
     return function("sum", "pair_sum", "cdecl:int64(int64,int64)") &&
@@ -315,7 +315,7 @@ first try to fit one of them:
 | Strings (`cstring`) | text, and paths |
 | Integer handles | anything the module owns and must outlive a call |
 | JSON strings | stateless structured data — lists, tuples and records |
-| Named callbacks (`clynxer_module_attach_v1`) | the module driving Clynxer code |
+| Named callbacks (`lynxer_module_attach_v1`) | the module driving Lynxer code |
 
 An additive ABI change is only merged with all four of:
 

@@ -118,7 +118,7 @@ extern "C" std::int64_t sys_exit(std::int64_t code) {
     return 0;
 }
 
-extern "C" int clynxer_module_init_v1(RegisterFunction f, RegisterConstant, RegisterType) {
+extern "C" int lynxer_module_init_v1(RegisterFunction f, RegisterConstant, RegisterType) {
     return f("platform","sys_platform","cdecl:cstring()") &&
            f("version","sys_version","cdecl:cstring()") &&
            f("versionInfo","sys_versionInfo","cdecl:cstring()") &&

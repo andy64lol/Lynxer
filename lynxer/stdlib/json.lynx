@@ -1,5 +1,5 @@
 ////
-Clynxer standard library: json.
+Lynxer standard library: json.
 JSON encoding and decoding helpers backed by Rust (`serde_json`), exposed
 through the native module `stdlib/json.so`.
 
@@ -31,11 +31,11 @@ global jsonGetBool(str s, str key) -> bool {
 }
 // Returns the top-level keys of a JSON object as a comma-separated string.
 global jsonKeys(str s) -> str { return global.nativeJson.keys(s); }
-// JSON-encodes a Clynxer string (adds quotes and escapes).
+// JSON-encodes a Lynxer string (adds quotes and escapes).
 global jsonStringify(str s) -> str {
     return global.nativeJson.stringify(s);
 }
-// Builds a JSON array from a Clynxer list of values.
+// Builds a JSON array from a Lynxer list of values.
 global jsonArray(list lst) -> str { return listJsonArray(lst); }
 // Builds a JSON object from a flat list of key, value, key, value, ...
 global jsonObject(list lst) -> str { return listJsonObject(lst); }

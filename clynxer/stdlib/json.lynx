@@ -1,5 +1,5 @@
 ////
-Clynxer standard library: json.
+Lynxer standard library: json.
 JSON encoding and decoding helpers.
 ////
 
@@ -103,7 +103,7 @@ global jsonKeys(str s){
     return result;
 }
 
-// JSON-encodes a Clynxer string value (adds quotes and escapes).
+// JSON-encodes a Lynxer string value (adds quotes and escapes).
 global jsonStringify(str s){
     str result = "";
     rawPy(){
@@ -113,12 +113,12 @@ global jsonStringify(str s){
     return result;
 }
 
-// Builds a JSON array from a Clynxer list of values.
+// Builds a JSON array from a Lynxer list of values.
 global jsonArray(list lst){
     return listJsonArray(lst);
 }
 
-// Builds a JSON object from a flat Clynxer list alternating key, value, key, value…
+// Builds a JSON object from a flat Lynxer list alternating key, value, key, value…
 global jsonObject(list lst){
     return listJsonObject(lst);
 }
@@ -257,7 +257,7 @@ global jsonType(str s, str key){
     return result;
 }
 
-// Build a JSON object from a Clynxer string of alternating key=value pairs separated by "|".
+// Build a JSON object from a Lynxer string of alternating key=value pairs separated by "|".
 // e.g. jsonBuild("name=Alice|age=30") → '{"name": "Alice", "age": "30"}'
 global jsonBuild(str pairs){
     str result = "";

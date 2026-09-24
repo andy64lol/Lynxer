@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Capture and verify Clynxer's Stage 1 behavior corpus.
+"""Capture and verify Lynxer's Stage 1 behavior corpus.
 
 The corpus stores the exact command-line result for every runnable
 ``test/*.lynx`` fixture and an import smoke test for every stdlib module.

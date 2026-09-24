@@ -37,7 +37,7 @@ def _kind(value: Any) -> str:
 
 
 def value_type_name(value: Any) -> str:
-    """Return the Clynxer declaration type for a runtime value."""
+    """Return the Lynxer declaration type for a runtime value."""
     kind = _kind(value)
     if kind == "Null":
         return "none"
@@ -77,7 +77,7 @@ def value_type_name(value: Any) -> str:
 
 
 def type_matches(declared_type: str | None, value: Any) -> bool:
-    """Return whether a runtime value satisfies a Clynxer declaration."""
+    """Return whether a runtime value satisfies a Lynxer declaration."""
     if declared_type in (None, "any"):
         return True
 

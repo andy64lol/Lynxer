@@ -8,7 +8,7 @@ extern "C" std::int64_t add(std::int64_t left, std::int64_t right) {
     return left + right;
 }
 
-extern "C" int clynxer_module_init_v1(RegisterFunction registerFunction,
+extern "C" int lynxer_module_init_v1(RegisterFunction registerFunction,
                                       RegisterConstant registerConstant,
                                       RegisterType registerType) {
     (void)registerType;

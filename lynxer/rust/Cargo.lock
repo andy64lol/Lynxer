@@ -304,100 +304,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4bfbf56724aa9eca8afa4fcfadeb479e722935bb2a0900c2d37e0cc477af0688"
 
 [[package]]
-name = "lynxer_abi"
-version = "0.1.0"
-
-[[package]]
-name = "lynxer_ffi"
-version = "0.1.0"
-dependencies = [
- "lynxer_abi",
- "libc",
-]
-
-[[package]]
-name = "lynxer_game"
-version = "0.1.0"
-dependencies = [
- "lynxer_abi",
- "macroquad",
-]
-
-[[package]]
-name = "lynxer_image"
-version = "0.1.0"
-dependencies = [
- "base64 0.22.1",
- "lynxer_abi",
- "image 0.25.10",
-]
-
-[[package]]
-name = "lynxer_json"
-version = "0.1.0"
-dependencies = [
- "lynxer_abi",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "lynxer_lua"
-version = "0.1.0"
-dependencies = [
- "lynxer_abi",
- "mlua",
-]
-
-[[package]]
-name = "lynxer_network"
-version = "0.1.0"
-dependencies = [
- "lynxer_abi",
- "libc",
- "tungstenite 0.30.0",
- "ureq",
-]
-
-[[package]]
-name = "lynxer_server"
-version = "0.1.0"
-dependencies = [
- "axum",
- "lynxer_abi",
- "tokio",
-]
-
-[[package]]
-name = "lynxer_sound"
-version = "0.1.0"
-dependencies = [
- "lynxer_abi",
- "cpal",
- "rodio",
- "symphonia",
-]
-
-[[package]]
-name = "lynxer_sqldb"
-version = "0.1.0"
-dependencies = [
- "base64 0.21.7",
- "lynxer_abi",
- "rusqlite",
- "serde_json",
-]
-
-[[package]]
-name = "lynxer_tui"
-version = "0.1.0"
-dependencies = [
- "lynxer_abi",
- "crossterm",
- "ratatui",
-]
-
-[[package]]
 name = "color_quant"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1210,6 +1116,100 @@ checksum = "869665372263eb337b14f480cfb864b89f12eade4eb42cb415f71517b4a67572"
 dependencies = [
  "cc",
  "which",
+]
+
+[[package]]
+name = "lynxer_abi"
+version = "0.1.0"
+
+[[package]]
+name = "lynxer_ffi"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "lynxer_abi",
+]
+
+[[package]]
+name = "lynxer_game"
+version = "0.1.0"
+dependencies = [
+ "lynxer_abi",
+ "macroquad",
+]
+
+[[package]]
+name = "lynxer_image"
+version = "0.1.0"
+dependencies = [
+ "base64 0.22.1",
+ "image 0.25.10",
+ "lynxer_abi",
+]
+
+[[package]]
+name = "lynxer_json"
+version = "0.1.0"
+dependencies = [
+ "lynxer_abi",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "lynxer_lua"
+version = "0.1.0"
+dependencies = [
+ "lynxer_abi",
+ "mlua",
+]
+
+[[package]]
+name = "lynxer_network"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "lynxer_abi",
+ "tungstenite 0.30.0",
+ "ureq",
+]
+
+[[package]]
+name = "lynxer_server"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "lynxer_abi",
+ "tokio",
+]
+
+[[package]]
+name = "lynxer_sound"
+version = "0.1.0"
+dependencies = [
+ "cpal",
+ "lynxer_abi",
+ "rodio",
+ "symphonia",
+]
+
+[[package]]
+name = "lynxer_sqldb"
+version = "0.1.0"
+dependencies = [
+ "base64 0.21.7",
+ "lynxer_abi",
+ "rusqlite",
+ "serde_json",
+]
+
+[[package]]
+name = "lynxer_tui"
+version = "0.1.0"
+dependencies = [
+ "crossterm",
+ "lynxer_abi",
+ "ratatui",
 ]
 
 [[package]]

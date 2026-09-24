@@ -1,7 +1,7 @@
 # path
 
 Path manipulation and filesystem helpers backed by Python's `pathlib.Path`.
-Paths are represented as Clynxer strings, so they can be stored and passed
+Paths are represented as Lynxer strings, so they can be stored and passed
 between functions without exposing Python objects.
 
 ```c

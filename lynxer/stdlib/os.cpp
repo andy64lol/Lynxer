@@ -1,4 +1,4 @@
-// Clynxer `os` stdlib backend: filesystem, process, environment and platform
+// Lynxer `os` stdlib backend: filesystem, process, environment and platform
 // helpers implemented with <filesystem> plus POSIX APIs.
 
 #include "native_json.hpp"
@@ -434,7 +434,7 @@ extern "C" const char* os_getSystemDistro() {
     return stable(native_json::dump(object, false));
 }
 
-extern "C" int clynxer_module_init_v1(RegisterFunction function,
+extern "C" int lynxer_module_init_v1(RegisterFunction function,
                                      RegisterConstant, RegisterType) {
     return function("getcwd", "os_getcwd", "cdecl:cstring()") &&
                    function("chdir", "os_chdir", "cdecl:int64(cstring)") &&

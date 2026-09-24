@@ -551,7 +551,7 @@ bool isTruthy(const Value& value) {
         return !(*tuple)->elements.empty();
     }
     // Sentinels, objects, chars, records, enums, and codeblocks are always
-    // truthy, matching Clynxer.
+    // truthy, matching Lynxer.
     return true;
 }
 

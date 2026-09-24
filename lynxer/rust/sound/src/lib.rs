@@ -1,11 +1,11 @@
 //! Lynxer `sound` stdlib backend: audio loading and playback.
 //!
 //! Replaces the Python Arcade backend with Rust `rodio`/`cpal`.
-//! The Clynxer-facing contract matches `clynxer/stdlib/sound.lynx`:
+//! The Lynxer-facing contract matches `lynxer/stdlib/sound.lynx`:
 //! handles are integer indices into a module-local registry,
 //! and all operations return sentinels (`-1`/`false`/`0.0`) on error.
 
-use lynxer_abi::{export_float, export_int, clynxer_module};
+use lynxer_abi::{export_float, export_int, lynxer_module};
 use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink, Source};
 use std::fs::File;
 use std::io::BufReader;
@@ -293,4 +293,4 @@ const OPS: &[(&str, &str, &str)] = &[
     ("count", "sound_count", "cdecl:int64(...)"),
 ];
 
-clynxer_module!(OPS);
+lynxer_module!(OPS);

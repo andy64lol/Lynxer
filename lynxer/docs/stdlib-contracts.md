@@ -19,8 +19,8 @@ A module is always two files with the same stem:
 
 | File | Role |
 | --- | --- |
-| `stdlib/<name>.lynx` | The Clynxer-facing module. Defines `setup()` and one `global` function per operation, and forwards each one to the namespace its `setup()` imported. |
-| `stdlib/<name>.so` | The native backend. Built from `stdlib/<name>.cpp` (C++) or `rust/<name>/` (Rust), and registers its operations through `clynxer_module_init_v1`. |
+| `stdlib/<name>.lynx` | The Lynxer-facing module. Defines `setup()` and one `global` function per operation, and forwards each one to the namespace its `setup()` imported. |
+| `stdlib/<name>.so` | The native backend. Built from `stdlib/<name>.cpp` (C++) or `rust/<name>/` (Rust), and registers its operations through `lynxer_module_init_v1`. |
 
 The wrapper is the contract's public surface; the backend is an implementation
 detail behind it. **A wrapper must never expose a crate- or library-specific
@@ -32,7 +32,7 @@ handle — see [native-module-abi.md](native-module-abi.md) for why.
 ### Operation names
 
 - The backend registers each operation under the name the wrapper calls; the
-  Clynxer-facing name is a lowerCamelCase `global` function.
+  Lynxer-facing name is a lowerCamelCase `global` function.
 - The wrapper imports its backend once, in `setup()`, with
   `importAs("<name>.so", "native<Name>")`. Nothing else in the wrapper refers to
   the backend.
@@ -41,7 +41,7 @@ handle — see [native-module-abi.md](native-module-abi.md) for why.
 
 ### Argument order and types
 
-- A Clynxer `str` crosses as `cstring`, and `int`, `float` and `bool` cross as
+- A Lynxer `str` crosses as `cstring`, and `int`, `float` and `bool` cross as
   numbers. Booleans are `0`/`1`; the wrapper converts back with `!= 0`.
 - **A Rust backend must register the packed `cdecl:<ret>(...)` signature.** The
   packed argument view indexes per kind, so the *i*-th numeric argument is
@@ -57,7 +57,7 @@ handle — see [native-module-abi.md](native-module-abi.md) for why.
 - Handles are stable for the life of the entry: an index is never reused while
   the entry is live, and released entries leave a gap.
 - The backend owns the underlying resource. The wrapper never sees it, and the
-  Clynxer program cannot reach it except through operations.
+  Lynxer program cannot reach it except through operations.
 - Passing an out-of-range or released handle is **not** an error condition: the
   operation returns its failure sentinel.
 
@@ -84,7 +84,7 @@ picks one family and applies it consistently:
 
 `csv` mixes the first two: its table-returning operations answer with the status
 string (`"ok"` / `"ERROR: ..."`), and the rest use scalar sentinels.
-`colorlib`, `text` and `typing` are pure Clynxer and have no native boundary to
+`colorlib`, `text` and `typing` are pure Lynxer and have no native boundary to
 report across.
 
 Operations returning a JSON document return `[]` or `{}` for an empty result
@@ -98,10 +98,10 @@ the module's sentinel).
 
 ### Callbacks
 
-One module currently registers a callback into Clynxer: `game`, through the
-optional `clynxer_module_attach_v1` host API. The contract for it is:
+One module currently registers a callback into Lynxer: `game`, through the
+optional `lynxer_module_attach_v1` host API. The contract for it is:
 
-- Callbacks are **named Clynxer functions**, resolved against the top-level
+- Callbacks are **named Lynxer functions**, resolved against the top-level
   program, not closures or function pointers.
 - The name is supplied by the program (`setUpdateCallback("onUpdate")`) and
   resolved when the callback fires, so a missing function is reported at that
@@ -139,7 +139,7 @@ Any future callback must be declared here before the module ships.
 | Module | Backend | Identity model | Cleanup owner |
 | --- | --- | --- | --- |
 | `cli` | C++ | none | none |
-| `colorlib` | pure Clynxer | none | none |
+| `colorlib` | pure Lynxer | none | none |
 | `csv` | C++ | none — paths are strings | none |
 | `debug` | C++ + pure | none | none |
 | `fileIO` | C++ | none — paths are strings | none |
@@ -161,10 +161,10 @@ Any future callback must be declared here before the module ships.
 | `sound` | Rust | **integer handles** into a backend registry | caller: `releaseSound(handle)` |
 | `sqldb` | Rust | **no handle** — every call names a database path and gets its own connection | none (the connection is closed per call) |
 | `sys` | C++ | none | none |
-| `text` | pure Clynxer | none | none |
+| `text` | pure Lynxer | none | none |
 | `time` | C++ | none | none |
 | `tui` | Rust | placeholder indices only; no state is kept | none |
-| `typing` | pure Clynxer | none | none |
+| `typing` | pure Lynxer | none | none |
 
 Per-module divergences from the Python reference are recorded in
 [limitations.md](limitations.md), not here: this page fixes what Lynxer's own

@@ -1,4 +1,4 @@
-// Clynxer `cli` stdlib backend: argument, environment, terminal and process
+// Lynxer `cli` stdlib backend: argument, environment, terminal and process
 // helpers for command-line programs.
 //
 // The Python reference also exposes Click/Typer command builders; those wrap
@@ -244,7 +244,7 @@ extern "C" std::int64_t cli_runCode(const char* command) {
     return code;
 }
 
-extern "C" int clynxer_module_init_v1(RegisterFunction function,
+extern "C" int lynxer_module_init_v1(RegisterFunction function,
                                      RegisterConstant, RegisterType) {
     return function("argv", "cli_argv", "cdecl:cstring()") &&
                    function("argCount", "cli_argCount", "cdecl:int64()") &&

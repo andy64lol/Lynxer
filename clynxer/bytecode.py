@@ -1,9 +1,9 @@
-"""Clynxer bytecode compilation, loading, and execution.
+"""Lynxer bytecode compilation, loading, and execution.
 
 The payload in a ``.lynxc`` file is a zlib-compressed stack-machine instruction
 stream.  It is not a pickle and it does not contain a Python object graph.
 Instructions push constants, build containers, and construct nodes from a fixed
-class table.  The resulting program node is then handed to the existing Clynxer
+class table.  The resulting program node is then handed to the existing Lynxer
 runtime.  Runtime classes are imported lazily so this module can be imported by
 ``clynxer.py`` without creating a circular import during interpreter startup.
 """
@@ -256,7 +256,7 @@ def _native_vm() -> Any:
 def _registry() -> tuple[list[type[Any]], dict[type, int]]:
     """Return ``([classes], {class: id})`` for every encodable AST type.
 
-    Ids are assigned over the sorted class names, so a given Clynxer runtime
+    Ids are assigned over the sorted class names, so a given Lynxer runtime
     derives the same table whether it is writing or reading a payload.
     ``Position`` is excluded: it carries the whole source text and is encoded
     by its own tag instead.
@@ -403,7 +403,7 @@ class _Encoder:
             return
 
         raise ValueError(
-            f"cannot encode a value of type {value_type.__name__!r} into Clynxer bytecode"
+            f"cannot encode a value of type {value_type.__name__!r} into Lynxer bytecode"
         )
 
     def interpreter(self) -> Any:
@@ -642,7 +642,7 @@ def _emit_instruction_value(out: bytearray, value: Any) -> None:
         return
 
     raise ValueError(
-        f"cannot compile a value of type {value_type.__name__!r} into Clynxer bytecode"
+        f"cannot compile a value of type {value_type.__name__!r} into Lynxer bytecode"
     )
 
 
@@ -651,7 +651,7 @@ def _compile_instruction_stream(node: Any) -> bytes:
     instructions = bytearray()
     _emit_instruction_value(instructions, node)
     if len(instructions) > _MAX_INSTRUCTIONS:
-        raise ValueError("compiled Clynxer instruction stream is too large")
+        raise ValueError("compiled Lynxer instruction stream is too large")
     return bytes(instructions)
 
 
@@ -854,7 +854,7 @@ def _read_bytecode(fn: str) -> tuple[dict[str, Any], int, int]:
             magic = bytecode_file.read(len(BYTECODE_MAGIC))
             if magic != BYTECODE_MAGIC:
                 raise ValueError(
-                    f"'{fn}' is not a valid Clynxer bytecode file "
+                    f"'{fn}' is not a valid Lynxer bytecode file "
                     f"(bad magic bytes: {magic!r})"
                 )
             compressed = bytecode_file.read()
@@ -880,7 +880,7 @@ def _read_bytecode(fn: str) -> tuple[dict[str, Any], int, int]:
     except (ValueError, zlib.error) as exc:
         raise ValueError(
             f"'{fn}' bytecode is corrupt or was compiled with an older "
-            f"Clynxer version (decompression failed: {exc}). "
+            f"Lynxer version (decompression failed: {exc}). "
             "Recompile the source file to fix this."
         ) from exc
 
@@ -897,23 +897,23 @@ def _read_bytecode(fn: str) -> tuple[dict[str, Any], int, int]:
         TypeError,
     ) as exc:
         raise ValueError(
-            f"'{fn}' does not contain a valid Clynxer bytecode payload: {exc}"
+            f"'{fn}' does not contain a valid Lynxer bytecode payload: {exc}"
         ) from exc
     if not isinstance(data, dict):
-        raise ValueError(f"'{fn}' does not contain a valid Clynxer bytecode payload")  # noqa: TRY004
+        raise ValueError(f"'{fn}' does not contain a valid Lynxer bytecode payload")  # noqa: TRY004
 
     file_version = data.get("version")
     if file_version != BYTECODE_VERSION:
         raise ValueError(
             f"'{fn}' was compiled with bytecode version {file_version} but this "
-            f"Clynxer runtime expects version {BYTECODE_VERSION}.  "
+            f"Lynxer runtime expects version {BYTECODE_VERSION}.  "
             "Recompile the source file with "
             "'clynxer --compile <source.lynx>' to generate an up-to-date .lynxc file."
         )
 
     code = data.get("code")
     if not isinstance(code, bytes):
-        raise ValueError(f"'{fn}' does not contain a compiled Clynxer instruction stream")  # noqa: TRY004
+        raise ValueError(f"'{fn}' does not contain a compiled Lynxer instruction stream")  # noqa: TRY004
     try:
         data["node"] = _decode_instruction_stream(code)
     except (
@@ -927,14 +927,14 @@ def _read_bytecode(fn: str) -> tuple[dict[str, Any], int, int]:
         TypeError,
     ) as exc:
         raise ValueError(
-            f"'{fn}' does not contain a valid Clynxer instruction stream: {exc}"
+            f"'{fn}' does not contain a valid Lynxer instruction stream: {exc}"
         ) from exc
 
     if "node" not in data:
-        raise ValueError(f"'{fn}' does not contain a compiled Clynxer program")
+        raise ValueError(f"'{fn}' does not contain a compiled Lynxer program")
     runtime = _runtime()
     if not isinstance(data["node"], runtime.ProgramNode):
-        raise ValueError(f"'{fn}' does not contain a valid compiled Clynxer program")  # noqa: TRY004
+        raise ValueError(f"'{fn}' does not contain a valid compiled Lynxer program")  # noqa: TRY004
 
     return data, len(raw), len(compressed)
 

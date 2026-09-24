@@ -1,6 +1,6 @@
-# Clynxer Standard Library
+# Lynxer Standard Library
 
-This directory contains documentation for all Clynxer standard library modules.
+This directory contains documentation for all Lynxer standard library modules.
 
 ## Modules
 
