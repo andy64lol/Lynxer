@@ -1,4 +1,4 @@
-name: Build Lynxer (Python) on ARM64
+name: Build Clynxer (Python) on ARM64
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    name: Build and Test Lynxer (Python) on ARM64
+    name: Build and Test Clynxer (Python) on ARM64
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
 
@@ -27,11 +27,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libasound2-dev pkg-config
 
-      - name: Build Lynxer (Python) Lite for ARM64
+      - name: Build Clynxer (Python) Lite for ARM64
         run: make buildClynxerLite
 
-      - name: Build Lynxer (Python) Full for ARM64
+      - name: Build Clynxer (Python) Full for ARM64
         run: make buildClynxer
 
-      - name: Run Lynxer (Python) tests on ARM64
+      - name: Run Clynxer (Python) tests on ARM64
         run: make testClynxer

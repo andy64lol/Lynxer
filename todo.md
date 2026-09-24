@@ -1,8 +1,9 @@
 # Lynxer rebuild from scratch
 
-Lynxer is the standalone C++ implementation being rebuilt beside the original
-Python Lynxer. The Python implementation is the behavior reference; it is not a
-runtime dependency and its internals are not copied into Lynxer.
+Lynxer is the standalone C++ implementation, built beside the frozen Python
+reference implementation in `clynxer/`. The Python implementation is the
+behavior reference; it is not a runtime dependency and its internals are not
+copied into Lynxer.
 
 ## Next up — compiler pivot and stdlib consolidation
 
