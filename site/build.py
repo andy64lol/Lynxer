@@ -13,7 +13,10 @@ from __future__ import annotations
 import html
 import os
 import re
+from collections.abc import Callable
 from pathlib import Path
+
+Link = Callable[[str], str]
 
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "docs"
@@ -58,7 +61,7 @@ def slugify(text: str) -> str:
     return text.replace(" ", "-")
 
 
-def build_inline(link) -> "callable":
+def build_inline(link: Link) -> Link:
     def render(text: str) -> str:
         spans: list[str] = []
 
@@ -98,10 +101,8 @@ def build_inline(link) -> "callable":
 
 def split_row(row: str) -> list[str]:
     row = row.strip()
-    if row.startswith("|"):
-        row = row[1:]
-    if row.endswith("|"):
-        row = row[:-1]
+    row = row.removeprefix("|")
+    row = row.removesuffix("|")
     return [cell.strip().replace("\\|", "|") for cell in re.split(r"(?<!\\)\|", row)]
 
 
@@ -154,7 +155,7 @@ def render_list(lines: list[str], start: int, inline) -> tuple[str, int]:
                 break
             if LIST_ITEM.match(nxt) or nxt.lstrip().startswith(("|", "#", "```", ">")):
                 break
-            if nxt.startswith(" ") or nxt.startswith("\t"):
+            if nxt.startswith((" ", "\t")):
                 parts.append(nxt.strip())
                 index += 1
             else:
@@ -165,7 +166,7 @@ def render_list(lines: list[str], start: int, inline) -> tuple[str, int]:
     return "\n".join(out), index
 
 
-def render_markdown(text: str, link) -> tuple[str, str]:
+def render_markdown(text: str, link: Link) -> tuple[str, str]:
     inline = build_inline(link)
     lines = text.splitlines()
     out: list[str] = []
@@ -248,7 +249,7 @@ PAGES.extend((f"stdlib/{m}.md", f"stdlib/{m}.html") for m in STDLIB_MODULES)
 OUT_BY_MD = {md: out for md, out in PAGES}
 
 
-def make_link(current_out: str, md_rel: str):
+def make_link(current_out: str, md_rel: str) -> Link:
     """Return a function rewriting a docs-relative link target for the page."""
     current_dir = os.path.dirname(current_out)
 
@@ -370,8 +371,9 @@ def main() -> int:
     index_lines = [
         "# Standard library",
         "",
-        "Lynxer ships 27 modules. Each has a `.lynx` wrapper and a native backend "
-        "behind the shared native-module ABI; pick one below or from the sidebar.",
+        ("Lynxer ships 27 modules. Each has a `.lynx` wrapper and a native "
+         "backend behind the shared native-module ABI; pick one below or from "
+         "the sidebar."),
         "",
     ]
     for module in STDLIB_MODULES:
