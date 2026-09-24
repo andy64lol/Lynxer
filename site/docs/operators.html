@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Operators - Lynxer</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<header>
+    <h1><a href="../index.html">Lynxer</a></h1>
+    <p>Documentation</p>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3>Overview</h3><ul>
+<li><a href="index.html">README</a></li>
+</ul>
+<h3>Getting started</h3><ul>
+<li><a href="install.html">install</a></li>
+<li><a href="CLI.html">CLI</a></li>
+</ul>
+<h3>Language</h3><ul>
+<li><a href="language.html">language</a></li>
+<li><a href="operators.html" class="active">operators</a></li>
+<li><a href="types.html">types</a></li>
+<li><a href="lists.html">lists</a></li>
+<li><a href="modules.html">modules</a></li>
+<li><a href="importAs.html">importAs</a></li>
+</ul>
+<h3>Records</h3><ul>
+<li><a href="structs.html">structs</a></li>
+<li><a href="classes.html">classes</a></li>
+<li><a href="enums.html">enums</a></li>
+<li><a href="vargroups.html">vargroups</a></li>
+</ul>
+<h3>Built-ins and modules</h3><ul>
+<li><a href="builtins.html">builtins</a></li>
+<li><a href="native-module-abi.html">native-module-abi</a></li>
+<li><a href="stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="extending.html">extending</a></li>
+</ul>
+<h3>Reference</h3><ul>
+<li><a href="limitations.html">limitations</a></li>
+</ul>
+<h3>Standard library</h3><ul>
+<li><a href="stdlib/index.html">All modules</a></li>
+<li><a href="stdlib/cli.html">cli</a></li>
+<li><a href="stdlib/colorlib.html">colorlib</a></li>
+<li><a href="stdlib/csv.html">csv</a></li>
+<li><a href="stdlib/debug.html">debug</a></li>
+<li><a href="stdlib/fileIO.html">fileIO</a></li>
+<li><a href="stdlib/game.html">game</a></li>
+<li><a href="stdlib/image.html">image</a></li>
+<li><a href="stdlib/js.html">js</a></li>
+<li><a href="stdlib/json.html">json</a></li>
+<li><a href="stdlib/lua.html">lua</a></li>
+<li><a href="stdlib/math.html">math</a></li>
+<li><a href="stdlib/multiprocessing.html">multiprocessing</a></li>
+<li><a href="stdlib/network.html">network</a></li>
+<li><a href="stdlib/os.html">os</a></li>
+<li><a href="stdlib/path.html">path</a></li>
+<li><a href="stdlib/random.html">random</a></li>
+<li><a href="stdlib/re.html">re</a></li>
+<li><a href="stdlib/regex.html">regex</a></li>
+<li><a href="stdlib/server.html">server</a></li>
+<li><a href="stdlib/shell.html">shell</a></li>
+<li><a href="stdlib/sound.html">sound</a></li>
+<li><a href="stdlib/sqldb.html">sqldb</a></li>
+<li><a href="stdlib/sys.html">sys</a></li>
+<li><a href="stdlib/text.html">text</a></li>
+<li><a href="stdlib/time.html">time</a></li>
+<li><a href="stdlib/tui.html">tui</a></li>
+<li><a href="stdlib/typing.html">typing</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+<h1 id="operators">Operators</h1>
+<p>Every operator Lynxer has, with the canonical keyword spelling and the deprecated symbolic spellings that still parse.</p>
+<p>Symbolic spellings are <strong>deprecated</strong>: they compile and run, but each use prints</p>
+<pre><code>Warning: line N, column M: operator &#x27;X&#x27; is deprecated; use &#x27;Y&#x27; instead.</code></pre>
+<p>Use the keyword forms in new code. A bare <code>!</code> is not a spelling of anything — it is a syntax error.</p>
+<h2 id="arithmetic-and-text">Arithmetic and text</h2>
+<table>
+<tr><th>Operator</th><th>Meaning</th></tr>
+<tr><td><code>+</code></td><td>Addition, or <code>str</code> / <code>char</code> concatenation</td></tr>
+<tr><td><code>-</code></td><td>Subtraction</td></tr>
+<tr><td><code>*</code></td><td>Multiplication</td></tr>
+<tr><td><code>/</code></td><td>Division — always returns a float</td></tr>
+<tr><td><code>%</code></td><td>Modulo (integers only)</td></tr>
+<tr><td><code>/%</code></td><td>Floor division (integers only)</td></tr>
+<tr><td><code>**</code></td><td>Exponentiation, right-associative</td></tr>
+<tr><td>unary <code>-</code></td><td>Negation</td></tr>
+</table>
+<p><code>//</code> is a line comment, never division. Integer division without a fraction is <code>/%</code>.</p>
+<h2 id="comparison-and-equality">Comparison and equality</h2>
+<table>
+<tr><th>Operator</th><th>Meaning</th><th>Deprecated spellings</th></tr>
+<tr><td><code>is</code></td><td>Equal</td><td><code>==</code></td></tr>
+<tr><td><code>isnt</code></td><td>Not equal</td><td><code>!=</code>, <code>not is</code></td></tr>
+<tr><td><code>&lt;</code> <code>&lt;=</code> <code>&gt;</code> <code>&gt;=</code></td><td>Ordering (numbers, or two strings)</td><td>—</td></tr>
+</table>
+<p><code>is</code> / <code>isnt</code> compare any two values, including sentinels and enum variants, which compare by identity. Ordering applies to numbers and to two strings.</p>
+<h2 id="boolean-logic">Boolean logic</h2>
+<table>
+<tr><th>Operator</th><th>Meaning</th><th>Deprecated spellings</th></tr>
+<tr><td><code>and</code></td><td>Short-circuit AND</td><td><code>&amp;&amp;</code></td></tr>
+<tr><td><code>or</code></td><td>Short-circuit OR</td><td><code>||</code></td></tr>
+<tr><td><code>not</code></td><td>Unary NOT</td><td><code>!!</code></td></tr>
+<tr><td><code>nand</code></td><td>Logical NAND</td><td><code>!&amp;&amp;</code></td></tr>
+<tr><td><code>nor</code></td><td>Logical NOR</td><td><code>!||</code></td></tr>
+<tr><td><code>xor</code></td><td>Logical XOR</td><td>—</td></tr>
+<tr><td><code>xnor</code></td><td>Logical XNOR</td><td>—</td></tr>
+</table>
+<p><code>and</code> / <code>or</code> short-circuit. <code>nand</code>, <code>nor</code>, <code>xor</code> and <code>xnor</code> evaluate both sides.</p>
+<h2 id="bitwise-and-shifts">Bitwise and shifts</h2>
+<p>These require <code>int64</code> operands.</p>
+<table>
+<tr><th>Operator</th><th>Meaning</th><th>Deprecated spellings</th></tr>
+<tr><td><code>bitand</code></td><td>Bitwise AND</td><td><code>&amp;</code></td></tr>
+<tr><td><code>bitor</code></td><td>Bitwise OR</td><td><code>|</code></td></tr>
+<tr><td><code>bitxor</code></td><td>Bitwise XOR</td><td><code>^</code></td></tr>
+<tr><td><code>bitnot</code></td><td>Bitwise NOT</td><td><code>~</code></td></tr>
+<tr><td><code>bitnand</code></td><td>Bitwise NAND</td><td><code>!&amp;</code></td></tr>
+<tr><td><code>bitnor</code></td><td>Bitwise NOR</td><td><code>!|</code></td></tr>
+<tr><td><code>bitxnor</code></td><td>Bitwise XNOR</td><td><code>!^</code></td></tr>
+<tr><td><code>bitleft</code></td><td>Shift left</td><td><code>&lt;&lt;</code></td></tr>
+<tr><td><code>bitright</code></td><td>Shift right</td><td><code>&gt;&gt;</code></td></tr>
+</table>
+<h2 id="compound-assignment">Compound assignment</h2>
+<p><code>+=</code>, <code>-=</code>, <code>*=</code>, <code>/=</code>, <code>%=</code>, <code>**=</code> and <code>/%=</code> are accepted. The result is validated against the variable's declared type, so <code>int x = 5; x /= 2;</code> is an error rather than a silent truncation.</p>
+<h2 id="precedence">Precedence</h2>
+<p>Lowest to highest:</p>
+<ol>
+<li><code>or</code> / <code>nor</code></li>
+<li><code>xor</code> / <code>xnor</code></li>
+<li><code>and</code> / <code>nand</code></li>
+<li><code>not</code></li>
+<li>equality (<code>is</code> / <code>isnt</code>) and ordering (<code>&lt;</code> <code>&lt;=</code> <code>&gt;</code> <code>&gt;=</code>)</li>
+<li><code>bitor</code></li>
+<li><code>bitxor</code></li>
+<li><code>bitand</code></li>
+<li>shifts (<code>bitleft</code> / <code>bitright</code>)</li>
+<li><code>+</code> <code>-</code></li>
+<li><code>*</code> <code>/</code> <code>%</code> <code>/%</code></li>
+<li><code>**</code> (right-associative)</li>
+<li>unary (<code>not</code>, unary <code>-</code>, <code>bitnot</code>)</li>
+<li>postfix and primary</li>
+</ol>
+<p>Parenthesise when in doubt: the parser follows this chain exactly.</p>
+<h2 id="deprecated-spellings-at-a-glance">Deprecated spellings at a glance</h2>
+<table>
+<tr><th>Deprecated</th><th>Use instead</th></tr>
+<tr><td><code>==</code></td><td><code>is</code></td></tr>
+<tr><td><code>!=</code></td><td><code>isnt</code></td></tr>
+<tr><td><code>not is</code></td><td><code>isnt</code></td></tr>
+<tr><td><code>&amp;&amp;</code></td><td><code>and</code></td></tr>
+<tr><td><code>||</code></td><td><code>or</code></td></tr>
+<tr><td><code>!!</code></td><td><code>not</code></td></tr>
+<tr><td><code>!&amp;&amp;</code></td><td><code>nand</code></td></tr>
+<tr><td><code>!||</code></td><td><code>nor</code></td></tr>
+<tr><td><code>&amp;</code></td><td><code>bitand</code></td></tr>
+<tr><td><code>|</code></td><td><code>bitor</code></td></tr>
+<tr><td><code>^</code></td><td><code>bitxor</code></td></tr>
+<tr><td><code>~</code></td><td><code>bitnot</code></td></tr>
+<tr><td><code>!&amp;</code></td><td><code>bitnand</code></td></tr>
+<tr><td><code>!|</code></td><td><code>bitnor</code></td></tr>
+<tr><td><code>!^</code></td><td><code>bitxnor</code></td></tr>
+<tr><td><code>&lt;&lt;</code></td><td><code>bitleft</code></td></tr>
+<tr><td><code>&gt;&gt;</code></td><td><code>bitright</code></td></tr>
+</table>
+<p>See <a href="language.html">language</a> for the surrounding language and <a href="limitations.html">limitations</a> for behaviour that is not implemented at all.</p>
+    </main>
+</div>
+
+<footer>
+    <a class="github" href="https://github.com/andy64lol/Lynxer" aria-label="Lynxer on GitHub" title="Lynxer on GitHub"><svg role="img" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a>
+    <span>Lynxer &middot; MIT License</span>
+</footer>
+
+</body>
+</html>

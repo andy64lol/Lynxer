@@ -373,9 +373,10 @@ def parse_wrapper(path: Path, module: str) -> Wrapper:
                     continue
                 if raw in param_kinds:
                     kinds.append(param_kinds[raw])
-                elif re.fullmatch(r"-?\d+(\.\d+)?", raw):
-                    kinds.append(NUMBER)
-                elif raw in ("true", "false"):
+                elif re.fullmatch(r"-?\d+(\.\d+)?", raw) or raw in (
+                    "true",
+                    "false",
+                ):
                     kinds.append(NUMBER)
                 elif len(raw) >= 2 and raw.startswith('"') and raw.endswith('"'):
                     kinds.append(STRING)
@@ -471,7 +472,8 @@ def check_module(module: str, verbose: bool) -> tuple[list[Finding], int, int]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    summary = (__doc__ or "Lynxer stdlib contract check").strip().splitlines()
+    parser = argparse.ArgumentParser(description=summary[0])
     parser.add_argument(
         "--verbose",
         action="store_true",

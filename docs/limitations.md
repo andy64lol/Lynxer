@@ -26,8 +26,6 @@ Entries are marked:
 | FFI / native-module handle built-ins | **Not planned** | Superseded by direct `import` of a native `.so` through the documented ABI. |
 | `nativeMutex*`, `nativeCondition*`, `nativeSemaphore*` | **Not planned** | Lynxer runs cooperatively on one interpreter thread; there is one global lock and no shared mutable state to protect. |
 | `async*` family (`Run`, `Gather`, `Sleep`, `Poll*`, timers, wakeups) | **Not planned** | Lynxer has no `async` language support and no event loop to serve. |
-| `/* ... */` block comments | **Not planned** | Only `//` and `/// ... ///` / `//// ... ////` are supported. |
-| Bare `!` as logical NOT | **Not planned** | Use `!!value` or `not value`. Symbolic comparators/bitwise spellings (`==`, `&&`, `\|\|`, `&`, `\|`, `<<`, `>>`) still parse but warn and are on the way out. |
 | `\x` / `\u` string escapes | **Not planned** | Only `\n`, `\r`, `\t`, `\\`, `\"` and `\e` are accepted. Modules that need a separator use a writable one (for example a tab). |
 
 ## Language and toolchain

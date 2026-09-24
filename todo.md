@@ -22,8 +22,6 @@ is visible next to the work that *is* open.
 | FFI / native-module handle built-ins | Superseded by importing a native `.so` through the documented ABI. |
 | `nativeMutex*`, `nativeCondition*`, `nativeSemaphore*` | Lynxer runs cooperatively on one interpreter thread; there is no shared mutable state to protect. |
 | `async*` family (`Run`, `Gather`, `Sleep`, `Poll*`, timers, wakeups) | No `async` language support and no event loop to serve. |
-| `/* ... */` block comments | Only `//` and `/// ... ///` / `//// ... ////` are supported. |
-| Bare `!` as logical NOT | Use `!!value` or `not value`. Symbolic comparators/bitwise spellings still parse but warn and are on the way out. |
 | `\x` / `\u` string escapes | Only `\n`, `\r`, `\t`, `\\`, `\"` and `\e` are accepted. |
 
 ## Open decisions

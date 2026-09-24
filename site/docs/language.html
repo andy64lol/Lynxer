@@ -24,6 +24,7 @@
 </ul>
 <h3>Language</h3><ul>
 <li><a href="language.html" class="active">language</a></li>
+<li><a href="operators.html">operators</a></li>
 <li><a href="types.html">types</a></li>
 <li><a href="lists.html">lists</a></li>
 <li><a href="modules.html">modules</a></li>
@@ -176,48 +177,13 @@ varEndBorrow(borrower);              // borrower becomes an independent copy</co
 <h2 id="types">Types</h2>
 <p>The complete type list, ranges, and conversion rules live in <a href="types.html">types</a>. The scalar names are <code>int</code>, <code>float</code>, <code>num</code>, <code>bool</code>, <code>str</code>, <code>char</code>, <code>numBool</code>, <code>bit</code>, <code>byte</code>, <code>int8</code>/<code>int16</code>/<code>int32</code>/<code>int64</code>, <code>uint8</code>/<code>uint16</code>/<code>uint32</code>/<code>uint64</code>, <code>float32</code>/<code>float64</code>, plus <code>any</code>, <code>none</code>, <code>list</code>, <code>tuple</code>, <code>codeblock</code>, and the named <code>struct</code>/<code>class</code>/<code>enum</code> types.</p>
 <h2 id="operators">Operators</h2>
-<h3 id="arithmetic-and-text">Arithmetic and text</h3>
-<table>
-<tr><th>Operator</th><th>Meaning</th></tr>
-<tr><td><code>+</code></td><td>Addition, or string/char concatenation</td></tr>
-<tr><td><code>-</code> <code>*</code> <code>/</code></td><td>Subtraction, multiplication, division</td></tr>
-<tr><td><code>%</code></td><td>Modulo (integers only)</td></tr>
-<tr><td><code>/%</code></td><td>Floor division (integers only)</td></tr>
-<tr><td><code>**</code></td><td>Exponentiation (right-associative)</td></tr>
-<tr><td>unary <code>-</code></td><td>Negation</td></tr>
-</table>
-<p><code>//</code> is a comment, not division — integer division is <code>/%</code>.</p>
-<h3 id="comparison-and-equality">Comparison and equality</h3>
-<table>
-<tr><th>Operator</th><th>Meaning</th></tr>
-<tr><td><code>is</code></td><td>Equal (preferred)</td></tr>
-<tr><td><code>isnt</code></td><td>Not equal (preferred)</td></tr>
-<tr><td><code>&lt;</code> <code>&lt;=</code> <code>&gt;</code> <code>&gt;=</code></td><td>Ordering (numbers, or two strings)</td></tr>
-</table>
-<p><code>==</code>, <code>!=</code> and <code>not is</code> still work but are <strong>deprecated</strong> and print a warning naming <code>is</code>/<code>isnt</code>.</p>
-<h3 id="boolean-logic">Boolean logic</h3>
-<table>
-<tr><th>Operator</th><th>Meaning</th></tr>
-<tr><td><code>and</code></td><td>Short-circuit AND</td></tr>
-<tr><td><code>or</code></td><td>Short-circuit OR</td></tr>
-<tr><td><code>not</code></td><td>Unary NOT</td></tr>
-<tr><td><code>xor</code> <code>xnor</code></td><td>Logical XOR / XNOR (no short-circuit)</td></tr>
-<tr><td><code>nand</code> <code>nor</code></td><td>Logical NAND / NOR (no short-circuit)</td></tr>
-</table>
-<p>A bare <code>!</code> is invalid. <code>&amp;&amp;</code>, <code>||</code>, <code>!!</code>, <code>!&amp;&amp;</code> and <code>!||</code> are deprecated spellings of <code>and</code>, <code>or</code>, <code>not</code>, <code>nand</code> and <code>nor</code>.</p>
-<h3 id="bitwise-and-shifts">Bitwise and shifts</h3>
-<table>
-<tr><th>Operator</th><th>Meaning</th></tr>
-<tr><td><code>bitand</code> <code>bitor</code> <code>bitxor</code></td><td>Bitwise AND / OR / XOR</td></tr>
-<tr><td><code>bitnand</code> <code>bitnor</code> <code>bitxnor</code></td><td>Bitwise NAND / NOR / XNOR</td></tr>
-<tr><td><code>bitnot</code></td><td>Bitwise NOT</td></tr>
-<tr><td><code>bitleft</code> <code>bitright</code></td><td>Shifts</td></tr>
-</table>
-<p>These require <code>int64</code> operands. The symbolic spellings <code>&amp;</code>, <code>|</code>, <code>^</code>, <code>!&amp;</code>, <code>!|</code>, <code>!^</code>, <code>~</code>, <code>&lt;&lt;</code>, <code>&gt;&gt;</code> are deprecated.</p>
-<h3 id="compound-assignment">Compound assignment</h3>
-<p><code>+=</code>, <code>-=</code>, <code>*=</code>, <code>/=</code>, <code>%=</code>, <code>**=</code> are accepted. The result is validated against the variable's type, so <code>int x = 5; x /= 2;</code> is an error rather than a silent truncation.</p>
-<h3 id="precedence">Precedence</h3>
-<p>Lowest to highest: <code>or</code>/<code>nor</code> → <code>xor</code>/<code>xnor</code> → <code>and</code>/<code>nand</code> → <code>not</code> → equality and ordering → <code>bitor</code> → <code>bitxor</code> → <code>bitand</code> → shifts → <code>+</code>/<code>-</code> → <code>*</code> <code>/</code> <code>%</code> <code>/%</code> → <code>**</code> → unary → postfix/primary. Parenthesise when in doubt; the parser follows this chain exactly.</p>
+<p>Lynxer uses keyword operators: <code>is</code> / <code>isnt</code>, <code>and</code> / <code>or</code> / <code>not</code>, <code>bitand</code> / <code>bitor</code> / <code>bitxor</code>, <code>bitleft</code> / <code>bitright</code>, and so on. The symbolic C-style spellings (<code>==</code>, <code>!=</code>, <code>&amp;&amp;</code>, <code>||</code>, <code>&amp;</code>, <code>|</code>, <code>^</code>, <code>&lt;&lt;</code>, <code>&gt;&gt;</code>, …) still parse but are <strong>deprecated</strong> and print a warning; a bare <code>!</code> is a syntax error.</p>
+<pre><code>int n = 6;
+if((n % 2 is 0) and n &gt; 4){
+    println(&quot;even and greater than four&quot;);
+}
+println(n bitand 3);   // 2</code></pre>
+<p>→ <strong><a href="operators.html">Full operator reference, precedence and the deprecation table</a></strong></p>
 <h2 id="control-flow">Control flow</h2>
 <h3 id="if--elif--else"><code>if</code> / <code>elif</code> / <code>else</code></h3>
 <pre><code>if (n &gt; 0) {
@@ -381,7 +347,7 @@ global main() {
 <li><a href="lists.html">lists</a> — <code>list</code> and <code>tuple</code> values and their builtins.</li>
 </ul>
 <h2 id="not-supported">Not supported</h2>
-<p>See <a href="limitations.html">limitations</a> for the complete list. The most common surprises are a bare <code>!</code>, <code>/* ... */</code> comments, <code>\x</code>/<code>\u</code> escapes, the <code>.lynxc</code> bytecode format, and the not-planned modules (<code>tkinter</code>, <code>tkinterPlus</code>, <code>turtle</code>, <code>venv</code>).</p>
+<p>See <a href="limitations.html">limitations</a> for the complete list. The most common surprises are <code>\x</code>/<code>\u</code> escapes, the <code>.lynxc</code> bytecode format, and the not-planned modules (<code>tkinter</code>, <code>tkinterPlus</code>, <code>turtle</code>, <code>venv</code>).</p>
     </main>
 </div>
 

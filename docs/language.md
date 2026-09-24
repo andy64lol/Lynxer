@@ -181,67 +181,20 @@ The complete type list, ranges, and conversion rules live in
 
 ## Operators
 
-### Arithmetic and text
+Lynxer uses keyword operators: `is` / `isnt`, `and` / `or` / `not`, `bitand` /
+`bitor` / `bitxor`, `bitleft` / `bitright`, and so on. The symbolic C-style
+spellings (`==`, `!=`, `&&`, `||`, `&`, `|`, `^`, `<<`, `>>`, …) still parse but
+are **deprecated** and print a warning; a bare `!` is a syntax error.
 
-| Operator | Meaning |
-|----------|---------|
-| `+` | Addition, or string/char concatenation |
-| `-` `*` `/` | Subtraction, multiplication, division |
-| `%` | Modulo (integers only) |
-| `/%` | Floor division (integers only) |
-| `**` | Exponentiation (right-associative) |
-| unary `-` | Negation |
+```lynx
+int n = 6;
+if((n % 2 is 0) and n > 4){
+    println("even and greater than four");
+}
+println(n bitand 3);   // 2
+```
 
-`//` is a comment, not division — integer division is `/%`.
-
-### Comparison and equality
-
-| Operator | Meaning |
-|----------|---------|
-| `is` | Equal (preferred) |
-| `isnt` | Not equal (preferred) |
-| `<` `<=` `>` `>=` | Ordering (numbers, or two strings) |
-
-`==`, `!=` and `not is` still work but are **deprecated** and print a warning
-naming `is`/`isnt`.
-
-### Boolean logic
-
-| Operator | Meaning |
-|----------|---------|
-| `and` | Short-circuit AND |
-| `or` | Short-circuit OR |
-| `not` | Unary NOT |
-| `xor` `xnor` | Logical XOR / XNOR (no short-circuit) |
-| `nand` `nor` | Logical NAND / NOR (no short-circuit) |
-
-A bare `!` is invalid. `&&`, `||`, `!!`, `!&&` and `!||` are deprecated
-spellings of `and`, `or`, `not`, `nand` and `nor`.
-
-### Bitwise and shifts
-
-| Operator | Meaning |
-|----------|---------|
-| `bitand` `bitor` `bitxor` | Bitwise AND / OR / XOR |
-| `bitnand` `bitnor` `bitxnor` | Bitwise NAND / NOR / XNOR |
-| `bitnot` | Bitwise NOT |
-| `bitleft` `bitright` | Shifts |
-
-These require `int64` operands. The symbolic spellings `&`, `|`, `^`, `!&`,
-`!|`, `!^`, `~`, `<<`, `>>` are deprecated.
-
-### Compound assignment
-
-`+=`, `-=`, `*=`, `/=`, `%=`, `**=` are accepted. The result is validated
-against the variable's type, so `int x = 5; x /= 2;` is an error rather than a
-silent truncation.
-
-### Precedence
-
-Lowest to highest: `or`/`nor` → `xor`/`xnor` → `and`/`nand` → `not` → equality
-and ordering → `bitor` → `bitxor` → `bitand` → shifts → `+`/`-` → `*` `/` `%`
-`/%` → `**` → unary → postfix/primary. Parenthesise when in doubt; the parser
-follows this chain exactly.
+→ **[Full operator reference, precedence and the deprecation table](operators.md)**
 
 ## Control flow
 
@@ -483,6 +436,5 @@ body — most often `setup()` — not at file scope. Both arguments must be stri
 ## Not supported
 
 See [limitations.md](limitations.md) for the complete list. The most common
-surprises are a bare `!`, `/* ... */` comments, `\x`/`\u` escapes, the `.lynxc`
-bytecode format, and the not-planned modules (`tkinter`, `tkinterPlus`,
-`turtle`, `venv`).
+surprises are `\x`/`\u` escapes, the `.lynxc` bytecode format, and the
+not-planned modules (`tkinter`, `tkinterPlus`, `turtle`, `venv`).

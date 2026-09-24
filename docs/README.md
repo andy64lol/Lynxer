@@ -20,7 +20,8 @@ deliberately constrained or not implemented.
 
 | Document | What it covers |
 | --- | --- |
-| [language.md](language.md) | Program structure, comments, variables, operators, control flow, functions, scoping, interpolation |
+| [language.md](language.md) | Program structure, comments, variables, control flow, functions, scoping, interpolation |
+| [operators.md](operators.md) | Every operator, precedence, and the deprecated symbolic spellings |
 | [types.md](types.md) | Every type name, ranges, and conversion rules |
 | [lists.md](lists.md) | `list` and `tuple` values and their builtins |
 | [structs.md](structs.md) | Data-only records |
