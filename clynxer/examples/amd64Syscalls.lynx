@@ -1,0 +1,62 @@
+////
+amd64 (x86-64) syscall fixture.
+
+Runs only in the AMD64 CI job. It drives poll(2) and epoll_wait(2) through the
+portable wrappers and asserts that the ARM64-only wrappers (ppoll(2) and
+epoll_pwait(2) with an explicit signal mask) are rejected on this architecture,
+so the same source cannot quietly pass on the wrong target. Every printed value
+is a property, so the expected output in amd64Syscalls.expected is stable.
+////
+
+global setup() {}
+
+global main() {
+    println("== arch ==");
+    try {
+        syscallPpollFileDescriptors(0, 0, 0, 0, 0);
+        println("arm64 ppoll rejected false");
+    } catch (str error) {
+        println("arm64 ppoll rejected true");
+    }
+    try {
+        syscallWaitForEventsWithSignalMask(0, 0, 0, 0, 0);
+        println("arm64 epoll_pwait rejected false");
+    } catch (str error) {
+        println("arm64 epoll_pwait rejected true");
+    }
+
+    println("== pipe ==");
+    int buffer = memoryAllocate(64);
+    int pipeFds = memoryAllocate(16);
+    println("pipe created ", syscallCreatePipe(pipeFds, 0) is 0);
+    int readFd = memoryReadInt32(pipeFds, 0);
+    int writeFd = memoryReadInt32(pipeFds, 4);
+    println("descriptors valid ", readFd >= 0 and writeFd >= 0);
+
+    memoryWriteByte(buffer, 0, 65);   // 'A'
+    println("write 1 byte ", syscallWrite(writeFd, buffer, 1) is 1);
+
+    // struct pollfd { int fd; short events; short revents; } -- 8 bytes, the
+    // same layout on amd64 and arm64. POLLIN is 1.
+    int pollFds = memoryAllocate(8);
+    memoryWriteInt32(pollFds, 0, readFd);
+    memoryWriteInt16(pollFds, 4, 1);
+    memoryWriteInt16(pollFds, 6, 0);
+    println("poll ready ", syscallPollFileDescriptors(pollFds, 1, 0) is 1);
+    println("poll POLLIN ", memoryReadInt16(pollFds, 6) is 1);
+
+    println("== event poll ==");
+    int epoll = syscallCreateEventPoll(0);
+    println("epoll created ", epoll > 0);
+    int events = memoryAllocate(64);
+    println("epoll wait empty ", syscallWaitForEvents(epoll, events, 1, 0, 0) is 0);
+
+    syscallClose(epoll);
+    syscallClose(readFd);
+    syscallClose(writeFd);
+    memoryFree(events);
+    memoryFree(pollFds);
+    memoryFree(pipeFds);
+    memoryFree(buffer);
+    println("done");
+}

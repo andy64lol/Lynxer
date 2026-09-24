@@ -36,6 +36,8 @@ jobs:
 
       - name: Test Clynxer ARM64 binary
         run: make testCLynxer CLYNXER_SKIP_DISPLAY=1
+      - name: Run the ARM64 syscall fixture
+        run: make testCLynxerArm64Syscalls
       - name: Upload ARM64 binary
         uses: actions/upload-artifact@v4
         with:

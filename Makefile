@@ -108,6 +108,14 @@ CLYNXER_LOWLEVEL_FIXTURES := $(CLYNXER_DIR)/examples/lowlevel_memory.lynx \
 	$(CLYNXER_DIR)/examples/lowlevel_syscalls.lynx \
 	$(CLYNXER_DIR)/examples/lowlevel_arch.lynx \
 	$(CLYNXER_DIR)/examples/language_fields.lynx
+# Architecture-specific syscall fixtures. They stay out of testCLynxer because
+# each drives syscalls that exist on only one target: the AMD64 job runs
+# amd64Syscalls.lynx (poll/epoll_wait, and the ARM64-only wrappers must be
+# rejected), the ARM64 job runs arm64Syscalls.lynx (ppoll/epoll_pwait). Each is
+# diffed against its .expected file by a target that refuses to run on the
+# wrong host architecture.
+CLYNXER_AMD64_SYSCALL_FIXTURE := $(CLYNXER_DIR)/examples/amd64Syscalls.lynx
+CLYNXER_ARM64_SYSCALL_FIXTURE := $(CLYNXER_DIR)/examples/arm64Syscalls.lynx
 # Compatibility fixture for the deprecated symbolic operator spellings. It is
 # diffed like a stdlib fixture and also compiled, so the old spellings keep
 # working through both the interpreter and --compile.
@@ -137,7 +145,7 @@ CLYNXER_PARITY_FIXTURES := $(filter-out $(CLYNXER_DISPLAY_FIXTURES),$(CLYNXER_PA
 CLYX := ./$(CLYNXER_TARGET)
 CLYX_TMP := $(CLYNXER_DIR)/.clynxer
 
-.PHONY: all venv deps liteDeps pyinstaller cargo platform-check lite-platform-check build buildAll buildLynxer buildLynxerLite buildCpp buildCLynxer buildCLynxerArm64 test testLynxer testCLynxer testAMR64 validate golden check clean cleanC cleanCpp cleanLynxc cleanCLynxer cleanAll help
+.PHONY: all venv deps liteDeps pyinstaller cargo platform-check lite-platform-check build buildAll buildLynxer buildLynxerLite buildCpp buildCLynxer buildCLynxerArm64 test testLynxer testCLynxer testCLynxerAmd64Syscalls testCLynxerArm64Syscalls testAMR64 validate golden check clean cleanC cleanCpp cleanLynxc cleanCLynxer cleanAll help
 
 venv:
 	@if [ ! -d "$(VENV)" ]; then \
@@ -647,6 +655,39 @@ expected="clynxer: $(CLYNXER_ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 	@rm -f $(CLYX_TMP)_stdin
 	@echo "clynxer smoke test passed"
 
+# Architecture-specific syscall gates. `uname -m` is asserted so the AMD64 and
+# ARM64 CI jobs each run the matching fixture and a mistake fails loudly rather
+# than testing the wrong architecture.
+testCLynxerAmd64Syscalls: $(CLYNXER_TARGET)
+	@test "$$(uname -m)" = "x86_64" || \
+	{ echo "clynxer: $(notdir $(CLYNXER_AMD64_SYSCALL_FIXTURE)) requires an x86_64 host (uname -m = $$(uname -m))"; exit 1; }
+	@$(CLYX) $(CLYNXER_AMD64_SYSCALL_FIXTURE) > $(CLYX_TMP)_amd64_syscalls.out 2>&1; \
+	status=$$?; \
+	if [ $$status -ne 0 ]; then \
+	echo "amd64 syscall fixture failed (status $$status)"; \
+	cat $(CLYX_TMP)_amd64_syscalls.out; \
+	rm -f $(CLYX_TMP)_amd64_syscalls.out; exit 1; fi; \
+	if ! diff -u $(CLYNXER_AMD64_SYSCALL_FIXTURE:.lynx=.expected) $(CLYX_TMP)_amd64_syscalls.out; then \
+	echo "amd64 syscall fixture output mismatch"; \
+	rm -f $(CLYX_TMP)_amd64_syscalls.out; exit 1; fi; \
+	rm -f $(CLYX_TMP)_amd64_syscalls.out
+	@echo "clynxer amd64 syscall fixture passed"
+
+testCLynxerArm64Syscalls: $(CLYNXER_TARGET)
+	@test "$$(uname -m)" = "aarch64" || \
+	{ echo "clynxer: $(notdir $(CLYNXER_ARM64_SYSCALL_FIXTURE)) requires an aarch64 host (uname -m = $$(uname -m))"; exit 1; }
+	@$(CLYX) $(CLYNXER_ARM64_SYSCALL_FIXTURE) > $(CLYX_TMP)_arm64_syscalls.out 2>&1; \
+	status=$$?; \
+	if [ $$status -ne 0 ]; then \
+	echo "arm64 syscall fixture failed (status $$status)"; \
+	cat $(CLYX_TMP)_arm64_syscalls.out; \
+	rm -f $(CLYX_TMP)_arm64_syscalls.out; exit 1; fi; \
+	if ! diff -u $(CLYNXER_ARM64_SYSCALL_FIXTURE:.lynx=.expected) $(CLYX_TMP)_arm64_syscalls.out; then \
+	echo "arm64 syscall fixture output mismatch"; \
+	rm -f $(CLYX_TMP)_arm64_syscalls.out; exit 1; fi; \
+	rm -f $(CLYX_TMP)_arm64_syscalls.out
+	@echo "clynxer arm64 syscall fixture passed"
+
 clean:
 	@find . -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null || true
 	@find . -name '*.pyc' -delete 2>/dev/null || true
@@ -693,6 +734,8 @@ help:
 	@echo "  make test               (everything: Lynxer + Clynxer suites)"
 	@echo "  make testLynxer         (Python suite only)"
 	@echo "  make testCLynxer        (Clynxer suite only)"
+	@echo "  make testCLynxerAmd64Syscalls   (amd64 syscall fixture; x86_64 host)"
+	@echo "  make testCLynxerArm64Syscalls   (arm64 syscall fixture; aarch64 host)"
 	@echo "  make testAMR64"
 	@echo "  make check"
 	@echo "  make golden"

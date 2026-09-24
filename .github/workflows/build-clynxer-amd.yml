@@ -33,6 +33,8 @@ jobs:
 
       - name: Test Clynxer AMD64 binary
         run: make testCLynxer CLYNXER_SKIP_DISPLAY=1
+      - name: Run the AMD64 syscall fixture
+        run: make testCLynxerAmd64Syscalls
       - name: Upload AMD64 binary
         uses: actions/upload-artifact@v4
         with:

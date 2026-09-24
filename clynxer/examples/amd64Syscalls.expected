@@ -1,0 +1,13 @@
+== arch ==
+arm64 ppoll rejected true
+arm64 epoll_pwait rejected true
+== pipe ==
+pipe created true
+descriptors valid true
+write 1 byte true
+poll ready true
+poll POLLIN true
+== event poll ==
+epoll created true
+epoll wait empty true
+done

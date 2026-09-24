@@ -1,0 +1,12 @@
+== pipe ==
+pipe created true
+descriptors valid true
+write 1 byte true
+poll ready true
+poll POLLIN true
+ppoll ready true
+== event poll ==
+epoll created true
+epoll wait empty true
+epoll_pwait empty true
+done
