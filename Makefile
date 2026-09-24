@@ -80,6 +80,8 @@ LYNXER_AUDIO_FIXTURES :=
 endif
 # Built-in-family fixtures (lynxer/examples/builtin_<name>.lynx) do too.
 LYNXER_MILESTONE7_NEW_FIXTURES := $(LYNXER_DIR)/examples/builtin_async.lynx $(LYNXER_DIR)/examples/builtin_ffi.lynx
+# Ownership/borrowing built-ins: moves, borrows, swaps and their error paths.
+LYNXER_OWNERSHIP_FIXTURES := $(LYNXER_DIR)/examples/ownership.lynx
 # Low-level fixtures: native-memory typed/endian access and the portable named
 # syscalls. They assert only host-independent behaviour, so the same expected
 # output holds on amd64 and arm64, and both CI jobs run them.
@@ -114,7 +116,7 @@ LYNXER_LIST_STDLIB_MODULES := cli colorlib csv debug fileIO game image js json l
 # Import-parity fixtures (interpreted vs compiled). The sound one needs a device.
 LYNXER_PARITY_FIXTURES := native_stdlibs milestone6_module milestone6_math_native stdlib_json \
 	stdlib_re stdlib_path stdlib_game stdlib_image stdlib_lua stdlib_sqldb stdlib_tui deprecated_operators optimizer \
-	lowlevel_memory lowlevel_syscalls lowlevel_arch language_fields
+	lowlevel_memory lowlevel_syscalls lowlevel_arch language_fields ownership
 ifeq ($(HAVE_AUDIO),1)
 LYNXER_PARITY_FIXTURES += stdlib_sound
 endif
@@ -444,7 +446,7 @@ expected="lynxer: $(LYNXER_ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 	rm -f $(CLYX_TMP)_stdlib.out $(CLYX_TMP)_stdlib.diff; exit 1; fi; \
 	done; \
 	rm -f $(CLYX_TMP)_stdlib.out $(CLYX_TMP)_stdlib.diff
-	@for fixture in $(LYNXER_MILESTONE7_NEW_FIXTURES) $(LYNXER_LOWLEVEL_FIXTURES); do \
+	@for fixture in $(LYNXER_MILESTONE7_NEW_FIXTURES) $(LYNXER_OWNERSHIP_FIXTURES) $(LYNXER_LOWLEVEL_FIXTURES); do \
 	expected="$${fixture%.lynx}.expected"; \
 	if [ ! -f "$$expected" ]; then \
 	echo "missing expected output for $$fixture"; exit 1; fi; \

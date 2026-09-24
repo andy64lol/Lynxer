@@ -23,7 +23,6 @@ Entries are marked:
 | Click/Typer builders (`click*`, `typer*`) | **Not planned** | The `cli` module does not depend on Python's Click or Typer. |
 | Python runtime introspection (`sys.path`, `addPath`, `prependPath`, `removeFromPath`, `getModules`, `isModuleLoaded`, `getRecursionLimit`, `setRecursionLimit`, `os.getPythonVersion`, `os.getPythonImplementation`) | **Not planned** | There is no Python runtime to introspect. The `os` getters return `""` / `"Lynxer"` for compatibility and will be removed. |
 | Bytecode (`.lynxc`, `--view-bytecode`, `--benchmark-compile`, `--no-cache`) | **Not planned** | Removed with the bytecode backend; `--compile` produces a standalone ELF executable instead (`--bundle` is an alias). Running a `.lynxc` file reports that bytecode is unsupported. |
-| `varBorrow*` family | **Not planned** | Python's borrowed references have no meaning across the native ABI. |
 | FFI / native-module handle built-ins | **Not planned** | Superseded by direct `import` of a native `.so` through the documented ABI. |
 | `nativeMutex*`, `nativeCondition*`, `nativeSemaphore*` | **Not planned** | Lynxer runs cooperatively on one interpreter thread; there is one global lock and no shared mutable state to protect. |
 | `async*` family (`Run`, `Gather`, `Sleep`, `Poll*`, timers, wakeups) | **Not planned** | Lynxer has no `async` language support and no event loop to serve. |
@@ -261,9 +260,9 @@ implemented and documented in [builtins.md](builtins.md).
 `builtins.cpp` keeps an `unsupportedTable()` of names that are recognised but
 deliberately unimplemented; calling one raises
 `<name>() is not supported in Lynxer yet`. That table is the **not planned**
-surface listed at the top of this page — `rawPy`/`rawPyx`, `varBorrow*`, the FFI
-and native-module handles, and the mutual-exclusion primitives — plus the `async*`
-family.
+surface listed at the top of this page — `rawPy`/`rawPyx`, the FFI and
+native-module handles, and the mutual-exclusion primitives — plus the `async*`
+family and `unshare`.
 
 ### `nativeThread*` — **constrained (cooperative model)**
 

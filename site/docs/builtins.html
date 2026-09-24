@@ -310,13 +310,26 @@ global main(){
 <tr><td><code>asyncWakeupClose(wakeup)</code></td><td>Releases a wakeup</td></tr>
 </table>
 <p>See <code>lynxer/examples/builtin_async.lynx</code> for a runnable example, and <a href="language.html">language</a> for the <code>async</code>/<code>await</code> syntax.</p>
+<h2 id="ownership-and-borrowing">Ownership and borrowing</h2>
+<table>
+<tr><th>Builtin</th><th>Notes</th></tr>
+<tr><td><code>varTransfer(source, destination)</code></td><td>Moves a value into an existing destination of a compatible declared type</td></tr>
+<tr><td><code>varTransferMutate(source, destination)</code></td><td>Move form for an <code>any</code>/<code>num</code> destination</td></tr>
+<tr><td><code>varBorrow(source, borrower)</code></td><td>Read-only tracked alias; neither side is writable while active</td></tr>
+<tr><td><code>varBorrowMutate(source, borrower)</code></td><td>Exclusive mutable alias; writes through the borrower reach the source</td></tr>
+<tr><td><code>varEndBorrow(borrower)</code></td><td>Ends a borrow, leaving the borrower an independent copy</td></tr>
+<tr><td><code>borrowing(variable)</code></td><td>Whether the variable is currently a borrower</td></tr>
+<tr><td><code>beingBorrowed(variable)</code></td><td>Whether another variable is borrowing from it</td></tr>
+<tr><td><code>varSwapAll(first, second)</code></td><td>Exchanges values and declared types</td></tr>
+<tr><td><code>varSwapVal(first, second)</code></td><td>Exchanges values, keeping declared types</td></tr>
+</table>
+<p>The arguments are <strong>variable names</strong>, not values: <code>varBorrow(a, b)</code> names two variables rather than passing their contents. Failures are source-located errors such as <code>Cannot read moved variable &#x27;x&#x27;; reinitialize it before using it again</code>. See <a href="language.html#ownership-and-borrowing">language</a> and <code>lynxer/examples/ownership.lynx</code>.</p>
 <h2 id="unsupported-names">Unsupported names</h2>
 <p>Names Lynxer recognises but does not implement on Linux/POSIX. Each fails with <code>&lt;name&gt;() is not supported in Lynxer yet</code>, except <code>embedPy</code>, whose message is <code>Python bridging (embedPy) is not supported in Lynxer</code>.</p>
 <table>
 <tr><th>Family</th><th>Names</th></tr>
 <tr><td>Python bridging</td><td><code>rawPy</code>, <code>rawPyx</code>, <code>cleanRawPyxCache</code>, <code>embedPy</code></td></tr>
-<tr><td>Namespaces</td><td><code>unshare</code></td></tr>
-<tr><td>Borrow / transfer</td><td><code>varTransfer</code>, <code>varTransferMutate</code>, <code>varBorrow</code>, <code>varBorrowMutate</code>, <code>varSwapAll</code>, <code>varSwapVal</code>, <code>varEndBorrow</code>, <code>borrowing</code>, <code>beingBorrowed</code></td></tr>
+<tr><td>Shared aliasing</td><td><code>unshare</code> (there is no <code>shared</code> construct to detach)</td></tr>
 <tr><td>Raw addresses</td><td><code>getAddress</code>, <code>modifyAddressValue</code>, <code>getAddressValue</code>, <code>functionAddress</code>, <code>nativeFunctionAddress</code>, <code>nativeCall</code></td></tr>
 <tr><td>Native module introspection</td><td><code>nativeModuleLoad</code>, <code>nativeModuleName</code>, <code>nativeModuleFunction</code>, <code>nativeModuleConstant</code>, <code>nativeModuleType</code>, <code>nativeModuleError</code>, <code>nativeModuleDependencies</code>, <code>nativeModuleClose</code></td></tr>
 <tr><td>Native sync primitives</td><td><code>nativeMutex*</code>, <code>nativeCondition*</code>, <code>nativeSemaphore*</code>, <code>nativeHandle*</code></td></tr>

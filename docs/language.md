@@ -124,6 +124,53 @@ global main() {
 - A declaration inside a loop or `if` body belongs to the enclosing top-level
   scope, not a nested one (see [Scoping](#scoping)).
 
+## Ownership and borrowing
+
+Variables own their value. A few built-ins make moves and temporary aliases
+explicit, which matters when a value is expensive to copy.
+
+```lynx
+int source = 42;
+int destination = 0;
+varTransfer(source, destination);   // source is moved; destination owns 42
+
+int borrower = 0;
+varBorrow(destination, borrower);   // borrower is a read-only alias
+println(borrowing(borrower));        // true
+println(beingBorrowed(destination)); // true
+varEndBorrow(borrower);              // borrower becomes an independent copy
+```
+
+- `varTransfer(source, destination)` moves the value into an already-declared
+  destination whose declared type must accept it. A moved source cannot be read,
+  passed to a function, borrowed or moved again; a plain assignment reinitialises
+  it. Transfers are rejected while either side has an active borrow, and
+  constants cannot be moved.
+- `varTransferMutate(source, destination)` is the move form for an `any` or
+  `num` destination: it accepts a value of any runtime type, where
+  `varTransfer` requires the declared type to match.
+- `varBorrow(source, borrower)` makes a read-only tracked alias. The source
+  stays readable and several read-only borrowers may coexist, but neither side
+  may be written while the borrow is active. `varEndBorrow(borrower)` ends it
+  and gives the borrower an independent copy of the source's current value.
+  Borrowing a moved value, borrowing into a constant, and ending a borrow that
+  is not active are errors.
+- `borrowing(variable)` reports whether a variable is currently a borrower, and
+  `beingBorrowed(variable)` whether another variable is borrowing from it. Both
+  accept moved variables, so ownership state can be inspected while handling an
+  error.
+- `varBorrowMutate(source, borrower)` makes an exclusive mutable borrow: the
+  borrower may be assigned through while the source observes the same storage.
+  Another active borrow makes it fail, and ending it with `varEndBorrow` leaves
+  the borrower independent.
+- `varSwapAll(first, second)` exchanges values **and** declared type metadata;
+  `varSwapVal(first, second)` exchanges only values and keeps each declared type,
+  so both cross-assignments must be type-compatible. Both require independent,
+  live, mutable variables and validate everything before changing either one.
+
+The arguments to these built-ins are **variable names**, not values. A runnable
+example is `lynxer/examples/ownership.lynx`.
+
 ## Types
 
 The complete type list, ranges, and conversion rules live in

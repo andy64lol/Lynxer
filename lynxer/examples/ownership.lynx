@@ -1,0 +1,100 @@
+////
+Ownership and borrowing built-ins.
+
+Exercises varTransfer / varBorrow / varBorrowMutate / varSwapVal / varSwapAll
+and their failure paths: a moved variable cannot be read, a borrowed one cannot
+be written, a constant cannot be moved, and so on. Every printed value is a
+property or an error message, so the expected output is stable on amd64 and
+arm64.
+////
+
+global setup() {}
+
+global main() {
+    println("== transfer ==");
+    int source = 42;
+    int destination = 0;
+    varTransfer(source, destination);
+    println("destination ", destination);
+    println("source borrows nothing ", borrowing(source) is false);
+    source = 7;
+    println("reinitialised source ", source);
+
+    println("== read-only borrow ==");
+    int reader = 10;
+    int alias = 0;
+    varBorrow(reader, alias);
+    println("borrowing ", borrowing(alias));
+    println("beingBorrowed ", beingBorrowed(reader));
+    println("value through borrow ", alias);
+    varEndBorrow(alias);
+    alias = 99;
+    println("alias independent ", alias, " ", reader);
+
+    println("== mutable borrow ==");
+    int shared = 5;
+    int writer = 0;
+    varBorrowMutate(shared, writer);
+    writer = 55;
+    println("through mutable borrow ", writer, " ", shared);
+    varEndBorrow(writer);
+
+    println("== swap ==");
+    int left = 1;
+    int right = 2;
+    varSwapVal(left, right);
+    println("swapVal ", left, " ", right);
+    int first = 1;
+    int second = 9;
+    varSwapAll(first, second);
+    println("swapAll ", first, " ", second);
+
+    println("== failures ==");
+    try {
+        int moved1 = 1;
+        int sink1 = 0;
+        varTransfer(moved1, sink1);
+        println(moved1);
+    } catch (str error) {
+        println("read moved: ", error);
+    }
+    try {
+        int owned2 = 1;
+        int holder2 = 0;
+        varBorrow(owned2, holder2);
+        owned2 = 5;
+    } catch (str error) {
+        println("write borrowed source: ", error);
+    }
+    try {
+        int base3 = 1;
+        int holder3 = 0;
+        varBorrow(base3, holder3);
+        holder3 = 5;
+    } catch (str error) {
+        println("write through read-only: ", error);
+    }
+    try {
+        int once4 = 1;
+        int target4 = 0;
+        varTransfer(once4, target4);
+        varTransfer(once4, target4);
+    } catch (str error) {
+        println("move twice: ", error);
+    }
+    try {
+        int plain5 = 1;
+        varEndBorrow(plain5);
+    } catch (str error) {
+        println("end non-borrow: ", error);
+    }
+    try {
+        const int frozen6 = 1;
+        int target6 = 0;
+        varTransfer(frozen6, target6);
+    } catch (str error) {
+        println("move constant: ", error);
+    }
+
+    println("done");
+}

@@ -373,6 +373,26 @@ Lynxer frame at a time.
 See `lynxer/examples/builtin_async.lynx` for a runnable example, and
 [language.md](language.md) for the `async`/`await` syntax.
 
+## Ownership and borrowing
+
+| Builtin | Notes |
+| --- | --- |
+| `varTransfer(source, destination)` | Moves a value into an existing destination of a compatible declared type |
+| `varTransferMutate(source, destination)` | Move form for an `any`/`num` destination |
+| `varBorrow(source, borrower)` | Read-only tracked alias; neither side is writable while active |
+| `varBorrowMutate(source, borrower)` | Exclusive mutable alias; writes through the borrower reach the source |
+| `varEndBorrow(borrower)` | Ends a borrow, leaving the borrower an independent copy |
+| `borrowing(variable)` | Whether the variable is currently a borrower |
+| `beingBorrowed(variable)` | Whether another variable is borrowing from it |
+| `varSwapAll(first, second)` | Exchanges values and declared types |
+| `varSwapVal(first, second)` | Exchanges values, keeping declared types |
+
+The arguments are **variable names**, not values: `varBorrow(a, b)` names two
+variables rather than passing their contents. Failures are source-located errors
+such as `Cannot read moved variable 'x'; reinitialize it before using it again`.
+See [language.md](language.md#ownership-and-borrowing) and
+`lynxer/examples/ownership.lynx`.
+
 ## Unsupported names
 
 Names Lynxer recognises but does not implement on Linux/POSIX. Each fails with
@@ -382,8 +402,7 @@ Names Lynxer recognises but does not implement on Linux/POSIX. Each fails with
 | Family | Names |
 | --- | --- |
 | Python bridging | `rawPy`, `rawPyx`, `cleanRawPyxCache`, `embedPy` |
-| Namespaces | `unshare` |
-| Borrow / transfer | `varTransfer`, `varTransferMutate`, `varBorrow`, `varBorrowMutate`, `varSwapAll`, `varSwapVal`, `varEndBorrow`, `borrowing`, `beingBorrowed` |
+| Shared aliasing | `unshare` (there is no `shared` construct to detach) |
 | Raw addresses | `getAddress`, `modifyAddressValue`, `getAddressValue`, `functionAddress`, `nativeFunctionAddress`, `nativeCall` |
 | Native module introspection | `nativeModuleLoad`, `nativeModuleName`, `nativeModuleFunction`, `nativeModuleConstant`, `nativeModuleType`, `nativeModuleError`, `nativeModuleDependencies`, `nativeModuleClose` |
 | Native sync primitives | `nativeMutex*`, `nativeCondition*`, `nativeSemaphore*`, `nativeHandle*` |

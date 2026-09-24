@@ -153,6 +153,26 @@ global main() {
 <li>Fixed-width types reject out-of-range values at the declaration, parameter, assignment, and return boundaries (see <a href="types.html">types</a>).</li>
 <li>A declaration inside a loop or <code>if</code> body belongs to the enclosing top-level scope, not a nested one (see <a href="#scoping">Scoping</a>).</li>
 </ul>
+<h2 id="ownership-and-borrowing">Ownership and borrowing</h2>
+<p>Variables own their value. A few built-ins make moves and temporary aliases explicit, which matters when a value is expensive to copy.</p>
+<pre><code>int source = 42;
+int destination = 0;
+varTransfer(source, destination);   // source is moved; destination owns 42
+
+int borrower = 0;
+varBorrow(destination, borrower);   // borrower is a read-only alias
+println(borrowing(borrower));        // true
+println(beingBorrowed(destination)); // true
+varEndBorrow(borrower);              // borrower becomes an independent copy</code></pre>
+<ul>
+<li><code>varTransfer(source, destination)</code> moves the value into an already-declared destination whose declared type must accept it. A moved source cannot be read, passed to a function, borrowed or moved again; a plain assignment reinitialises it. Transfers are rejected while either side has an active borrow, and constants cannot be moved.</li>
+<li><code>varTransferMutate(source, destination)</code> is the move form for an <code>any</code> or <code>num</code> destination: it accepts a value of any runtime type, where <code>varTransfer</code> requires the declared type to match.</li>
+<li><code>varBorrow(source, borrower)</code> makes a read-only tracked alias. The source stays readable and several read-only borrowers may coexist, but neither side may be written while the borrow is active. <code>varEndBorrow(borrower)</code> ends it and gives the borrower an independent copy of the source's current value. Borrowing a moved value, borrowing into a constant, and ending a borrow that is not active are errors.</li>
+<li><code>borrowing(variable)</code> reports whether a variable is currently a borrower, and <code>beingBorrowed(variable)</code> whether another variable is borrowing from it. Both accept moved variables, so ownership state can be inspected while handling an error.</li>
+<li><code>varBorrowMutate(source, borrower)</code> makes an exclusive mutable borrow: the borrower may be assigned through while the source observes the same storage. Another active borrow makes it fail, and ending it with <code>varEndBorrow</code> leaves the borrower independent.</li>
+<li><code>varSwapAll(first, second)</code> exchanges values <strong>and</strong> declared type metadata; <code>varSwapVal(first, second)</code> exchanges only values and keeps each declared type, so both cross-assignments must be type-compatible. Both require independent, live, mutable variables and validate everything before changing either one.</li>
+</ul>
+<p>The arguments to these built-ins are <strong>variable names</strong>, not values. A runnable example is <code>lynxer/examples/ownership.lynx</code>.</p>
 <h2 id="types">Types</h2>
 <p>The complete type list, ranges, and conversion rules live in <a href="types.html">types</a>. The scalar names are <code>int</code>, <code>float</code>, <code>num</code>, <code>bool</code>, <code>str</code>, <code>char</code>, <code>numBool</code>, <code>bit</code>, <code>byte</code>, <code>int8</code>/<code>int16</code>/<code>int32</code>/<code>int64</code>, <code>uint8</code>/<code>uint16</code>/<code>uint32</code>/<code>uint64</code>, <code>float32</code>/<code>float64</code>, plus <code>any</code>, <code>none</code>, <code>list</code>, <code>tuple</code>, <code>codeblock</code>, and the named <code>struct</code>/<code>class</code>/<code>enum</code> types.</p>
 <h2 id="operators">Operators</h2>

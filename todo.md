@@ -19,7 +19,6 @@ is visible next to the work that *is* open.
 | Click/Typer builders (`click*`, `typer*`) | The `cli` module does not depend on Python's Click or Typer. |
 | Python runtime introspection (`sys.path`, `addPath`, `prependPath`, `removeFromPath`, `getModules`, `isModuleLoaded`, `getRecursionLimit`, `setRecursionLimit`, `os.getPythonVersion`, `os.getPythonImplementation`) | There is no Python runtime to introspect. |
 | Bytecode (`.lynxc`, `--view-bytecode`, `--benchmark-compile`, `--no-cache`) | Removed; `--compile` produces a standalone ELF executable instead. |
-| `varBorrow*` family | Python's borrowed references have no meaning across the native ABI. |
 | FFI / native-module handle built-ins | Superseded by importing a native `.so` through the documented ABI. |
 | `nativeMutex*`, `nativeCondition*`, `nativeSemaphore*` | Lynxer runs cooperatively on one interpreter thread; there is no shared mutable state to protect. |
 | `async*` family (`Run`, `Gather`, `Sleep`, `Poll*`, timers, wakeups) | No `async` language support and no event loop to serve. |

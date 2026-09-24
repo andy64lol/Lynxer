@@ -29,6 +29,43 @@
 namespace lynxer {
 
 
+// --- ownership built-in arguments ---------------------------------------------
+//
+// The ownership family takes variable names, not values, so these calls are
+// dispatched before their arguments are evaluated.
+
+namespace {
+
+// The variable name an argument refers to, or "" when it is not a bare
+// variable (which the built-in reports as a bad argument).
+std::string ownershipArgumentName(const Expression& expression) {
+    if (const auto* variable =
+            dynamic_cast<const VariableExpression*>(&expression)) {
+        return variable->name();
+    }
+    if (const auto* access =
+            dynamic_cast<const DotAccessExpression*>(&expression)) {
+        const auto* object =
+            dynamic_cast<const VariableExpression*>(&access->object());
+        if (object != nullptr && object->name() == "global") {
+            return access->fieldName();
+        }
+    }
+    return "";
+}
+
+std::vector<std::string> ownershipArgumentNames(
+    const std::vector<ExpressionPtr>& arguments) {
+    std::vector<std::string> names;
+    names.reserve(arguments.size());
+    for (const auto& argument : arguments) {
+        names.push_back(ownershipArgumentName(*argument));
+    }
+    return names;
+}
+
+} // namespace
+
 // --- record/enum helpers -------------------------------------------------------
 
 namespace {
@@ -1130,6 +1167,11 @@ Value MethodCallExpression::evaluate(Environment& environment) const {
     // global.<builtin>(...) keeps its builtin-call meaning.
     if (const auto* variable = dynamic_cast<const VariableExpression*>(object_.get())) {
         if (variable->name() == "global") {
+            if (isOwnershipBuiltin(method_)) {
+                return callOwnershipBuiltin(
+                    method_, ownershipArgumentNames(arguments_), environment,
+                    line_, column_);
+            }
             std::vector<Value> arguments;
             arguments.reserve(arguments_.size());
             for (const auto& argument : arguments_) {
@@ -1357,6 +1399,14 @@ VariableExpression::VariableExpression(std::string name, int line, int column)
     : name_(std::move(name)), line_(line), column_(column) {}
 
 Value VariableExpression::evaluate(Environment& environment) const {
+    // A moved variable may not be read until it is reinitialised. Unknown names
+    // fall through so the usual "unknown variable" error is reported.
+    if (environment.hasVariable(name_)) {
+        const std::string error = environment.ownershipError(name_, "read");
+        if (!error.empty()) {
+            throw SourceError(error, line_, column_);
+        }
+    }
     return environment.get(name_, line_, column_);
 }
 
@@ -1458,6 +1508,10 @@ void CallExpression::addNamedCodeblock(std::string name) {
 }
 
 Value CallExpression::evaluate(Environment& environment) const {
+    if (isOwnershipBuiltin(name_)) {
+        return callOwnershipBuiltin(name_, ownershipArgumentNames(arguments_),
+                                    environment, line_, column_);
+    }
     std::vector<Value> arguments;
     arguments.reserve(arguments_.size());
     for (const auto& argument : arguments_) {
@@ -1557,6 +1611,14 @@ DeclarationStatement::DeclarationStatement(std::string type, std::string name,
       constant_(constant) {}
 
 void DeclarationStatement::execute(Environment& environment) const {
+    // Redeclaring an existing name is a write to it, so the ownership rules
+    // apply (a moved variable is reinitialised; a borrowed one is not writable).
+    if (environment.hasVariable(name_)) {
+        const std::string error = environment.ownershipError(name_, "write to");
+        if (!error.empty()) {
+            throw SourceError(error, line_, column_);
+        }
+    }
     Value value = Environment::convertForType(value_->evaluate(environment),
                                               type_, line_, column_);
     if (constant_) {

@@ -4856,8 +4856,6 @@ const std::unordered_set<std::string>& unsupportedTable() {
         "soundResume", "soundSetVolume", "soundIsPlaying", "soundRelease",
 #endif
         "unshare",
-        "varTransfer", "varTransferMutate", "varBorrow", "varBorrowMutate",
-        "varSwapAll", "varSwapVal", "varEndBorrow", "borrowing", "beingBorrowed",
         "getAddress", "modifyAddressValue", "getAddressValue", "functionAddress",
         "nativeFunctionAddress", "nativeCall",
 
@@ -4955,7 +4953,84 @@ void joinNativeThreadsAtExit() {
 #endif
 }
 
+namespace {
+
+// Ownership built-ins take variable names, not values, so they are dispatched
+// from the call site rather than through the value-based handler table.
+bool isOwnershipName(const std::string& name) {
+    return name == "varTransfer" || name == "varTransferMutate" ||
+           name == "varBorrow" || name == "varBorrowMutate" ||
+           name == "varSwapAll" || name == "varSwapVal" ||
+           name == "varEndBorrow" || name == "borrowing" ||
+           name == "beingBorrowed";
+}
+
+std::string stripGlobalPrefix(const std::string& name) {
+    const std::string prefix = "global.";
+    if (name.rfind(prefix, 0) == 0) {
+        return name.substr(prefix.size());
+    }
+    return name;
+}
+
+} // namespace
+
+bool isOwnershipBuiltin(const std::string& name) {
+    return isOwnershipName(stripGlobalPrefix(name));
+}
+
+Value callOwnershipBuiltin(const std::string& name,
+                           const std::vector<std::string>& names,
+                           Environment& environment, int line, int column) {
+    const std::string resolved = stripGlobalPrefix(name);
+    const bool unary = resolved == "varEndBorrow" || resolved == "borrowing" ||
+                       resolved == "beingBorrowed";
+    const std::size_t expected = unary ? 1 : 2;
+    if (names.size() != expected) {
+        fail(resolved + "() expects exactly " + std::to_string(expected) +
+                 " variable name(s)",
+             line, column);
+    }
+    for (std::size_t index = 0; index < names.size(); ++index) {
+        if (names[index].empty()) {
+            fail(resolved + "() argument " + std::to_string(index) +
+                     " must be a variable name",
+                 line, column);
+        }
+    }
+    if (resolved == "borrowing") {
+        return environment.isBorrowing(names[0]);
+    }
+    if (resolved == "beingBorrowed") {
+        return environment.isBeingBorrowed(names[0]);
+    }
+
+    std::string error;
+    if (resolved == "varTransfer") {
+        error = environment.transfer(names[0], names[1]);
+    } else if (resolved == "varTransferMutate") {
+        error = environment.transferMutate(names[0], names[1]);
+    } else if (resolved == "varBorrow") {
+        error = environment.borrow(names[0], names[1]);
+    } else if (resolved == "varBorrowMutate") {
+        error = environment.borrowMutate(names[0], names[1]);
+    } else if (resolved == "varSwapAll") {
+        error = environment.swapAll(names[0], names[1]);
+    } else if (resolved == "varSwapVal") {
+        error = environment.swapValue(names[0], names[1]);
+    } else if (resolved == "varEndBorrow") {
+        error = environment.endBorrow(names[0]);
+    }
+    if (!error.empty()) {
+        fail(error, line, column);
+    }
+    return none();
+}
+
 bool isBuiltinName(const std::string& name) {
+    if (isOwnershipBuiltin(name)) {
+        return true;
+    }
     const auto& handlers = handlerTable();
     const auto& unsupported = unsupportedTable();
     if (handlers.find(name) != handlers.end()) {

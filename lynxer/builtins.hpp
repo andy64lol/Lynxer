@@ -22,4 +22,13 @@ void joinNativeThreadsAtExit();
 Value callBuiltin(const std::string& name, const std::vector<Value>& args,
                   Environment& environment, int line, int column);
 
+// The ownership family (varTransfer, varBorrow, varSwapAll, ...) takes variable
+// names rather than evaluated values, so the call site extracts the names and
+// dispatches here instead of through callBuiltin.
+bool isOwnershipBuiltin(const std::string& name);
+
+Value callOwnershipBuiltin(const std::string& name,
+                           const std::vector<std::string>& names,
+                           Environment& environment, int line, int column);
+
 } // namespace lynxer

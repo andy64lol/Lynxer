@@ -4,9 +4,11 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -94,10 +96,26 @@ struct ObjectValue {
     std::uint64_t id = 0;
 };
 
+// Whether a variable still owns its value, or it was moved out by varTransfer.
+enum class Ownership { Live, Moved };
+
 struct Variable {
+    Variable() = default;
+    Variable(std::string declaredType, Value initialValue, bool isConstant)
+        : type(std::move(declaredType)), value(std::move(initialValue)),
+          constant(isConstant) {}
+
     std::string type;
     Value value;
     bool constant = false;
+
+    // Ownership / borrowing state. A moved variable may not be read until it is
+    // reinitialised by an assignment; a variable with a non-empty borrowSource
+    // is an alias of that variable (read-only unless borrowMutable is set).
+    Ownership ownership = Ownership::Live;
+    std::string borrowSource;
+    bool borrowMutable = false;
+    std::set<std::string> borrowers;
 };
 
 class Environment {
@@ -134,6 +152,25 @@ public:
                                const Variable& variable);
 
     void removeVariable(const std::string& name);
+
+    // --- ownership and borrowing -------------------------------------------
+    // Every operation returns an empty string on success, or a user-facing
+    // error message (mirroring the semantics the Python build had).
+    std::string ownershipError(const std::string& name,
+                               const std::string& operation) const;
+    std::string transfer(const std::string& source,
+                         const std::string& destination);
+    std::string transferMutate(const std::string& source,
+                               const std::string& destination);
+    std::string swapAll(const std::string& first, const std::string& second);
+    std::string swapValue(const std::string& first, const std::string& second);
+    std::string borrow(const std::string& source,
+                       const std::string& borrower);
+    std::string borrowMutate(const std::string& source,
+                             const std::string& borrower);
+    std::string endBorrow(const std::string& borrower);
+    bool isBorrowing(const std::string& name) const;
+    bool isBeingBorrowed(const std::string& name) const;
 
     void registerFunction(const std::string& name,
                           std::shared_ptr<void> function);
@@ -187,6 +224,14 @@ private:
     [[noreturn]] static void fail(const std::string& message, int line,
                                   int column);
 
+    // Innermost-out variable lookup; nullptr when the name is unknown.
+    Variable* findVariable(const std::string& name);
+    const Variable* findVariable(const std::string& name) const;
+
+    // Follows a borrowSource chain to the variable that owns the storage.
+    // Returns "" when the name (or its source) is not defined.
+    std::string canonicalName(const std::string& name) const;
+
     std::vector<std::unordered_map<std::string, Variable>> scopes_;
     std::vector<std::unordered_map<std::string, std::shared_ptr<void>>>
         functionScopes_;
@@ -212,6 +257,11 @@ bool isNumber(const Value& value);
 double asNumber(const Value& value, int line, int column);
 
 std::string typeNameOf(const Value& value);
+
+// Copy for transfer / borrow-end: list, tuple and enum get a fresh outer
+// object (their elements stay shared); records, objects, sentinels and
+// codeblocks are shared as-is.
+Value copyForOwnership(const Value& value);
 
 bool valuesEqual(const Value& left, const Value& right);
 

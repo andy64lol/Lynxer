@@ -1,0 +1,22 @@
+== transfer ==
+destination 42
+source borrows nothing true
+reinitialised source 7
+== read-only borrow ==
+borrowing true
+beingBorrowed true
+value through borrow 10
+alias independent 99 10
+== mutable borrow ==
+through mutable borrow 55 55
+== swap ==
+swapVal 2 1
+swapAll 9 1
+== failures ==
+read moved: Cannot read moved variable 'moved1'; reinitialize it before using it again
+write borrowed source: Cannot write to 'owned2' while it is being borrowed; end all active borrows first
+write through read-only: Cannot write to borrowed variable 'holder3'; the borrow is read-only
+move twice: Cannot move from moved variable 'once4'; reinitialize it before using it again
+end non-borrow: 'plain5' is not an active borrow; varEndBorrow() expects a borrowing variable
+move constant: Cannot transfer constant 'frozen6'
+done

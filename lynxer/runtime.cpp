@@ -39,33 +39,92 @@ void Environment::declareConstant(const std::string& name,
                  true};
 }
 
-void Environment::assign(const std::string& name, Value value, int line,
-                         int column) {
+Variable* Environment::findVariable(const std::string& name) {
     for (auto scope = scopes_.rbegin(); scope != scopes_.rend(); ++scope) {
         auto found = scope->find(name);
-        if (found == scope->end()) {
-            continue;
+        if (found != scope->end()) {
+            return &found->second;
         }
-        if (found->second.constant) {
-            fail("variable '" + name + "' is constant and cannot be reassigned",
+    }
+    return nullptr;
+}
+
+const Variable* Environment::findVariable(const std::string& name) const {
+    for (auto scope = scopes_.rbegin(); scope != scopes_.rend(); ++scope) {
+        auto found = scope->find(name);
+        if (found != scope->end()) {
+            return &found->second;
+        }
+    }
+    return nullptr;
+}
+
+std::string Environment::canonicalName(const std::string& name) const {
+    std::string current = name;
+    std::set<std::string> seen;
+    while (true) {
+        const Variable* variable = findVariable(current);
+        if (variable == nullptr) {
+            return "";
+        }
+        if (variable->borrowSource.empty()) {
+            return current;
+        }
+        if (!seen.insert(current).second) {
+            return "";
+        }
+        current = variable->borrowSource;
+    }
+}
+
+void Environment::assign(const std::string& name, Value value, int line,
+                         int column) {
+    Variable* variable = findVariable(name);
+    if (variable == nullptr) {
+        fail("unknown variable '" + name + "'", line, column);
+    }
+
+    // Writing through a borrow goes to the variable that owns the storage.
+    if (!variable->borrowSource.empty()) {
+        if (!variable->borrowMutable) {
+            fail("Cannot write to borrowed variable '" + name +
+                     "'; the borrow is read-only",
                  line, column);
         }
-        found->second.value =
-            convertForType(std::move(value), found->second.type, line, column);
+        const std::string canonical = canonicalName(name);
+        Variable* source = canonical.empty() ? nullptr : findVariable(canonical);
+        if (source == nullptr) {
+            fail("unknown variable '" + name + "'", line, column);
+        }
+        source->value =
+            convertForType(std::move(value), source->type, line, column);
+        source->ownership = Ownership::Live;
         return;
     }
-    fail("unknown variable '" + name + "'", line, column);
+
+    if (variable->constant) {
+        fail("variable '" + name + "' is constant and cannot be reassigned",
+             line, column);
+    }
+    const std::string error = ownershipError(name, "write to");
+    if (!error.empty()) {
+        fail(error, line, column);
+    }
+    variable->value =
+        convertForType(std::move(value), variable->type, line, column);
+    // A plain assignment reinitialises a moved variable.
+    variable->ownership = Ownership::Live;
 }
 
 const Value& Environment::get(const std::string& name, int line,
                               int column) const {
-    for (auto scope = scopes_.rbegin(); scope != scopes_.rend(); ++scope) {
-        auto found = scope->find(name);
-        if (found != scope->end()) {
-            return found->second.value;
-        }
+    const std::string canonical = canonicalName(name);
+    const Variable* variable =
+        canonical.empty() ? nullptr : findVariable(canonical);
+    if (variable == nullptr) {
+        fail("unknown variable '" + name + "'", line, column);
     }
-    fail("unknown variable '" + name + "'", line, column);
+    return variable->value;
 }
 
 bool Environment::hasVariable(const std::string& name) const {
@@ -114,6 +173,330 @@ void Environment::removeVariable(const std::string& name) {
             return;
         }
     }
+}
+
+std::string Environment::ownershipError(const std::string& name,
+                                        const std::string& operation) const {
+    const Variable* variable = findVariable(name);
+    if (variable == nullptr) {
+        return "'" + name + "' is not defined";
+    }
+    if (!variable->borrowSource.empty()) {
+        // The name is a borrower, so its state is "borrowed".
+        if (operation == "transfer into" || operation == "borrow into") {
+            return "Cannot " + operation + " borrowed variable '" + name +
+                   "'; end its borrow first";
+        }
+        if (operation == "write to" && !variable->borrowMutable) {
+            return "Cannot write to borrowed variable '" + name +
+                   "'; the borrow is read-only";
+        }
+        if ((operation == "write to" || operation == "move") &&
+            !variable->borrowMutable) {
+            return "Cannot " + operation + " '" + name +
+                   "' while it is being borrowed; end all active borrows first";
+        }
+        return "";
+    }
+    if (variable->ownership == Ownership::Moved) {
+        if (operation == "write to") {
+            return "";
+        }
+        const std::string action =
+            operation == "move" ? std::string("move from") : operation;
+        return "Cannot " + action + " moved variable '" + name +
+               "'; reinitialize it before using it again";
+    }
+    if ((operation == "write to" || operation == "move") &&
+        !variable->borrowers.empty()) {
+        return "Cannot " + operation + " '" + name +
+               "' while it is being borrowed; end all active borrows first";
+    }
+    return "";
+}
+
+std::string Environment::transfer(const std::string& source,
+                                  const std::string& destination) {
+    const std::string canonical = canonicalName(source);
+    if (canonical.empty()) {
+        return "source variable is not defined";
+    }
+    Variable* destinationVariable = findVariable(destination);
+    if (destinationVariable == nullptr) {
+        return "destination variable is not defined";
+    }
+    if (canonical == destination) {
+        return "a variable cannot be transferred to itself";
+    }
+    if (!destinationVariable->borrowSource.empty()) {
+        return "Cannot transfer into shared variable '" + destination +
+               "'; use an independent destination";
+    }
+    const std::string sourceError = ownershipError(source, "move");
+    if (!sourceError.empty()) {
+        return sourceError;
+    }
+    Variable* sourceVariable = findVariable(canonical);
+    if (sourceVariable->constant) {
+        return "Cannot transfer constant '" + source + "'";
+    }
+    if (destinationVariable->constant) {
+        return "Cannot transfer into constant '" + destination + "'";
+    }
+    if (!typeMatches(destinationVariable->type, sourceVariable->value)) {
+        return "Type mismatch: '" + destination + "' is declared as '" +
+               destinationVariable->type + "' but got a '" +
+               typeNameOf(sourceVariable->value) + "' value";
+    }
+    destinationVariable->value = copyForOwnership(sourceVariable->value);
+    destinationVariable->ownership = Ownership::Live;
+    sourceVariable->ownership = Ownership::Moved;
+    return "";
+}
+
+std::string Environment::transferMutate(const std::string& source,
+                                        const std::string& destination) {
+    const std::string canonical = canonicalName(source);
+    if (canonical.empty()) {
+        return "Cannot transfer from an undefined source variable";
+    }
+    Variable* destinationVariable = findVariable(destination);
+    if (destinationVariable == nullptr) {
+        return "Cannot transfer into an undefined destination variable";
+    }
+    if (canonical == destination) {
+        return "a variable cannot be transferred to itself";
+    }
+    const std::string sourceError = ownershipError(source, "move");
+    if (!sourceError.empty()) {
+        return sourceError;
+    }
+    Variable* sourceVariable = findVariable(canonical);
+    if (sourceVariable->constant) {
+        return "Cannot transfer constant '" + source + "'";
+    }
+    if (destinationVariable->constant) {
+        return "Cannot transfer into constant '" + destination + "'";
+    }
+    const std::string declared = destinationVariable->type;
+    if (!declared.empty() && declared != "any" && declared != "num" &&
+        !typeMatches(declared, sourceVariable->value)) {
+        return "Type mismatch: '" + destination + "' is declared as '" +
+               declared + "' and cannot mutate to '" +
+               typeNameOf(sourceVariable->value) + "'";
+    }
+    destinationVariable->value = copyForOwnership(sourceVariable->value);
+    destinationVariable->ownership = Ownership::Live;
+    sourceVariable->ownership = Ownership::Moved;
+    return "";
+}
+
+namespace {
+
+// Shared validation for varSwapAll / varSwapVal.
+std::string swapReferenceError(const Variable* variable,
+                               const std::string& name,
+                               const std::string& label) {
+    if (variable == nullptr) {
+        return label + " variable is not defined";
+    }
+    if (!variable->borrowSource.empty()) {
+        return "Cannot swap " + label + " shared variable '" + name +
+               "'; use independent variables";
+    }
+    if (variable->constant) {
+        return "Cannot swap " + label + " constant '" + name + "'";
+    }
+    if (variable->ownership == Ownership::Moved) {
+        return "Cannot swap " + label + " moved variable '" + name +
+               "'; reinitialize it before swapping";
+    }
+    if (!variable->borrowers.empty()) {
+        return "Cannot swap " + label + " variable '" + name +
+               "' while it is being borrowed; end all active borrows first";
+    }
+    return "";
+}
+
+} // namespace
+
+std::string Environment::swapAll(const std::string& first,
+                                 const std::string& second) {
+    Variable* firstVariable = findVariable(first);
+    Variable* secondVariable = findVariable(second);
+    if (firstVariable == nullptr) {
+        return "first variable is not defined";
+    }
+    if (secondVariable == nullptr) {
+        return "second variable is not defined";
+    }
+    if (first == second) {
+        return "a variable cannot be swapped with itself";
+    }
+    const std::string firstError = swapReferenceError(firstVariable, first, "first");
+    if (!firstError.empty()) {
+        return firstError;
+    }
+    const std::string secondError =
+        swapReferenceError(secondVariable, second, "second");
+    if (!secondError.empty()) {
+        return secondError;
+    }
+    std::swap(firstVariable->value, secondVariable->value);
+    std::swap(firstVariable->type, secondVariable->type);
+    return "";
+}
+
+std::string Environment::swapValue(const std::string& first,
+                                   const std::string& second) {
+    Variable* firstVariable = findVariable(first);
+    Variable* secondVariable = findVariable(second);
+    if (firstVariable == nullptr) {
+        return "first variable is not defined";
+    }
+    if (secondVariable == nullptr) {
+        return "second variable is not defined";
+    }
+    if (first == second) {
+        return "a variable cannot be swapped with itself";
+    }
+    const std::string firstError = swapReferenceError(firstVariable, first, "first");
+    if (!firstError.empty()) {
+        return firstError;
+    }
+    const std::string secondError =
+        swapReferenceError(secondVariable, second, "second");
+    if (!secondError.empty()) {
+        return secondError;
+    }
+    if (!typeMatches(firstVariable->type, secondVariable->value)) {
+        return "Type mismatch: '" + first + "' is declared as '" +
+               firstVariable->type + "' but got a '" +
+               typeNameOf(secondVariable->value) + "' value";
+    }
+    if (!typeMatches(secondVariable->type, firstVariable->value)) {
+        return "Type mismatch: '" + second + "' is declared as '" +
+               secondVariable->type + "' but got a '" +
+               typeNameOf(firstVariable->value) + "' value";
+    }
+    std::swap(firstVariable->value, secondVariable->value);
+    return "";
+}
+
+std::string Environment::borrow(const std::string& source,
+                                const std::string& borrower) {
+    const std::string canonical = canonicalName(source);
+    if (canonical.empty()) {
+        return "source variable is not defined";
+    }
+    Variable* sourceVariable = findVariable(canonical);
+    Variable* destinationVariable = findVariable(borrower);
+    if (destinationVariable == nullptr) {
+        return "destination variable is not defined";
+    }
+    if (canonical == borrower) {
+        return "a variable cannot borrow from itself";
+    }
+    if (!destinationVariable->borrowSource.empty()) {
+        return "Cannot borrow into shared variable '" + borrower +
+               "'; end or detach that alias first";
+    }
+    const std::string sourceError = ownershipError(source, "borrow from");
+    if (!sourceError.empty()) {
+        return sourceError;
+    }
+    if (destinationVariable->constant) {
+        return "Cannot borrow into constant '" + borrower + "'";
+    }
+    if (!typeMatches(destinationVariable->type, sourceVariable->value)) {
+        return "Type mismatch: '" + borrower + "' is declared as '" +
+               destinationVariable->type + "' but got a '" +
+               typeNameOf(sourceVariable->value) + "' value";
+    }
+    destinationVariable->value = Value{};
+    destinationVariable->borrowSource = canonical;
+    destinationVariable->borrowMutable = false;
+    sourceVariable->borrowers.insert(borrower);
+    return "";
+}
+
+std::string Environment::borrowMutate(const std::string& source,
+                                      const std::string& borrower) {
+    const std::string canonical = canonicalName(source);
+    if (canonical.empty()) {
+        return "Cannot mutably borrow an undefined source variable";
+    }
+    Variable* sourceVariable = findVariable(canonical);
+    Variable* destinationVariable = findVariable(borrower);
+    if (destinationVariable == nullptr) {
+        return "Cannot mutably borrow into an undefined destination variable";
+    }
+    if (canonical == borrower) {
+        return "a variable cannot borrow from itself";
+    }
+    const std::string sourceError = ownershipError(source, "borrow from");
+    if (!sourceError.empty()) {
+        return sourceError;
+    }
+    if (!sourceVariable->borrowers.empty()) {
+        return "Cannot mutably borrow '" + source +
+               "' while it has active borrows; end all active borrows first";
+    }
+    if (!destinationVariable->borrowSource.empty()) {
+        return "Variable '" + borrower + "' is already borrowing";
+    }
+    if (destinationVariable->constant) {
+        return "Cannot borrow into constant '" + borrower + "'";
+    }
+    const std::string declared = destinationVariable->type;
+    if (!declared.empty() && declared != "any" && declared != "num" &&
+        !typeMatches(declared, sourceVariable->value)) {
+        return "Type mismatch: '" + borrower + "' is declared as '" +
+               declared + "' and cannot mutate to '" +
+               typeNameOf(sourceVariable->value) + "'";
+    }
+    destinationVariable->value = Value{};
+    destinationVariable->borrowSource = canonical;
+    destinationVariable->borrowMutable = true;
+    sourceVariable->borrowers.insert(borrower);
+    return "";
+}
+
+std::string Environment::endBorrow(const std::string& borrower) {
+    Variable* variable = findVariable(borrower);
+    if (variable == nullptr) {
+        return "varEndBorrow() expects a defined variable";
+    }
+    if (variable->borrowSource.empty()) {
+        return "'" + borrower +
+               "' is not an active borrow; varEndBorrow() expects a borrowing "
+               "variable";
+    }
+    const std::string canonical = canonicalName(borrower);
+    Variable* source = canonical.empty() ? nullptr : findVariable(canonical);
+    if (source == nullptr) {
+        return "borrowed source '" + variable->borrowSource +
+               "' is no longer available";
+    }
+    Value copy = copyForOwnership(source->value);
+    source->borrowers.erase(borrower);
+    variable->borrowSource.clear();
+    variable->borrowMutable = false;
+    variable->value = std::move(copy);
+    variable->ownership = Ownership::Live;
+    return "";
+}
+
+bool Environment::isBorrowing(const std::string& name) const {
+    const Variable* variable = findVariable(name);
+    return variable != nullptr && !variable->borrowSource.empty();
+}
+
+bool Environment::isBeingBorrowed(const std::string& name) const {
+    const std::string canonical = canonicalName(name);
+    const Variable* variable =
+        canonical.empty() ? nullptr : findVariable(canonical);
+    return variable != nullptr && !variable->borrowers.empty();
 }
 
 void Environment::registerFunction(const std::string& name,
@@ -621,6 +1004,26 @@ double asNumber(const Value& value, int line, int column) {
         return static_cast<double>(wide->value);
     }
     throw SourceError("numeric value required", line, column);
+}
+
+Value copyForOwnership(const Value& value) {
+    if (const auto* list = std::get_if<std::shared_ptr<List>>(&value)) {
+        if (*list != nullptr) {
+            return std::make_shared<List>(List{(*list)->elements});
+        }
+    }
+    if (const auto* tuple = std::get_if<std::shared_ptr<Tuple>>(&value)) {
+        if (*tuple != nullptr) {
+            return std::make_shared<Tuple>(Tuple{(*tuple)->elements});
+        }
+    }
+    if (const auto* enumValue =
+            std::get_if<std::shared_ptr<EnumValue>>(&value)) {
+        if (*enumValue != nullptr) {
+            return std::make_shared<EnumValue>(**enumValue);
+        }
+    }
+    return value;
 }
 
 bool valuesEqual(const Value& left, const Value& right) {
