@@ -1,7 +1,0 @@
-global setup(){}
-global main(){
-    iterate(10){
-        println("Hello, world!");
-    }
-    // Iterate works
-}

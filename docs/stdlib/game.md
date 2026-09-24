@@ -1,19 +1,61 @@
 # game
 
-2-D game development toolkit for Lynxer, wrapping Python's [Arcade](https://api.arcade.academy/) library. Provides a window, drawing primitives, sprites, input polling, sound, scenes, tilemaps, camera, physics, shape batches, and more through the `global.game` namespace.
+2-D game toolkit for Lynxer. The drawing, input and window layer is a Rust
+library built on [macroquad](https://macroquad.rs), linked into
+`stdlib/game.so` and reached through `global.game`.
 
-> **Requires:** `pip install arcade`
+> **Requires:** a Rust toolchain (`cargo`). `stdlib/game.so` is optional: it is
+> skipped with a warning when `cargo` is not on `PATH`. The Rust source lives in
+> `rust/game/`; build it with `make cargo` or `make buildLynxer`.
 
 ---
 
-## Quick start
+## Coordinates
 
-The draw and update callbacks are ordinary Lynxer functions. Register them by
-name with `setDrawCallback` and `setUpdateCallback`; all drawing and input
-access stays inside the wrapped `global.game.*` API. Mouse and keyboard
-callbacks can be registered with the corresponding `set*Callback` functions.
+World coordinates use **bottom-left origin, +Y up**, matching the reference
+`game` module. The Rust layer flips Y for macroquad internally, and mouse
+coordinates are reported from the bottom-left. Angles are degrees,
+counter-clockwise.
 
-For a full example, see [`test/test37.lynx`](https://github.com/andy64lol/Lynxer/blob/main/test/test37.lynx).
+## Frames and callbacks
+
+`run()` is blocking. Register the two frame callbacks by name, then call
+`run()`:
+
+```lynx
+global setup(){ import("game"); }
+
+global onUpdate(float dt){
+    // advance the world; dt is seconds since the previous frame
+}
+
+global onDraw(){
+    global.game.beginDraw();
+    global.game.drawRect(100.0, 100.0, 40.0, 40.0, 255, 0, 0);
+    global.game.drawText("hello", 10.0, 10.0, 255, 255, 255, 16);
+    global.game.endDraw();
+}
+
+global main(){
+    global.game.init("Demo", 800, 600);
+    global.game.setBackground(20, 20, 30);
+    global.game.setUpdateCallback("onUpdate");
+    global.game.setDrawCallback("onDraw");
+    global.game.run();
+}
+```
+
+Each frame the module calls `onUpdate(dt)` and then `onDraw()`. If either
+callback raises an error the loop stops and the error is reported at the
+`run()` call site. Ctrl-C stops the loop and exits with code 130.
+
+## Headless mode
+
+Set `LYNXER_GAME_HEADLESS=1` to run without a window. `run()` then executes a
+fixed number of deterministic frames (`dt = 1/60`) and every drawing call is a
+no-op, so the API and the callback bridge can be tested without a display. The
+`make test` fixture runner sets this variable; see
+`examples/stdlib_game.lynx`.
 
 ---
 
@@ -21,411 +63,214 @@ For a full example, see [`test/test37.lynx`](https://github.com/andy64lol/Lynxer
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `init` | `init(str title, int width, int height)` | Create the arcade window. Must be called first. |
-| `setTitle` | `setTitle(str title)` | Change window title. |
-| `setBackground` | `setBackground(int r, int g, int b)` | Clear color (0–255 per channel). |
-| `getWidth` | `getWidth()` | Window width in pixels. |
-| `getHeight` | `getHeight()` | Window height in pixels. |
+| `init` | `init(str title, int width, int height)` | Configure the window. Call first. |
+| `setTitle` | `setTitle(str title)` | Set the title used when `run()` opens the window. |
+| `setBackground` | `setBackground(int r, int g, int b)` | Clear colour (0–255). |
+| `getWidth` / `getHeight` | `getWidth() -> int` | Current window size. |
 | `setWindowSize` | `setWindowSize(int width, int height)` | Resize the window. |
-| `setResizable` | `setResizable(bool enabled)` | Allow or prevent interactive resizing. |
-| `setMouseVisible` | `setMouseVisible(bool visible)` | Show or hide the mouse cursor. |
-| `setFPSCap` | `setFPSCap(int fps)` | Set target frame rate. |
-| `getFPS` | `getFPS()` | Current frames per second. |
-| `setFullscreen` | `setFullscreen(bool enabled)` | Enter or leave fullscreen. |
-| `setWindowPos` | `setWindowPos(int x, int y)` | Set window position on screen. |
-| `hideCursor` | `hideCursor()` | Hide mouse cursor over window. |
-| `showCursor` | `showCursor()` | Show mouse cursor. |
-| `screenshot` | `screenshot(str path)` | Save the current frame to a PNG. |
-| `close` | `close()` | Close the window. |
+| `setResizable` | `setResizable(bool enabled)` | Accepted and ignored (window is resizable by default). |
+| `setFullscreen` | `setFullscreen(bool enabled)` | Enter/leave fullscreen. |
+| `setMouseVisible` | `setMouseVisible(bool visible)` | Show/hide the cursor. |
+| `hideCursor` / `showCursor` | `hideCursor()` | Cursor convenience wrappers. |
+| `setFPSCap` | `setFPSCap(int fps)` | Frame-rate cap (0 disables). |
+| `getFPS` | `getFPS() -> int` | Current FPS (0 headless). |
+| `close` | `close()` | Ask the loop to stop after the current frame. |
+| `isOpen` | `isOpen() -> bool` | True while the window is open. |
 
----
-
-## App lifecycle
+## Lifecycle and timing
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `run` | `run()` | Start the arcade event loop (blocking). Call last. |
+| `run` | `run()` | Start the blocking frame loop. |
+| `setUpdateCallback` | `setUpdateCallback(str name)` | Per-frame callback receiving `dt`. |
+| `setDrawCallback` | `setDrawCallback(str name)` | Per-frame draw callback. |
+| `deltaTime` | `deltaTime() -> float` | Seconds since the previous frame. |
+| `getTime` | `getTime() -> float` | Seconds since the program started. |
+| `beginDraw` / `endDraw` | `beginDraw()` | Clear the screen / no-op. |
 
----
+## Shapes
 
-## Draw loop
+All colours are `int r, g, b` (0–255); all coordinates are world coordinates.
 
-Call inside `on_draw`.
+| Function | Signature |
+|----------|-----------|
+| `drawRect` | `drawRect(float cx, float cy, float w, float h, int r, int g, int b)` |
+| `drawRectOutline` | `drawRectOutline(cx, cy, w, h, r, g, b, float lineWidth)` |
+| `drawCircle` | `drawCircle(cx, cy, float radius, r, g, b)` |
+| `drawCircleOutline` | `drawCircleOutline(cx, cy, radius, r, g, b, lineWidth)` |
+| `drawEllipse` | `drawEllipse(cx, cy, float w, float h, r, g, b)` |
+| `drawEllipseOutline` | `drawEllipseOutline(cx, cy, w, h, r, g, b, lineWidth)` |
+| `drawLine` | `drawLine(float x1, float y1, float x2, float y2, r, g, b, lineWidth)` |
+| `drawTriangle` | `drawTriangle(x1, y1, x2, y2, x3, y3, r, g, b)` |
+| `drawTriangleOutline` | `drawTriangleOutline(x1, y1, x2, y2, x3, y3, r, g, b, lineWidth)` |
+| `drawPoint` | `drawPoint(float x, float y, r, g, b, float size)` |
+| `drawRectRoundedFilled` | `drawRectRoundedFilled(cx, cy, w, h, r, g, b, float cornerRadius)` |
+| `drawRectRoundedOutline` | `drawRectRoundedOutline(cx, cy, w, h, r, g, b, cornerRadius, lineWidth)` |
+| `drawStar` | `drawStar(cx, cy, float outerR, float innerR, int points, r, g, b)` |
+| `drawDashedLine` | `drawDashedLine(x1, y1, x2, y2, r, g, b, lineWidth, float dashLength)` |
+| `drawCross` | `drawCross(cx, cy, float size, r, g, b, lineWidth)` |
+| `drawGradientRect` | `drawGradientRect(cx, cy, w, h, r1, g1, b1, r2, g2, b2)` |
+| `drawArc` | `drawArc(cx, cy, w, h, r, g, b, float startAngle, float endAngle, lineWidth)` |
+| `drawArcFilled` | `drawArcFilled(cx, cy, w, h, r, g, b, startAngle, endAngle)` |
+| `drawPolygon` | `drawPolygon(str coords, r, g, b)` |
+| `drawPolygonOutline` | `drawPolygonOutline(str coords, r, g, b, lineWidth)` |
+| `drawPolyline` | `drawPolyline(str coords, r, g, b, lineWidth)` |
+| `drawPoints` | `drawPoints(str coords, r, g, b, float size)` |
+| `drawLines` | `drawLines(str segments, r, g, b, lineWidth)` |
 
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `beginDraw` | `beginDraw()` | Clear screen to background color. |
-| `endDraw` | `endDraw()` | No-op — kept for symmetry. |
-
----
-
-## Shape drawing
-
-All colors are `int r, g, b` (0–255). All coordinates use arcade's bottom-left origin (Y increases upward).
-
-### Filled shapes
-
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `drawRect` | `drawRect(float cx, float cy, float w, float h, int r, int g, int b)` | Filled rectangle. |
-| `drawRectRoundedFilled` | `drawRectRoundedFilled(float cx, float cy, float w, float h, int r, int g, int b, float cr)` | Filled rounded rectangle (corner radius `cr`). |
-| `drawCircle` | `drawCircle(float cx, float cy, float radius, int r, int g, int b)` | Filled circle. |
-| `drawEllipse` | `drawEllipse(float cx, float cy, float w, float h, int r, int g, int b)` | Filled ellipse. |
-| `drawTriangle` | `drawTriangle(float x1, float y1, float x2, float y2, float x3, float y3, int r, int g, int b)` | Filled triangle. |
-| `drawPolygon` | `drawPolygon(str coordsJson, int r, int g, int b)` | Filled polygon — flat `[x,y,…]` JSON. |
-| `drawArcFilled` | `drawArcFilled(float cx, float cy, float w, float h, int r, int g, int b, float startAngle, float endAngle)` | Filled pie sector. |
-| `drawStar` | `drawStar(float cx, float cy, float outerR, float innerR, int n, int r, int g, int b)` | Filled n-point star. |
-| `drawGradientRect` | `drawGradientRect(float cx, float cy, float w, float h, int r1, int g1, int b1, int r2, int g2, int b2)` | Simple two-color vertical gradient rect. |
-
-### Outlines
-
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `drawRectOutline` | `drawRectOutline(float cx, float cy, float w, float h, int r, int g, int b, float lw)` | Rectangle outline. |
-| `drawRectRoundedOutline` | `drawRectRoundedOutline(float cx, float cy, float w, float h, int r, int g, int b, float cr, float lw)` | Rounded rectangle outline. |
-| `drawCircleOutline` | `drawCircleOutline(float cx, float cy, float radius, int r, int g, int b, float lw)` | Circle outline. |
-| `drawEllipseOutline` | `drawEllipseOutline(float cx, float cy, float w, float h, int r, int g, int b, float lw)` | Ellipse outline. |
-| `drawTriangleOutline` | `drawTriangleOutline(float x1, float y1, float x2, float y2, float x3, float y3, int r, int g, int b, float lw)` | Triangle outline. |
-| `drawArc` | `drawArc(float cx, float cy, float w, float h, int r, int g, int b, float startAngle, float endAngle, float lw)` | Arc outline. |
-
-### Lines & points
-
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `drawLine` | `drawLine(float x1, float y1, float x2, float y2, int r, int g, int b, float lw)` | Solid line. |
-| `drawDashedLine` | `drawDashedLine(float x1, float y1, float x2, float y2, int r, int g, int b, float lw, float dashLen)` | Dashed line. |
-| `drawPolyline` | `drawPolyline(str coordsJson, int r, int g, int b, float lw)` | Open polyline through multiple points. |
-| `drawCross` | `drawCross(float cx, float cy, float size, int r, int g, int b, float lw)` | Plus/cross shape. |
-| `drawPoint` | `drawPoint(float x, float y, int r, int g, int b, float size)` | Single point. |
-| `drawPoints` | `drawPoints(str coordsJson, int r, int g, int b, float size)` | Many points — flat `[x,y,…]` JSON. |
-
----
+`coords` is a flat `"x,y,x,y,..."` list and `segments` a flat
+`"x1,y1,x2,y2,..."` list of endpoints. (The reference module took JSON; this
+backend accepts any non-numeric separator, so `"1,2 3,4"` and `"[1,2,3,4]"`
+both work.)
 
 ## Text
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `drawText` | `drawText(str text, float x, float y, int r, int g, int b, int size)` | Text at (x, y). |
-| `drawTextStyled` | `drawTextStyled(str text, float x, float y, int r, int g, int b, int size, str fontName, bool bold, bool italic, str anchorX)` | Styled text. `anchorX`: `"left"`, `"center"`, `"right"`. |
-
----
-
-## Texture / image drawing
-
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `loadTexture` | `loadTexture(str imagePath)` | Load and cache a texture. Returns texture index. |
-| `drawTexture` | `drawTexture(int texIdx, float cx, float cy, float w, float h, float angle)` | Draw cached texture at (cx, cy). |
-| `drawTextureAt` | `drawTextureAt(str imagePath, float cx, float cy, float scale)` | Draw image file directly (no cache). |
-
----
-
-## Sprites
-
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `makeSolidSprite` | `makeSolidSprite(int width, int height, int r, int g, int b, float x, float y)` | Create a colored rectangle sprite. Returns an index. |
-| `setSpriteTexture` | `setSpriteTexture(int idx, int texIdx)` | Apply a texture returned by `loadTexture`. |
-
-### Sprite state
-
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `getSpriteAlpha` | `getSpriteAlpha(int idx)` | Return opacity from 0 to 255. |
-| `getSpriteScale` | `getSpriteScale(int idx)` | Return the current scale. |
-
-Existing image sprites are loaded with `loadSprite`.
-
-Sprites are referenced by integer indexes. All sprite operations use `builtins._lx_sprites[idx]` internally.
-
-### Loading
-
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `loadSprite` | `loadSprite(str path, float scale, float x, float y)` | Load image as sprite. Returns index (`-1` on error). |
-| `makeAnimatedSprite` | `makeAnimatedSprite(str pathsJson, float fps, float x, float y)` | Animated sprite cycling through image files. `pathsJson` = JSON array of paths. |
-
-### Position & transform
-
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `getSpriteX` | `getSpriteX(int idx)` | Center X. |
-| `getSpriteY` | `getSpriteY(int idx)` | Center Y. |
-| `getSpriteAngle` | `getSpriteAngle(int idx)` | Rotation angle (degrees CCW). |
-| `getSpriteWidth` | `getSpriteWidth(int idx)` | Sprite width in pixels. |
-| `getSpriteHeight` | `getSpriteHeight(int idx)` | Sprite height in pixels. |
-| `getSpriteVX` | `getSpriteVX(int idx)` | Velocity X (px/s). |
-| `getSpriteVY` | `getSpriteVY(int idx)` | Velocity Y (px/s). |
-| `setSpritePos` | `setSpritePos(int idx, float x, float y)` | Move sprite. |
-| `setSpriteAngle` | `setSpriteAngle(int idx, float angle)` | Rotate sprite. |
-| `setSpriteScale` | `setSpriteScale(int idx, float scale)` | Scale sprite. |
-| `setSpriteVelocity` | `setSpriteVelocity(int idx, float vx, float vy)` | Set velocity in px/s. |
-| `stopSprite` | `stopSprite(int idx)` | Zero velocity. |
-| `moveSpriteToward` | `moveSpriteToward(int idx, float tx, float ty, float speed)` | Move sprite toward target at speed px/frame. |
-| `faceSpriteTo` | `faceSpriteTo(int idx, float tx, float ty)` | Rotate sprite to face target point. |
-
-### Appearance
-
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `destroySprite` | `destroySprite(int idx)` | Remove a sprite from every list and release its registry slot. |
-| `spriteExists` | `spriteExists(int idx)` | Check whether an index still refers to a live sprite. |
-| `setSpriteAlpha` | `setSpriteAlpha(int idx, int alpha)` | Opacity 0–255. |
-| `setSpriteColor` | `setSpriteColor(int idx, int r, int g, int b, int a)` | Tint color. |
-| `flipSpriteH` | `flipSpriteH(int idx)` | Mirror horizontally. |
-| `flipSpriteV` | `flipSpriteV(int idx)` | Mirror vertically. |
-| `setSpriteVisible` | `setSpriteVisible(int idx, bool visible)` | Show or hide. |
-| `getSpriteVisible` | `getSpriteVisible(int idx)` | `true` if visible. |
-
-### Collision & distance
-
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `spriteCollides` | `spriteCollides(int idxA, int idxB)` | `true` if two sprites overlap. |
-| `spriteCollidesWithList` | `spriteCollidesWithList(int sprIdx, int listIdx)` | `true` if sprite hits any sprite in a list. |
-| `getCollidingSprites` | `getCollidingSprites(int sprIdx, int listIdx)` | JSON array of colliding sprite indexes. |
-| `spriteDistance` | `spriteDistance(int idxA, int idxB)` | Euclidean distance between two sprites. |
-| `spriteNear` | `spriteNear(int idx, float tx, float ty, float range)` | `true` if sprite is within range pixels of (tx, ty). |
-
-### Draw & update
-
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `drawSprite` | `drawSprite(int idx)` | Draw single sprite. |
-| `updateSprite` | `updateSprite(int idx)` | Apply velocity for one frame. |
-| `updateAnimation` | `updateAnimation(int idx, float dt)` | Advance animated sprite by `dt` seconds. |
-
----
-
-## Sprite lists
-
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `makeSpriteList` | `makeSpriteList()` | Create empty `SpriteList`. Returns index. |
-| `addToList` | `addToList(int listIdx, int sprIdx)` | Add sprite to list. |
-| `removeSpriteFromList` | `removeSpriteFromList(int listIdx, int sprIdx)` | Remove sprite from list (doesn't destroy). |
-| `clearSpriteList` | `clearSpriteList(int listIdx)` | Remove all sprites from list. |
-| `getSpriteListCount` | `getSpriteListCount(int listIdx)` | Number of sprites in list. |
-| `drawSpriteList` | `drawSpriteList(int listIdx)` | Draw all sprites. |
-| `updateSpriteList` | `updateSpriteList(int listIdx)` | Apply velocities for all sprites. |
-
----
-
-## Text labels
-
-For HUDs and frequently changing text, use an Arcade text object instead of
-recreating a draw call every frame:
-
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `makeTextLabel` | `makeTextLabel(str text, float x, float y, int r, int g, int b, int size, str anchorX)` | Create a label and return its index. |
-| `setTextLabel` | `setTextLabel(int idx, str text)` | Change label text. |
-| `setTextLabelPos` | `setTextLabelPos(int idx, float x, float y)` | Move a label. |
-| `setTextLabelColor` | `setTextLabelColor(int idx, int r, int g, int b, int a)` | Change label color. |
-| `drawTextLabel` | `drawTextLabel(int idx)` | Draw the label during `on_draw`. |
-| `destroyTextLabel` | `destroyTextLabel(int idx)` | Release the label registry slot. |
-
----
-
-## Scene management
-
-A **Scene** is a named collection of SpriteLists that can be drawn and updated together.
-
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `makeScene` | `makeScene()` | Create empty scene. Returns index. |
-| `addListToScene` | `addListToScene(int sceneIdx, int listIdx, str name)` | Add a SpriteList under a name. |
-| `drawScene` | `drawScene(int sceneIdx)` | Draw all lists in the scene. |
-| `updateScene` | `updateScene(int sceneIdx)` | Update all lists. |
-
----
-
-## Tilemap (Tiled editor)
-
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `loadTilemap` | `loadTilemap(str tmxPath, float scaling)` | Load a Tiled `.tmx` file. Returns **scene** index. |
-| `getTilemapLayer` | `getTilemapLayer(int sceneIdx, str layerName)` | Get a named layer as a SpriteList index. |
-
-```c
-// Usage
-int scene = global.game.loadTilemap("level1.tmx", 1.0);
-int walls = global.game.getTilemapLayer(scene, "Walls");
-```
-
----
+| `drawText` | `drawText(str text, float x, float y, r, g, b, int size)` | Bottom-left anchored at `(x, y)`. |
+| `drawTextStyled` | `drawTextStyled(text, x, y, r, g, b, size, str font, bool bold, bool italic, str anchorX)` | `anchorX` is `"left"`/`"center"`/`"right"`; `font` is ignored. |
+| `drawTextAnchored` | `drawTextAnchored(text, x, y, r, g, b, size, str anchorX, str anchorY)` | `anchorY` is `"bottom"`/`"center"`/`"top"`. |
 
 ## Input
 
-### Keyboard
+Key names are case-insensitive: `"UP"`, `"DOWN"`, `"LEFT"`, `"RIGHT"`,
+`"SPACE"`, `"ENTER"`, `"ESCAPE"`, `"TAB"`, `"BACKSPACE"`, `"SHIFT"`, `"CTRL"`,
+`"ALT"`, `"A"`–`"Z"`, `"0"`–`"9"`, `"F1"`–`"F12"`. Button names are `"LEFT"`,
+`"RIGHT"`, `"MIDDLE"`.
+
+| Function | Signature |
+|----------|-----------|
+| `keyDown` / `keyUp` | `(str key) -> bool` |
+| `keyPressed` / `keyReleased` | `(str key) -> bool` (once per event) |
+| `keyCode` | `(str key) -> int` (backend key code, `-1` unknown) |
+| `mouseX` / `mouseY` | `() -> float` (bottom-left origin) |
+| `mouseDeltaX` / `mouseDeltaY` | `() -> float`, reset on read |
+| `mouseScrollX` / `mouseScrollY` | `() -> float`, reset on read |
+| `mouseLeft` / `mouseRight` / `mouseMiddle` | `() -> bool` |
+| `mouseButtonDown` / `mouseButtonPressed` / `mouseButtonReleased` | `(str button) -> bool` |
+| `mouseButtonCode` | `(str button) -> int` |
+
+## Sprites
+
+Sprites are referenced by an integer index (`-1` means "not available").
+`setSpriteVelocity` is in **pixels per second**; `updateSprite` applies the last
+frame's `deltaTime()`.
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `keyDown` | `keyDown(str key)` | `true` while key is held. |
-| `keyUp` | `keyUp(str key)` | `true` while key is NOT held. |
-| `keyPressed` | `keyPressed(str key)` | Consume and return `true` once for a press event. |
-| `keyReleased` | `keyReleased(str key)` | Consume and return `true` once for a release event. |
+| `makeSolidSprite` | `(int w, int h, r, g, b, float x, float y) -> int` | Coloured rectangle sprite. |
+| `loadSprite` | `(str path, float scale, float x, float y) -> int` | Image sprite. |
+| `setSpriteTexture` | `(int idx, int texIdx)` | Apply a cached texture. |
+| `getSpriteX` / `getSpriteY` | `(int idx) -> float` | Position. |
+| `getSpriteAngle` / `getSpriteScale` | `(int idx) -> float` | Rotation / scale. |
+| `getSpriteWidth` / `getSpriteHeight` | `(int idx) -> float` | Scaled size. |
+| `getSpriteVX` / `getSpriteVY` | `(int idx) -> float` | Velocity (px/s). |
+| `getSpriteAngularVelocity` | `(int idx) -> float` | Degrees per second. |
+| `getSpriteAlpha` | `(int idx) -> int` | Opacity 0–255. |
+| `getSpriteVisible` | `(int idx) -> bool` | Visibility. |
+| `getSpritePosition` | `(int idx) -> str` | `"x,y"`. |
+| `setSpritePos` / `setSpritePosition` | `(int idx, float x, float y)` | Move. |
+| `setSpriteAngle` / `setSpriteScale` | `(int idx, float value)` | Transform. |
+| `setSpriteVelocity` | `(int idx, float vx, float vy)` | Velocity in px/s. |
+| `setSpriteAngularVelocity` | `(int idx, float degreesPerSecond)` | Spin. |
+| `stopSprite` | `(int idx)` | Zero velocity. |
+| `moveSpriteToward` | `(int idx, float tx, float ty, float speed)` | Aim velocity at a point. |
+| `faceSpriteTo` | `(int idx, float tx, float ty)` | Aim rotation at a point. |
+| `setSpriteAlpha` | `(int idx, int alpha)` | Opacity 0–255. |
+| `setSpriteColor` | `(int idx, r, g, b, a)` | Tint. |
+| `setSpriteVisible` | `(int idx, bool visible)` | Show/hide. |
+| `flipSpriteH` / `flipSpriteV` | `(int idx)` | Mirror. |
+| `destroySprite` | `(int idx)` | Remove from registries and lists. |
+| `spriteExists` | `(int idx) -> bool` | Live check. |
+| `updateSprite` | `(int idx)` | Apply velocity for one frame. |
+| `drawSprite` | `(int idx)` | Draw. |
+| `spriteCollides` | `(int a, int b) -> bool` | Axis-aligned overlap. |
+| `spriteCollidesWithList` | `(int spr, int list) -> bool` | Overlap with any list member. |
+| `getCollidingSprites` | `(int spr, int list) -> str` | `"[1,2]"`. |
+| `spriteDistance` | `(int a, int b) -> float` | Centre distance. |
+| `spriteNear` | `(int idx, float tx, float ty, float range) -> bool` | Within range. |
 
-**Key names** (case-insensitive): `"UP"`, `"DOWN"`, `"LEFT"`, `"RIGHT"`, `"SPACE"`, `"ENTER"`, `"ESCAPE"`, `"A"`–`"Z"`, `"0"`–`"9"`, and `"F1"`–`"F12"`.
+## Sprite lists
 
-### Mouse
+| Function | Signature |
+|----------|-----------|
+| `makeSpriteList` | `() -> int` |
+| `addToList` | `(int list, int sprite)` |
+| `removeSpriteFromList` | `(int list, int sprite)` |
+| `clearSpriteList` | `(int list)` |
+| `getSpriteListCount` | `(int list) -> int` |
+| `drawSpriteList` | `(int list)` |
+| `updateSpriteList` | `(int list)` |
+
+## Textures
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `mouseX` | `mouseX()` | X (pixels from left). |
-| `mouseY` | `mouseY()` | Y (pixels from bottom). |
-| `mouseDeltaX` | `mouseDeltaX()` | Accumulated horizontal movement since the previous query, then resets it. |
-| `mouseDeltaY` | `mouseDeltaY()` | Accumulated vertical movement since the previous query, then resets it. |
-| `mouseButtonDown` | `mouseButtonDown(str button)` | Generic query for `"LEFT"`, `"RIGHT"`, or `"MIDDLE"`. |
-| `mouseLeft` | `mouseLeft()` | `true` if left button held. |
-| `mouseRight` | `mouseRight()` | `true` if right button held. |
-| `mouseMiddle` | `mouseMiddle()` | `true` if middle button held. |
-| `mouseScrollY` | `mouseScrollY()` | Last scroll delta Y (positive = up). Resets after read. |
-
----
-
-## Sound
-
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `loadSound` | `loadSound(str path)` | Load audio file. Returns index. |
-| `playSound` | `playSound(int soundIdx)` | Play (stops prior play of same sound). |
-| `loopSound` | `loopSound(int soundIdx)` | Play on infinite loop. |
-| `stopSound` | `stopSound(int soundIdx)` | Stop playback. |
-| `setSoundVolume` | `setSoundVolume(int soundIdx, float volume)` | Volume 0.0–1.0. |
-| `isSoundPlaying` | `isSoundPlaying(int soundIdx)` | `true` if currently playing. |
-
----
-
-## Timer
-
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `deltaTime` | `deltaTime()` | Seconds since last `on_update` call. |
-| `getTime` | `getTime()` | Seconds elapsed since program start. |
-
----
+| `loadTexture` | `(str path) -> int` | Cache and return a texture index. |
+| `drawTexture` | `(int tex, float cx, float cy, float w, float h, float angle)` | Draw a cached texture. |
+| `drawTextureAt` | `(str path, float cx, float cy, float scale)` | Load and draw directly. |
+| `drawTextureRect` | `(int tex, float left, float bottom, float w, float h)` | Draw into a rectangle. |
 
 ## Camera
 
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `makeCamera` | `makeCamera()` | Create `Camera2D`. Returns index. |
-| `useCamera` | `useCamera(int camIdx)` | Activate camera for subsequent draws. |
-| `setCameraPos` | `setCameraPos(int camIdx, float x, float y)` | Move camera center. |
-| `getCameraX` | `getCameraX(int camIdx)` | Camera center X. |
-| `getCameraY` | `getCameraY(int camIdx)` | Camera center Y. |
-| `zoomCamera` | `zoomCamera(int camIdx, float zoom)` | Zoom level (1.0 = normal). |
-| `smoothScrollCamera` | `smoothScrollCamera(int camIdx, float tx, float ty, float speed)` | Lerp camera toward target (`speed` 0.0–1.0). |
-| `resetCamera` | `resetCamera()` | Restore full-window viewport. |
+The camera is a transform applied by the draw calls.
 
----
-
-## Physics
-
-Wraps `arcade.PhysicsEnginePlatformer`.
-
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `makePhysicsEngine` | `makePhysicsEngine(float gravity, int wallsListIdx)` | Create engine. Pass `-1` for no walls. Returns index. |
-| `setPhysicsPlayer` | `setPhysicsPlayer(int engineIdx, int sprIdx)` | Assign player sprite (required before `updatePhysics`). |
-| `updatePhysics` | `updatePhysics(int engineIdx)` | Step the engine (call in `on_update`). |
-| `canJump` | `canJump(int engineIdx)` | `true` if player is on the ground. |
-| `jumpPlayer` | `jumpPlayer(int engineIdx, float jumpSpeed)` | Apply upward impulse when on ground. |
-| `getPlayerVY` | `getPlayerVY(int engineIdx)` | Player's current Y velocity. |
-
----
+| Function | Signature |
+|----------|-----------|
+| `makeCamera` | `() -> int` |
+| `useCamera` | `(int cam)` |
+| `setCameraPos` | `(int cam, float x, float y)` |
+| `getCameraX` / `getCameraY` | `(int cam) -> float` |
+| `zoomCamera` / `getCameraZoom` | `(int cam, float zoom)` / `(int cam) -> float` |
+| `smoothScrollCamera` | `(int cam, float tx, float ty, float speed)` |
+| `resetCamera` | `()` |
 
 ## Grid helpers
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `screenToTile` | `screenToTile(float x, float y, int tileSize)` | Pixel → tile coords. Returns `"tx,ty"` string. |
-| `tileToScreen` | `tileToScreen(int tx, int ty, int tileSize)` | Tile → pixel center. Returns `"sx,sy"` string. |
+| `screenToTile` | `(float x, float y, int tileSize) -> str` | Pixel → `"tx,ty"`. |
+| `tileToScreen` | `(int tx, int ty, int tileSize) -> str` | Tile → `"sx,sy"` centre. |
 
 ---
 
-## Notes
+## Notes and current limitations
 
-- Arcade's coordinate origin `(0, 0)` is **bottom-left** (Y increases upward) — the opposite of most GUI toolkits.
-- All draw calls must happen inside `on_draw`; calls outside have no visible effect.
-- `deltaTime()` is automatically updated on every `on_update` call.
-- For sprite-sheet animations or advanced shaders, use `rawPy` to access arcade directly via `builtins._lx_game_win`.
+This is the first Lynxer cut of the module. The following reference features
+are **not implemented yet**: sound and music, scenes, tilemaps (Tiled),
+the platformer physics engine, shape batches, animated sprite sheets, text
+labels (use `drawText`), screenshots, `setWindowPos`, `setVSync`,
+`getDisplaySize`, and the `rawPy` escape hatch.
+
+Other deviations:
+
+- `setResizable` is accepted and ignored; `setTitle` applies when `run()` opens
+  the window.
+- `drawPolygon`/`drawPolyline`/`drawLines`/`drawPoints` take a flat coordinate
+  string rather than JSON.
+- `keyCode` returns this backend's key code, not Arcade's.
+- `moveSpriteToward` sets velocity in px/s (the reference used px/frame).
+
+## Rust / C ABI
+
+The module is a single Rust `cdylib` (`rust/game`, crate `lynxer_game`); there
+is no C++ shim. It exports `lynxer_module_init_v1`, every op as
+`cdecl:<ret>(...)`, and `lynxer_module_attach_v1`. Macroquad owns the window and
+event loop, and each frame it invokes the registered Lynxer callbacks through
+the host API. It uses two additive native-module ABI extensions documented in
+[`docs/native-module-abi.md`](../native-module-abi.md):
+
+- the packed `...` signature, which passes any number of numeric/string
+  arguments; and
+- the optional `lynxer_module_attach_v1` entry point, which provides an
+  `invoke` callback so a module can call a Lynxer function by name.
 
 ---
 
-## Full example — platformer skeleton
+## See also
 
-```c
-global setup(){ import("game"); }
-
-global main(){
-    global.game.init("Platformer", 800, 500);
-    global.game.setBackground(100, 160, 220);
-    global.game.setFPSCap(60);
-
-    // Load tilemap (requires level.tmx from Tiled editor)
-    // int scene = global.game.loadTilemap("level.tmx", 1.0);
-    // int walls = global.game.getTilemapLayer(scene, "Walls");
-
-    // Fallback: hand-built ground
-    int walls  = global.game.makeSpriteList();
-    int ground = global.game.loadSprite("ground.png", 1.0, 400, 16);
-    global.game.addToList(walls, ground);
-
-    int player = global.game.loadSprite("player.png", 0.5, 100, 100);
-    global.game.setSpriteColor(player, 80, 180, 255, 255);
-
-    int eng = global.game.makePhysicsEngine(0.6, walls);
-    global.game.setPhysicsPlayer(eng, player);
-
-    int cam = global.game.makeCamera();
-
-    int snd = global.game.loadSound("jump.wav");
-
-    rawPy(){
-        import builtins
-
-        def _draw():
-            global.game.beginDraw()
-            global.game.useCamera(cam)
-            global.game.drawSpriteList(walls)
-            global.game.drawSprite(player)
-            global.game.resetCamera()
-            global.game.drawText("WASD / Arrow keys to move", 10, 10,
-                                  255, 255, 255, 14)
-            fps = global.game.getFPS()
-            global.game.drawText(f"FPS: {fps:.0f}", 10, 30, 200, 255, 200, 14)
-            global.game.endDraw()
-
-        def _update(dt):
-            speed = 220 * dt
-            if global.game.keyDown("LEFT") or global.game.keyDown("A"):
-                global.game.setSpriteVelocity(player,
-                    -220, global.game.getSpriteVY(eng))
-            elif global.game.keyDown("RIGHT") or global.game.keyDown("D"):
-                global.game.setSpriteVelocity(player,
-                    220, global.game.getSpriteVY(eng))
-            else:
-                global.game.stopSprite(player)
-
-            if (global.game.keyDown("UP") or global.game.keyDown("SPACE")) \
-                    and global.game.canJump(eng):
-                global.game.jumpPlayer(eng, 14)
-                global.game.playSound(snd)
-
-            global.game.updatePhysics(eng)
-
-            // Smooth-scroll camera to follow player
-            global.game.smoothScrollCamera(cam,
-                global.game.getSpriteX(player),
-                global.game.getSpriteY(player) + 60,
-                0.1)
-
-        builtins._lx_game_win.on_draw   = _draw
-        builtins._lx_game_win.on_update = _update
-    }
-
-    global.game.run();
-}
-```
+- [stdlib-contracts.md](../stdlib-contracts.md) — the contract this module
+  implements, including the error sentinel family it uses.
+- [builtins.md](../builtins.md) — the functions the interpreter implements
+  itself.
+- [limitations.md](../limitations.md) — the full divergence register.

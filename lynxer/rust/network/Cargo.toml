@@ -1,0 +1,18 @@
+[package]
+name = "lynxer_network"
+version = "0.1.0"
+edition = "2021"
+description = "ureq + tungstenite backend for the Lynxer `network` stdlib module"
+publish = false
+
+[lib]
+name = "lynxer_network"
+crate-type = ["cdylib"]
+
+[dependencies]
+lynxer_abi = { path = "../abi" }
+# rustls instead of OpenSSL, so the module has no system TLS dependency.
+ureq = { version = "3", default-features = false, features = ["rustls", "gzip"] }
+tungstenite = { version = "0.30", features = ["rustls-tls-native-roots"] }
+# gethostname(2) for `getHostname`.
+libc = "0.2"

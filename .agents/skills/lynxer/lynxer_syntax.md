@@ -1,115 +1,113 @@
-# Lynxer Syntax Guide (Python Implementation)
+# Lynxer syntax guide
 
-This document provides a **summarized syntax guide** for the **Python-based `lynxer`** implementation of the Lynxer language.
+A summarized syntax guide for the Lynxer language as the C++ interpreter in
+`lynxer/` parses and runs it. For the full reference see
+[`docs/language.md`](../../../docs/language.md).
 
 ---
 
-## Basic Syntax
+## Program shape
 
-### Variables and Types
+Every program defines `global setup()` first and `global main()` last:
+
+```lynx
+global setup(){
+    importAs("math", "m");
+    const str LANG = "Lynxer";
+}
+
+global main(){
+    println("Hello, ", LANG, " ", m.sqrt(144));
+}
+```
+
+## Variables and types
+
 ```lynx
 int x = 42;
 float y = 3.14;
 str name = "Lynxer";
 bool flag = true;
-any value = x; // `any` type
+any value = x;
+const int frozen = 1;      // cannot be reassigned
+list nums = [int 1, int 2, int 3];
+tuple point = (10, 20);
 ```
 
-### Functions
+## Functions
+
 ```lynx
-// Global function
-global func add(int a, int b) -> int {
-    return a + b;
-}
-
-// Local function
-func subtract(int a, int b) -> int {
-    return a - b;
-}
-
-// Main entry point
-global main() {
-    println(add(5, 3));
-    println(subtract(5, 3));
+global greet(str who) -> str { return "Hello, " + who; }
+func helper(int a) -> int { return a + 1; }   // file-wide
+global main(){
+    local double_(int a) -> int { return a * 2; }  // nested
+    println(greet(LANG));
 }
 ```
 
-### Control Flow
+## Control flow
+
 ```lynx
-// If-else
-if (x > 10) {
-    println("Large");
-} else if (x > 5) {
-    println("Medium");
-} else {
-    println("Small");
-}
+if (x > 10) { println("large"); }
+elif (x > 5) { println("medium"); }
+else { println("small"); }
 
-// Loops
-while (x > 0) {
-    println(x);
-    x--;
-}
+while (x > 0) { x -= 1; }
+for (int i = 0; i < 5; i = i + 1) { println(i); }
+doWhile (x < 3) { x += 1; }
+iterate 3 { println("tick"); }
+forever { break; }
 
-for (int i = 0; i < 5; i++) {
-    println(i);
-}
-
-// Switch-case
 switch (x) {
-    case 1: println("One"); break;
-    case 2: println("Two"); break;
-    default: println("Other");
+    case 1 { println("one"); }
+    default { println("other"); }
 }
+
+try { int z = 1 /% 0; } catch (str error) { println(error); }
 ```
 
-### Modules and Imports
-```lynx
-// Import a module
-import math;
+## Operators
 
-// Use a function from the module
-println(math.sqrt(16));
+Word forms are canonical: `and`, `or`, `not`, `is`, `isnt`, `nand`, `nor`,
+`bitand`, `bitor`, `bitxor`, `bitnot`, `bitleft`, `bitright`. Floor division is
+`/%`, exponentiation `^`. Symbolic spellings (`==`, `&&`, `||`, `!`, `&`, `|`,
+`<<`, `>>`) still parse but warn.
 
-// Import with an alias
-importAs("stdlib/os", "os");
-println(os.getcwd());
-```
-
----
-
-## Example: Writing a Simple Program
+## Records
 
 ```lynx
-// hello.lynx
-global main() {
-    println("Hello, Lynxer!");
-}
+struct Point { int x; int y; }
+vargroup Player { str name = "Ada"; int score = 0; }
+class Counter { int value = 0; local inc() -> int { this.value += 1; return this.value; } }
+enum status = [ Ready, Failed(str reason) ]{}
 ```
 
-Run with:
+## Modules
+
+```lynx
+import("math");              // global.math.sqrt(...)
+importAs("os", "operating"); // global.operating.getcwd()
+```
+
+## Codeblocks
+
+```lynx
+codeblock greet = { println("hi"); };
+exec(){{greet}}
+```
+
+## Command line
+
 ```bash
-python -m lynxer hello.lynx
+./lynxer/lynxer prog.lynx                 # run
+./lynxer/lynxer --lint prog.lynx          # parse only
+./lynxer/lynxer --ast prog.lynx           # print the AST
+./lynxer/lynxer --format prog.lynx        # rewrite in canonical form
+./lynxer/lynxer --compile prog.lynx -o prog   # standalone ELF executable
 ```
 
----
+## Deliberate constraints
 
-## Key Features
-
-- **Statically-typed**: Variables must be declared with a type.
-- **Global and local functions**: Use `global func` for global functions and `func` for local ones.
-- **Modules**: Import standard library modules or custom modules using `import` or `importAs`.
-- **Error handling**: Use `try/catch` blocks for exception handling.
-
----
-
-## Limitations
-
-- No support for `/* ... */` comments.
-- No support for hex (`\x`) or Unicode (`\u`) escapes.
-- No standalone executables (requires Python runtime).
-
----
-
-### References
-- [Lynxer Language Guide](clynxer/docs/language.md)
+See [`docs/limitations.md`](../../../docs/limitations.md) for the behaviour that
+is intentionally constrained or not implemented (no bytecode, no `rawPy`, no
+Python module interop, module self-call rules, and so on).

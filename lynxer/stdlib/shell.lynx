@@ -1,226 +1,40 @@
 ////
-Lynxer standard library: shell.
- Shell command helpers and shell discovery.
+Shell command helpers backed by the native C++ process API.
 ////
-
-global setup(){}
-
-// Run command in the shell. Inherits stdin/stdout/stderr. Returns exit code.
-global runShell(str command){
-    int code = 0;
-    rawPy(){
-        import subprocess
-        proc = subprocess.run(command, shell=True)
-        code = proc.returncode
-    }
-    return code;
+global setup(){ importAs("shell.so", "nativeShell"); }
+global runShell(str command) -> int {
+    return global.nativeShell.runShell(command);
 }
-
-// Run command and capture stdout. Returns captured output as a string.
-global runShellCapture(str command){
-    str result = "";
-    rawPy(){
-        import subprocess
-        proc = subprocess.run(
-            command,
-            shell=True,
-            capture_output=True,
-            text=True
-        )
-        result = proc.stdout
-    }
-    return result;
+global runShellCapture(str command) -> str {
+    return global.nativeShell.runShellCapture(command);
 }
-
-// Run command, suppressing all output. Returns exit code.
-global runShellSilent(str command){
-    int code = 0;
-    rawPy(){
-        import subprocess
-        proc = subprocess.run(
-            command,
-            shell=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
-        code = proc.returncode
-    }
-    return code;
+global runShellSilent(str command) -> int {
+    return global.nativeShell.runShellSilent(command);
 }
-
-// Run command and capture stderr only. Returns captured stderr as a string.
-global runShellErr(str command){
-    str result = "";
-    rawPy(){
-        import subprocess
-        proc = subprocess.run(
-            command,
-            shell=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,
-            text=True
-        )
-        result = proc.stderr
-    }
-    return result;
+global commandExists(str command) -> bool {
+    return global.nativeShell.commandExists(command) isnt 0;
 }
-
-// Run command (capturing output silently) and return its exit code.
-global runShellCode(str command){
-    int code = 0;
-    rawPy(){
-        import subprocess
-        proc = subprocess.run(
-            command,
-            shell=True,
-            capture_output=True
-        )
-        code = proc.returncode
-    }
-    return code;
+global checkShell(str shell) -> bool {
+    return global.nativeShell.checkShell(shell) isnt 0;
 }
-
-// Returns true if cmd is found on PATH (i.e. the command exists).
-global commandExists(str cmd){
-    int result = 0;
-    rawPy(){
-        import shutil as _sh
-        result = 1 if _sh.which(cmd) is not None else 0
-    }
-    if(result != 0){ return true; }
-    return false;
+global runShellCode(str command) -> int {
+    return global.nativeShell.runShellCode(command);
 }
-
-// Return true when a shell executable is available on PATH.
-// Accepts names such as "bash", "zsh", "fish", "sh", "pwsh", or "cmd".
-global checkShell(str shellName){
-    bool result = false;
-    rawPy(){
-        import shutil as _sh
-        _name = shellName.strip()
-        result = bool(_name and _sh.which(_name))
-    }
-    return result;
+global runShellAs(str shell, str command) -> int {
+    return global.nativeShell.runShellAs(shell, command);
 }
-
-// Return the resolved executable path for a shell, or "" when unavailable.
-global shellPath(str shellName){
-    str result = "";
-    rawPy(){
-        import shutil as _sh
-        _path = _sh.which(shellName.strip())
-        if _path is not None:
-            result = _path
-    }
-    return result;
+global runShellCaptureAs(str shell, str command) -> str {
+    return global.nativeShell.runShellCaptureAs(shell, command);
 }
-
-// Return the shell path advertised by the environment.
-// On Unix this uses SHELL; on Windows it uses ComSpec.
-global currentShell(){
-    str result = "";
-    rawPy(){
-        import os as _os
-        result = _os.environ.get("SHELL", "") or _os.environ.get("ComSpec", "")
-    }
-    return result;
+global currentShell() -> str { return global.nativeShell.currentShell(); }
+global shellPath(str command) -> str {
+    return global.nativeShell.shellPath(command);
 }
-
-// Return the first version line reported by a shell, or "" on failure.
-global shellVersion(str shellName){
-    str result = "";
-    rawPy(){
-        import os as _os
-        import shutil as _sh
-        import subprocess as _subprocess
-        _path = _sh.which(shellName.strip())
-        if _path is not None:
-            try:
-                _base = _os.path.basename(_path).lower()
-                _flag = "/?" if _base in ("cmd", "cmd.exe") else "--version"
-                _proc = _subprocess.run(
-                    [_path, _flag],
-                    capture_output=True,
-                    text=True,
-                    timeout=5
-                )
-                _text = (_proc.stdout or _proc.stderr or "").strip()
-                if _text:
-                    result = _text.splitlines()[0]
-            except Exception:
-                result = ""
-    }
-    return result;
+global runShellErr(str command) -> str {
+    return global.nativeShell.runShellErr(command);
 }
-
-// Return a JSON array of common shells that are installed on PATH.
-global availableShells(){
-    str result = "[]";
-    rawPy(){
-        import json as _json
-        import shutil as _sh
-        _candidates = [
-            "sh", "bash", "zsh", "fish", "dash", "ash",
-            "ksh", "mksh", "csh", "tcsh", "pwsh",
-            "powershell", "cmd"
-        ]
-        _found = []
-        for _name in _candidates:
-            if _sh.which(_name) is not None:
-                _found.append(_name)
-        result = _json.dumps(_found)
-    }
-    return result;
+global shellVersion(str shell) -> str {
+    return global.nativeShell.shellVersion(shell);
 }
-
-// Run a command through a selected shell and inherit its standard streams.
-// Returns 127 when the shell is unavailable, otherwise its exit code.
-global runShellAs(str shellName, str command){
-    int code = 127;
-    rawPy(){
-        import os as _os
-        import shutil as _sh
-        import subprocess as _subprocess
-        _path = _sh.which(shellName.strip())
-        if _path is not None:
-            _base = _os.path.basename(_path).lower()
-            if _base in ("cmd", "cmd.exe"):
-                _args = [_path, "/c", command]
-            elif _base in ("powershell", "powershell.exe", "pwsh", "pwsh.exe"):
-                _args = [_path, "-Command", command]
-            else:
-                _args = [_path, "-c", command]
-            _proc = _subprocess.run(_args)
-            code = _proc.returncode
-    }
-    return code;
-}
-
-// Run a command through a selected shell and return captured stdout.
-// Returns "" when the shell is unavailable or the command has no stdout.
-global runShellCaptureAs(str shellName, str command){
-    str result = "";
-    rawPy(){
-        import os as _os
-        import shutil as _sh
-        import subprocess as _subprocess
-        _path = _sh.which(shellName.strip())
-        if _path is not None:
-            _base = _os.path.basename(_path).lower()
-            if _base in ("cmd", "cmd.exe"):
-                _args = [_path, "/c", command]
-            elif _base in ("powershell", "powershell.exe", "pwsh", "pwsh.exe"):
-                _args = [_path, "-Command", command]
-            else:
-                _args = [_path, "-c", command]
-            _proc = _subprocess.run(
-                _args,
-                capture_output=True,
-                text=True
-            )
-            result = _proc.stdout
-    }
-    return result;
-}
-
+global availableShells() -> str { return global.nativeShell.availableShells(); }
 global main(){}

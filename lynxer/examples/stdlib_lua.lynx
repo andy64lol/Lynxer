@@ -1,0 +1,28 @@
+////
+Fixture for the Rust-backed Lua 5.4 stdlib. It only uses in-memory scripts so
+the output is deterministic and does not depend on a Lua file on disk.
+////
+global setup(){ import("lua"); }
+
+global main(){
+    println(global.lua.luaVersion());
+    println(global.lua.luaExists());
+    println(global.lua.evalLua("1 + 2 * 3"));
+    println(global.lua.runLua("print('hello', 42)"));
+    println(global.lua.runLua("for i = 1, 3 do print(i) end"));
+    println(global.lua.runLua("print(string.upper('lynxer'))"));
+    println(global.lua.runLua("returnValue = 9"));
+
+    // Malformed input is reported as an "Error: ..." string, never raised.
+    println(global.lua.runLua("this is not lua"));
+    println(global.lua.evalLua("1 +"));
+
+    // A missing script file is an error string too. Its text carries the OS
+    // message, so only the fact that something was reported is asserted. The
+    // name is scratch-relative, so it is absent from any working directory.
+    println(returnLength(global.lua.runLuaFile(".lynxer_scratch_missing.lua")) > 0);
+
+    // A Lua runtime error is reported the same way, but its text includes a Lua
+    // traceback, so again only the presence of a message is asserted.
+    println(returnLength(global.lua.runLua("error('boom')")) > 0);
+}

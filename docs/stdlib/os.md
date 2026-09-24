@@ -1,88 +1,87 @@
 # os
 
-OS, filesystem, process, and Python-platform helpers inspired by Python's
-`os`, `os.path`, and `platform` modules.
+Filesystem, process, environment and platform helpers.
 
-Import it inside `setup()`:
+**Backend:** native — `stdlib/os.so`, built from `stdlib/os.cpp` over
+`<filesystem>` and POSIX APIs. **Import:** `import("os")` → `global.os.*`
 
-```lynx
-global setup(){
-    import("os");
-}
-```
+Functions return safe defaults on failure (`false`, `""`, `-1`, an empty list).
 
 ## Files and directories
 
-| Function | Description |
-|----------|-------------|
-| `getcwd()` | Current working directory |
-| `chdir(path)` | Change directory; returns `true` on success |
-| `listdir(path)` | Directory entries as a list |
-| `mkdir(path)` | Create one directory |
-| `makedirs(path)` | Create a directory tree |
-| `rmdir(path)` | Remove an empty directory |
-| `remove(path)` | Remove a file |
-| `rename(src, dst)` | Rename or move a path |
-| `exists(path)` | Whether a path exists |
-| `isFile(path)` | Whether a path is a regular file |
-| `isDir(path)` | Whether a path is a directory |
-| `rmTree(path)` | Remove a directory tree |
-| `copyTree(src, dst)` | Copy a directory tree |
-| `listdirExt(path, ext)` | List entries with a matching suffix |
-| `walkFiles(path)` | Recursive file paths joined by newlines |
+| Function | Signature | Notes |
+| --- | --- | --- |
+| `getcwd` | `() -> str` | Current working directory |
+| `chdir` | `(str path) -> bool` | Changes the working directory |
+| `listdir` | `(str path) -> list` | Directory entries, in filesystem order |
+| `listdirExt` | `(str path, str ext) -> list` | Entries whose name ends with `ext` |
+| `walkFiles` | `(str path) -> str` | Recursive file paths as a newline-joined string |
+| `mkdir` | `(str path) -> bool` | Creates one directory; `false` if it exists |
+| `makedirs` | `(str path) -> bool` | Creates a directory tree (existing is fine) |
+| `rmdir` | `(str path) -> bool` | Removes an empty directory |
+| `remove` | `(str path) -> bool` | Removes a file |
+| `rename` | `(str src, str dst) -> bool` | Renames or moves |
+| `rmTree` | `(str path) -> bool` | Recursively removes a tree |
+| `copyTree` | `(str src, str dst) -> bool` | Recursively copies; fails if `dst` exists |
+| `exists` / `isFile` / `isDir` | `(str path) -> bool` | Path predicates |
 
 ## Paths and environment
 
-| Function | Description |
-|----------|-------------|
-| `joinPath(a, b)` | Join path components |
-| `basename(path)` | Final path component |
-| `dirname(path)` | Parent directory component |
-| `absPath(path)` | Absolute path |
-| `extname(path)` | File extension, including the dot |
-| `normPath(path)` | Normalized path |
-| `expandUser(path)` | Expand `~` and `~user` |
-| `sep()` | Platform path separator |
-| `getenv(key)` | Environment value, or `""` |
-| `setenv(key, value)` | Set a process environment value |
-| `tempDir()` | System temporary directory |
-| `homedir()` | Current user's home directory |
-| `username()` | Current login name |
-| `hostname()` | System hostname |
-| `getpid()` | Current process ID |
-| `cpuCount()` | CPU count, or `1` when unavailable |
-| `diskTotal(path)` | Total disk capacity in bytes, or `-1` |
-| `diskFree(path)` | Free disk capacity in bytes, or `-1` |
+| Function | Signature | Notes |
+| --- | --- | --- |
+| `joinPath` | `(str a, str b) -> str` | Joins with the platform separator |
+| `basename` / `dirname` | `(str path) -> str` | Final / parent component |
+| `absPath` | `(str path) -> str` | Absolute, normalized path |
+| `extname` | `(str path) -> str` | Extension including the dot |
+| `normPath` | `(str path) -> str` | Collapses `.`, `..` and repeated separators |
+| `expandUser` | `(str path) -> str` | Expands a leading `~` or `~user` |
+| `sep` | `() -> str` | `/` on POSIX hosts |
+| `getenv` / `setenv` | `(str key[, str value])` | Reads / writes an environment variable |
+| `tempDir` | `() -> str` | `$TMPDIR`, `$TEMP`, `$TMP`, else `/tmp` |
+| `homedir` | `() -> str` | `$HOME` |
+| `username` | `() -> str` | Login name from the password database |
+| `hostname` | `() -> str` | `gethostname(2)` |
+| `getpid` | `() -> int` | Process id |
+| `cpuCount` | `() -> int` | Online CPUs, at least `1` |
+| `diskTotal` / `diskFree` | `(str path) -> int` | Bytes via `statvfs`; `-1` on error |
 
-## Platform and runtime information
+## Platform information
 
-These helpers use Python's standard-library `platform` module and return
-portable strings where possible:
+`getSystemName`, `getSystemRelease`, `getSystemVersion`, `getSystemMachine`,
+`getSystemProcessor`, `getSystemNode` — all `() -> str` from `uname(2)`.
+`getSystemArchitecture() -> str` returns `"64bit"` or `"32bit"`.
 
-| Function | Description |
-|----------|-------------|
-| `getSystemName()` | OS family, such as `Linux`, `Darwin`, or `Windows` |
-| `getSystemRelease()` | OS release string |
-| `getSystemVersion()` | OS version string |
-| `getSystemMachine()` | Machine architecture name, such as `x86_64` |
-| `getSystemProcessor()` | Processor name, when reported |
-| `getSystemArchitecture()` | Executable bitness, usually `64bit` or `32bit` |
-| `getSystemNode()` | Network node or host name |
-| `getPythonVersion()` | Python runtime version |
-| `getPythonImplementation()` | Python implementation, such as `CPython` |
-| `getSystemUname()` | JSON object containing `platform.uname()` fields |
-| `getSystemInfo()` | JSON object with OS, machine, Python, and executable details |
-| `getSystemDistro()` | Linux distribution metadata as JSON, or `{}` elsewhere |
+JSON-returning helpers:
 
-Example:
+| Function | Signature | Returns |
+| --- | --- | --- |
+| `getSystemUname` | `() -> str` | `{system, node, release, version, machine, processor}` |
+| `getSystemInfo` | `() -> str` | The same fields plus `architecture`, `python`, `pythonImplementation`, `pythonExecutable` |
+| `getSystemDistro` | `() -> str` | Parsed `/etc/os-release`, or `{}` |
+
+Because Lynxer has no Python runtime, `getPythonVersion()` returns `""`,
+`getPythonImplementation()` returns `"Lynxer"`, and the `python*` fields of
+`getSystemInfo` mirror that.
+
+## Example
 
 ```lynx
+global setup(){ import("os"); }
+
 global main(){
-    println(global.os.getSystemName(), " ", global.os.getSystemRelease());
-    println(global.os.getSystemMachine(), " ", global.os.getSystemArchitecture());
-    println(global.os.getSystemInfo());
+    println(global.os.getcwd());
+    list entries = global.os.listdir(".");
+    println(returnLength(entries));
+    println(global.os.getSystemName());
 }
 ```
 
-Filesystem and system queries return safe defaults on errors. JSON-returning
-platform functions return `"{}"` when the information is unavailable.
+---
+
+## See also
+
+- [stdlib-contracts.md](../stdlib-contracts.md) — the contract this module
+  implements, including the error sentinel family it uses.
+- [builtins.md](../builtins.md) — the functions the interpreter implements
+  itself.
+- [limitations.md](../limitations.md) — the full divergence register.

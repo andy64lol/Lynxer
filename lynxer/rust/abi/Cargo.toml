@@ -1,0 +1,10 @@
+[package]
+name = "lynxer_abi"
+version = "0.1.0"
+edition = "2021"
+description = "Shared C-ABI plumbing for Lynxer Rust stdlib modules"
+publish = false
+
+[lib]
+name = "lynxer_abi"
+crate-type = ["rlib"]

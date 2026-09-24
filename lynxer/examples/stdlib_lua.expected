@@ -1,0 +1,16 @@
+Lua 5.4
+true
+7
+hello	42
+
+1
+2
+3
+
+LYNXER
+
+
+Error: syntax error: [string "lynxer.lua"]:1: syntax error near 'is'
+Error: syntax error: [string "lynxer.lua"]:1: unexpected symbol near ')'
+true
+true

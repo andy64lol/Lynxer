@@ -126,12 +126,13 @@ global main(){
         println("for iteration ", j);
     }
 
-    // Raw Python receives primitive values and tuple variables as Python tuples.
+    // Sum a list with a portable loop so the file runs on every backend
+    // (rawPy is a Python-only built-in).
     int total = 0;
-    rawPy(){
-        total = sum(numbers)
+    for(int k = 0; k < returnLength(numbers); k = k + 1){
+        total = total + listGet(numbers, k);
     }
-    println("rawPy sum: ", total);
+    println("list sum: ", total);
 
     // Multiple arguments replace chains of print("label"); print(value); print("\n").
     println("one call, ", "multiple arguments, ", number, ", ", point);
@@ -155,9 +156,10 @@ global main(){
     }[str name, int age]
     exec("Alice", 30){{typedExample}}
     str text = "left";
-    exec(str text){
+    codeblock showText = {
         println("exec argument: ", text);
-    }
+    };
+    exec(){{showText}}
 
     println("=== done ===");
 }

@@ -1,6 +1,0 @@
-// EXPECT_ERROR: expects a non-zero address
-global setup(){}
-
-global main(){
-    nativeCall(0, "int32(int32,int32)", [int 2, int 3]);
-}

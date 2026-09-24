@@ -1,0 +1,193 @@
+{
+  "version": {
+    "args": [
+      "--version"
+    ],
+    "exit": 0,
+    "stdout": "Lynxer 0.1.8"
+  },
+  "help": {
+    "args": [
+      "--help"
+    ],
+    "exit": 0,
+    "stdout": "\nUsage:\n  lynxer <file.lynx>                          Run a Lynxer source file\n  lynxer --no-opt <file.lynx>                 Run without the AST optimizer\n  lynxer --lint <file.lynx>                   Check Lynxer syntax without running it\n  lynxer --ast <file.lynx>                    Parse and print the abstract syntax tree\n  lynxer --format <file.lynx>                 Rewrite a file with canonical spacing\n  lynxer --format-oneline <file.lynx>         Collapse a file onto one physical line\n  lynxer --compile <a.lynx> [options] [name]  Compile input files into one executable\n  lynxer --bundle <a.lynx> [options] [name]   Alias of --compile\n      --include <file>                         Embed a module, native library or data file\n      -o, --output <name>                      Name the output executable\n  lynxer --validate-executeable               Run the interpreter self-check\n  lynxer --version                            Print version\n  lynxer --list-stdlibs                       List available Lynxer stdlib modules\n  lynxer --install                            Install the executable as /usr/bin/lynxer\n  lynxer --uninstall                          Remove /usr/bin/lynxer\n\nRemoved with the bytecode backend (use --compile):\n  --view-bytecode, --benchmark-compile, --no-cache"
+  },
+  "file_not_found": {
+    "args": [
+      "does_not_exist.lynx"
+    ],
+    "exit": 1,
+    "stderr": "lynxer: file not found: 'does_not_exist.lynx'"
+  },
+  "bytecode_removed": {
+    "args": [
+      "legacy.lynxc"
+    ],
+    "exit": 1,
+    "stderr": "lynxer: bytecode files are no longer supported; compile the .lynx source with --compile instead"
+  },
+  "view_bytecode_removed": {
+    "args": [
+      "--view-bytecode",
+      "x.lynx"
+    ],
+    "exit": 1,
+    "stderr": "lynxer: '--view-bytecode' was removed with the bytecode backend; use lynxer --compile instead"
+  },
+  "benchmark_removed": {
+    "args": [
+      "--benchmark-compile",
+      "x.lynx"
+    ],
+    "exit": 1,
+    "stderr": "lynxer: '--benchmark-compile' was removed with the bytecode backend; use lynxer --compile instead"
+  },
+  "no_cache_removed": {
+    "args": [
+      "--no-cache",
+      "x.lynx"
+    ],
+    "exit": 1,
+    "stderr": "lynxer: '--no-cache' was removed with the bytecode backend; use lynxer --compile instead"
+  },
+  "ast": {
+    "args": [
+      "--ast",
+      "lynxer/examples/hello.lynx"
+    ],
+    "exit": 0,
+    "stdout": "Lynxer AST\n===========\nProgram\n  functions:\n    list[\n      Function\n        name:\n          'setup'\n        parameters:\n          list[]\n        codeblockParameters:\n          list[]\n        returnType:\n          'any'\n        isGlobal:\n          true\n        isFileFunction:\n          false\n        statements:\n          list[\n            DeclarationStatement\n              type:\n                'str'\n              name:\n                'greeting'\n              constant:\n                false\n              value:\n                LiteralExpression\n                  value:\n                    'Hello'\n          ]\n      Function\n        name:\n          'main'\n        parameters:\n          list[]\n        codeblockParameters:\n          list[]\n        returnType:\n          'any'\n        isGlobal:\n          true\n        isFileFunction:\n          false\n        statements:\n          list[\n            DeclarationStatement\n              type:\n                'str'\n              name:\n                'name'\n              constant:\n                false\n              value:\n                CallExpression\n                  name:\n                    'input'\n                  arguments:\n                    list[\n                      LiteralExpression\n                        value:\n                          'What\\'s your name? '\n                    ]\n                  codeblocks:\n                    list[]\n            ExpressionStatement\n              expression:\n                CallExpression\n                  name:\n                    'println'\n                  arguments:\n                    list[\n                      BinaryExpression\n                        operation:\n                          '+'\n                        left:\n                          BinaryExpression\n                            operation:\n                              '+'\n                            left:\n                              BinaryExpression\n                                operation:\n                                  '+'\n                                left:\n                                  VariableExpression\n                                    name:\n                                      'greeting'\n                                right:\n                                  LiteralExpression\n                                    value:\n                                      ', '\n                            right:\n                              VariableExpression\n                                name:\n                                  'name'\n                        right:\n                          LiteralExpression\n                            value:\n                              '!'\n                    ]\n                  codeblocks:\n                    list[]\n          ]\n    ]"
+  },
+  "lint_ok": {
+    "args": [
+      "--lint",
+      "lynxer/examples/hello.lynx"
+    ],
+    "exit": 0,
+    "stdout": "Lint OK: lynxer/examples/hello.lynx"
+  },
+  "lint_error": {
+    "args": [
+      "--lint",
+      "lynxer/examples/lexical_bang.lynx"
+    ],
+    "exit": 1,
+    "stderr": "lynxer: lynxer/examples/lexical_bang.lynx:6:13: expected an expression"
+  },
+  "lexical_bang": {
+    "args": [
+      "lynxer/examples/lexical_bang.lynx"
+    ],
+    "exit": 1,
+    "stderr": "lynxer: lynxer/examples/lexical_bang.lynx:6:13: expected an expression"
+  },
+  "lexical_block_comment": {
+    "args": [
+      "lynxer/examples/lexical_block_comment.lynx"
+    ],
+    "exit": 1,
+    "stderr": "lynxer: lynxer/examples/lexical_block_comment.lynx:6:5: expected a declaration, assignment, or print call"
+  },
+  "lexical_hex_escape": {
+    "args": [
+      "lynxer/examples/lexical_hex_escape.lynx"
+    ],
+    "exit": 1,
+    "stderr": "lynxer: lynxer/examples/lexical_hex_escape.lynx:5:13: unknown string escape \\x"
+  },
+  "lexical_unicode_escape": {
+    "args": [
+      "lynxer/examples/lexical_unicode_escape.lynx"
+    ],
+    "exit": 1,
+    "stderr": "lynxer: lynxer/examples/lexical_unicode_escape.lynx:5:13: unknown string escape \\u"
+  },
+  "validate": {
+    "args": [
+      "--validate-executeable"
+    ],
+    "exit": 0,
+    "stdout": "ok   arithmetic\nok   floor-division\nok   word-operators\nok   int-range\nok   unknown-variable\nok   division-by-zero\nok   const-reassign\nok   field-compound\nok   none-return\nok   list-value-semantics\nok   int64-memory\nok   freed-memory\nok   invalid-address\nok   enum-switch\nok   default-parameter\nok   try-catch\nok   typing-guard\nvalidator: 17 checks, 0 failure(s)\n"
+  },
+  "format_no_file": {
+    "args": [
+      "--format"
+    ],
+    "exit": 1,
+    "stderr": "lynxer: --format requires exactly one file argument"
+  },
+  "format_missing_file": {
+    "args": [
+      "--format",
+      "does_not_exist.lynx"
+    ],
+    "exit": 1,
+    "stderr": "lynxer: file not found: 'does_not_exist.lynx'"
+  },
+  "format_success": {
+    "args": [
+      "--format",
+      "{scratch}"
+    ],
+    "scratch": ".lynxer_golden_format.lynx",
+    "sourceFile": "lynxer/examples/formatter_input.lynx",
+    "exit": 0,
+    "stdout": "Formatted .lynxer_golden_format.lynx"
+  },
+  "format_oneline_success": {
+    "args": [
+      "--format-oneline",
+      "{scratch}"
+    ],
+    "scratch": ".lynxer_golden_format.lynx",
+    "sourceFile": "lynxer/examples/formatter_input.lynx",
+    "exit": 0,
+    "stdout": "Formatted .lynxer_golden_format.lynx"
+  },
+  "format_parse_error": {
+    "args": [
+      "--format",
+      "lynxer/examples/lexical_bang.lynx"
+    ],
+    "exit": 1,
+    "stderr": "lynxer: lynxer/examples/lexical_bang.lynx:6:13: expected an expression"
+  },
+  "easter_egg": {
+    "args": [
+      "--easterEgg"
+    ],
+    "exit": 0,
+    "stdout": "Easter Egg found!\nWanna do sudo rm -rf / --no-preserve-root? Just kidding, don't do that.\nBut seriously, don't do that. It's a bad idea.\nThat will erase the entire linux OS and all your files. You will lose everything."
+  },
+  "version_short": {
+    "args": [
+      "-v"
+    ],
+    "exit": 0,
+    "stdout": "Lynxer 0.1.8"
+  },
+  "disasm_removed": {
+    "args": [
+      "--disasm",
+      "x.lynxc"
+    ],
+    "exit": 1,
+    "stderr": "lynxer: '--disasm' was removed with the bytecode backend; use lynxer --compile instead"
+  },
+  "bench_compile_alias": {
+    "args": [
+      "--bench-compile",
+      "x.lynx"
+    ],
+    "exit": 1,
+    "stderr": "lynxer: '--bench-compile' was removed with the bytecode backend; use lynxer --compile instead"
+  },
+  "run_program": {
+    "args": [
+      "lynxer/examples/milestone5.lynx"
+    ],
+    "exit": 0,
+    "stdout": "5\n7\n25"
+  }
+}

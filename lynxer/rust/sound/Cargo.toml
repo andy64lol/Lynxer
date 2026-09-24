@@ -1,0 +1,15 @@
+[package]
+name = "lynxer_sound"
+version = "0.1.0"
+edition = "2021"
+description = "Rust backend for the Lynxer `sound` stdlib module"
+
+[lib]
+name = "lynxer_sound"
+crate-type = ["cdylib"]
+
+[dependencies]
+lynxer_abi = { path = "../abi" }
+rodio = "0.17"
+cpal = "0.15"
+symphonia = { version = "0.5", features = ["mp3"] }

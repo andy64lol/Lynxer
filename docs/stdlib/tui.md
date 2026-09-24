@@ -1,115 +1,123 @@
-# tui
+# Terminal UI Module
 
-Terminal UI helpers powered by the
-[Rich](https://rich.readthedocs.io/) Python package.
+The `tui` module provides terminal UI functionality using Rust's `ratatui` and `crossterm` crates.
 
-Rich is installed by the standard project build from `requirements_venv.txt`.
-It does not require a separate executable.
+## Functions
 
-Import it inside `setup()`:
+### Existence and Version
+- `tuiExists() -> int` — Returns `1` if the backend is available.
+- `tuiVersion() -> string` — Returns the backend version, or `""`.
+
+### Printing
+- `printText(text: string)` — Prints text with markup support.
+- `printStyled(text: string, style: string)` — Prints text with a style.
+- `markdown(text: string)` — Renders Markdown to the terminal.
+- `jsonPretty(jsonText: string)` — Pretty-prints JSON with syntax highlighting.
+- `printSyntax(code: string, lexer: string, lineNumbers: bool)` — Syntax-highlight source code.
+- `printTextStyle(text: string, style: string)` — Prints text with a style.
+- `printTextPlain(text: string)` — Prints plain text.
+- `printPretty(value: string)` — Pretty-prints a value.
+- `printColumns(itemsJson: string, equal: bool, expand: bool)` — Prints columns.
+- `printAligned(text: string, align: string, pad: bool)` — Prints aligned text.
+- `printPadded(text: string, top: int, right: int, bottom: int, left: int)` — Prints padded text.
+- `printException()` — Prints exception traceback.
+- `installTraceback(showLocals: bool)` — Installs traceback.
+
+### Panels and Rules
+- `panel(text: string, title: string)` — Renders a bordered panel.
+- `panelStyled(text: string, title: string, borderStyle: string, contentStyle: string)` — Panel with styles.
+- `rule(title: string)` — Prints a horizontal rule.
+- `ruleStyled(title: string, style: string)` — Styled rule.
+
+### Tables
+- `table(title: string, columnsJson: string, rowsJson: string)` — Renders a table.
+- `tableCreate(title: string) -> int` — Creates a table, returns handle.
+- `tableAddColumn(idx: int, header: string, style: string)` — Adds a column.
+- `tableAddRow(idx: int, valuesJson: string)` — Adds a row.
+- `tableSetCaption(idx: int, caption: string)` — Sets caption.
+- `tableSetHeader(idx: int, showHeader: bool)` — Sets header visibility.
+- `tableSetLines(idx: int, showLines: bool)` — Sets lines visibility.
+- `tableSetBox(idx: int, boxName: string)` — Sets box style.
+- `tableSetExpand(idx: int, expand: bool)` — Sets expand.
+- `tablePrint(idx: int)` — Prints a table.
+
+### Trees
+- `treeCreate(label: string) -> int` — Creates a tree, returns handle.
+- `treeAdd(parentIdx: int, label: string) -> int` — Adds a child.
+- `treePrint(idx: int)` — Prints a tree.
+
+### Layouts
+- `layoutCreate(name: string) -> int` — Creates a layout, returns handle.
+- `layoutSplitRows(idx: int, namesJson: string)` — Splits rows.
+- `layoutSplitColumns(idx: int, namesJson: string)` — Splits columns.
+- `layoutUpdate(idx: int, name: string, text: string)` — Updates a section.
+- `layoutPanel(idx: int, name: string, text: string, title: string)` — Sets a panel.
+- `layoutPrint(idx: int)` — Prints a layout.
+
+### Progress, Status, Live
+- `progressStart() -> int` — Starts a progress bar, returns handle.
+- `progressAddTask(idx: int, description: string, total: float) -> int` — Adds a task.
+- `progressAdvance(idx: int, taskId: int, amount: float)` — Advances a task.
+- `progressUpdate(idx: int, taskId: int, completed: float, total: float)` — Updates a task.
+- `progressStop(idx: int)` — Stops a progress bar.
+- `statusStart(text: string) -> int` — Starts a status, returns handle.
+- `statusUpdate(idx: int, text: string)` — Updates a status.
+- `statusStop(idx: int)` — Stops a status.
+- `liveStart(text: string, refreshPerSecond: float) -> int` — Starts live display.
+- `liveUpdate(idx: int, text: string)` — Updates live display.
+- `livePanel(idx: int, text: string, title: string)` — Updates live panel.
+- `liveStop(idx: int)` — Stops live display.
+
+### Console Configuration
+- `init(colorSystem: string)` — Creates or replaces the console.
+- `setWidth(width: int) -> int` — Sets console width.
+- `setMarkup(enabled: bool)` — Enables/disables markup.
+- `setEmoji(enabled: bool)` — Enables/disables emoji.
+- `setHighlight(enabled: bool)` — Enables/disables highlight.
+- `setSoftWrap(enabled: bool)` — Enables/disables soft wrap.
+- `consoleLog(text: string)` — Logs text.
+- `consoleSaveText(path: string) -> string` — Saves console text to file.
+- `consoleSaveHtml(path: string) -> string` — Saves console HTML to file.
+
+### Markup and Styles
+- `markupEscape(text: string) -> string` — Escapes markup.
+- `styleValid(style: string) -> bool` — Validates a style string.
+
+### Prompts
+- `ask(prompt: string) -> string` — Reads a line.
+- `askPassword(prompt: string) -> string` — Reads a password.
+- `askInt(prompt: string) -> int` — Reads an integer.
+- `askFloat(prompt: string) -> float` — Reads a float.
+- `askDefault(prompt: string, defaultValue: string) -> string` — Reads with default.
+- `confirm(prompt: string) -> bool` — Yes/no prompt.
+- `confirmDefault(prompt: string, defaultValue: bool) -> bool` — Yes/no with default.
+
+### TUI Mode
+- `enter() -> int` — Enters TUI mode.
+- `exit() -> int` — Exits TUI mode.
+- `clear() -> int` — Clears the terminal screen.
+
+## Example
 
 ```lynx
 global setup(){
-    import("tui");
-}
-```
-
-## Core and console
-
-- `tuiExists()` → `1` when Rich is importable, otherwise `0`.
-- `tuiVersion()` → installed Rich version, or `""` when unavailable.
-- `init(colorSystem)` → replace the shared console; use `""`, `"standard"`,
-  `"256"`, or `"truecolor"`.
-- `setWidth(width)`, `setMarkup(enabled)`, `setEmoji(enabled)`,
-  `setHighlight(enabled)`, `setSoftWrap(enabled)` → configure the console.
-- `consoleLog(text)` → emit a timestamped Rich log line.
-- `consoleSaveText(path)`, `consoleSaveHtml(path)` → save recorded console
-  output; return `"ok"` or `"error:..."`.
-
-## Renderables and formatting
-
-- `printText(text)` → print text with Rich markup support.
-- `printStyled(text, style)` → print literal text with a Rich style.
-- `printTextStyle(text, style)` → render a styled `Text` object.
-- `printTextPlain(text)` → print literal text without markup or highlighting.
-- `markdown(text)` → render Markdown in the terminal.
-- `panel(text, title)` → render a bordered panel; pass `""` for no title.
-- `panelStyled(text, title, borderStyle, contentStyle)` → render a styled panel.
-- `rule(title)` → render a horizontal rule with an optional title.
-- `ruleStyled(title, style)` → render a styled horizontal rule.
-- `jsonPretty(jsonText)` → syntax-highlight a JSON document.
-- `printSyntax(code, lexer, lineNumbers)` → syntax-highlight source code with a
-  Pygments lexer such as `"python"` or `"javascript"`.
-- `printPretty(value)` → render a Rich `Pretty` value.
-- `printColumns(itemsJson, equal, expand)` → render a JSON array in columns.
-- `printAligned(text, align, pad)` → render with `"left"`, `"center"`, or `"right"` alignment.
-- `printPadded(text, top, right, bottom, left)` → render with terminal padding.
-- `markupEscape(text)` → escape Rich markup characters.
-- `styleValid(style)` → validate a Rich style string.
-
-## Tables, trees, and layouts
-
-- `table(title, columnsJson, rowsJson)` → render a table from JSON arrays.
-- `tableCreate(title)` → create a table and return its integer handle.
-- `tableAddColumn(handle, header, style)` and `tableAddRow(handle, valuesJson)` →
-  add table content.
-- `tableSetCaption(handle, caption)`, `tableSetHeader(handle, enabled)`,
-  `tableSetLines(handle, enabled)`, `tableSetBox(handle, boxName)`,
-  `tableSetExpand(handle, enabled)`, `tablePrint(handle)`.
-- `treeCreate(label)` → create a tree and return its handle.
-- `treeAdd(parentHandle, label)` → add a child and return its handle.
-- `treePrint(handle)` → render a tree.
-- `layoutCreate(name)` → create a layout and return its handle.
-- `layoutSplitRows(handle, namesJson)` and `layoutSplitColumns(handle, namesJson)`.
-- `layoutUpdate(handle, name, text)`, `layoutPanel(handle, name, text, title)`,
-  `layoutPrint(handle)`.
-
-Handles are integer indexes, following the same pattern as `tkinter.lynx`.
-
-## Progress and live displays
-
-- `progressStart()` → start a Rich progress display and return its handle.
-- `progressAddTask(handle, description, total)` → return a task handle.
-- `progressAdvance(handle, task, amount)`,
-  `progressUpdate(handle, task, completed, total)`,
-  `progressStop(handle)`.
-- `statusStart(text)` → start a spinner and return its handle.
-- `statusUpdate(handle, text)`, `statusStop(handle)`.
-- `liveStart(text, refreshPerSecond)` → start a live display and return its handle.
-- `liveUpdate(handle, text)`, `livePanel(handle, text, title)`,
-  `liveStop(handle)`.
-
-## Prompts and tracebacks
-
-- `clear()` → clear the terminal.
-- `ask(prompt)` → read a line from the user.
-- `askDefault(prompt, defaultValue)` → prompt with a default.
-- `askPassword(prompt)`, `askInt(prompt)`, `askFloat(prompt)`.
-- `confirm(prompt)` → read a yes/no answer and return `1` or `0`.
-- `confirmDefault(prompt, defaultValue)`.
-- `installTraceback(showLocals)` → install Rich's traceback hook.
-- `printException()` → print the active Python exception with Rich formatting.
-
-Example:
-
-```lynx
-global setup(){
-    import("tui");
+    import("tui")
 }
 
 global main(){
-    global.tui.printStyled("Lynxer is ready", "bold green");
-    global.tui.rule("Status");
-    global.tui.panel("Rich terminal output from Lynxer.", "tui");
-    global.tui.table(
-        "Users",
-        "[\"Name\", \"Role\"]",
-        "[[\"Ada\", \"admin\"], [\"Linus\", \"user\"]]"
-    );
+    global.tui.init("truecolor");
+    global.tui.printText("Hello, TUI!");
+    global.tui.panel("Hello", "Title");
+    global.tui.clear();
 }
 ```
 
-Rendering functions write directly to the terminal. If Rich is unavailable,
-they print an `Error: ...` message instead of raising a Lynxer runtime error.
-Progress, status, live, table, tree, and layout handles remain valid until the
-Lynxer process exits or `init()` resets them.
+---
+
+## See also
+
+- [stdlib-contracts.md](../stdlib-contracts.md) — the contract this module
+  implements, including the error sentinel family it uses.
+- [builtins.md](../builtins.md) — the functions the interpreter implements
+  itself.
+- [limitations.md](../limitations.md) — the full divergence register.

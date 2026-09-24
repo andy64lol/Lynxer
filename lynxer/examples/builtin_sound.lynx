@@ -1,0 +1,64 @@
+////
+Fixture for the managed `sound*` built-ins, which are backed by the Rust `sound`
+stdlib module. Loading, duration, handle bookkeeping and every validation path
+are device-independent; playback itself depends on the audio device, so
+`soundPlay`/`soundLoop` are exercised on a valid handle but their results are not
+asserted.
+////
+global setup(){ import("fileIO"); }
+
+global main(){
+    // The fixture runs from `lynxer/` under `make test` and from the
+    // repository root by hand, so resolve the asset against both layouts.
+    str toneFile = "examples/assets/tone.wav";
+    if(not global.fileIO.fileExists(toneFile)){
+        toneFile = "lynxer/examples/assets/tone.wav";
+    }
+
+    // Validation happens before the backend is touched. The not-an-audio file
+    // is a scratch file under the cwd, so it exists from any directory.
+    str notAudio = ".lynxer_scratch_not_audio.txt";
+    global.fileIO.writeFile(notAudio, "not audio\n");
+    try { soundLoad(".lynxer_scratch_missing.wav"); } catch(str e) { println("missing: ", e); }
+    try { soundLoad(notAudio); } catch(str e) { println("format: ", e); }
+    try { soundLoad(0); } catch(str e) { println("argtype: ", e); }
+    global.fileIO.deleteFile(notAudio);
+
+    // A real file loads and reports a handle.
+    int handle = soundLoad(toneFile);
+    println(handle >= 0);
+    println(soundIsPlaying(handle));
+    println(soundSetVolume(handle, 0.5));
+
+    try { soundSetVolume(handle, 2.0); } catch(str e) { println("volume: ", e); }
+    try { soundSetVolume(handle, -0.5); } catch(str e) { println("volume-low: ", e); }
+    try { soundSetVolume(handle, "x"); } catch(str e) { println("volumeargs: ", e); }
+    try { soundSetVolume(9999, 0.5); } catch(str e) { println("volumehandle: ", e); }
+
+    // Every handle-taking operation rejects an unknown handle the same way.
+    try { soundPlay(9999); } catch(str e) { println("play: ", e); }
+    try { soundLoop(9999); } catch(str e) { println("loop: ", e); }
+    try { soundStop(9999); } catch(str e) { println("stop: ", e); }
+    try { soundPause(9999); } catch(str e) { println("pause: ", e); }
+    try { soundResume(9999); } catch(str e) { println("resume: ", e); }
+    try { soundIsPlaying(9999); } catch(str e) { println("playing: ", e); }
+    try { soundRelease(9999); } catch(str e) { println("release: ", e); }
+
+    // Stopping a loaded handle is device-independent.
+    println(soundStop(handle));
+
+    // Releasing invalidates the handle for every operation.
+    println(soundRelease(handle));
+    try { soundRelease(handle); } catch(str e) { println("rerelease: ", e); }
+    try { soundStop(handle); } catch(str e) { println("stoplater: ", e); }
+
+    // Playback depends on the audio device. The calls are made so the path is
+    // exercised, but nothing about their outcome is printed.
+    int second = soundLoad(toneFile);
+    try { soundPlay(second); } catch(str e) {}
+    try { soundLoop(second); } catch(str e) {}
+    try { soundPause(second); } catch(str e) {}
+    try { soundResume(second); } catch(str e) {}
+    println(soundStop(second));
+    println(soundRelease(second));
+}

@@ -1,0 +1,65 @@
+////
+Fixture for the managed `filesystem*` built-ins. Uses a scratch directory under
+the working directory, which it removes again, so it runs from any directory.
+The `filesystemStat` result carries wall-clock timestamps, so only its
+deterministic fields are asserted.
+////
+global setup(){ import("json"); }
+
+global main(){
+    str dir = ".lynxer_scratch_fs";
+    str file = dir + "/notes.txt";
+    str link = dir + "/notes.link";
+
+    // Directories, including missing parents.
+    println(filesystemMkdir(dir, true));
+    println(filesystemMkdir(dir + "/nested/deep", true));
+
+    // Open, write, close; then read to end of file.
+    int handle = filesystemOpen(file, "w");
+    println(handle > 0);
+    println(filesystemWrite(handle, "hello\n"));
+    println(filesystemClose(handle));
+
+    int reader = filesystemOpen(file, "r");
+    println(filesystemRead(reader, 64));
+    println(filesystemRead(reader, 64));
+    println(filesystemClose(reader));
+
+    // Stat reports type/size/mode; list is sorted.
+    str info = filesystemStat(file);
+    println(global.json.jsonGet(info, "type"), " ", global.json.jsonGet(info, "size"), " ", global.json.jsonGet(info, "mode"));
+    println(filesystemList(dir));
+
+    // Symlinks are reported as symlinks, not followed.
+    println(filesystemLink(file, link, true));
+    println(filesystemReadLink(link));
+    println(global.json.jsonGet(filesystemStat(link), "type"));
+    println(filesystemRemove(link));
+
+    println(filesystemRename(file, dir + "/renamed.txt"));
+    println(filesystemList(dir));
+    println(filesystemChmod(dir + "/renamed.txt", 384));
+    println(global.json.jsonGet(filesystemStat(dir + "/renamed.txt"), "mode"));
+
+    // Every failure is a runtime error preserving the operation and errno.
+    try { filesystemOpen(file, "x"); } catch(str e) { println("mode: ", e); }
+    try { filesystemOpen(dir + "/missing.txt", "r"); } catch(str e) { println("open: ", e); }
+    try { filesystemRead(9999, 4); } catch(str e) { println("handle: ", e); }
+    try { filesystemRead(reader, 4); } catch(str e) { println("closed: ", e); }
+    try { filesystemStat(dir + "/missing.txt"); } catch(str e) { println("stat: ", e); }
+    try { filesystemList(dir + "/missing"); } catch(str e) { println("list: ", e); }
+    try { filesystemRemove(dir + "/missing"); } catch(str e) { println("remove: ", e); }
+    try { filesystemReadLink(dir + "/missing"); } catch(str e) { println("readlink: ", e); }
+    try { filesystemChmod(dir + "/missing", 384); } catch(str e) { println("chmod: ", e); }
+    try { filesystemRename(dir + "/missing", dir + "/x"); } catch(str e) { println("rename: ", e); }
+    try { filesystemLink(dir + "/missing", dir + "/x"); } catch(str e) { println("link: ", e); }
+
+    // rmdir refuses a non-empty directory.
+    try { filesystemRemove(dir); } catch(str e) { println("nonempty: ", e); }
+
+    println(filesystemRemove(dir + "/renamed.txt"));
+    println(filesystemRemove(dir + "/nested/deep"));
+    println(filesystemRemove(dir + "/nested"));
+    println(filesystemRemove(dir));
+}

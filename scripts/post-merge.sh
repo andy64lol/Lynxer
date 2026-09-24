@@ -5,7 +5,6 @@ set -euo pipefail
 # Keep all project-relative work inside the Lynxer checkout.
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-# The lite dependency set provides the compiler/build tools and syscall tables
-# needed by the native extensions without pulling in optional GUI backends.
-make liteDeps
-make buildCpp
+# Build the standalone C++ interpreter and its native (C++ and Rust) stdlib
+# modules. `cargo` is optional; the build skips the Rust backends without it.
+make buildLynxer

@@ -1,0 +1,7 @@
+// A bare `!` is not valid in Lynxer; use `not` or `!!`. The Python reference
+// accepts `!value`, which makes this a deliberate lexical divergence.
+global setup() {}
+
+global main() {
+    println(!true);
+}

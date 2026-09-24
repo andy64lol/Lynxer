@@ -1,4 +1,4 @@
-name: Build Lynxer (Python) on AMD64
+name: Build Lynxer on AMD64
 
 on:
   push:
@@ -8,30 +8,35 @@ on:
 
 jobs:
   build:
-    name: Build and Test Lynxer (Python) on AMD64
+    name: Build and Test Lynxer on AMD64
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python 3.14
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.14"
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
 
-      - name: Install dependencies
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: lynxer/rust -> ../build/rust
+
+      - name: Install Linux dependencies
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements_venv.txt
           sudo apt-get update
           sudo apt-get install -y libasound2-dev pkg-config
 
-      - name: Build Lynxer (Python) Lite for AMD64
-        run: make buildLynxerLite
-
-      - name: Build Lynxer (Python) Full for AMD64
+      - name: Build Lynxer for AMD64
         run: make buildLynxer
 
-      - name: Run Lynxer (Python) tests on AMD64
-        run: make testLynxer
+      - name: Test Lynxer AMD64 binary
+        run: make testLynxer LYNXER_SKIP_DISPLAY=1
+      - name: Run the AMD64 syscall fixture
+        run: make testLynxerAmd64Syscalls
+      - name: Upload AMD64 binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: lynxer-amd64
+          path: lynxer/lynxer

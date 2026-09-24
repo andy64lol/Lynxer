@@ -1,0 +1,13 @@
+[package]
+name = "lynxer_ffi"
+version = "0.1.0"
+edition = "2021"
+description = "Rust backend for the Lynxer `ffi` built-in family"
+
+[lib]
+name = "lynxer_ffi"
+crate-type = ["cdylib"]
+
+[dependencies]
+lynxer_abi = { path = "../abi" }
+libc = "0.2"

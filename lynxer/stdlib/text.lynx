@@ -1,364 +1,228 @@
 ////
-Lynxer Standard Library — text
-String manipulation utilities.
+Lynxer standard library: text.
+Pure Lynxer string helpers: searching, replacing, case conversion and
+repetition.
 ////
 
 global setup(){}
 
-// Basic manipulation
-
-global reverse(str text){
+global reverse(str value) -> str {
     str result = "";
-
-    rawPy(){
-        result = text[::-1]
+    int index = returnLength(value) - 1;
+    while(index >= 0){
+        result = result + charAt(value, index);
+        index = index - 1;
     }
-
     return result;
 }
-
-global repeat(str text, int count){
+global repeat(str value, int count) -> str {
     str result = "";
-
-    rawPy(){
-        result = text * count
-    }
-
+    int index = 0;
+    while(index < count){ result = result + value; index = index + 1; }
     return result;
 }
-
-global trim(str text){
-    str result = "";
-
-    rawPy(){
-        result = text.strip()
+global trim(str value) -> str { return global.trim(value); }
+global contains(str value, str needle) -> bool {
+    if(needle is ""){ return true; }
+    int index = 0;
+    while(index <= returnLength(value) - returnLength(needle)){
+        if(substring(value, index, index + returnLength(needle)) is needle){
+            return true;
+        }
+        index = index + 1;
     }
-
-    return result;
-}
-
-global trimLeft(str text){
-    str result = "";
-
-    rawPy(){
-        result = text.lstrip()
-    }
-
-    return result;
-}
-
-global trimRight(str text){
-    str result = "";
-
-    rawPy(){
-        result = text.rstrip()
-    }
-
-    return result;
-}
-
-// Searching
-
-global contains(str text, str needle){
-    int found = 0;
-
-    rawPy(){
-        found = 1 if needle in text else 0
-    }
-
-    if(found != 0){
-        return true;
-    }
-
     return false;
 }
-
-global startsWith(str text, str prefix){
-    int found = 0;
-
-    rawPy(){
-        found = 1 if text.startswith(prefix) else 0
+global startsWith(str value, str prefix) -> bool {
+    return substring(value, 0, returnLength(prefix)) is prefix;
+}
+global endsWith(str value, str suffix) -> bool {
+    int start = returnLength(value) - returnLength(suffix);
+    if(start < 0){ return false; }
+    return substring(value, start, returnLength(value)) is suffix;
+}
+global count(str value, str needle) -> int {
+    if(needle is ""){ return 0; }
+    int total = 0;
+    int index = 0;
+    while(index <= returnLength(value) - returnLength(needle)){
+        if(substring(value, index, index + returnLength(needle)) is needle){
+            total = total + 1;
+            index = index + returnLength(needle);
+        } else { index = index + 1; }
     }
+    return total;
+}
+global replace(str value, str oldValue, str newValue) -> str {
+    return global.replace(value, oldValue, newValue);
+}
+global upper(str value) -> str { return global.upper(value); }
+global lower(str value) -> str { return global.lower(value); }
+global isEmpty(str value) -> bool { return returnLength(value) is 0; }
+global isBlank(str value) -> bool { return returnLength(global.trim(value)) is 0; }
 
-    if(found != 0){
-        return true;
-    }
-
-    return false;
+// Space, tab, carriage return and newline. Python's text helpers strip all
+// Unicode whitespace; the ASCII set is what Lynxer matches.
+func textIsSpace(str value) -> bool {
+    return returnLength(value) is 1 and contains(" \t\n\r", value);
 }
 
-global endsWith(str text, str suffix){
-    int found = 0;
-
-    rawPy(){
-        found = 1 if text.endswith(suffix) else 0
-    }
-
-    if(found != 0){
-        return true;
-    }
-
-    return false;
+// Forwarders to the interpreter's own string builtins, so that
+// `global.text.<name>` resolves like the reference module.
+global substring(str value, int start, int end) -> str {
+    return global.substring(value, start, end);
 }
-
-global count(str text, str needle){
-    int result = 0;
-
-    rawPy(){
-        result = text.count(needle)
-    }
-
-    return result;
+global charAt(str value, int index) -> str {
+    return global.charAt(value, index);
 }
-
-// Modification
-
-global replace(str text, str oldValue, str newValue){
+global split(str value, str separator) -> list {
+    return global.splitStr(value, separator);
+}
+global join(list parts, str separator) -> str {
+    return global.listJoin(parts, separator);
+}
+global trimLeft(str value) -> str {
+    int index = 0;
+    while(index < returnLength(value) and textIsSpace(charAt(value, index))){
+        index = index + 1;
+    }
+    return substring(value, index, returnLength(value));
+}
+global trimRight(str value) -> str {
+    int end = returnLength(value);
+    while(end > 0 and textIsSpace(charAt(value, end - 1))){
+        end = end - 1;
+    }
+    return substring(value, 0, end);
+}
+global replaceFirst(str value, str oldValue, str newValue) -> str {
+    if(returnLength(oldValue) is 0){ return value; }
+    int index = 0;
+    while(index <= returnLength(value) - returnLength(oldValue)){
+        if(substring(value, index, index + returnLength(oldValue)) is oldValue){
+            return substring(value, 0, index) + newValue +
+                   substring(value, index + returnLength(oldValue),
+                             returnLength(value));
+        }
+        index = index + 1;
+    }
+    return value;
+}
+global remove(str value, str target) -> str {
+    return global.replace(value, target, "");
+}
+global capitalize(str value) -> str {
+    if(returnLength(value) is 0){ return ""; }
+    return upper(charAt(value, 0)) + lower(substring(value, 1, returnLength(value)));
+}
+global swapCase(str value) -> str {
     str result = "";
-
-    rawPy(){
-        result = text.replace(oldValue, newValue)
+    int index = 0;
+    while(index < returnLength(value)){
+        str character = charAt(value, index);
+        if(lower(character) isnt character){
+            result = result + lower(character);
+        } elif(upper(character) isnt character){
+            result = result + upper(character);
+        } else {
+            result = result + character;
+        }
+        index = index + 1;
     }
-
     return result;
 }
-
-global replaceFirst(str text, str oldValue, str newValue){
+global title(str value) -> str {
     str result = "";
-
-    rawPy(){
-        result = text.replace(oldValue, newValue, 1)
+    bool boundary = true;
+    int index = 0;
+    while(index < returnLength(value)){
+        str character = charAt(value, index);
+        if(textIsSpace(character)){
+            result = result + character;
+            boundary = true;
+        } elif(boundary){
+            result = result + upper(lower(character));
+            boundary = false;
+        } else {
+            result = result + lower(character);
+        }
+        index = index + 1;
     }
-
     return result;
 }
-
-global remove(str text, str target){
-    str result = "";
-
-    rawPy(){
-        result = text.replace(target, "")
+global isAlpha(str value) -> bool {
+    if(returnLength(value) is 0){ return false; }
+    int index = 0;
+    while(index < returnLength(value)){
+        str character = charAt(value, index);
+        if(upper(character) is lower(character)){ return false; }
+        index = index + 1;
     }
-
-    return result;
+    return true;
 }
-
-// Case conversion
-
-global upper(str text){
-    str result = "";
-
-    rawPy(){
-        result = text.upper()
+global isNumeric(str value) -> bool {
+    if(returnLength(value) is 0){ return false; }
+    int index = 0;
+    while(index < returnLength(value)){
+        str character = charAt(value, index);
+        if(character < "0" or character > "9"){ return false; }
+        index = index + 1;
     }
-
-    return result;
+    return true;
 }
-
-global lower(str text){
-    str result = "";
-
-    rawPy(){
-        result = text.lower()
+global isAlphaNumeric(str value) -> bool {
+    if(returnLength(value) is 0){ return false; }
+    int index = 0;
+    while(index < returnLength(value)){
+        str character = charAt(value, index);
+        if(isAlpha(character) is false and isNumeric(character) is false){
+            return false;
+        }
+        index = index + 1;
     }
-
-    return result;
+    return true;
 }
-
-global capitalize(str text){
-    str result = "";
-
-    rawPy(){
-        result = text.capitalize()
-    }
-
-    return result;
+global padLeft(str value, int width, str fill) -> str {
+    int missing = width - returnLength(value);
+    if(missing <= 0 or returnLength(fill) is 0){ return value; }
+    str padding = repeat(fill, missing /% returnLength(fill) + 1);
+    return substring(padding, 0, missing) + value;
 }
-
-global title(str text){
-    str result = "";
-
-    rawPy(){
-        result = text.title()
-    }
-
-    return result;
+global padRight(str value, int width, str fill) -> str {
+    int missing = width - returnLength(value);
+    if(missing <= 0 or returnLength(fill) is 0){ return value; }
+    str padding = repeat(fill, missing /% returnLength(fill) + 1);
+    return value + substring(padding, 0, missing);
 }
-
-global swapCase(str text){
-    str result = "";
-
-    rawPy(){
-        result = text.swapcase()
-    }
-
-    return result;
+global center(str value, int width, str fill) -> str {
+    int margin = width - returnLength(value);
+    if(margin <= 0 or returnLength(fill) is 0){ return value; }
+    int left = margin /% 2 + (margin % 2) * (width % 2);
+    return padLeft("", left, fill) + value + padLeft("", margin - left, fill);
 }
-
-// Splitting
-
-global split(str text, str separator){
-    list result = [];
-
-    rawPy(){
-        result = text.split(separator)
+global splitLines(str value) -> list {
+    list parts = [];
+    str current = "";
+    int index = 0;
+    while(index < returnLength(value)){
+        str character = charAt(value, index);
+        if(character is "\n"){
+            if(returnLength(current) > 0 and
+               charAt(current, returnLength(current) - 1) is "\r"){
+                current = substring(current, 0, returnLength(current) - 1);
+            }
+            parts = listPush(parts, current);
+            current = "";
+        } else {
+            current = current + character;
+        }
+        index = index + 1;
     }
-
-    return result;
+    if(returnLength(current) > 0){ parts = listPush(parts, current); }
+    return parts;
 }
-
-global splitLines(str text){
-    list result = [];
-
-    rawPy(){
-        result = text.splitlines()
-    }
-
-    return result;
-}
-
-// Joining
-
-global join(list parts, str separator){
-    str result = "";
-
-    rawPy(){
-        result = separator.join(parts)
-    }
-
-    return result;
-}
-
-// Padding
-
-global padLeft(str text, int width, str fill){
-    str result = "";
-
-    rawPy(){
-        result = text.rjust(width, fill)
-    }
-
-    return result;
-}
-
-global padRight(str text, int width, str fill){
-    str result = "";
-
-    rawPy(){
-        result = text.ljust(width, fill)
-    }
-
-    return result;
-}
-
-global center(str text, int width, str fill){
-    str result = "";
-
-    rawPy(){
-        result = text.center(width, fill)
-    }
-
-    return result;
-}
-
-// Character / substring operations
-
-global charAt(str text, int index){
-    str result = "";
-
-    rawPy(){
-        result = text[index]
-    }
-
-    return result;
-}
-
-global substring(str text, int start, int end){
-    str result = "";
-
-    rawPy(){
-        result = text[start:end]
-    }
-
-    return result;
-}
-
-// Validation
-
-global isEmpty(str text){
-    if(len(text) == 0){
-        return true;
-    }
-
-    return false;
-}
-
-global isBlank(str text){
-    int result = 0;
-
-    rawPy(){
-        result = 1 if text.strip() == "" else 0
-    }
-
-    if(result != 0){
-        return true;
-    }
-
-    return false;
-}
-
-global isAlpha(str text){
-    int result = 0;
-
-    rawPy(){
-        result = 1 if text.isalpha() else 0
-    }
-
-    if(result != 0){
-        return true;
-    }
-
-    return false;
-}
-
-global isNumeric(str text){
-    int result = 0;
-
-    rawPy(){
-        result = 1 if text.isnumeric() else 0
-    }
-
-    if(result != 0){
-        return true;
-    }
-
-    return false;
-}
-
-global isAlphaNumeric(str text){
-    int result = 0;
-
-    rawPy(){
-        result = 1 if text.isalnum() else 0
-    }
-
-    if(result != 0){
-        return true;
-    }
-
-    return false;
-}
-
-// Formatting
-
-global indent(str text, str prefix){
-    str result = "";
-
-    rawPy(){
-        result = prefix + text.replace("\n", "\n" + prefix)
-    }
-
-    return result;
+global indent(str value, str prefix) -> str {
+    return prefix + global.replace(value, "\n", "\n" + prefix);
 }
 
 global main(){}

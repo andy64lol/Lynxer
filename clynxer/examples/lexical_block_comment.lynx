@@ -1,8 +1,0 @@
-// `/* ... */` is not a comment in Clynxer. Only `//` and the `///`/`////`
-// delimiters are comments.
-global setup() {}
-
-global main() {
-    /* not a comment */
-    println(1);
-}

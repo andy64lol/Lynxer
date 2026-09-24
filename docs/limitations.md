@@ -1,168 +1,327 @@
-# Known limitations
+# Limitations and non-goals
 
-`todo.md` marks most work as complete. This page records the places where the
-code, the tests, or the docs are still behind that claim, so nobody has to
-rediscover the gap by reading the interpreter.
+Lynxer is a standalone C++/Rust runtime. This page is the canonical register of
+what it deliberately does **not** do and of the behaviour that is constrained.
+Everything here is a decision, not an accident.
 
-Every entry below was verified against the source.
+Entries are marked:
 
----
+- **Not planned** — deliberately will not be implemented. These are permanent
+  non-goals; do not expect them to appear later.
+- **Constrained** — implemented, but with behaviour you should know before
+  relying on it.
 
-## Compiler optimization — constant folding only
+## Not planned (will not be implemented)
 
-`todo.md` ("Compiler improvements") claims safe optimization passes. Constant
-folding is now implemented: `_optimize_program()` in `lynxer/bytecode.py`
-replaces an arithmetic or comparison expression with a literal when every
-operand is a literal, and it does so by asking the interpreter itself to
-evaluate the expression. An expression that the interpreter evaluates with an
-error is left alone, so `1 / 0` still raises "Division by zero" at run time
-instead of being folded away.
+| Feature | Status | Why |
+| --- | --- | --- |
+| `venv` module | **Not planned** | A virtual-environment manager is a Python concept with no equivalent in a standalone runtime. |
+| `rawPy`, `rawPyx`, `cleanRawPyxCache`, `embedPy` | **Not planned** | Embedding CPython/Cython. Lynxer does not ship or link a Python runtime. |
+| `tkinter`, `tkinterPlus` | **Not planned** | No Python GUI toolkit. A future `graphics` module, if any, would be Rust-backed. |
+| `turtle` | **Not planned** | Rust's `turtle` crate has not been maintained since 2019. |
+| `http`, `net` modules | **Not planned** | Superseded by `network` + `server`. |
+| Click/Typer builders (`click*`, `typer*`) | **Not planned** | The `cli` module does not depend on Python's Click or Typer. |
+| Python runtime introspection (`sys.path`, `addPath`, `prependPath`, `removeFromPath`, `getModules`, `isModuleLoaded`, `getRecursionLimit`, `setRecursionLimit`, `os.getPythonVersion`, `os.getPythonImplementation`) | **Not planned** | There is no Python runtime to introspect. The `os` getters return `""` / `"Lynxer"` for compatibility and will be removed. |
+| Bytecode (`.lynxc`, `--view-bytecode`, `--benchmark-compile`, `--no-cache`) | **Not planned** | Removed with the bytecode backend; `--compile` produces a standalone ELF executable instead (`--bundle` is an alias). Running a `.lynxc` file reports that bytecode is unsupported. |
+| `varBorrow*` family | **Not planned** | Python's borrowed references have no meaning across the native ABI. |
+| FFI / native-module handle built-ins | **Not planned** | Superseded by direct `import` of a native `.so` through the documented ABI. |
+| `nativeMutex*`, `nativeCondition*`, `nativeSemaphore*` | **Not planned** | Lynxer runs cooperatively on one interpreter thread; there is one global lock and no shared mutable state to protect. |
+| `async*` family (`Run`, `Gather`, `Sleep`, `Poll*`, timers, wakeups) | **Not planned** | Lynxer has no `async` language support and no event loop to serve. |
+| `/* ... */` block comments | **Not planned** | Only `//` and `/// ... ///` / `//// ... ////` are supported. |
+| Bare `!` as logical NOT | **Not planned** | Use `!!value` or `not value`. Symbolic comparators/bitwise spellings (`==`, `&&`, `\|\|`, `&`, `\|`, `<<`, `>>`) still parse but warn and are on the way out. |
+| `\x` / `\u` string escapes | **Not planned** | Only `\n`, `\r`, `\t`, `\\`, `\"` and `\e` are accepted. Modules that need a separator use a writable one (for example a tab). |
 
-Still missing:
+## Language and toolchain
 
-- **Dead-code elimination and unused-variable removal.** There is no purity or
-  effect analysis anywhere in the compiler, and `ProgramNode.globals_list` is
-  iterated when a module is imported, so dropping an apparently unused global
-  would silently break importers.
-- **Deeper passes** (strength reduction, copy propagation, inlining) have no
-  framework to plug into — the pass list is a single function call.
+- **Module self-calls.** Inside a module, `global.name(...)` resolves to a *core
+  builtin* named `name`, not to the module's own `global name`. A module calling
+  `global.round(...)` when it defines its own `round` fails with
+  `unknown function 'global.round'`. Call the module's own functions with a bare
+  name (`round(...)`); use `global.name(...)` only for builtins such as
+  `assert`, `trim` or `upper`.
+- **Compiled executables embed their modules.** The payload carries the program
+  source, the source of every transitively imported `.lynx` module, and the bytes
+  of every imported native `.so`. Native modules are written to a temporary
+  directory at startup so `dlopen` can load them, and the directory is removed
+  when the process exits.
+- **`--compile` accepts several input files.** The first `.lynx` file is the
+  program; any further `.lynx` or `.so` files — given positionally or with
+  `--include <file>` — are embedded and become importable by name, even when they
+  live outside the module search path. The output name comes from
+  `-o <name>`/`--name <name>`, or from a trailing bare argument, and defaults to
+  the first input without its `.lynx` extension.
+- **`--include` also takes data files.** A file that is neither `.lynx` nor `.so`
+  is embedded as an asset, written to the executable's private temporary
+  directory at startup, and reachable with `bundledFile(name)` (a path) or listed
+  with `bundledFiles()`. Interpreted runs see neither and return `""` / an empty
+  list, so a program must tolerate missing assets when run from source.
 
-The `--no-opt` flag is real now: it selects an unfolded AST and is recorded in
-the bytecode metadata.
+## Optimizer
 
-## C ABI: compiler-specific bit-field ABI remains limited
+Before execution Lynxer runs a semantics-preserving AST optimization pass:
+constant folding of literal-only expressions, short-circuit simplification of
+constant `and`/`or`, and dead-branch elimination for a constant `if`,
+`while (false)` and `iterate (0)`. It may not change behaviour, so anything that
+could raise, warn or coerce differently — a division by zero, a deprecated
+symbolic operator, a string plus an int — is left for the runtime at its original
+source location.
 
-Native layouts now support explicit integer bit-fields such as
-`uint8 ready:1`, including allocation, introspection, signed reads, range
-validation, and read/modify/write access.
+- `--no-opt` runs the program without the pass. It is a run-time switch: a
+  compiled executable ignores its command line and always optimizes.
+- `LYNXER_OPT_REPORT=1` prints one line of transformation counts to stderr after
+  the program runs. It is diagnostic only and never affects output.
 
-**Packing is implemented.** Every `memoryStruct*` function that takes a layout
-string accepts an optional trailing alignment argument that clamps the
-alignment of every field and of any nested aggregate. See
-[native-memory.md](native-memory.md#packed-layouts).
+## Native module ABI
 
-**The remaining limitation is compiler ABI compatibility.** Lynxer uses a
-documented least-significant-bit-first storage rule and groups consecutive
-fields with the same declared integer storage type. C and C++ leave bit-field
-allocation order, cross-type grouping, and some signedness behavior
-implementation-defined, so this does not claim byte-for-byte compatibility
-with every external compiler's native struct layout. Use explicit layout
-metadata or byte-level access when an external compiler's ABI is authoritative.
+- A native signature uses either one of the fixed shapes listed in
+  [native-module-abi.md](native-module-abi.md) — at most four arguments — or the
+  packed `...` form, which passes every argument as two arrays and accepts at
+  most 64 arguments in total. A Rust `cdylib` must use the packed form; see that
+  page for why a fixed shape segfaults instead of failing to build.
+- No aggregate types cross the ABI: lists, tuples and records are exchanged as
+  JSON strings or handles.
+- Only one live string result per call (`thread_local` buffer).
+- Linux/POSIX only: `.so` imports are not available on Windows.
 
-What is real: nested and inline structs/unions, fixed arrays, dynamically
-sized arrays via `memoryBlockAllocate`, function-pointer fields, host-derived
-alignment and padding, signedness, and packed/alignment-overridden layouts.
+## Standard library
 
-## Native concurrency: no cancellation, no high-level API
+### Modules that are not ported
 
-`todo.md` ("Concurrency API") claims cancellation, shutdown, and a high-level
-thread API.
+`tkinter`, `tkinterPlus` and `turtle` have no Lynxer equivalent (**not planned**,
+see the table above). The `http`/`net` modules are replaced by `network` +
+`server`, and the old `mathPlus` is merged into `math`.
 
-- **Cancellation is still cooperative only** — there is no thread-cancellation
-  builtin. (`asyncTimerCancel` cancels a *timer*, not a thread.)
-- **There is no `lynxer/stdlib/` concurrency module.** The API is the raw
-  `nativeThread*`, `nativeMutex*`, `nativeCondition*`, and `nativeSemaphore*`
-  builtins documented in [native-memory.md](native-memory.md).
+The modules Lynxer ships are backed natively. Nine of them are Rust crates —
+`game` (`macroquad`), `image`, `json` (`serde_json`), `lua` (vendored Lua through
+`mlua`), `network` (`ureq` + `tungstenite`), `server` (`axum` + `tokio`),
+`sound` (`rodio`/`cpal`), `sqldb` (`rusqlite`) and `tui` (`ratatui`/`crossterm`).
+They are skipped with a warning when `cargo` is missing, so the rest of Lynxer
+still builds without a Rust toolchain. The Rust workspace also has an `ffi`
+member, an intentional no-op `cdylib`: the `ffi*` builtins are implemented in
+C++.
 
-Fixed since this page was written: `nativeThreadJoinAll()` is now exposed as a
-Lynxer builtin, so a program can join every thread it left running instead of
-relying on the interpreter's exit-time safety net.
+### `json` — **constrained**
 
-## async I/O: `poll`/`ppoll`, not `epoll`
+- Non-finite numbers (`NaN`, `Infinity`) encode as `null` so output is always
+  valid JSON.
+- Object key order is insertion order.
+- `jsonGet` renders booleans as `true`/`false`.
 
-`todo.md` ("async I/O") asks for epoll. The implementation is a `select.poll`
-event loop (`lynxer/builtins.py`), which on Linux uses the host's poll
-interface. The raw `syscallPollFileDescriptors` builtin uses `poll(2)` on
-x86-64 and adapts its existing millisecond timeout API to `ppoll(2)` on ARM64,
-where the legacy `poll` syscall is absent. `syscallPpollFileDescriptors` is
-also available as an ARM64-only raw five-argument alternative.
-[async.md](async.md) describes it honestly as an event poller and never claims
-epoll. The `asyncPoll*` API and the syscall wrappers `syscallCreateEventPoll`,
-`syscallControlEventPoll`, and `syscallWaitForEvents` do expose real epoll when
-you need it. `syscallWaitForEvents` uses `epoll_wait` on x86-64 and
-`epoll_pwait` on ARM64; `syscallWaitForEventsWithSignalMask` exposes the
-ARM64-only signal-mask form directly.
+### `re` and `regex` — **constrained**
 
-This is unlikely to change: `asyncPoll*` accepts arbitrary file descriptors
-including regular files, which epoll cannot watch (`EPERM`) but `poll` can, and
-the syscall layer is Linux-only.
+Both run on `std::regex` with the ECMAScript grammar, which is narrower than
+full PCRE:
 
-## Clynxer async and FFI execution model
+- Unsupported and reported as an error result: lookbehind `(?<=...)`/`(?<!...)`,
+  atomic groups `(?>...)`, and Unicode property escapes such as `\p{L}`.
+- `(?P<name>...)` is translated to a plain capturing group with the name
+  recorded, so `named`/`extract`/`extractAll` work; `(?P=name)` becomes a numeric
+  backreference.
+- Inline flags `(?i)`, `(?m)`, `(?s)` are applied to the whole pattern rather
+  than from the point they appear. `(?x)` verbose mode is ignored.
+- Invalid or unsupported patterns produce sentinel results (predicates `false`,
+  strings `""`, index helpers `-1`) instead of raising.
+- `findLetters`/`findDigits` match ASCII letter and digit runs.
+- `findall` with two or more capture groups returns arrays of groups.
 
-Clynxer accepts the `async` local-function and `await` syntax, but its
-interpreter remains single-threaded and cooperative: async calls run to
-completion synchronously. `asyncPoll*`, timers, and wakeups are real POSIX
-resources; `asyncGather` preserves the supplied results but does not run them
-concurrently.
+### `csv` — **constrained**
 
-The Clynxer FFI call path uses the existing checked native signature dispatcher
-and supports the signatures covered by that dispatcher. `ffiCallback` creates
-an interpreter callback handle for `ffiCall` rather than a libffi closure that
-arbitrary external native code can invoke. This keeps callback execution inside
-the interpreter lock; code that needs a native callback trampoline still
-requires the Python implementation or a future libffi backend.
+- Output uses `\r\n` line terminators.
+- Non-string JSON values are rendered as `""` / `true` / `false`.
+- Values beyond the header width are dropped, and missing columns become `""`.
+- The rendered `docs/stdlib/csv.md` describes a different, older API than the
+  shipped `csv.lynx`; Lynxer implements the shipped API.
 
-## Enums: braced body is inert
+### `os` and `path` — **constrained**
 
-`todo.md` ("Rust-style enums") describes the braced section as
-"enum-associated code". The block is parsed but **never executed**, and it may
-not contain function declarations (a `global` function there is a parse error).
-See [enums.md](enums.md#the-braced-body). There is no precedent to follow —
-`class` and `struct` bodies do not execute statements either.
+- `os.getPythonVersion()` returns `""` and `os.getPythonImplementation()` returns
+  `"Lynxer"` (**not planned**, see above).
+- `path.readTextEncoding` / `path.writeTextEncoding` accept an encoding argument
+  for API compatibility but always use UTF-8.
+- Platform helpers report the host through `uname(2)`.
 
-Fixed since this page was written: duplicate enum names and enum/function name
-collisions are both diagnosed at parse time, with the original declaration's
-line in the message.
+### `sys` — **constrained**
 
-## Switch patterns: conservative duplicate and reachability diagnostics
+- `version()` returns the Lynxer version (for example `Lynxer 0.1.8`).
+- Python-runtime concepts are **not planned** and are not defined (`sys.path`,
+  `addPath`, `prependPath`, `removeFromPath`, `getModules`, `isModuleLoaded`,
+  `getRecursionLimit`, `setRecursionLimit`).
+- Lynxer does not forward extra arguments to a program, so `argv()`, `getArg`
+  and `argCount` describe the `lynxer` process command line.
+- `exit()` calls `std::exit` directly; interpreter cleanup does not run.
 
-The parser now rejects structurally duplicate patterns and any case after a
-top-level wildcard or binding pattern. This catches the common accidental
-forms without evaluating user expressions during parsing.
+### `cli` — **constrained**
 
-The analysis is intentionally conservative. Literal expressions remain
-unevaluated, so `case(1+1)` and `case(2)` are not diagnosed as duplicates even
-though they may match the same value at runtime. Nested subsumption (for
-example, proving that one enum or sequence pattern covers another) also
-remains unsupported.
+- The Click/Typer builder functions (`click*`, `typer*`) are **not planned**;
+  calling one is a hard "unknown function" error. `clickExists()`/`typerExists()`
+  return `false` and the version helpers return `""`, which is accurate.
 
-One case has been closed: a binding pattern whose name already refers to a real
-variable used to silently degrade into an equality comparison. It is now a
-runtime error. Reusing a name that an earlier `switch` bound as a pattern is
-still allowed, so two switches may both bind `v`.
+### `multiprocessing` — **constrained**
 
-## Ownership state is not serialized in bytecode
+- Commands run in worker threads, each spawning its own shell subprocess, so the
+  `runParallelProcess` variant is an alias of `runParallel`.
+- No timeout is applied. Results are collected through a native handle and must
+  be released; the wrappers do this automatically.
 
-`todo.md` asks for ownership metadata to survive bytecode serialization. The
-`.lynxc` payload stores the AST, version, hash, and native dependencies only.
-Ownership, borrow, and runtime-type state are **recomputed at run time** from
-the same program, so the semantics match, but a serialized snapshot of the
-state is not part of the format.
+### `js` — **constrained**
 
-This is not a small gap to close. Ownership is a purely runtime notion: the
-state lives in side tables keyed by live `(SymbolTable, name)` tuples and by
-native reference pointers, none of which exist before execution. A payload key
-for it would always serialize empty. Closing it would mean writing a static
-borrow checker first.
+- Requires `node` on `PATH`. No timeout is applied. `stderr` is inherited rather
+  than captured.
 
-## Bundling: no real end-to-end bundle test
+### `debug` — **constrained**
 
-`todo.md` ("Bundling 3") leaves one item unchecked — running a release bundle
-on physical ARM64 hardware — which this checkout cannot do.
+- `typeOf` maps the interpreter's `none` to `null`.
+- `dump` and `pp` print `strOf` rendering, so strings are not quoted.
+- `log`/`info`/`warn`/`error`/`debug` embed a wall-clock timestamp, so they are
+  not covered by the fixture suite.
 
-Beyond that, `test_bundle_smoke_and_diagnostics` in `test/validate.py` replaces
-`subprocess.run` with a stub, so PyInstaller is never actually invoked and no
-executable is produced by the suite. The launcher, architecture guard, syscall
-self-check, and diagnostics are all covered, and other tests in that file do
-run the real `lynxer` CLI; it is specifically the packaging step that is not
-exercised.
+### `math` — **constrained**
 
----
+- The NumPy-backed statistics (`median`, `std`, `variance`, `percentile`,
+  `corrcoef`, `dot`, `linspace`, `cumsum`, `diff`, `clip`, `normalize`) are
+  reimplemented natively — NumPy is not required. Population variance and
+  standard deviation are used, and `percentile` follows NumPy's linear
+  interpolation.
+- Lists cross the native boundary as tab-separated strings, and list results are
+  returned the same way.
+- `mathPlus` is merged into `math`; its float-accepting `sign` is available as
+  `signFloat`.
 
-## Related pages
+### `sound` — **constrained**
 
-- [enums.md](enums.md) — enum reference, including its current limitations
-- [native-memory.md](native-memory.md) — native memory, FFI, threads, sync
-- [async.md](async.md) — async functions and the event poller
-- [bytecode.md](bytecode.md) — bytecode format, cache, and CLI flags
-- [CLI.md](CLI.md) — command-line reference
+- `loadSound` and `loadSoundStreaming` are the same operation: rodio decodes from
+  the file handle either way, so there is no static/streaming split; both register
+  a handle and return its index.
+- Playback needs an audio device. When none can be opened, `playSound` and
+  `loopSound` report `false` instead of aborting — loading, `soundCount()` and
+  `releaseSound` keep working.
+- `pauseSound` and `resumeSound` require a player that has actually been started;
+  they return `false` for a valid handle that has not been played yet.
+- `releaseSound` returns `false` for an already-released handle, and `soundCount()`
+  counts only handles that have not been released.
+- `getSoundLength` re-decodes the file on each call, so it returns `0.0` if the
+  file has been moved or deleted since it was loaded.
+
+### `sqldb` — **constrained**
+
+- Every function takes a database path and opens a connection for the duration of
+  the call; there is no connection handle to manage and nothing to close.
+- Failures are returned in band as `"ERROR: <message>"` — and as `-1` / `false`
+  for the integer and boolean functions — rather than being raised.
+- `query`, `queryArgs` and `tables` emit JSON with `": "` and `", "` separators.
+- SQLite BLOB values are rendered as base64 strings, because JSON has no byte
+  type.
+- `scalar` converts the first column of the first row with `strOf`, and returns
+  `""` when the query yields no row or the value is NULL.
+
+### `tui` — **constrained (placeholder backend)**
+
+The API surface is complete, but the backend is a placeholder rather than a Rich
+equivalent:
+
+- Rendering does not reproduce Rich's output. With an active terminal it draws a
+  fixed placeholder through `ratatui`; otherwise it prints a plain-text line such
+  as `markdown: ...` or `table: ...`.
+- The prompt operations (`ask`, `askPassword`, `askInt`, `askFloat`,
+  `askDefault`) return empty or zero defaults; they do not read input.
+- `styleValid` reports every style as valid, including invalid ones.
+- The stateful families (`table*`, `tree*`, `layout*`, `progress*`, `status*`,
+  `live*`) return success and placeholder handles but keep no state between calls.
+- `markupEscape`, `enter` and `exit` (raw mode plus the alternate screen) are real
+  implementations. `tuiVersion` reports the backend crate's version.
+- The module writes its fallback output straight to stdout rather than through the
+  interpreter. Both sides are line-buffered, so lines interleave in order, but a
+  write with no trailing newline would not: `clear()` emits its ANSI sequence
+  without one and flushes explicitly for that reason.
+
+### `image` — **constrained**
+
+- The pixel getters return a bracketed list (`[10,20,30,255]`).
+- The mutating operations (`save`, `saveQuality`, `setPixel`, `setPixelA`, `fill`,
+  `paste`, `pasteWithAlpha`, `close`) return a boolean.
+- `grayscale` keeps the alpha channel, so an `RGBA` image becomes `LA`.
+- `info` returns compact JSON, not the spaced form the `json` module produces.
+- `getFormat` and `info` report the detected format (`PNG`, `JPEG`, ...) for
+  images decoded with `fromBase64`, not just for images opened from a file.
+
+### `lua` — **constrained**
+
+- `luaExists()` returns a `bool`.
+- `luaVersion()` reports the vendored engine (`Lua 5.4`).
+- Error strings name the failure kind and the chunk, e.g.
+  `Error: syntax error: [string "lynxer.lua"]:1: syntax error near 'is'`.
+- A Lua runtime error is reported the same way and its text includes a Lua
+  traceback, so the fixture asserts only that a message came back.
+
+## Built-in families
+
+The managed `filesystem*`, `process*`, `networking*` and `sound*` families are
+implemented and documented in [builtins.md](builtins.md).
+
+`builtins.cpp` keeps an `unsupportedTable()` of names that are recognised but
+deliberately unimplemented; calling one raises
+`<name>() is not supported in Lynxer yet`. That table is the **not planned**
+surface listed at the top of this page — `rawPy`/`rawPyx`, `varBorrow*`, the FFI
+and native-module handles, and the mutual-exclusion primitives — plus the `async*`
+family.
+
+### `nativeThread*` — **constrained (cooperative model)**
+
+`nativeThreadStart(global.worker, [int 42])` passes a named global function, so
+Lynxer resolves `global.<name>` to a callable value when no variable has that name.
+`returnType` reports `codeblock` for such a value.
+
+Threads are **cooperative**: the interpreter evaluates Lynxer code on one thread
+at a time, guarded by one lock, and a worker takes that lock before calling back
+in. A thread therefore runs while the thread that started it is blocked in
+`nativeThreadJoin`/`nativeThreadJoinAll`, which release the lock before waiting.
+No two threads ever evaluate at once, so no data race is possible — by
+construction, not by careful locking. The trade-off is that a thread does not make
+progress while the main body is running.
+
+Two smaller consequences: `nativeThreadIsAlive` is true and
+`nativeThreadStatus` is `running` immediately after `nativeThreadStart`,
+deterministically, because the worker cannot have started yet; and a thread a
+program leaves running is joined when the program finishes.
+
+## CLI tools
+
+`--lint`, `--ast`, `--format`, `--format-oneline`, `--validate-executeable` and
+`--install`/`--uninstall` are implemented. `--ast` prints Lynxer's own node and
+field names and covers the executable AST (functions and statements) rather than
+the named type declarations held in the type registry. The flags removed with the
+bytecode backend (`--view-bytecode`, `--benchmark-compile`, `--no-cache`) are
+listed in [CLI.md](CLI.md).
+
+The formatter is token-based: it never changes tokens, preserves line comments and
+`///`/`////` blocks verbatim, and is idempotent.
+
+## Testing notes
+
+`make testLynxer` (from the repo root) runs one fixture per
+`examples/stdlib_*.lynx` and diffs its output against a sibling `.expected` file.
+Fixtures that would print host-specific values (Node version, terminal size,
+`uname` strings) assert a boolean property instead.
+
+The `sound` fixture is the exception: several of its assertions (starting and
+stopping playback, per-handle volume) only hold on a host with a real ALSA card.
+When there is no `/dev/snd/controlC*`, `make testLynxer` skips
+`stdlib_sound.lynx` — in both the `.expected` diff and the interpreted-vs-compiled
+parity loop — and prints
+
+```
+lynxer: skipping stdlib_sound.lynx: no audio device (/dev/snd/controlC*) on this host
+```
+
+Everything else about the module (loading, decoding, handle bookkeeping, the
+error paths) is device-independent and stays covered.
+
+Before the fixtures, it runs `scripts/check_module_contracts.py`, a static
+comparison of every `stdlib/<name>.lynx` wrapper against its backend. The fixture
+suite alone cannot detect a backend that contradicts its own wrapper, because a
+fixture records what the code does — a module can be broken in exactly the way its
+`.expected` file asserts. The check verifies that every
+`global.native<Alias>.<op>(...)` call names a registered op, and that a Rust
+backend's packed `args.<kind>(i)` reads are in range for the arguments the wrapper
+actually passes. It requires `python3`; `make test` fails with a clear message if
+it is missing rather than skipping the check.

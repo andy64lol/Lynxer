@@ -1,248 +1,80 @@
 ////
 Lynxer standard library: fileIO.
-File and text input/output helpers.
+File and text input/output helpers backed by the native C++ module
+`stdlib/fileIO.so`.
+
+Functions return "" / false / -1 on error; check return values in calling code.
+`readLines` splits the file content on newlines, matching the Python reference.
 ////
+global setup(){ importAs("fileIO.so", "nativeFileIO"); }
 
-global setup(){}
-
-// Read the entire contents of path as a string. Returns "" on error.
-global readFile(str path){
-    str content = "";
-    rawPy(){
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                content = f.read()
-        except Exception:
-            content = ""
-    }
-    return content;
+// Read the entire contents of path. Returns "" on error.
+global readFile(str path) -> str { return global.nativeFileIO.readFile(path); }
+// Write content to path (overwrites). Returns true on success.
+global writeFile(str path, str content) -> bool {
+    return global.nativeFileIO.writeFile(path, content) isnt 0;
 }
-
-// Write content to path (overwrites). Returns true on success, false on error.
-global writeFile(str path, str content){
-    bool success = true;
-    rawPy(){
-        try:
-            with open(path, "w", encoding="utf-8") as f:
-                f.write(content)
-        except Exception:
-            success = False
-    }
-    return success;
+// Append content to path. Returns true on success.
+global appendFile(str path, str content) -> bool {
+    return global.nativeFileIO.appendFile(path, content) isnt 0;
 }
-
-// Append content to path. Returns true on success, false on error.
-global appendFile(str path, str content){
-    bool success = true;
-    rawPy(){
-        try:
-            with open(path, "a", encoding="utf-8") as f:
-                f.write(content)
-        except Exception:
-            success = False
-    }
-    return success;
-}
-
 // Returns true if path refers to an existing file.
-global fileExists(str path){
-    bool exists = false;
-    rawPy(){
-        import os as _os
-        exists = _os.path.isfile(path)
-    }
-    return exists;
+global fileExists(str path) -> bool {
+    return global.nativeFileIO.fileExists(path) isnt 0;
 }
-
-// Delete path. Returns true on success, false on error (e.g. file not found).
-global deleteFile(str path){
-    bool success = true;
-    rawPy(){
-        import os as _os
-        try:
-            _os.remove(path)
-        except Exception:
-            success = False
-    }
-    return success;
+// Delete path. Returns true on success.
+global deleteFile(str path) -> bool {
+    return global.nativeFileIO.deleteFile(path) isnt 0;
 }
-
-// Read path and return a list of lines (newlines stripped). Returns an empty list on error.
-global readLines(str path){
-    str raw = "";
-    rawPy(){
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                raw = f.read()
-        except Exception:
-            raw = ""
-    }
-    if(raw == ""){
-        return seqFromTo(0, 0, 1);
-    }
+// Read path and return a list of lines (newlines stripped).
+global readLines(str path) -> list {
+    str raw = global.nativeFileIO.readFile(path);
+    if(raw is ""){ return seqFromTo(0, 0, 1); }
     return splitStr(raw, "\n");
 }
-
-// Copy src to dst (overwrite dst if it exists). Returns true on success, false on error.
-global copyFile(str src, str dst){
-    bool success = true;
-    rawPy(){
-        import shutil as _sh
-        try:
-            _sh.copy2(src, dst)
-        except Exception:
-            success = False
-    }
-    return success;
+// Copy src to dst (overwriting dst). Returns true on success.
+global copyFile(str src, str dst) -> bool {
+    return global.nativeFileIO.copyFile(src, dst) isnt 0;
 }
-
 // Return the size of path in bytes, or -1 on error.
-global fileSize(str path){
-    int result = -1;
-    rawPy(){
-        import os as _os
-        try:
-            result = _os.path.getsize(path)
-        except Exception:
-            result = -1
-    }
-    return result;
-}
-
+global fileSize(str path) -> int { return global.nativeFileIO.fileSize(path); }
 // Move (rename) a file from src to dst. Returns true on success.
-global moveFile(str src, str dst){
-    bool success = true;
-    rawPy(){
-        import shutil as _sh
-        try:
-            _sh.move(src, dst)
-        except Exception:
-            success = False
-    }
-    return success;
+global moveFile(str src, str dst) -> bool {
+    return global.nativeFileIO.moveFile(src, dst) isnt 0;
 }
-
-// Return the number of lines in a file. Returns -1 on error.
-global countLines(str path){
-    int result = -1;
-    rawPy(){
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                result = sum(1 for _ in f)
-        except Exception:
-            result = -1
-    }
-    return result;
+// Return the number of lines in a file, or -1 on error.
+global countLines(str path) -> int {
+    return global.nativeFileIO.countLines(path);
 }
-
-// Return the nth line of path (0-based index). Returns "" on error or out-of-range.
-global readLine(str path, int n){
-    str result = "";
-    rawPy(){
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                lines = f.readlines()
-            if 0 <= n < len(lines):
-                result = lines[n].rstrip("\n")
-        except Exception:
-            result = ""
-    }
-    return result;
+// Return the nth line (0-based) of path, or "" on error.
+global readLine(str path, int n) -> str {
+    return global.nativeFileIO.readLine(path, n);
 }
-
-// Return the last-modified timestamp of path as a formatted string ("YYYY-MM-DD HH:MM:SS").
-// Returns "" on error.
-global fileModTime(str path){
-    str result = "";
-    rawPy(){
-        import os as _os
-        from datetime import datetime as _dt
-        try:
-            ts = _os.path.getmtime(path)
-            result = _dt.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
-        except Exception:
-            result = ""
-    }
-    return result;
+// Return the last-modified timestamp as "YYYY-MM-DD HH:MM:SS", or "".
+global fileModTime(str path) -> str {
+    return global.nativeFileIO.fileModTime(path);
 }
-
-// Return the file extension including the dot (e.g. ".txt"). Returns "" if none.
-global fileExtension(str path){
-    str result = "";
-    rawPy(){
-        import os as _os
-        result = _os.path.splitext(path)[1]
-    }
-    return result;
+// Return the file extension including the dot, or "".
+global fileExtension(str path) -> str {
+    return global.nativeFileIO.fileExtension(path);
 }
-
 // Return true if path is a file and its size is 0 bytes.
-global fileIsEmpty(str path){
-    bool result = false;
-    rawPy(){
-        import os as _os
-        try:
-            result = _os.path.isfile(path) and _os.path.getsize(path) == 0
-        except Exception:
-            result = False
-    }
-    return result;
+global fileIsEmpty(str path) -> bool {
+    return global.nativeFileIO.fileIsEmpty(path) isnt 0;
 }
-
 // Create a temporary file with the given suffix and return its path.
-// The file is created but not written to. Returns "" on error.
-global tempFile(str suffix){
-    str result = "";
-    rawPy(){
-        import tempfile as _tf
-        try:
-            fd, result = _tf.mkstemp(suffix=suffix)
-            import os as _os
-            _os.close(fd)
-        except Exception:
-            result = ""
-    }
-    return result;
+global tempFile(str suffix) -> str {
+    return global.nativeFileIO.tempFile(suffix);
 }
-
-// Create a temporary directory and return its path. Returns "" on error.
-global tempDir(){
-    str result = "";
-    rawPy(){
-        import tempfile as _tf
-        try:
-            result = _tf.mkdtemp()
-        except Exception:
-            result = ""
-    }
-    return result;
+// Create a temporary directory and return its path.
+global tempDir() -> str { return global.nativeFileIO.tempDir(); }
+// Return the file name without directory or extension.
+global stemName(str path) -> str {
+    return global.nativeFileIO.stemName(path);
 }
-
-// Return the file name without its directory component or extension.
-// e.g. stemName("/home/user/notes.txt") → "notes"
-global stemName(str path){
-    str result = "";
-    rawPy(){
-        import os as _os
-        result = _os.path.splitext(_os.path.basename(path))[0]
-    }
-    return result;
-}
-
-// Read path and return its content split into lines, joined by a custom separator sep.
-// Useful for processing files line-by-line as a Lynxer list.
-// Returns "" on error.
-global readFileLines(str path, str sep){
-    str result = "";
-    rawPy(){
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                lines = [l.rstrip("\n") for l in f]
-            result = sep.join(lines)
-        except Exception:
-            result = ""
-    }
-    return result;
+// Read path, split into lines, and join them with sep.
+global readFileLines(str path, str sep) -> str {
+    return global.nativeFileIO.readFileLines(path, sep);
 }
 
 global main(){}

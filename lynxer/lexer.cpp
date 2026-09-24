@@ -1,0 +1,293 @@
+#include "lexer.hpp"
+
+#include "error.hpp"
+
+#include <cctype>
+
+namespace lynxer {
+
+std::vector<Token> Lexer::scan() {
+    std::vector<Token> tokens;
+    while (!atEnd()) {
+        skipWhitespaceAndComments();
+        if (atEnd()) {
+            break;
+        }
+
+        const int line = line_;
+        const int column = column_;
+        const std::size_t tokenStart = index_;
+        const char current = advance();
+        // Records the token with its byte range. The trailing line/column
+        // arguments mirror the old call shape and are ignored in favour of the
+        // captured ones.
+        auto emit = [&](TokenKind kind, std::string text, int, int) {
+            tokens.push_back({kind, std::move(text), line, column, tokenStart,
+                              index_});
+        };
+
+        if (isIdentifierStart(current)) {
+            std::string text(1, current);
+            while (!atEnd() && isIdentifierPart(peek())) {
+                text += advance();
+            }
+            if (text == "inter" && peek() == '"') {
+                // inter"..." — keep the raw content; the parser splits it
+                // into literal and interpolated parts.
+                advance();
+                emit(TokenKind::InterpString, readRawString(line, column),
+                     line, column);
+            } else {
+                emit(TokenKind::Identifier, text, line, column);
+            }
+        } else if (std::isdigit(static_cast<unsigned char>(current)) ||
+                   (current == '.' &&
+                    std::isdigit(static_cast<unsigned char>(peek())))) {
+            std::string text(1, current);
+            bool hasDot = current == '.';
+            while (!atEnd()) {
+                const char next = peek();
+                if (std::isdigit(static_cast<unsigned char>(next))) {
+                    text += advance();
+                } else if (next == '.' && !hasDot) {
+                    hasDot = true;
+                    text += advance();
+                } else {
+                    break;
+                }
+            }
+            emit(TokenKind::Number, text, line, column);
+        } else if (current == '"') {
+            emit(TokenKind::String, readString(line, column), line, column);
+        } else if (current == '\'') {
+            emit(TokenKind::Char, readChar(line, column), line, column);
+        } else {
+            std::string symbol(1, current);
+            const char next = peek();
+            if (current == '!') {
+                // '!' begins several multi-character operators. A bare '!'
+                // is invalid in Lynxer (logical NOT is '!!' or 'not'); emit
+                // it as a single symbol so the parser rejects it with a clear
+                // syntax error, matching the Python reference.
+                if (next == '=' || next == '!' || next == '&' ||
+                    next == '^' || next == '|') {
+                    symbol += advance();
+                    if ((symbol == "!&" && peek() == '&') ||
+                        (symbol == "!|" && peek() == '|')) {
+                        symbol += advance();
+                    }
+                    emit(TokenKind::Symbol, symbol, line, column);
+                    continue;
+                }
+                emit(TokenKind::Symbol, symbol, line, column);
+                continue;
+            }
+            if (current == '*' && next == '*') {
+                symbol += advance();
+                if (peek() == '=') {
+                    symbol += advance();
+                }
+                emit(TokenKind::Symbol, symbol, line, column);
+                continue;
+            }
+            if (current == '/' && next == '%') {
+                symbol += advance();
+                if (peek() == '=') {
+                    symbol += advance();
+                }
+                emit(TokenKind::Symbol, symbol, line, column);
+                continue;
+            }
+            if ((current == '=' && next == '=') ||
+                (current == '<' && (next == '=' || next == '<')) ||
+                (current == '>' && (next == '=' || next == '>')) ||
+                (current == '&' && next == '&') ||
+                (current == '|' && next == '|') ||
+                (current == '+' && next == '=') ||
+                (current == '-' && next == '=') ||
+                (current == '*' && next == '=') ||
+                (current == '/' && next == '=') ||
+                (current == '%' && next == '=')) {
+                symbol += advance();
+                emit(TokenKind::Symbol, symbol, line, column);
+                continue;
+            }
+            if (std::string("+-*/%<>=!;(),{}.[]&|^~").find(current) ==
+                std::string::npos) {
+                fail("unexpected character '" + std::string(1, current) +
+                         "'",
+                     line, column);
+            }
+            emit(TokenKind::Symbol, symbol, line, column);
+        }
+    }
+    tokens.push_back({TokenKind::End, "", line_, column_, index_, index_});
+    return tokens;
+}
+
+bool Lexer::atEnd() const { return index_ >= source_.size(); }
+
+char Lexer::peek() const { return atEnd() ? '\0' : source_[index_]; }
+
+char Lexer::advance() {
+    const char value = source_[index_++];
+    if (value == '\n') {
+        ++line_;
+        column_ = 1;
+    } else {
+        ++column_;
+    }
+    return value;
+}
+
+void Lexer::skipWhitespaceAndComments() {
+    for (;;) {
+        while (!atEnd() && std::isspace(static_cast<unsigned char>(peek()))) {
+            advance();
+        }
+        if (startsWith("////") || startsWith("///")) {
+            skipDelimitedComment();
+            continue;
+        }
+        if (peek() != '/' || index_ + 1 >= source_.size() ||
+            source_[index_ + 1] != '/') {
+            return;
+        }
+        while (!atEnd() && advance() != '\n') {
+        }
+    }
+}
+
+bool Lexer::startsWith(const std::string& text) const {
+    return source_.compare(index_, text.size(), text) == 0;
+}
+
+void Lexer::skipDelimitedComment() {
+    const int startLine = line_;
+    const int startColumn = column_;
+    const std::size_t delimiterLength = startsWith("////") ? 4 : 3;
+    for (std::size_t i = 0; i < delimiterLength; ++i) {
+        advance();
+    }
+
+    while (!atEnd()) {
+        if ((delimiterLength == 4 && startsWith("////")) ||
+            (delimiterLength == 3 && startsWith("///"))) {
+            for (std::size_t i = 0; i < delimiterLength; ++i) {
+                advance();
+            }
+            return;
+        }
+        advance();
+    }
+
+    fail("unterminated multiline comment; expected matching slash delimiter",
+         startLine, startColumn);
+}
+
+std::string Lexer::readString(int line, int column) {
+    std::string value;
+    while (!atEnd() && peek() != '"') {
+        if (peek() == '\n') {
+            fail("unterminated string", line, column);
+        }
+        char current = advance();
+        if (current == '\\') {
+            if (atEnd()) {
+                fail("unterminated string escape", line, column);
+            }
+            const char escaped = advance();
+            switch (escaped) {
+            case 'n':
+                value += '\n';
+                break;
+            case 'r':
+                value += '\r';
+                break;
+            case 't':
+                value += '\t';
+                break;
+            case '\\':
+                value += '\\';
+                break;
+            case '"':
+                value += '"';
+                break;
+            case 'e':
+                value += '\x1b';
+                break;
+            default:
+                fail("unknown string escape \\" + std::string(1, escaped),
+                     line, column);
+            }
+        } else {
+            value += current;
+        }
+    }
+    if (atEnd()) {
+        fail("unterminated string", line, column);
+    }
+    advance();
+    return value;
+}
+
+std::string Lexer::readChar(int line, int column) {
+    if (atEnd() || peek() == '\n') {
+        fail("unterminated char literal", line, column);
+    }
+    std::string value;
+    char current = advance();
+    if (current == '\\') {
+        if (atEnd()) {
+            fail("unterminated char escape", line, column);
+        }
+        const char escaped = advance();
+        switch (escaped) {
+        case 'n': value = "\n"; break;
+        case 'r': value = "\r"; break;
+        case 't': value = "\t"; break;
+        case 'e': value = "\x1b"; break;
+        case '\\': value = "\\"; break;
+        case '\'': value = "'"; break;
+        default:
+            fail("unknown char escape \\" + std::string(1, escaped), line,
+                 column);
+        }
+    } else {
+        value += current;
+    }
+    if (atEnd() || peek() != '\'') {
+        fail("char literal must contain exactly one character", line, column);
+    }
+    advance();
+    return value;
+}
+
+std::string Lexer::readRawString(int line, int column) {
+    std::string value;
+    while (!atEnd() && peek() != '"') {
+        if (peek() == '\n') {
+            fail("unterminated string", line, column);
+        }
+        value += advance();
+    }
+    if (atEnd()) {
+        fail("unterminated string", line, column);
+    }
+    advance();
+    return value;
+}
+
+bool Lexer::isIdentifierStart(char value) {
+    return std::isalpha(static_cast<unsigned char>(value)) || value == '_';
+}
+
+bool Lexer::isIdentifierPart(char value) {
+    return std::isalnum(static_cast<unsigned char>(value)) || value == '_';
+}
+
+void Lexer::fail(const std::string& message, int line, int column) const {
+    throw SourceError(message, line, column);
+}
+
+} // namespace lynxer

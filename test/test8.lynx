@@ -1,8 +1,0 @@
-global setup(){}
-global main(){
-    int count = 0;
-    forever(){
-        count += 1;
-        println(count);
-    }
-}

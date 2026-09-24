@@ -1,5 +1,0 @@
-// EXPECT_ERROR: 'func' declarations are only allowed at the top level
-global setup(){}
-global main(){
-    func nested(){}
-}

@@ -1,0 +1,22 @@
+[package]
+name = "lynxer_image"
+version = "0.1.0"
+edition = "2021"
+description = "Rust image backend for the Lynxer `image` stdlib module"
+publish = false
+
+[lib]
+name = "lynxer_image"
+crate-type = ["cdylib"]
+
+[dependencies]
+base64 = "0.22"
+lynxer_abi = { path = "../abi" }
+image = { version = "0.25", default-features = false, features = [
+    "bmp",
+    "gif",
+    "jpeg",
+    "png",
+    "tiff",
+    "webp",
+] }
