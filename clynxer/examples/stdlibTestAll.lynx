@@ -618,11 +618,10 @@ global main(){
     fails += global.check(global.time.getSecond() >= 0, "true", "time.getSecond");
     fails += global.check(global.time.getWeekdayNum() >= 0, "true", "time.getWeekdayNum");
     fails += global.check(returnLength(global.time.getWeekday()) > 0, "true", "time.getWeekday");
-    int timestamp = global.time.toTimestamp("2024-01-01");
-    if (timestamp is 1704067200) {
-        fails += global.check(timestamp, 1704067200, "time.toTimestamp");
+    if (global.time.toTimestamp("2024-01-01") is "1704067200") {
+        fails += global.check(global.time.toTimestamp("2024-01-01"), "1704067200", "time.toTimestamp");
     } else {
-        fails += global.check(timestamp, 1704063600, "time.toTimestamp");
+        fails += global.check(global.time.toTimestamp("2024-01-01"), "1704063600", "time.toTimestamp");
     }
     fails += global.check(global.time.timestamp() > 0, "true", "time.timestamp");
 
