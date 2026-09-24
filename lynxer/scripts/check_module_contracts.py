@@ -213,7 +213,7 @@ def line_of(text: str, index: int) -> int:
 
 
 class Backend:
-    """Ops a native module registers, keyed by Lynxer-facing name."""
+    """Ops a native module registers, keyed by Clynxer-facing name."""
 
     def __init__(self, path: Path):
         self.path = path

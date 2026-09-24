@@ -187,7 +187,7 @@ struct PackedNativeArgs {
 // `<ret>(const double* nums, int64_t num_count, const char* const* strs,
 // int64_t str_count)`. Passing four scalars rather than a struct lets a Rust
 // `extern "C" fn` match it directly.
-LynxerArgs packNativeArgs(const std::vector<Value>& args,
+ClynxerArgs packNativeArgs(const std::vector<Value>& args,
                           PackedNativeArgs& storage, int line, int column) {
     constexpr std::size_t kMaxPackedArgs = 64;
     if (args.size() > kMaxPackedArgs) {
@@ -213,7 +213,7 @@ LynxerArgs packNativeArgs(const std::vector<Value>& args,
     for (const auto& text : storage.strings) {
         storage.stringPointers.push_back(text.c_str());
     }
-    LynxerArgs packed{};
+    ClynxerArgs packed{};
     packed.num_count = static_cast<std::int64_t>(storage.numbers.size());
     packed.nums = storage.numbers.empty() ? nullptr : storage.numbers.data();
     packed.str_count = static_cast<std::int64_t>(storage.stringPointers.size());
@@ -485,7 +485,7 @@ const std::unordered_map<std::string, NativeCall>& nativeCallTable() {
          [](void* address, const std::vector<Value>& args, int line,
             int column) -> Value {
              PackedNativeArgs storage;
-             const LynxerArgs packed =
+             const ClynxerArgs packed =
                  packNativeArgs(args, storage, line, column);
              return static_cast<std::int64_t>(
                  reinterpret_cast<std::int64_t (*)(const double*, std::int64_t,
@@ -498,7 +498,7 @@ const std::unordered_map<std::string, NativeCall>& nativeCallTable() {
          [](void* address, const std::vector<Value>& args, int line,
             int column) -> Value {
              PackedNativeArgs storage;
-             const LynxerArgs packed =
+             const ClynxerArgs packed =
                  packNativeArgs(args, storage, line, column);
              return reinterpret_cast<double (*)(const double*, std::int64_t,
                                                 const char* const*,
@@ -509,7 +509,7 @@ const std::unordered_map<std::string, NativeCall>& nativeCallTable() {
          [](void* address, const std::vector<Value>& args, int line,
             int column) -> Value {
              PackedNativeArgs storage;
-             const LynxerArgs packed =
+             const ClynxerArgs packed =
                  packNativeArgs(args, storage, line, column);
              return std::string(nativeStringResult(
                  reinterpret_cast<const char* (*)(const double*, std::int64_t,
@@ -586,7 +586,7 @@ Value callNativeInternal(void* address, const std::string& signature,
                           line, column);
     }
     Value result = found->second(address, args, line, column);
-    // A native module may have invoked a Lynxer callback that failed; surface
+    // A native module may have invoked a Clynxer callback that failed; surface
     // that error instead of a silent success.
     if (deferredNativeError != nullptr) {
         const std::exception_ptr pending = deferredNativeError;
@@ -801,7 +801,7 @@ RecordField* findRecordField(RecordValue& record, const std::string& name) {
     return nullptr;
 }
 
-// Field mutation with Lynxer error messages (docs: vargroups/structs/classes).
+// Field mutation with Clynxer error messages (docs: vargroups/structs/classes).
 void setRecordField(RecordValue& record, const std::string& name,
                     const Value& value, int line, int column) {
     RecordField* field = findRecordField(record, name);
@@ -2025,8 +2025,8 @@ Value invokeFunction(
     }
 }
 
-// One lock guards every evaluation of Lynxer code. It is recursive because a
-// nested evaluation (a callback into Lynxer from a native module, say) happens
+// One lock guards every evaluation of Clynxer code. It is recursive because a
+// nested evaluation (a callback into Clynxer from a native module, say) happens
 // on the thread that already holds it.
 namespace {
 
@@ -2043,7 +2043,7 @@ void unlockInterpreter() { interpreterLock().unlock(); }
 
 void executeProgram(const std::unordered_map<std::string, Function>& functions,
                     Environment& environment) {
-    // The interpreter is not re-entrant: exactly one thread evaluates Lynxer
+    // The interpreter is not re-entrant: exactly one thread evaluates Clynxer
     // code at a time. `nativeThread*` runs a callback on another thread, and it
     // releases this lock only while it is blocked waiting for that thread, so
     // the two never evaluate at once. See `nativeThreadJoin` in builtins.cpp.
@@ -2188,10 +2188,10 @@ void ImportStatement::execute(Environment& environment) const {
         }
         // Optional host API: lets a module call back into the interpreter
         // (frame callbacks) and query the interrupt flag.
-        auto attach = reinterpret_cast<int (*)(const LynxerHostApi*)>(
+        auto attach = reinterpret_cast<int (*)(const ClynxerHostApi*)>(
             dlsym(handle, "clynxer_module_attach_v1"));
         if (attach != nullptr) {
-            LynxerHostApi host{};
+            ClynxerHostApi host{};
             host.version = 1;
             host.context = &environment;
             host.invoke = clynxerHostInvoke;
@@ -2340,7 +2340,7 @@ void ImportStatement::execute(Environment& environment) const {
 
 void executeStatements(const StatementList& statements,
                        Environment& environment) {
-    // Lynxer uses a single flat scope per function: declarations inside
+    // Clynxer uses a single flat scope per function: declarations inside
     // control-flow blocks are visible in the enclosing (function) scope and
     // re-declaring an existing name overwrites it, matching the Python
     // reference. Only function/method invocation pushes a fresh scope.

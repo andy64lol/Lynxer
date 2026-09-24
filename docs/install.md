@@ -1,6 +1,6 @@
 # Installation
 
-The repository contains two implementations: the original Python Lynxer and
+The repository contains two implementations: the original Python Clynxer and
 the standalone Lynxer implementation. Lynxer build instructions and its
 native dependency policy are documented in
 [lynxer/docs/install.md](../lynxer/docs/install.md).
@@ -18,7 +18,7 @@ native extensions and syscall tables cannot be mixed.
 
 ```bash
 clynxer --version   # confirm it works
-clynxer hello.lynx  # run a Lynxer source file
+clynxer hello.lynx  # run a Clynxer source file
 ```
 
 ---
@@ -31,7 +31,7 @@ clynxer hello.lynx  # run a Lynxer source file
 - `cython` Python package (for `rawPyx` support)
 - `system-calls` Python package (required for the named Linux syscall built-ins)
 - `setuptools` Python package (Cython shim on Python 3.12+)
-- A C++ compiler (`g++` or `clang++`) for Lynxer's native memory extension
+- A C++ compiler (`g++` or `clang++`) for Clynxer's native memory extension
 - A C compiler (`gcc` or `cc`) for Cython compilation
 
 ### Full build
@@ -39,7 +39,7 @@ clynxer hello.lynx  # run a Lynxer source file
 Bundles the complete standard library (all stdlib modules included, heavier):
 
 ```bash
-make buildLynxer
+make buildClynxer
 ```
 
 The build automatically compiles `clynxer/cpp.cpp` for the active Python
@@ -61,7 +61,7 @@ Produces a smaller binary with a reduced standard library — useful for
 embedding or size-constrained targets where the full stdlib is not needed:
 
 ```bash
-make buildLynxerLite
+make buildClynxerLite
 ```
 
 Produces `dist/clynxer-lite`. The lite build excludes heavier optional stdlib
@@ -74,8 +74,8 @@ modules while keeping the core language and essential utilities.
 | Target | Description |
 |--------|-------------|
 | `make build` | Everything — Python full + lite, plus Lynxer |
-| `make buildLynxer` | Python full build — all stdlib modules included (`dist/clynxer`) |
-| `make buildLynxerLite` | Python lite build — reduced stdlib, smaller binary (`dist/clynxer-lite`) |
+| `make buildClynxer` | Python full build — all stdlib modules included (`dist/clynxer`) |
+| `make buildClynxerLite` | Python lite build — reduced stdlib, smaller binary (`dist/clynxer-lite`) |
 | `make buildLynxer` | Lynxer binary plus its C++/Rust stdlib backends |
 | `make buildCpp` | Compile the native C++ memory extension in place |
 | `make clean` | Remove `__pycache__` and `.pyc` files |
@@ -88,7 +88,7 @@ modules while keeping the core language and essential utilities.
 See the complete [CLI reference](CLI.md) for every command and alias.
 
 ```bash
-clynxer --version        # Lynxer 0.1.8
+clynxer --version        # Clynxer 0.1.8
 clynxer --compile a.lynx # compile to bytecode
 clynxer a.lynxc          # run compiled bytecode
 clynxer --format a.lynx  # format the source file in place

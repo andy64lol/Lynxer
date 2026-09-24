@@ -1,10 +1,10 @@
 ////
-Lynxer standard library: cli.
+Clynxer standard library: cli.
 Extended command-line helpers powered by Click, Typer, and Python's standard library.
 
 Click and Typer objects use integer handles, following the indexed-resource
 pattern used by the tkinter and tui modules. JSON strings are used for
-structured arguments and results across the Lynxer/Python bridge.
+structured arguments and results across the Clynxer/Python bridge.
 ////
 
 global setup(){}

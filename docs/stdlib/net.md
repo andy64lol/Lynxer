@@ -38,8 +38,8 @@ global main(){
     str r = global.net.wsConnect("echo", "wss://echo.websocket.org");
     print(r); print("\n");                   // ok
 
-    str reply = global.net.wsSendReceive("echo", "Hello, Lynxer!");
-    print(reply); print("\n");               // Hello, Lynxer!
+    str reply = global.net.wsSendReceive("echo", "Hello, Clynxer!");
+    print(reply); print("\n");               // Hello, Clynxer!
 
     global.net.wsClose("echo");
 }

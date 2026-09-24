@@ -145,7 +145,7 @@ LYNXER_PARITY_FIXTURES := $(filter-out $(LYNXER_DISPLAY_FIXTURES),$(LYNXER_PARIT
 CLYX := ./$(LYNXER_TARGET)
 CLYX_TMP := $(LYNXER_DIR)/.lynxer
 
-.PHONY: all venv deps liteDeps pyinstaller cargo platform-check lite-platform-check build buildAll buildLynxer buildLynxerLite buildCpp buildLynxer buildLynxerArm64 test testLynxer testLynxer testLynxerAmd64Syscalls testLynxerArm64Syscalls testAMR64 validate golden check clean cleanC cleanCpp cleanLynxc cleanLynxer cleanAll help
+.PHONY: all venv deps liteDeps pyinstaller cargo platform-check lite-platform-check build buildAll buildClynxer buildClynxerLite buildCpp buildLynxer buildLynxerArm64 test testClynxer testLynxer testLynxerAmd64Syscalls testLynxerArm64Syscalls testAMR64 validate golden check clean cleanC cleanCpp cleanLynxc cleanLynxer cleanAll help
 
 venv:
 	@if [ ! -d "$(VENV)" ]; then \
@@ -179,12 +179,12 @@ lite-platform-check: liteDeps
 	@echo "Checking Linux build platform..."
 	@$(VENV_PY) -c 'from clynxer.syscalls import require_supported_platform, WORD_BYTES; architecture = require_supported_platform(); print(f"  -> {architecture} ({WORD_BYTES * 8}-bit Python ABI)")'
 
-test: testLynxer testLynxer
+test: testClynxer testLynxer
 
 # Python-only suite: the Lynxer suite below is gated on a Rust toolchain, so
 # CI jobs that only install Python use this target instead of `test`.
-testLynxer: buildCpp
-	@echo "Running Lynxer tests..."
+testClynxer: buildCpp
+	@echo "Running Clynxer tests..."
 	@$(VENV_PY) -u test/validate.py
 	@$(VENV_PY) -u test/remaining.py
 
@@ -208,14 +208,14 @@ check: test
 		fi; \
 		$(VENV_PY) clynxer/shell.py --lint "$$file" >/dev/null || exit $$?; \
 	done
-	@echo "✓ Lynxer checks passed."
+	@echo "✓ Clynxer checks passed."
 
 # Conventional alias for a full build (kept out of first position so a bare
 # `make` does not trigger the ~13-minute PyInstaller lite analysis).
 all: build
 
 # Everything: both Python binaries plus Lynxer.
-build: buildLynxer buildLynxerLite buildLynxer
+build: buildClynxer buildClynxerLite buildLynxer
 	@echo "✓ Full build complete: dist/clynxer, dist/clynxer-lite, $(LYNXER_TARGET)"
 
 buildAll: build
@@ -235,8 +235,8 @@ pyinstaller: venv
 	@$(VENV_PIP) install --upgrade pyinstaller
 
 # Python full build: every stdlib module bundled into dist/clynxer.
-buildLynxer: platform-check buildCpp pyinstaller
-	@echo "Building Lynxer (Python)..."
+buildClynxer: platform-check buildCpp pyinstaller
+	@echo "Building Clynxer (Python)..."
 	@$(PYINSTALLER) \
 		--onefile \
 		--clean \
@@ -247,15 +247,15 @@ buildLynxer: platform-check buildCpp pyinstaller
 		$(WARNING_DATA) \
 		--add-data "clynxer/stdlib:stdlib" \
 		clynxer/shell.py
-	@echo "✓ Lynxer build complete: dist/clynxer"
+	@echo "✓ Clynxer build complete: dist/clynxer"
 
 # Python lite build: Cython support and only pure stdlib modules, dist/clynxer-lite.
-buildLynxerLite: lite-platform-check buildCpp pyinstaller
+buildClynxerLite: lite-platform-check buildCpp pyinstaller
 	@echo "Selecting pure stdlib .lynx modules..."
 	@rm -rf build/stdlib_pure || true
 	@$(VENV_PY) scripts/select_pure_stdlib.py clynxer/stdlib build/stdlib_pure
 
-	@echo "Building Lynxer (lite) with Cython support and only pure stdlib modules..."
+	@echo "Building Clynxer (lite) with Cython support and only pure stdlib modules..."
 	@$(PYINSTALLER) \
 		--onefile \
 		--clean \
@@ -270,7 +270,7 @@ buildLynxerLite: lite-platform-check buildCpp pyinstaller
 	@echo "✓ Lite build complete: dist/clynxer-lite"
 
 buildCpp: venv
-	@echo "Building Lynxer C++ native extensions..."
+	@echo "Building Clynxer C++ native extensions..."
 	@$(VENV_PY) clynxer/setup.py build_ext --inplace
 	@echo "✓ Native extensions built in clynxer/ (memory + bytecode VM)"
 
@@ -718,11 +718,11 @@ cleanAll: clean cleanC cleanLynxc cleanLynxer
 	@echo "✓ Cleaned all generated build artifacts."
 
 help:
-	@echo "Lynxer build targets:"
+	@echo "Clynxer build targets:"
 	@echo "  make build              (everything: Python full + lite + Lynxer)"
 	@echo "  make buildAll           (alias for build)"
-	@echo "  make buildLynxer        (Python full -> dist/clynxer)"
-	@echo "  make buildLynxerLite    (Python lite -> dist/clynxer-lite)"
+	@echo "  make buildClynxer        (Python full -> dist/clynxer)"
+	@echo "  make buildClynxerLite    (Python lite -> dist/clynxer-lite)"
 	@echo "  make buildCpp"
 	@echo "  make buildLynxer"
 	@echo "  make buildLynxerArm64"
@@ -731,8 +731,8 @@ help:
 	@echo "  make venv"
 	@echo "  make deps"
 	@echo "  make liteDeps"
-	@echo "  make test               (everything: Lynxer + Lynxer suites)"
-	@echo "  make testLynxer         (Python suite only)"
+	@echo "  make test               (everything: Clynxer + Lynxer suites)"
+	@echo "  make testClynxer         (Python suite only)"
 	@echo "  make testLynxer        (Lynxer suite only)"
 	@echo "  make testLynxerAmd64Syscalls   (amd64 syscall fixture; x86_64 host)"
 	@echo "  make testLynxerArm64Syscalls   (arm64 syscall fixture; aarch64 host)"
@@ -747,7 +747,7 @@ help:
 	@echo "  make cleanAll"
 	@echo "  make help"
 	@echo ""
-	@echo "Lynxer source commands:"
+	@echo "Clynxer source commands:"
 	@echo "  clynxer --format <file.lynx>"
 	@echo "  clynxer --format-oneline <file.lynx>"
 	@echo "  clynxer --ast <file.lynx>"

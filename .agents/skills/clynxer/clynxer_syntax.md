@@ -1,6 +1,6 @@
-# Lynxer Syntax Guide (Python Implementation)
+# Clynxer Syntax Guide (Python Implementation)
 
-This document provides a **summarized syntax guide** for the **Python-based `clynxer`** implementation of the Lynxer language.
+This document provides a **summarized syntax guide** for the **Python-based `clynxer`** implementation of the Clynxer language.
 
 ---
 
@@ -10,7 +10,7 @@ This document provides a **summarized syntax guide** for the **Python-based `cly
 ```lynx
 int x = 42;
 float y = 3.14;
-str name = "Lynxer";
+str name = "Clynxer";
 bool flag = true;
 any value = x; // `any` type
 ```
@@ -83,7 +83,7 @@ println(os.getcwd());
 ```lynx
 // hello.lynx
 global main() {
-    println("Hello, Lynxer!");
+    println("Hello, Clynxer!");
 }
 ```
 
@@ -112,4 +112,4 @@ python -m clynxer hello.lynx
 ---
 
 ### References
-- [Lynxer Language Guide](lynxer/docs/language.md)
+- [Clynxer Language Guide](lynxer/docs/language.md)

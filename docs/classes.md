@@ -2,7 +2,7 @@
 
 See [Language Reference — Classes](language.md#classes) for the full reference.
 
-A **class** in Lynxer is a reusable object definition. `new` creates an
+A **class** in Clynxer is a reusable object definition. `new` creates an
 independent instance with its own fields, and `local` methods are dispatched
 on the instance they are called on.
 

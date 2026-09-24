@@ -1,4 +1,4 @@
-"""Lynxer compiler and interpreter pipeline.
+"""Clynxer compiler and interpreter pipeline.
 
 The implementation lives in the focused submodules:
 
@@ -63,7 +63,7 @@ from .error import (  # noqa: F401
     ExpectedCharError,
     IllegalCharError,
     InvalidSyntaxError,
-    LynxerForeverWarning,
+    ClynxerForeverWarning,
     LynxSyntaxDeprecationWarning,
     RTError,
     _emit_deprecation_warning,

@@ -1,6 +1,6 @@
 ////
 Fixture for the managed `nativeThread*` built-ins. The interpreter evaluates
-Lynxer code on one thread at a time, and a worker takes that lock before calling
+Clynxer code on one thread at a time, and a worker takes that lock before calling
 back in, so a thread runs only while the starter is blocked in
 `nativeThreadJoin`/`nativeThreadJoinAll`. That makes the output order fixed: a
 worker's own prints appear at the join, not before it. Workers started for

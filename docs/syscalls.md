@@ -1,14 +1,14 @@
 # Linux Syscall Built-ins
 
-Lynxer exposes a named, low-level wrapper for each syscall in the table below.
+Clynxer exposes a named, low-level wrapper for each syscall in the table below.
 Each wrapper resolves the Linux syscall number for the host architecture from
 the required `system-calls` tables and issues the call through `ctypes`.
-Install the project dependencies before importing Lynxer; a missing
+Install the project dependencies before importing Clynxer; a missing
 `system-calls` package is an installation error, not an optional feature.
 
 ## Naming
 
-Syscalls use flat, descriptive Lynxer names rather than a nested C-style
+Syscalls use flat, descriptive Clynxer names rather than a nested C-style
 namespace. For example, use `syscallMemoryMap(...)`, not
 `syscall.mmap(...)`. The syscall name comes first, followed by the operation
 and the resource it acts on (`syscallRead`, `syscallCreateSocket`,
@@ -22,18 +22,18 @@ addresses, such as addresses returned by `memoryAllocate`; strings and
 structures must be prepared in native memory before calling a syscall.
 
 The wrappers return the syscall's result as an integer. A result of `-1` is
-reported as a Lynxer runtime error containing the Linux `errno` message. These
+reported as a Clynxer runtime error containing the Linux `errno` message. These
 are raw Linux ABI calls: argument layouts, flags, structures, and pointer
 lifetimes are the caller's responsibility. They are available on Linux only.
 
-Lynxer currently permits these wrappers only on 64-bit Linux x86-64
+Clynxer currently permits these wrappers only on 64-bit Linux x86-64
 (`amd64`) and ARM64 (`aarch64`) runtimes. The runtime normalizes those machine
 names before looking up numbers, and refuses unsupported architectures or
 32-bit Python ABIs instead of dispatching with the wrong table.
 
 The built-in registry accounts for architecture-specific syscall names.
 `syscallPollFileDescriptors` uses `poll` on x86-64 and `ppoll` on ARM64, so
-the same Lynxer source works on both architectures. The corresponding
+the same Clynxer source works on both architectures. The corresponding
 architecture-specific alternatives are exposed separately when code needs the
 native ABI.
 
@@ -167,7 +167,7 @@ NUL, into the supplied buffer and returns its length including that NUL.
 | `syscallCreateEventPoll(flags)` | `epoll_create1` | flags |
 | `syscallControlEventPoll(epoll, operation, fd, event)` | `epoll_ctl` | epoll descriptor, `EPOLL_CTL_*`, descriptor, event address |
 | `syscallWaitForEvents(epoll, events, maxevents, timeout, sigmask)` | `epoll_wait` (x86-64), `epoll_pwait` (ARM64) | epoll descriptor, event array, capacity, timeout, signal-mask address; `sigmask` is ignored on x86-64 |
-| `syscallWaitForEventsWithSignalMask(epoll, events, maxevents, timeout, sigmask)` | `epoll_pwait` (ARM64 only) | epoll descriptor, event array, capacity, timeout, signal-mask address; Lynxer supplies the raw syscall's signal-set size |
+| `syscallWaitForEventsWithSignalMask(epoll, events, maxevents, timeout, sigmask)` | `epoll_pwait` (ARM64 only) | epoll descriptor, event array, capacity, timeout, signal-mask address; Clynxer supplies the raw syscall's signal-set size |
 | `syscallInitializeInodeNotifications(flags)` | `inotify_init1` | `IN_NONBLOCK`/`IN_CLOEXEC` flags |
 | `syscallAddInodeNotificationWatch(inotify, path, mask)` | `inotify_add_watch` | inotify descriptor, path address, event mask |
 | `syscallRemoveInodeNotificationWatch(inotify, watch)` | `inotify_rm_watch` | inotify descriptor, watch descriptor |

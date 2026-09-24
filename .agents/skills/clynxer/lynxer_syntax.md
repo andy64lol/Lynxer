@@ -1,6 +1,6 @@
 # Lynxer Syntax Guide (C++ Implementation)
 
-This document provides a **summarized syntax guide** for the **C++-based `lynxer`** implementation of the Lynxer language, including key differences from the Python `clynxer`.
+This document provides a **summarized syntax guide** for the **C++-based `lynxer`** implementation of the Clynxer language, including key differences from the Python `clynxer`.
 
 > Updated 2026-09-23. The examples below are the Lynxer form and all parse in
 > Lynxer; the intended parity scope with Python is `lynxer/docs/parity.md` and
@@ -16,7 +16,7 @@ Lynxer shares **most syntax** with Python `clynxer`, but has **key differences**
 ```lynx
 int x = 42;
 float y = 3.14;
-str name = "Lynxer";
+str name = "Clynxer";
 bool flag = true;
 any value = x; // `any` type
 ```
@@ -93,7 +93,7 @@ global main() {
 
 ### 4. **Error Handling**
 - **Python `clynxer`**: Uses Python’s exception system.
-- **`lynxer`**: Uses Lynxer’s `try/catch` blocks, but some error messages may differ.
+- **`lynxer`**: Uses Clynxer’s `try/catch` blocks, but some error messages may differ.
 
 ---
 
@@ -102,7 +102,7 @@ global main() {
 ```lynx
 // hello.lynx
 global main() {
-    println("Hello, Lynxer!");
+    println("Hello, Clynxer!");
 }
 ```
 
@@ -123,7 +123,7 @@ make
 
 ## Key Features
 
-- **Standalone executables**: Compile Lynxer programs to ELF binaries.
+- **Standalone executables**: Compile Clynxer programs to ELF binaries.
 - **Native modules**: Supports Rust and C++ `.so` libraries.
 - **Bundling**: Embed multiple `.lynx` files and `.so` libraries into a single executable.
 - **Cooperative threading**: Supports `multiprocessing` but uses a cooperative model.

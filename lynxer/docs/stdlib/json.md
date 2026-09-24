@@ -22,7 +22,7 @@ Objects preserve key insertion order, and non-finite numbers are written as
 | `jsonGetBool` | `(str s, str key)` | Truthiness of the value at `key` |
 | `jsonKeys` | `(str s)` | Top-level keys, comma-separated |
 | `jsonStringify` | `(str s)` | `s` quoted and escaped as a JSON string |
-| `jsonArray` | `(list lst)` | JSON array built from a Lynxer list |
+| `jsonArray` | `(list lst)` | JSON array built from a Clynxer list |
 | `jsonObject` | `(list lst)` | JSON object from a flat key, value, key, value list |
 | `jsonHas` | `(str s, str key)` | `true` if the object has `key` (or the array contains it) |
 | `jsonLength` | `(str s)` | Key, element or character count; `0` on error |
@@ -57,5 +57,5 @@ global main(){
   implements, including the error sentinel family it uses.
 - [builtins.md](../builtins.md) — the functions the interpreter implements
   itself.
-- [parity.md](../parity.md) — the parity scope with Python Lynxer.
+- [parity.md](../parity.md) — the parity scope with Python Clynxer.
 - [limitations.md](../limitations.md) — the full divergence register.

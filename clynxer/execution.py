@@ -12,7 +12,7 @@ from typing import Any
 
 
 class ExecutionState:
-    """Mutable state owned by one independent Lynxer program run."""
+    """Mutable state owned by one independent Clynxer program run."""
 
     def __init__(self) -> None:
         self.interpreter: Any = None

@@ -13,7 +13,7 @@ global setup(){ import("server"); }
 
 global main(){
     global.server.init("0.0.0.0", 8080);
-    global.server.get("/", "<h1>Hello from Lynxer!</h1>");
+    global.server.get("/", "<h1>Hello from Clynxer!</h1>");
     global.server.run();
 }
 ```
@@ -174,7 +174,7 @@ global.server.corsOrigin("https://app.com");   // specific origin
 | `enableRequestLog` | `enableRequestLog()` | Print `METHOD /path` to stdout before each request. |
 
 ```c
-global.server.addGlobalHeader("X-Powered-By", "Lynxer");
+global.server.addGlobalHeader("X-Powered-By", "Clynxer");
 global.server.enableRequestLog();
 ```
 

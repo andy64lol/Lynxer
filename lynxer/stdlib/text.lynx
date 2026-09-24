@@ -1,6 +1,6 @@
 ////
-Lynxer standard library: text.
-Pure Lynxer string helpers: searching, replacing, case conversion and
+Clynxer standard library: text.
+Pure Clynxer string helpers: searching, replacing, case conversion and
 repetition.
 ////
 

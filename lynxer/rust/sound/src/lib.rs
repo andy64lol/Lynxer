@@ -1,7 +1,7 @@
 //! Lynxer `sound` stdlib backend: audio loading and playback.
 //!
 //! Replaces the Python Arcade backend with Rust `rodio`/`cpal`.
-//! The Lynxer-facing contract matches `clynxer/stdlib/sound.lynx`:
+//! The Clynxer-facing contract matches `clynxer/stdlib/sound.lynx`:
 //! handles are integer indices into a module-local registry,
 //! and all operations return sentinels (`-1`/`false`/`0.0`) on error.
 

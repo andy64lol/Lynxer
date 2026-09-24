@@ -1,5 +1,5 @@
 ////
-Lynxer standard library: image.
+Clynxer standard library: image.
 Image loading, creation, transforms, pixels and encoding backed by Rust's
 `image` crate. Image values are integer handles owned by the native module.
 

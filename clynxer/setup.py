@@ -1,4 +1,4 @@
-"""Build Lynxer's bundled native extensions."""
+"""Build Clynxer's bundled native extensions."""
 
 import os
 from pathlib import Path

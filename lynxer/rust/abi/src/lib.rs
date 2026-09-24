@@ -22,10 +22,10 @@ use std::panic::{catch_unwind, AssertUnwindSafe};
 
 /// Host services supplied by the interpreter through `clynxer_module_attach_v1`.
 ///
-/// Layout matches `LynxerHostApi` in `lynxer/stdlib/clynxer_native_abi.h`.
+/// Layout matches `ClynxerHostApi` in `lynxer/stdlib/clynxer_native_abi.h`.
 #[repr(C)]
 #[derive(Clone, Copy)]
-pub struct LynxerHostApi {
+pub struct ClynxerHostApi {
     pub version: c_int,
     pub context: *mut c_void,
     pub invoke: Option<unsafe extern "C" fn(*mut c_void, *const c_char, c_int, f64) -> c_int>,
@@ -35,15 +35,15 @@ pub struct LynxerHostApi {
 // The interpreter stores the host API in a `static`, and the callbacks it
 // points at are only ever invoked from the interpreter thread. Marking the
 // struct `Send`/`Sync` keeps it usable from a static container.
-unsafe impl Send for LynxerHostApi {}
-unsafe impl Sync for LynxerHostApi {}
+unsafe impl Send for ClynxerHostApi {}
+unsafe impl Sync for ClynxerHostApi {}
 
 /// The only host API version the interpreter currently offers.
 pub const HOST_API_VERSION: c_int = 1;
 
-/// Runs the Lynxer function `name` with no argument or one numeric argument.
+/// Runs the Clynxer function `name` with no argument or one numeric argument.
 /// Returns 0 on success and non-zero when the callback failed.
-pub fn invoke(host: &LynxerHostApi, name: &str, argument: Option<f64>) -> c_int {
+pub fn invoke(host: &ClynxerHostApi, name: &str, argument: Option<f64>) -> c_int {
     let callback = match host.invoke {
         Some(callback) => callback,
         None => return 1,
@@ -60,7 +60,7 @@ pub fn invoke(host: &LynxerHostApi, name: &str, argument: Option<f64>) -> c_int 
 }
 
 /// True once the process has received SIGINT.
-pub fn interrupted(host: &LynxerHostApi) -> bool {
+pub fn interrupted(host: &ClynxerHostApi) -> bool {
     match host.interrupted {
         Some(callback) => unsafe { callback(host.context) != 0 },
         None => false,

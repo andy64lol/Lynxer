@@ -9,8 +9,8 @@ Functions and behaviors:
 - `jsonGet(s, key)` → string value for `key` or `""` if missing/wrong type.
 - `jsonGetInt(s, key)`, `jsonGetFloat(s, key)`, `jsonGetBool(s, key)` → typed getters returning `0`, `0.0`, or `false` on error.
 - `jsonKeys(s)` → top-level keys as a comma-separated string or `""` on error.
-- `jsonStringify(s)` → JSON-encode a Lynxer string value.
-- `jsonArray(lst)`, `jsonObject(lst)` → helpers to build JSON structures from Lynxer lists.
+- `jsonStringify(s)` → JSON-encode a Clynxer string value.
+- `jsonArray(lst)`, `jsonObject(lst)` → helpers to build JSON structures from Clynxer lists.
 - `jsonHas(s, key)` → `true` if `key` exists.
 - `jsonLength(s)` → number of top-level keys/elements or `0` on error.
 - `jsonSet(s, key, val)` → set a key to JSON value `val` (if `val` parses as JSON) or string `val` otherwise; returns updated JSON string.

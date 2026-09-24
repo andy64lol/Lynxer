@@ -1,4 +1,4 @@
-// Lynxer `fileIO` stdlib backend: file reading, writing and metadata.
+// Clynxer `fileIO` stdlib backend: file reading, writing and metadata.
 
 #include <chrono>
 #include <cstdint>

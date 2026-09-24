@@ -1,6 +1,6 @@
 # lynxer
 
-`lynxer` is the small, standalone C++ implementation of Lynxer. It is being
+`lynxer` is the small, standalone C++ implementation of Clynxer. It is being
 built beside the original Python implementation in `../clynxer`, so the two
 implementations can evolve independently.
 
@@ -55,7 +55,7 @@ make
 make test
 ```
 
-This is a foundation rather than a complete port. Unsupported Lynxer language
+This is a foundation rather than a complete port. Unsupported Clynxer language
 features fail with a source location instead of silently falling back to
 Python. Native `.so` modules remain governed by the shared registration ABI
 documented in `../docs/native-modules.md`; they are not reinterpreted as source.

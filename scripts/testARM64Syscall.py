@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Print and validate the ARM64 syscall database used by Lynxer.
+"""Print and validate the ARM64 syscall database used by Clynxer.
 
 The ``system-calls`` package contains the complete Linux syscall table, while
-``clynxer.syscalls.SYSCALL_TABLE`` describes the subset exposed as Lynxer
+``clynxer.syscalls.SYSCALL_TABLE`` describes the subset exposed as Clynxer
 built-ins.  This script prints both pieces of information together so an
 ARM64 build makes architecture-specific changes visible in its test output.
 """
@@ -34,7 +34,7 @@ from clynxer.syscalls import (  # noqa: E402
 
 
 ARCHITECTURE = "arm64"
-# Every registered Lynxer built-in has an ARM64 syscall alternative. The
+# Every registered Clynxer built-in has an ARM64 syscall alternative. The
 # explicit ARM64-only names are checked as available here as well.
 EXPECTED_UNAVAILABLE: set[str] = set()
 
@@ -48,17 +48,17 @@ def main() -> int:
         builtins_by_syscall.setdefault(syscall_name, []).append(builtin)
 
     print(f"ARM64 syscall database: {len(table)} entries")
-    print("number  syscall name             Lynxer expectation")
+    print("number  syscall name             Clynxer expectation")
     print("------  -----------------------  -----------------------------")
     for syscall_name, number in sorted(table.items(), key=lambda item: (item[1], item[0])):
         expected_builtins = builtins_by_syscall.get(syscall_name)
         if expected_builtins:
             expectation = ", ".join(expected_builtins)
         else:
-            expectation = "not exposed as a Lynxer built-in"
+            expectation = "not exposed as a Clynxer built-in"
         print(f"{number:>6}  {syscall_name:<23}  {expectation}")
 
-    print("\nExpected Lynxer ARM64 mappings:")
+    print("\nExpected Clynxer ARM64 mappings:")
     failures: list[str] = []
     for builtin in SYSCALL_TABLE:
         syscall_name = syscall_name_for_arch(builtin, ARCHITECTURE)

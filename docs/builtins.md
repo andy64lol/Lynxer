@@ -2,7 +2,7 @@
 
 Built-in functions are always available — no `import()` needed. Call them directly by name, or via `global.<name>(...)`.
 
-The complete implementation and registry for Lynxer language built-ins lives in
+The complete implementation and registry for Clynxer language built-ins lives in
 `clynxer/builtins.py`. The interpreter imports and registers that module after
 its runtime value types have been defined.
 
@@ -84,7 +84,7 @@ compile to bytecode unchanged, so source and `.lynxc` runs agree.
 
 ## Native memory
 
-Lynxer includes unmanaged native-memory built-ins backed by the bundled C++
+Clynxer includes unmanaged native-memory built-ins backed by the bundled C++
 extension. No import is required. Native addresses are integer values and must
 be freed exactly once.
 
@@ -497,7 +497,7 @@ global main() {
 }
 ```
 
-Lynxer warns when a `forever()` body contains no `break;`, because it may run
+Clynxer warns when a `forever()` body contains no `break;`, because it may run
 until the process is stopped. If the loop is intentionally unbounded, suppress
 that warning from `setup()`:
 

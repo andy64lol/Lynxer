@@ -1,4 +1,4 @@
-name: Build Lynxer (Python) on AMD64
+name: Build Clynxer (Python) on AMD64
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    name: Build and Test Lynxer (Python) on AMD64
+    name: Build and Test Clynxer (Python) on AMD64
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -27,11 +27,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libasound2-dev pkg-config
 
-      - name: Build Lynxer (Python) Lite for AMD64
-        run: make buildLynxerLite
+      - name: Build Clynxer (Python) Lite for AMD64
+        run: make buildClynxerLite
 
-      - name: Build Lynxer (Python) Full for AMD64
-        run: make buildLynxer
+      - name: Build Clynxer (Python) Full for AMD64
+        run: make buildClynxer
 
-      - name: Run Lynxer (Python) tests on AMD64
-        run: make testLynxer
+      - name: Run Clynxer (Python) tests on AMD64
+        run: make testClynxer

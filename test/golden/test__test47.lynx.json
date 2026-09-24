@@ -6,6 +6,6 @@
   "skip_reason": null,
   "source": "test/test47.lynx",
   "status": "completed",
-  "stderr": "\n[Lynxer] Syntax Error\n  'func' declarations are only allowed at the top level of a Lynxer file; local function bodies cannot declare file-wide funcs\n  --> <project>/test/test47.lynx, line 4, column 5\n\n\n    func nested(){}\n    ^^^^\n",
+  "stderr": "\n[Clynxer] Syntax Error\n  'func' declarations are only allowed at the top level of a Clynxer file; local function bodies cannot declare file-wide funcs\n  --> <project>/test/test47.lynx, line 4, column 5\n\n\n    func nested(){}\n    ^^^^\n",
   "stdout": ""
 }

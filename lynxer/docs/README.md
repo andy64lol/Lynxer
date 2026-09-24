@@ -1,6 +1,6 @@
 # Lynxer documentation
 
-Lynxer is the standalone C++ implementation of Lynxer. It runs `.lynx`
+Lynxer is the standalone C++ implementation of Clynxer. It runs `.lynx`
 programs without a Python runtime and ships its standard library as native
 shared libraries. It is the **primary** implementation and has superseded the
 Python implementation for real use — standalone ELF executables, 27 natively
@@ -78,9 +78,9 @@ required for the two check scripts in the test suite.
 
 ## Standard library modules
 
-There are 27 bundled modules. A module is exposed to Lynxer by
+There are 27 bundled modules. A module is exposed to Clynxer by
 `stdlib/<name>.lynx` and backed by a `stdlib/<name>.so`. The backends marked
-*Rust* come from a crate under `rust/`; *pure* modules are written in Lynxer
+*Rust* come from a crate under `rust/`; *pure* modules are written in Clynxer
 only and need no shared library.
 
 | Module | Backend | Implementation |
@@ -88,7 +88,7 @@ only and need no shared library.
 | [cli](stdlib/cli.md) | native | POSIX process/env/terminal APIs |
 | [colorlib](stdlib/colorlib.md) | pure | ANSI escape sequences |
 | [csv](stdlib/csv.md) | native | hand-written CSV/TSV reader and writer |
-| [debug](stdlib/debug.md) | native + pure | `<chrono>`, `getrusage`, assertions in Lynxer |
+| [debug](stdlib/debug.md) | native + pure | `<chrono>`, `getrusage`, assertions in Clynxer |
 | [fileIO](stdlib/fileIO.md) | native | `<fstream>`, `<filesystem>` |
 | [game](stdlib/game.md) | Rust | `macroquad` (`rust/game`) |
 | [image](stdlib/image.md) | Rust | `image` (`rust/image`) |
@@ -108,10 +108,10 @@ only and need no shared library.
 | [sound](stdlib/sound.md) | Rust | `rodio` + `cpal` + `symphonia` |
 | [sqldb](stdlib/sqldb.md) | Rust | `rusqlite` (bundled SQLite) |
 | [sys](stdlib/sys.md) | native | C++ runtime and POSIX |
-| [text](stdlib/text.md) | pure | Lynxer string builtins |
+| [text](stdlib/text.md) | pure | Clynxer string builtins |
 | [time](stdlib/time.md) | native | `<chrono>`, `<ctime>` |
 | [tui](stdlib/tui.md) | Rust | `ratatui` + `crossterm` |
-| [typing](stdlib/typing.md) | pure | Lynxer type builtins |
+| [typing](stdlib/typing.md) | pure | Clynxer type builtins |
 
 The Rust workspace has ten member crates
 (`LYNXER_RUST_MODULE_NAMES` in the Makefile): the nine module backends listed

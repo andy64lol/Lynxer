@@ -1,6 +1,6 @@
 # Async / Await
 
-Lynxer supports cooperative concurrency through local `async` sub-functions, built on top of Python's `asyncio`.
+Clynxer supports cooperative concurrency through local `async` sub-functions, built on top of Python's `asyncio`.
 
 ## Declaring a local async function
 
@@ -141,7 +141,7 @@ global main() {
 
 ## Event-driven I/O
 
-`asyncPollCreate()` creates an event poller. Register a Lynxer filesystem or
+`asyncPollCreate()` creates an event poller. Register a Clynxer filesystem or
 networking handle, or a raw file descriptor, with a read/write interest and a
 token:
 

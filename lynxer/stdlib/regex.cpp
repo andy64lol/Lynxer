@@ -1,4 +1,4 @@
-// Lynxer `regex` stdlib backend: extended helpers with a named compiled-pattern
+// Clynxer `regex` stdlib backend: extended helpers with a named compiled-pattern
 // cache. Behaves like the Python reference's `re` fallback path (the third
 // party `regex` package is not available, so Unicode `\p{...}` helpers fall
 // back to ASCII classes and overlapping matching is emulated).

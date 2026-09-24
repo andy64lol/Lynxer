@@ -1,4 +1,4 @@
-// Lynxer `re` stdlib backend: Python-flavoured regular expressions on top of
+// Clynxer `re` stdlib backend: Python-flavoured regular expressions on top of
 // std::regex. See native_regex.hpp for the translation rules and divergences.
 
 #include "native_json.hpp"

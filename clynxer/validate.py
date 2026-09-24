@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Comprehensive source-tree and executable validator for Lynxer.
+"""Comprehensive source-tree and executable validator for Clynxer.
 
 The focused regression suite lives in ``test/validate.py``.  This runner adds
 interpreter coverage audits, parser/stdlib sweeps, bytecode corruption checks,
-and optional validation of a packaged Lynxer executable.
+and optional validation of a packaged Clynxer executable.
 """
 
 from __future__ import annotations
@@ -212,7 +212,7 @@ def validate_executable():
         version = subprocess.run(
             [str(executable), "--version"], capture_output=True, text=True, check=False
         )
-        if version.returncode != 0 or not version.stdout.startswith("Lynxer "):
+        if version.returncode != 0 or not version.stdout.startswith("Clynxer "):
             raise ValidationFailure(f"{executable}: --version failed")
     print("  checked: " + ", ".join(str(path) for path in candidates))
 

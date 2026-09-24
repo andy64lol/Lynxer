@@ -1,4 +1,4 @@
-// Lynxer `csv` stdlib backend: a small CSV/TSV reader and writer.
+// Clynxer `csv` stdlib backend: a small CSV/TSV reader and writer.
 //
 // Semantics follow Python's `csv` module defaults: ',' delimiter, '"' quote
 // character with '""' escaping, and "\r\n" line terminators on output. Bracket

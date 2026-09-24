@@ -1,4 +1,4 @@
-# Lynxer warning messages.
+# Clynxer warning messages.
 # Format: warning_key<TAB>message
 
 legacy_not_is	Legacy equality operator 'not is' is deprecated; use '!=' instead.

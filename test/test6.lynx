@@ -1,6 +1,6 @@
 global setup(){
     import("math");
-    const str LANG = "Lynxer";
+    const str LANG = "Clynxer";
 }
 
 global greet(str name){

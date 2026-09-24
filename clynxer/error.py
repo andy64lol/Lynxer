@@ -1,4 +1,4 @@
-"""Lynxer diagnostic and runtime error types.
+"""Clynxer diagnostic and runtime error types.
 
 Errors, parser/lexer diagnostics, and the deprecation-warning machinery all
 live here so every other pipeline stage can raise and report them without
@@ -62,12 +62,12 @@ def _load_warning_messages() -> dict[str, str]:
             continue
         except OSError as exc:
             raise RuntimeError(
-                f"Could not load Lynxer warning messages from {warning_path}"
+                f"Could not load Clynxer warning messages from {warning_path}"
             ) from exc
 
     searched_paths = ", ".join(_warning_message_paths())
     raise RuntimeError(
-        f"Could not load Lynxer warning messages; searched: {searched_paths}"
+        f"Could not load Clynxer warning messages; searched: {searched_paths}"
     )
 
 
@@ -78,7 +78,7 @@ def warning_message(key: str) -> str:
     try:
         return _WARNING_MESSAGES[key]
     except KeyError as exc:
-        raise RuntimeError(f"Unknown Lynxer warning message: {key}") from exc
+        raise RuntimeError(f"Unknown Clynxer warning message: {key}") from exc
 
 # Warning suppression state. ``clynxer.runtime.run`` flips these between
 # top-level program runs; they stay module-level so the warn helpers above
@@ -135,7 +135,7 @@ class Error:
         ln = self.pos_start.ln + 1
         col = self.pos_start.col + 1
         fn = self.pos_start.fn
-        result = f"\n[Lynxer] {self.error_name}\n"
+        result = f"\n[Clynxer] {self.error_name}\n"
         result += f"  {self.details}\n"
         suggestion = self.suggestion()
         if suggestion:
@@ -179,7 +179,7 @@ class InvalidSyntaxError(Error):
 class LynxSyntaxDeprecationWarning(UserWarning):
     """A warning for syntax retained only for backwards compatibility."""
 
-class LynxerForeverWarning(UserWarning):
+class ClynxerForeverWarning(UserWarning):
     """A warning for a forever loop that has no visible break statement."""
 
 def warn_legacy_syntax(token, details):
@@ -220,7 +220,7 @@ def warn_forever_no_break(node):
         return
     warnings.warn_explicit(
         warning_message("forever_no_break"),
-        LynxerForeverWarning,
+        ClynxerForeverWarning,
         node.pos_start.fn or "<source>",
         node.pos_start.ln + 1,
     )
@@ -232,7 +232,7 @@ class RTError(Error):
 
     def as_string(self):
         result = self.generate_traceback()
-        result += f"\n[Lynxer] {self.error_name}\n"
+        result += f"\n[Clynxer] {self.error_name}\n"
         result += f"  {self.details}\n"
         result += "\n" + string_with_arrows(
             self.pos_start.ftxt, self.pos_start, self.pos_end

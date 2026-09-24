@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Benchmark Lynxer pipeline stages.
+"""Benchmark Clynxer pipeline stages.
 
 This intentionally excludes builtins implementation work.  It reports the
 current Python lexer/parser/runtime timings and, when the native extension is

@@ -1,5 +1,5 @@
 ////
-Lynxer standard library: fileIO.
+Clynxer standard library: fileIO.
 File and text input/output helpers backed by the native C++ module
 `stdlib/fileIO.so`.
 

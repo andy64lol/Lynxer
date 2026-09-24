@@ -1,4 +1,4 @@
-# Lynxer
+# Clynxer
 
 > **Status (2026-09-23): this Python implementation is the frozen behaviour
 > reference.** Lynxer — the standalone C++ implementation under `lynxer/` —
@@ -10,13 +10,13 @@
 > `lynxer/docs/parity.md` (what is a parity target) and
 > `lynxer/docs/limitations.md` (the divergence register).
 
-![Lynxer logo](assets/lynxer.png)
+![Clynxer logo](assets/lynxer.png)
 ![](https://img.shields.io/badge/-Custom%20programming%20language-blue?style=for-the-badge)
 
 A statically-flavoured, C-style scripting language that runs on Python.
 Files use the `.lynx` extension.
 
-> **Linux only:** Lynxer is currently supported for Linux users and Linux
+> **Linux only:** Clynxer is currently supported for Linux users and Linux
 > distributions. The native C++ extension, standalone bundler, and Linux
 > system-level `os` calls require Linux. Native builds support 64-bit
 > x86-64 (`amd64`) and ARM64 (`aarch64`) hosts. Builds fail early on other
@@ -56,7 +56,7 @@ clynxer --help                # print help
 ```c
 global setup(){
     import("math");
-    const str LANG = "Lynxer";
+    const str LANG = "Clynxer";
 }
 
 global greet(str name){
@@ -96,7 +96,7 @@ global main(){
 
 | Page | Contents |
 |------|----------|
-| [Installation](docs/install.md) | How to install and run Lynxer |
+| [Installation](docs/install.md) | How to install and run Clynxer |
 | [CLI reference](docs/CLI.md) | Complete command-line usage |
 | [Language reference](docs/language.md) | Types, variables, operators, control flow, functions |
 | [Type reference](docs/types.md) | Primitive, fixed-width integer, and fixed-width float types |

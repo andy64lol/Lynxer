@@ -41,7 +41,7 @@ string accepts an optional trailing alignment argument that clamps the
 alignment of every field and of any nested aggregate. See
 [native-memory.md](native-memory.md#packed-layouts).
 
-**The remaining limitation is compiler ABI compatibility.** Lynxer uses a
+**The remaining limitation is compiler ABI compatibility.** Clynxer uses a
 documented least-significant-bit-first storage rule and groups consecutive
 fields with the same declared integer storage type. C and C++ leave bit-field
 allocation order, cross-type grouping, and some signedness behavior
@@ -65,7 +65,7 @@ thread API.
   builtins documented in [native-memory.md](native-memory.md).
 
 Fixed since this page was written: `nativeThreadJoinAll()` is now exposed as a
-Lynxer builtin, so a program can join every thread it left running instead of
+Clynxer builtin, so a program can join every thread it left running instead of
 relying on the interpreter's exit-time safety net.
 
 ## async I/O: `poll`/`ppoll`, not `epoll`

@@ -1,5 +1,5 @@
 ////
-Lynxer standard library: lua.
+Clynxer standard library: lua.
 Embedded Lua 5.4 execution backed by Rust `mlua` with vendored Lua sources.
 Lua print output is captured and returned as a string.
 ////

@@ -4,7 +4,7 @@
 
 namespace lynxer {
 
-// Reformats Lynxer source without changing its tokens: canonical spacing,
+// Reformats Clynxer source without changing its tokens: canonical spacing,
 // four-space indentation, comments preserved. With `oneline`, everything is
 // collapsed onto a single physical line and `//` comments become `///...///`.
 //

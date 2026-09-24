@@ -34,7 +34,7 @@ Register routes while the server is stopped, then `start(port)` / `stop()`.
 
 Paths must start with `/`. The listener binds to `127.0.0.1` only.
 
-HTML is supplied as a normal Lynxer string and is returned unchanged. For
+HTML is supplied as a normal Clynxer string and is returned unchanged. For
 example:
 
 ```lynx
@@ -53,5 +53,5 @@ global main(){
   implements, including the error sentinel family it uses.
 - [builtins.md](../builtins.md) — the functions the interpreter implements
   itself.
-- [parity.md](../parity.md) — the parity scope with Python Lynxer.
+- [parity.md](../parity.md) — the parity scope with Python Clynxer.
 - [limitations.md](../limitations.md) — the full divergence register.

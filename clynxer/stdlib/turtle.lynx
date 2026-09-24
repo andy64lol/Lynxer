@@ -1,5 +1,5 @@
 ////
-Lynxer standard library — turtle
+Clynxer standard library — turtle
 Adds turtle drawing and rendering from python.
 ////
 
@@ -505,7 +505,7 @@ global onkey(str key){
     rawPy(){
         import turtle as _t
         _key = key
-        def _cb(): print("[Lynxer turtle] key pressed:", _key)
+        def _cb(): print("[Clynxer turtle] key pressed:", _key)
         _t.onkey(_cb, _key)
     }
 }
@@ -515,7 +515,7 @@ global onkey(str key){
 global onclick(){
     rawPy(){
         import turtle as _t
-        def _cb(x, y): print("[Lynxer turtle] clicked at", x, y)
+        def _cb(x, y): print("[Clynxer turtle] clicked at", x, y)
         _t.onclick(_cb)
     }
 }
@@ -525,7 +525,7 @@ global onclick(){
 global onscreenclick(){
     rawPy(){
         import turtle as _t
-        def _cb(x, y): print("[Lynxer turtle] screen click at", x, y)
+        def _cb(x, y): print("[Clynxer turtle] screen click at", x, y)
         _t.onscreenclick(_cb)
     }
 }

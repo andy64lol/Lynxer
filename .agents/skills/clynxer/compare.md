@@ -1,6 +1,6 @@
-# Lynxer Implementation Comparison
+# Clynxer Implementation Comparison
 
-This document compares the **Python `clynxer`** and **C++ `lynxer`** implementations of the Lynxer language.
+This document compares the **Python `clynxer`** and **C++ `lynxer`** implementations of the Clynxer language.
 
 ---
 
@@ -32,7 +32,7 @@ This document compares the **Python `clynxer`** and **C++ `lynxer`** implementat
 
 ### Use **C++ `lynxer`** if:
 - You need **high performance** and **standalone executables**.
-- You want to **deploy Lynxer programs** without Python dependencies.
+- You want to **deploy Clynxer programs** without Python dependencies.
 - You rely on **native modules** (Rust/C++).
 
 ---

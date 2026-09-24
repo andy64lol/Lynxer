@@ -1,4 +1,4 @@
-# Lynxer CLI
+# Clynxer CLI
 
 The CLI is available as `clynxer` after installation. When running from the
 source checkout, use:
@@ -11,7 +11,7 @@ Run `clynxer --help` at any time for the short command list.
 
 ## Run a program
 
-Run a Lynxer source file:
+Run a Clynxer source file:
 
 ```bash
 clynxer program.lynx
@@ -24,7 +24,7 @@ clynxer program.lynxc
 ```
 
 The process exits with code `0` when the program succeeds and `1` when the
-file is missing or Lynxer reports an error. `Ctrl-C` exits with code `130`.
+file is missing or Clynxer reports an error. `Ctrl-C` exits with code `130`.
 
 ## Inspect and validate source
 
@@ -106,7 +106,7 @@ same observable behaviour — see [bytecode.md](bytecode.md#what-changed-in-v9).
 
 ## Build a standalone executable
 
-Bundle a Lynxer source program into a single native executable:
+Bundle a Clynxer source program into a single native executable:
 
 ```bash
 clynxer --bundle program.lynx
@@ -131,7 +131,7 @@ the host architecture's syscall table.
 
 ## Discover modules and runtime information
 
-Print the installed Lynxer version:
+Print the installed Clynxer version:
 
 ```bash
 clynxer --version

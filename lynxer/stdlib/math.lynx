@@ -3,7 +3,7 @@ Math standard library backed by the native C++ module `stdlib/math.so`.
 
 Importing `math` loads the C++ ABI implementation and exposes integer,
 floating-point, number-theory, rounding, logarithmic, and trigonometric
-helpers through the Lynxer-facing wrapper API.
+helpers through the Clynxer-facing wrapper API.
 ////
 global setup(){
     importAs("math.so", "nativeMath");

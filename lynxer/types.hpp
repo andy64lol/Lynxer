@@ -81,7 +81,7 @@ private:
     std::unordered_map<std::string, EnumDef> enums_;
 };
 
-// Whether a runtime value satisfies a Lynxer declaration type (docs/types.md
+// Whether a runtime value satisfies a Clynxer declaration type (docs/types.md
 // and the Python type_matches semantics: checks without coercion).
 bool typeMatches(const std::string& type, const Value& value);
 

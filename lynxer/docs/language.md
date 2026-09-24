@@ -1,6 +1,6 @@
 # The Lynxer language
 
-Lynxer is the standalone C++ implementation of Lynxer. This page describes the
+Lynxer is the standalone C++ implementation of Clynxer. This page describes the
 language **as Lynxer actually parses and runs it**, with every example verified
 against the interpreter. For the differences from the older Python
 implementation, see [limitations.md](limitations.md) and

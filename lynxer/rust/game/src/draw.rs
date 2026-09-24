@@ -2,7 +2,7 @@
 //! the helpers convert through the active camera and flip Y for macroquad.
 //! Every op is a no-op in headless mode.
 //!
-//! Argument indices follow the Lynxer wrapper signature. Numbers and strings
+//! Argument indices follow the Clynxer wrapper signature. Numbers and strings
 //! arrive in separate arrays, so a string argument's index is independent of
 //! the numeric ones.
 

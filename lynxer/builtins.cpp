@@ -1570,7 +1570,7 @@ namespace {
 
 // Native-memory registry. Every allocation is tracked with its size so that a
 // double free, a stale pointer, or an out-of-bounds access becomes a
-// source-located Lynxer error instead of corrupting the process (the Python
+// source-located Clynxer error instead of corrupting the process (the Python
 // reference behaves the same way; docs: builtins.md).
 std::recursive_mutex& memoryRegistryMutex() {
     static std::recursive_mutex mutex;
@@ -3708,8 +3708,8 @@ Value builtinSoundRelease(const std::vector<Value>& args, Environment&, int line
 
 // --- Managed native-thread built-ins ----------------------------------------
 //
-// `nativeThreadStart` runs a Lynxer function on a `std::thread`. The interpreter
-// evaluates Lynxer code under one lock (see `executeProgram`), and a worker
+// `nativeThreadStart` runs a Clynxer function on a `std::thread`. The interpreter
+// evaluates Clynxer code under one lock (see `executeProgram`), and a worker
 // takes that lock before calling back in, so two threads never evaluate at
 // once. A worker therefore runs while the thread that started it is blocked in
 // `nativeThreadJoin`/`nativeThreadJoinAll`, which release the lock before
@@ -4034,7 +4034,7 @@ Value builtinFfiCall(const std::vector<Value>& args, Environment& environment,
 Value builtinFfiCallback(const std::vector<Value>& args, Environment&, int line,
                          int column) {
     if (args.size() != 2 || !std::holds_alternative<std::string>(args[0])) {
-        fail("ffiCallback(signature, function) expects a signature and Lynxer "
+        fail("ffiCallback(signature, function) expects a signature and Clynxer "
              "function",
              line, column);
     }

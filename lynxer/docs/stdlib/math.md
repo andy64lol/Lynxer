@@ -71,7 +71,7 @@ These were previously a separate `mathPlus` module; they now live in `math`.
 The Python reference implemented them with NumPy, which Lynxer does not need —
 the results match NumPy's defaults. List arguments cross the native ABI as
 tab-separated numbers, which is unambiguous because every element is a formatted
-number; list results are returned as Lynxer lists.
+number; list results are returned as Clynxer lists.
 
 | Function | Signature | Notes |
 | --- | --- | --- |
@@ -118,5 +118,5 @@ global main(){
   implements, including the error sentinel family it uses.
 - [builtins.md](../builtins.md) — the functions the interpreter implements
   itself.
-- [parity.md](../parity.md) — the parity scope with Python Lynxer.
+- [parity.md](../parity.md) — the parity scope with Python Clynxer.
 - [limitations.md](../limitations.md) — the full divergence register.
