@@ -125,7 +125,24 @@ Both modules use `std::regex` with the ECMAScript grammar, which is narrower tha
 - **Line terminators:** Output uses `\r\n` line terminators.
 - **Non-string values:** Non-string JSON values are rendered as `""` (empty string), `true`, or `false`.
 - **Column handling:** Values beyond the header width are dropped, and missing columns are filled with `""` (empty string).
-- **API note:** The rendered `docs/stdlib/csv.md` describes an older API. Lynxer implements the API shipped with `csv.lynx`.
+- **API note:** `docs/stdlib/csv.md` is the current API. The legacy `csv`
+  names (`parseCSV`, `parseCSVRaw`, `readCSVRaw`, `csvColumn`, `csvRowCount`,
+  `filterCSV`, `csvHeaders`, `csvRow`, `dedupCSV`) are available as forwarders;
+  `csvRow` returns a JSON object and `csvHeaders` a comma-joined string, which
+  are the legacy shapes.
+
+### `text` and `typing` — Byte Strings
+
+- **Byte semantics.** Lynxer strings are byte strings: `returnLength`, `charAt`,
+  `substring` and the `charCode`/`charOf` builtins count bytes, so a code point
+  is a byte value in `0..255`, not a Unicode scalar value. `typing.charCodeOf`
+  returns `-1` for a non-char/non-string or an empty string, and `typing.charOf`
+  returns a NUL byte outside `0..255`.
+- **`typing.isNumeric`.** In `typing`, `isNumeric(value)` means "is an `int` or
+  `float`", not the legacy "the string parses as a number". Use `typing.isDigit`
+  for digit-only strings.
+- **`typing.toFloat32` / `toFloat64`.** Both return a `float`; Lynxer `float` is
+  a double, so there is no single-precision narrowing.
 
 ### `os` and `path` — Constrained Behavior
 

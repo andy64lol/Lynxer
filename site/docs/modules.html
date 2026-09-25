@@ -128,6 +128,9 @@ global twice(int n) -&gt; int {
 
 global main(){}</code></pre>
 <p>A native backend exports <code>lynxer_module_init_v1</code>; see <a href="native-module-abi.html">native-module-abi</a>.</p>
+<h2 id="errors-inside-a-module">Errors inside a module</h2>
+<p>A syntax or run-time error raised while a module is loaded, or inside one of its functions, is reported against <strong>the module file</strong> and its own line and column — not against the program that imported it:</p>
+<pre><code>lynxer: lynxer/examples/module_error_lib.lynx:7:23: charAt() index is out of range</code></pre>
 <h2 id="compiled-programs">Compiled programs</h2>
 <p><code>--compile</code> embeds every transitively imported <code>.lynx</code> source and <code>.so</code> library into the executable, so a compiled program needs nothing from the build tree. Positional extra inputs and <code>--include</code> files are embedded too. See <a href="CLI.html">CLI</a>.</p>
 <h2 id="see-also">See also</h2>

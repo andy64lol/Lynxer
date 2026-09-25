@@ -45,6 +45,15 @@ std::string readFile(const std::string& path, const std::string& display,
     return content.str();
 }
 
+// `<file>:<line>:<column>` for a source error. A failure raised inside an
+// imported module names the module file, not the program that imported it.
+std::string describeSourceError(const std::string& display,
+                                const SourceError& error) {
+    const std::string& where = error.source.empty() ? display : error.source;
+    return where + ":" + std::to_string(error.line) + ":" +
+           std::to_string(error.column);
+}
+
 void printUsage() {
     std::cout << "\n";
     std::cout << "Usage:\n";
@@ -187,8 +196,8 @@ int lintFile(const std::string& display, const std::string& source) {
     try {
         parser.parseProgram();
     } catch (const SourceError& error) {
-        std::cerr << "lynxer: " << display << ':' << error.line << ':'
-                  << error.column << ": " << error.what() << '\n';
+        std::cerr << "lynxer: " << describeSourceError(display, error) << ": "
+                  << error.what() << '\n';
         return 1;
     }
     std::cout << Config::instance().format("status.lint_ok", "Lint OK: {0}",
@@ -215,8 +224,8 @@ int astFile(const std::string& display, const std::string& source) {
         std::cout << "Lynxer AST\n===========\n";
         dumpProgram(std::cout, ordered);
     } catch (const SourceError& error) {
-        std::cerr << "lynxer: " << display << ':' << error.line << ':'
-                  << error.column << ": " << error.what() << '\n';
+        std::cerr << "lynxer: " << describeSourceError(display, error) << ": "
+                  << error.what() << '\n';
         return 1;
     }
     return 0;
@@ -235,8 +244,8 @@ int formatFile(const std::string& display, const std::string& source,
             return 1;
         }
     } catch (const SourceError& error) {
-        std::cerr << "lynxer: " << display << ':' << error.line << ':'
-                  << error.column << ": " << error.what() << '\n';
+        std::cerr << "lynxer: " << describeSourceError(display, error) << ": "
+                  << error.what() << '\n';
         return 1;
     }
     std::cout << Config::instance().format("status.format_ok", "Formatted {0}",
@@ -407,8 +416,8 @@ int runProgram(const std::string& display, const std::string& source) {
     } catch (const InterruptError&) {
         return 130;
     } catch (const SourceError& error) {
-        std::cerr << "lynxer: " << display << ':' << error.line << ':'
-                  << error.column << ": " << error.what() << '\n';
+        std::cerr << "lynxer: " << describeSourceError(display, error) << ": "
+                  << error.what() << '\n';
         return 1;
     } catch (const std::exception& error) {
         std::cerr << Config::instance().format(

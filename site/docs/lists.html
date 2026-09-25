@@ -101,13 +101,25 @@ println(listSlice(xs, 1, 3));  // [2, 3]  (start inclusive, end exclusive)</code
 <p>An element may be prefixed with a type, which is validated:</p>
 <pre><code>list nums = [int 1, int 2];
 tuple pair = (int 10, int 20);</code></pre>
-<h2 id="creating-sequences">Creating sequences</h2>
+<h2 id="creating-sequences">Creating Sequences</h2>
+<h3 id="lists">Lists</h3>
 <table>
 <tr><th>Builtin</th><th>Result</th></tr>
 <tr><td><code>range(n)</code></td><td><code>0 .. n-1</code></td></tr>
-<tr><td><code>seqFromTo(start, end)</code></td><td>the inclusive numeric range</td></tr>
+<tr><td><code>seqFromTo(start, end)</code></td><td>Inclusive numeric range</td></tr>
+<tr><td><code>seqFromTo(start, end, step)</code></td><td>Inclusive numeric range with step</td></tr>
 <tr><td><code>listRepeat(value, n)</code></td><td><code>n</code> copies of <code>value</code></td></tr>
-<tr><td><code>tupleCreate(a, b, ...)</code></td><td>a tuple from the arguments</td></tr>
+</table>
+<h3 id="tuples">Tuples</h3>
+<table>
+<tr><th>Builtin</th><th>Result</th></tr>
+<tr><td><code>tupleCreate(a, b, ...)</code></td><td>A tuple from the arguments</td></tr>
+</table>
+<h3 id="conversions">Conversions</h3>
+<table>
+<tr><th>Builtin</th><th>Result</th></tr>
+<tr><td><code>listToTuple(list)</code></td><td>Converts a list to a tuple</td></tr>
+<tr><td><code>tupleToList(tuple)</code></td><td>Converts a tuple to a list</td></tr>
 </table>
 <h2 id="list-builtins">List builtins</h2>
 <table>
@@ -130,19 +142,70 @@ tuple pair = (int 10, int 20);</code></pre>
 <tr><td><code>sortList(list)</code> / <code>sortList(list, true)</code></td><td>ascending / descending copy</td></tr>
 <tr><td><code>reverseList(list)</code></td><td>reversed copy</td></tr>
 <tr><td><code>listHead(list, count)</code> / <code>listTail(list, count)</code></td><td>first / last <code>count</code> elements</td></tr>
-<tr><td><code>listFirst(list)</code> / <code>listLast(list)</code></td><td>first / last element</td></tr>
-<tr><td><code>listMin(list)</code>, <code>listMax(list)</code>, <code>listAvg(list)</code></td><td>aggregates</td></tr>
-<tr><td><code>sumOf(list)</code></td><td>sum of the elements</td></tr>
-<tr><td><code>listToTuple(list)</code></td><td>convert to a tuple</td></tr>
-<tr><td><code>listJsonArray</code>, <code>listJsonObject</code></td><td>JSON conversion</td></tr>
+<tr><td><code>listFirst(list)</code> / <code>listLast(list)</code></td><td>First / last element</td></tr>
+<tr><td><code>listHead(list, count)</code> / <code>listTail(list, count)</code></td><td>First / last <code>count</code> elements</td></tr>
 </table>
-<p>The length of a list, tuple, or string is <code>returnLength(value)</code>, and <code>contains(container, value)</code> tests membership.</p>
-<h2 id="tuple-builtins">Tuple builtins</h2>
+<h3 id="tuple-builtins">Tuple Builtins</h3>
 <table>
 <tr><th>Builtin</th><th>Notes</th></tr>
-<tr><td><code>tupleGet(tuple, index)</code>, <code>tupleSlice(tuple, start, end)</code></td><td>access</td></tr>
-<tr><td><code>tupleLen(tuple)</code>, <code>tupleCount(tuple, value)</code></td><td>length / occurrences</td></tr>
-<tr><td><code>tupleContains(tuple, value)</code>, <code>tupleIndex(tuple, value)</code></td><td>membership / position</td></tr>
+<tr><td><code>tupleGet(tuple, index)</code> / <code>tupleSlice(tuple, start, end)</code></td><td>Access elements or sub-tuples</td></tr>
+<tr><td><code>tupleLen(tuple)</code> / <code>tupleCount(tuple, value)</code></td><td>Length / occurrences of a value</td></tr>
+<tr><td><code>tupleContains(tuple, value)</code> / <code>tupleIndex(tuple, value)</code></td><td>Membership / position of a value</td></tr>
+<tr><td><code>tupleConcat(a, b)</code> / <code>tupleJoin(a, b)</code> / <code>tupleZip(a, b)</code></td><td>Combine tuples</td></tr>
+<tr><td><code>tupleFlatten(tuple)</code> / <code>tupleReverse(tuple)</code> / <code>tupleUnique(tuple)</code></td><td>Reshape tuples</td></tr>
+<tr><td><code>tupleSort(tuple)</code> / <code>tupleSortDesc(tuple)</code></td><td>Sort ascending / descending</td></tr>
+<tr><td><code>tupleAll(tuple)</code> / <code>tupleAny(tuple)</code></td><td>Predicates for truthiness</td></tr>
+<tr><td><code>tupleMin(tuple)</code> / <code>tupleMax(tuple)</code> / <code>tupleSum(tuple)</code></td><td>Aggregates</td></tr>
+<tr><td><code>tupleFirst(tuple)</code> / <code>tupleLast(tuple)</code></td><td>First / last element</td></tr>
+<tr><td><code>tupleToList(tuple)</code></td><td>Converts a tuple to a list</td></tr>
+<tr><td><code>tupleJsonArray(tuple)</code></td><td>Encodes a tuple as a JSON array string</td></tr>
+<tr><td><code>tupleMean(tuple)</code></td><td>Arithmetic mean of numeric elements</td></tr>
+<tr><td><code>tupleZip(tuple1, tuple2)</code></td><td>List of JSON pair strings <code>{&quot;a&quot;:v1,&quot;b&quot;:v2}</code></td></tr>
+</table>
+<h3 id="notes">Notes</h3>
+<ul>
+<li><strong>Tuples are immutable</strong>: Operations like <code>tupleConcat</code> and <code>tupleSlice</code> return a <strong>new</strong> tuple.</li>
+<li><strong>Iteration</strong>: Use <code>tupleToList()</code> to iterate over a tuple with a <code>for</code> loop or index manually.</li>
+<li><strong>Conversions</strong>: Use <code>listToTuple()</code> and <code>tupleToList()</code> to convert between lists and tuples.</li>
+</ul>
+<p>The length of a list, tuple, or string is <code>returnLength(value)</code>, and <code>contains(container, value)</code> tests membership for both lists and tuples.</p>
+<h2 id="tuple-builtins">Tuple Builtins</h2>
+<table>
+<tr><th>Builtin</th><th>Notes</th></tr>
+<tr><td><code>tupleGet(tuple, index)</code> / <code>tupleSlice(tuple, start, end)</code></td><td>Access elements or sub-tuples</td></tr>
+<tr><td><code>tupleLen(tuple)</code> / <code>tupleCount(tuple, value)</code></td><td>Length / occurrences of a value</td></tr>
+<tr><td><code>tupleContains(tuple, value)</code> / <code>tupleIndex(tuple, value)</code></td><td>Membership / position of a value</td></tr>
+<tr><td><code>tupleConcat(a, b)</code> / <code>tupleJoin(a, b)</code> / <code>tupleZip(a, b)</code></td><td>Combine tuples</td></tr>
+<tr><td><code>tupleFlatten(tuple)</code> / <code>tupleReverse(tuple)</code> / <code>tupleUnique(tuple)</code></td><td>Reshape tuples</td></tr>
+<tr><td><code>tupleSort(tuple)</code> / <code>tupleSortDesc(tuple)</code></td><td>Sort ascending / descending</td></tr>
+<tr><td><code>tupleAll(tuple)</code> / <code>tupleAny(tuple)</code></td><td>Predicates for truthiness</td></tr>
+<tr><td><code>tupleMin(tuple)</code> / <code>tupleMax(tuple)</code> / <code>tupleSum(tuple)</code></td><td>Aggregates</td></tr>
+<tr><td><code>tupleFirst(tuple)</code> / <code>tupleLast(tuple)</code></td><td>First / last element</td></tr>
+<tr><td><code>tupleToList(tuple)</code></td><td>Converts a tuple to a list</td></tr>
+<tr><td><code>tupleJsonArray(tuple)</code></td><td>Encodes a tuple as a JSON array string</td></tr>
+<tr><td><code>tupleMean(tuple)</code></td><td>Arithmetic mean of numeric elements</td></tr>
+</table>
+<h3 id="typing-module-functions">Typing Module Functions</h3>
+<p>The <code>typing</code> module provides additional tuple functions:</p>
+<table>
+<tr><th>Function</th><th>Description</th></tr>
+<tr><td><code>tupleReverse(t)</code></td><td>New tuple with elements in reversed order</td></tr>
+<tr><td><code>tupleSort(t)</code></td><td>New tuple sorted ascending</td></tr>
+<tr><td><code>tupleSortDesc(t)</code></td><td>New tuple sorted descending</td></tr>
+<tr><td><code>tupleMin(t)</code></td><td>Minimum element</td></tr>
+<tr><td><code>tupleMax(t)</code></td><td>Maximum element</td></tr>
+<tr><td><code>tupleSum(t)</code></td><td>Sum of all numeric elements</td></tr>
+<tr><td><code>tupleAny(t)</code></td><td><code>true</code> if any element is truthy</td></tr>
+<tr><td><code>tupleAll(t)</code></td><td><code>true</code> if all elements are truthy</td></tr>
+<tr><td><code>tupleUnique(t)</code></td><td>New tuple with duplicates removed (order preserved)</td></tr>
+<tr><td><code>tupleMean(t)</code></td><td>Arithmetic mean of numeric elements</td></tr>
+<tr><td><code>tupleFlatten(t)</code></td><td>One-level flatten: concatenate nested tuple elements</td></tr>
+<tr><td><code>tupleZip(t1, t2)</code></td><td>List of JSON pair strings <code>{&quot;a&quot;:v1,&quot;b&quot;:v2}</code></td></tr>
+<tr><td><code>tupleJoin(t, sep)</code></td><td>All elements joined as a string with separator</td></tr>
+</table>
+<p><em>Note:</em> These functions require importing the <code>typing</code> module (<code>import(&quot;typing&quot;)</code>).</p>
+<table>
+<tr><th>Group</th><th>Contains</th></tr>
 <tr><td><code>tupleConcat(a, b)</code>, <code>tupleJoin(a, b)</code>, <code>tupleZip(a, b)</code></td><td>combination</td></tr>
 <tr><td><code>tupleFlatten</code>, <code>tupleReverse</code>, <code>tupleUnique</code></td><td>reshaping</td></tr>
 <tr><td><code>tupleSort</code>, <code>tupleSortDesc</code></td><td>ordering</td></tr>

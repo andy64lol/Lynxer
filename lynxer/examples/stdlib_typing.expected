@@ -15,3 +15,47 @@ false
 true
 false
 true
+true false false
+true false
+true false
+true false
+true false true
+true true false
+true false true
+true false
+true true false
+2 3
+65 -1 -1
+90
+B
+e none
+C D
+hi|hi  |  hi|
+ABC abc
+Hello World aBc
+ababab xx
+true false
+true true
+a+b+c
+2 -1 2
+ell ll
+007 7.. --7--
+00042 -0042
+cba    |
+the quick
+brown fox
+a   b|
+[a, b=c] [abc, ]
+[a, b, c]
+[a, b, c] []
+4 4.5 -1 0
+7 3
+10 true
+3.14
+255 12
+7 8
+[1, 2] [2, 3]
+[[1, 2], [3, 4], [5]]
+[{"a":"1","b":"3"}, {"a":"2","b":"4"}]
+[{"a":"1","b":"3"}, {"a":"2","b":"4"}]
+[1, 2]

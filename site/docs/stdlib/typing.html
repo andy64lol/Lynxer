@@ -78,30 +78,149 @@
     </nav>
     <main class="doc">
 <h1 id="typing">typing</h1>
-<p>Type conversion and numeric-range predicates.</p>
-<p><strong>Backend:</strong> pure — <code>stdlib/typing.lynx</code> only, over the interpreter's type builtins. <strong>Import:</strong> <code>import(&quot;typing&quot;)</code> → <code>global.typing.*</code></p>
+<p>Type inspection, conversion, range, string, number and sequence helpers.</p>
+<p><strong>Backend:</strong> pure — <code>stdlib/typing.lynx</code> only, over the interpreter's builtins. <strong>Import:</strong> <code>import(&quot;typing&quot;)</code> → <code>global.typing.*</code></p>
+<p>The interpreter's strings are byte strings: <code>returnLength</code>, <code>charAt</code>, <code>substring</code> and the <code>charCode</code>/<code>charOf</code> builtins all count bytes, so code points are byte values in <code>0..255</code> rather than Unicode scalar values.</p>
+<h2 id="type-checks">Type Checks</h2>
 <table>
-<tr><th>Function</th><th>Signature</th><th>Notes</th></tr>
-<tr><td><code>typeOf</code></td><td><code>(any value) -&gt; str</code></td><td><code>returnType</code> of the value</td></tr>
-<tr><td><code>toStr</code></td><td><code>(any value) -&gt; str</code></td><td>Renders as text</td></tr>
-<tr><td><code>toInt</code></td><td><code>(any value) -&gt; int</code></td><td>Converts to an integer</td></tr>
-<tr><td><code>toFloat</code></td><td><code>(any value) -&gt; float</code></td><td>Converts to a float</td></tr>
-<tr><td><code>toBool</code></td><td><code>(any value) -&gt; bool</code></td><td><code>value != 0</code></td></tr>
-<tr><td><code>isNumeric</code></td><td><code>(any value) -&gt; bool</code></td><td>Whether the value is a number</td></tr>
-<tr><td><code>lenStr</code></td><td><code>(str value) -&gt; int</code></td><td>String length</td></tr>
-<tr><td><code>isInt8</code></td><td><code>(any value) -&gt; bool</code></td><td>Fits in a signed 8-bit range</td></tr>
-<tr><td><code>isInt16</code></td><td><code>(any value) -&gt; bool</code></td><td>Fits in a signed 16-bit range</td></tr>
-<tr><td><code>isInt32</code></td><td><code>(any value) -&gt; bool</code></td><td>Fits in a signed 32-bit range</td></tr>
-<tr><td><code>isByte</code></td><td><code>(any value) -&gt; bool</code></td><td>Fits in an unsigned 8-bit range</td></tr>
+<tr><th>Function</th><th>Signature</th><th>Returns</th><th>Description</th></tr>
+<tr><td><code>isNum</code></td><td><code>isNum(any val)</code></td><td><code>bool</code></td><td><code>true</code> if <code>val</code> is <code>int</code> or <code>float</code></td></tr>
+<tr><td><code>isInt</code></td><td><code>isInt(any val)</code></td><td><code>bool</code></td><td><code>true</code> if <code>val</code> is an <code>int</code></td></tr>
+<tr><td><code>isFloat</code></td><td><code>isFloat(any val)</code></td><td><code>bool</code></td><td><code>true</code> if <code>val</code> is a <code>float</code></td></tr>
+<tr><td><code>isStr</code></td><td><code>isStr(any val)</code></td><td><code>bool</code></td><td><code>true</code> if <code>val</code> is a <code>str</code></td></tr>
+<tr><td><code>isBool</code></td><td><code>isBool(any val)</code></td><td><code>bool</code></td><td><code>true</code> if <code>val</code> is a <code>bool</code></td></tr>
+<tr><td><code>isList</code></td><td><code>isList(any val)</code></td><td><code>bool</code></td><td><code>true</code> if <code>val</code> is a <code>list</code></td></tr>
+<tr><td><code>isTuple</code></td><td><code>isTuple(any val)</code></td><td><code>bool</code></td><td><code>true</code> if <code>val</code> is a <code>tuple</code></td></tr>
+<tr><td><code>isChar</code></td><td><code>isChar(any val)</code></td><td><code>bool</code></td><td><code>true</code> if <code>val</code> is a <code>char</code></td></tr>
+<tr><td><code>isNone</code></td><td><code>isNone(any val)</code></td><td><code>bool</code></td><td><code>true</code> if <code>val</code> is <code>none</code></td></tr>
+<tr><td><code>isSequence</code></td><td><code>isSequence(any val)</code></td><td><code>bool</code></td><td><code>true</code> if <code>val</code> is a <code>list</code> or <code>tuple</code></td></tr>
+<tr><td><code>isNumeric</code></td><td><code>isNumeric(any value)</code></td><td><code>bool</code></td><td><code>true</code> if <code>value</code> is an <code>int</code> or <code>float</code></td></tr>
+<tr><td><code>isAlpha</code> / <code>isDigit</code> / <code>isAlphaNum</code> / <code>isSpace</code></td><td><code>(str value)</code></td><td><code>bool</code></td><td>Every byte is a letter / digit / alphanumeric / whitespace; <code>false</code> for <code>&quot;&quot;</code></td></tr>
 </table>
-<p>This is a subset of the original 109 functions; the remaining conversions and list/tuple helpers are not ported yet.</p>
+<p><code>isNumeric</code> keeps the Lynxer meaning ("is a number"), not the legacy "the string parses as a number"; use <code>isDigit</code> for digit-only strings.</p>
+<h2 id="integer-and-float-ranges">Integer and Float Ranges</h2>
+<table>
+<tr><th>Function</th><th>Returns</th><th>Description</th></tr>
+<tr><td><code>isNumBool</code> / <code>isBit</code></td><td><code>bool</code></td><td><code>int</code> equal to <code>0</code> or <code>1</code></td></tr>
+<tr><td><code>isInt8</code> / <code>isInt16</code> / <code>isInt32</code> / <code>isInt64</code></td><td><code>bool</code></td><td>Integer fits the signed range (<code>int</code> covers the full 64-bit range)</td></tr>
+<tr><td><code>isByte</code> / <code>isUInt8</code></td><td><code>bool</code></td><td>Integer in <code>0..255</code></td></tr>
+<tr><td><code>isUInt16</code> / <code>isUInt32</code> / <code>isUInt64</code></td><td><code>bool</code></td><td>Integer in the unsigned range (<code>isUInt64</code> is <code>int &gt;= 0</code>)</td></tr>
+<tr><td><code>isFloat32</code> / <code>isFloat64</code></td><td><code>bool</code></td><td>Number within the float32 range / any number</td></tr>
+</table>
+<h2 id="type-conversions">Type Conversions</h2>
+<table>
+<tr><th>Function</th><th>Signature</th><th>Returns</th><th>Description</th></tr>
+<tr><td><code>typeOf</code></td><td><code>typeOf(any value)</code></td><td><code>str</code></td><td>The value's type name</td></tr>
+<tr><td><code>toStr</code></td><td><code>toStr(any value)</code></td><td><code>str</code></td><td>Renders as text</td></tr>
+<tr><td><code>toString</code></td><td><code>toString(any val)</code></td><td><code>str</code></td><td>Alias of <code>toStr</code></td></tr>
+<tr><td><code>toInt</code></td><td><code>toInt(any value)</code></td><td><code>int</code></td><td>Converts to an integer</td></tr>
+<tr><td><code>toFloat</code></td><td><code>toFloat(any value)</code></td><td><code>float</code></td><td>Converts to a float</td></tr>
+<tr><td><code>toFloat32</code> / <code>toFloat64</code></td><td><code>(any value)</code></td><td><code>float</code></td><td>Both return <code>floatOf(value)</code>; Lynxer <code>float</code> is a double, so there is no single-precision narrowing</td></tr>
+<tr><td><code>toBool</code></td><td><code>toBool(any value)</code></td><td><code>bool</code></td><td><code>value != 0</code></td></tr>
+<tr><td><code>toNumBool</code></td><td><code>(any value)</code></td><td><code>numBool</code></td><td>Normalizes to <code>0</code> or <code>1</code></td></tr>
+<tr><td><code>toBit</code></td><td><code>(any value)</code></td><td><code>bit</code></td><td>Normalizes to <code>0</code> or <code>1</code></td></tr>
+<tr><td><code>toByte</code></td><td><code>(any value)</code></td><td><code>byte</code></td><td>Converts and clamps to <code>0..255</code></td></tr>
+<tr><td><code>toChar</code></td><td><code>(any val)</code></td><td><code>char</code></td><td>One-byte string or <code>int</code> code in <code>0..255</code>; NUL byte on error</td></tr>
+<tr><td><code>toNumber</code></td><td><code>(any val)</code></td><td><code>float</code></td><td>Converts a number to a float; <code>0.0</code> otherwise</td></tr>
+</table>
+<h2 id="char-functions">Char Functions</h2>
+<table>
+<tr><th>Function</th><th>Signature</th><th>Returns</th><th>Description</th></tr>
+<tr><td><code>charCodeOf</code></td><td><code>charCodeOf(any val)</code></td><td><code>int</code></td><td>Byte value of a <code>char</code>, or of the first byte of a <code>str</code>; <code>-1</code> on error</td></tr>
+<tr><td><code>charCode</code></td><td><code>charCode(str value)</code></td><td><code>int</code></td><td>Byte value of the first byte; <code>-1</code> for <code>&quot;&quot;</code></td></tr>
+<tr><td><code>charOf</code></td><td><code>charOf(int code)</code></td><td><code>char</code></td><td>One-byte <code>char</code> for a code in <code>0..255</code>; NUL byte otherwise</td></tr>
+<tr><td><code>charAt</code></td><td><code>charAt(str value, int index)</code></td><td><code>char</code> | <code>none</code></td><td>The character at <code>index</code>, or <code>none</code> when out of range</td></tr>
+</table>
+<h2 id="string-functions">String Functions</h2>
+<table>
+<tr><th>Function</th><th>Signature</th><th>Returns</th><th>Description</th></tr>
+<tr><td><code>lenStr</code></td><td><code>lenStr(str value)</code></td><td><code>int</code></td><td>Length in bytes</td></tr>
+<tr><td><code>trim</code> / <code>stripLeft</code> / <code>stripRight</code></td><td><code>(str value)</code></td><td><code>str</code></td><td>Strip leading and trailing / leading / trailing whitespace</td></tr>
+<tr><td><code>upper</code> / <code>lower</code> / <code>titleCase</code> / <code>swapCase</code></td><td><code>(str value)</code></td><td><code>str</code></td><td>Case conversion</td></tr>
+<tr><td><code>repeat</code> / <code>repeatStr</code></td><td><code>(str value, int n)</code></td><td><code>str</code></td><td>Repeat <code>n</code> times</td></tr>
+<tr><td><code>contains</code></td><td><code>contains(str value, str needle)</code></td><td><code>bool</code></td><td>Substring test (<code>true</code> for an empty needle)</td></tr>
+<tr><td><code>startsWith</code> / <code>endsWith</code></td><td><code>(str value, str affix)</code></td><td><code>bool</code></td><td>Prefix / suffix test</td></tr>
+<tr><td><code>replace</code></td><td><code>(str value, str old, str new)</code></td><td><code>str</code></td><td>Replace every occurrence</td></tr>
+<tr><td><code>indexOf</code></td><td><code>(str value, str needle)</code></td><td><code>int</code></td><td>First index, or <code>-1</code>; <code>0</code> for an empty needle</td></tr>
+<tr><td><code>countOccurrences</code></td><td><code>(str value, str needle)</code></td><td><code>int</code></td><td>Non-overlapping occurrences</td></tr>
+<tr><td><code>substr</code></td><td><code>(str value, int start, int end)</code></td><td><code>str</code></td><td>Slice with negative indices and clamping</td></tr>
+<tr><td><code>padLeft</code> / <code>padRight</code> / <code>center</code></td><td><code>(str value, int width, str fill)</code></td><td><code>str</code></td><td>Pad to <code>width</code></td></tr>
+<tr><td><code>zfill</code></td><td><code>(str value, int width)</code></td><td><code>str</code></td><td>Zero-pad, keeping a leading sign</td></tr>
+<tr><td><code>strReverse</code></td><td><code>(str value)</code></td><td><code>str</code></td><td>Reverse the bytes</td></tr>
+<tr><td><code>spaces</code></td><td><code>spaces(int n)</code></td><td><code>str</code></td><td><code>n</code> space characters</td></tr>
+<tr><td><code>wordWrap</code></td><td><code>(str value, int width)</code></td><td><code>str</code></td><td>Greedy wrap on spaces</td></tr>
+<tr><td><code>expandTabs</code></td><td><code>(str value, int tabSize)</code></td><td><code>str</code></td><td>Expand tabs to <code>tabSize</code>-wide stops</td></tr>
+<tr><td><code>splitFirst</code></td><td><code>(str value, str sep)</code></td><td><code>list</code></td><td>Two-element <code>[before, after]</code></td></tr>
+<tr><td><code>splitToList</code></td><td><code>(str value, str sep)</code></td><td><code>list</code></td><td>Split into a list of strings</td></tr>
+<tr><td><code>linesOf</code></td><td><code>(str value)</code></td><td><code>list</code></td><td>Split on newlines; <code>[]</code> for <code>&quot;&quot;</code></td></tr>
+</table>
+<h2 id="number-functions">Number Functions</h2>
+<table>
+<tr><th>Function</th><th>Signature</th><th>Returns</th><th>Description</th></tr>
+<tr><td><code>abs</code></td><td><code>abs(num value)</code></td><td><code>num</code></td><td>Absolute value</td></tr>
+<tr><td><code>sign</code></td><td><code>sign(num value)</code></td><td><code>int</code></td><td><code>1</code>, <code>-1</code> or <code>0</code></td></tr>
+<tr><td><code>maxOf</code> / <code>minOf</code></td><td><code>(num a, num b)</code></td><td><code>num</code></td><td>Larger / smaller of two numbers</td></tr>
+<tr><td><code>clamp</code></td><td><code>clamp(float value, float low, float high)</code></td><td><code>float</code></td><td>Clamp to <code>[low, high]</code></td></tr>
+<tr><td><code>between</code></td><td><code>between(num value, num low, num high)</code></td><td><code>bool</code></td><td><code>low &lt;= value &lt;= high</code></td></tr>
+<tr><td><code>roundTo</code></td><td><code>roundTo(float value, int digits)</code></td><td><code>float</code></td><td>Round to <code>digits</code> decimal places</td></tr>
+</table>
+<h2 id="list-functions">List Functions</h2>
+<p>These complement the language built-ins (<code>listPush</code>, <code>listGet</code>, <code>sortList</code>, etc.).</p>
+<table>
+<tr><th>Function</th><th>Signature</th><th>Returns</th><th>Description</th></tr>
+<tr><td><code>lenList</code></td><td><code>(list lst)</code></td><td><code>int</code></td><td>Number of elements</td></tr>
+<tr><td><code>listFirst</code> / <code>listLast</code></td><td><code>(list lst)</code></td><td>element</td><td>First / last element; runtime error if empty</td></tr>
+<tr><td><code>listHead</code> / <code>listTail</code></td><td><code>(list lst, int n)</code></td><td><code>list</code></td><td>First / last <code>n</code> elements</td></tr>
+<tr><td><code>listSum</code> / <code>listAvg</code></td><td><code>(list lst)</code></td><td><code>float</code></td><td>Sum / mean of numeric elements</td></tr>
+<tr><td><code>listCount</code></td><td><code>(list lst, any val)</code></td><td><code>int</code></td><td>Occurrences of <code>val</code></td></tr>
+<tr><td><code>listRepeat</code></td><td><code>(any val, int n)</code></td><td><code>list</code></td><td><code>n</code> copies of <code>val</code></td></tr>
+<tr><td><code>listZip</code></td><td><code>(list a, list b)</code></td><td><code>list</code></td><td>JSON pair strings <code>{&quot;a&quot;:&quot;…&quot;,&quot;b&quot;:&quot;…&quot;}</code></td></tr>
+<tr><td><code>listChunk</code></td><td><code>(list lst, int n)</code></td><td><code>list</code></td><td>JSON-encoded chunks of size <code>n</code></td></tr>
+<tr><td><code>flatten</code></td><td><code>(list lst)</code></td><td><code>list</code></td><td>Flatten one level</td></tr>
+<tr><td><code>unique</code></td><td><code>(list lst)</code></td><td><code>list</code></td><td>Remove duplicates, order preserved</td></tr>
+</table>
+<h2 id="tuple-functions">Tuple Functions</h2>
+<p>These compose the language-level tuple built-ins.</p>
+<table>
+<tr><th>Function</th><th>Signature</th><th>Returns</th><th>Description</th></tr>
+<tr><td><code>tupleReverse</code></td><td><code>(any t)</code></td><td><code>tuple</code></td><td>Reversed</td></tr>
+<tr><td><code>tupleSort</code> / <code>tupleSortDesc</code></td><td><code>(any t)</code></td><td><code>tuple</code></td><td>Sorted ascending / descending</td></tr>
+<tr><td><code>tupleMin</code> / <code>tupleMax</code></td><td><code>(any t)</code></td><td><code>any</code></td><td>Minimum / maximum (or <code>none</code>)</td></tr>
+<tr><td><code>tupleSum</code> / <code>tupleMean</code></td><td><code>(any t)</code></td><td><code>float</code></td><td>Sum / arithmetic mean</td></tr>
+<tr><td><code>tupleAny</code> / <code>tupleAll</code></td><td><code>(any t)</code></td><td><code>bool</code></td><td>Any / all elements truthy</td></tr>
+<tr><td><code>tupleUnique</code></td><td><code>(any t)</code></td><td><code>tuple</code></td><td>Duplicates removed, order preserved</td></tr>
+<tr><td><code>tupleFlatten</code></td><td><code>(any t)</code></td><td><code>tuple</code></td><td>Flatten one level</td></tr>
+<tr><td><code>tupleZip</code></td><td><code>(any a, any b)</code></td><td><code>list</code></td><td>JSON pair strings</td></tr>
+<tr><td><code>tupleJoin</code></td><td><code>(any t, str sep)</code></td><td><code>str</code></td><td>Join elements with <code>sep</code></td></tr>
+</table>
+<h2 id="sequence-conversion">Sequence Conversion</h2>
+<table>
+<tr><th>Function</th><th>Signature</th><th>Returns</th><th>Description</th></tr>
+<tr><td><code>toList</code></td><td><code>(any val)</code></td><td><code>list</code></td><td>Tuple → list; lists unchanged; other values → <code>[]</code></td></tr>
+<tr><td><code>toTuple</code></td><td><code>(any val)</code></td><td><code>tuple</code></td><td>List → tuple; tuples unchanged; other values → <code>()</code></td></tr>
+<tr><td><code>lenSequence</code></td><td><code>(any val)</code></td><td><code>int</code></td><td>Length of a list or tuple; <code>0</code> otherwise</td></tr>
+</table>
 <h2 id="example">Example</h2>
 <pre><code>global setup(){ import(&quot;typing&quot;); }
 
 global main(){
-    println(global.typing.toInt(&quot;42&quot;));
-    println(global.typing.isByte(200));
-    println(global.typing.isInt8(200));
+    any x = 42;
+    if(global.typing.isInt(x)){   print(&quot;integer\n&quot;); }
+
+    println(global.typing.abs(-4));            // 4
+    println(global.typing.clamp(15.0, 0.0, 10.0)); // 10
+    println(global.typing.roundTo(3.14159, 2));    // 3.14
+    println(global.typing.charCodeOf(&quot;A&quot;));    // 65
+    println(global.typing.charAt(&quot;hello&quot;, 1)); // e
+    println(global.typing.zfill(&quot;42&quot;, 5));     // 00042
+
+    list nums = range(6);
+    println(global.typing.listHead(nums, 3));  // [0, 1, 2]
+    println(global.typing.listChunk(nums, 2)); // [[0, 1], [2, 3], [4, 5]]
+
+    tuple coords = (int 10, int 20);
+    println(global.typing.tupleJoin(coords, &quot;-&quot;)); // 10-20
+    println(global.typing.toList(coords));     // [10, 20]
 }</code></pre>
 <hr>
 <h2 id="see-also">See also</h2>

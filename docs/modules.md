@@ -89,6 +89,16 @@ global main(){}
 A native backend exports `lynxer_module_init_v1`; see
 [native-module-abi.md](native-module-abi.md).
 
+## Errors inside a module
+
+A syntax or run-time error raised while a module is loaded, or inside one of
+its functions, is reported against **the module file** and its own line and
+column — not against the program that imported it:
+
+```
+lynxer: lynxer/examples/module_error_lib.lynx:7:23: charAt() index is out of range
+```
+
 ## Compiled programs
 
 `--compile` embeds every transitively imported `.lynx` source and `.so` library

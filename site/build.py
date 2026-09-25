@@ -235,7 +235,14 @@ def render_markdown(text: str, link: Link) -> tuple[str, str]:
                 break
             paragraph.append(nxt.strip())
             index += 1
-        out.append("<p>" + inline(" ".join(paragraph)) + "</p>")
+        if not paragraph:
+            # A line that opens a block the loop above did not handle (for
+            # example a table row with no separator row). Emit it and advance so
+            # the loop always makes progress instead of spinning forever.
+            out.append("<p>" + inline(line.strip()) + "</p>")
+            index += 1
+        else:
+            out.append("<p>" + inline(" ".join(paragraph)) + "</p>")
 
     return "\n".join(out), title
 

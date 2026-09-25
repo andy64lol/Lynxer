@@ -89,6 +89,10 @@ global globToRegex(str glob) -> str {
 global countMatches(str pattern, str string) -> int {
     return global.nativeRegex.countMatches(pattern, string);
 }
+// Return the number of word runs (\\w+) in string.
+global countWords(str string) -> int {
+    return global.nativeRegex.countMatches("\\w+", string);
+}
 // Return the start index of the first match, or -1.
 global firstMatchPos(str pattern, str string) -> int {
     return global.nativeRegex.firstMatchPos(pattern, string);

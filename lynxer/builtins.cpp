@@ -507,6 +507,42 @@ Value builtinCharAt(const std::vector<Value>& args, Environment&, int line,
     return std::string(1, text[static_cast<std::size_t>(index)]);
 }
 
+// Byte value of a char or the first byte of a string, or -1 for an empty
+// string. Lynxer strings are byte strings — `charAt` and `returnLength` count
+// bytes — so the code point is the first byte rather than a Unicode scalar.
+Value builtinCharCode(const std::vector<Value>& args, Environment&, int line,
+                      int column) {
+    requireArity(args, 1, "charCode() takes exactly 1 argument", line, column);
+    const std::string* text = nullptr;
+    if (const auto* character = std::get_if<CharValue>(&args[0])) {
+        text = &character->text;
+    } else if (const auto* string = std::get_if<std::string>(&args[0])) {
+        text = string;
+    }
+    if (text == nullptr) {
+        fail("charCode() expects a char or a string", line, column);
+    }
+    if (text->empty()) {
+        return std::int64_t{-1};
+    }
+    return static_cast<std::int64_t>(
+        static_cast<unsigned char>((*text)[0]));
+}
+
+// One-byte char for a code in 0..255. The inverse of charCode().
+Value builtinCharOf(const std::vector<Value>& args, Environment&, int line,
+                    int column) {
+    requireArity(args, 1, "charOf() takes exactly 1 argument", line, column);
+    if (!std::holds_alternative<std::int64_t>(args[0])) {
+        fail("charOf() expects an int code", line, column);
+    }
+    const auto code = std::get<std::int64_t>(args[0]);
+    if (code < 0 || code > 255) {
+        fail("charOf() code must be in 0..255", line, column);
+    }
+    return CharValue{std::string(1, static_cast<char>(code))};
+}
+
 Value builtinSubstring(const std::vector<Value>& args, Environment&, int line,
                        int column) {
     if (args.size() != 3 || !std::holds_alternative<std::string>(args[0]) ||
@@ -4648,6 +4684,8 @@ const std::unordered_map<std::string, Handler>& handlerTable() {
         {"bundledFile", builtinBundledFile},
         {"bundledFiles", builtinBundledFiles},
         {"charAt", builtinCharAt},
+        {"charCode", builtinCharCode},
+        {"charOf", builtinCharOf},
         {"substring", builtinSubstring},
         {"trim", builtinTrim},
         {"upper", builtinUpper},

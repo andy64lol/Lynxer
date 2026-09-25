@@ -47,9 +47,9 @@ global main(){
     x += 3;
     x -= 2;
     println("arithmetic: x=", x, ", 10%3=", 10 % 3, ", 2^10=", global.m.pow(2, 10));
-    println("comparisons: ", 5 > 3, ", ", 5 == 5, ", ", 5 != 4);
-    println("logic: ", true && false, ", ", true !&& false, ", ",
-            true || false, ", ", true !|| false, ", ", !!true);
+    println("comparisons: ", 5 > 3, ", ", 5 is 5, ", ", 5 isnt 4);
+    println("logic: ", true and false, ", ", true nand false, ", ",
+            true and false, ", ", true nor false, ", ", not true);
     println("bitwise: ", 6 bitand 3, ", ", 6 bitnand 3, ", ", 6 bitxor 3, ", ",
             6 bitxnor 3, ", ", 6 bitor 3, ", ", 6 bitnor 3, ", ",
             1 bitleft 4, ", ", 32 bitright 2);

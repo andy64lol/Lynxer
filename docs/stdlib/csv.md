@@ -37,6 +37,30 @@ Dialect follows the standard `csv` format: `,` delimiter, `"` quoting with `""`
 escaping, and `\r\n` line terminators on output. Non-string JSON values are
 rendered as `""` / `true` / `false`.
 
+## Legacy aliases
+
+Names from the earlier `csv` API, kept as forwarders:
+
+| Alias | Equivalent |
+| --- | --- |
+| `parseCSV(csvStr)` | `parseToJson(csvStr)` |
+| `parseCSVRaw(csvStr)` | `parseRows(csvStr)` |
+| `readCSVRaw(path)` | `parseRows(readCSV(path))`; `"[]"` when `readCSV` returns `"ERROR: ..."` |
+| `csvColumn(csvStr, col)` | `getColumn(csvStr, col)` |
+| `csvRowCount(csvStr)` | `rowCount(csvStr)` |
+| `filterCSV(csvStr, col, value)` | `filterRows(csvStr, col, value)` |
+
+Three aliases have no single-op equivalent and are implemented natively:
+
+| Function | Signature | Returns |
+| --- | --- | --- |
+| `csvHeaders` | `(str csvStr)` | Header names joined by commas |
+| `csvRow` | `(str csvStr, int rowIdx)` | JSON object for data row `rowIdx` |
+| `dedupCSV` | `(str csvStr, str colName)` | CSV text with the first row kept per distinct column value |
+
+`readCSV` returns raw file content, so `readCSVRaw` differs from the legacy
+`readCSV` (which returned objects); use `parseCSV`/`parseToJson` for objects.
+
 ## Example
 
 ```lynx

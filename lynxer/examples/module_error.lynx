@@ -1,0 +1,10 @@
+////
+Error fixture: a run-time failure raised inside the imported
+`module_error_lib.lynx`. The diagnostic must name the module file and its
+line/column, not this program's.
+////
+global setup(){ importAs("module_error_lib.lynx", "lib"); }
+
+global main(){
+    println(global.lib.fail());
+}

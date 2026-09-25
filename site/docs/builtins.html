@@ -100,6 +100,8 @@
 <table>
 <tr><th>Builtin</th><th>Notes</th></tr>
 <tr><td><code>charAt(text, index)</code></td><td>One-character string at <code>index</code></td></tr>
+<tr><td><code>charCode(value)</code></td><td>Byte value of a <code>char</code> or of the first byte of a <code>str</code>; <code>-1</code> for an empty string</td></tr>
+<tr><td><code>charOf(code)</code></td><td>One-byte <code>char</code> for a code in <code>0..255</code></td></tr>
 <tr><td><code>substring(text, start, end)</code></td><td>Half-open slice <code>[start, end)</code></td></tr>
 <tr><td><code>trim(text)</code></td><td>Removes leading and trailing whitespace</td></tr>
 <tr><td><code>upper(text)</code> / <code>lower(text)</code></td><td>Case conversion</td></tr>
@@ -140,7 +142,41 @@
 <tr><td><code>listZip(first, second)</code></td><td>Pairs elements</td></tr>
 </table>
 <h2 id="tuples">Tuples</h2>
-<p><code>tupleCreate(...)</code>, <code>tupleGet(t, i)</code>, <code>tupleLen(t)</code>, <code>tupleContains(t, v)</code>, <code>tupleIndex(t, v)</code>, <code>tupleSlice(t, start, stop)</code>, <code>tupleToList(t)</code>, <code>listToTuple(list)</code>, <code>tupleConcat(a, b)</code>, <code>tupleCount(t, v)</code>, <code>tupleFirst(t)</code>, <code>tupleLast(t)</code>, <code>tupleJsonArray(t)</code>, <code>tupleReverse(t)</code>, <code>tupleSort(t)</code>, <code>tupleSortDesc(t)</code>, <code>tupleMin(t)</code>, <code>tupleMax(t)</code>, <code>tupleSum(t)</code>, <code>tupleAny(t)</code>, <code>tupleAll(t)</code>, <code>tupleUnique(t)</code>, <code>tupleMean(t)</code>, <code>tupleFlatten(t)</code>, <code>tupleZip(a, b)</code>, <code>tupleJoin(t, separator)</code>.</p>
+<table>
+<tr><th>Builtin</th><th>Notes</th></tr>
+<tr><td><code>tupleCreate(v1, v2, ...)</code></td><td>Creates a tuple from any number of arguments</td></tr>
+<tr><td><code>tupleGet(tuple t, int idx)</code></td><td>Gets element at <code>idx</code> (negative indices supported)</td></tr>
+<tr><td><code>tupleLen(tuple t)</code></td><td>Number of elements</td></tr>
+<tr><td><code>tupleContains(tuple t, any val)</code></td><td><code>true</code> if <code>val</code> is in the tuple</td></tr>
+<tr><td><code>tupleIndex(tuple t, any val)</code></td><td>First index of <code>val</code>, or <code>-1</code></td></tr>
+<tr><td><code>tupleSlice(tuple t, int start, int stop)</code></td><td>Sub-tuple <code>[start, stop)</code></td></tr>
+<tr><td><code>tupleToList(tuple t)</code></td><td>Converts to a mutable list</td></tr>
+<tr><td><code>listToTuple(list l)</code></td><td>Converts a list to a tuple</td></tr>
+<tr><td><code>tupleConcat(tuple t1, tuple t2)</code></td><td>Concatenates two tuples</td></tr>
+<tr><td><code>tupleCount(tuple t, any val)</code></td><td>Counts occurrences of <code>val</code></td></tr>
+<tr><td><code>tupleFirst(tuple t)</code></td><td>First element (error on empty)</td></tr>
+<tr><td><code>tupleLast(tuple t)</code></td><td>Last element (error on empty)</td></tr>
+<tr><td><code>tupleJsonArray(tuple t)</code></td><td>JSON array string, e.g. <code>&quot;[1,2,3]&quot;</code></td></tr>
+<tr><td><code>tupleReverse(tuple t)</code></td><td>New tuple with elements in reversed order</td></tr>
+<tr><td><code>tupleSort(tuple t)</code></td><td>New tuple sorted ascending</td></tr>
+<tr><td><code>tupleSortDesc(tuple t)</code></td><td>New tuple sorted descending</td></tr>
+<tr><td><code>tupleMin(tuple t)</code></td><td>Minimum element</td></tr>
+<tr><td><code>tupleMax(tuple t)</code></td><td>Maximum element</td></tr>
+<tr><td><code>tupleSum(tuple t)</code></td><td>Sum of all numeric elements</td></tr>
+<tr><td><code>tupleAny(tuple t)</code></td><td><code>true</code> if any element is truthy</td></tr>
+<tr><td><code>tupleAll(tuple t)</code></td><td><code>true</code> if all elements are truthy</td></tr>
+<tr><td><code>tupleUnique(tuple t)</code></td><td>New tuple with duplicates removed (order preserved)</td></tr>
+<tr><td><code>tupleMean(tuple t)</code></td><td>Arithmetic mean of numeric elements</td></tr>
+<tr><td><code>tupleFlatten(tuple t)</code></td><td>One-level flatten: concatenates nested tuple elements</td></tr>
+<tr><td><code>tupleZip(tuple t1, tuple t2)</code></td><td>List of JSON pair strings <code>{&quot;a&quot;:v1,&quot;b&quot;:v2}</code></td></tr>
+<tr><td><code>tupleJoin(tuple t, str sep)</code></td><td>All elements joined as a string with separator</td></tr>
+<tr><td><code>contains(tuple t, any val)</code></td><td>Common membership test shared with lists</td></tr>
+</table>
+<h3 id="notes">Notes</h3>
+<ul>
+<li>Tuples are <strong>immutable</strong>; operations like <code>tupleConcat</code> and <code>tupleSlice</code> return a <strong>new</strong> tuple.</li>
+<li>Use <code>tupleToList()</code> to iterate over a tuple with a <code>for</code> loop or index manually.</li>
+</ul>
 <h2 id="control-runtime-and-assertions">Control, runtime and assertions</h2>
 <table>
 <tr><th>Builtin</th><th>Notes</th></tr>
@@ -311,26 +347,13 @@ global main(){
 <tr><td><code>asyncWakeupClose(wakeup)</code></td><td>Releases a wakeup</td></tr>
 </table>
 <p>See <code>lynxer/examples/builtin_async.lynx</code> for a runnable example, and <a href="language.html">language</a> for the <code>async</code>/<code>await</code> syntax.</p>
-<h2 id="ownership-and-borrowing">Ownership and borrowing</h2>
-<table>
-<tr><th>Builtin</th><th>Notes</th></tr>
-<tr><td><code>varTransfer(source, destination)</code></td><td>Moves a value into an existing destination of a compatible declared type</td></tr>
-<tr><td><code>varTransferMutate(source, destination)</code></td><td>Move form for an <code>any</code>/<code>num</code> destination</td></tr>
-<tr><td><code>varBorrow(source, borrower)</code></td><td>Read-only tracked alias; neither side is writable while active</td></tr>
-<tr><td><code>varBorrowMutate(source, borrower)</code></td><td>Exclusive mutable alias; writes through the borrower reach the source</td></tr>
-<tr><td><code>varEndBorrow(borrower)</code></td><td>Ends a borrow, leaving the borrower an independent copy</td></tr>
-<tr><td><code>borrowing(variable)</code></td><td>Whether the variable is currently a borrower</td></tr>
-<tr><td><code>beingBorrowed(variable)</code></td><td>Whether another variable is borrowing from it</td></tr>
-<tr><td><code>varSwapAll(first, second)</code></td><td>Exchanges values and declared types</td></tr>
-<tr><td><code>varSwapVal(first, second)</code></td><td>Exchanges values, keeping declared types</td></tr>
-</table>
-<p>The arguments are <strong>variable names</strong>, not values: <code>varBorrow(a, b)</code> names two variables rather than passing their contents. Failures are source-located errors such as <code>Cannot read moved variable &#x27;x&#x27;; reinitialize it before using it again</code>. See <a href="language.html#ownership-and-borrowing">language</a> and <code>lynxer/examples/ownership.lynx</code>.</p>
 <h2 id="unsupported-names">Unsupported names</h2>
 <p>Names Lynxer recognises but does not implement on Linux/POSIX. Each fails with <code>&lt;name&gt;() is not supported in Lynxer yet</code>, except <code>embedPy</code>, whose message is <code>Python bridging (embedPy) is not supported in Lynxer</code>.</p>
 <table>
 <tr><th>Family</th><th>Names</th></tr>
 <tr><td>Python bridging</td><td><code>rawPy</code>, <code>rawPyx</code>, <code>cleanRawPyxCache</code>, <code>embedPy</code></td></tr>
-<tr><td>Shared aliasing</td><td><code>unshare</code> (there is no <code>shared</code> construct to detach)</td></tr>
+<tr><td>Namespaces</td><td><code>unshare</code></td></tr>
+<tr><td>Borrow / transfer</td><td><code>varTransfer</code>, <code>varTransferMutate</code>, <code>varBorrow</code>, <code>varBorrowMutate</code>, <code>varSwapAll</code>, <code>varSwapVal</code>, <code>varEndBorrow</code>, <code>borrowing</code>, <code>beingBorrowed</code></td></tr>
 <tr><td>Raw addresses</td><td><code>getAddress</code>, <code>modifyAddressValue</code>, <code>getAddressValue</code>, <code>functionAddress</code>, <code>nativeFunctionAddress</code>, <code>nativeCall</code></td></tr>
 <tr><td>Native module introspection</td><td><code>nativeModuleLoad</code>, <code>nativeModuleName</code>, <code>nativeModuleFunction</code>, <code>nativeModuleConstant</code>, <code>nativeModuleType</code>, <code>nativeModuleError</code>, <code>nativeModuleDependencies</code>, <code>nativeModuleClose</code></td></tr>
 <tr><td>Native sync primitives</td><td><code>nativeMutex*</code>, <code>nativeCondition*</code>, <code>nativeSemaphore*</code>, <code>nativeHandle*</code></td></tr>

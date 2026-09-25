@@ -4,6 +4,7 @@ Fixture for the typing stdlib (pure Lynxer, no shared library).
 global setup(){ import("typing"); }
 
 global main(){
+    // Basic type inspection and conversion.
     println(global.typing.typeOf(1));
     println(global.typing.typeOf(1.5));
     println(global.typing.typeOf("x"));
@@ -21,4 +22,57 @@ global main(){
     println(global.typing.isInt8(-5));
     println(global.typing.isInt16(40000));
     println(global.typing.isInt32(2147483647));
+
+    // String-content predicates and numeric range checks.
+    println(global.typing.isAlpha("abc"), " ", global.typing.isAlpha("a1c"), " ", global.typing.isAlpha(""));
+    println(global.typing.isDigit("123"), " ", global.typing.isDigit("12a"));
+    println(global.typing.isAlphaNum("a1"), " ", global.typing.isAlphaNum("a-1"));
+    println(global.typing.isSpace(" \t"), " ", global.typing.isSpace(" x"));
+    println(global.typing.isNumBool(1), " ", global.typing.isNumBool(2), " ", global.typing.isBit(0));
+    println(global.typing.isInt64(3), " ", global.typing.isUInt8(255), " ", global.typing.isUInt8(256));
+    println(global.typing.isUInt16(65535), " ", global.typing.isUInt16(65536), " ", global.typing.isUInt32(4294967295));
+    println(global.typing.isUInt64(1), " ", global.typing.isUInt64(-1));
+    println(global.typing.isFloat32(1.5), " ", global.typing.isFloat64(1.5), " ", global.typing.isFloat32("x"));
+    println(global.typing.toFloat32(2), " ", global.typing.toFloat64(3));
+
+    // Char helpers.
+    println(global.typing.charCodeOf("A"), " ", global.typing.charCodeOf(""), " ", global.typing.charCodeOf(1));
+    println(global.typing.charCode("Z"));
+    println(global.typing.charOf(66));
+    println(global.typing.charAt("hello", 1), " ", global.typing.charAt("hello", 9));
+    println(global.typing.toChar(67), " ", global.typing.toChar("D"));
+
+    // String helpers.
+    println(global.typing.trim("  hi  "), "|", global.typing.stripLeft("  hi  "), "|", global.typing.stripRight("  hi  "), "|");
+    println(global.typing.upper("abc"), " ", global.typing.lower("ABC"));
+    println(global.typing.titleCase("hello world"), " ", global.typing.swapCase("AbC"));
+    println(global.typing.repeat("ab", 3), " ", global.typing.repeatStr("x", 2));
+    println(global.typing.contains("hello", "ell"), " ", global.typing.contains("hello", "zz"));
+    println(global.typing.startsWith("hello", "he"), " ", global.typing.endsWith("hello", "lo"));
+    println(global.typing.replace("a-b-c", "-", "+"));
+    println(global.typing.indexOf("banana", "na"), " ", global.typing.indexOf("abc", "z"), " ", global.typing.countOccurrences("banana", "na"));
+    println(global.typing.substr("hello", 1, 4), " ", global.typing.substr("hello", -3, -1));
+    println(global.typing.padLeft("7", 3, "0"), " ", global.typing.padRight("7", 3, "."), " ", global.typing.center("7", 5, "-"));
+    println(global.typing.zfill("42", 5), " ", global.typing.zfill("-42", 5));
+    println(global.typing.strReverse("abc"), " ", global.typing.spaces(3), "|");
+    println(global.typing.wordWrap("the quick brown fox", 9));
+    println(global.typing.expandTabs("a\tb", 4), "|");
+    println(global.typing.splitFirst("a=b=c", "="), " ", global.typing.splitFirst("abc", "="));
+    println(global.typing.splitToList("a,b,c", ","));
+    println(global.typing.linesOf("a\nb\nc"), " ", global.typing.linesOf(""));
+
+    // Number helpers.
+    println(global.typing.abs(-4), " ", global.typing.abs(-4.5), " ", global.typing.sign(-9), " ", global.typing.sign(0));
+    println(global.typing.maxOf(3, 7), " ", global.typing.minOf(3, 7));
+    println(global.typing.clamp(15.0, 0.0, 10.0), " ", global.typing.between(5, 1, 10));
+    println(global.typing.roundTo(3.14159, 2));
+
+    // List and tuple helpers, plus the previously broken paths.
+    println(global.typing.toByte(300), " ", global.typing.toByte(12));
+    println(global.typing.listFirst([int 7, int 8]), " ", global.typing.listLast([int 7, int 8]));
+    println(global.typing.listHead([int 1, int 2, int 3], 2), " ", global.typing.listTail([int 1, int 2, int 3], 2));
+    println(global.typing.listChunk([int 1, int 2, int 3, int 4, int 5], 2));
+    println(global.typing.listZip([int 1, int 2], [int 3, int 4]));
+    println(global.typing.tupleZip((int 1, int 2), (int 3, int 4)));
+    println(global.typing.unique([int 1, int 1, int 2]));
 }

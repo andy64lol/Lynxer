@@ -2183,6 +2183,22 @@ void executeProgram(const std::unordered_map<std::string, Function>& functions,
     invokeFunction(entry->second, {}, {}, environment, 0, 0);
 }
 
+namespace {
+
+// Attribute an error to the module it came from, unless it already names a
+// source (nested imports: the innermost origin wins). Without this, a parse or
+// runtime failure inside an imported module is printed against the importing
+// program's file with the module's line/column.
+SourceError withModuleSource(const SourceError& error,
+                             const std::string& module) {
+    if (!error.source.empty()) {
+        return error;
+    }
+    return SourceError(error.what(), error.line, error.column, module);
+}
+
+}  // namespace
+
 void ImportStatement::execute(Environment& environment) const {
     const std::string module = moduleNameFromPath(path_);
     const std::string namespaceName = alias_.empty() ? module : alias_;
@@ -2316,10 +2332,16 @@ void ImportStatement::execute(Environment& environment) const {
         content << input.rdbuf();
         source = content.str();
     }
-    Lexer lexer(source, resolved);
-    Parser parser(lexer.scan());
-    auto functions = std::make_shared<std::unordered_map<std::string, Function>>(
-        parser.parseProgram());
+    std::shared_ptr<std::unordered_map<std::string, Function>> functions;
+    try {
+        Lexer lexer(source, resolved);
+        Parser parser(lexer.scan());
+        functions =
+            std::make_shared<std::unordered_map<std::string, Function>>(
+                parser.parseProgram());
+    } catch (const SourceError& error) {
+        throw withModuleSource(error, resolved);
+    }
     if (optimizerEnabled()) {
         optimizeProgram(*functions, optimizationStats());
     }
@@ -2368,6 +2390,9 @@ void ImportStatement::execute(Environment& environment) const {
                              false});
             }
             executeStatements(setup->second.statements, *moduleEnvironment);
+        } catch (const SourceError& error) {
+            moduleEnvironment->setSetupInProgress(false);
+            throw withModuleSource(error, resolved);
         } catch (...) {
             moduleEnvironment->setSetupInProgress(false);
             throw;
@@ -2390,12 +2415,18 @@ void ImportStatement::execute(Environment& environment) const {
         }
         environment.registerModuleFunction(
             namespaceName + "." + entry.first,
-            [moduleEnvironment, functions, functionName = entry.first](
+            [moduleEnvironment, functions, functionName = entry.first,
+             resolved](
                 const std::string&, const std::vector<Value>& args,
                 const std::vector<std::shared_ptr<CodeblockValue>>& blocks,
                 Environment&, int line, int column) {
-                return invokeFunction(functions->at(functionName), args, blocks,
-                                      *moduleEnvironment, line, column);
+                try {
+                    return invokeFunction(functions->at(functionName), args,
+                                          blocks, *moduleEnvironment, line,
+                                          column);
+                } catch (const SourceError& error) {
+                    throw withModuleSource(error, resolved);
+                }
             });
     }
 }

@@ -30,6 +30,7 @@ global main(){
     println(global.regex.countMatches("\\d+", "a1 b22 c333"));
     println(global.regex.firstMatchPos("\\d+", "ab12"));
     println(global.regex.truncateMatch("\\d+", "abcdef123456ghij", 7));
+    println(global.regex.countWords("the quick brown fox"));
     global.regex.clearCache();
     println(global.regex.cacheKeys());
 }

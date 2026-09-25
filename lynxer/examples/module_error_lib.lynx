@@ -1,0 +1,7 @@
+////
+Helper module for module_error.lynx: a function that fails at run time, so the
+interpreter must report the error against this file, not the importing program.
+////
+global setup(){}
+
+global fail(){ return charAt("x", 9); }

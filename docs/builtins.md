@@ -39,6 +39,8 @@ dispatcher rather than to a per-name handler.
 | Builtin | Notes |
 | --- | --- |
 | `charAt(text, index)` | One-character string at `index` |
+| `charCode(value)` | Byte value of a `char` or of the first byte of a `str`; `-1` for an empty string |
+| `charOf(code)` | One-byte `char` for a code in `0..255` |
 | `substring(text, start, end)` | Half-open slice `[start, end)` |
 | `trim(text)` | Removes leading and trailing whitespace |
 | `upper(text)` / `lower(text)` | Case conversion |

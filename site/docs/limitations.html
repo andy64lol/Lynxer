@@ -183,7 +183,13 @@
 <li><strong>Line terminators:</strong> Output uses <code>\r\n</code> line terminators.</li>
 <li><strong>Non-string values:</strong> Non-string JSON values are rendered as <code>&quot;&quot;</code> (empty string), <code>true</code>, or <code>false</code>.</li>
 <li><strong>Column handling:</strong> Values beyond the header width are dropped, and missing columns are filled with <code>&quot;&quot;</code> (empty string).</li>
-<li><strong>API note:</strong> The rendered <code>docs/stdlib/csv.md</code> describes an older API. Lynxer implements the API shipped with <code>csv.lynx</code>.</li>
+<li><strong>API note:</strong> <code>docs/stdlib/csv.md</code> is the current API. The legacy <code>csv</code> names (<code>parseCSV</code>, <code>parseCSVRaw</code>, <code>readCSVRaw</code>, <code>csvColumn</code>, <code>csvRowCount</code>, <code>filterCSV</code>, <code>csvHeaders</code>, <code>csvRow</code>, <code>dedupCSV</code>) are available as forwarders; <code>csvRow</code> returns a JSON object and <code>csvHeaders</code> a comma-joined string, which are the legacy shapes.</li>
+</ul>
+<h3 id="text-and-typing--byte-strings"><code>text</code> and <code>typing</code> — Byte Strings</h3>
+<ul>
+<li><strong>Byte semantics.</strong> Lynxer strings are byte strings: <code>returnLength</code>, <code>charAt</code>, <code>substring</code> and the <code>charCode</code>/<code>charOf</code> builtins count bytes, so a code point is a byte value in <code>0..255</code>, not a Unicode scalar value. <code>typing.charCodeOf</code> returns <code>-1</code> for a non-char/non-string or an empty string, and <code>typing.charOf</code> returns a NUL byte outside <code>0..255</code>.</li>
+<li><strong><code>typing.isNumeric</code>.</strong> In <code>typing</code>, <code>isNumeric(value)</code> means "is an <code>int</code> or <code>float</code>", not the legacy "the string parses as a number". Use <code>typing.isDigit</code> for digit-only strings.</li>
+<li><strong><code>typing.toFloat32</code> / <code>toFloat64</code>.</strong> Both return a <code>float</code>; Lynxer <code>float</code> is a double, so there is no single-precision narrowing.</li>
 </ul>
 <h3 id="os-and-path--constrained-behavior"><code>os</code> and <code>path</code> — Constrained Behavior</h3>
 <ul>

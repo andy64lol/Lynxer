@@ -1,9 +1,35 @@
 ////
 Lynxer standard library: typing.
-Pure Lynxer type inspection, conversion, and integer-range helpers.
+Pure Lynxer type inspection, conversion, range, string and sequence helpers.
+
+The interpreter's strings are byte strings: `returnLength`, `charAt`,
+`substring` and the `charCode`/`charOf` builtins all work on bytes, so code
+points are byte values in 0..255 rather than Unicode scalar values.
 ////
 
 global setup(){}
+
+//// Local helpers ////
+// The interpreter has no `min`/`max`/`clamp` builtins, so the module carries
+// its own. Keep calls to builtins prefixed with `global.` — the module owns
+// `contains`, `charAt`, `trim`, `upper` and `lower` as well.
+func typingMin(int left, int right) -> int {
+    if (left <= right) { return left; }
+    return right;
+}
+func typingMax(int left, int right) -> int {
+    if (left >= right) { return left; }
+    return right;
+}
+func typingClampInt(int value, int low, int high) -> int {
+    if (value < low) { return low; }
+    if (value > high) { return high; }
+    return value;
+}
+func typingIsSpace(str value) -> bool {
+    if (returnLength(value) isnt 1) { return false; }
+    return value is " " or value is "\t" or value is "\n" or value is "\r";
+}
 
 //// Type checks ////
 global isNum(any val) -> bool { return returnType(val) is "int" or returnType(val) is "float"; }
@@ -17,37 +43,11 @@ global isChar(any val) -> bool { return returnType(val) is "char"; }
 global isNone(any val) -> bool { return val is none; }
 global isSequence(any val) -> bool { return isList(val) or isTuple(val); }
 
-//// Return the Lynxer type name of value. ////
-global typeOf(any value) -> str { return returnType(value); }
-global toStr(any value) -> str { return strOf(value); }
-global toInt(any value) -> int { return intOf(value); }
-global toFloat(any value) -> float { return floatOf(value); }
-global toBool(any value) -> bool { return value isnt 0; }
-global toNumBool(any value) -> numBool { return value isnt 0 ? 1 : 0; }
-global toBit(any value) -> bit { return toNumBool(value); }
-global toByte(any value) -> byte { return clamp(intOf(value), 0, 255); }
-global toChar(any val) -> char {
-    if (returnType(val) is "str" and returnLength(val) == 1) {
-        return charAt(val, 0);
-    } else if (returnType(val) is "int") {
-        return charOf(val);
-    }
-    return "\0";
+//// Integer and float range checks ////
+global isNumBool(any value) -> bool {
+    return returnType(value) is "int" and (value is 0 or value is 1);
 }
-global toString(any val) -> str { return strOf(val); }
-global toNumber(any val) -> float {
-    if (isNumeric(val)) {
-        return floatOf(val);
-    }
-    return 0.0;
-}
-
-global isNumeric(any value) -> bool {
-    return returnType(value) is "int" or returnType(value) is "float";
-}
-global lenStr(str value) -> int { return returnLength(value); }
-
-//// Integer range checks ////
+global isBit(any value) -> bool { return isNumBool(value); }
 global isInt8(any value) -> bool {
     return returnType(value) is "int" and value >= -128 and value <= 127;
 }
@@ -57,251 +57,587 @@ global isInt16(any value) -> bool {
 global isInt32(any value) -> bool {
     return returnType(value) is "int" and value >= -2147483648 and value <= 2147483647;
 }
+global isInt64(any value) -> bool { return returnType(value) is "int"; }
 global isByte(any value) -> bool {
     return returnType(value) is "int" and value >= 0 and value <= 255;
+}
+global isUInt8(any value) -> bool { return isByte(value); }
+global isUInt16(any value) -> bool {
+    return returnType(value) is "int" and value >= 0 and value <= 65535;
+}
+global isUInt32(any value) -> bool {
+    return returnType(value) is "int" and value >= 0 and value <= 4294967295;
+}
+global isUInt64(any value) -> bool {
+    return returnType(value) is "int" and value >= 0;
+}
+global isFloat32(any value) -> bool {
+    if (not isNum(value)) { return false; }
+    float bound = 340282346638528859811704183484516925440.0;
+    float number = global.floatOf(value);
+    return number >= -bound and number <= bound;
+}
+global isFloat64(any value) -> bool { return isNum(value); }
+
+//// String-content predicates ////
+global isAlpha(str value) -> bool {
+    if (returnLength(value) is 0) { return false; }
+    int index = 0;
+    while (index < returnLength(value)) {
+        str character = global.charAt(value, index);
+        if (global.upper(character) is global.lower(character)) { return false; }
+        index = index + 1;
+    }
+    return true;
+}
+global isDigit(str value) -> bool {
+    if (returnLength(value) is 0) { return false; }
+    int index = 0;
+    while (index < returnLength(value)) {
+        str character = global.charAt(value, index);
+        if (character < "0" or character > "9") { return false; }
+        index = index + 1;
+    }
+    return true;
+}
+global isAlphaNum(str value) -> bool {
+    if (returnLength(value) is 0) { return false; }
+    int index = 0;
+    while (index < returnLength(value)) {
+        str character = global.charAt(value, index);
+        if (not isAlpha(character) and not isDigit(character)) { return false; }
+        index = index + 1;
+    }
+    return true;
+}
+global isSpace(str value) -> bool {
+    if (returnLength(value) is 0) { return false; }
+    int index = 0;
+    while (index < returnLength(value)) {
+        if (not typingIsSpace(global.charAt(value, index))) { return false; }
+        index = index + 1;
+    }
+    return true;
+}
+// `isNumeric` keeps its Lynxer meaning — "is an int or a float" — rather than
+// the legacy "string parses as a number". Use isDigit for digit-only strings.
+global isNumeric(any value) -> bool {
+    return returnType(value) is "int" or returnType(value) is "float";
+}
+
+//// Type conversions ////
+global typeOf(any value) -> str { return returnType(value); }
+global toStr(any value) -> str { return global.strOf(value); }
+global toInt(any value) -> int { return global.intOf(value); }
+global toFloat(any value) -> float { return global.floatOf(value); }
+global toFloat32(any value) -> float { return global.floatOf(value); }
+global toFloat64(any value) -> float { return global.floatOf(value); }
+global toBool(any value) -> bool { return value isnt 0; }
+global toNumBool(any value) -> numBool {
+    if (value isnt 0) { return 1; }
+    return 0;
+}
+global toBit(any value) -> bit { return toNumBool(value); }
+global toByte(any value) -> byte { return typingClampInt(global.intOf(value), 0, 255); }
+global toString(any val) -> str { return global.strOf(val); }
+global toNumber(any val) -> float {
+    if (isNumeric(val)) { return global.floatOf(val); }
+    return 0.0;
+}
+
+//// Char functions ////
+// Code points are byte values (see the header), so convert through the
+// charCode/charOf builtins rather than comparing char and str directly.
+global charCodeOf(any val) -> int {
+    if (isChar(val) or isStr(val)) { return global.charCode(val); }
+    return -1;
+}
+global charCode(str value) -> int { return global.charCode(value); }
+global charOf(int code) -> char {
+    if (code < 0 or code > 255) { return global.charOf(0); }
+    return global.charOf(code);
+}
+global charAt(str value, int index) -> any {
+    if (index < 0 or index >= returnLength(value)) { return none; }
+    return global.charOf(global.charCode(global.charAt(value, index)));
+}
+global toChar(any val) -> char {
+    if (returnType(val) is "str" and returnLength(val) is 1) {
+        return global.charOf(global.charCode(val));
+    } elif (returnType(val) is "int") {
+        int code = global.intOf(val);
+        if (code < 0 or code > 255) { return global.charOf(0); }
+        return global.charOf(code);
+    }
+    return global.charOf(0);
+}
+
+//// String functions ////
+global lenStr(str value) -> int { return returnLength(value); }
+global trim(str value) -> str { return global.trim(value); }
+global stripLeft(str value) -> str {
+    int index = 0;
+    while (index < returnLength(value) and typingIsSpace(global.charAt(value, index))) {
+        index = index + 1;
+    }
+    return global.substring(value, index, returnLength(value));
+}
+global stripRight(str value) -> str {
+    int end = returnLength(value);
+    while (end > 0 and typingIsSpace(global.charAt(value, end - 1))) {
+        end = end - 1;
+    }
+    return global.substring(value, 0, end);
+}
+global upper(str value) -> str { return global.upper(value); }
+global lower(str value) -> str { return global.lower(value); }
+global titleCase(str value) -> str {
+    str result = "";
+    bool boundary = true;
+    int index = 0;
+    while (index < returnLength(value)) {
+        str character = global.charAt(value, index);
+        if (typingIsSpace(character)) {
+            result = result + character;
+            boundary = true;
+        } elif (boundary) {
+            result = result + global.upper(global.lower(character));
+            boundary = false;
+        } else {
+            result = result + global.lower(character);
+        }
+        index = index + 1;
+    }
+    return result;
+}
+global swapCase(str value) -> str {
+    str result = "";
+    int index = 0;
+    while (index < returnLength(value)) {
+        str character = global.charAt(value, index);
+        if (global.lower(character) isnt character) {
+            result = result + global.lower(character);
+        } elif (global.upper(character) isnt character) {
+            result = result + global.upper(character);
+        } else {
+            result = result + character;
+        }
+        index = index + 1;
+    }
+    return result;
+}
+global repeat(str value, int count) -> str {
+    str result = "";
+    int index = 0;
+    while (index < count) { result = result + value; index = index + 1; }
+    return result;
+}
+global repeatStr(str value, int count) -> str { return repeat(value, count); }
+global contains(str value, str needle) -> bool {
+    if (returnLength(needle) is 0) { return true; }
+    int index = 0;
+    while (index <= returnLength(value) - returnLength(needle)) {
+        if (global.substring(value, index, index + returnLength(needle)) is needle) {
+            return true;
+        }
+        index = index + 1;
+    }
+    return false;
+}
+global startsWith(str value, str prefix) -> bool {
+    if (returnLength(prefix) > returnLength(value)) { return false; }
+    return global.substring(value, 0, returnLength(prefix)) is prefix;
+}
+global endsWith(str value, str suffix) -> bool {
+    int start = returnLength(value) - returnLength(suffix);
+    if (start < 0) { return false; }
+    return global.substring(value, start, returnLength(value)) is suffix;
+}
+global replace(str value, str oldValue, str newValue) -> str {
+    return global.replace(value, oldValue, newValue);
+}
+global indexOf(str value, str needle) -> int {
+    if (returnLength(needle) is 0) { return 0; }
+    int index = 0;
+    while (index <= returnLength(value) - returnLength(needle)) {
+        if (global.substring(value, index, index + returnLength(needle)) is needle) {
+            return index;
+        }
+        index = index + 1;
+    }
+    return -1;
+}
+global countOccurrences(str value, str needle) -> int {
+    if (returnLength(needle) is 0) { return 0; }
+    int total = 0;
+    int index = 0;
+    while (index <= returnLength(value) - returnLength(needle)) {
+        if (global.substring(value, index, index + returnLength(needle)) is needle) {
+            total = total + 1;
+            index = index + returnLength(needle);
+        } else {
+            index = index + 1;
+        }
+    }
+    return total;
+}
+global substr(str value, int start, int end) -> str {
+    int length = returnLength(value);
+    int from = start;
+    int to = end;
+    if (from < 0) { from = from + length; }
+    if (to < 0) { to = to + length; }
+    if (from < 0) { from = 0; }
+    if (to > length) { to = length; }
+    if (from > length) { from = length; }
+    if (to < from) { to = from; }
+    return global.substring(value, from, to);
+}
+global padLeft(str value, int width, str fill) -> str {
+    int missing = width - returnLength(value);
+    if (missing <= 0 or returnLength(fill) is 0) { return value; }
+    str padding = repeat(fill, missing /% returnLength(fill) + 1);
+    return global.substring(padding, 0, missing) + value;
+}
+global padRight(str value, int width, str fill) -> str {
+    int missing = width - returnLength(value);
+    if (missing <= 0 or returnLength(fill) is 0) { return value; }
+    str padding = repeat(fill, missing /% returnLength(fill) + 1);
+    return value + global.substring(padding, 0, missing);
+}
+global center(str value, int width, str fill) -> str {
+    int margin = width - returnLength(value);
+    if (margin <= 0 or returnLength(fill) is 0) { return value; }
+    int left = margin /% 2 + (margin % 2) * (width % 2);
+    return padLeft("", left, fill) + value + padLeft("", margin - left, fill);
+}
+global zfill(str value, int width) -> str {
+    if (returnLength(value) >= width) { return value; }
+    str sign = "";
+    str digits = value;
+    if (returnLength(value) > 0) {
+        str first = global.charAt(value, 0);
+        if (first is "-" or first is "+") {
+            sign = first;
+            digits = global.substring(value, 1, returnLength(value));
+        }
+    }
+    return sign + padLeft(digits, width - returnLength(sign), "0");
+}
+global strReverse(str value) -> str {
+    str result = "";
+    int index = returnLength(value) - 1;
+    while (index >= 0) {
+        result = result + global.charAt(value, index);
+        index = index - 1;
+    }
+    return result;
+}
+global spaces(int count) -> str { return repeat(" ", count); }
+global wordWrap(str value, int width) -> str {
+    if (width <= 0) { return value; }
+    list words = global.splitStr(value, " ");
+    str line = "";
+    str result = "";
+    int index = 0;
+    while (index < returnLength(words)) {
+        str word = listGet(words, index);
+        if (returnLength(line) is 0) {
+            line = word;
+        } elif (returnLength(line) + 1 + returnLength(word) <= width) {
+            line = line + " " + word;
+        } else {
+            result = result + line + "\n";
+            line = word;
+        }
+        index = index + 1;
+    }
+    if (returnLength(line) > 0) { result = result + line; }
+    return result;
+}
+global expandTabs(str value, int tabSize) -> str {
+    if (tabSize <= 0) { return value; }
+    str result = "";
+    int column = 0;
+    int index = 0;
+    while (index < returnLength(value)) {
+        str character = global.charAt(value, index);
+        if (character is "\t") {
+            int needed = tabSize - (column % tabSize);
+            result = result + spaces(needed);
+            column = column + needed;
+        } elif (character is "\n") {
+            result = result + character;
+            column = 0;
+        } else {
+            result = result + character;
+            column = column + 1;
+        }
+        index = index + 1;
+    }
+    return result;
+}
+global splitFirst(str value, str separator) -> list {
+    if (returnLength(separator) is 0) { return ["", value]; }
+    int at = indexOf(value, separator);
+    if (at < 0) { return [value, ""]; }
+    return [global.substring(value, 0, at),
+            global.substring(value, at + returnLength(separator), returnLength(value))];
+}
+global splitToList(str value, str separator) -> list {
+    return global.splitStr(value, separator);
+}
+global linesOf(str value) -> list {
+    if (returnLength(value) is 0) { return []; }
+    return global.splitStr(value, "\n");
+}
+
+//// Number functions ////
+global abs(num value) -> num {
+    if (value < 0) { return -value; }
+    return value;
+}
+global sign(num value) -> int {
+    if (value > 0) { return 1; }
+    if (value < 0) { return -1; }
+    return 0;
+}
+global maxOf(num left, num right) -> num {
+    if (left >= right) { return left; }
+    return right;
+}
+global minOf(num left, num right) -> num {
+    if (left <= right) { return left; }
+    return right;
+}
+global clamp(float value, float low, float high) -> float {
+    if (value < low) { return low; }
+    if (value > high) { return high; }
+    return value;
+}
+global between(num value, num low, num high) -> bool {
+    return value >= low and value <= high;
+}
+global roundTo(float value, int digits) -> float {
+    int places = digits;
+    if (places < 0) { places = 0; }
+    float scale = 1.0;
+    int index = 0;
+    while (index < places) { scale = scale * 10.0; index = index + 1; }
+    if (value >= 0.0) { return global.floatOf(global.intOf(value * scale + 0.5)) / scale; }
+    return global.floatOf(global.intOf(value * scale - 0.5)) / scale;
 }
 
 //// List functions ////
 global lenList(list lst) -> int { return returnLength(lst); }
 global listFirst(list lst) -> any {
-    if (returnLength(lst) == 0) {
-        error("listFirst: empty list");
-    }
+    global.assert(returnLength(lst) > 0, "listFirst: empty list");
     return listGet(lst, 0);
 }
 global listLast(list lst) -> any {
-    if (returnLength(lst) == 0) {
-        error("listLast: empty list");
-    }
+    global.assert(returnLength(lst) > 0, "listLast: empty list");
     return listGet(lst, returnLength(lst) - 1);
 }
-global listHead(list lst, int n) -> list {
-    if (n <= 0) {
-        return [];
-    }
-    return listSlice(lst, 0, min(n, returnLength(lst)));
+global listHead(list lst, int count) -> list {
+    if (count <= 0) { return []; }
+    return listSlice(lst, 0, typingMin(count, returnLength(lst)));
 }
-global listTail(list lst, int n) -> list {
-    if (n <= 0) {
-        return [];
-    }
-    int len = returnLength(lst);
-    if (len == 0) {
-        return [];
-    }
-    return listSlice(lst, max(0, len - n), len);
+global listTail(list lst, int count) -> list {
+    if (count <= 0) { return []; }
+    int length = returnLength(lst);
+    if (length is 0) { return []; }
+    return listSlice(lst, typingMax(0, length - count), length);
 }
 global listSum(list lst) -> float {
-    float sum = 0.0;
-    for (int i = 0; i < returnLength(lst); i = i + 1) {
-        any val = listGet(lst, i);
-        if (isNum(val)) {
-            sum = sum + floatOf(val);
-        }
+    float total = 0.0;
+    int index = 0;
+    while (index < returnLength(lst)) {
+        any value = listGet(lst, index);
+        if (isNum(value)) { total = total + global.floatOf(value); }
+        index = index + 1;
     }
-    return sum;
+    return total;
 }
 global listAvg(list lst) -> float {
-    if (returnLength(lst) == 0) {
-        return 0.0;
-    }
+    if (returnLength(lst) is 0) { return 0.0; }
     return listSum(lst) / returnLength(lst);
 }
-global listCount(list lst, any val) -> int {
-    int count = 0;
-    for (int i = 0; i < returnLength(lst); i = i + 1) {
-        if (listGet(lst, i) == val) {
-            count = count + 1;
-        }
+global listCount(list lst, any value) -> int {
+    int total = 0;
+    int index = 0;
+    while (index < returnLength(lst)) {
+        if (listGet(lst, index) is value) { total = total + 1; }
+        index = index + 1;
     }
-    return count;
+    return total;
 }
-global listRepeat(any val, int n) -> list {
+global listRepeat(any value, int count) -> list {
     list result = [];
-    for (int i = 0; i < n; i = i + 1) {
-        result = listPush(result, val);
+    int index = 0;
+    while (index < count) {
+        result = listPush(result, value);
+        index = index + 1;
     }
     return result;
 }
-global listZip(list lst1, list lst2) -> list {
+global listZip(list first, list second) -> list {
     list result = [];
-    int len = min(returnLength(lst1), returnLength(lst2));
-    for (int i = 0; i < len; i = i + 1) {
-        any a = listGet(lst1, i);
-        any b = listGet(lst2, i);
-        result = listPush(result, inter"{\"a\":\"" + strOf(a) + \",\"b\":\"" + strOf(b) + "}");
+    int length = typingMin(returnLength(first), returnLength(second));
+    int index = 0;
+    while (index < length) {
+        any a = listGet(first, index);
+        any b = listGet(second, index);
+        result = listPush(result, "{\"a\":\"" + global.strOf(a) + "\",\"b\":\"" + global.strOf(b) + "\"}");
+        index = index + 1;
     }
     return result;
 }
 global flatten(list lst) -> list {
     list result = [];
-    for (int i = 0; i < returnLength(lst); i = i + 1) {
-        any item = listGet(lst, i);
+    int index = 0;
+    while (index < returnLength(lst)) {
+        any item = listGet(lst, index);
         if (isList(item)) {
             result = listExtend(result, item);
         } else {
             result = listPush(result, item);
         }
+        index = index + 1;
     }
     return result;
 }
 global unique(list lst) -> list {
     list result = [];
-    for (int i = 0; i < returnLength(lst); i = i + 1) {
-        any item = listGet(lst, i);
-        if (!listContains(result, item)) {
-            result = listPush(result, item);
-        }
+    int index = 0;
+    while (index < returnLength(lst)) {
+        any item = listGet(lst, index);
+        if (not listContains(result, item)) { result = listPush(result, item); }
+        index = index + 1;
+    }
+    return result;
+}
+global listChunk(list lst, int size) -> list {
+    if (size <= 0) { return []; }
+    list result = [];
+    int length = returnLength(lst);
+    int index = 0;
+    while (index < length) {
+        int end = typingMin(index + size, length);
+        result = listPush(result, listJsonArray(listSlice(lst, index, end)));
+        index = index + size;
     }
     return result;
 }
 
 //// Tuple functions ////
-global tupleReverse(any t) -> tuple {
-    if (!isTuple(t)) {
-        return ();
-    }
-    list lst = tupleToList(t);
-    return listToTuple(reverseList(lst));
+global tupleReverse(any value) -> tuple {
+    if (not isTuple(value)) { return (); }
+    return listToTuple(reverseList(tupleToList(value)));
 }
-global tupleSort(any t) -> tuple {
-    if (!isTuple(t)) {
-        return ();
-    }
-    list lst = tupleToList(t);
-    return listToTuple(sortList(lst));
+global tupleSort(any value) -> tuple {
+    if (not isTuple(value)) { return (); }
+    return listToTuple(sortList(tupleToList(value)));
 }
-global tupleSortDesc(any t) -> tuple {
-    if (!isTuple(t)) {
-        return ();
-    }
-    list lst = tupleToList(t);
-    return listToTuple(sortList(lst, true));
+global tupleSortDesc(any value) -> tuple {
+    if (not isTuple(value)) { return (); }
+    return listToTuple(sortList(tupleToList(value), true));
 }
-global tupleMin(any t) -> any {
-    if (!isTuple(t) or returnLength(t) == 0) {
-        return none;
-    }
-    list lst = tupleToList(t);
-    return listMin(lst);
+global tupleMin(any value) -> any {
+    if (not isTuple(value) or returnLength(value) is 0) { return none; }
+    return listMin(tupleToList(value));
 }
-global tupleMax(any t) -> any {
-    if (!isTuple(t) or returnLength(t) == 0) {
-        return none;
-    }
-    list lst = tupleToList(t);
-    return listMax(lst);
+global tupleMax(any value) -> any {
+    if (not isTuple(value) or returnLength(value) is 0) { return none; }
+    return listMax(tupleToList(value));
 }
-global tupleSum(any t) -> float {
-    if (!isTuple(t)) {
-        return 0.0;
-    }
-    list lst = tupleToList(t);
-    return listSum(lst);
+global tupleSum(any value) -> float {
+    if (not isTuple(value)) { return 0.0; }
+    return listSum(tupleToList(value));
 }
-global tupleAny(any t) -> bool {
-    if (!isTuple(t)) {
-        return false;
-    }
-    list lst = tupleToList(t);
-    for (int i = 0; i < returnLength(lst); i = i + 1) {
-        any val = listGet(lst, i);
-        if (val isnt 0 and val isnt none) {
-            return true;
-        }
+global tupleAny(any value) -> bool {
+    if (not isTuple(value)) { return false; }
+    list items = tupleToList(value);
+    int index = 0;
+    while (index < returnLength(items)) {
+        any item = listGet(items, index);
+        if (item isnt 0 and item isnt none) { return true; }
+        index = index + 1;
     }
     return false;
 }
-global tupleAll(any t) -> bool {
-    if (!isTuple(t)) {
-        return true;
-    }
-    list lst = tupleToList(t);
-    for (int i = 0; i < returnLength(lst); i = i + 1) {
-        any val = listGet(lst, i);
-        if (val is 0 or val is none) {
-            return false;
-        }
+global tupleAll(any value) -> bool {
+    if (not isTuple(value)) { return true; }
+    list items = tupleToList(value);
+    int index = 0;
+    while (index < returnLength(items)) {
+        any item = listGet(items, index);
+        if (item is 0 or item is none) { return false; }
+        index = index + 1;
     }
     return true;
 }
-global tupleUnique(any t) -> tuple {
-    if (!isTuple(t)) {
-        return ();
-    }
-    list lst = tupleToList(t);
-    return listToTuple(unique(lst));
+global tupleUnique(any value) -> tuple {
+    if (not isTuple(value)) { return (); }
+    return listToTuple(unique(tupleToList(value)));
 }
-global tupleMean(any t) -> float {
-    if (!isTuple(t) or returnLength(t) == 0) {
-        return 0.0;
-    }
-    return tupleSum(t) / returnLength(t);
+global tupleMean(any value) -> float {
+    if (not isTuple(value) or returnLength(value) is 0) { return 0.0; }
+    return tupleSum(value) / returnLength(value);
 }
-global tupleFlatten(any t) -> tuple {
-    if (!isTuple(t)) {
-        return ();
-    }
+global tupleFlatten(any value) -> tuple {
+    if (not isTuple(value)) { return (); }
     list result = [];
-    for (int i = 0; i < returnLength(t); i = i + 1) {
-        any item = tupleGet(t, i);
+    int index = 0;
+    while (index < returnLength(value)) {
+        any item = tupleGet(value, index);
         if (isTuple(item)) {
             result = listExtend(result, tupleToList(item));
         } else {
             result = listPush(result, item);
         }
+        index = index + 1;
     }
     return listToTuple(result);
 }
-global tupleZip(any t1, any t2) -> list {
-    if (!isTuple(t1) or !isTuple(t2)) {
-        return [];
-    }
+global tupleZip(any first, any second) -> list {
+    if (not isTuple(first) or not isTuple(second)) { return []; }
     list result = [];
-    int len = min(returnLength(t1), returnLength(t2));
-    for (int i = 0; i < len; i = i + 1) {
-        any a = tupleGet(t1, i);
-        any b = tupleGet(t2, i);
-        result = listPush(result, inter"{\"a\":\"" + strOf(a) + \",\"b\":\"" + strOf(b) + "}");
+    int length = typingMin(returnLength(first), returnLength(second));
+    int index = 0;
+    while (index < length) {
+        any a = tupleGet(first, index);
+        any b = tupleGet(second, index);
+        result = listPush(result, "{\"a\":\"" + global.strOf(a) + "\",\"b\":\"" + global.strOf(b) + "\"}");
+        index = index + 1;
     }
     return result;
 }
-global tupleJoin(any t, str sep) -> str {
-    if (!isTuple(t)) {
-        return "";
-    }
-    list lst = tupleToList(t);
+global tupleJoin(any value, str separator) -> str {
+    if (not isTuple(value)) { return ""; }
+    list items = tupleToList(value);
     str result = "";
-    for (int i = 0; i < returnLength(lst); i = i + 1) {
-        if (i > 0) {
-            result = result + sep;
-        }
-        result = result + strOf(listGet(lst, i));
+    int index = 0;
+    while (index < returnLength(items)) {
+        if (index > 0) { result = result + separator; }
+        result = result + global.strOf(listGet(items, index));
+        index = index + 1;
     }
     return result;
 }
 
 //// Sequence conversion ////
 global toList(any val) -> list {
-    if (isTuple(val)) {
-        return tupleToList(val);
-    } else if (isList(val)) {
-        return val;
-    }
+    if (isTuple(val)) { return tupleToList(val); }
+    if (isList(val)) { return val; }
     return [];
 }
 global toTuple(any val) -> tuple {
-    if (isList(val)) {
-        return listToTuple(val);
-    } else if (isTuple(val)) {
-        return val;
-    }
+    if (isList(val)) { return listToTuple(val); }
+    if (isTuple(val)) { return val; }
     return ();
 }
 global lenSequence(any val) -> int {
-    if (isSequence(val)) {
-        return returnLength(val);
-    }
+    if (isSequence(val)) { return returnLength(val); }
     return 0;
 }
 

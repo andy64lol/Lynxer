@@ -88,4 +88,31 @@ global parseDelimited(str csvStr, str delimiter) -> str {
     return global.nativeCsv.parseDelimited(csvStr, delimiter);
 }
 
+// ── Legacy aliases ──
+// Names from the earlier csv API, kept as forwarders. Note two intentional
+// divergences from the legacy shapes: `csvRow` returns a JSON object keyed by
+// the header row (the same as one element of parseToJson), and `csvHeaders`
+// returns a comma-joined string rather than a JSON array.
+global parseCSV(str csvStr) -> str { return parseToJson(csvStr); }
+global parseCSVRaw(str csvStr) -> str { return parseRows(csvStr); }
+global readCSVRaw(str path) -> str {
+    str raw = readCSV(path);
+    if (returnLength(raw) >= 6 and global.substring(raw, 0, 6) is "ERROR:") {
+        return "[]";
+    }
+    return parseRows(raw);
+}
+global csvColumn(str csvStr, str colName) -> str { return getColumn(csvStr, colName); }
+global csvRowCount(str csvStr) -> int { return rowCount(csvStr); }
+global csvHeaders(str csvStr) -> str { return global.nativeCsv.csvHeaders(csvStr); }
+global csvRow(str csvStr, int rowIdx) -> str {
+    return global.nativeCsv.csvRow(csvStr, rowIdx);
+}
+global filterCSV(str csvStr, str colName, str value) -> str {
+    return filterRows(csvStr, colName, value);
+}
+global dedupCSV(str csvStr, str colName) -> str {
+    return global.nativeCsv.dedupCSV(csvStr, colName);
+}
+
 global main(){}

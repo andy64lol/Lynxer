@@ -32,4 +32,15 @@ global main(){
     str quoted = "name,note\nalpha,\"hello, world\"\nbeta,\"say \"\"hi\"\"\"\n";
     println(global.csv.parseRows(quoted));
     println(global.csv.buildCSV("[{\"name\": \"alpha\", \"note\": \"a,b\"}]", "name,note"));
+
+    // Legacy-name forwarders.
+    println(global.csv.parseCSV(data));
+    println(global.csv.parseCSVRaw(data));
+    println(global.csv.csvHeaders(data));
+    println(global.csv.csvRow(data, 1));
+    println(global.csv.csvColumn(data, "name"));
+    println(global.csv.csvRowCount(data));
+    println(global.csv.filterCSV(data, "city", "London"));
+    println(global.csv.dedupCSV(data, "city"));
+    println(global.csv.readCSVRaw("/no/such/file"));
 }

@@ -44,6 +44,10 @@ LYNXER_LOOP_FIXTURE := $(LYNXER_DIR)/examples/loops.lynx
 LYNXER_ERROR_FIXTURE := $(LYNXER_DIR)/examples/control_flow_error.lynx
 LYNXER_COMMENT_FIXTURE := $(LYNXER_DIR)/examples/comments.lynx
 LYNXER_SETUP_ERROR_FIXTURE := $(LYNXER_DIR)/examples/missing_setup.lynx
+# A run-time failure raised inside an imported module: the diagnostic must name
+# the module file, not the importing program.
+LYNXER_MODULE_ERROR_FIXTURE := $(LYNXER_DIR)/examples/module_error.lynx
+LYNXER_MODULE_ERROR_LIB := $(LYNXER_DIR)/examples/module_error_lib.lynx
 LYNXER_INPUTLN_FIXTURE := $(LYNXER_DIR)/examples/inputln.lynx
 LYNXER_MILESTONE4_FIXTURE := $(LYNXER_DIR)/examples/milestone4.lynx
 LYNXER_MILESTONE4_PATTERN_FIXTURE := $(LYNXER_DIR)/examples/milestone4_patterns.lynx
@@ -273,6 +277,16 @@ expected="lynxer: $(LYNXER_SETUP_ERROR_FIXTURE):3:2: program must define global 
 expected="lynxer: $(LYNXER_ERROR_FIXTURE):4:8: unknown variable 'missing'"; \
 	if [ "$$status" -ne 1 ] || [ "$$output" != "$$expected" ]; then \
 	echo "expected source-located error: $$expected"; \
+	echo "received (status $$status): $$output"; \
+	exit 1; \
+	fi
+	@set +e; \
+	output="$$($(CLYX) $(LYNXER_MODULE_ERROR_FIXTURE) 2>&1)"; \
+	status=$$?; \
+	set -e; \
+expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:23: charAt() index is out of range"; \
+	if [ "$$status" -ne 1 ] || [ "$$output" != "$$expected" ]; then \
+	echo "expected module-located error: $$expected"; \
 	echo "received (status $$status): $$output"; \
 	exit 1; \
 	fi

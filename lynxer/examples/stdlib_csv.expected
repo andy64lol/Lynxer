@@ -46,3 +46,18 @@ a,b
 name,note
 alpha,"a,b"
 
+[{"name": "alpha", "age": "30", "city": "London"}, {"name": "beta", "age": "25", "city": "Paris"}, {"name": "gamma", "age": "30", "city": "London"}]
+[["name", "age", "city"], ["alpha", "30", "London"], ["beta", "25", "Paris"], ["gamma", "30", "London"]]
+name,age,city
+{"name": "beta", "age": "25", "city": "Paris"}
+["alpha", "beta", "gamma"]
+3
+name,age,city
+alpha,30,London
+gamma,30,London
+
+name,age,city
+alpha,30,London
+beta,25,Paris
+
+[]

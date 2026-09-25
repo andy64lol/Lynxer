@@ -105,6 +105,25 @@
 <tr><td><code>parseDelimited</code></td><td><code>(str csvStr, str delimiter)</code></td><td>JSON array of objects using a custom delimiter</td></tr>
 </table>
 <p>Dialect follows the standard <code>csv</code> format: <code>,</code> delimiter, <code>&quot;</code> quoting with <code>&quot;&quot;</code> escaping, and <code>\r\n</code> line terminators on output. Non-string JSON values are rendered as <code>&quot;&quot;</code> / <code>true</code> / <code>false</code>.</p>
+<h2 id="legacy-aliases">Legacy aliases</h2>
+<p>Names from the earlier <code>csv</code> API, kept as forwarders:</p>
+<table>
+<tr><th>Alias</th><th>Equivalent</th></tr>
+<tr><td><code>parseCSV(csvStr)</code></td><td><code>parseToJson(csvStr)</code></td></tr>
+<tr><td><code>parseCSVRaw(csvStr)</code></td><td><code>parseRows(csvStr)</code></td></tr>
+<tr><td><code>readCSVRaw(path)</code></td><td><code>parseRows(readCSV(path))</code>; <code>&quot;[]&quot;</code> when <code>readCSV</code> returns <code>&quot;ERROR: ...&quot;</code></td></tr>
+<tr><td><code>csvColumn(csvStr, col)</code></td><td><code>getColumn(csvStr, col)</code></td></tr>
+<tr><td><code>csvRowCount(csvStr)</code></td><td><code>rowCount(csvStr)</code></td></tr>
+<tr><td><code>filterCSV(csvStr, col, value)</code></td><td><code>filterRows(csvStr, col, value)</code></td></tr>
+</table>
+<p>Three aliases have no single-op equivalent and are implemented natively:</p>
+<table>
+<tr><th>Function</th><th>Signature</th><th>Returns</th></tr>
+<tr><td><code>csvHeaders</code></td><td><code>(str csvStr)</code></td><td>Header names joined by commas</td></tr>
+<tr><td><code>csvRow</code></td><td><code>(str csvStr, int rowIdx)</code></td><td>JSON object for data row <code>rowIdx</code></td></tr>
+<tr><td><code>dedupCSV</code></td><td><code>(str csvStr, str colName)</code></td><td>CSV text with the first row kept per distinct column value</td></tr>
+</table>
+<p><code>readCSV</code> returns raw file content, so <code>readCSVRaw</code> differs from the legacy <code>readCSV</code> (which returned objects); use <code>parseCSV</code>/<code>parseToJson</code> for objects.</p>
 <h2 id="example">Example</h2>
 <pre><code>global setup(){ import(&quot;csv&quot;); import(&quot;json&quot;); }
 

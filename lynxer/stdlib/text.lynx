@@ -224,5 +224,80 @@ global splitLines(str value) -> list {
 global indent(str value, str prefix) -> str {
     return prefix + global.replace(value, "\n", "\n" + prefix);
 }
+global indexOf(str value, str needle) -> int {
+    if(returnLength(needle) is 0){ return 0; }
+    int index = 0;
+    while(index <= returnLength(value) - returnLength(needle)){
+        if(substring(value, index, index + returnLength(needle)) is needle){
+            return index;
+        }
+        index = index + 1;
+    }
+    return -1;
+}
+global spaces(int count) -> str { return repeat(" ", count); }
+global zfill(str value, int width) -> str {
+    if(returnLength(value) >= width){ return value; }
+    str sign = "";
+    str digits = value;
+    if(returnLength(value) > 0){
+        str first = charAt(value, 0);
+        if(first is "-" or first is "+"){
+            sign = first;
+            digits = substring(value, 1, returnLength(value));
+        }
+    }
+    return sign + padLeft(digits, width - returnLength(sign), "0");
+}
+global wordWrap(str value, int width) -> str {
+    if(width <= 0){ return value; }
+    list words = split(value, " ");
+    str line = "";
+    list lines = [];
+    int index = 0;
+    while(index < returnLength(words)){
+        str word = listGet(words, index);
+        if(returnLength(line) is 0){
+            line = word;
+        } elif(returnLength(line) + 1 + returnLength(word) <= width){
+            line = line + " " + word;
+        } else {
+            lines = listPush(lines, line);
+            line = word;
+        }
+        index = index + 1;
+    }
+    if(returnLength(line) > 0){ lines = listPush(lines, line); }
+    return join(lines, "\n");
+}
+global expandTabs(str value, int tabSize) -> str {
+    if(tabSize <= 0){ return value; }
+    str result = "";
+    int column = 0;
+    int index = 0;
+    while(index < returnLength(value)){
+        str character = charAt(value, index);
+        if(character is "\t"){
+            int needed = tabSize - (column % tabSize);
+            result = result + spaces(needed);
+            column = column + needed;
+        } elif(character is "\n"){
+            result = result + character;
+            column = 0;
+        } else {
+            result = result + character;
+            column = column + 1;
+        }
+        index = index + 1;
+    }
+    return result;
+}
+global splitFirst(str value, str separator) -> list {
+    if(returnLength(separator) is 0){ return ["", value]; }
+    int at = indexOf(value, separator);
+    if(at < 0){ return [value, ""]; }
+    return [substring(value, 0, at),
+            substring(value, at + returnLength(separator), returnLength(value))];
+}
 
 global main(){}

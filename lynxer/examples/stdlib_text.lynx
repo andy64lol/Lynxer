@@ -22,4 +22,13 @@ global main(){
     println(global.text.isEmpty("a"));
     println(global.text.isBlank("  "));
     println(global.text.isBlank(" a "));
+
+    // Search, padding and splitting helpers.
+    println(global.text.indexOf("banana", "na"));
+    println(global.text.indexOf("abc", "z"));
+    println(global.text.spaces(3), "|");
+    println(global.text.zfill("42", 5), " ", global.text.zfill("-42", 5));
+    println(global.text.wordWrap("the quick brown fox", 9));
+    println(global.text.expandTabs("a\tb\tc", 4), "|");
+    println(global.text.splitFirst("a=b=c", "="), " ", global.text.splitFirst("abc", "="));
 }

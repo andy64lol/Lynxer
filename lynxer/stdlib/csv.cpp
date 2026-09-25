@@ -460,6 +460,69 @@ extern "C" const char* csv_filterRows(const char* csvText,
     return stable(rowsToCsv(header, matched));
 }
 
+// Headers joined by commas (the legacy csvHeaders shape).
+extern "C" const char* csv_csvHeaders(const char* csvText) {
+    const Rows rows = parseDelimitedText(textOrEmpty(csvText), ',');
+    if (rows.empty()) {
+        return stable("");
+    }
+    std::string output;
+    for (std::size_t index = 0; index < rows.front().size(); ++index) {
+        if (index > 0) {
+            output += ",";
+        }
+        output += rows.front()[index];
+    }
+    return stable(output);
+}
+
+// One data row as a JSON object keyed by the header row.
+extern "C" const char* csv_csvRow(const char* csvText, std::int64_t rowIndex) {
+    const Rows rows = parseDelimitedText(textOrEmpty(csvText), ',');
+    if (rows.empty() || rowIndex < 0 ||
+        static_cast<std::size_t>(rowIndex) + 1 >= rows.size()) {
+        return stable("{}");
+    }
+    const std::vector<std::string>& header = rows.front();
+    const std::vector<std::string>& row =
+        rows[static_cast<std::size_t>(rowIndex) + 1];
+    Value object = native_json::makeObject();
+    for (std::size_t column = 0; column < header.size(); ++column) {
+        native_json::setField(
+            object, header[column],
+            native_json::makeString(
+                fieldAt(row, static_cast<std::ptrdiff_t>(column))));
+    }
+    return stable(native_json::dump(object, false));
+}
+
+// Keep the first row for each distinct value in column, preserving order.
+extern "C" const char* csv_dedupCSV(const char* csvText, const char* column) {
+    const Rows rows = parseDelimitedText(textOrEmpty(csvText), ',');
+    if (rows.empty()) {
+        return stable("");
+    }
+    const std::ptrdiff_t index = columnIndex(rows.front(), textOrEmpty(column));
+    std::vector<std::string> header = rows.front();
+    Rows kept;
+    std::vector<std::string> seen;
+    for (std::size_t row = 1; row < rows.size(); ++row) {
+        const std::string key = fieldAt(rows[row], index);
+        bool duplicate = false;
+        for (const auto& existing : seen) {
+            if (existing == key) {
+                duplicate = true;
+                break;
+            }
+        }
+        if (!duplicate) {
+            seen.push_back(key);
+            kept.push_back(rows[row]);
+        }
+    }
+    return stable(rowsToCsv(header, kept));
+}
+
 static std::string sortByColumn(const std::string& csvText,
                                 const std::string& column, bool descending) {
     const Rows rows = parseDelimitedText(csvText, ',');
@@ -568,6 +631,12 @@ extern "C" int lynxer_module_init_v1(RegisterFunction function,
                             "cdecl:int64(cstring,cstring)") &&
                    function("filterRows", "csv_filterRows",
                             "cdecl:cstring(cstring,cstring,cstring)") &&
+                   function("dedupCSV", "csv_dedupCSV",
+                            "cdecl:cstring(cstring,cstring)") &&
+                   function("csvHeaders", "csv_csvHeaders",
+                            "cdecl:cstring(cstring)") &&
+                   function("csvRow", "csv_csvRow",
+                            "cdecl:cstring(cstring,int64)") &&
                    function("sortCSV", "csv_sortCSV",
                             "cdecl:cstring(cstring,cstring)") &&
                    function("sortCSVDesc", "csv_sortCSVDesc",

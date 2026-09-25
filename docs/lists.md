@@ -165,6 +165,9 @@ The `typing` module provides additional tuple functions:
 | `tupleJoin(t, sep)` | All elements joined as a string with separator |
 
 *Note:* These functions require importing the `typing` module (`import("typing")`).
+
+| Group | Contains |
+|-------|----------|
 | `tupleConcat(a, b)`, `tupleJoin(a, b)`, `tupleZip(a, b)` | combination |
 | `tupleFlatten`, `tupleReverse`, `tupleUnique` | reshaping |
 | `tupleSort`, `tupleSortDesc` | ordering |

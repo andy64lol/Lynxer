@@ -16,3 +16,11 @@ true
 false
 true
 false
+2
+-1
+   |
+00042 -0042
+the quick
+brown fox
+a   b   c|
+[a, b=c] [abc, ]

@@ -151,6 +151,26 @@ global main(){
     fails += global.check(global.typing.isInt8(-5), "true", "typing.isInt8.true");
     fails += global.check(global.typing.isInt16(40000), "false", "typing.isInt16.false");
     fails += global.check(global.typing.isInt32(2147483647), "true", "typing.isInt32.true");
+    fails += global.check(global.typing.isDigit("123"), "true", "typing.isDigit.true");
+    fails += global.check(global.typing.isAlpha("a1"), "false", "typing.isAlpha.false");
+    fails += global.check(global.typing.isSpace(" \t"), "true", "typing.isSpace.true");
+    fails += global.check(global.typing.abs(-4), "4", "typing.abs");
+    fails += global.check(global.typing.sign(-9), "-1", "typing.sign");
+    fails += global.check(global.typing.maxOf(3, 7), "7", "typing.maxOf");
+    fails += global.check(global.typing.clamp(15.0, 0.0, 10.0), "10", "typing.clamp");
+    fails += global.check(global.typing.roundTo(3.14159, 2), "3.14", "typing.roundTo");
+    fails += global.check(global.typing.charCodeOf("A"), "65", "typing.charCodeOf");
+    fails += global.check(global.typing.charOf(66), "B", "typing.charOf");
+    fails += global.check(global.typing.charAt("hello", 1), "e", "typing.charAt");
+    fails += global.check(global.typing.charAt("hello", 9), "none", "typing.charAt.oob");
+    fails += global.check(global.typing.indexOf("banana", "na"), "2", "typing.indexOf");
+    fails += global.check(global.typing.zfill("42", 5), "00042", "typing.zfill");
+    fails += global.check(global.typing.strReverse("abc"), "cba", "typing.strReverse");
+    fails += global.check(global.typing.toByte(300), "255", "typing.toByte.clamp");
+    fails += global.check(global.typing.listHead([int 1, int 2, int 3], 2), "[1, 2]", "typing.listHead");
+    fails += global.check(global.typing.listFirst([int 7, int 8]), "7", "typing.listFirst");
+    fails += global.check(global.typing.listLast([int 7, int 8]), "8", "typing.listLast");
+    fails += global.check(global.typing.listChunk([int 1, int 2, int 3], 2), "[[1, 2], [3]]", "typing.listChunk");
 
     // ------------------------------------------------------------------ text
     println("== text ==");
@@ -172,6 +192,12 @@ global main(){
     fails += global.check(global.text.isEmpty("a"), "false", "text.isEmpty.false");
     fails += global.check(global.text.isBlank("  "), "true", "text.isBlank.true");
     fails += global.check(global.text.isBlank(" a "), "false", "text.isBlank.false");
+    fails += global.check(global.text.indexOf("banana", "na"), "2", "text.indexOf");
+    fails += global.check(global.text.spaces(3), "   ", "text.spaces");
+    fails += global.check(global.text.zfill("42", 5), "00042", "text.zfill");
+    fails += global.check(global.text.splitFirst("a=b", "="), "[a, b]", "text.splitFirst");
+    fails += global.check(global.text.expandTabs("a\tb", 4), "a   b", "text.expandTabs");
+    fails += global.check(global.text.wordWrap("the quick", 4), "the\nquick", "text.wordWrap");
 
     // -------------------------------------------------------------- colorlib
     println("== colorlib ==");
@@ -276,6 +302,15 @@ global main(){
     str quoted = "name,note\nalpha,\"hello, world\"\nbeta,\"say \"\"hi\"\"\"\n";
     fails += global.check(global.csv.parseRows(quoted), "[[\"name\", \"note\"], [\"alpha\", \"hello, world\"], [\"beta\", \"say \\\"hi\\\"\"]]", "csv.parseRows.quoted");
     fails += global.check(global.csv.buildCSV("[{\"name\": \"alpha\", \"note\": \"a,b\"}]", "name,note"), "name,note\r\nalpha,\"a,b\"\r\n", "csv.buildCSV.quoted");
+    fails += global.check(global.csv.parseCSV(csvData), global.csv.parseToJson(csvData), "csv.parseCSV");
+    fails += global.check(global.csv.parseCSVRaw(csvData), global.csv.parseRows(csvData), "csv.parseCSVRaw");
+    fails += global.check(global.csv.csvHeaders(csvData), "name,age,city", "csv.csvHeaders");
+    fails += global.check(global.csv.csvRow(csvData, 1), "{\"name\": \"beta\", \"age\": \"25\", \"city\": \"Paris\"}", "csv.csvRow");
+    fails += global.check(global.csv.csvColumn(csvData, "name"), "[\"alpha\", \"beta\", \"gamma\"]", "csv.csvColumn");
+    fails += global.check(global.csv.csvRowCount(csvData), "3", "csv.csvRowCount");
+    fails += global.check(global.csv.filterCSV(csvData, "city", "London"), "name,age,city\r\nalpha,30,London\r\ngamma,30,London\r\n", "csv.filterCSV");
+    fails += global.check(global.csv.dedupCSV(csvData, "city"), "name,age,city\r\nalpha,30,London\r\nbeta,25,Paris\r\n", "csv.dedupCSV");
+    fails += global.check(global.csv.readCSVRaw("/no/such/file"), "[]", "csv.readCSVRaw.missing");
 
     // ----------------------------------------------------------------- regex
     println("== regex ==");
@@ -302,6 +337,7 @@ global main(){
     fails += global.check(global.regex.findDigits("ab12cd"), "[\"12\"]", "regex.findDigits");
     fails += global.check(global.regex.globToRegex("*.txt"), "^.*\\.txt$", "regex.globToRegex");
     fails += global.check(global.regex.countMatches("\\d+", "a1 b22 c333"), "3", "regex.countMatches");
+    fails += global.check(global.regex.countWords("the quick brown fox"), "4", "regex.countWords");
     fails += global.check(global.regex.firstMatchPos("\\d+", "ab12"), "2", "regex.firstMatchPos");
     fails += global.check(global.regex.truncateMatch("\\d+", "abcdef123456ghij", 7), "def1234", "regex.truncateMatch");
     global.regex.clearCache();
