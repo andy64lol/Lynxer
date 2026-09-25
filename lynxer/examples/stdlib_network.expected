@@ -47,5 +47,19 @@ ERROR: no connection named 'nope'
 ERROR: no connection named 'nope'
 ok
 false
+true
 ok
+ok
+true
+ok
+ok
+true
+ok
+true
+true
+true
+true
+true
+ok
+false
 false

@@ -1143,6 +1143,7 @@ name = "lynxer_image"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
+ "fontdue",
  "image 0.25.10",
  "lynxer_abi",
 ]

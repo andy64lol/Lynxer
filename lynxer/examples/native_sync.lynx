@@ -1,0 +1,58 @@
+////
+Fixture for the managed `nativeMutex*`, `nativeCondition*` and
+`nativeSemaphore*` built-ins.
+
+Everything here is single-threaded and deterministic: handles, ownership
+checks, error messages and the non-blocking paths. A blocking wait is only
+exercised where the resource is already available, so the output is host- and
+scheduler-independent.
+////
+global setup(){}
+
+global main(){
+    // --- mutex ---------------------------------------------------------
+    int mutex = nativeMutexCreate();
+    println("tryLock free ", nativeMutexTryLock(mutex));
+    println("tryLock again (non-recursive) ", nativeMutexTryLock(mutex));
+    try { nativeMutexClose(mutex); } catch(str e) { println("close locked: ", e); }
+    nativeMutexUnlock(mutex);
+    try { nativeMutexUnlock(mutex); } catch(str e) { println("unlock unlocked: ", e); }
+    nativeMutexLock(mutex);
+    println("lock blocking ok");
+    nativeMutexUnlock(mutex);
+    nativeMutexClose(mutex);
+    try { nativeMutexLock(mutex); } catch(str e) { println("closed mutex: ", e); }
+
+    // --- condition -----------------------------------------------------
+    int cmutex = nativeMutexCreate();
+    int condition = nativeConditionCreate();
+    try { nativeConditionNotify(condition, cmutex); } catch(str e) { println("notify unheld: ", e); }
+    try { nativeConditionWait(condition, cmutex); } catch(str e) { println("wait unheld: ", e); }
+    nativeMutexLock(cmutex);
+    nativeConditionNotify(condition, cmutex);
+    nativeConditionNotifyAll(condition, cmutex);
+    println("notify held ok");
+    nativeMutexUnlock(cmutex);
+    try { nativeConditionNotify(condition, 9999); } catch(str e) { println("notify bad mutex: ", e); }
+    nativeConditionClose(condition);
+    nativeMutexClose(cmutex);
+
+    // --- semaphore -----------------------------------------------------
+    int semaphore = nativeSemaphoreCreate(2);
+    println("tryWait 1 ", nativeSemaphoreTryWait(semaphore));
+    println("tryWait 2 ", nativeSemaphoreTryWait(semaphore));
+    println("tryWait 3 ", nativeSemaphoreTryWait(semaphore));
+    nativeSemaphorePost(semaphore);
+    nativeSemaphoreWait(semaphore);
+    println("wait available ok");
+    nativeSemaphorePost(semaphore);
+    nativeSemaphorePost(semaphore);
+    println("tryWait 4 ", nativeSemaphoreTryWait(semaphore));
+    nativeSemaphoreClose(semaphore);
+    try { nativeSemaphorePost(semaphore); } catch(str e) { println("closed semaphore: ", e); }
+
+    // --- argument validation -------------------------------------------
+    try { nativeMutexCreate(1); } catch(str e) { println("create args: ", e); }
+    try { nativeSemaphoreCreate(-1); } catch(str e) { println("negative initial: ", e); }
+    try { nativeConditionWait(condition); } catch(str e) { println("wait args: ", e); }
+}

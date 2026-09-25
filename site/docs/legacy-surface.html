@@ -113,11 +113,11 @@
 <h2 id="native-synchronization">Native synchronization</h2>
 <table>
 <tr><th>Family</th><th>Status</th><th>Notes</th></tr>
-<tr><td><code>nativeMutexCreate/Lock/TryLock/Unlock/Close</code></td><td>Not planned</td><td>No pre-emptive threads to protect</td></tr>
-<tr><td><code>nativeConditionCreate/Wait/Notify/NotifyAll/Close</code></td><td>Not planned</td><td>—</td></tr>
-<tr><td><code>nativeSemaphoreCreate/Wait/TryWait/Post/Close</code></td><td>Not planned</td><td>—</td></tr>
+<tr><td><code>nativeMutexCreate/Lock/TryLock/Unlock/Close</code></td><td>Implemented</td><td>Non-recursive; only the owning thread may unlock</td></tr>
+<tr><td><code>nativeConditionCreate/Wait/Notify/NotifyAll/Close</code></td><td>Implemented</td><td>The caller must hold the mutex for every operation</td></tr>
+<tr><td><code>nativeSemaphoreCreate/Wait/TryWait/Post/Close</code></td><td>Implemented</td><td>Closing is refused while a thread waits</td></tr>
 </table>
-<p><strong>Why:</strong> Lynxer evaluates on one interpreter thread under a single lock, so there is no shared mutable state to guard. The cooperative <a href="builtins.html#native-threads"><code>nativeThread*</code></a> family is the supported model.</p>
+<p><strong>Caveat:</strong> Lynxer evaluates on one interpreter thread under a single lock, and these handles sit on top of the cooperative <a href="builtins.html#native-threads"><code>nativeThread*</code></a> model. A blocking wait releases the interpreter lock so another thread can run, but a wait on a resource no other thread will release deadlocks. See <a href="builtins.html#native-synchronization">builtins</a>.</p>
 <h2 id="async">Async</h2>
 <p>The <code>async*</code> family is <strong>implemented</strong>: <code>asyncRun</code>, <code>asyncGather</code>, <code>asyncSleep</code>, the <code>asyncPoll*</code> set, and the timer/wakeup built-ins. <code>await</code> in the caller yields cooperatively. There is no <code>async</code> language support — the family is driven through explicit handles. See <a href="builtins.html#async">builtins</a>.</p>
 <h2 id="python-bridging">Python bridging</h2>
@@ -129,10 +129,10 @@
 <h2 id="ffi-and-native-module-handles">FFI and native-module handles</h2>
 <table>
 <tr><th>Family</th><th>Status</th><th>Notes</th></tr>
-<tr><td><code>nativeModuleLoad/Name/Function/Constant/Type/Error/Dependencies/Close</code></td><td>Not planned</td><td>Superseded by the import ABI</td></tr>
+<tr><td><code>nativeModuleLoad/Name/Function/Constant/Type/Error/Dependencies/Close</code></td><td>Implemented</td><td>Dynamic discovery over the same ABI as <code>importAs</code></td></tr>
 <tr><td><code>ffiLoadLibrary</code>, <code>ffiLookup</code>, <code>ffiCloseLibrary</code>, <code>ffiCall</code>, <code>ffiCallback</code>, <code>ffiFreeCallback</code></td><td>Implemented</td><td>In C++ (<code>lynxer/builtins.cpp</code>)</td></tr>
 </table>
-<p>Native code is reached through the documented <a href="native-module-abi.html">native-module ABI</a>: an <code>.so</code> exporting <code>lynxer_module_init_v1</code> is imported by name (<code>importAs(&quot;libx.so&quot;, &quot;x&quot;)</code>), so the <code>nativeModule*</code> handle built-ins are unnecessary. The <code>ffi*</code> family is the dynamic alternative.</p>
+<p>Native code is reached through the documented <a href="native-module-abi.html">native-module ABI</a>: an <code>.so</code> exporting <code>lynxer_module_init_v1</code> is imported by name (<code>importAs(&quot;libx.so&quot;, &quot;x&quot;)</code>), or loaded explicitly with <code>nativeModuleLoad</code> and inspected by name. Both share the same loader and registration rules; the <code>ffi*</code> family is the plain-symbol alternative. See <a href="builtins.html#explicit-native-module-handles">builtins</a>.</p>
 <h2 id="modules-not-ported">Modules not ported</h2>
 <table>
 <tr><th>Module</th><th>Status</th><th>Replacement</th></tr>
@@ -154,10 +154,10 @@
 <tr><td><code>getAddress</code> / <code>getAddressValue</code> / <code>modifyAddressValue</code></td><td>Implemented (addresses are integers)</td></tr>
 <tr><td><code>nativeFunctionAddress</code> / <code>nativeCall</code></td><td>Implemented (<code>nativeCall</code> over the small integer ABI)</td></tr>
 <tr><td><code>nativeHandle*</code></td><td>Implemented under the same names</td></tr>
-<tr><td><code>nativeMutex*</code> / <code>Condition*</code> / <code>Semaphore*</code></td><td><code>nativeThread*</code> (cooperative)</td></tr>
+<tr><td><code>nativeMutex*</code> / <code>Condition*</code> / <code>Semaphore*</code></td><td>Implemented (cooperative handles)</td></tr>
 <tr><td><code>async*</code></td><td>Implemented (cooperative handles over <code>sleep</code>)</td></tr>
 <tr><td><code>rawPy</code> / <code>embedPy</code></td><td>None (no CPython)</td></tr>
-<tr><td><code>nativeModule*</code> handles</td><td><code>importAs(&quot;&lt;name&gt;.so&quot;, …)</code></td></tr>
+<tr><td><code>nativeModule*</code> handles</td><td>Implemented (<code>importAs(&quot;&lt;name&gt;.so&quot;, …)</code> is the usual route)</td></tr>
 <tr><td><code>tkinter</code> / <code>turtle</code> / <code>venv</code></td><td>None</td></tr>
 </table>
 <h2 id="see-also">See also</h2>

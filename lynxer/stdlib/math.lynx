@@ -137,8 +137,6 @@ global remainder(float left, float right) -> float {
 }
 global roundNum(float value) -> float { return global.round(value); }
 global pi() -> float { return global.nativeMath.pi(); }
-global PI() -> float { return global.pi(); }
-global Pi() -> float { return global.pi(); }
 global e() -> float { return global.nativeMath.e(); }
 global degrees(float value) -> float {
     return global.nativeMath.degrees(value);

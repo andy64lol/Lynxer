@@ -7,8 +7,8 @@
 
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::io::ErrorKind;
-use std::net::ToSocketAddrs;
+use std::io::{ErrorKind, Read, Write};
+use std::net::{TcpStream, ToSocketAddrs, UdpSocket};
 use std::time::Duration;
 
 use lynxer_abi::{export_int, export_string, lynxer_module};
@@ -550,6 +550,181 @@ export_int!(network_ws_connected, args, {
     })
 });
 
+// --- Raw TCP client ---------------------------------------------------------
+//
+// Named connections, like the WebSocket registry. `tcp*` is deliberately
+// plaintext: TLS belongs to the HTTP/WebSocket client above.
+
+thread_local! {
+    static TCP_CONNECTIONS: RefCell<HashMap<String, TcpStream>> =
+        RefCell::new(HashMap::new());
+}
+
+const TCP_TIMEOUT: Duration = Duration::from_secs(30);
+
+fn tcp_resolve(host: &str, port: i64) -> Result<std::net::SocketAddr, String> {
+    let Ok(port) = u16::try_from(port) else {
+        return Err("invalid port".to_string());
+    };
+    match (host, port).to_socket_addrs() {
+        Ok(mut addresses) => addresses.next().ok_or_else(|| "resolve failed".to_string()),
+        Err(_) => Err("resolve failed".to_string()),
+    }
+}
+
+fn tcp_connect(name: &str, host: &str, port: i64) -> String {
+    if name.is_empty() {
+        return error_text("empty connection name");
+    }
+    let address = match tcp_resolve(host, port) {
+        Ok(address) => address,
+        Err(message) => return error_text(&message),
+    };
+    match TcpStream::connect_timeout(&address, TCP_TIMEOUT) {
+        Ok(stream) => {
+            // Bound every later receive, so a quiet peer cannot wedge the
+            // interpreter thread.
+            let _ = stream.set_read_timeout(Some(TCP_TIMEOUT));
+            TCP_CONNECTIONS.with(|connections| {
+                connections.borrow_mut().insert(name.to_string(), stream);
+            });
+            "ok".to_string()
+        }
+        Err(error) => error_text(&error.to_string()),
+    }
+}
+
+fn tcp_send_to(stream: &mut TcpStream, data: &str) -> String {
+    match stream.write_all(data.as_bytes()).and_then(|()| stream.flush()) {
+        Ok(()) => "ok".to_string(),
+        Err(_) => error_text("send failed"),
+    }
+}
+
+fn tcp_receive_from(stream: &mut TcpStream, buffer_size: i64) -> String {
+    if buffer_size <= 0 {
+        return error_text("receive size must be positive");
+    }
+    let mut buffer = vec![0u8; buffer_size as usize];
+    match stream.read(&mut buffer) {
+        Ok(0) => String::new(),
+        Ok(count) => String::from_utf8_lossy(&buffer[..count]).into_owned(),
+        Err(error) if matches!(error.kind(), ErrorKind::WouldBlock | ErrorKind::TimedOut) => {
+            error_text("receive timeout")
+        }
+        Err(_) => error_text("receive failed"),
+    }
+}
+
+fn tcp_send(key: &str, data: &str) -> String {
+    TCP_CONNECTIONS.with(|connections| {
+        let mut connections = connections.borrow_mut();
+        match connections.get_mut(key) {
+            Some(stream) => tcp_send_to(stream, data),
+            None => error_text(&format!("no connection named '{key}'")),
+        }
+    })
+}
+
+fn tcp_receive(key: &str, buffer_size: i64) -> String {
+    TCP_CONNECTIONS.with(|connections| {
+        let mut connections = connections.borrow_mut();
+        match connections.get_mut(key) {
+            Some(stream) => tcp_receive_from(stream, buffer_size),
+            None => error_text(&format!("no connection named '{key}'")),
+        }
+    })
+}
+
+fn tcp_send_receive(key: &str, data: &str, buffer_size: i64) -> String {
+    let sent = tcp_send(key, data);
+    if sent.starts_with("ERROR:") {
+        sent
+    } else {
+        tcp_receive(key, buffer_size)
+    }
+}
+
+fn tcp_close(key: &str) -> String {
+    let removed = TCP_CONNECTIONS.with(|connections| connections.borrow_mut().remove(key));
+    match removed {
+        Some(stream) => {
+            let _ = stream.shutdown(std::net::Shutdown::Both);
+            "ok".to_string()
+        }
+        None => error_text(&format!("no connection named '{key}'")),
+    }
+}
+
+/// The primary local IPv4 address. A connected UDP socket reports the interface
+/// the kernel would route through, without sending anything; the hostname's
+/// first non-loopback address is the fallback.
+fn local_ip() -> String {
+    if let Ok(socket) = UdpSocket::bind("0.0.0.0:0") {
+        if socket.connect("8.8.8.8:80").is_ok() {
+            if let Ok(std::net::SocketAddr::V4(address)) = socket.local_addr() {
+                let ip = address.ip().to_string();
+                if !ip.is_empty() && ip != "0.0.0.0" {
+                    return ip;
+                }
+            }
+        }
+    }
+    if let Ok(addresses) = (hostname().as_str(), 0u16).to_socket_addrs() {
+        for address in addresses {
+            if let std::net::SocketAddr::V4(v4) = address {
+                if !v4.ip().is_loopback() {
+                    return v4.ip().to_string();
+                }
+            }
+        }
+    }
+    "127.0.0.1".to_string()
+}
+
+fn is_port_open(host: &str, port: i64, timeout_secs: i64) -> bool {
+    let address = match tcp_resolve(host, port) {
+        Ok(address) => address,
+        Err(_) => return false,
+    };
+    // A zero timeout is an immediate error in `connect_timeout`, which is never
+    // what a caller means here.
+    let timeout = Duration::from_secs(timeout_secs.max(1) as u64);
+    TcpStream::connect_timeout(&address, timeout).is_ok()
+}
+
+export_string!(network_tcp_connect, args, {
+    tcp_connect(args.string(0), args.string(1), args.int(0))
+});
+
+export_string!(network_tcp_send, args, {
+    tcp_send(args.string(0), args.string(1))
+});
+
+export_string!(network_tcp_receive, args, {
+    tcp_receive(args.string(0), args.int(0))
+});
+
+export_string!(network_tcp_send_receive, args, {
+    tcp_send_receive(args.string(0), args.string(1), args.int(0))
+});
+
+export_string!(network_tcp_close, args, { tcp_close(args.string(0)) });
+
+export_int!(network_is_port_open, args, {
+    is_port_open(args.string(0), args.int(0), args.int(1)) as i64
+});
+
+export_int!(network_ping, args, {
+    // The original's reachability probe: TCP port 80 within three seconds.
+    is_port_open(args.string(0), 80, 3) as i64
+});
+
+export_string!(network_local_ip, args, {
+    let _ = args;
+    local_ip()
+});
+
 const OPS: &[(&str, &str, &str)] = &[
     ("get", "network_get", "cdecl:cstring(...)"),
     ("getStatus", "network_get_status", "cdecl:int64(...)"),
@@ -579,6 +754,14 @@ const OPS: &[(&str, &str, &str)] = &[
     ),
     ("wsClose", "network_ws_close", "cdecl:cstring(...)"),
     ("wsConnected", "network_ws_connected", "cdecl:int64(...)"),
+    ("tcpConnect", "network_tcp_connect", "cdecl:cstring(...)"),
+    ("tcpSend", "network_tcp_send", "cdecl:cstring(...)"),
+    ("tcpReceive", "network_tcp_receive", "cdecl:cstring(...)"),
+    ("tcpSendReceive", "network_tcp_send_receive", "cdecl:cstring(...)"),
+    ("tcpClose", "network_tcp_close", "cdecl:cstring(...)"),
+    ("isPortOpen", "network_is_port_open", "cdecl:int64(...)"),
+    ("ping", "network_ping", "cdecl:int64(...)"),
+    ("getLocalIP", "network_local_ip", "cdecl:cstring(...)"),
 ];
 
 lynxer_module!(OPS);

@@ -4,6 +4,7 @@
 #include "config.hpp"
 #include "error.hpp"
 #include "interrupt.hpp"
+#include "native_name.hpp"
 #include "ops.hpp"
 #include "optimizer.hpp"
 #include "parser.hpp"
@@ -70,20 +71,6 @@ std::vector<std::string> ownershipArgumentNames(
 
 namespace {
 
-std::string moduleNameFromPath(const std::string& path) {
-    std::filesystem::path name(path);
-    std::string value = name.filename().string();
-    for (const std::string& suffix : {".lynx", ".lynxc", ".so"}) {
-        if (value.size() > suffix.size() &&
-            value.compare(value.size() - suffix.size(), suffix.size(),
-                          suffix) == 0) {
-            value.resize(value.size() - suffix.size());
-            break;
-        }
-    }
-    return value;
-}
-
 struct NativeRegistration {
     void* handle = nullptr;
     std::unordered_map<std::string, std::pair<void*, std::string>> functions;
@@ -93,20 +80,6 @@ struct NativeRegistration {
 };
 
 thread_local NativeRegistration* activeNativeRegistration = nullptr;
-
-bool validNativeName(const char* name) {
-    if (name == nullptr || *name == '\0' ||
-        !(std::isalpha(static_cast<unsigned char>(*name)) || *name == '_')) {
-        return false;
-    }
-    for (const char* cursor = name + 1; *cursor; ++cursor) {
-        if (!(std::isalnum(static_cast<unsigned char>(*cursor)) ||
-              *cursor == '_')) {
-            return false;
-        }
-    }
-    return true;
-}
 
 int nativeRegisterFunction(const char* name, const char* symbol,
                            const char* signature) {

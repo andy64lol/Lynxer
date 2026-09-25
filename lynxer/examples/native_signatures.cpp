@@ -81,8 +81,8 @@ extern "C" std::int64_t sig_sii(const char* a, std::int64_t n, std::int64_t m) {
     return static_cast<std::int64_t>(std::strlen(a)) + n + m;
 }
 
-extern "C" int lynxer_module_init_v1(RegisterFunction f, RegisterConstant,
-                                     RegisterType) {
+extern "C" int lynxer_module_init_v1(RegisterFunction f, RegisterConstant c,
+                                     RegisterType t) {
     return f("v", "sig_v", "cdecl:int64()") &&
                    f("d", "sig_d", "cdecl:double()") &&
                    f("s", "sig_s", "cdecl:cstring()") &&
@@ -109,7 +109,9 @@ extern "C" int lynxer_module_init_v1(RegisterFunction f, RegisterConstant,
                    f("siN", "sig_si_n", "cdecl:int64(cstring,int64)") &&
                    f("is", "sig_is", "cdecl:cstring(int64)") &&
                    f("id", "sig_id", "cdecl:double(int64)") &&
-                   f("sii", "sig_sii", "cdecl:int64(cstring,int64,int64)")
+                   f("sii", "sig_sii", "cdecl:int64(cstring,int64,int64)") &&
+                   c("answer", 42) &&
+                   t("pair", "int32 first, int32 second")
                ? 0
                : 1;
 }

@@ -20,3 +20,4 @@ image = { version = "0.25", default-features = false, features = [
     "tiff",
     "webp",
 ] }
+fontdue = "0.9"

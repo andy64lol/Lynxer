@@ -1,0 +1,143 @@
+////
+Fixture for the extended image operations: geometry, the fixed 3x3 filters,
+rank filters, compositing, the special histogram operations, channel
+split/merge, and the drawing primitives.
+
+Every image is generated in memory, so the output is deterministic and needs no
+assets. Text rendering is only pinned by its return shape: the glyph pixels
+depend on which system font the host provides, and `show` is only exercised
+through its failure path so no viewer is launched.
+////
+global setup(){ import("image"); }
+
+// A 4x4 black image with a white 2x2 square in the middle.
+global pattern() -> int {
+    int image = global.image.create(4, 4, "RGB", 0, 0, 0);
+    global.image.setPixel(image, 1, 1, 200, 200, 200);
+    global.image.setPixel(image, 2, 1, 200, 200, 200);
+    global.image.setPixel(image, 1, 2, 200, 200, 200);
+    global.image.setPixel(image, 2, 2, 200, 200, 200);
+    return image;
+}
+
+// A 2x2 image whose first pixel is a saturated colour, so colour and sharpness
+// enhancement have something to act on.
+global vivid() -> int {
+    int image = global.image.create(2, 2, "RGB", 0, 0, 0);
+    global.image.setPixel(image, 0, 0, 200, 100, 50);
+    return image;
+}
+
+// A 4x1 ramp: black, then three progressively lighter greys.
+global ramp() -> int {
+    int image = global.image.create(4, 1, "RGB", 0, 0, 0);
+    global.image.setPixel(image, 1, 0, 100, 110, 120);
+    global.image.setPixel(image, 2, 0, 140, 150, 160);
+    global.image.setPixel(image, 3, 0, 200, 210, 220);
+    return image;
+}
+
+global main(){
+    int base = global.pattern();
+    println("base ", global.image.getPixel(base, 1, 1), " ", global.image.getPixel(base, 0, 0));
+
+    // The fixed 3x3 filters. `smooth` divides by 13, so the square's corner
+    // averages its five-black/four-white neighbourhood.
+    println("smooth ", global.image.getPixel(global.image.smooth(base), 1, 1));
+    println("detail ", global.image.getPixel(global.image.detail(base), 1, 1));
+    println("edgeEnhance ", global.image.getPixel(global.image.edgeEnhance(base), 1, 1));
+    println("emboss ", global.image.getPixel(global.image.emboss(base), 1, 1));
+    println("findEdges ", global.image.getPixel(global.image.findEdges(base), 1, 1));
+    println("contour ", global.image.getPixel(global.image.contour(base), 1, 1));
+
+    // Rank filters over a 3x3 window. The corner of the square has five black
+    // and four white neighbours, so min, median and max all differ.
+    println("median ", global.image.getPixel(global.image.medianFilter(base, 3), 1, 1));
+    println("min ", global.image.getPixel(global.image.minFilter(base, 3), 1, 1));
+    println("max ", global.image.getPixel(global.image.maxFilter(base, 3), 1, 1));
+    // An even size is accepted and forced odd.
+    println("median4 ", global.image.medianFilter(base, 4) > 0);
+
+    // Enhancements on a saturated colour: `color` at 0 is the grey version and
+    // at 2 extrapolates past the original.
+    int vivid = global.vivid();
+    println("color0 ", global.image.getPixel(global.image.color(vivid, 0.0), 0, 0));
+    println("color2 ", global.image.getPixel(global.image.color(vivid, 2.0), 0, 0));
+    println("sharpness ", global.image.getPixel(global.image.sharpness(vivid, 2.0), 0, 0));
+
+    // Geometry: `fit` fills the box (centre-crop), `contain` letterboxes it.
+    int fitted = global.image.fit(base, 2, 4);
+    println("fit ", global.image.getWidth(fitted), "x", global.image.getHeight(fitted));
+    int contained = global.image.contain(base, 4, 4, 255, 0, 255);
+    println("contain ", global.image.getWidth(contained), "x", global.image.getHeight(contained));
+
+    // The histogram operations on the ramp.
+    int ramp = global.ramp();
+    println("autoContrast ", global.image.getPixel(global.image.autoContrast(ramp), 3, 0));
+    println("equalize ", global.image.getPixel(global.image.equalize(ramp), 0, 0));
+    println("solarize ", global.image.getPixel(global.image.solarize(ramp, 150), 3, 0));
+    println("posterize ", global.image.getPixel(global.image.posterize(ramp, 4), 3, 0));
+    println("quantize ", global.image.getPixel(global.image.quantize(ramp, 2), 0, 0));
+
+    // Channel split and merge.
+    str bands = global.image.splitChannels(base);
+    println("split ", returnLength(splitStr(bands, ",")) is 4);
+    int merged = global.image.mergeChannels(base, base, base, -1);
+    println("merge ", global.image.getPixel(merged, 1, 1), " ", global.image.getMode(merged));
+
+    // Compositing: a white mask takes the overlay, a black mask keeps the base.
+    int whiteMask = global.image.create(4, 4, "L", 255, 255, 255);
+    int blackMask = global.image.create(4, 4, "L", 0, 0, 0);
+    int overlay = global.image.create(4, 4, "RGB", 9, 8, 7);
+    println("composite white ", global.image.getPixel(global.image.composite(base, overlay, whiteMask), 1, 1));
+    println("composite black ", global.image.getPixel(global.image.composite(base, overlay, blackMask), 1, 1));
+
+    // Drawing. Each primitive gets its own canvas so the asserted pixel is not
+    // overwritten by a later call.
+    int line = global.image.create(9, 9, "RGB", 255, 255, 255);
+    println("drawLine ", global.image.drawLine(line, 0, 0, 8, 8, 0, 0, 0, 1), " ",
+            global.image.getPixel(line, 4, 4), " ", global.image.getPixel(line, 4, 0));
+
+    int filled = global.image.create(9, 9, "RGB", 255, 255, 255);
+    println("drawRect filled ", global.image.drawRect(filled, 1, 1, 3, 3, 255, 0, 0, true), " ",
+            global.image.getPixel(filled, 2, 2), " ", global.image.getPixel(filled, 5, 5));
+
+    int outlined = global.image.create(9, 9, "RGB", 255, 255, 255);
+    println("drawRect outline ", global.image.drawRect(outlined, 5, 5, 7, 7, 0, 0, 255, false), " ",
+            global.image.getPixel(outlined, 5, 6), " ", global.image.getPixel(outlined, 6, 6));
+
+    int circle = global.image.create(9, 9, "RGB", 255, 255, 255);
+    println("drawCircle ", global.image.drawCircle(circle, 4, 4, 2, 0, 255, 0, true), " ",
+            global.image.getPixel(circle, 4, 4), " ", global.image.getPixel(circle, 0, 0));
+
+    int ellipse = global.image.create(9, 9, "RGB", 255, 255, 255);
+    println("drawEllipse ", global.image.drawEllipse(ellipse, 0, 2, 8, 6, 0, 255, 255, true), " ",
+            global.image.getPixel(ellipse, 4, 4), " ", global.image.getPixel(ellipse, 0, 4));
+
+    int rounded = global.image.create(9, 9, "RGB", 255, 255, 255);
+    println("drawRoundedRect ", global.image.drawRoundedRect(rounded, 0, 0, 8, 8, 0, 0, 0, false, 2), " ",
+            global.image.getPixel(rounded, 4, 0), " ", global.image.getPixel(rounded, 0, 0));
+
+    int polygons = global.image.create(8, 8, "RGB", 255, 255, 255);
+    println("drawPolygon ", global.image.drawPolygon(polygons, "[1,1, 6,1, 3,6]", 10, 20, 30), " ",
+            global.image.getPixel(polygons, 3, 2), " ", global.image.getPixel(polygons, 0, 0));
+
+    int flooded = global.image.create(4, 4, "RGB", 200, 200, 200);
+    println("floodFill ", global.image.floodFill(flooded, 0, 0, 7, 8, 9), " ",
+            global.image.getPixel(flooded, 3, 3));
+
+    // Text depends on a system font, so only the call shape is pinned; a font
+    // path that does not exist is a plain failure.
+    println("drawText ", returnType(global.image.drawText(rounded, 0, 0, "Hi", 0, 0, 0, 8)) is "bool");
+    println("drawTextFont missing ",
+            global.image.drawTextFont(rounded, 0, 0, "Hi", 0, 0, 0, 8, "/no/such/font.ttf"));
+
+    // Invalid handles return the module sentinels.
+    println("smooth invalid ", global.image.smooth(-1));
+    println("fit invalid ", global.image.fit(-1, 2, 2));
+    println("split invalid ", global.image.splitChannels(-1));
+    println("merge invalid ", global.image.mergeChannels(-1, -1, -1, -1));
+    println("drawRect invalid ", global.image.drawRect(-1, 0, 0, 1, 1, 0, 0, 0, true));
+    println("floodFill invalid ", global.image.floodFill(-1, 0, 0, 0, 0, 0));
+    println("show invalid ", global.image.show(-1));
+}

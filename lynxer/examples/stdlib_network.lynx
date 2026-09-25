@@ -1,7 +1,7 @@
 ////
 Fixture for the network + server stdlibs. Spins a local server and exercises
-the HTTP + WebSocket clients against it. Offline helpers are checked without
-touching the public internet.
+the HTTP, WebSocket and raw-TCP clients against it. Offline helpers are checked
+without touching the public internet.
 ////
 global setup(){
     import("network");
@@ -75,6 +75,32 @@ global main(){
     println(global.network.wsClose("echo"));
     println(global.network.wsConnected("echo"));
 
+    // Raw TCP client against the same local server.
+    println(returnLength(splitStr(global.network.getLocalIP(), ".")) is 4);
+    println(global.network.tcpConnect("raw", "127.0.0.1", global.server.port()));
+    str request = "GET /hi HTTP/1.0\r\nHost: 127.0.0.1\r\n\r\n";
+    println(global.network.tcpSend("raw", request));
+    str rawResponse = global.network.tcpReceive("raw", 4096);
+    println(returnLength(rawResponse) >= 5 and substring(rawResponse, 0, 5) is "HTTP/");
+    println(global.network.tcpClose("raw"));
+
+    // Send-and-receive needs its own connection: the server closes an HTTP/1.0
+    // response once it has written it.
+    println(global.network.tcpConnect("raw2", "127.0.0.1", global.server.port()));
+    str roundTrip = global.network.tcpSendReceive("raw2", request, 4096);
+    println(returnLength(roundTrip) >= 5 and substring(roundTrip, 0, 5) is "HTTP/");
+    println(global.network.tcpClose("raw2"));
+
+    // Unknown names are errors, not silent no-ops, and the probe helpers agree
+    // about the live listener.
+    println(substring(global.network.tcpSend("missing", "x"), 0, 7) is "ERROR: ");
+    println(substring(global.network.tcpReceive("missing", 8), 0, 7) is "ERROR: ");
+    println(substring(global.network.tcpClose("missing"), 0, 7) is "ERROR: ");
+    println(global.network.isPortOpen("127.0.0.1", global.server.port(), 1));
+    println(returnType(global.network.ping("127.0.0.1")) is "bool");
+
     println(global.server.stop());
     println(global.server.running());
+    // With the server stopped the port is closed.
+    println(global.network.isPortOpen("127.0.0.1", 18123, 1));
 }

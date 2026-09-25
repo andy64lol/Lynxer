@@ -56,7 +56,7 @@ trigonometric helpers.
 
 | Function | Signature |
 | --- | --- |
-| `pi()` / `PI()` / `Pi()` | `-> float` |
+| `pi()` | `-> float` |
 | `e()` | `-> float` |
 | `tau()` | `-> float` |
 | `randInt(int low, int high) -> int` | Uniform integer in `[low, high]` |

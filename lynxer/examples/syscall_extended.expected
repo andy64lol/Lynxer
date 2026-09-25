@@ -1,0 +1,22 @@
+system times true
+event descriptor true
+event closed true
+openat2 true
+copyFileRange true
+syncfs true
+clone3 true
+pidfdOpen true
+waitid true
+mlock true
+memfdCreate true
+gettimeofday true
+clockNanosleep true
+timerfdCreate true
+sigprocmask true
+signalfd true
+sendmmsg true
+accept4 true
+epollPwait2 true
+eventfd bad flags true
+capget true
+argument ceiling true

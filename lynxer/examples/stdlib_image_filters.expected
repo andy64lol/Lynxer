@@ -1,0 +1,42 @@
+base [200,200,200,255] [0,0,0,255]
+smooth [123,123,123,255]
+detail [255,255,255,255]
+edgeEnhance [255,255,255,255]
+emboss [255,255,255,255]
+findEdges [255,255,255,255]
+contour [0,0,0,255]
+median [0,0,0,255]
+min [0,0,0,255]
+max [200,200,200,255]
+median4 true
+color0 [124,124,124,255]
+color2 [255,76,0,255]
+sharpness [255,151,75,255]
+fit 2x4
+contain 4x4
+autoContrast [255,255,255,255]
+equalize [0,0,0,255]
+solarize [55,45,35,255]
+posterize [192,208,208,255]
+quantize [50,55,60,255]
+split true
+merge [200,200,200,255] RGBA
+composite white [9,8,7,255]
+composite black [200,200,200,255]
+drawLine true [0,0,0,255] [255,255,255,255]
+drawRect filled true [255,0,0,255] [255,255,255,255]
+drawRect outline true [0,0,255,255] [255,255,255,255]
+drawCircle true [0,255,0,255] [255,255,255,255]
+drawEllipse true [0,255,255,255] [0,255,255,255]
+drawRoundedRect true [0,0,0,255] [255,255,255,255]
+drawPolygon true [10,20,30,255] [255,255,255,255]
+floodFill true [7,8,9,255]
+drawText true
+drawTextFont missing false
+smooth invalid -1
+fit invalid -1
+split invalid ERROR: unknown image
+merge invalid -1
+drawRect invalid false
+floodFill invalid false
+show invalid false

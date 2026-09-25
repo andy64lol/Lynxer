@@ -82,7 +82,7 @@
 <h1 id="built-in-functions">Built-in functions</h1>
 <p>Functions implemented directly by the Lynxer interpreter. They can be called by their bare name or with a <code>global.</code> prefix (<code>print(...)</code> and <code>global.print(...)</code> are the same call).</p>
 <p>Inside a module, <code>global.name(...)</code> always resolves to a <em>core builtin</em>, never to the module's own function of that name — see <a href="limitations.html#language-and-toolchain">limitations</a>.</p>
-<p>Names that Lynxer recognises but does not implement fail with a source-located <code>&lt;name&gt;() is not supported in Lynxer yet</code>. On a Linux/POSIX build the <strong>supported</strong> families include the <code>ffi*</code>, <code>async*</code>, <code>sound*</code>, <code>filesystem*</code>, <code>process*</code>, <code>networking*</code>, <code>nativeThread*</code> and <code>syscall*</code> builtins; the unsupported set is listed under <a href="#unsupported-names">Unsupported names</a> and is defined by <code>unsupportedTable()</code> in <code>lynxer/builtins.cpp</code>. On a build without POSIX support, the <code>filesystem*</code>/<code>process*</code>/<code>networking*</code>/<code>sound*</code> families join the unsupported set. The <code>syscall*</code> family is routed to a generic syscall dispatcher rather than to a per-name handler.</p>
+<p>Names that Lynxer recognises but does not implement fail with a source-located <code>&lt;name&gt;() is not supported in Lynxer yet</code>. On a Linux/POSIX build the <strong>supported</strong> families include the <code>ffi*</code>, <code>async*</code>, <code>sound*</code>, <code>filesystem*</code>, <code>process*</code>, <code>networking*</code>, <code>nativeThread*</code>, <code>nativeMutex*</code>, <code>nativeCondition*</code>, <code>nativeSemaphore*</code> and <code>syscall*</code> builtins; the unsupported set is listed under <a href="#unsupported-names">Unsupported names</a> and is defined by <code>unsupportedTable()</code> in <code>lynxer/builtins.cpp</code>. On a build without POSIX support, the <code>filesystem*</code>/<code>process*</code>/<code>networking*</code>/<code>sound*</code> families join the unsupported set. The <code>syscall*</code> family is routed to a generic syscall dispatcher rather than to a per-name handler.</p>
 <h2 id="input-output-and-conversion">Input, output and conversion</h2>
 <table>
 <tr><th>Builtin</th><th>Notes</th></tr>
@@ -304,6 +304,18 @@ ffiCloseLibrary(lib);</code></pre>
 <p>Every typed read/write validates the address against the allocation registry and checks the access against the allocation's length, so an unknown address, a freed address, and an out-of-bounds access are source-located errors rather than crashes. 64-bit writes preserve the full signed and unsigned range (see <a href="types.html">types</a>).</p>
 <h2 id="syscalls">Syscalls</h2>
 <p><code>syscall*(...)</code> entries take integer arguments only (at most six) and dispatch through the platform syscall layer. <code>syscallPollFileDescriptors</code> takes three arguments; <code>syscallPpollFileDescriptors</code>, <code>syscallWaitForEvents</code> and <code>syscallWaitForEventsWithSignalMask</code> take five.</p>
+<p>Beyond the original set, the family carries an extended surface built from one source on <code>amd64</code> and <code>aarch64</code>. A name whose number is missing from the build's headers fails with <code>syscall &#x27;&lt;name&gt;&#x27; is not available on this architecture</code> instead of dispatching the wrong table.</p>
+<table>
+<tr><th>Group</th><th>Names</th></tr>
+<tr><td>Filesystem</td><td><code>syscallOpenAt2</code>, <code>syscallCheckFileAccessAt2</code>, <code>syscallCopyFileRange</code>, <code>syscallFallocateFile</code>, <code>syscallSynchronizeFilesystem</code></td></tr>
+<tr><td>Processes and threads</td><td><code>syscallCreateThread3</code>, <code>syscallOpenProcessFileDescriptor</code>, <code>syscallSendSignalToProcessFileDescriptor</code>, <code>syscallGetThreadAffinity</code>, <code>syscallSetThreadAffinity</code>, <code>syscallGetThreadPriority</code>, <code>syscallSetThreadPriority</code>, <code>syscallWaitForProcessId</code></td></tr>
+<tr><td>Memory</td><td><code>syscallLockMemory</code>, <code>syscallUnlockMemory</code>, <code>syscallSynchronizeMemory</code>, <code>syscallCreateMemoryFileDescriptor</code>, <code>syscallSetMemoryPolicy</code></td></tr>
+<tr><td>Time</td><td><code>syscallGetTimeOfDay</code>, <code>syscallSleepClock</code>, <code>syscallCreateTimerFileDescriptor</code>, <code>syscallControlTimerFileDescriptor</code></td></tr>
+<tr><td>Signals</td><td><code>syscallControlSignal</code>, <code>syscallControlSignalMask</code>, <code>syscallCreateSignalFileDescriptor</code></td></tr>
+<tr><td>Sockets and event loops</td><td><code>syscallSendMessages</code>, <code>syscallReceiveMessages</code>, <code>syscallAcceptConnection4</code>, <code>syscallWaitForEvents2</code>, <code>syscallCreateEventFileDescriptor</code></td></tr>
+<tr><td>System information</td><td><code>syscallGetCapabilities</code>, <code>syscallSetCapabilities</code>, <code>syscallGetSystemTimes</code></td></tr>
+</table>
+<p><code>lynxer/examples/syscall_extended.lynx</code> pins the wiring; <code>lowlevel_syscalls.lynx</code>, <code>amd64Syscalls.lynx</code> and <code>arm64Syscalls.lynx</code> cover the original set and the architecture-specific names.</p>
 <h2 id="managed-filesystem">Managed filesystem</h2>
 <p>A small handle-based filesystem API, separate from the <code>fileIO</code>, <code>os</code> and <code>path</code> stdlib modules. Handles are non-negative integers; the interpreter owns the descriptor behind one, and an unknown or already-closed handle is a runtime error rather than a silent failure. Failures preserve the operation and the original errno in the message, for example <code>filesystemOpen() failed: [2] No such file or directory</code>. Descriptors a program leaves open are closed when the process exits.</p>
 <table>
@@ -391,6 +403,27 @@ ffiCloseLibrary(lib);</code></pre>
 <tr><td><code>nativeThreadDetach(handle)</code></td><td>Gives up the handle; the thread leaves the registry when it finishes</td></tr>
 </table>
 <p><strong>Threads are cooperative.</strong> The interpreter evaluates Lynxer code on one thread at a time, and a worker takes that lock before calling back in, so a thread runs while the thread that started it is blocked in <code>nativeThreadJoin</code> or <code>nativeThreadJoinAll</code>, which release the lock before waiting. Two threads never evaluate at once — that is why no data race is possible — and it is why a worker's own output appears at the join rather than during the main body. Programs that leave a thread running have it joined when the program finishes.</p>
+<h2 id="native-synchronization">Native synchronization</h2>
+<p>Mutex, condition-variable and semaphore handles coordinate the cooperative <code>nativeThread*</code> workers. Every <em>blocking</em> wait releases the interpreter lock, so another thread can run and release or signal.</p>
+<table>
+<tr><th>Builtin</th><th>Notes</th></tr>
+<tr><td><code>nativeMutexCreate()</code></td><td>Returns a mutex handle. Non-recursive; only the owning thread may unlock it</td></tr>
+<tr><td><code>nativeMutexLock(mutex)</code></td><td>Acquires the mutex, releasing the interpreter lock while it waits</td></tr>
+<tr><td><code>nativeMutexTryLock(mutex)</code></td><td>Acquires it if free and returns a boolean, without blocking</td></tr>
+<tr><td><code>nativeMutexUnlock(mutex)</code></td><td>Releases it; errors if the caller does not own it</td></tr>
+<tr><td><code>nativeMutexClose(mutex)</code></td><td>Releases the handle; errors while it is locked or has a waiter</td></tr>
+<tr><td><code>nativeConditionCreate()</code></td><td>Returns a condition handle</td></tr>
+<tr><td><code>nativeConditionWait(condition, mutex)</code></td><td>Waits; the caller must hold the mutex, which is released and reacquired around the wait</td></tr>
+<tr><td><code>nativeConditionNotify(condition, mutex)</code></td><td>Wakes one waiter; the caller must hold the mutex</td></tr>
+<tr><td><code>nativeConditionNotifyAll(condition, mutex)</code></td><td>Wakes every waiter</td></tr>
+<tr><td><code>nativeConditionClose(condition)</code></td><td>Releases the handle; errors while a thread is waiting</td></tr>
+<tr><td><code>nativeSemaphoreCreate(initial)</code></td><td>Returns a semaphore handle with a non-negative initial count</td></tr>
+<tr><td><code>nativeSemaphoreWait(semaphore)</code></td><td>Decrements the count, blocking and releasing the interpreter lock while it is zero</td></tr>
+<tr><td><code>nativeSemaphoreTryWait(semaphore)</code></td><td>Decrements and returns <code>true</code>, or returns <code>false</code> without blocking</td></tr>
+<tr><td><code>nativeSemaphorePost(semaphore)</code></td><td>Increments the count and wakes one waiter</td></tr>
+<tr><td><code>nativeSemaphoreClose(semaphore)</code></td><td>Releases the handle; errors while a thread is waiting</td></tr>
+</table>
+<p><code>lynxer/examples/native_sync.lynx</code> covers the single-threaded surface and <code>lynxer/examples/native_sync_threads.lynx</code> the blocking waits across two threads. Because the model is cooperative, a blocking wait on a resource that no other thread will release deadlocks — the same as the original.</p>
 <h2 id="ffi">FFI</h2>
 <p>The <code>ffi*</code> family loads a native shared library and calls a symbol by signature at run time, with no build step. It is implemented in C++ over <code>dlopen</code>/<code>dlsym</code> (there is no libffi), so the same call site can call any symbol whose signature is in the supported table.</p>
 <table>
@@ -403,6 +436,20 @@ ffiCloseLibrary(lib);</code></pre>
 <tr><td><code>ffiCloseLibrary(handle)</code></td><td>Unloads the library and invalidates its symbols</td></tr>
 </table>
 <p>The signatures use the same grammar as native modules; see <a href="native-module-abi.html#signature-grammar">native-module-abi</a>. <code>lynxer/examples/builtin_ffi.lynx</code> demonstrates the full round trip (calling <code>strlen</code> and passing a Lynxer function back as a C callback).</p>
+<h2 id="explicit-native-module-handles">Explicit native-module handles</h2>
+<p><code>nativeModule*</code> loads a shared object through the same <a href="native-module-abi.html"><code>lynxer_module_init_v1</code></a> ABI as <code>importAs</code>, but exposes the registered table for inspection instead of binding it into a namespace. Use it when a module's names have to be discovered at run time.</p>
+<table>
+<tr><th>Builtin</th><th>Notes</th></tr>
+<tr><td><code>nativeModuleLoad(path)</code></td><td>Loads and initializes a module; returns a handle</td></tr>
+<tr><td><code>nativeModuleName(handle)</code></td><td>The module name derived from the filename</td></tr>
+<tr><td><code>nativeModuleFunction(handle, name)</code></td><td>A registered <code>functionAddress</code>, callable with <code>ffiCall</code></td></tr>
+<tr><td><code>nativeModuleConstant(handle, name)</code></td><td>A registered integer</td></tr>
+<tr><td><code>nativeModuleType(handle, name)</code></td><td>A registered native layout string</td></tr>
+<tr><td><code>nativeModuleError(handle)</code></td><td>The module-local lifecycle error, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>nativeModuleDependencies(handle)</code></td><td>The module's <code>DT_NEEDED</code> library names as a list</td></tr>
+<tr><td><code>nativeModuleClose(handle)</code></td><td>Releases the handle</td></tr>
+</table>
+<p>A missing library, a shared object without the entry point, a duplicate registration or a non-zero initializer is a source-located native-module lifecycle error. A retained function address fails cleanly after <code>nativeModuleClose</code> instead of calling unmapped code. <code>lynxer/examples/native_module_api.lynx</code> exercises the whole surface.</p>
 <h2 id="async">Async</h2>
 <p>The <code>async*</code> family performs I/O without a language-level event loop. <code>asyncRun(function, arguments?)</code> starts a Lynxer function in the async runtime, and <code>await</code> in the caller yields until the operation completes. Timers, wakeups and file/IO readiness sources are registered on a poll set and awaited with <code>asyncPollWait</code>; <code>asyncPollDispatch</code> awaits them and invokes a Lynxer callback for each ready event. Evaluation stays cooperative — the interpreter runs one Lynxer frame at a time.</p>
 <table>
@@ -429,11 +476,9 @@ ffiCloseLibrary(lib);</code></pre>
 <table>
 <tr><th>Family</th><th>Names</th></tr>
 <tr><td>Python bridging</td><td><code>rawPy</code>, <code>rawPyx</code>, <code>cleanRawPyxCache</code>, <code>embedPy</code></td></tr>
-<tr><td>Native module introspection</td><td><code>nativeModuleLoad</code>, <code>nativeModuleName</code>, <code>nativeModuleFunction</code>, <code>nativeModuleConstant</code>, <code>nativeModuleType</code>, <code>nativeModuleError</code>, <code>nativeModuleDependencies</code>, <code>nativeModuleClose</code></td></tr>
-<tr><td>Native sync primitives</td><td><code>nativeMutex*</code>, <code>nativeCondition*</code>, <code>nativeSemaphore*</code></td></tr>
 </table>
 <p>The authoritative list is <code>unsupportedTable()</code> in <code>lynxer/builtins.cpp</code>; this table is the POSIX-visible subset. A build without POSIX support adds the <code>filesystem*</code>, <code>process*</code>, <code>networking*</code>, <code>sound*</code>, <code>async*</code> and <code>nativeThread*</code> families. See <a href="limitations.html">limitations</a> for the rationale.</p>
-<p><code>sound*</code>, <code>ffi*</code>, <code>async*</code> and <code>nativeThread*</code> are the families that reach outside the interpreter (a device, a shared library, a runtime, or a worker thread); everything else on this page is self-contained.</p>
+<p><code>sound*</code>, <code>ffi*</code>, <code>async*</code>, <code>nativeThread*</code> and the native-synchronization family are the families that reach outside the interpreter (a device, a shared library, a runtime, or a worker thread); everything else on this page is self-contained.</p>
     </main>
 </div>
 

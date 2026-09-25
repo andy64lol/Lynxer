@@ -43,6 +43,32 @@ Connections are keyed by a name string.
 | `wsClose(name)` | Close and forget |
 | `wsConnected(name)` | `true` while open |
 
+## Raw TCP client
+
+Plaintext TCP, keyed by a name like the WebSocket registry. Every connection
+function returns `"ok"` or `ERROR: ...`; nothing here does TLS, which belongs to
+the HTTP/WebSocket client above.
+
+| Function | Description |
+|----------|-------------|
+| `tcpConnect(name, host, port)` | Connect to `host:port` (`"ok"` / `ERROR:`) |
+| `tcpSend(name, data)` | Send UTF-8 text |
+| `tcpReceive(name, bufSize)` | Receive up to `bufSize` bytes, decoded |
+| `tcpSendReceive(name, data, bufSize)` | Send then receive |
+| `tcpClose(name)` | Shut down and forget the connection |
+
+Connects and receives time out after 30 seconds, so a quiet peer cannot wedge
+the interpreter. `tcpReceive` returns an empty string when the peer closes
+cleanly, and `ERROR: receive timeout` / `ERROR: receive failed` otherwise.
+
+## Host and reachability helpers
+
+| Function | Description |
+|----------|-------------|
+| `getLocalIP()` | Primary local IPv4 address, falling back to the hostname's first non-loopback address and then `127.0.0.1` |
+| `isPortOpen(host, port, timeoutSecs)` | `true` if a TCP connection succeeds within the timeout |
+| `ping(host)` | `isPortOpen(host, 80, 3)` — the original's reachability probe |
+
 ## URL helpers
 
 `urlScheme`, `urlHost`, `urlPath`, `urlParse` (JSON object with

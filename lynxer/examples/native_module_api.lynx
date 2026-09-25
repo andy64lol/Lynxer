@@ -1,0 +1,50 @@
+////
+Fixture for the explicit `nativeModule*` handle API.
+
+It loads the test module `native_signatures.so` and inspects its registered
+table, then calls a registered function through `ffiCall`. The dependency list
+is host-specific, so only its shape and the presence of the C library are
+pinned; a retained function address after `nativeModuleClose` must fail rather
+than call unmapped code.
+////
+global setup(){}
+
+global main(){
+    // A missing library and a library without the ABI entry point fail.
+    try {
+        nativeModuleLoad("no_such_module_exists.so");
+        println("missing: NO ERROR");
+    } catch(str e) { println("missing: errored ", returnLength(e) > 0); }
+    try {
+        nativeModuleLoad("libc.so.6");
+        println("not a module: NO ERROR");
+    } catch(str e) { println("not a module: errored ", returnLength(e) > 0); }
+
+    int module = nativeModuleLoad("lynxer/examples/native_signatures.so");
+    println("name: ", nativeModuleName(module));
+    println("error: [", nativeModuleError(module), "]");
+    println("constant: ", nativeModuleConstant(module, "answer"));
+    println("type: ", nativeModuleType(module, "pair"));
+
+    // A registered function address is callable through ffiCall.
+    int sum = nativeModuleFunction(module, "ii");
+    println("ii: ", ffiCall(sum, "int64(int64,int64)", [int 3, int 4]));
+    println("ss: ", ffiCall(nativeModuleFunction(module, "ss"),
+                           "cstring(cstring,cstring)", ["ab", "cd"]));
+
+    // Dependencies are informational: shape and the C library only.
+    println("dependencies: ", returnType(nativeModuleDependencies(module)));
+    println("needs libc: ",
+            contains(nativeModuleDependencies(module), "libc.so.6"));
+
+    // Unknown names and handles are source-located errors.
+    try { nativeModuleFunction(module, "nope"); } catch(str e) { println("unknown function: ", e); }
+    try { nativeModuleConstant(module, "nope"); } catch(str e) { println("unknown constant: ", e); }
+    try { nativeModuleType(module, "nope"); } catch(str e) { println("unknown type: ", e); }
+    try { nativeModuleName(123456); } catch(str e) { println("unknown handle: ", e); }
+
+    nativeModuleClose(module);
+    try { nativeModuleName(module); } catch(str e) { println("after close: ", e); }
+    try { println(ffiCall(sum, "int64(int64,int64)", [int 1, int 2])); } catch(str e) { println("stale address: ", e); }
+    try { nativeModuleClose(module); } catch(str e) { println("reclose: ", e); }
+}

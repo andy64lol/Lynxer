@@ -1,0 +1,17 @@
+missing: errored true
+not a module: errored true
+name: native_signatures
+error: []
+constant: 42
+type: int32 first, int32 second
+ii: 7
+ss: abcd
+dependencies: list
+needs libc: true
+unknown function: nativeModuleFunction() found no registered function 'nope'
+unknown constant: nativeModuleConstant() found no registered constant 'nope'
+unknown type: nativeModuleType() found no registered type 'nope'
+unknown handle: nativeModuleName() received an unknown native module handle
+after close: nativeModuleName() received an unknown native module handle
+stale address: ffiCall() function address belongs to a closed library
+reclose: nativeModuleClose() received an unknown native module handle

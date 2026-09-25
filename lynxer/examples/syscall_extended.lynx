@@ -1,0 +1,52 @@
+////
+Fixture for the extended named-syscall surface.
+
+The names added on top of the original set are exercised so a missing table
+entry fails loudly. Every syscall here either succeeds with a deterministic
+predicate or fails with a source-located error whose message starts with
+`syscall '`; a name that was not wired up would instead fail with
+`unknown function`, which `recognized` rejects. The output is identical on
+amd64 and aarch64.
+////
+global setup(){}
+
+global recognized(str message) -> bool {
+    return substring(message, 0, 9) is "syscall '";
+}
+
+global main(){
+    // A real dispatch: `times(NULL)` returns clock ticks since boot.
+    println("system times ", syscallGetSystemTimes(0) >= 0);
+
+    // A real dispatch that allocates a descriptor: `eventfd2(0, 0)`.
+    int event = syscallCreateEventFileDescriptor(0, 0);
+    println("event descriptor ", event > 0);
+    println("event closed ", syscallClose(event) is 0);
+
+    // Each of these is rejected by the kernel with a pointer/argument error,
+    // so they prove the name is wired to the right per-architecture number.
+    try { syscallOpenAt2(0, 0, 0, 0); println("openat2 NO ERROR"); } catch(str e) { println("openat2 ", global.recognized(e)); }
+    try { syscallCopyFileRange(-1, 0, -1, 0, 1); println("copyFileRange NO ERROR"); } catch(str e) { println("copyFileRange ", global.recognized(e)); }
+    try { syscallSynchronizeFilesystem(-1); println("syncfs NO ERROR"); } catch(str e) { println("syncfs ", global.recognized(e)); }
+    try { syscallCreateThread3(0, 0); println("clone3 NO ERROR"); } catch(str e) { println("clone3 ", global.recognized(e)); }
+    try { syscallOpenProcessFileDescriptor(0, 0); println("pidfdOpen NO ERROR"); } catch(str e) { println("pidfdOpen ", global.recognized(e)); }
+    try { syscallWaitForProcessId(0, 0, 0, 0, 0); println("waitid NO ERROR"); } catch(str e) { println("waitid ", global.recognized(e)); }
+    try { syscallLockMemory(0, 1); println("mlock NO ERROR"); } catch(str e) { println("mlock ", global.recognized(e)); }
+    try { syscallCreateMemoryFileDescriptor(0, 0); println("memfdCreate NO ERROR"); } catch(str e) { println("memfdCreate ", global.recognized(e)); }
+    try { syscallGetTimeOfDay(-1, 0); println("gettimeofday NO ERROR"); } catch(str e) { println("gettimeofday ", global.recognized(e)); }
+    try { syscallSleepClock(0, 0, 0, 0); println("clockNanosleep NO ERROR"); } catch(str e) { println("clockNanosleep ", global.recognized(e)); }
+    try { syscallCreateTimerFileDescriptor(-1, 0); println("timerfdCreate NO ERROR"); } catch(str e) { println("timerfdCreate ", global.recognized(e)); }
+    try { syscallControlSignalMask(0, 0, 0, 0); println("sigprocmask NO ERROR"); } catch(str e) { println("sigprocmask ", global.recognized(e)); }
+    try { syscallCreateSignalFileDescriptor(0, 0, 0); println("signalfd NO ERROR"); } catch(str e) { println("signalfd ", global.recognized(e)); }
+    try { syscallSendMessages(0, 0, 0, 0); println("sendmmsg NO ERROR"); } catch(str e) { println("sendmmsg ", global.recognized(e)); }
+    try { syscallAcceptConnection4(0, 0, 0, 0); println("accept4 NO ERROR"); } catch(str e) { println("accept4 ", global.recognized(e)); }
+    try { syscallWaitForEvents2(0, 0, 0, 0, 0, 0); println("epollPwait2 NO ERROR"); } catch(str e) { println("epollPwait2 ", global.recognized(e)); }
+    try { syscallCreateEventFileDescriptor(0, 9999); println("eventfd bad flags NO ERROR"); } catch(str e) { println("eventfd bad flags ", global.recognized(e)); }
+    try { syscallGetCapabilities(0, 0); println("capget NO ERROR"); } catch(str e) { println("capget ", global.recognized(e)); }
+
+    // The six-argument ceiling still applies to the new names.
+    try {
+        syscallGetSystemTimes(0, 0, 0, 0, 0, 0, 0);
+        println("too many arguments NO ERROR");
+    } catch(str e) { println("argument ceiling ", contains(splitStr(e, " "), "six")); }
+}

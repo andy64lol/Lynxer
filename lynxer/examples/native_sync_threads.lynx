@@ -1,0 +1,36 @@
+////
+Fixture for the managed synchronization built-ins across threads.
+
+A worker only runs while the starter is blocked, so each blocking wait here has
+a defined wakeup and the output order is fixed: the semaphore wait is satisfied
+by the producer thread, and the condition wait by the notifier thread.
+////
+global setup(){}
+
+global producer(int semaphore){
+    nativeSemaphorePost(semaphore);
+}
+
+global notifier(int mutex, int condition){
+    nativeMutexLock(mutex);
+    nativeConditionNotify(condition, mutex);
+    nativeMutexUnlock(mutex);
+}
+
+global main(){
+    int semaphore = nativeSemaphoreCreate(0);
+    int producerThread = nativeThreadStart(global.producer, [semaphore]);
+    nativeSemaphoreWait(semaphore);
+    println("semaphore signalled ", nativeThreadJoin(producerThread));
+    nativeSemaphoreClose(semaphore);
+
+    int mutex = nativeMutexCreate();
+    int condition = nativeConditionCreate();
+    int notifierThread = nativeThreadStart(global.notifier, [mutex, condition]);
+    nativeMutexLock(mutex);
+    nativeConditionWait(condition, mutex);
+    nativeMutexUnlock(mutex);
+    println("condition signalled ", nativeThreadJoin(notifierThread));
+    nativeConditionClose(condition);
+    nativeMutexClose(mutex);
+}

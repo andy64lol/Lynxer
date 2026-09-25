@@ -1,0 +1,19 @@
+tryLock free true
+tryLock again (non-recursive) false
+close locked: cannot close a locked native mutex
+unlock unlocked: nativeMutexUnlock() called on an unlocked mutex
+lock blocking ok
+closed mutex: unknown native mutex handle
+notify unheld: nativeConditionNotify() requires the calling thread to hold the mutex
+wait unheld: nativeConditionWait() requires the calling thread to hold the mutex
+notify held ok
+notify bad mutex: unknown native mutex handle
+tryWait 1 true
+tryWait 2 true
+tryWait 3 false
+wait available ok
+tryWait 4 true
+closed semaphore: unknown native semaphore handle
+create args: nativeMutexCreate() expects no arguments
+negative initial: nativeSemaphoreCreate(initial) expects a non-negative integer
+wait args: nativeConditionWait(condition, mutex) expects a condition and a mutex

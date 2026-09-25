@@ -108,6 +108,64 @@ global main(){
 <h2 id="transforms-and-pixels">Transforms and pixels</h2>
 <p><code>resize</code>, <code>thumbnail</code>, <code>scale</code>, <code>crop</code>, <code>rotate</code>, <code>flipH</code>, <code>flipV</code>, <code>pad</code>, <code>convert</code>, <code>grayscale</code>, <code>toRGB</code>, <code>toRGBA</code>, <code>toBinary</code>, <code>brightness</code>, <code>contrast</code>, <code>invert</code>, <code>blur</code>, <code>boxBlur</code>, <code>unsharpMask</code>, and <code>sharpen</code> return new handles.</p>
 <p><code>getPixel</code> returns a JSON array <code>[r,g,b,a]</code>. <code>setPixel</code>, <code>setPixelA</code>, and <code>fill</code> mutate the existing image. <code>paste</code> and <code>pasteWithAlpha</code> mutate the destination; <code>blend</code> returns a new image. <code>addAlpha</code>, <code>setAlpha</code>, and <code>removeAlpha</code> return new handles.</p>
+<h2 id="geometry-fitting">Geometry fitting</h2>
+<table>
+<tr><th>Function</th><th>Description</th></tr>
+<tr><td><code>fit(idx, width, height)</code></td><td>Resize to cover <code>width</code>×<code>height</code>, then centre-crop — no letterboxing.</td></tr>
+<tr><td><code>contain(idx, width, height, r, g, b)</code></td><td>Scale to fit inside <code>width</code>×<code>height</code>, centred on a solid background.</td></tr>
+</table>
+<h2 id="fixed-and-rank-filters">Fixed and rank filters</h2>
+<p>These return a new handle. The 3×3 filters are Lynxer's own kernels with the descriptions below; each divides the neighbourhood and leaves alpha untouched, so a filter never changes transparency.</p>
+<table>
+<tr><th>Function</th><th>Kernel / window</th></tr>
+<tr><td><code>smooth(idx)</code></td><td><code>[1,1,1, 1,5,1, 1,1,1] / 13</code> — mild smoothing.</td></tr>
+<tr><td><code>detail(idx)</code></td><td><code>[0,-1,0, -1,10,-1, 0,-1,0]</code> — fine-detail emphasis.</td></tr>
+<tr><td><code>edgeEnhance(idx)</code></td><td><code>[-1,-1,-1, -1,9,-1, -1,-1,-1]</code> — edge accentuation.</td></tr>
+<tr><td><code>emboss(idx)</code></td><td>3×3 emboss kernel with a <code>+128</code> offset, so flat areas stay mid-grey.</td></tr>
+<tr><td><code>findEdges(idx)</code></td><td><code>[-1,-1,-1, -1,8,-1, -1,-1,-1]</code> — edge detection.</td></tr>
+<tr><td><code>contour(idx)</code></td><td><code>[1,1,1, 1,-7,1, 1,1,1]</code> — outline only.</td></tr>
+<tr><td><code>medianFilter(idx, size)</code> / <code>minFilter</code> / <code>maxFilter</code></td><td>Rank filters over a <code>size</code>×<code>size</code> window (<code>size</code> is forced odd). Median removes noise; min erodes; max dilates.</td></tr>
+</table>
+<h2 id="enhancement-and-composition">Enhancement and composition</h2>
+<table>
+<tr><th>Function</th><th>Description</th></tr>
+<tr><td><code>color(idx, factor)</code></td><td>Blend towards grey: <code>0.0</code> is greyscale, <code>1.0</code> unchanged, <code>2.0</code> saturated.</td></tr>
+<tr><td><code>sharpness(idx, factor)</code></td><td>Blend between a blurred copy and the original: <code>0.0</code> blur, <code>1.0</code> unchanged, <code>2.0</code> sharpened.</td></tr>
+<tr><td><code>composite(baseIdx, overlayIdx, maskIdx)</code></td><td>Overlay where the <code>L</code>-mode mask is white, base where it is black.</td></tr>
+</table>
+<h2 id="histogram-operations">Histogram operations</h2>
+<p>Each returns a new handle and leaves alpha alone.</p>
+<table>
+<tr><th>Function</th><th>Description</th></tr>
+<tr><td><code>autoContrast(idx)</code></td><td>Stretch each colour channel's range across the full byte range.</td></tr>
+<tr><td><code>equalize(idx)</code></td><td>Histogram equalisation, with the lowest populated level preserved.</td></tr>
+<tr><td><code>solarize(idx, threshold)</code></td><td>Invert every channel at or above <code>threshold</code>.</td></tr>
+<tr><td><code>posterize(idx, bits)</code></td><td>Keep the top <code>bits</code> bits (1–8) of each channel.</td></tr>
+<tr><td><code>quantize(idx, colors)</code></td><td>Median-cut palette reduction to at most <code>colors</code> colours.</td></tr>
+</table>
+<h2 id="channels">Channels</h2>
+<table>
+<tr><th>Function</th><th>Description</th></tr>
+<tr><td><code>splitChannels(idx)</code></td><td>Four <code>L</code> band images, returned as <code>&quot;r,g,b,a&quot;</code> indices.</td></tr>
+<tr><td><code>mergeChannels(idxR, idxG, idxB, idxA)</code></td><td>Merge <code>L</code> bands back into <code>RGBA</code>; a missing or invalid <code>idxA</code> is fully opaque.</td></tr>
+</table>
+<h2 id="drawing">Drawing</h2>
+<p>These mutate the target handle and return <code>true</code>/<code>false</code>. Coordinates are pixels; rectangles and ellipses accept either corner order. Colours are <code>r, g, b</code>.</p>
+<table>
+<tr><th>Function</th><th>Description</th></tr>
+<tr><td><code>drawLine(idx, x1, y1, x2, y2, r, g, b, lineWidth)</code></td><td>Line segment with a square brush.</td></tr>
+<tr><td><code>drawRect(idx, x1, y1, x2, y2, r, g, b, fill)</code></td><td>Rectangle, filled or outlined.</td></tr>
+<tr><td><code>drawRoundedRect(idx, x1, y1, x2, y2, r, g, b, fill, radius)</code></td><td>Rounded rectangle.</td></tr>
+<tr><td><code>drawCircle(idx, cx, cy, radius, r, g, b, fill)</code></td><td>Circle centred on <code>(cx, cy)</code>.</td></tr>
+<tr><td><code>drawEllipse(idx, x1, y1, x2, y2, r, g, b, fill)</code></td><td>Ellipse inscribed in the box.</td></tr>
+<tr><td><code>drawPolygon(idx, coordsJson, r, g, b)</code></td><td>Filled polygon from a flat <code>[x,y,x,y,…]</code> JSON array.</td></tr>
+<tr><td><code>drawText(idx, x, y, text, r, g, b, size)</code></td><td>Text at <code>(x, y)</code> using the first available system font.</td></tr>
+<tr><td><code>drawTextFont(idx, x, y, text, r, g, b, size, fontPath)</code></td><td>Text using a specific TTF/OTF file.</td></tr>
+<tr><td><code>floodFill(idx, x, y, r, g, b)</code></td><td>Flood-fill the contiguous region under the seed point.</td></tr>
+</table>
+<p>Text is rasterised with <code>fontdue</code> and blended by glyph coverage, so edges show the background through. <code>drawText</code> returns <code>false</code> when the host has no discoverable font, and <code>drawTextFont</code> returns <code>false</code> for an unreadable path. Both leave the image untouched on failure.</p>
+<h2 id="viewer">Viewer</h2>
+<p><code>show(idx)</code> writes the image to a temporary PNG and opens it with the system viewer (<code>xdg-open</code>, or <code>open</code> on macOS). It returns <code>true</code>/<code>false</code>; it is not usable headlessly.</p>
 <h2 id="analysis-and-encoding">Analysis and encoding</h2>
 <p><code>getAverageColor</code>, <code>getDominantColor</code>, and <code>getHistogram</code> return JSON strings. <code>tile</code> returns a tiled image. <code>toBase64</code> and <code>toDataUrl</code> encode an image, and <code>fromBase64</code> decodes an image into a new handle.</p>
 <hr>

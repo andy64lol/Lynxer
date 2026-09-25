@@ -118,4 +118,78 @@ global toDataUrl(int idx, str format) -> str {
     return global.nativeImage.toDataUrl(idx, format);
 }
 
+global fit(int idx, int width, int height) -> int {
+    return global.nativeImage.fit(idx, width, height);
+}
+global contain(int idx, int width, int height, int r, int g, int b) -> int {
+    return global.nativeImage.contain(idx, width, height, r, g, b);
+}
+global color(int idx, float factor) -> int {
+    return global.nativeImage.color(idx, factor);
+}
+global sharpness(int idx, float factor) -> int {
+    return global.nativeImage.sharpness(idx, factor);
+}
+global smooth(int idx) -> int { return global.nativeImage.smooth(idx); }
+global detail(int idx) -> int { return global.nativeImage.detail(idx); }
+global edgeEnhance(int idx) -> int { return global.nativeImage.edgeEnhance(idx); }
+global emboss(int idx) -> int { return global.nativeImage.emboss(idx); }
+global findEdges(int idx) -> int { return global.nativeImage.findEdges(idx); }
+global contour(int idx) -> int { return global.nativeImage.contour(idx); }
+global medianFilter(int idx, int size) -> int {
+    return global.nativeImage.medianFilter(idx, size);
+}
+global minFilter(int idx, int size) -> int {
+    return global.nativeImage.minFilter(idx, size);
+}
+global maxFilter(int idx, int size) -> int {
+    return global.nativeImage.maxFilter(idx, size);
+}
+global composite(int baseIdx, int overlayIdx, int maskIdx) -> int {
+    return global.nativeImage.composite(baseIdx, overlayIdx, maskIdx);
+}
+global autoContrast(int idx) -> int { return global.nativeImage.autoContrast(idx); }
+global equalize(int idx) -> int { return global.nativeImage.equalize(idx); }
+global solarize(int idx, int threshold) -> int {
+    return global.nativeImage.solarize(idx, threshold);
+}
+global posterize(int idx, int bits) -> int {
+    return global.nativeImage.posterize(idx, bits);
+}
+global quantize(int idx, int colors) -> int {
+    return global.nativeImage.quantize(idx, colors);
+}
+global splitChannels(int idx) -> str { return global.nativeImage.splitChannels(idx); }
+global mergeChannels(int idxR, int idxG, int idxB, int idxA) -> int {
+    return global.nativeImage.mergeChannels(idxR, idxG, idxB, idxA);
+}
+global drawLine(int idx, int x1, int y1, int x2, int y2, int r, int g, int b, int lineWidth) -> bool {
+    return global.nativeImage.drawLine(idx, x1, y1, x2, y2, r, g, b, lineWidth) is 0;
+}
+global drawRect(int idx, int x1, int y1, int x2, int y2, int r, int g, int b, bool fill) -> bool {
+    return global.nativeImage.drawRect(idx, x1, y1, x2, y2, r, g, b, fill) is 0;
+}
+global drawRoundedRect(int idx, int x1, int y1, int x2, int y2, int r, int g, int b, bool fill, int radius) -> bool {
+    return global.nativeImage.drawRoundedRect(idx, x1, y1, x2, y2, r, g, b, fill, radius) is 0;
+}
+global drawCircle(int idx, int cx, int cy, int radius, int r, int g, int b, bool fill) -> bool {
+    return global.nativeImage.drawCircle(idx, cx, cy, radius, r, g, b, fill) is 0;
+}
+global drawEllipse(int idx, int x1, int y1, int x2, int y2, int r, int g, int b, bool fill) -> bool {
+    return global.nativeImage.drawEllipse(idx, x1, y1, x2, y2, r, g, b, fill) is 0;
+}
+global drawPolygon(int idx, str coordsJson, int r, int g, int b) -> bool {
+    return global.nativeImage.drawPolygon(idx, coordsJson, r, g, b) is 0;
+}
+global drawText(int idx, int x, int y, str text, int r, int g, int b, int size) -> bool {
+    return global.nativeImage.drawText(idx, x, y, text, r, g, b, size) is 0;
+}
+global drawTextFont(int idx, int x, int y, str text, int r, int g, int b, int size, str fontPath) -> bool {
+    return global.nativeImage.drawTextFont(idx, x, y, text, r, g, b, size, fontPath) is 0;
+}
+global floodFill(int idx, int x, int y, int r, int g, int b) -> bool {
+    return global.nativeImage.floodFill(idx, x, y, r, g, b) is 0;
+}
+global show(int idx) -> bool { return global.nativeImage.show(idx) is 0; }
+
 global main(){}

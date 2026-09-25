@@ -19,8 +19,6 @@ is visible next to the work that *is* open.
 | Click/Typer builders (`click*`, `typer*`) | The `cli` module does not depend on Python's Click or Typer. |
 | Python runtime introspection (`sys.path`, `addPath`, `prependPath`, `removeFromPath`, `getModules`, `isModuleLoaded`, `getRecursionLimit`, `setRecursionLimit`, `os.getPythonVersion`, `os.getPythonImplementation`) | There is no Python runtime to introspect. |
 | Bytecode (`.lynxc`, `--view-bytecode`, `--benchmark-compile`, `--no-cache`) | Removed; `--compile` produces a standalone ELF executable instead. |
-| `nativeModule*` handle built-ins | Superseded by importing a native `.so` through the documented ABI; the `ffi*` family is implemented. |
-| `nativeMutex*`, `nativeCondition*`, `nativeSemaphore*` | Lynxer runs cooperatively on one interpreter thread; there is no shared mutable state to protect. |
 | `\x` / `\u` string escapes | Only `\n`, `\r`, `\t`, `\\`, `\"` and `\e` are accepted. |
 
 ## Port the original Lynxer surface (`docs-legacy`)
@@ -56,15 +54,15 @@ Status of each unimplemented built-in today:
 - [x] **Atomics and volatile access** — `atomicLoad`, `atomicStore`,
       `atomicAdd`, `volatileRead`, `volatileWrite` (sequential consistency;
       `atomicAdd` returns the previous value).
-- [ ] **Native synchronization** — `nativeMutexCreate/Lock/TryLock/Unlock/Close`,
+- [x] **Native synchronization** — `nativeMutexCreate/Lock/TryLock/Unlock/Close`,
       `nativeConditionCreate/Wait/Notify/NotifyAll/Close`,
-      `nativeSemaphoreCreate/Wait/TryWait/Post/Close` — **reopen**. Today the
-      cooperative `nativeThread*` family is the threading model.
+      `nativeSemaphoreCreate/Wait/TryWait/Post/Close` over the cooperative
+      `nativeThread*` model (blocking waits release the interpreter lock).
 - [x] **`memoryProtect`** — change page protection for an allocation
       (POSIX, page-granular).
-- [ ] **`nativeModule*` handle built-ins** — Load/Name/Function/Constant/Type/
-      Error/Dependencies/Close. Superseded by `importAs("<name>.so", ...)`; build
-      only if a use case appears.
+- [x] **`nativeModule*` handle built-ins** — Load/Name/Function/Constant/Type/
+      Error/Dependencies/Close, over the same `lynxer_module_init_v1` loader as
+      `importAs`.
 
 ### Standard-library module APIs (`docs-legacy/stdlib/*.md`)
 
@@ -74,13 +72,15 @@ Status of each unimplemented built-in today:
       `wordWrap`, `expandTabs`, `splitFirst`, …).
 - [x] `csv` — legacy aliases plus `csvHeaders` / `csvRow` / `dedupCSV` ops.
 - [x] `regex` — `countWords`.
-- [ ] `image` — 31 legacy ops. Drawing: `drawLine`, `drawRect`, `drawCircle`,
-      `drawEllipse`, `drawPolygon`, `drawRoundedRect`, `drawText`,
-      `drawTextFont`. Filters: `smooth`, `detail`, `edgeEnhance`, `emboss`,
-      `findEdges`, `equalize`, `autoContrast`, `solarize`, `posterize`,
-      `quantize`, `medianFilter`, `minFilter`, `maxFilter`, `sharpness`,
-      `color`, `composite`, `contour`, `floodFill`. Geometry: `contain`, `fit`,
-      `mergeChannels`, `splitChannels`, `show`.
+- [x] `image` — the 31 legacy ops. Drawing (`drawLine`, `drawRect`,
+      `drawRoundedRect`, `drawCircle`, `drawEllipse`, `drawPolygon`, `drawText`,
+      `drawTextFont`), filters (`smooth`, `detail`, `edgeEnhance`, `emboss`,
+      `findEdges`, `contour`, `medianFilter`, `minFilter`, `maxFilter`,
+      `sharpness`, `color`, `composite`), geometry (`contain`, `fit`), the
+      histogram operations (`autoContrast`, `equalize`, `solarize`, `posterize`,
+      `quantize`), `splitChannels` / `mergeChannels`, `floodFill` and `show`
+      (text via `fontdue`; the 3x3 kernels are documented in
+      [docs/stdlib/image.md](docs/stdlib/image.md)).
 - [ ] `game` — 28 legacy ops. Scenes: `makeScene`, `drawScene`, `updateScene`,
       `addListToScene`. Physics: `makePhysicsEngine`, `updatePhysics`,
       `setPhysicsPlayer`, `jumpPlayer`, `canJump`, `getPlayerVY`. Tilemaps:
@@ -100,10 +100,9 @@ Status of each unimplemented built-in today:
       `templatePost`, `templateString`, `setTemplateFolder`. Middleware/TLS:
       `cors`, `corsOrigin`, `addGlobalHeader`, `enableRequestLog`, `setDebug`,
       `runHTTPS`, `runSSLAdhoc`.
-- [ ] `network` — the raw-socket surface the old `net` module had:
+- [x] `network` — the raw-socket surface the old `net` module had:
       `tcpConnect`, `tcpSend`, `tcpReceive`, `tcpSendReceive`, `tcpClose`,
-      `ping`, `isPortOpen`, `getLocalIP`. Needs a sockets backend; `ureq` /
-      `tungstenite` cannot provide these.
+      `ping`, `isPortOpen`, `getLocalIP` (Rust `std::net`, plaintext TCP only).
 - [ ] `cli` — `click*` / `typer*` builders — **reopen**. Today the names are
       rejected and `clickExists()` / `typerExists()` return `false`.
 - [ ] `sys` — Python runtime introspection (`addPath`, `prependPath`,
@@ -138,6 +137,10 @@ Status of each unimplemented built-in today:
   `beingBorrowed`, plus `shared` declarations and `unshare()`.
 - `async*` family: `asyncRun`, `asyncGather`, `asyncSleep`, `asyncPoll*`,
   timers and wakeups (`await` yields cooperatively).
+- Explicit native-module handles: `nativeModuleLoad` / `Name` / `Function` /
+  `Constant` / `Type` / `Error` / `Dependencies` / `Close`.
+- Native synchronization on cooperative threads: `nativeMutex*`,
+  `nativeCondition*`, `nativeSemaphore*`.
 - Memory protection, atomics and volatile access: `memoryProtect`,
   `atomicLoad` / `atomicStore` / `atomicAdd`, `volatileRead` / `volatileWrite`.
 - Raw addresses and native calls: `getAddress` / `getAddressValue` /
@@ -157,75 +160,75 @@ Status of each unimplemented built-in today:
 ## More named syscalls (platform-compatible)
 
 Every syscall documented by the original (`docs-legacy/syscalls.md`, 89 names) is
-already implemented via the named dispatcher in `lynxer/builtins.cpp`. This is
-the backlog for *additional* syscalls.
+implemented via the named dispatcher in `lynxer/builtins.cpp`, and the extended
+set below has been added on top of it. A name whose number is missing from the
+build's headers fails with `syscall '<name>' is not available on this
+architecture` rather than dispatching the wrong table.
 
 **Portability rule.** New wrappers must work on **both** Linux `amd64` and
-`aarch64` from the same source: resolve the number from the per-architecture
-tables, and when the raw call differs, expose one portable name plus the
-architecture-specific alternatives separately (the existing
-`poll`/`ppoll` split is the model — `syscallPollFileDescriptors` is portable,
-`syscallPpollFileDescriptors` is the ARM64 form). Reject unsupported
-architectures up front instead of dispatching the wrong table. Prefer a libc
-wrapper when the raw call is an unstable ABI (e.g. `clone`/`clone3`).
+`aarch64` from the same source: resolve the number in `syscallNumberFor`, guard
+each mapping with `#ifdef SYS_<name>` so an older header set degrades to the
+"not available on this architecture" error instead of the wrong table, and split
+out an architecture-specific name when the raw call differs (the existing
+`poll`/`ppoll` split is the model). Prefer a libc wrapper when the raw call is an
+unstable ABI (e.g. `clone`/`clone3`).
 
 ### Filesystem
 
-- [ ] `syscallStatx` (`statx`) — extended stat; also the source of file
-      birth-time and mount id.
-- [ ] `syscallOpenAt2` (`openat2`) — `openat` with a resolve-flags struct.
-- [ ] `syscallCheckFileAccessAt2` (`faccessat2`) — `faccessat` with flags.
-- [ ] `syscallCopyFileRange` (`copy_file_range`) — kernel-side copy.
-- [ ] `syscallFallocateFile` (`fallocate`) — reserve/extend file space.
-- [ ] `syscallSynchronizeFilesystem` (`syncfs`) — flush one filesystem.
+- [x] `statx` — already reachable as `syscallGetExtendedFileStatus`.
+- [x] `syscallOpenAt2` (`openat2`) — `openat` with a resolve-flags struct.
+- [x] `syscallCheckFileAccessAt2` (`faccessat2`) — `faccessat` with flags.
+- [x] `syscallCopyFileRange` (`copy_file_range`) — kernel-side copy.
+- [x] `syscallFallocateFile` (`fallocate`) — reserve/extend file space.
+- [x] `syscallSynchronizeFilesystem` (`syncfs`) — flush one filesystem.
 
 ### Processes and threads
 
-- [ ] `syscallCreateThread3` (`clone3`) — extensible clone; prefer the libc
+- [x] `syscallCreateThread3` (`clone3`) — extensible clone; prefer the libc
       `pthread_create` wrapper outside the thread family.
-- [ ] `syscallOpenProcessFileDescriptor` (`pidfd_open`) — a pollable process fd.
-- [ ] `syscallSendSignalToProcessFileDescriptor` (`pidfd_send_signal`).
-- [ ] `syscallGetThreadAffinity` / `syscallSetThreadAffinity`
+- [x] `syscallOpenProcessFileDescriptor` (`pidfd_open`) — a pollable process fd.
+- [x] `syscallSendSignalToProcessFileDescriptor` (`pidfd_send_signal`).
+- [x] `syscallGetThreadAffinity` / `syscallSetThreadAffinity`
       (`sched_getaffinity` / `sched_setaffinity`).
-- [ ] `syscallGetThreadPriority` / `syscallSetThreadPriority`
+- [x] `syscallGetThreadPriority` / `syscallSetThreadPriority`
       (`getpriority` / `setpriority`).
-- [ ] `syscallWaitForProcessId` (`waitid`) — the `waitid` sibling of the
+- [x] `syscallWaitForProcessId` (`waitid`) — the `waitid` sibling of the
       existing `syscallWaitForProcess` (`wait4`).
 
 ### Memory
 
-- [ ] `syscallLockMemory` / `syscallUnlockMemory` (`mlock` / `munlock`).
-- [ ] `syscallSynchronizeMemory` (`msync`) — flush an `mmap` region.
-- [ ] `syscallCreateMemoryFileDescriptor` (`memfd_create`).
-- [ ] `syscallSetMemoryPolicy` (`mbind`) — NUMA placement; both arches.
+- [x] `syscallLockMemory` / `syscallUnlockMemory` (`mlock` / `munlock`).
+- [x] `syscallSynchronizeMemory` (`msync`) — flush an `mmap` region.
+- [x] `syscallCreateMemoryFileDescriptor` (`memfd_create`).
+- [x] `syscallSetMemoryPolicy` (`mbind`) — NUMA placement; both arches.
 
 ### Time
 
-- [ ] `syscallGetTimeOfDay` (`gettimeofday`).
-- [ ] `syscallSleepClock` (`clock_nanosleep`) — the clock-relative sibling of
+- [x] `syscallGetTimeOfDay` (`gettimeofday`).
+- [x] `syscallSleepClock` (`clock_nanosleep`) — the clock-relative sibling of
       `syscallSleep`.
-- [ ] `syscallCreateTimerFileDescriptor` / `syscallControlTimerFileDescriptor`
+- [x] `syscallCreateTimerFileDescriptor` / `syscallControlTimerFileDescriptor`
       (`timerfd_create` / `timerfd_settime`).
 
 ### Signals
 
-- [ ] `syscallControlSignal` (`rt_sigaction`).
-- [ ] `syscallControlSignalMask` (`rt_sigprocmask`).
-- [ ] `syscallCreateSignalFileDescriptor` (`signalfd`).
+- [x] `syscallControlSignal` (`rt_sigaction`).
+- [x] `syscallControlSignalMask` (`rt_sigprocmask`).
+- [x] `syscallCreateSignalFileDescriptor` (`signalfd`).
 
 ### Sockets and event loops
 
-- [ ] `syscallSendMessages` / `syscallReceiveMessages` (`sendmmsg` / `recvmmsg`).
-- [ ] `syscallAcceptConnection4` (`accept4`) — `accept` with flags.
-- [ ] `syscallWaitForEvents2` (`epoll_pwait2`) — nanosecond `epoll` timeout.
-- [ ] `syscallCreateEventFileDescriptor` (`eventfd`) — for poll/wakeup plumbing.
+- [x] `syscallSendMessages` / `syscallReceiveMessages` (`sendmmsg` / `recvmmsg`).
+- [x] `syscallAcceptConnection4` (`accept4`) — `accept` with flags.
+- [x] `syscallWaitForEvents2` (`epoll_pwait2`) — nanosecond `epoll` timeout.
+- [x] `syscallCreateEventFileDescriptor` (`eventfd`) — for poll/wakeup plumbing.
 
 ### System information and control
 
-- [ ] `syscallControlProcessThread` (`prctl`).
-- [ ] `syscallGetCapabilities` / `syscallSetCapabilities`
+- [x] `prctl` — already reachable as `syscallControlProcess`.
+- [x] `syscallGetCapabilities` / `syscallSetCapabilities`
       (`capget` / `capset`).
-- [ ] `syscallGetSystemTimes` (`times`).
+- [x] `syscallGetSystemTimes` (`times`).
 
 ### Stretch (higher complexity)
 

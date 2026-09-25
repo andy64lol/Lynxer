@@ -22,7 +22,6 @@ Entries are marked:
 | Python runtime introspection (`sys.path`, `addPath`, `prependPath`, `removeFromPath`, `getModules`, `isModuleLoaded`, `getRecursionLimit`, `setRecursionLimit`, `os.getPythonVersion`, `os.getPythonImplementation`) | There is no Python runtime to introspect. The `os` getters return `""` / `"Lynxer"` for compatibility and will be removed. |
 | Bytecode (`.lynxc`, `--view-bytecode`, `--benchmark-compile`, `--no-cache`) | Removed with the bytecode backend; `--compile` produces a standalone ELF executable instead (`--bundle` is an alias). Running a `.lynxc` file reports that bytecode is unsupported. |
 | FFI / native-module handle built-ins | Superseded by direct `import` of a native `.so` through the documented ABI. |
-| `nativeMutex*`, `nativeCondition*`, `nativeSemaphore*` | Lynxer runs cooperatively on one interpreter thread; there is one global lock and no shared mutable state to protect. |
 | `async*` family (`Run`, `Gather`, `Sleep`, `Poll*`, timers, wakeups) | Lynxer has no `async` language support and no event loop to serve. |
 
 ## Language and Toolchain Design

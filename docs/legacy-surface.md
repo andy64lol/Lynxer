@@ -55,13 +55,15 @@ score"`; see [builtins.md](builtins.md#native-memory).
 
 | Family | Status | Notes |
 | --- | --- | --- |
-| `nativeMutexCreate/Lock/TryLock/Unlock/Close` | Not planned | No pre-emptive threads to protect |
-| `nativeConditionCreate/Wait/Notify/NotifyAll/Close` | Not planned | — |
-| `nativeSemaphoreCreate/Wait/TryWait/Post/Close` | Not planned | — |
+| `nativeMutexCreate/Lock/TryLock/Unlock/Close` | Implemented | Non-recursive; only the owning thread may unlock |
+| `nativeConditionCreate/Wait/Notify/NotifyAll/Close` | Implemented | The caller must hold the mutex for every operation |
+| `nativeSemaphoreCreate/Wait/TryWait/Post/Close` | Implemented | Closing is refused while a thread waits |
 
-**Why:** Lynxer evaluates on one interpreter thread under a single lock, so there
-is no shared mutable state to guard. The cooperative
-[`nativeThread*`](builtins.md#native-threads) family is the supported model.
+**Caveat:** Lynxer evaluates on one interpreter thread under a single lock, and
+these handles sit on top of the cooperative [`nativeThread*`](builtins.md#native-threads)
+model. A blocking wait releases the interpreter lock so another thread can run,
+but a wait on a resource no other thread will release deadlocks. See
+[builtins.md](builtins.md#native-synchronization).
 
 ## Async
 
@@ -84,14 +86,15 @@ interop — has no direct equivalent.
 
 | Family | Status | Notes |
 | --- | --- | --- |
-| `nativeModuleLoad/Name/Function/Constant/Type/Error/Dependencies/Close` | Not planned | Superseded by the import ABI |
+| `nativeModuleLoad/Name/Function/Constant/Type/Error/Dependencies/Close` | Implemented | Dynamic discovery over the same ABI as `importAs` |
 | `ffiLoadLibrary`, `ffiLookup`, `ffiCloseLibrary`, `ffiCall`, `ffiCallback`, `ffiFreeCallback` | Implemented | In C++ (`lynxer/builtins.cpp`) |
 
 Native code is reached through the documented
 [native-module ABI](native-module-abi.md): an `.so` exporting
-`lynxer_module_init_v1` is imported by name (`importAs("libx.so", "x")`), so the
-`nativeModule*` handle built-ins are unnecessary. The `ffi*` family is the
-dynamic alternative.
+`lynxer_module_init_v1` is imported by name (`importAs("libx.so", "x")`), or
+loaded explicitly with `nativeModuleLoad` and inspected by name. Both share the
+same loader and registration rules; the `ffi*` family is the plain-symbol
+alternative. See [builtins.md](builtins.md#explicit-native-module-handles).
 
 ## Modules not ported
 
@@ -117,10 +120,10 @@ dynamic alternative.
 | `getAddress` / `getAddressValue` / `modifyAddressValue` | Implemented (addresses are integers) |
 | `nativeFunctionAddress` / `nativeCall` | Implemented (`nativeCall` over the small integer ABI) |
 | `nativeHandle*` | Implemented under the same names |
-| `nativeMutex*` / `Condition*` / `Semaphore*` | `nativeThread*` (cooperative) |
+| `nativeMutex*` / `Condition*` / `Semaphore*` | Implemented (cooperative handles) |
 | `async*` | Implemented (cooperative handles over `sleep`) |
 | `rawPy` / `embedPy` | None (no CPython) |
-| `nativeModule*` handles | `importAs("<name>.so", …)` |
+| `nativeModule*` handles | Implemented (`importAs("<name>.so", …)` is the usual route) |
 | `tkinter` / `turtle` / `venv` | None |
 
 ## See also

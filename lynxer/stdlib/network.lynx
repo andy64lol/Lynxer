@@ -54,4 +54,27 @@ global wsConnected(str name) -> bool {
     return global.nativeNetwork.wsConnected(name) isnt 0;
 }
 
+global tcpConnect(str name, str host, int port) -> str {
+    return global.nativeNetwork.tcpConnect(name, host, port);
+}
+global tcpSend(str name, str data) -> str {
+    return global.nativeNetwork.tcpSend(name, data);
+}
+global tcpReceive(str name, int bufSize) -> str {
+    return global.nativeNetwork.tcpReceive(name, bufSize);
+}
+global tcpSendReceive(str name, str data, int bufSize) -> str {
+    return global.nativeNetwork.tcpSendReceive(name, data, bufSize);
+}
+global tcpClose(str name) -> str {
+    return global.nativeNetwork.tcpClose(name);
+}
+global isPortOpen(str host, int port, int timeoutSecs) -> bool {
+    return global.nativeNetwork.isPortOpen(host, port, timeoutSecs) isnt 0;
+}
+global ping(str host) -> bool {
+    return global.nativeNetwork.ping(host) isnt 0;
+}
+global getLocalIP() -> str { return global.nativeNetwork.getLocalIP(); }
+
 global main(){}

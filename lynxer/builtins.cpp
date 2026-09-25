@@ -3,6 +3,7 @@
 #include "ast.hpp"
 #include "error.hpp"
 #include "interrupt.hpp"
+#include "native_name.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -16,6 +17,8 @@
 #include <filesystem>
 #include <iostream>
 #include <memory>
+#include <atomic>
+#include <condition_variable>
 #include <mutex>
 #include <sstream>
 #include <thread>
@@ -40,6 +43,8 @@
 #include <netdb.h>
 #include <netinet/in.h>
 #include <poll.h>
+#include <elf.h>
+#include <link.h>
 #include <sys/socket.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -3131,6 +3136,104 @@ long syscallNumberFor(const std::string& name, bool& known) {
     if (name == "syscallGetResourceLimit") return SYS_getrlimit;
     if (name == "syscallSetResourceLimit") return SYS_setrlimit;
     if (name == "syscallControlProcess") return SYS_prctl;
+    // Extended filesystem surface.
+#ifdef SYS_openat2
+    if (name == "syscallOpenAt2") return SYS_openat2;
+#endif
+#ifdef SYS_faccessat2
+    if (name == "syscallCheckFileAccessAt2") return SYS_faccessat2;
+#endif
+#ifdef SYS_copy_file_range
+    if (name == "syscallCopyFileRange") return SYS_copy_file_range;
+#endif
+#ifdef SYS_fallocate
+    if (name == "syscallFallocateFile") return SYS_fallocate;
+#endif
+#ifdef SYS_syncfs
+    if (name == "syscallSynchronizeFilesystem") return SYS_syncfs;
+#endif
+    // Processes and threads.
+#ifdef SYS_clone3
+    if (name == "syscallCreateThread3") return SYS_clone3;
+#endif
+#ifdef SYS_pidfd_open
+    if (name == "syscallOpenProcessFileDescriptor") return SYS_pidfd_open;
+#endif
+#ifdef SYS_pidfd_send_signal
+    if (name == "syscallSendSignalToProcessFileDescriptor")
+        return SYS_pidfd_send_signal;
+#endif
+#ifdef SYS_sched_getaffinity
+    if (name == "syscallGetThreadAffinity") return SYS_sched_getaffinity;
+    if (name == "syscallSetThreadAffinity") return SYS_sched_setaffinity;
+#endif
+#ifdef SYS_getpriority
+    if (name == "syscallGetThreadPriority") return SYS_getpriority;
+    if (name == "syscallSetThreadPriority") return SYS_setpriority;
+#endif
+#ifdef SYS_waitid
+    if (name == "syscallWaitForProcessId") return SYS_waitid;
+#endif
+    // Memory.
+#ifdef SYS_mlock
+    if (name == "syscallLockMemory") return SYS_mlock;
+    if (name == "syscallUnlockMemory") return SYS_munlock;
+#endif
+#ifdef SYS_msync
+    if (name == "syscallSynchronizeMemory") return SYS_msync;
+#endif
+#ifdef SYS_memfd_create
+    if (name == "syscallCreateMemoryFileDescriptor") return SYS_memfd_create;
+#endif
+#ifdef SYS_mbind
+    if (name == "syscallSetMemoryPolicy") return SYS_mbind;
+#endif
+    // Time.
+#ifdef SYS_gettimeofday
+    if (name == "syscallGetTimeOfDay") return SYS_gettimeofday;
+#endif
+#ifdef SYS_clock_nanosleep
+    if (name == "syscallSleepClock") return SYS_clock_nanosleep;
+#endif
+#ifdef SYS_timerfd_create
+    if (name == "syscallCreateTimerFileDescriptor") return SYS_timerfd_create;
+    if (name == "syscallControlTimerFileDescriptor")
+        return SYS_timerfd_settime;
+#endif
+    // Signals.
+#ifdef SYS_rt_sigaction
+    if (name == "syscallControlSignal") return SYS_rt_sigaction;
+#endif
+#ifdef SYS_rt_sigprocmask
+    if (name == "syscallControlSignalMask") return SYS_rt_sigprocmask;
+#endif
+#ifdef SYS_signalfd4
+    if (name == "syscallCreateSignalFileDescriptor") return SYS_signalfd4;
+#endif
+    // Sockets and event loops.
+#ifdef SYS_sendmmsg
+    if (name == "syscallSendMessages") return SYS_sendmmsg;
+#endif
+#ifdef SYS_recvmmsg
+    if (name == "syscallReceiveMessages") return SYS_recvmmsg;
+#endif
+#ifdef SYS_accept4
+    if (name == "syscallAcceptConnection4") return SYS_accept4;
+#endif
+#ifdef SYS_epoll_pwait2
+    if (name == "syscallWaitForEvents2") return SYS_epoll_pwait2;
+#endif
+#ifdef SYS_eventfd2
+    if (name == "syscallCreateEventFileDescriptor") return SYS_eventfd2;
+#endif
+    // System information.
+#ifdef SYS_capget
+    if (name == "syscallGetCapabilities") return SYS_capget;
+    if (name == "syscallSetCapabilities") return SYS_capset;
+#endif
+#ifdef SYS_times
+    if (name == "syscallGetSystemTimes") return SYS_times;
+#endif
 #if defined(__x86_64__)
     if (name == "syscallPollFileDescriptors") return SYS_poll;
     if (name == "syscallWaitForEvents") return SYS_epoll_wait;
@@ -4807,6 +4910,429 @@ Value builtinNativeThreadDetach(const std::vector<Value>& args, Environment&,
     return std::int64_t{0};
 }
 
+// --- Managed native synchronization built-ins --------------------------------
+//
+// Mutex, condition-variable and semaphore handles. They cooperate with
+// Lynxer's cooperative threading model: every *blocking* wait releases the
+// interpreter lock, so another thread can run and release or signal. A mutex
+// is non-recursive, and only the thread that locked it may unlock it.
+
+struct NativeMutexEntry {
+    std::mutex mutex;
+    std::condition_variable available;
+    bool locked = false;
+    std::thread::id owner;
+    std::atomic<int> waiters{0};
+};
+
+struct NativeConditionEntry {
+    std::condition_variable condition;
+    std::atomic<int> waiters{0};
+};
+
+struct NativeSemaphoreEntry {
+    std::mutex mutex;
+    std::condition_variable available;
+    std::int64_t count = 0;
+    std::atomic<int> waiters{0};
+};
+
+std::mutex& nativeSyncRegistryMutex() {
+    static std::mutex mutex;
+    return mutex;
+}
+
+std::unordered_map<std::int64_t, std::shared_ptr<NativeMutexEntry>>&
+nativeMutexes() {
+    static std::unordered_map<std::int64_t, std::shared_ptr<NativeMutexEntry>>
+        entries;
+    return entries;
+}
+
+std::unordered_map<std::int64_t, std::shared_ptr<NativeConditionEntry>>&
+nativeConditions() {
+    static std::unordered_map<std::int64_t,
+                              std::shared_ptr<NativeConditionEntry>>
+        entries;
+    return entries;
+}
+
+std::unordered_map<std::int64_t, std::shared_ptr<NativeSemaphoreEntry>>&
+nativeSemaphores() {
+    static std::unordered_map<std::int64_t,
+                              std::shared_ptr<NativeSemaphoreEntry>>
+        entries;
+    return entries;
+}
+
+std::int64_t nextSyncHandle() {
+    static std::int64_t next = 1;
+    return next++;
+}
+
+std::int64_t syncHandleValue(const std::vector<Value>& args, std::size_t index,
+                             const char* name, const char* kind, int line,
+                             int column) {
+    if (index >= args.size() || !isNonNegativeInt(args[index])) {
+        fail(std::string(name) + "() expects a " + kind + " handle", line,
+             column);
+    }
+    const std::int64_t handle = std::get<std::int64_t>(args[index]);
+    if (handle == 0) {
+        fail(std::string(name) + "() expects a " + kind + " handle", line,
+             column);
+    }
+    return handle;
+}
+
+std::shared_ptr<NativeMutexEntry> findMutex(std::int64_t handle, int line,
+                                            int column) {
+    std::lock_guard<std::mutex> guard(nativeSyncRegistryMutex());
+    const auto found = nativeMutexes().find(handle);
+    if (found == nativeMutexes().end()) {
+        fail("unknown native mutex handle", line, column);
+    }
+    return found->second;
+}
+
+std::shared_ptr<NativeConditionEntry> findCondition(std::int64_t handle,
+                                                    int line, int column) {
+    std::lock_guard<std::mutex> guard(nativeSyncRegistryMutex());
+    const auto found = nativeConditions().find(handle);
+    if (found == nativeConditions().end()) {
+        fail("unknown native condition handle", line, column);
+    }
+    return found->second;
+}
+
+std::shared_ptr<NativeSemaphoreEntry> findSemaphore(std::int64_t handle,
+                                                    int line, int column) {
+    std::lock_guard<std::mutex> guard(nativeSyncRegistryMutex());
+    const auto found = nativeSemaphores().find(handle);
+    if (found == nativeSemaphores().end()) {
+        fail("unknown native semaphore handle", line, column);
+    }
+    return found->second;
+}
+
+template <typename Entry>
+void eraseSyncHandle(
+    std::unordered_map<std::int64_t, std::shared_ptr<Entry>>& entries,
+    std::int64_t handle) {
+    std::lock_guard<std::mutex> guard(nativeSyncRegistryMutex());
+    entries.erase(handle);
+}
+
+Value builtinNativeMutexCreate(const std::vector<Value>& args, Environment&,
+                               int line, int column) {
+    if (!args.empty()) {
+        fail("nativeMutexCreate() expects no arguments", line, column);
+    }
+    const std::int64_t handle = nextSyncHandle();
+    {
+        std::lock_guard<std::mutex> guard(nativeSyncRegistryMutex());
+        nativeMutexes()[handle] = std::make_shared<NativeMutexEntry>();
+    }
+    return handle;
+}
+
+Value builtinNativeMutexLock(const std::vector<Value>& args, Environment&,
+                             int line, int column) {
+    if (args.size() != 1) {
+        fail("nativeMutexLock(mutex) expects a mutex handle", line, column);
+    }
+    const std::shared_ptr<NativeMutexEntry> entry = findMutex(
+        syncHandleValue(args, 0, "nativeMutexLock", "mutex", line, column),
+        line, column);
+    unlockInterpreter();
+    {
+        std::unique_lock<std::mutex> guard(entry->mutex);
+        entry->waiters.fetch_add(1);
+        entry->available.wait(guard, [&entry] { return !entry->locked; });
+        entry->waiters.fetch_sub(1);
+        entry->locked = true;
+        entry->owner = std::this_thread::get_id();
+    }
+    lockInterpreter();
+    return std::int64_t{0};
+}
+
+Value builtinNativeMutexTryLock(const std::vector<Value>& args, Environment&,
+                                int line, int column) {
+    if (args.size() != 1) {
+        fail("nativeMutexTryLock(mutex) expects a mutex handle", line, column);
+    }
+    const std::shared_ptr<NativeMutexEntry> entry = findMutex(
+        syncHandleValue(args, 0, "nativeMutexTryLock", "mutex", line, column),
+        line, column);
+    std::lock_guard<std::mutex> guard(entry->mutex);
+    if (entry->locked) {
+        return false;
+    }
+    entry->locked = true;
+    entry->owner = std::this_thread::get_id();
+    return true;
+}
+
+Value builtinNativeMutexUnlock(const std::vector<Value>& args, Environment&,
+                               int line, int column) {
+    if (args.size() != 1) {
+        fail("nativeMutexUnlock(mutex) expects a mutex handle", line, column);
+    }
+    const std::shared_ptr<NativeMutexEntry> entry = findMutex(
+        syncHandleValue(args, 0, "nativeMutexUnlock", "mutex", line, column),
+        line, column);
+    std::lock_guard<std::mutex> guard(entry->mutex);
+    if (!entry->locked) {
+        fail("nativeMutexUnlock() called on an unlocked mutex", line, column);
+    }
+    if (entry->owner != std::this_thread::get_id()) {
+        fail("nativeMutexUnlock() must be called by the thread that locked it",
+             line, column);
+    }
+    entry->locked = false;
+    entry->owner = std::thread::id{};
+    entry->available.notify_one();
+    return std::int64_t{0};
+}
+
+Value builtinNativeMutexClose(const std::vector<Value>& args, Environment&,
+                              int line, int column) {
+    if (args.size() != 1) {
+        fail("nativeMutexClose(mutex) expects a mutex handle", line, column);
+    }
+    const std::int64_t handle =
+        syncHandleValue(args, 0, "nativeMutexClose", "mutex", line, column);
+    const std::shared_ptr<NativeMutexEntry> entry =
+        findMutex(handle, line, column);
+    {
+        std::lock_guard<std::mutex> guard(entry->mutex);
+        if (entry->locked) {
+            fail("cannot close a locked native mutex", line, column);
+        }
+        if (entry->waiters.load() > 0) {
+            fail("cannot close a native mutex while a thread is waiting on it",
+                 line, column);
+        }
+    }
+    eraseSyncHandle(nativeMutexes(), handle);
+    return std::int64_t{0};
+}
+
+Value builtinNativeConditionCreate(const std::vector<Value>& args, Environment&,
+                                   int line, int column) {
+    if (!args.empty()) {
+        fail("nativeConditionCreate() expects no arguments", line, column);
+    }
+    const std::int64_t handle = nextSyncHandle();
+    {
+        std::lock_guard<std::mutex> guard(nativeSyncRegistryMutex());
+        nativeConditions()[handle] = std::make_shared<NativeConditionEntry>();
+    }
+    return handle;
+}
+
+// The caller must hold `mutex` for every condition operation, as in the
+// original: this returns a source-located error otherwise.
+void requireConditionMutex(const NativeMutexEntry& mutex, const char* name,
+                           int line, int column) {
+    if (!mutex.locked || mutex.owner != std::this_thread::get_id()) {
+        fail(std::string(name) +
+                 "() requires the calling thread to hold the mutex",
+             line, column);
+    }
+}
+
+Value builtinNativeConditionWait(const std::vector<Value>& args, Environment&,
+                                 int line, int column) {
+    if (args.size() != 2) {
+        fail("nativeConditionWait(condition, mutex) expects a condition and a "
+             "mutex",
+             line, column);
+    }
+    const std::int64_t conditionHandle = syncHandleValue(
+        args, 0, "nativeConditionWait", "condition", line, column);
+    const std::int64_t mutexHandle =
+        syncHandleValue(args, 1, "nativeConditionWait", "mutex", line, column);
+    const std::shared_ptr<NativeConditionEntry> condition =
+        findCondition(conditionHandle, line, column);
+    const std::shared_ptr<NativeMutexEntry> mutex =
+        findMutex(mutexHandle, line, column);
+    {
+        std::lock_guard<std::mutex> guard(mutex->mutex);
+        requireConditionMutex(*mutex, "nativeConditionWait", line, column);
+    }
+    unlockInterpreter();
+    {
+        std::unique_lock<std::mutex> guard(mutex->mutex);
+        mutex->locked = false;
+        mutex->owner = std::thread::id{};
+        mutex->available.notify_one();
+        condition->waiters.fetch_add(1);
+        condition->condition.wait(guard);
+        condition->waiters.fetch_sub(1);
+        mutex->available.wait(guard, [&mutex] { return !mutex->locked; });
+        mutex->locked = true;
+        mutex->owner = std::this_thread::get_id();
+    }
+    lockInterpreter();
+    return std::int64_t{0};
+}
+
+Value signalCondition(const std::vector<Value>& args, int line, int column,
+                      bool all) {
+    const char* name =
+        all ? "nativeConditionNotifyAll" : "nativeConditionNotify";
+    if (args.size() != 2) {
+        fail(std::string(name) +
+                 "(condition, mutex) expects a condition and a mutex",
+             line, column);
+    }
+    const std::int64_t conditionHandle =
+        syncHandleValue(args, 0, name, "condition", line, column);
+    const std::int64_t mutexHandle =
+        syncHandleValue(args, 1, name, "mutex", line, column);
+    const std::shared_ptr<NativeConditionEntry> condition =
+        findCondition(conditionHandle, line, column);
+    const std::shared_ptr<NativeMutexEntry> mutex =
+        findMutex(mutexHandle, line, column);
+    {
+        std::lock_guard<std::mutex> guard(mutex->mutex);
+        requireConditionMutex(*mutex, name, line, column);
+    }
+    if (all) {
+        condition->condition.notify_all();
+    } else {
+        condition->condition.notify_one();
+    }
+    return std::int64_t{0};
+}
+
+Value builtinNativeConditionNotify(const std::vector<Value>& args, Environment&,
+                                   int line, int column) {
+    return signalCondition(args, line, column, false);
+}
+
+Value builtinNativeConditionNotifyAll(const std::vector<Value>& args,
+                                      Environment&, int line, int column) {
+    return signalCondition(args, line, column, true);
+}
+
+Value builtinNativeConditionClose(const std::vector<Value>& args, Environment&,
+                                  int line, int column) {
+    if (args.size() != 1) {
+        fail("nativeConditionClose(condition) expects a condition handle", line,
+             column);
+    }
+    const std::int64_t handle = syncHandleValue(
+        args, 0, "nativeConditionClose", "condition", line, column);
+    const std::shared_ptr<NativeConditionEntry> condition =
+        findCondition(handle, line, column);
+    if (condition->waiters.load() > 0) {
+        fail("cannot close a native condition while a thread is waiting on it",
+             line, column);
+    }
+    eraseSyncHandle(nativeConditions(), handle);
+    return std::int64_t{0};
+}
+
+Value builtinNativeSemaphoreCreate(const std::vector<Value>& args, Environment&,
+                                   int line, int column) {
+    if (args.size() != 1 || !isNonNegativeInt(args[0])) {
+        fail("nativeSemaphoreCreate(initial) expects a non-negative integer",
+             line, column);
+    }
+    auto entry = std::make_shared<NativeSemaphoreEntry>();
+    entry->count = std::get<std::int64_t>(args[0]);
+    const std::int64_t handle = nextSyncHandle();
+    {
+        std::lock_guard<std::mutex> guard(nativeSyncRegistryMutex());
+        nativeSemaphores()[handle] = entry;
+    }
+    return handle;
+}
+
+Value builtinNativeSemaphoreWait(const std::vector<Value>& args, Environment&,
+                                 int line, int column) {
+    if (args.size() != 1) {
+        fail("nativeSemaphoreWait(semaphore) expects a semaphore handle", line,
+             column);
+    }
+    const std::shared_ptr<NativeSemaphoreEntry> entry = findSemaphore(
+        syncHandleValue(args, 0, "nativeSemaphoreWait", "semaphore", line,
+                        column),
+        line, column);
+    {
+        std::lock_guard<std::mutex> guard(entry->mutex);
+        if (entry->count > 0) {
+            entry->count -= 1;
+            return std::int64_t{0};
+        }
+    }
+    unlockInterpreter();
+    {
+        std::unique_lock<std::mutex> guard(entry->mutex);
+        entry->waiters.fetch_add(1);
+        entry->available.wait(guard, [&entry] { return entry->count > 0; });
+        entry->waiters.fetch_sub(1);
+        entry->count -= 1;
+    }
+    lockInterpreter();
+    return std::int64_t{0};
+}
+
+Value builtinNativeSemaphoreTryWait(const std::vector<Value>& args,
+                                    Environment&, int line, int column) {
+    if (args.size() != 1) {
+        fail("nativeSemaphoreTryWait(semaphore) expects a semaphore handle",
+             line, column);
+    }
+    const std::shared_ptr<NativeSemaphoreEntry> entry = findSemaphore(
+        syncHandleValue(args, 0, "nativeSemaphoreTryWait", "semaphore", line,
+                        column),
+        line, column);
+    std::lock_guard<std::mutex> guard(entry->mutex);
+    if (entry->count <= 0) {
+        return false;
+    }
+    entry->count -= 1;
+    return true;
+}
+
+Value builtinNativeSemaphorePost(const std::vector<Value>& args, Environment&,
+                                 int line, int column) {
+    if (args.size() != 1) {
+        fail("nativeSemaphorePost(semaphore) expects a semaphore handle", line,
+             column);
+    }
+    const std::shared_ptr<NativeSemaphoreEntry> entry = findSemaphore(
+        syncHandleValue(args, 0, "nativeSemaphorePost", "semaphore", line,
+                        column),
+        line, column);
+    std::lock_guard<std::mutex> guard(entry->mutex);
+    entry->count += 1;
+    entry->available.notify_one();
+    return std::int64_t{0};
+}
+
+Value builtinNativeSemaphoreClose(const std::vector<Value>& args, Environment&,
+                                  int line, int column) {
+    if (args.size() != 1) {
+        fail("nativeSemaphoreClose(semaphore) expects a semaphore handle", line,
+             column);
+    }
+    const std::int64_t handle = syncHandleValue(
+        args, 0, "nativeSemaphoreClose", "semaphore", line, column);
+    const std::shared_ptr<NativeSemaphoreEntry> entry =
+        findSemaphore(handle, line, column);
+    if (entry->waiters.load() > 0) {
+        fail("cannot close a native semaphore while a thread is waiting on it",
+             line, column);
+    }
+    eraseSyncHandle(nativeSemaphores(), handle);
+    return std::int64_t{0};
+}
+
 // --- Native FFI --------------------------------------------------------------
 
 struct FfiCallbackRecord {
@@ -4957,6 +5483,375 @@ Value builtinFfiFreeCallback(const std::vector<Value>& args, Environment&,
     const auto* handle = std::get_if<std::int64_t>(&args[0]);
     if (handle == nullptr || ffiCallbacks().erase(*handle) == 0) {
         fail("ffiFreeCallback() received an unknown callback", line, column);
+    }
+    return std::int64_t{0};
+}
+
+// --- Explicit native-module handles ------------------------------------------
+//
+// `nativeModule*` is the original's dynamic-discovery API. It loads a shared
+// object through the same `lynxer_module_init_v1` ABI that `importAs` uses and
+// exposes the registered table by name instead of binding it into a namespace.
+// The ABI registration rules (name spelling, duplicate detection) live in
+// native_name.hpp so this and the import path cannot drift.
+
+struct NativeModuleEntry {
+    void* handle = nullptr;
+    std::string name;
+    std::string path;
+    std::string error;
+    std::unordered_map<std::string, std::pair<void*, std::string>> functions;
+    std::unordered_map<std::string, std::int64_t> constants;
+    std::unordered_map<std::string, std::string> types;
+};
+
+std::unordered_map<std::int64_t, std::shared_ptr<NativeModuleEntry>>&
+nativeModuleEntries() {
+    static std::unordered_map<std::int64_t,
+                              std::shared_ptr<NativeModuleEntry>>
+        entries;
+    return entries;
+}
+
+std::mutex& nativeModuleEntriesMutex() {
+    static std::mutex mutex;
+    return mutex;
+}
+
+std::int64_t nextNativeModuleHandle() {
+    static std::int64_t next = 1;
+    return next++;
+}
+
+thread_local NativeModuleEntry* activeNativeModuleEntry = nullptr;
+
+bool nativeModuleNameTaken(const NativeModuleEntry& entry,
+                           const std::string& name) {
+    return entry.functions.count(name) != 0 ||
+           entry.constants.count(name) != 0 || entry.types.count(name) != 0;
+}
+
+int nativeModuleRegisterFunction(const char* name, const char* symbol,
+                                 const char* signature) {
+#if defined(__unix__) || defined(__APPLE__)
+    if (activeNativeModuleEntry == nullptr || !validNativeName(name) ||
+        symbol == nullptr || signature == nullptr) {
+        return 0;
+    }
+    NativeModuleEntry& entry = *activeNativeModuleEntry;
+    if (nativeModuleNameTaken(entry, name)) {
+        entry.error = "duplicate native registration";
+        return 0;
+    }
+    void* address = ::dlsym(entry.handle, symbol);
+    if (address == nullptr) {
+        entry.error = "registered symbol not found";
+        return 0;
+    }
+    entry.functions[name] = {address, signature};
+    return 1;
+#else
+    (void)name;
+    (void)symbol;
+    (void)signature;
+    return 0;
+#endif
+}
+
+int nativeModuleRegisterConstant(const char* name, std::int64_t value) {
+    if (activeNativeModuleEntry == nullptr || !validNativeName(name)) {
+        return 0;
+    }
+    NativeModuleEntry& entry = *activeNativeModuleEntry;
+    if (nativeModuleNameTaken(entry, name)) {
+        entry.error = "duplicate native registration";
+        return 0;
+    }
+    entry.constants[name] = value;
+    return 1;
+}
+
+int nativeModuleRegisterType(const char* name, const char* layout) {
+    if (activeNativeModuleEntry == nullptr || !validNativeName(name) ||
+        layout == nullptr) {
+        return 0;
+    }
+    NativeModuleEntry& entry = *activeNativeModuleEntry;
+    if (nativeModuleNameTaken(entry, name)) {
+        entry.error = "duplicate native registration";
+        return 0;
+    }
+    entry.types[name] = layout;
+    return 1;
+}
+
+std::shared_ptr<NativeModuleEntry> requireNativeModule(
+    const std::vector<Value>& args, std::size_t index, const char* name,
+    int line, int column) {
+    if (index >= args.size() || !isNonNegativeInt(args[index])) {
+        fail(std::string(name) + "() expects a native module handle", line,
+             column);
+    }
+    std::lock_guard<std::mutex> guard(nativeModuleEntriesMutex());
+    const auto found =
+        nativeModuleEntries().find(std::get<std::int64_t>(args[index]));
+    if (found == nativeModuleEntries().end()) {
+        fail(std::string(name) +
+                 "() received an unknown native module handle",
+             line, column);
+    }
+    return found->second;
+}
+
+Value builtinNativeModuleLoad(const std::vector<Value>& args, Environment&,
+                              int line, int column) {
+    if (args.size() != 1 || !std::holds_alternative<std::string>(args[0])) {
+        fail("nativeModuleLoad(path) expects a shared-object path", line,
+             column);
+    }
+    const std::string path = std::get<std::string>(args[0]);
+#if defined(__unix__) || defined(__APPLE__)
+    std::filesystem::path resolved(path);
+    if (resolved.is_relative()) {
+        resolved = std::filesystem::current_path() / resolved;
+    }
+    void* handle = ::dlopen(resolved.c_str(), RTLD_NOW | RTLD_LOCAL);
+    if (handle == nullptr) {
+        const char* error = ::dlerror();
+        fail("nativeModuleLoad() failed: " +
+                 std::string(error == nullptr ? "unknown error" : error),
+             line, column);
+    }
+    auto initializer =
+        reinterpret_cast<int (*)(int (*)(const char*, const char*,
+                                         const char*),
+                                 int (*)(const char*, std::int64_t),
+                                 int (*)(const char*, const char*))>(
+            ::dlsym(handle, "lynxer_module_init_v1"));
+    if (initializer == nullptr) {
+        ::dlclose(handle);
+        fail("native module lifecycle failure: missing lynxer_module_init_v1 "
+             "entry point",
+             line, column);
+    }
+    auto entry = std::make_shared<NativeModuleEntry>();
+    entry->handle = handle;
+    entry->path = resolved.string();
+    entry->name = moduleNameFromPath(path);
+    activeNativeModuleEntry = entry.get();
+    const int status = initializer(nativeModuleRegisterFunction,
+                                   nativeModuleRegisterConstant,
+                                   nativeModuleRegisterType);
+    activeNativeModuleEntry = nullptr;
+    if (status != 0 || !entry->error.empty()) {
+        const std::string detail = entry->error.empty()
+                                       ? "initializer returned non-zero"
+                                       : entry->error;
+        ::dlclose(handle);
+        fail("native module lifecycle failure: " + detail, line, column);
+    }
+    const std::int64_t moduleHandle = nextNativeModuleHandle();
+    {
+        std::lock_guard<std::mutex> guard(nativeModuleEntriesMutex());
+        nativeModuleEntries()[moduleHandle] = entry;
+    }
+    // Share the FFI registry so a registered address can be called with
+    // `ffiCall` while the module is open, and fails cleanly once it is closed.
+    ffiLibraries()[handle] = handle;
+    for (const auto& pair : entry->functions) {
+        ffiFunctions()[pair.second.first] = handle;
+    }
+    return moduleHandle;
+#else
+    fail("nativeModuleLoad() requires a POSIX host", line, column);
+#endif
+}
+
+Value builtinNativeModuleName(const std::vector<Value>& args, Environment&,
+                              int line, int column) {
+    if (args.size() != 1) {
+        fail("nativeModuleName(handle) expects a native module handle", line,
+             column);
+    }
+    return requireNativeModule(args, 0, "nativeModuleName", line, column)->name;
+}
+
+Value builtinNativeModuleFunction(const std::vector<Value>& args, Environment&,
+                                  int line, int column) {
+    if (args.size() != 2 || !std::holds_alternative<std::string>(args[1])) {
+        fail("nativeModuleFunction(handle, name) expects a handle and a name",
+             line, column);
+    }
+    const std::shared_ptr<NativeModuleEntry> entry =
+        requireNativeModule(args, 0, "nativeModuleFunction", line, column);
+    const std::string name = std::get<std::string>(args[1]);
+    const auto found = entry->functions.find(name);
+    if (found == entry->functions.end()) {
+        fail("nativeModuleFunction() found no registered function '" + name +
+                 "'",
+             line, column);
+    }
+    return static_cast<std::int64_t>(
+        reinterpret_cast<std::intptr_t>(found->second.first));
+}
+
+Value builtinNativeModuleConstant(const std::vector<Value>& args, Environment&,
+                                  int line, int column) {
+    if (args.size() != 2 || !std::holds_alternative<std::string>(args[1])) {
+        fail("nativeModuleConstant(handle, name) expects a handle and a name",
+             line, column);
+    }
+    const std::shared_ptr<NativeModuleEntry> entry =
+        requireNativeModule(args, 0, "nativeModuleConstant", line, column);
+    const std::string name = std::get<std::string>(args[1]);
+    const auto found = entry->constants.find(name);
+    if (found == entry->constants.end()) {
+        fail("nativeModuleConstant() found no registered constant '" + name +
+                 "'",
+             line, column);
+    }
+    return found->second;
+}
+
+Value builtinNativeModuleType(const std::vector<Value>& args, Environment&,
+                              int line, int column) {
+    if (args.size() != 2 || !std::holds_alternative<std::string>(args[1])) {
+        fail("nativeModuleType(handle, name) expects a handle and a name", line,
+             column);
+    }
+    const std::shared_ptr<NativeModuleEntry> entry =
+        requireNativeModule(args, 0, "nativeModuleType", line, column);
+    const std::string name = std::get<std::string>(args[1]);
+    const auto found = entry->types.find(name);
+    if (found == entry->types.end()) {
+        fail("nativeModuleType() found no registered type '" + name + "'", line,
+             column);
+    }
+    return found->second;
+}
+
+Value builtinNativeModuleError(const std::vector<Value>& args, Environment&,
+                               int line, int column) {
+    if (args.size() != 1) {
+        fail("nativeModuleError(handle) expects a native module handle", line,
+             column);
+    }
+    return requireNativeModule(args, 0, "nativeModuleError", line, column)
+        ->error;
+}
+
+// The loaded address range of the object at `base`. Loaders differ on whether
+// the `DT_*` pointers in an in-memory dynamic section are already relocated, so
+// a candidate string-table pointer is only accepted when it actually lies
+// inside the object.
+struct NativeModuleRange {
+    std::uintptr_t base = 0;
+    std::uintptr_t begin = 0;
+    std::uintptr_t end = 0;
+};
+
+int nativeModuleRangeCallback(struct ::dl_phdr_info* info, std::size_t,
+                              void* data) {
+    auto* range = static_cast<NativeModuleRange*>(data);
+    if (static_cast<std::uintptr_t>(info->dlpi_addr) != range->base) {
+        return 0;
+    }
+    std::uintptr_t begin = ~static_cast<std::uintptr_t>(0);
+    std::uintptr_t end = 0;
+    bool loaded = false;
+    for (int index = 0; index < info->dlpi_phnum; ++index) {
+        const ElfW(Phdr)& header = info->dlpi_phdr[index];
+        if (header.p_type != PT_LOAD) {
+            continue;
+        }
+        const std::uintptr_t low = static_cast<std::uintptr_t>(header.p_vaddr);
+        const std::uintptr_t high =
+            low + static_cast<std::uintptr_t>(header.p_memsz);
+        begin = std::min(begin, low);
+        end = std::max(end, high);
+        loaded = true;
+    }
+    if (!loaded) {
+        return 0;
+    }
+    range->begin = range->base + begin;
+    range->end = range->base + end;
+    return 1;
+}
+
+std::uintptr_t nativeModuleDynamicPointer(const NativeModuleRange& range,
+                                          std::uintptr_t value) {
+    if (range.end > range.begin && value >= range.begin && value < range.end) {
+        return value;
+    }
+    const std::uintptr_t relocated = range.base + value;
+    if (range.end > range.begin && relocated >= range.begin &&
+        relocated < range.end) {
+        return relocated;
+    }
+    return 0;
+}
+
+Value builtinNativeModuleDependencies(const std::vector<Value>& args,
+                                      Environment&, int line, int column) {
+    if (args.size() != 1) {
+        fail("nativeModuleDependencies(handle) expects a native module handle",
+             line, column);
+    }
+    const std::shared_ptr<NativeModuleEntry> entry =
+        requireNativeModule(args, 0, "nativeModuleDependencies", line, column);
+    std::vector<Value> names;
+#if defined(__unix__) || defined(__APPLE__)
+    struct ::link_map* map = nullptr;
+    if (::dlinfo(entry->handle, RTLD_DI_LINKMAP, &map) == 0 && map != nullptr &&
+        map->l_ld != nullptr) {
+        const auto* dynamic = reinterpret_cast<const ElfW(Dyn)*>(map->l_ld);
+        NativeModuleRange range;
+        range.base = static_cast<std::uintptr_t>(map->l_addr);
+        ::dl_iterate_phdr(nativeModuleRangeCallback, &range);
+        const char* strtab = nullptr;
+        for (const ElfW(Dyn)* cursor = dynamic; cursor->d_tag != DT_NULL;
+             ++cursor) {
+            if (cursor->d_tag == DT_STRTAB) {
+                const std::uintptr_t pointer = nativeModuleDynamicPointer(
+                    range, static_cast<std::uintptr_t>(cursor->d_un.d_ptr));
+                if (pointer != 0) {
+                    strtab = reinterpret_cast<const char*>(pointer);
+                }
+                break;
+            }
+        }
+        if (strtab != nullptr) {
+            for (const ElfW(Dyn)* cursor = dynamic; cursor->d_tag != DT_NULL;
+                 ++cursor) {
+                if (cursor->d_tag == DT_NEEDED) {
+                    names.emplace_back(
+                        std::string(strtab + cursor->d_un.d_val));
+                }
+            }
+        }
+    }
+#endif
+    return makeList(std::move(names));
+}
+
+Value builtinNativeModuleClose(const std::vector<Value>& args, Environment&,
+                               int line, int column) {
+    if (args.size() != 1) {
+        fail("nativeModuleClose(handle) expects a native module handle", line,
+             column);
+    }
+    const std::shared_ptr<NativeModuleEntry> entry =
+        requireNativeModule(args, 0, "nativeModuleClose", line, column);
+    const std::int64_t handleValue = std::get<std::int64_t>(args[0]);
+    // Keep each function's owner record but drop the library: a retained
+    // address then fails in `ffiCall` ("belongs to a closed library") instead
+    // of jumping into unmapped code.
+    ffiLibraries().erase(entry->handle);
+    ::dlclose(entry->handle);
+    {
+        std::lock_guard<std::mutex> guard(nativeModuleEntriesMutex());
+        nativeModuleEntries().erase(handleValue);
     }
     return std::int64_t{0};
 }
@@ -5761,6 +6656,21 @@ const std::unordered_map<std::string, Handler>& handlerTable() {
         {"nativeThreadIsAlive", builtinNativeThreadIsAlive},
         {"nativeThreadStatus", builtinNativeThreadStatus},
         {"nativeThreadDetach", builtinNativeThreadDetach},
+        {"nativeMutexCreate", builtinNativeMutexCreate},
+        {"nativeMutexLock", builtinNativeMutexLock},
+        {"nativeMutexTryLock", builtinNativeMutexTryLock},
+        {"nativeMutexUnlock", builtinNativeMutexUnlock},
+        {"nativeMutexClose", builtinNativeMutexClose},
+        {"nativeConditionCreate", builtinNativeConditionCreate},
+        {"nativeConditionWait", builtinNativeConditionWait},
+        {"nativeConditionNotify", builtinNativeConditionNotify},
+        {"nativeConditionNotifyAll", builtinNativeConditionNotifyAll},
+        {"nativeConditionClose", builtinNativeConditionClose},
+        {"nativeSemaphoreCreate", builtinNativeSemaphoreCreate},
+        {"nativeSemaphoreWait", builtinNativeSemaphoreWait},
+        {"nativeSemaphoreTryWait", builtinNativeSemaphoreTryWait},
+        {"nativeSemaphorePost", builtinNativeSemaphorePost},
+        {"nativeSemaphoreClose", builtinNativeSemaphoreClose},
         // Cooperative async API.
         {"asyncRun", builtinAsyncRun},
         {"asyncGather", builtinAsyncGather},
@@ -5784,6 +6694,14 @@ const std::unordered_map<std::string, Handler>& handlerTable() {
         {"ffiCall", builtinFfiCall},
         {"ffiCallback", builtinFfiCallback},
         {"ffiFreeCallback", builtinFfiFreeCallback},
+        {"nativeModuleLoad", builtinNativeModuleLoad},
+        {"nativeModuleName", builtinNativeModuleName},
+        {"nativeModuleFunction", builtinNativeModuleFunction},
+        {"nativeModuleConstant", builtinNativeModuleConstant},
+        {"nativeModuleType", builtinNativeModuleType},
+        {"nativeModuleError", builtinNativeModuleError},
+        {"nativeModuleDependencies", builtinNativeModuleDependencies},
+        {"nativeModuleClose", builtinNativeModuleClose},
 #endif
     };
     return handlers;
@@ -5808,19 +6726,10 @@ const std::unordered_set<std::string>& unsupportedTable() {
         "soundLoad", "soundPlay", "soundLoop", "soundStop", "soundPause",
         "soundResume", "soundSetVolume", "soundIsPlaying", "soundRelease",
 #endif
-        "nativeModuleLoad", "nativeModuleName", "nativeModuleFunction",
-        "nativeModuleConstant", "nativeModuleType", "nativeModuleError",
-        "nativeModuleDependencies", "nativeModuleClose",
 #if !LYNXER_POSIX_BUILTINS
         "nativeThreadStart", "nativeThreadJoin", "nativeThreadJoinAll",
         "nativeThreadIsAlive", "nativeThreadStatus", "nativeThreadDetach",
 #endif
-        "nativeMutexCreate", "nativeMutexLock", "nativeMutexTryLock",
-        "nativeMutexUnlock", "nativeMutexClose",
-        "nativeConditionCreate", "nativeConditionWait", "nativeConditionNotify",
-        "nativeConditionNotifyAll", "nativeConditionClose",
-        "nativeSemaphoreCreate", "nativeSemaphoreWait", "nativeSemaphoreTryWait",
-        "nativeSemaphorePost", "nativeSemaphoreClose",
 #if !LYNXER_POSIX_BUILTINS
         "processSpawn", "processWrite", "processCloseInput", "processRead",
         "processPoll", "processWait", "processSendSignal", "processClose",
@@ -5873,6 +6782,39 @@ const std::unordered_set<std::string>& unsupportedTable() {
         "syscallGetUnixSystemName", "syscallGetExtendedFileStatus",
         "syscallGetResourceUsage", "syscallGetResourceLimit",
         "syscallSetResourceLimit", "syscallControlProcess",
+        "syscallOpenAt2",
+        "syscallCheckFileAccessAt2",
+        "syscallCopyFileRange",
+        "syscallFallocateFile",
+        "syscallSynchronizeFilesystem",
+        "syscallCreateThread3",
+        "syscallOpenProcessFileDescriptor",
+        "syscallSendSignalToProcessFileDescriptor",
+        "syscallGetThreadAffinity",
+        "syscallSetThreadAffinity",
+        "syscallGetThreadPriority",
+        "syscallSetThreadPriority",
+        "syscallWaitForProcessId",
+        "syscallLockMemory",
+        "syscallUnlockMemory",
+        "syscallSynchronizeMemory",
+        "syscallCreateMemoryFileDescriptor",
+        "syscallSetMemoryPolicy",
+        "syscallGetTimeOfDay",
+        "syscallSleepClock",
+        "syscallCreateTimerFileDescriptor",
+        "syscallControlTimerFileDescriptor",
+        "syscallControlSignal",
+        "syscallControlSignalMask",
+        "syscallCreateSignalFileDescriptor",
+        "syscallSendMessages",
+        "syscallReceiveMessages",
+        "syscallAcceptConnection4",
+        "syscallWaitForEvents2",
+        "syscallCreateEventFileDescriptor",
+        "syscallGetCapabilities",
+        "syscallSetCapabilities",
+        "syscallGetSystemTimes",
     };
     return unsupported;
 }
