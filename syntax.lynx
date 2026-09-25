@@ -4,11 +4,11 @@
 // single-line comments start with //
 ///
    multiline comments use, well, you see, i didn't place the triple / here because that ends the block of multiline comments
-   so well, as you see
 ///
 
 // setup() must be the first global declaration.
 // importAs() binds a module to the alias supplied as its second argument.
+
 global setup(){
     importAs("math", "m");
     importAs("typing", "types");
@@ -22,6 +22,7 @@ global add(int a, int b){
 global identity(any value){
     return value;
 }
+
 
 global main(){
     println("=== Lynxer syntax showcase ===");
@@ -49,9 +50,9 @@ global main(){
     println("comparisons: ", 5 > 3, ", ", 5 == 5, ", ", 5 != 4);
     println("logic: ", true && false, ", ", true !&& false, ", ",
             true || false, ", ", true !|| false, ", ", !!true);
-    println("bitwise: ", 6 & 3, ", ", 6 !& 3, ", ", 6 ^ 3, ", ",
-            6 !^ 3, ", ", 6 | 3, ", ", 6 !| 3, ", ",
-            1 << 4, ", ", 32 >> 2);
+    println("bitwise: ", 6 bitand 3, ", ", 6 bitnand 3, ", ", 6 bitxor 3, ", ",
+            6 bitxnor 3, ", ", 6 bitor 3, ", ", 6 bitnor 3, ", ",
+            1 bitleft 4, ", ", 32 bitright 2);
 
     // Lists.
     list numbers = [int 1, int 2, int 3, int 4, int 5];
@@ -85,23 +86,23 @@ global main(){
     println("tuple as JSON: ", tupleJsonArray(point));
     println("list to tuple: ", listToTuple(numbers));
 
-    // currently not supported
-    // tuple reversed = global.types.tupleReverse(point);
-    // tuple sorted = global.types.tupleSort(tupleCreate(5, 2, 4, 1));
-    // tuple unique = global.types.tupleUnique(tupleCreate(1, 1, 2, 3, 3));
-    // println("typing tupleReverse: ", reversed);
-    // println("typing tupleSort: ", sorted);
-    // println("typing tupleUnique: ", unique);
-    // println("typing tupleSum: ", global.types.tupleSum(point));
-    // println("typing tupleJoin: ", global.types.tupleJoin(point, "-"));
-    // list pointList = global.types.toList(point);
-    // tuple pointTuple = global.types.toTuple(pointList);
-    // println("typing toList(tuple): ", pointList);
-    // println("typing toTuple(list): ", pointTuple);
-    // println("typing isSequence(point): ", global.types.isSequence(point));
-    // println("typing lenSequence(point): ", global.types.lenSequence(point));
-    // println("typing toString(point): ", global.types.toString(point));
-    // println("typing toNumber(\"3.5\"): ", global.types.toNumber("3.5"));
+    // Typing module functions
+    tuple reversed = global.types.tupleReverse(point);
+    tuple sorted = global.types.tupleSort(tupleCreate(5, 2, 4, 1));
+    tuple unique = global.types.tupleUnique(tupleCreate(1, 1, 2, 3, 3));
+    println("typing tupleReverse: ", reversed);
+    println("typing tupleSort: ", sorted);
+    println("typing tupleUnique: ", unique);
+    println("typing tupleSum: ", global.types.tupleSum(point));
+    println("typing tupleJoin: ", global.types.tupleJoin(point, "-"));
+    list pointList = global.types.toList(point);
+    tuple pointTuple = global.types.toTuple(pointList);
+    println("typing toList(tuple): ", pointList);
+    println("typing toTuple(list): ", pointTuple);
+    println("typing isSequence(point): ", global.types.isSequence(point));
+    println("typing lenSequence(point): ", global.types.lenSequence(point));
+    println("typing toStr(point): ", global.types.toStr(point));
+    println("typing toNumber(\"3.5\"): ", global.types.toNumber("3.5"));
 
     // Built-ins are available without importing a module.
     println("returnType(point): ", returnType(point));
@@ -140,7 +141,7 @@ global main(){
     // Sentinels compare by identity.
     sentinel missing = sentinel("MISSING");
     println("sentinel type: ", returnType(missing));
-    println("sentinel identity: ", missing == missing);
+    println("sentinel identity: ", missing is missing);
 
     // Codeblocks can be stored and executed later.
     codeblock helloWorld = {

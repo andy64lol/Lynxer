@@ -52,14 +52,29 @@ list nums = [int 1, int 2];
 tuple pair = (int 10, int 20);
 ```
 
-## Creating sequences
+## Creating Sequences
+
+### Lists
 
 | Builtin | Result |
 |---------|--------|
 | `range(n)` | `0 .. n-1` |
-| `seqFromTo(start, end)` | the inclusive numeric range |
+| `seqFromTo(start, end)` | Inclusive numeric range |
+| `seqFromTo(start, end, step)` | Inclusive numeric range with step |
 | `listRepeat(value, n)` | `n` copies of `value` |
-| `tupleCreate(a, b, ...)` | a tuple from the arguments |
+
+### Tuples
+
+| Builtin | Result |
+|---------|--------|
+| `tupleCreate(a, b, ...)` | A tuple from the arguments |
+
+### Conversions
+
+| Builtin | Result |
+|---------|--------|
+| `listToTuple(list)` | Converts a list to a tuple |
+| `tupleToList(tuple)` | Converts a tuple to a list |
 
 ## List builtins
 
@@ -83,22 +98,73 @@ tuple pair = (int 10, int 20);
 | `sortList(list)` / `sortList(list, true)` | ascending / descending copy |
 | `reverseList(list)` | reversed copy |
 | `listHead(list, count)` / `listTail(list, count)` | first / last `count` elements |
-| `listFirst(list)` / `listLast(list)` | first / last element |
-| `listMin(list)`, `listMax(list)`, `listAvg(list)` | aggregates |
-| `sumOf(list)` | sum of the elements |
-| `listToTuple(list)` | convert to a tuple |
-| `listJsonArray`, `listJsonObject` | JSON conversion |
+| `listFirst(list)` / `listLast(list)` | First / last element |
+| `listHead(list, count)` / `listTail(list, count)` | First / last `count` elements |
 
-The length of a list, tuple, or string is `returnLength(value)`, and
-`contains(container, value)` tests membership.
-
-## Tuple builtins
+### Tuple Builtins
 
 | Builtin | Notes |
 |---------|-------|
-| `tupleGet(tuple, index)`, `tupleSlice(tuple, start, end)` | access |
-| `tupleLen(tuple)`, `tupleCount(tuple, value)` | length / occurrences |
-| `tupleContains(tuple, value)`, `tupleIndex(tuple, value)` | membership / position |
+| `tupleGet(tuple, index)` / `tupleSlice(tuple, start, end)` | Access elements or sub-tuples |
+| `tupleLen(tuple)` / `tupleCount(tuple, value)` | Length / occurrences of a value |
+| `tupleContains(tuple, value)` / `tupleIndex(tuple, value)` | Membership / position of a value |
+| `tupleConcat(a, b)` / `tupleJoin(a, b)` / `tupleZip(a, b)` | Combine tuples |
+| `tupleFlatten(tuple)` / `tupleReverse(tuple)` / `tupleUnique(tuple)` | Reshape tuples |
+| `tupleSort(tuple)` / `tupleSortDesc(tuple)` | Sort ascending / descending |
+| `tupleAll(tuple)` / `tupleAny(tuple)` | Predicates for truthiness |
+| `tupleMin(tuple)` / `tupleMax(tuple)` / `tupleSum(tuple)` | Aggregates |
+| `tupleFirst(tuple)` / `tupleLast(tuple)` | First / last element |
+| `tupleToList(tuple)` | Converts a tuple to a list |
+| `tupleJsonArray(tuple)` | Encodes a tuple as a JSON array string |
+| `tupleMean(tuple)` | Arithmetic mean of numeric elements |
+| `tupleZip(tuple1, tuple2)` | List of JSON pair strings `{"a":v1,"b":v2}` |
+
+### Notes
+- **Tuples are immutable**: Operations like `tupleConcat` and `tupleSlice` return a **new** tuple.
+- **Iteration**: Use `tupleToList()` to iterate over a tuple with a `for` loop or index manually.
+- **Conversions**: Use `listToTuple()` and `tupleToList()` to convert between lists and tuples.
+
+The length of a list, tuple, or string is `returnLength(value)`, and
+`contains(container, value)` tests membership for both lists and tuples.
+
+## Tuple Builtins
+
+| Builtin | Notes |
+|---------|-------|
+| `tupleGet(tuple, index)` / `tupleSlice(tuple, start, end)` | Access elements or sub-tuples |
+| `tupleLen(tuple)` / `tupleCount(tuple, value)` | Length / occurrences of a value |
+| `tupleContains(tuple, value)` / `tupleIndex(tuple, value)` | Membership / position of a value |
+| `tupleConcat(a, b)` / `tupleJoin(a, b)` / `tupleZip(a, b)` | Combine tuples |
+| `tupleFlatten(tuple)` / `tupleReverse(tuple)` / `tupleUnique(tuple)` | Reshape tuples |
+| `tupleSort(tuple)` / `tupleSortDesc(tuple)` | Sort ascending / descending |
+| `tupleAll(tuple)` / `tupleAny(tuple)` | Predicates for truthiness |
+| `tupleMin(tuple)` / `tupleMax(tuple)` / `tupleSum(tuple)` | Aggregates |
+| `tupleFirst(tuple)` / `tupleLast(tuple)` | First / last element |
+| `tupleToList(tuple)` | Converts a tuple to a list |
+| `tupleJsonArray(tuple)` | Encodes a tuple as a JSON array string |
+| `tupleMean(tuple)` | Arithmetic mean of numeric elements |
+
+### Typing Module Functions
+
+The `typing` module provides additional tuple functions:
+
+| Function | Description |
+|----------|-------------|
+| `tupleReverse(t)` | New tuple with elements in reversed order |
+| `tupleSort(t)` | New tuple sorted ascending |
+| `tupleSortDesc(t)` | New tuple sorted descending |
+| `tupleMin(t)` | Minimum element |
+| `tupleMax(t)` | Maximum element |
+| `tupleSum(t)` | Sum of all numeric elements |
+| `tupleAny(t)` | `true` if any element is truthy |
+| `tupleAll(t)` | `true` if all elements are truthy |
+| `tupleUnique(t)` | New tuple with duplicates removed (order preserved) |
+| `tupleMean(t)` | Arithmetic mean of numeric elements |
+| `tupleFlatten(t)` | One-level flatten: concatenate nested tuple elements |
+| `tupleZip(t1, t2)` | List of JSON pair strings `{"a":v1,"b":v2}` |
+| `tupleJoin(t, sep)` | All elements joined as a string with separator |
+
+*Note:* These functions require importing the `typing` module (`import("typing")`).
 | `tupleConcat(a, b)`, `tupleJoin(a, b)`, `tupleZip(a, b)` | combination |
 | `tupleFlatten`, `tupleReverse`, `tupleUnique` | reshaping |
 | `tupleSort`, `tupleSortDesc` | ordering |

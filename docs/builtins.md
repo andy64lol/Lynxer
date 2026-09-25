@@ -81,13 +81,39 @@ dispatcher rather than to a per-name handler.
 
 ## Tuples
 
-`tupleCreate(...)`, `tupleGet(t, i)`, `tupleLen(t)`, `tupleContains(t, v)`,
-`tupleIndex(t, v)`, `tupleSlice(t, start, stop)`, `tupleToList(t)`,
-`listToTuple(list)`, `tupleConcat(a, b)`, `tupleCount(t, v)`, `tupleFirst(t)`,
-`tupleLast(t)`, `tupleJsonArray(t)`, `tupleReverse(t)`, `tupleSort(t)`,
-`tupleSortDesc(t)`, `tupleMin(t)`, `tupleMax(t)`, `tupleSum(t)`, `tupleAny(t)`,
-`tupleAll(t)`, `tupleUnique(t)`, `tupleMean(t)`, `tupleFlatten(t)`,
-`tupleZip(a, b)`, `tupleJoin(t, separator)`.
+| Builtin | Notes |
+| --- | --- |
+| `tupleCreate(v1, v2, ...)` | Creates a tuple from any number of arguments |
+| `tupleGet(tuple t, int idx)` | Gets element at `idx` (negative indices supported) |
+| `tupleLen(tuple t)` | Number of elements |
+| `tupleContains(tuple t, any val)` | `true` if `val` is in the tuple |
+| `tupleIndex(tuple t, any val)` | First index of `val`, or `-1` |
+| `tupleSlice(tuple t, int start, int stop)` | Sub-tuple `[start, stop)` |
+| `tupleToList(tuple t)` | Converts to a mutable list |
+| `listToTuple(list l)` | Converts a list to a tuple |
+| `tupleConcat(tuple t1, tuple t2)` | Concatenates two tuples |
+| `tupleCount(tuple t, any val)` | Counts occurrences of `val` |
+| `tupleFirst(tuple t)` | First element (error on empty) |
+| `tupleLast(tuple t)` | Last element (error on empty) |
+| `tupleJsonArray(tuple t)` | JSON array string, e.g. `"[1,2,3]"` |
+| `tupleReverse(tuple t)` | New tuple with elements in reversed order |
+| `tupleSort(tuple t)` | New tuple sorted ascending |
+| `tupleSortDesc(tuple t)` | New tuple sorted descending |
+| `tupleMin(tuple t)` | Minimum element |
+| `tupleMax(tuple t)` | Maximum element |
+| `tupleSum(tuple t)` | Sum of all numeric elements |
+| `tupleAny(tuple t)` | `true` if any element is truthy |
+| `tupleAll(tuple t)` | `true` if all elements are truthy |
+| `tupleUnique(tuple t)` | New tuple with duplicates removed (order preserved) |
+| `tupleMean(tuple t)` | Arithmetic mean of numeric elements |
+| `tupleFlatten(tuple t)` | One-level flatten: concatenates nested tuple elements |
+| `tupleZip(tuple t1, tuple t2)` | List of JSON pair strings `{"a":v1,"b":v2}` |
+| `tupleJoin(tuple t, str sep)` | All elements joined as a string with separator |
+| `contains(tuple t, any val)` | Common membership test shared with lists |
+
+### Notes
+- Tuples are **immutable**; operations like `tupleConcat` and `tupleSlice` return a **new** tuple.
+- Use `tupleToList()` to iterate over a tuple with a `for` loop or index manually.
 
 ## Control, runtime and assertions
 
@@ -373,26 +399,6 @@ Lynxer frame at a time.
 See `lynxer/examples/builtin_async.lynx` for a runnable example, and
 [language.md](language.md) for the `async`/`await` syntax.
 
-## Ownership and borrowing
-
-| Builtin | Notes |
-| --- | --- |
-| `varTransfer(source, destination)` | Moves a value into an existing destination of a compatible declared type |
-| `varTransferMutate(source, destination)` | Move form for an `any`/`num` destination |
-| `varBorrow(source, borrower)` | Read-only tracked alias; neither side is writable while active |
-| `varBorrowMutate(source, borrower)` | Exclusive mutable alias; writes through the borrower reach the source |
-| `varEndBorrow(borrower)` | Ends a borrow, leaving the borrower an independent copy |
-| `borrowing(variable)` | Whether the variable is currently a borrower |
-| `beingBorrowed(variable)` | Whether another variable is borrowing from it |
-| `varSwapAll(first, second)` | Exchanges values and declared types |
-| `varSwapVal(first, second)` | Exchanges values, keeping declared types |
-
-The arguments are **variable names**, not values: `varBorrow(a, b)` names two
-variables rather than passing their contents. Failures are source-located errors
-such as `Cannot read moved variable 'x'; reinitialize it before using it again`.
-See [language.md](language.md#ownership-and-borrowing) and
-`lynxer/examples/ownership.lynx`.
-
 ## Unsupported names
 
 Names Lynxer recognises but does not implement on Linux/POSIX. Each fails with
@@ -402,7 +408,8 @@ Names Lynxer recognises but does not implement on Linux/POSIX. Each fails with
 | Family | Names |
 | --- | --- |
 | Python bridging | `rawPy`, `rawPyx`, `cleanRawPyxCache`, `embedPy` |
-| Shared aliasing | `unshare` (there is no `shared` construct to detach) |
+| Namespaces | `unshare` |
+| Borrow / transfer | `varTransfer`, `varTransferMutate`, `varBorrow`, `varBorrowMutate`, `varSwapAll`, `varSwapVal`, `varEndBorrow`, `borrowing`, `beingBorrowed` |
 | Raw addresses | `getAddress`, `modifyAddressValue`, `getAddressValue`, `functionAddress`, `nativeFunctionAddress`, `nativeCall` |
 | Native module introspection | `nativeModuleLoad`, `nativeModuleName`, `nativeModuleFunction`, `nativeModuleConstant`, `nativeModuleType`, `nativeModuleError`, `nativeModuleDependencies`, `nativeModuleClose` |
 | Native sync primitives | `nativeMutex*`, `nativeCondition*`, `nativeSemaphore*`, `nativeHandle*` |

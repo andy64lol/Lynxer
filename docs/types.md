@@ -19,7 +19,7 @@ how values are converted. For a runnable overview see
 | `char` | one character, or a one-character string | `"AB"` fails with `string length 2 is not a char` |
 | `str` | text | a number is **not** accepted |
 | `list` | a list value | see [lists.md](lists.md) |
-| `tuple` | a tuple value | see [lists.md](lists.md) |
+| `tuple` | a tuple value | Immutable, ordered, fixed-length sequence. See [lists.md](lists.md) for details.
 | `sentinel` | a sentinel value | built with `sentinel()` / `sentinel("NAME")` |
 | `object` | an object value | built with `object()` |
 | `codeblock` | a stored block | see [language.md](language.md#codeblocks) |

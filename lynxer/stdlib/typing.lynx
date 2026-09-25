@@ -1,9 +1,21 @@
 ////
 Lynxer standard library: typing.
-Pure Lynxer type inspection, conversion and integer-range helpers.
+Pure Lynxer type inspection, conversion, and integer-range helpers.
 ////
 
 global setup(){}
+
+//// Type checks ////
+global isNum(any val) -> bool { return returnType(val) is "int" or returnType(val) is "float"; }
+global isInt(any val) -> bool { return returnType(val) is "int"; }
+global isFloat(any val) -> bool { return returnType(val) is "float"; }
+global isStr(any val) -> bool { return returnType(val) is "str"; }
+global isBool(any val) -> bool { return returnType(val) is "bool"; }
+global isList(any val) -> bool { return returnType(val) is "list"; }
+global isTuple(any val) -> bool { return returnType(val) is "tuple"; }
+global isChar(any val) -> bool { return returnType(val) is "char"; }
+global isNone(any val) -> bool { return val is none; }
+global isSequence(any val) -> bool { return isList(val) or isTuple(val); }
 
 //// Return the Lynxer type name of value. ////
 global typeOf(any value) -> str { return returnType(value); }
@@ -11,10 +23,31 @@ global toStr(any value) -> str { return strOf(value); }
 global toInt(any value) -> int { return intOf(value); }
 global toFloat(any value) -> float { return floatOf(value); }
 global toBool(any value) -> bool { return value isnt 0; }
+global toNumBool(any value) -> numBool { return value isnt 0 ? 1 : 0; }
+global toBit(any value) -> bit { return toNumBool(value); }
+global toByte(any value) -> byte { return clamp(intOf(value), 0, 255); }
+global toChar(any val) -> char {
+    if (returnType(val) is "str" and returnLength(val) == 1) {
+        return charAt(val, 0);
+    } else if (returnType(val) is "int") {
+        return charOf(val);
+    }
+    return "\0";
+}
+global toString(any val) -> str { return strOf(val); }
+global toNumber(any val) -> float {
+    if (isNumeric(val)) {
+        return floatOf(val);
+    }
+    return 0.0;
+}
+
 global isNumeric(any value) -> bool {
     return returnType(value) is "int" or returnType(value) is "float";
 }
 global lenStr(str value) -> int { return returnLength(value); }
+
+//// Integer range checks ////
 global isInt8(any value) -> bool {
     return returnType(value) is "int" and value >= -128 and value <= 127;
 }
@@ -26,6 +59,250 @@ global isInt32(any value) -> bool {
 }
 global isByte(any value) -> bool {
     return returnType(value) is "int" and value >= 0 and value <= 255;
+}
+
+//// List functions ////
+global lenList(list lst) -> int { return returnLength(lst); }
+global listFirst(list lst) -> any {
+    if (returnLength(lst) == 0) {
+        error("listFirst: empty list");
+    }
+    return listGet(lst, 0);
+}
+global listLast(list lst) -> any {
+    if (returnLength(lst) == 0) {
+        error("listLast: empty list");
+    }
+    return listGet(lst, returnLength(lst) - 1);
+}
+global listHead(list lst, int n) -> list {
+    if (n <= 0) {
+        return [];
+    }
+    return listSlice(lst, 0, min(n, returnLength(lst)));
+}
+global listTail(list lst, int n) -> list {
+    if (n <= 0) {
+        return [];
+    }
+    int len = returnLength(lst);
+    if (len == 0) {
+        return [];
+    }
+    return listSlice(lst, max(0, len - n), len);
+}
+global listSum(list lst) -> float {
+    float sum = 0.0;
+    for (int i = 0; i < returnLength(lst); i = i + 1) {
+        any val = listGet(lst, i);
+        if (isNum(val)) {
+            sum = sum + floatOf(val);
+        }
+    }
+    return sum;
+}
+global listAvg(list lst) -> float {
+    if (returnLength(lst) == 0) {
+        return 0.0;
+    }
+    return listSum(lst) / returnLength(lst);
+}
+global listCount(list lst, any val) -> int {
+    int count = 0;
+    for (int i = 0; i < returnLength(lst); i = i + 1) {
+        if (listGet(lst, i) == val) {
+            count = count + 1;
+        }
+    }
+    return count;
+}
+global listRepeat(any val, int n) -> list {
+    list result = [];
+    for (int i = 0; i < n; i = i + 1) {
+        result = listPush(result, val);
+    }
+    return result;
+}
+global listZip(list lst1, list lst2) -> list {
+    list result = [];
+    int len = min(returnLength(lst1), returnLength(lst2));
+    for (int i = 0; i < len; i = i + 1) {
+        any a = listGet(lst1, i);
+        any b = listGet(lst2, i);
+        result = listPush(result, inter"{\"a\":\"" + strOf(a) + \",\"b\":\"" + strOf(b) + "}");
+    }
+    return result;
+}
+global flatten(list lst) -> list {
+    list result = [];
+    for (int i = 0; i < returnLength(lst); i = i + 1) {
+        any item = listGet(lst, i);
+        if (isList(item)) {
+            result = listExtend(result, item);
+        } else {
+            result = listPush(result, item);
+        }
+    }
+    return result;
+}
+global unique(list lst) -> list {
+    list result = [];
+    for (int i = 0; i < returnLength(lst); i = i + 1) {
+        any item = listGet(lst, i);
+        if (!listContains(result, item)) {
+            result = listPush(result, item);
+        }
+    }
+    return result;
+}
+
+//// Tuple functions ////
+global tupleReverse(any t) -> tuple {
+    if (!isTuple(t)) {
+        return ();
+    }
+    list lst = tupleToList(t);
+    return listToTuple(reverseList(lst));
+}
+global tupleSort(any t) -> tuple {
+    if (!isTuple(t)) {
+        return ();
+    }
+    list lst = tupleToList(t);
+    return listToTuple(sortList(lst));
+}
+global tupleSortDesc(any t) -> tuple {
+    if (!isTuple(t)) {
+        return ();
+    }
+    list lst = tupleToList(t);
+    return listToTuple(sortList(lst, true));
+}
+global tupleMin(any t) -> any {
+    if (!isTuple(t) or returnLength(t) == 0) {
+        return none;
+    }
+    list lst = tupleToList(t);
+    return listMin(lst);
+}
+global tupleMax(any t) -> any {
+    if (!isTuple(t) or returnLength(t) == 0) {
+        return none;
+    }
+    list lst = tupleToList(t);
+    return listMax(lst);
+}
+global tupleSum(any t) -> float {
+    if (!isTuple(t)) {
+        return 0.0;
+    }
+    list lst = tupleToList(t);
+    return listSum(lst);
+}
+global tupleAny(any t) -> bool {
+    if (!isTuple(t)) {
+        return false;
+    }
+    list lst = tupleToList(t);
+    for (int i = 0; i < returnLength(lst); i = i + 1) {
+        any val = listGet(lst, i);
+        if (val isnt 0 and val isnt none) {
+            return true;
+        }
+    }
+    return false;
+}
+global tupleAll(any t) -> bool {
+    if (!isTuple(t)) {
+        return true;
+    }
+    list lst = tupleToList(t);
+    for (int i = 0; i < returnLength(lst); i = i + 1) {
+        any val = listGet(lst, i);
+        if (val is 0 or val is none) {
+            return false;
+        }
+    }
+    return true;
+}
+global tupleUnique(any t) -> tuple {
+    if (!isTuple(t)) {
+        return ();
+    }
+    list lst = tupleToList(t);
+    return listToTuple(unique(lst));
+}
+global tupleMean(any t) -> float {
+    if (!isTuple(t) or returnLength(t) == 0) {
+        return 0.0;
+    }
+    return tupleSum(t) / returnLength(t);
+}
+global tupleFlatten(any t) -> tuple {
+    if (!isTuple(t)) {
+        return ();
+    }
+    list result = [];
+    for (int i = 0; i < returnLength(t); i = i + 1) {
+        any item = tupleGet(t, i);
+        if (isTuple(item)) {
+            result = listExtend(result, tupleToList(item));
+        } else {
+            result = listPush(result, item);
+        }
+    }
+    return listToTuple(result);
+}
+global tupleZip(any t1, any t2) -> list {
+    if (!isTuple(t1) or !isTuple(t2)) {
+        return [];
+    }
+    list result = [];
+    int len = min(returnLength(t1), returnLength(t2));
+    for (int i = 0; i < len; i = i + 1) {
+        any a = tupleGet(t1, i);
+        any b = tupleGet(t2, i);
+        result = listPush(result, inter"{\"a\":\"" + strOf(a) + \",\"b\":\"" + strOf(b) + "}");
+    }
+    return result;
+}
+global tupleJoin(any t, str sep) -> str {
+    if (!isTuple(t)) {
+        return "";
+    }
+    list lst = tupleToList(t);
+    str result = "";
+    for (int i = 0; i < returnLength(lst); i = i + 1) {
+        if (i > 0) {
+            result = result + sep;
+        }
+        result = result + strOf(listGet(lst, i));
+    }
+    return result;
+}
+
+//// Sequence conversion ////
+global toList(any val) -> list {
+    if (isTuple(val)) {
+        return tupleToList(val);
+    } else if (isList(val)) {
+        return val;
+    }
+    return [];
+}
+global toTuple(any val) -> tuple {
+    if (isList(val)) {
+        return listToTuple(val);
+    } else if (isTuple(val)) {
+        return val;
+    }
+    return ();
+}
+global lenSequence(any val) -> int {
+    if (isSequence(val)) {
+        return returnLength(val);
+    }
+    return 0;
 }
 
 global main(){}
