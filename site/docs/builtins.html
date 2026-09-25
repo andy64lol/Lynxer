@@ -242,6 +242,40 @@ global main(){
 <tr><td><code>memoryTypeSize(type)</code> / <code>memoryTypeAlignment(type)</code></td><td>Layout queries for a lowercase type string</td></tr>
 <tr><td><code>sizeOf(typeName)</code></td><td>Size of a C type name (<code>char</code>, <code>int</code>, <code>long</code>, <code>void*</code>, <code>size_t</code>, <code>int64</code>, …)</td></tr>
 </table>
+<h3 id="typed-blocks-structs-and-owned-handles">Typed blocks, structs and owned handles</h3>
+<p>The original used integer addresses instead of pointers; these built-ins are the typed, bounds-checked form. A <strong>block</strong> remembers an element type and count, a <strong>struct</strong> remembers its field layout, and an owned <strong>handle</strong> shares one liveness flag across every copy of the handle value.</p>
+<table>
+<tr><th>Builtin</th><th>Notes</th></tr>
+<tr><td><code>memoryBlockAllocate(type, count)</code></td><td>Allocates <code>count</code> elements of a lowercase type</td></tr>
+<tr><td><code>memoryBlockView(address, type, count)</code></td><td>Registers an existing allocation as a typed view over <code>count</code> elements</td></tr>
+<tr><td><code>memoryBlockGet(address, index)</code> / <code>memoryBlockSet(address, index, value)</code></td><td>Bounds-checked element access</td></tr>
+<tr><td><code>memoryBlockLength(address)</code></td><td>Element count</td></tr>
+<tr><td><code>memoryArrayAllocate/View/Get/Set/Length</code></td><td>Aliases of the block API</td></tr>
+<tr><td><code>memoryViewGet/Set/Length</code></td><td>Aliases of the block API</td></tr>
+<tr><td><code>nativeStructSize(layout)</code></td><td>Total size, including native alignment</td></tr>
+<tr><td><code>nativeStructAlignment(layout)</code></td><td>Maximum field alignment in bytes</td></tr>
+<tr><td><code>nativeStructFieldCount(layout)</code></td><td>Number of fields</td></tr>
+<tr><td><code>nativeStructFieldOffset(layout, field)</code></td><td>Byte offset of a field</td></tr>
+<tr><td><code>nativeStructFieldSize(layout, field)</code> / <code>nativeStructFieldType(layout, field)</code></td><td>Field size / declared type</td></tr>
+<tr><td><code>nativeStructAllocate(layout)</code></td><td>Allocates a struct for a layout</td></tr>
+<tr><td><code>nativeStructGet(address, field)</code> / <code>nativeStructSet(address, field, value)</code></td><td>Type-checked field access</td></tr>
+<tr><td><code>memoryStructSize/Alignment/FieldCount/FieldOffset/FieldSize/FieldType/Allocate/Get/Set</code></td><td>Aliases of the <code>nativeStruct*</code> API</td></tr>
+<tr><td><code>nativeTypeAlignment(type)</code></td><td>Alias of <code>memoryTypeAlignment</code></td></tr>
+<tr><td><code>nativeHandleAllocate(size)</code></td><td>Owns an allocation; returns an integer handle</td></tr>
+<tr><td><code>nativeHandleAddress(handle)</code></td><td>The underlying address; errors once the handle is freed</td></tr>
+<tr><td><code>nativeHandleIsAlive(handle)</code></td><td><code>true</code> until the handle is freed</td></tr>
+<tr><td><code>nativeHandleFree(handle)</code></td><td>Frees the allocation; every copy of the handle then reports freed</td></tr>
+</table>
+<p>A layout is a comma-separated list of <code>type name</code> fields, where the type is one of the lowercase memory types above:</p>
+<pre><code>str layout = &quot;int32 id, float64 score&quot;;
+println(nativeStructSize(layout));                  // 16
+println(nativeStructFieldOffset(layout, &quot;score&quot;));  // 8
+
+int record = nativeStructAllocate(layout);
+nativeStructSet(record, &quot;id&quot;, 7);
+nativeStructSet(record, &quot;score&quot;, 12.5);
+println(nativeStructGet(record, &quot;score&quot;));          // 12.5
+memoryFree(record);</code></pre>
 <p>Every typed read/write validates the address against the allocation registry and checks the access against the allocation's length, so an unknown address, a freed address, and an out-of-bounds access are source-located errors rather than crashes. 64-bit writes preserve the full signed and unsigned range (see <a href="types.html">types</a>).</p>
 <h2 id="syscalls">Syscalls</h2>
 <p><code>syscall*(...)</code> entries take integer arguments only (at most six) and dispatch through the platform syscall layer. <code>syscallPollFileDescriptors</code> takes three arguments; <code>syscallPpollFileDescriptors</code>, <code>syscallWaitForEvents</code> and <code>syscallWaitForEventsWithSignalMask</code> take five.</p>
@@ -372,9 +406,9 @@ global main(){
 <tr><td>Python bridging</td><td><code>rawPy</code>, <code>rawPyx</code>, <code>cleanRawPyxCache</code>, <code>embedPy</code></td></tr>
 <tr><td>Raw addresses</td><td><code>getAddress</code>, <code>modifyAddressValue</code>, <code>getAddressValue</code>, <code>functionAddress</code>, <code>nativeFunctionAddress</code>, <code>nativeCall</code></td></tr>
 <tr><td>Native module introspection</td><td><code>nativeModuleLoad</code>, <code>nativeModuleName</code>, <code>nativeModuleFunction</code>, <code>nativeModuleConstant</code>, <code>nativeModuleType</code>, <code>nativeModuleError</code>, <code>nativeModuleDependencies</code>, <code>nativeModuleClose</code></td></tr>
-<tr><td>Native sync primitives</td><td><code>nativeMutex*</code>, <code>nativeCondition*</code>, <code>nativeSemaphore*</code>, <code>nativeHandle*</code></td></tr>
+<tr><td>Native sync primitives</td><td><code>nativeMutex*</code>, <code>nativeCondition*</code>, <code>nativeSemaphore*</code></td></tr>
 <tr><td>Atomics</td><td><code>atomicLoad</code>, <code>atomicStore</code>, <code>atomicAdd</code>, <code>volatileRead</code>, <code>volatileWrite</code></td></tr>
-<tr><td>Advanced memory</td><td><code>memoryProtect</code>, <code>memoryBlock*</code>, <code>memoryArray*</code>, <code>memoryView*</code>, <code>memoryStruct*</code>, <code>nativeStruct*</code>, <code>nativeTypeAlignment</code></td></tr>
+<tr><td>Memory protection</td><td><code>memoryProtect</code></td></tr>
 </table>
 <p>The authoritative list is <code>unsupportedTable()</code> in <code>lynxer/builtins.cpp</code>; this table is the POSIX-visible subset. A build without POSIX support adds the <code>filesystem*</code>, <code>process*</code>, <code>networking*</code>, <code>sound*</code>, <code>async*</code> and <code>nativeThread*</code> families. See <a href="limitations.html">limitations</a> for the rationale.</p>
 <p><code>sound*</code>, <code>ffi*</code>, <code>async*</code> and <code>nativeThread*</code> are the families that reach outside the interpreter (a device, a shared library, a runtime, or a worker thread); everything else on this page is self-contained.</p>

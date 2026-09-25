@@ -25,33 +25,33 @@ The original had C-style address and function-pointer built-ins.
 | `functionAddress(name)` | Not implemented | Address of a Lynxer function |
 | `nativeFunctionAddress(name)` | Not implemented | Address of a native function |
 | `nativeCall(address, args...)` | Not implemented | Call an address directly |
-| `nativeHandleAllocate/Address/Free/IsAlive` | Not planned | Owned native handles |
+| `nativeHandleAllocate/Address/Free/IsAlive` | Implemented | Owned native handles (see below) |
 
 **Why:** exposing raw addresses across the native ABI is the largest possible
 security surface, and it conflicts with the interpreter's value-ownership model
-(see [ownership and borrowing](language.md#ownership-and-borrowing)). **Use
-instead:** typed byte buffers via the [`memory*` built-ins](builtins.md#native-memory)
-(`memoryAllocate`, `memoryReadInt64`, `memoryWriteFloat64`, `memoryReadEndian`,
-`sizeOf`, …) for storage you control, the [native-module ABI](native-module-abi.md)
-to call native code, and the [`ffi*` family](builtins.md#ffi) for dynamic calls.
+(see [ownership and borrowing](language.md#ownership-and-borrowing)). **Use instead:** integer address handles with type information — typed blocks
+(`memoryBlockAllocate`/`memoryBlockGet`/`memoryBlockSet`), native structs
+(`nativeStructAllocate`/`nativeStructGet`/`nativeStructSet` over a layout
+string), and owned handles (`nativeHandleAllocate`/`nativeHandleAddress`/
+`nativeHandleFree`); see [builtins.md](builtins.md#native-memory). For dynamic
+native calls the [native-module ABI](native-module-abi.md) and
+[`ffi*`](builtins.md#ffi) are the supported routes.
 
 ## Advanced memory layout
 
-The original could model C structs and arrays directly in the allocator.
+The original could model typed blocks and C structs directly in the allocator.
+These are implemented; only page protection remains.
 
 | Family | Status | Notes |
 | --- | --- | --- |
+| `memoryBlockAllocate/View/Get/Set/Length` | Implemented | Typed blocks: an element type and count |
+| `memoryArrayAllocate/View/Get/Set/Length`, `memoryViewGet/Set/Length` | Implemented | Aliases of the block API |
+| `memoryStructSize/FieldOffset/FieldSize/Alignment/FieldCount/FieldType/Allocate/Get/Set` | Implemented | Layout-string struct helpers |
+| `nativeStruct*`, `nativeTypeAlignment` | Implemented | Aliases of the `memoryStruct*` / `memoryTypeAlignment` names |
 | `memoryProtect` | Not implemented | Change page protection |
-| `memoryBlockAllocate`, `memoryBlockView/Get/Set/Length` | Not implemented | Untyped blocks |
-| `memoryArrayAllocate`, `memoryArrayView/Get/Set/Length` | Not implemented | Indexed arrays |
-| `memoryViewGet/Set/Length` | Not implemented | Views into a block |
-| `memoryStructSize/FieldOffset/FieldSize/Alignment/FieldCount/FieldType/Allocate/Get/Set` | Not implemented | C-struct layout helpers |
-| `nativeStruct*`, `nativeTypeAlignment` | Not implemented | Native-layout mirrors |
 
-**Use instead:** the flat [`memory*`](builtins.md#native-memory) accessors with
-explicit offsets, plus `sizeOf(type)` / `memoryTypeSize(type)` /
-`memoryTypeAlignment(type)` for layout queries. A native module is the right
-tool when you need real struct layout.
+A layout is a comma-separated `type name` list, e.g. `"int32 id, float64
+score"`; see [builtins.md](builtins.md#native-memory).
 
 ## Native synchronization
 
@@ -67,15 +67,10 @@ is no shared mutable state to guard. The cooperative
 
 ## Async
 
-| Family | Status | Notes |
-| --- | --- | --- |
-| `asyncRun`, `asyncGather`, `asyncSleep` | Not planned | No event loop |
-| `asyncPollCreate/Register/Modify/Remove/Wait/Dispatch/Close` | Not planned | — |
-| `asyncTimerCreate/Cancel`, `asyncWakeupCreate/Signal/Close` | Not planned | — |
-
-**Why:** the language has no `async` support, so there is nothing for a runtime
-to schedule. **Use instead:** `sleep(seconds)` and `foreverDelay(seconds)` for
-blocking waits; `nativeThread*` for concurrent work.
+The `async*` family is **implemented**: `asyncRun`, `asyncGather`, `asyncSleep`,
+the `asyncPoll*` set, and the timer/wakeup built-ins. `await` in the caller
+yields cooperatively. There is no `async` language support — the family is
+driven through explicit handles. See [builtins.md](builtins.md#async).
 
 ## Python bridging
 
@@ -121,11 +116,11 @@ dynamic alternative.
 
 | Original | Now |
 | --- | --- |
-| `getAddress` / `getAddressValue` / `modifyAddressValue` | `memoryAllocate` + `memoryRead*` / `memoryWrite*` |
+| `getAddress` / `getAddressValue` / `modifyAddressValue` | Typed blocks and structs: `memoryBlock*`, `nativeStruct*` |
 | `nativeFunctionAddress` / `nativeCall` | The [native-module ABI](native-module-abi.md) or `ffiCall` |
-| `memoryStruct*` / `nativeStruct*` | Flat `memory*` offsets + `sizeOf` / `memoryTypeSize` |
+| `nativeHandle*` | Implemented under the same names |
 | `nativeMutex*` / `Condition*` / `Semaphore*` | `nativeThread*` (cooperative) |
-| `async*` | `sleep`, `foreverDelay`, `nativeThread*` |
+| `async*` | Implemented (cooperative handles over `sleep`) |
 | `rawPy` / `embedPy` | None (no CPython) |
 | `nativeModule*` handles | `importAs("<name>.so", …)` |
 | `tkinter` / `turtle` / `venv` | None |

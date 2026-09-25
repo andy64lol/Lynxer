@@ -17,6 +17,7 @@
 #include <iostream>
 #include <memory>
 #include <mutex>
+#include <sstream>
 #include <thread>
 #include <dlfcn.h>
 #include <unordered_map>
@@ -1623,6 +1624,56 @@ std::unordered_set<void*>& freedAllocations() {
     return freed;
 }
 
+// Structured-memory metadata, keyed by allocation base address (or handle id).
+// The original Lynxer passed integer addresses instead of pointers; these are
+// the typed forms — a block remembers its element type/count, a struct its
+// layout, and a handle its shared liveness flag.
+struct BlockInfo {
+    std::string type;
+    std::size_t count = 0;
+};
+
+struct StructField {
+    std::string type;
+    std::string name;
+    std::size_t offset = 0;
+    std::size_t size = 0;
+};
+
+struct StructLayout {
+    std::vector<StructField> fields;
+    std::size_t size = 0;
+    std::size_t alignment = 1;
+};
+
+struct HandleState {
+    void* pointer = nullptr;
+    std::size_t size = 0;
+    bool alive = true;
+};
+
+std::unordered_map<void*, BlockInfo>& blockRegistry() {
+    static std::unordered_map<void*, BlockInfo> blocks;
+    return blocks;
+}
+
+std::unordered_map<void*, StructLayout>& structRegistry() {
+    static std::unordered_map<void*, StructLayout> structs;
+    return structs;
+}
+
+std::unordered_map<std::int64_t, std::shared_ptr<HandleState>>& handleRegistry() {
+    static std::unordered_map<std::int64_t, std::shared_ptr<HandleState>> handles;
+    return handles;
+}
+
+// A freed (or reallocated) address is no longer a valid block or struct.
+void forgetMemoryMetadata(void* base) {
+    std::lock_guard<std::recursive_mutex> guard(memoryRegistryMutex());
+    blockRegistry().erase(base);
+    structRegistry().erase(base);
+}
+
 void trackAllocation(void* pointer, std::size_t size) {
     std::lock_guard<std::recursive_mutex> guard(memoryRegistryMutex());
     if (pointer != nullptr) {
@@ -1734,6 +1785,10 @@ Value builtinMemoryReallocate(const std::vector<Value>& args, Environment&,
             freedAllocations().insert(base);
         }
     }
+    // The old element/field metadata no longer matches the new size.
+    if (address != 0) {
+        forgetMemoryMetadata(base);
+    }
     trackAllocation(pointer, static_cast<std::size_t>(size));
     return static_cast<std::int64_t>(reinterpret_cast<std::uintptr_t>(pointer));
 }
@@ -1753,6 +1808,7 @@ Value builtinMemoryFree(const std::vector<Value>& args, Environment&, int line,
         liveAllocations().erase(base);
         freedAllocations().insert(base);
     }
+    forgetMemoryMetadata(base);
     return none();
 }
 
@@ -2129,6 +2185,400 @@ Value builtinMemoryTypeAlignment(const std::vector<Value>& args, Environment&,
                                           : kind.isFloat
                                                 ? alignof(double)
                                                 : kind.size);
+}
+
+// --- typed blocks, native structs and owned handles --------------------------
+//
+// The structured form of the address-handle model the original used instead of
+// pointers: an integer address plus the element type (block), the field layout
+// (struct), or a shared liveness flag (handle).
+
+std::size_t kindAlignment(const TypedKind& kind) {
+    if (kind.isFloat) {
+        return kind.size == 4 ? alignof(float) : alignof(double);
+    }
+    return kind.size;
+}
+
+std::size_t alignUp(std::size_t value, std::size_t alignment) {
+    if (alignment <= 1) {
+        return value;
+    }
+    return (value + alignment - 1) / alignment * alignment;
+}
+
+std::string trimSpaces(const std::string& text) {
+    const auto begin = text.find_first_not_of(" \t");
+    if (begin == std::string::npos) {
+        return "";
+    }
+    return text.substr(begin, text.find_last_not_of(" \t") - begin + 1);
+}
+
+const TypedKind& memoryKind(const std::string& type, int line, int column) {
+    const auto found = typedKinds().find(type);
+    if (found == typedKinds().end()) {
+        fail("unknown memory type '" + type + "'", line, column);
+    }
+    return found->second;
+}
+
+StructLayout parseStructLayout(const std::string& layout, int line,
+                               int column) {
+    StructLayout parsed;
+    std::size_t offset = 0;
+    std::size_t alignment = 1;
+    std::istringstream stream(layout);
+    std::string piece;
+    while (std::getline(stream, piece, ',')) {
+        const std::string token = trimSpaces(piece);
+        if (token.empty()) {
+            continue;
+        }
+        std::istringstream fields(token);
+        std::string type;
+        std::string name;
+        if (!(fields >> type >> name)) {
+            fail("struct layout fields look like '<type> <name>': '" + token +
+                     "'",
+                 line, column);
+        }
+        const TypedKind& kind = memoryKind(type, line, column);
+        for (const auto& field : parsed.fields) {
+            if (field.name == name) {
+                fail("duplicate struct field '" + name + "'", line, column);
+            }
+        }
+        const std::size_t fieldAlignment = kindAlignment(kind);
+        offset = alignUp(offset, fieldAlignment);
+        parsed.fields.push_back(StructField{type, name, offset, kind.size});
+        offset += kind.size;
+        alignment = std::max(alignment, fieldAlignment);
+    }
+    parsed.alignment = alignment;
+    parsed.size = alignUp(offset, alignment);
+    return parsed;
+}
+
+StructField structField(const StructLayout& layout, const std::string& name,
+                        int line, int column) {
+    for (const auto& field : layout.fields) {
+        if (field.name == name) {
+            return field;
+        }
+    }
+    fail("struct has no field '" + name + "'", line, column);
+}
+
+BlockInfo blockAt(std::int64_t address, int line, int column) {
+    void* base = reinterpret_cast<void*>(static_cast<std::uintptr_t>(address));
+    std::lock_guard<std::recursive_mutex> guard(memoryRegistryMutex());
+    const auto found = blockRegistry().find(base);
+    if (found == blockRegistry().end()) {
+        fail("address is not a typed block; allocate it with "
+             "memoryBlockAllocate()",
+             line, column);
+    }
+    return found->second;
+}
+
+StructLayout structAt(std::int64_t address, int line, int column) {
+    void* base = reinterpret_cast<void*>(static_cast<std::uintptr_t>(address));
+    std::lock_guard<std::recursive_mutex> guard(memoryRegistryMutex());
+    const auto found = structRegistry().find(base);
+    if (found == structRegistry().end()) {
+        fail("address is not a native struct; allocate it with "
+             "nativeStructAllocate()",
+             line, column);
+    }
+    return found->second;
+}
+
+std::int64_t allocateTracked(std::size_t bytes, const char* who, int line,
+                             int column) {
+    void* pointer = std::malloc(bytes == 0 ? 1 : bytes);
+    if (pointer == nullptr) {
+        fail(std::string(who) + " failed: out of memory", line, column);
+    }
+    trackAllocation(pointer, bytes);
+    return static_cast<std::int64_t>(reinterpret_cast<std::uintptr_t>(pointer));
+}
+
+std::int64_t nextNativeHandle() {
+    static std::int64_t next = 1;
+    return next++;
+}
+
+std::shared_ptr<HandleState> nativeHandleState(const std::vector<Value>& args,
+                                               int line, int column) {
+    if (args.size() != 1 || !isIntegerValue(args[0])) {
+        fail("nativeHandle*(handle) expects an integer handle", line, column);
+    }
+    const std::int64_t handle = toInt(args[0], line, column);
+    std::lock_guard<std::recursive_mutex> guard(memoryRegistryMutex());
+    const auto found = handleRegistry().find(handle);
+    if (found == handleRegistry().end()) {
+        fail("unknown native handle", line, column);
+    }
+    return found->second;
+}
+
+Value builtinMemoryBlockAllocate(const std::vector<Value>& args, Environment&,
+                                 int line, int column) {
+    if (args.size() != 2 || !std::holds_alternative<std::string>(args[0]) ||
+        !isIntegerValue(args[1])) {
+        fail("memoryBlockAllocate(type, count) expects a type string and a count",
+             line, column);
+    }
+    const std::string& type = std::get<std::string>(args[0]);
+    const TypedKind& kind = memoryKind(type, line, column);
+    const std::int64_t count = toInt(args[1], line, column);
+    if (count < 0) {
+        fail("memoryBlockAllocate() count cannot be negative", line, column);
+    }
+    const std::size_t elements = static_cast<std::size_t>(count);
+    const std::int64_t address = allocateTracked(elements * kind.size,
+                                                 "memoryBlockAllocate()", line,
+                                                 column);
+    void* base = reinterpret_cast<void*>(static_cast<std::uintptr_t>(address));
+    {
+        std::lock_guard<std::recursive_mutex> guard(memoryRegistryMutex());
+        blockRegistry()[base] = BlockInfo{type, elements};
+    }
+    return address;
+}
+
+// Register an existing allocation as a typed view over its first `count`
+// elements. `memoryArrayView` is an alias.
+Value builtinMemoryBlockView(const std::vector<Value>& args, Environment&,
+                             int line, int column) {
+    if (args.size() != 3 || !isIntegerValue(args[0]) ||
+        !std::holds_alternative<std::string>(args[1]) ||
+        !isIntegerValue(args[2])) {
+        fail("memoryBlockView(address, type, count) expects an address, a type "
+             "string and a count",
+             line, column);
+    }
+    const std::int64_t address = toInt(args[0], line, column);
+    const std::string& type = std::get<std::string>(args[1]);
+    const TypedKind& kind = memoryKind(type, line, column);
+    const std::int64_t count = toInt(args[2], line, column);
+    if (address < 0 || count < 0) {
+        fail("memoryBlockView() address and count cannot be negative", line,
+             column);
+    }
+    void* base = reinterpret_cast<void*>(static_cast<std::uintptr_t>(address));
+    validateMemory(base, 0, static_cast<std::size_t>(count) * kind.size, line,
+                   column);
+    {
+        std::lock_guard<std::recursive_mutex> guard(memoryRegistryMutex());
+        blockRegistry()[base] = BlockInfo{type, static_cast<std::size_t>(count)};
+    }
+    return address;
+}
+
+Value builtinMemoryBlockGet(const std::vector<Value>& args, Environment&, int line,
+                            int column) {
+    if (args.size() != 2 || !isIntegerValue(args[0]) ||
+        !isIntegerValue(args[1])) {
+        fail("memoryBlockGet(address, index) expects an address and an index",
+             line, column);
+    }
+    const std::int64_t address = toInt(args[0], line, column);
+    const BlockInfo block = blockAt(address, line, column);
+    const std::int64_t index = toInt(args[1], line, column);
+    if (index < 0 || static_cast<std::size_t>(index) >= block.count) {
+        fail("memoryBlockGet() index is out of bounds", line, column);
+    }
+    const TypedKind& kind = memoryKind(block.type, line, column);
+    const std::int64_t offset = index * static_cast<std::int64_t>(kind.size);
+    return typedRead(block.type, {args[0], offset}, line, column);
+}
+
+Value builtinMemoryBlockSet(const std::vector<Value>& args, Environment&, int line,
+                            int column) {
+    if (args.size() != 3 || !isIntegerValue(args[0]) ||
+        !isIntegerValue(args[1])) {
+        fail("memoryBlockSet(address, index, value) expects an address, an "
+             "index and a value",
+             line, column);
+    }
+    const std::int64_t address = toInt(args[0], line, column);
+    const BlockInfo block = blockAt(address, line, column);
+    const std::int64_t index = toInt(args[1], line, column);
+    if (index < 0 || static_cast<std::size_t>(index) >= block.count) {
+        fail("memoryBlockSet() index is out of bounds", line, column);
+    }
+    const TypedKind& kind = memoryKind(block.type, line, column);
+    const std::int64_t offset = index * static_cast<std::int64_t>(kind.size);
+    return typedWrite(block.type, {args[0], offset, args[2]}, line, column);
+}
+
+Value builtinMemoryBlockLength(const std::vector<Value>& args, Environment&,
+                               int line, int column) {
+    if (args.size() != 1 || !isIntegerValue(args[0])) {
+        fail("memoryBlockLength(address) expects an address", line, column);
+    }
+    const std::int64_t address = toInt(args[0], line, column);
+    return static_cast<std::int64_t>(blockAt(address, line, column).count);
+}
+
+StructLayout structLayoutArg(const std::vector<Value>& args, int line,
+                             int column) {
+    if (args.empty() || !std::holds_alternative<std::string>(args[0])) {
+        fail("struct layout must be a comma-separated '<type> <name>' string",
+             line, column);
+    }
+    return parseStructLayout(std::get<std::string>(args[0]), line, column);
+}
+
+Value builtinStructSize(const std::vector<Value>& args, Environment&, int line,
+                        int column) {
+    return static_cast<std::int64_t>(structLayoutArg(args, line, column).size);
+}
+
+Value builtinStructAlignment(const std::vector<Value>& args, Environment&,
+                             int line, int column) {
+    return static_cast<std::int64_t>(
+        structLayoutArg(args, line, column).alignment);
+}
+
+Value builtinStructFieldCount(const std::vector<Value>& args, Environment&,
+                              int line, int column) {
+    return static_cast<std::int64_t>(
+        structLayoutArg(args, line, column).fields.size());
+}
+
+StructField structFieldArg(const std::vector<Value>& args, int line, int column) {
+    if (args.size() != 2 || !std::holds_alternative<std::string>(args[0]) ||
+        !std::holds_alternative<std::string>(args[1])) {
+        fail("struct field query expects a layout string and a field name",
+             line, column);
+    }
+    const StructLayout layout =
+        parseStructLayout(std::get<std::string>(args[0]), line, column);
+    return structField(layout, std::get<std::string>(args[1]), line, column);
+}
+
+Value builtinStructFieldOffset(const std::vector<Value>& args, Environment&,
+                               int line, int column) {
+    return static_cast<std::int64_t>(
+        structFieldArg(args, line, column).offset);
+}
+
+Value builtinStructFieldSize(const std::vector<Value>& args, Environment&,
+                             int line, int column) {
+    return static_cast<std::int64_t>(structFieldArg(args, line, column).size);
+}
+
+Value builtinStructFieldType(const std::vector<Value>& args, Environment&,
+                             int line, int column) {
+    return structFieldArg(args, line, column).type;
+}
+
+Value builtinNativeStructAllocate(const std::vector<Value>& args, Environment&,
+                                  int line, int column) {
+    const StructLayout layout = structLayoutArg(args, line, column);
+    const std::int64_t address = allocateTracked(
+        layout.size, "nativeStructAllocate()", line, column);
+    void* base = reinterpret_cast<void*>(static_cast<std::uintptr_t>(address));
+    {
+        std::lock_guard<std::recursive_mutex> guard(memoryRegistryMutex());
+        structRegistry()[base] = layout;
+    }
+    return address;
+}
+
+Value builtinNativeStructGet(const std::vector<Value>& args, Environment&,
+                             int line, int column) {
+    if (args.size() != 2 || !isIntegerValue(args[0]) ||
+        !std::holds_alternative<std::string>(args[1])) {
+        fail("nativeStructGet(address, field) expects an address and a field "
+             "name",
+             line, column);
+    }
+    const std::int64_t address = toInt(args[0], line, column);
+    const StructLayout layout = structAt(address, line, column);
+    const StructField field =
+        structField(layout, std::get<std::string>(args[1]), line, column);
+    return typedRead(field.type,
+                     {args[0], static_cast<std::int64_t>(field.offset)}, line,
+                     column);
+}
+
+Value builtinNativeStructSet(const std::vector<Value>& args, Environment&,
+                             int line, int column) {
+    if (args.size() != 3 || !isIntegerValue(args[0]) ||
+        !std::holds_alternative<std::string>(args[1])) {
+        fail("nativeStructSet(address, field, value) expects an address, a "
+             "field name and a value",
+             line, column);
+    }
+    const std::int64_t address = toInt(args[0], line, column);
+    const StructLayout layout = structAt(address, line, column);
+    const StructField field =
+        structField(layout, std::get<std::string>(args[1]), line, column);
+    return typedWrite(field.type,
+                      {args[0], static_cast<std::int64_t>(field.offset),
+                       args[2]},
+                      line, column);
+}
+
+Value builtinNativeHandleAllocate(const std::vector<Value>& args, Environment&,
+                                  int line, int column) {
+    if (args.size() != 1 || !isIntegerValue(args[0])) {
+        fail("nativeHandleAllocate(size) expects a size", line, column);
+    }
+    const std::int64_t size = toInt(args[0], line, column);
+    if (size < 0) {
+        fail("nativeHandleAllocate() size cannot be negative", line, column);
+    }
+    const std::int64_t address = allocateTracked(
+        static_cast<std::size_t>(size), "nativeHandleAllocate()", line, column);
+    auto state = std::make_shared<HandleState>();
+    state->pointer = reinterpret_cast<void*>(static_cast<std::uintptr_t>(address));
+    state->size = static_cast<std::size_t>(size);
+    const std::int64_t handle = nextNativeHandle();
+    {
+        std::lock_guard<std::recursive_mutex> guard(memoryRegistryMutex());
+        handleRegistry()[handle] = std::move(state);
+    }
+    return handle;
+}
+
+Value builtinNativeHandleAddress(const std::vector<Value>& args, Environment&,
+                                 int line, int column) {
+    const std::shared_ptr<HandleState> state =
+        nativeHandleState(args, line, column);
+    if (!state->alive) {
+        fail("native handle has been freed", line, column);
+    }
+    return static_cast<std::int64_t>(
+        reinterpret_cast<std::uintptr_t>(state->pointer));
+}
+
+Value builtinNativeHandleIsAlive(const std::vector<Value>& args, Environment&,
+                                 int line, int column) {
+    return nativeHandleState(args, line, column)->alive;
+}
+
+Value builtinNativeHandleFree(const std::vector<Value>& args, Environment&,
+                              int line, int column) {
+    const std::shared_ptr<HandleState> state =
+        nativeHandleState(args, line, column);
+    if (state->alive) {
+        void* base = state->pointer;
+        validateMemory(base, 0, 0, line, column);
+        std::free(base);
+        {
+            std::lock_guard<std::recursive_mutex> guard(memoryRegistryMutex());
+            liveAllocations().erase(base);
+            freedAllocations().insert(base);
+            state->alive = false;
+        }
+        forgetMemoryMetadata(base);
+    }
+    return none();
 }
 
 Value builtinSizeOf(const std::vector<Value>& args, Environment&, int line,
@@ -4790,6 +5240,44 @@ const std::unordered_map<std::string, Handler>& handlerTable() {
         {"memoryWriteEndian", builtinMemoryWriteEndian},
         {"memoryTypeSize", builtinMemoryTypeSize},
         {"memoryTypeAlignment", builtinMemoryTypeAlignment},
+        {"nativeTypeAlignment", builtinMemoryTypeAlignment},
+        // Typed blocks, native structs and owned handles: the structured
+        // address-handle model the original used instead of pointers.
+        {"memoryBlockAllocate", builtinMemoryBlockAllocate},
+        {"memoryBlockView", builtinMemoryBlockView},
+        {"memoryBlockGet", builtinMemoryBlockGet},
+        {"memoryBlockSet", builtinMemoryBlockSet},
+        {"memoryBlockLength", builtinMemoryBlockLength},
+        {"memoryArrayAllocate", builtinMemoryBlockAllocate},
+        {"memoryArrayView", builtinMemoryBlockView},
+        {"memoryArrayGet", builtinMemoryBlockGet},
+        {"memoryArraySet", builtinMemoryBlockSet},
+        {"memoryArrayLength", builtinMemoryBlockLength},
+        {"memoryViewGet", builtinMemoryBlockGet},
+        {"memoryViewSet", builtinMemoryBlockSet},
+        {"memoryViewLength", builtinMemoryBlockLength},
+        {"memoryStructSize", builtinStructSize},
+        {"memoryStructAlignment", builtinStructAlignment},
+        {"memoryStructFieldCount", builtinStructFieldCount},
+        {"memoryStructFieldOffset", builtinStructFieldOffset},
+        {"memoryStructFieldSize", builtinStructFieldSize},
+        {"memoryStructFieldType", builtinStructFieldType},
+        {"memoryStructAllocate", builtinNativeStructAllocate},
+        {"memoryStructGet", builtinNativeStructGet},
+        {"memoryStructSet", builtinNativeStructSet},
+        {"nativeStructSize", builtinStructSize},
+        {"nativeStructAlignment", builtinStructAlignment},
+        {"nativeStructFieldCount", builtinStructFieldCount},
+        {"nativeStructFieldOffset", builtinStructFieldOffset},
+        {"nativeStructFieldSize", builtinStructFieldSize},
+        {"nativeStructFieldType", builtinStructFieldType},
+        {"nativeStructAllocate", builtinNativeStructAllocate},
+        {"nativeStructGet", builtinNativeStructGet},
+        {"nativeStructSet", builtinNativeStructSet},
+        {"nativeHandleAllocate", builtinNativeHandleAllocate},
+        {"nativeHandleAddress", builtinNativeHandleAddress},
+        {"nativeHandleIsAlive", builtinNativeHandleIsAlive},
+        {"nativeHandleFree", builtinNativeHandleFree},
         {"sizeOf", builtinSizeOf},
 #if LYNXER_POSIX_BUILTINS
         // Managed filesystem API. Kept in `unsupportedTable()` on a host
@@ -4909,8 +5397,6 @@ const std::unordered_set<std::string>& unsupportedTable() {
         "nativeConditionNotifyAll", "nativeConditionClose",
         "nativeSemaphoreCreate", "nativeSemaphoreWait", "nativeSemaphoreTryWait",
         "nativeSemaphorePost", "nativeSemaphoreClose",
-        "nativeHandleAllocate", "nativeHandleAddress", "nativeHandleFree",
-        "nativeHandleIsAlive",
 #if !LYNXER_POSIX_BUILTINS
         "processSpawn", "processWrite", "processCloseInput", "processRead",
         "processPoll", "processWait", "processSendSignal", "processClose",
@@ -4926,19 +5412,6 @@ const std::unordered_set<std::string>& unsupportedTable() {
 #endif
         "atomicLoad", "atomicStore", "atomicAdd", "volatileRead", "volatileWrite",
         "memoryProtect",
-        "memoryBlockAllocate", "memoryBlockView", "memoryBlockGet",
-        "memoryBlockSet", "memoryBlockLength",
-        "memoryArrayAllocate", "memoryArrayView", "memoryArrayGet",
-        "memoryArraySet", "memoryArrayLength",
-        "memoryViewGet", "memoryViewSet", "memoryViewLength",
-        "memoryStructSize", "memoryStructFieldOffset", "memoryStructFieldSize",
-        "memoryStructAlignment", "memoryStructFieldCount",
-        "memoryStructFieldType", "memoryStructAllocate", "memoryStructGet",
-        "memoryStructSet",
-        "nativeStructSize", "nativeStructAllocate", "nativeStructFieldOffset",
-        "nativeStructFieldSize", "nativeTypeAlignment", "nativeStructAlignment",
-        "nativeStructFieldCount", "nativeStructFieldType", "nativeStructGet",
-        "nativeStructSet",
         // Named syscalls that are dispatched generically below.
         "syscallGetCurrentDirectory", "syscallChangeDirectory",
         "syscallControlInputOutput", "syscallRead", "syscallWrite",

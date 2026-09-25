@@ -1,0 +1,50 @@
+////
+Structured native-memory built-ins: typed blocks / arrays / views, native
+structs and owned handles — the address-handle model the original Lynxer used
+instead of pointers.
+
+Only host-independent properties are printed (sizes, offsets, booleans); no raw
+addresses, so one expected file holds on amd64 and arm64.
+////
+global setup(){}
+
+global main(){
+    println("== typed block ==");
+    int block = memoryBlockAllocate("int32", 3);
+    memoryBlockSet(block, 0, 10);
+    memoryBlockSet(block, 1, 20);
+    memoryBlockSet(block, 2, 30);
+    println(memoryBlockGet(block, 0), " ", memoryBlockGet(block, 2));
+    println("length ", memoryBlockLength(block));
+    println("array alias ", memoryArrayGet(block, 1));
+    println("view alias ", memoryViewLength(block));
+    memoryViewSet(block, 1, 21);
+    println("view set ", memoryBlockGet(block, 1));
+    memoryFree(block);
+
+    println("== native struct ==");
+    str layout = "int32 id, float64 score";
+    println("size ", nativeStructSize(layout));
+    println("alignment ", nativeStructAlignment(layout));
+    println("fields ", nativeStructFieldCount(layout));
+    println("offset ", nativeStructFieldOffset(layout, "score"));
+    println("field size ", nativeStructFieldSize(layout, "score"));
+    println("field type ", nativeStructFieldType(layout, "score"));
+    int record = nativeStructAllocate(layout);
+    nativeStructSet(record, "id", 7);
+    nativeStructSet(record, "score", 12.5);
+    println("get ", nativeStructGet(record, "id"), " ",
+            nativeStructGet(record, "score"));
+    println("memoryStruct alias ", memoryStructSize(layout));
+    memoryFree(record);
+
+    println("== owned handle ==");
+    int handle = nativeHandleAllocate(16);
+    println("alive ", nativeHandleIsAlive(handle));
+    println("address non-zero ", nativeHandleAddress(handle) > 0);
+    nativeHandleFree(handle);
+    println("alive after free ", nativeHandleIsAlive(handle));
+
+    println("== type alignment ==");
+    println(nativeTypeAlignment("int64"), " ", memoryTypeAlignment("float32"));
+}

@@ -1,0 +1,21 @@
+== typed block ==
+10 30
+length 3
+array alias 20
+view alias 3
+view set 21
+== native struct ==
+size 16
+alignment 8
+fields 2
+offset 8
+field size 8
+field type float64
+get 7 12.5
+memoryStruct alias 16
+== owned handle ==
+alive true
+address non-zero true
+alive after free false
+== type alignment ==
+8 4

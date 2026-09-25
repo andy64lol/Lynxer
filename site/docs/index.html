@@ -91,11 +91,9 @@
 <p><strong>The language</strong></p>
 <table>
 <tr><th>Document</th><th>What it covers</th></tr>
-<tr><td><a href="language.html">language</a></td><td>Program structure, comments, variables, control flow, functions, scoping, interpolation</td></tr>
-<tr><td><a href="operators.html">operators</a></td><td>Every operator, precedence, and the deprecated symbolic spellings</td></tr>
+<tr><td><a href="language.html">language</a></td><td>Program structure, comments, variables, operators, control flow, functions, scoping, interpolation</td></tr>
 <tr><td><a href="types.html">types</a></td><td>Every type name, ranges, and conversion rules</td></tr>
 <tr><td><a href="lists.html">lists</a></td><td><code>list</code> and <code>tuple</code> values and their builtins</td></tr>
-<tr><td><a href="tuples.html">tuples</a></td><td>Tuple literals, built-ins, comparison, iteration, and differences from the original</td></tr>
 <tr><td><a href="structs.html">structs</a></td><td>Data-only records</td></tr>
 <tr><td><a href="classes.html">classes</a></td><td>Fields plus <code>local</code> methods</td></tr>
 <tr><td><a href="enums.html">enums</a></td><td>Tagged unions and <code>switch</code> patterns</td></tr>
@@ -111,7 +109,6 @@
 <tr><td><a href="stdlib-contracts.html">stdlib-contracts</a></td><td>The frozen contract every wrapper and backend must satisfy</td></tr>
 <tr><td><a href="extending.html">extending</a></td><td>Adding a stdlib module end to end</td></tr>
 <tr><td><a href="stdlib/">stdlib/</a></td><td>One page per standard-library module</td></tr>
-<tr><td><a href="legacy-surface.html">legacy-surface</a></td><td>Original built-ins and modules not carried over, and their replacements</td></tr>
 <tr><td><a href="limitations.html">limitations</a></td><td>Deliberate constraints and what is not implemented</td></tr>
 </table>
 <h2 id="build-and-run">Build and run</h2>
@@ -167,7 +164,7 @@ lynxer/lynxer --list-stdlibs</code></pre>
 <p><code>--compile</code> (alias <code>--bundle</code>) produces one standalone ELF executable that embeds the program, every transitively imported <code>.lynx</code> source and <code>.so</code> library, plus anything added with <code>--include</code>:</p>
 <pre><code>lynxer/lynxer --compile app.lynx extras/helpers.lynx \
         --include vendor/libcustom.so --include assets/message.txt -o app</code></pre>
-<p>The first <code>.lynx</code> file is the program; further <code>.lynx</code>/<code>.so</code> inputs are embedded and importable by name. A non-<code>.lynx</code>/<code>.so</code> include is embedded as data and read with <code>bundledFile(name)</code> / <code>bundledFiles()</code>. See <a href="CLI.html#compiling-to-an-executable">CLI</a>.</p>
+<p>The first <code>.lynx</code> file is the program; further <code>.lynx</code>/<code>.so</code> inputs are embedded and importable by name. A non-<code>.lynx</code>/<code>.so</code> include is embedded as data and read with <code>bundledFile(name)</code> / <code>bundledFiles()</code>. See <a href="CLI.html#compile-to-an-executable">CLI</a>.</p>
 <h2 id="adding-a-stdlib-module">Adding a stdlib module</h2>
 <ol>
 <li>Write the backend. A C++ module is <code>stdlib/&lt;name&gt;.cpp</code> exporting <code>lynxer_module_init_v1</code> and one <code>extern &quot;C&quot;</code> function per entry; it is picked up automatically by the <code>stdlib/*.cpp</code> wildcard. A Rust module is a crate under <code>rust/</code> exporting the same entry point plus one <code>#[no_mangle] extern &quot;C&quot;</code> op per entry (the <code>lynxer_abi</code> crate provides the packing, panic guards, and registration helper); add it to the workspace and to <code>LYNXER_RUST_MODULE_NAMES</code> in the root Makefile. See <a href="native-module-abi.html">native-module-abi</a>.</li>

@@ -96,21 +96,20 @@
 <tr><td><code>functionAddress(name)</code></td><td>Not implemented</td><td>Address of a Lynxer function</td></tr>
 <tr><td><code>nativeFunctionAddress(name)</code></td><td>Not implemented</td><td>Address of a native function</td></tr>
 <tr><td><code>nativeCall(address, args...)</code></td><td>Not implemented</td><td>Call an address directly</td></tr>
-<tr><td><code>nativeHandleAllocate/Address/Free/IsAlive</code></td><td>Not planned</td><td>Owned native handles</td></tr>
+<tr><td><code>nativeHandleAllocate/Address/Free/IsAlive</code></td><td>Implemented</td><td>Owned native handles (see below)</td></tr>
 </table>
-<p><strong>Why:</strong> exposing raw addresses across the native ABI is the largest possible security surface, and it conflicts with the interpreter's value-ownership model (see <a href="language.html#ownership-and-borrowing">ownership and borrowing</a>). <strong>Use instead:</strong> typed byte buffers via the <a href="builtins.html#native-memory"><code>memory*</code> built-ins</a> (<code>memoryAllocate</code>, <code>memoryReadInt64</code>, <code>memoryWriteFloat64</code>, <code>memoryReadEndian</code>, <code>sizeOf</code>, …) for storage you control, the <a href="native-module-abi.html">native-module ABI</a> to call native code, and the <a href="builtins.html#ffi"><code>ffi*</code> family</a> for dynamic calls.</p>
+<p><strong>Why:</strong> exposing raw addresses across the native ABI is the largest possible security surface, and it conflicts with the interpreter's value-ownership model (see <a href="language.html#ownership-and-borrowing">ownership and borrowing</a>). <strong>Use instead:</strong> integer address handles with type information — typed blocks (<code>memoryBlockAllocate</code>/<code>memoryBlockGet</code>/<code>memoryBlockSet</code>), native structs (<code>nativeStructAllocate</code>/<code>nativeStructGet</code>/<code>nativeStructSet</code> over a layout string), and owned handles (<code>nativeHandleAllocate</code>/<code>nativeHandleAddress</code>/ <code>nativeHandleFree</code>); see <a href="builtins.html#native-memory">builtins</a>. For dynamic native calls the <a href="native-module-abi.html">native-module ABI</a> and <a href="builtins.html#ffi"><code>ffi*</code></a> are the supported routes.</p>
 <h2 id="advanced-memory-layout">Advanced memory layout</h2>
-<p>The original could model C structs and arrays directly in the allocator.</p>
+<p>The original could model typed blocks and C structs directly in the allocator. These are implemented; only page protection remains.</p>
 <table>
 <tr><th>Family</th><th>Status</th><th>Notes</th></tr>
+<tr><td><code>memoryBlockAllocate/View/Get/Set/Length</code></td><td>Implemented</td><td>Typed blocks: an element type and count</td></tr>
+<tr><td><code>memoryArrayAllocate/View/Get/Set/Length</code>, <code>memoryViewGet/Set/Length</code></td><td>Implemented</td><td>Aliases of the block API</td></tr>
+<tr><td><code>memoryStructSize/FieldOffset/FieldSize/Alignment/FieldCount/FieldType/Allocate/Get/Set</code></td><td>Implemented</td><td>Layout-string struct helpers</td></tr>
+<tr><td><code>nativeStruct*</code>, <code>nativeTypeAlignment</code></td><td>Implemented</td><td>Aliases of the <code>memoryStruct*</code> / <code>memoryTypeAlignment</code> names</td></tr>
 <tr><td><code>memoryProtect</code></td><td>Not implemented</td><td>Change page protection</td></tr>
-<tr><td><code>memoryBlockAllocate</code>, <code>memoryBlockView/Get/Set/Length</code></td><td>Not implemented</td><td>Untyped blocks</td></tr>
-<tr><td><code>memoryArrayAllocate</code>, <code>memoryArrayView/Get/Set/Length</code></td><td>Not implemented</td><td>Indexed arrays</td></tr>
-<tr><td><code>memoryViewGet/Set/Length</code></td><td>Not implemented</td><td>Views into a block</td></tr>
-<tr><td><code>memoryStructSize/FieldOffset/FieldSize/Alignment/FieldCount/FieldType/Allocate/Get/Set</code></td><td>Not implemented</td><td>C-struct layout helpers</td></tr>
-<tr><td><code>nativeStruct*</code>, <code>nativeTypeAlignment</code></td><td>Not implemented</td><td>Native-layout mirrors</td></tr>
 </table>
-<p><strong>Use instead:</strong> the flat <a href="builtins.html#native-memory"><code>memory*</code></a> accessors with explicit offsets, plus <code>sizeOf(type)</code> / <code>memoryTypeSize(type)</code> / <code>memoryTypeAlignment(type)</code> for layout queries. A native module is the right tool when you need real struct layout.</p>
+<p>A layout is a comma-separated <code>type name</code> list, e.g. <code>&quot;int32 id, float64 score&quot;</code>; see <a href="builtins.html#native-memory">builtins</a>.</p>
 <h2 id="native-synchronization">Native synchronization</h2>
 <table>
 <tr><th>Family</th><th>Status</th><th>Notes</th></tr>
@@ -120,13 +119,7 @@
 </table>
 <p><strong>Why:</strong> Lynxer evaluates on one interpreter thread under a single lock, so there is no shared mutable state to guard. The cooperative <a href="builtins.html#native-threads"><code>nativeThread*</code></a> family is the supported model.</p>
 <h2 id="async">Async</h2>
-<table>
-<tr><th>Family</th><th>Status</th><th>Notes</th></tr>
-<tr><td><code>asyncRun</code>, <code>asyncGather</code>, <code>asyncSleep</code></td><td>Not planned</td><td>No event loop</td></tr>
-<tr><td><code>asyncPollCreate/Register/Modify/Remove/Wait/Dispatch/Close</code></td><td>Not planned</td><td>—</td></tr>
-<tr><td><code>asyncTimerCreate/Cancel</code>, <code>asyncWakeupCreate/Signal/Close</code></td><td>Not planned</td><td>—</td></tr>
-</table>
-<p><strong>Why:</strong> the language has no <code>async</code> support, so there is nothing for a runtime to schedule. <strong>Use instead:</strong> <code>sleep(seconds)</code> and <code>foreverDelay(seconds)</code> for blocking waits; <code>nativeThread*</code> for concurrent work.</p>
+<p>The <code>async*</code> family is <strong>implemented</strong>: <code>asyncRun</code>, <code>asyncGather</code>, <code>asyncSleep</code>, the <code>asyncPoll*</code> set, and the timer/wakeup built-ins. <code>await</code> in the caller yields cooperatively. There is no <code>async</code> language support — the family is driven through explicit handles. See <a href="builtins.html#async">builtins</a>.</p>
 <h2 id="python-bridging">Python bridging</h2>
 <table>
 <tr><th>Name</th><th>Status</th><th>Notes</th></tr>
@@ -158,11 +151,11 @@
 <h2 id="quick-map-original--now">Quick map: original → now</h2>
 <table>
 <tr><th>Original</th><th>Now</th></tr>
-<tr><td><code>getAddress</code> / <code>getAddressValue</code> / <code>modifyAddressValue</code></td><td><code>memoryAllocate</code> + <code>memoryRead*</code> / <code>memoryWrite*</code></td></tr>
+<tr><td><code>getAddress</code> / <code>getAddressValue</code> / <code>modifyAddressValue</code></td><td>Typed blocks and structs: <code>memoryBlock*</code>, <code>nativeStruct*</code></td></tr>
 <tr><td><code>nativeFunctionAddress</code> / <code>nativeCall</code></td><td>The <a href="native-module-abi.html">native-module ABI</a> or <code>ffiCall</code></td></tr>
-<tr><td><code>memoryStruct*</code> / <code>nativeStruct*</code></td><td>Flat <code>memory*</code> offsets + <code>sizeOf</code> / <code>memoryTypeSize</code></td></tr>
+<tr><td><code>nativeHandle*</code></td><td>Implemented under the same names</td></tr>
 <tr><td><code>nativeMutex*</code> / <code>Condition*</code> / <code>Semaphore*</code></td><td><code>nativeThread*</code> (cooperative)</td></tr>
-<tr><td><code>async*</code></td><td><code>sleep</code>, <code>foreverDelay</code>, <code>nativeThread*</code></td></tr>
+<tr><td><code>async*</code></td><td>Implemented (cooperative handles over <code>sleep</code>)</td></tr>
 <tr><td><code>rawPy</code> / <code>embedPy</code></td><td>None (no CPython)</td></tr>
 <tr><td><code>nativeModule*</code> handles</td><td><code>importAs(&quot;&lt;name&gt;.so&quot;, …)</code></td></tr>
 <tr><td><code>tkinter</code> / <code>turtle</code> / <code>venv</code></td><td>None</td></tr>

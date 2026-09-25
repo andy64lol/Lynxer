@@ -51,22 +51,15 @@ Status of each unimplemented built-in today:
 
 - [ ] **Pointers and raw addresses** — `getAddress`, `getAddressValue`,
       `modifyAddressValue`, `functionAddress`, `nativeFunctionAddress`,
-      `nativeCall`. **Reopen** for the address forms. Today: the typed `memory*`
-      accessors + the native-module ABI + `ffi*`.
-- [ ] **Advanced memory layout** — `memoryProtect`;
-      `memoryBlockAllocate/View/Get/Set/Length`;
-      `memoryArrayAllocate/View/Get/Set/Length`; `memoryViewGet/Set/Length`;
-      `memoryStructSize/FieldOffset/FieldSize/Alignment/FieldCount/FieldType/Allocate/Get/Set`;
-      `nativeStruct*`; `nativeTypeAlignment`. Today: flat `memory*` accessors with
-      explicit offsets, plus `sizeOf` / `memoryTypeSize` / `memoryTypeAlignment`.
+      `nativeCall`. **Reopen** for the raw address forms. They are not needed for
+      structured data any more: see the typed blocks/structs/handles below.
 - [ ] **Atomics and volatile access** — `atomicLoad`, `atomicStore`,
       `atomicAdd`, `volatileRead`, `volatileWrite`.
 - [ ] **Native synchronization** — `nativeMutexCreate/Lock/TryLock/Unlock/Close`,
       `nativeConditionCreate/Wait/Notify/NotifyAll/Close`,
       `nativeSemaphoreCreate/Wait/TryWait/Post/Close` — **reopen**. Today the
       cooperative `nativeThread*` family is the threading model.
-- [ ] **Owned native handles** — `nativeHandleAllocate`, `nativeHandleAddress`,
-      `nativeHandleFree`, `nativeHandleIsAlive`.
+- [ ] **`memoryProtect`** — change page protection for an allocation.
 - [ ] **`nativeModule*` handle built-ins** — Load/Name/Function/Constant/Type/
       Error/Dependencies/Close. Superseded by `importAs("<name>.so", ...)`; build
       only if a use case appears.
@@ -143,6 +136,11 @@ Status of each unimplemented built-in today:
   `beingBorrowed`, plus `shared` declarations and `unshare()`.
 - `async*` family: `asyncRun`, `asyncGather`, `asyncSleep`, `asyncPoll*`,
   timers and wakeups (`await` yields cooperatively).
+- Structured memory on integer address handles (the original's pointer
+  replacement): typed blocks (`memoryBlock*`, `memoryArray*`, `memoryView*`),
+  native structs over a layout string (`nativeStruct*` / `memoryStruct*`,
+  `nativeTypeAlignment`), and owned handles (`nativeHandleAllocate` /
+  `Address` / `IsAlive` / `Free`).
 - `ffi*` family; typed `memory*` accessors (`memoryAllocate`, `memoryRead*` /
   `memoryWrite*`, `memoryReadEndian` / `memoryWriteEndian`, `memoryTypeSize`,
   `memoryTypeAlignment`, `sizeOf`); the `syscall*` family; managed

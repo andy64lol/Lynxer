@@ -195,6 +195,50 @@ global main(){
 | `memoryTypeSize(type)` / `memoryTypeAlignment(type)` | Layout queries for a lowercase type string |
 | `sizeOf(typeName)` | Size of a C type name (`char`, `int`, `long`, `void*`, `size_t`, `int64`, …) |
 
+### Typed blocks, structs and owned handles
+
+The original used integer addresses instead of pointers; these built-ins are
+the typed, bounds-checked form. A **block** remembers an element type and count,
+a **struct** remembers its field layout, and an owned **handle** shares one
+liveness flag across every copy of the handle value.
+
+| Builtin | Notes |
+| --- | --- |
+| `memoryBlockAllocate(type, count)` | Allocates `count` elements of a lowercase type |
+| `memoryBlockView(address, type, count)` | Registers an existing allocation as a typed view over `count` elements |
+| `memoryBlockGet(address, index)` / `memoryBlockSet(address, index, value)` | Bounds-checked element access |
+| `memoryBlockLength(address)` | Element count |
+| `memoryArrayAllocate/View/Get/Set/Length` | Aliases of the block API |
+| `memoryViewGet/Set/Length` | Aliases of the block API |
+| `nativeStructSize(layout)` | Total size, including native alignment |
+| `nativeStructAlignment(layout)` | Maximum field alignment in bytes |
+| `nativeStructFieldCount(layout)` | Number of fields |
+| `nativeStructFieldOffset(layout, field)` | Byte offset of a field |
+| `nativeStructFieldSize(layout, field)` / `nativeStructFieldType(layout, field)` | Field size / declared type |
+| `nativeStructAllocate(layout)` | Allocates a struct for a layout |
+| `nativeStructGet(address, field)` / `nativeStructSet(address, field, value)` | Type-checked field access |
+| `memoryStructSize/Alignment/FieldCount/FieldOffset/FieldSize/FieldType/Allocate/Get/Set` | Aliases of the `nativeStruct*` API |
+| `nativeTypeAlignment(type)` | Alias of `memoryTypeAlignment` |
+| `nativeHandleAllocate(size)` | Owns an allocation; returns an integer handle |
+| `nativeHandleAddress(handle)` | The underlying address; errors once the handle is freed |
+| `nativeHandleIsAlive(handle)` | `true` until the handle is freed |
+| `nativeHandleFree(handle)` | Frees the allocation; every copy of the handle then reports freed |
+
+A layout is a comma-separated list of `type name` fields, where the type is one
+of the lowercase memory types above:
+
+```lynx
+str layout = "int32 id, float64 score";
+println(nativeStructSize(layout));                  // 16
+println(nativeStructFieldOffset(layout, "score"));  // 8
+
+int record = nativeStructAllocate(layout);
+nativeStructSet(record, "id", 7);
+nativeStructSet(record, "score", 12.5);
+println(nativeStructGet(record, "score"));          // 12.5
+memoryFree(record);
+```
+
 Every typed read/write validates the address against the allocation registry and
 checks the access against the allocation's length, so an unknown address, a
 freed address, and an out-of-bounds access are source-located errors rather than
@@ -433,9 +477,9 @@ Names Lynxer recognises but does not implement on Linux/POSIX. Each fails with
 | Python bridging | `rawPy`, `rawPyx`, `cleanRawPyxCache`, `embedPy` |
 | Raw addresses | `getAddress`, `modifyAddressValue`, `getAddressValue`, `functionAddress`, `nativeFunctionAddress`, `nativeCall` |
 | Native module introspection | `nativeModuleLoad`, `nativeModuleName`, `nativeModuleFunction`, `nativeModuleConstant`, `nativeModuleType`, `nativeModuleError`, `nativeModuleDependencies`, `nativeModuleClose` |
-| Native sync primitives | `nativeMutex*`, `nativeCondition*`, `nativeSemaphore*`, `nativeHandle*` |
+| Native sync primitives | `nativeMutex*`, `nativeCondition*`, `nativeSemaphore*` |
 | Atomics | `atomicLoad`, `atomicStore`, `atomicAdd`, `volatileRead`, `volatileWrite` |
-| Advanced memory | `memoryProtect`, `memoryBlock*`, `memoryArray*`, `memoryView*`, `memoryStruct*`, `nativeStruct*`, `nativeTypeAlignment` |
+| Memory protection | `memoryProtect` |
 
 The authoritative list is `unsupportedTable()` in `lynxer/builtins.cpp`; this
 table is the POSIX-visible subset. A build without POSIX support adds the
