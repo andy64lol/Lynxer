@@ -117,12 +117,13 @@ tuple pair = (int 10, int 20);
 | `tupleToList(tuple)` | Converts a tuple to a list |
 | `tupleJsonArray(tuple)` | Encodes a tuple as a JSON array string |
 | `tupleMean(tuple)` | Arithmetic mean of numeric elements |
-| `tupleZip(tuple1, tuple2)` | List of JSON pair strings `{"a":v1,"b":v2}` |
+| `tupleZip(tuple1, tuple2)` | **Tuple** of JSON pair strings `{"a": 1, "b": 2}` |
 
 ### Notes
 - **Tuples are immutable**: Operations like `tupleConcat` and `tupleSlice` return a **new** tuple.
 - **Iteration**: Use `tupleToList()` to iterate over a tuple with a `for` loop or index manually.
 - **Conversions**: Use `listToTuple()` and `tupleToList()` to convert between lists and tuples.
+- **Full tuple reference**: [tuples.md](tuples.md) covers declaration forms, comparison, iteration, and differences from the original.
 
 The length of a list, tuple, or string is `returnLength(value)`, and
 `contains(container, value)` tests membership for both lists and tuples.

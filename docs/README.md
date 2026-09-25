@@ -20,8 +20,7 @@ deliberately constrained or not implemented.
 
 | Document | What it covers |
 | --- | --- |
-| [language.md](language.md) | Program structure, comments, variables, control flow, functions, scoping, interpolation |
-| [operators.md](operators.md) | Every operator, precedence, and the deprecated symbolic spellings |
+| [language.md](language.md) | Program structure, comments, variables, operators, control flow, functions, scoping, interpolation |
 | [types.md](types.md) | Every type name, ranges, and conversion rules |
 | [lists.md](lists.md) | `list` and `tuple` values and their builtins |
 | [structs.md](structs.md) | Data-only records |
@@ -135,7 +134,7 @@ lynxer/lynxer --compile app.lynx extras/helpers.lynx \
 
 The first `.lynx` file is the program; further `.lynx`/`.so` inputs are embedded
 and importable by name. A non-`.lynx`/`.so` include is embedded as data and read
-with `bundledFile(name)` / `bundledFiles()`. See [CLI.md](CLI.md#compiling-to-an-executable).
+with `bundledFile(name)` / `bundledFiles()`. See [CLI.md](CLI.md#compile-to-an-executable).
 
 ## Adding a stdlib module
 
@@ -205,7 +204,4 @@ global main(){
 file is imported as a module, callers use `global.moduleName.functionName(...)`.
 `func` names are file-scoped, so two different imported files may define the
 same helper name. `global func name(...)` is not valid syntax; see
-[language.md](language.md#functions).
-[language.md](language.md#functions).
-lobal func name(...)` is not valid syntax; see
 [language.md](language.md#functions).
