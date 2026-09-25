@@ -1629,6 +1629,29 @@ void DeclarationStatement::execute(Environment& environment) const {
     }
 }
 
+SharedDeclarationStatement::SharedDeclarationStatement(
+    std::string type, std::string name, std::string source, int line,
+    int column)
+    : type_(std::move(type)), name_(std::move(name)),
+      source_(std::move(source)), line_(line), column_(column) {}
+
+void SharedDeclarationStatement::execute(Environment& environment) const {
+    // The aliased source must be readable, so reject a moved (or otherwise
+    // unreadable) variable before this declaration takes effect.
+    const std::string readError =
+        environment.ownershipError(source_, "borrow from");
+    if (!readError.empty()) {
+        throw SourceError(readError, line_, column_);
+    }
+    Value value = Environment::convertForType(
+        environment.get(source_, line_, column_), type_, line_, column_);
+    environment.declare(name_, type_, std::move(value), line_, column_);
+    const std::string error = environment.borrowMutate(source_, name_);
+    if (!error.empty()) {
+        throw SourceError(error, line_, column_);
+    }
+}
+
 AssignmentStatement::AssignmentStatement(std::string name, ExpressionPtr value,
                                          int line, int column)
     : name_(std::move(name)), value_(std::move(value)), line_(line),
@@ -3285,6 +3308,13 @@ void DeclarationStatement::dump(std::ostream& out, int indent) const {
     dumpStringField(out, indent, "name", name_);
     dumpBoolField(out, indent, "constant", constant_);
     dumpExprField(out, indent, "value", value_.get());
+}
+
+void SharedDeclarationStatement::dump(std::ostream& out, int indent) const {
+    dumpScalarLine(out, indent, "SharedDeclarationStatement");
+    dumpStringField(out, indent, "type", type_);
+    dumpStringField(out, indent, "name", name_);
+    dumpStringField(out, indent, "source", source_);
 }
 
 void AssignmentStatement::dump(std::ostream& out, int indent) const {

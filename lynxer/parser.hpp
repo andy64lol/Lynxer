@@ -48,6 +48,7 @@ private:
     StatementPtr parseExec();
     StatementPtr parseVargroupDeclaration(bool constant);
     StatementPtr parseDeclaration(bool constant);
+    StatementPtr parseSharedDeclaration();
     StatementPtr parseTypedDotAssignment();
     StatementPtr parseAssignmentOrExpressionStatement(bool requireSemicolon);
 

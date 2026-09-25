@@ -27,6 +27,7 @@
 <li><a href="operators.html">operators</a></li>
 <li><a href="types.html">types</a></li>
 <li><a href="lists.html" class="active">lists</a></li>
+<li><a href="tuples.html">tuples</a></li>
 <li><a href="modules.html">modules</a></li>
 <li><a href="importAs.html">importAs</a></li>
 </ul>
@@ -43,6 +44,7 @@
 <li><a href="extending.html">extending</a></li>
 </ul>
 <h3>Reference</h3><ul>
+<li><a href="legacy-surface.html">legacy-surface</a></li>
 <li><a href="limitations.html">limitations</a></li>
 </ul>
 <h3>Standard library</h3><ul>
@@ -160,13 +162,14 @@ tuple pair = (int 10, int 20);</code></pre>
 <tr><td><code>tupleToList(tuple)</code></td><td>Converts a tuple to a list</td></tr>
 <tr><td><code>tupleJsonArray(tuple)</code></td><td>Encodes a tuple as a JSON array string</td></tr>
 <tr><td><code>tupleMean(tuple)</code></td><td>Arithmetic mean of numeric elements</td></tr>
-<tr><td><code>tupleZip(tuple1, tuple2)</code></td><td>List of JSON pair strings <code>{&quot;a&quot;:v1,&quot;b&quot;:v2}</code></td></tr>
+<tr><td><code>tupleZip(tuple1, tuple2)</code></td><td><strong>Tuple</strong> of JSON pair strings <code>{&quot;a&quot;: 1, &quot;b&quot;: 2}</code></td></tr>
 </table>
 <h3 id="notes">Notes</h3>
 <ul>
 <li><strong>Tuples are immutable</strong>: Operations like <code>tupleConcat</code> and <code>tupleSlice</code> return a <strong>new</strong> tuple.</li>
 <li><strong>Iteration</strong>: Use <code>tupleToList()</code> to iterate over a tuple with a <code>for</code> loop or index manually.</li>
 <li><strong>Conversions</strong>: Use <code>listToTuple()</code> and <code>tupleToList()</code> to convert between lists and tuples.</li>
+<li><strong>Full tuple reference</strong>: <a href="tuples.html">tuples</a> covers declaration forms, comparison, iteration, and differences from the original.</li>
 </ul>
 <p>The length of a list, tuple, or string is <code>returnLength(value)</code>, and <code>contains(container, value)</code> tests membership for both lists and tuples.</p>
 <h2 id="tuple-builtins">Tuple Builtins</h2>

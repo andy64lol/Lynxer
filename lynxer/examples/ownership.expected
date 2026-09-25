@@ -12,6 +12,12 @@ through mutable borrow 55 55
 == swap ==
 swapVal 2 1
 swapAll 9 1
+== shared variables ==
+shared alias 42 42 true true
+write through alias 100 100
+write through source 7 7
+unshared false
+independent 7 200
 == failures ==
 read moved: Cannot read moved variable 'moved1'; reinitialize it before using it again
 write borrowed source: Cannot write to 'owned2' while it is being borrowed; end all active borrows first
@@ -19,4 +25,6 @@ write through read-only: Cannot write to borrowed variable 'holder3'; the borrow
 move twice: Cannot move from moved variable 'once4'; reinitialize it before using it again
 end non-borrow: 'plain5' is not an active borrow; varEndBorrow() expects a borrowing variable
 move constant: Cannot transfer constant 'frozen6'
+move shared: Cannot move 'shared7' while it is being borrowed; end all active borrows first
+swap shared: Cannot swap first shared variable 'right8'; use independent variables
 done

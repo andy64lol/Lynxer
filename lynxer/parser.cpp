@@ -808,6 +808,9 @@ StatementPtr Parser::parseExec() {
 }
 
 StatementPtr Parser::parseSimpleStatement(bool requireSemicolon) {
+    if (checkText("shared")) {
+        return parseSharedDeclaration();
+    }
     if (checkText("codeblock")) {
         return parseCodeblockDeclaration();
     }
@@ -889,6 +892,29 @@ StatementPtr Parser::parseDeclaration(bool constant) {
     }
     return std::make_unique<DeclarationStatement>(
         type.text, name.text, std::move(value), type.line, type.column);
+}
+
+// `shared <type> name = source;` — the legacy shared-variable declaration. The
+// initializer must be a variable name; the aliasing is set up at run time.
+StatementPtr Parser::parseSharedDeclaration() {
+    const Token keyword = expectText("shared", "expected 'shared'");
+    if (!isTypeName(current()) ||
+        peekAt(1).kind != TokenKind::Identifier ||
+        peekAt(2).text != "=") {
+        fail(
+            "shared declarations look like 'shared <type> <name> = "
+            "<variable>;'",
+            keyword);
+    }
+    const Token type = advance();
+    const Token name = expect(TokenKind::Identifier, "expected variable name");
+    expectText("=", "expected '=' in shared declaration");
+    const Token source = expect(
+        TokenKind::Identifier,
+        "shared declarations must alias an existing variable name");
+    expectText(";", "expected ';' after shared declaration");
+    return std::make_unique<SharedDeclarationStatement>(
+        type.text, name.text, source.text, type.line, type.column);
 }
 
 namespace {

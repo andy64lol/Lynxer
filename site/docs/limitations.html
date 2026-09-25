@@ -27,6 +27,7 @@
 <li><a href="operators.html">operators</a></li>
 <li><a href="types.html">types</a></li>
 <li><a href="lists.html">lists</a></li>
+<li><a href="tuples.html">tuples</a></li>
 <li><a href="modules.html">modules</a></li>
 <li><a href="importAs.html">importAs</a></li>
 </ul>
@@ -43,6 +44,7 @@
 <li><a href="extending.html">extending</a></li>
 </ul>
 <h3>Reference</h3><ul>
+<li><a href="legacy-surface.html">legacy-surface</a></li>
 <li><a href="limitations.html" class="active">limitations</a></li>
 </ul>
 <h3>Standard library</h3><ul>
@@ -95,7 +97,6 @@
 <tr><td>Click/Typer builders (<code>click*</code>, <code>typer*</code>)</td><td>The <code>cli</code> module does not depend on Python's Click or Typer.</td></tr>
 <tr><td>Python runtime introspection (<code>sys.path</code>, <code>addPath</code>, <code>prependPath</code>, <code>removeFromPath</code>, <code>getModules</code>, <code>isModuleLoaded</code>, <code>getRecursionLimit</code>, <code>setRecursionLimit</code>, <code>os.getPythonVersion</code>, <code>os.getPythonImplementation</code>)</td><td>There is no Python runtime to introspect. The <code>os</code> getters return <code>&quot;&quot;</code> / <code>&quot;Lynxer&quot;</code> for compatibility and will be removed.</td></tr>
 <tr><td>Bytecode (<code>.lynxc</code>, <code>--view-bytecode</code>, <code>--benchmark-compile</code>, <code>--no-cache</code>)</td><td>Removed with the bytecode backend; <code>--compile</code> produces a standalone ELF executable instead (<code>--bundle</code> is an alias). Running a <code>.lynxc</code> file reports that bytecode is unsupported.</td></tr>
-<tr><td><code>varBorrow*</code> family</td><td>Python's borrowed references have no meaning across the native ABI.</td></tr>
 <tr><td>FFI / native-module handle built-ins</td><td>Superseded by direct <code>import</code> of a native <code>.so</code> through the documented ABI.</td></tr>
 <tr><td><code>nativeMutex*</code>, <code>nativeCondition*</code>, <code>nativeSemaphore*</code></td><td>Lynxer runs cooperatively on one interpreter thread; there is one global lock and no shared mutable state to protect.</td></tr>
 <tr><td><code>async*</code> family (<code>Run</code>, <code>Gather</code>, <code>Sleep</code>, <code>Poll*</code>, timers, wakeups)</td><td>Lynxer has no <code>async</code> language support and no event loop to serve.</td></tr>
@@ -326,9 +327,10 @@
 <p><code>builtins.cpp</code> maintains an <code>unsupportedTable()</code> of names that are recognized but deliberately unimplemented. Calling one raises: <code>&lt;name&gt;() is not supported in Lynxer yet</code>.</p>
 <p>This includes:</p>
 <ul>
-<li><code>rawPy</code>/<code>rawPyx</code>, <code>varBorrow*</code>, FFI/native-module handles, and mutual-exclusion primitives (not planned).</li>
+<li><code>rawPy</code>/<code>rawPyx</code>, FFI/native-module handles, and mutual-exclusion primitives (not planned).</li>
 <li>The <code>async*</code> family (not supported).</li>
 </ul>
+<p><a href="legacy-surface.html">legacy-surface</a> catalogues the original built-ins and modules that were not carried over — pointers/raw addresses, native structs, async, <code>rawPy</code>, and the un-ported modules — with their replacements.</p>
 <h3 id="nativethread--constrained-cooperative-model"><code>nativeThread*</code> — Constrained (Cooperative Model)</h3>
 <ul>
 <li><strong>Function resolution:</strong> <code>nativeThreadStart(global.worker, [int 42])</code> passes a named global function. Lynxer resolves <code>global.&lt;name&gt;</code> to a callable value when no variable has that name. <code>returnType</code> reports <code>codeblock</code> for such a value.</li>

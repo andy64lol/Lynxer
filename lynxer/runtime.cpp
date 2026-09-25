@@ -187,14 +187,15 @@ std::string Environment::ownershipError(const std::string& name,
             return "Cannot " + operation + " borrowed variable '" + name +
                    "'; end its borrow first";
         }
+        if (operation == "move") {
+            // A borrower does not own the storage, so it can never be moved —
+            // not even a mutable alias, which still borrows from its source.
+            return "Cannot move '" + name +
+                   "' while it is being borrowed; end all active borrows first";
+        }
         if (operation == "write to" && !variable->borrowMutable) {
             return "Cannot write to borrowed variable '" + name +
                    "'; the borrow is read-only";
-        }
-        if ((operation == "write to" || operation == "move") &&
-            !variable->borrowMutable) {
-            return "Cannot " + operation + " '" + name +
-                   "' while it is being borrowed; end all active borrows first";
         }
         return "";
     }
@@ -209,8 +210,21 @@ std::string Environment::ownershipError(const std::string& name,
     }
     if ((operation == "write to" || operation == "move") &&
         !variable->borrowers.empty()) {
-        return "Cannot " + operation + " '" + name +
-               "' while it is being borrowed; end all active borrows first";
+        // A mutable borrower (varBorrowMutate, or a `shared` alias) shares the
+        // same storage, so the source may still be written through it. A move
+        // would leave the alias dangling, and any read-only borrow blocks both.
+        bool blocked = operation == "move";
+        for (const std::string& borrowerName : variable->borrowers) {
+            const Variable* borrower = findVariable(borrowerName);
+            if (borrower == nullptr || !borrower->borrowMutable) {
+                blocked = true;
+                break;
+            }
+        }
+        if (blocked) {
+            return "Cannot " + operation + " '" + name +
+                   "' while it is being borrowed; end all active borrows first";
+        }
     }
     return "";
 }
@@ -462,15 +476,15 @@ std::string Environment::borrowMutate(const std::string& source,
     return "";
 }
 
-std::string Environment::endBorrow(const std::string& borrower) {
+std::string Environment::endBorrow(const std::string& borrower,
+                                   const std::string& function) {
     Variable* variable = findVariable(borrower);
     if (variable == nullptr) {
-        return "varEndBorrow() expects a defined variable";
+        return function + "() expects a defined variable";
     }
     if (variable->borrowSource.empty()) {
-        return "'" + borrower +
-               "' is not an active borrow; varEndBorrow() expects a borrowing "
-               "variable";
+        return "'" + borrower + "' is not an active borrow; " + function +
+               "() expects a borrowing variable";
     }
     const std::string canonical = canonicalName(borrower);
     Variable* source = canonical.empty() ? nullptr : findVariable(canonical);

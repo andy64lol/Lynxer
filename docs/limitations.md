@@ -21,7 +21,6 @@ Entries are marked:
 | Click/Typer builders (`click*`, `typer*`) | The `cli` module does not depend on Python's Click or Typer. |
 | Python runtime introspection (`sys.path`, `addPath`, `prependPath`, `removeFromPath`, `getModules`, `isModuleLoaded`, `getRecursionLimit`, `setRecursionLimit`, `os.getPythonVersion`, `os.getPythonImplementation`) | There is no Python runtime to introspect. The `os` getters return `""` / `"Lynxer"` for compatibility and will be removed. |
 | Bytecode (`.lynxc`, `--view-bytecode`, `--benchmark-compile`, `--no-cache`) | Removed with the bytecode backend; `--compile` produces a standalone ELF executable instead (`--bundle` is an alias). Running a `.lynxc` file reports that bytecode is unsupported. |
-| `varBorrow*` family | Python's borrowed references have no meaning across the native ABI. |
 | FFI / native-module handle built-ins | Superseded by direct `import` of a native `.so` through the documented ABI. |
 | `nativeMutex*`, `nativeCondition*`, `nativeSemaphore*` | Lynxer runs cooperatively on one interpreter thread; there is one global lock and no shared mutable state to protect. |
 | `async*` family (`Run`, `Gather`, `Sleep`, `Poll*`, timers, wakeups) | Lynxer has no `async` language support and no event loop to serve. |
@@ -265,8 +264,12 @@ The managed `filesystem*`, `process*`, `networking*`, and `sound*` families are 
 `<name>() is not supported in Lynxer yet`.
 
 This includes:
-- `rawPy`/`rawPyx`, `varBorrow*`, FFI/native-module handles, and mutual-exclusion primitives (not planned).
+- `rawPy`/`rawPyx`, FFI/native-module handles, and mutual-exclusion primitives (not planned).
 - The `async*` family (not supported).
+
+[legacy-surface.md](legacy-surface.md) catalogues the original built-ins and
+modules that were not carried over — pointers/raw addresses, native structs,
+async, `rawPy`, and the un-ported modules — with their replacements.
 
 ### `nativeThread*` — Constrained (Cooperative Model)
 

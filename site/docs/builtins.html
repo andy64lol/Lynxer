@@ -27,6 +27,7 @@
 <li><a href="operators.html">operators</a></li>
 <li><a href="types.html">types</a></li>
 <li><a href="lists.html">lists</a></li>
+<li><a href="tuples.html">tuples</a></li>
 <li><a href="modules.html">modules</a></li>
 <li><a href="importAs.html">importAs</a></li>
 </ul>
@@ -43,6 +44,7 @@
 <li><a href="extending.html">extending</a></li>
 </ul>
 <h3>Reference</h3><ul>
+<li><a href="legacy-surface.html">legacy-surface</a></li>
 <li><a href="limitations.html">limitations</a></li>
 </ul>
 <h3>Standard library</h3><ul>
@@ -168,7 +170,7 @@
 <tr><td><code>tupleUnique(tuple t)</code></td><td>New tuple with duplicates removed (order preserved)</td></tr>
 <tr><td><code>tupleMean(tuple t)</code></td><td>Arithmetic mean of numeric elements</td></tr>
 <tr><td><code>tupleFlatten(tuple t)</code></td><td>One-level flatten: concatenates nested tuple elements</td></tr>
-<tr><td><code>tupleZip(tuple t1, tuple t2)</code></td><td>List of JSON pair strings <code>{&quot;a&quot;:v1,&quot;b&quot;:v2}</code></td></tr>
+<tr><td><code>tupleZip(tuple t1, tuple t2)</code></td><td><strong>Tuple</strong> of JSON pair strings <code>{&quot;a&quot;: 1, &quot;b&quot;: 2}</code></td></tr>
 <tr><td><code>tupleJoin(tuple t, str sep)</code></td><td>All elements joined as a string with separator</td></tr>
 <tr><td><code>contains(tuple t, any val)</code></td><td>Common membership test shared with lists</td></tr>
 </table>
@@ -187,6 +189,22 @@
 <tr><td><code>suppressDeprecationWarning()</code></td><td>Silences legacy-syntax warnings (only in <code>setup()</code>)</td></tr>
 <tr><td><code>overrideMain(name)</code></td><td>Runs <code>name</code> instead of <code>main</code> (only in <code>setup()</code>)</td></tr>
 </table>
+<h2 id="ownership-and-borrowing">Ownership and borrowing</h2>
+<p>The arguments are <strong>variable names</strong>, not values; see <a href="language.html#shared-variables">language</a>.</p>
+<table>
+<tr><th>Builtin</th><th>Notes</th></tr>
+<tr><td><code>varTransfer(source, destination)</code></td><td>Moves a value into an already-declared destination</td></tr>
+<tr><td><code>varTransferMutate(source, destination)</code></td><td>Move form for an <code>any</code>/<code>num</code> destination</td></tr>
+<tr><td><code>varBorrow(source, borrower)</code></td><td>Read-only tracked alias</td></tr>
+<tr><td><code>varBorrowMutate(source, borrower)</code></td><td>Exclusive mutable alias sharing one storage</td></tr>
+<tr><td><code>varEndBorrow(borrower)</code></td><td>Ends a borrow; the borrower keeps an independent copy</td></tr>
+<tr><td><code>unshare(borrower)</code></td><td>Alias of <code>varEndBorrow</code>; detaches a <code>shared</code> variable</td></tr>
+<tr><td><code>borrowing(variable)</code></td><td>Whether the variable is a borrower</td></tr>
+<tr><td><code>beingBorrowed(variable)</code></td><td>Whether another variable borrows from it</td></tr>
+<tr><td><code>varSwapAll(first, second)</code></td><td>Exchanges values and declared types</td></tr>
+<tr><td><code>varSwapVal(first, second)</code></td><td>Exchanges values, keeping declared types</td></tr>
+</table>
+<p><code>shared &lt;type&gt; name = variable;</code> is the declaration form of <code>varBorrowMutate</code>; the source may still be written while the alias is active.</p>
 <h2 id="bundled-files">Bundled files</h2>
 <p>Available to programs run from a compiled executable; a normal interpreted run returns empty results.</p>
 <table>
@@ -352,8 +370,6 @@ global main(){
 <table>
 <tr><th>Family</th><th>Names</th></tr>
 <tr><td>Python bridging</td><td><code>rawPy</code>, <code>rawPyx</code>, <code>cleanRawPyxCache</code>, <code>embedPy</code></td></tr>
-<tr><td>Namespaces</td><td><code>unshare</code></td></tr>
-<tr><td>Borrow / transfer</td><td><code>varTransfer</code>, <code>varTransferMutate</code>, <code>varBorrow</code>, <code>varBorrowMutate</code>, <code>varSwapAll</code>, <code>varSwapVal</code>, <code>varEndBorrow</code>, <code>borrowing</code>, <code>beingBorrowed</code></td></tr>
 <tr><td>Raw addresses</td><td><code>getAddress</code>, <code>modifyAddressValue</code>, <code>getAddressValue</code>, <code>functionAddress</code>, <code>nativeFunctionAddress</code>, <code>nativeCall</code></td></tr>
 <tr><td>Native module introspection</td><td><code>nativeModuleLoad</code>, <code>nativeModuleName</code>, <code>nativeModuleFunction</code>, <code>nativeModuleConstant</code>, <code>nativeModuleType</code>, <code>nativeModuleError</code>, <code>nativeModuleDependencies</code>, <code>nativeModuleClose</code></td></tr>
 <tr><td>Native sync primitives</td><td><code>nativeMutex*</code>, <code>nativeCondition*</code>, <code>nativeSemaphore*</code>, <code>nativeHandle*</code></td></tr>

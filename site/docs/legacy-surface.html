@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Original Lynxer surface not carried over - Lynxer</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<header>
+    <h1><a href="../index.html">Lynxer</a></h1>
+    <p>Documentation</p>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3>Overview</h3><ul>
+<li><a href="index.html">README</a></li>
+</ul>
+<h3>Getting started</h3><ul>
+<li><a href="install.html">install</a></li>
+<li><a href="CLI.html">CLI</a></li>
+</ul>
+<h3>Language</h3><ul>
+<li><a href="language.html">language</a></li>
+<li><a href="operators.html">operators</a></li>
+<li><a href="types.html">types</a></li>
+<li><a href="lists.html">lists</a></li>
+<li><a href="tuples.html">tuples</a></li>
+<li><a href="modules.html">modules</a></li>
+<li><a href="importAs.html">importAs</a></li>
+</ul>
+<h3>Records</h3><ul>
+<li><a href="structs.html">structs</a></li>
+<li><a href="classes.html">classes</a></li>
+<li><a href="enums.html">enums</a></li>
+<li><a href="vargroups.html">vargroups</a></li>
+</ul>
+<h3>Built-ins and modules</h3><ul>
+<li><a href="builtins.html">builtins</a></li>
+<li><a href="native-module-abi.html">native-module-abi</a></li>
+<li><a href="stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="extending.html">extending</a></li>
+</ul>
+<h3>Reference</h3><ul>
+<li><a href="legacy-surface.html" class="active">legacy-surface</a></li>
+<li><a href="limitations.html">limitations</a></li>
+</ul>
+<h3>Standard library</h3><ul>
+<li><a href="stdlib/index.html">All modules</a></li>
+<li><a href="stdlib/cli.html">cli</a></li>
+<li><a href="stdlib/colorlib.html">colorlib</a></li>
+<li><a href="stdlib/csv.html">csv</a></li>
+<li><a href="stdlib/debug.html">debug</a></li>
+<li><a href="stdlib/fileIO.html">fileIO</a></li>
+<li><a href="stdlib/game.html">game</a></li>
+<li><a href="stdlib/image.html">image</a></li>
+<li><a href="stdlib/js.html">js</a></li>
+<li><a href="stdlib/json.html">json</a></li>
+<li><a href="stdlib/lua.html">lua</a></li>
+<li><a href="stdlib/math.html">math</a></li>
+<li><a href="stdlib/multiprocessing.html">multiprocessing</a></li>
+<li><a href="stdlib/network.html">network</a></li>
+<li><a href="stdlib/os.html">os</a></li>
+<li><a href="stdlib/path.html">path</a></li>
+<li><a href="stdlib/random.html">random</a></li>
+<li><a href="stdlib/re.html">re</a></li>
+<li><a href="stdlib/regex.html">regex</a></li>
+<li><a href="stdlib/server.html">server</a></li>
+<li><a href="stdlib/shell.html">shell</a></li>
+<li><a href="stdlib/sound.html">sound</a></li>
+<li><a href="stdlib/sqldb.html">sqldb</a></li>
+<li><a href="stdlib/sys.html">sys</a></li>
+<li><a href="stdlib/text.html">text</a></li>
+<li><a href="stdlib/time.html">time</a></li>
+<li><a href="stdlib/tui.html">tui</a></li>
+<li><a href="stdlib/typing.html">typing</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+<h1 id="original-lynxer-surface-not-carried-over">Original Lynxer surface not carried over</h1>
+<p>The original interpreter exposed a larger built-in and module surface than the standalone C++ runtime implements — much of it existed to bridge into CPython, raw C memory, or a pre-emptive threading model. This page catalogues that surface so programs and notes written against the original have somewhere to look. <a href="limitations.html">limitations</a> remains the normative register; this page adds the <em>what did it do</em> and <em>what replaces it</em> detail.</p>
+<p>Two statuses are used:</p>
+<ul>
+<li><strong>Not implemented</strong> — the name is recognised and fails with <code>&lt;name&gt;() is not supported in Lynxer yet</code>. Some of these could be built later.</li>
+<li><strong>Not planned</strong> — a deliberate, permanent non-goal.</li>
+</ul>
+<h2 id="pointers-and-raw-addresses">Pointers and raw addresses</h2>
+<p>The original had C-style address and function-pointer built-ins.</p>
+<table>
+<tr><th>Name</th><th>Status</th><th>Notes</th></tr>
+<tr><td><code>getAddress(variable)</code></td><td>Not implemented</td><td>Address of a variable's storage</td></tr>
+<tr><td><code>getAddressValue(address)</code></td><td>Not implemented</td><td>Read through a raw address</td></tr>
+<tr><td><code>modifyAddressValue(address, value)</code></td><td>Not implemented</td><td>Write through a raw address</td></tr>
+<tr><td><code>functionAddress(name)</code></td><td>Not implemented</td><td>Address of a Lynxer function</td></tr>
+<tr><td><code>nativeFunctionAddress(name)</code></td><td>Not implemented</td><td>Address of a native function</td></tr>
+<tr><td><code>nativeCall(address, args...)</code></td><td>Not implemented</td><td>Call an address directly</td></tr>
+<tr><td><code>nativeHandleAllocate/Address/Free/IsAlive</code></td><td>Not planned</td><td>Owned native handles</td></tr>
+</table>
+<p><strong>Why:</strong> exposing raw addresses across the native ABI is the largest possible security surface, and it conflicts with the interpreter's value-ownership model (see <a href="language.html#ownership-and-borrowing">ownership and borrowing</a>). <strong>Use instead:</strong> typed byte buffers via the <a href="builtins.html#native-memory"><code>memory*</code> built-ins</a> (<code>memoryAllocate</code>, <code>memoryReadInt64</code>, <code>memoryWriteFloat64</code>, <code>memoryReadEndian</code>, <code>sizeOf</code>, …) for storage you control, the <a href="native-module-abi.html">native-module ABI</a> to call native code, and the <a href="builtins.html#ffi"><code>ffi*</code> family</a> for dynamic calls.</p>
+<h2 id="advanced-memory-layout">Advanced memory layout</h2>
+<p>The original could model C structs and arrays directly in the allocator.</p>
+<table>
+<tr><th>Family</th><th>Status</th><th>Notes</th></tr>
+<tr><td><code>memoryProtect</code></td><td>Not implemented</td><td>Change page protection</td></tr>
+<tr><td><code>memoryBlockAllocate</code>, <code>memoryBlockView/Get/Set/Length</code></td><td>Not implemented</td><td>Untyped blocks</td></tr>
+<tr><td><code>memoryArrayAllocate</code>, <code>memoryArrayView/Get/Set/Length</code></td><td>Not implemented</td><td>Indexed arrays</td></tr>
+<tr><td><code>memoryViewGet/Set/Length</code></td><td>Not implemented</td><td>Views into a block</td></tr>
+<tr><td><code>memoryStructSize/FieldOffset/FieldSize/Alignment/FieldCount/FieldType/Allocate/Get/Set</code></td><td>Not implemented</td><td>C-struct layout helpers</td></tr>
+<tr><td><code>nativeStruct*</code>, <code>nativeTypeAlignment</code></td><td>Not implemented</td><td>Native-layout mirrors</td></tr>
+</table>
+<p><strong>Use instead:</strong> the flat <a href="builtins.html#native-memory"><code>memory*</code></a> accessors with explicit offsets, plus <code>sizeOf(type)</code> / <code>memoryTypeSize(type)</code> / <code>memoryTypeAlignment(type)</code> for layout queries. A native module is the right tool when you need real struct layout.</p>
+<h2 id="native-synchronization">Native synchronization</h2>
+<table>
+<tr><th>Family</th><th>Status</th><th>Notes</th></tr>
+<tr><td><code>nativeMutexCreate/Lock/TryLock/Unlock/Close</code></td><td>Not planned</td><td>No pre-emptive threads to protect</td></tr>
+<tr><td><code>nativeConditionCreate/Wait/Notify/NotifyAll/Close</code></td><td>Not planned</td><td>—</td></tr>
+<tr><td><code>nativeSemaphoreCreate/Wait/TryWait/Post/Close</code></td><td>Not planned</td><td>—</td></tr>
+</table>
+<p><strong>Why:</strong> Lynxer evaluates on one interpreter thread under a single lock, so there is no shared mutable state to guard. The cooperative <a href="builtins.html#native-threads"><code>nativeThread*</code></a> family is the supported model.</p>
+<h2 id="async">Async</h2>
+<table>
+<tr><th>Family</th><th>Status</th><th>Notes</th></tr>
+<tr><td><code>asyncRun</code>, <code>asyncGather</code>, <code>asyncSleep</code></td><td>Not planned</td><td>No event loop</td></tr>
+<tr><td><code>asyncPollCreate/Register/Modify/Remove/Wait/Dispatch/Close</code></td><td>Not planned</td><td>—</td></tr>
+<tr><td><code>asyncTimerCreate/Cancel</code>, <code>asyncWakeupCreate/Signal/Close</code></td><td>Not planned</td><td>—</td></tr>
+</table>
+<p><strong>Why:</strong> the language has no <code>async</code> support, so there is nothing for a runtime to schedule. <strong>Use instead:</strong> <code>sleep(seconds)</code> and <code>foreverDelay(seconds)</code> for blocking waits; <code>nativeThread*</code> for concurrent work.</p>
+<h2 id="python-bridging">Python bridging</h2>
+<table>
+<tr><th>Name</th><th>Status</th><th>Notes</th></tr>
+<tr><td><code>rawPy</code>, <code>rawPyx</code>, <code>cleanRawPyxCache</code>, <code>embedPy</code></td><td>Not planned</td><td>Embedded CPython/Cython</td></tr>
+</table>
+<p><strong>Why:</strong> Lynxer does not ship or link a Python runtime. Anything that depended on <code>rawPy { }</code> — including the original <code>tkinter</code>/<code>turtle</code> modules and tuple interop — has no direct equivalent.</p>
+<h2 id="ffi-and-native-module-handles">FFI and native-module handles</h2>
+<table>
+<tr><th>Family</th><th>Status</th><th>Notes</th></tr>
+<tr><td><code>nativeModuleLoad/Name/Function/Constant/Type/Error/Dependencies/Close</code></td><td>Not planned</td><td>Superseded by the import ABI</td></tr>
+<tr><td><code>ffiLoadLibrary</code>, <code>ffiLookup</code>, <code>ffiCloseLibrary</code>, <code>ffiCall</code>, <code>ffiCallback</code>, <code>ffiFreeCallback</code></td><td>Implemented</td><td>In C++ (<code>lynxer/builtins.cpp</code>)</td></tr>
+</table>
+<p>Native code is reached through the documented <a href="native-module-abi.html">native-module ABI</a>: an <code>.so</code> exporting <code>lynxer_module_init_v1</code> is imported by name (<code>importAs(&quot;libx.so&quot;, &quot;x&quot;)</code>), so the <code>nativeModule*</code> handle built-ins are unnecessary. The <code>ffi*</code> family is the dynamic alternative.</p>
+<h2 id="modules-not-ported">Modules not ported</h2>
+<table>
+<tr><th>Module</th><th>Status</th><th>Replacement</th></tr>
+<tr><td><code>venv</code></td><td>Not planned</td><td>None — a virtual environment is a CPython concept</td></tr>
+<tr><td><code>tkinter</code>, <code>tkinterPlus</code>, <code>turtle</code></td><td>Not planned</td><td>None; a future GUI would be Rust-backed (see <code>todo.md</code>)</td></tr>
+<tr><td><code>http</code>, <code>net</code></td><td>Superseded</td><td><a href="stdlib/network.html"><code>network</code></a> + <a href="stdlib/server.html"><code>server</code></a></td></tr>
+<tr><td><code>mathPlus</code></td><td>Merged</td><td><a href="stdlib/math.html"><code>math</code></a> (the float <code>sign</code> is <code>signFloat</code>)</td></tr>
+</table>
+<h2 id="toolchain-surface-removed">Toolchain surface removed</h2>
+<table>
+<tr><th>Feature</th><th>Status</th><th>Replacement</th></tr>
+<tr><td>Bytecode (<code>.lynxc</code>, <code>--view-bytecode</code>, <code>--benchmark-compile</code>, <code>--no-cache</code>)</td><td>Removed</td><td><code>--compile</code> produces a standalone ELF executable</td></tr>
+<tr><td>Python <code>migration/</code> guide</td><td>Removed</td><td>The language reference in <a href="language.html">language</a></td></tr>
+<tr><td>Python-only build paths (<code>clynxer/</code>, PyInstaller targets)</td><td>Removed</td><td><code>make buildLynxer</code> and the root <code>Makefile</code></td></tr>
+</table>
+<h2 id="quick-map-original--now">Quick map: original → now</h2>
+<table>
+<tr><th>Original</th><th>Now</th></tr>
+<tr><td><code>getAddress</code> / <code>getAddressValue</code> / <code>modifyAddressValue</code></td><td><code>memoryAllocate</code> + <code>memoryRead*</code> / <code>memoryWrite*</code></td></tr>
+<tr><td><code>nativeFunctionAddress</code> / <code>nativeCall</code></td><td>The <a href="native-module-abi.html">native-module ABI</a> or <code>ffiCall</code></td></tr>
+<tr><td><code>memoryStruct*</code> / <code>nativeStruct*</code></td><td>Flat <code>memory*</code> offsets + <code>sizeOf</code> / <code>memoryTypeSize</code></td></tr>
+<tr><td><code>nativeMutex*</code> / <code>Condition*</code> / <code>Semaphore*</code></td><td><code>nativeThread*</code> (cooperative)</td></tr>
+<tr><td><code>async*</code></td><td><code>sleep</code>, <code>foreverDelay</code>, <code>nativeThread*</code></td></tr>
+<tr><td><code>rawPy</code> / <code>embedPy</code></td><td>None (no CPython)</td></tr>
+<tr><td><code>nativeModule*</code> handles</td><td><code>importAs(&quot;&lt;name&gt;.so&quot;, …)</code></td></tr>
+<tr><td><code>tkinter</code> / <code>turtle</code> / <code>venv</code></td><td>None</td></tr>
+</table>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="limitations.html">limitations</a> — the normative constraints and non-goals.</li>
+<li><a href="builtins.html">builtins</a> — every built-in the interpreter does implement.</li>
+<li><a href="native-module-abi.html">native-module-abi</a> — calling native code.</li>
+</ul>
+    </main>
+</div>
+
+<footer>
+    <a class="github" href="https://github.com/andy64lol/Lynxer" aria-label="Lynxer on GitHub" title="Lynxer on GitHub"><svg role="img" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a>
+    <span>Lynxer &middot; MIT License</span>
+</footer>
+
+</body>
+</html>

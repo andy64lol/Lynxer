@@ -160,13 +160,35 @@ varEndBorrow(borrower);              // borrower becomes an independent copy
   accept moved variables, so ownership state can be inspected while handling an
   error.
 - `varBorrowMutate(source, borrower)` makes an exclusive mutable borrow: the
-  borrower may be assigned through while the source observes the same storage.
+  borrower aliases the same storage, so writes through either name are visible
+  through the other.
   Another active borrow makes it fail, and ending it with `varEndBorrow` leaves
   the borrower independent.
 - `varSwapAll(first, second)` exchanges values **and** declared type metadata;
   `varSwapVal(first, second)` exchanges only values and keeps each declared type,
   so both cross-assignments must be type-compatible. Both require independent,
   live, mutable variables and validate everything before changing either one.
+
+### Shared variables
+
+Prefix a typed declaration with `shared` to make it a mutable alias of an
+existing variable. Assignments through either name update the same storage:
+
+```lynx
+int x = 42;
+shared int y = x;
+y = 100;       // x is now 100 too
+x = 7;         // y observes the same value
+unshare(y);    // y becomes independent, keeping its current value
+y = 200;       // x stays 7, y is 200
+```
+
+The initializer must be a **variable name**, the declared type must accept the
+source's value, and the source must be readable (not moved). `unshare(name)`
+detaches the alias; the detached variable keeps its current value and declared
+type. `shared` is a declaration form of `varBorrowMutate`, and `unshare` is an
+alias of `varEndBorrow` — so a shared variable reports `borrowing(alias)` and
+`beingBorrowed(source)` as `true` until it is detached.
 
 The arguments to these built-ins are **variable names**, not values. A runnable
 example is `lynxer/examples/ownership.lynx`.

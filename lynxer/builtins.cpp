@@ -4893,7 +4893,6 @@ const std::unordered_set<std::string>& unsupportedTable() {
         "soundLoad", "soundPlay", "soundLoop", "soundStop", "soundPause",
         "soundResume", "soundSetVolume", "soundIsPlaying", "soundRelease",
 #endif
-        "unshare",
         "getAddress", "modifyAddressValue", "getAddressValue", "functionAddress",
         "nativeFunctionAddress", "nativeCall",
 
@@ -4999,8 +4998,8 @@ bool isOwnershipName(const std::string& name) {
     return name == "varTransfer" || name == "varTransferMutate" ||
            name == "varBorrow" || name == "varBorrowMutate" ||
            name == "varSwapAll" || name == "varSwapVal" ||
-           name == "varEndBorrow" || name == "borrowing" ||
-           name == "beingBorrowed";
+           name == "varEndBorrow" || name == "unshare" ||
+           name == "borrowing" || name == "beingBorrowed";
 }
 
 std::string stripGlobalPrefix(const std::string& name) {
@@ -5021,7 +5020,8 @@ Value callOwnershipBuiltin(const std::string& name,
                            const std::vector<std::string>& names,
                            Environment& environment, int line, int column) {
     const std::string resolved = stripGlobalPrefix(name);
-    const bool unary = resolved == "varEndBorrow" || resolved == "borrowing" ||
+    const bool unary = resolved == "varEndBorrow" || resolved == "unshare" ||
+                       resolved == "borrowing" ||
                        resolved == "beingBorrowed";
     const std::size_t expected = unary ? 1 : 2;
     if (names.size() != expected) {
@@ -5058,6 +5058,8 @@ Value callOwnershipBuiltin(const std::string& name,
         error = environment.swapValue(names[0], names[1]);
     } else if (resolved == "varEndBorrow") {
         error = environment.endBorrow(names[0]);
+    } else if (resolved == "unshare") {
+        error = environment.endBorrow(names[0], "unshare");
     }
     if (!error.empty()) {
         fail(error, line, column);

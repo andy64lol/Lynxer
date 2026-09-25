@@ -168,7 +168,10 @@ public:
                        const std::string& borrower);
     std::string borrowMutate(const std::string& source,
                              const std::string& borrower);
-    std::string endBorrow(const std::string& borrower);
+    // `function` only names the caller in error messages (`varEndBorrow` or the
+    // legacy alias `unshare`).
+    std::string endBorrow(const std::string& borrower,
+                          const std::string& function = "varEndBorrow");
     bool isBorrowing(const std::string& name) const;
     bool isBeingBorrowed(const std::string& name) const;
 

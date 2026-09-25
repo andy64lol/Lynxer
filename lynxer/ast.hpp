@@ -441,6 +441,26 @@ private:
     bool constant_;
 };
 
+// `shared <type> name = source;` — the legacy shared-variable declaration. It
+// declares `name` and makes it a mutable alias of the existing variable
+// `source`: writes through either name update the same storage until
+// `unshare(name)` (or `varEndBorrow(name)`) detaches it.
+class SharedDeclarationStatement final : public Statement {
+public:
+    void dump(std::ostream& out, int indent) const override;
+    SharedDeclarationStatement(std::string type, std::string name,
+                               std::string source, int line, int column);
+
+    void execute(Environment& environment) const override;
+
+private:
+    std::string type_;
+    std::string name_;
+    std::string source_;
+    int line_;
+    int column_;
+};
+
 class AssignmentStatement final : public Statement {
 public:
     void dump(std::ostream& out, int indent) const override;

@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Tuples - Lynxer</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<header>
+    <h1><a href="../index.html">Lynxer</a></h1>
+    <p>Documentation</p>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3>Overview</h3><ul>
+<li><a href="index.html">README</a></li>
+</ul>
+<h3>Getting started</h3><ul>
+<li><a href="install.html">install</a></li>
+<li><a href="CLI.html">CLI</a></li>
+</ul>
+<h3>Language</h3><ul>
+<li><a href="language.html">language</a></li>
+<li><a href="operators.html">operators</a></li>
+<li><a href="types.html">types</a></li>
+<li><a href="lists.html">lists</a></li>
+<li><a href="tuples.html" class="active">tuples</a></li>
+<li><a href="modules.html">modules</a></li>
+<li><a href="importAs.html">importAs</a></li>
+</ul>
+<h3>Records</h3><ul>
+<li><a href="structs.html">structs</a></li>
+<li><a href="classes.html">classes</a></li>
+<li><a href="enums.html">enums</a></li>
+<li><a href="vargroups.html">vargroups</a></li>
+</ul>
+<h3>Built-ins and modules</h3><ul>
+<li><a href="builtins.html">builtins</a></li>
+<li><a href="native-module-abi.html">native-module-abi</a></li>
+<li><a href="stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="extending.html">extending</a></li>
+</ul>
+<h3>Reference</h3><ul>
+<li><a href="legacy-surface.html">legacy-surface</a></li>
+<li><a href="limitations.html">limitations</a></li>
+</ul>
+<h3>Standard library</h3><ul>
+<li><a href="stdlib/index.html">All modules</a></li>
+<li><a href="stdlib/cli.html">cli</a></li>
+<li><a href="stdlib/colorlib.html">colorlib</a></li>
+<li><a href="stdlib/csv.html">csv</a></li>
+<li><a href="stdlib/debug.html">debug</a></li>
+<li><a href="stdlib/fileIO.html">fileIO</a></li>
+<li><a href="stdlib/game.html">game</a></li>
+<li><a href="stdlib/image.html">image</a></li>
+<li><a href="stdlib/js.html">js</a></li>
+<li><a href="stdlib/json.html">json</a></li>
+<li><a href="stdlib/lua.html">lua</a></li>
+<li><a href="stdlib/math.html">math</a></li>
+<li><a href="stdlib/multiprocessing.html">multiprocessing</a></li>
+<li><a href="stdlib/network.html">network</a></li>
+<li><a href="stdlib/os.html">os</a></li>
+<li><a href="stdlib/path.html">path</a></li>
+<li><a href="stdlib/random.html">random</a></li>
+<li><a href="stdlib/re.html">re</a></li>
+<li><a href="stdlib/regex.html">regex</a></li>
+<li><a href="stdlib/server.html">server</a></li>
+<li><a href="stdlib/shell.html">shell</a></li>
+<li><a href="stdlib/sound.html">sound</a></li>
+<li><a href="stdlib/sqldb.html">sqldb</a></li>
+<li><a href="stdlib/sys.html">sys</a></li>
+<li><a href="stdlib/text.html">text</a></li>
+<li><a href="stdlib/time.html">time</a></li>
+<li><a href="stdlib/tui.html">tui</a></li>
+<li><a href="stdlib/typing.html">typing</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+<h1 id="tuples">Tuples</h1>
+<p>A tuple is an <strong>immutable, ordered, fixed-length</strong> sequence. <code>tuple</code> is a first-class type keyword: it participates in the same checking, conversion, and comparison rules as <code>int</code>, <code>str</code>, or <code>list</code>.</p>
+<p>Tuples are always available — no import is needed. The <code>typing</code> module adds higher-level helpers that compose the built-ins (see <a href="stdlib/typing.html#tuple-functions">typing</a>).</p>
+<h2 id="declaration">Declaration</h2>
+<p>Each element uses an explicit type, exactly like a list element:</p>
+<pre><code>tuple point  = (int 10, int 20);
+tuple rgb    = (int 255, int 128, int 0);
+tuple mixed  = (str &quot;hello&quot;, int 42, bool true);
+tuple single = (int 99,);   // single-element tuple — prints as (99,)
+tuple empty  = ();          // empty tuple</code></pre>
+<p>The trailing comma in <code>(int 99,)</code> is what distinguishes a single-element tuple from a parenthesised expression.</p>
+<p>You can also build a tuple dynamically with <code>tupleCreate(...)</code>, which infers each element's type from the argument:</p>
+<pre><code>tuple dyn = tupleCreate(1, &quot;a&quot;, true);   // (1, a, true)
+tuple none = tupleCreate();              // ()</code></pre>
+<h2 id="type-system">Type system</h2>
+<pre><code>tuple coords = (int 0, int 0);
+println(returnType(coords));    // tuple
+println(returnLength(coords));  // 2
+println(tupleLen(coords));      // 2</code></pre>
+<ul>
+<li><code>returnType(t)</code> is <code>&quot;tuple&quot;</code>; <code>returnLength(t)</code> and <code>tupleLen(t)</code> return the element count.</li>
+<li>A <code>tuple</code> variable accepts any tuple value regardless of element types; the interpreter does not track per-element tuple types.</li>
+<li>Tuples are <strong>immutable</strong>: every operation returns a <strong>new</strong> tuple. No built-in mutates a tuple in place.</li>
+</ul>
+<h2 id="built-in-functions">Built-in functions</h2>
+<table>
+<tr><th>Function</th><th>Signature</th><th>Returns</th><th>Description</th></tr>
+<tr><td><code>tupleCreate</code></td><td><code>(v1, v2, ...)</code></td><td><code>tuple</code></td><td>Builds a tuple, inferring element types</td></tr>
+<tr><td><code>tupleGet</code></td><td><code>(tuple t, int idx)</code></td><td>element</td><td>Element at <code>idx</code>; negative indices count from the end</td></tr>
+<tr><td><code>tupleLen</code></td><td><code>(tuple t)</code></td><td><code>int</code></td><td>Number of elements</td></tr>
+<tr><td><code>tupleContains</code></td><td><code>(tuple t, any val)</code></td><td><code>bool</code></td><td>Membership test</td></tr>
+<tr><td><code>contains</code></td><td><code>(tuple t, any val)</code></td><td><code>bool</code></td><td>Membership test shared with lists</td></tr>
+<tr><td><code>tupleIndex</code></td><td><code>(tuple t, any val)</code></td><td><code>int</code></td><td>First index of <code>val</code>, or <code>-1</code></td></tr>
+<tr><td><code>tupleCount</code></td><td><code>(tuple t, any val)</code></td><td><code>int</code></td><td>Occurrences of <code>val</code></td></tr>
+<tr><td><code>tupleFirst</code> / <code>tupleLast</code></td><td><code>(tuple t)</code></td><td>element</td><td>First / last element (error when empty)</td></tr>
+<tr><td><code>tupleSlice</code></td><td><code>(tuple t, int start, int stop)</code></td><td><code>tuple</code></td><td>Sub-tuple <code>[start, stop)</code></td></tr>
+<tr><td><code>tupleConcat</code></td><td><code>(tuple a, tuple b)</code></td><td><code>tuple</code></td><td>Concatenation</td></tr>
+<tr><td><code>tupleReverse</code></td><td><code>(tuple t)</code></td><td><code>tuple</code></td><td>Elements reversed</td></tr>
+<tr><td><code>tupleSort</code> / <code>tupleSortDesc</code></td><td><code>(tuple t)</code></td><td><code>tuple</code></td><td>Sorted ascending / descending</td></tr>
+<tr><td><code>tupleMin</code> / <code>tupleMax</code></td><td><code>(tuple t)</code></td><td>element</td><td>Minimum / maximum element</td></tr>
+<tr><td><code>tupleSum</code> / <code>tupleMean</code></td><td><code>(tuple t)</code></td><td><code>float</code></td><td>Sum / arithmetic mean of numeric elements</td></tr>
+<tr><td><code>tupleAny</code> / <code>tupleAll</code></td><td><code>(tuple t)</code></td><td><code>bool</code></td><td>Any / all elements truthy</td></tr>
+<tr><td><code>tupleUnique</code></td><td><code>(tuple t)</code></td><td><code>tuple</code></td><td>Duplicates removed, order preserved</td></tr>
+<tr><td><code>tupleFlatten</code></td><td><code>(tuple t)</code></td><td><code>tuple</code></td><td>One-level flatten of nested tuples</td></tr>
+<tr><td><code>tupleZip</code></td><td><code>(tuple a, tuple b)</code></td><td><code>tuple</code></td><td>Pairwise JSON strings <code>{&quot;a&quot;: 1, &quot;b&quot;: 2}</code></td></tr>
+<tr><td><code>tupleJoin</code></td><td><code>(tuple t, str sep)</code></td><td><code>str</code></td><td>Joins elements with <code>sep</code> (via <code>strOf</code>)</td></tr>
+<tr><td><code>tupleJsonArray</code></td><td><code>(tuple t)</code></td><td><code>str</code></td><td>JSON array string, e.g. <code>&quot;[1, 2]&quot;</code></td></tr>
+<tr><td><code>tupleToList</code></td><td><code>(tuple t)</code></td><td><code>list</code></td><td>Converts to a mutable list</td></tr>
+<tr><td><code>listToTuple</code></td><td><code>(list l)</code></td><td><code>tuple</code></td><td>Converts a list to a tuple</td></tr>
+</table>
+<pre><code>global setup(){}
+
+global main(){
+    tuple t = (int 10, int 20, int 30, int 20);
+
+    println(tupleLen(t));            // 4
+    println(tupleGet(t, -1));        // 20
+    println(tupleSlice(t, 1, 3));    // (20, 30)
+    println(tupleConcat(t, tupleCreate(40)));   // (10, 20, 30, 20, 40)
+    println(tupleJsonArray(t));      // [10, 20, 30, 20]
+    println(tupleJoin(t, &quot;-&quot;));      // 10-20-30-20
+    println(tupleToList(t));         // [10, 20, 30, 20]
+}</code></pre>
+<h2 id="equality-and-comparison">Equality and comparison</h2>
+<p><code>is</code> (<code>isnt</code>) compares tuples structurally — same length and equal elements:</p>
+<pre><code>println((int 1, int 2) is (int 1, int 2));     // true
+println((int 1, int 2) isnt (int 1, int 9));   // true</code></pre>
+<p>Tuples have no ordering operators; use <code>tupleToList()</code> + <code>sortList()</code> when you need a sorted order.</p>
+<h2 id="iteration">Iteration</h2>
+<p>There is no <code>for ... in</code> form. Iterate with a C-style <code>for</code> over the element count, or convert to a list first:</p>
+<pre><code>tuple t = (int 10, int 20, int 30);
+
+for (int i = 0; i &lt; tupleLen(t)) {     // the update `i = i + 1` is implicit
+    println(tupleGet(t, i));
+}
+
+list values = tupleToList(t);
+for (int i = 0; i &lt; returnLength(values)) {
+    println(listGet(values, i));
+}</code></pre>
+<h2 id="differences-from-the-original-lynxer">Differences from the original Lynxer</h2>
+<ul>
+<li><strong>Bracket literals are not accepted for tuples.</strong> In the original, a <code>tuple</code> variable could be (re)bound with a <code>[int 1, int 2]</code> literal. The standalone runtime rejects that with <code>value cannot be assigned to type &#x27;tuple&#x27;</code>; use the <code>(int 1, int 2)</code> form, <code>tupleCreate(...)</code>, or <code>listToTuple(...)</code>.</li>
+<li><strong>No <code>rawPy</code> bridging.</strong> The original exposed tuples to <code>rawPy { }</code> blocks as Python tuples; there is no Python runtime here.</li>
+<li><strong><code>tupleZip</code> returns a tuple</strong>, not a list, and renders values as JSON (<code>{&quot;a&quot;: 1, &quot;b&quot;: 2}</code>). <code>typing.tupleZip</code> returns a list of <code>{&quot;a&quot;:&quot;1&quot;,&quot;b&quot;:&quot;2&quot;}</code> strings instead.</li>
+</ul>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="lists.html">lists</a> — <code>list</code> and its built-ins, plus the tuple summary table.</li>
+<li><a href="builtins.html#tuples">builtins</a> — the same built-ins in the built-in index.</li>
+<li><a href="stdlib/typing.html#tuple-functions">stdlib/typing</a> — tuple helpers in <code>typing</code>.</li>
+<li><a href="legacy-surface.html">legacy-surface</a> — original features not carried over.</li>
+</ul>
+    </main>
+</div>
+
+<footer>
+    <a class="github" href="https://github.com/andy64lol/Lynxer" aria-label="Lynxer on GitHub" title="Lynxer on GitHub"><svg role="img" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a>
+    <span>Lynxer &middot; MIT License</span>
+</footer>
+
+</body>
+</html>

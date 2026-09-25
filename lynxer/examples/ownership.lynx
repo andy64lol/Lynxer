@@ -1,11 +1,11 @@
 ////
 Ownership and borrowing built-ins.
 
-Exercises varTransfer / varBorrow / varBorrowMutate / varSwapVal / varSwapAll
-and their failure paths: a moved variable cannot be read, a borrowed one cannot
-be written, a constant cannot be moved, and so on. Every printed value is a
-property or an error message, so the expected output is stable on amd64 and
-arm64.
+Exercises varTransfer / varBorrow / varBorrowMutate / varSwapVal / varSwapAll,
+the `shared` variable declaration and `unshare`, and their failure paths: a
+moved variable cannot be read, a borrowed one cannot be written or moved, a
+constant cannot be moved, and so on. Every printed value is a property or an
+error message, so the expected output is stable on amd64 and arm64.
 ////
 
 global setup() {}
@@ -48,6 +48,20 @@ global main() {
     int second = 9;
     varSwapAll(first, second);
     println("swapAll ", first, " ", second);
+
+    println("== shared variables ==");
+    int base = 42;
+    shared int alias = base;
+    println("shared alias ", base, " ", alias, " ", borrowing(alias), " ",
+            beingBorrowed(base));
+    alias = 100;
+    println("write through alias ", base, " ", alias);
+    base = 7;
+    println("write through source ", base, " ", alias);
+    unshare(alias);
+    println("unshared ", borrowing(alias));
+    alias = 200;
+    println("independent ", base, " ", alias);
 
     println("== failures ==");
     try {
@@ -94,6 +108,22 @@ global main() {
         varTransfer(frozen6, target6);
     } catch (str error) {
         println("move constant: ", error);
+    }
+    try {
+        int linked7 = 1;
+        shared int shared7 = linked7;
+        int sink7 = 0;
+        varTransfer(shared7, sink7);
+    } catch (str error) {
+        println("move shared: ", error);
+    }
+    try {
+        int left8 = 1;
+        shared int right8 = left8;
+        int other8 = 2;
+        varSwapVal(right8, other8);
+    } catch (str error) {
+        println("swap shared: ", error);
     }
 
     println("done");

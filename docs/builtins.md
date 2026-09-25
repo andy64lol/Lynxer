@@ -109,7 +109,7 @@ dispatcher rather than to a per-name handler.
 | `tupleUnique(tuple t)` | New tuple with duplicates removed (order preserved) |
 | `tupleMean(tuple t)` | Arithmetic mean of numeric elements |
 | `tupleFlatten(tuple t)` | One-level flatten: concatenates nested tuple elements |
-| `tupleZip(tuple t1, tuple t2)` | List of JSON pair strings `{"a":v1,"b":v2}` |
+| `tupleZip(tuple t1, tuple t2)` | **Tuple** of JSON pair strings `{"a": 1, "b": 2}` |
 | `tupleJoin(tuple t, str sep)` | All elements joined as a string with separator |
 | `contains(tuple t, any val)` | Common membership test shared with lists |
 
@@ -127,6 +127,27 @@ dispatcher rather than to a per-name handler.
 | `suppressForeverWarning()` | Silences the empty-`forever` warning (only in `setup()`) |
 | `suppressDeprecationWarning()` | Silences legacy-syntax warnings (only in `setup()`) |
 | `overrideMain(name)` | Runs `name` instead of `main` (only in `setup()`) |
+
+## Ownership and borrowing
+
+The arguments are **variable names**, not values; see
+[language.md](language.md#shared-variables).
+
+| Builtin | Notes |
+| --- | --- |
+| `varTransfer(source, destination)` | Moves a value into an already-declared destination |
+| `varTransferMutate(source, destination)` | Move form for an `any`/`num` destination |
+| `varBorrow(source, borrower)` | Read-only tracked alias |
+| `varBorrowMutate(source, borrower)` | Exclusive mutable alias sharing one storage |
+| `varEndBorrow(borrower)` | Ends a borrow; the borrower keeps an independent copy |
+| `unshare(borrower)` | Alias of `varEndBorrow`; detaches a `shared` variable |
+| `borrowing(variable)` | Whether the variable is a borrower |
+| `beingBorrowed(variable)` | Whether another variable borrows from it |
+| `varSwapAll(first, second)` | Exchanges values and declared types |
+| `varSwapVal(first, second)` | Exchanges values, keeping declared types |
+
+`shared <type> name = variable;` is the declaration form of
+`varBorrowMutate`; the source may still be written while the alias is active.
 
 ## Bundled files
 
@@ -410,8 +431,6 @@ Names Lynxer recognises but does not implement on Linux/POSIX. Each fails with
 | Family | Names |
 | --- | --- |
 | Python bridging | `rawPy`, `rawPyx`, `cleanRawPyxCache`, `embedPy` |
-| Namespaces | `unshare` |
-| Borrow / transfer | `varTransfer`, `varTransferMutate`, `varBorrow`, `varBorrowMutate`, `varSwapAll`, `varSwapVal`, `varEndBorrow`, `borrowing`, `beingBorrowed` |
 | Raw addresses | `getAddress`, `modifyAddressValue`, `getAddressValue`, `functionAddress`, `nativeFunctionAddress`, `nativeCall` |
 | Native module introspection | `nativeModuleLoad`, `nativeModuleName`, `nativeModuleFunction`, `nativeModuleConstant`, `nativeModuleType`, `nativeModuleError`, `nativeModuleDependencies`, `nativeModuleClose` |
 | Native sync primitives | `nativeMutex*`, `nativeCondition*`, `nativeSemaphore*`, `nativeHandle*` |
