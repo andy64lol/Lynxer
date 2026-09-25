@@ -1,0 +1,40 @@
+////
+Atomic and volatile memory access, plus page protection — the last of the
+native-memory surface.
+
+Only host-independent values are printed. `memoryProtect` is exercised with
+"readwrite" — the protection an allocation already has — because the other
+modes are page-granular and can affect unrelated bytes in the same page (see
+docs/builtins.md).
+////
+global setup(){}
+
+global main(){
+    int buffer = memoryAllocate(32);
+
+    atomicStore(buffer, 0, "int64", 10);
+    println("load ", atomicLoad(buffer, 0, "int64"));
+    println("add returns the previous value ",
+            atomicAdd(buffer, 0, "int64", 5));
+    println("after add ", atomicLoad(buffer, 0, "int64"));
+
+    atomicStore(buffer, 8, "uint32", 4000000000);
+    println("uint32 ", atomicLoad(buffer, 8, "uint32"));
+
+    volatileWrite(buffer, 0, "int64", 77);
+    println("volatile int64 ", volatileRead(buffer, 0, "int64"));
+    volatileWrite(buffer, 0, "float64", 1.5);
+    println("volatile float64 ", volatileRead(buffer, 0, "float64"));
+    volatileWrite(buffer, 0, "uint8", 255);
+    println("volatile uint8 ", volatileRead(buffer, 0, "uint8"));
+
+    memoryProtect(buffer, 32, "readwrite");
+    println("protect readwrite ok");
+    try {
+        memoryProtect(buffer, 32, "sideways");
+    } catch (str error) {
+        println("bad mode: ", error);
+    }
+
+    memoryFree(buffer);
+}

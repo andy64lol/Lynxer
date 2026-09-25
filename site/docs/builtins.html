@@ -291,6 +291,16 @@ memoryFree(record);</code></pre>
 functionAddress strlen = ffiLookup(lib, &quot;strlen&quot;);
 println(nativeCall(strlen, &quot;uint64(cstring)&quot;, [&quot;hello&quot;]));  // 5
 ffiCloseLibrary(lib);</code></pre>
+<h3 id="protection-atomics-and-volatile-access">Protection, atomics and volatile access</h3>
+<table>
+<tr><th>Builtin</th><th>Notes</th></tr>
+<tr><td><code>memoryProtect(address, size, mode)</code></td><td>Changes page protection; <code>mode</code> is <code>read</code>, <code>readwrite</code>, <code>execute</code> or <code>none</code>. Protection is page-granular, so surrounding bytes in the same pages are affected</td></tr>
+<tr><td><code>atomicLoad(address, offset, type)</code></td><td>Sequentially consistent load; <code>type</code> is <code>int32</code>, <code>uint32</code>, <code>int64</code> or <code>uint64</code></td></tr>
+<tr><td><code>atomicStore(address, offset, type, value)</code></td><td>Sequentially consistent store</td></tr>
+<tr><td><code>atomicAdd(address, offset, type, value)</code></td><td>Sequentially consistent fetch-add; returns the value <strong>before</strong> the addition</td></tr>
+<tr><td><code>volatileRead(address, offset, type)</code> / <code>volatileWrite(address, offset, type, value)</code></td><td>Compiler-volatile access for any memory type; not atomic and not a synchronisation primitive</td></tr>
+</table>
+<p><code>memoryProtect</code> is POSIX-only and fails with a source-located error elsewhere. Making a page read-only or <code>none</code> also affects unrelated bytes that share it, so callers must keep an allocation's pages to themselves.</p>
 <p>Every typed read/write validates the address against the allocation registry and checks the access against the allocation's length, so an unknown address, a freed address, and an out-of-bounds access are source-located errors rather than crashes. 64-bit writes preserve the full signed and unsigned range (see <a href="types.html">types</a>).</p>
 <h2 id="syscalls">Syscalls</h2>
 <p><code>syscall*(...)</code> entries take integer arguments only (at most six) and dispatch through the platform syscall layer. <code>syscallPollFileDescriptors</code> takes three arguments; <code>syscallPpollFileDescriptors</code>, <code>syscallWaitForEvents</code> and <code>syscallWaitForEventsWithSignalMask</code> take five.</p>
@@ -421,8 +431,6 @@ ffiCloseLibrary(lib);</code></pre>
 <tr><td>Python bridging</td><td><code>rawPy</code>, <code>rawPyx</code>, <code>cleanRawPyxCache</code>, <code>embedPy</code></td></tr>
 <tr><td>Native module introspection</td><td><code>nativeModuleLoad</code>, <code>nativeModuleName</code>, <code>nativeModuleFunction</code>, <code>nativeModuleConstant</code>, <code>nativeModuleType</code>, <code>nativeModuleError</code>, <code>nativeModuleDependencies</code>, <code>nativeModuleClose</code></td></tr>
 <tr><td>Native sync primitives</td><td><code>nativeMutex*</code>, <code>nativeCondition*</code>, <code>nativeSemaphore*</code></td></tr>
-<tr><td>Atomics</td><td><code>atomicLoad</code>, <code>atomicStore</code>, <code>atomicAdd</code>, <code>volatileRead</code>, <code>volatileWrite</code></td></tr>
-<tr><td>Memory protection</td><td><code>memoryProtect</code></td></tr>
 </table>
 <p>The authoritative list is <code>unsupportedTable()</code> in <code>lynxer/builtins.cpp</code>; this table is the POSIX-visible subset. A build without POSIX support adds the <code>filesystem*</code>, <code>process*</code>, <code>networking*</code>, <code>sound*</code>, <code>async*</code> and <code>nativeThread*</code> families. See <a href="limitations.html">limitations</a> for the rationale.</p>
 <p><code>sound*</code>, <code>ffi*</code>, <code>async*</code> and <code>nativeThread*</code> are the families that reach outside the interpreter (a device, a shared library, a runtime, or a worker thread); everything else on this page is self-contained.</p>

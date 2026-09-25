@@ -1,0 +1,9 @@
+load 10
+add returns the previous value 10
+after add 15
+uint32 4000000000
+volatile int64 77
+volatile float64 1.5
+volatile uint8 255
+protect readwrite ok
+bad mode: memoryProtect() mode must be 'read', 'readwrite', 'execute' or 'none'

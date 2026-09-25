@@ -53,13 +53,15 @@ Status of each unimplemented built-in today:
       `modifyAddressValue`, `functionAddress`, `nativeFunctionAddress`,
       `nativeCall` (addresses are integers; `nativeCall` uses the small integer
       ABI). See the typed blocks/structs/handles above for structured data.
-- [ ] **Atomics and volatile access** — `atomicLoad`, `atomicStore`,
-      `atomicAdd`, `volatileRead`, `volatileWrite`.
+- [x] **Atomics and volatile access** — `atomicLoad`, `atomicStore`,
+      `atomicAdd`, `volatileRead`, `volatileWrite` (sequential consistency;
+      `atomicAdd` returns the previous value).
 - [ ] **Native synchronization** — `nativeMutexCreate/Lock/TryLock/Unlock/Close`,
       `nativeConditionCreate/Wait/Notify/NotifyAll/Close`,
       `nativeSemaphoreCreate/Wait/TryWait/Post/Close` — **reopen**. Today the
       cooperative `nativeThread*` family is the threading model.
-- [ ] **`memoryProtect`** — change page protection for an allocation.
+- [x] **`memoryProtect`** — change page protection for an allocation
+      (POSIX, page-granular).
 - [ ] **`nativeModule*` handle built-ins** — Load/Name/Function/Constant/Type/
       Error/Dependencies/Close. Superseded by `importAs("<name>.so", ...)`; build
       only if a use case appears.
@@ -136,6 +138,8 @@ Status of each unimplemented built-in today:
   `beingBorrowed`, plus `shared` declarations and `unshare()`.
 - `async*` family: `asyncRun`, `asyncGather`, `asyncSleep`, `asyncPoll*`,
   timers and wakeups (`await` yields cooperatively).
+- Memory protection, atomics and volatile access: `memoryProtect`,
+  `atomicLoad` / `atomicStore` / `atomicAdd`, `volatileRead` / `volatileWrite`.
 - Raw addresses and native calls: `getAddress` / `getAddressValue` /
   `modifyAddressValue`, the typed `functionAddress` / `nativeFunctionAddress`,
   and `nativeCall` (small integer ABI).

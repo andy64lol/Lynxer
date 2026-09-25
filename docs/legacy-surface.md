@@ -38,7 +38,7 @@ string), and owned handles (`nativeHandleAllocate`/`nativeHandleAddress`/
 ## Advanced memory layout
 
 The original could model typed blocks and C structs directly in the allocator.
-These are implemented; only page protection remains.
+All of it is implemented, including page protection and atomic/volatile access.
 
 | Family | Status | Notes |
 | --- | --- | --- |
@@ -46,7 +46,7 @@ These are implemented; only page protection remains.
 | `memoryArrayAllocate/View/Get/Set/Length`, `memoryViewGet/Set/Length` | Implemented | Aliases of the block API |
 | `memoryStructSize/FieldOffset/FieldSize/Alignment/FieldCount/FieldType/Allocate/Get/Set` | Implemented | Layout-string struct helpers |
 | `nativeStruct*`, `nativeTypeAlignment` | Implemented | Aliases of the `memoryStruct*` / `memoryTypeAlignment` names |
-| `memoryProtect` | Not implemented | Change page protection |
+| `memoryProtect` | Implemented | Change page protection (POSIX, page-granular) |
 
 A layout is a comma-separated `type name` list, e.g. `"int32 id, float64
 score"`; see [builtins.md](builtins.md#native-memory).

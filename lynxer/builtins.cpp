@@ -41,6 +41,7 @@
 #include <netinet/in.h>
 #include <poll.h>
 #include <sys/socket.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/un.h>
@@ -2667,6 +2668,331 @@ Value builtinNativeCall(const std::vector<Value>& args, Environment&, int line,
     return callNative(
         reinterpret_cast<void*>(static_cast<std::uintptr_t>(address)), signature,
         callArguments, line, column);
+}
+
+// --- memory protection, atomics and volatile access --------------------------
+
+std::size_t atomicWidth(const std::string& type, int line, int column) {
+    if (type == "int32" || type == "uint32") {
+        return 4;
+    }
+    if (type == "int64" || type == "uint64") {
+        return 8;
+    }
+    fail("atomic type must be int32, uint32, int64 or uint64", line, column);
+}
+
+Value atomicLoadAt(const std::string& type, std::uint8_t* pointer, int line,
+                   int column) {
+    if (type == "int32") {
+        return static_cast<std::int64_t>(__atomic_load_n(
+            reinterpret_cast<std::int32_t*>(pointer), __ATOMIC_SEQ_CST));
+    }
+    if (type == "uint32") {
+        return static_cast<std::int64_t>(__atomic_load_n(
+            reinterpret_cast<std::uint32_t*>(pointer), __ATOMIC_SEQ_CST));
+    }
+    if (type == "int64") {
+        return static_cast<std::int64_t>(__atomic_load_n(
+            reinterpret_cast<std::int64_t*>(pointer), __ATOMIC_SEQ_CST));
+    }
+    if (type == "uint64") {
+        return UInt64Value{__atomic_load_n(
+            reinterpret_cast<std::uint64_t*>(pointer), __ATOMIC_SEQ_CST)};
+    }
+    fail("atomic type must be int32, uint32, int64 or uint64", line, column);
+}
+
+void atomicStoreAt(const std::string& type, std::uint8_t* pointer,
+                   const Value& value, int line, int column) {
+    if (type == "int32") {
+        __atomic_store_n(reinterpret_cast<std::int32_t*>(pointer),
+                         static_cast<std::int32_t>(signedMemoryPayload(value)),
+                         __ATOMIC_SEQ_CST);
+    } else if (type == "uint32") {
+        __atomic_store_n(reinterpret_cast<std::uint32_t*>(pointer),
+                         static_cast<std::uint32_t>(unsignedMemoryPayload(value)),
+                         __ATOMIC_SEQ_CST);
+    } else if (type == "int64") {
+        __atomic_store_n(reinterpret_cast<std::int64_t*>(pointer),
+                         signedMemoryPayload(value), __ATOMIC_SEQ_CST);
+    } else if (type == "uint64") {
+        __atomic_store_n(reinterpret_cast<std::uint64_t*>(pointer),
+                         unsignedMemoryPayload(value), __ATOMIC_SEQ_CST);
+    } else {
+        fail("atomic type must be int32, uint32, int64 or uint64", line, column);
+    }
+}
+
+// Returns the value before the addition, matching the underlying fetch-add.
+Value atomicAddAt(const std::string& type, std::uint8_t* pointer,
+                  const Value& value, int line, int column) {
+    if (type == "int32") {
+        return static_cast<std::int64_t>(__atomic_fetch_add(
+            reinterpret_cast<std::int32_t*>(pointer),
+            static_cast<std::int32_t>(signedMemoryPayload(value)),
+            __ATOMIC_SEQ_CST));
+    }
+    if (type == "uint32") {
+        return static_cast<std::int64_t>(__atomic_fetch_add(
+            reinterpret_cast<std::uint32_t*>(pointer),
+            static_cast<std::uint32_t>(unsignedMemoryPayload(value)),
+            __ATOMIC_SEQ_CST));
+    }
+    if (type == "int64") {
+        return static_cast<std::int64_t>(__atomic_fetch_add(
+            reinterpret_cast<std::int64_t*>(pointer), signedMemoryPayload(value),
+            __ATOMIC_SEQ_CST));
+    }
+    if (type == "uint64") {
+        return UInt64Value{__atomic_fetch_add(
+            reinterpret_cast<std::uint64_t*>(pointer),
+            unsignedMemoryPayload(value), __ATOMIC_SEQ_CST)};
+    }
+    fail("atomic type must be int32, uint32, int64 or uint64", line, column);
+}
+
+Value builtinAtomicLoad(const std::vector<Value>& args, Environment&, int line,
+                        int column) {
+    if (args.size() != 3 || !isIntegerValue(args[0]) ||
+        !isIntegerValue(args[1]) ||
+        !std::holds_alternative<std::string>(args[2])) {
+        fail("atomicLoad(address, offset, type) expects an address, an offset "
+             "and a type string",
+             line, column);
+    }
+    const std::string& type = std::get<std::string>(args[2]);
+    const std::size_t width = atomicWidth(type, line, column);
+    std::uint8_t* pointer =
+        memoryPointer(args, 0, 1, "atomicLoad", line, column, width);
+    return atomicLoadAt(type, pointer, line, column);
+}
+
+Value builtinAtomicStore(const std::vector<Value>& args, Environment&, int line,
+                         int column) {
+    if (args.size() != 4 || !isIntegerValue(args[0]) ||
+        !isIntegerValue(args[1]) ||
+        !std::holds_alternative<std::string>(args[2]) ||
+        !isNumber(args[3])) {
+        fail("atomicStore(address, offset, type, value) expects an address, an "
+             "offset, a type string and a value",
+             line, column);
+    }
+    const std::string& type = std::get<std::string>(args[2]);
+    const std::size_t width = atomicWidth(type, line, column);
+    std::uint8_t* pointer =
+        memoryPointer(args, 0, 1, "atomicStore", line, column, width);
+    atomicStoreAt(type, pointer, args[3], line, column);
+    return none();
+}
+
+Value builtinAtomicAdd(const std::vector<Value>& args, Environment&, int line,
+                       int column) {
+    if (args.size() != 4 || !isIntegerValue(args[0]) ||
+        !isIntegerValue(args[1]) ||
+        !std::holds_alternative<std::string>(args[2]) ||
+        !isNumber(args[3])) {
+        fail("atomicAdd(address, offset, type, value) expects an address, an "
+             "offset, a type string and a value",
+             line, column);
+    }
+    const std::string& type = std::get<std::string>(args[2]);
+    const std::size_t width = atomicWidth(type, line, column);
+    std::uint8_t* pointer =
+        memoryPointer(args, 0, 1, "atomicAdd", line, column, width);
+    return atomicAddAt(type, pointer, args[3], line, column);
+}
+
+Value volatileReadAt(const std::string& type, std::uint8_t* pointer, int line,
+                     int column) {
+    const TypedKind& kind = memoryKind(type, line, column);
+    if (kind.isFloat) {
+        if (kind.size == 4) {
+            const volatile float value =
+                *reinterpret_cast<volatile float*>(pointer);
+            return static_cast<double>(value);
+        }
+        const volatile double value =
+            *reinterpret_cast<volatile double*>(pointer);
+        return static_cast<double>(value);
+    }
+    if (kind.isSigned) {
+        switch (kind.size) {
+        case 1: {
+            const volatile std::int8_t value =
+                *reinterpret_cast<volatile std::int8_t*>(pointer);
+            return static_cast<std::int64_t>(value);
+        }
+        case 2: {
+            const volatile std::int16_t value =
+                *reinterpret_cast<volatile std::int16_t*>(pointer);
+            return static_cast<std::int64_t>(value);
+        }
+        case 4: {
+            const volatile std::int32_t value =
+                *reinterpret_cast<volatile std::int32_t*>(pointer);
+            return static_cast<std::int64_t>(value);
+        }
+        default: {
+            const volatile std::int64_t value =
+                *reinterpret_cast<volatile std::int64_t*>(pointer);
+            return value;
+        }
+        }
+    }
+    switch (kind.size) {
+    case 1: {
+        const volatile std::uint8_t value =
+            *reinterpret_cast<volatile std::uint8_t*>(pointer);
+        return static_cast<std::int64_t>(value);
+    }
+    case 2: {
+        const volatile std::uint16_t value =
+            *reinterpret_cast<volatile std::uint16_t*>(pointer);
+        return static_cast<std::int64_t>(value);
+    }
+    case 4: {
+        const volatile std::uint32_t value =
+            *reinterpret_cast<volatile std::uint32_t*>(pointer);
+        return static_cast<std::int64_t>(value);
+    }
+    default: {
+        const volatile std::uint64_t value =
+            *reinterpret_cast<volatile std::uint64_t*>(pointer);
+        return UInt64Value{value};
+    }
+    }
+}
+
+void volatileWriteAt(const std::string& type, std::uint8_t* pointer,
+                     const Value& value, int line, int column) {
+    const TypedKind& kind = memoryKind(type, line, column);
+    if (kind.isFloat) {
+        const double raw = asNumber(value, line, column);
+        if (kind.size == 4) {
+            *reinterpret_cast<volatile float*>(pointer) =
+                static_cast<float>(raw);
+        } else {
+            *reinterpret_cast<volatile double*>(pointer) = raw;
+        }
+        return;
+    }
+    if (kind.size == 8) {
+        if (kind.isSigned) {
+            *reinterpret_cast<volatile std::int64_t*>(pointer) =
+                signedMemoryPayload(value);
+        } else {
+            *reinterpret_cast<volatile std::uint64_t*>(pointer) =
+                unsignedMemoryPayload(value);
+        }
+        return;
+    }
+    const std::int64_t raw = signedMemoryPayload(value);
+    switch (kind.size) {
+    case 1:
+        *reinterpret_cast<volatile std::int8_t*>(pointer) =
+            static_cast<std::int8_t>(raw);
+        break;
+    case 2:
+        *reinterpret_cast<volatile std::int16_t*>(pointer) =
+            static_cast<std::int16_t>(raw);
+        break;
+    default:
+        *reinterpret_cast<volatile std::int32_t*>(pointer) =
+            static_cast<std::int32_t>(raw);
+        break;
+    }
+}
+
+Value builtinVolatileRead(const std::vector<Value>& args, Environment&, int line,
+                          int column) {
+    if (args.size() != 3 || !isIntegerValue(args[0]) ||
+        !isIntegerValue(args[1]) ||
+        !std::holds_alternative<std::string>(args[2])) {
+        fail("volatileRead(address, offset, type) expects an address, an "
+             "offset and a type string",
+             line, column);
+    }
+    const std::string& type = std::get<std::string>(args[2]);
+    const TypedKind& kind = memoryKind(type, line, column);
+    std::uint8_t* pointer =
+        memoryPointer(args, 0, 1, "volatileRead", line, column, kind.size);
+    return volatileReadAt(type, pointer, line, column);
+}
+
+Value builtinVolatileWrite(const std::vector<Value>& args, Environment&,
+                           int line, int column) {
+    if (args.size() != 4 || !isIntegerValue(args[0]) ||
+        !isIntegerValue(args[1]) ||
+        !std::holds_alternative<std::string>(args[2]) ||
+        !isNumber(args[3])) {
+        fail("volatileWrite(address, offset, type, value) expects an address, "
+             "an offset, a type string and a value",
+             line, column);
+    }
+    const std::string& type = std::get<std::string>(args[2]);
+    const TypedKind& kind = memoryKind(type, line, column);
+    std::uint8_t* pointer =
+        memoryPointer(args, 0, 1, "volatileWrite", line, column, kind.size);
+    volatileWriteAt(type, pointer, args[3], line, column);
+    return none();
+}
+
+// Change page protection for an allocation. Protection is page based, so the
+// system may change surrounding bytes in the same pages (docs: builtins.md).
+Value builtinMemoryProtect(const std::vector<Value>& args, Environment&, int line,
+                           int column) {
+    if (args.size() != 3 || !isIntegerValue(args[0]) ||
+        !isIntegerValue(args[1]) ||
+        !std::holds_alternative<std::string>(args[2])) {
+        fail("memoryProtect(address, size, mode) expects an address, a size and "
+             "a mode string",
+             line, column);
+    }
+    const std::int64_t address = toInt(args[0], line, column);
+    const std::int64_t size = toInt(args[1], line, column);
+    if (address < 0 || size <= 0) {
+        fail("memoryProtect() expects a non-negative address and a positive "
+             "size",
+             line, column);
+    }
+    const std::string& mode = std::get<std::string>(args[2]);
+    int protection = 0;
+    if (mode == "read") {
+        protection = PROT_READ;
+    } else if (mode == "readwrite") {
+        protection = PROT_READ | PROT_WRITE;
+    } else if (mode == "execute") {
+        protection = PROT_READ | PROT_EXEC;
+    } else if (mode == "none") {
+        protection = PROT_NONE;
+    } else {
+        fail("memoryProtect() mode must be 'read', 'readwrite', 'execute' or "
+             "'none'",
+             line, column);
+    }
+#if LYNXER_POSIX_BUILTINS
+    void* base = reinterpret_cast<void*>(static_cast<std::uintptr_t>(address));
+    validateMemory(base, 0, static_cast<std::size_t>(size), line, column);
+    const long pageSize = ::sysconf(_SC_PAGESIZE);
+    if (pageSize <= 0) {
+        fail("memoryProtect() could not determine the page size", line, column);
+    }
+    const std::uintptr_t mask = static_cast<std::uintptr_t>(pageSize) - 1;
+    const std::uintptr_t start =
+        static_cast<std::uintptr_t>(address) & ~mask;
+    const std::uintptr_t end =
+        (static_cast<std::uintptr_t>(address) + static_cast<std::uintptr_t>(size) +
+         mask) & ~mask;
+    if (::mprotect(reinterpret_cast<void*>(start), end - start, protection) !=
+        0) {
+        fail(std::string("memoryProtect() failed: ") + std::strerror(errno), line,
+             column);
+    }
+    return none();
+#else
+    fail("memoryProtect() is only supported on POSIX hosts", line, column);
+#endif
 }
 
 Value builtinSizeOf(const std::vector<Value>& args, Environment&, int line,
@@ -5373,6 +5699,12 @@ const std::unordered_map<std::string, Handler>& handlerTable() {
         {"functionAddress", builtinFunctionAddress},
         {"nativeFunctionAddress", builtinFunctionAddress},
         {"nativeCall", builtinNativeCall},
+        {"memoryProtect", builtinMemoryProtect},
+        {"atomicLoad", builtinAtomicLoad},
+        {"atomicStore", builtinAtomicStore},
+        {"atomicAdd", builtinAtomicAdd},
+        {"volatileRead", builtinVolatileRead},
+        {"volatileWrite", builtinVolatileWrite},
         {"sizeOf", builtinSizeOf},
 #if LYNXER_POSIX_BUILTINS
         // Managed filesystem API. Kept in `unsupportedTable()` on a host
@@ -5502,8 +5834,6 @@ const std::unordered_set<std::string>& unsupportedTable() {
         "networkingBlocking", "networkingOption", "networkingResolve",
         "networkingAddress",
 #endif
-        "atomicLoad", "atomicStore", "atomicAdd", "volatileRead", "volatileWrite",
-        "memoryProtect",
         // Named syscalls that are dispatched generically below.
         "syscallGetCurrentDirectory", "syscallChangeDirectory",
         "syscallControlInputOutput", "syscallRead", "syscallWrite",

@@ -93,6 +93,7 @@ LYNXER_LOWLEVEL_FIXTURES := $(LYNXER_DIR)/examples/lowlevel_memory.lynx \
 	$(LYNXER_DIR)/examples/lowlevel_syscalls.lynx \
 	$(LYNXER_DIR)/examples/lowlevel_arch.lynx \
 	$(LYNXER_DIR)/examples/native_memory_structs.lynx \
+	$(LYNXER_DIR)/examples/memory_atomics.lynx \
 	$(LYNXER_DIR)/examples/raw_addresses.lynx \
 	$(LYNXER_DIR)/examples/language_fields.lynx
 # Architecture-specific syscall fixtures. They stay out of testLynxer because

@@ -100,14 +100,14 @@
 </table>
 <p>Addresses are plain integers, as the original documented, and the raw forms are implemented. <code>nativeCall</code> restricts signatures to the shapes the runtime supports and cannot make an arbitrary ABI safe — an invalid address can still crash the process. Prefer the structured built-ins when they fit — typed blocks (<code>memoryBlockAllocate</code>/<code>memoryBlockGet</code>/<code>memoryBlockSet</code>), native structs (<code>nativeStructAllocate</code>/<code>nativeStructGet</code>/<code>nativeStructSet</code> over a layout string), and owned handles (<code>nativeHandleAllocate</code>/<code>nativeHandleAddress</code>/ <code>nativeHandleFree</code>); see <a href="builtins.html#native-memory">builtins</a>.</p>
 <h2 id="advanced-memory-layout">Advanced memory layout</h2>
-<p>The original could model typed blocks and C structs directly in the allocator. These are implemented; only page protection remains.</p>
+<p>The original could model typed blocks and C structs directly in the allocator. All of it is implemented, including page protection and atomic/volatile access.</p>
 <table>
 <tr><th>Family</th><th>Status</th><th>Notes</th></tr>
 <tr><td><code>memoryBlockAllocate/View/Get/Set/Length</code></td><td>Implemented</td><td>Typed blocks: an element type and count</td></tr>
 <tr><td><code>memoryArrayAllocate/View/Get/Set/Length</code>, <code>memoryViewGet/Set/Length</code></td><td>Implemented</td><td>Aliases of the block API</td></tr>
 <tr><td><code>memoryStructSize/FieldOffset/FieldSize/Alignment/FieldCount/FieldType/Allocate/Get/Set</code></td><td>Implemented</td><td>Layout-string struct helpers</td></tr>
 <tr><td><code>nativeStruct*</code>, <code>nativeTypeAlignment</code></td><td>Implemented</td><td>Aliases of the <code>memoryStruct*</code> / <code>memoryTypeAlignment</code> names</td></tr>
-<tr><td><code>memoryProtect</code></td><td>Not implemented</td><td>Change page protection</td></tr>
+<tr><td><code>memoryProtect</code></td><td>Implemented</td><td>Change page protection (POSIX, page-granular)</td></tr>
 </table>
 <p>A layout is a comma-separated <code>type name</code> list, e.g. <code>&quot;int32 id, float64 score&quot;</code>; see <a href="builtins.html#native-memory">builtins</a>.</p>
 <h2 id="native-synchronization">Native synchronization</h2>

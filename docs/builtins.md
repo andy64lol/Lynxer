@@ -264,6 +264,20 @@ println(nativeCall(strlen, "uint64(cstring)", ["hello"]));  // 5
 ffiCloseLibrary(lib);
 ```
 
+### Protection, atomics and volatile access
+
+| Builtin | Notes |
+| --- | --- |
+| `memoryProtect(address, size, mode)` | Changes page protection; `mode` is `read`, `readwrite`, `execute` or `none`. Protection is page-granular, so surrounding bytes in the same pages are affected |
+| `atomicLoad(address, offset, type)` | Sequentially consistent load; `type` is `int32`, `uint32`, `int64` or `uint64` |
+| `atomicStore(address, offset, type, value)` | Sequentially consistent store |
+| `atomicAdd(address, offset, type, value)` | Sequentially consistent fetch-add; returns the value **before** the addition |
+| `volatileRead(address, offset, type)` / `volatileWrite(address, offset, type, value)` | Compiler-volatile access for any memory type; not atomic and not a synchronisation primitive |
+
+`memoryProtect` is POSIX-only and fails with a source-located error elsewhere.
+Making a page read-only or `none` also affects unrelated bytes that share it, so
+callers must keep an allocation's pages to themselves.
+
 Every typed read/write validates the address against the allocation registry and
 checks the access against the allocation's length, so an unknown address, a
 freed address, and an out-of-bounds access are source-located errors rather than
@@ -502,8 +516,6 @@ Names Lynxer recognises but does not implement on Linux/POSIX. Each fails with
 | Python bridging | `rawPy`, `rawPyx`, `cleanRawPyxCache`, `embedPy` |
 | Native module introspection | `nativeModuleLoad`, `nativeModuleName`, `nativeModuleFunction`, `nativeModuleConstant`, `nativeModuleType`, `nativeModuleError`, `nativeModuleDependencies`, `nativeModuleClose` |
 | Native sync primitives | `nativeMutex*`, `nativeCondition*`, `nativeSemaphore*` |
-| Atomics | `atomicLoad`, `atomicStore`, `atomicAdd`, `volatileRead`, `volatileWrite` |
-| Memory protection | `memoryProtect` |
 
 The authoritative list is `unsupportedTable()` in `lynxer/builtins.cpp`; this
 table is the POSIX-visible subset. A build without POSIX support adds the
