@@ -85,23 +85,23 @@ global main(){
     println("tuple as JSON: ", tupleJsonArray(point));
     println("list to tuple: ", listToTuple(numbers));
 
-    // Higher-level tuple helpers live in the typing module.
-    tuple reversed = global.types.tupleReverse(point);
-    tuple sorted = global.types.tupleSort(tupleCreate(5, 2, 4, 1));
-    tuple unique = global.types.tupleUnique(tupleCreate(1, 1, 2, 3, 3));
-    println("typing tupleReverse: ", reversed);
-    println("typing tupleSort: ", sorted);
-    println("typing tupleUnique: ", unique);
-    println("typing tupleSum: ", global.types.tupleSum(point));
-    println("typing tupleJoin: ", global.types.tupleJoin(point, "-"));
-    list pointList = global.types.toList(point);
-    tuple pointTuple = global.types.toTuple(pointList);
-    println("typing toList(tuple): ", pointList);
-    println("typing toTuple(list): ", pointTuple);
-    println("typing isSequence(point): ", global.types.isSequence(point));
-    println("typing lenSequence(point): ", global.types.lenSequence(point));
-    println("typing toString(point): ", global.types.toString(point));
-    println("typing toNumber(\"3.5\"): ", global.types.toNumber("3.5"));
+    // currently not supported
+    // tuple reversed = global.types.tupleReverse(point);
+    // tuple sorted = global.types.tupleSort(tupleCreate(5, 2, 4, 1));
+    // tuple unique = global.types.tupleUnique(tupleCreate(1, 1, 2, 3, 3));
+    // println("typing tupleReverse: ", reversed);
+    // println("typing tupleSort: ", sorted);
+    // println("typing tupleUnique: ", unique);
+    // println("typing tupleSum: ", global.types.tupleSum(point));
+    // println("typing tupleJoin: ", global.types.tupleJoin(point, "-"));
+    // list pointList = global.types.toList(point);
+    // tuple pointTuple = global.types.toTuple(pointList);
+    // println("typing toList(tuple): ", pointList);
+    // println("typing toTuple(list): ", pointTuple);
+    // println("typing isSequence(point): ", global.types.isSequence(point));
+    // println("typing lenSequence(point): ", global.types.lenSequence(point));
+    // println("typing toString(point): ", global.types.toString(point));
+    // println("typing toNumber(\"3.5\"): ", global.types.toNumber("3.5"));
 
     // Built-ins are available without importing a module.
     println("returnType(point): ", returnType(point));
@@ -153,13 +153,12 @@ global main(){
     exec("Hello!"){{example}}
     codeblock typedExample = {
         println("typed codeblock value: ", name, " ", age);
-    }[str name, int age]
+    }[str name, int age];
     exec("Alice", 30){{typedExample}}
-    str text = "left";
     codeblock showText = {
         println("exec argument: ", text);
-    };
-    exec(){{showText}}
+    }[str text];
+    exec("hi"){{showText}}
 
     println("=== done ===");
 }
