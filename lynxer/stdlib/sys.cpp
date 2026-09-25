@@ -18,10 +18,11 @@ using RegisterConstant = int (*)(const char*, std::int64_t);
 using RegisterType = int (*)(const char*, const char*);
 
 // Keep in sync with the default `version` in lynxer/lynxer.config.
-#define LYNXER_VERSION_TEXT "Lynxer 0.1.8"
+#define LYNXER_VERSION_TEXT "Lynxer 0.1.8.1"
 #define LYNXER_VERSION_MAJOR 0
 #define LYNXER_VERSION_MINOR 1
 #define LYNXER_VERSION_MICRO 8
+#define LYNXER_VERSION_PATCH 1
 
 static const char* stable(std::string value) { thread_local std::string r; r=std::move(value); return r.c_str(); }
 
@@ -70,6 +71,7 @@ extern "C" const char* sys_versionInfo() {
     native_json::setField(object, "major", native_json::makeInteger(LYNXER_VERSION_MAJOR));
     native_json::setField(object, "minor", native_json::makeInteger(LYNXER_VERSION_MINOR));
     native_json::setField(object, "micro", native_json::makeInteger(LYNXER_VERSION_MICRO));
+    native_json::setField(object, "patch", native_json::makeInteger(LYNXER_VERSION_PATCH));
     native_json::setField(object, "releaselevel", native_json::makeString("final"));
     native_json::setField(object, "serial", native_json::makeInteger(0));
     return stable(native_json::dump(object, false));

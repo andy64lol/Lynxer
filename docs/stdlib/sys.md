@@ -8,8 +8,8 @@ Runtime, process and platform information.
 | Function | Signature | Notes |
 | --- | --- | --- |
 | `platform` | `() -> str` | `linux`, `darwin`, `win32` or `unknown` |
-| `version` | `() -> str` | Lynxer version, e.g. `Lynxer 0.1.8` |
-| `versionInfo` | `() -> str` | JSON `{major, minor, micro, releaselevel, serial}` |
+| `version` | `() -> str` | Lynxer version, e.g. `Lynxer 0.1.8.1` |
+| `versionInfo` | `() -> str` | JSON `{major, minor, micro, patch, releaselevel, serial}` |
 | `implementation` | `() -> str` | `Lynxer` |
 | `apiVersion` | `() -> str` | `0.1` |
 | `isFrozen` | `() -> bool` | Always `false` |

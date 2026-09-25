@@ -1,6 +1,6 @@
 # Standard library module contracts
 
-**Frozen at Lynxer 0.1.8 — 2026-09-20.**
+**Frozen at Lynxer 0.1.8.1 — 2026-09-25.**
 
 Every `stdlib/<name>.lynx` wrapper and its `stdlib/<name>.so` backend are two
 halves of one contract. This page states that contract once, so a second backend

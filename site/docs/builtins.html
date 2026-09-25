@@ -276,6 +276,21 @@ nativeStructSet(record, &quot;id&quot;, 7);
 nativeStructSet(record, &quot;score&quot;, 12.5);
 println(nativeStructGet(record, &quot;score&quot;));          // 12.5
 memoryFree(record);</code></pre>
+<h3 id="raw-addresses-and-native-calls">Raw addresses and native calls</h3>
+<p>An address is a Lynxer integer. These built-ins validate a data address against the allocation registry and wrap a raw function address for <code>nativeCall</code>.</p>
+<table>
+<tr><th>Builtin</th><th>Notes</th></tr>
+<tr><td><code>getAddress(value)</code></td><td>Validates an integer as a live native allocation and returns it</td></tr>
+<tr><td><code>getAddressValue(address)</code></td><td>Reads an <code>int64</code> from the address</td></tr>
+<tr><td><code>modifyAddressValue(address, value)</code></td><td>Writes an <code>int64</code> to the address</td></tr>
+<tr><td><code>functionAddress(address)</code> / <code>nativeFunctionAddress(address)</code></td><td>Wraps a non-zero function address (a declared type name too)</td></tr>
+<tr><td><code>nativeCall(address, signature, arguments)</code></td><td>Calls a native function pointer; <code>signature</code> is <code>returnType(paramType,...)</code> and <code>arguments</code> is a list</td></tr>
+</table>
+<p><code>nativeCall</code> uses the interpreter's deliberately small integer ABI: only the fixed shapes the runtime supports are accepted, and an unsupported signature is a source-located error. The caller must supply a valid address with a compatible ABI — an invalid address can crash the process.</p>
+<pre><code>any lib = ffiLoadLibrary(&quot;libc.so.6&quot;);
+functionAddress strlen = ffiLookup(lib, &quot;strlen&quot;);
+println(nativeCall(strlen, &quot;uint64(cstring)&quot;, [&quot;hello&quot;]));  // 5
+ffiCloseLibrary(lib);</code></pre>
 <p>Every typed read/write validates the address against the allocation registry and checks the access against the allocation's length, so an unknown address, a freed address, and an out-of-bounds access are source-located errors rather than crashes. 64-bit writes preserve the full signed and unsigned range (see <a href="types.html">types</a>).</p>
 <h2 id="syscalls">Syscalls</h2>
 <p><code>syscall*(...)</code> entries take integer arguments only (at most six) and dispatch through the platform syscall layer. <code>syscallPollFileDescriptors</code> takes three arguments; <code>syscallPpollFileDescriptors</code>, <code>syscallWaitForEvents</code> and <code>syscallWaitForEventsWithSignalMask</code> take five.</p>
@@ -404,7 +419,6 @@ memoryFree(record);</code></pre>
 <table>
 <tr><th>Family</th><th>Names</th></tr>
 <tr><td>Python bridging</td><td><code>rawPy</code>, <code>rawPyx</code>, <code>cleanRawPyxCache</code>, <code>embedPy</code></td></tr>
-<tr><td>Raw addresses</td><td><code>getAddress</code>, <code>modifyAddressValue</code>, <code>getAddressValue</code>, <code>functionAddress</code>, <code>nativeFunctionAddress</code>, <code>nativeCall</code></td></tr>
 <tr><td>Native module introspection</td><td><code>nativeModuleLoad</code>, <code>nativeModuleName</code>, <code>nativeModuleFunction</code>, <code>nativeModuleConstant</code>, <code>nativeModuleType</code>, <code>nativeModuleError</code>, <code>nativeModuleDependencies</code>, <code>nativeModuleClose</code></td></tr>
 <tr><td>Native sync primitives</td><td><code>nativeMutex*</code>, <code>nativeCondition*</code>, <code>nativeSemaphore*</code></td></tr>
 <tr><td>Atomics</td><td><code>atomicLoad</code>, <code>atomicStore</code>, <code>atomicAdd</code>, <code>volatileRead</code>, <code>volatileWrite</code></td></tr>

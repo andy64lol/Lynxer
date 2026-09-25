@@ -1,0 +1,31 @@
+////
+Raw address built-ins, following the original docs where addresses are Lynxer
+integers rather than pointers: getAddress / getAddressValue /
+modifyAddressValue, and the typed functionAddress / nativeFunctionAddress
+wrappers.
+
+Only host-independent values are printed (no raw addresses), so one expected
+file holds on amd64 and arm64. Calling *through* an address with nativeCall
+needs a real function pointer and a matching ABI, so it is documented rather
+than pinned by this fixture.
+////
+global setup(){}
+
+global main(){
+    int buffer = memoryAllocate(32);
+    memoryWriteInt64(buffer, 0, 1111);
+    println("address round-trips ", getAddress(buffer) is buffer);
+    println("value ", getAddressValue(buffer));
+    modifyAddressValue(buffer, 2222);
+    println("modified ", memoryReadInt64(buffer, 0));
+    memoryFree(buffer);
+
+    functionAddress fn = functionAddress(4096);
+    println("functionAddress ", fn > 0, " ", fn is 4096);
+    functionAddress alias = nativeFunctionAddress(4096);
+    println("alias ", alias is 4096);
+
+    try { getAddress(7); } catch (str error) { println("not allocated: ", error); }
+    try { functionAddress(0); } catch (str error) { println("zero function: ", error); }
+    try { modifyAddressValue(buffer, 1); } catch (str error) { println("freed: ", error); }
+}

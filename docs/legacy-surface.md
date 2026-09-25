@@ -1,16 +1,16 @@
-# Original Lynxer surface not carried over
+# Original Lynxer surface: status
 
 The original interpreter exposed a larger built-in and module surface than the
-standalone C++ runtime implements — much of it existed to bridge into CPython,
-raw C memory, or a pre-emptive threading model. This page catalogues that
-surface so programs and notes written against the original have somewhere to
-look. [limitations.md](limitations.md) remains the normative register; this page
-adds the *what did it do* and *what replaces it* detail.
+standalone C++ runtime. This page catalogues it so programs and notes written
+against the original have somewhere to look, and records what has since been
+brought across. [limitations.md](limitations.md) remains the normative register.
 
-Two statuses are used:
+Three statuses are used:
 
+- **Implemented** — the name works today; the notes point at the current
+  built-ins.
 - **Not implemented** — the name is recognised and fails with
-  `<name>() is not supported in Lynxer yet`. Some of these could be built later.
+  `<name>() is not supported in Lynxer yet`.
 - **Not planned** — a deliberate, permanent non-goal.
 
 ## Pointers and raw addresses
@@ -19,23 +19,21 @@ The original had C-style address and function-pointer built-ins.
 
 | Name | Status | Notes |
 | --- | --- | --- |
-| `getAddress(variable)` | Not implemented | Address of a variable's storage |
-| `getAddressValue(address)` | Not implemented | Read through a raw address |
-| `modifyAddressValue(address, value)` | Not implemented | Write through a raw address |
-| `functionAddress(name)` | Not implemented | Address of a Lynxer function |
-| `nativeFunctionAddress(name)` | Not implemented | Address of a native function |
-| `nativeCall(address, args...)` | Not implemented | Call an address directly |
+| `getAddress(value)` | Implemented | Validates an integer as a live native allocation |
+| `getAddressValue(address)` | Implemented | Reads an `int64` from the address |
+| `modifyAddressValue(address, value)` | Implemented | Writes an `int64` to the address |
+| `functionAddress` / `nativeFunctionAddress` | Implemented | Typed non-zero function address (`functionAddress` is a declared type) |
+| `nativeCall(address, signature, arguments)` | Implemented | Calls a function pointer through the small integer ABI |
 | `nativeHandleAllocate/Address/Free/IsAlive` | Implemented | Owned native handles (see below) |
 
-**Why:** exposing raw addresses across the native ABI is the largest possible
-security surface, and it conflicts with the interpreter's value-ownership model
-(see [ownership and borrowing](language.md#ownership-and-borrowing)). **Use instead:** integer address handles with type information — typed blocks
+Addresses are plain integers, as the original documented, and the raw forms
+are implemented. `nativeCall` restricts signatures to the shapes the runtime
+supports and cannot make an arbitrary ABI safe — an invalid address can still
+crash the process. Prefer the structured built-ins when they fit — typed blocks
 (`memoryBlockAllocate`/`memoryBlockGet`/`memoryBlockSet`), native structs
 (`nativeStructAllocate`/`nativeStructGet`/`nativeStructSet` over a layout
 string), and owned handles (`nativeHandleAllocate`/`nativeHandleAddress`/
-`nativeHandleFree`); see [builtins.md](builtins.md#native-memory). For dynamic
-native calls the [native-module ABI](native-module-abi.md) and
-[`ffi*`](builtins.md#ffi) are the supported routes.
+`nativeHandleFree`); see [builtins.md](builtins.md#native-memory).
 
 ## Advanced memory layout
 
@@ -116,8 +114,8 @@ dynamic alternative.
 
 | Original | Now |
 | --- | --- |
-| `getAddress` / `getAddressValue` / `modifyAddressValue` | Typed blocks and structs: `memoryBlock*`, `nativeStruct*` |
-| `nativeFunctionAddress` / `nativeCall` | The [native-module ABI](native-module-abi.md) or `ffiCall` |
+| `getAddress` / `getAddressValue` / `modifyAddressValue` | Implemented (addresses are integers) |
+| `nativeFunctionAddress` / `nativeCall` | Implemented (`nativeCall` over the small integer ABI) |
 | `nativeHandle*` | Implemented under the same names |
 | `nativeMutex*` / `Condition*` / `Semaphore*` | `nativeThread*` (cooperative) |
 | `async*` | Implemented (cooperative handles over `sleep`) |

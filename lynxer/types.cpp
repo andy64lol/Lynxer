@@ -74,6 +74,9 @@ bool typeMatches(const std::string& type, const Value& value) {
     const bool number =
         integer || std::holds_alternative<double>(value) ||
         std::holds_alternative<UInt64Value>(value);
+    if (type == "functionAddress") {
+        return integer || std::holds_alternative<UInt64Value>(value);
+    }
     if (type == "num" || type == "int" || type == "float" || type == "numBool" || type == "bit" || type == "byte" || type == "uint8" || type == "uint16" || type == "uint32" || type == "uint64" || type == "int8" || type == "int16" || type == "int32" || type == "int64" || type == "float32" || type == "float64") {
         return number;
     }

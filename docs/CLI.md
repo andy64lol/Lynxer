@@ -151,7 +151,7 @@ interpreter's `stdlib/` directory together with its `////` docstring, and exits
 | `--easterEgg` | `-easterEgg`, `--idklmao`, `-wnwnerbcyunwrbygnubeuyxnqybxun` | print the easter egg |
 
 The version string comes from the `version` key in `lynxer/lynxer.config`
-(currently `0.1.8`).
+(currently `0.1.8.1`).
 
 ## Installing
 

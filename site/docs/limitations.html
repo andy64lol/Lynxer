@@ -201,7 +201,7 @@
 <p><em>Note:</em> Python runtime introspection features are not planned for Lynxer.</p>
 <h3 id="sys--constrained-behavior"><code>sys</code> — Constrained Behavior</h3>
 <ul>
-<li><strong>Version:</strong> <code>version()</code> returns the Lynxer version (e.g., <code>Lynxer 0.1.8</code>).</li>
+<li><strong>Version:</strong> <code>version()</code> returns the Lynxer version (e.g., <code>Lynxer 0.1.8.1</code>).</li>
 <li><strong>Python runtime concepts:</strong> Not supported (<code>sys.path</code>, <code>addPath</code>, <code>prependPath</code>, <code>removeFromPath</code>, <code>getModules</code>, <code>isModuleLoaded</code>, <code>getRecursionLimit</code>, <code>setRecursionLimit</code>).</li>
 <li><strong>Command-line arguments:</strong> <code>argv()</code>, <code>getArg</code>, and <code>argCount</code> describe the <code>lynxer</code> process command line, not the program's arguments.</li>
 <li><strong>Exit behavior:</strong> <code>exit()</code> calls <code>std::exit</code> directly, bypassing interpreter cleanup.</li>

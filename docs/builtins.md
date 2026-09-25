@@ -239,6 +239,31 @@ println(nativeStructGet(record, "score"));          // 12.5
 memoryFree(record);
 ```
 
+### Raw addresses and native calls
+
+An address is a Lynxer integer. These built-ins validate a data address against
+the allocation registry and wrap a raw function address for `nativeCall`.
+
+| Builtin | Notes |
+| --- | --- |
+| `getAddress(value)` | Validates an integer as a live native allocation and returns it |
+| `getAddressValue(address)` | Reads an `int64` from the address |
+| `modifyAddressValue(address, value)` | Writes an `int64` to the address |
+| `functionAddress(address)` / `nativeFunctionAddress(address)` | Wraps a non-zero function address (a declared type name too) |
+| `nativeCall(address, signature, arguments)` | Calls a native function pointer; `signature` is `returnType(paramType,...)` and `arguments` is a list |
+
+`nativeCall` uses the interpreter's deliberately small integer ABI: only the
+fixed shapes the runtime supports are accepted, and an unsupported signature is
+a source-located error. The caller must supply a valid address with a
+compatible ABI — an invalid address can crash the process.
+
+```lynx
+any lib = ffiLoadLibrary("libc.so.6");
+functionAddress strlen = ffiLookup(lib, "strlen");
+println(nativeCall(strlen, "uint64(cstring)", ["hello"]));  // 5
+ffiCloseLibrary(lib);
+```
+
 Every typed read/write validates the address against the allocation registry and
 checks the access against the allocation's length, so an unknown address, a
 freed address, and an out-of-bounds access are source-located errors rather than
@@ -475,7 +500,6 @@ Names Lynxer recognises but does not implement on Linux/POSIX. Each fails with
 | Family | Names |
 | --- | --- |
 | Python bridging | `rawPy`, `rawPyx`, `cleanRawPyxCache`, `embedPy` |
-| Raw addresses | `getAddress`, `modifyAddressValue`, `getAddressValue`, `functionAddress`, `nativeFunctionAddress`, `nativeCall` |
 | Native module introspection | `nativeModuleLoad`, `nativeModuleName`, `nativeModuleFunction`, `nativeModuleConstant`, `nativeModuleType`, `nativeModuleError`, `nativeModuleDependencies`, `nativeModuleClose` |
 | Native sync primitives | `nativeMutex*`, `nativeCondition*`, `nativeSemaphore*` |
 | Atomics | `atomicLoad`, `atomicStore`, `atomicAdd`, `volatileRead`, `volatileWrite` |

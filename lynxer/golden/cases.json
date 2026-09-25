@@ -4,7 +4,7 @@
       "--version"
     ],
     "exit": 0,
-    "stdout": "Lynxer 0.1.8"
+    "stdout": "Lynxer 0.1.8.1"
   },
   "help": {
     "args": [
@@ -165,7 +165,7 @@
       "-v"
     ],
     "exit": 0,
-    "stdout": "Lynxer 0.1.8"
+    "stdout": "Lynxer 0.1.8.1"
   },
   "disasm_removed": {
     "args": [

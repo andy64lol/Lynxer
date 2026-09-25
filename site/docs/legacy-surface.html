@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Original Lynxer surface not carried over - Lynxer</title>
+    <title>Original Lynxer surface: status - Lynxer</title>
     <link rel="stylesheet" href="../style.css">
 </head>
 <body>
@@ -79,26 +79,26 @@
 </ul>
     </nav>
     <main class="doc">
-<h1 id="original-lynxer-surface-not-carried-over">Original Lynxer surface not carried over</h1>
-<p>The original interpreter exposed a larger built-in and module surface than the standalone C++ runtime implements — much of it existed to bridge into CPython, raw C memory, or a pre-emptive threading model. This page catalogues that surface so programs and notes written against the original have somewhere to look. <a href="limitations.html">limitations</a> remains the normative register; this page adds the <em>what did it do</em> and <em>what replaces it</em> detail.</p>
-<p>Two statuses are used:</p>
+<h1 id="original-lynxer-surface-status">Original Lynxer surface: status</h1>
+<p>The original interpreter exposed a larger built-in and module surface than the standalone C++ runtime. This page catalogues it so programs and notes written against the original have somewhere to look, and records what has since been brought across. <a href="limitations.html">limitations</a> remains the normative register.</p>
+<p>Three statuses are used:</p>
 <ul>
-<li><strong>Not implemented</strong> — the name is recognised and fails with <code>&lt;name&gt;() is not supported in Lynxer yet</code>. Some of these could be built later.</li>
+<li><strong>Implemented</strong> — the name works today; the notes point at the current built-ins.</li>
+<li><strong>Not implemented</strong> — the name is recognised and fails with <code>&lt;name&gt;() is not supported in Lynxer yet</code>.</li>
 <li><strong>Not planned</strong> — a deliberate, permanent non-goal.</li>
 </ul>
 <h2 id="pointers-and-raw-addresses">Pointers and raw addresses</h2>
 <p>The original had C-style address and function-pointer built-ins.</p>
 <table>
 <tr><th>Name</th><th>Status</th><th>Notes</th></tr>
-<tr><td><code>getAddress(variable)</code></td><td>Not implemented</td><td>Address of a variable's storage</td></tr>
-<tr><td><code>getAddressValue(address)</code></td><td>Not implemented</td><td>Read through a raw address</td></tr>
-<tr><td><code>modifyAddressValue(address, value)</code></td><td>Not implemented</td><td>Write through a raw address</td></tr>
-<tr><td><code>functionAddress(name)</code></td><td>Not implemented</td><td>Address of a Lynxer function</td></tr>
-<tr><td><code>nativeFunctionAddress(name)</code></td><td>Not implemented</td><td>Address of a native function</td></tr>
-<tr><td><code>nativeCall(address, args...)</code></td><td>Not implemented</td><td>Call an address directly</td></tr>
+<tr><td><code>getAddress(value)</code></td><td>Implemented</td><td>Validates an integer as a live native allocation</td></tr>
+<tr><td><code>getAddressValue(address)</code></td><td>Implemented</td><td>Reads an <code>int64</code> from the address</td></tr>
+<tr><td><code>modifyAddressValue(address, value)</code></td><td>Implemented</td><td>Writes an <code>int64</code> to the address</td></tr>
+<tr><td><code>functionAddress</code> / <code>nativeFunctionAddress</code></td><td>Implemented</td><td>Typed non-zero function address (<code>functionAddress</code> is a declared type)</td></tr>
+<tr><td><code>nativeCall(address, signature, arguments)</code></td><td>Implemented</td><td>Calls a function pointer through the small integer ABI</td></tr>
 <tr><td><code>nativeHandleAllocate/Address/Free/IsAlive</code></td><td>Implemented</td><td>Owned native handles (see below)</td></tr>
 </table>
-<p><strong>Why:</strong> exposing raw addresses across the native ABI is the largest possible security surface, and it conflicts with the interpreter's value-ownership model (see <a href="language.html#ownership-and-borrowing">ownership and borrowing</a>). <strong>Use instead:</strong> integer address handles with type information — typed blocks (<code>memoryBlockAllocate</code>/<code>memoryBlockGet</code>/<code>memoryBlockSet</code>), native structs (<code>nativeStructAllocate</code>/<code>nativeStructGet</code>/<code>nativeStructSet</code> over a layout string), and owned handles (<code>nativeHandleAllocate</code>/<code>nativeHandleAddress</code>/ <code>nativeHandleFree</code>); see <a href="builtins.html#native-memory">builtins</a>. For dynamic native calls the <a href="native-module-abi.html">native-module ABI</a> and <a href="builtins.html#ffi"><code>ffi*</code></a> are the supported routes.</p>
+<p>Addresses are plain integers, as the original documented, and the raw forms are implemented. <code>nativeCall</code> restricts signatures to the shapes the runtime supports and cannot make an arbitrary ABI safe — an invalid address can still crash the process. Prefer the structured built-ins when they fit — typed blocks (<code>memoryBlockAllocate</code>/<code>memoryBlockGet</code>/<code>memoryBlockSet</code>), native structs (<code>nativeStructAllocate</code>/<code>nativeStructGet</code>/<code>nativeStructSet</code> over a layout string), and owned handles (<code>nativeHandleAllocate</code>/<code>nativeHandleAddress</code>/ <code>nativeHandleFree</code>); see <a href="builtins.html#native-memory">builtins</a>.</p>
 <h2 id="advanced-memory-layout">Advanced memory layout</h2>
 <p>The original could model typed blocks and C structs directly in the allocator. These are implemented; only page protection remains.</p>
 <table>
@@ -151,8 +151,8 @@
 <h2 id="quick-map-original--now">Quick map: original → now</h2>
 <table>
 <tr><th>Original</th><th>Now</th></tr>
-<tr><td><code>getAddress</code> / <code>getAddressValue</code> / <code>modifyAddressValue</code></td><td>Typed blocks and structs: <code>memoryBlock*</code>, <code>nativeStruct*</code></td></tr>
-<tr><td><code>nativeFunctionAddress</code> / <code>nativeCall</code></td><td>The <a href="native-module-abi.html">native-module ABI</a> or <code>ffiCall</code></td></tr>
+<tr><td><code>getAddress</code> / <code>getAddressValue</code> / <code>modifyAddressValue</code></td><td>Implemented (addresses are integers)</td></tr>
+<tr><td><code>nativeFunctionAddress</code> / <code>nativeCall</code></td><td>Implemented (<code>nativeCall</code> over the small integer ABI)</td></tr>
 <tr><td><code>nativeHandle*</code></td><td>Implemented under the same names</td></tr>
 <tr><td><code>nativeMutex*</code> / <code>Condition*</code> / <code>Semaphore*</code></td><td><code>nativeThread*</code> (cooperative)</td></tr>
 <tr><td><code>async*</code></td><td>Implemented (cooperative handles over <code>sleep</code>)</td></tr>

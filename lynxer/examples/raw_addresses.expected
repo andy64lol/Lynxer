@@ -1,0 +1,8 @@
+address round-trips true
+value 1111
+modified 2222
+functionAddress true true
+alias true
+not allocated: getAddress() value is not a live native allocation
+zero function: functionAddress() address must be non-zero
+freed: address refers to freed memory

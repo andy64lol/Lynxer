@@ -2581,6 +2581,94 @@ Value builtinNativeHandleFree(const std::vector<Value>& args, Environment&,
     return none();
 }
 
+// --- raw addresses and native calls ------------------------------------------
+//
+// The original exposed integer addresses instead of pointers. An address is a
+// Lynxer integer; these built-ins validate it against the allocation registry,
+// read or write through it, and wrap a raw function address for nativeCall.
+
+Value builtinGetAddress(const std::vector<Value>& args, Environment&, int line,
+                        int column) {
+    if (args.size() != 1 || !isIntegerValue(args[0])) {
+        fail("getAddress(value) expects a native address", line, column);
+    }
+    const std::int64_t address = toInt(args[0], line, column);
+    if (address <= 0) {
+        fail("getAddress() expects a non-zero native address", line, column);
+    }
+    void* base = reinterpret_cast<void*>(static_cast<std::uintptr_t>(address));
+    {
+        std::lock_guard<std::recursive_mutex> guard(memoryRegistryMutex());
+        if (liveAllocations().find(base) == liveAllocations().end()) {
+            fail("getAddress() value is not a live native allocation", line,
+                 column);
+        }
+    }
+    return address;
+}
+
+Value builtinGetAddressValue(const std::vector<Value>& args, Environment&,
+                             int line, int column) {
+    if (args.size() != 1 || !isIntegerValue(args[0])) {
+        fail("getAddressValue(address) expects a native address", line, column);
+    }
+    return typedRead("int64", {args[0], std::int64_t{0}}, line, column);
+}
+
+Value builtinModifyAddressValue(const std::vector<Value>& args, Environment&,
+                                int line, int column) {
+    if (args.size() != 2 || !isIntegerValue(args[0]) || !isNumber(args[1])) {
+        fail("modifyAddressValue(address, value) expects an address and an "
+             "integer",
+             line, column);
+    }
+    return typedWrite("int64", {args[0], std::int64_t{0}, args[1]}, line,
+                      column);
+}
+
+// A typed function address: the same integer, but rejected by data-address APIs
+// and accepted by nativeCall. nativeFunctionAddress is an alias.
+Value builtinFunctionAddress(const std::vector<Value>& args, Environment&,
+                             int line, int column) {
+    if (args.size() != 1 || !isIntegerValue(args[0])) {
+        fail("functionAddress(address) expects an integer address", line,
+             column);
+    }
+    const std::int64_t address = toInt(args[0], line, column);
+    if (address <= 0) {
+        fail("functionAddress() address must be non-zero", line, column);
+    }
+    return address;
+}
+
+Value builtinNativeCall(const std::vector<Value>& args, Environment&, int line,
+                        int column) {
+    if (args.size() != 3 || !isIntegerValue(args[0]) ||
+        !std::holds_alternative<std::string>(args[1])) {
+        fail("nativeCall(address, signature, arguments) expects an address, a "
+             "signature string and a list of arguments",
+             line, column);
+    }
+    const std::int64_t address = toInt(args[0], line, column);
+    if (address <= 0) {
+        fail("nativeCall() function address must be non-zero", line, column);
+    }
+    std::vector<Value> callArguments;
+    if (!std::holds_alternative<std::monostate>(args[2])) {
+        if (asList(args[2]) == nullptr) {
+            fail("nativeCall() arguments must be a list", line, column);
+        }
+        callArguments = listElements(args[2]);
+    }
+    std::string signature = std::get<std::string>(args[1]);
+    if (signature.rfind("cdecl:", 0) != 0) {
+        signature = "cdecl:" + signature;
+    }
+    return callNative(
+        reinterpret_cast<void*>(static_cast<std::uintptr_t>(address)), signature,
+        callArguments, line, column);
+}
+
 Value builtinSizeOf(const std::vector<Value>& args, Environment&, int line,
                     int column) {
     if (args.size() != 1 || !std::holds_alternative<std::string>(args[0])) {
@@ -5278,6 +5366,13 @@ const std::unordered_map<std::string, Handler>& handlerTable() {
         {"nativeHandleAddress", builtinNativeHandleAddress},
         {"nativeHandleIsAlive", builtinNativeHandleIsAlive},
         {"nativeHandleFree", builtinNativeHandleFree},
+        // Raw addresses and native calls (addresses are integers).
+        {"getAddress", builtinGetAddress},
+        {"getAddressValue", builtinGetAddressValue},
+        {"modifyAddressValue", builtinModifyAddressValue},
+        {"functionAddress", builtinFunctionAddress},
+        {"nativeFunctionAddress", builtinFunctionAddress},
+        {"nativeCall", builtinNativeCall},
         {"sizeOf", builtinSizeOf},
 #if LYNXER_POSIX_BUILTINS
         // Managed filesystem API. Kept in `unsupportedTable()` on a host
@@ -5381,9 +5476,6 @@ const std::unordered_set<std::string>& unsupportedTable() {
         "soundLoad", "soundPlay", "soundLoop", "soundStop", "soundPause",
         "soundResume", "soundSetVolume", "soundIsPlaying", "soundRelease",
 #endif
-        "getAddress", "modifyAddressValue", "getAddressValue", "functionAddress",
-        "nativeFunctionAddress", "nativeCall",
-
         "nativeModuleLoad", "nativeModuleName", "nativeModuleFunction",
         "nativeModuleConstant", "nativeModuleType", "nativeModuleError",
         "nativeModuleDependencies", "nativeModuleClose",

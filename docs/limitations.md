@@ -153,7 +153,7 @@ Both modules use `std::regex` with the ECMAScript grammar, which is narrower tha
 
 ### `sys` — Constrained Behavior
 
-- **Version:** `version()` returns the Lynxer version (e.g., `Lynxer 0.1.8`).
+- **Version:** `version()` returns the Lynxer version (e.g., `Lynxer 0.1.8.1`).
 - **Python runtime concepts:** Not supported (`sys.path`, `addPath`, `prependPath`, `removeFromPath`, `getModules`, `isModuleLoaded`, `getRecursionLimit`, `setRecursionLimit`).
 - **Command-line arguments:** `argv()`, `getArg`, and `argCount` describe the `lynxer` process command line, not the program's arguments.
 - **Exit behavior:** `exit()` calls `std::exit` directly, bypassing interpreter cleanup.

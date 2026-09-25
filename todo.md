@@ -49,10 +49,10 @@ Status of each unimplemented built-in today:
 
 ### Built-in families
 
-- [ ] **Pointers and raw addresses** — `getAddress`, `getAddressValue`,
+- [x] **Pointers and raw addresses** — `getAddress`, `getAddressValue`,
       `modifyAddressValue`, `functionAddress`, `nativeFunctionAddress`,
-      `nativeCall`. **Reopen** for the raw address forms. They are not needed for
-      structured data any more: see the typed blocks/structs/handles below.
+      `nativeCall` (addresses are integers; `nativeCall` uses the small integer
+      ABI). See the typed blocks/structs/handles above for structured data.
 - [ ] **Atomics and volatile access** — `atomicLoad`, `atomicStore`,
       `atomicAdd`, `volatileRead`, `volatileWrite`.
 - [ ] **Native synchronization** — `nativeMutexCreate/Lock/TryLock/Unlock/Close`,
@@ -136,6 +136,9 @@ Status of each unimplemented built-in today:
   `beingBorrowed`, plus `shared` declarations and `unshare()`.
 - `async*` family: `asyncRun`, `asyncGather`, `asyncSleep`, `asyncPoll*`,
   timers and wakeups (`await` yields cooperatively).
+- Raw addresses and native calls: `getAddress` / `getAddressValue` /
+  `modifyAddressValue`, the typed `functionAddress` / `nativeFunctionAddress`,
+  and `nativeCall` (small integer ABI).
 - Structured memory on integer address handles (the original's pointer
   replacement): typed blocks (`memoryBlock*`, `memoryArray*`, `memoryView*`),
   native structs over a layout string (`nativeStruct*` / `memoryStruct*`,
@@ -146,6 +149,88 @@ Status of each unimplemented built-in today:
   `memoryTypeAlignment`, `sizeOf`); the `syscall*` family; managed
   `filesystem*` / `process*` / `networking*` / `sound*`; `nativeThread*`.
 - Legacy stdlib APIs already ported: `typing`, `text`, `csv`, `regex` (above).
+
+## More named syscalls (platform-compatible)
+
+Every syscall documented by the original (`docs-legacy/syscalls.md`, 89 names) is
+already implemented via the named dispatcher in `lynxer/builtins.cpp`. This is
+the backlog for *additional* syscalls.
+
+**Portability rule.** New wrappers must work on **both** Linux `amd64` and
+`aarch64` from the same source: resolve the number from the per-architecture
+tables, and when the raw call differs, expose one portable name plus the
+architecture-specific alternatives separately (the existing
+`poll`/`ppoll` split is the model — `syscallPollFileDescriptors` is portable,
+`syscallPpollFileDescriptors` is the ARM64 form). Reject unsupported
+architectures up front instead of dispatching the wrong table. Prefer a libc
+wrapper when the raw call is an unstable ABI (e.g. `clone`/`clone3`).
+
+### Filesystem
+
+- [ ] `syscallStatx` (`statx`) — extended stat; also the source of file
+      birth-time and mount id.
+- [ ] `syscallOpenAt2` (`openat2`) — `openat` with a resolve-flags struct.
+- [ ] `syscallCheckFileAccessAt2` (`faccessat2`) — `faccessat` with flags.
+- [ ] `syscallCopyFileRange` (`copy_file_range`) — kernel-side copy.
+- [ ] `syscallFallocateFile` (`fallocate`) — reserve/extend file space.
+- [ ] `syscallSynchronizeFilesystem` (`syncfs`) — flush one filesystem.
+
+### Processes and threads
+
+- [ ] `syscallCreateThread3` (`clone3`) — extensible clone; prefer the libc
+      `pthread_create` wrapper outside the thread family.
+- [ ] `syscallOpenProcessFileDescriptor` (`pidfd_open`) — a pollable process fd.
+- [ ] `syscallSendSignalToProcessFileDescriptor` (`pidfd_send_signal`).
+- [ ] `syscallGetThreadAffinity` / `syscallSetThreadAffinity`
+      (`sched_getaffinity` / `sched_setaffinity`).
+- [ ] `syscallGetThreadPriority` / `syscallSetThreadPriority`
+      (`getpriority` / `setpriority`).
+- [ ] `syscallWaitForProcessId` (`waitid`) — the `waitid` sibling of the
+      existing `syscallWaitForProcess` (`wait4`).
+
+### Memory
+
+- [ ] `syscallLockMemory` / `syscallUnlockMemory` (`mlock` / `munlock`).
+- [ ] `syscallSynchronizeMemory` (`msync`) — flush an `mmap` region.
+- [ ] `syscallCreateMemoryFileDescriptor` (`memfd_create`).
+- [ ] `syscallSetMemoryPolicy` (`mbind`) — NUMA placement; both arches.
+
+### Time
+
+- [ ] `syscallGetTimeOfDay` (`gettimeofday`).
+- [ ] `syscallSleepClock` (`clock_nanosleep`) — the clock-relative sibling of
+      `syscallSleep`.
+- [ ] `syscallCreateTimerFileDescriptor` / `syscallControlTimerFileDescriptor`
+      (`timerfd_create` / `timerfd_settime`).
+
+### Signals
+
+- [ ] `syscallControlSignal` (`rt_sigaction`).
+- [ ] `syscallControlSignalMask` (`rt_sigprocmask`).
+- [ ] `syscallCreateSignalFileDescriptor` (`signalfd`).
+
+### Sockets and event loops
+
+- [ ] `syscallSendMessages` / `syscallReceiveMessages` (`sendmmsg` / `recvmmsg`).
+- [ ] `syscallAcceptConnection4` (`accept4`) — `accept` with flags.
+- [ ] `syscallWaitForEvents2` (`epoll_pwait2`) — nanosecond `epoll` timeout.
+- [ ] `syscallCreateEventFileDescriptor` (`eventfd`) — for poll/wakeup plumbing.
+
+### System information and control
+
+- [ ] `syscallControlProcessThread` (`prctl`).
+- [ ] `syscallGetCapabilities` / `syscallSetCapabilities`
+      (`capget` / `capset`).
+- [ ] `syscallGetSystemTimes` (`times`).
+
+### Stretch (higher complexity)
+
+- [ ] io_uring (`syscallSetupIoUring`, `syscallEnterIoUring`,
+      `syscallRegisterIoUring`) — present on both arches; large surface, so land
+      it only with a dedicated fixture.
+- [ ] Landlock / seccomp sandboxing (`syscallCreateLandlockRuleset`,
+      `syscallControlSeccomp`) — both arches, but security-sensitive and easy to
+      misuse; decide the exposure first.
 
 ## Open decisions
 
