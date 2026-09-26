@@ -44,6 +44,13 @@ global main(){
     try { syscallCreateEventFileDescriptor(0, 9999); println("eventfd bad flags NO ERROR"); } catch(str e) { println("eventfd bad flags ", global.recognized(e)); }
     try { syscallGetCapabilities(0, 0); println("capget NO ERROR"); } catch(str e) { println("capget ", global.recognized(e)); }
 
+    // Sandboxing entry points. seccomp is probed with an invalid operation:
+    // operation 0 installs SECCOMP_MODE_STRICT, which would kill this process.
+    try { syscallCreateLandlockRuleset(0, 0, 0); println("landlockCreate NO ERROR"); } catch(str e) { println("landlockCreate ", global.recognized(e)); }
+    try { syscallAddLandlockRule(-1, 0, 0, 0); println("landlockAddRule NO ERROR"); } catch(str e) { println("landlockAddRule ", global.recognized(e)); }
+    try { syscallRestrictLandlockSelf(-1, 0); println("landlockRestrict NO ERROR"); } catch(str e) { println("landlockRestrict ", global.recognized(e)); }
+    try { syscallControlSeccomp(9999, 0, 0); println("seccomp NO ERROR"); } catch(str e) { println("seccomp ", global.recognized(e)); }
+
     // The six-argument ceiling still applies to the new names.
     try {
         syscallGetSystemTimes(0, 0, 0, 0, 0, 0, 0);

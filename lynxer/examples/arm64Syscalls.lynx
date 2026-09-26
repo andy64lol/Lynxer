@@ -2,10 +2,10 @@
 arm64 (aarch64) syscall fixture.
 
 Runs only in the ARM64 CI job. On this architecture the portable wrappers use
-ppoll(2) and epoll_pwait(2), and the ARM64-only wrappers (ppoll with a timespec,
-epoll_pwait with an explicit signal mask) are also called directly. Every
-printed value is a property, so the expected output in arm64Syscalls.expected
-is stable.
+ppoll(2) and epoll_pwait(2); the explicit wrappers (ppoll with a timespec,
+epoll_pwait with an explicit signal mask) are called directly, as on amd64.
+Every printed value is a property, so the expected output in
+arm64Syscalls.expected is stable.
 ////
 
 global setup() {}
@@ -32,8 +32,8 @@ global main() {
     println("poll ready ", syscallPollFileDescriptors(pollFds, 1, 0) is 1);
     println("poll POLLIN ", memoryReadInt16(pollFds, 6) is 1);
 
-    // ARM64-only: raw ppoll(2) with a zero timespec and a null signal mask
-    // (sigsetsize is sizeof(sigset_t) on arm64, 8).
+    // Raw ppoll(2) with a zero timespec and a null signal mask (sigsetsize is
+    // sizeof(sigset_t), 8).
     int timespec = memoryAllocate(16);
     memoryWriteInt64(timespec, 0, 0);   // tv_sec
     memoryWriteInt64(timespec, 8, 0);   // tv_nsec

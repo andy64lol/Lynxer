@@ -3035,11 +3035,6 @@ Value builtinSizeOf(const std::vector<Value>& args, Environment&, int line,
 
 // --- named Linux syscalls --------------------------------------------------------
 
-bool requiresArm64(const std::string& name) {
-    return name == "syscallPpollFileDescriptors" ||
-           name == "syscallWaitForEventsWithSignalMask";
-}
-
 long syscallNumberFor(const std::string& name, bool& known) {
     known = true;
 #if defined(__x86_64__) || defined(__aarch64__)
@@ -3234,14 +3229,48 @@ long syscallNumberFor(const std::string& name, bool& known) {
 #ifdef SYS_times
     if (name == "syscallGetSystemTimes") return SYS_times;
 #endif
+    // Stretch: asynchronous I/O, then sandboxing. All of these are raw
+    // passthroughs; the caller builds any struct in native memory and passes
+    // its address.
+#ifdef SYS_io_uring_setup
+    if (name == "syscallSetupIoUring") return SYS_io_uring_setup;
+#endif
+#ifdef SYS_io_uring_enter
+    if (name == "syscallEnterIoUring") return SYS_io_uring_enter;
+#endif
+#ifdef SYS_io_uring_register
+    if (name == "syscallRegisterIoUring") return SYS_io_uring_register;
+#endif
+#ifdef SYS_landlock_create_ruleset
+    if (name == "syscallCreateLandlockRuleset") return SYS_landlock_create_ruleset;
+#endif
+#ifdef SYS_landlock_add_rule
+    if (name == "syscallAddLandlockRule") return SYS_landlock_add_rule;
+#endif
+#ifdef SYS_landlock_restrict_self
+    if (name == "syscallRestrictLandlockSelf") return SYS_landlock_restrict_self;
+#endif
+#ifdef SYS_seccomp
+    if (name == "syscallControlSeccomp") return SYS_seccomp;
+#endif
+    // poll/epoll availability differs by architecture: x86-64 has poll(2) and
+    // epoll_wait(2), aarch64 only their ppoll(2)/epoll_pwait(2) forms. The
+    // portable wrappers follow that split.
 #if defined(__x86_64__)
     if (name == "syscallPollFileDescriptors") return SYS_poll;
     if (name == "syscallWaitForEvents") return SYS_epoll_wait;
 #elif defined(__aarch64__)
     if (name == "syscallPollFileDescriptors") return SYS_ppoll;
     if (name == "syscallWaitForEvents") return SYS_epoll_pwait;
+#endif
+    // The explicit ppoll/epoll_pwait wrappers are present on both architectures.
+#if defined(__x86_64__) || defined(__aarch64__)
+#ifdef SYS_ppoll
     if (name == "syscallPpollFileDescriptors") return SYS_ppoll;
+#endif
+#ifdef SYS_epoll_pwait
     if (name == "syscallWaitForEventsWithSignalMask") return SYS_epoll_pwait;
+#endif
 #endif
     known = false;
     return -1;
@@ -3261,6 +3290,21 @@ bool syscallArgumentsValid(const std::vector<Value>& args, int line, int column)
     return true;
 }
 
+// Converts one validated integer argument into a syscall word. isIntegerValue
+// also accepts the wide unsigned representation, which would otherwise reach
+// std::get<std::int64_t> and throw; a value above INT64_MAX cannot be a word.
+long syscallArgumentWord(const Value& value, int line, int column) {
+    if (const auto* integer = std::get_if<std::int64_t>(&value)) {
+        return static_cast<long>(*integer);
+    }
+    const auto* wide = std::get_if<UInt64Value>(&value);
+    if (wide != nullptr &&
+        wide->value <= static_cast<std::uint64_t>(INT64_MAX)) {
+        return static_cast<long>(wide->value);
+    }
+    fail("syscall argument is out of range", line, column);
+}
+
 Value builtinSyscall(const std::string& name, const std::vector<Value>& args,
                      int line, int column) {
 #if !defined(__linux__)
@@ -3269,10 +3313,6 @@ Value builtinSyscall(const std::string& name, const std::vector<Value>& args,
 #else
     if (args.size() > 6) {
         fail("syscalls accept at most six arguments", line, column);
-    }
-    if (requiresArm64(name) && !kArm64) {
-        fail("syscall built-in '" + name + "' is only available on arm64", line,
-             column);
     }
     syscallArgumentsValid(args, line, column);
     std::size_t expected = 0;
@@ -3298,14 +3338,15 @@ Value builtinSyscall(const std::string& name, const std::vector<Value>& args,
 
     std::vector<long> words;
     for (const auto& argument : args) {
-        words.push_back(static_cast<long>(std::get<std::int64_t>(argument)));
+        words.push_back(syscallArgumentWord(argument, line, column));
     }
 
     struct ::timespec timeout {};
     if (name == "syscallPollFileDescriptors" && kArm64) {
         // ARM64 lacks poll(2); ppoll(2) takes a timespec instead of
         // milliseconds, mirroring the Python implementation.
-        const std::int64_t timeoutMs = std::get<std::int64_t>(args[2]);
+        const std::int64_t timeoutMs =
+            syscallArgumentWord(args[2], line, column);
         if (timeoutMs < 0) {
             words = {words[0], words[1], 0, 0,
                      static_cast<long>(sizeof(unsigned long))};
@@ -6815,6 +6856,13 @@ const std::unordered_set<std::string>& unsupportedTable() {
         "syscallGetCapabilities",
         "syscallSetCapabilities",
         "syscallGetSystemTimes",
+        "syscallSetupIoUring",
+        "syscallEnterIoUring",
+        "syscallRegisterIoUring",
+        "syscallCreateLandlockRuleset",
+        "syscallAddLandlockRule",
+        "syscallRestrictLandlockSelf",
+        "syscallControlSeccomp",
     };
     return unsupported;
 }

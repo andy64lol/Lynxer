@@ -102,6 +102,7 @@ LYNXER_LOWLEVEL_FIXTURES := $(LYNXER_DIR)/examples/lowlevel_memory.lynx \
 	$(LYNXER_DIR)/examples/native_sync_threads.lynx \
 	$(LYNXER_DIR)/examples/native_module_api.lynx \
 	$(LYNXER_DIR)/examples/syscall_extended.lynx \
+	$(LYNXER_DIR)/examples/syscall_io_uring.lynx \
 	$(LYNXER_DIR)/examples/language_fields.lynx
 # Architecture-specific syscall fixtures. They stay out of testLynxer because
 # each drives syscalls that exist on only one target: the AMD64 job runs

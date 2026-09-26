@@ -293,7 +293,11 @@ arguments; `syscallPpollFileDescriptors`, `syscallWaitForEvents` and
 `syscallWaitForEventsWithSignalMask` take five.
 
 Beyond the original set, the family carries an extended surface built from one
-source on `amd64` and `aarch64`. A name whose number is missing from the build's
+source on `amd64` and `aarch64`; every name resolves on both architectures. The
+portable `syscallPollFileDescriptors` / `syscallWaitForEvents` wrappers follow the
+architecture's split internally (`poll`/`epoll_wait` on amd64,
+`ppoll`/`epoll_pwait` on aarch64), and the explicit `ppoll` / `epoll_pwait`
+wrappers are available on both. A name whose number is missing from the build's
 headers fails with `syscall '<name>' is not available on this architecture`
 instead of dispatching the wrong table.
 
@@ -306,10 +310,17 @@ instead of dispatching the wrong table.
 | Signals | `syscallControlSignal`, `syscallControlSignalMask`, `syscallCreateSignalFileDescriptor` |
 | Sockets and event loops | `syscallSendMessages`, `syscallReceiveMessages`, `syscallAcceptConnection4`, `syscallWaitForEvents2`, `syscallCreateEventFileDescriptor` |
 | System information | `syscallGetCapabilities`, `syscallSetCapabilities`, `syscallGetSystemTimes` |
+| Async I/O | `syscallSetupIoUring`, `syscallEnterIoUring`, `syscallRegisterIoUring` |
+| Sandboxing | `syscallCreateLandlockRuleset`, `syscallAddLandlockRule`, `syscallRestrictLandlockSelf`, `syscallControlSeccomp` |
 
-`lynxer/examples/syscall_extended.lynx` pins the wiring;
-`lowlevel_syscalls.lynx`, `amd64Syscalls.lynx` and `arm64Syscalls.lynx` cover
-the original set and the architecture-specific names.
+The io_uring and sandboxing entries are raw passthroughs: build any `struct`
+(io_uring params, Landlock rules, `struct seccomp_data`) in native memory and
+pass its address. `syscallControlSeccomp` is unguarded — operation `0` installs
+`SECCOMP_MODE_STRICT` and will terminate the process.
+
+`lynxer/examples/syscall_extended.lynx` and `syscall_io_uring.lynx` pin the
+wiring; `lowlevel_syscalls.lynx`, `amd64Syscalls.lynx` and `arm64Syscalls.lynx`
+cover the original set and the `poll`/`epoll` split.
 
 ## Managed filesystem
 

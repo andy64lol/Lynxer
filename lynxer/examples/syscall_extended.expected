@@ -19,4 +19,8 @@ accept4 true
 epollPwait2 true
 eventfd bad flags true
 capget true
+landlockCreate true
+landlockAddRule true
+landlockRestrict true
+seccomp true
 argument ceiling true

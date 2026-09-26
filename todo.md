@@ -167,10 +167,11 @@ architecture` rather than dispatching the wrong table.
 **Portability rule.** New wrappers must work on **both** Linux `amd64` and
 `aarch64` from the same source: resolve the number in `syscallNumberFor`, guard
 each mapping with `#ifdef SYS_<name>` so an older header set degrades to the
-"not available on this architecture" error instead of the wrong table, and split
-out an architecture-specific name when the raw call differs (the existing
-`poll`/`ppoll` split is the model). Prefer a libc wrapper when the raw call is an
-unstable ABI (e.g. `clone`/`clone3`).
+"not available on this architecture" error instead of the wrong table, and keep
+every name available on both arches — where the raw call differs, split only the
+number and argument fix-up, not the name (the portable `poll`/`epoll` wrappers
+are the model). No `syscall*` name is architecture-exclusive. Prefer a libc
+wrapper when the raw call is an unstable ABI (e.g. `clone`/`clone3`).
 
 ### Filesystem
 
@@ -231,12 +232,14 @@ unstable ABI (e.g. `clone`/`clone3`).
 
 ### Stretch (higher complexity)
 
-- [ ] io_uring (`syscallSetupIoUring`, `syscallEnterIoUring`,
-      `syscallRegisterIoUring`) — present on both arches; large surface, so land
-      it only with a dedicated fixture.
-- [ ] Landlock / seccomp sandboxing (`syscallCreateLandlockRuleset`,
-      `syscallControlSeccomp`) — both arches, but security-sensitive and easy to
-      misuse; decide the exposure first.
+- [x] io_uring (`syscallSetupIoUring`, `syscallEnterIoUring`,
+      `syscallRegisterIoUring`) — raw passthrough on both arches; covered by the
+      dedicated `lynxer/examples/syscall_io_uring.lynx` fixture.
+- [x] Landlock / seccomp sandboxing (`syscallCreateLandlockRuleset`,
+      `syscallAddLandlockRule`, `syscallRestrictLandlockSelf`,
+      `syscallControlSeccomp`) — raw passthrough on both arches. `seccomp`
+      operation `0` installs `SECCOMP_MODE_STRICT` and kills the process, so the
+      fixture probes an invalid operation instead.
 
 ## Open decisions
 

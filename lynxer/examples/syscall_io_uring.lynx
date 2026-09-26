@@ -1,0 +1,34 @@
+////
+Dedicated fixture for the io_uring wrappers.
+
+io_uring_setup/enter/register are a large raw surface, so the family lands with
+its own fixture. Each call is given invalid arguments that the kernel rejects
+deterministically, which proves the name is wired to the right per-architecture
+number without depending on whether the host kernel enables io_uring at all: a
+kernel without io_uring answers ENOSYS, which is still a `syscall '` error. The
+output is identical on amd64 and aarch64.
+////
+
+global setup(){}
+
+global recognized(str message) -> bool {
+    return substring(message, 0, 9) is "syscall '";
+}
+
+global main(){
+    // A NULL params pointer: io_uring_setup rejects it with EFAULT.
+    try {
+        syscallSetupIoUring(4, 0);
+        println("setup NO ERROR");
+    } catch(str e) { println("setup ", global.recognized(e)); }
+
+    // A negative ring descriptor is always EBADF.
+    try {
+        syscallEnterIoUring(-1, 0, 0, 0, 0, 0);
+        println("enter NO ERROR");
+    } catch(str e) { println("enter ", global.recognized(e)); }
+    try {
+        syscallRegisterIoUring(-1, 0, 0, 0);
+        println("register NO ERROR");
+    } catch(str e) { println("register ", global.recognized(e)); }
+}

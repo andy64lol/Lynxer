@@ -1,30 +1,15 @@
 ////
 amd64 (x86-64) syscall fixture.
 
-Runs only in the AMD64 CI job. It drives poll(2) and epoll_wait(2) through the
-portable wrappers and asserts that the ARM64-only wrappers (ppoll(2) and
-epoll_pwait(2) with an explicit signal mask) are rejected on this architecture,
-so the same source cannot quietly pass on the wrong target. Every printed value
-is a property, so the expected output in amd64Syscalls.expected is stable.
+Runs only in the AMD64 CI job. On this architecture the portable wrappers use
+poll(2) and epoll_wait(2); the explicit ppoll(2) / epoll_pwait(2) wrappers are
+available on both architectures and are called directly here. Every printed
+value is a property, so the expected output in amd64Syscalls.expected is stable.
 ////
 
 global setup() {}
 
 global main() {
-    println("== arch ==");
-    try {
-        syscallPpollFileDescriptors(0, 0, 0, 0, 0);
-        println("arm64 ppoll rejected false");
-    } catch (str error) {
-        println("arm64 ppoll rejected true");
-    }
-    try {
-        syscallWaitForEventsWithSignalMask(0, 0, 0, 0, 0);
-        println("arm64 epoll_pwait rejected false");
-    } catch (str error) {
-        println("arm64 epoll_pwait rejected true");
-    }
-
     println("== pipe ==");
     int buffer = memoryAllocate(64);
     int pipeFds = memoryAllocate(16);
@@ -45,16 +30,27 @@ global main() {
     println("poll ready ", syscallPollFileDescriptors(pollFds, 1, 0) is 1);
     println("poll POLLIN ", memoryReadInt16(pollFds, 6) is 1);
 
+    // Raw ppoll(2) with a zero timespec and a null signal mask; sigsetsize is
+    // sizeof(sigset_t) (8). Available on amd64 as well as arm64.
+    int timespec = memoryAllocate(16);
+    memoryWriteInt64(timespec, 0, 0);   // tv_sec
+    memoryWriteInt64(timespec, 8, 0);   // tv_nsec
+    println("ppoll ready ",
+            syscallPpollFileDescriptors(pollFds, 1, timespec, 0, 8) is 1);
+
     println("== event poll ==");
     int epoll = syscallCreateEventPoll(0);
     println("epoll created ", epoll > 0);
     int events = memoryAllocate(64);
     println("epoll wait empty ", syscallWaitForEvents(epoll, events, 1, 0, 0) is 0);
+    println("epoll_pwait empty ",
+            syscallWaitForEventsWithSignalMask(epoll, events, 1, 0, 0) is 0);
 
     syscallClose(epoll);
     syscallClose(readFd);
     syscallClose(writeFd);
     memoryFree(events);
+    memoryFree(timespec);
     memoryFree(pollFds);
     memoryFree(pipeFds);
     memoryFree(buffer);
