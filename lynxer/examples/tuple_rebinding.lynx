@@ -1,8 +1,10 @@
 ////
 Tuple rebinding fixture. Tuples use `()` — that is the canonical form, for both
-declaration and rebinding. The bracket-literal form `[int 1, int 2]` is also
+declaration and rebinding. The bracket-literal form `[int 1, int 2]` is still
 accepted for a `tuple` target, matching the original Lynxer, which coerced the
-list literal to a tuple on assignment.
+list literal to a tuple on assignment. Each bracket-literal use emits a
+deprecation warning (once per source location); those warnings are part of the
+expected output below. `suppressDeprecationWarning()` silences them.
 ////
 
 global setup(){}

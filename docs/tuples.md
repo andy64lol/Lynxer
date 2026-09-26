@@ -31,6 +31,10 @@ tuple t = [int 1, int 2];   // the list is coerced to a tuple, (1, 2)
 t = [int 3, int 4];         // rebinding works the same way
 ```
 
+The bracket form is **deprecated** and emits a warning (once per source
+location): `Warning: ... tuple assigned from a bracketed list is deprecated; use
+the '(int 1, int 2)' form instead.` `suppressDeprecationWarning()` silences it.
+
 Prefer `()` in new code; `tupleCreate(...)` and `listToTuple(...)` remain the
 explicit constructors.
 
@@ -133,12 +137,13 @@ for (int i = 0; i < returnLength(values)) {
 
 ## Differences from the original Lynxer
 
-- **Bracket literals are accepted for tuples (legacy).** In the original, a
-  `tuple` variable could be (re)bound with a `[int 1, int 2]` literal; the
-  standalone runtime coerces that list to a tuple on assignment too. The
-  `(int 1, int 2)` form is canonical, and `tupleCreate(...)` /
-  `listToTuple(...)` remain the explicit conversions. Only the `tuple` target
-  coerces — a `list` target still rejects a `()` tuple.
+- **Bracket literals are accepted for tuples (legacy, deprecated).** In the
+  original, a `tuple` variable could be (re)bound with a `[int 1, int 2]`
+  literal; the standalone runtime coerces that list to a tuple on assignment
+  too, but emits a deprecation warning (once per source location, silenced by
+  `suppressDeprecationWarning()`). The `(int 1, int 2)` form is canonical, and
+  `tupleCreate(...)` / `listToTuple(...)` remain the explicit conversions. Only
+  the `tuple` target coerces — a `list` target still rejects a `()` tuple.
 - **No `rawPy` bridging.** The original exposed tuples to `rawPy { }` blocks as
   Python tuples; there is no Python runtime here.
 - **`tupleZip` returns a tuple**, not a list, and renders values as JSON

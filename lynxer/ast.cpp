@@ -1594,6 +1594,10 @@ void DeclarationStatement::execute(Environment& environment) const {
     }
     Value value = Environment::convertForType(value_->evaluate(environment),
                                               type_, line_, column_);
+    if (type_ == "tuple" &&
+        dynamic_cast<const ListLiteralExpression*>(value_.get()) != nullptr) {
+        environment.warnTupleBracketLiteral(line_, column_);
+    }
     if (constant_) {
         environment.declareConstant(name_, type_, std::move(value), line_,
                                      column_);
@@ -1631,6 +1635,10 @@ AssignmentStatement::AssignmentStatement(std::string name, ExpressionPtr value,
       column_(column) {}
 
 void AssignmentStatement::execute(Environment& environment) const {
+    if (dynamic_cast<const ListLiteralExpression*>(value_.get()) != nullptr &&
+        environment.declaredTypeOf(name_) == "tuple") {
+        environment.warnTupleBracketLiteral(line_, column_);
+    }
     environment.assign(name_, value_->evaluate(environment), line_, column_);
 }
 

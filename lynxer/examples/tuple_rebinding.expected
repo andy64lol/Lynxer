@@ -1,7 +1,10 @@
 (10, 20)
 2
+Warning: line 18, column 5: tuple assigned from a bracketed list is deprecated; use the '(int 1, int 2)' form instead.
 (255, 128, 0)
 (1, 2)
+Warning: line 26, column 5: tuple assigned from a bracketed list is deprecated; use the '(int 1, int 2)' form instead.
 (a, true, 3.5)
+Warning: line 30, column 5: tuple assigned from a bracketed list is deprecated; use the '(int 1, int 2)' form instead.
 ()
 (4, 5)

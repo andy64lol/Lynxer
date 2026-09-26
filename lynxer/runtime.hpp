@@ -216,6 +216,15 @@ public:
 
     bool deprecationWarningSuppressed() const;
 
+    // Warn once per source location that a tuple is being (re)bound from a
+    // bracketed list literal — the original syntax, superseded by `(...)`.
+    // Honours suppressDeprecationWarning().
+    void warnTupleBracketLiteral(int line, int column);
+
+    // Declared type of a variable, following any borrow chain; "" when the
+    // name is unknown.
+    std::string declaredTypeOf(const std::string& name) const;
+
     void setForeverDelay(double seconds);
 
     double foreverDelay() const;
@@ -248,6 +257,9 @@ private:
     bool setupInProgress_ = false;
     bool foreverWarningSuppressed_ = false;
     bool deprecationWarningSuppressed_ = false;
+    // Source locations ("line:column") already warned about a bracketed-list
+    // tuple, so a loop re-running one declaration warns only once.
+    std::unordered_set<std::string> tupleBracketWarnings_;
     double foreverDelaySeconds_ = 0.02;
 };
 

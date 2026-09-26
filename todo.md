@@ -12,7 +12,7 @@ is visible next to the work that *is* open.
 | Feature | Why |
 | --- | --- |
 | `venv` module | A virtual-environment manager is a Python concept with no equivalent in a standalone runtime. |
-| `rawPy`, `rawPyx`, `cleanRawPyxCache`, `embedPy` | Python/Cython embedding. Lynxer does not ship or link a Python runtime. |
+| `rawPy`, `rawPyx`, `cleanRawPyxCache`, `embedPy` | **Removed fully.** Python/Cython embedding; Lynxer does not ship or link a Python runtime. Not a reopen. |
 | `tkinter`, `tkinterPlus` | No Python GUI toolkit. Any future GUI would be Rust-backed (see `graphics` below). |
 | `turtle` | Rust's `turtle` crate has not been maintained since 2019. |
 | `http`, `net` modules | Superseded by `network` + `server`. |
@@ -36,13 +36,14 @@ Status of each unimplemented built-in today:
 
 ### Language
 
-- [ ] `rawPy { }` / `rawPyx` blocks and their Python interop — **reopen**
-      (`rawPy`, `rawPyx`, `cleanRawPyxCache`, `embedPy`). Blocked on embedding a
-      Python runtime; everything that depended on `rawPy` (tuple interop,
-      `tkinter`, `turtle`) comes with it.
+- [x] `rawPy { }` / `rawPyx` blocks and their Python interop — **removed
+      fully**, not a reopen (`rawPy`, `rawPyx`, `cleanRawPyxCache`, `embedPy`).
+      Lynxer will not embed a Python runtime; everything that depended on
+      `rawPy` (tuple interop, `tkinter`, `turtle`) stays with it.
 - [x] Bracket-literal tuple rebinding: a `tuple` target accepts the original's
-      `tuple t = [int 1, int 2]` (the list is coerced to a tuple on assignment);
-      `(int 1, int 2)` stays canonical. See [docs/tuples.md](docs/tuples.md).
+      `tuple t = [int 1, int 2]` (the list is coerced to a tuple on assignment)
+      but warns once per source location; `(int 1, int 2)` stays canonical.
+      See [docs/tuples.md](docs/tuples.md).
 
 ### Built-in families
 

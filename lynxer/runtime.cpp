@@ -7,6 +7,7 @@
 #include <charconv>
 #include <cmath>
 #include <filesystem>
+#include <iostream>
 
 namespace lynxer {
 
@@ -629,6 +630,29 @@ void Environment::setDeprecationWarningSuppressed() {
 
 bool Environment::deprecationWarningSuppressed() const {
     return deprecationWarningSuppressed_;
+}
+
+void Environment::warnTupleBracketLiteral(int line, int column) {
+    if (deprecationWarningSuppressed_) {
+        return;
+    }
+    const std::string key =
+        std::to_string(line) + ":" + std::to_string(column);
+    if (!tupleBracketWarnings_.insert(key).second) {
+        return;
+    }
+    std::cerr << "Warning: line " << line << ", column " << column
+              << ": tuple assigned from a bracketed list is deprecated; use "
+                 "the '(int 1, int 2)' form instead.\n";
+}
+
+std::string Environment::declaredTypeOf(const std::string& name) const {
+    const std::string canonical = canonicalName(name);
+    if (canonical.empty()) {
+        return "";
+    }
+    const Variable* variable = findVariable(canonical);
+    return variable == nullptr ? std::string() : variable->type;
 }
 
 void Environment::setForeverDelay(double seconds) {
