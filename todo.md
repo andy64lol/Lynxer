@@ -90,16 +90,15 @@ Status of each unimplemented built-in today:
       Audio: `loadSound`, `playSound`, `loopSound`, `stopSound`,
       `setSoundVolume`, `isSoundPlaying`. Window/output: `setWindowPos`,
       `screenshot`.
-- [ ] `server` — 41 legacy ops. Route verbs: `put`, `delete`, `patch`,
-      `init`/`run`. Request accessors: `getMethod`, `getPath`, `getUrl`,
-      `getBody`, `getHeader`, `getCookie`, `getForm`, `getArg`, `getStatus`,
-      `getContentType`, `getRemoteAddr`. Responses: `redirect`, `redirect301`,
-      `notFound`, `forbidden`, `serverError`, `methodNotAllowed`, `anyHttp`.
-      JSON routes: `jsonRoute`, `jsonGet`, `jsonPost`, `jsonStatus`. Static and
-      templates: `staticFiles`, `staticSite`, `serveFile`, `template`,
-      `templatePost`, `templateString`, `setTemplateFolder`. Middleware/TLS:
-      `cors`, `corsOrigin`, `addGlobalHeader`, `enableRequestLog`, `setDebug`,
-      `runHTTPS`, `runSSLAdhoc`.
+- [x] `server` — the 41 legacy ops. Verbs and route kinds (`put`, `delete`,
+      `patch`, `anyHttp`, `getStatus`), JSON routes (`jsonGet`, `jsonPost`,
+      `jsonRoute`, `jsonStatus`), redirects, Jinja-style templates
+      (`template`, `templatePost`, `templateString`, `setTemplateFolder`),
+      files and static trees (`serveFile`, `staticFiles`, `staticSite`), custom
+      error bodies, `cors`/`corsOrigin`/`addGlobalHeader`/`enableRequestLog`/
+      `setDebug`, the request-context readers, and `init`/`run`.
+      **TLS is not built**: `runHTTPS`/`runSSLAdhoc` return an explanatory error
+      because no TLS crate is in the pinned dependency set.
 - [x] `network` — the raw-socket surface the old `net` module had:
       `tcpConnect`, `tcpSend`, `tcpReceive`, `tcpSendReceive`, `tcpClose`,
       `ping`, `isPortOpen`, `getLocalIP` (Rust `std::net`, plaintext TCP only).

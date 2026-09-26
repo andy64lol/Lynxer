@@ -111,6 +111,66 @@
     println(global.server.start(8080));
     while (global.server.running()) {}
 }</code></pre>
+<h2 id="routes">Routes</h2>
+<p>Register routes while the server is stopped. Paths must start with <code>/</code>, and a duplicate of the same verb and path is rejected.</p>
+<table>
+<tr><th>Function</th><th>Description</th></tr>
+<tr><td><code>routeGet(path, body)</code> / <code>get</code> / <code>htmlGet</code></td><td>Fixed GET response as <code>text/html; charset=utf-8</code></td></tr>
+<tr><td><code>routePost(path, body)</code> / <code>post</code> / <code>htmlPost</code></td><td>Fixed POST response</td></tr>
+<tr><td><code>put(path, body)</code> / <code>delete(path, body)</code> / <code>patch(path, body)</code></td><td>The other verbs</td></tr>
+<tr><td><code>anyHttp(path, body)</code></td><td>One route answering GET, POST, PUT, DELETE and PATCH</td></tr>
+<tr><td><code>getStatus(path, body, status)</code></td><td>HTML GET with a custom status code</td></tr>
+<tr><td><code>routeEcho(path)</code></td><td>POST that returns the request body as <code>text/plain</code></td></tr>
+<tr><td><code>jsonGet(path, json)</code> / <code>jsonPost(path, json)</code></td><td>JSON responses (<code>application/json</code>)</td></tr>
+<tr><td><code>jsonRoute(path, json)</code></td><td>JSON for GET and POST</td></tr>
+<tr><td><code>jsonStatus(path, json, status)</code></td><td>JSON with a custom status code</td></tr>
+<tr><td><code>redirect(path, target)</code> / <code>redirect301(path, target)</code></td><td>302 / 301 redirects</td></tr>
+<tr><td><code>template(path, file, dataJson)</code> / <code>templatePost(...)</code></td><td>Render a template file</td></tr>
+<tr><td><code>templateString(path, source, dataJson)</code></td><td>Render an inline template</td></tr>
+<tr><td><code>serveFile(path, filepath)</code></td><td>Serve one file at <code>path</code></td></tr>
+<tr><td><code>staticFiles(urlPrefix, directory)</code></td><td>Serve <code>directory</code> under the URL prefix</td></tr>
+<tr><td><code>staticSite(directory)</code></td><td>Serve <code>directory</code>; <code>/</code> maps to <code>/index.html</code></td></tr>
+<tr><td><code>wsEcho(path)</code></td><td>WebSocket echo endpoint</td></tr>
+<tr><td><code>clearRoutes()</code></td><td>Drop pending routes, WebSocket paths and static trees</td></tr>
+</table>
+<p><code>HEAD</code> is served by the matching <code>GET</code> route.</p>
+<h3 id="templates">Templates</h3>
+<p><code>dataJson</code> is a JSON object whose keys become template variables, addressed as <code>{{ key }}</code> and <code>{{ nested.key }}</code>. The original used Jinja2; this is the documented substitution subset — loops and conditionals are not implemented. An unknown key renders as the empty string. <code>setTemplateFolder(folder)</code> sets the directory that <code>template</code> / <code>templatePost</code> resolve file names against.</p>
+<pre><code>global.server.templateString(&quot;/greet&quot;, &quot;&lt;h1&gt;Hello, {{ name }}!&lt;/h1&gt;&quot;,
+                             &quot;{\&quot;name\&quot;:\&quot;World\&quot;}&quot;);</code></pre>
+<h2 id="middleware-and-error-bodies">Middleware and error bodies</h2>
+<table>
+<tr><th>Function</th><th>Description</th></tr>
+<tr><td><code>cors()</code></td><td><code>Access-Control-Allow-Origin: *</code> on every response</td></tr>
+<tr><td><code>corsOrigin(origin)</code></td><td>Allow one origin instead of <code>*</code></td></tr>
+<tr><td><code>addGlobalHeader(key, value)</code></td><td>Append a header to every response</td></tr>
+<tr><td><code>enableRequestLog()</code></td><td>Print <code>METHOD /path</code> for each request</td></tr>
+<tr><td><code>setDebug(enabled)</code></td><td>Debug flag; also enables request logging</td></tr>
+<tr><td><code>notFound(body)</code> / <code>serverError(body)</code> / <code>forbidden(body)</code> / <code>methodNotAllowed(body)</code></td><td>Replace the default 404 / 500 / 403 / 405 body</td></tr>
+</table>
+<p>With CORS enabled, an <code>OPTIONS</code> preflight is answered <code>204</code> with <code>Access-Control-Allow-Methods</code> and <code>-Headers</code>.</p>
+<h2 id="request-context">Request context</h2>
+<p>These read the <strong>most recently handled request</strong>. A Lynxer route is a fixed string rather than a callback, and the interpreter evaluates one frame at a time, so there is no point at which such a reader could run <em>inside</em> a request; the original's Flask request context has no equivalent here. Each returns <code>&quot;&quot;</code> when no request has been handled yet.</p>
+<table>
+<tr><th>Function</th><th>Description</th></tr>
+<tr><td><code>getMethod()</code> / <code>getPath()</code> / <code>getUrl()</code></td><td>Verb, path, and <code>http://host/path?query</code></td></tr>
+<tr><td><code>getBody()</code> / <code>getContentType()</code></td><td>Raw body and the request <code>Content-Type</code></td></tr>
+<tr><td><code>getHeader(name)</code> / <code>getCookie(name)</code></td><td>A header (case-insensitive) or cookie value</td></tr>
+<tr><td><code>getArg(name)</code> / <code>getForm(name)</code></td><td>Query-string parameter / form field</td></tr>
+<tr><td><code>getRemoteAddr()</code></td><td>Client IP address</td></tr>
+</table>
+<h2 id="lifecycle">Lifecycle</h2>
+<table>
+<tr><th>Function</th><th>Description</th></tr>
+<tr><td><code>start(port)</code></td><td>Listen on <code>127.0.0.1:port</code> in the background</td></tr>
+<tr><td><code>stop()</code></td><td>Stop the listener</td></tr>
+<tr><td><code>running()</code> / <code>port()</code></td><td>Listener state and bound port</td></tr>
+<tr><td><code>init(host, port)</code></td><td>Record the host and port for <code>run()</code></td></tr>
+<tr><td><code>run()</code></td><td>Start on the recorded host/port, then <strong>block</strong> until the process ends</td></tr>
+<tr><td><code>runHTTPS(cert, key)</code> / <code>runSSLAdhoc()</code></td><td>Not available — see below</td></tr>
+</table>
+<p><code>run()</code> blocks, matching the original. Use <code>start()</code> + <code>stop()</code> when the program has to keep running.</p>
+<p><strong>TLS is not built.</strong> <code>runHTTPS</code> and <code>runSSLAdhoc</code> return an <code>ERROR:</code> string explaining that this build has no TLS backend: <code>axum-server</code>, <code>tokio-rustls</code>, <code>rustls-pemfile</code> and <code>rcgen</code> are not among the pinned dependencies, and adding them would make the module require network access to build.</p>
 <hr>
 <h2 id="see-also">See also</h2>
 <ul>

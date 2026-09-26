@@ -162,6 +162,14 @@
 <li><code>tui</code> (<code>ratatui</code>/<code>crossterm</code>)</li>
 </ul>
 <p>These modules are skipped with a warning if <code>cargo</code> is missing, allowing the rest of Lynxer to build without a Rust toolchain. The Rust workspace includes an <code>ffi</code> member, an intentional no-op <code>cdylib</code>, since the <code>ffi*</code> builtins are implemented in C++.</p>
+<h3 id="server--constrained-behavior"><code>server</code> — Constrained Behavior</h3>
+<ul>
+<li><strong>TLS is not built.</strong> <code>runHTTPS(cert, key)</code> and <code>runSSLAdhoc()</code> return an explanatory <code>ERROR:</code> string instead of starting a listener. Servers terminate TLS in a reverse proxy, or the module is rebuilt with a TLS backend (<code>axum-server</code>, <code>rustls-pemfile</code>, <code>rcgen</code> are not among the pinned dependencies; adding them would make the module require network access).</li>
+<li><strong>Request-context readers describe the last request.</strong> <code>getArg</code>, <code>getHeader</code>, <code>getBody</code> and friends read the most recently handled request, because a Lynxer route is a fixed string rather than a callback and the interpreter evaluates one frame at a time. The original's Flask request context has no equivalent.</li>
+<li><strong>Templates are a substitution subset.</strong> <code>template</code>, <code>templatePost</code> and <code>templateString</code> render <code>{{ key }}</code> and <code>{{ nested.key }}</code> from the <code>dataJson</code> object. Jinja2 loops, conditionals, filters and inheritance are not implemented, and an unknown key renders as the empty string.</li>
+<li><strong><code>run()</code> blocks.</strong> It starts the listener on the <code>init</code> host/port and then blocks, matching the original. Use <code>start()</code> + <code>stop()</code> when the program has to keep running.</li>
+<li><strong>Static paths are confined.</strong> <code>staticFiles</code>, <code>staticSite</code> and <code>serveFile</code> refuse any <code>..</code> component, and a bad file read is a 404.</li>
+</ul>
 <h3 id="json--constrained-behavior"><code>json</code> — Constrained Behavior</h3>
 <ul>
 <li>Non-finite numbers (<code>NaN</code>, <code>Infinity</code>) are encoded as <code>null</code> to ensure valid JSON output.</li>

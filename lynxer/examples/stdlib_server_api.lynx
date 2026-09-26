@@ -1,0 +1,179 @@
+////
+Fixture for the extended server API: every HTTP verb, JSON routes, redirects,
+Jinja-style template routes, single-file and static-tree serving, custom error
+bodies, CORS and global headers, and the request-context readers.
+
+It only prints scalars and booleans. Raw HTTP responses carry a `date` header
+and lowercase header names, so the raw-TCP checks assert `contains` rather than
+echoing the response.
+////
+global setup(){
+    import("server");
+    import("network");
+    import("fileIO");
+    import("text");
+}
+
+global main(){
+    global.fileIO.writeFile("lynxer_scratch_tpl.html", "<h1>{{ title }} / {{ user.name }}</h1>");
+    global.fileIO.writeFile("lynxer_scratch_static.txt", "static-body");
+
+    println(global.server.clearRoutes());
+    println(global.server.setTemplateFolder("."));
+    println(global.server.setDebug(false));
+
+    // Every verb, plus a custom status, an any-verb route and a form route.
+    println(global.server.get("/g", "get-body"));
+    println(global.server.put("/v", "put-body"));
+    println(global.server.delete("/d", "del-body"));
+    println(global.server.patch("/p", "patch-body"));
+    println(global.server.anyHttp("/any", "any-body"));
+    println(global.server.getStatus("/teapot", "teapot", 418));
+    println(global.server.post("/form", "form-ok"));
+    // Duplicates key on the verb, so a second PUT is rejected and a GET of the
+    // same path is not.
+    println(global.server.put("/v", "again"));
+    println(global.server.get("/v", "get-on-v"));
+
+    // JSON routes.
+    println(global.server.jsonGet("/j", "{\"ok\":true}"));
+    println(global.server.jsonPost("/jp", "{\"n\":1}"));
+    println(global.server.jsonRoute("/jr", "{\"r\":true}"));
+    println(global.server.jsonStatus("/je", "{\"e\":1}", 404));
+
+    // Redirects.
+    println(global.server.redirect("/old", "/g"));
+    println(global.server.redirect301("/perm", "/g"));
+
+    // Templates and files.
+    println(global.server.template("/tpl", "lynxer_scratch_tpl.html",
+                                   "{\"title\":\"Home\",\"user\":{\"name\":\"Ada\"}}"));
+    println(global.server.templatePost("/tplp", "lynxer_scratch_tpl.html",
+                                       "{\"title\":\"Post\",\"user\":{\"name\":\"Bob\"}}"));
+    println(global.server.templateString("/inline", "<p>{{ greeting }}, {{ name }}!</p>",
+                                         "{\"greeting\":\"Hi\",\"name\":\"World\"}"));
+    println(global.server.templateString("/empty", "<i>{{ missing }}</i>", "{}"));
+    println(global.server.serveFile("/one", "lynxer_scratch_static.txt"));
+    println(global.server.staticFiles("/assets", "."));
+    println(global.server.staticSite("."));
+
+    // Registration validation.
+    println(global.server.staticFiles("assets", "."));
+    println(global.server.corsOrigin(""));
+    println(global.server.addGlobalHeader("bad name", "x"));
+    println(global.server.addGlobalHeader("x-lynxer", "yes"));
+    println(global.server.corsOrigin("https://example.test"));
+
+    // Custom error bodies.
+    println(global.server.notFound("<h1>gone</h1>"));
+    println(global.server.serverError("<h1>boom</h1>"));
+    println(global.server.forbidden("<h1>denied</h1>"));
+    println(global.server.methodNotAllowed("<h1>method-nope</h1>"));
+
+    // TLS is not built in this dependency set.
+    println(global.server.runSSLAdhoc());
+    println(global.server.start(70000));
+
+    println(global.server.start(18130));
+    sleep(0.3);
+    str base = "http://127.0.0.1:18130";
+
+    println(global.network.get(base + "/g"));
+    println(global.network.put(base + "/v", "ignored", "text/plain"));
+    println(global.network.delete(base + "/d"));
+    println(global.network.patch(base + "/p", "ignored", "text/plain"));
+    println(global.network.get(base + "/any"));
+    println(global.network.post(base + "/any", "x", "text/plain"));
+    println(global.network.get(base + "/v"));
+    println(global.network.getStatus(base + "/teapot"));
+    println(global.network.httpHead(base + "/g"));
+
+    println(global.network.get(base + "/j"));
+    println(global.text.contains(global.network.getHeaders(base + "/j"),
+                                 "Content-Type: application/json"));
+    println(global.network.postJson(base + "/jr", "{}"));
+    println(global.network.getStatus(base + "/je"));
+
+    println(global.network.get(base + "/tpl"));
+    println(global.network.post(base + "/tplp", "x", "text/plain"));
+    println(global.network.get(base + "/inline"));
+    println(global.network.get(base + "/empty"));
+
+    println(global.network.get(base + "/one"));
+    println(global.network.get(base + "/assets/lynxer_scratch_static.txt"));
+    // The site root serves /index.html, which does not exist here, so this is a
+    // 404 rather than the tree's file.
+    println(global.network.getStatus(base + "/"));
+    println(global.network.get(base + "/lynxer_scratch_static.txt"));
+    // Traversal is refused.
+    println(global.network.getStatus(base + "/assets/../lynxer_scratch_static.txt"));
+
+    // Redirects are followed by the HTTP client, so the body of the target is
+    // what comes back.
+    println(global.network.get(base + "/old"));
+    println(global.network.get(base + "/perm"));
+
+    println(global.network.getStatus(base + "/missing"));
+    println(global.network.getStatus(base + "/v"));
+
+    // Raw requests reveal the custom bodies, the redirect status/location and
+    // the CORS and global headers.
+    str rawStatus = global.network.tcpConnect("raw", "127.0.0.1", 18130);
+    println(rawStatus);
+    println(global.network.tcpSend("raw", "GET /missing HTTP/1.0\r\nHost: x\r\n\r\n"));
+    str missing = global.network.tcpReceive("raw", 8192);
+    println(global.text.contains(missing, "gone"));
+    println(global.network.tcpClose("raw"));
+
+    str raw2Status = global.network.tcpConnect("raw2", "127.0.0.1", 18130);
+    println(raw2Status);
+    println(global.network.tcpSend("raw2", "GET /old HTTP/1.0\r\nHost: x\r\n\r\n"));
+    str redirected = global.network.tcpReceive("raw2", 8192);
+    println(global.text.contains(redirected, "302"));
+    println(global.text.contains(redirected, "location: /g"));
+    println(global.network.tcpClose("raw2"));
+
+    str raw3Status = global.network.tcpConnect("raw3", "127.0.0.1", 18130);
+    println(raw3Status);
+    println(global.network.tcpSend("raw3", "GET /g HTTP/1.0\r\nHost: x\r\n\r\n"));
+    str decorated = global.network.tcpReceive("raw3", 8192);
+    println(global.text.contains(decorated, "x-lynxer: yes"));
+    println(global.text.contains(decorated,
+                                 "access-control-allow-origin: https://example.test"));
+    println(global.network.tcpClose("raw3"));
+
+    str raw4Status = global.network.tcpConnect("raw4", "127.0.0.1", 18130);
+    println(raw4Status);
+    println(global.network.tcpSend("raw4",
+        "POST /form?q=hello HTTP/1.0\r\nHost: raw-host\r\nCookie: session=abc123\r\nContent-Type: application/x-www-form-urlencoded\r\nContent-Length: 9\r\n\r\nname=ada!"));
+    str form = global.network.tcpReceive("raw4", 8192);
+    println(global.text.contains(form, "form-ok"));
+    println(global.network.tcpClose("raw4"));
+
+    // The request-context readers describe that last POST.
+    println(global.server.getMethod());
+    println(global.server.getPath());
+    println(global.server.getUrl());
+    println(global.server.getArg("q"));
+    println(global.server.getArg("absent"));
+    println(global.server.getForm("name"));
+    println(global.server.getCookie("session"));
+    println(global.server.getCookie("absent"));
+    println(global.server.getHeader("cookie"));
+    println(global.server.getContentType());
+    println(global.server.getBody());
+    println(returnLength(global.server.getRemoteAddr()) > 0);
+
+    // Request logging is enabled last, followed by exactly one blocking
+    // request: the server logs before it responds, so the line lands in a fixed
+    // place. Enabling it earlier would race with `tcpSend`, which returns before
+    // the server has processed the request.
+    println(global.server.enableRequestLog());
+    println(global.network.get(base + "/g"));
+
+    println(global.server.stop());
+    println(global.server.running());
+
+    println(global.fileIO.deleteFile("lynxer_scratch_tpl.html"));
+    println(global.fileIO.deleteFile("lynxer_scratch_static.txt"));
+}

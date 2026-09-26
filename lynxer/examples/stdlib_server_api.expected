@@ -1,0 +1,100 @@
+ok
+ok
+ok
+ok
+ok
+ok
+ok
+ok
+ok
+ok
+ERROR: PUT route already registered
+ok
+ok
+ok
+ok
+ok
+ok
+ok
+ok
+ok
+ok
+ok
+ok
+ok
+ok
+ERROR: path must start with '/'
+ERROR: origin must not be empty
+ERROR: invalid header name or value
+ok
+ok
+ok
+ok
+ok
+ok
+ERROR: runSSLAdhoc() is not available: generating a self-signed certificate needs rcgen, which is not among the pinned dependencies
+ERROR: invalid port
+ok
+get-body
+put-body
+del-body
+patch-body
+any-body
+any-body
+get-on-v
+418
+200
+{"ok":true}
+true
+{"r":true}
+404
+<h1>Home / Ada</h1>
+<h1>Post / Bob</h1>
+<p>Hi, World!</p>
+<i></i>
+static-body
+static-body
+404
+static-body
+404
+get-body
+get-body
+404
+200
+ok
+ok
+true
+ok
+ok
+ok
+true
+true
+ok
+ok
+ok
+true
+true
+ok
+ok
+ok
+true
+ok
+POST
+/form
+http://raw-host/form?q=hello
+hello
+
+ada!
+abc123
+
+session=abc123
+application/x-www-form-urlencoded
+name=ada!
+true
+ok
+GET /g
+get-body
+ok
+false
+true
+true

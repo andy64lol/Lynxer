@@ -1180,7 +1180,10 @@ name = "lynxer_server"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "form_urlencoded",
  "lynxer_abi",
+ "percent-encoding",
+ "serde_json",
  "tokio",
 ]
 

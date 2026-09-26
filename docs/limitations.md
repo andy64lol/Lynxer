@@ -101,6 +101,27 @@ Lynxer ships modules backed by native implementations. Nine of them are Rust cra
 
 These modules are skipped with a warning if `cargo` is missing, allowing the rest of Lynxer to build without a Rust toolchain. The Rust workspace includes an `ffi` member, an intentional no-op `cdylib`, since the `ffi*` builtins are implemented in C++.
 
+### `server` — Constrained Behavior
+
+- **TLS is not built.** `runHTTPS(cert, key)` and `runSSLAdhoc()` return an
+  explanatory `ERROR:` string instead of starting a listener. Servers terminate
+  TLS in a reverse proxy, or the module is rebuilt with a TLS backend
+  (`axum-server`, `rustls-pemfile`, `rcgen` are not among the pinned
+  dependencies; adding them would make the module require network access).
+- **Request-context readers describe the last request.** `getArg`, `getHeader`,
+  `getBody` and friends read the most recently handled request, because a Lynxer
+  route is a fixed string rather than a callback and the interpreter evaluates
+  one frame at a time. The original's Flask request context has no equivalent.
+- **Templates are a substitution subset.** `template`, `templatePost` and
+  `templateString` render `{{ key }}` and `{{ nested.key }}` from the `dataJson`
+  object. Jinja2 loops, conditionals, filters and inheritance are not
+  implemented, and an unknown key renders as the empty string.
+- **`run()` blocks.** It starts the listener on the `init` host/port and then
+  blocks, matching the original. Use `start()` + `stop()` when the program has
+  to keep running.
+- **Static paths are confined.** `staticFiles`, `staticSite` and `serveFile`
+  refuse any `..` component, and a bad file read is a 404.
+
 ### `json` — Constrained Behavior
 
 - Non-finite numbers (`NaN`, `Infinity`) are encoded as `null` to ensure valid JSON output.
