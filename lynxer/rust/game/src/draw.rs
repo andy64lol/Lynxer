@@ -76,7 +76,7 @@ fn fill_arc(x: f32, y: f32, radius: f32, start_degrees: f32, end_degrees: f32, c
     }
 }
 
-fn draw_anchored_text(
+pub(crate) fn draw_anchored_text(
     state: &State,
     text: &str,
     x: f32,

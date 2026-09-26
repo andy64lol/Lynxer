@@ -1,0 +1,98 @@
+////
+Fixture for the extended game API: scenes, text labels, tilemaps, platformer
+physics, animated sprites, sound and the window helpers.
+
+The runner sets LYNXER_GAME_HEADLESS=1, so no window opens: scene/label/physics
+and tilemap work is pure data and runs for real, while the texture-backed
+(`makeAnimatedSprite`, `loadSound`) and GPU-backed (`screenshot`) calls return
+their headless sentinel. The tilemap is written to a scratch file under the cwd
+so the fixture works from any directory.
+////
+global setup(){ import("game"); import("fileIO"); }
+
+global main(){
+    global.game.init("game-api", 320, 200);
+
+    // --- scenes ---------------------------------------------------------
+    int list = global.game.makeSpriteList();
+    int first = global.game.makeSolidSprite(10, 10, 255, 0, 0, 4.0, 4.0);
+    int second = global.game.makeSolidSprite(10, 10, 0, 255, 0, 20.0, 4.0);
+    global.game.addToList(list, first);
+    global.game.addToList(list, second);
+    int scene = global.game.makeScene();
+    println("scene=", scene, " addList=", global.game.addListToScene(scene, list, "main"));
+    // Re-adding the same name replaces the entry rather than duplicating it.
+    println("addAgain=", global.game.addListToScene(scene, list, "main"));
+    println("addBad=", global.game.addListToScene(999, list, "x"));
+    println("addBadList=", global.game.addListToScene(scene, 999, "x"));
+    println("drawScene=", global.game.drawScene(scene), " updateScene=", global.game.updateScene(scene));
+    println("drawSceneBad=", global.game.drawScene(999), " updateSceneBad=", global.game.updateScene(999));
+    println("layerMissing=", global.game.getTilemapLayer(scene, "nope"));
+
+    // Updating a scene applies its sprites' velocities.
+    global.game.setSpriteVelocity(second, 60.0, 0.0);
+    println("updateScene2=", global.game.updateScene(scene), " x=", global.game.getSpriteX(second));
+    global.game.stopSprite(second);
+
+    // --- text labels ----------------------------------------------------
+    int label = global.game.makeTextLabel("hi", 5.0, 6.0, 255, 255, 255, 12, "center");
+    println("label=", label);
+    println("setText=", global.game.setTextLabel(label, "bye"));
+    println("setPos=", global.game.setTextLabelPos(label, 1.0, 2.0));
+    println("setColor=", global.game.setTextLabelColor(label, 1, 2, 3, 4));
+    println("drawLabel=", global.game.drawTextLabel(label));
+    println("setTextBad=", global.game.setTextLabel(999, "x"));
+    println("setPosBad=", global.game.setTextLabelPos(999, 0.0, 0.0));
+    println("setColorBad=", global.game.setTextLabelColor(999, 0, 0, 0, 0));
+    println("destroy=", global.game.destroyTextLabel(label));
+    println("destroyAgain=", global.game.destroyTextLabel(label));
+
+    // --- tilemap --------------------------------------------------------
+    str tmx = "<?xml version=\"1.0\"?><map><tileset firstgid=\"1\" name=\"t\" tilewidth=\"16\" tileheight=\"16\"><image source=\"t.png\" width=\"32\" height=\"32\"/></tileset><layer name=\"Walls\" width=\"3\" height=\"2\"><data encoding=\"csv\">1,1,1,0,1,0</data></layer></map>";
+    global.fileIO.writeFile("lynxer_scratch_map.tmx", tmx);
+    int mapScene = global.game.loadTilemap("lynxer_scratch_map.tmx", 1.0);
+    println("tilemap=", mapScene > 0);
+    int walls = global.game.getTilemapLayer(mapScene, "Walls");
+    println("walls=", walls > 0, " count=", global.game.getSpriteListCount(walls));
+    // The geometry is pinned through the player's resting height below: a
+    // two-row map puts the top wall face at y = 32, so a 10-high player rests
+    // at y = 37.
+    println("missingMap=", global.game.loadTilemap("lynxer_scratch_missing.tmx", 1.0));
+    println("badLayer=", global.game.getTilemapLayer(mapScene, "Nope"));
+
+    // --- physics --------------------------------------------------------
+    // A player dropped above the wall column lands on it.
+    int player = global.game.makeSolidSprite(10, 10, 0, 0, 255, 24.0, 40.0);
+    int engine = global.game.makePhysicsEngine(100.0, walls);
+    println("engine=", engine, " setPlayer=", global.game.setPhysicsPlayer(engine, player));
+    println("setPlayerBad=", global.game.setPhysicsPlayer(engine, -1));
+    println("canJump0=", global.game.canJump(engine));
+    for (int step = 0; step < 60; step += 1) {
+        global.game.updatePhysics(engine);
+    }
+    println("canJump1=", global.game.canJump(engine));
+    println("vy=", global.game.getPlayerVY(engine));
+    println("restY=", global.game.getSpriteY(player));
+    println("jump=", global.game.jumpPlayer(engine, 60.0), " vyJump=", global.game.getPlayerVY(engine));
+    println("canJumpAfterJump=", global.game.canJump(engine));
+    global.game.updatePhysics(engine);
+    println("vyRising=", global.game.getPlayerVY(engine) > 50.0);
+    println("updateBad=", global.game.updatePhysics(999), " canJumpBad=", global.game.canJump(999));
+    println("jumpBad=", global.game.jumpPlayer(999, 10.0), " vyBad=", global.game.getPlayerVY(999));
+
+    // --- animation and sound (headless sentinels) -----------------------
+    println("anim=", global.game.makeAnimatedSprite("[\"a.png\",\"b.png\"]", 8.0, 0.0, 0.0));
+    println("animBad=", global.game.makeAnimatedSprite("[]", 8.0, 0.0, 0.0));
+    println("updateAnimBad=", global.game.updateAnimation(-1, 0.1));
+    println("sound=", global.game.loadSound("x.wav"));
+    println("playBad=", global.game.playSound(-1));
+    println("loopBad=", global.game.loopSound(-1));
+    println("stopBad=", global.game.stopSound(-1));
+    println("volumeBad=", global.game.setSoundVolume(-1, 0.5) , " playingBad=", global.game.isSoundPlaying(-1));
+
+    // --- window ---------------------------------------------------------
+    println("windowPos=", global.game.setWindowPos(10, 20));
+    println("screenshot=", global.game.screenshot("lynxer_scratch_shot.png"));
+
+    println(global.fileIO.deleteFile("lynxer_scratch_map.tmx"));
+}

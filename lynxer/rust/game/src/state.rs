@@ -5,7 +5,9 @@
 //! borrows the state exactly once.
 
 use std::cell::RefCell;
+use std::collections::HashMap;
 
+use macroquad::audio::Sound;
 use macroquad::color::{Color, BLACK};
 use macroquad::texture::Texture2D;
 
@@ -29,6 +31,48 @@ impl Camera {
             zoom: 1.0,
         }
     }
+}
+
+/// A scene: named sprite lists that are drawn and updated together.
+pub struct Scene {
+    pub lists: Vec<(String, i64)>,
+}
+
+/// A HUD text label. `size` is a font size and `anchor` is `left` / `center` /
+/// `right`, matching the drawing helper.
+pub struct TextLabel {
+    pub text: String,
+    pub x: f32,
+    pub y: f32,
+    pub color: Color,
+    pub size: f32,
+    pub anchor: String,
+}
+
+/// A platformer physics engine over one player sprite and an optional wall
+/// list. Ground state is recomputed every step.
+pub struct PhysicsEngine {
+    pub gravity: f32,
+    pub walls: i64,
+    pub player: i64,
+    pub on_ground: bool,
+}
+
+/// A loaded sound plus the module's own playback state. A finished one-shot is
+/// not detected, so `isSoundPlaying` reports what the module was last told.
+pub struct SoundEntry {
+    pub sound: Sound,
+    pub volume: f32,
+    pub playing: bool,
+}
+
+/// An animated sprite: the texture indices it cycles through, its rate and the
+/// time spent on the current frame.
+pub struct Animation {
+    pub textures: Vec<i64>,
+    pub fps: f32,
+    pub elapsed: f32,
+    pub frame: usize,
 }
 
 /// A sprite. Solid sprites carry an explicit rectangle; textured sprites take
@@ -110,6 +154,11 @@ pub struct State {
     pub textures: Vec<Option<Texture2D>>,
     pub cameras: Vec<Camera>,
     pub active_camera: Option<usize>,
+    pub scenes: Vec<Scene>,
+    pub labels: Vec<Option<TextLabel>>,
+    pub engines: Vec<Option<PhysicsEngine>>,
+    pub sounds: Vec<Option<SoundEntry>>,
+    pub animations: HashMap<i64, Animation>,
     pub mouse_query_x: f32,
     pub mouse_query_y: f32,
     pub scroll_x: f32,
@@ -138,6 +187,11 @@ impl State {
             textures: Vec::new(),
             cameras: Vec::new(),
             active_camera: None,
+            scenes: Vec::new(),
+            labels: Vec::new(),
+            engines: Vec::new(),
+            sounds: Vec::new(),
+            animations: HashMap::new(),
             mouse_query_x: 0.0,
             mouse_query_y: 0.0,
             scroll_x: 0.0,
@@ -155,6 +209,11 @@ impl State {
         self.textures.clear();
         self.cameras.clear();
         self.active_camera = None;
+        self.scenes.clear();
+        self.labels.clear();
+        self.engines.clear();
+        self.sounds.clear();
+        self.animations.clear();
         self.quit_requested = false;
         self.sim_time = 0.0;
     }

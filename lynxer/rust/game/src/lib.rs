@@ -13,6 +13,7 @@
 
 mod camera;
 mod draw;
+mod extras;
 mod host;
 mod input;
 mod sprites;
@@ -718,6 +719,34 @@ const OPS: &[(&str, &str, &str)] = &[
         "lynxer_game_tile_to_screen",
         "cdecl:cstring(...)",
     ),
+    ("makeScene", "lynxer_game_make_scene", "cdecl:int64(...)"),
+    ("addListToScene", "lynxer_game_add_list_to_scene", "cdecl:int64(...)"),
+    ("drawScene", "lynxer_game_draw_scene", "cdecl:int64(...)"),
+    ("updateScene", "lynxer_game_update_scene", "cdecl:int64(...)"),
+    ("makeTextLabel", "lynxer_game_make_text_label", "cdecl:int64(...)"),
+    ("setTextLabel", "lynxer_game_set_text_label", "cdecl:int64(...)"),
+    ("setTextLabelPos", "lynxer_game_set_text_label_pos", "cdecl:int64(...)"),
+    ("setTextLabelColor", "lynxer_game_set_text_label_color", "cdecl:int64(...)"),
+    ("drawTextLabel", "lynxer_game_draw_text_label", "cdecl:int64(...)"),
+    ("destroyTextLabel", "lynxer_game_destroy_text_label", "cdecl:int64(...)"),
+    ("loadTilemap", "lynxer_game_load_tilemap", "cdecl:int64(...)"),
+    ("getTilemapLayer", "lynxer_game_get_tilemap_layer", "cdecl:int64(...)"),
+    ("makePhysicsEngine", "lynxer_game_make_physics_engine", "cdecl:int64(...)"),
+    ("setPhysicsPlayer", "lynxer_game_set_physics_player", "cdecl:int64(...)"),
+    ("updatePhysics", "lynxer_game_update_physics", "cdecl:int64(...)"),
+    ("canJump", "lynxer_game_can_jump", "cdecl:int64(...)"),
+    ("jumpPlayer", "lynxer_game_jump_player", "cdecl:int64(...)"),
+    ("getPlayerVY", "lynxer_game_get_player_vy", "cdecl:float64(...)"),
+    ("makeAnimatedSprite", "lynxer_game_make_animated_sprite", "cdecl:int64(...)"),
+    ("updateAnimation", "lynxer_game_update_animation", "cdecl:int64(...)"),
+    ("loadSound", "lynxer_game_load_sound", "cdecl:int64(...)"),
+    ("playSound", "lynxer_game_play_sound", "cdecl:int64(...)"),
+    ("loopSound", "lynxer_game_loop_sound", "cdecl:int64(...)"),
+    ("stopSound", "lynxer_game_stop_sound", "cdecl:int64(...)"),
+    ("setSoundVolume", "lynxer_game_set_sound_volume", "cdecl:int64(...)"),
+    ("isSoundPlaying", "lynxer_game_is_sound_playing", "cdecl:int64(...)"),
+    ("setWindowPos", "lynxer_game_set_window_pos", "cdecl:int64(...)"),
+    ("screenshot", "lynxer_game_screenshot", "cdecl:int64(...)"),
 ];
 
 lynxer_abi::lynxer_module!(OPS);

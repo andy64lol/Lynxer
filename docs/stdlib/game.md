@@ -61,6 +61,17 @@ no-op, so the API and the callback bridge can be tested without a display. The
 
 ## Window
 
+Alongside `setTitle`, `setBackground`, `getWidth`/`getHeight`, `setWindowSize`,
+`setResizable`, `setMouseVisible`, `setFPSCap`, `getFPS`, `setFullscreen`,
+`hideCursor`/`showCursor` and `close`:
+
+| Function | Description |
+|----------|-------------|
+| `setWindowPos(x, y)` | Move the window (a no-op headless) |
+| `screenshot(path)` | Save the current frame as a PNG; `-1` headless |
+
+## Lifecycle and timing
+
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `init` | `init(str title, int width, int height)` | Configure the window. Call first. |
@@ -77,7 +88,6 @@ no-op, so the API and the callback bridge can be tested without a display. The
 | `close` | `close()` | Ask the loop to stop after the current frame. |
 | `isOpen` | `isOpen() -> bool` | True while the window is open. |
 
-## Lifecycle and timing
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
@@ -233,6 +243,76 @@ The camera is a transform applied by the draw calls.
 | `tileToScreen` | `(int tx, int ty, int tileSize) -> str` | Tile → `"sx,sy"` centre. |
 
 ---
+
+## Scenes
+
+A scene is a named collection of sprite lists that are drawn and updated
+together.
+
+| Function | Description |
+|----------|-------------|
+| `makeScene()` | Empty scene; returns its index |
+| `addListToScene(sceneIdx, listIdx, name)` | Add (or replace) a named list |
+| `drawScene(sceneIdx)` | Draw every list in the scene |
+| `updateScene(sceneIdx)` | Apply each sprite's velocity for one frame |
+
+## Text labels
+
+| Function | Description |
+|----------|-------------|
+| `makeTextLabel(text, x, y, r, g, b, size, anchorX)` | Create a label; `anchorX` is `left`, `center` or `right` |
+| `setTextLabel(idx, text)` / `setTextLabelPos(idx, x, y)` / `setTextLabelColor(idx, r, g, b, a)` | Change the label |
+| `drawTextLabel(idx)` | Draw it during `on_draw` |
+| `destroyTextLabel(idx)` | Release the slot |
+
+## Tilemap
+
+`loadTilemap(tmxPath, scaling)` reads a Tiled `.tmx` file and returns a **scene**
+index; `getTilemapLayer(sceneIdx, layerName)` returns the named layer as a
+**sprite list**. Only the first `<tileset>` (for the tile size) and each
+`<layer>`'s comma-separated `<data>` are read — CSV payloads only.
+
+Tiles become solid sprites on the grid, so a map carries geometry and collision
+(hand it to `makePhysicsEngine` as the wall list). The tileset image is **not**
+sliced, so tiles render as shaded blocks rather than artwork.
+
+## Physics
+
+A small platformer engine: gravity plus axis-aligned landing on a wall list.
+
+| Function | Description |
+|----------|-------------|
+| `makePhysicsEngine(gravity, wallsListIdx)` | Create an engine; pass `-1` for no walls |
+| `setPhysicsPlayer(engineIdx, sprIdx)` | Assign the player sprite (required before updating) |
+| `updatePhysics(engineIdx)` | One step at the current frame `dt` |
+| `canJump(engineIdx)` | `true` while the player rests on a wall |
+| `jumpPlayer(engineIdx, jumpSpeed)` | Set the player's Y velocity when grounded |
+| `getPlayerVY(engineIdx)` | The player's current Y velocity |
+
+Only vertical motion and landing/ceiling contact are modelled; there is no
+horizontal collision resolution.
+
+## Animation
+
+| Function | Description |
+|----------|-------------|
+| `makeAnimatedSprite(pathsJson, fps, x, y)` | Sprite cycling through the images in a JSON array |
+| `updateAnimation(idx, dt)` | Advance the frame clock |
+
+Both are texture-backed, so in headless mode `makeAnimatedSprite` returns `-1`.
+
+## Sound
+
+| Function | Description |
+|----------|-------------|
+| `loadSound(path)` | Load an audio file; returns an index |
+| `playSound(idx)` / `loopSound(idx)` | Play once / loop |
+| `stopSound(idx)` | Stop playback |
+| `setSoundVolume(idx, volume)` | Volume from `0.0` to `1.0` |
+| `isSoundPlaying(idx)` | Playback state tracked by the module |
+
+Playback state is tracked by the module, so a one-shot that has finished still
+reports as playing until `stopSound`. In headless mode `loadSound` returns `-1`.
 
 ## Notes and current limitations
 

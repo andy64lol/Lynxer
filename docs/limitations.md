@@ -101,6 +101,22 @@ Lynxer ships modules backed by native implementations. Nine of them are Rust cra
 
 These modules are skipped with a warning if `cargo` is missing, allowing the rest of Lynxer to build without a Rust toolchain. The Rust workspace includes an `ffi` member, an intentional no-op `cdylib`, since the `ffi*` builtins are implemented in C++.
 
+### `game` — Constrained Behavior
+
+- **Tilemaps carry geometry, not artwork.** `loadTilemap` reads only the first
+  `<tileset>` (for the tile size) and each `<layer>`'s CSV `<data>`; tiles
+  become solid sprites on the grid. The tileset image is not sliced, so the map
+  is useful for collision and layout rather than rendering.
+- **Physics is vertical only.** `updatePhysics` applies gravity and resolves
+  landing and ceiling contact against a wall list. There is no horizontal
+  collision resolution, and no slope/one-way platform support.
+- **Animated sprites and sound are texture/audio-backed.** In headless mode
+  `makeAnimatedSprite` and `loadSound` return `-1`, and `screenshot` returns
+  `-1`; the drawing, sound and screenshot ops are otherwise no-ops.
+- **Sound playback state is tracked by the module.** A one-shot that has
+  finished still reports as playing through `isSoundPlaying` until
+  `stopSound`.
+
 ### `server` — Constrained Behavior
 
 - **TLS is not built.** `runHTTPS(cert, key)` and `runSSLAdhoc()` return an

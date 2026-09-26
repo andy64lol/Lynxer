@@ -1,0 +1,44 @@
+scene=0 addList=0
+addAgain=0
+addBad=-1
+addBadList=-1
+drawScene=0 updateScene=0
+drawSceneBad=0 updateSceneBad=-1
+layerMissing=-1
+updateScene2=0 x=21
+label=0
+setText=0
+setPos=0
+setColor=0
+drawLabel=0
+setTextBad=-1
+setPosBad=-1
+setColorBad=-1
+destroy=0
+destroyAgain=-1
+tilemap=true
+walls=true count=4
+missingMap=-1
+badLayer=-1
+engine=0 setPlayer=0
+setPlayerBad=-1
+canJump0=false
+canJump1=true
+vy=0
+restY=37
+jump=0 vyJump=60
+canJumpAfterJump=false
+vyRising=true
+updateBad=-1 canJumpBad=false
+jumpBad=-1 vyBad=0
+anim=-1
+animBad=-1
+updateAnimBad=-1
+sound=-1
+playBad=-1
+loopBad=-1
+stopBad=-1
+volumeBad=-1 playingBad=false
+windowPos=0
+screenshot=-1
+true

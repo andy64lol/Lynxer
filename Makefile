@@ -71,7 +71,7 @@ LYNXER_SOUND_FIXTURE := $(LYNXER_DIR)/examples/stdlib_sound.lynx
 # LYNXER_SKIP_DISPLAY=1 to drop the fixtures that need one.
 LYNXER_SKIP_DISPLAY ?= 0
 ifeq ($(LYNXER_SKIP_DISPLAY),1)
-LYNXER_DISPLAY_FIXTURES := stdlib_game stdlib_sound
+LYNXER_DISPLAY_FIXTURES := stdlib_game stdlib_game_api stdlib_sound
 else
 LYNXER_DISPLAY_FIXTURES :=
 endif

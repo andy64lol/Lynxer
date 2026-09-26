@@ -289,4 +289,74 @@ global tileToScreen(int tx, int ty, int tileSize) -> str {
     return global.nativeGame.tileToScreen(tx, ty, tileSize);
 }
 
+// Scenes.
+global makeScene() -> int { return global.nativeGame.makeScene(); }
+global addListToScene(int sceneIdx, int listIdx, str name) -> int {
+    return global.nativeGame.addListToScene(sceneIdx, listIdx, name);
+}
+global drawScene(int sceneIdx) -> int { return global.nativeGame.drawScene(sceneIdx); }
+global updateScene(int sceneIdx) -> int { return global.nativeGame.updateScene(sceneIdx); }
+// Text labels.
+global makeTextLabel(str text, float x, float y, int r, int g, int b, int size, str anchorX) -> int {
+    return global.nativeGame.makeTextLabel(text, x, y, r, g, b, size, anchorX);
+}
+global setTextLabel(int idx, str text) -> int {
+    return global.nativeGame.setTextLabel(idx, text);
+}
+global setTextLabelPos(int idx, float x, float y) -> int {
+    return global.nativeGame.setTextLabelPos(idx, x, y);
+}
+global setTextLabelColor(int idx, int r, int g, int b, int a) -> int {
+    return global.nativeGame.setTextLabelColor(idx, r, g, b, a);
+}
+global drawTextLabel(int idx) -> int { return global.nativeGame.drawTextLabel(idx); }
+global destroyTextLabel(int idx) -> int { return global.nativeGame.destroyTextLabel(idx); }
+// Tilemaps.
+global loadTilemap(str tmxPath, float scaling) -> int {
+    return global.nativeGame.loadTilemap(tmxPath, scaling);
+}
+global getTilemapLayer(int sceneIdx, str layerName) -> int {
+    return global.nativeGame.getTilemapLayer(sceneIdx, layerName);
+}
+// Physics.
+global makePhysicsEngine(float gravity, int wallsListIdx) -> int {
+    return global.nativeGame.makePhysicsEngine(gravity, wallsListIdx);
+}
+global setPhysicsPlayer(int engineIdx, int sprIdx) -> int {
+    return global.nativeGame.setPhysicsPlayer(engineIdx, sprIdx);
+}
+global updatePhysics(int engineIdx) -> int {
+    return global.nativeGame.updatePhysics(engineIdx);
+}
+global canJump(int engineIdx) -> bool { return global.nativeGame.canJump(engineIdx) isnt 0; }
+global jumpPlayer(int engineIdx, float jumpSpeed) -> int {
+    return global.nativeGame.jumpPlayer(engineIdx, jumpSpeed);
+}
+global getPlayerVY(int engineIdx) -> float {
+    return global.nativeGame.getPlayerVY(engineIdx);
+}
+// Animation.
+global makeAnimatedSprite(str pathsJson, float fps, float x, float y) -> int {
+    return global.nativeGame.makeAnimatedSprite(pathsJson, fps, x, y);
+}
+global updateAnimation(int idx, float dt) -> int {
+    return global.nativeGame.updateAnimation(idx, dt);
+}
+// Sound.
+global loadSound(str path) -> int { return global.nativeGame.loadSound(path); }
+global playSound(int soundIdx) -> int { return global.nativeGame.playSound(soundIdx); }
+global loopSound(int soundIdx) -> int { return global.nativeGame.loopSound(soundIdx); }
+global stopSound(int soundIdx) -> int { return global.nativeGame.stopSound(soundIdx); }
+global setSoundVolume(int soundIdx, float volume) -> int {
+    return global.nativeGame.setSoundVolume(soundIdx, volume);
+}
+global isSoundPlaying(int soundIdx) -> bool {
+    return global.nativeGame.isSoundPlaying(soundIdx) isnt 0;
+}
+// Window.
+global setWindowPos(int x, int y) -> int {
+    return global.nativeGame.setWindowPos(x, y);
+}
+global screenshot(str path) -> int { return global.nativeGame.screenshot(path); }
+
 global main(){}

@@ -112,6 +112,13 @@ global main(){
 <p>Set <code>LYNXER_GAME_HEADLESS=1</code> to run without a window. <code>run()</code> then executes a fixed number of deterministic frames (<code>dt = 1/60</code>) and every drawing call is a no-op, so the API and the callback bridge can be tested without a display. The <code>make test</code> fixture runner sets this variable; see <code>examples/stdlib_game.lynx</code>.</p>
 <hr>
 <h2 id="window">Window</h2>
+<p>Alongside <code>setTitle</code>, <code>setBackground</code>, <code>getWidth</code>/<code>getHeight</code>, <code>setWindowSize</code>, <code>setResizable</code>, <code>setMouseVisible</code>, <code>setFPSCap</code>, <code>getFPS</code>, <code>setFullscreen</code>, <code>hideCursor</code>/<code>showCursor</code> and <code>close</code>:</p>
+<table>
+<tr><th>Function</th><th>Description</th></tr>
+<tr><td><code>setWindowPos(x, y)</code></td><td>Move the window (a no-op headless)</td></tr>
+<tr><td><code>screenshot(path)</code></td><td>Save the current frame as a PNG; <code>-1</code> headless</td></tr>
+</table>
+<h2 id="lifecycle-and-timing">Lifecycle and timing</h2>
 <table>
 <tr><th>Function</th><th>Signature</th><th>Description</th></tr>
 <tr><td><code>init</code></td><td><code>init(str title, int width, int height)</code></td><td>Configure the window. Call first.</td></tr>
@@ -128,7 +135,6 @@ global main(){
 <tr><td><code>close</code></td><td><code>close()</code></td><td>Ask the loop to stop after the current frame.</td></tr>
 <tr><td><code>isOpen</code></td><td><code>isOpen() -&gt; bool</code></td><td>True while the window is open.</td></tr>
 </table>
-<h2 id="lifecycle-and-timing">Lifecycle and timing</h2>
 <table>
 <tr><th>Function</th><th>Signature</th><th>Description</th></tr>
 <tr><td><code>run</code></td><td><code>run()</code></td><td>Start the blocking frame loop.</td></tr>
@@ -262,6 +268,55 @@ global main(){
 <tr><td><code>tileToScreen</code></td><td><code>(int tx, int ty, int tileSize) -&gt; str</code></td><td>Tile → <code>&quot;sx,sy&quot;</code> centre.</td></tr>
 </table>
 <hr>
+<h2 id="scenes">Scenes</h2>
+<p>A scene is a named collection of sprite lists that are drawn and updated together.</p>
+<table>
+<tr><th>Function</th><th>Description</th></tr>
+<tr><td><code>makeScene()</code></td><td>Empty scene; returns its index</td></tr>
+<tr><td><code>addListToScene(sceneIdx, listIdx, name)</code></td><td>Add (or replace) a named list</td></tr>
+<tr><td><code>drawScene(sceneIdx)</code></td><td>Draw every list in the scene</td></tr>
+<tr><td><code>updateScene(sceneIdx)</code></td><td>Apply each sprite's velocity for one frame</td></tr>
+</table>
+<h2 id="text-labels">Text labels</h2>
+<table>
+<tr><th>Function</th><th>Description</th></tr>
+<tr><td><code>makeTextLabel(text, x, y, r, g, b, size, anchorX)</code></td><td>Create a label; <code>anchorX</code> is <code>left</code>, <code>center</code> or <code>right</code></td></tr>
+<tr><td><code>setTextLabel(idx, text)</code> / <code>setTextLabelPos(idx, x, y)</code> / <code>setTextLabelColor(idx, r, g, b, a)</code></td><td>Change the label</td></tr>
+<tr><td><code>drawTextLabel(idx)</code></td><td>Draw it during <code>on_draw</code></td></tr>
+<tr><td><code>destroyTextLabel(idx)</code></td><td>Release the slot</td></tr>
+</table>
+<h2 id="tilemap">Tilemap</h2>
+<p><code>loadTilemap(tmxPath, scaling)</code> reads a Tiled <code>.tmx</code> file and returns a <strong>scene</strong> index; <code>getTilemapLayer(sceneIdx, layerName)</code> returns the named layer as a <strong>sprite list</strong>. Only the first <code>&lt;tileset&gt;</code> (for the tile size) and each <code>&lt;layer&gt;</code>'s comma-separated <code>&lt;data&gt;</code> are read — CSV payloads only.</p>
+<p>Tiles become solid sprites on the grid, so a map carries geometry and collision (hand it to <code>makePhysicsEngine</code> as the wall list). The tileset image is <strong>not</strong> sliced, so tiles render as shaded blocks rather than artwork.</p>
+<h2 id="physics">Physics</h2>
+<p>A small platformer engine: gravity plus axis-aligned landing on a wall list.</p>
+<table>
+<tr><th>Function</th><th>Description</th></tr>
+<tr><td><code>makePhysicsEngine(gravity, wallsListIdx)</code></td><td>Create an engine; pass <code>-1</code> for no walls</td></tr>
+<tr><td><code>setPhysicsPlayer(engineIdx, sprIdx)</code></td><td>Assign the player sprite (required before updating)</td></tr>
+<tr><td><code>updatePhysics(engineIdx)</code></td><td>One step at the current frame <code>dt</code></td></tr>
+<tr><td><code>canJump(engineIdx)</code></td><td><code>true</code> while the player rests on a wall</td></tr>
+<tr><td><code>jumpPlayer(engineIdx, jumpSpeed)</code></td><td>Set the player's Y velocity when grounded</td></tr>
+<tr><td><code>getPlayerVY(engineIdx)</code></td><td>The player's current Y velocity</td></tr>
+</table>
+<p>Only vertical motion and landing/ceiling contact are modelled; there is no horizontal collision resolution.</p>
+<h2 id="animation">Animation</h2>
+<table>
+<tr><th>Function</th><th>Description</th></tr>
+<tr><td><code>makeAnimatedSprite(pathsJson, fps, x, y)</code></td><td>Sprite cycling through the images in a JSON array</td></tr>
+<tr><td><code>updateAnimation(idx, dt)</code></td><td>Advance the frame clock</td></tr>
+</table>
+<p>Both are texture-backed, so in headless mode <code>makeAnimatedSprite</code> returns <code>-1</code>.</p>
+<h2 id="sound">Sound</h2>
+<table>
+<tr><th>Function</th><th>Description</th></tr>
+<tr><td><code>loadSound(path)</code></td><td>Load an audio file; returns an index</td></tr>
+<tr><td><code>playSound(idx)</code> / <code>loopSound(idx)</code></td><td>Play once / loop</td></tr>
+<tr><td><code>stopSound(idx)</code></td><td>Stop playback</td></tr>
+<tr><td><code>setSoundVolume(idx, volume)</code></td><td>Volume from <code>0.0</code> to <code>1.0</code></td></tr>
+<tr><td><code>isSoundPlaying(idx)</code></td><td>Playback state tracked by the module</td></tr>
+</table>
+<p>Playback state is tracked by the module, so a one-shot that has finished still reports as playing until <code>stopSound</code>. In headless mode <code>loadSound</code> returns <code>-1</code>.</p>
 <h2 id="notes-and-current-limitations">Notes and current limitations</h2>
 <p>This is the first Lynxer cut of the module. The following reference features are <strong>not implemented yet</strong>: sound and music, scenes, tilemaps (Tiled), the platformer physics engine, shape batches, animated sprite sheets, text labels (use <code>drawText</code>), screenshots, <code>setWindowPos</code>, <code>setVSync</code>, <code>getDisplaySize</code>, and the <code>rawPy</code> escape hatch.</p>
 <p>Other deviations:</p>

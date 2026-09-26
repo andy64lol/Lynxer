@@ -11,12 +11,12 @@ use macroquad::texture::{DrawTextureParams, Texture2D};
 
 use crate::state::{color_of_a, with, Sprite, State};
 
-fn load_texture(path: &str) -> Option<Texture2D> {
+pub(crate) fn load_texture(path: &str) -> Option<Texture2D> {
     let bytes = std::fs::read(path).ok()?;
     Some(Texture2D::from_file_with_format(&bytes, None))
 }
 
-fn draw_sprite(state: &State, index: i64) {
+pub(crate) fn draw_sprite(state: &State, index: i64) {
     let sprite = match state.sprite(index) {
         Some(sprite) => *sprite,
         None => return,

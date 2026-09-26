@@ -81,15 +81,15 @@ Status of each unimplemented built-in today:
       `quantize`), `splitChannels` / `mergeChannels`, `floodFill` and `show`
       (text via `fontdue`; the 3x3 kernels are documented in
       [docs/stdlib/image.md](docs/stdlib/image.md)).
-- [ ] `game` — 28 legacy ops. Scenes: `makeScene`, `drawScene`, `updateScene`,
-      `addListToScene`. Physics: `makePhysicsEngine`, `updatePhysics`,
-      `setPhysicsPlayer`, `jumpPlayer`, `canJump`, `getPlayerVY`. Tilemaps:
-      `loadTilemap`, `getTilemapLayer`. Text labels: `makeTextLabel`,
-      `setTextLabel`, `setTextLabelColor`, `setTextLabelPos`, `drawTextLabel`,
-      `destroyTextLabel`. Animation: `makeAnimatedSprite`, `updateAnimation`.
-      Audio: `loadSound`, `playSound`, `loopSound`, `stopSound`,
-      `setSoundVolume`, `isSoundPlaying`. Window/output: `setWindowPos`,
-      `screenshot`.
+- [x] `game` — the 28 legacy ops. Scenes (`makeScene`, `addListToScene`,
+      `drawScene`, `updateScene`), platformer physics (`makePhysicsEngine`,
+      `setPhysicsPlayer`, `updatePhysics`, `canJump`, `jumpPlayer`,
+      `getPlayerVY`), tilemaps (`loadTilemap`, `getTilemapLayer` — a small TMX
+      reader, tiles as solid sprites), text labels (`makeTextLabel`,
+      `setTextLabel`, `setTextLabelPos`, `setTextLabelColor`, `drawTextLabel`,
+      `destroyTextLabel`), animation (`makeAnimatedSprite`, `updateAnimation`),
+      sound (`loadSound`, `playSound`, `loopSound`, `stopSound`,
+      `setSoundVolume`, `isSoundPlaying`) and `setWindowPos`/`screenshot`.
 - [x] `server` — the 41 legacy ops. Verbs and route kinds (`put`, `delete`,
       `patch`, `anyHttp`, `getStatus`), JSON routes (`jsonGet`, `jsonPost`,
       `jsonRoute`, `jsonStatus`), redirects, Jinja-style templates

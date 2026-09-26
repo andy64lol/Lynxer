@@ -162,6 +162,13 @@
 <li><code>tui</code> (<code>ratatui</code>/<code>crossterm</code>)</li>
 </ul>
 <p>These modules are skipped with a warning if <code>cargo</code> is missing, allowing the rest of Lynxer to build without a Rust toolchain. The Rust workspace includes an <code>ffi</code> member, an intentional no-op <code>cdylib</code>, since the <code>ffi*</code> builtins are implemented in C++.</p>
+<h3 id="game--constrained-behavior"><code>game</code> — Constrained Behavior</h3>
+<ul>
+<li><strong>Tilemaps carry geometry, not artwork.</strong> <code>loadTilemap</code> reads only the first <code>&lt;tileset&gt;</code> (for the tile size) and each <code>&lt;layer&gt;</code>'s CSV <code>&lt;data&gt;</code>; tiles become solid sprites on the grid. The tileset image is not sliced, so the map is useful for collision and layout rather than rendering.</li>
+<li><strong>Physics is vertical only.</strong> <code>updatePhysics</code> applies gravity and resolves landing and ceiling contact against a wall list. There is no horizontal collision resolution, and no slope/one-way platform support.</li>
+<li><strong>Animated sprites and sound are texture/audio-backed.</strong> In headless mode <code>makeAnimatedSprite</code> and <code>loadSound</code> return <code>-1</code>, and <code>screenshot</code> returns <code>-1</code>; the drawing, sound and screenshot ops are otherwise no-ops.</li>
+<li><strong>Sound playback state is tracked by the module.</strong> A one-shot that has finished still reports as playing through <code>isSoundPlaying</code> until <code>stopSound</code>.</li>
+</ul>
 <h3 id="server--constrained-behavior"><code>server</code> — Constrained Behavior</h3>
 <ul>
 <li><strong>TLS is not built.</strong> <code>runHTTPS(cert, key)</code> and <code>runSSLAdhoc()</code> return an explanatory <code>ERROR:</code> string instead of starting a listener. Servers terminate TLS in a reverse proxy, or the module is rebuilt with a TLS backend (<code>axum-server</code>, <code>rustls-pemfile</code>, <code>rcgen</code> are not among the pinned dependencies; adding them would make the module require network access).</li>
