@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Named syscalls - Lynxer</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<header>
+    <h1><a href="../index.html">Lynxer</a></h1>
+    <p>Documentation</p>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3>Overview</h3><ul>
+<li><a href="index.html">README</a></li>
+</ul>
+<h3>Getting started</h3><ul>
+<li><a href="install.html">install</a></li>
+<li><a href="CLI.html">CLI</a></li>
+</ul>
+<h3>Language</h3><ul>
+<li><a href="language.html">language</a></li>
+<li><a href="operators.html">operators</a></li>
+<li><a href="types.html">types</a></li>
+<li><a href="lists.html">lists</a></li>
+<li><a href="tuples.html">tuples</a></li>
+<li><a href="modules.html">modules</a></li>
+<li><a href="importAs.html">importAs</a></li>
+</ul>
+<h3>Records</h3><ul>
+<li><a href="structs.html">structs</a></li>
+<li><a href="classes.html">classes</a></li>
+<li><a href="enums.html">enums</a></li>
+<li><a href="vargroups.html">vargroups</a></li>
+</ul>
+<h3>Built-ins and modules</h3><ul>
+<li><a href="builtins.html">builtins</a></li>
+<li><a href="syscalls.html" class="active">syscalls</a></li>
+<li><a href="native-module-abi.html">native-module-abi</a></li>
+<li><a href="stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="extending.html">extending</a></li>
+</ul>
+<h3>Reference</h3><ul>
+<li><a href="legacy-surface.html">legacy-surface</a></li>
+<li><a href="limitations.html">limitations</a></li>
+</ul>
+<h3>Standard library</h3><ul>
+<li><a href="stdlib/index.html">All modules</a></li>
+<li><a href="stdlib/cli.html">cli</a></li>
+<li><a href="stdlib/colorlib.html">colorlib</a></li>
+<li><a href="stdlib/csv.html">csv</a></li>
+<li><a href="stdlib/debug.html">debug</a></li>
+<li><a href="stdlib/fileIO.html">fileIO</a></li>
+<li><a href="stdlib/game.html">game</a></li>
+<li><a href="stdlib/image.html">image</a></li>
+<li><a href="stdlib/js.html">js</a></li>
+<li><a href="stdlib/json.html">json</a></li>
+<li><a href="stdlib/lua.html">lua</a></li>
+<li><a href="stdlib/math.html">math</a></li>
+<li><a href="stdlib/multiprocessing.html">multiprocessing</a></li>
+<li><a href="stdlib/network.html">network</a></li>
+<li><a href="stdlib/os.html">os</a></li>
+<li><a href="stdlib/path.html">path</a></li>
+<li><a href="stdlib/random.html">random</a></li>
+<li><a href="stdlib/re.html">re</a></li>
+<li><a href="stdlib/regex.html">regex</a></li>
+<li><a href="stdlib/server.html">server</a></li>
+<li><a href="stdlib/shell.html">shell</a></li>
+<li><a href="stdlib/sound.html">sound</a></li>
+<li><a href="stdlib/sqldb.html">sqldb</a></li>
+<li><a href="stdlib/sys.html">sys</a></li>
+<li><a href="stdlib/text.html">text</a></li>
+<li><a href="stdlib/time.html">time</a></li>
+<li><a href="stdlib/tui.html">tui</a></li>
+<li><a href="stdlib/typing.html">typing</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+<h1 id="named-syscalls">Named syscalls</h1>
+<p>Lynxer exposes one named built-in per Linux syscall. They are <strong>raw ABI calls</strong>: argument layouts, flags, structures and pointer lifetimes are the caller's responsibility. Every wrapper is <strong>architecture-gated</strong> and reached through the architecture's namespace.</p>
+<pre><code>global setup(){ syscalls(&quot;amd64&quot;); }
+
+global main(){
+    println(amd64.syscallGetProcessId());
+    println(amd64.syscallYieldProcessor());
+}</code></pre>
+<h2 id="selecting-an-architecture">Selecting an architecture</h2>
+<p><code>syscalls(&quot;&lt;keyword&gt;&quot;)</code> must run before any syscall call; it declares which architecture the program targets.</p>
+<table>
+<tr><th>Keyword</th><th>Selects</th></tr>
+<tr><td><code>amd64</code>, <code>x86-64</code></td><td>x86-64</td></tr>
+<tr><td><code>arm64</code>, <code>aarch64</code></td><td>AArch64</td></tr>
+</table>
+<ul>
+<li>The keyword must name the <strong>host</strong> machine. <code>syscalls(&quot;arm64&quot;)</code> on an amd64 machine is an error, not a cross-architecture dispatch.</li>
+<li>Only <strong>one architecture at a time</strong> may be selected; re-selecting the same one is a no-op, a different one is an error.</li>
+<li>A misspelled keyword or namespace prefix reports the closest match, e.g. <code>unknown syscall architecture &#x27;amd6&#x27;. You meant: amd64?</code>.</li>
+<li><code>global.sys.architecture()</code> (see <a href="stdlib/sys.html">stdlib/sys</a>) returns the keyword for this machine, so <code>syscalls(global.sys.architecture())</code> makes a program assert it is running on the architecture its call prefixes assume.</li>
+<li>The former flat <code>syscallRead(...)</code> spelling is gone; it fails with a pointer to the namespaced form.</li>
+</ul>
+<p>Calls then use the matching namespace — <code>amd64.syscallRead(...)</code> or <code>arm64.syscallRead(...)</code>. A call through the wrong namespace is an error.</p>
+<h2 id="calling-convention">Calling convention</h2>
+<ul>
+<li>Arguments are positional <strong>integers</strong>, zero to six of them.</li>
+<li>Pointer arguments must be native addresses, such as those returned by <code>memoryAllocate</code>; strings and structures are prepared in native memory first.</li>
+<li>The result is the syscall's return value as an integer. A result of <code>-1</code> is raised as a source-located error carrying the Linux <code>errno</code> message, e.g. <code>syscall &#x27;syscallRead&#x27; failed: Bad file descriptor</code>.</li>
+<li>These wrappers require a Linux runtime. A name whose number is missing from the build's headers fails with <code>syscall &#x27;&lt;name&gt;&#x27; is not available on this architecture</code> instead of dispatching the wrong table.</li>
+</ul>
+<h2 id="portable-pollepoll">Portable <code>poll</code>/<code>epoll</code></h2>
+<p><code>poll(2)</code> and <code>epoll_wait(2)</code> do not exist on AArch64, so the two portable wrappers dispatch to whichever the host has, while the explicit <code>ppoll</code> / <code>epoll_pwait</code> forms are available on <strong>both</strong> architectures:</p>
+<table>
+<tr><th>Built-in</th><th>amd64</th><th>aarch64</th></tr>
+<tr><td><code>syscallPollFileDescriptors</code></td><td><code>poll</code></td><td><code>ppoll</code></td></tr>
+<tr><td><code>syscallPpollFileDescriptors</code></td><td><code>ppoll</code></td><td><code>ppoll</code></td></tr>
+<tr><td><code>syscallWaitForEvents</code></td><td><code>epoll_wait</code></td><td><code>epoll_pwait</code></td></tr>
+<tr><td><code>syscallWaitForEventsWithSignalMask</code></td><td><code>epoll_pwait</code></td><td><code>epoll_pwait</code></td></tr>
+</table>
+<h2 id="working-directories">Working directories</h2>
+<table>
+<tr><th>Built-in</th><th>Linux syscall</th><th>Arguments</th></tr>
+<tr><td><code>syscallGetCurrentDirectory(buffer, size)</code></td><td><code>getcwd</code></td><td>output buffer address, buffer capacity</td></tr>
+<tr><td><code>syscallChangeDirectory(path)</code></td><td><code>chdir</code></td><td>NUL-terminated path address</td></tr>
+</table>
+<h2 id="file-descriptors-and-files">File descriptors and files</h2>
+<table>
+<tr><th>Built-in</th><th>Linux syscall</th><th>Arguments</th></tr>
+<tr><td><code>syscallRead(fd, buffer, count)</code></td><td><code>read</code></td><td>descriptor, buffer address, byte count</td></tr>
+<tr><td><code>syscallWrite(fd, buffer, count)</code></td><td><code>write</code></td><td>descriptor, buffer address, byte count</td></tr>
+<tr><td><code>syscallPositionedRead64(fd, buffer, count, offset)</code></td><td><code>pread64</code></td><td>descriptor, buffer address, byte count, byte offset</td></tr>
+<tr><td><code>syscallPositionedWrite64(fd, buffer, count, offset)</code></td><td><code>pwrite64</code></td><td>descriptor, buffer address, byte count, byte offset</td></tr>
+<tr><td><code>syscallOpenAt(dirfd, path, flags, mode)</code></td><td><code>openat</code></td><td>directory descriptor, path address, flags, mode</td></tr>
+<tr><td><code>syscallOpenAt2(dirfd, path, resolve, size)</code></td><td><code>openat2</code></td><td>directory descriptor, path, <code>open_how</code> address, size</td></tr>
+<tr><td><code>syscallClose(fd)</code></td><td><code>close</code></td><td>descriptor</td></tr>
+<tr><td><code>syscallReadVector(fd, iov, count)</code></td><td><code>readv</code></td><td>descriptor, iovec array address, element count</td></tr>
+<tr><td><code>syscallWriteVector(fd, iov, count)</code></td><td><code>writev</code></td><td>descriptor, iovec array address, element count</td></tr>
+<tr><td><code>syscallSeekFile(fd, offset, whence)</code></td><td><code>lseek</code></td><td>descriptor, offset, <code>SEEK_*</code> value</td></tr>
+<tr><td><code>syscallGetFileStatus(fd, status)</code></td><td><code>fstat</code></td><td>descriptor, stat structure address</td></tr>
+<tr><td><code>syscallGetFileStatusAt(dirfd, path, status, flags)</code></td><td><code>newfstatat</code></td><td>directory descriptor, path, stat address, flags</td></tr>
+<tr><td><code>syscallGetExtendedFileStatus(dirfd, path, flags, mask, status)</code></td><td><code>statx</code></td><td>directory descriptor, path, flags, mask, <code>statx</code> address</td></tr>
+<tr><td><code>syscallTruncateFile(fd, length)</code></td><td><code>ftruncate</code></td><td>descriptor, length</td></tr>
+<tr><td><code>syscallFallocateFile(fd, mode, offset, length)</code></td><td><code>fallocate</code></td><td>descriptor, mode, byte range</td></tr>
+<tr><td><code>syscallCheckFileAccessAt(dirfd, path, mode, flags)</code></td><td><code>faccessat</code></td><td>directory descriptor, path address, access mode, flags</td></tr>
+<tr><td><code>syscallCheckFileAccessAt2(dirfd, path, mode, flags)</code></td><td><code>faccessat2</code></td><td>as <code>faccessat</code>, with flags honoured</td></tr>
+<tr><td><code>syscallCopyFileRange(fdin, offin, fdout, offout, length, flags)</code></td><td><code>copy_file_range</code></td><td>input/output descriptors, offsets, length, flags</td></tr>
+<tr><td><code>syscallSynchronizeFile(fd)</code></td><td><code>fsync</code></td><td>descriptor</td></tr>
+<tr><td><code>syscallSynchronizeFileData(fd)</code></td><td><code>fdatasync</code></td><td>descriptor</td></tr>
+<tr><td><code>syscallSynchronizeFilesystem(fd)</code></td><td><code>syncfs</code></td><td>any descriptor on the target filesystem</td></tr>
+<tr><td><code>syscallDuplicateFileDescriptor(fd)</code></td><td><code>dup</code></td><td>descriptor</td></tr>
+<tr><td><code>syscallDuplicateFileDescriptorAt(fd, newfd, flags)</code></td><td><code>dup3</code></td><td>descriptor, new descriptor, flags</td></tr>
+<tr><td><code>syscallCreatePipe(pipefd, flags)</code></td><td><code>pipe2</code></td><td>two-int output array address, flags</td></tr>
+<tr><td><code>syscallControlFileDescriptor(fd, command, argument)</code></td><td><code>fcntl</code></td><td>descriptor, <code>F_*</code> command, command argument</td></tr>
+<tr><td><code>syscallGetDirectoryEntries(fd, buffer, count)</code></td><td><code>getdents64</code></td><td>descriptor, buffer address, byte count</td></tr>
+<tr><td><code>syscallReadSymbolicLink(dirfd, path, buffer, size)</code></td><td><code>readlinkat</code></td><td>directory descriptor, path, buffer, byte count</td></tr>
+<tr><td><code>syscallControlInputOutput(fd, request, argument)</code></td><td><code>ioctl</code></td><td>descriptor, request code, request-specific argument</td></tr>
+</table>
+<h2 id="directory-entries-links-ownership-and-permissions">Directory entries, links, ownership, and permissions</h2>
+<table>
+<tr><th>Built-in</th><th>Linux syscall</th><th>Arguments</th></tr>
+<tr><td><code>syscallCreateDirectoryAt(dirfd, path, mode)</code></td><td><code>mkdirat</code></td><td>directory descriptor, path address, mode</td></tr>
+<tr><td><code>syscallRemoveFileAt(dirfd, path, flags)</code></td><td><code>unlinkat</code></td><td>directory descriptor, path address, flags</td></tr>
+<tr><td><code>syscallRenameFileAt(oldfd, oldpath, newfd, newpath)</code></td><td><code>renameat</code></td><td>directory descriptors and path addresses</td></tr>
+<tr><td><code>syscallCreateHardLinkAt(olddirfd, oldpath, newdirfd, newpath, flags)</code></td><td><code>linkat</code></td><td>directory descriptors, path addresses, flags</td></tr>
+<tr><td><code>syscallCreateSymbolicLinkAt(target, newdirfd, linkpath)</code></td><td><code>symlinkat</code></td><td>target address, directory descriptor, link path address</td></tr>
+<tr><td><code>syscallChangeFilePermissions(dirfd, path, mode)</code></td><td><code>fchmodat</code></td><td>directory descriptor, path, mode</td></tr>
+<tr><td><code>syscallChangeFileDescriptorPermissions(fd, mode)</code></td><td><code>fchmod</code></td><td>descriptor, mode</td></tr>
+<tr><td><code>syscallChangeFileOwner(dirfd, path, owner, group, flags)</code></td><td><code>fchownat</code></td><td>directory descriptor, path, owner, group, flags</td></tr>
+<tr><td><code>syscallChangeFileDescriptorOwner(fd, owner, group)</code></td><td><code>fchown</code></td><td>descriptor, owner, group</td></tr>
+</table>
+<h2 id="memory-and-program-execution">Memory and program execution</h2>
+<table>
+<tr><th>Built-in</th><th>Linux syscall</th><th>Arguments</th></tr>
+<tr><td><code>syscallMemoryMap(address, length, protection, flags, fd, offset)</code></td><td><code>mmap</code></td><td>address, length, <code>PROT_*</code>, <code>MAP_*</code>, descriptor, offset</td></tr>
+<tr><td><code>syscallMemoryUnmap(address, length)</code></td><td><code>munmap</code></td><td>address, length</td></tr>
+<tr><td><code>syscallMemoryProtect(address, length, protection)</code></td><td><code>mprotect</code></td><td>address, length, <code>PROT_*</code></td></tr>
+<tr><td><code>syscallMemoryAdvise(address, length, advice)</code></td><td><code>madvise</code></td><td>address, length, <code>MADV_*</code></td></tr>
+<tr><td><code>syscallMemoryRemap(oldaddress, oldsize, newsize, flags, newaddress)</code></td><td><code>mremap</code></td><td>old address, old size, new size, flags, new address</td></tr>
+<tr><td><code>syscallSynchronizeMemory(address, length, flags)</code></td><td><code>msync</code></td><td>mapped address, length, <code>MS_*</code> flags</td></tr>
+<tr><td><code>syscallAdjustProgramBreak(address)</code></td><td><code>brk</code></td><td>requested program-break address</td></tr>
+<tr><td><code>syscallExecuteProgram(path, argv, envp)</code></td><td><code>execve</code></td><td>path, argv-array, envp-array addresses</td></tr>
+<tr><td><code>syscallExecuteProgramAt(fd, path, argv, envp, flags)</code></td><td><code>execveat</code></td><td>descriptor, path, argv, envp, flags</td></tr>
+<tr><td><code>syscallLockMemory(address, length)</code></td><td><code>mlock</code></td><td>address, length</td></tr>
+<tr><td><code>syscallUnlockMemory(address, length)</code></td><td><code>munlock</code></td><td>address, length</td></tr>
+<tr><td><code>syscallCreateMemoryFileDescriptor(name, flags)</code></td><td><code>memfd_create</code></td><td>name address, flags</td></tr>
+<tr><td><code>syscallSetMemoryPolicy(address, length, mode, nodemask, maxnode, flags)</code></td><td><code>mbind</code></td><td>NUMA placement; both arches</td></tr>
+</table>
+<h2 id="processes-and-threads">Processes and threads</h2>
+<table>
+<tr><th>Built-in</th><th>Linux syscall</th><th>Arguments</th></tr>
+<tr><td><code>syscallExitProcess(status)</code></td><td><code>exit</code></td><td>exit status; does not return</td></tr>
+<tr><td><code>syscallExitAllThreads(status)</code></td><td><code>exit_group</code></td><td>exit status; does not return</td></tr>
+<tr><td><code>syscallWaitForProcess(pid, status, options, rusage)</code></td><td><code>wait4</code></td><td>process ID, status address, options, rusage address</td></tr>
+<tr><td><code>syscallWaitForProcessId(idtype, id, info, options, rusage)</code></td><td><code>waitid</code></td><td>id type, id, siginfo address, options, rusage</td></tr>
+<tr><td><code>syscallGetProcessId()</code></td><td><code>getpid</code></td><td>none</td></tr>
+<tr><td><code>syscallGetParentProcessId()</code></td><td><code>getppid</code></td><td>none</td></tr>
+<tr><td><code>syscallSendSignal(pid, signal)</code></td><td><code>kill</code></td><td>process ID, signal</td></tr>
+<tr><td><code>syscallOpenProcessFileDescriptor(pid, flags)</code></td><td><code>pidfd_open</code></td><td>process ID, flags</td></tr>
+<tr><td><code>syscallSendSignalToProcessFileDescriptor(pidfd, signal, info, flags)</code></td><td><code>pidfd_send_signal</code></td><td>pidfd, signal, siginfo address, flags</td></tr>
+<tr><td><code>syscallCreateThread(flags, stack, parent_tid, child_tid, tls)</code></td><td><code>clone</code></td><td>clone flags and native addresses</td></tr>
+<tr><td><code>syscallCreateThread3(args, size)</code></td><td><code>clone3</code></td><td><code>clone_args</code> address, size</td></tr>
+<tr><td><code>syscallGetThreadId()</code></td><td><code>gettid</code></td><td>none</td></tr>
+<tr><td><code>syscallWaitOnMemory(address, operation, value, timeout, address2, value3)</code></td><td><code>futex</code></td><td>futex address and futex ABI arguments</td></tr>
+<tr><td><code>syscallSetThreadIdAddress(address)</code></td><td><code>set_tid_address</code></td><td>address</td></tr>
+<tr><td><code>syscallSetRobustThreadList(head, length)</code></td><td><code>set_robust_list</code></td><td>list address, byte length</td></tr>
+<tr><td><code>syscallGetRobustThreadList(pid, head, length)</code></td><td><code>get_robust_list</code></td><td>process ID, output addresses</td></tr>
+<tr><td><code>syscallGetThreadAffinity(pid, size, mask)</code></td><td><code>sched_getaffinity</code></td><td>process ID, mask size, output mask</td></tr>
+<tr><td><code>syscallSetThreadAffinity(pid, size, mask)</code></td><td><code>sched_setaffinity</code></td><td>process ID, mask size, mask address</td></tr>
+<tr><td><code>syscallGetThreadPriority(which, who)</code></td><td><code>getpriority</code></td><td><code>PRIO_*</code> selector, id</td></tr>
+<tr><td><code>syscallSetThreadPriority(which, who, priority)</code></td><td><code>setpriority</code></td><td><code>PRIO_*</code> selector, id, priority</td></tr>
+<tr><td><code>syscallYieldProcessor()</code></td><td><code>sched_yield</code></td><td>none</td></tr>
+</table>
+<h2 id="clocks-sleep-and-randomness">Clocks, sleep, and randomness</h2>
+<table>
+<tr><th>Built-in</th><th>Linux syscall</th><th>Arguments</th></tr>
+<tr><td><code>syscallGetClockTime(clock, timespec)</code></td><td><code>clock_gettime</code></td><td>clock ID, timespec address</td></tr>
+<tr><td><code>syscallGetClockResolution(clock, resolution)</code></td><td><code>clock_getres</code></td><td>clock ID, timespec address</td></tr>
+<tr><td><code>syscallGetTimeOfDay(timeval, timezone)</code></td><td><code>gettimeofday</code></td><td>timeval address, timezone address</td></tr>
+<tr><td><code>syscallSleep(request, remainder)</code></td><td><code>nanosleep</code></td><td>timespec addresses</td></tr>
+<tr><td><code>syscallSleepClock(clock, flags, request, remainder)</code></td><td><code>clock_nanosleep</code></td><td>clock ID, flags, timespec addresses</td></tr>
+<tr><td><code>syscallCreateTimerFileDescriptor(clock, flags)</code></td><td><code>timerfd_create</code></td><td>clock ID, flags</td></tr>
+<tr><td><code>syscallControlTimerFileDescriptor(fd, flags, newvalue, oldvalue)</code></td><td><code>timerfd_settime</code></td><td>descriptor, flags, itimerspec addresses</td></tr>
+<tr><td><code>syscallGetRandomBytes(buffer, count, flags)</code></td><td><code>getrandom</code></td><td>buffer address, byte count, flags</td></tr>
+</table>
+<h2 id="signals">Signals</h2>
+<table>
+<tr><th>Built-in</th><th>Linux syscall</th><th>Arguments</th></tr>
+<tr><td><code>syscallControlSignal(signal, action, oldaction, size)</code></td><td><code>rt_sigaction</code></td><td>signal, <code>sigaction</code> addresses, signal-set size</td></tr>
+<tr><td><code>syscallControlSignalMask(how, set, oldset, size)</code></td><td><code>rt_sigprocmask</code></td><td><code>SIG_*</code> how, signal-set addresses, size</td></tr>
+<tr><td><code>syscallCreateSignalFileDescriptor(fd, mask, size, flags)</code></td><td><code>signalfd4</code></td><td>descriptor, mask, signal-set size, flags</td></tr>
+</table>
+<h2 id="sockets">Sockets</h2>
+<table>
+<tr><th>Built-in</th><th>Linux syscall</th><th>Arguments</th></tr>
+<tr><td><code>syscallCreateSocket(domain, type, protocol)</code></td><td><code>socket</code></td><td>socket domain, type, protocol</td></tr>
+<tr><td><code>syscallCreateSocketPair(domain, type, protocol, sockets)</code></td><td><code>socketpair</code></td><td>domain, type, protocol, output array address</td></tr>
+<tr><td><code>syscallBindSocket(socket, address, length)</code></td><td><code>bind</code></td><td>descriptor, socket address, length</td></tr>
+<tr><td><code>syscallListenSocket(socket, backlog)</code></td><td><code>listen</code></td><td>descriptor, backlog</td></tr>
+<tr><td><code>syscallAcceptConnection(socket, address, length)</code></td><td><code>accept</code></td><td>descriptor, address and length pointers</td></tr>
+<tr><td><code>syscallAcceptConnection4(socket, address, length, flags)</code></td><td><code>accept4</code></td><td>as <code>accept</code>, with flags</td></tr>
+<tr><td><code>syscallConnectSocket(socket, address, length)</code></td><td><code>connect</code></td><td>descriptor, socket address, length</td></tr>
+<tr><td><code>syscallSendData(socket, buffer, length, flags, address, addressLength)</code></td><td><code>sendto</code></td><td>descriptor, buffer, length, flags, destination, address length</td></tr>
+<tr><td><code>syscallReceiveData(socket, buffer, length, flags, address, addressLength)</code></td><td><code>recvfrom</code></td><td>descriptor, buffer, length, flags, source, address length</td></tr>
+<tr><td><code>syscallSendMessage(socket, message, flags)</code></td><td><code>sendmsg</code></td><td>descriptor, msghdr address, flags</td></tr>
+<tr><td><code>syscallReceiveMessage(socket, message, flags)</code></td><td><code>recvmsg</code></td><td>descriptor, msghdr address, flags</td></tr>
+<tr><td><code>syscallSendMessages(socket, messages, count, flags)</code></td><td><code>sendmmsg</code></td><td>descriptor, mmsghdr array, count, flags</td></tr>
+<tr><td><code>syscallReceiveMessages(socket, messages, count, flags)</code></td><td><code>recvmmsg</code></td><td>descriptor, mmsghdr array, count, flags</td></tr>
+<tr><td><code>syscallShutdownSocket(socket, how)</code></td><td><code>shutdown</code></td><td>descriptor, <code>SHUT_*</code> value</td></tr>
+<tr><td><code>syscallGetSocketAddress(socket, address, length)</code></td><td><code>getsockname</code></td><td>descriptor, address and length pointers</td></tr>
+<tr><td><code>syscallGetPeerAddress(socket, address, length)</code></td><td><code>getpeername</code></td><td>descriptor, address and length pointers</td></tr>
+<tr><td><code>syscallSetSocketOption(socket, level, option, value, length)</code></td><td><code>setsockopt</code></td><td>descriptor, level, option, value address, length</td></tr>
+<tr><td><code>syscallGetSocketOption(socket, level, option, value, length)</code></td><td><code>getsockopt</code></td><td>descriptor, level, option, output value, length pointer</td></tr>
+</table>
+<h2 id="polling-and-event-loops">Polling and event loops</h2>
+<table>
+<tr><th>Built-in</th><th>Linux syscall</th><th>Arguments</th></tr>
+<tr><td><code>syscallPollFileDescriptors(fds, count, timeout_ms)</code></td><td><code>poll</code> / <code>ppoll</code></td><td>pollfd array address, count, timeout in milliseconds</td></tr>
+<tr><td><code>syscallPpollFileDescriptors(fds, count, timespec, sigmask, sigsetsize)</code></td><td><code>ppoll</code></td><td>pollfd array, count, timespec address, signal-mask address, signal-set size</td></tr>
+<tr><td><code>syscallCreateEventPoll(flags)</code></td><td><code>epoll_create1</code></td><td>flags</td></tr>
+<tr><td><code>syscallControlEventPoll(epoll, operation, fd, event)</code></td><td><code>epoll_ctl</code></td><td>epoll descriptor, <code>EPOLL_CTL_*</code>, descriptor, event address</td></tr>
+<tr><td><code>syscallWaitForEvents(epoll, events, maxevents, timeout, sigmask)</code></td><td><code>epoll_wait</code> / <code>epoll_pwait</code></td><td>epoll descriptor, event array, capacity, timeout, signal-mask address</td></tr>
+<tr><td><code>syscallWaitForEventsWithSignalMask(epoll, events, maxevents, timeout, sigmask)</code></td><td><code>epoll_pwait</code></td><td>as above; Lynxer supplies the signal-set size</td></tr>
+<tr><td><code>syscallWaitForEvents2(epoll, events, maxevents, timeout, sigmask, size)</code></td><td><code>epoll_pwait2</code></td><td>nanosecond timeout</td></tr>
+<tr><td><code>syscallCreateEventFileDescriptor(initval, flags)</code></td><td><code>eventfd2</code></td><td>initial counter, flags</td></tr>
+<tr><td><code>syscallInitializeInodeNotifications(flags)</code></td><td><code>inotify_init1</code></td><td><code>IN_NONBLOCK</code>/<code>IN_CLOEXEC</code> flags</td></tr>
+<tr><td><code>syscallAddInodeNotificationWatch(inotify, path, mask)</code></td><td><code>inotify_add_watch</code></td><td>inotify descriptor, path address, event mask</td></tr>
+<tr><td><code>syscallRemoveInodeNotificationWatch(inotify, watch)</code></td><td><code>inotify_rm_watch</code></td><td>inotify descriptor, watch descriptor</td></tr>
+</table>
+<h2 id="system-information-and-resources">System information and resources</h2>
+<table>
+<tr><th>Built-in</th><th>Linux syscall</th><th>Arguments</th></tr>
+<tr><td><code>syscallGetSystemInformation(info)</code></td><td><code>sysinfo</code></td><td>sysinfo structure address</td></tr>
+<tr><td><code>syscallGetUnixSystemName(name)</code></td><td><code>uname</code></td><td><code>utsname</code> structure address</td></tr>
+<tr><td><code>syscallGetSystemTimes(buffer)</code></td><td><code>times</code></td><td>tms structure address (or 0)</td></tr>
+<tr><td><code>syscallGetResourceUsage(who, usage)</code></td><td><code>getrusage</code></td><td><code>RUSAGE_*</code> selector, usage structure address</td></tr>
+<tr><td><code>syscallGetResourceLimit(resource, limit)</code></td><td><code>getrlimit</code></td><td><code>RLIMIT_*</code> selector, rlimit structure address</td></tr>
+<tr><td><code>syscallSetResourceLimit(resource, limit)</code></td><td><code>setrlimit</code></td><td><code>RLIMIT_*</code> selector, rlimit structure address</td></tr>
+<tr><td><code>syscallGetCapabilities(header, data)</code></td><td><code>capget</code></td><td>capability header and data addresses</td></tr>
+<tr><td><code>syscallSetCapabilities(header, data)</code></td><td><code>capset</code></td><td>capability header and data addresses</td></tr>
+<tr><td><code>syscallControlProcess(option, arg2, arg3, arg4, arg5)</code></td><td><code>prctl</code></td><td><code>PR_*</code> option and option-specific arguments</td></tr>
+</table>
+<h2 id="async-io-iouring">Async I/O (io_uring)</h2>
+<p>Raw passthrough; build the <code>io_uring_params</code> and submission structures in native memory and pass their addresses. Available on both architectures.</p>
+<table>
+<tr><th>Built-in</th><th>Linux syscall</th><th>Arguments</th></tr>
+<tr><td><code>syscallSetupIoUring(entries, params)</code></td><td><code>io_uring_setup</code></td><td>ring entries, <code>io_uring_params</code> address</td></tr>
+<tr><td><code>syscallEnterIoUring(fd, to_submit, min_complete, flags, sig, sigsz)</code></td><td><code>io_uring_enter</code></td><td>ring descriptor and submission arguments</td></tr>
+<tr><td><code>syscallRegisterIoUring(fd, opcode, arg, nr_args)</code></td><td><code>io_uring_register</code></td><td>ring descriptor, opcode, argument, count</td></tr>
+</table>
+<h2 id="sandboxing-landlock-and-seccomp">Sandboxing (Landlock and seccomp)</h2>
+<p>Raw passthrough. The <code>seccomp</code> syscall is unguarded: operation <code>0</code> installs <code>SECCOMP_MODE_STRICT</code>, which terminates a process that issues anything outside its tiny allowlist.</p>
+<table>
+<tr><th>Built-in</th><th>Linux syscall</th><th>Arguments</th></tr>
+<tr><td><code>syscallCreateLandlockRuleset(attr, size, flags)</code></td><td><code>landlock_create_ruleset</code></td><td>ruleset attribute address, size, flags</td></tr>
+<tr><td><code>syscallAddLandlockRule(ruleset, type, attr, flags)</code></td><td><code>landlock_add_rule</code></td><td>ruleset descriptor, rule type, rule attribute address, flags</td></tr>
+<tr><td><code>syscallRestrictLandlockSelf(ruleset, flags)</code></td><td><code>landlock_restrict_self</code></td><td>ruleset descriptor, flags</td></tr>
+<tr><td><code>syscallControlSeccomp(operation, flags, args)</code></td><td><code>seccomp</code></td><td>operation, flags, filter address</td></tr>
+</table>
+<h2 id="fixtures">Fixtures</h2>
+<ul>
+<li><code>lynxer/examples/lowlevel_syscalls.lynx</code>, <code>lowlevel_arch.lynx</code>, <code>syscall_extended.lynx</code> and <code>syscall_io_uring.lynx</code> are architecture-agnostic: they carry a <code>__ARCH__</code> token that the test harness fills in (<code>SYSCALL_ARCH</code>, from <code>uname -m</code>).</li>
+<li><code>lynxer/examples/amd64Syscalls.lynx</code> and <code>arm64Syscalls.lynx</code> are pinned to one target and run under <code>make testLynxerAmd64Syscalls</code> / <code>make testLynxerArm64Syscalls</code>.</li>
+</ul>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="builtins.html#syscalls">builtins</a> — the summary table and the gate rules.</li>
+<li><a href="stdlib/sys.html">stdlib/sys</a> — <code>global.sys.architecture()</code>, the keyword to pass.</li>
+<li><a href="limitations.html#syscalls--architecture-gated">limitations</a> — the gating constraints in the divergence register.</li>
+<li><a href="legacy-surface.html">legacy-surface</a> — how the original flat naming maps onto the namespaced form.</li>
+<li><a href="builtins.html">builtins</a> — the <code>memoryAllocate</code> / <code>memoryWrite*</code> builtins used to prepare buffers and structures for these calls.</li>
+</ul>
+    </main>
+</div>
+
+<footer>
+    <a class="github" href="https://github.com/andy64lol/Lynxer" aria-label="Lynxer on GitHub" title="Lynxer on GitHub"><svg role="img" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a>
+    <span>Lynxer &middot; MIT License</span>
+</footer>
+
+</body>
+</html>

@@ -216,6 +216,11 @@ public:
 
     bool deprecationWarningSuppressed() const;
 
+    // The syscall architecture selected by syscalls("..."); empty until a
+    // program selects one. Syscall calls are refused while it is empty.
+    void setSyscallArchitecture(const std::string& architecture);
+    const std::string& syscallArchitecture() const;
+
     // Warn once per source location that a tuple is being (re)bound from a
     // bracketed list literal — the original syntax, superseded by `(...)`.
     // Honours suppressDeprecationWarning().
@@ -257,6 +262,8 @@ private:
     bool setupInProgress_ = false;
     bool foreverWarningSuppressed_ = false;
     bool deprecationWarningSuppressed_ = false;
+    // Canonical syscall architecture selected by syscalls("..."); "" until set.
+    std::string syscallArchitecture_;
     // Source locations ("line:column") already warned about a bracketed-list
     // tuple, so a loop re-running one declaration warns only once.
     std::unordered_set<std::string> tupleBracketWarnings_;

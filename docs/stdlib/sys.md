@@ -8,6 +8,7 @@ Runtime, process and platform information.
 | Function | Signature | Notes |
 | --- | --- | --- |
 | `platform` | `() -> str` | `linux`, `darwin`, `win32` or `unknown` |
+| `architecture` | `() -> str` | Canonical syscall architecture of this build: `amd64` or `arm64` |
 | `version` | `() -> str` | Lynxer version, e.g. `Lynxer 0.1.8.1` |
 | `versionInfo` | `() -> str` | JSON `{major, minor, micro, patch, releaselevel, serial}` |
 | `implementation` | `() -> str` | `Lynxer` |
@@ -40,6 +41,7 @@ global setup(){ import("sys"); }
 
 global main(){
     println(global.sys.platform());
+    println(global.sys.architecture());
     println(global.sys.version());
     println(global.sys.argCount());
 }

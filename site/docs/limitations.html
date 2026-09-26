@@ -39,6 +39,7 @@
 </ul>
 <h3>Built-ins and modules</h3><ul>
 <li><a href="builtins.html">builtins</a></li>
+<li><a href="syscalls.html">syscalls</a></li>
 <li><a href="native-module-abi.html">native-module-abi</a></li>
 <li><a href="stdlib-contracts.html">stdlib-contracts</a></li>
 <li><a href="extending.html">extending</a></li>
@@ -216,6 +217,7 @@
 <h3 id="sys--constrained-behavior"><code>sys</code> — Constrained Behavior</h3>
 <ul>
 <li><strong>Version:</strong> <code>version()</code> returns the Lynxer version (e.g., <code>Lynxer 0.1.8.1</code>).</li>
+<li><strong>Architecture:</strong> <code>architecture()</code> returns the canonical syscall architecture of this build (<code>amd64</code> or <code>arm64</code>), not the raw machine string from <code>uname(2)</code>.</li>
 <li><strong>Python runtime concepts:</strong> Not supported (<code>sys.path</code>, <code>addPath</code>, <code>prependPath</code>, <code>removeFromPath</code>, <code>getModules</code>, <code>isModuleLoaded</code>, <code>getRecursionLimit</code>, <code>setRecursionLimit</code>).</li>
 <li><strong>Command-line arguments:</strong> <code>argv()</code>, <code>getArg</code>, and <code>argCount</code> describe the <code>lynxer</code> process command line, not the program's arguments.</li>
 <li><strong>Exit behavior:</strong> <code>exit()</code> calls <code>std::exit</code> directly, bypassing interpreter cleanup.</li>
@@ -337,6 +339,8 @@
 </ul>
 <h2 id="built-in-families">Built-in Families</h2>
 <p>The managed <code>filesystem*</code>, <code>process*</code>, <code>networking*</code>, and <code>sound*</code> families are implemented and documented in <a href="builtins.html">builtins</a>.</p>
+<h3 id="syscalls--architecture-gated">Syscalls — Architecture-gated</h3>
+<p>Named syscalls require <code>syscalls(&quot;&lt;arch&gt;&quot;)</code> before use and are reached through the matching namespace (<code>amd64.syscallRead(...)</code> / <code>arm64.syscallRead(...)</code>). Only the host architecture can be selected, and only one at a time. The former flat <code>syscallRead(...)</code> spelling is rejected with a pointer to the namespaced form. See <a href="builtins.html#syscalls">builtins</a>.</p>
 <h3 id="unsupported-built-ins">Unsupported Built-ins</h3>
 <p><code>builtins.cpp</code> maintains an <code>unsupportedTable()</code> of names that are recognized but deliberately unimplemented. Calling one raises: <code>&lt;name&gt;() is not supported in Lynxer yet</code>.</p>
 <p>This includes:</p>

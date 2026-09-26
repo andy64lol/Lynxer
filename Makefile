@@ -140,6 +140,11 @@ LYNXER_PARITY_FIXTURES := $(filter-out $(LYNXER_DISPLAY_FIXTURES),$(LYNXER_PARIT
 # Recipe shorthands: the interpreter, and the temp-file prefix for the suite.
 CLYX := ./$(LYNXER_TARGET)
 CLYX_TMP := $(LYNXER_DIR)/.lynxer
+# Canonical syscall architecture of this host. The architecture-agnostic syscall
+# fixtures carry a __ARCH__ token (syscalls("__ARCH__") plus __ARCH__.syscall*);
+# it is replaced with this word before they run, so one source serves both CI
+# jobs.
+SYSCALL_ARCH := $(shell uname -m | sed -e 's/^x86_64$$/amd64/' -e 's/^aarch64$$/arm64/')
 
 .PHONY: all cargo build buildAll buildLynxer buildLynxerArm64 test testLynxer testLynxerAmd64Syscalls testLynxerArm64Syscalls check clean cleanLynxer cleanAll help
 
@@ -326,9 +331,13 @@ expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:23: charAt() index is out of rang
 	fi; \
 	done
 	@for fixture in $(LYNXER_PARITY_FIXTURES); do \
-	LYNXER_GAME_HEADLESS=1 $(CLYX) $(LYNXER_DIR)/examples/$$fixture.lynx > $(CLYX_TMP)_direct.out 2>&1; \
+	run="$(LYNXER_DIR)/examples/$$fixture.lynx"; \
+	if grep -q '__ARCH__' "$$run"; then \
+	sed "s/__ARCH__/$(SYSCALL_ARCH)/g" "$$run" > $(CLYX_TMP)_arch.lynx; \
+	run="$(CLYX_TMP)_arch.lynx"; fi; \
+	LYNXER_GAME_HEADLESS=1 $(CLYX) "$$run" > $(CLYX_TMP)_direct.out 2>&1; \
 	direct_status=$$?; \
-	if ! $(CLYX) --compile $(LYNXER_DIR)/examples/$$fixture.lynx $(CLYX_TMP)_compiled > /dev/null; then \
+	if ! $(CLYX) --compile "$$run" $(CLYX_TMP)_compiled > /dev/null; then \
 	echo "compile failed for $$fixture (imports)"; exit 1; fi; \
 	LYNXER_GAME_HEADLESS=1 $(CLYX_TMP)_compiled > $(CLYX_TMP)_compiled.out 2>&1; \
 	compiled_status=$$?; \
@@ -338,6 +347,7 @@ expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:23: charAt() index is out of rang
 	diff $(CLYX_TMP)_direct.out $(CLYX_TMP)_compiled.out | head -5; \
 	exit 1; \
 	fi; \
+	rm -f $(CLYX_TMP)_arch.lynx; \
 	done
 	@$(CLYX) --bundle $(LYNXER_DIR)/examples/hello.lynx $(CLYX_TMP)_bundled > /dev/null; \
 	bundled_output="$$($(CLYX_TMP)_bundled < $(CLYX_TMP)_stdin)"; \
@@ -475,8 +485,13 @@ expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:23: charAt() index is out of rang
 	expected="$${fixture%.lynx}.expected"; \
 	if [ ! -f "$$expected" ]; then \
 	echo "missing expected output for $$fixture"; exit 1; fi; \
-	output="$$($(CLYX) "$$fixture" 2>&1)"; \
+	run="$$fixture"; \
+	if grep -q '__ARCH__' "$$fixture"; then \
+	run="$(CLYX_TMP)_arch.lynx"; \
+	sed "s/__ARCH__/$(SYSCALL_ARCH)/g" "$$fixture" > "$$run"; fi; \
+	output="$$($(CLYX) "$$run" 2>&1)"; \
 	status=$$?; \
+	rm -f $(CLYX_TMP)_arch.lynx; \
 	expected_output="$$(cat "$$expected")"; \
 	if [ $$status -ne 0 ]; then \
 	echo "builtin fixture failed: $$fixture"; printf '%s\n' "$$output"; \

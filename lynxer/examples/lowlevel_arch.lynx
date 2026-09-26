@@ -3,9 +3,12 @@ Architecture fixture: asserts the LP64 / little-endian properties that amd64 and
 arm64 share, and exercises the named syscalls whose kernel numbers differ per
 architecture. Every assertion is a property (a boolean or a small derived
 value), never a host constant, so one expected file holds on both targets.
+
+The `__ARCH__` token is replaced with the host's syscall architecture (`amd64`
+or `arm64`) before the fixture runs, so one source serves both targets.
 ////
 
-global setup(){}
+global setup(){ syscalls("__ARCH__"); }
 
 global main(){
     println("== data model ==");
@@ -23,29 +26,29 @@ global main(){
     println("host little-endian ", memoryReadByte(buffer, 0) is 4);
 
     println("== naming and clocks ==");
-    println("yield 0 ", syscallYieldProcessor() is 0);
-    println("tid positive ", syscallGetThreadId() > 0);
-    println("pid positive ", syscallGetProcessId() > 0);
-    println("ppid non-negative ", syscallGetParentProcessId() >= 0);
-    println("clock_gettime ", syscallGetClockTime(1, buffer) is 0);
-    println("clock_getres ", syscallGetClockResolution(1, buffer) is 0);
+    println("yield 0 ", __ARCH__.syscallYieldProcessor() is 0);
+    println("tid positive ", __ARCH__.syscallGetThreadId() > 0);
+    println("pid positive ", __ARCH__.syscallGetProcessId() > 0);
+    println("ppid non-negative ", __ARCH__.syscallGetParentProcessId() >= 0);
+    println("clock_gettime ", __ARCH__.syscallGetClockTime(1, buffer) is 0);
+    println("clock_getres ", __ARCH__.syscallGetClockResolution(1, buffer) is 0);
 
     println("== pipe round trip ==");
     int pipe = memoryAllocate(16);
-    println("pipe created ", syscallCreatePipe(pipe) is 0);
+    println("pipe created ", __ARCH__.syscallCreatePipe(pipe) is 0);
     int readFd = memoryReadInt32(pipe, 0);
     int writeFd = memoryReadInt32(pipe, 4);
     println("descriptors non-negative ", readFd >= 0 and writeFd >= 0);
 
     memoryWriteByte(buffer, 32, 104);   // 'h'
     memoryWriteByte(buffer, 33, 105);   // 'i'
-    println("write 2 bytes ", syscallWrite(writeFd, buffer + 32, 2) is 2);
-    println("read 2 bytes ", syscallRead(readFd, buffer + 40, 2) is 2);
+    println("write 2 bytes ", __ARCH__.syscallWrite(writeFd, buffer + 32, 2) is 2);
+    println("read 2 bytes ", __ARCH__.syscallRead(readFd, buffer + 40, 2) is 2);
     println("bytes match ", memoryReadByte(buffer, 40) is 104 and
                               memoryReadByte(buffer, 41) is 105);
 
-    syscallClose(readFd);
-    syscallClose(writeFd);
+    __ARCH__.syscallClose(readFd);
+    __ARCH__.syscallClose(writeFd);
     memoryFree(pipe);
     memoryFree(buffer);
     println("done");

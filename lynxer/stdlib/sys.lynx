@@ -10,6 +10,9 @@ absent. Because Lynxer does not forward extra arguments to a program,
 ////
 global setup(){ importAs("sys.so", "nativeSys"); }
 global platform() -> str { return global.nativeSys.platform(); }
+// The canonical syscall architecture of this build ("amd64" or "arm64") — the
+// word syscalls() accepts, so `syscalls(sys.architecture())` is valid.
+global architecture() -> str { return global.nativeSys.architecture(); }
 global version() -> str { return global.nativeSys.version(); }
 global versionInfo() -> str { return global.nativeSys.versionInfo(); }
 global implementation() -> str { return global.nativeSys.implementation(); }

@@ -30,7 +30,7 @@ GROUPS: list[tuple[str, list[str]]] = [
     ("Language", ["language.md", "operators.md", "types.md", "lists.md", "tuples.md", "modules.md", "importAs.md"]),
     ("Records", ["structs.md", "classes.md", "enums.md", "vargroups.md"]),
     ("Built-ins and modules",
-     ["builtins.md", "native-module-abi.md", "stdlib-contracts.md", "extending.md"]),
+     ["builtins.md", "syscalls.md", "native-module-abi.md", "stdlib-contracts.md", "extending.md"]),
     ("Reference", ["legacy-surface.md", "limitations.md"]),
 ]
 

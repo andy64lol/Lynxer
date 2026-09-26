@@ -39,6 +39,7 @@
 </ul>
 <h3>Built-ins and modules</h3><ul>
 <li><a href="builtins.html" class="active">builtins</a></li>
+<li><a href="syscalls.html">syscalls</a></li>
 <li><a href="native-module-abi.html">native-module-abi</a></li>
 <li><a href="stdlib-contracts.html">stdlib-contracts</a></li>
 <li><a href="extending.html">extending</a></li>
@@ -303,8 +304,16 @@ ffiCloseLibrary(lib);</code></pre>
 <p><code>memoryProtect</code> is POSIX-only and fails with a source-located error elsewhere. Making a page read-only or <code>none</code> also affects unrelated bytes that share it, so callers must keep an allocation's pages to themselves.</p>
 <p>Every typed read/write validates the address against the allocation registry and checks the access against the allocation's length, so an unknown address, a freed address, and an out-of-bounds access are source-located errors rather than crashes. 64-bit writes preserve the full signed and unsigned range (see <a href="types.html">types</a>).</p>
 <h2 id="syscalls">Syscalls</h2>
-<p><code>syscall*(...)</code> entries take integer arguments only (at most six) and dispatch through the platform syscall layer. <code>syscallPollFileDescriptors</code> takes three arguments; <code>syscallPpollFileDescriptors</code>, <code>syscallWaitForEvents</code> and <code>syscallWaitForEventsWithSignalMask</code> take five.</p>
-<p>Beyond the original set, the family carries an extended surface built from one source on <code>amd64</code> and <code>aarch64</code>; every name resolves on both architectures. The portable <code>syscallPollFileDescriptors</code> / <code>syscallWaitForEvents</code> wrappers follow the architecture's split internally (<code>poll</code>/<code>epoll_wait</code> on amd64, <code>ppoll</code>/<code>epoll_pwait</code> on aarch64), and the explicit <code>ppoll</code> / <code>epoll_pwait</code> wrappers are available on both. A name whose number is missing from the build's headers fails with <code>syscall &#x27;&lt;name&gt;&#x27; is not available on this architecture</code> instead of dispatching the wrong table.</p>
+<p>Named syscalls are <strong>architecture-gated</strong>. A program first declares the architecture it targets, then reaches every syscall through that architecture's namespace:</p>
+<pre><code>global setup(){ syscalls(&quot;amd64&quot;); }
+
+global main(){
+    amd64.syscallRead(fd, buffer, 16);
+}</code></pre>
+<p><code>syscalls(...)</code> accepts <code>amd64</code> / <code>x86-64</code> and <code>arm64</code> / <code>aarch64</code>. The keyword must name the machine the program runs on, and only one architecture can be selected at a time: a different architecture, a second architecture, or a syscall call before <code>syscalls(...)</code> is a source-located error. An unknown keyword or namespace prefix reports the closest match, e.g. <code>unknown syscall architecture &#x27;amd6&#x27;. You meant: amd64?</code>. The old flat <code>syscallRead(...)</code> spelling is gone; it fails with a pointer to the namespaced form. <code>global.sys.architecture()</code> returns the keyword to pass here.</p>
+<p>Syscall calls take integer arguments only (at most six). <code>syscallPollFileDescriptors</code> takes three arguments; <code>syscallPpollFileDescriptors</code>, <code>syscallWaitForEvents</code> and <code>syscallWaitForEventsWithSignalMask</code> take five.</p>
+<p>On amd64 the portable <code>syscallPollFileDescriptors</code> / <code>syscallWaitForEvents</code> wrappers use <code>poll</code>/<code>epoll_wait</code>; on aarch64 they use <code>ppoll</code>/<code>epoll_pwait</code>. The explicit <code>ppoll</code>/<code>epoll_pwait</code> wrappers are available on both. A name whose number is missing from the build's headers fails with <code>syscall &#x27;&lt;name&gt;&#x27; is not available on this architecture</code> instead of dispatching the wrong table.</p>
+<p>Every name below is called as <code>&lt;arch&gt;.&lt;name&gt;(...)</code>; the full reference, with the Linux syscall each maps to and its arguments, is <a href="syscalls.html">syscalls</a>.</p>
 <table>
 <tr><th>Group</th><th>Names</th></tr>
 <tr><td>Filesystem</td><td><code>syscallOpenAt2</code>, <code>syscallCheckFileAccessAt2</code>, <code>syscallCopyFileRange</code>, <code>syscallFallocateFile</code>, <code>syscallSynchronizeFilesystem</code></td></tr>
@@ -318,7 +327,7 @@ ffiCloseLibrary(lib);</code></pre>
 <tr><td>Sandboxing</td><td><code>syscallCreateLandlockRuleset</code>, <code>syscallAddLandlockRule</code>, <code>syscallRestrictLandlockSelf</code>, <code>syscallControlSeccomp</code></td></tr>
 </table>
 <p>The io_uring and sandboxing entries are raw passthroughs: build any <code>struct</code> (io_uring params, Landlock rules, <code>struct seccomp_data</code>) in native memory and pass its address. <code>syscallControlSeccomp</code> is unguarded — operation <code>0</code> installs <code>SECCOMP_MODE_STRICT</code> and will terminate the process.</p>
-<p><code>lynxer/examples/syscall_extended.lynx</code> and <code>syscall_io_uring.lynx</code> pin the wiring; <code>lowlevel_syscalls.lynx</code>, <code>amd64Syscalls.lynx</code> and <code>arm64Syscalls.lynx</code> cover the original set and the <code>poll</code>/<code>epoll</code> split.</p>
+<p><code>lynxer/examples/syscall_extended.lynx</code> and <code>syscall_io_uring.lynx</code> pin the wiring; <code>lowlevel_syscalls.lynx</code> and <code>lowlevel_arch.lynx</code> are architecture agnostic (they carry a <code>__ARCH__</code> token the test harness fills in), while <code>amd64Syscalls.lynx</code> and <code>arm64Syscalls.lynx</code> cover the <code>poll</code>/<code>epoll</code> split per target.</p>
 <h2 id="managed-filesystem">Managed filesystem</h2>
 <p>A small handle-based filesystem API, separate from the <code>fileIO</code>, <code>os</code> and <code>path</code> stdlib modules. Handles are non-negative integers; the interpreter owns the descriptor behind one, and an unknown or already-closed handle is a runtime error rather than a silent failure. Failures preserve the operation and the original errno in the message, for example <code>filesystemOpen() failed: [2] No such file or directory</code>. Descriptors a program leaves open are closed when the process exits.</p>
 <table>

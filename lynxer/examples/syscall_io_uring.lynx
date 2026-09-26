@@ -7,9 +7,12 @@ deterministically, which proves the name is wired to the right per-architecture
 number without depending on whether the host kernel enables io_uring at all: a
 kernel without io_uring answers ENOSYS, which is still a `syscall '` error. The
 output is identical on amd64 and aarch64.
+
+The `__ARCH__` token is replaced with the host's syscall architecture (`amd64`
+or `arm64`) before the fixture runs, so one source serves both targets.
 ////
 
-global setup(){}
+global setup(){ syscalls("__ARCH__"); }
 
 global recognized(str message) -> bool {
     return substring(message, 0, 9) is "syscall '";
@@ -18,17 +21,17 @@ global recognized(str message) -> bool {
 global main(){
     // A NULL params pointer: io_uring_setup rejects it with EFAULT.
     try {
-        syscallSetupIoUring(4, 0);
+        __ARCH__.syscallSetupIoUring(4, 0);
         println("setup NO ERROR");
     } catch(str e) { println("setup ", global.recognized(e)); }
 
     // A negative ring descriptor is always EBADF.
     try {
-        syscallEnterIoUring(-1, 0, 0, 0, 0, 0);
+        __ARCH__.syscallEnterIoUring(-1, 0, 0, 0, 0, 0);
         println("enter NO ERROR");
     } catch(str e) { println("enter ", global.recognized(e)); }
     try {
-        syscallRegisterIoUring(-1, 0, 0, 0);
+        __ARCH__.syscallRegisterIoUring(-1, 0, 0, 0);
         println("register NO ERROR");
     } catch(str e) { println("register ", global.recognized(e)); }
 }

@@ -6,27 +6,30 @@ both, and only portable calls are used (the calls whose syscall number differs
 between the two architectures are the ones that need a raw descriptor, buffer
 layout or signal mask, and are covered by the interpreter's own built-ins). The
 failure path of the `syscall*` family is a source-located error, checked here.
+
+The `__ARCH__` token is replaced with the host's syscall architecture (`amd64`
+or `arm64`) before the fixture runs, so one source serves both targets.
 ////
 
-global setup() {}
+global setup() { syscalls("__ARCH__"); }
 
 global main() {
-    println("yield ", syscallYieldProcessor());
-    println("tid positive ", syscallGetThreadId() > 0);
+    println("yield ", __ARCH__.syscallYieldProcessor());
+    println("tid positive ", __ARCH__.syscallGetThreadId() > 0);
 
     int buffer = memoryAllocate(256);
-    int length = syscallGetCurrentDirectory(buffer, 256);
+    int length = __ARCH__.syscallGetCurrentDirectory(buffer, 256);
     println("cwd length positive ", length > 0);
     println("cwd absolute ", memoryReadByte(buffer, 0) is 47);
 
-    int randomBytes = syscallGetRandomBytes(buffer, 16);
+    int randomBytes = __ARCH__.syscallGetRandomBytes(buffer, 16);
     println("random bytes ", randomBytes);
 
-    println("clock resolution rc ", syscallGetClockResolution(1, buffer));
+    println("clock resolution rc ", __ARCH__.syscallGetClockResolution(1, buffer));
 
     // The failure path is a raised, source-located error rather than a sentinel.
     try {
-        syscallRead(-1, buffer, 16);
+        __ARCH__.syscallRead(-1, buffer, 16);
         println("bad descriptor raised false");
     } catch (str error) {
         println("bad descriptor raised true");

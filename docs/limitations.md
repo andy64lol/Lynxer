@@ -190,6 +190,7 @@ Both modules use `std::regex` with the ECMAScript grammar, which is narrower tha
 ### `sys` — Constrained Behavior
 
 - **Version:** `version()` returns the Lynxer version (e.g., `Lynxer 0.1.8.1`).
+- **Architecture:** `architecture()` returns the canonical syscall architecture of this build (`amd64` or `arm64`), not the raw machine string from `uname(2)`.
 - **Python runtime concepts:** Not supported (`sys.path`, `addPath`, `prependPath`, `removeFromPath`, `getModules`, `isModuleLoaded`, `getRecursionLimit`, `setRecursionLimit`).
 - **Command-line arguments:** `argv()`, `getArg`, and `argCount` describe the `lynxer` process command line, not the program's arguments.
 - **Exit behavior:** `exit()` calls `std::exit` directly, bypassing interpreter cleanup.
@@ -293,6 +294,14 @@ The API surface is complete, but the backend is a placeholder rather than a Rich
 ## Built-in Families
 
 The managed `filesystem*`, `process*`, `networking*`, and `sound*` families are implemented and documented in [builtins.md](builtins.md).
+
+### Syscalls — Architecture-gated
+
+Named syscalls require `syscalls("<arch>")` before use and are reached through
+the matching namespace (`amd64.syscallRead(...)` / `arm64.syscallRead(...)`).
+Only the host architecture can be selected, and only one at a time. The former
+flat `syscallRead(...)` spelling is rejected with a pointer to the namespaced
+form. See [builtins.md](builtins.md#syscalls).
 
 ### Unsupported Built-ins
 

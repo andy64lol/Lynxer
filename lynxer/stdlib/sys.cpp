@@ -63,6 +63,17 @@ extern "C" const char* sys_platform() {
     return "unknown";
 #endif
 }
+// The canonical syscall architecture of this build — the same word syscalls()
+// accepts: amd64 on x86-64, arm64 on aarch64.
+extern "C" const char* sys_architecture() {
+#if defined(__x86_64__)
+    return "amd64";
+#elif defined(__aarch64__)
+    return "arm64";
+#else
+    return "";
+#endif
+}
 // The Python reference returns the interpreter's version string; Lynxer has no
 // Python runtime, so this reports the Lynxer version instead.
 extern "C" const char* sys_version() { return LYNXER_VERSION_TEXT; }
@@ -122,6 +133,7 @@ extern "C" std::int64_t sys_exit(std::int64_t code) {
 
 extern "C" int lynxer_module_init_v1(RegisterFunction f, RegisterConstant, RegisterType) {
     return f("platform","sys_platform","cdecl:cstring()") &&
+           f("architecture","sys_architecture","cdecl:cstring()") &&
            f("version","sys_version","cdecl:cstring()") &&
            f("versionInfo","sys_versionInfo","cdecl:cstring()") &&
            f("implementation","sys_implementation","cdecl:cstring()") &&

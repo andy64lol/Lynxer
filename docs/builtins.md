@@ -287,19 +287,41 @@ crashes. 64-bit writes preserve the full signed and unsigned range (see
 
 ## Syscalls
 
-`syscall*(...)` entries take integer arguments only (at most six) and dispatch
-through the platform syscall layer. `syscallPollFileDescriptors` takes three
-arguments; `syscallPpollFileDescriptors`, `syscallWaitForEvents` and
+Named syscalls are **architecture-gated**. A program first declares the
+architecture it targets, then reaches every syscall through that architecture's
+namespace:
+
+```lynx
+global setup(){ syscalls("amd64"); }
+
+global main(){
+    amd64.syscallRead(fd, buffer, 16);
+}
+```
+
+`syscalls(...)` accepts `amd64` / `x86-64` and `arm64` / `aarch64`. The keyword
+must name the machine the program runs on, and only one architecture can be
+selected at a time: a different architecture, a second architecture, or a
+syscall call before `syscalls(...)` is a source-located error. An unknown
+keyword or namespace prefix reports the closest match, e.g.
+`unknown syscall architecture 'amd6'. You meant: amd64?`. The old flat
+`syscallRead(...)` spelling is gone; it fails with a pointer to the namespaced
+form. `global.sys.architecture()` returns the keyword to pass here.
+
+Syscall calls take integer arguments only (at most six).
+`syscallPollFileDescriptors` takes three arguments;
+`syscallPpollFileDescriptors`, `syscallWaitForEvents` and
 `syscallWaitForEventsWithSignalMask` take five.
 
-Beyond the original set, the family carries an extended surface built from one
-source on `amd64` and `aarch64`; every name resolves on both architectures. The
-portable `syscallPollFileDescriptors` / `syscallWaitForEvents` wrappers follow the
-architecture's split internally (`poll`/`epoll_wait` on amd64,
-`ppoll`/`epoll_pwait` on aarch64), and the explicit `ppoll` / `epoll_pwait`
-wrappers are available on both. A name whose number is missing from the build's
-headers fails with `syscall '<name>' is not available on this architecture`
-instead of dispatching the wrong table.
+On amd64 the portable `syscallPollFileDescriptors` / `syscallWaitForEvents`
+wrappers use `poll`/`epoll_wait`; on aarch64 they use `ppoll`/`epoll_pwait`. The
+explicit `ppoll`/`epoll_pwait` wrappers are available on both. A name whose
+number is missing from the build's headers fails with
+`syscall '<name>' is not available on this architecture` instead of dispatching
+the wrong table.
+
+Every name below is called as `<arch>.<name>(...)`; the full reference, with the
+Linux syscall each maps to and its arguments, is [syscalls.md](syscalls.md).
 
 | Group | Names |
 | --- | --- |
@@ -319,8 +341,10 @@ pass its address. `syscallControlSeccomp` is unguarded — operation `0` install
 `SECCOMP_MODE_STRICT` and will terminate the process.
 
 `lynxer/examples/syscall_extended.lynx` and `syscall_io_uring.lynx` pin the
-wiring; `lowlevel_syscalls.lynx`, `amd64Syscalls.lynx` and `arm64Syscalls.lynx`
-cover the original set and the `poll`/`epoll` split.
+wiring; `lowlevel_syscalls.lynx` and `lowlevel_arch.lynx` are architecture
+agnostic (they carry a `__ARCH__` token the test harness fills in), while
+`amd64Syscalls.lynx` and `arm64Syscalls.lynx` cover the `poll`/`epoll` split per
+target.
 
 ## Managed filesystem
 

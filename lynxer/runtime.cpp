@@ -632,6 +632,14 @@ bool Environment::deprecationWarningSuppressed() const {
     return deprecationWarningSuppressed_;
 }
 
+void Environment::setSyscallArchitecture(const std::string& architecture) {
+    syscallArchitecture_ = architecture;
+}
+
+const std::string& Environment::syscallArchitecture() const {
+    return syscallArchitecture_;
+}
+
 void Environment::warnTupleBracketLiteral(int line, int column) {
     if (deprecationWarningSuppressed_) {
         return;

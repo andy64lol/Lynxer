@@ -35,6 +35,7 @@ deliberately constrained or not implemented.
 | Document | What it covers |
 | --- | --- |
 | [builtins.md](builtins.md) | Every function the interpreter implements itself |
+| [syscalls.md](syscalls.md) | The named Linux syscall wrappers: architecture gate, namespaces, full list |
 | [native-module-abi.md](native-module-abi.md) | Writing a native `.so` module: entry point, signatures, data conventions |
 | [stdlib-contracts.md](stdlib-contracts.md) | The frozen contract every wrapper and backend must satisfy |
 | [extending.md](extending.md) | Adding a stdlib module end to end |

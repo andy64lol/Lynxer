@@ -82,6 +82,56 @@ using Handler = Value (*)(const std::vector<Value>& args, Environment&,
 
 Value none() { return Value{}; }
 
+// Canonical syscall-architecture word for the host this binary was built for.
+const char* hostSyscallArch() {
+    if (kX86_64) return "amd64";
+    if (kArm64) return "arm64";
+    return "";
+}
+
+std::size_t editDistance(const std::string& left, const std::string& right) {
+    std::vector<std::size_t> previous(right.size() + 1);
+    std::vector<std::size_t> current(right.size() + 1);
+    for (std::size_t index = 0; index <= right.size(); ++index) {
+        previous[index] = index;
+    }
+    for (std::size_t row = 1; row <= left.size(); ++row) {
+        current[0] = row;
+        for (std::size_t column = 1; column <= right.size(); ++column) {
+            const std::size_t substitution =
+                previous[column - 1] +
+                (left[row - 1] == right[column - 1] ? 0 : 1);
+            current[column] = std::min({previous[column] + 1,
+                                        current[column - 1] + 1, substitution});
+        }
+        previous.swap(current);
+    }
+    return previous[right.size()];
+}
+
+// Closest candidate to `word` by edit distance, for "You meant: x?" hints.
+std::string closestWord(const std::string& word,
+                        const std::vector<std::string>& candidates) {
+    std::string best;
+    std::size_t bestDistance = 0;
+    for (const auto& candidate : candidates) {
+        const std::size_t distance = editDistance(word, candidate);
+        if (best.empty() || distance < bestDistance) {
+            best = candidate;
+            bestDistance = distance;
+        }
+    }
+    return best;
+}
+
+// Maps a syscalls() keyword or a namespace prefix to a canonical architecture,
+// or "" when unknown: amd64/x86-64 -> amd64, arm64/aarch64 -> arm64.
+std::string canonicalSyscallArch(const std::string& word) {
+    if (word == "amd64" || word == "x86-64") return "amd64";
+    if (word == "arm64" || word == "aarch64") return "arm64";
+    return "";
+}
+
 Value makeList(std::vector<Value> elements) {
     return std::make_shared<List>(List{std::move(elements)});
 }
@@ -1587,6 +1637,44 @@ Value builtinSuppressDeprecationWarning(const std::vector<Value>& args,
         fail("suppressDeprecationWarning() takes no arguments", line, column);
     }
     env.setDeprecationWarningSuppressed();
+    return none();
+}
+
+// `syscalls("<kw>")` selects the architecture whose syscalls the program uses.
+// The keyword must name the host architecture, and the selection is what makes
+// the `<arch>.syscall*` calls available.
+Value builtinSyscalls(const std::vector<Value>& args, Environment& env, int line,
+                      int column) {
+    if (args.size() != 1) {
+        fail("syscalls() takes exactly one architecture keyword", line, column);
+    }
+    const auto* word = std::get_if<std::string>(&args[0]);
+    if (word == nullptr) {
+        fail("syscalls() expects a string architecture keyword", line, column);
+    }
+    const std::string canonical = canonicalSyscallArch(*word);
+    if (canonical.empty()) {
+        fail("unknown syscall architecture '" + *word + "'. You meant: " +
+                 closestWord(*word, {"amd64", "arm64", "aarch64", "x86-64"}) +
+                 "?",
+             line, column);
+    }
+    const std::string host = hostSyscallArch();
+    if (host.empty()) {
+        fail("syscalls() is not available on this architecture", line, column);
+    }
+    if (canonical != host) {
+        fail("syscalls(\"" + *word + "\") selects " + canonical +
+                 ", but this machine is " + host,
+             line, column);
+    }
+    const std::string& selected = env.syscallArchitecture();
+    if (!selected.empty() && selected != canonical) {
+        fail("this program already selected syscalls(\"" + selected +
+                 "\"); only one architecture can be used at a time",
+             line, column);
+    }
+    env.setSyscallArchitecture(canonical);
     return none();
 }
 
@@ -6557,6 +6645,7 @@ const std::unordered_map<std::string, Handler>& handlerTable() {
         {"foreverDelay", builtinForeverDelay},
         {"suppressForeverWarning", builtinSuppressForeverWarning},
         {"suppressDeprecationWarning", builtinSuppressDeprecationWarning},
+        {"syscalls", builtinSyscalls},
         {"overrideMain", builtinOverrideMain},
         {"memoryAllocate", builtinMemoryAllocate},
         {"memoryAllocateZeroed", builtinMemoryAllocateZeroed},
@@ -6961,8 +7050,12 @@ bool isBuiltinName(const std::string& name) {
     if (handlers.find(name) != handlers.end()) {
         return true;
     }
-    if (name.rfind("syscall", 0) == 0 &&
-        unsupported.find(name) != unsupported.end()) {
+    // "<arch>.syscallFoo" is a syscall call whose prefix is validated at run
+    // time; the flat function name must be a known syscall.
+    const std::size_t dot = name.find('.');
+    if (dot != std::string::npos &&
+        name.compare(dot + 1, 7, "syscall") == 0 &&
+        unsupported.find(name.substr(dot + 1)) != unsupported.end()) {
         return true;
     }
     return unsupported.find(name) != unsupported.end();
@@ -6983,11 +7076,46 @@ Value callBuiltin(const std::string& name, const std::vector<Value>& args,
     if (handler != handlers.end()) {
         return handler->second(args, environment, line, column);
     }
-    if (resolved.rfind("syscall", 0) == 0) {
-        const auto& unsupported = unsupportedTable();
-        if (unsupported.find(resolved) != unsupported.end()) {
-            return builtinSyscall(resolved, args, line, column);
+    // Architecture-namespaced syscalls: "<arch>.syscallFoo". The prefix names the
+    // architecture; the call is refused until syscalls("<arch>") has run, and
+    // only the selected architecture's namespace is usable.
+    const std::size_t dot = resolved.find('.');
+    if (dot != std::string::npos &&
+        resolved.compare(dot + 1, 7, "syscall") == 0) {
+        const std::string prefix = resolved.substr(0, dot);
+        const std::string function = resolved.substr(dot + 1);
+        if (unsupportedTable().find(function) == unsupportedTable().end()) {
+            fail("unknown function '" + name + "'", line, column);
         }
+        const std::string canonical = canonicalSyscallArch(prefix);
+        if (canonical.empty()) {
+            fail("unknown syscall architecture '" + prefix + "'. You meant: " +
+                     closestWord(prefix, {"amd64", "arm64", "aarch64"}) + "?",
+                 line, column);
+        }
+        const std::string& selected = environment.syscallArchitecture();
+        if (selected.empty()) {
+            fail(std::string("syscalls are not available yet; call "
+                             "syscalls(\"") +
+                     canonical + "\") first",
+                 line, column);
+        }
+        if (selected != canonical) {
+            fail(prefix + "." + function + "() needs syscalls(\"" + canonical +
+                     "\"), but this program selected \"" + selected + "\"",
+                 line, column);
+        }
+        return builtinSyscall(function, args, line, column);
+    }
+    if (resolved.rfind("syscall", 0) == 0 &&
+        unsupportedTable().find(resolved) != unsupportedTable().end()) {
+        // Flat syscall names are no longer accepted: they must name an
+        // architecture so the interpreter can check it against the host.
+        const std::string host = hostSyscallArch();
+        const std::string arch = host.empty() ? std::string("<arch>") : host;
+        fail(resolved + "() is not available; use " + arch + "." + resolved +
+                 "() after syscalls(\"" + arch + "\")",
+             line, column);
     }
     if (unsupportedTable().find(resolved) != unsupportedTable().end()) {
         fail(resolved + "() is not supported in Lynxer yet", line, column);

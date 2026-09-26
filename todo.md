@@ -164,6 +164,14 @@ set below has been added on top of it. A name whose number is missing from the
 build's headers fails with `syscall '<name>' is not available on this
 architecture` rather than dispatching the wrong table.
 
+**Call syntax.** Named syscalls are architecture-gated: a program calls
+`syscalls("amd64")` (or `"arm64"`; `x86-64` / `aarch64` are aliases) once to
+select the host architecture, then reaches every wrapper through that namespace
+— `amd64.syscallRead(...)`. Only one architecture can be selected, the keyword
+must name the machine, and a misspelled keyword or namespace prefix answers with
+`You meant: <closest>?`. The old flat `syscallRead(...)` spelling is rejected.
+`sys.architecture()` returns the keyword to pass.
+
 **Portability rule.** New wrappers must work on **both** Linux `amd64` and
 `aarch64` from the same source: resolve the number in `syscallNumberFor`, guard
 each mapping with `#ifdef SYS_<name>` so an older header set degrades to the
@@ -171,7 +179,9 @@ each mapping with `#ifdef SYS_<name>` so an older header set degrades to the
 every name available on both arches — where the raw call differs, split only the
 number and argument fix-up, not the name (the portable `poll`/`epoll` wrappers
 are the model). No `syscall*` name is architecture-exclusive. Prefer a libc
-wrapper when the raw call is an unstable ABI (e.g. `clone`/`clone3`).
+wrapper when the raw call is an unstable ABI (e.g. `clone`/`clone3`). Because
+call sites now name an architecture, an architecture-agnostic fixture carries a
+`__ARCH__` token that the Makefile substitutes per host (`SYSCALL_ARCH`).
 
 ### Filesystem
 

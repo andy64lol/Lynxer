@@ -1605,6 +1605,20 @@ ExpressionPtr Parser::parsePostfix(ExpressionPtr expression,
         const Token field =
             expect(TokenKind::Identifier, "expected name after '.'");
         if (match("(")) {
+            // Architecture-namespaced syscalls: `amd64.syscallRead(...)` folds to
+            // the flat call name "amd64.syscallRead", which the builtin router
+            // validates against the selected architecture. A misspelled prefix
+            // is reported with a "You meant:" hint there.
+            if (field.text.rfind("syscall", 0) == 0) {
+                if (const auto* receiver =
+                        dynamic_cast<const VariableExpression*>(expression.get());
+                    receiver != nullptr) {
+                    expression = std::make_unique<CallExpression>(
+                        receiver->name() + "." + field.text,
+                        parseArguments(field.text), start.line, start.column);
+                    continue;
+                }
+            }
             std::function<bool(const Expression&, std::string&)> qualify =
                 [&](const Expression& node, std::string& result) {
                     if (const auto* root =
