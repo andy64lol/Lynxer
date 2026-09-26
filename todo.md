@@ -40,10 +40,9 @@ Status of each unimplemented built-in today:
       (`rawPy`, `rawPyx`, `cleanRawPyxCache`, `embedPy`). Blocked on embedding a
       Python runtime; everything that depended on `rawPy` (tuple interop,
       `tkinter`, `turtle`) comes with it.
-- [ ] Bracket-literal tuple rebinding: the original accepted
-      `tuple t = [int 1, int 2]`. Today it fails with
-      `value cannot be assigned to type 'tuple'`; use `(int 1, int 2)`,
-      `tupleCreate(...)`, or `listToTuple(...)`. See [docs/tuples.md](docs/tuples.md).
+- [x] Bracket-literal tuple rebinding: a `tuple` target accepts the original's
+      `tuple t = [int 1, int 2]` (the list is coerced to a tuple on assignment);
+      `(int 1, int 2)` stays canonical. See [docs/tuples.md](docs/tuples.md).
 
 ### Built-in families
 

@@ -86,6 +86,9 @@ endif
 LYNXER_MILESTONE7_NEW_FIXTURES := $(LYNXER_DIR)/examples/builtin_async.lynx $(LYNXER_DIR)/examples/builtin_ffi.lynx
 # Ownership/borrowing built-ins: moves, borrows, swaps and their error paths.
 LYNXER_OWNERSHIP_FIXTURES := $(LYNXER_DIR)/examples/ownership.lynx
+# Tuple literals: the canonical `()` form plus the legacy bracket literal
+# `[int 1, int 2]`, which a `tuple` target coerces to a tuple.
+LYNXER_TUPLE_FIXTURES := $(LYNXER_DIR)/examples/tuple_rebinding.lynx
 # Low-level fixtures: native-memory typed/endian access and the portable named
 # syscalls. They assert only host-independent behaviour, so the same expected
 # output holds on amd64 and arm64, and both CI jobs run them.
@@ -467,7 +470,7 @@ expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:23: charAt() index is out of rang
 	rm -f $(CLYX_TMP)_stdlib.out $(CLYX_TMP)_stdlib.diff; exit 1; fi; \
 	done; \
 	rm -f $(CLYX_TMP)_stdlib.out $(CLYX_TMP)_stdlib.diff
-	@for fixture in $(LYNXER_MILESTONE7_NEW_FIXTURES) $(LYNXER_OWNERSHIP_FIXTURES) $(LYNXER_LOWLEVEL_FIXTURES); do \
+	@for fixture in $(LYNXER_MILESTONE7_NEW_FIXTURES) $(LYNXER_OWNERSHIP_FIXTURES) $(LYNXER_TUPLE_FIXTURES) $(LYNXER_LOWLEVEL_FIXTURES); do \
 	expected="$${fixture%.lynx}.expected"; \
 	if [ ! -f "$$expected" ]; then \
 	echo "missing expected output for $$fixture"; exit 1; fi; \

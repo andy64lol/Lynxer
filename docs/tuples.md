@@ -23,6 +23,17 @@ tuple empty  = ();          // empty tuple
 The trailing comma in `(int 99,)` is what distinguishes a single-element tuple
 from a parenthesised expression.
 
+`()` is the canonical form for both declaration and rebinding. A `tuple` target
+also accepts a bracket literal for compatibility with the original:
+
+```lynx
+tuple t = [int 1, int 2];   // the list is coerced to a tuple, (1, 2)
+t = [int 3, int 4];         // rebinding works the same way
+```
+
+Prefer `()` in new code; `tupleCreate(...)` and `listToTuple(...)` remain the
+explicit constructors.
+
 You can also build a tuple dynamically with `tupleCreate(...)`, which infers
 each element's type from the argument:
 
@@ -122,10 +133,12 @@ for (int i = 0; i < returnLength(values)) {
 
 ## Differences from the original Lynxer
 
-- **Bracket literals are not accepted for tuples.** In the original, a `tuple`
-  variable could be (re)bound with a `[int 1, int 2]` literal. The standalone
-  runtime rejects that with `value cannot be assigned to type 'tuple'`; use the
-  `(int 1, int 2)` form, `tupleCreate(...)`, or `listToTuple(...)`.
+- **Bracket literals are accepted for tuples (legacy).** In the original, a
+  `tuple` variable could be (re)bound with a `[int 1, int 2]` literal; the
+  standalone runtime coerces that list to a tuple on assignment too. The
+  `(int 1, int 2)` form is canonical, and `tupleCreate(...)` /
+  `listToTuple(...)` remain the explicit conversions. Only the `tuple` target
+  coerces — a `list` target still rejects a `()` tuple.
 - **No `rawPy` bridging.** The original exposed tuples to `rawPy { }` blocks as
   Python tuples; there is no Python runtime here.
 - **`tupleZip` returns a tuple**, not a list, and renders values as JSON

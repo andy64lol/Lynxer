@@ -776,8 +776,19 @@ Value Environment::convertForType(Value value, const std::string& type,
         }
     } else if (type == "list" && std::holds_alternative<std::shared_ptr<List>>(value)) {
         return value;
-    } else if (type == "tuple" && std::holds_alternative<std::shared_ptr<Tuple>>(value)) {
-        return value;
+    } else if (type == "tuple") {
+        if (std::holds_alternative<std::shared_ptr<Tuple>>(value)) {
+            return value;
+        }
+        // Legacy bracket-literal rebinding: the original accepted
+        // `tuple t = [int 1, int 2]`, where the bracket literal is a list that
+        // the assignment coerced to a tuple. `(int 1, int 2)` stays canonical.
+        if (const auto* list = std::get_if<std::shared_ptr<List>>(&value);
+            list != nullptr && *list != nullptr) {
+            auto tuple = std::make_shared<Tuple>();
+            tuple->elements = (*list)->elements;
+            return Value{tuple};
+        }
     } else if (type == "sentinel" &&
                std::holds_alternative<std::shared_ptr<SentinelValue>>(value)) {
         return value;

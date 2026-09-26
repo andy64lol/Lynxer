@@ -1,0 +1,35 @@
+////
+Tuple rebinding fixture. Tuples use `()` — that is the canonical form, for both
+declaration and rebinding. The bracket-literal form `[int 1, int 2]` is also
+accepted for a `tuple` target, matching the original Lynxer, which coerced the
+list literal to a tuple on assignment.
+////
+
+global setup(){}
+
+global main(){
+    tuple point = (int 10, int 20);
+    println(point);
+    println(tupleLen(point));
+
+    // Bracket-literal declaration (legacy coercion).
+    tuple rgb = [int 255, int 128, int 0];
+    println(rgb);
+
+    // Rebinding with the canonical `()` form.
+    point = (int 1, int 2);
+    println(point);
+
+    // Rebinding with the legacy bracket-literal form.
+    rgb = [str "a", bool true, float 3.5];
+    println(rgb);
+
+    // An empty bracket literal is an empty tuple.
+    tuple empty = [];
+    println(empty);
+
+    // listToTuple stays the explicit conversion.
+    list values = [int 4, int 5];
+    tuple fromList = listToTuple(values);
+    println(fromList);
+}

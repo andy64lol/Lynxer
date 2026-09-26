@@ -90,6 +90,10 @@ tuple mixed  = (str &quot;hello&quot;, int 42, bool true);
 tuple single = (int 99,);   // single-element tuple — prints as (99,)
 tuple empty  = ();          // empty tuple</code></pre>
 <p>The trailing comma in <code>(int 99,)</code> is what distinguishes a single-element tuple from a parenthesised expression.</p>
+<p><code>()</code> is the canonical form for both declaration and rebinding. A <code>tuple</code> target also accepts a bracket literal for compatibility with the original:</p>
+<pre><code>tuple t = [int 1, int 2];   // the list is coerced to a tuple, (1, 2)
+t = [int 3, int 4];         // rebinding works the same way</code></pre>
+<p>Prefer <code>()</code> in new code; <code>tupleCreate(...)</code> and <code>listToTuple(...)</code> remain the explicit constructors.</p>
 <p>You can also build a tuple dynamically with <code>tupleCreate(...)</code>, which infers each element's type from the argument:</p>
 <pre><code>tuple dyn = tupleCreate(1, &quot;a&quot;, true);   // (1, a, true)
 tuple none = tupleCreate();              // ()</code></pre>
@@ -161,7 +165,7 @@ for (int i = 0; i &lt; returnLength(values)) {
 }</code></pre>
 <h2 id="differences-from-the-original-lynxer">Differences from the original Lynxer</h2>
 <ul>
-<li><strong>Bracket literals are not accepted for tuples.</strong> In the original, a <code>tuple</code> variable could be (re)bound with a <code>[int 1, int 2]</code> literal. The standalone runtime rejects that with <code>value cannot be assigned to type &#x27;tuple&#x27;</code>; use the <code>(int 1, int 2)</code> form, <code>tupleCreate(...)</code>, or <code>listToTuple(...)</code>.</li>
+<li><strong>Bracket literals are accepted for tuples (legacy).</strong> In the original, a <code>tuple</code> variable could be (re)bound with a <code>[int 1, int 2]</code> literal; the standalone runtime coerces that list to a tuple on assignment too. The <code>(int 1, int 2)</code> form is canonical, and <code>tupleCreate(...)</code> / <code>listToTuple(...)</code> remain the explicit conversions. Only the <code>tuple</code> target coerces — a <code>list</code> target still rejects a <code>()</code> tuple.</li>
 <li><strong>No <code>rawPy</code> bridging.</strong> The original exposed tuples to <code>rawPy { }</code> blocks as Python tuples; there is no Python runtime here.</li>
 <li><strong><code>tupleZip</code> returns a tuple</strong>, not a list, and renders values as JSON (<code>{&quot;a&quot;: 1, &quot;b&quot;: 2}</code>). <code>typing.tupleZip</code> returns a list of <code>{&quot;a&quot;:&quot;1&quot;,&quot;b&quot;:&quot;2&quot;}</code> strings instead.</li>
 </ul>
