@@ -1139,6 +1139,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "lynxer_graphics"
+version = "0.1.0"
+dependencies = [
+ "lynxer_abi",
+ "macroquad",
+]
+
+[[package]]
 name = "lynxer_image"
 version = "0.1.0"
 dependencies = [

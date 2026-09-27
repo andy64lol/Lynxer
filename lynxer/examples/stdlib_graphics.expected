@@ -1,0 +1,111 @@
+== window ==
+screen 320 240
+dpi 1
+running-before false
+window-position [0,0]
+clipboard-empty true
+quit-requested false
+version lynxer_graphics 0.1.0 / macroquad 0.4
+== gpu-loaders-need-a-context ==
+loadFont true
+loadTexture true
+loadImage true
+renderTarget true
+renderTargetMsaa true
+getScreenData true
+screenshot true
+setDefaultFont true
+renderTargetTexture true
+loadMaterial true
+loadMaterialFromFile true
+useMaterial true
+setUniform true
+setUniformArray true
+setMaterialTexture true
+== images ==
+genImage true
+imageWidth 4
+imageHeight 4
+pixel-untouched [10,20,30,255]
+setPixel true
+pixel-written [255,0,0,255]
+textureFromImage true
+imageFromTexture true
+== text ==
+measureWidth 0
+measureHeight 0
+measure {"width":0,"height":0,"offsetY":0}
+wrapText-empty true
+text-center [0,0]
+measureMultiline {"width":0,"height":0,"offsetY":0}
+== input ==
+key-down false
+key-pressed false
+key-released false
+any-key-down false
+space-code 32
+space-name space
+round-trip-f12 true
+alias-esc true
+unknown-key true
+mouse-button false
+mouse-wheel [0,0]
+mouse-delta [0,0]
+last-key-empty true
+char-empty true
+dropped-json-empty true
+== colour and random ==
+rgb-to-hsl [0,1,0.5]
+hsl-to-rgb [255,0,0,255]
+rand-seeded 3270867926
+range-empty 3
+range-float-empty 0
+== ui registry ==
+combo-value true
+input-text true
+input-text-draw true
+checkbox-value true
+slider-value 2.5
+button false
+button-result 0
+== window block ==
+window-begin true
+window-end true
+group-begin true
+group-end true
+nested-checkbox false
+== frames ==
+start
+update 0.016666666666666666
+  update-runs true
+draw
+  camera-target [160,120,0.00625,0,0,0]
+  screen-to-world [0,0]
+  world-to-screen [0,0]
+  texture-size [0,0]
+  mouse [0,0]
+  keys-down []
+  touches []
+update 0.016666666666666666
+  update-runs true
+draw
+  camera-target [160,120,0.00625,0,0,0]
+  screen-to-world [0,0]
+  world-to-screen [0,0]
+  texture-size [0,0]
+  mouse [0,0]
+  keys-down []
+  touches []
+update 0.016666666666666666
+  update-runs true
+draw
+  camera-target [160,120,0.00625,0,0,0]
+  screen-to-world [0,0]
+  world-to-screen [0,0]
+  texture-size [0,0]
+  mouse [0,0]
+  keys-down []
+  touches []
+running-after false
+time-frozen 0.05000000074505806
+fps 60

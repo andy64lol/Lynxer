@@ -1,0 +1,253 @@
+////
+Fixture for the `graphics` stdlib module, run headless.
+
+The runner sets LYNXER_GRAPHICS_HEADLESS=1, so `run()` executes a fixed number
+of deterministic frames without opening a window, every drawing call is a
+no-op, and the loaders that need a GPU context return -1. Everything that does
+not need a context (geometry maths, image data, colour conversion, key names,
+the UI value registry) still behaves normally, and that is what is asserted
+here.
+
+The real window path is exercised on a machine with a display; this fixture is
+listed in LYNXER_DISPLAY_FIXTURES and skipped when LYNXER_SKIP_DISPLAY=1.
+////
+global setup(){
+    import("graphics");
+}
+
+// ── Callbacks ───────────────────────────────────────────────────────────────
+
+global onStart(){
+    println("start");
+}
+
+global onUpdate(float dt){
+    println("update ", dt);
+    println("  update-runs ", global.graphics.isRunning());
+}
+
+global onDraw(){
+    println("draw");
+
+    // Shapes: all no-ops headless, but the call path and colour marshalling
+    // are exercised.
+    global.graphics.clearBackground(10, 20, 30, 255);
+    global.graphics.drawLine(0.0, 0.0, 10.0, 10.0, 2.0, 255, 255, 255);
+    global.graphics.drawTriangle(0.0, 0.0, 8.0, 0.0, 4.0, 8.0, 255, 0, 0);
+    global.graphics.drawTriangleLines(0.0, 0.0, 8.0, 0.0, 4.0, 8.0, 1.0, 255, 0, 0);
+    global.graphics.drawRectangle(10.0, 10.0, 40.0, 20.0, 200, 100, 50);
+    global.graphics.drawRectangleLines(10.0, 10.0, 40.0, 20.0, 1.0, 200, 100, 50);
+    global.graphics.drawRectangleRotated(10.0, 10.0, 40.0, 20.0, 0.5, 0.5, 0.5, 200, 100, 50);
+    global.graphics.drawRectangleLinesRotated(10.0, 10.0, 40.0, 20.0, 1.0, 0.5, 0.5, 0.5, 200, 100, 50);
+    global.graphics.drawPoly(50.0, 50.0, 6, 12.0, 0.0, 255, 255, 0);
+    global.graphics.drawPolyLines(50.0, 50.0, 6, 12.0, 0.0, 1.0, 255, 255, 0);
+    global.graphics.drawCircle(60.0, 60.0, 10.0, 0, 255, 0);
+    global.graphics.drawCircleLines(60.0, 60.0, 10.0, 1.0, 0, 255, 0);
+    global.graphics.drawEllipse(60.0, 60.0, 20.0, 10.0, 0.0, 0, 0, 255);
+    global.graphics.drawEllipseLines(60.0, 60.0, 20.0, 10.0, 0.0, 1.0, 0, 0, 255);
+    global.graphics.drawArc(60.0, 60.0, 20, 10.0, 0.0, 1.0, 90.0, 255, 0, 255);
+    global.graphics.drawHexagon(70.0, 70.0, 8.0, 1.0, true, 128, 128, 128);
+
+    // Text: nothing loads without a context, so the font handle stays -1 and
+    // the measuring calls report zero.
+    global.graphics.drawText("hello", 10.0, 10.0, 16.0, 255, 255, 255);
+    global.graphics.drawTextEx(-1, "hello", 10.0, 10.0, 16.0, 1.0, 0.0, 255, 255, 255);
+    global.graphics.drawMultilineText("a b", 10.0, 10.0, 16.0, 0.0, 255, 255, 255);
+    global.graphics.drawMultilineTextEx(-1, "a b", 10.0, 10.0, 16.0, 0.0, 1.0, 0.0, 255, 255, 255);
+    global.graphics.drawFps(4.0, 12.0);
+
+    // Cameras: the 2D camera is tracked in the module, so the value round-trips
+    // even headless; projection needs a context and reports the origin.
+    global.graphics.setCamera2D(10.0, 20.0, 2.0, 0.0, 30.0, 40.0);
+    global.graphics.pushCameraState();
+    global.graphics.popCameraState();
+    global.graphics.setCamera2DFromRect(0.0, 0.0, 320.0, 240.0);
+    println("  camera-target ", global.graphics.cameraTarget());
+    println("  screen-to-world ", global.graphics.screenToWorld(5.0, 5.0));
+    println("  world-to-screen ", global.graphics.worldToScreen(5.0, 5.0));
+    global.graphics.setCamera3D(0.0, 1.0, 2.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 45.0, false, 0.1, 100.0);
+    global.graphics.setCamera3D(0.0, 1.0, 2.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 45.0, true, 0.1, 100.0);
+    global.graphics.setDefaultCamera();
+
+    // Textures: loads need a context. An image built in memory does not, so
+    // pixel writes and reads round-trip.
+    println("  texture-size ", global.graphics.textureSize(-1));
+    global.graphics.drawTexture(-1, 0.0, 0.0);
+    global.graphics.drawTextureScaled(-1, 0.0, 0.0, 8.0, 8.0);
+    global.graphics.drawTextureRegion(-1, 0.0, 0.0, 8.0, 8.0, 0.0, 0.0, 4.0, 4.0);
+    global.graphics.drawTextureRotated(-1, 0.0, 0.0, 8.0, 8.0, 0.5);
+    global.graphics.setTextureFilter(-1, true);
+    global.graphics.buildTexturesAtlas();
+    global.graphics.setRenderTarget(-1);
+    global.graphics.endRenderTarget();
+
+    // Input.
+    global.graphics.clearInputQueue();
+    global.graphics.simulateMouseWithTouch(false);
+    println("  mouse ", global.graphics.mousePosition());
+    println("  keys-down ", global.graphics.keysDown());
+    println("  touches ", global.graphics.touches());
+
+    // 3D primitives.
+    global.graphics.drawLine3D(0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 255, 255, 255);
+    global.graphics.drawCube(0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 255, 0, 0);
+    global.graphics.drawCubeWires(0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 255, 0, 0);
+    global.graphics.drawSphere(0.0, 0.0, 0.0, 1.0, 0, 255, 0);
+    global.graphics.drawSphereWires(0.0, 0.0, 0.0, 1.0, 0, 255, 0);
+    global.graphics.drawSphereEx(0.0, 0.0, 0.0, 1.0, 8, 8, 0, 255, 0);
+    global.graphics.drawCylinder(0.0, 0.0, 0.0, 1.0, 1.0, 2.0, 0, 0, 255);
+    global.graphics.drawCylinderWires(0.0, 0.0, 0.0, 1.0, 1.0, 2.0, 0, 0, 255);
+    global.graphics.drawCylinderEx(0.0, 0.0, 0.0, 1.0, 2.0, 12, 0, 0, 255);
+    global.graphics.drawPlane(0.0, 0.0, 0.0, 4.0, 4.0, 90, 90, 90);
+    global.graphics.drawGrid(4, 1.0, 255, 0, 0, 255, 60, 60, 60, 255);
+    global.graphics.drawAffineParallelogram(0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 255, 255, 0);
+    global.graphics.drawAffineParallelepiped(0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 255, 255, 0);
+
+    // Materials and the UI: both need a context, so the handles stay -1 and
+    // the widgets only reach the value registry.
+    global.graphics.useDefaultMaterial();
+    global.graphics.useMaterial(-1);
+    global.graphics.setUniform(-1, "time", 1.0);
+    global.graphics.setUniformArray(-1, "weights", "[1,2]");
+    global.graphics.setMaterialTexture(-1, "tex", -1);
+
+    global.graphics.uiLabel("Name:");
+    global.graphics.uiLabelAt("Top", 4.0, 4.0);
+    global.graphics.uiSeparator();
+    global.graphics.uiSameLine(12.0);
+    global.graphics.uiProgressBar("Load", 5.0, 0.0, 10.0);
+    global.graphics.uiButton(7, "OK");
+    global.graphics.uiButtonAt(11, "Corner", 8.0, 8.0);
+    global.graphics.uiCheckbox(5, "Enabled");
+    global.graphics.uiSlider(6, "Volume", 0.0, 10.0);
+    global.graphics.uiInputText(9, "Name");
+    global.graphics.uiComboBox(8, "Choice", "[\"alpha\",\"beta\"]");
+}
+
+// ── Assertions ──────────────────────────────────────────────────────────────
+
+global main(){
+    println("== window ==");
+    global.graphics.init("graphics fixture", 320, 240);
+    println("screen ", global.graphics.screenWidth(), " ", global.graphics.screenHeight());
+    println("dpi ", global.graphics.dpiScale());
+    println("running-before ", global.graphics.isRunning());
+    println("window-position ", global.graphics.windowPosition());
+    println("clipboard-empty ", returnLength(global.graphics.clipboardGet()) is 0);
+    println("quit-requested ", global.graphics.quitRequested());
+    println("version ", global.graphics.version());
+
+    // Configuration calls are accepted; they only take effect on a real window.
+    global.graphics.setResizable(true);
+    global.graphics.setFullscreen(false);
+    global.graphics.setHighDpi(false);
+    global.graphics.setSampleCount(4);
+    global.graphics.setDefaultFilterMode(true);
+    global.graphics.setTargetFps(60.0);
+    global.graphics.setBackground(10, 20, 30, 255);
+    global.graphics.requestScreenSize(320.0, 240.0);
+    global.graphics.setWindowSize(320, 240);
+    global.graphics.setWindowPosition(0, 0);
+    global.graphics.showMouse(true);
+    global.graphics.setCursorGrab(false);
+    global.graphics.setMouseCursor(2);
+    global.graphics.setClipboard("lynxer");
+    global.graphics.preventQuit();
+
+    println("== gpu-loaders-need-a-context ==");
+    println("loadFont ", global.graphics.loadFont("definitely-missing.ttf") is -1);
+    println("loadTexture ", global.graphics.loadTexture("definitely-missing.png") is -1);
+    println("loadImage ", global.graphics.loadImage("definitely-missing.png") is -1);
+    println("renderTarget ", global.graphics.renderTarget(16, 16) is -1);
+    println("renderTargetMsaa ", global.graphics.renderTargetMsaa(16, 16) is -1);
+    println("getScreenData ", global.graphics.getScreenData() is -1);
+    println("screenshot ", global.graphics.screenshot("/tmp/lynxer_graphics_fixture.png") is -1);
+    println("setDefaultFont ", global.graphics.setDefaultFont(-1) is -1);
+    println("renderTargetTexture ", global.graphics.renderTargetTexture(-1) is -1);
+    println("loadMaterial ", global.graphics.loadMaterial("void main(){}", "void main(){}") is -1);
+    println("loadMaterialFromFile ", global.graphics.loadMaterialFromFile("no.vert", "no.frag") is -1);
+    println("useMaterial ", global.graphics.useMaterial(-1) is -1);
+    println("setUniform ", global.graphics.setUniform(-1, "time", 1.0) is -1);
+    println("setUniformArray ", global.graphics.setUniformArray(-1, "w", "[1]") is -1);
+    println("setMaterialTexture ", global.graphics.setMaterialTexture(-1, "t", -1) is -1);
+
+    println("== images ==");
+    int image = global.graphics.genImage(4, 4, 10, 20, 30, 255);
+    println("genImage ", image is 0);
+    println("imageWidth ", global.graphics.imageWidth(image));
+    println("imageHeight ", global.graphics.imageHeight(image));
+    println("pixel-untouched ", global.graphics.imageGetPixel(image, 0, 0));
+    println("setPixel ", global.graphics.imageSetPixel(image, 1, 1, 255, 0, 0, 255) is 0);
+    println("pixel-written ", global.graphics.imageGetPixel(image, 1, 1));
+    println("textureFromImage ", global.graphics.textureFromImage(image) is -1);
+    println("imageFromTexture ", global.graphics.imageFromTexture(-1) is -1);
+
+    println("== text ==");
+    println("measureWidth ", global.graphics.measureWidth("hello", -1, 16.0));
+    println("measureHeight ", global.graphics.measureHeight("hello", -1, 16.0));
+    println("measure ", global.graphics.measure("hello", -1, 16.0));
+    println("wrapText-empty ", returnLength(global.graphics.wrapText("hello", -1, 16.0, 8.0)) is 0);
+    println("text-center ", global.graphics.textCenter("hello", -1, 16.0));
+    println("measureMultiline ", global.graphics.measureMultiline("a b", -1, 16.0, 8.0));
+
+    println("== input ==");
+    println("key-down ", global.graphics.isKeyDown("space"));
+    println("key-pressed ", global.graphics.isKeyPressed("space"));
+    println("key-released ", global.graphics.isKeyReleased("space"));
+    println("any-key-down ", global.graphics.anyKeyDown());
+    println("space-code ", global.graphics.keyCode("space"));
+    println("space-name ", global.graphics.keyName(32));
+    println("round-trip-f12 ", global.graphics.keyName(global.graphics.keyCode("f12")) is "f12");
+    println("alias-esc ", global.graphics.keyName(global.graphics.keyCode("esc")) is "escape");
+    println("unknown-key ", global.graphics.keyCode("not-a-key") is -1);
+    println("mouse-button ", global.graphics.isMouseButtonDown(0));
+    println("mouse-wheel ", global.graphics.mouseWheel());
+    println("mouse-delta ", global.graphics.mouseDelta());
+    println("last-key-empty ", returnLength(global.graphics.lastKeyPressed()) is 0);
+    println("char-empty ", returnLength(global.graphics.charPressed()) is 0);
+    println("dropped-json-empty ", returnLength(global.graphics.droppedFiles()) is 2);
+
+    println("== colour and random ==");
+    println("rgb-to-hsl ", global.graphics.rgbToHsl(255, 0, 0));
+    println("hsl-to-rgb ", global.graphics.hslToRgb(0.0, 1.0, 0.5));
+    global.graphics.setAssetsFolder("");
+    global.graphics.srand(42);
+    println("rand-seeded ", global.graphics.rand());
+    println("range-empty ", global.graphics.genRangeInt(3, 3));
+    println("range-float-empty ", global.graphics.genRange(0.0, 0.0));
+
+    println("== ui registry ==");
+    global.graphics.uiComboBox(8, "Choice", "[\"alpha\",\"beta\"]");
+    println("combo-value ", global.graphics.uiComboBoxValue(8) is "alpha");
+    global.graphics.uiSetInputText(9, "typed");
+    println("input-text ", global.graphics.uiInputTextValue(9) is "typed");
+    println("input-text-draw ", returnLength(global.graphics.uiInputText(9, "Name")) is 0);
+    global.graphics.uiSetCheckboxValue(5, true);
+    println("checkbox-value ", global.graphics.uiCheckboxValue(5));
+    global.graphics.uiSetSliderValue(6, 2.5);
+    println("slider-value ", global.graphics.uiSliderValue(6));
+    println("button ", global.graphics.uiButton(7, "OK"));
+    println("button-result ", global.graphics.uiResult(7));
+
+    println("== window block ==");
+    println("window-begin ", global.graphics.uiWindowBegin(1, "Panel", 10.0, 10.0, 200.0, 120.0) is 0);
+    global.graphics.uiLabel("inside");
+    global.graphics.uiCheckbox(20, "Nested");
+    global.graphics.uiSlider(21, "Nested slider", 0.0, 1.0);
+    println("window-end ", global.graphics.uiWindowEnd() is 0);
+    println("group-begin ", global.graphics.uiGroupBegin(2, 100.0, 50.0) is 0);
+    global.graphics.uiLabel("in group");
+    global.graphics.uiButton(22, "Group button");
+    println("group-end ", global.graphics.uiGroupEnd() is 0);
+    println("nested-checkbox ", global.graphics.uiCheckboxValue(20));
+
+    println("== frames ==");
+    global.graphics.setStartCallback("onStart");
+    global.graphics.setUpdateCallback("onUpdate");
+    global.graphics.setDrawCallback("onDraw");
+    global.graphics.run();
+    println("running-after ", global.graphics.isRunning());
+    println("time-frozen ", global.graphics.time());
+    println("fps ", global.graphics.fps());
+    global.graphics.stop();
+}

@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>graphics - Lynxer</title>
+    <link rel="stylesheet" href="../../style.css">
+</head>
+<body>
+
+<header>
+    <h1><a href="../../index.html">Lynxer</a></h1>
+    <p>Documentation</p>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3>Overview</h3><ul>
+<li><a href="../index.html">README</a></li>
+</ul>
+<h3>Getting started</h3><ul>
+<li><a href="../install.html">install</a></li>
+<li><a href="../CLI.html">CLI</a></li>
+</ul>
+<h3>Language</h3><ul>
+<li><a href="../language.html">language</a></li>
+<li><a href="../operators.html">operators</a></li>
+<li><a href="../conditionals.html">conditionals</a></li>
+<li><a href="../loops.html">loops</a></li>
+<li><a href="../types.html">types</a></li>
+<li><a href="../lists.html">lists</a></li>
+<li><a href="../tuples.html">tuples</a></li>
+<li><a href="../codeblocks.html">codeblocks</a></li>
+<li><a href="../modules.html">modules</a></li>
+<li><a href="../importAs.html">importAs</a></li>
+</ul>
+<h3>Records</h3><ul>
+<li><a href="../structs.html">structs</a></li>
+<li><a href="../classes.html">classes</a></li>
+<li><a href="../enums.html">enums</a></li>
+<li><a href="../vargroups.html">vargroups</a></li>
+</ul>
+<h3>Built-ins and modules</h3><ul>
+<li><a href="../builtins.html">builtins</a></li>
+<li><a href="../syscalls.html">syscalls</a></li>
+<li><a href="../native-module-abi.html">native-module-abi</a></li>
+<li><a href="../native-modules.html">native-modules</a></li>
+<li><a href="../stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="../extending.html">extending</a></li>
+</ul>
+<h3>Runtime</h3><ul>
+<li><a href="../async.html">async</a></li>
+<li><a href="../native-memory.html">native-memory</a></li>
+<li><a href="../filesystem.html">filesystem</a></li>
+<li><a href="../networking.html">networking</a></li>
+<li><a href="../process.html">process</a></li>
+</ul>
+<h3>Reference</h3><ul>
+<li><a href="../legacy-surface.html">legacy-surface</a></li>
+<li><a href="../removed-features.html">removed-features</a></li>
+<li><a href="../limitations.html">limitations</a></li>
+</ul>
+<h3>Standard library</h3><ul>
+<li><a href="index.html">All modules</a></li>
+<li><a href="cli.html">cli</a></li>
+<li><a href="colorlib.html">colorlib</a></li>
+<li><a href="csv.html">csv</a></li>
+<li><a href="debug.html">debug</a></li>
+<li><a href="fileIO.html">fileIO</a></li>
+<li><a href="game.html">game</a></li>
+<li><a href="graphics.html" class="active">graphics</a></li>
+<li><a href="image.html">image</a></li>
+<li><a href="js.html">js</a></li>
+<li><a href="json.html">json</a></li>
+<li><a href="lua.html">lua</a></li>
+<li><a href="math.html">math</a></li>
+<li><a href="multiprocessing.html">multiprocessing</a></li>
+<li><a href="network.html">network</a></li>
+<li><a href="os.html">os</a></li>
+<li><a href="path.html">path</a></li>
+<li><a href="random.html">random</a></li>
+<li><a href="re.html">re</a></li>
+<li><a href="regex.html">regex</a></li>
+<li><a href="server.html">server</a></li>
+<li><a href="shell.html">shell</a></li>
+<li><a href="sound.html">sound</a></li>
+<li><a href="sqldb.html">sqldb</a></li>
+<li><a href="sys.html">sys</a></li>
+<li><a href="text.html">text</a></li>
+<li><a href="time.html">time</a></li>
+<li><a href="tui.html">tui</a></li>
+<li><a href="typing.html">typing</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+<h1 id="graphics">graphics</h1>
+<p>General-purpose drawing, window, input and immediate-mode UI toolkit, backed by macroquad through the native module <code>stdlib/graphics.so</code> (Rust crate <code>rust/graphics</code>).</p>
+<blockquote><strong>Requires:</strong> a Rust toolchain to build, and a display with OpenGL (X11 or Wayland) to run. Without one, set <code>LYNXER_GRAPHICS_HEADLESS=1</code>. Linux is the only supported platform.</blockquote>
+<p><code>graphics</code> is the low-level surface. The <a href="game.html">game</a> module is a separate, game-oriented layer over the same backend (sprites, scenes, tilemaps, physics); the two do not share state and can be imported together.</p>
+<pre><code>global setup(){ import(&quot;graphics&quot;); }
+
+global onStart(){
+    global.graphics.loadFont(&quot;assets/font.ttf&quot;);
+}
+
+global onUpdate(float dt){ }
+
+global onDraw(){
+    global.graphics.clearBackground(20, 20, 30, 255);
+    global.graphics.drawCircle(160.0, 120.0, 40.0, 220, 80, 80);
+    global.graphics.drawText(&quot;hello&quot;, 8.0, 24.0, 24.0, 255, 255, 255);
+}
+
+global main(){
+    global.graphics.init(&quot;demo&quot;, 800, 600);
+    global.graphics.setStartCallback(&quot;onStart&quot;);
+    global.graphics.setUpdateCallback(&quot;onUpdate&quot;);
+    global.graphics.setDrawCallback(&quot;onDraw&quot;);
+    global.graphics.run();
+}</code></pre>
+<h2 id="coordinates-and-units">Coordinates and units</h2>
+<ul>
+<li>Screen space, origin at the <strong>top-left</strong>, +Y pointing <strong>down</strong>.</li>
+<li>Colours are <code>0..255</code> per channel, alpha last. The shape helpers default alpha to <code>255</code>.</li>
+<li><code>rotation</code> is in <strong>radians</strong> for the rotated-rectangle ops, textures and text, and in <strong>degrees</strong> for polygons, ellipses and arcs (macroquad's own split).</li>
+<li>Angles passed to <code>setCamera2D</code> are in degrees.</li>
+</ul>
+<h2 id="frames-and-callbacks">Frames and callbacks</h2>
+<p><code>run()</code> opens the window and blocks, invoking the registered callbacks once per frame: <code>start</code> once, then <code>update(dt)</code> and <code>draw()</code>. Before <code>draw()</code>, the loop clears the window to the colour set with <code>setBackground</code>. <code>stop()</code> ends the loop; Ctrl-C exits with code 130.</p>
+<p>Every op that touches the GPU context — <code>loadTexture</code>, <code>loadFont</code>, <code>loadMaterial</code>, <code>renderTarget</code>, <code>getScreenData</code>, <code>screenshot</code>, all <code>draw*</code> ops and all <code>ui*</code> widgets — is only valid <strong>inside a callback</strong>. That is when the window's context exists. Calling them from <code>setup</code> or <code>main</code> will fail.</p>
+<h2 id="headless-mode">Headless mode</h2>
+<p><code>LYNXER_GRAPHICS_HEADLESS=1</code> runs without a window: <code>run()</code> executes three frames at a fixed <code>1/60</code> timestep, drawing is a no-op, and ops that need a context return a placeholder:</p>
+<table>
+<tr><th>Category</th><th>Headless result</th></tr>
+<tr><td><code>loadTexture</code>, <code>loadImage</code>, <code>loadFont</code>, <code>loadMaterial</code>, <code>renderTarget</code>, <code>renderTargetMsaa</code>, <code>screenshot</code>, <code>getScreenData</code></td><td><code>-1</code></td></tr>
+<tr><td><code>textureWidth</code>, <code>textureHeight</code>, <code>measureWidth</code>, <code>measureHeight</code></td><td><code>0</code></td></tr>
+<tr><td><code>measure</code>, <code>measureMultiline</code></td><td><code>{&quot;width&quot;:0,&quot;height&quot;:0,&quot;offsetY&quot;:0}</code></td></tr>
+<tr><td><code>screenToWorld</code>, <code>worldToScreen</code>, <code>textureSize</code>, <code>windowPosition</code>, <code>mousePosition</code></td><td><code>[0,0]</code></td></tr>
+<tr><td><code>keysDown</code>, <code>keysPressed</code>, <code>keysReleased</code>, <code>touches</code>, <code>droppedFiles</code></td><td><code>[]</code></td></tr>
+<tr><td>every <code>isKey*</code> / <code>isMouse*</code> / <code>isRunning</code> / <code>quitRequested</code></td><td><code>false</code></td></tr>
+</table>
+<p>Ops that need no context keep working: images built with <code>genImage</code> and their pixels, <code>rgbToHsl</code>/<code>hslToRgb</code>, the key-name table, the 2D camera value, and the UI value registry.</p>
+<h2 id="window-and-frame-loop">Window and frame loop</h2>
+<table>
+<tr><th>Function</th><th>Returns</th><th>Notes</th></tr>
+<tr><td><code>init(title, width, height)</code></td><td>—</td><td>before <code>run()</code>; resets the registries</td></tr>
+<tr><td><code>run()</code></td><td>—</td><td>blocks; drives the callbacks</td></tr>
+<tr><td><code>stop()</code></td><td>—</td><td>end the loop after the current frame</td></tr>
+<tr><td><code>isRunning()</code></td><td><code>bool</code></td><td></td></tr>
+<tr><td><code>screenWidth()</code>, <code>screenHeight()</code></td><td><code>float</code></td><td></td></tr>
+<tr><td><code>dpiScale()</code></td><td><code>float</code></td><td></td></tr>
+<tr><td><code>requestScreenSize(w, h)</code></td><td>—</td><td></td></tr>
+<tr><td><code>setWindowSize(w, h)</code>, <code>setWindowPosition(x, y)</code></td><td>—</td><td></td></tr>
+<tr><td><code>windowPosition()</code></td><td><code>str</code></td><td>JSON <code>[x,y]</code></td></tr>
+<tr><td><code>setResizable</code>, <code>setFullscreen</code>, <code>setHighDpi</code></td><td>—</td><td><code>(bool)</code></td></tr>
+<tr><td><code>setSampleCount(n)</code></td><td>—</td><td>MSAA samples</td></tr>
+<tr><td><code>setDefaultFilterMode(nearest)</code></td><td>—</td><td><code>true</code> = nearest, <code>false</code> = linear</td></tr>
+<tr><td><code>setTargetFps(fps)</code></td><td>—</td><td><code>0</code> disables the cap</td></tr>
+<tr><td><code>setBackground(r,g,b,a)</code></td><td>—</td><td>the loop's clear colour</td></tr>
+<tr><td><code>setStartCallback</code> / <code>setUpdateCallback</code> / <code>setDrawCallback(name)</code></td><td>—</td><td></td></tr>
+<tr><td><code>showMouse(shown)</code>, <code>setCursorGrab(grab)</code></td><td>—</td><td></td></tr>
+<tr><td><code>setMouseCursor(kind)</code></td><td>—</td><td><code>0</code> default, <code>2</code> pointer, <code>4</code> crosshair, <code>5</code> text, <code>8</code>–<code>11</code> resizes</td></tr>
+<tr><td><code>clipboardGet()</code> / <code>setClipboard(text)</code></td><td><code>str</code> / —</td><td></td></tr>
+<tr><td><code>quitRequested()</code>, <code>requestQuit()</code>, <code>preventQuit()</code></td><td><code>bool</code> / — / —</td><td></td></tr>
+<tr><td><code>screenshot(path)</code></td><td><code>int</code></td><td><code>0</code> on success</td></tr>
+<tr><td><code>version()</code></td><td><code>str</code></td><td></td></tr>
+</table>
+<h3 id="frame-timing">Frame timing</h3>
+<p><code>deltaTime() -&gt; float</code>, <code>time() -&gt; float</code> (since <code>run()</code>), <code>fps() -&gt; int</code>, and <code>drawFps(x, y)</code>.</p>
+<h2 id="2d-shapes">2D shapes</h2>
+<p>Colours are <code>(r, g, b)</code> with an optional <code>a</code> defaulting to <code>255</code>.</p>
+<table>
+<tr><th>Function</th><th>Notes</th></tr>
+<tr><td><code>clearBackground(r,g,b,a)</code></td><td></td></tr>
+<tr><td><code>drawLine(x1,y1,x2,y2,thickness,...)</code></td><td></td></tr>
+<tr><td><code>drawTriangle(x1,y1,x2,y2,x3,y3,...)</code></td><td>filled</td></tr>
+<tr><td><code>drawTriangleLines(x1,y1,x2,y2,x3,y3,thickness,...)</code></td><td>outline</td></tr>
+<tr><td><code>drawRectangle(x,y,w,h,...)</code></td><td><code>x,y</code> is the top-left corner</td></tr>
+<tr><td><code>drawRectangleLines(x,y,w,h,thickness,...)</code></td><td></td></tr>
+<tr><td><code>drawRectangleRotated(x,y,w,h,rotation,originX,originY,...)</code></td><td>pivot as a fraction (<code>0.5,0.5</code> = centre)</td></tr>
+<tr><td><code>drawRectangleLinesRotated(x,y,w,h,thickness,rotation,originX,originY,...)</code></td><td></td></tr>
+<tr><td><code>drawPoly(x,y,sides,radius,rotation,...)</code></td><td><code>sides</code> clamped to <code>3..255</code></td></tr>
+<tr><td><code>drawPolyLines(x,y,sides,radius,rotation,thickness,...)</code></td><td></td></tr>
+<tr><td><code>drawCircle(x,y,radius,...)</code></td><td></td></tr>
+<tr><td><code>drawCircleLines(x,y,radius,thickness,...)</code></td><td></td></tr>
+<tr><td><code>drawEllipse(x,y,w,h,rotation,...)</code></td><td></td></tr>
+<tr><td><code>drawEllipseLines(x,y,w,h,rotation,thickness,...)</code></td><td></td></tr>
+<tr><td><code>drawArc(x,y,sides,radius,rotation,thickness,arc,...)</code></td><td><code>arc</code> is the sweep in degrees</td></tr>
+<tr><td><code>drawHexagon(x,y,size,border,vertical,...)</code></td><td>border and fill share one colour</td></tr>
+</table>
+<h2 id="text-and-fonts">Text and fonts</h2>
+<table>
+<tr><th>Function</th><th>Notes</th></tr>
+<tr><td><code>loadFont(path) -&gt; int</code></td><td>TTF/OTF; <code>-1</code> when unavailable</td></tr>
+<tr><td><code>setDefaultFont(font) -&gt; int</code></td><td>use a handle for <code>drawText</code></td></tr>
+<tr><td><code>drawText(text,x,y,size,...)</code></td><td></td></tr>
+<tr><td><code>drawTextEx(font,text,x,y,size,scale,rotation,...)</code></td><td></td></tr>
+<tr><td><code>drawMultilineText(text,x,y,size,separation,...)</code></td><td>wrapped</td></tr>
+<tr><td><code>drawMultilineTextEx(font,text,x,y,size,separation,scale,rotation,...)</code></td><td></td></tr>
+<tr><td><code>measure(text,font,size,scale) -&gt; str</code></td><td>JSON <code>{width,height,offsetY}</code></td></tr>
+<tr><td><code>measureWidth</code> / <code>measureHeight(text,font,size,scale) -&gt; float</code></td><td></td></tr>
+<tr><td><code>measureMultiline(text,font,size,maxWidth,scale) -&gt; str</code></td><td></td></tr>
+<tr><td><code>textCenter(text,font,size,scale,rotation) -&gt; str</code></td><td>JSON <code>[x,y]</code></td></tr>
+<tr><td><code>wrapText(text,font,size,maxWidth) -&gt; str</code></td><td></td></tr>
+</table>
+<p>Pass <code>-1</code> as the font handle to use the built-in font. <code>font</code> and <code>scale</code> are trailing defaults on <code>measure*</code> and <code>textCenter</code>.</p>
+<h2 id="cameras">Cameras</h2>
+<table>
+<tr><th>Function</th><th>Notes</th></tr>
+<tr><td><code>setCamera2D(targetX,targetY,zoom,rotation,offsetX,offsetY)</code></td><td>rotation in degrees</td></tr>
+<tr><td><code>setCamera2DFromRect(x,y,w,h)</code></td><td>show a world rectangle</td></tr>
+<tr><td><code>setDefaultCamera()</code></td><td>back to screen space</td></tr>
+<tr><td><code>pushCameraState()</code> / <code>popCameraState()</code></td><td></td></tr>
+<tr><td><code>screenToWorld(x,y)</code> / <code>worldToScreen(x,y)</code></td><td>JSON <code>[x,y]</code></td></tr>
+<tr><td><code>setCamera3D(posX,posY,posZ,targetX,targetY,targetZ,upX,upY,upZ,fovy,orthographic,zNear,zFar)</code></td><td></td></tr>
+<tr><td><code>cameraTarget()</code></td><td>JSON <code>[targetX,targetY,zoom,rotation,offsetX,offsetY]</code></td></tr>
+</table>
+<h2 id="textures-images-and-render-targets">Textures, images and render targets</h2>
+<p>Handles are integers; <code>-1</code> means "unavailable".</p>
+<table>
+<tr><th>Function</th><th>Notes</th></tr>
+<tr><td><code>loadTexture(path) -&gt; int</code></td><td>GPU texture</td></tr>
+<tr><td><code>loadImage(path) -&gt; int</code></td><td>CPU image</td></tr>
+<tr><td><code>textureFromImage(image) -&gt; int</code></td><td>upload</td></tr>
+<tr><td><code>imageFromTexture(texture) -&gt; int</code></td><td>download</td></tr>
+<tr><td><code>genImage(w,h,r,g,b,a) -&gt; int</code></td><td>solid colour; works headless</td></tr>
+<tr><td><code>imageWidth</code> / <code>imageHeight(image) -&gt; int</code></td><td></td></tr>
+<tr><td><code>imageGetPixel(image,x,y) -&gt; str</code></td><td>JSON <code>[r,g,b,a]</code></td></tr>
+<tr><td><code>imageSetPixel(image,x,y,r,g,b,a) -&gt; int</code></td><td></td></tr>
+<tr><td><code>exportImage(image, path) -&gt; int</code></td><td>PNG</td></tr>
+<tr><td><code>textureWidth</code> / <code>textureHeight(texture) -&gt; float</code></td><td></td></tr>
+<tr><td><code>textureSize(texture) -&gt; str</code></td><td>JSON <code>[w,h]</code></td></tr>
+<tr><td><code>drawTexture(texture,x,y,r,g,b,a)</code></td><td>natural size</td></tr>
+<tr><td><code>drawTextureScaled(texture,x,y,w,h,r,g,b,a)</code></td><td></td></tr>
+<tr><td><code>drawTextureRegion(texture,x,y,w,h,sourceX,sourceY,sourceW,sourceH,r,g,b,a)</code></td><td></td></tr>
+<tr><td><code>drawTextureRotated(texture,x,y,w,h,rotation,r,g,b,a)</code></td><td>around the centre</td></tr>
+<tr><td><code>setTextureFilter(texture, nearest)</code></td><td></td></tr>
+<tr><td><code>buildTexturesAtlas()</code></td><td></td></tr>
+<tr><td><code>renderTarget(w,h) -&gt; int</code> / <code>renderTargetMsaa(w,h) -&gt; int</code></td><td></td></tr>
+<tr><td><code>renderTargetTexture(target) -&gt; int</code></td><td>register it as a texture</td></tr>
+<tr><td><code>setRenderTarget(target) -&gt; int</code> / <code>endRenderTarget()</code></td><td></td></tr>
+<tr><td><code>getScreenData() -&gt; int</code></td><td>this frame as an image</td></tr>
+</table>
+<h2 id="input">Input</h2>
+<p>Keys are named, not numeric. Names are case- and separator-insensitive: <code>&quot;space&quot;</code>, <code>&quot;Left Shift&quot;</code>, <code>&quot;f12&quot;</code>, <code>&quot;kpenter&quot;</code>, <code>&quot;leftcontrol&quot;</code>. Aliases include <code>esc</code>, <code>return</code>, <code>ctrl</code>, <code>shift</code>, <code>alt</code>, <code>del</code>, <code>pgup</code>, <code>pgdn</code> and the <code>arrow*</code> spellings.</p>
+<table>
+<tr><th>Function</th><th>Returns</th></tr>
+<tr><td><code>isKeyDown</code> / <code>isKeyPressed</code> / <code>isKeyReleased(key)</code></td><td><code>bool</code></td></tr>
+<tr><td><code>anyKeyDown()</code></td><td><code>bool</code></td></tr>
+<tr><td><code>lastKeyPressed()</code></td><td><code>str</code></td></tr>
+<tr><td><code>keysDown</code> / <code>keysPressed</code> / <code>keysReleased()</code></td><td>JSON string array</td></tr>
+<tr><td><code>charPressed()</code></td><td><code>str</code></td></tr>
+<tr><td><code>keyCode(key) -&gt; int</code> / <code>keyName(code) -&gt; str</code></td><td>bridge to macroquad codes</td></tr>
+<tr><td><code>mousePosition</code> / <code>mousePositionLocal</code> / <code>mouseDelta</code> / <code>mouseWheel()</code></td><td>JSON <code>[x,y]</code></td></tr>
+<tr><td><code>isMouseButtonDown</code> / <code>Pressed</code> / <code>Released(button)</code></td><td><code>bool</code>; <code>0</code> left, <code>1</code> middle, <code>2</code> right</td></tr>
+<tr><td><code>touches()</code></td><td>JSON <code>{id,x,y,phase}</code> array</td></tr>
+<tr><td><code>clearInputQueue()</code></td><td>—</td></tr>
+<tr><td><code>droppedFiles()</code></td><td>JSON path array</td></tr>
+<tr><td><code>simulateMouseWithTouch(enabled)</code></td><td>—</td></tr>
+</table>
+<h2 id="3d-primitives">3D primitives</h2>
+<p>Use <code>setCamera3D</code> first. All take <code>(r, g, b)</code> with alpha defaulting to <code>255</code>.</p>
+<p><code>drawLine3D</code>, <code>drawCube</code>, <code>drawCubeWires</code>, <code>drawSphere</code>, <code>drawSphereWires</code>, <code>drawSphereEx</code> (explicit rings/slices), <code>drawCylinder</code>, <code>drawCylinderWires</code>, <code>drawCylinderEx</code> (explicit side count), <code>drawPlane</code>, <code>drawGrid</code>, <code>drawAffineParallelogram</code> and <code>drawAffineParallelepiped</code>.</p>
+<h2 id="materials">Materials</h2>
+<table>
+<tr><th>Function</th><th>Notes</th></tr>
+<tr><td><code>loadMaterial(vertexSource, fragmentSource) -&gt; int</code></td><td>GLSL</td></tr>
+<tr><td><code>loadMaterialFromFile(vertexPath, fragmentPath) -&gt; int</code></td><td></td></tr>
+<tr><td><code>useMaterial(material) -&gt; int</code> / <code>useDefaultMaterial()</code></td><td></td></tr>
+<tr><td><code>setUniform(material, name, value) -&gt; int</code></td><td>float</td></tr>
+<tr><td><code>setUniformArray(material, name, valuesJson) -&gt; int</code></td><td>JSON float array</td></tr>
+<tr><td><code>setMaterialTexture(material, name, texture) -&gt; int</code></td><td></td></tr>
+</table>
+<h2 id="immediate-mode-ui">Immediate-mode UI</h2>
+<p>Widgets are addressed by an integer id. Values are held by the module, so they survive across frames and can be read or written from Lynxer.</p>
+<table>
+<tr><th>Function</th><th>Notes</th></tr>
+<tr><td><code>uiLabel(text)</code> / <code>uiLabelAt(text,x,y)</code></td><td></td></tr>
+<tr><td><code>uiButton(id,text) -&gt; bool</code> / <code>uiButtonAt(id,text,x,y) -&gt; bool</code></td><td>clicked this frame</td></tr>
+<tr><td><code>uiCheckbox(id,label) -&gt; bool</code></td><td></td></tr>
+<tr><td><code>uiCheckboxValue(id) -&gt; bool</code> / <code>uiSetCheckboxValue(id, value)</code></td><td></td></tr>
+<tr><td><code>uiSlider(id,label,min,max) -&gt; float</code></td><td></td></tr>
+<tr><td><code>uiSliderValue(id) -&gt; float</code> / <code>uiSetSliderValue(id, value)</code></td><td></td></tr>
+<tr><td><code>uiInputText(id,label) -&gt; str</code> / <code>uiInputPassword(id,label) -&gt; str</code></td><td></td></tr>
+<tr><td><code>uiInputTextValue(id) -&gt; str</code> / <code>uiSetInputText(id, text)</code></td><td></td></tr>
+<tr><td><code>uiProgressBar(label, value, min, max)</code></td><td>value normalised into <code>min..max</code></td></tr>
+<tr><td><code>uiComboBox(id,label,optionsJson) -&gt; int</code></td><td>JSON string array; selected index</td></tr>
+<tr><td><code>uiComboBoxValue(id) -&gt; str</code></td><td>selected text</td></tr>
+<tr><td><code>uiSeparator()</code> / <code>uiSameLine(x)</code></td><td></td></tr>
+<tr><td><code>uiResult(id) -&gt; int</code></td><td>last button click / combo selection</td></tr>
+<tr><td><code>uiWindowBegin(id,title,x,y,w,h) -&gt; int</code> / <code>uiWindowEnd() -&gt; int</code></td><td>draggable panel</td></tr>
+<tr><td><code>uiGroupBegin(id,w,h) -&gt; int</code> / <code>uiGroupEnd() -&gt; int</code></td><td>layout group</td></tr>
+</table>
+<p>macroquad's window and group take a closure, which a flat op list cannot nest, so <code>uiWindowBegin</code>/<code>uiGroupBegin</code> <strong>buffer</strong> the widgets issued until the matching <code>*End</code>, then replay them inside that closure. One block deep is supported: a <code>*Begin</code> while a block is open returns <code>-1</code>. Widget values update when the block is replayed, so read them after <code>uiWindowEnd</code>/<code>uiGroupEnd</code> rather than between the calls.</p>
+<h2 id="randomness-and-colour">Randomness and colour</h2>
+<p><code>srand(seed)</code>, <code>rand() -&gt; int</code>, <code>genRange(low,high) -&gt; float</code>, <code>genRangeInt(low,high) -&gt; int</code>, <code>rgbToHsl(r,g,b) -&gt; str</code> (JSON <code>[h,s,l]</code>), <code>hslToRgb(h,s,l) -&gt; str</code> (JSON <code>[r,g,b,a]</code>), and <code>setAssetsFolder(path)</code>.</p>
+<h2 id="notes-and-current-limitations">Notes and current limitations</h2>
+<ul>
+<li><strong>A display is mandatory for real rendering.</strong> macroquad has no offscreen backend, so anything that draws needs a window and OpenGL. Headless mode returns placeholders instead of rendering.</li>
+<li><strong>No audio.</strong> macroquad's audio feature needs a crate that is not vendored; use the <a href="sound.html">sound</a> module instead.</li>
+<li><strong>No native OS widgets.</strong> The <code>ui*</code> set is drawn by macroquad onto the canvas; there is no GTK/Qt/Tk equivalent.</li>
+<li><strong>No gamepad input.</strong> macroquad 0.4.16 has no gamepad API.</li>
+<li><strong>No 3D model loading.</strong> macroquad can draw generated primitives but has no model importer, and <code>Mesh</code> cannot be built from Lynxer.</li>
+<li><strong>No window retitle, <code>setTargetFps</code> on the backend, or window-resize query.</strong> miniquad 0.4.11 exposes none of them; the title is set once by <code>run()</code> and the frame rate is capped by sleeping in the loop.</li>
+<li><strong>The windowed path is not covered by CI.</strong> CI runs with <code>LYNXER_SKIP_DISPLAY=1</code>, which skips the graphics fixture; the build, the module-contract check and the headless fixture are what gate it there.</li>
+</ul>
+<h2 id="rust--c-abi">Rust / C ABI</h2>
+<p>The crate is <code>lynxer_graphics</code> under <code>rust/graphics</code>, a <code>cdylib</code> exporting <code>lynxer_module_init_v1</code> and <code>lynxer_module_attach_v1</code>. Every op is registered with the packed signature (<code>cdecl:int64(...)</code>, <code>cdecl:float64(...)</code> or <code>cdecl:cstring(...)</code>) because several take more than the four arguments the fixed grammar allows. See <a href="../native-module-abi.html">native-module-abi</a>.</p>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="game.html">game</a> — the game-oriented layer over the same backend.</li>
+<li><a href="../native-module-abi.html">native-module-abi</a> — writing a Rust backend.</li>
+<li><a href="../limitations.html">limitations</a> — platform constraints.</li>
+</ul>
+    </main>
+</div>
+
+<footer>
+    <a class="github" href="https://github.com/andy64lol/Lynxer" aria-label="Lynxer on GitHub" title="Lynxer on GitHub"><svg role="img" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a>
+    <span>Lynxer &middot; MIT License</span>
+</footer>
+
+</body>
+</html>

@@ -39,9 +39,10 @@ standalone runtime; the module is not provided. See [limitations.md](limitations
 
 ## `tkinter` / `turtle`
 
-There is no Python GUI toolkit. A future GUI would be a Rust-backed `graphics`
-module rather than a binding to `tkinter`; `turtle`'s Rust crate has been
-unmaintained since 2019. See [limitations.md](limitations.md).
+There is no Python GUI toolkit binding. The [graphics](stdlib/graphics.md)
+module provides a Rust-backed (`macroquad`) immediate-mode drawing, window,
+input and UI toolkit instead; it is not a `tkinter` clone. `turtle`'s Rust
+crate has been unmaintained since 2019. See [limitations.md](limitations.md).
 
 ## Python → C++ migration
 

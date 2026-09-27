@@ -181,6 +181,7 @@ These are recognised and exit `1` with
 |----------|--------|
 | `LYNXER_OPT_REPORT=1` | print the optimizer counts to stderr after the run |
 | `LYNXER_GAME_HEADLESS=1` | run the `game` module without opening a window |
+| `LYNXER_GRAPHICS_HEADLESS=1` | run the `graphics` module without opening a window |
 
 `LYNXER_SKIP_DISPLAY=1` is a **build/test** variable, not a run-time one: it
 makes `make testLynxer` skip the display and audio fixtures. See

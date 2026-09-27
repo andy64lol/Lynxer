@@ -1,0 +1,20 @@
+[package]
+name = "lynxer_graphics"
+version = "0.1.0"
+edition = "2021"
+description = "macroquad backend for the Lynxer `graphics` stdlib module"
+publish = false
+
+[lib]
+name = "lynxer_graphics"
+# A cdylib that exports lynxer_module_init_v1 and its ops directly, like the
+# game/json/network modules: no C++ shim and no --whole-archive linking.
+crate-type = ["cdylib"]
+
+[dependencies]
+lynxer_abi = { path = "../abi" }
+# Default features only: the `audio` feature needs quad-snd, which is not
+# vendored, and the `sound` module already covers audio.
+macroquad = "0.4"
+
+# The release profile lives in the workspace root (lynxer/rust/Cargo.toml).

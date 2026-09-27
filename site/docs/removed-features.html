@@ -68,6 +68,7 @@
 <li><a href="stdlib/debug.html">debug</a></li>
 <li><a href="stdlib/fileIO.html">fileIO</a></li>
 <li><a href="stdlib/game.html">game</a></li>
+<li><a href="stdlib/graphics.html">graphics</a></li>
 <li><a href="stdlib/image.html">image</a></li>
 <li><a href="stdlib/js.html">js</a></li>
 <li><a href="stdlib/json.html">json</a></li>
@@ -115,7 +116,7 @@
 <h2 id="venv"><code>venv</code></h2>
 <p>A virtual-environment manager is a Python concept with no equivalent in a standalone runtime; the module is not provided. See <a href="limitations.html">limitations</a>.</p>
 <h2 id="tkinter--turtle"><code>tkinter</code> / <code>turtle</code></h2>
-<p>There is no Python GUI toolkit. A future GUI would be a Rust-backed <code>graphics</code> module rather than a binding to <code>tkinter</code>; <code>turtle</code>'s Rust crate has been unmaintained since 2019. See <a href="limitations.html">limitations</a>.</p>
+<p>There is no Python GUI toolkit binding. The <a href="stdlib/graphics.html">graphics</a> module provides a Rust-backed (<code>macroquad</code>) immediate-mode drawing, window, input and UI toolkit instead; it is not a <code>tkinter</code> clone. <code>turtle</code>'s Rust crate has been unmaintained since 2019. See <a href="limitations.html">limitations</a>.</p>
 <h2 id="python--c-migration">Python → C++ migration</h2>
 <p>There is no longer a Python implementation to migrate from. The former <code>clynxer/</code> tree, the <code>lynxer.py</code> facade, the <code>lynxer-py</code> reference build and the v9 bytecode contract are all gone; <code>lynxer/</code> (C++17) is the only implementation.</p>
 <table>

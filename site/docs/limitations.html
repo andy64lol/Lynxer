@@ -68,6 +68,7 @@
 <li><a href="stdlib/debug.html">debug</a></li>
 <li><a href="stdlib/fileIO.html">fileIO</a></li>
 <li><a href="stdlib/game.html">game</a></li>
+<li><a href="stdlib/graphics.html">graphics</a></li>
 <li><a href="stdlib/image.html">image</a></li>
 <li><a href="stdlib/js.html">js</a></li>
 <li><a href="stdlib/json.html">json</a></li>
@@ -104,7 +105,7 @@
 <tr><th>Feature</th><th>Reason</th></tr>
 <tr><td><code>venv</code> module</td><td>A virtual-environment manager is a Python concept with no equivalent in a standalone runtime.</td></tr>
 <tr><td><code>rawPy</code>, <code>rawPyx</code>, <code>cleanRawPyxCache</code>, <code>embedPy</code></td><td>Embedding CPython/Cython. Lynxer does not ship or link a Python runtime.</td></tr>
-<tr><td><code>tkinter</code>, <code>tkinterPlus</code></td><td>No Python GUI toolkit. A future <code>graphics</code> module, if any, would be Rust-backed.</td></tr>
+<tr><td><code>tkinter</code>, <code>tkinterPlus</code></td><td>No Python GUI toolkit binding. The <code>graphics</code> module is an immediate-mode drawing/window/UI toolkit instead.</td></tr>
 <tr><td><code>turtle</code></td><td>Rust's <code>turtle</code> crate has not been maintained since 2019.</td></tr>
 <tr><td><code>http</code>, <code>net</code> modules</td><td>Superseded by <code>network</code> + <code>server</code>.</td></tr>
 <tr><td>Python runtime introspection (<code>sys.path</code>, <code>addPath</code>, <code>prependPath</code>, <code>removeFromPath</code>, <code>getModules</code>, <code>isModuleLoaded</code>, <code>getRecursionLimit</code>, <code>setRecursionLimit</code>, <code>os.getPythonVersion</code>, <code>os.getPythonImplementation</code>)</td><td>There is no Python runtime to introspect. The <code>os</code> getters return <code>&quot;&quot;</code> / <code>&quot;Lynxer&quot;</code> for compatibility and will be removed.</td></tr>
@@ -159,9 +160,10 @@
 <li><code>mathPlus</code> is merged into <code>math</code>.</li>
 </ul>
 <h3 id="native-backing">Native Backing</h3>
-<p>Lynxer ships modules backed by native implementations. Nine of them are Rust crates:</p>
+<p>Lynxer ships modules backed by native implementations. Ten of them are Rust crates:</p>
 <ul>
 <li><code>game</code> (<code>macroquad</code>)</li>
+<li><code>graphics</code> (<code>macroquad</code>)</li>
 <li><code>image</code></li>
 <li><code>json</code> (<code>serde_json</code>)</li>
 <li><code>lua</code> (vendored Lua through <code>mlua</code>)</li>
@@ -172,6 +174,15 @@
 <li><code>tui</code> (<code>ratatui</code>/<code>crossterm</code>)</li>
 </ul>
 <p>These modules are skipped with a warning if <code>cargo</code> is missing, allowing the rest of Lynxer to build without a Rust toolchain. The Rust workspace includes an <code>ffi</code> member, an intentional no-op <code>cdylib</code>, since the <code>ffi*</code> builtins are implemented in C++.</p>
+<h3 id="graphics--constrained-behavior"><code>graphics</code> — Constrained Behavior</h3>
+<ul>
+<li><strong>A display is required for real rendering.</strong> macroquad has no offscreen backend, so any drawing needs a window and OpenGL (X11 or Wayland). With <code>LYNXER_GRAPHICS_HEADLESS=1</code> no window is opened, drawing is a no-op and context-dependent ops return <code>-1</code> or zero.</li>
+<li><strong>Ops that need the GPU context only work inside a frame callback.</strong> <code>loadTexture</code>, <code>loadFont</code>, <code>loadMaterial</code>, <code>renderTarget</code>, <code>screenshot</code>, the <code>draw*</code> ops and the <code>ui*</code> widgets all fail if called from <code>setup</code> or <code>main</code>.</li>
+<li><strong>No audio, native widgets or gamepads.</strong> macroquad's audio feature is not vendored, the <code>ui*</code> widgets are canvas-drawn, and 0.4.16 has no gamepad API.</li>
+<li><strong>No model loading or mesh construction.</strong> Only the generated 3D primitives are available.</li>
+<li><strong><code>uiWindowBegin</code>/<code>uiGroupBegin</code> buffer one block deep.</strong> A nested <code>*Begin</code> returns <code>-1</code>; widget values are updated when the block is replayed, so read them after <code>*End</code>.</li>
+<li><strong>The windowed path is not covered by CI.</strong> CI sets <code>LYNXER_SKIP_DISPLAY=1</code>, which skips the graphics fixture.</li>
+</ul>
 <h3 id="game--constrained-behavior"><code>game</code> — Constrained Behavior</h3>
 <ul>
 <li><strong>Tilemaps carry geometry, not artwork.</strong> <code>loadTilemap</code> reads only the first <code>&lt;tileset&gt;</code> (for the tile size) and each <code>&lt;layer&gt;</code>'s CSV <code>&lt;data&gt;</code>; tiles become solid sprites on the grid. The tileset image is not sliced, so the map is useful for collision and layout rather than rendering.</li>

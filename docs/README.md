@@ -2,7 +2,7 @@
 
 Lynxer is a small, standalone C++ toolchain for the Lynxer language. It runs
 `.lynx` programs without a Python runtime and ships its standard library as
-native shared libraries. It provides standalone ELF executables, 27 natively
+native shared libraries. It provides standalone ELF executables, 28 natively
 backed modules, an AST optimizer, a frozen native-module ABI, and CI on amd64
 and arm64. See [limitations.md](limitations.md) for the behaviour that is
 deliberately constrained or not implemented.
@@ -84,13 +84,13 @@ Both Lynxer CI workflows (`.github/workflows/build-lynxer-amd.yml` and
 drops the fixtures that need a display or an audio device (a CI runner has
 neither, and the graphics backend crashes without a display).
 
-A Rust toolchain is optional: the nine Rust-backed modules are skipped with a
+A Rust toolchain is optional: the ten Rust-backed modules are skipped with a
 warning when `cargo` is absent, and everything else still builds. `python3` is
 required for the two check scripts in the test suite.
 
 ## Standard library modules
 
-There are 27 bundled modules. A module is exposed to Lynxer by
+There are 28 bundled modules. A module is exposed to Lynxer by
 `stdlib/<name>.lynx` and backed by a `stdlib/<name>.so`. The backends marked
 *Rust* come from a crate under `rust/`; *pure* modules are written in Lynxer
 only and need no shared library.
@@ -103,6 +103,7 @@ only and need no shared library.
 | [debug](stdlib/debug.md) | native + pure | `<chrono>`, `getrusage`, assertions in Lynxer |
 | [fileIO](stdlib/fileIO.md) | native | `<fstream>`, `<filesystem>` |
 | [game](stdlib/game.md) | Rust | `macroquad` (`rust/game`) |
+| [graphics](stdlib/graphics.md) | Rust | `macroquad` (`rust/graphics`) |
 | [image](stdlib/image.md) | Rust | `image` (`rust/image`) |
 | [js](stdlib/js.md) | native | the `node` binary |
 | [json](stdlib/json.md) | Rust | `serde_json` (`rust/json`) |
@@ -125,15 +126,16 @@ only and need no shared library.
 | [tui](stdlib/tui.md) | Rust | `ratatui` + `crossterm` |
 | [typing](stdlib/typing.md) | pure | Lynxer type builtins |
 
-The Rust workspace has ten member crates
-(`LYNXER_RUST_MODULE_NAMES` in the Makefile): the nine module backends listed
+The Rust workspace has eleven member crates
+(`LYNXER_RUST_MODULE_NAMES` in the Makefile): the ten module backends listed
 above, plus `ffi`, an intentional **no-op** cdylib — the `ffi*` builtins are
 implemented in C++ (`lynxer/builtins.cpp`), not by that crate. There is no
 CMake staging step and no `third_party/` directory: TLS is `rustls` (no system
 OpenSSL) and the HTTP/WebSocket stack is pure Rust.
 
-`venv` and the GUI/turtle modules are intentionally excluded — see
-[limitations.md](limitations.md).
+`venv` and the OS-native GUI/turtle modules are intentionally excluded — see
+[limitations.md](limitations.md). The [graphics](stdlib/graphics.md) module
+covers the immediate-mode drawing/window/UI space with macroquad.
 
 ## Compiling a program
 
@@ -195,6 +197,7 @@ for the full checklist and the contract.
 |----------|--------|
 | `LYNXER_OPT_REPORT=1` | Print the AST optimizer's transformation counts to stderr after the run |
 | `LYNXER_GAME_HEADLESS=1` | Run the `game` module without opening a window |
+| `LYNXER_GRAPHICS_HEADLESS=1` | Run the `graphics` module without opening a window |
 | `LYNXER_SKIP_DISPLAY=1` | `make testLynxer` skips the display/audio fixtures (used by CI) |
 
 ## File-wide functions

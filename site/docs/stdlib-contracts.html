@@ -68,6 +68,7 @@
 <li><a href="stdlib/debug.html">debug</a></li>
 <li><a href="stdlib/fileIO.html">fileIO</a></li>
 <li><a href="stdlib/game.html">game</a></li>
+<li><a href="stdlib/graphics.html">graphics</a></li>
 <li><a href="stdlib/image.html">image</a></li>
 <li><a href="stdlib/js.html">js</a></li>
 <li><a href="stdlib/json.html">json</a></li>
@@ -95,7 +96,7 @@
 <h1 id="standard-library-module-contracts">Standard library module contracts</h1>
 <p><strong>Frozen at Lynxer 0.1.8.1 — 2026-09-25.</strong></p>
 <p>Every <code>stdlib/&lt;name&gt;.lynx</code> wrapper and its <code>stdlib/&lt;name&gt;.so</code> backend are two halves of one contract. This page states that contract once, so a second backend for an existing module — or a new module — can be written against it without re-deriving the conventions from the code.</p>
-<p>The conventions below apply to all 27 bundled modules. The per-module table records only the dimensions that actually vary between them. For an individual operation's argument list and return value, the authoritative sources are the wrapper itself (<code>stdlib/&lt;name&gt;.lynx</code>), <code>docs/stdlib/&lt;name&gt;.md</code>, and <code>--list-stdlibs</code>, which prints each wrapper's docstring.</p>
+<p>The conventions below apply to all 28 bundled modules. The per-module table records only the dimensions that actually vary between them. For an individual operation's argument list and return value, the authoritative sources are the wrapper itself (<code>stdlib/&lt;name&gt;.lynx</code>), <code>docs/stdlib/&lt;name&gt;.md</code>, and <code>--list-stdlibs</code>, which prints each wrapper's docstring.</p>
 <h2 id="the-module-pair">The module pair</h2>
 <p>A module is always two files with the same stem:</p>
 <table>
@@ -171,6 +172,7 @@
 <tr><td><code>debug</code></td><td>C++ + pure</td><td>none</td><td>none</td></tr>
 <tr><td><code>fileIO</code></td><td>C++</td><td>none — paths are strings</td><td>none</td></tr>
 <tr><td><code>game</code></td><td>Rust</td><td>integer indices: cached textures and sprites</td><td>none (caches live for the run; <code>close()</code> ends the loop)</td></tr>
+<tr><td><code>graphics</code></td><td>Rust</td><td><strong>integer handles</strong> into backend registries (textures, images, fonts, materials, render targets) plus UI widget ids</td><td>none (registries live for the run; <code>run()</code> ends the loop)</td></tr>
 <tr><td><code>image</code></td><td>Rust</td><td><strong>integer handles</strong> into a backend registry</td><td>caller: <code>close(handle)</code></td></tr>
 <tr><td><code>js</code></td><td>C++</td><td>none</td><td>none</td></tr>
 <tr><td><code>json</code></td><td>Rust</td><td>none — documents are strings</td><td>none</td></tr>

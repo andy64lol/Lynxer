@@ -68,6 +68,7 @@
 <li><a href="stdlib/debug.html">debug</a></li>
 <li><a href="stdlib/fileIO.html">fileIO</a></li>
 <li><a href="stdlib/game.html">game</a></li>
+<li><a href="stdlib/graphics.html">graphics</a></li>
 <li><a href="stdlib/image.html">image</a></li>
 <li><a href="stdlib/js.html">js</a></li>
 <li><a href="stdlib/json.html">json</a></li>
@@ -93,7 +94,7 @@
     </nav>
     <main class="doc">
 <h1 id="lynxer-documentation">Lynxer documentation</h1>
-<p>Lynxer is a small, standalone C++ toolchain for the Lynxer language. It runs <code>.lynx</code> programs without a Python runtime and ships its standard library as native shared libraries. It provides standalone ELF executables, 27 natively backed modules, an AST optimizer, a frozen native-module ABI, and CI on amd64 and arm64. See <a href="limitations.html">limitations</a> for the behaviour that is deliberately constrained or not implemented.</p>
+<p>Lynxer is a small, standalone C++ toolchain for the Lynxer language. It runs <code>.lynx</code> programs without a Python runtime and ships its standard library as native shared libraries. It provides standalone ELF executables, 28 natively backed modules, an AST optimizer, a frozen native-module ABI, and CI on amd64 and arm64. See <a href="limitations.html">limitations</a> for the behaviour that is deliberately constrained or not implemented.</p>
 <h2 id="contents">Contents</h2>
 <p><strong>Getting started</strong></p>
 <table>
@@ -152,9 +153,9 @@ lynxer/lynxer --list-stdlibs</code></pre>
 <li>The bundled-executable, <code>--include</code>, and bytecode-removal checks.</li>
 </ol>
 <p>Both Lynxer CI workflows (<code>.github/workflows/build-lynxer-amd.yml</code> and <code>build-lynxer-arm.yml</code>) run <code>make testLynxer LYNXER_SKIP_DISPLAY=1</code>, which drops the fixtures that need a display or an audio device (a CI runner has neither, and the graphics backend crashes without a display).</p>
-<p>A Rust toolchain is optional: the nine Rust-backed modules are skipped with a warning when <code>cargo</code> is absent, and everything else still builds. <code>python3</code> is required for the two check scripts in the test suite.</p>
+<p>A Rust toolchain is optional: the ten Rust-backed modules are skipped with a warning when <code>cargo</code> is absent, and everything else still builds. <code>python3</code> is required for the two check scripts in the test suite.</p>
 <h2 id="standard-library-modules">Standard library modules</h2>
-<p>There are 27 bundled modules. A module is exposed to Lynxer by <code>stdlib/&lt;name&gt;.lynx</code> and backed by a <code>stdlib/&lt;name&gt;.so</code>. The backends marked <em>Rust</em> come from a crate under <code>rust/</code>; <em>pure</em> modules are written in Lynxer only and need no shared library.</p>
+<p>There are 28 bundled modules. A module is exposed to Lynxer by <code>stdlib/&lt;name&gt;.lynx</code> and backed by a <code>stdlib/&lt;name&gt;.so</code>. The backends marked <em>Rust</em> come from a crate under <code>rust/</code>; <em>pure</em> modules are written in Lynxer only and need no shared library.</p>
 <table>
 <tr><th>Module</th><th>Backend</th><th>Implementation</th></tr>
 <tr><td><a href="stdlib/cli.html">cli</a></td><td>native</td><td>POSIX process/env/terminal APIs</td></tr>
@@ -163,6 +164,7 @@ lynxer/lynxer --list-stdlibs</code></pre>
 <tr><td><a href="stdlib/debug.html">debug</a></td><td>native + pure</td><td><code>&lt;chrono&gt;</code>, <code>getrusage</code>, assertions in Lynxer</td></tr>
 <tr><td><a href="stdlib/fileIO.html">fileIO</a></td><td>native</td><td><code>&lt;fstream&gt;</code>, <code>&lt;filesystem&gt;</code></td></tr>
 <tr><td><a href="stdlib/game.html">game</a></td><td>Rust</td><td><code>macroquad</code> (<code>rust/game</code>)</td></tr>
+<tr><td><a href="stdlib/graphics.html">graphics</a></td><td>Rust</td><td><code>macroquad</code> (<code>rust/graphics</code>)</td></tr>
 <tr><td><a href="stdlib/image.html">image</a></td><td>Rust</td><td><code>image</code> (<code>rust/image</code>)</td></tr>
 <tr><td><a href="stdlib/js.html">js</a></td><td>native</td><td>the <code>node</code> binary</td></tr>
 <tr><td><a href="stdlib/json.html">json</a></td><td>Rust</td><td><code>serde_json</code> (<code>rust/json</code>)</td></tr>
@@ -185,8 +187,8 @@ lynxer/lynxer --list-stdlibs</code></pre>
 <tr><td><a href="stdlib/tui.html">tui</a></td><td>Rust</td><td><code>ratatui</code> + <code>crossterm</code></td></tr>
 <tr><td><a href="stdlib/typing.html">typing</a></td><td>pure</td><td>Lynxer type builtins</td></tr>
 </table>
-<p>The Rust workspace has ten member crates (<code>LYNXER_RUST_MODULE_NAMES</code> in the Makefile): the nine module backends listed above, plus <code>ffi</code>, an intentional <strong>no-op</strong> cdylib — the <code>ffi*</code> builtins are implemented in C++ (<code>lynxer/builtins.cpp</code>), not by that crate. There is no CMake staging step and no <code>third_party/</code> directory: TLS is <code>rustls</code> (no system OpenSSL) and the HTTP/WebSocket stack is pure Rust.</p>
-<p><code>venv</code> and the GUI/turtle modules are intentionally excluded — see <a href="limitations.html">limitations</a>.</p>
+<p>The Rust workspace has eleven member crates (<code>LYNXER_RUST_MODULE_NAMES</code> in the Makefile): the ten module backends listed above, plus <code>ffi</code>, an intentional <strong>no-op</strong> cdylib — the <code>ffi*</code> builtins are implemented in C++ (<code>lynxer/builtins.cpp</code>), not by that crate. There is no CMake staging step and no <code>third_party/</code> directory: TLS is <code>rustls</code> (no system OpenSSL) and the HTTP/WebSocket stack is pure Rust.</p>
+<p><code>venv</code> and the OS-native GUI/turtle modules are intentionally excluded — see <a href="limitations.html">limitations</a>. The <a href="stdlib/graphics.html">graphics</a> module covers the immediate-mode drawing/window/UI space with macroquad.</p>
 <h2 id="compiling-a-program">Compiling a program</h2>
 <p><code>--compile</code> (alias <code>--bundle</code>) produces one standalone ELF executable that embeds the program, every transitively imported <code>.lynx</code> source and <code>.so</code> library, plus anything added with <code>--include</code>:</p>
 <pre><code>lynxer/lynxer --compile app.lynx extras/helpers.lynx \
@@ -212,6 +214,7 @@ lynxer/lynxer --list-stdlibs</code></pre>
 <tr><th>Variable</th><th>Effect</th></tr>
 <tr><td><code>LYNXER_OPT_REPORT=1</code></td><td>Print the AST optimizer's transformation counts to stderr after the run</td></tr>
 <tr><td><code>LYNXER_GAME_HEADLESS=1</code></td><td>Run the <code>game</code> module without opening a window</td></tr>
+<tr><td><code>LYNXER_GRAPHICS_HEADLESS=1</code></td><td>Run the <code>graphics</code> module without opening a window</td></tr>
 <tr><td><code>LYNXER_SKIP_DISPLAY=1</code></td><td><code>make testLynxer</code> skips the display/audio fixtures (used by CI)</td></tr>
 </table>
 <h2 id="file-wide-functions">File-wide functions</h2>

@@ -1,0 +1,439 @@
+////
+Lynxer standard library: graphics.
+
+General-purpose drawing, window, input and immediate-mode UI toolkit backed by
+Rust + macroquad, exposed through the native module `stdlib/graphics.so`.
+
+`graphics` is the low-level surface; the `game` module is a separate,
+game-oriented layer over the same backend. They do not share state.
+
+Rendering happens inside a frame loop. Register callbacks by name and call
+`run()`, which blocks and drives the window until it is closed, `stop()` is
+called, or the program is interrupted:
+
+    global setup(){ import("graphics"); }
+
+    global onStart(){
+        global.graphics.loadFont("font.ttf");
+    }
+
+    global onUpdate(float dt){ }
+
+    global onDraw(){
+        global.graphics.clearBackground(20, 20, 30, 255);
+        global.graphics.drawRectangle(40, 40, 120, 60, 220, 80, 80);
+        global.graphics.drawText("hello", 48, 90, 32, 255, 255, 255);
+    }
+
+    global main(){
+        global.graphics.init("demo", 800, 600);
+        global.graphics.setStartCallback("onStart");
+        global.graphics.setUpdateCallback("onUpdate");
+        global.graphics.setDrawCallback("onDraw");
+        global.graphics.run();
+    }
+
+Every op that touches the GPU context (loading a texture or font, creating a
+material or render target, drawing, and all UI widgets) is only valid from
+inside a callback — that is when the window's context exists.
+
+Coordinates are screen pixels with the origin at the top-left and +Y pointing
+down, matching macroquad. Colours are 0-255 per channel, with the alpha channel
+last; the shape helpers default it to 255. Rotation is in radians for the
+rotated-rectangle ops and for text, and in degrees for polygons, ellipses and
+arcs.
+
+Set the environment variable `LYNXER_GRAPHICS_HEADLESS=1` to run without a
+window: `run()` executes a few deterministic frames, every drawing call is a
+no-op and the loaders return -1, so fixtures can run on a machine with no
+display.
+
+Requires a Rust toolchain to build (see `rust/graphics`); the compiled module is
+optional and skipped when `cargo` is unavailable.
+////
+global setup(){ importAs("graphics.so", "nativeGraphics"); }
+
+// ── Window and lifecycle ────────────────────────────────────────────────────
+
+// Configure the window. Must be called before `run()`.
+global init(str title, int width, int height){ global.nativeGraphics.init(title, width, height); }
+// Drive the frame loop. Blocks until the window closes or `stop()` is called.
+global run(){ global.nativeGraphics.run(); }
+// Ask the frame loop to finish after the current frame.
+global stop(){ global.nativeGraphics.stop(); }
+// True while `run()` is executing.
+global isRunning() -> bool { return global.nativeGraphics.isRunning() isnt 0; }
+// Window width in pixels.
+global screenWidth() -> float { return global.nativeGraphics.screenWidth(); }
+// Window height in pixels.
+global screenHeight() -> float { return global.nativeGraphics.screenHeight(); }
+// Ratio between physical and logical pixels.
+global dpiScale() -> float { return global.nativeGraphics.dpiScale(); }
+// Ask for a new window size.
+global requestScreenSize(float width, float height){ global.nativeGraphics.requestScreenSize(width, height); }
+// Resize the window.
+global setWindowSize(int width, int height){ global.nativeGraphics.setWindowSize(width, height); }
+// Move the window to a position on the desktop.
+global setWindowPosition(int x, int y){ global.nativeGraphics.setWindowPosition(x, y); }
+// Window position as a JSON `[x,y]` array.
+global windowPosition() -> str { return global.nativeGraphics.windowPosition(); }
+// Allow or forbid resizing.
+global setResizable(bool enabled){ global.nativeGraphics.setResizable(enabled); }
+// Enter or leave fullscreen.
+global setFullscreen(bool enabled){ global.nativeGraphics.setFullscreen(enabled); }
+// Request high-DPI rendering (applied when `run()` opens the window).
+global setHighDpi(bool enabled){ global.nativeGraphics.setHighDpi(enabled); }
+// MSAA sample count for the default framebuffer (applied by `run()`).
+global setSampleCount(int samples){ global.nativeGraphics.setSampleCount(samples); }
+// Default texture filter: pass true for nearest-neighbour, false for linear.
+global setDefaultFilterMode(bool nearest){ global.nativeGraphics.setDefaultFilterMode(nearest); }
+// Cap the frame rate (0 disables the cap).
+global setTargetFps(float fps){ global.nativeGraphics.setTargetFps(fps); }
+// Colour the loop clears to before each `draw` callback.
+global setBackground(int r, int g, int b, int a){ global.nativeGraphics.setBackground(r, g, b, a); }
+// Lynxer function called once when the window opens.
+global setStartCallback(str callbackName){ global.nativeGraphics.setStartCallback(callbackName); }
+// Lynxer function called every frame with `(float dt)`.
+global setUpdateCallback(str callbackName){ global.nativeGraphics.setUpdateCallback(callbackName); }
+// Lynxer function called every frame to draw.
+global setDrawCallback(str callbackName){ global.nativeGraphics.setDrawCallback(callbackName); }
+// Show or hide the mouse cursor.
+global showMouse(bool shown){ global.nativeGraphics.showMouse(shown); }
+// Capture or release the mouse cursor.
+global setCursorGrab(bool grab){ global.nativeGraphics.setCursorGrab(grab); }
+// Set the cursor icon: 0 default, 1 help, 2 pointer, 3 wait, 4 crosshair,
+// 5 text, 6 move, 7 not-allowed, 8 ew-resize, 9 ns-resize, 10 nesw, 11 nwse.
+global setMouseCursor(int kind){ global.nativeGraphics.setMouseCursor(kind); }
+// Read the system clipboard.
+global clipboardGet() -> str { return global.nativeGraphics.clipboardGet(); }
+// Write to the system clipboard.
+global setClipboard(str text){ global.nativeGraphics.setClipboard(text); }
+// True when the user asked to close the window.
+global quitRequested() -> bool { return global.nativeGraphics.quitRequested() isnt 0; }
+// Ask the platform to close the window.
+global requestQuit(){ global.nativeGraphics.requestQuit(); }
+// Suppress a quit request (e.g. to show a confirmation).
+global preventQuit(){ global.nativeGraphics.preventQuit(); }
+// Save a PNG screenshot of the current frame. Returns 0 on success.
+global screenshot(str path) -> int { return global.nativeGraphics.screenshot(path); }
+// Module and backend version string.
+global version() -> str { return global.nativeGraphics.version(); }
+
+// ── Frame timing ────────────────────────────────────────────────────────────
+
+// Seconds since the previous frame.
+global deltaTime() -> float { return global.nativeGraphics.deltaTime(); }
+// Seconds since `run()` started.
+global time() -> float { return global.nativeGraphics.time(); }
+// Frames per second, as measured by the backend.
+global fps() -> int { return global.nativeGraphics.fps(); }
+// Draw the frame rate at a position.
+global drawFps(float x, float y){ global.nativeGraphics.drawFps(x, y); }
+
+// ── 2D shapes ───────────────────────────────────────────────────────────────
+
+// Fill the whole frame with a colour.
+global clearBackground(int r, int g, int b, int a = 255){ global.nativeGraphics.clearBackground(r, g, b, a); }
+// Straight line.
+global drawLine(float x1, float y1, float x2, float y2, float thickness, int r, int g, int b, int a = 255){ global.nativeGraphics.drawLine(x1, y1, x2, y2, thickness, r, g, b, a); }
+// Filled triangle.
+global drawTriangle(float x1, float y1, float x2, float y2, float x3, float y3, int r, int g, int b, int a = 255){ global.nativeGraphics.drawTriangle(x1, y1, x2, y2, x3, y3, r, g, b, a); }
+// Triangle outline.
+global drawTriangleLines(float x1, float y1, float x2, float y2, float x3, float y3, float thickness, int r, int g, int b, int a = 255){ global.nativeGraphics.drawTriangleLines(x1, y1, x2, y2, x3, y3, thickness, r, g, b, a); }
+// Filled rectangle (`x,y` is the top-left corner).
+global drawRectangle(float x, float y, float w, float h, int r, int g, int b, int a = 255){ global.nativeGraphics.drawRectangle(x, y, w, h, r, g, b, a); }
+// Rectangle outline.
+global drawRectangleLines(float x, float y, float w, float h, float thickness, int r, int g, int b, int a = 255){ global.nativeGraphics.drawRectangleLines(x, y, w, h, thickness, r, g, b, a); }
+// Rotated filled rectangle; `originX`/`originY` is the pivot as a fraction of
+// the rectangle (0.5,0.5 = centre).
+global drawRectangleRotated(float x, float y, float w, float h, float rotation, float originX, float originY, int r, int g, int b, int a = 255){ global.nativeGraphics.drawRectangleRotated(x, y, w, h, rotation, originX, originY, r, g, b, a); }
+// Rotated rectangle outline.
+global drawRectangleLinesRotated(float x, float y, float w, float h, float thickness, float rotation, float originX, float originY, int r, int g, int b, int a = 255){ global.nativeGraphics.drawRectangleLinesRotated(x, y, w, h, thickness, rotation, originX, originY, r, g, b, a); }
+// Regular polygon; `rotation` is in degrees.
+global drawPoly(float x, float y, int sides, float radius, float rotation, int r, int g, int b, int a = 255){ global.nativeGraphics.drawPoly(x, y, sides, radius, rotation, r, g, b, a); }
+// Polygon outline.
+global drawPolyLines(float x, float y, int sides, float radius, float rotation, float thickness, int r, int g, int b, int a = 255){ global.nativeGraphics.drawPolyLines(x, y, sides, radius, rotation, thickness, r, g, b, a); }
+// Filled circle.
+global drawCircle(float x, float y, float radius, int r, int g, int b, int a = 255){ global.nativeGraphics.drawCircle(x, y, radius, r, g, b, a); }
+// Circle outline.
+global drawCircleLines(float x, float y, float radius, float thickness, int r, int g, int b, int a = 255){ global.nativeGraphics.drawCircleLines(x, y, radius, thickness, r, g, b, a); }
+// Filled ellipse; `rotation` is in degrees.
+global drawEllipse(float x, float y, float w, float h, float rotation, int r, int g, int b, int a = 255){ global.nativeGraphics.drawEllipse(x, y, w, h, rotation, r, g, b, a); }
+// Ellipse outline.
+global drawEllipseLines(float x, float y, float w, float h, float rotation, float thickness, int r, int g, int b, int a = 255){ global.nativeGraphics.drawEllipseLines(x, y, w, h, rotation, thickness, r, g, b, a); }
+// Arc of a circle; `arc` is the sweep in degrees.
+global drawArc(float x, float y, int sides, float radius, float rotation, float thickness, float arc, int r, int g, int b, int a = 255){ global.nativeGraphics.drawArc(x, y, sides, radius, rotation, thickness, arc, r, g, b, a); }
+// Hexagon with a border of the given thickness (0 for none).
+global drawHexagon(float x, float y, float size, float border, bool vertical, int r, int g, int b, int a = 255){ global.nativeGraphics.drawHexagon(x, y, size, border, vertical, r, g, b, a); }
+
+// ── Text and fonts ──────────────────────────────────────────────────────────
+
+// Load a TTF/OTF font. Returns a handle, or -1 when unavailable.
+global loadFont(str path) -> int { return global.nativeGraphics.loadFont(path); }
+// Use a loaded font for `drawText`.
+global setDefaultFont(int font) -> int { return global.nativeGraphics.setDefaultFont(font); }
+// Draw a single line of text with the default font.
+global drawText(str text, float x, float y, float size, int r, int g, int b, int a = 255){ global.nativeGraphics.drawText(text, x, y, size, r, g, b, a); }
+// Draw a single line with an explicit font, scale and rotation (radians).
+global drawTextEx(int font, str text, float x, float y, float size, float scale, float rotation, int r, int g, int b, int a = 255){ global.nativeGraphics.drawTextEx(font, text, x, y, size, scale, rotation, r, g, b, a); }
+// Draw wrapped text; `separation` is the extra line spacing.
+global drawMultilineText(str text, float x, float y, float size, float separation, int r, int g, int b, int a = 255){ global.nativeGraphics.drawMultilineText(text, x, y, size, separation, r, g, b, a); }
+// Draw wrapped text with an explicit font and rotation.
+global drawMultilineTextEx(int font, str text, float x, float y, float size, float separation, float scale, float rotation, int r, int g, int b, int a = 255){ global.nativeGraphics.drawMultilineTextEx(font, text, x, y, size, separation, scale, rotation, r, g, b, a); }
+// Measure text as a JSON `{width,height,offsetY}` object.
+global measure(str text, int font, float size, float scale = 1.0) -> str { return global.nativeGraphics.measure(text, font, size, scale); }
+// Width of a piece of text.
+global measureWidth(str text, int font, float size, float scale = 1.0) -> float { return global.nativeGraphics.measureWidth(text, font, size, scale); }
+// Height of a piece of text.
+global measureHeight(str text, int font, float size, float scale = 1.0) -> float { return global.nativeGraphics.measureHeight(text, font, size, scale); }
+// Measure wrapped text as a JSON `{width,height,offsetY}` object.
+global measureMultiline(str text, int font, float size, float maxWidth, float scale = 1.0) -> str { return global.nativeGraphics.measureMultiline(text, font, size, scale, maxWidth); }
+// Centre point of a piece of text as a JSON `[x,y]` array.
+global textCenter(str text, int font, float size, float scale = 1.0, float rotation = 0.0) -> str { return global.nativeGraphics.textCenter(text, font, size, scale, rotation); }
+// Wrap text to a maximum line width.
+global wrapText(str text, int font, float size, float maxWidth) -> str { return global.nativeGraphics.wrapText(text, font, size, maxWidth); }
+
+// ── Cameras ─────────────────────────────────────────────────────────────────
+
+// Set the 2D camera: target, zoom, rotation (degrees) and screen offset.
+global setCamera2D(float targetX, float targetY, float zoom, float rotation, float offsetX, float offsetY){ global.nativeGraphics.setCamera2D(targetX, targetY, zoom, rotation, offsetX, offsetY); }
+// Show the given world rectangle.
+global setCamera2DFromRect(float x, float y, float w, float h){ global.nativeGraphics.setCamera2DFromRect(x, y, w, h); }
+// Return to the default screen-space camera.
+global setDefaultCamera(){ global.nativeGraphics.setDefaultCamera(); }
+// Save the current camera on a stack.
+global pushCameraState(){ global.nativeGraphics.pushCameraState(); }
+// Restore the last saved camera.
+global popCameraState(){ global.nativeGraphics.popCameraState(); }
+// Screen point to world point, as a JSON `[x,y]` array.
+global screenToWorld(float x, float y) -> str { return global.nativeGraphics.screenToWorld(x, y); }
+// World point to screen point, as a JSON `[x,y]` array.
+global worldToScreen(float x, float y) -> str { return global.nativeGraphics.worldToScreen(x, y); }
+// Set a 3D camera. `orthographic` chooses the projection.
+global setCamera3D(float posX, float posY, float posZ, float targetX, float targetY, float targetZ, float upX, float upY, float upZ, float fovy, bool orthographic, float zNear, float zFar){ global.nativeGraphics.setCamera3D(posX, posY, posZ, targetX, targetY, targetZ, upX, upY, upZ, fovy, orthographic, zNear, zFar); }
+// The current 2D camera as `[targetX,targetY,zoom,rotation,offsetX,offsetY]`.
+global cameraTarget() -> str { return global.nativeGraphics.cameraTarget(); }
+
+// ── Textures, images and render targets ─────────────────────────────────────
+
+// Load an image file as a texture. Returns a handle, or -1 when unavailable.
+global loadTexture(str path) -> int { return global.nativeGraphics.loadTexture(path); }
+// Load an image file into CPU memory. Returns a handle, or -1.
+global loadImage(str path) -> int { return global.nativeGraphics.loadImage(path); }
+// Upload an image to the GPU as a new texture.
+global textureFromImage(int image) -> int { return global.nativeGraphics.textureFromImage(image); }
+// Download a texture into an image.
+global imageFromTexture(int texture) -> int { return global.nativeGraphics.imageFromTexture(texture); }
+// Create a solid-colour image.
+global genImage(int width, int height, int r, int g, int b, int a = 255) -> int { return global.nativeGraphics.genImage(width, height, r, g, b, a); }
+// Image width in pixels.
+global imageWidth(int image) -> int { return global.nativeGraphics.imageWidth(image); }
+// Image height in pixels.
+global imageHeight(int image) -> int { return global.nativeGraphics.imageHeight(image); }
+// Pixel colour as a JSON `[r,g,b,a]` array of 0-255 values.
+global imageGetPixel(int image, int x, int y) -> str { return global.nativeGraphics.imageGetPixel(image, x, y); }
+// Write a pixel colour.
+global imageSetPixel(int image, int x, int y, int r, int g, int b, int a = 255) -> int { return global.nativeGraphics.imageSetPixel(image, x, y, r, g, b, a); }
+// Save an image as a PNG. Returns 0 on success.
+global exportImage(int image, str path) -> int { return global.nativeGraphics.exportImage(image, path); }
+// Texture width in pixels.
+global textureWidth(int texture) -> float { return global.nativeGraphics.textureWidth(texture); }
+// Texture height in pixels.
+global textureHeight(int texture) -> float { return global.nativeGraphics.textureHeight(texture); }
+// Texture size as a JSON `[width,height]` array.
+global textureSize(int texture) -> str { return global.nativeGraphics.textureSize(texture); }
+// Draw a texture at its natural size.
+global drawTexture(int texture, float x, float y, int r = 255, int g = 255, int b = 255, int a = 255){ global.nativeGraphics.drawTexture(texture, x, y, r, g, b, a); }
+// Draw a texture scaled to `w`x`h`.
+global drawTextureScaled(int texture, float x, float y, float w, float h, int r = 255, int g = 255, int b = 255, int a = 255){ global.nativeGraphics.drawTextureScaled(texture, x, y, w, h, r, g, b, a); }
+// Draw a sub-rectangle of a texture into a `w`x`h` destination.
+global drawTextureRegion(int texture, float x, float y, float w, float h, float sourceX, float sourceY, float sourceW, float sourceH, int r = 255, int g = 255, int b = 255, int a = 255){ global.nativeGraphics.drawTextureRegion(texture, x, y, w, h, sourceX, sourceY, sourceW, sourceH, r, g, b, a); }
+// Draw a texture rotated (radians) around its centre.
+global drawTextureRotated(int texture, float x, float y, float w, float h, float rotation, int r = 255, int g = 255, int b = 255, int a = 255){ global.nativeGraphics.drawTextureRotated(texture, x, y, w, h, rotation, r, g, b, a); }
+// Texture filter: true for nearest-neighbour, false for linear.
+global setTextureFilter(int texture, bool nearest){ global.nativeGraphics.setTextureFilter(texture, nearest); }
+// Pack all textures into a single atlas.
+global buildTexturesAtlas(){ global.nativeGraphics.buildTexturesAtlas(); }
+// Create a render target to draw into. Returns a handle, or -1.
+global renderTarget(int width, int height) -> int { return global.nativeGraphics.renderTarget(width, height); }
+// Create a multisampled render target.
+global renderTargetMsaa(int width, int height) -> int { return global.nativeGraphics.renderTargetMsaa(width, height); }
+// Register a render target's texture so it can be drawn like any other.
+global renderTargetTexture(int target) -> int { return global.nativeGraphics.renderTargetTexture(target); }
+// Redirect drawing into a render target. Returns 0 on success.
+global setRenderTarget(int target) -> int { return global.nativeGraphics.setRenderTarget(target); }
+// Stop drawing into a render target.
+global endRenderTarget(){ global.nativeGraphics.endRenderTarget(); }
+// Capture the current frame as an image handle.
+global getScreenData() -> int { return global.nativeGraphics.getScreenData(); }
+
+// ── Input ───────────────────────────────────────────────────────────────────
+
+// Key names are case- and separator-insensitive: "space", "Left Shift",
+// "f1", "kpenter", "leftcontrol".
+// True while a key is held.
+global isKeyDown(str key) -> bool { return global.nativeGraphics.isKeyDown(key) isnt 0; }
+// True on the frame a key goes down.
+global isKeyPressed(str key) -> bool { return global.nativeGraphics.isKeyPressed(key) isnt 0; }
+// True on the frame a key goes up.
+global isKeyReleased(str key) -> bool { return global.nativeGraphics.isKeyReleased(key) isnt 0; }
+// True while any key is held.
+global anyKeyDown() -> bool { return global.nativeGraphics.anyKeyDown() isnt 0; }
+// Name of the most recently pressed key.
+global lastKeyPressed() -> str { return global.nativeGraphics.lastKeyPressed(); }
+// Names of the keys held this frame, as a JSON array.
+global keysDown() -> str { return global.nativeGraphics.keysDown(); }
+// Names of the keys pressed this frame, as a JSON array.
+global keysPressed() -> str { return global.nativeGraphics.keysPressed(); }
+// Names of the keys released this frame, as a JSON array.
+global keysReleased() -> str { return global.nativeGraphics.keysReleased(); }
+// The character typed this frame, or "".
+global charPressed() -> str { return global.nativeGraphics.charPressed(); }
+// Numeric code for a key name, or -1.
+global keyCode(str key) -> int { return global.nativeGraphics.keyCode(key); }
+// Key name for a numeric code.
+global keyName(int code) -> str { return global.nativeGraphics.keyName(code); }
+// Mouse position in screen pixels, as a JSON `[x,y]` array.
+global mousePosition() -> str { return global.nativeGraphics.mousePosition(); }
+// Mouse position in local (camera) space, as a JSON `[x,y]` array.
+global mousePositionLocal() -> str { return global.nativeGraphics.mousePositionLocal(); }
+// Mouse movement since the previous frame, as a JSON `[dx,dy]` array.
+global mouseDelta() -> str { return global.nativeGraphics.mouseDelta(); }
+// Scroll wheel delta, as a JSON `[x,y]` array.
+global mouseWheel() -> str { return global.nativeGraphics.mouseWheel(); }
+// Mouse button state: 0 left, 1 middle, 2 right.
+global isMouseButtonDown(int button) -> bool { return global.nativeGraphics.isMouseButtonDown(button) isnt 0; }
+// True on the frame a mouse button goes down.
+global isMouseButtonPressed(int button) -> bool { return global.nativeGraphics.isMouseButtonPressed(button) isnt 0; }
+// True on the frame a mouse button goes up.
+global isMouseButtonReleased(int button) -> bool { return global.nativeGraphics.isMouseButtonReleased(button) isnt 0; }
+// Active touches as a JSON array of `{id,x,y,phase}` objects.
+global touches() -> str { return global.nativeGraphics.touches(); }
+// Drop queued input events.
+global clearInputQueue(){ global.nativeGraphics.clearInputQueue(); }
+// Paths dropped onto the window, as a JSON array.
+global droppedFiles() -> str { return global.nativeGraphics.droppedFiles(); }
+// Treat touch input as mouse input.
+global simulateMouseWithTouch(bool enabled){ global.nativeGraphics.simulateMouseWithTouch(enabled); }
+
+// ── 3D primitives ───────────────────────────────────────────────────────────
+
+// Line in 3D space.
+global drawLine3D(float x1, float y1, float z1, float x2, float y2, float z2, int r, int g, int b, int a = 255){ global.nativeGraphics.drawLine3D(x1, y1, z1, x2, y2, z2, r, g, b, a); }
+// Filled cube.
+global drawCube(float x, float y, float z, float w, float h, float d, int r, int g, int b, int a = 255){ global.nativeGraphics.drawCube(x, y, z, w, h, d, r, g, b, a); }
+// Cube wireframe.
+global drawCubeWires(float x, float y, float z, float w, float h, float d, int r, int g, int b, int a = 255){ global.nativeGraphics.drawCubeWires(x, y, z, w, h, d, r, g, b, a); }
+// Filled sphere.
+global drawSphere(float x, float y, float z, float radius, int r, int g, int b, int a = 255){ global.nativeGraphics.drawSphere(x, y, z, radius, r, g, b, a); }
+// Sphere wireframe.
+global drawSphereWires(float x, float y, float z, float radius, int r, int g, int b, int a = 255){ global.nativeGraphics.drawSphereWires(x, y, z, radius, r, g, b, a); }
+// Sphere with an explicit tessellation.
+global drawSphereEx(float x, float y, float z, float radius, int rings, int slices, int r, int g, int b, int a = 255){ global.nativeGraphics.drawSphereEx(x, y, z, radius, rings, slices, r, g, b, a); }
+// Cylinder with separate top and bottom radii.
+global drawCylinder(float x, float y, float z, float radiusTop, float radiusBottom, float height, int r, int g, int b, int a = 255){ global.nativeGraphics.drawCylinder(x, y, z, radiusTop, radiusBottom, height, r, g, b, a); }
+// Cylinder wireframe.
+global drawCylinderWires(float x, float y, float z, float radiusTop, float radiusBottom, float height, int r, int g, int b, int a = 255){ global.nativeGraphics.drawCylinderWires(x, y, z, radiusTop, radiusBottom, height, r, g, b, a); }
+// Straight cylinder with an explicit side count.
+global drawCylinderEx(float x, float y, float z, float radius, float height, int sides, int r, int g, int b, int a = 255){ global.nativeGraphics.drawCylinderEx(x, y, z, radius, height, sides, r, g, b, a); }
+// Horizontal plane.
+global drawPlane(float x, float y, float z, float w, float h, int r, int g, int b, int a = 255){ global.nativeGraphics.drawPlane(x, y, z, w, h, r, g, b, a); }
+// Reference grid with distinct axis colours.
+global drawGrid(int slices, float spacing, int axesR, int axesG, int axesB, int axesA, int otherR, int otherG, int otherB, int otherA){ global.nativeGraphics.drawGrid(slices, spacing, axesR, axesG, axesB, axesA, otherR, otherG, otherB, otherA); }
+// Parallelogram spanned by two edge vectors from an origin.
+global drawAffineParallelogram(float originX, float originY, float originZ, float e1X, float e1Y, float e1Z, float e2X, float e2Y, float e2Z, int r, int g, int b, int a = 255){ global.nativeGraphics.drawAffineParallelogram(originX, originY, originZ, e1X, e1Y, e1Z, e2X, e2Y, e2Z, r, g, b, a); }
+// Parallelepiped spanned by three edge vectors from an origin.
+global drawAffineParallelepiped(float originX, float originY, float originZ, float e1X, float e1Y, float e1Z, float e2X, float e2Y, float e2Z, float e3X, float e3Y, float e3Z, int r, int g, int b, int a = 255){ global.nativeGraphics.drawAffineParallelepiped(originX, originY, originZ, e1X, e1Y, e1Z, e2X, e2Y, e2Z, e3X, e3Y, e3Z, r, g, b, a); }
+
+// ── Materials (GLSL shaders) ────────────────────────────────────────────────
+
+// Compile a material from GLSL vertex and fragment sources. Returns a handle.
+global loadMaterial(str vertexSource, str fragmentSource) -> int { return global.nativeGraphics.loadMaterial(vertexSource, fragmentSource); }
+// Compile a material from two GLSL files.
+global loadMaterialFromFile(str vertexPath, str fragmentPath) -> int { return global.nativeGraphics.loadMaterialFromFile(vertexPath, fragmentPath); }
+// Draw subsequent primitives with a custom material.
+global useMaterial(int material) -> int { return global.nativeGraphics.useMaterial(material); }
+// Restore the default material.
+global useDefaultMaterial(){ global.nativeGraphics.useDefaultMaterial(); }
+// Set a float uniform.
+global setUniform(int material, str name, float value) -> int { return global.nativeGraphics.setUniform(material, name, value); }
+// Set a float-array uniform from a JSON array.
+global setUniformArray(int material, str name, str valuesJson) -> int { return global.nativeGraphics.setUniformArray(material, name, valuesJson); }
+// Bind a texture to a sampler uniform.
+global setMaterialTexture(int material, str name, int texture) -> int { return global.nativeGraphics.setMaterialTexture(material, name, texture); }
+
+// ── Randomness and colour helpers ───────────────────────────────────────────
+
+// Seed the module's random number generator.
+global srand(int seed){ global.nativeGraphics.srand(seed); }
+// Next random integer.
+global rand() -> int { return global.nativeGraphics.rand(); }
+// Random float in `[low,high)`.
+global genRange(float low, float high) -> float { return global.nativeGraphics.genRange(low, high); }
+// Random integer in `[low,high)`.
+global genRangeInt(int low, int high) -> int { return global.nativeGraphics.genRangeInt(low, high); }
+// Convert 0-255 RGB to a JSON `[h,s,l]` array.
+global rgbToHsl(int r, int g, int b) -> str { return global.nativeGraphics.rgbToHsl(r, g, b); }
+// Convert HSL to a JSON `[r,g,b,a]` array of 0-255 values.
+global hslToRgb(float h, float s, float l) -> str { return global.nativeGraphics.hslToRgb(h, s, l); }
+// Base folder for relative asset loads.
+global setAssetsFolder(str path){ global.nativeGraphics.setAssetsFolder(path); }
+
+// ── Immediate-mode UI ───────────────────────────────────────────────────────
+//
+// Widgets are addressed by an integer id. Values (checkbox, slider, input text,
+// combo selection) live in the module and can be read or written at any time.
+// `uiButton` reports whether it was clicked; the value is also available from
+// `uiResult(id)` after a window or group block closes.
+
+// Static text.
+global uiLabel(str text){ global.nativeGraphics.uiLabel(text); }
+// Static text at an explicit position.
+global uiLabelAt(str text, float x, float y){ global.nativeGraphics.uiLabelAt(text, x, y); }
+// Clickable button. Returns true on the frame it is clicked.
+global uiButton(int id, str text) -> bool { return global.nativeGraphics.uiButton(id, text) isnt 0; }
+// Clickable button at an explicit position.
+global uiButtonAt(int id, str text, float x, float y) -> bool { return global.nativeGraphics.uiButtonAt(id, text, x, y) isnt 0; }
+// Checkbox bound to the value stored under `id`.
+global uiCheckbox(int id, str label) -> bool { return global.nativeGraphics.uiCheckbox(id, label) isnt 0; }
+// Current checkbox value.
+global uiCheckboxValue(int id) -> bool { return global.nativeGraphics.uiCheckboxValue(id) isnt 0; }
+// Set a checkbox value programmatically.
+global uiSetCheckboxValue(int id, bool value){ global.nativeGraphics.uiSetCheckboxValue(id, value); }
+// Slider between `min` and `max`. Returns the current value.
+global uiSlider(int id, str label, float min, float max) -> float { return global.nativeGraphics.uiSlider(id, label, min, max); }
+// Current slider value.
+global uiSliderValue(int id) -> float { return global.nativeGraphics.uiSliderValue(id); }
+// Set a slider value programmatically.
+global uiSetSliderValue(int id, float value){ global.nativeGraphics.uiSetSliderValue(id, value); }
+// Single-line text field. Returns the current contents.
+global uiInputText(int id, str label) -> str { return global.nativeGraphics.uiInputText(id, label); }
+// Masked text field.
+global uiInputPassword(int id, str label) -> str { return global.nativeGraphics.uiInputPassword(id, label); }
+// Current text field contents.
+global uiInputTextValue(int id) -> str { return global.nativeGraphics.uiInputTextValue(id); }
+// Set a text field's contents.
+global uiSetInputText(int id, str text){ global.nativeGraphics.uiSetInputText(id, text); }
+// Progress bar; `value` is normalised into `min`..`max`.
+global uiProgressBar(str label, float value, float min, float max){ global.nativeGraphics.uiProgressBar(label, value, min, max); }
+// Drop-down list. `optionsJson` is a JSON string array; returns the selected
+// index.
+global uiComboBox(int id, str label, str optionsJson) -> int { return global.nativeGraphics.uiComboBox(id, label, optionsJson); }
+// Selected text of the last combo box drawn with this id.
+global uiComboBoxValue(int id) -> str { return global.nativeGraphics.uiComboBoxValue(id); }
+// Horizontal separator, starting a new line.
+global uiSeparator(){ global.nativeGraphics.uiSeparator(); }
+// Continue the current line at an offset.
+global uiSameLine(float x){ global.nativeGraphics.uiSameLine(x); }
+// Result of the last widget with this id (button clicks, combo selection).
+global uiResult(int id) -> int { return global.nativeGraphics.uiResult(id); }
+// Open a draggable window; widgets issued until `uiWindowEnd` are drawn inside.
+global uiWindowBegin(int id, str title, float x, float y, float w, float h) -> int { return global.nativeGraphics.uiWindowBegin(id, title, x, y, w, h); }
+// Close the current window block.
+global uiWindowEnd() -> int { return global.nativeGraphics.uiWindowEnd(); }
+// Open a layout group; widgets issued until `uiGroupEnd` are drawn inside.
+global uiGroupBegin(int id, float w, float h) -> int { return global.nativeGraphics.uiGroupBegin(id, w, h); }
+// Close the current group block.
+global uiGroupEnd() -> int { return global.nativeGraphics.uiGroupEnd(); }
+
+global main(){}

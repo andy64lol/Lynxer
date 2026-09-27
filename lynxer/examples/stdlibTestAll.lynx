@@ -47,6 +47,7 @@ global setup(){
     bool skipDisplay = skipDisplayValue is "1";
     if(not skipDisplay){
         import("game");
+        import("graphics");
     }
 }
 
@@ -64,6 +65,16 @@ global check(any actual, str expected, str label){
 
 // Frame callbacks registered with the game module; headless `run()` drives them
 // for a few deterministic frames.
+// Frame callbacks registered with the graphics module, kept apart from the
+// game ones so each section's output identifies its own backend.
+global graphicsUpdate(float dt){
+    println("graphics.update ", dt);
+}
+
+global graphicsDraw(){
+    println("graphics.draw");
+}
+
 global onUpdate(float dt){
     println("game.update ", dt);
 }
@@ -1161,6 +1172,74 @@ global main(){
     global.game.close();
     } else {
         println("== game (skipped: LYNXER_SKIP_DISPLAY=1) ==");
+    }
+
+    // ----------------------------------------------------------- graphics
+    if(not skipDisplay){
+    println("== graphics ==");
+    // Force the graphics backend into headless mode so the run is deterministic
+    // and needs no display, whether or not the caller exported the variable.
+    global.os.setenv("LYNXER_GRAPHICS_HEADLESS", "1");
+    global.graphics.init("stdlibTestAll", 320, 200);
+    fails += global.check(global.graphics.screenWidth(), "320", "graphics.screenWidth");
+    fails += global.check(global.graphics.screenHeight(), "200", "graphics.screenHeight");
+    fails += global.check(global.graphics.isRunning(), "false", "graphics.isRunning");
+    fails += global.check(global.graphics.dpiScale(), "1", "graphics.dpiScale");
+    fails += global.check(global.graphics.quitRequested(), "false", "graphics.quitRequested");
+    fails += global.check(global.graphics.loadTexture("nope.png"), "-1", "graphics.loadTexture");
+    fails += global.check(global.graphics.loadFont("nope.ttf"), "-1", "graphics.loadFont");
+    fails += global.check(global.graphics.renderTarget(8, 8), "-1", "graphics.renderTarget");
+    fails += global.check(global.graphics.screenshot("/tmp/lynxer_stdlib_test_all.png"), "-1", "graphics.screenshot");
+
+    // An in-memory image needs no context, so its pixels round-trip even here.
+    int image = global.graphics.genImage(4, 4, 10, 20, 30, 255);
+    fails += global.check(image, "0", "graphics.genImage");
+    fails += global.check(global.graphics.imageWidth(image), "4", "graphics.imageWidth");
+    fails += global.check(global.graphics.imageSetPixel(image, 1, 1, 255, 0, 0, 255), "0", "graphics.imageSetPixel");
+    fails += global.check(global.graphics.imageGetPixel(image, 1, 1), "[255,0,0,255]", "graphics.imageGetPixel");
+
+    // Key names bridge to macroquad's numeric codes.
+    fails += global.check(global.graphics.keyCode("space"), "32", "graphics.keyCode");
+    fails += global.check(global.graphics.keyName(32), "space", "graphics.keyName");
+    fails += global.check(global.graphics.keyName(global.graphics.keyCode("leftshift")), "leftshift", "graphics.keyCode.modifier");
+
+    fails += global.check(global.graphics.rgbToHsl(255, 0, 0), "[0,1,0.5]", "graphics.rgbToHsl");
+    fails += global.check(global.graphics.hslToRgb(0.0, 1.0, 0.5), "[255,0,0,255]", "graphics.hslToRgb");
+
+    // The 2D camera is tracked in the module, so it round-trips without a GPU.
+    global.graphics.setCamera2D(10.0, 20.0, 2.0, 0.0, 30.0, 40.0);
+    fails += global.check(global.graphics.cameraTarget(), "[10,20,2,0,30,40]", "graphics.cameraTarget");
+    fails += global.check(global.graphics.screenToWorld(5.0, 5.0), "[0,0]", "graphics.screenToWorld");
+    global.graphics.setDefaultCamera();
+
+    // The UI value registry is module state, independent of the GPU.
+    global.graphics.uiSetInputText(9, "typed");
+    fails += global.check(global.graphics.uiInputTextValue(9), "typed", "graphics.uiInputText");
+    global.graphics.uiSetCheckboxValue(5, true);
+    fails += global.check(global.graphics.uiCheckboxValue(5), "true", "graphics.uiCheckboxValue");
+    global.graphics.uiSetSliderValue(6, 2.5);
+    fails += global.check(global.graphics.uiSliderValue(6), "2.5", "graphics.uiSliderValue");
+    global.graphics.uiComboBox(8, "Choice", "[\"alpha\",\"beta\"]");
+    fails += global.check(global.graphics.uiComboBoxValue(8), "alpha", "graphics.uiComboBoxValue");
+
+    // A window block buffers its widgets, then replays them into macroquad's
+    // closure; headless it only buffers, but the block itself must open/close.
+    fails += global.check(global.graphics.uiWindowBegin(1, "Panel", 0.0, 0.0, 10.0, 10.0), "0", "graphics.uiWindowBegin");
+    global.graphics.uiLabel("inside");
+    global.graphics.uiCheckbox(20, "Nested");
+    fails += global.check(global.graphics.uiWindowEnd(), "0", "graphics.uiWindowEnd");
+    fails += global.check(global.graphics.uiGroupBegin(2, 10.0, 10.0), "0", "graphics.uiGroupBegin");
+    global.graphics.uiLabel("in group");
+    fails += global.check(global.graphics.uiGroupEnd(), "0", "graphics.uiGroupEnd");
+
+    // The frame loop drives the registered callbacks a fixed number of times.
+    global.graphics.setUpdateCallback("graphicsUpdate");
+    global.graphics.setDrawCallback("graphicsDraw");
+    global.graphics.run();
+    fails += global.check(global.graphics.isRunning(), "false", "graphics.running");
+    fails += global.check(global.graphics.fps(), "60", "graphics.fps");
+    } else {
+        println("== graphics (skipped: LYNXER_SKIP_DISPLAY=1) ==");
     }
 
     // ===== END CHECKS =====

@@ -13,8 +13,9 @@ Any name still registered in `unsupportedTable()` reports
 
 ### Modules
 
-- [ ] `tkinter` / `tkinterPlus` / `turtle` — **reopen**. Candidate replacement:
-      a Rust-backed `graphics` module (see the decision below).
+- [ ] `tkinter` / `tkinterPlus` / `turtle` — the `graphics` module (below)
+      covers the immediate-mode drawing/window/UI space; an OS-native widget
+      binding remains out of scope.
 
 ## Named syscalls — policy for new wrappers
 
@@ -57,8 +58,10 @@ Work that needs a decision before it can be built:
 - [ ] **`nativeThread*` interleaving.** Threads are cooperative: a worker cannot
   make progress while the main body is running, which is the opposite of a
   pre-emptive runtime. Decide whether real interleaving is needed.
-- [ ] **`graphics` module.** A Rust `iced`-backed GUI replacement for the
-  not-planned `tkinter` / `turtle` surface — decide whether to build it.
+- [x] ~~**`graphics` module.**~~ Built: a Rust **macroquad**-backed drawing,
+  window, input and immediate-mode UI module (`rust/graphics`), separate from
+  `game` rather than a replacement for it. `iced` is not in the vendored crate
+  set, so macroquad is the vehicle.
 - [ ] **`tui` real backend.** The API surface is complete but the backend is a
   placeholder: rendering draws fixed output, the prompt operations return empty
   defaults, and the stateful families keep no state. Decide whether to build a

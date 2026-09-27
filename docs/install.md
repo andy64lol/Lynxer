@@ -7,7 +7,7 @@ Python; only the two check scripts in the test suite do.
 
 - A C++17 compiler (`g++` or `clang++`) and `make`.
 - `python3` to run `make testLynxer` (the contract and golden checks).
-- Optional: a Rust toolchain (`cargo`) for the nine Rust-backed modules. They
+- Optional: a Rust toolchain (`cargo`) for the ten Rust-backed modules. They
   are **skipped with a warning** when `cargo` is not on `PATH`; the rest of
   Lynxer still builds.
 - Git and network access for the first `cargo` build: crates are fetched from
@@ -43,10 +43,10 @@ there is no separate `lynxer/Makefile`.
   produced by `cargo` under `lynxer/build/rust`; the C++ ones are compiled
   from `stdlib/*.cpp`.
 
-The Rust workspace has ten member crates
-(`LYNXER_RUST_MODULE_NAMES` in the Makefile): the nine module backends `game`,
-`image`, `json`, `lua`, `network`, `server`, `sound`, `sqldb`, `tui`, plus
-`ffi`, which is an intentional no-op cdylib — the `ffi*` builtins are
+The Rust workspace has eleven member crates
+(`LYNXER_RUST_MODULE_NAMES` in the Makefile): the ten module backends `game`,
+`graphics`, `image`, `json`, `lua`, `network`, `server`, `sound`, `sqldb`,
+`tui`, plus `ffi`, which is an intentional no-op cdylib — the `ffi*` builtins are
 implemented in C++.
 
 ## Install
@@ -77,6 +77,7 @@ from the repository root.
 |----------|---------|--------|
 | `LYNXER_OPT_REPORT=1` | the interpreter | print the AST optimizer counts to stderr after the run |
 | `LYNXER_GAME_HEADLESS=1` | the `game` module | run without opening a window |
+| `LYNXER_GRAPHICS_HEADLESS=1` | the `graphics` module | run without opening a window |
 | `LYNXER_SKIP_DISPLAY=1` | `make testLynxer` | skip the display and audio fixtures (used by CI) |
 
 The first three are described in more detail in

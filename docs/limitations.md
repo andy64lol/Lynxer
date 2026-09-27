@@ -15,7 +15,7 @@ Entries are marked:
 | --- | --- |
 | `venv` module | A virtual-environment manager is a Python concept with no equivalent in a standalone runtime. |
 | `rawPy`, `rawPyx`, `cleanRawPyxCache`, `embedPy` | Embedding CPython/Cython. Lynxer does not ship or link a Python runtime. |
-| `tkinter`, `tkinterPlus` | No Python GUI toolkit. A future `graphics` module, if any, would be Rust-backed. |
+| `tkinter`, `tkinterPlus` | No Python GUI toolkit binding. The `graphics` module is an immediate-mode drawing/window/UI toolkit instead. |
 | `turtle` | Rust's `turtle` crate has not been maintained since 2019. |
 | `http`, `net` modules | Superseded by `network` + `server`. |
 | Python runtime introspection (`sys.path`, `addPath`, `prependPath`, `removeFromPath`, `getModules`, `isModuleLoaded`, `getRecursionLimit`, `setRecursionLimit`, `os.getPythonVersion`, `os.getPythonImplementation`) | There is no Python runtime to introspect. The `os` getters return `""` / `"Lynxer"` for compatibility and will be removed. |
@@ -85,8 +85,9 @@ The following modules are not ported to Lynxer:
 
 ### Native Backing
 
-Lynxer ships modules backed by native implementations. Nine of them are Rust crates:
+Lynxer ships modules backed by native implementations. Ten of them are Rust crates:
 - `game` (`macroquad`)
+- `graphics` (`macroquad`)
 - `image`
 - `json` (`serde_json`)
 - `lua` (vendored Lua through `mlua`)
@@ -97,6 +98,25 @@ Lynxer ships modules backed by native implementations. Nine of them are Rust cra
 - `tui` (`ratatui`/`crossterm`)
 
 These modules are skipped with a warning if `cargo` is missing, allowing the rest of Lynxer to build without a Rust toolchain. The Rust workspace includes an `ffi` member, an intentional no-op `cdylib`, since the `ffi*` builtins are implemented in C++.
+
+### `graphics` — Constrained Behavior
+
+- **A display is required for real rendering.** macroquad has no offscreen
+  backend, so any drawing needs a window and OpenGL (X11 or Wayland). With
+  `LYNXER_GRAPHICS_HEADLESS=1` no window is opened, drawing is a no-op and
+  context-dependent ops return `-1` or zero.
+- **Ops that need the GPU context only work inside a frame callback.**
+  `loadTexture`, `loadFont`, `loadMaterial`, `renderTarget`, `screenshot`, the
+  `draw*` ops and the `ui*` widgets all fail if called from `setup` or `main`.
+- **No audio, native widgets or gamepads.** macroquad's audio feature is not
+  vendored, the `ui*` widgets are canvas-drawn, and 0.4.16 has no gamepad API.
+- **No model loading or mesh construction.** Only the generated 3D primitives
+  are available.
+- **`uiWindowBegin`/`uiGroupBegin` buffer one block deep.** A nested `*Begin`
+  returns `-1`; widget values are updated when the block is replayed, so read
+  them after `*End`.
+- **The windowed path is not covered by CI.** CI sets
+  `LYNXER_SKIP_DISPLAY=1`, which skips the graphics fixture.
 
 ### `game` — Constrained Behavior
 

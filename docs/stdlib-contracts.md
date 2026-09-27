@@ -7,7 +7,7 @@ halves of one contract. This page states that contract once, so a second backend
 for an existing module — or a new module — can be written against it without
 re-deriving the conventions from the code.
 
-The conventions below apply to all 27 bundled modules. The per-module table
+The conventions below apply to all 28 bundled modules. The per-module table
 records only the dimensions that actually vary between them. For an individual
 operation's argument list and return value, the authoritative sources are the
 wrapper itself (`stdlib/<name>.lynx`), `docs/stdlib/<name>.md`, and
@@ -144,6 +144,7 @@ Any future callback must be declared here before the module ships.
 | `debug` | C++ + pure | none | none |
 | `fileIO` | C++ | none — paths are strings | none |
 | `game` | Rust | integer indices: cached textures and sprites | none (caches live for the run; `close()` ends the loop) |
+| `graphics` | Rust | **integer handles** into backend registries (textures, images, fonts, materials, render targets) plus UI widget ids | none (registries live for the run; `run()` ends the loop) |
 | `image` | Rust | **integer handles** into a backend registry | caller: `close(handle)` |
 | `js` | C++ | none | none |
 | `json` | Rust | none — documents are strings | none |

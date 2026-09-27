@@ -22,7 +22,7 @@ LYNXER_RUST_MANIFEST := $(LYNXER_RUST_DIR)/Cargo.toml
 LYNXER_RUST_SOURCES := $(wildcard $(LYNXER_RUST_DIR)/*/src/*.rs) \
                         $(wildcard $(LYNXER_RUST_DIR)/*/Cargo.toml) \
                         $(LYNXER_RUST_MANIFEST) $(LYNXER_RUST_DIR)/Cargo.lock
-LYNXER_RUST_MODULE_NAMES := game image json lua network server sound sqldb tui ffi
+LYNXER_RUST_MODULE_NAMES := game graphics image json lua network server sound sqldb tui ffi
 LYNXER_RUST_MODULES := $(LYNXER_RUST_MODULE_NAMES:%=$(LYNXER_DIR)/stdlib/%.so)
 
 # Rust-backed modules are gated on the Rust toolchain.
@@ -71,7 +71,7 @@ LYNXER_SOUND_FIXTURE := $(LYNXER_DIR)/examples/stdlib_sound.lynx
 # LYNXER_SKIP_DISPLAY=1 to drop the fixtures that need one.
 LYNXER_SKIP_DISPLAY ?= 0
 ifeq ($(LYNXER_SKIP_DISPLAY),1)
-LYNXER_DISPLAY_FIXTURES := stdlib_game stdlib_game_api stdlib_sound
+LYNXER_DISPLAY_FIXTURES := stdlib_game stdlib_game_api stdlib_graphics stdlib_sound
 else
 LYNXER_DISPLAY_FIXTURES :=
 endif
@@ -128,11 +128,11 @@ LYNXER_OPTIMIZER_DEPRECATED_FIXTURE := $(LYNXER_DIR)/examples/optimizer_deprecat
 # Formatter fixture: a deliberately messy source file and its canonical form.
 LYNXER_FORMATTER_INPUT := $(LYNXER_DIR)/examples/formatter_input.lynx
 LYNXER_FORMATTER_EXPECTED := $(LYNXER_DIR)/examples/formatter_expected.lynx
-LYNXER_LIST_STDLIB_MODULES := cli colorlib csv debug fileIO game image js json lua math \
+LYNXER_LIST_STDLIB_MODULES := cli colorlib csv debug fileIO game graphics image js json lua math \
 	multiprocessing network os path random re regex server shell sound sqldb sys text time tui typing
 # Import-parity fixtures (interpreted vs compiled). The sound one needs a device.
 LYNXER_PARITY_FIXTURES := native_stdlibs milestone6_module milestone6_math_native stdlib_json \
-	stdlib_re stdlib_path stdlib_game stdlib_image stdlib_lua stdlib_sqldb stdlib_tui deprecated_operators optimizer \
+	stdlib_re stdlib_path stdlib_game stdlib_graphics stdlib_image stdlib_lua stdlib_sqldb stdlib_tui deprecated_operators optimizer \
 	lowlevel_memory lowlevel_syscalls lowlevel_arch language_fields ownership \
 	range_for
 ifeq ($(HAVE_AUDIO),1)
@@ -338,11 +338,11 @@ expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:23: charAt() index is out of rang
 	if grep -q '__ARCH__' "$$run"; then \
 	sed "s/__ARCH__/$(SYSCALL_ARCH)/g" "$$run" > $(CLYX_TMP)_arch.lynx; \
 	run="$(CLYX_TMP)_arch.lynx"; fi; \
-	LYNXER_GAME_HEADLESS=1 $(CLYX) "$$run" > $(CLYX_TMP)_direct.out 2>&1; \
+	LYNXER_GAME_HEADLESS=1 LYNXER_GRAPHICS_HEADLESS=1 $(CLYX) "$$run" > $(CLYX_TMP)_direct.out 2>&1; \
 	direct_status=$$?; \
 	if ! $(CLYX) --compile "$$run" $(CLYX_TMP)_compiled > /dev/null; then \
 	echo "compile failed for $$fixture (imports)"; exit 1; fi; \
-	LYNXER_GAME_HEADLESS=1 $(CLYX_TMP)_compiled > $(CLYX_TMP)_compiled.out 2>&1; \
+	LYNXER_GAME_HEADLESS=1 LYNXER_GRAPHICS_HEADLESS=1 $(CLYX_TMP)_compiled > $(CLYX_TMP)_compiled.out 2>&1; \
 	compiled_status=$$?; \
 	if ! diff -q $(CLYX_TMP)_direct.out $(CLYX_TMP)_compiled.out > /dev/null || \
 	   [ "$$direct_status" -ne "$$compiled_status" ]; then \
@@ -474,7 +474,7 @@ expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:23: charAt() index is out of rang
 	expected="$${fixture%.lynx}.expected"; \
 	if [ ! -f "$$expected" ]; then \
 	echo "missing expected output for $$fixture"; exit 1; fi; \
-	LYNXER_GAME_HEADLESS=1 $(CLYX) "$$fixture" > $(CLYX_TMP)_stdlib.out 2>&1; \
+	LYNXER_GAME_HEADLESS=1 LYNXER_GRAPHICS_HEADLESS=1 $(CLYX) "$$fixture" > $(CLYX_TMP)_stdlib.out 2>&1; \
 	if [ $$? -ne 0 ]; then \
 	echo "stdlib fixture failed: $$fixture"; cat $(CLYX_TMP)_stdlib.out; \
 	rm -f $(CLYX_TMP)_stdlib.out; exit 1; fi; \
@@ -556,7 +556,7 @@ expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:23: charAt() index is out of rang
 	@$(CLYX) --validate-executeable > /dev/null || \
 	{ echo "lynxer --validate-executeable reported a failure:"; \
 	$(CLYX) --validate-executeable; exit 1; }
-	@LYNXER_GAME_HEADLESS=1 LYNXER_SKIP_DISPLAY=$(LYNXER_SKIP_DISPLAY) $(CLYX) $(LYNXER_STDLIB_TEST_ALL) > $(CLYX_TMP)_stdlib_all.out 2>&1; \
+	@LYNXER_GAME_HEADLESS=1 LYNXER_GRAPHICS_HEADLESS=1 LYNXER_SKIP_DISPLAY=$(LYNXER_SKIP_DISPLAY) $(CLYX) $(LYNXER_STDLIB_TEST_ALL) > $(CLYX_TMP)_stdlib_all.out 2>&1; \
 	if [ $$? -ne 0 ]; then \
 	echo "consolidated stdlib test failed: $(LYNXER_STDLIB_TEST_ALL)"; \
 	cat $(CLYX_TMP)_stdlib_all.out; \
@@ -565,7 +565,7 @@ expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:23: charAt() index is out of rang
 	@if [ "$(LYNXER_SKIP_DISPLAY)" = "1" ]; then \
 	echo "lynxer: skipping game_clicker.lynx: display tests disabled (LYNXER_SKIP_DISPLAY=1)"; \
 	else \
-	LYNXER_GAME_HEADLESS=1 $(CLYX) $(LYNXER_DIR)/examples/game_clicker.lynx >/dev/null 2>&1 || \
+	LYNXER_GAME_HEADLESS=1 LYNXER_GRAPHICS_HEADLESS=1 $(CLYX) $(LYNXER_DIR)/examples/game_clicker.lynx >/dev/null 2>&1 || \
 	{ echo "example failed: $(LYNXER_DIR)/examples/game_clicker.lynx"; exit 1; }; \
 	fi
 	@rm -f $(CLYX_TMP)_stdin
