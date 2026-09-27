@@ -1,27 +1,13 @@
 # Lynxer — TODO and non-goals
 
 Open work for the standalone C++ implementation in `lynxer/`. Completed work is
-in git; this file stays forward-looking. The behaviour register is
-[docs/limitations.md](docs/limitations.md) and the named-syscall reference is
-[docs/syscalls.md](docs/syscalls.md).
+struck through under [Done](#done), and the permanent non-goals and removed
+features are recorded in [docs/limitations.md](docs/limitations.md) and
+[docs/removed-features.md](docs/removed-features.md) rather than duplicated
+here. The named-syscall reference is [docs/syscalls.md](docs/syscalls.md).
 
 Any name still registered in `unsupportedTable()` reports
 `<name>() is not supported in Lynxer yet`.
-
-## Not planned (will not be implemented)
-
-Permanent non-goals — do **not** start work on these. Kept here so the decision
-is visible next to the work that *is* open.
-
-| Feature | Why |
-| --- | --- |
-| `venv` module | A virtual-environment manager is a Python concept with no equivalent in a standalone runtime. |
-| `rawPy`, `rawPyx`, `cleanRawPyxCache`, `embedPy` | **Removed fully.** Python/Cython embedding; Lynxer does not ship or link a Python runtime. Not a reopen. |
-| `tkinter`, `tkinterPlus` | No Python GUI toolkit. Any future GUI would be Rust-backed (see the `graphics` decision). |
-| `turtle` | Rust's `turtle` crate has not been maintained since 2019. |
-| Python runtime introspection (`sys.path`, `addPath`, `prependPath`, `removeFromPath`, `getModules`, `isModuleLoaded`, `getRecursionLimit`, `setRecursionLimit`, `os.getPythonVersion`, `os.getPythonImplementation`) | There is no Python runtime to introspect. |
-| Bytecode (`.lynxc`, `--view-bytecode`, `--benchmark-compile`, `--no-cache`) | Removed; `--compile` produces a standalone ELF executable instead. |
-| `\x` / `\u` string escapes | Only `\n`, `\r`, `\t`, `\\`, `\"` and `\e` are accepted. |
 
 ## Open work
 
@@ -64,9 +50,10 @@ Work that needs a decision before it can be built:
   program into arbitrary native code. Decide: take the dependency, hand-roll
   fixed shapes, or move the family to "not planned".
 - [ ] **`async*` semantics.** The family is implemented (`asyncRun`,
-  `asyncGather`, `asyncSleep`, the `asyncPoll*` set, timers and wakeups) and
-  `await` yields cooperatively, but there is no `async` language support.
-  Decide whether to keep it as-is, expand it, or freeze the surface.
+  `asyncGather`, `asyncSleep`, the `asyncPoll*` set, timers and wakeups) and the
+  `async` language syntax exists but is eager — `await` does not suspend and
+  `asyncGather` returns its arguments. Decide whether to keep it as-is, make it
+  a real coroutine model, or freeze the surface.
 - [ ] **`nativeThread*` interleaving.** Threads are cooperative: a worker cannot
   make progress while the main body is running, which is the opposite of a
   pre-emptive runtime. Decide whether real interleaving is needed.
@@ -77,38 +64,36 @@ Work that needs a decision before it can be built:
   defaults, and the stateful families keep no state. Decide whether to build a
   real terminal UI.
 
-## Already incorporated
+## Done
 
-- The rest of the original `docs-legacy` surface: pointers/raw addresses,
-  atomics and volatile access, native synchronization, `memoryProtect`, the
-  `nativeModule*` handles, `ffi*`, typed `memory*` accessors, the managed
-  `filesystem*` / `process*` / `networking*` / `sound*` families, and
-  `nativeThread*`.
-- Language: ownership/borrowing (`varTransfer`/`varBorrow`/…, `shared`,
-  `unshare()`), the `async*` family with cooperative `await`, and bracket-literal
-  tuple rebinding (accepted, with a once-per-location deprecation warning).
-- Stdlib modules ported from `docs-legacy`: `typing`, `text`, `csv`, `regex`,
-  `image`, `game`, `server`, `network`, `cli` (native Click/Typer builders), and
-  `mathPlus` (merged into `math`).
-- `sys` system information: `architecture`, `cpuCount`, `pageSize`,
-  `memoryTotal`, `memoryAvailable`, `uptime`, `bootTime`, `loadAverage`.
-- Named syscalls: the original set plus the extended and Stretch families
-  (io_uring, Landlock/seccomp), architecture-gated and available on both arches.
-- Range `for` loops: `for (int i = start (.. | ..=) end [.. step])` beside the
-  C-style form (`..` excludes the end, `..=` includes it; the third value is the
-  step). See [docs/loops.md](docs/loops.md) and
-  `lynxer/examples/range_for.lynx`.
-- `cli` builders: `click*` / `typer*` over integer handles — with `--help`/`-h`,
-  `--no-<flag>` negation, `noArgsHelp`, repeated options and env-var defaults —
-  and removal of the Python availability probes.
-- Absorbing the legacy docs: the remaining `docs-legacy` reference pages
-  (`async`, `filesystem`, `networking`, `process`, `native-memory`,
-  `native-modules`) now live under `docs/`, bytecode/`rawPy`/`venv`/`tkinter` and
-  the Python migration are consolidated in
-  [docs/removed-features.md](docs/removed-features.md), and every claim was
-  verified against the interpreter. That audit corrected
-  [docs/legacy-surface.md](docs/legacy-surface.md): the `async` language syntax
-  **does** exist (it is eager, not a coroutine).
+- [x] ~~The rest of the original `docs-legacy` surface: pointers/raw addresses,
+      atomics and volatile access, native synchronization, `memoryProtect`, the
+      `nativeModule*` handles, `ffi*`, typed `memory*` accessors, the managed
+      `filesystem*` / `process*` / `networking*` / `sound*` families, and
+      `nativeThread*`.~~
+- [x] ~~Language: ownership/borrowing (`varTransfer`/`varBorrow`/…, `shared`,
+      `unshare()`), the `async*` family, and bracket-literal tuple rebinding
+      (accepted, with a once-per-location deprecation warning).~~
+- [x] ~~Stdlib modules ported from `docs-legacy`: `typing`, `text`, `csv`,
+      `regex`, `image`, `game`, `server`, `network`, `cli` (native Click/Typer
+      builders), and `mathPlus` (merged into `math`).~~
+- [x] ~~`sys` system information: `architecture`, `cpuCount`, `pageSize`,
+      `memoryTotal`, `memoryAvailable`, `uptime`, `bootTime`, `loadAverage`.~~
+- [x] ~~Named syscalls: the original set plus the extended and Stretch families
+      (io_uring, Landlock/seccomp), architecture-gated and available on both
+      arches.~~
+- [x] ~~Range `for` loops:
+      `for (int i = start (.. | ..=) end [.. step])` beside the C-style form.
+      See [docs/loops.md](docs/loops.md).~~
+- [x] ~~`cli` builders: `click*` / `typer*` over integer handles — with
+      `--help`/`-h`, `--no-<flag>` negation, `noArgsHelp`, repeated options and
+      env-var defaults — and removal of the Python availability probes.~~
+- [x] ~~Absorbing the legacy docs: the remaining `docs-legacy` reference pages
+      (`async`, `filesystem`, `networking`, `process`, `native-memory`,
+      `native-modules`) now live under `docs/`, and every claim was verified
+      against the interpreter. That audit corrected
+      [docs/legacy-surface.md](docs/legacy-surface.md): the `async` language
+      syntax **does** exist (it is eager, not a coroutine).~~
 
 ## Ground rules
 
