@@ -1,89 +1,137 @@
 ////
-Fixture for the Rust-backed tui stdlib. It runs without a terminal, so the
-rendering operations take their plain-text fallback path and the stateful
-handles are the documented placeholders. `enter()`/`exit()` are deliberately
-not exercised: they put the controlling terminal into raw mode, which a fixture
-must not do.
+Real-backend `tui` fixture. Rendering is offscreen ratatui: with stdout not a
+TTY (as here) every widget becomes plain text, so the output is deterministic.
+The width is pinned and soft wrap disabled so the box-drawing is stable.
+
+`enter()`/`exit()` are deliberately not exercised: they put the controlling
+terminal into raw mode, which a fixture must not do. The prompts at the end read
+the piped stdin the Makefile supplies, and the last two fall back to defaults.
 ////
 global setup(){ import("tui"); }
 
 global main(){
-    // Existence, version, markup and style validation.
+    global.tui.setWidth(40);
+    global.tui.setSoftWrap(false);
+    global.tui.init("none");
+
+    // Existence, version, markup escape and style validation.
     println(global.tui.tuiExists());
     println(global.tui.tuiVersion());
-    println(global.tui.markupEscape("<hello & 'world'>"));
+    println(global.tui.markupEscape("[bold]hi[/bold]"));
     println(global.tui.styleValid("bold green"));
     println(global.tui.styleValid("not-a-style"));
 
-    // Rendering with no terminal active prints a plain-text line; the wrappers
-    // return nothing, so the calls stand alone.
-    global.tui.printText("plain");
+    // Rendering.
+    global.tui.printText("[bold]bold[/bold] plain");
     global.tui.printStyled("styled", "bold green");
     global.tui.rule("Section");
     global.tui.panel("body", "Title");
-    global.tui.markdown("# Heading");
+    global.tui.markdown("# Heading\n\nSome **bold**, *italic* and `code`.\n\n- one\n- two\n\n1. first\n2. second\n\n```python\nprint(1)\n```\n\n> quoted");
+    global.tui.printSyntax("fn main() {\n    // hi\n    println!(\"x\");\n}", "rust", true);
     global.tui.jsonPretty("{\"a\": 1}");
-    global.tui.table("T", "[\"a\"]", "[[1]]");
+    global.tui.table("T", "[\"a\",\"b\"]", "[[1,2],[3,4]]");
     global.tui.printTextPlain("raw");
-    global.tui.printPretty("value");
-    global.tui.printColumns("[\"a\"]", true, false);
-    global.tui.printAligned("text", "left", false);
-    global.tui.printPadded("text", 1, 2, 3, 4);
+    global.tui.printPretty("[1, 2]");
+    global.tui.printColumns("[\"a\",\"bb\",\"ccc\"]", true, false);
+    global.tui.printAligned("mid", "right", true);
+    global.tui.printPadded("pad", 1, 2, 1, 2);
     global.tui.printException();
     global.tui.installTraceback(true);
-    // `clear()` writes the raw ANSI "erase display" sequence with no trailing
-    // newline, so the expected output joins it to the next printed value.
+    // The clear sequence has no trailing newline, so it joins the next value.
     global.tui.clear();
 
     // Console configuration.
-    global.tui.init("truecolor");
-    println(global.tui.setWidth(80));
-    global.tui.setMarkup(true);
+    println(global.tui.setWidth(40));
+    global.tui.setMarkup(false);
     global.tui.setEmoji(false);
-    global.tui.setHighlight(true);
+    global.tui.setHighlight(false);
     global.tui.setSoftWrap(false);
     global.tui.consoleLog("logged");
-    println(global.tui.consoleSaveText("unused.txt"));
-    println(global.tui.consoleSaveHtml("unused.html"));
+    println(global.tui.consoleSaveText("/tmp/lynxer_tui_scratch.txt"));
+    println(global.tui.consoleSaveHtml("/tmp/lynxer_tui_scratch.html"));
 
-    // Stateful handles are placeholders: they return a handle and keep no state.
+    // Stateful table: real state behind handle 0.
     println(global.tui.tableCreate("t"));
-    global.tui.tableAddColumn(0, "header", "bold");
-    global.tui.tableAddRow(0, "[[1]]");
+    global.tui.tableAddColumn(0, "name", "bold");
+    global.tui.tableAddColumn(0, "n", "");
+    global.tui.tableAddRow(0, "[\"a\", 1]");
+    global.tui.tableAddRow(0, "[\"b\", 2]");
     global.tui.tableSetCaption(0, "caption");
     global.tui.tableSetHeader(0, true);
-    global.tui.tableSetLines(0, true);
+    global.tui.tableSetLines(0, false);
     global.tui.tableSetBox(0, "square");
-    global.tui.tableSetExpand(0, true);
+    global.tui.tableSetExpand(0, false);
     global.tui.tablePrint(0);
+
+    // Tree: nested nodes behind handles.
     println(global.tui.treeCreate("root"));
     println(global.tui.treeAdd(0, "child"));
+    global.tui.treeAdd(0, "sibling");
     global.tui.treePrint(0);
+
+    // Layout: a split with a plain section and a bordered panel.
     println(global.tui.layoutCreate("l"));
-    global.tui.layoutSplitRows(0, "[\"a\"]");
-    global.tui.layoutSplitColumns(0, "[\"b\"]");
-    global.tui.layoutUpdate(0, "a", "text");
-    global.tui.layoutPanel(0, "a", "text", "title");
+    global.tui.layoutSplitRows(0, "[\"top\",\"bottom\"]");
+    global.tui.layoutUpdate(0, "top", "top text");
+    global.tui.layoutPanel(0, "bottom", "body", "box");
     global.tui.layoutPrint(0);
+
+    // Progress, status and live displays emit a snapshot per update.
     println(global.tui.progressStart());
     println(global.tui.progressAddTask(0, "task", 10.0));
-    global.tui.progressAdvance(0, 0, 1.0);
-    global.tui.progressUpdate(0, 0, 5.0, 10.0);
+    global.tui.progressAdvance(0, 0, 5.0);
     global.tui.progressStop(0);
     println(global.tui.statusStart("s"));
-    global.tui.statusUpdate(0, "still running");
+    global.tui.statusUpdate(0, "working");
     global.tui.statusStop(0);
-    println(global.tui.liveStart("l", 4.0));
+    println(global.tui.liveStart("live", 4.0));
     global.tui.liveUpdate(0, "text");
     global.tui.livePanel(0, "text", "title");
     global.tui.liveStop(0);
 
-    // Prompt variants return their empty/zero defaults without reading input.
-    println(global.tui.ask("prompt"));
-    println(global.tui.askPassword("p"));
-    println(global.tui.askInt("n"));
-    println(global.tui.askFloat("f"));
-    println(global.tui.askDefault("d", "x"));
-    println(global.tui.confirm("ok?"));
-    println(global.tui.confirmDefault("ok?", true));
+    // Extended widgets.
+    global.tui.list("[\"alpha\",\"beta\"]", "List", false);
+    global.tui.list("[\"alpha\",\"beta\"]", "Numbered", true);
+    global.tui.tabs("[\"one\",\"two\",\"three\"]", 1);
+    global.tui.barChart("Bars", "[3,7,5,9]", 24, 8);
+    global.tui.sparkline("[1,2,3,4,5,4,3,2]");
+    global.tui.calendar(2026, 7);
+    global.tui.jsonTree("{\"a\":1,\"b\":[2,3],\"c\":{\"d\":true}}");
+    global.tui.gauge("done", 0.5, 24);
+    global.tui.lineGauge("half", 0.5, 24);
+    global.tui.tableFromCsv("CSV", "name,n\nalpha,1\nbeta,2\n");
+
+    // Terminal queries and control (control is inert without a TTY).
+    println(global.tui.terminalWidth());
+    println(global.tui.terminalHeight());
+    global.tui.setCursor(1, 1);
+    global.tui.moveCursor(1, -1);
+    global.tui.hideCursor();
+    global.tui.showCursor();
+    global.tui.bell();
+    println(global.tui.pollInput(0));
+    println(global.tui.input(0));
+
+    // Themes: the default is switchable, unknown names are rejected.
+    println(global.tui.theme("base16-ocean.dark"));
+    println(global.tui.theme("definitely-not-a-theme"));
+    println(global.tui.themeName());
+    println(charAt(global.tui.themeNames(), 0));
+
+    // Full-screen display prints a snapshot per update.
+    global.tui.screenStart("first screen");
+    global.tui.screenUpdate("second screen");
+    global.tui.screenStop();
+
+    // Prompts read the piped stdin supplied by the Makefile.
+    println(global.tui.ask("name> "));
+    println(global.tui.askPassword("pw> "));
+    println(global.tui.askInt("n> "));
+    println(global.tui.askFloat("f> "));
+    println(global.tui.askDefault("d> ", "fallback"));
+    println(global.tui.confirm("ok? "));
+    println(global.tui.confirmDefault("ok? ", true));
+    println(global.tui.select("pick> ", "[\"a\",\"bb\",\"ccc\"]"));
+    println(global.tui.multiselect("many> ", "[\"x\",\"y\",\"z\"]"));
+    println(global.tui.editor("edit> ", "fallback"));
 }

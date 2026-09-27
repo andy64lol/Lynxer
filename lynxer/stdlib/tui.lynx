@@ -151,3 +151,74 @@ global confirmDefault(str prompt, bool defaultValue) -> bool {
 
 global enter() -> int { return global.nativeTui.enter(); }
 global exit() -> int { return global.nativeTui.exit(); }
+
+// ── Widgets ───────────────────────────────────────────────────────────
+
+// Renders a bulleted or numbered list from a JSON array of strings.
+global list(str itemsJson, str title, bool numbered) { global.nativeTui.list(itemsJson, title, numbered); }
+
+// Renders a row of tabs with one highlighted.
+global tabs(str labelsJson, int active) { global.nativeTui.tabs(labelsJson, active); }
+
+// Renders a bar chart from a JSON array of numbers; width/height of 0 auto-size.
+global barChart(str title, str dataJson, int width, int height) {
+    global.nativeTui.barChart(title, dataJson, width, height);
+}
+
+// Renders a sparkline from a JSON array of numbers.
+global sparkline(str dataJson) { global.nativeTui.sparkline(dataJson); }
+
+// Renders a month calendar.
+global calendar(int year, int month) { global.nativeTui.calendar(year, month); }
+
+// Renders JSON as an indented tree.
+global jsonTree(str jsonText) { global.nativeTui.jsonTree(jsonText); }
+
+// Renders a filled gauge for a 0..1 ratio.
+global gauge(str label, float ratio, int width) { global.nativeTui.gauge(label, ratio, width); }
+
+// Renders a one-line gauge for a 0..1 ratio.
+global lineGauge(str label, float ratio, int width) { global.nativeTui.lineGauge(label, ratio, width); }
+
+// Renders a table parsed from CSV. A multi-cell first row becomes the header.
+global tableFromCsv(str title, str csvText) { global.nativeTui.tableFromCsv(title, csvText); }
+
+// ── Terminal control ──────────────────────────────────────────────────
+
+global terminalWidth() -> int { return global.nativeTui.terminalWidth(); }
+global terminalHeight() -> int { return global.nativeTui.terminalHeight(); }
+global setCursor(int x, int y) { global.nativeTui.setCursor(x, y); }
+global moveCursor(int dx, int dy) { global.nativeTui.moveCursor(dx, dy); }
+global hideCursor() { global.nativeTui.hideCursor(); }
+global showCursor() { global.nativeTui.showCursor(); }
+global bell() { global.nativeTui.bell(); }
+
+// ── Input ─────────────────────────────────────────────────────────────
+
+// Reads one key within `timeoutMs`; returns "" on timeout or without a TTY.
+global input(int timeoutMs) -> str { return global.nativeTui.input(timeoutMs); }
+
+// True when a key is waiting, within `timeoutMs`.
+global pollInput(int timeoutMs) -> bool { return global.nativeTui.pollInput(timeoutMs) isnt 0; }
+
+// ── Selection prompts ─────────────────────────────────────────────────
+
+// Chooses one of the JSON choices; returns the index or -1.
+global select(str prompt, str choicesJson) -> int { return global.nativeTui.select(prompt, choicesJson); }
+
+// Chooses several of the JSON choices; returns a JSON array of indices.
+global multiselect(str prompt, str choicesJson) -> str { return global.nativeTui.multiselect(prompt, choicesJson); }
+
+// Reads multiple lines until a lone "." or end of input.
+global editor(str prompt, str defaultText) -> str { return global.nativeTui.editor(prompt, defaultText); }
+
+// ── Screen and theme ──────────────────────────────────────────────────
+
+global screenStart(str text) { global.nativeTui.screenStart(text); }
+global screenUpdate(str text) { global.nativeTui.screenUpdate(text); }
+global screenStop() { global.nativeTui.screenStop(); }
+
+// Selects a syntax-highlighting theme; returns true when the name is known.
+global theme(str name) -> bool { return global.nativeTui.theme(name) isnt 0; }
+global themeNames() -> str { return global.nativeTui.themeNames(); }
+global themeName() -> str { return global.nativeTui.themeName(); }

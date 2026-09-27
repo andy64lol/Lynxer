@@ -164,7 +164,7 @@ Any future callback must be declared here before the module ships.
 | `sys` | C++ | none | none |
 | `text` | pure Lynxer | none | none |
 | `time` | C++ | none | none |
-| `tui` | Rust | placeholder indices only; no state is kept | none |
+| `tui` | Rust | **integer handles** into backend registries (tables, trees, layouts, progress, status, live) | none (registries live for the run) |
 | `typing` | pure Lynxer | none | none |
 
 Per-module constraints are recorded in

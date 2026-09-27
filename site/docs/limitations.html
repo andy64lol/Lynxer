@@ -310,25 +310,31 @@
 <ul>
 <li><strong>Scalar queries:</strong> <code>scalar</code> converts the first column of the first row using <code>strOf</code> and returns <code>&quot;&quot;</code> (empty string) if the query yields no row or the value is NULL.</li>
 </ul>
-<h3 id="tui--constrained-placeholder-backend"><code>tui</code> — Constrained (Placeholder Backend)</h3>
-<p>The API surface is complete, but the backend is a placeholder rather than a Rich equivalent:</p>
+<h3 id="tui--constrained-behavior"><code>tui</code> — Constrained Behavior</h3>
+<p>The backend is real (<code>ratatui</code>), but it is not a pixel-for-pixel Rich equivalent:</p>
 <ul>
-<li><strong>Rendering:</strong> Does not reproduce Rich's output. With an active terminal, it draws a fixed placeholder through <code>ratatui</code>. Otherwise, it prints plain-text lines like <code>markdown: ...</code> or <code>table: ...</code>.</li>
+<li><strong>Rendering is offscreen.</strong> Each call draws a widget into a buffer and prints the text — plain text without a TTY, ANSI styling with one. Box-drawing, table sizing and layout follow <code>ratatui</code>, not Rich, and <code>setWidth</code> (default <code>80</code>) pins the width.</li>
 </ul>
 <ul>
-<li><strong>Prompt operations:</strong> <code>ask</code>, <code>askPassword</code>, <code>askInt</code>, <code>askFloat</code>, and <code>askDefault</code> return empty or zero defaults and do not read input.</li>
+<li><strong><code>tableSetLines</code> is approximate.</strong> <code>ratatui</code>'s <code>Table</code> has no row separators, so the flag widens the gap between columns instead of drawing inner lines.</li>
 </ul>
 <ul>
-<li><strong>Style validation:</strong> <code>styleValid</code> reports every style as valid, including invalid ones.</li>
+<li><strong>Markdown and syntax highlighting use crates.</strong> <code>markdown</code> is <code>pulldown-cmark</code> and <code>printSyntax</code> is <code>syntect</code> (embedded syntax/theme sets, pure-Rust <code>fancy-regex</code> backend). Nesting, tables and every CommonMark extension are therefore limited to what those crates emit; syntax colors appear only on a color-capable terminal.</li>
 </ul>
 <ul>
-<li><strong>Stateful families:</strong> <code>table*</code>, <code>tree*</code>, <code>layout*</code>, <code>progress*</code>, <code>status*</code>, and <code>live*</code> return success and placeholder handles but do not retain state between calls.</li>
+<li><strong>Terminal control and input are TTY-only.</strong> <code>setCursor</code>, <code>moveCursor</code>, <code>hideCursor</code>, <code>showCursor</code>, <code>bell</code> and <code>input</code>/<code>pollInput</code> act only when stdout/stdin is a terminal; otherwise they are inert and return <code>&quot;&quot;</code>/<code>false</code>. <code>terminalWidth</code>/<code>terminalHeight</code> fall back to the configured width and a default height.</li>
 </ul>
 <ul>
-<li><strong>Real implementations:</strong> <code>markupEscape</code>, <code>enter</code>, and <code>exit</code> (raw mode and alternate screen) are fully implemented. <code>tuiVersion</code> reports the backend crate's version.</li>
+<li><strong><code>printException</code> has no traceback to show.</strong> No exception context crosses the module ABI, so it prints a fixed placeholder.</li>
 </ul>
 <ul>
-<li><strong>Output handling:</strong> The module writes fallback output directly to stdout (line-buffered), interleaving with interpreter output. Writes without trailing newlines may not flush correctly (e.g., <code>clear()</code> emits its ANSI sequence without a newline and flushes explicitly).</li>
+<li><strong>Progress, status and live displays do not animate.</strong> There is no refresh thread or timer; each update prints a snapshot, and <code>stop</code> prints the final one.</li>
+</ul>
+<ul>
+<li><strong>Prompts require stdin.</strong> They read one line and return the documented default at end-of-file rather than blocking; <code>askPassword</code> disables echo only on a terminal.</li>
+</ul>
+<ul>
+<li><strong><code>enter</code>/<code>exit</code> gate raw mode on a TTY.</strong> Without a terminal they are inert, so a non-interactive run never switches screens.</li>
 </ul>
 <h3 id="image--constrained-behavior"><code>image</code> — Constrained Behavior</h3>
 <ul>

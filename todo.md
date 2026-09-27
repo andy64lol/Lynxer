@@ -56,13 +56,19 @@ Work that needs a decision before it can be built:
   window, input and immediate-mode UI module (`rust/graphics`), separate from
   `game` rather than a replacement for it. `iced` is not in the vendored crate
   set, so macroquad is the vehicle.
-- [ ] **`tui` real backend.** The API surface is complete but the backend is a
-  placeholder: rendering draws fixed output, the prompt operations return empty
-  defaults, and the stateful families keep no state. Decide whether to build a
-  real terminal UI.
-
 ## Done
 
+- [x] ~~**`tui` real backend.** Built on `ratatui` (`lynxer/rust/tui`), with
+      `pulldown-cmark` for `markdown` and `syntect` for `printSyntax`. Every
+      render operation draws a widget into an offscreen buffer and prints it —
+      plain text without a TTY, ANSI styling with one — so output is
+      deterministic in tests. Prompts read stdin and fall back to defaults at
+      EOF; `enter()`/`exit()` gate raw mode on a TTY. The `table*`, `tree*`,
+      `layout*`, `progress*`, `status*` and `live*` families keep real state
+      behind integer handles, and the module exposes lists, tabs, bar charts,
+      sparklines, calendars, JSON trees, gauges, CSV tables, terminal control,
+      key input, selection prompts (`select`/`multiselect`/`editor`), a
+      full-screen display and theme selection.~~
 - [x] ~~**`ffi*` calling convention.** Decided: take the dependency. The
       native-call engine now lives in Rust (`lynxer/rust/ffi`) on the `libffi`
       crate and is linked into the interpreter as a C-ABI `staticlib`

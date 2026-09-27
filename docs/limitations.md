@@ -271,21 +271,25 @@ Both modules use `std::regex` with the ECMAScript grammar, which is narrower tha
 
 - **Scalar queries:** `scalar` converts the first column of the first row using `strOf` and returns `""` (empty string) if the query yields no row or the value is NULL.
 
-### `tui` — Constrained (Placeholder Backend)
+### `tui` — Constrained Behavior
 
-The API surface is complete, but the backend is a placeholder rather than a Rich equivalent:
+The backend is real (`ratatui`), but it is not a pixel-for-pixel Rich equivalent:
 
-- **Rendering:** Does not reproduce Rich's output. With an active terminal, it draws a fixed placeholder through `ratatui`. Otherwise, it prints plain-text lines like `markdown: ...` or `table: ...`.
+- **Rendering is offscreen.** Each call draws a widget into a buffer and prints the text — plain text without a TTY, ANSI styling with one. Box-drawing, table sizing and layout follow `ratatui`, not Rich, and `setWidth` (default `80`) pins the width.
 
-- **Prompt operations:** `ask`, `askPassword`, `askInt`, `askFloat`, and `askDefault` return empty or zero defaults and do not read input.
+- **`tableSetLines` is approximate.** `ratatui`'s `Table` has no row separators, so the flag widens the gap between columns instead of drawing inner lines.
 
-- **Style validation:** `styleValid` reports every style as valid, including invalid ones.
+- **Markdown and syntax highlighting use crates.** `markdown` is `pulldown-cmark` and `printSyntax` is `syntect` (embedded syntax/theme sets, pure-Rust `fancy-regex` backend). Nesting, tables and every CommonMark extension are therefore limited to what those crates emit; syntax colors appear only on a color-capable terminal.
 
-- **Stateful families:** `table*`, `tree*`, `layout*`, `progress*`, `status*`, and `live*` return success and placeholder handles but do not retain state between calls.
+- **Terminal control and input are TTY-only.** `setCursor`, `moveCursor`, `hideCursor`, `showCursor`, `bell` and `input`/`pollInput` act only when stdout/stdin is a terminal; otherwise they are inert and return `""`/`false`. `terminalWidth`/`terminalHeight` fall back to the configured width and a default height.
 
-- **Real implementations:** `markupEscape`, `enter`, and `exit` (raw mode and alternate screen) are fully implemented. `tuiVersion` reports the backend crate's version.
+- **`printException` has no traceback to show.** No exception context crosses the module ABI, so it prints a fixed placeholder.
 
-- **Output handling:** The module writes fallback output directly to stdout (line-buffered), interleaving with interpreter output. Writes without trailing newlines may not flush correctly (e.g., `clear()` emits its ANSI sequence without a newline and flushes explicitly).
+- **Progress, status and live displays do not animate.** There is no refresh thread or timer; each update prints a snapshot, and `stop` prints the final one.
+
+- **Prompts require stdin.** They read one line and return the documented default at end-of-file rather than blocking; `askPassword` disables echo only on a terminal.
+
+- **`enter`/`exit` gate raw mode on a TTY.** Without a terminal they are inert, so a non-interactive run never switches screens.
 
 ### `image` — Constrained Behavior
 

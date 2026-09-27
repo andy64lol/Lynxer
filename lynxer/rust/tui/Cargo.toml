@@ -12,3 +12,10 @@ crate-type = ["cdylib"]
 lynxer_abi = { path = "../abi" }
 ratatui = "0.24"
 crossterm = "0.27"
+serde_json = "1"
+unicode-width = "0.1"
+# CommonMark rendering.
+pulldown-cmark = "0.12"
+# Sublime-syntax highlighting. The `fancy` backend is pure Rust, so no system
+# oniguruma is needed and the module keeps building without extra packages.
+syntect = { version = "5.2", default-features = false, features = ["default-fancy"] }

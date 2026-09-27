@@ -81,7 +81,11 @@ else
 LYNXER_DISPLAY_FIXTURES :=
 endif
 LYNXER_DISPLAY_FIXTURE_FILES := $(LYNXER_DISPLAY_FIXTURES:%=$(LYNXER_DIR)/examples/%.lynx)
-LYNXER_STDLIB_FIXTURES := $(filter-out $(LYNXER_SOUND_FIXTURE) $(LYNXER_DISPLAY_FIXTURE_FILES),$(wildcard $(LYNXER_DIR)/examples/stdlib_*.lynx))
+# The tui fixture is split out like sound: its prompts read stdin, which the
+# generic loop does not feed, so it runs from a dedicated target with piped
+# input (see below).
+LYNXER_TUI_FIXTURE := $(LYNXER_DIR)/examples/stdlib_tui.lynx
+LYNXER_STDLIB_FIXTURES := $(filter-out $(LYNXER_SOUND_FIXTURE) $(LYNXER_TUI_FIXTURE) $(LYNXER_DISPLAY_FIXTURE_FILES),$(wildcard $(LYNXER_DIR)/examples/stdlib_*.lynx))
 ifeq ($(HAVE_AUDIO),1)
 LYNXER_AUDIO_FIXTURES := $(filter-out $(LYNXER_DISPLAY_FIXTURE_FILES),$(LYNXER_SOUND_FIXTURE))
 else
@@ -300,6 +304,19 @@ expected="lynxer: $(LYNXER_SETUP_ERROR_FIXTURE):3:2: program must define global 
 	echo "received (status $$status): $$output"; \
 	exit 1; \
 	fi
+	@printf 'Alice\nsecret\n42\n2.5\n\ny\nn\n2\n0,2\nline one\nline two\n.\n' > $(CLYX_TMP)_tui_stdin; \
+	output="$$($(CLYX) $(LYNXER_TUI_FIXTURE) < $(CLYX_TMP)_tui_stdin 2>&1)"; \
+	status=$$?; \
+	if [ $$status -ne 0 ]; then \
+	echo "tui fixture failed (status $$status)"; \
+	printf '%s\n' "$$output"; rm -f $(CLYX_TMP)_tui_stdin; exit 1; fi; \
+	expected_output="$$(cat $(LYNXER_TUI_FIXTURE:.lynx=.expected))"; \
+	if [ "$$output" != "$$expected_output" ]; then \
+	echo "tui fixture output mismatch"; \
+	echo "expected:"; printf '%s\n' "$$expected_output"; \
+	echo "received:"; printf '%s\n' "$$output"; \
+	rm -f $(CLYX_TMP)_tui_stdin; exit 1; fi; \
+	rm -f $(CLYX_TMP)_tui_stdin
 	@output="$$($(CLYX) $(LYNXER_MILESTONE4_FIXTURE))"; \
 	expected="$$(printf "2\\n7\\n5\\n-3\\n-6\\n-8\\n-7\\n12\\n4\\n32\\n-3\\nfalse\\ntrue\\ntrue\\nelif\\ncase\\ncaught: Cannot convert 'not an integer' to int\\n\\033")"; \
 	if [ "$$output" != "$$expected" ]; then \
@@ -358,11 +375,11 @@ expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:23: charAt() index is out of rang
 	if grep -q '__ARCH__' "$$run"; then \
 	sed "s/__ARCH__/$(SYSCALL_ARCH)/g" "$$run" > $(CLYX_TMP)_arch.lynx; \
 	run="$(CLYX_TMP)_arch.lynx"; fi; \
-	LYNXER_GAME_HEADLESS=1 LYNXER_GRAPHICS_HEADLESS=1 $(CLYX) "$$run" > $(CLYX_TMP)_direct.out 2>&1; \
+	LYNXER_GAME_HEADLESS=1 LYNXER_GRAPHICS_HEADLESS=1 $(CLYX) "$$run" < /dev/null > $(CLYX_TMP)_direct.out 2>&1; \
 	direct_status=$$?; \
 	if ! $(CLYX) --compile "$$run" $(CLYX_TMP)_compiled > /dev/null; then \
 	echo "compile failed for $$fixture (imports)"; exit 1; fi; \
-	LYNXER_GAME_HEADLESS=1 LYNXER_GRAPHICS_HEADLESS=1 $(CLYX_TMP)_compiled > $(CLYX_TMP)_compiled.out 2>&1; \
+	LYNXER_GAME_HEADLESS=1 LYNXER_GRAPHICS_HEADLESS=1 $(CLYX_TMP)_compiled < /dev/null > $(CLYX_TMP)_compiled.out 2>&1; \
 	compiled_status=$$?; \
 	if ! diff -q $(CLYX_TMP)_direct.out $(CLYX_TMP)_compiled.out > /dev/null || \
 	   [ "$$direct_status" -ne "$$compiled_status" ]; then \
@@ -588,7 +605,7 @@ expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:23: charAt() index is out of rang
 	LYNXER_GAME_HEADLESS=1 LYNXER_GRAPHICS_HEADLESS=1 $(CLYX) $(LYNXER_DIR)/examples/game_clicker.lynx >/dev/null 2>&1 || \
 	{ echo "example failed: $(LYNXER_DIR)/examples/game_clicker.lynx"; exit 1; }; \
 	fi
-	@rm -f $(CLYX_TMP)_stdin
+	@rm -f $(CLYX_TMP)_stdin $(CLYX_TMP)_tui_stdin
 	@echo "lynxer smoke test passed"
 
 # Architecture-specific syscall gates. `uname -m` is asserted so the AMD64 and

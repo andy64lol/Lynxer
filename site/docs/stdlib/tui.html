@@ -95,6 +95,20 @@
     <main class="doc">
 <h1 id="terminal-ui-module">Terminal UI Module</h1>
 <p>The <code>tui</code> module provides terminal UI functionality using Rust's <code>ratatui</code> and <code>crossterm</code> crates.</p>
+<h2 id="how-it-renders">How it renders</h2>
+<p>The backend never takes over the terminal for a plain rendering call. Each rendering function draws a <code>ratatui</code> widget into an offscreen buffer and prints the result:</p>
+<ul>
+<li><strong>Without a TTY</strong> (piped output, CI, the test suite) the result is plain text with box-drawing characters, so the output is deterministic.</li>
+<li><strong>With a TTY and color enabled</strong> the same text carries ANSI SGR styling. <code>init(colorSystem)</code> accepts a system name; one containing <code>none</code> disables color.</li>
+</ul>
+<p><code>setWidth(width)</code> pins the render width (default <code>80</code>) and <code>setSoftWrap</code> controls wrapping. <code>panel*</code>, <code>rule*</code>, <code>table*</code>, <code>tree*</code>, <code>layout*</code>, <code>progress*</code>, <code>status*</code> and <code>live*</code> render the state that was previously stored, so they reflect the data rather than a fixed template. Progress, status and live families print a snapshot on each update.</p>
+<p><code>markdown</code> renders CommonMark through <a href="https://crates.io/crates/pulldown-cmark"><code>pulldown-cmark</code></a> (headings, emphasis, inline and fenced code, ordered/unordered/task lists, block quotes, rules, links and simple tables), and <code>printSyntax</code> highlights code with <a href="https://crates.io/crates/syntect"><code>syntect</code></a> using Sublime syntax definitions. The highlighted syntax and theme sets are embedded in the module, so nothing is read from disk and no system oniguruma is required (syntect uses the pure-Rust <code>fancy-regex</code> backend). <code>theme</code> chooses a highlighting theme, <code>themeNames</code> lists them and <code>themeName</code> reports the active one.</p>
+<h2 id="handles">Handles</h2>
+<p><code>table*</code>, <code>tree*</code>, <code>layout*</code>, <code>progress*</code>, <code>status*</code> and <code>live*</code> return integer handles into backend registries. A handle stays valid for the run; progress, status and live free theirs on <code>stop</code>. An invalid handle returns <code>-1</code>.</p>
+<h2 id="prompts">Prompts</h2>
+<p><code>ask</code>, <code>askPassword</code>, <code>askInt</code>, <code>askFloat</code>, <code>askDefault</code>, <code>confirm</code> and <code>confirmDefault</code> read one line from stdin. At end-of-file — a closed pipe, a redirected file, CI — they return the documented default instead of blocking, so a script is safe to run non-interactively. <code>askPassword</code> disables echo only when stdin is a terminal. <code>askInt</code>/<code>askFloat</code> return <code>0</code>/<code>0.0</code> for unparsable input.</p>
+<h2 id="styles-and-markup">Styles and markup</h2>
+<p><code>printText</code> interprets <code>[tag]…[/tag]</code> markup when markup is enabled, and <code>markupEscape</code> escapes a literal <code>[</code>. A style is a subset of Rich's syntax: modifiers (<code>bold</code>, <code>dim</code>, <code>italic</code>, <code>underline</code>, <code>blink</code>, <code>reverse</code>, <code>hidden</code>, <code>strike</code>) and colors (<code>red</code>, <code>bright blue</code>, <code>white on blue</code>, …). <code>styleValid</code> returns <code>false</code> when a string contains an unknown token.</p>
 <h2 id="functions">Functions</h2>
 <h3 id="existence-and-version">Existence and Version</h3>
 <ul>
@@ -199,6 +213,43 @@
 <li><code>enter() -&gt; int</code> — Enters TUI mode.</li>
 <li><code>exit() -&gt; int</code> — Exits TUI mode.</li>
 <li><code>clear() -&gt; int</code> — Clears the terminal screen.</li>
+</ul>
+<h3 id="widgets">Widgets</h3>
+<ul>
+<li><code>list(itemsJson: string, title: string, numbered: bool)</code> — Bulleted or numbered list.</li>
+<li><code>tabs(labelsJson: string, active: int)</code> — A row of tabs with one highlighted.</li>
+<li><code>barChart(title: string, dataJson: string, width: int, height: int)</code> — Bar chart from numbers.</li>
+<li><code>sparkline(dataJson: string)</code> — Sparkline from numbers.</li>
+<li><code>calendar(year: int, month: int)</code> — A month grid.</li>
+<li><code>jsonTree(jsonText: string)</code> — JSON as an indented tree.</li>
+<li><code>gauge(label: string, ratio: float, width: int)</code> — A filled gauge.</li>
+<li><code>lineGauge(label: string, ratio: float, width: int)</code> — A one-line gauge.</li>
+<li><code>tableFromCsv(title: string, csvText: string)</code> — A table parsed from CSV.</li>
+</ul>
+<h3 id="terminal-control">Terminal Control</h3>
+<ul>
+<li><code>terminalWidth() -&gt; int</code> / <code>terminalHeight() -&gt; int</code> — Size, or the configured width / a default without a TTY.</li>
+<li><code>setCursor(x: int, y: int)</code> / <code>moveCursor(dx: int, dy: int)</code> — Move the cursor (TTY only).</li>
+<li><code>hideCursor()</code> / <code>showCursor()</code> — Toggle the cursor (TTY only).</li>
+<li><code>bell()</code> — Ring the terminal bell (TTY only).</li>
+</ul>
+<h3 id="input">Input</h3>
+<ul>
+<li><code>input(timeoutMs: int) -&gt; string</code> — One key, or <code>&quot;&quot;</code> on timeout / without a TTY.</li>
+<li><code>pollInput(timeoutMs: int) -&gt; bool</code> — Whether a key is waiting.</li>
+</ul>
+<h3 id="selection-prompts">Selection Prompts</h3>
+<ul>
+<li><code>select(prompt: string, choicesJson: string) -&gt; int</code> — Index of the chosen item, or <code>-1</code>.</li>
+<li><code>multiselect(prompt: string, choicesJson: string) -&gt; string</code> — JSON array of chosen indices.</li>
+<li><code>editor(prompt: string, defaultText: string) -&gt; string</code> — Multi-line input until a lone <code>.</code> or EOF.</li>
+</ul>
+<h3 id="screen-and-themes">Screen and Themes</h3>
+<ul>
+<li><code>screenStart(text: string)</code> / <code>screenUpdate(text: string)</code> / <code>screenStop()</code> — Full-screen display; prints a snapshot per update.</li>
+<li><code>theme(name: string) -&gt; bool</code> — Select a highlighting theme.</li>
+<li><code>themeNames() -&gt; string</code> — JSON array of theme names.</li>
+<li><code>themeName() -&gt; string</code> — The active theme.</li>
 </ul>
 <h2 id="example">Example</h2>
 <pre><code>global setup(){
