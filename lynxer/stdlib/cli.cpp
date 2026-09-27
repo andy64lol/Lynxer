@@ -265,7 +265,9 @@ struct BuilderOption {
     std::string defaultValue;
     bool flag = false;
     bool required = false;
+    bool multiple = false;
     std::string type = "text";
+    std::string envvar;
 
     // The parameter name: the first declaration without its leading dashes, so
     // "--shout,-s" renders as `{shout}` in a shell template.
@@ -282,6 +284,7 @@ struct BuilderArgument {
     std::string name;
     bool required = true;
     std::int64_t nargs = 1;
+    std::string help;
 };
 
 struct BuilderNode {
@@ -438,13 +441,26 @@ ParseResult parseForNode(const BuilderNode& node,
                 }
             }
         }
+        // `--no-<flag>` negates a declared flag, e.g. --no-shout for --shout.
+        bool negated = false;
+        if (option == nullptr && name.rfind("--no-", 0) == 0) {
+            const std::string base = name.substr(5);
+            for (const auto& candidate : node.options) {
+                if (candidate.flag && candidate.parameter() == base) {
+                    option = &candidate;
+                    negated = true;
+                }
+            }
+        }
         if (option == nullptr) {
             result.ok = false;
             result.error = "unknown option '" + name + "'";
             return result;
         }
         std::string raw;
-        if (option->flag) {
+        if (negated) {
+            raw = "false";
+        } else if (option->flag) {
             raw = hasInline ? inlineValue : "true";
         } else if (hasInline) {
             raw = inlineValue;
@@ -458,14 +474,29 @@ ParseResult parseForNode(const BuilderNode& node,
         }
         bool ok = true;
         std::string error;
-        values[option->parameter()] =
+        const native_json::Value value =
             typedValue(raw, option->flag ? "bool" : option->type, ok, error);
         if (!ok) {
             result.ok = false;
             result.error = error;
             return result;
         }
-        presentOptions.insert(option->parameter());
+        const std::string key = option->parameter();
+        if (option->multiple) {
+            // Repeated options collect into a JSON array.
+            const auto existing = values.find(key);
+            if (existing == values.end() ||
+                existing->second.type != native_json::Type::Array) {
+                native_json::Value array = native_json::makeArray();
+                array.items.push_back(value);
+                values[key] = array;
+            } else {
+                existing->second.items.push_back(value);
+            }
+        } else {
+            values[key] = value;
+        }
+        presentOptions.insert(key);
     }
 
     std::size_t consumed = 0;
@@ -520,13 +551,20 @@ ParseResult parseForNode(const BuilderNode& node,
                 "missing required option '" + option.names.front() + "'";
             return result;
         }
-        if (!option.defaultValue.empty()) {
+        // Priority: explicit argument, then the environment variable, then the
+        // declared default.
+        std::string fallback = option.defaultValue;
+        if (!option.envvar.empty()) {
+            if (const char* fromEnvironment = std::getenv(option.envvar.c_str());
+                fromEnvironment != nullptr) {
+                fallback = fromEnvironment;
+            }
+        }
+        if (!fallback.empty()) {
             bool ok = true;
             std::string error;
-            const native_json::Value value =
-                typedValue(option.defaultValue, option.flag ? "bool"
-                                                            : option.type,
-                           ok, error);
+            const native_json::Value value = typedValue(
+                fallback, option.flag ? "bool" : option.type, ok, error);
             if (ok) {
                 values[option.parameter()] = value;
             }
@@ -563,10 +601,101 @@ std::string substituteTemplate(const std::string& text,
         }
         const std::string key = text.substr(index + 1, close - index - 1);
         const native_json::Value* field = native_json::findField(params, key);
-        out += field == nullptr ? std::string() : scalarText(*field);
+        if (field == nullptr) {
+            // Unknown placeholder: substitute nothing.
+        } else if (field->type == native_json::Type::Array) {
+            // A repeated option renders as its values joined by spaces.
+            std::string joined;
+            for (const auto& item : field->items) {
+                if (!joined.empty()) {
+                    joined += " ";
+                }
+                joined += scalarText(item);
+            }
+            out += joined;
+        } else {
+            out += scalarText(*field);
+        }
         index = close + 1;
     }
     return out;
+}
+
+bool wantsHelp(const std::vector<std::string>& tokens) {
+    for (const auto& token : tokens) {
+        if (token == "-h" || token == "--help") {
+            return true;
+        }
+    }
+    return false;
+}
+
+// A usage/help block for `node`, listing its arguments, options and (for a
+// group) its subcommands. Stored help text is only surfaced here.
+std::string renderHelp(const BuilderNode& node) {
+    std::string usage = "Usage: " + node.name;
+    if (node.group) {
+        usage += " COMMAND";
+    } else {
+        if (!node.options.empty()) {
+            usage += " [OPTIONS]";
+        }
+        for (const auto& argument : node.arguments) {
+            usage += argument.required ? " <" + argument.name + ">"
+                                       : " [" + argument.name + "]";
+        }
+    }
+    std::string text = usage + "\n";
+    if (!node.help.empty()) {
+        text += "\n" + node.help + "\n";
+    }
+    if (!node.arguments.empty()) {
+        text += "\nArguments:\n";
+        for (const auto& argument : node.arguments) {
+            text += "  " + argument.name;
+            if (!argument.help.empty()) {
+                text += "  " + argument.help;
+            }
+            text += "\n";
+        }
+    }
+    text += "\nOptions:\n";
+    for (const auto& option : node.options) {
+        std::string names;
+        for (const auto& declared : option.names) {
+            if (!names.empty()) {
+                names += ", ";
+            }
+            names += declared;
+        }
+        text += "  " + names;
+        if (!option.help.empty()) {
+            text += "  " + option.help;
+        }
+        text += "\n";
+    }
+    text += "  --help, -h  Show this message and exit\n";
+    if (node.group && !node.children.empty()) {
+        text += "\nCommands:\n";
+        for (const std::int64_t child : node.children) {
+            const auto found = builderNodes().find(child);
+            if (found != builderNodes().end()) {
+                text += "  " + found->second.name;
+                if (!found->second.help.empty()) {
+                    text += "  " + found->second.help;
+                }
+                text += "\n";
+            }
+        }
+    }
+    return text;
+}
+
+std::string helpResult(const BuilderNode& node) {
+    native_json::Value result = native_json::makeObject();
+    native_json::setField(result, "params", native_json::makeObject());
+    native_json::setField(result, "help", native_json::makeString(renderHelp(node)));
+    return native_json::dump(result, false);
 }
 
 // Resolves a handle and runs it. On failure `error` is set and "" is returned.
@@ -585,10 +714,19 @@ std::string invokeNode(std::int64_t handle,
             const auto only = builderNodes().find(node.children.front());
             if (only != builderNodes().end() &&
                 (tokens.empty() || tokens.front() != only->second.name)) {
+                if (tokens.empty() && node.noArgsHelp) {
+                    return helpResult(node);
+                }
                 return invokeNode(only->first, tokens, error);
             }
         }
+        if (wantsHelp(tokens)) {
+            return helpResult(node);
+        }
         if (tokens.empty()) {
+            if (node.noArgsHelp) {
+                return helpResult(node);
+            }
             error = "command group '" + node.name + "' requires a subcommand";
             return "";
         }
@@ -606,6 +744,10 @@ std::string invokeNode(std::int64_t handle,
         return "";
     }
 
+    // --help/-h is answered before required arguments are enforced.
+    if (wantsHelp(tokens)) {
+        return helpResult(node);
+    }
     const ParseResult parsed = parseForNode(node, tokens);
     if (!parsed.ok) {
         error = parsed.error;
@@ -751,6 +893,7 @@ extern "C" std::int64_t cli_clickAddArgument(const char* json) {
     argument.name = itemString(descriptor, 1);
     argument.required = itemBool(descriptor, 2);
     argument.nargs = itemInt(descriptor, 3);
+    argument.help = itemString(descriptor, 4);
     if (argument.nargs == 0) {
         argument.nargs = 1;
     }
@@ -791,6 +934,8 @@ extern "C" std::int64_t cli_clickAddOption(const char* json) {
     option.required = itemBool(descriptor, 5);
     const std::string type = itemString(descriptor, 6);
     option.type = type.empty() ? "text" : type;
+    option.envvar = itemString(descriptor, 7);
+    option.multiple = itemBool(descriptor, 8);
     found->second.options.push_back(std::move(option));
     return 1;
 }

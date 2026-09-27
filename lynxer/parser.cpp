@@ -1084,6 +1084,62 @@ StatementPtr Parser::parseWhile() {
 StatementPtr Parser::parseFor() {
     expectText("for", "expected 'for'");
     expectText("(", "expected '(' after 'for'");
+    // Range form: `for (int i = start (.. | ..=) end [.. step]) { ... }`.
+    // Detected by scanning the header for a range operator.
+    bool rangeHeader = false;
+    int depth = 0;
+    for (std::size_t look = index_; look < tokens_.size(); ++look) {
+        const Token& token = tokens_[look];
+        if (token.kind == TokenKind::End) {
+            break;
+        }
+        if (token.text == "(") {
+            ++depth;
+            continue;
+        }
+        if (token.text == ")") {
+            if (depth == 0) {
+                break;
+            }
+            --depth;
+            continue;
+        }
+        if (depth == 0 && (token.text == ".." || token.text == "..=")) {
+            rangeHeader = true;
+            break;
+        }
+    }
+    if (rangeHeader) {
+        std::string type = "int";
+        if (isTypeName(current()) && peekAt(1).kind == TokenKind::Identifier) {
+            type = current().text;
+            advance();
+        }
+        const Token name =
+            expect(TokenKind::Identifier, "expected loop variable name");
+        expectText("=", "expected '=' in for range");
+        ExpressionPtr start = parseExpression();
+        bool inclusive = false;
+        if (checkText("..")) {
+            advance();
+        } else if (checkText("..=")) {
+            advance();
+            inclusive = true;
+        } else {
+            fail("expected '..' or '..=' in for range", current());
+        }
+        ExpressionPtr end = parseExpression();
+        ExpressionPtr step;
+        if (checkText("..")) {
+            advance();
+            step = parseExpression();
+        }
+        expectText(")", "expected ')' after for range");
+        return std::make_unique<RangeForStatement>(
+            type, name.text, std::move(start), std::move(end), inclusive,
+            std::move(step), name.line, name.column,
+            parseLoopBlock("for body"));
+    }
     const Token initStart = current();
     std::string initName;
     if (checkText("int") || checkText("float") || checkText("str") ||

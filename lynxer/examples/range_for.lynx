@@ -1,0 +1,54 @@
+////
+Fixture for the range `for` loop:
+`for (int i = start (.. | ..=) end [.. step])`.
+`..` excludes the end value, `..=` includes it, and the third value is the step
+(1 by default). The C-style `for (init; condition; update)` form is unchanged.
+////
+global setup(){}
+
+global main(){
+    list values = [];
+
+    // Inclusive end (0..=10) with step 2.
+    for (int i = 0..=10..2) { values = listPush(values, i); }
+    println(listJoin(values, ","));
+
+    // Exclusive end (0..10) with step 2.
+    values = [];
+    for (int i = 0..10..2) { values = listPush(values, i); }
+    println(listJoin(values, ","));
+
+    // Explicit step of 1.
+    values = [];
+    for (int i = 0..=3..1) { values = listPush(values, i); }
+    println(listJoin(values, ","));
+
+    // Step defaults to 1.
+    values = [];
+    for (int i = 1..=3) { values = listPush(values, i); }
+    println(listJoin(values, ","));
+
+    // A negative step counts down.
+    values = [];
+    for (int i = 10..=0..-2) { values = listPush(values, i); }
+    println(listJoin(values, ","));
+
+    // An exclusive range whose end is the start is empty.
+    values = [];
+    for (int i = 0..0..1) { values = listPush(values, i); }
+    println("empty:" + listJoin(values, ","));
+
+    // break and continue apply inside a range loop.
+    values = [];
+    for (int i = 0..=10..1) {
+        if (i is 2) { continue; }
+        if (i is 5) { break; }
+        values = listPush(values, i);
+    }
+    println(listJoin(values, ","));
+
+    // The C-style form still works.
+    int total = 0;
+    for (int i = 0; i < 4; i = i + 1) { total = total + i; }
+    println("c-style " + strOf(total));
+}

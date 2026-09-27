@@ -1,8 +1,12 @@
 # Lynxer — TODO and non-goals
 
-Open work for the standalone C++ implementation in `lynxer/`. The completed
-milestone history is in git; this file stays forward-looking. The full
-behaviour register is [docs/limitations.md](docs/limitations.md).
+Open work for the standalone C++ implementation in `lynxer/`. Completed work is
+in git; this file stays forward-looking. The behaviour register is
+[docs/limitations.md](docs/limitations.md) and the named-syscall reference is
+[docs/syscalls.md](docs/syscalls.md).
+
+Any name still registered in `unsupportedTable()` reports
+`<name>() is not supported in Lynxer yet`.
 
 ## Not planned (will not be implemented)
 
@@ -13,165 +17,32 @@ is visible next to the work that *is* open.
 | --- | --- |
 | `venv` module | A virtual-environment manager is a Python concept with no equivalent in a standalone runtime. |
 | `rawPy`, `rawPyx`, `cleanRawPyxCache`, `embedPy` | **Removed fully.** Python/Cython embedding; Lynxer does not ship or link a Python runtime. Not a reopen. |
-| `tkinter`, `tkinterPlus` | No Python GUI toolkit. Any future GUI would be Rust-backed (see `graphics` below). |
+| `tkinter`, `tkinterPlus` | No Python GUI toolkit. Any future GUI would be Rust-backed (see the `graphics` decision). |
 | `turtle` | Rust's `turtle` crate has not been maintained since 2019. |
-| `http`, `net` modules | Superseded by `network` + `server`. |
 | Python runtime introspection (`sys.path`, `addPath`, `prependPath`, `removeFromPath`, `getModules`, `isModuleLoaded`, `getRecursionLimit`, `setRecursionLimit`, `os.getPythonVersion`, `os.getPythonImplementation`) | There is no Python runtime to introspect. |
 | Bytecode (`.lynxc`, `--view-bytecode`, `--benchmark-compile`, `--no-cache`) | Removed; `--compile` produces a standalone ELF executable instead. |
 | `\x` / `\u` string escapes | Only `\n`, `\r`, `\t`, `\\`, `\"` and `\e` are accepted. |
 
-## Port the original Lynxer surface (`docs-legacy`)
-
-The original interpreter shipped a larger surface than the standalone runtime.
-[docs/legacy-surface.md](docs/legacy-surface.md) explains each family and its
-replacement; [docs/limitations.md](docs/limitations.md) is the behaviour
-register. This is the checkbox backlog for bringing the rest across. Items the
-[non-goals table](#not-planned-will-not-be-implemented) currently calls permanent
-are marked **reopen** — landing one means deleting its non-goal row and moving
-the entry to "Already incorporated".
-
-Status of each unimplemented built-in today:
-`<name>() is not supported in Lynxer yet`.
-
-### Language
-
-- [x] `rawPy { }` / `rawPyx` blocks and their Python interop — **removed
-      fully**, not a reopen (`rawPy`, `rawPyx`, `cleanRawPyxCache`, `embedPy`).
-      Lynxer will not embed a Python runtime; everything that depended on
-      `rawPy` (tuple interop, `tkinter`, `turtle`) stays with it.
-- [x] Bracket-literal tuple rebinding: a `tuple` target accepts the original's
-      `tuple t = [int 1, int 2]` (the list is coerced to a tuple on assignment)
-      but warns once per source location; `(int 1, int 2)` stays canonical.
-      See [docs/tuples.md](docs/tuples.md).
-
-### Built-in families
-
-- [x] **Pointers and raw addresses** — `getAddress`, `getAddressValue`,
-      `modifyAddressValue`, `functionAddress`, `nativeFunctionAddress`,
-      `nativeCall` (addresses are integers; `nativeCall` uses the small integer
-      ABI). See the typed blocks/structs/handles above for structured data.
-- [x] **Atomics and volatile access** — `atomicLoad`, `atomicStore`,
-      `atomicAdd`, `volatileRead`, `volatileWrite` (sequential consistency;
-      `atomicAdd` returns the previous value).
-- [x] **Native synchronization** — `nativeMutexCreate/Lock/TryLock/Unlock/Close`,
-      `nativeConditionCreate/Wait/Notify/NotifyAll/Close`,
-      `nativeSemaphoreCreate/Wait/TryWait/Post/Close` over the cooperative
-      `nativeThread*` model (blocking waits release the interpreter lock).
-- [x] **`memoryProtect`** — change page protection for an allocation
-      (POSIX, page-granular).
-- [x] **`nativeModule*` handle built-ins** — Load/Name/Function/Constant/Type/
-      Error/Dependencies/Close, over the same `lynxer_module_init_v1` loader as
-      `importAs`.
-
-### Standard-library module APIs (`docs-legacy/stdlib/*.md`)
-
-- [x] `typing` — legacy surface ported (predicates, conversions, char, string,
-      number helpers, `listChunk`).
-- [x] `text` — legacy string helpers ported (`indexOf`, `zfill`, `spaces`,
-      `wordWrap`, `expandTabs`, `splitFirst`, …).
-- [x] `csv` — legacy aliases plus `csvHeaders` / `csvRow` / `dedupCSV` ops.
-- [x] `regex` — `countWords`.
-- [x] `image` — the 31 legacy ops. Drawing (`drawLine`, `drawRect`,
-      `drawRoundedRect`, `drawCircle`, `drawEllipse`, `drawPolygon`, `drawText`,
-      `drawTextFont`), filters (`smooth`, `detail`, `edgeEnhance`, `emboss`,
-      `findEdges`, `contour`, `medianFilter`, `minFilter`, `maxFilter`,
-      `sharpness`, `color`, `composite`), geometry (`contain`, `fit`), the
-      histogram operations (`autoContrast`, `equalize`, `solarize`, `posterize`,
-      `quantize`), `splitChannels` / `mergeChannels`, `floodFill` and `show`
-      (text via `fontdue`; the 3x3 kernels are documented in
-      [docs/stdlib/image.md](docs/stdlib/image.md)).
-- [x] `game` — the 28 legacy ops. Scenes (`makeScene`, `addListToScene`,
-      `drawScene`, `updateScene`), platformer physics (`makePhysicsEngine`,
-      `setPhysicsPlayer`, `updatePhysics`, `canJump`, `jumpPlayer`,
-      `getPlayerVY`), tilemaps (`loadTilemap`, `getTilemapLayer` — a small TMX
-      reader, tiles as solid sprites), text labels (`makeTextLabel`,
-      `setTextLabel`, `setTextLabelPos`, `setTextLabelColor`, `drawTextLabel`,
-      `destroyTextLabel`), animation (`makeAnimatedSprite`, `updateAnimation`),
-      sound (`loadSound`, `playSound`, `loopSound`, `stopSound`,
-      `setSoundVolume`, `isSoundPlaying`) and `setWindowPos`/`screenshot`.
-- [x] `server` — the 41 legacy ops. Verbs and route kinds (`put`, `delete`,
-      `patch`, `anyHttp`, `getStatus`), JSON routes (`jsonGet`, `jsonPost`,
-      `jsonRoute`, `jsonStatus`), redirects, Jinja-style templates
-      (`template`, `templatePost`, `templateString`, `setTemplateFolder`),
-      files and static trees (`serveFile`, `staticFiles`, `staticSite`), custom
-      error bodies, `cors`/`corsOrigin`/`addGlobalHeader`/`enableRequestLog`/
-      `setDebug`, the request-context readers, and `init`/`run`.
-      **TLS is not built**: `runHTTPS`/`runSSLAdhoc` return an explanatory error
-      because no TLS crate is in the pinned dependency set.
-- [x] `network` — the raw-socket surface the old `net` module had:
-      `tcpConnect`, `tcpSend`, `tcpReceive`, `tcpSendReceive`, `tcpClose`,
-      `ping`, `isPortOpen`, `getLocalIP` (Rust `std::net`, plaintext TCP only).
-- [x] `cli` — `click*` / `typer*` builders ported natively (integer handles over
-      JSON descriptors); the Python availability probes were removed. See
-      [docs/stdlib/cli.md](docs/stdlib/cli.md).
-- [x] `sys` — expanded with system information (`cpuCount`, `pageSize`,
-      `memoryTotal`, `memoryAvailable`, `uptime`, `bootTime`, `loadAverage`).
-      Python runtime introspection (`addPath`, `prependPath`, `removeFromPath`,
-      `getPath`, `getModules`, `isModuleLoaded`, recursion limits) stays a
-      permanent non-goal.
+## Open work
 
 ### Modules
 
-- [ ] `tkinter` / `tkinterPlus` / `turtle` — **reopen**. Candidate replacement: a
-      Rust-backed `graphics` module (see the open decision below).
-- [ ] `http` / `net` as compatibility shims over `network` + `server` (kept as
-      names only; the functionality already exists under the new modules).
-- [x] `mathPlus` — merged into `math` (the float `sign` is `signFloat`).
+- [ ] `tkinter` / `tkinterPlus` / `turtle` — **reopen**. Candidate replacement:
+      a Rust-backed `graphics` module (see the decision below).
 
-### Toolchain and documentation
+## Named syscalls — policy for new wrappers
 
-- [ ] Absorb the remaining `docs-legacy` reference pages into `docs/`:
-      `async.md`, `bytecode.md`, `filesystem.md`, `native-memory.md`,
-      `native-modules.md`, `networking.md`, `process.md`, `rawpy.md`,
-      and `migration/`. `syscalls.md` is covered by the new
-      [docs/syscalls.md](docs/syscalls.md); the rest mostly lives in
-      `docs/builtins.md` sections, with `docs/native-module-abi.md` and
-      `docs/legacy-surface.md` superseding the remainder.
-
-### Already incorporated
-
-- Ownership and borrowing: `varTransfer`, `varTransferMutate`, `varBorrow`,
-  `varBorrowMutate`, `varSwapAll`, `varSwapVal`, `varEndBorrow`, `borrowing`,
-  `beingBorrowed`, plus `shared` declarations and `unshare()`.
-- `async*` family: `asyncRun`, `asyncGather`, `asyncSleep`, `asyncPoll*`,
-  timers and wakeups (`await` yields cooperatively).
-- Explicit native-module handles: `nativeModuleLoad` / `Name` / `Function` /
-  `Constant` / `Type` / `Error` / `Dependencies` / `Close`.
-- Native synchronization on cooperative threads: `nativeMutex*`,
-  `nativeCondition*`, `nativeSemaphore*`.
-- Memory protection, atomics and volatile access: `memoryProtect`,
-  `atomicLoad` / `atomicStore` / `atomicAdd`, `volatileRead` / `volatileWrite`.
-- Raw addresses and native calls: `getAddress` / `getAddressValue` /
-  `modifyAddressValue`, the typed `functionAddress` / `nativeFunctionAddress`,
-  and `nativeCall` (small integer ABI).
-- Structured memory on integer address handles (the original's pointer
-  replacement): typed blocks (`memoryBlock*`, `memoryArray*`, `memoryView*`),
-  native structs over a layout string (`nativeStruct*` / `memoryStruct*`,
-  `nativeTypeAlignment`), and owned handles (`nativeHandleAllocate` /
-  `Address` / `IsAlive` / `Free`).
-- `ffi*` family; typed `memory*` accessors (`memoryAllocate`, `memoryRead*` /
-  `memoryWrite*`, `memoryReadEndian` / `memoryWriteEndian`, `memoryTypeSize`,
-  `memoryTypeAlignment`, `sizeOf`); the `syscall*` family; managed
-  `filesystem*` / `process*` / `networking*` / `sound*`; `nativeThread*`.
-- Legacy stdlib APIs already ported: `typing`, `text`, `csv`, `regex` (above).
-
-## More named syscalls (platform-compatible)
-
-Every syscall documented by the original (`docs-legacy/syscalls.md`, 89 names) is
-implemented via the named dispatcher in `lynxer/builtins.cpp`, and the extended
-set below has been added on top of it. A name whose number is missing from the
-build's headers fails with `syscall '<name>' is not available on this
-architecture` rather than dispatching the wrong table.
+Every name the original documented, plus the extended and Stretch sets, is
+implemented; there are no open syscall items. New wrappers follow these rules:
 
 **Call syntax.** Named syscalls are architecture-gated: a program calls
 `syscalls("amd64")` (or `"arm64"`; `x86-64` / `aarch64` are aliases) once to
 select the host architecture, then reaches every wrapper through that namespace
 — `amd64.syscallRead(...)`. Only one architecture can be selected, the keyword
 must name the machine, and a misspelled keyword or namespace prefix answers with
-`You meant: <closest>?`. The old flat `syscallRead(...)` spelling is rejected.
-`sys.architecture()` returns the keyword to pass.
+`You meant: <closest>?`. `global.sys.architecture()` returns the keyword to pass.
 
-**Portability rule.** New wrappers must work on **both** Linux `amd64` and
+**Portability rule.** A new wrapper must work on **both** Linux `amd64` and
 `aarch64` from the same source: resolve the number in `syscallNumberFor`, guard
 each mapping with `#ifdef SYS_<name>` so an older header set degrades to the
 "not available on this architecture" error instead of the wrong table, and keep
@@ -179,76 +50,8 @@ every name available on both arches — where the raw call differs, split only t
 number and argument fix-up, not the name (the portable `poll`/`epoll` wrappers
 are the model). No `syscall*` name is architecture-exclusive. Prefer a libc
 wrapper when the raw call is an unstable ABI (e.g. `clone`/`clone3`). Because
-call sites now name an architecture, an architecture-agnostic fixture carries a
+call sites name an architecture, an architecture-agnostic fixture carries a
 `__ARCH__` token that the Makefile substitutes per host (`SYSCALL_ARCH`).
-
-### Filesystem
-
-- [x] `statx` — already reachable as `syscallGetExtendedFileStatus`.
-- [x] `syscallOpenAt2` (`openat2`) — `openat` with a resolve-flags struct.
-- [x] `syscallCheckFileAccessAt2` (`faccessat2`) — `faccessat` with flags.
-- [x] `syscallCopyFileRange` (`copy_file_range`) — kernel-side copy.
-- [x] `syscallFallocateFile` (`fallocate`) — reserve/extend file space.
-- [x] `syscallSynchronizeFilesystem` (`syncfs`) — flush one filesystem.
-
-### Processes and threads
-
-- [x] `syscallCreateThread3` (`clone3`) — extensible clone; prefer the libc
-      `pthread_create` wrapper outside the thread family.
-- [x] `syscallOpenProcessFileDescriptor` (`pidfd_open`) — a pollable process fd.
-- [x] `syscallSendSignalToProcessFileDescriptor` (`pidfd_send_signal`).
-- [x] `syscallGetThreadAffinity` / `syscallSetThreadAffinity`
-      (`sched_getaffinity` / `sched_setaffinity`).
-- [x] `syscallGetThreadPriority` / `syscallSetThreadPriority`
-      (`getpriority` / `setpriority`).
-- [x] `syscallWaitForProcessId` (`waitid`) — the `waitid` sibling of the
-      existing `syscallWaitForProcess` (`wait4`).
-
-### Memory
-
-- [x] `syscallLockMemory` / `syscallUnlockMemory` (`mlock` / `munlock`).
-- [x] `syscallSynchronizeMemory` (`msync`) — flush an `mmap` region.
-- [x] `syscallCreateMemoryFileDescriptor` (`memfd_create`).
-- [x] `syscallSetMemoryPolicy` (`mbind`) — NUMA placement; both arches.
-
-### Time
-
-- [x] `syscallGetTimeOfDay` (`gettimeofday`).
-- [x] `syscallSleepClock` (`clock_nanosleep`) — the clock-relative sibling of
-      `syscallSleep`.
-- [x] `syscallCreateTimerFileDescriptor` / `syscallControlTimerFileDescriptor`
-      (`timerfd_create` / `timerfd_settime`).
-
-### Signals
-
-- [x] `syscallControlSignal` (`rt_sigaction`).
-- [x] `syscallControlSignalMask` (`rt_sigprocmask`).
-- [x] `syscallCreateSignalFileDescriptor` (`signalfd`).
-
-### Sockets and event loops
-
-- [x] `syscallSendMessages` / `syscallReceiveMessages` (`sendmmsg` / `recvmmsg`).
-- [x] `syscallAcceptConnection4` (`accept4`) — `accept` with flags.
-- [x] `syscallWaitForEvents2` (`epoll_pwait2`) — nanosecond `epoll` timeout.
-- [x] `syscallCreateEventFileDescriptor` (`eventfd`) — for poll/wakeup plumbing.
-
-### System information and control
-
-- [x] `prctl` — already reachable as `syscallControlProcess`.
-- [x] `syscallGetCapabilities` / `syscallSetCapabilities`
-      (`capget` / `capset`).
-- [x] `syscallGetSystemTimes` (`times`).
-
-### Stretch (higher complexity)
-
-- [x] io_uring (`syscallSetupIoUring`, `syscallEnterIoUring`,
-      `syscallRegisterIoUring`) — raw passthrough on both arches; covered by the
-      dedicated `lynxer/examples/syscall_io_uring.lynx` fixture.
-- [x] Landlock / seccomp sandboxing (`syscallCreateLandlockRuleset`,
-      `syscallAddLandlockRule`, `syscallRestrictLandlockSelf`,
-      `syscallControlSeccomp`) — raw passthrough on both arches. `seccomp`
-      operation `0` installs `SECCOMP_MODE_STRICT` and kills the process, so the
-      fixture probes an invalid operation instead.
 
 ## Open decisions
 
@@ -273,6 +76,39 @@ Work that needs a decision before it can be built:
   placeholder: rendering draws fixed output, the prompt operations return empty
   defaults, and the stateful families keep no state. Decide whether to build a
   real terminal UI.
+
+## Already incorporated
+
+- The rest of the original `docs-legacy` surface: pointers/raw addresses,
+  atomics and volatile access, native synchronization, `memoryProtect`, the
+  `nativeModule*` handles, `ffi*`, typed `memory*` accessors, the managed
+  `filesystem*` / `process*` / `networking*` / `sound*` families, and
+  `nativeThread*`.
+- Language: ownership/borrowing (`varTransfer`/`varBorrow`/…, `shared`,
+  `unshare()`), the `async*` family with cooperative `await`, and bracket-literal
+  tuple rebinding (accepted, with a once-per-location deprecation warning).
+- Stdlib modules ported from `docs-legacy`: `typing`, `text`, `csv`, `regex`,
+  `image`, `game`, `server`, `network`, `cli` (native Click/Typer builders), and
+  `mathPlus` (merged into `math`).
+- `sys` system information: `architecture`, `cpuCount`, `pageSize`,
+  `memoryTotal`, `memoryAvailable`, `uptime`, `bootTime`, `loadAverage`.
+- Named syscalls: the original set plus the extended and Stretch families
+  (io_uring, Landlock/seccomp), architecture-gated and available on both arches.
+- Range `for` loops: `for (int i = start (.. | ..=) end [.. step])` beside the
+  C-style form (`..` excludes the end, `..=` includes it; the third value is the
+  step). See [docs/loops.md](docs/loops.md) and
+  `lynxer/examples/range_for.lynx`.
+- `cli` builders: `click*` / `typer*` over integer handles — with `--help`/`-h`,
+  `--no-<flag>` negation, `noArgsHelp`, repeated options and env-var defaults —
+  and removal of the Python availability probes.
+- Absorbing the legacy docs: the remaining `docs-legacy` reference pages
+  (`async`, `filesystem`, `networking`, `process`, `native-memory`,
+  `native-modules`) now live under `docs/`, bytecode/`rawPy`/`venv`/`tkinter` and
+  the Python migration are consolidated in
+  [docs/removed-features.md](docs/removed-features.md), and every claim was
+  verified against the interpreter. That audit corrected
+  [docs/legacy-surface.md](docs/legacy-surface.md): the `async` language syntax
+  **does** exist (it is eager, not a coroutine).
 
 ## Ground rules
 

@@ -115,22 +115,27 @@ global clickGroupAddCommand(int group, int command, str name) -> int {
 }
 
 // Add a positional argument. nargs < 0 collects all remaining arguments.
-global clickAddArgument(int command, str name, bool required, int nargs) -> int {
+global clickAddArgument(int command, str name, bool required, int nargs,
+                        str help = "") -> int {
     return global.nativeCli.clickAddArgument(
         "[" + strOf(command) + "," + cliJsonString(name) + "," +
-        cliJsonBool(required) + "," + strOf(nargs) + "]");
+        cliJsonBool(required) + "," + strOf(nargs) + "," + cliJsonString(help) +
+        "]");
 }
 
 // Add an option or flag. `declarations` is comma-separated ("--verbose,-v");
-// `kind` is one of text, int, float, bool, path.
+// `kind` is one of text, int, float, bool, path. `envvar` supplies a fallback
+// from the environment, and `multiple` collects repeated occurrences into a
+// JSON array.
 global clickAddOption(int command, str declarations, str help,
                       str defaultValue, bool flag, bool required,
-                      str kind) -> int {
+                      str kind, str envvar = "", bool multiple = false) -> int {
     return global.nativeCli.clickAddOption(
         "[" + strOf(command) + "," + cliJsonString(declarations) + "," +
         cliJsonString(help) + "," + cliJsonString(defaultValue) + "," +
         cliJsonBool(flag) + "," + cliJsonBool(required) + "," +
-        cliJsonString(kind) + "]");
+        cliJsonString(kind) + "," + cliJsonString(envvar) + "," +
+        cliJsonBool(multiple) + "]");
 }
 
 // Set a shell template run when the command is invoked. Parsed parameters are
@@ -187,21 +192,25 @@ global typerCommandCreate(int app, str name, str help) -> int {
 }
 
 // Add a positional argument. nargs < 0 collects all remaining arguments.
-global typerAddArgument(int command, str name, bool required, int nargs) -> int {
+global typerAddArgument(int command, str name, bool required, int nargs,
+                        str help = "") -> int {
     return global.nativeCli.clickAddArgument(
         "[" + strOf(command) + "," + cliJsonString(name) + "," +
-        cliJsonBool(required) + "," + strOf(nargs) + "]");
+        cliJsonBool(required) + "," + strOf(nargs) + "," + cliJsonString(help) +
+        "]");
 }
 
-// Add an option or flag. `kind` is one of text, int, float, bool, path.
+// Add an option or flag. `envvar` is an environment fallback and `multiple`
+// collects repeated occurrences into a JSON array.
 global typerAddOption(int command, str declarations, str help,
                       str defaultValue, bool flag, bool required,
-                      str kind) -> int {
+                      str kind, str envvar = "", bool multiple = false) -> int {
     return global.nativeCli.clickAddOption(
         "[" + strOf(command) + "," + cliJsonString(declarations) + "," +
         cliJsonString(help) + "," + cliJsonString(defaultValue) + "," +
         cliJsonBool(flag) + "," + cliJsonBool(required) + "," +
-        cliJsonString(kind) + "]");
+        cliJsonString(kind) + "," + cliJsonString(envvar) + "," +
+        cliJsonBool(multiple) + "]");
 }
 
 // Set a shell template run when the command is invoked.

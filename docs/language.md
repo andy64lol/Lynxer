@@ -220,83 +220,10 @@ println(n bitand 3);   // 2
 
 ## Control flow
 
-### `if` / `elif` / `else`
-
-```lynx
-if (n > 0) {
-    println("positive");
-} elif (n is 0) {
-    println("zero");
-} else {
-    println("negative");
-}
-```
-
-`else if` is also accepted and behaves like `elif`.
-
-### `switch` / `case` / `default`
-
-Cases are written `case(pattern){ ... }`; there is **no colon form and no
-`break`** — the first matching case runs, then the `switch` ends.
-
-```lynx
-switch (x) {
-    case(1){ println("one"); }
-    case(2){ println("two"); }
-    default(){ println("other"); }
-}
-```
-
-A pattern may destructure an enum payload and binds names for the body (see
-[enums.md](enums.md)):
-
-```lynx
-switch (result) {
-    case(status.Ok(value)){ println("ok ", value); }
-    case(status.Failed(reason)){ println("failed ", reason); }
-}
-```
-
-### `while`, `for`, `doWhile`, `iterate`, `forever`
-
-```lynx
-while (n > 0) {
-    n -= 1;
-}
-
-for (int i = 0; i < 3) {   // the update is implicit: i = i + 1
-    println(i);
-}
-
-doWhile (n < 3) {          // tests before each pass after the first
-    n += 1;
-}
-
-doWhile(){                 // no-condition form: loops until `break`
-    n += 1;
-    if (n > 9) { break; }
-}
-
-iterate (4) {              // exactly four iterations
-    println("tick");
-}
-
-forever(){                 // loops until `break`
-    if (done) { break; }
-}
-```
-
-- Every loop keyword takes parentheses. `forever` and the condition-less
-  `doWhile` are written `forever(){ ... }` and `doWhile(){ ... }`.
-- `for` takes an optional update clause; **`i++` and `i--` do not exist**. Use
-  the implicit update, `i = i + 1`, or `i += 1`.
-- `iterate(count)` requires an integer count.
-
-### `break`, `continue`, `restart`
-
-- `break` leaves the innermost loop or runs the `switch` default.
-- `continue` jumps to the next iteration.
-- `restart` re-runs the current iteration from the top.
+- [conditionals.md](conditionals.md) — `if` / `elif` / `else` and
+  `switch` / `case` / `default`.
+- [loops.md](loops.md) — `while`, `for` (both the C style and the range form),
+  `doWhile`, `iterate`, `forever`, and `break` / `continue` / `restart`.
 
 ### `try` / `catch`
 
@@ -374,26 +301,9 @@ global f(int x) -> int { return x + 1; }
 
 ### Codeblocks
 
-A function may declare caller-supplied blocks after its parameters, and invoke
-them with `exec()`:
-
-```lynx
-global repeat(str label){body} {
-    print(label);
-    print(": ");
-    exec(){{body}}
-    println("");
-}
-
-global main() {
-    global.repeat("msg") {
-        print("hello");
-    }
-}
-```
-
-`exec({{name}})` runs a previously declared named codeblock. `setup` and `main`
-cannot take codeblock parameters.
+A function may declare caller-supplied blocks after its parameters and invoke
+them with `exec()`. See **[codeblocks.md](codeblocks.md)** for the full
+reference.
 
 ## Scoping
 

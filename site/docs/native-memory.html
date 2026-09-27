@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Native memory - Lynxer</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<header>
+    <h1><a href="../index.html">Lynxer</a></h1>
+    <p>Documentation</p>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3>Overview</h3><ul>
+<li><a href="index.html">README</a></li>
+</ul>
+<h3>Getting started</h3><ul>
+<li><a href="install.html">install</a></li>
+<li><a href="CLI.html">CLI</a></li>
+</ul>
+<h3>Language</h3><ul>
+<li><a href="language.html">language</a></li>
+<li><a href="operators.html">operators</a></li>
+<li><a href="conditionals.html">conditionals</a></li>
+<li><a href="loops.html">loops</a></li>
+<li><a href="types.html">types</a></li>
+<li><a href="lists.html">lists</a></li>
+<li><a href="tuples.html">tuples</a></li>
+<li><a href="codeblocks.html">codeblocks</a></li>
+<li><a href="modules.html">modules</a></li>
+<li><a href="importAs.html">importAs</a></li>
+</ul>
+<h3>Records</h3><ul>
+<li><a href="structs.html">structs</a></li>
+<li><a href="classes.html">classes</a></li>
+<li><a href="enums.html">enums</a></li>
+<li><a href="vargroups.html">vargroups</a></li>
+</ul>
+<h3>Built-ins and modules</h3><ul>
+<li><a href="builtins.html">builtins</a></li>
+<li><a href="syscalls.html">syscalls</a></li>
+<li><a href="native-module-abi.html">native-module-abi</a></li>
+<li><a href="native-modules.html">native-modules</a></li>
+<li><a href="stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="extending.html">extending</a></li>
+</ul>
+<h3>Runtime</h3><ul>
+<li><a href="async.html">async</a></li>
+<li><a href="native-memory.html" class="active">native-memory</a></li>
+<li><a href="filesystem.html">filesystem</a></li>
+<li><a href="networking.html">networking</a></li>
+<li><a href="process.html">process</a></li>
+</ul>
+<h3>Reference</h3><ul>
+<li><a href="legacy-surface.html">legacy-surface</a></li>
+<li><a href="removed-features.html">removed-features</a></li>
+<li><a href="limitations.html">limitations</a></li>
+</ul>
+<h3>Standard library</h3><ul>
+<li><a href="stdlib/index.html">All modules</a></li>
+<li><a href="stdlib/cli.html">cli</a></li>
+<li><a href="stdlib/colorlib.html">colorlib</a></li>
+<li><a href="stdlib/csv.html">csv</a></li>
+<li><a href="stdlib/debug.html">debug</a></li>
+<li><a href="stdlib/fileIO.html">fileIO</a></li>
+<li><a href="stdlib/game.html">game</a></li>
+<li><a href="stdlib/image.html">image</a></li>
+<li><a href="stdlib/js.html">js</a></li>
+<li><a href="stdlib/json.html">json</a></li>
+<li><a href="stdlib/lua.html">lua</a></li>
+<li><a href="stdlib/math.html">math</a></li>
+<li><a href="stdlib/multiprocessing.html">multiprocessing</a></li>
+<li><a href="stdlib/network.html">network</a></li>
+<li><a href="stdlib/os.html">os</a></li>
+<li><a href="stdlib/path.html">path</a></li>
+<li><a href="stdlib/random.html">random</a></li>
+<li><a href="stdlib/re.html">re</a></li>
+<li><a href="stdlib/regex.html">regex</a></li>
+<li><a href="stdlib/server.html">server</a></li>
+<li><a href="stdlib/shell.html">shell</a></li>
+<li><a href="stdlib/sound.html">sound</a></li>
+<li><a href="stdlib/sqldb.html">sqldb</a></li>
+<li><a href="stdlib/sys.html">sys</a></li>
+<li><a href="stdlib/text.html">text</a></li>
+<li><a href="stdlib/time.html">time</a></li>
+<li><a href="stdlib/tui.html">tui</a></li>
+<li><a href="stdlib/typing.html">typing</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+<h1 id="native-memory">Native memory</h1>
+<p>Typed access to raw memory from <code>.lynx</code> programs, with no import required — these are builtins, not a module. Every <code>*</code> address is an integer handle; the interpreter owns the allocation table.</p>
+<h2 id="raw-allocation">Raw allocation</h2>
+<table>
+<tr><th>Function</th><th>Notes</th></tr>
+<tr><td><code>memoryAllocate(bytes)</code></td><td>Allocates <code>bytes</code> and returns an address handle.</td></tr>
+<tr><td><code>memoryAllocateZeroed(bytes)</code></td><td>As above, zero-initialised.</td></tr>
+<tr><td><code>memoryReallocate(address, bytes)</code></td><td>Resizes an allocation.</td></tr>
+<tr><td><code>memoryFree(address)</code></td><td>Releases an allocation.</td></tr>
+<tr><td><code>memorySet(address, byte, count)</code></td><td>Fills <code>count</code> bytes.</td></tr>
+<tr><td><code>memoryCopy(source, target, count)</code></td><td>Copies <code>count</code> bytes.</td></tr>
+</table>
+<pre><code>global setup(){}
+
+global main(){
+    int buffer = memoryAllocate(16);
+    memoryWriteInt32(buffer, 0, 1234);
+    println(memoryReadInt32(buffer, 0));   // 1234
+    memoryFree(buffer);
+}</code></pre>
+<h2 id="typed-accessors">Typed accessors</h2>
+<p><code>memoryRead&lt;Type&gt;(address, offset)</code> and <code>memoryWrite&lt;Type&gt;(address, offset, value)</code> exist for <code>Byte</code>, <code>Int8</code>, <code>UInt8</code>, <code>Int16</code>, <code>UInt16</code>, <code>Int32</code>, <code>UInt32</code>, <code>Int64</code>, <code>UInt64</code>, <code>Float32</code> and <code>Float64</code>. <code>memoryReadEndian</code> / <code>memoryWriteEndian</code> take an explicit byte order, and <code>memoryTypeSize(type)</code> / <code>memoryTypeAlignment(type)</code> / <code>sizeOf(type)</code> report layout facts. The builtin is <code>sizeOf</code>, <strong>not</strong> <code>sizeof</code>.</p>
+<h2 id="typed-blocks-arrays-and-views">Typed blocks, arrays and views</h2>
+<table>
+<tr><th>Family</th><th>Functions</th></tr>
+<tr><td>Blocks</td><td><code>memoryBlockAllocate</code>, <code>memoryBlockView</code>, <code>memoryBlockGet</code>, <code>memoryBlockSet</code>, <code>memoryBlockLength</code></td></tr>
+<tr><td>Arrays</td><td><code>memoryArrayAllocate</code>, <code>memoryArrayView</code>, <code>memoryArrayGet</code>, <code>memoryArraySet</code>, <code>memoryArrayLength</code></td></tr>
+<tr><td>Views</td><td><code>memoryViewGet</code>, <code>memoryViewSet</code>, <code>memoryViewLength</code></td></tr>
+</table>
+<p><code>memoryArray*</code> are aliases of the block operations.</p>
+<h2 id="native-structs-over-a-layout-string">Native structs over a layout string</h2>
+<p>A layout is a comma-separated list of <code>&quot;&lt;type&gt; &lt;name&gt;&quot;</code> fields, e.g. <code>&quot;int32 x, int32 y&quot;</code>. Both <code>memoryStruct*</code> and <code>nativeStruct*</code> families provide <code>Size</code>, <code>Alignment</code>, <code>FieldCount</code>, <code>FieldOffset</code>, <code>FieldSize</code>, <code>FieldType</code>, <code>Allocate</code>, <code>Get</code> and <code>Set</code>; <code>nativeTypeAlignment(type)</code> returns a type's alignment.</p>
+<p>Fields use <strong>natural alignment</strong>, and only scalar field types are understood: <code>byte</code>, <code>int8</code>, <code>uint8</code>, <code>int16</code>, <code>uint16</code>, <code>int32</code>, <code>uint32</code>, <code>int64</code>, <code>uint64</code>, <code>float32</code>, <code>float64</code>.</p>
+<pre><code>println(memoryStructSize(&quot;int32 x, int32 y&quot;));            // 8
+println(memoryStructFieldOffset(&quot;int32 x, int32 y&quot;, &quot;y&quot;)); // 4</code></pre>
+<p>Limits, all verified against the current build:</p>
+<ul>
+<li>A <code>pointer</code> / <code>uintptr</code> / <code>functionPointer</code> field is rejected.</li>
+<li>The optional packed-alignment argument is <strong>ignored</strong>: <code>memoryStructSize(&quot;int32 x, int32 y&quot;, 1)</code> still returns <code>8</code>.</li>
+<li>Fixed-size array syntax is not understood: <code>&quot;int32 a[2]&quot;</code> is parsed as a single <code>int32</code> field literally named <code>a[2]</code>, not as an array.</li>
+<li>Nested structs/unions and bit-fields are not supported.</li>
+</ul>
+<h2 id="owned-handles">Owned handles</h2>
+<p><code>nativeHandleAllocate(bytes)</code>, <code>nativeHandleAddress(handle)</code>, <code>nativeHandleIsAlive(handle)</code> and <code>nativeHandleFree(handle)</code> give an owned, liveness-checked block: <code>nativeHandleIsAlive</code> is true after allocation and false after free. <code>memoryProtect(address, length, protection)</code> changes page protection (POSIX, page-granular).</p>
+<h2 id="related">Related</h2>
+<ul>
+<li>Raw function addresses and <code>nativeCall</code> live in <a href="native-modules.html">native-modules</a> and <a href="builtins.html">builtins</a>; <code>nativeCall</code> uses a fixed-shape table with at most four typed parameters (or the packed <code>ret(...)</code> form), not <code>libffi</code>.</li>
+<li>There is no separate C++ extension to build — native memory is part of <code>lynxer/builtins.cpp</code> (there is no <code>lynxer/cpp.cpp</code> and no <code>make buildCpp</code>).</li>
+</ul>
+    </main>
+</div>
+
+<footer>
+    <a class="github" href="https://github.com/andy64lol/Lynxer" aria-label="Lynxer on GitHub" title="Lynxer on GitHub"><svg role="img" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a>
+    <span>Lynxer &middot; MIT License</span>
+</footer>
+
+</body>
+</html>

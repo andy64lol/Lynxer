@@ -20,8 +20,6 @@ Entries are marked:
 | `http`, `net` modules | Superseded by `network` + `server`. |
 | Python runtime introspection (`sys.path`, `addPath`, `prependPath`, `removeFromPath`, `getModules`, `isModuleLoaded`, `getRecursionLimit`, `setRecursionLimit`, `os.getPythonVersion`, `os.getPythonImplementation`) | There is no Python runtime to introspect. The `os` getters return `""` / `"Lynxer"` for compatibility and will be removed. |
 | Bytecode (`.lynxc`, `--view-bytecode`, `--benchmark-compile`, `--no-cache`) | Removed with the bytecode backend; `--compile` produces a standalone ELF executable instead (`--bundle` is an alias). Running a `.lynxc` file reports that bytecode is unsupported. |
-| FFI / native-module handle built-ins | Superseded by direct `import` of a native `.so` through the documented ABI. |
-| `async*` family (`Run`, `Gather`, `Sleep`, `Poll*`, timers, wakeups) | Lynxer has no `async` language support and no event loop to serve. |
 
 ## Language and Toolchain Design
 
@@ -309,8 +307,8 @@ form. See [builtins.md](builtins.md#syscalls).
 `<name>() is not supported in Lynxer yet`.
 
 This includes:
-- `rawPy`/`rawPyx`, FFI/native-module handles, and mutual-exclusion primitives (not planned).
-- The `async*` family (not supported).
+- `rawPy`/`rawPyx`/`cleanRawPyxCache` and `embedPy` (removed fully — there is no Python runtime).
+- Mutual-exclusion primitives (not planned).
 
 [legacy-surface.md](legacy-surface.md) catalogues the original built-ins and
 modules that were not carried over — pointers/raw addresses, native structs,

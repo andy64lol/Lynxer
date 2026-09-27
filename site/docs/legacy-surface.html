@@ -25,9 +25,12 @@
 <h3>Language</h3><ul>
 <li><a href="language.html">language</a></li>
 <li><a href="operators.html">operators</a></li>
+<li><a href="conditionals.html">conditionals</a></li>
+<li><a href="loops.html">loops</a></li>
 <li><a href="types.html">types</a></li>
 <li><a href="lists.html">lists</a></li>
 <li><a href="tuples.html">tuples</a></li>
+<li><a href="codeblocks.html">codeblocks</a></li>
 <li><a href="modules.html">modules</a></li>
 <li><a href="importAs.html">importAs</a></li>
 </ul>
@@ -41,11 +44,20 @@
 <li><a href="builtins.html">builtins</a></li>
 <li><a href="syscalls.html">syscalls</a></li>
 <li><a href="native-module-abi.html">native-module-abi</a></li>
+<li><a href="native-modules.html">native-modules</a></li>
 <li><a href="stdlib-contracts.html">stdlib-contracts</a></li>
 <li><a href="extending.html">extending</a></li>
 </ul>
+<h3>Runtime</h3><ul>
+<li><a href="async.html">async</a></li>
+<li><a href="native-memory.html">native-memory</a></li>
+<li><a href="filesystem.html">filesystem</a></li>
+<li><a href="networking.html">networking</a></li>
+<li><a href="process.html">process</a></li>
+</ul>
 <h3>Reference</h3><ul>
 <li><a href="legacy-surface.html" class="active">legacy-surface</a></li>
+<li><a href="removed-features.html">removed-features</a></li>
 <li><a href="limitations.html">limitations</a></li>
 </ul>
 <h3>Standard library</h3><ul>
@@ -120,7 +132,7 @@
 </table>
 <p><strong>Caveat:</strong> Lynxer evaluates on one interpreter thread under a single lock, and these handles sit on top of the cooperative <a href="builtins.html#native-threads"><code>nativeThread*</code></a> model. A blocking wait releases the interpreter lock so another thread can run, but a wait on a resource no other thread will release deadlocks. See <a href="builtins.html#native-synchronization">builtins</a>.</p>
 <h2 id="async">Async</h2>
-<p>The <code>async*</code> family is <strong>implemented</strong>: <code>asyncRun</code>, <code>asyncGather</code>, <code>asyncSleep</code>, the <code>asyncPoll*</code> set, and the timer/wakeup built-ins. <code>await</code> in the caller yields cooperatively. There is no <code>async</code> language support — the family is driven through explicit handles. See <a href="builtins.html#async">builtins</a>.</p>
+<p>The <code>async*</code> family is <strong>implemented</strong>: <code>asyncRun</code>, <code>asyncGather</code>, <code>asyncSleep</code>, the <code>asyncPoll*</code> set, and the timer/wakeup built-ins. The <code>async</code> <em>language</em> syntax also exists — a local <code>async name(params){...}</code> definition called as <code>async.name(args)</code> — but it is eager, not a coroutine; <code>await</code> is a pass-through with no suspension, and <code>asyncGather</code> returns its arguments unchanged. There is no concurrency. See <a href="async.html">async</a> and <a href="builtins.html#async">builtins</a>.</p>
 <h2 id="python-bridging">Python bridging</h2>
 <table>
 <tr><th>Name</th><th>Status</th><th>Notes</th></tr>

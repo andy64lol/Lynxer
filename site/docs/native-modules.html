@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Native modules - Lynxer</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<header>
+    <h1><a href="../index.html">Lynxer</a></h1>
+    <p>Documentation</p>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3>Overview</h3><ul>
+<li><a href="index.html">README</a></li>
+</ul>
+<h3>Getting started</h3><ul>
+<li><a href="install.html">install</a></li>
+<li><a href="CLI.html">CLI</a></li>
+</ul>
+<h3>Language</h3><ul>
+<li><a href="language.html">language</a></li>
+<li><a href="operators.html">operators</a></li>
+<li><a href="conditionals.html">conditionals</a></li>
+<li><a href="loops.html">loops</a></li>
+<li><a href="types.html">types</a></li>
+<li><a href="lists.html">lists</a></li>
+<li><a href="tuples.html">tuples</a></li>
+<li><a href="codeblocks.html">codeblocks</a></li>
+<li><a href="modules.html">modules</a></li>
+<li><a href="importAs.html">importAs</a></li>
+</ul>
+<h3>Records</h3><ul>
+<li><a href="structs.html">structs</a></li>
+<li><a href="classes.html">classes</a></li>
+<li><a href="enums.html">enums</a></li>
+<li><a href="vargroups.html">vargroups</a></li>
+</ul>
+<h3>Built-ins and modules</h3><ul>
+<li><a href="builtins.html">builtins</a></li>
+<li><a href="syscalls.html">syscalls</a></li>
+<li><a href="native-module-abi.html">native-module-abi</a></li>
+<li><a href="native-modules.html" class="active">native-modules</a></li>
+<li><a href="stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="extending.html">extending</a></li>
+</ul>
+<h3>Runtime</h3><ul>
+<li><a href="async.html">async</a></li>
+<li><a href="native-memory.html">native-memory</a></li>
+<li><a href="filesystem.html">filesystem</a></li>
+<li><a href="networking.html">networking</a></li>
+<li><a href="process.html">process</a></li>
+</ul>
+<h3>Reference</h3><ul>
+<li><a href="legacy-surface.html">legacy-surface</a></li>
+<li><a href="removed-features.html">removed-features</a></li>
+<li><a href="limitations.html">limitations</a></li>
+</ul>
+<h3>Standard library</h3><ul>
+<li><a href="stdlib/index.html">All modules</a></li>
+<li><a href="stdlib/cli.html">cli</a></li>
+<li><a href="stdlib/colorlib.html">colorlib</a></li>
+<li><a href="stdlib/csv.html">csv</a></li>
+<li><a href="stdlib/debug.html">debug</a></li>
+<li><a href="stdlib/fileIO.html">fileIO</a></li>
+<li><a href="stdlib/game.html">game</a></li>
+<li><a href="stdlib/image.html">image</a></li>
+<li><a href="stdlib/js.html">js</a></li>
+<li><a href="stdlib/json.html">json</a></li>
+<li><a href="stdlib/lua.html">lua</a></li>
+<li><a href="stdlib/math.html">math</a></li>
+<li><a href="stdlib/multiprocessing.html">multiprocessing</a></li>
+<li><a href="stdlib/network.html">network</a></li>
+<li><a href="stdlib/os.html">os</a></li>
+<li><a href="stdlib/path.html">path</a></li>
+<li><a href="stdlib/random.html">random</a></li>
+<li><a href="stdlib/re.html">re</a></li>
+<li><a href="stdlib/regex.html">regex</a></li>
+<li><a href="stdlib/server.html">server</a></li>
+<li><a href="stdlib/shell.html">shell</a></li>
+<li><a href="stdlib/sound.html">sound</a></li>
+<li><a href="stdlib/sqldb.html">sqldb</a></li>
+<li><a href="stdlib/sys.html">sys</a></li>
+<li><a href="stdlib/text.html">text</a></li>
+<li><a href="stdlib/time.html">time</a></li>
+<li><a href="stdlib/tui.html">tui</a></li>
+<li><a href="stdlib/typing.html">typing</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+<h1 id="native-modules">Native modules</h1>
+<p>A native module is a shared library that exports one stable registration entry point. On Linux the extension is <code>.so</code>; the loader is C++ (<code>dlopen</code>/<code>dlsym</code>) — there is no Python and <strong>no <code>libffi</code></strong>: calls dispatch through a hand-written fixed-shape table (see <a href="native-module-abi.html">native-module-abi</a>).</p>
+<h2 id="registration-abi">Registration ABI</h2>
+<pre><code>int lynxer_module_init_v1(
+    int (*register_function)(const char *name, const char *symbol,
+                             const char *signature),
+    int (*register_constant)(const char *name, int64_t value),
+    int (*register_type)(const char *name, const char *layout)
+);</code></pre>
+<p>Return <code>0</code> after all registrations succeed. A non-zero return, an invalid identifier, a duplicate registration, or a missing symbol rejects the module. Function signatures use the <code>cdecl:&lt;ret&gt;(&lt;args&gt;)</code> grammar.</p>
+<pre><code>#include &lt;cstdint&gt;
+
+using RegisterFunction = int (*)(const char *, const char *, const char *);
+using RegisterConstant = int (*)(const char *, std::int64_t);
+using RegisterType = int (*)(const char *, const char *);
+
+extern &quot;C&quot; std::int64_t add(std::int64_t left, std::int64_t right) {
+    return left + right;
+}
+
+extern &quot;C&quot; int lynxer_module_init_v1(RegisterFunction function,
+                                     RegisterConstant constant,
+                                     RegisterType type) {
+    if (!function(&quot;add&quot;, &quot;add&quot;, &quot;cdecl:int64(int64,int64)&quot;)) return 1;
+    if (!constant(&quot;version&quot;, 1)) return 2;
+    if (!type(&quot;pair&quot;, &quot;int64 left, int64 right&quot;)) return 3;
+    return 0;
+}</code></pre>
+<h2 id="importing">Importing</h2>
+<p>Import a shared library from <code>setup()</code> like any other module:</p>
+<pre><code>global setup() {
+    import(&quot;mylib.so&quot;);
+}
+
+global main() {
+    println(global.mylib.version);   // a registered constant
+    println(global.mylib.add(2, 3)); // a registered function
+}</code></pre>
+<p>Registered functions are callable, constants become integers, and registered type layouts become strings usable with the native-memory APIs. A module is initialised once per import and stays loaded for the lifetime of its namespace, so function pointers cannot become invalid while it is still in use.</p>
+<h2 id="explicit-handle-api">Explicit handle API</h2>
+<table>
+<tr><th>Function</th><th>Notes</th></tr>
+<tr><td><code>nativeModuleLoad(path)</code></td><td>Loads and initialises a module; returns a handle.</td></tr>
+<tr><td><code>nativeModuleName(handle)</code></td><td>The filename-derived module name.</td></tr>
+<tr><td><code>nativeModuleFunction(handle, name)</code></td><td>Returns a <code>functionAddress</code>.</td></tr>
+<tr><td><code>nativeModuleConstant(handle, name)</code></td><td>Returns a registered integer.</td></tr>
+<tr><td><code>nativeModuleType(handle, name)</code></td><td>Returns a registered layout string.</td></tr>
+<tr><td><code>nativeModuleError(handle)</code></td><td>The module-local lifecycle error, or <code>&quot;&quot;</code>.</td></tr>
+<tr><td><code>nativeModuleDependencies(handle)</code></td><td>Discovered shared-library dependencies.</td></tr>
+<tr><td><code>nativeModuleClose(handle)</code></td><td>Releases an explicitly loaded module.</td></tr>
+</table>
+<p>An explicit handle can be combined with <code>ffiCall</code> and a returned <code>functionAddress</code>. Closing a handle invalidates it and releases its registration callbacks; retained function addresses then fail cleanly instead of calling unmapped code. Imported modules cannot be explicitly closed — their namespace owns their lifetime. Invalid handles and failed registrations raise normal runtime errors. <code>nativeModuleDependencies</code> is informational and returns an empty list when the host linker tooling cannot inspect a module.</p>
+<h2 id="ffi-entry-points">FFI entry points</h2>
+<p><code>ffiLoadLibrary</code>, <code>ffiLookup</code>, <code>ffiCall</code>, <code>ffiCallback</code>, <code>ffiFreeCallback</code> and <code>ffiCloseLibrary</code>. <code>ffiCall</code> describes and performs a native call through the same fixed-shape table as <code>nativeCall</code> (at most four typed parameters, or the packed <code>ret(...)</code> form).</p>
+<p><code>ffiCallback(signature, function)</code> does <strong>not</strong> produce a real native callable: it stores the pair under a handle, and <code>ffiCall</code> recognises that handle and re-invokes the Lynxer function. There is no trampoline, and the stored signature is not validated. The <code>ffi*</code> calling convention is still an <a href="../todo.html">open decision</a> for arbitrary signatures.</p>
+<h2 id="building-c-stdlib-backends">Building C++ stdlib backends</h2>
+<p>Every <code>lynxer/stdlib/*.cpp</code> file is built into its sibling <code>.so</code> by the <code>Makefile</code>; the matching <code>.lynx</code> file is the public wrapper where a Lynxer-friendly API or return-type conversion is useful. Adding a dependency-free stdlib module means adding a C++ backend and a wrapper — no Python packages.</p>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="native-module-abi.html">native-module-abi</a> — the frozen ABI, signature shapes and data conventions.</li>
+<li><a href="extending.html">extending</a> — adding a stdlib module end to end.</li>
+</ul>
+    </main>
+</div>
+
+<footer>
+    <a class="github" href="https://github.com/andy64lol/Lynxer" aria-label="Lynxer on GitHub" title="Lynxer on GitHub"><svg role="img" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a>
+    <span>Lynxer &middot; MIT License</span>
+</footer>
+
+</body>
+</html>

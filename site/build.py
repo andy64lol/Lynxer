@@ -27,11 +27,13 @@ OUT = SITE / "docs"
 GROUPS: list[tuple[str, list[str]]] = [
     ("Overview", ["README.md"]),
     ("Getting started", ["install.md", "CLI.md"]),
-    ("Language", ["language.md", "operators.md", "types.md", "lists.md", "tuples.md", "modules.md", "importAs.md"]),
+    ("Language", ["language.md", "operators.md", "conditionals.md", "loops.md", "types.md", "lists.md", "tuples.md", "codeblocks.md", "modules.md", "importAs.md"]),
     ("Records", ["structs.md", "classes.md", "enums.md", "vargroups.md"]),
     ("Built-ins and modules",
-     ["builtins.md", "syscalls.md", "native-module-abi.md", "stdlib-contracts.md", "extending.md"]),
-    ("Reference", ["legacy-surface.md", "limitations.md"]),
+     ["builtins.md", "syscalls.md", "native-module-abi.md", "native-modules.md", "stdlib-contracts.md", "extending.md"]),
+    ("Runtime",
+     ["async.md", "native-memory.md", "filesystem.md", "networking.md", "process.md"]),
+    ("Reference", ["legacy-surface.md", "removed-features.md", "limitations.md"]),
 ]
 
 STDLIB_MODULES = [

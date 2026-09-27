@@ -89,6 +89,8 @@ LYNXER_OWNERSHIP_FIXTURES := $(LYNXER_DIR)/examples/ownership.lynx
 # Tuple literals: the canonical `()` form plus the legacy bracket literal
 # `[int 1, int 2]`, which a `tuple` target coerces to a tuple.
 LYNXER_TUPLE_FIXTURES := $(LYNXER_DIR)/examples/tuple_rebinding.lynx
+# Range `for` loop: for (int i = start (.. | ..=) end [.. step]).
+LYNXER_RANGE_FIXTURES := $(LYNXER_DIR)/examples/range_for.lynx
 # Low-level fixtures: native-memory typed/endian access and the portable named
 # syscalls. They assert only host-independent behaviour, so the same expected
 # output holds on amd64 and arm64, and both CI jobs run them.
@@ -131,7 +133,8 @@ LYNXER_LIST_STDLIB_MODULES := cli colorlib csv debug fileIO game image js json l
 # Import-parity fixtures (interpreted vs compiled). The sound one needs a device.
 LYNXER_PARITY_FIXTURES := native_stdlibs milestone6_module milestone6_math_native stdlib_json \
 	stdlib_re stdlib_path stdlib_game stdlib_image stdlib_lua stdlib_sqldb stdlib_tui deprecated_operators optimizer \
-	lowlevel_memory lowlevel_syscalls lowlevel_arch language_fields ownership
+	lowlevel_memory lowlevel_syscalls lowlevel_arch language_fields ownership \
+	range_for
 ifeq ($(HAVE_AUDIO),1)
 LYNXER_PARITY_FIXTURES += stdlib_sound
 endif
@@ -481,7 +484,7 @@ expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:23: charAt() index is out of rang
 	rm -f $(CLYX_TMP)_stdlib.out $(CLYX_TMP)_stdlib.diff; exit 1; fi; \
 	done; \
 	rm -f $(CLYX_TMP)_stdlib.out $(CLYX_TMP)_stdlib.diff
-	@for fixture in $(LYNXER_MILESTONE7_NEW_FIXTURES) $(LYNXER_OWNERSHIP_FIXTURES) $(LYNXER_TUPLE_FIXTURES) $(LYNXER_LOWLEVEL_FIXTURES); do \
+	@for fixture in $(LYNXER_MILESTONE7_NEW_FIXTURES) $(LYNXER_OWNERSHIP_FIXTURES) $(LYNXER_TUPLE_FIXTURES) $(LYNXER_RANGE_FIXTURES) $(LYNXER_LOWLEVEL_FIXTURES); do \
 	expected="$${fixture%.lynx}.expected"; \
 	if [ ! -f "$$expected" ]; then \
 	echo "missing expected output for $$fixture"; exit 1; fi; \

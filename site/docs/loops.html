@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Loops - Lynxer</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<header>
+    <h1><a href="../index.html">Lynxer</a></h1>
+    <p>Documentation</p>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3>Overview</h3><ul>
+<li><a href="index.html">README</a></li>
+</ul>
+<h3>Getting started</h3><ul>
+<li><a href="install.html">install</a></li>
+<li><a href="CLI.html">CLI</a></li>
+</ul>
+<h3>Language</h3><ul>
+<li><a href="language.html">language</a></li>
+<li><a href="operators.html">operators</a></li>
+<li><a href="conditionals.html">conditionals</a></li>
+<li><a href="loops.html" class="active">loops</a></li>
+<li><a href="types.html">types</a></li>
+<li><a href="lists.html">lists</a></li>
+<li><a href="tuples.html">tuples</a></li>
+<li><a href="codeblocks.html">codeblocks</a></li>
+<li><a href="modules.html">modules</a></li>
+<li><a href="importAs.html">importAs</a></li>
+</ul>
+<h3>Records</h3><ul>
+<li><a href="structs.html">structs</a></li>
+<li><a href="classes.html">classes</a></li>
+<li><a href="enums.html">enums</a></li>
+<li><a href="vargroups.html">vargroups</a></li>
+</ul>
+<h3>Built-ins and modules</h3><ul>
+<li><a href="builtins.html">builtins</a></li>
+<li><a href="syscalls.html">syscalls</a></li>
+<li><a href="native-module-abi.html">native-module-abi</a></li>
+<li><a href="native-modules.html">native-modules</a></li>
+<li><a href="stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="extending.html">extending</a></li>
+</ul>
+<h3>Runtime</h3><ul>
+<li><a href="async.html">async</a></li>
+<li><a href="native-memory.html">native-memory</a></li>
+<li><a href="filesystem.html">filesystem</a></li>
+<li><a href="networking.html">networking</a></li>
+<li><a href="process.html">process</a></li>
+</ul>
+<h3>Reference</h3><ul>
+<li><a href="legacy-surface.html">legacy-surface</a></li>
+<li><a href="removed-features.html">removed-features</a></li>
+<li><a href="limitations.html">limitations</a></li>
+</ul>
+<h3>Standard library</h3><ul>
+<li><a href="stdlib/index.html">All modules</a></li>
+<li><a href="stdlib/cli.html">cli</a></li>
+<li><a href="stdlib/colorlib.html">colorlib</a></li>
+<li><a href="stdlib/csv.html">csv</a></li>
+<li><a href="stdlib/debug.html">debug</a></li>
+<li><a href="stdlib/fileIO.html">fileIO</a></li>
+<li><a href="stdlib/game.html">game</a></li>
+<li><a href="stdlib/image.html">image</a></li>
+<li><a href="stdlib/js.html">js</a></li>
+<li><a href="stdlib/json.html">json</a></li>
+<li><a href="stdlib/lua.html">lua</a></li>
+<li><a href="stdlib/math.html">math</a></li>
+<li><a href="stdlib/multiprocessing.html">multiprocessing</a></li>
+<li><a href="stdlib/network.html">network</a></li>
+<li><a href="stdlib/os.html">os</a></li>
+<li><a href="stdlib/path.html">path</a></li>
+<li><a href="stdlib/random.html">random</a></li>
+<li><a href="stdlib/re.html">re</a></li>
+<li><a href="stdlib/regex.html">regex</a></li>
+<li><a href="stdlib/server.html">server</a></li>
+<li><a href="stdlib/shell.html">shell</a></li>
+<li><a href="stdlib/sound.html">sound</a></li>
+<li><a href="stdlib/sqldb.html">sqldb</a></li>
+<li><a href="stdlib/sys.html">sys</a></li>
+<li><a href="stdlib/text.html">text</a></li>
+<li><a href="stdlib/time.html">time</a></li>
+<li><a href="stdlib/tui.html">tui</a></li>
+<li><a href="stdlib/typing.html">typing</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+<h1 id="loops">Loops</h1>
+<p>Lynxer has five loop keywords: <code>while</code>, <code>for</code>, <code>doWhile</code>, <code>iterate</code> and <code>forever</code>. Every one takes parentheses; <code>forever</code> and the condition-less <code>doWhile</code> are written <code>forever(){ ... }</code> and <code>doWhile(){ ... }</code>.</p>
+<h2 id="while"><code>while</code></h2>
+<pre><code>while (n &gt; 0) {
+    n -= 1;
+}</code></pre>
+<h2 id="for"><code>for</code></h2>
+<p><code>for</code> has two forms: the C style and the range style.</p>
+<h3 id="c-style">C style</h3>
+<pre><code>for (int i = 0; i &lt; 3; i = i + 1) {
+    println(i);
+}
+
+for (int i = 0; i &lt; 3) {   // update omitted: the increment is implicit
+    println(i);
+}</code></pre>
+<p><code>i++</code> and <code>i--</code> do not exist — use <code>i = i + 1</code>, <code>i += 1</code>, or the implicit update.</p>
+<h3 id="range-style">Range style</h3>
+<p>The range form iterates an integer variable over a range of values:</p>
+<pre><code>for (int i = 0..=10..2) { ... }   // 0, 2, 4, 6, 8, 10
+for (int i = 0..10..2) { ... }    // 0, 2, 4, 6, 8
+for (int i = 1..=3..1) { ... }    // 1, 2, 3
+for (int i = 1..=3) { ... }       // 1, 2, 3 — the step defaults to 1
+for (int i = 10..=0..-2) { ... }  // 10, 8, 6, 4, 2, 0</code></pre>
+<p>The header is <code>for (&lt;type&gt; &lt;name&gt; = &lt;start&gt; (.. | ..=) &lt;end&gt; [.. &lt;step&gt;])</code>:</p>
+<ul>
+<li><code>..=</code> <strong>includes</strong> the end value; <code>..</code> <strong>excludes</strong> it.</li>
+<li>The optional third value is the step. It must be non-zero; a negative step counts down, and the bound comparison flips accordingly. Step of 1 must be written explicitly when a third value is present (<code>0..=10..1</code>).</li>
+<li>Bounds and step are evaluated once and must be integers; a non-integer bound or a zero step is a source-located error.</li>
+<li>The loop variable is (re)declared and assigned each iteration, so the body sees it. Reassigning it inside the body does not change the iteration — the range is fixed.</li>
+<li>The C style and the range style cannot be mixed; the range style has no separate condition or update clause.</li>
+</ul>
+<p><code>break</code> and <code>continue</code> work as in any loop.</p>
+<table>
+<tr><th>Loop</th><th>Values</th></tr>
+<tr><td><code>for (int i = 0..=10..2)</code></td><td><code>0, 2, 4, 6, 8, 10</code></td></tr>
+<tr><td><code>for (int i = 0..10..2)</code></td><td><code>0, 2, 4, 6, 8</code></td></tr>
+<tr><td><code>for (int i = 0..=3..1)</code></td><td><code>0, 1, 2, 3</code></td></tr>
+<tr><td><code>for (int i = 0..0..1)</code></td><td><em>(no iterations)</em></td></tr>
+<tr><td><code>for (int i = 10..=0..-2)</code></td><td><code>10, 8, 6, 4, 2, 0</code></td></tr>
+<tr><td><code>for (int i = 3..0..-1)</code></td><td><code>3, 2, 1</code></td></tr>
+</table>
+<p><code>lynxer/examples/range_for.lynx</code> pins all of these.</p>
+<h2 id="dowhile"><code>doWhile</code></h2>
+<pre><code>doWhile (n &lt; 3) {          // tests before each pass after the first
+    n += 1;
+}
+
+doWhile(){                 // no-condition form: loops until `break`
+    n += 1;
+    if (n &gt; 9) { break; }
+}</code></pre>
+<h2 id="iterate"><code>iterate</code></h2>
+<pre><code>iterate (4) {              // exactly four iterations
+    println(&quot;tick&quot;);
+}</code></pre>
+<p><code>iterate(count)</code> requires an integer count.</p>
+<h2 id="forever"><code>forever</code></h2>
+<pre><code>forever(){                 // loops until `break`
+    if (done) { break; }
+}</code></pre>
+<p><code>forever()</code> without a reachable <code>break</code> prints a warning unless <code>suppressForeverWarning()</code> was called in <code>setup()</code>.</p>
+<h2 id="break-continue-restart"><code>break</code>, <code>continue</code>, <code>restart</code></h2>
+<ul>
+<li><code>break</code> leaves the innermost loop (and ends a <code>switch</code>).</li>
+<li><code>continue</code> jumps to the next iteration.</li>
+<li><code>restart</code> re-runs the current iteration from the top.</li>
+</ul>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="conditionals.html">conditionals</a> — <code>if</code>/<code>elif</code>/<code>else</code> and <code>switch</code>/<code>case</code>/<code>default</code>.</li>
+<li><a href="language.html">language</a> — the rest of the language reference.</li>
+</ul>
+    </main>
+</div>
+
+<footer>
+    <a class="github" href="https://github.com/andy64lol/Lynxer" aria-label="Lynxer on GitHub" title="Lynxer on GitHub"><svg role="img" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a>
+    <span>Lynxer &middot; MIT License</span>
+</footer>
+
+</body>
+</html>

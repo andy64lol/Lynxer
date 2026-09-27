@@ -21,8 +21,13 @@ deliberately constrained or not implemented.
 | Document | What it covers |
 | --- | --- |
 | [language.md](language.md) | Program structure, comments, variables, operators, control flow, functions, scoping, interpolation |
+| [operators.md](operators.md) | The operator set and precedence |
+| [conditionals.md](conditionals.md) | `if`/`elif`/`else` and `switch`/`case`/`default` |
+| [loops.md](loops.md) | `while`, `for` (C style and range), `doWhile`, `iterate`, `forever` |
 | [types.md](types.md) | Every type name, ranges, and conversion rules |
 | [lists.md](lists.md) | `list` and `tuple` values and their builtins |
+| [tuples.md](tuples.md) | Immutable ordered sequences |
+| [codeblocks.md](codeblocks.md) | Inline codeblock arguments |
 | [structs.md](structs.md) | Data-only records |
 | [classes.md](classes.md) | Fields plus `local` methods |
 | [enums.md](enums.md) | Tagged unions and `switch` patterns |
@@ -36,10 +41,18 @@ deliberately constrained or not implemented.
 | --- | --- |
 | [builtins.md](builtins.md) | Every function the interpreter implements itself |
 | [syscalls.md](syscalls.md) | The named Linux syscall wrappers: architecture gate, namespaces, full list |
+| [async.md](async.md) | Local `async` sub-functions, `await`, and the `async*` builtins |
+| [native-memory.md](native-memory.md) | Typed raw memory, blocks/arrays/views, native struct layouts |
+| [filesystem.md](filesystem.md) | The handle-based `filesystem*` API |
+| [networking.md](networking.md) | The managed `networking*` socket API |
+| [process.md](process.md) | The managed `process*` subprocess API |
 | [native-module-abi.md](native-module-abi.md) | Writing a native `.so` module: entry point, signatures, data conventions |
+| [native-modules.md](native-modules.md) | Using native modules, the `nativeModule*`/`ffi*` handle APIs |
 | [stdlib-contracts.md](stdlib-contracts.md) | The frozen contract every wrapper and backend must satisfy |
 | [extending.md](extending.md) | Adding a stdlib module end to end |
 | [stdlib/](stdlib/) | One page per standard-library module |
+| [legacy-surface.md](legacy-surface.md) | The original feature surface and its replacements |
+| [removed-features.md](removed-features.md) | Bytecode, Python bridging and other removed features |
 | [limitations.md](limitations.md) | Deliberate constraints and what is not implemented |
 
 ## Build and run

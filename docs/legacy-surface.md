@@ -68,9 +68,12 @@ but a wait on a resource no other thread will release deadlocks. See
 ## Async
 
 The `async*` family is **implemented**: `asyncRun`, `asyncGather`, `asyncSleep`,
-the `asyncPoll*` set, and the timer/wakeup built-ins. `await` in the caller
-yields cooperatively. There is no `async` language support — the family is
-driven through explicit handles. See [builtins.md](builtins.md#async).
+the `asyncPoll*` set, and the timer/wakeup built-ins. The `async` *language*
+syntax also exists — a local `async name(params){...}` definition called as
+`async.name(args)` — but it is eager, not a coroutine; `await` is a pass-through
+with no suspension, and `asyncGather` returns its arguments unchanged. There is
+no concurrency. See [async.md](async.md) and
+[builtins.md](builtins.md#async).
 
 ## Python bridging
 

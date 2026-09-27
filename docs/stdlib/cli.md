@@ -17,8 +17,8 @@ integer handles. Call `clickInit()` (or `typerInit()`) before creating anything.
 | `clickCommandCreate` | `(str name, str help) -> int` | Command handle, `0` on failure |
 | `clickGroupCreate` | `(str name, str help) -> int` | Command group handle |
 | `clickGroupAddCommand` | `(int group, int command, str name) -> int` | Registers a command in a group |
-| `clickAddArgument` | `(int command, str name, bool required, int nargs) -> int` | Positional argument; `nargs < 0` collects the rest |
-| `clickAddOption` | `(int command, str declarations, str help, str default, bool flag, bool required, str kind) -> int` | Option or flag |
+| `clickAddArgument` | `(int command, str name, bool required, int nargs, str help = "") -> int` | Positional argument; `nargs < 0` collects the rest |
+| `clickAddOption` | `(int command, str declarations, str help, str default, bool flag, bool required, str kind, str envvar = "", bool multiple = false) -> int` | Option or flag |
 | `clickCommandSetShell` | `(int command, str template) -> int` | Shell template run when invoked |
 | `clickInvoke` | `(int handle, str argsJson) -> str` | JSON `{"params": …, "output": …, "exitCode": …}` |
 | `clickGroupInvoke` | `(int handle, str argsJson) -> str` | The first argument selects the subcommand |
@@ -38,6 +38,15 @@ or more, the first argument selects the command.
 - `argsJson` is a JSON array of argument strings, e.g. `["Ada", "--shout"]`.
 - `{parameterName}` placeholders in a shell template are replaced with the
   parsed values; `output` is the command's captured stdout.
+- `--help` / `-h` returns `{"params": {}, "help": "…"}` with a generated usage
+  block (arguments, options and, for a group, subcommands) instead of running
+  the shell template. A group or single-command app created with
+  `noArgsHelp = true` returns the same help when invoked with no arguments.
+- A flag can be negated with `--no-<name>`: `--no-shout` sets `shout` to false.
+- `envvar` is consulted when the option is absent, before `default`: the order
+  is explicit argument, then environment variable, then declared default.
+- `multiple` collects repeated occurrences into a JSON array; a `{name}`
+  template substitutes those values joined by a space.
 - A failed parse returns `{"error": "…"}` instead of failing the process.
 
 ```lynx

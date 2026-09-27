@@ -586,6 +586,13 @@ global main(){
     fails += global.check(global.cli.typerCommandSetShell(cliTyperCommand, "printf 'hi {name}'") is 1, "true", "cli.typerCommandSetShell");
     fails += global.check(global.json.jsonGet(global.cli.typerInvoke(cliApp, "[\"Ada\"]"), "output"), "hi Ada", "cli.typerInvoke");
     fails += global.check(global.json.jsonGet(global.cli.typerLastParams(), "name"), "Ada", "cli.typerLastParams");
+    // A fresh command: typerInit()/clickInit() reset the builder registry.
+    global.cli.clickInit();
+    int helpCommand = global.cli.clickCommandCreate("greet", "Greet");
+    global.cli.clickAddOption(helpCommand, "--shout,-s", "Uppercase", "", true, false, "bool");
+    fails += global.check(global.text.contains(global.json.jsonGet(global.cli.clickInvoke(helpCommand, "[\"--help\"]"), "help"), "Usage: greet"), "true", "cli.help");
+    global.cli.clickInvoke(helpCommand, "[\"--no-shout\"]");
+    fails += global.check(global.json.jsonGetBool(global.cli.clickLastParams(), "shout"), "false", "cli.flag.negation");
     fails += global.check(global.cli.argCount() >= 2, "true", "cli.argCount");
     fails += global.check(global.cli.getArg(0) isnt "", "true", "cli.getArg");
     fails += global.check(global.cli.getArg(99) is "", "true", "cli.getArg.oob");

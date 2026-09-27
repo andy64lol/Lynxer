@@ -49,7 +49,7 @@ std::vector<Token> Lexer::scan() {
                 const char next = peek();
                 if (std::isdigit(static_cast<unsigned char>(next))) {
                     text += advance();
-                } else if (next == '.' && !hasDot) {
+                } else if (next == '.' && !hasDot && !startsWith("..")) {
                     hasDot = true;
                     text += advance();
                 } else {
@@ -109,6 +109,15 @@ std::vector<Token> Lexer::scan() {
                 (current == '/' && next == '=') ||
                 (current == '%' && next == '=')) {
                 symbol += advance();
+                emit(TokenKind::Symbol, symbol, line, column);
+                continue;
+            }
+            // Range operators: '..' (exclusive) and '..=' (inclusive).
+            if (current == '.' && next == '.') {
+                symbol += advance();
+                if (peek() == '=') {
+                    symbol += advance();
+                }
                 emit(TokenKind::Symbol, symbol, line, column);
                 continue;
             }

@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Codeblocks in Lynxer - Lynxer</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<header>
+    <h1><a href="../index.html">Lynxer</a></h1>
+    <p>Documentation</p>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3>Overview</h3><ul>
+<li><a href="index.html">README</a></li>
+</ul>
+<h3>Getting started</h3><ul>
+<li><a href="install.html">install</a></li>
+<li><a href="CLI.html">CLI</a></li>
+</ul>
+<h3>Language</h3><ul>
+<li><a href="language.html">language</a></li>
+<li><a href="operators.html">operators</a></li>
+<li><a href="conditionals.html">conditionals</a></li>
+<li><a href="loops.html">loops</a></li>
+<li><a href="types.html">types</a></li>
+<li><a href="lists.html">lists</a></li>
+<li><a href="tuples.html">tuples</a></li>
+<li><a href="codeblocks.html" class="active">codeblocks</a></li>
+<li><a href="modules.html">modules</a></li>
+<li><a href="importAs.html">importAs</a></li>
+</ul>
+<h3>Records</h3><ul>
+<li><a href="structs.html">structs</a></li>
+<li><a href="classes.html">classes</a></li>
+<li><a href="enums.html">enums</a></li>
+<li><a href="vargroups.html">vargroups</a></li>
+</ul>
+<h3>Built-ins and modules</h3><ul>
+<li><a href="builtins.html">builtins</a></li>
+<li><a href="syscalls.html">syscalls</a></li>
+<li><a href="native-module-abi.html">native-module-abi</a></li>
+<li><a href="native-modules.html">native-modules</a></li>
+<li><a href="stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="extending.html">extending</a></li>
+</ul>
+<h3>Runtime</h3><ul>
+<li><a href="async.html">async</a></li>
+<li><a href="native-memory.html">native-memory</a></li>
+<li><a href="filesystem.html">filesystem</a></li>
+<li><a href="networking.html">networking</a></li>
+<li><a href="process.html">process</a></li>
+</ul>
+<h3>Reference</h3><ul>
+<li><a href="legacy-surface.html">legacy-surface</a></li>
+<li><a href="removed-features.html">removed-features</a></li>
+<li><a href="limitations.html">limitations</a></li>
+</ul>
+<h3>Standard library</h3><ul>
+<li><a href="stdlib/index.html">All modules</a></li>
+<li><a href="stdlib/cli.html">cli</a></li>
+<li><a href="stdlib/colorlib.html">colorlib</a></li>
+<li><a href="stdlib/csv.html">csv</a></li>
+<li><a href="stdlib/debug.html">debug</a></li>
+<li><a href="stdlib/fileIO.html">fileIO</a></li>
+<li><a href="stdlib/game.html">game</a></li>
+<li><a href="stdlib/image.html">image</a></li>
+<li><a href="stdlib/js.html">js</a></li>
+<li><a href="stdlib/json.html">json</a></li>
+<li><a href="stdlib/lua.html">lua</a></li>
+<li><a href="stdlib/math.html">math</a></li>
+<li><a href="stdlib/multiprocessing.html">multiprocessing</a></li>
+<li><a href="stdlib/network.html">network</a></li>
+<li><a href="stdlib/os.html">os</a></li>
+<li><a href="stdlib/path.html">path</a></li>
+<li><a href="stdlib/random.html">random</a></li>
+<li><a href="stdlib/re.html">re</a></li>
+<li><a href="stdlib/regex.html">regex</a></li>
+<li><a href="stdlib/server.html">server</a></li>
+<li><a href="stdlib/shell.html">shell</a></li>
+<li><a href="stdlib/sound.html">sound</a></li>
+<li><a href="stdlib/sqldb.html">sqldb</a></li>
+<li><a href="stdlib/sys.html">sys</a></li>
+<li><a href="stdlib/text.html">text</a></li>
+<li><a href="stdlib/time.html">time</a></li>
+<li><a href="stdlib/tui.html">tui</a></li>
+<li><a href="stdlib/typing.html">typing</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+<h1 id="codeblocks-in-lynxer">Codeblocks in Lynxer</h1>
+<p>This document describes the <strong>codeblock</strong> feature in Lynxer, which allows storing and executing blocks of code dynamically. Codeblocks are a powerful tool for implementing callbacks, higher-order functions, and dynamic behavior.</p>
+<hr>
+<h2 id="table-of-contents">Table of Contents</h2>
+<ol>
+<li><a href="#introduction">Introduction</a></li>
+<li><a href="#syntax">Syntax</a></li>
+<li><a href="#storing-codeblocks">Storing Codeblocks</a></li>
+<li><a href="#executing-codeblocks">Executing Codeblocks</a></li>
+<li><a href="#parameterized-codeblocks">Parameterized Codeblocks</a></li>
+<li><a href="#inline-execution">Inline Execution</a></li>
+<li><a href="#named-codeblocks">Named Codeblocks</a></li>
+<li><a href="#limitations">Limitations</a></li>
+<li><a href="#examples">Examples</a></li>
+<li><a href="#see-also">See Also</a></li>
+</ol>
+<hr>
+<h2 id="introduction">Introduction</h2>
+<p>Codeblocks in Lynxer allow you to store executable blocks of code in variables and execute them dynamically. They are useful for implementing callbacks, higher-order functions, and dynamic behavior where the logic is determined at runtime.</p>
+<hr>
+<h2 id="syntax">Syntax</h2>
+<p>Codeblocks are defined using the <code>codeblock</code> type. They can be stored in variables, passed as arguments, and executed using the <code>exec()</code> function.</p>
+<hr>
+<h2 id="storing-codeblocks">Storing Codeblocks</h2>
+<p>You can store a block of code in a variable using the <code>codeblock</code> type:</p>
+<pre><code>codeblock helloWorld = {
+    println(&quot;Hello world!&quot;);
+};</code></pre>
+<hr>
+<h2 id="executing-codeblocks">Executing Codeblocks</h2>
+<p>To execute a stored codeblock, use the <code>exec()</code> function:</p>
+<pre><code>exec(){{helloWorld}}</code></pre>
+<hr>
+<h2 id="parameterized-codeblocks">Parameterized Codeblocks</h2>
+<p>Codeblocks can declare parameters and their types. These parameters are checked against the provided values when the codeblock is executed.</p>
+<h3 id="declaring-parameters">Declaring Parameters</h3>
+<pre><code>codeblock example = {
+    println(name, age);
+}[str name, int age]</code></pre>
+<h3 id="executing-with-parameters">Executing with Parameters</h3>
+<pre><code>exec(&quot;Alice&quot;, 30){{example}}</code></pre>
+<ul>
+<li>The parameter list is <strong>positional</strong> and <strong>typed</strong>. Each name used in the codeblock must appear in the list, and each supplied value is checked against its declared type.</li>
+<li>The semicolon after the closing <code>]</code> is optional.</li>
+</ul>
+<hr>
+<h2 id="inline-execution">Inline Execution</h2>
+<p>You can execute a codeblock inline using the <code>exec()</code> function with a parameter list:</p>
+<pre><code>str text = &quot;left&quot;;
+exec(str text) {
+    println(text);
+}</code></pre>
+<ul>
+<li>Each declared value is looked up in the surrounding scope, checked against its declared type, and is available under its declared name while the block runs.</li>
+<li>The declaration is temporary and does not create magic <code>exec</code> variables.</li>
+</ul>
+<hr>
+<h2 id="named-codeblocks">Named Codeblocks</h2>
+<p>Codeblocks can be passed as arguments to functions and executed dynamically:</p>
+<h3 id="example-passing-codeblocks-to-functions">Example: Passing Codeblocks to Functions</h3>
+<pre><code>global setup() {
+    codeblock code1 = {
+        println(&quot;A&quot;);
+    };
+}
+
+global something(){handler} {
+    exec(){{handler}}
+}
+
+global main() {
+    global.something(){{code1}}
+}</code></pre>
+<ul>
+<li>Codeblock identifiers are unique across the entire source file, regardless of where they are declared.</li>
+<li>A <code>codeblock</code> variable and a caller-supplied code-block parameter cannot reuse the same identifier.</li>
+<li>Named blocks retain their identity when passed to functions.</li>
+</ul>
+<hr>
+<h2 id="inferred-parameters">Inferred Parameters</h2>
+<p>If the parameter list is omitted, the names and types are inferred from the variables referenced in the codeblock:</p>
+<pre><code>codeblock example = {
+    println(text);
+};
+
+exec(&quot;Hello!&quot;){{example}}</code></pre>
+<ul>
+<li>The first value is bound to <code>text</code>, the next value to the next referenced variable, and so on.</li>
+<li>The number of provided values must match the number of variables required by the codeblock.</li>
+<li>These bindings are temporary and restored after execution.</li>
+</ul>
+<hr>
+<h2 id="limitations">Limitations</h2>
+<ol>
+<li><strong>No Nested Scopes</strong>: Codeblocks do not introduce nested scopes. Variables declared inside a codeblock are not visible outside of it, and vice versa.</li>
+<li><strong>No Block Expressions</strong>: Codeblocks cannot be used as expressions (e.g., returning their result directly). Use explicit <code>return</code> statements.</li>
+<li><strong>Unique Identifiers</strong>: Codeblock identifiers must be unique across the entire source file.</li>
+<li><strong>No Async/Await</strong>: Codeblocks cannot be used with <code>async</code>/<code>await</code> syntax.</li>
+<li><strong>Old Syntax</strong>: The old <code>exec({name})</code> form is replaced by <code>exec(){{name}}</code>.</li>
+</ol>
+<hr>
+<h2 id="examples">Examples</h2>
+<h3 id="example-1-basic-codeblock">Example 1: Basic Codeblock</h3>
+<pre><code>codeblock greet = {
+    println(&quot;Hello, &quot; + name + &quot;!&quot;);
+}[str name] // requires a user provided parameter named &quot;name&quot;
+
+exec(&quot;Alice&quot;){{greet}}</code></pre>
+<h3 id="example-2-inline-execution">Example 2: Inline Execution</h3>
+<pre><code>str message = &quot;World&quot;;
+exec(str message) {
+    println(&quot;Hello, &quot; + message + &quot;!&quot;);
+}</code></pre>
+<h3 id="example-3-passing-codeblocks-to-functions">Example 3: Passing Codeblocks to Functions</h3>
+<pre><code>global runCode(){code} {
+    exec(){{code}}
+}
+
+global main() {
+    codeblock task = {
+        println(&quot;Executing task...&quot;);
+    };
+    global.runCode(){{task}}
+}</code></pre>
+<h3 id="example-4-inferred-parameters">Example 4: Inferred Parameters</h3>
+<pre><code>codeblock printValues = {
+    println(x, y);
+};
+
+exec(10, 20){{printValues}}</code></pre>
+<hr>
+<h2 id="see-also">See Also</h2>
+<ul>
+<li><a href="language.html">Language Reference</a> — For more details on Lynxer syntax and types.</li>
+<li><a href="builtins.html">Built-in Functions</a> — For built-in higher-order functions.</li>
+<li><a href="limitations.html">Limitations</a> — For constraints on codeblocks and other features.</li>
+</ul>
+    </main>
+</div>
+
+<footer>
+    <a class="github" href="https://github.com/andy64lol/Lynxer" aria-label="Lynxer on GitHub" title="Lynxer on GitHub"><svg role="img" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a>
+    <span>Lynxer &middot; MIT License</span>
+</footer>
+
+</body>
+</html>

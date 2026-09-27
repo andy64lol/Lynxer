@@ -25,9 +25,12 @@
 <h3>Language</h3><ul>
 <li><a href="../language.html">language</a></li>
 <li><a href="../operators.html">operators</a></li>
+<li><a href="../conditionals.html">conditionals</a></li>
+<li><a href="../loops.html">loops</a></li>
 <li><a href="../types.html">types</a></li>
 <li><a href="../lists.html">lists</a></li>
 <li><a href="../tuples.html">tuples</a></li>
+<li><a href="../codeblocks.html">codeblocks</a></li>
 <li><a href="../modules.html">modules</a></li>
 <li><a href="../importAs.html">importAs</a></li>
 </ul>
@@ -41,11 +44,20 @@
 <li><a href="../builtins.html">builtins</a></li>
 <li><a href="../syscalls.html">syscalls</a></li>
 <li><a href="../native-module-abi.html">native-module-abi</a></li>
+<li><a href="../native-modules.html">native-modules</a></li>
 <li><a href="../stdlib-contracts.html">stdlib-contracts</a></li>
 <li><a href="../extending.html">extending</a></li>
 </ul>
+<h3>Runtime</h3><ul>
+<li><a href="../async.html">async</a></li>
+<li><a href="../native-memory.html">native-memory</a></li>
+<li><a href="../filesystem.html">filesystem</a></li>
+<li><a href="../networking.html">networking</a></li>
+<li><a href="../process.html">process</a></li>
+</ul>
 <h3>Reference</h3><ul>
 <li><a href="../legacy-surface.html">legacy-surface</a></li>
+<li><a href="../removed-features.html">removed-features</a></li>
 <li><a href="../limitations.html">limitations</a></li>
 </ul>
 <h3>Standard library</h3><ul>
@@ -91,8 +103,8 @@
 <tr><td><code>clickCommandCreate</code></td><td><code>(str name, str help) -&gt; int</code></td><td>Command handle, <code>0</code> on failure</td></tr>
 <tr><td><code>clickGroupCreate</code></td><td><code>(str name, str help) -&gt; int</code></td><td>Command group handle</td></tr>
 <tr><td><code>clickGroupAddCommand</code></td><td><code>(int group, int command, str name) -&gt; int</code></td><td>Registers a command in a group</td></tr>
-<tr><td><code>clickAddArgument</code></td><td><code>(int command, str name, bool required, int nargs) -&gt; int</code></td><td>Positional argument; <code>nargs &lt; 0</code> collects the rest</td></tr>
-<tr><td><code>clickAddOption</code></td><td><code>(int command, str declarations, str help, str default, bool flag, bool required, str kind) -&gt; int</code></td><td>Option or flag</td></tr>
+<tr><td><code>clickAddArgument</code></td><td><code>(int command, str name, bool required, int nargs, str help = &quot;&quot;) -&gt; int</code></td><td>Positional argument; <code>nargs &lt; 0</code> collects the rest</td></tr>
+<tr><td><code>clickAddOption</code></td><td><code>(int command, str declarations, str help, str default, bool flag, bool required, str kind, str envvar = &quot;&quot;, bool multiple = false) -&gt; int</code></td><td>Option or flag</td></tr>
 <tr><td><code>clickCommandSetShell</code></td><td><code>(int command, str template) -&gt; int</code></td><td>Shell template run when invoked</td></tr>
 <tr><td><code>clickInvoke</code></td><td><code>(int handle, str argsJson) -&gt; str</code></td><td>JSON <code>{&quot;params&quot;: …, &quot;output&quot;: …, &quot;exitCode&quot;: …}</code></td></tr>
 <tr><td><code>clickGroupInvoke</code></td><td><code>(int handle, str argsJson) -&gt; str</code></td><td>The first argument selects the subcommand</td></tr>
@@ -105,6 +117,10 @@
 <li><code>kind</code> is <code>text</code>, <code>int</code>, <code>float</code>, <code>bool</code> or <code>path</code>.</li>
 <li><code>argsJson</code> is a JSON array of argument strings, e.g. <code>[&quot;Ada&quot;, &quot;--shout&quot;]</code>.</li>
 <li><code>{parameterName}</code> placeholders in a shell template are replaced with the parsed values; <code>output</code> is the command's captured stdout.</li>
+<li><code>--help</code> / <code>-h</code> returns <code>{&quot;params&quot;: {}, &quot;help&quot;: &quot;…&quot;}</code> with a generated usage block (arguments, options and, for a group, subcommands) instead of running the shell template. A group or single-command app created with <code>noArgsHelp = true</code> returns the same help when invoked with no arguments.</li>
+<li>A flag can be negated with <code>--no-&lt;name&gt;</code>: <code>--no-shout</code> sets <code>shout</code> to false.</li>
+<li><code>envvar</code> is consulted when the option is absent, before <code>default</code>: the order is explicit argument, then environment variable, then declared default.</li>
+<li><code>multiple</code> collects repeated occurrences into a JSON array; a <code>{name}</code> template substitutes those values joined by a space.</li>
 <li>A failed parse returns <code>{&quot;error&quot;: &quot;…&quot;}</code> instead of failing the process.</li>
 </ul>
 <pre><code>global setup(){ import(&quot;cli&quot;); }

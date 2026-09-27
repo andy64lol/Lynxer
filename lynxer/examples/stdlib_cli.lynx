@@ -3,7 +3,7 @@ Fixture for the cli stdlib. Interpreted only (module imports are not
 bytecode-compilable). TTY-dependent helpers are not asserted because the test
 harness redirects stdout.
 ////
-global setup(){ import("cli"); import("os"); import("fileIO"); import("json"); }
+global setup(){ import("cli"); import("os"); import("fileIO"); import("json"); import("text"); }
 
 global main(){
     println(global.cli.argCount() >= 2);
@@ -73,4 +73,29 @@ global main(){
     str typerResult = global.cli.typerInvoke(app, "[\"Ada\"]");
     println(global.json.jsonGet(typerResult, "output") is "hi Ada");
     println(global.json.jsonGet(global.cli.typerLastParams(), "name") is "Ada");
+
+    // Help, flag negation, repeated options and environment defaults.
+    global.cli.clickInit();
+    int helpCommand = global.cli.clickCommandCreate("greet", "Greet a person");
+    global.cli.clickAddArgument(helpCommand, "name", true, 1, "Who to greet");
+    global.cli.clickAddOption(helpCommand, "--shout,-s", "Uppercase", "", true, false, "bool");
+    global.cli.clickAddOption(helpCommand, "--tag", "Tag", "", false, false, "text", "", true);
+    global.cli.clickAddOption(helpCommand, "--port", "Port", "0", false, false, "int", "LYNXER_CLI_PORT");
+    global.cli.clickCommandSetShell(helpCommand, "printf 'Hello {name} tags={tag}'");
+    str help = global.json.jsonGet(global.cli.clickInvoke(helpCommand, "[\"--help\"]"), "help");
+    println(global.text.contains(help, "Usage: greet"));
+    println(global.text.contains(help, "Who to greet"));
+    println(global.text.contains(help, "--shout, -s"));
+    global.cli.clickInvoke(helpCommand, "[\"Ada\", \"--no-shout\"]");
+    println(global.json.jsonGetBool(global.cli.clickLastParams(), "shout"));
+    global.cli.clickInvoke(helpCommand, "[\"Ada\", \"--tag\", \"a\", \"--tag\", \"b\"]");
+    println(global.json.jsonGet(global.cli.clickLastParams(), "tag") is "[\"a\", \"b\"]");
+    println(global.json.jsonGet(global.cli.clickInvoke(helpCommand, "[\"Ada\", \"--tag\", \"a\", \"--tag\", \"b\"]"), "output") is "Hello Ada tags=a b");
+    global.os.setenv("LYNXER_CLI_PORT", "9");
+    global.cli.clickInvoke(helpCommand, "[\"Ada\"]");
+    println(global.json.jsonGetInt(global.cli.clickLastParams(), "port") is 9);
+    global.cli.clickInvoke(helpCommand, "[\"Ada\", \"--port\", \"5\"]");
+    println(global.json.jsonGetInt(global.cli.clickLastParams(), "port") is 5);
+    int noArgsApp = global.cli.typerAppCreate("tool", "Tool app", true);
+    println(global.text.contains(global.json.jsonGet(global.cli.typerInvoke(noArgsApp, "[]"), "help"), "Usage: tool"));
 }

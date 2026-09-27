@@ -2501,6 +2501,55 @@ void ForStatement::execute(Environment& environment) const {
     }
 }
 
+RangeForStatement::RangeForStatement(std::string type, std::string name,
+                                     ExpressionPtr start, ExpressionPtr end,
+                                     bool inclusive, ExpressionPtr step,
+                                     int line, int column,
+                                     StatementList statements)
+    : type_(std::move(type)), name_(std::move(name)),
+      start_(std::move(start)), end_(std::move(end)), step_(std::move(step)),
+      inclusive_(inclusive), line_(line), column_(column),
+      statements_(std::move(statements)) {}
+
+void RangeForStatement::execute(Environment& environment) const {
+    const Value startValue = start_->evaluate(environment);
+    const Value endValue = end_->evaluate(environment);
+    const Value stepValue =
+        step_ == nullptr ? Value{static_cast<std::int64_t>(1)}
+                         : step_->evaluate(environment);
+    if (!std::holds_alternative<std::int64_t>(startValue) ||
+        !std::holds_alternative<std::int64_t>(endValue) ||
+        !std::holds_alternative<std::int64_t>(stepValue)) {
+        throw SourceError("for range bounds and step must be integers", line_,
+                          column_);
+    }
+    const std::int64_t start = std::get<std::int64_t>(startValue);
+    const std::int64_t end = std::get<std::int64_t>(endValue);
+    const std::int64_t step = std::get<std::int64_t>(stepValue);
+    if (step == 0) {
+        throw SourceError("for range step must not be zero", line_, column_);
+    }
+    environment.declare(name_, type_.empty() ? "int" : type_, Value{start},
+                        line_, column_);
+    const bool ascending = step > 0;
+    for (std::int64_t value = start;
+         ascending ? (inclusive_ ? value <= end : value < end)
+                   : (inclusive_ ? value >= end : value > end);
+         value += step) {
+        throwIfInterrupted();
+        environment.assign(name_, Value{value}, line_, column_);
+        bool shouldBreak = false;
+        try {
+            executeStatements(statements_, environment);
+        } catch (const LoopControl& control) {
+            shouldBreak = control.kind == LoopControlKind::Break;
+        }
+        if (shouldBreak) {
+            break;
+        }
+    }
+}
+
 DoWhileStatement::DoWhileStatement(ExpressionPtr condition,
                                    StatementList statements)
     : condition_(std::move(condition)), statements_(std::move(statements)) {}
@@ -2611,6 +2660,12 @@ bool statementsContainBreak(const StatementList& statements) {
         if (const auto* forStatement =
                 dynamic_cast<const ForStatement*>(statement.get())) {
             if (statementsContainBreak(forStatement->statements())) {
+                return true;
+            }
+        }
+        if (const auto* rangeForStatement =
+                dynamic_cast<const RangeForStatement*>(statement.get())) {
+            if (statementsContainBreak(rangeForStatement->statements())) {
                 return true;
             }
         }
@@ -2892,6 +2947,15 @@ void ForStatement::optimizeChildren(OptimizationStats& stats) {
     condition_ = optimizeExpression(std::move(condition_), stats);
     if (update_) {
         update_->optimizeChildren(stats);
+    }
+    optimizeStatementList(statements_, stats);
+}
+
+void RangeForStatement::optimizeChildren(OptimizationStats& stats) {
+    start_ = optimizeExpression(std::move(start_), stats);
+    end_ = optimizeExpression(std::move(end_), stats);
+    if (step_) {
+        step_ = optimizeExpression(std::move(step_), stats);
     }
     optimizeStatementList(statements_, stats);
 }
@@ -3401,6 +3465,16 @@ void ForStatement::dump(std::ostream& out, int indent) const {
     dumpStmtField(out, indent, "initializer", initializer_.get());
     dumpExprField(out, indent, "condition", condition_.get());
     dumpStmtField(out, indent, "update", update_.get());
+    dumpStmtListField(out, indent, "body", statements_);
+}
+
+void RangeForStatement::dump(std::ostream& out, int indent) const {
+    dumpScalarLine(out, indent, "RangeForStatement");
+    dumpExprField(out, indent, "start", start_.get());
+    dumpExprField(out, indent, "end", end_.get());
+    if (step_ != nullptr) {
+        dumpExprField(out, indent, "step", step_.get());
+    }
     dumpStmtListField(out, indent, "body", statements_);
 }
 

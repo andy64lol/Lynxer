@@ -749,6 +749,34 @@ private:
     StatementList statements_;
 };
 
+class RangeForStatement final : public Statement {
+public:
+    void dump(std::ostream& out, int indent) const override;
+    // `for (int i = start (.. | ..=) end [.. step]) { ... }` — iterates the
+    // loop variable over the range. `inclusive` selects `..=`; a missing step
+    // defaults to 1.
+    RangeForStatement(std::string type, std::string name, ExpressionPtr start,
+                      ExpressionPtr end, bool inclusive, ExpressionPtr step,
+                      int line, int column, StatementList statements);
+
+    void execute(Environment& environment) const override;
+
+    void optimizeChildren(OptimizationStats& stats) override;
+
+    const StatementList& statements() const { return statements_; }
+
+private:
+    std::string type_;
+    std::string name_;
+    ExpressionPtr start_;
+    ExpressionPtr end_;
+    ExpressionPtr step_;
+    bool inclusive_ = false;
+    int line_;
+    int column_;
+    StatementList statements_;
+};
+
 class DoWhileStatement final : public Statement {
 public:
     void dump(std::ostream& out, int indent) const override;
