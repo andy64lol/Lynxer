@@ -96,23 +96,23 @@ private:
     mutable bool warned_ = false;
 };
 
-// Lynxer executes async functions cooperatively on the interpreter thread.
-// Await is therefore an explicit expression node even though evaluating it
-// currently resumes the already-synchronous operation immediately.
+// `await expr` evaluates `expr` and, when the result is a task handle produced
+// by `asyncRun`, joins that task and yields its value; any other value passes
+// through unchanged (so `await asyncPollWait(...)` still works).
 class AwaitExpression final : public Expression {
 public:
     void dump(std::ostream& out, int indent) const override;
-    explicit AwaitExpression(ExpressionPtr expression)
-        : expression_(std::move(expression)) {}
+    AwaitExpression(ExpressionPtr expression, int line, int column)
+        : expression_(std::move(expression)), line_(line), column_(column) {}
 
-    Value evaluate(Environment& environment) const override {
-        return expression_->evaluate(environment);
-    }
+    Value evaluate(Environment& environment) const override;
 
     ExpressionPtr optimize(OptimizationStats& stats) override;
 
 private:
     ExpressionPtr expression_;
+    int line_;
+    int column_;
 };
 
 class BinaryExpression final : public Expression {

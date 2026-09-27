@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Async helpers - Lynxer</title>
+    <title>Async and threads - Lynxer</title>
     <link rel="stylesheet" href="../style.css">
 </head>
 <body>
@@ -93,48 +93,63 @@
 </ul>
     </nav>
     <main class="doc">
-<h1 id="async-helpers">Async helpers</h1>
-<p>Lynxer is single-threaded. The <code>async</code> keyword and the <code>async*</code> builtins exist, but they do <strong>not</strong> provide concurrency: every call runs to completion on the interpreter's one thread, and the event helpers are a cooperative polling layer rather than an event loop driving coroutines.</p>
+<h1 id="async-and-threads">Async and threads</h1>
+<p>Lynxer runs Lynxer code under a single global interpreter lock (the GIL): exactly one thread evaluates code at a time. Within that model, <code>async*</code> now provides <strong>real concurrency</strong> — <code>asyncRun</code> starts a function on a worker thread, <code>await</code> joins it, and every blocking or joining operation releases the GIL so the other work makes progress.</p>
+<h2 id="tasks">Tasks</h2>
+<p><code>asyncRun(function, arguments?)</code> starts <code>function(arguments...)</code> on a worker thread and returns an integer <strong>task handle</strong> immediately:</p>
+<pre><code>global setup(){}
+
+global fetch(int n){
+    asyncSleep(0.2);       // releases the GIL while it sleeps
+    return n + 1;
+}
+
+global main(){
+    int a = asyncRun(global.fetch, [1]);   // returns at once
+    int b = asyncRun(global.fetch, [2]);
+    println(await a);                      // 2, after joining a
+    println(await b);                      // 3
+}</code></pre>
+<p><code>await expr</code> evaluates <code>expr</code>: if the result is a task handle it joins that task and yields its value (re-raising the task's error if it failed); any other value passes through unchanged, so <code>await asyncPollWait(...)</code> still works and <code>await 41 + 1</code> is <code>42</code>.</p>
+<p>A task cannot await itself (that is reported, not deadlocked). Two tasks that await each other still deadlock, the same as two threads that join each other.</p>
+<h2 id="asyncgather"><code>asyncGather</code></h2>
+<p><code>asyncGather(a, b, ...)</code> joins every argument that is a task handle and returns the results as a list. Because arguments are evaluated before the call and <code>asyncRun</code> returns after spawning, the tasks start together:</p>
+<pre><code>any results = asyncGather(asyncRun(global.fetch, [1]), asyncRun(global.fetch, [2]));
+// two 200 ms sleeps finish in a little over 200 ms, not 400 ms</code></pre>
 <h2 id="local-async-sub-functions">Local async sub-functions</h2>
 <p>Inside a <code>global</code> function you may declare a local sub-function with <code>async</code> and call it as <code>async.name(args)</code>:</p>
-<pre><code>global setup(){}
-
-global main(){
-    async greet(str name) {
-        await asyncSleep(0.01);
-        return &quot;hi &quot; + name;
-    }
-    println(async.greet(&quot;Ada&quot;));   // hi Ada
-}</code></pre>
+<pre><code>async greet(str name) {
+    await asyncSleep(0.01);
+    return &quot;hi &quot; + name;
+}
+println(async.greet(&quot;Ada&quot;));   // hi Ada</code></pre>
 <ul>
 <li>The definition is local to the enclosing function and must appear before it is called.</li>
-<li><code>async.name(args)</code> runs the body <strong>immediately</strong> and returns its value; it is not a coroutine.</li>
-<li><code>async</code> at the top level (outside a function body) is a syntax error.</li>
+<li><code>async.name(args)</code> runs the body <strong>immediately</strong>, like a normal call; use <code>asyncRun</code> when you want a task. This keeps the polling helpers usable inside an <code>async</code> block.</li>
 </ul>
-<h2 id="await"><code>await</code></h2>
-<p><code>await expr</code> is an expression that evaluates to <code>expr</code>. It does not suspend, and it is <strong>not</strong> restricted to an async body:</p>
-<pre><code>global setup(){}
-
-global main(){
-    println(await 41 + 1);   // 42
-}</code></pre>
 <h2 id="built-in-helpers">Built-in helpers</h2>
 <table>
 <tr><th>Function</th><th>Notes</th></tr>
-<tr><td><code>asyncSleep(seconds)</code></td><td>Sleeps the current thread for <code>seconds</code>.</td></tr>
-<tr><td><code>asyncGather(a, b, ...)</code></td><td>Returns its arguments as a list, <code>[a, b, ...]</code>.</td></tr>
-<tr><td><code>asyncRun(fn)</code></td><td>Runs a callable; <code>asyncRun()</code> expects a function.</td></tr>
-<tr><td><code>asyncPollCreate</code> / <code>asyncPollRegister</code> / <code>asyncPollModify</code> / <code>asyncPollRemove</code> / <code>asyncPollWait</code> / <code>asyncPollDispatch</code> / <code>asyncPollClose</code></td><td>Poller over a filesystem/networking handle or a raw descriptor.</td></tr>
+<tr><td><code>asyncRun(function, arguments?)</code></td><td>Starts a task, returns its handle.</td></tr>
+<tr><td><code>asyncSleep(seconds)</code></td><td>Sleeps, releasing the GIL so other work runs.</td></tr>
+<tr><td><code>asyncGather(a, b, ...)</code></td><td>Joins task handles; returns the results as a list.</td></tr>
+<tr><td><code>asyncPollCreate</code> / <code>asyncPollRegister</code> / <code>asyncPollModify</code> / <code>asyncPollRemove</code> / <code>asyncPollWait</code> / <code>asyncPollDispatch</code> / <code>asyncPollClose</code></td><td>Poller over a filesystem/networking handle or a raw descriptor. <code>asyncPollWait</code> releases the GIL while it waits.</td></tr>
 <tr><td><code>asyncTimerCreate</code> / <code>asyncTimerCancel</code></td><td>One-shot or repeating timers attached to a poller.</td></tr>
 <tr><td><code>asyncWakeupCreate</code> / <code>asyncWakeupSignal</code> / <code>asyncWakeupClose</code></td><td>Thread-safe wakeup sources.</td></tr>
 </table>
 <p><code>asyncPollWait</code> returns a JSON array of event records; each has a <code>kind</code> (<code>io</code>, <code>timer</code>, <code>wakeup</code>) and a <code>token</code>, and <code>io</code> records carry <code>fd</code> and an <code>events</code> array.</p>
+<h2 id="threads-and-interleaving">Threads and interleaving</h2>
+<p><code>nativeThreadStart</code> runs a function on a worker thread (see <a href="builtins.html">builtins</a>). Because of the GIL, a worker evaluates only while the thread that holds the GIL is not evaluating — which is exactly what happens during joins, blocking sync waits, <code>asyncSleep</code>, <code>asyncPollWait</code>, and the explicit <code>nativeThreadYield(seconds?)</code>. So a program that wants a worker to make progress while the main body is doing other work can yield:</p>
+<pre><code>int handle = nativeThreadStart(global.worker, []);
+while (!done) { nativeThreadYield(0.01); }
+nativeThreadJoin(handle);</code></pre>
+<p>The GIL is deliberate: global state is not synchronized, so letting two threads evaluate at once would be a data race. The trade-off is that CPU-bound tasks do not run in parallel; use <code>nativeThreadYield</code> to interleave them.</p>
 <h2 id="differences-from-the-original">Differences from the original</h2>
-<p>The original reference described <code>asyncio</code>-backed cooperative concurrency — coroutines that yield, a concurrent <code>asyncGather</code>, and an <code>await</code> that suspends. None of that is implemented here: the syntax and the builtin names are present, <code>asyncGather</code> returns its arguments unchanged, and <code>await</code> is a pass-through. <code>make testLynxer</code> pins the real behaviour in <code>lynxer/examples/builtin_async.lynx</code>.</p>
+<p>The original reference described <code>asyncio</code>-backed coroutines. Lynxer has no coroutines: <code>asyncRun</code> is a thread-backed task, <code>await</code> is a join, and the syntax and builtin names are otherwise the same. <code>make testLynxer</code> pins the behaviour in <code>lynxer/examples/builtin_async.lynx</code>.</p>
 <h2 id="see-also">See also</h2>
 <ul>
 <li><a href="limitations.html">limitations</a> — the divergence register.</li>
-<li><a href="builtins.html">builtins</a> — the <code>async*</code> names in the builtin index.</li>
+<li><a href="builtins.html">builtins</a> — the <code>async*</code> and <code>nativeThread*</code> names.</li>
 </ul>
     </main>
 </div>

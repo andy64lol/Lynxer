@@ -4,7 +4,22 @@ global onEvent(str event){
     println(returnLength(event) > 0);
 }
 
+global worker(int n){
+    return n + 1;
+}
+
 global main(){
+    // Real tasks: `asyncRun` starts the function on a worker thread and returns
+    // a handle; `await` joins it. `asyncGather` joins the handles among its
+    // arguments, so its `asyncRun` calls run together.
+    int first = asyncRun(global.worker, [41]);
+    int second = asyncRun(global.worker, [0]);
+    println(await first);
+    println(await second);
+    any gathered = asyncGather(asyncRun(global.worker, [1]), asyncRun(global.worker, [2]));
+    println(returnLength(gathered));
+    println(await 1 + 1);
+
     int poll = asyncPollCreate();
     int file = filesystemOpen("/etc/hosts", "r");
     async run(){

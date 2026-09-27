@@ -1749,7 +1749,10 @@ void executeProgram(const std::unordered_map<std::string, Function>& functions,
     // A program may leave a native thread running. Join it before the
     // environment it captured goes away — including when main throws.
     struct ThreadReaper {
-        ~ThreadReaper() { joinNativeThreadsAtExit(); }
+        ~ThreadReaper() {
+            joinNativeThreadsAtExit();
+            joinAsyncTasksAtExit();
+        }
     } threadReaper;
     // Native modules are often imported from inside a source module (for
     // example `game.lynx` importing `game.so`), so the environment captured at
@@ -2438,6 +2441,10 @@ ExpressionPtr BinaryExpression::optimize(OptimizationStats& stats) {
     } catch (const std::exception&) {
         return nullptr;
     }
+}
+
+Value AwaitExpression::evaluate(Environment& environment) const {
+    return awaitValue(expression_->evaluate(environment), line_, column_);
 }
 
 ExpressionPtr AwaitExpression::optimize(OptimizationStats& stats) {

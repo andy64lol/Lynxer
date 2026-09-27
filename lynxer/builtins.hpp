@@ -19,6 +19,14 @@ bool isBuiltinName(const std::string& name);
 // worker cannot call back into an environment that is going away.
 void joinNativeThreadsAtExit();
 
+// Joins any async task a program left running. Called when a program finishes,
+// for the same reason as `joinNativeThreadsAtExit`.
+void joinAsyncTasksAtExit();
+
+// Resolves an `await`: joins a task handle produced by `asyncRun` and returns
+// its value, raising the task's failure if it failed; other values pass through.
+Value awaitValue(const Value& value, int line, int column);
+
 Value callBuiltin(const std::string& name, const std::vector<Value>& args,
                   Environment& environment, int line, int column);
 

@@ -44,20 +44,23 @@ call sites name an architecture, an architecture-agnostic fixture carries a
 
 Work that needs a decision before it can be built:
 
-- [ ] **`async*` semantics.** The family is implemented (`asyncRun`,
-  `asyncGather`, `asyncSleep`, the `asyncPoll*` set, timers and wakeups) and the
-  `async` language syntax exists but is eager — `await` does not suspend and
-  `asyncGather` returns its arguments. Decide whether to keep it as-is, make it
-  a real coroutine model, or freeze the surface.
-- [ ] **`nativeThread*` interleaving.** Threads are cooperative: a worker cannot
-  make progress while the main body is running, which is the opposite of a
-  pre-emptive runtime. Decide whether real interleaving is needed.
+Both resolved — see [Done](#done).
 - [x] ~~**`graphics` module.**~~ Built: a Rust **macroquad**-backed drawing,
   window, input and immediate-mode UI module (`rust/graphics`), separate from
   `game` rather than a replacement for it. `iced` is not in the vendored crate
   set, so macroquad is the vehicle.
 ## Done
 
+- [x] ~~**`async*` semantics.** Decided: real tasks, not a coroutine runtime.
+      `asyncRun` starts a worker thread and returns a task handle; `await` joins
+      a task handle (pass-through otherwise); `asyncGather` joins the handles
+      among its arguments; `asyncSleep` releases the interpreter lock.
+      `async.name(){}` stays eager.~~
+- [x] ~~**`nativeThread*` interleaving.** Decided: keep the global interpreter
+      lock (globals are unsynchronized), but release it at every blocking,
+      joining and yield point — including the new `nativeThreadYield(seconds?)`
+      — so a worker can make progress while the main body runs. Pre-emption
+      would be a data race and is not attempted.~~
 - [x] ~~**`tui` real backend.** Built on `ratatui` (`lynxer/rust/tui`), with
       `pulldown-cmark` for `markdown` and `syntect` for `printSyntax`. Every
       render operation draws a widget into an offscreen buffer and prints it —

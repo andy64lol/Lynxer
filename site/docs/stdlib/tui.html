@@ -99,7 +99,7 @@
 <p>The backend never takes over the terminal for a plain rendering call. Each rendering function draws a <code>ratatui</code> widget into an offscreen buffer and prints the result:</p>
 <ul>
 <li><strong>Without a TTY</strong> (piped output, CI, the test suite) the result is plain text with box-drawing characters, so the output is deterministic.</li>
-<li><strong>With a TTY and color enabled</strong> the same text carries ANSI SGR styling. <code>init(colorSystem)</code> accepts a system name; one containing <code>none</code> disables color.</li>
+<li><strong>With a TTY and color enabled</strong> the same text carries ANSI SGR styling. <code>init(colorSystem)</code> accepts a system name; one containing <code>none</code> disables color. <code>menu</code> and <code>image</code> do their real work only with a terminal; without one <code>menu</code> reads a line and <code>image</code> prints a placeholder.</li>
 </ul>
 <p><code>setWidth(width)</code> pins the render width (default <code>80</code>) and <code>setSoftWrap</code> controls wrapping. <code>panel*</code>, <code>rule*</code>, <code>table*</code>, <code>tree*</code>, <code>layout*</code>, <code>progress*</code>, <code>status*</code> and <code>live*</code> render the state that was previously stored, so they reflect the data rather than a fixed template. Progress, status and live families print a snapshot on each update.</p>
 <p><code>markdown</code> renders CommonMark through <a href="https://crates.io/crates/pulldown-cmark"><code>pulldown-cmark</code></a> (headings, emphasis, inline and fenced code, ordered/unordered/task lists, block quotes, rules, links and simple tables), and <code>printSyntax</code> highlights code with <a href="https://crates.io/crates/syntect"><code>syntect</code></a> using Sublime syntax definitions. The highlighted syntax and theme sets are embedded in the module, so nothing is read from disk and no system oniguruma is required (syntect uses the pure-Rust <code>fancy-regex</code> backend). <code>theme</code> chooses a highlighting theme, <code>themeNames</code> lists them and <code>themeName</code> reports the active one.</p>
@@ -250,6 +250,12 @@
 <li><code>theme(name: string) -&gt; bool</code> — Select a highlighting theme.</li>
 <li><code>themeNames() -&gt; string</code> — JSON array of theme names.</li>
 <li><code>themeName() -&gt; string</code> — The active theme.</li>
+</ul>
+<h3 id="interactive-menu-svg-and-images">Interactive Menu, SVG and Images</h3>
+<ul>
+<li><code>menu(prompt: string, choicesJson: string) -&gt; int</code> — Arrow-key menu on a terminal (Up/Down, Enter, q/Esc to cancel); falls back to a typed line otherwise. Returns the index or <code>-1</code>.</li>
+<li><code>consoleSaveSvg(path: string) -&gt; string</code> — Writes the recorded output as a monospace SVG. Returns <code>&quot;ok&quot;</code> or <code>&quot;Error: &lt;message&gt;&quot;</code>.</li>
+<li><code>image(path: string, width: int, height: int)</code> — Renders an image as half blocks with 24-bit color on a color terminal, or a deterministic placeholder otherwise.</li>
 </ul>
 <h2 id="example">Example</h2>
 <pre><code>global setup(){

@@ -499,14 +499,17 @@ that name.
 | `nativeThreadIsAlive(handle)` | Whether the thread is still running |
 | `nativeThreadStatus(handle)` | `running` while it is, then `completed` or the error text |
 | `nativeThreadDetach(handle)` | Gives up the handle; the thread leaves the registry when it finishes |
+| `nativeThreadYield(seconds?)` | Releases the interpreter lock (sleeping `seconds`, or yielding the CPU) so another thread can run |
 
 **Threads are cooperative.** The interpreter evaluates Lynxer code on one thread
-at a time, and a worker takes that lock before calling back in, so a thread runs
-while the thread that started it is blocked in `nativeThreadJoin` or
-`nativeThreadJoinAll`, which release the lock before waiting. Two threads never
-evaluate at once — that is why no data race is possible — and it is why a
-worker's own output appears at the join rather than during the main body.
-Programs that leave a thread running have it joined when the program finishes.
+at a time (a global lock), and a worker takes that lock before calling back in.
+The lock is released wherever the holding thread blocks or yields:
+`nativeThreadJoin`/`nativeThreadJoinAll`, the blocking synchronization waits
+below, `asyncSleep`, `asyncPollWait`, and `nativeThreadYield`. Two threads never
+evaluate at once — that is why no data race is possible — so a CPU-bound worker
+does not run in parallel; call `nativeThreadYield` to interleave it with the
+main body. Programs that leave a thread running have it joined when the program
+finishes.
 
 ## Native synchronization
 
@@ -593,19 +596,22 @@ lifecycle error. A retained function address fails cleanly after
 
 ## Async
 
-The `async*` family performs I/O without a language-level event loop.
-`asyncRun(function, arguments?)` starts a Lynxer function in the async runtime,
-and `await` in the caller yields until the operation completes. Timers, wakeups
-and file/IO readiness sources are registered on a poll set and awaited with
-`asyncPollWait`; `asyncPollDispatch` awaits them and invokes a Lynxer callback
-for each ready event. Evaluation stays cooperative — the interpreter runs one
-Lynxer frame at a time.
+The `async*` family runs Lynxer functions as **real tasks**. `asyncRun(function,
+arguments?)` starts the function on a worker thread and returns a task handle;
+`await expr` joins a task handle (and passes any other value through);
+`asyncGather(a, b, ...)` joins the handles among its arguments and returns the
+results as a list. Timers, wakeups and file/IO readiness sources are registered
+on a poll set and awaited with `asyncPollWait`; `asyncPollDispatch` awaits them
+and invokes a Lynxer callback for each ready event. Concurrency is real but
+subject to the interpreter's global lock, so tasks interleave rather than run in
+parallel; blocking operations release the lock. See
+[async.md](async.md).
 
 | Builtin | Notes |
 | --- | --- |
-| `asyncRun(function, arguments?)` | Starts a function; returns a handle |
-| `asyncGather(values...)` | Collects its arguments into a list |
-| `asyncSleep(seconds)` | Suspends the current task for a non-negative duration |
+| `asyncRun(function, arguments?)` | Starts a task on a worker thread; returns its handle |
+| `asyncGather(values...)` | Joins the task handles among its arguments; returns the results as a list |
+| `asyncSleep(seconds)` | Sleeps, releasing the interpreter lock so other work runs |
 | `asyncPollCreate()` | Creates a poll set and returns a handle |
 | `asyncPollRegister(poll, resource, events, token)` | Registers a resource for `read`, `write` or `readwrite` |
 | `asyncPollModify(poll, resource, events, token)` | Changes the interest and token |

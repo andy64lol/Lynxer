@@ -14,6 +14,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <exception>
 #include <filesystem>
 #include <iostream>
 #include <memory>
@@ -5039,6 +5040,29 @@ Value builtinNativeThreadDetach(const std::vector<Value>& args, Environment&,
     return std::int64_t{0};
 }
 
+Value builtinNativeThreadYield(const std::vector<Value>& args, Environment&,
+                               int line, int column) {
+    if (args.size() > 1 || (args.size() == 1 && !isNumber(args[0]))) {
+        fail("nativeThreadYield(seconds?) expects an optional number", line,
+             column);
+    }
+    const double seconds = args.empty() ? 0.0 : asNumber(args[0], line, column);
+    if (seconds < 0) {
+        fail("nativeThreadYield(seconds?) expects a non-negative duration", line,
+             column);
+    }
+    // Release the interpreter lock so another thread can run, then sleep (or
+    // just yield the CPU) before taking it again.
+    unlockInterpreter();
+    if (seconds > 0) {
+        std::this_thread::sleep_for(std::chrono::duration<double>(seconds));
+    } else {
+        std::this_thread::yield();
+    }
+    lockInterpreter();
+    return std::int64_t{0};
+}
+
 // --- Managed native synchronization built-ins --------------------------------
 //
 // Mutex, condition-variable and semaphore handles. They cooperate with
@@ -6205,50 +6229,70 @@ Value builtinAsyncPollRemove(const std::vector<Value>& args, Environment&,
     return std::int64_t{0};
 }
 
-Value asyncPollWaitValues(AsyncPoll& poll, std::int64_t timeout,
+Value asyncPollWaitValues(std::int64_t handle, std::int64_t timeout,
                           std::int64_t maximum, int line, int column) {
     if (maximum <= 0) {
         fail("asyncPollWait max_events must be positive", line, column);
     }
     std::vector<struct pollfd> descriptors;
     std::vector<int> fds;
-    for (const auto& entry : poll.registrations) {
-        descriptors.push_back(pollfd{entry.first, entry.second.mask, 0});
-        fds.push_back(entry.first);
-    }
-    for (const auto handle : poll.wakeups) {
-        const auto found = asyncWakeups().find(handle);
-        if (found != asyncWakeups().end()) {
-            descriptors.push_back(pollfd{found->second.read, POLLIN, 0});
-            fds.push_back(found->second.read);
-        }
-    }
     int waitMs = timeout < 0 ? -1 : static_cast<int>(std::min<std::int64_t>(
                                               timeout, 2147483647));
-    const auto now = std::chrono::steady_clock::now();
-    for (const auto& entry : poll.timers) {
-        const auto duration = entry.second.deadline - now;
-        const auto remaining = std::chrono::duration_cast<
-            std::chrono::milliseconds>(duration).count();
-        // Round up so a sub-millisecond remainder does not turn into a
-        // zero-time poll immediately before a timer is due.
-        const std::int64_t rounded =
-            duration <= std::chrono::steady_clock::duration::zero()
-                ? 0
-                : remaining + 1;
-        waitMs = waitMs < 0
-                     ? static_cast<int>(std::min<std::int64_t>(
-                           2147483647, rounded))
-                     : std::min(waitMs, static_cast<int>(std::min<std::int64_t>(
-                                             2147483647, rounded)));
+    {
+        const auto found = asyncPolls().find(handle);
+        if (found == asyncPolls().end() || found->second.closed) {
+            return makeList(std::vector<Value>{});
+        }
+        AsyncPoll& poll = found->second;
+        for (const auto& entry : poll.registrations) {
+            descriptors.push_back(pollfd{entry.first, entry.second.mask, 0});
+            fds.push_back(entry.first);
+        }
+        for (const auto pollWake : poll.wakeups) {
+            const auto wake = asyncWakeups().find(pollWake);
+            if (wake != asyncWakeups().end()) {
+                descriptors.push_back(pollfd{wake->second.read, POLLIN, 0});
+                fds.push_back(wake->second.read);
+            }
+        }
+        const auto now = std::chrono::steady_clock::now();
+        for (const auto& entry : poll.timers) {
+            const auto duration = entry.second.deadline - now;
+            const auto remaining = std::chrono::duration_cast<
+                std::chrono::milliseconds>(duration).count();
+            // Round up so a sub-millisecond remainder does not turn into a
+            // zero-time poll immediately before a timer is due.
+            const std::int64_t rounded =
+                duration <= std::chrono::steady_clock::duration::zero()
+                    ? 0
+                    : remaining + 1;
+            waitMs = waitMs < 0
+                         ? static_cast<int>(std::min<std::int64_t>(
+                               2147483647, rounded))
+                         : std::min(waitMs,
+                                    static_cast<int>(std::min<std::int64_t>(
+                                        2147483647, rounded)));
+        }
     }
+    // Release the interpreter lock while waiting so other tasks and native
+    // threads make progress. The registries are re-read under the lock after
+    // the wait, so the snapshot above is never read concurrently.
+    unlockInterpreter();
     const int status = ::poll(descriptors.data(), descriptors.size(), waitMs);
+    lockInterpreter();
     if (status < 0) {
         if (errno == EINTR) {
-            return {};
+            return Value{};
         }
         failErrno("asyncPollWait", line, column);
     }
+    // The poller (or a wakeup it referenced) may have been closed while the
+    // lock was released.
+    const auto found = asyncPolls().find(handle);
+    if (found == asyncPolls().end() || found->second.closed) {
+        return makeList(std::vector<Value>{});
+    }
+    AsyncPoll& poll = found->second;
     std::vector<Value> events;
     for (std::size_t index = 0; index < descriptors.size() &&
                                 events.size() < static_cast<std::size_t>(maximum);
@@ -6258,13 +6302,13 @@ Value asyncPollWaitValues(AsyncPoll& poll, std::int64_t timeout,
         }
         bool isWakeup = false;
         for (const auto wakeHandle : poll.wakeups) {
-            const auto found = asyncWakeups().find(wakeHandle);
-            if (found != asyncWakeups().end() &&
-                found->second.read == fds[index]) {
+            const auto wake = asyncWakeups().find(wakeHandle);
+            if (wake != asyncWakeups().end() &&
+                wake->second.read == fds[index]) {
                 char buffer[64];
-                (void)::read(found->second.read, buffer, sizeof(buffer));
-                events.push_back(asyncEventJson("wakeup", found->second.token,
-                                                -1, ""));
+                (void)::read(wake->second.read, buffer, sizeof(buffer));
+                events.push_back(
+                    asyncEventJson("wakeup", wake->second.token, -1, ""));
                 isWakeup = true;
                 break;
             }
@@ -6309,11 +6353,14 @@ Value builtinAsyncPollWait(const std::vector<Value>& args, Environment&,
              "three arguments",
              line, column);
     }
+    const auto* handle = std::get_if<std::int64_t>(&args[0]);
+    if (handle == nullptr) {
+        fail("asyncPollWait() expects a poll handle", line, column);
+    }
+    (void)requireAsyncPoll(args[0], "asyncPollWait", line, column);
     std::int64_t timeout = args.size() > 1 ? toInt(args[1], line, column) : -1;
     std::int64_t maximum = args.size() > 2 ? toInt(args[2], line, column) : 64;
-    return asyncPollWaitValues(
-        requireAsyncPoll(args[0], "asyncPollWait", line, column), timeout,
-        maximum, line, column);
+    return asyncPollWaitValues(*handle, timeout, maximum, line, column);
 }
 
 Value builtinAsyncPollDispatch(const std::vector<Value>& args,
@@ -6331,9 +6378,13 @@ Value builtinAsyncPollDispatch(const std::vector<Value>& args,
                                                  : -1;
     const std::int64_t maximum = args.size() > 3 ? toInt(args[3], line, column)
                                                   : 64;
-    const Value values = asyncPollWaitValues(
-        requireAsyncPoll(args[0], "asyncPollDispatch", line, column), timeout,
-        maximum, line, column);
+    const auto* pollHandle = std::get_if<std::int64_t>(&args[0]);
+    if (pollHandle == nullptr) {
+        fail("asyncPollDispatch() expects a poll handle", line, column);
+    }
+    (void)requireAsyncPoll(args[0], "asyncPollDispatch", line, column);
+    const Value values =
+        asyncPollWaitValues(*pollHandle, timeout, maximum, line, column);
     const auto* list = asList(values);
     for (const Value& event : (*list)->elements) {
         environment.callUserFunction((*callback)->name, {event}, {}, line,
@@ -6480,6 +6531,107 @@ Value builtinAsyncWakeupClose(const std::vector<Value>& args, Environment&,
     return std::int64_t{0};
 }
 
+// --- Async tasks -------------------------------------------------------------
+//
+// `asyncRun` starts a Lynxer function on a worker thread and returns a task
+// handle. `await` and `asyncGather` join a task, releasing the interpreter lock
+// while they wait so other tasks and native threads run. This is the same GIL
+// model as `nativeThread*`: exactly one thread evaluates Lynxer code at a time.
+
+struct AsyncTaskEntry {
+    std::thread worker;
+    std::mutex mutex;
+    Value result;
+    std::exception_ptr error;
+    std::int64_t handle = 0;
+};
+
+std::unordered_map<std::int64_t, std::shared_ptr<AsyncTaskEntry>>& asyncTasks() {
+    static std::unordered_map<std::int64_t, std::shared_ptr<AsyncTaskEntry>>
+        tasks;
+    return tasks;
+}
+
+std::mutex& asyncTasksMutex() {
+    static std::mutex mutex;
+    return mutex;
+}
+
+std::int64_t nextTaskHandle() {
+    static std::int64_t next = 1;
+    return next++;
+}
+
+// The handle of the task the current thread is running, so that a task awaiting
+// itself is reported instead of deadlocking.
+thread_local std::int64_t currentTaskHandle = 0;
+
+std::shared_ptr<AsyncTaskEntry> findTask(std::int64_t handle) {
+    std::lock_guard<std::mutex> guard(asyncTasksMutex());
+    const auto found = asyncTasks().find(handle);
+    return found == asyncTasks().end() ? nullptr : found->second;
+}
+
+Value joinTask(const std::shared_ptr<AsyncTaskEntry>& entry, int line,
+               int column) {
+    if (entry->handle == currentTaskHandle) {
+        fail("a task cannot await itself", line, column);
+    }
+    // Release the interpreter lock while waiting so the worker can evaluate.
+    unlockInterpreter();
+    if (entry->worker.joinable()) {
+        entry->worker.join();
+    }
+    lockInterpreter();
+    Value result;
+    std::exception_ptr error;
+    {
+        std::lock_guard<std::mutex> guard(entry->mutex);
+        result = entry->result;
+        error = entry->error;
+    }
+    {
+        std::lock_guard<std::mutex> guard(asyncTasksMutex());
+        asyncTasks().erase(entry->handle);
+    }
+    if (error != nullptr) {
+        std::rethrow_exception(error);
+    }
+    return result;
+}
+
+Value awaitValueInternal(const Value& value, int line, int column) {
+    const auto* handle = std::get_if<std::int64_t>(&value);
+    if (handle == nullptr) {
+        return value;
+    }
+    const std::shared_ptr<AsyncTaskEntry> entry = findTask(*handle);
+    if (entry == nullptr) {
+        return value;
+    }
+    return joinTask(entry, line, column);
+}
+
+void joinAsyncTasksAtExitInternal() {
+    std::vector<std::shared_ptr<AsyncTaskEntry>> pending;
+    {
+        std::lock_guard<std::mutex> guard(asyncTasksMutex());
+        for (const auto& pair : asyncTasks()) {
+            pending.push_back(pair.second);
+        }
+    }
+    for (const auto& entry : pending) {
+        unlockInterpreter();
+        if (entry->worker.joinable()) {
+            entry->worker.join();
+        }
+        lockInterpreter();
+        std::lock_guard<std::mutex> guard(asyncTasksMutex());
+        asyncTasks().erase(entry->handle);
+    }
+}
+
+
 Value builtinAsyncSleep(const std::vector<Value>& args, Environment&, int line,
                         int column) {
     if (args.size() != 1 || !isNumber(args[0])) {
@@ -6491,7 +6643,11 @@ Value builtinAsyncSleep(const std::vector<Value>& args, Environment&, int line,
         fail("asyncSleep(seconds) expects a non-negative duration", line,
              column);
     }
+    // Release the interpreter lock while sleeping so other tasks and native
+    // threads make progress.
+    unlockInterpreter();
     std::this_thread::sleep_for(std::chrono::duration<double>(seconds));
+    lockInterpreter();
     return Value{};
 }
 
@@ -6515,13 +6671,44 @@ Value builtinAsyncRun(const std::vector<Value>& args, Environment& environment,
         fail("asyncRun(function, arguments?) expects one or two arguments", line,
              column);
     }
-    return environment.callUserFunction((*function)->name, arguments, {}, line,
-                                        column);
+
+    auto entry = std::make_shared<AsyncTaskEntry>();
+    entry->handle = nextTaskHandle();
+    {
+        std::lock_guard<std::mutex> guard(asyncTasksMutex());
+        asyncTasks()[entry->handle] = entry;
+    }
+    const std::string name = (*function)->name;
+    entry->worker = std::thread(
+        [entry, &environment, name, arguments = std::move(arguments), line,
+         column]() {
+            currentTaskHandle = entry->handle;
+            lockInterpreter();
+            try {
+                const Value result = environment.callUserFunction(
+                    name, arguments, {}, line, column);
+                std::lock_guard<std::mutex> guard(entry->mutex);
+                entry->result = result;
+            } catch (...) {
+                std::lock_guard<std::mutex> guard(entry->mutex);
+                entry->error = std::current_exception();
+            }
+            unlockInterpreter();
+            currentTaskHandle = 0;
+        });
+    return entry->handle;
 }
 
-Value builtinAsyncGather(const std::vector<Value>& args, Environment&,
-                         int, int) {
-    return makeList(args);
+Value builtinAsyncGather(const std::vector<Value>& args, Environment&, int line,
+                         int column) {
+    // Each argument is already evaluated; joining the task handles among them is
+    // what makes `asyncGather(asyncRun(f), asyncRun(g))` run f and g together.
+    std::vector<Value> results;
+    results.reserve(args.size());
+    for (const Value& argument : args) {
+        results.push_back(awaitValue(argument, line, column));
+    }
+    return makeList(std::move(results));
 }
 
 void joinNativeThreadsAtExitInternal() {
@@ -6786,6 +6973,7 @@ const std::unordered_map<std::string, Handler>& handlerTable() {
         {"nativeThreadIsAlive", builtinNativeThreadIsAlive},
         {"nativeThreadStatus", builtinNativeThreadStatus},
         {"nativeThreadDetach", builtinNativeThreadDetach},
+        {"nativeThreadYield", builtinNativeThreadYield},
         {"nativeMutexCreate", builtinNativeMutexCreate},
         {"nativeMutexLock", builtinNativeMutexLock},
         {"nativeMutexTryLock", builtinNativeMutexTryLock},
@@ -6859,6 +7047,7 @@ const std::unordered_set<std::string>& unsupportedTable() {
 #if !LYNXER_POSIX_BUILTINS
         "nativeThreadStart", "nativeThreadJoin", "nativeThreadJoinAll",
         "nativeThreadIsAlive", "nativeThreadStatus", "nativeThreadDetach",
+        "nativeThreadYield",
 #endif
 #if !LYNXER_POSIX_BUILTINS
         "processSpawn", "processWrite", "processCloseInput", "processRead",
@@ -7122,5 +7311,11 @@ Value callBuiltin(const std::string& name, const std::vector<Value>& args,
     }
     fail("unknown function '" + name + "'", line, column);
 }
+
+Value awaitValue(const Value& value, int line, int column) {
+    return awaitValueInternal(value, line, column);
+}
+
+void joinAsyncTasksAtExit() { joinAsyncTasksAtExitInternal(); }
 
 } // namespace lynxer

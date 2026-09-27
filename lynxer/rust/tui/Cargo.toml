@@ -19,3 +19,6 @@ pulldown-cmark = "0.12"
 # Sublime-syntax highlighting. The `fancy` backend is pure Rust, so no system
 # oniguruma is needed and the module keeps building without extra packages.
 syntect = { version = "5.2", default-features = false, features = ["default-fancy"] }
+# Image decoding for `image()`. The same crate and version as `rust/image`, so
+# it is already in Cargo.lock.
+image = { version = "0.25", default-features = false, features = ["bmp", "gif", "jpeg", "png"] }

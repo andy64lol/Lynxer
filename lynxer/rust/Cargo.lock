@@ -1300,6 +1300,7 @@ name = "lynxer_tui"
 version = "0.1.0"
 dependencies = [
  "crossterm",
+ "image 0.25.10",
  "lynxer_abi",
  "pulldown-cmark",
  "ratatui",

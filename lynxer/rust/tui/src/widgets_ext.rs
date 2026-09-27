@@ -4,6 +4,7 @@
 //! mirroring how `lib.rs` handles paragraphs, tables and trees.
 
 use crate::render::render_to_string;
+use ratatui::style::{Modifier, Style};
 use ratatui::text::Line;
 use ratatui::widgets::{
     Bar, BarChart, BarGroup, Block, Borders, Gauge, LineGauge, List, ListItem, Sparkline, Tabs,
@@ -31,6 +32,27 @@ pub fn list(width: u16, ansi: bool, items: &[String], title: &str, numbered: boo
     let height = (entries.len() as u16).saturating_add(2).max(2);
     render_to_string(width, height, ansi, true, move |area, buffer| {
         List::new(entries).block(block).render(area, buffer);
+    })
+}
+
+/// A menu list with the selected row highlighted (used by the interactive
+/// `menu` prompt).
+pub fn menu_list(width: u16, ansi: bool, items: &[String], selected: usize) -> String {
+    let entries: Vec<ListItem> = items
+        .iter()
+        .enumerate()
+        .map(|(index, item)| {
+            let entry = ListItem::new(item.clone());
+            if index == selected {
+                entry.style(Style::default().add_modifier(Modifier::REVERSED))
+            } else {
+                entry
+            }
+        })
+        .collect();
+    let height = (entries.len() as u16).max(1);
+    render_to_string(width, height, ansi, true, move |area, buffer| {
+        List::new(entries).render(area, buffer);
     })
 }
 

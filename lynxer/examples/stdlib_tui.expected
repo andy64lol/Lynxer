@@ -129,6 +129,8 @@ base16-ocean.dark
 first screen
 second screen
 second screen
+ok
+[image 8x4: /tmp/lynxer_tui_missing.png]
 Alice
 secret
 42
@@ -138,5 +140,6 @@ true
 false
 2
 [0,2]
+1
 line one
 line two

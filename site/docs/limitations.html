@@ -334,7 +334,7 @@
 <li><strong>Prompts require stdin.</strong> They read one line and return the documented default at end-of-file rather than blocking; <code>askPassword</code> disables echo only on a terminal.</li>
 </ul>
 <ul>
-<li><strong><code>enter</code>/<code>exit</code> gate raw mode on a TTY.</strong> Without a terminal they are inert, so a non-interactive run never switches screens.</li>
+<li><strong><code>enter</code>/<code>exit</code> gate raw mode on a TTY.</strong> Without a terminal they are inert, so a non-interactive run never switches screens. The same applies to <code>menu</code> (it falls back to a typed line) and <code>image</code> (it prints <code>[image WxH: path]</code> until a color terminal renders the half blocks).</li>
 </ul>
 <h3 id="image--constrained-behavior"><code>image</code> — Constrained Behavior</h3>
 <ul>
@@ -381,15 +381,22 @@
 <li><strong>Function resolution:</strong> <code>nativeThreadStart(global.worker, [int 42])</code> passes a named global function. Lynxer resolves <code>global.&lt;name&gt;</code> to a callable value when no variable has that name. <code>returnType</code> reports <code>codeblock</code> for such a value.</li>
 </ul>
 <ul>
-<li><strong>Cooperative threading:</strong> The interpreter evaluates Lynxer code on one thread at a time, guarded by a single lock. A worker takes the lock before calling back.</li>
-<li>A thread runs only while the thread that started it is blocked in <code>nativeThreadJoin</code>/<code>nativeThreadJoinAll</code>, which release the lock before waiting.</li>
+<li><strong>Cooperative threading:</strong> The interpreter evaluates Lynxer code on one thread at a time, guarded by a single lock (the GIL). A worker takes the lock before calling back.</li>
+<li>The GIL is released wherever the holding thread blocks or yields: <code>nativeThreadJoin</code>/<code>nativeThreadJoinAll</code>, the blocking synchronization waits, <code>asyncSleep</code>, <code>asyncPollWait</code>, and the explicit <code>nativeThreadYield(seconds?)</code>.</li>
 <li>No two threads evaluate simultaneously, ensuring no data races by design.</li>
-<li>Trade-off: A thread does not progress while the main body is running.</li>
+<li>Trade-off: CPU-bound tasks do not run in parallel; interleave them with <code>nativeThreadYield</code>.</li>
 </ul>
 <ul>
 <li><strong>Behavioral notes:</strong></li>
 <li><code>nativeThreadIsAlive</code> is <code>true</code> and <code>nativeThreadStatus</code> is <code>running</code> immediately after <code>nativeThreadStart</code>, because the worker cannot have started yet.</li>
 <li>A thread left running by the program is joined when the program finishes.</li>
+</ul>
+<h3 id="async--thread-backed-tasks"><code>async*</code> — Thread-Backed Tasks</h3>
+<ul>
+<li><code>asyncRun</code> starts a real worker thread and returns a task handle (it no longer returns the function's value); <code>await</code> joins a task handle — re-raising its error — and passes any other value through; <code>asyncGather</code> joins the handles among its arguments.</li>
+<li>Concurrency is real but subject to the GIL above: tasks interleave (and a task's <code>asyncSleep</code>/<code>asyncPollWait</code> lets others run) rather than executing in parallel.</li>
+<li><code>async name(){}</code> local sub-functions remain <strong>eager</strong> — they run like an ordinary call — so the polling helpers stay usable inside an <code>async</code> block; use <code>asyncRun</code> for a task.</li>
+<li>There are no coroutines: <code>await</code> is a join, not a suspension. A task that awaits itself is reported (<code>a task cannot await itself</code>) rather than deadlocking; two tasks that await each other still deadlock.</li>
 </ul>
 <h2 id="cli-tools">CLI Tools</h2>
 <ul>

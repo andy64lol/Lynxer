@@ -304,7 +304,7 @@ expected="lynxer: $(LYNXER_SETUP_ERROR_FIXTURE):3:2: program must define global 
 	echo "received (status $$status): $$output"; \
 	exit 1; \
 	fi
-	@printf 'Alice\nsecret\n42\n2.5\n\ny\nn\n2\n0,2\nline one\nline two\n.\n' > $(CLYX_TMP)_tui_stdin; \
+	@printf 'Alice\nsecret\n42\n2.5\n\ny\nn\n2\n0,2\n1\nline one\nline two\n.\n' > $(CLYX_TMP)_tui_stdin; \
 	output="$$($(CLYX) $(LYNXER_TUI_FIXTURE) < $(CLYX_TMP)_tui_stdin 2>&1)"; \
 	status=$$?; \
 	if [ $$status -ne 0 ]; then \

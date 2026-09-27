@@ -289,7 +289,7 @@ The backend is real (`ratatui`), but it is not a pixel-for-pixel Rich equivalent
 
 - **Prompts require stdin.** They read one line and return the documented default at end-of-file rather than blocking; `askPassword` disables echo only on a terminal.
 
-- **`enter`/`exit` gate raw mode on a TTY.** Without a terminal they are inert, so a non-interactive run never switches screens.
+- **`enter`/`exit` gate raw mode on a TTY.** Without a terminal they are inert, so a non-interactive run never switches screens. The same applies to `menu` (it falls back to a typed line) and `image` (it prints `[image WxH: path]` until a color terminal renders the half blocks).
 
 ### `image` — Constrained Behavior
 
@@ -342,14 +342,21 @@ async, `rawPy`, and the un-ported modules — with their replacements.
 
 - **Function resolution:** `nativeThreadStart(global.worker, [int 42])` passes a named global function. Lynxer resolves `global.<name>` to a callable value when no variable has that name. `returnType` reports `codeblock` for such a value.
 
-- **Cooperative threading:** The interpreter evaluates Lynxer code on one thread at a time, guarded by a single lock. A worker takes the lock before calling back.
-  - A thread runs only while the thread that started it is blocked in `nativeThreadJoin`/`nativeThreadJoinAll`, which release the lock before waiting.
+- **Cooperative threading:** The interpreter evaluates Lynxer code on one thread at a time, guarded by a single lock (the GIL). A worker takes the lock before calling back.
+  - The GIL is released wherever the holding thread blocks or yields: `nativeThreadJoin`/`nativeThreadJoinAll`, the blocking synchronization waits, `asyncSleep`, `asyncPollWait`, and the explicit `nativeThreadYield(seconds?)`.
   - No two threads evaluate simultaneously, ensuring no data races by design.
-  - Trade-off: A thread does not progress while the main body is running.
+  - Trade-off: CPU-bound tasks do not run in parallel; interleave them with `nativeThreadYield`.
 
 - **Behavioral notes:**
   - `nativeThreadIsAlive` is `true` and `nativeThreadStatus` is `running` immediately after `nativeThreadStart`, because the worker cannot have started yet.
   - A thread left running by the program is joined when the program finishes.
+
+### `async*` — Thread-Backed Tasks
+
+- `asyncRun` starts a real worker thread and returns a task handle (it no longer returns the function's value); `await` joins a task handle — re-raising its error — and passes any other value through; `asyncGather` joins the handles among its arguments.
+- Concurrency is real but subject to the GIL above: tasks interleave (and a task's `asyncSleep`/`asyncPollWait` lets others run) rather than executing in parallel.
+- `async name(){}` local sub-functions remain **eager** — they run like an ordinary call — so the polling helpers stay usable inside an `async` block; use `asyncRun` for a task.
+- There are no coroutines: `await` is a join, not a suspension. A task that awaits itself is reported (`a task cannot await itself`) rather than deadlocking; two tasks that await each other still deadlock.
 
 ## CLI Tools
 

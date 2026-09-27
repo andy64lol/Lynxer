@@ -12,7 +12,8 @@ the result:
   with box-drawing characters, so the output is deterministic.
 - **With a TTY and color enabled** the same text carries ANSI SGR styling.
   `init(colorSystem)` accepts a system name; one containing `none` disables
-  color.
+  color. `menu` and `image` do their real work only with a terminal; without
+  one `menu` reads a line and `image` prints a placeholder.
 
 `setWidth(width)` pins the render width (default `80`) and `setSoftWrap`
 controls wrapping. `panel*`, `rule*`, `table*`, `tree*`, `layout*`, `progress*`,
@@ -177,6 +178,11 @@ returns `false` when a string contains an unknown token.
 - `theme(name: string) -> bool` — Select a highlighting theme.
 - `themeNames() -> string` — JSON array of theme names.
 - `themeName() -> string` — The active theme.
+
+### Interactive Menu, SVG and Images
+- `menu(prompt: string, choicesJson: string) -> int` — Arrow-key menu on a terminal (Up/Down, Enter, q/Esc to cancel); falls back to a typed line otherwise. Returns the index or `-1`.
+- `consoleSaveSvg(path: string) -> string` — Writes the recorded output as a monospace SVG. Returns `"ok"` or `"Error: <message>"`.
+- `image(path: string, width: int, height: int)` — Renders an image as half blocks with 24-bit color on a color terminal, or a deterministic placeholder otherwise.
 
 ## Example
 

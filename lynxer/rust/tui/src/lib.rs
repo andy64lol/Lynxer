@@ -25,7 +25,7 @@ use crate::render::{pad, render_to_string, wrapped_height};
 use crate::style::{parse_style, style_to_sgr, text_width};
 use crate::syntax::Highlighter;
 
-use crossterm::event::{self, Event as TermEvent, KeyCode};
+use crossterm::event::{self, Event as TermEvent, KeyCode, KeyEventKind};
 use crossterm::tty::IsTty;
 use lynxer_abi::{export_float, export_int, export_string, lynxer_module};
 use ratatui::layout::{Alignment, Constraint, Direction, Layout};
@@ -2060,6 +2060,149 @@ export_string!(tui_theme_name, args, {
     with_state(|state| state.highlighter().theme_name().to_string())
 });
 
+fn svg_document(lines: &[String]) -> String {
+    const LINE_HEIGHT: usize = 18;
+    let columns = lines
+        .iter()
+        .map(|line| text_width(line))
+        .max()
+        .unwrap_or(0)
+        .max(1);
+    let rows = lines.len().max(1);
+    let mut svg = format!(
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{}\" height=\"{}\" \
+         font-family=\"monospace\" font-size=\"14\">\n",
+        columns * 8 + 16,
+        rows * LINE_HEIGHT + 16
+    );
+    for (index, line) in lines.iter().enumerate() {
+        svg.push_str(&format!(
+            "<text x=\"8\" y=\"{}\" xml:space=\"preserve\">{}</text>\n",
+            (index + 1) * LINE_HEIGHT,
+            escape_xml(line)
+        ));
+    }
+    svg.push_str("</svg>\n");
+    svg
+}
+
+fn escape_xml(text: &str) -> String {
+    text.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&apos;")
+}
+
+/// Renders an image as half blocks with 24-bit color when the terminal supports
+/// it, or a deterministic placeholder otherwise (tests run without a TTY).
+fn render_image(ansi: bool, max_width: u16, path: &str, width: i64, height: i64) -> String {
+    let columns = if width <= 0 {
+        40usize
+    } else {
+        (width as usize).min(max_width as usize).max(1)
+    };
+    let rows = if height <= 0 {
+        (columns / 2).max(1)
+    } else {
+        (height as usize).max(1)
+    };
+    let placeholder = format!("[image {}x{}: {}]", columns, rows, path);
+    let Ok(opened) = image::open(path) else {
+        return placeholder;
+    };
+    let resized = opened
+        .resize_exact(
+            columns as u32,
+            (rows * 2) as u32,
+            image::imageops::FilterType::Lanczos3,
+        )
+        .to_rgba8();
+    if !ansi {
+        return placeholder;
+    }
+    half_blocks(&resized)
+}
+
+fn half_blocks(pixels: &image::RgbaImage) -> String {
+    let columns = pixels.width() as usize;
+    let rows = (pixels.height() as usize).div_ceil(2);
+    let mut out = String::new();
+    for row in 0..rows {
+        for column in 0..columns {
+            let top = pixels.get_pixel(column as u32, (row * 2) as u32);
+            let bottom = if row * 2 + 1 < pixels.height() as usize {
+                *pixels.get_pixel(column as u32, (row * 2 + 1) as u32)
+            } else {
+                image::Rgba([0, 0, 0, 0])
+            };
+            out.push_str(&format!(
+                "\x1b[38;2;{};{};{}m\x1b[48;2;{};{};{}m▀",
+                top[0], top[1], top[2], bottom[0], bottom[1], bottom[2]
+            ));
+        }
+        out.push_str("\x1b[0m");
+        if row + 1 < rows {
+            out.push('\n');
+        }
+    }
+    out
+}
+
+/// Restores the terminal to cooked mode when dropped.
+struct RawModeGuard;
+
+impl RawModeGuard {
+    fn new() -> Self {
+        let _ = crossterm::terminal::enable_raw_mode();
+        RawModeGuard
+    }
+}
+
+impl Drop for RawModeGuard {
+    fn drop(&mut self) {
+        let _ = crossterm::terminal::disable_raw_mode();
+    }
+}
+
+/// Arrow-key menu for a real terminal. Up/Down move, Enter selects, q/Esc
+/// cancels. Only called when stdin and stdout are both terminals.
+fn interactive_menu(width: u16, ansi: bool, choices: &[String]) -> i64 {
+    let _guard = RawModeGuard::new();
+    let mut selected = 0usize;
+    let mut stdout = std::io::stdout();
+    loop {
+        let frame = widgets_ext::menu_list(width, ansi, choices, selected);
+        let _ = crossterm::execute!(
+            stdout,
+            crossterm::cursor::MoveTo(0, 0),
+            crossterm::terminal::Clear(crossterm::terminal::ClearType::All),
+            crossterm::style::Print(&frame)
+        );
+        let _ = stdout.flush();
+        match event::read() {
+            Ok(TermEvent::Key(key)) => {
+                if key.kind == KeyEventKind::Release {
+                    continue;
+                }
+                match key.code {
+                    KeyCode::Up => selected = selected.saturating_sub(1),
+                    KeyCode::Down => {
+                        if selected + 1 < choices.len() {
+                            selected += 1;
+                        }
+                    }
+                    KeyCode::Enter => return selected as i64,
+                    KeyCode::Esc | KeyCode::Char('q') => return -1,
+                    _ => {}
+                }
+            }
+            Ok(_) => {}
+            Err(_) => return -1,
+        }
+    }
+}
+
 fn json_number_array(text: &str) -> Vec<u64> {
     match serde_json::from_str::<Value>(text) {
         Ok(Value::Array(items)) => items.iter().filter_map(Value::as_u64).collect(),
@@ -2188,6 +2331,46 @@ fn read_multiline(default: &str) -> String {
         lines.join("\n")
     }
 }
+
+// Interactively choose one of the JSON choices (arrow keys on a terminal, a
+// line otherwise); returns the index or -1.
+export_int!(tui_menu, args, {
+    let prompt = args.string(0);
+    let choices_json = args.string(1);
+    let _ = prompt;
+    with_state(|state| {
+        let choices = json_string_array(choices_json);
+        if choices.is_empty() {
+            return -1;
+        }
+        if is_tty() && std::io::stdin().is_tty() {
+            interactive_menu(state.width, ansi_enabled(state), &choices)
+        } else {
+            select_index(&choices)
+        }
+    })
+});
+
+// Save the recorded output as an SVG. Returns "ok" or "Error: <message>".
+export_string!(tui_console_save_svg, args, {
+    let path = args.string(0);
+    with_state(|state| match std::fs::write(path, svg_document(&state.lines)) {
+        Ok(()) => "ok".to_string(),
+        Err(error) => format!("Error: {error}"),
+    })
+});
+
+// Render an image as half blocks (color terminals) or a placeholder.
+export_int!(tui_image, args, {
+    let path = args.string(0);
+    let width = args.int(0);
+    let height = args.int(1);
+    with_state(|state| {
+        let rendered = render_image(ansi_enabled(state), state.width, path, width, height);
+        emit(state, &rendered);
+    });
+    0
+});
 
 const OPS: &[(&str, &str, &str)] = &[
     // Existence and version
@@ -2338,6 +2521,31 @@ const OPS: &[(&str, &str, &str)] = &[
     ("theme", "tui_theme", "cdecl:int64(...)"),
     ("themeNames", "tui_theme_names", "cdecl:cstring(...)"),
     ("themeName", "tui_theme_name", "cdecl:cstring(...)"),
+    // Interactive menu, SVG capture and image rendering
+    ("menu", "tui_menu", "cdecl:int64(...)"),
+    ("consoleSaveSvg", "tui_console_save_svg", "cdecl:cstring(...)"),
+    ("image", "tui_image", "cdecl:int64(...)"),
 ];
 
 lynxer_module!(OPS);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn half_blocks_pair_rows() {
+        let picture = image::RgbaImage::from_pixel(1, 2, image::Rgba([10, 20, 30, 255]));
+        let rendered = half_blocks(&picture);
+        assert!(rendered.contains("38;2;10;20;30"));
+        assert!(rendered.contains("48;2;10;20;30"));
+    }
+
+    #[test]
+    fn svg_escapes_and_counts_lines() {
+        let svg = svg_document(&["a<b".to_string(), "&".to_string()]);
+        assert!(svg.contains("a&lt;b"));
+        assert!(svg.contains("&amp;"));
+        assert!(svg.starts_with("<svg"));
+    }
+}

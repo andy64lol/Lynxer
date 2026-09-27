@@ -1482,7 +1482,8 @@ ExpressionPtr Parser::parseFactor() {
 ExpressionPtr Parser::parsePrimary() {
     const Token token = advance();
     if (token.kind == TokenKind::Identifier && token.text == "await") {
-        return std::make_unique<AwaitExpression>(parsePrimary());
+        return std::make_unique<AwaitExpression>(parsePrimary(), token.line,
+                                                 token.column);
     }
     if (token.kind == TokenKind::Number) {
         if (token.text.find('.') != std::string::npos) {

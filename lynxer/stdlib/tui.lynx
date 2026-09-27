@@ -222,3 +222,14 @@ global screenStop() { global.nativeTui.screenStop(); }
 global theme(str name) -> bool { return global.nativeTui.theme(name) isnt 0; }
 global themeNames() -> str { return global.nativeTui.themeNames(); }
 global themeName() -> str { return global.nativeTui.themeName(); }
+// ── Interactive menu, SVG and images ──────────────────────────────────
+
+// Chooses one of the JSON choices with arrow keys on a terminal, or a typed
+// line otherwise. Returns the index, or -1 to cancel.
+global menu(str prompt, str choicesJson) -> int { return global.nativeTui.menu(prompt, choicesJson); }
+
+// Saves the recorded output as an SVG. Returns "ok" or "Error: <message>".
+global consoleSaveSvg(str path) -> str { return global.nativeTui.consoleSaveSvg(path); }
+
+// Renders an image as half blocks on a color terminal, or a placeholder.
+global image(str path, int width, int height) { global.nativeTui.image(path, width, height); }

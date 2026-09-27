@@ -123,6 +123,10 @@ global main(){
     global.tui.screenUpdate("second screen");
     global.tui.screenStop();
 
+    // SVG capture and image rendering (placeholder without a color terminal).
+    println(global.tui.consoleSaveSvg("/tmp/lynxer_tui_scratch.svg"));
+    global.tui.image("/tmp/lynxer_tui_missing.png", 8, 4);
+
     // Prompts read the piped stdin supplied by the Makefile.
     println(global.tui.ask("name> "));
     println(global.tui.askPassword("pw> "));
@@ -133,5 +137,6 @@ global main(){
     println(global.tui.confirmDefault("ok? ", true));
     println(global.tui.select("pick> ", "[\"a\",\"bb\",\"ccc\"]"));
     println(global.tui.multiselect("many> ", "[\"x\",\"y\",\"z\"]"));
+    println(global.tui.menu("menu> ", "[\"alpha\",\"beta\",\"gamma\"]"));
     println(global.tui.editor("edit> ", "fallback"));
 }
