@@ -213,7 +213,7 @@ extern &quot;C&quot; int lynxer_module_init_v1(RegisterFunction f, RegisterConst
 <li>add its name to <code>LYNXER_RUST_MODULE_NAMES</code> in the root <code>Makefile</code>.</li>
 </ol>
 <p>Rust modules are skipped with a warning when <code>cargo</code> is absent, so Lynxer still builds without a Rust toolchain. Keep <code>rust/Cargo.lock</code> committed: the module must build offline.</p>
-<p>A crate is allowed to register <strong>nothing</strong>: <code>rust/ffi</code> is an intentional no-op <code>cdylib</code> that keeps the workspace uniform. A C++ module that needs POSIX is gated with <code>LYNXER_POSIX_BUILTINS</code>, as the managed <code>filesystem*</code>/<code>process*</code>/<code>networking*</code> families are, and falls back to <code>unsupportedTable()</code> otherwise.</p>
+<p><code>rust/ffi</code> is the one workspace member that is <strong>not</strong> a stdlib module: it is a <code>staticlib</code> native-call engine linked into the interpreter, built by its own Makefile rule and never added to <code>LYNXER_RUST_MODULE_NAMES</code> or installed into <code>stdlib/</code>. A C++ module that needs POSIX is gated with <code>LYNXER_POSIX_BUILTINS</code>, as the managed <code>filesystem*</code>/<code>process*</code>/<code>networking*</code> families are, and falls back to <code>unsupportedTable()</code> otherwise.</p>
 <hr>
 <h2 id="5-test-it">5. Test it</h2>
 <p>Add <code>examples/stdlib_&lt;name&gt;.lynx</code> and a sibling <code>examples/stdlib_&lt;name&gt;.expected</code>. <code>make test</code> runs every <code>examples/stdlib_*.lynx</code> and diffs its output against the <code>.expected</code> file, so the fixture is the specification for anything a user can observe.</p>

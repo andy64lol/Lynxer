@@ -99,7 +99,8 @@
 <ul>
 <li>A C++17 compiler (<code>g++</code> or <code>clang++</code>) and <code>make</code>.</li>
 <li><code>python3</code> to run <code>make testLynxer</code> (the contract and golden checks).</li>
-<li>Optional: a Rust toolchain (<code>cargo</code>) for the ten Rust-backed modules. They are <strong>skipped with a warning</strong> when <code>cargo</code> is not on <code>PATH</code>; the rest of Lynxer still builds.</li>
+<li>A Rust toolchain (<code>cargo</code>): the interpreter links the Rust native-call engine (<code>lynxer/rust/ffi</code>), so <code>cargo</code> is <strong>required</strong> to build <code>lynxer/lynxer</code>. A missing toolchain or a compile error fails the build.</li>
+<li><code>libffi</code> headers and <code>pkg-config</code> (e.g. <code>libffi-dev</code> on Debian/Ubuntu) for the native-call engine.</li>
 <li>Git and network access for the first <code>cargo</code> build: crates are fetched from crates.io. Nothing is compiled from vendored C/C++ sources.</li>
 </ul>
 <p>No system OpenSSL, Boost, CMake, cpp-httplib, Crow, or nlohmann/json is needed: TLS is <code>rustls</code>, the HTTP stack is <code>ureq</code>/<code>tungstenite</code>/<code>axum</code>, and JSON is <code>serde_json</code>.</p>
@@ -116,7 +117,10 @@ make buildLynxerArm64  # cross-build the ARM64 interpreter</code></pre>
 <li><code>lynxer/lynxer-arm64</code> — the ARM64 interpreter, from <code>buildLynxerArm64</code>.</li>
 <li><code>lynxer/stdlib/*.so</code> — the stdlib backends. The Rust-backed modules are produced by <code>cargo</code> under <code>lynxer/build/rust</code>; the C++ ones are compiled from <code>stdlib/*.cpp</code>.</li>
 </ul>
-<p>The Rust workspace has eleven member crates (<code>LYNXER_RUST_MODULE_NAMES</code> in the Makefile): the ten module backends <code>game</code>, <code>graphics</code>, <code>image</code>, <code>json</code>, <code>lua</code>, <code>network</code>, <code>server</code>, <code>sound</code>, <code>sqldb</code>, <code>tui</code>, plus <code>ffi</code>, which is an intentional no-op cdylib — the <code>ffi*</code> builtins are implemented in C++.</p>
+<ul>
+<li><code>lynxer/build/rust/release/liblynxer_ffi.a</code> — the native-call engine, a Rust <code>staticlib</code> built by <code>cargo</code> and linked into <code>lynxer/lynxer</code>. It is not a stdlib module and is not copied into <code>stdlib/</code>.</li>
+</ul>
+<p>The Rust workspace has eleven member crates: the ten stdlib module backends listed in <code>LYNXER_RUST_MODULE_NAMES</code> (<code>game</code>, <code>graphics</code>, <code>image</code>, <code>json</code>, <code>lua</code>, <code>network</code>, <code>server</code>, <code>sound</code>, <code>sqldb</code>, <code>tui</code>), plus <code>rust/ffi</code>, the required native-call engine described in <a href="native-module-abi.html#the-native-call-engine">native-module-abi</a>.</p>
 <h2 id="install">Install</h2>
 <pre><code>sudo ./lynxer/lynxer --install      # copy to /usr/bin/lynxer
 sudo ./lynxer/lynxer --uninstall    # remove /usr/bin/lynxer</code></pre>

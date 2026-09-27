@@ -540,9 +540,14 @@ other thread will release deadlocks — the same as the original.
 ## FFI
 
 The `ffi*` family loads a native shared library and calls a symbol by signature
-at run time, with no build step. It is implemented in C++ over `dlopen`/`dlsym`
-(there is no libffi), so the same call site can call any symbol whose signature
-is in the supported table.
+at run time, with no per-call build step. `ffiLoadLibrary`/`ffiLookup`/
+`ffiCloseLibrary` use `dlopen`/`dlsym`; the call itself is performed by a Rust
+engine built on [`libffi`](https://crates.io/crates/libffi) and linked into the
+interpreter as a `staticlib` (see
+[native-module-abi.md](native-module-abi.md#the-native-call-engine)). Any
+signature the engine's grammar can parse is callable — not just a fixed set of
+shapes — so a mixed argument list, a long argument list, or a `void` return is
+fine.
 
 | Builtin | Notes |
 | --- | --- |
@@ -554,9 +559,13 @@ is in the supported table.
 | `ffiCloseLibrary(handle)` | Unloads the library and invalidates its symbols |
 
 The signatures use the same grammar as native modules; see
-[native-module-abi.md](native-module-abi.md#signature-grammar).
+[native-module-abi.md](native-module-abi.md#signature-grammar). A `void` return
+yields `0`. Argument types are checked strictly: an `int64` parameter rejects a
+string, a `float64` parameter rejects a string, and a `cstring` parameter
+rejects a number.
 `lynxer/examples/builtin_ffi.lynx` demonstrates the full round trip (calling
-`strlen` and passing a Lynxer function back as a C callback).
+`strlen` and passing a Lynxer function back as a C callback), and
+`lynxer/examples/builtin_ffi_errors.lynx` pins the diagnostics.
 
 ## Explicit native-module handles
 

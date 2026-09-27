@@ -30,4 +30,7 @@ global main(){
     println(global.sigs.is(12));
     println(global.sigs.id(3));
     println(global.sigs.sii("ab", 3, 4));
+    println(global.sigs.sis("ab", 5, "cde"));
+    println(global.sigs.quad(1, 2, 3, 4));
+    println(global.sigs.sink(7));
 }

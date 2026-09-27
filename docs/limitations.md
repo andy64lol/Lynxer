@@ -97,7 +97,7 @@ Lynxer ships modules backed by native implementations. Ten of them are Rust crat
 - `sqldb` (`rusqlite`)
 - `tui` (`ratatui`/`crossterm`)
 
-These modules are skipped with a warning if `cargo` is missing, allowing the rest of Lynxer to build without a Rust toolchain. The Rust workspace includes an `ffi` member, an intentional no-op `cdylib`, since the `ffi*` builtins are implemented in C++.
+These modules are skipped with a warning if `cargo` is missing, allowing the rest of Lynxer to build without a Rust toolchain. The `ffi` workspace member is different: it is a `staticlib` linked into the interpreter (not a stdlib module), and it implements the shared native-call engine, so `cargo` is **required** to build the interpreter at all.
 
 ### `graphics` — Constrained Behavior
 

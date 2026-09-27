@@ -126,10 +126,12 @@ only and need no shared library.
 | [tui](stdlib/tui.md) | Rust | `ratatui` + `crossterm` |
 | [typing](stdlib/typing.md) | pure | Lynxer type builtins |
 
-The Rust workspace has eleven member crates
-(`LYNXER_RUST_MODULE_NAMES` in the Makefile): the ten module backends listed
-above, plus `ffi`, an intentional **no-op** cdylib — the `ffi*` builtins are
-implemented in C++ (`lynxer/builtins.cpp`), not by that crate. There is no
+The Rust workspace has eleven member crates: the ten module `cdylib` backends
+listed above (`LYNXER_RUST_MODULE_NAMES` in the Makefile), plus `ffi`, the
+required native-call engine — a `staticlib` linked into the interpreter through
+`lynxer/ffi_abi.h`, not a stdlib module. It is built on the `libffi` crate, so
+`cargo` and `libffi` headers are required to build the interpreter; see
+[native-module-abi.md](native-module-abi.md#the-native-call-engine). There is no
 CMake staging step and no `third_party/` directory: TLS is `rustls` (no system
 OpenSSL) and the HTTP/WebSocket stack is pure Rust.
 

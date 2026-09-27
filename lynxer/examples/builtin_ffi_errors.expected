@@ -1,0 +1,6 @@
+unsupported: unsupported native signature 'cdecl:bogus(int64)'
+invalid: invalid native function signature
+count: native call argument count does not match signature 'cdecl:int64(int64)'
+integer: native call expected an integer argument
+string: native call expected a string argument
+numeric: numeric value required

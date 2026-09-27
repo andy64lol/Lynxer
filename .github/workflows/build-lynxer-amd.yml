@@ -26,7 +26,7 @@ jobs:
       - name: Install Linux dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libasound2-dev pkg-config
+          sudo apt-get install -y libasound2-dev libffi-dev pkg-config
 
       - name: Build Lynxer for AMD64
         run: make buildLynxer

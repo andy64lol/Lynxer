@@ -96,7 +96,7 @@
 <h1 id="native-module-abi">Native module ABI</h1>
 <p>Lynxer's standard libraries are shared libraries (<code>.so</code> on Linux, <code>.dylib</code> on macOS) loaded at runtime with <code>dlopen</code>. This document is the contract a native module must implement. It applies to the bundled <code>stdlib/*.so</code> modules exactly as it applies to third-party modules.</p>
 <p>A module may be written in C++ (<code>stdlib/&lt;name&gt;.cpp</code>) or in Rust. The Rust backends — <code>game</code>, <code>image</code>, <code>json</code>, <code>lua</code>, <code>network</code>, <code>server</code>, <code>sound</code>, <code>sqldb</code> and <code>tui</code> — live under <code>rust/</code> and are all <code>cdylib</code>s that export <code>lynxer_module_init_v1</code>, their ops, and (for <code>game</code>) <code>lynxer_module_attach_v1</code> directly; there is no C++ shim. The <code>lynxer_abi</code> crate provides the shared FFI plumbing (packed-argument view, panic guards, string result buffer, host API, and the registration helper).</p>
-<p>The workspace has one more member, <code>rust/ffi</code>, which is an intentional <strong>no-op</strong> <code>cdylib</code>: its <code>lynxer_module_init_v1</code> registers nothing and returns <code>0</code>. The <code>ffi*</code> builtins are implemented in C++, not by that crate, so the crate exists only to keep the workspace uniform and should not be read as dead code.</p>
+<p>The workspace has one more member, <code>rust/ffi</code>, which is different in kind: a <code>staticlib</code> that is <strong>linked into the interpreter</strong>, not a <code>cdylib</code> module. It implements the shared native-call engine (see <a href="#the-native-call-engine">The native call engine</a>) and is never installed into <code>stdlib/</code>; because the interpreter links it, <code>cargo</code> is a required build tool.</p>
 <h2 id="entry-point">Entry point</h2>
 <p>Every module exports one C symbol:</p>
 <pre><code>int lynxer_module_init_v1(
@@ -122,50 +122,24 @@ global main(){
     println(global.nativeMath.abs(-3));
 }</code></pre>
 <p>A path ending in <code>.so</code> is treated as a native module; anything else is compiled as Lynxer source. The namespace is the import alias, or the file stem when no alias is given.</p>
+<h2 id="the-native-call-engine">The native call engine</h2>
+<p>Every native call — an imported module's function and an explicit <code>ffiCall</code> alike — is performed by <code>rust/ffi</code>, a Rust <code>staticlib</code> built on <a href="https://crates.io/crates/libffi"><code>libffi</code></a> and linked into the interpreter. It is not a stdlib module: it exports no <code>lynxer_module_init_v1</code>, is never placed in <code>stdlib/</code>, and exists only inside the interpreter binary.</p>
+<p><code>cargo</code> is therefore a <strong>required</strong> build tool. <code>make buildLynxer</code> builds the engine before linking, and a missing toolchain or a compile error fails the build — unlike the optional Rust backends, which are skipped without <code>cargo</code>. The C ABI is declared in <code>lynxer/ffi_abi.h</code>:</p>
+<pre><code>int         lynxer_ffi_call(void* address, const char* signature,
+                            const LynxerFfiArg* args, int64_t nargs,
+                            LynxerFfiResult* out);
+const char* lynxer_ffi_last_error(void);</code></pre>
+<p>Each argument carries a type tag so the engine can apply the strict/promoting rules below, and a failed call returns non-zero with a message the interpreter wraps in a located error.</p>
 <h2 id="signature-grammar">Signature grammar</h2>
 <pre><code>cdecl:&lt;return&gt;(&lt;arg&gt;,&lt;arg&gt;,...)</code></pre>
 <p>Type tokens are <code>int64</code> (Lynxer <code>int</code>), <code>double</code>/<code>float64</code> (Lynxer <code>float</code>) and <code>cstring</code> (Lynxer <code>str</code>). Argument lists may be empty.</p>
 <p>Before looking a signature up, the dispatcher <strong>normalizes</strong> the tokens: every integer width is rewritten to <code>int64</code> (<code>int8</code>, <code>int16</code>, <code>int32</code>, <code>uint8</code>, <code>uint16</code>, <code>uint32</code>, <code>uint64</code> and <code>uintptr</code>), and <code>double</code> is rewritten to <code>float64</code>. So <code>cdecl:int32(int32)</code> and <code>cdecl:int64(int64)</code> resolve to the same shipped shape. The supported table is the <em>normalized</em> set; the tokens above are accepted spellings, not distinct shapes.</p>
 <p><code>cdecl:</code> is optional; the bare <code>&lt;return&gt;(&lt;args&gt;)</code> form is accepted too. The packed form is selected when the argument list is exactly the single token <code>...</code> (<code>types.size() == 1 &amp;&amp; types[0] == &quot;...&quot;</code>).</p>
 <h2 id="supported-signature-shapes">Supported signature shapes</h2>
-<p>The dispatcher in <code>lynxer/ast.cpp</code> builds the normalized shape string and looks it up in a table. Only the shapes below are callable — anything else raises <code>unsupported native signature &#x27;&lt;sig&gt;&#x27;</code>, and a shape/argument-count mismatch raises <code>native call argument count does not match signature &#x27;&lt;sig&gt;&#x27;</code>.</p>
-<table>
-<tr><th>#</th><th>Return</th><th>Arguments</th></tr>
-<tr><td>1</td><td><code>int64</code></td><td><em>(none)</em></td></tr>
-<tr><td>2</td><td><code>float64</code></td><td><em>(none)</em></td></tr>
-<tr><td>3</td><td><code>cstring</code></td><td><em>(none)</em></td></tr>
-<tr><td>4</td><td><code>int64</code></td><td><code>int64, int64</code></td></tr>
-<tr><td>5</td><td><code>int64</code></td><td><code>int64</code></td></tr>
-<tr><td>6</td><td><code>cstring</code></td><td><code>cstring</code></td></tr>
-<tr><td>7</td><td><code>int64</code></td><td><code>cstring</code></td></tr>
-<tr><td>8</td><td><code>int64</code></td><td><code>cstring, cstring</code></td></tr>
-<tr><td>9</td><td><code>cstring</code></td><td><code>cstring, int64</code></td></tr>
-<tr><td>10</td><td><code>int64</code></td><td><code>int64, int64, int64</code></td></tr>
-<tr><td>11</td><td><code>float64</code></td><td><code>float64</code></td></tr>
-<tr><td>12</td><td><code>float64</code></td><td><code>float64, float64</code></td></tr>
-<tr><td>13</td><td><code>float64</code></td><td><code>float64, float64, float64</code></td></tr>
-<tr><td>14</td><td><code>int64</code></td><td><code>float64</code></td></tr>
-<tr><td>15</td><td><code>float64</code></td><td><code>float64, int64</code></td></tr>
-<tr><td>16</td><td><code>cstring</code></td><td><code>float64</code></td></tr>
-<tr><td>17</td><td><code>float64</code></td><td><code>cstring</code></td></tr>
-<tr><td>18</td><td><code>cstring</code></td><td><code>cstring, cstring</code></td></tr>
-<tr><td>19</td><td><code>float64</code></td><td><code>cstring, cstring</code></td></tr>
-<tr><td>20</td><td><code>cstring</code></td><td><code>cstring, cstring, cstring</code></td></tr>
-<tr><td>21</td><td><code>cstring</code></td><td><code>cstring, cstring, int64</code></td></tr>
-<tr><td>22</td><td><code>cstring</code></td><td><code>cstring, cstring, cstring, int64</code></td></tr>
-<tr><td>23</td><td><code>cstring</code></td><td><code>cstring, cstring, cstring, cstring</code></td></tr>
-<tr><td>24</td><td><code>int64</code></td><td><code>cstring, cstring, cstring</code></td></tr>
-<tr><td>25</td><td><code>int64</code></td><td><code>cstring, int64</code></td></tr>
-<tr><td>26</td><td><code>cstring</code></td><td><code>int64</code></td></tr>
-<tr><td>27</td><td><code>cstring</code></td><td><code>int64, int64</code></td></tr>
-<tr><td>28</td><td><code>float64</code></td><td><code>int64</code></td></tr>
-<tr><td>29</td><td><code>int64</code></td><td><code>cstring, int64, int64</code></td></tr>
-<tr><td>30</td><td><code>float64</code></td><td><code>cstring, float64</code></td></tr>
-<tr><td>31</td><td><code>cstring</code></td><td><code>float64, float64, int64</code></td></tr>
-<tr><td>32</td><td><code>cstring</code></td><td><code>cstring, float64, float64</code></td></tr>
-</table>
-<p>Adding a shape is a one-line table entry plus a <code>reinterpret_cast</code> with the matching C++ prototype; keep <code>stdlib/</code> in sync when you do.</p>
-<p>Numeric arguments are read leniently where the shape is numeric (<code>asNumber</code> accepts an <code>int</code> or a <code>float</code>); integer and string arguments are strict and raise a located <code>SourceError</code> on a type mismatch.</p>
+<p>Any signature the grammar can describe is callable. The engine parses <code>cdecl:&lt;ret&gt;(&lt;args&gt;)</code>, normalizes the tokens as above, and builds a <code>libffi</code> call description from them; there is no fixed table of shapes. <code>int64</code>, <code>float64</code> and <code>cstring</code> parameters may appear in any order and any number, and the return type may be <code>int64</code>, <code>float64</code>, <code>cstring</code> or <code>void</code> (a <code>void</code> call yields <code>0</code>).</p>
+<p>A token outside the grammar raises <code>unsupported native signature &#x27;&lt;sig&gt;&#x27;</code>; a fixed signature whose argument count differs from the call raises <code>native call argument count does not match signature &#x27;&lt;sig&gt;&#x27;</code>; and an argument that does not match its parameter type raises <code>native call expected an integer argument</code>, <code>native call expected a string argument</code> or <code>numeric value required</code>.</p>
+<p>Numeric arguments are read leniently where the parameter is <code>float64</code> — <code>int</code>, <code>float</code> and <code>uint64</code> values are accepted — while integer and string parameters are strict and reject a mismatched value.</p>
+<p>Both the interpreter's own <code>ffiCall</code> and every native-module invocation use this one engine, so a module call and an <code>ffiCall</code> follow identical rules.</p>
 <h3 id="packed-arguments-">Packed arguments (<code>...</code>)</h3>
 <p>An API with long or variadic argument lists can use the wildcard parameter token <code>...</code> instead of a fixed shape:</p>
 <pre><code>cdecl:int64(...)

@@ -1,8 +1,9 @@
 // Test-only native module used by examples/native_signatures.lynx.
 //
-// It registers exactly one function per native-call signature shape supported
-// by lynxer's `callNative` dispatcher, so the fixture fails loudly if any
-// shape regresses. Every function returns a deterministic value.
+// It registers a call for every signature shape the interpreter has ever
+// dispatched — the original fixed table plus shapes only the libffi engine can
+// express — so the fixture fails loudly if any shape regresses. Every function
+// returns a deterministic value.
 
 #include <cstdint>
 #include <cstdlib>
@@ -81,6 +82,18 @@ extern "C" std::int64_t sig_sii(const char* a, std::int64_t n, std::int64_t m) {
     return static_cast<std::int64_t>(std::strlen(a)) + n + m;
 }
 
+// Shapes the old fixed table could not express: a mixed string/int/string
+// argument list, four integers, and a `void` return.
+extern "C" std::int64_t sig_sis(const char* a, std::int64_t n, const char* b) {
+    return static_cast<std::int64_t>(std::strlen(a)) + n +
+           static_cast<std::int64_t>(std::strlen(b));
+}
+extern "C" std::int64_t sig_quad(std::int64_t a, std::int64_t b,
+                                 std::int64_t c, std::int64_t d) {
+    return a + b + c + d;
+}
+extern "C" void sig_void(std::int64_t) {}
+
 extern "C" int lynxer_module_init_v1(RegisterFunction f, RegisterConstant c,
                                      RegisterType t) {
     return f("v", "sig_v", "cdecl:int64()") &&
@@ -110,6 +123,9 @@ extern "C" int lynxer_module_init_v1(RegisterFunction f, RegisterConstant c,
                    f("is", "sig_is", "cdecl:cstring(int64)") &&
                    f("id", "sig_id", "cdecl:double(int64)") &&
                    f("sii", "sig_sii", "cdecl:int64(cstring,int64,int64)") &&
+                   f("sis", "sig_sis", "cdecl:int64(cstring,int64,cstring)") &&
+                   f("quad", "sig_quad", "cdecl:int64(int64,int64,int64,int64)") &&
+                   f("sink", "sig_void", "cdecl:void(int64)") &&
                    c("answer", 42) &&
                    t("pair", "int32 first, int32 second")
                ? 0

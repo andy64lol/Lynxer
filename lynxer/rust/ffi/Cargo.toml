@@ -2,12 +2,16 @@
 name = "lynxer_ffi"
 version = "0.1.0"
 edition = "2021"
-description = "Rust backend for the Lynxer `ffi` built-in family"
+description = "libffi-backed native-call engine linked into the Lynxer interpreter"
 
 [lib]
 name = "lynxer_ffi"
-crate-type = ["cdylib"]
+# A staticlib: the interpreter links it and calls the C ABI in
+# `lynxer/ffi_abi.h`. It is deliberately NOT a `lynxer_module_init_v1` cdylib
+# and is never installed into `lynxer/stdlib/`.
+crate-type = ["staticlib"]
 
 [dependencies]
-lynxer_abi = { path = "../abi" }
-libc = "0.2"
+# `system` links the host libffi (needs libffi headers + pkg-config) instead of
+# building the vendored copy.
+libffi = { version = "5.2", features = ["system"] }

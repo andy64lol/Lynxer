@@ -188,8 +188,10 @@ Rust modules are skipped with a warning when `cargo` is absent, so Lynxer still
 builds without a Rust toolchain. Keep `rust/Cargo.lock` committed: the module
 must build offline.
 
-A crate is allowed to register **nothing**: `rust/ffi` is an intentional no-op
-`cdylib` that keeps the workspace uniform. A C++ module that needs POSIX is
+`rust/ffi` is the one workspace member that is **not** a stdlib module: it is a
+`staticlib` native-call engine linked into the interpreter, built by its own
+Makefile rule and never added to `LYNXER_RUST_MODULE_NAMES` or installed into
+`stdlib/`. A C++ module that needs POSIX is
 gated with `LYNXER_POSIX_BUILTINS`, as the managed
 `filesystem*`/`process*`/`networking*` families are, and falls back to
 `unsupportedTable()` otherwise.

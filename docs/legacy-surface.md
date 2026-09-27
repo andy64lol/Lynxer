@@ -90,7 +90,7 @@ interop — has no direct equivalent.
 | Family | Status | Notes |
 | --- | --- | --- |
 | `nativeModuleLoad/Name/Function/Constant/Type/Error/Dependencies/Close` | Implemented | Dynamic discovery over the same ABI as `importAs` |
-| `ffiLoadLibrary`, `ffiLookup`, `ffiCloseLibrary`, `ffiCall`, `ffiCallback`, `ffiFreeCallback` | Implemented | In C++ (`lynxer/builtins.cpp`) |
+| `ffiLoadLibrary`, `ffiLookup`, `ffiCloseLibrary`, `ffiCall`, `ffiCallback`, `ffiFreeCallback` | Implemented | C++ front end (`lynxer/builtins.cpp`) over the Rust `libffi` engine (`lynxer/rust/ffi`) |
 
 Native code is reached through the documented
 [native-module ABI](native-module-abi.md): an `.so` exporting

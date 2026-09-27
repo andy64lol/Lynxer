@@ -450,7 +450,7 @@ global main(){
 </table>
 <p><code>lynxer/examples/native_sync.lynx</code> covers the single-threaded surface and <code>lynxer/examples/native_sync_threads.lynx</code> the blocking waits across two threads. Because the model is cooperative, a blocking wait on a resource that no other thread will release deadlocks — the same as the original.</p>
 <h2 id="ffi">FFI</h2>
-<p>The <code>ffi*</code> family loads a native shared library and calls a symbol by signature at run time, with no build step. It is implemented in C++ over <code>dlopen</code>/<code>dlsym</code> (there is no libffi), so the same call site can call any symbol whose signature is in the supported table.</p>
+<p>The <code>ffi*</code> family loads a native shared library and calls a symbol by signature at run time, with no per-call build step. <code>ffiLoadLibrary</code>/<code>ffiLookup</code>/ <code>ffiCloseLibrary</code> use <code>dlopen</code>/<code>dlsym</code>; the call itself is performed by a Rust engine built on <a href="https://crates.io/crates/libffi"><code>libffi</code></a> and linked into the interpreter as a <code>staticlib</code> (see <a href="native-module-abi.html#the-native-call-engine">native-module-abi</a>). Any signature the engine's grammar can parse is callable — not just a fixed set of shapes — so a mixed argument list, a long argument list, or a <code>void</code> return is fine.</p>
 <table>
 <tr><th>Builtin</th><th>Notes</th></tr>
 <tr><td><code>ffiLoadLibrary(path)</code></td><td>Loads a shared library and returns a handle</td></tr>
@@ -460,7 +460,7 @@ global main(){
 <tr><td><code>ffiFreeCallback(callback)</code></td><td>Releases a callback created by <code>ffiCallback</code></td></tr>
 <tr><td><code>ffiCloseLibrary(handle)</code></td><td>Unloads the library and invalidates its symbols</td></tr>
 </table>
-<p>The signatures use the same grammar as native modules; see <a href="native-module-abi.html#signature-grammar">native-module-abi</a>. <code>lynxer/examples/builtin_ffi.lynx</code> demonstrates the full round trip (calling <code>strlen</code> and passing a Lynxer function back as a C callback).</p>
+<p>The signatures use the same grammar as native modules; see <a href="native-module-abi.html#signature-grammar">native-module-abi</a>. A <code>void</code> return yields <code>0</code>. Argument types are checked strictly: an <code>int64</code> parameter rejects a string, a <code>float64</code> parameter rejects a string, and a <code>cstring</code> parameter rejects a number. <code>lynxer/examples/builtin_ffi.lynx</code> demonstrates the full round trip (calling <code>strlen</code> and passing a Lynxer function back as a C callback), and <code>lynxer/examples/builtin_ffi_errors.lynx</code> pins the diagnostics.</p>
 <h2 id="explicit-native-module-handles">Explicit native-module handles</h2>
 <p><code>nativeModule*</code> loads a shared object through the same <a href="native-module-abi.html"><code>lynxer_module_init_v1</code></a> ABI as <code>importAs</code>, but exposes the registered table for inspection instead of binding it into a namespace. Use it when a module's names have to be discovered at run time.</p>
 <table>

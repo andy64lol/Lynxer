@@ -13,10 +13,11 @@ backends — `game`, `image`, `json`, `lua`, `network`, `server`, `sound`,
 crate provides the shared FFI plumbing (packed-argument view, panic guards,
 string result buffer, host API, and the registration helper).
 
-The workspace has one more member, `rust/ffi`, which is an intentional **no-op**
-`cdylib`: its `lynxer_module_init_v1` registers nothing and returns `0`. The
-`ffi*` builtins are implemented in C++, not by that crate, so the crate exists
-only to keep the workspace uniform and should not be read as dead code.
+The workspace has one more member, `rust/ffi`, which is different in kind: a
+`staticlib` that is **linked into the interpreter**, not a `cdylib` module. It
+implements the shared native-call engine (see
+[The native call engine](#the-native-call-engine)) and is never installed into
+`stdlib/`; because the interpreter links it, `cargo` is a required build tool.
 
 ## Entry point
 
@@ -69,6 +70,30 @@ A path ending in `.so` is treated as a native module; anything else is compiled
 as Lynxer source. The namespace is the import alias, or the file stem when no
 alias is given.
 
+## The native call engine
+
+Every native call — an imported module's function and an explicit `ffiCall`
+alike — is performed by `rust/ffi`, a Rust `staticlib` built on
+[`libffi`](https://crates.io/crates/libffi) and linked into the interpreter. It
+is not a stdlib module: it exports no `lynxer_module_init_v1`, is never placed
+in `stdlib/`, and exists only inside the interpreter binary.
+
+`cargo` is therefore a **required** build tool. `make buildLynxer` builds the
+engine before linking, and a missing toolchain or a compile error fails the
+build — unlike the optional Rust backends, which are skipped without `cargo`.
+The C ABI is declared in `lynxer/ffi_abi.h`:
+
+```c
+int         lynxer_ffi_call(void* address, const char* signature,
+                            const LynxerFfiArg* args, int64_t nargs,
+                            LynxerFfiResult* out);
+const char* lynxer_ffi_last_error(void);
+```
+
+Each argument carries a type tag so the engine can apply the strict/promoting
+rules below, and a failed call returns non-zero with a message the interpreter
+wraps in a located error.
+
 ## Signature grammar
 
 ```
@@ -91,52 +116,25 @@ packed form is selected when the argument list is exactly the single token `...`
 
 ## Supported signature shapes
 
-The dispatcher in `lynxer/ast.cpp` builds the normalized shape string and looks
-it up in a table. Only the shapes below are callable — anything else raises
-`unsupported native signature '<sig>'`, and a shape/argument-count mismatch
-raises `native call argument count does not match signature '<sig>'`.
+Any signature the grammar can describe is callable. The engine parses
+`cdecl:<ret>(<args>)`, normalizes the tokens as above, and builds a `libffi`
+call description from them; there is no fixed table of shapes. `int64`,
+`float64` and `cstring` parameters may appear in any order and any number, and
+the return type may be `int64`, `float64`, `cstring` or `void` (a `void` call
+yields `0`).
 
-| # | Return | Arguments |
-| --- | --- | --- |
-| 1 | `int64` | *(none)* |
-| 2 | `float64` | *(none)* |
-| 3 | `cstring` | *(none)* |
-| 4 | `int64` | `int64, int64` |
-| 5 | `int64` | `int64` |
-| 6 | `cstring` | `cstring` |
-| 7 | `int64` | `cstring` |
-| 8 | `int64` | `cstring, cstring` |
-| 9 | `cstring` | `cstring, int64` |
-| 10 | `int64` | `int64, int64, int64` |
-| 11 | `float64` | `float64` |
-| 12 | `float64` | `float64, float64` |
-| 13 | `float64` | `float64, float64, float64` |
-| 14 | `int64` | `float64` |
-| 15 | `float64` | `float64, int64` |
-| 16 | `cstring` | `float64` |
-| 17 | `float64` | `cstring` |
-| 18 | `cstring` | `cstring, cstring` |
-| 19 | `float64` | `cstring, cstring` |
-| 20 | `cstring` | `cstring, cstring, cstring` |
-| 21 | `cstring` | `cstring, cstring, int64` |
-| 22 | `cstring` | `cstring, cstring, cstring, int64` |
-| 23 | `cstring` | `cstring, cstring, cstring, cstring` |
-| 24 | `int64` | `cstring, cstring, cstring` |
-| 25 | `int64` | `cstring, int64` |
-| 26 | `cstring` | `int64` |
-| 27 | `cstring` | `int64, int64` |
-| 28 | `float64` | `int64` |
-| 29 | `int64` | `cstring, int64, int64` |
-| 30 | `float64` | `cstring, float64` |
-| 31 | `cstring` | `float64, float64, int64` |
-| 32 | `cstring` | `cstring, float64, float64` |
+A token outside the grammar raises `unsupported native signature '<sig>'`; a
+fixed signature whose argument count differs from the call raises
+`native call argument count does not match signature '<sig>'`; and an argument
+that does not match its parameter type raises `native call expected an integer
+argument`, `native call expected a string argument` or `numeric value required`.
 
-Adding a shape is a one-line table entry plus a `reinterpret_cast` with the
-matching C++ prototype; keep `stdlib/` in sync when you do.
+Numeric arguments are read leniently where the parameter is `float64` — `int`,
+`float` and `uint64` values are accepted — while integer and string parameters
+are strict and reject a mismatched value.
 
-Numeric arguments are read leniently where the shape is numeric
-(`asNumber` accepts an `int` or a `float`); integer and string arguments are
-strict and raise a located `SourceError` on a type mismatch.
+Both the interpreter's own `ffiCall` and every native-module invocation use this
+one engine, so a module call and an `ffiCall` follow identical rules.
 
 ### Packed arguments (`...`)
 

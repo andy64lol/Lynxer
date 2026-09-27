@@ -44,12 +44,6 @@ call sites name an architecture, an architecture-agnostic fixture carries a
 
 Work that needs a decision before it can be built:
 
-- [ ] **`ffi*` calling convention.** `ffiCall` has to describe and perform
-  arbitrary native calls. `libffi` is the usual answer and is a **new build
-  dependency** for the interpreter; hand-rolling covers only a few fixed
-  signatures. It is also the largest security surface, since it turns a Lynxer
-  program into arbitrary native code. Decide: take the dependency, hand-roll
-  fixed shapes, or move the family to "not planned".
 - [ ] **`async*` semantics.** The family is implemented (`asyncRun`,
   `asyncGather`, `asyncSleep`, the `asyncPoll*` set, timers and wakeups) and the
   `async` language syntax exists but is eager — `await` does not suspend and
@@ -69,6 +63,15 @@ Work that needs a decision before it can be built:
 
 ## Done
 
+- [x] ~~**`ffi*` calling convention.** Decided: take the dependency. The
+      native-call engine now lives in Rust (`lynxer/rust/ffi`) on the `libffi`
+      crate and is linked into the interpreter as a C-ABI `staticlib`
+      (`lynxer/ffi_abi.h`), so `cargo` is required and a fixed signature table
+      is gone. The signature grammar (`cdecl:<ret>(<args>)`) is unchanged, but
+      any combination of `int64`/`float64`/`cstring` parameters — plus `void`
+      returns and the packed `...` form — now works. `ffiLoadLibrary` /
+      `ffiLookup` / `ffiCloseLibrary` stay `dlopen`/`dlsym`, and `ffiCallback`
+      still wraps a Lynxer function without a native closure.~~
 - [x] ~~The rest of the original `docs-legacy` surface: pointers/raw addresses,
       atomics and volatile access, native synchronization, `memoryProtect`, the
       `nativeModule*` handles, `ffi*`, typed `memory*` accessors, the managed

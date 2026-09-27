@@ -1,0 +1,51 @@
+////
+// FFI diagnostics. Every call below fails validation in the Rust engine before
+// any native code runs, so the fixture pins the exact messages `ffiCall`
+// reports: an unknown signature token, a malformed signature, an argument-count
+// mismatch, and each argument type mismatch. `try`/`catch` keeps the run going
+// and exits 0 so the fixture diffs as normal output.
+////
+global setup(){}
+
+global main(){
+    int libc = ffiLoadLibrary("libc.so.6");
+    functionAddress strlen = ffiLookup(libc, "strlen");
+
+    try {
+        ffiCall(strlen, "cdecl:bogus(int64)", [int 1]);
+    } catch(str error) {
+        println("unsupported: " + error);
+    }
+
+    try {
+        ffiCall(strlen, "no.parens", []);
+    } catch(str error) {
+        println("invalid: " + error);
+    }
+
+    try {
+        ffiCall(strlen, "cdecl:int64(int64)", [int 1, int 2]);
+    } catch(str error) {
+        println("count: " + error);
+    }
+
+    try {
+        ffiCall(strlen, "cdecl:int64(int64)", [str "x"]);
+    } catch(str error) {
+        println("integer: " + error);
+    }
+
+    try {
+        ffiCall(strlen, "cdecl:cstring(cstring)", [int 1]);
+    } catch(str error) {
+        println("string: " + error);
+    }
+
+    try {
+        ffiCall(strlen, "cdecl:float64(float64)", [str "x"]);
+    } catch(str error) {
+        println("numeric: " + error);
+    }
+
+    ffiCloseLibrary(libc);
+}

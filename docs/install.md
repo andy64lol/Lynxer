@@ -7,9 +7,11 @@ Python; only the two check scripts in the test suite do.
 
 - A C++17 compiler (`g++` or `clang++`) and `make`.
 - `python3` to run `make testLynxer` (the contract and golden checks).
-- Optional: a Rust toolchain (`cargo`) for the ten Rust-backed modules. They
-  are **skipped with a warning** when `cargo` is not on `PATH`; the rest of
-  Lynxer still builds.
+- A Rust toolchain (`cargo`): the interpreter links the Rust native-call engine
+  (`lynxer/rust/ffi`), so `cargo` is **required** to build `lynxer/lynxer`. A
+  missing toolchain or a compile error fails the build.
+- `libffi` headers and `pkg-config` (e.g. `libffi-dev` on Debian/Ubuntu) for the
+  native-call engine.
 - Git and network access for the first `cargo` build: crates are fetched from
   crates.io. Nothing is compiled from vendored C/C++ sources.
 
@@ -43,11 +45,15 @@ there is no separate `lynxer/Makefile`.
   produced by `cargo` under `lynxer/build/rust`; the C++ ones are compiled
   from `stdlib/*.cpp`.
 
-The Rust workspace has eleven member crates
-(`LYNXER_RUST_MODULE_NAMES` in the Makefile): the ten module backends `game`,
-`graphics`, `image`, `json`, `lua`, `network`, `server`, `sound`, `sqldb`,
-`tui`, plus `ffi`, which is an intentional no-op cdylib — the `ffi*` builtins are
-implemented in C++.
+- `lynxer/build/rust/release/liblynxer_ffi.a` — the native-call engine, a Rust
+  `staticlib` built by `cargo` and linked into `lynxer/lynxer`. It is not a
+  stdlib module and is not copied into `stdlib/`.
+
+The Rust workspace has eleven member crates: the ten stdlib module backends
+listed in `LYNXER_RUST_MODULE_NAMES` (`game`, `graphics`, `image`, `json`,
+`lua`, `network`, `server`, `sound`, `sqldb`, `tui`), plus `rust/ffi`, the
+required native-call engine described in
+[native-module-abi.md](native-module-abi.md#the-native-call-engine).
 
 ## Install
 

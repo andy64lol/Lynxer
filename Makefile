@@ -22,8 +22,13 @@ LYNXER_RUST_MANIFEST := $(LYNXER_RUST_DIR)/Cargo.toml
 LYNXER_RUST_SOURCES := $(wildcard $(LYNXER_RUST_DIR)/*/src/*.rs) \
                         $(wildcard $(LYNXER_RUST_DIR)/*/Cargo.toml) \
                         $(LYNXER_RUST_MANIFEST) $(LYNXER_RUST_DIR)/Cargo.lock
-LYNXER_RUST_MODULE_NAMES := game graphics image json lua network server sound sqldb tui ffi
+LYNXER_RUST_MODULE_NAMES := game graphics image json lua network server sound sqldb tui
 LYNXER_RUST_MODULES := $(LYNXER_RUST_MODULE_NAMES:%=$(LYNXER_DIR)/stdlib/%.so)
+
+# The native-call engine is not a stdlib module: it is a Rust staticlib linked
+# directly into the interpreter, and cargo is required to build it.
+LYNXER_FFI_ABI_HEADER := $(LYNXER_DIR)/ffi_abi.h
+LYNXER_FFI_STATICLIB := $(LYNXER_RUST_TARGET_DIR)/release/liblynxer_ffi.a
 
 # Rust-backed modules are gated on the Rust toolchain.
 HAVE_CARGO := $(shell command -v cargo >/dev/null 2>&1 && echo 1)
@@ -83,7 +88,7 @@ else
 LYNXER_AUDIO_FIXTURES :=
 endif
 # Built-in-family fixtures (lynxer/examples/builtin_<name>.lynx) do too.
-LYNXER_MILESTONE7_NEW_FIXTURES := $(LYNXER_DIR)/examples/builtin_async.lynx $(LYNXER_DIR)/examples/builtin_ffi.lynx
+LYNXER_MILESTONE7_NEW_FIXTURES := $(LYNXER_DIR)/examples/builtin_async.lynx $(LYNXER_DIR)/examples/builtin_ffi.lynx $(LYNXER_DIR)/examples/builtin_ffi_errors.lynx
 # Ownership/borrowing built-ins: moves, borrows, swaps and their error paths.
 LYNXER_OWNERSHIP_FIXTURES := $(LYNXER_DIR)/examples/ownership.lynx
 # Tuple literals: the canonical `()` form plus the legacy bracket literal
@@ -185,24 +190,31 @@ buildLynxerArm64: $(LYNXER_TARGET)-arm64 $(LYNXER_NATIVE_BUILT)
 
 # Rust backends only. Skipped with a message when cargo is not installed.
 ifeq ($(HAVE_CARGO),1)
-cargo: $(LYNXER_RUST_MODULES)
+cargo: $(LYNXER_RUST_MODULES) $(LYNXER_FFI_STATICLIB)
 	@echo "✓ Lynxer Rust backends ready ($(LYNXER_RUST_TARGET_DIR))"
 else
 cargo:
-	@echo "lynxer: skipping the Rust backends: cargo not found in PATH"
+	@echo "lynxer: cargo is required to build the FFI engine"; exit 1
 endif
 
-$(LYNXER_TARGET): $(LYNXER_OBJECTS)
-	$(LYNXER_CXX) $(LYNXER_CXXFLAGS) $(LYNXER_OBJECTS) -o $@
+# The interpreter links the native-call engine, so `cargo` is a hard build
+# dependency: `-lpthread -ldl -lm` are the Rust runtime's, and `-lffi` the
+# engine's (a staticlib does not carry its dependencies' link directives).
+$(LYNXER_TARGET): $(LYNXER_OBJECTS) $(LYNXER_FFI_STATICLIB)
+	$(LYNXER_CXX) $(LYNXER_CXXFLAGS) $(LYNXER_OBJECTS) $(LYNXER_FFI_STATICLIB) -o $@ \
+	    -lpthread -ldl -lm -lffi
 
-$(LYNXER_TARGET)-arm64: $(LYNXER_OBJECTS_ARM64)
+# Cross-compiling the arm64 interpreter from an amd64 host cannot link the FFI
+# engine (there is no aarch64 Rust build here); the ARM CI runner is native
+# aarch64, which is the supported path.
+$(LYNXER_TARGET)-arm64: $(LYNXER_OBJECTS_ARM64) $(LYNXER_FFI_STATICLIB)
 	@command -v aarch64-linux-gnu-g++ >/dev/null || { echo "error: aarch64-linux-gnu-g++ not found"; exit 1; }
-	@aarch64-linux-gnu-g++ $(LYNXER_CXXFLAGS) $(filter %.o-arm64,$^) -o $@ -static-libstdc++ -static-libgcc
+	@aarch64-linux-gnu-g++ $(LYNXER_CXXFLAGS) $(filter %.o-arm64,$^) $(LYNXER_FFI_STATICLIB) -o $@ -static-libstdc++ -static-libgcc -lpthread -ldl -lm -lffi
 
-$(LYNXER_DIR)/%.o: $(LYNXER_DIR)/%.cpp $(LYNXER_HEADERS)
+$(LYNXER_DIR)/%.o: $(LYNXER_DIR)/%.cpp $(LYNXER_HEADERS) $(LYNXER_FFI_ABI_HEADER)
 	$(LYNXER_CXX) $(LYNXER_CXXFLAGS) -c $< -o $@
 
-$(LYNXER_DIR)/%.o-arm64: $(LYNXER_DIR)/%.cpp $(LYNXER_HEADERS)
+$(LYNXER_DIR)/%.o-arm64: $(LYNXER_DIR)/%.cpp $(LYNXER_HEADERS) $(LYNXER_FFI_ABI_HEADER)
 	@command -v aarch64-linux-gnu-g++ >/dev/null || { echo "error: aarch64-linux-gnu-g++ not found"; exit 1; }
 	@aarch64-linux-gnu-g++ $(LYNXER_CXXFLAGS) -c $< -o $@
 
@@ -222,6 +234,14 @@ $(LYNXER_DIR)/stdlib/$(1).so: $(LYNXER_RUST_TARGET_DIR)/release/liblynxer_$(1).s
 	cp $$< $$@
 endef
 $(foreach name,$(LYNXER_RUST_MODULE_NAMES),$(eval $(call LYNXER_RUST_MODULE_RULE,$(name))))
+
+# The native-call engine: a Rust staticlib linked into the interpreter, not a
+# stdlib module. Unlike the cdylib backends above it is required, so a missing
+# cargo is a hard error rather than a skip.
+$(LYNXER_FFI_STATICLIB): $(LYNXER_RUST_SOURCES) $(LYNXER_FFI_ABI_HEADER)
+	@command -v cargo >/dev/null || { echo "lynxer: cargo is required to build the FFI engine"; exit 1; }
+	RUSTFLAGS="-C relocation-model=pic" cargo build -p lynxer_ffi --release \
+	    --manifest-path $(LYNXER_RUST_MANIFEST) --target-dir $(LYNXER_RUST_TARGET_DIR)
 
 $(LYNXER_SIGNATURE_MODULE): $(LYNXER_SIGNATURE_SOURCE)
 	$(LYNXER_CXX) -std=c++17 -O2 -Wall -Wextra -pedantic -fPIC -shared $< -o $@
@@ -459,7 +479,7 @@ expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:23: charAt() index is out of rang
 	echo "expected native stdlib output:"; printf '%s\n' "$$expected"; \
 	echo "received native stdlib output:"; printf '%s\n' "$$output"; exit 1; fi
 	@output="$$($(CLYX) $(LYNXER_SIGNATURE_FIXTURE))"; \
-	expected="$$(printf '7\n2.5\nzero\n7\n9\ncopy\n4\n1\n---\n6\n1.25\n4\n6.5\n4\n3.5\n1.500000\n2.75\nabcd\n3.75\nabc\nab5\nabc5\n7\nn12\n3\n9')"; \
+	expected="$$(printf '7\n2.5\nzero\n7\n9\ncopy\n4\n1\n---\n6\n1.25\n4\n6.5\n4\n3.5\n1.500000\n2.75\nabcd\n3.75\nabc\nab5\nabc5\n7\nn12\n3\n9\n10\n10\n0')"; \
 	if [ "$$output" != "$$expected" ]; then \
 	echo "expected native signature output:"; printf '%s\n' "$$expected"; \
 	echo "received native signature output:"; printf '%s\n' "$$output"; exit 1; fi
@@ -613,6 +633,7 @@ clean:
 cleanLynxer:
 	@rm -f $(LYNXER_TARGET) $(LYNXER_TARGET)-arm64 $(LYNXER_OBJECTS) $(LYNXER_OBJECTS_ARM64)
 	@rm -f $(LYNXER_NATIVE_MODULES) $(LYNXER_SIGNATURE_MODULE) $(CLYX_TMP)_*
+	@rm -f $(LYNXER_DIR)/stdlib/ffi.so
 	@rm -rf $(LYNXER_DIR)/build $(LYNXER_RUST_DIR)/target $(LYNXER_RUST_DIR)/*/target
 	@echo "✓ Cleaned Lynxer build artifacts."
 
