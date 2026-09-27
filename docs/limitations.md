@@ -18,7 +18,6 @@ Entries are marked:
 | `tkinter`, `tkinterPlus` | No Python GUI toolkit. A future `graphics` module, if any, would be Rust-backed. |
 | `turtle` | Rust's `turtle` crate has not been maintained since 2019. |
 | `http`, `net` modules | Superseded by `network` + `server`. |
-| Click/Typer builders (`click*`, `typer*`) | The `cli` module does not depend on Python's Click or Typer. |
 | Python runtime introspection (`sys.path`, `addPath`, `prependPath`, `removeFromPath`, `getModules`, `isModuleLoaded`, `getRecursionLimit`, `setRecursionLimit`, `os.getPythonVersion`, `os.getPythonImplementation`) | There is no Python runtime to introspect. The `os` getters return `""` / `"Lynxer"` for compatibility and will be removed. |
 | Bytecode (`.lynxc`, `--view-bytecode`, `--benchmark-compile`, `--no-cache`) | Removed with the bytecode backend; `--compile` produces a standalone ELF executable instead (`--bundle` is an alias). Running a `.lynxc` file reports that bytecode is unsupported. |
 | FFI / native-module handle built-ins | Superseded by direct `import` of a native `.so` through the documented ABI. |
@@ -191,13 +190,14 @@ Both modules use `std::regex` with the ECMAScript grammar, which is narrower tha
 
 - **Version:** `version()` returns the Lynxer version (e.g., `Lynxer 0.1.8.1`).
 - **Architecture:** `architecture()` returns the canonical syscall architecture of this build (`amd64` or `arm64`), not the raw machine string from `uname(2)`.
+- **System information:** `cpuCount`, `pageSize`, `memoryTotal`, `memoryAvailable`, `uptime`, `bootTime` and `loadAverage` are Linux-only and return `0` (or `[]`) when the host cannot provide the value.
 - **Python runtime concepts:** Not supported (`sys.path`, `addPath`, `prependPath`, `removeFromPath`, `getModules`, `isModuleLoaded`, `getRecursionLimit`, `setRecursionLimit`).
 - **Command-line arguments:** `argv()`, `getArg`, and `argCount` describe the `lynxer` process command line, not the program's arguments.
 - **Exit behavior:** `exit()` calls `std::exit` directly, bypassing interpreter cleanup.
 
 ### `cli` — Constrained Behavior
 
-- **Click/Typer builders:** The `click*` and `typer*` builder functions are not supported. Calling them results in a hard "unknown function" error. `clickExists()` and `typerExists()` return `false`, and version helpers return `""` (empty string).
+- **Click/Typer builders:** The `click*` and `typer*` builders are implemented natively (integer handles over JSON descriptors) rather than by binding the Python packages. A failed parse returns `{"error": "…"}` rather than raising. The old Python-availability probes (`clickExists`, `typerExists`, `clickVersion`, `typerVersion`) were removed as meaningless.
 
 ### `multiprocessing` — Constrained Behavior
 

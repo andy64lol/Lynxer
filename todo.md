@@ -16,7 +16,6 @@ is visible next to the work that *is* open.
 | `tkinter`, `tkinterPlus` | No Python GUI toolkit. Any future GUI would be Rust-backed (see `graphics` below). |
 | `turtle` | Rust's `turtle` crate has not been maintained since 2019. |
 | `http`, `net` modules | Superseded by `network` + `server`. |
-| Click/Typer builders (`click*`, `typer*`) | The `cli` module does not depend on Python's Click or Typer. |
 | Python runtime introspection (`sys.path`, `addPath`, `prependPath`, `removeFromPath`, `getModules`, `isModuleLoaded`, `getRecursionLimit`, `setRecursionLimit`, `os.getPythonVersion`, `os.getPythonImplementation`) | There is no Python runtime to introspect. |
 | Bytecode (`.lynxc`, `--view-bytecode`, `--benchmark-compile`, `--no-cache`) | Removed; `--compile` produces a standalone ELF executable instead. |
 | `\x` / `\u` string escapes | Only `\n`, `\r`, `\t`, `\\`, `\"` and `\e` are accepted. |
@@ -102,32 +101,32 @@ Status of each unimplemented built-in today:
 - [x] `network` — the raw-socket surface the old `net` module had:
       `tcpConnect`, `tcpSend`, `tcpReceive`, `tcpSendReceive`, `tcpClose`,
       `ping`, `isPortOpen`, `getLocalIP` (Rust `std::net`, plaintext TCP only).
-- [ ] `cli` — `click*` / `typer*` builders — **reopen**. Today the names are
-      rejected and `clickExists()` / `typerExists()` return `false`.
-- [ ] `sys` — Python runtime introspection (`addPath`, `prependPath`,
-      `removeFromPath`, `getPath`, `getModules`, `isModuleLoaded`,
-      `getRecursionLimit`, `setRecursionLimit`) — **reopen**.
+- [x] `cli` — `click*` / `typer*` builders ported natively (integer handles over
+      JSON descriptors); the Python availability probes were removed. See
+      [docs/stdlib/cli.md](docs/stdlib/cli.md).
+- [x] `sys` — expanded with system information (`cpuCount`, `pageSize`,
+      `memoryTotal`, `memoryAvailable`, `uptime`, `bootTime`, `loadAverage`).
+      Python runtime introspection (`addPath`, `prependPath`, `removeFromPath`,
+      `getPath`, `getModules`, `isModuleLoaded`, recursion limits) stays a
+      permanent non-goal.
 
 ### Modules
 
 - [ ] `tkinter` / `tkinterPlus` / `turtle` — **reopen**. Candidate replacement: a
       Rust-backed `graphics` module (see the open decision below).
-- [ ] `venv` — **reopen**.
 - [ ] `http` / `net` as compatibility shims over `network` + `server` (kept as
       names only; the functionality already exists under the new modules).
 - [x] `mathPlus` — merged into `math` (the float `sign` is `signFloat`).
 
 ### Toolchain and documentation
 
-- [ ] Bytecode output and `.lynxc` execution (`--view-bytecode`,
-      `--benchmark-compile`, `--no-cache`) — **reopen**. Conflicts with the
-      current `--compile`-to-ELF design; decide before starting.
 - [ ] Absorb the remaining `docs-legacy` reference pages into `docs/`:
       `async.md`, `bytecode.md`, `filesystem.md`, `native-memory.md`,
       `native-modules.md`, `networking.md`, `process.md`, `rawpy.md`,
-      `syscalls.md`, and `migration/`. Most of their content already lives in
-      `docs/builtins.md` sections; the rest is superseded by
-      `docs/native-module-abi.md` and `docs/legacy-surface.md`.
+      and `migration/`. `syscalls.md` is covered by the new
+      [docs/syscalls.md](docs/syscalls.md); the rest mostly lives in
+      `docs/builtins.md` sections, with `docs/native-module-abi.md` and
+      `docs/legacy-surface.md` superseding the remainder.
 
 ### Already incorporated
 

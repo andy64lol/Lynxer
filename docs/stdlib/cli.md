@@ -1,21 +1,58 @@
 # cli
 
-Command-line helpers: arguments, environment, terminal queries and process
-execution.
+Command-line helpers: arguments, environment, terminal queries, process
+execution and Click/Typer-style command builders.
 
 **Backend:** native — `stdlib/cli.so`, built from `stdlib/cli.cpp` over POSIX
 APIs. **Import:** `import("cli")` → `global.cli.*`
 
-## Click / Typer compatibility
+## Command builders
 
-| Function | Signature | Returns |
+The Click/Typer builders are implemented natively; command definitions live in
+integer handles. Call `clickInit()` (or `typerInit()`) before creating anything.
+
+| Function | Signature | Notes |
 | --- | --- | --- |
-| `clickExists` / `typerExists` | `() -> bool` | Always `false` |
-| `clickVersion` / `typerVersion` | `() -> str` | Always `""` |
+| `clickInit` | `()` | Resets the builder registry |
+| `clickCommandCreate` | `(str name, str help) -> int` | Command handle, `0` on failure |
+| `clickGroupCreate` | `(str name, str help) -> int` | Command group handle |
+| `clickGroupAddCommand` | `(int group, int command, str name) -> int` | Registers a command in a group |
+| `clickAddArgument` | `(int command, str name, bool required, int nargs) -> int` | Positional argument; `nargs < 0` collects the rest |
+| `clickAddOption` | `(int command, str declarations, str help, str default, bool flag, bool required, str kind) -> int` | Option or flag |
+| `clickCommandSetShell` | `(int command, str template) -> int` | Shell template run when invoked |
+| `clickInvoke` | `(int handle, str argsJson) -> str` | JSON `{"params": …, "output": …, "exitCode": …}` |
+| `clickGroupInvoke` | `(int handle, str argsJson) -> str` | The first argument selects the subcommand |
+| `clickRun` | `(int command) -> str` | Invoke with the process command line |
+| `clickLastParams` | `() -> str` | Parameters of the most recent invoke |
 
-Click and Typer are Python packages with no Lynxer equivalent, so the
-`click*`/`typer*` builder functions are **not defined** — calling one is a hard
-"unknown function" error.
+The Typer surface mirrors it: `typerInit`, `typerAppCreate(str name, str help,
+bool noArgsHelp)`, `typerCommandCreate(int app, str name, str help)`,
+`typerAddArgument`, `typerAddOption`, `typerCommandSetShell`,
+`typerInvoke(int app, str argsJson)`, `typerRun(int app)`, `typerLastParams`.
+A Typer app with a single command is invoked without the command name; with two
+or more, the first argument selects the command.
+
+- `declarations` is comma-separated, e.g. `"--verbose,-v"`. The parameter name
+  is the first declaration without its dashes (`shout` for `"--shout,-s"`).
+- `kind` is `text`, `int`, `float`, `bool` or `path`.
+- `argsJson` is a JSON array of argument strings, e.g. `["Ada", "--shout"]`.
+- `{parameterName}` placeholders in a shell template are replaced with the
+  parsed values; `output` is the command's captured stdout.
+- A failed parse returns `{"error": "…"}` instead of failing the process.
+
+```lynx
+global setup(){ import("cli"); }
+
+global main(){
+    global.cli.clickInit();
+    int command = global.cli.clickCommandCreate("greet", "Greet a person");
+    global.cli.clickAddArgument(command, "name", true, 1);
+    global.cli.clickAddOption(command, "--shout,-s", "Use uppercase", "", true, false, "bool");
+    global.cli.clickCommandSetShell(command, "printf 'Hello {name}'");
+    println(global.cli.clickInvoke(command, "[\"Ada\", \"--shout\"]"));
+    // {"params": {"name": "Ada", "shout": true}, "output": "Hello Ada", "exitCode": 0}
+}
+```
 
 ## Arguments and environment
 

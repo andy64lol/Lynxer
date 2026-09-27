@@ -1,18 +1,25 @@
 // Lynxer `cli` stdlib backend: argument, environment, terminal and process
-// helpers for command-line programs.
+// helpers for command-line programs, plus the Click/Typer-style command
+// builders.
 //
-// The Python reference also exposes Click/Typer command builders; those wrap
-// Python packages and have no Lynxer equivalent, so they are intentionally
-// absent (see docs/limitations.md).
+// The builders keep their definitions in an integer-handle registry (the same
+// model as `multiprocessing`); the builders themselves are reached through a
+// single JSON descriptor argument so no native signature shape beyond the
+// existing ones is needed.
 
 #include "native_json.hpp"
 
 #include <array>
+#include <charconv>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
+#include <map>
+#include <mutex>
+#include <set>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -244,6 +251,603 @@ extern "C" std::int64_t cli_runCode(const char* command) {
     return code;
 }
 
+// --- command builders (Click/Typer style) ------------------------------------
+//
+// Every builder op takes a single JSON *array* descriptor; the `.lynx` wrapper
+// presents the original positional API and builds the array. Command
+// definitions live in an integer-handle registry.
+
+namespace {
+
+struct BuilderOption {
+    std::vector<std::string> names;
+    std::string help;
+    std::string defaultValue;
+    bool flag = false;
+    bool required = false;
+    std::string type = "text";
+
+    // The parameter name: the first declaration without its leading dashes, so
+    // "--shout,-s" renders as `{shout}` in a shell template.
+    std::string parameter() const {
+        std::string name = names.empty() ? std::string() : names.front();
+        while (!name.empty() && name.front() == '-') {
+            name.erase(name.begin());
+        }
+        return name;
+    }
+};
+
+struct BuilderArgument {
+    std::string name;
+    bool required = true;
+    std::int64_t nargs = 1;
+};
+
+struct BuilderNode {
+    std::string name;
+    std::string help;
+    bool group = false;
+    bool noArgsHelp = false;
+    std::string shell;
+    std::vector<BuilderArgument> arguments;
+    std::vector<BuilderOption> options;
+    std::vector<std::int64_t> children;
+};
+
+std::map<std::int64_t, BuilderNode>& builderNodes() {
+    static std::map<std::int64_t, BuilderNode> nodes;
+    return nodes;
+}
+
+std::mutex& builderMutex() {
+    static std::mutex instance;
+    return instance;
+}
+
+std::int64_t nextBuilderHandle() {
+    static std::int64_t next = 0;
+    return ++next;
+}
+
+std::string& lastParams() {
+    static std::string value;
+    return value;
+}
+
+bool parseDescriptor(const char* json, native_json::Value& out,
+                     std::string& error) {
+    if (!native_json::parse(textOrEmpty(json), out, error)) {
+        return false;
+    }
+    if (out.type != native_json::Type::Array) {
+        error = "builder descriptor must be a JSON array";
+        return false;
+    }
+    return true;
+}
+
+std::string itemString(const native_json::Value& array, std::size_t index) {
+    if (index >= array.items.size()) {
+        return "";
+    }
+    const native_json::Value& item = array.items[index];
+    return item.type == native_json::Type::String ? item.text : "";
+}
+
+std::int64_t itemInt(const native_json::Value& array, std::size_t index) {
+    return index < array.items.size() ? native_json::asInteger(array.items[index])
+                                      : 0;
+}
+
+bool itemBool(const native_json::Value& array, std::size_t index) {
+    return index < array.items.size() &&
+           native_json::asInteger(array.items[index]) != 0;
+}
+
+std::string scalarText(const native_json::Value& value) {
+    switch (value.type) {
+        case native_json::Type::String: return value.text;
+        case native_json::Type::Integer: return std::to_string(value.integer);
+        case native_json::Type::Number:
+            return native_json::numberToString(value.number);
+        case native_json::Type::Bool: return value.boolean ? "true" : "false";
+        default: return "";
+    }
+}
+
+// Converts one raw value to its declared type; ok=false and `error` on failure.
+native_json::Value typedValue(const std::string& raw, const std::string& type,
+                              bool& ok, std::string& error) {
+    ok = true;
+    if (type == "int") {
+        std::int64_t number = 0;
+        const char* begin = raw.data();
+        const char* end = begin + raw.size();
+        const auto result = std::from_chars(begin, end, number);
+        if (result.ec != std::errc() || result.ptr != end) {
+            ok = false;
+            error = "'" + raw + "' is not a valid int";
+            return native_json::makeNull();
+        }
+        return native_json::makeInteger(number);
+    }
+    if (type == "float") {
+        try {
+            std::size_t used = 0;
+            const double number = std::stod(raw, &used);
+            if (used != raw.size()) {
+                throw std::invalid_argument("trailing");
+            }
+            return native_json::makeNumber(number);
+        } catch (const std::exception&) {
+            ok = false;
+            error = "'" + raw + "' is not a valid float";
+            return native_json::makeNull();
+        }
+    }
+    if (type == "bool") {
+        if (raw == "true" || raw == "1" || raw == "yes" || raw == "on") {
+            return native_json::makeBool(true);
+        }
+        if (raw.empty() || raw == "false" || raw == "0" || raw == "no" ||
+            raw == "off") {
+            return native_json::makeBool(false);
+        }
+        ok = false;
+        error = "'" + raw + "' is not a valid bool";
+        return native_json::makeNull();
+    }
+    return native_json::makeString(raw);   // text and path
+}
+
+struct ParseResult {
+    bool ok = true;
+    std::string error;
+    native_json::Value params = native_json::makeObject();
+};
+
+ParseResult parseForNode(const BuilderNode& node,
+                         const std::vector<std::string>& tokens) {
+    ParseResult result;
+    std::map<std::string, native_json::Value> values;
+    std::set<std::string> presentOptions;
+    std::vector<std::string> positional;
+
+    for (std::size_t index = 0; index < tokens.size(); ++index) {
+        const std::string& token = tokens[index];
+        const bool looksLikeOption = token.size() >= 2 && token[0] == '-';
+        if (!looksLikeOption) {
+            positional.push_back(token);
+            continue;
+        }
+        std::string name = token;
+        std::string inlineValue;
+        bool hasInline = false;
+        if (const std::size_t equals = token.find('=');
+            equals != std::string::npos) {
+            name = token.substr(0, equals);
+            inlineValue = token.substr(equals + 1);
+            hasInline = true;
+        }
+        const BuilderOption* option = nullptr;
+        for (const auto& candidate : node.options) {
+            for (const auto& declared : candidate.names) {
+                if (declared == name) {
+                    option = &candidate;
+                }
+            }
+        }
+        if (option == nullptr) {
+            result.ok = false;
+            result.error = "unknown option '" + name + "'";
+            return result;
+        }
+        std::string raw;
+        if (option->flag) {
+            raw = hasInline ? inlineValue : "true";
+        } else if (hasInline) {
+            raw = inlineValue;
+        } else {
+            if (index + 1 >= tokens.size()) {
+                result.ok = false;
+                result.error = "option '" + name + "' requires a value";
+                return result;
+            }
+            raw = tokens[++index];
+        }
+        bool ok = true;
+        std::string error;
+        values[option->parameter()] =
+            typedValue(raw, option->flag ? "bool" : option->type, ok, error);
+        if (!ok) {
+            result.ok = false;
+            result.error = error;
+            return result;
+        }
+        presentOptions.insert(option->parameter());
+    }
+
+    std::size_t consumed = 0;
+    std::set<std::string> presentArguments;
+    for (const auto& argument : node.arguments) {
+        if (argument.nargs == 1) {
+            if (consumed < positional.size()) {
+                values[argument.name] =
+                    native_json::makeString(positional[consumed++]);
+                presentArguments.insert(argument.name);
+            }
+        } else if (argument.nargs < 0) {
+            native_json::Value array = native_json::makeArray();
+            while (consumed < positional.size()) {
+                array.items.push_back(
+                    native_json::makeString(positional[consumed++]));
+            }
+            values[argument.name] = array;
+            presentArguments.insert(argument.name);
+        } else {
+            native_json::Value array = native_json::makeArray();
+            for (std::int64_t count = 0;
+                 count < argument.nargs && consumed < positional.size();
+                 ++count) {
+                array.items.push_back(
+                    native_json::makeString(positional[consumed++]));
+            }
+            values[argument.name] = array;
+            presentArguments.insert(argument.name);
+        }
+    }
+    if (consumed < positional.size()) {
+        result.ok = false;
+        result.error = "unexpected argument '" + positional[consumed] + "'";
+        return result;
+    }
+    for (const auto& argument : node.arguments) {
+        if (argument.required && argument.nargs == 1 &&
+            presentArguments.find(argument.name) == presentArguments.end()) {
+            result.ok = false;
+            result.error = "missing required argument '" + argument.name + "'";
+            return result;
+        }
+    }
+    for (const auto& option : node.options) {
+        if (presentOptions.find(option.parameter()) != presentOptions.end()) {
+            continue;
+        }
+        if (option.required) {
+            result.ok = false;
+            result.error =
+                "missing required option '" + option.names.front() + "'";
+            return result;
+        }
+        if (!option.defaultValue.empty()) {
+            bool ok = true;
+            std::string error;
+            const native_json::Value value =
+                typedValue(option.defaultValue, option.flag ? "bool"
+                                                            : option.type,
+                           ok, error);
+            if (ok) {
+                values[option.parameter()] = value;
+            }
+        }
+    }
+
+    for (const auto& argument : node.arguments) {
+        if (values.count(argument.name) != 0) {
+            native_json::setField(result.params, argument.name,
+                                  values[argument.name]);
+        }
+    }
+    for (const auto& option : node.options) {
+        if (values.count(option.parameter()) != 0) {
+            native_json::setField(result.params, option.parameter(),
+                                  values[option.parameter()]);
+        }
+    }
+    return result;
+}
+
+std::string substituteTemplate(const std::string& text,
+                               const native_json::Value& params) {
+    std::string out;
+    for (std::size_t index = 0; index < text.size();) {
+        if (text[index] != '{') {
+            out += text[index++];
+            continue;
+        }
+        const std::size_t close = text.find('}', index);
+        if (close == std::string::npos) {
+            out += text[index++];
+            continue;
+        }
+        const std::string key = text.substr(index + 1, close - index - 1);
+        const native_json::Value* field = native_json::findField(params, key);
+        out += field == nullptr ? std::string() : scalarText(*field);
+        index = close + 1;
+    }
+    return out;
+}
+
+// Resolves a handle and runs it. On failure `error` is set and "" is returned.
+std::string invokeNode(std::int64_t handle,
+                       const std::vector<std::string>& tokens,
+                       std::string& error) {
+    const auto found = builderNodes().find(handle);
+    if (found == builderNodes().end()) {
+        error = "unknown command handle " + std::to_string(handle);
+        return "";
+    }
+    const BuilderNode& node = found->second;
+    if (node.group) {
+        // A group with one command may omit the command name (Typer's model).
+        if (node.children.size() == 1) {
+            const auto only = builderNodes().find(node.children.front());
+            if (only != builderNodes().end() &&
+                (tokens.empty() || tokens.front() != only->second.name)) {
+                return invokeNode(only->first, tokens, error);
+            }
+        }
+        if (tokens.empty()) {
+            error = "command group '" + node.name + "' requires a subcommand";
+            return "";
+        }
+        for (const std::int64_t child : node.children) {
+            const auto candidate = builderNodes().find(child);
+            if (candidate != builderNodes().end() &&
+                candidate->second.name == tokens.front()) {
+                return invokeNode(child,
+                                  std::vector<std::string>(tokens.begin() + 1,
+                                                           tokens.end()),
+                                  error);
+            }
+        }
+        error = "unknown command '" + tokens.front() + "'";
+        return "";
+    }
+
+    const ParseResult parsed = parseForNode(node, tokens);
+    if (!parsed.ok) {
+        error = parsed.error;
+        return "";
+    }
+    native_json::Value result = native_json::makeObject();
+    native_json::setField(result, "params", parsed.params);
+    if (!node.shell.empty()) {
+        const std::string command = substituteTemplate(node.shell, parsed.params);
+        std::int64_t code = 0;
+        const std::string output = captureCommand(command, code);
+        native_json::setField(result, "output", native_json::makeString(output));
+        native_json::setField(result, "exitCode", native_json::makeInteger(code));
+    }
+    lastParams() = native_json::dump(parsed.params, false);
+    return native_json::dump(result, false);
+}
+
+std::vector<std::string> jsonStringList(const native_json::Value& array) {
+    std::vector<std::string> tokens;
+    for (const auto& item : array.items) {
+        tokens.push_back(scalarText(item));
+    }
+    return tokens;
+}
+
+std::string invokeFromDescriptor(const char* json) {
+    native_json::Value descriptor;
+    std::string error;
+    if (!parseDescriptor(json, descriptor, error)) {
+        return native_json::dump(
+            [&] {
+                native_json::Value object = native_json::makeObject();
+                native_json::setField(object, "error",
+                                      native_json::makeString(error));
+                return object;
+            }(),
+            false);
+    }
+    const std::int64_t handle = itemInt(descriptor, 0);
+    std::vector<std::string> tokens;
+    if (descriptor.items.size() > 1) {
+        // The arguments arrive as a JSON array, either inline or (from the
+        // wrapper) as a JSON string that itself holds an array.
+        const native_json::Value& arguments = descriptor.items[1];
+        if (arguments.type == native_json::Type::Array) {
+            tokens = jsonStringList(arguments);
+        } else if (arguments.type == native_json::Type::String) {
+            native_json::Value parsed;
+            std::string parseError;
+            if (!native_json::parse(arguments.text, parsed, parseError) ||
+                parsed.type != native_json::Type::Array) {
+                native_json::Value object = native_json::makeObject();
+                native_json::setField(
+                    object, "error",
+                    native_json::makeString(
+                        "invoke arguments must be a JSON array"));
+                return native_json::dump(object, false);
+            }
+            tokens = jsonStringList(parsed);
+        }
+    }
+    const std::string result = invokeNode(handle, tokens, error);
+    if (!error.empty()) {
+        native_json::Value object = native_json::makeObject();
+        native_json::setField(object, "error", native_json::makeString(error));
+        return native_json::dump(object, false);
+    }
+    return result;
+}
+
+} // namespace
+
+extern "C" std::int64_t cli_clickInit() {
+    std::lock_guard<std::mutex> lock(builderMutex());
+    builderNodes().clear();
+    lastParams().clear();
+    return 0;
+}
+
+extern "C" std::int64_t cli_clickCommandCreate(const char* json) {
+    native_json::Value descriptor;
+    std::string error;
+    if (!parseDescriptor(json, descriptor, error)) {
+        return 0;
+    }
+    std::lock_guard<std::mutex> lock(builderMutex());
+    BuilderNode node;
+    node.name = itemString(descriptor, 0);
+    node.help = itemString(descriptor, 1);
+    const std::int64_t handle = nextBuilderHandle();
+    builderNodes()[handle] = std::move(node);
+    return handle;
+}
+
+extern "C" std::int64_t cli_clickGroupCreate(const char* json) {
+    native_json::Value descriptor;
+    std::string error;
+    if (!parseDescriptor(json, descriptor, error)) {
+        return 0;
+    }
+    std::lock_guard<std::mutex> lock(builderMutex());
+    BuilderNode node;
+    node.name = itemString(descriptor, 0);
+    node.help = itemString(descriptor, 1);
+    node.group = true;
+    node.noArgsHelp = itemBool(descriptor, 2);
+    const std::int64_t handle = nextBuilderHandle();
+    builderNodes()[handle] = std::move(node);
+    return handle;
+}
+
+extern "C" std::int64_t cli_clickGroupAddCommand(const char* json) {
+    native_json::Value descriptor;
+    std::string error;
+    if (!parseDescriptor(json, descriptor, error)) {
+        return 0;
+    }
+    std::lock_guard<std::mutex> lock(builderMutex());
+    const std::int64_t group = itemInt(descriptor, 0);
+    const std::int64_t command = itemInt(descriptor, 1);
+    const auto found = builderNodes().find(group);
+    if (found == builderNodes().end() ||
+        builderNodes().find(command) == builderNodes().end()) {
+        return 0;
+    }
+    found->second.children.push_back(command);
+    return 1;
+}
+
+extern "C" std::int64_t cli_clickAddArgument(const char* json) {
+    native_json::Value descriptor;
+    std::string error;
+    if (!parseDescriptor(json, descriptor, error)) {
+        return 0;
+    }
+    std::lock_guard<std::mutex> lock(builderMutex());
+    const auto found = builderNodes().find(itemInt(descriptor, 0));
+    if (found == builderNodes().end()) {
+        return 0;
+    }
+    BuilderArgument argument;
+    argument.name = itemString(descriptor, 1);
+    argument.required = itemBool(descriptor, 2);
+    argument.nargs = itemInt(descriptor, 3);
+    if (argument.nargs == 0) {
+        argument.nargs = 1;
+    }
+    found->second.arguments.push_back(std::move(argument));
+    return 1;
+}
+
+extern "C" std::int64_t cli_clickAddOption(const char* json) {
+    native_json::Value descriptor;
+    std::string error;
+    if (!parseDescriptor(json, descriptor, error)) {
+        return 0;
+    }
+    std::lock_guard<std::mutex> lock(builderMutex());
+    const auto found = builderNodes().find(itemInt(descriptor, 0));
+    if (found == builderNodes().end()) {
+        return 0;
+    }
+    BuilderOption option;
+    const std::string declarations = itemString(descriptor, 1);
+    std::string current;
+    for (const char character : declarations) {
+        if (character == ',') {
+            if (!current.empty()) {
+                option.names.push_back(current);
+            }
+            current.clear();
+        } else if (character != ' ') {
+            current += character;
+        }
+    }
+    if (!current.empty()) {
+        option.names.push_back(current);
+    }
+    option.help = itemString(descriptor, 2);
+    option.defaultValue = itemString(descriptor, 3);
+    option.flag = itemBool(descriptor, 4);
+    option.required = itemBool(descriptor, 5);
+    const std::string type = itemString(descriptor, 6);
+    option.type = type.empty() ? "text" : type;
+    found->second.options.push_back(std::move(option));
+    return 1;
+}
+
+extern "C" std::int64_t cli_clickCommandSetShell(const char* json) {
+    native_json::Value descriptor;
+    std::string error;
+    if (!parseDescriptor(json, descriptor, error)) {
+        return 0;
+    }
+    std::lock_guard<std::mutex> lock(builderMutex());
+    const auto found = builderNodes().find(itemInt(descriptor, 0));
+    if (found == builderNodes().end()) {
+        return 0;
+    }
+    found->second.shell = itemString(descriptor, 1);
+    return 1;
+}
+
+extern "C" const char* cli_clickInvoke(const char* json) {
+    std::lock_guard<std::mutex> lock(builderMutex());
+    return stable(invokeFromDescriptor(json));
+}
+
+extern "C" const char* cli_clickGroupInvoke(const char* json) {
+    std::lock_guard<std::mutex> lock(builderMutex());
+    return stable(invokeFromDescriptor(json));
+}
+
+extern "C" const char* cli_clickRun(const char* json) {
+    native_json::Value descriptor;
+    std::string error;
+    if (!parseDescriptor(json, descriptor, error)) {
+        native_json::Value object = native_json::makeObject();
+        native_json::setField(object, "error", native_json::makeString(error));
+        return stable(native_json::dump(object, false));
+    }
+    std::vector<std::string> tokens;
+    std::vector<std::string> arguments = processArguments();
+    if (arguments.size() > 1) {
+        tokens.assign(arguments.begin() + 1, arguments.end());
+    }
+    std::lock_guard<std::mutex> lock(builderMutex());
+    const std::string result = invokeNode(itemInt(descriptor, 0), tokens, error);
+    if (!error.empty()) {
+        native_json::Value object = native_json::makeObject();
+        native_json::setField(object, "error", native_json::makeString(error));
+        return stable(native_json::dump(object, false));
+    }
+    return stable(result);
+}
+
+extern "C" const char* cli_clickLastParams() {
+    std::lock_guard<std::mutex> lock(builderMutex());
+    return stable(lastParams().empty() ? std::string("{}") : lastParams());
+}
+
 extern "C" int lynxer_module_init_v1(RegisterFunction function,
                                      RegisterConstant, RegisterType) {
     return function("argv", "cli_argv", "cdecl:cstring()") &&
@@ -272,7 +876,27 @@ extern "C" int lynxer_module_init_v1(RegisterFunction function,
                             "cdecl:int64(cstring)") &&
                    function("which", "cli_which", "cdecl:cstring(cstring)") &&
                    function("run", "cli_run", "cdecl:cstring(cstring,int64)") &&
-                   function("runCode", "cli_runCode", "cdecl:int64(cstring)")
-               ? 0
+                   function("runCode", "cli_runCode", "cdecl:int64(cstring)") &&
+                   function("clickInit", "cli_clickInit", "cdecl:int64()") &&
+                   function("clickCommandCreate", "cli_clickCommandCreate",
+                            "cdecl:int64(cstring)") &&
+                   function("clickGroupCreate", "cli_clickGroupCreate",
+                            "cdecl:int64(cstring)") &&
+                   function("clickGroupAddCommand", "cli_clickGroupAddCommand",
+                            "cdecl:int64(cstring)") &&
+                   function("clickAddArgument", "cli_clickAddArgument",
+                            "cdecl:int64(cstring)") &&
+                   function("clickAddOption", "cli_clickAddOption",
+                            "cdecl:int64(cstring)") &&
+                   function("clickCommandSetShell", "cli_clickCommandSetShell",
+                            "cdecl:int64(cstring)") &&
+                   function("clickInvoke", "cli_clickInvoke",
+                            "cdecl:cstring(cstring)") &&
+                   function("clickGroupInvoke", "cli_clickGroupInvoke",
+                            "cdecl:cstring(cstring)") &&
+                   function("clickRun", "cli_clickRun",
+                            "cdecl:cstring(cstring)") &&
+                   function("clickLastParams", "cli_clickLastParams",
+                            "cdecl:cstring()") ? 0
                : 1;
 }

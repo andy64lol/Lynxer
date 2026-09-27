@@ -9,6 +9,13 @@ Runtime, process and platform information.
 | --- | --- | --- |
 | `platform` | `() -> str` | `linux`, `darwin`, `win32` or `unknown` |
 | `architecture` | `() -> str` | Canonical syscall architecture of this build: `amd64` or `arm64` |
+| `cpuCount` | `() -> int` | Online processors (`0` when unknown) |
+| `pageSize` | `() -> int` | Memory page size in bytes (`0` when unknown) |
+| `memoryTotal` | `() -> int` | Total physical memory in bytes (`0` when unknown) |
+| `memoryAvailable` | `() -> int` | Available physical memory in bytes |
+| `uptime` | `() -> int` | Seconds since boot |
+| `bootTime` | `() -> int` | Boot time as a Unix timestamp |
+| `loadAverage` | `() -> str` | JSON array `[1m, 5m, 15m]` |
 | `version` | `() -> str` | Lynxer version, e.g. `Lynxer 0.1.8.1` |
 | `versionInfo` | `() -> str` | JSON `{major, minor, micro, patch, releaselevel, serial}` |
 | `implementation` | `() -> str` | `Lynxer` |

@@ -1,20 +1,43 @@
 ////
 Lynxer standard library: cli.
 Command-line helpers backed by the native C++ module `stdlib/cli.so`:
-arguments, environment, terminal queries and process execution.
+arguments, environment, terminal queries, process execution, and Click/Typer
+style command builders.
 
-The Python reference also wraps Click and Typer command builders. Those are
-Python packages with no Lynxer equivalent, so `clickExists()`/`typerExists()`
-return false and the `click*`/`typer*` builders are not defined; calling one is
-a hard "unknown function" error rather than a silent no-op.
+Command builders keep their definitions in native integer handles and use JSON
+strings for structured arguments and results.
 ////
 global setup(){ importAs("cli.so", "nativeCli"); }
 
-// Click/Typer are Python packages and are never available under Lynxer.
-global clickExists() -> bool { return false; }
-global typerExists() -> bool { return false; }
-global clickVersion() -> str { return ""; }
-global typerVersion() -> str { return ""; }
+// Escape a value as a JSON string literal.
+global cliJsonString(str value) -> str {
+    str out = "\"";
+    int length = returnLength(value);
+    for (int i = 0; i < length; i = i + 1) {
+        str character = substring(value, i, i + 1);
+        if (character is "\\") {
+            out = out + "\\\\";
+        } else if (character is "\"") {
+            out = out + "\\\"";
+        } else if (character is "\n") {
+            out = out + "\\n";
+        } else if (character is "\r") {
+            out = out + "\\r";
+        } else if (character is "\t") {
+            out = out + "\\t";
+        } else {
+            out = out + character;
+        }
+    }
+    return out + "\"";
+}
+
+global cliJsonBool(bool value) -> str {
+    if (value) {
+        return "true";
+    }
+    return "false";
+}
 
 // Return the process command line as a JSON array.
 global argv() -> str { return global.nativeCli.argv(); }
@@ -66,5 +89,139 @@ global run(str command, bool capture) -> str {
 }
 // Run a command silently and return its exit code.
 global runCode(str command) -> int { return global.nativeCli.runCode(command); }
+
+// --- Click-style builders ---------------------------------------------------
+
+// Reset the builder registry. Call before creating any command or group.
+global clickInit() { global.nativeCli.clickInit(); }
+
+// Create a command; returns its handle (0 on failure).
+global clickCommandCreate(str name, str help) -> int {
+    return global.nativeCli.clickCommandCreate(
+        "[" + cliJsonString(name) + "," + cliJsonString(help) + "]");
+}
+
+// Create a command group; returns its handle (0 on failure).
+global clickGroupCreate(str name, str help) -> int {
+    return global.nativeCli.clickGroupCreate(
+        "[" + cliJsonString(name) + "," + cliJsonString(help) + "]");
+}
+
+// Register a command in a group.
+global clickGroupAddCommand(int group, int command, str name) -> int {
+    return global.nativeCli.clickGroupAddCommand(
+        "[" + strOf(group) + "," + strOf(command) + "," + cliJsonString(name) +
+        "]");
+}
+
+// Add a positional argument. nargs < 0 collects all remaining arguments.
+global clickAddArgument(int command, str name, bool required, int nargs) -> int {
+    return global.nativeCli.clickAddArgument(
+        "[" + strOf(command) + "," + cliJsonString(name) + "," +
+        cliJsonBool(required) + "," + strOf(nargs) + "]");
+}
+
+// Add an option or flag. `declarations` is comma-separated ("--verbose,-v");
+// `kind` is one of text, int, float, bool, path.
+global clickAddOption(int command, str declarations, str help,
+                      str defaultValue, bool flag, bool required,
+                      str kind) -> int {
+    return global.nativeCli.clickAddOption(
+        "[" + strOf(command) + "," + cliJsonString(declarations) + "," +
+        cliJsonString(help) + "," + cliJsonString(defaultValue) + "," +
+        cliJsonBool(flag) + "," + cliJsonBool(required) + "," +
+        cliJsonString(kind) + "]");
+}
+
+// Set a shell template run when the command is invoked. Parsed parameters are
+// substituted as {name}.
+global clickCommandSetShell(int command, str template) -> int {
+    return global.nativeCli.clickCommandSetShell(
+        "[" + strOf(command) + "," + cliJsonString(template) + "]");
+}
+
+// Invoke a command with a JSON array of arguments; returns JSON
+// {"params": {...}, "output": "...", "exitCode": N}. On a failure it returns
+// {"error": "..."}.
+global clickInvoke(int handle, str argsJson) -> str {
+    return global.nativeCli.clickInvoke(
+        "[" + strOf(handle) + "," + cliJsonString(argsJson) + "]");
+}
+
+// Invoke a group: the first argument selects the subcommand.
+global clickGroupInvoke(int handle, str argsJson) -> str {
+    return global.nativeCli.clickGroupInvoke(
+        "[" + strOf(handle) + "," + cliJsonString(argsJson) + "]");
+}
+
+// Invoke a command with the process command line (arguments after argv[0]).
+global clickRun(int command) -> str {
+    return global.nativeCli.clickRun("[" + strOf(command) + "]");
+}
+
+// The parameters parsed by the most recent invoke, as JSON.
+global clickLastParams() -> str { return global.nativeCli.clickLastParams(); }
+
+// --- Typer-style builders ---------------------------------------------------
+
+// Reset the builder registry. Call before creating the app.
+global typerInit() { global.nativeCli.clickInit(); }
+
+// Create a Typer app (a group). Returns its handle (0 on failure).
+global typerAppCreate(str name, str help, bool noArgsHelp) -> int {
+    return global.nativeCli.clickGroupCreate(
+        "[" + cliJsonString(name) + "," + cliJsonString(help) + "," +
+        cliJsonBool(noArgsHelp) + "]");
+}
+
+// Register a command in a Typer app; returns the command handle.
+global typerCommandCreate(int app, str name, str help) -> int {
+    int command = global.nativeCli.clickCommandCreate(
+        "[" + cliJsonString(name) + "," + cliJsonString(help) + "]");
+    if (command > 0) {
+        global.nativeCli.clickGroupAddCommand(
+            "[" + strOf(app) + "," + strOf(command) + "," + cliJsonString(name) +
+            "]");
+    }
+    return command;
+}
+
+// Add a positional argument. nargs < 0 collects all remaining arguments.
+global typerAddArgument(int command, str name, bool required, int nargs) -> int {
+    return global.nativeCli.clickAddArgument(
+        "[" + strOf(command) + "," + cliJsonString(name) + "," +
+        cliJsonBool(required) + "," + strOf(nargs) + "]");
+}
+
+// Add an option or flag. `kind` is one of text, int, float, bool, path.
+global typerAddOption(int command, str declarations, str help,
+                      str defaultValue, bool flag, bool required,
+                      str kind) -> int {
+    return global.nativeCli.clickAddOption(
+        "[" + strOf(command) + "," + cliJsonString(declarations) + "," +
+        cliJsonString(help) + "," + cliJsonString(defaultValue) + "," +
+        cliJsonBool(flag) + "," + cliJsonBool(required) + "," +
+        cliJsonString(kind) + "]");
+}
+
+// Set a shell template run when the command is invoked.
+global typerCommandSetShell(int command, str template) -> int {
+    return global.nativeCli.clickCommandSetShell(
+        "[" + strOf(command) + "," + cliJsonString(template) + "]");
+}
+
+// Invoke an app with a JSON array of arguments; returns JSON like clickInvoke.
+global typerInvoke(int app, str argsJson) -> str {
+    return global.nativeCli.clickInvoke(
+        "[" + strOf(app) + "," + cliJsonString(argsJson) + "]");
+}
+
+// Invoke an app with the process command line.
+global typerRun(int app) -> str {
+    return global.nativeCli.clickRun("[" + strOf(app) + "]");
+}
+
+// The parameters parsed by the most recent invoke, as JSON.
+global typerLastParams() -> str { return global.nativeCli.clickLastParams(); }
 
 global main(){}

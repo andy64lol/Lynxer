@@ -95,7 +95,6 @@
 <tr><td><code>tkinter</code>, <code>tkinterPlus</code></td><td>No Python GUI toolkit. A future <code>graphics</code> module, if any, would be Rust-backed.</td></tr>
 <tr><td><code>turtle</code></td><td>Rust's <code>turtle</code> crate has not been maintained since 2019.</td></tr>
 <tr><td><code>http</code>, <code>net</code> modules</td><td>Superseded by <code>network</code> + <code>server</code>.</td></tr>
-<tr><td>Click/Typer builders (<code>click*</code>, <code>typer*</code>)</td><td>The <code>cli</code> module does not depend on Python's Click or Typer.</td></tr>
 <tr><td>Python runtime introspection (<code>sys.path</code>, <code>addPath</code>, <code>prependPath</code>, <code>removeFromPath</code>, <code>getModules</code>, <code>isModuleLoaded</code>, <code>getRecursionLimit</code>, <code>setRecursionLimit</code>, <code>os.getPythonVersion</code>, <code>os.getPythonImplementation</code>)</td><td>There is no Python runtime to introspect. The <code>os</code> getters return <code>&quot;&quot;</code> / <code>&quot;Lynxer&quot;</code> for compatibility and will be removed.</td></tr>
 <tr><td>Bytecode (<code>.lynxc</code>, <code>--view-bytecode</code>, <code>--benchmark-compile</code>, <code>--no-cache</code>)</td><td>Removed with the bytecode backend; <code>--compile</code> produces a standalone ELF executable instead (<code>--bundle</code> is an alias). Running a <code>.lynxc</code> file reports that bytecode is unsupported.</td></tr>
 <tr><td>FFI / native-module handle built-ins</td><td>Superseded by direct <code>import</code> of a native <code>.so</code> through the documented ABI.</td></tr>
@@ -218,13 +217,14 @@
 <ul>
 <li><strong>Version:</strong> <code>version()</code> returns the Lynxer version (e.g., <code>Lynxer 0.1.8.1</code>).</li>
 <li><strong>Architecture:</strong> <code>architecture()</code> returns the canonical syscall architecture of this build (<code>amd64</code> or <code>arm64</code>), not the raw machine string from <code>uname(2)</code>.</li>
+<li><strong>System information:</strong> <code>cpuCount</code>, <code>pageSize</code>, <code>memoryTotal</code>, <code>memoryAvailable</code>, <code>uptime</code>, <code>bootTime</code> and <code>loadAverage</code> are Linux-only and return <code>0</code> (or <code>[]</code>) when the host cannot provide the value.</li>
 <li><strong>Python runtime concepts:</strong> Not supported (<code>sys.path</code>, <code>addPath</code>, <code>prependPath</code>, <code>removeFromPath</code>, <code>getModules</code>, <code>isModuleLoaded</code>, <code>getRecursionLimit</code>, <code>setRecursionLimit</code>).</li>
 <li><strong>Command-line arguments:</strong> <code>argv()</code>, <code>getArg</code>, and <code>argCount</code> describe the <code>lynxer</code> process command line, not the program's arguments.</li>
 <li><strong>Exit behavior:</strong> <code>exit()</code> calls <code>std::exit</code> directly, bypassing interpreter cleanup.</li>
 </ul>
 <h3 id="cli--constrained-behavior"><code>cli</code> — Constrained Behavior</h3>
 <ul>
-<li><strong>Click/Typer builders:</strong> The <code>click*</code> and <code>typer*</code> builder functions are not supported. Calling them results in a hard "unknown function" error. <code>clickExists()</code> and <code>typerExists()</code> return <code>false</code>, and version helpers return <code>&quot;&quot;</code> (empty string).</li>
+<li><strong>Click/Typer builders:</strong> The <code>click*</code> and <code>typer*</code> builders are implemented natively (integer handles over JSON descriptors) rather than by binding the Python packages. A failed parse returns <code>{&quot;error&quot;: &quot;…&quot;}</code> rather than raising. The old Python-availability probes (<code>clickExists</code>, <code>typerExists</code>, <code>clickVersion</code>, <code>typerVersion</code>) were removed as meaningless.</li>
 </ul>
 <h3 id="multiprocessing--constrained-behavior"><code>multiprocessing</code> — Constrained Behavior</h3>
 <ul>

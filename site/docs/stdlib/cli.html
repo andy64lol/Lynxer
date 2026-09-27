@@ -81,15 +81,43 @@
     </nav>
     <main class="doc">
 <h1 id="cli">cli</h1>
-<p>Command-line helpers: arguments, environment, terminal queries and process execution.</p>
+<p>Command-line helpers: arguments, environment, terminal queries, process execution and Click/Typer-style command builders.</p>
 <p><strong>Backend:</strong> native — <code>stdlib/cli.so</code>, built from <code>stdlib/cli.cpp</code> over POSIX APIs. <strong>Import:</strong> <code>import(&quot;cli&quot;)</code> → <code>global.cli.*</code></p>
-<h2 id="click--typer-compatibility">Click / Typer compatibility</h2>
+<h2 id="command-builders">Command builders</h2>
+<p>The Click/Typer builders are implemented natively; command definitions live in integer handles. Call <code>clickInit()</code> (or <code>typerInit()</code>) before creating anything.</p>
 <table>
-<tr><th>Function</th><th>Signature</th><th>Returns</th></tr>
-<tr><td><code>clickExists</code> / <code>typerExists</code></td><td><code>() -&gt; bool</code></td><td>Always <code>false</code></td></tr>
-<tr><td><code>clickVersion</code> / <code>typerVersion</code></td><td><code>() -&gt; str</code></td><td>Always <code>&quot;&quot;</code></td></tr>
+<tr><th>Function</th><th>Signature</th><th>Notes</th></tr>
+<tr><td><code>clickInit</code></td><td><code>()</code></td><td>Resets the builder registry</td></tr>
+<tr><td><code>clickCommandCreate</code></td><td><code>(str name, str help) -&gt; int</code></td><td>Command handle, <code>0</code> on failure</td></tr>
+<tr><td><code>clickGroupCreate</code></td><td><code>(str name, str help) -&gt; int</code></td><td>Command group handle</td></tr>
+<tr><td><code>clickGroupAddCommand</code></td><td><code>(int group, int command, str name) -&gt; int</code></td><td>Registers a command in a group</td></tr>
+<tr><td><code>clickAddArgument</code></td><td><code>(int command, str name, bool required, int nargs) -&gt; int</code></td><td>Positional argument; <code>nargs &lt; 0</code> collects the rest</td></tr>
+<tr><td><code>clickAddOption</code></td><td><code>(int command, str declarations, str help, str default, bool flag, bool required, str kind) -&gt; int</code></td><td>Option or flag</td></tr>
+<tr><td><code>clickCommandSetShell</code></td><td><code>(int command, str template) -&gt; int</code></td><td>Shell template run when invoked</td></tr>
+<tr><td><code>clickInvoke</code></td><td><code>(int handle, str argsJson) -&gt; str</code></td><td>JSON <code>{&quot;params&quot;: …, &quot;output&quot;: …, &quot;exitCode&quot;: …}</code></td></tr>
+<tr><td><code>clickGroupInvoke</code></td><td><code>(int handle, str argsJson) -&gt; str</code></td><td>The first argument selects the subcommand</td></tr>
+<tr><td><code>clickRun</code></td><td><code>(int command) -&gt; str</code></td><td>Invoke with the process command line</td></tr>
+<tr><td><code>clickLastParams</code></td><td><code>() -&gt; str</code></td><td>Parameters of the most recent invoke</td></tr>
 </table>
-<p>Click and Typer are Python packages with no Lynxer equivalent, so the <code>click*</code>/<code>typer*</code> builder functions are <strong>not defined</strong> — calling one is a hard "unknown function" error.</p>
+<p>The Typer surface mirrors it: <code>typerInit</code>, <code>typerAppCreate(str name, str help, bool noArgsHelp)</code>, <code>typerCommandCreate(int app, str name, str help)</code>, <code>typerAddArgument</code>, <code>typerAddOption</code>, <code>typerCommandSetShell</code>, <code>typerInvoke(int app, str argsJson)</code>, <code>typerRun(int app)</code>, <code>typerLastParams</code>. A Typer app with a single command is invoked without the command name; with two or more, the first argument selects the command.</p>
+<ul>
+<li><code>declarations</code> is comma-separated, e.g. <code>&quot;--verbose,-v&quot;</code>. The parameter name is the first declaration without its dashes (<code>shout</code> for <code>&quot;--shout,-s&quot;</code>).</li>
+<li><code>kind</code> is <code>text</code>, <code>int</code>, <code>float</code>, <code>bool</code> or <code>path</code>.</li>
+<li><code>argsJson</code> is a JSON array of argument strings, e.g. <code>[&quot;Ada&quot;, &quot;--shout&quot;]</code>.</li>
+<li><code>{parameterName}</code> placeholders in a shell template are replaced with the parsed values; <code>output</code> is the command's captured stdout.</li>
+<li>A failed parse returns <code>{&quot;error&quot;: &quot;…&quot;}</code> instead of failing the process.</li>
+</ul>
+<pre><code>global setup(){ import(&quot;cli&quot;); }
+
+global main(){
+    global.cli.clickInit();
+    int command = global.cli.clickCommandCreate(&quot;greet&quot;, &quot;Greet a person&quot;);
+    global.cli.clickAddArgument(command, &quot;name&quot;, true, 1);
+    global.cli.clickAddOption(command, &quot;--shout,-s&quot;, &quot;Use uppercase&quot;, &quot;&quot;, true, false, &quot;bool&quot;);
+    global.cli.clickCommandSetShell(command, &quot;printf &#x27;Hello {name}&#x27;&quot;);
+    println(global.cli.clickInvoke(command, &quot;[\&quot;Ada\&quot;, \&quot;--shout\&quot;]&quot;));
+    // {&quot;params&quot;: {&quot;name&quot;: &quot;Ada&quot;, &quot;shout&quot;: true}, &quot;output&quot;: &quot;Hello Ada&quot;, &quot;exitCode&quot;: 0}
+}</code></pre>
 <h2 id="arguments-and-environment">Arguments and environment</h2>
 <table>
 <tr><th>Function</th><th>Signature</th><th>Notes</th></tr>

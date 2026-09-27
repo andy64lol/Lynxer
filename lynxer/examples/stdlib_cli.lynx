@@ -3,13 +3,9 @@ Fixture for the cli stdlib. Interpreted only (module imports are not
 bytecode-compilable). TTY-dependent helpers are not asserted because the test
 harness redirects stdout.
 ////
-global setup(){ import("cli"); import("os"); import("fileIO"); }
+global setup(){ import("cli"); import("os"); import("fileIO"); import("json"); }
 
 global main(){
-    println(global.cli.clickExists());
-    println(global.cli.typerExists());
-    println(global.cli.clickVersion() is "");
-    println(global.cli.typerVersion() is "");
     println(global.cli.argCount() >= 2);
     println(global.cli.getArg(0) isnt "");
     println(global.cli.getArg(99) is "");
@@ -39,4 +35,42 @@ global main(){
     println(global.cli.run("false", false));
     println(global.cli.runCode("true"));
     println(global.cli.runCode("false"));
+
+    // Click-style builders: command, argument, flag, shell template, invoke.
+    global.cli.clickInit();
+    int greet = global.cli.clickCommandCreate("greet", "Greet a person");
+    println(greet > 0);
+    println(global.cli.clickAddArgument(greet, "name", true, 1) is 1);
+    println(global.cli.clickAddOption(greet, "--shout,-s", "Use uppercase", "", true, false, "bool") is 1);
+    println(global.cli.clickCommandSetShell(greet, "printf 'Hello {name}'") is 1);
+    str greetResult = global.cli.clickInvoke(greet, "[\"Ada\", \"--shout\"]");
+    println(global.json.jsonGet(greetResult, "output") is "Hello Ada");
+    println(global.json.jsonGetInt(greetResult, "exitCode") is 0);
+    println(global.json.jsonGet(global.cli.clickLastParams(), "name") is "Ada");
+    println(global.json.jsonGetBool(global.cli.clickLastParams(), "shout"));
+
+    // A typed option and a group with a subcommand.
+    int count = global.cli.clickCommandCreate("count", "Count");
+    global.cli.clickAddOption(count, "--n", "How many", "1", false, false, "int");
+    global.cli.clickInvoke(count, "[\"--n\", \"7\"]");
+    println(global.json.jsonGetInt(global.cli.clickLastParams(), "n") is 7);
+    int group = global.cli.clickGroupCreate("tool", "Tool");
+    global.cli.clickGroupAddCommand(group, count, "count");
+    global.cli.clickGroupInvoke(group, "[\"count\", \"--n\", \"3\"]");
+    println(global.json.jsonGetInt(global.cli.clickLastParams(), "n") is 3);
+
+    // The error path returns {"error": "..."} rather than failing the process.
+    str bad = global.cli.clickInvoke(count, "[\"--nope\"]");
+    println(returnLength(global.json.jsonGet(bad, "error")) > 0);
+
+    // Typer-style builders: a single-command app is invoked without its name.
+    global.cli.typerInit();
+    int app = global.cli.typerAppCreate("app", "App", true);
+    int tgreet = global.cli.typerCommandCreate(app, "greet", "Greet");
+    global.cli.typerAddArgument(tgreet, "name", true, 1);
+    global.cli.typerAddOption(tgreet, "--loud", "Loud", "", true, false, "bool");
+    global.cli.typerCommandSetShell(tgreet, "printf 'hi {name}'");
+    str typerResult = global.cli.typerInvoke(app, "[\"Ada\"]");
+    println(global.json.jsonGet(typerResult, "output") is "hi Ada");
+    println(global.json.jsonGet(global.cli.typerLastParams(), "name") is "Ada");
 }

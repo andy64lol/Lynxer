@@ -13,6 +13,20 @@ global platform() -> str { return global.nativeSys.platform(); }
 // The canonical syscall architecture of this build ("amd64" or "arm64") — the
 // word syscalls() accepts, so `syscalls(sys.architecture())` is valid.
 global architecture() -> str { return global.nativeSys.architecture(); }
+// Online processor count (0 when unknown).
+global cpuCount() -> int { return global.nativeSys.cpuCount(); }
+// Memory page size in bytes (0 when unknown).
+global pageSize() -> int { return global.nativeSys.pageSize(); }
+// Total physical memory in bytes (0 when unknown).
+global memoryTotal() -> int { return global.nativeSys.memoryTotal(); }
+// Available physical memory in bytes (0 when unknown).
+global memoryAvailable() -> int { return global.nativeSys.memoryAvailable(); }
+// Seconds since boot (0 when unknown).
+global uptime() -> int { return global.nativeSys.uptime(); }
+// Approximate boot time as a Unix timestamp (0 when unknown).
+global bootTime() -> int { return global.nativeSys.bootTime(); }
+// Load averages over 1, 5 and 15 minutes, as a JSON array.
+global loadAverage() -> str { return global.nativeSys.loadAverage(); }
 global version() -> str { return global.nativeSys.version(); }
 global versionInfo() -> str { return global.nativeSys.versionInfo(); }
 global implementation() -> str { return global.nativeSys.implementation(); }

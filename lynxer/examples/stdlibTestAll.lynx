@@ -567,10 +567,25 @@ global main(){
 
     // ------------------------------------------------------------------- cli
     println("== cli ==");
-    fails += global.check(global.cli.clickExists(), "false", "cli.clickExists");
-    fails += global.check(global.cli.typerExists(), "false", "cli.typerExists");
-    fails += global.check(global.cli.clickVersion() is "", "true", "cli.clickVersion");
-    fails += global.check(global.cli.typerVersion() is "", "true", "cli.typerVersion");
+    global.cli.clickInit();
+    int cliCommand = global.cli.clickCommandCreate("greet", "Greet");
+    fails += global.check(cliCommand > 0, "true", "cli.clickCommandCreate");
+    fails += global.check(global.cli.clickAddArgument(cliCommand, "name", true, 1) is 1, "true", "cli.clickAddArgument");
+    fails += global.check(global.cli.clickAddOption(cliCommand, "--shout,-s", "Uppercase", "", true, false, "bool") is 1, "true", "cli.clickAddOption");
+    fails += global.check(global.cli.clickCommandSetShell(cliCommand, "printf 'Hello {name}'") is 1, "true", "cli.clickCommandSetShell");
+    str cliInvoked = global.cli.clickInvoke(cliCommand, "[\"Ada\", \"--shout\"]");
+    fails += global.check(global.json.jsonGet(cliInvoked, "output"), "Hello Ada", "cli.clickInvoke");
+    fails += global.check(global.json.jsonGet(global.cli.clickLastParams(), "name"), "Ada", "cli.clickLastParams");
+    fails += global.check(returnLength(global.json.jsonGet(global.cli.clickInvoke(cliCommand, "[\"--bad\"]"), "error")) > 0, "true", "cli.clickInvoke.error");
+    global.cli.typerInit();
+    int cliApp = global.cli.typerAppCreate("app", "App", true);
+    int cliTyperCommand = global.cli.typerCommandCreate(cliApp, "greet", "Greet");
+    fails += global.check(cliTyperCommand > 0, "true", "cli.typerCommandCreate");
+    fails += global.check(global.cli.typerAddArgument(cliTyperCommand, "name", true, 1) is 1, "true", "cli.typerAddArgument");
+    fails += global.check(global.cli.typerAddOption(cliTyperCommand, "--loud", "Loud", "", true, false, "bool") is 1, "true", "cli.typerAddOption");
+    fails += global.check(global.cli.typerCommandSetShell(cliTyperCommand, "printf 'hi {name}'") is 1, "true", "cli.typerCommandSetShell");
+    fails += global.check(global.json.jsonGet(global.cli.typerInvoke(cliApp, "[\"Ada\"]"), "output"), "hi Ada", "cli.typerInvoke");
+    fails += global.check(global.json.jsonGet(global.cli.typerLastParams(), "name"), "Ada", "cli.typerLastParams");
     fails += global.check(global.cli.argCount() >= 2, "true", "cli.argCount");
     fails += global.check(global.cli.getArg(0) isnt "", "true", "cli.getArg");
     fails += global.check(global.cli.getArg(99) is "", "true", "cli.getArg.oob");
@@ -701,6 +716,14 @@ global main(){
     fails += global.check(global.sys.argv() isnt "", "true", "sys.argv");
     fails += global.check(global.sys.argCount() >= 2, "true", "sys.argCount");
     fails += global.check(returnLength(global.sys.getArg(0)) > 0, "true", "sys.getArg");
+    fails += global.check(global.sys.architecture() isnt "", "true", "sys.architecture");
+    fails += global.check(global.sys.cpuCount() > 0, "true", "sys.cpuCount");
+    fails += global.check(global.sys.pageSize() > 0, "true", "sys.pageSize");
+    fails += global.check(global.sys.memoryTotal() > 0, "true", "sys.memoryTotal");
+    fails += global.check(global.sys.memoryAvailable() >= 0, "true", "sys.memoryAvailable");
+    fails += global.check(global.sys.uptime() >= 0, "true", "sys.uptime");
+    fails += global.check(global.sys.bootTime() > 0, "true", "sys.bootTime");
+    fails += global.check(global.text.contains(global.sys.loadAverage(), ","), "true", "sys.loadAverage");
 
     // -------------------------------------------------------------------- js
     println("== js ==");

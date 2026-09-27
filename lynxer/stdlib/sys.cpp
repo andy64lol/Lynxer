@@ -2,12 +2,14 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <ctime>
 #include <fstream>
 #include <string>
 #include <utility>
 #include <vector>
 #include <unistd.h>
 #if defined(__linux__)
+#include <sys/sysinfo.h>
 #include <sys/utsname.h>
 #endif
 
@@ -74,6 +76,97 @@ extern "C" const char* sys_architecture() {
     return "";
 #endif
 }
+
+// Online processor count, or 0 when unavailable.
+extern "C" std::int64_t sys_cpuCount() {
+#if defined(__linux__)
+    const long count = ::sysconf(_SC_NPROCESSORS_ONLN);
+    return count > 0 ? static_cast<std::int64_t>(count) : 0;
+#else
+    return 0;
+#endif
+}
+
+// Memory page size in bytes, or 0 when unavailable.
+extern "C" std::int64_t sys_pageSize() {
+#if defined(__linux__)
+    const long size = ::sysconf(_SC_PAGESIZE);
+    return size > 0 ? static_cast<std::int64_t>(size) : 0;
+#else
+    return 0;
+#endif
+}
+
+#if defined(__linux__)
+static bool readSysinfo(struct sysinfo& info) {
+    return ::sysinfo(&info) == 0;
+}
+#endif
+
+// Total physical memory in bytes, or 0 when unavailable.
+extern "C" std::int64_t sys_memoryTotal() {
+#if defined(__linux__)
+    struct sysinfo info {};
+    return readSysinfo(info)
+               ? static_cast<std::int64_t>(info.totalram) * info.mem_unit
+               : 0;
+#else
+    return 0;
+#endif
+}
+
+// Available (free) physical memory in bytes, or 0 when unavailable.
+extern "C" std::int64_t sys_memoryAvailable() {
+#if defined(__linux__)
+    struct sysinfo info {};
+    return readSysinfo(info)
+               ? static_cast<std::int64_t>(info.freeram) * info.mem_unit
+               : 0;
+#else
+    return 0;
+#endif
+}
+
+// Seconds since boot, or 0 when unavailable.
+extern "C" std::int64_t sys_uptime() {
+#if defined(__linux__)
+    struct sysinfo info {};
+    return readSysinfo(info) ? static_cast<std::int64_t>(info.uptime) : 0;
+#else
+    return 0;
+#endif
+}
+
+// Approximate boot time as a Unix timestamp, or 0 when unavailable.
+extern "C" std::int64_t sys_bootTime() {
+#if defined(__linux__)
+    struct sysinfo info {};
+    if (!readSysinfo(info)) {
+        return 0;
+    }
+    return static_cast<std::int64_t>(std::time(nullptr)) -
+           static_cast<std::int64_t>(info.uptime);
+#else
+    return 0;
+#endif
+}
+
+// Load averages over 1, 5 and 15 minutes as a JSON array.
+extern "C" const char* sys_loadAverage() {
+#if defined(__linux__)
+    double loads[3] = {0.0, 0.0, 0.0};
+    if (::getloadavg(loads, 3) < 0) {
+        return stable("[]");
+    }
+    native_json::Value array = native_json::makeArray();
+    array.items.push_back(native_json::makeNumber(loads[0]));
+    array.items.push_back(native_json::makeNumber(loads[1]));
+    array.items.push_back(native_json::makeNumber(loads[2]));
+    return stable(native_json::dump(array, false));
+#else
+    return stable("[]");
+#endif
+}
 // The Python reference returns the interpreter's version string; Lynxer has no
 // Python runtime, so this reports the Lynxer version instead.
 extern "C" const char* sys_version() { return LYNXER_VERSION_TEXT; }
@@ -134,6 +227,13 @@ extern "C" std::int64_t sys_exit(std::int64_t code) {
 extern "C" int lynxer_module_init_v1(RegisterFunction f, RegisterConstant, RegisterType) {
     return f("platform","sys_platform","cdecl:cstring()") &&
            f("architecture","sys_architecture","cdecl:cstring()") &&
+           f("cpuCount","sys_cpuCount","cdecl:int64()") &&
+           f("pageSize","sys_pageSize","cdecl:int64()") &&
+           f("memoryTotal","sys_memoryTotal","cdecl:int64()") &&
+           f("memoryAvailable","sys_memoryAvailable","cdecl:int64()") &&
+           f("uptime","sys_uptime","cdecl:int64()") &&
+           f("bootTime","sys_bootTime","cdecl:int64()") &&
+           f("loadAverage","sys_loadAverage","cdecl:cstring()") &&
            f("version","sys_version","cdecl:cstring()") &&
            f("versionInfo","sys_versionInfo","cdecl:cstring()") &&
            f("implementation","sys_implementation","cdecl:cstring()") &&
