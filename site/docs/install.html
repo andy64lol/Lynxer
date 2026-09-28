@@ -99,18 +99,18 @@
 <ul>
 <li>A C++17 compiler (<code>g++</code> or <code>clang++</code>) and <code>make</code>.</li>
 <li><code>python3</code> to run <code>make testLynxer</code> (the contract and golden checks).</li>
-<li>A Rust toolchain (<code>cargo</code>): the interpreter links the Rust native-call engine (<code>lynxer/rust/ffi</code>), so <code>cargo</code> is <strong>required</strong> to build <code>lynxer/lynxer</code>. A missing toolchain or a compile error fails the build.</li>
+<li>A Rust toolchain (<code>cargo</code>): it is <strong>required</strong>, not optional. Every Rust-backed stdlib module is built by <code>cargo</code>, and the interpreter links the Rust native-call engine (<code>lynxer/rust/ffi</code>). A missing toolchain or a compile error fails the build; there is no reduced build that drops a backend.</li>
 <li><code>libffi</code> headers and <code>pkg-config</code> (e.g. <code>libffi-dev</code> on Debian/Ubuntu) for the native-call engine.</li>
 <li>Git and network access for the first <code>cargo</code> build: crates are fetched from crates.io. Nothing is compiled from vendored C/C++ sources.</li>
 </ul>
 <p>No system OpenSSL, Boost, CMake, cpp-httplib, Crow, or nlohmann/json is needed: TLS is <code>rustls</code>, the HTTP stack is <code>ureq</code>/<code>tungstenite</code>/<code>axum</code>, and JSON is <code>serde_json</code>.</p>
 <h2 id="build-from-the-repository-root">Build from the repository root</h2>
-<pre><code>make buildLynxer       # interpreter + every native stdlib module
+<pre><code>make buildLynxer       # interpreter + every stdlib module, C++ and Rust
 make testLynxer        # the full suite (see README.md)</code></pre>
-<p><code>buildLynxer</code> already builds the Rust backends, so a separate <code>make cargo</code> is only useful to build them on their own:</p>
-<pre><code>make cargo              # just the Rust backends
-make buildLynxerArm64  # cross-build the ARM64 interpreter</code></pre>
-<p>The Makefile lives at the repository root and builds <strong>both</strong> implementations; there is no separate <code>lynxer/Makefile</code>.</p>
+<p><code>buildLynxer</code> builds the interpreter and every backend, C++ and Rust, so a separate <code>make cargo</code> is only useful to rebuild the Rust half on its own. Both fail if <code>cargo</code> is missing.</p>
+<pre><code>make cargo              # just the Rust backends and the native-call engine
+make buildLynxerArm64  # the ARM64 interpreter (needs an aarch64 host)</code></pre>
+<p>The Makefile lives at the repository root; there is no separate <code>lynxer/Makefile</code>.</p>
 <h2 id="artifacts">Artifacts</h2>
 <ul>
 <li><code>lynxer/lynxer</code> — the interpreter.</li>

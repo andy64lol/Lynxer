@@ -95,7 +95,7 @@
     <main class="doc">
 <h1 id="game">game</h1>
 <p>2-D game toolkit for Lynxer. The drawing, input and window layer is a Rust library built on <a href="https://macroquad.rs">macroquad</a>, linked into <code>stdlib/game.so</code> and reached through <code>global.game</code>.</p>
-<blockquote><strong>Requires:</strong> a Rust toolchain (<code>cargo</code>). <code>stdlib/game.so</code> is optional: it is skipped with a warning when <code>cargo</code> is not on <code>PATH</code>. The Rust source lives in <code>rust/game/</code>; build it with <code>make cargo</code> or <code>make buildLynxer</code>.</blockquote>
+<blockquote><strong>Requires:</strong> a Rust toolchain (<code>cargo</code>), which is required for the whole build. <code>stdlib/game.so</code> is built by <code>cargo</code> like every other Rust backend; a missing toolchain fails <code>make</code> instead of skipping the module. The Rust source lives in <code>rust/game/</code>; build it with <code>make cargo</code> or <code>make buildLynxer</code>.</blockquote>
 <hr>
 <h2 id="coordinates">Coordinates</h2>
 <p>World coordinates use <strong>bottom-left origin, +Y up</strong>, matching the reference <code>game</code> module. The Rust layer flips Y for macroquad internally, and mouse coordinates are reported from the bottom-left. Angles are degrees, counter-clockwise.</p>

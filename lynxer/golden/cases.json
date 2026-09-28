@@ -108,7 +108,7 @@
       "--validate-executeable"
     ],
     "exit": 0,
-    "stdout": "ok   arithmetic\nok   floor-division\nok   word-operators\nok   int-range\nok   unknown-variable\nok   division-by-zero\nok   const-reassign\nok   field-compound\nok   none-return\nok   list-value-semantics\nok   int64-memory\nok   freed-memory\nok   invalid-address\nok   enum-switch\nok   default-parameter\nok   try-catch\nok   typing-guard\nvalidator: 17 checks, 0 failure(s)\n"
+    "stdout": "ok   arithmetic\nok   floor-division\nok   word-operators\nok   int-range\nok   unknown-variable\nok   builtin-as-value\nok   division-by-zero\nok   const-reassign\nok   field-compound\nok   none-return\nok   list-value-semantics\nok   int64-memory\nok   freed-memory\nok   invalid-address\nok   enum-switch\nok   default-parameter\nok   try-catch\nok   typing-guard\nvalidator: 18 checks, 0 failure(s)\n"
   },
   "format_no_file": {
     "args": [

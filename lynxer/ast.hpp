@@ -61,10 +61,6 @@ public:
     const std::string& name() const { return name_; }
 
 private:
-    int line() const { return line_; }
-
-    int column() const { return column_; }
-
     std::string name_;
     int line_;
     int column_;
@@ -83,10 +79,6 @@ public:
     const Expression& operandExpr() const { return *operand_; }
 
 private:
-    int line() const { return line_; }
-
-    int column() const { return column_; }
-
     std::string operation_;
     ExpressionPtr operand_;
     int line_;
@@ -129,10 +121,6 @@ public:
     const Expression& rightExpr() const { return *right_; }
 
 private:
-    int line() const { return line_; }
-
-    int column() const { return column_; }
-
     std::string operation_;
     ExpressionPtr left_;
     ExpressionPtr right_;
@@ -158,10 +146,6 @@ public:
     void addNamedCodeblock(std::string name);
 
 private:
-    int line() const { return line_; }
-
-    int column() const { return column_; }
-
     std::string name_;
     std::vector<ExpressionPtr> arguments_;
     struct CodeblockArgument {
@@ -235,9 +219,6 @@ public:
 
     ExpressionPtr optimize(OptimizationStats& stats) override;
 
-    int line() const { return line_; }
-
-    int column() const { return column_; }
     const Expression& object() const { return *object_; }
     const std::string& fieldName() const { return field_; }
 
@@ -262,9 +243,6 @@ public:
 
     ExpressionPtr optimize(OptimizationStats& stats) override;
 
-    int line() const { return line_; }
-
-    int column() const { return column_; }
     const Expression& receiver() const { return *object_; }
     const std::string& methodName() const { return method_; }
     const std::vector<ExpressionPtr>& arguments() const { return arguments_; }
@@ -288,9 +266,6 @@ public:
 
     ExpressionPtr optimize(OptimizationStats& stats) override;
 
-    int line() const { return line_; }
-
-    int column() const { return column_; }
     const std::vector<ExpressionPtr>& arguments() const { return arguments_; }
 
 private:
@@ -429,10 +404,6 @@ public:
     bool isConstant() const { return constant_; }
 
 private:
-    int line() const { return line_; }
-
-    int column() const { return column_; }
-
     std::string type_;
     std::string name_;
     ExpressionPtr value_;
@@ -475,10 +446,6 @@ public:
     const Expression& valueExpr() const { return *value_; }
 
 private:
-    int line() const { return line_; }
-
-    int column() const { return column_; }
-
     std::string name_;
     ExpressionPtr value_;
     int line_;
@@ -808,10 +775,6 @@ public:
     const Expression& count() const { return *count_; }
 
 private:
-    int line() const { return line_; }
-
-    int column() const { return column_; }
-
     ExpressionPtr count_;
     StatementList statements_;
     int line_;
@@ -830,12 +793,6 @@ public:
     const StatementList& statements() const { return statements_; }
 
 private:
-    int line() const { return line_; }
-
-    int column() const { return column_; }
-
-    bool containsBreak(const StatementList& statements) const;
-
     StatementList statements_;
     int line_;
     int column_;

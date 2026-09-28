@@ -184,9 +184,10 @@ crate instead.
 1. add the crate to the workspace members in `rust/Cargo.toml`;
 2. add its name to `LYNXER_RUST_MODULE_NAMES` in the root `Makefile`.
 
-Rust modules are skipped with a warning when `cargo` is absent, so Lynxer still
-builds without a Rust toolchain. Keep `rust/Cargo.lock` committed: the module
-must build offline.
+`cargo` is required: a new Rust backend is added to the same build that already
+needs the toolchain, so a missing `cargo` or a failed build fails `make` rather
+than dropping the module. Keep `rust/Cargo.lock` committed: the module must
+build offline.
 
 `rust/ffi` is the one workspace member that is **not** a stdlib module: it is a
 `staticlib` native-call engine linked into the interpreter, built by its own

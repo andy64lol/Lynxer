@@ -4,9 +4,10 @@
 library built on [macroquad](https://macroquad.rs), linked into
 `stdlib/game.so` and reached through `global.game`.
 
-> **Requires:** a Rust toolchain (`cargo`). `stdlib/game.so` is optional: it is
-> skipped with a warning when `cargo` is not on `PATH`. The Rust source lives in
-> `rust/game/`; build it with `make cargo` or `make buildLynxer`.
+> **Requires:** a Rust toolchain (`cargo`), which is required for the whole
+> build. `stdlib/game.so` is built by `cargo` like every other Rust backend; a
+> missing toolchain fails `make` instead of skipping the module. The Rust source
+> lives in `rust/game/`; build it with `make cargo` or `make buildLynxer`.
 
 ---
 

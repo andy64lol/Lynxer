@@ -486,8 +486,6 @@ void setRecordField(RecordValue& record, const std::string& name,
                       line, column);
 }
 
-std::string methodDisplayKey(const std::string& name) { return name; }
-
 // Runs a class method with `this` and parameter bindings; shared by method
 // calls and `new` construction.
 Value runClassMethod(const std::shared_ptr<RecordValue>& receiver,
@@ -1011,6 +1009,12 @@ Value VariableExpression::evaluate(Environment& environment) const {
         if (!error.empty()) {
             throw SourceError(error, line_, column_);
         }
+    } else if (name_.find('.') == std::string::npos &&
+               isBuiltinName(name_)) {
+        // A builtin is a call target, not a value: name it precisely instead of
+        // reporting the name as an unknown variable.
+        throw SourceError("builtin '" + name_ + "' cannot be used as a value",
+                          line_, column_);
     }
     return environment.get(name_, line_, column_);
 }
@@ -1564,6 +1568,21 @@ ExecStatement::ExecStatement(std::vector<ExpressionPtr> arguments,
       params_(std::move(params)), body_(std::move(body)), line_(line),
       column_(column) {}
 
+void ExecStatement::runBody(
+    const StatementList& body,
+    std::vector<std::pair<std::string, Variable>>& saved,
+    Environment& environment) const {
+    // Run the body with the temporary parameter bindings in place, restoring
+    // the previous bindings whether the body returns, breaks, or throws.
+    try {
+        executeStatements(body, environment);
+    } catch (...) {
+        restoreSavedVariables(saved, environment);
+        throw;
+    }
+    restoreSavedVariables(saved, environment);
+}
+
 void ExecStatement::execute(Environment& environment) const {
     if (!blockName_.empty()) {
         // Named form: exec(args){{blockName}}
@@ -1643,13 +1662,7 @@ void ExecStatement::execute(Environment& environment) const {
         environment.setVariableRaw(
             param.second, Variable{param.first, std::move(value), false});
     }
-    try {
-        executeStatements(body_, environment);
-    } catch (...) {
-        restoreSavedVariables(saved, environment);
-        throw;
-    }
-    restoreSavedVariables(saved, environment);
+    runBody(body_, saved, environment);
 }
 
 void FunctionDeclarationStatement::execute(Environment& environment) const {

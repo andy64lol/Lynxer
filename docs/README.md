@@ -84,9 +84,10 @@ Both Lynxer CI workflows (`.github/workflows/build-lynxer-amd.yml` and
 drops the fixtures that need a display or an audio device (a CI runner has
 neither, and the graphics backend crashes without a display).
 
-A Rust toolchain is optional: the ten Rust-backed modules are skipped with a
-warning when `cargo` is absent, and everything else still builds. `python3` is
-required for the two check scripts in the test suite.
+A Rust toolchain is required: every Rust-backed module and the native-call
+engine are built by `cargo`, and a missing toolchain or a failed build fails
+`make` instead of dropping a backend. `python3` is required for the two check
+scripts in the test suite.
 
 ## Standard library modules
 

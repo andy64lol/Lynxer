@@ -30,16 +30,14 @@ LYNXER_RUST_MODULES := $(LYNXER_RUST_MODULE_NAMES:%=$(LYNXER_DIR)/stdlib/%.so)
 LYNXER_FFI_ABI_HEADER := $(LYNXER_DIR)/ffi_abi.h
 LYNXER_FFI_STATICLIB := $(LYNXER_RUST_TARGET_DIR)/release/liblynxer_ffi.a
 
-# Rust-backed modules are gated on the Rust toolchain.
-HAVE_CARGO := $(shell command -v cargo >/dev/null 2>&1 && echo 1)
-ifeq ($(HAVE_CARGO),1)
-LYNXER_RUST_BUILT := $(LYNXER_RUST_MODULES)
-else
-LYNXER_RUST_BUILT :=
-endif
+# The Rust toolchain is required, not optional: all ten Rust backends are built
+# by cargo, and the interpreter links the Rust native-call engine. A missing
+# toolchain or a failed `cargo build` is a hard error -- Lynxer always builds
+# complete, never a subset of itself.
+LYNXER_CARGO ?= cargo
 
-LYNXER_CORE_MODULES := $(filter-out $(LYNXER_RUST_MODULES),$(LYNXER_NATIVE_MODULES))
-LYNXER_NATIVE_BUILT := $(LYNXER_CORE_MODULES) $(LYNXER_RUST_BUILT)
+# Every stdlib backend, C++ and Rust. Nothing here is conditional.
+LYNXER_NATIVE_BUILT := $(LYNXER_NATIVE_MODULES) $(LYNXER_RUST_MODULES)
 
 # Lynxer suite fixtures and static contract check.
 LYNXER_CONTRACT_CHECK := $(LYNXER_DIR)/scripts/check_module_contracts.py
@@ -158,7 +156,7 @@ CLYX_TMP := $(LYNXER_DIR)/.lynxer
 # jobs.
 SYSCALL_ARCH := $(shell uname -m | sed -e 's/^x86_64$$/amd64/' -e 's/^aarch64$$/arm64/')
 
-.PHONY: all cargo build buildAll buildLynxer buildLynxerArm64 test testLynxer testLynxerAmd64Syscalls testLynxerArm64Syscalls check clean cleanLynxer cleanAll help
+.PHONY: all cargo lynxerToolchain build buildAll buildLynxer buildLynxerArm64 test testLynxer testLynxerAmd64Syscalls testLynxerArm64Syscalls check clean cleanLynxer cleanAll help
 
 test: testLynxer
 
@@ -184,22 +182,28 @@ buildAll: build
 # stdlib backends. All paths are repo-root relative.
 # ---------------------------------------------------------------------------
 
-# Binary plus every stdlib module (C++, and the Rust ones when cargo exists).
-buildLynxer: $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT)
+# The toolchain gate. It is the first prerequisite of every entry point that
+# needs Rust, so a missing cargo fails at once with one clear message instead of
+# halfway through the C++ compile. It is a phony target (always run) and never a
+# prerequisite of a real file, so it cannot force a relink.
+lynxerToolchain:
+	@command -v $(LYNXER_CARGO) >/dev/null 2>&1 || { \
+	echo "lynxer: cargo is required to build Lynxer, but it was not found on PATH."; \
+	echo "lynxer: install a Rust toolchain (e.g. rustup) and run make again."; \
+	exit 1; }
+
+# Binary plus every stdlib module, C++ and Rust alike.
+buildLynxer: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT)
 	@echo "✓ Lynxer build complete: $(LYNXER_TARGET)"
 
 # ARM64 (aarch64) binary. Requires aarch64-linux-gnu-g++ installed.
-buildLynxerArm64: $(LYNXER_TARGET)-arm64 $(LYNXER_NATIVE_BUILT)
+buildLynxerArm64: lynxerToolchain $(LYNXER_TARGET)-arm64 $(LYNXER_NATIVE_BUILT)
 	@echo "✓ Lynxer ARM64 build complete: $(LYNXER_TARGET)-arm64"
 
-# Rust backends only. Skipped with a message when cargo is not installed.
-ifeq ($(HAVE_CARGO),1)
-cargo: $(LYNXER_RUST_MODULES) $(LYNXER_FFI_STATICLIB)
+# The Rust backends and the native-call engine on their own. Cargo is required:
+# a missing toolchain or a failed build is a hard error, never a silent skip.
+cargo: lynxerToolchain $(LYNXER_RUST_MODULES) $(LYNXER_FFI_STATICLIB)
 	@echo "✓ Lynxer Rust backends ready ($(LYNXER_RUST_TARGET_DIR))"
-else
-cargo:
-	@echo "lynxer: cargo is required to build the FFI engine"; exit 1
-endif
 
 # The interpreter links the native-call engine, so `cargo` is a hard build
 # dependency: `-lpthread -ldl -lm` are the Rust runtime's, and `-lffi` the
@@ -208,11 +212,17 @@ $(LYNXER_TARGET): $(LYNXER_OBJECTS) $(LYNXER_FFI_STATICLIB)
 	$(LYNXER_CXX) $(LYNXER_CXXFLAGS) $(LYNXER_OBJECTS) $(LYNXER_FFI_STATICLIB) -o $@ \
 	    -lpthread -ldl -lm -lffi
 
-# Cross-compiling the arm64 interpreter from an amd64 host cannot link the FFI
-# engine (there is no aarch64 Rust build here); the ARM CI runner is native
-# aarch64, which is the supported path.
+# The ARM64 interpreter links the same Rust native-call engine, so the host must
+# be able to produce an aarch64 staticlib. Native aarch64 (the ARM CI runner) is
+# the supported path: an amd64 cargo builds an amd64 engine, which cannot be
+# linked into an arm64 binary. Fail with that explanation rather than a
+# confusing linker error.
 $(LYNXER_TARGET)-arm64: $(LYNXER_OBJECTS_ARM64) $(LYNXER_FFI_STATICLIB)
 	@command -v aarch64-linux-gnu-g++ >/dev/null || { echo "error: aarch64-linux-gnu-g++ not found"; exit 1; }
+	@if [ "$$(uname -m)" != "aarch64" ]; then \
+	echo "error: cannot link the aarch64 native-call engine from $$(uname -m)."; \
+	echo "hint: build on an aarch64 host, or point LYNXER_FFI_STATICLIB at an aarch64 liblynxer_ffi.a."; \
+	exit 1; fi
 	@aarch64-linux-gnu-g++ $(LYNXER_CXXFLAGS) $(filter %.o-arm64,$^) $(LYNXER_FFI_STATICLIB) -o $@ -static-libstdc++ -static-libgcc -lpthread -ldl -lm -lffi
 
 $(LYNXER_DIR)/%.o: $(LYNXER_DIR)/%.cpp $(LYNXER_HEADERS) $(LYNXER_FFI_ABI_HEADER)
@@ -228,9 +238,10 @@ $(LYNXER_DIR)/stdlib/%.so: $(LYNXER_DIR)/stdlib/%.cpp
 
 # Rust backends: self-contained cdylibs exporting lynxer_module_init_v1 and
 # their ops, copied to lynxer/stdlib/<name>.so for the interpreter to dlopen.
+# Cargo is required for each of them; a failure stops the whole build.
 $(LYNXER_RUST_TARGET_DIR)/release/liblynxer_%.so: $(LYNXER_RUST_SOURCES)
-	@command -v cargo >/dev/null || { echo "lynxer: cargo not found in PATH"; exit 1; }
-	RUSTFLAGS="-C relocation-model=pic" cargo build -p lynxer_$* --release \
+	@command -v $(LYNXER_CARGO) >/dev/null 2>&1 || { echo "lynxer: cargo is required to build the Rust backend lynxer_$*"; exit 1; }
+	RUSTFLAGS="-C relocation-model=pic" $(LYNXER_CARGO) build -p lynxer_$* --release \
 	    --manifest-path $(LYNXER_RUST_MANIFEST) --target-dir $(LYNXER_RUST_TARGET_DIR)
 
 define LYNXER_RUST_MODULE_RULE
@@ -240,11 +251,10 @@ endef
 $(foreach name,$(LYNXER_RUST_MODULE_NAMES),$(eval $(call LYNXER_RUST_MODULE_RULE,$(name))))
 
 # The native-call engine: a Rust staticlib linked into the interpreter, not a
-# stdlib module. Unlike the cdylib backends above it is required, so a missing
-# cargo is a hard error rather than a skip.
+# stdlib module. It is required, so a missing cargo is a hard error.
 $(LYNXER_FFI_STATICLIB): $(LYNXER_RUST_SOURCES) $(LYNXER_FFI_ABI_HEADER)
-	@command -v cargo >/dev/null || { echo "lynxer: cargo is required to build the FFI engine"; exit 1; }
-	RUSTFLAGS="-C relocation-model=pic" cargo build -p lynxer_ffi --release \
+	@command -v $(LYNXER_CARGO) >/dev/null 2>&1 || { echo "lynxer: cargo is required to build the native-call engine"; exit 1; }
+	RUSTFLAGS="-C relocation-model=pic" $(LYNXER_CARGO) build -p lynxer_ffi --release \
 	    --manifest-path $(LYNXER_RUST_MANIFEST) --target-dir $(LYNXER_RUST_TARGET_DIR)
 
 $(LYNXER_SIGNATURE_MODULE): $(LYNXER_SIGNATURE_SOURCE)
@@ -252,7 +262,7 @@ $(LYNXER_SIGNATURE_MODULE): $(LYNXER_SIGNATURE_SOURCE)
 
 # The Lynxer suite: static module/backend contract check, then the
 # interpreter, compiled-executable and bundled-executable parity gates.
-testLynxer: $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT) $(LYNXER_SIGNATURE_MODULE)
+testLynxer: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT) $(LYNXER_SIGNATURE_MODULE)
 	@test -n "$(PYTHON)" || { echo "lynxer: python3 is required for $(LYNXER_CONTRACT_CHECK)"; exit 1; }
 	@$(PYTHON) $(LYNXER_CONTRACT_CHECK)
 	@$(PYTHON) $(LYNXER_GOLDEN_CHECK) --lynxer $(CLYX)
@@ -611,7 +621,7 @@ expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:23: charAt() index is out of rang
 # Architecture-specific syscall gates. `uname -m` is asserted so the AMD64 and
 # ARM64 CI jobs each run the matching fixture and a mistake fails loudly rather
 # than testing the wrong architecture.
-testLynxerAmd64Syscalls: $(LYNXER_TARGET)
+testLynxerAmd64Syscalls: lynxerToolchain $(LYNXER_TARGET)
 	@test "$$(uname -m)" = "x86_64" || \
 	{ echo "lynxer: $(notdir $(LYNXER_AMD64_SYSCALL_FIXTURE)) requires an x86_64 host (uname -m = $$(uname -m))"; exit 1; }
 	@$(CLYX) $(LYNXER_AMD64_SYSCALL_FIXTURE) > $(CLYX_TMP)_amd64_syscalls.out 2>&1; \
@@ -626,7 +636,7 @@ testLynxerAmd64Syscalls: $(LYNXER_TARGET)
 	rm -f $(CLYX_TMP)_amd64_syscalls.out
 	@echo "lynxer amd64 syscall fixture passed"
 
-testLynxerArm64Syscalls: $(LYNXER_TARGET)
+testLynxerArm64Syscalls: lynxerToolchain $(LYNXER_TARGET)
 	@test "$$(uname -m)" = "aarch64" || \
 	{ echo "lynxer: $(notdir $(LYNXER_ARM64_SYSCALL_FIXTURE)) requires an aarch64 host (uname -m = $$(uname -m))"; exit 1; }
 	@$(CLYX) $(LYNXER_ARM64_SYSCALL_FIXTURE) > $(CLYX_TMP)_arm64_syscalls.out 2>&1; \
@@ -659,7 +669,7 @@ cleanAll: clean cleanLynxer
 
 help:
 	@echo "Lynxer build targets:"
-	@echo "  make build              (interpreter + native stdlib modules)"
+	@echo "  make build              (interpreter + every stdlib module, C++ and Rust)"
 	@echo "  make buildAll           (alias for build)"
 	@echo "  make buildLynxer"
 	@echo "  make buildLynxerArm64"

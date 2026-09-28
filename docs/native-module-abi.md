@@ -78,10 +78,10 @@ alike — is performed by `rust/ffi`, a Rust `staticlib` built on
 is not a stdlib module: it exports no `lynxer_module_init_v1`, is never placed
 in `stdlib/`, and exists only inside the interpreter binary.
 
-`cargo` is therefore a **required** build tool. `make buildLynxer` builds the
-engine before linking, and a missing toolchain or a compile error fails the
-build — unlike the optional Rust backends, which are skipped without `cargo`.
-The C ABI is declared in `lynxer/ffi_abi.h`:
+`cargo` is therefore a **required** build tool, for the engine and for every
+Rust backend alike: `make buildLynxer` builds them before linking, and a missing
+toolchain or a compile error fails the build rather than dropping a module. The
+C ABI is declared in `lynxer/ffi_abi.h`:
 
 ```c
 int         lynxer_ffi_call(void* address, const char* signature,

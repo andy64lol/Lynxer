@@ -17,6 +17,147 @@ Any name still registered in `unsupportedTable()` reports
       covers the immediate-mode drawing/window/UI space; an OS-native widget
       binding remains out of scope.
 
+### Planned modules
+
+Seven new capabilities, none implemented yet. Each entry lists the proposed
+crates, the operations to expose, and the decisions it is blocked on. The
+repo's usual artifacts apply to every one of them - see **D7**.
+
+- [ ] **`encoding` (Rust).** Base64 (standard and URL-safe, padded or not),
+      hex, base32, base58, ascii85, percent-encoding and quoted-printable.
+      Proposed crates: `base64`, `hex`, `data-encoding` (base32 plus custom
+      alphabets), `bs58`, `ascii85`, `percent-encoding`, `quoted_printable`.
+  - Ops: `base64Encode`/`Decode`, `base64UrlEncode`/`Decode`,
+    `hexEncode`/`Decode`, `base32Encode`/`Decode`, `base58Encode`/`Decode`,
+    `ascii85Encode`/`Decode`, `percentEncode`/`Decode`,
+    `quotedPrintableEncode`/`Decode`.
+  - Decide: strict or lenient decoding (whitespace, missing padding) and the
+    exact error text. The URL *codec* belongs here; URL *semantics* belong in
+    `network`.
+  - Cheapest module, and it settles **D1** option (a): implement it first.
+
+- [ ] **`uuid` (Rust).** Generate, parse and format UUIDs. Crate: `uuid` with
+      the `v4`, `v7`, `v5`, `v3` and `rng` features.
+  - Ops: `uuidV4`, `uuidV7`, `uuidV3(namespace, name)`,
+    `uuidV5(namespace, name)`, `uuidNil`, `uuidParse`, `uuidFormat`,
+    `uuidValid`, `uuidVersion`, `uuidVariant`, `uuidToBytes`/`FromBytes`,
+    `uuidTimestamp`, plus the standard namespace constants (`dns`, `url`,
+    `oid`, `x500`).
+  - Decide: string round-trip versus an opaque handle; whether the deprecated
+    v1/v6 variants are in scope (recommended: no).
+
+- [ ] **`network` - URL operations (extend the existing module).** Add the
+      `url` crate (already a transitive dependency of `ureq`, so likely already
+      in `Cargo.lock`).
+  - Ops: `urlParse`, `urlIsValid`, `urlJoin(base, ref)`, `urlNormalize`,
+    `urlGet(url, part)`, `urlSetScheme`/`Host`/`Port`/`Path`,
+    `urlQueryGet`/`Set`/`Remove`/`Append`,
+    `urlEncodeComponent`/`DecodeComponent`.
+  - Decide: IDN/punycode support via `idna`; the trailing-slash normalisation
+    policy; structured handle versus JSON return.
+
+- [ ] **`crypto` (Rust)** - hashes, MACs, signatures and secure random.
+      Proposed crates: `sha2`, `sha1`, `md-5`, `sha3`, `blake3`, `digest`,
+      `hmac`, `subtle` (constant-time compare), `rand`/`getrandom` (OS
+      entropy), `ed25519-dalek`, and `rsa` + `p256`/`ecdsa` with `pkcs8`/`pem`
+      for key material.
+  - Ops: `hash(name, data)`, `hashFile`, `hmac(name, key, data)`,
+    `verifyHmac` (constant time), `constantTimeEquals`, `randomBytes(n)`,
+    `randomHex(n)`, `randomToken(n)`, `generateEd25519KeyPair`, `signEd25519`,
+    `verifyEd25519`, then RSA/ECDSA verify and PEM/DER import/export.
+  - Decide: the v1 algorithm set (recommended: the SHA-2 family, SHA-1 and MD5
+    as *hashes only*, BLAKE3, HMAC-SHA256 and Ed25519, with RSA/ECDSA second);
+    key representation (PEM strings versus raw base64); whether password
+    hashing (`argon2`/`scrypt`/`bcrypt`) is a separate follow-up.
+  - Blocked by **D1**.
+
+- [ ] **`compress` (Rust)** - gzip/zlib, zstd, brotli, lz4, plus ZIP and TAR
+      archives. Proposed crates: `flate2` (gzip/zlib/deflate, pure-Rust
+      `miniz_oxide` backend), `brotli` (pure Rust), `lz4_flex` (pure Rust),
+      `zstd` (vendors C sources; `cc` is already required), `zip`, `tar`.
+  - Ops: `gzipCompress`/`Decompress`, `zlibCompress`/`Decompress`,
+    `zstdCompress`/`Decompress`, `brotliCompress`/`Decompress`,
+    `lz4Compress`/`Decompress`, `zipCreate`/`List`/`Read`/`Write`/`Extract`,
+    `tarCreate`/`List`/`Extract`, `tarGzCreate`/`Extract`.
+  - Decide: whole-buffer versus streaming APIs; decompression limits (a
+    zip-bomb guard and a maximum output size); path-traversal rejection on
+    extract (`../` and absolute entries) and the overwrite policy; whether
+    `bzip2` is in scope.
+  - Blocked by **D1**.
+
+- [ ] **`toml` (Rust).** `toml` + `serde`; `toml_edit` only if preserving
+      formatting and comments is wanted.
+- [ ] **`ini` (Rust).** `rust-ini`.
+- [ ] **`xml` (Rust).** `quick-xml` for reading and writing (pure Rust; it
+      resolves no external entities, so XXE is not reachable by default);
+      `roxmltree` if a read-only DOM is wanted.
+- [ ] **`yaml` (Rust).** `serde_yaml` is archived, so pick a maintained crate
+      (`serde_yml`, or `saphyr`/`yaml-rust2`) and verify maintenance before
+      committing the lockfile.
+  - Decide (all four): one module per format (matching the existing `json`
+    module, and keeping each `.so` small) versus a single `formats` module;
+    parse-only versus parse-and-serialize in v1; how duplicate and nested keys
+    map onto Lynxer values.
+  - Security: all four parse untrusted input, so require input-size limits,
+    YAML alias/expansion limits, defined duplicate-key behaviour, and XML
+    entity-expansion limits - each with a failure fixture.
+  - Blocked by **D2**.
+
+- [ ] **`watch` (Rust)** - filesystem change events. Crate: `notify` (inotify
+      on Linux), optionally `notify-debouncer-mini` for coalescing.
+  - Ops: `watchAdd(path, recursive)`, `watchRemove`, `watchClose`,
+    `watchFd(handle)`, `watchDrain(handle)`, `watchWait(timeoutMs)`,
+    `watchSetDebounce(ms)`.
+  - Decide: **how events reach Lynxer.** A module cannot call back into the
+    interpreter by itself, so the recommended delivery is the existing poll
+    set: `watchFd()` returns the inotify descriptor, the program registers it
+    with `asyncPollRegister` and waits with `asyncPollWait` (which already
+    releases the interpreter lock around `poll(2)`), then calls `watchDrain()`
+    for the paths. Alternatives: a blocking `watchWait`, or a real callback
+    once the Rust ABI grows a "call a Lynxer function" hook.
+  - Also decide: the event-kind vocabulary, debounce/burst behaviour, queue
+    limits, and what happens when a watched directory disappears.
+
+Suggested order: `encoding` -> `uuid` -> `network` URL ops -> `crypto` ->
+`compress` -> `toml` -> `ini` -> `xml` -> `yaml` -> `watch`. The first three
+need no new ABI decision, and `encoding` settles **D1** option (a).
+
+### Module decisions
+
+- [ ] **D1 - binary payloads over the module ABI.** Lynxer values are
+      int64/double/bool/string/list, but compression and crypto need arbitrary
+      bytes. Options: (a) base64 strings (simple, +33% size, needs `encoding`
+      first), (b) lists of integers (slow), (c) file-path APIs for bulk plus
+      base64 in memory, (d) a real `bytes` value type in the interpreter
+      (cleanest, largest change). Recommended: start with (a)+(c) and evaluate
+      (d) later. Blocks `compress` and `crypto`.
+- [ ] **D2 - one structured-value bridge.** `json` already maps a document onto
+      Lynxer values; TOML/YAML/XML/INI must reuse that mapping rather than
+      invent four. Name it once and document it.
+- [ ] **D3 - module granularity.** One each of `compress`, `crypto`,
+      `encoding`, `uuid` and `watch`, but one module per document format.
+      Alternative: a single `formats` module.
+- [ ] **D4 - offline builds and C toolchains.** Every new crate needs a
+      committed `Cargo.lock`; `zstd` (and `bzip2`, if added) vendor C sources
+      and need a C compiler, which the build already requires. A crate that
+      needs a *system* package must be added to both CI workflows.
+- [ ] **D5 - dependency vetting.** Prefer maintained, pure-Rust crates, pin
+      versions, and record any substitution (notably YAML) in `docs/`.
+- [ ] **D6 - parser security posture.** Each parser takes untrusted input:
+      size/expansion limits, archive path-traversal guards, no XML external
+      entities, YAML expansion limits, and constant-time comparison in
+      `crypto`. Every guard gets a `.expected` failure fixture.
+- [ ] **D7 - required artifacts per module.** The wrapper
+      `lynxer/stdlib/<name>.lynx`; the crate under `lynxer/rust/<name>/`; the
+      name in `LYNXER_RUST_MODULE_NAMES`; the `OPS` table and all `export_*!`
+      bodies kept in `lib.rs` so `check_module_contracts.py` sees them; a
+      fixture `lynxer/examples/stdlib_<name>.lynx` + `.expected`;
+      `docs/stdlib/<name>.md`; a row in `docs/stdlib-contracts.md`; notes in
+      `docs/limitations.md`; and a regenerated site.
+- [ ] **D8 - contract-checker compatibility.** A wrapper call must not read
+      argument indices (per kind) beyond what it passes, and every registered
+      op must be called by the wrapper.
+
 ## Named syscalls — policy for new wrappers
 
 Every name the original documented, plus the extended and Stretch sets, is
@@ -42,13 +183,13 @@ call sites name an architecture, an architecture-agnostic fixture carries a
 
 ## Open decisions
 
-Work that needs a decision before it can be built:
+Work that needs a decision before it can be built.
 
-Both resolved — see [Done](#done).
-- [x] ~~**`graphics` module.**~~ Built: a Rust **macroquad**-backed drawing,
-  window, input and immediate-mode UI module (`rust/graphics`), separate from
-  `game` rather than a replacement for it. `iced` is not in the vendored crate
-  set, so macroquad is the vehicle.
+The open decisions for the planned modules — the binary payload ABI, the shared
+value bridge, module granularity, dependency vetting and the parser limits —
+are [Module decisions](#module-decisions), listed beside the modules they gate.
+Everything else is resolved; see [Done](#done).
+
 ## Done
 
 - [x] ~~**`async*` semantics.** Decided: real tasks, not a coroutine runtime.
@@ -109,13 +250,18 @@ Both resolved — see [Done](#done).
       against the interpreter. That audit corrected
       [docs/legacy-surface.md](docs/legacy-surface.md): the `async` language
       syntax **does** exist (it is eager, not a coroutine).~~
+- [x] ~~**`graphics` module.**~~ Built: a Rust **macroquad**-backed drawing,
+  window, input and immediate-mode UI module (`rust/graphics`), separate from
+  `game` rather than a replacement for it. `iced` is not in the vendored crate
+  set, so macroquad is the vehicle.
 
 ## Ground rules
 
 - Keep everything under `lynxer/`; documentation in `docs/`, the website in
   `site/`.
 - C++17 and the standard library only, unless a native dependency is explicitly
-  chosen. The Rust backends are optional — a missing `cargo` only skips them.
+  chosen. The Rust backends and the FFI engine are required: a missing `cargo`
+  or a failed `cargo build` is a hard error, never a skip.
 - Prefer explicit, source-located errors over partial support.
 - Add a focused `.lynx` fixture under `lynxer/examples/` for every user-visible
   feature, with a sibling `.expected`, and keep `make testLynxer` green.

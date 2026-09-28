@@ -97,7 +97,11 @@ Lynxer ships modules backed by native implementations. Ten of them are Rust crat
 - `sqldb` (`rusqlite`)
 - `tui` (`ratatui`/`crossterm`)
 
-These modules are skipped with a warning if `cargo` is missing, allowing the rest of Lynxer to build without a Rust toolchain. The `ffi` workspace member is different: it is a `staticlib` linked into the interpreter (not a stdlib module), and it implements the shared native-call engine, so `cargo` is **required** to build the interpreter at all.
+A Rust toolchain is **required**: every one of these backends is built and
+installed by `cargo`, and the interpreter links the `ffi` `staticlib`
+native-call engine. A missing toolchain or a failed `cargo build` fails the
+build outright — there is no reduced build that leaves a backend out. The
+Makefile checks for `cargo` up front and says so.
 
 ### `graphics` — Constrained Behavior
 

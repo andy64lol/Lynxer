@@ -8,7 +8,7 @@ namespace {
 
 volatile std::sig_atomic_t interrupted = 0;
 
-void handleInterrupt(int) { interrupted = 1; }
+void handleInterrupt(int) { requestInterrupt(); }
 
 } // namespace
 

@@ -28,6 +28,10 @@ void Environment::popScope() {
 
 void Environment::declare(const std::string& name, const std::string& type,
                           Value value, int line, int column) {
+    // A declaration cannot fail here, so the declaration site is not reported:
+    // every caller converts the value with `convertForType` before calling.
+    (void)line;
+    (void)column;
     // Re-declaration replaces both the value and the recorded type.
     scopes_.back()[name] = Variable{type, std::move(value), false};
 }

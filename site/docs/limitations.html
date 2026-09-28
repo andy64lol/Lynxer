@@ -173,7 +173,7 @@
 <li><code>sqldb</code> (<code>rusqlite</code>)</li>
 <li><code>tui</code> (<code>ratatui</code>/<code>crossterm</code>)</li>
 </ul>
-<p>These modules are skipped with a warning if <code>cargo</code> is missing, allowing the rest of Lynxer to build without a Rust toolchain. The <code>ffi</code> workspace member is different: it is a <code>staticlib</code> linked into the interpreter (not a stdlib module), and it implements the shared native-call engine, so <code>cargo</code> is <strong>required</strong> to build the interpreter at all.</p>
+<p>A Rust toolchain is <strong>required</strong>: every one of these backends is built and installed by <code>cargo</code>, and the interpreter links the <code>ffi</code> <code>staticlib</code> native-call engine. A missing toolchain or a failed <code>cargo build</code> fails the build outright — there is no reduced build that leaves a backend out. The Makefile checks for <code>cargo</code> up front and says so.</p>
 <h3 id="graphics--constrained-behavior"><code>graphics</code> — Constrained Behavior</h3>
 <ul>
 <li><strong>A display is required for real rendering.</strong> macroquad has no offscreen backend, so any drawing needs a window and OpenGL (X11 or Wayland). With <code>LYNXER_GRAPHICS_HEADLESS=1</code> no window is opened, drawing is a no-op and context-dependent ops return <code>-1</code> or zero.</li>

@@ -327,6 +327,7 @@ const std::vector<ValidationCase>& validationCases() {
         {"word-operators", "global setup(){}\nglobal main(){ assert(true nand true is false); assert(6 bitand 3 is 2); }", ""},
         {"int-range", "global setup(){}\nglobal main(){ int8 small = 200; }", "out of range"},
         {"unknown-variable", "global setup(){}\nglobal main(){ println(missing); }", "unknown variable 'missing'"},
+        {"builtin-as-value", "global setup(){}\nglobal main(){ any f = println; }", "cannot be used as a value"},
         {"division-by-zero", "global setup(){}\nglobal main(){ int z = 1 /% 0; }", "division by zero"},
         {"const-reassign", "global setup(){}\nglobal main(){ const int n = 1; n = 2; }", "constant"},
         {"field-compound", "global setup(){}\nclass C { int v = 1; }\nglobal main(){ C c = new C(); c.v += 2; c.v *= 3; assert(c.v is 9); }", ""},

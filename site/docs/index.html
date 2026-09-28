@@ -153,7 +153,7 @@ lynxer/lynxer --list-stdlibs</code></pre>
 <li>The bundled-executable, <code>--include</code>, and bytecode-removal checks.</li>
 </ol>
 <p>Both Lynxer CI workflows (<code>.github/workflows/build-lynxer-amd.yml</code> and <code>build-lynxer-arm.yml</code>) run <code>make testLynxer LYNXER_SKIP_DISPLAY=1</code>, which drops the fixtures that need a display or an audio device (a CI runner has neither, and the graphics backend crashes without a display).</p>
-<p>A Rust toolchain is optional: the ten Rust-backed modules are skipped with a warning when <code>cargo</code> is absent, and everything else still builds. <code>python3</code> is required for the two check scripts in the test suite.</p>
+<p>A Rust toolchain is required: every Rust-backed module and the native-call engine are built by <code>cargo</code>, and a missing toolchain or a failed build fails <code>make</code> instead of dropping a backend. <code>python3</code> is required for the two check scripts in the test suite.</p>
 <h2 id="standard-library-modules">Standard library modules</h2>
 <p>There are 28 bundled modules. A module is exposed to Lynxer by <code>stdlib/&lt;name&gt;.lynx</code> and backed by a <code>stdlib/&lt;name&gt;.so</code>. The backends marked <em>Rust</em> come from a crate under <code>rust/</code>; <em>pure</em> modules are written in Lynxer only and need no shared library.</p>
 <table>

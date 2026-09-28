@@ -7,9 +7,10 @@ Python; only the two check scripts in the test suite do.
 
 - A C++17 compiler (`g++` or `clang++`) and `make`.
 - `python3` to run `make testLynxer` (the contract and golden checks).
-- A Rust toolchain (`cargo`): the interpreter links the Rust native-call engine
-  (`lynxer/rust/ffi`), so `cargo` is **required** to build `lynxer/lynxer`. A
-  missing toolchain or a compile error fails the build.
+- A Rust toolchain (`cargo`): it is **required**, not optional. Every
+  Rust-backed stdlib module is built by `cargo`, and the interpreter links the
+  Rust native-call engine (`lynxer/rust/ffi`). A missing toolchain or a compile
+  error fails the build; there is no reduced build that drops a backend.
 - `libffi` headers and `pkg-config` (e.g. `libffi-dev` on Debian/Ubuntu) for the
   native-call engine.
 - Git and network access for the first `cargo` build: crates are fetched from
@@ -22,20 +23,21 @@ TLS is `rustls`, the HTTP stack is `ureq`/`tungstenite`/`axum`, and JSON is
 ## Build from the repository root
 
 ```bash
-make buildLynxer       # interpreter + every native stdlib module
+make buildLynxer       # interpreter + every stdlib module, C++ and Rust
 make testLynxer        # the full suite (see README.md)
 ```
 
-`buildLynxer` already builds the Rust backends, so a separate `make cargo` is
-only useful to build them on their own:
+`buildLynxer` builds the interpreter and every backend, C++ and Rust, so a
+separate `make cargo` is only useful to rebuild the Rust half on its own. Both
+fail if `cargo` is missing.
 
 ```bash
-make cargo              # just the Rust backends
-make buildLynxerArm64  # cross-build the ARM64 interpreter
+make cargo              # just the Rust backends and the native-call engine
+make buildLynxerArm64  # the ARM64 interpreter (needs an aarch64 host)
 ```
 
-The Makefile lives at the repository root and builds **both** implementations;
-there is no separate `lynxer/Makefile`.
+The Makefile lives at the repository root; there is no separate
+`lynxer/Makefile`.
 
 ## Artifacts
 

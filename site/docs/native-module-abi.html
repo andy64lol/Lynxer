@@ -124,7 +124,7 @@ global main(){
 <p>A path ending in <code>.so</code> is treated as a native module; anything else is compiled as Lynxer source. The namespace is the import alias, or the file stem when no alias is given.</p>
 <h2 id="the-native-call-engine">The native call engine</h2>
 <p>Every native call — an imported module's function and an explicit <code>ffiCall</code> alike — is performed by <code>rust/ffi</code>, a Rust <code>staticlib</code> built on <a href="https://crates.io/crates/libffi"><code>libffi</code></a> and linked into the interpreter. It is not a stdlib module: it exports no <code>lynxer_module_init_v1</code>, is never placed in <code>stdlib/</code>, and exists only inside the interpreter binary.</p>
-<p><code>cargo</code> is therefore a <strong>required</strong> build tool. <code>make buildLynxer</code> builds the engine before linking, and a missing toolchain or a compile error fails the build — unlike the optional Rust backends, which are skipped without <code>cargo</code>. The C ABI is declared in <code>lynxer/ffi_abi.h</code>:</p>
+<p><code>cargo</code> is therefore a <strong>required</strong> build tool, for the engine and for every Rust backend alike: <code>make buildLynxer</code> builds them before linking, and a missing toolchain or a compile error fails the build rather than dropping a module. The C ABI is declared in <code>lynxer/ffi_abi.h</code>:</p>
 <pre><code>int         lynxer_ffi_call(void* address, const char* signature,
                             const LynxerFfiArg* args, int64_t nargs,
                             LynxerFfiResult* out);
