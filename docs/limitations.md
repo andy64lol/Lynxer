@@ -165,6 +165,30 @@ Makefile checks for `cargo` up front and says so.
 - Object key order follows insertion order.
 - `jsonGet` renders booleans as `true`/`false`.
 
+### `encoding` — Constrained Behavior
+
+- **No byte type.** Lynxer strings are the byte carrier: an encode function uses
+  the UTF-8 bytes of its input, and a decode function returns the decoded bytes
+  as text. Lynxer has no byte type yet, so a payload that is not valid UTF-8 has
+  no representation — a decode that produces one returns `""`, the same sentinel
+  a malformed input returns. `*Valid` reports well-formedness in the codec only,
+  so it can be `true` while `*Decode` answers `""`. Bulk binary is expected to
+  travel through files instead; see the binary-payload decision in
+  [todo.md](../todo.md).
+- **Failures are in-band.** A decode returns `""` and a predicate returns
+  `false`; there is no exception to catch.
+- **Padding is optional when decoding** and always emitted when encoding, for
+  base64 and base32 alike; base32 also accepts either case. Whitespace inside a
+  payload is never accepted.
+- **`percentDecode` validates the escapes itself.** The underlying decoder
+  leaves a malformed escape in place (`%2` stays `%2`), so a bare `%` is a
+  failure here rather than a passthrough.
+- **`ascii85Encode` includes the Adobe `<~`/`~>` frame**, and decoding accepts a
+  framed or bare stream. The `z` shorthand is expanded before decoding because
+  `ascii85` 0.2.1 rejects every `z` it should accept.
+- **`quotedPrintableEncode` is the text encoding of RFC 2045**, so `CR`/`LF`
+  become `=0D`/`=0A` and long lines gain soft breaks; decoding is strict.
+
 ### `re` and `regex` — Constrained Behavior
 
 Both modules use `std::regex` with the ECMAScript grammar, which is narrower than full PCRE:

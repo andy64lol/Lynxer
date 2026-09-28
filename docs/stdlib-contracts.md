@@ -77,7 +77,7 @@ picks one family and applies it consistently:
 
 | Family | Shape | Modules |
 | --- | --- | --- |
-| Scalar sentinel | `-1` for indices and sizes, `0` / `0.0` for numbers, `false` for predicates, `""` for strings | `cli`, `debug`, `fileIO`, `game`, `image`, `json`, `math`, `multiprocessing`, `os`, `path`, `random`, `re`, `regex`, `sound`, `sys`, `time` |
+| Scalar sentinel | `-1` for indices and sizes, `0` / `0.0` for numbers, `false` for predicates, `""` for strings | `cli`, `debug`, `encoding`, `fileIO`, `game`, `image`, `json`, `math`, `multiprocessing`, `os`, `path`, `random`, `re`, `regex`, `sound`, `sys`, `time` |
 | Process exit code | the command's exit status; a negative value when it did not run | `shell` |
 | Status string | `"ok"` on success; `"ERROR: <message>"` on failure | `csv`, `sqldb`, `network`, `server` |
 | Error string | `"Error: <message>"` | `js`, `lua`, `tui` |
@@ -142,6 +142,7 @@ Any future callback must be declared here before the module ships.
 | `colorlib` | pure Lynxer | none | none |
 | `csv` | C++ | none — paths are strings | none |
 | `debug` | C++ + pure | none | none |
+| `encoding` | Rust | none — payloads are strings | none |
 | `fileIO` | C++ | none — paths are strings | none |
 | `game` | Rust | integer indices: cached textures and sprites | none (caches live for the run; `close()` ends the loop) |
 | `graphics` | Rust | **integer handles** into backend registries (textures, images, fonts, materials, render targets) plus UI widget ids | none (registries live for the run; `run()` ends the loop) |

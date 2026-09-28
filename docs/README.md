@@ -91,7 +91,7 @@ scripts in the test suite.
 
 ## Standard library modules
 
-There are 28 bundled modules. A module is exposed to Lynxer by
+There are 29 bundled modules. A module is exposed to Lynxer by
 `stdlib/<name>.lynx` and backed by a `stdlib/<name>.so`. The backends marked
 *Rust* come from a crate under `rust/`; *pure* modules are written in Lynxer
 only and need no shared library.
@@ -102,6 +102,7 @@ only and need no shared library.
 | [colorlib](stdlib/colorlib.md) | pure | ANSI escape sequences |
 | [csv](stdlib/csv.md) | native | hand-written CSV/TSV reader and writer |
 | [debug](stdlib/debug.md) | native + pure | `<chrono>`, `getrusage`, assertions in Lynxer |
+| [encoding](stdlib/encoding.md) | Rust | `base64`, `hex`, `data-encoding`, `bs58`, `ascii85`, `percent-encoding`, `quoted_printable` (`rust/encoding`) |
 | [fileIO](stdlib/fileIO.md) | native | `<fstream>`, `<filesystem>` |
 | [game](stdlib/game.md) | Rust | `macroquad` (`rust/game`) |
 | [graphics](stdlib/graphics.md) | Rust | `macroquad` (`rust/graphics`) |

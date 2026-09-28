@@ -37,7 +37,8 @@ GROUPS: list[tuple[str, list[str]]] = [
 ]
 
 STDLIB_MODULES = [
-    "cli", "colorlib", "csv", "debug", "fileIO", "game", "graphics", "image",
+    "cli", "colorlib", "csv", "debug", "encoding", "fileIO", "game", "graphics",
+    "image",
     "js", "json",
     "lua", "math", "multiprocessing", "network", "os", "path", "random", "re",
     "regex", "server", "shell", "sound", "sqldb", "sys", "text", "time", "tui",

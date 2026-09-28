@@ -22,7 +22,7 @@ LYNXER_RUST_MANIFEST := $(LYNXER_RUST_DIR)/Cargo.toml
 LYNXER_RUST_SOURCES := $(wildcard $(LYNXER_RUST_DIR)/*/src/*.rs) \
                         $(wildcard $(LYNXER_RUST_DIR)/*/Cargo.toml) \
                         $(LYNXER_RUST_MANIFEST) $(LYNXER_RUST_DIR)/Cargo.lock
-LYNXER_RUST_MODULE_NAMES := game graphics image json lua network server sound sqldb tui
+LYNXER_RUST_MODULE_NAMES := encoding game graphics image json lua network server sound sqldb tui
 LYNXER_RUST_MODULES := $(LYNXER_RUST_MODULE_NAMES:%=$(LYNXER_DIR)/stdlib/%.so)
 
 # The native-call engine is not a stdlib module: it is a Rust staticlib linked
@@ -135,10 +135,10 @@ LYNXER_OPTIMIZER_DEPRECATED_FIXTURE := $(LYNXER_DIR)/examples/optimizer_deprecat
 # Formatter fixture: a deliberately messy source file and its canonical form.
 LYNXER_FORMATTER_INPUT := $(LYNXER_DIR)/examples/formatter_input.lynx
 LYNXER_FORMATTER_EXPECTED := $(LYNXER_DIR)/examples/formatter_expected.lynx
-LYNXER_LIST_STDLIB_MODULES := cli colorlib csv debug fileIO game graphics image js json lua math \
+LYNXER_LIST_STDLIB_MODULES := cli colorlib csv debug encoding fileIO game graphics image js json lua math \
 	multiprocessing network os path random re regex server shell sound sqldb sys text time tui typing
 # Import-parity fixtures (interpreted vs compiled). The sound one needs a device.
-LYNXER_PARITY_FIXTURES := native_stdlibs milestone6_module milestone6_math_native stdlib_json \
+LYNXER_PARITY_FIXTURES := native_stdlibs milestone6_module milestone6_math_native stdlib_encoding stdlib_json \
 	stdlib_re stdlib_path stdlib_game stdlib_graphics stdlib_image stdlib_lua stdlib_sqldb stdlib_tui deprecated_operators optimizer \
 	lowlevel_memory lowlevel_syscalls lowlevel_arch language_fields ownership \
 	range_for

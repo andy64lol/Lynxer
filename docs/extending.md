@@ -179,10 +179,21 @@ a mistake fails with a located error instead of corrupting the stack.
 not yet supported — a module with system-library dependencies should be a Rust
 crate instead.
 
-**Rust** needs two edits:
+**Rust** needs these edits:
 
 1. add the crate to the workspace members in `rust/Cargo.toml`;
-2. add its name to `LYNXER_RUST_MODULE_NAMES` in the root `Makefile`.
+2. add its name to `LYNXER_RUST_MODULE_NAMES` in the root `Makefile`;
+3. add its name to `LYNXER_LIST_STDLIB_MODULES` in the root `Makefile`, so the
+   `--list-stdlibs` gate asserts the module is listed;
+4. add `stdlib_<name>` to `LYNXER_PARITY_FIXTURES` in the root `Makefile` so the
+   fixture is also checked interpreted-versus-compiled;
+5. add its name to `STDLIB_MODULES` in `site/build.py`, which drives both the
+   module's site page and the sidebar rendered on every site page.
+
+Then document it: `docs/stdlib/<name>.md`, a row in the module table in
+`docs/README.md` (and the bundled-module count), a row in
+`docs/stdlib-contracts.md` including its error-sentinel family, and any
+constraint in `docs/limitations.md`.
 
 `cargo` is required: a new Rust backend is added to the same build that already
 needs the toolchain, so a missing `cargo` or a failed build fails `make` rather

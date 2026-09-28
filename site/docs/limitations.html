@@ -66,6 +66,7 @@
 <li><a href="stdlib/colorlib.html">colorlib</a></li>
 <li><a href="stdlib/csv.html">csv</a></li>
 <li><a href="stdlib/debug.html">debug</a></li>
+<li><a href="stdlib/encoding.html">encoding</a></li>
 <li><a href="stdlib/fileIO.html">fileIO</a></li>
 <li><a href="stdlib/game.html">game</a></li>
 <li><a href="stdlib/graphics.html">graphics</a></li>
@@ -203,6 +204,15 @@
 <li>Non-finite numbers (<code>NaN</code>, <code>Infinity</code>) are encoded as <code>null</code> to ensure valid JSON output.</li>
 <li>Object key order follows insertion order.</li>
 <li><code>jsonGet</code> renders booleans as <code>true</code>/<code>false</code>.</li>
+</ul>
+<h3 id="encoding--constrained-behavior"><code>encoding</code> — Constrained Behavior</h3>
+<ul>
+<li><strong>No byte type.</strong> Lynxer strings are the byte carrier: an encode function uses the UTF-8 bytes of its input, and a decode function returns the decoded bytes as text. Lynxer has no byte type yet, so a payload that is not valid UTF-8 has no representation — a decode that produces one returns <code>&quot;&quot;</code>, the same sentinel a malformed input returns. <code>*Valid</code> reports well-formedness in the codec only, so it can be <code>true</code> while <code>*Decode</code> answers <code>&quot;&quot;</code>. Bulk binary is expected to travel through files instead; see the binary-payload decision in <a href="../todo.html">todo</a>.</li>
+<li><strong>Failures are in-band.</strong> A decode returns <code>&quot;&quot;</code> and a predicate returns <code>false</code>; there is no exception to catch.</li>
+<li><strong>Padding is optional when decoding</strong> and always emitted when encoding, for base64 and base32 alike; base32 also accepts either case. Whitespace inside a payload is never accepted.</li>
+<li><strong><code>percentDecode</code> validates the escapes itself.</strong> The underlying decoder leaves a malformed escape in place (<code>%2</code> stays <code>%2</code>), so a bare <code>%</code> is a failure here rather than a passthrough.</li>
+<li><strong><code>ascii85Encode</code> includes the Adobe <code>&lt;~</code>/<code>~&gt;</code> frame</strong>, and decoding accepts a framed or bare stream. The <code>z</code> shorthand is expanded before decoding because <code>ascii85</code> 0.2.1 rejects every <code>z</code> it should accept.</li>
+<li><strong><code>quotedPrintableEncode</code> is the text encoding of RFC 2045</strong>, so <code>CR</code>/<code>LF</code> become <code>=0D</code>/<code>=0A</code> and long lines gain soft breaks; decoding is strict.</li>
 </ul>
 <h3 id="re-and-regex--constrained-behavior"><code>re</code> and <code>regex</code> — Constrained Behavior</h3>
 <p>Both modules use <code>std::regex</code> with the ECMAScript grammar, which is narrower than full PCRE:</p>

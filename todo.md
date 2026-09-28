@@ -19,22 +19,10 @@ Any name still registered in `unsupportedTable()` reports
 
 ### Planned modules
 
-Seven new capabilities, none implemented yet. Each entry lists the proposed
-crates, the operations to expose, and the decisions it is blocked on. The
-repo's usual artifacts apply to every one of them - see **D7**.
-
-- [ ] **`encoding` (Rust).** Base64 (standard and URL-safe, padded or not),
-      hex, base32, base58, ascii85, percent-encoding and quoted-printable.
-      Proposed crates: `base64`, `hex`, `data-encoding` (base32 plus custom
-      alphabets), `bs58`, `ascii85`, `percent-encoding`, `quoted_printable`.
-  - Ops: `base64Encode`/`Decode`, `base64UrlEncode`/`Decode`,
-    `hexEncode`/`Decode`, `base32Encode`/`Decode`, `base58Encode`/`Decode`,
-    `ascii85Encode`/`Decode`, `percentEncode`/`Decode`,
-    `quotedPrintableEncode`/`Decode`.
-  - Decide: strict or lenient decoding (whitespace, missing padding) and the
-    exact error text. The URL *codec* belongs here; URL *semantics* belong in
-    `network`.
-  - Cheapest module, and it settles **D1** option (a): implement it first.
+Six capabilities, none implemented yet; `encoding` is finished and recorded
+under [Done](#done). Each entry lists the proposed crates, the operations to
+expose, and the decisions it is blocked on. The repo's usual artifacts apply to
+every one of them - see **D7**.
 
 - [ ] **`uuid` (Rust).** Generate, parse and format UUIDs. Crate: `uuid` with
       the `v4`, `v7`, `v5`, `v3` and `rng` features.
@@ -118,19 +106,20 @@ repo's usual artifacts apply to every one of them - see **D7**.
   - Also decide: the event-kind vocabulary, debounce/burst behaviour, queue
     limits, and what happens when a watched directory disappears.
 
-Suggested order: `encoding` -> `uuid` -> `network` URL ops -> `crypto` ->
-`compress` -> `toml` -> `ini` -> `xml` -> `yaml` -> `watch`. The first three
-need no new ABI decision, and `encoding` settles **D1** option (a).
+Suggested order: `uuid` -> `network` URL ops -> `crypto` -> `compress` ->
+`toml` -> `ini` -> `xml` -> `yaml` -> `watch` (`encoding` is done). The first
+two need no new ABI decision; `crypto` and `compress` wait on **D1**.
 
 ### Module decisions
 
 - [ ] **D1 - binary payloads over the module ABI.** Lynxer values are
       int64/double/bool/string/list, but compression and crypto need arbitrary
-      bytes. Options: (a) base64 strings (simple, +33% size, needs `encoding`
-      first), (b) lists of integers (slow), (c) file-path APIs for bulk plus
-      base64 in memory, (d) a real `bytes` value type in the interpreter
-      (cleanest, largest change). Recommended: start with (a)+(c) and evaluate
-      (d) later. Blocks `compress` and `crypto`.
+      bytes. Options: (a) base64 and hex strings - `encoding` now provides
+      both, though a decode to text fails for a non-UTF-8 payload, (b) lists of
+      integers (slow), (c) file-path APIs for bulk plus base64 in memory, (d) a
+      real `bytes` value type in the interpreter (cleanest, largest change).
+      Recommended: start with (a)+(c) and evaluate (d) later. Still blocks
+      `compress` and `crypto`.
 - [ ] **D2 - one structured-value bridge.** `json` already maps a document onto
       Lynxer values; TOML/YAML/XML/INI must reuse that mapping rather than
       invent four. Name it once and document it.
@@ -250,6 +239,14 @@ Everything else is resolved; see [Done](#done).
       against the interpreter. That audit corrected
       [docs/legacy-surface.md](docs/legacy-surface.md): the `async` language
       syntax **does** exist (it is eager, not a coroutine).~~
+- [x] ~~**`encoding` module.** Built on `base64`, `hex`, `data-encoding`,
+      `bs58`, `ascii85`, `percent-encoding` and `quoted_printable`
+      (`rust/encoding`): 25 operations, an `*Encode`, `*Decode` and `*Valid`
+      entry point for each of base64 (standard and URL-safe), hex, base32,
+      base58, ascii85, percent-encoding and quoted-printable. Decoding is strict
+      apart from optional padding (and either case in base32); a decode returns
+      `""` on failure, including when the decoded bytes are not valid UTF-8,
+      because Lynxer has no byte type yet.~~
 - [x] ~~**`graphics` module.**~~ Built: a Rust **macroquad**-backed drawing,
   window, input and immediate-mode UI module (`rust/graphics`), separate from
   `game` rather than a replacement for it. `iced` is not in the vendored crate

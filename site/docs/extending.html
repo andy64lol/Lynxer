@@ -66,6 +66,7 @@
 <li><a href="stdlib/colorlib.html">colorlib</a></li>
 <li><a href="stdlib/csv.html">csv</a></li>
 <li><a href="stdlib/debug.html">debug</a></li>
+<li><a href="stdlib/encoding.html">encoding</a></li>
 <li><a href="stdlib/fileIO.html">fileIO</a></li>
 <li><a href="stdlib/game.html">game</a></li>
 <li><a href="stdlib/graphics.html">graphics</a></li>
@@ -207,11 +208,15 @@ extern &quot;C&quot; int lynxer_module_init_v1(RegisterFunction f, RegisterConst
 <hr>
 <h2 id="4-wire-it-into-the-build">4. Wire it into the build</h2>
 <p><strong>C++</strong> needs nothing: <code>stdlib/*.cpp</code> is a wildcard, so the new file becomes <code>stdlib/&lt;name&gt;.so</code> automatically. If the file needs extra link flags, that is not yet supported — a module with system-library dependencies should be a Rust crate instead.</p>
-<p><strong>Rust</strong> needs two edits:</p>
+<p><strong>Rust</strong> needs these edits:</p>
 <ol>
 <li>add the crate to the workspace members in <code>rust/Cargo.toml</code>;</li>
-<li>add its name to <code>LYNXER_RUST_MODULE_NAMES</code> in the root <code>Makefile</code>.</li>
+<li>add its name to <code>LYNXER_RUST_MODULE_NAMES</code> in the root <code>Makefile</code>;</li>
+<li>add its name to <code>LYNXER_LIST_STDLIB_MODULES</code> in the root <code>Makefile</code>, so the <code>--list-stdlibs</code> gate asserts the module is listed;</li>
+<li>add <code>stdlib_&lt;name&gt;</code> to <code>LYNXER_PARITY_FIXTURES</code> in the root <code>Makefile</code> so the fixture is also checked interpreted-versus-compiled;</li>
+<li>add its name to <code>STDLIB_MODULES</code> in <code>site/build.py</code>, which drives both the module's site page and the sidebar rendered on every site page.</li>
 </ol>
+<p>Then document it: <code>docs/stdlib/&lt;name&gt;.md</code>, a row in the module table in <code>docs/README.md</code> (and the bundled-module count), a row in <code>docs/stdlib-contracts.md</code> including its error-sentinel family, and any constraint in <code>docs/limitations.md</code>.</p>
 <p><code>cargo</code> is required: a new Rust backend is added to the same build that already needs the toolchain, so a missing <code>cargo</code> or a failed build fails <code>make</code> rather than dropping the module. Keep <code>rust/Cargo.lock</code> committed: the module must build offline.</p>
 <p><code>rust/ffi</code> is the one workspace member that is <strong>not</strong> a stdlib module: it is a <code>staticlib</code> native-call engine linked into the interpreter, built by its own Makefile rule and never added to <code>LYNXER_RUST_MODULE_NAMES</code> or installed into <code>stdlib/</code>. A C++ module that needs POSIX is gated with <code>LYNXER_POSIX_BUILTINS</code>, as the managed <code>filesystem*</code>/<code>process*</code>/<code>networking*</code> families are, and falls back to <code>unsupportedTable()</code> otherwise.</p>
 <hr>

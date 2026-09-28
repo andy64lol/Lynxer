@@ -1,0 +1,22 @@
+[package]
+name = "lynxer_encoding"
+version = "0.1.0"
+edition = "2021"
+description = "Base64/hex/base32/base58/ascii85/percent/quoted-printable codecs for the Lynxer `encoding` stdlib module"
+publish = false
+
+[lib]
+name = "lynxer_encoding"
+crate-type = ["cdylib"]
+
+[dependencies]
+lynxer_abi = { path = "../abi" }
+# One crate per codec family. All of them are pure Rust and small; `ascii85`
+# and `quoted_printable` have no dependencies of their own.
+base64 = "0.22"          # base64, standard and URL-safe alphabets
+data-encoding = "2"      # base32 (RFC 4648)
+hex = "0.4"              # hexadecimal
+bs58 = "0.5"             # base58 (the `check` feature, and its sha2, are off)
+ascii85 = "0.2"          # ascii85 / base85
+percent-encoding = "2"   # URL component escaping
+quoted_printable = "0.5" # quoted-printable
