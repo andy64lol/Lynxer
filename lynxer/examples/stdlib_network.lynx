@@ -23,6 +23,7 @@ global main(){
     str parsed = global.network.urlParse("https://example.com:8443/v1/x?q=1#top");
     println(global.json.jsonGet(parsed, "scheme"));
     println(global.json.jsonGet(parsed, "host"));
+    println(global.json.jsonGet(parsed, "port"));
     println(global.json.jsonGet(parsed, "path"));
     println(global.json.jsonGet(parsed, "query"));
     println(global.json.jsonGet(parsed, "fragment"));
@@ -32,6 +33,12 @@ global main(){
     println(global.json.jsonGet(global.network.urlParse("http://example.com/"), "port"));
     println(returnLength(global.network.getHostname()) > 0);
     println(global.network.resolveHost("localhost"));
+    println(global.network.resolveHost("example.com"));
+    println(global.network.resolveHost("nonexistent.example"));
+    // Test edge cases for URL parsing.
+    println(global.network.urlScheme("ftp://example.com"));
+    println(global.network.urlHost("ws://localhost:8080"));
+    println(global.network.urlPath("file:///path/to/file"));
 
     // Local server for the HTTP and WebSocket round-trips.
     println(global.server.clearRoutes());

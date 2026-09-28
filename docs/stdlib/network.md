@@ -71,9 +71,15 @@ cleanly, and `ERROR: receive timeout` / `ERROR: receive failed` otherwise.
 
 ## URL helpers
 
-`urlScheme`, `urlHost`, `urlPath`, `urlParse` (JSON object with
-`scheme`/`host`/`port`/`path`/`query`/`fragment`), `getHostname`, and
-`resolveHost`.
+| Function | Description |
+|----------|-------------|
+| `urlScheme(url)` | Extracts the URL scheme (e.g., `https`). |
+| `urlHost(url)` | Extracts the host and port (e.g., `example.com:8080`). Default ports are omitted. |
+| `urlPath(url)` | Extracts the path (e.g., `/api/v1`). |
+| `urlParse(url)` | Returns a JSON object with `scheme`, `host`, `port`, `path`, `query`, and `fragment`. |
+| `getHostname()` | Returns the local hostname. |
+| `resolveHost(hostname)` | Resolves a hostname to an IP address. |
+| `urlencode(text)` | Encodes text for use in URLs (e.g., spaces become `+`).
 
 ---
 

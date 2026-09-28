@@ -16,3 +16,8 @@ ureq = { version = "3", default-features = false, features = ["rustls", "gzip"] 
 tungstenite = { version = "0.30", features = ["rustls-tls-native-roots"] }
 # gethostname(2) for `getHostname`.
 libc = "0.2"
+# RFC 3986 URL parsing, joining and normalisation for the `url*` helpers, and
+# the JSON object `urlParse` returns (the previous hand-rolled parser could not
+# escape a value, so a quote in a query produced invalid JSON).
+url = "2"
+serde_json = "1"
