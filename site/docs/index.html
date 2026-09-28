@@ -91,6 +91,7 @@
 <li><a href="stdlib/time.html">time</a></li>
 <li><a href="stdlib/tui.html">tui</a></li>
 <li><a href="stdlib/typing.html">typing</a></li>
+<li><a href="stdlib/uuid.html">uuid</a></li>
 </ul>
     </nav>
     <main class="doc">
@@ -156,7 +157,7 @@ lynxer/lynxer --list-stdlibs</code></pre>
 <p>Both Lynxer CI workflows (<code>.github/workflows/build-lynxer-amd.yml</code> and <code>build-lynxer-arm.yml</code>) run <code>make testLynxer LYNXER_SKIP_DISPLAY=1</code>, which drops the fixtures that need a display or an audio device (a CI runner has neither, and the graphics backend crashes without a display).</p>
 <p>A Rust toolchain is required: every Rust-backed module and the native-call engine are built by <code>cargo</code>, and a missing toolchain or a failed build fails <code>make</code> instead of dropping a backend. <code>python3</code> is required for the two check scripts in the test suite.</p>
 <h2 id="standard-library-modules">Standard library modules</h2>
-<p>There are 29 bundled modules. A module is exposed to Lynxer by <code>stdlib/&lt;name&gt;.lynx</code> and backed by a <code>stdlib/&lt;name&gt;.so</code>. The backends marked <em>Rust</em> come from a crate under <code>rust/</code>; <em>pure</em> modules are written in Lynxer only and need no shared library.</p>
+<p>There are 30 bundled modules. A module is exposed to Lynxer by <code>stdlib/&lt;name&gt;.lynx</code> and backed by a <code>stdlib/&lt;name&gt;.so</code>. The backends marked <em>Rust</em> come from a crate under <code>rust/</code>; <em>pure</em> modules are written in Lynxer only and need no shared library.</p>
 <table>
 <tr><th>Module</th><th>Backend</th><th>Implementation</th></tr>
 <tr><td><a href="stdlib/cli.html">cli</a></td><td>native</td><td>POSIX process/env/terminal APIs</td></tr>
@@ -188,6 +189,7 @@ lynxer/lynxer --list-stdlibs</code></pre>
 <tr><td><a href="stdlib/time.html">time</a></td><td>native</td><td><code>&lt;chrono&gt;</code>, <code>&lt;ctime&gt;</code></td></tr>
 <tr><td><a href="stdlib/tui.html">tui</a></td><td>Rust</td><td><code>ratatui</code> + <code>crossterm</code></td></tr>
 <tr><td><a href="stdlib/typing.html">typing</a></td><td>pure</td><td>Lynxer type builtins</td></tr>
+<tr><td><a href="stdlib/uuid.html">uuid</a></td><td>Rust</td><td><code>uuid</code> (<code>rust/uuid</code>)</td></tr>
 </table>
 <p>The Rust workspace has eleven member crates: the ten module <code>cdylib</code> backends listed above (<code>LYNXER_RUST_MODULE_NAMES</code> in the Makefile), plus <code>ffi</code>, the required native-call engine — a <code>staticlib</code> linked into the interpreter through <code>lynxer/ffi_abi.h</code>, not a stdlib module. It is built on the <code>libffi</code> crate, so <code>cargo</code> and <code>libffi</code> headers are required to build the interpreter; see <a href="native-module-abi.html#the-native-call-engine">native-module-abi</a>. There is no CMake staging step and no <code>third_party/</code> directory: TLS is <code>rustls</code> (no system OpenSSL) and the HTTP/WebSocket stack is pure Rust.</p>
 <p><code>venv</code> and the OS-native GUI/turtle modules are intentionally excluded — see <a href="limitations.html">limitations</a>. The <a href="stdlib/graphics.html">graphics</a> module covers the immediate-mode drawing/window/UI space with macroquad.</p>

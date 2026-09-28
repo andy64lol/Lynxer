@@ -1,0 +1,60 @@
+////
+Lynxer standard library: uuid.
+UUID generation, parsing and formatting, backed by the Rust crate `uuid` and
+exposed through the native module `stdlib/uuid.so`.
+
+UUIDs are strings here, because Lynxer has no byte type. The canonical form is
+the lower-case hyphenated one (8-4-4-4-12); `uuidToHex` returns the "simple"
+form instead — the 32 hex characters of the 16 bytes, with no hyphens.
+
+Parsing accepts every form the crate does: hyphenated, simple, `urn:uuid:` and
+braced — the latter two wrapping the hyphenated form. Surrounding whitespace is
+trimmed. A failure is in-band: an unparseable UUID yields `""`, `uuidVersion`
+and `uuidTimestamp` yield `-1`.
+
+`uuidV4` is random and `uuidV7` is time-ordered, so neither is reproducible;
+`uuidV3` and `uuidV5` hash a name into a namespace, so they are. v1 and v6 are
+deliberately not exposed.
+
+Requires a Rust toolchain to build (see `rust/uuid`).
+////
+global setup(){ importAs("uuid.so", "nativeUuid"); }
+
+// --- generation -----------------------------------------------------------
+
+// A random (version 4) UUID.
+global uuidV4() -> str { return global.nativeUuid.v4(); }
+// A time-ordered (version 7) UUID.
+global uuidV7() -> str { return global.nativeUuid.v7(); }
+// A version 3 (MD5) name-based UUID in the given namespace. "" if the
+// namespace is not a UUID.
+global uuidV3(str namespace, str name) -> str { return global.nativeUuid.v3(namespace, name); }
+// A version 5 (SHA-1) name-based UUID in the given namespace. "" if the
+// namespace is not a UUID.
+global uuidV5(str namespace, str name) -> str { return global.nativeUuid.v5(namespace, name); }
+// The nil UUID, 00000000-0000-0000-0000-000000000000.
+global uuidNil() -> str { return global.nativeUuid.nil(); }
+
+// --- parsing and formatting ----------------------------------------------
+
+// The canonical lower-case form of a UUID, or "" if it does not parse.
+global uuidParse(str s) -> str { return global.nativeUuid.parse(s); }
+// The canonical form, upper-cased when `upper` is true. "" if it does not parse.
+global uuidFormat(str s, bool upper) -> str { return global.nativeUuid.format(s, upper); }
+// True if s parses as a UUID in any accepted form.
+global uuidValid(str s) -> bool { return global.nativeUuid.valid(s) isnt 0; }
+// The version number (3, 4, 5 or 7, and 0 for nil), or -1 if it does not parse.
+global uuidVersion(str s) -> int { return global.nativeUuid.version(s); }
+// The variant name: "ncs", "rfc4122", "microsoft" or "future". "" if it does
+// not parse.
+global uuidVariant(str s) -> str { return global.nativeUuid.variant(s); }
+// The Unix timestamp in milliseconds for a time-based UUID, or -1 when the
+// UUID carries no timestamp (v3, v4, v5 and nil).
+global uuidTimestamp(str s) -> int { return global.nativeUuid.timestamp(s); }
+// The 16 bytes as 32 lower-case hex characters, or "" if it does not parse.
+global uuidToHex(str s) -> str { return global.nativeUuid.toHex(s); }
+// Parses exactly 32 hex characters into the canonical form, or "".
+global uuidFromHex(str hex) -> str { return global.nativeUuid.fromHex(hex); }
+// A well-known namespace UUID by name: "dns", "url", "oid" or "x500". "" for
+// any other name.
+global uuidNamespace(str name) -> str { return global.nativeUuid.namespace(name); }

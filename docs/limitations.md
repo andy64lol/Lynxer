@@ -189,6 +189,23 @@ Makefile checks for `cargo` up front and says so.
 - **`quotedPrintableEncode` is the text encoding of RFC 2045**, so `CR`/`LF`
   become `=0D`/`=0A` and long lines gain soft breaks; decoding is strict.
 
+### `uuid` — Constrained Behavior
+
+- **UUIDs are strings.** Lynxer has no byte type, so a UUID crosses the ABI as
+  text: `uuidToHex` returns the simple 32-hex-character form as the hex view of
+  the 16 bytes, and `uuidFromHex` accepts exactly that.
+- **Failures are in-band.** An unparseable UUID yields `""`, `uuidValid` yields
+  `false`, and `uuidVersion`/`uuidTimestamp` yield `-1`; there is no exception to
+  catch.
+- **Accepted input forms.** Hyphenated, simple, `urn:uuid:` and braced, with
+  surrounding whitespace trimmed. The URN and braced forms must wrap the
+  *hyphenated* form; wrapping the simple form is rejected, matching
+  [RFC 9562](https://www.rfc-editor.org/rfc/rfc9562).
+- **`uuidVersion` reports the raw nibble.** A UUID that is not a well-formed RFC
+  variant reports whatever its 13th hex digit says (for example `12`), rather
+  than failing.
+- **`v1` and `v6` are not exposed**, and neither are byte-buffer entry points.
+
 ### `re` and `regex` — Constrained Behavior
 
 Both modules use `std::regex` with the ECMAScript grammar, which is narrower than full PCRE:

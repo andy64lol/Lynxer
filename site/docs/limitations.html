@@ -91,6 +91,7 @@
 <li><a href="stdlib/time.html">time</a></li>
 <li><a href="stdlib/tui.html">tui</a></li>
 <li><a href="stdlib/typing.html">typing</a></li>
+<li><a href="stdlib/uuid.html">uuid</a></li>
 </ul>
     </nav>
     <main class="doc">
@@ -213,6 +214,14 @@
 <li><strong><code>percentDecode</code> validates the escapes itself.</strong> The underlying decoder leaves a malformed escape in place (<code>%2</code> stays <code>%2</code>), so a bare <code>%</code> is a failure here rather than a passthrough.</li>
 <li><strong><code>ascii85Encode</code> includes the Adobe <code>&lt;~</code>/<code>~&gt;</code> frame</strong>, and decoding accepts a framed or bare stream. The <code>z</code> shorthand is expanded before decoding because <code>ascii85</code> 0.2.1 rejects every <code>z</code> it should accept.</li>
 <li><strong><code>quotedPrintableEncode</code> is the text encoding of RFC 2045</strong>, so <code>CR</code>/<code>LF</code> become <code>=0D</code>/<code>=0A</code> and long lines gain soft breaks; decoding is strict.</li>
+</ul>
+<h3 id="uuid--constrained-behavior"><code>uuid</code> — Constrained Behavior</h3>
+<ul>
+<li><strong>UUIDs are strings.</strong> Lynxer has no byte type, so a UUID crosses the ABI as text: <code>uuidToHex</code> returns the simple 32-hex-character form as the hex view of the 16 bytes, and <code>uuidFromHex</code> accepts exactly that.</li>
+<li><strong>Failures are in-band.</strong> An unparseable UUID yields <code>&quot;&quot;</code>, <code>uuidValid</code> yields <code>false</code>, and <code>uuidVersion</code>/<code>uuidTimestamp</code> yield <code>-1</code>; there is no exception to catch.</li>
+<li><strong>Accepted input forms.</strong> Hyphenated, simple, <code>urn:uuid:</code> and braced, with surrounding whitespace trimmed. The URN and braced forms must wrap the <em>hyphenated</em> form; wrapping the simple form is rejected, matching <a href="https://www.rfc-editor.org/rfc/rfc9562">RFC 9562</a>.</li>
+<li><strong><code>uuidVersion</code> reports the raw nibble.</strong> A UUID that is not a well-formed RFC variant reports whatever its 13th hex digit says (for example <code>12</code>), rather than failing.</li>
+<li><strong><code>v1</code> and <code>v6</code> are not exposed</strong>, and neither are byte-buffer entry points.</li>
 </ul>
 <h3 id="re-and-regex--constrained-behavior"><code>re</code> and <code>regex</code> — Constrained Behavior</h3>
 <p>Both modules use <code>std::regex</code> with the ECMAScript grammar, which is narrower than full PCRE:</p>

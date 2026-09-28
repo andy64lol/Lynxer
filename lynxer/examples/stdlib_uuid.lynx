@@ -1,0 +1,84 @@
+////
+Fixture for the uuid stdlib. The name-based, nil, namespace and formatting
+values are fixed; the random (v4) and time-ordered (v7) ones are only checked
+for their properties, so the output is deterministic. Part of the import-parity
+gate.
+////
+global setup(){ import("uuid"); }
+
+global main(){
+    // --- generation ---------------------------------------------------------
+    // v4 and v7 cannot be pinned, so only their shape is asserted.
+    str v4 = global.uuid.uuidV4();
+    println(global.uuid.uuidValid(v4));
+    println(global.uuid.uuidVersion(v4));
+    println(global.uuid.uuidVariant(v4));
+    str v7 = global.uuid.uuidV7();
+    println(global.uuid.uuidValid(v7));
+    println(global.uuid.uuidVersion(v7));
+    println(global.uuid.uuidTimestamp(v7) > 0);
+
+    // Name-based UUIDs are reproducible: the RFC examples for www.example.com.
+    println(global.uuid.uuidV3(global.uuid.uuidNamespace("dns"), "www.example.com"));
+    println(global.uuid.uuidV5(global.uuid.uuidNamespace("dns"), "www.example.com"));
+    println(global.uuid.uuidV3("not-a-uuid", "www.example.com"));
+    println(global.uuid.uuidV5("not-a-uuid", "www.example.com"));
+
+    println(global.uuid.uuidNil());
+
+    // --- namespaces ---------------------------------------------------------
+    println(global.uuid.uuidNamespace("dns"));
+    println(global.uuid.uuidNamespace("url"));
+    println(global.uuid.uuidNamespace("oid"));
+    println(global.uuid.uuidNamespace("x500"));
+    println(global.uuid.uuidNamespace("DNS")); // names are case-insensitive
+    println(global.uuid.uuidNamespace("nope"));
+
+    // --- parsing and formatting --------------------------------------------
+    // Hyphenated, simple, urn:uuid: and braced all parse; the URN and braced
+    // forms wrap the hyphenated one.
+    println(global.uuid.uuidParse("A1A2A3A4-B1B2-C1C2-D1D2-D3D4D5D6D7D8"));
+    println(global.uuid.uuidParse("a1a2a3a4b1b2c1c2d1d2d3d4d5d6d7d8"));
+    println(global.uuid.uuidParse("urn:uuid:a1a2a3a4-b1b2-c1c2-d1d2-d3d4d5d6d7d8"));
+    println(global.uuid.uuidParse("{a1a2a3a4-b1b2-c1c2-d1d2-d3d4d5d6d7d8}"));
+    println(global.uuid.uuidParse("  a1a2a3a4b1b2c1c2d1d2d3d4d5d6d7d8  "));
+    println(global.uuid.uuidParse("urn:uuid:a1a2a3a4b1b2c1c2d1d2d3d4d5d6d7d8"));
+    println(global.uuid.uuidParse("nope"));
+
+    println(global.uuid.uuidFormat("a1a2a3a4b1b2c1c2d1d2d3d4d5d6d7d8", true));
+    println(global.uuid.uuidFormat("{a1a2a3a4-b1b2-c1c2-d1d2-d3d4d5d6d7d8}", false));
+    println(global.uuid.uuidFormat("nope", true));
+
+    println(global.uuid.uuidValid("a1a2a3a4-b1b2-c1c2-d1d2-d3d4d5d6d7d8"));
+    println(global.uuid.uuidValid("a1a2a3a4b1b2c1c2d1d2d3d4d5d6d7d8"));
+    println(global.uuid.uuidValid("a1a2a3a4b1b2c1c2d1d2d3d4d5d6d7d8 ")); // trailing space is fine
+    println(global.uuid.uuidValid("nope"));
+    println(global.uuid.uuidValid("a1a2a3a4-b1b2-c1c2-d1d2-d3d4d5d6d7d")); // one digit short
+
+    // The version nibble is reported as-is, even for a UUID that is not a
+    // well-formed RFC variant.
+    println(global.uuid.uuidVersion("a1a2a3a4-b1b2-c1c2-d1d2-d3d4d5d6d7d8"));
+    println(global.uuid.uuidVersion("01a0e934-e825-7553-8afc-80071d56499b"));
+    println(global.uuid.uuidVersion(global.uuid.uuidNil()));
+    println(global.uuid.uuidVersion("nope"));
+
+    println(global.uuid.uuidVariant("a1a2a3a4-b1b2-c1c2-d1d2-d3d4d5d6d7d8"));
+    println(global.uuid.uuidVariant("01a0e934-e825-7553-8afc-80071d56499b"));
+    println(global.uuid.uuidVariant(global.uuid.uuidNil()));
+    println(global.uuid.uuidVariant("nope"));
+
+    // A time-based UUID carries a timestamp; v3, v4, v5 and nil do not.
+    println(global.uuid.uuidTimestamp("01a0e934-e825-7553-8afc-80071d56499b"));
+    println(global.uuid.uuidTimestamp("a1a2a3a4-b1b2-c1c2-d1d2-d3d4d5d6d7d8"));
+    println(global.uuid.uuidTimestamp(global.uuid.uuidV5(global.uuid.uuidNamespace("dns"), "www.example.com")));
+    println(global.uuid.uuidTimestamp("nope"));
+
+    // --- the hex view of the 16 bytes --------------------------------------
+    println(global.uuid.uuidToHex("a1a2a3a4-b1b2-c1c2-d1d2-d3d4d5d6d7d8"));
+    println(global.uuid.uuidToHex("nope"));
+    println(global.uuid.uuidFromHex("a1a2a3a4b1b2c1c2d1d2d3d4d5d6d7d8"));
+    println(global.uuid.uuidFromHex("A1A2A3A4B1B2C1C2D1D2D3D4D5D6D7D8"));
+    println(global.uuid.uuidFromHex("a1a2a3a4-b1b2-c1c2-d1d2-d3d4d5d6d7d8")); // hyphens are not hex
+    println(global.uuid.uuidFromHex("a1a2a3a4b1b2c1c2d1d2d3d4d5d6d7d"));
+    println(global.uuid.uuidFromHex("zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"));
+}

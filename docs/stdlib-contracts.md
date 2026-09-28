@@ -77,7 +77,7 @@ picks one family and applies it consistently:
 
 | Family | Shape | Modules |
 | --- | --- | --- |
-| Scalar sentinel | `-1` for indices and sizes, `0` / `0.0` for numbers, `false` for predicates, `""` for strings | `cli`, `debug`, `encoding`, `fileIO`, `game`, `image`, `json`, `math`, `multiprocessing`, `os`, `path`, `random`, `re`, `regex`, `sound`, `sys`, `time` |
+| Scalar sentinel | `-1` for indices and sizes, `0` / `0.0` for numbers, `false` for predicates, `""` for strings | `cli`, `debug`, `encoding`, `fileIO`, `game`, `image`, `json`, `math`, `multiprocessing`, `os`, `path`, `random`, `re`, `regex`, `sound`, `sys`, `time`, `uuid` |
 | Process exit code | the command's exit status; a negative value when it did not run | `shell` |
 | Status string | `"ok"` on success; `"ERROR: <message>"` on failure | `csv`, `sqldb`, `network`, `server` |
 | Error string | `"Error: <message>"` | `js`, `lua`, `tui` |
@@ -167,6 +167,7 @@ Any future callback must be declared here before the module ships.
 | `time` | C++ | none | none |
 | `tui` | Rust | **integer handles** into backend registries (tables, trees, layouts, progress, status, live) | none (registries live for the run) |
 | `typing` | pure Lynxer | none | none |
+| `uuid` | Rust | none — UUIDs are strings | none |
 
 Per-module constraints are recorded in
 [limitations.md](limitations.md), not here: this page fixes what Lynxer's own

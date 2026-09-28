@@ -1,0 +1,17 @@
+[package]
+name = "lynxer_uuid"
+version = "0.1.0"
+edition = "2021"
+description = "UUID generation, parsing and formatting for the Lynxer `uuid` stdlib module"
+publish = false
+
+[lib]
+name = "lynxer_uuid"
+crate-type = ["cdylib"]
+
+[dependencies]
+lynxer_abi = { path = "../abi" }
+# v3 and v5 hash a name into a namespace (md5 and sha1), v4 is random and v7 is
+# time-ordered. The `rng` feature, and its getrandom dependency, arrives with
+# v4 and v7.
+uuid = { version = "1", features = ["v3", "v4", "v5", "v7"] }

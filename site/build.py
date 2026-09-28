@@ -42,7 +42,7 @@ STDLIB_MODULES = [
     "js", "json",
     "lua", "math", "multiprocessing", "network", "os", "path", "random", "re",
     "regex", "server", "shell", "sound", "sqldb", "sys", "text", "time", "tui",
-    "typing",
+    "typing", "uuid",
 ]
 
 

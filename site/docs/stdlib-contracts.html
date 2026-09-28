@@ -91,6 +91,7 @@
 <li><a href="stdlib/time.html">time</a></li>
 <li><a href="stdlib/tui.html">tui</a></li>
 <li><a href="stdlib/typing.html">typing</a></li>
+<li><a href="stdlib/uuid.html">uuid</a></li>
 </ul>
     </nav>
     <main class="doc">
@@ -136,7 +137,7 @@
 <p>There is no error channel across the ABI, so failures are in-band. Each module picks one family and applies it consistently:</p>
 <table>
 <tr><th>Family</th><th>Shape</th><th>Modules</th></tr>
-<tr><td>Scalar sentinel</td><td><code>-1</code> for indices and sizes, <code>0</code> / <code>0.0</code> for numbers, <code>false</code> for predicates, <code>&quot;&quot;</code> for strings</td><td><code>cli</code>, <code>debug</code>, <code>encoding</code>, <code>fileIO</code>, <code>game</code>, <code>image</code>, <code>json</code>, <code>math</code>, <code>multiprocessing</code>, <code>os</code>, <code>path</code>, <code>random</code>, <code>re</code>, <code>regex</code>, <code>sound</code>, <code>sys</code>, <code>time</code></td></tr>
+<tr><td>Scalar sentinel</td><td><code>-1</code> for indices and sizes, <code>0</code> / <code>0.0</code> for numbers, <code>false</code> for predicates, <code>&quot;&quot;</code> for strings</td><td><code>cli</code>, <code>debug</code>, <code>encoding</code>, <code>fileIO</code>, <code>game</code>, <code>image</code>, <code>json</code>, <code>math</code>, <code>multiprocessing</code>, <code>os</code>, <code>path</code>, <code>random</code>, <code>re</code>, <code>regex</code>, <code>sound</code>, <code>sys</code>, <code>time</code>, <code>uuid</code></td></tr>
 <tr><td>Process exit code</td><td>the command's exit status; a negative value when it did not run</td><td><code>shell</code></td></tr>
 <tr><td>Status string</td><td><code>&quot;ok&quot;</code> on success; <code>&quot;ERROR: &lt;message&gt;&quot;</code> on failure</td><td><code>csv</code>, <code>sqldb</code>, <code>network</code>, <code>server</code></td></tr>
 <tr><td>Error string</td><td><code>&quot;Error: &lt;message&gt;&quot;</code></td><td><code>js</code>, <code>lua</code>, <code>tui</code></td></tr>
@@ -196,6 +197,7 @@
 <tr><td><code>time</code></td><td>C++</td><td>none</td><td>none</td></tr>
 <tr><td><code>tui</code></td><td>Rust</td><td><strong>integer handles</strong> into backend registries (tables, trees, layouts, progress, status, live)</td><td>none (registries live for the run)</td></tr>
 <tr><td><code>typing</code></td><td>pure Lynxer</td><td>none</td><td>none</td></tr>
+<tr><td><code>uuid</code></td><td>Rust</td><td>none — UUIDs are strings</td><td>none</td></tr>
 </table>
 <p>Per-module constraints are recorded in <a href="limitations.html">limitations</a>, not here: this page fixes what Lynxer's own contract <em>is</em>, and that page records where it deliberately differs.</p>
 <h2 id="changing-a-contract">Changing a contract</h2>

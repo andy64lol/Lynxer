@@ -19,20 +19,10 @@ Any name still registered in `unsupportedTable()` reports
 
 ### Planned modules
 
-Six capabilities, none implemented yet; `encoding` is finished and recorded
-under [Done](#done). Each entry lists the proposed crates, the operations to
+Five capabilities, none implemented yet; `encoding` and `uuid` are finished and
+recorded under [Done](#done). Each entry lists the proposed crates, the operations to
 expose, and the decisions it is blocked on. The repo's usual artifacts apply to
 every one of them - see **D7**.
-
-- [ ] **`uuid` (Rust).** Generate, parse and format UUIDs. Crate: `uuid` with
-      the `v4`, `v7`, `v5`, `v3` and `rng` features.
-  - Ops: `uuidV4`, `uuidV7`, `uuidV3(namespace, name)`,
-    `uuidV5(namespace, name)`, `uuidNil`, `uuidParse`, `uuidFormat`,
-    `uuidValid`, `uuidVersion`, `uuidVariant`, `uuidToBytes`/`FromBytes`,
-    `uuidTimestamp`, plus the standard namespace constants (`dns`, `url`,
-    `oid`, `x500`).
-  - Decide: string round-trip versus an opaque handle; whether the deprecated
-    v1/v6 variants are in scope (recommended: no).
 
 - [ ] **`network` - URL operations (extend the existing module).** Add the
       `url` crate (already a transitive dependency of `ureq`, so likely already
@@ -106,9 +96,9 @@ every one of them - see **D7**.
   - Also decide: the event-kind vocabulary, debounce/burst behaviour, queue
     limits, and what happens when a watched directory disappears.
 
-Suggested order: `uuid` -> `network` URL ops -> `crypto` -> `compress` ->
-`toml` -> `ini` -> `xml` -> `yaml` -> `watch` (`encoding` is done). The first
-two need no new ABI decision; `crypto` and `compress` wait on **D1**.
+Suggested order: `network` URL ops -> `crypto` -> `compress` -> `toml` ->
+`ini` -> `xml` -> `yaml` -> `watch` (`encoding` and `uuid` are done). `network`
+needs no new ABI decision; `crypto` and `compress` still wait on **D1**.
 
 ### Module decisions
 
@@ -239,6 +229,18 @@ Everything else is resolved; see [Done](#done).
       against the interpreter. That audit corrected
       [docs/legacy-surface.md](docs/legacy-surface.md): the `async` language
       syntax **does** exist (it is eager, not a coroutine).~~
+- [x] ~~**`uuid` module.** Built on the `uuid` crate (`rust/uuid`) with the
+      `v3`, `v4`, `v5` and `v7` features: 14 operations covering generation
+      (random v4, time-ordered v7, name-based v3/v5, nil), parsing and
+      formatting (hyphenated, simple, `urn:uuid:` and braced), the version
+      nibble, the variant, the Unix timestamp, the hex view of the 16 bytes, and
+      the well-known namespaces. UUIDs cross as strings; failures are the
+      scalar sentinel (`""`, `false`, `-1`). Decisions taken: no opaque handle,
+      and no v1/v6 or byte-buffer entry points, so the plan's
+      `uuidToBytes`/`FromBytes` became `uuidToHex`/`uuidFromHex` (the simple
+      32-hex-character form, the only lossless text view of the bytes).
+      `uuidParse` and `uuidFormat` both exist, the first being
+      `uuidFormat(s, false)`.~~
 - [x] ~~**`encoding` module.** Built on `base64`, `hex`, `data-encoding`,
       `bs58`, `ascii85`, `percent-encoding` and `quoted_printable`
       (`rust/encoding`): 25 operations, an `*Encode`, `*Decode` and `*Valid`

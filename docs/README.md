@@ -91,7 +91,7 @@ scripts in the test suite.
 
 ## Standard library modules
 
-There are 29 bundled modules. A module is exposed to Lynxer by
+There are 30 bundled modules. A module is exposed to Lynxer by
 `stdlib/<name>.lynx` and backed by a `stdlib/<name>.so`. The backends marked
 *Rust* come from a crate under `rust/`; *pure* modules are written in Lynxer
 only and need no shared library.
@@ -127,6 +127,7 @@ only and need no shared library.
 | [time](stdlib/time.md) | native | `<chrono>`, `<ctime>` |
 | [tui](stdlib/tui.md) | Rust | `ratatui` + `crossterm` |
 | [typing](stdlib/typing.md) | pure | Lynxer type builtins |
+| [uuid](stdlib/uuid.md) | Rust | `uuid` (`rust/uuid`) |
 
 The Rust workspace has eleven member crates: the ten module `cdylib` backends
 listed above (`LYNXER_RUST_MODULE_NAMES` in the Makefile), plus `ffi`, the
