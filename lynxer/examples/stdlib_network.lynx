@@ -39,6 +39,31 @@ global main(){
     println(global.network.urlScheme("ftp://example.com"));
     println(global.network.urlHost("ws://localhost:8080"));
     println(global.network.urlPath("file:///path/to/file"));
+    
+    // Additional edge cases for URL helpers.
+    println(global.network.urlScheme("[2001:db8::1]:8080/path")); // IPv6
+    println(global.network.urlHost("[2001:db8::1]:8080/path")); // IPv6
+    println(global.network.urlPath("[2001:db8::1]:8080/path")); // IPv6
+    
+    // Test URLs with special characters.
+    println(global.network.urlencode("hello world!@#$%"));
+    println(global.network.urlencode("日本語"));
+    
+    // Test empty or malformed URLs.
+    println(global.network.urlScheme(""));
+    println(global.network.urlHost(""));
+    println(global.network.urlPath(""));
+    
+    // Test URLs with fragments and queries.
+    str parsedWithQuery = global.network.urlParse("http://example.com/path?query=value#frag");
+    println(global.json.jsonGet(parsedWithQuery, "query"));
+    println(global.json.jsonGet(parsedWithQuery, "fragment"));
+    
+    // Test IPv6 URL parsing.
+    str parsedIPv6 = global.network.urlParse("https://[2001:db8::1]:8080/path");
+    println(global.json.jsonGet(parsedIPv6, "host"));
+    println(global.json.jsonGet(parsedIPv6, "port"));
+    println(global.json.jsonGet(parsedIPv6, "path"));
 
     // Local server for the HTTP and WebSocket round-trips.
     println(global.server.clearRoutes());
