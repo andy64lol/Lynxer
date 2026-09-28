@@ -2,27 +2,83 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>network - Lynxer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <meta name="theme-color" content="#4a90e2">
+    <title>Network Module - Lynxer</title>
     <link rel="stylesheet" href="../../style.css">
+    <link rel="icon" href="../../favicon.ico" type="image/x-icon">
+    <style>
+        /* Ensure the layout is responsive */
+        @media (max-width: 1200px) {{
+            .layout {{
+                flex-direction: column;
+            }}
+            .sidebar {{
+                width: 100%;
+                order: 2;
+            }}
+            .doc {{
+                width: 100%;
+                order: 1;
+            }}
+        }}
+        
+        /* Add a search bar placeholder */
+        .search-bar {{
+            padding: 10px 15px;
+            background: #f8f9fa;
+            border: 1px solid #e2e8eb;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            width: 100%;
+        }}
+        
+        .search-bar input {{
+            width: 100%;
+            padding: 8px;
+            border: none;
+            outline: none;
+            font-size: 14px;
+        }}
+        
+        /* Add a breadcrumb for navigation */
+        .breadcrumb {{
+            background: #f8f9fa;
+            padding: 8px 15px;
+            border-bottom: 1px solid #e2e8eb;
+            margin-bottom: 20px;
+        }}
+        
+        .breadcrumb a {{
+            color: #4a90e2;
+            text-decoration: none;
+            margin-right: 10px;
+        }}
+        
+        .breadcrumb a:hover {{
+            text-decoration: underline;
+        }}
+    </style>
 </head>
 <body>
 
 <header>
-    <h1><a href="../../index.html">Lynxer</a></h1>
-    <p>Documentation</p>
+    <div class="header-content">
+        <h1><a href="../../index.html">Lynxer</a></h1>
+        <p>Documentation</p>
+    </div>
 </header>
 
 <div class="layout">
     <nav class="sidebar">
-<h3>Overview</h3><ul>
+<h3 class="sidebar-group-title">Overview</h3><ul class="sidebar-group">
 <li><a href="../index.html">README</a></li>
 </ul>
-<h3>Getting started</h3><ul>
+<h3 class="sidebar-group-title">Getting started</h3><ul class="sidebar-group">
 <li><a href="../install.html">install</a></li>
 <li><a href="../CLI.html">CLI</a></li>
 </ul>
-<h3>Language</h3><ul>
+<h3 class="sidebar-group-title">Language</h3><ul class="sidebar-group">
 <li><a href="../language.html">language</a></li>
 <li><a href="../operators.html">operators</a></li>
 <li><a href="../conditionals.html">conditionals</a></li>
@@ -34,13 +90,13 @@
 <li><a href="../modules.html">modules</a></li>
 <li><a href="../importAs.html">importAs</a></li>
 </ul>
-<h3>Records</h3><ul>
+<h3 class="sidebar-group-title">Records</h3><ul class="sidebar-group">
 <li><a href="../structs.html">structs</a></li>
 <li><a href="../classes.html">classes</a></li>
 <li><a href="../enums.html">enums</a></li>
 <li><a href="../vargroups.html">vargroups</a></li>
 </ul>
-<h3>Built-ins and modules</h3><ul>
+<h3 class="sidebar-group-title">Built-ins and modules</h3><ul class="sidebar-group">
 <li><a href="../builtins.html">builtins</a></li>
 <li><a href="../syscalls.html">syscalls</a></li>
 <li><a href="../native-module-abi.html">native-module-abi</a></li>
@@ -48,19 +104,19 @@
 <li><a href="../stdlib-contracts.html">stdlib-contracts</a></li>
 <li><a href="../extending.html">extending</a></li>
 </ul>
-<h3>Runtime</h3><ul>
+<h3 class="sidebar-group-title">Runtime</h3><ul class="sidebar-group">
 <li><a href="../async.html">async</a></li>
 <li><a href="../native-memory.html">native-memory</a></li>
 <li><a href="../filesystem.html">filesystem</a></li>
 <li><a href="../networking.html">networking</a></li>
 <li><a href="../process.html">process</a></li>
 </ul>
-<h3>Reference</h3><ul>
+<h3 class="sidebar-group-title">Reference</h3><ul class="sidebar-group">
 <li><a href="../legacy-surface.html">legacy-surface</a></li>
 <li><a href="../removed-features.html">removed-features</a></li>
 <li><a href="../limitations.html">limitations</a></li>
 </ul>
-<h3>Standard library</h3><ul>
+<h3 class="sidebar-group-title">Standard Library</h3><ul class="sidebar-group">
 <li><a href="index.html">All modules</a></li>
 <li><a href="cli.html">cli</a></li>
 <li><a href="colorlib.html">colorlib</a></li>
@@ -95,59 +151,112 @@
 </ul>
     </nav>
     <main class="doc">
-<h1 id="network">network</h1>
-<p>HTTP and WebSocket client backed by Rust <a href="https://docs.rs/ureq"><code>ureq</code></a> with <a href="https://docs.rs/rustls"><code>rustls</code></a> and <a href="https://docs.rs/tungstenite"><code>tungstenite</code></a>. This replaces the older <code>http</code> and <code>net</code> modules.</p>
-<pre><code>global setup(){
+        <div class="breadcrumb">
+            <a href="../../index.html">Home</a>
+            <a href="../../stdlib/index.html">Standard Library</a>
+            <span>Network Module</span>
+        </div>
+        <div class="search-bar">
+            <input type="text" placeholder="Search documentation..." aria-label="Search documentation">
+        </div>
+<h1 id="network-module">Network Module</h1>
+<p>A robust HTTP, WebSocket, and TCP client built with Rust, using <a href="https://docs.rs/ureq"><code>ureq</code></a> with <a href="https://docs.rs/rustls"><code>rustls</code></a> and <a href="https://docs.rs/tungstenite"><code>tungstenite</code></a>. This module replaces the older <code>http</code> and <code>net</code> modules, eliminating the need for a system OpenSSL dependency.</p>
+<pre><code>global setup() {
     import(&quot;network&quot;);
 }</code></pre>
-<p>HTTPS/WSS use <code>rustls</code>, so there is no system OpenSSL dependency. Built from the Rust crate <code>rust/network</code>.</p>
-<h2 id="http-client">HTTP client</h2>
+<h2 id="features">Features</h2>
+<ul>
+<li><strong>HTTPS/WSS</strong>: Uses <code>rustls</code> for secure connections.</li>
+<li><strong>WebSocket</strong>: Real-time communication with <code>ws://</code> and <code>wss://</code>.</li>
+<li><strong>Raw TCP</strong>: Plaintext TCP connections for custom protocols.</li>
+<li><strong>URL Parsing</strong>: Extract and manipulate URL components.</li>
+</ul>
+<p>Built from the Rust crate <code>rust/network</code>.</p>
+<hr>
+<h2 id="http-client">HTTP Client</h2>
+<p>Perform HTTP requests with support for all standard methods.</p>
 <table>
 <tr><th>Function</th><th>Description</th></tr>
-<tr><td><code>get(url)</code></td><td>Response body, or <code>ERROR: ...</code></td></tr>
-<tr><td><code>getStatus(url)</code></td><td>Status code, or <code>-1</code></td></tr>
-<tr><td><code>getHeaders(url)</code></td><td>Newline-separated headers, or <code>ERROR: ...</code></td></tr>
-<tr><td><code>post(url, body, contentType)</code></td><td>POST body</td></tr>
-<tr><td><code>put(url, body, contentType)</code></td><td>PUT body</td></tr>
-<tr><td><code>delete(url)</code></td><td>DELETE body</td></tr>
-<tr><td><code>patch(url, body, contentType)</code></td><td>PATCH body</td></tr>
-<tr><td><code>getJson(url)</code></td><td>GET with <code>Accept: application/json</code></td></tr>
-<tr><td><code>postJson(url, jsonBody)</code></td><td>POST JSON</td></tr>
-<tr><td><code>download(url, filepath)</code></td><td>Write body to disk (<code>&quot;ok&quot;</code> / <code>ERROR:</code>)</td></tr>
-<tr><td><code>urlencode(text)</code></td><td>Plus-style query encoding</td></tr>
-<tr><td><code>httpHead(url)</code></td><td>HEAD status, or <code>-1</code></td></tr>
+<tr><td><strong><code>get(url)</code></strong></td><td>Fetches the response body or returns an error.</td></tr>
+<tr><td><strong><code>getStatus(url)</code></strong></td><td>Returns the HTTP status code or <code>-1</code> on failure.</td></tr>
+<tr><td><strong><code>getHeaders(url)</code></strong></td><td>Returns newline-separated headers or an error.</td></tr>
+<tr><td><strong><code>post(url, body, contentType)</code></strong></td><td>Sends a POST request with a body and content type.</td></tr>
+<tr><td><strong><code>put(url, body, contentType)</code></strong></td><td>Sends a PUT request with a body and content type.</td></tr>
+<tr><td><strong><code>delete(url)</code></strong></td><td>Sends a DELETE request.</td></tr>
+<tr><td><strong><code>patch(url, body, contentType)</code></strong></td><td>Sends a PATCH request with a body and content type.</td></tr>
+<tr><td><strong><code>getJson(url)</code></strong></td><td>Fetches JSON data with <code>Accept: application/json</code>.</td></tr>
+<tr><td><strong><code>postJson(url, jsonBody)</code></strong></td><td>Sends a JSON body in a POST request.</td></tr>
+<tr><td><strong><code>download(url, filepath)</code></strong></td><td>Downloads a file to disk (<code>&quot;ok&quot;</code> or <code>ERROR:</code>).</td></tr>
+<tr><td><strong><code>urlencode(text)</code></strong></td><td>Encodes text for use in URLs (e.g., spaces become <code>+</code>).</td></tr>
+<tr><td><strong><code>httpHead(url)</code></strong></td><td>Returns the HTTP HEAD status or <code>-1</code> on failure.</td></tr>
 </table>
-<h2 id="websocket-client">WebSocket client</h2>
-<p>Connections are keyed by a name string.</p>
+<hr>
+<h2 id="websocket-client">WebSocket Client</h2>
+<p>Establish and manage WebSocket connections using a name-based registry.</p>
 <table>
 <tr><th>Function</th><th>Description</th></tr>
-<tr><td><code>wsConnect(name, uri)</code></td><td>Open <code>ws://</code> or <code>wss://</code> (<code>&quot;ok&quot;</code> / <code>ERROR:</code>)</td></tr>
-<tr><td><code>wsSend(name, message)</code></td><td>Send text</td></tr>
-<tr><td><code>wsReceive(name)</code></td><td>Wait for the next message</td></tr>
-<tr><td><code>wsSendReceive(name, message)</code></td><td>Round-trip helper</td></tr>
-<tr><td><code>wsClose(name)</code></td><td>Close and forget</td></tr>
-<tr><td><code>wsConnected(name)</code></td><td><code>true</code> while open</td></tr>
+<tr><td><strong><code>wsConnect(name, uri)</code></strong></td><td>Opens a WebSocket connection (<code>ws://</code> or <code>wss://</code>). Returns <code>&quot;ok&quot;</code> or <code>ERROR:</code>.</td></tr>
+<tr><td><strong><code>wsSend(name, message)</code></strong></td><td>Sends a text message over the WebSocket.</td></tr>
+<tr><td><strong><code>wsReceive(name)</code></strong></td><td>Waits for and returns the next message.</td></tr>
+<tr><td><strong><code>wsSendReceive(name, message)</code></strong></td><td>Sends a message and waits for a response.</td></tr>
+<tr><td><strong><code>wsClose(name)</code></strong></td><td>Closes the WebSocket connection.</td></tr>
+<tr><td><strong><code>wsConnected(name)</code></strong></td><td>Returns <code>true</code> if the connection is active.</td></tr>
 </table>
-<h2 id="raw-tcp-client">Raw TCP client</h2>
-<p>Plaintext TCP, keyed by a name like the WebSocket registry. Every connection function returns <code>&quot;ok&quot;</code> or <code>ERROR: ...</code>; nothing here does TLS, which belongs to the HTTP/WebSocket client above.</p>
+<hr>
+<h2 id="raw-tcp-client">Raw TCP Client</h2>
+<p>Plaintext TCP connections for custom protocols. Connections are managed using a name-based registry.</p>
 <table>
 <tr><th>Function</th><th>Description</th></tr>
-<tr><td><code>tcpConnect(name, host, port)</code></td><td>Connect to <code>host:port</code> (<code>&quot;ok&quot;</code> / <code>ERROR:</code>)</td></tr>
-<tr><td><code>tcpSend(name, data)</code></td><td>Send UTF-8 text</td></tr>
-<tr><td><code>tcpReceive(name, bufSize)</code></td><td>Receive up to <code>bufSize</code> bytes, decoded</td></tr>
-<tr><td><code>tcpSendReceive(name, data, bufSize)</code></td><td>Send then receive</td></tr>
-<tr><td><code>tcpClose(name)</code></td><td>Shut down and forget the connection</td></tr>
+<tr><td><strong><code>tcpConnect(name, host, port)</code></strong></td><td>Connects to <code>host:port</code>. Returns <code>&quot;ok&quot;</code> or <code>ERROR:</code>.</td></tr>
+<tr><td><strong><code>tcpSend(name, data)</code></strong></td><td>Sends UTF-8 text over the connection.</td></tr>
+<tr><td><strong><code>tcpReceive(name, bufSize)</code></strong></td><td>Receives up to <code>bufSize</code> bytes, decoded as UTF-8.</td></tr>
+<tr><td><strong><code>tcpSendReceive(name, data, bufSize)</code></strong></td><td>Sends data and waits for a response.</td></tr>
+<tr><td><strong><code>tcpClose(name)</code></strong></td><td>Closes the TCP connection.</td></tr>
 </table>
-<p>Connects and receives time out after 30 seconds, so a quiet peer cannot wedge the interpreter. <code>tcpReceive</code> returns an empty string when the peer closes cleanly, and <code>ERROR: receive timeout</code> / <code>ERROR: receive failed</code> otherwise.</p>
-<h2 id="host-and-reachability-helpers">Host and reachability helpers</h2>
+<p><strong>Timeouts</strong>: Connections and receives time out after 30 seconds to prevent hanging.</p>
+<hr>
+<h2 id="host-and-reachability-helpers">Host and Reachability Helpers</h2>
+<p>Check network reachability and retrieve local IP information.</p>
 <table>
 <tr><th>Function</th><th>Description</th></tr>
-<tr><td><code>getLocalIP()</code></td><td>Primary local IPv4 address, falling back to the hostname's first non-loopback address and then <code>127.0.0.1</code></td></tr>
-<tr><td><code>isPortOpen(host, port, timeoutSecs)</code></td><td><code>true</code> if a TCP connection succeeds within the timeout</td></tr>
-<tr><td><code>ping(host)</code></td><td><code>isPortOpen(host, 80, 3)</code> — the original's reachability probe</td></tr>
+<tr><td><strong><code>getLocalIP()</code></strong></td><td>Returns the primary local IPv4 address. Falls back to the hostname's first non-loopback address and then <code>127.0.0.1</code>.</td></tr>
+<tr><td><strong><code>isPortOpen(host, port, timeoutSecs)</code></strong></td><td>Returns <code>true</code> if a TCP connection succeeds within the timeout.</td></tr>
+<tr><td><strong><code>ping(host)</code></strong></td><td>Checks if <code>host:80</code> is reachable within 3 seconds (original behavior).</td></tr>
 </table>
-<h2 id="url-helpers">URL helpers</h2>
-<p><code>urlScheme</code>, <code>urlHost</code>, <code>urlPath</code>, <code>urlParse</code> (JSON object with <code>scheme</code>/<code>host</code>/<code>port</code>/<code>path</code>/<code>query</code>/<code>fragment</code>), <code>getHostname</code>, and <code>resolveHost</code>.</p>
+<hr>
+<h2 id="url-helpers">URL Helpers</h2>
+<p>Parse, manipulate, and encode URLs for web requests.</p>
+<table>
+<tr><th>Function</th><th>Description</th></tr>
+<tr><td><strong><code>urlScheme(url)</code></strong></td><td>Extracts the URL scheme (e.g., <code>https</code>).</td></tr>
+<tr><td><strong><code>urlHost(url)</code></strong></td><td>Extracts the host and port (e.g., <code>example.com:8080</code>). Default ports are omitted.</td></tr>
+<tr><td><strong><code>urlPath(url)</code></strong></td><td>Extracts the path (e.g., <code>/api/v1</code>).</td></tr>
+<tr><td><strong><code>urlParse(url)</code></strong></td><td>Returns a JSON object with <code>scheme</code>, <code>host</code>, <code>port</code>, <code>path</code>, <code>query</code>, and <code>fragment</code>.</td></tr>
+<tr><td><strong><code>getHostname()</code></strong></td><td>Returns the local hostname.</td></tr>
+<tr><td><strong><code>resolveHost(hostname)</code></strong></td><td>Resolves a hostname to an IP address.</td></tr>
+<tr><td><strong><code>urlencode(text)</code></strong></td><td>Encodes text for use in URLs (e.g., spaces become <code>+</code>).</td></tr>
+</table>
+<hr>
+<h3 id="example-output-of-urlparse">Example Output of <code>urlParse</code></h3>
+<p>For the URL <code>https://example.com:8443/v1/x?q=1#top</code>, <code>urlParse</code> returns:</p>
+<pre><code>{
+  &quot;scheme&quot;: &quot;https&quot;,
+  &quot;host&quot;: &quot;example.com&quot;,
+  &quot;port&quot;: 8443,
+  &quot;path&quot;: &quot;/v1/x&quot;,
+  &quot;query&quot;: &quot;q=1&quot;,
+  &quot;fragment&quot;: &quot;top&quot;
+}</code></pre>
+<table>
+<tr><th>Function</th><th>Description</th></tr>
+<tr><td><code>urlScheme(url)</code></td><td>Extracts the URL scheme (e.g., <code>https</code>).</td></tr>
+<tr><td><code>urlHost(url)</code></td><td>Extracts the host and port (e.g., <code>example.com:8080</code>). Default ports are omitted.</td></tr>
+<tr><td><code>urlPath(url)</code></td><td>Extracts the path (e.g., <code>/api/v1</code>).</td></tr>
+<tr><td><code>urlParse(url)</code></td><td>Returns a JSON object with <code>scheme</code>, <code>host</code>, <code>port</code>, <code>path</code>, <code>query</code>, and <code>fragment</code>.</td></tr>
+<tr><td><code>getHostname()</code></td><td>Returns the local hostname.</td></tr>
+<tr><td><code>resolveHost(hostname)</code></td><td>Resolves a hostname to an IP address.</td></tr>
+<tr><td><code>urlencode(text)</code></td><td>Encodes text for use in URLs (e.g., spaces become <code>+</code>).</td></tr>
+</table>
 <hr>
 <h2 id="see-also">See also</h2>
 <ul>
@@ -159,7 +268,7 @@
 </div>
 
 <footer>
-    <a class="github" href="https://github.com/andy64lol/Lynxer" aria-label="Lynxer on GitHub" title="Lynxer on GitHub"><svg role="img" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a>
+    <a class="github" href="https://github.com/andy64lol/Lynxer" aria-label="Lynxer on GitHub" title="Lynxer on GitHub"><svg role="img" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" /></svg></a>
     <span>Lynxer &middot; MIT License</span>
 </footer>
 

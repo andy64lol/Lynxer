@@ -284,21 +284,24 @@ def make_link(current_out: str, md_rel: str) -> Link:
 def render_nav(current_out: str) -> str:
     current_dir = os.path.dirname(current_out) or "."
 
-    def li(title: str, target_out: str) -> str:
-        active = ' class="active"' if target_out == current_out else ""
+    def li(title: str, target_out: str, is_active=False) -> str:
+        active_class = ' class="active"' if is_active else ""
         rel = os.path.relpath(target_out, current_dir)
-        return f'<li><a href="{rel}"{active}>{html.escape(title)}</a></li>'
+        return f'<li><a href="{rel}"{active_class}>{html.escape(title)}</a></li>'
 
     parts = []
     for group, names in GROUPS:
-        parts.append(f"<h3>{html.escape(group)}</h3><ul>")
+        parts.append(f'<h3 class="sidebar-group-title">{html.escape(group)}</h3><ul class="sidebar-group">')
         for name in names:
             title = re.sub(r"`([^`]*)`", r"\1", name.split("/")[-1][:-3])
-            parts.append(li(title, OUT_BY_MD[name]))
+            is_active = OUT_BY_MD[name] == current_out
+            parts.append(li(title, OUT_BY_MD[name], is_active))
         parts.append("</ul>")
-    parts.append("<h3>Standard library</h3><ul>")
-    parts.append(li("All modules", "stdlib/index.html"))
-    parts.extend(li(module, f"stdlib/{module}.html") for module in STDLIB_MODULES)
+    parts.append('<h3 class="sidebar-group-title">Standard Library</h3><ul class="sidebar-group">')
+    parts.append(li("All modules", "stdlib/index.html", current_out == "stdlib/index.html"))
+    for module in STDLIB_MODULES:
+        is_active = f"stdlib/{module}.html" == current_out
+        parts.append(li(module, f"stdlib/{module}.html", is_active))
     parts.append("</ul>")
     return "\n".join(parts)
 
@@ -307,15 +310,71 @@ TEMPLATE = """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <meta name="theme-color" content="#4a90e2">
     <title>{title} - Lynxer</title>
     <link rel="stylesheet" href="{rel}style.css">
+    <link rel="icon" href="{rel}favicon.ico" type="image/x-icon">
+    <style>
+        /* Ensure the layout is responsive */
+        @media (max-width: 1200px) {{
+            .layout {{
+                flex-direction: column;
+            }}
+            .sidebar {{
+                width: 100%;
+                order: 2;
+            }}
+            .doc {{
+                width: 100%;
+                order: 1;
+            }}
+        }}
+        
+        /* Add a search bar placeholder */
+        .search-bar {{
+            padding: 10px 15px;
+            background: #f8f9fa;
+            border: 1px solid #e2e8eb;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            width: 100%;
+        }}
+        
+        .search-bar input {{
+            width: 100%;
+            padding: 8px;
+            border: none;
+            outline: none;
+            font-size: 14px;
+        }}
+        
+        /* Add a breadcrumb for navigation */
+        .breadcrumb {{
+            background: #f8f9fa;
+            padding: 8px 15px;
+            border-bottom: 1px solid #e2e8eb;
+            margin-bottom: 20px;
+        }}
+        
+        .breadcrumb a {{
+            color: #4a90e2;
+            text-decoration: none;
+            margin-right: 10px;
+        }}
+        
+        .breadcrumb a:hover {{
+            text-decoration: underline;
+        }}
+    </style>
 </head>
 <body>
 
 <header>
-    <h1><a href="{rel}index.html">Lynxer</a></h1>
-    <p>Documentation</p>
+    <div class="header-content">
+        <h1><a href="{rel}index.html">Lynxer</a></h1>
+        <p>Documentation</p>
+    </div>
 </header>
 
 <div class="layout">
@@ -323,12 +382,20 @@ TEMPLATE = """<!DOCTYPE html>
 {nav}
     </nav>
     <main class="doc">
+        <div class="breadcrumb">
+            <a href="{rel}index.html">Home</a>
+            <a href="{rel}stdlib/index.html">Standard Library</a>
+            <span>{title}</span>
+        </div>
+        <div class="search-bar">
+            <input type="text" placeholder="Search documentation..." aria-label="Search documentation">
+        </div>
 {content}
     </main>
 </div>
 
 <footer>
-    <a class="github" href="https://github.com/andy64lol/Lynxer" aria-label="Lynxer on GitHub" title="Lynxer on GitHub"><svg role="img" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg></a>
+    <a class="github" href="https://github.com/andy64lol/Lynxer" aria-label="Lynxer on GitHub" title="Lynxer on GitHub"><svg role="img" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" /></svg></a>
     <span>Lynxer &middot; MIT License</span>
 </footer>
 
@@ -340,9 +407,12 @@ TEMPLATE = """<!DOCTYPE html>
 def write_page(out_rel: str, md_rel: str, content_md: str, fallback_title: str) -> None:
     link = make_link(out_rel, md_rel)
     content, title = render_markdown(content_md, link)
+    
+    # Generate breadcrumb text
     rel = "../" * (out_rel.count("/") + 1)  # back to site/ from site/docs/<...>
-    page = TEMPLATE.format(title=html.escape(title or fallback_title), rel=rel,
-                           nav=render_nav(out_rel), content=content)
+    nav = render_nav(out_rel)
+    
+    page = TEMPLATE.replace('{title}', html.escape(title or fallback_title)).replace('{rel}', rel).replace('{nav}', nav).replace('{content}', content)
     destination = OUT / out_rel
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(page, encoding="utf-8")
