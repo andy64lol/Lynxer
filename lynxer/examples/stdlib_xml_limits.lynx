@@ -1,0 +1,34 @@
+////
+Failure-path fixture for the xml guards: a document larger than the 16 MiB input
+cap is refused, and an external entity is never resolved (no XXE). The secret
+file's content never reaches the parsed tree, whatever the entity reference
+becomes, so the assertion is stable across parser versions. Deterministic.
+////
+global setup(){ import("xml"); import("fileIO"); import("os"); import("text"); }
+
+// Build a string of exactly `size` bytes without O(n^2) concatenation.
+func big(int size) -> str {
+    str seed = "a";
+    while(returnLength(seed) < size){ seed = seed + seed; }
+    return substring(seed, 0, size);
+}
+
+global main(){
+    str root = ".lynxer_scratch_xml_limits";
+    if(global.os.exists(root)){ global.os.rmTree(root); }
+    global.os.mkdir(root);
+
+    // One byte over the 16 MiB input cap.
+    str oversized = big(16777217);
+    println(global.xml.xmlParse(oversized) is "");
+    println(global.xml.xmlValid(oversized));
+
+    // An external entity is never resolved: the secret's content is absent.
+    str secret = "TOP_SECRET_XML_ENTITY";
+    global.fileIO.writeFile(root + "/secret.txt", secret);
+    str doc = "<!DOCTYPE a [<!ENTITY xxe SYSTEM \"file://" + root + "/secret.txt\">]><a>&xxe;</a>";
+    str parsed = global.xml.xmlParse(doc);
+    println(global.text.contains(parsed, secret) is false);
+
+    global.os.rmTree(root);
+}

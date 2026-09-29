@@ -3,7 +3,8 @@
 YAML parsing and serialization.
 
 **Backend:** native — `stdlib/yaml.so`, built from the Rust crate `rust/yaml`
-over `serde_yml`.
+over `serde_yml`, a maintained fork of the archived `serde_yaml` (the
+substitution is recorded here per **D5** in [todo.md](../../todo.md)).
 
 **Import:** `import("yaml")` → `global.yaml.*`
 

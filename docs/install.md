@@ -14,7 +14,10 @@ Python; only the two check scripts in the test suite do.
 - `libffi` headers and `pkg-config` (e.g. `libffi-dev` on Debian/Ubuntu) for the
   native-call engine.
 - Git and network access for the first `cargo` build: crates are fetched from
-  crates.io. Nothing is compiled from vendored C/C++ sources.
+  crates.io. Most crates are pure Rust, but a few compile vendored C with the
+  system C compiler — `zstd` (via `zstd-sys`), vendored Lua (via `mlua`) and
+  bundled SQLite (via `rusqlite`) — so a C compiler is required alongside the
+  Rust toolchain.
 
 No system OpenSSL, Boost, CMake, cpp-httplib, Crow, or nlohmann/json is needed:
 TLS is `rustls`, the HTTP stack is `ureq`/`tungstenite`/`axum`, and JSON is

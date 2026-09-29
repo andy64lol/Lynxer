@@ -168,7 +168,7 @@
         </div>
 <h1 id="yaml">yaml</h1>
 <p>YAML parsing and serialization.</p>
-<p><strong>Backend:</strong> native — <code>stdlib/yaml.so</code>, built from the Rust crate <code>rust/yaml</code> over <code>serde_yml</code>.</p>
+<p><strong>Backend:</strong> native — <code>stdlib/yaml.so</code>, built from the Rust crate <code>rust/yaml</code> over <code>serde_yml</code>, a maintained fork of the archived <code>serde_yaml</code> (the substitution is recorded here per <strong>D5</strong> in <a href="../../todo.html">todo</a>).</p>
 <p><strong>Import:</strong> <code>import(&quot;yaml&quot;)</code> → <code>global.yaml.*</code></p>
 <h2 id="how-documents-travel">How documents travel</h2>
 <p>A YAML document crosses the module ABI as a <strong>JSON string</strong>, the shared structured-value bridge (see <a href="../native-module-abi.html">native-module-abi</a>): a mapping becomes an object and a sequence an array. A mapping whose key is not a string (which JSON cannot hold) is a failure.</p>

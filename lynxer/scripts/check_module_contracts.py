@@ -29,7 +29,7 @@ For every ``stdlib/<name>.lynx`` that imports ``stdlib/<name>.so``:
    ``bool``) and strings are counted separately, which is what ``lynxer_abi``
    delivers them as. (failure)
 3. **Unused registrations** — an op the backend registers that no wrapper
-   function calls. (warning)
+   function calls. (failure)
 
 C++ backends register one of the fixed shapes, which the interpreter already
 type-checks per argument when the op is called (``native call argument count
@@ -342,7 +342,9 @@ def parse_wrapper(path: Path, module: str) -> Wrapper:
         for raw in split_top_level(params_text):
             if not raw:
                 continue
-            pieces = raw.split()
+            # Drop a default value (`int a = 255`) so the name is `a`, not `255`.
+            declaration = raw.split("=", 1)[0].strip()
+            pieces = declaration.split()
             if len(pieces) < 2:
                 continue
             kind, name = pieces[0], pieces[-1]
@@ -465,7 +467,7 @@ def check_module(module: str, verbose: bool) -> tuple[list[Finding], int, int]:
                     entry["line"],
                     f"backend registers '{name}', but no function in "
                     f"{wrapper.path.name} calls it",
-                    fatal=False,
+                    fatal=True,
                 )
             )
     return findings, checked, skipped

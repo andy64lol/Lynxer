@@ -174,7 +174,7 @@
 <li><code>python3</code> to run <code>make testLynxer</code> (the module contract check).</li>
 <li>A Rust toolchain (<code>cargo</code>): it is <strong>required</strong>, not optional. Every Rust-backed stdlib module is built by <code>cargo</code>, and the interpreter links the Rust native-call engine (<code>lynxer/rust/ffi</code>). A missing toolchain or a compile error fails the build; there is no reduced build that drops a backend.</li>
 <li><code>libffi</code> headers and <code>pkg-config</code> (e.g. <code>libffi-dev</code> on Debian/Ubuntu) for the native-call engine.</li>
-<li>Git and network access for the first <code>cargo</code> build: crates are fetched from crates.io. Nothing is compiled from vendored C/C++ sources.</li>
+<li>Git and network access for the first <code>cargo</code> build: crates are fetched from crates.io. Most crates are pure Rust, but a few compile vendored C with the system C compiler — <code>zstd</code> (via <code>zstd-sys</code>), vendored Lua (via <code>mlua</code>) and bundled SQLite (via <code>rusqlite</code>) — so a C compiler is required alongside the Rust toolchain.</li>
 </ul>
 <p>No system OpenSSL, Boost, CMake, cpp-httplib, Crow, or nlohmann/json is needed: TLS is <code>rustls</code>, the HTTP stack is <code>ureq</code>/<code>tungstenite</code>/<code>axum</code>, and JSON is <code>serde_json</code>.</p>
 <h2 id="build-from-the-repository-root">Build from the repository root</h2>

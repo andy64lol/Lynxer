@@ -17,6 +17,10 @@ use quick_xml::events::{BytesStart, Event};
 use quick_xml::Reader;
 use serde_json::{json, Map, Value};
 
+/// The largest document `xmlParse` / `xmlValid` will read, so a huge input
+/// cannot balloon into a proportionally larger JSON tree.
+const MAX_INPUT: usize = 16 << 20;
+
 #[derive(Default)]
 struct Frame {
     name: String,
@@ -51,6 +55,9 @@ fn frame_value(frame: Frame) -> Value {
 }
 
 fn parse_to_json(text: &str) -> Option<String> {
+    if text.len() > MAX_INPUT {
+        return None;
+    }
     let mut reader = Reader::from_str(text);
     reader.config_mut().trim_text(false);
     let mut stack: Vec<Frame> = Vec::new();
@@ -134,6 +141,9 @@ fn write_element(value: &Value, out: &mut String) {
 }
 
 fn json_to_xml(json: &str) -> Option<String> {
+    if json.len() > MAX_INPUT {
+        return None;
+    }
     let value: Value = serde_json::from_str(json).ok()?;
     if value.get("name").and_then(Value::as_str).is_none() {
         return None;

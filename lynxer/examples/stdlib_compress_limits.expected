@@ -1,0 +1,15 @@
+true
+true
+true
+true
+true
+true
+ok
+ERROR: decompressed data exceeds the size limit
+false
+ok
+true
+ERROR: decompressed data exceeds the size limit: big.bin
+ok
+ERROR: decompressed data exceeds the size limit
+true

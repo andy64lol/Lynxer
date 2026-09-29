@@ -18,7 +18,9 @@ bridge (see [native-module-abi.md](../native-module-abi.md)):
 
 `text` is the character data directly inside the element; each child is another
 element. Comments, processing instructions and the doctype are ignored, and **no
-external entity is ever resolved**.
+external entity is ever resolved**. Input is capped at **16 MiB**: a larger
+document (`xmlParse`/`xmlValid`) or JSON tree (`xmlSerialize`) is a failure
+before parsing.
 
 A failure is a scalar sentinel: a malformed document yields `""` and `xmlValid`
 yields `false`; `xmlUnescape` yields `""` for a malformed entity.

@@ -172,7 +172,7 @@
 <p><strong>Import:</strong> <code>import(&quot;compress&quot;)</code> → <code>global.compress.*</code></p>
 <h2 id="how-bytes-travel">How bytes travel</h2>
 <p>Lynxer has no byte type, so an in-memory <strong><code>&lt;codec&gt;Compress</code></strong> returns base64 and its <strong><code>&lt;codec&gt;Decompress</code></strong> takes base64. A decompressed payload is not necessarily UTF-8, so <code>Decompress</code> returns text only when it is and <code>&quot;&quot;</code> otherwise. The <strong><code>*File</code></strong> operations read and write the bytes themselves and are the binary-safe path for arbitrary data.</p>
-<p>An in-memory decompress is capped at 64 MiB of output.</p>
+<p>A decompress is capped at <strong>64 MiB</strong> of output, for the in-memory stream operations and the <code>*File</code> operations alike; an LZ4 stream whose declared length exceeds the cap is refused before it is decoded. Archive extraction is capped too — a ZIP entry on <code>zipRead</code> and <code>zipExtract</code>, and a total entry budget on <code>tarExtract</code> and <code>tarGzExtract</code> — so a crafted archive cannot exhaust memory or disk.</p>
 <h2 id="sentinels">Sentinels</h2>
 <p>The in-memory stream operations use scalar sentinels: a malformed payload or an unknown stream yields <code>&quot;&quot;</code>. The file and archive operations answer with the status string <code>&quot;ok&quot;</code> / <code>&quot;ERROR: &lt;message&gt;&quot;</code>, because they can fail with a reason.</p>
 <h2 id="archives">Archives</h2>

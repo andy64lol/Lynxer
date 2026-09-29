@@ -269,7 +269,8 @@
 <ul>
 <li><strong>No byte type.</strong> An in-memory <code>&lt;codec&gt;Compress</code> returns base64 and its <code>&lt;codec&gt;Decompress</code> takes base64. A decompressed payload need not be valid UTF-8, and <code>Decompress</code> answers text only when it is (<code>&quot;&quot;</code> otherwise); the <code>*File</code> ops read and write the bytes themselves and are the binary-safe path. See the binary-payload decision in <a href="../todo.html">todo</a>.</li>
 <li><strong>Two sentinel families.</strong> The in-memory stream ops use the scalar sentinel (<code>&quot;&quot;</code>); the file and archive ops answer with <code>&quot;ok&quot;</code> / <code>&quot;ERROR: &lt;message&gt;&quot;</code>, because they can fail with a reason (a missing file, a bad archive).</li>
-<li><strong>A decompress is capped at 64 MiB</strong> of output, so a crafted stream cannot exhaust memory; the <code>*File</code> ops read the whole file into memory and so are also bounded by the process's available memory.</li>
+<li><strong>A decompress is capped at 64 MiB</strong> of output, for the in-memory stream ops and the <code>*File</code> ops alike, so a crafted stream cannot exhaust memory; an LZ4 stream whose declared length exceeds the cap is refused before it is decoded.</li>
+<li><strong>Archive extraction is capped at 64 MiB</strong>: a ZIP entry on <code>zipRead</code> and <code>zipExtract</code>, and the total declared entry size on <code>tarExtract</code> and <code>tarGzExtract</code> (whose decompressed stream is bounded too), so a crafted archive cannot exhaust memory or disk.</li>
 <li><strong>An extract refuses to escape its destination.</strong> ZIP entries are checked with the archive's enclosed-name rule and TAR entries with <code>unpack_in</code>; a name that is absolute or contains <code>..</code> is an error (and <code>zipCreate</code>/<code>tarCreate</code> reject such a name when the archive is written).</li>
 <li><strong><code>zstd</code> vendors the zstd C sources</strong>, so a C compiler is required in addition to the Rust toolchain. <code>zip</code> is built with deflate only (<code>bzip2</code>/<code>zstd</code>/<code>aes</code> support is off).</li>
 </ul>
@@ -303,6 +304,7 @@
 <h3 id="xml--constrained-behavior"><code>xml</code> — Constrained Behavior</h3>
 <ul>
 <li><strong>A document maps onto a JSON element tree</strong>: <code>{&quot;name&quot;, &quot;attributes&quot;, &quot;text&quot;, &quot;children&quot;}</code>. Comments, processing instructions and the doctype are ignored, and <strong>no external entity is ever resolved</strong>.</li>
+<li><strong>Input is capped at 16 MiB.</strong> A larger document (<code>xmlParse</code>/<code>xmlValid</code>) or JSON tree (<code>xmlSerialize</code>) is refused before parsing, so a huge input cannot balloon into a proportionally larger tree.</li>
 <li><strong><code>text</code> is the character data directly inside an element</strong>; it is escaped on serialize, so a round trip of a document with entities is exact.</li>
 <li><strong>Failures are in-band.</strong> A malformed document yields <code>&quot;&quot;</code> and <code>xmlValid</code> yields <code>false</code>; <code>xmlUnescape</code> yields <code>&quot;&quot;</code> for a malformed entity.</li>
 </ul>

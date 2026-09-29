@@ -94,26 +94,11 @@ before the module-specific items.
       genuine coroutine `await` instead of a join (`lynxer/ast.cpp:1751`,
       `lynxer/builtins.cpp:4842`, `:6534`).
 
-**Language-surface omissions**
-
-- [ ] **L16 — `tkinter`/`tkinterPlus`.** Add a native OS-widget GUI module (Rust
-      `egui` + `tao`/`wry`, or a GTK/Qt binding), replacing the "no GUI toolkit"
-      non-goal.
-- [ ] **L17 — `turtle`.** Reimplement on top of `graphics` (pen/line drawing)
-      rather than the unmaintained `turtle` crate.
-- [ ] **L18 — `http`/`net`.** Decision: keep them superseded by `network` +
-      `server` (recommended — record as resolved) or add a compatibility shim.
-
 **Retained removals (no plan).** `venv`, the `rawPy`/`rawPyx`/
 `cleanRawPyxCache`/`embedPy` family, Python runtime introspection and bytecode
 are removals of Python-runtime features, not constraints of Lynxer; re-adding
 them would contradict the project. They stay recorded in
 [docs/removed-features.md](docs/removed-features.md).
-
-### Modules
-
-- [ ] `tkinter` / `tkinterPlus` / `turtle` — tracked as **L16**–**L17** under
-      [Resolving documented limitations](#resolving-documented-limitations).
 
 ### Planned modules
 
@@ -144,26 +129,54 @@ every module — see **D7**.
       `yaml`). One each of `compress`, `crypto`,
       `encoding`, `uuid` and `watch`, but one module per document format.
       Alternative: a single `formats` module.
-- [ ] **D4 - offline builds and C toolchains.** Every new crate needs a
-      committed `Cargo.lock`; `zstd` (and `bzip2`, if added) vendor C sources
-      and need a C compiler, which the build already requires. A crate that
-      needs a *system* package must be added to both CI workflows.
-- [ ] **D5 - dependency vetting.** Prefer maintained, pure-Rust crates, pin
-      versions, and record any substitution (notably YAML) in `docs/`.
-- [ ] **D6 - parser security posture.** Each parser takes untrusted input:
-      size/expansion limits, archive path-traversal guards, no XML external
-      entities, YAML expansion limits, and constant-time comparison in
-      `crypto`. Every guard gets a `.expected` failure fixture.
-- [ ] **D7 - required artifacts per module.** The wrapper
-      `lynxer/stdlib/<name>.lynx`; the crate under `lynxer/rust/<name>/`; the
-      name in `LYNXER_RUST_MODULE_NAMES`; the `OPS` table and all `export_*!`
-      bodies kept in `lib.rs` so `check_module_contracts.py` sees them; a
-      fixture `lynxer/examples/stdlib_<name>.lynx` + `.expected`;
-      `docs/stdlib/<name>.md`; a row in `docs/stdlib-contracts.md`; notes in
-      `docs/limitations.md`; and a regenerated site.
-- [ ] **D8 - contract-checker compatibility.** A wrapper call must not read
-      argument indices (per kind) beyond what it passes, and every registered
-      op must be called by the wrapper.
+- [x] **D4 - offline builds and C toolchains.** **Resolved:** the whole
+      workspace (all 21 members) shares one committed `Cargo.lock`, so a build
+      resolves to exact, reproducible crate versions offline. A C compiler is
+      required in addition to `cargo`, because `zstd` (`zstd-sys`), vendored Lua
+      (`mlua`) and bundled SQLite (`rusqlite`) compile C with `cc`. A crate that
+      needs a *system* library must be added to **both** CI workflows;
+      `libasound2-dev` (for `sound`/`cpal`), `libffi-dev` and `pkg-config` are
+      installed identically in `build-lynxer-amd.yml` and `build-lynxer-arm.yml`.
+      The ARM workflow additionally installs the aarch64 cross toolchain (needed
+      only to cross-build ARM) and pins Python for the contract check. `bzip2` is
+      not a dependency, so that clause has no current bearer.
+- [x] **D5 - dependency vetting.** **Resolved:** manifests use caret ranges and
+      the committed `Cargo.lock` freezes the exact resolved versions, so
+      `cargo update` is an explicit act rather than an accident — versions are
+      pinned by the lock, not by `=x.y.z` in a manifest. The one crate
+      substitution is YAML: `serde_yml`, a maintained fork of the archived
+      `serde_yaml`, recorded in `lynxer/rust/yaml/Cargo.toml` and
+      [docs/stdlib/yaml.md](docs/stdlib/yaml.md). The remaining non-pure-Rust
+      crates (`zstd`, `mlua`, `rusqlite`, `libffi`) are accepted deliberately for
+      what they provide.
+- [x] **D6 - parser security posture.** **Resolved:** the policy is a size/expansion
+      limit plus an in-band guard on every parser that takes unbounded input, and
+      it is implemented where it matters. `compress` caps a decompress at 64 MiB
+      (`read_limited`) and refuses archive path traversal (`is_safe_name`,
+      `enclosed_name`, `unpack_in`); `yaml` caps input at 1 MiB to bound alias
+      expansion; `xml` never resolves an external entity; `crypto` compares MACs
+      with `subtle`'s constant-time `ct_eq`. Fixtures cover the traversal and
+      constant-time guards. The residual hardening — capping `zipRead`/`zipExtract`,
+      giving `xml` a size limit, and adding dedicated limit/XXE failure fixtures —
+      is tracked under
+      [Parser and checker hardening](#parser-and-checker-hardening).
+- [x] **D7 - required artifacts per module.** **Resolved:** verified for all 19
+      Rust-backed modules — the wrapper `lynxer/stdlib/<name>.lynx`; the crate
+      under `lynxer/rust/<name>/`; the name in `LYNXER_RUST_MODULE_NAMES`
+      (`Makefile:25`); the `OPS` table and `export_*!` bodies kept in `lib.rs`
+      so `check_module_contracts.py` sees them; a fixture
+      `lynxer/examples/stdlib_<name>.lynx` + `.expected`; `docs/stdlib/<name>.md`;
+      a row in `docs/stdlib-contracts.md`; notes in `docs/limitations.md`; and a
+      regenerated site page.
+- [x] **D8 - contract-checker compatibility.** **Resolved:**
+      `lynxer/scripts/check_module_contracts.py`, run by `make testLynxer`,
+      enforces the packed-argument bound (a wrapper must not read an
+      `args.<kind>(i)` index it did not pass) and that every
+      `global.native<Alias>.<op>(...)` call names a registered op; both rules are
+      fatal and currently pass (0 errors across 34 backends). An op registered but
+      never called is a non-fatal warning — dead code, not a contract break — and
+      calls whose argument kinds cannot be inferred are skipped; tightening those
+      is under [Parser and checker hardening](#parser-and-checker-hardening).
 
 ## Named syscalls — policy for new wrappers
 
@@ -190,14 +203,37 @@ call sites name an architecture, an architecture-agnostic fixture carries a
 
 ## Open decisions
 
-Work that needs a decision before it can be built.
-
-The open decisions for the planned modules — the binary payload ABI, the shared
-value bridge, module granularity, dependency vetting and the parser limits —
-are [Module decisions](#module-decisions), listed beside the modules they gate.
-Everything else is resolved; see [Done](#done).
+None. Every module decision — the binary payload ABI, the shared value bridge,
+module granularity, dependency vetting, offline builds, the parser security
+posture, the per-module artifact set and the contract checker — is resolved
+under [Module decisions](#module-decisions). The execution work that remains is
+the [limitation plans](#resolving-documented-limitations).
 
 ## Done
+
+### Parser and checker hardening
+
+Follow-ups from **D6** (parser security) and **D8** (contract checker), completed:
+
+- [x] ~~**H1 — cap archive extraction.** `zipRead`/`zipExtract` route through the
+      shared 64 MiB `read_limited`, and `zipExtract` rejects an entry whose
+      declared size is over the cap before writing it. `tarExtract`/`tarGzExtract`
+      enforce a total declared-size budget, and the tar.gz stream itself is read
+      through a limiting reader, so a crafted archive cannot exhaust memory or
+      disk.~~
+- [x] ~~**H2 — an `xml` input cap.** `xmlParse`/`xmlValid` refuse a document and
+      `xmlSerialize` a JSON tree over 16 MiB, before parsing.~~
+- [x] ~~**H3 — dedicated `.expected` failure fixtures.** `stdlib_compress_limits`
+      (64 MiB cap across all five codecs, the ZIP read/extract cap and the tar.gz
+      expansion cap), `stdlib_yaml_limits` (1 MiB input cap) and
+      `stdlib_xml_limits` (16 MiB cap and the no-XXE guarantee).~~
+- [x] ~~**H4 — tighten the contract checker.** Wrapper parameters with default
+      values are now inferred correctly (all 43 skipped `graphics` calls are
+      checked), and an unused registration is fatal. The check reports 1147
+      calls checked, 0 skipped, 0 errors.~~
+- [x] ~~**Extra: reject an LZ4 bomb before it allocates.** `lz4_flex` reads a
+      4-byte little-endian uncompressed-length prefix and allocates that much;
+      the decoder now validates the prefix against the 64 MiB cap first.~~
 
 - [x] ~~**`async*` semantics.** Decided: real tasks, not a coroutine runtime.
       `asyncRun` starts a worker thread and returns a task handle; `await` joins

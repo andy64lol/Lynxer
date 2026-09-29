@@ -154,9 +154,13 @@ Makefile checks for `cargo` up front and says so.
 - **Two sentinel families.** The in-memory stream ops use the scalar sentinel
   (`""`); the file and archive ops answer with `"ok"` / `"ERROR: <message>"`,
   because they can fail with a reason (a missing file, a bad archive).
-- **A decompress is capped at 64 MiB** of output, so a crafted stream cannot
-  exhaust memory; the `*File` ops read the whole file into memory and so are
-  also bounded by the process's available memory.
+- **A decompress is capped at 64 MiB** of output, for the in-memory stream ops
+  and the `*File` ops alike, so a crafted stream cannot exhaust memory; an LZ4
+  stream whose declared length exceeds the cap is refused before it is decoded.
+- **Archive extraction is capped at 64 MiB**: a ZIP entry on `zipRead` and
+  `zipExtract`, and the total declared entry size on `tarExtract` and
+  `tarGzExtract` (whose decompressed stream is bounded too), so a crafted
+  archive cannot exhaust memory or disk.
 - **An extract refuses to escape its destination.** ZIP entries are checked with
   the archive's enclosed-name rule and TAR entries with `unpack_in`; a name that
   is absolute or contains `..` is an error (and `zipCreate`/`tarCreate` reject
@@ -223,6 +227,9 @@ Makefile checks for `cargo` up front and says so.
   `{"name", "attributes", "text", "children"}`. Comments, processing
   instructions and the doctype are ignored, and **no external entity is ever
   resolved**.
+- **Input is capped at 16 MiB.** A larger document (`xmlParse`/`xmlValid`) or
+  JSON tree (`xmlSerialize`) is refused before parsing, so a huge input cannot
+  balloon into a proportionally larger tree.
 - **`text` is the character data directly inside an element**; it is escaped on
   serialize, so a round trip of a document with entities is exact.
 - **Failures are in-band.** A malformed document yields `""` and `xmlValid`

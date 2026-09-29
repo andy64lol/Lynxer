@@ -53,6 +53,57 @@ fn read_limited<R: Read>(mut reader: R) -> Result<Vec<u8>, String> {
     Ok(buffer)
 }
 
+/// A `Read` adapter that fails once more than `MAX_DECOMPRESSED` bytes have been
+/// read, so a decompressed archive cannot expand without bound. Archive
+/// extraction streams entry data to disk, so it needs a limit on the reader
+/// rather than on a buffer.
+struct Limited<R> {
+    inner: R,
+    remaining: usize,
+}
+
+impl<R: Read> Limited<R> {
+    fn new(inner: R) -> Self {
+        Self {
+            inner,
+            remaining: MAX_DECOMPRESSED,
+        }
+    }
+}
+
+impl<R: Read> Read for Limited<R> {
+    fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
+        if self.remaining == 0 {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "decompressed data exceeds the size limit",
+            ));
+        }
+        let cap = buffer.len().min(self.remaining);
+        let count = self.inner.read(&mut buffer[..cap])?;
+        self.remaining -= count;
+        Ok(count)
+    }
+}
+
+/// LZ4 streams carry their uncompressed length in a 4-byte little-endian
+/// prefix. Read that prefix before handing the data to the decoder, so a
+/// crafted length cannot make it allocate an unbounded buffer.
+fn decompress_lz4(data: &[u8]) -> Result<Vec<u8>, String> {
+    let prefix = data
+        .get(..4)
+        .ok_or_else(|| "lz4 stream is truncated".to_string())?;
+    let declared = u32::from_le_bytes(prefix.try_into().unwrap()) as usize;
+    if declared > MAX_DECOMPRESSED {
+        return Err("decompressed data exceeds the size limit".to_string());
+    }
+    let bytes = lz4_flex::decompress_size_prepended(data).map_err(|error| error.to_string())?;
+    if bytes.len() > MAX_DECOMPRESSED {
+        return Err("decompressed data exceeds the size limit".to_string());
+    }
+    Ok(bytes)
+}
+
 fn compress(codec: Codec, data: &[u8]) -> Result<Vec<u8>, String> {
     match codec {
         Codec::Gzip => {
@@ -86,13 +137,7 @@ fn decompress(codec: Codec, data: &[u8]) -> Result<Vec<u8>, String> {
             read_limited(decoder)
         }
         Codec::Brotli => read_limited(brotli::Decompressor::new(data, 4096)),
-        Codec::Lz4 => {
-            let bytes = lz4_flex::decompress_size_prepended(data).map_err(|e| e.to_string())?;
-            if bytes.len() > MAX_DECOMPRESSED {
-                return Err("decompressed data exceeds the size limit".to_string());
-            }
-            Ok(bytes)
-        }
+        Codec::Lz4 => decompress_lz4(data),
     }
 }
 
@@ -236,11 +281,8 @@ fn zip_list(path: &str) -> String {
 
 fn zip_read(path: &str, entry: &str) -> String {
     match zip_open(path).and_then(|mut archive| {
-        let mut file = archive.by_name(entry).map_err(|error| error.to_string())?;
-        let mut data = Vec::new();
-        file.read_to_end(&mut data)
-            .map_err(|error| error.to_string())?;
-        Ok(data)
+        let file = archive.by_name(entry).map_err(|error| error.to_string())?;
+        read_limited(file)
     }) {
         Ok(bytes) => STANDARD.encode(bytes),
         Err(_) => String::new(),
@@ -276,10 +318,18 @@ fn zip_extract(path: &str, directory: &str) -> String {
                 return error_text(&error.to_string());
             }
         }
-        let mut data = Vec::new();
-        if let Err(error) = file.read_to_end(&mut data) {
-            return error_text(&error.to_string());
+        // Refuse an entry that declares or yields more than the limit, so a
+        // crafted archive cannot exhaust memory or disk.
+        if file.size() > MAX_DECOMPRESSED as u64 {
+            return error_text(&format!(
+                "decompressed data exceeds the size limit: {}",
+                file.name()
+            ));
         }
+        let data = match read_limited(&mut file) {
+            Ok(data) => data,
+            Err(error) => return error_text(&error),
+        };
         if let Err(error) = std::fs::write(&destination, data) {
             return error_text(&error.to_string());
         }
@@ -371,11 +421,20 @@ fn tar_extract<R: Read>(archive: tar::Archive<R>, directory: &str) -> String {
         Ok(entries) => entries,
         Err(error) => return error_text(&error.to_string()),
     };
+    let mut remaining = MAX_DECOMPRESSED as u64;
     for entry in entries {
         let mut entry = match entry {
             Ok(entry) => entry,
             Err(error) => return error_text(&error.to_string()),
         };
+        // Refuse an archive whose entries declare more than the limit in total,
+        // so extraction cannot exhaust the disk. (The reader is capped too, as a
+        // backstop for a compressed archive.)
+        let size = entry.size();
+        if size > remaining {
+            return error_text("decompressed data exceeds the size limit");
+        }
+        remaining -= size;
         // `unpack_in` refuses a path that escapes the destination.
         match entry.unpack_in(directory) {
             Ok(true) => {}
@@ -400,8 +459,10 @@ fn tar_extract_plain(path: &str, directory: &str) -> String {
 
 fn tar_gz_extract(path: &str, directory: &str) -> String {
     match File::open(path) {
+        // A gzip-compressed tar can expand far beyond its size on disk, so cap
+        // the decompressed stream as it is read.
         Ok(file) => tar_extract(
-            tar::Archive::new(flate2::read::GzDecoder::new(file)),
+            tar::Archive::new(Limited::new(flate2::read::GzDecoder::new(file))),
             directory,
         ),
         Err(error) => error_text(&format!("cannot read {path}: {error}")),

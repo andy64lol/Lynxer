@@ -15,7 +15,12 @@ necessarily UTF-8, so `Decompress` returns text only when it is and `""`
 otherwise. The **`*File`** operations read and write the bytes themselves and
 are the binary-safe path for arbitrary data.
 
-An in-memory decompress is capped at 64 MiB of output.
+A decompress is capped at **64 MiB** of output, for the in-memory stream
+operations and the `*File` operations alike; an LZ4 stream whose declared length
+exceeds the cap is refused before it is decoded. Archive extraction is capped
+too — a ZIP entry on `zipRead` and `zipExtract`, and a total entry budget on
+`tarExtract` and `tarGzExtract` — so a crafted archive cannot exhaust memory or
+disk.
 
 ## Sentinels
 

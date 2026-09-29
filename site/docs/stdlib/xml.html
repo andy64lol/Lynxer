@@ -173,7 +173,7 @@
 <h2 id="how-documents-travel">How documents travel</h2>
 <p>An XML document maps onto a <strong>JSON element tree</strong>, the shared structured-value bridge (see <a href="../native-module-abi.html">native-module-abi</a>):</p>
 <pre><code>{&quot;name&quot;: &quot;root&quot;, &quot;attributes&quot;: {&quot;a&quot;: &quot;1&quot;}, &quot;text&quot;: &quot;hi&quot;, &quot;children&quot;: [ ... ]}</code></pre>
-<p><code>text</code> is the character data directly inside the element; each child is another element. Comments, processing instructions and the doctype are ignored, and <strong>no external entity is ever resolved</strong>.</p>
+<p><code>text</code> is the character data directly inside the element; each child is another element. Comments, processing instructions and the doctype are ignored, and <strong>no external entity is ever resolved</strong>. Input is capped at <strong>16 MiB</strong>: a larger document (<code>xmlParse</code>/<code>xmlValid</code>) or JSON tree (<code>xmlSerialize</code>) is a failure before parsing.</p>
 <p>A failure is a scalar sentinel: a malformed document yields <code>&quot;&quot;</code> and <code>xmlValid</code> yields <code>false</code>; <code>xmlUnescape</code> yields <code>&quot;&quot;</code> for a malformed entity.</p>
 <h2 id="functions">Functions</h2>
 <table>

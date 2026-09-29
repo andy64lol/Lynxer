@@ -1,0 +1,22 @@
+////
+Failure-path fixture for the yaml input cap: a document larger than 1 MiB is
+refused, and a small document still parses. Deterministic.
+////
+global setup(){ import("yaml"); }
+
+// Build a string of exactly `size` bytes without O(n^2) concatenation.
+func big(int size) -> str {
+    str seed = "a";
+    while(returnLength(seed) < size){ seed = seed + seed; }
+    return substring(seed, 0, size);
+}
+
+global main(){
+    // One byte over the 1 MiB input cap.
+    str oversized = big(1048577);
+    println(global.yaml.yamlParse(oversized) is "");
+    println(global.yaml.yamlValid(oversized));
+
+    // A small document still parses.
+    println(global.yaml.yamlParse("a: 1") is "{\"a\":1}");
+}
