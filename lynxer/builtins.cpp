@@ -2027,25 +2027,27 @@ Value builtinMemoryReallocate(const std::vector<Value>& args, Environment&,
     if (address < 0 || size < 0) {
         fail("memoryReallocate() arguments cannot be negative", line, column);
     }
-    void* base = reinterpret_cast<void*>(static_cast<std::uintptr_t>(address));
+    const std::uintptr_t oldAddress = static_cast<std::uintptr_t>(address);
+    void* base = reinterpret_cast<void*>(oldAddress);
     if (address != 0) {
         validateMemory(base, 0, 0, line, column);
+        // The old element/field metadata no longer matches the new size, and
+        // `realloc` may free `base`, so drop it first.
+        forgetMemoryMetadata(base);
     }
-    void* pointer =
-        std::realloc(base, static_cast<std::size_t>(size));
+    void* pointer = std::realloc(base, static_cast<std::size_t>(size));
     if (pointer == nullptr && size != 0) {
         fail("memoryReallocate() failed: out of memory", line, column);
     }
     if (address != 0) {
+        // Use the recorded integer address for the registry, not the pointer
+        // `realloc` may have freed.
+        void* old = reinterpret_cast<void*>(oldAddress);
         std::lock_guard<std::recursive_mutex> guard(memoryRegistryMutex());
-        liveAllocations().erase(base);
-        if (pointer != base) {
-            freedAllocations().insert(base);
+        liveAllocations().erase(old);
+        if (pointer != old) {
+            freedAllocations().insert(old);
         }
-    }
-    // The old element/field metadata no longer matches the new size.
-    if (address != 0) {
-        forgetMemoryMetadata(base);
     }
     trackAllocation(pointer, static_cast<std::size_t>(size));
     return static_cast<std::int64_t>(reinterpret_cast<std::uintptr_t>(pointer));
@@ -2060,13 +2062,15 @@ Value builtinMemoryFree(const std::vector<Value>& args, Environment&, int line,
     }
     void* base = reinterpret_cast<void*>(static_cast<std::uintptr_t>(address));
     validateMemory(base, 0, 0, line, column);
-    std::free(base);
+    // Drop the metadata and registry entry before freeing, so the freed
+    // pointer value is never read again.
+    forgetMemoryMetadata(base);
     {
         std::lock_guard<std::recursive_mutex> guard(memoryRegistryMutex());
         liveAllocations().erase(base);
         freedAllocations().insert(base);
     }
-    forgetMemoryMetadata(base);
+    std::free(base);
     return none();
 }
 
@@ -2827,14 +2831,14 @@ Value builtinNativeHandleFree(const std::vector<Value>& args, Environment&,
     if (state->alive) {
         void* base = state->pointer;
         validateMemory(base, 0, 0, line, column);
-        std::free(base);
+        forgetMemoryMetadata(base);
         {
             std::lock_guard<std::recursive_mutex> guard(memoryRegistryMutex());
             liveAllocations().erase(base);
             freedAllocations().insert(base);
             state->alive = false;
         }
-        forgetMemoryMetadata(base);
+        std::free(base);
     }
     return none();
 }
@@ -6469,7 +6473,9 @@ Value asyncPollWaitValues(std::int64_t handle, std::int64_t timeout,
             if (wake != asyncWakeups().end() &&
                 wake->second.read == fds[index]) {
                 char buffer[64];
-                (void)::read(wake->second.read, buffer, sizeof(buffer));
+                const ssize_t drained =
+                    ::read(wake->second.read, buffer, sizeof(buffer));
+                (void)drained;
                 events.push_back(
                     asyncEventJson("wakeup", wake->second.token, -1, ""));
                 isWakeup = true;
