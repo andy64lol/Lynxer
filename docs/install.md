@@ -6,7 +6,7 @@ Python; only the two check scripts in the test suite do.
 ## Requirements
 
 - A C++17 compiler (`g++` or `clang++`) and `make`.
-- `python3` to run `make testLynxer` (the contract and golden checks).
+- `python3` to run `make testLynxer` (the module contract check).
 - A Rust toolchain (`cargo`): it is **required**, not optional. Every
   Rust-backed stdlib module is built by `cargo`, and the interpreter links the
   Rust native-call engine (`lynxer/rust/ffi`). A missing toolchain or a compile

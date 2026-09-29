@@ -69,15 +69,13 @@ The root `Makefile` builds both implementations; `make` alone builds everything.
 `make testLynxer` runs the whole suite:
 
 1. `lynxer/scripts/check_module_contracts.py` — wrapper/backend contract check.
-2. `lynxer/scripts/check_golden.py` — the CLI and diagnostic golden cases in
-   `lynxer/golden/cases.json`.
-3. Every `lynxer/examples/*.expected` fixture, diffed on stdout+stderr,
+2. Every `lynxer/examples/*.expected` fixture, diffed on stdout+stderr,
    including the optimizer and low-level native-memory/syscall fixtures.
-4. Interpreted-versus-`--compile` parity for a set of fixtures.
-5. The `--format`/`--format-oneline` formatter fixture (output, idempotence, and
+3. Interpreted-versus-`--compile` parity for a set of fixtures.
+4. The `--format`/`--format-oneline` formatter fixture (output, idempotence, and
    that the formatted file still runs) and the `--validate-executeable`
    self-check.
-6. The bundled-executable, `--include`, and bytecode-removal checks.
+5. The bundled-executable, `--include`, and bytecode-removal checks.
 
 Both Lynxer CI workflows (`.github/workflows/build-lynxer-amd.yml` and
 `build-lynxer-arm.yml`) run `make testLynxer LYNXER_SKIP_DISPLAY=1`, which

@@ -171,7 +171,7 @@
 <h2 id="requirements">Requirements</h2>
 <ul>
 <li>A C++17 compiler (<code>g++</code> or <code>clang++</code>) and <code>make</code>.</li>
-<li><code>python3</code> to run <code>make testLynxer</code> (the contract and golden checks).</li>
+<li><code>python3</code> to run <code>make testLynxer</code> (the module contract check).</li>
 <li>A Rust toolchain (<code>cargo</code>): it is <strong>required</strong>, not optional. Every Rust-backed stdlib module is built by <code>cargo</code>, and the interpreter links the Rust native-call engine (<code>lynxer/rust/ffi</code>). A missing toolchain or a compile error fails the build; there is no reduced build that drops a backend.</li>
 <li><code>libffi</code> headers and <code>pkg-config</code> (e.g. <code>libffi-dev</code> on Debian/Ubuntu) for the native-call engine.</li>
 <li>Git and network access for the first <code>cargo</code> build: crates are fetched from crates.io. Nothing is compiled from vendored C/C++ sources.</li>

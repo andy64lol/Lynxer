@@ -219,7 +219,6 @@ lynxer/lynxer --list-stdlibs</code></pre>
 <p>The root <code>Makefile</code> builds both implementations; <code>make</code> alone builds everything. <code>make buildLynxer</code> builds the interpreter and the native modules, and <code>make buildLynxerArm64</code> cross-builds the ARM64 interpreter. <code>make testLynxer</code> runs the whole suite:</p>
 <ol>
 <li><code>lynxer/scripts/check_module_contracts.py</code> — wrapper/backend contract check.</li>
-<li><code>lynxer/scripts/check_golden.py</code> — the CLI and diagnostic golden cases in <code>lynxer/golden/cases.json</code>.</li>
 <li>Every <code>lynxer/examples/*.expected</code> fixture, diffed on stdout+stderr, including the optimizer and low-level native-memory/syscall fixtures.</li>
 <li>Interpreted-versus-<code>--compile</code> parity for a set of fixtures.</li>
 <li>The <code>--format</code>/<code>--format-oneline</code> formatter fixture (output, idempotence, and that the formatted file still runs) and the <code>--validate-executeable</code> self-check.</li>

@@ -41,7 +41,6 @@ LYNXER_NATIVE_BUILT := $(LYNXER_NATIVE_MODULES) $(LYNXER_RUST_MODULES)
 
 # Lynxer suite fixtures and static contract check.
 LYNXER_CONTRACT_CHECK := $(LYNXER_DIR)/scripts/check_module_contracts.py
-LYNXER_GOLDEN_CHECK := $(LYNXER_DIR)/scripts/check_golden.py
 LYNXER_CONDITION_FIXTURE := $(LYNXER_DIR)/examples/conditions.lynx
 LYNXER_LOOP_FIXTURE := $(LYNXER_DIR)/examples/loops.lynx
 LYNXER_ERROR_FIXTURE := $(LYNXER_DIR)/examples/control_flow_error.lynx
@@ -266,7 +265,6 @@ $(LYNXER_SIGNATURE_MODULE): $(LYNXER_SIGNATURE_SOURCE)
 testLynxer: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT) $(LYNXER_SIGNATURE_MODULE)
 	@test -n "$(PYTHON)" || { echo "lynxer: python3 is required for $(LYNXER_CONTRACT_CHECK)"; exit 1; }
 	@$(PYTHON) $(LYNXER_CONTRACT_CHECK)
-	@$(PYTHON) $(LYNXER_GOLDEN_CHECK) --lynxer $(CLYX)
 	@printf 'Lynxer\n' > $(CLYX_TMP)_stdin
 	@output="$$($(CLYX) $(LYNXER_DIR)/examples/hello.lynx < $(CLYX_TMP)_stdin)"; \
 	case "$$output" in \

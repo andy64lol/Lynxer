@@ -344,7 +344,7 @@ pub fn color_of_a(r: i64, g: i64, b: i64, a: i64) -> Color {
     )
 }
 
-/// Renders a float the way the docs and golden files expect: no trailing `.0`
+/// Renders a float the way the docs and `.expected` fixtures expect: no trailing `.0`
 /// for integral values.
 pub fn number(value: f32) -> String {
     if !value.is_finite() {
