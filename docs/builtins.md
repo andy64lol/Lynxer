@@ -32,7 +32,7 @@ dispatcher rather than to a per-name handler.
 | `floatOf(value)` | Value converted to a float |
 | `sentinel([name])` | Creates a unique sentinel value |
 | `object()` | Creates an empty object value |
-| `returnType(value)` | Type name, e.g. `int`, `float`, `str`, `bool`, `list`, `tuple`, `none` |
+| `returnType(value)` | Type name, e.g. `int`, `float`, `str`, `bool`, `list`, `tuple`, `bytes`, `none` |
 | `returnLength(value)` | Length of a `str`, `list` or `tuple` |
 
 ## Strings
@@ -48,6 +48,26 @@ dispatcher rather than to a per-name handler.
 | `replace(text, old, new)` | Replaces every occurrence |
 | `splitStr(text, separator)` | Splits into a list |
 | `contains(container, value)` | Membership test for a **list or tuple** only |
+
+## Bytes
+
+A `bytes` value is a byte buffer: the binary counterpart to `str`'s text byte
+string. It renders as `<bytes N>`. `bytesOf` and `bytesToStr` are byte-for-byte,
+so `bytesToStr` accepts any buffer (including one that is not valid UTF-8).
+
+| Builtin | Notes |
+| --- | --- |
+| `bytesOf(text)` | The UTF-8 bytes of a `str`, as a `bytes` |
+| `bytesToStr(bytes)` | The buffer's bytes as a `str`, byte for byte |
+| `bytesLength(bytes)` | Number of bytes |
+| `bytesAt(bytes, index)` | The byte at `index` as an `int` in `0..255`, or `-1` |
+| `bytesToHex(bytes)` / `bytesFromHex(text)` | Lower-case hex round trip |
+| `listToBytes(list)` | Encodes a list of numbers as little-endian `f64` `bytes` |
+| `bytesToList(bytes)` | Decodes little-endian `f64` `bytes` into a list of `float` |
+
+`bytes + bytes` concatenates, and `is` / `==` compare contents.
+`listToBytes` / `bytesToList` are the numeric-list bridge the `math` module
+uses — see [stdlib/math.md](stdlib/math.md).
 
 ## Sequences
 

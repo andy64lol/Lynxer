@@ -69,9 +69,9 @@ smallest 64-bit integers: `global.math.maxInt()` / `global.math.minInt()`.
 
 These were previously a separate `mathPlus` module; they now live in `math`.
 These were originally implemented with NumPy, which Lynxer does not need —
-the results match NumPy's defaults. List arguments cross the native ABI as
-tab-separated numbers, which is unambiguous because every element is a formatted
-number; list results are returned as Lynxer lists.
+the results match NumPy's defaults. List arguments cross the native ABI as a
+`bytes` buffer of little-endian `f64` (the `listToBytes` / `bytesToList`
+encoding), and list results come back as Lynxer lists of `float`.
 
 | Function | Signature | Notes |
 | --- | --- | --- |

@@ -13,7 +13,6 @@
 #include "types.hpp"
 
 #include <chrono>
-#include <cctype>
 #include <cstdint>
 #include <exception>
 #include <filesystem>
@@ -184,6 +183,8 @@ Value callNativeInternal(void* address, const std::string& signature,
         packed.i = 0;
         packed.f = 0.0;
         packed.s = nullptr;
+        packed.data = nullptr;
+        packed.data_length = 0;
         if (const auto* integer = std::get_if<std::int64_t>(&argument)) {
             packed.tag = LYNXER_FFI_ARG_INT;
             packed.i = *integer;
@@ -201,6 +202,15 @@ Value callNativeInternal(void* address, const std::string& signature,
         } else if (const auto* wide = std::get_if<UInt64Value>(&argument)) {
             packed.tag = LYNXER_FFI_ARG_UINT64;
             packed.i = static_cast<std::int64_t>(wide->value);
+        } else if (const auto* bytes =
+                       std::get_if<std::shared_ptr<BytesValue>>(&argument)) {
+            // The buffer is owned by the value in `args`, which outlives the
+            // call, so the borrowed pointer stays valid throughout.
+            packed.tag = LYNXER_FFI_ARG_BYTES;
+            packed.data = (*bytes)->data.empty() ? nullptr
+                                                 : (*bytes)->data.data();
+            packed.data_length =
+                static_cast<std::int64_t>((*bytes)->data.size());
         } else {
             packed.tag = LYNXER_FFI_ARG_OTHER;
         }
@@ -234,6 +244,14 @@ Value callNativeInternal(void* address, const std::string& signature,
             return result.f;
         case LYNXER_FFI_CSTRING:
             return std::string(result.s == nullptr ? "" : result.s);
+        case LYNXER_FFI_BYTES: {
+            auto bytes = std::make_shared<BytesValue>();
+            if (result.data != nullptr && result.data_length > 0) {
+                bytes->data.assign(result.data,
+                                   result.data + result.data_length);
+            }
+            return bytes;
+        }
         default:
             return std::int64_t{0};
     }

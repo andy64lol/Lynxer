@@ -1,0 +1,35 @@
+////
+Fixture for the `bytes` value type: construction, length, indexing, hex,
+concatenation, equality, the float-array encoding, and the out-of-range
+sentinel. Only deterministic values are printed.
+////
+global setup(){}
+
+global main(){
+    bytes b = bytesOf("AB");
+    println(returnType(b));
+    println(bytesLength(b));
+    println(bytesAt(b, 0));
+    println(bytesAt(b, 9));
+    println(bytesToHex(b));
+    println(bytesToStr(b));
+    println(b);
+
+    println(bytesToStr(b + bytesOf("C")));
+    println(b is bytesOf("AB"));
+    println(b is bytesOf("AC"));
+
+    if(bytesOf("x")){ println("nonempty truthy"); }
+    if(bytesOf("")){ println("empty truthy"); } else { println("empty falsy"); }
+
+    bytes h = bytesFromHex("00ff10");
+    println(bytesLength(h));
+    println(bytesAt(h, 1));
+    println(bytesToHex(h));
+
+    list values = listPush(listPush(listRepeat(0.0, 0), 1.5), 2.25);
+    bytes encoded = listToBytes(values);
+    println(bytesLength(encoded));
+    println(bytesToList(encoded));
+    println(bytesToList(encoded) is values);
+}

@@ -297,7 +297,7 @@ fn value_to_scalar(value: rusqlite::types::Value) -> String {
         rusqlite::types::Value::Integer(i) => i.to_string(),
         rusqlite::types::Value::Real(f) => f.to_string(),
         rusqlite::types::Value::Text(s) => s,
-        rusqlite::types::Value::Blob(b) => base64::encode(&b),
+        rusqlite::types::Value::Blob(b) => STANDARD.encode(&b),
     }
 }
 

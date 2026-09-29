@@ -184,28 +184,26 @@
 <tr><td>Bytecode (<code>.lynxc</code>, <code>--view-bytecode</code>, <code>--benchmark-compile</code>, <code>--no-cache</code>)</td><td>Removed with the bytecode backend; <code>--compile</code> produces a standalone ELF executable instead (<code>--bundle</code> is an alias). Running a <code>.lynxc</code> file reports that bytecode is unsupported.</td></tr>
 </table>
 <h2 id="planned-work">Planned Work</h2>
-<p>Every constraint below has a resolution plan in <a href="../todo.html">todo</a> under <em>Resolving documented limitations</em>:</p>
+<p>The first-class <code>bytes</code> type (<strong>L1</strong>), the fixed-signature <code>bytes</code> channel and the raised argument cap (<strong>L2</strong>), and the <code>math</code> migration off the tab-separated bridge (<strong>L3</strong>) are delivered. The remaining constraints each have a resolution plan in <a href="../todo.html">todo</a> under <em>Resolving documented limitations</em>:</p>
 <table>
 <tr><th>Area</th><th>Plan</th></tr>
 <tr><td><code>tkinter</code> / <code>tkinterPlus</code> (a native OS-widget GUI module)</td><td><strong>L16</strong></td></tr>
 <tr><td><code>turtle</code> (reimplement on <code>graphics</code>)</td><td><strong>L17</strong></td></tr>
 <tr><td><code>http</code> / <code>net</code> (keep superseded by <code>network</code> + <code>server</code>, or add a shim)</td><td><strong>L18</strong></td></tr>
-<tr><td>Binary payloads — a first-class <code>bytes</code> type, replacing the base64/hex/TSV workarounds in <code>compress</code>, <code>crypto</code>, <code>encoding</code>, <code>uuid</code>, <code>math</code></td><td><strong>L1</strong>, <strong>L3</strong></td></tr>
-<tr><td>Native module ABI — aggregate parameters, multiple string results, the 64-argument cap, non-Linux loading</td><td><strong>L2</strong></td></tr>
+<tr><td>Migrating <code>compress</code>, <code>crypto</code>, <code>encoding</code> and <code>uuid</code> payloads to <code>bytes</code></td><td><strong>L1b</strong></td></tr>
+<tr><td>Packed <code>bytes</code>/aggregate parameters, multiple string results, and macOS/Windows loading</td><td><strong>L2b</strong>–<strong>L2d</strong></td></tr>
 <tr><td>Module constraints — <code>graphics</code>, <code>game</code>, <code>server</code>, <code>re</code>/<code>regex</code>, <code>sound</code>, <code>watch</code>, <code>sqldb</code>, <code>js</code>, <code>multiprocessing</code>, <code>text</code>/<code>typing</code>, <code>tui</code>, <code>os</code>/<code>path</code>/<code>sys</code></td><td><strong>L4</strong>–<strong>L14</strong></td></tr>
 <tr><td><code>nativeThread*</code> / <code>async*</code> true parallelism and coroutine <code>await</code></td><td><strong>L15</strong></td></tr>
 </table>
 <h2 id="native-module-abi">Native Module ABI</h2>
 <ul>
-<li><strong>Signature constraints.</strong> A native signature uses either:</li>
-<li>One of the fixed shapes listed in <a href="native-module-abi.html">native-module-abi</a> (at most four arguments), or</li>
-<li>The packed <code>...</code> form, which passes every argument as two arrays and accepts at most 64 arguments in total. A Rust <code>cdylib</code> must use the packed form due to ABI compatibility constraints.</li>
+<li><strong>Signature constraints.</strong> A native signature names each parameter with a type token: <code>int64</code> (any integer width), <code>double</code>/<code>float64</code>, <code>cstring</code>, or <code>bytes</code>. A <code>bytes</code> parameter is passed as two C arguments (a pointer and a length), and a <code>bytes</code> return is a length-prefixed buffer. The packed <code>...</code> form passes numbers and strings as two arrays and accepts at most 256 arguments in total.</li>
 </ul>
 <ul>
-<li><strong>Data exchange.</strong> No aggregate types (lists, tuples, records) cross the ABI directly. They are exchanged as JSON strings or handles.</li>
+<li><strong>Aggregates.</strong> A numeric list crosses as <code>bytes</code> holding little-endian <code>f64</code> (the <code>listToBytes</code> / <code>bytesToList</code> encoding); other structured data still crosses as a JSON string or a handle.</li>
 </ul>
 <ul>
-<li><strong>String handling.</strong> Only one live string result per call is supported (<code>thread_local</code> buffer).</li>
+<li><strong>String handling.</strong> Only one live string result per call is supported (<code>thread_local</code> buffer); a <code>bytes</code> result likewise has one live buffer.</li>
 </ul>
 <ul>
 <li><strong>Platform support.</strong> <code>.so</code> imports are currently Linux/POSIX-only and not available on Windows.</li>
@@ -403,9 +401,6 @@
 <li><strong>Statistics:</strong> NumPy-backed statistics (<code>median</code>, <code>std</code>, <code>variance</code>, <code>percentile</code>, <code>corrcoef</code>, <code>dot</code>, <code>linspace</code>, <code>cumsum</code>, <code>diff</code>, <code>clip</code>, <code>normalize</code>) are reimplemented natively. NumPy is not required.</li>
 <li>Population variance and standard deviation are used.</li>
 <li><code>percentile</code> follows NumPy's linear interpolation.</li>
-</ul>
-<ul>
-<li><strong>List handling:</strong> Lists cross the native boundary as tab-separated strings, and list results are returned the same way.</li>
 </ul>
 <ul>
 <li><strong>Merged modules:</strong> <code>mathPlus</code> is merged into <code>math</code>. The float-accepting <code>sign</code> from <code>mathPlus</code> is available as <code>signFloat</code>.</li>

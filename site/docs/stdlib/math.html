@@ -219,7 +219,7 @@
 </table>
 <p><code>maxInt</code> and <code>minInt</code> are exposed as functions returning the largest and smallest 64-bit integers: <code>global.math.maxInt()</code> / <code>global.math.minInt()</code>.</p>
 <h2 id="statistics-and-vector-helpers">Statistics and vector helpers</h2>
-<p>These were previously a separate <code>mathPlus</code> module; they now live in <code>math</code>. These were originally implemented with NumPy, which Lynxer does not need — the results match NumPy's defaults. List arguments cross the native ABI as tab-separated numbers, which is unambiguous because every element is a formatted number; list results are returned as Lynxer lists.</p>
+<p>These were previously a separate <code>mathPlus</code> module; they now live in <code>math</code>. These were originally implemented with NumPy, which Lynxer does not need — the results match NumPy's defaults. List arguments cross the native ABI as a <code>bytes</code> buffer of little-endian <code>f64</code> (the <code>listToBytes</code> / <code>bytesToList</code> encoding), and list results come back as Lynxer lists of <code>float</code>.</p>
 <table>
 <tr><th>Function</th><th>Signature</th><th>Notes</th></tr>
 <tr><td><code>mean</code></td><td><code>(list values) -&gt; float</code></td><td>Arithmetic mean</td></tr>

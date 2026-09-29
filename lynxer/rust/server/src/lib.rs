@@ -503,7 +503,7 @@ async fn dispatch(ConnectInfo(address): ConnectInfo<SocketAddr>, request: Reques
         }
 
         let flag = request_flag(&parts.method);
-        let mut plan = Plan::NotFound;
+        let plan;
         if parts.method == Method::OPTIONS {
             plan = if state.config.cors.is_some() {
                 Plan::Preflight

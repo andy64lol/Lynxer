@@ -89,7 +89,7 @@ else
 LYNXER_AUDIO_FIXTURES :=
 endif
 # Built-in-family fixtures (lynxer/examples/builtin_<name>.lynx) do too.
-LYNXER_MILESTONE7_NEW_FIXTURES := $(LYNXER_DIR)/examples/builtin_async.lynx $(LYNXER_DIR)/examples/builtin_ffi.lynx $(LYNXER_DIR)/examples/builtin_ffi_errors.lynx
+LYNXER_MILESTONE7_NEW_FIXTURES := $(LYNXER_DIR)/examples/builtin_async.lynx $(LYNXER_DIR)/examples/builtin_ffi.lynx $(LYNXER_DIR)/examples/builtin_ffi_errors.lynx $(LYNXER_DIR)/examples/builtin_bytes.lynx
 # Ownership/borrowing built-ins: moves, borrows, swaps and their error paths.
 LYNXER_OWNERSHIP_FIXTURES := $(LYNXER_DIR)/examples/ownership.lynx
 # Tuple literals: the canonical `()` form plus the legacy bracket literal
@@ -509,7 +509,7 @@ expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:23: charAt() index is out of rang
 	echo "expected native stdlib output:"; printf '%s\n' "$$expected"; \
 	echo "received native stdlib output:"; printf '%s\n' "$$output"; exit 1; fi
 	@output="$$($(CLYX) $(LYNXER_SIGNATURE_FIXTURE))"; \
-	expected="$$(printf '7\n2.5\nzero\n7\n9\ncopy\n4\n1\n---\n6\n1.25\n4\n6.5\n4\n3.5\n1.500000\n2.75\nabcd\n3.75\nabc\nab5\nabc5\n7\nn12\n3\n9\n10\n10\n0')"; \
+	expected="$$(printf '7\n2.5\nzero\n7\n9\ncopy\n4\n1\n---\n6\n1.25\n4\n6.5\n4\n3.5\n1.500000\n2.75\nabcd\n3.75\nabc\nab5\nabc5\n7\nn12\n3\n9\n10\n10\n0\n5\nABC')"; \
 	if [ "$$output" != "$$expected" ]; then \
 	echo "expected native signature output:"; printf '%s\n' "$$expected"; \
 	echo "received native signature output:"; printf '%s\n' "$$output"; exit 1; fi

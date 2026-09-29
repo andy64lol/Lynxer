@@ -182,7 +182,7 @@
 <tr><td><code>floatOf(value)</code></td><td>Value converted to a float</td></tr>
 <tr><td><code>sentinel([name])</code></td><td>Creates a unique sentinel value</td></tr>
 <tr><td><code>object()</code></td><td>Creates an empty object value</td></tr>
-<tr><td><code>returnType(value)</code></td><td>Type name, e.g. <code>int</code>, <code>float</code>, <code>str</code>, <code>bool</code>, <code>list</code>, <code>tuple</code>, <code>none</code></td></tr>
+<tr><td><code>returnType(value)</code></td><td>Type name, e.g. <code>int</code>, <code>float</code>, <code>str</code>, <code>bool</code>, <code>list</code>, <code>tuple</code>, <code>bytes</code>, <code>none</code></td></tr>
 <tr><td><code>returnLength(value)</code></td><td>Length of a <code>str</code>, <code>list</code> or <code>tuple</code></td></tr>
 </table>
 <h2 id="strings">Strings</h2>
@@ -198,6 +198,19 @@
 <tr><td><code>splitStr(text, separator)</code></td><td>Splits into a list</td></tr>
 <tr><td><code>contains(container, value)</code></td><td>Membership test for a <strong>list or tuple</strong> only</td></tr>
 </table>
+<h2 id="bytes">Bytes</h2>
+<p>A <code>bytes</code> value is a byte buffer: the binary counterpart to <code>str</code>'s text byte string. It renders as <code>&lt;bytes N&gt;</code>. <code>bytesOf</code> and <code>bytesToStr</code> are byte-for-byte, so <code>bytesToStr</code> accepts any buffer (including one that is not valid UTF-8).</p>
+<table>
+<tr><th>Builtin</th><th>Notes</th></tr>
+<tr><td><code>bytesOf(text)</code></td><td>The UTF-8 bytes of a <code>str</code>, as a <code>bytes</code></td></tr>
+<tr><td><code>bytesToStr(bytes)</code></td><td>The buffer's bytes as a <code>str</code>, byte for byte</td></tr>
+<tr><td><code>bytesLength(bytes)</code></td><td>Number of bytes</td></tr>
+<tr><td><code>bytesAt(bytes, index)</code></td><td>The byte at <code>index</code> as an <code>int</code> in <code>0..255</code>, or <code>-1</code></td></tr>
+<tr><td><code>bytesToHex(bytes)</code> / <code>bytesFromHex(text)</code></td><td>Lower-case hex round trip</td></tr>
+<tr><td><code>listToBytes(list)</code></td><td>Encodes a list of numbers as little-endian <code>f64</code> <code>bytes</code></td></tr>
+<tr><td><code>bytesToList(bytes)</code></td><td>Decodes little-endian <code>f64</code> <code>bytes</code> into a list of <code>float</code></td></tr>
+</table>
+<p><code>bytes + bytes</code> concatenates, and <code>is</code> / <code>==</code> compare contents. <code>listToBytes</code> / <code>bytesToList</code> are the numeric-list bridge the <code>math</code> module uses — see <a href="stdlib/math.html">stdlib/math</a>.</p>
 <h2 id="sequences">Sequences</h2>
 <table>
 <tr><th>Builtin</th><th>Notes</th></tr>

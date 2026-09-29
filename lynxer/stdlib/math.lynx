@@ -221,61 +221,51 @@ global maxInt() -> int { return global.nativeMath.maxInt; }
 global minInt() -> int { return global.nativeMath.minInt; }
 
 // ── Statistics and vectors ──
-// List arguments cross the native ABI as tab-separated numbers; tab is
-// unambiguous because every element is a formatted number.
+// List arguments cross the native ABI as a `bytes` buffer of little-endian
+// f64 (the `listToBytes` / `bytesToList` encoding).
 // Return the middle value, averaging the two middle values for even lengths.
 global median(list values) -> float {
-    return global.nativeMath.median(listJoin(values, "\t"));
+    return global.nativeMath.median(listToBytes(values));
 }
 // Return the population standard deviation.
 global std(list values) -> float {
-    return global.nativeMath.std(listJoin(values, "\t"));
+    return global.nativeMath.std(listToBytes(values));
 }
 // Return the population variance.
 global variance(list values) -> float {
-    return global.nativeMath.variance(listJoin(values, "\t"));
+    return global.nativeMath.variance(listToBytes(values));
 }
 // Return the p-th percentile using linear interpolation between order statistics.
 global percentile(list values, float p) -> float {
-    return global.nativeMath.percentile(listJoin(values, "\t"), p);
+    return global.nativeMath.percentile(listToBytes(values), p);
 }
 // Return the Pearson correlation coefficient of two equal-length lists.
 global corrcoef(list a, list b) -> float {
-    return global.nativeMath.corrcoef(listJoin(a, "\t"), listJoin(b, "\t"));
+    return global.nativeMath.corrcoef(listToBytes(a), listToBytes(b));
 }
 // Return the dot product of two equal-length lists.
 global dot(list a, list b) -> float {
-    return global.nativeMath.dot(listJoin(a, "\t"), listJoin(b, "\t"));
+    return global.nativeMath.dot(listToBytes(a), listToBytes(b));
 }
 // Return n evenly spaced values from start to stop, inclusive.
 global linspace(float start, float stop, int n) -> list {
-    str raw = global.nativeMath.linspace(start, stop, n);
-    if(raw is ""){ return seqFromTo(0, 0, 1); }
-    return splitStr(raw, "\t");
+    return bytesToList(global.nativeMath.linspace(start, stop, n));
 }
 // Return the running sums of the list.
 global cumsum(list values) -> list {
-    str raw = global.nativeMath.cumsum(listJoin(values, "\t"));
-    if(raw is ""){ return seqFromTo(0, 0, 1); }
-    return splitStr(raw, "\t");
+    return bytesToList(global.nativeMath.cumsum(listToBytes(values)));
 }
 // Return the consecutive differences of the list.
 global diff(list values) -> list {
-    str raw = global.nativeMath.diff(listJoin(values, "\t"));
-    if(raw is ""){ return seqFromTo(0, 0, 1); }
-    return splitStr(raw, "\t");
+    return bytesToList(global.nativeMath.diff(listToBytes(values)));
 }
 // Return the list with every element clamped to [lo, hi].
 global clip(list values, float lo, float hi) -> list {
-    str raw = global.nativeMath.clip(listJoin(values, "\t"), lo, hi);
-    if(raw is ""){ return seqFromTo(0, 0, 1); }
-    return splitStr(raw, "\t");
+    return bytesToList(global.nativeMath.clip(listToBytes(values), lo, hi));
 }
 // Return the list scaled to unit norm (unchanged when the norm is zero).
 global normalize(list values) -> list {
-    str raw = global.nativeMath.normalize(listJoin(values, "\t"));
-    if(raw is ""){ return seqFromTo(0, 0, 1); }
-    return splitStr(raw, "\t");
+    return bytesToList(global.nativeMath.normalize(listToBytes(values)));
 }
 
 global main(){}

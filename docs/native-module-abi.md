@@ -101,8 +101,9 @@ wraps in a located error.
 cdecl:<return>(<arg>,<arg>,...)
 ```
 
-Type tokens are `int64` (Lynxer `int`), `double`/`float64` (Lynxer `float`) and
-`cstring` (Lynxer `str`). Argument lists may be empty.
+Type tokens are `int64` (Lynxer `int`), `double`/`float64` (Lynxer `float`),
+`cstring` (Lynxer `str`) and `bytes` (Lynxer `bytes`). Argument lists may be
+empty.
 
 Before looking a signature up, the dispatcher **normalizes** the tokens: every
 integer width is rewritten to `int64` (`int8`, `int16`, `int32`, `uint8`,
@@ -120,9 +121,14 @@ packed form is selected when the argument list is exactly the single token `...`
 Any signature the grammar can describe is callable. The engine parses
 `cdecl:<ret>(<args>)`, normalizes the tokens as above, and builds a `libffi`
 call description from them; there is no fixed table of shapes. `int64`,
-`float64` and `cstring` parameters may appear in any order and any number, and
-the return type may be `int64`, `float64`, `cstring` or `void` (a `void` call
-yields `0`).
+`float64`, `cstring` and `bytes` parameters may appear in any order and any
+number, and the return type may be `int64`, `float64`, `cstring`, `bytes` or
+`void` (a `void` call yields `0`).
+
+A `bytes` parameter is passed as **two** C arguments — `const uint8_t* data,
+int64_t length` — and a `bytes` return is a `const uint8_t*` to a buffer laid
+out as `[int64 little-endian length][payload]`, which the engine reads and the
+interpreter copies. See [Data conventions](#data-conventions).
 
 A token outside the grammar raises `unsupported native signature '<sig>'`; a
 fixed signature whose argument count differs from the call raises
@@ -178,9 +184,11 @@ const char* function(const double* nums, int64_t num_count,
 
 Numbers (Lynxer `int`, `float`, and `bool` as `0`/`1`) arrive in `nums` in their
 original order; strings arrive in `strs` in theirs. Either pointer is null when
-its count is zero, and at most 64 arguments **in total** are accepted across
-both lists (`kMaxPackedArgs` in `lynxer/ast.cpp`); a call with more raises a
-located `SourceError`. Any other argument type raises a located `SourceError`.
+its count is zero, and at most 256 arguments **in total** are accepted across
+both lists (`MAX_PACKED_ARGS` in `lynxer/rust/ffi/src/lib.rs`); a call with more
+raises a located `SourceError`. The packed form carries numbers and strings
+only — a `bytes` argument uses a fixed signature. Any other argument type raises
+a located `SourceError`.
 `lynxer/stdlib/lynxer_native_abi.h` documents the convention for module
 authors.
 
@@ -233,7 +241,8 @@ optional; modules that do not export it behave as before.
 
 ## Data conventions
 
-The ABI has no aggregate types, so modules follow these conventions.
+The ABI has one aggregate carrier — `bytes` — so modules follow these
+conventions.
 
 **Booleans** are `int64` `0`/`1`; the `.lynx` wrapper converts with `!= 0`.
 
@@ -254,24 +263,27 @@ serializes from. `xml` maps its document onto the same bridge (a JSON element
 tree), so a caller turns any of them into Lynxer values the same way, with
 `jsonParse` / `jsonGet` / `listJson*`.
 
-**Binary payloads** cross as text. A module that produces bytes returns base64
-(or hex), and one that consumes bytes accepts base64; a `*File` operation reads
-and writes the bytes itself and is the binary-safe path. This is the decision
-recorded in [todo.md](../todo.md) (D1): it needs no new ABI shape, at the cost
-that an in-memory payload must be valid text/base64.
+**Binary payloads** cross as `bytes` when the module declares the `bytes`
+token. The remaining modules still pass base64/hex text (the decision recorded
+in [todo.md](../todo.md) and [limitations.md](limitations.md)); migrating them
+is tracked there.
 
-**List results** use whichever encoding the data allows:
+**Numeric list results** cross as `bytes` holding little-endian `f64` — the
+encoding the `listToBytes` / `bytesToList` builtins use; `math`'s statistics and
+vector operations are the model. Other list results still use the older
+encodings:
 
 - values that cannot contain the separator: a joined `cstring` that the wrapper
-  splits with `splitStr` (newline for paths, tab for numeric vectors);
+  splits with `splitStr` (newline for paths);
 - arbitrary strings (command output): an `int64` handle into a module-local
   registry, read back with `resultCount`/`resultAt`/`codeAt` and released with
   `release` — see `stdlib/multiprocessing.cpp`.
 
-**Cstring lifetime.** Returned `const char*` values must stay valid until the
-interpreter copies them, which happens immediately after the call. Modules
-return a `thread_local std::string` from a `stable()` helper and therefore
-support exactly one live string result per call.
+**Cstring and bytes lifetime.** Returned `const char*` and `bytes` values must
+stay valid until the interpreter copies them, which happens immediately after
+the call. Modules return a `thread_local` buffer — a `stable()` string, or
+`lynxerBytes` from `lynxer/stdlib/lynxer_native_abi.h` for `bytes` — and
+therefore support exactly one live result of each kind per call.
 
 ## Worked example
 

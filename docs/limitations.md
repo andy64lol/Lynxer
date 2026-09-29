@@ -24,31 +24,39 @@ Retained removals: Python-runtime features with no place in a standalone runtime
 
 ## Planned Work
 
-Every constraint below has a resolution plan in [todo.md](../todo.md) under
-*Resolving documented limitations*:
+The first-class `bytes` type (**L1**), the fixed-signature `bytes` channel and
+the raised argument cap (**L2**), and the `math` migration off the tab-separated
+bridge (**L3**) are delivered. The remaining constraints each have a resolution
+plan in [todo.md](../todo.md) under *Resolving documented limitations*:
 
 | Area | Plan |
 | --- | --- |
 | `tkinter` / `tkinterPlus` (a native OS-widget GUI module) | **L16** |
 | `turtle` (reimplement on `graphics`) | **L17** |
 | `http` / `net` (keep superseded by `network` + `server`, or add a shim) | **L18** |
-| Binary payloads — a first-class `bytes` type, replacing the base64/hex/TSV workarounds in `compress`, `crypto`, `encoding`, `uuid`, `math` | **L1**, **L3** |
-| Native module ABI — aggregate parameters, multiple string results, the 64-argument cap, non-Linux loading | **L2** |
+| Migrating `compress`, `crypto`, `encoding` and `uuid` payloads to `bytes` | **L1b** |
+| Packed `bytes`/aggregate parameters, multiple string results, and macOS/Windows loading | **L2b**–**L2d** |
 | Module constraints — `graphics`, `game`, `server`, `re`/`regex`, `sound`, `watch`, `sqldb`, `js`, `multiprocessing`, `text`/`typing`, `tui`, `os`/`path`/`sys` | **L4**–**L14** |
 | `nativeThread*` / `async*` true parallelism and coroutine `await` | **L15** |
 
 ## Native Module ABI
 
-- **Signature constraints.** A native signature uses either:
-  - One of the fixed shapes listed in [native-module-abi.md](native-module-abi.md) (at most four arguments), or
-  - The packed `...` form, which passes every argument as two arrays and accepts at most 64 arguments in total.
-  A Rust `cdylib` must use the packed form due to ABI compatibility constraints.
+- **Signature constraints.** A native signature names each parameter with a
+  type token: `int64` (any integer width), `double`/`float64`, `cstring`, or
+  `bytes`. A `bytes` parameter is passed as two C arguments (a pointer and a
+  length), and a `bytes` return is a length-prefixed buffer. The packed `...`
+  form passes numbers and strings as two arrays and accepts at most 256
+  arguments in total.
 
-- **Data exchange.** No aggregate types (lists, tuples, records) cross the ABI directly. They are exchanged as JSON strings or handles.
+- **Aggregates.** A numeric list crosses as `bytes` holding little-endian
+  `f64` (the `listToBytes` / `bytesToList` encoding); other structured data
+  still crosses as a JSON string or a handle.
 
-- **String handling.** Only one live string result per call is supported (`thread_local` buffer).
+- **String handling.** Only one live string result per call is supported
+  (`thread_local` buffer); a `bytes` result likewise has one live buffer.
 
-- **Platform support.** `.so` imports are currently Linux/POSIX-only and not available on Windows.
+- **Platform support.** `.so` imports are currently Linux/POSIX-only and not
+  available on Windows.
 
 ## Standard Library
 
@@ -371,8 +379,6 @@ Both modules use `std::regex` with the ECMAScript grammar, which is narrower tha
 - **Statistics:** NumPy-backed statistics (`median`, `std`, `variance`, `percentile`, `corrcoef`, `dot`, `linspace`, `cumsum`, `diff`, `clip`, `normalize`) are reimplemented natively. NumPy is not required.
   - Population variance and standard deviation are used.
   - `percentile` follows NumPy's linear interpolation.
-
-- **List handling:** Lists cross the native boundary as tab-separated strings, and list results are returned the same way.
 
 - **Merged modules:** `mathPlus` is merged into `math`. The float-accepting `sign` from `mathPlus` is available as `signFloat`.
 

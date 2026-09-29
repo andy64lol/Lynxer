@@ -5,6 +5,8 @@
 // express — so the fixture fails loudly if any shape regresses. Every function
 // returns a deterministic value.
 
+#include "../stdlib/lynxer_native_abi.h"
+
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -94,6 +96,28 @@ extern "C" std::int64_t sig_quad(std::int64_t a, std::int64_t b,
 }
 extern "C" void sig_void(std::int64_t) {}
 
+// A `bytes` parameter arrives as (pointer, length); a `bytes` return is a
+// length-prefixed buffer built with `lynxerBytes`.
+extern "C" std::int64_t sig_bytes_len(const std::uint8_t* data,
+                                      std::int64_t length) {
+    (void)data;
+    return length;
+}
+extern "C" const std::uint8_t* sig_bytes_upper(const std::uint8_t* data,
+                                               std::int64_t length) {
+    std::string output;
+    if (length > 0) {
+        output.reserve(static_cast<std::size_t>(length));
+        for (std::int64_t index = 0; index < length; ++index) {
+            const char character = static_cast<char>(data[index]);
+            output.push_back(character >= 'a' && character <= 'z'
+                                 ? static_cast<char>(character - 32)
+                                 : character);
+        }
+    }
+    return lynxerBytes(output.data(), static_cast<std::int64_t>(output.size()));
+}
+
 extern "C" int lynxer_module_init_v1(RegisterFunction f, RegisterConstant c,
                                      RegisterType t) {
     return f("v", "sig_v", "cdecl:int64()") &&
@@ -126,6 +150,8 @@ extern "C" int lynxer_module_init_v1(RegisterFunction f, RegisterConstant c,
                    f("sis", "sig_sis", "cdecl:int64(cstring,int64,cstring)") &&
                    f("quad", "sig_quad", "cdecl:int64(int64,int64,int64,int64)") &&
                    f("sink", "sig_void", "cdecl:void(int64)") &&
+                   f("bytesLen", "sig_bytes_len", "cdecl:int64(bytes)") &&
+                   f("bytesUpper", "sig_bytes_upper", "cdecl:bytes(bytes)") &&
                    c("answer", 42) &&
                    t("pair", "int32 first, int32 second")
                ? 0

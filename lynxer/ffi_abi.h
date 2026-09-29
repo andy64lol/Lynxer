@@ -19,6 +19,9 @@ enum LynxerFfiResultTag {
     LYNXER_FFI_INT64 = 1,
     LYNXER_FFI_FLOAT64 = 2,
     LYNXER_FFI_CSTRING = 3,
+    // `data`/`data_length` point at a byte buffer that stays valid until the
+    // next `lynxer_ffi_call`.
+    LYNXER_FFI_BYTES = 4,
 };
 
 // Argument kinds, stored in `LynxerFfiArg::tag`. The tag preserves the Lynxer
@@ -33,25 +36,33 @@ enum LynxerFfiArgTag {
     LYNXER_FFI_ARG_STRING = 3,
     LYNXER_FFI_ARG_UINT64 = 4,
     LYNXER_FFI_ARG_OTHER = 5,
+    // A byte buffer, borrowed for the duration of the call.
+    LYNXER_FFI_ARG_BYTES = 6,
 };
 
 // One argument. `i` carries ints, bools and unsigned 64-bit values, `f` carries
-// floats and `s` carries a NUL-terminated string (borrowed for the call).
+// floats, `s` carries a NUL-terminated string, and `data`/`data_length` carry a
+// byte buffer (all borrowed for the call).
 typedef struct LynxerFfiArg {
     std::uint32_t tag;
     std::int64_t i;
     double f;
     const char* s;
+    const std::uint8_t* data;
+    std::int64_t data_length;
 } LynxerFfiArg;
 
-// The call result. `i`, `f` and `s` are meaningful according to `tag`; a
-// `cstring` result points into a thread-local buffer that stays valid until the
-// next `lynxer_ffi_call`, which is exactly the interpreter's copy window.
+// The call result. `i`, `f`, `s` and `data`/`data_length` are meaningful
+// according to `tag`; a `cstring` or `bytes` result points into a buffer that
+// stays valid until the next `lynxer_ffi_call`, which is exactly the
+// interpreter's copy window.
 typedef struct LynxerFfiResult {
     std::uint32_t tag;
     std::int64_t i;
     double f;
     const char* s;
+    const std::uint8_t* data;
+    std::int64_t data_length;
 } LynxerFfiResult;
 
 extern "C" {

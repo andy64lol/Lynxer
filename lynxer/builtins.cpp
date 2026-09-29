@@ -149,6 +149,10 @@ const std::shared_ptr<Tuple>* asTuple(const Value& value) {
     return std::get_if<std::shared_ptr<Tuple>>(&value);
 }
 
+const std::shared_ptr<BytesValue>* asBytes(const Value& value) {
+    return std::get_if<std::shared_ptr<BytesValue>>(&value);
+}
+
 const std::vector<Value>& listElements(const Value& value) {
     return (*asList(value))->elements;
 }
@@ -482,6 +486,165 @@ Value builtinFloatOf(const std::vector<Value>& args, Environment&, int line,
              column);
     }
     return parsed;
+}
+
+// --- bytes -------------------------------------------------------------------
+
+// The float-array encoding the `bytes` bridge uses: each element is an IEEE-754
+// double stored little-endian, so the format is defined regardless of host
+// endianness.
+void appendDoubleLE(std::vector<std::uint8_t>& output, double number) {
+    std::uint64_t bits = 0;
+    std::memcpy(&bits, &number, sizeof(bits));
+    for (int shift = 0; shift < 64; shift += 8) {
+        output.push_back(static_cast<std::uint8_t>((bits >> shift) & 0xFF));
+    }
+}
+
+double readDoubleLE(const std::uint8_t* data) {
+    std::uint64_t bits = 0;
+    for (int shift = 0; shift < 64; shift += 8) {
+        bits |= static_cast<std::uint64_t>(data[shift / 8]) << shift;
+    }
+    double number = 0.0;
+    std::memcpy(&number, &bits, sizeof(number));
+    return number;
+}
+
+Value builtinBytesOf(const std::vector<Value>& args, Environment&, int line,
+                     int column) {
+    requireArity(args, 1, "bytesOf() takes exactly 1 argument", line, column);
+    const auto* text = std::get_if<std::string>(&args[0]);
+    if (text == nullptr) {
+        fail("bytesOf() expects a str", line, column);
+    }
+    auto bytes = std::make_shared<BytesValue>();
+    bytes->data.assign(text->begin(), text->end());
+    return bytes;
+}
+
+Value builtinBytesToStr(const std::vector<Value>& args, Environment&, int line,
+                        int column) {
+    requireArity(args, 1, "bytesToStr() takes exactly 1 argument", line, column);
+    const auto* bytes = asBytes(args[0]);
+    if (bytes == nullptr) {
+        fail("bytesToStr() expects a bytes value", line, column);
+    }
+    return std::string((*bytes)->data.begin(), (*bytes)->data.end());
+}
+
+Value builtinBytesLength(const std::vector<Value>& args, Environment&, int line,
+                         int column) {
+    requireArity(args, 1, "bytesLength() takes exactly 1 argument", line,
+                 column);
+    const auto* bytes = asBytes(args[0]);
+    if (bytes == nullptr) {
+        fail("bytesLength() expects a bytes value", line, column);
+    }
+    return static_cast<std::int64_t>((*bytes)->data.size());
+}
+
+Value builtinBytesAt(const std::vector<Value>& args, Environment&, int line,
+                     int column) {
+    requireArity(args, 2, "bytesAt() takes exactly 2 arguments", line, column);
+    const auto* bytes = asBytes(args[0]);
+    if (bytes == nullptr) {
+        fail("bytesAt() expects a bytes value", line, column);
+    }
+    const auto index = toInt(args[1], line, column);
+    if (index < 0 || static_cast<std::size_t>(index) >= (*bytes)->data.size()) {
+        return std::int64_t{-1};
+    }
+    return static_cast<std::int64_t>(
+        (*bytes)->data[static_cast<std::size_t>(index)]);
+}
+
+Value builtinBytesToHex(const std::vector<Value>& args, Environment&, int line,
+                        int column) {
+    requireArity(args, 1, "bytesToHex() takes exactly 1 argument", line, column);
+    const auto* bytes = asBytes(args[0]);
+    if (bytes == nullptr) {
+        fail("bytesToHex() expects a bytes value", line, column);
+    }
+    static const char digits[] = "0123456789abcdef";
+    std::string output;
+    output.reserve((*bytes)->data.size() * 2);
+    for (const std::uint8_t byte : (*bytes)->data) {
+        output.push_back(digits[byte >> 4]);
+        output.push_back(digits[byte & 0x0F]);
+    }
+    return output;
+}
+
+int hexDigit(char character) {
+    if (character >= '0' && character <= '9') return character - '0';
+    if (character >= 'a' && character <= 'f') return character - 'a' + 10;
+    if (character >= 'A' && character <= 'F') return character - 'A' + 10;
+    return -1;
+}
+
+Value builtinBytesFromHex(const std::vector<Value>& args, Environment&, int line,
+                          int column) {
+    requireArity(args, 1, "bytesFromHex() takes exactly 1 argument", line,
+                 column);
+    const auto* text = std::get_if<std::string>(&args[0]);
+    if (text == nullptr) {
+        fail("bytesFromHex() expects a str", line, column);
+    }
+    if (text->size() % 2 != 0) {
+        fail("bytesFromHex() expects an even number of hex digits", line,
+             column);
+    }
+    auto bytes = std::make_shared<BytesValue>();
+    bytes->data.reserve(text->size() / 2);
+    for (std::size_t index = 0; index < text->size(); index += 2) {
+        const int high = hexDigit((*text)[index]);
+        const int low = hexDigit((*text)[index + 1]);
+        if (high < 0 || low < 0) {
+            fail("bytesFromHex() found a non-hex character", line, column);
+        }
+        bytes->data.push_back(static_cast<std::uint8_t>((high << 4) | low));
+    }
+    return bytes;
+}
+
+Value builtinListToBytes(const std::vector<Value>& args, Environment&, int line,
+                         int column) {
+    requireArity(args, 1, "listToBytes() takes exactly 1 argument", line,
+                 column);
+    const auto* list = asList(args[0]);
+    if (list == nullptr) {
+        fail("listToBytes() expects a list", line, column);
+    }
+    auto bytes = std::make_shared<BytesValue>();
+    bytes->data.reserve((*list)->elements.size() * sizeof(double));
+    for (const Value& element : (*list)->elements) {
+        if (!isNumber(element)) {
+            fail("listToBytes() expects a list of numbers", line, column);
+        }
+        appendDoubleLE(bytes->data, asNumber(element, line, column));
+    }
+    return bytes;
+}
+
+Value builtinBytesToList(const std::vector<Value>& args, Environment&, int line,
+                         int column) {
+    requireArity(args, 1, "bytesToList() takes exactly 1 argument", line,
+                 column);
+    const auto* bytes = asBytes(args[0]);
+    if (bytes == nullptr) {
+        fail("bytesToList() expects a bytes value", line, column);
+    }
+    if ((*bytes)->data.size() % sizeof(double) != 0) {
+        fail("bytesToList() expects a multiple of 8 bytes", line, column);
+    }
+    std::vector<Value> elements;
+    elements.reserve((*bytes)->data.size() / sizeof(double));
+    for (std::size_t offset = 0; offset < (*bytes)->data.size();
+         offset += sizeof(double)) {
+        elements.push_back(readDoubleLE((*bytes)->data.data() + offset));
+    }
+    return makeList(std::move(elements));
 }
 
 Value builtinSentinel(const std::vector<Value>& args, Environment&, int line,
@@ -6762,6 +6925,14 @@ const std::unordered_map<std::string, Handler>& handlerTable() {
         {"charCode", builtinCharCode},
         {"charOf", builtinCharOf},
         {"substring", builtinSubstring},
+        {"bytesOf", builtinBytesOf},
+        {"bytesToStr", builtinBytesToStr},
+        {"bytesLength", builtinBytesLength},
+        {"bytesAt", builtinBytesAt},
+        {"bytesToHex", builtinBytesToHex},
+        {"bytesFromHex", builtinBytesFromHex},
+        {"listToBytes", builtinListToBytes},
+        {"bytesToList", builtinBytesToList},
         {"trim", builtinTrim},
         {"upper", builtinUpper},
         {"lower", builtinLower},

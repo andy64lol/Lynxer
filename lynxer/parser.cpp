@@ -25,7 +25,8 @@ bool Parser::isTypeName(const Token& token) const {
         "any", "int", "float", "num", "char", "str", "bool", "numBool",
         "bit", "byte", "int8", "int16", "int32", "int64", "uint8",
         "uint16", "uint32", "uint64", "float32", "float64", "list",
-        "tuple", "sentinel", "object", "codeblock", "functionAddress"};
+        "tuple", "sentinel", "object", "codeblock", "functionAddress",
+        "bytes"};
     return scalarTypes.count(token.text) != 0 ||
            TypeRegistry::instance().hasNamedType(token.text);
 }

@@ -20,26 +20,35 @@ before the module-specific items.
 
 **Foundation**
 
-- [ ] **L1 — first-class `bytes` value type.** Removes the "No byte type"
-      constraint in `compress`, `crypto`, `encoding`, `uuid` and `math`, and the
-      base64/hex/TSV workarounds built on it; also unlocks byte parameters in
-      the native ABI and UTF-8-correct round-trips. Thread a `Bytes` variant
-      through `lynxer/runtime.hpp` (Value), `lynxer/parser.cpp` (a `bytes`
-      keyword), `lynxer/types.cpp`, `lynxer/runtime.cpp`
-      (coercion/render/compare), `lynxer/ffi_abi.h`,
-      `lynxer/rust/abi/src/lib.rs`, `lynxer/rust/ffi/src/lib.rs` and
-      `lynxer/stdlib/lynxer_native_abi.h`. `byte`/`uint8` stay 0..255 integers —
-      do not conflate them with the new type.
-- [ ] **L2 — extend the native-module ABI.** Allow aggregate (`list`/`bytes`)
-      parameters and multiple live string results, raise the 64-argument packed
-      cap, and support `.so`/DLL loading beyond Linux (`lynxer/stdlib/lynxer_native_abi.h`,
-      `lynxer/rust/abi`, `lynxer/rust/ffi`, `lynxer/ffi_abi.h`). While here,
-      reconcile the "fixed shapes … at most four arguments" wording in
-      `docs/limitations.md` with `docs/native-module-abi.md`, which states there
-      is no fixed shape table (a standing contradiction).
-- [ ] **L3 — replace the tab-separated list bridge** in `math` (and any other
-      `listJoin("\t")` crossing) with the real list/bytes ABI
-      (`lynxer/stdlib/math.cpp:379`, `lynxer/stdlib/math.lynx:224`).
+- [x] ~~**L1 — first-class `bytes` value type.**~~ **Delivered:** a `BytesValue`
+      variant with a `bytes` type name and a full builtin set (`bytesOf`,
+      `bytesToStr`, `bytesLength`, `bytesAt`, `bytesToHex`/`bytesFromHex`,
+      `listToBytes`/`bytesToList`), covered by `lynxer/examples/builtin_bytes.lynx`.
+      The Rust packed modules that still carry base64 payloads are **L1b**.
+- [x] ~~**L2 — extend the native-module ABI.**~~ **Partly delivered:** a `bytes`
+      signature token (a parameter expands to `(const uint8_t*, int64_t)`; a
+      return is a length-prefixed buffer) and the packed cap raised to 256. The
+      packed `bytes` channel, multiple live string results, and non-Linux loading
+      are **L2b**–**L2d**.
+- [x] ~~**L3 — replace the tab-separated list bridge in `math`.**~~ **Delivered:**
+      the 11 statistics/vector ops exchange little-endian `f64` `bytes`, the TSV
+      helpers are deleted, and list results are `list<float>`.
+
+**L1–L3 follow-ups**
+
+- [ ] **L1b — migrate the remaining binary modules to `bytes`.** `compress`,
+      `crypto`, `encoding` and `uuid` still cross base64/hex text; give them a
+      `bytes` channel (packed — see **L2b**) and drop the workarounds.
+- [ ] **L2b — packed `bytes`/aggregate parameters.** Add a packed prototype that
+      carries buffers (a trailing `(const uint8_t* const* bufs, const int64_t*
+      lens, int64_t buf_count)`), with `Args::bytes` and `export_bytes!` in
+      `lynxer/rust/abi`.
+- [ ] **L2c — non-Linux loading.** Recognise macOS `.dylib` in the loader
+      (`lynxer/ast.cpp`, `lynxer/shell.cpp`). Windows DLL loading stays out — the
+      project is Linux/POSIX-only.
+- [ ] **L2d — multiple live string results.** Replace the single thread-local
+      string result with a stable pool, if and when a module needs more than one.
+
 
 **Modules**
 

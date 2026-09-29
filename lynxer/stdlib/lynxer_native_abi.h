@@ -1,10 +1,19 @@
-// Shared ABI header for native modules that need the packed-argument calling
-// convention or a callback into the interpreter.
+// Shared ABI header for native modules that need a byte buffer, the
+// packed-argument calling convention, or a callback into the interpreter.
 //
-// The classic `cdecl:<ret>(<args>)` signature grammar is limited to four
-// arguments of `int64` / `double` / `cstring`, which is too small for APIs such
-// as the `game` module. A module can instead register a function with the
-// `...` parameter token, e.g. `cdecl:int64(...)`. The interpreter then calls
+// The `cdecl:<ret>(<args>)` grammar names each parameter with a type token:
+// `int64` (any integer width), `double`/`float64`, `cstring`, or `bytes`. A
+// `bytes` parameter is passed as two C arguments — a pointer and a length:
+//
+//     <ret> function(const uint8_t* data, int64_t length);
+//
+// A `bytes` return is a pointer to a buffer laid out as `[int64 length]`
+// followed by the payload bytes (length counts bytes). The interpreter reads
+// the little-endian prefix and copies that many bytes, so the module must keep
+// the buffer alive until its next call — use `lynxerBytes` below.
+//
+// A module can instead register a function with the `...` parameter token,
+// e.g. `cdecl:int64(...)`. The interpreter then calls
 //
 //     <ret> function(const double* nums, int64_t num_count,
 //                    const char* const* strs, int64_t str_count);
@@ -24,6 +33,10 @@
 #define LYNXER_NATIVE_ABI_H
 
 #include <stdint.h>
+
+#ifdef __cplusplus
+#include <string>
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -53,6 +66,26 @@ typedef struct LynxerHostApi {
 
 #ifdef __cplusplus
 }
+
+// C++ helper for a `bytes` return: builds `[int64 little-endian length]` + the
+// payload in a thread-local buffer and returns its address. The buffer stays
+// valid until the next call on this thread, which is the ABI's copy window.
+inline const uint8_t* lynxerBytes(const void* payload, int64_t length) {
+    static thread_local std::string buffer;
+    const int64_t stored = length < 0 ? 0 : length;
+    buffer.assign(8 + static_cast<std::size_t>(stored), '\0');
+    for (int index = 0; index < 8; ++index) {
+        buffer[static_cast<std::size_t>(index)] = static_cast<char>(
+            (static_cast<uint64_t>(stored) >> (8 * index)) & 0xFF);
+    }
+    if (stored > 0 && payload != nullptr) {
+        buffer.replace(8, static_cast<std::size_t>(stored),
+                       static_cast<const char*>(payload),
+                       static_cast<std::size_t>(stored));
+    }
+    return reinterpret_cast<const uint8_t*>(buffer.data());
+}
+
 #endif
 
 #endif // LYNXER_NATIVE_ABI_H

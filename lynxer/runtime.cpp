@@ -794,6 +794,9 @@ Value Environment::convertForType(Value value, const std::string& type,
         return value;
     } else if (type == "str" && std::holds_alternative<std::string>(value)) {
         return value;
+    } else if (type == "bytes" &&
+               std::holds_alternative<std::shared_ptr<BytesValue>>(value)) {
+        return value;
     } else if (type == "bool" && std::holds_alternative<bool>(value)) {
         return value;
     } else if (type == "char") {
@@ -894,6 +897,9 @@ std::string valueToString(const Value& value) {
     if (const auto* text = std::get_if<std::string>(&value)) {
         return *text;
     }
+    if (const auto* bytes = std::get_if<std::shared_ptr<BytesValue>>(&value)) {
+        return "<bytes " + std::to_string((*bytes)->data.size()) + ">";
+    }
     if (const auto* list = std::get_if<std::shared_ptr<List>>(&value)) {
         std::string output = "[";
         for (std::size_t index = 0; index < (*list)->elements.size(); ++index) {
@@ -988,6 +994,9 @@ bool isTruthy(const Value& value) {
     if (const auto* text = std::get_if<std::string>(&value)) {
         return !text->empty();
     }
+    if (const auto* bytes = std::get_if<std::shared_ptr<BytesValue>>(&value)) {
+        return !(*bytes)->data.empty();
+    }
     if (const auto* list = std::get_if<std::shared_ptr<List>>(&value)) {
         return !(*list)->elements.empty();
     }
@@ -1017,6 +1026,9 @@ std::string typeNameOf(const Value& value) {
     }
     if (std::holds_alternative<std::string>(value)) {
         return "str";
+    }
+    if (std::holds_alternative<std::shared_ptr<BytesValue>>(value)) {
+        return "bytes";
     }
     if (std::holds_alternative<std::shared_ptr<List>>(value)) {
         return "list";
@@ -1135,6 +1147,14 @@ bool valuesEqual(const Value& left, const Value& right) {
     }
     if (const auto* leftChar = std::get_if<CharValue>(&left)) {
         return leftChar->text == std::get<CharValue>(right).text;
+    }
+    if (const auto* leftBytes = std::get_if<std::shared_ptr<BytesValue>>(&left)) {
+        // Compare the buffers, not the shared_ptr identities.
+        const auto& rightBytes = std::get<std::shared_ptr<BytesValue>>(right);
+        if (*leftBytes == rightBytes) {
+            return true;
+        }
+        return (*leftBytes)->data == rightBytes->data;
     }
     return left == right;
 }

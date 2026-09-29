@@ -42,6 +42,15 @@ struct UInt64Value {
     }
 };
 
+// A byte buffer: arbitrary bytes with no text encoding. Shared so passing one
+// around does not copy the payload. `str` is already a byte string, but it is
+// the *text* carrier; `bytes` is the binary carrier.
+struct BytesValue {
+    std::vector<std::uint8_t> data;
+
+    bool operator==(const BytesValue& other) const { return data == other.data; }
+};
+
 enum class RecordKind { VarGroup, Struct, Class };
 
 using Value = std::variant<
@@ -49,7 +58,7 @@ using Value = std::variant<
     std::shared_ptr<List>, std::shared_ptr<Tuple>,
     std::shared_ptr<SentinelValue>, std::shared_ptr<ObjectValue>,
     CharValue, std::shared_ptr<RecordValue>, std::shared_ptr<EnumValue>,
-    std::shared_ptr<CodeblockValue>, UInt64Value>;
+    std::shared_ptr<CodeblockValue>, UInt64Value, std::shared_ptr<BytesValue>>;
 
 struct RecordField {
     std::string type;

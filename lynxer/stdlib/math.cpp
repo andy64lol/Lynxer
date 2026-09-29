@@ -3,20 +3,16 @@
 #include <cstdint>
 #include <cmath>
 #include <cstdlib>
+#include <cstring>
 #include <limits>
 #include <random>
-#include <string>
 #include <vector>
+
+#include "lynxer_native_abi.h"
 
 using RegisterFunction = int (*)(const char*, const char*, const char*);
 using RegisterConstant = int (*)(const char*, std::int64_t);
 using RegisterType = int (*)(const char*, const char*);
-
-static const char* stable(std::string value) {
-    thread_local std::string result;
-    result = std::move(value);
-    return result.c_str();
-}
 
 extern "C" std::int64_t math_abs(std::int64_t value) {
     if (value == std::numeric_limits<std::int64_t>::min()) {
@@ -376,50 +372,44 @@ extern "C" std::int64_t math_randInt(std::int64_t low, std::int64_t high) {
 
 /* ---------- Statistics and vectors ---------- */
 
-// List arguments arrive as tab-separated numbers (the separator the `.lynx`
-// wrapper uses), and list results are returned the same way. Tab is unambiguous
-// because every element is a formatted number.
+// List arguments cross the ABI as a `bytes` buffer of little-endian IEEE-754
+// doubles — the same encoding as the `listToBytes` / `bytesToList` builtins —
+// so the values are exchanged exactly and no text separator is needed.
 
-static const char kListSeparator = '\t';
-
-static std::vector<double> parseValues(const std::string& text) {
+static std::vector<double> readDoubles(const std::uint8_t* data,
+                                       std::int64_t length) {
     std::vector<double> values;
-    if (text.empty()) {
+    if (data == nullptr || length <= 0) {
         return values;
     }
-    std::size_t start = 0;
-    while (start <= text.size()) {
-        const std::size_t separator = text.find(kListSeparator, start);
-        const std::string token = text.substr(
-            start, separator == std::string::npos ? std::string::npos
-                                                  : separator - start);
-        if (!token.empty()) {
-            values.push_back(std::strtod(token.c_str(), nullptr));
+    const std::size_t count =
+        static_cast<std::size_t>(length) / sizeof(double);
+    values.reserve(count);
+    for (std::size_t index = 0; index < count; ++index) {
+        const std::uint8_t* element = data + index * sizeof(double);
+        std::uint64_t bits = 0;
+        for (int shift = 0; shift < 64; shift += 8) {
+            bits |= static_cast<std::uint64_t>(element[shift / 8]) << shift;
         }
-        if (separator == std::string::npos) {
-            break;
-        }
-        start = separator + 1;
+        double number = 0.0;
+        std::memcpy(&number, &bits, sizeof(number));
+        values.push_back(number);
     }
     return values;
 }
 
-static std::string formatValues(const std::vector<double>& values) {
-    std::string output;
-    for (std::size_t index = 0; index < values.size(); ++index) {
-        if (index > 0) {
-            output += kListSeparator;
+static const std::uint8_t* writeDoubles(const std::vector<double>& values) {
+    std::vector<std::uint8_t> payload;
+    payload.reserve(values.size() * sizeof(double));
+    for (const double number : values) {
+        std::uint64_t bits = 0;
+        std::memcpy(&bits, &number, sizeof(bits));
+        for (int shift = 0; shift < 64; shift += 8) {
+            payload.push_back(static_cast<std::uint8_t>((bits >> shift) & 0xFF));
         }
-        char buffer[64];
-        const auto converted =
-            std::to_chars(buffer, buffer + sizeof(buffer), values[index]);
-        std::string text(buffer, converted.ptr);
-        if (text.find_first_of(".eEni") == std::string::npos) {
-            text += ".0";
-        }
-        output += text;
     }
-    return output;
+    return lynxerBytes(payload.data(),
+                       static_cast<std::int64_t>(payload.size()));
 }
 
 static double meanOfValues(const std::vector<double>& values) {
@@ -433,8 +423,8 @@ static double meanOfValues(const std::vector<double>& values) {
     return total / static_cast<double>(values.size());
 }
 
-extern "C" double math_median(const char* text) {
-    std::vector<double> values = parseValues(text == nullptr ? "" : text);
+extern "C" double math_median(const std::uint8_t* data, std::int64_t length) {
+    std::vector<double> values = readDoubles(data, length);
     if (values.empty()) {
         return 0.0;
     }
@@ -446,8 +436,8 @@ extern "C" double math_median(const char* text) {
     return (values[middle - 1] + values[middle]) / 2.0;
 }
 
-extern "C" double math_std(const char* text) {
-    const std::vector<double> values = parseValues(text == nullptr ? "" : text);
+extern "C" double math_std(const std::uint8_t* data, std::int64_t length) {
+    const std::vector<double> values = readDoubles(data, length);
     if (values.empty()) {
         return 0.0;
     }
@@ -459,8 +449,8 @@ extern "C" double math_std(const char* text) {
     return std::sqrt(total / static_cast<double>(values.size()));
 }
 
-extern "C" double math_variance(const char* text) {
-    const std::vector<double> values = parseValues(text == nullptr ? "" : text);
+extern "C" double math_variance(const std::uint8_t* data, std::int64_t length) {
+    const std::vector<double> values = readDoubles(data, length);
     if (values.empty()) {
         return 0.0;
     }
@@ -473,8 +463,9 @@ extern "C" double math_variance(const char* text) {
 }
 
 // NumPy's default linear interpolation between order statistics.
-extern "C" double math_percentile(const char* text, double percent) {
-    std::vector<double> values = parseValues(text == nullptr ? "" : text);
+extern "C" double math_percentile(const std::uint8_t* data, std::int64_t length,
+                                  double percent) {
+    std::vector<double> values = readDoubles(data, length);
     if (values.empty()) {
         return 0.0;
     }
@@ -493,10 +484,12 @@ extern "C" double math_percentile(const char* text, double percent) {
     return values[index] + fraction * (values[index + 1] - values[index]);
 }
 
-extern "C" double math_corrcoef(const char* first, const char* second) {
-    const std::vector<double> left = parseValues(first == nullptr ? "" : first);
-    const std::vector<double> right =
-        parseValues(second == nullptr ? "" : second);
+extern "C" double math_corrcoef(const std::uint8_t* first,
+                                std::int64_t firstLength,
+                                const std::uint8_t* second,
+                                std::int64_t secondLength) {
+    const std::vector<double> left = readDoubles(first, firstLength);
+    const std::vector<double> right = readDoubles(second, secondLength);
     if (left.empty() || left.size() != right.size()) {
         return 0.0;
     }
@@ -516,10 +509,11 @@ extern "C" double math_corrcoef(const char* first, const char* second) {
     return denominator == 0.0 ? 0.0 : covariance / denominator;
 }
 
-extern "C" double math_dot(const char* first, const char* second) {
-    const std::vector<double> left = parseValues(first == nullptr ? "" : first);
-    const std::vector<double> right =
-        parseValues(second == nullptr ? "" : second);
+extern "C" double math_dot(const std::uint8_t* first, std::int64_t firstLength,
+                           const std::uint8_t* second,
+                           std::int64_t secondLength) {
+    const std::vector<double> left = readDoubles(first, firstLength);
+    const std::vector<double> right = readDoubles(second, secondLength);
     if (left.size() != right.size()) {
         return 0.0;
     }
@@ -530,65 +524,60 @@ extern "C" double math_dot(const char* first, const char* second) {
     return total;
 }
 
-extern "C" const char* math_linspace(double start, double stop,
-                                     std::int64_t count) {
-    if (count <= 0) {
-        return stable("");
-    }
+extern "C" const std::uint8_t* math_linspace(double start, double stop,
+                                             std::int64_t count) {
     std::vector<double> values;
-    if (count == 1) {
-        values.push_back(start);
-    } else {
-        const double step = (stop - start) / static_cast<double>(count - 1);
-        for (std::int64_t index = 0; index < count; ++index) {
-            values.push_back(start + step * static_cast<double>(index));
+    if (count > 0) {
+        if (count == 1) {
+            values.push_back(start);
+        } else {
+            const double step = (stop - start) / static_cast<double>(count - 1);
+            for (std::int64_t index = 0; index < count; ++index) {
+                values.push_back(start + step * static_cast<double>(index));
+            }
         }
     }
-    return stable(formatValues(values));
+    return writeDoubles(values);
 }
 
-extern "C" const char* math_cumsum(const char* text) {
-    const std::vector<double> values = parseValues(text == nullptr ? "" : text);
-    if (values.empty()) {
-        return stable("");
-    }
+extern "C" const std::uint8_t* math_cumsum(const std::uint8_t* data,
+                                           std::int64_t length) {
+    const std::vector<double> values = readDoubles(data, length);
     std::vector<double> result;
     double running = 0.0;
     for (const double value : values) {
         running += value;
         result.push_back(running);
     }
-    return stable(formatValues(result));
+    return writeDoubles(result);
 }
 
-extern "C" const char* math_diff(const char* text) {
-    const std::vector<double> values = parseValues(text == nullptr ? "" : text);
-    if (values.size() < 2) {
-        return stable("");
-    }
+extern "C" const std::uint8_t* math_diff(const std::uint8_t* data,
+                                         std::int64_t length) {
+    const std::vector<double> values = readDoubles(data, length);
     std::vector<double> result;
     for (std::size_t index = 1; index < values.size(); ++index) {
         result.push_back(values[index] - values[index - 1]);
     }
-    return stable(formatValues(result));
+    return writeDoubles(result);
 }
 
-extern "C" const char* math_clip(const char* text, double low, double high) {
-    const std::vector<double> values = parseValues(text == nullptr ? "" : text);
-    if (values.empty()) {
-        return stable("");
-    }
+extern "C" const std::uint8_t* math_clip(const std::uint8_t* data,
+                                         std::int64_t length, double low,
+                                         double high) {
+    const std::vector<double> values = readDoubles(data, length);
     std::vector<double> result;
     for (const double value : values) {
         result.push_back(value < low ? low : (value > high ? high : value));
     }
-    return stable(formatValues(result));
+    return writeDoubles(result);
 }
 
-extern "C" const char* math_normalize(const char* text) {
-    const std::vector<double> values = parseValues(text == nullptr ? "" : text);
+extern "C" const std::uint8_t* math_normalize(const std::uint8_t* data,
+                                              std::int64_t length) {
+    const std::vector<double> values = readDoubles(data, length);
     if (values.empty()) {
-        return stable("");
+        return writeDoubles(values);
     }
     double total = 0.0;
     for (const double value : values) {
@@ -596,13 +585,13 @@ extern "C" const char* math_normalize(const char* text) {
     }
     const double magnitude = std::sqrt(total);
     if (magnitude == 0.0) {
-        return stable(formatValues(values));
+        return writeDoubles(values);
     }
     std::vector<double> result;
     for (const double value : values) {
         result.push_back(value / magnitude);
     }
-    return stable(formatValues(result));
+    return writeDoubles(result);
 }
 
 /* ---------- Registration ---------- */
@@ -763,20 +752,20 @@ extern "C" int lynxer_module_init_v1(
         function("lerp", "math_lerp", "cdecl:double(double,double,double)") &&
         function("roundTo", "math_roundTo",
                  "cdecl:double(double,int64)") &&
-        function("median", "math_median", "cdecl:double(cstring)") &&
-        function("std", "math_std", "cdecl:double(cstring)") &&
-        function("variance", "math_variance", "cdecl:double(cstring)") &&
+        function("median", "math_median", "cdecl:double(bytes)") &&
+        function("std", "math_std", "cdecl:double(bytes)") &&
+        function("variance", "math_variance", "cdecl:double(bytes)") &&
         function("percentile", "math_percentile",
-                 "cdecl:double(cstring,double)") &&
+                 "cdecl:double(bytes,double)") &&
         function("corrcoef", "math_corrcoef",
-                 "cdecl:double(cstring,cstring)") &&
-        function("dot", "math_dot", "cdecl:double(cstring,cstring)") &&
+                 "cdecl:double(bytes,bytes)") &&
+        function("dot", "math_dot", "cdecl:double(bytes,bytes)") &&
         function("linspace", "math_linspace",
-                 "cdecl:cstring(double,double,int64)") &&
-        function("cumsum", "math_cumsum", "cdecl:cstring(cstring)") &&
-        function("diff", "math_diff", "cdecl:cstring(cstring)") &&
-        function("clip", "math_clip", "cdecl:cstring(cstring,double,double)") &&
-        function("normalize", "math_normalize", "cdecl:cstring(cstring)") &&
+                 "cdecl:bytes(double,double,int64)") &&
+        function("cumsum", "math_cumsum", "cdecl:bytes(bytes)") &&
+        function("diff", "math_diff", "cdecl:bytes(bytes)") &&
+        function("clip", "math_clip", "cdecl:bytes(bytes,double,double)") &&
+        function("normalize", "math_normalize", "cdecl:bytes(bytes)") &&
 
         constant("maxInt", std::numeric_limits<std::int64_t>::max()) &&
         constant("minInt", std::numeric_limits<std::int64_t>::min())

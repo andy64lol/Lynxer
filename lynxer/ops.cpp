@@ -134,6 +134,18 @@ Value applyBinary(BinOp op, const Value& left, const Value& right, int line,
                   int column) {
     switch (op) {
     case BinOp::Add:
+        if (const auto* leftBytes =
+                std::get_if<std::shared_ptr<BytesValue>>(&left)) {
+            if (const auto* rightBytes =
+                    std::get_if<std::shared_ptr<BytesValue>>(&right)) {
+                auto joined = std::make_shared<BytesValue>();
+                joined->data = (*leftBytes)->data;
+                joined->data.insert(joined->data.end(),
+                                    (*rightBytes)->data.begin(),
+                                    (*rightBytes)->data.end());
+                return joined;
+            }
+        }
         if (std::holds_alternative<std::string>(left) ||
             std::holds_alternative<std::string>(right) ||
             std::holds_alternative<CharValue>(left) ||

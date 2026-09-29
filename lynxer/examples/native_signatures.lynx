@@ -33,4 +33,6 @@ global main(){
     println(global.sigs.sis("ab", 5, "cde"));
     println(global.sigs.quad(1, 2, 3, 4));
     println(global.sigs.sink(7));
+    println(global.sigs.bytesLen(bytesOf("hello")));
+    println(bytesToStr(global.sigs.bytesUpper(bytesOf("abc"))));
 }

@@ -131,6 +131,9 @@ bool typeMatches(const std::string& type, const Value& value) {
     if (type == "str") {
         return std::holds_alternative<std::string>(value);
     }
+    if (type == "bytes") {
+        return std::holds_alternative<std::shared_ptr<BytesValue>>(value);
+    }
     if (type == "bool") {
         return std::holds_alternative<bool>(value);
     }
