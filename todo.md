@@ -19,90 +19,16 @@ Any name still registered in `unsupportedTable()` reports
 
 ### Planned modules
 
-Five capabilities, none implemented yet; `encoding` and `uuid` are finished and
-recorded under [Done](#done). Each entry lists the proposed crates, the operations to
-expose, and the decisions it is blocked on. The repo's usual artifacts apply to
-every one of them - see **D7**.
-
-- [ ] **`network` - URL operations (extend the existing module).** Add the
-      `url` crate (already a transitive dependency of `ureq`, so likely already
-      in `Cargo.lock`).
-  - Ops: `urlParse`, `urlIsValid`, `urlJoin(base, ref)`, `urlNormalize`,
-    `urlGet(url, part)`, `urlSetScheme`/`Host`/`Port`/`Path`,
-    `urlQueryGet`/`Set`/`Remove`/`Append`,
-    `urlEncodeComponent`/`DecodeComponent`.
-  - Decide: IDN/punycode support via `idna`; the trailing-slash normalisation
-    policy; structured handle versus JSON return.
-
-- [ ] **`crypto` (Rust)** - hashes, MACs, signatures and secure random.
-      Proposed crates: `sha2`, `sha1`, `md-5`, `sha3`, `blake3`, `digest`,
-      `hmac`, `subtle` (constant-time compare), `rand`/`getrandom` (OS
-      entropy), `ed25519-dalek`, and `rsa` + `p256`/`ecdsa` with `pkcs8`/`pem`
-      for key material.
-  - Ops: `hash(name, data)`, `hashFile`, `hmac(name, key, data)`,
-    `verifyHmac` (constant time), `constantTimeEquals`, `randomBytes(n)`,
-    `randomHex(n)`, `randomToken(n)`, `generateEd25519KeyPair`, `signEd25519`,
-    `verifyEd25519`, then RSA/ECDSA verify and PEM/DER import/export.
-  - Decide: the v1 algorithm set (recommended: the SHA-2 family, SHA-1 and MD5
-    as *hashes only*, BLAKE3, HMAC-SHA256 and Ed25519, with RSA/ECDSA second);
-    key representation (PEM strings versus raw base64); whether password
-    hashing (`argon2`/`scrypt`/`bcrypt`) is a separate follow-up.
-  - Blocked by **D1**.
-
-- [ ] **`compress` (Rust)** - gzip/zlib, zstd, brotli, lz4, plus ZIP and TAR
-      archives. Proposed crates: `flate2` (gzip/zlib/deflate, pure-Rust
-      `miniz_oxide` backend), `brotli` (pure Rust), `lz4_flex` (pure Rust),
-      `zstd` (vendors C sources; `cc` is already required), `zip`, `tar`.
-  - Ops: `gzipCompress`/`Decompress`, `zlibCompress`/`Decompress`,
-    `zstdCompress`/`Decompress`, `brotliCompress`/`Decompress`,
-    `lz4Compress`/`Decompress`, `zipCreate`/`List`/`Read`/`Write`/`Extract`,
-    `tarCreate`/`List`/`Extract`, `tarGzCreate`/`Extract`.
-  - Decide: whole-buffer versus streaming APIs; decompression limits (a
-    zip-bomb guard and a maximum output size); path-traversal rejection on
-    extract (`../` and absolute entries) and the overwrite policy; whether
-    `bzip2` is in scope.
-  - Blocked by **D1**.
-
-- [ ] **`toml` (Rust).** `toml` + `serde`; `toml_edit` only if preserving
-      formatting and comments is wanted.
-- [ ] **`ini` (Rust).** `rust-ini`.
-- [ ] **`xml` (Rust).** `quick-xml` for reading and writing (pure Rust; it
-      resolves no external entities, so XXE is not reachable by default);
-      `roxmltree` if a read-only DOM is wanted.
-- [ ] **`yaml` (Rust).** `serde_yaml` is archived, so pick a maintained crate
-      (`serde_yml`, or `saphyr`/`yaml-rust2`) and verify maintenance before
-      committing the lockfile.
-  - Decide (all four): one module per format (matching the existing `json`
-    module, and keeping each `.so` small) versus a single `formats` module;
-    parse-only versus parse-and-serialize in v1; how duplicate and nested keys
-    map onto Lynxer values.
-  - Security: all four parse untrusted input, so require input-size limits,
-    YAML alias/expansion limits, defined duplicate-key behaviour, and XML
-    entity-expansion limits - each with a failure fixture.
-  - Blocked by **D2**.
-
-- [ ] **`watch` (Rust)** - filesystem change events. Crate: `notify` (inotify
-      on Linux), optionally `notify-debouncer-mini` for coalescing.
-  - Ops: `watchAdd(path, recursive)`, `watchRemove`, `watchClose`,
-    `watchFd(handle)`, `watchDrain(handle)`, `watchWait(timeoutMs)`,
-    `watchSetDebounce(ms)`.
-  - Decide: **how events reach Lynxer.** A module cannot call back into the
-    interpreter by itself, so the recommended delivery is the existing poll
-    set: `watchFd()` returns the inotify descriptor, the program registers it
-    with `asyncPollRegister` and waits with `asyncPollWait` (which already
-    releases the interpreter lock around `poll(2)`), then calls `watchDrain()`
-    for the paths. Alternatives: a blocking `watchWait`, or a real callback
-    once the Rust ABI grows a "call a Lynxer function" hook.
-  - Also decide: the event-kind vocabulary, debounce/burst behaviour, queue
-    limits, and what happens when a watched directory disappears.
-
-Suggested order: `network` URL ops -> `crypto` -> `compress` -> `toml` ->
-`ini` -> `xml` -> `yaml` -> `watch` (`encoding` and `uuid` are done). `network`
-needs no new ABI decision; `crypto` and `compress` still wait on **D1**.
+None outstanding. The eight items that were listed here — `network` URL
+operations, `crypto`, `compress`, `toml`, `ini`, `xml`, `yaml` and `watch` — are
+implemented and recorded under [Done](#done). The repo's usual artifacts apply to
+every module — see **D7**.
 
 ### Module decisions
 
-- [ ] **D1 - binary payloads over the module ABI.** Lynxer values are
+- [x] **D1 - binary payloads over the module ABI.** **Resolved:** (a)+(c) —
+      in-memory payloads cross as text/base64 and arbitrary bytes go through
+      `*File` operations. Original options were: Lynxer values are
       int64/double/bool/string/list, but compression and crypto need arbitrary
       bytes. Options: (a) base64 and hex strings - `encoding` now provides
       both, though a decode to text fails for a non-UTF-8 payload, (b) lists of
@@ -110,10 +36,14 @@ needs no new ABI decision; `crypto` and `compress` still wait on **D1**.
       real `bytes` value type in the interpreter (cleanest, largest change).
       Recommended: start with (a)+(c) and evaluate (d) later. Still blocks
       `compress` and `crypto`.
-- [ ] **D2 - one structured-value bridge.** `json` already maps a document onto
+- [x] **D2 - one structured-value bridge.** **Resolved:** a JSON string is the
+      one bridge (`serde_json::Value` on the Rust side), shared by `json`,
+      `toml`, `ini`, `xml` and `yaml`; the Lynxer side uses `listJson*`. `json` already maps a document onto
       Lynxer values; TOML/YAML/XML/INI must reuse that mapping rather than
       invent four. Name it once and document it.
-- [ ] **D3 - module granularity.** One each of `compress`, `crypto`,
+- [x] **D3 - module granularity.** **Resolved:** one module per capability
+      (`crypto`, `compress`, `watch`) and one per format (`toml`, `ini`, `xml`,
+      `yaml`). One each of `compress`, `crypto`,
       `encoding`, `uuid` and `watch`, but one module per document format.
       Alternative: a single `formats` module.
 - [ ] **D4 - offline builds and C toolchains.** Every new crate needs a
@@ -253,6 +183,18 @@ Everything else is resolved; see [Done](#done).
   window, input and immediate-mode UI module (`rust/graphics`), separate from
   `game` rather than a replacement for it. `iced` is not in the vendored crate
   set, so macroquad is the vehicle.
+
+- [x] ~~**Planned modules.** All eight implemented on the shared JSON bridge
+      (D2): `network` URL operations (`urlIsValid`, `urlJoin`, `urlNormalize`,
+      `urlGet`, `urlSet*`, `urlQuery*`, `urlEncodeComponent`,
+      `urlDecodeComponent`, and an escaped `urlParse`); `crypto` (hashes, HMAC,
+      constant-time comparison, OS randomness, Ed25519); `compress`
+      (gzip/zlib/zstd/brotli/lz4 plus ZIP/TAR, with extract traversal and size
+      guards); `toml`, `ini`, `xml` and `yaml`; and `watch` (inotify, delivered
+      through the interpreter's poll set). Decision **D1** is text/base64 plus
+      file paths; **D3** is one module per capability and one per format; the
+      crates per module are recorded in
+      [docs/limitations.md](docs/limitations.md).~~
 
 ## Ground rules
 

@@ -1,0 +1,16 @@
+[package]
+name = "lynxer_yaml"
+version = "0.1.0"
+edition = "2021"
+description = "YAML parsing and serialization for the Lynxer `yaml` stdlib module"
+publish = false
+
+[lib]
+name = "lynxer_yaml"
+crate-type = ["cdylib"]
+
+[dependencies]
+lynxer_abi = { path = "../abi" }
+# A maintained fork of the archived `serde_yaml`; documents cross as JSON.
+serde_yml = "0.0"
+serde_json = "1"

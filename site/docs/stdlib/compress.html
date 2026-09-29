@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <meta name="theme-color" content="#4a90e2">
+    <title>compress - Lynxer</title>
+    <link rel="stylesheet" href="../../style.css">
+    <link rel="icon" href="../../favicon.ico" type="image/x-icon">
+    <style>
+        /* Ensure the layout is responsive */
+        @media (max-width: 1200px) {{
+            .layout {{
+                flex-direction: column;
+            }}
+            .sidebar {{
+                width: 100%;
+                order: 2;
+            }}
+            .doc {{
+                width: 100%;
+                order: 1;
+            }}
+        }}
+        
+        /* Add a search bar placeholder */
+        .search-bar {{
+            padding: 10px 15px;
+            background: #f8f9fa;
+            border: 1px solid #e2e8eb;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            width: 100%;
+        }}
+        
+        .search-bar input {{
+            width: 100%;
+            padding: 8px;
+            border: none;
+            outline: none;
+            font-size: 14px;
+        }}
+        
+        /* Add a breadcrumb for navigation */
+        .breadcrumb {{
+            background: #f8f9fa;
+            padding: 8px 15px;
+            border-bottom: 1px solid #e2e8eb;
+            margin-bottom: 20px;
+        }}
+        
+        .breadcrumb a {{
+            color: #4a90e2;
+            text-decoration: none;
+            margin-right: 10px;
+        }}
+        
+        .breadcrumb a:hover {{
+            text-decoration: underline;
+        }}
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="header-content">
+        <h1><a href="../../index.html">Lynxer</a></h1>
+        <p>Documentation</p>
+    </div>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3 class="sidebar-group-title">Overview</h3><ul class="sidebar-group">
+<li><a href="../index.html">README</a></li>
+</ul>
+<h3 class="sidebar-group-title">Getting started</h3><ul class="sidebar-group">
+<li><a href="../install.html">install</a></li>
+<li><a href="../CLI.html">CLI</a></li>
+</ul>
+<h3 class="sidebar-group-title">Language</h3><ul class="sidebar-group">
+<li><a href="../language.html">language</a></li>
+<li><a href="../operators.html">operators</a></li>
+<li><a href="../conditionals.html">conditionals</a></li>
+<li><a href="../loops.html">loops</a></li>
+<li><a href="../types.html">types</a></li>
+<li><a href="../lists.html">lists</a></li>
+<li><a href="../tuples.html">tuples</a></li>
+<li><a href="../codeblocks.html">codeblocks</a></li>
+<li><a href="../modules.html">modules</a></li>
+<li><a href="../importAs.html">importAs</a></li>
+</ul>
+<h3 class="sidebar-group-title">Records</h3><ul class="sidebar-group">
+<li><a href="../structs.html">structs</a></li>
+<li><a href="../classes.html">classes</a></li>
+<li><a href="../enums.html">enums</a></li>
+<li><a href="../vargroups.html">vargroups</a></li>
+</ul>
+<h3 class="sidebar-group-title">Built-ins and modules</h3><ul class="sidebar-group">
+<li><a href="../builtins.html">builtins</a></li>
+<li><a href="../syscalls.html">syscalls</a></li>
+<li><a href="../native-module-abi.html">native-module-abi</a></li>
+<li><a href="../native-modules.html">native-modules</a></li>
+<li><a href="../stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="../extending.html">extending</a></li>
+</ul>
+<h3 class="sidebar-group-title">Runtime</h3><ul class="sidebar-group">
+<li><a href="../async.html">async</a></li>
+<li><a href="../native-memory.html">native-memory</a></li>
+<li><a href="../filesystem.html">filesystem</a></li>
+<li><a href="../networking.html">networking</a></li>
+<li><a href="../process.html">process</a></li>
+</ul>
+<h3 class="sidebar-group-title">Reference</h3><ul class="sidebar-group">
+<li><a href="../legacy-surface.html">legacy-surface</a></li>
+<li><a href="../removed-features.html">removed-features</a></li>
+<li><a href="../limitations.html">limitations</a></li>
+</ul>
+<h3 class="sidebar-group-title">Standard Library</h3><ul class="sidebar-group">
+<li><a href="index.html">All modules</a></li>
+<li><a href="cli.html">cli</a></li>
+<li><a href="colorlib.html">colorlib</a></li>
+<li><a href="compress.html" class="active">compress</a></li>
+<li><a href="crypto.html">crypto</a></li>
+<li><a href="csv.html">csv</a></li>
+<li><a href="debug.html">debug</a></li>
+<li><a href="encoding.html">encoding</a></li>
+<li><a href="fileIO.html">fileIO</a></li>
+<li><a href="game.html">game</a></li>
+<li><a href="graphics.html">graphics</a></li>
+<li><a href="image.html">image</a></li>
+<li><a href="ini.html">ini</a></li>
+<li><a href="js.html">js</a></li>
+<li><a href="json.html">json</a></li>
+<li><a href="lua.html">lua</a></li>
+<li><a href="math.html">math</a></li>
+<li><a href="multiprocessing.html">multiprocessing</a></li>
+<li><a href="network.html">network</a></li>
+<li><a href="os.html">os</a></li>
+<li><a href="path.html">path</a></li>
+<li><a href="random.html">random</a></li>
+<li><a href="re.html">re</a></li>
+<li><a href="regex.html">regex</a></li>
+<li><a href="server.html">server</a></li>
+<li><a href="shell.html">shell</a></li>
+<li><a href="sound.html">sound</a></li>
+<li><a href="sqldb.html">sqldb</a></li>
+<li><a href="sys.html">sys</a></li>
+<li><a href="text.html">text</a></li>
+<li><a href="time.html">time</a></li>
+<li><a href="toml.html">toml</a></li>
+<li><a href="tui.html">tui</a></li>
+<li><a href="typing.html">typing</a></li>
+<li><a href="uuid.html">uuid</a></li>
+<li><a href="watch.html">watch</a></li>
+<li><a href="xml.html">xml</a></li>
+<li><a href="yaml.html">yaml</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+        <div class="breadcrumb">
+            <a href="../../index.html">Home</a>
+            <a href="../../stdlib/index.html">Standard Library</a>
+            <span>compress</span>
+        </div>
+        <div class="search-bar">
+            <input type="text" placeholder="Search documentation..." aria-label="Search documentation">
+        </div>
+<h1 id="compress">compress</h1>
+<p>gzip, zlib, zstd, brotli and lz4 streams, plus ZIP and TAR archives.</p>
+<p><strong>Backend:</strong> native — <code>stdlib/compress.so</code>, built from the Rust crate <code>rust/compress</code> over <code>flate2</code>, <code>zstd</code>, <code>brotli</code>, <code>lz4_flex</code>, <code>zip</code> and <code>tar</code>.</p>
+<p><strong>Import:</strong> <code>import(&quot;compress&quot;)</code> → <code>global.compress.*</code></p>
+<h2 id="how-bytes-travel">How bytes travel</h2>
+<p>Lynxer has no byte type, so an in-memory <strong><code>&lt;codec&gt;Compress</code></strong> returns base64 and its <strong><code>&lt;codec&gt;Decompress</code></strong> takes base64. A decompressed payload is not necessarily UTF-8, so <code>Decompress</code> returns text only when it is and <code>&quot;&quot;</code> otherwise. The <strong><code>*File</code></strong> operations read and write the bytes themselves and are the binary-safe path for arbitrary data.</p>
+<p>An in-memory decompress is capped at 64 MiB of output.</p>
+<h2 id="sentinels">Sentinels</h2>
+<p>The in-memory stream operations use scalar sentinels: a malformed payload or an unknown stream yields <code>&quot;&quot;</code>. The file and archive operations answer with the status string <code>&quot;ok&quot;</code> / <code>&quot;ERROR: &lt;message&gt;&quot;</code>, because they can fail with a reason.</p>
+<h2 id="archives">Archives</h2>
+<p><code>zipCreate</code>, <code>tarCreate</code> and <code>tarGzCreate</code> take a JSON <strong>manifest</strong>: an array of entries, each <code>{&quot;name&quot;: &quot;&lt;path in archive&gt;&quot;, &quot;path&quot;: &quot;&lt;source file&gt;&quot;}</code> or <code>{&quot;name&quot;: &quot;...&quot;, &quot;base64&quot;: &quot;&lt;inline data&gt;&quot;}</code>. A name that is absolute or contains <code>..</code> is rejected when the archive is written.</p>
+<p><code>zipExtract</code> and <code>tarExtract</code> extract into a directory and refuse any entry whose name would escape it.</p>
+<h2 id="functions">Functions</h2>
+<table>
+<tr><th>Function</th><th>Signature</th><th>Returns</th></tr>
+<tr><td><code>gzipCompress</code></td><td><code>(str text)</code></td><td>base64 gzip stream</td></tr>
+<tr><td><code>gzipDecompress</code></td><td><code>(str base64Data)</code></td><td>text, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>gzipCompressFile</code></td><td><code>(str input, str output)</code></td><td><code>&quot;ok&quot;</code> / <code>&quot;ERROR: ...&quot;</code></td></tr>
+<tr><td><code>gzipDecompressFile</code></td><td><code>(str input, str output)</code></td><td><code>&quot;ok&quot;</code> / <code>&quot;ERROR: ...&quot;</code></td></tr>
+<tr><td><code>zlibCompress</code> / <code>zlibDecompress</code> / <code>zlibCompressFile</code> / <code>zlibDecompressFile</code></td><td>as gzip</td><td>as gzip</td></tr>
+<tr><td><code>zstdCompress</code> / <code>zstdDecompress</code> / <code>zstdCompressFile</code> / <code>zstdDecompressFile</code></td><td>as gzip</td><td>as gzip</td></tr>
+<tr><td><code>brotliCompress</code> / <code>brotliDecompress</code> / <code>brotliCompressFile</code> / <code>brotliDecompressFile</code></td><td>as gzip</td><td>as gzip</td></tr>
+<tr><td><code>lz4Compress</code> / <code>lz4Decompress</code> / <code>lz4CompressFile</code> / <code>lz4DecompressFile</code></td><td>as gzip</td><td>as gzip</td></tr>
+<tr><td><code>zipCreate</code></td><td><code>(str path, str manifest)</code></td><td><code>&quot;ok&quot;</code> / <code>&quot;ERROR: ...&quot;</code></td></tr>
+<tr><td><code>zipList</code></td><td><code>(str path)</code></td><td>JSON array of entry names, or <code>&quot;ERROR: ...&quot;</code></td></tr>
+<tr><td><code>zipRead</code></td><td><code>(str path, str entry)</code></td><td>base64, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>zipExtract</code></td><td><code>(str path, str directory)</code></td><td><code>&quot;ok&quot;</code> / <code>&quot;ERROR: ...&quot;</code></td></tr>
+<tr><td><code>tarCreate</code></td><td><code>(str path, str manifest)</code></td><td><code>&quot;ok&quot;</code> / <code>&quot;ERROR: ...&quot;</code></td></tr>
+<tr><td><code>tarList</code></td><td><code>(str path)</code></td><td>JSON array of entry names, or <code>&quot;ERROR: ...&quot;</code></td></tr>
+<tr><td><code>tarExtract</code></td><td><code>(str path, str directory)</code></td><td><code>&quot;ok&quot;</code> / <code>&quot;ERROR: ...&quot;</code></td></tr>
+<tr><td><code>tarGzCreate</code></td><td><code>(str path, str manifest)</code></td><td><code>&quot;ok&quot;</code> / <code>&quot;ERROR: ...&quot;</code></td></tr>
+<tr><td><code>tarGzExtract</code></td><td><code>(str path, str directory)</code></td><td><code>&quot;ok&quot;</code> / <code>&quot;ERROR: ...&quot;</code></td></tr>
+</table>
+<h2 id="example">Example</h2>
+<pre><code>global setup(){ import(&quot;compress&quot;); import(&quot;fileIO&quot;); }
+
+global main(){
+    str text = &quot;the quick brown fox jumps over the lazy dog&quot;;
+
+    // In-memory round trip, through base64.
+    str packed = global.compress.gzipCompress(text);
+    println(global.compress.gzipDecompress(packed) is text);
+
+    // File round trip (binary-safe).
+    global.fileIO.writeFile(&quot;data.txt&quot;, text);
+    println(global.compress.zstdCompressFile(&quot;data.txt&quot;, &quot;data.zst&quot;));
+    println(global.compress.zstdDecompressFile(&quot;data.zst&quot;, &quot;data.out&quot;));
+    println(global.fileIO.readFile(&quot;data.out&quot;) is text);
+
+    // Build a ZIP containing a file and an inline entry.
+    str manifest = &quot;[{\&quot;name\&quot;:\&quot;a.txt\&quot;,\&quot;path\&quot;:\&quot;data.txt\&quot;},{\&quot;name\&quot;:\&quot;b.txt\&quot;,\&quot;base64\&quot;:\&quot;aGVsbG8=\&quot;}]&quot;;
+    println(global.compress.zipCreate(&quot;archive.zip&quot;, manifest));
+    println(global.compress.zipList(&quot;archive.zip&quot;));
+    println(global.compress.zipExtract(&quot;archive.zip&quot;, &quot;unpacked&quot;));
+}</code></pre>
+<hr>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="../stdlib-contracts.html">Standard library contracts</a></li>
+<li><a href="../builtins.html">Built-in functions</a></li>
+<li><a href="../limitations.html">Limitations</a></li>
+</ul>
+    </main>
+</div>
+
+<footer>
+    <a class="github" href="https://github.com/andy64lol/Lynxer" aria-label="Lynxer on GitHub" title="Lynxer on GitHub"><svg role="img" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" /></svg></a>
+    <span>Lynxer &middot; MIT License</span>
+</footer>
+
+</body>
+</html>

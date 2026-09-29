@@ -68,6 +68,40 @@ global main(){
     println(global.json.jsonGet(parsedIPv6, "port"));
     println(global.json.jsonGet(parsedIPv6, "path"));
 
+    // --- RFC 3986 URL operations ---
+    println(global.network.urlIsValid("https://example.com/a?b=c#d"));
+    println(global.network.urlIsValid("not a url"));
+    println(global.network.urlJoin("https://example.com/a/b", "../c"));
+    println(global.network.urlJoin("https://example.com/a/", "?x=1"));
+    println(global.network.urlJoin("not a url", "c"));
+    println(global.network.urlNormalize("HTTP://Example.COM:80/a/./b/../c"));
+    println(global.network.urlGet("https://example.com:8443/v1/x?q=1#top", "scheme"));
+    println(global.network.urlGet("https://example.com:8443/v1/x?q=1#top", "host"));
+    println(global.network.urlGet("https://example.com:8443/v1/x?q=1#top", "port"));
+    println(global.network.urlGet("https://example.com/", "port"));
+    println(global.network.urlGet("https://u:p@example.com/", "username"));
+    println(global.network.urlGet("https://u:p@example.com/", "password"));
+    println(global.network.urlGet("https://example.com/", "nope"));
+    println(global.network.urlSetScheme("http://example.com/a", "https"));
+    println(global.network.urlSetHost("https://example.com/a", "other.test"));
+    println(global.network.urlSetPort("https://example.com/a", 8443));
+    println(global.network.urlSetPort("https://example.com:8443/a", 0));
+    println(global.network.urlSetPath("https://example.com/a", "/b/c"));
+    println(global.network.urlQueryGet("https://example.com/?a=1&b=2", "b"));
+    println(global.network.urlQueryGet("https://example.com/?a=1", "z"));
+    println(global.network.urlQuerySet("https://example.com/?a=1&b=2", "a", "9"));
+    println(global.network.urlQueryAppend("https://example.com/?a=1", "b", "2"));
+    println(global.network.urlQueryRemove("https://example.com/?a=1&b=2", "a"));
+    println(global.network.urlQueryRemove("https://example.com/?a=1", "a"));
+    println(global.network.urlEncodeComponent("a b/c?d=e&f"));
+    println(global.network.urlEncodeComponent("日本語"));
+    println(global.network.urlDecodeComponent("a%20b%2Fc"));
+    println(global.network.urlDecodeComponent("%E6%97%A5%E6%9C%AC%E8%AA%9E"));
+    println(global.network.urlDecodeComponent("%2")); // malformed escape
+    println(global.network.urlDecodeComponent("100% sure"));
+    // urlParse escapes every value, so a quote stays valid JSON.
+    println(global.json.jsonGet(global.network.urlParse("https://example.com/?q=a\"b"), "query"));
+
     // Local server for the HTTP and WebSocket round-trips.
     println(global.server.clearRoutes());
     println(global.server.routeGet("/hi", "hello-crow"));

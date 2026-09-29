@@ -12,8 +12,10 @@ use std::net::{TcpStream, ToSocketAddrs, UdpSocket};
 use std::time::Duration;
 
 use lynxer_abi::{export_int, export_string, lynxer_module};
+use percent_encoding::{percent_decode_str, utf8_percent_encode, AsciiSet, NON_ALPHANUMERIC};
 use tungstenite::stream::MaybeTlsStream;
 use tungstenite::Message;
+use url::Url;
 
 // --- URL parsing (mirrors the previous cpp-httplib-backed parser) -----------
 
@@ -136,6 +138,79 @@ fn parse_url(url: &str) -> ParsedUrl {
         parsed.error = "missing host".to_string();
     }
     parsed
+}
+
+// --- RFC 3986 URL manipulation (the `url` crate) ---------------------------
+
+/// The `urlParse` JSON object. A struct, not a `json!` map, so the field order
+/// stays scheme/host/port/path/query/fragment and every value is escaped.
+#[derive(serde::Serialize)]
+struct UrlJson<'a> {
+    scheme: &'a str,
+    host: &'a str,
+    port: i64,
+    path: &'a str,
+    query: &'a str,
+    fragment: &'a str,
+}
+
+/// Parse with the `url` crate; `None` on any failure.
+fn parse_rfc3986(input: &str) -> Option<Url> {
+    Url::parse(input).ok()
+}
+
+/// The `urlGet` component vocabulary, which is `urlParse`'s field set plus the
+/// user-info pair. An unknown component yields "".
+fn url_component(url: &Url, component: &str) -> String {
+    match component {
+        "scheme" => url.scheme().to_string(),
+        "host" => url.host_str().unwrap_or("").to_string(),
+        "port" => url
+            .port_or_known_default()
+            .map(|port| port.to_string())
+            .unwrap_or_default(),
+        "path" => url.path().to_string(),
+        "query" => url.query().unwrap_or("").to_string(),
+        "fragment" => url.fragment().unwrap_or("").to_string(),
+        "username" => url.username().to_string(),
+        "password" => url.password().unwrap_or("").to_string(),
+        _ => String::new(),
+    }
+}
+
+/// Percent-encode every byte outside the RFC 3986 unreserved set, so a space
+/// becomes `%20` (unlike `urlencode`, which is the form/query encoding and
+/// turns a space into `+`).
+fn encode_component(text: &str) -> String {
+    const UNRESERVED: &AsciiSet = &NON_ALPHANUMERIC
+        .remove(b'-')
+        .remove(b'_')
+        .remove(b'.')
+        .remove(b'~');
+    utf8_percent_encode(text, UNRESERVED).to_string()
+}
+
+/// Percent-decode. A malformed `%` escape or a non-UTF-8 result yields "".
+fn decode_component(text: &str) -> String {
+    let bytes = text.as_bytes();
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] == b'%' {
+            if index + 2 >= bytes.len()
+                || !bytes[index + 1].is_ascii_hexdigit()
+                || !bytes[index + 2].is_ascii_hexdigit()
+            {
+                return String::new();
+            }
+            index += 3;
+        } else {
+            index += 1;
+        }
+    }
+    percent_decode_str(text)
+        .decode_utf8()
+        .map(|decoded| decoded.into_owned())
+        .unwrap_or_default()
 }
 
 // --- HTTP -------------------------------------------------------------------
@@ -484,10 +559,15 @@ export_string!(network_url_path, args, { parse_url(args.string(0)).path });
 
 export_string!(network_url_parse, args, {
     let parsed = parse_url(args.string(0));
-    format!(
-        "{{\"scheme\":\"{}\",\"host\":\"{}\",\"port\":{},\"path\":\"{}\",\"query\":\"{}\",\"fragment\":\"{}\"}}",
-        parsed.scheme, parsed.host, parsed.port, parsed.path, parsed.query, parsed.fragment
-    )
+    let json = UrlJson {
+        scheme: &parsed.scheme,
+        host: &parsed.host,
+        port: parsed.port,
+        path: &parsed.path,
+        query: &parsed.query,
+        fragment: &parsed.fragment,
+    };
+    serde_json::to_string(&json).unwrap_or_default()
 });
 
 export_string!(network_get_hostname, args, {
@@ -496,6 +576,143 @@ export_string!(network_get_hostname, args, {
 });
 
 export_string!(network_resolve_host, args, { resolve_host(args.string(0)) });
+
+export_int!(network_url_is_valid, args, {
+    parse_rfc3986(args.string(0)).is_some() as i64
+});
+
+export_string!(network_url_join, args, {
+    match parse_rfc3986(args.string(0)).and_then(|base| base.join(args.string(1)).ok()) {
+        Some(url) => url.to_string(),
+        None => String::new(),
+    }
+});
+
+export_string!(network_url_normalize, args, {
+    match parse_rfc3986(args.string(0)) {
+        Some(url) => url.to_string(),
+        None => String::new(),
+    }
+});
+
+export_string!(network_url_get, args, {
+    match parse_rfc3986(args.string(0)) {
+        Some(url) => url_component(&url, args.string(1)),
+        None => String::new(),
+    }
+});
+
+export_string!(network_url_set_scheme, args, {
+    let mut url = match parse_rfc3986(args.string(0)) {
+        Some(url) => url,
+        None => return String::new(),
+    };
+    if url.set_scheme(args.string(1)).is_err() {
+        return String::new();
+    }
+    url.to_string()
+});
+
+export_string!(network_url_set_host, args, {
+    let mut url = match parse_rfc3986(args.string(0)) {
+        Some(url) => url,
+        None => return String::new(),
+    };
+    let host = args.string(1);
+    if host.is_empty() || url.set_host(Some(host)).is_err() {
+        return String::new();
+    }
+    url.to_string()
+});
+
+export_string!(network_url_set_port, args, {
+    let mut url = match parse_rfc3986(args.string(0)) {
+        Some(url) => url,
+        None => return String::new(),
+    };
+    let port = args.int(0);
+    if port <= 0 {
+        let _ = url.set_port(None);
+    } else if let Ok(port) = u16::try_from(port) {
+        let _ = url.set_port(Some(port));
+    } else {
+        return String::new();
+    }
+    url.to_string()
+});
+
+export_string!(network_url_set_path, args, {
+    let mut url = match parse_rfc3986(args.string(0)) {
+        Some(url) => url,
+        None => return String::new(),
+    };
+    url.set_path(args.string(1));
+    url.to_string()
+});
+
+export_string!(network_url_query_get, args, {
+    let key = args.string(1);
+    match parse_rfc3986(args.string(0)) {
+        Some(url) => url
+            .query_pairs()
+            .find(|(name, _)| name.as_ref() == key)
+            .map(|(_, value)| value.into_owned())
+            .unwrap_or_default(),
+        None => String::new(),
+    }
+});
+
+export_string!(network_url_query_set, args, {
+    let mut url = match parse_rfc3986(args.string(0)) {
+        Some(url) => url,
+        None => return String::new(),
+    };
+    let key = args.string(1).to_string();
+    let value = args.string(2).to_string();
+    let kept: Vec<(String, String)> = url
+        .query_pairs()
+        .filter(|(name, _)| name.as_ref() != key.as_str())
+        .map(|(name, value)| (name.into_owned(), value.into_owned()))
+        .collect();
+    url.query_pairs_mut()
+        .clear()
+        .extend_pairs(kept)
+        .append_pair(&key, &value);
+    url.to_string()
+});
+
+export_string!(network_url_query_remove, args, {
+    let mut url = match parse_rfc3986(args.string(0)) {
+        Some(url) => url,
+        None => return String::new(),
+    };
+    let key = args.string(1);
+    let kept: Vec<(String, String)> = url
+        .query_pairs()
+        .filter(|(name, _)| name.as_ref() != key)
+        .map(|(name, value)| (name.into_owned(), value.into_owned()))
+        .collect();
+    if kept.is_empty() {
+        url.set_query(None);
+    } else {
+        url.query_pairs_mut().clear().extend_pairs(kept);
+    }
+    url.to_string()
+});
+
+export_string!(network_url_query_append, args, {
+    let mut url = match parse_rfc3986(args.string(0)) {
+        Some(url) => url,
+        None => return String::new(),
+    };
+    url.query_pairs_mut()
+        .append_pair(args.string(1), args.string(2));
+    url.to_string()
+});
+
+export_string!(network_url_encode_component, args, { encode_component(args.string(0)) });
+
+export_string!(network_url_decode_component, args, { decode_component(args.string(0)) });
 
 export_string!(network_ws_connect, args, {
     let key = args.string(0).to_string();
@@ -744,6 +961,28 @@ const OPS: &[(&str, &str, &str)] = &[
     ("urlParse", "network_url_parse", "cdecl:cstring(...)"),
     ("getHostname", "network_get_hostname", "cdecl:cstring(...)"),
     ("resolveHost", "network_resolve_host", "cdecl:cstring(...)"),
+    ("urlIsValid", "network_url_is_valid", "cdecl:int64(...)"),
+    ("urlJoin", "network_url_join", "cdecl:cstring(...)"),
+    ("urlNormalize", "network_url_normalize", "cdecl:cstring(...)"),
+    ("urlGet", "network_url_get", "cdecl:cstring(...)"),
+    ("urlSetScheme", "network_url_set_scheme", "cdecl:cstring(...)"),
+    ("urlSetHost", "network_url_set_host", "cdecl:cstring(...)"),
+    ("urlSetPort", "network_url_set_port", "cdecl:cstring(...)"),
+    ("urlSetPath", "network_url_set_path", "cdecl:cstring(...)"),
+    ("urlQueryGet", "network_url_query_get", "cdecl:cstring(...)"),
+    ("urlQuerySet", "network_url_query_set", "cdecl:cstring(...)"),
+    ("urlQueryRemove", "network_url_query_remove", "cdecl:cstring(...)"),
+    ("urlQueryAppend", "network_url_query_append", "cdecl:cstring(...)"),
+    (
+        "urlEncodeComponent",
+        "network_url_encode_component",
+        "cdecl:cstring(...)",
+    ),
+    (
+        "urlDecodeComponent",
+        "network_url_decode_component",
+        "cdecl:cstring(...)",
+    ),
     ("wsConnect", "network_ws_connect", "cdecl:cstring(...)"),
     ("wsSend", "network_ws_send", "cdecl:cstring(...)"),
     ("wsReceive", "network_ws_receive", "cdecl:cstring(...)"),

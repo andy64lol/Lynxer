@@ -120,6 +120,8 @@
 <li><a href="stdlib/index.html">All modules</a></li>
 <li><a href="stdlib/cli.html">cli</a></li>
 <li><a href="stdlib/colorlib.html">colorlib</a></li>
+<li><a href="stdlib/compress.html">compress</a></li>
+<li><a href="stdlib/crypto.html">crypto</a></li>
 <li><a href="stdlib/csv.html">csv</a></li>
 <li><a href="stdlib/debug.html">debug</a></li>
 <li><a href="stdlib/encoding.html">encoding</a></li>
@@ -127,6 +129,7 @@
 <li><a href="stdlib/game.html">game</a></li>
 <li><a href="stdlib/graphics.html">graphics</a></li>
 <li><a href="stdlib/image.html">image</a></li>
+<li><a href="stdlib/ini.html">ini</a></li>
 <li><a href="stdlib/js.html">js</a></li>
 <li><a href="stdlib/json.html">json</a></li>
 <li><a href="stdlib/lua.html">lua</a></li>
@@ -145,9 +148,13 @@
 <li><a href="stdlib/sys.html">sys</a></li>
 <li><a href="stdlib/text.html">text</a></li>
 <li><a href="stdlib/time.html">time</a></li>
+<li><a href="stdlib/toml.html">toml</a></li>
 <li><a href="stdlib/tui.html">tui</a></li>
 <li><a href="stdlib/typing.html">typing</a></li>
 <li><a href="stdlib/uuid.html">uuid</a></li>
+<li><a href="stdlib/watch.html">watch</a></li>
+<li><a href="stdlib/xml.html">xml</a></li>
+<li><a href="stdlib/yaml.html">yaml</a></li>
 </ul>
     </nav>
     <main class="doc">
@@ -160,7 +167,7 @@
             <input type="text" placeholder="Search documentation..." aria-label="Search documentation">
         </div>
 <h1 id="lynxer-documentation">Lynxer documentation</h1>
-<p>Lynxer is a small, standalone C++ toolchain for the Lynxer language. It runs <code>.lynx</code> programs without a Python runtime and ships its standard library as native shared libraries. It provides standalone ELF executables, 28 natively backed modules, an AST optimizer, a frozen native-module ABI, and CI on amd64 and arm64. See <a href="limitations.html">limitations</a> for the behaviour that is deliberately constrained or not implemented.</p>
+<p>Lynxer is a small, standalone C++ toolchain for the Lynxer language. It runs <code>.lynx</code> programs without a Python runtime and ships its standard library as native shared libraries. It provides standalone ELF executables, 34 natively backed modules, an AST optimizer, a frozen native-module ABI, and CI on amd64 and arm64. See <a href="limitations.html">limitations</a> for the behaviour that is deliberately constrained or not implemented.</p>
 <h2 id="contents">Contents</h2>
 <p><strong>Getting started</strong></p>
 <table>
@@ -221,11 +228,13 @@ lynxer/lynxer --list-stdlibs</code></pre>
 <p>Both Lynxer CI workflows (<code>.github/workflows/build-lynxer-amd.yml</code> and <code>build-lynxer-arm.yml</code>) run <code>make testLynxer LYNXER_SKIP_DISPLAY=1</code>, which drops the fixtures that need a display or an audio device (a CI runner has neither, and the graphics backend crashes without a display).</p>
 <p>A Rust toolchain is required: every Rust-backed module and the native-call engine are built by <code>cargo</code>, and a missing toolchain or a failed build fails <code>make</code> instead of dropping a backend. <code>python3</code> is required for the two check scripts in the test suite.</p>
 <h2 id="standard-library-modules">Standard library modules</h2>
-<p>There are 30 bundled modules. A module is exposed to Lynxer by <code>stdlib/&lt;name&gt;.lynx</code> and backed by a <code>stdlib/&lt;name&gt;.so</code>. The backends marked <em>Rust</em> come from a crate under <code>rust/</code>; <em>pure</em> modules are written in Lynxer only and need no shared library.</p>
+<p>There are 37 bundled modules. A module is exposed to Lynxer by <code>stdlib/&lt;name&gt;.lynx</code> and backed by a <code>stdlib/&lt;name&gt;.so</code>. The backends marked <em>Rust</em> come from a crate under <code>rust/</code>; <em>pure</em> modules are written in Lynxer only and need no shared library.</p>
 <table>
 <tr><th>Module</th><th>Backend</th><th>Implementation</th></tr>
 <tr><td><a href="stdlib/cli.html">cli</a></td><td>native</td><td>POSIX process/env/terminal APIs</td></tr>
 <tr><td><a href="stdlib/colorlib.html">colorlib</a></td><td>pure</td><td>ANSI escape sequences</td></tr>
+<tr><td><a href="stdlib/compress.html">compress</a></td><td>Rust</td><td><code>flate2</code>/<code>zstd</code>/<code>brotli</code>/<code>lz4_flex</code>/<code>zip</code>/<code>tar</code> (<code>rust/compress</code>)</td></tr>
+<tr><td><a href="stdlib/crypto.html">crypto</a></td><td>Rust</td><td><code>sha2</code>/<code>sha1</code>/<code>md-5</code>/<code>sha3</code>/<code>blake3</code>/<code>hmac</code>/<code>subtle</code>/<code>getrandom</code>/<code>ed25519-dalek</code> (<code>rust/crypto</code>)</td></tr>
 <tr><td><a href="stdlib/csv.html">csv</a></td><td>native</td><td>hand-written CSV/TSV reader and writer</td></tr>
 <tr><td><a href="stdlib/debug.html">debug</a></td><td>native + pure</td><td><code>&lt;chrono&gt;</code>, <code>getrusage</code>, assertions in Lynxer</td></tr>
 <tr><td><a href="stdlib/encoding.html">encoding</a></td><td>Rust</td><td><code>base64</code>, <code>hex</code>, <code>data-encoding</code>, <code>bs58</code>, <code>ascii85</code>, <code>percent-encoding</code>, <code>quoted_printable</code> (<code>rust/encoding</code>)</td></tr>
@@ -233,6 +242,7 @@ lynxer/lynxer --list-stdlibs</code></pre>
 <tr><td><a href="stdlib/game.html">game</a></td><td>Rust</td><td><code>macroquad</code> (<code>rust/game</code>)</td></tr>
 <tr><td><a href="stdlib/graphics.html">graphics</a></td><td>Rust</td><td><code>macroquad</code> (<code>rust/graphics</code>)</td></tr>
 <tr><td><a href="stdlib/image.html">image</a></td><td>Rust</td><td><code>image</code> (<code>rust/image</code>)</td></tr>
+<tr><td><a href="stdlib/ini.html">ini</a></td><td>Rust</td><td><code>rust-ini</code> (<code>rust/ini</code>)</td></tr>
 <tr><td><a href="stdlib/js.html">js</a></td><td>native</td><td>the <code>node</code> binary</td></tr>
 <tr><td><a href="stdlib/json.html">json</a></td><td>Rust</td><td><code>serde_json</code> (<code>rust/json</code>)</td></tr>
 <tr><td><a href="stdlib/lua.html">lua</a></td><td>Rust</td><td><code>mlua</code> with vendored Lua 5.4 (<code>rust/lua</code>)</td></tr>
@@ -251,11 +261,15 @@ lynxer/lynxer --list-stdlibs</code></pre>
 <tr><td><a href="stdlib/sys.html">sys</a></td><td>native</td><td>C++ runtime and POSIX</td></tr>
 <tr><td><a href="stdlib/text.html">text</a></td><td>pure</td><td>Lynxer string builtins</td></tr>
 <tr><td><a href="stdlib/time.html">time</a></td><td>native</td><td><code>&lt;chrono&gt;</code>, <code>&lt;ctime&gt;</code></td></tr>
+<tr><td><a href="stdlib/toml.html">toml</a></td><td>Rust</td><td><code>toml</code> (<code>rust/toml</code>)</td></tr>
 <tr><td><a href="stdlib/tui.html">tui</a></td><td>Rust</td><td><code>ratatui</code> + <code>crossterm</code></td></tr>
 <tr><td><a href="stdlib/typing.html">typing</a></td><td>pure</td><td>Lynxer type builtins</td></tr>
 <tr><td><a href="stdlib/uuid.html">uuid</a></td><td>Rust</td><td><code>uuid</code> (<code>rust/uuid</code>)</td></tr>
+<tr><td><a href="stdlib/watch.html">watch</a></td><td>Rust</td><td><code>inotify</code> (<code>rust/watch</code>)</td></tr>
+<tr><td><a href="stdlib/xml.html">xml</a></td><td>Rust</td><td><code>quick-xml</code> (<code>rust/xml</code>)</td></tr>
+<tr><td><a href="stdlib/yaml.html">yaml</a></td><td>Rust</td><td><code>serde_yml</code> (<code>rust/yaml</code>)</td></tr>
 </table>
-<p>The Rust workspace has eleven member crates: the ten module <code>cdylib</code> backends listed above (<code>LYNXER_RUST_MODULE_NAMES</code> in the Makefile), plus <code>ffi</code>, the required native-call engine — a <code>staticlib</code> linked into the interpreter through <code>lynxer/ffi_abi.h</code>, not a stdlib module. It is built on the <code>libffi</code> crate, so <code>cargo</code> and <code>libffi</code> headers are required to build the interpreter; see <a href="native-module-abi.html#the-native-call-engine">native-module-abi</a>. There is no CMake staging step and no <code>third_party/</code> directory: TLS is <code>rustls</code> (no system OpenSSL) and the HTTP/WebSocket stack is pure Rust.</p>
+<p>The Rust workspace has twenty-one member crates: the nineteen module <code>cdylib</code> backends listed above (<code>LYNXER_RUST_MODULE_NAMES</code> in the Makefile), the <code>abi</code> crate they share, and <code>ffi</code>, the required native-call engine — a <code>staticlib</code> linked into the interpreter through <code>lynxer/ffi_abi.h</code>, not a stdlib module. It is built on the <code>libffi</code> crate, so <code>cargo</code> and <code>libffi</code> headers are required to build the interpreter; see <a href="native-module-abi.html#the-native-call-engine">native-module-abi</a>. There is no CMake staging step and no <code>third_party/</code> directory: TLS is <code>rustls</code> (no system OpenSSL) and the HTTP/WebSocket stack is pure Rust.</p>
 <p><code>venv</code> and the OS-native GUI/turtle modules are intentionally excluded — see <a href="limitations.html">limitations</a>. The <a href="stdlib/graphics.html">graphics</a> module covers the immediate-mode drawing/window/UI space with macroquad.</p>
 <h2 id="compiling-a-program">Compiling a program</h2>
 <p><code>--compile</code> (alias <code>--bundle</code>) produces one standalone ELF executable that embeds the program, every transitively imported <code>.lynx</code> source and <code>.so</code> library, plus anything added with <code>--include</code>:</p>

@@ -1,0 +1,8 @@
+{"attributes":{"x":"1"},"children":[{"attributes":{},"children":[],"name":"b","text":""}],"name":"a","text":"hi"}
+true
+false
+a&lt;b&amp;c&gt;d
+a<b&c>d
+
+<a x="1">hi<b/></a>
+

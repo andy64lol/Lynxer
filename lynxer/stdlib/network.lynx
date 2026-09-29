@@ -4,6 +4,10 @@ HTTP and WebSocket client backed by Rust (`ureq` + rustls + `tungstenite`),
 exposed through the native module `stdlib/network.so`. Replaces the older
 `http` and `net` modules for Lynxer; HTTPS/WSS need no system OpenSSL.
 
+Also carries the RFC 3986 URL helpers (`urlParse`, `urlJoin`, `urlNormalize`,
+the `urlGet`/`urlSet*`/`urlQuery*` family, and component percent-encoding),
+backed by the Rust `url` crate.
+
 Requires a Rust toolchain to build (see `rust/network`); the module is skipped
 when `cargo` is unavailable.
 ////
@@ -39,6 +43,51 @@ global getHostname() -> str { return global.nativeNetwork.getHostname(); }
 global resolveHost(str hostname) -> str {
     return global.nativeNetwork.resolveHost(hostname);
 }
+
+// RFC 3986 URL manipulation (the Rust `url` crate).
+global urlIsValid(str url) -> bool {
+    return global.nativeNetwork.urlIsValid(url) isnt 0;
+}
+global urlJoin(str base, str ref) -> str {
+    return global.nativeNetwork.urlJoin(base, ref);
+}
+global urlNormalize(str url) -> str {
+    return global.nativeNetwork.urlNormalize(url);
+}
+global urlGet(str url, str part) -> str {
+    return global.nativeNetwork.urlGet(url, part);
+}
+global urlSetScheme(str url, str scheme) -> str {
+    return global.nativeNetwork.urlSetScheme(url, scheme);
+}
+global urlSetHost(str url, str host) -> str {
+    return global.nativeNetwork.urlSetHost(url, host);
+}
+global urlSetPort(str url, int port) -> str {
+    return global.nativeNetwork.urlSetPort(url, port);
+}
+global urlSetPath(str url, str path) -> str {
+    return global.nativeNetwork.urlSetPath(url, path);
+}
+global urlQueryGet(str url, str key) -> str {
+    return global.nativeNetwork.urlQueryGet(url, key);
+}
+global urlQuerySet(str url, str key, str value) -> str {
+    return global.nativeNetwork.urlQuerySet(url, key, value);
+}
+global urlQueryRemove(str url, str key) -> str {
+    return global.nativeNetwork.urlQueryRemove(url, key);
+}
+global urlQueryAppend(str url, str key, str value) -> str {
+    return global.nativeNetwork.urlQueryAppend(url, key, value);
+}
+global urlEncodeComponent(str text) -> str {
+    return global.nativeNetwork.urlEncodeComponent(text);
+}
+global urlDecodeComponent(str text) -> str {
+    return global.nativeNetwork.urlDecodeComponent(text);
+}
+
 global wsConnect(str name, str uri) -> str {
     return global.nativeNetwork.wsConnect(name, uri);
 }

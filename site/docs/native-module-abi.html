@@ -120,6 +120,8 @@
 <li><a href="stdlib/index.html">All modules</a></li>
 <li><a href="stdlib/cli.html">cli</a></li>
 <li><a href="stdlib/colorlib.html">colorlib</a></li>
+<li><a href="stdlib/compress.html">compress</a></li>
+<li><a href="stdlib/crypto.html">crypto</a></li>
 <li><a href="stdlib/csv.html">csv</a></li>
 <li><a href="stdlib/debug.html">debug</a></li>
 <li><a href="stdlib/encoding.html">encoding</a></li>
@@ -127,6 +129,7 @@
 <li><a href="stdlib/game.html">game</a></li>
 <li><a href="stdlib/graphics.html">graphics</a></li>
 <li><a href="stdlib/image.html">image</a></li>
+<li><a href="stdlib/ini.html">ini</a></li>
 <li><a href="stdlib/js.html">js</a></li>
 <li><a href="stdlib/json.html">json</a></li>
 <li><a href="stdlib/lua.html">lua</a></li>
@@ -145,9 +148,13 @@
 <li><a href="stdlib/sys.html">sys</a></li>
 <li><a href="stdlib/text.html">text</a></li>
 <li><a href="stdlib/time.html">time</a></li>
+<li><a href="stdlib/toml.html">toml</a></li>
 <li><a href="stdlib/tui.html">tui</a></li>
 <li><a href="stdlib/typing.html">typing</a></li>
 <li><a href="stdlib/uuid.html">uuid</a></li>
+<li><a href="stdlib/watch.html">watch</a></li>
+<li><a href="stdlib/xml.html">xml</a></li>
+<li><a href="stdlib/yaml.html">yaml</a></li>
 </ul>
     </nav>
     <main class="doc">
@@ -161,7 +168,7 @@
         </div>
 <h1 id="native-module-abi">Native module ABI</h1>
 <p>Lynxer's standard libraries are shared libraries (<code>.so</code> on Linux, <code>.dylib</code> on macOS) loaded at runtime with <code>dlopen</code>. This document is the contract a native module must implement. It applies to the bundled <code>stdlib/*.so</code> modules exactly as it applies to third-party modules.</p>
-<p>A module may be written in C++ (<code>stdlib/&lt;name&gt;.cpp</code>) or in Rust. The Rust backends — <code>game</code>, <code>image</code>, <code>json</code>, <code>lua</code>, <code>network</code>, <code>server</code>, <code>sound</code>, <code>sqldb</code> and <code>tui</code> — live under <code>rust/</code> and are all <code>cdylib</code>s that export <code>lynxer_module_init_v1</code>, their ops, and (for <code>game</code>) <code>lynxer_module_attach_v1</code> directly; there is no C++ shim. The <code>lynxer_abi</code> crate provides the shared FFI plumbing (packed-argument view, panic guards, string result buffer, host API, and the registration helper).</p>
+<p>A module may be written in C++ (<code>stdlib/&lt;name&gt;.cpp</code>) or in Rust. The Rust backends — <code>compress</code>, <code>crypto</code>, <code>encoding</code>, <code>game</code>, <code>graphics</code>, <code>image</code>, <code>ini</code>, <code>json</code>, <code>lua</code>, <code>network</code>, <code>server</code>, <code>sound</code>, <code>sqldb</code>, <code>toml</code>, <code>tui</code>, <code>uuid</code>, <code>watch</code>, <code>xml</code> and <code>yaml</code> — live under <code>rust/</code> and are all <code>cdylib</code>s that export <code>lynxer_module_init_v1</code>, their ops, and (for <code>game</code>) <code>lynxer_module_attach_v1</code> directly; there is no C++ shim. The <code>lynxer_abi</code> crate provides the shared FFI plumbing (packed-argument view, panic guards, string result buffer, host API, and the registration helper).</p>
 <p>The workspace has one more member, <code>rust/ffi</code>, which is different in kind: a <code>staticlib</code> that is <strong>linked into the interpreter</strong>, not a <code>cdylib</code> module. It implements the shared native-call engine (see <a href="#the-native-call-engine">The native call engine</a>) and is never installed into <code>stdlib/</code>; because the interpreter links it, <code>cargo</code> is a required build tool.</p>
 <h2 id="entry-point">Entry point</h2>
 <p>Every module exports one C symbol:</p>
@@ -243,6 +250,8 @@ const char* function(const double* nums, int64_t num_count,
 <p><strong>Booleans</strong> are <code>int64</code> <code>0</code>/<code>1</code>; the <code>.lynx</code> wrapper converts with <code>!= 0</code>.</p>
 <p><strong>Errors</strong> are in-band sentinels, because there is no error channel: <code>-1</code> / <code>-1.0</code> for indices and sizes, <code>&quot;&quot;</code> for strings, <code>&quot;ERROR: ...&quot;</code> for <code>csv</code>, and <code>&quot;Error: ...&quot;</code> for <code>js</code>.</p>
 <p><strong>Stateless structured data</strong> crosses as a JSON string. The native side encodes with <code>stdlib/native_json.hpp</code> (a header-only value/parser/serializer embedded into each <code>.so</code>, so no module depends on another module's symbols), and the wrapper either forwards the string or post-processes it with <code>listJson*</code> / <code>splitStr</code>.</p>
+<p><strong>The structured-value bridge.</strong> A document module (<code>json</code>, <code>toml</code>, <code>ini</code>, <code>xml</code>, <code>yaml</code>) represents its document as a <strong>JSON string</strong> and nothing else; <code>serde_json::Value</code> is the single in-Rust model every one of them parses to and serializes from. <code>xml</code> maps its document onto the same bridge (a JSON element tree), so a caller turns any of them into Lynxer values the same way, with <code>jsonParse</code> / <code>jsonGet</code> / <code>listJson*</code>.</p>
+<p><strong>Binary payloads</strong> cross as text. A module that produces bytes returns base64 (or hex), and one that consumes bytes accepts base64; a <code>*File</code> operation reads and writes the bytes itself and is the binary-safe path. This is the decision recorded in <a href="../todo.html">todo</a> (D1): it needs no new ABI shape, at the cost that an in-memory payload must be valid text/base64.</p>
 <p><strong>List results</strong> use whichever encoding the data allows:</p>
 <ul>
 <li>values that cannot contain the separator: a joined <code>cstring</code> that the wrapper splits with <code>splitStr</code> (newline for paths, tab for numeric vectors);</li>

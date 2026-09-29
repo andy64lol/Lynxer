@@ -1,0 +1,16 @@
+[package]
+name = "lynxer_toml"
+version = "0.1.0"
+edition = "2021"
+description = "TOML parsing and serialization for the Lynxer `toml` stdlib module"
+publish = false
+
+[lib]
+name = "lynxer_toml"
+crate-type = ["cdylib"]
+
+[dependencies]
+lynxer_abi = { path = "../abi" }
+# The `toml` facade over toml_edit/toml_parser; documents cross as JSON.
+toml = "0.8"
+serde_json = "1"

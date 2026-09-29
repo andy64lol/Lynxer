@@ -1,0 +1,45 @@
+////
+Lynxer standard library: watch.
+Filesystem change events over inotify, backed by the Rust `inotify` crate and
+exposed through the native module `stdlib/watch.so`.
+
+Each watch is an integer handle. `watchFd` returns the inotify descriptor, so a
+program waits on it with the interpreter's own poll set
+(`asyncPollRegister` / `asyncPollWait`) instead of blocking inside the module —
+a module cannot release the interpreter lock, so a blocking wait here would
+wedge every other Lynxer thread. After the descriptor is ready, `watchDrain`
+reads the pending events as a JSON array of `{"path", "kind"}`.
+
+A failure is the scalar sentinel: `watchAdd` and `watchFd` return `-1`,
+`watchDrain` returns `""` for an unknown handle, and the predicates return
+`false`.
+
+Linux only; requires a Rust toolchain to build (see `rust/watch`).
+////
+global setup(){ importAs("watch.so", "nativeWatch"); }
+
+// Watch a path, recursing into subdirectories when `recursive` is true. Returns
+// a handle, or -1 when the path cannot be watched.
+global watchAdd(str path, bool recursive) -> int {
+    return global.nativeWatch.add(path, recursive);
+}
+// The inotify descriptor for the poll set, or -1 for an unknown handle.
+global watchFd(int handle) -> int { return global.nativeWatch.fd(handle); }
+// The pending events as a JSON array of {"path", "kind"}, or "" for an unknown
+// handle. Does not block.
+global watchDrain(int handle) -> str { return global.nativeWatch.drain(handle); }
+// Coalesce repeated events for the same path within `milliseconds` in a later
+// `watchDrain`, keeping the most recent kind. 0 disables coalescing.
+global watchSetDebounce(int handle, int milliseconds) -> bool {
+    return global.nativeWatch.setDebounce(handle, milliseconds) isnt 0;
+}
+// Stop watching and release the handle.
+global watchRemove(int handle) -> bool {
+    return global.nativeWatch.remove(handle) isnt 0;
+}
+// An alias for `watchRemove`.
+global watchClose(int handle) -> bool {
+    return global.nativeWatch.remove(handle) isnt 0;
+}
+
+global main(){}

@@ -37,12 +37,12 @@ GROUPS: list[tuple[str, list[str]]] = [
 ]
 
 STDLIB_MODULES = [
-    "cli", "colorlib", "csv", "debug", "encoding", "fileIO", "game", "graphics",
-    "image",
+    "cli", "colorlib", "compress", "crypto", "csv", "debug", "encoding", "fileIO", "game", "graphics",
+    "image", "ini",
     "js", "json",
     "lua", "math", "multiprocessing", "network", "os", "path", "random", "re",
-    "regex", "server", "shell", "sound", "sqldb", "sys", "text", "time", "tui",
-    "typing", "uuid",
+    "regex", "server", "shell", "sound", "sqldb", "sys", "text", "time", "toml", "tui",
+    "typing", "uuid", "watch", "xml", "yaml",
 ]
 
 
@@ -453,7 +453,7 @@ def main() -> int:
     index_lines = [
         "# Standard library",
         "",
-        ("Lynxer ships 27 modules. Each has a `.lynx` wrapper and a native "
+        ("Lynxer ships 37 modules. Each has a `.lynx` wrapper and a native "
          "backend behind the shared native-module ABI; pick one below or from "
          "the sidebar."),
         "",

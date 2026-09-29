@@ -85,10 +85,14 @@ The following modules are not ported to Lynxer:
 
 ### Native Backing
 
-Lynxer ships modules backed by native implementations. Ten of them are Rust crates:
+Lynxer ships modules backed by native implementations. Nineteen of them are Rust crates:
+- `compress` (`flate2`/`zstd`/`brotli`/`lz4_flex`/`zip`/`tar`)
+- `crypto` (`sha2`/`sha1`/`md-5`/`sha3`/`blake3`/`hmac`/`subtle`/`getrandom`/`ed25519-dalek`)
+- `encoding` (`base64`/`hex`/`data-encoding`/`bs58`/`ascii85`/`percent-encoding`/`quoted_printable`)
 - `game` (`macroquad`)
 - `graphics` (`macroquad`)
 - `image`
+- `ini` (`rust-ini`)
 - `json` (`serde_json`)
 - `lua` (vendored Lua through `mlua`)
 - `network` (`ureq` + `tungstenite`)
@@ -96,6 +100,11 @@ Lynxer ships modules backed by native implementations. Ten of them are Rust crat
 - `sound` (`rodio`/`cpal`)
 - `sqldb` (`rusqlite`)
 - `tui` (`ratatui`/`crossterm`)
+- `uuid` (`uuid`)
+- `watch` (`inotify`)
+- `toml` (`toml`)
+- `xml` (`quick-xml`)
+- `yaml` (`serde_yml`)
 
 A Rust toolchain is **required**: every one of these backends is built and
 installed by `cargo`, and the interpreter links the `ffi` `staticlib`
@@ -158,6 +167,100 @@ Makefile checks for `cargo` up front and says so.
   to keep running.
 - **Static paths are confined.** `staticFiles`, `staticSite` and `serveFile`
   refuse any `..` component, and a bad file read is a 404.
+
+### `compress` — Constrained Behavior
+
+- **No byte type.** An in-memory `<codec>Compress` returns base64 and its
+  `<codec>Decompress` takes base64. A decompressed payload need not be valid
+  UTF-8, and `Decompress` answers text only when it is (`""` otherwise); the
+  `*File` ops read and write the bytes themselves and are the binary-safe path.
+  See the binary-payload decision in [todo.md](../todo.md).
+- **Two sentinel families.** The in-memory stream ops use the scalar sentinel
+  (`""`); the file and archive ops answer with `"ok"` / `"ERROR: <message>"`,
+  because they can fail with a reason (a missing file, a bad archive).
+- **A decompress is capped at 64 MiB** of output, so a crafted stream cannot
+  exhaust memory; the `*File` ops read the whole file into memory and so are
+  also bounded by the process's available memory.
+- **An extract refuses to escape its destination.** ZIP entries are checked with
+  the archive's enclosed-name rule and TAR entries with `unpack_in`; a name that
+  is absolute or contains `..` is an error (and `zipCreate`/`tarCreate` reject
+  such a name when the archive is written).
+- **`zstd` vendors the zstd C sources**, so a C compiler is required in addition
+  to the Rust toolchain. `zip` is built with deflate only (`bzip2`/`zstd`/`aes`
+  support is off).
+
+### `crypto` — Constrained Behavior
+
+- **No byte type.** Lynxer has no byte type, so a digest or signature crosses the
+  ABI as text: `hash`/`hmac` return lower-case hex, `signEd25519` and the key
+  pair return base64. A binary payload held in memory is passed base64 through
+  `hashBase64`; arbitrary file contents go through `hashFile`/`hmacFile`, which
+  read the bytes inside the module. See the binary-payload decision in
+  [todo.md](../todo.md).
+- **Failures are in-band.** An unknown algorithm, a malformed payload or an I/O
+  error yields `""`, and a predicate yields `false`; there is no exception.
+- **The algorithm names are a fixed set.** `sha1`, `sha224`, `sha256`, `sha384`,
+  `sha512`, `md5`, `sha3-256`, `sha3-512` and `blake3` for a digest;
+  `hash`/`hmac` ignore case but do not accept aliases such as `SHA-256`.
+- **`verifyHmac` compares in constant time**; a MAC that is not valid hex is a
+  mismatch, not an error.
+- **Ed25519 only.** The module signs and verifies Ed25519 keys (32-byte seed,
+  base64); RSA and ECDSA are not exposed. Key generation uses OS entropy, so
+  `generateEd25519KeyPair` is not reproducible.
+- **`randomBytes`/`randomHex`/`randomToken` cap the count** at 1 MiB and answer
+  `""` outside `0..=1 MiB`, rather than allocating an unbounded buffer.
+
+### `watch` — Constrained Behavior
+
+- **Linux only.** The backend is inotify; there is no portable fallback.
+- **Handles, closed by the caller.** Each watch is an integer handle; dropping
+  it (`watchRemove` / `watchClose`) closes the descriptor.
+- **No blocking wait.** A module cannot release the interpreter lock, so there
+  is no `watchWait`: `watchFd` returns the inotify descriptor for the
+  interpreter's own `asyncPollRegister` / `asyncPollWait`, and `watchDrain`
+  reads the pending events without blocking.
+- **Failure is in-band.** `watchAdd`/`watchFd` yield `-1`, `watchDrain` yields
+  `""` for an unknown handle, and the predicates yield `false`.
+- **`watchSetDebounce` coalesces within a drain**: events for the same path
+  inside the window keep only the most recent kind. 0 disables it.
+
+### `toml` — Constrained Behavior
+
+- **Documents are JSON strings.** A TOML document crosses as JSON (the shared
+  structured-value bridge); a JSON object serializes back to TOML. A TOML
+  datetime becomes a JSON string.
+- **Failures are in-band.** A document op yields `""` and `tomlValid` yields
+  `false`; a JSON value that TOML cannot hold (a top-level non-table, or a
+  `null`) makes `tomlSerialize` answer `""`.
+
+### `ini` — Constrained Behavior
+
+- **Documents are JSON strings.** An INI document crosses as an object of
+  sections, each an object of string values; the unnamed leading section uses
+  `""` as its key. Values are strings in both directions.
+- **Failures are in-band.** A document op yields `""` and `iniValid` yields
+  `false`. An empty document is valid, so it parses to `{"":{}}`.
+
+### `xml` — Constrained Behavior
+
+- **A document maps onto a JSON element tree**:
+  `{"name", "attributes", "text", "children"}`. Comments, processing
+  instructions and the doctype are ignored, and **no external entity is ever
+  resolved**.
+- **`text` is the character data directly inside an element**; it is escaped on
+  serialize, so a round trip of a document with entities is exact.
+- **Failures are in-band.** A malformed document yields `""` and `xmlValid`
+  yields `false`; `xmlUnescape` yields `""` for a malformed entity.
+
+### `yaml` — Constrained Behavior
+
+- **Documents are JSON strings.** A YAML mapping becomes a JSON object and a
+  sequence a JSON array. A mapping whose key is not a string (which JSON cannot
+  hold) is a failure.
+- **Anchors and aliases are resolved while parsing**, so the input is capped at
+  1 MiB to bound an alias-expansion payload; a larger input is a failure.
+- **Failures are in-band.** A document op yields `""` and `yamlValid` yields
+  `false`.
 
 ### `json` — Constrained Behavior
 

@@ -1,0 +1,35 @@
+////
+Fixture for the watch stdlib. The handle and the absolute event paths are not
+pinned — only shapes, predicates and the JSON prefix are, so the output is
+deterministic. Part of the import-parity gate.
+////
+global setup(){ import("watch"); import("fileIO"); import("os"); }
+
+global main(){
+    str root = ".lynxer_scratch_watch";
+    if(global.os.exists(root)){ global.os.rmTree(root); }
+    global.os.mkdir(root);
+
+    int handle = global.watch.watchAdd(root, false);
+    println(handle > 0);
+    println(global.watch.watchFd(handle) >= 0);
+    println(global.watch.watchSetDebounce(handle, 0));
+
+    // Create a file inside the watched directory, then let the event arrive.
+    global.fileIO.writeFile(root + "/a.txt", "hi");
+    sleep(0.3);
+
+    // The event paths carry the absolute watched directory, so only the shape
+    // is asserted.
+    str events = global.watch.watchDrain(handle);
+    println(substring(events, 0, 1) is "[");
+    println(returnLength(events) > 2);
+
+    println(global.watch.watchRemove(handle));
+    println(global.watch.watchFd(handle));
+    println(global.watch.watchDrain(9999) is "");
+    println(global.watch.watchRemove(9999));
+    println(global.watch.watchAdd(root + "/missing", false));
+
+    global.os.rmTree(root);
+}

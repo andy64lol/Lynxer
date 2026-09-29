@@ -1,0 +1,10 @@
+{"answer":42,"name":"lynxer","server":{"host":"localhost"}}
+42
+"localhost"
+
+true
+false
+answer = 42
+name = "lynxer"
+
+

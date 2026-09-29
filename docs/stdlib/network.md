@@ -93,10 +93,24 @@ Parse, manipulate, and encode URLs for web requests.
 | **`urlScheme(url)`** | Extracts the URL scheme (e.g., `https`). |
 | **`urlHost(url)`** | Extracts the host and port (e.g., `example.com:8080`). Default ports are omitted. |
 | **`urlPath(url)`** | Extracts the path (e.g., `/api/v1`). |
-| **`urlParse(url)`** | Returns a JSON object with `scheme`, `host`, `port`, `path`, `query`, and `fragment`. |
+| **`urlParse(url)`** | Returns a JSON object with `scheme`, `host`, `port`, `path`, `query`, and `fragment`. Every value is escaped, so a quote in a query stays valid JSON. |
+| **`urlIsValid(url)`** | True if `url` is an absolute RFC 3986 URL. |
+| **`urlJoin(base, ref)`** | Resolves `ref` against `base` (e.g., `urlJoin("https://a/b", "../c")` → `https://a/c`). `""` if either fails to parse. |
+| **`urlNormalize(url)`** | The canonical serialization: lower-cased scheme/host, resolved dot segments, IDNA host, default port removed. `""` if it does not parse. |
+| **`urlGet(url, part)`** | One component. `part` is `scheme`, `host`, `port` (defaulted), `path`, `query`, `fragment`, `username` or `password`; unknown parts and unparseable URLs give `""`. |
+| **`urlSetScheme(url, scheme)`** | The URL with its scheme replaced, or `""` if the URL or the change is invalid. |
+| **`urlSetHost(url, host)`** | The URL with its host replaced, or `""`. |
+| **`urlSetPort(url, port)`** | The URL with its port set; `port <= 0` removes an explicit port. `""` for an out-of-range port. |
+| **`urlSetPath(url, path)`** | The URL with its path replaced. |
+| **`urlQueryGet(url, key)`** | The first value for `key`, or `""`. |
+| **`urlQuerySet(url, key, value)`** | The URL with every `key` replaced by a single `key=value`. |
+| **`urlQueryAppend(url, key, value)`** | The URL with `key=value` appended. |
+| **`urlQueryRemove(url, key)`** | The URL with every `key` removed; an empty query drops the `?`. |
+| **`urlEncodeComponent(text)`** | Percent-encodes for a URL component: every byte outside `A-Za-z0-9-._~` becomes `%XX`, so a space is `%20`. |
+| **`urlDecodeComponent(text)`** | Percent-decodes; a malformed escape or a non-UTF-8 result gives `""`. |
 | **`getHostname()`** | Returns the local hostname. |
 | **`resolveHost(hostname)`** | Resolves a hostname to an IP address. |
-| **`urlencode(text)`** | Encodes text for use in URLs (e.g., spaces become `+`). |
+| **`urlencode(text)`** | Form/query encoding (e.g., spaces become `+`); see `urlEncodeComponent` for path/component encoding. |
 
 ---
 

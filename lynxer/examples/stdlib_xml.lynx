@@ -1,0 +1,18 @@
+////
+Fixture for the xml stdlib. A document maps onto a JSON element tree and every
+assertion is fixed, so the output is deterministic. Part of the import-parity
+gate.
+////
+global setup(){ import("xml"); }
+
+global main(){
+    str text = "<a x=\"1\">hi<b/></a>";
+    println(global.xml.xmlParse(text));
+    println(global.xml.xmlValid(text));
+    println(global.xml.xmlValid("<a><b></a>"));
+    println(global.xml.xmlEscape("a<b&c>d"));
+    println(global.xml.xmlUnescape("a&lt;b&amp;c&gt;d"));
+    println(global.xml.xmlUnescape("a&nope;"));
+    println(global.xml.xmlSerialize(global.xml.xmlParse(text)));
+    println(global.xml.xmlParse("<a><b></a>"));
+}

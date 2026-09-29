@@ -1,0 +1,26 @@
+[package]
+name = "lynxer_compress"
+version = "0.1.0"
+edition = "2021"
+description = "gzip/zlib/zstd/brotli/lz4 plus ZIP and TAR archives for the Lynxer `compress` stdlib module"
+publish = false
+
+[lib]
+name = "lynxer_compress"
+crate-type = ["cdylib"]
+
+[dependencies]
+lynxer_abi = { path = "../abi" }
+# One crate per codec family. `flate2` is pure Rust (miniz_oxide); `zstd`
+# vendors the zstd C sources, which `cc` builds.
+flate2 = "1"
+zstd = "0.13"
+brotli = "7"
+lz4_flex = "0.11"
+# Archives. `zip` only needs deflate; `tar` is pure Rust.
+zip = { version = "2", default-features = false, features = ["deflate"] }
+tar = "0.4"
+# Payload and manifest text that crosses the ABI.
+base64 = "0.22"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

@@ -1,0 +1,93 @@
+////
+Lynxer standard library: crypto.
+Hashes, HMAC, constant-time comparison, OS randomness and Ed25519 signatures,
+backed by the Rust crates `sha2`/`sha1`/`md-5`/`sha3`/`blake3`/`hmac`/`subtle`/
+`getrandom`/`ed25519-dalek`, exposed through the native module `stdlib/crypto.so`.
+
+Binary payloads cross the module ABI as text, so every digest and signature is
+returned as lower-case hex / base64. A caller that already holds bytes as base64
+passes them to `hashBase64`; arbitrary file contents go through `hashFile` /
+`hmacFile`, which read the bytes inside the module. See `docs/stdlib/crypto.md`.
+
+A failure is in-band: an unknown algorithm, a malformed payload or a missing
+file yields `""` (and `false` for a predicate).
+
+Requires a Rust toolchain to build (see `rust/crypto`).
+////
+global setup(){ importAs("crypto.so", "nativeCrypto"); }
+
+// --- hashing ---------------------------------------------------------------
+
+// The digest of `data` as lower-case hex. `algorithm` is one of `sha1`,
+// `sha224`, `sha256`, `sha384`, `sha512`, `md5`, `sha3-256`, `sha3-512` or
+// `blake3`; any other name yields "".
+global hash(str algorithm, str data) -> str {
+    return global.nativeCrypto.hash(algorithm, data);
+}
+// The digest of a file's bytes as lower-case hex, or "".
+global hashFile(str algorithm, str path) -> str {
+    return global.nativeCrypto.hashFile(algorithm, path);
+}
+// The digest of base64-decoded bytes, so a binary payload can be hashed in
+// memory. "" for a malformed payload or an unknown algorithm.
+global hashBase64(str algorithm, str base64Data) -> str {
+    return global.nativeCrypto.hashBase64(algorithm, base64Data);
+}
+
+// --- HMAC ------------------------------------------------------------------
+
+// The HMAC of `data` under `key`, as lower-case hex. "" for an algorithm with
+// no HMAC.
+global hmac(str algorithm, str key, str data) -> str {
+    return global.nativeCrypto.hmac(algorithm, key, data);
+}
+// The HMAC of a file's bytes under `key`, as lower-case hex, or "".
+global hmacFile(str algorithm, str key, str path) -> str {
+    return global.nativeCrypto.hmacFile(algorithm, key, path);
+}
+// True when the hex `mac` is the constant-time match of the HMAC of `data`
+// under `key`.
+global verifyHmac(str algorithm, str key, str data, str mac) -> bool {
+    return global.nativeCrypto.verifyHmac(algorithm, key, data, mac) isnt 0;
+}
+
+// --- constant-time comparison ---------------------------------------------
+
+// True when `a` and `b` are equal, compared without leaking where they differ.
+global constantTimeEquals(str a, str b) -> bool {
+    return global.nativeCrypto.constantTimeEquals(a, b) isnt 0;
+}
+
+// --- randomness ------------------------------------------------------------
+
+// `count` random bytes as base64, or "" when count is negative or too large.
+global randomBytes(int count) -> str {
+    return global.nativeCrypto.randomBytes(count);
+}
+// `count` random bytes as lower-case hex, or "".
+global randomHex(int count) -> str {
+    return global.nativeCrypto.randomHex(count);
+}
+// `count` random bytes as URL-safe base64 without padding, or "".
+global randomToken(int count) -> str {
+    return global.nativeCrypto.randomToken(count);
+}
+
+// --- Ed25519 ---------------------------------------------------------------
+
+// A fresh Ed25519 key pair as JSON: `{"private": "...", "public": "..."}`, both
+// base64 of the 32 raw bytes.
+global generateEd25519KeyPair() -> str {
+    return global.nativeCrypto.generateEd25519KeyPair();
+}
+// The base64 signature of `message` under the base64 `privateKey`, or "".
+global signEd25519(str privateKey, str message) -> str {
+    return global.nativeCrypto.signEd25519(privateKey, message);
+}
+// True when the base64 `signature` is valid for `message` under the base64
+// `publicKey`.
+global verifyEd25519(str publicKey, str message, str signature) -> bool {
+    return global.nativeCrypto.verifyEd25519(publicKey, message, signature) isnt 0;
+}
+
+global main(){}

@@ -1,0 +1,25 @@
+////
+Lynxer standard library: ini.
+INI parsing and serialization, backed by the Rust `rust-ini` crate and exposed
+through the native module `stdlib/ini.so`.
+
+A document crosses as a JSON string (the shared structured-value bridge): an
+object of sections, each an object of string values; the unnamed leading section
+uses `""` as its key. Use `jsonParse`/`jsonGet` to turn it into Lynxer values. A
+failure is the scalar sentinel: `""` for a document operation and `false` for
+`iniValid`.
+
+Requires a Rust toolchain to build (see `rust/ini`).
+////
+global setup(){ importAs("ini.so", "nativeIni"); }
+
+// The INI document as a JSON string, or "" when it does not parse.
+global iniParse(str text) -> str { return global.nativeIni.iniParse(text); }
+// The JSON object as an INI document, or "".
+global iniSerialize(str json) -> str { return global.nativeIni.iniSerialize(json); }
+// True when `text` is a well-formed INI document.
+global iniValid(str text) -> bool { return global.nativeIni.iniValid(text) isnt 0; }
+// The value of `key` in `section` (use "" for the unnamed section), or "".
+global iniGet(str text, str section, str key) -> str { return global.nativeIni.iniGet(text, section, key); }
+
+global main(){}

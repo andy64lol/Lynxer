@@ -6,8 +6,9 @@ module must implement. It applies to the bundled `stdlib/*.so` modules exactly
 as it applies to third-party modules.
 
 A module may be written in C++ (`stdlib/<name>.cpp`) or in Rust. The Rust
-backends — `game`, `image`, `json`, `lua`, `network`, `server`, `sound`,
-`sqldb` and `tui` — live under `rust/` and are all `cdylib`s that export
+backends — `compress`, `crypto`, `encoding`, `game`, `graphics`, `image`, `ini`,
+`json`, `lua`, `network`, `server`, `sound`, `sqldb`, `toml`, `tui`, `uuid`,
+`watch`, `xml` and `yaml` — live under `rust/` and are all `cdylib`s that export
 `lynxer_module_init_v1`, their ops, and (for `game`)
 `lynxer_module_attach_v1` directly; there is no C++ shim. The `lynxer_abi`
 crate provides the shared FFI plumbing (packed-argument view, panic guards,
@@ -245,6 +246,19 @@ with `stdlib/native_json.hpp` (a header-only value/parser/serializer embedded
 into each `.so`, so no module depends on another module's symbols), and the
 wrapper either forwards the string or post-processes it with `listJson*` /
 `splitStr`.
+
+**The structured-value bridge.** A document module (`json`, `toml`, `ini`,
+`xml`, `yaml`) represents its document as a **JSON string** and nothing else;
+`serde_json::Value` is the single in-Rust model every one of them parses to and
+serializes from. `xml` maps its document onto the same bridge (a JSON element
+tree), so a caller turns any of them into Lynxer values the same way, with
+`jsonParse` / `jsonGet` / `listJson*`.
+
+**Binary payloads** cross as text. A module that produces bytes returns base64
+(or hex), and one that consumes bytes accepts base64; a `*File` operation reads
+and writes the bytes itself and is the binary-safe path. This is the decision
+recorded in [todo.md](../todo.md) (D1): it needs no new ABI shape, at the cost
+that an in-memory payload must be valid text/base64.
 
 **List results** use whichever encoding the data allows:
 

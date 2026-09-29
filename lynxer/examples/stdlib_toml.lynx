@@ -1,0 +1,17 @@
+////
+Fixture for the toml stdlib. Documents cross as JSON strings and every assertion
+is fixed, so the output is deterministic. Part of the import-parity gate.
+////
+global setup(){ import("toml"); }
+
+global main(){
+    str text = "answer = 42\nname = \"lynxer\"\n[server]\nhost = \"localhost\"\n";
+    println(global.toml.tomlParse(text));
+    println(global.toml.tomlGet(text, "answer"));
+    println(global.toml.tomlGet(text, "server.host"));
+    println(global.toml.tomlGet(text, "nope"));
+    println(global.toml.tomlValid(text));
+    println(global.toml.tomlValid("= = ="));
+    println(global.toml.tomlSerialize("{\"answer\":42,\"name\":\"lynxer\"}"));
+    println(global.toml.tomlParse("= = ="));
+}

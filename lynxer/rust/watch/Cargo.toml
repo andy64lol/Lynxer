@@ -1,0 +1,20 @@
+[package]
+name = "lynxer_watch"
+version = "0.1.0"
+edition = "2021"
+description = "Filesystem change events for the Lynxer `watch` stdlib module"
+publish = false
+
+[lib]
+name = "lynxer_watch"
+crate-type = ["cdylib"]
+
+[dependencies]
+lynxer_abi = { path = "../abi" }
+# The inotify backend directly, not `notify`: the design exposes the watch
+# descriptor (watchFd) for the interpreter's poll set, which `notify` does not.
+inotify = "0.10"
+# O_NONBLOCK on the watch descriptor, so `watchDrain` never blocks.
+libc = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

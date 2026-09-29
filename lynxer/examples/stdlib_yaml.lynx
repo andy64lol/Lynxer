@@ -1,0 +1,16 @@
+////
+Fixture for the yaml stdlib. Documents cross as JSON strings and every assertion
+is fixed, so the output is deterministic. Part of the import-parity gate.
+////
+global setup(){ import("yaml"); }
+
+global main(){
+    str text = "name: lynxer\nitems:\n  - 1\n  - 2\n";
+    println(global.yaml.yamlParse(text));
+    println(global.yaml.yamlGet(text, "name"));
+    println(global.yaml.yamlGet(text, "items"));
+    println(global.yaml.yamlGet(text, "nope"));
+    println(global.yaml.yamlValid(text));
+    println(global.yaml.yamlValid("a: [1, 2"));
+    println(global.yaml.yamlSerialize("{\"name\":\"lynxer\"}"));
+}

@@ -1,0 +1,34 @@
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+true
+ok
+ok
+true
+ok
+ok
+true
+ERROR: cannot read .lynxer_scratch_compress/missing.gz: No such file or directory (os error 2)
+ok
+["a.txt","dir/b.txt"]
+aGVsbG8=
+true
+ok
+true
+ERROR: unsafe entry name: ../evil
+ok
+["a.txt","dir/b.txt"]
+ok
+true
+ok
+ok
+true
+ERROR: unsafe entry name: /abs

@@ -120,6 +120,8 @@
 <li><a href="stdlib/index.html">All modules</a></li>
 <li><a href="stdlib/cli.html">cli</a></li>
 <li><a href="stdlib/colorlib.html">colorlib</a></li>
+<li><a href="stdlib/compress.html">compress</a></li>
+<li><a href="stdlib/crypto.html">crypto</a></li>
 <li><a href="stdlib/csv.html">csv</a></li>
 <li><a href="stdlib/debug.html">debug</a></li>
 <li><a href="stdlib/encoding.html">encoding</a></li>
@@ -127,6 +129,7 @@
 <li><a href="stdlib/game.html">game</a></li>
 <li><a href="stdlib/graphics.html">graphics</a></li>
 <li><a href="stdlib/image.html">image</a></li>
+<li><a href="stdlib/ini.html">ini</a></li>
 <li><a href="stdlib/js.html">js</a></li>
 <li><a href="stdlib/json.html">json</a></li>
 <li><a href="stdlib/lua.html">lua</a></li>
@@ -145,9 +148,13 @@
 <li><a href="stdlib/sys.html">sys</a></li>
 <li><a href="stdlib/text.html">text</a></li>
 <li><a href="stdlib/time.html">time</a></li>
+<li><a href="stdlib/toml.html">toml</a></li>
 <li><a href="stdlib/tui.html">tui</a></li>
 <li><a href="stdlib/typing.html">typing</a></li>
 <li><a href="stdlib/uuid.html">uuid</a></li>
+<li><a href="stdlib/watch.html">watch</a></li>
+<li><a href="stdlib/xml.html">xml</a></li>
+<li><a href="stdlib/yaml.html">yaml</a></li>
 </ul>
     </nav>
     <main class="doc">
@@ -162,7 +169,7 @@
 <h1 id="standard-library-module-contracts">Standard library module contracts</h1>
 <p><strong>Frozen at Lynxer 0.1.8.1 — 2026-09-25.</strong></p>
 <p>Every <code>stdlib/&lt;name&gt;.lynx</code> wrapper and its <code>stdlib/&lt;name&gt;.so</code> backend are two halves of one contract. This page states that contract once, so a second backend for an existing module — or a new module — can be written against it without re-deriving the conventions from the code.</p>
-<p>The conventions below apply to all 28 bundled modules. The per-module table records only the dimensions that actually vary between them. For an individual operation's argument list and return value, the authoritative sources are the wrapper itself (<code>stdlib/&lt;name&gt;.lynx</code>), <code>docs/stdlib/&lt;name&gt;.md</code>, and <code>--list-stdlibs</code>, which prints each wrapper's docstring.</p>
+<p>The conventions below apply to all 37 bundled modules. The per-module table records only the dimensions that actually vary between them. For an individual operation's argument list and return value, the authoritative sources are the wrapper itself (<code>stdlib/&lt;name&gt;.lynx</code>), <code>docs/stdlib/&lt;name&gt;.md</code>, and <code>--list-stdlibs</code>, which prints each wrapper's docstring.</p>
 <h2 id="the-module-pair">The module pair</h2>
 <p>A module is always two files with the same stem:</p>
 <table>
@@ -201,12 +208,12 @@
 <p>There is no error channel across the ABI, so failures are in-band. Each module picks one family and applies it consistently:</p>
 <table>
 <tr><th>Family</th><th>Shape</th><th>Modules</th></tr>
-<tr><td>Scalar sentinel</td><td><code>-1</code> for indices and sizes, <code>0</code> / <code>0.0</code> for numbers, <code>false</code> for predicates, <code>&quot;&quot;</code> for strings</td><td><code>cli</code>, <code>debug</code>, <code>encoding</code>, <code>fileIO</code>, <code>game</code>, <code>image</code>, <code>json</code>, <code>math</code>, <code>multiprocessing</code>, <code>os</code>, <code>path</code>, <code>random</code>, <code>re</code>, <code>regex</code>, <code>sound</code>, <code>sys</code>, <code>time</code>, <code>uuid</code></td></tr>
+<tr><td>Scalar sentinel</td><td><code>-1</code> for indices and sizes, <code>0</code> / <code>0.0</code> for numbers, <code>false</code> for predicates, <code>&quot;&quot;</code> for strings</td><td><code>cli</code>, <code>crypto</code>, <code>debug</code>, <code>encoding</code>, <code>fileIO</code>, <code>game</code>, <code>image</code>, <code>ini</code>, <code>json</code>, <code>math</code>, <code>multiprocessing</code>, <code>os</code>, <code>path</code>, <code>random</code>, <code>re</code>, <code>regex</code>, <code>sound</code>, <code>sys</code>, <code>time</code>, <code>toml</code>, <code>uuid</code>, <code>watch</code>, <code>xml</code>, <code>yaml</code></td></tr>
 <tr><td>Process exit code</td><td>the command's exit status; a negative value when it did not run</td><td><code>shell</code></td></tr>
-<tr><td>Status string</td><td><code>&quot;ok&quot;</code> on success; <code>&quot;ERROR: &lt;message&gt;&quot;</code> on failure</td><td><code>csv</code>, <code>sqldb</code>, <code>network</code>, <code>server</code></td></tr>
+<tr><td>Status string</td><td><code>&quot;ok&quot;</code> on success; <code>&quot;ERROR: &lt;message&gt;&quot;</code> on failure</td><td><code>compress</code>, <code>csv</code>, <code>sqldb</code>, <code>network</code>, <code>server</code></td></tr>
 <tr><td>Error string</td><td><code>&quot;Error: &lt;message&gt;&quot;</code></td><td><code>js</code>, <code>lua</code>, <code>tui</code></td></tr>
 </table>
-<p><code>csv</code> mixes the first two: its table-returning operations answer with the status string (<code>&quot;ok&quot;</code> / <code>&quot;ERROR: ...&quot;</code>), and the rest use scalar sentinels. <code>colorlib</code>, <code>text</code> and <code>typing</code> are pure Lynxer and have no native boundary to report across.</p>
+<p><code>csv</code> mixes the first two: its table-returning operations answer with the status string (<code>&quot;ok&quot;</code> / <code>&quot;ERROR: ...&quot;</code>), and the rest use scalar sentinels. <code>compress</code> mixes them too: its in-memory stream operations use scalar sentinels (<code>&quot;&quot;</code>), while its file and archive operations answer with the status string. <code>colorlib</code>, <code>text</code> and <code>typing</code> are pure Lynxer and have no native boundary to report across.</p>
 <p>Operations returning a JSON document return <code>[]</code> or <code>{}</code> for an empty result and an error string for a failure — never an exception. <code>jsonParse</code> on malformed input yields the <strong>empty string</strong> (<code>&quot;&quot;</code>), not <code>[]</code>; test the result for <code>&quot;&quot;</code>.</p>
 <p>A failure sentinel is a result, not a diagnostic: a program checks it and decides what to do. No bundled module aborts the process, and none panics across the C boundary (Rust backends wrap every operation in a panic guard that yields the module's sentinel).</p>
 <h3 id="callbacks">Callbacks</h3>
@@ -234,6 +241,8 @@
 <tr><th>Module</th><th>Backend</th><th>Identity model</th><th>Cleanup owner</th></tr>
 <tr><td><code>cli</code></td><td>C++</td><td>none</td><td>none</td></tr>
 <tr><td><code>colorlib</code></td><td>pure Lynxer</td><td>none</td><td>none</td></tr>
+<tr><td><code>compress</code></td><td>Rust</td><td>none — paths are strings; archives are named by path</td><td>none</td></tr>
+<tr><td><code>crypto</code></td><td>Rust</td><td>none — digests and signatures are strings; keys are base64</td><td>none</td></tr>
 <tr><td><code>csv</code></td><td>C++</td><td>none — paths are strings</td><td>none</td></tr>
 <tr><td><code>debug</code></td><td>C++ + pure</td><td>none</td><td>none</td></tr>
 <tr><td><code>encoding</code></td><td>Rust</td><td>none — payloads are strings</td><td>none</td></tr>
@@ -241,6 +250,7 @@
 <tr><td><code>game</code></td><td>Rust</td><td>integer indices: cached textures and sprites</td><td>none (caches live for the run; <code>close()</code> ends the loop)</td></tr>
 <tr><td><code>graphics</code></td><td>Rust</td><td><strong>integer handles</strong> into backend registries (textures, images, fonts, materials, render targets) plus UI widget ids</td><td>none (registries live for the run; <code>run()</code> ends the loop)</td></tr>
 <tr><td><code>image</code></td><td>Rust</td><td><strong>integer handles</strong> into a backend registry</td><td>caller: <code>close(handle)</code></td></tr>
+<tr><td><code>ini</code></td><td>Rust</td><td>none — documents are strings</td><td>none</td></tr>
 <tr><td><code>js</code></td><td>C++</td><td>none</td><td>none</td></tr>
 <tr><td><code>json</code></td><td>Rust</td><td>none — documents are strings</td><td>none</td></tr>
 <tr><td><code>lua</code></td><td>Rust</td><td>none</td><td>none</td></tr>
@@ -259,9 +269,13 @@
 <tr><td><code>sys</code></td><td>C++</td><td>none</td><td>none</td></tr>
 <tr><td><code>text</code></td><td>pure Lynxer</td><td>none</td><td>none</td></tr>
 <tr><td><code>time</code></td><td>C++</td><td>none</td><td>none</td></tr>
+<tr><td><code>toml</code></td><td>Rust</td><td>none — documents are strings</td><td>none</td></tr>
 <tr><td><code>tui</code></td><td>Rust</td><td><strong>integer handles</strong> into backend registries (tables, trees, layouts, progress, status, live)</td><td>none (registries live for the run)</td></tr>
 <tr><td><code>typing</code></td><td>pure Lynxer</td><td>none</td><td>none</td></tr>
 <tr><td><code>uuid</code></td><td>Rust</td><td>none — UUIDs are strings</td><td>none</td></tr>
+<tr><td><code>watch</code></td><td>Rust</td><td><strong>integer handles</strong> into a backend registry</td><td>caller: <code>watchClose(handle)</code></td></tr>
+<tr><td><code>xml</code></td><td>Rust</td><td>none — documents are a JSON element tree</td><td>none</td></tr>
+<tr><td><code>yaml</code></td><td>Rust</td><td>none — documents are strings</td><td>none</td></tr>
 </table>
 <p>Per-module constraints are recorded in <a href="limitations.html">limitations</a>, not here: this page fixes what Lynxer's own contract <em>is</em>, and that page records where it deliberately differs.</p>
 <h2 id="changing-a-contract">Changing a contract</h2>

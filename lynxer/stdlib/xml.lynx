@@ -1,0 +1,27 @@
+////
+Lynxer standard library: xml.
+XML parsing and serialization, backed by the Rust `quick-xml` crate and exposed
+through the native module `stdlib/xml.so`.
+
+A document maps onto a JSON element tree (the shared structured-value bridge):
+`{"name": <tag>, "attributes": {...}, "text": <character data>, "children":
+[...]}`. Comments, processing instructions and the doctype are ignored, and no
+external entity is ever resolved. A failure is the scalar sentinel: `""` for a
+document operation and `false` for `xmlValid`.
+
+Requires a Rust toolchain to build (see `rust/xml`).
+////
+global setup(){ importAs("xml.so", "nativeXml"); }
+
+// The XML document as a JSON element tree, or "" when it is malformed.
+global xmlParse(str text) -> str { return global.nativeXml.xmlParse(text); }
+// The JSON element tree as XML, or "" when it is not an element.
+global xmlSerialize(str json) -> str { return global.nativeXml.xmlSerialize(json); }
+// True when `text` is well-formed XML.
+global xmlValid(str text) -> bool { return global.nativeXml.xmlValid(text) isnt 0; }
+// `text` with `&`, `<`, `>`, `"` and `'` escaped for XML content.
+global xmlEscape(str text) -> str { return global.nativeXml.xmlEscape(text); }
+// `text` with XML entities decoded; "" for a malformed entity.
+global xmlUnescape(str text) -> str { return global.nativeXml.xmlUnescape(text); }
+
+global main(){}

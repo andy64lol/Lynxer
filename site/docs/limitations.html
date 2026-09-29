@@ -120,6 +120,8 @@
 <li><a href="stdlib/index.html">All modules</a></li>
 <li><a href="stdlib/cli.html">cli</a></li>
 <li><a href="stdlib/colorlib.html">colorlib</a></li>
+<li><a href="stdlib/compress.html">compress</a></li>
+<li><a href="stdlib/crypto.html">crypto</a></li>
 <li><a href="stdlib/csv.html">csv</a></li>
 <li><a href="stdlib/debug.html">debug</a></li>
 <li><a href="stdlib/encoding.html">encoding</a></li>
@@ -127,6 +129,7 @@
 <li><a href="stdlib/game.html">game</a></li>
 <li><a href="stdlib/graphics.html">graphics</a></li>
 <li><a href="stdlib/image.html">image</a></li>
+<li><a href="stdlib/ini.html">ini</a></li>
 <li><a href="stdlib/js.html">js</a></li>
 <li><a href="stdlib/json.html">json</a></li>
 <li><a href="stdlib/lua.html">lua</a></li>
@@ -145,9 +148,13 @@
 <li><a href="stdlib/sys.html">sys</a></li>
 <li><a href="stdlib/text.html">text</a></li>
 <li><a href="stdlib/time.html">time</a></li>
+<li><a href="stdlib/toml.html">toml</a></li>
 <li><a href="stdlib/tui.html">tui</a></li>
 <li><a href="stdlib/typing.html">typing</a></li>
 <li><a href="stdlib/uuid.html">uuid</a></li>
+<li><a href="stdlib/watch.html">watch</a></li>
+<li><a href="stdlib/xml.html">xml</a></li>
+<li><a href="stdlib/yaml.html">yaml</a></li>
 </ul>
     </nav>
     <main class="doc">
@@ -226,11 +233,15 @@
 <li><code>mathPlus</code> is merged into <code>math</code>.</li>
 </ul>
 <h3 id="native-backing">Native Backing</h3>
-<p>Lynxer ships modules backed by native implementations. Ten of them are Rust crates:</p>
+<p>Lynxer ships modules backed by native implementations. Nineteen of them are Rust crates:</p>
 <ul>
+<li><code>compress</code> (<code>flate2</code>/<code>zstd</code>/<code>brotli</code>/<code>lz4_flex</code>/<code>zip</code>/<code>tar</code>)</li>
+<li><code>crypto</code> (<code>sha2</code>/<code>sha1</code>/<code>md-5</code>/<code>sha3</code>/<code>blake3</code>/<code>hmac</code>/<code>subtle</code>/<code>getrandom</code>/<code>ed25519-dalek</code>)</li>
+<li><code>encoding</code> (<code>base64</code>/<code>hex</code>/<code>data-encoding</code>/<code>bs58</code>/<code>ascii85</code>/<code>percent-encoding</code>/<code>quoted_printable</code>)</li>
 <li><code>game</code> (<code>macroquad</code>)</li>
 <li><code>graphics</code> (<code>macroquad</code>)</li>
 <li><code>image</code></li>
+<li><code>ini</code> (<code>rust-ini</code>)</li>
 <li><code>json</code> (<code>serde_json</code>)</li>
 <li><code>lua</code> (vendored Lua through <code>mlua</code>)</li>
 <li><code>network</code> (<code>ureq</code> + <code>tungstenite</code>)</li>
@@ -238,6 +249,11 @@
 <li><code>sound</code> (<code>rodio</code>/<code>cpal</code>)</li>
 <li><code>sqldb</code> (<code>rusqlite</code>)</li>
 <li><code>tui</code> (<code>ratatui</code>/<code>crossterm</code>)</li>
+<li><code>uuid</code> (<code>uuid</code>)</li>
+<li><code>watch</code> (<code>inotify</code>)</li>
+<li><code>toml</code> (<code>toml</code>)</li>
+<li><code>xml</code> (<code>quick-xml</code>)</li>
+<li><code>yaml</code> (<code>serde_yml</code>)</li>
 </ul>
 <p>A Rust toolchain is <strong>required</strong>: every one of these backends is built and installed by <code>cargo</code>, and the interpreter links the <code>ffi</code> <code>staticlib</code> native-call engine. A missing toolchain or a failed <code>cargo build</code> fails the build outright — there is no reduced build that leaves a backend out. The Makefile checks for <code>cargo</code> up front and says so.</p>
 <h3 id="graphics--constrained-behavior"><code>graphics</code> — Constrained Behavior</h3>
@@ -263,6 +279,53 @@
 <li><strong>Templates are a substitution subset.</strong> <code>template</code>, <code>templatePost</code> and <code>templateString</code> render <code>{{ key }}</code> and <code>{{ nested.key }}</code> from the <code>dataJson</code> object. Jinja2 loops, conditionals, filters and inheritance are not implemented, and an unknown key renders as the empty string.</li>
 <li><strong><code>run()</code> blocks.</strong> It starts the listener on the <code>init</code> host/port and then blocks, matching the original. Use <code>start()</code> + <code>stop()</code> when the program has to keep running.</li>
 <li><strong>Static paths are confined.</strong> <code>staticFiles</code>, <code>staticSite</code> and <code>serveFile</code> refuse any <code>..</code> component, and a bad file read is a 404.</li>
+</ul>
+<h3 id="compress--constrained-behavior"><code>compress</code> — Constrained Behavior</h3>
+<ul>
+<li><strong>No byte type.</strong> An in-memory <code>&lt;codec&gt;Compress</code> returns base64 and its <code>&lt;codec&gt;Decompress</code> takes base64. A decompressed payload need not be valid UTF-8, and <code>Decompress</code> answers text only when it is (<code>&quot;&quot;</code> otherwise); the <code>*File</code> ops read and write the bytes themselves and are the binary-safe path. See the binary-payload decision in <a href="../todo.html">todo</a>.</li>
+<li><strong>Two sentinel families.</strong> The in-memory stream ops use the scalar sentinel (<code>&quot;&quot;</code>); the file and archive ops answer with <code>&quot;ok&quot;</code> / <code>&quot;ERROR: &lt;message&gt;&quot;</code>, because they can fail with a reason (a missing file, a bad archive).</li>
+<li><strong>A decompress is capped at 64 MiB</strong> of output, so a crafted stream cannot exhaust memory; the <code>*File</code> ops read the whole file into memory and so are also bounded by the process's available memory.</li>
+<li><strong>An extract refuses to escape its destination.</strong> ZIP entries are checked with the archive's enclosed-name rule and TAR entries with <code>unpack_in</code>; a name that is absolute or contains <code>..</code> is an error (and <code>zipCreate</code>/<code>tarCreate</code> reject such a name when the archive is written).</li>
+<li><strong><code>zstd</code> vendors the zstd C sources</strong>, so a C compiler is required in addition to the Rust toolchain. <code>zip</code> is built with deflate only (<code>bzip2</code>/<code>zstd</code>/<code>aes</code> support is off).</li>
+</ul>
+<h3 id="crypto--constrained-behavior"><code>crypto</code> — Constrained Behavior</h3>
+<ul>
+<li><strong>No byte type.</strong> Lynxer has no byte type, so a digest or signature crosses the ABI as text: <code>hash</code>/<code>hmac</code> return lower-case hex, <code>signEd25519</code> and the key pair return base64. A binary payload held in memory is passed base64 through <code>hashBase64</code>; arbitrary file contents go through <code>hashFile</code>/<code>hmacFile</code>, which read the bytes inside the module. See the binary-payload decision in <a href="../todo.html">todo</a>.</li>
+<li><strong>Failures are in-band.</strong> An unknown algorithm, a malformed payload or an I/O error yields <code>&quot;&quot;</code>, and a predicate yields <code>false</code>; there is no exception.</li>
+<li><strong>The algorithm names are a fixed set.</strong> <code>sha1</code>, <code>sha224</code>, <code>sha256</code>, <code>sha384</code>, <code>sha512</code>, <code>md5</code>, <code>sha3-256</code>, <code>sha3-512</code> and <code>blake3</code> for a digest; <code>hash</code>/<code>hmac</code> ignore case but do not accept aliases such as <code>SHA-256</code>.</li>
+<li><strong><code>verifyHmac</code> compares in constant time</strong>; a MAC that is not valid hex is a mismatch, not an error.</li>
+<li><strong>Ed25519 only.</strong> The module signs and verifies Ed25519 keys (32-byte seed, base64); RSA and ECDSA are not exposed. Key generation uses OS entropy, so <code>generateEd25519KeyPair</code> is not reproducible.</li>
+<li><strong><code>randomBytes</code>/<code>randomHex</code>/<code>randomToken</code> cap the count</strong> at 1 MiB and answer <code>&quot;&quot;</code> outside <code>0..=1 MiB</code>, rather than allocating an unbounded buffer.</li>
+</ul>
+<h3 id="watch--constrained-behavior"><code>watch</code> — Constrained Behavior</h3>
+<ul>
+<li><strong>Linux only.</strong> The backend is inotify; there is no portable fallback.</li>
+<li><strong>Handles, closed by the caller.</strong> Each watch is an integer handle; dropping it (<code>watchRemove</code> / <code>watchClose</code>) closes the descriptor.</li>
+<li><strong>No blocking wait.</strong> A module cannot release the interpreter lock, so there is no <code>watchWait</code>: <code>watchFd</code> returns the inotify descriptor for the interpreter's own <code>asyncPollRegister</code> / <code>asyncPollWait</code>, and <code>watchDrain</code> reads the pending events without blocking.</li>
+<li><strong>Failure is in-band.</strong> <code>watchAdd</code>/<code>watchFd</code> yield <code>-1</code>, <code>watchDrain</code> yields <code>&quot;&quot;</code> for an unknown handle, and the predicates yield <code>false</code>.</li>
+<li><strong><code>watchSetDebounce</code> coalesces within a drain</strong>: events for the same path inside the window keep only the most recent kind. 0 disables it.</li>
+</ul>
+<h3 id="toml--constrained-behavior"><code>toml</code> — Constrained Behavior</h3>
+<ul>
+<li><strong>Documents are JSON strings.</strong> A TOML document crosses as JSON (the shared structured-value bridge); a JSON object serializes back to TOML. A TOML datetime becomes a JSON string.</li>
+<li><strong>Failures are in-band.</strong> A document op yields <code>&quot;&quot;</code> and <code>tomlValid</code> yields <code>false</code>; a JSON value that TOML cannot hold (a top-level non-table, or a <code>null</code>) makes <code>tomlSerialize</code> answer <code>&quot;&quot;</code>.</li>
+</ul>
+<h3 id="ini--constrained-behavior"><code>ini</code> — Constrained Behavior</h3>
+<ul>
+<li><strong>Documents are JSON strings.</strong> An INI document crosses as an object of sections, each an object of string values; the unnamed leading section uses <code>&quot;&quot;</code> as its key. Values are strings in both directions.</li>
+<li><strong>Failures are in-band.</strong> A document op yields <code>&quot;&quot;</code> and <code>iniValid</code> yields <code>false</code>. An empty document is valid, so it parses to <code>{&quot;&quot;:{}}</code>.</li>
+</ul>
+<h3 id="xml--constrained-behavior"><code>xml</code> — Constrained Behavior</h3>
+<ul>
+<li><strong>A document maps onto a JSON element tree</strong>: <code>{&quot;name&quot;, &quot;attributes&quot;, &quot;text&quot;, &quot;children&quot;}</code>. Comments, processing instructions and the doctype are ignored, and <strong>no external entity is ever resolved</strong>.</li>
+<li><strong><code>text</code> is the character data directly inside an element</strong>; it is escaped on serialize, so a round trip of a document with entities is exact.</li>
+<li><strong>Failures are in-band.</strong> A malformed document yields <code>&quot;&quot;</code> and <code>xmlValid</code> yields <code>false</code>; <code>xmlUnescape</code> yields <code>&quot;&quot;</code> for a malformed entity.</li>
+</ul>
+<h3 id="yaml--constrained-behavior"><code>yaml</code> — Constrained Behavior</h3>
+<ul>
+<li><strong>Documents are JSON strings.</strong> A YAML mapping becomes a JSON object and a sequence a JSON array. A mapping whose key is not a string (which JSON cannot hold) is a failure.</li>
+<li><strong>Anchors and aliases are resolved while parsing</strong>, so the input is capped at 1 MiB to bound an alias-expansion payload; a larger input is a failure.</li>
+<li><strong>Failures are in-band.</strong> A document op yields <code>&quot;&quot;</code> and <code>yamlValid</code> yields <code>false</code>.</li>
 </ul>
 <h3 id="json--constrained-behavior"><code>json</code> — Constrained Behavior</h3>
 <ul>

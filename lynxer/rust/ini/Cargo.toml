@@ -1,0 +1,16 @@
+[package]
+name = "lynxer_ini"
+version = "0.1.0"
+edition = "2021"
+description = "INI parsing and serialization for the Lynxer `ini` stdlib module"
+publish = false
+
+[lib]
+name = "lynxer_ini"
+crate-type = ["cdylib"]
+
+[dependencies]
+lynxer_abi = { path = "../abi" }
+# `rust-ini` (the library crate is named `ini`); documents cross as JSON.
+rust-ini = "0.21"
+serde_json = "1"

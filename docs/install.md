@@ -51,10 +51,11 @@ The Makefile lives at the repository root; there is no separate
   `staticlib` built by `cargo` and linked into `lynxer/lynxer`. It is not a
   stdlib module and is not copied into `stdlib/`.
 
-The Rust workspace has eleven member crates: the ten stdlib module backends
-listed in `LYNXER_RUST_MODULE_NAMES` (`game`, `graphics`, `image`, `json`,
-`lua`, `network`, `server`, `sound`, `sqldb`, `tui`), plus `rust/ffi`, the
-required native-call engine described in
+The Rust workspace has twenty-one member crates: the nineteen stdlib module
+backends listed in `LYNXER_RUST_MODULE_NAMES` (`compress`, `crypto`, `encoding`,
+`game`, `graphics`, `image`, `ini`, `json`, `lua`, `network`, `server`, `sound`,
+`sqldb`, `toml`, `tui`, `uuid`, `watch`, `xml`, `yaml`), the shared `rust/abi`
+crate, and `rust/ffi`, the required native-call engine described in
 [native-module-abi.md](native-module-abi.md#the-native-call-engine).
 
 ## Install

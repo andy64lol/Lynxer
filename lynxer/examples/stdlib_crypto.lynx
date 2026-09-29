@@ -1,0 +1,64 @@
+////
+Fixture for the crypto stdlib. Every digest, HMAC, signature, length and
+predicate is fixed; the random helpers and a fresh key pair are only checked
+for their shape, so the output is deterministic. Part of the import-parity
+gate.
+////
+global setup(){ import("crypto"); import("json"); import("fileIO"); import("os"); }
+
+global main(){
+    // --- hashes: known answers for "abc" ---
+    println(global.crypto.hash("sha256","abc"));
+    println(global.crypto.hash("sha1","abc"));
+    println(global.crypto.hash("md5","abc"));
+    println(global.crypto.hash("sha384","abc"));
+    println(global.crypto.hash("sha512","abc"));
+    println(global.crypto.hash("sha3-256","abc"));
+    println(global.crypto.hash("sha3-512","abc"));
+    println(global.crypto.hash("blake3","abc"));
+    println(global.crypto.hash("nope","abc")); // unknown algorithm
+    // "YWJj" is base64("abc"), and "!!!" is not base64.
+    println(global.crypto.hashBase64("sha256","YWJj"));
+    println(global.crypto.hashBase64("sha256","!!!"));
+
+    // --- HMAC ---
+    println(global.crypto.hmac("sha256","key","The quick brown fox jumps over the lazy dog"));
+    println(global.crypto.verifyHmac("sha256","key","The quick brown fox jumps over the lazy dog", global.crypto.hmac("sha256","key","The quick brown fox jumps over the lazy dog")));
+    println(global.crypto.verifyHmac("sha256","key","x","00"));
+    println(global.crypto.hmac("nope","key","data"));
+
+    // --- constant-time comparison ---
+    println(global.crypto.constantTimeEquals("abc","abc"));
+    println(global.crypto.constantTimeEquals("abc","abd"));
+    println(global.crypto.constantTimeEquals("abc","abcd"));
+
+    // --- randomness: shape only, never the value ---
+    println(returnLength(global.crypto.randomHex(16)));
+    println(returnLength(global.crypto.randomBytes(16)));
+    println(returnLength(global.crypto.randomToken(16)));
+    println(global.crypto.randomHex(-1)); // out of range
+
+    // --- Ed25519 ---
+    // A fixed 32-byte zero seed signs deterministically, so the signature is a
+    // known answer.
+    str fixed = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+    println(global.crypto.signEd25519(fixed,"hello"));
+    // A fresh key pair: only its shape and the round-trip are fixed.
+    str pair = global.crypto.generateEd25519KeyPair();
+    str private = global.json.jsonGet(pair,"private");
+    str public = global.json.jsonGet(pair,"public");
+    println(returnLength(private));
+    println(returnLength(public));
+    str signature = global.crypto.signEd25519(private,"hello");
+    println(global.crypto.verifyEd25519(public,"hello",signature));
+    println(global.crypto.verifyEd25519(public,"tampered",signature));
+    println(global.crypto.signEd25519("not-base64-key","hello"));
+    println(global.crypto.verifyEd25519("not-base64-key","hello",signature));
+
+    // --- file payloads ---
+    global.fileIO.writeFile(".lynxer_scratch_crypto.bin","abc");
+    println(global.crypto.hashFile("sha256",".lynxer_scratch_crypto.bin"));
+    println(global.crypto.hmacFile("sha256","key",".lynxer_scratch_crypto.bin"));
+    println(global.crypto.hashFile("sha256",".lynxer_scratch_missing.bin"));
+    global.os.remove(".lynxer_scratch_crypto.bin");
+}

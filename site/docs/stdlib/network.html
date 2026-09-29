@@ -120,6 +120,8 @@
 <li><a href="index.html">All modules</a></li>
 <li><a href="cli.html">cli</a></li>
 <li><a href="colorlib.html">colorlib</a></li>
+<li><a href="compress.html">compress</a></li>
+<li><a href="crypto.html">crypto</a></li>
 <li><a href="csv.html">csv</a></li>
 <li><a href="debug.html">debug</a></li>
 <li><a href="encoding.html">encoding</a></li>
@@ -127,6 +129,7 @@
 <li><a href="game.html">game</a></li>
 <li><a href="graphics.html">graphics</a></li>
 <li><a href="image.html">image</a></li>
+<li><a href="ini.html">ini</a></li>
 <li><a href="js.html">js</a></li>
 <li><a href="json.html">json</a></li>
 <li><a href="lua.html">lua</a></li>
@@ -145,9 +148,13 @@
 <li><a href="sys.html">sys</a></li>
 <li><a href="text.html">text</a></li>
 <li><a href="time.html">time</a></li>
+<li><a href="toml.html">toml</a></li>
 <li><a href="tui.html">tui</a></li>
 <li><a href="typing.html">typing</a></li>
 <li><a href="uuid.html">uuid</a></li>
+<li><a href="watch.html">watch</a></li>
+<li><a href="xml.html">xml</a></li>
+<li><a href="yaml.html">yaml</a></li>
 </ul>
     </nav>
     <main class="doc">
@@ -231,10 +238,24 @@
 <tr><td><strong><code>urlScheme(url)</code></strong></td><td>Extracts the URL scheme (e.g., <code>https</code>).</td></tr>
 <tr><td><strong><code>urlHost(url)</code></strong></td><td>Extracts the host and port (e.g., <code>example.com:8080</code>). Default ports are omitted.</td></tr>
 <tr><td><strong><code>urlPath(url)</code></strong></td><td>Extracts the path (e.g., <code>/api/v1</code>).</td></tr>
-<tr><td><strong><code>urlParse(url)</code></strong></td><td>Returns a JSON object with <code>scheme</code>, <code>host</code>, <code>port</code>, <code>path</code>, <code>query</code>, and <code>fragment</code>.</td></tr>
+<tr><td><strong><code>urlParse(url)</code></strong></td><td>Returns a JSON object with <code>scheme</code>, <code>host</code>, <code>port</code>, <code>path</code>, <code>query</code>, and <code>fragment</code>. Every value is escaped, so a quote in a query stays valid JSON.</td></tr>
+<tr><td><strong><code>urlIsValid(url)</code></strong></td><td>True if <code>url</code> is an absolute RFC 3986 URL.</td></tr>
+<tr><td><strong><code>urlJoin(base, ref)</code></strong></td><td>Resolves <code>ref</code> against <code>base</code> (e.g., <code>urlJoin(&quot;https://a/b&quot;, &quot;../c&quot;)</code> → <code>https://a/c</code>). <code>&quot;&quot;</code> if either fails to parse.</td></tr>
+<tr><td><strong><code>urlNormalize(url)</code></strong></td><td>The canonical serialization: lower-cased scheme/host, resolved dot segments, IDNA host, default port removed. <code>&quot;&quot;</code> if it does not parse.</td></tr>
+<tr><td><strong><code>urlGet(url, part)</code></strong></td><td>One component. <code>part</code> is <code>scheme</code>, <code>host</code>, <code>port</code> (defaulted), <code>path</code>, <code>query</code>, <code>fragment</code>, <code>username</code> or <code>password</code>; unknown parts and unparseable URLs give <code>&quot;&quot;</code>.</td></tr>
+<tr><td><strong><code>urlSetScheme(url, scheme)</code></strong></td><td>The URL with its scheme replaced, or <code>&quot;&quot;</code> if the URL or the change is invalid.</td></tr>
+<tr><td><strong><code>urlSetHost(url, host)</code></strong></td><td>The URL with its host replaced, or <code>&quot;&quot;</code>.</td></tr>
+<tr><td><strong><code>urlSetPort(url, port)</code></strong></td><td>The URL with its port set; <code>port &lt;= 0</code> removes an explicit port. <code>&quot;&quot;</code> for an out-of-range port.</td></tr>
+<tr><td><strong><code>urlSetPath(url, path)</code></strong></td><td>The URL with its path replaced.</td></tr>
+<tr><td><strong><code>urlQueryGet(url, key)</code></strong></td><td>The first value for <code>key</code>, or <code>&quot;&quot;</code>.</td></tr>
+<tr><td><strong><code>urlQuerySet(url, key, value)</code></strong></td><td>The URL with every <code>key</code> replaced by a single <code>key=value</code>.</td></tr>
+<tr><td><strong><code>urlQueryAppend(url, key, value)</code></strong></td><td>The URL with <code>key=value</code> appended.</td></tr>
+<tr><td><strong><code>urlQueryRemove(url, key)</code></strong></td><td>The URL with every <code>key</code> removed; an empty query drops the <code>?</code>.</td></tr>
+<tr><td><strong><code>urlEncodeComponent(text)</code></strong></td><td>Percent-encodes for a URL component: every byte outside <code>A-Za-z0-9-._~</code> becomes <code>%XX</code>, so a space is <code>%20</code>.</td></tr>
+<tr><td><strong><code>urlDecodeComponent(text)</code></strong></td><td>Percent-decodes; a malformed escape or a non-UTF-8 result gives <code>&quot;&quot;</code>.</td></tr>
 <tr><td><strong><code>getHostname()</code></strong></td><td>Returns the local hostname.</td></tr>
 <tr><td><strong><code>resolveHost(hostname)</code></strong></td><td>Resolves a hostname to an IP address.</td></tr>
-<tr><td><strong><code>urlencode(text)</code></strong></td><td>Encodes text for use in URLs (e.g., spaces become <code>+</code>).</td></tr>
+<tr><td><strong><code>urlencode(text)</code></strong></td><td>Form/query encoding (e.g., spaces become <code>+</code>); see <code>urlEncodeComponent</code> for path/component encoding.</td></tr>
 </table>
 <hr>
 <h3 id="example-output-of-urlparse">Example Output of <code>urlParse</code></h3>

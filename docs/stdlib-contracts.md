@@ -7,7 +7,7 @@ halves of one contract. This page states that contract once, so a second backend
 for an existing module — or a new module — can be written against it without
 re-deriving the conventions from the code.
 
-The conventions below apply to all 28 bundled modules. The per-module table
+The conventions below apply to all 37 bundled modules. The per-module table
 records only the dimensions that actually vary between them. For an individual
 operation's argument list and return value, the authoritative sources are the
 wrapper itself (`stdlib/<name>.lynx`), `docs/stdlib/<name>.md`, and
@@ -77,13 +77,15 @@ picks one family and applies it consistently:
 
 | Family | Shape | Modules |
 | --- | --- | --- |
-| Scalar sentinel | `-1` for indices and sizes, `0` / `0.0` for numbers, `false` for predicates, `""` for strings | `cli`, `debug`, `encoding`, `fileIO`, `game`, `image`, `json`, `math`, `multiprocessing`, `os`, `path`, `random`, `re`, `regex`, `sound`, `sys`, `time`, `uuid` |
+| Scalar sentinel | `-1` for indices and sizes, `0` / `0.0` for numbers, `false` for predicates, `""` for strings | `cli`, `crypto`, `debug`, `encoding`, `fileIO`, `game`, `image`, `ini`, `json`, `math`, `multiprocessing`, `os`, `path`, `random`, `re`, `regex`, `sound`, `sys`, `time`, `toml`, `uuid`, `watch`, `xml`, `yaml` |
 | Process exit code | the command's exit status; a negative value when it did not run | `shell` |
-| Status string | `"ok"` on success; `"ERROR: <message>"` on failure | `csv`, `sqldb`, `network`, `server` |
+| Status string | `"ok"` on success; `"ERROR: <message>"` on failure | `compress`, `csv`, `sqldb`, `network`, `server` |
 | Error string | `"Error: <message>"` | `js`, `lua`, `tui` |
 
 `csv` mixes the first two: its table-returning operations answer with the status
 string (`"ok"` / `"ERROR: ..."`), and the rest use scalar sentinels.
+`compress` mixes them too: its in-memory stream operations use scalar sentinels
+(`""`), while its file and archive operations answer with the status string.
 `colorlib`, `text` and `typing` are pure Lynxer and have no native boundary to
 report across.
 
@@ -140,6 +142,8 @@ Any future callback must be declared here before the module ships.
 | --- | --- | --- | --- |
 | `cli` | C++ | none | none |
 | `colorlib` | pure Lynxer | none | none |
+| `compress` | Rust | none — paths are strings; archives are named by path | none |
+| `crypto` | Rust | none — digests and signatures are strings; keys are base64 | none |
 | `csv` | C++ | none — paths are strings | none |
 | `debug` | C++ + pure | none | none |
 | `encoding` | Rust | none — payloads are strings | none |
@@ -147,6 +151,7 @@ Any future callback must be declared here before the module ships.
 | `game` | Rust | integer indices: cached textures and sprites | none (caches live for the run; `close()` ends the loop) |
 | `graphics` | Rust | **integer handles** into backend registries (textures, images, fonts, materials, render targets) plus UI widget ids | none (registries live for the run; `run()` ends the loop) |
 | `image` | Rust | **integer handles** into a backend registry | caller: `close(handle)` |
+| `ini` | Rust | none — documents are strings | none |
 | `js` | C++ | none | none |
 | `json` | Rust | none — documents are strings | none |
 | `lua` | Rust | none | none |
@@ -165,9 +170,13 @@ Any future callback must be declared here before the module ships.
 | `sys` | C++ | none | none |
 | `text` | pure Lynxer | none | none |
 | `time` | C++ | none | none |
+| `toml` | Rust | none — documents are strings | none |
 | `tui` | Rust | **integer handles** into backend registries (tables, trees, layouts, progress, status, live) | none (registries live for the run) |
 | `typing` | pure Lynxer | none | none |
 | `uuid` | Rust | none — UUIDs are strings | none |
+| `watch` | Rust | **integer handles** into a backend registry | caller: `watchClose(handle)` |
+| `xml` | Rust | none — documents are a JSON element tree | none |
+| `yaml` | Rust | none — documents are strings | none |
 
 Per-module constraints are recorded in
 [limitations.md](limitations.md), not here: this page fixes what Lynxer's own

@@ -2,7 +2,7 @@
 
 Lynxer is a small, standalone C++ toolchain for the Lynxer language. It runs
 `.lynx` programs without a Python runtime and ships its standard library as
-native shared libraries. It provides standalone ELF executables, 28 natively
+native shared libraries. It provides standalone ELF executables, 34 natively
 backed modules, an AST optimizer, a frozen native-module ABI, and CI on amd64
 and arm64. See [limitations.md](limitations.md) for the behaviour that is
 deliberately constrained or not implemented.
@@ -91,7 +91,7 @@ scripts in the test suite.
 
 ## Standard library modules
 
-There are 30 bundled modules. A module is exposed to Lynxer by
+There are 37 bundled modules. A module is exposed to Lynxer by
 `stdlib/<name>.lynx` and backed by a `stdlib/<name>.so`. The backends marked
 *Rust* come from a crate under `rust/`; *pure* modules are written in Lynxer
 only and need no shared library.
@@ -100,6 +100,8 @@ only and need no shared library.
 | --- | --- | --- |
 | [cli](stdlib/cli.md) | native | POSIX process/env/terminal APIs |
 | [colorlib](stdlib/colorlib.md) | pure | ANSI escape sequences |
+| [compress](stdlib/compress.md) | Rust | `flate2`/`zstd`/`brotli`/`lz4_flex`/`zip`/`tar` (`rust/compress`) |
+| [crypto](stdlib/crypto.md) | Rust | `sha2`/`sha1`/`md-5`/`sha3`/`blake3`/`hmac`/`subtle`/`getrandom`/`ed25519-dalek` (`rust/crypto`) |
 | [csv](stdlib/csv.md) | native | hand-written CSV/TSV reader and writer |
 | [debug](stdlib/debug.md) | native + pure | `<chrono>`, `getrusage`, assertions in Lynxer |
 | [encoding](stdlib/encoding.md) | Rust | `base64`, `hex`, `data-encoding`, `bs58`, `ascii85`, `percent-encoding`, `quoted_printable` (`rust/encoding`) |
@@ -107,6 +109,7 @@ only and need no shared library.
 | [game](stdlib/game.md) | Rust | `macroquad` (`rust/game`) |
 | [graphics](stdlib/graphics.md) | Rust | `macroquad` (`rust/graphics`) |
 | [image](stdlib/image.md) | Rust | `image` (`rust/image`) |
+| [ini](stdlib/ini.md) | Rust | `rust-ini` (`rust/ini`) |
 | [js](stdlib/js.md) | native | the `node` binary |
 | [json](stdlib/json.md) | Rust | `serde_json` (`rust/json`) |
 | [lua](stdlib/lua.md) | Rust | `mlua` with vendored Lua 5.4 (`rust/lua`) |
@@ -125,13 +128,17 @@ only and need no shared library.
 | [sys](stdlib/sys.md) | native | C++ runtime and POSIX |
 | [text](stdlib/text.md) | pure | Lynxer string builtins |
 | [time](stdlib/time.md) | native | `<chrono>`, `<ctime>` |
+| [toml](stdlib/toml.md) | Rust | `toml` (`rust/toml`) |
 | [tui](stdlib/tui.md) | Rust | `ratatui` + `crossterm` |
 | [typing](stdlib/typing.md) | pure | Lynxer type builtins |
 | [uuid](stdlib/uuid.md) | Rust | `uuid` (`rust/uuid`) |
+| [watch](stdlib/watch.md) | Rust | `inotify` (`rust/watch`) |
+| [xml](stdlib/xml.md) | Rust | `quick-xml` (`rust/xml`) |
+| [yaml](stdlib/yaml.md) | Rust | `serde_yml` (`rust/yaml`) |
 
-The Rust workspace has eleven member crates: the ten module `cdylib` backends
-listed above (`LYNXER_RUST_MODULE_NAMES` in the Makefile), plus `ffi`, the
-required native-call engine — a `staticlib` linked into the interpreter through
+The Rust workspace has twenty-one member crates: the nineteen module `cdylib`
+backends listed above (`LYNXER_RUST_MODULE_NAMES` in the Makefile), the `abi`
+crate they share, and `ffi`, the required native-call engine — a `staticlib` linked into the interpreter through
 `lynxer/ffi_abi.h`, not a stdlib module. It is built on the `libffi` crate, so
 `cargo` and `libffi` headers are required to build the interpreter; see
 [native-module-abi.md](native-module-abi.md#the-native-call-engine). There is no
