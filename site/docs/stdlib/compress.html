@@ -171,18 +171,18 @@
 <p><strong>Backend:</strong> native — <code>stdlib/compress.so</code>, built from the Rust crate <code>rust/compress</code> over <code>flate2</code>, <code>zstd</code>, <code>brotli</code>, <code>lz4_flex</code>, <code>zip</code> and <code>tar</code>.</p>
 <p><strong>Import:</strong> <code>import(&quot;compress&quot;)</code> → <code>global.compress.*</code></p>
 <h2 id="how-bytes-travel">How bytes travel</h2>
-<p>Lynxer has no byte type, so an in-memory <strong><code>&lt;codec&gt;Compress</code></strong> returns base64 and its <strong><code>&lt;codec&gt;Decompress</code></strong> takes base64. A decompressed payload is not necessarily UTF-8, so <code>Decompress</code> returns text only when it is and <code>&quot;&quot;</code> otherwise. The <strong><code>*File</code></strong> operations read and write the bytes themselves and are the binary-safe path for arbitrary data.</p>
+<p>An in-memory <strong><code>&lt;codec&gt;Compress</code></strong> takes <code>bytes</code> and returns <code>bytes</code>, and its <strong><code>&lt;codec&gt;Decompress</code></strong> does the same, so a payload that is not valid UTF-8 is representable. The <strong><code>*File</code></strong> operations work on paths and read and write the bytes themselves.</p>
 <p>A decompress is capped at <strong>64 MiB</strong> of output, for the in-memory stream operations and the <code>*File</code> operations alike; an LZ4 stream whose declared length exceeds the cap is refused before it is decoded. Archive extraction is capped too — a ZIP entry on <code>zipRead</code> and <code>zipExtract</code>, and a total entry budget on <code>tarExtract</code> and <code>tarGzExtract</code> — so a crafted archive cannot exhaust memory or disk.</p>
 <h2 id="sentinels">Sentinels</h2>
-<p>The in-memory stream operations use scalar sentinels: a malformed payload or an unknown stream yields <code>&quot;&quot;</code>. The file and archive operations answer with the status string <code>&quot;ok&quot;</code> / <code>&quot;ERROR: &lt;message&gt;&quot;</code>, because they can fail with a reason.</p>
+<p>The in-memory stream operations use an empty <code>bytes</code> sentinel: a malformed payload or an unknown stream yields an empty <code>bytes</code>. The file and archive operations answer with the status string <code>&quot;ok&quot;</code> / <code>&quot;ERROR: &lt;message&gt;&quot;</code>, because they can fail with a reason.</p>
 <h2 id="archives">Archives</h2>
 <p><code>zipCreate</code>, <code>tarCreate</code> and <code>tarGzCreate</code> take a JSON <strong>manifest</strong>: an array of entries, each <code>{&quot;name&quot;: &quot;&lt;path in archive&gt;&quot;, &quot;path&quot;: &quot;&lt;source file&gt;&quot;}</code> or <code>{&quot;name&quot;: &quot;...&quot;, &quot;base64&quot;: &quot;&lt;inline data&gt;&quot;}</code>. A name that is absolute or contains <code>..</code> is rejected when the archive is written.</p>
 <p><code>zipExtract</code> and <code>tarExtract</code> extract into a directory and refuse any entry whose name would escape it.</p>
 <h2 id="functions">Functions</h2>
 <table>
 <tr><th>Function</th><th>Signature</th><th>Returns</th></tr>
-<tr><td><code>gzipCompress</code></td><td><code>(str text)</code></td><td>base64 gzip stream</td></tr>
-<tr><td><code>gzipDecompress</code></td><td><code>(str base64Data)</code></td><td>text, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>gzipCompress</code></td><td><code>(bytes data)</code></td><td>the gzip stream as <code>bytes</code></td></tr>
+<tr><td><code>gzipDecompress</code></td><td><code>(bytes data)</code></td><td>the payload as <code>bytes</code>, or empty on failure</td></tr>
 <tr><td><code>gzipCompressFile</code></td><td><code>(str input, str output)</code></td><td><code>&quot;ok&quot;</code> / <code>&quot;ERROR: ...&quot;</code></td></tr>
 <tr><td><code>gzipDecompressFile</code></td><td><code>(str input, str output)</code></td><td><code>&quot;ok&quot;</code> / <code>&quot;ERROR: ...&quot;</code></td></tr>
 <tr><td><code>zlibCompress</code> / <code>zlibDecompress</code> / <code>zlibCompressFile</code> / <code>zlibDecompressFile</code></td><td>as gzip</td><td>as gzip</td></tr>
@@ -191,7 +191,7 @@
 <tr><td><code>lz4Compress</code> / <code>lz4Decompress</code> / <code>lz4CompressFile</code> / <code>lz4DecompressFile</code></td><td>as gzip</td><td>as gzip</td></tr>
 <tr><td><code>zipCreate</code></td><td><code>(str path, str manifest)</code></td><td><code>&quot;ok&quot;</code> / <code>&quot;ERROR: ...&quot;</code></td></tr>
 <tr><td><code>zipList</code></td><td><code>(str path)</code></td><td>JSON array of entry names, or <code>&quot;ERROR: ...&quot;</code></td></tr>
-<tr><td><code>zipRead</code></td><td><code>(str path, str entry)</code></td><td>base64, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>zipRead</code></td><td><code>(str path, str entry)</code></td><td>the entry's bytes, or empty when absent</td></tr>
 <tr><td><code>zipExtract</code></td><td><code>(str path, str directory)</code></td><td><code>&quot;ok&quot;</code> / <code>&quot;ERROR: ...&quot;</code></td></tr>
 <tr><td><code>tarCreate</code></td><td><code>(str path, str manifest)</code></td><td><code>&quot;ok&quot;</code> / <code>&quot;ERROR: ...&quot;</code></td></tr>
 <tr><td><code>tarList</code></td><td><code>(str path)</code></td><td>JSON array of entry names, or <code>&quot;ERROR: ...&quot;</code></td></tr>
@@ -204,10 +204,11 @@
 
 global main(){
     str text = &quot;the quick brown fox jumps over the lazy dog&quot;;
+    bytes payload = bytesOf(text);
 
-    // In-memory round trip, through base64.
-    str packed = global.compress.gzipCompress(text);
-    println(global.compress.gzipDecompress(packed) is text);
+    // In-memory round trip.
+    bytes packed = global.compress.gzipCompress(payload);
+    println(bytesToStr(global.compress.gzipDecompress(packed)) is text);
 
     // File round trip (binary-safe).
     global.fileIO.writeFile(&quot;data.txt&quot;, text);

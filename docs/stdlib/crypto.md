@@ -10,17 +10,17 @@ over `sha2`, `sha1`, `md-5`, `sha3`, `blake3`, `hmac`, `subtle`, `getrandom` and
 
 ## How bytes travel
 
-Lynxer has no byte type, so binary payloads cross the module ABI as text:
+Binary payloads cross the module ABI as `bytes`:
 
-- a **digest** or **HMAC** is returned as lower-case hex;
-- an **Ed25519 key** and **signature** are base64 (the 32 raw key bytes, and the
-  64 raw signature bytes);
-- a caller that already holds bytes as base64 passes them to `hashBase64`;
+- a **digest** or **HMAC** is returned as lower-case hex (a text form is the API);
+- a **message**, **key**, **signature** or **random payload** is `bytes` — an
+  Ed25519 key is the 32 raw bytes, a signature the 64 raw bytes;
 - arbitrary file contents go through `hashFile` / `hmacFile`, which read the
-  bytes inside the module and so are not limited to valid UTF-8.
+  bytes inside the module.
 
 A failure is a scalar sentinel: an unknown algorithm, a malformed payload or an
-I/O error yields `""`, and a predicate yields `false`.
+I/O error yields `""` for a hex output and an empty `bytes` for a binary one,
+and a predicate yields `false`.
 
 ## Algorithms
 
@@ -40,33 +40,33 @@ Any other name yields `""`.
 
 `randomBytes`, `randomHex` and `randomToken` draw from the operating system's
 entropy source. The count is capped at 1 MiB; a negative or larger count yields
-`""`. These are not reproducible, so a test asserts their shape, never their
+an empty `bytes` (or `""` for the hex and token forms). These are not reproducible, so a test asserts their shape, never their
 value.
 
 ## Ed25519
 
 `generateEd25519KeyPair` returns JSON, `{"private": "<base64>", "public":
 "<base64>"}`. `signEd25519` takes the private key and `verifyEd25519` the public
-key. Ed25519 is deterministic, so a fixed key signs a fixed message to a fixed
-signature.
+key as raw `bytes` (decode the JSON fields with `bytesFromBase64`-style code, or
+use the `encoding` module's `base64Decode`). Ed25519 is deterministic, so a fixed
+key signs a fixed message to a fixed signature.
 
 ## Functions
 
 | Function | Signature | Returns |
 | --- | --- | --- |
-| `hash` | `(str algorithm, str data)` | lower-case hex digest, or `""` |
+| `hash` | `(str algorithm, bytes data)` | lower-case hex digest, or `""` |
 | `hashFile` | `(str algorithm, str path)` | lower-case hex digest of the file, or `""` |
-| `hashBase64` | `(str algorithm, str base64Data)` | lower-case hex digest of the decoded bytes, or `""` |
-| `hmac` | `(str algorithm, str key, str data)` | lower-case hex MAC, or `""` |
-| `hmacFile` | `(str algorithm, str key, str path)` | lower-case hex MAC of the file, or `""` |
-| `verifyHmac` | `(str algorithm, str key, str data, str mac)` | `true` / `false` (constant-time) |
-| `constantTimeEquals` | `(str a, str b)` | `true` / `false` |
-| `randomBytes` | `(int count)` | base64, or `""` |
+| `hmac` | `(str algorithm, bytes key, bytes data)` | lower-case hex MAC, or `""` |
+| `hmacFile` | `(str algorithm, bytes key, str path)` | lower-case hex MAC of the file, or `""` |
+| `verifyHmac` | `(str algorithm, bytes key, bytes data, str mac)` | `true` / `false` (constant-time) |
+| `constantTimeEquals` | `(bytes a, bytes b)` | `true` / `false` |
+| `randomBytes` | `(int count)` | `bytes`, or empty on failure |
 | `randomHex` | `(int count)` | lower-case hex, or `""` |
 | `randomToken` | `(int count)` | URL-safe base64 without padding, or `""` |
 | `generateEd25519KeyPair` | `()` | JSON `{"private","public"}`, or `""` |
-| `signEd25519` | `(str privateKey, str message)` | base64 signature, or `""` |
-| `verifyEd25519` | `(str publicKey, str message, str signature)` | `true` / `false` |
+| `signEd25519` | `(bytes privateKey, bytes message)` | signature `bytes`, or empty on failure |
+| `verifyEd25519` | `(bytes publicKey, bytes message, bytes signature)` | `true` / `false` |
 
 ## Example
 
@@ -75,12 +75,12 @@ global setup(){ import("crypto"); import("fileIO"); }
 
 global main(){
     // A SHA-256 digest of "abc", as lower-case hex.
-    println(global.crypto.hash("sha256", "abc"));
+    println(global.crypto.hash("sha256", bytesOf("abc")));
 
     // An HMAC-SHA256, and its constant-time verification.
-    str mac = global.crypto.hmac("sha256", "key", "message");
-    println(global.crypto.verifyHmac("sha256", "key", "message", mac));
-    println(global.crypto.verifyHmac("sha256", "key", "other", mac));
+    str mac = global.crypto.hmac("sha256", bytesOf("key"), bytesOf("message"));
+    println(global.crypto.verifyHmac("sha256", bytesOf("key"), bytesOf("message"), mac));
+    println(global.crypto.verifyHmac("sha256", bytesOf("key"), bytesOf("other"), mac));
 
     // Hash a file's bytes (binary-safe).
     global.fileIO.writeFile("data.bin", "payload");
@@ -88,10 +88,10 @@ global main(){
 
     // A fresh Ed25519 key pair, then sign and verify.
     str pair = global.crypto.generateEd25519KeyPair();
-    str private = global.json.jsonGet(pair, "private");
-    str public = global.json.jsonGet(pair, "public");
-    str signature = global.crypto.signEd25519(private, "hello");
-    println(global.crypto.verifyEd25519(public, "hello", signature));
+    bytes private = global.encoding.base64Decode(global.json.jsonGet(pair, "private"));
+    bytes public = global.encoding.base64Decode(global.json.jsonGet(pair, "public"));
+    bytes signature = global.crypto.signEd25519(private, bytesOf("hello"));
+    println(global.crypto.verifyEd25519(public, bytesOf("hello"), signature));
 }
 ```
 

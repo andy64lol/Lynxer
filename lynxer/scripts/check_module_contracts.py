@@ -26,8 +26,8 @@ For every ``stdlib/<name>.lynx`` that imports ``stdlib/<name>.so``:
    registered with the packed ``cdecl:<ret>(...)`` signature, the highest index
    an op reads for a given argument kind must be lower than the number of
    arguments of that kind the wrapper passes. Numbers (``int``/``float``/
-   ``bool``) and strings are counted separately, which is what ``lynxer_abi``
-   delivers them as. (failure)
+   ``bool``), strings and ``bytes`` buffers are counted separately, which is
+   what ``lynxer_abi`` delivers them as. (failure)
 3. **Unused registrations** — an op the backend registers that no wrapper
    function calls. (failure)
 
@@ -61,6 +61,7 @@ RUST_DIR = LYNXER_ROOT / "rust"
 # two independent lists, so indices are per kind.
 NUMBER = "number"
 STRING = "string"
+BYTES = "bytes"
 
 NUMBER_TYPES = {
     "int",
@@ -89,9 +90,10 @@ ACCESSOR_KIND = {
     "bool": NUMBER,
     "num": NUMBER,
     "string": STRING,
+    "bytes": BYTES,
 }
 
-RETURN_KINDS = {"int64": NUMBER, "float64": NUMBER, "cstring": STRING}
+RETURN_KINDS = {"int64": NUMBER, "float64": NUMBER, "cstring": STRING, "bytes": BYTES}
 
 
 class Finding:
@@ -246,7 +248,7 @@ def parse_rust_backend(path: Path) -> Backend:
             "signature": params,
             "line": line_of(text, match.start()),
         }
-        if params.strip() == "...":
+        if params.strip() in ("...", "...,bytes"):
             backend.packed = True
 
     for match in RUST_EXPORT.finditer(text):
@@ -275,7 +277,7 @@ def parse_cpp_backend(path: Path) -> Backend:
             "signature": params,
             "line": line_of(text, match.start()),
         }
-        if params.strip() == "...":
+        if params.strip() in ("...", "...,bytes"):
             backend.packed = True
     return backend
 
@@ -350,6 +352,8 @@ def parse_wrapper(path: Path, module: str) -> Wrapper:
             kind, name = pieces[0], pieces[-1]
             if kind == "str":
                 param_kinds[name] = STRING
+            elif kind == "bytes":
+                param_kinds[name] = BYTES
             elif kind in NUMBER_TYPES:
                 param_kinds[name] = NUMBER
 
@@ -442,17 +446,20 @@ def check_module(module: str, verbose: bool) -> tuple[list[Finding], int, int]:
         available = {
             NUMBER: sum(1 for kind in call.kinds if kind == NUMBER),
             STRING: sum(1 for kind in call.kinds if kind == STRING),
+            BYTES: sum(1 for kind in call.kinds if kind == BYTES),
         }
+        accessor = {NUMBER: "int", STRING: "string", BYTES: "bytes"}
+        sentinel = {NUMBER: "0", STRING: '\"\"', BYTES: "empty bytes"}
         for kind, index, line in backend.reads.get(entry["symbol"], []):
             if index >= available[kind]:
                 findings.append(
                     Finding(
                         rust_path,
                         line,
-                        f"'{call.op}' reads args.{'string' if kind == STRING else 'int'}({index}), "
+                        f"'{call.op}' reads args.{accessor[kind]}({index}), "
                         f"but the wrapper {wrapper.path.name} passes {available[kind]} "
                         f"{kind} argument(s) — the read is out of range and silently "
-                        f"yields {'\"\"' if kind == STRING else '0'}",
+                        f"yields {sentinel[kind]}",
                         fatal=True,
                     )
                 )

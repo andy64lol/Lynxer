@@ -1,17 +1,15 @@
 //! Lynxer `encoding` stdlib backend: binary/text codecs on the usual crates.
 //!
-//! Strings are byte sequences here. An encode op takes the UTF-8 bytes of its
-//! input, and a decode op returns the decoded bytes as text — so a payload that
-//! is not valid UTF-8 has no representation in this module. Lynxer has no byte
-//! type yet (see the binary-payload decision in `todo.md`); `compress` and
-//! `crypto` are expected to carry bulk binary through files instead.
+//! The encoded form of a payload is always text, and the raw form is always a
+//! `bytes` value: an encode op takes `bytes` and returns a `str`, a decode op
+//! takes a `str` and returns `bytes`. A payload that is not valid UTF-8 is
+//! therefore representable (a decode used to answer `""`).
 //!
 //! Failures are in-band with the scalar-sentinel family documented in
-//! `docs/stdlib-contracts.md`: a decode yields `""` and a `*Valid` predicate
-//! yields `false`, so a program tests the result rather than expecting an
-//! exception. `*Valid` reports only whether the input is well formed in that
-//! codec — it does not require the decoded bytes to be UTF-8, which is what
-//! `*Decode` additionally needs.
+//! `docs/stdlib-contracts.md`: a decode yields an empty `bytes` and a `*Valid`
+//! predicate yields `false`, so a program tests the result rather than
+//! expecting an exception. `*Valid` reports whether the input is well formed in
+//! that codec.
 //!
 //! Decoding is strict apart from two documented conveniences: base64 and base32
 //! padding is optional (encode always emits it) and base32 accepts either case.
@@ -21,8 +19,8 @@
 use base64::alphabet;
 use base64::engine::general_purpose::GeneralPurpose;
 use base64::engine::{DecodePaddingMode, Engine, GeneralPurposeConfig};
-use lynxer_abi::{export_int, export_string, lynxer_module};
-use percent_encoding::{percent_decode_str, utf8_percent_encode, AsciiSet, NON_ALPHANUMERIC};
+use lynxer_abi::{export_bytes_buffers, export_int, export_string_buffers, lynxer_module};
+use percent_encoding::{percent_decode_str, percent_encode, AsciiSet, NON_ALPHANUMERIC};
 
 /// base64, standard alphabet, padded on encode and padding-optional on decode.
 const BASE64_STANDARD: GeneralPurpose = GeneralPurpose::new(
@@ -47,11 +45,6 @@ const COMPONENT: &AsciiSet = &NON_ALPHANUMERIC
     .remove(b'\'')
     .remove(b'(')
     .remove(b')');
-
-/// A decoded payload as text, or `""` when it is not valid UTF-8.
-fn text_of(bytes: Vec<u8>) -> String {
-    String::from_utf8(bytes).unwrap_or_default()
-}
 
 /// base32 decoding that accepts upper- or lower-case and optional padding.
 ///
@@ -121,30 +114,24 @@ fn ascii85_payload(input: &str) -> String {
 
 // --- base64 ------------------------------------------------------------------
 
-export_string!(encoding_base64_encode, args, {
-    BASE64_STANDARD.encode(args.string(0))
+export_string_buffers!(encoding_base64_encode, args, {
+    BASE64_STANDARD.encode(args.bytes(0))
 });
 
-export_string!(encoding_base64_decode, args, {
-    BASE64_STANDARD
-        .decode(args.string(0))
-        .map(text_of)
-        .unwrap_or_default()
+export_bytes_buffers!(encoding_base64_decode, args, {
+    BASE64_STANDARD.decode(args.string(0)).unwrap_or_default()
 });
 
 export_int!(encoding_base64_valid, args, {
     BASE64_STANDARD.decode(args.string(0)).is_ok() as i64
 });
 
-export_string!(encoding_base64_url_encode, args, {
-    BASE64_URL.encode(args.string(0))
+export_string_buffers!(encoding_base64_url_encode, args, {
+    BASE64_URL.encode(args.bytes(0))
 });
 
-export_string!(encoding_base64_url_decode, args, {
-    BASE64_URL
-        .decode(args.string(0))
-        .map(text_of)
-        .unwrap_or_default()
+export_bytes_buffers!(encoding_base64_url_decode, args, {
+    BASE64_URL.decode(args.string(0)).unwrap_or_default()
 });
 
 export_int!(encoding_base64_url_valid, args, {
@@ -153,14 +140,14 @@ export_int!(encoding_base64_url_valid, args, {
 
 // --- hex ---------------------------------------------------------------------
 
-export_string!(encoding_hex_encode, args, { hex::encode(args.string(0)) });
+export_string_buffers!(encoding_hex_encode, args, { hex::encode(args.bytes(0)) });
 
-export_string!(encoding_hex_encode_upper, args, {
-    hex::encode(args.string(0)).to_ascii_uppercase()
+export_string_buffers!(encoding_hex_encode_upper, args, {
+    hex::encode(args.bytes(0)).to_ascii_uppercase()
 });
 
-export_string!(encoding_hex_decode, args, {
-    hex::decode(args.string(0)).map(text_of).unwrap_or_default()
+export_bytes_buffers!(encoding_hex_decode, args, {
+    hex::decode(args.string(0)).unwrap_or_default()
 });
 
 export_int!(encoding_hex_valid, args, {
@@ -169,14 +156,12 @@ export_int!(encoding_hex_valid, args, {
 
 // --- base32 ------------------------------------------------------------------
 
-export_string!(encoding_base32_encode, args, {
-    data_encoding::BASE32.encode(args.string(0).as_bytes())
+export_string_buffers!(encoding_base32_encode, args, {
+    data_encoding::BASE32.encode(args.bytes(0))
 });
 
-export_string!(encoding_base32_decode, args, {
-    base32_decode(args.string(0))
-        .map(text_of)
-        .unwrap_or_default()
+export_bytes_buffers!(encoding_base32_decode, args, {
+    base32_decode(args.string(0)).unwrap_or_default()
 });
 
 export_int!(encoding_base32_valid, args, {
@@ -185,15 +170,12 @@ export_int!(encoding_base32_valid, args, {
 
 // --- base58 ------------------------------------------------------------------
 
-export_string!(encoding_base58_encode, args, {
-    bs58::encode(args.string(0)).into_string()
+export_string_buffers!(encoding_base58_encode, args, {
+    bs58::encode(args.bytes(0)).into_string()
 });
 
-export_string!(encoding_base58_decode, args, {
-    bs58::decode(args.string(0))
-        .into_vec()
-        .map(text_of)
-        .unwrap_or_default()
+export_bytes_buffers!(encoding_base58_decode, args, {
+    bs58::decode(args.string(0)).into_vec().unwrap_or_default()
 });
 
 export_int!(encoding_base58_valid, args, {
@@ -202,14 +184,12 @@ export_int!(encoding_base58_valid, args, {
 
 // --- ascii85 -----------------------------------------------------------------
 
-export_string!(encoding_ascii85_encode, args, {
-    ascii85::encode(args.string(0).as_bytes())
+export_string_buffers!(encoding_ascii85_encode, args, {
+    ascii85::encode(args.bytes(0))
 });
 
-export_string!(encoding_ascii85_decode, args, {
-    ascii85::decode(&ascii85_payload(args.string(0)))
-        .map(text_of)
-        .unwrap_or_default()
+export_bytes_buffers!(encoding_ascii85_decode, args, {
+    ascii85::decode(&ascii85_payload(args.string(0))).unwrap_or_default()
 });
 
 export_int!(encoding_ascii85_valid, args, {
@@ -218,19 +198,16 @@ export_int!(encoding_ascii85_valid, args, {
 
 // --- percent encoding --------------------------------------------------------
 
-export_string!(encoding_percent_encode, args, {
-    utf8_percent_encode(args.string(0), COMPONENT).to_string()
+export_string_buffers!(encoding_percent_encode, args, {
+    percent_encode(args.bytes(0), COMPONENT).to_string()
 });
 
-export_string!(encoding_percent_decode, args, {
+export_bytes_buffers!(encoding_percent_decode, args, {
     let text = args.string(0);
     if !percent_escapes_well_formed(text) {
-        return String::new();
+        return Vec::new();
     }
-    percent_decode_str(text)
-        .decode_utf8()
-        .map(|decoded| decoded.into_owned())
-        .unwrap_or_default()
+    percent_decode_str(text).collect()
 });
 
 export_int!(encoding_percent_valid, args, {
@@ -239,16 +216,15 @@ export_int!(encoding_percent_valid, args, {
 
 // --- quoted-printable --------------------------------------------------------
 
-export_string!(encoding_quoted_printable_encode, args, {
-    quoted_printable::encode_to_str(args.string(0))
+export_string_buffers!(encoding_quoted_printable_encode, args, {
+    String::from_utf8(quoted_printable::encode(args.bytes(0))).unwrap_or_default()
 });
 
-export_string!(encoding_quoted_printable_decode, args, {
+export_bytes_buffers!(encoding_quoted_printable_decode, args, {
     quoted_printable::decode(
         args.string(0).as_bytes(),
         quoted_printable::ParseMode::Strict,
     )
-    .map(text_of)
     .unwrap_or_default()
 });
 
@@ -264,90 +240,90 @@ const OPS: &[(&str, &str, &str)] = &[
     (
         "base64Encode",
         "encoding_base64_encode",
-        "cdecl:cstring(...)",
+        "cdecl:cstring(...,bytes)",
     ),
     (
         "base64Decode",
         "encoding_base64_decode",
-        "cdecl:cstring(...)",
+        "cdecl:bytes(...,bytes)",
     ),
     ("base64Valid", "encoding_base64_valid", "cdecl:int64(...)"),
     (
         "base64UrlEncode",
         "encoding_base64_url_encode",
-        "cdecl:cstring(...)",
+        "cdecl:cstring(...,bytes)",
     ),
     (
         "base64UrlDecode",
         "encoding_base64_url_decode",
-        "cdecl:cstring(...)",
+        "cdecl:bytes(...,bytes)",
     ),
     (
         "base64UrlValid",
         "encoding_base64_url_valid",
         "cdecl:int64(...)",
     ),
-    ("hexEncode", "encoding_hex_encode", "cdecl:cstring(...)"),
+    ("hexEncode", "encoding_hex_encode", "cdecl:cstring(...,bytes)"),
     (
         "hexEncodeUpper",
         "encoding_hex_encode_upper",
-        "cdecl:cstring(...)",
+        "cdecl:cstring(...,bytes)",
     ),
-    ("hexDecode", "encoding_hex_decode", "cdecl:cstring(...)"),
+    ("hexDecode", "encoding_hex_decode", "cdecl:bytes(...,bytes)"),
     ("hexValid", "encoding_hex_valid", "cdecl:int64(...)"),
     (
         "base32Encode",
         "encoding_base32_encode",
-        "cdecl:cstring(...)",
+        "cdecl:cstring(...,bytes)",
     ),
     (
         "base32Decode",
         "encoding_base32_decode",
-        "cdecl:cstring(...)",
+        "cdecl:bytes(...,bytes)",
     ),
     ("base32Valid", "encoding_base32_valid", "cdecl:int64(...)"),
     (
         "base58Encode",
         "encoding_base58_encode",
-        "cdecl:cstring(...)",
+        "cdecl:cstring(...,bytes)",
     ),
     (
         "base58Decode",
         "encoding_base58_decode",
-        "cdecl:cstring(...)",
+        "cdecl:bytes(...,bytes)",
     ),
     ("base58Valid", "encoding_base58_valid", "cdecl:int64(...)"),
     (
         "ascii85Encode",
         "encoding_ascii85_encode",
-        "cdecl:cstring(...)",
+        "cdecl:cstring(...,bytes)",
     ),
     (
         "ascii85Decode",
         "encoding_ascii85_decode",
-        "cdecl:cstring(...)",
+        "cdecl:bytes(...,bytes)",
     ),
     ("ascii85Valid", "encoding_ascii85_valid", "cdecl:int64(...)"),
     (
         "percentEncode",
         "encoding_percent_encode",
-        "cdecl:cstring(...)",
+        "cdecl:cstring(...,bytes)",
     ),
     (
         "percentDecode",
         "encoding_percent_decode",
-        "cdecl:cstring(...)",
+        "cdecl:bytes(...,bytes)",
     ),
     ("percentValid", "encoding_percent_valid", "cdecl:int64(...)"),
     (
         "quotedPrintableEncode",
         "encoding_quoted_printable_encode",
-        "cdecl:cstring(...)",
+        "cdecl:cstring(...,bytes)",
     ),
     (
         "quotedPrintableDecode",
         "encoding_quoted_printable_decode",
-        "cdecl:cstring(...)",
+        "cdecl:bytes(...,bytes)",
     ),
     (
         "quotedPrintableValid",
@@ -361,6 +337,12 @@ lynxer_module!(OPS);
 #[cfg(test)]
 mod tests {
     use super::*;
+    use percent_encoding::utf8_percent_encode;
+
+    /// A decoded payload as text, or `""` when it is not valid UTF-8.
+    fn text_of(bytes: Vec<u8>) -> String {
+        String::from_utf8(bytes).unwrap_or_default()
+    }
 
     #[test]
     fn base64_round_trips_and_accepts_unpadded_input() {

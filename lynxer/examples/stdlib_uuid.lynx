@@ -81,4 +81,10 @@ global main(){
     println(global.uuid.uuidFromHex("a1a2a3a4-b1b2-c1c2-d1d2-d3d4d5d6d7d8")); // hyphens are not hex
     println(global.uuid.uuidFromHex("a1a2a3a4b1b2c1c2d1d2d3d4d5d6d7d"));
     println(global.uuid.uuidFromHex("zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"));
+
+    // --- the raw 16 bytes --------------------------------------------------
+    println(bytesToHex(global.uuid.uuidToBytes("a1a2a3a4-b1b2-c1c2-d1d2-d3d4d5d6d7d8")));
+    println(bytesLength(global.uuid.uuidToBytes("nope")));
+    println(global.uuid.uuidFromBytes(bytesFromHex("a1a2a3a4b1b2c1c2d1d2d3d4d5d6d7d8")));
+    println(global.uuid.uuidFromBytes(bytesFromHex("a1a2a3a4"))); // wrong length
 }

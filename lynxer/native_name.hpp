@@ -12,7 +12,7 @@ namespace lynxer {
 inline std::string moduleNameFromPath(const std::string& path) {
     std::filesystem::path name(path);
     std::string value = name.filename().string();
-    for (const std::string suffix : {".lynx", ".lynxc", ".so"}) {
+    for (const std::string suffix : {".lynx", ".lynxc", ".so", ".dylib"}) {
         if (value.size() > suffix.size() &&
             value.compare(value.size() - suffix.size(), suffix.size(),
                           suffix) == 0) {
@@ -21,6 +21,19 @@ inline std::string moduleNameFromPath(const std::string& path) {
         }
     }
     return value;
+}
+
+// True when `path` names a native shared library the loader can open: `.so` on
+// Linux/BSD, `.dylib` on macOS (which also accepts `.so`).
+inline bool isNativeLibraryPath(const std::string& path) {
+    for (const std::string suffix : {".so", ".dylib"}) {
+        if (path.size() > suffix.size() &&
+            path.compare(path.size() - suffix.size(), suffix.size(), suffix) ==
+                0) {
+            return true;
+        }
+    }
+    return false;
 }
 
 // The native-module ABI's registration-name rule: a leading letter or

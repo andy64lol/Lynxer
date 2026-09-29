@@ -1884,9 +1884,7 @@ SourceError withModuleSource(const SourceError& error,
 void ImportStatement::execute(Environment& environment) const {
     const std::string module = moduleNameFromPath(path_);
     const std::string namespaceName = alias_.empty() ? module : alias_;
-    const bool nativeImport =
-        path_.size() >= 3 &&
-        path_.compare(path_.size() - 3, 3, ".so") == 0;
+    const bool nativeImport = isNativeLibraryPath(path_);
     const std::string importKey = nativeImport ? path_ : module;
     if (module.empty()) {
         throw SourceError("module path has no name", line_, column_);
@@ -1901,8 +1899,7 @@ void ImportStatement::execute(Environment& environment) const {
         }
         return;
     }
-    if (path_.size() >= 3 &&
-        path_.compare(path_.size() - 3, 3, ".so") == 0) {
+    if (isNativeLibraryPath(path_)) {
 #if defined(__unix__) || defined(__APPLE__)
         const std::string nativePath =
             findSourceModule(environment, path_).empty()

@@ -1,80 +1,81 @@
 ////
-Fixture for the encoding stdlib. Every value is fixed, so the output is
+Fixture for the encoding stdlib. An encode takes `bytes` and returns `str`; a
+decode takes `str` and returns `bytes`. Every value is fixed, so the output is
 deterministic; the fixture is also part of the import-parity gate.
 ////
 global setup(){ import("encoding"); }
 
 global main(){
     // --- base64 ---
-    println(global.encoding.base64Encode("Lynxer"));
-    println(global.encoding.base64Encode("Lynx"));
-    println(global.encoding.base64Decode("THlueGVy"));
-    println(global.encoding.base64Decode("THlueA")); // padding is optional
-    println(global.encoding.base64Decode("THlueA=="));
-    println(global.encoding.base64Decode("THlueA=")); // one pad too many
+    println(global.encoding.base64Encode(bytesOf("Lynxer")));
+    println(global.encoding.base64Encode(bytesOf("Lynx")));
+    println(bytesToStr(global.encoding.base64Decode("THlueGVy")));
+    println(bytesToStr(global.encoding.base64Decode("THlueA"))); // padding optional
+    println(bytesToStr(global.encoding.base64Decode("THlueA==")));
+    println(bytesToStr(global.encoding.base64Decode("THlueA=")));
     println(global.encoding.base64Valid("THlueA=="));
     println(global.encoding.base64Valid("THlueA=Z"));
-    // Bytes that are not valid UTF-8 have no text form, so this is "".
-    println(global.encoding.base64Decode("+/8="));
+    // Bytes that are not valid UTF-8 are now representable (this used to be "").
+    println(bytesToHex(global.encoding.base64Decode("+/8=")));
 
     // --- base64, URL-safe alphabet ---
-    println(global.encoding.base64UrlEncode("Lynxer"));
-    println(global.encoding.base64UrlDecode("THlueGVy"));
+    println(global.encoding.base64UrlEncode(bytesOf("Lynxer")));
+    println(bytesToStr(global.encoding.base64UrlDecode("THlueGVy")));
     println(global.encoding.base64UrlValid("THlueGVy"));
     println(global.encoding.base64UrlValid("THlueGVy+"));
     println(global.encoding.base64UrlValid("THlueGVy/"));
 
     // --- hex ---
-    println(global.encoding.hexEncode("Lynxer"));
-    println(global.encoding.hexEncodeUpper("Lynxer"));
-    println(global.encoding.hexDecode("4c796e786572"));
-    println(global.encoding.hexDecode("4C796E786572")); // either case
-    println(global.encoding.hexDecode("4c796")); // odd length
+    println(global.encoding.hexEncode(bytesOf("Lynxer")));
+    println(global.encoding.hexEncodeUpper(bytesOf("Lynxer")));
+    println(bytesToStr(global.encoding.hexDecode("4c796e786572")));
+    println(bytesToStr(global.encoding.hexDecode("4C796E786572"))); // either case
+    println(bytesLength(global.encoding.hexDecode("4c796"))); // odd length
     println(global.encoding.hexValid("4c796e786572"));
     println(global.encoding.hexValid("4c796e78657"));
 
     // --- base32 ---
-    println(global.encoding.base32Encode("Lynxer"));
-    println(global.encoding.base32Decode("JR4W46DFOI======"));
-    println(global.encoding.base32Decode("jr4w46dfoi")); // either case, unpadded
+    println(global.encoding.base32Encode(bytesOf("Lynxer")));
+    println(bytesToStr(global.encoding.base32Decode("JR4W46DFOI======")));
+    println(bytesToStr(global.encoding.base32Decode("jr4w46dfoi"))); // either case
     println(global.encoding.base32Valid("JR4W46DFOI"));
     println(global.encoding.base32Valid("1"));
 
     // --- base58 ---
-    println(global.encoding.base58Encode("Lynxer"));
-    println(global.encoding.base58Decode("f5koytty"));
+    println(global.encoding.base58Encode(bytesOf("Lynxer")));
+    println(bytesToStr(global.encoding.base58Decode("f5koytty")));
     println(global.encoding.base58Valid("f5koytty"));
     println(global.encoding.base58Valid("0OIl")); // not in the alphabet
-    println(global.encoding.base58Decode("0OIl"));
+    println(bytesLength(global.encoding.base58Decode("0OIl")));
 
     // --- ascii85 ---
-    println(global.encoding.ascii85Encode("Lynxer"));
-    println(global.encoding.ascii85Decode("<~9R1N#AT@~>")); // framed
-    println(global.encoding.ascii85Decode("9R1N#")); // unframed
+    println(global.encoding.ascii85Encode(bytesOf("Lynxer")));
+    println(bytesToStr(global.encoding.ascii85Decode("<~9R1N#AT@~>"))); // framed
+    println(bytesToStr(global.encoding.ascii85Decode("9R1N#"))); // unframed
     println(global.encoding.ascii85Valid("<~9R1N#AT@~>"));
-    // `z` is the four-zero-byte shorthand; the backend expands it first.
     println(global.encoding.ascii85Valid("z"));
     println(global.encoding.ascii85Valid("!z")); // z off a group boundary
+    // `z` is the four-zero-byte shorthand; the backend expands it first.
+    println(bytesToHex(global.encoding.ascii85Decode("z")));
 
     // --- percent-encoding ---
-    println(global.encoding.percentEncode("a b/c?d=e&f"));
-    println(global.encoding.percentEncode("-_.!~*'()"));
-    println(global.encoding.percentDecode("a%20b%2Fc%3Fd%3De%26f"));
+    println(global.encoding.percentEncode(bytesOf("a b/c?d=e&f")));
+    println(global.encoding.percentEncode(bytesOf("-_.!~*'()")));
+    println(bytesToStr(global.encoding.percentDecode("a%20b%2Fc%3Fd%3De%26f")));
     println(global.encoding.percentValid("a%20b"));
     println(global.encoding.percentValid("%2")); // truncated escape
     println(global.encoding.percentValid("100% sure")); // a bare '%'
-    println(global.encoding.percentDecode("%2")); // fails, not a passthrough
+    println(bytesLength(global.encoding.percentDecode("%2"))); // fails
 
     // --- quoted-printable ---
-    println(global.encoding.quotedPrintableEncode("a=b"));
-    println(global.encoding.quotedPrintableDecode("a=3Db"));
+    println(global.encoding.quotedPrintableEncode(bytesOf("a=b")));
+    println(bytesToStr(global.encoding.quotedPrintableDecode("a=3Db")));
     println(global.encoding.quotedPrintableValid("a=3Db"));
     println(global.encoding.quotedPrintableValid("a=ZZ"));
-    println(global.encoding.quotedPrintableDecode("a=ZZ"));
-    // A long line gains a soft break, which decoding removes again. The wrapped
-    // text is not printed: it carries a line break of its own.
+    println(bytesLength(global.encoding.quotedPrintableDecode("a=ZZ")));
+    // A long line gains a soft break, which decoding removes again.
     str longLine = "The quick brown fox jumps over the lazy dog while the sleepy dog watches and waits for another turn around the park";
-    str wrapped = global.encoding.quotedPrintableEncode(longLine);
+    str wrapped = global.encoding.quotedPrintableEncode(bytesOf(longLine));
     println(returnLength(wrapped) > returnLength(longLine));
-    println(global.encoding.quotedPrintableDecode(wrapped) is longLine);
+    println(bytesToStr(global.encoding.quotedPrintableDecode(wrapped)) is longLine);
 }

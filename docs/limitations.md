@@ -24,18 +24,19 @@ Retained removals: Python-runtime features with no place in a standalone runtime
 
 ## Planned Work
 
-The first-class `bytes` type (**L1**), the fixed-signature `bytes` channel and
-the raised argument cap (**L2**), and the `math` migration off the tab-separated
-bridge (**L3**) are delivered. The remaining constraints each have a resolution
-plan in [todo.md](../todo.md) under *Resolving documented limitations*:
+The first-class `bytes` type (**L1**), the `bytes` ABI channel and buffered
+packed form (**L2**), the `math` migration off the tab-separated bridge
+(**L3**), the `compress`/`crypto`/`encoding`/`uuid` migrations (**L1b**), and the
+macOS `.dylib` recognition (**L2c**) are delivered. **L2d** (multiple live string
+results) was closed as not needed — no module returns more than one string per
+call. The remaining constraints each have a resolution plan in
+[todo.md](../todo.md) under *Resolving documented limitations*:
 
 | Area | Plan |
 | --- | --- |
 | `tkinter` / `tkinterPlus` (a native OS-widget GUI module) | **L16** |
 | `turtle` (reimplement on `graphics`) | **L17** |
 | `http` / `net` (keep superseded by `network` + `server`, or add a shim) | **L18** |
-| Migrating `compress`, `crypto`, `encoding` and `uuid` payloads to `bytes` | **L1b** |
-| Packed `bytes`/aggregate parameters, multiple string results, and macOS/Windows loading | **L2b**–**L2d** |
 | Module constraints — `graphics`, `game`, `server`, `re`/`regex`, `sound`, `watch`, `sqldb`, `js`, `multiprocessing`, `text`/`typing`, `tui`, `os`/`path`/`sys` | **L4**–**L14** |
 | `nativeThread*` / `async*` true parallelism and coroutine `await` | **L15** |
 
@@ -46,7 +47,9 @@ plan in [todo.md](../todo.md) under *Resolving documented limitations*:
   `bytes`. A `bytes` parameter is passed as two C arguments (a pointer and a
   length), and a `bytes` return is a length-prefixed buffer. The packed `...`
   form passes numbers and strings as two arrays and accepts at most 256
-  arguments in total.
+  arguments in total; the buffered packed form `...,bytes` additionally carries
+  byte buffers (`const uint8_t* const* bufs, const int64_t* lens, int64_t
+  buf_count`).
 
 - **Aggregates.** A numeric list crosses as `bytes` holding little-endian
   `f64` (the `listToBytes` / `bytesToList` encoding); other structured data
@@ -154,11 +157,10 @@ Makefile checks for `cargo` up front and says so.
 
 ### `compress` — Constrained Behavior
 
-- **No byte type.** An in-memory `<codec>Compress` returns base64 and its
-  `<codec>Decompress` takes base64. A decompressed payload need not be valid
-  UTF-8, and `Decompress` answers text only when it is (`""` otherwise); the
-  `*File` ops read and write the bytes themselves and are the binary-safe path.
-  See the binary-payload decision in [todo.md](../todo.md).
+- **Payloads are `bytes`.** An in-memory `<codec>Compress` takes `bytes` and
+  returns `bytes`, and its `<codec>Decompress` does the same, so a payload that
+  is not valid UTF-8 is representable. The `*File` ops work on paths and read and
+  write the bytes themselves.
 - **Two sentinel families.** The in-memory stream ops use the scalar sentinel
   (`""`); the file and archive ops answer with `"ok"` / `"ERROR: <message>"`,
   because they can fail with a reason (a missing file, a bad archive).
@@ -179,12 +181,10 @@ Makefile checks for `cargo` up front and says so.
 
 ### `crypto` — Constrained Behavior
 
-- **No byte type.** Lynxer has no byte type, so a digest or signature crosses the
-  ABI as text: `hash`/`hmac` return lower-case hex, `signEd25519` and the key
-  pair return base64. A binary payload held in memory is passed base64 through
-  `hashBase64`; arbitrary file contents go through `hashFile`/`hmacFile`, which
-  read the bytes inside the module. See the binary-payload decision in
-  [todo.md](../todo.md).
+- **Payloads are `bytes`.** A message, key, signature or random payload crosses
+  as `bytes`; `hash`/`hmac` return lower-case hex (a text form is the API) and
+  `signEd25519` returns `bytes`. `hashFile`/`hmacFile` read the file's bytes
+  inside the module.
 - **Failures are in-band.** An unknown algorithm, a malformed payload or an I/O
   error yields `""`, and a predicate yields `false`; there is no exception.
 - **The algorithm names are a fixed set.** `sha1`, `sha224`, `sha256`, `sha384`,
@@ -261,14 +261,10 @@ Makefile checks for `cargo` up front and says so.
 
 ### `encoding` — Constrained Behavior
 
-- **No byte type.** Lynxer strings are the byte carrier: an encode function uses
-  the UTF-8 bytes of its input, and a decode function returns the decoded bytes
-  as text. Lynxer has no byte type yet, so a payload that is not valid UTF-8 has
-  no representation — a decode that produces one returns `""`, the same sentinel
-  a malformed input returns. `*Valid` reports well-formedness in the codec only,
-  so it can be `true` while `*Decode` answers `""`. Bulk binary is expected to
-  travel through files instead; see the binary-payload decision in
-  [todo.md](../todo.md).
+- **Payloads are `bytes`.** An encode takes `bytes` and returns a `str` (the
+  encoded form is text); a decode takes a `str` and returns `bytes`, so a payload
+  that is not valid UTF-8 is representable. `*Valid` reports whether the input is
+  well formed in the codec.
 - **Failures are in-band.** A decode returns `""` and a predicate returns
   `false`; there is no exception to catch.
 - **Padding is optional when decoding** and always emitted when encoding, for
@@ -285,9 +281,9 @@ Makefile checks for `cargo` up front and says so.
 
 ### `uuid` — Constrained Behavior
 
-- **UUIDs are strings.** Lynxer has no byte type, so a UUID crosses the ABI as
-  text: `uuidToHex` returns the simple 32-hex-character form as the hex view of
-  the 16 bytes, and `uuidFromHex` accepts exactly that.
+- **UUIDs are strings.** The canonical form is the lower-case hyphenated one;
+  `uuidToHex` returns the simple 32-hex-character form, and `uuidToBytes` /
+  `uuidFromBytes` exchange the raw 16 bytes as a `bytes` value.
 - **Failures are in-band.** An unparseable UUID yields `""`, `uuidValid` yields
   `false`, and `uuidVersion`/`uuidTimestamp` yield `-1`; there is no exception to
   catch.
@@ -298,7 +294,7 @@ Makefile checks for `cargo` up front and says so.
 - **`uuidVersion` reports the raw nibble.** A UUID that is not a well-formed RFC
   variant reports whatever its 13th hex digit says (for example `12`), rather
   than failing.
-- **`v1` and `v6` are not exposed**, and neither are byte-buffer entry points.
+- **`v1` and `v6` are not exposed.**
 
 ### `re` and `regex` — Constrained Behavior
 

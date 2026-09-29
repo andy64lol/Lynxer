@@ -4,16 +4,15 @@ gzip, zlib, zstd, brotli and lz4 streams, plus ZIP and TAR archives, backed by
 the Rust crates `flate2`/`zstd`/`brotli`/`lz4_flex`/`zip`/`tar` and exposed
 through the native module `stdlib/compress.so`.
 
-Binary payloads cross the module ABI as text, so an in-memory `<codec>Compress`
-returns base64 and its `<codec>Decompress` takes base64. A decompressed payload
-need not be UTF-8, and `*Decompress` returns text only when it is (`""`
-otherwise); the `*File` ops read and write the bytes themselves and are the
-binary-safe path.
+Binary payloads cross the module ABI as `bytes`, so an in-memory
+`<codec>Compress` takes `bytes` and returns `bytes`, and its `<codec>Decompress`
+does the same — a payload that is not valid UTF-8 is representable. The `*File`
+ops work on paths.
 
-Stream ops answer with scalar sentinels (`""`); file and archive ops answer with
-the status string `"ok"` / `"ERROR: <message>"`. An archive extract refuses an
-entry whose name escapes the destination directory, and an in-memory decompress
-is capped at 64 MiB.
+Stream ops answer with an empty `bytes` on failure; file and archive ops answer
+with the status string `"ok"` / `"ERROR: <message>"`. An archive extract refuses
+an entry whose name escapes the destination directory, and an in-memory
+decompress is capped at 64 MiB.
 
 Requires a Rust toolchain to build (see `rust/compress`). The `zstd` backend
 vendors C sources, so a C compiler is needed as well.
@@ -22,11 +21,10 @@ global setup(){ importAs("compress.so", "nativeCompress"); }
 
 // --- gzip ------------------------------------------------------------------
 
-// The gzip stream of `text`, as base64.
-global gzipCompress(str text) -> str { return global.nativeCompress.gzipCompress(text); }
-// The text of a base64 gzip stream, or "" when it is not a gzip stream or not
-// valid UTF-8.
-global gzipDecompress(str base64Data) -> str { return global.nativeCompress.gzipDecompress(base64Data); }
+// The gzip stream of `data`.
+global gzipCompress(bytes data) -> bytes { return global.nativeCompress.gzipCompress(data); }
+// The payload of a gzip stream, or empty bytes when it is not one.
+global gzipDecompress(bytes data) -> bytes { return global.nativeCompress.gzipDecompress(data); }
 // gzip-compress a file's bytes into another file. "ok" or "ERROR: ...".
 global gzipCompressFile(str input, str output) -> str { return global.nativeCompress.gzipCompressFile(input, output); }
 // Decompress a gzip file into another file. "ok" or "ERROR: ...".
@@ -34,29 +32,29 @@ global gzipDecompressFile(str input, str output) -> str { return global.nativeCo
 
 // --- zlib ------------------------------------------------------------------
 
-global zlibCompress(str text) -> str { return global.nativeCompress.zlibCompress(text); }
-global zlibDecompress(str base64Data) -> str { return global.nativeCompress.zlibDecompress(base64Data); }
+global zlibCompress(bytes data) -> bytes { return global.nativeCompress.zlibCompress(data); }
+global zlibDecompress(bytes data) -> bytes { return global.nativeCompress.zlibDecompress(data); }
 global zlibCompressFile(str input, str output) -> str { return global.nativeCompress.zlibCompressFile(input, output); }
 global zlibDecompressFile(str input, str output) -> str { return global.nativeCompress.zlibDecompressFile(input, output); }
 
 // --- zstd ------------------------------------------------------------------
 
-global zstdCompress(str text) -> str { return global.nativeCompress.zstdCompress(text); }
-global zstdDecompress(str base64Data) -> str { return global.nativeCompress.zstdDecompress(base64Data); }
+global zstdCompress(bytes data) -> bytes { return global.nativeCompress.zstdCompress(data); }
+global zstdDecompress(bytes data) -> bytes { return global.nativeCompress.zstdDecompress(data); }
 global zstdCompressFile(str input, str output) -> str { return global.nativeCompress.zstdCompressFile(input, output); }
 global zstdDecompressFile(str input, str output) -> str { return global.nativeCompress.zstdDecompressFile(input, output); }
 
 // --- brotli ----------------------------------------------------------------
 
-global brotliCompress(str text) -> str { return global.nativeCompress.brotliCompress(text); }
-global brotliDecompress(str base64Data) -> str { return global.nativeCompress.brotliDecompress(base64Data); }
+global brotliCompress(bytes data) -> bytes { return global.nativeCompress.brotliCompress(data); }
+global brotliDecompress(bytes data) -> bytes { return global.nativeCompress.brotliDecompress(data); }
 global brotliCompressFile(str input, str output) -> str { return global.nativeCompress.brotliCompressFile(input, output); }
 global brotliDecompressFile(str input, str output) -> str { return global.nativeCompress.brotliDecompressFile(input, output); }
 
 // --- lz4 -------------------------------------------------------------------
 
-global lz4Compress(str text) -> str { return global.nativeCompress.lz4Compress(text); }
-global lz4Decompress(str base64Data) -> str { return global.nativeCompress.lz4Decompress(base64Data); }
+global lz4Compress(bytes data) -> bytes { return global.nativeCompress.lz4Compress(data); }
+global lz4Decompress(bytes data) -> bytes { return global.nativeCompress.lz4Decompress(data); }
 global lz4CompressFile(str input, str output) -> str { return global.nativeCompress.lz4CompressFile(input, output); }
 global lz4DecompressFile(str input, str output) -> str { return global.nativeCompress.lz4DecompressFile(input, output); }
 
@@ -68,8 +66,8 @@ global lz4DecompressFile(str input, str output) -> str { return global.nativeCom
 global zipCreate(str path, str manifest) -> str { return global.nativeCompress.zipCreate(path, manifest); }
 // The entry names as a JSON array, or "ERROR: ...".
 global zipList(str path) -> str { return global.nativeCompress.zipList(path); }
-// An entry's bytes as base64, or "" when it is absent.
-global zipRead(str path, str entry) -> str { return global.nativeCompress.zipRead(path, entry); }
+// An entry's bytes, or empty bytes when it is absent.
+global zipRead(str path, str entry) -> bytes { return global.nativeCompress.zipRead(path, entry); }
 // Extract into a directory, refusing any entry that escapes it. "ok" or "ERROR: ...".
 global zipExtract(str path, str directory) -> str { return global.nativeCompress.zipExtract(path, directory); }
 

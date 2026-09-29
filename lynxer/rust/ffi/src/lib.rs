@@ -196,6 +196,8 @@ enum Parameter {
 enum Parameters {
     Fixed(Vec<Parameter>),
     Packed,
+    /// The buffered packed form `cdecl:<ret>(...,bytes)`.
+    PackedBuffers,
 }
 
 struct Signature {
@@ -259,11 +261,11 @@ fn parse_signature(original: &str) -> Result<Signature, String> {
     while start < text.len() {
         match text[start..].find(',') {
             Some(offset) => {
-                tokens.push(&text[start..start + offset]);
+                tokens.push(text[start..start + offset].trim());
                 start += offset + 1;
             }
             None => {
-                tokens.push(&text[start..]);
+                tokens.push(text[start..].trim());
                 break;
             }
         }
@@ -271,6 +273,8 @@ fn parse_signature(original: &str) -> Result<Signature, String> {
 
     let parameters = if tokens.len() == 1 && tokens[0] == "..." {
         Parameters::Packed
+    } else if tokens.len() == 2 && tokens[0] == "..." && tokens[1] == "bytes" {
+        Parameters::PackedBuffers
     } else {
         let mut parsed = Vec::with_capacity(tokens.len());
         for token in tokens {
@@ -347,6 +351,9 @@ unsafe fn invoke(
             call_fixed(address, parsed.result, &parameters, supplied, &original)
         }
         Parameters::Packed => call_packed(address, parsed.result, supplied),
+        Parameters::PackedBuffers => {
+            call_packed_buffers(address, parsed.result, supplied)
+        }
     }
 }
 
@@ -487,6 +494,103 @@ unsafe fn call_packed(
         arg(&number_count),
         arg(&string_pointer),
         arg(&string_count),
+    ];
+
+    let outcome = match result {
+        Return::Void => {
+            cif.call_return_into(code, &call_args, Ret::void());
+            LynxerFfiResult::void()
+        }
+        Return::Int64 => LynxerFfiResult::int64(cif.call::<i64>(code, &call_args)),
+        Return::Float64 => LynxerFfiResult::float64(cif.call::<f64>(code, &call_args)),
+        Return::CString => {
+            LynxerFfiResult::from_cstring(cif.call::<*const c_char>(code, &call_args))
+        }
+        Return::Bytes => LynxerFfiResult::from_bytes(cif.call::<*const u8>(code, &call_args))?,
+    };
+    Ok(outcome)
+}
+
+/// The buffered packed form: numbers and strings as [`call_packed`], plus the
+/// byte buffers a module declares with the `bytes` tag. The callee sees seven
+/// scalars.
+unsafe fn call_packed_buffers(
+    address: *mut c_void,
+    result: Return,
+    supplied: &[LynxerFfiArg],
+) -> Result<LynxerFfiResult, String> {
+    if supplied.len() > MAX_PACKED_ARGS {
+        return Err("native call has too many packed arguments".to_string());
+    }
+
+    let mut numbers: Vec<f64> = Vec::new();
+    let mut strings: Vec<CString> = Vec::new();
+    let mut buffers: Vec<*const u8> = Vec::new();
+    let mut lengths: Vec<i64> = Vec::new();
+    for value in supplied {
+        match value.tag {
+            ARG_INT => numbers.push(value.i as f64),
+            ARG_FLOAT => numbers.push(value.f),
+            ARG_BOOL => numbers.push(if value.i != 0 { 1.0 } else { 0.0 }),
+            ARG_STRING => strings.push(cstring_from_raw(value.s)),
+            ARG_BYTES => {
+                let length = value.data_length.max(0);
+                buffers.push(value.data);
+                lengths.push(length);
+            }
+            _ => {
+                return Err(
+                    "native call argument is not a number, string or bytes".to_string()
+                )
+            }
+        }
+    }
+
+    let text_pointers: Vec<*const c_char> = strings.iter().map(|text| text.as_ptr()).collect();
+    let number_pointer: *const f64 = if numbers.is_empty() {
+        null()
+    } else {
+        numbers.as_ptr()
+    };
+    let string_pointer: *const *const c_char = if text_pointers.is_empty() {
+        null()
+    } else {
+        text_pointers.as_ptr()
+    };
+    let buffer_pointer: *const *const u8 = if buffers.is_empty() {
+        null()
+    } else {
+        buffers.as_ptr()
+    };
+    let length_pointer: *const i64 = if lengths.is_empty() {
+        null()
+    } else {
+        lengths.as_ptr()
+    };
+    let number_count = numbers.len() as i64;
+    let string_count = text_pointers.len() as i64;
+    let buffer_count = buffers.len() as i64;
+
+    let types = vec![
+        Type::pointer(),
+        Type::i64(),
+        Type::pointer(),
+        Type::i64(),
+        Type::pointer(),
+        Type::pointer(),
+        Type::i64(),
+    ];
+    let cif = Cif::try_new(types, return_type(result))
+        .map_err(|_| "unsupported native signature '...,bytes'".to_string())?;
+    let code = CodePtr(address);
+    let call_args = [
+        arg(&number_pointer),
+        arg(&number_count),
+        arg(&string_pointer),
+        arg(&string_count),
+        arg(&buffer_pointer),
+        arg(&length_pointer),
+        arg(&buffer_count),
     ];
 
     let outcome = match result {

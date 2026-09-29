@@ -3,9 +3,10 @@ Lynxer standard library: uuid.
 UUID generation, parsing and formatting, backed by the Rust crate `uuid` and
 exposed through the native module `stdlib/uuid.so`.
 
-UUIDs are strings here, because Lynxer has no byte type. The canonical form is
-the lower-case hyphenated one (8-4-4-4-12); `uuidToHex` returns the "simple"
-form instead — the 32 hex characters of the 16 bytes, with no hyphens.
+UUIDs are strings; the canonical form is the lower-case hyphenated one
+(8-4-4-4-12). `uuidToHex` returns the "simple" form instead — the 32 hex
+characters of the 16 bytes, with no hyphens — and `uuidToBytes` / `uuidFromBytes`
+exchange those raw 16 bytes as a `bytes` value.
 
 Parsing accepts every form the crate does: hyphenated, simple, `urn:uuid:` and
 braced — the latter two wrapping the hyphenated form. Surrounding whitespace is
@@ -55,6 +56,10 @@ global uuidTimestamp(str s) -> int { return global.nativeUuid.timestamp(s); }
 global uuidToHex(str s) -> str { return global.nativeUuid.toHex(s); }
 // Parses exactly 32 hex characters into the canonical form, or "".
 global uuidFromHex(str hex) -> str { return global.nativeUuid.fromHex(hex); }
+// The raw 16 bytes, or empty bytes if it does not parse.
+global uuidToBytes(str s) -> bytes { return global.nativeUuid.toBytes(s); }
+// Parses exactly 16 bytes into the canonical form, or "".
+global uuidFromBytes(bytes data) -> str { return global.nativeUuid.fromBytes(data); }
 // A well-known namespace UUID by name: "dns", "url", "oid" or "x500". "" for
 // any other name.
 global uuidNamespace(str name) -> str { return global.nativeUuid.namespace(name); }

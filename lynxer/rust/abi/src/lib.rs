@@ -79,6 +79,7 @@ pub type RegisterType = unsafe extern "C" fn(*const c_char, *const c_char) -> i3
 pub struct Args<'a> {
     numbers: &'a [f64],
     strings: Vec<&'a str>,
+    buffers: Vec<&'a [u8]>,
 }
 
 impl<'a> Args<'a> {
@@ -109,6 +110,16 @@ impl<'a> Args<'a> {
 
     pub fn string_count(&self) -> usize {
         self.strings.len()
+    }
+
+    /// The *i*-th byte buffer, from the buffered packed form
+    /// (`cdecl:<ret>(...,bytes)`). Empty when absent.
+    pub fn bytes(&self, index: usize) -> &'a [u8] {
+        self.buffers.get(index).copied().unwrap_or(&[])
+    }
+
+    pub fn buffer_count(&self) -> usize {
+        self.buffers.len()
     }
 }
 
@@ -142,11 +153,49 @@ pub unsafe fn view<'a>(
         }
     }
 
-    Args { numbers, strings }
+    Args {
+        numbers,
+        strings,
+        buffers: Vec::new(),
+    }
+}
+
+/// Rebuilds the argument view for the buffered packed form
+/// `cdecl:<ret>(...,bytes)`, which also carries byte buffers.
+///
+/// # Safety
+/// As [`view`]; additionally `bufs`/`lens` must point to `nbufs` live entries,
+/// and `lens[i]` must be the length in bytes of the buffer at `bufs[i]`.
+pub unsafe fn view_buffers<'a>(
+    nums: *const f64,
+    nnums: i64,
+    strs: *const *const c_char,
+    nstrs: i64,
+    bufs: *const *const u8,
+    lens: *const i64,
+    nbufs: i64,
+) -> Args<'a> {
+    let mut args = view(nums, nnums, strs, nstrs);
+    if !bufs.is_null() && !lens.is_null() && nbufs > 0 {
+        let pointers = std::slice::from_raw_parts(bufs, nbufs as usize);
+        let lengths = std::slice::from_raw_parts(lens, nbufs as usize);
+        args.buffers.reserve(pointers.len());
+        for index in 0..pointers.len() {
+            let length = lengths[index].max(0) as usize;
+            if pointers[index].is_null() || length == 0 {
+                args.buffers.push(&[]);
+            } else {
+                args.buffers
+                    .push(std::slice::from_raw_parts(pointers[index], length));
+            }
+        }
+    }
+    args
 }
 
 thread_local! {
     static RESULT_STRING: RefCell<CString> = RefCell::new(CString::default());
+    static RESULT_BYTES: RefCell<Vec<u8>> = RefCell::new(Vec::new());
 }
 
 /// Stores the one live string result. The pointer stays valid until the next
@@ -165,6 +214,27 @@ pub fn guard_int<F: FnOnce() -> i64>(body: F) -> i64 {
 
 pub fn guard_float<F: FnOnce() -> f64>(body: F) -> f64 {
     catch_unwind(AssertUnwindSafe(body)).unwrap_or(-1.0)
+}
+
+/// Stores the one live `bytes` result as `[i64 little-endian length][payload]`
+/// and returns a pointer to it. Valid until the next bytes-returning call,
+/// which is exactly the interpreter's copy window.
+pub fn store_result_bytes(value: Vec<u8>) -> *const u8 {
+    RESULT_BYTES.with(|cell| {
+        let mut buffer = cell.borrow_mut();
+        let length = value.len() as i64;
+        buffer.clear();
+        buffer.extend_from_slice(&length.to_le_bytes());
+        buffer.extend_from_slice(&value);
+        buffer.as_ptr()
+    })
+}
+
+pub fn guard_bytes<F: FnOnce() -> Vec<u8>>(body: F) -> *const u8 {
+    match catch_unwind(AssertUnwindSafe(body)) {
+        Ok(value) => store_result_bytes(value),
+        Err(_) => std::ptr::null(),
+    }
 }
 
 pub fn guard_string<F: FnOnce() -> String>(body: F) -> *const c_char {
@@ -247,6 +317,95 @@ macro_rules! export_string {
         ) -> *const core::ffi::c_char {
             $crate::guard_string(|| {
                 let $args = $crate::view(nums, nnums, strs, nstrs);
+                $body
+            })
+        }
+    };
+}
+
+/// Declares a panic-guarded buffered packed op (`cdecl:<ret>(...,bytes)`)
+/// returning an integer.
+#[macro_export]
+macro_rules! export_int_buffers {
+    ($name:ident, $args:ident, $body:block) => {
+        #[no_mangle]
+        pub unsafe extern "C" fn $name(
+            nums: *const f64,
+            nnums: i64,
+            strs: *const *const core::ffi::c_char,
+            nstrs: i64,
+            bufs: *const *const u8,
+            lens: *const i64,
+            nbufs: i64,
+        ) -> i64 {
+            $crate::guard_int(|| {
+                let $args = $crate::view_buffers(nums, nnums, strs, nstrs, bufs, lens, nbufs);
+                $body
+            })
+        }
+    };
+}
+
+/// Declares a panic-guarded buffered packed op returning a float.
+#[macro_export]
+macro_rules! export_float_buffers {
+    ($name:ident, $args:ident, $body:block) => {
+        #[no_mangle]
+        pub unsafe extern "C" fn $name(
+            nums: *const f64,
+            nnums: i64,
+            strs: *const *const core::ffi::c_char,
+            nstrs: i64,
+            bufs: *const *const u8,
+            lens: *const i64,
+            nbufs: i64,
+        ) -> f64 {
+            $crate::guard_float(|| {
+                let $args = $crate::view_buffers(nums, nnums, strs, nstrs, bufs, lens, nbufs);
+                $body
+            })
+        }
+    };
+}
+
+/// Declares a panic-guarded buffered packed op returning a string.
+#[macro_export]
+macro_rules! export_string_buffers {
+    ($name:ident, $args:ident, $body:block) => {
+        #[no_mangle]
+        pub unsafe extern "C" fn $name(
+            nums: *const f64,
+            nnums: i64,
+            strs: *const *const core::ffi::c_char,
+            nstrs: i64,
+            bufs: *const *const u8,
+            lens: *const i64,
+            nbufs: i64,
+        ) -> *const core::ffi::c_char {
+            $crate::guard_string(|| {
+                let $args = $crate::view_buffers(nums, nnums, strs, nstrs, bufs, lens, nbufs);
+                $body
+            })
+        }
+    };
+}
+
+/// Declares a panic-guarded buffered packed op returning a `bytes` buffer.
+#[macro_export]
+macro_rules! export_bytes_buffers {
+    ($name:ident, $args:ident, $body:block) => {
+        #[no_mangle]
+        pub unsafe extern "C" fn $name(
+            nums: *const f64,
+            nnums: i64,
+            strs: *const *const core::ffi::c_char,
+            nstrs: i64,
+            bufs: *const *const u8,
+            lens: *const i64,
+            nbufs: i64,
+        ) -> *const u8 {
+            $crate::guard_bytes(|| {
+                let $args = $crate::view_buffers(nums, nnums, strs, nstrs, bufs, lens, nbufs);
                 $body
             })
         }

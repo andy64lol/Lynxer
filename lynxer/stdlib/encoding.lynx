@@ -5,12 +5,12 @@ codecs, backed by Rust crates (`base64`, `hex`, `data-encoding`, `bs58`,
 `ascii85`, `percent-encoding`, `quoted_printable`) and exposed through the
 native module `stdlib/encoding.so`.
 
-Strings are byte sequences here: an encode function uses the UTF-8 bytes of its
-input, and a decode function returns the decoded bytes as text. A payload that
-is not valid UTF-8 has no representation in this module, so a decode that
-produces one yields `""` (Lynxer has no byte type yet; see
-docs/limitations.md). Test a decode result for `""` rather than expecting an
-exception — `*Valid` reports whether the input is well formed in its codec.
+The encoded form of a payload is always text and the raw form is always a
+`bytes` value: an encode function takes `bytes` and returns `str`, a decode
+function takes `str` and returns `bytes`. A payload that is not valid UTF-8 is
+therefore representable — a decode that used to yield `""` now returns those
+bytes. A decode failure (malformed input) yields an empty `bytes`; `*Valid`
+reports whether the input is well formed in its codec.
 
 Decoding is strict except that base64 and base32 padding is optional (encoding
 always emits it) and base32 accepts either case. Whitespace is never accepted,
@@ -22,75 +22,76 @@ global setup(){ importAs("encoding.so", "nativeEncoding"); }
 
 // --- base64 ---------------------------------------------------------------
 
-// Encodes a string as standard base64. Output is padded.
-global base64Encode(str s) -> str { return global.nativeEncoding.base64Encode(s); }
-// Decodes standard base64. Padding is optional. Returns "" on failure.
-global base64Decode(str s) -> str { return global.nativeEncoding.base64Decode(s); }
+// Encodes bytes as standard base64. Output is padded.
+global base64Encode(bytes b) -> str { return global.nativeEncoding.base64Encode(b); }
+// Decodes standard base64. Padding is optional. Returns empty bytes on failure.
+global base64Decode(str s) -> bytes { return global.nativeEncoding.base64Decode(s); }
 // True if s is well-formed standard base64.
 global base64Valid(str s) -> bool { return global.nativeEncoding.base64Valid(s) isnt 0; }
 
-// Encodes a string as URL-safe base64 (`-` and `_` instead of `+` and `/`).
-global base64UrlEncode(str s) -> str { return global.nativeEncoding.base64UrlEncode(s); }
-// Decodes URL-safe base64. Padding is optional. Returns "" on failure.
-global base64UrlDecode(str s) -> str { return global.nativeEncoding.base64UrlDecode(s); }
+// Encodes bytes as URL-safe base64 (`-` and `_` instead of `+` and `/`).
+global base64UrlEncode(bytes b) -> str { return global.nativeEncoding.base64UrlEncode(b); }
+// Decodes URL-safe base64. Padding is optional. Returns empty bytes on failure.
+global base64UrlDecode(str s) -> bytes { return global.nativeEncoding.base64UrlDecode(s); }
 // True if s is well-formed URL-safe base64.
 global base64UrlValid(str s) -> bool { return global.nativeEncoding.base64UrlValid(s) isnt 0; }
 
 // --- hex ------------------------------------------------------------------
 
-// Encodes a string as lower-case hexadecimal.
-global hexEncode(str s) -> str { return global.nativeEncoding.hexEncode(s); }
-// Encodes a string as upper-case hexadecimal.
-global hexEncodeUpper(str s) -> str { return global.nativeEncoding.hexEncodeUpper(s); }
-// Decodes hexadecimal (either case). Returns "" on failure.
-global hexDecode(str s) -> str { return global.nativeEncoding.hexDecode(s); }
+// Encodes bytes as lower-case hexadecimal.
+global hexEncode(bytes b) -> str { return global.nativeEncoding.hexEncode(b); }
+// Encodes bytes as upper-case hexadecimal.
+global hexEncodeUpper(bytes b) -> str { return global.nativeEncoding.hexEncodeUpper(b); }
+// Decodes hexadecimal (either case). Returns empty bytes on failure.
+global hexDecode(str s) -> bytes { return global.nativeEncoding.hexDecode(s); }
 // True if s is well-formed hexadecimal (even length, hex digits only).
 global hexValid(str s) -> bool { return global.nativeEncoding.hexValid(s) isnt 0; }
 
 // --- base32 ---------------------------------------------------------------
 
-// Encodes a string as upper-case RFC 4648 base32. Output is padded.
-global base32Encode(str s) -> str { return global.nativeEncoding.base32Encode(s); }
-// Decodes base32, either case, padding optional. Returns "" on failure.
-global base32Decode(str s) -> str { return global.nativeEncoding.base32Decode(s); }
+// Encodes bytes as upper-case RFC 4648 base32. Output is padded.
+global base32Encode(bytes b) -> str { return global.nativeEncoding.base32Encode(b); }
+// Decodes base32, either case, padding optional. Returns empty bytes on failure.
+global base32Decode(str s) -> bytes { return global.nativeEncoding.base32Decode(s); }
 // True if s is well-formed base32.
 global base32Valid(str s) -> bool { return global.nativeEncoding.base32Valid(s) isnt 0; }
 
 // --- base58 ---------------------------------------------------------------
 
-// Encodes a string as base58 (the Bitcoin alphabet, without 0, O, I and l).
-global base58Encode(str s) -> str { return global.nativeEncoding.base58Encode(s); }
-// Decodes base58. Returns "" on failure.
-global base58Decode(str s) -> str { return global.nativeEncoding.base58Decode(s); }
+// Encodes bytes as base58 (the Bitcoin alphabet, without 0, O, I and l).
+global base58Encode(bytes b) -> str { return global.nativeEncoding.base58Encode(b); }
+// Decodes base58. Returns empty bytes on failure.
+global base58Decode(str s) -> bytes { return global.nativeEncoding.base58Decode(s); }
 // True if s is well-formed base58.
 global base58Valid(str s) -> bool { return global.nativeEncoding.base58Valid(s) isnt 0; }
 
 // --- ascii85 --------------------------------------------------------------
 
-// Encodes a string as Adobe ascii85, including the `<~` and `~>` frame.
-global ascii85Encode(str s) -> str { return global.nativeEncoding.ascii85Encode(s); }
+// Encodes bytes as Adobe ascii85, including the `<~` and `~>` frame.
+global ascii85Encode(bytes b) -> str { return global.nativeEncoding.ascii85Encode(b); }
 // Decodes ascii85. The `<~`/`~>` frame is optional, whitespace is ignored and
-// `z` (four zero bytes) is accepted. Returns "" on failure.
-global ascii85Decode(str s) -> str { return global.nativeEncoding.ascii85Decode(s); }
+// `z` (four zero bytes) is accepted. Returns empty bytes on failure.
+global ascii85Decode(str s) -> bytes { return global.nativeEncoding.ascii85Decode(s); }
 // True if s is well-formed ascii85.
 global ascii85Valid(str s) -> bool { return global.nativeEncoding.ascii85Valid(s) isnt 0; }
 
 // --- percent-encoding -----------------------------------------------------
 
-// Percent-encodes a string as a URI component (`encodeURIComponent` semantics:
+// Percent-encodes bytes as a URI component (`encodeURIComponent` semantics:
 // `A-Z a-z 0-9 - _ . ! ~ * ' ( )` stay unescaped).
-global percentEncode(str s) -> str { return global.nativeEncoding.percentEncode(s); }
-// Percent-decodes a string. A malformed `%` escape fails. Returns "" on failure.
-global percentDecode(str s) -> str { return global.nativeEncoding.percentDecode(s); }
+global percentEncode(bytes b) -> str { return global.nativeEncoding.percentEncode(b); }
+// Percent-decodes a string. A malformed `%` escape fails. Returns empty bytes
+// on failure.
+global percentDecode(str s) -> bytes { return global.nativeEncoding.percentDecode(s); }
 // True if every `%` in s is followed by two hexadecimal digits.
 global percentValid(str s) -> bool { return global.nativeEncoding.percentValid(s) isnt 0; }
 
 // --- quoted-printable -----------------------------------------------------
 
-// Encodes text as quoted-printable (RFC 2045), with soft line breaks at 76
+// Encodes bytes as quoted-printable (RFC 2045), with soft line breaks at 76
 // columns.
-global quotedPrintableEncode(str s) -> str { return global.nativeEncoding.quotedPrintableEncode(s); }
-// Decodes quoted-printable. Returns "" on failure.
-global quotedPrintableDecode(str s) -> str { return global.nativeEncoding.quotedPrintableDecode(s); }
+global quotedPrintableEncode(bytes b) -> str { return global.nativeEncoding.quotedPrintableEncode(b); }
+// Decodes quoted-printable. Returns empty bytes on failure.
+global quotedPrintableDecode(str s) -> bytes { return global.nativeEncoding.quotedPrintableDecode(s); }
 // True if s is well-formed quoted-printable.
 global quotedPrintableValid(str s) -> bool { return global.nativeEncoding.quotedPrintableValid(s) isnt 0; }

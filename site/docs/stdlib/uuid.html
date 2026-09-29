@@ -170,7 +170,7 @@
 <p>UUID generation, parsing and formatting.</p>
 <p><strong>Backend:</strong> native — <code>stdlib/uuid.so</code>, built from the Rust crate <code>rust/uuid</code> over <a href="https://docs.rs/uuid"><code>uuid</code></a> with the <code>v3</code>, <code>v4</code>, <code>v5</code> and <code>v7</code> features. <strong>Import:</strong> <code>import(&quot;uuid&quot;)</code> → <code>global.uuid.*</code></p>
 <h2 id="how-uuids-travel">How UUIDs travel</h2>
-<p>A UUID crosses the ABI as a <strong>string</strong>, because Lynxer has no byte type. The canonical form is the lower-case hyphenated one, <code>8-4-4-4-12</code>. <code>uuidToHex</code> returns the <em>simple</em> form instead — the 32 hex characters of the 16 bytes with no hyphens — and <code>uuidFromHex</code> accepts exactly that.</p>
+<p>A UUID crosses the ABI as a <strong>string</strong>; the canonical form is the lower-case hyphenated one, <code>8-4-4-4-12</code>. <code>uuidToHex</code> returns the <em>simple</em> form instead — the 32 hex characters of the 16 bytes with no hyphens — and <code>uuidFromHex</code> accepts exactly that. <code>uuidToBytes</code> / <code>uuidFromBytes</code> exchange the raw 16 bytes as a <code>bytes</code> value.</p>
 <p>Parsing accepts every form the crate does, and trims surrounding whitespace first:</p>
 <table>
 <tr><th>Input</th><th>Example</th></tr>
@@ -201,6 +201,8 @@
 <tr><td><code>uuidTimestamp</code></td><td><code>(str s)</code></td><td>Unix milliseconds for a time-based UUID, else <code>-1</code></td></tr>
 <tr><td><code>uuidToHex</code></td><td><code>(str s)</code></td><td>The 16 bytes as 32 lower-case hex characters, or <code>&quot;&quot;</code></td></tr>
 <tr><td><code>uuidFromHex</code></td><td><code>(str hex)</code></td><td>The canonical form of 32 hex characters, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>uuidToBytes</code></td><td><code>(str s)</code></td><td>The raw 16 bytes, or empty on failure</td></tr>
+<tr><td><code>uuidFromBytes</code></td><td><code>(bytes data)</code></td><td>The canonical form of 16 bytes, or <code>&quot;&quot;</code></td></tr>
 <tr><td><code>uuidNamespace</code></td><td><code>(str name)</code></td><td>A well-known namespace: <code>dns</code>, <code>url</code>, <code>oid</code> or <code>x500</code>, else <code>&quot;&quot;</code></td></tr>
 </table>
 <p><code>uuidParse(s)</code> is the same as <code>uuidFormat(s, false)</code>.</p>

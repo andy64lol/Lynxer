@@ -6,6 +6,7 @@
 #include "formatter.hpp"
 #include "interrupt.hpp"
 #include "lexer.hpp"
+#include "native_name.hpp"
 #include "optimizer.hpp"
 #include "parser.hpp"
 #include "runtime.hpp"
@@ -581,7 +582,7 @@ bool collectArchive(const std::string& mainPath, const std::string& mainSource,
     };
 
     for (const auto& given : extraInputs) {
-        const bool native = endsWith(given, ".so");
+        const bool native = isNativeLibraryPath(given);
         const bool sourceModule = endsWith(given, ".lynx");
         const std::string resolved = resolveExplicitPath(given);
         if (resolved.empty()) {
@@ -664,7 +665,7 @@ bool collectArchive(const std::string& mainPath, const std::string& mainSource,
         }
 
         for (const auto& import : imports) {
-            const bool native = endsWith(import.path, ".so");
+            const bool native = isNativeLibraryPath(import.path);
             // An explicitly supplied input already satisfies the import.
             if (extraKeys.count(import.path) != 0) {
                 continue;
@@ -761,7 +762,7 @@ int compileProgramToExecutable(const std::vector<std::string>& arguments) {
         }
         // Anything that looks like a source or library file is an input; a
         // bare name is the output.
-        if (endsWith(argument, ".lynx") || endsWith(argument, ".so")) {
+        if (endsWith(argument, ".lynx") || isNativeLibraryPath(argument)) {
             inputs.push_back(argument);
             continue;
         }

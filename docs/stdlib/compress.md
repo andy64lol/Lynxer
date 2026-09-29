@@ -9,11 +9,10 @@ gzip, zlib, zstd, brotli and lz4 streams, plus ZIP and TAR archives.
 
 ## How bytes travel
 
-Lynxer has no byte type, so an in-memory **`<codec>Compress`** returns base64 and
-its **`<codec>Decompress`** takes base64. A decompressed payload is not
-necessarily UTF-8, so `Decompress` returns text only when it is and `""`
-otherwise. The **`*File`** operations read and write the bytes themselves and
-are the binary-safe path for arbitrary data.
+An in-memory **`<codec>Compress`** takes `bytes` and returns `bytes`, and its
+**`<codec>Decompress`** does the same, so a payload that is not valid UTF-8 is
+representable. The **`*File`** operations work on paths and read and write the
+bytes themselves.
 
 A decompress is capped at **64 MiB** of output, for the in-memory stream
 operations and the `*File` operations alike; an LZ4 stream whose declared length
@@ -24,8 +23,8 @@ disk.
 
 ## Sentinels
 
-The in-memory stream operations use scalar sentinels: a malformed payload or an
-unknown stream yields `""`. The file and archive operations answer with the
+The in-memory stream operations use an empty `bytes` sentinel: a malformed
+payload or an unknown stream yields an empty `bytes`. The file and archive operations answer with the
 status string `"ok"` / `"ERROR: <message>"`, because they can fail with a
 reason.
 
@@ -43,8 +42,8 @@ whose name would escape it.
 
 | Function | Signature | Returns |
 | --- | --- | --- |
-| `gzipCompress` | `(str text)` | base64 gzip stream |
-| `gzipDecompress` | `(str base64Data)` | text, or `""` |
+| `gzipCompress` | `(bytes data)` | the gzip stream as `bytes` |
+| `gzipDecompress` | `(bytes data)` | the payload as `bytes`, or empty on failure |
 | `gzipCompressFile` | `(str input, str output)` | `"ok"` / `"ERROR: ..."` |
 | `gzipDecompressFile` | `(str input, str output)` | `"ok"` / `"ERROR: ..."` |
 | `zlibCompress` / `zlibDecompress` / `zlibCompressFile` / `zlibDecompressFile` | as gzip | as gzip |
@@ -53,7 +52,7 @@ whose name would escape it.
 | `lz4Compress` / `lz4Decompress` / `lz4CompressFile` / `lz4DecompressFile` | as gzip | as gzip |
 | `zipCreate` | `(str path, str manifest)` | `"ok"` / `"ERROR: ..."` |
 | `zipList` | `(str path)` | JSON array of entry names, or `"ERROR: ..."` |
-| `zipRead` | `(str path, str entry)` | base64, or `""` |
+| `zipRead` | `(str path, str entry)` | the entry's bytes, or empty when absent |
 | `zipExtract` | `(str path, str directory)` | `"ok"` / `"ERROR: ..."` |
 | `tarCreate` | `(str path, str manifest)` | `"ok"` / `"ERROR: ..."` |
 | `tarList` | `(str path)` | JSON array of entry names, or `"ERROR: ..."` |
@@ -68,10 +67,11 @@ global setup(){ import("compress"); import("fileIO"); }
 
 global main(){
     str text = "the quick brown fox jumps over the lazy dog";
+    bytes payload = bytesOf(text);
 
-    // In-memory round trip, through base64.
-    str packed = global.compress.gzipCompress(text);
-    println(global.compress.gzipDecompress(packed) is text);
+    // In-memory round trip.
+    bytes packed = global.compress.gzipCompress(payload);
+    println(bytesToStr(global.compress.gzipDecompress(packed)) is text);
 
     // File round trip (binary-safe).
     global.fileIO.writeFile("data.txt", text);

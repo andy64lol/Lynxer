@@ -1,11 +1,10 @@
 //! Lynxer `compress` stdlib backend: gzip/zlib/zstd/brotli/lz4 streams plus ZIP
 //! and TAR archives.
 //!
-//! Binary payloads cross the module ABI as text: an in-memory `*Compress`
-//! returns base64 and its `*Decompress` takes base64. Because a decompressed
-//! payload may not be valid UTF-8, the in-memory `*Decompress` returns text only
-//! for UTF-8 output (`""` otherwise); the `*File` ops read and write the bytes
-//! themselves and are the binary-safe path.
+//! Binary payloads cross the module ABI as `bytes`: an in-memory `*Compress`
+//! takes `bytes` and returns `bytes`, and its `*Decompress` does the same, so a
+//! payload that is not valid UTF-8 is representable. The `*File` ops work on
+//! paths and read/write the bytes themselves.
 //!
 //! Stream ops use scalar sentinels (`""`); file and archive ops answer with the
 //! status string `"ok"` / `"ERROR: <message>"` because they can fail for many
@@ -17,7 +16,7 @@ use std::path::Component;
 
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine as _;
-use lynxer_abi::{export_string, lynxer_module};
+use lynxer_abi::{export_bytes_buffers, export_string, lynxer_module};
 use serde::Deserialize;
 
 /// The largest payload an in-memory decompress will produce, so a crafted input
@@ -141,24 +140,6 @@ fn decompress(codec: Codec, data: &[u8]) -> Result<Vec<u8>, String> {
     }
 }
 
-fn compress_in_memory(codec: Codec, text: &str) -> String {
-    match compress(codec, text.as_bytes()) {
-        Ok(bytes) => STANDARD.encode(bytes),
-        Err(_) => String::new(),
-    }
-}
-
-fn decompress_in_memory(codec: Codec, encoded: &str) -> String {
-    let bytes = match STANDARD.decode(encoded) {
-        Ok(bytes) => bytes,
-        Err(_) => return String::new(),
-    };
-    match decompress(codec, &bytes) {
-        Ok(bytes) => String::from_utf8(bytes).unwrap_or_default(),
-        Err(_) => String::new(),
-    }
-}
-
 fn compress_file(codec: Codec, input: &str, output: &str) -> String {
     let data = match std::fs::read(input) {
         Ok(data) => data,
@@ -279,14 +260,13 @@ fn zip_list(path: &str) -> String {
     }
 }
 
-fn zip_read(path: &str, entry: &str) -> String {
-    match zip_open(path).and_then(|mut archive| {
-        let file = archive.by_name(entry).map_err(|error| error.to_string())?;
-        read_limited(file)
-    }) {
-        Ok(bytes) => STANDARD.encode(bytes),
-        Err(_) => String::new(),
-    }
+fn zip_read(path: &str, entry: &str) -> Vec<u8> {
+    zip_open(path)
+        .and_then(|mut archive| {
+            let file = archive.by_name(entry).map_err(|error| error.to_string())?;
+            read_limited(file)
+        })
+        .unwrap_or_default()
 }
 
 fn zip_extract(path: &str, directory: &str) -> String {
@@ -471,11 +451,11 @@ fn tar_gz_extract(path: &str, directory: &str) -> String {
 
 // --- ops --------------------------------------------------------------------
 
-export_string!(compress_gzip, args, {
-    compress_in_memory(Codec::Gzip, args.string(0))
+export_bytes_buffers!(compress_gzip, args, {
+    compress(Codec::Gzip, args.bytes(0)).unwrap_or_default()
 });
-export_string!(compress_gunzip, args, {
-    decompress_in_memory(Codec::Gzip, args.string(0))
+export_bytes_buffers!(compress_gunzip, args, {
+    decompress(Codec::Gzip, args.bytes(0)).unwrap_or_default()
 });
 export_string!(compress_gzip_file, args, {
     compress_file(Codec::Gzip, args.string(0), args.string(1))
@@ -484,11 +464,11 @@ export_string!(compress_gunzip_file, args, {
     decompress_file(Codec::Gzip, args.string(0), args.string(1))
 });
 
-export_string!(compress_zlib, args, {
-    compress_in_memory(Codec::Zlib, args.string(0))
+export_bytes_buffers!(compress_zlib, args, {
+    compress(Codec::Zlib, args.bytes(0)).unwrap_or_default()
 });
-export_string!(compress_unzlib, args, {
-    decompress_in_memory(Codec::Zlib, args.string(0))
+export_bytes_buffers!(compress_unzlib, args, {
+    decompress(Codec::Zlib, args.bytes(0)).unwrap_or_default()
 });
 export_string!(compress_zlib_file, args, {
     compress_file(Codec::Zlib, args.string(0), args.string(1))
@@ -497,11 +477,11 @@ export_string!(compress_unzlib_file, args, {
     decompress_file(Codec::Zlib, args.string(0), args.string(1))
 });
 
-export_string!(compress_zstd, args, {
-    compress_in_memory(Codec::Zstd, args.string(0))
+export_bytes_buffers!(compress_zstd, args, {
+    compress(Codec::Zstd, args.bytes(0)).unwrap_or_default()
 });
-export_string!(compress_unzstd, args, {
-    decompress_in_memory(Codec::Zstd, args.string(0))
+export_bytes_buffers!(compress_unzstd, args, {
+    decompress(Codec::Zstd, args.bytes(0)).unwrap_or_default()
 });
 export_string!(compress_zstd_file, args, {
     compress_file(Codec::Zstd, args.string(0), args.string(1))
@@ -510,11 +490,11 @@ export_string!(compress_unzstd_file, args, {
     decompress_file(Codec::Zstd, args.string(0), args.string(1))
 });
 
-export_string!(compress_brotli, args, {
-    compress_in_memory(Codec::Brotli, args.string(0))
+export_bytes_buffers!(compress_brotli, args, {
+    compress(Codec::Brotli, args.bytes(0)).unwrap_or_default()
 });
-export_string!(compress_unbrotli, args, {
-    decompress_in_memory(Codec::Brotli, args.string(0))
+export_bytes_buffers!(compress_unbrotli, args, {
+    decompress(Codec::Brotli, args.bytes(0)).unwrap_or_default()
 });
 export_string!(compress_brotli_file, args, {
     compress_file(Codec::Brotli, args.string(0), args.string(1))
@@ -523,11 +503,11 @@ export_string!(compress_unbrotli_file, args, {
     decompress_file(Codec::Brotli, args.string(0), args.string(1))
 });
 
-export_string!(compress_lz4, args, {
-    compress_in_memory(Codec::Lz4, args.string(0))
+export_bytes_buffers!(compress_lz4, args, {
+    compress(Codec::Lz4, args.bytes(0)).unwrap_or_default()
 });
-export_string!(compress_unlz4, args, {
-    decompress_in_memory(Codec::Lz4, args.string(0))
+export_bytes_buffers!(compress_unlz4, args, {
+    decompress(Codec::Lz4, args.bytes(0)).unwrap_or_default()
 });
 export_string!(compress_lz4_file, args, {
     compress_file(Codec::Lz4, args.string(0), args.string(1))
@@ -540,7 +520,7 @@ export_string!(compress_zip_create, args, {
     zip_create(args.string(0), args.string(1))
 });
 export_string!(compress_zip_list, args, { zip_list(args.string(0)) });
-export_string!(compress_zip_read, args, {
+export_bytes_buffers!(compress_zip_read, args, {
     zip_read(args.string(0), args.string(1))
 });
 export_string!(compress_zip_extract, args, {
@@ -563,8 +543,8 @@ export_string!(compress_tar_gz_extract, args, {
 });
 
 const OPS: &[(&str, &str, &str)] = &[
-    ("gzipCompress", "compress_gzip", "cdecl:cstring(...)"),
-    ("gzipDecompress", "compress_gunzip", "cdecl:cstring(...)"),
+    ("gzipCompress", "compress_gzip", "cdecl:bytes(...,bytes)"),
+    ("gzipDecompress", "compress_gunzip", "cdecl:bytes(...,bytes)"),
     (
         "gzipCompressFile",
         "compress_gzip_file",
@@ -575,8 +555,8 @@ const OPS: &[(&str, &str, &str)] = &[
         "compress_gunzip_file",
         "cdecl:cstring(...)",
     ),
-    ("zlibCompress", "compress_zlib", "cdecl:cstring(...)"),
-    ("zlibDecompress", "compress_unzlib", "cdecl:cstring(...)"),
+    ("zlibCompress", "compress_zlib", "cdecl:bytes(...,bytes)"),
+    ("zlibDecompress", "compress_unzlib", "cdecl:bytes(...,bytes)"),
     (
         "zlibCompressFile",
         "compress_zlib_file",
@@ -587,8 +567,8 @@ const OPS: &[(&str, &str, &str)] = &[
         "compress_unzlib_file",
         "cdecl:cstring(...)",
     ),
-    ("zstdCompress", "compress_zstd", "cdecl:cstring(...)"),
-    ("zstdDecompress", "compress_unzstd", "cdecl:cstring(...)"),
+    ("zstdCompress", "compress_zstd", "cdecl:bytes(...,bytes)"),
+    ("zstdDecompress", "compress_unzstd", "cdecl:bytes(...,bytes)"),
     (
         "zstdCompressFile",
         "compress_zstd_file",
@@ -599,11 +579,11 @@ const OPS: &[(&str, &str, &str)] = &[
         "compress_unzstd_file",
         "cdecl:cstring(...)",
     ),
-    ("brotliCompress", "compress_brotli", "cdecl:cstring(...)"),
+    ("brotliCompress", "compress_brotli", "cdecl:bytes(...,bytes)"),
     (
         "brotliDecompress",
         "compress_unbrotli",
-        "cdecl:cstring(...)",
+        "cdecl:bytes(...,bytes)",
     ),
     (
         "brotliCompressFile",
@@ -615,8 +595,8 @@ const OPS: &[(&str, &str, &str)] = &[
         "compress_unbrotli_file",
         "cdecl:cstring(...)",
     ),
-    ("lz4Compress", "compress_lz4", "cdecl:cstring(...)"),
-    ("lz4Decompress", "compress_unlz4", "cdecl:cstring(...)"),
+    ("lz4Compress", "compress_lz4", "cdecl:bytes(...,bytes)"),
+    ("lz4Decompress", "compress_unlz4", "cdecl:bytes(...,bytes)"),
     ("lz4CompressFile", "compress_lz4_file", "cdecl:cstring(...)"),
     (
         "lz4DecompressFile",
@@ -625,7 +605,7 @@ const OPS: &[(&str, &str, &str)] = &[
     ),
     ("zipCreate", "compress_zip_create", "cdecl:cstring(...)"),
     ("zipList", "compress_zip_list", "cdecl:cstring(...)"),
-    ("zipRead", "compress_zip_read", "cdecl:cstring(...)"),
+    ("zipRead", "compress_zip_read", "cdecl:bytes(...,bytes)"),
     ("zipExtract", "compress_zip_extract", "cdecl:cstring(...)"),
     ("tarCreate", "compress_tar_create", "cdecl:cstring(...)"),
     ("tarList", "compress_tar_list", "cdecl:cstring(...)"),

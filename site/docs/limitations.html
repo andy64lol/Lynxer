@@ -184,20 +184,18 @@
 <tr><td>Bytecode (<code>.lynxc</code>, <code>--view-bytecode</code>, <code>--benchmark-compile</code>, <code>--no-cache</code>)</td><td>Removed with the bytecode backend; <code>--compile</code> produces a standalone ELF executable instead (<code>--bundle</code> is an alias). Running a <code>.lynxc</code> file reports that bytecode is unsupported.</td></tr>
 </table>
 <h2 id="planned-work">Planned Work</h2>
-<p>The first-class <code>bytes</code> type (<strong>L1</strong>), the fixed-signature <code>bytes</code> channel and the raised argument cap (<strong>L2</strong>), and the <code>math</code> migration off the tab-separated bridge (<strong>L3</strong>) are delivered. The remaining constraints each have a resolution plan in <a href="../todo.html">todo</a> under <em>Resolving documented limitations</em>:</p>
+<p>The first-class <code>bytes</code> type (<strong>L1</strong>), the <code>bytes</code> ABI channel and buffered packed form (<strong>L2</strong>), the <code>math</code> migration off the tab-separated bridge (<strong>L3</strong>), the <code>compress</code>/<code>crypto</code>/<code>encoding</code>/<code>uuid</code> migrations (<strong>L1b</strong>), and the macOS <code>.dylib</code> recognition (<strong>L2c</strong>) are delivered. <strong>L2d</strong> (multiple live string results) was closed as not needed — no module returns more than one string per call. The remaining constraints each have a resolution plan in <a href="../todo.html">todo</a> under <em>Resolving documented limitations</em>:</p>
 <table>
 <tr><th>Area</th><th>Plan</th></tr>
 <tr><td><code>tkinter</code> / <code>tkinterPlus</code> (a native OS-widget GUI module)</td><td><strong>L16</strong></td></tr>
 <tr><td><code>turtle</code> (reimplement on <code>graphics</code>)</td><td><strong>L17</strong></td></tr>
 <tr><td><code>http</code> / <code>net</code> (keep superseded by <code>network</code> + <code>server</code>, or add a shim)</td><td><strong>L18</strong></td></tr>
-<tr><td>Migrating <code>compress</code>, <code>crypto</code>, <code>encoding</code> and <code>uuid</code> payloads to <code>bytes</code></td><td><strong>L1b</strong></td></tr>
-<tr><td>Packed <code>bytes</code>/aggregate parameters, multiple string results, and macOS/Windows loading</td><td><strong>L2b</strong>–<strong>L2d</strong></td></tr>
 <tr><td>Module constraints — <code>graphics</code>, <code>game</code>, <code>server</code>, <code>re</code>/<code>regex</code>, <code>sound</code>, <code>watch</code>, <code>sqldb</code>, <code>js</code>, <code>multiprocessing</code>, <code>text</code>/<code>typing</code>, <code>tui</code>, <code>os</code>/<code>path</code>/<code>sys</code></td><td><strong>L4</strong>–<strong>L14</strong></td></tr>
 <tr><td><code>nativeThread*</code> / <code>async*</code> true parallelism and coroutine <code>await</code></td><td><strong>L15</strong></td></tr>
 </table>
 <h2 id="native-module-abi">Native Module ABI</h2>
 <ul>
-<li><strong>Signature constraints.</strong> A native signature names each parameter with a type token: <code>int64</code> (any integer width), <code>double</code>/<code>float64</code>, <code>cstring</code>, or <code>bytes</code>. A <code>bytes</code> parameter is passed as two C arguments (a pointer and a length), and a <code>bytes</code> return is a length-prefixed buffer. The packed <code>...</code> form passes numbers and strings as two arrays and accepts at most 256 arguments in total.</li>
+<li><strong>Signature constraints.</strong> A native signature names each parameter with a type token: <code>int64</code> (any integer width), <code>double</code>/<code>float64</code>, <code>cstring</code>, or <code>bytes</code>. A <code>bytes</code> parameter is passed as two C arguments (a pointer and a length), and a <code>bytes</code> return is a length-prefixed buffer. The packed <code>...</code> form passes numbers and strings as two arrays and accepts at most 256 arguments in total; the buffered packed form <code>...,bytes</code> additionally carries byte buffers (<code>const uint8_t* const* bufs, const int64_t* lens, int64_t buf_count</code>).</li>
 </ul>
 <ul>
 <li><strong>Aggregates.</strong> A numeric list crosses as <code>bytes</code> holding little-endian <code>f64</code> (the <code>listToBytes</code> / <code>bytesToList</code> encoding); other structured data still crosses as a JSON string or a handle.</li>
@@ -265,7 +263,7 @@
 </ul>
 <h3 id="compress--constrained-behavior"><code>compress</code> — Constrained Behavior</h3>
 <ul>
-<li><strong>No byte type.</strong> An in-memory <code>&lt;codec&gt;Compress</code> returns base64 and its <code>&lt;codec&gt;Decompress</code> takes base64. A decompressed payload need not be valid UTF-8, and <code>Decompress</code> answers text only when it is (<code>&quot;&quot;</code> otherwise); the <code>*File</code> ops read and write the bytes themselves and are the binary-safe path. See the binary-payload decision in <a href="../todo.html">todo</a>.</li>
+<li><strong>Payloads are <code>bytes</code>.</strong> An in-memory <code>&lt;codec&gt;Compress</code> takes <code>bytes</code> and returns <code>bytes</code>, and its <code>&lt;codec&gt;Decompress</code> does the same, so a payload that is not valid UTF-8 is representable. The <code>*File</code> ops work on paths and read and write the bytes themselves.</li>
 <li><strong>Two sentinel families.</strong> The in-memory stream ops use the scalar sentinel (<code>&quot;&quot;</code>); the file and archive ops answer with <code>&quot;ok&quot;</code> / <code>&quot;ERROR: &lt;message&gt;&quot;</code>, because they can fail with a reason (a missing file, a bad archive).</li>
 <li><strong>A decompress is capped at 64 MiB</strong> of output, for the in-memory stream ops and the <code>*File</code> ops alike, so a crafted stream cannot exhaust memory; an LZ4 stream whose declared length exceeds the cap is refused before it is decoded.</li>
 <li><strong>Archive extraction is capped at 64 MiB</strong>: a ZIP entry on <code>zipRead</code> and <code>zipExtract</code>, and the total declared entry size on <code>tarExtract</code> and <code>tarGzExtract</code> (whose decompressed stream is bounded too), so a crafted archive cannot exhaust memory or disk.</li>
@@ -274,7 +272,7 @@
 </ul>
 <h3 id="crypto--constrained-behavior"><code>crypto</code> — Constrained Behavior</h3>
 <ul>
-<li><strong>No byte type.</strong> Lynxer has no byte type, so a digest or signature crosses the ABI as text: <code>hash</code>/<code>hmac</code> return lower-case hex, <code>signEd25519</code> and the key pair return base64. A binary payload held in memory is passed base64 through <code>hashBase64</code>; arbitrary file contents go through <code>hashFile</code>/<code>hmacFile</code>, which read the bytes inside the module. See the binary-payload decision in <a href="../todo.html">todo</a>.</li>
+<li><strong>Payloads are <code>bytes</code>.</strong> A message, key, signature or random payload crosses as <code>bytes</code>; <code>hash</code>/<code>hmac</code> return lower-case hex (a text form is the API) and <code>signEd25519</code> returns <code>bytes</code>. <code>hashFile</code>/<code>hmacFile</code> read the file's bytes inside the module.</li>
 <li><strong>Failures are in-band.</strong> An unknown algorithm, a malformed payload or an I/O error yields <code>&quot;&quot;</code>, and a predicate yields <code>false</code>; there is no exception.</li>
 <li><strong>The algorithm names are a fixed set.</strong> <code>sha1</code>, <code>sha224</code>, <code>sha256</code>, <code>sha384</code>, <code>sha512</code>, <code>md5</code>, <code>sha3-256</code>, <code>sha3-512</code> and <code>blake3</code> for a digest; <code>hash</code>/<code>hmac</code> ignore case but do not accept aliases such as <code>SHA-256</code>.</li>
 <li><strong><code>verifyHmac</code> compares in constant time</strong>; a MAC that is not valid hex is a mismatch, not an error.</li>
@@ -320,7 +318,7 @@
 </ul>
 <h3 id="encoding--constrained-behavior"><code>encoding</code> — Constrained Behavior</h3>
 <ul>
-<li><strong>No byte type.</strong> Lynxer strings are the byte carrier: an encode function uses the UTF-8 bytes of its input, and a decode function returns the decoded bytes as text. Lynxer has no byte type yet, so a payload that is not valid UTF-8 has no representation — a decode that produces one returns <code>&quot;&quot;</code>, the same sentinel a malformed input returns. <code>*Valid</code> reports well-formedness in the codec only, so it can be <code>true</code> while <code>*Decode</code> answers <code>&quot;&quot;</code>. Bulk binary is expected to travel through files instead; see the binary-payload decision in <a href="../todo.html">todo</a>.</li>
+<li><strong>Payloads are <code>bytes</code>.</strong> An encode takes <code>bytes</code> and returns a <code>str</code> (the encoded form is text); a decode takes a <code>str</code> and returns <code>bytes</code>, so a payload that is not valid UTF-8 is representable. <code>*Valid</code> reports whether the input is well formed in the codec.</li>
 <li><strong>Failures are in-band.</strong> A decode returns <code>&quot;&quot;</code> and a predicate returns <code>false</code>; there is no exception to catch.</li>
 <li><strong>Padding is optional when decoding</strong> and always emitted when encoding, for base64 and base32 alike; base32 also accepts either case. Whitespace inside a payload is never accepted.</li>
 <li><strong><code>percentDecode</code> validates the escapes itself.</strong> The underlying decoder leaves a malformed escape in place (<code>%2</code> stays <code>%2</code>), so a bare <code>%</code> is a failure here rather than a passthrough.</li>
@@ -329,11 +327,11 @@
 </ul>
 <h3 id="uuid--constrained-behavior"><code>uuid</code> — Constrained Behavior</h3>
 <ul>
-<li><strong>UUIDs are strings.</strong> Lynxer has no byte type, so a UUID crosses the ABI as text: <code>uuidToHex</code> returns the simple 32-hex-character form as the hex view of the 16 bytes, and <code>uuidFromHex</code> accepts exactly that.</li>
+<li><strong>UUIDs are strings.</strong> The canonical form is the lower-case hyphenated one; <code>uuidToHex</code> returns the simple 32-hex-character form, and <code>uuidToBytes</code> / <code>uuidFromBytes</code> exchange the raw 16 bytes as a <code>bytes</code> value.</li>
 <li><strong>Failures are in-band.</strong> An unparseable UUID yields <code>&quot;&quot;</code>, <code>uuidValid</code> yields <code>false</code>, and <code>uuidVersion</code>/<code>uuidTimestamp</code> yield <code>-1</code>; there is no exception to catch.</li>
 <li><strong>Accepted input forms.</strong> Hyphenated, simple, <code>urn:uuid:</code> and braced, with surrounding whitespace trimmed. The URN and braced forms must wrap the <em>hyphenated</em> form; wrapping the simple form is rejected, matching <a href="https://www.rfc-editor.org/rfc/rfc9562">RFC 9562</a>.</li>
 <li><strong><code>uuidVersion</code> reports the raw nibble.</strong> A UUID that is not a well-formed RFC variant reports whatever its 13th hex digit says (for example <code>12</code>), rather than failing.</li>
-<li><strong><code>v1</code> and <code>v6</code> are not exposed</strong>, and neither are byte-buffer entry points.</li>
+<li><strong><code>v1</code> and <code>v6</code> are not exposed.</strong></li>
 </ul>
 <h3 id="re-and-regex--constrained-behavior"><code>re</code> and <code>regex</code> — Constrained Behavior</h3>
 <p>Both modules use <code>std::regex</code> with the ECMAScript grammar, which is narrower than full PCRE:</p>

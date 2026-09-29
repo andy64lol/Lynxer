@@ -9,10 +9,11 @@ UUID generation, parsing and formatting.
 
 ## How UUIDs travel
 
-A UUID crosses the ABI as a **string**, because Lynxer has no byte type. The
-canonical form is the lower-case hyphenated one, `8-4-4-4-12`. `uuidToHex`
-returns the *simple* form instead — the 32 hex characters of the 16 bytes with
-no hyphens — and `uuidFromHex` accepts exactly that.
+A UUID crosses the ABI as a **string**; the canonical form is the lower-case
+hyphenated one, `8-4-4-4-12`. `uuidToHex` returns the *simple* form instead — the
+32 hex characters of the 16 bytes with no hyphens — and `uuidFromHex` accepts
+exactly that. `uuidToBytes` / `uuidFromBytes` exchange the raw 16 bytes as a
+`bytes` value.
 
 Parsing accepts every form the crate does, and trims surrounding whitespace
 first:
@@ -61,6 +62,8 @@ for a time-based UUID and `-1` for v3, v4, v5 and nil.
 | `uuidTimestamp` | `(str s)` | Unix milliseconds for a time-based UUID, else `-1` |
 | `uuidToHex` | `(str s)` | The 16 bytes as 32 lower-case hex characters, or `""` |
 | `uuidFromHex` | `(str hex)` | The canonical form of 32 hex characters, or `""` |
+| `uuidToBytes` | `(str s)` | The raw 16 bytes, or empty on failure |
+| `uuidFromBytes` | `(bytes data)` | The canonical form of 16 bytes, or `""` |
 | `uuidNamespace` | `(str name)` | A well-known namespace: `dns`, `url`, `oid` or `x500`, else `""` |
 
 `uuidParse(s)` is the same as `uuidFormat(s, false)`.

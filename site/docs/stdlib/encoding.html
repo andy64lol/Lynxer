@@ -170,8 +170,8 @@
 <p>Base64, hex, base32, base58, ascii85, percent-encoding and quoted-printable codecs.</p>
 <p><strong>Backend:</strong> native — <code>stdlib/encoding.so</code>, built from the Rust crate <code>rust/encoding</code> over <a href="https://docs.rs/base64"><code>base64</code></a>, <a href="https://docs.rs/hex"><code>hex</code></a>, <a href="https://docs.rs/data-encoding"><code>data-encoding</code></a>, <a href="https://docs.rs/bs58"><code>bs58</code></a>, <a href="https://docs.rs/ascii85"><code>ascii85</code></a>, <a href="https://docs.rs/percent-encoding"><code>percent-encoding</code></a> and <a href="https://docs.rs/quoted_printable"><code>quoted_printable</code></a>. <strong>Import:</strong> <code>import(&quot;encoding&quot;)</code> → <code>global.encoding.*</code></p>
 <h2 id="how-bytes-travel">How bytes travel</h2>
-<p>A Lynxer string is the byte sequence here. An encode function takes the <strong>UTF-8 bytes</strong> of its input, and a decode function returns the decoded bytes <strong>as text</strong>. Lynxer has no byte type yet, so a payload that is not valid UTF-8 has no representation: a decode that produces one returns <code>&quot;&quot;</code>, the same sentinel a malformed input returns. <code>*Valid</code> reports whether the input is well formed in its codec — it does not require the decoded bytes to be valid UTF-8, so it can be <code>true</code> while <code>*Decode</code> answers <code>&quot;&quot;</code>.</p>
-<p>Test a decode result for <code>&quot;&quot;</code> rather than expecting an exception: there is no error channel across the native ABI. See the binary-payload decision in <a href="../../todo.html">todo</a> for the plans that need bulk binary (<code>compress</code>, <code>crypto</code>).</p>
+<p>The encoded form of a payload is always text and the raw form is always a <code>bytes</code> value: an <strong>encode</strong> takes <code>bytes</code> and returns a <code>str</code>, a <strong>decode</strong> takes a <code>str</code> and returns <code>bytes</code>. A payload that is not valid UTF-8 is therefore representable — a decode that used to yield <code>&quot;&quot;</code> now returns those bytes — so a decode failure is an empty <code>bytes</code>. <code>*Valid</code> reports whether the input is well formed in its codec.</p>
+<p>Test a decode with <code>bytesLength(result) is 0</code> rather than expecting an exception: there is no error channel across the native ABI.</p>
 <h2 id="conventions">Conventions</h2>
 <ul>
 <li><strong>Padding</strong> is optional when decoding and always emitted when encoding, for base64 and base32 alike. <code>base32</code> decoding also accepts either case.</li>
@@ -183,30 +183,30 @@
 <h2 id="functions">Functions</h2>
 <table>
 <tr><th>Function</th><th>Signature</th><th>Returns</th></tr>
-<tr><td><code>base64Encode</code></td><td><code>(str s)</code></td><td>Standard base64, padded</td></tr>
-<tr><td><code>base64Decode</code></td><td><code>(str s)</code></td><td>Decoded text, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>base64Encode</code></td><td><code>(bytes b)</code></td><td>Standard base64, padded</td></tr>
+<tr><td><code>base64Decode</code></td><td><code>(str s)</code></td><td>the decoded <code>bytes</code>, or empty on failure</td></tr>
 <tr><td><code>base64Valid</code></td><td><code>(str s)</code></td><td><code>true</code> if <code>s</code> is well-formed standard base64</td></tr>
-<tr><td><code>base64UrlEncode</code></td><td><code>(str s)</code></td><td>URL-safe base64 (<code>-</code>/<code>_</code>), padded</td></tr>
-<tr><td><code>base64UrlDecode</code></td><td><code>(str s)</code></td><td>Decoded text, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>base64UrlEncode</code></td><td><code>(bytes b)</code></td><td>URL-safe base64 (<code>-</code>/<code>_</code>), padded</td></tr>
+<tr><td><code>base64UrlDecode</code></td><td><code>(str s)</code></td><td>the decoded <code>bytes</code>, or empty on failure</td></tr>
 <tr><td><code>base64UrlValid</code></td><td><code>(str s)</code></td><td><code>true</code> if <code>s</code> is well-formed URL-safe base64</td></tr>
-<tr><td><code>hexEncode</code></td><td><code>(str s)</code></td><td>Lower-case hexadecimal</td></tr>
-<tr><td><code>hexEncodeUpper</code></td><td><code>(str s)</code></td><td>Upper-case hexadecimal</td></tr>
-<tr><td><code>hexDecode</code></td><td><code>(str s)</code></td><td>Decoded text, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>hexEncode</code></td><td><code>(bytes b)</code></td><td>Lower-case hexadecimal</td></tr>
+<tr><td><code>hexEncodeUpper</code></td><td><code>(bytes b)</code></td><td>Upper-case hexadecimal</td></tr>
+<tr><td><code>hexDecode</code></td><td><code>(str s)</code></td><td>the decoded <code>bytes</code>, or empty on failure</td></tr>
 <tr><td><code>hexValid</code></td><td><code>(str s)</code></td><td><code>true</code> if <code>s</code> is hexadecimal with an even length</td></tr>
-<tr><td><code>base32Encode</code></td><td><code>(str s)</code></td><td>Upper-case RFC 4648 base32, padded</td></tr>
-<tr><td><code>base32Decode</code></td><td><code>(str s)</code></td><td>Decoded text, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>base32Encode</code></td><td><code>(bytes b)</code></td><td>Upper-case RFC 4648 base32, padded</td></tr>
+<tr><td><code>base32Decode</code></td><td><code>(str s)</code></td><td>the decoded <code>bytes</code>, or empty on failure</td></tr>
 <tr><td><code>base32Valid</code></td><td><code>(str s)</code></td><td><code>true</code> if <code>s</code> is well-formed base32</td></tr>
-<tr><td><code>base58Encode</code></td><td><code>(str s)</code></td><td>Base58 (the Bitcoin alphabet)</td></tr>
-<tr><td><code>base58Decode</code></td><td><code>(str s)</code></td><td>Decoded text, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>base58Encode</code></td><td><code>(bytes b)</code></td><td>Base58 (the Bitcoin alphabet)</td></tr>
+<tr><td><code>base58Decode</code></td><td><code>(str s)</code></td><td>the decoded <code>bytes</code>, or empty on failure</td></tr>
 <tr><td><code>base58Valid</code></td><td><code>(str s)</code></td><td><code>true</code> if <code>s</code> is well-formed base58</td></tr>
-<tr><td><code>ascii85Encode</code></td><td><code>(str s)</code></td><td>Adobe ascii85, framed with <code>&lt;~</code> <code>~&gt;</code></td></tr>
-<tr><td><code>ascii85Decode</code></td><td><code>(str s)</code></td><td>Decoded text, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>ascii85Encode</code></td><td><code>(bytes b)</code></td><td>Adobe ascii85, framed with <code>&lt;~</code> <code>~&gt;</code></td></tr>
+<tr><td><code>ascii85Decode</code></td><td><code>(str s)</code></td><td>the decoded <code>bytes</code>, or empty on failure</td></tr>
 <tr><td><code>ascii85Valid</code></td><td><code>(str s)</code></td><td><code>true</code> if <code>s</code> is well-formed ascii85</td></tr>
-<tr><td><code>percentEncode</code></td><td><code>(str s)</code></td><td>Percent-encoded URI component</td></tr>
-<tr><td><code>percentDecode</code></td><td><code>(str s)</code></td><td>Decoded text, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>percentEncode</code></td><td><code>(bytes b)</code></td><td>Percent-encoded URI component</td></tr>
+<tr><td><code>percentDecode</code></td><td><code>(str s)</code></td><td>the decoded <code>bytes</code>, or empty on failure</td></tr>
 <tr><td><code>percentValid</code></td><td><code>(str s)</code></td><td><code>true</code> if every <code>%</code> is followed by two hex digits</td></tr>
-<tr><td><code>quotedPrintableEncode</code></td><td><code>(str s)</code></td><td>Quoted-printable text</td></tr>
-<tr><td><code>quotedPrintableDecode</code></td><td><code>(str s)</code></td><td>Decoded text, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>quotedPrintableEncode</code></td><td><code>(bytes b)</code></td><td>Quoted-printable text</td></tr>
+<tr><td><code>quotedPrintableDecode</code></td><td><code>(str s)</code></td><td>the decoded <code>bytes</code>, or empty on failure</td></tr>
 <tr><td><code>quotedPrintableValid</code></td><td><code>(str s)</code></td><td><code>true</code> if <code>s</code> is well-formed quoted-printable</td></tr>
 </table>
 <p><code>percentEncode</code> uses <code>encodeURIComponent</code> semantics: <code>A-Z a-z 0-9 - _ . ! ~ * &#x27; ( )</code> stay unescaped and everything else, including <code>/ ? = &amp;</code>, is escaped.</p>

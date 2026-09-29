@@ -11,24 +11,25 @@ global main(){
     global.os.mkdir(root);
 
     str text = "the quick brown fox jumps over the lazy dog, the quick brown fox jumps over the lazy dog, the quick brown fox jumps over the lazy dog, the quick brown fox jumps over the lazy dog";
+    bytes payload = bytesOf(text);
 
     // --- in-memory round trips ---
-    println(global.compress.gzipDecompress(global.compress.gzipCompress(text)) is text);
-    println(global.compress.zlibDecompress(global.compress.zlibCompress(text)) is text);
-    println(global.compress.zstdDecompress(global.compress.zstdCompress(text)) is text);
-    println(global.compress.brotliDecompress(global.compress.brotliCompress(text)) is text);
-    println(global.compress.lz4Decompress(global.compress.lz4Compress(text)) is text);
+    println(bytesToStr(global.compress.gzipDecompress(global.compress.gzipCompress(payload))) is text);
+    println(bytesToStr(global.compress.zlibDecompress(global.compress.zlibCompress(payload))) is text);
+    println(bytesToStr(global.compress.zstdDecompress(global.compress.zstdCompress(payload))) is text);
+    println(bytesToStr(global.compress.brotliDecompress(global.compress.brotliCompress(payload))) is text);
+    println(bytesToStr(global.compress.lz4Decompress(global.compress.lz4Compress(payload))) is text);
     // A repetitive payload compresses to fewer bytes.
-    println(returnLength(global.compress.gzipCompress(text)) < returnLength(text));
+    println(bytesLength(global.compress.gzipCompress(payload)) < returnLength(text));
 
-    // --- malformed inputs answer "" ---
-    println(global.compress.gzipDecompress("not base64") is "");
-    // "YWJj" is valid base64 ("abc") but not a stream in any of these codecs.
-    println(global.compress.gzipDecompress("YWJj") is "");
-    println(global.compress.zlibDecompress("YWJj") is "");
-    println(global.compress.zstdDecompress("YWJj") is "");
-    println(global.compress.brotliDecompress("YWJj") is "");
-    println(global.compress.lz4Decompress("YWJj") is "");
+    // --- malformed inputs answer empty bytes ---
+    println(bytesLength(global.compress.gzipDecompress(bytesOf("not a stream"))) is 0);
+    // "abc" is not a stream in any of these codecs.
+    println(bytesLength(global.compress.gzipDecompress(bytesOf("abc"))) is 0);
+    println(bytesLength(global.compress.zlibDecompress(bytesOf("abc"))) is 0);
+    println(bytesLength(global.compress.zstdDecompress(bytesOf("abc"))) is 0);
+    println(bytesLength(global.compress.brotliDecompress(bytesOf("abc"))) is 0);
+    println(bytesLength(global.compress.lz4Decompress(bytesOf("abc"))) is 0);
 
     // --- file round trips ---
     global.fileIO.writeFile(root + "/data.txt", text);
@@ -44,8 +45,8 @@ global main(){
     str manifest = "[{\"name\":\"a.txt\",\"path\":\"" + root + "/data.txt\"},{\"name\":\"dir/b.txt\",\"base64\":\"aGVsbG8=\"}]";
     println(global.compress.zipCreate(root + "/archive.zip", manifest));
     println(global.compress.zipList(root + "/archive.zip"));
-    println(global.compress.zipRead(root + "/archive.zip", "dir/b.txt"));
-    println(global.compress.zipRead(root + "/archive.zip", "nope.txt") is "");
+    println(bytesToStr(global.compress.zipRead(root + "/archive.zip", "dir/b.txt")));
+    println(bytesLength(global.compress.zipRead(root + "/archive.zip", "nope.txt")) is 0);
     println(global.compress.zipExtract(root + "/archive.zip", root + "/unzip"));
     println(global.fileIO.readFile(root + "/unzip/dir/b.txt") is "hello");
     // An entry that would escape the destination is refused at creation.

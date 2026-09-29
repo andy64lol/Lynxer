@@ -1,9 +1,10 @@
 //! Lynxer `uuid` stdlib backend: UUID generation, parsing and formatting.
 //!
-//! UUIDs cross the ABI as strings, because Lynxer has no byte type. The
-//! canonical form is the lower-case hyphenated one; the "simple" form (32 hex
-//! characters, no hyphens) is the hex view of the 16 bytes, which is what
-//! `uuidToHex` returns and `uuidFromHex` accepts.
+//! UUIDs cross the ABI as strings; the canonical form is the lower-case
+//! hyphenated one. The "simple" form (32 hex characters, no hyphens) is the hex
+//! view of the 16 bytes, which is what `uuidToHex` returns and `uuidFromHex`
+//! accepts; `uuidToBytes` / `uuidFromBytes` expose the raw 16 bytes as a
+//! `bytes` value.
 //!
 //! Parsing accepts every form the `uuid` crate does — hyphenated, simple,
 //! `urn:uuid:` and braced — and surrounding whitespace is trimmed first.
@@ -12,10 +13,12 @@
 //! operation and `-1` from `uuidTimestamp` or `uuidVersion`.
 //!
 //! v4 is random and v7 is time-ordered, so neither is reproducible; v3 and v5
-//! hash a name into a namespace and are. v1 and v6 are deliberately absent, as
-//! are the byte-buffer entry points the lack of a byte type would make awkward.
+//! hash a name into a namespace and are. v1 and v6 are deliberately absent.
 
-use lynxer_abi::{export_int, export_string, lynxer_module};
+use lynxer_abi::{
+    export_bytes_buffers, export_int, export_string, export_string_buffers,
+    lynxer_module,
+};
 use uuid::{Uuid, Variant};
 
 /// Parses any form the crate accepts, after trimming surrounding whitespace.
@@ -134,6 +137,23 @@ export_string!(uuid_namespace, args, {
     }
 });
 
+export_bytes_buffers!(uuid_to_bytes, args, {
+    parse(args.string(0))
+        .map(|uuid| uuid.as_bytes().to_vec())
+        .unwrap_or_default()
+});
+
+export_string_buffers!(uuid_from_bytes, args, {
+    let bytes = args.bytes(0);
+    if bytes.len() == 16 {
+        Uuid::from_slice(bytes)
+            .map(|uuid| canonical(&uuid))
+            .unwrap_or_default()
+    } else {
+        String::new()
+    }
+});
+
 const OPS: &[(&str, &str, &str)] = &[
     ("v4", "uuid_v4", "cdecl:cstring(...)"),
     ("v7", "uuid_v7", "cdecl:cstring(...)"),
@@ -149,6 +169,8 @@ const OPS: &[(&str, &str, &str)] = &[
     ("toHex", "uuid_to_hex", "cdecl:cstring(...)"),
     ("fromHex", "uuid_from_hex", "cdecl:cstring(...)"),
     ("namespace", "uuid_namespace", "cdecl:cstring(...)"),
+    ("toBytes", "uuid_to_bytes", "cdecl:bytes(...,bytes)"),
+    ("fromBytes", "uuid_from_bytes", "cdecl:cstring(...,bytes)"),
 ];
 
 lynxer_module!(OPS);
@@ -236,5 +258,14 @@ mod tests {
             "a1a2a3a4b1b2c1c2d1d2d3d4d5d6d7d8"
         );
         assert_eq!(uuid.as_bytes().len(), 16);
+    }
+
+    #[test]
+    fn bytes_round_trip() {
+        let uuid = Uuid::parse_str("a1a2a3a4-b1b2-c1c2-d1d2-d3d4d5d6d7d8").unwrap();
+        let bytes = uuid.as_bytes().to_vec();
+        assert_eq!(bytes.len(), 16);
+        assert_eq!(Uuid::from_slice(&bytes).unwrap(), uuid);
+        assert!(Uuid::from_slice(&bytes[..15]).is_err());
     }
 }

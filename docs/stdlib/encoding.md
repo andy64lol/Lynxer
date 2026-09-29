@@ -14,18 +14,15 @@ codecs.
 
 ## How bytes travel
 
-A Lynxer string is the byte sequence here. An encode function takes the **UTF-8
-bytes** of its input, and a decode function returns the decoded bytes **as
-text**. Lynxer has no byte type yet, so a payload that is not valid UTF-8 has no
-representation: a decode that produces one returns `""`, the same sentinel a
-malformed input returns. `*Valid` reports whether the input is well formed in
-its codec — it does not require the decoded bytes to be valid UTF-8, so it can be
-`true` while `*Decode` answers `""`.
+The encoded form of a payload is always text and the raw form is always a
+`bytes` value: an **encode** takes `bytes` and returns a `str`, a **decode**
+takes a `str` and returns `bytes`. A payload that is not valid UTF-8 is therefore
+representable — a decode that used to yield `""` now returns those bytes — so a
+decode failure is an empty `bytes`. `*Valid` reports whether the input is well
+formed in its codec.
 
-Test a decode result for `""` rather than expecting an exception: there is no
-error channel across the native ABI. See the binary-payload decision in
-[todo.md](../../todo.md) for the plans that need bulk binary (`compress`,
-`crypto`).
+Test a decode with `bytesLength(result) is 0` rather than expecting an exception:
+there is no error channel across the native ABI.
 
 ## Conventions
 
@@ -45,30 +42,30 @@ error channel across the native ABI. See the binary-payload decision in
 
 | Function | Signature | Returns |
 | --- | --- | --- |
-| `base64Encode` | `(str s)` | Standard base64, padded |
-| `base64Decode` | `(str s)` | Decoded text, or `""` |
+| `base64Encode` | `(bytes b)` | Standard base64, padded |
+| `base64Decode` | `(str s)` | the decoded `bytes`, or empty on failure |
 | `base64Valid` | `(str s)` | `true` if `s` is well-formed standard base64 |
-| `base64UrlEncode` | `(str s)` | URL-safe base64 (`-`/`_`), padded |
-| `base64UrlDecode` | `(str s)` | Decoded text, or `""` |
+| `base64UrlEncode` | `(bytes b)` | URL-safe base64 (`-`/`_`), padded |
+| `base64UrlDecode` | `(str s)` | the decoded `bytes`, or empty on failure |
 | `base64UrlValid` | `(str s)` | `true` if `s` is well-formed URL-safe base64 |
-| `hexEncode` | `(str s)` | Lower-case hexadecimal |
-| `hexEncodeUpper` | `(str s)` | Upper-case hexadecimal |
-| `hexDecode` | `(str s)` | Decoded text, or `""` |
+| `hexEncode` | `(bytes b)` | Lower-case hexadecimal |
+| `hexEncodeUpper` | `(bytes b)` | Upper-case hexadecimal |
+| `hexDecode` | `(str s)` | the decoded `bytes`, or empty on failure |
 | `hexValid` | `(str s)` | `true` if `s` is hexadecimal with an even length |
-| `base32Encode` | `(str s)` | Upper-case RFC 4648 base32, padded |
-| `base32Decode` | `(str s)` | Decoded text, or `""` |
+| `base32Encode` | `(bytes b)` | Upper-case RFC 4648 base32, padded |
+| `base32Decode` | `(str s)` | the decoded `bytes`, or empty on failure |
 | `base32Valid` | `(str s)` | `true` if `s` is well-formed base32 |
-| `base58Encode` | `(str s)` | Base58 (the Bitcoin alphabet) |
-| `base58Decode` | `(str s)` | Decoded text, or `""` |
+| `base58Encode` | `(bytes b)` | Base58 (the Bitcoin alphabet) |
+| `base58Decode` | `(str s)` | the decoded `bytes`, or empty on failure |
 | `base58Valid` | `(str s)` | `true` if `s` is well-formed base58 |
-| `ascii85Encode` | `(str s)` | Adobe ascii85, framed with `<~` `~>` |
-| `ascii85Decode` | `(str s)` | Decoded text, or `""` |
+| `ascii85Encode` | `(bytes b)` | Adobe ascii85, framed with `<~` `~>` |
+| `ascii85Decode` | `(str s)` | the decoded `bytes`, or empty on failure |
 | `ascii85Valid` | `(str s)` | `true` if `s` is well-formed ascii85 |
-| `percentEncode` | `(str s)` | Percent-encoded URI component |
-| `percentDecode` | `(str s)` | Decoded text, or `""` |
+| `percentEncode` | `(bytes b)` | Percent-encoded URI component |
+| `percentDecode` | `(str s)` | the decoded `bytes`, or empty on failure |
 | `percentValid` | `(str s)` | `true` if every `%` is followed by two hex digits |
-| `quotedPrintableEncode` | `(str s)` | Quoted-printable text |
-| `quotedPrintableDecode` | `(str s)` | Decoded text, or `""` |
+| `quotedPrintableEncode` | `(bytes b)` | Quoted-printable text |
+| `quotedPrintableDecode` | `(str s)` | the decoded `bytes`, or empty on failure |
 | `quotedPrintableValid` | `(str s)` | `true` if `s` is well-formed quoted-printable |
 
 `percentEncode` uses `encodeURIComponent` semantics: `A-Z a-z 0-9 - _ . ! ~ *

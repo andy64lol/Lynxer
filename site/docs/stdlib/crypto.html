@@ -171,14 +171,13 @@
 <p><strong>Backend:</strong> native — <code>stdlib/crypto.so</code>, built from the Rust crate <code>rust/crypto</code> over <code>sha2</code>, <code>sha1</code>, <code>md-5</code>, <code>sha3</code>, <code>blake3</code>, <code>hmac</code>, <code>subtle</code>, <code>getrandom</code> and <code>ed25519-dalek</code>.</p>
 <p><strong>Import:</strong> <code>import(&quot;crypto&quot;)</code> → <code>global.crypto.*</code></p>
 <h2 id="how-bytes-travel">How bytes travel</h2>
-<p>Lynxer has no byte type, so binary payloads cross the module ABI as text:</p>
+<p>Binary payloads cross the module ABI as <code>bytes</code>:</p>
 <ul>
-<li>a <strong>digest</strong> or <strong>HMAC</strong> is returned as lower-case hex;</li>
-<li>an <strong>Ed25519 key</strong> and <strong>signature</strong> are base64 (the 32 raw key bytes, and the 64 raw signature bytes);</li>
-<li>a caller that already holds bytes as base64 passes them to <code>hashBase64</code>;</li>
-<li>arbitrary file contents go through <code>hashFile</code> / <code>hmacFile</code>, which read the bytes inside the module and so are not limited to valid UTF-8.</li>
+<li>a <strong>digest</strong> or <strong>HMAC</strong> is returned as lower-case hex (a text form is the API);</li>
+<li>a <strong>message</strong>, <strong>key</strong>, <strong>signature</strong> or <strong>random payload</strong> is <code>bytes</code> — an Ed25519 key is the 32 raw bytes, a signature the 64 raw bytes;</li>
+<li>arbitrary file contents go through <code>hashFile</code> / <code>hmacFile</code>, which read the bytes inside the module.</li>
 </ul>
-<p>A failure is a scalar sentinel: an unknown algorithm, a malformed payload or an I/O error yields <code>&quot;&quot;</code>, and a predicate yields <code>false</code>.</p>
+<p>A failure is a scalar sentinel: an unknown algorithm, a malformed payload or an I/O error yields <code>&quot;&quot;</code> for a hex output and an empty <code>bytes</code> for a binary one, and a predicate yields <code>false</code>.</p>
 <h2 id="algorithms">Algorithms</h2>
 <p><code>hash</code> and <code>hmac</code> take an algorithm name from a fixed set:</p>
 <table>
@@ -191,37 +190,36 @@
 </table>
 <p>Any other name yields <code>&quot;&quot;</code>.</p>
 <h2 id="randomness">Randomness</h2>
-<p><code>randomBytes</code>, <code>randomHex</code> and <code>randomToken</code> draw from the operating system's entropy source. The count is capped at 1 MiB; a negative or larger count yields <code>&quot;&quot;</code>. These are not reproducible, so a test asserts their shape, never their value.</p>
+<p><code>randomBytes</code>, <code>randomHex</code> and <code>randomToken</code> draw from the operating system's entropy source. The count is capped at 1 MiB; a negative or larger count yields an empty <code>bytes</code> (or <code>&quot;&quot;</code> for the hex and token forms). These are not reproducible, so a test asserts their shape, never their value.</p>
 <h2 id="ed25519">Ed25519</h2>
-<p><code>generateEd25519KeyPair</code> returns JSON, <code>{&quot;private&quot;: &quot;&lt;base64&gt;&quot;, &quot;public&quot;: &quot;&lt;base64&gt;&quot;}</code>. <code>signEd25519</code> takes the private key and <code>verifyEd25519</code> the public key. Ed25519 is deterministic, so a fixed key signs a fixed message to a fixed signature.</p>
+<p><code>generateEd25519KeyPair</code> returns JSON, <code>{&quot;private&quot;: &quot;&lt;base64&gt;&quot;, &quot;public&quot;: &quot;&lt;base64&gt;&quot;}</code>. <code>signEd25519</code> takes the private key and <code>verifyEd25519</code> the public key as raw <code>bytes</code> (decode the JSON fields with <code>bytesFromBase64</code>-style code, or use the <code>encoding</code> module's <code>base64Decode</code>). Ed25519 is deterministic, so a fixed key signs a fixed message to a fixed signature.</p>
 <h2 id="functions">Functions</h2>
 <table>
 <tr><th>Function</th><th>Signature</th><th>Returns</th></tr>
-<tr><td><code>hash</code></td><td><code>(str algorithm, str data)</code></td><td>lower-case hex digest, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>hash</code></td><td><code>(str algorithm, bytes data)</code></td><td>lower-case hex digest, or <code>&quot;&quot;</code></td></tr>
 <tr><td><code>hashFile</code></td><td><code>(str algorithm, str path)</code></td><td>lower-case hex digest of the file, or <code>&quot;&quot;</code></td></tr>
-<tr><td><code>hashBase64</code></td><td><code>(str algorithm, str base64Data)</code></td><td>lower-case hex digest of the decoded bytes, or <code>&quot;&quot;</code></td></tr>
-<tr><td><code>hmac</code></td><td><code>(str algorithm, str key, str data)</code></td><td>lower-case hex MAC, or <code>&quot;&quot;</code></td></tr>
-<tr><td><code>hmacFile</code></td><td><code>(str algorithm, str key, str path)</code></td><td>lower-case hex MAC of the file, or <code>&quot;&quot;</code></td></tr>
-<tr><td><code>verifyHmac</code></td><td><code>(str algorithm, str key, str data, str mac)</code></td><td><code>true</code> / <code>false</code> (constant-time)</td></tr>
-<tr><td><code>constantTimeEquals</code></td><td><code>(str a, str b)</code></td><td><code>true</code> / <code>false</code></td></tr>
-<tr><td><code>randomBytes</code></td><td><code>(int count)</code></td><td>base64, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>hmac</code></td><td><code>(str algorithm, bytes key, bytes data)</code></td><td>lower-case hex MAC, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>hmacFile</code></td><td><code>(str algorithm, bytes key, str path)</code></td><td>lower-case hex MAC of the file, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>verifyHmac</code></td><td><code>(str algorithm, bytes key, bytes data, str mac)</code></td><td><code>true</code> / <code>false</code> (constant-time)</td></tr>
+<tr><td><code>constantTimeEquals</code></td><td><code>(bytes a, bytes b)</code></td><td><code>true</code> / <code>false</code></td></tr>
+<tr><td><code>randomBytes</code></td><td><code>(int count)</code></td><td><code>bytes</code>, or empty on failure</td></tr>
 <tr><td><code>randomHex</code></td><td><code>(int count)</code></td><td>lower-case hex, or <code>&quot;&quot;</code></td></tr>
 <tr><td><code>randomToken</code></td><td><code>(int count)</code></td><td>URL-safe base64 without padding, or <code>&quot;&quot;</code></td></tr>
 <tr><td><code>generateEd25519KeyPair</code></td><td><code>()</code></td><td>JSON <code>{&quot;private&quot;,&quot;public&quot;}</code>, or <code>&quot;&quot;</code></td></tr>
-<tr><td><code>signEd25519</code></td><td><code>(str privateKey, str message)</code></td><td>base64 signature, or <code>&quot;&quot;</code></td></tr>
-<tr><td><code>verifyEd25519</code></td><td><code>(str publicKey, str message, str signature)</code></td><td><code>true</code> / <code>false</code></td></tr>
+<tr><td><code>signEd25519</code></td><td><code>(bytes privateKey, bytes message)</code></td><td>signature <code>bytes</code>, or empty on failure</td></tr>
+<tr><td><code>verifyEd25519</code></td><td><code>(bytes publicKey, bytes message, bytes signature)</code></td><td><code>true</code> / <code>false</code></td></tr>
 </table>
 <h2 id="example">Example</h2>
 <pre><code>global setup(){ import(&quot;crypto&quot;); import(&quot;fileIO&quot;); }
 
 global main(){
     // A SHA-256 digest of &quot;abc&quot;, as lower-case hex.
-    println(global.crypto.hash(&quot;sha256&quot;, &quot;abc&quot;));
+    println(global.crypto.hash(&quot;sha256&quot;, bytesOf(&quot;abc&quot;)));
 
     // An HMAC-SHA256, and its constant-time verification.
-    str mac = global.crypto.hmac(&quot;sha256&quot;, &quot;key&quot;, &quot;message&quot;);
-    println(global.crypto.verifyHmac(&quot;sha256&quot;, &quot;key&quot;, &quot;message&quot;, mac));
-    println(global.crypto.verifyHmac(&quot;sha256&quot;, &quot;key&quot;, &quot;other&quot;, mac));
+    str mac = global.crypto.hmac(&quot;sha256&quot;, bytesOf(&quot;key&quot;), bytesOf(&quot;message&quot;));
+    println(global.crypto.verifyHmac(&quot;sha256&quot;, bytesOf(&quot;key&quot;), bytesOf(&quot;message&quot;), mac));
+    println(global.crypto.verifyHmac(&quot;sha256&quot;, bytesOf(&quot;key&quot;), bytesOf(&quot;other&quot;), mac));
 
     // Hash a file&#x27;s bytes (binary-safe).
     global.fileIO.writeFile(&quot;data.bin&quot;, &quot;payload&quot;);
@@ -229,10 +227,10 @@ global main(){
 
     // A fresh Ed25519 key pair, then sign and verify.
     str pair = global.crypto.generateEd25519KeyPair();
-    str private = global.json.jsonGet(pair, &quot;private&quot;);
-    str public = global.json.jsonGet(pair, &quot;public&quot;);
-    str signature = global.crypto.signEd25519(private, &quot;hello&quot;);
-    println(global.crypto.verifyEd25519(public, &quot;hello&quot;, signature));
+    bytes private = global.encoding.base64Decode(global.json.jsonGet(pair, &quot;private&quot;));
+    bytes public = global.encoding.base64Decode(global.json.jsonGet(pair, &quot;public&quot;));
+    bytes signature = global.crypto.signEd25519(private, bytesOf(&quot;hello&quot;));
+    println(global.crypto.verifyEd25519(public, bytesOf(&quot;hello&quot;), signature));
 }</code></pre>
 <hr>
 <h2 id="see-also">See also</h2>

@@ -24,31 +24,34 @@ before the module-specific items.
       variant with a `bytes` type name and a full builtin set (`bytesOf`,
       `bytesToStr`, `bytesLength`, `bytesAt`, `bytesToHex`/`bytesFromHex`,
       `listToBytes`/`bytesToList`), covered by `lynxer/examples/builtin_bytes.lynx`.
-      The Rust packed modules that still carry base64 payloads are **L1b**.
+      The Rust packed modules that still carry base64 payloads are **L1b** (now delivered).
 - [x] ~~**L2 — extend the native-module ABI.**~~ **Partly delivered:** a `bytes`
       signature token (a parameter expands to `(const uint8_t*, int64_t)`; a
       return is a length-prefixed buffer) and the packed cap raised to 256. The
       packed `bytes` channel, multiple live string results, and non-Linux loading
-      are **L2b**–**L2d**.
+      are **L2b**–**L2d** (now delivered — see below).
 - [x] ~~**L3 — replace the tab-separated list bridge in `math`.**~~ **Delivered:**
       the 11 statistics/vector ops exchange little-endian `f64` `bytes`, the TSV
       helpers are deleted, and list results are `list<float>`.
 
-**L1–L3 follow-ups**
+**L1–L3 follow-ups — delivered**
 
-- [ ] **L1b — migrate the remaining binary modules to `bytes`.** `compress`,
-      `crypto`, `encoding` and `uuid` still cross base64/hex text; give them a
-      `bytes` channel (packed — see **L2b**) and drop the workarounds.
-- [ ] **L2b — packed `bytes`/aggregate parameters.** Add a packed prototype that
-      carries buffers (a trailing `(const uint8_t* const* bufs, const int64_t*
-      lens, int64_t buf_count)`), with `Args::bytes` and `export_bytes!` in
-      `lynxer/rust/abi`.
-- [ ] **L2c — non-Linux loading.** Recognise macOS `.dylib` in the loader
-      (`lynxer/ast.cpp`, `lynxer/shell.cpp`). Windows DLL loading stays out — the
-      project is Linux/POSIX-only.
-- [ ] **L2d — multiple live string results.** Replace the single thread-local
-      string result with a stable pool, if and when a module needs more than one.
-
+- [x] ~~**L1b — migrate the remaining binary modules to `bytes`.**~~ `compress`,
+      `crypto`, `encoding` and `uuid` now take/return `bytes`: codec
+      Compress/Decompress, `hash`/`hmac`/`verifyHmac`, Ed25519 sign/verify,
+      `randomBytes`, `constantTimeEquals`, and the codec Encode/Decode pairs (the
+      `hashBase64` workaround is gone). Wrappers, fixtures and docs updated.
+- [x] ~~**L2b — packed `bytes`/aggregate parameters.**~~ The buffered packed form
+      `cdecl:<ret>(...,bytes)` carries numbers, strings **and** buffers in a
+      7-scalar CIF; `lynxer_abi` provides `view_buffers`, `Args::bytes`,
+      `store_result_bytes` and the `export_*_buffers!` macros.
+- [x] ~~**L2c — non-Linux loading.**~~ `isNativeLibraryPath` accepts `.dylib`
+      alongside `.so` (`lynxer/native_name.hpp`, `lynxer/ast.cpp`,
+      `lynxer/shell.cpp`). Windows DLL loading stays out (Linux/POSIX-only).
+- [x] ~~**L2d — multiple live string results.**~~ **Not needed:** no bundled
+      module returns more than one string per call; variable-length results use
+      the handle registry (`multiprocessing`) or `bytes`, so the single
+      thread-local result stays and no ABI surface is added.
 
 **Modules**
 

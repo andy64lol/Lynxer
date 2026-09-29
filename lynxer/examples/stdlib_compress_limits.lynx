@@ -20,16 +20,16 @@ global main(){
     global.os.mkdir(root);
 
     // One byte over the 64 MiB decompressed cap.
-    str oversized = big(67108865);
-    println(returnLength(oversized) is 67108865);
-    global.fileIO.writeFile(root + "/big.txt", oversized);
+    bytes oversized = bytesOf(big(67108865));
+    println(bytesLength(oversized) is 67108865);
+    global.fileIO.writeFile(root + "/big.txt", bytesToStr(oversized));
 
-    // Every in-memory decompress refuses the oversized payload ("" sentinel).
-    println(global.compress.gzipDecompress(global.compress.gzipCompress(oversized)) is "");
-    println(global.compress.zlibDecompress(global.compress.zlibCompress(oversized)) is "");
-    println(global.compress.zstdDecompress(global.compress.zstdCompress(oversized)) is "");
-    println(global.compress.brotliDecompress(global.compress.brotliCompress(oversized)) is "");
-    println(global.compress.lz4Decompress(global.compress.lz4Compress(oversized)) is "");
+    // Every in-memory decompress refuses the oversized payload (empty bytes).
+    println(bytesLength(global.compress.gzipDecompress(global.compress.gzipCompress(oversized))) is 0);
+    println(bytesLength(global.compress.zlibDecompress(global.compress.zlibCompress(oversized))) is 0);
+    println(bytesLength(global.compress.zstdDecompress(global.compress.zstdCompress(oversized))) is 0);
+    println(bytesLength(global.compress.brotliDecompress(global.compress.brotliCompress(oversized))) is 0);
+    println(bytesLength(global.compress.lz4Decompress(global.compress.lz4Compress(oversized))) is 0);
 
     // A file decompress is capped too and leaves no output file behind.
     println(global.compress.gzipCompressFile(root + "/big.txt", root + "/big.gz"));
@@ -39,7 +39,7 @@ global main(){
     // A ZIP entry over the limit is refused on read and on extract.
     str manifest = "[{\"name\":\"big.bin\",\"path\":\"" + root + "/big.txt\"}]";
     println(global.compress.zipCreate(root + "/big.zip", manifest));
-    println(global.compress.zipRead(root + "/big.zip", "big.bin") is "");
+    println(bytesLength(global.compress.zipRead(root + "/big.zip", "big.bin")) is 0);
     println(global.compress.zipExtract(root + "/big.zip", root + "/unzip"));
 
     // A TAR.GZ that expands past the limit is refused while extracting.
@@ -47,7 +47,7 @@ global main(){
     println(global.compress.tarGzExtract(root + "/big.tgz", root + "/untgz"));
 
     // A small payload still round-trips.
-    println(global.compress.gzipDecompress(global.compress.gzipCompress("ok")) is "ok");
+    println(bytesToStr(global.compress.gzipDecompress(global.compress.gzipCompress(bytesOf("ok")))) is "ok");
 
     global.os.rmTree(root);
 }

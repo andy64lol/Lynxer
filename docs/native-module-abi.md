@@ -158,8 +158,8 @@ Only these three shapes are packed; the return type selects which one. This is
 the form the `lynxer_abi` macros generate.
 
 > **A Rust `cdylib` must use a packed signature.** The `export_int!`,
-> `export_float!` and `export_string!` macros expand to the four-scalar
-> prototype below, so registering such an op with a *fixed* shape is a hard
+> `export_float!` and `export_string!` macros (and their `_buffers!`
+> counterparts) expand to the packed prototype below, so registering such an op with a *fixed* shape is a hard
 > error that is **not** caught at build time: the interpreter calls the symbol
 > through the fixed shape's C prototype (`int64_t(*)(int64_t)`,
 > `const char*(*)(const char*)`, …), which does not match the real function, and
@@ -186,17 +186,34 @@ Numbers (Lynxer `int`, `float`, and `bool` as `0`/`1`) arrive in `nums` in their
 original order; strings arrive in `strs` in theirs. Either pointer is null when
 its count is zero, and at most 256 arguments **in total** are accepted across
 both lists (`MAX_PACKED_ARGS` in `lynxer/rust/ffi/src/lib.rs`); a call with more
-raises a located `SourceError`. The packed form carries numbers and strings
-only — a `bytes` argument uses a fixed signature. Any other argument type raises
-a located `SourceError`.
-`lynxer/stdlib/lynxer_native_abi.h` documents the convention for module
-authors.
+raises a located `SourceError`. Any other argument type raises a located
+`SourceError`. `lynxer/stdlib/lynxer_native_abi.h` documents the convention for
+module authors.
+
+### The buffered packed form
+
+A packed op that also needs byte buffers registers `cdecl:<ret>(...,bytes)`. The
+callee receives three more scalars:
+
+```c
+const char* function(const double* nums, int64_t num_count,
+                     const char* const* strs, int64_t str_count,
+                     const uint8_t* const* bufs, const int64_t* lens,
+                     int64_t buf_count);
+```
+
+Each `bufs[i]` is `lens[i]` bytes. The plain `...` form is unchanged, so a module
+that needs no buffers keeps it. In `lynxer_abi`, register such an op with one of
+`export_int_buffers!` / `export_float_buffers!` / `export_string_buffers!` /
+`export_bytes_buffers!` and read the buffers with `args.bytes(i)`;
+`export_bytes_buffers!` returns a `bytes` value via `store_result_bytes`.
 
 **Arguments are indexed per type, not by position.** `nums` and `strs` are
 separate lists, so the *n*-th string argument is `strs[n]` and the *n*-th
 numeric argument is `nums[n]`, regardless of how they were interleaved at the
 call site. The `lynxer_abi` `Args` view enforces this: `args.int(i)` /
-`args.float(i)` read `nums[i]` and `args.string(i)` reads `strs[i]`.
+`args.float(i)` read `nums[i]`, `args.string(i)` reads `strs[i]`, and
+`args.bytes(i)` reads `bufs[i]`.
 For `save(handle, path, quality)` the correct reads are `args.int(0)` for the
 handle, `args.string(0)` for the path and `args.int(1)` for the quality —
 **not** `args.int(0)`, `args.string(1)`, `args.int(2)`. Reading past the end of
