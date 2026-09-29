@@ -70,8 +70,8 @@ void printUsage() {
     std::cout << "  lynxer --validate-executeable               Run the interpreter self-check\n";
     std::cout << "  lynxer --version                            Print version\n";
     std::cout << "  lynxer --list-stdlibs                       List available Lynxer stdlib modules\n";
-    std::cout << "  lynxer --install                            Install the executable as /usr/bin/lynxer\n";
-    std::cout << "  lynxer --uninstall                          Remove /usr/bin/lynxer\n";
+    std::cout << "  lynxer --install                            Install into /usr/lib/lynxer and link /usr/bin/lynxer\n";
+    std::cout << "  lynxer --uninstall                          Remove the installed interpreter\n";
     std::cout << "\n";
     std::cout << "Removed with the bytecode backend (use --compile):\n";
     std::cout << "  --view-bytecode, --benchmark-compile, --no-cache\n";
@@ -268,46 +268,142 @@ std::string runningExecutable(const char* argv0) {
     return argv0 != nullptr ? std::string(argv0) : std::string();
 }
 
+// The prefix `--install` writes into: /usr by default, overridable so the
+// installer can be exercised without root (the test suite uses a temp prefix).
+std::string installPrefix() {
+    const char* environment = std::getenv("LYNXER_PREFIX");
+    std::string prefix =
+        (environment != nullptr && environment[0] != '\0') ? environment : "/usr";
+    while (prefix.size() > 1 && prefix.back() == '/') {
+        prefix.pop_back();
+    }
+    return prefix;
+}
+
+bool sameFile(const std::filesystem::path& left,
+              const std::filesystem::path& right) {
+    std::error_code error;
+    return std::filesystem::equivalent(left, right, error) && !error;
+}
+
+// `--install` lays the interpreter out as one self-contained tree so an
+// installed binary resolves its stdlib from any working directory:
+//
+//   $PREFIX/lib/lynxer/lynxer          the real binary
+//   $PREFIX/lib/lynxer/stdlib/*        every stdlib module
+//   $PREFIX/lib/lynxer/lynxer.config   the configuration file, when present
+//   $PREFIX/bin/lynxer                 a symlink to the real binary
+//
+// `/proc/self/exe` resolves that symlink, so `executableDirectory()` is the
+// private lib directory and `<exe>/stdlib` is found by both `--list-stdlibs`
+// and module resolution.
 int installBinary(const char* argv0) {
-    const std::filesystem::path target = "/usr/bin/lynxer";
     const std::string self = runningExecutable(argv0);
     if (self.empty()) {
         std::cerr << "lynxer: could not locate the running executable\n";
         return 1;
     }
+    const std::filesystem::path prefix(installPrefix());
+    const std::filesystem::path libDir = prefix / "lib" / "lynxer";
+    const std::filesystem::path binDir = prefix / "bin";
+    const std::filesystem::path installedBinary = libDir / "lynxer";
+    const std::filesystem::path linkPath = binDir / "lynxer";
+    const std::filesystem::path sourceDirectory(executableDirectory());
+    const std::filesystem::path sourceStdlib = sourceDirectory / "stdlib";
+    const std::filesystem::path sourceConfig = sourceDirectory / "lynxer.config";
+
+    std::error_code stdlibError;
+    if (!std::filesystem::is_directory(sourceStdlib, stdlibError)) {
+        std::cerr << "lynxer: install failed: stdlib directory not found at "
+                  << sourceStdlib << '\n';
+        std::cerr << "lynxer: build Lynxer first so its stdlib/ ships next to "
+                     "the interpreter\n";
+        return 1;
+    }
+
     try {
-        std::filesystem::copy_file(self, target,
-                                   std::filesystem::copy_options::overwrite_existing);
+        std::filesystem::create_directories(libDir);
+        std::filesystem::create_directories(binDir);
+
+        if (!sameFile(self, installedBinary)) {
+            std::filesystem::copy_file(
+                self, installedBinary,
+                std::filesystem::copy_options::overwrite_existing);
+        }
         std::filesystem::permissions(
-            target,
+            installedBinary,
             std::filesystem::perms::owner_all |
                 std::filesystem::perms::group_read |
                 std::filesystem::perms::group_exec |
                 std::filesystem::perms::others_read |
                 std::filesystem::perms::others_exec,
             std::filesystem::perm_options::replace);
+
+        const std::filesystem::path installedStdlib = libDir / "stdlib";
+        if (!sameFile(sourceStdlib, installedStdlib)) {
+            std::filesystem::remove_all(installedStdlib);
+            std::filesystem::copy(sourceStdlib, installedStdlib,
+                                  std::filesystem::copy_options::recursive);
+        }
+
+        std::error_code configError;
+        if (std::filesystem::is_regular_file(sourceConfig, configError) &&
+            !sameFile(sourceConfig, libDir / "lynxer.config")) {
+            std::filesystem::copy_file(
+                sourceConfig, libDir / "lynxer.config",
+                std::filesystem::copy_options::overwrite_existing);
+        }
+
+        std::error_code removeError;
+        std::filesystem::remove(linkPath, removeError);
+        std::filesystem::create_symlink(installedBinary, linkPath);
     } catch (const std::filesystem::filesystem_error& error) {
         std::cerr << "lynxer: install failed: " << error.what() << '\n';
-        std::cerr << "lynxer: re-run with permission to write " << target
+        std::cerr << "lynxer: re-run with permission to write " << prefix
                   << " (for example with sudo)\n";
         return 1;
     }
-    std::cout << "Installed " << target << "\n";
-    std::cout << "Keep the matching stdlib/ directory next to the installed "
-                 "binary so imports resolve.\n";
+
+    std::cout << "Installed " << installedBinary.string() << "\n";
+    std::cout << "Linked " << linkPath.string() << " -> "
+              << installedBinary.string() << "\n";
     return 0;
 }
 
 int uninstallBinary() {
-    const std::filesystem::path target = "/usr/bin/lynxer";
-    std::error_code error;
-    if (!std::filesystem::remove(target, error)) {
-        std::cerr << "lynxer: could not remove " << target << ": "
-                  << (error ? error.message() : std::string("no such file"))
-                  << '\n';
+    const std::filesystem::path prefix(installPrefix());
+    const std::filesystem::path libDir = prefix / "lib" / "lynxer";
+    const std::filesystem::path linkPath = prefix / "bin" / "lynxer";
+
+    std::error_code linkError;
+    const bool removedLink = std::filesystem::remove(linkPath, linkError);
+    if (linkError) {
+        std::cerr << "lynxer: could not remove " << linkPath << ": "
+                  << linkError.message() << '\n';
+        std::cerr << "lynxer: re-run with permission to write " << prefix
+                  << " (for example with sudo)\n";
         return 1;
     }
-    std::cout << "Removed " << target << '\n';
+    std::error_code libError;
+    const std::uintmax_t removedLib =
+        std::filesystem::remove_all(libDir, libError);
+    if (libError) {
+        std::cerr << "lynxer: could not remove " << libDir << ": "
+                  << libError.message() << '\n';
+        std::cerr << "lynxer: re-run with permission to write " << prefix
+                  << " (for example with sudo)\n";
+        return 1;
+    }
+    if (!removedLink && removedLib == 0) {
+        std::cerr << "lynxer: nothing to uninstall under " << prefix << '\n';
+        return 1;
+    }
+    if (removedLink) {
+        std::cout << "Removed " << linkPath.string() << '\n';
+    }
+    if (removedLib > 0) {
+        std::cout << "Removed " << libDir.string() << '\n';
+    }
     return 0;
 }
 

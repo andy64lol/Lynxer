@@ -61,13 +61,25 @@ crate, and `rust/ffi`, the required native-call engine described in
 ## Install
 
 ```bash
-sudo ./lynxer/lynxer --install      # copy to /usr/bin/lynxer
-sudo ./lynxer/lynxer --uninstall    # remove /usr/bin/lynxer
+sudo ./lynxer/lynxer --install      # install into /usr/lib/lynxer, link /usr/bin/lynxer
+sudo ./lynxer/lynxer --uninstall    # remove the installed interpreter
 ```
 
-`--install` copies the running executable to `/usr/bin/lynxer`; `--uninstall`
-removes it. Keep the matching `stdlib/` directory next to the installed binary,
-or imports will not resolve. See [CLI.md](CLI.md#installing).
+`--install` lays out one self-contained tree:
+
+```
+/usr/lib/lynxer/lynxer          the real binary
+/usr/lib/lynxer/stdlib/*        every stdlib module
+/usr/lib/lynxer/lynxer.config   the configuration file
+/usr/bin/lynxer                 a symlink to the real binary
+```
+
+Because the symlink resolves to the real binary (`/proc/self/exe`), an installed
+`lynxer` finds its stdlib from any working directory, so `lynxer app.lynx` works
+without keeping the build tree around. Set `LYNXER_PREFIX` to install somewhere
+other than `/usr` — for example `LYNXER_PREFIX=$HOME/.local lynxer --install`
+needs no root — and pass the same value to `--uninstall`.
+See [CLI.md](CLI.md#installing).
 
 ## Quick run
 

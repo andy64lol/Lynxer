@@ -1,7 +1,8 @@
 # CLI
 
-The Lynxer executable is `lynxer`. `--install` copies it to `/usr/bin/lynxer`
-and `--uninstall` removes it; otherwise run it from where it was built.
+The Lynxer executable is `lynxer`. `--install` installs it under
+`/usr/lib/lynxer` and links `/usr/bin/lynxer`; `--uninstall` removes both;
+otherwise run it from where it was built.
 
 ```bash
 make buildLynxer
@@ -156,16 +157,20 @@ The version string comes from the `version` key in `lynxer/lynxer.config`
 ## Installing
 
 ```bash
-sudo lynxer --install      # copy this executable to /usr/bin/lynxer
-sudo lynxer --uninstall    # remove /usr/bin/lynxer
+sudo lynxer --install      # install into /usr/lib/lynxer, link /usr/bin/lynxer
+sudo lynxer --uninstall    # remove the installed interpreter
 ```
 
-`--install` copies the running executable (resolved through `/proc/self/exe`)
-to `/usr/bin/lynxer` and makes it executable. Keep the matching `stdlib/`
-directory next to the installed binary, or imports will not resolve. Without
-write permission it prints the failure and a `sudo` hint and exits `1`.
-`--uninstall` removes `/usr/bin/lynxer`; if it is absent it reports why and
-exits `1`.
+`--install` copies the running executable (resolved through `/proc/self/exe`),
+its `stdlib/` directory and `lynxer.config` into a self-contained tree under
+`/usr/lib/lynxer`, then creates the symlink `/usr/bin/lynxer` to the real
+binary. The symlink resolves through `/proc/self/exe`, so the installed
+interpreter finds its stdlib from any working directory — `lynxer app.lynx`
+works with no build tree present. Set `LYNXER_PREFIX` to use a prefix other than
+`/usr` (for example `LYNXER_PREFIX=$HOME/.local`), and pass the same value to
+`--uninstall`. Without write permission it prints the failure and a `sudo` hint
+and exits `1`. `--uninstall` removes the symlink and the tree; when neither is
+present it reports why and exits `1`.
 
 ## Removed with the bytecode backend
 

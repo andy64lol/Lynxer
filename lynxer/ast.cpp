@@ -349,6 +349,18 @@ std::string resolveModulePath(const std::string& sourceDirectory,
             }
         }
     }
+    // Last resort: the stdlib that ships next to the interpreter. This is what
+    // makes an installed binary work from any working directory: `--install`
+    // keeps `stdlib/` beside the executable, and `/proc/self/exe` resolves the
+    // `$PREFIX/bin/lynxer` symlink to the real location first.
+    const auto installedStdlib =
+        std::filesystem::path(executableDirectory()) / "stdlib";
+    for (const auto& candidate : candidates) {
+        const auto path = installedStdlib / candidate.filename();
+        if (std::filesystem::exists(path)) {
+            return path.string();
+        }
+    }
     return "";
 }
 

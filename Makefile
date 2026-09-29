@@ -150,13 +150,17 @@ LYNXER_PARITY_FIXTURES := $(filter-out $(LYNXER_DISPLAY_FIXTURES),$(LYNXER_PARIT
 # Recipe shorthands: the interpreter, and the temp-file prefix for the suite.
 CLYX := ./$(LYNXER_TARGET)
 CLYX_TMP := $(LYNXER_DIR)/.lynxer
+# Throwaway install prefix for the `--install` gate: `lynxer --install` refuses
+# to touch the real /usr here, so the whole flow runs without root.
+LYNXER_INSTALL_PREFIX := $(CLYX_TMP)_install_prefix
+LYNXER_INSTALLED_BIN := $(LYNXER_INSTALL_PREFIX)/bin/lynxer
 # Canonical syscall architecture of this host. The architecture-agnostic syscall
 # fixtures carry a __ARCH__ token (syscalls("__ARCH__") plus __ARCH__.syscall*);
 # it is replaced with this word before they run, so one source serves both CI
 # jobs.
 SYSCALL_ARCH := $(shell uname -m | sed -e 's/^x86_64$$/amd64/' -e 's/^aarch64$$/arm64/')
 
-.PHONY: all cargo lynxerToolchain build buildAll buildLynxer buildLynxerArm64 test testLynxer testLynxerAmd64Syscalls testLynxerArm64Syscalls check clean cleanLynxer cleanAll help
+.PHONY: all cargo lynxerToolchain build buildAll buildLynxer buildLynxerArm64 test testLynxer testLynxerInstall testLynxerAmd64Syscalls testLynxerArm64Syscalls check clean cleanLynxer cleanAll help
 
 test: testLynxer
 
@@ -262,7 +266,7 @@ $(LYNXER_SIGNATURE_MODULE): $(LYNXER_SIGNATURE_SOURCE)
 
 # The Lynxer suite: static module/backend contract check, then the
 # interpreter, compiled-executable and bundled-executable parity gates.
-testLynxer: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT) $(LYNXER_SIGNATURE_MODULE)
+testLynxer: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT) $(LYNXER_SIGNATURE_MODULE) testLynxerInstall
 	@test -n "$(PYTHON)" || { echo "lynxer: python3 is required for $(LYNXER_CONTRACT_CHECK)"; exit 1; }
 	@$(PYTHON) $(LYNXER_CONTRACT_CHECK)
 	@printf 'Lynxer\n' > $(CLYX_TMP)_stdin
@@ -617,6 +621,31 @@ expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:23: charAt() index is out of rang
 	@rm -f $(CLYX_TMP)_stdin $(CLYX_TMP)_tui_stdin
 	@echo "lynxer smoke test passed"
 
+# `lynxer --install` must produce a self-contained tree that resolves its
+# stdlib from any working directory. The default prefix is /usr and needs root,
+# so this gate installs into a throwaway prefix and drives the installed symlink
+# from /tmp, where none of the repository's own stdlib paths exist.
+testLynxerInstall: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT)
+	@rm -rf $(LYNXER_INSTALL_PREFIX)
+	@printf 'global setup(){ import("math"); }\nglobal main(){ println(global.math.sqrt(9)); }\n' > $(CLYX_TMP)_install.lynx
+	@LYNXER_PREFIX="$(CURDIR)/$(LYNXER_INSTALL_PREFIX)" $(CLYX) --install > /dev/null
+	@if [ ! -x "$(CURDIR)/$(LYNXER_INSTALLED_BIN)" ]; then \
+	echo "install did not create $(LYNXER_INSTALLED_BIN)"; exit 1; fi
+	@output="$$(cd /tmp && "$(CURDIR)/$(LYNXER_INSTALLED_BIN)" "$(CURDIR)/$(CLYX_TMP)_install.lynx")"; \
+	if [ "$$output" != "3" ]; then \
+	echo "installed interpreter did not resolve imports from /tmp: $$output"; \
+	rm -f $(CLYX_TMP)_install.lynx; exit 1; fi
+	@listing="$$(cd /tmp && "$(CURDIR)/$(LYNXER_INSTALLED_BIN)" --list-stdlibs)"; \
+	if ! printf '%s\n' "$$listing" | grep -Fqx "  math"; then \
+	echo "installed --list-stdlibs did not find the stdlib"; \
+	rm -f $(CLYX_TMP)_install.lynx; exit 1; fi
+	@LYNXER_PREFIX="$(CURDIR)/$(LYNXER_INSTALL_PREFIX)" $(CLYX) --uninstall > /dev/null
+	@if [ -e "$(CURDIR)/$(LYNXER_INSTALLED_BIN)" ] || [ -e "$(CURDIR)/$(LYNXER_INSTALL_PREFIX)/lib/lynxer" ]; then \
+	echo "uninstall left files under $(LYNXER_INSTALL_PREFIX)"; exit 1; fi
+	@rm -rf $(LYNXER_INSTALL_PREFIX)
+	@rm -f $(CLYX_TMP)_install.lynx
+	@echo "lynxer install test passed"
+
 # Architecture-specific syscall gates. `uname -m` is asserted so the AMD64 and
 # ARM64 CI jobs each run the matching fixture and a mistake fails loudly rather
 # than testing the wrong architecture.
@@ -659,6 +688,7 @@ clean:
 cleanLynxer:
 	@rm -f $(LYNXER_TARGET) $(LYNXER_TARGET)-arm64 $(LYNXER_OBJECTS) $(LYNXER_OBJECTS_ARM64)
 	@rm -f $(LYNXER_NATIVE_MODULES) $(LYNXER_SIGNATURE_MODULE) $(CLYX_TMP)_*
+	@rm -rf $(LYNXER_INSTALL_PREFIX)
 	@rm -f $(LYNXER_DIR)/stdlib/ffi.so
 	@rm -rf $(LYNXER_DIR)/build $(LYNXER_RUST_DIR)/target $(LYNXER_RUST_DIR)/*/target
 	@echo "✓ Cleaned Lynxer build artifacts."
@@ -675,6 +705,7 @@ help:
 	@echo "  make cargo"
 	@echo "  make test               (Lynxer suite)"
 	@echo "  make testLynxer        (Lynxer suite only)"
+	@echo "  make testLynxerInstall (--install into a throwaway prefix, no root)"
 	@echo "  make testLynxerAmd64Syscalls   (amd64 syscall fixture; x86_64 host)"
 	@echo "  make testLynxerArm64Syscalls   (arm64 syscall fixture; aarch64 host)"
 	@echo "  make check"
