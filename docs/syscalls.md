@@ -275,8 +275,6 @@ its tiny allowlist.
 - [builtins.md](builtins.md#syscalls) — the summary table and the gate rules.
 - [stdlib/sys.md](stdlib/sys.md) — `global.sys.architecture()`, the keyword to
   pass.
-- [limitations.md](limitations.md#syscalls--architecture-gated) — the gating
-  constraints in the divergence register.
 - [legacy-surface.md](legacy-surface.md) — how the original flat naming maps
   onto the namespaced form.
 - [builtins.md](builtins.md) — the `memoryAllocate` / `memoryWrite*` builtins

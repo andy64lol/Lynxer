@@ -6,7 +6,7 @@ by their bare name or with a `global.` prefix (`print(...)` and
 
 Inside a module, `global.name(...)` always resolves to a *core builtin*, never to
 the module's own function of that name — see
-[limitations](limitations.md#language-and-toolchain).
+[modules.md](modules.md#calling-module-members).
 
 Names that Lynxer recognises but does not implement fail with a source-located
 `<name>() is not supported in Lynxer yet`. On a Linux/POSIX build the

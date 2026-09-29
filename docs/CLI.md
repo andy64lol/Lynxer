@@ -45,8 +45,7 @@ ignores its command line and always optimizes.
 
 `LYNXER_OPT_REPORT=1` prints one line of transformation counts to stderr after
 the program runs, for example
-`optimizer: constant folds=10, short-circuits=2, dead branches=3`. See
-[limitations.md](limitations.md#optimizer).
+`optimizer: constant folds=10, short-circuits=2, dead branches=3`.
 
 ## Checking syntax
 

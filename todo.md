@@ -11,11 +11,109 @@ Any name still registered in `unsupportedTable()` reports
 
 ## Open work
 
+### Resolving documented limitations
+
+Plans to remove every constraint recorded in
+[docs/limitations.md](docs/limitations.md). Ordered foundation-first: the
+value-type and ABI work (L1–L3) unblocks the binary-oriented modules, so land it
+before the module-specific items.
+
+**Foundation**
+
+- [ ] **L1 — first-class `bytes` value type.** Removes the "No byte type"
+      constraint in `compress`, `crypto`, `encoding`, `uuid` and `math`, and the
+      base64/hex/TSV workarounds built on it; also unlocks byte parameters in
+      the native ABI and UTF-8-correct round-trips. Thread a `Bytes` variant
+      through `lynxer/runtime.hpp` (Value), `lynxer/parser.cpp` (a `bytes`
+      keyword), `lynxer/types.cpp`, `lynxer/runtime.cpp`
+      (coercion/render/compare), `lynxer/ffi_abi.h`,
+      `lynxer/rust/abi/src/lib.rs`, `lynxer/rust/ffi/src/lib.rs` and
+      `lynxer/stdlib/lynxer_native_abi.h`. `byte`/`uint8` stay 0..255 integers —
+      do not conflate them with the new type.
+- [ ] **L2 — extend the native-module ABI.** Allow aggregate (`list`/`bytes`)
+      parameters and multiple live string results, raise the 64-argument packed
+      cap, and support `.so`/DLL loading beyond Linux (`lynxer/stdlib/lynxer_native_abi.h`,
+      `lynxer/rust/abi`, `lynxer/rust/ffi`, `lynxer/ffi_abi.h`). While here,
+      reconcile the "fixed shapes … at most four arguments" wording in
+      `docs/limitations.md` with `docs/native-module-abi.md`, which states there
+      is no fixed shape table (a standing contradiction).
+- [ ] **L3 — replace the tab-separated list bridge** in `math` (and any other
+      `listJoin("\t")` crossing) with the real list/bytes ABI
+      (`lynxer/stdlib/math.cpp:379`, `lynxer/stdlib/math.lynx:224`).
+
+**Modules**
+
+- [ ] **L4 — `graphics`: offscreen rendering.** Add a render-target readback or
+      software-rasterizer path so drawing, `screenshot`, textures, fonts and the
+      `ui*` widgets work without a window; relax the frame-callback restriction
+      where the GPU context permits; allow nested UI blocks; add gamepad and
+      model/mesh loading; add a CI-runnable headless render fixture
+      (`lynxer/rust/graphics/*`, `Cargo.toml`).
+- [ ] **L5 — `game`.** Slice the tileset atlas so tilemaps render artwork, not
+      just geometry; add horizontal collision and slope/one-way platform support
+      to `updatePhysics`; stop reporting a finished one-shot as playing
+      (`lynxer/rust/game/src/extras.rs`, `state.rs`).
+- [ ] **L6 — `server`.** Build TLS for `runHTTPS`/`runSSLAdhoc`
+      (`tokio-rustls`/`rustls-pemfile`/`rcgen`); give routes a per-request
+      context so `getArg`/`getHeader`/`getBody` describe the current request; add
+      a Jinja-compatible template engine (`lynxer/rust/server/src/lib.rs`,
+      `server/Cargo.toml`).
+- [ ] **L7 — `re`/`regex` engine.** Replace `std::regex` (ECMAScript) with a
+      PCRE-compatible engine — PCRE2, or Rust `fancy-regex` — for lookbehind,
+      atomic groups, `\p{…}`, positional inline flags and `(?x)` verbose mode
+      (`lynxer/stdlib/native_regex.hpp`, `re.cpp`, `regex.cpp`).
+- [ ] **L8 — `sound`.** Split static load from streaming load; do not report a
+      finished one-shot as playing; cache the decoded length instead of
+      re-decoding on every call (`lynxer/rust/sound/src/lib.rs`).
+- [ ] **L9 — `watch`.** Add portable backends (kqueue/Windows) and a blocking
+      `watchWait` (`lynxer/rust/watch/src/lib.rs`).
+- [ ] **L10 — `sqldb`.** Add connection handles (`open`/`close`/reuse) instead of
+      opening per call, and raise errors once exceptions exist rather than
+      returning in-band `"ERROR: …"` (`lynxer/rust/sqldb/src/lib.rs`).
+- [ ] **L11 — `js` / `multiprocessing`.** Apply subprocess timeouts, capture
+      `stderr`, and use real processes (not worker threads) for
+      `multiprocessing` (`lynxer/stdlib/js.cpp`, `multiprocessing.cpp`).
+- [ ] **L12 — `text`/`typing` Unicode semantics** (depends on L1). Make
+      `returnLength`, `charAt`, `substring` and the `charCode`/`charOf` builtins
+      code-point aware instead of byte-oriented (`lynxer/runtime.cpp`,
+      `lynxer/builtins.cpp`).
+- [ ] **L13 — `tui` parity.** Close the feasible Rich-parity gaps (manual table
+      row separators, animated progress/live displays, a real `printException`
+      traceback via exception context); record the rest as intentional
+      divergence (`lynxer/rust/tui/*`).
+- [ ] **L14 — `os`/`path`/`sys`.** Remove the Python-compat stubs once nothing
+      depends on them; honour or drop the ignored `encoding` argument; add
+      portable system-info backends; make `sys.exit()` run interpreter cleanup;
+      distinguish program from process `argv` (`lynxer/stdlib/os.cpp`, `path.cpp`,
+      `sys.cpp`, `lynxer/builtins.cpp`).
+
+**Runtime and concurrency**
+
+- [ ] **L15 — `nativeThread*`/`async*`.** Move past the single recursive-mutex
+      GIL to true parallelism (per-environment locking or a scheduler) and/or a
+      genuine coroutine `await` instead of a join (`lynxer/ast.cpp:1751`,
+      `lynxer/builtins.cpp:4842`, `:6534`).
+
+**Language-surface omissions**
+
+- [ ] **L16 — `tkinter`/`tkinterPlus`.** Add a native OS-widget GUI module (Rust
+      `egui` + `tao`/`wry`, or a GTK/Qt binding), replacing the "no GUI toolkit"
+      non-goal.
+- [ ] **L17 — `turtle`.** Reimplement on top of `graphics` (pen/line drawing)
+      rather than the unmaintained `turtle` crate.
+- [ ] **L18 — `http`/`net`.** Decision: keep them superseded by `network` +
+      `server` (recommended — record as resolved) or add a compatibility shim.
+
+**Retained removals (no plan).** `venv`, the `rawPy`/`rawPyx`/
+`cleanRawPyxCache`/`embedPy` family, Python runtime introspection and bytecode
+are removals of Python-runtime features, not constraints of Lynxer; re-adding
+them would contradict the project. They stay recorded in
+[docs/removed-features.md](docs/removed-features.md).
+
 ### Modules
 
-- [ ] `tkinter` / `tkinterPlus` / `turtle` — the `graphics` module (below)
-      covers the immediate-mode drawing/window/UI space; an OS-native widget
-      binding remains out of scope.
+- [ ] `tkinter` / `tkinterPlus` / `turtle` — tracked as **L16**–**L17** under
+      [Resolving documented limitations](#resolving-documented-limitations).
 
 ### Planned modules
 

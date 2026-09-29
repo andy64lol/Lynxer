@@ -168,7 +168,7 @@
         </div>
 <h1 id="built-in-functions">Built-in functions</h1>
 <p>Functions implemented directly by the Lynxer interpreter. They can be called by their bare name or with a <code>global.</code> prefix (<code>print(...)</code> and <code>global.print(...)</code> are the same call).</p>
-<p>Inside a module, <code>global.name(...)</code> always resolves to a <em>core builtin</em>, never to the module's own function of that name — see <a href="limitations.html#language-and-toolchain">limitations</a>.</p>
+<p>Inside a module, <code>global.name(...)</code> always resolves to a <em>core builtin</em>, never to the module's own function of that name — see <a href="modules.html#calling-module-members">modules</a>.</p>
 <p>Names that Lynxer recognises but does not implement fail with a source-located <code>&lt;name&gt;() is not supported in Lynxer yet</code>. On a Linux/POSIX build the <strong>supported</strong> families include the <code>ffi*</code>, <code>async*</code>, <code>sound*</code>, <code>filesystem*</code>, <code>process*</code>, <code>networking*</code>, <code>nativeThread*</code>, <code>nativeMutex*</code>, <code>nativeCondition*</code>, <code>nativeSemaphore*</code> and <code>syscall*</code> builtins; the unsupported set is listed under <a href="#unsupported-names">Unsupported names</a> and is defined by <code>unsupportedTable()</code> in <code>lynxer/builtins.cpp</code>. On a build without POSIX support, the <code>filesystem*</code>/<code>process*</code>/<code>networking*</code>/<code>sound*</code> families join the unsupported set. The <code>syscall*</code> family is routed to a generic syscall dispatcher rather than to a per-name handler.</p>
 <h2 id="input-output-and-conversion">Input, output and conversion</h2>
 <table>

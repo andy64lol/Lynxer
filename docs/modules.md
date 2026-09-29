@@ -63,10 +63,12 @@ global main(){
 ```
 
 Inside the module file itself, call its own functions by **bare name** — using
-`global.<name>(...)` inside a module resolves to a core builtin, not the
-module's own function (see [limitations.md](limitations.md)). A file-level
-`func` in a module is reached from the importer as `global.<module>.<name>`
-just like a `global` function.
+`global.<name>(...)` inside a module resolves to a *core builtin* named `name`,
+not the module's own function. A module that calls `global.round(...)` while
+defining its own `round` fails with `unknown function 'global.round'`; call it
+as `round(...)` instead. Reserve `global.name(...)` for builtins such as
+`assert`, `trim`, or `upper`. A file-level `func` in a module is reached from
+the importer as `global.<module>.<name>` just like a `global` function.
 
 ## Writing a module
 

@@ -170,45 +170,31 @@
 <p>Lynxer is a standalone C++/Rust runtime. This page documents <strong>technical limitations</strong> and <strong>deliberate omissions</strong> in the language, toolchain, and standard library.</p>
 <p>Entries are marked:</p>
 <ul>
-<li><strong>Not planned</strong> — deliberately will not be implemented. These are permanent non-goals; do not expect them to appear later.</li>
+<li><strong>Not planned</strong> — a deliberate, permanent removal of a Python-runtime feature; it will not be re-added.</li>
+<li><strong>Planned</strong> — a constraint with a resolution plan in <a href="../todo.html">todo</a> under <em>Resolving documented limitations</em>.</li>
 <li><strong>Constrained</strong> — implemented, but with behavior you should know before relying on it.</li>
 </ul>
 <h2 id="deliberate-omissions-not-planned">Deliberate Omissions (Not Planned)</h2>
+<p>Retained removals: Python-runtime features with no place in a standalone runtime.</p>
 <table>
 <tr><th>Feature</th><th>Reason</th></tr>
 <tr><td><code>venv</code> module</td><td>A virtual-environment manager is a Python concept with no equivalent in a standalone runtime.</td></tr>
 <tr><td><code>rawPy</code>, <code>rawPyx</code>, <code>cleanRawPyxCache</code>, <code>embedPy</code></td><td>Embedding CPython/Cython. Lynxer does not ship or link a Python runtime.</td></tr>
-<tr><td><code>tkinter</code>, <code>tkinterPlus</code></td><td>No Python GUI toolkit binding. The <code>graphics</code> module is an immediate-mode drawing/window/UI toolkit instead.</td></tr>
-<tr><td><code>turtle</code></td><td>Rust's <code>turtle</code> crate has not been maintained since 2019.</td></tr>
-<tr><td><code>http</code>, <code>net</code> modules</td><td>Superseded by <code>network</code> + <code>server</code>.</td></tr>
 <tr><td>Python runtime introspection (<code>sys.path</code>, <code>addPath</code>, <code>prependPath</code>, <code>removeFromPath</code>, <code>getModules</code>, <code>isModuleLoaded</code>, <code>getRecursionLimit</code>, <code>setRecursionLimit</code>, <code>os.getPythonVersion</code>, <code>os.getPythonImplementation</code>)</td><td>There is no Python runtime to introspect. The <code>os</code> getters return <code>&quot;&quot;</code> / <code>&quot;Lynxer&quot;</code> for compatibility and will be removed.</td></tr>
 <tr><td>Bytecode (<code>.lynxc</code>, <code>--view-bytecode</code>, <code>--benchmark-compile</code>, <code>--no-cache</code>)</td><td>Removed with the bytecode backend; <code>--compile</code> produces a standalone ELF executable instead (<code>--bundle</code> is an alias). Running a <code>.lynxc</code> file reports that bytecode is unsupported.</td></tr>
 </table>
-<h2 id="language-and-toolchain-design">Language and Toolchain Design</h2>
-<ul>
-<li><strong>Module self-calls.</strong> Inside a module, <code>global.name(...)</code> resolves to a <em>core builtin</em> named <code>name</code>, not to the module's own <code>global name</code>. A module calling <code>global.round(...)</code> when it defines its own <code>round</code> fails with <code>unknown function &#x27;global.round&#x27;</code>. Call the module's own functions with a bare name (<code>round(...)</code>); use <code>global.name(...)</code> only for builtins such as <code>assert</code>, <code>trim</code>, or <code>upper</code>.</li>
-</ul>
-<ul>
-<li><strong>Compiled executables embed their modules.</strong> The payload carries the program source, the source of every transitively imported <code>.lynx</code> module, and the bytes of every imported native <code>.so</code>. Native modules are written to a temporary directory at startup so <code>dlopen</code> can load them, and the directory is removed when the process exits.</li>
-</ul>
-<ul>
-<li><strong><code>--compile</code> accepts multiple input files.</strong> The first <code>.lynx</code> file is the program; any further <code>.lynx</code> or <code>.so</code> files — given positionally or with <code>--include &lt;file&gt;</code> — are embedded and become importable by name, even when they live outside the module search path. The output name comes from <code>-o &lt;name&gt;</code>/<code>--name &lt;name&gt;</code>, or from a trailing bare argument, and defaults to the first input without its <code>.lynx</code> extension.</li>
-</ul>
-<ul>
-<li><strong><code>--include</code> also supports data files.</strong> A file that is neither <code>.lynx</code> nor <code>.so</code> is embedded as an asset, written to the executable's private temporary directory at startup, and reachable with <code>bundledFile(name)</code> (a path) or listed with <code>bundledFiles()</code>. Interpreted runs see neither and return <code>&quot;&quot;</code> / an empty list, so a program must tolerate missing assets when run from source.</li>
-</ul>
-<h2 id="optimizer">Optimizer</h2>
-<p>Before execution, Lynxer runs a semantics-preserving AST optimization pass:</p>
-<ul>
-<li>Constant folding of literal-only expressions.</li>
-<li>Short-circuit simplification of constant <code>and</code>/<code>or</code> operations.</li>
-<li>Dead-branch elimination for constant <code>if</code>, <code>while (false)</code>, and <code>iterate (0)</code>.</li>
-</ul>
-<p>The optimizer preserves behavior, so operations that could raise, warn, or coerce differently (e.g., division by zero, deprecated symbolic operators, or string concatenation with integers) are left for the runtime at their original source location.</p>
-<ul>
-<li><code>--no-opt</code> disables the optimizer. This is a runtime switch: compiled executables always optimize, regardless of command-line arguments.</li>
-<li><code>LYNXER_OPT_REPORT=1</code> prints transformation counts to stderr after the program runs. This is for diagnostic purposes only and does not affect output.</li>
-</ul>
+<h2 id="planned-work">Planned Work</h2>
+<p>Every constraint below has a resolution plan in <a href="../todo.html">todo</a> under <em>Resolving documented limitations</em>:</p>
+<table>
+<tr><th>Area</th><th>Plan</th></tr>
+<tr><td><code>tkinter</code> / <code>tkinterPlus</code> (a native OS-widget GUI module)</td><td><strong>L16</strong></td></tr>
+<tr><td><code>turtle</code> (reimplement on <code>graphics</code>)</td><td><strong>L17</strong></td></tr>
+<tr><td><code>http</code> / <code>net</code> (keep superseded by <code>network</code> + <code>server</code>, or add a shim)</td><td><strong>L18</strong></td></tr>
+<tr><td>Binary payloads — a first-class <code>bytes</code> type, replacing the base64/hex/TSV workarounds in <code>compress</code>, <code>crypto</code>, <code>encoding</code>, <code>uuid</code>, <code>math</code></td><td><strong>L1</strong>, <strong>L3</strong></td></tr>
+<tr><td>Native module ABI — aggregate parameters, multiple string results, the 64-argument cap, non-Linux loading</td><td><strong>L2</strong></td></tr>
+<tr><td>Module constraints — <code>graphics</code>, <code>game</code>, <code>server</code>, <code>re</code>/<code>regex</code>, <code>sound</code>, <code>watch</code>, <code>sqldb</code>, <code>js</code>, <code>multiprocessing</code>, <code>text</code>/<code>typing</code>, <code>tui</code>, <code>os</code>/<code>path</code>/<code>sys</code></td><td><strong>L4</strong>–<strong>L14</strong></td></tr>
+<tr><td><code>nativeThread*</code> / <code>async*</code> true parallelism and coroutine <code>await</code></td><td><strong>L15</strong></td></tr>
+</table>
 <h2 id="native-module-abi">Native Module ABI</h2>
 <ul>
 <li><strong>Signature constraints.</strong> A native signature uses either:</li>
@@ -225,11 +211,10 @@
 <li><strong>Platform support.</strong> <code>.so</code> imports are currently Linux/POSIX-only and not available on Windows.</li>
 </ul>
 <h2 id="standard-library">Standard Library</h2>
-<h3 id="modules-not-ported">Modules Not Ported</h3>
-<p>The following modules are not ported to Lynxer:</p>
+<h3 id="module-coverage">Module Coverage</h3>
 <ul>
-<li><code>tkinter</code>, <code>tkinterPlus</code>, and <code>turtle</code> (no equivalent in a standalone runtime).</li>
-<li><code>http</code>/<code>net</code> modules are superseded by <code>network</code> + <code>server</code>.</li>
+<li><code>tkinter</code>, <code>tkinterPlus</code>, and <code>turtle</code> are planned (see <strong>L16</strong>–<strong>L17</strong> in <a href="../todo.html">todo</a>).</li>
+<li><code>http</code>/<code>net</code> are superseded by <code>network</code> + <code>server</code> (<strong>L18</strong>).</li>
 <li><code>mathPlus</code> is merged into <code>math</code>.</li>
 </ul>
 <h3 id="native-backing">Native Backing</h3>
@@ -512,14 +497,11 @@
 </ul>
 <h2 id="built-in-families">Built-in Families</h2>
 <p>The managed <code>filesystem*</code>, <code>process*</code>, <code>networking*</code>, and <code>sound*</code> families are implemented and documented in <a href="builtins.html">builtins</a>.</p>
-<h3 id="syscalls--architecture-gated">Syscalls — Architecture-gated</h3>
-<p>Named syscalls require <code>syscalls(&quot;&lt;arch&gt;&quot;)</code> before use and are reached through the matching namespace (<code>amd64.syscallRead(...)</code> / <code>arm64.syscallRead(...)</code>). Only the host architecture can be selected, and only one at a time. The former flat <code>syscallRead(...)</code> spelling is rejected with a pointer to the namespaced form. See <a href="builtins.html#syscalls">builtins</a>.</p>
 <h3 id="unsupported-built-ins">Unsupported Built-ins</h3>
 <p><code>builtins.cpp</code> maintains an <code>unsupportedTable()</code> of names that are recognized but deliberately unimplemented. Calling one raises: <code>&lt;name&gt;() is not supported in Lynxer yet</code>.</p>
 <p>This includes:</p>
 <ul>
 <li><code>rawPy</code>/<code>rawPyx</code>/<code>cleanRawPyxCache</code> and <code>embedPy</code> (removed fully — there is no Python runtime).</li>
-<li>Mutual-exclusion primitives (not planned).</li>
 </ul>
 <p><a href="legacy-surface.html">legacy-surface</a> catalogues the original built-ins and modules that were not carried over — pointers/raw addresses, native structs, async, <code>rawPy</code>, and the un-ported modules — with their replacements.</p>
 <h3 id="nativethread--constrained-cooperative-model"><code>nativeThread*</code> — Constrained (Cooperative Model)</h3>
@@ -543,28 +525,6 @@
 <li>Concurrency is real but subject to the GIL above: tasks interleave (and a task's <code>asyncSleep</code>/<code>asyncPollWait</code> lets others run) rather than executing in parallel.</li>
 <li><code>async name(){}</code> local sub-functions remain <strong>eager</strong> — they run like an ordinary call — so the polling helpers stay usable inside an <code>async</code> block; use <code>asyncRun</code> for a task.</li>
 <li>There are no coroutines: <code>await</code> is a join, not a suspension. A task that awaits itself is reported (<code>a task cannot await itself</code>) rather than deadlocking; two tasks that await each other still deadlock.</li>
-</ul>
-<h2 id="cli-tools">CLI Tools</h2>
-<ul>
-<li><strong>Implemented flags:</strong> <code>--lint</code>, <code>--ast</code>, <code>--format</code>, <code>--format-oneline</code>, <code>--validate-executable</code>, <code>--install</code>, and <code>--uninstall</code>.</li>
-<li><strong>AST output:</strong> <code>--ast</code> prints Lynxer's own node and field names, covering the executable AST (functions and statements) rather than named type declarations in the type registry.</li>
-<li><strong>Removed flags:</strong> <code>--view-bytecode</code>, <code>--benchmark-compile</code>, and <code>--no-cache</code> were removed with the bytecode backend. See <a href="CLI.html">CLI</a> for details.</li>
-</ul>
-<ul>
-<li><strong>Formatter:</strong> Token-based and idempotent. It never changes tokens, preserves line comments and <code>///</code>/<code>////</code> blocks verbatim.</li>
-</ul>
-<h2 id="testing-notes">Testing Notes</h2>
-<ul>
-<li><strong>Fixture execution:</strong> <code>make testLynxer</code> (from the repo root) runs one fixture per <code>examples/stdlib_*.lynx</code> and compares its output against a sibling <code>.expected</code> file. Fixtures that would print host-specific values (Node version, terminal size, <code>uname</code> strings) assert a boolean property instead.</li>
-</ul>
-<ul>
-<li><strong>Sound module:</strong> The <code>sound</code> fixture includes assertions that only hold on hosts with a real ALSA card (e.g., starting/stopping playback, per-handle volume). If <code>/dev/snd/controlC*</code> is unavailable, <code>make testLynxer</code> skips <code>stdlib_sound.lynx</code> and prints:</li>
-</ul>
-<p>``<code> lynxer: skipping stdlib_sound.lynx: no audio device (/dev/snd/controlC*) on this host </code>`` Device-independent aspects (loading, decoding, handle bookkeeping, error paths) remain covered.</p>
-<ul>
-<li><strong>Module contract checks:</strong> Before running fixtures, <code>scripts/check_module_contracts.py</code> performs a static comparison of every <code>stdlib/&lt;name&gt;.lynx</code> wrapper against its backend. This ensures:</li>
-<li>Every <code>global.native&lt;Alias&gt;.&lt;op&gt;(...)</code> call names a registered operation.</li>
-<li>Rust backends' packed <code>args.&lt;kind&gt;(i)</code> reads are within the range of arguments passed by the wrapper. This script requires <code>python3</code>. If missing, <code>make test</code> fails with a clear message instead of skipping the check.</li>
 </ul>
     </main>
 </div>

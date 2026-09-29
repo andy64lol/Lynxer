@@ -4,62 +4,38 @@ Lynxer is a standalone C++/Rust runtime. This page documents **technical limitat
 
 Entries are marked:
 
-- **Not planned** — deliberately will not be implemented. These are permanent
-  non-goals; do not expect them to appear later.
+- **Not planned** — a deliberate, permanent removal of a Python-runtime feature;
+  it will not be re-added.
+- **Planned** — a constraint with a resolution plan in [todo.md](../todo.md)
+  under *Resolving documented limitations*.
 - **Constrained** — implemented, but with behavior you should know before
   relying on it.
 
 ## Deliberate Omissions (Not Planned)
 
+Retained removals: Python-runtime features with no place in a standalone runtime.
+
 | Feature | Reason |
 | --- | --- |
 | `venv` module | A virtual-environment manager is a Python concept with no equivalent in a standalone runtime. |
 | `rawPy`, `rawPyx`, `cleanRawPyxCache`, `embedPy` | Embedding CPython/Cython. Lynxer does not ship or link a Python runtime. |
-| `tkinter`, `tkinterPlus` | No Python GUI toolkit binding. The `graphics` module is an immediate-mode drawing/window/UI toolkit instead. |
-| `turtle` | Rust's `turtle` crate has not been maintained since 2019. |
-| `http`, `net` modules | Superseded by `network` + `server`. |
 | Python runtime introspection (`sys.path`, `addPath`, `prependPath`, `removeFromPath`, `getModules`, `isModuleLoaded`, `getRecursionLimit`, `setRecursionLimit`, `os.getPythonVersion`, `os.getPythonImplementation`) | There is no Python runtime to introspect. The `os` getters return `""` / `"Lynxer"` for compatibility and will be removed. |
 | Bytecode (`.lynxc`, `--view-bytecode`, `--benchmark-compile`, `--no-cache`) | Removed with the bytecode backend; `--compile` produces a standalone ELF executable instead (`--bundle` is an alias). Running a `.lynxc` file reports that bytecode is unsupported. |
 
-## Language and Toolchain Design
+## Planned Work
 
-- **Module self-calls.** Inside a module, `global.name(...)` resolves to a *core
-  builtin* named `name`, not to the module's own `global name`. A module calling
-  `global.round(...)` when it defines its own `round` fails with
-  `unknown function 'global.round'`. Call the module's own functions with a bare
-  name (`round(...)`); use `global.name(...)` only for builtins such as
-  `assert`, `trim`, or `upper`.
+Every constraint below has a resolution plan in [todo.md](../todo.md) under
+*Resolving documented limitations*:
 
-- **Compiled executables embed their modules.** The payload carries the program
-  source, the source of every transitively imported `.lynx` module, and the bytes
-  of every imported native `.so`. Native modules are written to a temporary
-  directory at startup so `dlopen` can load them, and the directory is removed
-  when the process exits.
-
-- **`--compile` accepts multiple input files.** The first `.lynx` file is the
-  program; any further `.lynx` or `.so` files — given positionally or with
-  `--include <file>` — are embedded and become importable by name, even when they
-  live outside the module search path. The output name comes from
-  `-o <name>`/`--name <name>`, or from a trailing bare argument, and defaults to
-  the first input without its `.lynx` extension.
-
-- **`--include` also supports data files.** A file that is neither `.lynx` nor `.so`
-  is embedded as an asset, written to the executable's private temporary
-  directory at startup, and reachable with `bundledFile(name)` (a path) or listed
-  with `bundledFiles()`. Interpreted runs see neither and return `""` / an empty
-  list, so a program must tolerate missing assets when run from source.
-
-## Optimizer
-
-Before execution, Lynxer runs a semantics-preserving AST optimization pass:
-- Constant folding of literal-only expressions.
-- Short-circuit simplification of constant `and`/`or` operations.
-- Dead-branch elimination for constant `if`, `while (false)`, and `iterate (0)`.
-
-The optimizer preserves behavior, so operations that could raise, warn, or coerce differently (e.g., division by zero, deprecated symbolic operators, or string concatenation with integers) are left for the runtime at their original source location.
-
-- `--no-opt` disables the optimizer. This is a runtime switch: compiled executables always optimize, regardless of command-line arguments.
-- `LYNXER_OPT_REPORT=1` prints transformation counts to stderr after the program runs. This is for diagnostic purposes only and does not affect output.
+| Area | Plan |
+| --- | --- |
+| `tkinter` / `tkinterPlus` (a native OS-widget GUI module) | **L16** |
+| `turtle` (reimplement on `graphics`) | **L17** |
+| `http` / `net` (keep superseded by `network` + `server`, or add a shim) | **L18** |
+| Binary payloads — a first-class `bytes` type, replacing the base64/hex/TSV workarounds in `compress`, `crypto`, `encoding`, `uuid`, `math` | **L1**, **L3** |
+| Native module ABI — aggregate parameters, multiple string results, the 64-argument cap, non-Linux loading | **L2** |
+| Module constraints — `graphics`, `game`, `server`, `re`/`regex`, `sound`, `watch`, `sqldb`, `js`, `multiprocessing`, `text`/`typing`, `tui`, `os`/`path`/`sys` | **L4**–**L14** |
+| `nativeThread*` / `async*` true parallelism and coroutine `await` | **L15** |
 
 ## Native Module ABI
 
@@ -76,11 +52,11 @@ The optimizer preserves behavior, so operations that could raise, warn, or coerc
 
 ## Standard Library
 
-### Modules Not Ported
+### Module Coverage
 
-The following modules are not ported to Lynxer:
-- `tkinter`, `tkinterPlus`, and `turtle` (no equivalent in a standalone runtime).
-- `http`/`net` modules are superseded by `network` + `server`.
+- `tkinter`, `tkinterPlus`, and `turtle` are planned (see **L16**–**L17** in
+  [todo.md](../todo.md)).
+- `http`/`net` are superseded by `network` + `server` (**L18**).
 - `mathPlus` is merged into `math`.
 
 ### Native Backing
@@ -465,14 +441,6 @@ The backend is real (`ratatui`), but it is not a pixel-for-pixel Rich equivalent
 
 The managed `filesystem*`, `process*`, `networking*`, and `sound*` families are implemented and documented in [builtins.md](builtins.md).
 
-### Syscalls — Architecture-gated
-
-Named syscalls require `syscalls("<arch>")` before use and are reached through
-the matching namespace (`amd64.syscallRead(...)` / `arm64.syscallRead(...)`).
-Only the host architecture can be selected, and only one at a time. The former
-flat `syscallRead(...)` spelling is rejected with a pointer to the namespaced
-form. See [builtins.md](builtins.md#syscalls).
-
 ### Unsupported Built-ins
 
 `builtins.cpp` maintains an `unsupportedTable()` of names that are recognized but deliberately unimplemented. Calling one raises:
@@ -480,7 +448,6 @@ form. See [builtins.md](builtins.md#syscalls).
 
 This includes:
 - `rawPy`/`rawPyx`/`cleanRawPyxCache` and `embedPy` (removed fully — there is no Python runtime).
-- Mutual-exclusion primitives (not planned).
 
 [legacy-surface.md](legacy-surface.md) catalogues the original built-ins and
 modules that were not carried over — pointers/raw addresses, native structs,
@@ -505,27 +472,3 @@ async, `rawPy`, and the un-ported modules — with their replacements.
 - Concurrency is real but subject to the GIL above: tasks interleave (and a task's `asyncSleep`/`asyncPollWait` lets others run) rather than executing in parallel.
 - `async name(){}` local sub-functions remain **eager** — they run like an ordinary call — so the polling helpers stay usable inside an `async` block; use `asyncRun` for a task.
 - There are no coroutines: `await` is a join, not a suspension. A task that awaits itself is reported (`a task cannot await itself`) rather than deadlocking; two tasks that await each other still deadlock.
-
-## CLI Tools
-
-- **Implemented flags:** `--lint`, `--ast`, `--format`, `--format-oneline`, `--validate-executable`, `--install`, and `--uninstall`.
-- **AST output:** `--ast` prints Lynxer's own node and field names, covering the executable AST (functions and statements) rather than named type declarations in the type registry.
-- **Removed flags:** `--view-bytecode`, `--benchmark-compile`, and `--no-cache` were removed with the bytecode backend. See [CLI.md](CLI.md) for details.
-
-- **Formatter:** Token-based and idempotent. It never changes tokens, preserves line comments and `///`/`////` blocks verbatim.
-
-## Testing Notes
-
-- **Fixture execution:** `make testLynxer` (from the repo root) runs one fixture per `examples/stdlib_*.lynx` and compares its output against a sibling `.expected` file.
-  Fixtures that would print host-specific values (Node version, terminal size, `uname` strings) assert a boolean property instead.
-
-- **Sound module:** The `sound` fixture includes assertions that only hold on hosts with a real ALSA card (e.g., starting/stopping playback, per-handle volume). If `/dev/snd/controlC*` is unavailable, `make testLynxer` skips `stdlib_sound.lynx` and prints:
-  ```
-  lynxer: skipping stdlib_sound.lynx: no audio device (/dev/snd/controlC*) on this host
-  ```
-  Device-independent aspects (loading, decoding, handle bookkeeping, error paths) remain covered.
-
-- **Module contract checks:** Before running fixtures, `scripts/check_module_contracts.py` performs a static comparison of every `stdlib/<name>.lynx` wrapper against its backend. This ensures:
-  - Every `global.native<Alias>.<op>(...)` call names a registered operation.
-  - Rust backends' packed `args.<kind>(i)` reads are within the range of arguments passed by the wrapper.
-  This script requires `python3`. If missing, `make test` fails with a clear message instead of skipping the check.

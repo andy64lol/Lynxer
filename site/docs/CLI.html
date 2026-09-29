@@ -167,7 +167,7 @@
             <input type="text" placeholder="Search documentation..." aria-label="Search documentation">
         </div>
 <h1 id="cli">CLI</h1>
-<p>The Lynxer executable is <code>lynxer</code>. <code>--install</code> copies it to <code>/usr/bin/lynxer</code> and <code>--uninstall</code> removes it; otherwise run it from where it was built.</p>
+<p>The Lynxer executable is <code>lynxer</code>. <code>--install</code> installs it under <code>/usr/lib/lynxer</code> and links <code>/usr/bin/lynxer</code>; <code>--uninstall</code> removes both; otherwise run it from where it was built.</p>
 <pre><code>make buildLynxer
 lynxer/lynxer --help</code></pre>
 <p><code>--help</code> (or <code>-h</code>, or no arguments at all) prints the usage summary and exits <code>0</code>. The rest of this page is the authoritative description of every flag.</p>
@@ -185,7 +185,7 @@ lynxer --no-opt program.lynx    # run without the AST optimizer</code></pre>
 </table>
 <h2 id="the-ast-optimizer">The AST optimizer</h2>
 <p>Before execution Lynxer rewrites the parsed program: constant folding, short-circuit simplification of constant <code>and</code>/<code>or</code>, and dead-branch elimination for a constant <code>if</code>, <code>while (false)</code>, and <code>iterate (0)</code>. The pass is semantics-preserving, so output and exit codes are identical with and without it. <code>--no-opt</code> (or <code>-no-opt</code>) disables it for the run; a <strong>compiled</strong> executable ignores its command line and always optimizes.</p>
-<p><code>LYNXER_OPT_REPORT=1</code> prints one line of transformation counts to stderr after the program runs, for example <code>optimizer: constant folds=10, short-circuits=2, dead branches=3</code>. See <a href="limitations.html#optimizer">limitations</a>.</p>
+<p><code>LYNXER_OPT_REPORT=1</code> prints one line of transformation counts to stderr after the program runs, for example <code>optimizer: constant folds=10, short-circuits=2, dead branches=3</code>.</p>
 <h2 id="checking-syntax">Checking syntax</h2>
 <pre><code>lynxer --lint program.lynx</code></pre>
 <p><code>--lint</code> parses the file and reports the first syntax error without running it. A clean file prints <code>Lint OK: &lt;path&gt;</code> and exits <code>0</code>. It requires exactly one file; otherwise it prints <code>lynxer: --lint requires exactly one file argument</code>.</p>
@@ -226,9 +226,9 @@ lynxer --compile app.lynx helpers.lynx vendor/lib.so \
 </table>
 <p>The version string comes from the <code>version</code> key in <code>lynxer/lynxer.config</code> (currently <code>0.1.8.1</code>).</p>
 <h2 id="installing">Installing</h2>
-<pre><code>sudo lynxer --install      # copy this executable to /usr/bin/lynxer
-sudo lynxer --uninstall    # remove /usr/bin/lynxer</code></pre>
-<p><code>--install</code> copies the running executable (resolved through <code>/proc/self/exe</code>) to <code>/usr/bin/lynxer</code> and makes it executable. Keep the matching <code>stdlib/</code> directory next to the installed binary, or imports will not resolve. Without write permission it prints the failure and a <code>sudo</code> hint and exits <code>1</code>. <code>--uninstall</code> removes <code>/usr/bin/lynxer</code>; if it is absent it reports why and exits <code>1</code>.</p>
+<pre><code>sudo lynxer --install      # install into /usr/lib/lynxer, link /usr/bin/lynxer
+sudo lynxer --uninstall    # remove the installed interpreter</code></pre>
+<p><code>--install</code> copies the running executable (resolved through <code>/proc/self/exe</code>), its <code>stdlib/</code> directory and <code>lynxer.config</code> into a self-contained tree under <code>/usr/lib/lynxer</code>, then creates the symlink <code>/usr/bin/lynxer</code> to the real binary. The symlink resolves through <code>/proc/self/exe</code>, so the installed interpreter finds its stdlib from any working directory — <code>lynxer app.lynx</code> works with no build tree present. Set <code>LYNXER_PREFIX</code> to use a prefix other than <code>/usr</code> (for example <code>LYNXER_PREFIX=$HOME/.local</code>), and pass the same value to <code>--uninstall</code>. Without write permission it prints the failure and a <code>sudo</code> hint and exits <code>1</code>. <code>--uninstall</code> removes the symlink and the tree; when neither is present it reports why and exits <code>1</code>.</p>
 <h2 id="removed-with-the-bytecode-backend">Removed with the bytecode backend</h2>
 <p>These are recognised and exit <code>1</code> with <code>lynxer: &#x27;&lt;flag&gt;&#x27; was removed with the bytecode backend; use lynxer --compile instead</code>:</p>
 <p><code>--view-bytecode</code> (aliases <code>--inspect-bytecode</code>, <code>--disasm</code>), <code>--benchmark-compile</code> (alias <code>--bench-compile</code>), <code>--no-cache</code>.</p>

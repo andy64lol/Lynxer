@@ -195,9 +195,14 @@ make buildLynxerArm64  # the ARM64 interpreter (needs an aarch64 host)</code></p
 </ul>
 <p>The Rust workspace has twenty-one member crates: the nineteen stdlib module backends listed in <code>LYNXER_RUST_MODULE_NAMES</code> (<code>compress</code>, <code>crypto</code>, <code>encoding</code>, <code>game</code>, <code>graphics</code>, <code>image</code>, <code>ini</code>, <code>json</code>, <code>lua</code>, <code>network</code>, <code>server</code>, <code>sound</code>, <code>sqldb</code>, <code>toml</code>, <code>tui</code>, <code>uuid</code>, <code>watch</code>, <code>xml</code>, <code>yaml</code>), the shared <code>rust/abi</code> crate, and <code>rust/ffi</code>, the required native-call engine described in <a href="native-module-abi.html#the-native-call-engine">native-module-abi</a>.</p>
 <h2 id="install">Install</h2>
-<pre><code>sudo ./lynxer/lynxer --install      # copy to /usr/bin/lynxer
-sudo ./lynxer/lynxer --uninstall    # remove /usr/bin/lynxer</code></pre>
-<p><code>--install</code> copies the running executable to <code>/usr/bin/lynxer</code>; <code>--uninstall</code> removes it. Keep the matching <code>stdlib/</code> directory next to the installed binary, or imports will not resolve. See <a href="CLI.html#installing">CLI</a>.</p>
+<pre><code>sudo ./lynxer/lynxer --install      # install into /usr/lib/lynxer, link /usr/bin/lynxer
+sudo ./lynxer/lynxer --uninstall    # remove the installed interpreter</code></pre>
+<p><code>--install</code> lays out one self-contained tree:</p>
+<pre><code>/usr/lib/lynxer/lynxer          the real binary
+/usr/lib/lynxer/stdlib/*        every stdlib module
+/usr/lib/lynxer/lynxer.config   the configuration file
+/usr/bin/lynxer                 a symlink to the real binary</code></pre>
+<p>Because the symlink resolves to the real binary (<code>/proc/self/exe</code>), an installed <code>lynxer</code> finds its stdlib from any working directory, so <code>lynxer app.lynx</code> works without keeping the build tree around. Set <code>LYNXER_PREFIX</code> to install somewhere other than <code>/usr</code> — for example <code>LYNXER_PREFIX=$HOME/.local lynxer --install</code> needs no root — and pass the same value to <code>--uninstall</code>. See <a href="CLI.html#installing">CLI</a>.</p>
 <h2 id="quick-run">Quick run</h2>
 <pre><code>./lynxer/lynxer lynxer/examples/milestone5.lynx
 ./lynxer/lynxer --list-stdlibs

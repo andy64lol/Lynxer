@@ -203,7 +203,7 @@ global main(){
     println(global.math.max(2, 5));                    // 5
     println(global.j.jsonGet(&quot;{\&quot;a\&quot;: 1}&quot;, &quot;a&quot;));      // 1
 }</code></pre>
-<p>Inside the module file itself, call its own functions by <strong>bare name</strong> — using <code>global.&lt;name&gt;(...)</code> inside a module resolves to a core builtin, not the module's own function (see <a href="limitations.html">limitations</a>). A file-level <code>func</code> in a module is reached from the importer as <code>global.&lt;module&gt;.&lt;name&gt;</code> just like a <code>global</code> function.</p>
+<p>Inside the module file itself, call its own functions by <strong>bare name</strong> — using <code>global.&lt;name&gt;(...)</code> inside a module resolves to a <em>core builtin</em> named <code>name</code>, not the module's own function. A module that calls <code>global.round(...)</code> while defining its own <code>round</code> fails with <code>unknown function &#x27;global.round&#x27;</code>; call it as <code>round(...)</code> instead. Reserve <code>global.name(...)</code> for builtins such as <code>assert</code>, <code>trim</code>, or <code>upper</code>. A file-level <code>func</code> in a module is reached from the importer as <code>global.&lt;module&gt;.&lt;name&gt;</code> just like a <code>global</code> function.</p>
 <h2 id="writing-a-module">Writing a module</h2>
 <p>Any <code>.lynx</code> file with <code>setup</code> and helpers is a module. Open it with a <code>////</code> docstring line so <code>--list-stdlibs</code> can describe it:</p>
 <pre><code>////
