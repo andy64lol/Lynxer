@@ -33,7 +33,10 @@ global main(){
     println(global.json.jsonGet(global.network.urlParse("http://example.com/"), "port"));
     println(returnLength(global.network.getHostname()) > 0);
     println(global.network.resolveHost("localhost"));
-    println(global.network.resolveHost("example.com"));
+    // A public name resolves to a live address, so only assert that the lookup
+    // succeeded: the address itself is host- and time-dependent and would make
+    // the .expected file stale.
+    println(substring(global.network.resolveHost("example.com"), 0, 7) isnt "ERROR: ");
     println(global.network.resolveHost("nonexistent.example"));
     // Test edge cases for URL parsing.
     println(global.network.urlScheme("ftp://example.com"));

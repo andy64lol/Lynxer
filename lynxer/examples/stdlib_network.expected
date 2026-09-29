@@ -7,6 +7,7 @@ example.com
 
 https
 example.com
+8443
 /v1/x
 q=1
 top
@@ -15,6 +16,24 @@ a+b%26c%3Dd
 80
 true
 127.0.0.1
+true
+ERROR: resolve failed
+ftp
+localhost:8080
+/
+
+
+/
+hello+world%21%40%23%24%25
+%E6%97%A5%E6%9C%AC%E8%AA%9E
+
+
+/
+query=value
+frag
+2001:db8::1
+8080
+/path
 ok
 ok
 ok
