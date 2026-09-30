@@ -40,6 +40,13 @@ global main(){
     println(global.server.wsEcho("/ws"));
     println(global.server.wsEcho("/ws"));
 
+    // A template route: the static data plus the per-request context, with
+    // filters, `if` and a `for` loop.
+    println(global.server.templateString(
+        "/tpl",
+        "Hi {{ name | upper }}! {% if n > 1 %}{% for i in range(n) %}{{ i }}{% endfor %}{% else %}none{% endif %} q={{ request.args.n }} path={{ request.path }}",
+        "{\"name\": \"Ada\", \"n\": 3}"));
+
     // Port validation.
     println(global.server.start(0));
     println(global.server.start(70000));
@@ -64,6 +71,11 @@ global main(){
     println(global.network.postJson("http://127.0.0.1:18124/echo", "{\"k\": 1}"));
     println(global.network.getStatus("http://127.0.0.1:18124/hello"));
     println(global.network.get("http://127.0.0.1:18124/missing"));
+
+    // The template is rendered per request: the query argument `n` is visible
+    // through `request.args`, and `name` keeps the static value.
+    println(global.network.get("http://127.0.0.1:18124/tpl?name=Bob&n=2"));
+    println(global.text.contains(global.network.getHeaders("http://127.0.0.1:18124/tpl"), "Content-Type: text/html; charset=utf-8"));
 
     // Stop returns the server to the idle state.
     println(global.server.stop());

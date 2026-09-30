@@ -57,11 +57,21 @@ typedef struct LynxerArgs {
 // `invoke` runs the Lynxer function `name` with either no argument or one
 // numeric argument and returns 0 on success, non-zero when the callback failed.
 // `interrupted` returns non-zero once the process has received SIGINT.
+// `program_args` returns the program's own command-line arguments as a JSON
+// array (the buffer is valid until the next call on this thread).
+// `blocking` runs `body(user)` with the interpreter lock released and
+// re-acquires it afterwards, so a module may block (wait on a descriptor or
+// sleep) without wedging every other Lynxer thread.
+//
+// New fields are appended, so the version stays 1: a module compiled against an
+// earlier layout simply does not see them.
 typedef struct LynxerHostApi {
     int version; // 1
     void* context;
     int (*invoke)(void* context, const char* name, int has_arg, double arg);
     int (*interrupted)(void* context);
+    const char* (*program_args)(void* context);
+    int (*blocking)(void* context, void (*body)(void* user), void* user);
 } LynxerHostApi;
 
 #ifdef __cplusplus

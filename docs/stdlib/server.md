@@ -75,14 +75,46 @@ duplicate of the same verb and path is rejected.
 ### Templates
 
 `dataJson` is a JSON object whose keys become template variables, addressed as
-`{{ key }}` and `{{ nested.key }}`. The original used Jinja2; this is the
-documented substitution subset — loops and conditionals are not implemented.
-An unknown key renders as the empty string. `setTemplateFolder(folder)` sets the
-directory that `template` / `templatePost` resolve file names against.
+`{{ key }}` and `{{ nested.key }}`. A Jinja-compatible subset is implemented:
+
+- `{{ expression }}` — output, with filters (`{{ name | upper }}`)
+- `{% if %}` / `{% elif %}` / `{% else %}` / `{% endif %}`
+- `{% for x in items %}` / `{% endfor %}` — with `loop.index`, `loop.index0`,
+  `loop.first`, `loop.last` and `loop.length`; `items` may be an array, an
+  object (its keys), a string (its characters) or `range(n)`
+- `{% set name = expression %}`
+- `{# comment #}`
+
+Expressions cover literals, dotted paths, `or`/`and`/`not`, `==`/`!=`/`<`/
+`<=`/`>`/`>=`, `in`, `+`/`-`/`*`/`/`/`%`, `~` (concatenation), grouping and
+`range()`, plus the filters `upper`, `lower`, `trim`, `capitalize`, `title`,
+`length`, `first`, `last`, `reverse`, `join`, `default`, `int`, `float`,
+`round`, `replace` and `string`. Inheritance, macros and includes are not
+implemented, there is no auto-escaping, and an unknown key renders as the empty
+string. `setTemplateFolder(folder)` sets the directory that `template` /
+`templatePost` resolve file names against.
+
+A template renders **inside** the request, so it can read the request through
+the `request` object:
+
+| Path | Value |
+|------|-------|
+| `request.method` / `request.path` / `request.query` | The request line |
+| `request.args` | Object of query-string parameters |
+| `request.headers` / `request.cookies` | Objects of header / cookie values |
+| `request.body` / `request.contentType` | Raw body and content type |
+| `request.json` | The body parsed as JSON (`application/json` only) |
+| `request.form` | The body parsed as a form (form-urlencoded only) |
+
+The query-string arguments also overlay the root context, so `?name=Ada` makes
+`{{ name }}` render `Ada` even without the prefix.
 
 ```lynx
-global.server.templateString("/greet", "<h1>Hello, {{ name }}!</h1>",
-                             "{\"name\":\"World\"}");
+global.server.templateString(
+    "/greet",
+    "<h1>Hello, {{ name | upper }}!</h1>"
+    "{% if request.args.n %}<p>n={{ request.args.n }}</p>{% endif %}",
+    "{\"name\":\"World\"}");
 ```
 
 ## Middleware and error bodies

@@ -1,0 +1,14 @@
+////
+`sys.argv` is the program's own command line, not the interpreter's. The suite
+runs this with extra arguments and diffs the result, so entry 0 is the script
+path and the rest are the arguments passed after it.
+////
+global setup(){ import("sys"); }
+
+global main(){
+    println(global.sys.argCount());
+    println(global.sys.argv());
+    println(global.sys.getArg(1));
+    println(global.sys.getArg(2));
+    println(global.sys.getArg(3) is "");
+}

@@ -167,23 +167,23 @@
             <input type="text" placeholder="Search documentation..." aria-label="Search documentation">
         </div>
 <h1 id="watch">watch</h1>
-<p>Filesystem change events over inotify.</p>
-<p><strong>Backend:</strong> native — <code>stdlib/watch.so</code>, built from the Rust crate <code>rust/watch</code> over <code>inotify</code>. Linux only.</p>
+<p>Filesystem change events over inotify (Linux) or kqueue <code>EVFILT_VNODE</code> (macOS and the BSDs).</p>
+<p><strong>Backend:</strong> native — <code>stdlib/watch.so</code>, built from the Rust crate <code>rust/watch</code>.</p>
 <p><strong>Import:</strong> <code>import(&quot;watch&quot;)</code> → <code>global.watch.*</code></p>
 <h2 id="how-events-reach-lynxer">How events reach Lynxer</h2>
-<p>A module cannot release the interpreter lock, so <code>watch</code> never blocks. Instead:</p>
 <ol>
 <li><code>watchAdd</code> returns an integer handle.</li>
-<li><code>watchFd(handle)</code> returns the inotify descriptor; register it with <code>asyncPollRegister</code> and wait with <code>asyncPollWait</code>.</li>
+<li>Wait for the descriptor, either with <code>watchWait(handle, timeoutMs)</code> — which blocks with the interpreter lock released — or by registering <code>watchFd(handle)</code> with <code>asyncPollRegister</code> and waiting with <code>asyncPollWait</code>.</li>
 <li>When the descriptor is ready, <code>watchDrain(handle)</code> reads the pending events as a JSON array of <code>{&quot;path&quot;, &quot;kind&quot;}</code>, where <code>kind</code> is <code>create</code>, <code>modify</code>, <code>delete</code>, <code>moved_from</code>, <code>moved_to</code>, <code>attrib</code> or <code>other</code>.</li>
 <li><code>watchRemove</code> / <code>watchClose</code> stop watching and release the handle.</li>
 </ol>
-<p>A failure is a scalar sentinel: <code>watchAdd</code> and <code>watchFd</code> yield <code>-1</code>, <code>watchDrain</code> yields <code>&quot;&quot;</code> for an unknown handle, and the predicates yield <code>false</code>.</p>
+<p>A failure is a scalar sentinel: <code>watchAdd</code>, <code>watchFd</code> and <code>watchWait</code> yield <code>-1</code>, <code>watchDrain</code> yields <code>&quot;&quot;</code> for an unknown handle, and the predicates yield <code>false</code>.</p>
 <h2 id="functions">Functions</h2>
 <table>
 <tr><th>Function</th><th>Signature</th><th>Returns</th></tr>
 <tr><td><code>watchAdd</code></td><td><code>(str path, bool recursive)</code></td><td>a handle, or <code>-1</code></td></tr>
-<tr><td><code>watchFd</code></td><td><code>(int handle)</code></td><td>the inotify descriptor, or <code>-1</code></td></tr>
+<tr><td><code>watchFd</code></td><td><code>(int handle)</code></td><td>the backend descriptor, or <code>-1</code></td></tr>
+<tr><td><code>watchWait</code></td><td><code>(int handle, int timeoutMs)</code></td><td><code>1</code> readable, <code>0</code> timeout, <code>-1</code> unknown</td></tr>
 <tr><td><code>watchDrain</code></td><td><code>(int handle)</code></td><td>a JSON array of events, or <code>&quot;&quot;</code></td></tr>
 <tr><td><code>watchSetDebounce</code></td><td><code>(int handle, int milliseconds)</code></td><td><code>true</code> / <code>false</code></td></tr>
 <tr><td><code>watchRemove</code></td><td><code>(int handle)</code></td><td><code>true</code> / <code>false</code></td></tr>
@@ -199,12 +199,12 @@ global main(){
 
     int handle = global.watch.watchAdd(root, true);
 
-    // Wait on the descriptor with the interpreter&#x27;s poll set, then drain.
-    // global.asyncPollRegister(global.watch.watchFd(handle));
-    // global.asyncPollWait(1000);
-
+    // Block until the descriptor is readable (the lock is released while it
+    // waits), then drain. Alternatively, register the descriptor with
+    // `asyncPollRegister(global.watch.watchFd(handle))` and wait with
+    // `asyncPollWait(1000)`.
     global.fileIO.writeFile(root + &quot;/a.txt&quot;, &quot;hi&quot;);
-    sleep(0.3);
+    println(global.watch.watchWait(handle, 1000));
     println(global.watch.watchDrain(handle));
 
     println(global.watch.watchClose(handle));

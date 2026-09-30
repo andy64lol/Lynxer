@@ -1,0 +1,41 @@
+////
+Turtle fixture: the classic API over `graphics`, run headless so the drawn
+lines can be read back from the framebuffer. The turtle's position, heading and
+pen state are asserted directly.
+////
+global setup(){ import("turtle"); import("graphics"); import("image"); import("fileIO"); }
+
+global main(){
+    global.graphics.init("turtle", 32, 32);
+    global.graphics.clearBackground(0, 0, 0);
+
+    // Forward draws along y = 0 with the pen down.
+    global.turtle.setColor(255, 0, 0);
+    println(global.turtle.forward(10.0));
+    println(global.turtle.x(), ",", global.turtle.y(), ",", global.turtle.heading());
+
+    // A clockwise turn then another step draws a vertical segment.
+    global.turtle.turn(90.0);
+    println(global.turtle.forward(10.0));
+    println(global.turtle.x(), ",", global.turtle.y(), ",", global.turtle.heading());
+
+    // With the pen up, moving does not draw.
+    println(global.turtle.penUp());
+    println(global.turtle.penIsDown());
+    global.turtle.forward(5.0);
+    println(global.turtle.x(), ",", global.turtle.y());
+
+    // `goto` with the pen down draws; `home` returns to the origin, facing east.
+    global.turtle.penDown();
+    global.turtle.goto(2.0, 2.0);
+    global.turtle.home();
+    println(global.turtle.x(), ",", global.turtle.y(), ",", global.turtle.heading());
+
+    println(global.graphics.screenshot("/tmp/lynxer_turtle.png"));
+    int shot = global.image.open("/tmp/lynxer_turtle.png");
+    println(global.image.getPixel(shot, 5, 0));
+    println(global.image.getPixel(shot, 10, 5));
+    println(global.image.getPixel(shot, 12, 0));
+
+    global.fileIO.deleteFile("/tmp/lynxer_turtle.png");
+}

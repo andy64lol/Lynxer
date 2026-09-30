@@ -188,7 +188,6 @@
 <table>
 <tr><th>Area</th><th>Plan</th></tr>
 <tr><td><code>tkinter</code> / <code>tkinterPlus</code> (a native OS-widget GUI module)</td><td><strong>L16</strong></td></tr>
-<tr><td><code>turtle</code> (reimplement on <code>graphics</code>)</td><td><strong>L17</strong></td></tr>
 <tr><td>Module constraints — <code>graphics</code>, <code>game</code>, <code>server</code>, <code>sound</code>, <code>watch</code>, <code>sqldb</code>, <code>text</code>/<code>typing</code>, <code>tui</code>, <code>os</code>/<code>path</code>/<code>sys</code></td><td><strong>L4</strong>–<strong>L6</strong>, <strong>L8</strong>–<strong>L10</strong>, <strong>L12</strong>–<strong>L14</strong></td></tr>
 <tr><td><code>nativeThread*</code> / <code>async*</code> true parallelism and coroutine <code>await</code></td><td><strong>L15</strong></td></tr>
 </table>
@@ -208,7 +207,7 @@
 <h2 id="standard-library">Standard Library</h2>
 <h3 id="module-coverage">Module Coverage</h3>
 <ul>
-<li><code>tkinter</code>, <code>tkinterPlus</code>, and <code>turtle</code> are planned (see <strong>L16</strong>–<strong>L17</strong> in <a href="../todo.html">todo</a>).</li>
+<li><code>tkinter</code> and <code>tkinterPlus</code> are planned (see <strong>L16</strong> in <a href="../todo.html">todo</a>). <code>turtle</code> is implemented — see <a href="stdlib/turtle.html">stdlib/turtle</a>.</li>
 <li><code>http</code>/<code>net</code> are <strong>not provided</strong>: <code>network</code> (client) and <code>server</code> cover the same ground with one API surface instead of two, so no shim is planned — see <a href="removed-features.html#http-and-net-modules">removed-features</a>.</li>
 <li><code>mathPlus</code> is merged into <code>math</code>.</li>
 </ul>
@@ -238,11 +237,11 @@
 <p>A Rust toolchain is <strong>required</strong>: every one of these backends is built and installed by <code>cargo</code>, and the interpreter links the <code>ffi</code> <code>staticlib</code> native-call engine. A missing toolchain or a failed <code>cargo build</code> fails the build outright — there is no reduced build that leaves a backend out. The Makefile checks for <code>cargo</code> up front and says so.</p>
 <h3 id="graphics--constrained-behavior"><code>graphics</code> — Constrained Behavior</h3>
 <ul>
-<li><strong>A display is required for the full renderer.</strong> macroquad draws through OpenGL, so with a window it needs X11 or Wayland. With <code>LYNXER_GRAPHICS_HEADLESS=1</code> no window is opened and the module rasterizes on the CPU instead: <code>clearBackground</code>, <code>drawRectangle</code>, <code>drawRectangleLines</code>, <code>drawLine</code>, <code>drawTriangle</code>, <code>drawTriangleLines</code>, <code>drawCircle</code> and <code>drawCircleLines</code> fill a framebuffer, and <code>screenshot</code> writes that frame as a PNG (in the same top-left origin the drawing ops use). That is what <code>stdlib_graphics_raster.lynx</code> checks in CI.</li>
-<li><strong>Headless drawing covers the pixel-exact primitives only.</strong> Text, textures, fonts, shaders, render targets, the <code>ui*</code> widgets, rotated shapes and the curved primitives (ellipse/arc/polygon/hexagon) are still no-ops without a window, and every context-dependent load returns <code>-1</code>.</li>
-<li><strong>Ops that need the GPU context only work inside a frame callback.</strong> <code>loadTexture</code>, <code>loadFont</code>, <code>loadMaterial</code>, <code>renderTarget</code>, <code>screenshot</code>, the <code>draw*</code> ops and the <code>ui*</code> widgets all fail if called from <code>setup</code> or <code>main</code>.</li>
+<li><strong>A display is required for the GPU renderer.</strong> macroquad draws through OpenGL, so with a window it needs X11 or Wayland. With <code>LYNXER_GRAPHICS_HEADLESS=1</code> no window is opened and the module rasterizes on the CPU instead: every shape primitive fills a framebuffer — <code>clearBackground</code>, <code>drawRectangle(_Lines)</code>, <code>drawLine</code>, <code>drawTriangle(_Lines)</code>, <code>drawCircle(_Lines)</code>, <code>drawEllipse(_Lines)</code>, <code>drawPoly(_Lines)</code>, <code>drawHexagon</code>, <code>drawArc</code> and the rotated-rectangle ops — and <code>screenshot</code> writes that frame as a PNG (in the same top-left origin the drawing ops use). <code>stdlib_graphics_raster.lynx</code> and <code>stdlib_graphics_raster_shapes.lynx</code> check this in CI.</li>
+<li><strong>The headless path also covers text, textures, render targets and the UI.</strong> Text is rasterized on the CPU with <code>fontdue</code>; the default face is a copy of the ProggyClean TTF macroquad embeds, and <code>loadFont</code> parses a user TTF the same way. <code>loadTexture</code> decodes an image to a CPU texture and the <code>drawTexture*</code> ops blit it (with scale, source region, rotation and tint); <code>renderTarget</code> / <code>setRenderTarget</code> / <code>endRenderTarget</code> redirect drawing into an offscreen framebuffer and <code>renderTargetTexture</code> / <code>getScreenData</code> hand it back as a texture or image. <code>uiWindowBegin</code>/<code>uiGroupBegin</code> blocks are drawn as a stacked approximation of macroquad's layout (no input or hit-testing headless). Text anti-aliasing and UI layout are therefore close to, but not pixel-identical with, the GPU path.</li>
+<li><strong>Shaders, materials and 3D meshes are GPU-only.</strong> A fragment/vertex shader cannot execute without a GPU, so <code>loadMaterial</code>/<code>setMaterial</code>/<code>setShader*</code>, the <code>drawCube</code>/<code>drawSphere</code>/<code>drawPlane</code>/<code>drawGrid</code> primitives and model/mesh loading stay no-ops headless and return their <code>-1</code>/placeholder results. This is a hardware limit, not a missing feature.</li>
+<li><strong>Ops that need the GPU context only work inside a frame callback.</strong> <code>loadMaterial</code>, <code>renderTarget</code>, <code>screenshot</code>, the <code>draw*</code> ops and the <code>ui*</code> widgets all fail if called from <code>setup</code> or <code>main</code>; the headless path relaxes this for the CPU-expressible ops above.</li>
 <li><strong>No audio, native widgets or gamepads.</strong> macroquad's audio feature is not vendored, the <code>ui*</code> widgets are canvas-drawn, and 0.4.16 has no gamepad API.</li>
-<li><strong>No model loading or mesh construction.</strong> Only the generated 3D primitives are available.</li>
 <li><strong><code>uiWindowBegin</code>/<code>uiGroupBegin</code> buffer one block deep.</strong> A nested <code>*Begin</code> returns <code>-1</code>; widget values are updated when the block is replayed, so read them after <code>*End</code>.</li>
 <li><strong>The windowed path is not covered by CI.</strong> CI sets <code>LYNXER_SKIP_DISPLAY=1</code>, which skips the graphics fixture.</li>
 </ul>
@@ -281,10 +280,10 @@
 </ul>
 <h3 id="watch--constrained-behavior"><code>watch</code> — Constrained Behavior</h3>
 <ul>
-<li><strong>Linux only.</strong> The backend is inotify; there is no portable fallback.</li>
+<li><strong>Linux, macOS and the BSDs.</strong> The backend is inotify on Linux and kqueue <code>EVFILT_VNODE</code> on macOS and the BSDs. Windows has no descriptor to poll and is not supported. The kqueue backend reports the registered path itself (a directory reports that its contents changed) rather than the individual file name, and is not covered by CI — only the Linux path is.</li>
 <li><strong>Handles, closed by the caller.</strong> Each watch is an integer handle; dropping it (<code>watchRemove</code> / <code>watchClose</code>) closes the descriptor.</li>
-<li><strong>No blocking wait.</strong> A module cannot release the interpreter lock, so there is no <code>watchWait</code>: <code>watchFd</code> returns the inotify descriptor for the interpreter's own <code>asyncPollRegister</code> / <code>asyncPollWait</code>, and <code>watchDrain</code> reads the pending events without blocking.</li>
-<li><strong>Failure is in-band.</strong> <code>watchAdd</code>/<code>watchFd</code> yield <code>-1</code>, <code>watchDrain</code> yields <code>&quot;&quot;</code> for an unknown handle, and the predicates yield <code>false</code>.</li>
+<li><strong>Blocking wait, with the lock released.</strong> <code>watchWait(handle, timeoutMs)</code> blocks on the descriptor (1 = readable, 0 = timeout, -1 = unknown handle) and releases the interpreter lock while it waits, so it does not wedge other Lynxer threads. <code>watchFd</code> still returns the descriptor for the interpreter's own <code>asyncPollRegister</code> / <code>asyncPollWait</code>, and <code>watchDrain</code> reads the pending events without blocking.</li>
+<li><strong>Failure is in-band.</strong> <code>watchAdd</code>/<code>watchFd</code>/<code>watchWait</code> yield <code>-1</code>, <code>watchDrain</code> yields <code>&quot;&quot;</code> for an unknown handle, and the predicates yield <code>false</code>.</li>
 <li><strong><code>watchSetDebounce</code> coalesces within a drain</strong>: events for the same path inside the window keep only the most recent kind. 0 disables it.</li>
 </ul>
 <h3 id="toml--constrained-behavior"><code>toml</code> — Constrained Behavior</h3>
@@ -367,9 +366,9 @@
 <ul>
 <li><strong>Version:</strong> <code>version()</code> returns the Lynxer version (e.g., <code>Lynxer 0.1.8.1</code>).</li>
 <li><strong>Architecture:</strong> <code>architecture()</code> returns the canonical syscall architecture of this build (<code>amd64</code> or <code>arm64</code>), not the raw machine string from <code>uname(2)</code>.</li>
-<li><strong>System information:</strong> <code>cpuCount</code>, <code>pageSize</code>, <code>memoryTotal</code>, <code>memoryAvailable</code>, <code>uptime</code>, <code>bootTime</code> and <code>loadAverage</code> are Linux-only and return <code>0</code> (or <code>[]</code>) when the host cannot provide the value.</li>
+<li><strong>System information:</strong> <code>cpuCount</code>, <code>pageSize</code>, <code>memoryTotal</code>, <code>memoryAvailable</code>, <code>uptime</code>, <code>bootTime</code> and <code>loadAverage</code> report the host on Linux, macOS and FreeBSD/DragonFly (<code>sysctl</code>), sharing the POSIX <code>sysconf</code>/<code>getloadavg</code> paths where they exist. NetBSD/OpenBSD fall back to <code>0</code> (or <code>[]</code>) for the <code>sysctl</code>-backed values, and any host that cannot provide a value returns <code>0</code> (or <code>[]</code>).</li>
 <li><strong>Python runtime concepts:</strong> Not supported (<code>sys.path</code>, <code>addPath</code>, <code>prependPath</code>, <code>removeFromPath</code>, <code>getModules</code>, <code>isModuleLoaded</code>, <code>getRecursionLimit</code>, <code>setRecursionLimit</code>).</li>
-<li><strong>Command-line arguments:</strong> <code>argv()</code>, <code>getArg</code>, and <code>argCount</code> describe the <code>lynxer</code> process command line, not the program's arguments.</li>
+<li><strong>Command-line arguments:</strong> <code>argv()</code>, <code>getArg</code> and <code>argCount</code> describe the <strong>program's own</strong> command line — the script path (or the compiled executable) followed by the arguments passed after it — not the <code>lynxer</code> process command line.</li>
 <li><strong>Exit behavior:</strong> <code>exit()</code> calls <code>std::exit</code> directly, bypassing interpreter cleanup.</li>
 </ul>
 <h3 id="cli--constrained-behavior"><code>cli</code> — Constrained Behavior</h3>

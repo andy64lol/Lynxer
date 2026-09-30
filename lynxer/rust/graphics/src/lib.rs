@@ -14,6 +14,7 @@
 //! context returns a placeholder instead.
 
 mod camera;
+mod font;
 mod host;
 mod input;
 mod material;
@@ -24,6 +25,7 @@ mod state;
 mod text_ops;
 mod texture_ops;
 mod three;
+mod turtle;
 mod ui;
 mod window;
 
@@ -31,7 +33,6 @@ use lynxer_abi::{export_float, export_int, export_string, Args, LynxerHostApi};
 use macroquad::color::Color;
 use macroquad::conf::Conf;
 use macroquad::miniquad::conf::Conf as MiniquadConf;
-use macroquad::text::Font;
 use macroquad::texture::Texture2D;
 use macroquad::window::{clear_background, next_frame};
 use macroquad::Window;
@@ -50,10 +51,6 @@ fn color_at(args: &Args, base: usize) -> Color {
 
 fn texture_at(handle: i64) -> Option<Texture2D> {
     with(|state| state.texture(handle).cloned())
-}
-
-fn font_at(handle: i64) -> Option<Font> {
-    with(|state| state.font(handle).cloned())
 }
 
 /// Runs the Lynxer update and draw callbacks for one frame. Returns false when
@@ -551,24 +548,11 @@ export_int!(lynxer_graphics_draw_hexagon, args, {
 
 export_int!(lynxer_graphics_load_font, args, {
     let path = args.string(0).to_string();
-    match text_ops::load_font(&path) {
-        Some(font) => with(|state| {
-            state.fonts.push(font);
-            (state.fonts.len() - 1) as i64
-        }),
-        None => -1,
-    }
+    text_ops::load_font(&path)
 });
 
 export_int!(lynxer_graphics_set_default_font, args, {
-    let handle = args.int(0);
-    match font_at(handle) {
-        Some(font) => {
-            text_ops::set_default(&font);
-            0
-        }
-        None => -1,
-    }
+    text_ops::set_default(args.int(0))
 });
 
 export_int!(lynxer_graphics_draw_text, args, {
@@ -585,9 +569,8 @@ export_int!(lynxer_graphics_draw_text, args, {
 
 export_int!(lynxer_graphics_draw_text_ex, args, {
     let content = args.string(0).to_string();
-    let font = font_at(args.int(0));
     text_ops::text_ex(
-        font.as_ref(),
+        args.int(0),
         &content,
         args.float(1),
         args.float(2),
@@ -614,9 +597,8 @@ export_int!(lynxer_graphics_draw_multiline_text, args, {
 
 export_int!(lynxer_graphics_draw_multiline_text_ex, args, {
     let content = args.string(0).to_string();
-    let font = font_at(args.int(0));
     text_ops::multiline_ex(
-        font.as_ref(),
+        args.int(0),
         &content,
         args.float(1),
         args.float(2),
@@ -631,28 +613,24 @@ export_int!(lynxer_graphics_draw_multiline_text_ex, args, {
 
 export_string!(lynxer_graphics_measure, args, {
     let content = args.string(0).to_string();
-    let font = font_at(args.int(0));
-    text_ops::measure(&content, font.as_ref(), args.float(1), args.float(2))
+    text_ops::measure(&content, args.int(0), args.float(1), args.float(2))
 });
 
 export_float!(lynxer_graphics_measure_width, args, {
     let content = args.string(0).to_string();
-    let font = font_at(args.int(0));
-    text_ops::measure_width(&content, font.as_ref(), args.float(1), args.float(2)) as f64
+    text_ops::measure_width(&content, args.int(0), args.float(1), args.float(2)) as f64
 });
 
 export_float!(lynxer_graphics_measure_height, args, {
     let content = args.string(0).to_string();
-    let font = font_at(args.int(0));
-    text_ops::measure_height(&content, font.as_ref(), args.float(1), args.float(2)) as f64
+    text_ops::measure_height(&content, args.int(0), args.float(1), args.float(2)) as f64
 });
 
 export_string!(lynxer_graphics_measure_multiline, args, {
     let content = args.string(0).to_string();
-    let font = font_at(args.int(0));
     text_ops::measure_multiline(
         &content,
-        font.as_ref(),
+        args.int(0),
         args.float(1),
         args.float(2),
         args.float(3),
@@ -661,10 +639,9 @@ export_string!(lynxer_graphics_measure_multiline, args, {
 
 export_string!(lynxer_graphics_text_center, args, {
     let content = args.string(0).to_string();
-    let font = font_at(args.int(0));
     text_ops::center(
         &content,
-        font.as_ref(),
+        args.int(0),
         args.float(1),
         args.float(2),
         args.float(3),
@@ -673,8 +650,7 @@ export_string!(lynxer_graphics_text_center, args, {
 
 export_string!(lynxer_graphics_wrap_text, args, {
     let content = args.string(0).to_string();
-    let font = font_at(args.int(0));
-    text_ops::wrap(&content, font.as_ref(), args.float(1), args.float(2))
+    text_ops::wrap(&content, args.int(0), args.float(1), args.float(2))
 });
 
 export_int!(lynxer_graphics_set_camera_2d, args, {
@@ -815,11 +791,13 @@ export_string!(lynxer_graphics_texture_size, args, {
 });
 
 export_int!(lynxer_graphics_draw_texture, args, {
+    // Packed numbers keep their argument order, so the leading texture handle
+    // shifts `x`/`y` and the colour to index 1 and 3.
     texture_ops::draw(
         args.int(0),
-        args.float(0),
         args.float(1),
-        color_at(&args, 2),
+        args.float(2),
+        color_at(&args, 3),
     );
     0
 });
@@ -827,11 +805,11 @@ export_int!(lynxer_graphics_draw_texture, args, {
 export_int!(lynxer_graphics_draw_texture_scaled, args, {
     texture_ops::draw_scaled(
         args.int(0),
-        args.float(0),
         args.float(1),
         args.float(2),
         args.float(3),
-        color_at(&args, 4),
+        args.float(4),
+        color_at(&args, 5),
     );
     0
 });
@@ -839,7 +817,6 @@ export_int!(lynxer_graphics_draw_texture_scaled, args, {
 export_int!(lynxer_graphics_draw_texture_region, args, {
     texture_ops::draw_region(
         args.int(0),
-        args.float(0),
         args.float(1),
         args.float(2),
         args.float(3),
@@ -847,7 +824,8 @@ export_int!(lynxer_graphics_draw_texture_region, args, {
         args.float(5),
         args.float(6),
         args.float(7),
-        color_at(&args, 8),
+        args.float(8),
+        color_at(&args, 9),
     );
     0
 });
@@ -855,12 +833,12 @@ export_int!(lynxer_graphics_draw_texture_region, args, {
 export_int!(lynxer_graphics_draw_texture_rotated, args, {
     texture_ops::draw_rotated(
         args.int(0),
-        args.float(0),
         args.float(1),
         args.float(2),
         args.float(3),
         args.float(4),
-        color_at(&args, 5),
+        args.float(5),
+        color_at(&args, 6),
     );
     0
 });
@@ -1166,7 +1144,12 @@ export_int!(lynxer_graphics_draw_plane, args, {
 });
 
 export_int!(lynxer_graphics_draw_grid, args, {
-    three::grid(args.int(0), args.float(1), color_at(&args, 2), color_at(&args, 6));
+    three::grid(
+        args.int(0),
+        args.float(1),
+        color_at(&args, 2),
+        color_at(&args, 6),
+    );
     0
 });
 
@@ -1272,10 +1255,7 @@ export_int!(lynxer_graphics_set_uniform_array, args, {
 export_int!(lynxer_graphics_set_material_texture, args, {
     let name = args.string(0).to_string();
     let texture = texture_at(args.int(1));
-    match (
-        with(|state| state.material(args.int(0)).cloned()),
-        texture,
-    ) {
+    match (with(|state| state.material(args.int(0)).cloned()), texture) {
         (Some(material), Some(texture)) => {
             material::set_texture(&material, &name, texture);
             0
@@ -1436,9 +1416,7 @@ export_int!(lynxer_graphics_ui_same_line, args, {
     0
 });
 
-export_int!(lynxer_graphics_ui_result, args, {
-    ui::result(args.int(0))
-});
+export_int!(lynxer_graphics_ui_result, args, { ui::result(args.int(0)) });
 
 export_int!(lynxer_graphics_ui_window_begin, args, {
     let title = args.string(0).to_string();
@@ -1458,12 +1436,88 @@ export_int!(lynxer_graphics_ui_window_end, args, {
 });
 
 export_int!(lynxer_graphics_ui_group_begin, args, {
-    ui::group_begin(args.int(0), args.float(0), args.float(1))
+    // The leading handle shifts w/h to numeric indices 1 and 2.
+    ui::group_begin(args.int(0), args.float(1), args.float(2))
 });
 
 export_int!(lynxer_graphics_ui_group_end, args, {
     let _ = args;
     ui::group_end()
+});
+
+// --- turtle -----------------------------------------------------------------
+//
+// The turtle API is handle-based: handle 0 (or negative) is the implicit
+// default turtle the pure-Lynxer `turtle` module drives, and `turtleCreate`
+// hands out explicit handles from 1 up. The leading handle shifts the numeric
+// arguments, so every coordinate/time reads from index 1.
+
+export_int!(lynxer_graphics_turtle_create, args, {
+    turtle::create(args.float(0), args.float(1), args.float(2))
+});
+
+export_int!(lynxer_graphics_turtle_forward, args, {
+    turtle::move_by(args.int(0), args.float(1))
+});
+
+export_int!(lynxer_graphics_turtle_back, args, {
+    turtle::move_by(args.int(0), -args.float(1))
+});
+
+export_int!(lynxer_graphics_turtle_turn_left, args, {
+    turtle::turn(args.int(0), -args.float(1))
+});
+
+export_int!(lynxer_graphics_turtle_turn_right, args, {
+    turtle::turn(args.int(0), args.float(1))
+});
+
+export_int!(lynxer_graphics_turtle_goto, args, {
+    turtle::goto(args.int(0), args.float(1), args.float(2))
+});
+
+export_int!(lynxer_graphics_turtle_home, args, {
+    turtle::home(args.int(0))
+});
+
+export_int!(lynxer_graphics_turtle_pen_up, args, {
+    turtle::set_pen(args.int(0), false)
+});
+
+export_int!(lynxer_graphics_turtle_pen_down, args, {
+    turtle::set_pen(args.int(0), true)
+});
+
+export_int!(lynxer_graphics_turtle_set_color, args, {
+    turtle::set_color(args.int(0), color_at(&args, 1))
+});
+
+export_int!(lynxer_graphics_turtle_set_width, args, {
+    turtle::set_width(args.int(0), args.float(1))
+});
+
+export_float!(lynxer_graphics_turtle_x, args, {
+    turtle::position(args.int(0))
+        .map(|p| p.0 as f64)
+        .unwrap_or(0.0)
+});
+
+export_float!(lynxer_graphics_turtle_y, args, {
+    turtle::position(args.int(0))
+        .map(|p| p.1 as f64)
+        .unwrap_or(0.0)
+});
+
+export_float!(lynxer_graphics_turtle_heading, args, {
+    turtle::heading(args.int(0)) as f64
+});
+
+export_int!(lynxer_graphics_turtle_pen_is_down, args, {
+    turtle::pen_is_down(args.int(0)) as i64
+});
+
+export_int!(lynxer_graphics_turtle_remove, args, {
+    turtle::remove(args.int(0)) as i64
 });
 
 const OPS: &[(&str, &str, &str)] = &[
@@ -1994,14 +2048,22 @@ const OPS: &[(&str, &str, &str)] = &[
         "lynxer_graphics_simulate_mouse_with_touch",
         "cdecl:int64(...)",
     ),
-    ("drawLine3D", "lynxer_graphics_draw_line_3d", "cdecl:int64(...)"),
+    (
+        "drawLine3D",
+        "lynxer_graphics_draw_line_3d",
+        "cdecl:int64(...)",
+    ),
     ("drawCube", "lynxer_graphics_draw_cube", "cdecl:int64(...)"),
     (
         "drawCubeWires",
         "lynxer_graphics_draw_cube_wires",
         "cdecl:int64(...)",
     ),
-    ("drawSphere", "lynxer_graphics_draw_sphere", "cdecl:int64(...)"),
+    (
+        "drawSphere",
+        "lynxer_graphics_draw_sphere",
+        "cdecl:int64(...)",
+    ),
     (
         "drawSphereWires",
         "lynxer_graphics_draw_sphere_wires",
@@ -2027,7 +2089,11 @@ const OPS: &[(&str, &str, &str)] = &[
         "lynxer_graphics_draw_cylinder_ex",
         "cdecl:int64(...)",
     ),
-    ("drawPlane", "lynxer_graphics_draw_plane", "cdecl:int64(...)"),
+    (
+        "drawPlane",
+        "lynxer_graphics_draw_plane",
+        "cdecl:int64(...)",
+    ),
     ("drawGrid", "lynxer_graphics_draw_grid", "cdecl:int64(...)"),
     (
         "drawAffineParallelogram",
@@ -2076,7 +2142,11 @@ const OPS: &[(&str, &str, &str)] = &[
     ),
     ("srand", "lynxer_graphics_srand", "cdecl:int64(...)"),
     ("rand", "lynxer_graphics_rand", "cdecl:int64(...)"),
-    ("genRange", "lynxer_graphics_gen_range", "cdecl:float64(...)"),
+    (
+        "genRange",
+        "lynxer_graphics_gen_range",
+        "cdecl:float64(...)",
+    ),
     (
         "genRangeInt",
         "lynxer_graphics_gen_range_int",
@@ -2098,7 +2168,11 @@ const OPS: &[(&str, &str, &str)] = &[
         "cdecl:int64(...)",
     ),
     ("uiLabel", "lynxer_graphics_ui_label", "cdecl:int64(...)"),
-    ("uiLabelAt", "lynxer_graphics_ui_label_at", "cdecl:int64(...)"),
+    (
+        "uiLabelAt",
+        "lynxer_graphics_ui_label_at",
+        "cdecl:int64(...)",
+    ),
     ("uiButton", "lynxer_graphics_ui_button", "cdecl:int64(...)"),
     (
         "uiButtonAt",
@@ -2120,7 +2194,11 @@ const OPS: &[(&str, &str, &str)] = &[
         "lynxer_graphics_ui_set_checkbox_value",
         "cdecl:int64(...)",
     ),
-    ("uiSlider", "lynxer_graphics_ui_slider", "cdecl:float64(...)"),
+    (
+        "uiSlider",
+        "lynxer_graphics_ui_slider",
+        "cdecl:float64(...)",
+    ),
     (
         "uiSliderValue",
         "lynxer_graphics_ui_slider_value",
@@ -2195,6 +2273,78 @@ const OPS: &[(&str, &str, &str)] = &[
     (
         "uiGroupEnd",
         "lynxer_graphics_ui_group_end",
+        "cdecl:int64(...)",
+    ),
+    (
+        "turtleCreate",
+        "lynxer_graphics_turtle_create",
+        "cdecl:int64(...)",
+    ),
+    (
+        "turtleForward",
+        "lynxer_graphics_turtle_forward",
+        "cdecl:int64(...)",
+    ),
+    (
+        "turtleBack",
+        "lynxer_graphics_turtle_back",
+        "cdecl:int64(...)",
+    ),
+    (
+        "turtleTurnLeft",
+        "lynxer_graphics_turtle_turn_left",
+        "cdecl:int64(...)",
+    ),
+    (
+        "turtleTurnRight",
+        "lynxer_graphics_turtle_turn_right",
+        "cdecl:int64(...)",
+    ),
+    (
+        "turtleGoto",
+        "lynxer_graphics_turtle_goto",
+        "cdecl:int64(...)",
+    ),
+    (
+        "turtleHome",
+        "lynxer_graphics_turtle_home",
+        "cdecl:int64(...)",
+    ),
+    (
+        "turtlePenUp",
+        "lynxer_graphics_turtle_pen_up",
+        "cdecl:int64(...)",
+    ),
+    (
+        "turtlePenDown",
+        "lynxer_graphics_turtle_pen_down",
+        "cdecl:int64(...)",
+    ),
+    (
+        "turtleSetColor",
+        "lynxer_graphics_turtle_set_color",
+        "cdecl:int64(...)",
+    ),
+    (
+        "turtleSetWidth",
+        "lynxer_graphics_turtle_set_width",
+        "cdecl:int64(...)",
+    ),
+    ("turtleX", "lynxer_graphics_turtle_x", "cdecl:float64(...)"),
+    ("turtleY", "lynxer_graphics_turtle_y", "cdecl:float64(...)"),
+    (
+        "turtleHeading",
+        "lynxer_graphics_turtle_heading",
+        "cdecl:float64(...)",
+    ),
+    (
+        "turtlePenIsDown",
+        "lynxer_graphics_turtle_pen_is_down",
+        "cdecl:int64(...)",
+    ),
+    (
+        "turtleRemove",
+        "lynxer_graphics_turtle_remove",
         "cdecl:int64(...)",
     ),
 ];

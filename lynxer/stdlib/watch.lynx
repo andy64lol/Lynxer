@@ -1,20 +1,21 @@
 ////
 Lynxer standard library: watch.
-Filesystem change events over inotify, backed by the Rust `inotify` crate and
-exposed through the native module `stdlib/watch.so`.
+Filesystem change events over inotify (Linux) or kqueue `EVFILT_VNODE` (macOS
+and the BSDs), backed by the Rust crate under `rust/watch` and exposed through
+the native module `stdlib/watch.so`.
 
-Each watch is an integer handle. `watchFd` returns the inotify descriptor, so a
-program waits on it with the interpreter's own poll set
-(`asyncPollRegister` / `asyncPollWait`) instead of blocking inside the module —
-a module cannot release the interpreter lock, so a blocking wait here would
-wedge every other Lynxer thread. After the descriptor is ready, `watchDrain`
-reads the pending events as a JSON array of `{"path", "kind"}`.
+Each watch is an integer handle. `watchFd` returns the backend descriptor, so a
+program can wait on it with the interpreter's own poll set
+(`asyncPollRegister` / `asyncPollWait`); `watchWait` blocks on the same
+descriptor for you, releasing the interpreter lock while it waits so it does not
+wedge every other Lynxer thread. After either, `watchDrain` reads the pending
+events as a JSON array of `{"path", "kind"}`.
 
-A failure is the scalar sentinel: `watchAdd` and `watchFd` return `-1`,
+A failure is the scalar sentinel: `watchAdd`/`watchFd`/`watchWait` return `-1`,
 `watchDrain` returns `""` for an unknown handle, and the predicates return
 `false`.
 
-Linux only; requires a Rust toolchain to build (see `rust/watch`).
+Requires a Rust toolchain to build (see `rust/watch`).
 ////
 global setup(){ importAs("watch.so", "nativeWatch"); }
 
@@ -23,11 +24,17 @@ global setup(){ importAs("watch.so", "nativeWatch"); }
 global watchAdd(str path, bool recursive) -> int {
     return global.nativeWatch.add(path, recursive);
 }
-// The inotify descriptor for the poll set, or -1 for an unknown handle.
+// The backend descriptor for the poll set, or -1 for an unknown handle.
 global watchFd(int handle) -> int { return global.nativeWatch.fd(handle); }
 // The pending events as a JSON array of {"path", "kind"}, or "" for an unknown
 // handle. Does not block.
 global watchDrain(int handle) -> str { return global.nativeWatch.drain(handle); }
+// Block until the descriptor is readable or `timeoutMs` elapses (a negative
+// timeout waits without a limit). Returns 1 when readable, 0 on timeout, -1 for
+// an unknown handle. The interpreter lock is released while it blocks.
+global watchWait(int handle, int timeoutMs) -> int {
+    return global.nativeWatch.wait(handle, timeoutMs);
+}
 // Coalesce repeated events for the same path within `milliseconds` in a later
 // `watchDrain`, keeping the most recent kind. 0 disables coalescing.
 global watchSetDebounce(int handle, int milliseconds) -> bool {

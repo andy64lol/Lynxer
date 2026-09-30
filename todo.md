@@ -63,11 +63,23 @@ before the module-specific items.
       `stdlib_graphics_raster` runs **in CI** (unlike the display-gated
       `stdlib_graphics`) and asserts individual pixels through the `image`
       module.
-- [ ] **L4b — `graphics` parity beyond the primitives.** Text/textures/fonts,
-      the `ui*` widgets, shaders, render targets, rotated shapes and the curved
-      primitives (ellipse/arc/polygon/hexagon) are still no-ops headless; the
-      frame-callback restriction, nested UI blocks, gamepads and model/mesh
-      loading are unchanged (`lynxer/rust/graphics/*`).
+- [x] ~~**L4b — `graphics` parity beyond the primitives.**~~ **Delivered:** the
+      headless rasterizer now draws every shape primitive (ellipse, arc, regular
+      polygons, hexagons and rotated rectangles on top of the existing
+      rectangles/lines/circles/triangles), CPU text through `fontdue` with the
+      bundled ProggyClean face, texture blits (`drawTexture*`, including source
+      regions and rotation), offscreen render targets
+      (`renderTarget`/`setRenderTarget`/`endRenderTarget`/`renderTargetTexture`/
+      `getScreenData`) and a stacked headless layout for the `ui*` widgets. A
+      **pre-existing off-by-one** in the `drawTexture`/`drawTextureScaled`/
+      `drawTextureRegion`/`drawTextureRotated` (and `uiGroupBegin`,
+      `setTextLabelPos`) exports — the leading handle was read as the first
+      float — was found and fixed. Covered by the CI fixture
+      `stdlib_graphics_raster_shapes`. **Remaining is hardware, not work:**
+      shaders/materials, the 3D `drawCube`/`Sphere`/`Plane`/`Grid` primitives and
+      model/mesh loading cannot run without a GPU; the frame-callback
+      restriction and nested UI blocks are unchanged. Recorded in
+      [docs/limitations.md](docs/limitations.md#graphics--constrained-behavior).
 - [x] ~~**L5 — `game` physics.**~~ **Partly delivered:** `updatePhysics` now
       resolves horizontal collision against the wall list (`vx` was ignored
       entirely before), rides a wall sprite whose `angle` is non-zero as a
@@ -89,10 +101,22 @@ before the module-specific items.
       certificate. PEM problems are reported before the socket is bound. New
       fixture `stdlib_server_tls` completes a real handshake with `curl` (and is
       skipped when curl/openssl are missing).
-- [ ] **L6b — `server` request context and templates.** Give routes a
-      per-request context so `getArg`/`getHeader`/`getBody` describe the request
-      being served rather than the most recent one, and add a Jinja-compatible
-      template engine (`lynxer/rust/server/src/lib.rs`).
+- [x] ~~**L6b — `server` request context and templates.**~~ **Delivered (with
+      one documented residue):** templates are now rendered by a
+      Jinja-compatible engine (`lynxer/rust/server/src/template.rs`) — `{{ }}`
+      with filters, `{% if %}`/`{% elif %}`/`{% else %}`, `{% for %}` with the
+      `loop` variable, `{% set %}` and `{# comments #}`, over expressions with
+      comparisons/boolean/arithmetic operators, `in`, `~` and `range()` — and a
+      template is rendered **inside** the request, reading it through a
+      `request` object (`args`/`headers`/`cookies`/`body`/`json`/`form`/`method`/
+      `path`); the query arguments also overlay the root context. Covered by
+      `stdlib_server` (a template route exercised through the HTTP client) and
+      five unit tests. **Residue:** `getArg`/`getHeader`/`getBody` still describe
+      the most recent request, because a Lynxer route is a fixed string, not a
+      callback, and the interpreter evaluates one frame at a time — making
+      *those* readers per-request needs route callbacks that run during the
+      request (a larger change to the server/interpreter boundary, tracked as
+      part of **L15**'s runtime work).
 - [x] ~~**L7 — `re`/`regex` engine.**~~ **Delivered:** both modules were rewritten
       as Rust `cdylib`s (`rust/re`, `rust/regex`) over a shared `rust/regex_engine`
       built on `fancy-regex` — Rust and cargo, no system PCRE. Lookbehind
@@ -109,8 +133,17 @@ before the module-specific items.
       `false` once a sink drains, which is what `sink.empty()` tests. Covered by
       three unit tests in `rust/sound` that build a scratch WAV, so they need no
       audio device — the platform fixture is skipped on hosts without one.
-- [ ] **L9 — `watch`.** Add portable backends (kqueue/Windows) and a blocking
-      `watchWait` (`lynxer/rust/watch/src/lib.rs`).
+- [x] ~~**L9 — `watch`.**~~ **Delivered:** a blocking `watchWait(handle,
+      timeoutMs)` — it polls the watch descriptor with the interpreter lock
+      released, through a new `blocking` service on `LynxerHostApi`, so it does
+      not wedge other Lynxer threads (1 = readable, 0 = timeout, -1 = unknown
+      handle). The module was split into backends: inotify on Linux and a
+      `kqueue` `EVFILT_VNODE` backend on macOS and the BSDs (recursive
+      registration, rescan on directory writes); the kqueue crate builds under
+      `--target aarch64-apple-darwin`. Windows has no pollable descriptor and
+      stays out, consistent with the POSIX-only native loading (**L2c**).
+      Covered by `stdlib_watch` (adds the `watchWait` cases) and three unit
+      tests in `rust/watch`.
 - [x] ~~**L10 — `sqldb` connection handles.**~~ **Partly delivered:** `open()`
       returns an integer handle and `close()` releases it; the ten `*On` forms
       (`queryOn`, `executeArgsOn`, …) reuse that one live connection instead of
@@ -155,11 +188,19 @@ before the module-specific items.
       honoured in pure C++ — no `iconv`, no system library — and an unknown
       encoding, or a character the encoding cannot represent, is the failure
       sentinel rather than a silent UTF-8 read/write. Covered by `stdlib_path`.
-- [ ] **L14c — `os`/`path`/`sys` platform follow-ups.** Add portable system-info
-      backends for macOS/BSD (cannot be built or tested on this host); and
-      distinguish the *program's* arguments from the `lynxer` process command
-      line in `sys.argv`/`getArg`/`argCount`, which currently read
-      `/proc/self/cmdline` (`lynxer/stdlib/sys.cpp`, `lynxer/builtins.cpp`).
+- [x] ~~**L14c — `os`/`path`/`sys` platform follow-ups.**~~ **Delivered:** the
+      `sys` system-information opers now have portable backends —
+      `cpuCount`/`pageSize` share `sysconf`, `loadAverage` shares `getloadavg`,
+      and `memoryTotal`/`memoryAvailable`/`uptime`/`bootTime` read `sysctl`
+      (`hw.memsize`, free-page count, `kern.boottime`) on macOS and
+      FreeBSD/DragonFly; `executablePath` uses `_NSGetExecutablePath` on macOS
+      and `platform()` reports the BSDs. And `argv`/`getArg`/`argCount` now
+      describe the **program's own** command line: the interpreter passes it to
+      the module through a new `program_args` field on `LynxerHostApi`, so entry
+      0 is the script path (or the compiled executable) followed by the
+      arguments after it, instead of the `/proc/self/cmdline` reading. (The
+      macOS/BSD branches cannot be built on this host; they are `#if`-guarded and
+      the Linux path is unchanged.)
 
 **Runtime and concurrency**
 
@@ -181,18 +222,25 @@ operations, `crypto`, `compress`, `toml`, `ini`, `xml`, `yaml` and `watch` — a
 implemented and recorded under [Done](#done). The repo's usual artifacts apply to
 every module — see **D7**.
 
-The two legacy GUI modules the divergence register still lists are **not**
-implemented, and each needs a decision before it could be:
+`turtle` (**L17**) is now implemented on top of `graphics`. The one remaining
+legacy GUI module, `tkinter`/`tkinterPlus`, is **not** implemented and needs a
+decision before it could be:
 
 - [ ] **L16 — `tkinter` / `tkinterPlus`.** A native OS-widget toolkit. Under the
       Rust-and-cargo rule that means `egui`/`iced` (`gtk`/`qt` bindings would be
       system libraries), which is an immediate-mode paradigm of its own rather
       than a widget tree — decide whether that is worth a second GUI stack
       beside `graphics`, or record it as declined.
-- [ ] **L17 — `turtle`.** A `turtle`-style turtle graphics module implemented in
-      pure Lynxer over `graphics` (`forward`/`back`/`turn`/`goto`/`penUp`/
-      `penDown`/`setColor`, with the turtle state readable so a headless fixture
-      can assert it).
+- [x] ~~**L17 — `turtle`.**~~ **Delivered:** `stdlib/turtle.lynx` provides the
+      classic API — `forward`/`back`/`turn`/`turnLeft`/`turnRight`/`goto`/
+      `home`/`penUp`/`penDown`/`setColor`/`setWidth`, with `x`/`y`/`heading`/
+      `penIsDown` readable — drawing through the `graphics` shape ops so it
+      works headless. Because Lynxer has no module-level mutable state, the
+      state machine lives in `graphics` as a handle (the same handle pattern as
+      every other stateful module): handle `0` is an implicit default turtle the
+      wrapper drives, and `graphics.turtleCreate` hands out explicit handles.
+      Covered by the headless `stdlib_turtle` fixture, which reads the drawn
+      pixels back.
 
 ### Module decisions
 

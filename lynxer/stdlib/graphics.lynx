@@ -436,4 +436,43 @@ global uiGroupBegin(int id, float w, float h) -> int { return global.nativeGraph
 // Close the current group block.
 global uiGroupEnd() -> int { return global.nativeGraphics.uiGroupEnd(); }
 
+// ── Turtle ──────────────────────────────────────────────────────────────────
+// Turtle state machine over the drawing ops. Handle 0 (or negative) is the
+// implicit default turtle created on first use; the pure-Lynxer `turtle`
+// module wraps that. `create` returns an explicit handle from 1 up.
+
+// Create a turtle at `x, y` with `heading` degrees (0 = east, clockwise) and
+// return its handle.
+global turtleCreate(float x, float y, float heading) -> int { return global.nativeGraphics.turtleCreate(x, y, heading); }
+// Move forward, drawing a line when the pen is down. Returns 0, or -1.
+global turtleForward(int handle, float distance) -> int { return global.nativeGraphics.turtleForward(handle, distance); }
+// Move backward.
+global turtleBack(int handle, float distance) -> int { return global.nativeGraphics.turtleBack(handle, distance); }
+// Turn counter-clockwise by `degrees`.
+global turtleTurnLeft(int handle, float degrees) -> int { return global.nativeGraphics.turtleTurnLeft(handle, degrees); }
+// Turn clockwise by `degrees`.
+global turtleTurnRight(int handle, float degrees) -> int { return global.nativeGraphics.turtleTurnRight(handle, degrees); }
+// Move straight to `x, y`, drawing a line when the pen is down.
+global turtleGoto(int handle, float x, float y) -> int { return global.nativeGraphics.turtleGoto(handle, x, y); }
+// Return to the origin facing east.
+global turtleHome(int handle) -> int { return global.nativeGraphics.turtleHome(handle); }
+// Lift the pen (no drawing while moving).
+global turtlePenUp(int handle) -> int { return global.nativeGraphics.turtlePenUp(handle); }
+// Put the pen down.
+global turtlePenDown(int handle) -> int { return global.nativeGraphics.turtlePenDown(handle); }
+// Set the pen colour.
+global turtleSetColor(int handle, int r, int g, int b, int a = 255) -> int { return global.nativeGraphics.turtleSetColor(handle, r, g, b, a); }
+// Set the pen width in pixels.
+global turtleSetWidth(int handle, float width) -> int { return global.nativeGraphics.turtleSetWidth(handle, width); }
+// The turtle's x position.
+global turtleX(int handle) -> float { return global.nativeGraphics.turtleX(handle); }
+// The turtle's y position.
+global turtleY(int handle) -> float { return global.nativeGraphics.turtleY(handle); }
+// The turtle's heading in degrees.
+global turtleHeading(int handle) -> float { return global.nativeGraphics.turtleHeading(handle); }
+// Whether the pen is down.
+global turtlePenIsDown(int handle) -> bool { return global.nativeGraphics.turtlePenIsDown(handle) isnt 0; }
+// Release an explicit turtle handle.
+global turtleRemove(int handle) -> bool { return global.nativeGraphics.turtleRemove(handle) isnt 0; }
+
 global main(){}

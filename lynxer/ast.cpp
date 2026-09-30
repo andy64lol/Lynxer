@@ -161,6 +161,69 @@ int lynxerHostInvoke(void* context, const char* name, int hasArg, double arg) {
 
 int lynxerHostInterrupted(void*) { return interruptRequested() ? 1 : 0; }
 
+// Runs `body(user)` with the interpreter lock released, so a module can block
+// (a blocking wait or sleep) without wedging every other Lynxer thread. The
+// lock is re-acquired on the way out, even if the body threw across the
+// boundary, because a C callback cannot unwind into C++ safely.
+int lynxerHostBlocking(void* /*context*/, void (*body)(void*), void* user) {
+    if (body == nullptr) {
+        return 1;
+    }
+    struct Relock {
+        ~Relock() { lockInterpreter(); }
+    };
+    unlockInterpreter();
+    Relock relock;
+    body(user);
+    return 0;
+}
+
+// The program's own arguments as a JSON array, for modules that report them
+// (the `sys` module's argv/getArg/argCount). Returns a thread-local buffer the
+// caller copies before the next call.
+const char* lynxerHostProgramArgs(void* context) {
+    Environment* environment = hostInvokeEnvironment != nullptr
+                                   ? hostInvokeEnvironment
+                                   : static_cast<Environment*>(context);
+    static thread_local std::string buffer;
+    if (environment == nullptr) {
+        buffer = "[]";
+        return buffer.c_str();
+    }
+    const char* hex = "0123456789abcdef";
+    std::string json = "[";
+    bool first = true;
+    for (const auto& argument : environment->programArguments()) {
+        if (!first) {
+            json += ',';
+        }
+        first = false;
+        json += '"';
+        for (const char character : argument) {
+            const auto byte = static_cast<unsigned char>(character);
+            switch (character) {
+                case '"': json += "\\\""; break;
+                case '\\': json += "\\\\"; break;
+                case '\n': json += "\\n"; break;
+                case '\r': json += "\\r"; break;
+                case '\t': json += "\\t"; break;
+                default:
+                    if (byte < 0x20) {
+                        json += "\\u00";
+                        json += hex[(byte >> 4) & 0xF];
+                        json += hex[byte & 0xF];
+                    } else {
+                        json += character;
+                    }
+            }
+        }
+        json += '"';
+    }
+    json += "]";
+    buffer = std::move(json);
+    return buffer.c_str();
+}
+
 Value callNativeInternal(void* address, const std::string& signature,
                          const std::vector<Value>& args, int line,
                          int column) {
@@ -1950,6 +2013,8 @@ void ImportStatement::execute(Environment& environment) const {
         if (attach != nullptr) {
             LynxerHostApi host{};
             host.version = 1;
+            host.program_args = lynxerHostProgramArgs;
+            host.blocking = lynxerHostBlocking;
             host.context = &environment;
             host.invoke = lynxerHostInvoke;
             host.interrupted = lynxerHostInterrupted;

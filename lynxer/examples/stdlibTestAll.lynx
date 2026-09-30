@@ -730,7 +730,8 @@ global main(){
     fails += global.check(returnLength(global.sys.prefix()) > 0, "true", "sys.prefix");
     fails += global.check(returnLength(global.sys.execPrefix()) > 0, "true", "sys.execPrefix");
     fails += global.check(global.sys.argv() isnt "", "true", "sys.argv");
-    fails += global.check(global.sys.argCount() >= 2, "true", "sys.argCount");
+    // The program's own command line: at least the script itself.
+    fails += global.check(global.sys.argCount() >= 1, "true", "sys.argCount");
     fails += global.check(returnLength(global.sys.getArg(0)) > 0, "true", "sys.getArg");
     fails += global.check(global.sys.architecture() isnt "", "true", "sys.architecture");
     fails += global.check(global.sys.cpuCount() > 0, "true", "sys.cpuCount");

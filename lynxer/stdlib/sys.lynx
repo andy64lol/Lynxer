@@ -5,8 +5,9 @@ Runtime and operating-system information backed by the native C++ module
 Lynxer has no Python runtime, so `version()` reports the Lynxer version and
 `implementation()` returns "Lynxer". The Python-specific surface
 (sys.path, sys.modules, recursion limits) is not applicable and is deliberately
-absent. Because Lynxer does not forward extra arguments to a program,
-`argv()`/`getArg()` describe the lynxer process command line.
+absent. `argv()`/`getArg()`/`argCount()` describe the program's own command
+line — the script path (or the compiled executable) followed by the arguments
+passed after it — not the `lynxer` process command line.
 ////
 global setup(){ importAs("sys.so", "nativeSys"); }
 global platform() -> str { return global.nativeSys.platform(); }

@@ -12,7 +12,16 @@
 #include <sys/sysinfo.h>
 #include <sys/utsname.h>
 #endif
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__DragonFly__)
+#include <sys/sysctl.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#endif
+#if defined(__APPLE__)
+#include <mach-o/dyld.h>
+#endif
 
+#include "lynxer_native_abi.h"
 #include "native_json.hpp"
 
 using RegisterFunction = int (*)(const char*, const char*, const char*);
@@ -33,10 +42,18 @@ static std::string executablePath() {
 #if defined(__linux__)
     const auto length = ::readlink("/proc/self/exe", path, sizeof(path) - 1);
     if (length > 0) { path[length] = '\0'; return path; }
+#elif defined(__APPLE__)
+    std::uint32_t size = sizeof(path);
+    if (_NSGetExecutablePath(path, &size) == 0) {
+        path[sizeof(path) - 1] = '\0';
+        return path;
+    }
 #endif
     return "";
 }
 
+// The interpreter's own command line, used only when the module is loaded
+// without a host (a missing attach), so `argv` still has an answer.
 static std::vector<std::string> processArguments() {
     std::vector<std::string> arguments;
 #if defined(__linux__)
@@ -54,11 +71,107 @@ static std::vector<std::string> processArguments() {
     return arguments;
 }
 
+// Host services handed over by the interpreter; `program_args` reports the
+// program's own command line rather than the interpreter's.
+static LynxerHostApi hostApi{};
+static bool hostAttached = false;
+
+extern "C" int lynxer_module_attach_v1(const LynxerHostApi* host) {
+    if (host == nullptr || host->version != 1) {
+        return 1;
+    }
+    hostApi = *host;
+    hostAttached = true;
+    return 0;
+}
+
+// A minimal parser for the JSON array of strings the host produces. It decodes
+// the escapes that encoder emits (`\"`, `\\`, `\n`, `\r`, `\t`, `\u00XX`).
+static std::vector<std::string> parseStringArray(const char* text) {
+    std::vector<std::string> values;
+    if (text == nullptr) return values;
+    const char* cursor = text;
+    while (*cursor != '\0' && *cursor != '[') ++cursor;
+    if (*cursor != '[') return values;
+    ++cursor;
+    while (*cursor != '\0') {
+        while (*cursor == ' ' || *cursor == '\t' || *cursor == '\n' ||
+               *cursor == '\r' || *cursor == ',') {
+            ++cursor;
+        }
+        if (*cursor == ']' || *cursor == '\0') break;
+        if (*cursor != '"') break;
+        ++cursor;
+        std::string value;
+        while (*cursor != '\0' && *cursor != '"') {
+            if (*cursor == '\\' && cursor[1] != '\0') {
+                ++cursor;
+                switch (*cursor) {
+                    case 'n': value += '\n'; break;
+                    case 'r': value += '\r'; break;
+                    case 't': value += '\t'; break;
+                    case '"': value += '"'; break;
+                    case '\\': value += '\\'; break;
+                    case '/': value += '/'; break;
+                    case 'u': {
+                        unsigned code = 0;
+                        int digits = 0;
+                        for (int i = 1; i <= 4 && cursor[i] != '\0'; ++i) {
+                            const char digit = cursor[i];
+                            int number = -1;
+                            if (digit >= '0' && digit <= '9') number = digit - '0';
+                            else if (digit >= 'a' && digit <= 'f') number = digit - 'a' + 10;
+                            else if (digit >= 'A' && digit <= 'F') number = digit - 'A' + 10;
+                            else break;
+                            code = code * 16 + static_cast<unsigned>(number);
+                            digits += 1;
+                        }
+                        if (digits == 4) {
+                            value += static_cast<char>(code & 0xFF);
+                            cursor += 4;
+                        }
+                        break;
+                    }
+                    default: value += *cursor; break;
+                }
+                ++cursor;
+            } else {
+                value += *cursor;
+                ++cursor;
+            }
+        }
+        if (*cursor == '"') ++cursor;
+        values.push_back(value);
+    }
+    return values;
+}
+
+// The program's own arguments: the script path (or compiled executable) and
+// everything after it. Falls back to the process command line when the module
+// was loaded without a host.
+static std::vector<std::string> programArguments() {
+    if (hostAttached && hostApi.program_args != nullptr) {
+        const char* json = hostApi.program_args(hostApi.context);
+        if (json != nullptr) {
+            return parseStringArray(json);
+        }
+    }
+    return processArguments();
+}
+
 extern "C" const char* sys_platform() {
 #if defined(__linux__)
     return "linux";
 #elif defined(__APPLE__)
     return "darwin";
+#elif defined(__FreeBSD__)
+    return "freebsd";
+#elif defined(__NetBSD__)
+    return "netbsd";
+#elif defined(__OpenBSD__)
+    return "openbsd";
+#elif defined(__DragonFly__)
+    return "dragonfly";
 #elif defined(_WIN32)
     return "win32";
 #else
@@ -77,9 +190,10 @@ extern "C" const char* sys_architecture() {
 #endif
 }
 
-// Online processor count, or 0 when unavailable.
+// Online processor count, or 0 when unavailable. `sysconf` is POSIX, so this
+// answers on Linux, macOS and the BSDs alike.
 extern "C" std::int64_t sys_cpuCount() {
-#if defined(__linux__)
+#if defined(_SC_NPROCESSORS_ONLN)
     const long count = ::sysconf(_SC_NPROCESSORS_ONLN);
     return count > 0 ? static_cast<std::int64_t>(count) : 0;
 #else
@@ -89,7 +203,7 @@ extern "C" std::int64_t sys_cpuCount() {
 
 // Memory page size in bytes, or 0 when unavailable.
 extern "C" std::int64_t sys_pageSize() {
-#if defined(__linux__)
+#if defined(_SC_PAGESIZE)
     const long size = ::sysconf(_SC_PAGESIZE);
     return size > 0 ? static_cast<std::int64_t>(size) : 0;
 #else
@@ -103,6 +217,32 @@ static bool readSysinfo(struct sysinfo& info) {
 }
 #endif
 
+// macOS and FreeBSD/DragonFly expose `sysctlbyname`; the other BSDs do not, and
+// fall back to the 0/[] sentinels.
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__DragonFly__)
+#define LYNXER_BSD_SYSCTL 1
+#endif
+
+#if defined(LYNXER_BSD_SYSCTL)
+static bool sysctlByName(const char* name, void* value, std::size_t size) {
+    std::size_t length = size;
+    return ::sysctlbyname(name, value, &length, nullptr, 0) == 0;
+}
+
+static bool sysctlU64(const char* name, std::uint64_t& value) {
+    std::uint64_t result = 0;
+    if (!sysctlByName(name, &result, sizeof(result))) {
+        return false;
+    }
+    value = result;
+    return true;
+}
+
+static bool readBootTime(struct timeval& boot) {
+    return sysctlByName("kern.boottime", &boot, sizeof(boot));
+}
+#endif
+
 // Total physical memory in bytes, or 0 when unavailable.
 extern "C" std::int64_t sys_memoryTotal() {
 #if defined(__linux__)
@@ -110,6 +250,12 @@ extern "C" std::int64_t sys_memoryTotal() {
     return readSysinfo(info)
                ? static_cast<std::int64_t>(info.totalram) * info.mem_unit
                : 0;
+#elif defined(LYNXER_BSD_SYSCTL)
+    std::uint64_t bytes = 0;
+    if (sysctlU64("hw.memsize", bytes) || sysctlU64("hw.physmem", bytes)) {
+        return static_cast<std::int64_t>(bytes);
+    }
+    return 0;
 #else
     return 0;
 #endif
@@ -122,6 +268,13 @@ extern "C" std::int64_t sys_memoryAvailable() {
     return readSysinfo(info)
                ? static_cast<std::int64_t>(info.freeram) * info.mem_unit
                : 0;
+#elif defined(LYNXER_BSD_SYSCTL)
+    std::uint64_t pages = 0;
+    if (!sysctlU64("vm.page_free_count", pages) &&
+        !sysctlU64("vm.stats.vm.v_free_count", pages)) {
+        return 0;
+    }
+    return static_cast<std::int64_t>(pages) * sys_pageSize();
 #else
     return 0;
 #endif
@@ -132,6 +285,15 @@ extern "C" std::int64_t sys_uptime() {
 #if defined(__linux__)
     struct sysinfo info {};
     return readSysinfo(info) ? static_cast<std::int64_t>(info.uptime) : 0;
+#elif defined(LYNXER_BSD_SYSCTL)
+    struct timeval boot {};
+    if (!readBootTime(boot) || boot.tv_sec == 0) {
+        return 0;
+    }
+    const std::int64_t now = static_cast<std::int64_t>(std::time(nullptr));
+    return now > static_cast<std::int64_t>(boot.tv_sec)
+               ? now - static_cast<std::int64_t>(boot.tv_sec)
+               : 0;
 #else
     return 0;
 #endif
@@ -146,14 +308,19 @@ extern "C" std::int64_t sys_bootTime() {
     }
     return static_cast<std::int64_t>(std::time(nullptr)) -
            static_cast<std::int64_t>(info.uptime);
+#elif defined(LYNXER_BSD_SYSCTL)
+    struct timeval boot {};
+    return readBootTime(boot) ? static_cast<std::int64_t>(boot.tv_sec) : 0;
 #else
     return 0;
 #endif
 }
 
-// Load averages over 1, 5 and 15 minutes as a JSON array.
+// Load averages over 1, 5 and 15 minutes as a JSON array. `getloadavg` is
+// available on Linux, macOS and the BSDs.
 extern "C" const char* sys_loadAverage() {
-#if defined(__linux__)
+#if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) || \
+    defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
     double loads[3] = {0.0, 0.0, 0.0};
     if (::getloadavg(loads, 3) < 0) {
         return stable("[]");
@@ -199,20 +366,20 @@ extern "C" const char* sys_prefix() {
 }
 extern "C" const char* sys_execPrefix() { return sys_prefix(); }
 
-// Process arguments, not script arguments: Lynxer does not forward extra
-// arguments to the program, so argv[0] is the lynxer executable.
+// The program's own arguments: entry 0 is the script path (or the compiled
+// executable), followed by the arguments passed after it.
 extern "C" const char* sys_argv() {
     native_json::Value array = native_json::makeArray();
-    for (const auto& argument : processArguments()) {
+    for (const auto& argument : programArguments()) {
         array.items.push_back(native_json::makeString(argument));
     }
     return stable(native_json::dump(array, false));
 }
 extern "C" std::int64_t sys_argCount() {
-    return static_cast<std::int64_t>(processArguments().size());
+    return static_cast<std::int64_t>(programArguments().size());
 }
 extern "C" const char* sys_getArg(std::int64_t index) {
-    const std::vector<std::string> arguments = processArguments();
+    const std::vector<std::string> arguments = programArguments();
     if (index < 0 || static_cast<std::size_t>(index) >= arguments.size()) {
         return stable("");
     }

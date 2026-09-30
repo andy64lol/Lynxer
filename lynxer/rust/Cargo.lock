@@ -1797,6 +1797,7 @@ dependencies = [
 name = "lynxer_graphics"
 version = "0.1.0"
 dependencies = [
+ "fontdue",
  "lynxer_abi",
  "macroquad",
 ]

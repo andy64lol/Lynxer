@@ -15,8 +15,7 @@ use macroquad::texture::get_screen_data;
 use crate::draw::draw_anchored_text;
 use crate::sprites::{draw_sprite, load_texture};
 use crate::state::{
-    color_of_a, with, Animation, PhysicsEngine, Scene, SoundEntry, Sprite, TextLabel,
-    GROUND_SNAP,
+    color_of_a, with, Animation, PhysicsEngine, Scene, SoundEntry, Sprite, TextLabel, GROUND_SNAP,
 };
 
 fn headless() -> bool {
@@ -91,7 +90,9 @@ fn parse_tilemap(text: &str) -> Option<Tmx> {
     let mut cursor = 0usize;
     while let Some(open) = text[cursor..].find("<layer") {
         let open = cursor + open;
-        let Some(close) = text[open..].find('>') else { break };
+        let Some(close) = text[open..].find('>') else {
+            break;
+        };
         let tag = &text[open..open + close];
         let name = attribute(tag, "name").unwrap_or_default();
         let declared_width = attribute(tag, "width")
@@ -99,11 +100,17 @@ fn parse_tilemap(text: &str) -> Option<Tmx> {
             .filter(|value| *value > 0)
             .unwrap_or(0);
 
-        let Some(data_open) = text[open..].find("<data") else { break };
+        let Some(data_open) = text[open..].find("<data") else {
+            break;
+        };
         let data_open = open + data_open;
-        let Some(data_gt) = text[data_open..].find('>') else { break };
+        let Some(data_gt) = text[data_open..].find('>') else {
+            break;
+        };
         let payload_start = data_open + data_gt + 1;
-        let Some(payload_end) = text[payload_start..].find("</data>") else { break };
+        let Some(payload_end) = text[payload_start..].find("</data>") else {
+            break;
+        };
         let payload = &text[payload_start..payload_start + payload_end];
         cursor = payload_start + payload_end + "</data>".len();
 
@@ -179,11 +186,7 @@ export_int!(lynxer_game_draw_scene, args, {
             return -1;
         };
         for list in lists {
-            let sprites = state
-                .lists
-                .get(list as usize)
-                .cloned()
-                .unwrap_or_default();
+            let sprites = state.lists.get(list as usize).cloned().unwrap_or_default();
             for sprite in sprites {
                 draw_sprite(state, sprite);
             }
@@ -200,11 +203,7 @@ export_int!(lynxer_game_update_scene, args, {
             return -1;
         };
         for list in lists {
-            let sprites = state
-                .lists
-                .get(list as usize)
-                .cloned()
-                .unwrap_or_default();
+            let sprites = state.lists.get(list as usize).cloned().unwrap_or_default();
             for index in sprites {
                 if let Some(sprite) = state.sprite_mut(index) {
                     sprite.x += sprite.vx * dt;
@@ -259,7 +258,8 @@ export_int!(lynxer_game_set_text_label, args, {
 });
 
 export_int!(lynxer_game_set_text_label_pos, args, {
-    let (x, y) = (args.float(0), args.float(1));
+    // The leading handle shifts x/y to numeric indices 1 and 2.
+    let (x, y) = (args.float(1), args.float(2));
     update_label(args.int(0), move |label| {
         label.x = x;
         label.y = y;
@@ -312,7 +312,11 @@ export_int!(lynxer_game_destroy_text_label, args, {
 
 export_int!(lynxer_game_load_tilemap, args, {
     let path = args.string(0).to_string();
-    let scaling = if args.float(0) > 0.0 { args.float(0) } else { 1.0 };
+    let scaling = if args.float(0) > 0.0 {
+        args.float(0)
+    } else {
+        1.0
+    };
     let text = match std::fs::read_to_string(&path) {
         Ok(text) => text,
         Err(_) => return -1,
@@ -350,7 +354,9 @@ export_int!(lynxer_game_load_tilemap, args, {
                 list.push((state.sprites.len() - 1) as i64);
             }
             state.lists.push(list);
-            scene.lists.push((layer.name.clone(), (state.lists.len() - 1) as i64));
+            scene
+                .lists
+                .push((layer.name.clone(), (state.lists.len() - 1) as i64));
         }
         state.scenes.push(scene);
         (state.scenes.len() - 1) as i64
@@ -540,8 +546,7 @@ export_int!(lynxer_game_update_physics, args, {
                 continue;
             }
             let surface = slope_surface(wall, x);
-            if vy <= 0.0 && y - height / 2.0 <= surface && feet_before >= surface - GROUND_SNAP
-            {
+            if vy <= 0.0 && y - height / 2.0 <= surface && feet_before >= surface - GROUND_SNAP {
                 y = surface + height / 2.0;
                 vy = 0.0;
                 on_ground = true;

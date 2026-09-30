@@ -58,6 +58,9 @@ LYNXER_MILESTONE5_CODEBLOCK_FIXTURE := $(LYNXER_DIR)/examples/milestone5_codeblo
 LYNXER_MILESTONE6_FIXTURE := $(LYNXER_DIR)/examples/milestone6_module.lynx
 LYNXER_MILESTONE6_MATH_FIXTURE := $(LYNXER_DIR)/examples/milestone6_math_native.lynx
 LYNXER_NATIVE_STDLIB_FIXTURE := $(LYNXER_DIR)/examples/native_stdlibs.lynx
+# The program's own command line (sys.argv). Run with extra arguments so the
+# fixture can assert the script path is entry 0 and the rest follow it.
+LYNXER_PROGRAM_ARGS_FIXTURE := $(LYNXER_DIR)/examples/program_args.lynx
 LYNXER_SIGNATURE_SOURCE := $(LYNXER_DIR)/examples/native_signatures.cpp
 LYNXER_SIGNATURE_MODULE := $(LYNXER_DIR)/examples/native_signatures.so
 LYNXER_SIGNATURE_FIXTURE := $(LYNXER_DIR)/examples/native_signatures.lynx
@@ -141,7 +144,7 @@ LYNXER_OPTIMIZER_DEPRECATED_FIXTURE := $(LYNXER_DIR)/examples/optimizer_deprecat
 LYNXER_FORMATTER_INPUT := $(LYNXER_DIR)/examples/formatter_input.lynx
 LYNXER_FORMATTER_EXPECTED := $(LYNXER_DIR)/examples/formatter_expected.lynx
 LYNXER_LIST_STDLIB_MODULES := cli colorlib compress crypto csv debug encoding fileIO game graphics image js json lua math \
-	multiprocessing network os path random re regex server shell sound sqldb sys text time toml tui typing uuid watch xml yaml
+	multiprocessing network os path random re regex server shell sound sqldb sys text time toml tui turtle typing uuid watch xml yaml
 # Import-parity fixtures (interpreted vs compiled). The sound one needs a device.
 LYNXER_PARITY_FIXTURES := native_stdlibs milestone6_module milestone6_math_native stdlib_encoding stdlib_crypto stdlib_compress stdlib_json stdlib_uuid \
 	stdlib_toml stdlib_ini stdlib_xml stdlib_yaml stdlib_watch \
@@ -514,6 +517,11 @@ expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:23: charAt() index is out of rang
 	if [ "$$output" != "$$expected" ]; then \
 	echo "expected native stdlib output:"; printf '%s\n' "$$expected"; \
 	echo "received native stdlib output:"; printf '%s\n' "$$output"; exit 1; fi
+	@output="$$(LYNXER_GAME_HEADLESS=1 LYNXER_GRAPHICS_HEADLESS=1 $(CLYX) $(LYNXER_PROGRAM_ARGS_FIXTURE) alpha "beta gamma" 2>&1)"; \
+	expected="$$(cat $(LYNXER_PROGRAM_ARGS_FIXTURE:.lynx=.expected))"; \
+	if [ "$$output" != "$$expected" ]; then \
+	echo "expected program-args output:"; printf '%s\n' "$$expected"; \
+	echo "received program-args output:"; printf '%s\n' "$$output"; exit 1; fi
 	@output="$$($(CLYX) $(LYNXER_SIGNATURE_FIXTURE))"; \
 	expected="$$(printf '7\n2.5\nzero\n7\n9\ncopy\n4\n1\n---\n6\n1.25\n4\n6.5\n4\n3.5\n1.500000\n2.75\nabcd\n3.75\nabc\nab5\nabc5\n7\nn12\n3\n9\n10\n10\n0\n5\nABC')"; \
 	if [ "$$output" != "$$expected" ]; then \

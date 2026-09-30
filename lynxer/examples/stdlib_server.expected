@@ -18,6 +18,7 @@ ok
 ERROR: POST route already registered
 ok
 ERROR: WebSocket route already registered
+ok
 ERROR: invalid port
 ERROR: invalid port
 ok
@@ -33,6 +34,8 @@ ping
 {"k": 1}
 200
 ERROR: HTTP 404 Not Found
+Hi ADA! 012 q=2 path=/tpl
+true
 ok
 false
 0

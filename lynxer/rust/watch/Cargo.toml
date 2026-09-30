@@ -11,10 +11,15 @@ crate-type = ["cdylib"]
 
 [dependencies]
 lynxer_abi = { path = "../abi" }
-# The inotify backend directly, not `notify`: the design exposes the watch
-# descriptor (watchFd) for the interpreter's poll set, which `notify` does not.
-inotify = "0.10"
-# O_NONBLOCK on the watch descriptor, so `watchDrain` never blocks.
+# Raw syscalls for the Linux (inotify) and macOS/BSD (kqueue) backends: the
+# non-blocking flag on the watch descriptor and the kevent calls themselves.
 libc = "0.2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+
+# The inotify backend directly, not `notify`: the design exposes the watch
+# descriptor (watchFd) for the interpreter's poll set, which `notify` does not.
+# It is Linux-only, so the crate still builds (with the kqueue backend) on
+# macOS and the BSDs.
+[target.'cfg(target_os = "linux")'.dependencies]
+inotify = "0.10"

@@ -15,15 +15,20 @@ global main(){
     println(global.watch.watchFd(handle) >= 0);
     println(global.watch.watchSetDebounce(handle, 0));
 
-    // Create a file inside the watched directory, then let the event arrive.
+    // Create a file inside the watched directory. `watchWait` blocks (with the
+    // interpreter lock released) until the descriptor is readable.
     global.fileIO.writeFile(root + "/a.txt", "hi");
-    sleep(0.3);
+    println(global.watch.watchWait(handle, 2000));
 
     // The event paths carry the absolute watched directory, so only the shape
     // is asserted.
     str events = global.watch.watchDrain(handle);
     println(substring(events, 0, 1) is "[");
     println(returnLength(events) > 2);
+
+    // Nothing left to read, so a zero timeout reports the timeout.
+    println(global.watch.watchWait(handle, 0));
+    println(global.watch.watchWait(9999, 0));
 
     println(global.watch.watchRemove(handle));
     println(global.watch.watchFd(handle));

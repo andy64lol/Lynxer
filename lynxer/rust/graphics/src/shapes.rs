@@ -104,6 +104,9 @@ pub fn rectangle_rotated(
     color: Color,
 ) {
     if headless() {
+        crate::raster::with_framebuffer(|buffer| {
+            buffer.rectangle_rotated(x, y, w, h, rotation, origin_x, origin_y, color);
+        });
         return;
     }
     draw_rectangle_ex(
@@ -131,6 +134,11 @@ pub fn rectangle_lines_rotated(
     color: Color,
 ) {
     if headless() {
+        crate::raster::with_framebuffer(|buffer| {
+            buffer.rectangle_lines_rotated(
+                x, y, w, h, thickness, rotation, origin_x, origin_y, color,
+            );
+        });
         return;
     }
     draw_rectangle_lines_ex(
@@ -149,6 +157,9 @@ pub fn rectangle_lines_rotated(
 
 pub fn poly(x: f32, y: f32, sides: i64, radius: f32, rotation: f32, color: Color) {
     if headless() {
+        crate::raster::with_framebuffer(|buffer| {
+            buffer.poly(x, y, sides, radius, rotation.to_radians(), color);
+        });
         return;
     }
     draw_poly(x, y, sides.clamp(3, 255) as u8, radius, rotation, color);
@@ -164,6 +175,9 @@ pub fn poly_lines(
     color: Color,
 ) {
     if headless() {
+        crate::raster::with_framebuffer(|buffer| {
+            buffer.poly_lines(x, y, sides, radius, rotation.to_radians(), thickness, color);
+        });
         return;
     }
     draw_poly_lines(
@@ -199,6 +213,9 @@ pub fn circle_lines(x: f32, y: f32, radius: f32, thickness: f32, color: Color) {
 
 pub fn ellipse(x: f32, y: f32, w: f32, h: f32, rotation: f32, color: Color) {
     if headless() {
+        crate::raster::with_framebuffer(|buffer| {
+            buffer.ellipse(x, y, w, h, rotation.to_radians(), color);
+        });
         return;
     }
     draw_ellipse(x, y, w, h, rotation, color);
@@ -206,6 +223,9 @@ pub fn ellipse(x: f32, y: f32, w: f32, h: f32, rotation: f32, color: Color) {
 
 pub fn ellipse_lines(x: f32, y: f32, w: f32, h: f32, rotation: f32, thickness: f32, color: Color) {
     if headless() {
+        crate::raster::with_framebuffer(|buffer| {
+            buffer.ellipse_lines(x, y, w, h, rotation.to_radians(), thickness, color);
+        });
         return;
     }
     draw_ellipse_lines(x, y, w, h, rotation, thickness, color);
@@ -222,6 +242,17 @@ pub fn arc(
     color: Color,
 ) {
     if headless() {
+        crate::raster::with_framebuffer(|buffer| {
+            buffer.arc(
+                x,
+                y,
+                radius,
+                rotation.to_radians(),
+                thickness,
+                arc.to_radians(),
+                color,
+            );
+        });
         return;
     }
     draw_arc(
@@ -238,6 +269,17 @@ pub fn arc(
 
 pub fn hexagon(x: f32, y: f32, size: f32, border: f32, vertical: bool, color: Color) {
     if headless() {
+        crate::raster::with_framebuffer(|buffer| {
+            buffer.hexagon(x, y, size, vertical, color);
+            if border > 0.0 {
+                let rotation = if vertical {
+                    std::f32::consts::FRAC_PI_2
+                } else {
+                    0.0
+                };
+                buffer.poly_lines(x, y, 6, size, rotation, border, color);
+            }
+        });
         return;
     }
     draw_hexagon(x, y, size, border, vertical, color, color);

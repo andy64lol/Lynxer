@@ -16,5 +16,8 @@ lynxer_abi = { path = "../abi" }
 # Default features only: the `audio` feature needs quad-snd, which is not
 # vendored, and the `sound` module already covers audio.
 macroquad = "0.4"
+# CPU text rasterization for the headless (no-GL) render path. Pure Rust, and
+# already in the workspace lock via macroquad's font stack.
+fontdue = "0.9"
 
 # The release profile lives in the workspace root (lynxer/rust/Cargo.toml).

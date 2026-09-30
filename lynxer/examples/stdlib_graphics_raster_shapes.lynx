@@ -1,0 +1,60 @@
+////
+Headless rasterizer fixture for the primitives beyond rectangles and circles:
+the curved shapes (ellipse, arc), the regular polygons (drawPoly, drawHexagon),
+CPU text, texture blits and offscreen render targets. Like
+`stdlib_graphics_raster`, this runs in CI with `LYNXER_GRAPHICS_HEADLESS=1` and
+reads the pixels back through the `image` module.
+////
+global setup(){ import("graphics"); import("image"); import("fileIO"); }
+
+global main(){
+    global.graphics.init("raster_shapes", 64, 32);
+    global.graphics.clearBackground(0, 0, 0);
+
+    // A red ellipse, a green hexagon, a blue hexagon (flat-top) and a yellow
+    // bottom half-arc, all on the top half of the frame.
+    global.graphics.drawEllipse(8.0, 8.0, 6.0, 4.0, 0.0, 255, 0, 0);
+    global.graphics.drawPoly(24.0, 8.0, 6, 6.0, 0.0, 0, 255, 0);
+    global.graphics.drawHexagon(40.0, 8.0, 6.0, 0.0, true, 0, 0, 255);
+    global.graphics.drawArc(56.0, 8.0, 16, 6.0, 0.0, 2.0, 180.0, 255, 255, 0);
+
+    println(global.graphics.screenshot("/tmp/lynxer_graphics_shapes.png"));
+    int shot = global.image.open("/tmp/lynxer_graphics_shapes.png");
+    println(global.image.getWidth(shot), "x", global.image.getHeight(shot));
+    println(global.image.getPixel(shot, 8, 8));
+    println(global.image.getPixel(shot, 24, 8));
+    println(global.image.getPixel(shot, 40, 8));
+    println(global.image.getPixel(shot, 56, 15));
+    println(global.image.getPixel(shot, 56, 6));
+
+    // A texture loaded from a file blits into the frame.
+    int image = global.image.create(4, 4, "RGBA", 255, 128, 0);
+    global.image.save(image, "/tmp/lynxer_graphics_tex.png");
+    int texture = global.graphics.loadTexture("/tmp/lynxer_graphics_tex.png");
+    println(global.graphics.textureWidth(texture), "x",
+            global.graphics.textureHeight(texture));
+    global.graphics.drawTexture(texture, 8.0, 20.0);
+
+    // A render target is drawn offscreen, then blitted back.
+    int target = global.graphics.renderTarget(16, 16);
+    println(global.graphics.setRenderTarget(target));
+    global.graphics.clearBackground(10, 20, 30);
+    global.graphics.drawRectangle(0.0, 0.0, 16.0, 16.0, 200, 100, 50);
+    global.graphics.endRenderTarget();
+    int targetTexture = global.graphics.renderTargetTexture(target);
+    global.graphics.drawTexture(targetTexture, 24.0, 16.0);
+
+    // Text is measured (and drawn) with the built-in CPU font.
+    println(global.graphics.measureWidth("Hi", -1, 16.0) > 0.0);
+    global.graphics.drawText("Hi", 44.0, 30.0, 16.0, 255, 255, 255);
+
+    println(global.graphics.screenshot("/tmp/lynxer_graphics_shapes2.png"));
+    int shot2 = global.image.open("/tmp/lynxer_graphics_shapes2.png");
+    println(global.image.getPixel(shot2, 10, 22));
+    println(global.image.getPixel(shot2, 30, 20));
+    println(global.image.getPixel(shot2, 8, 8));
+
+    global.fileIO.deleteFile("/tmp/lynxer_graphics_shapes.png");
+    global.fileIO.deleteFile("/tmp/lynxer_graphics_shapes2.png");
+    global.fileIO.deleteFile("/tmp/lynxer_graphics_tex.png");
+}

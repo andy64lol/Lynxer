@@ -1,0 +1,19 @@
+////
+`sys` fixture. `argv`/`getArg`/`argCount` describe the program's own command
+line, so entry 0 is this script and there is nothing after it when the suite
+runs the fixture directly. Only invocation-independent facts are asserted.
+////
+global setup(){ import("sys"); }
+
+global main(){
+    // The program's own command line always has at least the script itself.
+    println(global.sys.argCount() > 0);
+    println(global.sys.getArg(0) isnt "");
+    println(global.sys.getArg(-1) is "");
+    println(global.sys.getArg(999) is "");
+
+    println(global.sys.platform() isnt "");
+    println(global.sys.architecture() isnt "");
+    println(global.sys.implementation());
+    println(global.sys.versionInfo());
+}

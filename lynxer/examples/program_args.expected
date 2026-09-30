@@ -1,0 +1,5 @@
+3
+["lynxer/examples/program_args.lynx", "alpha", "beta gamma"]
+alpha
+beta gamma
+true

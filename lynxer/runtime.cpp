@@ -576,6 +576,14 @@ const std::string& Environment::sourceDirectory() const {
     return sourceDirectory_;
 }
 
+void Environment::setProgramArguments(std::vector<std::string> arguments) {
+    programArguments_ = std::move(arguments);
+}
+
+const std::vector<std::string>& Environment::programArguments() const {
+    return programArguments_;
+}
+
 void Environment::registerModuleFunction(const std::string& qualifiedName,
                                          ModuleFunction function) {
     moduleFunctions_[qualifiedName] = std::move(function);

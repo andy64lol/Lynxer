@@ -30,6 +30,12 @@ pub struct LynxerHostApi {
     pub context: *mut c_void,
     pub invoke: Option<unsafe extern "C" fn(*mut c_void, *const c_char, c_int, f64) -> c_int>,
     pub interrupted: Option<unsafe extern "C" fn(*mut c_void) -> c_int>,
+    pub program_args: Option<unsafe extern "C" fn(*mut c_void) -> *const c_char>,
+    /// Runs `body(user)` with the interpreter lock released, then re-acquires
+    /// it. Used by blocking module ops so they do not wedge other threads.
+    pub blocking: Option<
+        unsafe extern "C" fn(*mut c_void, unsafe extern "C" fn(*mut c_void), *mut c_void) -> c_int,
+    >,
 }
 
 // The interpreter stores the host API in a `static`, and the callbacks it

@@ -1,25 +1,24 @@
 # watch
 
-Filesystem change events over inotify.
+Filesystem change events over inotify (Linux) or kqueue `EVFILT_VNODE` (macOS
+and the BSDs).
 
-**Backend:** native — `stdlib/watch.so`, built from the Rust crate `rust/watch`
-over `inotify`. Linux only.
+**Backend:** native — `stdlib/watch.so`, built from the Rust crate `rust/watch`.
 
 **Import:** `import("watch")` → `global.watch.*`
 
 ## How events reach Lynxer
 
-A module cannot release the interpreter lock, so `watch` never blocks. Instead:
-
 1. `watchAdd` returns an integer handle.
-2. `watchFd(handle)` returns the inotify descriptor; register it with
-   `asyncPollRegister` and wait with `asyncPollWait`.
+2. Wait for the descriptor, either with `watchWait(handle, timeoutMs)` — which
+   blocks with the interpreter lock released — or by registering
+   `watchFd(handle)` with `asyncPollRegister` and waiting with `asyncPollWait`.
 3. When the descriptor is ready, `watchDrain(handle)` reads the pending events
    as a JSON array of `{"path", "kind"}`, where `kind` is `create`, `modify`,
    `delete`, `moved_from`, `moved_to`, `attrib` or `other`.
 4. `watchRemove` / `watchClose` stop watching and release the handle.
 
-A failure is a scalar sentinel: `watchAdd` and `watchFd` yield `-1`,
+A failure is a scalar sentinel: `watchAdd`, `watchFd` and `watchWait` yield `-1`,
 `watchDrain` yields `""` for an unknown handle, and the predicates yield `false`.
 
 ## Functions
@@ -27,7 +26,8 @@ A failure is a scalar sentinel: `watchAdd` and `watchFd` yield `-1`,
 | Function | Signature | Returns |
 | --- | --- | --- |
 | `watchAdd` | `(str path, bool recursive)` | a handle, or `-1` |
-| `watchFd` | `(int handle)` | the inotify descriptor, or `-1` |
+| `watchFd` | `(int handle)` | the backend descriptor, or `-1` |
+| `watchWait` | `(int handle, int timeoutMs)` | `1` readable, `0` timeout, `-1` unknown |
 | `watchDrain` | `(int handle)` | a JSON array of events, or `""` |
 | `watchSetDebounce` | `(int handle, int milliseconds)` | `true` / `false` |
 | `watchRemove` | `(int handle)` | `true` / `false` |
@@ -45,12 +45,12 @@ global main(){
 
     int handle = global.watch.watchAdd(root, true);
 
-    // Wait on the descriptor with the interpreter's poll set, then drain.
-    // global.asyncPollRegister(global.watch.watchFd(handle));
-    // global.asyncPollWait(1000);
-
+    // Block until the descriptor is readable (the lock is released while it
+    // waits), then drain. Alternatively, register the descriptor with
+    // `asyncPollRegister(global.watch.watchFd(handle))` and wait with
+    // `asyncPollWait(1000)`.
     global.fileIO.writeFile(root + "/a.txt", "hi");
-    sleep(0.3);
+    println(global.watch.watchWait(handle, 1000));
     println(global.watch.watchDrain(handle));
 
     println(global.watch.watchClose(handle));

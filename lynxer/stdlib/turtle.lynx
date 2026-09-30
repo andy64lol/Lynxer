@@ -1,0 +1,62 @@
+////
+Lynxer standard library: turtle.
+Classic turtle graphics over the `graphics` module: `forward`, `back`, `turn`,
+`goto`, `penUp`, `penDown`, `setColor`, with the turtle's position, heading and
+pen state readable.
+
+The turtle state lives in the `graphics` module, not here: Lynxer has no
+module-level mutable state, so a pure-Lynxer module cannot remember anything
+between calls. This module therefore drives the `graphics` module's implicit
+default turtle (handle 0), which is created on first use. The drawing goes
+through the ordinary shape ops, so it works on the headless rasterizer too.
+////
+global setup(){ import("graphics"); }
+
+// Move forward by `distance`, drawing a line when the pen is down.
+global forward(float distance) -> int {
+    return global.graphics.turtleForward(0, distance);
+}
+// Move backward by `distance`.
+global back(float distance) -> int {
+    return global.graphics.turtleBack(0, distance);
+}
+// Turn `degrees` clockwise.
+global turn(float degrees) -> int {
+    return global.graphics.turtleTurnRight(0, degrees);
+}
+// Turn `degrees` clockwise (explicit name).
+global turnRight(float degrees) -> int {
+    return global.graphics.turtleTurnRight(0, degrees);
+}
+// Turn `degrees` counter-clockwise.
+global turnLeft(float degrees) -> int {
+    return global.graphics.turtleTurnLeft(0, degrees);
+}
+// Move straight to `x, y` without changing the heading.
+global goto(float x, float y) -> int {
+    return global.graphics.turtleGoto(0, x, y);
+}
+// Return to the origin, facing east.
+global home() -> int { return global.graphics.turtleHome(0); }
+// Lift the pen: moving no longer draws.
+global penUp() -> int { return global.graphics.turtlePenUp(0); }
+// Put the pen down again.
+global penDown() -> int { return global.graphics.turtlePenDown(0); }
+// Set the pen colour.
+global setColor(int r, int g, int b, int a = 255) -> int {
+    return global.graphics.turtleSetColor(0, r, g, b, a);
+}
+// Set the pen width in pixels.
+global setWidth(float width) -> int {
+    return global.graphics.turtleSetWidth(0, width);
+}
+// The turtle's x position.
+global x() -> float { return global.graphics.turtleX(0); }
+// The turtle's y position.
+global y() -> float { return global.graphics.turtleY(0); }
+// The turtle's heading in degrees (0 = east, increasing clockwise).
+global heading() -> float { return global.graphics.turtleHeading(0); }
+// Whether the pen is down.
+global penIsDown() -> bool { return global.graphics.turtlePenIsDown(0); }
+
+global main(){}

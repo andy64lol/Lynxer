@@ -206,6 +206,13 @@ public:
 
     void setSourceDirectory(std::string directory);
     const std::string& sourceDirectory() const;
+
+    // The program's own arguments (everything after the script on the `lynxer`
+    // command line, or the whole command line of a compiled executable). The
+    // `sys` module reports these rather than the interpreter's process command
+    // line. `argv[0]` is the program path.
+    void setProgramArguments(std::vector<std::string> arguments);
+    const std::vector<std::string>& programArguments() const;
     void registerModuleFunction(const std::string& qualifiedName,
                                 ModuleFunction function);
     void aliasModuleFunctions(const std::string& from,
@@ -267,6 +274,7 @@ private:
     std::unordered_set<std::string> importedModules_;
     std::vector<std::shared_ptr<void>> nativeModules_;
     std::string sourceDirectory_;
+    std::vector<std::string> programArguments_;
     std::string mainOverride_;
     bool setupInProgress_ = false;
     bool foreverWarningSuppressed_ = false;

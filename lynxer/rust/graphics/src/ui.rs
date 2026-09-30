@@ -12,6 +12,7 @@
 
 use std::collections::HashMap;
 
+use macroquad::color::Color;
 use macroquad::math::vec2;
 use macroquad::ui::widgets::Window;
 use macroquad::ui::{root_ui, Id, Ui};
@@ -255,6 +256,7 @@ pub fn window_end() -> i64 {
         _ => return -1,
     };
     if headless() {
+        draw_headless(Some((&title, x, y, w, h)), &commands);
         return 0;
     }
     let mut values = with(|state| state.ui_values.clone());
@@ -276,6 +278,140 @@ pub fn window_end() -> i64 {
     0
 }
 
+/// One widget resolved for the headless layout pass.
+enum HeadlessWidget {
+    Label(String),
+    Box(String, Color),
+    Checkbox(String, bool),
+    Bar(String, f32),
+    Rule,
+}
+
+/// Rasterizes a buffered UI block into the CPU framebuffer. There is no input
+/// or hit-testing headless (a button is never "clicked"), and the layout is a
+/// simple stacked approximation of macroquad's, not a pixel-exact copy.
+fn draw_headless(window: Option<(&str, f32, f32, f32, f32)>, commands: &[UiCommand]) {
+    let text_color = Color::new(0.9, 0.9, 0.95, 1.0);
+    let box_color = Color::new(0.28, 0.28, 0.34, 1.0);
+    let widgets: Vec<HeadlessWidget> = commands
+        .iter()
+        .map(|command| match command {
+            UiCommand::Label(text, _) => HeadlessWidget::Label(text.clone()),
+            UiCommand::Button { text, .. } => HeadlessWidget::Box(text.clone(), box_color),
+            UiCommand::InputText { id, label, .. } => {
+                let value = with(|state| state.ui_text(*id));
+                HeadlessWidget::Box(
+                    format!("{label}: {value}"),
+                    Color::new(0.16, 0.16, 0.2, 1.0),
+                )
+            }
+            UiCommand::ComboBox { id, options, .. } => {
+                let index = with(|state| state.ui_int(*id, 0)).max(0) as usize;
+                let selected = options.get(index).cloned().unwrap_or_default();
+                HeadlessWidget::Box(selected, box_color)
+            }
+            UiCommand::Checkbox { id, label } => {
+                HeadlessWidget::Checkbox(label.clone(), with(|state| state.ui_bool(*id, false)))
+            }
+            UiCommand::Slider {
+                id,
+                label,
+                min,
+                max,
+            } => HeadlessWidget::Bar(
+                label.clone(),
+                fraction(with(|state| state.ui_float(*id, *min)), *min, *max),
+            ),
+            UiCommand::ProgressBar {
+                label,
+                value,
+                min,
+                max,
+            } => HeadlessWidget::Bar(label.clone(), fraction(*value, *min, *max)),
+            UiCommand::Separator => HeadlessWidget::Rule,
+            UiCommand::SameLine(_) => HeadlessWidget::Label(String::new()),
+        })
+        .collect();
+    let font = crate::font::builtin().clone();
+    crate::raster::with_framebuffer(|framebuffer| {
+        let (x, mut cursor, width) = match window {
+            Some((title, x, y, w, h)) => {
+                framebuffer.rectangle(x, y, w, h, Color::new(0.12, 0.12, 0.16, 0.95));
+                framebuffer.rectangle_lines(x, y, w, h, 1.0, Color::new(0.4, 0.4, 0.5, 1.0));
+                framebuffer.rectangle(x, y, w, 24.0, Color::new(0.2, 0.2, 0.26, 1.0));
+                font.draw(framebuffer, title, x + 8.0, y + 17.0, 16.0, 0.0, text_color);
+                (x + 8.0, y + 34.0, w - 16.0)
+            }
+            None => (0.0, 8.0, 200.0),
+        };
+        for widget in &widgets {
+            match widget {
+                HeadlessWidget::Label(text) => {
+                    font.draw(framebuffer, text, x, cursor + 12.0, 16.0, 0.0, text_color);
+                    cursor += 20.0;
+                }
+                HeadlessWidget::Box(text, color) => {
+                    framebuffer.rectangle(x, cursor, width, 22.0, *color);
+                    font.draw(
+                        framebuffer,
+                        text,
+                        x + 6.0,
+                        cursor + 16.0,
+                        16.0,
+                        0.0,
+                        text_color,
+                    );
+                    cursor += 28.0;
+                }
+                HeadlessWidget::Checkbox(text, checked) => {
+                    let fill = if *checked {
+                        Color::new(0.3, 0.7, 0.4, 1.0)
+                    } else {
+                        Color::new(0.16, 0.16, 0.2, 1.0)
+                    };
+                    framebuffer.rectangle(x, cursor, 14.0, 14.0, fill);
+                    framebuffer.rectangle_lines(x, cursor, 14.0, 14.0, 1.0, text_color);
+                    font.draw(
+                        framebuffer,
+                        text,
+                        x + 20.0,
+                        cursor + 12.0,
+                        16.0,
+                        0.0,
+                        text_color,
+                    );
+                    cursor += 22.0;
+                }
+                HeadlessWidget::Bar(text, value) => {
+                    framebuffer.rectangle(x, cursor, width, 16.0, Color::new(0.16, 0.16, 0.2, 1.0));
+                    framebuffer.rectangle(
+                        x,
+                        cursor,
+                        width * value.clamp(0.0, 1.0),
+                        16.0,
+                        Color::new(0.3, 0.55, 0.85, 1.0),
+                    );
+                    framebuffer.rectangle_lines(x, cursor, width, 16.0, 1.0, text_color);
+                    font.draw(
+                        framebuffer,
+                        text,
+                        x + 4.0,
+                        cursor + 12.0,
+                        14.0,
+                        0.0,
+                        text_color,
+                    );
+                    cursor += 24.0;
+                }
+                HeadlessWidget::Rule => {
+                    framebuffer.line(x, cursor + 6.0, x + width, cursor + 6.0, 1.0, text_color);
+                    cursor += 16.0;
+                }
+            }
+        }
+    });
+}
+
 pub fn group_begin(id: i64, w: f32, h: f32) -> i64 {
     with(|state| {
         if state.ui_block.is_some() {
@@ -295,6 +431,7 @@ pub fn group_end() -> i64 {
         _ => return -1,
     };
     if headless() {
+        draw_headless(None, &commands);
         return 0;
     }
     let mut values = with(|state| state.ui_values.clone());

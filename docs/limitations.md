@@ -37,7 +37,6 @@ constraints each have a resolution plan in [todo.md](../todo.md) under
 | Area | Plan |
 | --- | --- |
 | `tkinter` / `tkinterPlus` (a native OS-widget GUI module) | **L16** |
-| `turtle` (reimplement on `graphics`) | **L17** |
 | Module constraints — `graphics`, `game`, `server`, `sound`, `watch`, `sqldb`, `text`/`typing`, `tui`, `os`/`path`/`sys` | **L4**–**L6**, **L8**–**L10**, **L12**–**L14** |
 | `nativeThread*` / `async*` true parallelism and coroutine `await` | **L15** |
 
@@ -66,8 +65,9 @@ constraints each have a resolution plan in [todo.md](../todo.md) under
 
 ### Module Coverage
 
-- `tkinter`, `tkinterPlus`, and `turtle` are planned (see **L16**–**L17** in
-  [todo.md](../todo.md)).
+- `tkinter` and `tkinterPlus` are planned (see **L16** in
+  [todo.md](../todo.md)). `turtle` is implemented — see
+  [stdlib/turtle.md](stdlib/turtle.md).
 - `http`/`net` are **not provided**: `network` (client) and `server` cover the
   same ground with one API surface instead of two, so no shim is planned — see
   [removed-features.md](removed-features.md#http-and-net-modules).
@@ -104,25 +104,38 @@ Makefile checks for `cargo` up front and says so.
 
 ### `graphics` — Constrained Behavior
 
-- **A display is required for the full renderer.** macroquad draws through
+- **A display is required for the GPU renderer.** macroquad draws through
   OpenGL, so with a window it needs X11 or Wayland. With
   `LYNXER_GRAPHICS_HEADLESS=1` no window is opened and the module rasterizes on
-  the CPU instead: `clearBackground`, `drawRectangle`,
-  `drawRectangleLines`, `drawLine`, `drawTriangle`, `drawTriangleLines`,
-  `drawCircle` and `drawCircleLines` fill a framebuffer, and `screenshot` writes
-  that frame as a PNG (in the same top-left origin the drawing ops use). That is
-  what `stdlib_graphics_raster.lynx` checks in CI.
-- **Headless drawing covers the pixel-exact primitives only.** Text, textures,
-  fonts, shaders, render targets, the `ui*` widgets, rotated shapes and the
-  curved primitives (ellipse/arc/polygon/hexagon) are still no-ops without a
-  window, and every context-dependent load returns `-1`.
+  the CPU instead: every shape primitive fills a framebuffer — `clearBackground`,
+  `drawRectangle(_Lines)`, `drawLine`, `drawTriangle(_Lines)`,
+  `drawCircle(_Lines)`, `drawEllipse(_Lines)`, `drawPoly(_Lines)`,
+  `drawHexagon`, `drawArc` and the rotated-rectangle ops — and `screenshot`
+  writes that frame as a PNG (in the same top-left origin the drawing ops use).
+  `stdlib_graphics_raster.lynx` and `stdlib_graphics_raster_shapes.lynx` check
+  this in CI.
+- **The headless path also covers text, textures, render targets and the UI.**
+  Text is rasterized on the CPU with `fontdue`; the default face is a copy of
+  the ProggyClean TTF macroquad embeds, and `loadFont` parses a user TTF the same
+  way. `loadTexture` decodes an image to a CPU texture and the `drawTexture*`
+  ops blit it (with scale, source region, rotation and tint); `renderTarget` /
+  `setRenderTarget` / `endRenderTarget` redirect drawing into an offscreen
+  framebuffer and `renderTargetTexture` / `getScreenData` hand it back as a
+  texture or image. `uiWindowBegin`/`uiGroupBegin` blocks are drawn as a stacked
+  approximation of macroquad's layout (no input or hit-testing headless). Text
+  anti-aliasing and UI layout are therefore close to, but not pixel-identical
+  with, the GPU path.
+- **Shaders, materials and 3D meshes are GPU-only.** A fragment/vertex shader
+  cannot execute without a GPU, so `loadMaterial`/`setMaterial`/`setShader*`,
+  the `drawCube`/`drawSphere`/`drawPlane`/`drawGrid` primitives and model/mesh
+  loading stay no-ops headless and return their `-1`/placeholder results. This
+  is a hardware limit, not a missing feature.
 - **Ops that need the GPU context only work inside a frame callback.**
-  `loadTexture`, `loadFont`, `loadMaterial`, `renderTarget`, `screenshot`, the
-  `draw*` ops and the `ui*` widgets all fail if called from `setup` or `main`.
+  `loadMaterial`, `renderTarget`, `screenshot`, the `draw*` ops and the `ui*`
+  widgets all fail if called from `setup` or `main`; the headless path relaxes
+  this for the CPU-expressible ops above.
 - **No audio, native widgets or gamepads.** macroquad's audio feature is not
   vendored, the `ui*` widgets are canvas-drawn, and 0.4.16 has no gamepad API.
-- **No model loading or mesh construction.** Only the generated 3D primitives
-  are available.
 - **`uiWindowBegin`/`uiGroupBegin` buffer one block deep.** A nested `*Begin`
   returns `-1`; widget values are updated when the block is replayed, so read
   them after `*End`.
@@ -160,10 +173,21 @@ Makefile checks for `cargo` up front and says so.
   `getBody` and friends read the most recently handled request, because a Lynxer
   route is a fixed string rather than a callback and the interpreter evaluates
   one frame at a time. The original's Flask request context has no equivalent.
-- **Templates are a substitution subset.** `template`, `templatePost` and
-  `templateString` render `{{ key }}` and `{{ nested.key }}` from the `dataJson`
-  object. Jinja2 loops, conditionals, filters and inheritance are not
-  implemented, and an unknown key renders as the empty string.
+  A **template**, however, is rendered *inside* the request: it can read the
+  request through the `request` object (`request.args`, `request.headers`,
+  `request.cookies`, `request.body`, `request.json`, `request.form`,
+  `request.method`, `request.path`), and the query arguments also overlay the
+  root context.
+- **Templates are a Jinja-compatible subset.** `template`, `templatePost` and
+  `templateString` render `{{ expression }}` (with filters), `{% if %}`/
+  `{% elif %}`/`{% else %}`, `{% for x in items %}` (with the `loop` variable),
+  `{% set %}` and `{# comments #}`. Expressions cover literals, dotted paths,
+  `or`/`and`/`not`, `==`/`!=`/`<`/`<=`/`>`/`>=`, `in`, `+`/`-`/`*`/`/`/`%`,
+  `~` (concatenation), the `range()` helper and the filters `upper`, `lower`,
+  `trim`, `capitalize`, `title`, `length`, `first`, `last`, `reverse`, `join`,
+  `default`, `int`, `float`, `round`, `replace` and `string`. Inheritance
+  (`{% extends %}`/`{% block %}`), macros and includes are **not** implemented,
+  there is no auto-escaping, and an unknown key renders as the empty string.
 - **`run()` blocks.** It starts the listener on the `init` host/port and then
   blocks, matching the original. Use `start()` + `stop()` when the program has
   to keep running.
@@ -215,15 +239,22 @@ Makefile checks for `cargo` up front and says so.
 
 ### `watch` — Constrained Behavior
 
-- **Linux only.** The backend is inotify; there is no portable fallback.
+- **Linux, macOS and the BSDs.** The backend is inotify on Linux and
+  kqueue `EVFILT_VNODE` on macOS and the BSDs. Windows has no descriptor to poll
+  and is not supported. The kqueue backend reports the registered path itself
+  (a directory reports that its contents changed) rather than the individual
+  file name, and is not covered by CI — only the Linux path is.
 - **Handles, closed by the caller.** Each watch is an integer handle; dropping
   it (`watchRemove` / `watchClose`) closes the descriptor.
-- **No blocking wait.** A module cannot release the interpreter lock, so there
-  is no `watchWait`: `watchFd` returns the inotify descriptor for the
-  interpreter's own `asyncPollRegister` / `asyncPollWait`, and `watchDrain`
-  reads the pending events without blocking.
-- **Failure is in-band.** `watchAdd`/`watchFd` yield `-1`, `watchDrain` yields
-  `""` for an unknown handle, and the predicates yield `false`.
+- **Blocking wait, with the lock released.** `watchWait(handle, timeoutMs)`
+  blocks on the descriptor (1 = readable, 0 = timeout, -1 = unknown handle) and
+  releases the interpreter lock while it waits, so it does not wedge other
+  Lynxer threads. `watchFd` still returns the descriptor for the interpreter's
+  own `asyncPollRegister` / `asyncPollWait`, and `watchDrain` reads the pending
+  events without blocking.
+- **Failure is in-band.** `watchAdd`/`watchFd`/`watchWait` yield `-1`,
+  `watchDrain` yields `""` for an unknown handle, and the predicates yield
+  `false`.
 - **`watchSetDebounce` coalesces within a drain**: events for the same path
   inside the window keep only the most recent kind. 0 disables it.
 
@@ -383,9 +414,9 @@ constructs `std::regex` lacked. No system regex library is involved.
 
 - **Version:** `version()` returns the Lynxer version (e.g., `Lynxer 0.1.8.1`).
 - **Architecture:** `architecture()` returns the canonical syscall architecture of this build (`amd64` or `arm64`), not the raw machine string from `uname(2)`.
-- **System information:** `cpuCount`, `pageSize`, `memoryTotal`, `memoryAvailable`, `uptime`, `bootTime` and `loadAverage` are Linux-only and return `0` (or `[]`) when the host cannot provide the value.
+- **System information:** `cpuCount`, `pageSize`, `memoryTotal`, `memoryAvailable`, `uptime`, `bootTime` and `loadAverage` report the host on Linux, macOS and FreeBSD/DragonFly (`sysctl`), sharing the POSIX `sysconf`/`getloadavg` paths where they exist. NetBSD/OpenBSD fall back to `0` (or `[]`) for the `sysctl`-backed values, and any host that cannot provide a value returns `0` (or `[]`).
 - **Python runtime concepts:** Not supported (`sys.path`, `addPath`, `prependPath`, `removeFromPath`, `getModules`, `isModuleLoaded`, `getRecursionLimit`, `setRecursionLimit`).
-- **Command-line arguments:** `argv()`, `getArg`, and `argCount` describe the `lynxer` process command line, not the program's arguments.
+- **Command-line arguments:** `argv()`, `getArg` and `argCount` describe the **program's own** command line — the script path (or the compiled executable) followed by the arguments passed after it — not the `lynxer` process command line.
 - **Exit behavior:** `exit()` calls `std::exit` directly, bypassing interpreter cleanup.
 
 ### `cli` — Constrained Behavior

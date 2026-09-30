@@ -84,12 +84,17 @@ struct Task {
 #[derive(Clone)]
 struct ProgressState {
     tasks: Vec<Task>,
+    /// Lines the last in-place render occupied, so the next update can move the
+    /// cursor back over them. 0 before the first render.
+    rendered_height: u16,
 }
 
 struct LiveState {
     text: String,
     title: String,
     panel: bool,
+    /// Lines the last in-place render occupied (see [`ProgressState`]).
+    rendered_height: u16,
 }
 
 struct TuiState {
@@ -181,6 +186,22 @@ fn emit(state: &mut TuiState, rendered: &str) {
     println!("{}", rendered);
     let _ = std::io::stdout().flush();
     state.lines.push(rendered.to_string());
+}
+
+/// Prints a block in place: on a terminal, a repeat update moves the cursor back
+/// over the previous render and clears it first, so a progress bar or live
+/// display animates rather than scrolling. Without a terminal (CI, a pipe) the
+/// escapes are skipped and each update simply prints, which is what the fixtures
+/// compare against. Returns the number of lines the render occupied.
+fn emit_in_place(state: &mut TuiState, rendered: &str, previous_height: u16) -> u16 {
+    let height = rendered.lines().count().max(1) as u16;
+    if previous_height > 0 && is_tty() {
+        print!("\u{1b}[{previous_height}A\u{1b}[J");
+    }
+    println!("{}", rendered);
+    let _ = std::io::stdout().flush();
+    state.lines.push(rendered.to_string());
+    height
 }
 
 // --- Rendering helpers -----------------------------------------------------
@@ -1475,7 +1496,15 @@ export_int!(tui_layout_print, args, {
 
 // Start a progress bar. Returns the handle, or -1 on error.
 export_int!(tui_progress_start, args, {
-    with_state(|state| allocate(&mut state.progress, ProgressState { tasks: Vec::new() }))
+    with_state(|state| {
+        allocate(
+            &mut state.progress,
+            ProgressState {
+                tasks: Vec::new(),
+                rendered_height: 0,
+            },
+        )
+    })
 });
 
 // Add a task to a progress bar. Returns the task ID, or -1 on error.
@@ -1508,7 +1537,7 @@ export_int!(tui_progress_advance, args, {
     with_state(|state| {
         let width = state.width;
         let ansi = ansi_enabled(state);
-        let rendered = {
+        let (rendered, previous) = {
             let Some(slot) = state
                 .progress
                 .get_mut(index as usize)
@@ -1520,9 +1549,16 @@ export_int!(tui_progress_advance, args, {
                 return -1;
             };
             task.completed = (task.completed + amount).max(0.0);
-            render_progress(width, ansi, slot)
+            (render_progress(width, ansi, slot), slot.rendered_height)
         };
-        emit(state, &rendered);
+        let height = emit_in_place(state, &rendered, previous);
+        if let Some(slot) = state
+            .progress
+            .get_mut(index as usize)
+            .and_then(|slot| slot.as_mut())
+        {
+            slot.rendered_height = height;
+        }
         0
     })
 });
@@ -1536,7 +1572,7 @@ export_int!(tui_progress_update, args, {
     with_state(|state| {
         let width = state.width;
         let ansi = ansi_enabled(state);
-        let rendered = {
+        let (rendered, previous) = {
             let Some(slot) = state
                 .progress
                 .get_mut(index as usize)
@@ -1551,9 +1587,16 @@ export_int!(tui_progress_update, args, {
             if total > 0.0 {
                 task.total = total;
             }
-            render_progress(width, ansi, slot)
+            (render_progress(width, ansi, slot), slot.rendered_height)
         };
-        emit(state, &rendered);
+        let height = emit_in_place(state, &rendered, previous);
+        if let Some(slot) = state
+            .progress
+            .get_mut(index as usize)
+            .and_then(|slot| slot.as_mut())
+        {
+            slot.rendered_height = height;
+        }
         0
     })
 });
@@ -1564,7 +1607,7 @@ export_int!(tui_progress_stop, args, {
     with_state(|state| {
         let width = state.width;
         let ansi = ansi_enabled(state);
-        let rendered = {
+        let (rendered, previous) = {
             let Some(slot) = state
                 .progress
                 .get(index as usize)
@@ -1572,9 +1615,9 @@ export_int!(tui_progress_stop, args, {
             else {
                 return -1;
             };
-            render_progress(width, ansi, slot)
+            (render_progress(width, ansi, slot), slot.rendered_height)
         };
-        emit(state, &rendered);
+        emit_in_place(state, &rendered, previous);
         if let Some(slot) = state.progress.get_mut(index as usize) {
             *slot = None;
         }
@@ -1643,6 +1686,7 @@ export_int!(tui_live_start, args, {
                 text: text.to_string(),
                 title: String::new(),
                 panel: false,
+                rendered_height: 0,
             },
         )
     })
@@ -1653,17 +1697,27 @@ export_int!(tui_live_update, args, {
     let index = args.int(0);
     let text = args.string(0);
     with_state(|state| {
-        let Some(slot) = state
+        let previous = {
+            let Some(slot) = state
+                .live
+                .get_mut(index as usize)
+                .and_then(|slot| slot.as_mut())
+            else {
+                return -1;
+            };
+            slot.text = text.to_string();
+            slot.panel = false;
+            slot.rendered_height
+        };
+        let rendered = render_paragraph(state, text, Style::default(), Alignment::Left, None);
+        let height = emit_in_place(state, &rendered, previous);
+        if let Some(slot) = state
             .live
             .get_mut(index as usize)
             .and_then(|slot| slot.as_mut())
-        else {
-            return -1;
-        };
-        slot.text = text.to_string();
-        slot.panel = false;
-        let rendered = render_paragraph(state, text, Style::default(), Alignment::Left, None);
-        emit(state, &rendered);
+        {
+            slot.rendered_height = height;
+        }
         0
     })
 });
@@ -1674,20 +1728,30 @@ export_int!(tui_live_panel, args, {
     let text = args.string(0);
     let title = args.string(1);
     with_state(|state| {
-        let Some(slot) = state
-            .live
-            .get_mut(index as usize)
-            .and_then(|slot| slot.as_mut())
-        else {
-            return -1;
+        let previous = {
+            let Some(slot) = state
+                .live
+                .get_mut(index as usize)
+                .and_then(|slot| slot.as_mut())
+            else {
+                return -1;
+            };
+            slot.text = text.to_string();
+            slot.title = title.to_string();
+            slot.panel = true;
+            slot.rendered_height
         };
-        slot.text = text.to_string();
-        slot.title = title.to_string();
-        slot.panel = true;
         let block = panel_block(title, Style::default());
         let rendered =
             render_paragraph(state, text, Style::default(), Alignment::Left, Some(block));
-        emit(state, &rendered);
+        let height = emit_in_place(state, &rendered, previous);
+        if let Some(slot) = state
+            .live
+            .get_mut(index as usize)
+            .and_then(|slot| slot.as_mut())
+        {
+            slot.rendered_height = height;
+        }
         0
     })
 });
@@ -1700,8 +1764,15 @@ export_int!(tui_live_stop, args, {
             .live
             .get(index as usize)
             .and_then(|slot| slot.as_ref())
-            .map(|slot| (slot.text.clone(), slot.title.clone(), slot.panel));
-        let Some((text, title, panel)) = snapshot else {
+            .map(|slot| {
+                (
+                    slot.text.clone(),
+                    slot.title.clone(),
+                    slot.panel,
+                    slot.rendered_height,
+                )
+            });
+        let Some((text, title, panel, previous)) = snapshot else {
             return -1;
         };
         let rendered = if panel {
@@ -1710,7 +1781,7 @@ export_int!(tui_live_stop, args, {
         } else {
             render_paragraph(state, &text, Style::default(), Alignment::Left, None)
         };
-        emit(state, &rendered);
+        emit_in_place(state, &rendered, previous);
         if let Some(slot) = state.live.get_mut(index as usize) {
             *slot = None;
         }
@@ -2434,7 +2505,11 @@ fn select_index(choices: &[String]) -> i64 {
 fn multiselect_indices(choices: &[String]) -> String {
     let answer = read_line("");
     let mut chosen: Vec<i64> = Vec::new();
-    for token in answer.split(',').map(str::trim).filter(|token| !token.is_empty()) {
+    for token in answer
+        .split(',')
+        .map(str::trim)
+        .filter(|token| !token.is_empty())
+    {
         if let Ok(number) = token.parse::<i64>() {
             if number >= 0 && (number as usize) < choices.len() {
                 chosen.push(number);
@@ -2494,10 +2569,12 @@ export_int!(tui_menu, args, {
 // Save the recorded output as an SVG. Returns "ok" or "Error: <message>".
 export_string!(tui_console_save_svg, args, {
     let path = args.string(0);
-    with_state(|state| match std::fs::write(path, svg_document(&state.lines)) {
-        Ok(()) => "ok".to_string(),
-        Err(error) => format!("Error: {error}"),
-    })
+    with_state(
+        |state| match std::fs::write(path, svg_document(&state.lines)) {
+            Ok(()) => "ok".to_string(),
+            Err(error) => format!("Error: {error}"),
+        },
+    )
 });
 
 // Render an image as half blocks (color terminals) or a placeholder.
@@ -2663,7 +2740,11 @@ const OPS: &[(&str, &str, &str)] = &[
     ("themeName", "tui_theme_name", "cdecl:cstring(...)"),
     // Interactive menu, SVG capture and image rendering
     ("menu", "tui_menu", "cdecl:int64(...)"),
-    ("consoleSaveSvg", "tui_console_save_svg", "cdecl:cstring(...)"),
+    (
+        "consoleSaveSvg",
+        "tui_console_save_svg",
+        "cdecl:cstring(...)",
+    ),
     ("image", "tui_image", "cdecl:int64(...)"),
 ];
 

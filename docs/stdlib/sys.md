@@ -30,16 +30,17 @@ Runtime, process and platform information.
 | `stdinName` / `stdoutName` | `() -> str` | `<stdin>` / `<stdout>` |
 | `executable` | `() -> str` | Path of the running executable |
 | `prefix` / `execPrefix` | `() -> str` | Directory containing the executable |
-| `argv` | `() -> str` | Process command line as a JSON array |
-| `argCount` | `() -> int` | Number of command-line entries |
+| `argv` | `() -> str` | The program's command line as a JSON array |
+| `argCount` | `() -> int` | Number of program command-line entries |
 | `getArg` | `(int index) -> str` | Entry at `index`, or `""` |
 | `exit` | `(int code)` | Exits immediately with `code` |
 | `exitOk` / `exitError` | `()` | Exits with `0` / `1` |
 
 Because Lynxer has no Python runtime, `version()` reports the Lynxer version
-and there is no `sys.path`, `sys.modules` or recursion-limit surface. Lynxer
-does not forward extra arguments to a program, so `argv` describes the `lynxer`
-process itself.
+and there is no `sys.path`, `sys.modules` or recursion-limit surface. `argv`
+describes the **program's own** command line: entry 0 is the script path
+(`lynxer prog.lynx a b` → `["prog.lynx", "a", "b"]`), or the executable itself
+for a compiled program, followed by the arguments passed after it.
 
 ## Example
 

@@ -97,6 +97,20 @@ pub enum UiCommand {
     SameLine(f32),
 }
 
+/// A turtle for the `turtle` module: a position, a heading in degrees, and a
+/// pen. `forward`/`back`/`goto` draw a line from the old position when the pen
+/// is down. Handle 0 is the implicit default turtle the pure-Lynxer `turtle`
+/// wrapper uses; `turtleCreate` returns handles from 1 up.
+#[derive(Clone, Copy)]
+pub struct Turtle {
+    pub x: f32,
+    pub y: f32,
+    pub heading: f32,
+    pub pen_down: bool,
+    pub color: Color,
+    pub width: f32,
+}
+
 /// The open `uiWindowBegin`/`uiGroupBegin` block, if any.
 pub enum UiBlock {
     Window {
@@ -155,6 +169,19 @@ pub struct State {
     /// The CPU frame the headless rasterizer draws into. `None` while a window
     /// is open (macroquad owns the pixels) and until the first drawing op runs.
     pub framebuffer: Option<crate::raster::Framebuffer>,
+    /// CPU fonts, used for headless text. A handle indexes this vector the same
+    /// way `fonts` indexes macroquad fonts.
+    pub cpu_fonts: Vec<Option<crate::font::RasterFont>>,
+    /// CPU RGBA images used as textures for headless blits. A handle indexes
+    /// this vector the same way `textures` indexes GPU textures.
+    pub cpu_textures: Vec<Option<Image>>,
+    /// Offscreen frames for headless render targets.
+    pub cpu_targets: Vec<Option<crate::raster::Framebuffer>>,
+    /// The render target the drawing ops are redirected into, if any.
+    pub active_target: Option<i64>,
+    /// Turtle state registry, indexed by handle. Index 0 is the implicit
+    /// default turtle, created on first use.
+    pub turtles: Vec<Option<Turtle>>,
 }
 
 impl State {
@@ -196,6 +223,11 @@ impl State {
             scroll_x: 0.0,
             scroll_y: 0.0,
             framebuffer: None,
+            cpu_fonts: Vec::new(),
+            cpu_textures: Vec::new(),
+            cpu_targets: Vec::new(),
+            active_target: None,
+            turtles: Vec::new(),
         }
     }
 
@@ -207,6 +239,11 @@ impl State {
         self.fonts.clear();
         self.materials.clear();
         self.targets.clear();
+        self.cpu_fonts.clear();
+        self.cpu_textures.clear();
+        self.cpu_targets.clear();
+        self.active_target = None;
+        self.turtles.clear();
         self.camera2d = CameraState::new();
         self.ui_values.clear();
         self.ui_results.clear();
@@ -254,6 +291,31 @@ impl State {
             return None;
         }
         self.targets.get(handle as usize).and_then(|t| t.as_ref())
+    }
+
+    pub fn cpu_font(&self, handle: i64) -> Option<&crate::font::RasterFont> {
+        if handle < 0 {
+            return None;
+        }
+        self.cpu_fonts.get(handle as usize).and_then(|f| f.as_ref())
+    }
+
+    pub fn cpu_texture(&self, handle: i64) -> Option<&Image> {
+        if handle < 0 {
+            return None;
+        }
+        self.cpu_textures
+            .get(handle as usize)
+            .and_then(|t| t.as_ref())
+    }
+
+    pub fn cpu_target(&self, handle: i64) -> Option<&crate::raster::Framebuffer> {
+        if handle < 0 {
+            return None;
+        }
+        self.cpu_targets
+            .get(handle as usize)
+            .and_then(|t| t.as_ref())
     }
 
     pub fn material(&self, handle: i64) -> Option<&Material> {

@@ -172,6 +172,7 @@ Any future callback must be declared here before the module ships.
 | `time` | C++ | none | none |
 | `toml` | Rust | none — documents are strings | none |
 | `tui` | Rust | **integer handles** into backend registries (tables, trees, layouts, progress, status, live) | none (registries live for the run) |
+| `turtle` | pure Lynxer | the `graphics` module holds the state; this drives its implicit default turtle (handle `0`) | none |
 | `typing` | pure Lynxer | none | none |
 | `uuid` | Rust | none — UUIDs are strings | none |
 | `watch` | Rust | **integer handles** into a backend registry | caller: `watchClose(handle)` |

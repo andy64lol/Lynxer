@@ -34,6 +34,8 @@ use axum::Router;
 
 use lynxer_abi::{export_int, export_string, lynxer_module};
 
+mod template;
+
 // --- route model ------------------------------------------------------------
 
 const METHOD_GET: u8 = 1;
@@ -358,45 +360,96 @@ fn safe_join(directory: &str, relative: &str) -> Option<std::path::PathBuf> {
     Some(path)
 }
 
-/// Renders `{{ name }}` (and dotted `{{ a.b }}`) from a JSON object. The
-/// original used Jinja2; this is the documented substitution subset — no loops
-/// or conditionals.
-fn render_template(source: &str, data: &str) -> String {
-    let values: serde_json::Value = serde_json::from_str(data).unwrap_or(serde_json::Value::Null);
-    let mut output = String::with_capacity(source.len());
-    let mut rest = source;
-    while let Some(start) = rest.find("{{") {
-        output.push_str(&rest[..start]);
-        let after = &rest[start + 2..];
-        match after.find("}}") {
-            Some(end) => {
-                let key = after[..end].trim();
-                output.push_str(&template_value(&values, key));
-                rest = &after[end + 2..];
-            }
-            None => {
-                output.push_str(&rest[start..]);
-                return output;
-            }
-        }
-    }
-    output.push_str(rest);
-    output
+/// The per-request data a template can read. Routes are fixed strings, not
+/// callbacks, so this is the way a request reaches a template: the query
+/// arguments, headers, cookies and body are exposed under `request` (and the
+/// query arguments also overlay the root, so `{{ name }}` resolves from
+/// `?name=Ada`).
+struct RequestContext {
+    method: String,
+    path: String,
+    query: String,
+    content_type: String,
+    body: String,
+    headers: Vec<(String, String)>,
+    cookies: Vec<(String, String)>,
 }
 
-fn template_value(values: &serde_json::Value, key: &str) -> String {
-    let mut current = values;
-    for part in key.split('.') {
-        match current.get(part.trim()) {
-            Some(next) => current = next,
-            None => return String::new(),
+/// Builds the template root: the static `data` object, with a `request` object
+/// and the query arguments merged in.
+fn template_context(data: &str, request: &RequestContext) -> serde_json::Value {
+    let mut root = match serde_json::from_str::<serde_json::Value>(data) {
+        Ok(serde_json::Value::Object(map)) => map,
+        _ => serde_json::Map::new(),
+    };
+
+    let mut request_object = serde_json::Map::new();
+    request_object.insert(
+        "method".to_string(),
+        serde_json::Value::String(request.method.clone()),
+    );
+    request_object.insert(
+        "path".to_string(),
+        serde_json::Value::String(request.path.clone()),
+    );
+    request_object.insert(
+        "query".to_string(),
+        serde_json::Value::String(request.query.clone()),
+    );
+    request_object.insert(
+        "body".to_string(),
+        serde_json::Value::String(request.body.clone()),
+    );
+    request_object.insert(
+        "contentType".to_string(),
+        serde_json::Value::String(request.content_type.clone()),
+    );
+
+    let mut args = serde_json::Map::new();
+    for (key, value) in parse_pairs(&request.query) {
+        args.insert(key, serde_json::Value::String(value));
+    }
+    request_object.insert("args".to_string(), serde_json::Value::Object(args.clone()));
+
+    let mut headers = serde_json::Map::new();
+    for (key, value) in &request.headers {
+        headers.insert(key.clone(), serde_json::Value::String(value.clone()));
+    }
+    request_object.insert("headers".to_string(), serde_json::Value::Object(headers));
+
+    let mut cookies = serde_json::Map::new();
+    for (key, value) in &request.cookies {
+        cookies.insert(key.clone(), serde_json::Value::String(value.clone()));
+    }
+    request_object.insert("cookies".to_string(), serde_json::Value::Object(cookies));
+
+    // A JSON body is exposed as `request.json`.
+    if request.content_type.contains("application/json") {
+        if let Ok(value) = serde_json::from_str::<serde_json::Value>(&request.body) {
+            request_object.insert("json".to_string(), value);
         }
     }
-    match current {
-        serde_json::Value::String(text) => text.clone(),
-        serde_json::Value::Null => String::new(),
-        other => other.to_string(),
+    // A form body is exposed as `request.form`.
+    if request
+        .content_type
+        .contains("application/x-www-form-urlencoded")
+    {
+        let mut form = serde_json::Map::new();
+        for (key, value) in parse_pairs(&request.body) {
+            form.insert(key, serde_json::Value::String(value));
+        }
+        request_object.insert("form".to_string(), serde_json::Value::Object(form));
     }
+
+    root.insert(
+        "request".to_string(),
+        serde_json::Value::Object(request_object),
+    );
+    // Query arguments overlay the root so `{{ name }}` works without a prefix.
+    for (key, value) in args {
+        root.entry(key).or_insert(value);
+    }
+    serde_json::Value::Object(root)
 }
 
 fn decorate(
@@ -491,6 +544,16 @@ async fn dispatch(ConnectInfo(address): ConnectInfo<SocketAddr>, request: Reques
         uri.clone()
     } else {
         format!("http://{host}{uri}")
+    };
+
+    let request_context = RequestContext {
+        method: method.clone(),
+        path: path.clone(),
+        query: query.clone(),
+        content_type: content_type.clone(),
+        body: raw_body.clone(),
+        headers: headers.clone(),
+        cookies: cookies.clone(),
     };
 
     let (log, plan, config) = {
@@ -604,11 +667,11 @@ async fn dispatch(ConnectInfo(address): ConnectInfo<SocketAddr>, request: Reques
                 &config,
             ),
         },
-        Plan::Route(index) => route_response(index, &raw_body, &config),
+        Plan::Route(index) => route_response(index, &request_context, &config),
     }
 }
 
-fn route_response(index: usize, request_body: &str, config: &Config) -> Response {
+fn route_response(index: usize, request: &RequestContext, config: &Config) -> Response {
     let state = lock_state();
     let Some(route) = state.routes.get(index) else {
         return response(
@@ -648,10 +711,11 @@ fn route_response(index: usize, request_body: &str, config: &Config) -> Response
                 (_, Some(text)) => text.clone(),
                 _ => String::new(),
             };
+            let values = template_context(data, request);
             response(
                 200,
                 "text/html; charset=utf-8",
-                render_template(&source, data),
+                template::render(&source, &values),
                 config,
             )
         }
@@ -677,7 +741,7 @@ fn route_response(index: usize, request_body: &str, config: &Config) -> Response
                 .body(Body::empty())
                 .unwrap_or_else(|_| Response::new(Body::empty()))
         }
-        RouteBody::Echo => response(200, "text/plain", request_body.to_string(), config),
+        RouteBody::Echo => response(200, "text/plain", request.body.clone(), config),
     }
 }
 
@@ -720,11 +784,9 @@ fn validate_pem(cert_pem: &[u8], key_pem: &[u8]) -> Result<(), String> {
 
 /// Generates a self-signed certificate for `localhost`/`127.0.0.1`, as PEM.
 fn self_signed_pem() -> Result<(Vec<u8>, Vec<u8>), String> {
-    let certified = rcgen::generate_simple_self_signed(vec![
-        "localhost".to_string(),
-        "127.0.0.1".to_string(),
-    ])
-    .map_err(|error| format!("cannot generate a self-signed certificate: {error}"))?;
+    let certified =
+        rcgen::generate_simple_self_signed(vec!["localhost".to_string(), "127.0.0.1".to_string()])
+            .map_err(|error| format!("cannot generate a self-signed certificate: {error}"))?;
     Ok((
         certified.cert.pem().into_bytes(),
         certified.signing_key.serialize_pem().into_bytes(),

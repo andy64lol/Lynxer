@@ -194,13 +194,13 @@
 <tr><td><code>stdinName</code> / <code>stdoutName</code></td><td><code>() -&gt; str</code></td><td><code>&lt;stdin&gt;</code> / <code>&lt;stdout&gt;</code></td></tr>
 <tr><td><code>executable</code></td><td><code>() -&gt; str</code></td><td>Path of the running executable</td></tr>
 <tr><td><code>prefix</code> / <code>execPrefix</code></td><td><code>() -&gt; str</code></td><td>Directory containing the executable</td></tr>
-<tr><td><code>argv</code></td><td><code>() -&gt; str</code></td><td>Process command line as a JSON array</td></tr>
-<tr><td><code>argCount</code></td><td><code>() -&gt; int</code></td><td>Number of command-line entries</td></tr>
+<tr><td><code>argv</code></td><td><code>() -&gt; str</code></td><td>The program's command line as a JSON array</td></tr>
+<tr><td><code>argCount</code></td><td><code>() -&gt; int</code></td><td>Number of program command-line entries</td></tr>
 <tr><td><code>getArg</code></td><td><code>(int index) -&gt; str</code></td><td>Entry at <code>index</code>, or <code>&quot;&quot;</code></td></tr>
 <tr><td><code>exit</code></td><td><code>(int code)</code></td><td>Exits immediately with <code>code</code></td></tr>
 <tr><td><code>exitOk</code> / <code>exitError</code></td><td><code>()</code></td><td>Exits with <code>0</code> / <code>1</code></td></tr>
 </table>
-<p>Because Lynxer has no Python runtime, <code>version()</code> reports the Lynxer version and there is no <code>sys.path</code>, <code>sys.modules</code> or recursion-limit surface. Lynxer does not forward extra arguments to a program, so <code>argv</code> describes the <code>lynxer</code> process itself.</p>
+<p>Because Lynxer has no Python runtime, <code>version()</code> reports the Lynxer version and there is no <code>sys.path</code>, <code>sys.modules</code> or recursion-limit surface. <code>argv</code> describes the <strong>program's own</strong> command line: entry 0 is the script path (<code>lynxer prog.lynx a b</code> → <code>[&quot;prog.lynx&quot;, &quot;a&quot;, &quot;b&quot;]</code>), or the executable itself for a compiled program, followed by the arguments passed after it.</p>
 <h2 id="example">Example</h2>
 <pre><code>global setup(){ import(&quot;sys&quot;); }
 

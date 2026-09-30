@@ -29,6 +29,12 @@ namespace lynxer {
 
 namespace {
 
+// The program's own command line, set by `shellMain` before it hands the
+// program to `runProgram`: the script path followed by the arguments after it,
+// or the whole command line for a compiled executable. It is what `sys.argv`
+// reports instead of the interpreter's process command line.
+std::vector<std::string> programArguments;
+
 std::string readFile(const std::string& path, const std::string& display,
                      bool& ok) {
     std::ifstream input(path);
@@ -504,6 +510,7 @@ int runProgram(const std::string& display, const std::string& source) {
             optimizeProgram(functions, optimizationStats());
         }
         Environment environment;
+        environment.setProgramArguments(programArguments);
         const std::size_t slash = display.find_last_of('/');
         if (slash != std::string::npos) {
             environment.setSourceDirectory(display.substr(0, slash));
@@ -878,6 +885,9 @@ int shellMain(int argc, char** argv) {
     // A compiled executable runs its embedded program directly.
     std::vector<uint8_t> selfPayload;
     if (readSelfPayload(selfPayload)) {
+        // A compiled executable is the program, so its whole command line is
+        // the program's arguments.
+        programArguments.assign(argv, argv + argc);
         const int exitCode = runCompiledPayload(selfPayload);
         if (interruptRequested()) {
             std::cout << '\n';
@@ -1004,6 +1014,11 @@ int shellMain(int argc, char** argv) {
     if (!ok) {
         return 1;
     }
+    // The program's arguments are its own command line: the script path
+    // followed by everything after it.
+    programArguments.assign(1, display);
+    programArguments.insert(programArguments.end(), args.begin() + 1,
+                            args.end());
     const int exitCode = runProgram(display, source);
     if (interruptRequested()) {
         std::cout << '\n';
