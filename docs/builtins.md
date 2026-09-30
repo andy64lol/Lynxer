@@ -34,6 +34,8 @@ dispatcher rather than to a per-name handler.
 | `object()` | Creates an empty object value |
 | `returnType(value)` | Type name, e.g. `int`, `float`, `str`, `bool`, `list`, `tuple`, `bytes`, `none` |
 | `returnLength(value)` | Length of a `str` in **code points**, or the element count of a `list`/`tuple` |
+| `raise(message)` | Raises a catchable runtime error with the supplied string message |
+| `exceptionInfo()` | Formatted details for the active `try`/`catch` exception, or `""` outside a catch block |
 
 ## Strings
 

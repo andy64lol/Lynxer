@@ -18,8 +18,9 @@ the result:
 `setWidth(width)` pins the render width (default `80`) and `setSoftWrap`
 controls wrapping. `panel*`, `rule*`, `table*`, `tree*`, `layout*`, `progress*`,
 `status*` and `live*` render the state that was previously stored, so they
-reflect the data rather than a fixed template. Progress, status and live
-families print a snapshot on each update.
+reflect the data rather than a fixed template. Progress and live updates redraw
+in place on a TTY; when output is redirected they print deterministic snapshots.
+Status updates remain ordinary output.
 
 `markdown` renders CommonMark through [`pulldown-cmark`](https://crates.io/crates/pulldown-cmark)
 (headings, emphasis, inline and fenced code, ordered/unordered/task lists, block
@@ -70,7 +71,9 @@ returns `false` when a string contains an unknown token.
 - `printColumns(itemsJson: string, equal: bool, expand: bool)` — Prints columns.
 - `printAligned(text: string, align: string, pad: bool)` — Prints aligned text.
 - `printPadded(text: string, top: int, right: int, bottom: int, left: int)` — Prints padded text.
-- `printException()` — Prints exception traceback.
+- `printException()` — Inside a `catch` block, prints the caught error message
+  and its source location. Outside a catch block, prints that no exception
+  information is available.
 - `installTraceback(showLocals: bool)` — Installs traceback.
 
 ### Panels and Rules

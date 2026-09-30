@@ -1167,10 +1167,16 @@ export_int!(tui_print_padded, args, {
     0
 });
 
-// Print exception traceback. Returns 0 on success.
+// Print the active caught exception details passed through the Lynxer wrapper.
+// Returns 0 on success.
 export_int!(tui_print_exception, args, {
+    let details = args.string(0);
     with_state(|state| {
-        emit(state, "(no exception information available)");
+        if details.is_empty() {
+            emit(state, "(no exception information available)");
+        } else {
+            emit(state, details);
+        }
     });
     0
 });

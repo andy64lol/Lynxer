@@ -36,8 +36,14 @@ global main(){
     println(global.sqldb.script(db, "CREATE TABLE t2 (a INTEGER); INSERT INTO t2 VALUES (7);"));
     println(global.sqldb.tables(db));
 
-    // Failures are reported in-band as "ERROR: <message>" rather than raised.
-    println(global.sqldb.query(db, "SELECT * FROM missing_table"));
+    // String-returning operations raise catchable errors on database failure.
+    str queryError = "";
+    try {
+        global.sqldb.query(db, "SELECT * FROM missing_table");
+    } catch(str error) {
+        queryError = error;
+    }
+    println("query error: ", queryError);
 
     // A handle from open() keeps one connection live across calls.
     int conn = global.sqldb.open(db);
@@ -58,7 +64,13 @@ global main(){
     println(global.sqldb.close(conn));
     println(global.sqldb.close(conn));
     println(global.sqldb.tableExistsOn(conn, "users"));
-    println(global.sqldb.scalarOn(conn, "SELECT COUNT(*) FROM users") is "");
+    str handleError = "";
+    try {
+        global.sqldb.scalarOn(conn, "SELECT COUNT(*) FROM users");
+    } catch(str error) {
+        handleError = error;
+    }
+    println("handle error: ", handleError);
     println(global.sqldb.open("/nonexistent-directory/x.db"));
 
     global.fileIO.deleteFile(db);

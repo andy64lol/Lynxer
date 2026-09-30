@@ -79,13 +79,17 @@ picks one family and applies it consistently:
 | --- | --- | --- |
 | Scalar sentinel | `-1` for indices and sizes, `0` / `0.0` for numbers, `false` for predicates, `""` for strings | `cli`, `crypto`, `debug`, `encoding`, `fileIO`, `game`, `image`, `ini`, `json`, `math`, `multiprocessing`, `os`, `path`, `random`, `re`, `regex`, `sound`, `sys`, `time`, `toml`, `uuid`, `watch`, `xml`, `yaml` |
 | Process exit code | the command's exit status; a negative value when it did not run | `shell` |
-| Status string | `"ok"` on success; `"ERROR: <message>"` on failure | `compress`, `csv`, `sqldb`, `network`, `server` |
+| Status string | `"ok"` on success; `"ERROR: <message>"` on failure | `compress`, `csv`, `network`, `server` |
 | Error string | `"Error: <message>"` | `js`, `lua`, `tui` |
+| Catchable runtime error | Raises a `SourceError` caught by `try`/`catch` | `sqldb` string-returning operations |
 
 `csv` mixes the first two: its table-returning operations answer with the status
 string (`"ok"` / `"ERROR: ..."`), and the rest use scalar sentinels.
 `compress` mixes them too: its in-memory stream operations use scalar sentinels
 (`""`), while its file and archive operations answer with the status string.
+`sqldb` translates its native backend's internal error string into a catchable
+runtime error in the Lynxer wrapper; integer and boolean operations keep their
+documented sentinels.
 `colorlib`, `text` and `typing` are pure Lynxer and have no native boundary to
 report across.
 

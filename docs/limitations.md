@@ -476,10 +476,9 @@ constructs `std::regex` lacked. No system regex library is involved.
   (`queryOn`, `executeArgsOn`, …) run against a handle; a handle stays valid for
   the run, and calling `close` twice (or with an unknown handle) reports `0`.
 
-- **Error handling:** Failures are returned in-band as `"ERROR: <message>"` (and
-  as `-1`/`false` for integer/boolean functions) instead of being raised. An
-  unknown or closed handle answers the same sentinels: `"ERROR: unknown
-  connection handle N"`, `-1` or `false`.
+- **Error handling:** String-returning operations raise a catchable runtime
+  error on failure. Integer and boolean functions retain their `-1`/`false`
+  sentinels for failures, including unknown or closed handles.
 
 - **JSON formatting:** `query`, `queryArgs`, and `tables` emit JSON with `": "` and `", "` separators.
 

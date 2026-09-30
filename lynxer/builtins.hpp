@@ -20,6 +20,11 @@ void joinNativeThreadsAtExit();
 // for the same reason as `joinNativeThreadsAtExit`.
 void joinAsyncTasksAtExit();
 
+// The catch block's active exception details, used by integrations such as
+// tui.printException(). Empty outside a catch block.
+std::string activeExceptionInfo();
+void setActiveExceptionInfo(std::string info);
+
 // Resolves an `await`: joins a task handle produced by `asyncRun` and returns
 // its value, raising the task's failure if it failed; other values pass through.
 Value awaitValue(const Value& value, int line, int column);

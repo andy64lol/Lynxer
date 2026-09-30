@@ -5,14 +5,16 @@ The `sqldb` module provides SQLite database functionality using Rust's `rusqlite
 ## Functions
 
 - `execute(path: string, sql: string) -> string`
-  Executes one SQL statement and commits it. Returns `"ok"` or `"ERROR: <message>"`.
+  Executes one SQL statement and commits it. Returns `"ok"` or raises a catchable
+  runtime error on failure.
 
 - `executeArgs(path: string, sql: string, paramsJson: string) -> string`
   Executes one parameterized SQL statement. `paramsJson` must be a JSON array.
-  Returns `"ok"` or `"ERROR: <message>"`.
+  Returns `"ok"` or raises a catchable runtime error on failure.
 
 - `script(path: string, sqlScript: string) -> string`
-  Executes multiple SQL statements as one transaction. Returns `"ok"` or `"ERROR: <message>"`.
+  Executes multiple SQL statements as one transaction. Returns `"ok"` or raises
+  a catchable runtime error on failure.
 
 - `query(path: string, sql: string) -> string`
   Query rows and return a JSON array of objects.
@@ -53,9 +55,20 @@ reuse one connection, open it once and use the `*On` forms with the handle:
   handle in place of the path).
 
 Handles stay valid for the run, and a closed or unknown handle answers the
-usual sentinels (`"ERROR: unknown connection handle <n>"`, `-1`, `false`)
-rather than raising. Two threads can share a handle: each call takes the
+usual sentinels (`-1`, `false`) for integer- and boolean-returning operations.
+String-returning operations raise a catchable runtime error, including for an
+unknown or closed handle. Two threads can share a handle: each call takes the
 connection for its duration.
+
+Catch database failures with the language's `try`/`catch` statement:
+
+```lynx
+try {
+    global.sqldb.query("database.db", "SELECT * FROM missing_table");
+} catch(str error) {
+    println("Database error: ", error);
+}
+```
 
 ## Example
 
@@ -82,7 +95,7 @@ global main(){
 ## See also
 
 - [stdlib-contracts.md](../stdlib-contracts.md) — the contract this module
-  implements, including the error sentinel family it uses.
+  implements, including its error behavior.
 - [builtins.md](../builtins.md) — the functions the interpreter implements
   itself.
 - [limitations.md](../limitations.md) — the full divergence register.

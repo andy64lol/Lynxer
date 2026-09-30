@@ -1598,31 +1598,49 @@ void TryCatchStatement::execute(Environment& environment) const {
     try {
         executeStatements(tryStatements_, environment);
     } catch (const SourceError& error) {
-        if (!catchName_.empty()) {
-            if (environment.hasVariable(catchName_)) {
-                const Variable existing =
-                    environment.variableSnapshot(catchName_);
-                if (existing.constant) {
-                    throw SourceError("Cannot bind catch variable '" +
-                                          catchName_ +
-                                          "': it is declared as const",
-                                      line_, column_);
+        const std::string previousExceptionInfo = activeExceptionInfo();
+        std::ostringstream exceptionDetails;
+        exceptionDetails << "Traceback (most recent call last):\n"
+                         << "  File \""
+                         << (error.source.empty() ? "<program>" : error.source)
+                         << "\", line " << error.line << ", column "
+                         << error.column << "\n"
+                         << error.what();
+        setActiveExceptionInfo(exceptionDetails.str());
+        try {
+            if (!catchName_.empty()) {
+                if (environment.hasVariable(catchName_)) {
+                    const Variable existing =
+                        environment.variableSnapshot(catchName_);
+                    if (existing.constant) {
+                        throw SourceError("Cannot bind catch variable '" +
+                                              catchName_ +
+                                              "': it is declared as const",
+                                          line_, column_);
+                    }
+                    if (existing.type != "str" && existing.type != "any") {
+                        throw SourceError(
+                            "Cannot bind catch variable '" + catchName_ +
+                                "' as 'str': '" + catchName_ +
+                                "' is already declared as '" +
+                                existing.type + "'",
+                            line_, column_);
+                    }
+                    environment.assign(catchName_,
+                                       std::string(error.what()), line_,
+                                       column_);
+                } else {
+                    environment.declare(catchName_, "str",
+                                        std::string(error.what()), line_,
+                                        column_);
                 }
-                if (existing.type != "str" && existing.type != "any") {
-                    throw SourceError(
-                        "Cannot bind catch variable '" + catchName_ +
-                            "' as 'str': '" + catchName_ +
-                            "' is already declared as '" + existing.type + "'",
-                        line_, column_);
-                }
-                environment.assign(catchName_, std::string(error.what()), line_,
-                                   column_);
-            } else {
-                environment.declare(catchName_, "str",
-                                     std::string(error.what()), line_, column_);
             }
+            executeStatements(catchStatements_, environment);
+        } catch (...) {
+            setActiveExceptionInfo(previousExceptionInfo);
+            throw;
         }
-        executeStatements(catchStatements_, environment);
+        setActiveExceptionInfo(previousExceptionInfo);
     }
 }
 

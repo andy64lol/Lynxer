@@ -35,7 +35,11 @@ global main(){
     global.tui.printColumns("[\"a\",\"bb\",\"ccc\"]", true, false);
     global.tui.printAligned("mid", "right", true);
     global.tui.printPadded("pad", 1, 2, 1, 2);
-    global.tui.printException();
+    try { raise("fixture exception"); } catch(str error) {
+        println(error);
+        println(exceptionInfo());
+        global.tui.printException();
+    }
     global.tui.installTraceback(true);
     // The clear sequence has no trailing newline, so it joins the next value.
     global.tui.clear();
@@ -85,7 +89,8 @@ global main(){
     global.tui.layoutPanel(0, "bottom", "body", "box");
     global.tui.layoutPrint(0);
 
-    // Progress, status and live displays emit a snapshot per update.
+    // Progress and live displays redraw in place on terminals; tests capture
+    // deterministic snapshots because their output is redirected.
     println(global.tui.progressStart());
     println(global.tui.progressAddTask(0, "task", 10.0));
     global.tui.progressAdvance(0, 0, 5.0);

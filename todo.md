@@ -149,9 +149,11 @@ before the module-specific items.
       (`queryOn`, `executeArgsOn`, …) reuse that one live connection instead of
       opening per call. Covered by `stdlib_sqldb`; docs and the contracts row
       updated. The error half is **L10b**, blocked on the language.
-- [ ] **L10b — `sqldb` raises instead of returning `"ERROR: …"`.** Blocked:
-      Lynxer has no exceptions, so the in-band `"ERROR: <message>"` sentinel is
-      still the contract. Revisit once the language can raise.
+- [x] ~~**L10b — `sqldb` raises instead of returning `"ERROR: …"`.**~~
+      **Delivered:** `raise(message)` now throws a source-located runtime error
+      that `try`/`catch` can handle; every string-returning `sqldb` operation
+      translates backend error results through it. Numeric and boolean
+      operations retain their documented sentinels.
 - [x] ~~**L11 — `js` / `multiprocessing`.**~~ **Delivered:** both apply a
       configurable subprocess timeout (`LYNXER_JS_TIMEOUT` default 30,
       `LYNXER_MP_TIMEOUT` default 300) and capture `stderr` into the result
@@ -171,11 +173,11 @@ before the module-specific items.
       `Table` has no separators and lays rows contiguously, so the rows are
       copied into a taller buffer with a blank line where each rule goes.
       Covered by `stdlib_tui`.
-- [ ] **L13b — `tui` live displays and `printException`.** `progress`/`live`
-      updates still print a snapshot rather than animating (that needs a
-      refresh timer and a terminal), and `printException` prints a placeholder
-      because no exception context crosses the module ABI
-      (`lynxer/rust/tui/*`).
+- [x] ~~**L13b — `tui` live displays and `printException`.**~~ **Delivered:**
+      progress/live updates redraw in place on a TTY and print deterministic
+      snapshots when redirected. Catch blocks now expose formatted exception
+      details through `exceptionInfo()`, which the `tui` wrapper passes to
+      `printException`.
 - [x] ~~**L14 — remove the `os` Python-compat stubs.**~~ **Partly delivered:**
       `os.getPythonVersion`, `os.getPythonImplementation` and the `python`/
       `pythonImplementation`/`pythonExecutable` fields of `getSystemInfo` are

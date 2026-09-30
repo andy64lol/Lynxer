@@ -61,6 +61,18 @@ namespace lynxer {
 
 namespace {
 
+thread_local std::string currentExceptionInfo;
+
+}  // namespace
+
+std::string activeExceptionInfo() { return currentExceptionInfo; }
+
+void setActiveExceptionInfo(std::string info) {
+    currentExceptionInfo = std::move(info);
+}
+
+namespace {
+
 #if defined(__x86_64__)
 constexpr bool kX86_64 = true;
 constexpr bool kArm64 = false;
@@ -657,6 +669,20 @@ Value builtinSentinel(const std::vector<Value>& args, Environment&, int line,
     }
     const std::string name = args.empty() ? "" : std::get<std::string>(args[0]);
     return std::make_shared<SentinelValue>(SentinelValue{name});
+}
+
+Value builtinRaise(const std::vector<Value>& args, Environment&, int line,
+                   int column) {
+    if (args.size() != 1 || !std::holds_alternative<std::string>(args[0])) {
+        fail("raise(message) expects one string", line, column);
+    }
+    fail(std::get<std::string>(args[0]), line, column);
+}
+
+Value builtinExceptionInfo(const std::vector<Value>& args, Environment&,
+                           int line, int column) {
+    requireArity(args, 0, "exceptionInfo() takes no arguments", line, column);
+    return activeExceptionInfo();
 }
 
 Value builtinObject(const std::vector<Value>& args, Environment&, int line,
@@ -7027,6 +7053,8 @@ const std::unordered_map<std::string, Handler>& handlerTable() {
         {"intOf", builtinIntOf},
         {"floatOf", builtinFloatOf},
         {"sentinel", builtinSentinel},
+        {"raise", builtinRaise},
+        {"exceptionInfo", builtinExceptionInfo},
         {"object", builtinObject},
         {"returnType", builtinReturnType},
         {"returnLength", builtinReturnLength},

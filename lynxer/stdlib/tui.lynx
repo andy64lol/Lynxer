@@ -88,7 +88,9 @@ global printColumns(str itemsJson, bool equal, bool expand) { global.nativeTui.p
 global printAligned(str text, str align, bool pad) { global.nativeTui.printAligned(text, align, pad); }
 global printPadded(str text, int top, int right, int bottom, int left) { global.nativeTui.printPadded(text, top, right, bottom, left); }
 
-global printException() { global.nativeTui.printException(); }
+global printException() {
+    global.nativeTui.printException(exceptionInfo());
+}
 global installTraceback(bool showLocals) { global.nativeTui.installTraceback(showLocals); }
 
 // ── Stateful tables ───────────────────────────────────────────────────
