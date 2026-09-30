@@ -58,7 +58,5 @@ global main(){
     println(global.os.getSystemArchitecture());
     println(global.os.getSystemUname() isnt "{}");
     println(returnLength(global.os.getSystemDistro()) > 2);
-    println(global.os.getPythonVersion() is "");
-    println(global.os.getPythonImplementation());
     println(returnLength(global.os.getSystemInfo()) > 2);
 }

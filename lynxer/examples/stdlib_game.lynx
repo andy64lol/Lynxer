@@ -170,6 +170,55 @@ global main(){
     println("buttons=", global.game.mouseLeft(), " ", global.game.mouseMiddle(), " ", global.game.mouseRight(), " ", global.game.mouseButtonPressed("LEFT"), " ", global.game.mouseButtonReleased("LEFT"), " ", global.game.mouseButtonCode("LEFT"));
     println("keyCode=", global.game.keyCode("SPACE"));
 
+    // --- Physics: horizontal collision, slopes and one-way platforms --------
+    // A floor, a wall to walk into, a ramp and a one-way platform.
+    int floor = global.game.makeSolidSprite(200, 20, 255, 255, 255, 100.0, 0.0);
+    int brick = global.game.makeSolidSprite(20, 40, 255, 255, 255, 80.0, 30.0);
+    int ramp = global.game.makeSolidSprite(20, 40, 255, 255, 255, 30.0, 40.0);
+    global.game.setSpriteAngle(ramp, 30.0);
+    int ledge = global.game.makeSolidSprite(60, 10, 255, 255, 255, 150.0, 40.0);
+
+    int walls = global.game.makeSpriteList();
+    global.game.addToList(walls, floor);
+    global.game.addToList(walls, brick);
+    global.game.addToList(walls, ramp);
+    int platforms = global.game.makeSpriteList();
+    global.game.addToList(platforms, ledge);
+
+    // Walking right: the player stops against the wall instead of passing
+    // through it, and settles on the floor.
+    int walker = global.game.makeSolidSprite(10, 20, 0, 0, 255, 50.0, 30.0);
+    int engine = global.game.makePhysicsEngine(100.0, walls, platforms);
+    global.game.setPhysicsPlayer(engine, walker);
+    global.game.setSpriteVelocity(walker, 100.0, 0.0);
+    int i = 0;
+    while(i < 120){ global.game.updatePhysics(engine); i = i + 1; }
+    println("walkX=", global.game.getSpriteX(walker), " walkY=", global.game.getSpriteY(walker));
+    println("grounded=", global.game.canJump(engine), " vx=", global.game.getSpriteVX(walker));
+
+    // Jumping up through the one-way platform: it is solid only from above.
+    int jumper = global.game.makeSolidSprite(10, 20, 0, 255, 0, 150.0, 20.0);
+    int jumpEngine = global.game.makePhysicsEngine(100.0, walls, platforms);
+    global.game.setPhysicsPlayer(jumpEngine, jumper);
+    global.game.setSpriteVelocity(jumper, 0.0, 200.0);
+    i = 0;
+    while(i < 20){ global.game.updatePhysics(jumpEngine); i = i + 1; }
+    println("through=", global.game.getSpriteY(jumper) > 45.0, " vy=", global.game.getPlayerVY(jumpEngine) > 0.0);
+    // ...and it catches the player once they fall back from above.
+    global.game.setSpriteVelocity(jumper, 0.0, 0.0);
+    i = 0;
+    while(i < 120){ global.game.updatePhysics(jumpEngine); i = i + 1; }
+    println("landedOn=", global.game.getSpriteY(jumper), " grounded=", global.game.canJump(jumpEngine));
+
+    // Falling onto the 30-degree ramp: the surface under x=30 is 25.77, so the
+    // player's centre rests one half-height above it.
+    int slider = global.game.makeSolidSprite(10, 20, 255, 0, 255, 30.0, 70.0);
+    int slopeEngine = global.game.makePhysicsEngine(100.0, walls, -1);
+    global.game.setPhysicsPlayer(slopeEngine, slider);
+    i = 0;
+    while(i < 180){ global.game.updatePhysics(slopeEngine); i = i + 1; }
+    println("slopeY=", global.game.getSpriteY(slider), " grounded=", global.game.canJump(slopeEngine));
+
     global.game.setUpdateCallback("onUpdate");
     global.game.setDrawCallback("onDraw");
     global.game.run();

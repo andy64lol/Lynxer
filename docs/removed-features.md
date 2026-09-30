@@ -32,6 +32,16 @@ Lynxer does not embed or link a Python runtime, and these are **removed fully**
 inline codeblock and then fails as above. `embedPy.x(...)` is rejected at the
 member-call level. See [builtins.md](builtins.md).
 
+## Python introspection getters
+
+`os.getPythonVersion()`, `os.getPythonImplementation()` and the `python`,
+`pythonImplementation` and `pythonExecutable` fields of `os.getSystemInfo()`
+are **removed**. They existed only to mimic a Python host — `""` and `"Lynxer"`
+are not values any program should branch on — and there is no Python runtime to
+report. The fields are simply absent from `getSystemInfo()` now; the `sys`
+introspection surface (`sys.path`, `addPath`, `getModules`, …) was never
+implemented and stays unplanned. See [limitations.md](limitations.md).
+
 ## `venv`
 
 A virtual-environment manager is a Python concept with no equivalent in a

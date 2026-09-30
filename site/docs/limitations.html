@@ -180,7 +180,7 @@
 <tr><th>Feature</th><th>Reason</th></tr>
 <tr><td><code>venv</code> module</td><td>A virtual-environment manager is a Python concept with no equivalent in a standalone runtime.</td></tr>
 <tr><td><code>rawPy</code>, <code>rawPyx</code>, <code>cleanRawPyxCache</code>, <code>embedPy</code></td><td>Embedding CPython/Cython. Lynxer does not ship or link a Python runtime.</td></tr>
-<tr><td>Python runtime introspection (<code>sys.path</code>, <code>addPath</code>, <code>prependPath</code>, <code>removeFromPath</code>, <code>getModules</code>, <code>isModuleLoaded</code>, <code>getRecursionLimit</code>, <code>setRecursionLimit</code>, <code>os.getPythonVersion</code>, <code>os.getPythonImplementation</code>)</td><td>There is no Python runtime to introspect. The <code>os</code> getters return <code>&quot;&quot;</code> / <code>&quot;Lynxer&quot;</code> for compatibility and will be removed.</td></tr>
+<tr><td>Python runtime introspection (<code>sys.path</code>, <code>addPath</code>, <code>prependPath</code>, <code>removeFromPath</code>, <code>getModules</code>, <code>isModuleLoaded</code>, <code>getRecursionLimit</code>, <code>setRecursionLimit</code>)</td><td>There is no Python runtime to introspect. The <code>os</code> getters and the <code>python*</code> <code>getSystemInfo</code> fields were removed outright — see <a href="removed-features.html#python-introspection-getters">removed-features</a>.</td></tr>
 <tr><td>Bytecode (<code>.lynxc</code>, <code>--view-bytecode</code>, <code>--benchmark-compile</code>, <code>--no-cache</code>)</td><td>Removed with the bytecode backend; <code>--compile</code> produces a standalone ELF executable instead (<code>--bundle</code> is an alias). Running a <code>.lynxc</code> file reports that bytecode is unsupported.</td></tr>
 </table>
 <h2 id="planned-work">Planned Work</h2>
@@ -249,13 +249,13 @@
 <h3 id="game--constrained-behavior"><code>game</code> — Constrained Behavior</h3>
 <ul>
 <li><strong>Tilemaps carry geometry, not artwork.</strong> <code>loadTilemap</code> reads only the first <code>&lt;tileset&gt;</code> (for the tile size) and each <code>&lt;layer&gt;</code>'s CSV <code>&lt;data&gt;</code>; tiles become solid sprites on the grid. The tileset image is not sliced, so the map is useful for collision and layout rather than rendering.</li>
-<li><strong>Physics is vertical only.</strong> <code>updatePhysics</code> applies gravity and resolves landing and ceiling contact against a wall list. There is no horizontal collision resolution, and no slope/one-way platform support.</li>
+<li><strong>Physics covers walls, slopes and one-way platforms.</strong> <code>updatePhysics</code> resolves horizontal and vertical collision against a wall list, rides a wall whose sprite <code>angle</code> is non-zero as a slope, and treats the list passed as <code>makePhysicsEngine</code>'s third argument as one-way platforms (solid only from above, within a two-unit snap). The player is still a single axis-aligned box: there is no rotation-aware collision, no sprite-against-sprite physics and no moving-platform carry.</li>
 <li><strong>Animated sprites and sound are texture/audio-backed.</strong> In headless mode <code>makeAnimatedSprite</code> and <code>loadSound</code> return <code>-1</code>, and <code>screenshot</code> returns <code>-1</code>; the drawing, sound and screenshot ops are otherwise no-ops.</li>
 <li><strong>Sound playback state is tracked by the module.</strong> A one-shot that has finished still reports as playing through <code>isSoundPlaying</code> until <code>stopSound</code>.</li>
 </ul>
 <h3 id="server--constrained-behavior"><code>server</code> — Constrained Behavior</h3>
 <ul>
-<li><strong>TLS is not built.</strong> <code>runHTTPS(cert, key)</code> and <code>runSSLAdhoc()</code> return an explanatory <code>ERROR:</code> string instead of starting a listener. Servers terminate TLS in a reverse proxy, or the module is rebuilt with a TLS backend (<code>axum-server</code>, <code>rustls-pemfile</code>, <code>rcgen</code> are not among the pinned dependencies; adding them would make the module require network access).</li>
+<li><strong>TLS is built, and does not block.</strong> <code>runHTTPS(cert, key)</code> and <code>runSSLAdhoc()</code> start an HTTPS listener on the <code>init</code> host/port with <code>rustls</code> (the <code>ring</code> provider — no system OpenSSL) and return <code>&quot;ok&quot;</code>; <code>stop()</code> ends it. They do not block the way <code>run()</code> does. A certificate/key mismatch is only found when a client connects.</li>
 <li><strong>Request-context readers describe the last request.</strong> <code>getArg</code>, <code>getHeader</code>, <code>getBody</code> and friends read the most recently handled request, because a Lynxer route is a fixed string rather than a callback and the interpreter evaluates one frame at a time. The original's Flask request context has no equivalent.</li>
 <li><strong>Templates are a substitution subset.</strong> <code>template</code>, <code>templatePost</code> and <code>templateString</code> render <code>{{ key }}</code> and <code>{{ nested.key }}</code> from the <code>dataJson</code> object. Jinja2 loops, conditionals, filters and inheritance are not implemented, and an unknown key renders as the empty string.</li>
 <li><strong><code>run()</code> blocks.</strong> It starts the listener on the <code>init</code> host/port and then blocks, matching the original. Use <code>start()</code> + <code>stop()</code> when the program has to keep running.</li>
@@ -358,7 +358,6 @@
 </ul>
 <h3 id="os-and-path--constrained-behavior"><code>os</code> and <code>path</code> — Constrained Behavior</h3>
 <ul>
-<li><strong>Python compatibility:</strong> <code>os.getPythonVersion()</code> returns <code>&quot;&quot;</code> (empty string), and <code>os.getPythonImplementation()</code> returns <code>&quot;Lynxer&quot;</code> for compatibility.</li>
 <li><strong>Encoding:</strong> <code>path.readTextEncoding</code> and <code>path.writeTextEncoding</code> accept an encoding argument for API compatibility but always use UTF-8 internally.</li>
 <li><strong>Platform info:</strong> Platform helpers report the host through <code>uname(2)</code>.</li>
 </ul>
@@ -405,7 +404,7 @@
 </ul>
 <h3 id="sound--constrained-behavior"><code>sound</code> — Constrained Behavior</h3>
 <ul>
-<li><strong>Loading:</strong> <code>loadSound</code> and <code>loadSoundStreaming</code> are identical operations. Rodio decodes from the file handle in both cases, so there is no static/streaming split. Both register a handle and return its index.</li>
+<li><strong>Loading:</strong> <code>loadSound</code> decodes the file into memory at load time, so playback survives the file being moved or deleted; <code>loadSoundStreaming</code> reads only the header and decodes as it plays, so the file must still be there. Both register a handle and return its index.</li>
 </ul>
 <ul>
 <li><strong>Playback:</strong></li>
@@ -418,14 +417,14 @@
 <li><code>soundCount()</code> counts only handles that have not been released.</li>
 </ul>
 <ul>
-<li><strong>Sound metadata:</strong> <code>getSoundLength</code> re-decodes the file on each call, returning <code>0.0</code> if the file has been moved or deleted since loading.</li>
+<li><strong>Sound metadata:</strong> <code>getSoundLength</code> returns the duration resolved at load time and never re-reads the file. For a container with no duration header the streaming load decodes once at load time to learn it, then drops the samples.</li>
 </ul>
 <h3 id="sqldb--constrained-behavior"><code>sqldb</code> — Constrained Behavior</h3>
 <ul>
-<li><strong>Connection handling:</strong> Every function takes a database path and opens a connection for the duration of the call. There is no connection handle to manage or close.</li>
+<li><strong>Connection handling:</strong> A function takes either a database <strong>path</strong> — a connection is opened for that call and closed after it — or a <strong>handle</strong> from <code>open()</code>, which keeps one connection live until <code>close()</code>. The *On forms (<code>queryOn</code>, <code>executeArgsOn</code>, …) run against a handle; a handle stays valid for the run, and calling <code>close</code> twice (or with an unknown handle) reports <code>0</code>.</li>
 </ul>
 <ul>
-<li><strong>Error handling:</strong> Failures are returned in-band as <code>&quot;ERROR: &lt;message&gt;&quot;</code> (and as <code>-1</code>/<code>false</code> for integer/boolean functions) instead of being raised.</li>
+<li><strong>Error handling:</strong> Failures are returned in-band as <code>&quot;ERROR: &lt;message&gt;&quot;</code> (and as <code>-1</code>/<code>false</code> for integer/boolean functions) instead of being raised. An unknown or closed handle answers the same sentinels: <code>&quot;ERROR: unknown connection handle N&quot;</code>, <code>-1</code> or <code>false</code>.</li>
 </ul>
 <ul>
 <li><strong>JSON formatting:</strong> <code>query</code>, <code>queryArgs</code>, and <code>tables</code> emit JSON with <code>&quot;: &quot;</code> and <code>&quot;, &quot;</code> separators.</li>

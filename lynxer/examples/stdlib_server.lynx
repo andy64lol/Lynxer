@@ -15,6 +15,11 @@ global main(){
     println(global.server.port());
     println(global.server.stop());
 
+    // The TLS entry points need a port before they can listen, and they never
+    // need a certificate to say so.
+    println(global.server.runHTTPS("cert.pem", "key.pem"));
+    println(global.server.runSSLAdhoc());
+
     // Every registration validates the path.
     println(global.server.routeGet("bad", "x"));
     println(global.server.routePost("", "x"));

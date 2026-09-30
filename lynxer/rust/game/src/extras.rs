@@ -16,6 +16,7 @@ use crate::draw::draw_anchored_text;
 use crate::sprites::{draw_sprite, load_texture};
 use crate::state::{
     color_of_a, with, Animation, PhysicsEngine, Scene, SoundEntry, Sprite, TextLabel,
+    GROUND_SNAP,
 };
 
 fn headless() -> bool {
@@ -379,10 +380,11 @@ export_int!(lynxer_game_get_tilemap_layer, args, {
 
 export_int!(lynxer_game_make_physics_engine, args, {
     let engine = PhysicsEngine {
-        // Numbers are packed per kind, so `gravity` is float(0) and the wall
-        // list index is int(1) — both read the same `nums` list.
+        // Numbers are packed per kind, so `gravity` is float(0) and the list
+        // indices are int(1) and int(2) — all three read the same `nums` list.
         gravity: args.float(0),
         walls: args.int(1),
+        one_way: args.int(2),
         player: -1,
         on_ground: false,
     };
@@ -413,6 +415,41 @@ export_int!(lynxer_game_set_physics_player, args, {
     })
 });
 
+// Wall geometry: `(x, y, width, height, angle)`. A non-zero angle marks a
+// slope, and a wall in the one-way list is a platform that is only solid from
+// above.
+type WallBox = (f32, f32, f32, f32, f32);
+
+fn wall_boxes(state: &crate::state::State, list: i64) -> Vec<WallBox> {
+    if list < 0 {
+        return Vec::new();
+    }
+    state
+        .lists
+        .get(list as usize)
+        .map(|entries| {
+            entries
+                .iter()
+                .filter_map(|index| state.sprite(*index))
+                .map(|wall| (wall.x, wall.y, wall.width(), wall.height(), wall.angle))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// The surface height a slope presents at horizontal position `x`, measured
+/// from the box's bottom-left corner and capped at its top.
+fn slope_surface(wall: &WallBox, x: f32) -> f32 {
+    let (wx, wy, ww, wh, angle) = *wall;
+    if ww <= 0.0 {
+        return wy + wh / 2.0;
+    }
+    let left = wx - ww / 2.0;
+    let along = ((x - left) / ww).clamp(0.0, 1.0);
+    let base = wy - wh / 2.0;
+    (base + angle.to_radians().tan() * ww * along).min(wy + wh / 2.0)
+}
+
 export_int!(lynxer_game_update_physics, args, {
     let engine_index = args.int(0);
     with(|state| {
@@ -423,35 +460,59 @@ export_int!(lynxer_game_update_physics, args, {
         else {
             return -1;
         };
-        let (gravity, walls, player) = (engine.gravity, engine.walls, engine.player);
+        let (gravity, walls, one_way, player) =
+            (engine.gravity, engine.walls, engine.one_way, engine.player);
         let Some(player_sprite) = state.sprite(player) else {
             return -1;
         };
-        let (mut vy, x, mut y) = (player_sprite.vy, player_sprite.x, player_sprite.y);
+        let (mut vx, mut vy, mut x, mut y) = (
+            player_sprite.vx,
+            player_sprite.vy,
+            player_sprite.x,
+            player_sprite.y,
+        );
         let width = player_sprite.width();
         let height = player_sprite.height();
         let dt = state.dt as f32;
 
+        let solid = wall_boxes(state, walls);
+        let platforms = wall_boxes(state, one_way);
+        // Where the feet were before this step, which is what tells a one-way
+        // platform whether the player came from above.
+        let feet_before = y - height / 2.0;
+
+        // --- Horizontal: move, then push out of the side of a solid wall.
+        // Slopes never block sideways, and one-way platforms never block
+        // horizontally at all.
+        x += vx * dt;
+        for wall in &solid {
+            let (wx, wy, ww, wh, angle) = *wall;
+            if angle != 0.0 {
+                continue;
+            }
+            let half_w = (width + ww) / 2.0;
+            let half_h = (height + wh) / 2.0;
+            if (x - wx).abs() > half_w || (y - wy).abs() > half_h {
+                continue;
+            }
+            if vx > 0.0 {
+                x = wx - ww / 2.0 - width / 2.0;
+            } else if vx < 0.0 {
+                x = wx + ww / 2.0 + width / 2.0;
+            }
+            vx = 0.0;
+        }
+
+        // --- Vertical: gravity, then land, bump a ceiling, or ride a slope.
         vy -= gravity * dt;
         y += vy * dt;
 
-        let wall_boxes: Vec<(f32, f32, f32, f32)> = if walls < 0 {
-            Vec::new()
-        } else {
-            state
-                .lists
-                .get(walls as usize)
-                .map(|list| {
-                    list.iter()
-                        .filter_map(|index| state.sprite(*index))
-                        .map(|wall| (wall.x, wall.y, wall.width(), wall.height()))
-                        .collect()
-                })
-                .unwrap_or_default()
-        };
-
         let mut on_ground = false;
-        for (wx, wy, ww, wh) in wall_boxes {
+        for wall in &solid {
+            let (wx, wy, ww, wh, angle) = *wall;
+            if angle != 0.0 {
+                continue;
+            }
             let half_w = (width + ww) / 2.0;
             let half_h = (height + wh) / 2.0;
             if (x - wx).abs() > half_w || (y - wy).abs() > half_h {
@@ -469,9 +530,44 @@ export_int!(lynxer_game_update_physics, args, {
             }
         }
 
+        // --- Slopes: land on the ramp surface under the player's centre.
+        for wall in &solid {
+            let (wx, _, ww, _, angle) = *wall;
+            if angle == 0.0 {
+                continue;
+            }
+            if (x - wx).abs() > (width + ww) / 2.0 {
+                continue;
+            }
+            let surface = slope_surface(wall, x);
+            if vy <= 0.0 && y - height / 2.0 <= surface && feet_before >= surface - GROUND_SNAP
+            {
+                y = surface + height / 2.0;
+                vy = 0.0;
+                on_ground = true;
+            }
+        }
+
+        // --- One-way platforms: solid only for a player falling from above.
+        for wall in &platforms {
+            let (wx, wy, ww, wh, _) = *wall;
+            let half_w = (width + ww) / 2.0;
+            let half_h = (height + wh) / 2.0;
+            if (x - wx).abs() > half_w || (y - wy).abs() > half_h {
+                continue;
+            }
+            let top = wy + wh / 2.0;
+            if vy <= 0.0 && feet_before >= top - GROUND_SNAP {
+                y = top + height / 2.0;
+                vy = 0.0;
+                on_ground = true;
+            }
+        }
+
         if let Some(sprite) = state.sprite_mut(player) {
             sprite.x = x;
             sprite.y = y;
+            sprite.vx = vx;
             sprite.vy = vy;
         }
         if let Some(Some(engine)) = state.engines.get_mut(engine_index as usize) {

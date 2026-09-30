@@ -1,0 +1,20 @@
+0
+ok
+ERROR: call init(host, port) before runHTTPS()
+ERROR: call init(host, port) before runSSLAdhoc()
+ok
+ERROR: cannot read '/tmp/lynxer_server_tls/missing.pem': No such file or directory (os error 2)
+ERROR: cannot read '/tmp/lynxer_server_tls/missing.pem': No such file or directory (os error 2)
+ERROR: the certificate file contains no PEM certificate
+ok
+true port=18443
+<!doctype html><html><body>world</body></html>
+200 18
+000
+ok
+ok
+ok
+true port=18444
+<!doctype html><html><body>world</body></html>
+200
+ok

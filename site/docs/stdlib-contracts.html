@@ -265,7 +265,7 @@
 <tr><td><code>server</code></td><td>Rust</td><td>routes keyed by path, in registration order</td><td>caller: <code>clearRoutes()</code> / <code>stop()</code></td></tr>
 <tr><td><code>shell</code></td><td>C++</td><td>none</td><td>none</td></tr>
 <tr><td><code>sound</code></td><td>Rust</td><td><strong>integer handles</strong> into a backend registry</td><td>caller: <code>releaseSound(handle)</code></td></tr>
-<tr><td><code>sqldb</code></td><td>Rust</td><td><strong>no handle</strong> — every call names a database path and gets its own connection</td><td>none (the connection is closed per call)</td></tr>
+<tr><td><code>sqldb</code></td><td>Rust</td><td><strong>integer handles</strong> from <code>open()</code>; the <code>*On</code> forms reuse one connection</td><td>caller: <code>close(handle)</code> (the path forms open and close per call)</td></tr>
 <tr><td><code>sys</code></td><td>C++</td><td>none</td><td>none</td></tr>
 <tr><td><code>text</code></td><td>pure Lynxer</td><td>none</td><td>none</td></tr>
 <tr><td><code>time</code></td><td>C++</td><td>none</td><td>none</td></tr>

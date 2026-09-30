@@ -1,0 +1,58 @@
+////
+Fixture for the `server` TLS paths. Both listeners are real: `curl` performs
+the handshake, so a broken acceptor fails here rather than passing silently.
+`openssl` mints the throwaway certificate. The Makefile skips this fixture when
+curl or openssl is missing, the way it skips `stdlib_sound` without a device.
+////
+global setup(){ import("server"); import("shell"); }
+
+global main(){
+    str dir = "/tmp/lynxer_server_tls";
+    global.shell.runShellSilent("rm -rf " + dir + " && mkdir -p " + dir);
+    // A one-day, self-signed EC certificate for 127.0.0.1, written as PEM.
+    println(global.shell.runShellSilent(
+        "openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes " +
+        "-keyout " + dir + "/key.pem -out " + dir + "/cert.pem -days 1 " +
+        "-subj /CN=localhost -addext subjectAltName=DNS:localhost,IP:127.0.0.1"));
+
+    global.server.clearRoutes();
+    println(global.server.get("/hello", "<!doctype html><html><body>world</body></html>"));
+
+    // Both entry points need a port before they can listen.
+    println(global.server.runHTTPS(dir + "/cert.pem", dir + "/key.pem"));
+    println(global.server.runSSLAdhoc());
+
+    // A missing or malformed PEM file is reported before a socket is bound.
+    println(global.server.init("127.0.0.1", 18443));
+    println(global.server.runHTTPS(dir + "/missing.pem", dir + "/key.pem"));
+    println(global.server.runHTTPS(dir + "/cert.pem", dir + "/missing.pem"));
+    global.shell.runShellSilent("printf 'not a pem\\n' > " + dir + "/bad.pem");
+    println(global.server.runHTTPS(dir + "/bad.pem", dir + "/bad.pem"));
+
+    // A real HTTPS listener from PEM files, verified by a TLS client.
+    println(global.server.runHTTPS(dir + "/cert.pem", dir + "/key.pem"));
+    println(global.server.running(), " port=", global.server.port());
+    sleep(0.3);
+    println(global.shell.runShellCapture("curl -sk --max-time 5 https://127.0.0.1:18443/hello"));
+    // ssl_verify_result 18 is "self-signed certificate": curl *did* verify the
+    // chain, which a plaintext listener could never produce.
+    println(global.shell.runShellCapture(
+        "curl -sk --max-time 5 -o /dev/null -w '%{http_code} %{ssl_verify_result}' " +
+        "https://127.0.0.1:18443/hello"));
+    // Plain HTTP cannot talk to the TLS port.
+    println(global.shell.runShellCapture(
+        "curl -s --max-time 5 -o /dev/null -w '%{http_code}' http://127.0.0.1:18443/hello"));
+    println(global.server.stop());
+
+    // The same end to end, with a certificate generated in-process by rcgen.
+    println(global.server.init("127.0.0.1", 18444));
+    println(global.server.runSSLAdhoc());
+    println(global.server.running(), " port=", global.server.port());
+    sleep(0.3);
+    println(global.shell.runShellCapture("curl -sk --max-time 5 https://127.0.0.1:18444/hello"));
+    println(global.shell.runShellCapture(
+        "curl -sk --max-time 5 -o /dev/null -w '%{http_code}' https://127.0.0.1:18444/hello"));
+    println(global.server.stop());
+
+    global.shell.runShellSilent("rm -rf " + dir);
+}

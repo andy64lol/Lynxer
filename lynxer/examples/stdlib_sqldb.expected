@@ -12,3 +12,19 @@ false
 ok
 ["t2", "users"]
 ERROR: no such table: missing_table
+ok
+[{"name": "Cy"}, {"name": "Dee"}]
+ok
+[{"name": "Eve"}]
+5
+Ada
+6
+ok
+["t2", "t3", "users"]
+true
+false
+1
+0
+false
+false
+-1

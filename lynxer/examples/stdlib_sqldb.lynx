@@ -39,5 +39,27 @@ global main(){
     // Failures are reported in-band as "ERROR: <message>" rather than raised.
     println(global.sqldb.query(db, "SELECT * FROM missing_table"));
 
+    // A handle from open() keeps one connection live across calls.
+    int conn = global.sqldb.open(db);
+    println(global.sqldb.executeOn(conn, "INSERT INTO users (name, score) VALUES ('Dee', 12)"));
+    println(global.sqldb.queryOn(conn, "SELECT name FROM users WHERE score < 20"));
+    println(global.sqldb.executeArgsOn(conn, "INSERT INTO users (name, score) VALUES (?, ?)", "[\"Eve\", 99]"));
+    println(global.sqldb.queryArgsOn(conn, "SELECT name FROM users WHERE score = ?", "[99]"));
+    println(global.sqldb.scalarOn(conn, "SELECT COUNT(*) FROM users"));
+    println(global.sqldb.scalarArgsOn(conn, "SELECT name FROM users WHERE id = ?", "[1]"));
+    println(global.sqldb.lastInsertIdOn(conn, "INSERT INTO users (name, score) VALUES ('Fox', 1)", "[]"));
+    println(global.sqldb.scriptOn(conn, "CREATE TABLE t3 (a INTEGER);"));
+    println(global.sqldb.tablesOn(conn));
+    println(global.sqldb.tableExistsOn(conn, "t3"));
+    println(global.sqldb.tableExistsOn(conn, "missing"));
+
+    // close() reports whether the handle was live, and a closed or unknown
+    // handle answers the usual sentinels rather than raising.
+    println(global.sqldb.close(conn));
+    println(global.sqldb.close(conn));
+    println(global.sqldb.tableExistsOn(conn, "users"));
+    println(global.sqldb.scalarOn(conn, "SELECT COUNT(*) FROM users") is "");
+    println(global.sqldb.open("/nonexistent-directory/x.db"));
+
     global.fileIO.deleteFile(db);
 }

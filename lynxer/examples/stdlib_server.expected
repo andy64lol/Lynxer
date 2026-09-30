@@ -1,6 +1,8 @@
 false
 0
 ERROR: server is not running
+ERROR: call init(host, port) before runHTTPS()
+ERROR: call init(host, port) before runSSLAdhoc()
 ERROR: path must start with '/'
 ERROR: path must start with '/'
 ERROR: path must start with '/'

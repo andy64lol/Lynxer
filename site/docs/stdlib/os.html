@@ -212,10 +212,10 @@
 <table>
 <tr><th>Function</th><th>Signature</th><th>Returns</th></tr>
 <tr><td><code>getSystemUname</code></td><td><code>() -&gt; str</code></td><td><code>{system, node, release, version, machine, processor}</code></td></tr>
-<tr><td><code>getSystemInfo</code></td><td><code>() -&gt; str</code></td><td>The same fields plus <code>architecture</code>, <code>python</code>, <code>pythonImplementation</code>, <code>pythonExecutable</code></td></tr>
+<tr><td><code>getSystemInfo</code></td><td><code>() -&gt; str</code></td><td>The same fields plus <code>architecture</code></td></tr>
 <tr><td><code>getSystemDistro</code></td><td><code>() -&gt; str</code></td><td>Parsed <code>/etc/os-release</code>, or <code>{}</code></td></tr>
 </table>
-<p>Because Lynxer has no Python runtime, <code>getPythonVersion()</code> returns <code>&quot;&quot;</code>, <code>getPythonImplementation()</code> returns <code>&quot;Lynxer&quot;</code>, and the <code>python*</code> fields of <code>getSystemInfo</code> mirror that.</p>
+<p>The Python-compat getters (<code>getPythonVersion</code>, <code>getPythonImplementation</code>) and the <code>python*</code> fields of <code>getSystemInfo</code> are gone: there is no Python runtime to introspect, and a standing <code>&quot;&quot;</code>/<code>&quot;Lynxer&quot;</code> value was a lie. See <a href="../removed-features.html#python-introspection-getters">removed-features</a>.</p>
 <h2 id="example">Example</h2>
 <pre><code>global setup(){ import(&quot;os&quot;); }
 

@@ -49,14 +49,26 @@ pub struct TextLabel {
     pub anchor: String,
 }
 
-/// A platformer physics engine over one player sprite and an optional wall
-/// list. Ground state is recomputed every step.
+/// A platformer physics engine over one player sprite, a wall list and an
+/// optional one-way platform list. Ground state is recomputed every step.
+///
+/// A wall sprite whose `angle` is non-zero is a **slope**: its surface runs
+/// from the box's bottom-left corner upward to the right by
+/// `tan(angle) * width`, never above the box's top.
 pub struct PhysicsEngine {
     pub gravity: f32,
     pub walls: i64,
+    /// Sprite list of one-way platforms, or `-1`. They are solid only from
+    /// above, so a jump passes up through them.
+    pub one_way: i64,
     pub player: i64,
     pub on_ground: bool,
 }
+
+/// How far below a slope or one-way surface the player may be and still be
+/// snapped onto it. It bounds the per-frame step-up, so a fast walker still
+/// climbs a ramp but a player deep under a platform is not teleported.
+pub const GROUND_SNAP: f32 = 2.0;
 
 /// A loaded sound plus the module's own playback state. A finished one-shot is
 /// not detected, so `isSoundPlaying` reports what the module was last told.

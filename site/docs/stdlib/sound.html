@@ -171,10 +171,10 @@
 <blockquote><strong>Requires:</strong> a Rust toolchain (<code>cargo</code>) to build it, and an ALSA sound card to play. Loading, decoding, handle bookkeeping and the error paths work without a device; playback simply reports "did not start". <code>make testLynxer</code> skips <code>stdlib_sound.lynx</code>, with a printed message, on hosts without <code>/dev/snd/controlC*</code>.</blockquote>
 <h2 id="functions">Functions</h2>
 <ul>
-<li><code>loadSound(path: string) -&gt; int</code> Loads an audio file (WAV, OGG, MP3 or FLAC). Returns a stable handle, or <code>-1</code> on failure.</li>
+<li><code>loadSound(path: string) -&gt; int</code> Loads an audio file (WAV, OGG, MP3 or FLAC) <strong>into memory</strong>: it is decoded here, so playback no longer needs the file and the length is known immediately. Returns a stable handle, or <code>-1</code> on failure.</li>
 </ul>
 <ul>
-<li><code>loadSoundStreaming(path: string) -&gt; int</code> Loads a streaming audio file. Returns a stable handle, or <code>-1</code> on failure.</li>
+<li><code>loadSoundStreaming(path: string) -&gt; int</code> Loads a <strong>streaming</strong> audio file: only the header is read now and the file is decoded as it plays, which keeps a large file out of memory but means the file must still be there at play time. Returns a stable handle, or <code>-1</code> on failure.</li>
 </ul>
 <ul>
 <li><code>playSound(handle: int) -&gt; bool</code> Plays a loaded sound once. Returns <code>true</code> when playback starts.</li>
@@ -201,7 +201,7 @@
 <li><code>isSoundPlaying(handle: int) -&gt; bool</code> Returns <code>true</code> if an active player is currently playing.</li>
 </ul>
 <ul>
-<li><code>getSoundLength(handle: int) -&gt; float</code> Returns the decoded duration in seconds, or <code>0.0</code> for an invalid handle.</li>
+<li><code>getSoundLength(handle: int) -&gt; float</code> Returns the duration in seconds, or <code>0.0</code> for an invalid handle. The duration is resolved once, when the handle is created, so this never re-reads the file — it still answers after the file has been moved or deleted.</li>
 </ul>
 <ul>
 <li><code>releaseSound(handle: int) -&gt; bool</code> Releases a loaded sound and invalidates its handle. Returns <code>true</code> on success.</li>

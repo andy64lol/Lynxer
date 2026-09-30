@@ -279,19 +279,31 @@ sliced, so tiles render as shaded blocks rather than artwork.
 
 ## Physics
 
-A small platformer engine: gravity plus axis-aligned landing on a wall list.
+A small platformer engine: gravity, wall collision, slopes and one-way
+platforms.
 
 | Function | Description |
 |----------|-------------|
-| `makePhysicsEngine(gravity, wallsListIdx)` | Create an engine; pass `-1` for no walls |
+| `makePhysicsEngine(gravity, wallsListIdx, oneWayListIdx = -1)` | Create an engine; pass `-1` for no walls or no one-way platforms |
 | `setPhysicsPlayer(engineIdx, sprIdx)` | Assign the player sprite (required before updating) |
 | `updatePhysics(engineIdx)` | One step at the current frame `dt` |
-| `canJump(engineIdx)` | `true` while the player rests on a wall |
+| `canJump(engineIdx)` | `true` while the player rests on a wall, a slope or a platform |
 | `jumpPlayer(engineIdx, jumpSpeed)` | Set the player's Y velocity when grounded |
 | `getPlayerVY(engineIdx)` | The player's current Y velocity |
 
-Only vertical motion and landing/ceiling contact are modelled; there is no
-horizontal collision resolution.
+A step moves the player by `vx`/`vy`, pushes them out of the side of a solid
+wall, applies gravity, and then resolves the landing. Two conventions extend the
+wall list:
+
+- **A wall sprite with a non-zero `angle` is a slope.** Its surface runs from
+  the box's bottom-left corner upward to the right by `tan(angle) * width`,
+  never above the box's top. Slopes never block horizontal movement.
+- **A sprite in the one-way list is a platform**, solid only for a player who
+  was above it on the previous step and is falling now — so a jump carries the
+  player up through it.
+
+The player is snapped onto a slope or platform surface only from within two
+units of it, which bounds how far a ramp can lift them in one step.
 
 ## Animation
 

@@ -199,6 +199,18 @@
 <ul>
 <li><code>tables(path: string) -&gt; string</code> Returns table names as a JSON array.</li>
 </ul>
+<h3 id="connection-handles">Connection handles</h3>
+<p>Every function above names a path and opens a connection for that call only. To reuse one connection, open it once and use the <code>*On</code> forms with the handle:</p>
+<ul>
+<li><code>open(path: string) -&gt; int</code> Opens the database and keeps the connection open. Returns the handle, or <code>-1</code> when the database cannot be opened.</li>
+</ul>
+<ul>
+<li><code>close(handle: int) -&gt; int</code> Releases a handle. Returns <code>1</code> when it was live, else <code>0</code>.</li>
+</ul>
+<ul>
+<li><code>executeOn</code>, <code>executeArgsOn</code>, <code>scriptOn</code>, <code>queryOn</code>, <code>queryArgsOn</code>, <code>scalarOn</code>, <code>scalarArgsOn</code>, <code>lastInsertIdOn</code>, <code>tableExistsOn</code>, <code>tablesOn</code> are the handle-taking forms of the functions above (same arguments, with the handle in place of the path).</li>
+</ul>
+<p>Handles stay valid for the run, and a closed or unknown handle answers the usual sentinels (<code>&quot;ERROR: unknown connection handle &lt;n&gt;&quot;</code>, <code>-1</code>, <code>false</code>) rather than raising. Two threads can share a handle: each call takes the connection for its duration.</p>
 <h2 id="example">Example</h2>
 <pre><code>global setup(){
     import(&quot;sqldb&quot;)
@@ -208,6 +220,12 @@ global main(){
     global.sqldb.execute(&quot;database.db&quot;, &quot;CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)&quot;);
     global.sqldb.execute(&quot;database.db&quot;, &quot;INSERT INTO users (name) VALUES (&#x27;Alice&#x27;)&quot;);
     println(global.sqldb.query(&quot;database.db&quot;, &quot;SELECT * FROM users&quot;));
+
+    // Or keep one connection open across calls.
+    int db = global.sqldb.open(&quot;database.db&quot;);
+    global.sqldb.executeOn(db, &quot;INSERT INTO users (name) VALUES (&#x27;Bob&#x27;)&quot;);
+    println(global.sqldb.queryOn(db, &quot;SELECT * FROM users ORDER BY id&quot;));
+    global.sqldb.close(db);
 }</code></pre>
 <hr>
 <h2 id="see-also">See also</h2>

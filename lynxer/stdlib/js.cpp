@@ -90,10 +90,15 @@ static int jsTimeoutSeconds() {
 // reports status 137.
 static std::string captureWithTimeout(const std::string& command, int seconds,
                                       int& status) {
+    // `exec 2>/dev/null` silences the *shell's own* stderr for the rest of the
+    // script. dash (the /bin/sh on Debian and Ubuntu, including CI) reports a
+    // reaped job as `Killed` / `Terminated` on stderr, which would otherwise be
+    // captured as if the command had printed it. The command's stderr is
+    // redirected into the pipe separately, so it is still captured.
     // The guard's stdout/stderr are closed off the pipe, or it would hold the
     // read end open for the whole timeout and every call would block that long.
     const std::string script =
-        command + " 2>&1 & worker=$!; "
+        "exec 2>/dev/null; " + command + " 2>&1 & worker=$!; "
         "( sleep " + std::to_string(seconds) +
         "; kill -9 \"$worker\" 2>/dev/null ) >/dev/null 2>&1 & guard=$!; "
         "wait \"$worker\"; status=$?; kill \"$guard\" 2>/dev/null; "

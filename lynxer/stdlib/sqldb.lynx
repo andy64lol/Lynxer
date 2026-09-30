@@ -47,3 +47,60 @@ global tableExists(str path, str tableName) -> bool {
 
 // Return table names as a JSON array.
 global tables(str path) -> str { return global.nativeSqlDb.tables(path); }
+
+// --- Connection handles ----------------------------------------------------
+// Every function above opens a connection, does its work and closes it again.
+// To reuse one connection, open it once: the handle stays valid until close(),
+// and the *On forms run against it. Handles are integer handles held by the
+// backend for the run; close() releases one.
+
+// Open a database and keep the connection open. Returns the handle, or -1 when
+// the database cannot be opened.
+global open(str path) -> int { return global.nativeSqlDb.open(path); }
+
+// Close a handle from open(). Returns 1 when the handle was live, else 0.
+global close(int handle) -> int { return global.nativeSqlDb.close(handle); }
+
+// execute() against an open connection.
+global executeOn(int handle, str sql) -> str {
+    return global.nativeSqlDb.executeOn(handle, sql);
+}
+
+// executeArgs() against an open connection.
+global executeArgsOn(int handle, str sql, str paramsJson) -> str {
+    return global.nativeSqlDb.executeArgsOn(handle, sql, paramsJson);
+}
+
+// script() against an open connection.
+global scriptOn(int handle, str sqlScript) -> str {
+    return global.nativeSqlDb.scriptOn(handle, sqlScript);
+}
+
+// query() against an open connection.
+global queryOn(int handle, str sql) -> str { return global.nativeSqlDb.queryOn(handle, sql); }
+
+// queryArgs() against an open connection.
+global queryArgsOn(int handle, str sql, str paramsJson) -> str {
+    return global.nativeSqlDb.queryArgsOn(handle, sql, paramsJson);
+}
+
+// scalar() against an open connection.
+global scalarOn(int handle, str sql) -> str { return global.nativeSqlDb.scalarOn(handle, sql); }
+
+// scalarArgs() against an open connection.
+global scalarArgsOn(int handle, str sql, str paramsJson) -> str {
+    return global.nativeSqlDb.scalarArgsOn(handle, sql, paramsJson);
+}
+
+// lastInsertId() against an open connection.
+global lastInsertIdOn(int handle, str sql, str paramsJson) -> int {
+    return global.nativeSqlDb.lastInsertIdOn(handle, sql, paramsJson);
+}
+
+// tableExists() against an open connection.
+global tableExistsOn(int handle, str tableName) -> bool {
+    return global.nativeSqlDb.tableExistsOn(handle, tableName) isnt 0;
+}
+
+// tables() against an open connection.
+global tablesOn(int handle) -> str { return global.nativeSqlDb.tablesOn(handle); }

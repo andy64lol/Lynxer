@@ -56,12 +56,13 @@ JSON-returning helpers:
 | Function | Signature | Returns |
 | --- | --- | --- |
 | `getSystemUname` | `() -> str` | `{system, node, release, version, machine, processor}` |
-| `getSystemInfo` | `() -> str` | The same fields plus `architecture`, `python`, `pythonImplementation`, `pythonExecutable` |
+| `getSystemInfo` | `() -> str` | The same fields plus `architecture` |
 | `getSystemDistro` | `() -> str` | Parsed `/etc/os-release`, or `{}` |
 
-Because Lynxer has no Python runtime, `getPythonVersion()` returns `""`,
-`getPythonImplementation()` returns `"Lynxer"`, and the `python*` fields of
-`getSystemInfo` mirror that.
+The Python-compat getters (`getPythonVersion`, `getPythonImplementation`) and
+the `python*` fields of `getSystemInfo` are gone: there is no Python runtime to
+introspect, and a standing `""`/`"Lynxer"` value was a lie. See
+[removed-features.md](../removed-features.md#python-introspection-getters).
 
 ## Example
 

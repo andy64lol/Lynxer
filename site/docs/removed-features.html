@@ -186,6 +186,8 @@
 <tr><td><code>embedPy</code></td><td><code>Python bridging (embedPy) is not supported in Lynxer</code></td></tr>
 </table>
 <p><code>rawPy { ... }</code> is not special syntax: it parses as an ordinary call with an inline codeblock and then fails as above. <code>embedPy.x(...)</code> is rejected at the member-call level. See <a href="builtins.html">builtins</a>.</p>
+<h2 id="python-introspection-getters">Python introspection getters</h2>
+<p><code>os.getPythonVersion()</code>, <code>os.getPythonImplementation()</code> and the <code>python</code>, <code>pythonImplementation</code> and <code>pythonExecutable</code> fields of <code>os.getSystemInfo()</code> are <strong>removed</strong>. They existed only to mimic a Python host — <code>&quot;&quot;</code> and <code>&quot;Lynxer&quot;</code> are not values any program should branch on — and there is no Python runtime to report. The fields are simply absent from <code>getSystemInfo()</code> now; the <code>sys</code> introspection surface (<code>sys.path</code>, <code>addPath</code>, <code>getModules</code>, …) was never implemented and stays unplanned. See <a href="limitations.html">limitations</a>.</p>
 <h2 id="venv"><code>venv</code></h2>
 <p>A virtual-environment manager is a Python concept with no equivalent in a standalone runtime; the module is not provided. See <a href="limitations.html">limitations</a>.</p>
 <h2 id="tkinter--turtle"><code>tkinter</code> / <code>turtle</code></h2>

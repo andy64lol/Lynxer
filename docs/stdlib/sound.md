@@ -11,10 +11,14 @@ The `sound` module provides audio playback functionality using Rust's `rodio` an
 ## Functions
 
 - `loadSound(path: string) -> int`
-  Loads an audio file (WAV, OGG, MP3 or FLAC). Returns a stable handle, or `-1` on failure.
+  Loads an audio file (WAV, OGG, MP3 or FLAC) **into memory**: it is decoded
+  here, so playback no longer needs the file and the length is known
+  immediately. Returns a stable handle, or `-1` on failure.
 
 - `loadSoundStreaming(path: string) -> int`
-  Loads a streaming audio file. Returns a stable handle, or `-1` on failure.
+  Loads a **streaming** audio file: only the header is read now and the file is
+  decoded as it plays, which keeps a large file out of memory but means the file
+  must still be there at play time. Returns a stable handle, or `-1` on failure.
 
 - `playSound(handle: int) -> bool`
   Plays a loaded sound once. Returns `true` when playback starts.
@@ -41,7 +45,9 @@ The `sound` module provides audio playback functionality using Rust's `rodio` an
   Returns `true` if an active player is currently playing.
 
 - `getSoundLength(handle: int) -> float`
-  Returns the decoded duration in seconds, or `0.0` for an invalid handle.
+  Returns the duration in seconds, or `0.0` for an invalid handle. The duration
+  is resolved once, when the handle is created, so this never re-reads the file —
+  it still answers after the file has been moved or deleted.
 
 - `releaseSound(handle: int) -> bool`
   Releases a loaded sound and invalidates its handle. Returns `true` on success.

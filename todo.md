@@ -61,15 +61,31 @@ before the module-specific items.
       where the GPU context permits; allow nested UI blocks; add gamepad and
       model/mesh loading; add a CI-runnable headless render fixture
       (`lynxer/rust/graphics/*`, `Cargo.toml`).
-- [ ] **L5 — `game`.** Slice the tileset atlas so tilemaps render artwork, not
-      just geometry; add horizontal collision and slope/one-way platform support
-      to `updatePhysics`; stop reporting a finished one-shot as playing
-      (`lynxer/rust/game/src/extras.rs`, `state.rs`).
-- [ ] **L6 — `server`.** Build TLS for `runHTTPS`/`runSSLAdhoc`
-      (`tokio-rustls`/`rustls-pemfile`/`rcgen`); give routes a per-request
-      context so `getArg`/`getHeader`/`getBody` describe the current request; add
-      a Jinja-compatible template engine (`lynxer/rust/server/src/lib.rs`,
-      `server/Cargo.toml`).
+- [x] ~~**L5 — `game` physics.**~~ **Partly delivered:** `updatePhysics` now
+      resolves horizontal collision against the wall list (`vx` was ignored
+      entirely before), rides a wall sprite whose `angle` is non-zero as a
+      slope, and treats a third `makePhysicsEngine` list as one-way platforms.
+      Covered by `stdlib_game` (walk into a wall, jump up through a platform,
+      land on it, rest on a 30° ramp).
+- [ ] **L5b — `game` tilemap artwork and the one-shot sound flag.** Slicing the
+      tileset atlas needs a real texture, so it cannot be verified headless; and
+      a finished one-shot still reports as playing because `macroquad`'s `Sound`
+      exposes neither a playback position nor a duration — detecting it means
+      decoding durations with `symphonia` (as `sound` already does), which is
+      also unverifiable on a host with no audio device
+      (`lynxer/rust/game/src/extras.rs`, `Cargo.toml`).
+- [x] ~~**L6 — `server` TLS.**~~ **Partly delivered:** `runHTTPS(cert, key)` and
+      `runSSLAdhoc()` start a real HTTPS listener on the `init` host/port, built
+      on `axum-server` + `rustls` with the **`ring`** provider (already in the
+      tree — no `aws-lc-rs`, so no CMake, and no system OpenSSL), plus
+      `rustls-pemfile` for the PEM files and `rcgen` for the self-signed
+      certificate. PEM problems are reported before the socket is bound. New
+      fixture `stdlib_server_tls` completes a real handshake with `curl` (and is
+      skipped when curl/openssl are missing).
+- [ ] **L6b — `server` request context and templates.** Give routes a
+      per-request context so `getArg`/`getHeader`/`getBody` describe the request
+      being served rather than the most recent one, and add a Jinja-compatible
+      template engine (`lynxer/rust/server/src/lib.rs`).
 - [x] ~~**L7 — `re`/`regex` engine.**~~ **Delivered:** both modules were rewritten
       as Rust `cdylib`s (`rust/re`, `rust/regex`) over a shared `rust/regex_engine`
       built on `fancy-regex` — Rust and cargo, no system PCRE. Lookbehind
@@ -78,14 +94,24 @@ before the module-specific items.
       work, and `(?x)`/the `X` flag is honoured. The C++ backend (`re.cpp`,
       `regex.cpp`, `native_regex.hpp`) is gone; a 98-case differential harness
       proved the pre-existing surface byte-identical.
-- [ ] **L8 — `sound`.** Split static load from streaming load; do not report a
-      finished one-shot as playing; cache the decoded length instead of
-      re-decoding on every call (`lynxer/rust/sound/src/lib.rs`).
+- [x] ~~**L8 — `sound`.**~~ **Delivered:** `loadSound` now decodes into memory
+      while `loadSoundStreaming` reads only the header — a real static/streaming
+      split — and both cache the duration at load time, so `getSoundLength`
+      never re-opens the file (it used to answer `0.0` once the file moved).
+      The one-shot flag needed no change: `isSoundPlaying` already reports
+      `false` once a sink drains, which is what `sink.empty()` tests. Covered by
+      three unit tests in `rust/sound` that build a scratch WAV, so they need no
+      audio device — the platform fixture is skipped on hosts without one.
 - [ ] **L9 — `watch`.** Add portable backends (kqueue/Windows) and a blocking
       `watchWait` (`lynxer/rust/watch/src/lib.rs`).
-- [ ] **L10 — `sqldb`.** Add connection handles (`open`/`close`/reuse) instead of
-      opening per call, and raise errors once exceptions exist rather than
-      returning in-band `"ERROR: …"` (`lynxer/rust/sqldb/src/lib.rs`).
+- [x] ~~**L10 — `sqldb` connection handles.**~~ **Partly delivered:** `open()`
+      returns an integer handle and `close()` releases it; the ten `*On` forms
+      (`queryOn`, `executeArgsOn`, …) reuse that one live connection instead of
+      opening per call. Covered by `stdlib_sqldb`; docs and the contracts row
+      updated. The error half is **L10b**, blocked on the language.
+- [ ] **L10b — `sqldb` raises instead of returning `"ERROR: …"`.** Blocked:
+      Lynxer has no exceptions, so the in-band `"ERROR: <message>"` sentinel is
+      still the contract. Revisit once the language can raise.
 - [x] ~~**L11 — `js` / `multiprocessing`.**~~ **Delivered:** both apply a
       configurable subprocess timeout (`LYNXER_JS_TIMEOUT` default 30,
       `LYNXER_MP_TIMEOUT` default 300) and capture `stderr` into the result
@@ -100,11 +126,20 @@ before the module-specific items.
       row separators, animated progress/live displays, a real `printException`
       traceback via exception context); record the rest as intentional
       divergence (`lynxer/rust/tui/*`).
-- [ ] **L14 — `os`/`path`/`sys`.** Remove the Python-compat stubs once nothing
-      depends on them; honour or drop the ignored `encoding` argument; add
-      portable system-info backends; make `sys.exit()` run interpreter cleanup;
-      distinguish program from process `argv` (`lynxer/stdlib/os.cpp`, `path.cpp`,
-      `sys.cpp`, `lynxer/builtins.cpp`).
+- [x] ~~**L14 — remove the `os` Python-compat stubs.**~~ **Partly delivered:**
+      `os.getPythonVersion`, `os.getPythonImplementation` and the `python`/
+      `pythonImplementation`/`pythonExecutable` fields of `getSystemInfo` are
+      gone (with the now-unused executable-path helper), and
+      `docs/removed-features.md` records it. `sys.exit()` already runs the
+      interpreter's only process-wide cleanup, the `atexit` hook that removes a
+      compiled executable's temporary directory, so that half needed no code.
+- [ ] **L14b — `os`/`path`/`sys` follow-ups.** Honour or drop the ignored
+      `encoding` argument of `path.readTextEncoding`/`writeTextEncoding` (a real
+      encoding backend needs a cargo crate, e.g. `encoding_rs`, not `iconv` —
+      see the Rust-and-cargo rule below); add portable system-info backends for
+      macOS/BSD (untestable here); distinguish program arguments from the
+      `lynxer` process command line in `sys.argv`/`getArg`/`argCount`
+      (`lynxer/stdlib/path.cpp`, `sys.cpp`, `lynxer/builtins.cpp`).
 
 **Runtime and concurrency**
 

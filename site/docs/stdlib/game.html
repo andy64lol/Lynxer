@@ -376,17 +376,22 @@ global main(){
 <p><code>loadTilemap(tmxPath, scaling)</code> reads a Tiled <code>.tmx</code> file and returns a <strong>scene</strong> index; <code>getTilemapLayer(sceneIdx, layerName)</code> returns the named layer as a <strong>sprite list</strong>. Only the first <code>&lt;tileset&gt;</code> (for the tile size) and each <code>&lt;layer&gt;</code>'s comma-separated <code>&lt;data&gt;</code> are read — CSV payloads only.</p>
 <p>Tiles become solid sprites on the grid, so a map carries geometry and collision (hand it to <code>makePhysicsEngine</code> as the wall list). The tileset image is <strong>not</strong> sliced, so tiles render as shaded blocks rather than artwork.</p>
 <h2 id="physics">Physics</h2>
-<p>A small platformer engine: gravity plus axis-aligned landing on a wall list.</p>
+<p>A small platformer engine: gravity, wall collision, slopes and one-way platforms.</p>
 <table>
 <tr><th>Function</th><th>Description</th></tr>
-<tr><td><code>makePhysicsEngine(gravity, wallsListIdx)</code></td><td>Create an engine; pass <code>-1</code> for no walls</td></tr>
+<tr><td><code>makePhysicsEngine(gravity, wallsListIdx, oneWayListIdx = -1)</code></td><td>Create an engine; pass <code>-1</code> for no walls or no one-way platforms</td></tr>
 <tr><td><code>setPhysicsPlayer(engineIdx, sprIdx)</code></td><td>Assign the player sprite (required before updating)</td></tr>
 <tr><td><code>updatePhysics(engineIdx)</code></td><td>One step at the current frame <code>dt</code></td></tr>
-<tr><td><code>canJump(engineIdx)</code></td><td><code>true</code> while the player rests on a wall</td></tr>
+<tr><td><code>canJump(engineIdx)</code></td><td><code>true</code> while the player rests on a wall, a slope or a platform</td></tr>
 <tr><td><code>jumpPlayer(engineIdx, jumpSpeed)</code></td><td>Set the player's Y velocity when grounded</td></tr>
 <tr><td><code>getPlayerVY(engineIdx)</code></td><td>The player's current Y velocity</td></tr>
 </table>
-<p>Only vertical motion and landing/ceiling contact are modelled; there is no horizontal collision resolution.</p>
+<p>A step moves the player by <code>vx</code>/<code>vy</code>, pushes them out of the side of a solid wall, applies gravity, and then resolves the landing. Two conventions extend the wall list:</p>
+<ul>
+<li><strong>A wall sprite with a non-zero <code>angle</code> is a slope.</strong> Its surface runs from the box's bottom-left corner upward to the right by <code>tan(angle) * width</code>, never above the box's top. Slopes never block horizontal movement.</li>
+<li><strong>A sprite in the one-way list is a platform</strong>, solid only for a player who was above it on the previous step and is falling now — so a jump carries the player up through it.</li>
+</ul>
+<p>The player is snapped onto a slope or platform surface only from within two units of it, which bounds how far a ramp can lift them in one step.</p>
 <h2 id="animation">Animation</h2>
 <table>
 <tr><th>Function</th><th>Description</th></tr>

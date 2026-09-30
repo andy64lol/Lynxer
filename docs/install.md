@@ -15,9 +15,9 @@ Python; only the two check scripts in the test suite do.
   native-call engine.
 - Git and network access for the first `cargo` build: crates are fetched from
   crates.io. Most crates are pure Rust, but a few compile vendored C with the
-  system C compiler — `zstd` (via `zstd-sys`), vendored Lua (via `mlua`) and
-  bundled SQLite (via `rusqlite`) — so a C compiler is required alongside the
-  Rust toolchain.
+  system C compiler — `zstd` (via `zstd-sys`), vendored Lua (via `mlua`),
+  bundled SQLite (via `rusqlite`) and the `ring` crypto provider — so a C
+  compiler is required alongside the Rust toolchain.
 
 No system OpenSSL, Boost, CMake, cpp-httplib, Crow, or nlohmann/json is needed:
 TLS is `rustls`, the HTTP stack is `ureq`/`tungstenite`/`axum`, and JSON is

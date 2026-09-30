@@ -4,9 +4,7 @@ Operating system, filesystem, environment and platform helpers backed by the
 native C++ module `stdlib/os.so`.
 
 Directory listings return newline-joined entries; the wrapper splits them into
-lists. Platform helpers report the host through uname(2); because Lynxer has no
-Python runtime, `getPythonVersion()` returns "" and
-`getPythonImplementation()` returns "Lynxer".
+lists. Platform helpers report the host through uname(2).
 ////
 global setup(){ importAs("os.so", "nativeOs"); }
 
@@ -73,10 +71,6 @@ global getSystemArchitecture() -> str {
     return global.nativeOs.getSystemArchitecture();
 }
 global getSystemNode() -> str { return global.nativeOs.getSystemNode(); }
-global getPythonVersion() -> str { return global.nativeOs.getPythonVersion(); }
-global getPythonImplementation() -> str {
-    return global.nativeOs.getPythonImplementation();
-}
 global getSystemUname() -> str { return global.nativeOs.getSystemUname(); }
 global getSystemInfo() -> str { return global.nativeOs.getSystemInfo(); }
 global getSystemDistro() -> str { return global.nativeOs.getSystemDistro(); }

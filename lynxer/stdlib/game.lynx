@@ -319,8 +319,10 @@ global getTilemapLayer(int sceneIdx, str layerName) -> int {
     return global.nativeGame.getTilemapLayer(sceneIdx, layerName);
 }
 // Physics.
-global makePhysicsEngine(float gravity, int wallsListIdx) -> int {
-    return global.nativeGame.makePhysicsEngine(gravity, wallsListIdx);
+// A wall sprite with a non-zero angle is a slope; oneWayListIdx names a sprite
+// list of one-way platforms (solid only from above), or -1 for none.
+global makePhysicsEngine(float gravity, int wallsListIdx, int oneWayListIdx = -1) -> int {
+    return global.nativeGame.makePhysicsEngine(gravity, wallsListIdx, oneWayListIdx);
 }
 global setPhysicsPlayer(int engineIdx, int sprIdx) -> int {
     return global.nativeGame.setPhysicsPlayer(engineIdx, sprIdx);

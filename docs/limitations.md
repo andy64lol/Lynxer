@@ -19,7 +19,7 @@ Retained removals: Python-runtime features with no place in a standalone runtime
 | --- | --- |
 | `venv` module | A virtual-environment manager is a Python concept with no equivalent in a standalone runtime. |
 | `rawPy`, `rawPyx`, `cleanRawPyxCache`, `embedPy` | Embedding CPython/Cython. Lynxer does not ship or link a Python runtime. |
-| Python runtime introspection (`sys.path`, `addPath`, `prependPath`, `removeFromPath`, `getModules`, `isModuleLoaded`, `getRecursionLimit`, `setRecursionLimit`, `os.getPythonVersion`, `os.getPythonImplementation`) | There is no Python runtime to introspect. The `os` getters return `""` / `"Lynxer"` for compatibility and will be removed. |
+| Python runtime introspection (`sys.path`, `addPath`, `prependPath`, `removeFromPath`, `getModules`, `isModuleLoaded`, `getRecursionLimit`, `setRecursionLimit`) | There is no Python runtime to introspect. The `os` getters and the `python*` `getSystemInfo` fields were removed outright — see [removed-features.md](removed-features.md#python-introspection-getters). |
 | Bytecode (`.lynxc`, `--view-bytecode`, `--benchmark-compile`, `--no-cache`) | Removed with the bytecode backend; `--compile` produces a standalone ELF executable instead (`--bundle` is an alias). Running a `.lynxc` file reports that bytecode is unsupported. |
 
 ## Planned Work
@@ -126,9 +126,13 @@ Makefile checks for `cargo` up front and says so.
   `<tileset>` (for the tile size) and each `<layer>`'s CSV `<data>`; tiles
   become solid sprites on the grid. The tileset image is not sliced, so the map
   is useful for collision and layout rather than rendering.
-- **Physics is vertical only.** `updatePhysics` applies gravity and resolves
-  landing and ceiling contact against a wall list. There is no horizontal
-  collision resolution, and no slope/one-way platform support.
+- **Physics covers walls, slopes and one-way platforms.** `updatePhysics`
+  resolves horizontal and vertical collision against a wall list, rides a wall
+  whose sprite `angle` is non-zero as a slope, and treats the list passed as
+  `makePhysicsEngine`'s third argument as one-way platforms (solid only from
+  above, within a two-unit snap). The player is still a single axis-aligned
+  box: there is no rotation-aware collision, no sprite-against-sprite physics
+  and no moving-platform carry.
 - **Animated sprites and sound are texture/audio-backed.** In headless mode
   `makeAnimatedSprite` and `loadSound` return `-1`, and `screenshot` returns
   `-1`; the drawing, sound and screenshot ops are otherwise no-ops.
@@ -138,11 +142,11 @@ Makefile checks for `cargo` up front and says so.
 
 ### `server` — Constrained Behavior
 
-- **TLS is not built.** `runHTTPS(cert, key)` and `runSSLAdhoc()` return an
-  explanatory `ERROR:` string instead of starting a listener. Servers terminate
-  TLS in a reverse proxy, or the module is rebuilt with a TLS backend
-  (`axum-server`, `rustls-pemfile`, `rcgen` are not among the pinned
-  dependencies; adding them would make the module require network access).
+- **TLS is built, and does not block.** `runHTTPS(cert, key)` and
+  `runSSLAdhoc()` start an HTTPS listener on the `init` host/port with `rustls`
+  (the `ring` provider — no system OpenSSL) and return `"ok"`; `stop()` ends it.
+  They do not block the way `run()` does. A certificate/key mismatch is only
+  found when a client connects.
 - **Request-context readers describe the last request.** `getArg`, `getHeader`,
   `getBody` and friends read the most recently handled request, because a Lynxer
   route is a fixed string rather than a callback and the interpreter evaluates
@@ -349,8 +353,8 @@ constructs `std::regex` lacked. No system regex library is involved.
 
 ### `os` and `path` — Constrained Behavior
 
-- **Python compatibility:** `os.getPythonVersion()` returns `""` (empty string), and `os.getPythonImplementation()` returns `"Lynxer"` for compatibility.
-- **Encoding:** `path.readTextEncoding` and `path.writeTextEncoding` accept an encoding argument for API compatibility but always use UTF-8 internally.
+- **Encoding:** `path.readTextEncoding` and `path.writeTextEncoding` accept an
+  encoding argument for API compatibility but always use UTF-8 internally.
 - **Platform info:** Platform helpers report the host through `uname(2)`.
 
 *Note:* Python runtime introspection features are not planned for Lynxer.
@@ -396,7 +400,10 @@ constructs `std::regex` lacked. No system regex library is involved.
 
 ### `sound` — Constrained Behavior
 
-- **Loading:** `loadSound` and `loadSoundStreaming` are identical operations. Rodio decodes from the file handle in both cases, so there is no static/streaming split. Both register a handle and return its index.
+- **Loading:** `loadSound` decodes the file into memory at load time, so
+  playback survives the file being moved or deleted; `loadSoundStreaming` reads
+  only the header and decodes as it plays, so the file must still be there. Both
+  register a handle and return its index.
 
 - **Playback:**
   - Requires an audio device. If none is available, `playSound` and `loopSound` return `false` instead of aborting. Loading, `soundCount()`, and `releaseSound` continue to work.
@@ -406,13 +413,22 @@ constructs `std::regex` lacked. No system regex library is involved.
   - `releaseSound` returns `false` for already-released handles.
   - `soundCount()` counts only handles that have not been released.
 
-- **Sound metadata:** `getSoundLength` re-decodes the file on each call, returning `0.0` if the file has been moved or deleted since loading.
+- **Sound metadata:** `getSoundLength` returns the duration resolved at load
+  time and never re-reads the file. For a container with no duration header the
+  streaming load decodes once at load time to learn it, then drops the samples.
 
 ### `sqldb` — Constrained Behavior
 
-- **Connection handling:** Every function takes a database path and opens a connection for the duration of the call. There is no connection handle to manage or close.
+- **Connection handling:** A function takes either a database **path** — a
+  connection is opened for that call and closed after it — or a **handle** from
+  `open()`, which keeps one connection live until `close()`. The *On forms
+  (`queryOn`, `executeArgsOn`, …) run against a handle; a handle stays valid for
+  the run, and calling `close` twice (or with an unknown handle) reports `0`.
 
-- **Error handling:** Failures are returned in-band as `"ERROR: <message>"` (and as `-1`/`false` for integer/boolean functions) instead of being raised.
+- **Error handling:** Failures are returned in-band as `"ERROR: <message>"` (and
+  as `-1`/`false` for integer/boolean functions) instead of being raised. An
+  unknown or closed handle answers the same sentinels: `"ERROR: unknown
+  connection handle N"`, `-1` or `false`.
 
 - **JSON formatting:** `query`, `queryArgs`, and `tables` emit JSON with `": "` and `", "` separators.
 

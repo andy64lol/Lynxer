@@ -37,6 +37,11 @@ deltas=0,0
 keys=false false false
 buttons=false false false false false 0
 keyCode=32
+walkX=65 walkY=20
+grounded=true vx=0
+through=true vy=true
+landedOn=55 grounded=true
+slopeY=35.773502349853516 grounded=true
 update 0.016666666666666666
 draw
 update 0.016666666666666666

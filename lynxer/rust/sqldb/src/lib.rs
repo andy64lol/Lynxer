@@ -1,171 +1,320 @@
 //! Lynxer `sqldb` stdlib backend: SQLite database operations.
 //!
-//! Replaces Python's sqlite3 with Rust `rusqlite`.
-//! The Lynxer-facing contract matches `lynxer/stdlib/sqldb.lynx`:
-//! every operation names a database **path**, opens a connection, does its
-//! work and closes it again. Structured results are returned as JSON strings,
-//! errors as `"ERROR: <message>"`.
+//! Replaces Python's sqlite3 with Rust `rusqlite`. The Lynxer-facing contract
+//! matches `lynxer/stdlib/sqldb.lynx`: an operation either names a database
+//! **path** — a connection is opened for that call and closed after it — or a
+//! **handle** from `open()`, which reuses one live connection until `close()`.
+//! Structured results are JSON strings, errors are `"ERROR: <message>"`.
 
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine as _;
 use lynxer_abi::{export_int, export_string, lynxer_module};
-use rusqlite::{Connection, Result as SqlResult};
+use rusqlite::Connection;
+use std::collections::HashMap;
 use std::path::Path;
+use std::sync::atomic::{AtomicI64, Ordering};
+use std::sync::{Mutex, OnceLock};
 
 // --- Connection handling ---------------------------------------------------
-//
-// There is no handle registry: the reference opens and closes a connection per
-// call, so `path` is the only state an operation needs.
 
-// Opens `path` for the duration of `f` and closes it (on drop) afterwards.
-// Everything a connection can fail with surfaces as a `rusqlite::Error`, which
-// each op renders into its own sentinel.
-fn with_conn<T, F>(path: &str, f: F) -> SqlResult<T>
+/// Open connections, keyed by the handle `open()` returned.
+///
+/// A handle stays valid for the whole run (the registries in `graphics`,
+/// `image` and `watch` work the same way) and is released by `close()`. Every
+/// handle op takes the registry lock for the duration of its call, so two
+/// Lynxer threads cannot interleave statements on one connection.
+fn registry() -> &'static Mutex<HashMap<i64, Connection>> {
+    static REGISTRY: OnceLock<Mutex<HashMap<i64, Connection>>> = OnceLock::new();
+    REGISTRY.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+/// Handles are monotonic, so a stale handle can never name a newer connection.
+fn next_handle() -> i64 {
+    static NEXT: AtomicI64 = AtomicI64::new(1);
+    NEXT.fetch_add(1, Ordering::Relaxed)
+}
+
+/// Opens `path` for the duration of `f` and closes it (on drop) afterwards.
+/// Everything a connection can fail with becomes an `"ERROR: …"` message.
+fn with_path<T, F>(path: &str, f: F) -> Result<T, String>
 where
-    F: FnOnce(&Connection) -> SqlResult<T>,
+    F: FnOnce(&Connection) -> Result<T, String>,
 {
-    let conn = Connection::open(Path::new(path))?;
+    let conn = Connection::open(Path::new(path)).map_err(|e| e.to_string())?;
     f(&conn)
 }
 
-// --- Ops -------------------------------------------------------------------
-
-// Execute one SQL statement and commit. Returns "ok" or "ERROR: <message>".
-export_string!(sqldb_execute, args, {
-    let path = args.string(0);
-    let sql = args.string(1);
-    match with_conn(path, |conn| conn.execute(sql, [])) {
-        Ok(_) => "ok".to_string(),
-        Err(e) => format!("ERROR: {}", e),
+/// Runs `f` on the connection behind `handle`, or reports an unknown handle.
+fn with_handle<T, F>(handle: i64, f: F) -> Result<T, String>
+where
+    F: FnOnce(&Connection) -> Result<T, String>,
+{
+    let guard = registry()
+        .lock()
+        .map_err(|_| "the connection registry is poisoned".to_string())?;
+    match guard.get(&handle) {
+        Some(conn) => f(conn),
+        None => Err(format!("unknown connection handle {}", handle)),
     }
-});
+}
 
-// Execute one parameterized SQL statement. paramsJson must be a JSON array.
-// Returns "ok" or "ERROR: <message>".
-export_string!(sqldb_execute_args, args, {
-    let path = args.string(0);
-    let sql = args.string(1);
-    let params = match parse_params_json(args.string(2)) {
-        Ok(params) => params,
-        Err(e) => return format!("ERROR: {}", e),
+/// Renders a failed call the way every op does.
+fn error_text(message: String) -> String {
+    format!("ERROR: {}", message)
+}
+
+// --- Operations over one connection ----------------------------------------
+
+fn op_execute(conn: &Connection, sql: &str) -> Result<String, String> {
+    conn.execute(sql, []).map_err(|e| e.to_string())?;
+    Ok("ok".to_string())
+}
+
+fn op_execute_args(conn: &Connection, sql: &str, params_json: &str) -> Result<String, String> {
+    let params = parse_params_json(params_json)?;
+    conn.execute(sql, rusqlite::params_from_iter(params))
+        .map_err(|e| e.to_string())?;
+    Ok("ok".to_string())
+}
+
+fn op_script(conn: &Connection, script: &str) -> Result<String, String> {
+    conn.execute_batch(script).map_err(|e| e.to_string())?;
+    Ok("ok".to_string())
+}
+
+fn op_query(
+    conn: &Connection,
+    sql: &str,
+    params_json: Option<&str>,
+) -> Result<String, String> {
+    let params = match params_json {
+        Some(json) => parse_params_json(json)?,
+        None => Vec::new(),
     };
-    match with_conn(path, |conn| {
-        conn.execute(sql, rusqlite::params_from_iter(params))
-    }) {
-        Ok(_) => "ok".to_string(),
-        Err(e) => format!("ERROR: {}", e),
-    }
-});
+    query_rows(conn, sql, params).map_err(|e| e.to_string())
+}
 
-// Execute multiple SQL statements as one transaction. Returns "ok" or "ERROR: <message>".
-export_string!(sqldb_script, args, {
-    let path = args.string(0);
-    let script = args.string(1);
-    match with_conn(path, |conn| conn.execute_batch(script)) {
-        Ok(_) => "ok".to_string(),
-        Err(e) => format!("ERROR: {}", e),
-    }
-});
-
-// Query rows and return a JSON array of objects.
-export_string!(sqldb_query, args, {
-    let path = args.string(0);
-    let sql = args.string(1);
-    match with_conn(path, |conn| query_rows(conn, sql, Vec::new())) {
-        Ok(json) => json,
-        Err(e) => format!("ERROR: {}", e),
-    }
-});
-
-// Parameterized form of query().
-export_string!(sqldb_query_args, args, {
-    let path = args.string(0);
-    let sql = args.string(1);
-    let params = match parse_params_json(args.string(2)) {
-        Ok(params) => params,
-        Err(e) => return format!("ERROR: {}", e),
+fn op_scalar(
+    conn: &Connection,
+    sql: &str,
+    params_json: Option<&str>,
+) -> Result<String, String> {
+    let params = match params_json {
+        Some(json) => parse_params_json(json)?,
+        None => Vec::new(),
     };
-    match with_conn(path, |conn| query_rows(conn, sql, params)) {
-        Ok(json) => json,
-        Err(e) => format!("ERROR: {}", e),
-    }
-});
-
-// Return the first column of the first row as a string, or "" when absent.
-export_string!(sqldb_scalar, args, {
-    let path = args.string(0);
-    let sql = args.string(1);
-    match with_conn(path, |conn| {
-        conn.query_row(sql, [], |row| row.get::<usize, rusqlite::types::Value>(0))
+    match conn.query_row(sql, rusqlite::params_from_iter(params), |row| {
+        row.get::<usize, rusqlite::types::Value>(0)
     }) {
-        Ok(value) => value_to_scalar(value),
+        Ok(value) => Ok(value_to_scalar(value)),
         // An absent row is "" rather than an error, matching the reference.
-        Err(rusqlite::Error::QueryReturnedNoRows) => String::new(),
-        Err(e) => format!("ERROR: {}", e),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(String::new()),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+fn op_last_insert_id(
+    conn: &Connection,
+    sql: &str,
+    params_json: &str,
+) -> Result<i64, String> {
+    let params = parse_params_json(params_json)?;
+    conn.execute(sql, rusqlite::params_from_iter(params))
+        .map_err(|e| e.to_string())?;
+    let id = conn.last_insert_rowid();
+    Ok(if id > 0 { id } else { -1 })
+}
+
+fn op_table_exists(conn: &Connection, table_name: &str) -> Result<bool, String> {
+    let found = conn.query_row(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+        rusqlite::params![table_name],
+        |_| Ok(()),
+    );
+    Ok(found.is_ok())
+}
+
+// --- Path-based ops --------------------------------------------------------
+
+export_string!(sqldb_execute, args, {
+    match with_path(args.string(0), |conn| op_execute(conn, args.string(1))) {
+        Ok(value) => value,
+        Err(e) => error_text(e),
     }
 });
 
-// Parameterized form of scalar().
+export_string!(sqldb_execute_args, args, {
+    match with_path(args.string(0), |conn| {
+        op_execute_args(conn, args.string(1), args.string(2))
+    }) {
+        Ok(value) => value,
+        Err(e) => error_text(e),
+    }
+});
+
+export_string!(sqldb_script, args, {
+    match with_path(args.string(0), |conn| op_script(conn, args.string(1))) {
+        Ok(value) => value,
+        Err(e) => error_text(e),
+    }
+});
+
+export_string!(sqldb_query, args, {
+    match with_path(args.string(0), |conn| op_query(conn, args.string(1), None)) {
+        Ok(value) => value,
+        Err(e) => error_text(e),
+    }
+});
+
+export_string!(sqldb_query_args, args, {
+    match with_path(args.string(0), |conn| {
+        op_query(conn, args.string(1), Some(args.string(2)))
+    }) {
+        Ok(value) => value,
+        Err(e) => error_text(e),
+    }
+});
+
+export_string!(sqldb_scalar, args, {
+    match with_path(args.string(0), |conn| op_scalar(conn, args.string(1), None)) {
+        Ok(value) => value,
+        Err(e) => error_text(e),
+    }
+});
+
 export_string!(sqldb_scalar_args, args, {
-    let path = args.string(0);
-    let sql = args.string(1);
-    let params = match parse_params_json(args.string(2)) {
-        Ok(params) => params,
-        Err(e) => return format!("ERROR: {}", e),
-    };
-    match with_conn(path, |conn| {
-        conn.query_row(sql, rusqlite::params_from_iter(params), |row| {
-            row.get::<usize, rusqlite::types::Value>(0)
-        })
+    match with_path(args.string(0), |conn| {
+        op_scalar(conn, args.string(1), Some(args.string(2)))
     }) {
-        Ok(value) => value_to_scalar(value),
-        Err(rusqlite::Error::QueryReturnedNoRows) => String::new(),
-        Err(e) => format!("ERROR: {}", e),
+        Ok(value) => value,
+        Err(e) => error_text(e),
     }
 });
 
-// Execute an insert/update and return SQLite's lastrowid as an integer.
-// Returns -1 on error or when SQLite reports no row id.
 export_int!(sqldb_last_insert_id, args, {
-    let path = args.string(0);
-    let sql = args.string(1);
-    let params = match parse_params_json(args.string(2)) {
-        Ok(params) => params,
-        Err(_) => return -1,
-    };
-    // The row id is only meaningful on the connection that ran the insert, so
-    // it is read before `with_conn` closes it.
-    match with_conn(path, |conn| {
-        conn.execute(sql, rusqlite::params_from_iter(params))?;
-        Ok(conn.last_insert_rowid())
+    match with_path(args.string(0), |conn| {
+        op_last_insert_id(conn, args.string(1), args.string(2))
     }) {
-        Ok(id) if id > 0 => id,
-        _ => -1,
+        Ok(value) => value,
+        Err(_) => -1,
     }
 });
 
-// Return whether a table exists in the database.
 export_int!(sqldb_table_exists, args, {
-    let path = args.string(0);
-    let table_name = args.string(1);
-    match with_conn(path, |conn| {
-        conn.query_row(
-            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
-            rusqlite::params![table_name],
-            |_| Ok(()),
-        )
-    }) {
-        Ok(_) => 1,
+    match with_path(args.string(0), |conn| op_table_exists(conn, args.string(1))) {
+        Ok(value) => value as i64,
         Err(_) => 0,
     }
 });
 
-// Return table names as a JSON array.
 export_string!(sqldb_tables, args, {
-    let path = args.string(0);
-    match with_conn(path, list_tables) {
-        Ok(json) => json,
-        Err(e) => format!("ERROR: {}", e),
+    match with_path(args.string(0), |conn| list_tables(conn).map_err(|e| e.to_string())) {
+        Ok(value) => value,
+        Err(e) => error_text(e),
+    }
+});
+
+// --- Handle ops ------------------------------------------------------------
+//
+// The packed ABI delivers numbers and strings in two independent lists, so the
+// handle is `args.int(0)` and the strings keep their own indices.
+
+export_int!(sqldb_open, args, {
+    match Connection::open(Path::new(args.string(0))) {
+        Ok(conn) => match registry().lock() {
+            Ok(mut entries) => {
+                let handle = next_handle();
+                entries.insert(handle, conn);
+                handle
+            }
+            Err(_) => -1,
+        },
+        Err(_) => -1,
+    }
+});
+
+export_int!(sqldb_close, args, {
+    match registry().lock() {
+        Ok(mut entries) => entries.remove(&args.int(0)).is_some() as i64,
+        Err(_) => 0,
+    }
+});
+
+export_string!(sqldb_execute_on, args, {
+    match with_handle(args.int(0), |conn| op_execute(conn, args.string(0))) {
+        Ok(value) => value,
+        Err(e) => error_text(e),
+    }
+});
+
+export_string!(sqldb_execute_args_on, args, {
+    match with_handle(args.int(0), |conn| {
+        op_execute_args(conn, args.string(0), args.string(1))
+    }) {
+        Ok(value) => value,
+        Err(e) => error_text(e),
+    }
+});
+
+export_string!(sqldb_script_on, args, {
+    match with_handle(args.int(0), |conn| op_script(conn, args.string(0))) {
+        Ok(value) => value,
+        Err(e) => error_text(e),
+    }
+});
+
+export_string!(sqldb_query_on, args, {
+    match with_handle(args.int(0), |conn| op_query(conn, args.string(0), None)) {
+        Ok(value) => value,
+        Err(e) => error_text(e),
+    }
+});
+
+export_string!(sqldb_query_args_on, args, {
+    match with_handle(args.int(0), |conn| {
+        op_query(conn, args.string(0), Some(args.string(1)))
+    }) {
+        Ok(value) => value,
+        Err(e) => error_text(e),
+    }
+});
+
+export_string!(sqldb_scalar_on, args, {
+    match with_handle(args.int(0), |conn| op_scalar(conn, args.string(0), None)) {
+        Ok(value) => value,
+        Err(e) => error_text(e),
+    }
+});
+
+export_string!(sqldb_scalar_args_on, args, {
+    match with_handle(args.int(0), |conn| {
+        op_scalar(conn, args.string(0), Some(args.string(1)))
+    }) {
+        Ok(value) => value,
+        Err(e) => error_text(e),
+    }
+});
+
+export_int!(sqldb_last_insert_id_on, args, {
+    match with_handle(args.int(0), |conn| {
+        op_last_insert_id(conn, args.string(0), args.string(1))
+    }) {
+        Ok(value) => value,
+        Err(_) => -1,
+    }
+});
+
+export_int!(sqldb_table_exists_on, args, {
+    match with_handle(args.int(0), |conn| op_table_exists(conn, args.string(0))) {
+        Ok(value) => value as i64,
+        Err(_) => 0,
+    }
+});
+
+export_string!(sqldb_tables_on, args, {
+    match with_handle(args.int(0), |conn| list_tables(conn).map_err(|e| e.to_string())) {
+        Ok(value) => value,
+        Err(e) => error_text(e),
     }
 });
 
@@ -213,7 +362,7 @@ fn query_rows(
     conn: &Connection,
     sql: &str,
     params: Vec<rusqlite::types::Value>,
-) -> SqlResult<String> {
+) -> rusqlite::Result<String> {
     let mut stmt = conn.prepare(sql)?;
     let columns: Vec<String> = stmt
         .column_names()
@@ -237,7 +386,7 @@ fn query_rows(
     Ok(json_dumps(&serde_json::Value::Array(result)))
 }
 
-fn list_tables(conn: &Connection) -> SqlResult<String> {
+fn list_tables(conn: &Connection) -> rusqlite::Result<String> {
     let mut stmt = conn.prepare(
         "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
     )?;
@@ -312,6 +461,26 @@ const OPS: &[(&str, &str, &str)] = &[
     ("lastInsertId", "sqldb_last_insert_id", "cdecl:int64(...)"),
     ("tableExists", "sqldb_table_exists", "cdecl:int64(...)"),
     ("tables", "sqldb_tables", "cdecl:cstring(...)"),
+    ("open", "sqldb_open", "cdecl:int64(...)"),
+    ("close", "sqldb_close", "cdecl:int64(...)"),
+    ("executeOn", "sqldb_execute_on", "cdecl:cstring(...)"),
+    (
+        "executeArgsOn",
+        "sqldb_execute_args_on",
+        "cdecl:cstring(...)",
+    ),
+    ("scriptOn", "sqldb_script_on", "cdecl:cstring(...)"),
+    ("queryOn", "sqldb_query_on", "cdecl:cstring(...)"),
+    ("queryArgsOn", "sqldb_query_args_on", "cdecl:cstring(...)"),
+    ("scalarOn", "sqldb_scalar_on", "cdecl:cstring(...)"),
+    ("scalarArgsOn", "sqldb_scalar_args_on", "cdecl:cstring(...)"),
+    (
+        "lastInsertIdOn",
+        "sqldb_last_insert_id_on",
+        "cdecl:int64(...)",
+    ),
+    ("tableExistsOn", "sqldb_table_exists_on", "cdecl:int64(...)"),
+    ("tablesOn", "sqldb_tables_on", "cdecl:cstring(...)"),
 ];
 
 lynxer_module!(OPS);

@@ -35,6 +35,28 @@ The `sqldb` module provides SQLite database functionality using Rust's `rusqlite
 - `tables(path: string) -> string`
   Returns table names as a JSON array.
 
+### Connection handles
+
+Every function above names a path and opens a connection for that call only. To
+reuse one connection, open it once and use the `*On` forms with the handle:
+
+- `open(path: string) -> int`
+  Opens the database and keeps the connection open. Returns the handle, or `-1`
+  when the database cannot be opened.
+
+- `close(handle: int) -> int`
+  Releases a handle. Returns `1` when it was live, else `0`.
+
+- `executeOn`, `executeArgsOn`, `scriptOn`, `queryOn`, `queryArgsOn`,
+  `scalarOn`, `scalarArgsOn`, `lastInsertIdOn`, `tableExistsOn`, `tablesOn`
+  are the handle-taking forms of the functions above (same arguments, with the
+  handle in place of the path).
+
+Handles stay valid for the run, and a closed or unknown handle answers the
+usual sentinels (`"ERROR: unknown connection handle <n>"`, `-1`, `false`)
+rather than raising. Two threads can share a handle: each call takes the
+connection for its duration.
+
 ## Example
 
 ```lynx
@@ -46,6 +68,12 @@ global main(){
     global.sqldb.execute("database.db", "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)");
     global.sqldb.execute("database.db", "INSERT INTO users (name) VALUES ('Alice')");
     println(global.sqldb.query("database.db", "SELECT * FROM users"));
+
+    // Or keep one connection open across calls.
+    int db = global.sqldb.open("database.db");
+    global.sqldb.executeOn(db, "INSERT INTO users (name) VALUES ('Bob')");
+    println(global.sqldb.queryOn(db, "SELECT * FROM users ORDER BY id"));
+    global.sqldb.close(db);
 }
 ```
 

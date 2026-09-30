@@ -70,7 +70,9 @@ global main(){
     println(global.server.forbidden("<h1>denied</h1>"));
     println(global.server.methodNotAllowed("<h1>method-nope</h1>"));
 
-    // TLS is not built in this dependency set.
+    // TLS is built, but it needs a port: `runSSLAdhoc()` reports that in band
+    // rather than serving. The handshake itself is covered by
+    // stdlib_server_tls.lynx.
     println(global.server.runSSLAdhoc());
     println(global.server.start(70000));
 

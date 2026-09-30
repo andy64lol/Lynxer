@@ -254,10 +254,15 @@
 <tr><td><code>running()</code> / <code>port()</code></td><td>Listener state and bound port</td></tr>
 <tr><td><code>init(host, port)</code></td><td>Record the host and port for <code>run()</code></td></tr>
 <tr><td><code>run()</code></td><td>Start on the recorded host/port, then <strong>block</strong> until the process ends</td></tr>
-<tr><td><code>runHTTPS(cert, key)</code> / <code>runSSLAdhoc()</code></td><td>Not available — see below</td></tr>
+<tr><td><code>runHTTPS(cert, key)</code></td><td>Start a <strong>TLS</strong> listener on the <code>init</code> host/port from a PEM certificate and key</td></tr>
+<tr><td><code>runSSLAdhoc()</code></td><td>Start a TLS listener with a self-signed certificate generated in-process</td></tr>
 </table>
 <p><code>run()</code> blocks, matching the original. Use <code>start()</code> + <code>stop()</code> when the program has to keep running.</p>
-<p><strong>TLS is not built.</strong> <code>runHTTPS</code> and <code>runSSLAdhoc</code> return an <code>ERROR:</code> string explaining that this build has no TLS backend: <code>axum-server</code>, <code>tokio-rustls</code>, <code>rustls-pemfile</code> and <code>rcgen</code> are not among the pinned dependencies, and adding them would make the module require network access to build.</p>
+<h2 id="tls">TLS</h2>
+<p><code>runHTTPS(certPath, keyPath)</code> and <code>runSSLAdhoc()</code> start an HTTPS listener with the same routes, on the host and port recorded by <code>init(host, port)</code> — call that first, or the op answers <code>ERROR: call init(host, port) before …</code>. Unlike <code>run()</code> they do <strong>not</strong> block: they return <code>&quot;ok&quot;</code> once the socket is listening, and <code>stop()</code> shuts the listener down. Both bound the port before returning, so a port clash is reported by the call.</p>
+<p><code>runHTTPS</code> reads the PEM files and rejects one it cannot use <em>before</em> binding: a missing file reports <code>ERROR: cannot read &#x27;&lt;path&gt;&#x27;: …</code>, a file with no certificate reports <code>ERROR: the certificate file contains no PEM certificate</code>, and a key file with no key reports <code>ERROR: the key file contains no PEM private key</code>. The certificate and key must match; a mismatch fails the handshake, not the call.</p>
+<p><code>runSSLAdhoc()</code> mints a self-signed certificate for <code>localhost</code> and <code>127.0.0.1</code> with <code>rcgen</code>, so it needs no files at all — it is the quickest way to stand up HTTPS, and a client must skip verification (the certificate is not signed by any authority it trusts).</p>
+<p>TLS is <code>rustls</code> with the <code>ring</code> provider behind <code>axum-server</code> — pure Rust, no system OpenSSL — with <code>rustls-pemfile</code> for the PEM files and <code>rcgen</code> for the self-signed certificate. <code>docs/stdlib_server_tls.lynx</code> is the fixture: it mints a certificate, serves over HTTPS and completes a real handshake.</p>
 <hr>
 <h2 id="see-also">See also</h2>
 <ul>

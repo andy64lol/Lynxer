@@ -11,9 +11,17 @@
 //! callback, and the interpreter evaluates one frame at a time, so there is no
 //! point at which such a reader could run *inside* a request. `run()` starts the
 //! listener and then blocks, matching the original.
+//!
+//! `runHTTPS` and `runSSLAdhoc` start a **TLS** listener through `rustls` (the
+//! `ring` provider already in this workspace — no OpenSSL, no CMake) and, like
+//! `start()`, return as soon as it is listening; `stop()` shuts it down.
 
 use std::net::SocketAddr;
 use std::sync::{Mutex, MutexGuard};
+use std::time::Duration;
+
+use axum_server::tls_rustls::RustlsConfig;
+use axum_server::Handle;
 
 use axum::body::Body;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
@@ -683,6 +691,109 @@ fn build_router(ws_paths: &[String]) -> Router {
     router.fallback(dispatch)
 }
 
+/// rustls 0.23 needs a process-wide crypto provider. `ring` is the one the rest
+/// of the workspace already builds (`ureq`, `tungstenite`), so installing it
+/// keeps a single crypto stack and avoids `aws-lc-rs`'s CMake requirement. A
+/// provider installed by an earlier module is left alone.
+fn install_crypto_provider() {
+    let _ = rustls::crypto::ring::default_provider().install_default();
+}
+
+/// Reads and validates a PEM certificate/key pair before the listener starts,
+/// so a bad file is reported to the caller rather than lost in the server
+/// thread. `rustls` parses the same bytes again when it builds the config.
+fn validate_pem(cert_pem: &[u8], key_pem: &[u8]) -> Result<(), String> {
+    let mut cert_bytes = cert_pem;
+    let certificates: Vec<_> = rustls_pemfile::certs(&mut cert_bytes)
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|error| format!("cannot parse the certificate file: {error}"))?;
+    if certificates.is_empty() {
+        return Err("the certificate file contains no PEM certificate".to_string());
+    }
+    let key = rustls_pemfile::private_key(&mut std::io::Cursor::new(key_pem))
+        .map_err(|error| format!("cannot parse the key file: {error}"))?;
+    if key.is_none() {
+        return Err("the key file contains no PEM private key".to_string());
+    }
+    Ok(())
+}
+
+/// Generates a self-signed certificate for `localhost`/`127.0.0.1`, as PEM.
+fn self_signed_pem() -> Result<(Vec<u8>, Vec<u8>), String> {
+    let certified = rcgen::generate_simple_self_signed(vec![
+        "localhost".to_string(),
+        "127.0.0.1".to_string(),
+    ])
+    .map_err(|error| format!("cannot generate a self-signed certificate: {error}"))?;
+    Ok((
+        certified.cert.pem().into_bytes(),
+        certified.signing_key.serialize_pem().into_bytes(),
+    ))
+}
+
+/// Binds and serves `router` over TLS. Like [`start_server`], the socket is
+/// bound here so a port clash is reported to the caller.
+fn start_server_tls(
+    host: &str,
+    port: i64,
+    cert_pem: Vec<u8>,
+    key_pem: Vec<u8>,
+) -> Result<(), String> {
+    let mut state = lock_state();
+    if state.server.is_some() {
+        return Err("server already running".to_string());
+    }
+    if port <= 0 || port > 65535 {
+        return Err("invalid port".to_string());
+    }
+    let host = if host.is_empty() { "127.0.0.1" } else { host };
+
+    let listener =
+        std::net::TcpListener::bind((host, port as u16)).map_err(|error| error.to_string())?;
+    let _ = listener.set_nonblocking(true);
+
+    let router = build_router(&state.ws_paths);
+    let (shutdown, wait) = tokio::sync::oneshot::channel::<()>();
+
+    let thread = std::thread::spawn(move || {
+        install_crypto_provider();
+        let runtime = match tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+        {
+            Ok(runtime) => runtime,
+            Err(_) => return,
+        };
+        runtime.block_on(async move {
+            let config = match RustlsConfig::from_pem(cert_pem, key_pem).await {
+                Ok(config) => config,
+                Err(_) => return,
+            };
+            let handle = Handle::new();
+            let shutdown_handle = handle.clone();
+            tokio::spawn(async move {
+                let _ = wait.await;
+                shutdown_handle.graceful_shutdown(Some(Duration::from_secs(1)));
+            });
+            let server = match axum_server::from_tcp_rustls(listener, config) {
+                Ok(server) => server,
+                Err(_) => return,
+            };
+            let _ = server
+                .handle(handle)
+                .serve(router.into_make_service_with_connect_info::<SocketAddr>())
+                .await;
+        });
+    });
+
+    state.server = Some(Server {
+        port,
+        shutdown: Some(shutdown),
+        thread: Some(thread),
+    });
+    Ok(())
+}
+
 fn start_server(host: &str, port: i64) -> Result<(), String> {
     let mut state = lock_state();
     if state.server.is_some() {
@@ -1180,19 +1291,48 @@ export_string!(server_stop, args, {
 });
 
 export_string!(server_run_https, args, {
-    let (cert, key) = (args.string(0), args.string(1));
-    error_text(&format!(
-        "runHTTPS('{cert}', '{key}') is not available: this build has no TLS backend \
-         (axum-server and tokio-rustls are not among the pinned dependencies)"
-    ))
+    let (cert_path, key_path) = (args.string(0), args.string(1));
+    let (port, host) = {
+        let state = lock_state();
+        (state.config.port, state.config.host.clone())
+    };
+    if port <= 0 {
+        return error_text("call init(host, port) before runHTTPS()");
+    }
+    let cert_pem = match std::fs::read(cert_path) {
+        Ok(pem) => pem,
+        Err(error) => return error_text(&format!("cannot read '{cert_path}': {error}")),
+    };
+    let key_pem = match std::fs::read(key_path) {
+        Ok(pem) => pem,
+        Err(error) => return error_text(&format!("cannot read '{key_path}': {error}")),
+    };
+    if let Err(message) = validate_pem(&cert_pem, &key_pem) {
+        return error_text(&message);
+    }
+    match start_server_tls(&host, port, cert_pem, key_pem) {
+        Ok(()) => "ok".to_string(),
+        Err(message) => error_text(&message),
+    }
 });
 
 export_string!(server_run_ssl_adhoc, args, {
     let _ = args;
-    error_text(
-        "runSSLAdhoc() is not available: generating a self-signed certificate needs rcgen, \
-         which is not among the pinned dependencies",
-    )
+    let (port, host) = {
+        let state = lock_state();
+        (state.config.port, state.config.host.clone())
+    };
+    if port <= 0 {
+        return error_text("call init(host, port) before runSSLAdhoc()");
+    }
+    let (cert_pem, key_pem) = match self_signed_pem() {
+        Ok(pair) => pair,
+        Err(message) => return error_text(&message),
+    };
+    match start_server_tls(&host, port, cert_pem, key_pem) {
+        Ok(()) => "ok".to_string(),
+        Err(message) => error_text(&message),
+    }
 });
 
 export_int!(server_running, args, {

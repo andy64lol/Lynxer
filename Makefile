@@ -68,6 +68,12 @@ LYNXER_SIGNATURE_FIXTURE := $(LYNXER_DIR)/examples/native_signatures.lynx
 # headless boxes — skip it and say so instead of failing.
 HAVE_AUDIO := $(if $(wildcard /dev/snd/controlC*),1,)
 LYNXER_SOUND_FIXTURE := $(LYNXER_DIR)/examples/stdlib_sound.lynx
+# The server TLS fixture completes a real handshake, so it needs `curl` to make
+# the request and `openssl` to mint a throwaway certificate. Both are on CI
+# runners and normal dev boxes; when either is missing the fixture is skipped
+# and says so, the way `stdlib_sound` is skipped without an audio device.
+HAVE_TLS_TOOLS := $(if $(and $(shell command -v curl 2>/dev/null),$(shell command -v openssl 2>/dev/null)),1,)
+LYNXER_SERVER_TLS_FIXTURE := $(LYNXER_DIR)/examples/stdlib_server_tls.lynx
 # Display/audio tests. CI runners have neither a display nor an audio device, and
 # the graphics backend crashes without a display, so the workflows pass
 # LYNXER_SKIP_DISPLAY=1 to drop the fixtures that need one.
@@ -82,7 +88,7 @@ LYNXER_DISPLAY_FIXTURE_FILES := $(LYNXER_DISPLAY_FIXTURES:%=$(LYNXER_DIR)/exampl
 # generic loop does not feed, so it runs from a dedicated target with piped
 # input (see below).
 LYNXER_TUI_FIXTURE := $(LYNXER_DIR)/examples/stdlib_tui.lynx
-LYNXER_STDLIB_FIXTURES := $(filter-out $(LYNXER_SOUND_FIXTURE) $(LYNXER_TUI_FIXTURE) $(LYNXER_DISPLAY_FIXTURE_FILES),$(wildcard $(LYNXER_DIR)/examples/stdlib_*.lynx))
+LYNXER_STDLIB_FIXTURES := $(filter-out $(LYNXER_SOUND_FIXTURE) $(LYNXER_TUI_FIXTURE) $(LYNXER_SERVER_TLS_FIXTURE) $(LYNXER_DISPLAY_FIXTURE_FILES),$(wildcard $(LYNXER_DIR)/examples/stdlib_*.lynx))
 ifeq ($(HAVE_AUDIO),1)
 LYNXER_AUDIO_FIXTURES := $(filter-out $(LYNXER_DISPLAY_FIXTURE_FILES),$(LYNXER_SOUND_FIXTURE))
 else
@@ -534,6 +540,17 @@ expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:23: charAt() index is out of rang
 	rm -f $(CLYX_TMP)_stdlib.out $(CLYX_TMP)_stdlib.diff; exit 1; fi; \
 	done; \
 	rm -f $(CLYX_TMP)_stdlib.out $(CLYX_TMP)_stdlib.diff
+	@if [ -z "$(HAVE_TLS_TOOLS)" ]; then \
+	echo "lynxer: skipping $(notdir $(LYNXER_SERVER_TLS_FIXTURE)): needs curl and openssl on PATH"; \
+	else \
+	LYNXER_GAME_HEADLESS=1 LYNXER_GRAPHICS_HEADLESS=1 $(CLYX) $(LYNXER_SERVER_TLS_FIXTURE) > $(CLYX_TMP)_tls.out 2>&1; \
+	if [ $$? -ne 0 ]; then \
+	echo "stdlib fixture failed: $(LYNXER_SERVER_TLS_FIXTURE)"; cat $(CLYX_TMP)_tls.out; \
+	rm -f $(CLYX_TMP)_tls.out; exit 1; fi; \
+	if ! diff -u $(LYNXER_SERVER_TLS_FIXTURE:.lynx=.expected) $(CLYX_TMP)_tls.out; then \
+	echo "stdlib fixture output mismatch: $(LYNXER_SERVER_TLS_FIXTURE)"; \
+	rm -f $(CLYX_TMP)_tls.out; exit 1; fi; \
+	rm -f $(CLYX_TMP)_tls.out; fi
 	@for fixture in $(LYNXER_MILESTONE7_NEW_FIXTURES) $(LYNXER_OWNERSHIP_FIXTURES) $(LYNXER_TUPLE_FIXTURES) $(LYNXER_RANGE_FIXTURES) $(LYNXER_LOWLEVEL_FIXTURES); do \
 	expected="$${fixture%.lynx}.expected"; \
 	if [ ! -f "$$expected" ]; then \

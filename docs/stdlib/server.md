@@ -124,15 +124,37 @@ when no request has been handled yet.
 | `running()` / `port()` | Listener state and bound port |
 | `init(host, port)` | Record the host and port for `run()` |
 | `run()` | Start on the recorded host/port, then **block** until the process ends |
-| `runHTTPS(cert, key)` / `runSSLAdhoc()` | Not available — see below |
+| `runHTTPS(cert, key)` | Start a **TLS** listener on the `init` host/port from a PEM certificate and key |
+| `runSSLAdhoc()` | Start a TLS listener with a self-signed certificate generated in-process |
 
 `run()` blocks, matching the original. Use `start()` + `stop()` when the program
 has to keep running.
 
-**TLS is not built.** `runHTTPS` and `runSSLAdhoc` return an `ERROR:` string
-explaining that this build has no TLS backend: `axum-server`, `tokio-rustls`,
-`rustls-pemfile` and `rcgen` are not among the pinned dependencies, and adding
-them would make the module require network access to build.
+## TLS
+
+`runHTTPS(certPath, keyPath)` and `runSSLAdhoc()` start an HTTPS listener with
+the same routes, on the host and port recorded by `init(host, port)` — call that
+first, or the op answers `ERROR: call init(host, port) before …`. Unlike `run()`
+they do **not** block: they return `"ok"` once the socket is listening, and
+`stop()` shuts the listener down. Both bound the port before returning, so a
+port clash is reported by the call.
+
+`runHTTPS` reads the PEM files and rejects one it cannot use *before* binding:
+a missing file reports `ERROR: cannot read '<path>': …`, a file with no
+certificate reports `ERROR: the certificate file contains no PEM certificate`,
+and a key file with no key reports `ERROR: the key file contains no PEM private
+key`. The certificate and key must match; a mismatch fails the handshake, not
+the call.
+
+`runSSLAdhoc()` mints a self-signed certificate for `localhost` and `127.0.0.1`
+with `rcgen`, so it needs no files at all — it is the quickest way to stand up
+HTTPS, and a client must skip verification (the certificate is not signed by any
+authority it trusts).
+
+TLS is `rustls` with the `ring` provider behind `axum-server` — pure Rust, no
+system OpenSSL — with `rustls-pemfile` for the PEM files and `rcgen` for the
+self-signed certificate. `docs/stdlib_server_tls.lynx` is the fixture: it mints
+a certificate, serves over HTTPS and completes a real handshake.
 
 ---
 

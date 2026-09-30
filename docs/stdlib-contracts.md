@@ -166,7 +166,7 @@ Any future callback must be declared here before the module ships.
 | `server` | Rust | routes keyed by path, in registration order | caller: `clearRoutes()` / `stop()` |
 | `shell` | C++ | none | none |
 | `sound` | Rust | **integer handles** into a backend registry | caller: `releaseSound(handle)` |
-| `sqldb` | Rust | **no handle** — every call names a database path and gets its own connection | none (the connection is closed per call) |
+| `sqldb` | Rust | **integer handles** from `open()`; the `*On` forms reuse one connection | caller: `close(handle)` (the path forms open and close per call) |
 | `sys` | C++ | none | none |
 | `text` | pure Lynxer | none | none |
 | `time` | C++ | none | none |

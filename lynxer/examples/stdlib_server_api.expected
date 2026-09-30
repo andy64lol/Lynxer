@@ -32,7 +32,7 @@ ok
 ok
 ok
 ok
-ERROR: runSSLAdhoc() is not available: generating a self-signed certificate needs rcgen, which is not among the pinned dependencies
+ERROR: call init(host, port) before runSSLAdhoc()
 ERROR: invalid port
 ok
 get-body

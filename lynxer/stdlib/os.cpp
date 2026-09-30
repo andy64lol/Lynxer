@@ -343,21 +343,6 @@ extern "C" const char* os_getSystemNode() {
     return readUname(info) ? stable(std::string(info.nodename)) : stable("");
 }
 
-// Lynxer has no Python runtime; these report the host implementation instead.
-extern "C" const char* os_getPythonVersion() { return ""; }
-extern "C" const char* os_getPythonImplementation() { return "Lynxer"; }
-
-static std::string executablePath() {
-    char buffer[4096];
-    const ssize_t length =
-        ::readlink("/proc/self/exe", buffer, sizeof(buffer) - 1);
-    if (length <= 0) {
-        return "";
-    }
-    buffer[length] = '\0';
-    return std::string(buffer);
-}
-
 extern "C" const char* os_getSystemUname() {
     struct utsname info {};
     if (!readUname(info)) {
@@ -400,12 +385,6 @@ extern "C" const char* os_getSystemInfo() {
     native_json::setField(object, "architecture",
                           native_json::makeString(sizeof(void*) == 8 ? "64bit"
                                                                     : "32bit"));
-    native_json::setField(object, "python",
-                          native_json::makeString(""));
-    native_json::setField(object, "pythonImplementation",
-                          native_json::makeString("Lynxer"));
-    native_json::setField(object, "pythonExecutable",
-                          native_json::makeString(executablePath()));
     return stable(native_json::dump(object, false));
 }
 
@@ -497,10 +476,6 @@ extern "C" int lynxer_module_init_v1(RegisterFunction function,
                             "cdecl:cstring()") &&
                    function("getSystemNode", "os_getSystemNode",
                             "cdecl:cstring()") &&
-                   function("getPythonVersion", "os_getPythonVersion",
-                            "cdecl:cstring()") &&
-                   function("getPythonImplementation",
-                            "os_getPythonImplementation", "cdecl:cstring()") &&
                    function("getSystemUname", "os_getSystemUname",
                             "cdecl:cstring()") &&
                    function("getSystemInfo", "os_getSystemInfo",

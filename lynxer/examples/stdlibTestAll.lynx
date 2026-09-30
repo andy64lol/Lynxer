@@ -507,8 +507,6 @@ global main(){
     fails += global.check(global.os.getSystemArchitecture(), "64bit", "os.getSystemArchitecture");
     fails += global.check(global.os.getSystemUname() isnt "{}", "true", "os.getSystemUname");
     fails += global.check(returnLength(global.os.getSystemDistro()) > 2, "true", "os.getSystemDistro");
-    fails += global.check(global.os.getPythonVersion() is "", "true", "os.getPythonVersion");
-    fails += global.check(global.os.getPythonImplementation(), "Lynxer", "os.getPythonImplementation");
     fails += global.check(returnLength(global.os.getSystemInfo()) > 2, "true", "os.getSystemInfo");
 
     // ---------------------------------------------------------------- fileIO
