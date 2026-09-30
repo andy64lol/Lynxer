@@ -70,9 +70,9 @@ Glob patterns support `*`, `?`, `[...]` and `**` (which spans directories).
 | Function | Signature | Notes |
 | --- | --- | --- |
 | `readText` | `(str path) -> str` | UTF-8 contents, or `""` |
-| `readTextEncoding` | `(str path, str encoding) -> str` | Encoding is accepted but ignored; always UTF-8 |
+| `readTextEncoding` | `(str path, str encoding) -> str` | Reads **as the named encoding**: `utf-8` (the default), `latin-1`, `ascii`; `""` for an unknown encoding or a byte the encoding cannot hold |
 | `writeText` | `(str path, str content) -> bool` | UTF-8 write |
-| `writeTextEncoding` | `(str path, str content, str encoding) -> bool` | Encoding ignored |
+| `writeTextEncoding` | `(str path, str content, str encoding) -> bool` | Writes **in the named encoding**: `utf-8` (the default), `latin-1`, `ascii`; `false` for an unknown encoding, or a character the encoding cannot represent (a code point above `U+00FF` for Latin-1, or any non-ASCII character for ASCII) |
 | `appendText` | `(str path, str content) -> bool` | UTF-8 append |
 | `size` | `(str path) -> int` | Bytes, or `-1` |
 | `modifiedTime` | `(str path) -> float` | Unix timestamp with sub-second precision, or `-1.0` |

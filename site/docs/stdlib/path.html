@@ -222,9 +222,9 @@
 <table>
 <tr><th>Function</th><th>Signature</th><th>Notes</th></tr>
 <tr><td><code>readText</code></td><td><code>(str path) -&gt; str</code></td><td>UTF-8 contents, or <code>&quot;&quot;</code></td></tr>
-<tr><td><code>readTextEncoding</code></td><td><code>(str path, str encoding) -&gt; str</code></td><td>Encoding is accepted but ignored; always UTF-8</td></tr>
+<tr><td><code>readTextEncoding</code></td><td><code>(str path, str encoding) -&gt; str</code></td><td>Reads <strong>as the named encoding</strong>: <code>utf-8</code> (the default), <code>latin-1</code>, <code>ascii</code>; <code>&quot;&quot;</code> for an unknown encoding or a byte the encoding cannot hold</td></tr>
 <tr><td><code>writeText</code></td><td><code>(str path, str content) -&gt; bool</code></td><td>UTF-8 write</td></tr>
-<tr><td><code>writeTextEncoding</code></td><td><code>(str path, str content, str encoding) -&gt; bool</code></td><td>Encoding ignored</td></tr>
+<tr><td><code>writeTextEncoding</code></td><td><code>(str path, str content, str encoding) -&gt; bool</code></td><td>Writes <strong>in the named encoding</strong>: <code>utf-8</code> (the default), <code>latin-1</code>, <code>ascii</code>; <code>false</code> for an unknown encoding, or a character the encoding cannot represent (a code point above <code>U+00FF</code> for Latin-1, or any non-ASCII character for ASCII)</td></tr>
 <tr><td><code>appendText</code></td><td><code>(str path, str content) -&gt; bool</code></td><td>UTF-8 append</td></tr>
 <tr><td><code>size</code></td><td><code>(str path) -&gt; int</code></td><td>Bytes, or <code>-1</code></td></tr>
 <tr><td><code>modifiedTime</code></td><td><code>(str path) -&gt; float</code></td><td>Unix timestamp with sub-second precision, or <code>-1.0</code></td></tr>

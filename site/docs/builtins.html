@@ -183,15 +183,15 @@
 <tr><td><code>sentinel([name])</code></td><td>Creates a unique sentinel value</td></tr>
 <tr><td><code>object()</code></td><td>Creates an empty object value</td></tr>
 <tr><td><code>returnType(value)</code></td><td>Type name, e.g. <code>int</code>, <code>float</code>, <code>str</code>, <code>bool</code>, <code>list</code>, <code>tuple</code>, <code>bytes</code>, <code>none</code></td></tr>
-<tr><td><code>returnLength(value)</code></td><td>Length of a <code>str</code>, <code>list</code> or <code>tuple</code></td></tr>
+<tr><td><code>returnLength(value)</code></td><td>Length of a <code>str</code> in <strong>code points</strong>, or the element count of a <code>list</code>/<code>tuple</code></td></tr>
 </table>
 <h2 id="strings">Strings</h2>
 <table>
 <tr><th>Builtin</th><th>Notes</th></tr>
-<tr><td><code>charAt(text, index)</code></td><td>One-character string at <code>index</code></td></tr>
-<tr><td><code>charCode(value)</code></td><td>Byte value of a <code>char</code> or of the first byte of a <code>str</code>; <code>-1</code> for an empty string</td></tr>
-<tr><td><code>charOf(code)</code></td><td>One-byte <code>char</code> for a code in <code>0..255</code></td></tr>
-<tr><td><code>substring(text, start, end)</code></td><td>Half-open slice <code>[start, end)</code></td></tr>
+<tr><td><code>charAt(text, index)</code></td><td>The character (one code point) at <code>index</code></td></tr>
+<tr><td><code>charCode(value)</code></td><td>Unicode code point of a <code>char</code>, or of the first character of a <code>str</code>; <code>-1</code> for an empty string</td></tr>
+<tr><td><code>charOf(code)</code></td><td>The <code>char</code> for a code point in <code>0..0x10FFFF</code> (except the surrogate range)</td></tr>
+<tr><td><code>substring(text, start, end)</code></td><td>Half-open slice <code>[start, end)</code> of <strong>code points</strong></td></tr>
 <tr><td><code>trim(text)</code></td><td>Removes leading and trailing whitespace</td></tr>
 <tr><td><code>upper(text)</code> / <code>lower(text)</code></td><td>Case conversion</td></tr>
 <tr><td><code>replace(text, old, new)</code></td><td>Replaces every occurrence</td></tr>

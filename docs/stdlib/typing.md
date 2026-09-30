@@ -5,9 +5,11 @@ Type inspection, conversion, range, string, number and sequence helpers.
 **Backend:** pure — `stdlib/typing.lynx` only, over the interpreter's builtins.
 **Import:** `import("typing")` → `global.typing.*`
 
-The interpreter's strings are byte strings: `returnLength`, `charAt`,
-`substring` and the `charCode`/`charOf` builtins all count bytes, so code points
-are byte values in `0..255` rather than Unicode scalar values.
+The interpreter's strings hold UTF-8, and `returnLength`, `charAt`, `substring`
+and the `charCode`/`charOf` builtins work on **code points**, so a character is
+one Unicode scalar value rather than one byte: `returnLength("café")` is 4 and
+`charCode("é")` is 233. `charOf` accepts any code point up to `0x10FFFF` except
+the surrogate range.
 
 ## Type Checks
 
@@ -24,7 +26,7 @@ are byte values in `0..255` rather than Unicode scalar values.
 | `isNone` | `isNone(any val)` | `bool` | `true` if `val` is `none` |
 | `isSequence` | `isSequence(any val)` | `bool` | `true` if `val` is a `list` or `tuple` |
 | `isNumeric` | `isNumeric(any value)` | `bool` | `true` if `value` is an `int` or `float` |
-| `isAlpha` / `isDigit` / `isAlphaNum` / `isSpace` | `(str value)` | `bool` | Every byte is a letter / digit / alphanumeric / whitespace; `false` for `""` |
+| `isAlpha` / `isDigit` / `isAlphaNum` / `isSpace` | `(str value)` | `bool` | Every character is an ASCII letter / digit / alphanumeric / whitespace; `false` for `""` |
 
 `isNumeric` keeps the Lynxer meaning ("is a number"), not the legacy "the
 string parses as a number"; use `isDigit` for digit-only strings.
@@ -60,16 +62,16 @@ string parses as a number"; use `isDigit` for digit-only strings.
 
 | Function | Signature | Returns | Description |
 | --- | --- | --- | --- |
-| `charCodeOf` | `charCodeOf(any val)` | `int` | Byte value of a `char`, or of the first byte of a `str`; `-1` on error |
-| `charCode` | `charCode(str value)` | `int` | Byte value of the first byte; `-1` for `""` |
-| `charOf` | `charOf(int code)` | `char` | One-byte `char` for a code in `0..255`; NUL byte otherwise |
+| `charCodeOf` | `charCodeOf(any val)` | `int` | Code point of a `char`, or of the first character of a `str`; `-1` on error |
+| `charCode` | `charCode(str value)` | `int` | Code point of the first character; `-1` for `""` |
+| `charOf` | `charOf(int code)` | `char` | The `char` for a code point in `0..0x10FFFF` (except surrogates); NUL otherwise |
 | `charAt` | `charAt(str value, int index)` | `char` \| `none` | The character at `index`, or `none` when out of range |
 
 ## String Functions
 
 | Function | Signature | Returns | Description |
 | --- | --- | --- | --- |
-| `lenStr` | `lenStr(str value)` | `int` | Length in bytes |
+| `lenStr` | `lenStr(str value)` | `int` | Length in code points |
 | `trim` / `stripLeft` / `stripRight` | `(str value)` | `str` | Strip leading and trailing / leading / trailing whitespace |
 | `upper` / `lower` / `titleCase` / `swapCase` | `(str value)` | `str` | Case conversion |
 | `repeat` / `repeatStr` | `(str value, int n)` | `str` | Repeat `n` times |
@@ -81,7 +83,7 @@ string parses as a number"; use `isDigit` for digit-only strings.
 | `substr` | `(str value, int start, int end)` | `str` | Slice with negative indices and clamping |
 | `padLeft` / `padRight` / `center` | `(str value, int width, str fill)` | `str` | Pad to `width` |
 | `zfill` | `(str value, int width)` | `str` | Zero-pad, keeping a leading sign |
-| `strReverse` | `(str value)` | `str` | Reverse the bytes |
+| `strReverse` | `(str value)` | `str` | Reverse the characters |
 | `spaces` | `spaces(int n)` | `str` | `n` space characters |
 | `wordWrap` | `(str value, int width)` | `str` | Greedy wrap on spaces |
 | `expandTabs` | `(str value, int tabSize)` | `str` | Expand tabs to `tabSize`-wide stops |

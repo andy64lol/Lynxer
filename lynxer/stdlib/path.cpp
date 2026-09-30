@@ -564,8 +564,132 @@ extern "C" const char* path_readText(const char* value) {
     return stable(std::move(content));
 }
 
-extern "C" const char* path_readTextEncoding(const char* value, const char*) {
-    return path_readText(value);
+// --- Text encodings --------------------------------------------------------
+//
+// `readTextEncoding` / `writeTextEncoding` name their encoding, and the two
+// Lynxer can honour without pulling in an encoding library are UTF-8 and
+// Latin-1; ASCII is UTF-8 with a byte-range check. Any other name is a failure
+// (empty string / false) rather than a silent read as UTF-8.
+
+enum class TextEncoding { Utf8, Latin1, Ascii };
+
+static bool parseTextEncoding(const std::string& raw, TextEncoding& out) {
+    std::string name;
+    for (const char character : raw) {
+        name += static_cast<char>(
+            std::tolower(static_cast<unsigned char>(character)));
+    }
+    for (char& character : name) {
+        if (character == '_') {
+            character = '-';
+        }
+    }
+    // An omitted encoding is the historical default.
+    if (name.empty() || name == "utf-8" || name == "utf8") {
+        out = TextEncoding::Utf8;
+        return true;
+    }
+    if (name == "latin-1" || name == "latin1" || name == "iso-8859-1" ||
+        name == "iso8859-1") {
+        out = TextEncoding::Latin1;
+        return true;
+    }
+    if (name == "ascii" || name == "us-ascii") {
+        out = TextEncoding::Ascii;
+        return true;
+    }
+    return false;
+}
+
+static bool isAscii(const std::string& value) {
+    for (const unsigned char character : value) {
+        if (character > 0x7F) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Latin-1 bytes as UTF-8: every byte is one code point, so a byte above 0x7F
+// becomes a two-byte sequence.
+static std::string latin1ToUtf8(const std::string& value) {
+    std::string output;
+    output.reserve(value.size());
+    for (const unsigned char character : value) {
+        if (character < 0x80) {
+            output += static_cast<char>(character);
+        } else {
+            output += static_cast<char>(0xC0 | (character >> 6));
+            output += static_cast<char>(0x80 | (character & 0x3F));
+        }
+    }
+    return output;
+}
+
+// UTF-8 as Latin-1. `false` when the text has a code point above 0xFF, which
+// Latin-1 cannot represent.
+static bool utf8ToLatin1(const std::string& value, std::string& output) {
+    output.clear();
+    output.reserve(value.size());
+    std::size_t index = 0;
+    while (index < value.size()) {
+        const unsigned char lead = static_cast<unsigned char>(value[index]);
+        std::uint32_t code = 0;
+        std::size_t length = 1;
+        if (lead < 0x80) {
+            code = lead;
+        } else if ((lead & 0xE0) == 0xC0) {
+            code = lead & 0x1F;
+            length = 2;
+        } else if ((lead & 0xF0) == 0xE0) {
+            code = lead & 0x0F;
+            length = 3;
+        } else if ((lead & 0xF8) == 0xF0) {
+            code = lead & 0x07;
+            length = 4;
+        } else {
+            return false;
+        }
+        if (index + length > value.size()) {
+            return false;
+        }
+        for (std::size_t offset = 1; offset < length; ++offset) {
+            const unsigned char next =
+                static_cast<unsigned char>(value[index + offset]);
+            if ((next & 0xC0) != 0x80) {
+                return false;
+            }
+            code = (code << 6) | (next & 0x3F);
+        }
+        if (code > 0xFF) {
+            return false;
+        }
+        output += static_cast<char>(code);
+        index += length;
+    }
+    return true;
+}
+
+extern "C" const char* path_readTextEncoding(const char* value,
+                                             const char* encoding) {
+    TextEncoding kind = TextEncoding::Utf8;
+    if (!parseTextEncoding(textOrEmpty(encoding), kind)) {
+        return stable("");
+    }
+    std::string content;
+    if (!readWholeFile(textOrEmpty(value), content)) {
+        return stable("");
+    }
+    switch (kind) {
+        case TextEncoding::Utf8:
+            return stable(std::move(content));
+        case TextEncoding::Latin1:
+            return stable(latin1ToUtf8(content));
+        case TextEncoding::Ascii:
+            return stable(isAscii(content) ? std::move(content)
+                                           : std::string());
+    }
+    return stable("");
 }
 
 extern "C" std::int64_t path_writeText(const char* value,
@@ -580,8 +704,35 @@ extern "C" std::int64_t path_writeText(const char* value,
 
 extern "C" std::int64_t path_writeTextEncoding(const char* value,
                                                const char* content,
-                                               const char*) {
-    return path_writeText(value, content);
+                                               const char* encoding) {
+    TextEncoding kind = TextEncoding::Utf8;
+    if (!parseTextEncoding(textOrEmpty(encoding), kind)) {
+        return 0;
+    }
+    const std::string text = textOrEmpty(content);
+    std::string bytes;
+    switch (kind) {
+        case TextEncoding::Utf8:
+            bytes = text;
+            break;
+        case TextEncoding::Latin1:
+            if (!utf8ToLatin1(text, bytes)) {
+                return 0;
+            }
+            break;
+        case TextEncoding::Ascii:
+            if (!isAscii(text)) {
+                return 0;
+            }
+            bytes = text;
+            break;
+    }
+    std::ofstream output(textOrEmpty(value), std::ios::binary | std::ios::trunc);
+    if (!output) {
+        return 0;
+    }
+    output << bytes;
+    return output ? 1 : 0;
 }
 
 extern "C" std::int64_t path_appendText(const char* value,

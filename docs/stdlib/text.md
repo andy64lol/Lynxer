@@ -5,8 +5,9 @@ String helpers built on the core string builtins.
 **Backend:** pure — `stdlib/text.lynx` only. **Import:** `import("text")` →
 `global.text.*`
 
-The interpreter's strings are byte strings, so length, indexing and slicing here
-count bytes.
+The interpreter's strings hold UTF-8, and length, indexing and slicing here count
+**code points**, so a character is one Unicode scalar value. Case conversion is
+ASCII-only: `upper`/`lower` change `a`-`z`/`A`-`Z` and nothing else.
 
 ## Search and replace
 
@@ -28,9 +29,9 @@ only tests list/tuple membership.
 | Function | Signature | Notes |
 | --- | --- | --- |
 | `upper` / `lower` | `(str value) -> str` | Case conversion |
-| `capitalize` | `(str value) -> str` | Upper-case the first byte, lower-case the rest |
+| `capitalize` | `(str value) -> str` | Upper-case the first character, lower-case the rest (ASCII) |
 | `title` | `(str value) -> str` | Capitalise the first letter of each word |
-| `swapCase` | `(str value) -> str` | Swap upper/lower per byte |
+| `swapCase` | `(str value) -> str` | Swap upper/lower per character (ASCII) |
 
 ## Whitespace and repetition
 
@@ -50,9 +51,9 @@ only tests list/tuple membership.
 | --- | --- | --- |
 | `isEmpty` | `(str value) -> bool` | Zero length |
 | `isBlank` | `(str value) -> bool` | Only whitespace |
-| `isAlpha` | `(str value) -> bool` | Every byte is a letter; `false` for `""` |
-| `isNumeric` | `(str value) -> bool` | Every byte is a digit; `false` for `""` |
-| `isAlphaNumeric` | `(str value) -> bool` | Every byte is alphanumeric; `false` for `""` |
+| `isAlpha` | `(str value) -> bool` | Every character is an ASCII letter; `false` for `""` |
+| `isNumeric` | `(str value) -> bool` | Every character is an ASCII digit; `false` for `""` |
+| `isAlphaNumeric` | `(str value) -> bool` | Every character is ASCII alphanumeric; `false` for `""` |
 
 ## Padding and slicing
 
@@ -61,8 +62,8 @@ only tests list/tuple membership.
 | `padLeft` / `padRight` / `center` | `(str value, int width, str fill) -> str` | Pad to `width` |
 | `zfill` | `(str value, int width) -> str` | Zero-pad, keeping a leading sign |
 | `substring` | `(str value, int start, int end) -> str` | Half-open slice (builtin forwarder) |
-| `charAt` | `(str value, int index) -> str` | One-byte string (builtin forwarder) |
-| `reverse` | `(str value) -> str` | Reverse the bytes |
+| `charAt` | `(str value, int index) -> str` | One-character string (builtin forwarder) |
+| `reverse` | `(str value) -> str` | Reverse the characters |
 
 ## Splitting and joining
 

@@ -31,4 +31,15 @@ global main(){
     println(global.text.wordWrap("the quick brown fox", 9));
     println(global.text.expandTabs("a\tb\tc", 4), "|");
     println(global.text.splitFirst("a=b=c", "="), " ", global.text.splitFirst("abc", "="));
+
+    // Strings count code points, not bytes: one character is one code point,
+    // so a non-ASCII string is handled as text rather than as its bytes.
+    str accented = "café";
+    println(returnLength(accented), " ", returnLength("plain"));
+    println(charAt(accented, 3), " ", charCode(charAt(accented, 3)));
+    println(substring(accented, 0, 3), " ", substring(accented, 3, 4));
+    println(global.text.reverse(accented));
+    println(global.text.repeat(accented, 2));
+    println(global.text.padLeft(accented, 6, "."));
+    println(global.text.indexOf(accented, "f"), " ", global.text.contains(accented, "é"));
 }

@@ -118,14 +118,24 @@ before the module-specific items.
       instead of inheriting it. Commands already run as real processes (a
       `popen` shell per worker); the threads are only the pool. Covered by the
       `stdlib_js` and `stdlib_multiprocessing` fixtures.
-- [ ] **L12 — `text`/`typing` Unicode semantics** (depends on L1). Make
-      `returnLength`, `charAt`, `substring` and the `charCode`/`charOf` builtins
-      code-point aware instead of byte-oriented (`lynxer/runtime.cpp`,
-      `lynxer/builtins.cpp`).
-- [ ] **L13 — `tui` parity.** Close the feasible Rich-parity gaps (manual table
-      row separators, animated progress/live displays, a real `printException`
-      traceback via exception context); record the rest as intentional
-      divergence (`lynxer/rust/tui/*`).
+- [x] ~~**L12 — `text`/`typing` Unicode semantics.**~~ **Delivered:** the string
+      builtins are code-point aware — `returnLength`, `charAt`, `substring` and
+      `charCode`/`charOf` (which now accepts the whole range up to `0x10FFFF`)
+      — so `returnLength("café")` is 4 and `text.reverse("café")` no longer
+      splits a multi-byte character. A byte that cannot start a valid sequence
+      counts as one code point, so any byte string still has a length. Case
+      conversion stays ASCII-only. Covered by `stdlib_text` and `stdlib_typing`.
+- [x] ~~**L13 — `tui` table row separators.**~~ **Delivered:** `tableSetLines`
+      now draws real `├───┼───┤` rules — one under the header and one between
+      every pair of rows — instead of widening the column gap. `ratatui`'s
+      `Table` has no separators and lays rows contiguously, so the rows are
+      copied into a taller buffer with a blank line where each rule goes.
+      Covered by `stdlib_tui`.
+- [ ] **L13b — `tui` live displays and `printException`.** `progress`/`live`
+      updates still print a snapshot rather than animating (that needs a
+      refresh timer and a terminal), and `printException` prints a placeholder
+      because no exception context crosses the module ABI
+      (`lynxer/rust/tui/*`).
 - [x] ~~**L14 — remove the `os` Python-compat stubs.**~~ **Partly delivered:**
       `os.getPythonVersion`, `os.getPythonImplementation` and the `python`/
       `pythonImplementation`/`pythonExecutable` fields of `getSystemInfo` are
@@ -133,13 +143,16 @@ before the module-specific items.
       `docs/removed-features.md` records it. `sys.exit()` already runs the
       interpreter's only process-wide cleanup, the `atexit` hook that removes a
       compiled executable's temporary directory, so that half needed no code.
-- [ ] **L14b — `os`/`path`/`sys` follow-ups.** Honour or drop the ignored
-      `encoding` argument of `path.readTextEncoding`/`writeTextEncoding` (a real
-      encoding backend needs a cargo crate, e.g. `encoding_rs`, not `iconv` —
-      see the Rust-and-cargo rule below); add portable system-info backends for
-      macOS/BSD (untestable here); distinguish program arguments from the
-      `lynxer` process command line in `sys.argv`/`getArg`/`argCount`
-      (`lynxer/stdlib/path.cpp`, `sys.cpp`, `lynxer/builtins.cpp`).
+- [x] ~~**L14b — the `path` `encoding` argument.**~~ **Delivered:** the argument
+      is no longer ignored. `utf-8` (also the default), `latin-1` and `ascii` are
+      honoured in pure C++ — no `iconv`, no system library — and an unknown
+      encoding, or a character the encoding cannot represent, is the failure
+      sentinel rather than a silent UTF-8 read/write. Covered by `stdlib_path`.
+- [ ] **L14c — `os`/`path`/`sys` platform follow-ups.** Add portable system-info
+      backends for macOS/BSD (cannot be built or tested on this host); and
+      distinguish the *program's* arguments from the `lynxer` process command
+      line in `sys.argv`/`getArg`/`argCount`, which currently read
+      `/proc/self/cmdline` (`lynxer/stdlib/sys.cpp`, `lynxer/builtins.cpp`).
 
 **Runtime and concurrency**
 
@@ -160,6 +173,19 @@ None outstanding. The eight items that were listed here — `network` URL
 operations, `crypto`, `compress`, `toml`, `ini`, `xml`, `yaml` and `watch` — are
 implemented and recorded under [Done](#done). The repo's usual artifacts apply to
 every module — see **D7**.
+
+The two legacy GUI modules the divergence register still lists are **not**
+implemented, and each needs a decision before it could be:
+
+- [ ] **L16 — `tkinter` / `tkinterPlus`.** A native OS-widget toolkit. Under the
+      Rust-and-cargo rule that means `egui`/`iced` (`gtk`/`qt` bindings would be
+      system libraries), which is an immediate-mode paradigm of its own rather
+      than a widget tree — decide whether that is worth a second GUI stack
+      beside `graphics`, or record it as declined.
+- [ ] **L17 — `turtle`.** A `turtle`-style turtle graphics module implemented in
+      pure Lynxer over `graphics` (`forward`/`back`/`turn`/`goto`/`penUp`/
+      `penDown`/`setColor`, with the turtle state readable so a headless fixture
+      can assert it).
 
 ### Module decisions
 

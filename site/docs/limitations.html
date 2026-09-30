@@ -189,7 +189,6 @@
 <tr><th>Area</th><th>Plan</th></tr>
 <tr><td><code>tkinter</code> / <code>tkinterPlus</code> (a native OS-widget GUI module)</td><td><strong>L16</strong></td></tr>
 <tr><td><code>turtle</code> (reimplement on <code>graphics</code>)</td><td><strong>L17</strong></td></tr>
-<tr><td><code>http</code> / <code>net</code> (keep superseded by <code>network</code> + <code>server</code>, or add a shim)</td><td><strong>L18</strong></td></tr>
 <tr><td>Module constraints — <code>graphics</code>, <code>game</code>, <code>server</code>, <code>sound</code>, <code>watch</code>, <code>sqldb</code>, <code>text</code>/<code>typing</code>, <code>tui</code>, <code>os</code>/<code>path</code>/<code>sys</code></td><td><strong>L4</strong>–<strong>L6</strong>, <strong>L8</strong>–<strong>L10</strong>, <strong>L12</strong>–<strong>L14</strong></td></tr>
 <tr><td><code>nativeThread*</code> / <code>async*</code> true parallelism and coroutine <code>await</code></td><td><strong>L15</strong></td></tr>
 </table>
@@ -210,11 +209,11 @@
 <h3 id="module-coverage">Module Coverage</h3>
 <ul>
 <li><code>tkinter</code>, <code>tkinterPlus</code>, and <code>turtle</code> are planned (see <strong>L16</strong>–<strong>L17</strong> in <a href="../todo.html">todo</a>).</li>
-<li><code>http</code>/<code>net</code> are superseded by <code>network</code> + <code>server</code> (<strong>L18</strong>).</li>
+<li><code>http</code>/<code>net</code> are <strong>not provided</strong>: <code>network</code> (client) and <code>server</code> cover the same ground with one API surface instead of two, so no shim is planned — see <a href="removed-features.html#http-and-net-modules">removed-features</a>.</li>
 <li><code>mathPlus</code> is merged into <code>math</code>.</li>
 </ul>
 <h3 id="native-backing">Native Backing</h3>
-<p>Lynxer ships modules backed by native implementations. Nineteen of them are Rust crates:</p>
+<p>Lynxer ships modules backed by native implementations. Twenty-one of them are Rust crates:</p>
 <ul>
 <li><code>compress</code> (<code>flate2</code>/<code>zstd</code>/<code>brotli</code>/<code>lz4_flex</code>/<code>zip</code>/<code>tar</code>)</li>
 <li><code>crypto</code> (<code>sha2</code>/<code>sha1</code>/<code>md-5</code>/<code>sha3</code>/<code>blake3</code>/<code>hmac</code>/<code>subtle</code>/<code>getrandom</code>/<code>ed25519-dalek</code>)</li>
@@ -350,15 +349,16 @@
 <li><strong>Column handling:</strong> Values beyond the header width are dropped, and missing columns are filled with <code>&quot;&quot;</code> (empty string).</li>
 <li><strong>API note:</strong> <code>docs/stdlib/csv.md</code> is the current API. The legacy <code>csv</code> names (<code>parseCSV</code>, <code>parseCSVRaw</code>, <code>readCSVRaw</code>, <code>csvColumn</code>, <code>csvRowCount</code>, <code>filterCSV</code>, <code>csvHeaders</code>, <code>csvRow</code>, <code>dedupCSV</code>) are available as forwarders; <code>csvRow</code> returns a JSON object and <code>csvHeaders</code> a comma-joined string, which are the legacy shapes.</li>
 </ul>
-<h3 id="text-and-typing--byte-strings"><code>text</code> and <code>typing</code> — Byte Strings</h3>
+<h3 id="text-and-typing--code-points"><code>text</code> and <code>typing</code> — Code Points</h3>
 <ul>
-<li><strong>Byte semantics.</strong> Lynxer strings are byte strings: <code>returnLength</code>, <code>charAt</code>, <code>substring</code> and the <code>charCode</code>/<code>charOf</code> builtins count bytes, so a code point is a byte value in <code>0..255</code>, not a Unicode scalar value. <code>typing.charCodeOf</code> returns <code>-1</code> for a non-char/non-string or an empty string, and <code>typing.charOf</code> returns a NUL byte outside <code>0..255</code>.</li>
+<li><strong>Code-point semantics.</strong> Lynxer strings hold UTF-8, and <code>returnLength</code>, <code>charAt</code>, <code>substring</code> and the <code>charCode</code>/<code>charOf</code> builtins work on <strong>code points</strong>, so a character is one Unicode scalar value rather than one byte: <code>returnLength(&quot;café&quot;)</code> is 4, <code>charAt(&quot;café&quot;, 3)</code> is <code>&quot;é&quot;</code> and <code>charCode</code> of it is 233. <code>charOf</code> accepts any code point up to <code>0x10FFFF</code> except the surrogate range, and returns a UTF-8 sequence. A byte that cannot start a valid sequence counts as one code point, so any byte string still has a length. <code>typing.charCodeOf</code> returns <code>-1</code> for a non-char/non-string or an empty string, and <code>typing.charOf</code> returns a NUL <code>char</code> for a code outside the valid range.</li>
+<li><strong>Case conversion stays ASCII.</strong> <code>text.upper</code>/<code>text.lower</code> change only <code>a</code>-<code>z</code>/<code>A</code>-<code>Z</code>, and <code>typing.isAlpha</code>/<code>isDigit</code> test ASCII, so <code>&quot;é&quot;</code> is neither alpha nor digit.</li>
 <li><strong><code>typing.isNumeric</code>.</strong> In <code>typing</code>, <code>isNumeric(value)</code> means "is an <code>int</code> or <code>float</code>", not the legacy "the string parses as a number". Use <code>typing.isDigit</code> for digit-only strings.</li>
 <li><strong><code>typing.toFloat32</code> / <code>toFloat64</code>.</strong> Both return a <code>float</code>; Lynxer <code>float</code> is a double, so there is no single-precision narrowing.</li>
 </ul>
 <h3 id="os-and-path--constrained-behavior"><code>os</code> and <code>path</code> — Constrained Behavior</h3>
 <ul>
-<li><strong>Encoding:</strong> <code>path.readTextEncoding</code> and <code>path.writeTextEncoding</code> accept an encoding argument for API compatibility but always use UTF-8 internally.</li>
+<li><strong>Encodings:</strong> <code>path.readTextEncoding</code> and <code>path.writeTextEncoding</code> honour <code>utf-8</code> (also the default when the name is empty), <code>latin-1</code> and <code>ascii</code>. They no longer ignore the name: an unknown encoding, or a character the encoding cannot represent, is a failure sentinel (<code>&quot;&quot;</code> / <code>false</code>) instead of a silent read or write as UTF-8. UTF-8 text is passed through without validation, so a non-UTF-8 byte still survives a <code>utf-8</code> read.</li>
 <li><strong>Platform info:</strong> Platform helpers report the host through <code>uname(2)</code>.</li>
 </ul>
 <p><em>Note:</em> Python runtime introspection features are not planned for Lynxer.</p>
@@ -441,7 +441,7 @@
 <li><strong>Rendering is offscreen.</strong> Each call draws a widget into a buffer and prints the text — plain text without a TTY, ANSI styling with one. Box-drawing, table sizing and layout follow <code>ratatui</code>, not Rich, and <code>setWidth</code> (default <code>80</code>) pins the width.</li>
 </ul>
 <ul>
-<li><strong><code>tableSetLines</code> is approximate.</strong> <code>ratatui</code>'s <code>Table</code> has no row separators, so the flag widens the gap between columns instead of drawing inner lines.</li>
+<li><strong><code>tableSetLines</code> draws real rules.</strong> <code>ratatui</code>'s <code>Table</code> has no row separators, so the rows are re-laid-out with one blank line under the header and between every pair of rows, and those lines are painted as <code>├───┼───┤</code> rules (a bare <code>───┼───</code> when the table has no box). With rules the columns sit one space apart, without them two — the flag therefore still changes the column gap.</li>
 </ul>
 <ul>
 <li><strong>Markdown and syntax highlighting use crates.</strong> <code>markdown</code> is <code>pulldown-cmark</code> and <code>printSyntax</code> is <code>syntect</code> (embedded syntax/theme sets, pure-Rust <code>fancy-regex</code> backend). Nesting, tables and every CommonMark extension are therefore limited to what those crates emit; syntax colors appear only on a color-capable terminal.</li>

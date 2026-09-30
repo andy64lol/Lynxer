@@ -75,4 +75,13 @@ global main(){
     println(global.typing.listZip([int 1, int 2], [int 3, int 4]));
     println(global.typing.tupleZip((int 1, int 2), (int 3, int 4)));
     println(global.typing.unique([int 1, int 1, int 2]));
+
+    // Characters are code points, up to the Unicode maximum.
+    println(global.typing.charCode("€"), " ", global.typing.charCodeOf("€"));
+    println(global.typing.charOf(233), " ", global.typing.charOf(8364));
+    println(global.typing.charAt("café", 3), " ", global.typing.charAt("café", 9));
+    println(global.typing.isAlpha("café"), " ", global.typing.isAlpha("cafe"));
+    // A code outside the valid range falls back to a NUL char.
+    println(global.typing.charCodeOf(global.typing.charOf(1114112)) is 0, " ",
+            global.typing.charCodeOf(global.typing.charOf(55296)) is 0);
 }

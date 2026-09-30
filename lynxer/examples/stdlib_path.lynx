@@ -66,6 +66,22 @@ global main(){
     println(global.path.exists(root + "/touched.txt"));
     println(global.path.rename(root + "/touched.txt", root + "/moved.txt"));
     println(global.path.exists(root + "/moved.txt"));
+    // Text encodings: UTF-8 passes through, Latin-1 converts, ASCII refuses a
+    // non-ASCII byte, and an unknown name fails instead of silently reading
+    // UTF-8.
+    println(global.path.writeTextEncoding(root + "/latin.txt", "café", "latin-1"));
+    println(global.path.size(root + "/latin.txt"));
+    println(global.path.readTextEncoding(root + "/latin.txt", "latin-1") is "café");
+    println(global.path.readTextEncoding(root + "/latin.txt", "ISO-8859-1") is "café");
+    println(global.path.readTextEncoding(root + "/latin.txt", "utf-8") is "café");
+    println(global.path.writeTextEncoding(root + "/ascii.txt", "café", "ascii"));
+    println(global.path.writeTextEncoding(root + "/ascii.txt", "plain", "ascii"));
+    println(global.path.readTextEncoding(root + "/ascii.txt", "ascii"));
+    println(global.path.readTextEncoding(root + "/latin.txt", "utf-16") is "");
+    println(global.path.writeTextEncoding(root + "/x.txt", "x", "cp1252"));
+    println(global.path.writeTextEncoding(root + "/x.txt", "€", "latin-1"));
+    println(global.path.readTextEncoding(root + "/missing", "latin-1") is "");
+
     println(global.path.readText(root + "/missing") is "");
     println(global.path.size(root + "/missing"));
     println(global.path.modifiedTime(root + "/missing"));

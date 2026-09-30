@@ -42,6 +42,15 @@ report. The fields are simply absent from `getSystemInfo()` now; the `sys`
 introspection surface (`sys.path`, `addPath`, `getModules`, …) was never
 implemented and stays unplanned. See [limitations.md](limitations.md).
 
+## `http` and `net` modules
+
+The legacy `http` and `net` modules are **not provided**, and no compatibility
+shim is planned. `network` is the client — HTTP, WebSocket, and URL handling in
+one module — and `server` covers serving, so a program has one API surface
+rather than three overlapping ones. The legacy names (`httpGet`, `netSocket`, …)
+are not aliases; port a program to `global.network.*` / `global.server.*`. See
+[stdlib/network.md](stdlib/network.md) and [limitations.md](limitations.md).
+
 ## `venv`
 
 A virtual-environment manager is a Python concept with no equivalent in a

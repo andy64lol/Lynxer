@@ -674,12 +674,111 @@ Value builtinReturnType(const std::vector<Value>& args, Environment&, int line,
     return typeNameOf(args[0]);
 }
 
+// --- UTF-8 helpers ---------------------------------------------------------
+//
+// Lynxer strings are byte strings that hold UTF-8 text, so the string builtins
+// index and measure *code points* rather than bytes. A byte that cannot start
+// a valid sequence counts as one code point on its own, which keeps the count
+// well defined for any bytes a program may hold.
+
+static std::size_t utf8SequenceLength(unsigned char lead) {
+    if ((lead & 0x80) == 0x00) {
+        return 1;
+    }
+    if ((lead & 0xE0) == 0xC0) {
+        return 2;
+    }
+    if ((lead & 0xF0) == 0xE0) {
+        return 3;
+    }
+    if ((lead & 0xF8) == 0xF0) {
+        return 4;
+    }
+    return 1;
+}
+
+static std::size_t utf8Count(const std::string& text) {
+    std::size_t count = 0;
+    for (std::size_t index = 0; index < text.size();) {
+        std::size_t length = utf8SequenceLength(
+            static_cast<unsigned char>(text[index]));
+        if (index + length > text.size()) {
+            length = 1;
+        }
+        index += length;
+        ++count;
+    }
+    return count;
+}
+
+// The byte offset of code point `index`; `text.size()` when past the end.
+static std::size_t utf8Offset(const std::string& text, std::size_t index) {
+    std::size_t offset = 0;
+    for (std::size_t seen = 0; seen < index && offset < text.size(); ++seen) {
+        std::size_t length =
+            utf8SequenceLength(static_cast<unsigned char>(text[offset]));
+        if (offset + length > text.size()) {
+            length = 1;
+        }
+        offset += length;
+    }
+    return offset;
+}
+
+// Decodes the code point at `offset`. `length` receives the sequence length.
+static std::uint32_t utf8Decode(const std::string& text, std::size_t offset,
+                               std::size_t& length) {
+    const unsigned char lead = static_cast<unsigned char>(text[offset]);
+    length = utf8SequenceLength(lead);
+    if (offset + length > text.size()) {
+        length = 1;
+    }
+    std::uint32_t code = 0;
+    switch (length) {
+        case 1: return lead;
+        case 2: code = lead & 0x1F; break;
+        case 3: code = lead & 0x0F; break;
+        default: code = lead & 0x07; break;
+    }
+    for (std::size_t index = 1; index < length; ++index) {
+        const unsigned char next =
+            static_cast<unsigned char>(text[offset + index]);
+        if ((next & 0xC0) != 0x80) {
+            length = 1;
+            return lead;
+        }
+        code = (code << 6) | (next & 0x3F);
+    }
+    return code;
+}
+
+// Encodes one code point as UTF-8.
+static std::string utf8Encode(std::uint32_t code) {
+    std::string output;
+    if (code < 0x80) {
+        output += static_cast<char>(code);
+    } else if (code < 0x800) {
+        output += static_cast<char>(0xC0 | (code >> 6));
+        output += static_cast<char>(0x80 | (code & 0x3F));
+    } else if (code < 0x10000) {
+        output += static_cast<char>(0xE0 | (code >> 12));
+        output += static_cast<char>(0x80 | ((code >> 6) & 0x3F));
+        output += static_cast<char>(0x80 | (code & 0x3F));
+    } else {
+        output += static_cast<char>(0xF0 | (code >> 18));
+        output += static_cast<char>(0x80 | ((code >> 12) & 0x3F));
+        output += static_cast<char>(0x80 | ((code >> 6) & 0x3F));
+        output += static_cast<char>(0x80 | (code & 0x3F));
+    }
+    return output;
+}
+
 Value builtinReturnLength(const std::vector<Value>& args, Environment&, int line,
                           int column) {
     requireArity(args, 1, "returnLength() takes exactly 1 argument", line,
                  column);
     if (const auto* text = std::get_if<std::string>(&args[0])) {
-        return static_cast<std::int64_t>(text->size());
+        return static_cast<std::int64_t>(utf8Count(*text));
     }
     if (asList(args[0]) != nullptr) {
         return static_cast<std::int64_t>(listElements(args[0]).size());
@@ -722,15 +821,17 @@ Value builtinCharAt(const std::vector<Value>& args, Environment&, int line,
     }
     const auto& text = std::get<std::string>(args[0]);
     const auto index = std::get<std::int64_t>(args[1]);
-    if (index < 0 || static_cast<std::size_t>(index) >= text.size()) {
+    if (index < 0 || static_cast<std::size_t>(index) >= utf8Count(text)) {
         fail("charAt() index is out of range", line, column);
     }
-    return std::string(1, text[static_cast<std::size_t>(index)]);
+    const std::size_t start = utf8Offset(text, static_cast<std::size_t>(index));
+    const std::size_t end = utf8Offset(text, static_cast<std::size_t>(index) + 1);
+    return text.substr(start, end - start);
 }
 
-// Byte value of a char or the first byte of a string, or -1 for an empty
-// string. Lynxer strings are byte strings — `charAt` and `returnLength` count
-// bytes — so the code point is the first byte rather than a Unicode scalar.
+// Unicode code point of a char, or of the first character of a string; -1 for
+// an empty string. `charAt`, `returnLength` and `substring` all count code
+// points, so this is their inverse.
 Value builtinCharCode(const std::vector<Value>& args, Environment&, int line,
                       int column) {
     requireArity(args, 1, "charCode() takes exactly 1 argument", line, column);
@@ -746,11 +847,12 @@ Value builtinCharCode(const std::vector<Value>& args, Environment&, int line,
     if (text->empty()) {
         return std::int64_t{-1};
     }
-    return static_cast<std::int64_t>(
-        static_cast<unsigned char>((*text)[0]));
+    std::size_t length = 0;
+    return static_cast<std::int64_t>(utf8Decode(*text, 0, length));
 }
 
-// One-byte char for a code in 0..255. The inverse of charCode().
+// The character for a Unicode code point. The inverse of charCode(), so the
+// result is a UTF-8 sequence rather than a single byte.
 Value builtinCharOf(const std::vector<Value>& args, Environment&, int line,
                     int column) {
     requireArity(args, 1, "charOf() takes exactly 1 argument", line, column);
@@ -758,10 +860,12 @@ Value builtinCharOf(const std::vector<Value>& args, Environment&, int line,
         fail("charOf() expects an int code", line, column);
     }
     const auto code = std::get<std::int64_t>(args[0]);
-    if (code < 0 || code > 255) {
-        fail("charOf() code must be in 0..255", line, column);
+    if (code < 0 || code > 0x10FFFF || (code >= 0xD800 && code <= 0xDFFF)) {
+        fail("charOf() code must be a Unicode code point (0..0x10FFFF, "
+             "excluding the surrogate range)",
+             line, column);
     }
-    return CharValue{std::string(1, static_cast<char>(code))};
+    return CharValue{utf8Encode(static_cast<std::uint32_t>(code))};
 }
 
 Value builtinSubstring(const std::vector<Value>& args, Environment&, int line,
@@ -776,11 +880,12 @@ Value builtinSubstring(const std::vector<Value>& args, Environment&, int line,
     const auto start = std::get<std::int64_t>(args[1]);
     const auto end = std::get<std::int64_t>(args[2]);
     if (start < 0 || end < start ||
-        static_cast<std::size_t>(end) > text.size()) {
+        static_cast<std::size_t>(end) > utf8Count(text)) {
         fail("substring() range is out of bounds", line, column);
     }
-    return text.substr(static_cast<std::size_t>(start),
-                       static_cast<std::size_t>(end - start));
+    const std::size_t first = utf8Offset(text, static_cast<std::size_t>(start));
+    const std::size_t last = utf8Offset(text, static_cast<std::size_t>(end));
+    return text.substr(first, last - first);
 }
 
 Value builtinTrim(const std::vector<Value>& args, Environment&, int line,

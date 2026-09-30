@@ -21,14 +21,15 @@ mod syntax;
 mod widgets_ext;
 
 use crate::prompt::{parse_confirm, parse_float, parse_int, read_line};
-use crate::render::{pad, render_to_string, wrapped_height};
+use crate::render::{buffer_to_string, pad, render_to_string, wrapped_height};
 use crate::style::{parse_style, style_to_sgr, text_width};
 use crate::syntax::Highlighter;
 
 use crossterm::event::{self, Event as TermEvent, KeyCode, KeyEventKind};
 use crossterm::tty::IsTty;
 use lynxer_abi::{export_float, export_int, export_string, lynxer_module};
-use ratatui::layout::{Alignment, Constraint, Direction, Layout};
+use ratatui::buffer::Buffer;
+use ratatui::layout::{Alignment, Constraint, Direction, Layout, Rect};
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{
@@ -252,6 +253,73 @@ fn render_rule(width: usize, title: &str, styled: Style, ansi: bool) -> String {
     line
 }
 
+/// The x positions of the table's columns, laid out exactly the way `Table`
+/// does it in ratatui 0.24: the spacing is an extra `Length` constraint
+/// between the columns.
+fn table_columns(constraints: &[Constraint], spacing: u16, inner_width: u16) -> Vec<Rect> {
+    let mut widths: Vec<Constraint> = Vec::with_capacity(constraints.len() * 2);
+    for constraint in constraints {
+        widths.push(*constraint);
+        widths.push(Constraint::Length(spacing));
+    }
+    if !constraints.is_empty() {
+        widths.pop();
+    }
+    let chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints(widths)
+        .split(Rect::new(0, 0, inner_width.max(1), 1));
+    chunks.iter().step_by(2).copied().collect()
+}
+
+/// Draws one inner horizontal rule: `├───┼───┤` when the table is boxed, a
+/// bare `───┼───` when it is not.
+fn paint_rule(
+    buffer: &mut Buffer,
+    y: u16,
+    width: u16,
+    boxed: bool,
+    columns: &[Rect],
+    spacing: u16,
+) {
+    let border = u16::from(boxed);
+    let left = border;
+    let right = width.saturating_sub(border);
+    if right <= left {
+        return;
+    }
+    for x in left..right {
+        buffer.get_mut(x, y).set_symbol("─");
+    }
+    if boxed {
+        if left > 0 {
+            buffer.get_mut(left - 1, y).set_symbol("├");
+        }
+        if right < width {
+            buffer.get_mut(right, y).set_symbol("┤");
+        }
+    }
+    for column in columns.iter().take(columns.len().saturating_sub(1)) {
+        let x = border + column.x + column.width + spacing.saturating_sub(1);
+        if x > left && x < right {
+            buffer.get_mut(x, y).set_symbol("┼");
+        }
+    }
+}
+
+/// Copies one rendered row between buffers, so the rules can be inserted.
+fn copy_row(source: &Buffer, target: &mut Buffer, from: u16, to: u16) {
+    let width = source.area().width.min(target.area().width);
+    for x in 0..width {
+        let cell = source.get(x, from);
+        let symbol = cell.symbol.to_string();
+        let style = cell.style();
+        let destination = target.get_mut(x, to);
+        destination.set_symbol(&symbol);
+        destination.set_style(style);
+    }
+}
+
 fn render_table(state: &TuiState, spec: &TableState) -> String {
     let ansi = ansi_enabled(state);
     let columns = spec.columns.len();
@@ -312,26 +380,98 @@ fn render_table(state: &TuiState, spec: &TableState) -> String {
         block = block.title(title);
     }
 
-    let row_count = rows.len() + usize::from(header.is_some());
+    // A row is as tall as its tallest cell; the header is the same. They are
+    // what tells the separator pass where the rules go.
+    let row_heights: Vec<u16> = spec
+        .rows
+        .iter()
+        .map(|row| {
+            row.iter()
+                .map(|value| value.lines().count().max(1) as u16)
+                .max()
+                .unwrap_or(1)
+        })
+        .collect();
+    let header_height: u16 = if header.is_some() {
+        spec.columns
+            .iter()
+            .map(|column| column.header.lines().count().max(1) as u16)
+            .max()
+            .unwrap_or(1)
+    } else {
+        0
+    };
+    let rows_len = spec.rows.len();
+
+    let row_count = rows_len + usize::from(header.is_some());
     let mut height = row_count.max(1) as u16;
     if spec.boxed {
         height = height.saturating_add(2);
     }
-    // ratatui's `Table` has no row separators; `showLines` widens the gap
-    // between columns to keep the flag observable.
+    // With rules the columns are one apart so a `┼` lands in the gap; without
+    // them the wider gap is all there is.
     let spacing = if spec.show_lines { 1 } else { 2 };
-    let owned_rows = rows;
-    let owned_constraints = constraints;
-    render_to_string(state.width, height, ansi, true, move |area, buffer| {
-        let mut table = Table::new(owned_rows)
-            .widths(&owned_constraints)
-            .column_spacing(spacing)
-            .block(block);
-        if let Some(header) = header {
-            table = table.header(header);
+    let border = u16::from(spec.boxed);
+    let width = state.width.max(1);
+
+    let table_area = Rect::new(0, 0, width, height.max(1));
+    let mut source = Buffer::empty(table_area);
+    let mut table = Table::new(rows)
+        .widths(&constraints)
+        .column_spacing(spacing)
+        .block(block);
+    if let Some(header) = header {
+        table = table.header(header);
+    }
+    table.render(table_area, &mut source);
+
+    // Without rules the rendered buffer is the answer.
+    if !spec.show_lines {
+        return buffer_to_string(&source, ansi, true);
+    }
+
+    // `ratatui`'s `Table` has no row separators and lays its rows contiguously,
+    // so the rows are copied into a taller buffer that leaves one blank line
+    // after the header and between every pair of rows. Those blank lines become
+    // the rules.
+    let rules = usize::from(header_height > 0) + rows_len.saturating_sub(1);
+    let mut target = Buffer::empty(Rect::new(0, 0, width, height + rules as u16));
+    let columns = table_columns(&constraints, spacing, width.saturating_sub(border * 2));
+    let mut from = 0u16;
+    let mut to = 0u16;
+    // Top border.
+    for _ in 0..border {
+        copy_row(&source, &mut target, from, to);
+        from += 1;
+        to += 1;
+    }
+    if header_height > 0 {
+        for _ in 0..header_height {
+            copy_row(&source, &mut target, from, to);
+            from += 1;
+            to += 1;
         }
-        table.render(area, buffer);
-    })
+        paint_rule(&mut target, to, width, spec.boxed, &columns, spacing);
+        to += 1;
+    }
+    for (index, row_height) in row_heights.iter().enumerate() {
+        for _ in 0..*row_height {
+            copy_row(&source, &mut target, from, to);
+            from += 1;
+            to += 1;
+        }
+        if index + 1 < rows_len {
+            paint_rule(&mut target, to, width, spec.boxed, &columns, spacing);
+            to += 1;
+        }
+    }
+    // Bottom border.
+    for _ in 0..border {
+        copy_row(&source, &mut target, from, to);
+        from += 1;
+        to += 1;
+    }
+    buffer_to_string(&target, ansi, true)
 }
 
 fn render_tree(nodes: &[Option<Node>], root: usize) -> String {

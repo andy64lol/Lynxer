@@ -169,7 +169,7 @@
 <h1 id="text">text</h1>
 <p>String helpers built on the core string builtins.</p>
 <p><strong>Backend:</strong> pure — <code>stdlib/text.lynx</code> only. <strong>Import:</strong> <code>import(&quot;text&quot;)</code> → <code>global.text.*</code></p>
-<p>The interpreter's strings are byte strings, so length, indexing and slicing here count bytes.</p>
+<p>The interpreter's strings hold UTF-8, and length, indexing and slicing here count <strong>code points</strong>, so a character is one Unicode scalar value. Case conversion is ASCII-only: <code>upper</code>/<code>lower</code> change <code>a</code>-<code>z</code>/<code>A</code>-<code>Z</code> and nothing else.</p>
 <h2 id="search-and-replace">Search and replace</h2>
 <table>
 <tr><th>Function</th><th>Signature</th><th>Notes</th></tr>
@@ -186,9 +186,9 @@
 <table>
 <tr><th>Function</th><th>Signature</th><th>Notes</th></tr>
 <tr><td><code>upper</code> / <code>lower</code></td><td><code>(str value) -&gt; str</code></td><td>Case conversion</td></tr>
-<tr><td><code>capitalize</code></td><td><code>(str value) -&gt; str</code></td><td>Upper-case the first byte, lower-case the rest</td></tr>
+<tr><td><code>capitalize</code></td><td><code>(str value) -&gt; str</code></td><td>Upper-case the first character, lower-case the rest (ASCII)</td></tr>
 <tr><td><code>title</code></td><td><code>(str value) -&gt; str</code></td><td>Capitalise the first letter of each word</td></tr>
-<tr><td><code>swapCase</code></td><td><code>(str value) -&gt; str</code></td><td>Swap upper/lower per byte</td></tr>
+<tr><td><code>swapCase</code></td><td><code>(str value) -&gt; str</code></td><td>Swap upper/lower per character (ASCII)</td></tr>
 </table>
 <h2 id="whitespace-and-repetition">Whitespace and repetition</h2>
 <table>
@@ -206,9 +206,9 @@
 <tr><th>Function</th><th>Signature</th><th>Notes</th></tr>
 <tr><td><code>isEmpty</code></td><td><code>(str value) -&gt; bool</code></td><td>Zero length</td></tr>
 <tr><td><code>isBlank</code></td><td><code>(str value) -&gt; bool</code></td><td>Only whitespace</td></tr>
-<tr><td><code>isAlpha</code></td><td><code>(str value) -&gt; bool</code></td><td>Every byte is a letter; <code>false</code> for <code>&quot;&quot;</code></td></tr>
-<tr><td><code>isNumeric</code></td><td><code>(str value) -&gt; bool</code></td><td>Every byte is a digit; <code>false</code> for <code>&quot;&quot;</code></td></tr>
-<tr><td><code>isAlphaNumeric</code></td><td><code>(str value) -&gt; bool</code></td><td>Every byte is alphanumeric; <code>false</code> for <code>&quot;&quot;</code></td></tr>
+<tr><td><code>isAlpha</code></td><td><code>(str value) -&gt; bool</code></td><td>Every character is an ASCII letter; <code>false</code> for <code>&quot;&quot;</code></td></tr>
+<tr><td><code>isNumeric</code></td><td><code>(str value) -&gt; bool</code></td><td>Every character is an ASCII digit; <code>false</code> for <code>&quot;&quot;</code></td></tr>
+<tr><td><code>isAlphaNumeric</code></td><td><code>(str value) -&gt; bool</code></td><td>Every character is ASCII alphanumeric; <code>false</code> for <code>&quot;&quot;</code></td></tr>
 </table>
 <h2 id="padding-and-slicing">Padding and slicing</h2>
 <table>
@@ -216,8 +216,8 @@
 <tr><td><code>padLeft</code> / <code>padRight</code> / <code>center</code></td><td><code>(str value, int width, str fill) -&gt; str</code></td><td>Pad to <code>width</code></td></tr>
 <tr><td><code>zfill</code></td><td><code>(str value, int width) -&gt; str</code></td><td>Zero-pad, keeping a leading sign</td></tr>
 <tr><td><code>substring</code></td><td><code>(str value, int start, int end) -&gt; str</code></td><td>Half-open slice (builtin forwarder)</td></tr>
-<tr><td><code>charAt</code></td><td><code>(str value, int index) -&gt; str</code></td><td>One-byte string (builtin forwarder)</td></tr>
-<tr><td><code>reverse</code></td><td><code>(str value) -&gt; str</code></td><td>Reverse the bytes</td></tr>
+<tr><td><code>charAt</code></td><td><code>(str value, int index) -&gt; str</code></td><td>One-character string (builtin forwarder)</td></tr>
+<tr><td><code>reverse</code></td><td><code>(str value) -&gt; str</code></td><td>Reverse the characters</td></tr>
 </table>
 <h2 id="splitting-and-joining">Splitting and joining</h2>
 <table>

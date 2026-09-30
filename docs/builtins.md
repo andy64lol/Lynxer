@@ -33,16 +33,16 @@ dispatcher rather than to a per-name handler.
 | `sentinel([name])` | Creates a unique sentinel value |
 | `object()` | Creates an empty object value |
 | `returnType(value)` | Type name, e.g. `int`, `float`, `str`, `bool`, `list`, `tuple`, `bytes`, `none` |
-| `returnLength(value)` | Length of a `str`, `list` or `tuple` |
+| `returnLength(value)` | Length of a `str` in **code points**, or the element count of a `list`/`tuple` |
 
 ## Strings
 
 | Builtin | Notes |
 | --- | --- |
-| `charAt(text, index)` | One-character string at `index` |
-| `charCode(value)` | Byte value of a `char` or of the first byte of a `str`; `-1` for an empty string |
-| `charOf(code)` | One-byte `char` for a code in `0..255` |
-| `substring(text, start, end)` | Half-open slice `[start, end)` |
+| `charAt(text, index)` | The character (one code point) at `index` |
+| `charCode(value)` | Unicode code point of a `char`, or of the first character of a `str`; `-1` for an empty string |
+| `charOf(code)` | The `char` for a code point in `0..0x10FFFF` (except the surrogate range) |
+| `substring(text, start, end)` | Half-open slice `[start, end)` of **code points** |
 | `trim(text)` | Removes leading and trailing whitespace |
 | `upper(text)` / `lower(text)` | Case conversion |
 | `replace(text, old, new)` | Replaces every occurrence |

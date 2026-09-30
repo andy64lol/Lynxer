@@ -63,6 +63,15 @@ global main(){
     global.tui.tableSetExpand(0, false);
     global.tui.tablePrint(0);
 
+    // `tableSetLines` draws real inner rules: one under the header and one
+    // between rows, with `┼` where a rule crosses a column boundary.
+    global.tui.tableSetLines(0, true);
+    global.tui.tablePrint(0);
+    global.tui.tableSetBox(0, "none");
+    global.tui.tablePrint(0);
+    global.tui.tableSetBox(0, "square");
+    global.tui.tableSetLines(0, false);
+
     // Tree: nested nodes behind handles.
     println(global.tui.treeCreate("root"));
     println(global.tui.treeAdd(0, "child"));

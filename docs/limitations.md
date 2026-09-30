@@ -38,7 +38,6 @@ constraints each have a resolution plan in [todo.md](../todo.md) under
 | --- | --- |
 | `tkinter` / `tkinterPlus` (a native OS-widget GUI module) | **L16** |
 | `turtle` (reimplement on `graphics`) | **L17** |
-| `http` / `net` (keep superseded by `network` + `server`, or add a shim) | **L18** |
 | Module constraints — `graphics`, `game`, `server`, `sound`, `watch`, `sqldb`, `text`/`typing`, `tui`, `os`/`path`/`sys` | **L4**–**L6**, **L8**–**L10**, **L12**–**L14** |
 | `nativeThread*` / `async*` true parallelism and coroutine `await` | **L15** |
 
@@ -69,12 +68,14 @@ constraints each have a resolution plan in [todo.md](../todo.md) under
 
 - `tkinter`, `tkinterPlus`, and `turtle` are planned (see **L16**–**L17** in
   [todo.md](../todo.md)).
-- `http`/`net` are superseded by `network` + `server` (**L18**).
+- `http`/`net` are **not provided**: `network` (client) and `server` cover the
+  same ground with one API surface instead of two, so no shim is planned — see
+  [removed-features.md](removed-features.md#http-and-net-modules).
 - `mathPlus` is merged into `math`.
 
 ### Native Backing
 
-Lynxer ships modules backed by native implementations. Nineteen of them are Rust crates:
+Lynxer ships modules backed by native implementations. Twenty-one of them are Rust crates:
 - `compress` (`flate2`/`zstd`/`brotli`/`lz4_flex`/`zip`/`tar`)
 - `crypto` (`sha2`/`sha1`/`md-5`/`sha3`/`blake3`/`hmac`/`subtle`/`getrandom`/`ed25519-dalek`)
 - `encoding` (`base64`/`hex`/`data-encoding`/`bs58`/`ascii85`/`percent-encoding`/`quoted_printable`)
@@ -338,13 +339,20 @@ constructs `std::regex` lacked. No system regex library is involved.
   `csvRow` returns a JSON object and `csvHeaders` a comma-joined string, which
   are the legacy shapes.
 
-### `text` and `typing` — Byte Strings
+### `text` and `typing` — Code Points
 
-- **Byte semantics.** Lynxer strings are byte strings: `returnLength`, `charAt`,
-  `substring` and the `charCode`/`charOf` builtins count bytes, so a code point
-  is a byte value in `0..255`, not a Unicode scalar value. `typing.charCodeOf`
-  returns `-1` for a non-char/non-string or an empty string, and `typing.charOf`
-  returns a NUL byte outside `0..255`.
+- **Code-point semantics.** Lynxer strings hold UTF-8, and `returnLength`,
+  `charAt`, `substring` and the `charCode`/`charOf` builtins work on **code
+  points**, so a character is one Unicode scalar value rather than one byte:
+  `returnLength("café")` is 4, `charAt("café", 3)` is `"é"` and `charCode` of it
+  is 233. `charOf` accepts any code point up to `0x10FFFF` except the surrogate
+  range, and returns a UTF-8 sequence. A byte that cannot start a valid sequence
+  counts as one code point, so any byte string still has a length.
+  `typing.charCodeOf` returns `-1` for a non-char/non-string or an empty string,
+  and `typing.charOf` returns a NUL `char` for a code outside the valid range.
+- **Case conversion stays ASCII.** `text.upper`/`text.lower` change only
+  `a`-`z`/`A`-`Z`, and `typing.isAlpha`/`isDigit` test ASCII, so `"é"` is
+  neither alpha nor digit.
 - **`typing.isNumeric`.** In `typing`, `isNumeric(value)` means "is an `int` or
   `float`", not the legacy "the string parses as a number". Use `typing.isDigit`
   for digit-only strings.
@@ -353,8 +361,12 @@ constructs `std::regex` lacked. No system regex library is involved.
 
 ### `os` and `path` — Constrained Behavior
 
-- **Encoding:** `path.readTextEncoding` and `path.writeTextEncoding` accept an
-  encoding argument for API compatibility but always use UTF-8 internally.
+- **Encodings:** `path.readTextEncoding` and `path.writeTextEncoding` honour
+  `utf-8` (also the default when the name is empty), `latin-1` and `ascii`. They
+  no longer ignore the name: an unknown encoding, or a character the encoding
+  cannot represent, is a failure sentinel (`""` / `false`) instead of a silent
+  read or write as UTF-8. UTF-8 text is passed through without validation, so a
+  non-UTF-8 byte still survives a `utf-8` read.
 - **Platform info:** Platform helpers report the host through `uname(2)`.
 
 *Note:* Python runtime introspection features are not planned for Lynxer.
@@ -442,7 +454,11 @@ The backend is real (`ratatui`), but it is not a pixel-for-pixel Rich equivalent
 
 - **Rendering is offscreen.** Each call draws a widget into a buffer and prints the text — plain text without a TTY, ANSI styling with one. Box-drawing, table sizing and layout follow `ratatui`, not Rich, and `setWidth` (default `80`) pins the width.
 
-- **`tableSetLines` is approximate.** `ratatui`'s `Table` has no row separators, so the flag widens the gap between columns instead of drawing inner lines.
+- **`tableSetLines` draws real rules.** `ratatui`'s `Table` has no row separators,
+  so the rows are re-laid-out with one blank line under the header and between
+  every pair of rows, and those lines are painted as `├───┼───┤` rules (a bare
+  `───┼───` when the table has no box). With rules the columns sit one space
+  apart, without them two — the flag therefore still changes the column gap.
 
 - **Markdown and syntax highlighting use crates.** `markdown` is `pulldown-cmark` and `printSyntax` is `syntect` (embedded syntax/theme sets, pure-Rust `fancy-regex` backend). Nesting, tables and every CommonMark extension are therefore limited to what those crates emit; syntax colors appear only on a color-capable terminal.
 

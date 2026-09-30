@@ -2,9 +2,9 @@
 Lynxer standard library: typing.
 Pure Lynxer type inspection, conversion, range, string and sequence helpers.
 
-The interpreter's strings are byte strings: `returnLength`, `charAt`,
-`substring` and the `charCode`/`charOf` builtins all work on bytes, so code
-points are byte values in 0..255 rather than Unicode scalar values.
+The interpreter's strings hold UTF-8, and `returnLength`, `charAt`, `substring`
+and the `charCode`/`charOf` builtins work on **code points**, so a character is
+one Unicode scalar value rather than one byte.
 ////
 
 global setup(){}
@@ -146,15 +146,17 @@ global toNumber(any val) -> float {
 }
 
 //// Char functions ////
-// Code points are byte values (see the header), so convert through the
-// charCode/charOf builtins rather than comparing char and str directly.
+// A character is a Unicode code point (see the header), so convert through the
+// charCode/charOf builtins rather than comparing a char and a str directly.
 global charCodeOf(any val) -> int {
     if (isChar(val) or isStr(val)) { return global.charCode(val); }
     return -1;
 }
 global charCode(str value) -> int { return global.charCode(value); }
 global charOf(int code) -> char {
-    if (code < 0 or code > 255) { return global.charOf(0); }
+    if (code < 0 or code > 1114111 or (code >= 55296 and code <= 57343)) {
+        return global.charOf(0);
+    }
     return global.charOf(code);
 }
 global charAt(str value, int index) -> any {

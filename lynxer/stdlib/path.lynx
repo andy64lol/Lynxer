@@ -4,8 +4,9 @@ pathlib-style path manipulation backed by the native C++ module
 `stdlib/path.so`.
 
 Paths are plain strings. Functions return "" / an empty list / false / -1 when
-the underlying operation fails. `readTextEncoding`/`writeTextEncoding` accept an
-encoding argument for API compatibility but always use UTF-8.
+the underlying operation fails. `readTextEncoding`/`writeTextEncoding` honour
+`utf-8` (the default), `latin-1` and `ascii`; an unknown encoding, or a
+character the encoding cannot represent, is a failure sentinel.
 ////
 global setup(){ importAs("path.so", "nativePath"); }
 
