@@ -246,15 +246,30 @@ pub fn prevent_close() {
 }
 
 pub fn screenshot(path: &str) -> i64 {
-    with(|state| {
-        if state.headless || path.is_empty() {
+    if path.is_empty() {
+        return -1;
+    }
+    // The framebuffer is read outside `with` because reading it borrows the
+    // state again, and the cell is not re-entrant.
+    if with(|state| state.headless) {
+        let Some((bytes, width, height)) = crate::raster::image_bytes() else {
+            // Nothing has been drawn yet, so there is no frame to write.
             return -1;
-        }
+        };
+        let image = macroquad::texture::Image {
+            bytes,
+            width,
+            height,
+        };
         // macroquad's `export_png` reports failure by panicking, which the
         // export guard turns into -1.
-        macroquad::texture::get_screen_data().export_png(path);
-        0
-    })
+        image.export_png(path);
+        return 0;
+    }
+    // macroquad's `export_png` reports failure by panicking, which the export
+    // guard turns into -1.
+    macroquad::texture::get_screen_data().export_png(path);
+    0
 }
 
 pub fn version() -> String {

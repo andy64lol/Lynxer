@@ -168,7 +168,7 @@
         </div>
 <h1 id="graphics">graphics</h1>
 <p>General-purpose drawing, window, input and immediate-mode UI toolkit, backed by macroquad through the native module <code>stdlib/graphics.so</code> (Rust crate <code>rust/graphics</code>).</p>
-<blockquote><strong>Requires:</strong> a Rust toolchain to build, and a display with OpenGL (X11 or Wayland) to run. Without one, set <code>LYNXER_GRAPHICS_HEADLESS=1</code>. Linux is the only supported platform.</blockquote>
+<blockquote><strong>Requires:</strong> a Rust toolchain to build, and a display with OpenGL (X11 or Wayland) to run. Without one, set <code>LYNXER_GRAPHICS_HEADLESS=1</code>. Linux is the only supported platform.  <strong>Without a display</strong> the module rasterizes on the CPU: <code>clearBackground</code>, <code>drawRectangle</code>, <code>drawRectangleLines</code>, <code>drawLine</code>, <code>drawTriangle</code>, <code>drawTriangleLines</code>, <code>drawCircle</code> and <code>drawCircleLines</code> fill a framebuffer and <code>screenshot(path)</code> writes it as a PNG, in the same top-left origin the drawing ops use. Text, textures, fonts, shaders, render targets and the <code>ui*</code> widgets need a window and stay no-ops. <code>lynxer/examples/stdlib_graphics_raster.lynx</code> is the CI-runnable check.</blockquote>
 <p><code>graphics</code> is the low-level surface. The <a href="game.html">game</a> module is a separate, game-oriented layer over the same backend (sprites, scenes, tilemaps, physics); the two do not share state and can be imported together.</p>
 <pre><code>global setup(){ import(&quot;graphics&quot;); }
 

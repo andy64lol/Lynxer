@@ -152,6 +152,9 @@ pub struct State {
     pub mouse_y: f32,
     pub scroll_x: f32,
     pub scroll_y: f32,
+    /// The CPU frame the headless rasterizer draws into. `None` while a window
+    /// is open (macroquad owns the pixels) and until the first drawing op runs.
+    pub framebuffer: Option<crate::raster::Framebuffer>,
 }
 
 impl State {
@@ -192,6 +195,7 @@ impl State {
             mouse_y: 0.0,
             scroll_x: 0.0,
             scroll_y: 0.0,
+            framebuffer: None,
         }
     }
 
@@ -212,6 +216,7 @@ impl State {
         self.quit_requested = false;
         self.sim_time = 0.0;
         self.frames = 0;
+        self.framebuffer = None;
     }
 
     pub fn texture(&self, handle: i64) -> Option<&Texture2D> {

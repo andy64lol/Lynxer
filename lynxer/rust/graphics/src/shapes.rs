@@ -22,6 +22,9 @@ fn headless() -> bool {
 
 pub fn clear_background(color: Color) {
     if headless() {
+        crate::raster::with_framebuffer(|buffer| {
+            buffer.clear(color);
+        });
         return;
     }
     macroquad::window::clear_background(color);
@@ -29,6 +32,9 @@ pub fn clear_background(color: Color) {
 
 pub fn line(x1: f32, y1: f32, x2: f32, y2: f32, thickness: f32, color: Color) {
     if headless() {
+        crate::raster::with_framebuffer(|buffer| {
+            buffer.line(x1, y1, x2, y2, thickness, color);
+        });
         return;
     }
     draw_line(x1, y1, x2, y2, thickness, color);
@@ -36,6 +42,9 @@ pub fn line(x1: f32, y1: f32, x2: f32, y2: f32, thickness: f32, color: Color) {
 
 pub fn triangle(x1: f32, y1: f32, x2: f32, y2: f32, x3: f32, y3: f32, color: Color) {
     if headless() {
+        crate::raster::with_framebuffer(|buffer| {
+            buffer.triangle(x1, y1, x2, y2, x3, y3, color);
+        });
         return;
     }
     draw_triangle(vec2(x1, y1), vec2(x2, y2), vec2(x3, y3), color);
@@ -52,6 +61,11 @@ pub fn triangle_lines(
     color: Color,
 ) {
     if headless() {
+        crate::raster::with_framebuffer(|buffer| {
+            buffer.line(x1, y1, x2, y2, thickness, color);
+            buffer.line(x2, y2, x3, y3, thickness, color);
+            buffer.line(x3, y3, x1, y1, thickness, color);
+        });
         return;
     }
     draw_triangle_lines(vec2(x1, y1), vec2(x2, y2), vec2(x3, y3), thickness, color);
@@ -59,6 +73,9 @@ pub fn triangle_lines(
 
 pub fn rectangle(x: f32, y: f32, w: f32, h: f32, color: Color) {
     if headless() {
+        crate::raster::with_framebuffer(|buffer| {
+            buffer.rectangle(x, y, w, h, color);
+        });
         return;
     }
     draw_rectangle(x, y, w, h, color);
@@ -66,6 +83,9 @@ pub fn rectangle(x: f32, y: f32, w: f32, h: f32, color: Color) {
 
 pub fn rectangle_lines(x: f32, y: f32, w: f32, h: f32, thickness: f32, color: Color) {
     if headless() {
+        crate::raster::with_framebuffer(|buffer| {
+            buffer.rectangle_lines(x, y, w, h, thickness, color);
+        });
         return;
     }
     draw_rectangle_lines(x, y, w, h, thickness, color);
@@ -159,6 +179,9 @@ pub fn poly_lines(
 
 pub fn circle(x: f32, y: f32, radius: f32, color: Color) {
     if headless() {
+        crate::raster::with_framebuffer(|buffer| {
+            buffer.circle(x, y, radius, color);
+        });
         return;
     }
     draw_circle(x, y, radius, color);
@@ -166,6 +189,9 @@ pub fn circle(x: f32, y: f32, radius: f32, color: Color) {
 
 pub fn circle_lines(x: f32, y: f32, radius: f32, thickness: f32, color: Color) {
     if headless() {
+        crate::raster::with_framebuffer(|buffer| {
+            buffer.circle_lines(x, y, radius, thickness, color);
+        });
         return;
     }
     draw_circle_lines(x, y, radius, thickness, color);

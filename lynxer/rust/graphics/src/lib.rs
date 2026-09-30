@@ -18,6 +18,7 @@ mod host;
 mod input;
 mod material;
 mod misc;
+mod raster;
 mod shapes;
 mod state;
 mod text_ops;

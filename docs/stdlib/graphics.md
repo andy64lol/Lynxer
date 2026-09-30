@@ -7,6 +7,14 @@ macroquad through the native module `stdlib/graphics.so` (Rust crate
 > **Requires:** a Rust toolchain to build, and a display with OpenGL
 > (X11 or Wayland) to run. Without one, set `LYNXER_GRAPHICS_HEADLESS=1`.
 > Linux is the only supported platform.
+>
+> **Without a display** the module rasterizes on the CPU: `clearBackground`,
+> `drawRectangle`, `drawRectangleLines`, `drawLine`, `drawTriangle`,
+> `drawTriangleLines`, `drawCircle` and `drawCircleLines` fill a framebuffer and
+> `screenshot(path)` writes it as a PNG, in the same top-left origin the drawing
+> ops use. Text, textures, fonts, shaders, render targets and the `ui*` widgets
+> need a window and stay no-ops. `lynxer/examples/stdlib_graphics_raster.lynx`
+> is the CI-runnable check.
 
 `graphics` is the low-level surface. The [game](game.md) module is a separate,
 game-oriented layer over the same backend (sprites, scenes, tilemaps, physics);

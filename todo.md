@@ -55,12 +55,19 @@ before the module-specific items.
 
 **Modules**
 
-- [ ] **L4 — `graphics`: offscreen rendering.** Add a render-target readback or
-      software-rasterizer path so drawing, `screenshot`, textures, fonts and the
-      `ui*` widgets work without a window; relax the frame-callback restriction
-      where the GPU context permits; allow nested UI blocks; add gamepad and
-      model/mesh loading; add a CI-runnable headless render fixture
-      (`lynxer/rust/graphics/*`, `Cargo.toml`).
+- [x] ~~**L4 — `graphics`: offscreen rendering.**~~ **Partly delivered:** with no
+      window the module now rasterizes on the CPU — `clearBackground`,
+      `drawRectangle(_Lines)`, `drawLine`, `drawTriangle(_Lines)`, `drawCircle(_Lines)`
+      fill a framebuffer, and `screenshot` writes it as a PNG, pre-flipped so the
+      file has the same top-left origin the drawing ops use. New fixture
+      `stdlib_graphics_raster` runs **in CI** (unlike the display-gated
+      `stdlib_graphics`) and asserts individual pixels through the `image`
+      module.
+- [ ] **L4b — `graphics` parity beyond the primitives.** Text/textures/fonts,
+      the `ui*` widgets, shaders, render targets, rotated shapes and the curved
+      primitives (ellipse/arc/polygon/hexagon) are still no-ops headless; the
+      frame-callback restriction, nested UI blocks, gamepads and model/mesh
+      loading are unchanged (`lynxer/rust/graphics/*`).
 - [x] ~~**L5 — `game` physics.**~~ **Partly delivered:** `updatePhysics` now
       resolves horizontal collision against the wall list (`vx` was ignored
       entirely before), rides a wall sprite whose `angle` is non-zero as a

@@ -104,10 +104,18 @@ Makefile checks for `cargo` up front and says so.
 
 ### `graphics` — Constrained Behavior
 
-- **A display is required for real rendering.** macroquad has no offscreen
-  backend, so any drawing needs a window and OpenGL (X11 or Wayland). With
-  `LYNXER_GRAPHICS_HEADLESS=1` no window is opened, drawing is a no-op and
-  context-dependent ops return `-1` or zero.
+- **A display is required for the full renderer.** macroquad draws through
+  OpenGL, so with a window it needs X11 or Wayland. With
+  `LYNXER_GRAPHICS_HEADLESS=1` no window is opened and the module rasterizes on
+  the CPU instead: `clearBackground`, `drawRectangle`,
+  `drawRectangleLines`, `drawLine`, `drawTriangle`, `drawTriangleLines`,
+  `drawCircle` and `drawCircleLines` fill a framebuffer, and `screenshot` writes
+  that frame as a PNG (in the same top-left origin the drawing ops use). That is
+  what `stdlib_graphics_raster.lynx` checks in CI.
+- **Headless drawing covers the pixel-exact primitives only.** Text, textures,
+  fonts, shaders, render targets, the `ui*` widgets, rotated shapes and the
+  curved primitives (ellipse/arc/polygon/hexagon) are still no-ops without a
+  window, and every context-dependent load returns `-1`.
 - **Ops that need the GPU context only work inside a frame callback.**
   `loadTexture`, `loadFont`, `loadMaterial`, `renderTarget`, `screenshot`, the
   `draw*` ops and the `ui*` widgets all fail if called from `setup` or `main`.

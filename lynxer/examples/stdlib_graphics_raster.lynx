@@ -1,0 +1,31 @@
+////
+Headless render fixture: with no window the `graphics` module rasterizes into a
+CPU framebuffer, `screenshot` writes it as a PNG, and the pixels are read back
+through the `image` module. This is the render path CI can actually check.
+////
+global setup(){ import("graphics"); import("image"); import("fileIO"); }
+
+global main(){
+    global.graphics.init("raster", 32, 16);
+
+    // Red field, a blue rectangle on the left, a yellow triangle inside it, a
+    // green circle on the right and a white line along the bottom.
+    global.graphics.clearBackground(255, 0, 0);
+    global.graphics.drawRectangle(0.0, 0.0, 16.0, 16.0, 0, 0, 255);
+    global.graphics.drawTriangle(2.0, 2.0, 6.0, 2.0, 4.0, 6.0, 255, 255, 0);
+    global.graphics.drawCircle(24.0, 8.0, 4.0, 0, 255, 0);
+    global.graphics.drawLine(0.0, 15.0, 31.0, 15.0, 1.0, 255, 255, 255);
+
+    println(global.graphics.screenshot("/tmp/lynxer_graphics_raster.png"));
+
+    int shot = global.image.open("/tmp/lynxer_graphics_raster.png");
+    println(global.image.getWidth(shot), "x", global.image.getHeight(shot));
+    // The PNG is in the same top-left origin the drawing ops use.
+    println(global.image.getPixel(shot, 30, 2));
+    println(global.image.getPixel(shot, 14, 12));
+    println(global.image.getPixel(shot, 4, 3));
+    println(global.image.getPixel(shot, 24, 8));
+    println(global.image.getPixel(shot, 20, 15));
+
+    global.fileIO.deleteFile("/tmp/lynxer_graphics_raster.png");
+}
