@@ -161,8 +161,8 @@ Any future callback must be declared here before the module ships.
 | `os` | C++ | none | none |
 | `path` | C++ | none — paths are strings | none |
 | `random` | C++ | none — seeded generator lives in the backend | none |
-| `re` | C++ | none | none |
-| `regex` | C++ | none — the named-pattern cache lives in the backend | none |
+| `re` | Rust | none | none |
+| `regex` | Rust | none — the named-pattern cache lives in the backend | none |
 | `server` | Rust | routes keyed by path, in registration order | caller: `clearRoutes()` / `stop()` |
 | `shell` | C++ | none | none |
 | `sound` | Rust | **integer handles** into a backend registry | caller: `releaseSound(handle)` |

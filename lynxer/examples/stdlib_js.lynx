@@ -3,7 +3,7 @@ Fixture for the js stdlib. Interpreted only (module imports are not
 bytecode-compilable). Requires Node.js on PATH; the version string itself is not
 asserted because it varies by host.
 ////
-global setup(){ import("js"); }
+global setup(){ import("js"); import("os"); }
 
 global main(){
     println(global.js.nodeExists());
@@ -11,4 +11,10 @@ global main(){
     println(global.js.evalJS("1 + 2"));
     println(global.js.evalJS("'a' + 'b'"));
     println(global.js.runJS("console.log('hello from js');"));
+    // A runaway program is killed after the timeout, and a program's stderr is
+    // captured into the result instead of leaking. The env var shortens the
+    // limit for the test.
+    global.os.setenv("LYNXER_JS_TIMEOUT","1");
+    println(global.js.runJS("while(true){}"));
+    println(global.js.runJS("console.error('boom')"));
 }

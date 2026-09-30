@@ -184,13 +184,13 @@
 <tr><td>Bytecode (<code>.lynxc</code>, <code>--view-bytecode</code>, <code>--benchmark-compile</code>, <code>--no-cache</code>)</td><td>Removed with the bytecode backend; <code>--compile</code> produces a standalone ELF executable instead (<code>--bundle</code> is an alias). Running a <code>.lynxc</code> file reports that bytecode is unsupported.</td></tr>
 </table>
 <h2 id="planned-work">Planned Work</h2>
-<p>The first-class <code>bytes</code> type (<strong>L1</strong>), the <code>bytes</code> ABI channel and buffered packed form (<strong>L2</strong>), the <code>math</code> migration off the tab-separated bridge (<strong>L3</strong>), the <code>compress</code>/<code>crypto</code>/<code>encoding</code>/<code>uuid</code> migrations (<strong>L1b</strong>), and the macOS <code>.dylib</code> recognition (<strong>L2c</strong>) are delivered. <strong>L2d</strong> (multiple live string results) was closed as not needed — no module returns more than one string per call. The remaining constraints each have a resolution plan in <a href="../todo.html">todo</a> under <em>Resolving documented limitations</em>:</p>
+<p>The first-class <code>bytes</code> type (<strong>L1</strong>), the <code>bytes</code> ABI channel and buffered packed form (<strong>L2</strong>), the <code>math</code> migration off the tab-separated bridge (<strong>L3</strong>), the <code>compress</code>/<code>crypto</code>/<code>encoding</code>/<code>uuid</code> migrations (<strong>L1b</strong>), the macOS <code>.dylib</code> recognition (<strong>L2c</strong>), the <code>re</code>/<code>regex</code> rewrite onto a Rust <code>fancy-regex</code> engine (<strong>L7</strong>) and the <code>js</code>/<code>multiprocessing</code> subprocess timeouts (<strong>L11</strong>) are delivered. <strong>L2d</strong> (multiple live string results) was closed as not needed — no module returns more than one string per call. The remaining constraints each have a resolution plan in <a href="../todo.html">todo</a> under <em>Resolving documented limitations</em>:</p>
 <table>
 <tr><th>Area</th><th>Plan</th></tr>
 <tr><td><code>tkinter</code> / <code>tkinterPlus</code> (a native OS-widget GUI module)</td><td><strong>L16</strong></td></tr>
 <tr><td><code>turtle</code> (reimplement on <code>graphics</code>)</td><td><strong>L17</strong></td></tr>
 <tr><td><code>http</code> / <code>net</code> (keep superseded by <code>network</code> + <code>server</code>, or add a shim)</td><td><strong>L18</strong></td></tr>
-<tr><td>Module constraints — <code>graphics</code>, <code>game</code>, <code>server</code>, <code>re</code>/<code>regex</code>, <code>sound</code>, <code>watch</code>, <code>sqldb</code>, <code>js</code>, <code>multiprocessing</code>, <code>text</code>/<code>typing</code>, <code>tui</code>, <code>os</code>/<code>path</code>/<code>sys</code></td><td><strong>L4</strong>–<strong>L14</strong></td></tr>
+<tr><td>Module constraints — <code>graphics</code>, <code>game</code>, <code>server</code>, <code>sound</code>, <code>watch</code>, <code>sqldb</code>, <code>text</code>/<code>typing</code>, <code>tui</code>, <code>os</code>/<code>path</code>/<code>sys</code></td><td><strong>L4</strong>–<strong>L6</strong>, <strong>L8</strong>–<strong>L10</strong>, <strong>L12</strong>–<strong>L14</strong></td></tr>
 <tr><td><code>nativeThread*</code> / <code>async*</code> true parallelism and coroutine <code>await</code></td><td><strong>L15</strong></td></tr>
 </table>
 <h2 id="native-module-abi">Native Module ABI</h2>
@@ -334,14 +334,14 @@
 <li><strong><code>v1</code> and <code>v6</code> are not exposed.</strong></li>
 </ul>
 <h3 id="re-and-regex--constrained-behavior"><code>re</code> and <code>regex</code> — Constrained Behavior</h3>
-<p>Both modules use <code>std::regex</code> with the ECMAScript grammar, which is narrower than full PCRE:</p>
+<p>Both modules run a Rust <code>fancy-regex</code> engine (<code>rust/regex_engine</code>, shared by <code>rust/re</code> and <code>rust/regex</code>) — a superset of ECMAScript that adds the PCRE constructs <code>std::regex</code> lacked. No system regex library is involved.</p>
 <ul>
-<li><strong>Unsupported features:</strong> Lookbehind <code>(?&lt;=...)</code>/<code>(?&lt;!...)</code>, atomic groups <code>(?&gt;...)</code>, and Unicode property escapes (<code>\p{L}</code>) are not supported and return error results.</li>
-<li><strong>Named captures:</strong> <code>(?P&lt;name&gt;...)</code> is translated to a plain capturing group with the name recorded, enabling <code>named</code>/<code>extract</code>/<code>extractAll</code>. <code>(?P=name)</code> becomes a numeric backreference.</li>
-<li><strong>Inline flags:</strong> <code>(?i)</code>, <code>(?m)</code>, and <code>(?s)</code> are applied to the entire pattern, not from their position. <code>(?x)</code> verbose mode is ignored.</li>
-<li><strong>Error handling:</strong> Invalid or unsupported patterns return sentinel results (predicates <code>false</code>, strings <code>&quot;&quot;</code>, index helpers <code>-1</code>) instead of raising errors.</li>
-<li><strong>ASCII-only matching:</strong> <code>findLetters</code>/<code>findDigits</code> match ASCII letter and digit runs only.</li>
+<li><strong>Supported syntax:</strong> lookahead and lookbehind <code>(?&lt;=...)</code>/<code>(?&lt;!...)</code> including variable-length lookbehind, atomic groups <code>(?&gt;...)</code>, possessive quantifiers (<code>a++</code>), backreferences (<code>\1</code> and <code>(?P=name)</code>), Unicode property escapes (<code>\p{L}</code>, <code>\p{Greek}</code>), named groups <code>(?P&lt;name&gt;...)</code>/<code>(?&lt;name&gt;...)</code>, and inline flags — which now apply from the position they appear — plus <code>(?x)</code> verbose mode.</li>
+<li><strong>Flags:</strong> <code>I</code>, <code>M</code> and <code>S</code> set case-insensitivity, multiline and dotall; <code>X</code> (alias <code>x</code>) enables verbose mode, which the C++ engine ignored.</li>
+<li><strong>Error handling:</strong> Invalid patterns — and a pattern that fails at match time, such as an exhausted backtracking budget — return sentinel results (predicates <code>false</code>, strings <code>&quot;&quot;</code>, index helpers <code>-1</code>) instead of raising.</li>
+<li><strong>Matching:</strong> <code>\d</code>/<code>\w</code> are Unicode-aware, as in PCRE, while <code>findLetters</code>/ <code>findDigits</code> keep matching ASCII letter and digit runs only. Offsets reported by <code>matchStart</code>/<code>matchEnd</code>/<code>findSpans</code> are byte offsets.</li>
 <li><strong>Multi-group <code>findall</code>:</strong> Returns arrays of groups when two or more capture groups are used.</li>
+<li><strong>Replacement groups:</strong> An undefined group <em>name</em> is left as the literal <code>$name</code>, and an undefined group <em>number</em> expands to nothing.</li>
 </ul>
 <h3 id="csv--constrained-behavior"><code>csv</code> — Constrained Behavior</h3>
 <ul>
@@ -379,14 +379,14 @@
 <h3 id="multiprocessing--constrained-behavior"><code>multiprocessing</code> — Constrained Behavior</h3>
 <ul>
 <li><strong>Process handling:</strong> Commands run in worker threads, each spawning its own shell subprocess. <code>runParallelProcess</code> is an alias for <code>runParallel</code>.</li>
-<li><strong>Timeout:</strong> No timeout is applied to subprocess execution.</li>
+<li><strong>Timeout and stderr:</strong> A command is killed after <code>LYNXER_MP_TIMEOUT</code> seconds (default <code>300</code>, <code>0</code> for no limit) and reports exit code <code>124</code>; its <code>stderr</code> is captured into the output.</li>
 <li><strong>Resource management:</strong> Results are collected through a native handle, which must be released. The wrappers handle this automatically.</li>
 </ul>
 <h3 id="js--constrained-behavior"><code>js</code> — Constrained Behavior</h3>
 <ul>
 <li><strong>Dependency:</strong> Requires <code>node</code> to be on <code>PATH</code>.</li>
-<li><strong>Timeout:</strong> No timeout is applied to JavaScript execution.</li>
-<li><strong>Error handling:</strong> <code>stderr</code> is inherited rather than captured.</li>
+<li><strong>Timeout:</strong> A program is killed after <code>LYNXER_JS_TIMEOUT</code> seconds (default <code>30</code>) and answers an explanatory error.</li>
+<li><strong>Error handling:</strong> <code>stderr</code> is captured into the result rather than inherited.</li>
 </ul>
 <h3 id="debug--constrained-behavior"><code>debug</code> — Constrained Behavior</h3>
 <ul>

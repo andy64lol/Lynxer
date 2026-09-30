@@ -167,8 +167,8 @@
             <input type="text" placeholder="Search documentation..." aria-label="Search documentation">
         </div>
 <h1 id="re">re</h1>
-<p>Regular expressions over <code>std::regex</code> with familiar pattern syntax.</p>
-<p><strong>Backend:</strong> native — <code>stdlib/re.so</code>, built from <code>stdlib/re.cpp</code> and the translation layer in <code>stdlib/native_regex.hpp</code>. <strong>Import:</strong> <code>import(&quot;re&quot;)</code> → <code>global.re.*</code></p>
+<p>Regular expressions with familiar Python pattern syntax.</p>
+<p><strong>Backend:</strong> Rust — <code>stdlib/re.so</code>, built from <code>rust/re</code> over the shared <code>rust/regex_engine</code> (<code>fancy-regex</code>). <strong>Import:</strong> <code>import(&quot;re&quot;)</code> → <code>global.re.*</code></p>
 <p>Structured results (match lists, group lists, spans) are JSON strings.</p>
 <table>
 <tr><th>Function</th><th>Signature</th><th>Returns</th></tr>
@@ -201,7 +201,17 @@
 </table>
 <p>Replacement strings support <code>\1</code> and <code>\g&lt;name&gt;</code> backreferences.</p>
 <h2 id="supported-pattern-syntax">Supported pattern syntax</h2>
-<p><code>(?P&lt;name&gt;...)</code> and <code>(?P=name)</code> are translated; <code>(?i)</code>, <code>(?m)</code> and <code>(?s)</code> are applied to the whole pattern. <strong>Not supported</strong> (they yield sentinel results rather than raising): lookbehind <code>(?&lt;=…)</code>/<code>(?&lt;!…)</code>, atomic groups <code>(?&gt;…)</code>, and Unicode property escapes such as <code>\p{L}</code>.</p>
+<p>The engine is a superset of ECMAScript, so Python/PCRE constructs work:</p>
+<ul>
+<li>lookahead <code>(?=…)</code>/<code>(?!…)</code> and lookbehind <code>(?&lt;=…)</code>/<code>(?&lt;!…)</code>, including variable-length lookbehind;</li>
+<li>atomic groups <code>(?&gt;…)</code> and possessive quantifiers such as <code>a++</code>;</li>
+<li>backreferences, both <code>\1</code> and <code>(?P=name)</code>;</li>
+<li>Unicode property escapes such as <code>\p{L}</code> and <code>\p{Greek}</code>; <code>\d</code> and <code>\w</code> are Unicode-aware;</li>
+<li>named groups <code>(?P&lt;name&gt;…)</code> and <code>(?&lt;name&gt;…)</code>;</li>
+<li>inline flags anywhere in a pattern (<code>a(?i)bc</code> applies from where it appears) and <code>(?x)</code> verbose mode with <code>#</code> comments.</li>
+</ul>
+<p>An invalid pattern is not an error: <code>test</code> is <code>false</code>, a string result is <code>&quot;&quot;</code> and an index is <code>-1</code>.</p>
+<p>Index helpers (<code>matchStart</code>, <code>matchEnd</code>, <code>findSpans</code>) report <strong>byte</strong> offsets.</p>
 <h2 id="example">Example</h2>
 <pre><code>global setup(){ import(&quot;re&quot;); }
 

@@ -4,3 +4,6 @@ true
 ab
 hello from js
 
+Error: node timed out after 1s
+boom
+

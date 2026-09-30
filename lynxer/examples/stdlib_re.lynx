@@ -33,4 +33,13 @@ global main(){
     println(global.re.split("", "abc"));
     println(global.re.sub("(?P<w>\\w+)", "[\\g<w>]", "hi there"));
     println(global.re.matchFull("[a-z]+", "hello"));
+
+    // Constructs the previous engine (std::regex / ECMAScript) could not run.
+    println(global.re.test("(?<=a)b", "ab"));
+    println(global.re.search("(?<=ab+)c", "abbc"));
+    println(global.re.test("(?>a+)b", "aab"));
+    println(global.re.findall("(?<=\\$)\\d+", "$1 and $22"));
+    println(global.re.test("\\p{Greek}+", "αβγ"));
+    println(global.re.test("a(?i)bc", "aBC"));
+    println(global.re.test("(?P<w>\\w)(?P=w)", "aa"));
 }

@@ -1,10 +1,9 @@
 # re
 
-Regular expressions over `std::regex` with familiar pattern syntax.
+Regular expressions with familiar Python pattern syntax.
 
-**Backend:** native — `stdlib/re.so`, built from `stdlib/re.cpp` and the
-translation layer in `stdlib/native_regex.hpp`. **Import:** `import("re")` →
-`global.re.*`
+**Backend:** Rust — `stdlib/re.so`, built from `rust/re` over the shared
+`rust/regex_engine` (`fancy-regex`). **Import:** `import("re")` → `global.re.*`
 
 Structured results (match lists, group lists, spans) are JSON strings.
 
@@ -41,10 +40,22 @@ Replacement strings support `\1` and `\g<name>` backreferences.
 
 ## Supported pattern syntax
 
-`(?P<name>...)` and `(?P=name)` are translated; `(?i)`, `(?m)` and `(?s)` are
-applied to the whole pattern. **Not supported** (they yield sentinel results
-rather than raising): lookbehind `(?<=…)`/`(?<!…)`, atomic groups `(?>…)`, and
-Unicode property escapes such as `\p{L}`.
+The engine is a superset of ECMAScript, so Python/PCRE constructs work:
+
+- lookahead `(?=…)`/`(?!…)` and lookbehind `(?<=…)`/`(?<!…)`, including
+  variable-length lookbehind;
+- atomic groups `(?>…)` and possessive quantifiers such as `a++`;
+- backreferences, both `\1` and `(?P=name)`;
+- Unicode property escapes such as `\p{L}` and `\p{Greek}`; `\d` and `\w`
+  are Unicode-aware;
+- named groups `(?P<name>…)` and `(?<name>…)`;
+- inline flags anywhere in a pattern (`a(?i)bc` applies from where it appears)
+  and `(?x)` verbose mode with `#` comments.
+
+An invalid pattern is not an error: `test` is `false`, a string result is `""`
+and an index is `-1`.
+
+Index helpers (`matchStart`, `matchEnd`, `findSpans`) report **byte** offsets.
 
 ## Example
 

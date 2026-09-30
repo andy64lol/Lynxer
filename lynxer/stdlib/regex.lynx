@@ -1,17 +1,18 @@
 ////
 Lynxer standard library: regex.
-Extended regular-expression helpers backed by the native C++ module
-`stdlib/regex.so`.
+Extended regular-expression helpers backed by the Rust module
+`stdlib/regex.so` (`rust/regex` over the shared `rust/regex_engine`, built on
+`fancy-regex`).
 
 Named patterns are compiled once and cached by name. The Python reference
 prefers the third-party `regex` package and falls back to `re`; Lynxer always
 uses the `re`-equivalent engine, so `findLetters`/`findDigits` match ASCII
-letters/digits and `findallOverlapping` is emulated over the std::regex engine.
+letters/digits and `findallOverlapping` is emulated.
 ////
 global setup(){ importAs("regex.so", "nativeRegex"); }
 
-// Compile a pattern and store it under name. Flags: any of I, M, S
-// (case-insensitive, multiline, dotall). X (verbose) is ignored.
+// Compile a pattern and store it under name. Flags: any of I, M, S, X
+// (case-insensitive, multiline, dotall, verbose).
 global compile(str name, str pattern, str flags) {
     global.nativeRegex.compile(name, pattern, flags);
 }

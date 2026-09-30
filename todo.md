@@ -70,10 +70,14 @@ before the module-specific items.
       context so `getArg`/`getHeader`/`getBody` describe the current request; add
       a Jinja-compatible template engine (`lynxer/rust/server/src/lib.rs`,
       `server/Cargo.toml`).
-- [ ] **L7 — `re`/`regex` engine.** Replace `std::regex` (ECMAScript) with a
-      PCRE-compatible engine — PCRE2, or Rust `fancy-regex` — for lookbehind,
-      atomic groups, `\p{…}`, positional inline flags and `(?x)` verbose mode
-      (`lynxer/stdlib/native_regex.hpp`, `re.cpp`, `regex.cpp`).
+- [x] ~~**L7 — `re`/`regex` engine.**~~ **Delivered:** both modules were rewritten
+      as Rust `cdylib`s (`rust/re`, `rust/regex`) over a shared `rust/regex_engine`
+      built on `fancy-regex` — Rust and cargo, no system PCRE. Lookbehind
+      (including variable length), atomic groups, possessive quantifiers,
+      backreferences, `\p{…}` property escapes and positional inline flags all
+      work, and `(?x)`/the `X` flag is honoured. The C++ backend (`re.cpp`,
+      `regex.cpp`, `native_regex.hpp`) is gone; a 98-case differential harness
+      proved the pre-existing surface byte-identical.
 - [ ] **L8 — `sound`.** Split static load from streaming load; do not report a
       finished one-shot as playing; cache the decoded length instead of
       re-decoding on every call (`lynxer/rust/sound/src/lib.rs`).
@@ -82,9 +86,12 @@ before the module-specific items.
 - [ ] **L10 — `sqldb`.** Add connection handles (`open`/`close`/reuse) instead of
       opening per call, and raise errors once exceptions exist rather than
       returning in-band `"ERROR: …"` (`lynxer/rust/sqldb/src/lib.rs`).
-- [ ] **L11 — `js` / `multiprocessing`.** Apply subprocess timeouts, capture
-      `stderr`, and use real processes (not worker threads) for
-      `multiprocessing` (`lynxer/stdlib/js.cpp`, `multiprocessing.cpp`).
+- [x] ~~**L11 — `js` / `multiprocessing`.**~~ **Delivered:** both apply a
+      configurable subprocess timeout (`LYNXER_JS_TIMEOUT` default 30,
+      `LYNXER_MP_TIMEOUT` default 300) and capture `stderr` into the result
+      instead of inheriting it. Commands already run as real processes (a
+      `popen` shell per worker); the threads are only the pool. Covered by the
+      `stdlib_js` and `stdlib_multiprocessing` fixtures.
 - [ ] **L12 — `text`/`typing` Unicode semantics** (depends on L1). Make
       `returnLength`, `charAt`, `substring` and the `charCode`/`charOf` builtins
       code-point aware instead of byte-oriented (`lynxer/runtime.cpp`,

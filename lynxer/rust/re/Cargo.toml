@@ -1,0 +1,14 @@
+[package]
+name = "lynxer_re"
+version = "0.1.0"
+edition = "2021"
+description = "Python-flavoured regular expressions for the Lynxer `re` stdlib module"
+publish = false
+
+[lib]
+name = "lynxer_re"
+crate-type = ["cdylib"]
+
+[dependencies]
+lynxer_abi = { path = "../abi" }
+lynxer_regex_engine = { path = "../regex_engine" }

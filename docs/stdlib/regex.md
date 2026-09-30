@@ -2,17 +2,17 @@
 
 Extended regular-expression helpers with a named compiled-pattern cache.
 
-**Backend:** native — `stdlib/regex.so`, built from `stdlib/regex.cpp` and
-`stdlib/native_regex.hpp`. **Import:** `import("regex")` → `global.regex.*`
+**Backend:** Rust — `stdlib/regex.so`, built from `rust/regex` over the shared
+`rust/regex_engine` (`fancy-regex`). **Import:** `import("regex")` →
+`global.regex.*`
 
-Compiled patterns live in a module-local cache keyed by name. This module
-mirrors the `re`-fallback path: the third-party `regex`
-package is not available, so `findLetters`/`findDigits` are ASCII and
-`findallOverlapping` is emulated.
+Compiled patterns live in a module-local cache keyed by name, and `cacheKeys`
+reports the names sorted. This module mirrors the `re`-fallback path:
+`findLetters`/`findDigits` are ASCII-only and `findallOverlapping` is emulated.
 
 | Function | Signature | Returns |
 | --- | --- | --- |
-| `compile` | `(str name, str pattern, str flags)` | Compiles and caches a pattern; flags are any of `I`, `M`, `S` (`X` is ignored) |
+| `compile` | `(str name, str pattern, str flags)` | Compiles and caches a pattern; flags are any of `I`, `M`, `S`, `X` (verbose) |
 | `testCompiled` | `(str name, str string)` | `1` or `0` |
 | `matchCompiled` | `(str name, str string)` | First match, or `""` |
 | `findallCompiled` | `(str name, str string)` | JSON array of matches |
@@ -37,7 +37,7 @@ package is not available, so `findLetters`/`findDigits` are ASCII and
 | `firstMatchPos` | `(str pattern, str string)` | Start index of the first match, or `-1` |
 | `truncateMatch` | `(str pattern, str string, int maxLen)` | `maxLen`-character window centred on the first match |
 
-Pattern syntax limits are the same as [re](re.md).
+Pattern syntax is the same engine as [re](re.md).
 
 ## Example
 

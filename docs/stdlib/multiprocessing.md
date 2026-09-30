@@ -8,8 +8,10 @@ reads the results back into Lynxer lists.
 **Import:** `import("multiprocessing")` → `global.multiprocessing.*`
 
 Commands run in worker threads, each spawning its own shell subprocess. Results
-are always returned in input order, whatever order they finish in. No timeout is
-applied.
+are always returned in input order, whatever order they finish in. A command's
+`stderr` is captured into its output, and a command that outlives the timeout
+(`LYNXER_MP_TIMEOUT` seconds, default `300`, `0` for no limit) is killed and
+reports exit code `124`.
 
 | Function | Signature | Returns |
 | --- | --- | --- |

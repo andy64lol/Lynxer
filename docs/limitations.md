@@ -26,18 +26,20 @@ Retained removals: Python-runtime features with no place in a standalone runtime
 
 The first-class `bytes` type (**L1**), the `bytes` ABI channel and buffered
 packed form (**L2**), the `math` migration off the tab-separated bridge
-(**L3**), the `compress`/`crypto`/`encoding`/`uuid` migrations (**L1b**), and the
-macOS `.dylib` recognition (**L2c**) are delivered. **L2d** (multiple live string
-results) was closed as not needed — no module returns more than one string per
-call. The remaining constraints each have a resolution plan in
-[todo.md](../todo.md) under *Resolving documented limitations*:
+(**L3**), the `compress`/`crypto`/`encoding`/`uuid` migrations (**L1b**), the
+macOS `.dylib` recognition (**L2c**), the `re`/`regex` rewrite onto a Rust
+`fancy-regex` engine (**L7**) and the `js`/`multiprocessing` subprocess timeouts
+(**L11**) are delivered. **L2d** (multiple live string results) was closed as not
+needed — no module returns more than one string per call. The remaining
+constraints each have a resolution plan in [todo.md](../todo.md) under
+*Resolving documented limitations*:
 
 | Area | Plan |
 | --- | --- |
 | `tkinter` / `tkinterPlus` (a native OS-widget GUI module) | **L16** |
 | `turtle` (reimplement on `graphics`) | **L17** |
 | `http` / `net` (keep superseded by `network` + `server`, or add a shim) | **L18** |
-| Module constraints — `graphics`, `game`, `server`, `re`/`regex`, `sound`, `watch`, `sqldb`, `js`, `multiprocessing`, `text`/`typing`, `tui`, `os`/`path`/`sys` | **L4**–**L14** |
+| Module constraints — `graphics`, `game`, `server`, `sound`, `watch`, `sqldb`, `text`/`typing`, `tui`, `os`/`path`/`sys` | **L4**–**L6**, **L8**–**L10**, **L12**–**L14** |
 | `nativeThread*` / `async*` true parallelism and coroutine `await` | **L15** |
 
 ## Native Module ABI
@@ -298,14 +300,28 @@ Makefile checks for `cargo` up front and says so.
 
 ### `re` and `regex` — Constrained Behavior
 
-Both modules use `std::regex` with the ECMAScript grammar, which is narrower than full PCRE:
+Both modules run a Rust `fancy-regex` engine (`rust/regex_engine`, shared by
+`rust/re` and `rust/regex`) — a superset of ECMAScript that adds the PCRE
+constructs `std::regex` lacked. No system regex library is involved.
 
-- **Unsupported features:** Lookbehind `(?<=...)`/`(?<!...)`, atomic groups `(?>...)`, and Unicode property escapes (`\p{L}`) are not supported and return error results.
-- **Named captures:** `(?P<name>...)` is translated to a plain capturing group with the name recorded, enabling `named`/`extract`/`extractAll`. `(?P=name)` becomes a numeric backreference.
-- **Inline flags:** `(?i)`, `(?m)`, and `(?s)` are applied to the entire pattern, not from their position. `(?x)` verbose mode is ignored.
-- **Error handling:** Invalid or unsupported patterns return sentinel results (predicates `false`, strings `""`, index helpers `-1`) instead of raising errors.
-- **ASCII-only matching:** `findLetters`/`findDigits` match ASCII letter and digit runs only.
-- **Multi-group `findall`:** Returns arrays of groups when two or more capture groups are used.
+- **Supported syntax:** lookahead and lookbehind `(?<=...)`/`(?<!...)` including
+  variable-length lookbehind, atomic groups `(?>...)`, possessive quantifiers
+  (`a++`), backreferences (`\1` and `(?P=name)`), Unicode property escapes
+  (`\p{L}`, `\p{Greek}`), named groups `(?P<name>...)`/`(?<name>...)`, and
+  inline flags — which now apply from the position they appear — plus `(?x)`
+  verbose mode.
+- **Flags:** `I`, `M` and `S` set case-insensitivity, multiline and dotall;
+  `X` (alias `x`) enables verbose mode, which the C++ engine ignored.
+- **Error handling:** Invalid patterns — and a pattern that fails at match time,
+  such as an exhausted backtracking budget — return sentinel results
+  (predicates `false`, strings `""`, index helpers `-1`) instead of raising.
+- **Matching:** `\d`/`\w` are Unicode-aware, as in PCRE, while `findLetters`/
+  `findDigits` keep matching ASCII letter and digit runs only. Offsets reported
+  by `matchStart`/`matchEnd`/`findSpans` are byte offsets.
+- **Multi-group `findall`:** Returns arrays of groups when two or more capture
+  groups are used.
+- **Replacement groups:** An undefined group *name* is left as the literal
+  `$name`, and an undefined group *number* expands to nothing.
 
 ### `csv` — Constrained Behavior
 
@@ -355,14 +371,14 @@ Both modules use `std::regex` with the ECMAScript grammar, which is narrower tha
 ### `multiprocessing` — Constrained Behavior
 
 - **Process handling:** Commands run in worker threads, each spawning its own shell subprocess. `runParallelProcess` is an alias for `runParallel`.
-- **Timeout:** No timeout is applied to subprocess execution.
+- **Timeout and stderr:** A command is killed after `LYNXER_MP_TIMEOUT` seconds (default `300`, `0` for no limit) and reports exit code `124`; its `stderr` is captured into the output.
 - **Resource management:** Results are collected through a native handle, which must be released. The wrappers handle this automatically.
 
 ### `js` — Constrained Behavior
 
 - **Dependency:** Requires `node` to be on `PATH`.
-- **Timeout:** No timeout is applied to JavaScript execution.
-- **Error handling:** `stderr` is inherited rather than captured.
+- **Timeout:** A program is killed after `LYNXER_JS_TIMEOUT` seconds (default `30`) and answers an explanatory error.
+- **Error handling:** `stderr` is captured into the result rather than inherited.
 
 ### `debug` — Constrained Behavior
 

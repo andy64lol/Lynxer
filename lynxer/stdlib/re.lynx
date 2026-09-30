@@ -1,11 +1,13 @@
 ////
 Lynxer standard library: re.
-Regular expression helpers backed by the native C++ module `stdlib/re.so`.
+Regular expression helpers backed by the Rust module `stdlib/re.so` (`rust/re`
+over the shared `rust/regex_engine`, built on `fancy-regex`).
 
-Patterns use Python syntax where the underlying engine supports it. Named
-groups `(?P<name>...)` are translated; lookbehind, atomic groups and `\p{...}`
-Unicode property escapes are not supported and yield sentinel results
-(false / "" / -1).
+Patterns use Python syntax. The engine is a superset of ECMAScript: lookbehind
+(including variable length), atomic groups, possessive quantifiers,
+backreferences, `\p{...}` property escapes, inline flags at any position and
+`(?x)` verbose mode all work. An invalid pattern yields sentinel results
+(false / "" / -1) rather than raising.
 ////
 global setup(){ importAs("re.so", "nativeRe"); }
 

@@ -229,7 +229,11 @@ class Backend:
 RUST_OPS_ENTRY = re.compile(
     r'\(\s*"([^"]+)"\s*,\s*"([^"]+)"\s*,\s*"cdecl:([A-Za-z0-9]+)\(([^)]*)\)"\s*,?\s*\)'
 )
-RUST_EXPORT = re.compile(r"export_(int|float|string)!\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*,\s*args\s*,\s*\{")
+# Every op macro expands to the packed prototype, including the buffered
+# variants the `bytes` channel added.
+RUST_EXPORT = re.compile(
+    r"export_(int|float|string|bytes)(?:_buffers)?!\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*,\s*args\s*,\s*\{"
+)
 ARG_READ = re.compile(r"args\.([A-Za-z_][A-Za-z0-9_]*)\(\s*(\d+)\s*\)")
 # The registration callback is spelled differently per module (`function`, `f`,
 # ...), so match the call shape rather than the callback's name.

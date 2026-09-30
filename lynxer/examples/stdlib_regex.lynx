@@ -31,6 +31,12 @@ global main(){
     println(global.regex.firstMatchPos("\\d+", "ab12"));
     println(global.regex.truncateMatch("\\d+", "abcdef123456ghij", 7));
     println(global.regex.countWords("the quick brown fox"));
+    // The engine now runs what std::regex could not, and the X flag is honoured.
+    global.regex.compile("after", "(?<==)\\d+", "");
+    println(global.regex.findallCompiled("after", "a=1 b=22"));
+    global.regex.compile("verbose", "a  b", "X");
+    println(global.regex.testCompiled("verbose", "ab"));
+    println(global.regex.extract("(?<year>\\d{4})-(?<month>\\d{2})", "2026-09"));
     global.regex.clearCache();
     println(global.regex.cacheKeys());
 }

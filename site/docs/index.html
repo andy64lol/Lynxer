@@ -251,8 +251,8 @@ lynxer/lynxer --list-stdlibs</code></pre>
 <tr><td><a href="stdlib/os.html">os</a></td><td>native</td><td><code>&lt;filesystem&gt;</code>, POSIX</td></tr>
 <tr><td><a href="stdlib/path.html">path</a></td><td>native</td><td><code>&lt;filesystem&gt;</code>, POSIX <code>stat</code></td></tr>
 <tr><td><a href="stdlib/random.html">random</a></td><td>native</td><td>seeded linear congruential generator in C++</td></tr>
-<tr><td><a href="stdlib/re.html">re</a></td><td>native</td><td><code>std::regex</code></td></tr>
-<tr><td><a href="stdlib/regex.html">regex</a></td><td>native</td><td><code>std::regex</code> with a named-pattern cache</td></tr>
+<tr><td><a href="stdlib/re.html">re</a></td><td>Rust</td><td><code>fancy-regex</code> (<code>rust/re</code>)</td></tr>
+<tr><td><a href="stdlib/regex.html">regex</a></td><td>Rust</td><td><code>fancy-regex</code> with a named-pattern cache (<code>rust/regex</code>)</td></tr>
 <tr><td><a href="stdlib/server.html">server</a></td><td>Rust</td><td><code>axum</code> + <code>tokio</code></td></tr>
 <tr><td><a href="stdlib/shell.html">shell</a></td><td>native</td><td><code>popen</code>, <code>std::system</code></td></tr>
 <tr><td><a href="stdlib/sound.html">sound</a></td><td>Rust</td><td><code>rodio</code> + <code>cpal</code> + <code>symphonia</code></td></tr>
@@ -268,7 +268,7 @@ lynxer/lynxer --list-stdlibs</code></pre>
 <tr><td><a href="stdlib/xml.html">xml</a></td><td>Rust</td><td><code>quick-xml</code> (<code>rust/xml</code>)</td></tr>
 <tr><td><a href="stdlib/yaml.html">yaml</a></td><td>Rust</td><td><code>serde_yml</code> (<code>rust/yaml</code>)</td></tr>
 </table>
-<p>The Rust workspace has twenty-one member crates: the nineteen module <code>cdylib</code> backends listed above (<code>LYNXER_RUST_MODULE_NAMES</code> in the Makefile), the <code>abi</code> crate they share, and <code>ffi</code>, the required native-call engine — a <code>staticlib</code> linked into the interpreter through <code>lynxer/ffi_abi.h</code>, not a stdlib module. It is built on the <code>libffi</code> crate, so <code>cargo</code> and <code>libffi</code> headers are required to build the interpreter; see <a href="native-module-abi.html#the-native-call-engine">native-module-abi</a>. There is no CMake staging step and no <code>third_party/</code> directory: TLS is <code>rustls</code> (no system OpenSSL) and the HTTP/WebSocket stack is pure Rust.</p>
+<p>The Rust workspace has twenty-four member crates: the twenty-one module <code>cdylib</code> backends listed above (<code>LYNXER_RUST_MODULE_NAMES</code> in the Makefile), the two crates they share (<code>abi</code>, and <code>regex_engine</code>, the <code>fancy-regex</code> engine behind <code>re</code>/<code>regex</code>), and <code>ffi</code>, the required native-call engine — a <code>staticlib</code> linked into the interpreter through <code>lynxer/ffi_abi.h</code>, not a stdlib module. It is built on the <code>libffi</code> crate, so <code>cargo</code> and <code>libffi</code> headers are required to build the interpreter; see <a href="native-module-abi.html#the-native-call-engine">native-module-abi</a>. There is no CMake staging step and no <code>third_party/</code> directory: TLS is <code>rustls</code> (no system OpenSSL) and the HTTP/WebSocket stack is pure Rust.</p>
 <p><code>venv</code> and the OS-native GUI/turtle modules are intentionally excluded — see <a href="limitations.html">limitations</a>. The <a href="stdlib/graphics.html">graphics</a> module covers the immediate-mode drawing/window/UI space with macroquad.</p>
 <h2 id="compiling-a-program">Compiling a program</h2>
 <p><code>--compile</code> (alias <code>--bundle</code>) produces one standalone ELF executable that embeds the program, every transitively imported <code>.lynx</code> source and <code>.so</code> library, plus anything added with <code>--include</code>:</p>

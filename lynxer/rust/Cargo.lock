@@ -816,6 +816,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "fancy-regex"
+version = "0.19.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d301f5bf187b3c295fce6468d3875037a0bccc5f6b151c63cac2f85babf21912"
+dependencies = [
+ "bit-set",
+ "regex-automata",
+ "regex-syntax",
+]
+
+[[package]]
 name = "fax"
 version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1715,6 +1726,29 @@ dependencies = [
  "tungstenite 0.30.0",
  "ureq",
  "url",
+]
+
+[[package]]
+name = "lynxer_re"
+version = "0.1.0"
+dependencies = [
+ "lynxer_abi",
+ "lynxer_regex_engine",
+]
+
+[[package]]
+name = "lynxer_regex"
+version = "0.1.0"
+dependencies = [
+ "lynxer_abi",
+ "lynxer_regex_engine",
+]
+
+[[package]]
+name = "lynxer_regex_engine"
+version = "0.1.0"
+dependencies = [
+ "fancy-regex 0.19.2",
 ]
 
 [[package]]
@@ -3150,7 +3184,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "656b45c05d95a5704399aeef6bd0ddec7b2b3531b7c9e900abbf7c4d2190c925"
 dependencies = [
  "bincode",
- "fancy-regex",
+ "fancy-regex 0.16.2",
  "flate2",
  "fnv",
  "once_cell",

@@ -168,11 +168,11 @@
         </div>
 <h1 id="regex">regex</h1>
 <p>Extended regular-expression helpers with a named compiled-pattern cache.</p>
-<p><strong>Backend:</strong> native — <code>stdlib/regex.so</code>, built from <code>stdlib/regex.cpp</code> and <code>stdlib/native_regex.hpp</code>. <strong>Import:</strong> <code>import(&quot;regex&quot;)</code> → <code>global.regex.*</code></p>
-<p>Compiled patterns live in a module-local cache keyed by name. This module mirrors the <code>re</code>-fallback path: the third-party <code>regex</code> package is not available, so <code>findLetters</code>/<code>findDigits</code> are ASCII and <code>findallOverlapping</code> is emulated.</p>
+<p><strong>Backend:</strong> Rust — <code>stdlib/regex.so</code>, built from <code>rust/regex</code> over the shared <code>rust/regex_engine</code> (<code>fancy-regex</code>). <strong>Import:</strong> <code>import(&quot;regex&quot;)</code> → <code>global.regex.*</code></p>
+<p>Compiled patterns live in a module-local cache keyed by name, and <code>cacheKeys</code> reports the names sorted. This module mirrors the <code>re</code>-fallback path: <code>findLetters</code>/<code>findDigits</code> are ASCII-only and <code>findallOverlapping</code> is emulated.</p>
 <table>
 <tr><th>Function</th><th>Signature</th><th>Returns</th></tr>
-<tr><td><code>compile</code></td><td><code>(str name, str pattern, str flags)</code></td><td>Compiles and caches a pattern; flags are any of <code>I</code>, <code>M</code>, <code>S</code> (<code>X</code> is ignored)</td></tr>
+<tr><td><code>compile</code></td><td><code>(str name, str pattern, str flags)</code></td><td>Compiles and caches a pattern; flags are any of <code>I</code>, <code>M</code>, <code>S</code>, <code>X</code> (verbose)</td></tr>
 <tr><td><code>testCompiled</code></td><td><code>(str name, str string)</code></td><td><code>1</code> or <code>0</code></td></tr>
 <tr><td><code>matchCompiled</code></td><td><code>(str name, str string)</code></td><td>First match, or <code>&quot;&quot;</code></td></tr>
 <tr><td><code>findallCompiled</code></td><td><code>(str name, str string)</code></td><td>JSON array of matches</td></tr>
@@ -197,7 +197,7 @@
 <tr><td><code>firstMatchPos</code></td><td><code>(str pattern, str string)</code></td><td>Start index of the first match, or <code>-1</code></td></tr>
 <tr><td><code>truncateMatch</code></td><td><code>(str pattern, str string, int maxLen)</code></td><td><code>maxLen</code>-character window centred on the first match</td></tr>
 </table>
-<p>Pattern syntax limits are the same as <a href="re.html">re</a>.</p>
+<p>Pattern syntax is the same engine as <a href="re.html">re</a>.</p>
 <h2 id="example">Example</h2>
 <pre><code>global setup(){ import(&quot;regex&quot;); }
 

@@ -22,7 +22,7 @@ LYNXER_RUST_MANIFEST := $(LYNXER_RUST_DIR)/Cargo.toml
 LYNXER_RUST_SOURCES := $(wildcard $(LYNXER_RUST_DIR)/*/src/*.rs) \
                         $(wildcard $(LYNXER_RUST_DIR)/*/Cargo.toml) \
                         $(LYNXER_RUST_MANIFEST) $(LYNXER_RUST_DIR)/Cargo.lock
-LYNXER_RUST_MODULE_NAMES := encoding crypto compress game graphics image ini json lua network server sound sqldb toml tui uuid watch xml yaml
+LYNXER_RUST_MODULE_NAMES := encoding crypto compress game graphics image ini json lua network re regex server sound sqldb toml tui uuid watch xml yaml
 LYNXER_RUST_MODULES := $(LYNXER_RUST_MODULE_NAMES:%=$(LYNXER_DIR)/stdlib/%.so)
 
 # The native-call engine is not a stdlib module: it is a Rust staticlib linked
@@ -30,8 +30,8 @@ LYNXER_RUST_MODULES := $(LYNXER_RUST_MODULE_NAMES:%=$(LYNXER_DIR)/stdlib/%.so)
 LYNXER_FFI_ABI_HEADER := $(LYNXER_DIR)/ffi_abi.h
 LYNXER_FFI_STATICLIB := $(LYNXER_RUST_TARGET_DIR)/release/liblynxer_ffi.a
 
-# The Rust toolchain is required, not optional: all ten Rust backends are built
-# by cargo, and the interpreter links the Rust native-call engine. A missing
+# The Rust toolchain is required, not optional: every Rust backend is built by
+# cargo, and the interpreter links the Rust native-call engine. A missing
 # toolchain or a failed `cargo build` is a hard error -- Lynxer always builds
 # complete, never a subset of itself.
 LYNXER_CARGO ?= cargo

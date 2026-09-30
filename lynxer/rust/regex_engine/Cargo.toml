@@ -1,0 +1,17 @@
+[package]
+name = "lynxer_regex_engine"
+version = "0.1.0"
+edition = "2021"
+description = "Shared regular-expression engine for the Lynxer `re` and `regex` stdlib modules (fancy-regex, PCRE-compatible)"
+publish = false
+
+[lib]
+name = "lynxer_regex_engine"
+crate-type = ["rlib"]
+
+[dependencies]
+# `fancy-regex` is a superset of `regex`: it adds lookaround (including
+# variable-length lookbehind), backreferences, atomic groups and possessive
+# quantifiers, all implemented in Rust. This replaces the std::regex
+# (ECMAScript) engine the C++ backends used, and needs no system library.
+fancy-regex = "0.19"

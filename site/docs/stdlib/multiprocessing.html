@@ -169,7 +169,7 @@
 <h1 id="multiprocessing">multiprocessing</h1>
 <p>Run shell commands in parallel.</p>
 <p><strong>Backend:</strong> native + pure — <code>stdlib/multiprocessing.so</code> (<code>stdlib/multiprocessing.cpp</code>) runs the commands; <code>stdlib/multiprocessing.lynx</code> reads the results back into Lynxer lists. <strong>Import:</strong> <code>import(&quot;multiprocessing&quot;)</code> → <code>global.multiprocessing.*</code></p>
-<p>Commands run in worker threads, each spawning its own shell subprocess. Results are always returned in input order, whatever order they finish in. No timeout is applied.</p>
+<p>Commands run in worker threads, each spawning its own shell subprocess. Results are always returned in input order, whatever order they finish in. A command's <code>stderr</code> is captured into its output, and a command that outlives the timeout (<code>LYNXER_MP_TIMEOUT</code> seconds, default <code>300</code>, <code>0</code> for no limit) is killed and reports exit code <code>124</code>.</p>
 <table>
 <tr><th>Function</th><th>Signature</th><th>Returns</th></tr>
 <tr><td><code>workerCount</code></td><td><code>() -&gt; int</code></td><td>Number of online CPUs, at least <code>1</code></td></tr>

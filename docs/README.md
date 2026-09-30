@@ -117,8 +117,8 @@ only and need no shared library.
 | [os](stdlib/os.md) | native | `<filesystem>`, POSIX |
 | [path](stdlib/path.md) | native | `<filesystem>`, POSIX `stat` |
 | [random](stdlib/random.md) | native | seeded linear congruential generator in C++ |
-| [re](stdlib/re.md) | native | `std::regex` |
-| [regex](stdlib/regex.md) | native | `std::regex` with a named-pattern cache |
+| [re](stdlib/re.md) | Rust | `fancy-regex` (`rust/re`) |
+| [regex](stdlib/regex.md) | Rust | `fancy-regex` with a named-pattern cache (`rust/regex`) |
 | [server](stdlib/server.md) | Rust | `axum` + `tokio` |
 | [shell](stdlib/shell.md) | native | `popen`, `std::system` |
 | [sound](stdlib/sound.md) | Rust | `rodio` + `cpal` + `symphonia` |
@@ -134,9 +134,10 @@ only and need no shared library.
 | [xml](stdlib/xml.md) | Rust | `quick-xml` (`rust/xml`) |
 | [yaml](stdlib/yaml.md) | Rust | `serde_yml` (`rust/yaml`) |
 
-The Rust workspace has twenty-one member crates: the nineteen module `cdylib`
-backends listed above (`LYNXER_RUST_MODULE_NAMES` in the Makefile), the `abi`
-crate they share, and `ffi`, the required native-call engine — a `staticlib` linked into the interpreter through
+The Rust workspace has twenty-four member crates: the twenty-one module `cdylib`
+backends listed above (`LYNXER_RUST_MODULE_NAMES` in the Makefile), the two
+crates they share (`abi`, and `regex_engine`, the `fancy-regex` engine behind
+`re`/`regex`), and `ffi`, the required native-call engine — a `staticlib` linked into the interpreter through
 `lynxer/ffi_abi.h`, not a stdlib module. It is built on the `libffi` crate, so
 `cargo` and `libffi` headers are required to build the interpreter; see
 [native-module-abi.md](native-module-abi.md#the-native-call-engine). There is no

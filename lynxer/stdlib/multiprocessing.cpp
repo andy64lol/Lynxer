@@ -10,6 +10,7 @@
 #include <array>
 #include <atomic>
 #include <cstdint>
+#include <cstdlib>
 #include <map>
 #include <mutex>
 #include <string>
@@ -53,11 +54,39 @@ static std::mutex& jobsMutex() {
     return instance;
 }
 
+// How long one command may run. `LYNXER_MP_TIMEOUT` (seconds) overrides the
+// 300-second default; 0 means no limit.
+static int commandTimeoutSeconds() {
+    const char* configured = std::getenv("LYNXER_MP_TIMEOUT");
+    if (configured != nullptr && *configured != '\0') {
+        char* end = nullptr;
+        const long parsed = std::strtol(configured, &end, 10);
+        if (end != configured && parsed >= 0) {
+            return static_cast<int>(parsed);
+        }
+    }
+    return 300;
+}
+
+// Runs `command` under a POSIX shell that kills it after the configured limit,
+// capturing stdout and stderr together so neither leaks to the caller. A timed
+// out command reports exit code 124.
 static std::string captureCommand(const std::string& command,
                                   std::int64_t& exitCode) {
+    const int seconds = commandTimeoutSeconds();
+    std::string script;
+    if (seconds > 0) {
+        script = "{ " + command + "; } 2>&1 & worker=$!; "
+                 "( sleep " + std::to_string(seconds) +
+                 "; kill -9 \"$worker\" 2>/dev/null ) >/dev/null 2>&1 & guard=$!; "
+                 "wait \"$worker\"; status=$?; kill \"$guard\" 2>/dev/null; "
+                 "wait \"$guard\" 2>/dev/null; exit $status";
+    } else {
+        script = "{ " + command + "; } 2>&1";
+    }
     std::string output;
     std::array<char, 512> buffer {};
-    FILE* pipe = ::popen(command.c_str(), "r");
+    FILE* pipe = ::popen(script.c_str(), "r");
     if (pipe == nullptr) {
         exitCode = -1;
         return output;
@@ -70,7 +99,9 @@ static std::string captureCommand(const std::string& command,
     if (raw == -1) {
         exitCode = -1;
     } else if (WIFEXITED(raw)) {
-        exitCode = WEXITSTATUS(raw);
+        const int code = WEXITSTATUS(raw);
+        // 137 is SIGKILL from the timeout guard; report the conventional 124.
+        exitCode = code == 137 ? 124 : code;
     } else {
         exitCode = -1;
     }

@@ -6,8 +6,11 @@ Run JavaScript through a Node.js subprocess.
 **Import:** `import("js")` → `global.js.*`
 
 Requires `node` on `PATH`; when it is missing, every runner returns
-`"Error: node not found on PATH"`. No timeout is applied, and `stderr` is
-inherited rather than captured.
+`"Error: node not found on PATH"`. A program is killed after a timeout
+(`LYNXER_JS_TIMEOUT` seconds, default `30`) and answers
+`"Error: node timed out after <n>s"`; a program's `stderr` is captured into the
+result rather than inherited. A non-zero exit with no output reports
+`"Error: node exited with status <n>"`.
 
 | Function | Signature | Notes |
 | --- | --- | --- |
