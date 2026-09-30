@@ -36,8 +36,6 @@ global main(){
     global.tui.printAligned("mid", "right", true);
     global.tui.printPadded("pad", 1, 2, 1, 2);
     try { raise("fixture exception"); } catch(str error) {
-        println(error);
-        println(exceptionInfo());
         global.tui.printException();
     }
     global.tui.installTraceback(true);

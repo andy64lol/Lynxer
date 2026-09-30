@@ -40,7 +40,9 @@ a    bb   ccc
 
   pad
 
-(no exception information available)
+Traceback (most recent call last):
+  File "<program>", line 38, column 11
+fixture exception
 [2J[1;1H40
 logged
 ok

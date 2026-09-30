@@ -70,12 +70,15 @@ pub struct PhysicsEngine {
 /// climbs a ramp but a player deep under a platform is not teleported.
 pub const GROUND_SNAP: f32 = 2.0;
 
-/// A loaded sound plus the module's own playback state. A finished one-shot is
-/// not detected, so `isSoundPlaying` reports what the module was last told.
+/// A loaded sound plus duration-based playback state. Macroquad does not expose
+/// playback position, so one-shots expire against a wall-clock deadline.
 pub struct SoundEntry {
     pub sound: Sound,
     pub volume: f32,
     pub playing: bool,
+    pub looping: bool,
+    pub started_at: Option<std::time::Instant>,
+    pub duration: Option<std::time::Duration>,
 }
 
 /// An animated sprite: the texture indices it cycles through, its rate and the
@@ -104,6 +107,8 @@ pub struct Sprite {
     pub color: Color,
     pub visible: bool,
     pub texture: i64,
+    /// Optional source rectangle for a tile cut from a texture atlas.
+    pub source: Option<macroquad::math::Rect>,
     pub solid: bool,
     pub flip_x: bool,
     pub flip_y: bool,
@@ -125,6 +130,7 @@ impl Sprite {
             color,
             visible: true,
             texture: -1,
+            source: None,
             solid: true,
             flip_x: false,
             flip_y: false,

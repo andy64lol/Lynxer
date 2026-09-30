@@ -89,7 +89,7 @@ global printAligned(str text, str align, bool pad) { global.nativeTui.printAlign
 global printPadded(str text, int top, int right, int bottom, int left) { global.nativeTui.printPadded(text, top, right, bottom, left); }
 
 global printException() {
-    global.nativeTui.printException(exceptionInfo());
+    global.nativeTui.printException(global.exceptionInfo());
 }
 global installTraceback(bool showLocals) { global.nativeTui.installTraceback(showLocals); }
 

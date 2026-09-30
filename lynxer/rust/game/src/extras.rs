@@ -11,6 +11,11 @@ use lynxer_abi::{export_float, export_int};
 use macroquad::audio::{load_sound, play_sound, set_sound_volume, stop_sound, PlaySoundParams};
 use macroquad::color::WHITE;
 use macroquad::texture::get_screen_data;
+use rodio::{Decoder, Source};
+use std::fs::File;
+use std::io::BufReader;
+use std::path::Path;
+use std::time::{Duration, Instant};
 
 use crate::draw::draw_anchored_text;
 use crate::sprites::{draw_sprite, load_texture};
@@ -73,6 +78,13 @@ struct TmxLayer {
 struct Tmx {
     tile_width: f32,
     tile_height: f32,
+    first_gid: i64,
+    columns: i64,
+    margin: f32,
+    spacing: f32,
+    image_source: Option<String>,
+    image_width: Option<f32>,
+    image_height: Option<f32>,
     layers: Vec<TmxLayer>,
 }
 
@@ -85,6 +97,46 @@ fn parse_tilemap(text: &str) -> Option<Tmx> {
     let tileset = &text[tileset_start..tileset_end];
     let tile_width: f32 = attribute(tileset, "tilewidth")?.parse().ok()?;
     let tile_height: f32 = attribute(tileset, "tileheight")?.parse().ok()?;
+    if tile_width <= 0.0 || tile_height <= 0.0 {
+        return None;
+    }
+    let first_gid = attribute(tileset, "firstgid")
+        .and_then(|value| value.parse::<i64>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(1);
+    let columns = attribute(tileset, "columns")
+        .and_then(|value| value.parse::<i64>().ok())
+        .filter(|value| *value > 0)
+        .unwrap_or(0);
+    let margin = attribute(tileset, "margin")
+        .and_then(|value| value.parse::<f32>().ok())
+        .filter(|value| *value >= 0.0)
+        .unwrap_or(0.0);
+    let spacing = attribute(tileset, "spacing")
+        .and_then(|value| value.parse::<f32>().ok())
+        .filter(|value| *value >= 0.0)
+        .unwrap_or(0.0);
+    let tileset_content_start = tileset_end + 1;
+    let tileset_content_end = text[tileset_content_start..]
+        .find("</tileset>")
+        .map(|offset| tileset_content_start + offset)
+        .unwrap_or(text.len());
+    let image_tag = text[tileset_content_start..tileset_content_end]
+        .find("<image")
+        .and_then(|offset| {
+            let start = tileset_content_start + offset;
+            let end = text[start..].find('>')? + start;
+            Some(&text[start..end])
+        });
+    let image_source = image_tag.and_then(|tag| attribute(tag, "source"));
+    let image_width = image_tag
+        .and_then(|tag| attribute(tag, "width"))
+        .and_then(|value| value.parse::<f32>().ok())
+        .filter(|value| *value > 0.0);
+    let image_height = image_tag
+        .and_then(|tag| attribute(tag, "height"))
+        .and_then(|value| value.parse::<f32>().ok())
+        .filter(|value| *value > 0.0);
 
     let mut layers = Vec::new();
     let mut cursor = 0usize;
@@ -133,8 +185,62 @@ fn parse_tilemap(text: &str) -> Option<Tmx> {
     Some(Tmx {
         tile_width,
         tile_height,
+        first_gid,
+        columns,
+        margin,
+        spacing,
+        image_source,
+        image_width,
+        image_height,
         layers,
     })
+}
+
+/// Map a Tiled global tile ID to its source rectangle in the first tileset
+/// atlas. This is pure geometry and can be tested without a graphics context.
+fn tile_source_rect(
+    tmx: &Tmx,
+    gid: i64,
+    atlas_width: f32,
+    atlas_height: f32,
+) -> Option<macroquad::math::Rect> {
+    let tile_id = gid.checked_sub(tmx.first_gid)?;
+    if tile_id < 0 {
+        return None;
+    }
+    let atlas_width = if atlas_width > 0.0 {
+        atlas_width
+    } else {
+        tmx.image_width?
+    };
+    let atlas_height = if atlas_height > 0.0 {
+        atlas_height
+    } else {
+        tmx.image_height?
+    };
+    let columns = if tmx.columns > 0 {
+        tmx.columns
+    } else {
+        let step = tmx.tile_width + tmx.spacing;
+        if step <= 0.0 {
+            return None;
+        }
+        ((atlas_width - 2.0 * tmx.margin + tmx.spacing) / step).floor() as i64
+    };
+    if columns <= 0 {
+        return None;
+    }
+    let x = tmx.margin + (tile_id % columns) as f32 * (tmx.tile_width + tmx.spacing);
+    let y = tmx.margin + (tile_id / columns) as f32 * (tmx.tile_height + tmx.spacing);
+    if x + tmx.tile_width > atlas_width || y + tmx.tile_height > atlas_height {
+        return None;
+    }
+    Some(macroquad::math::Rect::new(
+        x,
+        y,
+        tmx.tile_width,
+        tmx.tile_height,
+    ))
 }
 
 // --- scenes -----------------------------------------------------------------
@@ -324,6 +430,36 @@ export_int!(lynxer_game_load_tilemap, args, {
     let Some(tilemap) = parse_tilemap(&text) else {
         return -1;
     };
+    let is_headless = headless();
+    let atlas = if is_headless {
+        None
+    } else {
+        tilemap.image_source.as_deref().and_then(|source| {
+            let map_path = Path::new(&path);
+            let base = map_path
+                .parent()
+                .filter(|parent| !parent.as_os_str().is_empty())
+                .unwrap_or_else(|| Path::new("."));
+            let image_path = base.join(source);
+            image_path.to_str().and_then(load_texture)
+        })
+    };
+    let (texture_index, atlas_width, atlas_height) = match atlas {
+        Some(texture) => {
+            let width = texture.width();
+            let height = texture.height();
+            let index = with(|state| {
+                state.textures.push(Some(texture));
+                (state.textures.len() - 1) as i64
+            });
+            (index, width, height)
+        }
+        None => (
+            -1,
+            tilemap.image_width.unwrap_or(0.0),
+            tilemap.image_height.unwrap_or(0.0),
+        ),
+    };
     with(|state| {
         let mut scene = Scene { lists: Vec::new() };
         // Tiled rows run top-down and the world is bottom-up, so a tile's row
@@ -340,16 +476,28 @@ export_int!(lynxer_game_load_tilemap, args, {
                 let row = position as i64 / row_width;
                 let x = (column as f32 + 0.5) * tilemap.tile_width * scaling;
                 let y = ((height_tiles - row - 1) as f32 + 0.5) * tilemap.tile_height * scaling;
-                // Tiles are solid blocks: the tileset image is not sliced, so
-                // the map carries geometry and collision rather than artwork.
                 let shade = 96 + ((*tile * 37) % 96) as i64;
-                let sprite = Sprite::solid(
+                let source = if texture_index >= 0 {
+                    tile_source_rect(&tilemap, *tile, atlas_width, atlas_height)
+                } else {
+                    None
+                };
+                let color = if source.is_some() {
+                    WHITE
+                } else {
+                    color_of_a(shade, shade, shade, 255)
+                };
+                let mut sprite = Sprite::solid(
                     x,
                     y,
                     tilemap.tile_width * scaling,
                     tilemap.tile_height * scaling,
-                    color_of_a(shade, shade, shade, 255),
+                    color,
                 );
+                if let Some(source) = source {
+                    sprite.texture = texture_index;
+                    sprite.source = Some(source);
+                }
                 state.sprites.push(Some(sprite));
                 list.push((state.sprites.len() - 1) as i64);
             }
@@ -711,17 +859,56 @@ export_int!(lynxer_game_update_animation, args, {
 
 // --- sound ------------------------------------------------------------------
 
+/// Probe media duration without opening an audio output device. Rodio's decoder
+/// uses Symphonia for the supported compressed formats, and falls back to
+/// counting decoded samples if the container has no duration metadata.
+fn probe_sound_duration(path: &str) -> Option<Duration> {
+    let file = File::open(Path::new(path)).ok()?;
+    let decoder = Decoder::new(BufReader::new(file)).ok()?;
+    if let Some(duration) = decoder.total_duration() {
+        return Some(duration);
+    }
+    let sample_rate = decoder.sample_rate() as u64;
+    let channels = decoder.channels() as u64;
+    if sample_rate == 0 || channels == 0 {
+        return None;
+    }
+    let sample_count = decoder.count() as u64;
+    Some(Duration::from_secs_f64(
+        sample_count as f64 / (sample_rate * channels) as f64,
+    ))
+}
+
+fn playback_finished(
+    started_at: Option<Instant>,
+    duration: Option<Duration>,
+    looping: bool,
+    now: Instant,
+) -> bool {
+    if looping {
+        return false;
+    }
+    match (started_at, duration) {
+        (Some(started_at), Some(duration)) => now.saturating_duration_since(started_at) >= duration,
+        _ => false,
+    }
+}
+
 export_int!(lynxer_game_load_sound, args, {
     let path = args.string(0).to_string();
     if with(|state| state.headless) {
         return -1;
     }
+    let duration = probe_sound_duration(&path);
     match block_on(load_sound(&path)) {
         Ok(sound) => with(|state| {
             state.sounds.push(Some(SoundEntry {
                 sound,
                 volume: 1.0,
                 playing: false,
+                looping: false,
+                started_at: None,
+                duration,
             }));
             (state.sounds.len() - 1) as i64
         }),
@@ -758,6 +945,8 @@ export_int!(lynxer_game_play_sound, args, {
             },
         );
         entry.playing = true;
+        entry.looping = false;
+        entry.started_at = Some(Instant::now());
     })
 });
 
@@ -771,6 +960,8 @@ export_int!(lynxer_game_loop_sound, args, {
             },
         );
         entry.playing = true;
+        entry.looping = true;
+        entry.started_at = None;
     })
 });
 
@@ -778,6 +969,8 @@ export_int!(lynxer_game_stop_sound, args, {
     update_sound(args.int(0), |entry| {
         stop_sound(&entry.sound);
         entry.playing = false;
+        entry.looping = false;
+        entry.started_at = None;
     })
 });
 
@@ -795,12 +988,26 @@ export_int!(lynxer_game_is_sound_playing, args, {
         return 0;
     }
     with(|state| {
-        state
+        match state
             .sounds
-            .get(index as usize)
-            .and_then(Option::as_ref)
-            .map(|entry| entry.playing as i64)
-            .unwrap_or(0)
+            .get_mut(index as usize)
+            .and_then(Option::as_mut)
+        {
+            Some(entry) => {
+                if entry.playing
+                    && playback_finished(
+                        entry.started_at,
+                        entry.duration,
+                        entry.looping,
+                        Instant::now(),
+                    )
+                {
+                    entry.playing = false;
+                }
+                entry.playing as i64
+            }
+            None => 0,
+        }
     })
 });
 
@@ -822,3 +1029,83 @@ export_int!(lynxer_game_screenshot, args, {
     get_screen_data().export_png(&path);
     0
 });
+
+#[cfg(test)]
+mod tests {
+    use super::{parse_tilemap, playback_finished, probe_sound_duration, tile_source_rect};
+    use std::fs;
+    use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn tilemap_atlas_coordinates_respect_first_gid_margin_and_spacing() {
+        let text = r#"<map><tileset firstgid="5" tilewidth="16" tileheight="8" columns="3" margin="1" spacing="2"><image source="tiles.png" width="55" height="21"/></tileset><layer name="ground" width="4" height="1"><data encoding="csv">5,6,7,8</data></layer></map>"#;
+        let tilemap = parse_tilemap(text).expect("valid inline tileset and layer");
+
+        let first = tile_source_rect(&tilemap, 5, 55.0, 21.0).unwrap();
+        assert_eq!((first.x, first.y, first.w, first.h), (1.0, 1.0, 16.0, 8.0));
+
+        let next_row = tile_source_rect(&tilemap, 8, 55.0, 21.0).unwrap();
+        assert_eq!(
+            (next_row.x, next_row.y, next_row.w, next_row.h),
+            (1.0, 11.0, 16.0, 8.0)
+        );
+        assert!(tile_source_rect(&tilemap, 4, 55.0, 21.0).is_none());
+        assert!(tile_source_rect(&tilemap, 11, 55.0, 21.0).is_none());
+    }
+
+    #[test]
+    fn one_shot_playback_expires_but_loops_do_not() {
+        let start = Instant::now();
+        let duration = Some(Duration::from_secs(2));
+        assert!(!playback_finished(
+            Some(start),
+            duration,
+            false,
+            start + Duration::from_secs(1)
+        ));
+        assert!(playback_finished(
+            Some(start),
+            duration,
+            false,
+            start + Duration::from_secs(2)
+        ));
+        assert!(!playback_finished(
+            Some(start),
+            duration,
+            true,
+            start + Duration::from_secs(10)
+        ));
+    }
+
+    #[test]
+    fn probes_wav_duration_without_an_audio_device() {
+        let sample_rate = 8_000u32;
+        let sample_frames = 1_600u32;
+        let data_bytes = sample_frames * 2;
+        let mut wav = Vec::with_capacity(44 + data_bytes as usize);
+        wav.extend_from_slice(b"RIFF");
+        wav.extend_from_slice(&(36 + data_bytes).to_le_bytes());
+        wav.extend_from_slice(b"WAVEfmt ");
+        wav.extend_from_slice(&16u32.to_le_bytes());
+        wav.extend_from_slice(&1u16.to_le_bytes());
+        wav.extend_from_slice(&1u16.to_le_bytes());
+        wav.extend_from_slice(&sample_rate.to_le_bytes());
+        wav.extend_from_slice(&(sample_rate * 2).to_le_bytes());
+        wav.extend_from_slice(&2u16.to_le_bytes());
+        wav.extend_from_slice(&16u16.to_le_bytes());
+        wav.extend_from_slice(b"data");
+        wav.extend_from_slice(&data_bytes.to_le_bytes());
+        wav.resize(44 + data_bytes as usize, 0);
+
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!("lynxer-game-{nonce}.wav"));
+        fs::write(&path, wav).unwrap();
+        let duration = probe_sound_duration(path.to_str().unwrap());
+        fs::remove_file(path).unwrap();
+
+        assert_eq!(duration, Some(Duration::from_millis(200)));
+    }
+}

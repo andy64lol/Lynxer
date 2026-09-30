@@ -11,7 +11,7 @@ false
 3
 ok
 ["t2", "users"]
-ERROR: no such table: missing_table
+query error: no such table: missing_table
 ok
 [{"name": "Cy"}, {"name": "Dee"}]
 ok
@@ -26,5 +26,5 @@ false
 1
 0
 false
-false
+handle error: unknown connection handle 1
 -1

@@ -8,46 +8,48 @@ global setup(){ importAs("sqldb.so", "nativeSqlDb"); }
 
 // Convert the backend's error result into a catchable Lynxer runtime error.
 global checkedResult(str result) -> str {
-    if(substring(result, 0, 7) == "ERROR: "){
-        raise(substring(result, 7, returnLength(result)));
+    if(returnLength(result) >= 7){
+        if(substring(result, 0, 7) is "ERROR: "){
+            global.raise(substring(result, 7, returnLength(result)));
+        }
     }
     return result;
 }
 
 // Execute one SQL statement and commit. Raises on database errors.
 global execute(str path, str sql) -> str {
-    return global.checkedResult(global.nativeSqlDb.execute(path, sql));
+    return checkedResult(global.nativeSqlDb.execute(path, sql));
 }
 
 // Execute one parameterized SQL statement. paramsJson must be a JSON array.
 global executeArgs(str path, str sql, str paramsJson) -> str {
-    return global.checkedResult(global.nativeSqlDb.executeArgs(path, sql, paramsJson));
+    return checkedResult(global.nativeSqlDb.executeArgs(path, sql, paramsJson));
 }
 
 // Execute multiple SQL statements and commit them as one transaction.
 // Returns "ok" or "ERROR: <message>".
 global script(str path, str sqlScript) -> str {
-    return global.checkedResult(global.nativeSqlDb.script(path, sqlScript));
+    return checkedResult(global.nativeSqlDb.script(path, sqlScript));
 }
 
 // Query rows and return a JSON array of objects.
 global query(str path, str sql) -> str {
-    return global.checkedResult(global.nativeSqlDb.query(path, sql));
+    return checkedResult(global.nativeSqlDb.query(path, sql));
 }
 
 // Parameterized form of query().
 global queryArgs(str path, str sql, str paramsJson) -> str {
-    return global.checkedResult(global.nativeSqlDb.queryArgs(path, sql, paramsJson));
+    return checkedResult(global.nativeSqlDb.queryArgs(path, sql, paramsJson));
 }
 
 // Return the first column of the first row as a string, or "" when absent.
 global scalar(str path, str sql) -> str {
-    return global.checkedResult(global.nativeSqlDb.scalar(path, sql));
+    return checkedResult(global.nativeSqlDb.scalar(path, sql));
 }
 
 // Parameterized form of scalar().
 global scalarArgs(str path, str sql, str paramsJson) -> str {
-    return global.checkedResult(global.nativeSqlDb.scalarArgs(path, sql, paramsJson));
+    return checkedResult(global.nativeSqlDb.scalarArgs(path, sql, paramsJson));
 }
 
 // Execute an insert/update and return SQLite's lastrowid as an integer.
@@ -63,7 +65,7 @@ global tableExists(str path, str tableName) -> bool {
 
 // Return table names as a JSON array.
 global tables(str path) -> str {
-    return global.checkedResult(global.nativeSqlDb.tables(path));
+    return checkedResult(global.nativeSqlDb.tables(path));
 }
 
 // --- Connection handles ----------------------------------------------------
@@ -81,37 +83,37 @@ global close(int handle) -> int { return global.nativeSqlDb.close(handle); }
 
 // execute() against an open connection.
 global executeOn(int handle, str sql) -> str {
-    return global.checkedResult(global.nativeSqlDb.executeOn(handle, sql));
+    return checkedResult(global.nativeSqlDb.executeOn(handle, sql));
 }
 
 // executeArgs() against an open connection.
 global executeArgsOn(int handle, str sql, str paramsJson) -> str {
-    return global.checkedResult(global.nativeSqlDb.executeArgsOn(handle, sql, paramsJson));
+    return checkedResult(global.nativeSqlDb.executeArgsOn(handle, sql, paramsJson));
 }
 
 // script() against an open connection.
 global scriptOn(int handle, str sqlScript) -> str {
-    return global.checkedResult(global.nativeSqlDb.scriptOn(handle, sqlScript));
+    return checkedResult(global.nativeSqlDb.scriptOn(handle, sqlScript));
 }
 
 // query() against an open connection.
 global queryOn(int handle, str sql) -> str {
-    return global.checkedResult(global.nativeSqlDb.queryOn(handle, sql));
+    return checkedResult(global.nativeSqlDb.queryOn(handle, sql));
 }
 
 // queryArgs() against an open connection.
 global queryArgsOn(int handle, str sql, str paramsJson) -> str {
-    return global.checkedResult(global.nativeSqlDb.queryArgsOn(handle, sql, paramsJson));
+    return checkedResult(global.nativeSqlDb.queryArgsOn(handle, sql, paramsJson));
 }
 
 // scalar() against an open connection.
 global scalarOn(int handle, str sql) -> str {
-    return global.checkedResult(global.nativeSqlDb.scalarOn(handle, sql));
+    return checkedResult(global.nativeSqlDb.scalarOn(handle, sql));
 }
 
 // scalarArgs() against an open connection.
 global scalarArgsOn(int handle, str sql, str paramsJson) -> str {
-    return global.checkedResult(global.nativeSqlDb.scalarArgsOn(handle, sql, paramsJson));
+    return checkedResult(global.nativeSqlDb.scalarArgsOn(handle, sql, paramsJson));
 }
 
 // lastInsertId() against an open connection.
@@ -126,5 +128,5 @@ global tableExistsOn(int handle, str tableName) -> bool {
 
 // tables() against an open connection.
 global tablesOn(int handle) -> str {
-    return global.checkedResult(global.nativeSqlDb.tablesOn(handle));
+    return checkedResult(global.nativeSqlDb.tablesOn(handle));
 }

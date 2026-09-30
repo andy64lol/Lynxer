@@ -14,5 +14,6 @@ crate-type = ["cdylib"]
 [dependencies]
 lynxer_abi = { path = "../abi" }
 macroquad = "0.4"
+rodio = "0.17"
 
 # The release profile lives in the workspace root (lynxer/rust/Cargo.toml).

@@ -42,6 +42,7 @@ pub(crate) fn draw_sprite(state: &State, index: i64) {
                     flip_x: sprite.flip_x,
                     flip_y: sprite.flip_y,
                     pivot: Some(vec2(width / 2.0, height / 2.0)),
+                    source: sprite.source,
                     ..Default::default()
                 },
             );
