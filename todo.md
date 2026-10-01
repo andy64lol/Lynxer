@@ -86,13 +86,15 @@ before the module-specific items.
       slope, and treats a third `makePhysicsEngine` list as one-way platforms.
       Covered by `stdlib_game` (walk into a wall, jump up through a platform,
       land on it, rest on a 30° ramp).
-- [ ] **L5b — `game` tilemap artwork and the one-shot sound flag.** Slicing the
-      tileset atlas needs a real texture, so it cannot be verified headless; and
-      a finished one-shot still reports as playing because `macroquad`'s `Sound`
-      exposes neither a playback position nor a duration — detecting it means
-      decoding durations with `symphonia` (as `sound` already does), which is
-      also unverifiable on a host with no audio device
-      (`lynxer/rust/game/src/extras.rs`, `Cargo.toml`).
+- [x] ~~**L5b — `game` tilemap artwork and the one-shot sound flag.**~~
+      **Delivered:** `loadTilemap` slices nonzero GIDs from the first tileset's
+      atlas, honoring `firstgid`, `margin` and `spacing`; the image path is
+      relative to the TMX file. Headless mode or an unavailable atlas falls back
+      to shaded tiles. `isSoundPlaying` now clears one-shots after the decoded
+      duration when available; loops remain active until stopped. If duration
+      probing fails, playback state remains active until `stopSound`. Three
+      headless unit tests cover atlas coordinates, one-shot/loop state and WAV
+      duration probing. Real rendering and audio playback still require devices.
 - [x] ~~**L6 — `server` TLS.**~~ **Partly delivered:** `runHTTPS(cert, key)` and
       `runSSLAdhoc()` start a real HTTPS listener on the `init` host/port, built
       on `axum-server` + `rustls` with the **`ring`** provider (already in the
@@ -115,8 +117,8 @@ before the module-specific items.
       the most recent request, because a Lynxer route is a fixed string, not a
       callback, and the interpreter evaluates one frame at a time — making
       *those* readers per-request needs route callbacks that run during the
-      request (a larger change to the server/interpreter boundary, tracked as
-      part of **L15**'s runtime work).
+      request. That is a separate server/interpreter feature, not part of
+      **L15**'s deliberately retained single-evaluation concurrency model.
 - [x] ~~**L7 — `re`/`regex` engine.**~~ **Delivered:** both modules were rewritten
       as Rust `cdylib`s (`rust/re`, `rust/regex`) over a shared `rust/regex_engine`
       built on `fancy-regex` — Rust and cargo, no system PCRE. Lookbehind
@@ -206,10 +208,13 @@ before the module-specific items.
 
 **Runtime and concurrency**
 
-- [ ] **L15 — `nativeThread*`/`async*`.** Move past the single recursive-mutex
-      GIL to true parallelism (per-environment locking or a scheduler) and/or a
-      genuine coroutine `await` instead of a join (`lynxer/ast.cpp:1751`,
-      `lynxer/builtins.cpp:4842`, `:6534`).
+- [x] ~~**L15 — `nativeThread*`/`async*` concurrency model.**~~ **Resolved by
+      design:** keep the global interpreter lock because worker callbacks share
+      mutable environment state. Tasks interleave at joins, blocking waits and
+      explicit yields, but Lynxer evaluation is not parallel; `await` joins a
+      thread-backed task rather than suspending a coroutine. True CPU parallelism
+      or coroutine suspension would require a separate synchronization and
+      evaluator redesign, which is not planned.
 
 **Retained removals (no plan).** `venv`, the `rawPy`/`rawPyx`/
 `cleanRawPyxCache`/`embedPy` family, Python runtime introspection and bytecode
@@ -224,15 +229,14 @@ operations, `crypto`, `compress`, `toml`, `ini`, `xml`, `yaml` and `watch` — a
 implemented and recorded under [Done](#done). The repo's usual artifacts apply to
 every module — see **D7**.
 
-`turtle` (**L17**) is now implemented on top of `graphics`. The one remaining
-legacy GUI module, `tkinter`/`tkinterPlus`, is **not** implemented and needs a
-decision before it could be:
+`turtle` (**L17**) is implemented on top of `graphics`. The separate legacy
+GUI modules `tkinter`/`tkinterPlus` are declined; Lynxer will keep one GUI stack
+instead of adding a second OS-widget toolkit:
 
-- [ ] **L16 — `tkinter` / `tkinterPlus`.** A native OS-widget toolkit. Under the
-      Rust-and-cargo rule that means `egui`/`iced` (`gtk`/`qt` bindings would be
-      system libraries), which is an immediate-mode paradigm of its own rather
-      than a widget tree — decide whether that is worth a second GUI stack
-      beside `graphics`, or record it as declined.
+- [x] ~~**L16 — `tkinter` / `tkinterPlus`.**~~ **Declined:** a native OS-widget
+      toolkit would add a second GUI stack and programming paradigm beside
+      `graphics`; the Rust-backed options would be `egui`/`iced`. `turtle`
+      remains available as a `graphics`-backed module.
 - [x] ~~**L17 — `turtle`.**~~ **Delivered:** `stdlib/turtle.lynx` provides the
       classic API — `forward`/`back`/`turn`/`turnLeft`/`turnRight`/`goto`/
       `home`/`penUp`/`penDown`/`setColor`/`setWidth`, with `x`/`y`/`heading`/

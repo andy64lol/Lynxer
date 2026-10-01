@@ -270,12 +270,14 @@ together.
 
 `loadTilemap(tmxPath, scaling)` reads a Tiled `.tmx` file and returns a **scene**
 index; `getTilemapLayer(sceneIdx, layerName)` returns the named layer as a
-**sprite list**. Only the first `<tileset>` (for the tile size) and each
-`<layer>`'s comma-separated `<data>` are read — CSV payloads only.
+**sprite list**. Only the first `<tileset>` and each `<layer>`'s comma-separated
+`<data>` are read — CSV payloads only. Nonzero global tile IDs are cropped from
+the tileset atlas using `firstgid`, `columns`, `margin` and `spacing`. The image
+path is resolved relative to the TMX file.
 
 Tiles become solid sprites on the grid, so a map carries geometry and collision
-(hand it to `makePhysicsEngine` as the wall list). The tileset image is **not**
-sliced, so tiles render as shaded blocks rather than artwork.
+(hand a layer to `makePhysicsEngine` as the wall list). When the atlas cannot be
+loaded or the module is headless, tiles fall back to shaded blocks.
 
 ## Physics
 
@@ -324,16 +326,17 @@ Both are texture-backed, so in headless mode `makeAnimatedSprite` returns `-1`.
 | `setSoundVolume(idx, volume)` | Volume from `0.0` to `1.0` |
 | `isSoundPlaying(idx)` | Playback state tracked by the module |
 
-Playback state is tracked by the module, so a one-shot that has finished still
-reports as playing until `stopSound`. In headless mode `loadSound` returns `-1`.
+`isSoundPlaying` tracks a one-shot against its decoded duration and returns
+`false` after that duration; looping sounds stay active until stopped. This is
+duration-based state, not a playback-position query from the audio backend. If a
+duration cannot be probed, the sound remains marked as playing until
+`stopSound`. In headless mode `loadSound` returns `-1`.
 
 ## Notes and current limitations
 
-This is the first Lynxer cut of the module. The following reference features
-are **not implemented yet**: sound and music, scenes, tilemaps (Tiled),
-the platformer physics engine, shape batches, animated sprite sheets, text
-labels (use `drawText`), screenshots, `setWindowPos`, `setVSync`,
-`getDisplaySize`, and the `rawPy` escape hatch.
+The reference's shape batches, animated sprite-sheet helper, `setVSync` and
+`getDisplaySize` are not exposed. `makeAnimatedSprite` accepts a JSON array of
+separate image paths rather than a sprite sheet.
 
 Other deviations:
 

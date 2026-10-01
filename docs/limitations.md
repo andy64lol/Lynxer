@@ -31,14 +31,14 @@ macOS `.dylib` recognition (**L2c**), the `re`/`regex` rewrite onto a Rust
 `fancy-regex` engine (**L7**) and the `js`/`multiprocessing` subprocess timeouts
 (**L11**) are delivered. **L2d** (multiple live string results) was closed as not
 needed — no module returns more than one string per call. The remaining
-constraints each have a resolution plan in [todo.md](../todo.md) under
-*Resolving documented limitations*:
+constraints and deliberate non-goals are recorded in [todo.md](../todo.md)
+under *Resolving documented limitations*:
 
-| Area | Plan |
+| Area | Status |
 | --- | --- |
-| `tkinter` / `tkinterPlus` (a native OS-widget GUI module) | **L16** |
+| `tkinter` / `tkinterPlus` (a native OS-widget GUI module) | **Declined:** keep `graphics` as the single GUI stack (**L16**) |
 | Module constraints — `graphics`, `game`, `server`, `sound`, `watch`, `sqldb`, `text`/`typing`, `tui`, `os`/`path`/`sys` | **L4**–**L6**, **L8**–**L10**, **L12**–**L14** |
-| `nativeThread*` / `async*` true parallelism and coroutine `await` | **L15** |
+| `nativeThread*` / `async*` true parallelism and coroutine `await` | **Intentionally constrained:** GIL and join-based `await` (**L15**, [async.md](async.md)) |
 
 ## Native Module ABI
 
@@ -65,8 +65,8 @@ constraints each have a resolution plan in [todo.md](../todo.md) under
 
 ### Module Coverage
 
-- `tkinter` and `tkinterPlus` are planned (see **L16** in
-  [todo.md](../todo.md)). `turtle` is implemented — see
+- `tkinter` and `tkinterPlus` are declined; `graphics` remains the single GUI
+  stack (see **L16** in [todo.md](../todo.md)). `turtle` is implemented — see
   [stdlib/turtle.md](stdlib/turtle.md).
 - `http`/`net` are **not provided**: `network` (client) and `server` cover the
   same ground with one API surface instead of two, so no shim is planned — see
@@ -144,10 +144,11 @@ Makefile checks for `cargo` up front and says so.
 
 ### `game` — Constrained Behavior
 
-- **Tilemaps carry geometry, not artwork.** `loadTilemap` reads only the first
-  `<tileset>` (for the tile size) and each `<layer>`'s CSV `<data>`; tiles
-  become solid sprites on the grid. The tileset image is not sliced, so the map
-  is useful for collision and layout rather than rendering.
+- **Tilemaps use the first atlas, with a headless fallback.** `loadTilemap`
+  reads the first `<tileset>` and CSV layer data, resolves the atlas path
+  relative to the TMX file, and crops nonzero GIDs using `firstgid`, `margin`
+  and `spacing`. Tiles remain solid sprites. If the texture is unavailable or
+  the module is headless, it uses shaded blocks instead.
 - **Physics covers walls, slopes and one-way platforms.** `updatePhysics`
   resolves horizontal and vertical collision against a wall list, rides a wall
   whose sprite `angle` is non-zero as a slope, and treats the list passed as
@@ -158,9 +159,10 @@ Makefile checks for `cargo` up front and says so.
 - **Animated sprites and sound are texture/audio-backed.** In headless mode
   `makeAnimatedSprite` and `loadSound` return `-1`, and `screenshot` returns
   `-1`; the drawing, sound and screenshot ops are otherwise no-ops.
-- **Sound playback state is tracked by the module.** A one-shot that has
-  finished still reports as playing through `isSoundPlaying` until
-  `stopSound`.
+- **Sound playback state uses decoded duration.** `isSoundPlaying` expires
+  one-shots after their probed duration and keeps loops active until stopped.
+  This is not an audio-backend playback-position query; if duration probing
+  fails, the state remains active until `stopSound`.
 
 ### `server` — Constrained Behavior
 

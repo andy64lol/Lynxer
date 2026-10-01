@@ -70,9 +70,11 @@ but a wait on a resource no other thread will release deadlocks. See
 The `async*` family is **implemented**: `asyncRun`, `asyncGather`, `asyncSleep`,
 the `asyncPoll*` set, and the timer/wakeup built-ins. The `async` *language*
 syntax also exists — a local `async name(params){...}` definition called as
-`async.name(args)` — but it is eager, not a coroutine; `await` is a pass-through
-with no suspension, and `asyncGather` returns its arguments unchanged. There is
-no concurrency. See [async.md](async.md) and
+`async.name(args)` — but it is eager, not a coroutine. `asyncRun` starts
+thread-backed tasks; `await` joins a task handle, and `asyncGather` joins the
+handles it receives. Tasks interleave at blocking or yield points, while the
+global interpreter lock prevents simultaneous Lynxer evaluation. See
+[async.md](async.md) and
 [builtins.md](builtins.md#async).
 
 ## Python bridging
@@ -82,8 +84,8 @@ no concurrency. See [async.md](async.md) and
 | `rawPy`, `rawPyx`, `cleanRawPyxCache`, `embedPy` | Not planned | Embedded CPython/Cython |
 
 **Why:** Lynxer does not ship or link a Python runtime. Anything that depended on
-`rawPy { }` — including the original `tkinter`/`turtle` modules and tuple
-interop — has no direct equivalent.
+`rawPy { }` — including the original `tkinter` modules and tuple interop — has no
+direct equivalent. `turtle` is separately implemented over `graphics`.
 
 ## FFI and native-module handles
 
@@ -104,7 +106,8 @@ alternative. See [builtins.md](builtins.md#explicit-native-module-handles).
 | Module | Status | Replacement |
 | --- | --- | --- |
 | `venv` | Not planned | None — a virtual environment is a CPython concept |
-| `tkinter`, `tkinterPlus`, `turtle` | Not planned | None; a future GUI would be Rust-backed (see `todo.md`) |
+| `tkinter`, `tkinterPlus` | Declined | No second GUI stack beside `graphics` (**L16** in `todo.md`) |
+| `turtle` | Implemented | [`turtle`](stdlib/turtle.md), drawn through `graphics` |
 | `http`, `net` | Superseded | [`network`](stdlib/network.md) + [`server`](stdlib/server.md) |
 | `mathPlus` | Merged | [`math`](stdlib/math.md) (the float `sign` is `signFloat`) |
 
@@ -124,10 +127,12 @@ alternative. See [builtins.md](builtins.md#explicit-native-module-handles).
 | `nativeFunctionAddress` / `nativeCall` | Implemented (`nativeCall` over the small integer ABI) |
 | `nativeHandle*` | Implemented under the same names |
 | `nativeMutex*` / `Condition*` / `Semaphore*` | Implemented (cooperative handles) |
-| `async*` | Implemented (cooperative handles over `sleep`) |
+| `async*` | Implemented (thread-backed tasks, serialized evaluation under the GIL) |
 | `rawPy` / `embedPy` | None (no CPython) |
 | `nativeModule*` handles | Implemented (`importAs("<name>.so", …)` is the usual route) |
-| `tkinter` / `turtle` / `venv` | None |
+| `tkinter` / `tkinterPlus` | Declined (no second GUI toolkit) |
+| `turtle` | Implemented over `graphics` |
+| `venv` | None (CPython-only feature) |
 
 ## See also
 
