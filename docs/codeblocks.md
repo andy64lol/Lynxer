@@ -116,6 +116,59 @@ global main() {
 
 ---
 
+## Caller-Supplied Blocks on Any Function Form
+
+The `{...}` block list is not specific to `global`. A `func` or `local`
+declaration takes caller-supplied blocks the same way: the list follows the
+`()` parameter list and precedes the body, and the parser does not distinguish
+the three forms when reading it.
+
+```lynx
+global setup(){}
+
+global runTwice(){first}{second}{
+    exec(){{first}}
+    exec(){{second}}
+}
+
+func applyTwice(int value){apply}{
+    exec(value){{apply}}
+    exec(value){{apply}}
+}
+
+global main(){
+    runTwice(){
+        println("one");
+    }{
+        println("two");
+    }
+
+    codeblock triple = {
+        println(value * 3);
+    };
+    applyTwice(4){{triple}}   // 12 printed twice
+
+    local notify(){block}{
+        exec(){{block}}
+    }
+    notify(){
+        println("done");
+    }
+}
+```
+
+- A `func` reached through an import also takes blocks at the call site:
+  `global.lib.applyTwice(4){ ... }`.
+- Callers may mix inline blocks (`(){ ... }`) and named references
+  (`(){{var}}`) in one call.
+- Entry points (`global setup()` / `global main()`) may not declare codeblock
+  parameters.
+
+See [functions.md](functions.md) for the three declaration forms and their
+calling conventions.
+
+---
+
 ## Inferred Parameters
 
 If the parameter list is omitted, the names and types are inferred from the variables referenced in the codeblock:
@@ -191,5 +244,6 @@ exec(10, 20){{printValues}}
 ## See Also
 
 - [Language Reference](language.md) — For more details on Lynxer syntax and types.
+- [functions.md](functions.md) — The `global`, `func` and `local` declaration forms and their calling conventions.
 - [Built-in Functions](builtins.md) — For built-in higher-order functions.
 - [Limitations](limitations.md) — For constraints on codeblocks and other features.

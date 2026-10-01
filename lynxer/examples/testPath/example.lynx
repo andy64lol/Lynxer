@@ -1,0 +1,7 @@
+global setup(){}
+
+global greet(str name) -> str {
+    return "hello " + name;
+}
+
+global main(){}

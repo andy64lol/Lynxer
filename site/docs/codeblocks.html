@@ -27,6 +27,7 @@
 </ul>
 <h3 class="sidebar-group-title">Language</h3><ul class="sidebar-group">
 <li><a href="language.html">language</a></li>
+<li><a href="functions.html">functions</a></li>
 <li><a href="operators.html">operators</a></li>
 <li><a href="conditionals.html">conditionals</a></li>
 <li><a href="loops.html">loops</a></li>
@@ -195,6 +196,46 @@ global main() {
 <li>Named blocks retain their identity when passed to functions.</li>
 </ul>
 <hr>
+<h2 id="caller-supplied-blocks-on-any-function-form">Caller-Supplied Blocks on Any Function Form</h2>
+<p>The <code>{...}</code> block list is not specific to <code>global</code>. A <code>func</code> or <code>local</code> declaration takes caller-supplied blocks the same way: the list follows the <code>()</code> parameter list and precedes the body, and the parser does not distinguish the three forms when reading it.</p>
+<pre><code>global setup(){}
+
+global runTwice(){first}{second}{
+    exec(){{first}}
+    exec(){{second}}
+}
+
+func applyTwice(int value){apply}{
+    exec(value){{apply}}
+    exec(value){{apply}}
+}
+
+global main(){
+    runTwice(){
+        println(&quot;one&quot;);
+    }{
+        println(&quot;two&quot;);
+    }
+
+    codeblock triple = {
+        println(value * 3);
+    };
+    applyTwice(4){{triple}}   // 12 printed twice
+
+    local notify(){block}{
+        exec(){{block}}
+    }
+    notify(){
+        println(&quot;done&quot;);
+    }
+}</code></pre>
+<ul>
+<li>A <code>func</code> reached through an import also takes blocks at the call site: <code>global.lib.applyTwice(4){ ... }</code>.</li>
+<li>Callers may mix inline blocks (<code>(){ ... }</code>) and named references (<code>(){{var}}</code>) in one call.</li>
+<li>Entry points (<code>global setup()</code> / <code>global main()</code>) may not declare codeblock parameters.</li>
+</ul>
+<p>See <a href="functions.html">functions</a> for the three declaration forms and their calling conventions.</p>
+<hr>
 <h2 id="inferred-parameters">Inferred Parameters</h2>
 <p>If the parameter list is omitted, the names and types are inferred from the variables referenced in the codeblock:</p>
 <pre><code>codeblock example = {
@@ -250,6 +291,7 @@ exec(10, 20){{printValues}}</code></pre>
 <h2 id="see-also">See Also</h2>
 <ul>
 <li><a href="language.html">Language Reference</a> — For more details on Lynxer syntax and types.</li>
+<li><a href="functions.html">functions</a> — The <code>global</code>, <code>func</code> and <code>local</code> declaration forms and their calling conventions.</li>
 <li><a href="builtins.html">Built-in Functions</a> — For built-in higher-order functions.</li>
 <li><a href="limitations.html">Limitations</a> — For constraints on codeblocks and other features.</li>
 </ul>

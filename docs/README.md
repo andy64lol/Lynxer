@@ -21,6 +21,7 @@ standard-library improvements.
 | Document | What it covers |
 | --- | --- |
 | [language.md](language.md) | Program structure, comments, variables, operators, control flow, functions, scoping, interpolation |
+| [functions.md](functions.md) | The `global`, `func` and `local` declaration forms and caller-supplied codeblocks |
 | [operators.md](operators.md) | The operator set and precedence |
 | [conditionals.md](conditionals.md) | `if`/`elif`/`else` and `switch`/`case`/`default` |
 | [loops.md](loops.md) | `while`, `for` (C style and range), `doWhile`, `iterate`, `forever` |

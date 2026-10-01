@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <meta name="theme-color" content="#4a90e2">
+    <title>Functions - Lynxer</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<header>
+    <div class="header-content">
+        <h1><a href="../index.html">Lynxer</a></h1>
+        <p>Documentation</p>
+    </div>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3 class="sidebar-group-title">Overview</h3><ul class="sidebar-group">
+<li><a href="index.html">README</a></li>
+</ul>
+<h3 class="sidebar-group-title">Getting started</h3><ul class="sidebar-group">
+<li><a href="install.html">install</a></li>
+<li><a href="CLI.html">CLI</a></li>
+</ul>
+<h3 class="sidebar-group-title">Language</h3><ul class="sidebar-group">
+<li><a href="language.html">language</a></li>
+<li><a href="functions.html" class="active">functions</a></li>
+<li><a href="operators.html">operators</a></li>
+<li><a href="conditionals.html">conditionals</a></li>
+<li><a href="loops.html">loops</a></li>
+<li><a href="types.html">types</a></li>
+<li><a href="lists.html">lists</a></li>
+<li><a href="tuples.html">tuples</a></li>
+<li><a href="codeblocks.html">codeblocks</a></li>
+<li><a href="modules.html">modules</a></li>
+<li><a href="importAs.html">importAs</a></li>
+</ul>
+<h3 class="sidebar-group-title">Records</h3><ul class="sidebar-group">
+<li><a href="structs.html">structs</a></li>
+<li><a href="classes.html">classes</a></li>
+<li><a href="enums.html">enums</a></li>
+<li><a href="vargroups.html">vargroups</a></li>
+</ul>
+<h3 class="sidebar-group-title">Built-ins and modules</h3><ul class="sidebar-group">
+<li><a href="builtins.html">builtins</a></li>
+<li><a href="syscalls.html">syscalls</a></li>
+<li><a href="native-module-abi.html">native-module-abi</a></li>
+<li><a href="native-modules.html">native-modules</a></li>
+<li><a href="stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="extending.html">extending</a></li>
+</ul>
+<h3 class="sidebar-group-title">Runtime</h3><ul class="sidebar-group">
+<li><a href="async.html">async</a></li>
+<li><a href="native-memory.html">native-memory</a></li>
+<li><a href="filesystem.html">filesystem</a></li>
+<li><a href="networking.html">networking</a></li>
+<li><a href="process.html">process</a></li>
+</ul>
+<h3 class="sidebar-group-title">Reference</h3><ul class="sidebar-group">
+<li><a href="legacy-surface.html">legacy-surface</a></li>
+<li><a href="removed-features.html">removed-features</a></li>
+<li><a href="limitations.html">limitations</a></li>
+</ul>
+<h3 class="sidebar-group-title">Standard Library</h3><ul class="sidebar-group">
+<li><a href="stdlib/index.html">All modules</a></li>
+<li><a href="stdlib/cli.html">cli</a></li>
+<li><a href="stdlib/colorlib.html">colorlib</a></li>
+<li><a href="stdlib/compress.html">compress</a></li>
+<li><a href="stdlib/crypto.html">crypto</a></li>
+<li><a href="stdlib/csv.html">csv</a></li>
+<li><a href="stdlib/debug.html">debug</a></li>
+<li><a href="stdlib/encoding.html">encoding</a></li>
+<li><a href="stdlib/fileIO.html">fileIO</a></li>
+<li><a href="stdlib/game.html">game</a></li>
+<li><a href="stdlib/graphics.html">graphics</a></li>
+<li><a href="stdlib/image.html">image</a></li>
+<li><a href="stdlib/ini.html">ini</a></li>
+<li><a href="stdlib/js.html">js</a></li>
+<li><a href="stdlib/json.html">json</a></li>
+<li><a href="stdlib/lua.html">lua</a></li>
+<li><a href="stdlib/math.html">math</a></li>
+<li><a href="stdlib/multiprocessing.html">multiprocessing</a></li>
+<li><a href="stdlib/network.html">network</a></li>
+<li><a href="stdlib/os.html">os</a></li>
+<li><a href="stdlib/path.html">path</a></li>
+<li><a href="stdlib/random.html">random</a></li>
+<li><a href="stdlib/re.html">re</a></li>
+<li><a href="stdlib/regex.html">regex</a></li>
+<li><a href="stdlib/server.html">server</a></li>
+<li><a href="stdlib/shell.html">shell</a></li>
+<li><a href="stdlib/sound.html">sound</a></li>
+<li><a href="stdlib/sqldb.html">sqldb</a></li>
+<li><a href="stdlib/sys.html">sys</a></li>
+<li><a href="stdlib/text.html">text</a></li>
+<li><a href="stdlib/time.html">time</a></li>
+<li><a href="stdlib/toml.html">toml</a></li>
+<li><a href="stdlib/tui.html">tui</a></li>
+<li><a href="stdlib/turtle.html">turtle</a></li>
+<li><a href="stdlib/typing.html">typing</a></li>
+<li><a href="stdlib/uuid.html">uuid</a></li>
+<li><a href="stdlib/watch.html">watch</a></li>
+<li><a href="stdlib/xml.html">xml</a></li>
+<li><a href="stdlib/yaml.html">yaml</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+        <div class="breadcrumb">
+            <a href="../index.html">Home</a>
+            <a href="../docs/stdlib/index.html">Standard Library</a>
+            <span>Functions</span>
+        </div>
+        <div class="search-bar" data-search-index="../search-index.json" data-site-root="../">
+            <label class="visually-hidden" for="docs-search">Search documentation</label>
+            <input id="docs-search" type="search" placeholder="Search documentation..." aria-label="Search documentation" autocomplete="off">
+            <div class="search-results" aria-live="polite"></div>
+        </div>
+<h1 id="functions">Functions</h1>
+<p>Lynxer has three function declaration forms. They differ in <strong>where</strong> they are written and <strong>how</strong> they are called. Parameters, return annotations and caller-supplied <a href="codeblocks.html">codeblocks</a> work the same for all three.</p>
+<table>
+<tr><th>Form</th><th>Written</th><th>Where</th><th>Called from</th></tr>
+<tr><td>Global function</td><td><code>global name(...)</code></td><td>between <code>setup</code> and <code>main</code></td><td><code>global.name(...)</code>, or a bare name in the same file</td></tr>
+<tr><td>File-level function</td><td><code>func name(...)</code></td><td>between <code>setup</code> and <code>main</code></td><td>a bare name in the same file; <code>global.module.name(...)</code> from an importer</td></tr>
+<tr><td>Local function</td><td><code>local name(...)</code></td><td>inside another function body</td><td>a bare name, or <code>local.name(...)</code></td></tr>
+</table>
+<p><code>global func name(...)</code> is <strong>not</strong> valid syntax (<code>unexpected character &#x27; &#x27;</code>); use <code>func name(...)</code> for a file-level function.</p>
+<h2 id="global-functions">Global functions</h2>
+<p><code>global</code> is the default, exported declaration. Declare it top-level, between <code>global setup()</code> and <code>global main()</code>:</p>
+<pre><code>global setup(){}
+
+global double(int value) -&gt; int {
+    return value * 2;
+}
+
+global main(){
+    println(double(21));        // 42, bare name in the same file
+    println(global.double(21)); // 42, fully qualified
+}</code></pre>
+<ul>
+<li>A global function is callable by its bare name in its own file and by <code>global.name(...)</code> everywhere, including from an importer as <code>global.module.name(...)</code>.</li>
+<li><code>global setup()</code> and <code>global main()</code> are global functions with extra rules: <code>setup</code> must be the first declaration, <code>main</code> the last, and either may take defaulted parameters. See <a href="language.html#program-structure">language</a> and <code>overrideMain</code> in <a href="language.html#overridemain">language</a>.</li>
+<li>Entry-point functions may <strong>not</strong> declare codeblock parameters.</li>
+</ul>
+<h2 id="file-level-functions-func">File-level functions (<code>func</code>)</h2>
+<p>A <code>func</code> belongs to its source file. Declare it top-level, between <code>global setup()</code> and <code>global main()</code>:</p>
+<pre><code>global setup(){}
+
+func double(int value) -&gt; int {
+    return value * 2;
+}
+
+global main(){
+    println(double(21));   // 42
+}</code></pre>
+<ul>
+<li><code>func</code> names are <strong>file-scoped</strong>: two imported files may each define a <code>double</code> helper without colliding.</li>
+<li>In the defining file, call it by bare name. From an importer, call it through the module: <code>global.moduleName.double(21)</code> (see <a href="modules.html">modules</a>).</li>
+<li><code>func</code> declarations must be top-level and may not follow <code>global main()</code> (<code>declarations may not follow global main()</code>).</li>
+</ul>
+<h2 id="local-functions">Local functions</h2>
+<p>A <code>local</code> function is declared inside another function body and is not visible outside it:</p>
+<pre><code>global setup(){}
+
+global main(){
+    local square(int n) -&gt; int {
+        return n * n;
+    }
+    println(square(4));        // 16, bare name
+    println(local.square(5));  // 25, qualified
+}</code></pre>
+<ul>
+<li>A local function is not exported and cannot be called from another function.</li>
+<li>It may close over the top-level variables that are in scope where it runs.</li>
+</ul>
+<h2 id="parameters-and-defaults">Parameters and defaults</h2>
+<ul>
+<li>Parameters may be typed (<code>int n</code>) or untyped (treated as <code>any</code>).</li>
+<li>A parameter may have a default (<code>int b = 1</code>).</li>
+<li>A required parameter may <strong>not</strong> follow one with a default: <code>required parameters cannot follow a parameter with a default value</code>.</li>
+<li>Class methods are the exception: their parameters are typed but may <strong>not</strong> have defaults (see <a href="classes.html">classes</a>).</li>
+</ul>
+<h2 id="return-annotations">Return annotations</h2>
+<p>Only the arrow form is accepted:</p>
+<pre><code>global f(int x) -&gt; int { return x + 1; }</code></pre>
+<ul>
+<li><code>: int</code> is <strong>not</strong> valid syntax (<code>unexpected character &#x27;:&#x27;</code>).</li>
+<li>Omit the annotation, or use <code>-&gt; any</code>, to leave the result unchecked.</li>
+<li><code>-&gt; none</code> is accepted: the function must return nothing, and a returned value fails with <code>value cannot be assigned to type &#x27;none&#x27;</code>.</li>
+<li>A mismatched return is a source-located runtime error.</li>
+<li>Named types (a <code>struct</code>, <code>class</code>, or <code>enum</code>) may be used as the annotation.</li>
+</ul>
+<h2 id="caller-supplied-codeblocks">Caller-supplied codeblocks</h2>
+<p>Any of the three forms may declare caller-supplied blocks <strong>after</strong> its parameter list and before its body. Write each block name in its own <code>{...}</code>:</p>
+<pre><code>&lt;kind&gt; name(&lt;params&gt;){&lt;blockName&gt;}{&lt;blockName&gt;}... { &lt;body&gt; }</code></pre>
+<p>The body invokes a block with <code>exec(){{&lt;blockName&gt;}}</code>. A caller supplies a block with <code>(){ ... }</code> or, for a named <a href="codeblocks.html">codeblock</a> variable, <code>(){{var}}</code>:</p>
+<pre><code>global setup(){}
+
+global runTwice(){first}{second}{
+    exec(){{first}}
+    exec(){{second}}
+}
+
+func mapTwice(int value){apply}{
+    exec(value){{apply}}
+    exec(value){{apply}}
+}
+
+global main(){
+    runTwice(){
+        println(&quot;one&quot;);
+    }{
+        println(&quot;two&quot;);
+    }
+
+    codeblock triple = {
+        println(value * 3);
+    };
+    mapTwice(4){{triple}}   // 12 printed twice
+}</code></pre>
+<ul>
+<li>The codeblock-parameter syntax is identical for <code>global</code>, <code>func</code> and <code>local</code> declarations; the parser treats all three the same way.</li>
+<li>Callers may mix inline blocks (<code>(){ ... }</code>) and named references (<code>(){{var}}</code>) in the same call.</li>
+<li><code>func</code> and <code>local</code> blocks are supplied the same way; a <code>func</code> reached through an import takes blocks at the call site too: <code>global.module.runTwice(){...}{...}</code>.</li>
+<li>Entry-point functions (<code>setup</code>/<code>main</code>) may not declare codeblock parameters.</li>
+<li>A codeblock name must be unique across the source file and may not repeat a regular parameter name of the same function.</li>
+</ul>
+<p>See <a href="codeblocks.html">codeblocks</a> for the full reference, including inferred parameters and the <code>codeblock</code> type.</p>
+<h2 id="scoping">Scoping</h2>
+<p>There are no nested block scopes; see <a href="language.html#scoping">language</a>. A call to any of these forms gets a fresh scope for its parameters and locals. Those do not leak out, but the function can read and update the top-level variables it closes over.</p>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="language.html#functions">language</a> — functions in the context of program structure.</li>
+<li><a href="codeblocks.html">codeblocks</a> — stored and caller-supplied codeblocks.</li>
+<li><a href="async.html">async</a> — local <code>async</code> sub-functions and <code>await</code>.</li>
+<li><a href="classes.html">classes</a> — <code>local</code> methods on a class.</li>
+<li><a href="modules.html">modules</a> — calling exported <code>global</code> and <code>func</code> names across files.</li>
+</ul>
+    </main>
+</div>
+
+<footer>
+    <a class="github" href="https://github.com/andy64lol/Lynxer" aria-label="Lynxer on GitHub" title="Lynxer on GitHub"><svg role="img" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" /></svg></a>
+    <span>Lynxer &middot; MIT License</span>
+</footer>
+
+<script src="../search.js" defer></script>
+</body>
+</html>

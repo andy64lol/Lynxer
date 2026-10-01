@@ -5,10 +5,10 @@ runs it**, with every example verified against the interpreter. For the
 behaviour that is deliberately constrained or not implemented, see
 [limitations.md](limitations.md).
 
-Related pages: [types.md](types.md), [lists.md](lists.md),
-[structs.md](structs.md), [classes.md](classes.md), [enums.md](enums.md),
-[vargroups.md](vargroups.md), [modules.md](modules.md), and
-[builtins.md](builtins.md).
+Related pages: [functions.md](functions.md), [types.md](types.md),
+[lists.md](lists.md), [structs.md](structs.md), [classes.md](classes.md),
+[enums.md](enums.md), [vargroups.md](vargroups.md), [modules.md](modules.md),
+and [builtins.md](builtins.md).
 
 ## A first program
 
@@ -245,7 +245,8 @@ checked against the function's return annotation, if any.
 
 ## Functions
 
-There are three declaration forms:
+See [functions.md](functions.md) for a full page on each form. There are three
+declaration forms:
 
 | Form | Written | Where | Called from |
 |------|---------|-------|-------------|

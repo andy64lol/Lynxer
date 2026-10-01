@@ -27,6 +27,7 @@
 </ul>
 <h3 class="sidebar-group-title">Language</h3><ul class="sidebar-group">
 <li><a href="language.html" class="active">language</a></li>
+<li><a href="functions.html">functions</a></li>
 <li><a href="operators.html">operators</a></li>
 <li><a href="conditionals.html">conditionals</a></li>
 <li><a href="loops.html">loops</a></li>
@@ -118,7 +119,7 @@
         </div>
 <h1 id="the-lynxer-language">The Lynxer language</h1>
 <p>This page describes the Lynxer language <strong>as the interpreter actually parses and runs it</strong>, with every example verified against the interpreter. For the behaviour that is deliberately constrained or not implemented, see <a href="limitations.html">limitations</a>.</p>
-<p>Related pages: <a href="types.html">types</a>, <a href="lists.html">lists</a>, <a href="structs.html">structs</a>, <a href="classes.html">classes</a>, <a href="enums.html">enums</a>, <a href="vargroups.html">vargroups</a>, <a href="modules.html">modules</a>, and <a href="builtins.html">builtins</a>.</p>
+<p>Related pages: <a href="functions.html">functions</a>, <a href="types.html">types</a>, <a href="lists.html">lists</a>, <a href="structs.html">structs</a>, <a href="classes.html">classes</a>, <a href="enums.html">enums</a>, <a href="vargroups.html">vargroups</a>, <a href="modules.html">modules</a>, and <a href="builtins.html">builtins</a>.</p>
 <h2 id="a-first-program">A first program</h2>
 <pre><code>global setup() {
     println(&quot;ready&quot;);
@@ -247,7 +248,7 @@ println(n bitand 3);   // 2</code></pre>
 <h3 id="return"><code>return</code></h3>
 <p><code>return expr;</code> returns a value; a bare <code>return;</code> returns nothing. The value is checked against the function's return annotation, if any.</p>
 <h2 id="functions">Functions</h2>
-<p>There are three declaration forms:</p>
+<p>See <a href="functions.html">functions</a> for a full page on each form. There are three declaration forms:</p>
 <table>
 <tr><th>Form</th><th>Written</th><th>Where</th><th>Called from</th></tr>
 <tr><td>Global function</td><td><code>global name(...)</code></td><td>between <code>setup</code> and <code>main</code></td><td><code>global.name(...)</code> or a bare name in the same file</td></tr>

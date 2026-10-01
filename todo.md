@@ -4,6 +4,17 @@ Approved work to remove or reduce the implementation gaps recorded in
 [docs/limitations.md](docs/limitations.md). Deliberate non-goals and removed
 features are in [docs/removed-features.md](docs/removed-features.md).
 
+## Language
+
+- [ ] **File-scoped macros and function codeblocks.** Add macros using the
+  syntax `macro macroName!(*args){//code}`. Macros are visible only within
+  their declaring file unless prefixed with `pub` (`pub macro
+  macroName!(*args){//code}`), which makes them visible to files that import
+  the declaring file. Macros must accept caller-supplied code blocks as
+  arguments. Support caller-supplied code blocks on `func` declarations too.
+  Cover macro expansion, `pub` visibility across imports, and code-block
+  arguments with fixtures.
+
 ## `graphics` and `game`
 
 - [ ] **GPU-operation lifecycle.** Make context-dependent operations safe to

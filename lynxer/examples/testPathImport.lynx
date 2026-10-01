@@ -1,0 +1,7 @@
+global setup(){
+    import("testPath/example.lynx");
+}
+
+global main(){
+    println(global.example.greet("path"));
+}

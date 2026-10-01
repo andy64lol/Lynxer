@@ -28,7 +28,7 @@ OUT = SITE / "docs"
 GROUPS: list[tuple[str, list[str]]] = [
     ("Overview", ["README.md"]),
     ("Getting started", ["install.md", "CLI.md"]),
-    ("Language", ["language.md", "operators.md", "conditionals.md", "loops.md", "types.md", "lists.md", "tuples.md", "codeblocks.md", "modules.md", "importAs.md"]),
+    ("Language", ["language.md", "functions.md", "operators.md", "conditionals.md", "loops.md", "types.md", "lists.md", "tuples.md", "codeblocks.md", "modules.md", "importAs.md"]),
     ("Records", ["structs.md", "classes.md", "enums.md", "vargroups.md"]),
     ("Built-ins and modules",
      ["builtins.md", "syscalls.md", "native-module-abi.md", "native-modules.md", "stdlib-contracts.md", "extending.md"]),
@@ -360,7 +360,7 @@ TEMPLATE = """<!DOCTYPE html>
 
 
 def write_page(out_rel: str, md_rel: str, content_md: str,
-               fallback_title: str) -> dict[str, str]:
+               fallback_title: str) -> dict[str, object]:
     link = make_link(out_rel, md_rel)
     content, title = render_markdown(content_md, link)
     

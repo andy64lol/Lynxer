@@ -87,6 +87,7 @@ The documentation lives in [`docs/`](docs/README.md).
 | [Installation](docs/install.md) | How to build and run Lynxer |
 | [CLI reference](docs/CLI.md) | Complete command-line usage |
 | [Language reference](docs/language.md) | Types, variables, control flow, functions |
+| [Functions](docs/functions.md) | `global`, `func` and `local` declaration forms and caller-supplied codeblocks |
 | [Operators](docs/operators.md) | Arithmetic, comparison, boolean and bitwise operators, precedence, deprecated spellings |
 | [Type reference](docs/types.md) | Primitive, fixed-width integer, and fixed-width float types |
 | [Built-ins](docs/builtins.md) | Core language functions and unmanaged memory operations |
