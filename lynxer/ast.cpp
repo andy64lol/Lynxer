@@ -170,7 +170,9 @@ int lynxerHostRequestExit(void*, std::int64_t code) {
     std::int64_t expected = 0;
     const std::int64_t encoded =
         static_cast<std::int64_t>(static_cast<int>(code)) + EXIT_CODE_OFFSET;
-    pendingExitCode.compare_exchange_strong(expected, encoded);
+    if (pendingExitCode.compare_exchange_strong(expected, encoded)) {
+        markExitRequestedOnCurrentThread();
+    }
     return 0;
 }
 
@@ -773,7 +775,7 @@ void clearExitRequest(int code) {
 
 void throwIfExitRequested() {
     const std::int64_t encoded = pendingExitCode.load();
-    if (encoded != 0) {
+    if (encoded != 0 && !suppressExitRequestOnCurrentThread()) {
         throw ExitControl(static_cast<int>(encoded - EXIT_CODE_OFFSET));
     }
 }

@@ -22,6 +22,10 @@ bool interruptRequested();
 void throwIfInterrupted();
 void clearExitRequest(int code);
 void throwIfExitRequested();
+void enterNativeThreadCallback();
+void leaveNativeThreadCallback();
+void markExitRequestedOnCurrentThread();
+bool suppressExitRequestOnCurrentThread();
 void installInterruptHandler();
 
 } // namespace lynxer

@@ -5239,6 +5239,7 @@ Value builtinNativeThreadStart(const std::vector<Value>& args, Environment& envi
     std::weak_ptr<NativeThreadEntry> weak = entry;
     entry->worker = std::thread([weak, &environment, name,
                                  arguments = std::move(arguments)]() {
+        enterNativeThreadCallback();
         lockInterpreter();
         std::string status;
         try {
@@ -5252,6 +5253,7 @@ Value builtinNativeThreadStart(const std::vector<Value>& args, Environment& envi
         // Release before touching the registry so the two locks are never held
         // in opposite orders.
         unlockInterpreter();
+        leaveNativeThreadCallback();
         if (auto entry = weak.lock()) {
             {
                 std::lock_guard<std::mutex> guard(entry->statusMutex);

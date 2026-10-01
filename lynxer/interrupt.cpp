@@ -7,6 +7,8 @@ namespace lynxer {
 namespace {
 
 volatile std::sig_atomic_t interrupted = 0;
+thread_local bool nativeThreadCallback = false;
+thread_local bool exitRequestedOnCurrentThread = false;
 
 void handleInterrupt(int) { requestInterrupt(); }
 
@@ -15,6 +17,24 @@ void handleInterrupt(int) { requestInterrupt(); }
 void requestInterrupt() { interrupted = 1; }
 
 bool interruptRequested() { return interrupted != 0; }
+
+void enterNativeThreadCallback() {
+    nativeThreadCallback = true;
+    exitRequestedOnCurrentThread = false;
+}
+
+void leaveNativeThreadCallback() {
+    nativeThreadCallback = false;
+    exitRequestedOnCurrentThread = false;
+}
+
+void markExitRequestedOnCurrentThread() {
+    exitRequestedOnCurrentThread = true;
+}
+
+bool suppressExitRequestOnCurrentThread() {
+    return nativeThreadCallback && !exitRequestedOnCurrentThread;
+}
 
 void throwIfInterrupted() {
     if (interruptRequested()) {
