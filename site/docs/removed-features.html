@@ -153,6 +153,19 @@
 <tr><td>Bytecode migration/version contract</td><td><code>--compile</code> to a standalone ELF executable</td></tr>
 </table>
 <p>See <a href="legacy-surface.html">legacy-surface</a> for the full list of original features and their replacements.</p>
+<h2 id="constraints-outside-the-implementation-plan">Constraints outside the implementation plan</h2>
+<p>These behaviors are intentional boundaries or depend on unavailable hardware or unsupported host platforms. They are documented for users, but are not approved work items:</p>
+<ul>
+<li><strong>Windows and non-POSIX native loading.</strong> Lynxer targets Linux/POSIX; native module loading uses <code>.so</code> libraries and watch descriptors. Windows DLL loading and a Windows watch backend are not planned.</li>
+<li><strong>Hardware-only graphics and audio.</strong> Headless mode cannot execute GPU shaders, materials or 3D meshes, or play sound without an audio device. <code>macroquad</code> audio, native OS widgets and gamepad support are not included.</li>
+<li><strong>Security bounds and path confinement.</strong> Compression, archive extraction and parser input limits, plus rejection of archive/static paths that escape their destination, are deliberate protections and will not be removed.</li>
+<li><strong>Bounded payloads and sentinel errors.</strong> The 64 MiB decompression/archive limits, parser input caps, 1 MiB random-payload cap, and existing in-band failure sentinels are safety and ABI contracts, not missing work.</li>
+<li><strong>Headless hardware features.</strong> Headless graphics does not emulate GPU shaders, materials or 3D meshes; game animation and audio playback require their respective rendering/audio resources. The windowed renderer and device-backed playback cannot be made available on a machine without those devices.</li>
+<li><strong>Single-live native results.</strong> The ABI's thread-local string result and single live byte result are retained: bundled modules do not need multiple simultaneous string results, and variable-sized data uses bytes or handles.</li>
+<li><strong>Cooperative interpreter execution.</strong> Worker callbacks share mutable interpreter state, so a global lock serializes Lynxer evaluation. <code>nativeThread*</code> does not provide CPU-parallel evaluation, <code>async</code> local blocks are eager, and <code>await</code> joins a thread-backed task rather than suspending a coroutine.</li>
+<li><strong>Compatibility decisions.</strong> <code>mathPlus</code> remains merged into <code>math</code>; <code>http</code>/<code>net</code> remain replaced by <code>network</code>/<code>server</code>; UUID v1/v6, RSA/ECDSA, the legacy Python-facing probes, and bytecode remain unavailable.</li>
+<li><strong>Stable API conventions.</strong> Existing in-band failure sentinels, ASCII-only helper behavior, JSON document bridges, text-oriented UUID representation, TTY fallbacks, and established module-specific return formats remain compatibility contracts unless a separately approved, versioned change is made.</li>
+</ul>
     </main>
 </div>
 

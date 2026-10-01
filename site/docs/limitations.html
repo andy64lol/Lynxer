@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <meta name="theme-color" content="#4a90e2">
-    <title>Runtime and standard-library constraints - Lynxer</title>
+    <title>Planned implementation gaps - Lynxer</title>
     <link rel="stylesheet" href="../style.css">
 </head>
 <body>
@@ -109,303 +109,54 @@
         <div class="breadcrumb">
             <a href="../index.html">Home</a>
             <a href="../docs/stdlib/index.html">Standard Library</a>
-            <span>Runtime and standard-library constraints</span>
+            <span>Planned implementation gaps</span>
         </div>
         <div class="search-bar" data-search-index="../search-index.json" data-site-root="../">
             <label class="visually-hidden" for="docs-search">Search documentation</label>
             <input id="docs-search" type="search" placeholder="Search documentation..." aria-label="Search documentation" autocomplete="off">
             <div class="search-results" aria-live="polite"></div>
         </div>
-<h1 id="runtime-and-standard-library-constraints">Runtime and standard-library constraints</h1>
-<h2 id="native-module-abi">Native Module ABI</h2>
+<h1 id="planned-implementation-gaps">Planned implementation gaps</h1>
+<p>This page summarizes known gaps that are intended to be addressed. Each entry has an implementation task in <a href="https://github.com/andy64lol/Lynxer/blob/main/todo.md">todo</a>. Intentional product boundaries, removed features and compatibility decisions are documented in <a href="removed-features.html">removed-features</a>.</p>
+<h2 id="runtime-and-native-module-abi">Runtime and native-module ABI</h2>
 <ul>
-<li><strong>Signature constraints.</strong> A native signature names each parameter with a type token: <code>int64</code> (any integer width), <code>double</code>/<code>float64</code>, <code>cstring</code>, or <code>bytes</code>. A <code>bytes</code> parameter is passed as two C arguments (a pointer and a length), and a <code>bytes</code> return is a length-prefixed buffer. The packed <code>...</code> form passes numbers and strings as two arrays and accepts at most 256 arguments in total; the buffered packed form <code>...,bytes</code> additionally carries byte buffers (<code>const uint8_t* const* bufs, const int64_t* lens, int64_t buf_count</code>).</li>
+<li>Native aggregates have no direct typed representation across the module ABI; modules use JSON strings or handles. The ABI needs a versioned extension and conformance tests for nested values.</li>
+<li><code>sys.exit()</code> calls <code>std::exit</code> directly and bypasses interpreter cleanup.</li>
 </ul>
+<h2 id="graphics-and-game"><code>graphics</code> and <code>game</code></h2>
 <ul>
-<li><strong>Aggregates.</strong> A numeric list crosses as <code>bytes</code> holding little-endian <code>f64</code> (the <code>listToBytes</code> / <code>bytesToList</code> encoding); other structured data still crosses as a JSON string or a handle.</li>
+<li>Context-dependent graphics operations may fail outside the frame callback instead of being queued or reporting one consistent error.</li>
+<li>The headless <code>uiWindowBegin</code> / <code>uiGroupBegin</code> layout supports one block level; nested groups are rejected.</li>
+<li>The windowed graphics path is skipped by CI; only the headless rasterizer is covered in the routine Linux test job.</li>
+<li>Game tilemaps read CSV layer data from the first tileset. Physics supports axis-aligned player boxes, walls, slopes and one-way platforms, but not rotation-aware collision or moving-platform carry.</li>
+<li>Game sound state is estimated from decoded duration rather than queried from the audio backend.</li>
 </ul>
+<h2 id="server"><code>server</code></h2>
 <ul>
-<li><strong>String handling.</strong> Only one live string result per call is supported (<code>thread_local</code> buffer); a <code>bytes</code> result likewise has one live buffer.</li>
+<li>Request-context readers such as <code>getArg</code>, <code>getHeader</code> and <code>getBody</code> describe the most recent request rather than the request currently being served.</li>
+<li>Templates lack inheritance, macros, includes and auto-escaping; unknown template keys render as an empty string.</li>
+<li>HTTPS certificate/key mismatch is detected only when a client connects.</li>
 </ul>
+<h2 id="native-modules">Native modules</h2>
 <ul>
-<li><strong>Platform support.</strong> <code>.so</code> imports are currently Linux/POSIX-only and not available on Windows.</li>
+<li><code>compress</code> does not enable bzip2 or encrypted ZIP support; zstd builds vendored C sources and needs a C compiler.</li>
+<li><code>crypto</code> supports a fixed set of digest names and Ed25519 signatures only; conventional digest aliases are not all accepted.</li>
+<li>The kqueue <code>watch</code> backend reports the registered path rather than individual changed entries where the OS does not expose them, and is not covered by CI.</li>
+<li>TOML, INI, XML and YAML use a JSON document bridge. TOML datetimes become strings, and YAML mappings with non-string keys cannot be represented.</li>
+<li><code>regex</code> and <code>re</code> report byte offsets; callers needing Unicode character positions have no corresponding API.</li>
+<li>Text case conversion and <code>typing.isAlpha</code> / <code>isDigit</code> are ASCII-only.</li>
+<li><code>path</code> supports only UTF-8, Latin-1 and ASCII text encodings. The remaining system-information backends are not implemented on every POSIX target.</li>
+<li><code>js</code> requires Node.js on <code>PATH</code>; subprocess timeout, stderr and result-handle behavior need consistent cross-module tests.</li>
+<li>Timestamped debug log output has no deterministic fixture coverage.</li>
+<li>The TUI prints snapshots instead of animating live displays, and <code>printException</code> cannot show the original exception context.</li>
+<li>Image operations use inconsistent return/value representations; grayscale alpha, metadata formatting and format detection need compatibility coverage.</li>
+<li>SQLite BLOBs are rendered as base64 in JSON, and scalar/query result conventions need a documented, lossless value representation.</li>
+<li>Lua error output preserves engine diagnostics, but does not expose stable structured error classifications.</li>
 </ul>
-<h2 id="standard-library-constraints">Standard Library Constraints</h2>
-<h3 id="graphics--constrained-behavior"><code>graphics</code> — Constrained Behavior</h3>
+<h2 id="test-and-compatibility-coverage">Test and compatibility coverage</h2>
 <ul>
-<li><strong>A display is required for the GPU renderer.</strong> macroquad draws through OpenGL, so with a window it needs X11 or Wayland. With <code>LYNXER_GRAPHICS_HEADLESS=1</code> no window is opened and the module rasterizes on the CPU instead: every shape primitive fills a framebuffer — <code>clearBackground</code>, <code>drawRectangle(_Lines)</code>, <code>drawLine</code>, <code>drawTriangle(_Lines)</code>, <code>drawCircle(_Lines)</code>, <code>drawEllipse(_Lines)</code>, <code>drawPoly(_Lines)</code>, <code>drawHexagon</code>, <code>drawArc</code> and the rotated-rectangle ops — and <code>screenshot</code> writes that frame as a PNG (in the same top-left origin the drawing ops use). <code>stdlib_graphics_raster.lynx</code> and <code>stdlib_graphics_raster_shapes.lynx</code> check this in CI.</li>
-<li><strong>The headless path also covers text, textures, render targets and the UI.</strong> Text is rasterized on the CPU with <code>fontdue</code>; the default face is a copy of the ProggyClean TTF macroquad embeds, and <code>loadFont</code> parses a user TTF the same way. <code>loadTexture</code> decodes an image to a CPU texture and the <code>drawTexture*</code> ops blit it (with scale, source region, rotation and tint); <code>renderTarget</code> / <code>setRenderTarget</code> / <code>endRenderTarget</code> redirect drawing into an offscreen framebuffer and <code>renderTargetTexture</code> / <code>getScreenData</code> hand it back as a texture or image. <code>uiWindowBegin</code>/<code>uiGroupBegin</code> blocks are drawn as a stacked approximation of macroquad's layout (no input or hit-testing headless). Text anti-aliasing and UI layout are therefore close to, but not pixel-identical with, the GPU path.</li>
-<li><strong>Shaders, materials and 3D meshes are GPU-only.</strong> A fragment/vertex shader cannot execute without a GPU, so <code>loadMaterial</code>/<code>setMaterial</code>/<code>setShader*</code>, the <code>drawCube</code>/<code>drawSphere</code>/<code>drawPlane</code>/<code>drawGrid</code> primitives and model/mesh loading stay no-ops headless and return their <code>-1</code>/placeholder results.</li>
-<li><strong>Ops that need the GPU context only work inside a frame callback.</strong> <code>loadMaterial</code>, <code>renderTarget</code>, <code>screenshot</code>, the <code>draw*</code> ops and the <code>ui*</code> widgets all fail if called from <code>setup</code> or <code>main</code>; the headless path relaxes this for the CPU-expressible ops above.</li>
-<li><strong>No audio, native widgets or gamepads.</strong> macroquad's audio feature is not vendored, the <code>ui*</code> widgets are canvas-drawn, and 0.4.16 has no gamepad API.</li>
-<li><strong><code>uiWindowBegin</code>/<code>uiGroupBegin</code> buffer one block deep.</strong> A nested <code>*Begin</code> returns <code>-1</code>; widget values are updated when the block is replayed, so read them after <code>*End</code>.</li>
-<li><strong>The windowed path is not covered by CI.</strong> CI sets <code>LYNXER_SKIP_DISPLAY=1</code>, which skips the graphics fixture.</li>
-</ul>
-<h3 id="game--constrained-behavior"><code>game</code> — Constrained Behavior</h3>
-<ul>
-<li><strong>Tilemaps use the first atlas, with a headless fallback.</strong> <code>loadTilemap</code> reads the first <code>&lt;tileset&gt;</code> and CSV layer data, resolves the atlas path relative to the TMX file, and crops nonzero GIDs using <code>firstgid</code>, <code>margin</code> and <code>spacing</code>. Tiles remain solid sprites. If the texture is unavailable or the module is headless, it uses shaded blocks instead.</li>
-<li><strong>Physics covers walls, slopes and one-way platforms.</strong> <code>updatePhysics</code> resolves horizontal and vertical collision against a wall list, rides a wall whose sprite <code>angle</code> is non-zero as a slope, and treats the list passed as <code>makePhysicsEngine</code>'s third argument as one-way platforms (solid only from above, within a two-unit snap). The player is still a single axis-aligned box: there is no rotation-aware collision, no sprite-against-sprite physics and no moving-platform carry.</li>
-<li><strong>Animated sprites and sound are texture/audio-backed.</strong> In headless mode <code>makeAnimatedSprite</code> and <code>loadSound</code> return <code>-1</code>, and <code>screenshot</code> returns <code>-1</code>; the drawing, sound and screenshot ops are otherwise no-ops.</li>
-<li><strong>Sound playback state uses decoded duration.</strong> <code>isSoundPlaying</code> expires one-shots after their probed duration and keeps loops active until stopped. This is not an audio-backend playback-position query; if duration probing fails, the state remains active until <code>stopSound</code>.</li>
-</ul>
-<h3 id="server--constrained-behavior"><code>server</code> — Constrained Behavior</h3>
-<ul>
-<li><strong>TLS is built, and does not block.</strong> <code>runHTTPS(cert, key)</code> and <code>runSSLAdhoc()</code> start an HTTPS listener on the <code>init</code> host/port with <code>rustls</code> (the <code>ring</code> provider — no system OpenSSL) and return <code>&quot;ok&quot;</code>; <code>stop()</code> ends it. They do not block the way <code>run()</code> does. A certificate/key mismatch is only found when a client connects.</li>
-<li><strong>Request-context readers describe the last request.</strong> <code>getArg</code>, <code>getHeader</code>, <code>getBody</code> and friends read the most recently handled request, because a Lynxer route is a fixed string rather than a callback and the interpreter evaluates one frame at a time. The original's Flask request context has no equivalent. A <strong>template</strong>, however, is rendered <em>inside</em> the request: it can read the request through the <code>request</code> object (<code>request.args</code>, <code>request.headers</code>, <code>request.cookies</code>, <code>request.body</code>, <code>request.json</code>, <code>request.form</code>, <code>request.method</code>, <code>request.path</code>), and the query arguments also overlay the root context.</li>
-<li><strong>Templates are a Jinja-compatible subset.</strong> <code>template</code>, <code>templatePost</code> and <code>templateString</code> render <code>{{ expression }}</code> (with filters), <code>{% if %}</code>/ <code>{% elif %}</code>/<code>{% else %}</code>, <code>{% for x in items %}</code> (with the <code>loop</code> variable), <code>{% set %}</code> and <code>{# comments #}</code>. Expressions cover literals, dotted paths, <code>or</code>/<code>and</code>/<code>not</code>, <code>==</code>/<code>!=</code>/<code>&lt;</code>/<code>&lt;=</code>/<code>&gt;</code>/<code>&gt;=</code>, <code>in</code>, <code>+</code>/<code>-</code>/<code>*</code>/<code>/</code>/<code>%</code>, <code>~</code> (concatenation), the <code>range()</code> helper and the filters <code>upper</code>, <code>lower</code>, <code>trim</code>, <code>capitalize</code>, <code>title</code>, <code>length</code>, <code>first</code>, <code>last</code>, <code>reverse</code>, <code>join</code>, <code>default</code>, <code>int</code>, <code>float</code>, <code>round</code>, <code>replace</code> and <code>string</code>. Inheritance (<code>{% extends %}</code>/<code>{% block %}</code>), macros and includes are <strong>not</strong> implemented, there is no auto-escaping, and an unknown key renders as the empty string.</li>
-<li><strong><code>run()</code> blocks.</strong> It starts the listener on the <code>init</code> host/port and then blocks, matching the original. Use <code>start()</code> + <code>stop()</code> when the program has to keep running.</li>
-<li><strong>Static paths are confined.</strong> <code>staticFiles</code>, <code>staticSite</code> and <code>serveFile</code> refuse any <code>..</code> component, and a bad file read is a 404.</li>
-</ul>
-<h3 id="compress--constrained-behavior"><code>compress</code> — Constrained Behavior</h3>
-<ul>
-<li><strong>Payloads are <code>bytes</code>.</strong> An in-memory <code>&lt;codec&gt;Compress</code> takes <code>bytes</code> and returns <code>bytes</code>, and its <code>&lt;codec&gt;Decompress</code> does the same, so a payload that is not valid UTF-8 is representable. The <code>*File</code> ops work on paths and read and write the bytes themselves.</li>
-<li><strong>Two sentinel families.</strong> The in-memory stream ops use the scalar sentinel (<code>&quot;&quot;</code>); the file and archive ops answer with <code>&quot;ok&quot;</code> / <code>&quot;ERROR: &lt;message&gt;&quot;</code>, because they can fail with a reason (a missing file, a bad archive).</li>
-<li><strong>A decompress is capped at 64 MiB</strong> of output, for the in-memory stream ops and the <code>*File</code> ops alike, so a crafted stream cannot exhaust memory; an LZ4 stream whose declared length exceeds the cap is refused before it is decoded.</li>
-<li><strong>Archive extraction is capped at 64 MiB</strong>: a ZIP entry on <code>zipRead</code> and <code>zipExtract</code>, and the total declared entry size on <code>tarExtract</code> and <code>tarGzExtract</code> (whose decompressed stream is bounded too), so a crafted archive cannot exhaust memory or disk.</li>
-<li><strong>An extract refuses to escape its destination.</strong> ZIP entries are checked with the archive's enclosed-name rule and TAR entries with <code>unpack_in</code>; a name that is absolute or contains <code>..</code> is an error (and <code>zipCreate</code>/<code>tarCreate</code> reject such a name when the archive is written).</li>
-<li><strong><code>zstd</code> vendors the zstd C sources</strong>, so a C compiler is required in addition to the Rust toolchain. <code>zip</code> is built with deflate only (<code>bzip2</code>/<code>zstd</code>/<code>aes</code> support is off).</li>
-</ul>
-<h3 id="crypto--constrained-behavior"><code>crypto</code> — Constrained Behavior</h3>
-<ul>
-<li><strong>Payloads are <code>bytes</code>.</strong> A message, key, signature or random payload crosses as <code>bytes</code>; <code>hash</code>/<code>hmac</code> return lower-case hex (a text form is the API) and <code>signEd25519</code> returns <code>bytes</code>. <code>hashFile</code>/<code>hmacFile</code> read the file's bytes inside the module.</li>
-<li><strong>Failures are in-band.</strong> An unknown algorithm, a malformed payload or an I/O error yields <code>&quot;&quot;</code>, and a predicate yields <code>false</code>; there is no exception.</li>
-<li><strong>The algorithm names are a fixed set.</strong> <code>sha1</code>, <code>sha224</code>, <code>sha256</code>, <code>sha384</code>, <code>sha512</code>, <code>md5</code>, <code>sha3-256</code>, <code>sha3-512</code> and <code>blake3</code> for a digest; <code>hash</code>/<code>hmac</code> ignore case but do not accept aliases such as <code>SHA-256</code>.</li>
-<li><strong><code>verifyHmac</code> compares in constant time</strong>; a MAC that is not valid hex is a mismatch, not an error.</li>
-<li><strong>Ed25519 only.</strong> The module signs and verifies Ed25519 keys (32-byte seed, base64); RSA and ECDSA are not exposed. Key generation uses OS entropy, so <code>generateEd25519KeyPair</code> is not reproducible.</li>
-<li><strong><code>randomBytes</code>/<code>randomHex</code>/<code>randomToken</code> cap the count</strong> at 1 MiB and answer <code>&quot;&quot;</code> outside <code>0..=1 MiB</code>, rather than allocating an unbounded buffer.</li>
-</ul>
-<h3 id="watch--constrained-behavior"><code>watch</code> — Constrained Behavior</h3>
-<ul>
-<li><strong>Linux, macOS and the BSDs.</strong> The backend is inotify on Linux and kqueue <code>EVFILT_VNODE</code> on macOS and the BSDs. Windows has no descriptor to poll and is not supported. The kqueue backend reports the registered path itself (a directory reports that its contents changed) rather than the individual file name, and is not covered by CI — only the Linux path is.</li>
-<li><strong>Handles, closed by the caller.</strong> Each watch is an integer handle; dropping it (<code>watchRemove</code> / <code>watchClose</code>) closes the descriptor.</li>
-<li><strong>Blocking wait, with the lock released.</strong> <code>watchWait(handle, timeoutMs)</code> blocks on the descriptor (1 = readable, 0 = timeout, -1 = unknown handle) and releases the interpreter lock while it waits, so it does not wedge other Lynxer threads. <code>watchFd</code> still returns the descriptor for the interpreter's own <code>asyncPollRegister</code> / <code>asyncPollWait</code>, and <code>watchDrain</code> reads the pending events without blocking.</li>
-<li><strong>Failure is in-band.</strong> <code>watchAdd</code>/<code>watchFd</code>/<code>watchWait</code> yield <code>-1</code>, <code>watchDrain</code> yields <code>&quot;&quot;</code> for an unknown handle, and the predicates yield <code>false</code>.</li>
-<li><strong><code>watchSetDebounce</code> coalesces within a drain</strong>: events for the same path inside the window keep only the most recent kind. 0 disables it.</li>
-</ul>
-<h3 id="toml--constrained-behavior"><code>toml</code> — Constrained Behavior</h3>
-<ul>
-<li><strong>Documents are JSON strings.</strong> A TOML document crosses as JSON (the shared structured-value bridge); a JSON object serializes back to TOML. A TOML datetime becomes a JSON string.</li>
-<li><strong>Failures are in-band.</strong> A document op yields <code>&quot;&quot;</code> and <code>tomlValid</code> yields <code>false</code>; a JSON value that TOML cannot hold (a top-level non-table, or a <code>null</code>) makes <code>tomlSerialize</code> answer <code>&quot;&quot;</code>.</li>
-</ul>
-<h3 id="ini--constrained-behavior"><code>ini</code> — Constrained Behavior</h3>
-<ul>
-<li><strong>Documents are JSON strings.</strong> An INI document crosses as an object of sections, each an object of string values; the unnamed leading section uses <code>&quot;&quot;</code> as its key. Values are strings in both directions.</li>
-<li><strong>Failures are in-band.</strong> A document op yields <code>&quot;&quot;</code> and <code>iniValid</code> yields <code>false</code>. An empty document is valid, so it parses to <code>{&quot;&quot;:{}}</code>.</li>
-</ul>
-<h3 id="xml--constrained-behavior"><code>xml</code> — Constrained Behavior</h3>
-<ul>
-<li><strong>A document maps onto a JSON element tree</strong>: <code>{&quot;name&quot;, &quot;attributes&quot;, &quot;text&quot;, &quot;children&quot;}</code>. Comments, processing instructions and the doctype are ignored, and <strong>no external entity is ever resolved</strong>.</li>
-<li><strong>Input is capped at 16 MiB.</strong> A larger document (<code>xmlParse</code>/<code>xmlValid</code>) or JSON tree (<code>xmlSerialize</code>) is refused before parsing, so a huge input cannot balloon into a proportionally larger tree.</li>
-<li><strong><code>text</code> is the character data directly inside an element</strong>; it is escaped on serialize, so a round trip of a document with entities is exact.</li>
-<li><strong>Failures are in-band.</strong> A malformed document yields <code>&quot;&quot;</code> and <code>xmlValid</code> yields <code>false</code>; <code>xmlUnescape</code> yields <code>&quot;&quot;</code> for a malformed entity.</li>
-</ul>
-<h3 id="yaml--constrained-behavior"><code>yaml</code> — Constrained Behavior</h3>
-<ul>
-<li><strong>Documents are JSON strings.</strong> A YAML mapping becomes a JSON object and a sequence a JSON array. A mapping whose key is not a string (which JSON cannot hold) is a failure.</li>
-<li><strong>Anchors and aliases are resolved while parsing</strong>, so the input is capped at 1 MiB to bound an alias-expansion payload; a larger input is a failure.</li>
-<li><strong>Failures are in-band.</strong> A document op yields <code>&quot;&quot;</code> and <code>yamlValid</code> yields <code>false</code>.</li>
-</ul>
-<h3 id="json--constrained-behavior"><code>json</code> — Constrained Behavior</h3>
-<ul>
-<li>Non-finite numbers (<code>NaN</code>, <code>Infinity</code>) are encoded as <code>null</code> to ensure valid JSON output.</li>
-<li>Object key order follows insertion order.</li>
-<li><code>jsonGet</code> renders booleans as <code>true</code>/<code>false</code>.</li>
-</ul>
-<h3 id="encoding--constrained-behavior"><code>encoding</code> — Constrained Behavior</h3>
-<ul>
-<li><strong>Payloads are <code>bytes</code>.</strong> An encode takes <code>bytes</code> and returns a <code>str</code> (the encoded form is text); a decode takes a <code>str</code> and returns <code>bytes</code>, so a payload that is not valid UTF-8 is representable. <code>*Valid</code> reports whether the input is well formed in the codec.</li>
-<li><strong>Failures are in-band.</strong> A decode returns <code>&quot;&quot;</code> and a predicate returns <code>false</code>; there is no exception to catch.</li>
-<li><strong>Padding is optional when decoding</strong> and always emitted when encoding, for base64 and base32 alike; base32 also accepts either case. Whitespace inside a payload is never accepted.</li>
-<li><strong><code>percentDecode</code> validates the escapes itself.</strong> The underlying decoder leaves a malformed escape in place (<code>%2</code> stays <code>%2</code>), so a bare <code>%</code> is a failure here rather than a passthrough.</li>
-<li><strong><code>ascii85Encode</code> includes the Adobe <code>&lt;~</code>/<code>~&gt;</code> frame</strong>, and decoding accepts a framed or bare stream. The <code>z</code> shorthand is expanded before decoding because <code>ascii85</code> 0.2.1 rejects every <code>z</code> it should accept.</li>
-<li><strong><code>quotedPrintableEncode</code> is the text encoding of RFC 2045</strong>, so <code>CR</code>/<code>LF</code> become <code>=0D</code>/<code>=0A</code> and long lines gain soft breaks; decoding is strict.</li>
-</ul>
-<h3 id="uuid--constrained-behavior"><code>uuid</code> — Constrained Behavior</h3>
-<ul>
-<li><strong>UUIDs are strings.</strong> The canonical form is the lower-case hyphenated one; <code>uuidToHex</code> returns the simple 32-hex-character form, and <code>uuidToBytes</code> / <code>uuidFromBytes</code> exchange the raw 16 bytes as a <code>bytes</code> value.</li>
-<li><strong>Failures are in-band.</strong> An unparseable UUID yields <code>&quot;&quot;</code>, <code>uuidValid</code> yields <code>false</code>, and <code>uuidVersion</code>/<code>uuidTimestamp</code> yield <code>-1</code>; there is no exception to catch.</li>
-<li><strong>Accepted input forms.</strong> Hyphenated, simple, <code>urn:uuid:</code> and braced, with surrounding whitespace trimmed. The URN and braced forms must wrap the <em>hyphenated</em> form; wrapping the simple form is rejected, matching <a href="https://www.rfc-editor.org/rfc/rfc9562">RFC 9562</a>.</li>
-<li><strong><code>uuidVersion</code> reports the raw nibble.</strong> A UUID that is not a well-formed RFC variant reports whatever its 13th hex digit says (for example <code>12</code>), rather than failing.</li>
-<li><strong><code>v1</code> and <code>v6</code> are not exposed.</strong></li>
-</ul>
-<h3 id="re-and-regex--constrained-behavior"><code>re</code> and <code>regex</code> — Constrained Behavior</h3>
-<p>Both modules run a Rust <code>fancy-regex</code> engine (<code>rust/regex_engine</code>, shared by <code>rust/re</code> and <code>rust/regex</code>) — a superset of ECMAScript that adds the PCRE constructs <code>std::regex</code> lacked. No system regex library is involved.</p>
-<ul>
-<li><strong>Supported syntax:</strong> lookahead and lookbehind <code>(?&lt;=...)</code>/<code>(?&lt;!...)</code> including variable-length lookbehind, atomic groups <code>(?&gt;...)</code>, possessive quantifiers (<code>a++</code>), backreferences (<code>\1</code> and <code>(?P=name)</code>), Unicode property escapes (<code>\p{L}</code>, <code>\p{Greek}</code>), named groups <code>(?P&lt;name&gt;...)</code>/<code>(?&lt;name&gt;...)</code>, and inline flags — which now apply from the position they appear — plus <code>(?x)</code> verbose mode.</li>
-<li><strong>Flags:</strong> <code>I</code>, <code>M</code> and <code>S</code> set case-insensitivity, multiline and dotall; <code>X</code> (alias <code>x</code>) enables verbose mode, which the C++ engine ignored.</li>
-<li><strong>Error handling:</strong> Invalid patterns — and a pattern that fails at match time, such as an exhausted backtracking budget — return sentinel results (predicates <code>false</code>, strings <code>&quot;&quot;</code>, index helpers <code>-1</code>) instead of raising.</li>
-<li><strong>Matching:</strong> <code>\d</code>/<code>\w</code> are Unicode-aware, as in PCRE, while <code>findLetters</code>/ <code>findDigits</code> keep matching ASCII letter and digit runs only. Offsets reported by <code>matchStart</code>/<code>matchEnd</code>/<code>findSpans</code> are byte offsets.</li>
-<li><strong>Multi-group <code>findall</code>:</strong> Returns arrays of groups when two or more capture groups are used.</li>
-<li><strong>Replacement groups:</strong> An undefined group <em>name</em> is left as the literal <code>$name</code>, and an undefined group <em>number</em> expands to nothing.</li>
-</ul>
-<h3 id="csv--constrained-behavior"><code>csv</code> — Constrained Behavior</h3>
-<ul>
-<li><strong>Line terminators:</strong> Output uses <code>\r\n</code> line terminators.</li>
-<li><strong>Non-string values:</strong> Non-string JSON values are rendered as <code>&quot;&quot;</code> (empty string), <code>true</code>, or <code>false</code>.</li>
-<li><strong>Column handling:</strong> Values beyond the header width are dropped, and missing columns are filled with <code>&quot;&quot;</code> (empty string).</li>
-<li><strong>API note:</strong> <code>docs/stdlib/csv.md</code> is the current API. The legacy <code>csv</code> names (<code>parseCSV</code>, <code>parseCSVRaw</code>, <code>readCSVRaw</code>, <code>csvColumn</code>, <code>csvRowCount</code>, <code>filterCSV</code>, <code>csvHeaders</code>, <code>csvRow</code>, <code>dedupCSV</code>) are available as forwarders; <code>csvRow</code> returns a JSON object and <code>csvHeaders</code> a comma-joined string, which are the legacy shapes.</li>
-</ul>
-<h3 id="text-and-typing--code-points"><code>text</code> and <code>typing</code> — Code Points</h3>
-<ul>
-<li><strong>Code-point semantics.</strong> Lynxer strings hold UTF-8, and <code>returnLength</code>, <code>charAt</code>, <code>substring</code> and the <code>charCode</code>/<code>charOf</code> builtins work on <strong>code points</strong>, so a character is one Unicode scalar value rather than one byte: <code>returnLength(&quot;café&quot;)</code> is 4, <code>charAt(&quot;café&quot;, 3)</code> is <code>&quot;é&quot;</code> and <code>charCode</code> of it is 233. <code>charOf</code> accepts any code point up to <code>0x10FFFF</code> except the surrogate range, and returns a UTF-8 sequence. A byte that cannot start a valid sequence counts as one code point, so any byte string still has a length. <code>typing.charCodeOf</code> returns <code>-1</code> for a non-char/non-string or an empty string, and <code>typing.charOf</code> returns a NUL <code>char</code> for a code outside the valid range.</li>
-<li><strong>Case conversion stays ASCII.</strong> <code>text.upper</code>/<code>text.lower</code> change only <code>a</code>-<code>z</code>/<code>A</code>-<code>Z</code>, and <code>typing.isAlpha</code>/<code>isDigit</code> test ASCII, so <code>&quot;é&quot;</code> is neither alpha nor digit.</li>
-<li><strong><code>typing.isNumeric</code>.</strong> In <code>typing</code>, <code>isNumeric(value)</code> means "is an <code>int</code> or <code>float</code>", not the legacy "the string parses as a number". Use <code>typing.isDigit</code> for digit-only strings.</li>
-<li><strong><code>typing.toFloat32</code> / <code>toFloat64</code>.</strong> Both return a <code>float</code>; Lynxer <code>float</code> is a double, so there is no single-precision narrowing.</li>
-</ul>
-<h3 id="os-and-path--constrained-behavior"><code>os</code> and <code>path</code> — Constrained Behavior</h3>
-<ul>
-<li><strong>Encodings:</strong> <code>path.readTextEncoding</code> and <code>path.writeTextEncoding</code> honour <code>utf-8</code> (also the default when the name is empty), <code>latin-1</code> and <code>ascii</code>. They no longer ignore the name: an unknown encoding, or a character the encoding cannot represent, is a failure sentinel (<code>&quot;&quot;</code> / <code>false</code>) instead of a silent read or write as UTF-8. UTF-8 text is passed through without validation, so a non-UTF-8 byte still survives a <code>utf-8</code> read.</li>
-<li><strong>Platform info:</strong> Platform helpers report the host through <code>uname(2)</code>.</li>
-</ul>
-<h3 id="sys--constrained-behavior"><code>sys</code> — Constrained Behavior</h3>
-<ul>
-<li><strong>Version:</strong> <code>version()</code> returns the Lynxer version (e.g., <code>Lynxer 0.1.8.1</code>).</li>
-<li><strong>Architecture:</strong> <code>architecture()</code> returns the canonical syscall architecture of this build (<code>amd64</code> or <code>arm64</code>), not the raw machine string from <code>uname(2)</code>.</li>
-<li><strong>System information:</strong> <code>cpuCount</code>, <code>pageSize</code>, <code>memoryTotal</code>, <code>memoryAvailable</code>, <code>uptime</code>, <code>bootTime</code> and <code>loadAverage</code> report the host on Linux, macOS and FreeBSD/DragonFly (<code>sysctl</code>), sharing the POSIX <code>sysconf</code>/<code>getloadavg</code> paths where they exist. NetBSD/OpenBSD fall back to <code>0</code> (or <code>[]</code>) for the <code>sysctl</code>-backed values, and any host that cannot provide a value returns <code>0</code> (or <code>[]</code>).</li>
-<li><strong>Command-line arguments:</strong> <code>argv()</code>, <code>getArg</code> and <code>argCount</code> describe the <strong>program's own</strong> command line — the script path (or the compiled executable) followed by the arguments passed after it — not the <code>lynxer</code> process command line.</li>
-<li><strong>Exit behavior:</strong> <code>exit()</code> calls <code>std::exit</code> directly, bypassing interpreter cleanup.</li>
-</ul>
-<h3 id="cli--constrained-behavior"><code>cli</code> — Constrained Behavior</h3>
-<ul>
-<li><strong>Click/Typer builders:</strong> The <code>click*</code> and <code>typer*</code> builders are implemented natively (integer handles over JSON descriptors) rather than by binding the Python packages. A failed parse returns <code>{&quot;error&quot;: &quot;…&quot;}</code> rather than raising. The old Python-availability probes (<code>clickExists</code>, <code>typerExists</code>, <code>clickVersion</code>, <code>typerVersion</code>) were removed as meaningless.</li>
-</ul>
-<h3 id="multiprocessing--constrained-behavior"><code>multiprocessing</code> — Constrained Behavior</h3>
-<ul>
-<li><strong>Process handling:</strong> Commands run in worker threads, each spawning its own shell subprocess. <code>runParallelProcess</code> is an alias for <code>runParallel</code>.</li>
-<li><strong>Timeout and stderr:</strong> A command is killed after <code>LYNXER_MP_TIMEOUT</code> seconds (default <code>300</code>, <code>0</code> for no limit) and reports exit code <code>124</code>; its <code>stderr</code> is captured into the output.</li>
-<li><strong>Resource management:</strong> Results are collected through a native handle, which must be released. The wrappers handle this automatically.</li>
-</ul>
-<h3 id="js--constrained-behavior"><code>js</code> — Constrained Behavior</h3>
-<ul>
-<li><strong>Dependency:</strong> Requires <code>node</code> to be on <code>PATH</code>.</li>
-<li><strong>Timeout:</strong> A program is killed after <code>LYNXER_JS_TIMEOUT</code> seconds (default <code>30</code>) and answers an explanatory error.</li>
-<li><strong>Error handling:</strong> <code>stderr</code> is captured into the result rather than inherited.</li>
-</ul>
-<h3 id="debug--constrained-behavior"><code>debug</code> — Constrained Behavior</h3>
-<ul>
-<li><strong>Type mapping:</strong> <code>typeOf</code> maps the interpreter's <code>none</code> to <code>null</code>.</li>
-<li><strong>String rendering:</strong> <code>dump</code> and <code>pp</code> print <code>strOf</code> rendering, so strings are not quoted.</li>
-<li><strong>Logging:</strong> <code>log</code>/<code>info</code>/<code>warn</code>/<code>error</code>/<code>debug</code> embed a wall-clock timestamp and are not covered by the fixture suite.</li>
-</ul>
-<h3 id="math--constrained-behavior"><code>math</code> — Constrained Behavior</h3>
-<ul>
-<li><strong>Statistics:</strong> NumPy-backed statistics (<code>median</code>, <code>std</code>, <code>variance</code>, <code>percentile</code>, <code>corrcoef</code>, <code>dot</code>, <code>linspace</code>, <code>cumsum</code>, <code>diff</code>, <code>clip</code>, <code>normalize</code>) are reimplemented natively. NumPy is not required.</li>
-<li>Population variance and standard deviation are used.</li>
-<li><code>percentile</code> follows NumPy's linear interpolation.</li>
-</ul>
-<ul>
-<li><strong>Merged modules:</strong> <code>mathPlus</code> is merged into <code>math</code>. The float-accepting <code>sign</code> from <code>mathPlus</code> is available as <code>signFloat</code>.</li>
-</ul>
-<h3 id="sound--constrained-behavior"><code>sound</code> — Constrained Behavior</h3>
-<ul>
-<li><strong>Loading:</strong> <code>loadSound</code> decodes the file into memory at load time, so playback survives the file being moved or deleted; <code>loadSoundStreaming</code> reads only the header and decodes as it plays, so the file must still be there. Both register a handle and return its index.</li>
-</ul>
-<ul>
-<li><strong>Playback:</strong></li>
-<li>Requires an audio device. If none is available, <code>playSound</code> and <code>loopSound</code> return <code>false</code> instead of aborting. Loading, <code>soundCount()</code>, and <code>releaseSound</code> continue to work.</li>
-<li><code>pauseSound</code> and <code>resumeSound</code> require a player that has been started. They return <code>false</code> for a valid handle that has not been played yet.</li>
-</ul>
-<ul>
-<li><strong>Resource management:</strong></li>
-<li><code>releaseSound</code> returns <code>false</code> for already-released handles.</li>
-<li><code>soundCount()</code> counts only handles that have not been released.</li>
-</ul>
-<ul>
-<li><strong>Sound metadata:</strong> <code>getSoundLength</code> returns the duration resolved at load time and never re-reads the file. For a container with no duration header the streaming load decodes once at load time to learn it, then drops the samples.</li>
-</ul>
-<h3 id="sqldb--constrained-behavior"><code>sqldb</code> — Constrained Behavior</h3>
-<ul>
-<li><strong>Connection handling:</strong> A function takes either a database <strong>path</strong> — a connection is opened for that call and closed after it — or a <strong>handle</strong> from <code>open()</code>, which keeps one connection live until <code>close()</code>. The *On forms (<code>queryOn</code>, <code>executeArgsOn</code>, …) run against a handle; a handle stays valid for the run, and calling <code>close</code> twice (or with an unknown handle) reports <code>0</code>.</li>
-</ul>
-<ul>
-<li><strong>Error handling:</strong> String-returning operations raise a catchable runtime error on failure. Integer and boolean functions retain their <code>-1</code>/<code>false</code> sentinels for failures, including unknown or closed handles.</li>
-</ul>
-<ul>
-<li><strong>JSON formatting:</strong> <code>query</code>, <code>queryArgs</code>, and <code>tables</code> emit JSON with <code>&quot;: &quot;</code> and <code>&quot;, &quot;</code> separators.</li>
-</ul>
-<ul>
-<li><strong>BLOB handling:</strong> SQLite BLOB values are rendered as base64 strings, as JSON has no native byte type.</li>
-</ul>
-<ul>
-<li><strong>Scalar queries:</strong> <code>scalar</code> converts the first column of the first row using <code>strOf</code> and returns <code>&quot;&quot;</code> (empty string) if the query yields no row or the value is NULL.</li>
-</ul>
-<h3 id="tui--constrained-behavior"><code>tui</code> — Constrained Behavior</h3>
-<p>The backend is real (<code>ratatui</code>), but it is not a pixel-for-pixel Rich equivalent:</p>
-<ul>
-<li><strong>Rendering is offscreen.</strong> Each call draws a widget into a buffer and prints the text — plain text without a TTY, ANSI styling with one. Box-drawing, table sizing and layout follow <code>ratatui</code>, not Rich, and <code>setWidth</code> (default <code>80</code>) pins the width.</li>
-</ul>
-<ul>
-<li><strong><code>tableSetLines</code> draws real rules.</strong> <code>ratatui</code>'s <code>Table</code> has no row separators, so the rows are re-laid-out with one blank line under the header and between every pair of rows, and those lines are painted as <code>├───┼───┤</code> rules (a bare <code>───┼───</code> when the table has no box). With rules the columns sit one space apart, without them two — the flag therefore still changes the column gap.</li>
-</ul>
-<ul>
-<li><strong>Markdown and syntax highlighting use crates.</strong> <code>markdown</code> is <code>pulldown-cmark</code> and <code>printSyntax</code> is <code>syntect</code> (embedded syntax/theme sets, pure-Rust <code>fancy-regex</code> backend). Nesting, tables and every CommonMark extension are therefore limited to what those crates emit; syntax colors appear only on a color-capable terminal.</li>
-</ul>
-<ul>
-<li><strong>Terminal control and input are TTY-only.</strong> <code>setCursor</code>, <code>moveCursor</code>, <code>hideCursor</code>, <code>showCursor</code>, <code>bell</code> and <code>input</code>/<code>pollInput</code> act only when stdout/stdin is a terminal; otherwise they are inert and return <code>&quot;&quot;</code>/<code>false</code>. <code>terminalWidth</code>/<code>terminalHeight</code> fall back to the configured width and a default height.</li>
-</ul>
-<ul>
-<li><strong><code>printException</code> has no traceback to show.</strong> No exception context crosses the module ABI, so it prints a fixed placeholder.</li>
-</ul>
-<ul>
-<li><strong>Progress, status and live displays do not animate.</strong> There is no refresh thread or timer; each update prints a snapshot, and <code>stop</code> prints the final one.</li>
-</ul>
-<ul>
-<li><strong>Prompts require stdin.</strong> They read one line and return the documented default at end-of-file rather than blocking; <code>askPassword</code> disables echo only on a terminal.</li>
-</ul>
-<ul>
-<li><strong><code>enter</code>/<code>exit</code> gate raw mode on a TTY.</strong> Without a terminal they are inert, so a non-interactive run never switches screens. The same applies to <code>menu</code> (it falls back to a typed line) and <code>image</code> (it prints <code>[image WxH: path]</code> until a color terminal renders the half blocks).</li>
-</ul>
-<h3 id="image--constrained-behavior"><code>image</code> — Constrained Behavior</h3>
-<ul>
-<li><strong>Pixel getters:</strong> Return a bracketed list (e.g., <code>[10,20,30,255]</code>).</li>
-</ul>
-<ul>
-<li><strong>Mutating operations:</strong> <code>save</code>, <code>saveQuality</code>, <code>setPixel</code>, <code>setPixelA</code>, <code>fill</code>, <code>paste</code>, <code>pasteWithAlpha</code>, and <code>close</code> return a boolean.</li>
-</ul>
-<ul>
-<li><strong>Grayscale conversion:</strong> <code>grayscale</code> retains the alpha channel, so an <code>RGBA</code> image becomes <code>LA</code>.</li>
-</ul>
-<ul>
-<li><strong>JSON formatting:</strong> <code>info</code> returns compact JSON, not the spaced form produced by the <code>json</code> module.</li>
-</ul>
-<ul>
-<li><strong>Format detection:</strong> <code>getFormat</code> and <code>info</code> report the detected format (<code>PNG</code>, <code>JPEG</code>, etc.) for images decoded with <code>fromBase64</code>, not just for images opened from a file.</li>
-</ul>
-<h3 id="lua--constrained-behavior"><code>lua</code> — Constrained Behavior</h3>
-<ul>
-<li><strong>Existence check:</strong> <code>luaExists()</code> returns a boolean.</li>
-</ul>
-<ul>
-<li><strong>Version:</strong> <code>luaVersion()</code> reports the vendored engine (<code>Lua 5.4</code>).</li>
-</ul>
-<ul>
-<li><strong>Error handling:</strong></li>
-<li>Error strings include the failure kind and the chunk, e.g., <code>Error: syntax error: [string &quot;lynxer.lua&quot;]:1: syntax error near &#x27;is&#x27;</code>.</li>
-<li>Lua runtime errors include a Lua traceback in their text. Fixtures only assert that a message was returned.</li>
-</ul>
-<h2 id="built-in-families">Built-in Families</h2>
-<p>The managed <code>filesystem*</code>, <code>process*</code>, <code>networking*</code>, and <code>sound*</code> families are implemented and documented in <a href="builtins.html">builtins</a>.</p>
-<h3 id="nativethread--constrained-cooperative-model"><code>nativeThread*</code> — Constrained (Cooperative Model)</h3>
-<ul>
-<li><strong>Function resolution:</strong> <code>nativeThreadStart(global.worker, [int 42])</code> passes a named global function. Lynxer resolves <code>global.&lt;name&gt;</code> to a callable value when no variable has that name. <code>returnType</code> reports <code>codeblock</code> for such a value.</li>
-</ul>
-<ul>
-<li><strong>Cooperative threading:</strong> The interpreter evaluates Lynxer code on one thread at a time, guarded by a single lock (the GIL). A worker takes the lock before calling back.</li>
-<li>The GIL is released wherever the holding thread blocks or yields: <code>nativeThreadJoin</code>/<code>nativeThreadJoinAll</code>, the blocking synchronization waits, <code>asyncSleep</code>, <code>asyncPollWait</code>, and the explicit <code>nativeThreadYield(seconds?)</code>.</li>
-<li>No two threads evaluate simultaneously, ensuring no data races by design.</li>
-<li>Trade-off: CPU-bound tasks do not run in parallel; interleave them with <code>nativeThreadYield</code>.</li>
-</ul>
-<ul>
-<li><strong>Behavioral notes:</strong></li>
-<li><code>nativeThreadIsAlive</code> is <code>true</code> and <code>nativeThreadStatus</code> is <code>running</code> immediately after <code>nativeThreadStart</code>, because the worker cannot have started yet.</li>
-<li>A thread left running by the program is joined when the program finishes.</li>
-</ul>
-<h3 id="async--thread-backed-tasks"><code>async*</code> — Thread-Backed Tasks</h3>
-<ul>
-<li><code>asyncRun</code> starts a real worker thread and returns a task handle (it no longer returns the function's value); <code>await</code> joins a task handle — re-raising its error — and passes any other value through; <code>asyncGather</code> joins the handles among its arguments.</li>
-<li>Concurrency is real but subject to the GIL above: tasks interleave (and a task's <code>asyncSleep</code>/<code>asyncPollWait</code> lets others run) rather than executing in parallel.</li>
-<li><code>async name(){}</code> local sub-functions remain <strong>eager</strong> — they run like an ordinary call — so the polling helpers stay usable inside an <code>async</code> block; use <code>asyncRun</code> for a task.</li>
-<li>There are no coroutines: <code>await</code> is a join, not a suspension. A task that awaits itself is reported (<code>a task cannot await itself</code>) rather than deadlocking; two tasks that await each other still deadlock.</li>
+<li>JSON and CSV edge cases lack one explicit compatibility contract and round-trip suite: non-finite numbers, key order, line endings, non-string values and ragged rows.</li>
+<li>The regex engines need cross-module tests for Unicode offsets, capture and replacement behavior, and malformed patterns.</li>
 </ul>
     </main>
 </div>
