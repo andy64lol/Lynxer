@@ -325,10 +325,21 @@ header h1 a {
 .search-result-list li {
     padding: 8px 0;
     border-bottom: 1px solid #e2e8eb;
+    border-radius: 3px;
 }
 
 .search-result-list a {
     font-weight: bold;
+}
+
+.search-result-list li.active,
+.search-result-list li:hover {
+    background: #edf5fc;
+}
+
+.search-result-list mark {
+    background: #ffedaa;
+    color: inherit;
 }
 
 .search-result-list p,
@@ -336,6 +347,10 @@ header h1 a {
     margin: 3px 0 0;
     color: #687780;
     font-size: 13px;
+}
+
+.search-status {
+    padding: 3px 0;
 }
 
 .visually-hidden {

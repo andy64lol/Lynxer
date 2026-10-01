@@ -374,10 +374,16 @@ def write_page(out_rel: str, md_rel: str, content_md: str,
     destination.write_text(page, encoding="utf-8")
     searchable_text = html.unescape(re.sub(r"<[^>]+>", " ", content))
     searchable_text = re.sub(r"\s+", " ", searchable_text).strip()
+    headings = []
+    for anchor, label in re.findall(
+            r'<h[1-6]\s+id="([^"]+)"[^>]*>(.*?)</h[1-6]>', content):
+        heading = html.unescape(re.sub(r"<[^>]+>", "", label))
+        headings.append({"title": heading, "id": anchor})
     return {
         "title": title or fallback_title,
         "path": f"docs/{out_rel}",
         "text": searchable_text,
+        "headings": headings,
     }
 
 
