@@ -4,8 +4,8 @@ Lynxer is a small, standalone C++ toolchain for the Lynxer language. It runs
 `.lynx` programs without a Python runtime and ships its standard library as
 native shared libraries. It provides standalone ELF executables, 34 natively
 backed modules, an AST optimizer, a frozen native-module ABI, and CI on amd64
-and arm64. See [limitations.md](limitations.md) for the behaviour that is
-deliberately constrained or not implemented.
+and arm64. See [limitations.md](limitations.md) for runtime and standard-library
+constraints.
 
 ## Contents
 

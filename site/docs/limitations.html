@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <meta name="theme-color" content="#4a90e2">
-    <title>Limitations and non-goals - Lynxer</title>
+    <title>Runtime and standard-library constraints - Lynxer</title>
     <link rel="stylesheet" href="../style.css">
 </head>
 <body>
@@ -109,38 +109,14 @@
         <div class="breadcrumb">
             <a href="../index.html">Home</a>
             <a href="../docs/stdlib/index.html">Standard Library</a>
-            <span>Limitations and non-goals</span>
+            <span>Runtime and standard-library constraints</span>
         </div>
         <div class="search-bar" data-search-index="../search-index.json" data-site-root="../">
             <label class="visually-hidden" for="docs-search">Search documentation</label>
             <input id="docs-search" type="search" placeholder="Search documentation..." aria-label="Search documentation" autocomplete="off">
             <div class="search-results" aria-live="polite"></div>
         </div>
-<h1 id="limitations-and-non-goals">Limitations and non-goals</h1>
-<p>Lynxer is a standalone C++/Rust runtime. This page documents <strong>technical limitations</strong> and <strong>deliberate omissions</strong> in the language, toolchain, and standard library.</p>
-<p>Entries are marked:</p>
-<ul>
-<li><strong>Not planned</strong> — a deliberate, permanent removal of a Python-runtime feature; it will not be re-added.</li>
-<li><strong>Planned</strong> — a constraint with a resolution plan in <a href="https://github.com/andy64lol/Lynxer/blob/main/todo.md">todo</a> under <em>Resolving documented limitations</em>.</li>
-<li><strong>Constrained</strong> — implemented, but with behavior you should know before relying on it.</li>
-</ul>
-<h2 id="deliberate-omissions-not-planned">Deliberate Omissions (Not Planned)</h2>
-<p>Retained removals: Python-runtime features with no place in a standalone runtime.</p>
-<table>
-<tr><th>Feature</th><th>Reason</th></tr>
-<tr><td><code>venv</code> module</td><td>A virtual-environment manager is a Python concept with no equivalent in a standalone runtime.</td></tr>
-<tr><td><code>rawPy</code>, <code>rawPyx</code>, <code>cleanRawPyxCache</code>, <code>embedPy</code></td><td>Embedding CPython/Cython. Lynxer does not ship or link a Python runtime.</td></tr>
-<tr><td>Python runtime introspection (<code>sys.path</code>, <code>addPath</code>, <code>prependPath</code>, <code>removeFromPath</code>, <code>getModules</code>, <code>isModuleLoaded</code>, <code>getRecursionLimit</code>, <code>setRecursionLimit</code>)</td><td>There is no Python runtime to introspect. The <code>os</code> getters and the <code>python*</code> <code>getSystemInfo</code> fields were removed outright — see <a href="removed-features.html#python-introspection-getters">removed-features</a>.</td></tr>
-<tr><td>Bytecode (<code>.lynxc</code>, <code>--view-bytecode</code>, <code>--benchmark-compile</code>, <code>--no-cache</code>)</td><td>Removed with the bytecode backend; <code>--compile</code> produces a standalone ELF executable instead (<code>--bundle</code> is an alias). Running a <code>.lynxc</code> file reports that bytecode is unsupported.</td></tr>
-</table>
-<h2 id="planned-work">Planned Work</h2>
-<p>The first-class <code>bytes</code> type (<strong>L1</strong>), the <code>bytes</code> ABI channel and buffered packed form (<strong>L2</strong>), the <code>math</code> migration off the tab-separated bridge (<strong>L3</strong>), the <code>compress</code>/<code>crypto</code>/<code>encoding</code>/<code>uuid</code> migrations (<strong>L1b</strong>), the macOS <code>.dylib</code> recognition (<strong>L2c</strong>), the <code>re</code>/<code>regex</code> rewrite onto a Rust <code>fancy-regex</code> engine (<strong>L7</strong>) and the <code>js</code>/<code>multiprocessing</code> subprocess timeouts (<strong>L11</strong>) are delivered. <strong>L2d</strong> (multiple live string results) was closed as not needed — no module returns more than one string per call. The remaining constraints and deliberate non-goals are recorded in <a href="https://github.com/andy64lol/Lynxer/blob/main/todo.md">todo</a> under <em>Resolving documented limitations</em>:</p>
-<table>
-<tr><th>Area</th><th>Status</th></tr>
-<tr><td><code>tkinter</code> / <code>tkinterPlus</code> (a native OS-widget GUI module)</td><td><strong>Declined:</strong> keep <code>graphics</code> as the single GUI stack (<strong>L16</strong>)</td></tr>
-<tr><td>Module constraints — <code>graphics</code>, <code>game</code>, <code>server</code>, <code>sound</code>, <code>watch</code>, <code>sqldb</code>, <code>text</code>/<code>typing</code>, <code>tui</code>, <code>os</code>/<code>path</code>/<code>sys</code></td><td><strong>L4</strong>–<strong>L6</strong>, <strong>L8</strong>–<strong>L10</strong>, <strong>L12</strong>–<strong>L14</strong></td></tr>
-<tr><td><code>nativeThread*</code> / <code>async*</code> true parallelism and coroutine <code>await</code></td><td><strong>Intentionally constrained:</strong> GIL and join-based <code>await</code> (<strong>L15</strong>, <a href="async.html">async</a>)</td></tr>
-</table>
+<h1 id="runtime-and-standard-library-constraints">Runtime and standard-library constraints</h1>
 <h2 id="native-module-abi">Native Module ABI</h2>
 <ul>
 <li><strong>Signature constraints.</strong> A native signature names each parameter with a type token: <code>int64</code> (any integer width), <code>double</code>/<code>float64</code>, <code>cstring</code>, or <code>bytes</code>. A <code>bytes</code> parameter is passed as two C arguments (a pointer and a length), and a <code>bytes</code> return is a length-prefixed buffer. The packed <code>...</code> form passes numbers and strings as two arrays and accepts at most 256 arguments in total; the buffered packed form <code>...,bytes</code> additionally carries byte buffers (<code>const uint8_t* const* bufs, const int64_t* lens, int64_t buf_count</code>).</li>
@@ -154,42 +130,12 @@
 <ul>
 <li><strong>Platform support.</strong> <code>.so</code> imports are currently Linux/POSIX-only and not available on Windows.</li>
 </ul>
-<h2 id="standard-library">Standard Library</h2>
-<h3 id="module-coverage">Module Coverage</h3>
-<ul>
-<li><code>tkinter</code> and <code>tkinterPlus</code> are declined; <code>graphics</code> remains the single GUI stack (see <strong>L16</strong> in <a href="https://github.com/andy64lol/Lynxer/blob/main/todo.md">todo</a>). <code>turtle</code> is implemented — see <a href="stdlib/turtle.html">stdlib/turtle</a>.</li>
-<li><code>http</code>/<code>net</code> are <strong>not provided</strong>: <code>network</code> (client) and <code>server</code> cover the same ground with one API surface instead of two, so no shim is planned — see <a href="removed-features.html#http-and-net-modules">removed-features</a>.</li>
-<li><code>mathPlus</code> is merged into <code>math</code>.</li>
-</ul>
-<h3 id="native-backing">Native Backing</h3>
-<p>Lynxer ships modules backed by native implementations. Twenty-one of them are Rust crates:</p>
-<ul>
-<li><code>compress</code> (<code>flate2</code>/<code>zstd</code>/<code>brotli</code>/<code>lz4_flex</code>/<code>zip</code>/<code>tar</code>)</li>
-<li><code>crypto</code> (<code>sha2</code>/<code>sha1</code>/<code>md-5</code>/<code>sha3</code>/<code>blake3</code>/<code>hmac</code>/<code>subtle</code>/<code>getrandom</code>/<code>ed25519-dalek</code>)</li>
-<li><code>encoding</code> (<code>base64</code>/<code>hex</code>/<code>data-encoding</code>/<code>bs58</code>/<code>ascii85</code>/<code>percent-encoding</code>/<code>quoted_printable</code>)</li>
-<li><code>game</code> (<code>macroquad</code>)</li>
-<li><code>graphics</code> (<code>macroquad</code>)</li>
-<li><code>image</code></li>
-<li><code>ini</code> (<code>rust-ini</code>)</li>
-<li><code>json</code> (<code>serde_json</code>)</li>
-<li><code>lua</code> (vendored Lua through <code>mlua</code>)</li>
-<li><code>network</code> (<code>ureq</code> + <code>tungstenite</code>)</li>
-<li><code>server</code> (<code>axum</code> + <code>tokio</code>)</li>
-<li><code>sound</code> (<code>rodio</code>/<code>cpal</code>)</li>
-<li><code>sqldb</code> (<code>rusqlite</code>)</li>
-<li><code>tui</code> (<code>ratatui</code>/<code>crossterm</code>)</li>
-<li><code>uuid</code> (<code>uuid</code>)</li>
-<li><code>watch</code> (<code>inotify</code>)</li>
-<li><code>toml</code> (<code>toml</code>)</li>
-<li><code>xml</code> (<code>quick-xml</code>)</li>
-<li><code>yaml</code> (<code>serde_yml</code>)</li>
-</ul>
-<p>A Rust toolchain is <strong>required</strong>: every one of these backends is built and installed by <code>cargo</code>, and the interpreter links the <code>ffi</code> <code>staticlib</code> native-call engine. A missing toolchain or a failed <code>cargo build</code> fails the build outright — there is no reduced build that leaves a backend out. The Makefile checks for <code>cargo</code> up front and says so.</p>
+<h2 id="standard-library-constraints">Standard Library Constraints</h2>
 <h3 id="graphics--constrained-behavior"><code>graphics</code> — Constrained Behavior</h3>
 <ul>
 <li><strong>A display is required for the GPU renderer.</strong> macroquad draws through OpenGL, so with a window it needs X11 or Wayland. With <code>LYNXER_GRAPHICS_HEADLESS=1</code> no window is opened and the module rasterizes on the CPU instead: every shape primitive fills a framebuffer — <code>clearBackground</code>, <code>drawRectangle(_Lines)</code>, <code>drawLine</code>, <code>drawTriangle(_Lines)</code>, <code>drawCircle(_Lines)</code>, <code>drawEllipse(_Lines)</code>, <code>drawPoly(_Lines)</code>, <code>drawHexagon</code>, <code>drawArc</code> and the rotated-rectangle ops — and <code>screenshot</code> writes that frame as a PNG (in the same top-left origin the drawing ops use). <code>stdlib_graphics_raster.lynx</code> and <code>stdlib_graphics_raster_shapes.lynx</code> check this in CI.</li>
 <li><strong>The headless path also covers text, textures, render targets and the UI.</strong> Text is rasterized on the CPU with <code>fontdue</code>; the default face is a copy of the ProggyClean TTF macroquad embeds, and <code>loadFont</code> parses a user TTF the same way. <code>loadTexture</code> decodes an image to a CPU texture and the <code>drawTexture*</code> ops blit it (with scale, source region, rotation and tint); <code>renderTarget</code> / <code>setRenderTarget</code> / <code>endRenderTarget</code> redirect drawing into an offscreen framebuffer and <code>renderTargetTexture</code> / <code>getScreenData</code> hand it back as a texture or image. <code>uiWindowBegin</code>/<code>uiGroupBegin</code> blocks are drawn as a stacked approximation of macroquad's layout (no input or hit-testing headless). Text anti-aliasing and UI layout are therefore close to, but not pixel-identical with, the GPU path.</li>
-<li><strong>Shaders, materials and 3D meshes are GPU-only.</strong> A fragment/vertex shader cannot execute without a GPU, so <code>loadMaterial</code>/<code>setMaterial</code>/<code>setShader*</code>, the <code>drawCube</code>/<code>drawSphere</code>/<code>drawPlane</code>/<code>drawGrid</code> primitives and model/mesh loading stay no-ops headless and return their <code>-1</code>/placeholder results. This is a hardware limit, not a missing feature.</li>
+<li><strong>Shaders, materials and 3D meshes are GPU-only.</strong> A fragment/vertex shader cannot execute without a GPU, so <code>loadMaterial</code>/<code>setMaterial</code>/<code>setShader*</code>, the <code>drawCube</code>/<code>drawSphere</code>/<code>drawPlane</code>/<code>drawGrid</code> primitives and model/mesh loading stay no-ops headless and return their <code>-1</code>/placeholder results.</li>
 <li><strong>Ops that need the GPU context only work inside a frame callback.</strong> <code>loadMaterial</code>, <code>renderTarget</code>, <code>screenshot</code>, the <code>draw*</code> ops and the <code>ui*</code> widgets all fail if called from <code>setup</code> or <code>main</code>; the headless path relaxes this for the CPU-expressible ops above.</li>
 <li><strong>No audio, native widgets or gamepads.</strong> macroquad's audio feature is not vendored, the <code>ui*</code> widgets are canvas-drawn, and 0.4.16 has no gamepad API.</li>
 <li><strong><code>uiWindowBegin</code>/<code>uiGroupBegin</code> buffer one block deep.</strong> A nested <code>*Begin</code> returns <code>-1</code>; widget values are updated when the block is replayed, so read them after <code>*End</code>.</li>
@@ -311,13 +257,11 @@
 <li><strong>Encodings:</strong> <code>path.readTextEncoding</code> and <code>path.writeTextEncoding</code> honour <code>utf-8</code> (also the default when the name is empty), <code>latin-1</code> and <code>ascii</code>. They no longer ignore the name: an unknown encoding, or a character the encoding cannot represent, is a failure sentinel (<code>&quot;&quot;</code> / <code>false</code>) instead of a silent read or write as UTF-8. UTF-8 text is passed through without validation, so a non-UTF-8 byte still survives a <code>utf-8</code> read.</li>
 <li><strong>Platform info:</strong> Platform helpers report the host through <code>uname(2)</code>.</li>
 </ul>
-<p><em>Note:</em> Python runtime introspection features are not planned for Lynxer.</p>
 <h3 id="sys--constrained-behavior"><code>sys</code> — Constrained Behavior</h3>
 <ul>
 <li><strong>Version:</strong> <code>version()</code> returns the Lynxer version (e.g., <code>Lynxer 0.1.8.1</code>).</li>
 <li><strong>Architecture:</strong> <code>architecture()</code> returns the canonical syscall architecture of this build (<code>amd64</code> or <code>arm64</code>), not the raw machine string from <code>uname(2)</code>.</li>
 <li><strong>System information:</strong> <code>cpuCount</code>, <code>pageSize</code>, <code>memoryTotal</code>, <code>memoryAvailable</code>, <code>uptime</code>, <code>bootTime</code> and <code>loadAverage</code> report the host on Linux, macOS and FreeBSD/DragonFly (<code>sysctl</code>), sharing the POSIX <code>sysconf</code>/<code>getloadavg</code> paths where they exist. NetBSD/OpenBSD fall back to <code>0</code> (or <code>[]</code>) for the <code>sysctl</code>-backed values, and any host that cannot provide a value returns <code>0</code> (or <code>[]</code>).</li>
-<li><strong>Python runtime concepts:</strong> Not supported (<code>sys.path</code>, <code>addPath</code>, <code>prependPath</code>, <code>removeFromPath</code>, <code>getModules</code>, <code>isModuleLoaded</code>, <code>getRecursionLimit</code>, <code>setRecursionLimit</code>).</li>
 <li><strong>Command-line arguments:</strong> <code>argv()</code>, <code>getArg</code> and <code>argCount</code> describe the <strong>program's own</strong> command line — the script path (or the compiled executable) followed by the arguments passed after it — not the <code>lynxer</code> process command line.</li>
 <li><strong>Exit behavior:</strong> <code>exit()</code> calls <code>std::exit</code> directly, bypassing interpreter cleanup.</li>
 </ul>
@@ -441,13 +385,6 @@
 </ul>
 <h2 id="built-in-families">Built-in Families</h2>
 <p>The managed <code>filesystem*</code>, <code>process*</code>, <code>networking*</code>, and <code>sound*</code> families are implemented and documented in <a href="builtins.html">builtins</a>.</p>
-<h3 id="unsupported-built-ins">Unsupported Built-ins</h3>
-<p><code>builtins.cpp</code> maintains an <code>unsupportedTable()</code> of names that are recognized but deliberately unimplemented. Calling one raises: <code>&lt;name&gt;() is not supported in Lynxer yet</code>.</p>
-<p>This includes:</p>
-<ul>
-<li><code>rawPy</code>/<code>rawPyx</code>/<code>cleanRawPyxCache</code> and <code>embedPy</code> (removed fully — there is no Python runtime).</li>
-</ul>
-<p><a href="legacy-surface.html">legacy-surface</a> catalogues the original built-ins and modules that were not carried over — pointers/raw addresses, native structs, async, <code>rawPy</code>, and the un-ported modules — with their replacements.</p>
 <h3 id="nativethread--constrained-cooperative-model"><code>nativeThread*</code> — Constrained (Cooperative Model)</h3>
 <ul>
 <li><strong>Function resolution:</strong> <code>nativeThreadStart(global.worker, [int 42])</code> passes a named global function. Lynxer resolves <code>global.&lt;name&gt;</code> to a callable value when no variable has that name. <code>returnType</code> reports <code>codeblock</code> for such a value.</li>

@@ -1,44 +1,4 @@
-# Limitations and non-goals
-
-Lynxer is a standalone C++/Rust runtime. This page documents **technical limitations** and **deliberate omissions** in the language, toolchain, and standard library.
-
-Entries are marked:
-
-- **Not planned** — a deliberate, permanent removal of a Python-runtime feature;
-  it will not be re-added.
-- **Planned** — a constraint with a resolution plan in [todo.md](../todo.md)
-  under *Resolving documented limitations*.
-- **Constrained** — implemented, but with behavior you should know before
-  relying on it.
-
-## Deliberate Omissions (Not Planned)
-
-Retained removals: Python-runtime features with no place in a standalone runtime.
-
-| Feature | Reason |
-| --- | --- |
-| `venv` module | A virtual-environment manager is a Python concept with no equivalent in a standalone runtime. |
-| `rawPy`, `rawPyx`, `cleanRawPyxCache`, `embedPy` | Embedding CPython/Cython. Lynxer does not ship or link a Python runtime. |
-| Python runtime introspection (`sys.path`, `addPath`, `prependPath`, `removeFromPath`, `getModules`, `isModuleLoaded`, `getRecursionLimit`, `setRecursionLimit`) | There is no Python runtime to introspect. The `os` getters and the `python*` `getSystemInfo` fields were removed outright — see [removed-features.md](removed-features.md#python-introspection-getters). |
-| Bytecode (`.lynxc`, `--view-bytecode`, `--benchmark-compile`, `--no-cache`) | Removed with the bytecode backend; `--compile` produces a standalone ELF executable instead (`--bundle` is an alias). Running a `.lynxc` file reports that bytecode is unsupported. |
-
-## Planned Work
-
-The first-class `bytes` type (**L1**), the `bytes` ABI channel and buffered
-packed form (**L2**), the `math` migration off the tab-separated bridge
-(**L3**), the `compress`/`crypto`/`encoding`/`uuid` migrations (**L1b**), the
-macOS `.dylib` recognition (**L2c**), the `re`/`regex` rewrite onto a Rust
-`fancy-regex` engine (**L7**) and the `js`/`multiprocessing` subprocess timeouts
-(**L11**) are delivered. **L2d** (multiple live string results) was closed as not
-needed — no module returns more than one string per call. The remaining
-constraints and deliberate non-goals are recorded in [todo.md](../todo.md)
-under *Resolving documented limitations*:
-
-| Area | Status |
-| --- | --- |
-| `tkinter` / `tkinterPlus` (a native OS-widget GUI module) | **Declined:** keep `graphics` as the single GUI stack (**L16**) |
-| Module constraints — `graphics`, `game`, `server`, `sound`, `watch`, `sqldb`, `text`/`typing`, `tui`, `os`/`path`/`sys` | **L4**–**L6**, **L8**–**L10**, **L12**–**L14** |
-| `nativeThread*` / `async*` true parallelism and coroutine `await` | **Intentionally constrained:** GIL and join-based `await` (**L15**, [async.md](async.md)) |
+# Runtime and standard-library constraints
 
 ## Native Module ABI
 
@@ -61,46 +21,7 @@ under *Resolving documented limitations*:
 - **Platform support.** `.so` imports are currently Linux/POSIX-only and not
   available on Windows.
 
-## Standard Library
-
-### Module Coverage
-
-- `tkinter` and `tkinterPlus` are declined; `graphics` remains the single GUI
-  stack (see **L16** in [todo.md](../todo.md)). `turtle` is implemented — see
-  [stdlib/turtle.md](stdlib/turtle.md).
-- `http`/`net` are **not provided**: `network` (client) and `server` cover the
-  same ground with one API surface instead of two, so no shim is planned — see
-  [removed-features.md](removed-features.md#http-and-net-modules).
-- `mathPlus` is merged into `math`.
-
-### Native Backing
-
-Lynxer ships modules backed by native implementations. Twenty-one of them are Rust crates:
-- `compress` (`flate2`/`zstd`/`brotli`/`lz4_flex`/`zip`/`tar`)
-- `crypto` (`sha2`/`sha1`/`md-5`/`sha3`/`blake3`/`hmac`/`subtle`/`getrandom`/`ed25519-dalek`)
-- `encoding` (`base64`/`hex`/`data-encoding`/`bs58`/`ascii85`/`percent-encoding`/`quoted_printable`)
-- `game` (`macroquad`)
-- `graphics` (`macroquad`)
-- `image`
-- `ini` (`rust-ini`)
-- `json` (`serde_json`)
-- `lua` (vendored Lua through `mlua`)
-- `network` (`ureq` + `tungstenite`)
-- `server` (`axum` + `tokio`)
-- `sound` (`rodio`/`cpal`)
-- `sqldb` (`rusqlite`)
-- `tui` (`ratatui`/`crossterm`)
-- `uuid` (`uuid`)
-- `watch` (`inotify`)
-- `toml` (`toml`)
-- `xml` (`quick-xml`)
-- `yaml` (`serde_yml`)
-
-A Rust toolchain is **required**: every one of these backends is built and
-installed by `cargo`, and the interpreter links the `ffi` `staticlib`
-native-call engine. A missing toolchain or a failed `cargo build` fails the
-build outright — there is no reduced build that leaves a backend out. The
-Makefile checks for `cargo` up front and says so.
+## Standard Library Constraints
 
 ### `graphics` — Constrained Behavior
 
@@ -128,8 +49,7 @@ Makefile checks for `cargo` up front and says so.
 - **Shaders, materials and 3D meshes are GPU-only.** A fragment/vertex shader
   cannot execute without a GPU, so `loadMaterial`/`setMaterial`/`setShader*`,
   the `drawCube`/`drawSphere`/`drawPlane`/`drawGrid` primitives and model/mesh
-  loading stay no-ops headless and return their `-1`/placeholder results. This
-  is a hardware limit, not a missing feature.
+  loading stay no-ops headless and return their `-1`/placeholder results.
 - **Ops that need the GPU context only work inside a frame callback.**
   `loadMaterial`, `renderTarget`, `screenshot`, the `draw*` ops and the `ui*`
   widgets all fail if called from `setup` or `main`; the headless path relaxes
@@ -410,14 +330,11 @@ constructs `std::regex` lacked. No system regex library is involved.
   non-UTF-8 byte still survives a `utf-8` read.
 - **Platform info:** Platform helpers report the host through `uname(2)`.
 
-*Note:* Python runtime introspection features are not planned for Lynxer.
-
 ### `sys` — Constrained Behavior
 
 - **Version:** `version()` returns the Lynxer version (e.g., `Lynxer 0.1.8.1`).
 - **Architecture:** `architecture()` returns the canonical syscall architecture of this build (`amd64` or `arm64`), not the raw machine string from `uname(2)`.
 - **System information:** `cpuCount`, `pageSize`, `memoryTotal`, `memoryAvailable`, `uptime`, `bootTime` and `loadAverage` report the host on Linux, macOS and FreeBSD/DragonFly (`sysctl`), sharing the POSIX `sysconf`/`getloadavg` paths where they exist. NetBSD/OpenBSD fall back to `0` (or `[]`) for the `sysctl`-backed values, and any host that cannot provide a value returns `0` (or `[]`).
-- **Python runtime concepts:** Not supported (`sys.path`, `addPath`, `prependPath`, `removeFromPath`, `getModules`, `isModuleLoaded`, `getRecursionLimit`, `setRecursionLimit`).
 - **Command-line arguments:** `argv()`, `getArg` and `argCount` describe the **program's own** command line — the script path (or the compiled executable) followed by the arguments passed after it — not the `lynxer` process command line.
 - **Exit behavior:** `exit()` calls `std::exit` directly, bypassing interpreter cleanup.
 
@@ -537,18 +454,6 @@ The backend is real (`ratatui`), but it is not a pixel-for-pixel Rich equivalent
 ## Built-in Families
 
 The managed `filesystem*`, `process*`, `networking*`, and `sound*` families are implemented and documented in [builtins.md](builtins.md).
-
-### Unsupported Built-ins
-
-`builtins.cpp` maintains an `unsupportedTable()` of names that are recognized but deliberately unimplemented. Calling one raises:
-`<name>() is not supported in Lynxer yet`.
-
-This includes:
-- `rawPy`/`rawPyx`/`cleanRawPyxCache` and `embedPy` (removed fully — there is no Python runtime).
-
-[legacy-surface.md](legacy-surface.md) catalogues the original built-ins and
-modules that were not carried over — pointers/raw addresses, native structs,
-async, `rawPy`, and the un-ported modules — with their replacements.
 
 ### `nativeThread*` — Constrained (Cooperative Model)
 

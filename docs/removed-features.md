@@ -40,7 +40,7 @@ are **removed**. They existed only to mimic a Python host — `""` and `"Lynxer"
 are not values any program should branch on — and there is no Python runtime to
 report. The fields are simply absent from `getSystemInfo()` now; the `sys`
 introspection surface (`sys.path`, `addPath`, `getModules`, …) was never
-implemented and stays unplanned. See [limitations.md](limitations.md).
+implemented and stays unplanned.
 
 ## `http` and `net` modules
 
@@ -49,19 +49,19 @@ shim is planned. `network` is the client — HTTP, WebSocket, and URL handling i
 one module — and `server` covers serving, so a program has one API surface
 rather than three overlapping ones. The legacy names (`httpGet`, `netSocket`, …)
 are not aliases; port a program to `global.network.*` / `global.server.*`. See
-[stdlib/network.md](stdlib/network.md) and [limitations.md](limitations.md).
+[stdlib/network.md](stdlib/network.md).
 
 ## `venv`
 
 A virtual-environment manager is a Python concept with no equivalent in a
-standalone runtime; the module is not provided. See [limitations.md](limitations.md).
+standalone runtime; the module is not provided.
 
 ## `tkinter` / `turtle`
 
 There is no Python GUI toolkit binding. The [graphics](stdlib/graphics.md)
 module provides a Rust-backed (`macroquad`) immediate-mode drawing, window,
 input and UI toolkit instead; it is not a `tkinter` clone. `turtle`'s Rust
-crate has been unmaintained since 2019. See [limitations.md](limitations.md).
+crate has been unmaintained since 2019.
 
 ## Python → C++ migration
 

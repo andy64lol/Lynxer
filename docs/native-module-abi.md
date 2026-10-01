@@ -281,9 +281,8 @@ tree), so a caller turns any of them into Lynxer values the same way, with
 `jsonParse` / `jsonGet` / `listJson*`.
 
 **Binary payloads** cross as `bytes` when the module declares the `bytes`
-token. The remaining modules still pass base64/hex text (the decision recorded
-in [todo.md](../todo.md) and [limitations.md](limitations.md)); migrating them
-is tracked there.
+token. Modules that expose a text encoding continue to pass base64 or hex as
+strings; each module's page documents its payload representation.
 
 **Numeric list results** cross as `bytes` holding little-endian `f64` — the
 encoding the `listToBytes` / `bytesToList` builtins use; `math`'s statistics and

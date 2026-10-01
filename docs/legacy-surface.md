@@ -3,7 +3,8 @@
 The original interpreter exposed a larger built-in and module surface than the
 standalone C++ runtime. This page catalogues it so programs and notes written
 against the original have somewhere to look, and records what has since been
-brought across. [limitations.md](limitations.md) remains the normative register.
+brought across. [limitations.md](limitations.md) documents current runtime and
+standard-library constraints.
 
 Three statuses are used:
 
@@ -136,6 +137,6 @@ alternative. See [builtins.md](builtins.md#explicit-native-module-handles).
 
 ## See also
 
-- [limitations.md](limitations.md) — the normative constraints and non-goals.
+- [limitations.md](limitations.md) — current runtime and standard-library constraints.
 - [builtins.md](builtins.md) — every built-in the interpreter does implement.
 - [native-module-abi.md](native-module-abi.md) — calling native code.
