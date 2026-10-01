@@ -28,7 +28,7 @@ global main(){
 }
 ```
 
-→ **[Installation](docs/install.md)** | **[Language reference](docs/language.md)** | **[Standard library](docs/stdlib/)**
+→ **[Installation](docs/install.md)** | **[Language reference](docs/language.md)** | **[Functions](docs/functions.md)** | **[Macros](docs/macros.md)** | **[Standard library](docs/stdlib/)**
 
 ---
 

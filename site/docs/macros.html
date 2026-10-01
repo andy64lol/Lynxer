@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <meta name="theme-color" content="#4a90e2">
-    <title>Structs - Lynxer</title>
+    <title>Macros - Lynxer</title>
     <link rel="stylesheet" href="../style.css">
 </head>
 <body>
@@ -28,7 +28,7 @@
 <h3 class="sidebar-group-title">Language</h3><ul class="sidebar-group">
 <li><a href="language.html">language</a></li>
 <li><a href="functions.html">functions</a></li>
-<li><a href="macros.html">macros</a></li>
+<li><a href="macros.html" class="active">macros</a></li>
 <li><a href="operators.html">operators</a></li>
 <li><a href="conditionals.html">conditionals</a></li>
 <li><a href="loops.html">loops</a></li>
@@ -40,7 +40,7 @@
 <li><a href="importAs.html">importAs</a></li>
 </ul>
 <h3 class="sidebar-group-title">Records</h3><ul class="sidebar-group">
-<li><a href="structs.html" class="active">structs</a></li>
+<li><a href="structs.html">structs</a></li>
 <li><a href="classes.html">classes</a></li>
 <li><a href="enums.html">enums</a></li>
 <li><a href="vargroups.html">vargroups</a></li>
@@ -111,54 +111,43 @@
         <div class="breadcrumb">
             <a href="../index.html">Home</a>
             <a href="../docs/stdlib/index.html">Standard Library</a>
-            <span>Structs</span>
+            <span>Macros</span>
         </div>
         <div class="search-bar" data-search-index="../search-index.json" data-site-root="../">
             <label class="visually-hidden" for="docs-search">Search documentation</label>
             <input id="docs-search" type="search" placeholder="Search documentation..." aria-label="Search documentation" autocomplete="off">
             <div class="search-results" aria-live="polite"></div>
         </div>
-<h1 id="structs">Structs</h1>
-<p>A <code>struct</code> is a data-only named type: a fixed list of typed fields, constructed positionally with <code>new</code>, with no methods. Declare it between <code>global setup()</code> and <code>global main()</code>.</p>
-<h2 id="declaration">Declaration</h2>
-<pre><code>struct Player {
-    int health;
-    str name;
-}</code></pre>
-<p>Every field has an explicit type and ends with <code>;</code>. Fields may <strong>not</strong> have default values (<code>int health = 100;</code> fails with <code>expected &#x27;;&#x27; after struct field</code>), and a struct has no methods — use a <a href="classes.html">class</a> when you need either.</p>
-<h2 id="construction">Construction</h2>
-<pre><code>Player first = new Player(100, &quot;Ada&quot;);</code></pre>
-<ul>
-<li>Arguments are matched <strong>positionally</strong> to the declared field order.</li>
-<li>The argument count is checked: <code>new Player(100)</code> reports <code>struct &#x27;Player&#x27; expects 2 arguments, received 1</code>.</li>
-<li>Each argument is type-checked: a <code>str</code> where an <code>int</code> is expected reports <code>value cannot be assigned to type &#x27;int&#x27;</code>.</li>
-</ul>
-<h2 id="access-and-assignment">Access and assignment</h2>
-<p>Read and write fields with dot access; no type prefix is needed:</p>
-<pre><code>println(first.name);   // Ada
-first.health = 90;
-println(first.health); // 90</code></pre>
-<p>(That differs from <a href="vargroups.html">vargroups</a>, whose field assignment requires the type.)</p>
-<h2 id="full-example">Full example</h2>
-<pre><code>global setup(){}
+<h1 id="macros">Macros</h1>
+<p>Macros expand into Lynxer tokens before the file is parsed. A macro is visible throughout its declaring source file, including before its declaration:</p>
+<pre><code>macro printAll!(*args){println(*args)}
 
-struct Player {
-    int health;
-    str name;
-}
+global setup(){}
 
 global main(){
-    Player first = new Player(100, &quot;Ada&quot;);
-    first.health = 90;
-    println(first.name);    // Ada
-    println(first.health);  // 90
+    printAll!(&quot;value&quot;, 42);
 }</code></pre>
-<h2 id="see-also">See also</h2>
-<ul>
-<li><a href="classes.html">classes</a> — the same shape plus methods and <code>init</code>.</li>
-<li><a href="vargroups.html">vargroups</a> — records with defaulted fields.</li>
-<li><a href="types.html">types</a> — how a struct name works as a declared type.</li>
-</ul>
+<p><code>*args</code> stands for all tokens supplied in the invocation's parentheses, separated by commas. It can be used more than once in the macro body. Macro definitions do not become runtime functions.</p>
+<h2 id="exporting-macros">Exporting macros</h2>
+<p>Macros are private to their file by default. Prefix a declaration with <code>pub</code> to make it available to a file that imports that source module:</p>
+<pre><code>pub macro logValue!(*args){println(*args)}</code></pre>
+<p>The importer must use a source-file <code>import</code> or <code>importAs</code>; native modules do not export Lynxer macros. Relative source imports resolve from the importing file's directory, including imports made by an imported module. See <a href="modules.html#search-order">modules</a>.</p>
+<h2 id="caller-supplied-codeblocks">Caller-supplied codeblocks</h2>
+<p>Macros can declare named codeblock parameters after <code>(*args)</code>, using the same brace signature as a function. In the macro template, <code>{{name}}</code> inserts the caller's block, including its braces:</p>
+<pre><code>func apply(int value){body}{
+    exec(value){{body}}
+}
+
+macro applyNow!(*args){body}{apply(*args){{body}}}
+
+global setup(){}
+
+global main(){
+    applyNow!(42){
+        println(value);
+    };
+}</code></pre>
+<p>Functions declared with <code>global</code>, <code>func</code>, or <code>local</code> can also receive caller-supplied codeblocks. Their parameters are declared as <code>{name}</code> after their regular parameters and are invoked with <code>exec(...){{name}}</code>; callers provide inline blocks at the call site. See <a href="functions.html">functions</a> and <a href="codeblocks.html">codeblocks</a>.</p>
     </main>
 </div>
 

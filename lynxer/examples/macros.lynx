@@ -1,0 +1,22 @@
+global setup(){}
+
+macro localPrint!(*args){println(*args)}
+macro punctuation!(*args){println("*args")}
+
+func invokeBlock(int value){body}{
+    exec(value){{body}}
+}
+
+macro withBlock!(*args){body}{invokeBlock(*args){{body}}}
+
+global main(){
+    localPrint!("local macro");
+    localPrint!("text ) ( ,");
+    punctuation!();
+    withBlock!(42){
+        println(value);
+    };
+    invokeBlock(7){
+        println(value);
+    }
+}

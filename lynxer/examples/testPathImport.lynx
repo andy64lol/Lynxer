@@ -4,4 +4,8 @@ global setup(){
 
 global main(){
     println(global.example.greet("path"));
+    pathPrint!("public macro");
+    pathBlock!(5){
+        println(value);
+    };
 }

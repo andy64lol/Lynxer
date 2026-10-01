@@ -16,7 +16,7 @@ Runtime, process and platform information.
 | `uptime` | `() -> int` | Seconds since boot |
 | `bootTime` | `() -> int` | Boot time as a Unix timestamp |
 | `loadAverage` | `() -> str` | JSON array `[1m, 5m, 15m]` |
-| `version` | `() -> str` | Lynxer version, e.g. `Lynxer 0.1.8.1` |
+| `version` | `() -> str` | Lynxer version, e.g. `Lynxer 0.1.8.2` |
 | `versionInfo` | `() -> str` | JSON `{major, minor, micro, patch, releaselevel, serial}` |
 | `implementation` | `() -> str` | `Lynxer` |
 | `apiVersion` | `() -> str` | `0.1` |

@@ -270,7 +270,7 @@ std::string formatSource(const std::string& source, const std::string& display,
                          bool oneline) {
     Lexer lexer(source, display);
     std::vector<Token> tokens = lexer.scan();
-    Parser parser(tokens);
+    Parser parser(tokens, display);
     parser.parseProgram(false);   // validates; throws SourceError on failure
 
     Writer writer(oneline);

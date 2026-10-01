@@ -149,6 +149,8 @@ global main(){
 
 - The codeblock-parameter syntax is identical for `global`, `func` and `local`
   declarations; the parser treats all three the same way.
+- Caller-supplied blocks also work on file-level `func` declarations; the
+  `macros` example fixture covers both macro-spliced and direct `func` calls.
 - Callers may mix inline blocks (`(){ ... }`) and named references
   (`(){{var}}`) in the same call.
 - `func` and `local` blocks are supplied the same way; a `func` reached through

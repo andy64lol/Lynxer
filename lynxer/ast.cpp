@@ -787,6 +787,10 @@ void setEmbeddedModuleSources(std::map<std::string, std::string> sources) {
     embeddedModuleSources() = std::move(sources);
 }
 
+const std::string* embeddedModuleSource(const std::string& requested) {
+    return findEmbeddedSource(requested);
+}
+
 void setEmbeddedModuleLibraries(std::map<std::string, std::string> libraries) {
     embeddedModuleLibraries() = std::move(libraries);
 }
@@ -794,7 +798,7 @@ void setEmbeddedModuleLibraries(std::map<std::string, std::string> libraries) {
 std::vector<ImportRecord> collectImports(const std::string& source,
                                          const std::string& display) {
     Lexer lexer(source, display);
-    Parser parser(lexer.scan());
+    Parser parser(lexer.scan(), display);
     parser.parseProgram();
     return parser.imports();
 }
@@ -2521,7 +2525,7 @@ void ImportStatement::execute(Environment& environment) const {
     std::shared_ptr<std::unordered_map<std::string, Function>> functions;
     try {
         Lexer lexer(source, resolved);
-        Parser parser(lexer.scan());
+        Parser parser(lexer.scan(), resolved);
         functions =
             std::make_shared<std::unordered_map<std::string, Function>>(
                 parser.parseProgram());

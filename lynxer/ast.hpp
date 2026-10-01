@@ -849,5 +849,6 @@ Value callNative(void* address, const std::string& signature,
 // executable.
 void setEmbeddedModuleSources(std::map<std::string, std::string> sources);
 void setEmbeddedModuleLibraries(std::map<std::string, std::string> libraries);
+const std::string* embeddedModuleSource(const std::string& requested);
 
 } // namespace lynxer

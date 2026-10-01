@@ -28,6 +28,7 @@
 <h3 class="sidebar-group-title">Language</h3><ul class="sidebar-group">
 <li><a href="language.html">language</a></li>
 <li><a href="functions.html">functions</a></li>
+<li><a href="macros.html">macros</a></li>
 <li><a href="operators.html">operators</a></li>
 <li><a href="conditionals.html">conditionals</a></li>
 <li><a href="loops.html">loops</a></li>
@@ -138,11 +139,13 @@ global main(){}</code></pre>
 </ol>
 <ul>
 <li><code>import(&quot;math&quot;)</code> and <code>import(&quot;math.lynx&quot;)</code> are equivalent.</li>
+<li>A relative path such as <code>import(&quot;helpers/text.lynx&quot;)</code> is resolved from the importing source file's directory. Imports inside that module are resolved from the module's own directory, so modules and their dependencies may live in separate directories.</li>
 <li>A native library is named with its <code>.so</code> suffix; the stdlib <code>.lynx</code> wrappers load their own <code>.so</code> (for example <code>math.lynx</code> imports <code>math.so</code> as <code>nativeMath</code>).</li>
 <li>Imports are idempotent: importing the same module twice is a no-op.</li>
 <li>A module that cannot be found reports <code>module &#x27;nope&#x27; was not found</code> with the importing source location.</li>
 </ul>
 <p>There is <strong>no</strong> <code>.lynxc</code> bytecode import in Lynxer.</p>
+<p>Source files may export compile-time macros with <code>pub macro</code>. Those macros are available to a file that imports the declaring source module; unprefixed macros remain private to their source file. See <a href="macros.html">macros</a>.</p>
 <h2 id="calling-module-members">Calling module members</h2>
 <p>Members are reached through the module namespace: <code>global.&lt;module&gt;.&lt;name&gt;(...)</code> (or <code>global.&lt;alias&gt;.&lt;name&gt;(...)</code> after <code>importAs</code>).</p>
 <pre><code>global setup(){

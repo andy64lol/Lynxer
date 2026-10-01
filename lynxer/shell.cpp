@@ -88,7 +88,7 @@ void printUsage() {
 void printVersion() {
     const Config& config = Config::instance();
     std::cout << config.format("version.line", "Lynxer {0}", "{0}",
-                               config.get("version", "0.1.8.1"))
+                               config.get("version", "0.1.8.2"))
               << '\n';
 }
 
@@ -199,7 +199,7 @@ int listStdlibs() {
 
 int lintFile(const std::string& display, const std::string& source) {
     Lexer lexer(source, display);
-    Parser parser(lexer.scan());
+    Parser parser(lexer.scan(), display);
     try {
         parser.parseProgram();
     } catch (const SourceError& error) {
@@ -218,7 +218,7 @@ int astFile(const std::string& display, const std::string& source) {
     try {
         // The lexer keeps a reference to the source, so it must outlive it.
         Lexer lexer(source, display);
-        Parser parser(lexer.scan());
+        Parser parser(lexer.scan(), display);
         const auto functions = parser.parseProgram();
         std::vector<const Function*> ordered;
         ordered.reserve(parser.programOrder().size());
@@ -454,7 +454,7 @@ int validateInterpreter() {
             // The lexer keeps a reference to the source, so it must outlive it.
             const std::string source(test.source);
             Lexer lexer(source, test.name);
-            Parser parser(lexer.scan());
+            Parser parser(lexer.scan(), test.name);
             auto functions = parser.parseProgram();
             if (optimizerEnabled()) {
                 optimizeProgram(functions, optimizationStats());
@@ -504,7 +504,7 @@ void reportOptimization() {
 int runProgram(const std::string& display, const std::string& source) {
     try {
         Lexer lexer(source, display);
-        Parser parser(lexer.scan());
+        Parser parser(lexer.scan(), display);
         auto functions = parser.parseProgram();
         if (optimizerEnabled()) {
             optimizeProgram(functions, optimizationStats());

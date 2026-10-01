@@ -5,16 +5,398 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <filesystem>
+#include <fstream>
 #include <functional>
+#include <iterator>
+#include <sstream>
 #include <unordered_set>
 
 namespace lynxer {
+
+namespace {
+
+struct MacroDefinition {
+    std::string name;
+    bool isPublic = false;
+    std::vector<std::string> codeblockParameters;
+    std::vector<Token> body;
+    Token location{TokenKind::End, "", 1, 1};
+};
+
+bool isMacroSymbol(const Token& token, const std::string& text) {
+    return token.kind == TokenKind::Symbol && token.text == text;
+}
+
+bool isMacroIdentifier(const Token& token, const std::string& text) {
+    return token.kind == TokenKind::Identifier && token.text == text;
+}
+
+std::size_t matchingDelimiter(const std::vector<Token>& tokens,
+                              std::size_t open, const std::string& left,
+                              const std::string& right) {
+    int depth = 0;
+    for (std::size_t i = open; i < tokens.size(); ++i) {
+        if (isMacroSymbol(tokens[i], left)) {
+            ++depth;
+        } else if (isMacroSymbol(tokens[i], right) && --depth == 0) {
+            return i;
+        }
+    }
+    return tokens.size();
+}
+
+bool parseMacroBlockNames(const std::vector<Token>& tokens, std::size_t open,
+                          std::vector<std::string>& names,
+                          std::size_t& close) {
+    close = matchingDelimiter(tokens, open, "{", "}");
+    if (close == tokens.size() || close + 1 >= tokens.size() ||
+        !isMacroSymbol(tokens[close + 1], "{")) {
+        return false;
+    }
+    std::size_t cursor = open + 1;
+    while (cursor < close) {
+        if (tokens[cursor].kind != TokenKind::Identifier) {
+            return false;
+        }
+        names.push_back(tokens[cursor++].text);
+        if (cursor == close) {
+            break;
+        }
+        if (!isMacroSymbol(tokens[cursor++], ",")) {
+            return false;
+        }
+    }
+    return true;
+}
+
+std::vector<MacroDefinition> collectMacroDefinitions(
+    const std::vector<Token>& tokens, std::vector<bool>* removed = nullptr) {
+    std::vector<MacroDefinition> definitions;
+    if (removed != nullptr) {
+        removed->assign(tokens.size(), false);
+    }
+    int braceDepth = 0;
+    for (std::size_t i = 0; i + 1 < tokens.size();) {
+        const bool isPublic = isMacroIdentifier(tokens[i], "pub") &&
+                              isMacroIdentifier(tokens[i + 1], "macro");
+        const bool isMacro = isMacroIdentifier(tokens[i], "macro");
+        if (braceDepth == 0 && (isPublic || isMacro)) {
+            const std::size_t start = i;
+            std::size_t cursor = i + (isPublic ? 2 : 1);
+            if (cursor + 4 >= tokens.size() ||
+                tokens[cursor].kind != TokenKind::Identifier ||
+                !isMacroSymbol(tokens[cursor + 1], "!") ||
+                !isMacroSymbol(tokens[cursor + 2], "(") ||
+                !isMacroSymbol(tokens[cursor + 3], "*") ||
+                !isMacroIdentifier(tokens[cursor + 4], "args")) {
+                throw SourceError("expected macro declaration 'macro name!(*args){...}'",
+                                  tokens[i].line, tokens[i].column);
+            }
+            const std::size_t paramsClose =
+                matchingDelimiter(tokens, cursor + 2, "(", ")");
+            if (paramsClose == tokens.size() ||
+                paramsClose != cursor + 5) {
+                throw SourceError("macro declarations must use the variadic parameter '*args'",
+                                  tokens[cursor].line, tokens[cursor].column);
+            }
+            MacroDefinition definition;
+            definition.name = tokens[cursor].text;
+            definition.isPublic = isPublic;
+            definition.location = tokens[cursor];
+            cursor = paramsClose + 1;
+
+            while (cursor < tokens.size() &&
+                   isMacroSymbol(tokens[cursor], "{")) {
+                std::vector<std::string> names;
+                std::size_t close = tokens.size();
+                if (!parseMacroBlockNames(tokens, cursor, names, close)) {
+                    break;
+                }
+                for (const std::string& name : names) {
+                    if (std::find(definition.codeblockParameters.begin(),
+                                  definition.codeblockParameters.end(), name) !=
+                        definition.codeblockParameters.end()) {
+                        throw SourceError("duplicate macro codeblock parameter '" +
+                                              name + "'",
+                                          tokens[cursor].line,
+                                          tokens[cursor].column);
+                    }
+                    definition.codeblockParameters.push_back(name);
+                }
+                cursor = close + 1;
+            }
+            if (cursor >= tokens.size() ||
+                !isMacroSymbol(tokens[cursor], "{")) {
+                throw SourceError("expected macro body", tokens[cursor - 1].line,
+                                  tokens[cursor - 1].column);
+            }
+            const std::size_t bodyClose =
+                matchingDelimiter(tokens, cursor, "{", "}");
+            if (bodyClose == tokens.size()) {
+                throw SourceError("unterminated macro body",
+                                  tokens[cursor].line, tokens[cursor].column);
+            }
+            definition.body.assign(tokens.begin() +
+                                       static_cast<std::ptrdiff_t>(cursor + 1),
+                                   tokens.begin() +
+                                       static_cast<std::ptrdiff_t>(bodyClose));
+            definitions.push_back(std::move(definition));
+            if (removed != nullptr) {
+                std::fill(removed->begin() + static_cast<std::ptrdiff_t>(start),
+                          removed->begin() +
+                              static_cast<std::ptrdiff_t>(bodyClose + 1),
+                          true);
+            }
+            i = bodyClose + 1;
+            continue;
+        }
+        if (isMacroSymbol(tokens[i], "{")) {
+            ++braceDepth;
+        } else if (isMacroSymbol(tokens[i], "}")) {
+            --braceDepth;
+        }
+        ++i;
+    }
+    return definitions;
+}
+
+std::vector<std::vector<Token>> splitMacroArguments(
+    const std::vector<Token>& tokens, std::size_t open, std::size_t close) {
+    std::vector<std::vector<Token>> arguments;
+    if (close == open + 1) {
+        return arguments;
+    }
+    std::size_t start = open + 1;
+    int parens = 0;
+    int braces = 0;
+    int brackets = 0;
+    for (std::size_t i = start; i < close; ++i) {
+        if (isMacroSymbol(tokens[i], "(")) ++parens;
+        else if (isMacroSymbol(tokens[i], ")")) --parens;
+        else if (isMacroSymbol(tokens[i], "{")) ++braces;
+        else if (isMacroSymbol(tokens[i], "}")) --braces;
+        else if (isMacroSymbol(tokens[i], "[")) ++brackets;
+        else if (isMacroSymbol(tokens[i], "]")) --brackets;
+        else if (isMacroSymbol(tokens[i], ",") && parens == 0 &&
+                 braces == 0 && brackets == 0) {
+            arguments.emplace_back(tokens.begin() +
+                                       static_cast<std::ptrdiff_t>(start),
+                                   tokens.begin() +
+                                       static_cast<std::ptrdiff_t>(i));
+            start = i + 1;
+        }
+    }
+    arguments.emplace_back(tokens.begin() + static_cast<std::ptrdiff_t>(start),
+                           tokens.begin() +
+                               static_cast<std::ptrdiff_t>(close));
+    return arguments;
+}
+
+std::vector<Token> expandMacroTokens(
+    const std::vector<Token>& input,
+    const std::unordered_map<std::string, MacroDefinition>& macros,
+    unsigned depth = 0) {
+    if (depth > 64) {
+        const Token& at = input.empty() ? Token{TokenKind::End, "", 1, 1}
+                                        : input.front();
+        throw SourceError("macro expansion exceeded 64 nested expansions",
+                          at.line, at.column);
+    }
+    std::vector<Token> output;
+    for (std::size_t i = 0;
+         i < input.size() && input[i].kind != TokenKind::End;) {
+        if (input[i].kind != TokenKind::Identifier ||
+            i + 2 >= input.size() || !isMacroSymbol(input[i + 1], "!") ||
+            !isMacroSymbol(input[i + 2], "(")) {
+            output.push_back(input[i++]);
+            continue;
+        }
+        const auto found = macros.find(input[i].text);
+        if (found == macros.end()) {
+            throw SourceError("unknown macro '" + input[i].text + "'",
+                              input[i].line, input[i].column);
+        }
+        const MacroDefinition& macro = found->second;
+        const std::size_t argsClose =
+            matchingDelimiter(input, i + 2, "(", ")");
+        if (argsClose == input.size()) {
+            throw SourceError("unterminated macro invocation",
+                              input[i].line, input[i].column);
+        }
+        const auto arguments = splitMacroArguments(input, i + 2, argsClose);
+        std::size_t cursor = argsClose + 1;
+        std::vector<std::vector<Token>> blocks;
+        for (std::size_t block = 0;
+             block < macro.codeblockParameters.size(); ++block) {
+            if (cursor >= input.size() ||
+                !isMacroSymbol(input[cursor], "{")) {
+                throw SourceError("macro '" + macro.name + "' expects " +
+                                      std::to_string(
+                                          macro.codeblockParameters.size()) +
+                                      " caller-supplied codeblock(s)",
+                                  input[i].line, input[i].column);
+            }
+            const std::size_t blockClose =
+                matchingDelimiter(input, cursor, "{", "}");
+            if (blockClose == input.size()) {
+                throw SourceError("unterminated caller-supplied macro codeblock",
+                                  input[cursor].line, input[cursor].column);
+            }
+            blocks.emplace_back(
+                input.begin() + static_cast<std::ptrdiff_t>(cursor),
+                input.begin() + static_cast<std::ptrdiff_t>(blockClose + 1));
+            cursor = blockClose + 1;
+        }
+
+        std::vector<Token> substituted;
+        for (std::size_t j = 0; j < macro.body.size();) {
+            if (isMacroSymbol(macro.body[j], "*") &&
+                j + 1 < macro.body.size() &&
+                isMacroIdentifier(macro.body[j + 1], "args")) {
+                for (std::size_t arg = 0; arg < arguments.size(); ++arg) {
+                    if (arg != 0) {
+                        substituted.push_back(Token{TokenKind::Symbol, ",",
+                                                    input[i].line,
+                                                    input[i].column});
+                    }
+                    substituted.insert(substituted.end(), arguments[arg].begin(),
+                                       arguments[arg].end());
+                }
+                j += 2;
+                continue;
+            }
+            if (isMacroSymbol(macro.body[j], "{") &&
+                j + 2 < macro.body.size() &&
+                isMacroSymbol(macro.body[j + 1], "{") &&
+                macro.body[j + 2].kind == TokenKind::Identifier &&
+                j + 3 < macro.body.size() &&
+                isMacroSymbol(macro.body[j + 3], "}") &&
+                j + 4 < macro.body.size() &&
+                isMacroSymbol(macro.body[j + 4], "}")) {
+                const auto parameter =
+                    std::find(macro.codeblockParameters.begin(),
+                              macro.codeblockParameters.end(),
+                              macro.body[j + 2].text);
+                if (parameter != macro.codeblockParameters.end()) {
+                    const std::size_t block = static_cast<std::size_t>(
+                        parameter - macro.codeblockParameters.begin());
+                    substituted.insert(substituted.end(), blocks[block].begin(),
+                                       blocks[block].end());
+                    j += 5;
+                    continue;
+                }
+            }
+            Token token = macro.body[j++];
+            token.line = input[i].line;
+            token.column = input[i].column;
+            substituted.push_back(std::move(token));
+        }
+        auto expanded = expandMacroTokens(substituted, macros, depth + 1);
+        output.insert(output.end(), expanded.begin(), expanded.end());
+        i = cursor;
+    }
+    if (!input.empty() && input.back().kind == TokenKind::End) {
+        output.push_back(input.back());
+    }
+    return output;
+}
+
+std::unordered_map<std::string, MacroDefinition> importedPublicMacros(
+    const std::vector<Token>& tokens, const std::string& sourcePath) {
+    std::unordered_map<std::string, MacroDefinition> imported;
+    const std::filesystem::path source(sourcePath);
+    const std::string directory =
+        source.has_parent_path() ? source.parent_path().string() : "";
+    for (std::size_t i = 0; i + 3 < tokens.size(); ++i) {
+        if ((!isMacroIdentifier(tokens[i], "import") &&
+             !isMacroIdentifier(tokens[i], "importAs")) ||
+             !isMacroSymbol(tokens[i + 1], "(")) {
+            continue;
+        }
+        const std::size_t close =
+            matchingDelimiter(tokens, i + 1, "(", ")");
+        if (close == tokens.size() || i + 2 >= close ||
+            tokens[i + 2].kind != TokenKind::String) {
+            continue;
+        }
+        const std::string requested = tokens[i + 2].text;
+        if (requested.size() >= 3 &&
+            requested.compare(requested.size() - 3, 3, ".so") == 0) {
+            continue;
+        }
+        const std::filesystem::path relativePath =
+            std::filesystem::path(directory) / requested;
+        const std::string* embedded =
+            embeddedModuleSource(relativePath.string());
+        if (embedded == nullptr) {
+            embedded = embeddedModuleSource(requested);
+        }
+        std::string text;
+        std::string resolved;
+        if (embedded != nullptr) {
+            text = *embedded;
+            resolved = relativePath.string();
+        } else {
+            resolved = resolveModulePath(directory, requested);
+            if (resolved.empty()) {
+                continue;
+            }
+            std::ifstream input(resolved, std::ios::binary);
+            if (!input) {
+                continue;
+            }
+            std::ostringstream sourceText;
+            sourceText << input.rdbuf();
+            text = sourceText.str();
+        }
+        Lexer lexer(text, resolved);
+        const auto declarations = collectMacroDefinitions(lexer.scan());
+        for (const auto& macro : declarations) {
+            if (!macro.isPublic) {
+                continue;
+            }
+            if (!imported.emplace(macro.name, macro).second) {
+                throw SourceError("duplicate imported macro '" + macro.name +
+                                      "'",
+                                  tokens[i].line, tokens[i].column);
+            }
+        }
+        i = close;
+    }
+    return imported;
+}
+
+} // namespace
 
 std::string Parser::parseTypeName(const std::string& message) {
     if (!check(TokenKind::Identifier)) {
         fail(message, current());
     }
     return advance().text;
+}
+
+void Parser::expandMacros() {
+    std::vector<bool> removed;
+    const auto definitions = collectMacroDefinitions(tokens_, &removed);
+    std::unordered_map<std::string, MacroDefinition> macros =
+        importedPublicMacros(tokens_, sourcePath_);
+    for (const auto& definition : definitions) {
+        if (!macros.emplace(definition.name, definition).second) {
+            throw SourceError("duplicate macro '" + definition.name + "'",
+                              definition.location.line,
+                              definition.location.column);
+        }
+    }
+
+    std::vector<Token> source;
+    source.reserve(tokens_.size());
+    for (std::size_t i = 0; i < tokens_.size(); ++i) {
+        if (!removed[i]) {
+            source.push_back(tokens_[i]);
+        }
+    }
+    tokens_ = expandMacroTokens(source, macros);
 }
 
 bool Parser::isTypeName(const Token& token) const {
@@ -329,6 +711,7 @@ void Parser::parseEnumDefinition() {
 
 std::unordered_map<std::string, Function> Parser::parseProgram(
     bool requireEntryPoints) {
+    expandMacros();
     TypeRegistry::reset();
     std::unordered_map<std::string, Function> functions;
     bool sawSetup = false;

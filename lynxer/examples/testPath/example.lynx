@@ -1,7 +1,17 @@
-global setup(){}
+pub macro pathPrint!(*args){println(*args)}
+pub macro pathBlock!(*args){body}{global.example.withPathBlock(*args){{body}}}
+macro privatePrint!(*args){println(*args)}
+
+global setup(){
+    import("nested/helper.lynx");
+}
+
+global withPathBlock(int value){body}{
+    exec(value){{body}}
+}
 
 global greet(str name) -> str {
-    return "hello " + name;
+    return global.helper.prefix() + name;
 }
 
 global main(){}

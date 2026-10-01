@@ -60,6 +60,7 @@ LYNXER_MILESTONE6_MATH_FIXTURE := $(LYNXER_DIR)/examples/milestone6_math_native.
 # A module imported by a path with a directory component, resolved relative to
 # the importing program's own directory: import("testPath/example.lynx").
 LYNXER_PATH_IMPORT_FIXTURE := $(LYNXER_DIR)/examples/testPathImport.lynx
+LYNXER_MACRO_FIXTURE := $(LYNXER_DIR)/examples/macros.lynx
 LYNXER_NATIVE_STDLIB_FIXTURE := $(LYNXER_DIR)/examples/native_stdlibs.lynx
 # The program's own command line (sys.argv). Run with extra arguments so the
 # fixture can assert the script path is entry 0 and the rest follow it.
@@ -151,7 +152,7 @@ LYNXER_FORMATTER_EXPECTED := $(LYNXER_DIR)/examples/formatter_expected.lynx
 LYNXER_LIST_STDLIB_MODULES := cli colorlib compress crypto csv debug encoding fileIO game graphics image js json lua math \
 	multiprocessing network os path random re regex server shell sound sqldb sys text time toml tui turtle typing uuid watch xml yaml
 # Import-parity fixtures (interpreted vs compiled). The sound one needs a device.
-LYNXER_PARITY_FIXTURES := native_stdlibs native_aggregate milestone6_module testPathImport milestone6_math_native stdlib_encoding stdlib_crypto stdlib_compress stdlib_json stdlib_uuid \
+LYNXER_PARITY_FIXTURES := native_stdlibs native_aggregate milestone6_module testPathImport macros milestone6_math_native stdlib_encoding stdlib_crypto stdlib_compress stdlib_json stdlib_uuid \
 	stdlib_toml stdlib_ini stdlib_xml stdlib_yaml stdlib_watch \
 	stdlib_re stdlib_path stdlib_game stdlib_graphics stdlib_image stdlib_lua stdlib_sqldb stdlib_tui deprecated_operators optimizer \
 	lowlevel_memory lowlevel_syscalls lowlevel_arch language_fields ownership \
@@ -552,6 +553,14 @@ expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:23: charAt() index is out of rang
 	if [ "$$output" != "$$expected" ]; then \
 	echo "expected path-import output:"; printf '%s\n' "$$expected"; \
 	echo "received:"; printf '%s\n' "$$output"; exit 1; fi
+	@output="$$($(CLYX) $(LYNXER_MACRO_FIXTURE))"; \
+	expected="$$(cat $(LYNXER_MACRO_FIXTURE:.lynx=.expected))"; \
+	if [ "$$output" != "$$expected" ]; then \
+	echo "expected macro output:"; printf '%s\n' "$$expected"; \
+	echo "received:"; printf '%s\n' "$$output"; exit 1; fi
+	@set +e; output="$$($(CLYX) --lint $(LYNXER_DIR)/examples/macros_private_import.lynx 2>&1)"; status=$$?; set -e; \
+	if [ "$$status" -ne 1 ] || ! printf '%s' "$$output" | grep -q "unknown macro 'privatePrint'"; then \
+	echo "private macro unexpectedly visible to importer:"; printf '%s\n' "$$output"; exit 1; fi
 	@output="$$($(CLYX) $(LYNXER_MILESTONE6_FIXTURE))"; \
 	expected="$$(printf '6\n42\n6\n6\n7\n\033[31mok\033[0m\ntrue\ncba\n4')"; \
 	if [ "$$output" != "$$expected" ]; then \

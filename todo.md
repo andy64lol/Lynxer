@@ -6,7 +6,7 @@ features are in [docs/removed-features.md](docs/removed-features.md).
 
 ## Language
 
-- [ ] **File-scoped macros and function codeblocks.** Add macros using the
+- [x] **File-scoped macros and function codeblocks.** Add macros using the
   syntax `macro macroName!(*args){//code}`. Macros are visible only within
   their declaring file unless prefixed with `pub` (`pub macro
   macroName!(*args){//code}`), which makes them visible to files that import

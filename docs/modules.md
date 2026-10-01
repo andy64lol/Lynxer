@@ -36,6 +36,10 @@ Both arguments must be **string literals**; an expression such as
 2. `lynxer/stdlib/`, next to the interpreter.
 
 - `import("math")` and `import("math.lynx")` are equivalent.
+- A relative path such as `import("helpers/text.lynx")` is resolved from the
+  importing source file's directory. Imports inside that module are resolved
+  from the module's own directory, so modules and their dependencies may live
+  in separate directories.
 - A native library is named with its `.so` suffix; the stdlib `.lynx` wrappers
   load their own `.so` (for example `math.lynx` imports `math.so` as
   `nativeMath`).
@@ -44,6 +48,10 @@ Both arguments must be **string literals**; an expression such as
   `module 'nope' was not found` with the importing source location.
 
 There is **no** `.lynxc` bytecode import in Lynxer.
+
+Source files may export compile-time macros with `pub macro`. Those macros are
+available to a file that imports the declaring source module; unprefixed macros
+remain private to their source file. See [macros.md](macros.md).
 
 ## Calling module members
 

@@ -28,6 +28,7 @@
 <h3 class="sidebar-group-title">Language</h3><ul class="sidebar-group">
 <li><a href="language.html">language</a></li>
 <li><a href="functions.html" class="active">functions</a></li>
+<li><a href="macros.html">macros</a></li>
 <li><a href="operators.html">operators</a></li>
 <li><a href="conditionals.html">conditionals</a></li>
 <li><a href="loops.html">loops</a></li>
@@ -221,6 +222,7 @@ global main(){
 }</code></pre>
 <ul>
 <li>The codeblock-parameter syntax is identical for <code>global</code>, <code>func</code> and <code>local</code> declarations; the parser treats all three the same way.</li>
+<li>Caller-supplied blocks also work on file-level <code>func</code> declarations; the <code>macros</code> example fixture covers both macro-spliced and direct <code>func</code> calls.</li>
 <li>Callers may mix inline blocks (<code>(){ ... }</code>) and named references (<code>(){{var}}</code>) in the same call.</li>
 <li><code>func</code> and <code>local</code> blocks are supplied the same way; a <code>func</code> reached through an import takes blocks at the call site too: <code>global.module.runTwice(){...}{...}</code>.</li>
 <li>Entry-point functions (<code>setup</code>/<code>main</code>) may not declare codeblock parameters.</li>

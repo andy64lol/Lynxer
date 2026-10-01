@@ -1,0 +1,5 @@
+global setup(){}
+
+global prefix() -> str {
+    return "hello ";
+}

@@ -5,15 +5,16 @@
 #include "lexer.hpp"
 
 #include <string>
-#include <unordered_set>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace lynxer {
 
 class Parser {
 public:
-    explicit Parser(std::vector<Token> tokens) : tokens_(std::move(tokens)) {}
+    explicit Parser(std::vector<Token> tokens, std::string sourcePath = "")
+        : tokens_(std::move(tokens)), sourcePath_(std::move(sourcePath)) {}
 
     std::unordered_map<std::string, Function> parseProgram(
         bool requireEntryPoints = true);
@@ -30,6 +31,7 @@ private:
     void parseStructDefinition();
     void parseClassDefinition();
     void parseEnumDefinition();
+    void expandMacros();
     std::vector<std::pair<std::string, std::string>> parseParameters();
     std::vector<Parameter> parseFunctionParameters();
     Function parseFunction(const std::string& kind, bool topLevel);
@@ -145,6 +147,7 @@ private:
     }
 
     std::vector<Token> tokens_;
+    std::string sourcePath_;
     std::size_t index_ = 0;
     int loopDepth_ = 0;
     std::unordered_set<std::string> codeblockNames_;
