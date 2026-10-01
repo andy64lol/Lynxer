@@ -578,7 +578,7 @@ fine.
 | --- | --- |
 | `ffiLoadLibrary(path)` | Loads a shared library and returns a handle |
 | `ffiLookup(handle, symbol)` | Resolves a symbol to a `functionAddress` |
-| `ffiCall(address, signature, arguments)` | Calls the symbol. `signature` is a packed string such as `"cdecl:int32(int32,int32)"`; `arguments` is a list |
+| `ffiCall(address, signature, arguments)` | Calls the symbol. `signature` uses the native ABI grammar, including `"cdecl:int32(int32,int32)"` and the versioned `"cdecl:v2:value(value)"`; `arguments` is a list |
 | `ffiCallback(signature, function)` | Wraps a Lynxer function as a C callback the native code can call |
 | `ffiFreeCallback(callback)` | Releases a callback created by `ffiCallback` |
 | `ffiCloseLibrary(handle)` | Unloads the library and invalidates its symbols |
@@ -587,7 +587,9 @@ The signatures use the same grammar as native modules; see
 [native-module-abi.md](native-module-abi.md#signature-grammar). A `void` return
 yields `0`. Argument types are checked strictly: an `int64` parameter rejects a
 string, a `float64` parameter rejects a string, and a `cstring` parameter
-rejects a number.
+rejects a number. The `value` parameter accepts supported Lynxer scalars and
+nested aggregates; see
+[Versioned typed aggregate values](native-module-abi.md#versioned-typed-aggregate-values).
 `lynxer/examples/builtin_ffi.lynx` demonstrates the full round trip (calling
 `strlen` and passing a Lynxer function back as a C callback), and
 `lynxer/examples/builtin_ffi_errors.lynx` pins the diagnostics.

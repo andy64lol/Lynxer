@@ -20,6 +20,7 @@ void throwIfInterrupted() {
     if (interruptRequested()) {
         throw InterruptError();
     }
+    throwIfExitRequested();
 }
 
 void installInterruptHandler() {

@@ -118,11 +118,6 @@
         </div>
 <h1 id="planned-implementation-gaps">Planned implementation gaps</h1>
 <p>This page summarizes known gaps that are intended to be addressed. Each entry has an implementation task in <a href="https://github.com/andy64lol/Lynxer/blob/main/todo.md">todo</a>. Intentional product boundaries, removed features and compatibility decisions are documented in <a href="removed-features.html">removed-features</a>.</p>
-<h2 id="runtime-and-native-module-abi">Runtime and native-module ABI</h2>
-<ul>
-<li>Native aggregates have no direct typed representation across the module ABI; modules use JSON strings or handles. The ABI needs a versioned extension and conformance tests for nested values.</li>
-<li><code>sys.exit()</code> calls <code>std::exit</code> directly and bypasses interpreter cleanup.</li>
-</ul>
 <h2 id="graphics-and-game"><code>graphics</code> and <code>game</code></h2>
 <ul>
 <li>Context-dependent graphics operations may fail outside the frame callback instead of being queued or reporting one consistent error.</li>

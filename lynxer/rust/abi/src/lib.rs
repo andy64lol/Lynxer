@@ -12,6 +12,8 @@
 //! This crate provides the argument view, the panic guards (a Rust panic must
 //! not unwind across the C ABI and abort the interpreter), the single
 //! thread-local string result buffer, and the module registration helper.
+//! Fixed native signatures can also use the versioned `LynxerFfiValue` tree
+//! (`cdecl:v2:value(value)`) for common recursively typed values.
 //!
 //! See `docs/native-module-abi.md`.
 
@@ -36,7 +38,92 @@ pub struct LynxerHostApi {
     pub blocking: Option<
         unsafe extern "C" fn(*mut c_void, unsafe extern "C" fn(*mut c_void), *mut c_void) -> c_int,
     >,
+    pub request_exit: Option<unsafe extern "C" fn(*mut c_void, i64) -> c_int>,
 }
+
+/// Recursively typed value used by the additive `cdecl:v2:value(value)` call
+/// signature. All pointers are borrowed for the duration of the call.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct LynxerFfiValue {
+    pub tag: u32,
+    pub value: LynxerFfiValuePayload,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union LynxerFfiValuePayload {
+    pub i: i64,
+    pub u: u64,
+    pub f: f64,
+    pub boolean: u32,
+    pub string: LynxerFfiData,
+    pub bytes: LynxerFfiData,
+    pub array: LynxerFfiArray,
+    pub record: LynxerFfiRecord,
+    pub enumeration: LynxerFfiEnum,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct LynxerFfiData {
+    pub data: *const u8,
+    pub length: i64,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct LynxerFfiArray {
+    pub items: *const LynxerFfiValue,
+    pub count: i64,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct LynxerFfiValueField {
+    pub name: *const c_char,
+    pub name_length: i64,
+    pub field_type: *const c_char,
+    pub type_length: i64,
+    pub constant: u32,
+    pub value: *const LynxerFfiValue,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct LynxerFfiEnum {
+    pub enum_name: *const c_char,
+    pub enum_name_length: i64,
+    pub variant_name: *const c_char,
+    pub variant_name_length: i64,
+    pub fields: *const LynxerFfiValueField,
+    pub count: i64,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct LynxerFfiRecord {
+    pub fields: *const LynxerFfiValueField,
+    pub count: i64,
+    pub type_name: *const c_char,
+    pub type_name_length: i64,
+    pub display_name: *const c_char,
+    pub display_name_length: i64,
+    pub kind: u32,
+}
+
+pub const VALUE_NULL: u32 = 0;
+pub const VALUE_INT64: u32 = 1;
+pub const VALUE_FLOAT64: u32 = 2;
+pub const VALUE_BOOL: u32 = 3;
+pub const VALUE_STRING: u32 = 4;
+pub const VALUE_BYTES: u32 = 5;
+pub const VALUE_ARRAY: u32 = 6;
+pub const VALUE_RECORD: u32 = 7;
+pub const VALUE_TUPLE: u32 = 8;
+pub const VALUE_UINT64: u32 = 9;
+pub const VALUE_CHAR: u32 = 10;
+pub const VALUE_ENUM: u32 = 11;
 
 // The interpreter stores the host API in a `static`, and the callbacks it
 // points at are only ever invoked from the interpreter thread. Marking the
@@ -270,6 +357,26 @@ pub unsafe fn register_all(
         }
     }
     0
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use core::mem::{align_of, size_of};
+
+    #[test]
+    fn typed_value_abi_layout_is_stable_on_64_bit_targets() {
+        if cfg!(target_pointer_width = "64") {
+            assert_eq!(size_of::<LynxerHostApi>(), 56);
+            assert_eq!(size_of::<LynxerFfiValue>(), 64);
+            assert_eq!(align_of::<LynxerFfiValue>(), 8);
+            assert_eq!(size_of::<LynxerFfiValueField>(), 48);
+            assert_eq!(size_of::<LynxerFfiArray>(), 16);
+            assert_eq!(size_of::<LynxerFfiData>(), 16);
+            assert_eq!(size_of::<LynxerFfiRecord>(), 56);
+            assert_eq!(size_of::<LynxerFfiEnum>(), 48);
+        }
+    }
 }
 
 /// Declares a panic-guarded packed op returning an integer.

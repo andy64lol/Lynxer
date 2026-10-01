@@ -6,11 +6,21 @@
 // returns a deterministic value.
 
 #include "../stdlib/lynxer_native_abi.h"
+#include "../ffi_abi.h"
 
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <string>
+
+#if INTPTR_MAX == INT64_MAX
+static_assert(sizeof(LynxerHostApi) == 56);
+static_assert(sizeof(LynxerFfiValue) == 64);
+static_assert(sizeof(LynxerFfiValueField) == 48);
+static_assert(sizeof(LynxerFfiEnum) == 48);
+static_assert(sizeof(LynxerFfiArg) == 56);
+static_assert(sizeof(LynxerFfiResult) == 56);
+#endif
 
 using RegisterFunction = int (*)(const char*, const char*, const char*);
 using RegisterConstant = int (*)(const char*, std::int64_t);
@@ -118,6 +128,12 @@ extern "C" const std::uint8_t* sig_bytes_upper(const std::uint8_t* data,
     return lynxerBytes(output.data(), static_cast<std::int64_t>(output.size()));
 }
 
+// Version 2 carries an owned-by-caller, recursively typed value tree. Echoing
+// it exercises nested input and result copying without JSON or handles.
+extern "C" const LynxerFfiValue* sig_value(const LynxerFfiValue* value) {
+    return value;
+}
+
 extern "C" int lynxer_module_init_v1(RegisterFunction f, RegisterConstant c,
                                      RegisterType t) {
     return f("v", "sig_v", "cdecl:int64()") &&
@@ -152,6 +168,7 @@ extern "C" int lynxer_module_init_v1(RegisterFunction f, RegisterConstant c,
                    f("sink", "sig_void", "cdecl:void(int64)") &&
                    f("bytesLen", "sig_bytes_len", "cdecl:int64(bytes)") &&
                    f("bytesUpper", "sig_bytes_upper", "cdecl:bytes(bytes)") &&
+                   f("typed", "sig_value", "cdecl:v2:value(value)") &&
                    c("answer", 42) &&
                    t("pair", "int32 first, int32 second")
                ? 0

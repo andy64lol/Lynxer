@@ -385,10 +385,11 @@ extern "C" const char* sys_getArg(std::int64_t index) {
     }
     return stable(arguments[static_cast<std::size_t>(index)]);
 }
-// Exits the process immediately; interpreter cleanup does not run.
 extern "C" std::int64_t sys_exit(std::int64_t code) {
+    if (hostAttached && hostApi.request_exit != nullptr) {
+        return hostApi.request_exit(hostApi.context, code);
+    }
     std::exit(static_cast<int>(code));
-    return 0;
 }
 
 extern "C" int lynxer_module_init_v1(RegisterFunction f, RegisterConstant, RegisterType) {

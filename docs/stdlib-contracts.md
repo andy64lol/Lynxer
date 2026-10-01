@@ -43,10 +43,12 @@ handle — see [native-module-abi.md](native-module-abi.md) for why.
 
 - A Lynxer `str` crosses as `cstring`, and `int`, `float` and `bool` cross as
   numbers. Booleans are `0`/`1`; the wrapper converts back with `!= 0`.
-- **A Rust backend must register the packed `cdecl:<ret>(...)` signature.** The
-  packed argument view indexes per kind, so the *i*-th numeric argument is
+- **A Rust backend using `export_*!` macros must register the packed
+  `cdecl:<ret>(...)` signature.** The packed argument view indexes per kind, so the *i*-th numeric argument is
   `args.int(i)` and the *i*-th string argument is `args.string(i)`, independent
-  of the order they appeared in the call.
+  of the order they appeared in the call. Hand-written Rust ops may instead use
+  the direct `cdecl:v2:value(value)` ABI for typed aggregates; see
+  [native-module-abi.md](native-module-abi.md#versioned-typed-aggregate-values).
 - A C++ backend may register one of the fixed shapes instead; the interpreter
   type-checks those per argument at call time.
 

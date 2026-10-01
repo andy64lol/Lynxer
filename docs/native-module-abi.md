@@ -102,8 +102,8 @@ cdecl:<return>(<arg>,<arg>,...)
 ```
 
 Type tokens are `int64` (Lynxer `int`), `double`/`float64` (Lynxer `float`),
-`cstring` (Lynxer `str`) and `bytes` (Lynxer `bytes`). Argument lists may be
-empty.
+`cstring` (Lynxer `str`) and `bytes` (Lynxer `bytes`). The `value` token is
+additionally accepted only with the `v2:` prefix. Argument lists may be empty.
 
 Before looking a signature up, the dispatcher **normalizes** the tokens: every
 integer width is rewritten to `int64` (`int8`, `int16`, `int32`, `uint8`,
@@ -115,15 +115,17 @@ accepted spellings, not distinct shapes.
 `cdecl:` is optional; the bare `<return>(<args>)` form is accepted too. The
 packed form is selected when the argument list is exactly the single token `...`
 (`types.size() == 1 && types[0] == "..."`).
+For typed aggregate signatures, either `cdecl:v2:` or the bare `v2:` prefix is
+accepted.
 
 ## Supported signature shapes
 
 Any signature the grammar can describe is callable. The engine parses
 `cdecl:<ret>(<args>)`, normalizes the tokens as above, and builds a `libffi`
-call description from them; there is no fixed table of shapes. `int64`,
+call description from them; there is no fixed table of shapes. Legacy `int64`,
 `float64`, `cstring` and `bytes` parameters may appear in any order and any
-number, and the return type may be `int64`, `float64`, `cstring`, `bytes` or
-`void` (a `void` call yields `0`).
+number. The return type may be `int64`, `float64`, `cstring`, `bytes` or `void`
+(a `void` call yields `0`); v2 signatures may also use `value`.
 
 A `bytes` parameter is passed as **two** C arguments — `const uint8_t* data,
 int64_t length` — and a `bytes` return is a `const uint8_t*` to a buffer laid
@@ -143,6 +145,56 @@ are strict and reject a mismatched value.
 Both the interpreter's own `ffiCall` and every native-module invocation use this
 one engine, so a module call and an `ffiCall` follow identical rules.
 
+### Versioned typed aggregate values
+
+The additive v2 signature `cdecl:v2:value(value)` passes common values as a
+recursively typed `LynxerFfiValue` tree rather than requiring JSON strings or
+integer handles. It supports `none`, signed and unsigned integers, floats,
+booleans, strings, chars, bytes, lists, tuples, named records (including
+structs and classes), and enum variants with named payloads. Aggregate children
+can themselves be any supported value. Objects that are opaque interpreter
+handles, codeblocks, and sentinels are not representable and are rejected.
+
+The argument is a pointer to a borrowed value tree. The native function must
+not retain any pointer into that tree after returning. A returned value tree
+must remain valid until the interpreter has copied it, which is before the
+next native call on that thread. Record fields carry their names and the
+field's declared type and constant flag, and the record's type/display names
+and kind. Text and byte strings use explicit byte lengths and may contain NUL
+bytes.
+
+The version prefix is intentional: existing `cdecl:` and packed signatures
+retain their original ABI and type checking. C++ modules include
+`lynxer/ffi_abi.h`; Rust modules use the matching `LynxerFfiValue` types from
+the `lynxer_abi` crate. A C++ implementation can echo a nested input tree:
+
+```cpp
+extern "C" const LynxerFfiValue* echo_value(const LynxerFfiValue* value) {
+    return value;
+}
+
+// Register with: cdecl:v2:value(value)
+```
+
+A Rust module can register the same direct pointer prototype:
+
+```rust
+use lynxer_abi::{lynxer_module, LynxerFfiValue};
+
+const OPS: &[(&str, &str, &str)] =
+    &[("echo", "echo_value", "cdecl:v2:value(value)")];
+lynxer_module!(OPS);
+
+#[no_mangle]
+pub unsafe extern "C" fn echo_value(
+    value: *const LynxerFfiValue,
+) -> *const LynxerFfiValue {
+    value
+}
+```
+
+The executable nested round-trip fixture is `lynxer/examples/native_aggregate.lynx`.
+
 ### Packed arguments (`...`)
 
 An API with long or variadic argument lists can use the wildcard parameter
@@ -154,10 +206,13 @@ cdecl:float64(...)
 cdecl:cstring(...)
 ```
 
-Only these three shapes are packed; the return type selects which one. This is
-the form the `lynxer_abi` macros generate.
+These are the legacy packed shapes; the return type selects the prototype. This
+is the form the `lynxer_abi` macros generate. Version 2 may additionally use
+The typed v2 shape is currently supported in fixed signatures; it does not
+change the legacy packed argument convention.
 
-> **A Rust `cdylib` must use a packed signature.** The `export_int!`,
+> **A Rust `cdylib` must use a packed signature unless it uses the direct v2
+> typed-value prototype above.** The `export_int!`,
 > `export_float!` and `export_string!` macros (and their `_buffers!`
 > counterparts) expand to the packed prototype below, so registering such an op with a *fixed* shape is a hard
 > error that is **not** caught at build time: the interpreter calls the symbol

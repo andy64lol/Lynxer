@@ -148,7 +148,7 @@ LYNXER_FORMATTER_EXPECTED := $(LYNXER_DIR)/examples/formatter_expected.lynx
 LYNXER_LIST_STDLIB_MODULES := cli colorlib compress crypto csv debug encoding fileIO game graphics image js json lua math \
 	multiprocessing network os path random re regex server shell sound sqldb sys text time toml tui turtle typing uuid watch xml yaml
 # Import-parity fixtures (interpreted vs compiled). The sound one needs a device.
-LYNXER_PARITY_FIXTURES := native_stdlibs milestone6_module milestone6_math_native stdlib_encoding stdlib_crypto stdlib_compress stdlib_json stdlib_uuid \
+LYNXER_PARITY_FIXTURES := native_stdlibs native_aggregate milestone6_module milestone6_math_native stdlib_encoding stdlib_crypto stdlib_compress stdlib_json stdlib_uuid \
 	stdlib_toml stdlib_ini stdlib_xml stdlib_yaml stdlib_watch \
 	stdlib_re stdlib_path stdlib_game stdlib_graphics stdlib_image stdlib_lua stdlib_sqldb stdlib_tui deprecated_operators optimizer \
 	lowlevel_memory lowlevel_syscalls lowlevel_arch language_fields ownership \
@@ -272,7 +272,7 @@ $(LYNXER_FFI_STATICLIB): $(LYNXER_RUST_SOURCES) $(LYNXER_FFI_ABI_HEADER)
 	RUSTFLAGS="-C relocation-model=pic" $(LYNXER_CARGO) build -p lynxer_ffi --release \
 	    --manifest-path $(LYNXER_RUST_MANIFEST) --target-dir $(LYNXER_RUST_TARGET_DIR)
 
-$(LYNXER_SIGNATURE_MODULE): $(LYNXER_SIGNATURE_SOURCE)
+$(LYNXER_SIGNATURE_MODULE): $(LYNXER_SIGNATURE_SOURCE) $(LYNXER_DIR)/ffi_abi.h $(LYNXER_DIR)/stdlib/lynxer_native_abi.h
 	$(LYNXER_CXX) -std=c++17 -O2 -Wall -Wextra -pedantic -fPIC -shared $< -o $@
 
 # The Lynxer suite: static module/backend contract check, then the
@@ -394,6 +394,46 @@ expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:23: charAt() index is out of rang
 	exit 1; \
 	fi; \
 	done
+	@for fixture in sys_exit cli_exit; do \
+	run="$(LYNXER_DIR)/examples/$$fixture.lynx"; \
+	for mode in direct compiled; do \
+	if [ "$$mode" = compiled ]; then \
+	if ! $(CLYX) --compile "$$run" $(CLYX_TMP)_exit_test > /dev/null; then \
+	echo "compile failed for $$fixture"; exit 1; fi; \
+	executable="$(CLYX_TMP)_exit_test"; \
+	else executable="$(CLYX)"; fi; \
+	set +e; \
+	"$$executable" "$$run" > $(CLYX_TMP)_exit.out 2>&1; \
+	status=$$?; \
+	set -e; \
+	expected="$$(printf 'before %s.exit' "$${fixture%_exit}")"; \
+	if [ "$$status" -ne 23 ] || [ "$$(cat $(CLYX_TMP)_exit.out)" != "$$expected" ]; then \
+	echo "$$mode $$fixture failed (status $$status):"; \
+	cat $(CLYX_TMP)_exit.out; rm -f $(CLYX_TMP)_exit.out $(CLYX_TMP)_exit_test; exit 1; fi; \
+	done; \
+	done; \
+	rm -f $(CLYX_TMP)_exit.out $(CLYX_TMP)_exit_test
+	@for fixture in sys_exit_thread sys_exit_worker; do \
+	for mode in direct compiled; do \
+	run="$(LYNXER_DIR)/examples/$$fixture.lynx"; \
+	if [ "$$mode" = compiled ]; then \
+	if ! $(CLYX) --compile "$$run" $(CLYX_TMP)_exit_test > /dev/null; then \
+	echo "compile failed for $$fixture"; exit 1; fi; \
+	executable="$(CLYX_TMP)_exit_test"; \
+	else executable="$(CLYX)"; fi; \
+	set +e; \
+	"$$executable" "$$run" > $(CLYX_TMP)_exit.out 2>&1; \
+	status=$$?; \
+	set -e; \
+	if [ "$$fixture" = sys_exit_thread ]; then \
+	expected="$$(printf 'before sys.exit\nthread cleanup completed')"; exit_status=23; \
+	else expected="$$(printf 'before worker\nworker requesting exit')"; exit_status=31; fi; \
+	if [ "$$status" -ne "$$exit_status" ] || [ "$$(cat $(CLYX_TMP)_exit.out)" != "$$expected" ]; then \
+	echo "$$mode $$fixture failed (status $$status):"; \
+	cat $(CLYX_TMP)_exit.out; rm -f $(CLYX_TMP)_exit.out $(CLYX_TMP)_exit_test; exit 1; fi; \
+	done; \
+	done; \
+	rm -f $(CLYX_TMP)_exit.out $(CLYX_TMP)_exit_test
 	@for fixture in $(LYNXER_PARITY_FIXTURES); do \
 	run="$(LYNXER_DIR)/examples/$$fixture.lynx"; \
 	if grep -q '__ARCH__' "$$run"; then \
@@ -529,6 +569,11 @@ expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:23: charAt() index is out of rang
 	if [ "$$output" != "$$expected" ]; then \
 	echo "expected native signature output:"; printf '%s\n' "$$expected"; \
 	echo "received native signature output:"; printf '%s\n' "$$output"; exit 1; fi
+	@output="$$($(CLYX) $(LYNXER_DIR)/examples/native_aggregate.lynx)"; \
+	expected="$$(cat $(LYNXER_DIR)/examples/native_aggregate.expected)"; \
+	if [ "$$output" != "$$expected" ]; then \
+	echo "native typed aggregate round-trip mismatch:"; \
+	echo "expected: $$expected"; echo "received: $$output"; exit 1; fi
 	@list_output="$$(cd /tmp && "$(CURDIR)/$(LYNXER_TARGET)" --list-stdlibs)"; \
 	for module in $(LYNXER_LIST_STDLIB_MODULES); do \
 	if ! printf '%s\n' "$$list_output" | grep -Fqx "  $$module"; then \

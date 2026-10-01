@@ -1,0 +1,9 @@
+global setup(){
+    import("cli");
+}
+
+global main(){
+    println("before cli.exit");
+    global.cli.exit(23);
+    println("after cli.exit");
+}

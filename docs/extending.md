@@ -25,7 +25,7 @@ conventions your module has to follow, and
 | Build | Built by the `stdlib/*.cpp` wildcard, no new Makefile entry | Add the crate to the workspace **and** its name to `LYNXER_RUST_MODULE_NAMES` |
 | Dependencies | Standard library only | Any crate, but it must build offline after `Cargo.lock` is committed |
 | Best for | POSIX calls, `<filesystem>`, `<chrono>`, small hand-written parsers | Anything with a real third-party crate: formats, protocols, GUI, audio, databases |
-| Signature | Either a fixed shape or the packed `...` form | **Must** be the packed `...` form |
+| Signature | Fixed shape, packed `...`, or typed v2 value | Packed `...`, or direct typed v2 value |
 
 If a crate exists for the job, use Rust. Write C++ when the whole
 implementation is a few calls into the standard library or POSIX.
@@ -106,11 +106,14 @@ lynxer_module!(OPS);
 
 Three things to get right, all of which have caused real defects here:
 
-1. **Every signature is packed** — `cdecl:int64(...)`, `cdecl:float64(...)` or
-   `cdecl:cstring(...)`. The `export_*!` macros generate the four-scalar packed
-   prototype, so registering a fixed shape (`cdecl:int64(int64)`) calls the
-   symbol through the wrong C prototype and **segfaults on the first call**,
-   with no build-time warning.
+1. **The `export_*!` macros require packed signatures** —
+   `cdecl:int64(...)`, `cdecl:float64(...)` or `cdecl:cstring(...)`. They
+   generate the four-scalar packed prototype, so registering one of these ops
+   with a fixed shape (`cdecl:int64(int64)`) calls the symbol through the wrong
+   C prototype and **segfaults on the first call**, with no build-time warning.
+   Hand-written Rust ops may instead use the direct
+   `cdecl:v2:value(value)` prototype from
+   [native-module-abi.md](native-module-abi.md#versioned-typed-aggregate-values).
 2. **Arguments are indexed per kind, not positionally.** `args.int(i)` reads the
    *i*-th number and `args.string(i)` the *i*-th string. For
    `save(handle, path, quality)` the reads are `args.int(0)`, `args.string(0)`,

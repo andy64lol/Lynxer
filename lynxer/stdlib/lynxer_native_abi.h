@@ -12,6 +12,11 @@
 // the little-endian prefix and copies that many bytes, so the module must keep
 // the buffer alive until its next call — use `lynxerBytes` below.
 //
+// Versioned signatures such as `cdecl:v2:value(value)` (also written
+// `v2:value(value)`) pass recursive `LynxerFfiValue` pointers for common scalar
+// and aggregate values. See `lynxer/ffi_abi.h` and
+// `docs/native-module-abi.md`; existing signatures remain unchanged.
+//
 // A module can instead register a function with the `...` parameter token,
 // e.g. `cdecl:int64(...)`. The interpreter then calls
 //
@@ -62,6 +67,9 @@ typedef struct LynxerArgs {
 // `blocking` runs `body(user)` with the interpreter lock released and
 // re-acquires it afterwards, so a module may block (wait on a descriptor or
 // sleep) without wedging every other Lynxer thread.
+// `request_exit` requests an orderly interpreter shutdown with the given
+// process status. The host raises its exit control only after the native call
+// returns, so it never unwinds through a C ABI frame.
 //
 // New fields are appended, so the version stays 1: a module compiled against an
 // earlier layout simply does not see them.
@@ -72,6 +80,7 @@ typedef struct LynxerHostApi {
     int (*interrupted)(void* context);
     const char* (*program_args)(void* context);
     int (*blocking)(void* context, void (*body)(void* user), void* user);
+    int (*request_exit)(void* context, int64_t code);
 } LynxerHostApi;
 
 #ifdef __cplusplus

@@ -1,0 +1,29 @@
+////
+Nested aggregate round-trip through the versioned native value ABI.
+////
+global setup(){
+    importAs("native_signatures.so", "sigs");
+}
+
+struct Person {
+    str name;
+    list scores;
+}
+
+enum Outcome = [Ok(int code), Err(str message)]{}
+
+global main(){
+    list input = [1, "two", 1.5, true, 'A', none, uint64 9000000000,
+                  [3, false], (4, 5)];
+    Person person = new Person("Ada", [6, 7]);
+    println(global.sigs.typed(input));
+    println(bytesToStr(global.sigs.typed(bytesOf("typed bytes"))));
+    Person result = global.sigs.typed(person);
+    println(result.name, " ", result.scores);
+    any original = Outcome.Ok(200);
+    any copied = global.sigs.typed(original);
+    switch(copied){
+        case(Outcome.Ok(code)){ println("enum ", code); }
+        default(){ println("enum mismatch"); }
+    }
+}

@@ -5,13 +5,6 @@ has an implementation task in [todo.md](../todo.md). Intentional product
 boundaries, removed features and compatibility decisions are documented in
 [removed-features.md](removed-features.md).
 
-## Runtime and native-module ABI
-
-- Native aggregates have no direct typed representation across the module ABI;
-  modules use JSON strings or handles. The ABI needs a versioned extension and
-  conformance tests for nested values.
-- `sys.exit()` calls `std::exit` directly and bypasses interpreter cleanup.
-
 ## `graphics` and `game`
 
 - Context-dependent graphics operations may fail outside the frame callback

@@ -518,6 +518,9 @@ int runProgram(const std::string& display, const std::string& source) {
         executeProgram(functions, environment);
         reportOptimization();
         return 0;
+    } catch (const ExitControl& control) {
+        clearExitRequest(control.code);
+        return control.code;
     } catch (const InterruptError&) {
         return 130;
     } catch (const SourceError& error) {

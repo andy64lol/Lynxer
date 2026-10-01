@@ -138,7 +138,7 @@
 <h3 id="argument-order-and-types">Argument order and types</h3>
 <ul>
 <li>A Lynxer <code>str</code> crosses as <code>cstring</code>, and <code>int</code>, <code>float</code> and <code>bool</code> cross as numbers. Booleans are <code>0</code>/<code>1</code>; the wrapper converts back with <code>!= 0</code>.</li>
-<li><strong>A Rust backend must register the packed <code>cdecl:&lt;ret&gt;(...)</code> signature.</strong> The packed argument view indexes per kind, so the <em>i</em>-th numeric argument is <code>args.int(i)</code> and the <em>i</em>-th string argument is <code>args.string(i)</code>, independent of the order they appeared in the call.</li>
+<li><strong>A Rust backend using <code>export_*!</code> macros must register the packed <code>cdecl:&lt;ret&gt;(...)</code> signature.</strong> The packed argument view indexes per kind, so the <em>i</em>-th numeric argument is <code>args.int(i)</code> and the <em>i</em>-th string argument is <code>args.string(i)</code>, independent of the order they appeared in the call. Hand-written Rust ops may instead use the direct <code>cdecl:v2:value(value)</code> ABI for typed aggregates; see <a href="native-module-abi.html#versioned-typed-aggregate-values">native-module-abi</a>.</li>
 <li>A C++ backend may register one of the fixed shapes instead; the interpreter type-checks those per argument at call time.</li>
 </ul>
 <h3 id="handles">Handles</h3>

@@ -4,16 +4,6 @@ Approved work to remove or reduce the implementation gaps recorded in
 [docs/limitations.md](docs/limitations.md). Deliberate non-goals and removed
 features are in [docs/removed-features.md](docs/removed-features.md).
 
-## Runtime and native-module ABI
-
-- [ ] **Typed aggregate ABI.** Define direct typed representations for common
-  aggregates instead of requiring JSON strings or handles. Add ABI conformance
-  tests for nested values and update both C++ and Rust examples. Preserve
-  existing signatures through a versioned compatibility path.
-- [ ] **Interpreter cleanup on `sys.exit()`.** Route the language-level exit
-  through orderly interpreter shutdown so registered cleanup and resource
-  releases run. Test normal return, `sys.exit()` and compiled executables.
-
 ## `graphics` and `game`
 
 - [ ] **GPU-operation lifecycle.** Make context-dependent operations safe to
@@ -108,6 +98,15 @@ as implied future work.
 
 ## Completed
 
+- [x] **Typed aggregate ABI.** Added `cdecl:v2:value(value)` with recursive
+  representations for scalar values, bytes, lists, tuples, named records and
+  enum payloads. Existing `cdecl:` signatures remain unchanged. Nested C++
+  round-trip coverage and C++/Rust ABI examples document the new shape.
+- [x] **Interpreter cleanup on `sys.exit()`.** `sys.exit()` and `cli.exit()`
+  now request shutdown through the host API and unwind through interpreter
+  scopes and managed thread cleanup before returning the requested status,
+  including exit requests raised from worker threads. Direct and
+  compiled-executable fixtures cover both exit APIs and thread cleanup.
 - [x] **Windowed graphics CI.** The AMD64 workflow now starts Xvfb with Mesa
   llvmpipe software OpenGL and runs bounded windowed smoke fixtures for both
   `graphics` and `game`. The graphics fixture loads and draws a real texture,

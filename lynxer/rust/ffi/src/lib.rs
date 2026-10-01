@@ -36,6 +36,7 @@ const ARG_UINT64: u32 = 4;
 #[allow(dead_code)]
 const ARG_OTHER: u32 = 5;
 const ARG_BYTES: u32 = 6;
+const ARG_VALUE: u32 = 7;
 
 /// The maximum number of packed arguments, matching the interpreter.
 const MAX_PACKED_ARGS: usize = 256;
@@ -43,6 +44,76 @@ const MAX_PACKED_ARGS: usize = 256;
 /// The largest buffer a `bytes` result may declare, so a malformed length
 /// prefix cannot make the interpreter read far out of bounds.
 const MAX_BUFFER: i64 = 1 << 30;
+const RESULT_VALUE: u32 = 5;
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct LynxerFfiValueField {
+    pub name: *const c_char,
+    pub name_length: i64,
+    pub field_type: *const c_char,
+    pub type_length: i64,
+    pub constant: u32,
+    pub value: *const LynxerFfiValue,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct LynxerFfiEnum {
+    pub enum_name: *const c_char,
+    pub enum_name_length: i64,
+    pub variant_name: *const c_char,
+    pub variant_name_length: i64,
+    pub fields: *const LynxerFfiValueField,
+    pub count: i64,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct LynxerFfiValue {
+    pub tag: u32,
+    pub value: LynxerFfiValuePayload,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union LynxerFfiValuePayload {
+    pub i: i64,
+    pub u: u64,
+    pub f: f64,
+    pub boolean: u32,
+    pub string: LynxerFfiData,
+    pub bytes: LynxerFfiData,
+    pub array: LynxerFfiArray,
+    pub record: LynxerFfiRecord,
+    pub enumeration: LynxerFfiEnum,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct LynxerFfiData {
+    pub data: *const u8,
+    pub length: i64,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct LynxerFfiArray {
+    pub items: *const LynxerFfiValue,
+    pub count: i64,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct LynxerFfiRecord {
+    pub fields: *const LynxerFfiValueField,
+    pub count: i64,
+    pub type_name: *const c_char,
+    pub type_name_length: i64,
+    pub display_name: *const c_char,
+    pub display_name_length: i64,
+    pub kind: u32,
+}
 
 /// One argument, mirroring `LynxerFfiArg` in `lynxer/ffi_abi.h`.
 #[repr(C)]
@@ -53,6 +124,7 @@ pub struct LynxerFfiArg {
     pub s: *const c_char,
     pub data: *const u8,
     pub data_length: i64,
+    pub value: *const LynxerFfiValue,
 }
 
 /// The call result, mirroring `LynxerFfiResult` in `lynxer/ffi_abi.h`.
@@ -64,6 +136,7 @@ pub struct LynxerFfiResult {
     pub s: *const c_char,
     pub data: *const u8,
     pub data_length: i64,
+    pub value: *const LynxerFfiValue,
 }
 
 impl LynxerFfiResult {
@@ -75,6 +148,7 @@ impl LynxerFfiResult {
             s: null(),
             data: null(),
             data_length: 0,
+            value: null(),
         }
     }
 
@@ -103,6 +177,7 @@ impl LynxerFfiResult {
             s: store_result_string(bytes),
             data: null(),
             data_length: 0,
+            value: null(),
         }
     }
 
@@ -114,6 +189,19 @@ impl LynxerFfiResult {
             s: null(),
             data,
             data_length,
+            value: null(),
+        }
+    }
+
+    fn typed_value(value: *const LynxerFfiValue) -> Self {
+        Self {
+            tag: RESULT_VALUE,
+            i: 0,
+            f: 0.0,
+            s: null(),
+            data: null(),
+            data_length: 0,
+            value,
         }
     }
 
@@ -181,6 +269,7 @@ enum Return {
     Float64,
     CString,
     Bytes,
+    Value,
 }
 
 /// A concrete parameter type, after normalization.
@@ -190,6 +279,7 @@ enum Parameter {
     Float64,
     CString,
     Bytes,
+    Value,
 }
 
 /// The parameter list: either fixed types or the packed `...` convention.
@@ -215,6 +305,7 @@ fn normalize_token(token: &str) -> Option<Return> {
         "float64" | "double" => Some(Return::Float64),
         "cstring" => Some(Return::CString),
         "bytes" => Some(Return::Bytes),
+        "value" => Some(Return::Value),
         _ => None,
     }
 }
@@ -225,6 +316,7 @@ fn parameter_for(return_type: Return) -> Parameter {
         Return::Float64 => Parameter::Float64,
         Return::CString => Parameter::CString,
         Return::Bytes => Parameter::Bytes,
+        Return::Value => Parameter::Value,
         Return::Void => unreachable!("void is only a return type"),
     }
 }
@@ -233,9 +325,15 @@ fn unsupported(original: &str) -> String {
     format!("unsupported native signature '{}'", original)
 }
 
-/// Parses `<ret>(<args>)`, optionally prefixed with `cdecl:`.
+/// Parses `<ret>(<args>)`; typed values are gated behind the v2 prefix.
 fn parse_signature(original: &str) -> Result<Signature, String> {
-    let normalized = original.strip_prefix("cdecl:").unwrap_or(original);
+    let (version2, normalized) = if let Some(signature) = original.strip_prefix("cdecl:v2:") {
+        (true, signature)
+    } else if let Some(signature) = original.strip_prefix("v2:") {
+        (true, signature)
+    } else {
+        (false, original.strip_prefix("cdecl:").unwrap_or(original))
+    };
     let open = normalized
         .find('(')
         .ok_or_else(|| "invalid native function signature".to_string())?;
@@ -285,6 +383,17 @@ fn parse_signature(original: &str) -> Result<Signature, String> {
         Parameters::Fixed(parsed)
     };
 
+    if version2 && !matches!(&parameters, Parameters::Fixed(_)) {
+        return Err(unsupported(original));
+    }
+
+    if !version2
+        && (matches!(result, Return::Value)
+            || matches!(&parameters, Parameters::Fixed(types) if types.iter().any(|ty| matches!(ty, Parameter::Value))))
+    {
+        return Err(unsupported(original));
+    }
+
     Ok(Signature { result, parameters })
 }
 
@@ -296,6 +405,7 @@ fn ffi_type(parameter: Parameter) -> Type {
         Parameter::Float64 => Type::f64(),
         Parameter::CString => Type::pointer(),
         Parameter::Bytes => Type::pointer(),
+        Parameter::Value => Type::pointer(),
     }
 }
 
@@ -306,6 +416,7 @@ fn return_type(result: Return) -> Type {
         Return::Float64 => Type::f64(),
         Return::CString => Type::pointer(),
         Return::Bytes => Type::pointer(),
+        Return::Value => Type::pointer(),
     }
 }
 
@@ -316,6 +427,7 @@ enum Slot {
     Text(usize),
     BytesPtr(usize),
     BytesLen(usize),
+    Value(usize),
 }
 
 unsafe fn invoke(
@@ -369,6 +481,7 @@ unsafe fn call_fixed(
     let mut strings: Vec<CString> = Vec::new();
     let mut buffers: Vec<*const u8> = Vec::new();
     let mut lengths: Vec<i64> = Vec::new();
+    let mut values: Vec<*const LynxerFfiValue> = Vec::new();
     let mut plan: Vec<Slot> = Vec::with_capacity(parameters.len());
 
     for (index, parameter) in parameters.iter().enumerate() {
@@ -408,6 +521,13 @@ unsafe fn call_fixed(
                 plan.push(Slot::BytesLen(lengths.len()));
                 lengths.push(length);
             }
+            Parameter::Value => {
+                if value.tag != ARG_VALUE || value.value.is_null() {
+                    return Err("native call expected a typed value argument".to_string());
+                }
+                plan.push(Slot::Value(values.len()));
+                values.push(value.value);
+            }
         }
     }
 
@@ -421,6 +541,7 @@ unsafe fn call_fixed(
             Slot::Text(index) => arg(&text_pointers[*index]),
             Slot::BytesPtr(index) => arg(&buffers[*index]),
             Slot::BytesLen(index) => arg(&lengths[*index]),
+            Slot::Value(index) => arg(&values[*index]),
         });
     }
 
@@ -446,6 +567,9 @@ unsafe fn call_fixed(
             LynxerFfiResult::from_cstring(cif.call::<*const c_char>(code, &call_args))
         }
         Return::Bytes => LynxerFfiResult::from_bytes(cif.call::<*const u8>(code, &call_args))?,
+        Return::Value => {
+            LynxerFfiResult::typed_value(cif.call::<*const LynxerFfiValue>(code, &call_args))
+        }
     };
     Ok(outcome)
 }
@@ -507,6 +631,9 @@ unsafe fn call_packed(
             LynxerFfiResult::from_cstring(cif.call::<*const c_char>(code, &call_args))
         }
         Return::Bytes => LynxerFfiResult::from_bytes(cif.call::<*const u8>(code, &call_args))?,
+        Return::Value => {
+            LynxerFfiResult::typed_value(cif.call::<*const LynxerFfiValue>(code, &call_args))
+        }
     };
     Ok(outcome)
 }
@@ -604,6 +731,9 @@ unsafe fn call_packed_buffers(
             LynxerFfiResult::from_cstring(cif.call::<*const c_char>(code, &call_args))
         }
         Return::Bytes => LynxerFfiResult::from_bytes(cif.call::<*const u8>(code, &call_args))?,
+        Return::Value => {
+            LynxerFfiResult::typed_value(cif.call::<*const LynxerFfiValue>(code, &call_args))
+        }
     };
     Ok(outcome)
 }
@@ -660,4 +790,43 @@ pub unsafe extern "C" fn lynxer_ffi_call(
 #[no_mangle]
 pub extern "C" fn lynxer_ffi_last_error() -> *const c_char {
     LAST_ERROR.with(|cell| cell.borrow().as_ptr())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn typed_value_signatures_are_versioned_and_preserve_v1() {
+        let typed = parse_signature("cdecl:v2:value(value)").unwrap();
+        assert!(matches!(typed.result, Return::Value));
+        assert!(matches!(
+            typed.parameters,
+            Parameters::Fixed(parameters)
+                if matches!(parameters.as_slice(), [Parameter::Value])
+        ));
+
+        let legacy = parse_signature("cdecl:int64(int64)").unwrap();
+        assert!(matches!(legacy.result, Return::Int64));
+        assert!(matches!(
+            legacy.parameters,
+            Parameters::Fixed(parameters)
+                if matches!(parameters.as_slice(), [Parameter::Int64])
+        ));
+        assert!(parse_signature("cdecl:value(value)").is_err());
+        assert!(parse_signature("cdecl:v2:value(...)").is_err());
+    }
+
+    #[test]
+    fn c_abi_struct_layout_matches_the_header_on_64_bit_targets() {
+        if cfg!(target_pointer_width = "64") {
+            use core::mem::{align_of, size_of};
+            assert_eq!(size_of::<LynxerFfiValue>(), 64);
+            assert_eq!(align_of::<LynxerFfiValue>(), 8);
+            assert_eq!(size_of::<LynxerFfiValueField>(), 48);
+            assert_eq!(size_of::<LynxerFfiEnum>(), 48);
+            assert_eq!(size_of::<LynxerFfiArg>(), 56);
+            assert_eq!(size_of::<LynxerFfiResult>(), 56);
+        }
+    }
 }

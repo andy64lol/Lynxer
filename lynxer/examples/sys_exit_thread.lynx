@@ -1,0 +1,14 @@
+global setup(){
+    import("sys");
+}
+
+global worker(){
+    println("thread cleanup completed");
+}
+
+global main(){
+    println("before sys.exit");
+    nativeThreadStart(global.worker, []);
+    global.sys.exit(23);
+    println("after sys.exit");
+}

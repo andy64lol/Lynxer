@@ -7,6 +7,7 @@
 // single JSON descriptor argument so no native signature shape beyond the
 // existing ones is needed.
 
+#include "lynxer_native_abi.h"
 #include "native_json.hpp"
 
 #include <array>
@@ -31,6 +32,16 @@
 using RegisterFunction = int (*)(const char*, const char*, const char*);
 using RegisterConstant = int (*)(const char*, std::int64_t);
 using RegisterType = int (*)(const char*, const char*);
+
+static LynxerHostApi hostApi{};
+
+extern "C" int lynxer_module_attach_v1(const LynxerHostApi* host) {
+    if (host == nullptr || host->version != 1) {
+        return 1;
+    }
+    hostApi = *host;
+    return 0;
+}
 
 extern char** environ;
 
@@ -164,8 +175,10 @@ extern "C" const char* cli_terminalSize() {
 }
 
 extern "C" std::int64_t cli_exit(std::int64_t code) {
+    if (hostApi.request_exit != nullptr) {
+        return hostApi.request_exit(hostApi.context, code);
+    }
     std::exit(static_cast<int>(code));
-    return 0;
 }
 
 extern "C" std::int64_t cli_pathExists(const char* path) {
