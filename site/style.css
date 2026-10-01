@@ -299,16 +299,7 @@ header h1 a {
     border: 1px solid #e2e8eb;
     border-radius: 4px;
     margin-bottom: 15px;
-    width: 100%;
-}
-
-.search-bar {
-    padding: 10px 15px;
-    background: #f8f9fa;
-    border: 1px solid #e2e8eb;
-    border-radius: 4px;
-    margin-bottom: 15px;
-    width: 100%;
+    box-sizing: border-box;
 }
 
 .search-bar input {
@@ -320,6 +311,45 @@ header h1 a {
     box-sizing: border-box;
 }
 
+.search-results:not(:empty) {
+    margin-top: 8px;
+    border-top: 1px solid #d5dde2;
+}
+
+.search-result-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.search-result-list li {
+    padding: 8px 0;
+    border-bottom: 1px solid #e2e8eb;
+}
+
+.search-result-list a {
+    font-weight: bold;
+}
+
+.search-result-list p,
+.search-status {
+    margin: 3px 0 0;
+    color: #687780;
+    font-size: 13px;
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
 .doc {
     flex: 1 1 auto;
     background: white;
@@ -329,7 +359,7 @@ header h1 a {
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
-doc h1 {
+.doc h1 {
     font-size: 26px;
     color: #2f4a58;
     margin-top: 0;
@@ -337,7 +367,7 @@ doc h1 {
     border-bottom: 1px solid #e2e8eb;
 }
 
-doc h2 {
+.doc h2 {
     font-size: 20px;
     color: #3a5a7a;
     border-bottom: 2px solid #4a90e2;
@@ -347,7 +377,7 @@ doc h2 {
     padding-left: 20px;
 }
 
-doc h2:before {
+.doc h2:before {
     content: "#";
     position: absolute;
     left: 0;
@@ -357,7 +387,7 @@ doc h2:before {
     font-size: 24px;
 }
 
-doc h3 {
+.doc h3 {
     font-size: 17px;
     color: #4a5f7a;
     margin-top: 25px;
@@ -365,7 +395,7 @@ doc h3 {
     padding-left: 20px;
 }
 
-doc h3:before {
+.doc h3:before {
     content: "##";
     position: absolute;
     left: 0;
@@ -394,4 +424,27 @@ doc h3:before {
     background: #f5f8f9;
     border-left: 3px solid #b5c5cd;
     color: #46565f;
+}
+
+@media (max-width: 1200px) {
+    .layout {
+        flex-direction: column;
+    }
+
+    .sidebar,
+    .doc {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .sidebar {
+        order: 2;
+        position: static;
+        height: auto;
+        max-height: none;
+    }
+
+    .doc {
+        order: 1;
+    }
 }

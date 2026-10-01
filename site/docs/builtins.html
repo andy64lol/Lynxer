@@ -6,59 +6,6 @@
     <meta name="theme-color" content="#4a90e2">
     <title>Built-in functions - Lynxer</title>
     <link rel="stylesheet" href="../style.css">
-    <link rel="icon" href="../favicon.ico" type="image/x-icon">
-    <style>
-        /* Ensure the layout is responsive */
-        @media (max-width: 1200px) {{
-            .layout {{
-                flex-direction: column;
-            }}
-            .sidebar {{
-                width: 100%;
-                order: 2;
-            }}
-            .doc {{
-                width: 100%;
-                order: 1;
-            }}
-        }}
-        
-        /* Add a search bar placeholder */
-        .search-bar {{
-            padding: 10px 15px;
-            background: #f8f9fa;
-            border: 1px solid #e2e8eb;
-            border-radius: 4px;
-            margin-bottom: 15px;
-            width: 100%;
-        }}
-        
-        .search-bar input {{
-            width: 100%;
-            padding: 8px;
-            border: none;
-            outline: none;
-            font-size: 14px;
-        }}
-        
-        /* Add a breadcrumb for navigation */
-        .breadcrumb {{
-            background: #f8f9fa;
-            padding: 8px 15px;
-            border-bottom: 1px solid #e2e8eb;
-            margin-bottom: 20px;
-        }}
-        
-        .breadcrumb a {{
-            color: #4a90e2;
-            text-decoration: none;
-            margin-right: 10px;
-        }}
-        
-        .breadcrumb a:hover {{
-            text-decoration: underline;
-        }}
-    </style>
 </head>
 <body>
 
@@ -150,6 +97,7 @@
 <li><a href="stdlib/time.html">time</a></li>
 <li><a href="stdlib/toml.html">toml</a></li>
 <li><a href="stdlib/tui.html">tui</a></li>
+<li><a href="stdlib/turtle.html">turtle</a></li>
 <li><a href="stdlib/typing.html">typing</a></li>
 <li><a href="stdlib/uuid.html">uuid</a></li>
 <li><a href="stdlib/watch.html">watch</a></li>
@@ -160,11 +108,13 @@
     <main class="doc">
         <div class="breadcrumb">
             <a href="../index.html">Home</a>
-            <a href="../stdlib/index.html">Standard Library</a>
+            <a href="../docs/stdlib/index.html">Standard Library</a>
             <span>Built-in functions</span>
         </div>
-        <div class="search-bar">
-            <input type="text" placeholder="Search documentation..." aria-label="Search documentation">
+        <div class="search-bar" data-search-index="../search-index.json" data-site-root="../">
+            <label class="visually-hidden" for="docs-search">Search documentation</label>
+            <input id="docs-search" type="search" placeholder="Search documentation..." aria-label="Search documentation" autocomplete="off">
+            <div class="search-results" aria-live="polite"></div>
         </div>
 <h1 id="built-in-functions">Built-in functions</h1>
 <p>Functions implemented directly by the Lynxer interpreter. They can be called by their bare name or with a <code>global.</code> prefix (<code>print(...)</code> and <code>global.print(...)</code> are the same call).</p>
@@ -184,6 +134,8 @@
 <tr><td><code>object()</code></td><td>Creates an empty object value</td></tr>
 <tr><td><code>returnType(value)</code></td><td>Type name, e.g. <code>int</code>, <code>float</code>, <code>str</code>, <code>bool</code>, <code>list</code>, <code>tuple</code>, <code>bytes</code>, <code>none</code></td></tr>
 <tr><td><code>returnLength(value)</code></td><td>Length of a <code>str</code> in <strong>code points</strong>, or the element count of a <code>list</code>/<code>tuple</code></td></tr>
+<tr><td><code>raise(message)</code></td><td>Raises a catchable runtime error with the supplied string message</td></tr>
+<tr><td><code>exceptionInfo()</code></td><td>Formatted details for the active <code>try</code>/<code>catch</code> exception, or <code>&quot;&quot;</code> outside a catch block</td></tr>
 </table>
 <h2 id="strings">Strings</h2>
 <table>
@@ -599,5 +551,6 @@ global main(){
     <span>Lynxer &middot; MIT License</span>
 </footer>
 
+<script src="../search.js" defer></script>
 </body>
 </html>

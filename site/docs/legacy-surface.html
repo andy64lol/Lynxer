@@ -6,59 +6,6 @@
     <meta name="theme-color" content="#4a90e2">
     <title>Original Lynxer surface: status - Lynxer</title>
     <link rel="stylesheet" href="../style.css">
-    <link rel="icon" href="../favicon.ico" type="image/x-icon">
-    <style>
-        /* Ensure the layout is responsive */
-        @media (max-width: 1200px) {{
-            .layout {{
-                flex-direction: column;
-            }}
-            .sidebar {{
-                width: 100%;
-                order: 2;
-            }}
-            .doc {{
-                width: 100%;
-                order: 1;
-            }}
-        }}
-        
-        /* Add a search bar placeholder */
-        .search-bar {{
-            padding: 10px 15px;
-            background: #f8f9fa;
-            border: 1px solid #e2e8eb;
-            border-radius: 4px;
-            margin-bottom: 15px;
-            width: 100%;
-        }}
-        
-        .search-bar input {{
-            width: 100%;
-            padding: 8px;
-            border: none;
-            outline: none;
-            font-size: 14px;
-        }}
-        
-        /* Add a breadcrumb for navigation */
-        .breadcrumb {{
-            background: #f8f9fa;
-            padding: 8px 15px;
-            border-bottom: 1px solid #e2e8eb;
-            margin-bottom: 20px;
-        }}
-        
-        .breadcrumb a {{
-            color: #4a90e2;
-            text-decoration: none;
-            margin-right: 10px;
-        }}
-        
-        .breadcrumb a:hover {{
-            text-decoration: underline;
-        }}
-    </style>
 </head>
 <body>
 
@@ -150,6 +97,7 @@
 <li><a href="stdlib/time.html">time</a></li>
 <li><a href="stdlib/toml.html">toml</a></li>
 <li><a href="stdlib/tui.html">tui</a></li>
+<li><a href="stdlib/turtle.html">turtle</a></li>
 <li><a href="stdlib/typing.html">typing</a></li>
 <li><a href="stdlib/uuid.html">uuid</a></li>
 <li><a href="stdlib/watch.html">watch</a></li>
@@ -160,11 +108,13 @@
     <main class="doc">
         <div class="breadcrumb">
             <a href="../index.html">Home</a>
-            <a href="../stdlib/index.html">Standard Library</a>
+            <a href="../docs/stdlib/index.html">Standard Library</a>
             <span>Original Lynxer surface: status</span>
         </div>
-        <div class="search-bar">
-            <input type="text" placeholder="Search documentation..." aria-label="Search documentation">
+        <div class="search-bar" data-search-index="../search-index.json" data-site-root="../">
+            <label class="visually-hidden" for="docs-search">Search documentation</label>
+            <input id="docs-search" type="search" placeholder="Search documentation..." aria-label="Search documentation" autocomplete="off">
+            <div class="search-results" aria-live="polite"></div>
         </div>
 <h1 id="original-lynxer-surface-status">Original Lynxer surface: status</h1>
 <p>The original interpreter exposed a larger built-in and module surface than the standalone C++ runtime. This page catalogues it so programs and notes written against the original have somewhere to look, and records what has since been brought across. <a href="limitations.html">limitations</a> remains the normative register.</p>
@@ -206,13 +156,13 @@
 </table>
 <p><strong>Caveat:</strong> Lynxer evaluates on one interpreter thread under a single lock, and these handles sit on top of the cooperative <a href="builtins.html#native-threads"><code>nativeThread*</code></a> model. A blocking wait releases the interpreter lock so another thread can run, but a wait on a resource no other thread will release deadlocks. See <a href="builtins.html#native-synchronization">builtins</a>.</p>
 <h2 id="async">Async</h2>
-<p>The <code>async*</code> family is <strong>implemented</strong>: <code>asyncRun</code>, <code>asyncGather</code>, <code>asyncSleep</code>, the <code>asyncPoll*</code> set, and the timer/wakeup built-ins. The <code>async</code> <em>language</em> syntax also exists — a local <code>async name(params){...}</code> definition called as <code>async.name(args)</code> — but it is eager, not a coroutine; <code>await</code> is a pass-through with no suspension, and <code>asyncGather</code> returns its arguments unchanged. There is no concurrency. See <a href="async.html">async</a> and <a href="builtins.html#async">builtins</a>.</p>
+<p>The <code>async*</code> family is <strong>implemented</strong>: <code>asyncRun</code>, <code>asyncGather</code>, <code>asyncSleep</code>, the <code>asyncPoll*</code> set, and the timer/wakeup built-ins. The <code>async</code> <em>language</em> syntax also exists — a local <code>async name(params){...}</code> definition called as <code>async.name(args)</code> — but it is eager, not a coroutine. <code>asyncRun</code> starts thread-backed tasks; <code>await</code> joins a task handle, and <code>asyncGather</code> joins the handles it receives. Tasks interleave at blocking or yield points, while the global interpreter lock prevents simultaneous Lynxer evaluation. See <a href="async.html">async</a> and <a href="builtins.html#async">builtins</a>.</p>
 <h2 id="python-bridging">Python bridging</h2>
 <table>
 <tr><th>Name</th><th>Status</th><th>Notes</th></tr>
 <tr><td><code>rawPy</code>, <code>rawPyx</code>, <code>cleanRawPyxCache</code>, <code>embedPy</code></td><td>Not planned</td><td>Embedded CPython/Cython</td></tr>
 </table>
-<p><strong>Why:</strong> Lynxer does not ship or link a Python runtime. Anything that depended on <code>rawPy { }</code> — including the original <code>tkinter</code>/<code>turtle</code> modules and tuple interop — has no direct equivalent.</p>
+<p><strong>Why:</strong> Lynxer does not ship or link a Python runtime. Anything that depended on <code>rawPy { }</code> — including the original <code>tkinter</code> modules and tuple interop — has no direct equivalent. <code>turtle</code> is separately implemented over <code>graphics</code>.</p>
 <h2 id="ffi-and-native-module-handles">FFI and native-module handles</h2>
 <table>
 <tr><th>Family</th><th>Status</th><th>Notes</th></tr>
@@ -224,7 +174,8 @@
 <table>
 <tr><th>Module</th><th>Status</th><th>Replacement</th></tr>
 <tr><td><code>venv</code></td><td>Not planned</td><td>None — a virtual environment is a CPython concept</td></tr>
-<tr><td><code>tkinter</code>, <code>tkinterPlus</code>, <code>turtle</code></td><td>Not planned</td><td>None; a future GUI would be Rust-backed (see <code>todo.md</code>)</td></tr>
+<tr><td><code>tkinter</code>, <code>tkinterPlus</code></td><td>Declined</td><td>No second GUI stack beside <code>graphics</code> (<strong>L16</strong> in <code>todo.md</code>)</td></tr>
+<tr><td><code>turtle</code></td><td>Implemented</td><td><a href="stdlib/turtle.html"><code>turtle</code></a>, drawn through <code>graphics</code></td></tr>
 <tr><td><code>http</code>, <code>net</code></td><td>Superseded</td><td><a href="stdlib/network.html"><code>network</code></a> + <a href="stdlib/server.html"><code>server</code></a></td></tr>
 <tr><td><code>mathPlus</code></td><td>Merged</td><td><a href="stdlib/math.html"><code>math</code></a> (the float <code>sign</code> is <code>signFloat</code>)</td></tr>
 </table>
@@ -242,10 +193,12 @@
 <tr><td><code>nativeFunctionAddress</code> / <code>nativeCall</code></td><td>Implemented (<code>nativeCall</code> over the small integer ABI)</td></tr>
 <tr><td><code>nativeHandle*</code></td><td>Implemented under the same names</td></tr>
 <tr><td><code>nativeMutex*</code> / <code>Condition*</code> / <code>Semaphore*</code></td><td>Implemented (cooperative handles)</td></tr>
-<tr><td><code>async*</code></td><td>Implemented (cooperative handles over <code>sleep</code>)</td></tr>
+<tr><td><code>async*</code></td><td>Implemented (thread-backed tasks, serialized evaluation under the GIL)</td></tr>
 <tr><td><code>rawPy</code> / <code>embedPy</code></td><td>None (no CPython)</td></tr>
 <tr><td><code>nativeModule*</code> handles</td><td>Implemented (<code>importAs(&quot;&lt;name&gt;.so&quot;, …)</code> is the usual route)</td></tr>
-<tr><td><code>tkinter</code> / <code>turtle</code> / <code>venv</code></td><td>None</td></tr>
+<tr><td><code>tkinter</code> / <code>tkinterPlus</code></td><td>Declined (no second GUI toolkit)</td></tr>
+<tr><td><code>turtle</code></td><td>Implemented over <code>graphics</code></td></tr>
+<tr><td><code>venv</code></td><td>None (CPython-only feature)</td></tr>
 </table>
 <h2 id="see-also">See also</h2>
 <ul>
@@ -261,5 +214,6 @@
     <span>Lynxer &middot; MIT License</span>
 </footer>
 
+<script src="../search.js" defer></script>
 </body>
 </html>

@@ -6,59 +6,6 @@
     <meta name="theme-color" content="#4a90e2">
     <title>Native module ABI - Lynxer</title>
     <link rel="stylesheet" href="../style.css">
-    <link rel="icon" href="../favicon.ico" type="image/x-icon">
-    <style>
-        /* Ensure the layout is responsive */
-        @media (max-width: 1200px) {{
-            .layout {{
-                flex-direction: column;
-            }}
-            .sidebar {{
-                width: 100%;
-                order: 2;
-            }}
-            .doc {{
-                width: 100%;
-                order: 1;
-            }}
-        }}
-        
-        /* Add a search bar placeholder */
-        .search-bar {{
-            padding: 10px 15px;
-            background: #f8f9fa;
-            border: 1px solid #e2e8eb;
-            border-radius: 4px;
-            margin-bottom: 15px;
-            width: 100%;
-        }}
-        
-        .search-bar input {{
-            width: 100%;
-            padding: 8px;
-            border: none;
-            outline: none;
-            font-size: 14px;
-        }}
-        
-        /* Add a breadcrumb for navigation */
-        .breadcrumb {{
-            background: #f8f9fa;
-            padding: 8px 15px;
-            border-bottom: 1px solid #e2e8eb;
-            margin-bottom: 20px;
-        }}
-        
-        .breadcrumb a {{
-            color: #4a90e2;
-            text-decoration: none;
-            margin-right: 10px;
-        }}
-        
-        .breadcrumb a:hover {{
-            text-decoration: underline;
-        }}
-    </style>
 </head>
 <body>
 
@@ -150,6 +97,7 @@
 <li><a href="stdlib/time.html">time</a></li>
 <li><a href="stdlib/toml.html">toml</a></li>
 <li><a href="stdlib/tui.html">tui</a></li>
+<li><a href="stdlib/turtle.html">turtle</a></li>
 <li><a href="stdlib/typing.html">typing</a></li>
 <li><a href="stdlib/uuid.html">uuid</a></li>
 <li><a href="stdlib/watch.html">watch</a></li>
@@ -160,11 +108,13 @@
     <main class="doc">
         <div class="breadcrumb">
             <a href="../index.html">Home</a>
-            <a href="../stdlib/index.html">Standard Library</a>
+            <a href="../docs/stdlib/index.html">Standard Library</a>
             <span>Native module ABI</span>
         </div>
-        <div class="search-bar">
-            <input type="text" placeholder="Search documentation..." aria-label="Search documentation">
+        <div class="search-bar" data-search-index="../search-index.json" data-site-root="../">
+            <label class="visually-hidden" for="docs-search">Search documentation</label>
+            <input id="docs-search" type="search" placeholder="Search documentation..." aria-label="Search documentation" autocomplete="off">
+            <div class="search-results" aria-live="polite"></div>
         </div>
 <h1 id="native-module-abi">Native module ABI</h1>
 <p>Lynxer's standard libraries are shared libraries (<code>.so</code> on Linux, <code>.dylib</code> on macOS) loaded at runtime with <code>dlopen</code>. This document is the contract a native module must implement. It applies to the bundled <code>stdlib/*.so</code> modules exactly as it applies to third-party modules.</p>
@@ -259,7 +209,7 @@ const char* function(const double* nums, int64_t num_count,
 <p><strong>Errors</strong> are in-band sentinels, because there is no error channel: <code>-1</code> / <code>-1.0</code> for indices and sizes, <code>&quot;&quot;</code> for strings, <code>&quot;ERROR: ...&quot;</code> for <code>csv</code>, and <code>&quot;Error: ...&quot;</code> for <code>js</code>.</p>
 <p><strong>Stateless structured data</strong> crosses as a JSON string. The native side encodes with <code>stdlib/native_json.hpp</code> (a header-only value/parser/serializer embedded into each <code>.so</code>, so no module depends on another module's symbols), and the wrapper either forwards the string or post-processes it with <code>listJson*</code> / <code>splitStr</code>.</p>
 <p><strong>The structured-value bridge.</strong> A document module (<code>json</code>, <code>toml</code>, <code>ini</code>, <code>xml</code>, <code>yaml</code>) represents its document as a <strong>JSON string</strong> and nothing else; <code>serde_json::Value</code> is the single in-Rust model every one of them parses to and serializes from. <code>xml</code> maps its document onto the same bridge (a JSON element tree), so a caller turns any of them into Lynxer values the same way, with <code>jsonParse</code> / <code>jsonGet</code> / <code>listJson*</code>.</p>
-<p><strong>Binary payloads</strong> cross as <code>bytes</code> when the module declares the <code>bytes</code> token. The remaining modules still pass base64/hex text (the decision recorded in <a href="../todo.html">todo</a> and <a href="limitations.html">limitations</a>); migrating them is tracked there.</p>
+<p><strong>Binary payloads</strong> cross as <code>bytes</code> when the module declares the <code>bytes</code> token. The remaining modules still pass base64/hex text (the decision recorded in <a href="https://github.com/andy64lol/Lynxer/blob/main/todo.md">todo</a> and <a href="limitations.html">limitations</a>); migrating them is tracked there.</p>
 <p><strong>Numeric list results</strong> cross as <code>bytes</code> holding little-endian <code>f64</code> — the encoding the <code>listToBytes</code> / <code>bytesToList</code> builtins use; <code>math</code>'s statistics and vector operations are the model. Other list results still use the older encodings:</p>
 <ul>
 <li>values that cannot contain the separator: a joined <code>cstring</code> that the wrapper splits with <code>splitStr</code> (newline for paths);</li>
@@ -329,5 +279,6 @@ global main(){
     <span>Lynxer &middot; MIT License</span>
 </footer>
 
+<script src="../search.js" defer></script>
 </body>
 </html>

@@ -6,59 +6,6 @@
     <meta name="theme-color" content="#4a90e2">
     <title>Terminal UI Module - Lynxer</title>
     <link rel="stylesheet" href="../../style.css">
-    <link rel="icon" href="../../favicon.ico" type="image/x-icon">
-    <style>
-        /* Ensure the layout is responsive */
-        @media (max-width: 1200px) {{
-            .layout {{
-                flex-direction: column;
-            }}
-            .sidebar {{
-                width: 100%;
-                order: 2;
-            }}
-            .doc {{
-                width: 100%;
-                order: 1;
-            }}
-        }}
-        
-        /* Add a search bar placeholder */
-        .search-bar {{
-            padding: 10px 15px;
-            background: #f8f9fa;
-            border: 1px solid #e2e8eb;
-            border-radius: 4px;
-            margin-bottom: 15px;
-            width: 100%;
-        }}
-        
-        .search-bar input {{
-            width: 100%;
-            padding: 8px;
-            border: none;
-            outline: none;
-            font-size: 14px;
-        }}
-        
-        /* Add a breadcrumb for navigation */
-        .breadcrumb {{
-            background: #f8f9fa;
-            padding: 8px 15px;
-            border-bottom: 1px solid #e2e8eb;
-            margin-bottom: 20px;
-        }}
-        
-        .breadcrumb a {{
-            color: #4a90e2;
-            text-decoration: none;
-            margin-right: 10px;
-        }}
-        
-        .breadcrumb a:hover {{
-            text-decoration: underline;
-        }}
-    </style>
 </head>
 <body>
 
@@ -150,6 +97,7 @@
 <li><a href="time.html">time</a></li>
 <li><a href="toml.html">toml</a></li>
 <li><a href="tui.html" class="active">tui</a></li>
+<li><a href="turtle.html">turtle</a></li>
 <li><a href="typing.html">typing</a></li>
 <li><a href="uuid.html">uuid</a></li>
 <li><a href="watch.html">watch</a></li>
@@ -160,11 +108,13 @@
     <main class="doc">
         <div class="breadcrumb">
             <a href="../../index.html">Home</a>
-            <a href="../../stdlib/index.html">Standard Library</a>
+            <a href="../../docs/stdlib/index.html">Standard Library</a>
             <span>Terminal UI Module</span>
         </div>
-        <div class="search-bar">
-            <input type="text" placeholder="Search documentation..." aria-label="Search documentation">
+        <div class="search-bar" data-search-index="../../search-index.json" data-site-root="../../">
+            <label class="visually-hidden" for="docs-search">Search documentation</label>
+            <input id="docs-search" type="search" placeholder="Search documentation..." aria-label="Search documentation" autocomplete="off">
+            <div class="search-results" aria-live="polite"></div>
         </div>
 <h1 id="terminal-ui-module">Terminal UI Module</h1>
 <p>The <code>tui</code> module provides terminal UI functionality using Rust's <code>ratatui</code> and <code>crossterm</code> crates.</p>
@@ -174,7 +124,7 @@
 <li><strong>Without a TTY</strong> (piped output, CI, the test suite) the result is plain text with box-drawing characters, so the output is deterministic.</li>
 <li><strong>With a TTY and color enabled</strong> the same text carries ANSI SGR styling. <code>init(colorSystem)</code> accepts a system name; one containing <code>none</code> disables color. <code>menu</code> and <code>image</code> do their real work only with a terminal; without one <code>menu</code> reads a line and <code>image</code> prints a placeholder.</li>
 </ul>
-<p><code>setWidth(width)</code> pins the render width (default <code>80</code>) and <code>setSoftWrap</code> controls wrapping. <code>panel*</code>, <code>rule*</code>, <code>table*</code>, <code>tree*</code>, <code>layout*</code>, <code>progress*</code>, <code>status*</code> and <code>live*</code> render the state that was previously stored, so they reflect the data rather than a fixed template. Progress, status and live families print a snapshot on each update.</p>
+<p><code>setWidth(width)</code> pins the render width (default <code>80</code>) and <code>setSoftWrap</code> controls wrapping. <code>panel*</code>, <code>rule*</code>, <code>table*</code>, <code>tree*</code>, <code>layout*</code>, <code>progress*</code>, <code>status*</code> and <code>live*</code> render the state that was previously stored, so they reflect the data rather than a fixed template. Progress and live updates redraw in place on a TTY; when output is redirected they print deterministic snapshots. Status updates remain ordinary output.</p>
 <p><code>markdown</code> renders CommonMark through <a href="https://crates.io/crates/pulldown-cmark"><code>pulldown-cmark</code></a> (headings, emphasis, inline and fenced code, ordered/unordered/task lists, block quotes, rules, links and simple tables), and <code>printSyntax</code> highlights code with <a href="https://crates.io/crates/syntect"><code>syntect</code></a> using Sublime syntax definitions. The highlighted syntax and theme sets are embedded in the module, so nothing is read from disk and no system oniguruma is required (syntect uses the pure-Rust <code>fancy-regex</code> backend). <code>theme</code> chooses a highlighting theme, <code>themeNames</code> lists them and <code>themeName</code> reports the active one.</p>
 <h2 id="handles">Handles</h2>
 <p><code>table*</code>, <code>tree*</code>, <code>layout*</code>, <code>progress*</code>, <code>status*</code> and <code>live*</code> return integer handles into backend registries. A handle stays valid for the run; progress, status and live free theirs on <code>stop</code>. An invalid handle returns <code>-1</code>.</p>
@@ -201,7 +151,7 @@
 <li><code>printColumns(itemsJson: string, equal: bool, expand: bool)</code> — Prints columns.</li>
 <li><code>printAligned(text: string, align: string, pad: bool)</code> — Prints aligned text.</li>
 <li><code>printPadded(text: string, top: int, right: int, bottom: int, left: int)</code> — Prints padded text.</li>
-<li><code>printException()</code> — Prints exception traceback.</li>
+<li><code>printException()</code> — Inside a <code>catch</code> block, prints the caught error message and its source location. Outside a catch block, prints that no exception information is available.</li>
 <li><code>installTraceback(showLocals: bool)</code> — Installs traceback.</li>
 </ul>
 <h3 id="panels-and-rules">Panels and Rules</h3>
@@ -356,5 +306,6 @@ global main(){
     <span>Lynxer &middot; MIT License</span>
 </footer>
 
+<script src="../../search.js" defer></script>
 </body>
 </html>

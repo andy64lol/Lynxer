@@ -11,6 +11,7 @@ library only; no third-party Markdown library is required.
 from __future__ import annotations
 
 import html
+import json
 import os
 import re
 from collections.abc import Callable
@@ -42,7 +43,7 @@ STDLIB_MODULES = [
     "js", "json",
     "lua", "math", "multiprocessing", "network", "os", "path", "random", "re",
     "regex", "server", "shell", "sound", "sqldb", "sys", "text", "time", "toml", "tui",
-    "typing", "uuid", "watch", "xml", "yaml",
+    "turtle", "typing", "uuid", "watch", "xml", "yaml",
 ]
 
 
@@ -273,6 +274,10 @@ def make_link(current_out: str, md_rel: str) -> Link:
         if not path:
             return "#" + anchor
         if resolved.endswith(".md"):
+            if resolved.startswith("../"):
+                repository_path = os.path.normpath(os.path.join("docs", resolved))
+                return (f"https://github.com/andy64lol/Lynxer/blob/main/"
+                        f"{repository_path}" + (("#" + anchor) if anchor else ""))
             html_target = OUT_BY_MD.get(resolved, out_name(resolved))
             rel = os.path.relpath(html_target, current_dir or ".")
             return rel + (("#" + anchor) if anchor else "")
@@ -314,59 +319,6 @@ TEMPLATE = """<!DOCTYPE html>
     <meta name="theme-color" content="#4a90e2">
     <title>{title} - Lynxer</title>
     <link rel="stylesheet" href="{rel}style.css">
-    <link rel="icon" href="{rel}favicon.ico" type="image/x-icon">
-    <style>
-        /* Ensure the layout is responsive */
-        @media (max-width: 1200px) {{
-            .layout {{
-                flex-direction: column;
-            }}
-            .sidebar {{
-                width: 100%;
-                order: 2;
-            }}
-            .doc {{
-                width: 100%;
-                order: 1;
-            }}
-        }}
-        
-        /* Add a search bar placeholder */
-        .search-bar {{
-            padding: 10px 15px;
-            background: #f8f9fa;
-            border: 1px solid #e2e8eb;
-            border-radius: 4px;
-            margin-bottom: 15px;
-            width: 100%;
-        }}
-        
-        .search-bar input {{
-            width: 100%;
-            padding: 8px;
-            border: none;
-            outline: none;
-            font-size: 14px;
-        }}
-        
-        /* Add a breadcrumb for navigation */
-        .breadcrumb {{
-            background: #f8f9fa;
-            padding: 8px 15px;
-            border-bottom: 1px solid #e2e8eb;
-            margin-bottom: 20px;
-        }}
-        
-        .breadcrumb a {{
-            color: #4a90e2;
-            text-decoration: none;
-            margin-right: 10px;
-        }}
-        
-        .breadcrumb a:hover {{
-            text-decoration: underline;
-        }}
-    </style>
 </head>
 <body>
 
@@ -384,11 +336,13 @@ TEMPLATE = """<!DOCTYPE html>
     <main class="doc">
         <div class="breadcrumb">
             <a href="{rel}index.html">Home</a>
-            <a href="{rel}stdlib/index.html">Standard Library</a>
+            <a href="{rel}docs/stdlib/index.html">Standard Library</a>
             <span>{title}</span>
         </div>
-        <div class="search-bar">
-            <input type="text" placeholder="Search documentation..." aria-label="Search documentation">
+        <div class="search-bar" data-search-index="{rel}search-index.json" data-site-root="{rel}">
+            <label class="visually-hidden" for="docs-search">Search documentation</label>
+            <input id="docs-search" type="search" placeholder="Search documentation..." aria-label="Search documentation" autocomplete="off">
+            <div class="search-results" aria-live="polite"></div>
         </div>
 {content}
     </main>
@@ -399,12 +353,14 @@ TEMPLATE = """<!DOCTYPE html>
     <span>Lynxer &middot; MIT License</span>
 </footer>
 
+<script src="{rel}search.js" defer></script>
 </body>
 </html>
 """
 
 
-def write_page(out_rel: str, md_rel: str, content_md: str, fallback_title: str) -> None:
+def write_page(out_rel: str, md_rel: str, content_md: str,
+               fallback_title: str) -> dict[str, str]:
     link = make_link(out_rel, md_rel)
     content, title = render_markdown(content_md, link)
     
@@ -416,6 +372,13 @@ def write_page(out_rel: str, md_rel: str, content_md: str, fallback_title: str) 
     destination = OUT / out_rel
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(page, encoding="utf-8")
+    searchable_text = html.unescape(re.sub(r"<[^>]+>", " ", content))
+    searchable_text = re.sub(r"\s+", " ", searchable_text).strip()
+    return {
+        "title": title or fallback_title,
+        "path": f"docs/{out_rel}",
+        "text": searchable_text,
+    }
 
 
 def module_summary(module: str) -> str:
@@ -440,20 +403,23 @@ def module_summary(module: str) -> str:
 
 def main() -> int:
     count = 0
+    search_records = []
     for md_rel, out_rel in PAGES:
         source = DOCS / md_rel
         if not source.is_file():
             print(f"missing: docs/{md_rel}")
             continue
-        write_page(out_rel, md_rel, source.read_text(encoding="utf-8"),
-                   out_rel.split("/")[-1][:-5])
+        search_records.append(
+            write_page(out_rel, md_rel, source.read_text(encoding="utf-8"),
+                       out_rel.split("/")[-1][:-5])
+        )
         count += 1
 
     # docs/stdlib has no README, so synthesise an index for the site.
     index_lines = [
         "# Standard library",
         "",
-        ("Lynxer ships 37 modules. Each has a `.lynx` wrapper and a native "
+        (f"Lynxer ships {len(STDLIB_MODULES)} modules. Each has a `.lynx` wrapper and a native "
          "backend behind the shared native-module ABI; pick one below or from "
          "the sidebar."),
         "",
@@ -464,10 +430,16 @@ def main() -> int:
         if summary:
             entry += f" — {summary}"
         index_lines.append(entry)
-    write_page("stdlib/index.html", "stdlib/index.md", "\n".join(index_lines),
-               "Standard library")
+    search_records.append(
+        write_page("stdlib/index.html", "stdlib/index.md", "\n".join(index_lines),
+                   "Standard library")
+    )
     count += 1
 
+    (SITE / "search-index.json").write_text(
+        json.dumps(search_records, ensure_ascii=False, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
     print(f"docs: wrote {count} page(s) to {OUT.relative_to(ROOT)}/")
     return 0
 

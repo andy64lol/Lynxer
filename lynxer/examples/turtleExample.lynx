@@ -1,0 +1,16 @@
+global setup(){ import("turtle"); import("graphics"); }
+
+global main(){
+    global.graphics.init("turtle", 400, 400);
+    global.graphics.clearBackground(255, 255, 255);
+
+    global.turtle.setColor(0, 90, 200);
+    global.turtle.setWidth(2.0);
+    for (int i = 0; i < 4; i = i + 1){
+        global.turtle.forward(120.0);
+        global.turtle.turn(90.0);
+    }
+
+    println(global.turtle.x(), ",", global.turtle.y());
+    println(global.turtle.heading());
+}

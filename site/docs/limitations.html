@@ -6,59 +6,6 @@
     <meta name="theme-color" content="#4a90e2">
     <title>Limitations and non-goals - Lynxer</title>
     <link rel="stylesheet" href="../style.css">
-    <link rel="icon" href="../favicon.ico" type="image/x-icon">
-    <style>
-        /* Ensure the layout is responsive */
-        @media (max-width: 1200px) {{
-            .layout {{
-                flex-direction: column;
-            }}
-            .sidebar {{
-                width: 100%;
-                order: 2;
-            }}
-            .doc {{
-                width: 100%;
-                order: 1;
-            }}
-        }}
-        
-        /* Add a search bar placeholder */
-        .search-bar {{
-            padding: 10px 15px;
-            background: #f8f9fa;
-            border: 1px solid #e2e8eb;
-            border-radius: 4px;
-            margin-bottom: 15px;
-            width: 100%;
-        }}
-        
-        .search-bar input {{
-            width: 100%;
-            padding: 8px;
-            border: none;
-            outline: none;
-            font-size: 14px;
-        }}
-        
-        /* Add a breadcrumb for navigation */
-        .breadcrumb {{
-            background: #f8f9fa;
-            padding: 8px 15px;
-            border-bottom: 1px solid #e2e8eb;
-            margin-bottom: 20px;
-        }}
-        
-        .breadcrumb a {{
-            color: #4a90e2;
-            text-decoration: none;
-            margin-right: 10px;
-        }}
-        
-        .breadcrumb a:hover {{
-            text-decoration: underline;
-        }}
-    </style>
 </head>
 <body>
 
@@ -150,6 +97,7 @@
 <li><a href="stdlib/time.html">time</a></li>
 <li><a href="stdlib/toml.html">toml</a></li>
 <li><a href="stdlib/tui.html">tui</a></li>
+<li><a href="stdlib/turtle.html">turtle</a></li>
 <li><a href="stdlib/typing.html">typing</a></li>
 <li><a href="stdlib/uuid.html">uuid</a></li>
 <li><a href="stdlib/watch.html">watch</a></li>
@@ -160,18 +108,20 @@
     <main class="doc">
         <div class="breadcrumb">
             <a href="../index.html">Home</a>
-            <a href="../stdlib/index.html">Standard Library</a>
+            <a href="../docs/stdlib/index.html">Standard Library</a>
             <span>Limitations and non-goals</span>
         </div>
-        <div class="search-bar">
-            <input type="text" placeholder="Search documentation..." aria-label="Search documentation">
+        <div class="search-bar" data-search-index="../search-index.json" data-site-root="../">
+            <label class="visually-hidden" for="docs-search">Search documentation</label>
+            <input id="docs-search" type="search" placeholder="Search documentation..." aria-label="Search documentation" autocomplete="off">
+            <div class="search-results" aria-live="polite"></div>
         </div>
 <h1 id="limitations-and-non-goals">Limitations and non-goals</h1>
 <p>Lynxer is a standalone C++/Rust runtime. This page documents <strong>technical limitations</strong> and <strong>deliberate omissions</strong> in the language, toolchain, and standard library.</p>
 <p>Entries are marked:</p>
 <ul>
 <li><strong>Not planned</strong> — a deliberate, permanent removal of a Python-runtime feature; it will not be re-added.</li>
-<li><strong>Planned</strong> — a constraint with a resolution plan in <a href="../todo.html">todo</a> under <em>Resolving documented limitations</em>.</li>
+<li><strong>Planned</strong> — a constraint with a resolution plan in <a href="https://github.com/andy64lol/Lynxer/blob/main/todo.md">todo</a> under <em>Resolving documented limitations</em>.</li>
 <li><strong>Constrained</strong> — implemented, but with behavior you should know before relying on it.</li>
 </ul>
 <h2 id="deliberate-omissions-not-planned">Deliberate Omissions (Not Planned)</h2>
@@ -184,12 +134,12 @@
 <tr><td>Bytecode (<code>.lynxc</code>, <code>--view-bytecode</code>, <code>--benchmark-compile</code>, <code>--no-cache</code>)</td><td>Removed with the bytecode backend; <code>--compile</code> produces a standalone ELF executable instead (<code>--bundle</code> is an alias). Running a <code>.lynxc</code> file reports that bytecode is unsupported.</td></tr>
 </table>
 <h2 id="planned-work">Planned Work</h2>
-<p>The first-class <code>bytes</code> type (<strong>L1</strong>), the <code>bytes</code> ABI channel and buffered packed form (<strong>L2</strong>), the <code>math</code> migration off the tab-separated bridge (<strong>L3</strong>), the <code>compress</code>/<code>crypto</code>/<code>encoding</code>/<code>uuid</code> migrations (<strong>L1b</strong>), the macOS <code>.dylib</code> recognition (<strong>L2c</strong>), the <code>re</code>/<code>regex</code> rewrite onto a Rust <code>fancy-regex</code> engine (<strong>L7</strong>) and the <code>js</code>/<code>multiprocessing</code> subprocess timeouts (<strong>L11</strong>) are delivered. <strong>L2d</strong> (multiple live string results) was closed as not needed — no module returns more than one string per call. The remaining constraints each have a resolution plan in <a href="../todo.html">todo</a> under <em>Resolving documented limitations</em>:</p>
+<p>The first-class <code>bytes</code> type (<strong>L1</strong>), the <code>bytes</code> ABI channel and buffered packed form (<strong>L2</strong>), the <code>math</code> migration off the tab-separated bridge (<strong>L3</strong>), the <code>compress</code>/<code>crypto</code>/<code>encoding</code>/<code>uuid</code> migrations (<strong>L1b</strong>), the macOS <code>.dylib</code> recognition (<strong>L2c</strong>), the <code>re</code>/<code>regex</code> rewrite onto a Rust <code>fancy-regex</code> engine (<strong>L7</strong>) and the <code>js</code>/<code>multiprocessing</code> subprocess timeouts (<strong>L11</strong>) are delivered. <strong>L2d</strong> (multiple live string results) was closed as not needed — no module returns more than one string per call. The remaining constraints and deliberate non-goals are recorded in <a href="https://github.com/andy64lol/Lynxer/blob/main/todo.md">todo</a> under <em>Resolving documented limitations</em>:</p>
 <table>
-<tr><th>Area</th><th>Plan</th></tr>
-<tr><td><code>tkinter</code> / <code>tkinterPlus</code> (a native OS-widget GUI module)</td><td><strong>L16</strong></td></tr>
+<tr><th>Area</th><th>Status</th></tr>
+<tr><td><code>tkinter</code> / <code>tkinterPlus</code> (a native OS-widget GUI module)</td><td><strong>Declined:</strong> keep <code>graphics</code> as the single GUI stack (<strong>L16</strong>)</td></tr>
 <tr><td>Module constraints — <code>graphics</code>, <code>game</code>, <code>server</code>, <code>sound</code>, <code>watch</code>, <code>sqldb</code>, <code>text</code>/<code>typing</code>, <code>tui</code>, <code>os</code>/<code>path</code>/<code>sys</code></td><td><strong>L4</strong>–<strong>L6</strong>, <strong>L8</strong>–<strong>L10</strong>, <strong>L12</strong>–<strong>L14</strong></td></tr>
-<tr><td><code>nativeThread*</code> / <code>async*</code> true parallelism and coroutine <code>await</code></td><td><strong>L15</strong></td></tr>
+<tr><td><code>nativeThread*</code> / <code>async*</code> true parallelism and coroutine <code>await</code></td><td><strong>Intentionally constrained:</strong> GIL and join-based <code>await</code> (<strong>L15</strong>, <a href="async.html">async</a>)</td></tr>
 </table>
 <h2 id="native-module-abi">Native Module ABI</h2>
 <ul>
@@ -207,7 +157,7 @@
 <h2 id="standard-library">Standard Library</h2>
 <h3 id="module-coverage">Module Coverage</h3>
 <ul>
-<li><code>tkinter</code> and <code>tkinterPlus</code> are planned (see <strong>L16</strong> in <a href="../todo.html">todo</a>). <code>turtle</code> is implemented — see <a href="stdlib/turtle.html">stdlib/turtle</a>.</li>
+<li><code>tkinter</code> and <code>tkinterPlus</code> are declined; <code>graphics</code> remains the single GUI stack (see <strong>L16</strong> in <a href="https://github.com/andy64lol/Lynxer/blob/main/todo.md">todo</a>). <code>turtle</code> is implemented — see <a href="stdlib/turtle.html">stdlib/turtle</a>.</li>
 <li><code>http</code>/<code>net</code> are <strong>not provided</strong>: <code>network</code> (client) and <code>server</code> cover the same ground with one API surface instead of two, so no shim is planned — see <a href="removed-features.html#http-and-net-modules">removed-features</a>.</li>
 <li><code>mathPlus</code> is merged into <code>math</code>.</li>
 </ul>
@@ -247,16 +197,16 @@
 </ul>
 <h3 id="game--constrained-behavior"><code>game</code> — Constrained Behavior</h3>
 <ul>
-<li><strong>Tilemaps carry geometry, not artwork.</strong> <code>loadTilemap</code> reads only the first <code>&lt;tileset&gt;</code> (for the tile size) and each <code>&lt;layer&gt;</code>'s CSV <code>&lt;data&gt;</code>; tiles become solid sprites on the grid. The tileset image is not sliced, so the map is useful for collision and layout rather than rendering.</li>
+<li><strong>Tilemaps use the first atlas, with a headless fallback.</strong> <code>loadTilemap</code> reads the first <code>&lt;tileset&gt;</code> and CSV layer data, resolves the atlas path relative to the TMX file, and crops nonzero GIDs using <code>firstgid</code>, <code>margin</code> and <code>spacing</code>. Tiles remain solid sprites. If the texture is unavailable or the module is headless, it uses shaded blocks instead.</li>
 <li><strong>Physics covers walls, slopes and one-way platforms.</strong> <code>updatePhysics</code> resolves horizontal and vertical collision against a wall list, rides a wall whose sprite <code>angle</code> is non-zero as a slope, and treats the list passed as <code>makePhysicsEngine</code>'s third argument as one-way platforms (solid only from above, within a two-unit snap). The player is still a single axis-aligned box: there is no rotation-aware collision, no sprite-against-sprite physics and no moving-platform carry.</li>
 <li><strong>Animated sprites and sound are texture/audio-backed.</strong> In headless mode <code>makeAnimatedSprite</code> and <code>loadSound</code> return <code>-1</code>, and <code>screenshot</code> returns <code>-1</code>; the drawing, sound and screenshot ops are otherwise no-ops.</li>
-<li><strong>Sound playback state is tracked by the module.</strong> A one-shot that has finished still reports as playing through <code>isSoundPlaying</code> until <code>stopSound</code>.</li>
+<li><strong>Sound playback state uses decoded duration.</strong> <code>isSoundPlaying</code> expires one-shots after their probed duration and keeps loops active until stopped. This is not an audio-backend playback-position query; if duration probing fails, the state remains active until <code>stopSound</code>.</li>
 </ul>
 <h3 id="server--constrained-behavior"><code>server</code> — Constrained Behavior</h3>
 <ul>
 <li><strong>TLS is built, and does not block.</strong> <code>runHTTPS(cert, key)</code> and <code>runSSLAdhoc()</code> start an HTTPS listener on the <code>init</code> host/port with <code>rustls</code> (the <code>ring</code> provider — no system OpenSSL) and return <code>&quot;ok&quot;</code>; <code>stop()</code> ends it. They do not block the way <code>run()</code> does. A certificate/key mismatch is only found when a client connects.</li>
-<li><strong>Request-context readers describe the last request.</strong> <code>getArg</code>, <code>getHeader</code>, <code>getBody</code> and friends read the most recently handled request, because a Lynxer route is a fixed string rather than a callback and the interpreter evaluates one frame at a time. The original's Flask request context has no equivalent.</li>
-<li><strong>Templates are a substitution subset.</strong> <code>template</code>, <code>templatePost</code> and <code>templateString</code> render <code>{{ key }}</code> and <code>{{ nested.key }}</code> from the <code>dataJson</code> object. Jinja2 loops, conditionals, filters and inheritance are not implemented, and an unknown key renders as the empty string.</li>
+<li><strong>Request-context readers describe the last request.</strong> <code>getArg</code>, <code>getHeader</code>, <code>getBody</code> and friends read the most recently handled request, because a Lynxer route is a fixed string rather than a callback and the interpreter evaluates one frame at a time. The original's Flask request context has no equivalent. A <strong>template</strong>, however, is rendered <em>inside</em> the request: it can read the request through the <code>request</code> object (<code>request.args</code>, <code>request.headers</code>, <code>request.cookies</code>, <code>request.body</code>, <code>request.json</code>, <code>request.form</code>, <code>request.method</code>, <code>request.path</code>), and the query arguments also overlay the root context.</li>
+<li><strong>Templates are a Jinja-compatible subset.</strong> <code>template</code>, <code>templatePost</code> and <code>templateString</code> render <code>{{ expression }}</code> (with filters), <code>{% if %}</code>/ <code>{% elif %}</code>/<code>{% else %}</code>, <code>{% for x in items %}</code> (with the <code>loop</code> variable), <code>{% set %}</code> and <code>{# comments #}</code>. Expressions cover literals, dotted paths, <code>or</code>/<code>and</code>/<code>not</code>, <code>==</code>/<code>!=</code>/<code>&lt;</code>/<code>&lt;=</code>/<code>&gt;</code>/<code>&gt;=</code>, <code>in</code>, <code>+</code>/<code>-</code>/<code>*</code>/<code>/</code>/<code>%</code>, <code>~</code> (concatenation), the <code>range()</code> helper and the filters <code>upper</code>, <code>lower</code>, <code>trim</code>, <code>capitalize</code>, <code>title</code>, <code>length</code>, <code>first</code>, <code>last</code>, <code>reverse</code>, <code>join</code>, <code>default</code>, <code>int</code>, <code>float</code>, <code>round</code>, <code>replace</code> and <code>string</code>. Inheritance (<code>{% extends %}</code>/<code>{% block %}</code>), macros and includes are <strong>not</strong> implemented, there is no auto-escaping, and an unknown key renders as the empty string.</li>
 <li><strong><code>run()</code> blocks.</strong> It starts the listener on the <code>init</code> host/port and then blocks, matching the original. Use <code>start()</code> + <code>stop()</code> when the program has to keep running.</li>
 <li><strong>Static paths are confined.</strong> <code>staticFiles</code>, <code>staticSite</code> and <code>serveFile</code> refuse any <code>..</code> component, and a bad file read is a 404.</li>
 </ul>
@@ -424,7 +374,7 @@
 <li><strong>Connection handling:</strong> A function takes either a database <strong>path</strong> — a connection is opened for that call and closed after it — or a <strong>handle</strong> from <code>open()</code>, which keeps one connection live until <code>close()</code>. The *On forms (<code>queryOn</code>, <code>executeArgsOn</code>, …) run against a handle; a handle stays valid for the run, and calling <code>close</code> twice (or with an unknown handle) reports <code>0</code>.</li>
 </ul>
 <ul>
-<li><strong>Error handling:</strong> Failures are returned in-band as <code>&quot;ERROR: &lt;message&gt;&quot;</code> (and as <code>-1</code>/<code>false</code> for integer/boolean functions) instead of being raised. An unknown or closed handle answers the same sentinels: <code>&quot;ERROR: unknown connection handle N&quot;</code>, <code>-1</code> or <code>false</code>.</li>
+<li><strong>Error handling:</strong> String-returning operations raise a catchable runtime error on failure. Integer and boolean functions retain their <code>-1</code>/<code>false</code> sentinels for failures, including unknown or closed handles.</li>
 </ul>
 <ul>
 <li><strong>JSON formatting:</strong> <code>query</code>, <code>queryArgs</code>, and <code>tables</code> emit JSON with <code>&quot;: &quot;</code> and <code>&quot;, &quot;</code> separators.</li>
@@ -528,5 +478,6 @@
     <span>Lynxer &middot; MIT License</span>
 </footer>
 
+<script src="../search.js" defer></script>
 </body>
 </html>

@@ -6,59 +6,6 @@
     <meta name="theme-color" content="#4a90e2">
     <title>Standard library - Lynxer</title>
     <link rel="stylesheet" href="../../style.css">
-    <link rel="icon" href="../../favicon.ico" type="image/x-icon">
-    <style>
-        /* Ensure the layout is responsive */
-        @media (max-width: 1200px) {{
-            .layout {{
-                flex-direction: column;
-            }}
-            .sidebar {{
-                width: 100%;
-                order: 2;
-            }}
-            .doc {{
-                width: 100%;
-                order: 1;
-            }}
-        }}
-        
-        /* Add a search bar placeholder */
-        .search-bar {{
-            padding: 10px 15px;
-            background: #f8f9fa;
-            border: 1px solid #e2e8eb;
-            border-radius: 4px;
-            margin-bottom: 15px;
-            width: 100%;
-        }}
-        
-        .search-bar input {{
-            width: 100%;
-            padding: 8px;
-            border: none;
-            outline: none;
-            font-size: 14px;
-        }}
-        
-        /* Add a breadcrumb for navigation */
-        .breadcrumb {{
-            background: #f8f9fa;
-            padding: 8px 15px;
-            border-bottom: 1px solid #e2e8eb;
-            margin-bottom: 20px;
-        }}
-        
-        .breadcrumb a {{
-            color: #4a90e2;
-            text-decoration: none;
-            margin-right: 10px;
-        }}
-        
-        .breadcrumb a:hover {{
-            text-decoration: underline;
-        }}
-    </style>
 </head>
 <body>
 
@@ -150,6 +97,7 @@
 <li><a href="time.html">time</a></li>
 <li><a href="toml.html">toml</a></li>
 <li><a href="tui.html">tui</a></li>
+<li><a href="turtle.html">turtle</a></li>
 <li><a href="typing.html">typing</a></li>
 <li><a href="uuid.html">uuid</a></li>
 <li><a href="watch.html">watch</a></li>
@@ -160,14 +108,16 @@
     <main class="doc">
         <div class="breadcrumb">
             <a href="../../index.html">Home</a>
-            <a href="../../stdlib/index.html">Standard Library</a>
+            <a href="../../docs/stdlib/index.html">Standard Library</a>
             <span>Standard library</span>
         </div>
-        <div class="search-bar">
-            <input type="text" placeholder="Search documentation..." aria-label="Search documentation">
+        <div class="search-bar" data-search-index="../../search-index.json" data-site-root="../../">
+            <label class="visually-hidden" for="docs-search">Search documentation</label>
+            <input id="docs-search" type="search" placeholder="Search documentation..." aria-label="Search documentation" autocomplete="off">
+            <div class="search-results" aria-live="polite"></div>
         </div>
 <h1 id="standard-library">Standard library</h1>
-<p>Lynxer ships 37 modules. Each has a <code>.lynx</code> wrapper and a native backend behind the shared native-module ABI; pick one below or from the sidebar.</p>
+<p>Lynxer ships 38 modules. Each has a <code>.lynx</code> wrapper and a native backend behind the shared native-module ABI; pick one below or from the sidebar.</p>
 <ul>
 <li><a href="cli.html"><code>cli</code></a> — Command-line helpers: arguments, environment, terminal queries, process execution and Click/Typer-style command…</li>
 <li><a href="colorlib.html"><code>colorlib</code></a> — ANSI colour and text-style helpers for terminal output.</li>
@@ -201,6 +151,7 @@
 <li><a href="time.html"><code>time</code></a> — Date and time helpers.</li>
 <li><a href="toml.html"><code>toml</code></a> — TOML parsing and serialization.</li>
 <li><a href="tui.html"><code>tui</code></a> — The <code>tui</code> module provides terminal UI functionality using Rust's <code>ratatui</code> and <code>crossterm</code> crates.</li>
+<li><a href="turtle.html"><code>turtle</code></a> — Classic turtle graphics: a pen that moves and turns, drawing as it goes.</li>
 <li><a href="typing.html"><code>typing</code></a> — Type inspection, conversion, range, string, number and sequence helpers.</li>
 <li><a href="uuid.html"><code>uuid</code></a> — UUID generation, parsing and formatting.</li>
 <li><a href="watch.html"><code>watch</code></a> — Filesystem change events over inotify (Linux) or kqueue <code>EVFILT_VNODE</code> (macOS and the BSDs).</li>
@@ -215,5 +166,6 @@
     <span>Lynxer &middot; MIT License</span>
 </footer>
 
+<script src="../../search.js" defer></script>
 </body>
 </html>

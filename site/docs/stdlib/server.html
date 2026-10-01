@@ -6,59 +6,6 @@
     <meta name="theme-color" content="#4a90e2">
     <title>server - Lynxer</title>
     <link rel="stylesheet" href="../../style.css">
-    <link rel="icon" href="../../favicon.ico" type="image/x-icon">
-    <style>
-        /* Ensure the layout is responsive */
-        @media (max-width: 1200px) {{
-            .layout {{
-                flex-direction: column;
-            }}
-            .sidebar {{
-                width: 100%;
-                order: 2;
-            }}
-            .doc {{
-                width: 100%;
-                order: 1;
-            }}
-        }}
-        
-        /* Add a search bar placeholder */
-        .search-bar {{
-            padding: 10px 15px;
-            background: #f8f9fa;
-            border: 1px solid #e2e8eb;
-            border-radius: 4px;
-            margin-bottom: 15px;
-            width: 100%;
-        }}
-        
-        .search-bar input {{
-            width: 100%;
-            padding: 8px;
-            border: none;
-            outline: none;
-            font-size: 14px;
-        }}
-        
-        /* Add a breadcrumb for navigation */
-        .breadcrumb {{
-            background: #f8f9fa;
-            padding: 8px 15px;
-            border-bottom: 1px solid #e2e8eb;
-            margin-bottom: 20px;
-        }}
-        
-        .breadcrumb a {{
-            color: #4a90e2;
-            text-decoration: none;
-            margin-right: 10px;
-        }}
-        
-        .breadcrumb a:hover {{
-            text-decoration: underline;
-        }}
-    </style>
 </head>
 <body>
 
@@ -150,6 +97,7 @@
 <li><a href="time.html">time</a></li>
 <li><a href="toml.html">toml</a></li>
 <li><a href="tui.html">tui</a></li>
+<li><a href="turtle.html">turtle</a></li>
 <li><a href="typing.html">typing</a></li>
 <li><a href="uuid.html">uuid</a></li>
 <li><a href="watch.html">watch</a></li>
@@ -160,11 +108,13 @@
     <main class="doc">
         <div class="breadcrumb">
             <a href="../../index.html">Home</a>
-            <a href="../../stdlib/index.html">Standard Library</a>
+            <a href="../../docs/stdlib/index.html">Standard Library</a>
             <span>server</span>
         </div>
-        <div class="search-bar">
-            <input type="text" placeholder="Search documentation..." aria-label="Search documentation">
+        <div class="search-bar" data-search-index="../../search-index.json" data-site-root="../../">
+            <label class="visually-hidden" for="docs-search">Search documentation</label>
+            <input id="docs-search" type="search" placeholder="Search documentation..." aria-label="Search documentation" autocomplete="off">
+            <div class="search-results" aria-live="polite"></div>
         </div>
 <h1 id="server">server</h1>
 <p>HTTP and WebSocket server backed by Rust <a href="https://docs.rs/axum"><code>axum</code></a> on <a href="https://docs.rs/tokio"><code>tokio</code></a>. Pair it with <code>network</code> for local round-trip tests.</p>
@@ -222,9 +172,31 @@
 </table>
 <p><code>HEAD</code> is served by the matching <code>GET</code> route.</p>
 <h3 id="templates">Templates</h3>
-<p><code>dataJson</code> is a JSON object whose keys become template variables, addressed as <code>{{ key }}</code> and <code>{{ nested.key }}</code>. The original used Jinja2; this is the documented substitution subset — loops and conditionals are not implemented. An unknown key renders as the empty string. <code>setTemplateFolder(folder)</code> sets the directory that <code>template</code> / <code>templatePost</code> resolve file names against.</p>
-<pre><code>global.server.templateString(&quot;/greet&quot;, &quot;&lt;h1&gt;Hello, {{ name }}!&lt;/h1&gt;&quot;,
-                             &quot;{\&quot;name\&quot;:\&quot;World\&quot;}&quot;);</code></pre>
+<p><code>dataJson</code> is a JSON object whose keys become template variables, addressed as <code>{{ key }}</code> and <code>{{ nested.key }}</code>. A Jinja-compatible subset is implemented:</p>
+<ul>
+<li><code>{{ expression }}</code> — output, with filters (<code>{{ name | upper }}</code>)</li>
+<li><code>{% if %}</code> / <code>{% elif %}</code> / <code>{% else %}</code> / <code>{% endif %}</code></li>
+<li><code>{% for x in items %}</code> / <code>{% endfor %}</code> — with <code>loop.index</code>, <code>loop.index0</code>, <code>loop.first</code>, <code>loop.last</code> and <code>loop.length</code>; <code>items</code> may be an array, an object (its keys), a string (its characters) or <code>range(n)</code></li>
+<li><code>{% set name = expression %}</code></li>
+<li><code>{# comment #}</code></li>
+</ul>
+<p>Expressions cover literals, dotted paths, <code>or</code>/<code>and</code>/<code>not</code>, <code>==</code>/<code>!=</code>/<code>&lt;</code>/ <code>&lt;=</code>/<code>&gt;</code>/<code>&gt;=</code>, <code>in</code>, <code>+</code>/<code>-</code>/<code>*</code>/<code>/</code>/<code>%</code>, <code>~</code> (concatenation), grouping and <code>range()</code>, plus the filters <code>upper</code>, <code>lower</code>, <code>trim</code>, <code>capitalize</code>, <code>title</code>, <code>length</code>, <code>first</code>, <code>last</code>, <code>reverse</code>, <code>join</code>, <code>default</code>, <code>int</code>, <code>float</code>, <code>round</code>, <code>replace</code> and <code>string</code>. Inheritance, macros and includes are not implemented, there is no auto-escaping, and an unknown key renders as the empty string. <code>setTemplateFolder(folder)</code> sets the directory that <code>template</code> / <code>templatePost</code> resolve file names against.</p>
+<p>A template renders <strong>inside</strong> the request, so it can read the request through the <code>request</code> object:</p>
+<table>
+<tr><th>Path</th><th>Value</th></tr>
+<tr><td><code>request.method</code> / <code>request.path</code> / <code>request.query</code></td><td>The request line</td></tr>
+<tr><td><code>request.args</code></td><td>Object of query-string parameters</td></tr>
+<tr><td><code>request.headers</code> / <code>request.cookies</code></td><td>Objects of header / cookie values</td></tr>
+<tr><td><code>request.body</code> / <code>request.contentType</code></td><td>Raw body and content type</td></tr>
+<tr><td><code>request.json</code></td><td>The body parsed as JSON (<code>application/json</code> only)</td></tr>
+<tr><td><code>request.form</code></td><td>The body parsed as a form (form-urlencoded only)</td></tr>
+</table>
+<p>The query-string arguments also overlay the root context, so <code>?name=Ada</code> makes <code>{{ name }}</code> render <code>Ada</code> even without the prefix.</p>
+<pre><code>global.server.templateString(
+    &quot;/greet&quot;,
+    &quot;&lt;h1&gt;Hello, {{ name | upper }}!&lt;/h1&gt;&quot;
+    &quot;{% if request.args.n %}&lt;p&gt;n={{ request.args.n }}&lt;/p&gt;{% endif %}&quot;,
+    &quot;{\&quot;name\&quot;:\&quot;World\&quot;}&quot;);</code></pre>
 <h2 id="middleware-and-error-bodies">Middleware and error bodies</h2>
 <table>
 <tr><th>Function</th><th>Description</th></tr>
@@ -278,5 +250,6 @@
     <span>Lynxer &middot; MIT License</span>
 </footer>
 
+<script src="../../search.js" defer></script>
 </body>
 </html>

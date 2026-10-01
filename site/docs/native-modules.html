@@ -6,59 +6,6 @@
     <meta name="theme-color" content="#4a90e2">
     <title>Native modules - Lynxer</title>
     <link rel="stylesheet" href="../style.css">
-    <link rel="icon" href="../favicon.ico" type="image/x-icon">
-    <style>
-        /* Ensure the layout is responsive */
-        @media (max-width: 1200px) {{
-            .layout {{
-                flex-direction: column;
-            }}
-            .sidebar {{
-                width: 100%;
-                order: 2;
-            }}
-            .doc {{
-                width: 100%;
-                order: 1;
-            }}
-        }}
-        
-        /* Add a search bar placeholder */
-        .search-bar {{
-            padding: 10px 15px;
-            background: #f8f9fa;
-            border: 1px solid #e2e8eb;
-            border-radius: 4px;
-            margin-bottom: 15px;
-            width: 100%;
-        }}
-        
-        .search-bar input {{
-            width: 100%;
-            padding: 8px;
-            border: none;
-            outline: none;
-            font-size: 14px;
-        }}
-        
-        /* Add a breadcrumb for navigation */
-        .breadcrumb {{
-            background: #f8f9fa;
-            padding: 8px 15px;
-            border-bottom: 1px solid #e2e8eb;
-            margin-bottom: 20px;
-        }}
-        
-        .breadcrumb a {{
-            color: #4a90e2;
-            text-decoration: none;
-            margin-right: 10px;
-        }}
-        
-        .breadcrumb a:hover {{
-            text-decoration: underline;
-        }}
-    </style>
 </head>
 <body>
 
@@ -150,6 +97,7 @@
 <li><a href="stdlib/time.html">time</a></li>
 <li><a href="stdlib/toml.html">toml</a></li>
 <li><a href="stdlib/tui.html">tui</a></li>
+<li><a href="stdlib/turtle.html">turtle</a></li>
 <li><a href="stdlib/typing.html">typing</a></li>
 <li><a href="stdlib/uuid.html">uuid</a></li>
 <li><a href="stdlib/watch.html">watch</a></li>
@@ -160,11 +108,13 @@
     <main class="doc">
         <div class="breadcrumb">
             <a href="../index.html">Home</a>
-            <a href="../stdlib/index.html">Standard Library</a>
+            <a href="../docs/stdlib/index.html">Standard Library</a>
             <span>Native modules</span>
         </div>
-        <div class="search-bar">
-            <input type="text" placeholder="Search documentation..." aria-label="Search documentation">
+        <div class="search-bar" data-search-index="../search-index.json" data-site-root="../">
+            <label class="visually-hidden" for="docs-search">Search documentation</label>
+            <input id="docs-search" type="search" placeholder="Search documentation..." aria-label="Search documentation" autocomplete="off">
+            <div class="search-results" aria-live="polite"></div>
         </div>
 <h1 id="native-modules">Native modules</h1>
 <p>A native module is a shared library that exports one stable registration entry point. On Linux the extension is <code>.so</code>; the loader is C++ (<code>dlopen</code>/<code>dlsym</code>) — there is no Python and <strong>no <code>libffi</code></strong>: calls dispatch through a hand-written fixed-shape table (see <a href="native-module-abi.html">native-module-abi</a>).</p>
@@ -220,7 +170,7 @@ global main() {
 <p>An explicit handle can be combined with <code>ffiCall</code> and a returned <code>functionAddress</code>. Closing a handle invalidates it and releases its registration callbacks; retained function addresses then fail cleanly instead of calling unmapped code. Imported modules cannot be explicitly closed — their namespace owns their lifetime. Invalid handles and failed registrations raise normal runtime errors. <code>nativeModuleDependencies</code> is informational and returns an empty list when the host linker tooling cannot inspect a module.</p>
 <h2 id="ffi-entry-points">FFI entry points</h2>
 <p><code>ffiLoadLibrary</code>, <code>ffiLookup</code>, <code>ffiCall</code>, <code>ffiCallback</code>, <code>ffiFreeCallback</code> and <code>ffiCloseLibrary</code>. <code>ffiCall</code> describes and performs a native call through the same fixed-shape table as <code>nativeCall</code> (at most four typed parameters, or the packed <code>ret(...)</code> form).</p>
-<p><code>ffiCallback(signature, function)</code> does <strong>not</strong> produce a real native callable: it stores the pair under a handle, and <code>ffiCall</code> recognises that handle and re-invokes the Lynxer function. There is no trampoline, and the stored signature is not validated. The <code>ffi*</code> calling convention is still an <a href="../todo.html">open decision</a> for arbitrary signatures.</p>
+<p><code>ffiCallback(signature, function)</code> does <strong>not</strong> produce a real native callable: it stores the pair under a handle, and <code>ffiCall</code> recognises that handle and re-invokes the Lynxer function. There is no trampoline, and the stored signature is not validated. The <code>ffi*</code> calling convention is still an <a href="https://github.com/andy64lol/Lynxer/blob/main/todo.md">open decision</a> for arbitrary signatures.</p>
 <h2 id="building-c-stdlib-backends">Building C++ stdlib backends</h2>
 <p>Every <code>lynxer/stdlib/*.cpp</code> file is built into its sibling <code>.so</code> by the <code>Makefile</code>; the matching <code>.lynx</code> file is the public wrapper where a Lynxer-friendly API or return-type conversion is useful. Adding a dependency-free stdlib module means adding a C++ backend and a wrapper — no Python packages.</p>
 <h2 id="see-also">See also</h2>
@@ -236,5 +186,6 @@ global main() {
     <span>Lynxer &middot; MIT License</span>
 </footer>
 
+<script src="../search.js" defer></script>
 </body>
 </html>
