@@ -1,0 +1,37 @@
+////
+Windowed game smoke test for virtual-display CI.
+Requires an X11 display and OpenGL context; requests closure after three update callbacks.
+////
+global setup(){
+    import("game");
+    int updates = 0;
+    int draws = 0;
+    bool windowReady = false;
+}
+
+global onUpdate(float dt){
+    updates += 1;
+    windowReady = global.game.isOpen()
+        and global.game.getWidth() >= 64
+        and global.game.getHeight() >= 48;
+    if(updates is 3){
+        global.game.close();
+    }
+}
+
+global onDraw(){
+    draws += 1;
+    global.game.setBackground(0, 0, 0);
+    global.game.drawRect(20.0, 20.0, 24.0, 24.0, 0, 255, 0);
+}
+
+global main(){
+    global.game.init("Lynxer game GUI CI", 64, 48);
+    global.game.setUpdateCallback("onUpdate");
+    global.game.setDrawCallback("onDraw");
+    global.game.run();
+
+    println("window-ready ", windowReady);
+    println("updates ", updates);
+    println("draws ", draws);
+}

@@ -3,8 +3,8 @@
 > **Status (2026-09-24): Lynxer is a standalone C++ implementation.** It ships
 > standalone ELF executables, 34 natively backed stdlib modules, an AST
 > optimizer, a frozen native-module ABI, and a full test suite on both amd64 and
-> arm64. See [docs/limitations.md](docs/limitations.md) for runtime and
-> standard-library constraints.
+> arm64. See [docs/limitations.md](docs/limitations.md) for planned runtime and
+> standard-library improvements.
 
 ![Lynxer logo](assets/lynxer.png)
 ![](https://img.shields.io/badge/-Custom%20programming%20language-blue?style=for-the-badge)
@@ -100,7 +100,7 @@ The documentation lives in [`docs/`](docs/README.md).
 | [Structs](docs/structs.md) | Data-only named types with positional constructors |
 | [Classes](docs/classes.md) | Instances, constructors, fields, and methods |
 | [Enums](docs/enums.md) | Rust-style tagged unions, payloads, and pattern matching |
-| [Limitations](docs/limitations.md) | Deliberate constraints and what is not implemented |
+| [Limitations](docs/limitations.md) | Planned implementation gaps |
 
 ---
 

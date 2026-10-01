@@ -1,0 +1,56 @@
+////
+Windowed graphics smoke test for virtual-display CI.
+Requires an X11 display and OpenGL context; stops after four update callbacks.
+////
+global setup(){
+    import("graphics");
+    import("image");
+    import("fileIO");
+    int updates = 0;
+    int draws = 0;
+    int texture = -1;
+    bool windowReady = false;
+}
+
+global onUpdate(float dt){
+    updates += 1;
+    if(updates is 1){
+        texture = global.graphics.loadTexture("assets/lynxer.png");
+    }
+    if(updates is 3){
+        global.graphics.screenshot("/tmp/lynxer_gui_graphics.png");
+    }
+    windowReady = global.graphics.isRunning()
+        and global.graphics.screenWidth() >= 64.0
+        and global.graphics.screenHeight() >= 48.0;
+    if(updates is 4){
+        global.graphics.stop();
+    }
+}
+
+global onDraw(){
+    draws += 1;
+    global.graphics.clearBackground(0, 0, 0);
+    global.graphics.drawRectangle(8.0, 8.0, 24.0, 24.0, 255, 0, 0);
+    if(texture >= 0){
+        global.graphics.drawTexture(texture, 32.0, 0.0);
+    }
+}
+
+global main(){
+    global.graphics.init("Lynxer GUI CI", 64, 48);
+    global.graphics.setTargetFps(60.0);
+    global.graphics.setUpdateCallback("onUpdate");
+    global.graphics.setDrawCallback("onDraw");
+    global.graphics.run();
+
+    println("window-ready ", windowReady);
+    println("updates ", updates);
+    println("draws ", draws);
+    println("texture-loaded ", texture >= 0);
+    println("texture-size ", global.graphics.textureWidth(texture), "x", global.graphics.textureHeight(texture));
+    int screenshot = global.image.open("/tmp/lynxer_gui_graphics.png");
+    println("screenshot-size ", global.image.getWidth(screenshot), "x", global.image.getHeight(screenshot));
+    global.image.close(screenshot);
+    global.fileIO.deleteFile("/tmp/lynxer_gui_graphics.png");
+}

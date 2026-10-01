@@ -23,8 +23,6 @@ features are in [docs/removed-features.md](docs/removed-features.md).
 - [ ] **Nested headless UI groups.** Support nested `uiWindowBegin` /
   `uiGroupBegin` blocks in the headless layout stack and add fixture coverage
   for nested layout and widget values.
-- [ ] **Windowed graphics CI.** Add a display-backed CI job for the windowed
-  renderer and run its existing graphics fixture separately from headless CI.
 - [ ] **Game maps and collision.** Support multiple tilesets and common TMX
   layer encodings, then add rotation-aware and moving-platform collision while
   retaining existing wall, slope and one-way-platform behavior. Add headless
@@ -107,3 +105,12 @@ Keep a task only while implementation is intended. Keep hardware, security,
 platform-policy, compatibility and deliberate semantic constraints that are
 outside this plan in [docs/removed-features.md](docs/removed-features.md), not
 as implied future work.
+
+## Completed
+
+- [x] **Windowed graphics CI.** The AMD64 workflow now starts Xvfb with Mesa
+  llvmpipe software OpenGL and runs bounded windowed smoke fixtures for both
+  `graphics` and `game`. The graphics fixture loads and draws a real texture,
+  captures a frame, and checks its dimensions; both fixtures assert that the
+  window opened and that update/draw callbacks ran. Headless CI remains a
+  separate test path.

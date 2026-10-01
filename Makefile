@@ -77,6 +77,8 @@ LYNXER_SOUND_FIXTURE := $(LYNXER_DIR)/examples/stdlib_sound.lynx
 # and says so, the way `stdlib_sound` is skipped without an audio device.
 HAVE_TLS_TOOLS := $(if $(and $(shell command -v curl 2>/dev/null),$(shell command -v openssl 2>/dev/null)),1,)
 LYNXER_SERVER_TLS_FIXTURE := $(LYNXER_DIR)/examples/stdlib_server_tls.lynx
+LYNXER_GUI_FIXTURES := $(LYNXER_DIR)/examples/gui_graphics_window.lynx \
+	$(LYNXER_DIR)/examples/gui_game_window.lynx
 # Display/audio tests. CI runners have neither a display nor an audio device, and
 # the graphics backend crashes without a display, so the workflows pass
 # LYNXER_SKIP_DISPLAY=1 to drop the fixtures that need one.
@@ -169,7 +171,7 @@ LYNXER_INSTALLED_BIN := $(LYNXER_INSTALL_PREFIX)/bin/lynxer
 # jobs.
 SYSCALL_ARCH := $(shell uname -m | sed -e 's/^x86_64$$/amd64/' -e 's/^aarch64$$/arm64/')
 
-.PHONY: all cargo lynxerToolchain build buildAll buildLynxer buildLynxerArm64 test testLynxer testLynxerInstall testLynxerAmd64Syscalls testLynxerArm64Syscalls check clean cleanLynxer cleanAll help
+.PHONY: all cargo lynxerToolchain build buildAll buildLynxer buildLynxerArm64 test testLynxer testLynxerGui testLynxerInstall testLynxerAmd64Syscalls testLynxerArm64Syscalls check clean cleanLynxer cleanAll help
 
 test: testLynxer
 
@@ -645,6 +647,22 @@ expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:23: charAt() index is out of rang
 	fi
 	@rm -f $(CLYX_TMP)_stdin $(CLYX_TMP)_tui_stdin
 	@echo "lynxer smoke test passed"
+
+# Run bounded, real-window graphics and game smoke tests. The caller must
+# provide an X11 display with an OpenGL implementation (CI uses Xvfb + Mesa).
+testLynxerGui: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT)
+	@test -n "$$DISPLAY" || { echo "lynxer: testLynxerGui requires an X11 display"; exit 1; }
+	@for fixture in $(LYNXER_GUI_FIXTURES); do \
+	expected="$${fixture%.lynx}.expected"; \
+	output="$(CLYX_TMP)_gui.out"; \
+	if ! timeout 30s env LYNXER_GRAPHICS_HEADLESS=0 LYNXER_GAME_HEADLESS=0 $(CLYX) "$$fixture" > "$$output" 2>&1; then \
+	echo "windowed GUI fixture failed: $$fixture"; cat "$$output"; rm -f "$$output"; exit 1; fi; \
+	if ! diff -u "$$expected" "$$output"; then \
+	echo "windowed GUI fixture output mismatch: $$fixture"; rm -f "$$output"; exit 1; fi; \
+	rm -f "$$output"; \
+	done; \
+	rm -f "$(CLYX_TMP)_gui.out"
+	@echo "lynxer windowed GUI smoke tests passed"
 
 # `lynxer --install` must produce a self-contained tree that resolves its
 # stdlib from any working directory. The default prefix is /usr and needs root,

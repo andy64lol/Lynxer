@@ -18,8 +18,6 @@ boundaries, removed features and compatibility decisions are documented in
   instead of being queued or reporting one consistent error.
 - The headless `uiWindowBegin` / `uiGroupBegin` layout supports one block level;
   nested groups are rejected.
-- The windowed graphics path is skipped by CI; only the headless rasterizer is
-  covered in the routine Linux test job.
 - Game tilemaps read CSV layer data from the first tileset. Physics supports
   axis-aligned player boxes, walls, slopes and one-way platforms, but not
   rotation-aware collision or moving-platform carry.

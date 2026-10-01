@@ -26,13 +26,21 @@ jobs:
       - name: Install Linux dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libasound2-dev libffi-dev pkg-config
+          sudo apt-get install -y libasound2-dev libffi-dev pkg-config \
+            xvfb libgl1-mesa-dri mesa-utils
 
       - name: Build Lynxer for AMD64
         run: make buildLynxer
 
       - name: Test Lynxer AMD64 binary
         run: make testLynxer LYNXER_SKIP_DISPLAY=1
+      - name: Verify virtual OpenGL renderer
+        run: |
+          renderer="$(xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe glxinfo -B)"
+          printf '%s\n' "$renderer"
+          grep -qi llvmpipe <<< "$renderer"
+      - name: Test windowed graphics and game with software OpenGL
+        run: xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe make testLynxerGui
       - name: Run the AMD64 syscall fixture
         run: make testLynxerAmd64Syscalls
       - name: Upload AMD64 binary
