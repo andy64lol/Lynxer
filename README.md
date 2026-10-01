@@ -1,13 +1,9 @@
 # Lynxer
 
-> **Status (2026-09-24): Lynxer is a standalone C++ implementation.** It ships
-> standalone ELF executables, 34 natively backed stdlib modules, an AST
-> optimizer, a frozen native-module ABI, and a full test suite on both amd64 and
-> arm64. See [docs/limitations.md](docs/limitations.md) for planned runtime and
-> standard-library improvements.
-
 ![Lynxer logo](assets/lynxer.png)
 ![](https://img.shields.io/badge/-Custom%20programming%20language-blue?style=for-the-badge)
+[![Build AMD64](https://github.com/andy64lol/Lynxer/actions/workflows/build-lynxer-amd.yml/badge.svg)](https://github.com/andy64lol/Lynxer/actions/workflows/build-lynxer-amd.yml)
+[![Build ARM64](https://github.com/andy64lol/Lynxer/actions/workflows/build-lynxer-arm.yml/badge.svg)](https://github.com/andy64lol/Lynxer/actions/workflows/build-lynxer-arm.yml)
 
 A statically-flavoured, C-style scripting language. Files use the `.lynx`
 extension and run on the standalone C++ interpreter in `lynxer/`.
@@ -17,6 +13,11 @@ extension and run on the standalone C++ interpreter in `lynxer/`.
 > require Linux. Native builds support 64-bit x86-64 (`amd64`) and ARM64
 > (`aarch64`) hosts. Builds fail early on other operating systems or
 > architectures rather than mixing syscall tables.
+> **Status (2026-09-24): Lynxer is a standalone C++ implementation.** It ships
+> standalone ELF executables, 34 natively backed stdlib modules, an AST
+> optimizer, a frozen native-module ABI, and a full test suite on both amd64 and
+> arm64. See [docs/limitations.md](docs/limitations.md) for planned runtime and
+> standard-library improvements.
 
 ```c
 global setup(){
