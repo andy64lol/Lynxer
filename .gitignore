@@ -10,3 +10,4 @@ lynxer/lynxer
 lynxer/build/
 lynxer/rust/target/
 lynxer/rust/*/target/
+Bob/target/

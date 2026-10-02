@@ -110,6 +110,57 @@ features are in [docs/removed-features.md](docs/removed-features.md).
   while retaining the engine diagnostic and traceback, with syntax and runtime
   failure tests.
 
+## Bob (package manager)
+
+`Bob/` is the Lynxer package manager, a separate Rust component with its own
+version (`Bob/README.md`). It has no registry yet, so only `bob --ver` and
+`bob --init` exist. Its planned work is tracked in [Bob/todo.md](Bob/todo.md).
+
+## Windows support
+
+Lynxer currently targets Linux only: the interpreter, the native-module ABI
+(`dlopen`/`.so`), the `--compile` bundler and the syscall-facing modules all
+assume a POSIX/Linux host. This plan stages a port; the Linux-only syscall
+surface stays a documented boundary in
+[removed-features.md](docs/removed-features.md), not a Windows gap.
+
+- [ ] **Build system and toolchain.** Add a Windows build path (MSVC or
+  clang-cl plus the existing `cargo` backends) producing `lynxer.exe` and
+  `lynxer.dll`; replace the POSIX-only compile/link flags (`-fPIC`,
+  `-ftls-model=global-dynamic`, ELF version scripts) with their Windows
+  equivalents (`.def`/`/EXPORT:`, `__declspec`).
+- [ ] **Portable host layer.** Abstract the host calls the interpreter makes:
+  self-executable path (`GetModuleFileNameW` instead of `/proc/self/exe`),
+  dynamic loading (`LoadLibrary`/`GetProcAddress` instead of
+  `dlopen`/`dlsym`), subprocess spawn and process-group termination
+  (`CreateProcess` and Job objects instead of `fork`/`exec`/`kill`), file
+  modes and permissions, and path separators.
+- [ ] **Native-module ABI on Windows.** Load `.dll` modules with the same
+  `lynxer_module_init_v1` entry point and `cdecl:` grammar, exporting symbols
+  with `__declspec(dllexport)`/`.def`; keep the signature and host-API ABI
+  identical so existing modules recompile unchanged.
+- [ ] **Embedding and `--emit-library`.** Build the runtime as `lynxer.dll`,
+  emit `.dll` plus the generated header, and use a Windows export definition
+  instead of the ELF version script; resolve the runtime through the DLL search
+  path rather than an `rpath`.
+- [ ] **`--compile` bundling.** Append the bundle payload to a PE image and
+  locate the running module with `GetModuleFileNameW`; keep the existing
+  materialize-to-temp-dir behavior for embedded modules and assets.
+- [ ] **Stdlib platform matrix.** Classify every module: portable as-is
+  (`json`, `toml`, `yaml`, `ini`, `xml`, `regex`, `text`, `math`, …); needs a
+  Windows backend (`watch` → `ReadDirectoryChangesW`, `path` platform values,
+  `tui`/`graphics`/`sound` console and device handling); and Linux-only (`sys`
+  syscalls and the `lowlevel_*` fixtures), which stay out of the Windows build.
+- [ ] **Windows terminal behavior.** Enable virtual-terminal processing for
+  `tui`/`graphics` output and cover TTY and redirected runs the way the Linux
+  fixtures do.
+- [ ] **Tests and CI.** Add a `windows-latest` job that builds and runs the
+  portable fixture subset, gates the Linux-only fixtures (`syscall*`,
+  `lowlevel_*`), and documents every skipped case.
+- [ ] **Documentation.** Update `install.md`, `CLI.md`, `README.md` and the
+  platform notes for the Windows build, and record the syscall surface as an
+  explicit Linux-only boundary.
+
 ## Planning rule
 
 Keep a task only while implementation is intended. Keep hardware, security,

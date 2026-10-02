@@ -238,6 +238,15 @@ sdk: lynxerToolchain $(LYNXER_SHARED)
 	@cp $(LYNXER_SHARED) $(LYNXER_SDK_DIR)/lib/
 	@echo "✓ Lynxer embedding SDK staged in $(LYNXER_SDK_DIR)"
 
+# Bob, the Lynxer package manager, lives in Bob/ as its own component with its
+# own Makefile; it is deliberately kept separate from the interpreter and is not
+# part of `buildLynxer`. Build or clean it through this convenience target.
+BOB_DIR := Bob
+buildBob: lynxerToolchain
+	@$(MAKE) -C $(BOB_DIR) build
+
+cleanBob:
+	@$(MAKE) -C $(BOB_DIR) clean
 # ARM64 (aarch64) binary. Requires aarch64-linux-gnu-g++ installed.
 buildLynxerArm64: lynxerToolchain $(LYNXER_TARGET)-arm64 $(LYNXER_NATIVE_BUILT)
 	@echo "✓ Lynxer ARM64 build complete: $(LYNXER_TARGET)-arm64"
@@ -880,7 +889,7 @@ cleanLynxer:
 	@rm -rf $(LYNXER_DIR)/build $(LYNXER_RUST_DIR)/target $(LYNXER_RUST_DIR)/*/target
 	@echo "✓ Cleaned Lynxer build artifacts."
 
-cleanAll: clean cleanLynxer
+cleanAll: clean cleanLynxer cleanBob
 	@echo "✓ Cleaned all generated build artifacts."
 
 help:
@@ -889,6 +898,7 @@ help:
 	@echo "  make buildAll           (alias for build)"
 	@echo "  make buildLynxer"
 	@echo "  make buildLynxerArm64"
+	@echo "  make buildBob           (Bob, the package manager in Bob/)"
 	@echo "  make cargo"
 	@echo "  make test               (Lynxer suite)"
 	@echo "  make testLynxer        (Lynxer suite only)"
@@ -898,6 +908,7 @@ help:
 	@echo "  make check"
 	@echo "  make clean"
 	@echo "  make cleanLynxer"
+	@echo "  make cleanBob"
 	@echo "  make cleanAll"
 	@echo "  make help"
 	@echo ""

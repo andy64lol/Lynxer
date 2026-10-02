@@ -113,12 +113,18 @@ lynxer/             The interpreter and its standard library
   *.cpp, *.hpp      Lexer, parser, interpreter, optimizer, formatter, CLI
   stdlib/           Native and pure stdlib modules
   rust/             Rust-backed native modules
+Bob/                Bob — the Lynxer package manager (its own Rust component)
 docs/               Documentation (Markdown source)
 site/               Static website: home page plus `docs/` rendered to HTML
 syntax.lynx         Full syntax showcase
 Makefile
 README.md
 ```
+
+`Bob/` is a separate component with its own Makefile; build it with
+`make buildBob` then `Bob/target/release/bob --ver` (Bob's version and the
+Lynxer version it supports) or `bob --init` (scaffolds `bob/bob.toml` and
+`bob/bob-lock.toml`). There is no package registry yet — see [Bob/todo.md](Bob/todo.md).
 
 ---
 
