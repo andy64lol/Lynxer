@@ -156,6 +156,27 @@ surface stays a documented boundary in
   `LYNXER_RUST_MODULE_NAMES`): `sys` and the syscall built-ins, the modules
   above, plus the `lowlevel_*` fixtures. Startup code lives on the host layer;
   see [docs/windows.md](docs/windows.md).
+- [ ] **Windows API access (Win32, not syscalls).** Windows exposes no stable
+  per-call syscall numbers to programs; its supported interface is the Win32
+  API surface in DLLs (`kernel32`, `advapi32`, `user32`, `bcrypt`, `ntdll`,
+  …). The named-syscall surface (`syscalls("<arch>")` plus `amd64.syscallX` /
+  `arm64.syscallX`, see [syscalls.md](docs/syscalls.md)) was designed for
+  portable syscall numbers and raw ABI calls, so it does not fit Windows and
+  may be reworked. Decide how Lynxer programs reach Windows APIs instead:
+  - Start from what already works — `ffiLoadLibrary`/`ffiLookup`/`ffiCall`
+    ([native-modules.md](docs/native-modules.md)) and the native-module ABI.
+  - Choose the surface: a curated `windows` stdlib module with typed wrappers
+    (e.g. `getLastError`, `createFileW`, `readFile`), a general
+    `windowsCall(dll, "Symbol", ...)` primitive, or both — curated for the
+    common cases, the generic call for the long tail.
+  - Cover the Win32 specifics: the `__stdcall` calling convention on 32-bit
+    (unified on x64), so the `cdecl:` signature grammar needs a `stdcall:` or
+    convention-aware counterpart; UTF-16 `*W` strings and the `A`/`W` pairs;
+    `HANDLE`/`HWND`/`SOCKET` handles; `BOOL` results with a separate
+    `GetLastError` code; and struct layout/packing for the `*W`-style calls.
+  - Keep the Linux syscall surface a Linux-only boundary: do not emulate
+    syscall numbers on Windows. Revisit whether the `syscalls("<arch>")`
+    namespace shape should change now that a non-syscall platform is in scope.
 - [ ] **Windows terminal behavior.** Enable virtual-terminal processing for
   `tui`/`graphics` output and cover TTY and redirected runs the way the Linux
   fixtures do.
