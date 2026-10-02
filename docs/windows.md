@@ -23,6 +23,10 @@ calls the layer instead of the POSIX APIs directly, and the native shared
 library extension is `.dll` where the host needs it. The Linux behavior is
 unchanged and the Linux test suite is the regression gate.
 
+The standard streams are put in binary mode on Windows, so `\n` is not
+translated to `\r\n`: Lynxer's output is byte-identical to POSIX, which the
+fixture comparisons rely on.
+
 One consequence of the copy-instead-of-symlink install: on POSIX
 `/proc/self/exe` resolves `$PREFIX/bin/lynxer` to the real binary, so
 `<exeDir>/stdlib` is the stdlib. On Windows the launcher is a copy in

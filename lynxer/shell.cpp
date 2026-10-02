@@ -1436,6 +1436,7 @@ int runCompiledPayload(const std::vector<uint8_t>& payload) {    ProgramArchive 
 } // namespace
 
 int shellMain(int argc, char** argv) {
+    platform::configureStandardStreams();
     installInterruptHandler();
 
     // A compiled executable runs its embedded program directly.

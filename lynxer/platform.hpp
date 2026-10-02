@@ -10,6 +10,11 @@
 // <windows.h> directly.
 namespace lynxer::platform {
 
+// Puts stdout and stderr in binary mode on Windows, so `\n` is not translated
+// to `\r\n` and Lynxer's output is byte-identical on every host. A no-op on
+// POSIX. Call once, before producing any output.
+void configureStandardStreams();
+
 // The absolute path of the running executable, or "" when it cannot be
 // determined. POSIX reads `/proc/self/exe` (or the dyld path on macOS);
 // Windows calls `GetModuleFileNameW`.

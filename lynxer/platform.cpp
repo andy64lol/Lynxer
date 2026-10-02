@@ -17,6 +17,8 @@
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <fcntl.h>
+#include <io.h>
 #else
 #include <dlfcn.h>
 #include <limits.h>
@@ -85,6 +87,16 @@ std::string quoteArgument(const std::string& argument) {
 #endif // _WIN32
 
 } // namespace
+
+void configureStandardStreams() {
+#if defined(_WIN32)
+    // Text mode translates every `\n` written to stdout/stderr into `\r\n`.
+    // Lynxer's output should be byte-identical on every host, and the fixture
+    // comparisons (and any text processing) depend on it, so write LF.
+    ::_setmode(::_fileno(stdout), _O_BINARY);
+    ::_setmode(::_fileno(stderr), _O_BINARY);
+#endif
+}
 
 std::string executablePath() {
 #if defined(_WIN32)
