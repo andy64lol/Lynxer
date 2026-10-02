@@ -1,23 +1,13 @@
 // C++ test for the C ABI that Lynxer exposes when a program is built with
-// `lynxer --emit-library`. It includes the public `lynxer.h` header (so the
-// shipped header is exercised under C++), declares the exported prototypes the
-// way any C++ consumer must, and checks every one. Exits non-zero on failure so
-// `make testLynxerEmit` fails loudly.
-#include "lynxer.h"
+// `lynxer --emit-library`. It includes the header emitted alongside the library
+// (`libexport_basic.h`), so the test drives the generated prototypes rather
+// than declaring them by hand, and checks every one. Exits non-zero on failure
+// so `make testLynxerEmit` fails loudly.
+#include "libexport_basic.h"
 
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
-
-// The C symbols exported by the library built from export_basic.lynx.
-extern "C" {
-std::int64_t add(std::int64_t left, std::int64_t right);
-std::int64_t negate(std::int64_t value);
-double scale(double value);
-const char* greet(const char* who);
-const std::uint8_t* echoBytes(const std::uint8_t* data, std::int64_t length);
-void sink(std::int64_t value);
-}
 
 namespace {
 

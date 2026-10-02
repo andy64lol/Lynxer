@@ -154,6 +154,9 @@ lynxer --emit-library app.lynx --include helpers.lynx -o libapp.so
 | `--cc <compiler>` | — | C++ compiler used to build the library |
 
 See [embedding.md](embedding.md) for the `export` syntax and the C ABI mapping.
+Alongside the library, `--emit-library` writes a header with the exported
+prototypes (`libapp.so` → `libapp.h`); `make sdk` stages `lynxer.h`,
+`ffi_abi.h` and `liblynxer.so` under `lynxer/build/sdk/`.
 
 ## Listing the standard library
 

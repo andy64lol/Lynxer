@@ -225,8 +225,18 @@ lynxerToolchain:
 	exit 1; }
 
 # Binary plus every stdlib module, C++ and Rust alike.
-buildLynxer: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT) $(LYNXER_SHARED)
+buildLynxer: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT) $(LYNXER_SHARED) sdk
 	@echo "✓ Lynxer build complete: $(LYNXER_TARGET)"
+
+# The embedding SDK staged for consumers: the shared runtime plus the public
+# headers, under lynxer/build/sdk/{include,lib}. Libraries built by
+# `--emit-library` compile against this. Also installed by `--install`.
+LYNXER_SDK_DIR := $(LYNXER_DIR)/build/sdk
+sdk: lynxerToolchain $(LYNXER_SHARED)
+	@mkdir -p $(LYNXER_SDK_DIR)/include $(LYNXER_SDK_DIR)/lib
+	@cp $(LYNXER_PUBLIC_HEADERS) $(LYNXER_SDK_DIR)/include/
+	@cp $(LYNXER_SHARED) $(LYNXER_SDK_DIR)/lib/
+	@echo "✓ Lynxer embedding SDK staged in $(LYNXER_SDK_DIR)"
 
 # ARM64 (aarch64) binary. Requires aarch64-linux-gnu-g++ installed.
 buildLynxerArm64: lynxerToolchain $(LYNXER_TARGET)-arm64 $(LYNXER_NATIVE_BUILT)
@@ -302,26 +312,34 @@ $(LYNXER_SIGNATURE_MODULE): $(LYNXER_SIGNATURE_SOURCE) $(LYNXER_DIR)/ffi_abi.h $
 
 # The Lynxer suite: static module/backend contract check, then the
 # interpreter, compiled-executable and bundled-executable parity gates.
-# Export-to-C ABI: build a shared library from a program's `export`s and drive
-# it from a C++ consumer and a Python ctypes consumer, then check that invalid
-# exports are rejected with located errors.
+# Export-to-C ABI: build a shared library (plus its generated header) from a
+# program's `export`s and drive it from a C++ consumer and a Python ctypes
+# consumer, then check that invalid exports are rejected with located errors.
 LYNXER_EXPORT_FIXTURE := $(LYNXER_DIR)/examples/export_basic.lynx
-LYNXER_EXPORT_LIBRARY := $(CLYX_TMP)_export.so
+LYNXER_EXPORT_DIR := $(CLYX_TMP)_exportdir
+LYNXER_EXPORT_LIBRARY := $(LYNXER_EXPORT_DIR)/libexport_basic.so
+LYNXER_EXPORT_HEADER := $(LYNXER_EXPORT_DIR)/libexport_basic.h
 LYNXER_EXPORT_TEST := $(CLYX_TMP)_export_test
 
 testLynxerEmit: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_SHARED) $(LYNXER_NATIVE_BUILT)
 	@# Build from a throwaway copy of the source, then delete it and run the
 	@# consumers from /tmp. The emitted library embeds the program, so it must
 	@# work with neither the .lynx source nor the build directory in reach.
+	@mkdir -p $(LYNXER_EXPORT_DIR)
 	@cp $(LYNXER_EXPORT_FIXTURE) $(CLYX_TMP)_export_src.lynx
 	@$(CLYX) --emit-library $(CLYX_TMP)_export_src.lynx -o $(LYNXER_EXPORT_LIBRARY)
 	@rm -f $(CLYX_TMP)_export_src.lynx
+	@test -f $(LYNXER_EXPORT_HEADER) || { echo "emit-library did not write $(LYNXER_EXPORT_HEADER)"; exit 1; }
+	@grep -q 'echoBytes' $(LYNXER_EXPORT_HEADER) || { echo "generated header is missing an export"; exit 1; }
+	@# The checked-in golden header the fixture includes must stay in sync with
+	@# what the generator produces.
+	@diff -u $(LYNXER_DIR)/examples/libexport_basic.h $(LYNXER_EXPORT_HEADER) > /dev/null || { echo "generated header differs from lynxer/examples/libexport_basic.h"; diff -u $(LYNXER_DIR)/examples/libexport_basic.h $(LYNXER_EXPORT_HEADER); exit 1; }
 	@nm -D --defined-only $(LYNXER_EXPORT_LIBRARY) | grep -q ' T add' || { echo "emitted library is missing the 'add' export"; exit 1; }
 	@if nm -D --defined-only $(LYNXER_EXPORT_LIBRARY) | grep -q 'lynxer_embed_'; then echo "emitted library leaks embedding symbols"; exit 1; fi
-	@$(LYNXER_CXX) -std=c++17 -O2 -I$(LYNXER_DIR) $(LYNXER_DIR)/examples/export_test.cpp $(LYNXER_EXPORT_LIBRARY) -o $(LYNXER_EXPORT_TEST) -Wl,-rpath,$(CURDIR)/$(LYNXER_DIR)
+	@$(LYNXER_CXX) -std=c++17 -O2 -I$(LYNXER_DIR) $(LYNXER_DIR)/examples/export_test.cpp $(LYNXER_EXPORT_LIBRARY) -o $(LYNXER_EXPORT_TEST) -Wl,-rpath,$(CURDIR)/$(LYNXER_EXPORT_DIR)
 	@cd /tmp && $(CURDIR)/$(LYNXER_EXPORT_TEST)
 	@cd /tmp && $(PYTHON) $(CURDIR)/$(LYNXER_DIR)/examples/export_test.py $(CURDIR)/$(LYNXER_EXPORT_LIBRARY)
-	@echo "emitted library ran from /tmp with its source removed"
+	@echo "emitted library (with generated header) ran from /tmp with its source removed"
 	@# The compiled runtime is mandatory: a missing liblynxer.so must be a clear
 	@# failure, not a compiler error.
 	@if $(CLYX) --emit-library $(LYNXER_EXPORT_FIXTURE) --runtime /nonexistent/liblynxer.so -o $(CLYX_TMP)_bad.so 2>$(CLYX_TMP)_export_err.log; then echo "expected a missing runtime to fail"; exit 1; fi
@@ -341,7 +359,8 @@ testLynxerEmit: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_SHARED) $(LYNXER_NATIV
 	@printf '%s\n' 'export "cdecl:int64(int64)" f(int a = 1) -> int { return a; }' > $(CLYX_TMP)_export_err.lynx
 	@if $(CLYX) --emit-library $(CLYX_TMP)_export_err.lynx -o $(CLYX_TMP)_bad.so 2>$(CLYX_TMP)_export_err.log; then echo "expected the default parameter to be rejected"; exit 1; fi
 	@grep -q "default value" $(CLYX_TMP)_export_err.log || { echo "unexpected error for a default parameter"; cat $(CLYX_TMP)_export_err.log; exit 1; }
-	@rm -f $(CLYX_TMP)_export_err.lynx $(CLYX_TMP)_export_err.log $(LYNXER_EXPORT_LIBRARY) $(LYNXER_EXPORT_TEST) $(CLYX_TMP)_bad.so
+	@rm -f $(CLYX_TMP)_export_err.lynx $(CLYX_TMP)_export_err.log $(LYNXER_EXPORT_TEST) $(CLYX_TMP)_bad.so
+	@rm -rf $(LYNXER_EXPORT_DIR)
 	@echo "lynxer export ABI test passed"
 
 testLynxer: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT) $(LYNXER_SIGNATURE_MODULE) testLynxerInstall testLynxerEmit

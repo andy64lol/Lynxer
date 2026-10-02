@@ -72,9 +72,32 @@ lynxer --emit-library app.lynx --include helpers.lynx -o libapp.so
 library links `liblynxer.so` and records an `rpath` to it plus `$ORIGIN`; set
 `LD_LIBRARY_PATH` only if you move the runtime.
 
+Alongside the library it writes a header with the exported prototypes:
+`libapp.so` produces `libapp.h`, a self-contained header declaring each
+exported function in `extern "C"` (it includes only `<stdint.h>`; include
+`lynxer.h` too if you need the embedding wire types). Consumers include that
+one header instead of declaring the prototypes by hand:
+
+```bash
+lynxer --emit-library app.lynx -o libapp.so
+# libapp.so and libapp.h
+c++ -I. -I<dir-with-lynxer.h> client.cpp libapp.so -o client
+```
+
 The library initializes the embedded program lazily, on the first exported
 call. A program can be embedded once per process; a second initialization is
 refused because the interpreter keeps process-global state.
+
+## Staging the SDK
+
+`make sdk` (also run by `make buildLynxer`) stages the pieces a consumer needs
+under `lynxer/build/sdk/`:
+
+```
+lynxer/build/sdk/include/lynxer.h     the public C ABI
+lynxer/build/sdk/include/ffi_abi.h    the wire types
+lynxer/build/sdk/lib/liblynxer.so     the embedding runtime
+```
 
 ## Lynxer must be built
 
@@ -103,8 +126,7 @@ of the source, deletes it, and then runs the C++ and Python consumers from
 ## Calling from C
 
 ```c
-#include <stdint.h>
-extern int64_t add(int64_t, int64_t);
+#include "libapp.h"   /* generated next to libapp.so */
 /* bytes return: read the 8-byte little-endian length prefix first */
 ```
 
