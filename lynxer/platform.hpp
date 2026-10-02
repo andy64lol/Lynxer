@@ -27,6 +27,12 @@ const char* libraryExtension();
 // The native executable extension for this host: "exe" on Windows, "" elsewhere.
 const char* executableExtension();
 
+// The prefix `--install` uses when `LYNXER_PREFIX` is unset: `/usr` on POSIX,
+// or a per-user `%LOCALAPPDATA%\Programs\Lynxer` on Windows (no elevation).
+std::string defaultInstallPrefix();
+// The separator between entries in a `PATH`-style variable: ':' or ';'.
+char pathListSeparator();
+
 // Creates a private temporary directory and reports its path. The caller owns
 // the directory and removes it.
 bool makeTemporaryDirectory(std::string& pathOut, std::string& error);

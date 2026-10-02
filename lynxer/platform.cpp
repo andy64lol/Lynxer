@@ -197,6 +197,32 @@ const char* executableExtension() {
 #endif
 }
 
+std::string defaultInstallPrefix() {
+#if defined(_WIN32)
+    // A per-user install needs no elevation, the way Windows tools such as
+    // VS Code install themselves by default.
+    const char* local = std::getenv("LOCALAPPDATA");
+    if (local != nullptr && local[0] != '\0') {
+        return std::string(local) + "\\Programs\\Lynxer";
+    }
+    const char* profile = std::getenv("USERPROFILE");
+    if (profile != nullptr && profile[0] != '\0') {
+        return std::string(profile) + "\\Lynxer";
+    }
+    return "Lynxer";
+#else
+    return "/usr";
+#endif
+}
+
+char pathListSeparator() {
+#if defined(_WIN32)
+    return ';';
+#else
+    return ':';
+#endif
+}
+
 bool makeTemporaryDirectory(std::string& pathOut, std::string& error) {
     std::error_code filesystemError;
     const std::filesystem::path base =

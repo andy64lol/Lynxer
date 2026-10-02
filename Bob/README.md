@@ -50,3 +50,20 @@ and `--init` exist. See [todo.md](todo.md).
 make -C Bob            # or, from the repo root: make buildBob
 Bob/target/release/bob --ver
 ```
+
+## Platforms
+
+Bob is pure Rust standard library, with no dependencies, so it builds and runs
+on Linux, macOS and Windows. The project-relative paths it prints always use
+`/`, so `bob --init` reads the same everywhere.
+
+On Windows, build and test it from an MSYS2 or Git Bash shell, which provides the
+POSIX tools the `Makefile` uses:
+
+```console
+$ make -C Bob test
+```
+
+`cargo build --release` works from any shell; the `Makefile` is only a wrapper.
+Bob is exercised in the Lynxer CI on Linux AMD64 and, experimentally, on
+Windows AMD64/ARM64.

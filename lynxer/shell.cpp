@@ -82,7 +82,9 @@ void printUsage() {
     std::cout << "  lynxer --validate-executeable               Run the interpreter self-check\n";
     std::cout << "  lynxer --version                            Print version\n";
     std::cout << "  lynxer --list-stdlibs                       List available Lynxer stdlib modules\n";
-    std::cout << "  lynxer --install                            Install into /usr/lib/lynxer and link /usr/bin/lynxer\n";
+    std::cout << "  lynxer --install                            Install under "
+              << platform::defaultInstallPrefix()
+              << " (override with LYNXER_PREFIX)\n";
     std::cout << "  lynxer --uninstall                          Remove the installed interpreter\n";
     std::cout << "\n";
     std::cout << "Removed with the bytecode backend (use --compile):\n";
@@ -276,16 +278,50 @@ std::string runningExecutable(const char* argv0) {
     return argv0 != nullptr ? std::string(argv0) : std::string();
 }
 
-// The prefix `--install` writes into: /usr by default, overridable so the
-// installer can be exercised without root (the test suite uses a temp prefix).
+// The prefix `--install` writes into. `LYNXER_PREFIX` overrides the platform
+// default (`/usr`, or a per-user directory on Windows), so the installer can be
+// exercised without root (the test suite uses a temp prefix).
 std::string installPrefix() {
     const char* environment = std::getenv("LYNXER_PREFIX");
-    std::string prefix =
-        (environment != nullptr && environment[0] != '\0') ? environment : "/usr";
-    while (prefix.size() > 1 && prefix.back() == '/') {
+    std::string prefix = (environment != nullptr && environment[0] != '\0')
+                             ? environment
+                             : platform::defaultInstallPrefix();
+    while (prefix.size() > 1 &&
+           (prefix.back() == '/' || prefix.back() == '\\')) {
         prefix.pop_back();
     }
     return prefix;
+}
+
+// True when `directory` is one of the directories in `PATH`, so `--install`
+// only tells the user to update `PATH` when it actually needs it.
+bool directoryOnPath(const std::filesystem::path& directory) {
+    const char* raw = std::getenv("PATH");
+    if (raw == nullptr) {
+        return false;
+    }
+    std::error_code error;
+    const std::filesystem::path wanted =
+        std::filesystem::weakly_canonical(directory, error);
+    const std::string value(raw);
+    std::size_t start = 0;
+    while (start <= value.size()) {
+        const std::size_t end = value.find(platform::pathListSeparator(), start);
+        const std::string entry = value.substr(
+            start, end == std::string::npos ? std::string::npos : end - start);
+        if (!entry.empty()) {
+            const std::filesystem::path candidate =
+                std::filesystem::weakly_canonical(entry, error);
+            if (!error && candidate == wanted) {
+                return true;
+            }
+        }
+        if (end == std::string::npos) {
+            break;
+        }
+        start = end + 1;
+    }
+    return false;
 }
 
 bool sameFile(const std::filesystem::path& left,
@@ -411,6 +447,10 @@ int installBinary(const char* argv0) {
     std::cout << "Installed " << installedBinary.string() << "\n";
     std::cout << "Linked " << linkPath.string() << " -> "
               << installedBinary.string() << "\n";
+    if (!directoryOnPath(binDir)) {
+        std::cout << "Add " << binDir.string()
+                  << " to PATH to run `lynxer` from any directory\n";
+    }
     return 0;
 }
 

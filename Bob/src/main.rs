@@ -157,6 +157,8 @@ fn lock_contents(name: &str) -> String {
     )
 }
 
+/// A project-relative path for display. Always uses `/`, so bob's output is the
+/// same on Linux, macOS and Windows.
 fn relative(directory: &str, file: &str) -> String {
-    Path::new(directory).join(file).display().to_string()
+    format!("{directory}/{file}")
 }

@@ -14,5 +14,7 @@ so the only commands are `bob --ver` and `bob --init`.
 - [ ] **Version pinning.** `bob --ver` reports a compile-time constant for the
   supported Lynxer version; derive it from the Lynxer release so the two cannot
   drift.
-- [ ] **Release and CI.** Package Bob as its own artifact and add CI; decide how
-  a released Bob discovers which Lynxer it targets.
+- [ ] **Release and CI.** Bob now builds and self-checks in the Lynxer CI on
+  Linux AMD64 and (experimentally) on Windows AMD64/ARM64. Still to do: package
+  Bob as its own artifact, add a macOS job, and decide how a released Bob
+  discovers which Lynxer it targets.

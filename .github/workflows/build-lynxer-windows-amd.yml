@@ -56,6 +56,10 @@ jobs:
         shell: msys2 {0}
         run: make buildLynxer
 
+      - name: Build and self-check Bob (attempt)
+        shell: msys2 {0}
+        run: make -C Bob test
+
       - name: Test Lynxer (attempt)
         shell: msys2 {0}
         run: make testLynxer LYNXER_SKIP_DISPLAY=1
