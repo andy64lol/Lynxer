@@ -61,9 +61,16 @@ static std::vector<std::string> splitContentLines(const std::string& content) {
 }
 
 static std::string temporaryDirectory() {
+#if defined(_WIN32)
+    // No `/tmp`: use the host's temp directory (`%TEMP%`).
+    std::error_code error;
+    const fs::path directory = fs::temp_directory_path(error);
+    return error ? std::string(".") : directory.string();
+#else
     const char* value = std::getenv("TMPDIR");
     return value == nullptr || *value == '\0' ? std::string("/tmp")
                                               : std::string(value);
+#endif
 }
 
 extern "C" const char* fileIO_readFile(const char* path) {
@@ -176,9 +183,15 @@ extern "C" const char* fileIO_fileModTime(const char* path) {
                             (time - fs::file_time_type::clock::now());
     const std::time_t raw = std::chrono::system_clock::to_time_t(systemTime);
     std::tm local {};
+#if defined(_WIN32)
+    if (::localtime_s(&local, &raw) != 0) {
+        return stable("");
+    }
+#else
     if (::localtime_r(&raw, &local) == nullptr) {
         return stable("");
     }
+#endif
     char buffer[32];
     if (std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &local) ==
         0) {
@@ -203,6 +216,32 @@ extern "C" std::int64_t fileIO_fileIsEmpty(const char* path) {
 
 extern "C" const char* fileIO_tempFile(const char* suffix) {
     const std::string suffixText = textOrEmpty(suffix);
+#if defined(_WIN32)
+    // `mkstemps` is POSIX-only; MinGW provides plain `mkstemp`. Create a unique
+    // file, then move it to the suffixed name, retrying on the (vanishingly
+    // unlikely) collision so the result is still unique.
+    for (int attempt = 0; attempt < 128; ++attempt) {
+        std::string pattern = temporaryDirectory() + "/lynxerXXXXXX";
+        std::vector<char> buffer(pattern.begin(), pattern.end());
+        buffer.push_back('\0');
+        const int descriptor = ::mkstemp(buffer.data());
+        if (descriptor < 0) {
+            return stable("");
+        }
+        ::close(descriptor);
+        const std::string created(buffer.data());
+        const std::string target = created + suffixText;
+        std::error_code error;
+        if (!fs::exists(target, error)) {
+            fs::rename(created, target, error);
+            if (!error) {
+                return stable(target);
+            }
+        }
+        fs::remove(created, error);
+    }
+    return stable("");
+#else
     std::string pattern = temporaryDirectory() + "/lynxerXXXXXX" + suffixText;
     std::vector<char> buffer(pattern.begin(), pattern.end());
     buffer.push_back('\0');
@@ -213,6 +252,7 @@ extern "C" const char* fileIO_tempFile(const char* suffix) {
     }
     ::close(descriptor);
     return stable(std::string(buffer.data()));
+#endif
 }
 
 extern "C" const char* fileIO_tempDir() {

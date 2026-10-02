@@ -42,12 +42,15 @@ Windows build yet:
   headers MinGW does not provide (`<pwd.h>`, `<sys/ioctl.h>`, `<sys/wait.h>`,
   `<sys/resource.h>`, `<sys/statvfs.h>`, `<sys/utsname.h>`), so they need a
   Windows backend before they can be built.
+- **`js` and `multiprocessing`.** Both run commands through
+  `lynxer/stdlib/subprocess.hpp`, which is `fork`/`poll`/`waitpid` based; they
+  need a `CreateProcess` + pipe backend before they can be built.
 - **The `watch` Rust backend.** Its only backends are Linux (inotify) and
   macOS/BSD (kqueue); Windows needs `ReadDirectoryChangesW`.
 
 `LYNXER_WINDOWS_SKIP_MODULES` in the `Makefile` names the C++ modules a Windows
-build skips (`sys cli debug os path`), and `watch` is filtered out of
-`LYNXER_RUST_MODULE_NAMES`.
+build skips (`sys cli debug os path js multiprocessing`), and `watch` is filtered
+out of `LYNXER_RUST_MODULE_NAMES`.
 
 ## Still to do
 
@@ -62,9 +65,11 @@ build skips (`sys cli debug os path`), and `watch` is filtered out of
 - **libffi on Windows.** The Rust `libffi` engine compiles under the MinGW
   toolchain; the C++ link now pulls its native imports. Native modules still
   need to be validated on Windows.
-- **Stdlib backends.** `watch` needs `ReadDirectoryChangesW`; `tui`/`graphics`/
-  `sound` need console and device handling; the data-format modules should port
-  as-is.
+- **Stdlib backends.** `watch` needs `ReadDirectoryChangesW`; `cli`/`debug`/
+  `os`/`path` need Windows equivalents for their POSIX calls; `js`/
+  `multiprocessing` need a `CreateProcess` subprocess backend; `tui`/`graphics`/
+  `sound` need console and device handling. `fileIO`/`shell` and the data-format
+  modules build as-is.
 - **`--compile` bundling.** The payload is appended to the running image; the
   PE equivalent and `GetModuleFileNameW`-based self-read are still to do.
 - **CI.** An experimental, allowed-to-fail `windows-latest` job now attempts a

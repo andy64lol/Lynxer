@@ -34,7 +34,7 @@ LYNXER_CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -pedantic $(LYNXER_PLATFORM_FLAG
 # `cli`, `debug`, `os` and `path` use POSIX headers MinGW does not provide.
 # Porting each is tracked in docs/windows.md and todo.md.
 ifeq ($(OS),Windows_NT)
-LYNXER_WINDOWS_SKIP_MODULES := sys cli debug os path
+LYNXER_WINDOWS_SKIP_MODULES := sys cli debug os path js multiprocessing
 else
 LYNXER_WINDOWS_SKIP_MODULES :=
 endif
@@ -156,6 +156,12 @@ LYNXER_DISPLAY_FIXTURE_FILES := $(LYNXER_DISPLAY_FIXTURES:%=$(LYNXER_DIR)/exampl
 # input (see below).
 LYNXER_TUI_FIXTURE := $(LYNXER_DIR)/examples/stdlib_tui.lynx
 LYNXER_STDLIB_FIXTURES := $(filter-out $(LYNXER_SOUND_FIXTURE) $(LYNXER_TUI_FIXTURE) $(LYNXER_SERVER_TLS_FIXTURE) $(LYNXER_DISPLAY_FIXTURE_FILES),$(wildcard $(LYNXER_DIR)/examples/stdlib_*.lynx))
+# A module that is not built on Windows has no fixture to run; skip it instead
+# of failing on a missing import (`watch` is the Rust backend, see above).
+ifeq ($(OS),Windows_NT)
+LYNXER_WINDOWS_SKIP_FIXTURES := $(LYNXER_WINDOWS_SKIP_MODULES) watch
+LYNXER_STDLIB_FIXTURES := $(filter-out $(addprefix $(LYNXER_DIR)/examples/stdlib_,$(addsuffix .lynx,$(LYNXER_WINDOWS_SKIP_FIXTURES))),$(LYNXER_STDLIB_FIXTURES))
+endif
 ifeq ($(HAVE_AUDIO),1)
 LYNXER_AUDIO_FIXTURES := $(filter-out $(LYNXER_DISPLAY_FIXTURE_FILES),$(LYNXER_SOUND_FIXTURE))
 else

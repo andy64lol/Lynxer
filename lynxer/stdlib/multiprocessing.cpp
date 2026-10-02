@@ -139,8 +139,13 @@ static std::int64_t store(const Job& job) {
 }
 
 extern "C" std::int64_t multiprocessing_workerCount() {
+#if defined(_WIN32)
+    const unsigned int count = std::thread::hardware_concurrency();
+    return count > 0 ? static_cast<std::int64_t>(count) : 1;
+#else
     const long count = ::sysconf(_SC_NPROCESSORS_ONLN);
     return count > 0 ? static_cast<std::int64_t>(count) : 1;
+#endif
 }
 
 extern "C" std::int64_t multiprocessing_runParallel(const char* commands) {
