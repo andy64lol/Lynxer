@@ -23,6 +23,12 @@ calls the layer instead of the POSIX APIs directly, and the native shared
 library extension is `.dll` where the host needs it. The Linux behavior is
 unchanged and the Linux test suite is the regression gate.
 
+One consequence of the copy-instead-of-symlink install: on POSIX
+`/proc/self/exe` resolves `$PREFIX/bin/lynxer` to the real binary, so
+`<exeDir>/stdlib` is the stdlib. On Windows the launcher is a copy in
+`<prefix>/bin`, so `stdlibDirectory()` falls back to
+`<prefix>/lib/lynxer/stdlib` (and `lynxer.config` is looked up there too).
+
 ## What is excluded on Windows (for now)
 
 These features need work that is being done slowly and are **not** part of the

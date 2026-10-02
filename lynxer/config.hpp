@@ -8,6 +8,11 @@ namespace lynxer {
 // Directory containing the running executable (fallback: '.').
 std::string executableDirectory();
 
+// The directory the interpreter's stdlib lives in. Normally `<exeDir>/stdlib`;
+// for a Windows install, where the launcher is a copy in `<prefix>/bin`, it
+// falls back to `<prefix>/lib/lynxer/stdlib`.
+std::string stdlibDirectory();
+
 // Full path of the running executable (fallback: empty).
 std::string executablePath();
 

@@ -148,7 +148,7 @@ std::string extractDocstring(const std::string& path) {
 
 int listStdlibs() {
     const std::filesystem::path stdlibPath =
-        std::filesystem::path(executableDirectory()) / "stdlib";
+        std::filesystem::path(stdlibDirectory());
     std::vector<std::string> files;
     std::error_code directoryError;
     if (!std::filesystem::is_directory(stdlibPath, directoryError)) {

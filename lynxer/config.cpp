@@ -85,6 +85,26 @@ bool loadConfigFile(const std::string& path,
 
 std::string executableDirectory() { return executableDirectoryImpl(); }
 
+std::string stdlibDirectory() {
+    const std::filesystem::path beside(executableDirectoryImpl());
+    std::error_code error;
+    const std::filesystem::path primary = beside / "stdlib";
+    if (std::filesystem::is_directory(primary, error)) {
+        return primary.string();
+    }
+    // `--install` keeps the stdlib beside the real binary under
+    // `<prefix>/lib/lynxer`. On POSIX the `$PREFIX/bin/lynxer` symlink resolves
+    // to that binary, so the check above already succeeds; on Windows the
+    // launcher is a copy, so the executable sits in `<prefix>/bin` and this
+    // fallback finds the installed stdlib.
+    const std::filesystem::path installed =
+        beside / ".." / "lib" / "lynxer" / "stdlib";
+    if (std::filesystem::is_directory(installed, error)) {
+        return installed.lexically_normal().string();
+    }
+    return primary.string();
+}
+
 std::string executablePath() { return platform::executablePath(); }
 
 const Config& Config::instance() {
@@ -124,6 +144,11 @@ Config::Config() {
 
     const std::string directory = executableDirectoryImpl();
     if (loadConfigFile(directory + "/lynxer.config", values_)) {
+        return;
+    }
+    // A Windows install copies the launcher into `<prefix>/bin`, so the config
+    // file lives under `<prefix>/lib/lynxer`.
+    if (loadConfigFile(directory + "/../lib/lynxer/lynxer.config", values_)) {
         return;
     }
     loadConfigFile("lynxer.config", values_);
