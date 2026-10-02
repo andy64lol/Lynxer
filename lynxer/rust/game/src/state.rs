@@ -7,7 +7,6 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-use macroquad::audio::Sound;
 use macroquad::color::{Color, BLACK};
 use macroquad::texture::Texture2D;
 
@@ -63,6 +62,14 @@ pub struct PhysicsEngine {
     pub one_way: i64,
     pub player: i64,
     pub on_ground: bool,
+    pub standing_on: Option<(i64, PlatformPose)>,
+}
+
+#[derive(Clone, Copy)]
+pub struct PlatformPose {
+    pub x: f32,
+    pub y: f32,
+    pub angle: f32,
 }
 
 /// How far below a slope or one-way surface the player may be and still be
@@ -70,15 +77,14 @@ pub struct PhysicsEngine {
 /// climbs a ramp but a player deep under a platform is not teleported.
 pub const GROUND_SNAP: f32 = 2.0;
 
-/// A loaded sound plus duration-based playback state. Macroquad does not expose
-/// playback position, so one-shots expire against a wall-clock deadline.
+/// A rodio playback sink and its output stream. Keeping the stream alive keeps
+/// the backend device active for this sound.
 pub struct SoundEntry {
-    pub sound: Sound,
+    pub _output: rodio::OutputStream,
+    pub sink: rodio::Sink,
+    pub path: String,
     pub volume: f32,
-    pub playing: bool,
     pub looping: bool,
-    pub started_at: Option<std::time::Instant>,
-    pub duration: Option<std::time::Duration>,
 }
 
 /// An animated sprite: the texture indices it cycles through, its rate and the

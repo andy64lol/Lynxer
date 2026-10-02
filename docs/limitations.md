@@ -5,18 +5,6 @@ has an implementation task in [todo.md](../todo.md). Intentional product
 boundaries, removed features and compatibility decisions are documented in
 [removed-features.md](removed-features.md).
 
-## `graphics` and `game`
-
-- Context-dependent graphics operations may fail outside the frame callback
-  instead of being queued or reporting one consistent error.
-- The headless `uiWindowBegin` / `uiGroupBegin` layout supports one block level;
-  nested groups are rejected.
-- Game tilemaps read CSV layer data from the first tileset. Physics supports
-  axis-aligned player boxes, walls, slopes and one-way platforms, but not
-  rotation-aware collision or moving-platform carry.
-- Game sound state is estimated from decoded duration rather than queried from
-  the audio backend.
-
 ## `server`
 
 - Request-context readers such as `getArg`, `getHeader` and `getBody` describe

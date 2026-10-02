@@ -27,5 +27,22 @@ global main(){
     println(global.image.getPixel(shot, 24, 8));
     println(global.image.getPixel(shot, 20, 15));
 
+    // Nested windows and groups are replayed into the CPU layout tree too.
+    global.graphics.init("nested-ui", 128, 96);
+    global.graphics.clearBackground(0, 0, 0);
+    global.graphics.uiSetCheckboxValue(77, true);
+    global.graphics.uiWindowBegin(10, "outer", 4.0, 4.0, 100.0, 80.0);
+    global.graphics.uiGroupBegin(11, 60.0, 32.0);
+    global.graphics.uiLabel("child");
+    global.graphics.uiCheckbox(77, "checked child");
+    global.graphics.uiGroupEnd();
+    global.graphics.uiWindowEnd();
+    println("nested-ui-value ", global.graphics.uiCheckboxValue(77));
+    global.graphics.screenshot("/tmp/lynxer_graphics_nested_ui.png");
+    int nested = global.image.open("/tmp/lynxer_graphics_nested_ui.png");
+    println("nested-window-pixel ", global.image.getPixel(nested, 4, 4));
+    println("nested-group-pixel ", global.image.getPixel(nested, 13, 39));
+    global.fileIO.deleteFile("/tmp/lynxer_graphics_nested_ui.png");
+
     global.fileIO.deleteFile("/tmp/lynxer_graphics_raster.png");
 }

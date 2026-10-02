@@ -61,6 +61,7 @@ pub enum UiValue {
 /// macroquad's window and group take a closure, so the flat ops buffer the
 /// block here and replay it inside that closure.
 pub enum UiCommand {
+    Block(UiBlock, Vec<UiCommand>),
     Label(String, Option<(f32, f32)>),
     Button {
         id: i64,
@@ -111,7 +112,8 @@ pub struct Turtle {
     pub width: f32,
 }
 
-/// The open `uiWindowBegin`/`uiGroupBegin` block, if any.
+/// A buffered UI block and its child commands.
+#[derive(Clone)]
 pub enum UiBlock {
     Window {
         id: i64,
@@ -141,6 +143,8 @@ pub struct State {
     pub fps_cap: f32,
     pub initialized: bool,
     pub running: bool,
+    /// True only while Lynxer is executing a registered lifecycle callback.
+    pub callback_active: bool,
     pub quit_requested: bool,
     pub headless: bool,
     pub dt: f64,
@@ -160,7 +164,7 @@ pub struct State {
     /// The options of the last `uiComboBox` call per id, so the selected text
     /// can be resolved without the caller re-supplying the list.
     pub ui_options: HashMap<i64, Vec<String>>,
-    pub ui_block: Option<UiBlock>,
+    pub ui_stack: Vec<(UiBlock, Vec<UiCommand>)>,
     pub ui_buffer: Vec<UiCommand>,
     pub mouse_x: f32,
     pub mouse_y: f32,
@@ -199,6 +203,7 @@ impl State {
             fps_cap: 0.0,
             initialized: false,
             running: false,
+            callback_active: false,
             quit_requested: false,
             headless: headless_requested(),
             dt: HEADLESS_DT,
@@ -216,7 +221,7 @@ impl State {
             ui_values: HashMap::new(),
             ui_results: HashMap::new(),
             ui_options: HashMap::new(),
-            ui_block: None,
+            ui_stack: Vec::new(),
             ui_buffer: Vec::new(),
             mouse_x: 0.0,
             mouse_y: 0.0,
@@ -248,7 +253,7 @@ impl State {
         self.ui_values.clear();
         self.ui_results.clear();
         self.ui_options.clear();
-        self.ui_block = None;
+        self.ui_stack.clear();
         self.ui_buffer.clear();
         self.quit_requested = false;
         self.sim_time = 0.0;
@@ -370,7 +375,7 @@ impl State {
     /// True while a window/group block is open, so widget ops buffer instead of
     /// drawing.
     pub fn buffering(&self) -> bool {
-        self.ui_block.is_some()
+        !self.ui_stack.is_empty()
     }
 }
 

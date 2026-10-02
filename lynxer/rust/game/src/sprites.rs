@@ -1,8 +1,8 @@
 //! Sprites, sprite lists and textures.
 //!
 //! Sprites and textures live in `State` registries and are referenced by an
-//! integer handle (`-1` means "not available"). Collisions are axis-aligned
-//! box tests against the sprite's scaled size.
+//! integer handle (`-1` means "not available"). Collision tests use oriented
+//! bounding boxes matching each sprite's rendered rotation.
 
 use lynxer_abi::{export_float, export_int, export_string};
 use macroquad::math::vec2;
@@ -53,9 +53,28 @@ pub(crate) fn draw_sprite(state: &State, index: i64) {
 }
 
 fn collides(a: &Sprite, b: &Sprite) -> bool {
-    let half_w = (a.width() + b.width()) / 2.0;
-    let half_h = (a.height() + b.height()) / 2.0;
-    (a.x - b.x).abs() <= half_w && (a.y - b.y).abs() <= half_h
+    box_axes(a)
+        .into_iter()
+        .chain(box_axes(b))
+        .all(|(axis_x, axis_y)| {
+            let distance = ((b.x - a.x) * axis_x + (b.y - a.y) * axis_y).abs();
+            let radius = projected_radius(a, axis_x, axis_y) + projected_radius(b, axis_x, axis_y);
+            distance <= radius
+        })
+}
+
+fn box_axes(sprite: &Sprite) -> [(f32, f32); 2] {
+    let angle = sprite.angle.to_radians();
+    let (sin, cos) = angle.sin_cos();
+    [(cos, sin), (-sin, cos)]
+}
+
+fn projected_radius(sprite: &Sprite, axis_x: f32, axis_y: f32) -> f32 {
+    let axes = box_axes(sprite);
+    let half_width = sprite.width().abs() / 2.0;
+    let half_height = sprite.height().abs() / 2.0;
+    half_width * (axes[0].0 * axis_x + axes[0].1 * axis_y).abs()
+        + half_height * (axes[1].0 * axis_x + axes[1].1 * axis_y).abs()
 }
 
 // --- creation ---------------------------------------------------------------
@@ -240,6 +259,23 @@ export_string!(lynxer_game_get_sprite_position, args, {
         None => "0,0".to_string(),
     })
 });
+
+#[cfg(test)]
+mod tests {
+    use super::collides;
+    use crate::state::Sprite;
+    use macroquad::color::WHITE;
+
+    #[test]
+    fn sprite_collision_uses_oriented_bounds() {
+        let mut narrow = Sprite::solid(0.0, 0.0, 10.0, 2.0, WHITE);
+        narrow.angle = 45.0;
+        let separated = Sprite::solid(3.5, 0.0, 2.0, 2.0, WHITE);
+        let overlapping = Sprite::solid(3.0, 3.0, 2.0, 2.0, WHITE);
+        assert!(!collides(&narrow, &separated));
+        assert!(collides(&narrow, &overlapping));
+    }
+}
 
 // --- setters ----------------------------------------------------------------
 

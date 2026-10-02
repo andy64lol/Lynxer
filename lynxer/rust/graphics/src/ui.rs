@@ -5,10 +5,8 @@
 //! Lynxer can read and write them directly; button clicks land in the result
 //! registry and are read with `uiResult(id)`.
 //!
-//! macroquad's window and group take a closure, which a flat op API cannot
-//! nest. `uiWindowBegin`/`uiGroupBegin` therefore buffer the widgets issued
-//! until the matching `*End`, then replay them inside that closure. One block
-//! deep is supported; a `*Begin` while a block is open is rejected with `-1`.
+//! macroquad's window and group take a closure, so the flat op API buffers
+//! commands on a stack and replays each completed block in its parent.
 
 use std::collections::HashMap;
 
@@ -33,7 +31,13 @@ fn buffering() -> bool {
 }
 
 fn push(command: UiCommand) {
-    with(|state| state.ui_buffer.push(command));
+    with(|state| {
+        if let Some((_, commands)) = state.ui_stack.last_mut() {
+            commands.push(command);
+        } else {
+            state.ui_buffer.push(command);
+        }
+    });
 }
 
 fn position(point: Option<(f32, f32)>) -> Option<macroquad::math::Vec2> {
@@ -225,57 +229,26 @@ pub fn same_line(x: f32) {
 
 pub fn window_begin(id: i64, title: &str, x: f32, y: f32, w: f32, h: f32) -> i64 {
     with(|state| {
-        if state.ui_block.is_some() {
-            return -1;
+        if state.ui_stack.is_empty() {
+            state.ui_buffer.clear();
         }
-        state.ui_buffer.clear();
-        state.ui_block = Some(UiBlock::Window {
-            id,
-            title: title.to_string(),
-            x,
-            y,
-            w,
-            h,
-        });
+        state.ui_stack.push((
+            UiBlock::Window {
+                id,
+                title: title.to_string(),
+                x,
+                y,
+                w,
+                h,
+            },
+            Vec::new(),
+        ));
         0
     })
 }
 
 pub fn window_end() -> i64 {
-    let (block, commands) =
-        with(|state| (state.ui_block.take(), std::mem::take(&mut state.ui_buffer)));
-    let (id, title, x, y, w, h) = match block {
-        Some(UiBlock::Window {
-            id,
-            title,
-            x,
-            y,
-            w,
-            h,
-        }) => (id, title, x, y, w, h),
-        _ => return -1,
-    };
-    if headless() {
-        draw_headless(Some((&title, x, y, w, h)), &commands);
-        return 0;
-    }
-    let mut values = with(|state| state.ui_values.clone());
-    let mut results: HashMap<i64, i64> = HashMap::new();
-    {
-        let mut ui = root_ui();
-        Window::new(id_of(id), vec2(x, y), vec2(w, h))
-            .label(&title)
-            .ui(&mut ui, |ui| {
-                for command in &commands {
-                    execute(ui, command, &mut values, &mut results);
-                }
-            });
-    }
-    with(|state| {
-        state.ui_values.extend(values);
-        state.ui_results.extend(results);
-    });
-    0
+    finish_block(true)
 }
 
 /// One widget resolved for the headless layout pass.
@@ -285,30 +258,46 @@ enum HeadlessWidget {
     Checkbox(String, bool),
     Bar(String, f32),
     Rule,
+    Nested(UiBlock, Vec<HeadlessWidget>),
 }
 
-/// Rasterizes a buffered UI block into the CPU framebuffer. There is no input
-/// or hit-testing headless (a button is never "clicked"), and the layout is a
-/// simple stacked approximation of macroquad's, not a pixel-exact copy.
-fn draw_headless(window: Option<(&str, f32, f32, f32, f32)>, commands: &[UiCommand]) {
-    let text_color = Color::new(0.9, 0.9, 0.95, 1.0);
-    let box_color = Color::new(0.28, 0.28, 0.34, 1.0);
-    let widgets: Vec<HeadlessWidget> = commands
+pub fn group_begin(id: i64, w: f32, h: f32) -> i64 {
+    with(|state| {
+        if state.ui_stack.is_empty() {
+            state.ui_buffer.clear();
+        }
+        state
+            .ui_stack
+            .push((UiBlock::Group { id, w, h }, Vec::new()));
+        0
+    })
+}
+
+pub fn group_end() -> i64 {
+    finish_block(false)
+}
+
+fn headless_widgets(commands: &[UiCommand]) -> Vec<HeadlessWidget> {
+    commands
         .iter()
         .map(|command| match command {
-            UiCommand::Label(text, _) => HeadlessWidget::Label(text.clone()),
-            UiCommand::Button { text, .. } => HeadlessWidget::Box(text.clone(), box_color),
-            UiCommand::InputText { id, label, .. } => {
-                let value = with(|state| state.ui_text(*id));
-                HeadlessWidget::Box(
-                    format!("{label}: {value}"),
-                    Color::new(0.16, 0.16, 0.2, 1.0),
-                )
+            UiCommand::Block(block, children) => {
+                HeadlessWidget::Nested(block.clone(), headless_widgets(children))
             }
+            UiCommand::Label(text, _) => HeadlessWidget::Label(text.clone()),
+            UiCommand::Button { text, .. } => {
+                HeadlessWidget::Box(text.clone(), Color::new(0.28, 0.28, 0.34, 1.0))
+            }
+            UiCommand::InputText { id, label, .. } => HeadlessWidget::Box(
+                format!("{label}: {}", with(|state| state.ui_text(*id))),
+                Color::new(0.16, 0.16, 0.2, 1.0),
+            ),
             UiCommand::ComboBox { id, options, .. } => {
                 let index = with(|state| state.ui_int(*id, 0)).max(0) as usize;
-                let selected = options.get(index).cloned().unwrap_or_default();
-                HeadlessWidget::Box(selected, box_color)
+                HeadlessWidget::Box(
+                    options.get(index).cloned().unwrap_or_default(),
+                    Color::new(0.28, 0.28, 0.34, 1.0),
+                )
             }
             UiCommand::Checkbox { id, label } => {
                 HeadlessWidget::Checkbox(label.clone(), with(|state| state.ui_bool(*id, false)))
@@ -331,124 +320,248 @@ fn draw_headless(window: Option<(&str, f32, f32, f32, f32)>, commands: &[UiComma
             UiCommand::Separator => HeadlessWidget::Rule,
             UiCommand::SameLine(_) => HeadlessWidget::Label(String::new()),
         })
-        .collect();
-    let font = crate::font::builtin().clone();
-    crate::raster::with_framebuffer(|framebuffer| {
-        let (x, mut cursor, width) = match window {
-            Some((title, x, y, w, h)) => {
-                framebuffer.rectangle(x, y, w, h, Color::new(0.12, 0.12, 0.16, 0.95));
-                framebuffer.rectangle_lines(x, y, w, h, 1.0, Color::new(0.4, 0.4, 0.5, 1.0));
-                framebuffer.rectangle(x, y, w, 24.0, Color::new(0.2, 0.2, 0.26, 1.0));
-                font.draw(framebuffer, title, x + 8.0, y + 17.0, 16.0, 0.0, text_color);
-                (x + 8.0, y + 34.0, w - 16.0)
+        .collect()
+}
+
+fn draw_headless_children(
+    framebuffer: &mut crate::raster::Framebuffer,
+    font: &crate::font::RasterFont,
+    widgets: &[HeadlessWidget],
+    x: f32,
+    y: f32,
+    width: f32,
+    text_color: Color,
+    box_color: Color,
+) {
+    let mut cursor = y;
+    for widget in widgets {
+        match widget {
+            HeadlessWidget::Label(text) => {
+                font.draw(framebuffer, text, x, cursor + 12.0, 16.0, 0.0, text_color);
+                cursor += 20.0;
             }
-            None => (0.0, 8.0, 200.0),
-        };
-        for widget in &widgets {
-            match widget {
-                HeadlessWidget::Label(text) => {
-                    font.draw(framebuffer, text, x, cursor + 12.0, 16.0, 0.0, text_color);
-                    cursor += 20.0;
-                }
-                HeadlessWidget::Box(text, color) => {
-                    framebuffer.rectangle(x, cursor, width, 22.0, *color);
-                    font.draw(
-                        framebuffer,
-                        text,
-                        x + 6.0,
-                        cursor + 16.0,
-                        16.0,
-                        0.0,
-                        text_color,
-                    );
-                    cursor += 28.0;
-                }
-                HeadlessWidget::Checkbox(text, checked) => {
-                    let fill = if *checked {
+            HeadlessWidget::Box(text, color) => {
+                framebuffer.rectangle(x, cursor, width, 22.0, *color);
+                font.draw(
+                    framebuffer,
+                    text,
+                    x + 6.0,
+                    cursor + 16.0,
+                    16.0,
+                    0.0,
+                    text_color,
+                );
+                cursor += 28.0;
+            }
+            HeadlessWidget::Checkbox(text, checked) => {
+                framebuffer.rectangle(
+                    x,
+                    cursor,
+                    14.0,
+                    14.0,
+                    if *checked {
                         Color::new(0.3, 0.7, 0.4, 1.0)
                     } else {
-                        Color::new(0.16, 0.16, 0.2, 1.0)
-                    };
-                    framebuffer.rectangle(x, cursor, 14.0, 14.0, fill);
-                    framebuffer.rectangle_lines(x, cursor, 14.0, 14.0, 1.0, text_color);
-                    font.draw(
-                        framebuffer,
-                        text,
-                        x + 20.0,
-                        cursor + 12.0,
-                        16.0,
-                        0.0,
-                        text_color,
-                    );
-                    cursor += 22.0;
-                }
-                HeadlessWidget::Bar(text, value) => {
-                    framebuffer.rectangle(x, cursor, width, 16.0, Color::new(0.16, 0.16, 0.2, 1.0));
-                    framebuffer.rectangle(
-                        x,
-                        cursor,
-                        width * value.clamp(0.0, 1.0),
-                        16.0,
-                        Color::new(0.3, 0.55, 0.85, 1.0),
-                    );
-                    framebuffer.rectangle_lines(x, cursor, width, 16.0, 1.0, text_color);
-                    font.draw(
-                        framebuffer,
-                        text,
-                        x + 4.0,
-                        cursor + 12.0,
-                        14.0,
-                        0.0,
-                        text_color,
-                    );
-                    cursor += 24.0;
-                }
-                HeadlessWidget::Rule => {
-                    framebuffer.line(x, cursor + 6.0, x + width, cursor + 6.0, 1.0, text_color);
-                    cursor += 16.0;
-                }
+                        box_color
+                    },
+                );
+                font.draw(
+                    framebuffer,
+                    text,
+                    x + 20.0,
+                    cursor + 12.0,
+                    16.0,
+                    0.0,
+                    text_color,
+                );
+                cursor += 22.0;
+            }
+            HeadlessWidget::Bar(text, value) => {
+                framebuffer.rectangle(
+                    x,
+                    cursor,
+                    width * value.clamp(0.0, 1.0),
+                    16.0,
+                    Color::new(0.3, 0.55, 0.85, 1.0),
+                );
+                font.draw(
+                    framebuffer,
+                    text,
+                    x + 4.0,
+                    cursor + 12.0,
+                    14.0,
+                    0.0,
+                    text_color,
+                );
+                cursor += 24.0;
+            }
+            HeadlessWidget::Rule => {
+                framebuffer.line(x, cursor + 6.0, x + width, cursor + 6.0, 1.0, text_color);
+                cursor += 16.0;
+            }
+            HeadlessWidget::Nested(block, children) => {
+                let (title, requested_width, requested_height) = match block {
+                    UiBlock::Window { title, w, h, .. } => (title.clone(), *w, *h),
+                    UiBlock::Group { id, w, h } => (format!("Group {id}"), *w, *h),
+                };
+                let nested_width = if requested_width > 0.0 {
+                    requested_width.min(width)
+                } else {
+                    width
+                };
+                let height = if requested_height > 0.0 {
+                    requested_height
+                } else {
+                    (children.len() as f32 * 28.0 + 34.0).max(52.0)
+                };
+                framebuffer.rectangle(x, cursor, nested_width, height, box_color);
+                framebuffer.rectangle_lines(x, cursor, nested_width, height, 1.0, text_color);
+                font.draw(
+                    framebuffer,
+                    &title,
+                    x + 6.0,
+                    cursor + 16.0,
+                    15.0,
+                    0.0,
+                    text_color,
+                );
+                draw_headless_children(
+                    framebuffer,
+                    font,
+                    children,
+                    x + 8.0,
+                    cursor + 24.0,
+                    nested_width - 16.0,
+                    text_color,
+                    box_color,
+                );
+                cursor += height + 6.0;
             }
         }
-    });
+    }
 }
 
-pub fn group_begin(id: i64, w: f32, h: f32) -> i64 {
-    with(|state| {
-        if state.ui_block.is_some() {
-            return -1;
+fn finish_block(expect_window: bool) -> i64 {
+    let (block, commands, parent_open, valid) = with(|state| {
+        let Some((current, _)) = state.ui_stack.last() else {
+            return (None, Vec::new(), false, false);
+        };
+        if matches!(current, UiBlock::Window { .. }) != expect_window {
+            return (None, Vec::new(), false, false);
         }
-        state.ui_buffer.clear();
-        state.ui_block = Some(UiBlock::Group { id, w, h });
-        0
-    })
-}
-
-pub fn group_end() -> i64 {
-    let (block, commands) =
-        with(|state| (state.ui_block.take(), std::mem::take(&mut state.ui_buffer)));
-    let (id, w, h) = match block {
-        Some(UiBlock::Group { id, w, h }) => (id, w, h),
-        _ => return -1,
-    };
+        let (block, commands) = state.ui_stack.pop().expect("block checked above");
+        let parent_open = !state.ui_stack.is_empty();
+        if let Some((_, parent_commands)) = state.ui_stack.last_mut() {
+            parent_commands.push(UiCommand::Block(block, commands));
+            return (None, Vec::new(), true, true);
+        }
+        (Some(block), commands, parent_open, true)
+    });
+    if !valid {
+        return -1;
+    }
+    if parent_open {
+        return 0;
+    }
+    let Some(block) = block else { return -1 };
     if headless() {
-        draw_headless(None, &commands);
+        draw_headless(Some(&block), &commands);
         return 0;
     }
     let mut values = with(|state| state.ui_values.clone());
-    let mut results: HashMap<i64, i64> = HashMap::new();
+    let mut results = HashMap::new();
     {
         let mut ui = root_ui();
-        ui.group(id_of(id), vec2(w, h), |ui| {
-            for command in &commands {
-                execute(ui, command, &mut values, &mut results);
-            }
-        });
+        execute_block(&mut ui, &block, &commands, &mut values, &mut results);
     }
     with(|state| {
         state.ui_values.extend(values);
         state.ui_results.extend(results);
     });
     0
+}
+
+fn execute_block(
+    ui: &mut Ui,
+    block: &UiBlock,
+    commands: &[UiCommand],
+    values: &mut HashMap<i64, UiValue>,
+    results: &mut HashMap<i64, i64>,
+) {
+    match block {
+        UiBlock::Window {
+            id,
+            title,
+            x,
+            y,
+            w,
+            h,
+        } => {
+            Window::new(id_of(*id), vec2(*x, *y), vec2(*w, *h))
+                .label(title)
+                .ui(ui, |ui| execute_all(ui, commands, values, results));
+        }
+        UiBlock::Group { id, w, h } => {
+            ui.group(id_of(*id), vec2(*w, *h), |ui| {
+                execute_all(ui, commands, values, results)
+            });
+        }
+    }
+}
+
+fn execute_all(
+    ui: &mut Ui,
+    commands: &[UiCommand],
+    values: &mut HashMap<i64, UiValue>,
+    results: &mut HashMap<i64, i64>,
+) {
+    for command in commands {
+        if let UiCommand::Block(block, children) = command {
+            execute_block(ui, block, children, values, results);
+        } else {
+            execute(ui, command, values, results);
+        }
+    }
+}
+
+fn draw_headless(block: Option<&UiBlock>, commands: &[UiCommand]) {
+    let text_color = Color::new(0.9, 0.9, 0.95, 1.0);
+    let box_color = Color::new(0.28, 0.28, 0.34, 1.0);
+    let widgets = headless_widgets(commands);
+    let font = crate::font::builtin().clone();
+    crate::raster::with_framebuffer(|framebuffer| {
+        let (x, y, width) = match block {
+            Some(UiBlock::Window {
+                title, x, y, w, h, ..
+            }) => {
+                framebuffer.rectangle(*x, *y, *w, *h, Color::new(0.12, 0.12, 0.16, 0.95));
+                framebuffer.rectangle_lines(*x, *y, *w, *h, 1.0, Color::new(0.4, 0.4, 0.5, 1.0));
+                framebuffer.rectangle(*x, *y, *w, 24.0, Color::new(0.2, 0.2, 0.26, 1.0));
+                font.draw(
+                    framebuffer,
+                    title,
+                    *x + 8.0,
+                    *y + 17.0,
+                    16.0,
+                    0.0,
+                    text_color,
+                );
+                (*x + 8.0, *y + 34.0, *w - 16.0)
+            }
+            Some(UiBlock::Group { w, .. }) => (8.0, 8.0, *w),
+            None => (0.0, 8.0, 200.0),
+        };
+        draw_headless_children(
+            framebuffer,
+            &font,
+            &widgets,
+            x,
+            y,
+            width,
+            text_color,
+            box_color,
+        );
+    });
 }
 
 fn execute(
@@ -458,6 +571,7 @@ fn execute(
     results: &mut HashMap<i64, i64>,
 ) {
     match command {
+        UiCommand::Block(block, commands) => execute_block(ui, block, commands, values, results),
         UiCommand::Label(text, point) => ui.label(position(*point), text),
         UiCommand::Button {
             id,
@@ -574,4 +688,33 @@ pub fn parse_options(text: &str) -> Vec<String> {
         }
     }
     values
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{group_begin, group_end, label, window_begin};
+    use crate::state::with;
+
+    #[test]
+    fn nested_ui_blocks_keep_children_in_the_parent_buffer() {
+        with(|state| {
+            state.headless = true;
+            state.ui_stack.clear();
+            state.ui_buffer.clear();
+        });
+        assert_eq!(window_begin(1, "outer", 0.0, 0.0, 100.0, 80.0), 0);
+        assert_eq!(group_begin(2, 50.0, 40.0), 0);
+        label("inside", None);
+        assert_eq!(group_end(), 0);
+        with(|state| {
+            assert_eq!(state.ui_stack.len(), 1);
+            assert!(matches!(
+                state.ui_stack[0].1.first(),
+                Some(crate::state::UiCommand::Block(crate::state::UiBlock::Group { id: 2, .. }, commands))
+                    if matches!(commands.first(), Some(crate::state::UiCommand::Label(text, _)) if text == "inside")
+            ));
+            state.ui_stack.clear();
+            state.ui_buffer.clear();
+        });
+    }
 }

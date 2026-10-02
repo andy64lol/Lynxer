@@ -17,20 +17,19 @@ features are in [docs/removed-features.md](docs/removed-features.md).
 
 ## `graphics` and `game`
 
-- [ ] **GPU-operation lifecycle.** Make context-dependent operations safe to
-  request outside a frame callback, with documented deferred execution or a
-  clear error rather than inconsistent failures. Cover windowed and headless
-  modes.
-- [ ] **Nested headless UI groups.** Support nested `uiWindowBegin` /
-  `uiGroupBegin` blocks in the headless layout stack and add fixture coverage
-  for nested layout and widget values.
-- [ ] **Game maps and collision.** Support multiple tilesets and common TMX
-  layer encodings, then add rotation-aware and moving-platform collision while
-  retaining existing wall, slope and one-way-platform behavior. Add headless
-  fixtures for map selection and collision cases.
-- [ ] **Game/audio playback state.** Make sound-playing queries reflect actual
-  backend playback state where available, and add deterministic tests for
-  completion, looping, stopping and unavailable-device behavior.
+- [x] **GPU-operation lifecycle.** Context-dependent graphics operations now
+  return consistent failure sentinels outside registered frame callbacks;
+  headless CPU paths remain available.
+- [x] **Nested headless UI groups.** Nested windows and groups are buffered,
+  replayed and rasterized recursively, with fixture coverage for nested layout
+  and widget values.
+- [x] **Game maps and collision.** TMX parsing supports multiple tilesets,
+  common layer encodings and compressed base64 data. Sprite collision handles
+  rotation, and physics carries grounded players with moving/rotating
+  platforms while retaining existing wall, slope and one-way behavior.
+- [x] **Game/audio playback state.** Sound-playing queries use backend sink
+  state where audio is available, with tests for completion, looping, stopping
+  and unavailable-device behavior.
 
 ## `server`
 

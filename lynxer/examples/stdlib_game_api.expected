@@ -18,6 +18,7 @@ destroy=0
 destroyAgain=-1
 tilemap=true
 walls=true count=4
+tilesets-and-encodings=1,1
 missingMap=-1
 badLayer=-1
 engine=0 setPlayer=0
@@ -31,6 +32,8 @@ canJumpAfterJump=false
 vyRising=true
 updateBad=-1 canJumpBad=false
 jumpBad=-1 vyBad=0
+platform-grounded=true
+platform-carry=15
 anim=-1
 animBad=-1
 updateAnimBad=-1

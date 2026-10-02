@@ -195,8 +195,8 @@ frame's `deltaTime()`.
 | `spriteExists` | `(int idx) -> bool` | Live check. |
 | `updateSprite` | `(int idx)` | Apply velocity for one frame. |
 | `drawSprite` | `(int idx)` | Draw. |
-| `spriteCollides` | `(int a, int b) -> bool` | Axis-aligned overlap. |
-| `spriteCollidesWithList` | `(int spr, int list) -> bool` | Overlap with any list member. |
+| `spriteCollides` | `(int a, int b) -> bool` | Oriented bounding-box overlap. |
+| `spriteCollidesWithList` | `(int spr, int list) -> bool` | Oriented overlap with any list member. |
 | `getCollidingSprites` | `(int spr, int list) -> str` | `"[1,2]"`. |
 | `spriteDistance` | `(int a, int b) -> float` | Centre distance. |
 | `spriteNear` | `(int idx, float tx, float ty, float range) -> bool` | Within range. |
@@ -270,10 +270,12 @@ together.
 
 `loadTilemap(tmxPath, scaling)` reads a Tiled `.tmx` file and returns a **scene**
 index; `getTilemapLayer(sceneIdx, layerName)` returns the named layer as a
-**sprite list**. Only the first `<tileset>` and each `<layer>`'s comma-separated
-`<data>` are read — CSV payloads only. Nonzero global tile IDs are cropped from
-the tileset atlas using `firstgid`, `columns`, `margin` and `spacing`. The image
-path is resolved relative to the TMX file.
+**sprite list**. Inline and external TSX tilesets are supported, with global
+tile IDs mapped to their respective atlas by `firstgid`, `columns`, `margin`
+and `spacing`. CSV, XML `<tile gid>` and base64 layer data (raw, gzip or zlib)
+are supported. Atlas and TSX image paths are resolved relative to their source
+files; Tiled horizontal/vertical/diagonal flip flags are retained by tile
+sprites.
 
 Tiles become solid sprites on the grid, so a map carries geometry and collision
 (hand a layer to `makePhysicsEngine` as the wall list). When the atlas cannot be
@@ -304,6 +306,11 @@ wall list:
   was above it on the previous step and is falling now — so a jump carries the
   player up through it.
 
+Sprite-to-sprite collision uses oriented bounding boxes based on each sprite's
+angle. Physics accounts for the rotated player's bounds while preserving the
+existing wall/slope rules. A grounded player is carried by the platform they
+landed on when it translates or rotates between physics steps.
+
 The player is snapped onto a slope or platform surface only from within two
 units of it, which bounds how far a ramp can lift them in one step.
 
@@ -326,11 +333,10 @@ Both are texture-backed, so in headless mode `makeAnimatedSprite` returns `-1`.
 | `setSoundVolume(idx, volume)` | Volume from `0.0` to `1.0` |
 | `isSoundPlaying(idx)` | Playback state tracked by the module |
 
-`isSoundPlaying` tracks a one-shot against its decoded duration and returns
-`false` after that duration; looping sounds stay active until stopped. This is
-duration-based state, not a playback-position query from the audio backend. If a
-duration cannot be probed, the sound remains marked as playing until
-`stopSound`. In headless mode `loadSound` returns `-1`.
+`isSoundPlaying` queries the rodio sink for current playback state, so completed
+one-shots and stopped sounds return `false`, and a queued loop remains active
+until stopped. `loadSound` returns `-1` in headless mode or when the file or
+audio output device is unavailable.
 
 ## Notes and current limitations
 

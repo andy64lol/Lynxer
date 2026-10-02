@@ -62,8 +62,12 @@ loop; Ctrl-C exits with code 130.
 
 Every op that touches the GPU context — `loadTexture`, `loadFont`,
 `loadMaterial`, `renderTarget`, `getScreenData`, `screenshot`, all `draw*` ops
-and all `ui*` widgets — is only valid **inside a callback**. That is when the
-window's context exists. Calling them from `setup` or `main` will fail.
+and immediate-mode widgets — is only valid **inside a registered callback**.
+`start` may load resources; `update` and `draw` may issue drawing/UI work.
+Outside a callback, context-dependent integer operations return `-1`, float
+operations return `-1.0`, and string operations return an empty string without
+calling macroquad. This also applies when a windowed run has not started yet.
+Headless CPU-rendered drawing and UI remain available outside callbacks.
 
 ## Headless mode
 
@@ -264,10 +268,10 @@ survive across frames and can be read or written from Lynxer.
 
 macroquad's window and group take a closure, which a flat op list cannot nest,
 so `uiWindowBegin`/`uiGroupBegin` **buffer** the widgets issued until the
-matching `*End`, then replay them inside that closure. One block deep is
-supported: a `*Begin` while a block is open returns `-1`. Widget values update
-when the block is replayed, so read them after `uiWindowEnd`/`uiGroupEnd`
-rather than between the calls.
+matching `*End`, then replay them inside that closure. Blocks can be nested to
+arbitrary depth. The headless rasterizer draws nested panels too, without
+interaction. Widget values update when the outermost block is replayed, so
+read them after its `uiWindowEnd`/`uiGroupEnd`.
 
 ## Randomness and colour
 

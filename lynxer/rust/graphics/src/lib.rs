@@ -29,7 +29,10 @@ mod turtle;
 mod ui;
 mod window;
 
-use lynxer_abi::{export_float, export_int, export_string, Args, LynxerHostApi};
+use lynxer_abi::{
+    export_float as abi_export_float, export_int as abi_export_int,
+    export_string as abi_export_string, Args, LynxerHostApi,
+};
 use macroquad::color::Color;
 use macroquad::conf::Conf;
 use macroquad::miniquad::conf::Conf as MiniquadConf;
@@ -56,13 +59,136 @@ fn texture_at(handle: i64) -> Option<Texture2D> {
 /// Runs the Lynxer update and draw callbacks for one frame. Returns false when
 /// a callback failed, so the loop stops and the interpreter can rethrow.
 fn run_frame(host: &'static LynxerHostApi, update: &str, draw: &str, dt: f64) -> bool {
-    if !update.is_empty() && lynxer_abi::invoke(host, update, Some(dt)) != 0 {
+    if !update.is_empty() && invoke_callback(host, update, Some(dt)) != 0 {
         return false;
     }
-    if !draw.is_empty() && lynxer_abi::invoke(host, draw, None) != 0 {
+    if !draw.is_empty() && invoke_callback(host, draw, None) != 0 {
         return false;
     }
     true
+}
+
+fn invoke_callback(host: &'static LynxerHostApi, name: &str, dt: Option<f64>) -> i32 {
+    with(|state| state.callback_active = true);
+    let result = lynxer_abi::invoke(host, name, dt);
+    with(|state| state.callback_active = false);
+    result
+}
+
+fn requires_graphics_context(name: &str) -> bool {
+    name.starts_with("lynxer_graphics_draw_")
+        || name == "lynxer_graphics_clear_background"
+        || name.starts_with("lynxer_graphics_load_")
+        || name.starts_with("lynxer_graphics_texture_draw_")
+        || name.starts_with("lynxer_graphics_render_target")
+        || name.starts_with("lynxer_graphics_set_render_target")
+        || name == "lynxer_graphics_end_render_target"
+        || name.starts_with("lynxer_graphics_set_camera")
+        || name == "lynxer_graphics_set_default_camera"
+        || name == "lynxer_graphics_push_camera_state"
+        || name == "lynxer_graphics_pop_camera_state"
+        || name.starts_with("lynxer_graphics_use_material")
+        || name == "lynxer_graphics_use_default_material"
+        || name.starts_with("lynxer_graphics_set_uniform")
+        || name == "lynxer_graphics_set_material_texture"
+        || name == "lynxer_graphics_set_texture_filter"
+        || name == "lynxer_graphics_build_textures_atlas"
+        || name == "lynxer_graphics_texture_from_image"
+        || name == "lynxer_graphics_image_from_texture"
+        || name == "lynxer_graphics_get_screen_data"
+        || name == "lynxer_graphics_screenshot"
+        || name == "lynxer_graphics_set_default_filter_mode"
+        || name == "lynxer_graphics_turtle_forward"
+        || name == "lynxer_graphics_turtle_back"
+        || name == "lynxer_graphics_turtle_goto"
+        || (name.starts_with("lynxer_graphics_ui_")
+            && matches!(
+                name,
+                "lynxer_graphics_ui_label"
+                    | "lynxer_graphics_ui_label_at"
+                    | "lynxer_graphics_ui_button"
+                    | "lynxer_graphics_ui_button_at"
+                    | "lynxer_graphics_ui_checkbox"
+                    | "lynxer_graphics_ui_slider"
+                    | "lynxer_graphics_ui_input_text"
+                    | "lynxer_graphics_ui_input_password"
+                    | "lynxer_graphics_ui_progress_bar"
+                    | "lynxer_graphics_ui_combo_box"
+                    | "lynxer_graphics_ui_separator"
+                    | "lynxer_graphics_ui_same_line"
+                    | "lynxer_graphics_ui_window_end"
+                    | "lynxer_graphics_ui_group_end"
+            ))
+}
+
+fn graphics_context_allowed(name: &str) -> bool {
+    with(|state| {
+        state.headless
+            || state.callback_active
+            || (state.buffering()
+                && matches!(
+                    name,
+                    "lynxer_graphics_ui_label"
+                        | "lynxer_graphics_ui_label_at"
+                        | "lynxer_graphics_ui_button"
+                        | "lynxer_graphics_ui_button_at"
+                        | "lynxer_graphics_ui_checkbox"
+                        | "lynxer_graphics_ui_slider"
+                        | "lynxer_graphics_ui_input_text"
+                        | "lynxer_graphics_ui_input_password"
+                        | "lynxer_graphics_ui_progress_bar"
+                        | "lynxer_graphics_ui_combo_box"
+                        | "lynxer_graphics_ui_separator"
+                        | "lynxer_graphics_ui_same_line"
+                ))
+            || (state.ui_stack.len() > 1
+                && matches!(
+                    name,
+                    "lynxer_graphics_ui_window_end" | "lynxer_graphics_ui_group_end"
+                ))
+    })
+}
+
+macro_rules! export_int {
+    ($name:ident, $args:ident, $body:block) => {
+        abi_export_int!($name, $args, {
+            if requires_graphics_context(stringify!($name))
+                && !graphics_context_allowed(stringify!($name))
+            {
+                -1
+            } else {
+                $body
+            }
+        });
+    };
+}
+
+macro_rules! export_float {
+    ($name:ident, $args:ident, $body:block) => {
+        abi_export_float!($name, $args, {
+            if requires_graphics_context(stringify!($name))
+                && !graphics_context_allowed(stringify!($name))
+            {
+                -1.0
+            } else {
+                $body
+            }
+        });
+    };
+}
+
+macro_rules! export_string {
+    ($name:ident, $args:ident, $body:block) => {
+        abi_export_string!($name, $args, {
+            if requires_graphics_context(stringify!($name))
+                && !graphics_context_allowed(stringify!($name))
+            {
+                String::new()
+            } else {
+                $body
+            }
+        });
+    };
 }
 
 export_int!(lynxer_graphics_init, args, {
@@ -110,7 +236,7 @@ export_int!(lynxer_graphics_run, args, {
     if headless {
         with(|state| state.running = true);
         if !start.is_empty() {
-            lynxer_abi::invoke(host, &start, None);
+            invoke_callback(host, &start, None);
         }
         for _ in 0..HEADLESS_FRAMES {
             with(|state| {
@@ -144,7 +270,7 @@ export_int!(lynxer_graphics_run, args, {
     Window::from_config(configuration, async move {
         with(|state| state.running = true);
         if !start.is_empty() {
-            lynxer_abi::invoke(host, &start, None);
+            invoke_callback(host, &start, None);
         }
         loop {
             let dt = macroquad::time::get_frame_time() as f64;
@@ -2350,3 +2476,36 @@ const OPS: &[(&str, &str, &str)] = &[
 ];
 
 lynxer_abi::lynxer_module!(OPS);
+
+#[cfg(test)]
+mod tests {
+    use super::{graphics_context_allowed, requires_graphics_context};
+    use crate::state::with;
+
+    #[test]
+    fn gpu_operations_have_a_single_outside_callback_policy() {
+        assert!(requires_graphics_context("lynxer_graphics_draw_cube"));
+        assert!(requires_graphics_context("lynxer_graphics_load_texture"));
+        assert!(!requires_graphics_context("lynxer_graphics_image_width"));
+        let previous = with(|state| {
+            let old_headless = state.headless;
+            let old_callback = state.callback_active;
+            state.headless = false;
+            state.callback_active = false;
+            (old_headless, old_callback)
+        });
+        assert!(!graphics_context_allowed("lynxer_graphics_draw_cube"));
+        with(|state| state.callback_active = true);
+        assert!(graphics_context_allowed("lynxer_graphics_draw_cube"));
+        with(|state| {
+            state.callback_active = true;
+            state.callback_active = false;
+            state.headless = true;
+        });
+        assert!(graphics_context_allowed("lynxer_graphics_draw_cube"));
+        with(|state| {
+            state.headless = previous.0;
+            state.callback_active = previous.1;
+        });
+    }
+}

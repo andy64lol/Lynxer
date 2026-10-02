@@ -240,6 +240,16 @@ global main(){
     global.graphics.uiButton(22, "Group button");
     println("group-end ", global.graphics.uiGroupEnd() is 0);
     println("nested-checkbox ", global.graphics.uiCheckboxValue(20));
+    println("nested-window-begin ", global.graphics.uiWindowBegin(30, "Outer", 4.0, 4.0, 200.0, 140.0) is 0);
+    println("nested-group-begin ", global.graphics.uiGroupBegin(31, 120.0, 80.0) is 0);
+    global.graphics.uiSetCheckboxValue(32, true);
+    println("nested-widget ", global.graphics.uiCheckbox(32, "Nested checkbox"));
+    println("nested-inner-group-begin ", global.graphics.uiGroupBegin(33, 80.0, 40.0) is 0);
+    global.graphics.uiLabel("Deep child");
+    println("nested-inner-group-end ", global.graphics.uiGroupEnd() is 0);
+    println("nested-group-end ", global.graphics.uiGroupEnd() is 0);
+    println("nested-window-end ", global.graphics.uiWindowEnd() is 0);
+    println("nested-value ", global.graphics.uiCheckboxValue(32));
 
     println("== frames ==");
     global.graphics.setStartCallback("onStart");
