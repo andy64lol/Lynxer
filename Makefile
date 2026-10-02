@@ -29,6 +29,11 @@ endif
 LYNXER_ON_WINDOWS := $(if $(filter windows,$(LYNXER_HOST_OS)),1,)
 LYNXER_ON_MACOS := $(if $(filter Darwin macos,$(LYNXER_HOST_OS)),1,)
 
+# The interpreter is `lynxer` on POSIX and `lynxer.exe` on Windows. MinGW appends
+# `.exe` on its own, so name it explicitly to keep make's prerequisites and
+# `$(CLYX)` pointing at the file that actually exists.
+LYNXER_TARGET := $(LYNXER_DIR)/lynxer$(if $(LYNXER_ON_WINDOWS),.exe,)
+
 # Platform compile flags and link libraries.
 #
 # -fPIC, not -fPIE: the same objects are linked into the PIE interpreter and
@@ -47,10 +52,13 @@ else
 LYNXER_PLATFORM_FLAGS := -fPIC -ftls-model=global-dynamic
 ifeq ($(LYNXER_ON_MACOS),1)
 LYNXER_PLATFORM_LIBS := -lpthread -lm -lffi
+# `liblynxer.so` links with an ELF version script and `-soname`, so the embedding
+# runtime is built on Linux only for now.
+LYNXER_BUILD_SHARED := 0
 else
 LYNXER_PLATFORM_LIBS := -lpthread -ldl -lm -lffi
-endif
 LYNXER_BUILD_SHARED := 1
+endif
 endif
 
 LYNXER_CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -pedantic $(LYNXER_PLATFORM_FLAGS)
@@ -73,6 +81,18 @@ LYNXER_NATIVE_MODULES := $(LYNXER_NATIVE_SOURCES:.cpp=.so)
 # Rust backends: self-contained cdylibs that the interpreter dlopens directly.
 LYNXER_RUST_DIR := $(LYNXER_DIR)/rust
 LYNXER_RUST_TARGET_DIR := $(LYNXER_DIR)/build/rust
+# Cargo names a `cdylib` `lib<name>.so` on Linux and the BSDs, `lib<name>.dylib`
+# on macOS, and `<name>.dll` (no `lib` prefix) on Windows.
+ifeq ($(LYNXER_ON_WINDOWS),1)
+LYNXER_CDYLIB_PREFIX :=
+LYNXER_CDYLIB_SUFFIX := .dll
+else ifeq ($(LYNXER_ON_MACOS),1)
+LYNXER_CDYLIB_PREFIX := lib
+LYNXER_CDYLIB_SUFFIX := .dylib
+else
+LYNXER_CDYLIB_PREFIX := lib
+LYNXER_CDYLIB_SUFFIX := .so
+endif
 LYNXER_RUST_MANIFEST := $(LYNXER_RUST_DIR)/Cargo.toml
 LYNXER_RUST_SOURCES := $(wildcard $(LYNXER_RUST_DIR)/*/src/*.rs) \
                         $(wildcard $(LYNXER_RUST_DIR)/*/Cargo.toml) \
@@ -393,13 +413,14 @@ $(LYNXER_DIR)/stdlib/%.so: $(LYNXER_DIR)/stdlib/%.cpp
 # Rust backends: self-contained cdylibs exporting lynxer_module_init_v1 and
 # their ops, copied to lynxer/stdlib/<name>.so for the interpreter to dlopen.
 # Cargo is required for each of them; a failure stops the whole build.
-$(LYNXER_RUST_TARGET_DIR)/release/liblynxer_%.so: $(LYNXER_RUST_SOURCES)
+$(LYNXER_RUST_TARGET_DIR)/release/$(LYNXER_CDYLIB_PREFIX)lynxer_%$(LYNXER_CDYLIB_SUFFIX): $(LYNXER_RUST_SOURCES)
 	@command -v $(LYNXER_CARGO) >/dev/null 2>&1 || { echo "lynxer: cargo is required to build the Rust backend lynxer_$*"; exit 1; }
 	RUSTFLAGS="-C relocation-model=pic" $(LYNXER_CARGO) build -p lynxer_$* --release \
 	    --manifest-path $(LYNXER_RUST_MANIFEST) --target-dir $(LYNXER_RUST_TARGET_DIR)
 
 define LYNXER_RUST_MODULE_RULE
-$(LYNXER_DIR)/stdlib/$(1).so: $(LYNXER_RUST_TARGET_DIR)/release/liblynxer_$(1).so
+$(LYNXER_DIR)/stdlib/$(1).so: $(LYNXER_RUST_TARGET_DIR)/release/$(LYNXER_CDYLIB_PREFIX)lynxer_$(1)$(LYNXER_CDYLIB_SUFFIX)
+	@test -f $$< || { echo "lynxer: cargo did not produce $$<"; ls $(LYNXER_RUST_TARGET_DIR)/release/ | grep -i 'lynxer_$(1)' || true; exit 1; }
 	cp $$< $$@
 endef
 $(foreach name,$(LYNXER_RUST_MODULE_NAMES),$(eval $(call LYNXER_RUST_MODULE_RULE,$(name))))

@@ -56,9 +56,10 @@ out of `LYNXER_RUST_MODULE_NAMES`.
 
 - **Toolchain and build target.** The `Makefile` detects the host once
   (`LYNXER_HOST_OS` / `LYNXER_ON_WINDOWS`, from `OS` and `uname`, mapping
-  MINGW/MSYS/CYGWIN) and keys the compile flags and link libraries off it, so a
-  Windows build gets no `-fPIC`/`-ftls-model=global-dynamic` and no `-ldl` (and
-  macOS no longer gets `-ldl` either). The MSYS2 MinGW-w64 path compiles the
+  MINGW/MSYS/CYGWIN) and keys the compile flags, link libraries and artifact
+  names off it: a Windows build gets no `-fPIC`/`-ftls-model=global-dynamic` and
+  no `-ldl` (macOS no longer gets `-ldl` either), builds `lynxer.exe`, and finds
+  the Rust backends at cargo's `<name>.dll` rather than `lib<name>.so`/`.dylib`. The MSYS2 MinGW-w64 path compiles the
   whole C++ core and every portable Rust backend. The staticlib's native imports
   (the Windows system DLLs: `ntdll`, `ws2_32`, `userenv`, …) come from
   `rustc --print native-static-libs` (`LYNXER_FFI_NATIVE_LIBS`) and are added on
