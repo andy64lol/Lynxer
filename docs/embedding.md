@@ -76,6 +76,30 @@ The library initializes the embedded program lazily, on the first exported
 call. A program can be embedded once per process; a second initialization is
 refused because the interpreter keeps process-global state.
 
+## Lynxer must be built
+
+`export` is a build feature: it only takes effect through a library produced by
+`--emit-library`, not when the file is run directly. Running `lynxer app.lynx`
+executes `main()` and never exposes the exports.
+
+Building the library requires the **compiled** interpreter and its runtime:
+
+```bash
+make buildLynxer      # builds lynxer/lynxer and lynxer/liblynxer.so
+```
+
+If `liblynxer.so` is missing (an unbuilt tree, or a binary installed without
+it), `--emit-library` fails with `build Lynxer first with make buildLynxer`,
+rather than a confusing compiler error. `make buildLynxer` is therefore a
+prerequisite for this feature; the interpreter alone is not enough.
+
+The emitted library is **self-contained**: it embeds the program archive (the
+source and every module it imports), so at run time it needs neither the
+original `.lynx` file nor the `lynxer` executable — only `liblynxer.so`, which
+carries the compiled interpreter. The test fixture builds from a temporary copy
+of the source, deletes it, and then runs the C++ and Python consumers from
+`/tmp` to prove this.
+
 ## Calling from C
 
 ```c
@@ -94,8 +118,8 @@ lib.add.argtypes = [ctypes.c_int64, ctypes.c_int64]
 print(lib.add(2, 3))  # 5
 ```
 
-See `lynxer/examples/export_basic.lynx`, `export_consumer.cpp` and
-`export_consumer.py` for a complete, tested example.
+See `lynxer/examples/export_basic.lynx`, `export_test.cpp` and
+`export_test.py` for a complete, tested example.
 
 ## Notes and limits
 

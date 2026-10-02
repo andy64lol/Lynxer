@@ -135,8 +135,10 @@ optimized.
 
 `--emit-library` builds a shared library (`.so`) that exposes a program's
 top-level `export`s as C symbols other languages can call. It needs a C++
-compiler and the embedding runtime `liblynxer.so` (built by `make
-buildLynxer`, installed next to the interpreter).
+compiler and the embedding runtime `liblynxer.so`, so **Lynxer must be built
+first** (`make buildLynxer`); the feature is unavailable from an unbuilt tree
+and fails with `build Lynxer first` when the runtime is missing. The emitted
+library embeds the program and needs only `liblynxer.so` at run time.
 
 ```bash
 lynxer --emit-library app.lynx -o libapp.so

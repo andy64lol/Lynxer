@@ -1231,8 +1231,18 @@ int emitLibrary(const std::vector<std::string>& arguments) {
     if (runtimePath.empty()) {
         return failWith("error.emit_library_failed",
                         "lynxer: emit-library failed: {0}",
-                        "cannot find liblynxer.so; build it with "
-                        "`make buildLynxer` or pass --runtime <path>");
+                        "cannot find liblynxer.so; build Lynxer first with "
+                        "`make buildLynxer` (it needs the compiled interpreter "
+                        "and runtime), or pass --runtime <path>");
+    }
+    std::error_code runtimeError;
+    if (!std::filesystem::is_regular_file(runtimePath, runtimeError)) {
+        return failWith("error.emit_library_failed",
+                        "lynxer: emit-library failed: {0}",
+                        "liblynxer.so was not found at '" + runtimePath +
+                            "'; build Lynxer first with `make buildLynxer` "
+                            "(the compiled interpreter and runtime are "
+                            "required)");
     }
     const std::string runtimeDir =
         std::filesystem::path(runtimePath).parent_path().string();

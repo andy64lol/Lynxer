@@ -2,7 +2,7 @@
 """ctypes consumer for the library built from export_basic.lynx.
 
 Proves the emitted C ABI is callable from another language, not just C++.
-Usage: export_consumer.py <path-to-emitted.so>
+Usage: export_test.py <path-to-emitted.so>
 """
 import ctypes
 import struct
@@ -11,7 +11,7 @@ import sys
 
 def main() -> int:
     if len(sys.argv) != 2:
-        print("usage: export_consumer.py <library.so>", file=sys.stderr)
+        print("usage: export_test.py <library.so>", file=sys.stderr)
         return 2
     library = ctypes.CDLL(sys.argv[1])
 
@@ -51,7 +51,7 @@ def main() -> int:
     library.sink(1)
 
     if failures == 0:
-        print("export_consumer.py: ok")
+        print("export_test.py: ok")
     return 0 if failures == 0 else 1
 
 

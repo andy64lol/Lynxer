@@ -2,7 +2,7 @@
 Export fixture: one function per v1 C ABI type, an alias spelling, and a
 `setup()` that calls an export so the consumer observes initialization ordering.
 Built into a shared library by `lynxer --emit-library` and exercised by
-`export_consumer.cpp` and `export_consumer.py`.
+`export_test.cpp` and `export_test.py`.
 ////
 global setup(){
     // Runs once, before the first exported call, and may itself call exports.

@@ -307,15 +307,25 @@ $(LYNXER_SIGNATURE_MODULE): $(LYNXER_SIGNATURE_SOURCE) $(LYNXER_DIR)/ffi_abi.h $
 # exports are rejected with located errors.
 LYNXER_EXPORT_FIXTURE := $(LYNXER_DIR)/examples/export_basic.lynx
 LYNXER_EXPORT_LIBRARY := $(CLYX_TMP)_export.so
-LYNXER_EXPORT_CONSUMER := $(CLYX_TMP)_export_consumer
+LYNXER_EXPORT_TEST := $(CLYX_TMP)_export_test
 
 testLynxerEmit: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_SHARED) $(LYNXER_NATIVE_BUILT)
-	@$(CLYX) --emit-library $(LYNXER_EXPORT_FIXTURE) -o $(LYNXER_EXPORT_LIBRARY)
+	@# Build from a throwaway copy of the source, then delete it and run the
+	@# consumers from /tmp. The emitted library embeds the program, so it must
+	@# work with neither the .lynx source nor the build directory in reach.
+	@cp $(LYNXER_EXPORT_FIXTURE) $(CLYX_TMP)_export_src.lynx
+	@$(CLYX) --emit-library $(CLYX_TMP)_export_src.lynx -o $(LYNXER_EXPORT_LIBRARY)
+	@rm -f $(CLYX_TMP)_export_src.lynx
 	@nm -D --defined-only $(LYNXER_EXPORT_LIBRARY) | grep -q ' T add' || { echo "emitted library is missing the 'add' export"; exit 1; }
 	@if nm -D --defined-only $(LYNXER_EXPORT_LIBRARY) | grep -q 'lynxer_embed_'; then echo "emitted library leaks embedding symbols"; exit 1; fi
-	@$(LYNXER_CXX) -std=c++17 -O2 $(LYNXER_DIR)/examples/export_consumer.cpp $(LYNXER_EXPORT_LIBRARY) -o $(LYNXER_EXPORT_CONSUMER) -Wl,-rpath,$(CURDIR)/$(LYNXER_DIR)
-	@$(LYNXER_EXPORT_CONSUMER)
-	@$(PYTHON) $(LYNXER_DIR)/examples/export_consumer.py $(LYNXER_EXPORT_LIBRARY)
+	@$(LYNXER_CXX) -std=c++17 -O2 -I$(LYNXER_DIR) $(LYNXER_DIR)/examples/export_test.cpp $(LYNXER_EXPORT_LIBRARY) -o $(LYNXER_EXPORT_TEST) -Wl,-rpath,$(CURDIR)/$(LYNXER_DIR)
+	@cd /tmp && $(CURDIR)/$(LYNXER_EXPORT_TEST)
+	@cd /tmp && $(PYTHON) $(CURDIR)/$(LYNXER_DIR)/examples/export_test.py $(CURDIR)/$(LYNXER_EXPORT_LIBRARY)
+	@echo "emitted library ran from /tmp with its source removed"
+	@# The compiled runtime is mandatory: a missing liblynxer.so must be a clear
+	@# failure, not a compiler error.
+	@if $(CLYX) --emit-library $(LYNXER_EXPORT_FIXTURE) --runtime /nonexistent/liblynxer.so -o $(CLYX_TMP)_bad.so 2>$(CLYX_TMP)_export_err.log; then echo "expected a missing runtime to fail"; exit 1; fi
+	@grep -q "build Lynxer first" $(CLYX_TMP)_export_err.log || { echo "missing-runtime error is unclear"; cat $(CLYX_TMP)_export_err.log; exit 1; }
 	@printf '%s\n' 'export "cdecl:value(value)" f(any x) -> any { return x; }' > $(CLYX_TMP)_export_err.lynx
 	@if $(CLYX) --emit-library $(CLYX_TMP)_export_err.lynx -o $(CLYX_TMP)_bad.so 2>$(CLYX_TMP)_export_err.log; then echo "expected the 'value' export to be rejected"; exit 1; fi
 	@grep -q "do not support the 'value' type" $(CLYX_TMP)_export_err.log || { echo "unexpected error for a 'value' export"; cat $(CLYX_TMP)_export_err.log; exit 1; }
@@ -331,7 +341,7 @@ testLynxerEmit: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_SHARED) $(LYNXER_NATIV
 	@printf '%s\n' 'export "cdecl:int64(int64)" f(int a = 1) -> int { return a; }' > $(CLYX_TMP)_export_err.lynx
 	@if $(CLYX) --emit-library $(CLYX_TMP)_export_err.lynx -o $(CLYX_TMP)_bad.so 2>$(CLYX_TMP)_export_err.log; then echo "expected the default parameter to be rejected"; exit 1; fi
 	@grep -q "default value" $(CLYX_TMP)_export_err.log || { echo "unexpected error for a default parameter"; cat $(CLYX_TMP)_export_err.log; exit 1; }
-	@rm -f $(CLYX_TMP)_export_err.lynx $(CLYX_TMP)_export_err.log $(LYNXER_EXPORT_LIBRARY) $(LYNXER_EXPORT_CONSUMER) $(CLYX_TMP)_bad.so
+	@rm -f $(CLYX_TMP)_export_err.lynx $(CLYX_TMP)_export_err.log $(LYNXER_EXPORT_LIBRARY) $(LYNXER_EXPORT_TEST) $(CLYX_TMP)_bad.so
 	@echo "lynxer export ABI test passed"
 
 testLynxer: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT) $(LYNXER_SIGNATURE_MODULE) testLynxerInstall testLynxerEmit
