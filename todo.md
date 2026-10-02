@@ -147,12 +147,14 @@ surface stays a documented boundary in
   locate the running module with `GetModuleFileNameW`; keep the existing
   materialize-to-temp-dir behavior for embedded modules and assets.
 - [ ] **Stdlib platform matrix.** Portable as-is: `json`, `toml`, `yaml`,
-  `ini`, `xml`, `regex`, `text`, `math`, …. Needs a Windows backend: `watch`
+  `ini`, `xml`, `regex`, `text`, `math`, `csv`, `random`, `time`, `js`,
+  `multiprocessing`, `fileIO`, `shell`, …. Needs a Windows backend: `watch`
   (`ReadDirectoryChangesW`), `tui`/`graphics`/`sound` console and device
-  handling, `path` platform values. Linux-only and excluded from the Windows
-  build (named by `LYNXER_LINUX_ONLY_MODULES`): `sys` and the syscall built-ins,
-  plus the `lowlevel_*` fixtures. Startup code lives on the host layer; see
-  [docs/windows.md](docs/windows.md).
+  handling, and `cli`/`debug`/`os`/`path` (POSIX headers MinGW lacks). Excluded
+  from the Windows build (named by `LYNXER_WINDOWS_SKIP_MODULES` and the
+  `watch` filter on `LYNXER_RUST_MODULE_NAMES`): `sys` and the syscall built-ins,
+  the POSIX-only modules above, plus the `lowlevel_*` fixtures. Startup code
+  lives on the host layer; see [docs/windows.md](docs/windows.md).
 - [ ] **Windows terminal behavior.** Enable virtual-terminal processing for
   `tui`/`graphics` output and cover TTY and redirected runs the way the Linux
   fixtures do.

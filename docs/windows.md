@@ -38,19 +38,30 @@ Windows build yet:
   host; a Windows implementation comes later.
 - **Low-level fixtures.** `lowlevel_*` and `syscall*` fixtures are Linux-only
   and stay out of the Windows test run.
+- **POSIX-only stdlib modules.** `cli`, `debug`, `os` and `path` include POSIX
+  headers MinGW does not provide (`<pwd.h>`, `<sys/ioctl.h>`, `<sys/wait.h>`,
+  `<sys/resource.h>`, `<sys/statvfs.h>`, `<sys/utsname.h>`), so they need a
+  Windows backend before they can be built.
+- **The `watch` Rust backend.** Its only backends are Linux (inotify) and
+  macOS/BSD (kqueue); Windows needs `ReadDirectoryChangesW`.
 
-`LYNXER_LINUX_ONLY_MODULES` in the `Makefile` names the modules a Windows build
-must skip (`sys`).
+`LYNXER_WINDOWS_SKIP_MODULES` in the `Makefile` names the C++ modules a Windows
+build skips (`sys cli debug os path`), and `watch` is filtered out of
+`LYNXER_RUST_MODULE_NAMES`.
 
 ## Still to do
 
-- **Toolchain and build target.** An MSVC or clang-cl (or mingw-w64) build that
-  produces `lynxer.exe` and `lynxer.dll`, replacing `-fPIC`,
-  `-ftls-model=global-dynamic` and the ELF version script with Windows
-  equivalents. A Windows cross-toolchain is not required to build Linux.
-- **libffi on Windows.** Native modules and `ffiCall` dispatch through the Rust
-  `libffi` engine; that engine must build and link on Windows before native
-  modules can load there.
+- **Toolchain and build target.** The MSYS2 MinGW-w64 path compiles the whole
+  C++ core and every portable Rust backend. The staticlib's native imports (the
+  Windows system DLLs: `ntdll`, `ws2_32`, `userenv`, …) are supplied to the C++
+  link from `rustc --print native-static-libs`, recorded in
+  `LYNXER_FFI_NATIVE_LIBS`; a Rust `staticlib` does not carry its dependencies'
+  link directives. Still to do: `lynxer.dll` and a native MSVC/clang-cl build,
+  plus the `ld`-flag cleanup (`-fPIC`, `-ftls-model=global-dynamic`, the ELF
+  version script) for the shared-library step.
+- **libffi on Windows.** The Rust `libffi` engine compiles under the MinGW
+  toolchain; the C++ link now pulls its native imports. Native modules still
+  need to be validated on Windows.
 - **Stdlib backends.** `watch` needs `ReadDirectoryChangesW`; `tui`/`graphics`/
   `sound` need console and device handling; the data-format modules should port
   as-is.

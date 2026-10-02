@@ -29,17 +29,19 @@ endif
 # shared object, where the default local-exec model is rejected by the linker.
 LYNXER_CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -pedantic $(LYNXER_PLATFORM_FLAGS)
 
-# Modules a Windows build must skip: `sys` is built on Linux system calls. The
-# named syscall built-ins are likewise Linux-only (see docs/windows.md).
-LYNXER_LINUX_ONLY_MODULES := sys
+# Modules a Windows build must skip because they have no Windows backend yet.
+# `sys` is built on Linux system calls (and the syscall built-ins are Linux-only);
+# `cli`, `debug`, `os` and `path` use POSIX headers MinGW does not provide.
+# Porting each is tracked in docs/windows.md and todo.md.
+ifeq ($(OS),Windows_NT)
+LYNXER_WINDOWS_SKIP_MODULES := sys cli debug os path
+else
+LYNXER_WINDOWS_SKIP_MODULES :=
+endif
 
 # Native (C++) stdlib modules: every lynxer/stdlib/<name>.cpp -> <name>.so.
 LYNXER_ALL_NATIVE_SOURCES := $(wildcard $(LYNXER_DIR)/stdlib/*.cpp)
-ifeq ($(OS),Windows_NT)
-LYNXER_NATIVE_SOURCES := $(filter-out $(addprefix $(LYNXER_DIR)/stdlib/,$(addsuffix .cpp,$(LYNXER_LINUX_ONLY_MODULES))),$(LYNXER_ALL_NATIVE_SOURCES))
-else
-LYNXER_NATIVE_SOURCES := $(LYNXER_ALL_NATIVE_SOURCES)
-endif
+LYNXER_NATIVE_SOURCES := $(filter-out $(addprefix $(LYNXER_DIR)/stdlib/,$(addsuffix .cpp,$(LYNXER_WINDOWS_SKIP_MODULES))),$(LYNXER_ALL_NATIVE_SOURCES))
 LYNXER_NATIVE_MODULES := $(LYNXER_NATIVE_SOURCES:.cpp=.so)
 
 # Rust backends: self-contained cdylibs that the interpreter dlopens directly.
@@ -50,12 +52,25 @@ LYNXER_RUST_SOURCES := $(wildcard $(LYNXER_RUST_DIR)/*/src/*.rs) \
                         $(wildcard $(LYNXER_RUST_DIR)/*/Cargo.toml) \
                         $(LYNXER_RUST_MANIFEST) $(LYNXER_RUST_DIR)/Cargo.lock
 LYNXER_RUST_MODULE_NAMES := encoding crypto compress game graphics image ini json lua network re regex server sound sqldb text toml tui uuid watch xml yaml
+
+# `watch` has only Linux (inotify) and macOS/BSD (kqueue) backends; a Windows
+# build needs a `ReadDirectoryChangesW` backend (see docs/windows.md).
+ifeq ($(OS),Windows_NT)
+LYNXER_RUST_MODULE_NAMES := $(filter-out watch,$(LYNXER_RUST_MODULE_NAMES))
+endif
 LYNXER_RUST_MODULES := $(LYNXER_RUST_MODULE_NAMES:%=$(LYNXER_DIR)/stdlib/%.so)
 
 # The native-call engine is not a stdlib module: it is a Rust staticlib linked
 # directly into the interpreter, and cargo is required to build it.
 LYNXER_FFI_ABI_HEADER := $(LYNXER_DIR)/ffi_abi.h
 LYNXER_FFI_STATICLIB := $(LYNXER_RUST_TARGET_DIR)/release/liblynxer_ffi.a
+# `rustc --print native-static-libs` records the native libraries the staticlib
+# needs at the final link: Windows system DLL imports (ntdll, ws2_32, userenv,
+# ...), `libffi`, and the C runtime. A Rust staticlib does not carry its
+# dependencies' link directives, so the C++ link has to add them; capturing the
+# exact list here keeps that correct on every platform.
+LYNXER_FFI_BUILD_LOG := $(LYNXER_RUST_TARGET_DIR)/release/lynxer_ffi-build.log
+LYNXER_FFI_NATIVE_LIBS := $(LYNXER_RUST_TARGET_DIR)/release/lynxer_ffi.native-libs
 
 # The embedding runtime and its public C header. `liblynxer.so` is the core
 # interpreter (minus `main.cpp`) as a shared library; libraries emitted by
@@ -296,7 +311,7 @@ cargo: lynxerToolchain $(LYNXER_RUST_MODULES) $(LYNXER_FFI_STATICLIB)
 # engine's (a staticlib does not carry its dependencies' link directives).
 $(LYNXER_TARGET): $(LYNXER_OBJECTS) $(LYNXER_FFI_STATICLIB)
 	$(LYNXER_CXX) $(LYNXER_CXXFLAGS) $(LYNXER_OBJECTS) $(LYNXER_FFI_STATICLIB) -o $@ \
-	    $(LYNXER_PLATFORM_LIBS)
+	    $(LYNXER_PLATFORM_LIBS) $(shell cat $(LYNXER_FFI_NATIVE_LIBS) 2>/dev/null)
 
 # The embedding runtime: the same objects without `main.o`, linked as a shared
 # library so `--emit-library` shims can `-llynxer`. The version script hides
@@ -304,7 +319,7 @@ $(LYNXER_TARGET): $(LYNXER_OBJECTS) $(LYNXER_FFI_STATICLIB)
 $(LYNXER_SHARED): $(LYNXER_SHARED_OBJECTS) $(LYNXER_FFI_STATICLIB) $(LYNXER_SHARED_VERSION_SCRIPT)
 	$(LYNXER_CXX) $(LYNXER_CXXFLAGS) -shared $(LYNXER_SHARED_OBJECTS) $(LYNXER_FFI_STATICLIB) -o $@ \
 	    -Wl,--version-script=$(LYNXER_SHARED_VERSION_SCRIPT) -Wl,-soname,liblynxer.so \
-	    $(LYNXER_PLATFORM_LIBS)
+	    $(LYNXER_PLATFORM_LIBS) $(shell cat $(LYNXER_FFI_NATIVE_LIBS) 2>/dev/null)
 
 # The ARM64 interpreter links the same Rust native-call engine, so the host must
 # be able to produce an aarch64 staticlib. Native aarch64 (the ARM CI runner) is
@@ -345,11 +360,19 @@ endef
 $(foreach name,$(LYNXER_RUST_MODULE_NAMES),$(eval $(call LYNXER_RUST_MODULE_RULE,$(name))))
 
 # The native-call engine: a Rust staticlib linked into the interpreter, not a
-# stdlib module. It is required, so a missing cargo is a hard error.
+# stdlib module. It is required, so a missing cargo is a hard error. `cargo
+# rustc --print native-static-libs` both produces the archive and reports the
+# native libraries the final C++ link must add (see LYNXER_FFI_NATIVE_LIBS).
 $(LYNXER_FFI_STATICLIB): $(LYNXER_RUST_SOURCES) $(LYNXER_FFI_ABI_HEADER)
 	@command -v $(LYNXER_CARGO) >/dev/null 2>&1 || { echo "lynxer: cargo is required to build the native-call engine"; exit 1; }
-	RUSTFLAGS="-C relocation-model=pic" $(LYNXER_CARGO) build -p lynxer_ffi --release \
-	    --manifest-path $(LYNXER_RUST_MANIFEST) --target-dir $(LYNXER_RUST_TARGET_DIR)
+	@mkdir -p $(dir $(LYNXER_FFI_BUILD_LOG))
+	@RUSTFLAGS="-C relocation-model=pic" $(LYNXER_CARGO) rustc -p lynxer_ffi --release \
+	    --manifest-path $(LYNXER_RUST_MANIFEST) --target-dir $(LYNXER_RUST_TARGET_DIR) \
+	    -- --print native-static-libs > $(LYNXER_FFI_BUILD_LOG) 2>&1 \
+	    || { cat $(LYNXER_FFI_BUILD_LOG); exit 1; }
+	@cat $(LYNXER_FFI_BUILD_LOG)
+	@sed -n 's/.*native-static-libs: //p' $(LYNXER_FFI_BUILD_LOG) | tail -n 1 > $(LYNXER_FFI_NATIVE_LIBS)
+	@test -s $(LYNXER_FFI_NATIVE_LIBS) || rm -f $(LYNXER_FFI_NATIVE_LIBS)
 
 $(LYNXER_SIGNATURE_MODULE): $(LYNXER_SIGNATURE_SOURCE) $(LYNXER_DIR)/ffi_abi.h $(LYNXER_DIR)/stdlib/lynxer_native_abi.h
 	$(LYNXER_CXX) -std=c++17 -O2 -Wall -Wextra -pedantic -fPIC -shared $< -o $@
@@ -918,6 +941,7 @@ clean:
 
 cleanLynxer:
 	@rm -f $(LYNXER_TARGET) $(LYNXER_TARGET)-arm64 $(LYNXER_OBJECTS) $(LYNXER_OBJECTS_ARM64)
+	@rm -f $(LYNXER_FFI_BUILD_LOG) $(LYNXER_FFI_NATIVE_LIBS)
 	@rm -f $(LYNXER_NATIVE_MODULES) $(LYNXER_SIGNATURE_MODULE) $(LYNXER_SHARED) $(CLYX_TMP)_*
 	@rm -rf $(LYNXER_INSTALL_PREFIX)
 	@rm -f $(LYNXER_DIR)/stdlib/ffi.so
