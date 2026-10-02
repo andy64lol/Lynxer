@@ -14,8 +14,6 @@ lynxer_abi = { path = "../abi" }
 # rustls instead of OpenSSL, so the module has no system TLS dependency.
 ureq = { version = "3", default-features = false, features = ["rustls", "gzip"] }
 tungstenite = { version = "0.30", features = ["rustls-tls-native-roots"] }
-# gethostname(2) for `getHostname`.
-libc = "0.2"
 # RFC 3986 URL parsing, joining and normalisation for the `url*` helpers, and
 # the JSON object `urlParse` returns (the previous hand-rolled parser could not
 # escape a value, so a quote in a query produced invalid JSON).
@@ -26,3 +24,8 @@ serde_json = "1"
 serde = { version = "1", features = ["derive"] }
 # RFC 3986 percent-encoding for `urlEncodeComponent` / `urlDecodeComponent`.
 percent-encoding = "2"
+
+# gethostname(2) for `getHostname`. Windows has no `libc::gethostname`, so there
+# the host name comes from the `COMPUTERNAME` environment variable instead.
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"

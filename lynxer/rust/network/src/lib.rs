@@ -384,6 +384,7 @@ fn resolve_host(hostname: &str) -> String {
     }
 }
 
+#[cfg(unix)]
 fn hostname() -> String {
     let mut buffer = [0 as libc::c_char; 256];
     if unsafe { libc::gethostname(buffer.as_mut_ptr(), buffer.len()) } != 0 {
@@ -395,6 +396,13 @@ fn hostname() -> String {
         .map(|character| *character as u8)
         .collect();
     String::from_utf8_lossy(&bytes).into_owned()
+}
+
+#[cfg(windows)]
+fn hostname() -> String {
+    // Winsock's `gethostname` needs `WSAStartup` first, so read the name the
+    // system already publishes instead.
+    std::env::var("COMPUTERNAME").unwrap_or_default()
 }
 
 // --- WebSocket --------------------------------------------------------------
