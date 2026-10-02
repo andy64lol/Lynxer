@@ -305,6 +305,12 @@ bool sameFile(const std::filesystem::path& left,
 // `/proc/self/exe` resolves that symlink, so `executableDirectory()` is the
 // private lib directory and `<exe>/stdlib` is found by both `--list-stdlibs`
 // and module resolution.
+// The interpreter's file name on this host: `lynxer` or `lynxer.exe`.
+static std::string executableFileName() {
+    const std::string extension = platform::executableExtension();
+    return extension.empty() ? std::string("lynxer") : "lynxer." + extension;
+}
+
 int installBinary(const char* argv0) {
     const std::string self = runningExecutable(argv0);
     if (self.empty()) {
@@ -314,8 +320,8 @@ int installBinary(const char* argv0) {
     const std::filesystem::path prefix(installPrefix());
     const std::filesystem::path libDir = prefix / "lib" / "lynxer";
     const std::filesystem::path binDir = prefix / "bin";
-    const std::filesystem::path installedBinary = libDir / "lynxer";
-    const std::filesystem::path linkPath = binDir / "lynxer";
+    const std::filesystem::path installedBinary = libDir / executableFileName();
+    const std::filesystem::path linkPath = binDir / executableFileName();
     const std::filesystem::path sourceDirectory(executableDirectory());
     const std::filesystem::path sourceStdlib = sourceDirectory / "stdlib";
     const std::filesystem::path sourceConfig = sourceDirectory / "lynxer.config";
@@ -411,7 +417,8 @@ int installBinary(const char* argv0) {
 int uninstallBinary() {
     const std::filesystem::path prefix(installPrefix());
     const std::filesystem::path libDir = prefix / "lib" / "lynxer";
-    const std::filesystem::path linkPath = prefix / "bin" / "lynxer";
+    const std::filesystem::path linkPath =
+        prefix / "bin" / executableFileName();
 
     std::error_code linkError;
     const bool removedLink = std::filesystem::remove(linkPath, linkError);

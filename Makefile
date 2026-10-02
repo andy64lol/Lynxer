@@ -291,7 +291,7 @@ CLYX_TMP := $(LYNXER_DIR)/.lynxer
 # Throwaway install prefix for the `--install` gate: `lynxer --install` refuses
 # to touch the real /usr here, so the whole flow runs without root.
 LYNXER_INSTALL_PREFIX := $(CLYX_TMP)_install_prefix
-LYNXER_INSTALLED_BIN := $(LYNXER_INSTALL_PREFIX)/bin/lynxer
+LYNXER_INSTALLED_BIN := $(LYNXER_INSTALL_PREFIX)/bin/$(notdir $(LYNXER_TARGET))
 # Canonical syscall architecture of this host. The architecture-agnostic syscall
 # fixtures carry a __ARCH__ token (syscalls("__ARCH__") plus __ARCH__.syscall*);
 # it is replaced with this word before they run, so one source serves both CI

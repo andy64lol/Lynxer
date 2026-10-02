@@ -189,6 +189,14 @@ const char* libraryExtension() {
 #endif
 }
 
+const char* executableExtension() {
+#if defined(_WIN32)
+    return "exe";
+#else
+    return "";
+#endif
+}
+
 bool makeTemporaryDirectory(std::string& pathOut, std::string& error) {
     std::error_code filesystemError;
     const std::filesystem::path base =

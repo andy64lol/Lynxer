@@ -24,6 +24,8 @@ void closeLibrary(void* handle);
 std::string lastLibraryError();
 // The native shared-library extension for this host: "so", "dylib" or "dll".
 const char* libraryExtension();
+// The native executable extension for this host: "exe" on Windows, "" elsewhere.
+const char* executableExtension();
 
 // Creates a private temporary directory and reports its path. The caller owns
 // the directory and removes it.
