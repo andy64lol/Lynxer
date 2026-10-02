@@ -1,11 +1,9 @@
 #include "config.hpp"
 
-#include <fstream>
+#include "platform.hpp"
 
-#ifdef __linux__
-#include <limits.h>
-#include <unistd.h>
-#endif
+#include <filesystem>
+#include <fstream>
 
 namespace lynxer {
 
@@ -52,19 +50,13 @@ std::string unescape(const std::string& text) {
 }
 
 std::string executableDirectoryImpl() {
-#ifdef __linux__
-    char path[PATH_MAX];
-    const ssize_t length = readlink("/proc/self/exe", path, sizeof(path) - 1);
-    if (length > 0) {
-        path[length] = '\0';
-        const std::string full(path);
-        const std::size_t slash = full.find_last_of('/');
-        if (slash != std::string::npos) {
-            return full.substr(0, slash);
-        }
+    const std::string path = platform::executablePath();
+    if (path.empty()) {
+        return ".";
     }
-#endif
-    return ".";
+    const std::filesystem::path parent =
+        std::filesystem::path(path).parent_path();
+    return parent.empty() ? std::string(".") : parent.string();
 }
 
 bool loadConfigFile(const std::string& path,
@@ -93,17 +85,7 @@ bool loadConfigFile(const std::string& path,
 
 std::string executableDirectory() { return executableDirectoryImpl(); }
 
-std::string executablePath() {
-#ifdef __linux__
-    char path[PATH_MAX];
-    const ssize_t length = readlink("/proc/self/exe", path, sizeof(path) - 1);
-    if (length > 0) {
-        path[length] = '\0';
-        return std::string(path);
-    }
-#endif
-    return "";
-}
+std::string executablePath() { return platform::executablePath(); }
 
 const Config& Config::instance() {
     static const Config config;

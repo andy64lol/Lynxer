@@ -4,7 +4,7 @@ PYTHON   ?= $(shell command -v python3 2>/dev/null || command -v python 2>/dev/n
 # Every path is repo-root relative.
 LYNXER_DIR := lynxer
 LYNXER_TARGET := $(LYNXER_DIR)/lynxer
-LYNXER_SOURCES := $(addprefix $(LYNXER_DIR)/,main.cpp shell.cpp lexer.cpp runtime.cpp types.cpp builtins.cpp ops.cpp ast.cpp optimizer.cpp formatter.cpp parser.cpp config.cpp bundle.cpp interrupt.cpp native_value.cpp exports.cpp embed.cpp)
+LYNXER_SOURCES := $(addprefix $(LYNXER_DIR)/,main.cpp shell.cpp lexer.cpp runtime.cpp types.cpp builtins.cpp ops.cpp ast.cpp optimizer.cpp formatter.cpp parser.cpp config.cpp bundle.cpp interrupt.cpp native_value.cpp exports.cpp embed.cpp platform.cpp)
 LYNXER_OBJECTS := $(LYNXER_SOURCES:.cpp=.o)
 LYNXER_OBJECTS_ARM64 := $(LYNXER_SOURCES:.cpp=.o-arm64)
 LYNXER_HEADERS := $(wildcard $(LYNXER_DIR)/*.hpp)
@@ -18,6 +18,10 @@ LYNXER_CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -pedantic -fPIC -ftls-model=glob
 # Native (C++) stdlib modules: every lynxer/stdlib/<name>.cpp -> <name>.so.
 LYNXER_NATIVE_SOURCES := $(wildcard $(LYNXER_DIR)/stdlib/*.cpp)
 LYNXER_NATIVE_MODULES := $(LYNXER_NATIVE_SOURCES:.cpp=.so)
+
+# Modules a Windows build must skip: `sys` is built on Linux system calls. The
+# named syscall built-ins are likewise Linux-only (see docs/windows.md).
+LYNXER_LINUX_ONLY_MODULES := sys
 
 # Rust backends: self-contained cdylibs that the interpreter dlopens directly.
 LYNXER_RUST_DIR := $(LYNXER_DIR)/rust

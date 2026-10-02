@@ -23,7 +23,7 @@
 #include <mutex>
 #include <sstream>
 #include <thread>
-#include <dlfcn.h>
+#include "platform.hpp"
 #include <unordered_map>
 #include <unordered_set>
 
@@ -5815,12 +5815,11 @@ Value builtinFfiLoadLibrary(const std::vector<Value>& args, Environment&, int li
     if (args.size() != 1 || !std::holds_alternative<std::string>(args[0])) {
         fail("ffiLoadLibrary(path) expects a library path", line, column);
     }
-    void* handle = ::dlopen(std::get<std::string>(args[0]).c_str(),
-                            RTLD_NOW | RTLD_LOCAL);
+    void* handle = platform::openLibrary(std::get<std::string>(args[0]));
     if (handle == nullptr) {
+        const std::string reason = platform::lastLibraryError();
         fail("ffiLoadLibrary() failed: " +
-                 std::string(::dlerror() == nullptr ? "unknown error"
-                                                     : ::dlerror()),
+                 (reason.empty() ? std::string("unknown error") : reason),
              line, column);
     }
     ffiLibraries()[handle] = handle;
@@ -5846,11 +5845,12 @@ Value builtinFfiLookup(const std::vector<Value>& args, Environment&, int line,
     if (ffiLibraries().find(library) == ffiLibraries().end()) {
         fail("ffiLookup() received an unknown library handle", line, column);
     }
-    void* symbol = ::dlsym(library, std::get<std::string>(args[1]).c_str());
+    void* symbol =
+        platform::librarySymbol(library, std::get<std::string>(args[1]).c_str());
     if (symbol == nullptr) {
-        const char* error = ::dlerror();
+        const std::string reason = platform::lastLibraryError();
         fail("ffiLookup() failed: " +
-                 std::string(error == nullptr ? "symbol not found" : error),
+                 (reason.empty() ? std::string("symbol not found") : reason),
              line, column);
     }
     ffiFunctions()[symbol] = library;
@@ -5869,7 +5869,7 @@ Value builtinFfiCloseLibrary(const std::vector<Value>& args, Environment&,
         fail("ffiCloseLibrary() received an unknown library handle", line,
              column);
     }
-    ::dlclose(library);
+    platform::closeLibrary(library);
     ffiLibraries().erase(found);
     return std::int64_t{0};
 }
@@ -5983,7 +5983,6 @@ bool nativeModuleNameTaken(const NativeModuleEntry& entry,
 
 int nativeModuleRegisterFunction(const char* name, const char* symbol,
                                  const char* signature) {
-#if defined(__unix__) || defined(__APPLE__)
     if (activeNativeModuleEntry == nullptr || !validNativeName(name) ||
         symbol == nullptr || signature == nullptr) {
         return 0;
@@ -5993,19 +5992,13 @@ int nativeModuleRegisterFunction(const char* name, const char* symbol,
         entry.error = "duplicate native registration";
         return 0;
     }
-    void* address = ::dlsym(entry.handle, symbol);
+    void* address = platform::librarySymbol(entry.handle, symbol);
     if (address == nullptr) {
         entry.error = "registered symbol not found";
         return 0;
     }
     entry.functions[name] = {address, signature};
     return 1;
-#else
-    (void)name;
-    (void)symbol;
-    (void)signature;
-    return 0;
-#endif
 }
 
 int nativeModuleRegisterConstant(const char* name, std::int64_t value) {
@@ -6060,16 +6053,15 @@ Value builtinNativeModuleLoad(const std::vector<Value>& args, Environment&,
              column);
     }
     const std::string path = std::get<std::string>(args[0]);
-#if defined(__unix__) || defined(__APPLE__)
     std::filesystem::path resolved(path);
     if (resolved.is_relative()) {
         resolved = std::filesystem::current_path() / resolved;
     }
-    void* handle = ::dlopen(resolved.c_str(), RTLD_NOW | RTLD_LOCAL);
+    void* handle = platform::openLibrary(resolved.string());
     if (handle == nullptr) {
-        const char* error = ::dlerror();
+        const std::string reason = platform::lastLibraryError();
         fail("nativeModuleLoad() failed: " +
-                 std::string(error == nullptr ? "unknown error" : error),
+                 (reason.empty() ? std::string("unknown error") : reason),
              line, column);
     }
     auto initializer =
@@ -6077,9 +6069,9 @@ Value builtinNativeModuleLoad(const std::vector<Value>& args, Environment&,
                                          const char*),
                                  int (*)(const char*, std::int64_t),
                                  int (*)(const char*, const char*))>(
-            ::dlsym(handle, "lynxer_module_init_v1"));
+            platform::librarySymbol(handle, "lynxer_module_init_v1"));
     if (initializer == nullptr) {
-        ::dlclose(handle);
+        platform::closeLibrary(handle);
         fail("native module lifecycle failure: missing lynxer_module_init_v1 "
              "entry point",
              line, column);
@@ -6097,7 +6089,7 @@ Value builtinNativeModuleLoad(const std::vector<Value>& args, Environment&,
         const std::string detail = entry->error.empty()
                                        ? "initializer returned non-zero"
                                        : entry->error;
-        ::dlclose(handle);
+        platform::closeLibrary(handle);
         fail("native module lifecycle failure: " + detail, line, column);
     }
     const std::int64_t moduleHandle = nextNativeModuleHandle();
@@ -6112,9 +6104,6 @@ Value builtinNativeModuleLoad(const std::vector<Value>& args, Environment&,
         ffiFunctions()[pair.second.first] = handle;
     }
     return moduleHandle;
-#else
-    fail("nativeModuleLoad() requires a POSIX host", line, column);
-#endif
 }
 
 Value builtinNativeModuleName(const std::vector<Value>& args, Environment&,
@@ -6298,7 +6287,7 @@ Value builtinNativeModuleClose(const std::vector<Value>& args, Environment&,
     // address then fails in `ffiCall` ("belongs to a closed library") instead
     // of jumping into unmapped code.
     ffiLibraries().erase(entry->handle);
-    ::dlclose(entry->handle);
+    platform::closeLibrary(entry->handle);
     {
         std::lock_guard<std::mutex> guard(nativeModuleEntriesMutex());
         nativeModuleEntries().erase(handleValue);

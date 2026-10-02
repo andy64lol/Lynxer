@@ -13,6 +13,10 @@ extension and run on the standalone C++ interpreter in `lynxer/`.
 > require Linux. Native builds support 64-bit x86-64 (`amd64`) and ARM64
 > (`aarch64`) hosts. Builds fail early on other operating systems or
 > architectures rather than mixing syscall tables.
+> **Windows:** a port is in progress; the host layer is in place and the
+> Linux-only surface (named syscalls, the `sys` module) is excluded for now.
+> See [docs/windows.md](docs/windows.md).
+>
 > **Status (2026-09-24): Lynxer is a standalone C++ implementation.** It ships
 > standalone ELF executables, 34 natively backed stdlib modules, an AST
 > optimizer, a frozen native-module ABI, and a full test suite on both amd64 and

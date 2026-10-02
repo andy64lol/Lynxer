@@ -10,6 +10,7 @@
 #include "ops.hpp"
 #include "optimizer.hpp"
 #include "parser.hpp"
+#include "platform.hpp"
 #include "stdlib/lynxer_native_abi.h"
 #include "types.hpp"
 
@@ -26,9 +27,6 @@
 #include <sstream>
 #include <thread>
 #include <variant>
-#if defined(__unix__) || defined(__APPLE__)
-#include <dlfcn.h>
-#endif
 
 namespace lynxer {
 
@@ -86,12 +84,12 @@ thread_local NativeRegistration* activeNativeRegistration = nullptr;
 
 int nativeRegisterFunction(const char* name, const char* symbol,
                            const char* signature) {
-#if defined(__unix__) || defined(__APPLE__)
     if (activeNativeRegistration == nullptr || !validNativeName(name) ||
         symbol == nullptr || signature == nullptr) {
         return 0;
     }
-    void* address = dlsym(activeNativeRegistration->handle, symbol);
+    void* address =
+        platform::librarySymbol(activeNativeRegistration->handle, symbol);
     if (activeNativeRegistration->functions.count(name) ||
         activeNativeRegistration->constants.count(name) ||
         activeNativeRegistration->types.count(name)) {
@@ -104,12 +102,6 @@ int nativeRegisterFunction(const char* name, const char* symbol,
     }
     activeNativeRegistration->functions[name] = {address, signature};
     return 1;
-#else
-    (void)name;
-    (void)symbol;
-    (void)signature;
-    return 0;
-#endif
 }
 
 int nativeRegisterConstant(const char* name, std::int64_t value) {
@@ -564,7 +556,6 @@ std::unordered_map<std::string, NativeRegistration>& bridgedModules() {
 }  // namespace
 
 const NativeRegistration* loadBridgedModule(const std::string& module) {
-#if defined(__unix__) || defined(__APPLE__)
     auto& modules = bridgedModules();
     const auto found = modules.find(module);
     if (found != modules.end()) {
@@ -574,7 +565,7 @@ const NativeRegistration* loadBridgedModule(const std::string& module) {
     if (resolved.empty()) {
         return nullptr;
     }
-    void* handle = dlopen(resolved.c_str(), RTLD_NOW | RTLD_LOCAL);
+    void* handle = platform::openLibrary(resolved);
     if (handle == nullptr) {
         return nullptr;
     }
@@ -582,9 +573,9 @@ const NativeRegistration* loadBridgedModule(const std::string& module) {
         reinterpret_cast<int (*)(int (*)(const char*, const char*, const char*),
                                  int (*)(const char*, std::int64_t),
                                  int (*)(const char*, const char*))>(
-            dlsym(handle, "lynxer_module_init_v1"));
+            platform::librarySymbol(handle, "lynxer_module_init_v1"));
     if (initializer == nullptr) {
-        dlclose(handle);
+        platform::closeLibrary(handle);
         return nullptr;
     }
     NativeRegistration registration;
@@ -594,14 +585,10 @@ const NativeRegistration* loadBridgedModule(const std::string& module) {
                                    nativeRegisterConstant, nativeRegisterType);
     activeNativeRegistration = nullptr;
     if (status != 0) {
-        dlclose(handle);
+        platform::closeLibrary(handle);
         return nullptr;
     }
     return &modules.emplace(module, std::move(registration)).first->second;
-#else
-    (void)module;
-    return nullptr;
-#endif
 }
 
 Value callBridgedModule(const std::string& module, const std::string& operation,
@@ -2113,7 +2100,6 @@ void ImportStatement::execute(Environment& environment) const {
         return;
     }
     if (isNativeLibraryPath(path_)) {
-#if defined(__unix__) || defined(__APPLE__)
         const std::string nativePath =
             findSourceModule(environment, path_).empty()
                 ? path_
@@ -2124,7 +2110,7 @@ void ImportStatement::execute(Environment& environment) const {
                    std::filesystem::path(nativePath))
                       .string()
                 : nativePath;
-        void* handle = dlopen(loadPath.c_str(), RTLD_NOW | RTLD_LOCAL);
+        void* handle = platform::openLibrary(loadPath);
         if (handle == nullptr) {
             throw SourceError("could not load native module '" + path_ + "'",
                               line_, column_);
@@ -2134,9 +2120,9 @@ void ImportStatement::execute(Environment& environment) const {
                                              const char*),
                                      int (*)(const char*, std::int64_t),
                                      int (*)(const char*, const char*))>(
-                dlsym(handle, "lynxer_module_init_v1"));
+                platform::librarySymbol(handle, "lynxer_module_init_v1"));
         if (initializer == nullptr) {
-            dlclose(handle);
+            platform::closeLibrary(handle);
             throw SourceError("native module lifecycle failure: missing "
                               "lynxer_module_init_v1 entry point",
                               line_, column_);
@@ -2152,16 +2138,16 @@ void ImportStatement::execute(Environment& environment) const {
             const std::string detail = registration.error.empty()
                                             ? "initializer returned non-zero"
                                             : registration.error;
-            dlclose(handle);
+            platform::closeLibrary(handle);
             throw SourceError("native module lifecycle failure: " + detail,
                               line_, column_);
         }
         // Prefer the extended host API when present; its separate symbol keeps
         // older v1 host structures safe from overreads.
         auto attachV2 = reinterpret_cast<int (*)(const LynxerHostApiV2*)>(
-            dlsym(handle, "lynxer_module_attach_v2"));
+            platform::librarySymbol(handle, "lynxer_module_attach_v2"));
         auto attachV1 = reinterpret_cast<int (*)(const LynxerHostApi*)>(
-            dlsym(handle, "lynxer_module_attach_v1"));
+            platform::librarySymbol(handle, "lynxer_module_attach_v1"));
         int attachStatus = 0;
         if (attachV2 != nullptr) {
             LynxerHostApiV2 host{};
@@ -2186,14 +2172,14 @@ void ImportStatement::execute(Environment& environment) const {
             attachStatus = attachV1(&host);
         }
         if (attachStatus != 0) {
-            dlclose(handle);
+            platform::closeLibrary(handle);
             throw SourceError("native module lifecycle failure: attach "
                               "rejected the host API",
                               line_, column_);
         }
         environment.markImportedModule(importKey);
-        environment.retainNativeModule(
-            std::shared_ptr<void>(handle, [](void* value) { dlclose(value); }));
+        environment.retainNativeModule(std::shared_ptr<void>(
+            handle, [](void* value) { platform::closeLibrary(value); }));
         auto namespaceValue = std::make_shared<RecordValue>();
         namespaceValue->typeName = "module";
         namespaceValue->displayName = namespaceName;
@@ -2218,10 +2204,6 @@ void ImportStatement::execute(Environment& environment) const {
                 });
         }
         return;
-#else
-        throw SourceError("native modules are only supported on POSIX hosts",
-                          line_, column_);
-#endif
     }
     // A compiled executable carries its module sources in memory; otherwise the
     // module is read from the filesystem.

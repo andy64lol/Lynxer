@@ -10,6 +10,7 @@
 #include "native_name.hpp"
 #include "optimizer.hpp"
 #include "parser.hpp"
+#include "platform.hpp"
 #include "runtime.hpp"
 
 #include <algorithm>
@@ -23,10 +24,6 @@
 #include <string>
 #include <vector>
 
-#if defined(__unix__) || defined(__APPLE__)
-#include <sys/wait.h>
-#include <unistd.h>
-#endif
 
 namespace lynxer {
 
@@ -272,14 +269,10 @@ int formatFile(const std::string& display, const std::string& source,
 // The path of the running executable, resolved through /proc where possible so
 // a relative invocation still works.
 std::string runningExecutable(const char* argv0) {
-#if defined(__linux__)
-    std::vector<char> buffer(4096);
-    const ssize_t length =
-        ::readlink("/proc/self/exe", buffer.data(), buffer.size() - 1);
-    if (length > 0) {
-        return std::string(buffer.data(), static_cast<std::size_t>(length));
+    const std::string path = platform::executablePath();
+    if (!path.empty()) {
+        return path;
     }
-#endif
     return argv0 != nullptr ? std::string(argv0) : std::string();
 }
 
@@ -396,9 +389,12 @@ int installBinary(const char* argv0) {
             }
         }
 
-        std::error_code removeError;
-        std::filesystem::remove(linkPath, removeError);
-        std::filesystem::create_symlink(installedBinary, linkPath);
+        std::string linkError;
+        if (!platform::linkOrCopy(installedBinary.string(),
+                                  linkPath.string(), linkError)) {
+            throw std::filesystem::filesystem_error(linkError,
+                                                    std::error_code());
+        }
     } catch (const std::filesystem::filesystem_error& error) {
         std::cerr << "lynxer: install failed: " << error.what() << '\n';
         std::cerr << "lynxer: re-run with permission to write " << prefix
@@ -1106,33 +1102,7 @@ std::string generateExportHeader(const std::vector<ExportPlan>& exports,
 
 // Spawns `command` and returns its exit status, or -1 if it could not run.
 int runProcess(const std::vector<std::string>& command) {
-#if defined(__unix__) || defined(__APPLE__)
-    std::vector<char*> argv;
-    argv.reserve(command.size() + 1);
-    for (const std::string& part : command) {
-        argv.push_back(const_cast<char*>(part.c_str()));
-    }
-    argv.push_back(nullptr);
-    const pid_t pid = ::fork();
-    if (pid < 0) {
-        return -1;
-    }
-    if (pid == 0) {
-        ::execvp(argv[0], argv.data());
-        ::_exit(127);
-    }
-    int status = 0;
-    if (::waitpid(pid, &status, 0) < 0) {
-        return -1;
-    }
-    if (WIFEXITED(status)) {
-        return WEXITSTATUS(status);
-    }
-    return -1;
-#else
-    (void)command;
-    return -1;
-#endif
+    return platform::spawnProcess(command);
 }
 
 // Builds a shared library that exposes a program's `export`s over a C ABI.
@@ -1305,19 +1275,17 @@ int emitLibrary(const std::vector<std::string>& arguments) {
         if (endsWith(outputPath, ".lynx")) {
             outputPath.resize(outputPath.size() - 5);
         }
-        outputPath += ".so";
+        outputPath += ".";
+        outputPath += platform::libraryExtension();
     }
 
     // Generate the wrapper source and version script in a private directory.
-    std::string temporary = "/tmp/lynxer-emit-XXXXXX";
-    std::vector<char> buffer(temporary.begin(), temporary.end());
-    buffer.push_back('\0');
-    if (::mkdtemp(buffer.data()) == nullptr) {
+    std::string directory;
+    std::string temporaryError;
+    if (!platform::makeTemporaryDirectory(directory, temporaryError)) {
         return failWith("error.emit_library_failed",
-                        "lynxer: emit-library failed: {0}",
-                        "cannot create a temporary directory");
+                        "lynxer: emit-library failed: {0}", temporaryError);
     }
-    const std::string directory(buffer.data());
     const std::string shimPath = directory + "/shim.cpp";
     const std::string mapPath = directory + "/export.map";
     {

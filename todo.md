@@ -129,12 +129,12 @@ surface stays a documented boundary in
   `lynxer.dll`; replace the POSIX-only compile/link flags (`-fPIC`,
   `-ftls-model=global-dynamic`, ELF version scripts) with their Windows
   equivalents (`.def`/`/EXPORT:`, `__declspec`).
-- [ ] **Portable host layer.** Abstract the host calls the interpreter makes:
-  self-executable path (`GetModuleFileNameW` instead of `/proc/self/exe`),
-  dynamic loading (`LoadLibrary`/`GetProcAddress` instead of
-  `dlopen`/`dlsym`), subprocess spawn and process-group termination
-  (`CreateProcess` and Job objects instead of `fork`/`exec`/`kill`), file
-  modes and permissions, and path separators.
+- [x] **Portable host layer.** Added `lynxer/platform.hpp`/`platform.cpp`,
+  which centralizes the running-executable path, dynamic loading, subprocess
+  spawn, temporary directories, the executable bit and the install link, with
+  POSIX and `_WIN32` implementations; the core calls it, and `.dll` is
+  recognized as a native library. Linux behavior is unchanged. Process-group
+  termination and path-separator normalization remain.
 - [ ] **Native-module ABI on Windows.** Load `.dll` modules with the same
   `lynxer_module_init_v1` entry point and `cdecl:` grammar, exporting symbols
   with `__declspec(dllexport)`/`.def`; keep the signature and host-API ABI
@@ -146,17 +146,21 @@ surface stays a documented boundary in
 - [ ] **`--compile` bundling.** Append the bundle payload to a PE image and
   locate the running module with `GetModuleFileNameW`; keep the existing
   materialize-to-temp-dir behavior for embedded modules and assets.
-- [ ] **Stdlib platform matrix.** Classify every module: portable as-is
-  (`json`, `toml`, `yaml`, `ini`, `xml`, `regex`, `text`, `math`, …); needs a
-  Windows backend (`watch` → `ReadDirectoryChangesW`, `path` platform values,
-  `tui`/`graphics`/`sound` console and device handling); and Linux-only (`sys`
-  syscalls and the `lowlevel_*` fixtures), which stay out of the Windows build.
+- [ ] **Stdlib platform matrix.** Portable as-is: `json`, `toml`, `yaml`,
+  `ini`, `xml`, `regex`, `text`, `math`, …. Needs a Windows backend: `watch`
+  (`ReadDirectoryChangesW`), `tui`/`graphics`/`sound` console and device
+  handling, `path` platform values. Linux-only and excluded from the Windows
+  build (named by `LYNXER_LINUX_ONLY_MODULES`): `sys` and the syscall built-ins,
+  plus the `lowlevel_*` fixtures. Startup code lives on the host layer; see
+  [docs/windows.md](docs/windows.md).
 - [ ] **Windows terminal behavior.** Enable virtual-terminal processing for
   `tui`/`graphics` output and cover TTY and redirected runs the way the Linux
   fixtures do.
-- [ ] **Tests and CI.** Add a `windows-latest` job that builds and runs the
-  portable fixture subset, gates the Linux-only fixtures (`syscall*`,
-  `lowlevel_*`), and documents every skipped case.
+- [ ] **Tests and CI.** An experimental, allowed-to-fail `windows-latest` job
+  now attempts the build and test in
+  [.github/workflows/build-lynxer-windows.yml](.github/workflows/build-lynxer-windows.yml)
+  (MSYS2 MINGW64). Make it a required job, skip the Linux-only fixtures
+  (`syscall*`, `lowlevel_*`) explicitly, and document every skipped case.
 - [ ] **Documentation.** Update `install.md`, `CLI.md`, `README.md` and the
   platform notes for the Windows build, and record the syscall surface as an
   explicit Linux-only boundary.

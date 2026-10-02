@@ -1,14 +1,13 @@
 #include "bundle.hpp"
 
 #include "config.hpp"
+#include "platform.hpp"
 
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
-#include <sys/stat.h>
-#include <unistd.h>
 
 namespace lynxer {
 
@@ -153,11 +152,12 @@ std::size_t executableCopySize(const std::string& path) {
 }
 
 std::string temporaryDirectory() {
-    char pattern[] = "/tmp/lynxer-bundle-XXXXXX";
-    if (::mkdtemp(pattern) == nullptr) {
+    std::string directory;
+    std::string error;
+    if (!platform::makeTemporaryDirectory(directory, error)) {
         return "";
     }
-    return pattern;
+    return directory;
 }
 
 // Registered with std::atexit: native libraries stay mapped after their files
@@ -289,8 +289,7 @@ bool writeBundledExecutable(const std::string& outputPath,
     }
     output.close();
 
-    if (::chmod(outputPath.c_str(), 0755) != 0) {
-        error = "cannot mark '" + outputPath + "' executable";
+    if (!platform::setExecutable(outputPath, error)) {
         return false;
     }
     return true;
@@ -338,8 +337,10 @@ bool materializeBundle(const std::vector<ArchiveModule>& modules,
                      static_cast<std::streamsize>(bytes.size()));
         output.close();
         if (isLibrary) {
-            if (::chmod(path.c_str(), 0755) != 0) {
-                error = "cannot mark native module '" + name + "' loadable";
+            std::string permissionError;
+            if (!platform::setExecutable(path, permissionError)) {
+                error = "cannot mark native module '" + name + "' loadable: " +
+                        permissionError;
                 return false;
             }
             libraries[name] = path;

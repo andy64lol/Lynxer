@@ -57,6 +57,7 @@ standard-library improvements.
 | [legacy-surface.md](legacy-surface.md) | The original feature surface and its replacements |
 | [removed-features.md](removed-features.md) | Bytecode, Python bridging and other removed features |
 | [limitations.md](limitations.md) | Deliberate constraints and what is not implemented |
+| [windows.md](windows.md) | Windows port status and the features excluded from it |
 
 ## Build and run
 
