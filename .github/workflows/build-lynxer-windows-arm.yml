@@ -36,6 +36,7 @@ jobs:
             mingw-w64-clang-aarch64-clang
             mingw-w64-clang-aarch64-libffi
             mingw-w64-clang-aarch64-pkgconf
+            mingw-w64-clang-aarch64-python
             mingw-w64-clang-aarch64-rust
 
       - name: Cache Rust dependencies
