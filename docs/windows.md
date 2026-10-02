@@ -57,9 +57,11 @@ must skip (`sys`).
 - **`--compile` bundling.** The payload is appended to the running image; the
   PE equivalent and `GetModuleFileNameW`-based self-read are still to do.
 - **CI.** An experimental, allowed-to-fail `windows-latest` job now attempts a
-  real build and test in `.github/workflows/build-lynxer-windows.yml`; it builds
-  inside MSYS2 MINGW64. It graduates to a required job once it is green, and it
-  must skip the Linux-only fixtures explicitly.
+  real build and test on both architectures, in
+  `.github/workflows/build-lynxer-windows-amd.yml` (MSYS2 MINGW64) and
+  `.github/workflows/build-lynxer-windows-arm.yml` (MSYS2 CLANGARM64). They
+  graduate to required jobs once green, and must skip the Linux-only fixtures
+  explicitly.
 
 See the **Windows support** section of [../todo.md](../todo.md) for the tracked
 items.

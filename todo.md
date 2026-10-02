@@ -157,9 +157,11 @@ surface stays a documented boundary in
   `tui`/`graphics` output and cover TTY and redirected runs the way the Linux
   fixtures do.
 - [ ] **Tests and CI.** An experimental, allowed-to-fail `windows-latest` job
-  now attempts the build and test in
-  [.github/workflows/build-lynxer-windows.yml](.github/workflows/build-lynxer-windows.yml)
-  (MSYS2 MINGW64). Make it a required job, skip the Linux-only fixtures
+  now attempts the build and test on both architectures:
+  [.github/workflows/build-lynxer-windows-amd.yml](.github/workflows/build-lynxer-windows-amd.yml)
+  (MSYS2 MINGW64) and
+  [.github/workflows/build-lynxer-windows-arm.yml](.github/workflows/build-lynxer-windows-arm.yml)
+  (MSYS2 CLANGARM64). Make them required jobs, skip the Linux-only fixtures
   (`syscall*`, `lowlevel_*`) explicitly, and document every skipped case.
 - [ ] **Documentation.** Update `install.md`, `CLI.md`, `README.md` and the
   platform notes for the Windows build, and record the syscall surface as an
