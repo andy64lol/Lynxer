@@ -806,6 +806,27 @@ Value invokeFunction(const Function& function, const std::vector<Value>& args,
 void executeProgram(const std::unordered_map<std::string, Function>& functions,
                     Environment& environment);
 
+// Registers the program's top-level functions and runs `global setup()` if it
+// exists, without running `main()`. `executeProgram` calls both; the embedding
+// runtime calls them and then keeps the environment alive for exported calls.
+void prepareProgram(const std::unordered_map<std::string, Function>& functions,
+                    Environment& environment);
+void runSetup(const std::unordered_map<std::string, Function>& functions,
+              Environment& environment);
+
+// The top-level environment that native callbacks resolve against (see
+// `lynxerHostInvoke`). Saved and restored around an embedded exported call.
+Environment* currentHostInvokeEnvironment();
+void setHostInvokeEnvironment(Environment* environment);
+
+// One `export "<cdecl signature>" name(...)` declaration found while parsing.
+struct ExportRecord {
+    std::string name;
+    std::string signature;
+    int line = 0;
+    int column = 0;
+};
+
 // Prints the parsed program as the position-free tree used by `--ast`.
 // `functions` is the order they were declared in (see Parser::programOrder).
 void dumpProgram(std::ostream& out, const std::vector<const Function*>& functions);
@@ -819,8 +840,11 @@ struct ImportRecord {
 };
 
 // Lexes and parses `source`, returning every import it declares in source order.
+// A library (see `--emit-library`) can be parsed with `requireEntryPoints`
+// false, so a program without `global setup()` is accepted.
 std::vector<ImportRecord> collectImports(const std::string& source,
-                                         const std::string& display);
+                                         const std::string& display,
+                                         bool requireEntryPoints = true);
 
 // Resolves a module reference the way the interpreter does, starting from
 // `sourceDirectory`. Embedded modules take priority; returns "" when nothing

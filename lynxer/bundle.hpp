@@ -31,6 +31,11 @@ bool readSelfPayload(std::vector<uint8_t>& payload);
 bool decodeProgramArchive(const std::vector<uint8_t>& payload,
                           ProgramArchive& archive);
 
+// Serializes an archive into a payload body (version, main path/source and
+// every module), without the executable trailer. `decodeProgramArchive`
+// decodes exactly this form; the export runtime embeds it directly.
+std::vector<uint8_t> makeBundleBody(const ProgramArchive& archive);
+
 // Serializes an archive into a payload, including the trailing magic and size.
 std::vector<uint8_t> makeBundlePayload(const ProgramArchive& archive);
 

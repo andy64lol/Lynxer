@@ -1,0 +1,19 @@
+////
+Export fixture: one function per v1 C ABI type, an alias spelling, and a
+`setup()` that calls an export so the consumer observes initialization ordering.
+Built into a shared library by `lynxer --emit-library` and exercised by
+`export_consumer.cpp` and `export_consumer.py`.
+////
+global setup(){
+    // Runs once, before the first exported call, and may itself call exports.
+    println("setup-ran");
+    println(add(20, 22));
+}
+
+export "cdecl:int64(int64,int64)" add(int a, int b) -> int { return a + b; }
+// `int32` is an accepted alias for the int64 export type.
+export "cdecl:int32(int32)" negate(int value) -> int { return 0 - value; }
+export "cdecl:double(double)" scale(float value) -> float { return value * 2.0; }
+export "cdecl:cstring(cstring)" greet(str who) -> str { return "hi " + who; }
+export "cdecl:bytes(bytes)" echoBytes(bytes payload) -> bytes { return payload; }
+export "cdecl:void(int64)" sink(int value) -> none { println(value); }

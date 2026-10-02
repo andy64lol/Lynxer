@@ -1,6 +1,7 @@
 #include "parser.hpp"
 
 #include "error.hpp"
+#include "exports.hpp"
 #include "types.hpp"
 
 #include <algorithm>
@@ -552,6 +553,46 @@ Function Parser::parseFunction(const std::string& kind, bool topLevel) {
     return function;
 }
 
+Function Parser::parseExport() {
+    expectText("export", "expected export declaration");
+    const Token signatureToken = expect(
+        TokenKind::String,
+        "expected a quoted C signature string after 'export'");
+    const Token name =
+        expect(TokenKind::Identifier, "expected exported function name");
+    if (name.text == "setup" || name.text == "main") {
+        fail("cannot export entry-point function '" + name.text + "'", name);
+    }
+    expectText("(", "expected '(' after exported function name");
+    Function function;
+    function.name = name.text;
+    function.isGlobal = true;
+    function.isFileFunction = false;
+    function.parameters = parseFunctionParameters();
+    if (match("-")) {
+        expectText(">", "expected '>' after '-' in return type");
+        function.returnType = parseTypeName("expected return type after '->'");
+    } else if (match(":")) {
+        function.returnType = parseTypeName("expected return type after ':'");
+    }
+    if (looksLikeCodeblockSignature()) {
+        fail("exported functions cannot declare codeblock parameters", name);
+    }
+
+    ExportSignature signature;
+    std::string error;
+    if (!parseExportSignature(signatureToken.text, signature, error)) {
+        fail(error, signatureToken);
+    }
+    if (!checkExportCompatibility(function, signature, error)) {
+        fail(error, name);
+    }
+    exports_.push_back(
+        {function.name, signatureToken.text, name.line, name.column});
+    function.statements = parseBlock("function body");
+    return function;
+}
+
 StatementPtr Parser::parseLocalFunction() {
     const Token keyword = expectText("local", "expected 'local' function");
     const Token name = expect(TokenKind::Identifier, "expected function name");
@@ -718,6 +759,20 @@ std::unordered_map<std::string, Function> Parser::parseProgram(
     bool sawMain = false;
     bool sawAnyDeclaration = false;
     while (!check(TokenKind::End)) {
+        if (checkText("export")) {
+            const Token name = peekAt(2);
+            if (sawMain) {
+                fail("declarations may not follow global main()", current());
+            }
+            Function function = parseExport();
+            if (functions.find(function.name) != functions.end()) {
+                fail("duplicate function '" + function.name + "'", name);
+            }
+            programOrder_.push_back(function.name);
+            functions.emplace(function.name, std::move(function));
+            sawAnyDeclaration = true;
+            continue;
+        }
         if (checkText("struct")) {
             if (sawMain) {
                 fail("declarations may not follow global main()", current());

@@ -131,6 +131,28 @@ embedded as data and read from the program with `bundledFile(name)` /
 Inside a compiled executable, `--no-opt` has no effect: the payload is always
 optimized.
 
+## Emitting a C ABI library
+
+`--emit-library` builds a shared library (`.so`) that exposes a program's
+top-level `export`s as C symbols other languages can call. It needs a C++
+compiler and the embedding runtime `liblynxer.so` (built by `make
+buildLynxer`, installed next to the interpreter).
+
+```bash
+lynxer --emit-library app.lynx -o libapp.so
+lynxer --emit-library app.lynx --include helpers.lynx -o libapp.so
+```
+
+| Flag | Aliases | Effect |
+|------|---------|--------|
+| `--emit-library` | `--shared-library`, `-emit-library` | build an exporting shared library |
+| `--include <file>` | `-i` | embed an extra module, native library, or data file |
+| `-o <path>` | `--output` | name the output library |
+| `--runtime <path>` | — | use an explicit `liblynxer.so` |
+| `--cc <compiler>` | — | C++ compiler used to build the library |
+
+See [embedding.md](embedding.md) for the `export` syntax and the C ABI mapping.
+
 ## Listing the standard library
 
 ```bash

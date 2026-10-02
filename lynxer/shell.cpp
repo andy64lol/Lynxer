@@ -3,6 +3,7 @@
 #include "bundle.hpp"
 #include "config.hpp"
 #include "error.hpp"
+#include "exports.hpp"
 #include "formatter.hpp"
 #include "interrupt.hpp"
 #include "lexer.hpp"
@@ -21,7 +22,8 @@
 #include <string>
 #include <vector>
 
-#if defined(__linux__)
+#if defined(__unix__) || defined(__APPLE__)
+#include <sys/wait.h>
 #include <unistd.h>
 #endif
 
@@ -74,6 +76,11 @@ void printUsage() {
     std::cout << "  lynxer --bundle <a.lynx> [options] [name]   Alias of --compile\n";
     std::cout << "      --include <file>                         Embed a module, native library or data file\n";
     std::cout << "      -o, --output <name>                      Name the output executable\n";
+    std::cout << "  lynxer --emit-library <a.lynx> [options] [out.so]\n";
+    std::cout << "                                              Build a .so exporting the program's `export`s over a C ABI\n";
+    std::cout << "      --include <file>                         Embed a module, native library or data file\n";
+    std::cout << "      --runtime <liblynxer.so>                 Use an explicit embedding runtime\n";
+    std::cout << "      --cc <compiler>                          C++ compiler used to build the library\n";
     std::cout << "  lynxer --validate-executeable               Run the interpreter self-check\n";
     std::cout << "  lynxer --version                            Print version\n";
     std::cout << "  lynxer --list-stdlibs                       List available Lynxer stdlib modules\n";
@@ -361,6 +368,33 @@ int installBinary(const char* argv0) {
                 std::filesystem::copy_options::overwrite_existing);
         }
 
+        // The embedding runtime and its headers ship next to the binary so an
+        // installed `lynxer --emit-library` can find both. Without them the
+        // interpreter still runs; only library emission is unavailable.
+        const std::filesystem::path sharedLibrary =
+            sourceDirectory / "liblynxer.so";
+        std::error_code sharedError;
+        if (std::filesystem::is_regular_file(sharedLibrary, sharedError)) {
+            if (!sameFile(sharedLibrary, libDir / "liblynxer.so")) {
+                std::filesystem::copy_file(
+                    sharedLibrary, libDir / "liblynxer.so",
+                    std::filesystem::copy_options::overwrite_existing);
+            }
+        } else {
+            std::cerr << "lynxer: note: liblynxer.so not found; install it to "
+                         "use --emit-library\n";
+        }
+        for (const char* header : {"lynxer.h", "ffi_abi.h"}) {
+            const std::filesystem::path sourceHeader = sourceDirectory / header;
+            std::error_code headerError;
+            if (std::filesystem::is_regular_file(sourceHeader, headerError) &&
+                !sameFile(sourceHeader, libDir / header)) {
+                std::filesystem::copy_file(
+                    sourceHeader, libDir / header,
+                    std::filesystem::copy_options::overwrite_existing);
+            }
+        }
+
         std::error_code removeError;
         std::filesystem::remove(linkPath, removeError);
         std::filesystem::create_symlink(installedBinary, linkPath);
@@ -563,7 +597,8 @@ std::string baseName(const std::string& path) {
 // executable does not need the build tree at run time.
 bool collectArchive(const std::string& mainPath, const std::string& mainSource,
                     const std::vector<std::string>& extraInputs,
-                    ProgramArchive& archive, std::string& error) {
+                    ProgramArchive& archive, std::string& error,
+                    bool requireEntryPoints = true) {
     std::map<std::string, bool> collectedSources;
     std::map<std::string, bool> collectedLibraries;
     std::map<std::string, bool> collectedAssets;
@@ -666,7 +701,8 @@ bool collectArchive(const std::string& mainPath, const std::string& mainSource,
 
         std::vector<ImportRecord> imports;
         try {
-            imports = collectImports(current.source, current.path);
+            imports = collectImports(current.source, current.path,
+                                     requireEntryPoints);
         } catch (const SourceError& importError) {
             std::cerr << "lynxer: " << current.path << ':' << importError.line
                       << ':' << importError.column << ": " << importError.what()
@@ -839,9 +875,439 @@ int compileProgramToExecutable(const std::vector<std::string>& arguments) {
     return 0;
 }
 
-// Runs the program carried by a compiled executable.
-int runCompiledPayload(const std::vector<uint8_t>& payload) {
+// One exported function the emitted library exposes.
+struct ExportPlan {
+    std::string name;
+    ExportSignature signature;
+};
+
+// The single-token C spelling of an export type, as written in the generated
+// wrapper prototypes.
+std::string exportCppType(ExportType type) {
+    switch (type) {
+        case ExportType::Int64: return "int64_t";
+        case ExportType::Float64: return "double";
+        case ExportType::CString: return "const char*";
+        case ExportType::Bytes: return "const uint8_t*";
+        case ExportType::Void: return "void";
+    }
+    return "void";
+}
+
+// The value a wrapper returns when the embedded call fails.
+std::string exportZeroValue(ExportType type) {
+    switch (type) {
+        case ExportType::Int64: return "0";
+        case ExportType::Float64: return "0.0";
+        case ExportType::CString: return "\"\"";
+        case ExportType::Bytes: return "nullptr";
+        case ExportType::Void: return "";
+    }
+    return "";
+}
+
+// Generates the C++ source of the emitted shared library: the program archive
+// as a byte array, a lazy `lynxer_embed_init`, and one typed `extern "C"`
+// wrapper per export that marshals through the embedding C ABI.
+std::string generateExportShim(const std::vector<ExportPlan>& exports,
+                               const std::vector<std::uint8_t>& archive) {
+    std::ostringstream out;
+    out << "// Generated by lynxer --emit-library. Do not edit.\n";
+    out << "#include \"lynxer.h\"\n\n";
+    out << "#include <cstdint>\n";
+    out << "#include <cstring>\n";
+    out << "#include <vector>\n\n";
+    out << "static const unsigned char kLynxerArchive[] = {";
+    for (std::size_t index = 0; index < archive.size(); ++index) {
+        if (index % 16 == 0) {
+            out << "\n    ";
+        }
+        out << "0x" << std::hex << std::uppercase
+            << static_cast<unsigned>(archive[index]) << ',';
+    }
+    out << "\n};\n\n";
+    out << "static LynxerEmbedContext* lynxer_export_context() {\n";
+    out << "    static LynxerEmbedContext* context = lynxer_embed_init(\n";
+    out << "        kLynxerArchive,\n";
+    out << "        static_cast<std::int64_t>(sizeof(kLynxerArchive)));\n";
+    out << "    return context;\n";
+    out << "}\n\n";
+    out << "static thread_local std::vector<std::uint8_t> lynxer_export_bytes;\n";
+    out << "static const std::uint8_t* lynxer_frame_bytes(const std::uint8_t* "
+           "data,\n";
+    out << "                                              std::int64_t length) "
+           "{\n";
+    out << "    const std::int64_t size = length < 0 ? 0 : length;\n";
+    out << "    lynxer_export_bytes.assign(static_cast<std::size_t>(size) + 8, "
+           "0);\n";
+    out << "    for (int index = 0; index < 8; ++index) {\n";
+    out << "        lynxer_export_bytes[static_cast<std::size_t>(index)] =\n";
+    out << "            static_cast<std::uint8_t>(\n";
+    out << "                (static_cast<std::uint64_t>(size) >> (8 * index)) & "
+           "0xFF);\n";
+    out << "    }\n";
+    out << "    if (data != nullptr && size > 0) {\n";
+    out << "        std::memcpy(lynxer_export_bytes.data() + 8, data,\n";
+    out << "                    static_cast<std::size_t>(size));\n";
+    out << "    }\n";
+    out << "    return lynxer_export_bytes.data();\n";
+    out << "}\n\n";
+
+    for (const ExportPlan& plan : exports) {
+        const ExportType returnType = plan.signature.returnType;
+        const bool isVoid = returnType == ExportType::Void;
+        out << "extern \"C\" " << exportCppType(returnType) << " " << plan.name
+            << "(";
+        for (std::size_t index = 0; index < plan.signature.parameters.size();
+             ++index) {
+            if (index != 0) {
+                out << ", ";
+            }
+            if (plan.signature.parameters[index] == ExportType::Bytes) {
+                out << "const std::uint8_t* a" << index << ", std::int64_t a"
+                    << index << "_length";
+            } else {
+                out << exportCppType(plan.signature.parameters[index]) << " a"
+                    << index;
+            }
+        }
+        out << ") {\n";
+        out << "    LynxerEmbedContext* context = lynxer_export_context();\n";
+        if (isVoid) {
+            out << "    if (context == nullptr) { return; }\n";
+        } else {
+            out << "    if (context == nullptr) { return "
+                << exportZeroValue(returnType) << "; }\n";
+        }
+        const std::size_t count = plan.signature.parameters.size();
+        if (count > 0) {
+            out << "    LynxerFfiArg arguments[" << count << "];\n";
+            out << "    std::memset(arguments, 0, sizeof(arguments));\n";
+            for (std::size_t index = 0; index < count; ++index) {
+                const ExportType type = plan.signature.parameters[index];
+                switch (type) {
+                    case ExportType::Int64:
+                        out << "    arguments[" << index
+                            << "].tag = LYNXER_FFI_ARG_INT;\n";
+                        out << "    arguments[" << index << "].i = a" << index
+                            << ";\n";
+                        break;
+                    case ExportType::Float64:
+                        out << "    arguments[" << index
+                            << "].tag = LYNXER_FFI_ARG_FLOAT;\n";
+                        out << "    arguments[" << index << "].f = a" << index
+                            << ";\n";
+                        break;
+                    case ExportType::CString:
+                        out << "    arguments[" << index
+                            << "].tag = LYNXER_FFI_ARG_STRING;\n";
+                        out << "    arguments[" << index << "].s = a" << index
+                            << ";\n";
+                        break;
+                    case ExportType::Bytes:
+                        out << "    arguments[" << index
+                            << "].tag = LYNXER_FFI_ARG_BYTES;\n";
+                        out << "    arguments[" << index << "].data = a" << index
+                            << ";\n";
+                        out << "    arguments[" << index
+                            << "].data_length = a" << index << "_length;\n";
+                        break;
+                    case ExportType::Void:
+                        break;
+                }
+            }
+        }
+        out << "    LynxerFfiResult result = {};\n";
+        out << "    if (lynxer_embed_call(context, \"" << plan.name << "\", ";
+        out << (count == 0 ? "nullptr" : "arguments");
+        out << ", " << count << ", &result) != 0) {\n";
+        if (isVoid) {
+            out << "        return;\n";
+        } else {
+            out << "        return " << exportZeroValue(returnType) << ";\n";
+        }
+        out << "    }\n";
+        switch (returnType) {
+            case ExportType::Int64:
+                out << "    return result.i;\n";
+                break;
+            case ExportType::Float64:
+                out << "    return result.f;\n";
+                break;
+            case ExportType::CString:
+                out << "    return result.s;\n";
+                break;
+            case ExportType::Bytes:
+                out << "    return lynxer_frame_bytes(result.data, "
+                       "result.data_length);\n";
+                break;
+            case ExportType::Void:
+                out << "    return;\n";
+                break;
+        }
+        out << "}\n\n";
+    }
+    return out.str();
+}
+
+std::string generateExportMap(const std::vector<ExportPlan>& exports) {
+    std::ostringstream out;
+    out << "{\n  global:\n";
+    for (const ExportPlan& plan : exports) {
+        out << "    " << plan.name << ";\n";
+    }
+    out << "  local:\n    *;\n};\n";
+    return out.str();
+}
+
+// Spawns `command` and returns its exit status, or -1 if it could not run.
+int runProcess(const std::vector<std::string>& command) {
+#if defined(__unix__) || defined(__APPLE__)
+    std::vector<char*> argv;
+    argv.reserve(command.size() + 1);
+    for (const std::string& part : command) {
+        argv.push_back(const_cast<char*>(part.c_str()));
+    }
+    argv.push_back(nullptr);
+    const pid_t pid = ::fork();
+    if (pid < 0) {
+        return -1;
+    }
+    if (pid == 0) {
+        ::execvp(argv[0], argv.data());
+        ::_exit(127);
+    }
+    int status = 0;
+    if (::waitpid(pid, &status, 0) < 0) {
+        return -1;
+    }
+    if (WIFEXITED(status)) {
+        return WEXITSTATUS(status);
+    }
+    return -1;
+#else
+    (void)command;
+    return -1;
+#endif
+}
+
+// Builds a shared library that exposes a program's `export`s over a C ABI.
+int emitLibrary(const std::vector<std::string>& arguments) {
+    std::vector<std::string> inputs;
+    std::string outputName;
+    std::string runtimeOption;
+    std::string compiler = "c++";
+    for (std::size_t index = 0; index < arguments.size(); ++index) {
+        const std::string& argument = arguments[index];
+        if (argument == "-o" || argument == "--output") {
+            if (index + 1 >= arguments.size()) {
+                std::cerr << "lynxer: " << argument << " requires a name\n";
+                return 1;
+            }
+            if (!outputName.empty()) {
+                std::cerr << "lynxer: the output name was given twice\n";
+                return 1;
+            }
+            outputName = arguments[++index];
+            continue;
+        }
+        if (argument == "--include" || argument == "-i") {
+            if (index + 1 >= arguments.size()) {
+                std::cerr << "lynxer: " << argument << " requires a file\n";
+                return 1;
+            }
+            inputs.push_back(arguments[++index]);
+            continue;
+        }
+        if (argument == "--runtime") {
+            if (index + 1 >= arguments.size()) {
+                std::cerr << "lynxer: --runtime requires a library path\n";
+                return 1;
+            }
+            runtimeOption = arguments[++index];
+            continue;
+        }
+        if (argument == "--cc") {
+            if (index + 1 >= arguments.size()) {
+                std::cerr << "lynxer: --cc requires a compiler command\n";
+                return 1;
+            }
+            compiler = arguments[++index];
+            continue;
+        }
+        if (endsWith(argument, ".lynx") || isNativeLibraryPath(argument)) {
+            inputs.push_back(argument);
+            continue;
+        }
+        if (!outputName.empty()) {
+            std::cerr << "lynxer: unexpected extra argument '" << argument
+                      << "'\n";
+            return 1;
+        }
+        outputName = argument;
+    }
+
+    if (inputs.empty() || !endsWith(inputs.front(), ".lynx")) {
+        std::cerr << Config::instance().get(
+                         "error.emit_library_usage",
+                         "lynxer: --emit-library requires a .lynx program "
+                         "file, optionally followed by --include <file> "
+                         "inputs and an output path")
+                  << '\n';
+        return 1;
+    }
+
+    const std::string& file = inputs.front();
+    bool ok = false;
+    const std::string source = readFile(file, file, ok);
+    if (!ok) {
+        return 1;
+    }
+
     ProgramArchive archive;
+    archive.mainPath = file;
+    archive.mainSource = source;
+    const std::vector<std::string> extras(inputs.begin() + 1, inputs.end());
+    std::string error;
+    if (!collectArchive(file, source, extras, archive, error,
+                        /*requireEntryPoints=*/false)) {
+        if (error.empty()) {
+            return 1;
+        }
+        return failWith("error.emit_library_failed",
+                        "lynxer: emit-library failed: {0}", error);
+    }
+
+    std::vector<ExportPlan> exports;
+    try {
+        Lexer lexer(source, file);
+        Parser parser(lexer.scan(), file);
+        parser.parseProgram(/*requireEntryPoints=*/false);
+        for (const ExportRecord& record : parser.exports()) {
+            ExportPlan plan;
+            plan.name = record.name;
+            std::string reason;
+            if (!parseExportSignature(record.signature, plan.signature,
+                                      reason)) {
+                std::cerr << "lynxer: " << file << ':' << record.line << ':'
+                          << record.column << ": " << reason << '\n';
+                return 1;
+            }
+            exports.push_back(std::move(plan));
+        }
+    } catch (const SourceError& parseError) {
+        std::cerr << "lynxer: " << file << ':' << parseError.line << ':'
+                  << parseError.column << ": " << parseError.what() << '\n';
+        return 1;
+    }
+    if (exports.empty()) {
+        return failWith("error.emit_library_failed",
+                        "lynxer: emit-library failed: {0}",
+                        "the program declares no exported functions");
+    }
+
+    // Locate `liblynxer.so`: an explicit path, the environment, then the
+    // interpreter's own directory (dev tree and installed layouts).
+    std::string runtimePath = runtimeOption;
+    if (runtimePath.empty()) {
+        const char* fromEnvironment = std::getenv("LYNXER_RUNTIME");
+        if (fromEnvironment != nullptr && *fromEnvironment != '\0') {
+            runtimePath = fromEnvironment;
+        }
+    }
+    const std::string executableDir = executableDirectory();
+    const std::vector<std::string> candidates = {
+        executableDir + "/liblynxer.so",
+        executableDir + "/lib/lynxer/liblynxer.so",
+    };
+    if (runtimePath.empty()) {
+        for (const std::string& candidate : candidates) {
+            if (std::filesystem::exists(candidate)) {
+                runtimePath = candidate;
+                break;
+            }
+        }
+    }
+    if (runtimePath.empty()) {
+        return failWith("error.emit_library_failed",
+                        "lynxer: emit-library failed: {0}",
+                        "cannot find liblynxer.so; build it with "
+                        "`make buildLynxer` or pass --runtime <path>");
+    }
+    const std::string runtimeDir =
+        std::filesystem::path(runtimePath).parent_path().string();
+
+    std::vector<std::string> includeDirs = {runtimeDir, executableDir,
+                                            executableDir + "/include"};
+    if (const char* prefix = std::getenv("LYNXER_PREFIX")) {
+        if (*prefix != '\0') {
+            includeDirs.push_back(std::string(prefix) + "/include");
+        }
+    }
+
+    std::string outputPath = outputName;
+    if (outputPath.empty()) {
+        outputPath = baseName(file);
+        if (endsWith(outputPath, ".lynx")) {
+            outputPath.resize(outputPath.size() - 5);
+        }
+        outputPath += ".so";
+    }
+
+    // Generate the wrapper source and version script in a private directory.
+    std::string temporary = "/tmp/lynxer-emit-XXXXXX";
+    std::vector<char> buffer(temporary.begin(), temporary.end());
+    buffer.push_back('\0');
+    if (::mkdtemp(buffer.data()) == nullptr) {
+        return failWith("error.emit_library_failed",
+                        "lynxer: emit-library failed: {0}",
+                        "cannot create a temporary directory");
+    }
+    const std::string directory(buffer.data());
+    const std::string shimPath = directory + "/shim.cpp";
+    const std::string mapPath = directory + "/export.map";
+    {
+        std::ofstream shim(shimPath, std::ios::binary | std::ios::trunc);
+        shim << generateExportShim(exports, makeBundleBody(archive));
+        std::ofstream map(mapPath, std::ios::binary | std::ios::trunc);
+        map << generateExportMap(exports);
+        if (!shim || !map) {
+            std::filesystem::remove_all(directory);
+            return failWith("error.emit_library_failed",
+                            "lynxer: emit-library failed: {0}",
+                            "cannot write the generated shim");
+        }
+    }
+
+    std::vector<std::string> command = {
+        compiler, "-std=c++17", "-O2", "-fPIC", "-shared", shimPath, "-o",
+        outputPath, runtimePath};
+    for (const std::string& includeDir : includeDirs) {
+        command.push_back("-I" + includeDir);
+    }
+    command.push_back("-Wl,-z,origin");
+    command.push_back("-Wl,-rpath," + runtimeDir);
+    command.push_back("-Wl,-rpath,$ORIGIN");
+    command.push_back("-Wl,--version-script=" + mapPath);
+    command.push_back("-Wl,-soname," + baseName(outputPath));
+
+    const int status = runProcess(command);
+    std::filesystem::remove_all(directory);
+    if (status != 0) {
+        return failWith("error.emit_library_failed",
+                        "lynxer: emit-library failed: {0}",
+                        "the C++ compiler exited with status " +
+                            std::to_string(status));
+    }
+    std::cout << Config::instance().format("status.emit_library_ok",
+                                           "Emitted library: {0}", "{0}",
+                                           outputPath)
+              << '\n';
+    return 0;
+}
+
+// Runs the program carried by a compiled executable.
+int runCompiledPayload(const std::vector<uint8_t>& payload) {    ProgramArchive archive;
     if (!decodeProgramArchive(payload, archive)) {
         std::cerr << Config::instance().get(
                          "error.payload_invalid",
@@ -946,6 +1412,11 @@ int shellMain(int argc, char** argv) {
         args[0] == "-compile" || args[0] == "--bundle" ||
         args[0] == "-bundle") {
         return compileProgramToExecutable(
+            std::vector<std::string>(args.begin() + 1, args.end()));
+    }
+    if (args[0] == "--emit-library" || args[0] == "--shared-library" ||
+        args[0] == "-emit-library") {
+        return emitLibrary(
             std::vector<std::string>(args.begin() + 1, args.end()));
     }
     if (args[0] == "--view-bytecode" || args[0] == "--inspect-bytecode" ||

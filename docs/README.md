@@ -50,6 +50,7 @@ standard-library improvements.
 | [process.md](process.md) | The managed `process*` subprocess API |
 | [native-module-abi.md](native-module-abi.md) | Writing a native `.so` module: entry point, signatures, data conventions |
 | [native-modules.md](native-modules.md) | Using native modules, the `nativeModule*`/`ffi*` handle APIs |
+| [embedding.md](embedding.md) | Exporting Lynxer functions to a C ABI other languages can call |
 | [stdlib-contracts.md](stdlib-contracts.md) | The frozen contract every wrapper and backend must satisfy |
 | [extending.md](extending.md) | Adding a stdlib module end to end |
 | [stdlib/](stdlib/) | One page per standard-library module |

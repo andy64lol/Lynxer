@@ -12,6 +12,10 @@ Almost everything belongs in the middle row. A built-in is not available to a
 module author — it changes the language — and a pure Lynxer module is just a
 module with no backend, so both are covered by the same wrapper rules.
 
+The reverse direction — exposing your own Lynxer functions to C rather than
+adding to the stdlib — uses the `export` declaration and
+`lynxer --emit-library`; see [embedding.md](embedding.md).
+
 Read [stdlib-contracts.md](stdlib-contracts.md) before you start: it states the
 conventions your module has to follow, and
 [native-module-abi.md](native-module-abi.md) is the ABI reference.

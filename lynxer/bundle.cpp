@@ -222,7 +222,7 @@ bool decodeProgramArchive(const std::vector<uint8_t>& payload,
     return reader.atEnd();
 }
 
-std::vector<uint8_t> makeBundlePayload(const ProgramArchive& archive) {
+std::vector<uint8_t> makeBundleBody(const ProgramArchive& archive) {
     std::vector<uint8_t> payload;
     appendU64(payload, BUNDLE_FORMAT_VERSION);
     appendBlob(payload, archive.mainPath);
@@ -234,6 +234,11 @@ std::vector<uint8_t> makeBundlePayload(const ProgramArchive& archive) {
         appendBytes(payload, module.library);
         appendBytes(payload, module.asset);
     }
+    return payload;
+}
+
+std::vector<uint8_t> makeBundlePayload(const ProgramArchive& archive) {
+    std::vector<uint8_t> payload = makeBundleBody(archive);
     const std::uint64_t bodySize = payload.size();
     payload.insert(payload.end(), BUNDLE_MAGIC,
                    BUNDLE_MAGIC + sizeof(BUNDLE_MAGIC));

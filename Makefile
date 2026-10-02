@@ -4,12 +4,16 @@ PYTHON   ?= $(shell command -v python3 2>/dev/null || command -v python 2>/dev/n
 # Every path is repo-root relative.
 LYNXER_DIR := lynxer
 LYNXER_TARGET := $(LYNXER_DIR)/lynxer
-LYNXER_SOURCES := $(addprefix $(LYNXER_DIR)/,main.cpp shell.cpp lexer.cpp runtime.cpp types.cpp builtins.cpp ops.cpp ast.cpp optimizer.cpp formatter.cpp parser.cpp config.cpp bundle.cpp interrupt.cpp)
+LYNXER_SOURCES := $(addprefix $(LYNXER_DIR)/,main.cpp shell.cpp lexer.cpp runtime.cpp types.cpp builtins.cpp ops.cpp ast.cpp optimizer.cpp formatter.cpp parser.cpp config.cpp bundle.cpp interrupt.cpp native_value.cpp exports.cpp embed.cpp)
 LYNXER_OBJECTS := $(LYNXER_SOURCES:.cpp=.o)
 LYNXER_OBJECTS_ARM64 := $(LYNXER_SOURCES:.cpp=.o-arm64)
 LYNXER_HEADERS := $(wildcard $(LYNXER_DIR)/*.hpp)
 LYNXER_CXX ?= c++
-LYNXER_CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -pedantic -fPIE
+# -fPIC, not -fPIE: the same objects are linked into the PIE interpreter and
+# into the shared embedding runtime `liblynxer.so`. `-ftls-model=global-dynamic`
+# keeps the thread_local state (error buffers, native callbacks) valid in a
+# shared object, where the default local-exec model is rejected by the linker.
+LYNXER_CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -pedantic -fPIC -ftls-model=global-dynamic
 
 # Native (C++) stdlib modules: every lynxer/stdlib/<name>.cpp -> <name>.so.
 LYNXER_NATIVE_SOURCES := $(wildcard $(LYNXER_DIR)/stdlib/*.cpp)
@@ -29,6 +33,15 @@ LYNXER_RUST_MODULES := $(LYNXER_RUST_MODULE_NAMES:%=$(LYNXER_DIR)/stdlib/%.so)
 # directly into the interpreter, and cargo is required to build it.
 LYNXER_FFI_ABI_HEADER := $(LYNXER_DIR)/ffi_abi.h
 LYNXER_FFI_STATICLIB := $(LYNXER_RUST_TARGET_DIR)/release/liblynxer_ffi.a
+
+# The embedding runtime and its public C header. `liblynxer.so` is the core
+# interpreter (minus `main.cpp`) as a shared library; libraries emitted by
+# `lynxer --emit-library` link against it. Only the `lynxer_embed_*` entry
+# points are exported (see the version script).
+LYNXER_SHARED := $(LYNXER_DIR)/liblynxer.so
+LYNXER_SHARED_OBJECTS := $(filter-out $(LYNXER_DIR)/main.o,$(LYNXER_OBJECTS))
+LYNXER_SHARED_VERSION_SCRIPT := $(LYNXER_DIR)/liblynxer.map
+LYNXER_PUBLIC_HEADERS := $(LYNXER_DIR)/lynxer.h $(LYNXER_FFI_ABI_HEADER)
 
 # The Rust toolchain is required, not optional: every Rust backend is built by
 # cargo, and the interpreter links the Rust native-call engine. A missing
@@ -212,7 +225,7 @@ lynxerToolchain:
 	exit 1; }
 
 # Binary plus every stdlib module, C++ and Rust alike.
-buildLynxer: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT)
+buildLynxer: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT) $(LYNXER_SHARED)
 	@echo "✓ Lynxer build complete: $(LYNXER_TARGET)"
 
 # ARM64 (aarch64) binary. Requires aarch64-linux-gnu-g++ installed.
@@ -229,6 +242,14 @@ cargo: lynxerToolchain $(LYNXER_RUST_MODULES) $(LYNXER_FFI_STATICLIB)
 # engine's (a staticlib does not carry its dependencies' link directives).
 $(LYNXER_TARGET): $(LYNXER_OBJECTS) $(LYNXER_FFI_STATICLIB)
 	$(LYNXER_CXX) $(LYNXER_CXXFLAGS) $(LYNXER_OBJECTS) $(LYNXER_FFI_STATICLIB) -o $@ \
+	    -lpthread -ldl -lm -lffi
+
+# The embedding runtime: the same objects without `main.o`, linked as a shared
+# library so `--emit-library` shims can `-llynxer`. The version script hides
+# every symbol except the `lynxer_embed_*` entry points.
+$(LYNXER_SHARED): $(LYNXER_SHARED_OBJECTS) $(LYNXER_FFI_STATICLIB) $(LYNXER_SHARED_VERSION_SCRIPT)
+	$(LYNXER_CXX) $(LYNXER_CXXFLAGS) -shared $(LYNXER_SHARED_OBJECTS) $(LYNXER_FFI_STATICLIB) -o $@ \
+	    -Wl,--version-script=$(LYNXER_SHARED_VERSION_SCRIPT) -Wl,-soname,liblynxer.so \
 	    -lpthread -ldl -lm -lffi
 
 # The ARM64 interpreter links the same Rust native-call engine, so the host must
@@ -281,7 +302,39 @@ $(LYNXER_SIGNATURE_MODULE): $(LYNXER_SIGNATURE_SOURCE) $(LYNXER_DIR)/ffi_abi.h $
 
 # The Lynxer suite: static module/backend contract check, then the
 # interpreter, compiled-executable and bundled-executable parity gates.
-testLynxer: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT) $(LYNXER_SIGNATURE_MODULE) testLynxerInstall
+# Export-to-C ABI: build a shared library from a program's `export`s and drive
+# it from a C++ consumer and a Python ctypes consumer, then check that invalid
+# exports are rejected with located errors.
+LYNXER_EXPORT_FIXTURE := $(LYNXER_DIR)/examples/export_basic.lynx
+LYNXER_EXPORT_LIBRARY := $(CLYX_TMP)_export.so
+LYNXER_EXPORT_CONSUMER := $(CLYX_TMP)_export_consumer
+
+testLynxerEmit: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_SHARED) $(LYNXER_NATIVE_BUILT)
+	@$(CLYX) --emit-library $(LYNXER_EXPORT_FIXTURE) -o $(LYNXER_EXPORT_LIBRARY)
+	@nm -D --defined-only $(LYNXER_EXPORT_LIBRARY) | grep -q ' T add' || { echo "emitted library is missing the 'add' export"; exit 1; }
+	@if nm -D --defined-only $(LYNXER_EXPORT_LIBRARY) | grep -q 'lynxer_embed_'; then echo "emitted library leaks embedding symbols"; exit 1; fi
+	@$(LYNXER_CXX) -std=c++17 -O2 $(LYNXER_DIR)/examples/export_consumer.cpp $(LYNXER_EXPORT_LIBRARY) -o $(LYNXER_EXPORT_CONSUMER) -Wl,-rpath,$(CURDIR)/$(LYNXER_DIR)
+	@$(LYNXER_EXPORT_CONSUMER)
+	@$(PYTHON) $(LYNXER_DIR)/examples/export_consumer.py $(LYNXER_EXPORT_LIBRARY)
+	@printf '%s\n' 'export "cdecl:value(value)" f(any x) -> any { return x; }' > $(CLYX_TMP)_export_err.lynx
+	@if $(CLYX) --emit-library $(CLYX_TMP)_export_err.lynx -o $(CLYX_TMP)_bad.so 2>$(CLYX_TMP)_export_err.log; then echo "expected the 'value' export to be rejected"; exit 1; fi
+	@grep -q "do not support the 'value' type" $(CLYX_TMP)_export_err.log || { echo "unexpected error for a 'value' export"; cat $(CLYX_TMP)_export_err.log; exit 1; }
+	@printf '%s\n' 'export "cdecl:int64(...)" f(int a) -> int { return a; }' > $(CLYX_TMP)_export_err.lynx
+	@if $(CLYX) --emit-library $(CLYX_TMP)_export_err.lynx -o $(CLYX_TMP)_bad.so 2>$(CLYX_TMP)_export_err.log; then echo "expected the packed export to be rejected"; exit 1; fi
+	@grep -q "packed signatures" $(CLYX_TMP)_export_err.log || { echo "unexpected error for a packed export"; cat $(CLYX_TMP)_export_err.log; exit 1; }
+	@printf '%s\n' 'export "cdecl:int64(int64)" f(int a, int b) -> int { return a + b; }' > $(CLYX_TMP)_export_err.lynx
+	@if $(CLYX) --emit-library $(CLYX_TMP)_export_err.lynx -o $(CLYX_TMP)_bad.so 2>$(CLYX_TMP)_export_err.log; then echo "expected the arity mismatch to be rejected"; exit 1; fi
+	@grep -q "parameter(s)" $(CLYX_TMP)_export_err.log || { echo "unexpected error for an arity mismatch"; cat $(CLYX_TMP)_export_err.log; exit 1; }
+	@printf '%s\n' 'export "cdecl:cstring(cstring)" f(int a) -> str { return ""; }' > $(CLYX_TMP)_export_err.lynx
+	@if $(CLYX) --emit-library $(CLYX_TMP)_export_err.lynx -o $(CLYX_TMP)_bad.so 2>$(CLYX_TMP)_export_err.log; then echo "expected the type mismatch to be rejected"; exit 1; fi
+	@grep -q "does not match C type" $(CLYX_TMP)_export_err.log || { echo "unexpected error for a type mismatch"; cat $(CLYX_TMP)_export_err.log; exit 1; }
+	@printf '%s\n' 'export "cdecl:int64(int64)" f(int a = 1) -> int { return a; }' > $(CLYX_TMP)_export_err.lynx
+	@if $(CLYX) --emit-library $(CLYX_TMP)_export_err.lynx -o $(CLYX_TMP)_bad.so 2>$(CLYX_TMP)_export_err.log; then echo "expected the default parameter to be rejected"; exit 1; fi
+	@grep -q "default value" $(CLYX_TMP)_export_err.log || { echo "unexpected error for a default parameter"; cat $(CLYX_TMP)_export_err.log; exit 1; }
+	@rm -f $(CLYX_TMP)_export_err.lynx $(CLYX_TMP)_export_err.log $(LYNXER_EXPORT_LIBRARY) $(LYNXER_EXPORT_CONSUMER) $(CLYX_TMP)_bad.so
+	@echo "lynxer export ABI test passed"
+
+testLynxer: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT) $(LYNXER_SIGNATURE_MODULE) testLynxerInstall testLynxerEmit
 	@test -n "$(PYTHON)" || { echo "lynxer: python3 is required for $(LYNXER_CONTRACT_CHECK)"; exit 1; }
 	@$(PYTHON) $(LYNXER_CONTRACT_CHECK)
 	@printf 'Lynxer\n' > $(CLYX_TMP)_stdin
@@ -792,7 +845,7 @@ clean:
 
 cleanLynxer:
 	@rm -f $(LYNXER_TARGET) $(LYNXER_TARGET)-arm64 $(LYNXER_OBJECTS) $(LYNXER_OBJECTS_ARM64)
-	@rm -f $(LYNXER_NATIVE_MODULES) $(LYNXER_SIGNATURE_MODULE) $(CLYX_TMP)_*
+	@rm -f $(LYNXER_NATIVE_MODULES) $(LYNXER_SIGNATURE_MODULE) $(LYNXER_SHARED) $(CLYX_TMP)_*
 	@rm -rf $(LYNXER_INSTALL_PREFIX)
 	@rm -f $(LYNXER_DIR)/stdlib/ffi.so
 	@rm -rf $(LYNXER_DIR)/build $(LYNXER_RUST_DIR)/target $(LYNXER_RUST_DIR)/*/target

@@ -1,0 +1,11 @@
+/* Only the embedding entry points are public; every interpreter symbol is
+   hidden so a consumer linking liblynxer.so cannot collide with its own. */
+{
+  global:
+    lynxer_embed_init;
+    lynxer_embed_call;
+    lynxer_embed_last_error;
+    lynxer_embed_reset_error;
+  local:
+    *;
+};

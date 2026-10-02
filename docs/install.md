@@ -54,6 +54,11 @@ The Makefile lives at the repository root; there is no separate
   `staticlib` built by `cargo` and linked into `lynxer/lynxer`. It is not a
   stdlib module and is not copied into `stdlib/`.
 
+- `lynxer/liblynxer.so` — the embedding runtime: the interpreter core (minus
+  `main.cpp`) linked as a shared library, exporting only the `lynxer_embed_*`
+  entry points. Libraries built by `lynxer --emit-library` link against it.
+  `lynxer/lynxer.h` and `lynxer/ffi_abi.h` are its public headers.
+
 The Rust workspace has twenty-five member crates: the twenty-two stdlib module
 backends listed in `LYNXER_RUST_MODULE_NAMES` (`compress`, `crypto`, `encoding`,
 `game`, `graphics`, `image`, `ini`, `json`, `lua`, `network`, `re`, `regex`,
@@ -76,14 +81,19 @@ sudo ./lynxer/lynxer --uninstall    # remove the installed interpreter
 /usr/lib/lynxer/lynxer          the real binary
 /usr/lib/lynxer/stdlib/*        every stdlib module
 /usr/lib/lynxer/lynxer.config   the configuration file
+/usr/lib/lynxer/liblynxer.so    the embedding runtime (for --emit-library)
+/usr/lib/lynxer/lynxer.h        the embedding public header
+/usr/lib/lynxer/ffi_abi.h       the wire-type header
 /usr/bin/lynxer                 a symlink to the real binary
 ```
 
 Because the symlink resolves to the real binary (`/proc/self/exe`), an installed
-`lynxer` finds its stdlib from any working directory, so `lynxer app.lynx` works
-without keeping the build tree around. Set `LYNXER_PREFIX` to install somewhere
-other than `/usr` — for example `LYNXER_PREFIX=$HOME/.local lynxer --install`
-needs no root — and pass the same value to `--uninstall`.
+`lynxer` finds its stdlib — and `liblynxer.so` plus its headers for
+`--emit-library` — from any working directory, so `lynxer app.lynx` works
+without keeping the build tree around. See [embedding.md](embedding.md). Set
+`LYNXER_PREFIX` to install somewhere other than `/usr` — for example
+`LYNXER_PREFIX=$HOME/.local lynxer --install` needs no root — and pass the same
+value to `--uninstall`.
 See [CLI.md](CLI.md#installing).
 
 ## Quick run

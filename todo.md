@@ -128,6 +128,13 @@ as implied future work.
   scopes and managed thread cleanup before returning the requested status,
   including exit requests raised from worker threads. Direct and
   compiled-executable fixtures cover both exit APIs and thread cleanup.
+- [x] **Export functions to a C ABI.** A program can declare
+  `export "cdecl:<ret>(<args>)" name(...) { ... }` and `lynxer --emit-library`
+  builds a shared library whose typed `extern "C"` wrappers marshal through a new
+  embedding runtime (`liblynxer.so`, `lynxer/lynxer.h`). Covers `int64`,
+  `float64`, `cstring`, `bytes` and `void` in both directions with located
+  validation errors. Exercised by a C++ and a Python `ctypes` consumer in
+  `make testLynxerEmit`, wired into the CI gate.
 - [x] **Windowed graphics CI.** The AMD64 workflow now starts Xvfb with Mesa
   llvmpipe software OpenGL and runs bounded windowed smoke fixtures for both
   `graphics` and `game`. The graphics fixture loads and draws a real texture,

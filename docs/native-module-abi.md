@@ -448,3 +448,15 @@ An additive change must not alter how existing shapes or signatures behave.
 
 Native modules require a POSIX host. On other platforms every `.so` import
 fails with `native modules are only supported on POSIX hosts`.
+
+## The reverse direction: exporting Lynxer functions
+
+The mirror of this ABI lets a Lynxer program expose functions to C instead of
+calling C. A program declares `export "cdecl:<ret>(<args>)" name(...) { ... }`
+and `lynxer --emit-library` builds a `.so` whose typed `extern "C"` wrappers
+marshall through the embedding C API in `lynxer/lynxer.h`
+(`lynxer_embed_init` / `lynxer_embed_call` / `lynxer_embed_last_error`). It
+reuses the same `LynxerFfiArg`/`LynxerFfiResult` wire types and the same
+`cdecl:` signature grammar and aliases described above. See
+[embedding.md](embedding.md) for the syntax, the C type mapping and the build
+flags.

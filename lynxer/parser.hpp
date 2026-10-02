@@ -27,6 +27,9 @@ public:
         return programOrder_;
     }
 
+    // Every `export "<cdecl>" name(...)` declaration, in source order.
+    const std::vector<ExportRecord>& exports() const { return exports_; }
+
 private:
     void parseStructDefinition();
     void parseClassDefinition();
@@ -35,6 +38,7 @@ private:
     std::vector<std::pair<std::string, std::string>> parseParameters();
     std::vector<Parameter> parseFunctionParameters();
     Function parseFunction(const std::string& kind, bool topLevel);
+    Function parseExport();
     StatementPtr parseLocalFunction();
     bool looksLikeCodeblockSignature() const;
     std::vector<std::string> parseCodeblockSignature();
@@ -153,6 +157,7 @@ private:
     std::unordered_set<std::string> codeblockNames_;
     std::vector<ImportRecord> imports_;
     std::vector<std::string> programOrder_;
+    std::vector<ExportRecord> exports_;
 };
 
 } // namespace lynxer
