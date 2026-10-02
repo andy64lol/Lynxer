@@ -9,19 +9,38 @@ LYNXER_OBJECTS := $(LYNXER_SOURCES:.cpp=.o)
 LYNXER_OBJECTS_ARM64 := $(LYNXER_SOURCES:.cpp=.o-arm64)
 LYNXER_HEADERS := $(wildcard $(LYNXER_DIR)/*.hpp)
 LYNXER_CXX ?= c++
+
+# Host platform. Windows builds drop the ELF-only flags and `libdl`, skip the
+# Linux-only modules, and do not build the ELF embedding runtime `liblynxer.so`
+# yet (see docs/windows.md).
+ifeq ($(OS),Windows_NT)
+LYNXER_PLATFORM_FLAGS :=
+LYNXER_PLATFORM_LIBS := -lpthread -lm -lffi
+LYNXER_BUILD_SHARED := 0
+else
+LYNXER_PLATFORM_FLAGS := -fPIC -ftls-model=global-dynamic
+LYNXER_PLATFORM_LIBS := -lpthread -ldl -lm -lffi
+LYNXER_BUILD_SHARED := 1
+endif
+
 # -fPIC, not -fPIE: the same objects are linked into the PIE interpreter and
 # into the shared embedding runtime `liblynxer.so`. `-ftls-model=global-dynamic`
 # keeps the thread_local state (error buffers, native callbacks) valid in a
 # shared object, where the default local-exec model is rejected by the linker.
-LYNXER_CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -pedantic -fPIC -ftls-model=global-dynamic
-
-# Native (C++) stdlib modules: every lynxer/stdlib/<name>.cpp -> <name>.so.
-LYNXER_NATIVE_SOURCES := $(wildcard $(LYNXER_DIR)/stdlib/*.cpp)
-LYNXER_NATIVE_MODULES := $(LYNXER_NATIVE_SOURCES:.cpp=.so)
+LYNXER_CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -pedantic $(LYNXER_PLATFORM_FLAGS)
 
 # Modules a Windows build must skip: `sys` is built on Linux system calls. The
 # named syscall built-ins are likewise Linux-only (see docs/windows.md).
 LYNXER_LINUX_ONLY_MODULES := sys
+
+# Native (C++) stdlib modules: every lynxer/stdlib/<name>.cpp -> <name>.so.
+LYNXER_ALL_NATIVE_SOURCES := $(wildcard $(LYNXER_DIR)/stdlib/*.cpp)
+ifeq ($(OS),Windows_NT)
+LYNXER_NATIVE_SOURCES := $(filter-out $(addprefix $(LYNXER_DIR)/stdlib/,$(addsuffix .cpp,$(LYNXER_LINUX_ONLY_MODULES))),$(LYNXER_ALL_NATIVE_SOURCES))
+else
+LYNXER_NATIVE_SOURCES := $(LYNXER_ALL_NATIVE_SOURCES)
+endif
+LYNXER_NATIVE_MODULES := $(LYNXER_NATIVE_SOURCES:.cpp=.so)
 
 # Rust backends: self-contained cdylibs that the interpreter dlopens directly.
 LYNXER_RUST_DIR := $(LYNXER_DIR)/rust
@@ -43,6 +62,13 @@ LYNXER_FFI_STATICLIB := $(LYNXER_RUST_TARGET_DIR)/release/liblynxer_ffi.a
 # `lynxer --emit-library` link against it. Only the `lynxer_embed_*` entry
 # points are exported (see the version script).
 LYNXER_SHARED := $(LYNXER_DIR)/liblynxer.so
+ifeq ($(LYNXER_BUILD_SHARED),1)
+LYNXER_SHARED_BUILT := $(LYNXER_SHARED)
+LYNXER_EMIT_TEST := testLynxerEmit
+else
+LYNXER_SHARED_BUILT :=
+LYNXER_EMIT_TEST :=
+endif
 LYNXER_SHARED_OBJECTS := $(filter-out $(LYNXER_DIR)/main.o,$(LYNXER_OBJECTS))
 LYNXER_SHARED_VERSION_SCRIPT := $(LYNXER_DIR)/liblynxer.map
 LYNXER_PUBLIC_HEADERS := $(LYNXER_DIR)/lynxer.h $(LYNXER_FFI_ABI_HEADER)
@@ -229,18 +255,23 @@ lynxerToolchain:
 	exit 1; }
 
 # Binary plus every stdlib module, C++ and Rust alike.
-buildLynxer: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT) $(LYNXER_SHARED) sdk
+buildLynxer: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT) $(LYNXER_SHARED_BUILT) sdk
 	@echo "✓ Lynxer build complete: $(LYNXER_TARGET)"
 
 # The embedding SDK staged for consumers: the shared runtime plus the public
 # headers, under lynxer/build/sdk/{include,lib}. Libraries built by
 # `--emit-library` compile against this. Also installed by `--install`.
 LYNXER_SDK_DIR := $(LYNXER_DIR)/build/sdk
+ifeq ($(LYNXER_BUILD_SHARED),1)
 sdk: lynxerToolchain $(LYNXER_SHARED)
 	@mkdir -p $(LYNXER_SDK_DIR)/include $(LYNXER_SDK_DIR)/lib
 	@cp $(LYNXER_PUBLIC_HEADERS) $(LYNXER_SDK_DIR)/include/
 	@cp $(LYNXER_SHARED) $(LYNXER_SDK_DIR)/lib/
 	@echo "✓ Lynxer embedding SDK staged in $(LYNXER_SDK_DIR)"
+else
+sdk:
+	@echo "lynxer: the embedding SDK is not built on Windows yet (see docs/windows.md)"
+endif
 
 # Bob, the Lynxer package manager, lives in Bob/ as its own component with its
 # own Makefile; it is deliberately kept separate from the interpreter and is not
@@ -265,7 +296,7 @@ cargo: lynxerToolchain $(LYNXER_RUST_MODULES) $(LYNXER_FFI_STATICLIB)
 # engine's (a staticlib does not carry its dependencies' link directives).
 $(LYNXER_TARGET): $(LYNXER_OBJECTS) $(LYNXER_FFI_STATICLIB)
 	$(LYNXER_CXX) $(LYNXER_CXXFLAGS) $(LYNXER_OBJECTS) $(LYNXER_FFI_STATICLIB) -o $@ \
-	    -lpthread -ldl -lm -lffi
+	    $(LYNXER_PLATFORM_LIBS)
 
 # The embedding runtime: the same objects without `main.o`, linked as a shared
 # library so `--emit-library` shims can `-llynxer`. The version script hides
@@ -273,7 +304,7 @@ $(LYNXER_TARGET): $(LYNXER_OBJECTS) $(LYNXER_FFI_STATICLIB)
 $(LYNXER_SHARED): $(LYNXER_SHARED_OBJECTS) $(LYNXER_FFI_STATICLIB) $(LYNXER_SHARED_VERSION_SCRIPT)
 	$(LYNXER_CXX) $(LYNXER_CXXFLAGS) -shared $(LYNXER_SHARED_OBJECTS) $(LYNXER_FFI_STATICLIB) -o $@ \
 	    -Wl,--version-script=$(LYNXER_SHARED_VERSION_SCRIPT) -Wl,-soname,liblynxer.so \
-	    -lpthread -ldl -lm -lffi
+	    $(LYNXER_PLATFORM_LIBS)
 
 # The ARM64 interpreter links the same Rust native-call engine, so the host must
 # be able to produce an aarch64 staticlib. Native aarch64 (the ARM CI runner) is
@@ -376,7 +407,7 @@ testLynxerEmit: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_SHARED) $(LYNXER_NATIV
 	@rm -rf $(LYNXER_EXPORT_DIR)
 	@echo "lynxer export ABI test passed"
 
-testLynxer: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT) $(LYNXER_SIGNATURE_MODULE) testLynxerInstall testLynxerEmit
+testLynxer: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT) $(LYNXER_SIGNATURE_MODULE) testLynxerInstall $(LYNXER_EMIT_TEST)
 	@test -n "$(PYTHON)" || { echo "lynxer: python3 is required for $(LYNXER_CONTRACT_CHECK)"; exit 1; }
 	@$(PYTHON) $(LYNXER_CONTRACT_CHECK)
 	@printf 'Lynxer\n' > $(CLYX_TMP)_stdin

@@ -36,7 +36,7 @@
 // built on POSIX `open`/`read`/`stat`/`dirent` calls. On a non-POSIX host the
 // names stay in `unsupportedTable()` instead.
 #if defined(__unix__) || defined(__APPLE__)
-#define LYNXER_POSIX_BUILTINS 1
+#define LYNXER_DEFAULT_POSIX_BUILTINS 1
 #include <arpa/inet.h>
 #include <csignal>
 #include <dirent.h>
@@ -54,7 +54,14 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #else
-#define LYNXER_POSIX_BUILTINS 0
+#define LYNXER_DEFAULT_POSIX_BUILTINS 0
+#endif
+
+// Overridable so the non-POSIX build can be compile-checked on a POSIX host
+// (for example `-DLYNXER_POSIX_BUILTINS=0`), which is how the Windows branch is
+// kept honest without a Windows toolchain.
+#ifndef LYNXER_POSIX_BUILTINS
+#define LYNXER_POSIX_BUILTINS LYNXER_DEFAULT_POSIX_BUILTINS
 #endif
 
 namespace lynxer {
@@ -3346,6 +3353,10 @@ Value builtinMemoryProtect(const std::vector<Value>& args, Environment&, int lin
              line, column);
     }
     const std::string& mode = std::get<std::string>(args[2]);
+#if !LYNXER_POSIX_BUILTINS
+    (void)mode;
+    fail("memoryProtect() is only supported on POSIX hosts", line, column);
+#else
     int protection = 0;
     if (mode == "read") {
         protection = PROT_READ;
@@ -3360,7 +3371,6 @@ Value builtinMemoryProtect(const std::vector<Value>& args, Environment&, int lin
              "'none'",
              line, column);
     }
-#if LYNXER_POSIX_BUILTINS
     void* base = reinterpret_cast<void*>(static_cast<std::uintptr_t>(address));
     validateMemory(base, 0, static_cast<std::size_t>(size), line, column);
     const long pageSize = ::sysconf(_SC_PAGESIZE);
@@ -3379,8 +3389,6 @@ Value builtinMemoryProtect(const std::vector<Value>& args, Environment&, int lin
              column);
     }
     return none();
-#else
-    fail("memoryProtect() is only supported on POSIX hosts", line, column);
 #endif
 }
 
@@ -3421,7 +3429,7 @@ Value builtinSizeOf(const std::vector<Value>& args, Environment&, int line,
 
 long syscallNumberFor(const std::string& name, bool& known) {
     known = true;
-#if defined(__x86_64__) || defined(__aarch64__)
+#if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
     if (name == "syscallGetCurrentDirectory") return SYS_getcwd;
     if (name == "syscallChangeDirectory") return SYS_chdir;
     if (name == "syscallControlInputOutput") return SYS_ioctl;
@@ -3648,7 +3656,7 @@ long syscallNumberFor(const std::string& name, bool& known) {
     if (name == "syscallWaitForEvents") return SYS_epoll_pwait;
 #endif
     // The explicit ppoll/epoll_pwait wrappers are present on both architectures.
-#if defined(__x86_64__) || defined(__aarch64__)
+#if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__))
 #ifdef SYS_ppoll
     if (name == "syscallPpollFileDescriptors") return SYS_ppoll;
 #endif
@@ -3664,6 +3672,8 @@ long syscallNumberFor(const std::string& name, bool& known) {
     return -1;
 #endif
 }
+
+#if defined(__linux__)
 
 bool syscallArgumentsValid(const std::vector<Value>& args, int line, int column) {
     for (const auto& argument : args) {
@@ -3689,9 +3699,12 @@ long syscallArgumentWord(const Value& value, int line, int column) {
     fail("syscall argument is out of range", line, column);
 }
 
+#endif  // defined(__linux__)
+
 Value builtinSyscall(const std::string& name, const std::vector<Value>& args,
                      int line, int column) {
 #if !defined(__linux__)
+    (void)name;
     (void)args;
     fail("named syscalls require a Linux runtime", line, column);
 #else
@@ -7611,9 +7624,18 @@ Value callBuiltin(const std::string& name, const std::vector<Value>& args,
 }
 
 Value awaitValue(const Value& value, int line, int column) {
+#if LYNXER_POSIX_BUILTINS
     return awaitValueInternal(value, line, column);
+#else
+    (void)value;
+    fail("await is only supported on POSIX hosts", line, column);
+#endif
 }
 
-void joinAsyncTasksAtExit() { joinAsyncTasksAtExitInternal(); }
+void joinAsyncTasksAtExit() {
+#if LYNXER_POSIX_BUILTINS
+    joinAsyncTasksAtExitInternal();
+#endif
+}
 
 } // namespace lynxer
