@@ -7,3 +7,5 @@ hello from js
 Error: node timed out after 1s
 boom
 
+Error: node exited with status 7
+Error: node not found on PATH

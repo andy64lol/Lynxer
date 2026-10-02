@@ -2,12 +2,14 @@
 // <filesystem> plus POSIX stat calls.
 
 #include <algorithm>
+#include <cerrno>
 #include <cctype>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <iconv.h>
 #include <sstream>
 #include <string>
 #include <system_error>
@@ -190,6 +192,27 @@ static bool readWholeFile(const std::string& path, std::string& output) {
 }
 
 /* ---------- Construction ---------- */
+
+extern "C" const char* path_platform() {
+#if defined(__linux__)
+    return "linux";
+#elif defined(__APPLE__)
+    return "darwin";
+#elif defined(__FreeBSD__)
+    return "freebsd";
+#elif defined(__NetBSD__)
+    return "netbsd";
+#elif defined(__OpenBSD__)
+    return "openbsd";
+#elif defined(__DragonFly__)
+    return "dragonfly";
+#else
+    return "unknown";
+#endif
+}
+
+extern "C" const char* path_separator() { return "/"; }
+extern "C" const char* path_listSeparator() { return ":"; }
 
 extern "C" const char* path_cwd() {
     std::error_code error;
@@ -565,15 +588,8 @@ extern "C" const char* path_readText(const char* value) {
 }
 
 // --- Text encodings --------------------------------------------------------
-//
-// `readTextEncoding` / `writeTextEncoding` name their encoding, and the two
-// Lynxer can honour without pulling in an encoding library are UTF-8 and
-// Latin-1; ASCII is UTF-8 with a byte-range check. Any other name is a failure
-// (empty string / false) rather than a silent read as UTF-8.
 
-enum class TextEncoding { Utf8, Latin1, Ascii };
-
-static bool parseTextEncoding(const std::string& raw, TextEncoding& out) {
+static bool parseTextEncoding(const std::string& raw, std::string& out) {
     std::string name;
     for (const char character : raw) {
         name += static_cast<char>(
@@ -584,95 +600,101 @@ static bool parseTextEncoding(const std::string& raw, TextEncoding& out) {
             character = '-';
         }
     }
-    // An omitted encoding is the historical default.
     if (name.empty() || name == "utf-8" || name == "utf8") {
-        out = TextEncoding::Utf8;
+        out = "UTF-8";
         return true;
     }
     if (name == "latin-1" || name == "latin1" || name == "iso-8859-1" ||
-        name == "iso8859-1") {
-        out = TextEncoding::Latin1;
+        name == "iso8859-1" || name == "iso_8859-1") {
+        out = "ISO-8859-1";
         return true;
     }
     if (name == "ascii" || name == "us-ascii") {
-        out = TextEncoding::Ascii;
+        out = "ASCII";
         return true;
     }
-    return false;
-}
-
-static bool isAscii(const std::string& value) {
-    for (const unsigned char character : value) {
-        if (character > 0x7F) {
-            return false;
-        }
+    if (name == "windows-1252" || name == "cp1252" || name == "windows1252") {
+        out = "CP1252";
+        return true;
     }
+    if (name == "utf16" || name == "utf-16") {
+        out = "UTF-16";
+        return true;
+    }
+    if (name == "utf16le" || name == "utf-16-le") {
+        out = "UTF-16LE";
+        return true;
+    }
+    if (name == "utf16be" || name == "utf-16-be") {
+        out = "UTF-16BE";
+        return true;
+    }
+    if (name == "utf32" || name == "utf-32") {
+        out = "UTF-32";
+        return true;
+    }
+    if (name == "utf32le" || name == "utf-32-le") {
+        out = "UTF-32LE";
+        return true;
+    }
+    if (name == "utf32be" || name == "utf-32-be") {
+        out = "UTF-32BE";
+        return true;
+    }
+    // POSIX iconv provides the remaining names supported by the host, such as
+    // additional ISO-8859 pages and Shift-JIS. iconv_open rejects unknown names.
+    out = name;
     return true;
 }
 
-// Latin-1 bytes as UTF-8: every byte is one code point, so a byte above 0x7F
-// becomes a two-byte sequence.
-static std::string latin1ToUtf8(const std::string& value) {
-    std::string output;
-    output.reserve(value.size());
-    for (const unsigned char character : value) {
-        if (character < 0x80) {
-            output += static_cast<char>(character);
-        } else {
-            output += static_cast<char>(0xC0 | (character >> 6));
-            output += static_cast<char>(0x80 | (character & 0x3F));
-        }
+static bool convertEncoding(const std::string& input, const std::string& from,
+                            const std::string& to, std::string& output) {
+    iconv_t converter = ::iconv_open(to.c_str(), from.c_str());
+    if (converter == reinterpret_cast<iconv_t>(-1)) {
+        return false;
     }
-    return output;
-}
-
-// UTF-8 as Latin-1. `false` when the text has a code point above 0xFF, which
-// Latin-1 cannot represent.
-static bool utf8ToLatin1(const std::string& value, std::string& output) {
     output.clear();
-    output.reserve(value.size());
-    std::size_t index = 0;
-    while (index < value.size()) {
-        const unsigned char lead = static_cast<unsigned char>(value[index]);
-        std::uint32_t code = 0;
-        std::size_t length = 1;
-        if (lead < 0x80) {
-            code = lead;
-        } else if ((lead & 0xE0) == 0xC0) {
-            code = lead & 0x1F;
-            length = 2;
-        } else if ((lead & 0xF0) == 0xE0) {
-            code = lead & 0x0F;
-            length = 3;
-        } else if ((lead & 0xF8) == 0xF0) {
-            code = lead & 0x07;
-            length = 4;
-        } else {
+    const char* inputCursor = input.data();
+    std::size_t inputRemaining = input.size();
+    while (inputRemaining > 0) {
+        char buffer[4096];
+        char* outputCursor = buffer;
+        std::size_t outputRemaining = sizeof(buffer);
+        char* mutableInput = const_cast<char*>(inputCursor);
+        const std::size_t result = ::iconv(
+            converter, &mutableInput, &inputRemaining, &outputCursor,
+            &outputRemaining);
+        inputCursor = mutableInput;
+        output.append(buffer, static_cast<std::size_t>(outputCursor - buffer));
+        if (result == static_cast<std::size_t>(-1) && errno != E2BIG) {
+            ::iconv_close(converter);
+            output.clear();
             return false;
         }
-        if (index + length > value.size()) {
-            return false;
-        }
-        for (std::size_t offset = 1; offset < length; ++offset) {
-            const unsigned char next =
-                static_cast<unsigned char>(value[index + offset]);
-            if ((next & 0xC0) != 0x80) {
-                return false;
-            }
-            code = (code << 6) | (next & 0x3F);
-        }
-        if (code > 0xFF) {
-            return false;
-        }
-        output += static_cast<char>(code);
-        index += length;
     }
+    for (;;) {
+        char buffer[64];
+        char* outputCursor = buffer;
+        std::size_t outputRemaining = sizeof(buffer);
+        const std::size_t result =
+            ::iconv(converter, nullptr, nullptr, &outputCursor, &outputRemaining);
+        output.append(buffer, static_cast<std::size_t>(outputCursor - buffer));
+        if (result != static_cast<std::size_t>(-1)) {
+            break;
+        }
+        if (errno != E2BIG) {
+            ::iconv_close(converter);
+            output.clear();
+            return false;
+        }
+    }
+    ::iconv_close(converter);
     return true;
 }
 
 extern "C" const char* path_readTextEncoding(const char* value,
                                              const char* encoding) {
-    TextEncoding kind = TextEncoding::Utf8;
+    std::string kind;
     if (!parseTextEncoding(textOrEmpty(encoding), kind)) {
         return stable("");
     }
@@ -680,16 +702,10 @@ extern "C" const char* path_readTextEncoding(const char* value,
     if (!readWholeFile(textOrEmpty(value), content)) {
         return stable("");
     }
-    switch (kind) {
-        case TextEncoding::Utf8:
-            return stable(std::move(content));
-        case TextEncoding::Latin1:
-            return stable(latin1ToUtf8(content));
-        case TextEncoding::Ascii:
-            return stable(isAscii(content) ? std::move(content)
-                                           : std::string());
-    }
-    return stable("");
+    std::string decoded;
+    return stable(convertEncoding(content, kind, "UTF-8", decoded)
+                      ? std::move(decoded)
+                      : std::string());
 }
 
 extern "C" std::int64_t path_writeText(const char* value,
@@ -705,27 +721,16 @@ extern "C" std::int64_t path_writeText(const char* value,
 extern "C" std::int64_t path_writeTextEncoding(const char* value,
                                                const char* content,
                                                const char* encoding) {
-    TextEncoding kind = TextEncoding::Utf8;
+    std::string kind;
     if (!parseTextEncoding(textOrEmpty(encoding), kind)) {
         return 0;
     }
     const std::string text = textOrEmpty(content);
     std::string bytes;
-    switch (kind) {
-        case TextEncoding::Utf8:
-            bytes = text;
-            break;
-        case TextEncoding::Latin1:
-            if (!utf8ToLatin1(text, bytes)) {
-                return 0;
-            }
-            break;
-        case TextEncoding::Ascii:
-            if (!isAscii(text)) {
-                return 0;
-            }
-            bytes = text;
-            break;
+    if (kind == "UTF-8") {
+        bytes = text;
+    } else if (!convertEncoding(text, "UTF-8", kind, bytes)) {
+        return 0;
     }
     std::ofstream output(textOrEmpty(value), std::ios::binary | std::ios::trunc);
     if (!output) {
@@ -793,6 +798,10 @@ extern "C" const char* path_asUri(const char* value) {
 extern "C" int lynxer_module_init_v1(RegisterFunction function,
                                      RegisterConstant, RegisterType) {
     return function("cwd", "path_cwd", "cdecl:cstring()") &&
+                   function("platform", "path_platform", "cdecl:cstring()") &&
+                   function("separator", "path_separator", "cdecl:cstring()") &&
+                   function("listSeparator", "path_listSeparator",
+                            "cdecl:cstring()") &&
                    function("home", "path_home", "cdecl:cstring()") &&
                    function("absolute", "path_absolute",
                             "cdecl:cstring(cstring)") &&

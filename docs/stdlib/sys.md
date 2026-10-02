@@ -7,15 +7,15 @@ Runtime, process and platform information.
 
 | Function | Signature | Notes |
 | --- | --- | --- |
-| `platform` | `() -> str` | `linux`, `darwin`, `win32` or `unknown` |
-| `architecture` | `() -> str` | Canonical syscall architecture of this build: `amd64` or `arm64` |
+| `platform` | `() -> str` | POSIX host: `linux`, `darwin`, `freebsd`, `netbsd`, `openbsd` or `dragonfly`; otherwise `unknown` |
+| `architecture` | `() -> str` | Canonical syscall architecture of this build: `amd64` or `arm64`; `""` otherwise |
 | `cpuCount` | `() -> int` | Online processors (`0` when unknown) |
 | `pageSize` | `() -> int` | Memory page size in bytes (`0` when unknown) |
-| `memoryTotal` | `() -> int` | Total physical memory in bytes (`0` when unknown) |
-| `memoryAvailable` | `() -> int` | Available physical memory in bytes |
-| `uptime` | `() -> int` | Seconds since boot |
-| `bootTime` | `() -> int` | Boot time as a Unix timestamp |
-| `loadAverage` | `() -> str` | JSON array `[1m, 5m, 15m]` |
+| `memoryTotal` | `() -> int` | Total physical memory in bytes (`0` when unavailable) |
+| `memoryAvailable` | `() -> int` | Available physical memory in bytes (`0` when unavailable) |
+| `uptime` | `() -> int` | Seconds since boot (`0` when unavailable) |
+| `bootTime` | `() -> int` | Boot time as a Unix timestamp (`0` when unavailable) |
+| `loadAverage` | `() -> str` | JSON array `[1m, 5m, 15m]`; `[]` when unavailable |
 | `version` | `() -> str` | Lynxer version, e.g. `Lynxer 0.1.8.2` |
 | `versionInfo` | `() -> str` | JSON `{major, minor, micro, patch, releaselevel, serial}` |
 | `implementation` | `() -> str` | `Lynxer` |
@@ -28,8 +28,8 @@ Runtime, process and platform information.
 | `getFilesystemEncoding` | `() -> str` | `utf-8` |
 | `isatty` | `() -> bool` | Whether stdout is a terminal |
 | `stdinName` / `stdoutName` | `() -> str` | `<stdin>` / `<stdout>` |
-| `executable` | `() -> str` | Path of the running executable |
-| `prefix` / `execPrefix` | `() -> str` | Directory containing the executable |
+| `executable` | `() -> str` | Path of the running executable, or `""` when the host does not expose it |
+| `prefix` / `execPrefix` | `() -> str` | Directory containing the executable, or `""` when unavailable |
 | `argv` | `() -> str` | The program's command line as a JSON array |
 | `argCount` | `() -> int` | Number of program command-line entries |
 | `getArg` | `(int index) -> str` | Entry at `index`, or `""` |
@@ -41,6 +41,11 @@ and there is no `sys.path`, `sys.modules` or recursion-limit surface. `argv`
 describes the **program's own** command line: entry 0 is the script path
 (`lynxer prog.lynx a b` → `["prog.lynx", "a", "b"]`), or the executable itself
 for a compiled program, followed by the arguments passed after it.
+
+CPU/page-size/load-average queries use POSIX facilities; physical memory and
+boot-time values use the host's system-information interfaces on Linux and the
+supported BSD/macOS targets. Any unavailable host value uses the sentinel in
+the table rather than fabricating a result.
 
 ## Example
 

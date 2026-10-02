@@ -28,6 +28,7 @@ enum Codec {
     Gzip,
     Zlib,
     Zstd,
+    Bzip2,
     Brotli,
     Lz4,
 }
@@ -118,6 +119,11 @@ fn compress(codec: Codec, data: &[u8]) -> Result<Vec<u8>, String> {
             encoder.finish().map_err(|e| e.to_string())
         }
         Codec::Zstd => zstd::stream::encode_all(data, 3).map_err(|e| e.to_string()),
+        Codec::Bzip2 => {
+            let mut encoder = bzip2::write::BzEncoder::new(Vec::new(), bzip2::Compression::default());
+            encoder.write_all(data).map_err(|e| e.to_string())?;
+            encoder.finish().map_err(|e| e.to_string())
+        }
         Codec::Brotli => {
             let mut writer = brotli::CompressorWriter::new(Vec::new(), 4096, 5, 22);
             writer.write_all(data).map_err(|e| e.to_string())?;
@@ -135,6 +141,7 @@ fn decompress(codec: Codec, data: &[u8]) -> Result<Vec<u8>, String> {
             let decoder = zstd::stream::read::Decoder::new(data).map_err(|e| e.to_string())?;
             read_limited(decoder)
         }
+        Codec::Bzip2 => read_limited(bzip2::read::BzDecoder::new(data)),
         Codec::Brotli => read_limited(brotli::Decompressor::new(data, 4096)),
         Codec::Lz4 => decompress_lz4(data),
     }
@@ -179,6 +186,8 @@ struct Entry {
     path: Option<String>,
     #[serde(default)]
     base64: Option<String>,
+    #[serde(default)]
+    password: Option<String>,
 }
 
 impl Entry {
@@ -222,14 +231,16 @@ fn zip_create(path: &str, manifest: &str) -> String {
         Err(error) => return error_text(&format!("cannot write {path}: {error}")),
     };
     let mut writer = zip::ZipWriter::new(file);
-    let options = zip::write::SimpleFileOptions::default()
-        .compression_method(zip::CompressionMethod::Deflated);
     for entry in entries {
         if !is_safe_name(&entry.name) {
             return error_text(&format!("unsafe entry name: {}", entry.name));
         }
         let data = match entry.data() {
             Ok(data) => data,
+            Err(error) => return error_text(&error),
+        };
+        let options = match zip_file_options(&entry) {
+            Ok(options) => options,
             Err(error) => return error_text(&error),
         };
         if let Err(error) = writer.start_file(entry.name.clone(), options) {
@@ -250,6 +261,17 @@ fn zip_open(path: &str) -> Result<zip::ZipArchive<File>, String> {
     zip::ZipArchive::new(file).map_err(|error| error.to_string())
 }
 
+fn zip_file_options<'a>(entry: &'a Entry) -> Result<zip::write::FileOptions<'a, ()>, String> {
+    let options = zip::write::FileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated)
+        .large_file(false);
+    match &entry.password {
+        Some(password) if !password.is_empty() => Ok(options.with_aes_encryption(zip::AesMode::Aes128, password)),
+        Some(_) => Err("password cannot be empty".to_string()),
+        None => Ok(options),
+    }
+}
+
 fn zip_list(path: &str) -> String {
     match zip_open(path) {
         Ok(archive) => {
@@ -264,6 +286,17 @@ fn zip_read(path: &str, entry: &str) -> Vec<u8> {
     zip_open(path)
         .and_then(|mut archive| {
             let file = archive.by_name(entry).map_err(|error| error.to_string())?;
+            read_limited(file)
+        })
+        .unwrap_or_default()
+}
+
+fn zip_read_with_password(path: &str, entry: &str, password: &str) -> Vec<u8> {
+    zip_open(path)
+        .and_then(|mut archive| {
+            let file = archive
+                .by_name_decrypt(entry, password.as_bytes())
+                .map_err(|error| error.to_string())?;
             read_limited(file)
         })
         .unwrap_or_default()
@@ -300,6 +333,52 @@ fn zip_extract(path: &str, directory: &str) -> String {
         }
         // Refuse an entry that declares or yields more than the limit, so a
         // crafted archive cannot exhaust memory or disk.
+        if file.size() > MAX_DECOMPRESSED as u64 {
+            return error_text(&format!(
+                "decompressed data exceeds the size limit: {}",
+                file.name()
+            ));
+        }
+        let data = match read_limited(&mut file) {
+            Ok(data) => data,
+            Err(error) => return error_text(&error),
+        };
+        if let Err(error) = std::fs::write(&destination, data) {
+            return error_text(&error.to_string());
+        }
+    }
+    "ok".to_string()
+}
+
+fn zip_extract_with_password(path: &str, directory: &str, password: &str) -> String {
+    let mut archive = match zip_open(path) {
+        Ok(archive) => archive,
+        Err(error) => return error_text(&error),
+    };
+    if let Err(error) = std::fs::create_dir_all(directory) {
+        return error_text(&format!("cannot create {directory}: {error}"));
+    }
+    for index in 0..archive.len() {
+        let mut file = match archive.by_index_decrypt(index, password.as_bytes()) {
+            Ok(file) => file,
+            Err(error) => return error_text(&error.to_string()),
+        };
+        let relative = match file.enclosed_name() {
+            Some(relative) => relative.to_path_buf(),
+            None => return error_text(&format!("unsafe entry name: {}", file.name())),
+        };
+        let destination = std::path::Path::new(directory).join(relative);
+        if file.is_dir() {
+            if let Err(error) = std::fs::create_dir_all(&destination) {
+                return error_text(&error.to_string());
+            }
+            continue;
+        }
+        if let Some(parent) = destination.parent() {
+            if let Err(error) = std::fs::create_dir_all(parent) {
+                return error_text(&error.to_string());
+            }
+        }
         if file.size() > MAX_DECOMPRESSED as u64 {
             return error_text(&format!(
                 "decompressed data exceeds the size limit: {}",
@@ -490,6 +569,19 @@ export_string!(compress_unzstd_file, args, {
     decompress_file(Codec::Zstd, args.string(0), args.string(1))
 });
 
+export_bytes_buffers!(compress_bzip2, args, {
+    compress(Codec::Bzip2, args.bytes(0)).unwrap_or_default()
+});
+export_bytes_buffers!(compress_unbzip2, args, {
+    decompress(Codec::Bzip2, args.bytes(0)).unwrap_or_default()
+});
+export_string!(compress_bzip2_file, args, {
+    compress_file(Codec::Bzip2, args.string(0), args.string(1))
+});
+export_string!(compress_unbzip2_file, args, {
+    decompress_file(Codec::Bzip2, args.string(0), args.string(1))
+});
+
 export_bytes_buffers!(compress_brotli, args, {
     compress(Codec::Brotli, args.bytes(0)).unwrap_or_default()
 });
@@ -523,8 +615,14 @@ export_string!(compress_zip_list, args, { zip_list(args.string(0)) });
 export_bytes_buffers!(compress_zip_read, args, {
     zip_read(args.string(0), args.string(1))
 });
+export_bytes_buffers!(compress_zip_read_with_password, args, {
+    zip_read_with_password(args.string(0), args.string(1), args.string(2))
+});
 export_string!(compress_zip_extract, args, {
     zip_extract(args.string(0), args.string(1))
+});
+export_string!(compress_zip_extract_with_password, args, {
+    zip_extract_with_password(args.string(0), args.string(1), args.string(2))
 });
 
 export_string!(compress_tar_create, args, {
@@ -579,6 +677,18 @@ const OPS: &[(&str, &str, &str)] = &[
         "compress_unzstd_file",
         "cdecl:cstring(...)",
     ),
+    ("bzip2Compress", "compress_bzip2", "cdecl:bytes(...,bytes)"),
+    ("bzip2Decompress", "compress_unbzip2", "cdecl:bytes(...,bytes)"),
+    (
+        "bzip2CompressFile",
+        "compress_bzip2_file",
+        "cdecl:cstring(...)",
+    ),
+    (
+        "bzip2DecompressFile",
+        "compress_unbzip2_file",
+        "cdecl:cstring(...)",
+    ),
     ("brotliCompress", "compress_brotli", "cdecl:bytes(...,bytes)"),
     (
         "brotliDecompress",
@@ -606,7 +716,9 @@ const OPS: &[(&str, &str, &str)] = &[
     ("zipCreate", "compress_zip_create", "cdecl:cstring(...)"),
     ("zipList", "compress_zip_list", "cdecl:cstring(...)"),
     ("zipRead", "compress_zip_read", "cdecl:bytes(...,bytes)"),
+    ("zipReadWithPassword", "compress_zip_read_with_password", "cdecl:bytes(...,bytes)"),
     ("zipExtract", "compress_zip_extract", "cdecl:cstring(...)"),
+    ("zipExtractWithPassword", "compress_zip_extract_with_password", "cdecl:cstring(...)"),
     ("tarCreate", "compress_tar_create", "cdecl:cstring(...)"),
     ("tarList", "compress_tar_list", "cdecl:cstring(...)"),
     ("tarExtract", "compress_tar_extract", "cdecl:cstring(...)"),
@@ -639,8 +751,31 @@ mod tests {
         round_trip(Codec::Gzip);
         round_trip(Codec::Zlib);
         round_trip(Codec::Zstd);
+        round_trip(Codec::Bzip2);
         round_trip(Codec::Brotli);
         round_trip(Codec::Lz4);
+    }
+
+    #[test]
+    fn zstd_decompress_is_bounded() {
+        // A zstd payload that expands past the 64 MiB cap is rejected before it
+        // can exhaust memory or disk, matching the stdlib sentinel contract.
+        let oversize = vec![b'X'; MAX_DECOMPRESSED + 1];
+        let compressed = compress(Codec::Zstd, &oversize).unwrap();
+        assert!(decompress(Codec::Zstd, &compressed).is_err());
+    }
+
+    #[test]
+    fn encrypted_zip_round_trips() {
+        let path = std::env::temp_dir().join(format!("lynxer_zip_encrypted_{}_{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+        let payload = b"secret data";
+        let manifest = serde_json::json!([
+            {"name":"hidden.txt","base64": base64::engine::general_purpose::STANDARD.encode(payload),"password":"hunter2"}
+        ]).to_string();
+        assert_eq!(zip_create(path.to_str().unwrap(), &manifest), "ok");
+        assert_eq!(zip_read_with_password(path.to_str().unwrap(), "hidden.txt", "hunter2"), payload);
+        assert!(zip_read_with_password(path.to_str().unwrap(), "hidden.txt", "wrong").is_empty());
+        let _ = std::fs::remove_file(&path);
     }
 
     #[test]

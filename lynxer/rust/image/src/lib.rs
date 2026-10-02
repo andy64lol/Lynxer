@@ -658,7 +658,7 @@ export_string!(image_dominant_color, args, {
     let Some(image) = get(args.int(0)) else {
         return "[]".to_string();
     };
-    let mut buckets = std::collections::HashMap::<[u8; 4], usize>::new();
+    let mut buckets = std::collections::BTreeMap::<[u8; 4], usize>::new();
     for pixel in image.to_rgba8().pixels() {
         let bucket = [
             pixel[0] / 16 * 16,
@@ -1950,3 +1950,40 @@ const OPS: &[(&str, &str, &str)] = &[
 ];
 
 lynxer_module!(OPS);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn grayscale_preserves_alpha_and_reports_la_mode() {
+        let source = DynamicImage::ImageRgba8(image::RgbaImage::from_pixel(
+            1,
+            1,
+            Rgba([100, 150, 200, 37]),
+        ));
+        let grey = source.grayscale();
+        assert_eq!(mode(&grey), "LA");
+        assert_eq!(grey.get_pixel(0, 0)[3], 37);
+        assert_eq!(mode(&DynamicImage::ImageLumaA8(image::GrayAlphaImage::new(1, 1))), "LA");
+    }
+
+    #[test]
+    fn color_mutations_and_format_names_are_consistent() {
+        let mut image = DynamicImage::ImageRgba8(image::RgbaImage::from_pixel(
+            1,
+            1,
+            Rgba([1, 2, 3, 4]),
+        ));
+        image.put_pixel(0, 0, color_from([8, 9, 10, 255]));
+        assert_eq!(json_pixel(image.get_pixel(0, 0)), "[8,9,10,255]");
+        assert_eq!(format_name(Some(ImageFormat::Png)), "PNG");
+        assert_eq!(format_name(Some(ImageFormat::Jpeg)), "JPEG");
+        assert_eq!(format_name(None), "");
+        assert_eq!(format_from_text("JpG"), Some(ImageFormat::Jpeg));
+    }
+
+    fn color_from(channels: [u8; 4]) -> Rgba<u8> {
+        Rgba(channels)
+    }
+}

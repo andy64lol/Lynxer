@@ -416,6 +416,19 @@ fn parse_params_json(json: &str) -> Result<Vec<rusqlite::types::Value>, String> 
                 }
             }
             serde_json::Value::String(s) => rusqlite::types::Value::Text(s),
+            serde_json::Value::Object(mut object)
+                if object.len() == 1 && object.contains_key("$bytes") =>
+            {
+                let encoded = object
+                    .remove("$bytes")
+                    .and_then(|value| value.as_str().map(str::to_owned))
+                    .ok_or_else(|| "$bytes must contain a base64 string".to_string())?;
+                rusqlite::types::Value::Blob(
+                    STANDARD
+                        .decode(encoded)
+                        .map_err(|_| "$bytes must contain valid base64".to_string())?,
+                )
+            }
             _ => return Err("Unsupported parameter type".to_string()),
         });
     }
@@ -432,9 +445,9 @@ fn value_to_json(value: rusqlite::types::Value) -> serde_json::Value {
             .map_or(serde_json::Value::Null, |n| serde_json::Value::Number(n)),
         rusqlite::types::Value::Text(s) => serde_json::Value::String(s),
         rusqlite::types::Value::Blob(b) => {
-            // Encode blobs as base64 strings for JSON compatibility.
-            let b64 = STANDARD.encode(&b);
-            serde_json::Value::String(b64)
+            let mut tagged = serde_json::Map::new();
+            tagged.insert("$bytes".to_string(), serde_json::Value::String(STANDARD.encode(&b)));
+            serde_json::Value::Object(tagged)
         }
     }
 }
@@ -446,7 +459,7 @@ fn value_to_scalar(value: rusqlite::types::Value) -> String {
         rusqlite::types::Value::Integer(i) => i.to_string(),
         rusqlite::types::Value::Real(f) => f.to_string(),
         rusqlite::types::Value::Text(s) => s,
-        rusqlite::types::Value::Blob(b) => STANDARD.encode(&b),
+        rusqlite::types::Value::Blob(b) => format!("bytes:{}", STANDARD.encode(&b)),
     }
 }
 
@@ -484,3 +497,40 @@ const OPS: &[(&str, &str, &str)] = &[
 ];
 
 lynxer_module!(OPS);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn blobs_round_trip_as_tagged_json_and_scalar_bytes() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute("CREATE TABLE values_table (value BLOB)", [])
+            .unwrap();
+        let original = vec![0, 1, 127, 128, 255];
+        let input = format!(r#"[{{"$bytes":"{}"}}]"#, STANDARD.encode(&original));
+        op_execute_args(&conn, "INSERT INTO values_table VALUES (?)", &input).unwrap();
+
+        let json = op_query(&conn, "SELECT value FROM values_table", None).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        let encoded = parsed[0]["value"]["$bytes"].as_str().unwrap();
+        assert_eq!(STANDARD.decode(encoded).unwrap(), original);
+        assert_eq!(
+            op_scalar(&conn, "SELECT value FROM values_table", None).unwrap(),
+            format!("bytes:{}", STANDARD.encode(original))
+        );
+    }
+
+    #[test]
+    fn query_and_scalar_have_explicit_null_numeric_and_text_forms() {
+        let conn = Connection::open_in_memory().unwrap();
+        assert_eq!(
+            op_query(&conn, "SELECT NULL AS n, 42 AS i, 1.5 AS f, 'x' AS t", None)
+                .unwrap(),
+            r#"[{"f": 1.5, "i": 42, "n": null, "t": "x"}]"#
+        );
+        assert_eq!(op_scalar(&conn, "SELECT NULL", None).unwrap(), "");
+        assert_eq!(op_scalar(&conn, "SELECT 42", None).unwrap(), "42");
+        assert_eq!(op_scalar(&conn, "SELECT 'x'", None).unwrap(), "x");
+    }
+}

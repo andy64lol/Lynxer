@@ -8,10 +8,17 @@
 Paths are plain strings. Functions return `""`, an empty list, `false` or `-1`
 when the underlying operation fails.
 
+`platform()` reports the POSIX host (`linux`, `darwin`, `freebsd`, `netbsd`,
+`openbsd` or `dragonfly`, otherwise `unknown`). `separator()` returns `/` and
+`listSeparator()` returns `:` for the supported POSIX hosts.
+
 ## Construction
 
 | Function | Signature | Notes |
 | --- | --- | --- |
+| `platform` | `() -> str` | POSIX host name |
+| `separator` | `() -> str` | Path-component separator (`/`) |
+| `listSeparator` | `() -> str` | Search-path separator (`:`) |
 | `cwd` / `home` | `() -> str` | Working directory / home directory |
 | `absolute` | `(str path) -> str` | Absolute path without normalization or symlink resolution |
 | `resolve` | `(str path) -> str` | Canonical path; missing components are allowed |
@@ -70,9 +77,9 @@ Glob patterns support `*`, `?`, `[...]` and `**` (which spans directories).
 | Function | Signature | Notes |
 | --- | --- | --- |
 | `readText` | `(str path) -> str` | UTF-8 contents, or `""` |
-| `readTextEncoding` | `(str path, str encoding) -> str` | Reads **as the named encoding**: `utf-8` (the default), `latin-1`, `ascii`; `""` for an unknown encoding or a byte the encoding cannot hold |
+| `readTextEncoding` | `(str path, str encoding) -> str` | Reads **as the named encoding**: UTF-8 (including `""`), ASCII, Latin-1, Windows-1252, UTF-16/32 (endianness variants), and host-supported `iconv` names; `""` for an unknown encoding, missing file or invalid byte sequence |
 | `writeText` | `(str path, str content) -> bool` | UTF-8 write |
-| `writeTextEncoding` | `(str path, str content, str encoding) -> bool` | Writes **in the named encoding**: `utf-8` (the default), `latin-1`, `ascii`; `false` for an unknown encoding, or a character the encoding cannot represent (a code point above `U+00FF` for Latin-1, or any non-ASCII character for ASCII) |
+| `writeTextEncoding` | `(str path, str content, str encoding) -> bool` | Writes **in the named encoding**: UTF-8 (including `""`), ASCII, Latin-1, Windows-1252, UTF-16/32 (endianness variants), and host-supported `iconv` names; `false` for an unknown encoding or unrepresentable character |
 | `appendText` | `(str path, str content) -> bool` | UTF-8 append |
 | `size` | `(str path) -> int` | Bytes, or `-1` |
 | `modifiedTime` | `(str path) -> float` | Unix timestamp with sub-second precision, or `-1.0` |

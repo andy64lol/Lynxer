@@ -15,4 +15,7 @@ global main(){
     println(global.xml.xmlUnescape("a&nope;"));
     println(global.xml.xmlSerialize(global.xml.xmlParse(text)));
     println(global.xml.xmlParse("<a><b></a>"));
+    str document = "<root a=\"x&amp;y\"><item>one</item></root>";
+    println(global.xml.xmlSerialize(global.xml.xmlParse(document)));
+    println(global.xml.xmlParse(global.xml.xmlSerialize(global.xml.xmlParse(document))));
 }

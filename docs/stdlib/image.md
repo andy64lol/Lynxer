@@ -41,7 +41,9 @@ global main(){
 `convert`, `grayscale`, `toRGB`, `toRGBA`, `toBinary`, `brightness`, `contrast`,
 `invert`, `blur`, `boxBlur`, `unsharpMask`, and `sharpen` return new handles.
 
-`getPixel` returns a JSON array `[r,g,b,a]`. `setPixel`, `setPixelA`, and `fill`
+`getPixel`, `getAverageColor`, and `getDominantColor` return JSON arrays in
+`[r,g,b,a]` order; histogram and info results are JSON objects. `getPixel`
+returns `[]` for an invalid coordinate or handle. `setPixel`, `setPixelA`, and `fill`
 mutate the existing image. `paste` and `pasteWithAlpha` mutate the destination;
 `blend` returns a new image. `addAlpha`, `setAlpha`, and `removeAlpha` return
 new handles.
@@ -129,6 +131,10 @@ usable headlessly.
 `getAverageColor`, `getDominantColor`, and `getHistogram` return JSON strings.
 `tile` returns a tiled image. `toBase64` and `toDataUrl` encode an image, and
 `fromBase64` decodes an image into a new handle.
+`getMode` reports `L`, `LA`, `RGB`, or `RGBA`; grayscale conversion preserves
+alpha and therefore returns `LA` when its input has transparency. `getFormat`
+and `info` report the detected source format for opened/decoded images and an
+empty format string for newly created or transformed images.
 
 ---
 

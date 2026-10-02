@@ -10,6 +10,11 @@ true
 true
 true
 true
+true
+true
+ok
+ok
+true
 ok
 ok
 true
@@ -24,6 +29,12 @@ true
 ok
 true
 ERROR: unsafe entry name: ../evil
+ok
+true
+true
+ok
+true
+ERROR: password cannot be empty
 ok
 ["a.txt","dir/b.txt"]
 ok

@@ -13,4 +13,6 @@ global main(){
     println(global.yaml.yamlValid(text));
     println(global.yaml.yamlValid("a: [1, 2"));
     println(global.yaml.yamlSerialize("{\"name\":\"lynxer\"}"));
+    println(global.yaml.yamlValid("1: numeric\n"));
+    println(global.yaml.yamlParse("1: numeric\n") is "");
 }

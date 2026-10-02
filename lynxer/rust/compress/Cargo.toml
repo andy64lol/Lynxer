@@ -12,13 +12,16 @@ crate-type = ["cdylib"]
 [dependencies]
 lynxer_abi = { path = "../abi" }
 # One crate per codec family. `flate2` is pure Rust (miniz_oxide); `zstd`
-# vendors the zstd C sources, which `cc` builds.
+# vendors the zstd C sources, which `cc` builds. `bzip2` is optional but adds
+# a widely-used archive/stream format without affecting the other codecs.
 flate2 = "1"
 zstd = "0.13"
+bzip2 = "0.4"
 brotli = "7"
 lz4_flex = "0.11"
-# Archives. `zip` only needs deflate; `tar` is pure Rust.
-zip = { version = "2", default-features = false, features = ["deflate"] }
+# Archives: enable the extra formats that are practical to build in this repo,
+# including ZIP AES encryption when the dependency supports it.
+zip = { version = "2", default-features = false, features = ["deflate", "bzip2", "aes-crypto"] }
 tar = "0.4"
 # Payload and manifest text that crosses the ABI.
 base64 = "0.22"

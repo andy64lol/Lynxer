@@ -29,6 +29,11 @@ global main(){
     println(global.regex.globToRegex("*.txt"));
     println(global.regex.countMatches("\\d+", "a1 b22 c333"));
     println(global.regex.firstMatchPos("\\d+", "ab12"));
+    println(global.regex.firstMatchPos("\\p{L}+", "🙂éx"));
+    println(global.regex.firstMatchCharPos("\\p{L}+", "🙂éx"));
+    println(global.regex.extract("(?P<letters>\\p{L}+)", "🙂éx"));
+    println(global.regex.replaceAllLiteral("\\p{L}+", "[$&]", "🙂éx"));
+    println(global.regex.isValid("("));
     println(global.regex.truncateMatch("\\d+", "abcdef123456ghij", 7));
     println(global.regex.countWords("the quick brown fox"));
     // The engine now runs what std::regex could not, and the X flag is honoured.

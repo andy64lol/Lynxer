@@ -1,9 +1,9 @@
 # compress
 
-gzip, zlib, zstd, brotli and lz4 streams, plus ZIP and TAR archives.
+gzip, zlib, zstd, bzip2, brotli and lz4 streams, plus ZIP and TAR archives.
 
 **Backend:** native — `stdlib/compress.so`, built from the Rust crate
-`rust/compress` over `flate2`, `zstd`, `brotli`, `lz4_flex`, `zip` and `tar`.
+`rust/compress` over `flate2`, `zstd`, `bzip2`, `brotli`, `lz4_flex`, `zip` and `tar`.
 
 **Import:** `import("compress")` → `global.compress.*`
 
@@ -32,8 +32,8 @@ reason.
 
 `zipCreate`, `tarCreate` and `tarGzCreate` take a JSON **manifest**: an array of
 entries, each `{"name": "<path in archive>", "path": "<source file>"}` or
-`{"name": "...", "base64": "<inline data>"}`. A name that is absolute or
-contains `..` is rejected when the archive is written.
+`{"name": "...", "base64": "<inline data>"}`. Entries may also specify
+`"password": "..."` to enable AES-128 encryption for that file. A name that is absolute or contains `..` is rejected when the archive is written.
 
 `zipExtract` and `tarExtract` extract into a directory and refuse any entry
 whose name would escape it.
@@ -48,12 +48,15 @@ whose name would escape it.
 | `gzipDecompressFile` | `(str input, str output)` | `"ok"` / `"ERROR: ..."` |
 | `zlibCompress` / `zlibDecompress` / `zlibCompressFile` / `zlibDecompressFile` | as gzip | as gzip |
 | `zstdCompress` / `zstdDecompress` / `zstdCompressFile` / `zstdDecompressFile` | as gzip | as gzip |
+| `bzip2Compress` / `bzip2Decompress` / `bzip2CompressFile` / `bzip2DecompressFile` | as gzip | as gzip |
 | `brotliCompress` / `brotliDecompress` / `brotliCompressFile` / `brotliDecompressFile` | as gzip | as gzip |
 | `lz4Compress` / `lz4Decompress` / `lz4CompressFile` / `lz4DecompressFile` | as gzip | as gzip |
 | `zipCreate` | `(str path, str manifest)` | `"ok"` / `"ERROR: ..."` |
 | `zipList` | `(str path)` | JSON array of entry names, or `"ERROR: ..."` |
 | `zipRead` | `(str path, str entry)` | the entry's bytes, or empty when absent |
+| `zipReadWithPassword` | `(str path, str entry, str password)` | the decrypted entry's bytes, or empty when absent or wrong |
 | `zipExtract` | `(str path, str directory)` | `"ok"` / `"ERROR: ..."` |
+| `zipExtractWithPassword` | `(str path, str directory, str password)` | `"ok"` / `"ERROR: ..."` |
 | `tarCreate` | `(str path, str manifest)` | `"ok"` / `"ERROR: ..."` |
 | `tarList` | `(str path)` | JSON array of entry names, or `"ERROR: ..."` |
 | `tarExtract` | `(str path, str directory)` | `"ok"` / `"ERROR: ..."` |
@@ -78,6 +81,10 @@ global main(){
     println(global.compress.zstdCompressFile("data.txt", "data.zst"));
     println(global.compress.zstdDecompressFile("data.zst", "data.out"));
     println(global.fileIO.readFile("data.out") is text);
+
+    // BZIP2 is supported too, when the dependency is compiled in.
+    bytes bzipPack = global.compress.bzip2Compress(bytesOf(text));
+    println(bytesToStr(global.compress.bzip2Decompress(bzipPack)) is text);
 
     // Build a ZIP containing a file and an inline entry.
     str manifest = "[{\"name\":\"a.txt\",\"path\":\"data.txt\"},{\"name\":\"b.txt\",\"base64\":\"aGVsbG8=\"}]";

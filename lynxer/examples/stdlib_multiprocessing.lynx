@@ -29,4 +29,12 @@ global main(){
     global.os.setenv("LYNXER_MP_TIMEOUT", "1");
     list slow = listPush(listRepeat("", 0), "sleep 30");
     println(global.multiprocessing.runParallelSilent(slow));
+
+    // Native handles remain queryable until released and become invalid
+    // immediately after release.
+    int handle = global.multiprocessing.runParallelHandle(
+        listPush(listRepeat("", 0), "printf handled"));
+    println(global.multiprocessing.resultAt(handle, 0));
+    println(global.multiprocessing.release(handle));
+    println(global.multiprocessing.resultCount(handle));
 }

@@ -12,4 +12,6 @@ global main(){
     println(global.ini.iniGet(text, "server", "nope"));
     println(global.ini.iniValid(text));
     println(global.ini.iniSerialize("{\"server\":{\"host\":\"localhost\"}}"));
+    str roundTrip = global.ini.iniSerialize(global.ini.iniParse(text));
+    println(global.ini.iniParse(roundTrip));
 }

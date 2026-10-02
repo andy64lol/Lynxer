@@ -135,9 +135,27 @@ export_int!(re_match_end, args, {
     })
 });
 
+export_int!(re_match_start_char, args, {
+    with_pattern!(args.string(0), 0, -1, |pattern| {
+        engine::first_match_char_pos(&pattern, args.string(1))
+    })
+});
+
+export_int!(re_match_end_char, args, {
+    with_pattern!(args.string(0), 0, -1, |pattern| {
+        engine::match_end_char_pos(&pattern, args.string(1))
+    })
+});
+
 export_string!(re_find_spans, args, {
     with_pattern!(args.string(0), 0, "[]".to_string(), |pattern| {
         engine::spans_json(&pattern, args.string(1))
+    })
+});
+
+export_string!(re_find_spans_char, args, {
+    with_pattern!(args.string(0), 0, "[]".to_string(), |pattern| {
+        engine::spans_char_json(&pattern, args.string(1))
     })
 });
 
@@ -227,7 +245,10 @@ const OPS: &[(&str, &str, &str)] = &[
     ("escape", "re_escape", "cdecl:cstring(...)"),
     ("matchStart", "re_match_start", "cdecl:int64(...)"),
     ("matchEnd", "re_match_end", "cdecl:int64(...)"),
+    ("matchStartChar", "re_match_start_char", "cdecl:int64(...)"),
+    ("matchEndChar", "re_match_end_char", "cdecl:int64(...)"),
     ("findSpans", "re_find_spans", "cdecl:cstring(...)"),
+    ("findSpansChar", "re_find_spans_char", "cdecl:cstring(...)"),
     ("testIgnoreCase", "re_test_ignore_case", "cdecl:int64(...)"),
     (
         "matchIgnoreCase",

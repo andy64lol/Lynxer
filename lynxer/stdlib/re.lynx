@@ -77,9 +77,21 @@ global matchStart(str pattern, str string) -> int {
 global matchEnd(str pattern, str string) -> int {
     return global.nativeRe.matchEnd(pattern, string);
 }
+// Return the Unicode scalar-value start index of the first match, or -1.
+global matchStartChar(str pattern, str string) -> int {
+    return global.nativeRe.matchStartChar(pattern, string);
+}
+// Return the Unicode scalar-value index immediately after the first match.
+global matchEndChar(str pattern, str string) -> int {
+    return global.nativeRe.matchEndChar(pattern, string);
+}
 // Return a JSON array of {start, end, match} for every match.
 global findSpans(str pattern, str string) -> str {
     return global.nativeRe.findSpans(pattern, string);
+}
+// Like findSpans, with Unicode scalar-value indices instead of byte offsets.
+global findSpansChar(str pattern, str string) -> str {
+    return global.nativeRe.findSpansChar(pattern, string);
 }
 global testIgnoreCase(str pattern, str string) -> bool {
     return global.nativeRe.testIgnoreCase(pattern, string) isnt 0;

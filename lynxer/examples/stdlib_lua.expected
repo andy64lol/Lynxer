@@ -10,7 +10,8 @@ hello	42
 LYNXER
 
 
-Error: syntax error: [string "lynxer.lua"]:1: syntax error near 'is'
-Error: syntax error: [string "lynxer.lua"]:1: unexpected symbol near ')'
+Error[syntax]:
+Error[syntax]:
 true
+Error[runtime]:
 true

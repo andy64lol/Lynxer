@@ -75,3 +75,9 @@ global main(){
 - [builtins.md](../builtins.md) — the functions the interpreter implements
   itself.
 - [limitations.md](../limitations.md) — the full divergence register.
+# Deterministic log tests
+
+The native backend accepts `LYNXER_DEBUG_TEST_EPOCH` (Unix seconds, rendered
+in UTC) and `LYNXER_DEBUG_TEST_CLOCK_MS` (milliseconds) as test clock overrides.
+They are unset by default; production logging and timers use the system wall
+clock and monotonic clock respectively.

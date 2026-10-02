@@ -35,7 +35,16 @@ arrays of objects for keyed access, so `csv` pairs naturally with
 
 Dialect follows the standard `csv` format: `,` delimiter, `"` quoting with `""`
 escaping, and `\r\n` line terminators on output. Non-string JSON values are
-rendered as `""` / `true` / `false`.
+rendered as compact JSON scalar text: `null` becomes an empty field, booleans
+become lowercase `true` / `false`, numbers use their JSON number text, and
+arrays/objects use compact JSON. Input accepts LF, CRLF, or bare CR record
+terminators; terminators embedded in quoted fields remain field data.
+
+`buildCSV` and `writeCSV` use exactly the supplied header columns, in their
+given order. Missing object fields are empty and object fields not named in the
+header are ignored. Parsing into objects also follows header width: short rows
+are padded with empty strings and surplus cells are ignored; `parseRows`
+continues to preserve each input row's actual width.
 
 ## Legacy aliases
 

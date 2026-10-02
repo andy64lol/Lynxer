@@ -6,3 +6,5 @@ a<b&c>d
 
 <a x="1">hi<b/></a>
 
+<root a="x&amp;y"><item>one</item></root>
+{"attributes":{"a":"x&y"},"children":[{"attributes":{},"children":[],"name":"item","text":"one"}],"name":"root","text":""}

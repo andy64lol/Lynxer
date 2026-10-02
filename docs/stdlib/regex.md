@@ -34,7 +34,8 @@ reports the names sorted. This module mirrors the `re`-fallback path:
 | `globToRegex` | `(str glob)` | Anchored regex equivalent of a glob |
 | `countMatches` | `(str pattern, str string)` | Number of matches |
 | `countWords` | `(str string)` | Number of `\w+` word runs |
-| `firstMatchPos` | `(str pattern, str string)` | Start index of the first match, or `-1` |
+| `firstMatchPos` | `(str pattern, str string)` | UTF-8 byte offset of the first match, or `-1` |
+| `firstMatchCharPos` | `(str pattern, str string)` | Unicode scalar-value index, or `-1` |
 | `truncateMatch` | `(str pattern, str string, int maxLen)` | `maxLen`-character window centred on the first match |
 
 Pattern syntax is the same engine as [re](re.md).

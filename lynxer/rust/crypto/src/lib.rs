@@ -29,8 +29,39 @@ fn to_base64(bytes: &[u8]) -> String {
     STANDARD.encode(bytes)
 }
 
+fn normalize_digest_name(name: &str) -> Option<&'static str> {
+    // Module ABI contract: unknown names are an explicit failure sentinel
+    // (`None` / `""`), not a successful hash of empty data. We only ignore
+    // spaces, underscores and dashes; other punctuation is rejected.
+    if name
+        .chars()
+        .any(|ch| !ch.is_ascii_alphanumeric() && !matches!(ch, ' ' | '_' | '-'))
+    {
+        return None;
+    }
+    let normalized = name
+        .trim()
+        .chars()
+        .filter(|ch| ch.is_ascii_alphanumeric())
+        .map(|ch| ch.to_ascii_lowercase())
+        .collect::<String>();
+    match normalized.as_str() {
+        "sha1" => Some("sha1"),
+        "sha224" => Some("sha224"),
+        "sha256" | "sha2256" => Some("sha256"),
+        "sha384" => Some("sha384"),
+        "sha512" | "sha2512" => Some("sha512"),
+        "md5" => Some("md5"),
+        "sha3256" => Some("sha3-256"),
+        "sha3512" => Some("sha3-512"),
+        "blake3" => Some("blake3"),
+        _ => None,
+    }
+}
+
 /// A digest of `data`, as lower-case hex, or `None` for an unknown algorithm.
 fn hash_bytes(algorithm: &str, data: &[u8]) -> Option<Vec<u8>> {
+    let algorithm = normalize_digest_name(algorithm)?;
     Some(match algorithm {
         "sha1" => sha1::Sha1::digest(data).to_vec(),
         "sha224" => sha2::Sha224::digest(data).to_vec(),
@@ -55,6 +86,7 @@ macro_rules! hmac_of {
 
 /// An HMAC of `data` under `key`, or `None` for an algorithm without one.
 fn hmac_bytes(algorithm: &str, key: &[u8], data: &[u8]) -> Option<Vec<u8>> {
+    let algorithm = normalize_digest_name(algorithm)?;
     Some(match algorithm {
         "sha1" => hmac_of!(sha1::Sha1, key, data),
         "sha224" => hmac_of!(sha2::Sha224, key, data),
@@ -224,6 +256,29 @@ mod tests {
     use super::*;
 
     #[test]
+    fn digest_aliases_are_normalized() {
+        assert_eq!(hash_bytes("SHA-256", b"abc").unwrap(), sha2::Sha256::digest(b"abc").to_vec());
+        assert_eq!(hash_bytes("sha_256", b"abc").unwrap(), sha2::Sha256::digest(b"abc").to_vec());
+        assert_eq!(hash_bytes("md-5", b"abc").unwrap(), md5::Md5::digest(b"abc").to_vec());
+        assert_eq!(hash_bytes("sha3_256", b"abc").unwrap(), sha3::Sha3_256::digest(b"abc").to_vec());
+        assert_eq!(hash_bytes("sha3-512", b"abc").unwrap(), sha3::Sha3_512::digest(b"abc").to_vec());
+        assert!(hash_bytes("sha-2-512", b"abc").is_some());
+        assert!(hash_bytes("bad name", b"abc").is_none());
+    }
+
+    #[test]
+    fn hmac_aliases_are_normalized() {
+        let key = b"key";
+        let data = b"data";
+        let mut mac = <Hmac<sha2::Sha256>>::new_from_slice(key).unwrap();
+        mac.update(data);
+        let expected = mac.finalize().into_bytes().to_vec();
+        assert_eq!(hmac_bytes("SHA-256", key, data).unwrap(), expected);
+        assert_eq!(hmac_bytes("sha_256", key, data).unwrap(), expected);
+        assert!(hmac_bytes("bad name", key, data).is_none());
+    }
+
+    #[test]
     fn sha256_known_answer() {
         assert_eq!(
             hex::encode(hash_bytes("sha256", b"abc").unwrap()),
@@ -254,8 +309,18 @@ mod tests {
     }
 
     #[test]
+    fn invalid_algorithm_names_fail_explicitly() {
+        assert!(hash_bytes("nope", b"x").is_none());
+        assert!(hash_bytes("sha2/256", b"x").is_none());
+        assert!(hash_bytes("sha-2-256-extra", b"x").is_none());
+        assert!(hmac_bytes("nope", b"k", b"x").is_none());
+        assert!(hmac_bytes("sha-2-256-extra", b"k", b"x").is_none());
+    }
+
+    #[test]
     fn unknown_algorithm_is_none() {
         assert!(hash_bytes("nope", b"x").is_none());
         assert!(hmac_bytes("nope", b"k", b"x").is_none());
     }
 }
+

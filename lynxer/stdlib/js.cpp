@@ -1,13 +1,11 @@
 // Lynxer `js` stdlib backend: run JavaScript through a Node.js subprocess.
 
-#include <array>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
-#include <fstream>
 #include <string>
-#include <sys/wait.h>
-#include <unistd.h>
+
+#include "subprocess.hpp"
 
 using RegisterFunction = int (*)(const char*, const char*, const char*);
 using RegisterConstant = int (*)(const char*, std::int64_t);
@@ -43,32 +41,10 @@ static std::string trimTrailingNewlines(std::string value) {
     return value;
 }
 
-// Runs a shell command, capturing stdout and the exit status.
 static std::string captureCommand(const std::string& command, int& status) {
-    std::string output;
-    std::array<char, 256> buffer {};
-    FILE* pipe = ::popen(command.c_str(), "r");
-    if (pipe == nullptr) {
-        status = -1;
-        return output;
-    }
-    while (::fgets(buffer.data(), static_cast<int>(buffer.size()), pipe) !=
-           nullptr) {
-        output += buffer.data();
-    }
-    // Decode the wait status so callers see a plain exit code (128 + signal for
-    // a signalled child), not the raw `waitpid` value.
-    const int raw = ::pclose(pipe);
-    if (raw == -1) {
-        status = -1;
-    } else if (WIFEXITED(raw)) {
-        status = WEXITSTATUS(raw);
-    } else if (WIFSIGNALED(raw)) {
-        status = 128 + WTERMSIG(raw);
-    } else {
-        status = raw;
-    }
-    return output;
+    auto result = lynxer_subprocess::run(command, 0);
+    status = result.status;
+    return std::move(result.output);
 }
 
 // How long a Node program may run before it is killed. Overridable per host with
@@ -85,25 +61,15 @@ static int jsTimeoutSeconds() {
     return 30;
 }
 
-// Runs `command` under a POSIX shell that kills it after `seconds`, capturing
-// stdout and stderr together so neither leaks to the caller. A killed run
-// reports status 137.
+// Runs `command` in its own process group and captures stdout and stderr.
 static std::string captureWithTimeout(const std::string& command, int seconds,
                                       int& status) {
-    // `exec 2>/dev/null` silences the *shell's own* stderr for the rest of the
-    // script. dash (the /bin/sh on Debian and Ubuntu, including CI) reports a
-    // reaped job as `Killed` / `Terminated` on stderr, which would otherwise be
-    // captured as if the command had printed it. The command's stderr is
-    // redirected into the pipe separately, so it is still captured.
-    // The guard's stdout/stderr are closed off the pipe, or it would hold the
-    // read end open for the whole timeout and every call would block that long.
-    const std::string script =
-        "exec 2>/dev/null; " + command + " 2>&1 & worker=$!; "
-        "( sleep " + std::to_string(seconds) +
-        "; kill -9 \"$worker\" 2>/dev/null ) >/dev/null 2>&1 & guard=$!; "
-        "wait \"$worker\"; status=$?; kill \"$guard\" 2>/dev/null; "
-        "wait \"$guard\" 2>/dev/null; exit $status";
-    return captureCommand(script, status);
+    auto result = lynxer_subprocess::run(command, seconds);
+    status = result.status;
+    if (result.timedOut) {
+        status = 124;
+    }
+    return std::move(result.output);
 }
 
 // Runs a Node command with the configured timeout. Its stderr is part of the
@@ -112,7 +78,7 @@ static std::string runNodeCommand(const std::string& nodeCommand) {
     const int seconds = jsTimeoutSeconds();
     int status = 0;
     const std::string output = captureWithTimeout(nodeCommand, seconds, status);
-    if (status == 137 || status == 124) {
+    if (status == 124) {
         return "Error: node timed out after " + std::to_string(seconds) + "s";
     }
     if (status != 0 && output.empty()) {
@@ -123,7 +89,7 @@ static std::string runNodeCommand(const std::string& nodeCommand) {
 
 static bool nodeAvailable() {
     int status = 0;
-    captureCommand("command -v node >/dev/null 2>&1", status);
+    captureCommand("node --version >/dev/null 2>&1", status);
     return status == 0;
 }
 
@@ -131,19 +97,7 @@ static std::string runNodeSource(const std::string& source) {
     if (!nodeAvailable()) {
         return "Error: node not found on PATH";
     }
-    char pattern[] = "/tmp/lynxerXXXXXX.js";
-    const int descriptor = ::mkstemps(pattern, 3);
-    if (descriptor < 0) {
-        return "Error: could not create temporary file";
-    }
-    {
-        std::ofstream output(pattern, std::ios::binary | std::ios::trunc);
-        output << source;
-    }
-    ::close(descriptor);
-    const std::string output = runNodeCommand("node " + shellQuote(pattern));
-    ::unlink(pattern);
-    return output;
+    return runNodeCommand("node -e " + shellQuote(source));
 }
 
 static std::string runNodeFile(const std::string& path) {

@@ -20,9 +20,10 @@
 //!   invalid pattern (or a match-time backtracking failure) yields the scalar
 //!   sentinel family from `docs/stdlib-contracts.md`.
 //!
-//! Offsets are byte offsets, as they were before; string handling is UTF-8
-//! aware, so an empty match advances to the next character boundary rather than
-//! the next byte.
+//! Existing offset operations return byte offsets; companion character-index
+//! operations count Unicode scalar values. String handling is UTF-8 aware, so
+//! an empty match advances to the next character boundary rather than the next
+//! byte.
 
 use fancy_regex::{Captures, Regex, RegexBuilder};
 
@@ -371,6 +372,33 @@ pub fn spans_json(pattern: &Pattern, subject: &str) -> String {
     dump(&Json::Array(items))
 }
 
+/// Converts a byte offset returned by the regex engine to a Unicode scalar
+/// value index. Regex match boundaries are always UTF-8 character boundaries.
+pub fn character_index(subject: &str, byte_offset: usize) -> usize {
+    subject[..byte_offset].chars().count()
+}
+
+/// `{start, end, match}` for every match, with character indices.
+pub fn spans_char_json(pattern: &Pattern, subject: &str) -> String {
+    let items: Vec<Json> = matches(pattern, subject)
+        .into_iter()
+        .map(|record| {
+            Json::Object(vec![
+                (
+                    "start".to_string(),
+                    Json::Integer(character_index(subject, record.start) as i64),
+                ),
+                (
+                    "end".to_string(),
+                    Json::Integer(character_index(subject, record.end) as i64),
+                ),
+                ("match".to_string(), Json::String(record.text)),
+            ])
+        })
+        .collect();
+    dump(&Json::Array(items))
+}
+
 /// Distinct match texts, in order of first appearance.
 pub fn unique_json(pattern: &Pattern, subject: &str) -> String {
     let mut seen: Vec<String> = Vec::new();
@@ -647,12 +675,34 @@ pub fn first_match_pos(pattern: &Pattern, subject: &str) -> i64 {
     }
 }
 
+/// Character index of the first match, or `-1` when there is no match.
+pub fn first_match_char_pos(pattern: &Pattern, subject: &str) -> i64 {
+    pattern
+        .regex
+        .find(subject)
+        .ok()
+        .flatten()
+        .map(|found| character_index(subject, found.start()) as i64)
+        .unwrap_or(-1)
+}
+
 /// The end offset of the first match, or `-1`.
 pub fn match_end_pos(pattern: &Pattern, subject: &str) -> i64 {
     match pattern.regex.find(subject) {
         Ok(Some(found)) => found.end() as i64,
         _ => -1,
     }
+}
+
+/// Character index immediately after the first match, or `-1` when absent.
+pub fn match_end_char_pos(pattern: &Pattern, subject: &str) -> i64 {
+    pattern
+        .regex
+        .find(subject)
+        .ok()
+        .flatten()
+        .map(|found| character_index(subject, found.end()) as i64)
+        .unwrap_or(-1)
 }
 
 #[cfg(test)]
@@ -678,7 +728,10 @@ mod tests {
     #[test]
     fn empty_matches_follow_python() {
         assert_eq!(spans("a?", 0, "banana").len(), 7);
-        assert_eq!(spans("a*", 0, "baaac"), vec![(0, 0), (1, 4), (4, 4), (5, 5)]);
+        assert_eq!(
+            spans("a*", 0, "baaac"),
+            vec![(0, 0), (1, 4), (4, 4), (5, 5)]
+        );
         assert_eq!(spans("", 0, "abc"), vec![(0, 0), (1, 1), (2, 2), (3, 3)]);
     }
 
@@ -716,13 +769,46 @@ mod tests {
     #[test]
     fn replacement_understands_python_backreferences() {
         assert_eq!(replacement("(\\d+)", "[\\1]", "a1b22"), "a[1]b[22]");
-        assert_eq!(replacement("(?P<w>\\w+)", "[\\g<w>]", "hi there"), "[hi] [there]");
+        assert_eq!(
+            replacement("(?P<w>\\w+)", "[\\g<w>]", "hi there"),
+            "[hi] [there]"
+        );
         assert_eq!(replacement("(a)(b)", "\\2\\1", "ab"), "ba");
         // A literal `$` survives, `\g` without a name is literal, and an
         // undefined number expands to nothing.
         assert_eq!(replacement("x", "a$b", "x"), "a$b");
         assert_eq!(replacement("(a)", "<\\g1>", "a"), "<g1>");
         assert_eq!(replacement("(a)", "\\10", "a"), "");
+    }
+
+    #[test]
+    fn unicode_offsets_are_available_as_character_indices() {
+        let pattern = Pattern::compile("(?P<letter>\\p{L})", 0).unwrap();
+        let subject = "🙂éx";
+        let records = matches(&pattern, subject);
+        assert_eq!(
+            records
+                .iter()
+                .map(|record| (record.start, record.end, record.text.as_str()))
+                .collect::<Vec<_>>(),
+            vec![(4, 6, "é"), (6, 7, "x")]
+        );
+        assert_eq!(first_match_pos(&pattern, subject), 4);
+        assert_eq!(first_match_char_pos(&pattern, subject), 1);
+        assert_eq!(match_end_pos(&pattern, subject), 6);
+        assert_eq!(match_end_char_pos(&pattern, subject), 2);
+        assert_eq!(
+            spans_char_json(&pattern, subject),
+            "[{\"start\": 1, \"end\": 2, \"match\": \"é\"}, {\"start\": 2, \"end\": 3, \"match\": \"x\"}]"
+        );
+        assert_eq!(
+            groups_json(&Pattern::compile("(\\p{L})", 0).unwrap(), subject),
+            "[\"é\"]"
+        );
+        assert_eq!(
+            replace(&pattern, "[\\g<letter>]", subject, -1).0,
+            "🙂[é][x]"
+        );
     }
 
     #[test]

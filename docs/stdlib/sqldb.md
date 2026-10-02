@@ -22,11 +22,20 @@ The `sqldb` module provides SQLite database functionality using Rust's `rusqlite
 - `queryArgs(path: string, sql: string, paramsJson: string) -> string`
   Parameterized form of `query()`.
 
+Query output uses JSON-native `null`, numbers and strings. BLOB columns use a
+tagged object such as `{"$bytes": "AAH/gA=="}`; the tag preserves their byte
+identity and the base64 payload preserves arbitrary bytes. Pass the same
+single-key object in `paramsJson` to bind those bytes back as a SQLite BLOB.
+
 - `scalar(path: string, sql: string) -> string`
   Returns the first column of the first row as a string, or `""` when absent.
 
 - `scalarArgs(path: string, sql: string, paramsJson: string) -> string`
   Parameterized form of `scalar()`.
+
+`scalar()` keeps the reference-compatible string result: NULL and no row return
+`""`, numeric values use their decimal text, text is unchanged, and BLOBs use
+`bytes:<base64>` so they cannot be mistaken for ordinary text.
 
 - `lastInsertId(path: string, sql: string, paramsJson: string) -> int`
   Executes an insert/update and returns SQLite's lastrowid. Returns `-1` on error.

@@ -13,6 +13,9 @@ An INI document crosses the module ABI as a **JSON string**, the shared
 structured-value bridge (see [native-module-abi.md](../native-module-abi.md)):
 an object of sections, each an object of **string** values. The unnamed leading
 section uses `""` as its key. Values are strings in both directions.
+Serialization normalizes whitespace and discards comments; parsing a
+serialized document preserves the section/key/value data, not the original
+source formatting.
 
 A failure is a scalar sentinel: a document operation yields `""` and `iniValid`
 yields `false`. An empty document is valid, so it parses to `{"":{}}`.

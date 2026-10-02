@@ -28,3 +28,7 @@ false
 false
 handle error: unknown connection handle 1
 -1
+ok
+ok
+[{"value": {"$bytes": "AAH/gA=="}}]
+bytes:AAH/gA==

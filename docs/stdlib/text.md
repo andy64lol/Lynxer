@@ -2,12 +2,15 @@
 
 String helpers built on the core string builtins.
 
-**Backend:** pure — `stdlib/text.lynx` only. **Import:** `import("text")` →
-`global.text.*`
+**Backend:** Lynxer helpers backed by the Rust `text.so` Unicode operations.
+**Import:** `import("text")` → `global.text.*`
 
 The interpreter's strings hold UTF-8, and length, indexing and slicing here count
-**code points**, so a character is one Unicode scalar value. Case conversion is
-ASCII-only: `upper`/`lower` change `a`-`z`/`A`-`Z` and nothing else.
+**code points**, so a character is one Unicode scalar value. Unicode case
+conversion uses the per-character Unicode mappings and can expand one
+character, such as `ß` to `SS`. Predicates use Unicode alphabetic/numeric
+properties. Combining marks are separate scalars and do not count as alphabetic
+on their own.
 
 ## Search and replace
 
@@ -28,10 +31,11 @@ only tests list/tuple membership.
 
 | Function | Signature | Notes |
 | --- | --- | --- |
-| `upper` / `lower` | `(str value) -> str` | Case conversion |
-| `capitalize` | `(str value) -> str` | Upper-case the first character, lower-case the rest (ASCII) |
+| `upper` / `lower` | `(str value) -> str` | Unicode case conversion |
+| `upperAscii` / `lowerAscii` | `(str value) -> str` | ASCII-only conversion, retained for compatibility |
+| `capitalize` | `(str value) -> str` | Upper-case the first character, lower-case the rest |
 | `title` | `(str value) -> str` | Capitalise the first letter of each word |
-| `swapCase` | `(str value) -> str` | Swap upper/lower per character (ASCII) |
+| `swapCase` | `(str value) -> str` | Swap upper/lower per character |
 
 ## Whitespace and repetition
 
@@ -51,9 +55,12 @@ only tests list/tuple membership.
 | --- | --- | --- |
 | `isEmpty` | `(str value) -> bool` | Zero length |
 | `isBlank` | `(str value) -> bool` | Only whitespace |
-| `isAlpha` | `(str value) -> bool` | Every character is an ASCII letter; `false` for `""` |
-| `isNumeric` | `(str value) -> bool` | Every character is an ASCII digit; `false` for `""` |
-| `isAlphaNumeric` | `(str value) -> bool` | Every character is ASCII alphanumeric; `false` for `""` |
+| `isAlpha` | `(str value) -> bool` | Every character is Unicode alphabetic; `false` for `""` |
+| `isNumeric` / `isDigit` | `(str value) -> bool` | Every character has a Unicode numeric property; `false` for `""` |
+| `isAlphaNumeric` | `(str value) -> bool` | Every character is Unicode alphabetic or numeric; `false` for `""` |
+| `isAlphaAscii` | `(str value) -> bool` | Every character is an ASCII letter |
+| `isNumericAscii` / `isDigitAscii` | `(str value) -> bool` | Every character is an ASCII digit |
+| `isAlphaNumericAscii` | `(str value) -> bool` | Every character is ASCII alphanumeric |
 
 ## Padding and slicing
 

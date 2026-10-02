@@ -24,17 +24,21 @@ and a predicate yields `false`.
 
 ## Algorithms
 
-`hash` and `hmac` take an algorithm name from a fixed set:
+`hash` and `hmac` accept a canonical name or the common aliases used by tools and scripts, case-insensitive and with spaces, underscores or dashes ignored. Supported families are:
 
 | Name | Digest | HMAC |
 | --- | --- | --- |
-| `sha1` | yes | yes |
-| `sha224`, `sha256`, `sha384`, `sha512` | yes | yes |
-| `sha3-256`, `sha3-512` | yes | yes |
+| `sha1` / `sha-1` | yes | yes |
+| `sha224` / `sha-224` | yes | yes |
+| `sha256` / `sha-256` / `sha2-256` | yes | yes |
+| `sha384` / `sha-384` | yes | yes |
+| `sha512` / `sha-512` / `sha2-512` | yes | yes |
+| `sha3-256` / `sha3_256` | yes | yes |
+| `sha3-512` / `sha3_512` | yes | yes |
 | `blake3` | yes | no |
-| `md5` | yes | no |
+| `md5` / `md-5` | yes | no |
 
-Any other name yields `""`.
+Any other name yields `""` as an explicit failure sentinel; this is not a valid digest of empty input.
 
 ## Randomness
 

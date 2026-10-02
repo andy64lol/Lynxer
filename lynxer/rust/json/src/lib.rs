@@ -6,6 +6,8 @@
 //! Output must match the previous `nlohmann::ordered_json` backend byte for
 //! byte because `examples/stdlib_json.expected` diffs exactly:
 //!   * objects keep key insertion order (`preserve_order`);
+//!   * non-finite Lynxer values become JSON `null`, while non-finite JSON
+//!     number tokens are rejected by the parser;
 //!   * `parse` uses a 2-space indent and `pretty` a 4-space indent, with
 //!     `": "` / `,\n` separators (which is what nlohmann's `dump(n)` uses);
 //!   * the compact helpers use `": "` and `", "`.
@@ -110,6 +112,22 @@ fn is_space(character: char) -> bool {
 
 fn trim(text: &str) -> &str {
     text.trim_matches(is_space)
+}
+
+fn set_json(text: &str, key: &str, value: &str) -> String {
+    let mut object = match parse(text) {
+        Some(Value::Object(fields)) => fields,
+        _ => return text.to_string(),
+    };
+    match parse(value) {
+        Some(parsed) => {
+            object.insert(key.to_string(), parsed);
+        }
+        None => {
+            object.insert(key.to_string(), Value::String(value.to_string()));
+        }
+    }
+    compact(&Value::Object(object))
 }
 
 // --- ops --------------------------------------------------------------------
@@ -221,23 +239,7 @@ export_int!(json_length, args, {
 });
 
 export_string!(json_set, args, {
-    let text = args.string(0);
-    let key = args.string(1);
-    let value = args.string(2);
-    let object = match parse(text) {
-        Some(Value::Object(fields)) => fields,
-        _ => return text.to_string(),
-    };
-    let mut object = object;
-    match parse(value) {
-        Some(parsed) => {
-            object.insert(key.to_string(), parsed);
-        }
-        None => {
-            object.insert(key.to_string(), Value::String(value.to_string()));
-        }
-    }
-    compact(&Value::Object(object))
+    set_json(args.string(0), args.string(1), args.string(2))
 });
 
 export_string!(json_set_int, args, {
@@ -353,3 +355,35 @@ const OPS: &[(&str, &str, &str)] = &[
 ];
 
 lynxer_module!(OPS);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn non_finite_json_numbers_are_rejected() {
+        for text in ["NaN", "Infinity", "-Infinity", "{\"n\":NaN}", "1e999"] {
+            assert!(parse(text).is_none(), "accepted {text}");
+        }
+        assert!(serde_json::Number::from_f64(f64::NAN).is_none());
+        assert!(serde_json::Number::from_f64(f64::INFINITY).is_none());
+    }
+
+    #[test]
+    fn object_order_is_preserved_when_parsing_and_mutating() {
+        let parsed = parse("{\"z\":1,\"a\":2,\"m\":3}").unwrap();
+        assert_eq!(
+            parsed
+                .as_object()
+                .unwrap()
+                .keys()
+                .cloned()
+                .collect::<Vec<_>>(),
+            ["z", "a", "m"]
+        );
+        let changed = set_json("{\"z\":1,\"a\":2}", "m", "3");
+        assert_eq!(changed, "{\"z\": 1, \"a\": 2, \"m\": 3}");
+        let replaced = set_json("{\"z\":1,\"a\":2}", "z", "9");
+        assert_eq!(replaced, "{\"z\": 9, \"a\": 2}");
+    }
+}

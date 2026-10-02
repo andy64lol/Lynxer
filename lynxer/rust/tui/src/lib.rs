@@ -46,6 +46,75 @@ struct Column {
     style: Style,
 }
 
+fn interactive_multiselect(
+    width: u16,
+    ansi: bool,
+    prompt: &str,
+    choices: &[String],
+    already_raw: bool,
+) -> String {
+    if choices.is_empty() {
+        return "[]".to_string();
+    }
+    let _guard = (!already_raw).then(RawModeGuard::new);
+    let mut selected = 0usize;
+    let mut checked = vec![false; choices.len()];
+    let mut stdout = std::io::stdout();
+    loop {
+        let entries: Vec<String> = choices
+            .iter()
+            .enumerate()
+            .map(|(index, item)| {
+                format!("{} {}", if checked[index] { "[x]" } else { "[ ]" }, item)
+            })
+            .collect();
+        let menu = widgets_ext::menu_list(width, ansi, &entries, selected);
+        let frame = if prompt.is_empty() {
+            menu
+        } else {
+            format!("{prompt}\n{menu}")
+        };
+        let _ = crossterm::execute!(
+            stdout,
+            crossterm::cursor::MoveTo(0, 0),
+            crossterm::terminal::Clear(crossterm::terminal::ClearType::All),
+            crossterm::style::Print(&frame)
+        );
+        let _ = stdout.flush();
+        match event::read() {
+            Ok(TermEvent::Key(key)) => {
+                if key.kind == KeyEventKind::Release {
+                    continue;
+                }
+                match key.code {
+                    KeyCode::Up => selected = selected.saturating_sub(1),
+                    KeyCode::Down => selected = (selected + 1).min(choices.len() - 1),
+                    KeyCode::Char(' ') => checked[selected] = !checked[selected],
+                    KeyCode::Enter => {
+                        let indices = checked
+                            .iter()
+                            .enumerate()
+                            .filter_map(|(index, checked)| checked.then_some(index))
+                            .map(|index| index.to_string())
+                            .collect::<Vec<_>>();
+                        println!();
+                        let _ = stdout.flush();
+                        return format!("[{}]", indices.join(","));
+                    }
+                    KeyCode::Esc | KeyCode::Char('q') => {
+                        println!();
+                        let _ = stdout.flush();
+                        return "[]".to_string();
+                    }
+                    _ => {}
+                }
+            }
+            Ok(_) => {}
+            Err(_) => return "[]".to_string(),
+        }
+    }
+}
+
 struct TableState {
     title: String,
     columns: Vec<Column>,
@@ -114,6 +183,7 @@ struct TuiState {
     status: Vec<Option<String>>,
     live: Vec<Option<LiveState>>,
     screen: Option<String>,
+    screen_height: u16,
     highlighter: Option<Box<Highlighter>>,
 }
 
@@ -136,6 +206,7 @@ impl TuiState {
             status: Vec::new(),
             live: Vec::new(),
             screen: None,
+            screen_height: 0,
             highlighter: None,
         }
     }
@@ -2193,18 +2264,38 @@ export_int!(tui_poll_input, args, {
 export_int!(tui_select, args, {
     let prompt = args.string(0);
     let choices_json = args.string(1);
-    let _ = prompt;
     let choices = json_string_array(choices_json);
-    select_index(&choices)
+    if is_tty() && std::io::stdin().is_tty() {
+        let (width, ansi, already_raw) = with_state(|state| {
+            (
+                terminal_width(state),
+                ansi_enabled(state),
+                state.raw_mode,
+            )
+        });
+        interactive_menu(width, ansi, prompt, &choices, already_raw)
+    } else {
+        select_index(&choices)
+    }
 });
 
 // Choose several of `choicesJson`; returns a JSON array of indices.
 export_string!(tui_multiselect, args, {
     let prompt = args.string(0);
     let choices_json = args.string(1);
-    let _ = prompt;
     let choices = json_string_array(choices_json);
-    multiselect_indices(&choices)
+    if is_tty() && std::io::stdin().is_tty() {
+        let (width, ansi, already_raw) = with_state(|state| {
+            (
+                terminal_width(state),
+                ansi_enabled(state),
+                state.raw_mode,
+            )
+        });
+        interactive_multiselect(width, ansi, prompt, &choices, already_raw)
+    } else {
+        multiselect_indices(&choices)
+    }
 });
 
 // Read multiple lines until a lone "." or EOF; returns the text.
@@ -2223,7 +2314,11 @@ export_int!(tui_screen_start, args, {
     with_state(|state| {
         state.screen = Some(text.to_string());
         let rendered = render_paragraph(state, text, Style::default(), Alignment::Left, None);
-        emit(state, &rendered);
+        if is_tty() {
+            state.screen_height = emit_in_place(state, &rendered, 0);
+        } else {
+            emit(state, &rendered);
+        }
     });
     0
 });
@@ -2234,7 +2329,12 @@ export_int!(tui_screen_update, args, {
     with_state(|state| {
         state.screen = Some(text.to_string());
         let rendered = render_paragraph(state, text, Style::default(), Alignment::Left, None);
-        emit(state, &rendered);
+        if is_tty() {
+            let previous_height = state.screen_height;
+            state.screen_height = emit_in_place(state, &rendered, previous_height);
+        } else {
+            emit(state, &rendered);
+        }
     });
     0
 });
@@ -2244,9 +2344,15 @@ export_int!(tui_screen_stop, args, {
     with_state(|state| {
         if let Some(text) = state.screen.clone() {
             let rendered = render_paragraph(state, &text, Style::default(), Alignment::Left, None);
-            emit(state, &rendered);
+            if is_tty() {
+                let previous_height = state.screen_height;
+                state.screen_height = emit_in_place(state, &rendered, previous_height);
+            } else {
+                emit(state, &rendered);
+            }
         }
         state.screen = None;
+        state.screen_height = 0;
     });
     0
 });
@@ -2384,12 +2490,23 @@ impl Drop for RawModeGuard {
 
 /// Arrow-key menu for a real terminal. Up/Down move, Enter selects, q/Esc
 /// cancels. Only called when stdin and stdout are both terminals.
-fn interactive_menu(width: u16, ansi: bool, choices: &[String]) -> i64 {
-    let _guard = RawModeGuard::new();
+fn interactive_menu(
+    width: u16,
+    ansi: bool,
+    prompt: &str,
+    choices: &[String],
+    already_raw: bool,
+) -> i64 {
+    let _guard = (!already_raw).then(RawModeGuard::new);
     let mut selected = 0usize;
     let mut stdout = std::io::stdout();
     loop {
-        let frame = widgets_ext::menu_list(width, ansi, choices, selected);
+        let menu = widgets_ext::menu_list(width, ansi, choices, selected);
+        let frame = if prompt.is_empty() {
+            menu
+        } else {
+            format!("{prompt}\n{menu}")
+        };
         let _ = crossterm::execute!(
             stdout,
             crossterm::cursor::MoveTo(0, 0),
@@ -2409,8 +2526,16 @@ fn interactive_menu(width: u16, ansi: bool, choices: &[String]) -> i64 {
                             selected += 1;
                         }
                     }
-                    KeyCode::Enter => return selected as i64,
-                    KeyCode::Esc | KeyCode::Char('q') => return -1,
+                    KeyCode::Enter => {
+                        println!();
+                        let _ = stdout.flush();
+                        return selected as i64;
+                    }
+                    KeyCode::Esc | KeyCode::Char('q') => {
+                        println!();
+                        let _ = stdout.flush();
+                        return -1;
+                    }
                     _ => {}
                 }
             }
@@ -2454,6 +2579,8 @@ fn poll_input(timeout_ms: i64) -> bool {
     if !is_tty() {
         return false;
     }
+    let raw_mode = with_state(|state| state.raw_mode);
+    let _guard = (!raw_mode).then(RawModeGuard::new);
     let timeout = std::time::Duration::from_millis(timeout_ms.max(0) as u64);
     event::poll(timeout).unwrap_or(false)
 }
@@ -2462,6 +2589,8 @@ fn read_key(timeout_ms: i64) -> String {
     if !is_tty() {
         return String::new();
     }
+    let raw_mode = with_state(|state| state.raw_mode);
+    let _guard = (!raw_mode).then(RawModeGuard::new);
     let timeout = std::time::Duration::from_millis(timeout_ms.max(0) as u64);
     match event::poll(timeout) {
         Ok(true) => match event::read() {
@@ -2558,14 +2687,19 @@ fn read_multiline(default: &str) -> String {
 export_int!(tui_menu, args, {
     let prompt = args.string(0);
     let choices_json = args.string(1);
-    let _ = prompt;
     with_state(|state| {
         let choices = json_string_array(choices_json);
         if choices.is_empty() {
             return -1;
         }
         if is_tty() && std::io::stdin().is_tty() {
-            interactive_menu(state.width, ansi_enabled(state), &choices)
+            interactive_menu(
+                state.width,
+                ansi_enabled(state),
+                prompt,
+                &choices,
+                state.raw_mode,
+            )
         } else {
             select_index(&choices)
         }

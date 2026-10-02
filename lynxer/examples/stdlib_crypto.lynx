@@ -16,6 +16,13 @@ global main(){
     println(global.crypto.hash("sha3-512",bytesOf("abc")));
     println(global.crypto.hash("blake3",bytesOf("abc")));
     println(global.crypto.hash("nope",bytesOf("abc"))); // unknown algorithm
+    // Conventional aliases are case- and separator-insensitive.
+    println(global.crypto.hash("SHA-256",bytesOf("abc")));
+    println(global.crypto.hash("sha_256",bytesOf("abc")));
+    println(global.crypto.hash("MD-5",bytesOf("abc")));
+    println(global.crypto.hash("Sha3_256",bytesOf("abc")));
+    // A name with the wrong shape stays invalid.
+    println(global.crypto.hash("sha2/256",bytesOf("abc")));
     // Binary payloads are hashed directly now (no base64 round trip).
     println(global.crypto.hash("sha256",bytesFromHex("00ff")));
 
@@ -24,6 +31,8 @@ global main(){
     println(global.crypto.verifyHmac("sha256",bytesOf("key"),bytesOf("The quick brown fox jumps over the lazy dog"), global.crypto.hmac("sha256",bytesOf("key"),bytesOf("The quick brown fox jumps over the lazy dog"))));
     println(global.crypto.verifyHmac("sha256",bytesOf("key"),bytesOf("x"),"00"));
     println(global.crypto.hmac("nope",bytesOf("key"),bytesOf("data")));
+    // The alias normalization applies to HMAC too.
+    println(global.crypto.hmac("SHA-256",bytesOf("key"),bytesOf("The quick brown fox jumps over the lazy dog")));
 
     // --- constant-time comparison ---
     println(global.crypto.constantTimeEquals(bytesOf("abc"),bytesOf("abc")));

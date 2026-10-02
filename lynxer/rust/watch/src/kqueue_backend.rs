@@ -10,7 +10,7 @@
 //! This backend cannot be built or exercised on the Linux CI host; it is
 //! `#cfg`-gated so the Linux build is unaffected.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::os::fd::RawFd;
 use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::{Mutex, OnceLock};
@@ -22,6 +22,9 @@ struct Watch {
     recursive: bool,
     debounce_ms: u64,
     last: HashMap<String, u64>,
+    /// Directory snapshots for inferring the changed child when the OS reports
+    /// only the directory descriptor.
+    directory_state: HashMap<String, HashSet<String>>,
     /// Registered descriptors: fd -> (path, is_directory).
     paths: HashMap<RawFd, (String, bool)>,
 }
@@ -80,9 +83,13 @@ fn register(watch: &mut Watch, path: &str) -> RawFd {
         return -1;
     }
     let is_directory = std::path::Path::new(path).is_dir();
-    watch
-        .paths
-        .insert(descriptor, (path.to_string(), is_directory));
+    watch.paths.insert(descriptor, (path.to_string(), is_directory));
+    if is_directory {
+        watch.directory_state.insert(
+            path.to_string(),
+            crate::events::directory_snapshot(path),
+        );
+    }
     descriptor
 }
 
@@ -135,6 +142,7 @@ pub fn add_impl(path: &str, recursive: bool) -> i64 {
         recursive,
         debounce_ms: 0,
         last: HashMap::new(),
+        directory_state: HashMap::new(),
         paths: HashMap::new(),
     };
     register_recursive(&mut watch, path, recursive);
@@ -213,7 +221,23 @@ pub fn drain_impl(handle: i64) -> String {
             if is_directory && watch.recursive && kind == "modify" {
                 directories_to_rescan.push(path.clone());
             }
-            events.push(WatchedEvent { path, kind });
+            if is_directory {
+                let before = watch.directory_state.get(&path).cloned().unwrap_or_default();
+                let after = crate::events::directory_snapshot(&path);
+                let mut changed = crate::events::changed_entry_paths(&path, &before, &after);
+                if changed.is_empty() {
+                    changed.push(path.clone());
+                }
+                for entry in changed {
+                    events.push(WatchedEvent {
+                        path: entry,
+                        kind: kind.clone(),
+                    });
+                }
+                watch.directory_state.insert(path.clone(), after);
+            } else {
+                events.push(WatchedEvent { path, kind });
+            }
         }
     }
     for directory in directories_to_rescan {
@@ -234,5 +258,24 @@ pub fn remove_impl(handle: i64) -> bool {
             true
         }
         None => false,
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn directory_event_paths_follow_the_changed_entry() {
+        let root = std::env::temp_dir().join(format!("lynxer_kqueue_paths_{}_{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let before = crate::events::directory_snapshot(root.to_str().unwrap());
+        std::fs::write(root.join("a.txt"), b"hi").unwrap();
+        let after = crate::events::directory_snapshot(root.to_str().unwrap());
+        let changed = crate::events::changed_entry_paths(root.to_str().unwrap(), &before, &after);
+        assert_eq!(changed, vec![root.join("a.txt").to_string_lossy().into_owned()]);
+        let _ = std::fs::remove_dir_all(&root);
     }
 }

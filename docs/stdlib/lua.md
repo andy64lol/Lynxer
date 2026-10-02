@@ -27,7 +27,10 @@ global main(){
 
 Lua `print` arguments are joined with tabs. Each captured output string ends
 with a newline when the script printed at least one line. Runtime and file
-errors are returned as strings beginning with `Error:`.
+errors are returned as strings beginning with `Error[syntax]:`,
+`Error[runtime]:`, `Error[io]:`, or `Error[other]:`. The original mlua
+diagnostic, including the Lua traceback for runtime failures, follows the
+classification prefix.
 
 ---
 

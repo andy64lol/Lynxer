@@ -13,4 +13,5 @@ crate-type = ["cdylib"]
 lynxer_abi = { path = "../abi" }
 # A maintained fork of the archived `serde_yaml`; documents cross as JSON.
 serde_yml = "0.0"
+serde = "1"
 serde_json = "1"

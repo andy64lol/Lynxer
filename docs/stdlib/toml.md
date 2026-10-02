@@ -12,7 +12,12 @@ over `toml`.
 A TOML document crosses the module ABI as a **JSON string**, the shared
 structured-value bridge (see [native-module-abi.md](../native-module-abi.md)).
 Pass the JSON to `jsonParse` or `jsonGet` to read it as Lynxer values, and build
-a JSON object to serialize back to TOML. A TOML datetime becomes a JSON string.
+a JSON object to serialize back to TOML. TOML datetimes use a tagged JSON object
+(`{"$lynxer.toml.datetime":"1979-05-27"}` for a date) so parse/serialize
+round-trips preserve their TOML datetime type rather than turning them into
+quoted strings. The tag is reserved: a one-field object with a valid TOML
+datetime value under that key serializes as a TOML datetime. JSON null still
+cannot be represented in TOML.
 
 A failure is a scalar sentinel: a document operation yields `""` and
 `tomlValid` yields `false`. A JSON value TOML cannot hold (a top-level non-table,
@@ -39,7 +44,7 @@ global main(){
     println(global.toml.tomlParse(text));
     println(global.toml.tomlGet(text, "server.host"));
 
-    // Build a document from JSON.
+    // Build a document from JSON, including tagged TOML datetimes.
     println(global.toml.tomlSerialize("{\"answer\":42,\"name\":\"lynxer\"}"));
 }
 ```

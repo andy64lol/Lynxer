@@ -1,0 +1,11 @@
+////
+Selection APIs keep line-based fallbacks when output is redirected and use
+keyboard selection when stdin and stdout are terminals.
+////
+global setup(){ import("tui"); }
+
+global main(){
+    println(global.tui.menu("menu", "[\"alpha\",\"beta\"]"));
+    println(global.tui.select("select", "[\"alpha\",\"beta\",\"gamma\"]"));
+    println(global.tui.multiselect("many", "[\"alpha\",\"beta\",\"gamma\"]"));
+}

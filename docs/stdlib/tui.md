@@ -13,7 +13,11 @@ the result:
 - **With a TTY and color enabled** the same text carries ANSI SGR styling.
   `init(colorSystem)` accepts a system name; one containing `none` disables
   color. `menu` and `image` do their real work only with a terminal; without
-  one `menu` reads a line and `image` prints a placeholder.
+  one `menu` reads a line and `image` prints a placeholder. On a TTY, `menu` uses
+  arrow keys and `select`/`multiselect` use interactive keyboard selection;
+  redirected runs keep line-based selection and snapshot output. Live and
+  progress updates redraw in place on terminals, while screen updates print
+  deterministic snapshots when redirected.
 
 `setWidth(width)` pins the render width (default `80`) and `setSoftWrap`
 controls wrapping. `panel*`, `rule*`, `table*`, `tree*`, `layout*`, `progress*`,
@@ -71,8 +75,9 @@ returns `false` when a string contains an unknown token.
 - `printColumns(itemsJson: string, equal: bool, expand: bool)` — Prints columns.
 - `printAligned(text: string, align: string, pad: bool)` — Prints aligned text.
 - `printPadded(text: string, top: int, right: int, bottom: int, left: int)` — Prints padded text.
-- `printException()` — Inside a `catch` block, prints the caught error message
-  and its source location. Outside a catch block, prints that no exception
+- `printException()` — The Lynxer wrapper sends `exceptionInfo()` through the
+  native-module string argument, preserving the formatted traceback and
+  original message. Outside a catch block, prints that no exception
   information is available.
 - `installTraceback(showLocals: bool)` — Installs traceback.
 

@@ -17,4 +17,9 @@ global main(){
     global.os.setenv("LYNXER_JS_TIMEOUT","1");
     println(global.js.runJS("while(true){}"));
     println(global.js.runJS("console.error('boom')"));
+    println(global.js.runJS("process.exit(7)"));
+    str path = global.os.getenv("PATH");
+    global.os.setenv("PATH", "");
+    println(global.js.runJS("console.log('unreachable')"));
+    global.os.setenv("PATH", path);
 }

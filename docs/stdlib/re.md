@@ -24,9 +24,12 @@ Structured results (match lists, group lists, spans) are JSON strings.
 | `split` | `(str pattern, str string)` | JSON array of the split parts |
 | `splitN` | `(str pattern, str string, int maxSplit)` | Split at most `maxSplit` times |
 | `escape` | `(str string)` | Regex-escaped literal text |
-| `matchStart` | `(str pattern, str string)` | Start index of the first match, or `-1` |
-| `matchEnd` | `(str pattern, str string)` | End index of the first match, or `-1` |
-| `findSpans` | `(str pattern, str string)` | JSON array of `{start, end, match}` |
+| `matchStart` | `(str pattern, str string)` | Byte start offset of the first match, or `-1` |
+| `matchEnd` | `(str pattern, str string)` | Byte end offset of the first match, or `-1` |
+| `findSpans` | `(str pattern, str string)` | JSON array of `{start, end, match}` with byte offsets |
+| `matchStartChar` | `(str pattern, str string)` | Unicode scalar-value start index, or `-1` |
+| `matchEndChar` | `(str pattern, str string)` | Unicode scalar-value end index, or `-1` |
+| `findSpansChar` | `(str pattern, str string)` | The same span list with character indices |
 | `testIgnoreCase` | `(str pattern, str string)` | `test` with the `i` flag |
 | `matchIgnoreCase` | `(str pattern, str string)` | `match` with the `i` flag |
 | `searchIgnoreCase` | `(str pattern, str string)` | `search` with the `i` flag |
@@ -55,7 +58,9 @@ The engine is a superset of ECMAScript, so Python/PCRE constructs work:
 An invalid pattern is not an error: `test` is `false`, a string result is `""`
 and an index is `-1`.
 
-Index helpers (`matchStart`, `matchEnd`, `findSpans`) report **byte** offsets.
+Byte-index helpers report UTF-8 byte offsets. The `*Char` variants count
+Unicode scalar values (not grapheme clusters); all indexes are zero-based and
+end indexes are exclusive.
 
 ## Example
 

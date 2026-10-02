@@ -1,3 +1,10 @@
+[TRACE 03:04:05] clocked
+[INFO  03:04:05] ready
+[WARN  03:04:05] careful
+[ERROR 03:04:05] failed
+[DEBUG 03:04:05] detail
+6
+6
 int
 float
 str

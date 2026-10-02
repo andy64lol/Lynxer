@@ -12,6 +12,8 @@ are always returned in input order, whatever order they finish in. A command's
 `stderr` is captured into its output, and a command that outlives the timeout
 (`LYNXER_MP_TIMEOUT` seconds, default `300`, `0` for no limit) is killed and
 reports exit code `124`.
+The timeout kills the complete process group, not only the shell wrapper.
+Captured stdout and stderr are concatenated in their original pipe order.
 
 | Function | Signature | Returns |
 | --- | --- | --- |
@@ -21,10 +23,18 @@ reports exit code `124`.
 | `runParallelProcess` | `(list commands) -> list` | Alias of `runParallel` |
 | `mapShell` | `(str template, list items) -> list` | Replaces the first `{}` in `template` with each item, runs in parallel, returns stdout per item |
 | `threadMap` | `(str template, list items) -> list` | Alias of `mapShell` |
+| `runParallelHandle` | `(list commands) -> int` | Low-level result handle for output/code queries |
+
+`resultCount(handle)`, `resultAt(handle, index)`, and `codeAt(handle, index)`
+read one handle. `release(handle)` frees it and returns `true`; subsequent
+queries return `0`, `""`, or `-1`. The list-returning convenience functions
+release their handles automatically.
 
 Results are collected through a native handle registry rather than a joined
 string, because command output can contain any character. The wrappers release
-each handle automatically.
+each handle automatically. Native callers that use the handle operations
+directly must call `release(handle)`; result queries on released or unknown
+handles return their invalid-handle sentinels.
 
 ## Example
 

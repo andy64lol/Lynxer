@@ -45,58 +45,70 @@ features are in [docs/removed-features.md](docs/removed-features.md).
 
 ## Native modules
 
-- [ ] **Compression formats.** Add optional bzip2, zstd and encrypted ZIP
-  support where dependencies can be built consistently on supported targets.
-  Keep decompression-size limits and extraction path confinement; cover each
-  enabled format with round-trip and malformed-input fixtures.
-- [ ] **Crypto digest aliases.** Normalize conventional digest-name aliases
-  and test case, separator and invalid-name handling. Keep Ed25519 as the
-  supported signature algorithm, constant-time MAC verification and bounded
-  random generation.
-- [ ] **Watch backend fidelity.** Make kqueue events identify changed entries
-  where the OS API permits and add macOS/BSD coverage for the existing backend.
-- [ ] **Structured document round-trips.** Preserve format-specific values
-  that JSON cannot represent (including TOML datetimes), and define handling
-  for YAML non-string keys without silent data loss. Add round-trip fixtures
-  for TOML, INI, XML and YAML.
-- [ ] **JSON and CSV edge cases.** Define and test round-trip behavior for
-  non-finite JSON numbers, object key order, CSV line endings, non-string
-  values, and rows whose width differs from the header. Preserve existing
-  behavior unless a concrete compatibility requirement justifies a change.
-- [ ] **Regex Unicode offsets.** Provide character-index results alongside the
-  existing byte offsets and add cross-module tests for Unicode matching,
-  captures, replacements and invalid patterns.
-- [ ] **Unicode text operations.** Add Unicode case conversion and
-  Unicode-aware alpha/digit predicates, keeping current ASCII helpers
-  available for compatibility. Cover multi-byte and combining characters.
-- [ ] **Path encoding and platform information.** Expand the supported text
-  encodings and provide portable path/platform information on each supported
-  host. Test invalid input and missing host values without changing the
-  existing UTF-8 default.
-- [ ] **Portable `sys` information.** Implement the remaining system
-  information backends on supported POSIX targets rather than returning
-  placeholders, and test both available values and unavailable-value errors.
-- [ ] **Subprocess result management.** Specify and test timeout, stderr,
-  process termination and result-handle lifetime behavior consistently for
-  `js` and `multiprocessing`, including missing-runtime and failed-process
-  cases.
-- [ ] **Deterministic debug logging tests.** Inject or control the clock in
-  tests so timestamped log levels can be asserted without wall-clock flakes.
-- [ ] **TUI exception context.** Carry formatted exception context through the
-  native-module ABI so `printException` can show the original error details.
-- [ ] **Interactive TUI behavior.** Add an interactive terminal backend for
-  live displays, selection prompts and terminal controls while preserving the
-  deterministic redirected-output behavior. Cover both TTY and non-TTY runs.
-- [ ] **Image API consistency.** Standardize image pixel and metadata
-  representations with the shared JSON/value conventions, and add API
-  compatibility tests for mutating operations, grayscale alpha and format
-  reporting.
-- [ ] **SQLite value fidelity.** Preserve SQLite BLOB values as `bytes` rather
-  than base64-only JSON strings and define consistent JSON/scalar query output.
-  Add round-trip tests for NULL, numeric, text and BLOB values.
-- [ ] **Lua error classification.** Expose stable structured error kinds while
-  retaining the underlying Lua diagnostic and traceback, with tests for syntax
-  and runtime failures.
+- [x] **Compression formats.** `compress` enables bzip2 and zstd streams and
+  AES-encrypted ZIP entries (a manifest entry may carry a `password`; empty
+  passwords are refused). Decompression keeps the 64 MiB cap and extraction
+  keeps path confinement. Round-trip, malformed-input and encrypted-archive
+  coverage is in the crate unit tests and the `stdlib_compress` fixture.
+- [x] **Crypto digest aliases.** `crypto` normalizes conventional digest names
+  (case- and separator-insensitive, e.g. `SHA-256`, `sha_256`, `sha3_256`) for
+  hashes and HMACs, while malformed names stay invalid. Ed25519 remains the
+  signature algorithm, MAC comparison stays constant-time and random output
+  stays bounded. Covered by unit tests and the `stdlib_crypto` fixture.
+- [x] **Watch backend fidelity.** The kqueue backend infers the changed child
+  entry from directory snapshots where the OS reports only the directory
+  descriptor, through a shared helper that the Linux tests exercise; the
+  kqueue wiring itself stays BSD-gated and outside the Linux CI host.
+- [x] **Structured document round-trips.** TOML datetimes round-trip through a
+  reserved tagged JSON object (`$lynxer.toml.datetime`) instead of becoming
+  quoted strings, and any YAML mapping with a non-string key fails the whole
+  document rather than being silently coerced. TOML, INI, XML and YAML gained
+  round-trip fixtures.
+- [x] **JSON and CSV edge cases.** JSON rejects non-finite numbers and preserves
+  key insertion order; CSV accepts CR, LF and CRLF input, emits CRLF, follows
+  the header width for short and ragged rows, and renders non-string values as
+  compact JSON scalars. Both have explicit round-trip fixtures.
+- [x] **Regex Unicode offsets.** `re` and `regex` keep byte offsets and add
+  `matchStartChar` / `matchEndChar` / `findSpansChar` and `firstMatchCharPos`,
+  which count Unicode scalar values (exclusive end). Unicode matching,
+  captures, replacements and invalid patterns are covered for both engines.
+- [x] **Unicode text operations.** A new Rust `text` backend provides Unicode
+  case conversion and alpha/numeric/digit predicates; the existing ASCII
+  helpers remain (`upperAscii`, `isAlphaAscii`, …). The `stdlib_text` fixture
+  covers multi-byte and combining characters.
+- [x] **Path encoding and platform information.** `path` reads and writes the
+  UTF-8 default plus Latin-1 and common Windows code pages (including
+  UTF-16LE), and exposes portable `platform` / `separator` / `listSeparator`
+  values. Unknown encodings and invalid input are tested without changing the
+  UTF-8 default.
+- [x] **Portable `sys` information.** The remaining POSIX backends return real
+  values (CPU count, page size, memory totals and availability, uptime, boot
+  time, load average) instead of placeholders, with available-value and
+  sentinel coverage in the `stdlib_sys` fixture.
+- [x] **Subprocess result management.** `js` and `multiprocessing` share a
+  documented timeout/stderr/result-handle contract: timeouts kill the whole
+  process group, stdout and stderr are captured in pipe order, and released or
+  unknown handles return their invalid-result sentinels. They are tested
+  together, including missing-runtime and failed-process cases.
+- [x] **Deterministic debug logging tests.** The `debug` backend accepts
+  `LYNXER_DEBUG_TEST_EPOCH` and `LYNXER_DEBUG_TEST_CLOCK_MS` test clock
+  overrides, and the `stdlib_debug` fixture asserts timestamped levels without
+  wall-clock flakes.
+- [x] **TUI exception context.** The wrapper forwards `exceptionInfo()` through
+  the native-module string argument, so `printException` shows the formatted
+  traceback and original error message.
+- [x] **Interactive TUI behavior.** A live terminal backend drives displays,
+  selection prompts and terminal controls while redirected runs keep the
+  deterministic snapshot output; both TTY and non-TTY behavior are covered.
+- [x] **Image API consistency.** Image pixels and metadata use the shared
+  JSON/value conventions, with grayscale alpha, mutating operations and format
+  reporting covered by the `stdlib_image` fixture.
+- [x] **SQLite value fidelity.** SQLite BLOBs round-trip as `bytes` through an
+  explicit tagged value (and a `bytes:` scalar prefix) instead of ambiguous
+  base64 JSON, with NULL, numeric, text and BLOB round-trip coverage.
+- [x] **Lua error classification.** `lua` exposes stable structured error kinds
+  while retaining the engine diagnostic and traceback, with syntax and runtime
+  failure tests.
 
 ## Planning rule
 

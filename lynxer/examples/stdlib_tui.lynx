@@ -7,7 +7,7 @@ The width is pinned and soft wrap disabled so the box-drawing is stable.
 terminal into raw mode, which a fixture must not do. The prompts at the end read
 the piped stdin the Makefile supplies, and the last two fall back to defaults.
 ////
-global setup(){ import("tui"); }
+global setup(){ import("tui"); import("fileIO"); }
 
 global main(){
     global.tui.setWidth(40);
@@ -49,8 +49,8 @@ global main(){
     global.tui.setHighlight(false);
     global.tui.setSoftWrap(false);
     global.tui.consoleLog("logged");
-    println(global.tui.consoleSaveText("/tmp/lynxer_tui_scratch.txt"));
-    println(global.tui.consoleSaveHtml("/tmp/lynxer_tui_scratch.html"));
+    println(global.tui.consoleSaveText(".lynxer_scratch_tui.txt"));
+    println(global.tui.consoleSaveHtml(".lynxer_scratch_tui.html"));
 
     // Stateful table: real state behind handle 0.
     println(global.tui.tableCreate("t"));
@@ -136,8 +136,8 @@ global main(){
     global.tui.screenStop();
 
     // SVG capture and image rendering (placeholder without a color terminal).
-    println(global.tui.consoleSaveSvg("/tmp/lynxer_tui_scratch.svg"));
-    global.tui.image("/tmp/lynxer_tui_missing.png", 8, 4);
+    println(global.tui.consoleSaveSvg(".lynxer_scratch_tui.svg"));
+    global.tui.image(".lynxer_scratch_tui_missing.png", 8, 4);
 
     // Prompts read the piped stdin supplied by the Makefile.
     println(global.tui.ask("name> "));
@@ -151,4 +151,8 @@ global main(){
     println(global.tui.multiselect("many> ", "[\"x\",\"y\",\"z\"]"));
     println(global.tui.menu("menu> ", "[\"alpha\",\"beta\",\"gamma\"]"));
     println(global.tui.editor("edit> ", "fallback"));
+
+    global.fileIO.deleteFile(".lynxer_scratch_tui.txt");
+    global.fileIO.deleteFile(".lynxer_scratch_tui.html");
+    global.fileIO.deleteFile(".lynxer_scratch_tui.svg");
 }

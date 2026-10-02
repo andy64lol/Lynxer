@@ -31,6 +31,14 @@ static std::string textOrEmpty(const char* text) {
 }
 
 static double nowMilliseconds() {
+    const char* configured = std::getenv("LYNXER_DEBUG_TEST_CLOCK_MS");
+    if (configured != nullptr && *configured != '\0') {
+        char* end = nullptr;
+        const double value = std::strtod(configured, &end);
+        if (end != configured && *end == '\0') {
+            return value;
+        }
+    }
     const auto now = std::chrono::steady_clock::now().time_since_epoch();
     return std::chrono::duration<double, std::milli>(now).count();
 }
@@ -41,9 +49,20 @@ static std::map<std::string, double>& timers() {
 }
 
 extern "C" const char* debug_timestamp() {
-    const std::time_t raw = std::time(nullptr);
+    std::time_t raw = std::time(nullptr);
+    const char* configured = std::getenv("LYNXER_DEBUG_TEST_EPOCH");
+    if (configured != nullptr && *configured != '\0') {
+        char* end = nullptr;
+        const long long value = std::strtoll(configured, &end, 10);
+        if (end != configured && *end == '\0') {
+            raw = static_cast<std::time_t>(value);
+        }
+    }
     std::tm local {};
-    if (::localtime_r(&raw, &local) == nullptr) {
+    const std::tm* converted = configured != nullptr && *configured != '\0'
+                                   ? ::gmtime_r(&raw, &local)
+                                   : ::localtime_r(&raw, &local);
+    if (converted == nullptr) {
         return stable("");
     }
     char buffer[16];

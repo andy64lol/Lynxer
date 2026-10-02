@@ -73,5 +73,12 @@ global main(){
     println("handle error: ", handleError);
     println(global.sqldb.open("/nonexistent-directory/x.db"));
 
+    // BLOBs round-trip as an explicit tagged JSON value, not an ambiguous
+    // base64-looking text string. The scalar form is prefixed with bytes:.
+    println(global.sqldb.execute(db, "CREATE TABLE blobs (value BLOB)"));
+    println(global.sqldb.executeArgs(db, "INSERT INTO blobs VALUES (?)", "[{\"$bytes\":\"AAH/gA==\"}]"));
+    println(global.sqldb.query(db, "SELECT value FROM blobs"));
+    println(global.sqldb.scalar(db, "SELECT value FROM blobs"));
+
     global.fileIO.deleteFile(db);
 }

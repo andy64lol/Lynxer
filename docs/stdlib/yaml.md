@@ -12,8 +12,10 @@ substitution is recorded here per **D5** in [todo.md](../../todo.md)).
 
 A YAML document crosses the module ABI as a **JSON string**, the shared
 structured-value bridge (see [native-module-abi.md](../native-module-abi.md)): a
-mapping becomes an object and a sequence an array. A mapping whose key is not a
-string (which JSON cannot hold) is a failure.
+mapping becomes an object and a sequence an array. Any mapping with a
+non-string key (including numeric, boolean, null, sequence, or mapping keys)
+fails as a whole document; such keys are never silently stringified or
+dropped. `yamlValid` returns false for these documents.
 
 Anchors and aliases are resolved while parsing, so the input is capped at 1 MiB
 to bound an alias-expansion payload; a larger input is a failure.

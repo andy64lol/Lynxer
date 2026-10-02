@@ -2,7 +2,7 @@
 Fixture for the csv stdlib. Interpreted only (module imports are not
 bytecode-compilable).
 ////
-global setup(){ import("csv"); }
+global setup(){ import("csv"); import("json"); }
 
 global main(){
     str data = "name,age,city\nalpha,30,London\nbeta,25,Paris\ngamma,30,London\n";
@@ -43,4 +43,13 @@ global main(){
     println(global.csv.filterCSV(data, "city", "London"));
     println(global.csv.dedupCSV(data, "city"));
     println(global.csv.readCSVRaw("/no/such/file"));
+
+    // CSV accepts CRLF, CR and LF input and emits CRLF when writing. Rows
+    // follow the requested header width; missing values are empty and extras
+    // are ignored. Non-string values use compact JSON scalar text.
+    println(global.csv.parseRows("a,b\r\n1,true\r2,false\n3"));
+    str edgeCsv = global.csv.buildCSV("[{\"a\":1,\"b\":true,\"extra\":\"ignored\"},{\"a\":null},{\"a\":[1,2],\"b\":{\"x\":true}}]", "a,b");
+    println(global.json.jsonStringify(edgeCsv));
+    println(global.csv.parseRows(edgeCsv));
+    println(global.csv.parseToJson("a,b\n1,2,extra\n3\n"));
 }

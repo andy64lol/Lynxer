@@ -3,9 +3,23 @@ Fixture for the debug stdlib. Interpreted only (module imports are not
 bytecode-compilable). Logging helpers are omitted because they embed wall-clock
 timestamps.
 ////
-global setup(){ import("debug"); }
+global setup(){ import("debug"); import("os"); }
 
 global main(){
+    // The native clock hooks make logger/timer assertions independent of wall
+    // time and scheduler timing.
+    global.os.setenv("LYNXER_DEBUG_TEST_EPOCH", "946782245");
+    global.os.setenv("LYNXER_DEBUG_TEST_CLOCK_MS", "10");
+    global.debug.log("trace", "clocked");
+    global.debug.info("ready");
+    global.debug.warn("careful");
+    global.debug.error("failed");
+    global.debug.debug("detail");
+    global.debug.startTimer("fixed");
+    global.os.setenv("LYNXER_DEBUG_TEST_CLOCK_MS", "16");
+    println(global.debug.elapsed("fixed"));
+    println(global.debug.stopTimer("fixed"));
+
     println(global.debug.typeOf(42));
     println(global.debug.typeOf(3.5));
     println(global.debug.typeOf("text"));

@@ -1,7 +1,7 @@
 ////
 Lynxer standard library: compress.
-gzip, zlib, zstd, brotli and lz4 streams, plus ZIP and TAR archives, backed by
-the Rust crates `flate2`/`zstd`/`brotli`/`lz4_flex`/`zip`/`tar` and exposed
+gzip, zlib, zstd, bzip2, brotli and lz4 streams, plus ZIP and TAR archives, backed by
+the Rust crates `flate2`/`zstd`/`bzip2`/`brotli`/`lz4_flex`/`zip`/`tar` and exposed
 through the native module `stdlib/compress.so`.
 
 Binary payloads cross the module ABI as `bytes`, so an in-memory
@@ -44,6 +44,13 @@ global zstdDecompress(bytes data) -> bytes { return global.nativeCompress.zstdDe
 global zstdCompressFile(str input, str output) -> str { return global.nativeCompress.zstdCompressFile(input, output); }
 global zstdDecompressFile(str input, str output) -> str { return global.nativeCompress.zstdDecompressFile(input, output); }
 
+// --- bzip2 -----------------------------------------------------------------
+
+global bzip2Compress(bytes data) -> bytes { return global.nativeCompress.bzip2Compress(data); }
+global bzip2Decompress(bytes data) -> bytes { return global.nativeCompress.bzip2Decompress(data); }
+global bzip2CompressFile(str input, str output) -> str { return global.nativeCompress.bzip2CompressFile(input, output); }
+global bzip2DecompressFile(str input, str output) -> str { return global.nativeCompress.bzip2DecompressFile(input, output); }
+
 // --- brotli ----------------------------------------------------------------
 
 global brotliCompress(bytes data) -> bytes { return global.nativeCompress.brotliCompress(data); }
@@ -62,14 +69,19 @@ global lz4DecompressFile(str input, str output) -> str { return global.nativeCom
 
 // Create a ZIP archive from a JSON array of entries. An entry is
 // `{"name": "<path in archive>", "path": "<source file>"}` or
-// `{"name": "...", "base64": "<inline data>"}`. "ok" or "ERROR: ...".
+// `{"name": "...", "base64": "<inline data>"}`. Entries may also include an optional
+// `"password": "..."`, which enables AES-128 encryption for that file. "ok" or "ERROR: ...".
 global zipCreate(str path, str manifest) -> str { return global.nativeCompress.zipCreate(path, manifest); }
 // The entry names as a JSON array, or "ERROR: ...".
 global zipList(str path) -> str { return global.nativeCompress.zipList(path); }
 // An entry's bytes, or empty bytes when it is absent.
 global zipRead(str path, str entry) -> bytes { return global.nativeCompress.zipRead(path, entry); }
+// An entry's bytes with the provided password, or empty bytes when absent/incorrect.
+global zipReadWithPassword(str path, str entry, str password) -> bytes { return global.nativeCompress.zipReadWithPassword(path, entry, password); }
 // Extract into a directory, refusing any entry that escapes it. "ok" or "ERROR: ...".
 global zipExtract(str path, str directory) -> str { return global.nativeCompress.zipExtract(path, directory); }
+// Extract with a password for any AES-encrypted entries. "ok" or "ERROR: ...".
+global zipExtractWithPassword(str path, str directory, str password) -> str { return global.nativeCompress.zipExtractWithPassword(path, directory, password); }
 
 // --- TAR archives ----------------------------------------------------------
 

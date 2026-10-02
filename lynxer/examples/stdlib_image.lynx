@@ -34,6 +34,7 @@ global main(){
     println(global.image.toDataUrl(image, "png") isnt "");
     int decoded = global.image.fromBase64(encoded);
     println(global.image.getWidth(decoded), "x", global.image.getHeight(decoded));
+    println(global.image.getFormat(decoded));
     println(global.image.info(decoded));
 
     println(global.image.close(image));

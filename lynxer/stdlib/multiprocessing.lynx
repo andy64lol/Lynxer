@@ -48,6 +48,19 @@ global runParallelSilent(list commands) -> list {
 global runParallelProcess(list commands) -> list {
     return _collectOutputs(global.nativeMp.runParallelProcess(listJsonArray(commands)));
 }
+// Low-level result-handle operations for callers that want to retrieve output
+// and exit codes separately. Release every returned handle when finished.
+global runParallelHandle(list commands) -> int {
+    return global.nativeMp.runParallel(listJsonArray(commands));
+}
+global resultCount(int handle) -> int { return global.nativeMp.resultCount(handle); }
+global resultAt(int handle, int index) -> str {
+    return global.nativeMp.resultAt(handle, index);
+}
+global codeAt(int handle, int index) -> int {
+    return global.nativeMp.codeAt(handle, index);
+}
+global release(int handle) -> bool { return global.nativeMp.release(handle) isnt 0; }
 // Substitute each item into the "{}" placeholder of a command template and run
 // the commands in parallel; returns a list of stdout strings.
 global mapShell(str template, list items) -> list {

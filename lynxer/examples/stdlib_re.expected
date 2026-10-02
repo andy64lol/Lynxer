@@ -28,6 +28,17 @@ b
 ["", "a", "b", "c", ""]
 [hi] [there]
 hello
+6
+2
+7
+3
+[{"start": 4, "end": 7, "match": "éx"}]
+[{"start": 1, "end": 3, "match": "éx"}]
+["éx"]
+🙂[éx]
+false
+[]
+-1
 true
 c
 true

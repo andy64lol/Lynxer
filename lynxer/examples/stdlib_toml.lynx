@@ -14,4 +14,10 @@ global main(){
     println(global.toml.tomlValid("= = ="));
     println(global.toml.tomlSerialize("{\"answer\":42,\"name\":\"lynxer\"}"));
     println(global.toml.tomlParse("= = ="));
+    str datetime = "date = 1979-05-27\nlocal_time = 07:32:00\nstamp = 1979-05-27T07:32:00Z\n";
+    str tagged = global.toml.tomlParse(datetime);
+    println(tagged);
+    str datetimeOutput = global.toml.tomlSerialize(tagged);
+    println(datetimeOutput);
+    println(global.toml.tomlParse(datetimeOutput));
 }

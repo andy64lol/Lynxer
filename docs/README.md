@@ -126,7 +126,7 @@ only and need no shared library.
 | [sound](stdlib/sound.md) | Rust | `rodio` + `cpal` + `symphonia` |
 | [sqldb](stdlib/sqldb.md) | Rust | `rusqlite` (bundled SQLite) |
 | [sys](stdlib/sys.md) | native | C++ runtime and POSIX |
-| [text](stdlib/text.md) | pure | Lynxer string builtins |
+| [text](stdlib/text.md) | Rust + Lynxer | Unicode operations and string helpers |
 | [time](stdlib/time.md) | native | `<chrono>`, `<ctime>` |
 | [toml](stdlib/toml.md) | Rust | `toml` (`rust/toml`) |
 | [tui](stdlib/tui.md) | Rust | `ratatui` + `crossterm` |

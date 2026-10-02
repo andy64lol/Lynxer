@@ -98,6 +98,10 @@ global countWords(str string) -> int {
 global firstMatchPos(str pattern, str string) -> int {
     return global.nativeRegex.firstMatchPos(pattern, string);
 }
+// Return the Unicode scalar-value index of the first match, or -1.
+global firstMatchCharPos(str pattern, str string) -> int {
+    return global.nativeRegex.firstMatchCharPos(pattern, string);
+}
 // Return a maxLen-character window of string centred on the first match.
 global truncateMatch(str pattern, str string, int maxLen) -> str {
     return global.nativeRegex.truncateMatch(pattern, string, maxLen);

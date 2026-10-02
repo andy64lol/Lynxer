@@ -6,6 +6,17 @@ use std::fs;
 use std::rc::Rc;
 use std::cell::RefCell;
 
+fn error_text(error: &mlua::Error) -> String {
+    let kind = match error {
+        mlua::Error::SyntaxError { .. } => "syntax",
+        mlua::Error::RuntimeError(_)
+        | mlua::Error::ExternalError(_)
+        | mlua::Error::CallbackError { .. } => "runtime",
+        _ => "other",
+    };
+    format!("Error[{kind}]: {error}")
+}
+
 fn value_text(value: Value) -> String {
     match value {
         Value::Nil => "nil".to_string(),
@@ -28,14 +39,14 @@ fn run_source(source: &str, name: &str) -> String {
         Ok(())
     }) {
         Ok(function) => function,
-        Err(error) => return format!("Error: {error}"),
+        Err(error) => return error_text(&error),
     };
 
     if let Err(error) = lua.globals().set("print", print) {
-        return format!("Error: {error}");
+        return error_text(&error);
     }
     if let Err(error) = lua.load(source).set_name(name).exec() {
-        return format!("Error: {error}");
+        return error_text(&error);
     }
 
     let lines = output.borrow();
@@ -55,7 +66,7 @@ fn eval_source(expression: &str) -> String {
         .set_name("lynxer.lua");
     match chunk.eval::<Value>() {
         Ok(value) => value_text(value),
-        Err(error) => format!("Error: {error}"),
+        Err(error) => error_text(&error),
     }
 }
 
@@ -67,7 +78,7 @@ export_string!(lua_run_file, args, {
     let path = args.string(0);
     match fs::read_to_string(path) {
         Ok(source) => run_source(&source, path),
-        Err(error) => format!("Error: {error}"),
+        Err(error) => format!("Error[io]: {error}"),
     }
 });
 
@@ -92,3 +103,21 @@ const OPS: &[(&str, &str, &str)] = &[
 ];
 
 lynxer_module!(OPS);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn errors_have_stable_kinds_and_keep_lua_diagnostics() {
+        let syntax = eval_source("1 +");
+        assert!(syntax.starts_with("Error[syntax]:"));
+        assert!(syntax.contains("lynxer.lua"));
+
+        let runtime = run_source("error('boom')", "fixture.lua");
+        assert!(runtime.starts_with("Error[runtime]:"));
+        assert!(runtime.contains("boom"));
+        assert!(runtime.contains("stack traceback"));
+        assert!(runtime.contains("fixture.lua"));
+    }
+}

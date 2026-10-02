@@ -10,6 +10,9 @@
 //! `yamlValid`.
 
 use lynxer_abi::{export_int, export_string, lynxer_module};
+use serde::de::{MapAccess, SeqAccess, Visitor};
+use serde::{Deserialize, Deserializer};
+use std::fmt;
 
 /// The largest document `yamlParse` / `yamlValid` will read, to bound alias
 /// expansion.
@@ -19,8 +22,111 @@ fn parse_to_json(text: &str) -> Option<String> {
     if text.len() > MAX_INPUT {
         return None;
     }
-    let value: serde_json::Value = serde_yml::from_str(text).ok()?;
+    let value: YamlJsonValue = serde_yml::from_str(text).ok()?;
+    let value = value.0;
     serde_json::to_string(&value).ok()
+}
+
+struct YamlJsonValue(serde_json::Value);
+
+struct YamlJsonVisitor;
+
+impl<'de> Visitor<'de> for YamlJsonVisitor {
+    type Value = YamlJsonValue;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("a YAML value representable in JSON with string mapping keys")
+    }
+
+    fn visit_unit<E>(self) -> Result<Self::Value, E> {
+        Ok(YamlJsonValue(serde_json::Value::Null))
+    }
+
+    fn visit_none<E: serde::de::Error>(self) -> Result<Self::Value, E> {
+        self.visit_unit()
+    }
+
+    fn visit_bool<E>(self, value: bool) -> Result<Self::Value, E> {
+        Ok(YamlJsonValue(serde_json::Value::Bool(value)))
+    }
+
+    fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E> {
+        Ok(YamlJsonValue(serde_json::Value::Number(value.into())))
+    }
+
+    fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E> {
+        Ok(YamlJsonValue(serde_json::Value::Number(value.into())))
+    }
+
+    fn visit_f64<E: serde::de::Error>(self, value: f64) -> Result<Self::Value, E> {
+        serde_json::Number::from_f64(value)
+            .map(|number| YamlJsonValue(serde_json::Value::Number(number)))
+            .ok_or_else(|| E::custom("non-finite YAML number cannot be represented in JSON"))
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> {
+        Ok(YamlJsonValue(serde_json::Value::String(value.to_string())))
+    }
+
+    fn visit_string<E>(self, value: String) -> Result<Self::Value, E> {
+        Ok(YamlJsonValue(serde_json::Value::String(value)))
+    }
+
+    fn visit_newtype_struct<D: Deserializer<'de>>(
+        self,
+        deserializer: D,
+    ) -> Result<Self::Value, D::Error> {
+        YamlJsonValue::deserialize(deserializer)
+    }
+
+    fn visit_seq<A: SeqAccess<'de>>(self, mut sequence: A) -> Result<Self::Value, A::Error> {
+        let mut values = Vec::new();
+        while let Some(value) = sequence.next_element::<YamlJsonValue>()? {
+            values.push(value.0);
+        }
+        Ok(YamlJsonValue(serde_json::Value::Array(values)))
+    }
+
+    fn visit_map<A: MapAccess<'de>>(self, mut mapping: A) -> Result<Self::Value, A::Error> {
+        let mut values = serde_json::Map::new();
+        while let Some(key) = mapping.next_key::<StringKey>()? {
+            let value = mapping.next_value::<YamlJsonValue>()?;
+            values.insert(key.0, value.0);
+        }
+        Ok(YamlJsonValue(serde_json::Value::Object(values)))
+    }
+}
+
+impl<'de> Deserialize<'de> for YamlJsonValue {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        deserializer.deserialize_any(YamlJsonVisitor)
+    }
+}
+
+struct StringKey(String);
+
+struct StringKeyVisitor;
+
+impl<'de> Visitor<'de> for StringKeyVisitor {
+    type Value = StringKey;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("a string YAML mapping key")
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> {
+        Ok(StringKey(value.to_string()))
+    }
+
+    fn visit_string<E>(self, value: String) -> Result<Self::Value, E> {
+        Ok(StringKey(value))
+    }
+}
+
+impl<'de> Deserialize<'de> for StringKey {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        deserializer.deserialize_any(StringKeyVisitor)
+    }
 }
 
 fn json_to_yaml(json: &str) -> Option<String> {
@@ -84,5 +190,17 @@ mod tests {
         let json = parse_to_json("a:\n  b: 7\n").unwrap();
         let value: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert_eq!(json_get(&value, "a.b").unwrap(), serde_json::json!(7));
+    }
+
+    #[test]
+    fn non_string_mapping_keys_fail_without_data_loss() {
+        for text in [
+            "1: numeric\n",
+            "nested:\n  1: numeric\n",
+            "? [a, b]\n: sequence\n",
+            "? null\n: null-key\n",
+        ] {
+            assert!(parse_to_json(text).is_none(), "accepted {text:?}");
+        }
     }
 }

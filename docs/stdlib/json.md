@@ -8,8 +8,13 @@ feature so object keys keep their insertion order. Output spacing and the
 pretty-print indents match the previous nlohmann-based backend byte for byte.
 **Import:** `import("json")` → `global.json.*`
 
-Objects preserve key insertion order, and non-finite numbers are written as
-`null` so output is always valid JSON.
+Objects preserve key insertion order, including when updated: replacing a key
+keeps its position and a new key is appended. JSON input follows the JSON
+number grammar; `NaN`, `Infinity`, `-Infinity`, and numbers outside the finite
+range accepted by the parser (for example `1e999`) are invalid and are not
+coerced to `null`. JSON output cannot contain non-finite numbers; native value
+serialization uses `null` for non-finite Lynxer numbers so the output remains
+valid JSON.
 
 | Function | Signature | Returns |
 | --- | --- | --- |

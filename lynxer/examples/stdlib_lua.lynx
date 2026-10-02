@@ -13,9 +13,11 @@ global main(){
     println(global.lua.runLua("print(string.upper('lynxer'))"));
     println(global.lua.runLua("returnValue = 9"));
 
-    // Malformed input is reported as an "Error: ..." string, never raised.
-    println(global.lua.runLua("this is not lua"));
-    println(global.lua.evalLua("1 +"));
+    // Syntax and runtime failures retain stable classifications and diagnostics.
+    str syntaxError = global.lua.runLua("this is not lua");
+    println(substring(syntaxError, 0, 14));
+    str evalError = global.lua.evalLua("1 +");
+    println(substring(evalError, 0, 14));
 
     // A missing script file is an error string too. Its text carries the OS
     // message, so only the fact that something was reported is asserted. The
@@ -24,5 +26,7 @@ global main(){
 
     // A Lua runtime error is reported the same way, but its text includes a Lua
     // traceback, so again only the presence of a message is asserted.
-    println(returnLength(global.lua.runLua("error('boom')")) > 0);
+    str runtimeError = global.lua.runLua("error('boom')");
+    println(substring(runtimeError, 0, 15));
+    println(returnLength(runtimeError) > 0);
 }

@@ -264,6 +264,12 @@ export_int!(regex_first_match_pos, args, {
     })
 });
 
+export_int!(regex_first_match_char_pos, args, {
+    with_pattern!(args.string(0), -1, |pattern| {
+        engine::first_match_char_pos(&pattern, args.string(1))
+    })
+});
+
 export_string!(regex_truncate_match, args, {
     let subject = args.string(1);
     let max_len = args.int(0);
@@ -312,6 +318,11 @@ const OPS: &[(&str, &str, &str)] = &[
     ("globToRegex", "regex_glob_to_regex", "cdecl:cstring(...)"),
     ("countMatches", "regex_count_matches", "cdecl:int64(...)"),
     ("firstMatchPos", "regex_first_match_pos", "cdecl:int64(...)"),
+    (
+        "firstMatchCharPos",
+        "regex_first_match_char_pos",
+        "cdecl:int64(...)",
+    ),
     (
         "truncateMatch",
         "regex_truncate_match",

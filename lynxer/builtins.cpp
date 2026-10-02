@@ -289,11 +289,8 @@ std::string jsonEscape(const std::string& text) {
 }
 
 std::string jsonDouble(double number) {
-    if (std::isnan(number)) {
-        return "NaN";
-    }
-    if (std::isinf(number)) {
-        return number > 0 ? "Infinity" : "-Infinity";
+    if (!std::isfinite(number)) {
+        return "null";
     }
     char buffer[64];
     const auto result = std::to_chars(buffer, buffer + sizeof(buffer), number);

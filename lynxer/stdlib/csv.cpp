@@ -4,9 +4,8 @@
 // character with '""' escaping, and "\r\n" line terminators on output. Bracket
 // data is exchanged as JSON strings, parsed with native_json.hpp.
 //
-// Divergence: Python's `str()` conversion of non-string JSON values produces
-// "None"/"True"/"False"; this port emits ""/true/false and never writes the
-// literal "None".
+// Non-string values use compact JSON text: null is an empty field, booleans
+// are lowercase, and numbers/arrays/objects retain JSON serialization.
 
 #include "native_json.hpp"
 

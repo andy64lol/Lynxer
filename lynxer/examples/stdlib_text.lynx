@@ -1,5 +1,5 @@
 ////
-Fixture for the text stdlib (pure Lynxer, no shared library).
+Fixture for the text stdlib, including the native Unicode backend.
 ////
 global setup(){ import("text"); }
 
@@ -18,6 +18,18 @@ global main(){
     println(global.text.replace("aaa", "a", "b"));
     println(global.text.upper("abc"));
     println(global.text.lower("ABC"));
+    println(global.text.upper("Straße"));
+    println(global.text.lower("İΣ"));
+    println(global.text.upperAscii("café"));
+    println(global.text.lowerAscii("ABC"));
+    println(global.text.isAlpha("café"));
+    println(global.text.isAlpha("é"));
+    println(global.text.isAlphaAscii("café"));
+    println(global.text.isNumeric("１２٣"));
+    println(global.text.isDigit("١"));
+    println(global.text.isNumericAscii("１２٣"));
+    println(global.text.isAlphaNumeric("café١"));
+    println(global.text.isAlphaNumericAscii("café١"));
     println(global.text.isEmpty(""));
     println(global.text.isEmpty("a"));
     println(global.text.isBlank("  "));

@@ -18,9 +18,8 @@ global setup(){ importAs("crypto.so", "nativeCrypto"); }
 
 // --- hashing ---------------------------------------------------------------
 
-// The digest of `data` as lower-case hex. `algorithm` is one of `sha1`,
-// `sha224`, `sha256`, `sha384`, `sha512`, `md5`, `sha3-256`, `sha3-512` or
-// `blake3`; any other name yields "".
+// The digest of `data` as lower-case hex. `algorithm` accepts common aliases such as
+// `SHA-256`, `sha_256`, `md-5` and `sha3_256`; any other name yields "".
 global hash(str algorithm, bytes data) -> str {
     return global.nativeCrypto.hash(algorithm, data);
 }

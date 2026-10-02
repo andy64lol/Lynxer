@@ -32,7 +32,9 @@ global script(str path, str sqlScript) -> str {
     return checkedResult(global.nativeSqlDb.script(path, sqlScript));
 }
 
-// Query rows and return a JSON array of objects.
+// Query rows and return a JSON array of objects. SQLite BLOB columns are
+// represented as {"$bytes":"<base64>"} objects so they remain distinguishable
+// from ordinary text and can be supplied back through parameterized calls.
 global query(str path, str sql) -> str {
     return checkedResult(global.nativeSqlDb.query(path, sql));
 }
@@ -43,6 +45,7 @@ global queryArgs(str path, str sql, str paramsJson) -> str {
 }
 
 // Return the first column of the first row as a string, or "" when absent.
+// BLOB values use "bytes:<base64>"; NULL remains the empty string.
 global scalar(str path, str sql) -> str {
     return checkedResult(global.nativeSqlDb.scalar(path, sql));
 }

@@ -92,7 +92,7 @@ string (`"ok"` / `"ERROR: ..."`), and the rest use scalar sentinels.
 `sqldb` translates its native backend's internal error string into a catchable
 runtime error in the Lynxer wrapper; integer and boolean operations keep their
 documented sentinels.
-`colorlib`, `text` and `typing` are pure Lynxer and have no native boundary to
+`colorlib` and `typing` are pure Lynxer and have no native boundary to
 report across.
 
 Operations returning a JSON document return `[]` or `{}` for an empty result
@@ -174,7 +174,7 @@ Any future callback must be declared here before the module ships.
 | `sound` | Rust | **integer handles** into a backend registry | caller: `releaseSound(handle)` |
 | `sqldb` | Rust | **integer handles** from `open()`; the `*On` forms reuse one connection | caller: `close(handle)` (the path forms open and close per call) |
 | `sys` | C++ | none | none |
-| `text` | pure Lynxer | none | none |
+| `text` | Rust + Lynxer | string/integer | empty string / false |
 | `time` | C++ | none | none |
 | `toml` | Rust | none — documents are strings | none |
 | `tui` | Rust | **integer handles** into backend registries (tables, trees, layouts, progress, status, live) | none (registries live for the run) |

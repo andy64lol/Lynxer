@@ -11,6 +11,8 @@ Requires `node` on `PATH`; when it is missing, every runner returns
 `"Error: node timed out after <n>s"`; a program's `stderr` is captured into the
 result rather than inherited. A non-zero exit with no output reports
 `"Error: node exited with status <n>"`.
+Source strings run through `node -e` without creating a script file. The timeout
+kills the command's process group, including subprocesses it started.
 
 | Function | Signature | Notes |
 | --- | --- | --- |

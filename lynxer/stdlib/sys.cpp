@@ -12,10 +12,14 @@
 #include <sys/sysinfo.h>
 #include <sys/utsname.h>
 #endif
-#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__DragonFly__)
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__DragonFly__) || \
+    defined(__NetBSD__) || defined(__OpenBSD__)
 #include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#if defined(__NetBSD__) || defined(__OpenBSD__)
+#include <sys/vmmeter.h>
+#endif
 #endif
 #if defined(__APPLE__)
 #include <mach-o/dyld.h>
@@ -217,8 +221,8 @@ static bool readSysinfo(struct sysinfo& info) {
 }
 #endif
 
-// macOS and FreeBSD/DragonFly expose `sysctlbyname`; the other BSDs do not, and
-// fall back to the 0/[] sentinels.
+// macOS and the BSDs expose `sysctlbyname` except NetBSD/OpenBSD, which use MIB
+// selectors for these same values.
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined(__DragonFly__)
 #define LYNXER_BSD_SYSCTL 1
 #endif
@@ -243,6 +247,49 @@ static bool readBootTime(struct timeval& boot) {
 }
 #endif
 
+#if defined(__NetBSD__) || defined(__OpenBSD__)
+static bool sysctlMib(const int* mib, unsigned int count, void* value,
+                      std::size_t size) {
+    std::size_t length = size;
+    return ::sysctl(mib, count, value, &length, nullptr, 0) == 0;
+}
+
+static bool readBootTime(struct timeval& boot) {
+    const int mib[] = {CTL_KERN, KERN_BOOTTIME};
+    return sysctlMib(mib, 2, &boot, sizeof(boot));
+}
+
+static bool readPhysicalMemory(std::uint64_t& bytes) {
+#if defined(HW_PHYSMEM64)
+    const int mib[] = {CTL_HW, HW_PHYSMEM64};
+    if (sysctlMib(mib, 2, &bytes, sizeof(bytes))) {
+        return true;
+    }
+#endif
+#if defined(HW_PHYSMEM)
+    unsigned int amount = 0;
+    const int mib[] = {CTL_HW, HW_PHYSMEM};
+    if (sysctlMib(mib, 2, &amount, sizeof(amount))) {
+        bytes = amount;
+        return true;
+    }
+#endif
+    return false;
+}
+
+static bool readFreePages(std::uint64_t& pages) {
+#if defined(VM_METER)
+    struct vmtotal totals {};
+    const int mib[] = {CTL_VM, VM_METER};
+    if (sysctlMib(mib, 2, &totals, sizeof(totals)) && totals.t_free >= 0) {
+        pages = static_cast<std::uint64_t>(totals.t_free);
+        return true;
+    }
+#endif
+    return false;
+}
+#endif
+
 // Total physical memory in bytes, or 0 when unavailable.
 extern "C" std::int64_t sys_memoryTotal() {
 #if defined(__linux__)
@@ -256,6 +303,9 @@ extern "C" std::int64_t sys_memoryTotal() {
         return static_cast<std::int64_t>(bytes);
     }
     return 0;
+#elif defined(__NetBSD__) || defined(__OpenBSD__)
+    std::uint64_t bytes = 0;
+    return readPhysicalMemory(bytes) ? static_cast<std::int64_t>(bytes) : 0;
 #else
     return 0;
 #endif
@@ -275,6 +325,11 @@ extern "C" std::int64_t sys_memoryAvailable() {
         return 0;
     }
     return static_cast<std::int64_t>(pages) * sys_pageSize();
+#elif defined(__NetBSD__) || defined(__OpenBSD__)
+    std::uint64_t pages = 0;
+    return readFreePages(pages)
+               ? static_cast<std::int64_t>(pages) * sys_pageSize()
+               : 0;
 #else
     return 0;
 #endif
@@ -286,6 +341,15 @@ extern "C" std::int64_t sys_uptime() {
     struct sysinfo info {};
     return readSysinfo(info) ? static_cast<std::int64_t>(info.uptime) : 0;
 #elif defined(LYNXER_BSD_SYSCTL)
+    struct timeval boot {};
+    if (!readBootTime(boot) || boot.tv_sec == 0) {
+        return 0;
+    }
+    const std::int64_t now = static_cast<std::int64_t>(std::time(nullptr));
+    return now > static_cast<std::int64_t>(boot.tv_sec)
+               ? now - static_cast<std::int64_t>(boot.tv_sec)
+               : 0;
+#elif defined(__NetBSD__) || defined(__OpenBSD__)
     struct timeval boot {};
     if (!readBootTime(boot) || boot.tv_sec == 0) {
         return 0;
@@ -309,6 +373,9 @@ extern "C" std::int64_t sys_bootTime() {
     return static_cast<std::int64_t>(std::time(nullptr)) -
            static_cast<std::int64_t>(info.uptime);
 #elif defined(LYNXER_BSD_SYSCTL)
+    struct timeval boot {};
+    return readBootTime(boot) ? static_cast<std::int64_t>(boot.tv_sec) : 0;
+#elif defined(__NetBSD__) || defined(__OpenBSD__)
     struct timeval boot {};
     return readBootTime(boot) ? static_cast<std::int64_t>(boot.tv_sec) : 0;
 #else

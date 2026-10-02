@@ -2,7 +2,7 @@
 Fixture for the json stdlib. Interpreted only (module imports are not
 bytecode-compilable).
 ////
-global setup(){ import("json"); }
+global setup(){ import("json"); import("math"); }
 
 global main(){
     str object = "{\"name\": \"Ada\", \"age\": 36, \"active\": true}";
@@ -75,4 +75,12 @@ global main(){
     // jsonBuild trims keys/values and skips segments without '='.
     println(global.json.jsonBuild(""));
     println(global.json.jsonBuild("a=1|broken|b = 2"));
+    // JSON rejects non-finite values and preserves key insertion order.
+    println(global.json.jsonValid("NaN"));
+    println(global.json.jsonValid("Infinity"));
+    println(global.json.jsonValid("1e999"));
+    println(global.json.jsonKeys("{\"z\":1,\"a\":2,\"m\":3}"));
+    println(global.json.jsonSet("{\"z\":1,\"a\":2}", "m", "3"));
+    println(global.json.jsonSet("{\"z\":1,\"a\":2}", "z", "9"));
+    println(global.json.jsonArray(listRepeat(global.math.exp(10000), 1)));
 }

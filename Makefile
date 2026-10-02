@@ -22,7 +22,7 @@ LYNXER_RUST_MANIFEST := $(LYNXER_RUST_DIR)/Cargo.toml
 LYNXER_RUST_SOURCES := $(wildcard $(LYNXER_RUST_DIR)/*/src/*.rs) \
                         $(wildcard $(LYNXER_RUST_DIR)/*/Cargo.toml) \
                         $(LYNXER_RUST_MANIFEST) $(LYNXER_RUST_DIR)/Cargo.lock
-LYNXER_RUST_MODULE_NAMES := encoding crypto compress game graphics image ini json lua network re regex server sound sqldb toml tui uuid watch xml yaml
+LYNXER_RUST_MODULE_NAMES := encoding crypto compress game graphics image ini json lua network re regex server sound sqldb text toml tui uuid watch xml yaml
 LYNXER_RUST_MODULES := $(LYNXER_RUST_MODULE_NAMES:%=$(LYNXER_DIR)/stdlib/%.so)
 
 # The native-call engine is not a stdlib module: it is a Rust staticlib linked
@@ -154,7 +154,7 @@ LYNXER_LIST_STDLIB_MODULES := cli colorlib compress crypto csv debug encoding fi
 # Import-parity fixtures (interpreted vs compiled). The sound one needs a device.
 LYNXER_PARITY_FIXTURES := native_stdlibs native_aggregate milestone6_module testPathImport macros milestone6_math_native stdlib_encoding stdlib_crypto stdlib_compress stdlib_json stdlib_uuid \
 	stdlib_toml stdlib_ini stdlib_xml stdlib_yaml stdlib_watch \
-	stdlib_re stdlib_path stdlib_game stdlib_graphics stdlib_image stdlib_lua stdlib_sqldb stdlib_tui deprecated_operators optimizer \
+	stdlib_re stdlib_path stdlib_text stdlib_game stdlib_graphics stdlib_image stdlib_lua stdlib_sqldb stdlib_tui deprecated_operators optimizer \
 	lowlevel_memory lowlevel_syscalls lowlevel_arch language_fields ownership \
 	range_for
 ifeq ($(HAVE_AUDIO),1)

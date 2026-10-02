@@ -6,3 +6,4 @@ true
 [server]
 host=localhost
 
+{"":{},"db":{"user":"root"},"server":{"host":"localhost","port":"8080"}}

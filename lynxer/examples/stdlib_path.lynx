@@ -5,6 +5,9 @@ bytecode-compilable). Uses a repo-local scratch directory and removes it.
 global setup(){ import("path"); import("os"); import("fileIO"); }
 
 global main(){
+    println(global.path.platform() isnt "");
+    println(global.path.separator());
+    println(global.path.listSeparator());
     println(global.path.name("/x/y.txt"));
     println(global.path.stem("/x/y.txt"));
     println(global.path.suffix("/x/y.txt"));
@@ -81,6 +84,17 @@ global main(){
     println(global.path.writeTextEncoding(root + "/x.txt", "x", "cp1252"));
     println(global.path.writeTextEncoding(root + "/x.txt", "€", "latin-1"));
     println(global.path.readTextEncoding(root + "/missing", "latin-1") is "");
+    println(global.path.writeTextEncoding(root + "/default.txt", "café", ""));
+    println(global.path.readTextEncoding(root + "/default.txt", "") is "café");
+    println(global.path.writeTextEncoding(root + "/cp1252.txt", "€", "windows-1252"));
+    println(global.path.readTextEncoding(root + "/cp1252.txt", "cp1252") is "€");
+    println(global.path.readTextEncoding(root + "/cp1252.txt", "utf-8") is "");
+    println(global.path.readTextEncoding(root + "/latin.txt", "x-lynxer-unknown") is "");
+    println(global.path.writeTextEncoding(root + "/x.txt", "x", "x-lynxer-unknown"));
+    println(global.path.writeTextEncoding(root + "/utf16le.txt", "café", "utf_16_le"));
+    println(global.path.size(root + "/utf16le.txt"));
+    println(global.path.readTextEncoding(root + "/utf16le.txt", "UTF-16LE") is "café");
+    println(global.path.readTextEncoding(root + "/utf16le.txt", "ascii") is "");
 
     println(global.path.readText(root + "/missing") is "");
     println(global.path.size(root + "/missing"));

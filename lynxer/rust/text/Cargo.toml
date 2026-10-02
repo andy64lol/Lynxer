@@ -1,0 +1,13 @@
+[package]
+name = "lynxer_text"
+version = "0.1.0"
+edition = "2021"
+description = "Unicode text operations for the Lynxer `text` stdlib module"
+publish = false
+
+[lib]
+name = "lynxer_text"
+crate-type = ["cdylib"]
+
+[dependencies]
+lynxer_abi = { path = "../abi" }

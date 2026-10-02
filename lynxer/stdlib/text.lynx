@@ -1,10 +1,10 @@
 ////
 Lynxer standard library: text.
-Pure Lynxer string helpers: searching, replacing, case conversion and
+Unicode text operations and Lynxer string helpers for searching, replacing and
 repetition.
 ////
 
-global setup(){}
+global setup(){ importAs("text.so", "nativeText"); }
 
 global reverse(str value) -> str {
     str result = "";
@@ -56,8 +56,10 @@ global count(str value, str needle) -> int {
 global replace(str value, str oldValue, str newValue) -> str {
     return global.replace(value, oldValue, newValue);
 }
-global upper(str value) -> str { return global.upper(value); }
-global lower(str value) -> str { return global.lower(value); }
+global upper(str value) -> str { return global.nativeText.upper(value); }
+global lower(str value) -> str { return global.nativeText.lower(value); }
+global upperAscii(str value) -> str { return global.upper(value); }
+global lowerAscii(str value) -> str { return global.lower(value); }
 global isEmpty(str value) -> bool { return returnLength(value) is 0; }
 global isBlank(str value) -> bool { return returnLength(global.trim(value)) is 0; }
 
@@ -151,16 +153,24 @@ global title(str value) -> str {
     return result;
 }
 global isAlpha(str value) -> bool {
+    return global.nativeText.isAlpha(value) isnt 0;
+}
+global isNumeric(str value) -> bool {
+    return global.nativeText.isNumeric(value) isnt 0;
+}
+global isDigit(str value) -> bool { return isNumeric(value); }
+global isAlphaAscii(str value) -> bool {
     if(returnLength(value) is 0){ return false; }
     int index = 0;
     while(index < returnLength(value)){
         str character = charAt(value, index);
-        if(upper(character) is lower(character)){ return false; }
+        if((character < "a" or character > "z") and
+           (character < "A" or character > "Z")){ return false; }
         index = index + 1;
     }
     return true;
 }
-global isNumeric(str value) -> bool {
+global isNumericAscii(str value) -> bool {
     if(returnLength(value) is 0){ return false; }
     int index = 0;
     while(index < returnLength(value)){
@@ -170,6 +180,7 @@ global isNumeric(str value) -> bool {
     }
     return true;
 }
+global isDigitAscii(str value) -> bool { return isNumericAscii(value); }
 global isAlphaNumeric(str value) -> bool {
     if(returnLength(value) is 0){ return false; }
     int index = 0;
@@ -178,6 +189,17 @@ global isAlphaNumeric(str value) -> bool {
         if(isAlpha(character) is false and isNumeric(character) is false){
             return false;
         }
+        index = index + 1;
+    }
+    return true;
+}
+global isAlphaNumericAscii(str value) -> bool {
+    if(returnLength(value) is 0){ return false; }
+    int index = 0;
+    while(index < returnLength(value)){
+        str character = charAt(value, index);
+        if(isAlphaAscii(character) is false and
+           isNumericAscii(character) is false){ return false; }
         index = index + 1;
     }
     return true;

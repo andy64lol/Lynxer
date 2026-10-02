@@ -69,7 +69,8 @@ Rules the wrapper must follow:
   in `--list-stdlibs`; the rest is printed verbatim, so it is real documentation.
 
 If the module needs no native code, write the functions directly and skip
-`setup()` entirely — like `stdlib/text.lynx`.
+`setup()` entirely — like `stdlib/colorlib.lynx`. `text.lynx` is a wrapper
+around the Rust Unicode backend as well as a home for its string helpers.
 
 ---
 

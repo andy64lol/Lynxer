@@ -6,8 +6,8 @@
 // with resultCount/resultAt/codeAt.
 
 #include "native_json.hpp"
+#include "subprocess.hpp"
 
-#include <array>
 #include <atomic>
 #include <cstdint>
 #include <cstdlib>
@@ -17,8 +17,6 @@
 #include <thread>
 #include <vector>
 
-#include <sys/wait.h>
-#include <unistd.h>
 
 using RegisterFunction = int (*)(const char*, const char*, const char*);
 using RegisterConstant = int (*)(const char*, std::int64_t);
@@ -68,49 +66,13 @@ static int commandTimeoutSeconds() {
     return 300;
 }
 
-// Runs `command` under a POSIX shell that kills it after the configured limit,
-// capturing stdout and stderr together so neither leaks to the caller. A timed
-// out command reports exit code 124.
+// Runs `command` in its own process group and captures stdout and stderr.
 static std::string captureCommand(const std::string& command,
                                   std::int64_t& exitCode) {
     const int seconds = commandTimeoutSeconds();
-    std::string script;
-    if (seconds > 0) {
-    // `exec 2>/dev/null` silences the *shell's own* stderr for the rest of the
-    // script. dash (the /bin/sh on Debian and Ubuntu, including CI) reports a
-    // reaped job as `Killed` / `Terminated` on stderr, which would otherwise be
-    // captured as if the command had printed it. The command's stderr is
-    // redirected into the pipe separately, so it is still captured.
-        script = "exec 2>/dev/null; { " + command + "; } 2>&1 & worker=$!; "
-                 "( sleep " + std::to_string(seconds) +
-                 "; kill -9 \"$worker\" 2>/dev/null ) >/dev/null 2>&1 & guard=$!; "
-                 "wait \"$worker\"; status=$?; kill \"$guard\" 2>/dev/null; "
-                 "wait \"$guard\" 2>/dev/null; exit $status";
-    } else {
-        script = "{ " + command + "; } 2>&1";
-    }
-    std::string output;
-    std::array<char, 512> buffer {};
-    FILE* pipe = ::popen(script.c_str(), "r");
-    if (pipe == nullptr) {
-        exitCode = -1;
-        return output;
-    }
-    while (::fgets(buffer.data(), static_cast<int>(buffer.size()), pipe) !=
-           nullptr) {
-        output += buffer.data();
-    }
-    const int raw = ::pclose(pipe);
-    if (raw == -1) {
-        exitCode = -1;
-    } else if (WIFEXITED(raw)) {
-        const int code = WEXITSTATUS(raw);
-        // 137 is SIGKILL from the timeout guard; report the conventional 124.
-        exitCode = code == 137 ? 124 : code;
-    } else {
-        exitCode = -1;
-    }
-    return output;
+    auto result = lynxer_subprocess::run(command, seconds);
+    exitCode = result.status;
+    return std::move(result.output);
 }
 
 // Runs every command, capturing stdout and the exit status. Results are stored

@@ -8,3 +8,9 @@ answer = 42
 name = "lynxer"
 
 
+{"date":{"$lynxer.toml.datetime":"1979-05-27"},"local_time":{"$lynxer.toml.datetime":"07:32:00"},"stamp":{"$lynxer.toml.datetime":"1979-05-27T07:32:00Z"}}
+date = 1979-05-27
+local_time = 07:32:00
+stamp = 1979-05-27T07:32:00Z
+
+{"date":{"$lynxer.toml.datetime":"1979-05-27"},"local_time":{"$lynxer.toml.datetime":"07:32:00"},"stamp":{"$lynxer.toml.datetime":"1979-05-27T07:32:00Z"}}
