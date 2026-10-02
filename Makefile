@@ -10,30 +10,56 @@ LYNXER_OBJECTS_ARM64 := $(LYNXER_SOURCES:.cpp=.o-arm64)
 LYNXER_HEADERS := $(wildcard $(LYNXER_DIR)/*.hpp)
 LYNXER_CXX ?= c++
 
-# Host platform. Windows builds drop the ELF-only flags and `libdl`, skip the
-# Linux-only modules, and do not build the ELF embedding runtime `liblynxer.so`
-# yet (see docs/windows.md).
+# --- Host platform -----------------------------------------------------------
+# `OS` is `Windows_NT` on Windows and normally unset elsewhere, which is not
+# enough on its own to know the host. Detect it once and key every platform
+# decision off `LYNXER_HOST_OS` / `LYNXER_ON_*` rather than guessing.
 ifeq ($(OS),Windows_NT)
+LYNXER_HOST_OS := windows
+else
+LYNXER_HOST_OS := $(shell uname -s 2>/dev/null)
+ifeq ($(strip $(LYNXER_HOST_OS)),)
+LYNXER_HOST_OS := unknown
+endif
+# MSYS2/Git and Cygwin set `OS` only sometimes; their `uname` names them.
+ifneq ($(filter MINGW% MSYS% CYGWIN%,$(LYNXER_HOST_OS)),)
+LYNXER_HOST_OS := windows
+endif
+endif
+LYNXER_ON_WINDOWS := $(if $(filter windows,$(LYNXER_HOST_OS)),1,)
+LYNXER_ON_MACOS := $(if $(filter Darwin macos,$(LYNXER_HOST_OS)),1,)
+
+# Platform compile flags and link libraries.
+#
+# -fPIC, not -fPIE: the same objects are linked into the PIE interpreter and
+# into the shared embedding runtime `liblynxer.so`. `-ftls-model=global-dynamic`
+# keeps the thread_local state (error buffers, native callbacks) valid in a
+# shared object, where the default local-exec model is rejected by the linker.
+# Neither flag applies on Windows, where the ELF shared runtime is not built yet.
+#
+# `-ldl` exists on Linux and the BSDs but not on macOS (`dlopen` lives in
+# libSystem) or Windows, so it is added only off macOS.
+ifeq ($(LYNXER_ON_WINDOWS),1)
 LYNXER_PLATFORM_FLAGS :=
 LYNXER_PLATFORM_LIBS := -lpthread -lm -lffi
 LYNXER_BUILD_SHARED := 0
 else
 LYNXER_PLATFORM_FLAGS := -fPIC -ftls-model=global-dynamic
+ifeq ($(LYNXER_ON_MACOS),1)
+LYNXER_PLATFORM_LIBS := -lpthread -lm -lffi
+else
 LYNXER_PLATFORM_LIBS := -lpthread -ldl -lm -lffi
+endif
 LYNXER_BUILD_SHARED := 1
 endif
 
-# -fPIC, not -fPIE: the same objects are linked into the PIE interpreter and
-# into the shared embedding runtime `liblynxer.so`. `-ftls-model=global-dynamic`
-# keeps the thread_local state (error buffers, native callbacks) valid in a
-# shared object, where the default local-exec model is rejected by the linker.
 LYNXER_CXXFLAGS ?= -std=c++17 -O2 -Wall -Wextra -pedantic $(LYNXER_PLATFORM_FLAGS)
 
 # Modules a Windows build must skip because they have no Windows backend yet.
 # `sys` is built on Linux system calls (and the syscall built-ins are Linux-only);
 # `cli`, `debug`, `os` and `path` use POSIX headers MinGW does not provide.
 # Porting each is tracked in docs/windows.md and todo.md.
-ifeq ($(OS),Windows_NT)
+ifeq ($(LYNXER_ON_WINDOWS),1)
 LYNXER_WINDOWS_SKIP_MODULES := sys cli debug os path js multiprocessing
 else
 LYNXER_WINDOWS_SKIP_MODULES :=
@@ -55,7 +81,7 @@ LYNXER_RUST_MODULE_NAMES := encoding crypto compress game graphics image ini jso
 
 # `watch` has only Linux (inotify) and macOS/BSD (kqueue) backends; a Windows
 # build needs a `ReadDirectoryChangesW` backend (see docs/windows.md).
-ifeq ($(OS),Windows_NT)
+ifeq ($(LYNXER_ON_WINDOWS),1)
 LYNXER_RUST_MODULE_NAMES := $(filter-out watch,$(LYNXER_RUST_MODULE_NAMES))
 endif
 LYNXER_RUST_MODULES := $(LYNXER_RUST_MODULE_NAMES:%=$(LYNXER_DIR)/stdlib/%.so)
@@ -71,6 +97,19 @@ LYNXER_FFI_STATICLIB := $(LYNXER_RUST_TARGET_DIR)/release/liblynxer_ffi.a
 # exact list here keeps that correct on every platform.
 LYNXER_FFI_BUILD_LOG := $(LYNXER_RUST_TARGET_DIR)/release/lynxer_ffi-build.log
 LYNXER_FFI_NATIVE_LIBS := $(LYNXER_RUST_TARGET_DIR)/release/lynxer_ffi.native-libs
+# A Rust `staticlib` does not carry its dependencies' link directives. On Windows
+# the archive needs the system DLL import libraries (`ntdll`, `ws2_32`,
+# `userenv`, ...) that nothing else supplies, so add what
+# `rustc --print native-static-libs` reported. On POSIX the C++ driver and
+# `LYNXER_PLATFORM_LIBS` already cover it, and naming `-lc` fails on hosts with
+# no `libc.so` development symlink, so the captured list is not used there.
+# Recursive (`=`) so the `cat` runs when the link recipe expands, after the
+# archive and its `.native-libs` file have been built.
+ifeq ($(LYNXER_ON_WINDOWS),1)
+LYNXER_FFI_LINK_LIBS = $(shell cat $(LYNXER_FFI_NATIVE_LIBS) 2>/dev/null)
+else
+LYNXER_FFI_LINK_LIBS =
+endif
 
 # The embedding runtime and its public C header. `liblynxer.so` is the core
 # interpreter (minus `main.cpp`) as a shared library; libraries emitted by
@@ -158,7 +197,7 @@ LYNXER_TUI_FIXTURE := $(LYNXER_DIR)/examples/stdlib_tui.lynx
 LYNXER_STDLIB_FIXTURES := $(filter-out $(LYNXER_SOUND_FIXTURE) $(LYNXER_TUI_FIXTURE) $(LYNXER_SERVER_TLS_FIXTURE) $(LYNXER_DISPLAY_FIXTURE_FILES),$(wildcard $(LYNXER_DIR)/examples/stdlib_*.lynx))
 # A module that is not built on Windows has no fixture to run; skip it instead
 # of failing on a missing import (`watch` is the Rust backend, see above).
-ifeq ($(OS),Windows_NT)
+ifeq ($(LYNXER_ON_WINDOWS),1)
 LYNXER_WINDOWS_SKIP_FIXTURES := $(LYNXER_WINDOWS_SKIP_MODULES) watch
 LYNXER_STDLIB_FIXTURES := $(filter-out $(addprefix $(LYNXER_DIR)/examples/stdlib_,$(addsuffix .lynx,$(LYNXER_WINDOWS_SKIP_FIXTURES))),$(LYNXER_STDLIB_FIXTURES))
 endif
@@ -317,7 +356,7 @@ cargo: lynxerToolchain $(LYNXER_RUST_MODULES) $(LYNXER_FFI_STATICLIB)
 # engine's (a staticlib does not carry its dependencies' link directives).
 $(LYNXER_TARGET): $(LYNXER_OBJECTS) $(LYNXER_FFI_STATICLIB)
 	$(LYNXER_CXX) $(LYNXER_CXXFLAGS) $(LYNXER_OBJECTS) $(LYNXER_FFI_STATICLIB) -o $@ \
-	    $(LYNXER_PLATFORM_LIBS) $(shell cat $(LYNXER_FFI_NATIVE_LIBS) 2>/dev/null)
+	    $(LYNXER_PLATFORM_LIBS) $(LYNXER_FFI_LINK_LIBS)
 
 # The embedding runtime: the same objects without `main.o`, linked as a shared
 # library so `--emit-library` shims can `-llynxer`. The version script hides
@@ -325,7 +364,7 @@ $(LYNXER_TARGET): $(LYNXER_OBJECTS) $(LYNXER_FFI_STATICLIB)
 $(LYNXER_SHARED): $(LYNXER_SHARED_OBJECTS) $(LYNXER_FFI_STATICLIB) $(LYNXER_SHARED_VERSION_SCRIPT)
 	$(LYNXER_CXX) $(LYNXER_CXXFLAGS) -shared $(LYNXER_SHARED_OBJECTS) $(LYNXER_FFI_STATICLIB) -o $@ \
 	    -Wl,--version-script=$(LYNXER_SHARED_VERSION_SCRIPT) -Wl,-soname,liblynxer.so \
-	    $(LYNXER_PLATFORM_LIBS) $(shell cat $(LYNXER_FFI_NATIVE_LIBS) 2>/dev/null)
+	    $(LYNXER_PLATFORM_LIBS) $(LYNXER_FFI_LINK_LIBS)
 
 # The ARM64 interpreter links the same Rust native-call engine, so the host must
 # be able to produce an aarch64 staticlib. Native aarch64 (the ARM CI runner) is

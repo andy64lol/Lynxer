@@ -54,14 +54,18 @@ out of `LYNXER_RUST_MODULE_NAMES`.
 
 ## Still to do
 
-- **Toolchain and build target.** The MSYS2 MinGW-w64 path compiles the whole
-  C++ core and every portable Rust backend. The staticlib's native imports (the
-  Windows system DLLs: `ntdll`, `ws2_32`, `userenv`, …) are supplied to the C++
-  link from `rustc --print native-static-libs`, recorded in
-  `LYNXER_FFI_NATIVE_LIBS`; a Rust `staticlib` does not carry its dependencies'
-  link directives. Still to do: `lynxer.dll` and a native MSVC/clang-cl build,
-  plus the `ld`-flag cleanup (`-fPIC`, `-ftls-model=global-dynamic`, the ELF
-  version script) for the shared-library step.
+- **Toolchain and build target.** The `Makefile` detects the host once
+  (`LYNXER_HOST_OS` / `LYNXER_ON_WINDOWS`, from `OS` and `uname`, mapping
+  MINGW/MSYS/CYGWIN) and keys the compile flags and link libraries off it, so a
+  Windows build gets no `-fPIC`/`-ftls-model=global-dynamic` and no `-ldl` (and
+  macOS no longer gets `-ldl` either). The MSYS2 MinGW-w64 path compiles the
+  whole C++ core and every portable Rust backend. The staticlib's native imports
+  (the Windows system DLLs: `ntdll`, `ws2_32`, `userenv`, …) come from
+  `rustc --print native-static-libs` (`LYNXER_FFI_NATIVE_LIBS`) and are added on
+  Windows only, where nothing else supplies them — a Rust `staticlib` does not
+  carry its dependencies' link directives; POSIX keeps the proven driver
+  defaults. Still to do: `lynxer.dll` and a native MSVC/clang-cl build, plus the
+  ELF version script for the shared-library step.
 - **libffi on Windows.** The Rust `libffi` engine compiles under the MinGW
   toolchain; the C++ link now pulls its native imports. Native modules still
   need to be validated on Windows.
