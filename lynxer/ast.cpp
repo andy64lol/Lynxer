@@ -140,13 +140,25 @@ constexpr std::int64_t EXIT_CODE_OFFSET = 2147483649LL;
 // the program's own functions rather than a module's. Set by executeProgram.
 Environment* hostInvokeEnvironment = nullptr;
 
-int lynxerHostInvoke(void* context, const char* name, int hasArg, double arg) {
+int lynxerHostInvokeImpl(void* context, const char* name, int hasArg, double arg,
+                         bool acquireLock) {
     Environment* environment = hostInvokeEnvironment != nullptr
                                    ? hostInvokeEnvironment
                                    : static_cast<Environment*>(context);
     if (environment == nullptr) {
         return 1;
     }
+    if (acquireLock) {
+        lockInterpreter();
+    }
+    struct Relock {
+        bool active;
+        ~Relock() {
+            if (active) {
+                unlockInterpreter();
+            }
+        }
+    } relock{acquireLock};
     try {
         std::vector<Value> arguments;
         if (hasArg != 0) {
@@ -159,9 +171,20 @@ int lynxerHostInvoke(void* context, const char* name, int hasArg, double arg) {
     } catch (const InterruptError&) {
         return 1;
     } catch (...) {
-        deferredNativeError = std::current_exception();
+        if (!acquireLock) {
+            deferredNativeError = std::current_exception();
+        }
         return 1;
     }
+}
+
+int lynxerHostInvoke(void* context, const char* name, int hasArg, double arg) {
+    return lynxerHostInvokeImpl(context, name, hasArg, arg, false);
+}
+
+int lynxerHostInvokeThreadsafe(void* context, const char* name, int hasArg,
+                               double arg) {
+    return lynxerHostInvokeImpl(context, name, hasArg, arg, true);
 }
 
 int lynxerHostInterrupted(void*) { return interruptRequested() ? 1 : 0; }
@@ -2453,11 +2476,25 @@ void ImportStatement::execute(Environment& environment) const {
             throw SourceError("native module lifecycle failure: " + detail,
                               line_, column_);
         }
-        // Optional host API: lets a module call back into the interpreter
-        // (frame callbacks) and query the interrupt flag.
-        auto attach = reinterpret_cast<int (*)(const LynxerHostApi*)>(
+        // Prefer the extended host API when present; its separate symbol keeps
+        // older v1 host structures safe from overreads.
+        auto attachV2 = reinterpret_cast<int (*)(const LynxerHostApiV2*)>(
+            dlsym(handle, "lynxer_module_attach_v2"));
+        auto attachV1 = reinterpret_cast<int (*)(const LynxerHostApi*)>(
             dlsym(handle, "lynxer_module_attach_v1"));
-        if (attach != nullptr) {
+        int attachStatus = 0;
+        if (attachV2 != nullptr) {
+            LynxerHostApiV2 host{};
+            host.version = 2;
+            host.program_args = lynxerHostProgramArgs;
+            host.blocking = lynxerHostBlocking;
+            host.context = &environment;
+            host.invoke = lynxerHostInvoke;
+            host.interrupted = lynxerHostInterrupted;
+            host.request_exit = lynxerHostRequestExit;
+            host.invoke_threadsafe = lynxerHostInvokeThreadsafe;
+            attachStatus = attachV2(&host);
+        } else if (attachV1 != nullptr) {
             LynxerHostApi host{};
             host.version = 1;
             host.program_args = lynxerHostProgramArgs;
@@ -2466,12 +2503,13 @@ void ImportStatement::execute(Environment& environment) const {
             host.invoke = lynxerHostInvoke;
             host.interrupted = lynxerHostInterrupted;
             host.request_exit = lynxerHostRequestExit;
-            if (attach(&host) != 0) {
-                dlclose(handle);
-                throw SourceError("native module lifecycle failure: attach "
-                                  "rejected the host API",
-                                  line_, column_);
-            }
+            attachStatus = attachV1(&host);
+        }
+        if (attachStatus != 0) {
+            dlclose(handle);
+            throw SourceError("native module lifecycle failure: attach "
+                              "rejected the host API",
+                              line_, column_);
         }
         environment.markImportedModule(importKey);
         environment.retainNativeModule(

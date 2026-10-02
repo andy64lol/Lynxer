@@ -41,6 +41,23 @@ pub struct LynxerHostApi {
     pub request_exit: Option<unsafe extern "C" fn(*mut c_void, i64) -> c_int>,
 }
 
+/// Extended host services introduced by `lynxer_module_attach_v2`.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct LynxerHostApiV2 {
+    pub version: c_int,
+    pub context: *mut c_void,
+    pub invoke: Option<unsafe extern "C" fn(*mut c_void, *const c_char, c_int, f64) -> c_int>,
+    pub interrupted: Option<unsafe extern "C" fn(*mut c_void) -> c_int>,
+    pub program_args: Option<unsafe extern "C" fn(*mut c_void) -> *const c_char>,
+    pub blocking: Option<
+        unsafe extern "C" fn(*mut c_void, unsafe extern "C" fn(*mut c_void), *mut c_void) -> c_int,
+    >,
+    pub request_exit: Option<unsafe extern "C" fn(*mut c_void, i64) -> c_int>,
+    pub invoke_threadsafe:
+        Option<unsafe extern "C" fn(*mut c_void, *const c_char, c_int, f64) -> c_int>,
+}
+
 /// Recursively typed value used by the additive `cdecl:v2:value(value)` call
 /// signature. All pointers are borrowed for the duration of the call.
 #[repr(C)]
@@ -125,19 +142,41 @@ pub const VALUE_UINT64: u32 = 9;
 pub const VALUE_CHAR: u32 = 10;
 pub const VALUE_ENUM: u32 = 11;
 
-// The interpreter stores the host API in a `static`, and the callbacks it
-// points at are only ever invoked from the interpreter thread. Marking the
-// struct `Send`/`Sync` keeps it usable from a static container.
+// The API copy is shared with native modules. They must use
+// `invoke_threadsafe` from a worker thread; `invoke` is only safe while already
+// on the interpreter thread.
 unsafe impl Send for LynxerHostApi {}
 unsafe impl Sync for LynxerHostApi {}
+unsafe impl Send for LynxerHostApiV2 {}
+unsafe impl Sync for LynxerHostApiV2 {}
 
 /// The only host API version the interpreter currently offers.
 pub const HOST_API_VERSION: c_int = 1;
+pub const HOST_API_VERSION_V2: c_int = 2;
 
 /// Runs the Lynxer function `name` with no argument or one numeric argument.
 /// Returns 0 on success and non-zero when the callback failed.
 pub fn invoke(host: &LynxerHostApi, name: &str, argument: Option<f64>) -> c_int {
     let callback = match host.invoke {
+        Some(callback) => callback,
+        None => return 1,
+    };
+    let name = match CString::new(name) {
+        Ok(name) => name,
+        Err(_) => return 1,
+    };
+    let (has_argument, value) = match argument {
+        Some(value) => (1, value),
+        None => (0, 0.0),
+    };
+    unsafe { callback(host.context, name.as_ptr(), has_argument, value) }
+}
+
+/// Invokes a Lynxer function while acquiring the interpreter lock. This is
+/// for native worker threads; callbacks already on the interpreter thread
+/// should use [`invoke`] to avoid changing its lock state.
+pub fn invoke_threadsafe(host: &LynxerHostApiV2, name: &str, argument: Option<f64>) -> c_int {
+    let callback = match host.invoke_threadsafe {
         Some(callback) => callback,
         None => return 1,
     };
@@ -368,6 +407,7 @@ mod tests {
     fn typed_value_abi_layout_is_stable_on_64_bit_targets() {
         if cfg!(target_pointer_width = "64") {
             assert_eq!(size_of::<LynxerHostApi>(), 56);
+            assert_eq!(size_of::<LynxerHostApiV2>(), 64);
             assert_eq!(size_of::<LynxerFfiValue>(), 64);
             assert_eq!(align_of::<LynxerFfiValue>(), 8);
             assert_eq!(size_of::<LynxerFfiValueField>(), 48);

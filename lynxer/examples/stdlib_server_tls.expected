@@ -6,6 +6,8 @@ ok
 ERROR: cannot read '/tmp/lynxer_server_tls/missing.pem': No such file or directory (os error 2)
 ERROR: cannot read '/tmp/lynxer_server_tls/missing.pem': No such file or directory (os error 2)
 ERROR: the certificate file contains no PEM certificate
+0
+ERROR: the certificate and private key do not match
 ok
 true port=18443
 <!doctype html><html><body>world</body></html>

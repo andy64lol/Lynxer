@@ -56,6 +56,9 @@ duplicate of the same verb and path is rejected.
 | `routePost(path, body)` / `post` / `htmlPost` | Fixed POST response |
 | `put(path, body)` / `delete(path, body)` / `patch(path, body)` | The other verbs |
 | `anyHttp(path, body)` | One route answering GET, POST, PUT, DELETE and PATCH |
+| `routeGetCallback(path, functionName)` / `routePostCallback(...)` | Run a named Lynxer handler for each matching request |
+| `routeCallback(path, functionName)` | Run a named handler for GET, POST, PUT, DELETE or PATCH |
+| `respond(status, contentType, body)` | Set the current callback request's response |
 | `getStatus(path, body, status)` | HTML GET with a custom status code |
 | `routeEcho(path)` | POST that returns the request body as `text/plain` |
 | `jsonGet(path, json)` / `jsonPost(path, json)` | JSON responses (`application/json`) |
@@ -71,6 +74,23 @@ duplicate of the same verb and path is rejected.
 | `clearRoutes()` | Drop pending routes, WebSocket paths and static trees |
 
 `HEAD` is served by the matching `GET` route.
+
+Callback handlers take no parameters. They run for each request under the
+interpreter lock; use the request readers below and then call `respond`. A
+callback that omits `respond` returns `204`; a callback error returns `500`.
+Fixed-string route registration and responses remain unchanged.
+
+```lynx
+global greetRequest(){
+    str name = global.server.getArg("name");
+    global.server.respond(200, "text/plain", "Hello " + name);
+}
+
+global setup(){
+    import("server");
+    global.server.routeGetCallback("/greet", "greetRequest");
+}
+```
 
 ### Templates
 
@@ -89,10 +109,17 @@ Expressions cover literals, dotted paths, `or`/`and`/`not`, `==`/`!=`/`<`/
 `<=`/`>`/`>=`, `in`, `+`/`-`/`*`/`/`/`%`, `~` (concatenation), grouping and
 `range()`, plus the filters `upper`, `lower`, `trim`, `capitalize`, `title`,
 `length`, `first`, `last`, `reverse`, `join`, `default`, `int`, `float`,
-`round`, `replace` and `string`. Inheritance, macros and includes are not
-implemented, there is no auto-escaping, and an unknown key renders as the empty
-string. `setTemplateFolder(folder)` sets the directory that `template` /
-`templatePost` resolve file names against.
+`round`, `replace` and `string`. Templates support `{% include "file" %}`,
+`{% extends "base" %}` with named `{% block %}` sections, and `{% macro
+name(args) %}` definitions called as `{{ name(args) }}`. Output expressions
+are HTML-escaped by default; `{{ value | safe }}` opts out for trusted markup.
+Dynamic values inside `on*`, `style`, `srcdoc` and `srcset` attributes are
+omitted, and dangerous URL schemes in URL attributes are replaced with `#`.
+Unknown variables return a descriptive `500` template error instead of silently
+rendering as empty; use `default` for intentionally optional values.
+`setTemplateFolder(folder)` sets the directory used to
+resolve templates and included/extended files; those paths cannot escape the
+configured folder.
 
 A template renders **inside** the request, so it can read the request through
 the `request` object:
@@ -113,7 +140,7 @@ The query-string arguments also overlay the root context, so `?name=Ada` makes
 global.server.templateString(
     "/greet",
     "<h1>Hello, {{ name | upper }}!</h1>"
-    "{% if request.args.n %}<p>n={{ request.args.n }}</p>{% endif %}",
+    "{% if request.args.n | default(\"\") %}<p>n={{ request.args.n }}</p>{% endif %}",
     "{\"name\":\"World\"}");
 ```
 
@@ -133,11 +160,9 @@ With CORS enabled, an `OPTIONS` preflight is answered `204` with
 
 ## Request context
 
-These read the **most recently handled request**. A Lynxer route is a fixed
-string rather than a callback, and the interpreter evaluates one frame at a
-time, so there is no point at which such a reader could run *inside* a request;
-the original's Flask request context has no equivalent here. Each returns `""`
-when no request has been handled yet.
+Inside callback handlers, these read that handler's current request. Outside a
+callback they retain compatibility by describing the most recently handled
+request. Each returns `""` when no request has been handled yet.
 
 | Function | Description |
 |----------|-------------|
@@ -159,8 +184,10 @@ when no request has been handled yet.
 | `runHTTPS(cert, key)` | Start a **TLS** listener on the `init` host/port from a PEM certificate and key |
 | `runSSLAdhoc()` | Start a TLS listener with a self-signed certificate generated in-process |
 
-`run()` blocks, matching the original. Use `start()` + `stop()` when the program
-has to keep running.
+`run()` blocks, matching the original, and releases the interpreter lock while
+waiting so callback routes continue to run. With `start()` + `stop()`, a
+long-lived Lynxer loop should yield periodically (for example with
+`nativeThreadYield(0.01)`) to let request callbacks acquire the interpreter.
 
 ## TLS
 
@@ -175,8 +202,8 @@ port clash is reported by the call.
 a missing file reports `ERROR: cannot read '<path>': …`, a file with no
 certificate reports `ERROR: the certificate file contains no PEM certificate`,
 and a key file with no key reports `ERROR: the key file contains no PEM private
-key`. The certificate and key must match; a mismatch fails the handshake, not
-the call.
+key`. A certificate/key mismatch is rejected before binding with
+`ERROR: the certificate and private key do not match`.
 
 `runSSLAdhoc()` mints a self-signed certificate for `localhost` and `127.0.0.1`
 with `rcgen`, so it needs no files at all — it is the quickest way to stand up

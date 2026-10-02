@@ -7,20 +7,32 @@
 //! operators `or`/`and`/`not`/`==`/`!=`/`<`/`<=`/`>`/`>=`/`in`/`+`/`-`/`*`/
 //! `/`/`%`/`~`, grouping and the `range()` function.
 //!
-//! HTML auto-escaping is *not* applied, matching the previous substitution
-//! engine: a value is inserted verbatim.
+//! Output expressions are HTML-escaped by default. Templates may opt out for a
+//! trusted expression with the `safe` filter.
 
 use std::collections::HashMap;
 
 use serde_json::Value;
 
 /// Renders `source` with `data` as the root context.
-pub fn render(source: &str, data: &Value) -> String {
-    let nodes = parse(source);
+#[cfg(test)]
+pub fn render(source: &str, data: &Value) -> Result<String, String> {
+    render_with(source, data, |_| {
+        Err("template loader is unavailable".to_string())
+    })
+}
+
+pub fn render_with(
+    source: &str,
+    data: &Value,
+    loader: impl Fn(&str) -> Result<String, String>,
+) -> Result<String, String> {
     let mut context = Context::new(data.clone());
     let mut output = String::with_capacity(source.len());
-    execute(&nodes, &mut context, &mut output);
-    output
+    let nodes = parse(source);
+    let mut blocks = HashMap::new();
+    render_nodes(&nodes, &mut context, &mut output, &loader, &mut blocks, 0)?;
+    Ok(output)
 }
 
 // --- lexer ------------------------------------------------------------------
@@ -81,9 +93,10 @@ fn tokenize(source: &str) -> Vec<Token> {
 
 // --- AST --------------------------------------------------------------------
 
+#[derive(Clone)]
 enum Node {
     Text(String),
-    Output(Expr),
+    Output(Expr, bool),
     If(Vec<(Option<Expr>, Vec<Node>)>),
     For {
         variable: String,
@@ -93,6 +106,17 @@ enum Node {
     Set {
         name: String,
         value: Expr,
+    },
+    Include(String),
+    Extends(String),
+    Block {
+        name: String,
+        body: Vec<Node>,
+    },
+    Macro {
+        name: String,
+        arguments: Vec<String>,
+        body: Vec<Node>,
     },
 }
 
@@ -179,8 +203,18 @@ impl Parser {
                     self.position += 1;
                 }
                 Token::Output(expression) => {
-                    let expression = expression.clone();
-                    nodes.push(Node::Output(parse_expression(&expression)));
+                    let mut expression = expression.clone();
+                    let safe = if let Some(pipe) = expression.rfind('|') {
+                        if expression[pipe + 1..].trim() == "safe" {
+                            expression = expression[..pipe].trim_end().to_string();
+                            true
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    };
+                    nodes.push(Node::Output(parse_expression(&expression), safe));
                     self.position += 1;
                 }
                 Token::Block(_) => {
@@ -203,8 +237,66 @@ impl Parser {
                                 });
                             }
                         }
-                        // Unknown block tags are ignored; their `end*` is too.
+                        "include" => {
+                            if let Some(path) = quoted_literal(&rest) {
+                                nodes.push(Node::Include(path));
+                            }
+                        }
+                        "extends" => {
+                            if let Some(path) = quoted_literal(&rest) {
+                                nodes.push(Node::Extends(path));
+                            }
+                        }
+                        "block" => {
+                            let body = self.parse_nodes(&["endblock"]);
+                            if matches!(self.keyword(), Some(("endblock", _))) {
+                                self.position += 1;
+                            }
+                            nodes.push(Node::Block {
+                                name: rest.trim().to_string(),
+                                body,
+                            });
+                        }
+                        "macro" => {
+                            let (name, arguments) = parse_macro_header(&rest);
+                            let body = self.parse_nodes(&["endmacro"]);
+                            if matches!(self.keyword(), Some(("endmacro", _))) {
+                                self.position += 1;
+                            }
+                            nodes.push(Node::Macro {
+                                name,
+                                arguments,
+                                body,
+                            });
+                        }
                         _ => {}
+                    }
+
+                    fn quoted_literal(source: &str) -> Option<String> {
+                        let source = source.trim();
+                        let quote = source.chars().next()?;
+                        if (quote != '"' && quote != '\'')
+                            || !source.ends_with(quote)
+                            || source.len() < 2
+                        {
+                            return None;
+                        }
+                        Some(source[1..source.len() - 1].to_string())
+                    }
+
+                    fn parse_macro_header(header: &str) -> (String, Vec<String>) {
+                        let Some(open) = header.find('(') else {
+                            return (header.trim().to_string(), Vec::new());
+                        };
+                        let name = header[..open].trim().to_string();
+                        let arguments = header[open + 1..]
+                            .trim_end_matches(')')
+                            .split(',')
+                            .map(str::trim)
+                            .filter(|name| !name.is_empty())
+                            .map(str::to_string)
+                            .collect();
+                        (name, arguments)
                     }
                 }
             }
@@ -609,6 +701,8 @@ impl ExprParser {
 struct Context {
     scopes: Vec<HashMap<String, Value>>,
     loop_variables: Vec<HashMap<String, Value>>,
+    macros: HashMap<String, (Vec<String>, Vec<Node>)>,
+    error: Option<String>,
 }
 
 impl Context {
@@ -622,6 +716,8 @@ impl Context {
         Context {
             scopes: vec![scope],
             loop_variables: vec![HashMap::new()],
+            macros: HashMap::new(),
+            error: None,
         }
     }
 
@@ -662,14 +758,143 @@ impl Context {
             vars.insert(name.to_string(), value);
         }
     }
+
+    fn resolve(&mut self, path: &[String]) -> Value {
+        let Some(mut value) = self.lookup(&path[0]).cloned() else {
+            self.error = Some(format!("unknown template variable '{}'", path.join(".")));
+            return Value::Null;
+        };
+        for part in &path[1..] {
+            value = match &value {
+                Value::Object(map) => match map.get(part) {
+                    Some(value) => value.clone(),
+                    None => {
+                        self.error =
+                            Some(format!("unknown template variable '{}'", path.join(".")));
+                        return Value::Null;
+                    }
+                },
+                Value::Array(items) => {
+                    match part.parse::<usize>().ok().and_then(|i| items.get(i)) {
+                        Some(value) => value.clone(),
+                        None => {
+                            self.error =
+                                Some(format!("unknown template variable '{}'", path.join(".")));
+                            return Value::Null;
+                        }
+                    }
+                }
+                _ => {
+                    self.error = Some(format!("unknown template variable '{}'", path.join(".")));
+                    return Value::Null;
+                }
+            };
+        }
+        value
+    }
 }
 
-fn execute(nodes: &[Node], context: &mut Context, output: &mut String) {
+fn render_nodes(
+    nodes: &[Node],
+    context: &mut Context,
+    output: &mut String,
+    loader: &impl Fn(&str) -> Result<String, String>,
+    overrides: &HashMap<String, Vec<Node>>,
+    depth: usize,
+) -> Result<(), String> {
+    if depth > MAX_RENDER_DEPTH {
+        return Err("template nesting limit exceeded".to_string());
+    }
+    collect_macros(nodes, context);
+    if let Some(parent) = nodes.iter().find_map(|node| match node {
+        Node::Extends(path) => Some(path.as_str()),
+        _ => None,
+    }) {
+        let mut child_overrides = overrides.clone();
+        for node in nodes {
+            if let Node::Block { name, body } = node {
+                child_overrides
+                    .entry(name.clone())
+                    .or_insert_with(|| body.clone());
+            }
+        }
+        let parent_source = loader(parent)?;
+        return render_nodes(
+            &parse(&parent_source),
+            context,
+            output,
+            loader,
+            &child_overrides,
+            depth + 1,
+        );
+    }
+    execute_nodes(nodes, context, output, loader, overrides, depth)
+}
+
+const MAX_RENDER_DEPTH: usize = 64;
+
+fn collect_macros(nodes: &[Node], context: &mut Context) {
+    for node in nodes {
+        match node {
+            Node::Macro {
+                name,
+                arguments,
+                body,
+            } => {
+                context
+                    .macros
+                    .entry(name.clone())
+                    .or_insert_with(|| (arguments.clone(), body.clone()));
+            }
+            Node::If(branches) => {
+                for (_, body) in branches {
+                    collect_macros(body, context);
+                }
+            }
+            Node::For { body, .. } | Node::Block { body, .. } => collect_macros(body, context),
+            _ => {}
+        }
+    }
+}
+
+fn execute_nodes(
+    nodes: &[Node],
+    context: &mut Context,
+    output: &mut String,
+    loader: &impl Fn(&str) -> Result<String, String>,
+    overrides: &HashMap<String, Vec<Node>>,
+    depth: usize,
+) -> Result<(), String> {
+    if depth > MAX_RENDER_DEPTH {
+        return Err("template nesting limit exceeded".to_string());
+    }
     for node in nodes {
         match node {
             Node::Text(text) => output.push_str(text),
-            Node::Output(expression) => {
-                output.push_str(&stringify(&evaluate(expression, context)));
+            Node::Output(expression, safe) => {
+                if let Expr::Call { name, arguments } = expression {
+                    if let Some((parameters, body)) = context.macros.get(name).cloned() {
+                        let values = arguments
+                            .iter()
+                            .map(|argument| evaluate(argument, context))
+                            .collect::<Vec<_>>();
+                        context.push_scope();
+                        for (parameter, value) in parameters.iter().zip(values) {
+                            context.set(parameter, value);
+                        }
+                        let mut rendered = String::new();
+                        execute_nodes(&body, context, &mut rendered, loader, overrides, depth + 1)?;
+                        context.pop_scope();
+                        output.push_str(&rendered);
+                        continue;
+                    }
+                }
+                let rendered = stringify(&evaluate(expression, context));
+                if *safe {
+                    output.push_str(&rendered);
+                } else {
+                    output.push_str(&escape_output(&rendered, output));
+                }
             }
             Node::If(branches) => {
                 for (condition, body) in branches {
@@ -679,7 +904,7 @@ fn execute(nodes: &[Node], context: &mut Context, output: &mut String) {
                     };
                     if taken {
                         context.push_scope();
-                        execute(body, context, output);
+                        execute_nodes(body, context, output, loader, overrides, depth + 1)?;
                         context.pop_scope();
                         break;
                     }
@@ -702,7 +927,7 @@ fn execute(nodes: &[Node], context: &mut Context, output: &mut String) {
                     loop_object.insert("last".to_string(), Value::Bool(index + 1 == length));
                     loop_object.insert("length".to_string(), serde_json::json!(length));
                     context.set_loop("loop", Value::Object(loop_object.into_iter().collect()));
-                    execute(body, context, output);
+                    execute_nodes(body, context, output, loader, overrides, depth + 1)?;
                     context.pop_scope();
                 }
             }
@@ -710,8 +935,147 @@ fn execute(nodes: &[Node], context: &mut Context, output: &mut String) {
                 let value = evaluate(value, context);
                 context.set(name, value);
             }
+            Node::Include(path) => {
+                let included = loader(path)?;
+                render_nodes(
+                    &parse(&included),
+                    context,
+                    output,
+                    loader,
+                    overrides,
+                    depth + 1,
+                )?;
+            }
+            Node::Block { name, body } => {
+                let selected = overrides.get(name).unwrap_or(body);
+                execute_nodes(selected, context, output, loader, overrides, depth + 1)?;
+            }
+            Node::Macro {
+                name,
+                arguments,
+                body,
+            } => {
+                context
+                    .macros
+                    .insert(name.clone(), (arguments.clone(), body.clone()));
+            }
+            Node::Extends(_) => {}
+        }
+        if let Some(error) = context.error.take() {
+            return Err(error);
         }
     }
+    Ok(())
+}
+
+fn escape_html(text: &str) -> String {
+    let mut escaped = String::with_capacity(text.len());
+    for character in text.chars() {
+        match character {
+            '&' => escaped.push_str("&amp;"),
+            '<' => escaped.push_str("&lt;"),
+            '>' => escaped.push_str("&gt;"),
+            '"' => escaped.push_str("&quot;"),
+            '\'' => escaped.push_str("&#x27;"),
+            other => escaped.push(other),
+        }
+    }
+    escaped
+}
+
+fn escape_output(text: &str, output: &str) -> String {
+    if let Some((attribute, prefix)) = current_attribute_context(output) {
+        if attribute.starts_with("on")
+            || matches!(attribute.as_str(), "style" | "srcdoc" | "srcset")
+        {
+            return String::new();
+        }
+        if matches!(
+            attribute.as_str(),
+            "href" | "src" | "action" | "formaction" | "xlink:href" | "poster" | "data"
+        ) {
+            let normalized = format!("{prefix}{text}")
+                .chars()
+                .filter(|character| !character.is_control() && !character.is_whitespace())
+                .collect::<String>()
+                .to_ascii_lowercase();
+            if normalized.starts_with("javascript:")
+                || normalized.starts_with("vbscript:")
+                || normalized.starts_with("data:")
+            {
+                return "#".to_string();
+            }
+        }
+    }
+    escape_html(text)
+}
+
+fn current_attribute_context(output: &str) -> Option<(String, String)> {
+    let start = output.rfind('<')?;
+    let tag = &output[start..];
+    if tag.contains('>') || tag.starts_with("</") || tag.starts_with("<!") {
+        return None;
+    }
+    let bytes = tag.as_bytes();
+    let mut index = 1;
+    while index < bytes.len() && !bytes[index].is_ascii_whitespace() {
+        index += 1;
+    }
+    while index < bytes.len() {
+        while index < bytes.len() && bytes[index].is_ascii_whitespace() {
+            index += 1;
+        }
+        if index >= bytes.len() || bytes[index] == b'/' {
+            return None;
+        }
+        let name_start = index;
+        while index < bytes.len()
+            && !bytes[index].is_ascii_whitespace()
+            && !matches!(bytes[index], b'=' | b'>' | b'/')
+        {
+            index += 1;
+        }
+        if name_start == index {
+            return None;
+        }
+        let name = tag[name_start..index].to_ascii_lowercase();
+        while index < bytes.len() && bytes[index].is_ascii_whitespace() {
+            index += 1;
+        }
+        if index >= bytes.len() || bytes[index] != b'=' {
+            continue;
+        }
+        index += 1;
+        while index < bytes.len() && bytes[index].is_ascii_whitespace() {
+            index += 1;
+        }
+        if index >= bytes.len() {
+            return Some((name, String::new()));
+        }
+        let quote = if matches!(bytes[index], b'\'' | b'"') {
+            let quote = bytes[index];
+            index += 1;
+            Some(quote)
+        } else {
+            None
+        };
+        let value_start = index;
+        while index < bytes.len()
+            && match quote {
+                Some(quote) => bytes[index] != quote,
+                None => !bytes[index].is_ascii_whitespace(),
+            }
+        {
+            index += 1;
+        }
+        if index == bytes.len() {
+            return Some((name, tag[value_start..].to_string()));
+        }
+        if quote.is_some() {
+            index += 1;
+        }
+    }
+    None
 }
 
 fn iterable_items(value: &Value) -> Vec<Value> {
@@ -723,38 +1087,10 @@ fn iterable_items(value: &Value) -> Vec<Value> {
     }
 }
 
-fn path_value(root: &Value, path: &[String]) -> Value {
-    let mut current = root;
-    for part in path {
-        match current {
-            Value::Object(map) => match map.get(part) {
-                Some(next) => current = next,
-                None => return Value::Null,
-            },
-            Value::Array(items) => match part.parse::<usize>() {
-                Ok(index) => match items.get(index) {
-                    Some(next) => current = next,
-                    None => return Value::Null,
-                },
-                Err(_) => return Value::Null,
-            },
-            _ => return Value::Null,
-        }
-    }
-    current.clone()
-}
-
 fn evaluate(expression: &Expr, context: &mut Context) -> Value {
     match expression {
         Expr::Literal(value) => value.clone(),
-        Expr::Path(path) => {
-            let value = context.lookup(&path[0]).cloned().unwrap_or(Value::Null);
-            if path.len() == 1 {
-                value
-            } else {
-                path_value(&value, &path[1..])
-            }
-        }
+        Expr::Path(path) => context.resolve(path),
         Expr::Unary(operator, operand) => {
             let value = evaluate(operand, context);
             match operator {
@@ -794,6 +1130,20 @@ fn evaluate(expression: &Expr, context: &mut Context) -> Value {
             arguments,
         } => {
             let value = evaluate(base, context);
+            if name == "default" {
+                let missing = context.error.take().is_some();
+                let arguments: Vec<Value> = arguments
+                    .iter()
+                    .map(|argument| evaluate(argument, context))
+                    .collect();
+                if missing
+                    || value.is_null()
+                    || matches!(&value, Value::String(text) if text.is_empty())
+                {
+                    return arguments.first().cloned().unwrap_or(Value::Null);
+                }
+                return value;
+            }
             let arguments: Vec<Value> = arguments
                 .iter()
                 .map(|argument| evaluate(argument, context))
@@ -994,6 +1344,7 @@ fn apply_filter(name: &str, value: &Value, arguments: &[Value]) -> Value {
             Value::String(stringify(value).replace(&from, &to))
         }
         "string" => Value::String(stringify(value)),
+        "safe" => value.clone(),
         _ => value.clone(),
     }
 }
@@ -1057,29 +1408,33 @@ fn stringify(value: &Value) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::render;
+    use super::{render, render_with};
     use serde_json::json;
 
     #[test]
     fn substitution_and_paths() {
         let data = json!({"name": "Ada", "user": {"city": "London"}});
-        assert_eq!(render("Hi {{ name }}!", &data), "Hi Ada!");
-        assert_eq!(render("{{ user.city }}", &data), "London");
-        assert_eq!(render("{{ missing }}", &data), "");
+        assert_eq!(render("Hi {{ name }}!", &data).unwrap(), "Hi Ada!");
+        assert_eq!(render("{{ user.city }}", &data).unwrap(), "London");
+        assert_eq!(
+            render("{{ missing }}", &data).unwrap_err(),
+            "unknown template variable 'missing'"
+        );
     }
 
     #[test]
     fn conditionals() {
         let data = json!({"count": 3});
         assert_eq!(
-            render("{% if count > 2 %}many{% else %}few{% endif %}", &data),
+            render("{% if count > 2 %}many{% else %}few{% endif %}", &data).unwrap(),
             "many"
         );
         assert_eq!(
             render(
                 "{% if count > 5 %}many{% elif count > 1 %}some{% endif %}",
                 &data
-            ),
+            )
+            .unwrap(),
             "some"
         );
     }
@@ -1091,11 +1446,12 @@ mod tests {
             render(
                 "{% for i in items %}{{ loop.index }}:{{ i }} {% endfor %}",
                 &data
-            ),
+            )
+            .unwrap(),
             "1:a 2:b "
         );
         assert_eq!(
-            render("{% for i in range(3) %}{{ i }}{% endfor %}", &data),
+            render("{% for i in range(3) %}{{ i }}{% endfor %}", &data).unwrap(),
             "012"
         );
     }
@@ -1103,14 +1459,81 @@ mod tests {
     #[test]
     fn filters_and_set() {
         let data = json!({"name": "ada", "nothing": null});
-        assert_eq!(render("{{ name | upper }}", &data), "ADA");
-        assert_eq!(render("{{ nothing | default(\"x\") }}", &data), "x");
-        assert_eq!(render("{% set y = name ~ \"!\" %}{{ y }}", &data), "ada!");
-        assert_eq!(render("{% if not nothing %}ok{% endif %}", &data), "ok");
+        assert_eq!(render("{{ name | upper }}", &data).unwrap(), "ADA");
+        assert_eq!(
+            render("{{ nothing | default(\"x\") }}", &data).unwrap(),
+            "x"
+        );
+        assert_eq!(
+            render("{% set y = name ~ \"!\" %}{{ y }}", &data).unwrap(),
+            "ada!"
+        );
+        assert_eq!(
+            render("{% if not nothing %}ok{% endif %}", &data).unwrap(),
+            "ok"
+        );
+        assert_eq!(
+            render("{{ absent | default(\"fallback\") }}", &data).unwrap(),
+            "fallback"
+        );
     }
 
     #[test]
     fn comments_are_dropped() {
-        assert_eq!(render("a{# hidden #}b", &json!({})), "ab");
+        assert_eq!(render("a{# hidden #}b", &json!({})).unwrap(), "ab");
+    }
+
+    #[test]
+    fn output_is_escaped_unless_marked_safe() {
+        let data = json!({"value": "<script a=\"b\">&"});
+        assert_eq!(
+            render("{{ value }}", &data).unwrap(),
+            "&lt;script a=&quot;b&quot;&gt;&amp;"
+        );
+        assert_eq!(
+            render("{{ value | safe }}", &data).unwrap(),
+            "<script a=\"b\">&"
+        );
+        let dangerous_url = json!({"url": "java\nscript:alert(1)"});
+        assert_eq!(
+            render("<a href=\"{{ url }}\">link</a>", &dangerous_url).unwrap(),
+            "<a href=\"#\">link</a>"
+        );
+        assert_eq!(
+            render(
+                "<button onclick=\"{{ value }}\" style=\"{{ value }}\" srcset=\"{{ value }}\">x</button>",
+                &json!({"value": "alert(1)"})
+            )
+            .unwrap(),
+            "<button onclick=\"\" style=\"\" srcset=\"\">x</button>"
+        );
+    }
+
+    #[test]
+    fn includes_inheritance_and_macros_render() {
+        let templates = [
+            (
+                "base",
+                "<h1>{% block title %}Base{% endblock %}</h1>{% block body %}{% endblock %}",
+            ),
+            ("part", "<b>{{ name }}</b>"),
+        ];
+        let loader = |name: &str| {
+            templates
+                .iter()
+                .find(|(path, _)| *path == name)
+                .map(|(_, text)| text.to_string())
+                .ok_or_else(|| format!("missing test template {name}"))
+        };
+        let source = concat!(
+            "{% extends \"base\" %}",
+            "{% macro tag(value) %}<i>{{ value }}</i>{% endmacro %}",
+            "{% block title %}{{ tag(name) }}{% endblock %}",
+            "{% block body %}{% include \"part\" %}{% endblock %}"
+        );
+        assert_eq!(
+            render_with(source, &json!({"name": "<Ada>"}), loader).unwrap(),
+            "<h1><i>&lt;Ada&gt;</i></h1><b>&lt;Ada&gt;</b>"
+        );
     }
 }

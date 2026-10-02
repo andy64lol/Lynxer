@@ -5,14 +5,6 @@ has an implementation task in [todo.md](../todo.md). Intentional product
 boundaries, removed features and compatibility decisions are documented in
 [removed-features.md](removed-features.md).
 
-## `server`
-
-- Request-context readers such as `getArg`, `getHeader` and `getBody` describe
-  the most recent request rather than the request currently being served.
-- Templates lack inheritance, macros, includes and auto-escaping; unknown
-  template keys render as an empty string.
-- HTTPS certificate/key mismatch is detected only when a client connects.
-
 ## Native modules
 
 - `compress` does not enable bzip2 or encrypted ZIP support; zstd builds

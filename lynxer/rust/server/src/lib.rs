@@ -6,16 +6,17 @@
 //! files, redirects, static trees — shares one code path for CORS, global
 //! headers, request logging and the custom error bodies.
 //!
-//! Request-context readers (`getArg`, `getHeader`, …) return values from the
-//! **most recently handled request**. A Lynxer route is a fixed string, not a
-//! callback, and the interpreter evaluates one frame at a time, so there is no
-//! point at which such a reader could run *inside* a request. `run()` starts the
-//! listener and then blocks, matching the original.
+//! Request-context readers (`getArg`, `getHeader`, …) are bound to the active
+//! request inside named callback routes and retain the last-request behavior
+//! outside callbacks. `run()` starts the listener and then blocks, matching the
+//! original.
 //!
 //! `runHTTPS` and `runSSLAdhoc` start a **TLS** listener through `rustls` (the
 //! `ring` provider already in this workspace — no OpenSSL, no CMake) and, like
 //! `start()`, return as soon as it is listening; `stop()` shuts it down.
 
+use core::ffi::c_void;
+use std::cell::RefCell;
 use std::net::SocketAddr;
 use std::sync::{Mutex, MutexGuard};
 use std::time::Duration;
@@ -33,6 +34,7 @@ use axum::routing::get;
 use axum::Router;
 
 use lynxer_abi::{export_int, export_string, lynxer_module};
+use lynxer_abi::{invoke_threadsafe, LynxerHostApiV2, HOST_API_VERSION_V2};
 
 mod template;
 
@@ -72,6 +74,7 @@ fn method_label(mask: u8) -> &'static str {
     }
 }
 
+#[derive(Clone)]
 enum RouteBody {
     Text {
         body: String,
@@ -91,8 +94,12 @@ enum RouteBody {
         status: u16,
     },
     Echo,
+    Callback {
+        handler: String,
+    },
 }
 
+#[derive(Clone)]
 struct Route {
     methods: u8,
     path: String,
@@ -104,7 +111,8 @@ struct StaticTree {
     directory: String,
 }
 
-/// The most recently handled request, which the `get*` readers expose.
+/// Last-request fallback for reader calls made outside a callback.
+#[derive(Clone)]
 struct LastRequest {
     method: String,
     path: String,
@@ -203,6 +211,54 @@ static STATE: Mutex<State> = Mutex::new(State {
     config: Config::new(),
 });
 
+static HOST: Mutex<Option<LynxerHostApiV2>> = Mutex::new(None);
+
+thread_local! {
+    static CURRENT_REQUEST: RefCell<Option<LastRequest>> = const { RefCell::new(None) };
+    static CALLBACK_RESPONSE: RefCell<Option<CallbackResponse>> = const { RefCell::new(None) };
+}
+
+struct CallbackResponse {
+    status: u16,
+    content_type: String,
+    body: String,
+}
+
+struct ServerJoin {
+    thread: Option<std::thread::JoinHandle<()>>,
+}
+
+unsafe extern "C" fn join_server(user: *mut c_void) {
+    let join = &mut *(user as *mut ServerJoin);
+    if let Some(thread) = join.thread.take() {
+        let _ = thread.join();
+    }
+}
+
+fn join_server_unlocked(thread: std::thread::JoinHandle<()>) {
+    let host = *HOST.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    let mut join = ServerJoin {
+        thread: Some(thread),
+    };
+    if let Some(host) = host {
+        if let Some(blocking) = host.blocking {
+            let status = unsafe {
+                blocking(
+                    host.context,
+                    join_server,
+                    (&mut join as *mut ServerJoin).cast(),
+                )
+            };
+            if join.thread.is_none() || status == 0 {
+                return;
+            }
+        }
+    }
+    if let Some(thread) = join.thread.take() {
+        let _ = thread.join();
+    }
+}
+
 fn error_text(message: &str) -> String {
     format!("ERROR: {message}")
 }
@@ -230,6 +286,7 @@ fn register(methods: u8, path: &str, body: RouteBody) -> String {
     if state.server.is_some() {
         return error_text("server already running");
     }
+
     if !valid_path(path) {
         return error_text("path must start with '/'");
     }
@@ -245,6 +302,19 @@ fn register(methods: u8, path: &str, body: RouteBody) -> String {
         body,
     });
     "ok".to_string()
+}
+
+fn register_callback(methods: u8, path: &str, handler: &str) -> String {
+    if handler.is_empty() {
+        return error_text("callback name must not be empty");
+    }
+    register(
+        methods,
+        path,
+        RouteBody::Callback {
+            handler: handler.to_string(),
+        },
+    )
 }
 
 fn text_route(
@@ -368,11 +438,29 @@ fn safe_join(directory: &str, relative: &str) -> Option<std::path::PathBuf> {
 struct RequestContext {
     method: String,
     path: String,
+    url: String,
     query: String,
     content_type: String,
     body: String,
+    remote_addr: String,
     headers: Vec<(String, String)>,
     cookies: Vec<(String, String)>,
+}
+
+impl RequestContext {
+    fn reader_record(&self) -> LastRequest {
+        LastRequest {
+            method: self.method.clone(),
+            path: self.path.clone(),
+            url: self.url.clone(),
+            query: self.query.clone(),
+            body: self.body.clone(),
+            content_type: self.content_type.clone(),
+            remote_addr: self.remote_addr.clone(),
+            headers: self.headers.clone(),
+            cookies: self.cookies.clone(),
+        }
+    }
 }
 
 /// Builds the template root: the static `data` object, with a `request` object
@@ -549,9 +637,11 @@ async fn dispatch(ConnectInfo(address): ConnectInfo<SocketAddr>, request: Reques
     let request_context = RequestContext {
         method: method.clone(),
         path: path.clone(),
+        url: url.clone(),
         query: query.clone(),
         content_type: content_type.clone(),
         body: raw_body.clone(),
+        remote_addr: address.ip().to_string(),
         headers: headers.clone(),
         cookies: cookies.clone(),
     };
@@ -560,17 +650,7 @@ async fn dispatch(ConnectInfo(address): ConnectInfo<SocketAddr>, request: Reques
         let mut state = lock_state();
         let log = state.config.request_log || state.config.debug;
         if parts.method != Method::OPTIONS {
-            state.config.last_request = Some(LastRequest {
-                method: method.clone(),
-                path: path.clone(),
-                url: url.clone(),
-                query: query.clone(),
-                body: raw_body.clone(),
-                content_type: content_type.clone(),
-                remote_addr: address.ip().to_string(),
-                headers: headers.clone(),
-                cookies: cookies.clone(),
-            });
+            state.config.last_request = Some(request_context.reader_record());
         }
 
         let flag = request_flag(&parts.method);
@@ -672,57 +752,65 @@ async fn dispatch(ConnectInfo(address): ConnectInfo<SocketAddr>, request: Reques
 }
 
 fn route_response(index: usize, request: &RequestContext, config: &Config) -> Response {
-    let state = lock_state();
-    let Some(route) = state.routes.get(index) else {
-        return response(
-            404,
-            "text/plain; charset=utf-8",
-            error_body(config, 404),
-            config,
-        );
+    let (body, template_folder) = {
+        let state = lock_state();
+        let Some(route) = state.routes.get(index) else {
+            return response(
+                404,
+                "text/plain; charset=utf-8",
+                error_body(config, 404),
+                config,
+            );
+        };
+        (route.body.clone(), state.config.template_folder.clone())
     };
-    match &route.body {
+    match body {
         RouteBody::Text {
             body,
             content_type,
             status,
-        } => response(*status, content_type, body.clone(), config),
+        } => response(status, content_type, body, config),
         RouteBody::Template { file, inline, data } => {
+            let loader = |path: &str| {
+                let full = if template_folder.is_empty() {
+                    std::path::PathBuf::from(path)
+                } else {
+                    safe_join(&template_folder, path)
+                        .ok_or_else(|| "template path escapes its configured folder".to_string())?
+                };
+                std::fs::read_to_string(&full)
+                    .map_err(|error| format!("cannot read template '{}': {error}", full.display()))
+            };
             let source = match (file, inline) {
-                (Some(path), _) => {
-                    let folder = &state.config.template_folder;
-                    let full = if folder.is_empty() {
-                        std::path::PathBuf::from(path)
-                    } else {
-                        safe_join(folder, path).unwrap_or_else(|| std::path::PathBuf::from(path))
-                    };
-                    match std::fs::read_to_string(&full) {
-                        Ok(text) => text,
-                        Err(_) => {
-                            return response(
-                                500,
-                                "text/plain; charset=utf-8",
-                                error_body(config, 500),
-                                config,
-                            )
-                        }
+                (Some(path), _) => match loader(&path) {
+                    Ok(source) => source,
+                    Err(error) => {
+                        return response(
+                            500,
+                            "text/plain; charset=utf-8",
+                            format!("template error: {error}"),
+                            config,
+                        )
                     }
-                }
-                (_, Some(text)) => text.clone(),
+                },
+                (_, Some(text)) => text,
                 _ => String::new(),
             };
-            let values = template_context(data, request);
-            response(
-                200,
-                "text/html; charset=utf-8",
-                template::render(&source, &values),
-                config,
-            )
+            let values = template_context(&data, request);
+            match template::render_with(&source, &values, loader) {
+                Ok(rendered) => response(200, "text/html; charset=utf-8", rendered, config),
+                Err(message) => response(
+                    500,
+                    "text/plain; charset=utf-8",
+                    format!("template error: {message}"),
+                    config,
+                ),
+            }
         }
-        RouteBody::File { path } => match std::fs::read(path) {
+        RouteBody::File { path } => match std::fs::read(&path) {
             Ok(bytes) => response(
                 200,
-                content_type_for(path),
+                content_type_for(&path),
                 String::from_utf8_lossy(&bytes).into_owned(),
                 config,
             ),
@@ -735,13 +823,44 @@ fn route_response(index: usize, request: &RequestContext, config: &Config) -> Re
         },
         RouteBody::Redirect { target, status } => {
             let builder = Response::builder()
-                .status(StatusCode::from_u16(*status).unwrap_or(StatusCode::FOUND))
+                .status(StatusCode::from_u16(status).unwrap_or(StatusCode::FOUND))
                 .header("location", target.as_str());
             decorate(builder, config)
                 .body(Body::empty())
                 .unwrap_or_else(|_| Response::new(Body::empty()))
         }
         RouteBody::Echo => response(200, "text/plain", request.body.clone(), config),
+        RouteBody::Callback { handler } => run_route_callback(&handler, request, config),
+    }
+}
+
+fn run_route_callback(handler: &str, request: &RequestContext, config: &Config) -> Response {
+    let host = *HOST.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    let Some(host) = host else {
+        return response(
+            500,
+            "text/plain; charset=utf-8",
+            "server callback host is unavailable".to_string(),
+            config,
+        );
+    };
+    let previous_request =
+        CURRENT_REQUEST.with(|current| current.replace(Some(request.reader_record())));
+    CALLBACK_RESPONSE.with(|current| current.replace(None));
+    let status = invoke_threadsafe(&host, handler, None);
+    let callback_response = CALLBACK_RESPONSE.with(|current| current.replace(None));
+    CURRENT_REQUEST.with(|current| current.replace(previous_request));
+    if status != 0 {
+        return response(
+            500,
+            "text/plain; charset=utf-8",
+            "route callback failed".to_string(),
+            config,
+        );
+    }
+    match callback_response {
+        Some(result) => response(result.status, &result.content_type, result.body, config),
+        None => response(204, "text/plain; charset=utf-8", String::new(), config),
     }
 }
 
@@ -776,9 +895,14 @@ fn validate_pem(cert_pem: &[u8], key_pem: &[u8]) -> Result<(), String> {
     }
     let key = rustls_pemfile::private_key(&mut std::io::Cursor::new(key_pem))
         .map_err(|error| format!("cannot parse the key file: {error}"))?;
-    if key.is_none() {
+    let Some(key) = key else {
         return Err("the key file contains no PEM private key".to_string());
-    }
+    };
+    install_crypto_provider();
+    rustls::ServerConfig::builder()
+        .with_no_client_auth()
+        .with_single_cert(certificates, key)
+        .map_err(|_| "the certificate and private key do not match".to_string())?;
     Ok(())
 }
 
@@ -927,6 +1051,18 @@ export_string!(server_route_post, args, {
         "text/html; charset=utf-8",
         200,
     )
+});
+
+export_string!(server_route_get_callback, args, {
+    register_callback(METHOD_GET, args.string(0), args.string(1))
+});
+
+export_string!(server_route_post_callback, args, {
+    register_callback(METHOD_POST, args.string(0), args.string(1))
+});
+
+export_string!(server_route_callback, args, {
+    register_callback(METHOD_ALL, args.string(0), args.string(1))
 });
 
 export_string!(server_put, args, {
@@ -1214,8 +1350,31 @@ export_string!(server_method_not_allowed, args, {
 // --- request-context readers -----------------------------------------------
 
 fn last_request<R>(reader: impl FnOnce(&LastRequest) -> R) -> Option<R> {
-    lock_state().config.last_request.as_ref().map(reader)
+    let active = CURRENT_REQUEST.with(|current| current.borrow().clone());
+    if let Some(active) = active {
+        Some(reader(&active))
+    } else {
+        lock_state().config.last_request.as_ref().map(reader)
+    }
 }
+
+export_string!(server_respond, args, {
+    let status = args.int(0).clamp(100, 599) as u16;
+    let content_type = args.string(0).to_string();
+    let body = args.string(1).to_string();
+    let active = CURRENT_REQUEST.with(|current| current.borrow().is_some());
+    if !active {
+        return error_text("respond may only be used inside a route callback");
+    }
+    CALLBACK_RESPONSE.with(|current| {
+        current.replace(Some(CallbackResponse {
+            status,
+            content_type,
+            body,
+        }))
+    });
+    "ok".to_string()
+});
 
 export_string!(server_get_method, args, {
     let _ = args;
@@ -1327,28 +1486,28 @@ export_string!(server_run, args, {
             .and_then(|server| server.thread.take())
     };
     if let Some(thread) = thread {
-        let _ = thread.join();
+        join_server_unlocked(thread);
     }
     "ok".to_string()
 });
 
 export_string!(server_stop, args, {
     let _ = args;
-    let server = {
+    let (shutdown, thread) = {
         let mut state = lock_state();
-        if state.server.is_none() {
+        let Some(server) = state.server.as_mut() else {
             return error_text("server is not running");
-        }
-        state.server.take()
+        };
+        let Some(shutdown) = server.shutdown.take() else {
+            return error_text("server is stopping");
+        };
+        (shutdown, server.thread.take())
     };
-    if let Some(mut server) = server {
-        if let Some(shutdown) = server.shutdown.take() {
-            let _ = shutdown.send(());
-        }
-        if let Some(thread) = server.thread.take() {
-            let _ = thread.join();
-        }
+    let _ = shutdown.send(());
+    if let Some(thread) = thread {
+        join_server_unlocked(thread);
     }
+    lock_state().server = None;
     "ok".to_string()
 });
 
@@ -1397,6 +1556,18 @@ export_string!(server_run_ssl_adhoc, args, {
     }
 });
 
+#[no_mangle]
+pub unsafe extern "C" fn lynxer_module_attach_v2(host: *const LynxerHostApiV2) -> i32 {
+    let Some(host) = host.as_ref() else {
+        return 1;
+    };
+    if host.version != HOST_API_VERSION_V2 || host.invoke_threadsafe.is_none() {
+        return 1;
+    }
+    *HOST.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(*host);
+    0
+}
+
 export_int!(server_running, args, {
     let _ = args;
     lock_state().server.is_some() as i64
@@ -1414,6 +1585,22 @@ export_int!(server_port, args, {
 const OPS: &[(&str, &str, &str)] = &[
     ("routeGet", "server_route_get", "cdecl:cstring(...)"),
     ("routePost", "server_route_post", "cdecl:cstring(...)"),
+    (
+        "routeGetCallback",
+        "server_route_get_callback",
+        "cdecl:cstring(...)",
+    ),
+    (
+        "routePostCallback",
+        "server_route_post_callback",
+        "cdecl:cstring(...)",
+    ),
+    (
+        "routeCallback",
+        "server_route_callback",
+        "cdecl:cstring(...)",
+    ),
+    ("respond", "server_respond", "cdecl:cstring(...)"),
     ("routeEcho", "server_route_echo", "cdecl:cstring(...)"),
     ("clearRoutes", "server_clear_routes", "cdecl:cstring(...)"),
     ("start", "server_start", "cdecl:cstring(...)"),
@@ -1493,3 +1680,61 @@ const OPS: &[(&str, &str, &str)] = &[
 ];
 
 lynxer_module!(OPS);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn request_record(id: &str) -> LastRequest {
+        LastRequest {
+            method: "GET".to_string(),
+            path: format!("/{id}"),
+            url: format!("http://localhost/{id}"),
+            query: format!("id={id}"),
+            body: id.to_string(),
+            content_type: "text/plain".to_string(),
+            remote_addr: "127.0.0.1".to_string(),
+            headers: vec![("x-request".to_string(), id.to_string())],
+            cookies: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn concurrent_request_contexts_are_thread_local() {
+        let workers = ["alpha", "beta", "gamma", "delta"]
+            .into_iter()
+            .map(|id| {
+                std::thread::spawn(move || {
+                    CURRENT_REQUEST.with(|current| current.replace(Some(request_record(id))));
+                    let expected_path = format!("/{id}");
+                    for _ in 0..100 {
+                        assert_eq!(
+                            last_request(|record| record.path.clone()).as_deref(),
+                            Some(expected_path.as_str())
+                        );
+                        assert_eq!(
+                            last_request(|record| header_lookup(&record.headers, "X-Request"))
+                                .as_deref(),
+                            Some(id)
+                        );
+                        std::thread::yield_now();
+                    }
+                    CURRENT_REQUEST.with(|current| current.replace(None));
+                })
+            })
+            .collect::<Vec<_>>();
+        for worker in workers {
+            worker.join().unwrap();
+        }
+    }
+
+    #[test]
+    fn tls_validation_rejects_a_mismatched_private_key() {
+        let (certificate, _) = self_signed_pem().unwrap();
+        let (_, other_key) = self_signed_pem().unwrap();
+        assert_eq!(
+            validate_pem(&certificate, &other_key).unwrap_err(),
+            "the certificate and private key do not match"
+        );
+    }
+}

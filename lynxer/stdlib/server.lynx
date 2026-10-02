@@ -15,6 +15,18 @@ global routeGet(str path, str body) -> str {
 global routePost(str path, str body) -> str {
     return global.nativeServer.routePost(path, body);
 }
+global routeGetCallback(str path, str handlerName) -> str {
+    return global.nativeServer.routeGetCallback(path, handlerName);
+}
+global routePostCallback(str path, str handlerName) -> str {
+    return global.nativeServer.routePostCallback(path, handlerName);
+}
+global routeCallback(str path, str handlerName) -> str {
+    return global.nativeServer.routeCallback(path, handlerName);
+}
+global respond(int status, str contentType, str body) -> str {
+    return global.nativeServer.respond(status, contentType, body);
+}
 // Register fixed HTML responses. These aliases match the higher-level server
 // API while routeGet/routePost remain available for existing Lynxer programs.
 global get(str path, str html) -> str {

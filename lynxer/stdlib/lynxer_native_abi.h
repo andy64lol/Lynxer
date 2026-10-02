@@ -27,10 +27,8 @@
 // in `strs`, in their original argument order within each group. Either pointer
 // may be null when its count is zero.
 //
-// A module may also export `lynxer_module_attach_v1`, which the interpreter
-// looks up after `lynxer_module_init_v1` succeeds. It hands the module a
-// versioned `LynxerHostApi` so the module can invoke a Lynxer function by name
-// (used for frame callbacks) and query the interrupt flag.
+// A module may export `lynxer_module_attach_v1` or the extended
+// `lynxer_module_attach_v2`, called after `lynxer_module_init_v1` succeeds.
 //
 // Both extensions are additive; modules that do not use them are unaffected.
 
@@ -57,7 +55,7 @@ typedef struct LynxerArgs {
     const char* const* strs;
 } LynxerArgs;
 
-// Host services available to a module through `lynxer_module_attach_v1`.
+// Host services available through `lynxer_module_attach_v1` and v2.
 //
 // `invoke` runs the Lynxer function `name` with either no argument or one
 // numeric argument and returns 0 on success, non-zero when the callback failed.
@@ -71,8 +69,6 @@ typedef struct LynxerArgs {
 // process status. The host raises its exit control only after the native call
 // returns, so it never unwinds through a C ABI frame.
 //
-// New fields are appended, so the version stays 1: a module compiled against an
-// earlier layout simply does not see them.
 typedef struct LynxerHostApi {
     int version; // 1
     void* context;
@@ -82,6 +78,20 @@ typedef struct LynxerHostApi {
     int (*blocking)(void* context, void (*body)(void* user), void* user);
     int (*request_exit)(void* context, int64_t code);
 } LynxerHostApi;
+
+// Version 2 is a separate attach symbol so v1 modules and older hosts never
+// read beyond the size of the host structure they negotiated.
+typedef struct LynxerHostApiV2 {
+    int version; // 2
+    void* context;
+    int (*invoke)(void* context, const char* name, int has_arg, double arg);
+    int (*interrupted)(void* context);
+    const char* (*program_args)(void* context);
+    int (*blocking)(void* context, void (*body)(void* user), void* user);
+    int (*request_exit)(void* context, int64_t code);
+    int (*invoke_threadsafe)(void* context, const char* name, int has_arg,
+                             double arg);
+} LynxerHostApiV2;
 
 #ifdef __cplusplus
 }

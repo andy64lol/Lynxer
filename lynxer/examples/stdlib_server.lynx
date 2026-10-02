@@ -44,7 +44,7 @@ global main(){
     // filters, `if` and a `for` loop.
     println(global.server.templateString(
         "/tpl",
-        "Hi {{ name | upper }}! {% if n > 1 %}{% for i in range(n) %}{{ i }}{% endfor %}{% else %}none{% endif %} q={{ request.args.n }} path={{ request.path }}",
+        "Hi {{ name | upper }}! {% if n > 1 %}{% for i in range(n) %}{{ i }}{% endfor %}{% else %}none{% endif %} q={{ request.args.n | default(\"\") }} path={{ request.path }}",
         "{\"name\": \"Ada\", \"n\": 3}"));
 
     // Port validation.

@@ -299,17 +299,35 @@ typedef struct LynxerHostApi {
     void *context;
     int (*invoke)(void *context, const char *name, int has_arg, double arg);
     int (*interrupted)(void *context);
+    const char *(*program_args)(void *context);
+    int (*blocking)(void *context, void (*body)(void *user), void *user);
+    int (*request_exit)(void *context, int64_t code);
+    int (*invoke_threadsafe)(void *context, const char *name, int has_arg,
+                             double arg);
 } LynxerHostApi;
 ```
 
 - `invoke` runs the Lynxer function `name` with no argument or one numeric
   argument, and returns `0` on success.
+- `invoke_threadsafe` does the same after acquiring the interpreter lock. Use
+  it only from native worker threads; callbacks already on the interpreter
+  thread use `invoke`.
 - `interrupted` returns non-zero once the process has received SIGINT.
+- `program_args` returns a thread-local JSON array of process arguments.
+- `blocking` releases the interpreter lock while running a native blocking
+  operation, then reacquires it.
+- `request_exit` requests orderly shutdown with the supplied process status.
 
 The `context` pointer is opaque to the module. `invoke` resolves against the
 top-level program, so frame callbacks registered by a module imported from a
 source wrapper still reach the program's own functions. This entry point is
 optional; modules that do not export it behave as before.
+
+Modules that need `invoke_threadsafe` use the separate
+`lynxer_module_attach_v2(const LynxerHostApiV2 *)` symbol. The v2 struct repeats
+the v1 fields and appends the thread-safe callback, and the interpreter
+negotiates it independently so neither an old module nor an old host reads
+beyond the struct size it supports.
 
 ## Data conventions
 

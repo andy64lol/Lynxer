@@ -28,6 +28,11 @@ global main(){
     println(global.server.runHTTPS(dir + "/cert.pem", dir + "/missing.pem"));
     global.shell.runShellSilent("printf 'not a pem\\n' > " + dir + "/bad.pem");
     println(global.server.runHTTPS(dir + "/bad.pem", dir + "/bad.pem"));
+    println(global.shell.runShellSilent(
+        "openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes " +
+        "-keyout " + dir + "/other-key.pem -out " + dir + "/other-cert.pem -days 1 " +
+        "-subj /CN=other"));
+    println(global.server.runHTTPS(dir + "/cert.pem", dir + "/other-key.pem"));
 
     // A real HTTPS listener from PEM files, verified by a TLS client.
     println(global.server.runHTTPS(dir + "/cert.pem", dir + "/key.pem"));

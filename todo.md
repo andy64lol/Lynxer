@@ -33,16 +33,15 @@ features are in [docs/removed-features.md](docs/removed-features.md).
 
 ## `server`
 
-- [ ] **Per-request route context.** Add route callbacks evaluated in the
-  request so `getArg`, `getHeader`, `getBody` and related readers refer to the
-  current request, not the most recently completed request. Test concurrent
-  requests and retain fixed-string route compatibility.
-- [ ] **Template safety and completeness.** Add context-sensitive auto-escaping,
-  template includes/inheritance/macros, and explicit errors for unknown
-  variables. Test HTML escaping and template composition without changing the
-  existing supported syntax.
-- [ ] **TLS validation.** Detect certificate/private-key mismatch before
-  binding the HTTPS listener and add a negative TLS fixture.
+- [x] **Per-request route context.** Added named Lynxer callback routes that
+  run under the interpreter lock, with thread-local request readers and
+  explicit response construction; fixed-string routes remain supported.
+- [x] **Template safety and completeness.** Added HTML output escaping and
+  dangerous URL-scheme filtering, suppression in active HTML attributes,
+  include/inheritance/macro rendering, and explicit errors for unknown
+  variables.
+- [x] **TLS validation.** Certificate/private-key mismatch is rejected before
+  binding, with unit and TLS fixture coverage.
 
 ## Native modules
 

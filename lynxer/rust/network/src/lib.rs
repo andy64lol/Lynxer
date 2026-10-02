@@ -5,17 +5,70 @@
 //! contract is unchanged, including the `"ERROR: ..."` sentinels and the
 //! `"receive timeout"` / `"receive failed"` WebSocket messages.
 
+use core::ffi::c_void;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io::{ErrorKind, Read, Write};
 use std::net::{TcpStream, ToSocketAddrs, UdpSocket};
+use std::panic::{catch_unwind, resume_unwind, AssertUnwindSafe};
 use std::time::Duration;
 
-use lynxer_abi::{export_int, export_string, lynxer_module};
+use lynxer_abi::{export_int, export_string, lynxer_module, LynxerHostApiV2, HOST_API_VERSION_V2};
 use percent_encoding::{percent_decode_str, utf8_percent_encode, AsciiSet, NON_ALPHANUMERIC};
 use tungstenite::stream::MaybeTlsStream;
 use tungstenite::Message;
 use url::Url;
+
+static HOST: std::sync::Mutex<Option<LynxerHostApiV2>> = std::sync::Mutex::new(None);
+
+struct BlockingJob<F, T> {
+    operation: Option<F>,
+    result: Option<Result<T, Box<dyn std::any::Any + Send>>>,
+}
+
+unsafe extern "C" fn run_blocking<F, T>(user: *mut c_void)
+where
+    F: FnOnce() -> T,
+{
+    let job = &mut *(user as *mut BlockingJob<F, T>);
+    if let Some(operation) = job.operation.take() {
+        job.result = Some(catch_unwind(AssertUnwindSafe(operation)));
+    }
+}
+
+fn while_interpreter_unlocked<F, T>(operation: F) -> T
+where
+    F: FnOnce() -> T,
+{
+    let host = *HOST.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    let mut job = BlockingJob {
+        operation: Some(operation),
+        result: None,
+    };
+    if let Some(host) = host {
+        if let Some(blocking) = host.blocking {
+            let status = unsafe {
+                blocking(
+                    host.context,
+                    run_blocking::<F, T>,
+                    (&mut job as *mut BlockingJob<F, T>).cast(),
+                )
+            };
+            if let Some(result) = job.result.take() {
+                return match result {
+                    Ok(value) => value,
+                    Err(payload) => resume_unwind(payload),
+                };
+            }
+            if status == 0 {
+                panic!("host blocking callback succeeded without running its operation");
+            }
+        }
+    }
+    job.operation
+        .take()
+        .expect("host blocking callback returned without running its operation")()
+}
 
 // --- URL parsing (mirrors the previous cpp-httplib-backed parser) -----------
 
@@ -422,18 +475,18 @@ fn ws_close(key: &str) -> String {
 // --- ops --------------------------------------------------------------------
 
 export_string!(network_get, args, {
-    response_or_error(request_get(args.string(0)))
+    while_interpreter_unlocked(|| response_or_error(request_get(args.string(0))))
 });
 
 export_int!(network_get_status, args, {
-    match request_get(args.string(0)) {
+    while_interpreter_unlocked(|| match request_get(args.string(0)) {
         Ok(response) => response.status().as_u16() as i64,
         Err(_) => -1,
-    }
+    })
 });
 
 export_string!(network_get_headers, args, {
-    match request_get(args.string(0)) {
+    while_interpreter_unlocked(|| match request_get(args.string(0)) {
         Ok(response) => {
             let status = response.status();
             if status.as_u16() >= 400 {
@@ -451,66 +504,76 @@ export_string!(network_get_headers, args, {
             headers
         }
         Err(error) => error_text(&error.to_string()),
-    }
+    })
 });
 
 export_string!(network_post, args, {
-    response_or_error(request_with_body(
-        "POST",
-        args.string(0),
-        args.string(1),
-        args.string(2),
-        false,
-    ))
+    while_interpreter_unlocked(|| {
+        response_or_error(request_with_body(
+            "POST",
+            args.string(0),
+            args.string(1),
+            args.string(2),
+            false,
+        ))
+    })
 });
 
 export_string!(network_put, args, {
-    response_or_error(request_with_body(
-        "PUT",
-        args.string(0),
-        args.string(1),
-        args.string(2),
-        false,
-    ))
+    while_interpreter_unlocked(|| {
+        response_or_error(request_with_body(
+            "PUT",
+            args.string(0),
+            args.string(1),
+            args.string(2),
+            false,
+        ))
+    })
 });
 
 export_string!(network_delete, args, {
-    response_or_error(agent().delete(args.string(0)).call())
+    while_interpreter_unlocked(|| response_or_error(agent().delete(args.string(0)).call()))
 });
 
 export_string!(network_patch, args, {
-    response_or_error(request_with_body(
-        "PATCH",
-        args.string(0),
-        args.string(1),
-        args.string(2),
-        false,
-    ))
+    while_interpreter_unlocked(|| {
+        response_or_error(request_with_body(
+            "PATCH",
+            args.string(0),
+            args.string(1),
+            args.string(2),
+            false,
+        ))
+    })
 });
 
 export_string!(network_get_json, args, {
-    response_or_error(
-        agent()
-            .get(args.string(0))
-            .header("Accept", "application/json")
-            .call(),
-    )
+    while_interpreter_unlocked(|| {
+        response_or_error(
+            agent()
+                .get(args.string(0))
+                .header("Accept", "application/json")
+                .call(),
+        )
+    })
 });
 
 export_string!(network_post_json, args, {
-    response_or_error(request_with_body(
-        "POST",
-        args.string(0),
-        args.string(1),
-        "application/json",
-        true,
-    ))
+    while_interpreter_unlocked(|| {
+        response_or_error(request_with_body(
+            "POST",
+            args.string(0),
+            args.string(1),
+            "application/json",
+            true,
+        ))
+    })
 });
 
 export_string!(network_download, args, {
     let url = args.string(0);
     let filepath = args.string(1);
-    match request_get(url) {
+    while_interpreter_unlocked(|| match request_get(url) {
         Ok(mut response) => {
             let status = response.status();
             if status.as_u16() >= 400 {
@@ -523,7 +586,7 @@ export_string!(network_download, args, {
             }
         }
         Err(error) => error_text(&error.to_string()),
-    }
+    })
 });
 
 export_string!(network_urlencode, args, { urlencode(args.string(0)) });
@@ -710,9 +773,13 @@ export_string!(network_url_query_append, args, {
     url.to_string()
 });
 
-export_string!(network_url_encode_component, args, { encode_component(args.string(0)) });
+export_string!(network_url_encode_component, args, {
+    encode_component(args.string(0))
+});
 
-export_string!(network_url_decode_component, args, { decode_component(args.string(0)) });
+export_string!(network_url_decode_component, args, {
+    decode_component(args.string(0))
+});
 
 export_string!(network_ws_connect, args, {
     let key = args.string(0).to_string();
@@ -812,7 +879,10 @@ fn tcp_connect(name: &str, host: &str, port: i64) -> String {
 }
 
 fn tcp_send_to(stream: &mut TcpStream, data: &str) -> String {
-    match stream.write_all(data.as_bytes()).and_then(|()| stream.flush()) {
+    match stream
+        .write_all(data.as_bytes())
+        .and_then(|()| stream.flush())
+    {
         Ok(()) => "ok".to_string(),
         Err(_) => error_text("send failed"),
     }
@@ -963,16 +1033,32 @@ const OPS: &[(&str, &str, &str)] = &[
     ("resolveHost", "network_resolve_host", "cdecl:cstring(...)"),
     ("urlIsValid", "network_url_is_valid", "cdecl:int64(...)"),
     ("urlJoin", "network_url_join", "cdecl:cstring(...)"),
-    ("urlNormalize", "network_url_normalize", "cdecl:cstring(...)"),
+    (
+        "urlNormalize",
+        "network_url_normalize",
+        "cdecl:cstring(...)",
+    ),
     ("urlGet", "network_url_get", "cdecl:cstring(...)"),
-    ("urlSetScheme", "network_url_set_scheme", "cdecl:cstring(...)"),
+    (
+        "urlSetScheme",
+        "network_url_set_scheme",
+        "cdecl:cstring(...)",
+    ),
     ("urlSetHost", "network_url_set_host", "cdecl:cstring(...)"),
     ("urlSetPort", "network_url_set_port", "cdecl:cstring(...)"),
     ("urlSetPath", "network_url_set_path", "cdecl:cstring(...)"),
     ("urlQueryGet", "network_url_query_get", "cdecl:cstring(...)"),
     ("urlQuerySet", "network_url_query_set", "cdecl:cstring(...)"),
-    ("urlQueryRemove", "network_url_query_remove", "cdecl:cstring(...)"),
-    ("urlQueryAppend", "network_url_query_append", "cdecl:cstring(...)"),
+    (
+        "urlQueryRemove",
+        "network_url_query_remove",
+        "cdecl:cstring(...)",
+    ),
+    (
+        "urlQueryAppend",
+        "network_url_query_append",
+        "cdecl:cstring(...)",
+    ),
     (
         "urlEncodeComponent",
         "network_url_encode_component",
@@ -996,11 +1082,27 @@ const OPS: &[(&str, &str, &str)] = &[
     ("tcpConnect", "network_tcp_connect", "cdecl:cstring(...)"),
     ("tcpSend", "network_tcp_send", "cdecl:cstring(...)"),
     ("tcpReceive", "network_tcp_receive", "cdecl:cstring(...)"),
-    ("tcpSendReceive", "network_tcp_send_receive", "cdecl:cstring(...)"),
+    (
+        "tcpSendReceive",
+        "network_tcp_send_receive",
+        "cdecl:cstring(...)",
+    ),
     ("tcpClose", "network_tcp_close", "cdecl:cstring(...)"),
     ("isPortOpen", "network_is_port_open", "cdecl:int64(...)"),
     ("ping", "network_ping", "cdecl:int64(...)"),
     ("getLocalIP", "network_local_ip", "cdecl:cstring(...)"),
 ];
+
+#[no_mangle]
+pub unsafe extern "C" fn lynxer_module_attach_v2(host: *const LynxerHostApiV2) -> i32 {
+    let Some(host) = host.as_ref() else {
+        return 1;
+    };
+    if host.version != HOST_API_VERSION_V2 {
+        return 1;
+    }
+    *HOST.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(*host);
+    0
+}
 
 lynxer_module!(OPS);

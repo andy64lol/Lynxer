@@ -23,6 +23,9 @@ Built from the Rust crate `rust/network`.
 ## HTTP Client
 
 Perform HTTP requests with support for all standard methods.
+HTTP calls release the interpreter lock while waiting on the socket. This lets
+server callback routes and other Lynxer threads run while an HTTP request is in
+flight, then resumes the caller after the response arrives.
 
 | Function | Description |
 |----------|-------------|

@@ -23,6 +23,8 @@ ok
 ok
 ok
 ok
+ok
+ok
 ERROR: path must start with '/'
 ERROR: origin must not be empty
 ERROR: invalid header name or value
@@ -51,7 +53,9 @@ true
 <h1>Home / Ada</h1>
 <h1>Post / Bob</h1>
 <p>Hi, World!</p>
-<i></i>
+500
+GET|first||/callback
+POST|posted|
 static-body
 static-body
 404

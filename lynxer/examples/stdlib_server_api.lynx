@@ -14,6 +14,19 @@ global setup(){
     import("text");
 }
 
+global requestGet(){
+    str body = global.server.getMethod() + "|" + global.server.getArg("id") +
+               "|" + global.server.getHeader("x-request") +
+               "|" + global.server.getPath();
+    global.server.respond(200, "text/plain", body);
+}
+
+global requestPost(){
+    str body = global.server.getMethod() + "|" + global.server.getBody() +
+               "|" + global.server.getHeader("x-request");
+    global.server.respond(200, "text/plain", body);
+}
+
 global main(){
     global.fileIO.writeFile("lynxer_scratch_tpl.html", "<h1>{{ title }} / {{ user.name }}</h1>");
     global.fileIO.writeFile("lynxer_scratch_static.txt", "static-body");
@@ -53,6 +66,8 @@ global main(){
     println(global.server.templateString("/inline", "<p>{{ greeting }}, {{ name }}!</p>",
                                          "{\"greeting\":\"Hi\",\"name\":\"World\"}"));
     println(global.server.templateString("/empty", "<i>{{ missing }}</i>", "{}"));
+    println(global.server.routeGetCallback("/callback", "requestGet"));
+    println(global.server.routePostCallback("/callback", "requestPost"));
     println(global.server.serveFile("/one", "lynxer_scratch_static.txt"));
     println(global.server.staticFiles("/assets", "."));
     println(global.server.staticSite("."));
@@ -99,7 +114,9 @@ global main(){
     println(global.network.get(base + "/tpl"));
     println(global.network.post(base + "/tplp", "x", "text/plain"));
     println(global.network.get(base + "/inline"));
-    println(global.network.get(base + "/empty"));
+    println(global.network.getStatus(base + "/empty"));
+    println(global.network.get(base + "/callback?id=first"));
+    println(global.network.post(base + "/callback?id=second", "posted", "text/plain"));
 
     println(global.network.get(base + "/one"));
     println(global.network.get(base + "/assets/lynxer_scratch_static.txt"));

@@ -15,6 +15,7 @@
 
 #if INTPTR_MAX == INT64_MAX
 static_assert(sizeof(LynxerHostApi) == 56);
+static_assert(sizeof(LynxerHostApiV2) == 64);
 static_assert(sizeof(LynxerFfiValue) == 64);
 static_assert(sizeof(LynxerFfiValueField) == 48);
 static_assert(sizeof(LynxerFfiEnum) == 48);
