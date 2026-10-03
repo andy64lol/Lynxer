@@ -179,8 +179,14 @@ extern "C" const char* fileIO_fileModTime(const char* path) {
     if (error) {
         return stable("");
     }
-    const auto systemTime = std::chrono::system_clock::now() +
-                            (time - fs::file_time_type::clock::now());
+    // `file_clock` and `system_clock` need not share a duration: libc++ (clang
+    // on Windows ARM64) ticks the file clock in 128-bit nanoseconds, so the sum
+    // below would not be a plain `system_clock::time_point` and `to_time_t`
+    // would reject it. Pin the delta to the system clock's own duration first.
+    const auto delta = time - fs::file_time_type::clock::now();
+    const auto systemTime =
+        std::chrono::system_clock::now() +
+        std::chrono::duration_cast<std::chrono::system_clock::duration>(delta);
     const std::time_t raw = std::chrono::system_clock::to_time_t(systemTime);
     std::tm local {};
 #if defined(_WIN32)
