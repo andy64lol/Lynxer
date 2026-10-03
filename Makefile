@@ -215,12 +215,6 @@ LYNXER_DISPLAY_FIXTURE_FILES := $(LYNXER_DISPLAY_FIXTURES:%=$(LYNXER_DIR)/exampl
 # input (see below).
 LYNXER_TUI_FIXTURE := $(LYNXER_DIR)/examples/stdlib_tui.lynx
 LYNXER_STDLIB_FIXTURES := $(filter-out $(LYNXER_SOUND_FIXTURE) $(LYNXER_TUI_FIXTURE) $(LYNXER_SERVER_TLS_FIXTURE) $(LYNXER_DISPLAY_FIXTURE_FILES),$(wildcard $(LYNXER_DIR)/examples/stdlib_*.lynx))
-# A module that is not built on Windows has no fixture to run; skip it instead
-# of failing on a missing import (`watch` is the Rust backend, see above).
-ifeq ($(LYNXER_ON_WINDOWS),1)
-LYNXER_WINDOWS_SKIP_FIXTURES := $(LYNXER_WINDOWS_SKIP_MODULES) watch
-LYNXER_STDLIB_FIXTURES := $(filter-out $(addprefix $(LYNXER_DIR)/examples/stdlib_,$(addsuffix .lynx,$(LYNXER_WINDOWS_SKIP_FIXTURES))),$(LYNXER_STDLIB_FIXTURES))
-endif
 ifeq ($(HAVE_AUDIO),1)
 LYNXER_AUDIO_FIXTURES := $(filter-out $(LYNXER_DISPLAY_FIXTURE_FILES),$(LYNXER_SOUND_FIXTURE))
 else
@@ -288,15 +282,27 @@ LYNXER_PARITY_FIXTURES := $(filter-out $(LYNXER_DISPLAY_FIXTURES),$(LYNXER_PARIT
 # --- Checks that cannot run on Windows -------------------------------------
 # `sys`, `cli`, `debug`, `os`, `path`, `js` and `multiprocessing` are not built
 # there (LYNXER_WINDOWS_SKIP_MODULES), and the named syscalls and the native
-# memory/sync surface have no Windows backend yet, so the checks that use them
-# are skipped. See docs/windows.md.
+# memory/sync surface have no Windows backend yet. A fixture that imports one of
+# those modules — directly, or through a stdlib wrapper such as `crypto`
+# importing `os` — can neither run nor `--compile`, so it is skipped. This list
+# is the examples' import closure over the excluded modules; keep it in step
+# when a fixture starts importing one. See docs/windows.md.
+LYNXER_WINDOWS_SKIP_STEMS := \
+	stdlib_cli stdlib_compress stdlib_compress_limits stdlib_crypto \
+	stdlib_debug stdlib_fileIO stdlib_image_codecs stdlib_js \
+	stdlib_multiprocessing stdlib_os stdlib_path stdlib_sys stdlib_watch \
+	stdlib_xml_limits stdlibTestAll native_stdlibs program_args
+
 ifeq ($(LYNXER_ON_WINDOWS),1)
+LYNXER_WINDOWS_SKIP_FILES := $(addprefix $(LYNXER_DIR)/examples/,$(addsuffix .lynx,$(LYNXER_WINDOWS_SKIP_STEMS)))
+LYNXER_STDLIB_FIXTURES := $(filter-out $(LYNXER_WINDOWS_SKIP_FILES),$(LYNXER_STDLIB_FIXTURES))
+LYNXER_PARITY_FIXTURES := $(filter-out $(LYNXER_WINDOWS_SKIP_STEMS) lowlevel_memory lowlevel_syscalls lowlevel_arch,$(LYNXER_PARITY_FIXTURES))
 LYNXER_EXIT_FIXTURES :=
 LYNXER_EXIT_THREAD_FIXTURES :=
 LYNXER_NATIVE_STDLIB_FIXTURE :=
+LYNXER_PROGRAM_ARGS_FIXTURE :=
 LYNXER_STDLIB_TEST_ALL :=
 LYNXER_LOWLEVEL_FIXTURES :=
-LYNXER_PARITY_FIXTURES := $(filter-out native_stdlibs stdlib_path stdlib_watch lowlevel_memory lowlevel_syscalls lowlevel_arch,$(LYNXER_PARITY_FIXTURES))
 else
 LYNXER_EXIT_FIXTURES := sys_exit cli_exit
 LYNXER_EXIT_THREAD_FIXTURES := sys_exit_thread sys_exit_worker
@@ -810,11 +816,13 @@ expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:23: charAt() index is out of rang
 	echo "expected native stdlib output:"; printf '%s\n' "$$expected"; \
 	echo "received native stdlib output:"; printf '%s\n' "$$output"; exit 1; fi; \
 	fi
-	@output="$$(LYNXER_GAME_HEADLESS=1 LYNXER_GRAPHICS_HEADLESS=1 $(CLYX) $(LYNXER_PROGRAM_ARGS_FIXTURE) alpha "beta gamma" 2>&1)"; \
+	@if [ -n "$(LYNXER_PROGRAM_ARGS_FIXTURE)" ]; then \
+	output="$$(LYNXER_GAME_HEADLESS=1 LYNXER_GRAPHICS_HEADLESS=1 $(CLYX) $(LYNXER_PROGRAM_ARGS_FIXTURE) alpha "beta gamma" 2>&1)"; \
 	expected="$$(cat $(LYNXER_PROGRAM_ARGS_FIXTURE:.lynx=.expected))"; \
 	if [ "$$output" != "$$expected" ]; then \
 	echo "expected program-args output:"; printf '%s\n' "$$expected"; \
-	echo "received program-args output:"; printf '%s\n' "$$output"; exit 1; fi
+	echo "received program-args output:"; printf '%s\n' "$$output"; exit 1; fi; \
+	fi
 	@output="$$($(CLYX) $(LYNXER_SIGNATURE_FIXTURE))"; \
 	expected="$$(printf '7\n2.5\nzero\n7\n9\ncopy\n4\n1\n---\n6\n1.25\n4\n6.5\n4\n3.5\n1.500000\n2.75\nabcd\n3.75\nabc\nab5\nabc5\n7\nn12\n3\n9\n10\n10\n0\n5\nABC')"; \
 	if [ "$$output" != "$$expected" ]; then \
