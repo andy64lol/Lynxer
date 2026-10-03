@@ -1,0 +1,26 @@
+# Normalize text files to LF in the repository and on checkout, on every host.
+# The suite compares interpreter output (which is LF everywhere) against
+# checked-in `.expected` files, so a Windows checkout must not rewrite them to
+# CRLF. An explicit `eol=lf` overrides `core.autocrlf`, which Git for Windows
+# enables by default.
+* text=auto eol=lf
+
+# Binary fixtures and build outputs are never converted.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.gz binary
+*.tar binary
+*.so binary
+*.a binary
+*.dll binary
+*.dylib binary
+*.exe binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
