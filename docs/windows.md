@@ -67,10 +67,12 @@ Windows build yet:
   excluded modules. Fixtures that render through `graphics`/`game` are skipped
   too (`stdlib_game_api`, `stdlib_graphics_raster*`, `stdlib_turtle`): they need
   an OpenGL context, which the Windows runner does not have, whereas the Linux
-  CI installs Mesa llvmpipe. The `builtin_ffi` fixtures are skipped as well:
-  they load `libc.so.6` by name, which does not exist on Windows. The
-  `Makefile` variables default to the full lists off Windows, so POSIX coverage
-  is unchanged.
+  CI installs Mesa llvmpipe. Three more fixtures are skipped: `builtin_ffi` and
+  `builtin_ffi_errors` load `libc.so.6` by name (and `ffiLoadLibrary` fails hard
+  when a library is missing), `builtin_async` drives the POSIX-only
+  `filesystem*` built-ins, and `stdlib_server_tls` mints its certificates under
+  a hard-coded `/tmp/...`. The `Makefile` variables default to the full lists
+  off Windows, so POSIX coverage is unchanged.
 
 `LYNXER_WINDOWS_SKIP_MODULES` in the `Makefile` names the C++ modules a Windows
 build skips (`sys cli debug os path js multiprocessing`), and `watch` is filtered
