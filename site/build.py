@@ -27,7 +27,7 @@ OUT = SITE / "docs"
 # Page groups for the sidebar. Paths are relative to docs/.
 
 # List of all pages to build (Markdown files in docs/)
-PAGES: list[tuple[str, str]] = [
+PAGES_LIST = [
     ("README.md", "index.html"),
     ("CLI.md", "CLI.html"),
     ("async.md", "async.html"),
@@ -449,12 +449,8 @@ def module_summary(module: str) -> str:
 
 
 def main() -> int:
-    # Explicitly include all .md files in the docs directory
-    PAGES = []
-    for md_file in sorted(DOCS.glob("*.md")):
-        md_rel = md_file.relative_to(DOCS)
-        out_rel = out_name(str(md_rel))
-        PAGES.append((str(md_rel), out_rel))
+    # Use the predefined list of pages
+    PAGES = PAGES_LIST
 
     count = 0
     search_records = []

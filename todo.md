@@ -116,6 +116,26 @@ features are in [docs/removed-features.md](docs/removed-features.md).
 version (`Bob/README.md`). It has no registry yet, so only `bob --ver` and
 `bob --init` exist. Its planned work is tracked in [Bob/todo.md](Bob/todo.md).
 
+## Server (Bob Module Hosting)
+
+- [ ] **Create a `Server/` directory** at the same level as `Lynxer/` and `Bob/` for hosting Bob modules.
+- [ ] **Bob Module Structure**:
+  - Modules should be distributed as `.zip` files containing:
+    - A `manifest.toml` file with metadata like `name`, `version`, and `entry`.
+    - A `src/` directory containing the module source files (e.g., `main.lynx`).
+  - Example structure:
+    ```
+    my-module.zip
+    ├── manifest.toml
+    └── src/
+        └── main.lynx
+    ```
+  - Add a `todo.md` file in the `Server/` directory to track progress on module hosting and upload features.
+
+- [ ] **Supabase Integration**:
+  - Define how Bob modules will be uploaded to Supabase for storage and distribution.
+  - Ensure the platform supports module versioning and checksum verification.
+
 ## Windows support
 
 Lynxer currently targets Linux only: the interpreter, the native-module ABI
