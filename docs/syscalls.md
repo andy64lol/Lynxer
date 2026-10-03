@@ -74,7 +74,35 @@ global main(){
 | `winAPI.getLastError()` | the last Win32 error code |
 | `winAPI.getEnvironmentVariable(name)` | the variable's value, or `""` |
 | `winAPI.setEnvironmentVariable(name, value)` | whether it was set |
+| `winAPI.expandEnvironmentStrings(text)` | `text` with `%VAR%` expanded |
+| `winAPI.getDiskFreeBytes(path)` | free bytes on the volume, or `-1` |
 | `winAPI.sleep(milliseconds)` | — |
+| `winAPI.outputDebugString(text)` | — |
+| `winAPI.beep(frequency, duration)` | whether it played |
+
+Files and handles. A handle is an integer (`-1` on failure) and must be closed
+with `closeHandle`; the file calls use the same scalar-sentinel convention as the
+rest of the stdlib, with `getLastError()` for the reason:
+
+| Function | Returns |
+| --- | --- |
+| `winAPI.createFile(path, mode)` | a handle, or `-1`; `mode` is `read`, `write`, `append` or `readwrite` |
+| `winAPI.readFile(handle, length)` | up to `length` bytes, or `""` |
+| `winAPI.writeFile(handle, text)` | bytes written, or `-1` |
+| `winAPI.closeHandle(handle)` | whether it closed |
+| `winAPI.fileSize(handle)` | size in bytes, or `-1` |
+| `winAPI.seekFile(handle, offset)` | the new position, or `-1` |
+| `winAPI.deleteFile(path)` | whether it was removed |
+| `winAPI.copyFile(source, destination, overwrite)` | whether it was copied |
+| `winAPI.moveFile(source, destination)` | whether it was moved |
+| `winAPI.createDirectory(path)` | whether it was created |
+| `winAPI.removeDirectory(path)` | whether it was removed |
+
+Everything here is `kernel32`, so no extra import library is needed. The long
+tail — other DLLs, `user32`, `advapi32`, `*A`/`*W` pairs, structs — is reachable
+today through `ffiLoadLibrary`/`ffiLookup`/`ffiCall` with a `cdecl:` signature
+(see [native-modules.md](native-modules.md)); a curated wrapper for it may come
+later.
 
 The namespace prefix is matched case-insensitively, an unknown function reports
 the closest match, and a `winAPI.*` call made before the selection (or after

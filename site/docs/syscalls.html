@@ -166,8 +166,28 @@ global main(){
 <tr><td><code>winAPI.getLastError()</code></td><td>the last Win32 error code</td></tr>
 <tr><td><code>winAPI.getEnvironmentVariable(name)</code></td><td>the variable's value, or <code>&quot;&quot;</code></td></tr>
 <tr><td><code>winAPI.setEnvironmentVariable(name, value)</code></td><td>whether it was set</td></tr>
+<tr><td><code>winAPI.expandEnvironmentStrings(text)</code></td><td><code>text</code> with <code>%VAR%</code> expanded</td></tr>
+<tr><td><code>winAPI.getDiskFreeBytes(path)</code></td><td>free bytes on the volume, or <code>-1</code></td></tr>
 <tr><td><code>winAPI.sleep(milliseconds)</code></td><td>—</td></tr>
+<tr><td><code>winAPI.outputDebugString(text)</code></td><td>—</td></tr>
+<tr><td><code>winAPI.beep(frequency, duration)</code></td><td>whether it played</td></tr>
 </table>
+<p>Files and handles. A handle is an integer (<code>-1</code> on failure) and must be closed with <code>closeHandle</code>; the file calls use the same scalar-sentinel convention as the rest of the stdlib, with <code>getLastError()</code> for the reason:</p>
+<table>
+<tr><th>Function</th><th>Returns</th></tr>
+<tr><td><code>winAPI.createFile(path, mode)</code></td><td>a handle, or <code>-1</code>; <code>mode</code> is <code>read</code>, <code>write</code>, <code>append</code> or <code>readwrite</code></td></tr>
+<tr><td><code>winAPI.readFile(handle, length)</code></td><td>up to <code>length</code> bytes, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>winAPI.writeFile(handle, text)</code></td><td>bytes written, or <code>-1</code></td></tr>
+<tr><td><code>winAPI.closeHandle(handle)</code></td><td>whether it closed</td></tr>
+<tr><td><code>winAPI.fileSize(handle)</code></td><td>size in bytes, or <code>-1</code></td></tr>
+<tr><td><code>winAPI.seekFile(handle, offset)</code></td><td>the new position, or <code>-1</code></td></tr>
+<tr><td><code>winAPI.deleteFile(path)</code></td><td>whether it was removed</td></tr>
+<tr><td><code>winAPI.copyFile(source, destination, overwrite)</code></td><td>whether it was copied</td></tr>
+<tr><td><code>winAPI.moveFile(source, destination)</code></td><td>whether it was moved</td></tr>
+<tr><td><code>winAPI.createDirectory(path)</code></td><td>whether it was created</td></tr>
+<tr><td><code>winAPI.removeDirectory(path)</code></td><td>whether it was removed</td></tr>
+</table>
+<p>Everything here is <code>kernel32</code>, so no extra import library is needed. The long tail — other DLLs, <code>user32</code>, <code>advapi32</code>, <code>*A</code>/<code>*W</code> pairs, structs — is reachable today through <code>ffiLoadLibrary</code>/<code>ffiLookup</code>/<code>ffiCall</code> with a <code>cdecl:</code> signature (see <a href="native-modules.html">native-modules</a>); a curated wrapper for it may come later.</p>
 <p>The namespace prefix is matched case-insensitively, an unknown function reports the closest match, and a <code>winAPI.*</code> call made before the selection (or after selecting another target) is a source-located error. Win32 handles, <code>*W</code>/<code>*A</code> pairs and struct layouts are not exposed yet; see <a href="windows.html">windows</a> and the tracker in <a href="https://github.com/andy64lol/Lynxer/blob/main/todo.md">../todo</a>.</p>
 <h2 id="calling-convention">Calling convention</h2>
 <ul>

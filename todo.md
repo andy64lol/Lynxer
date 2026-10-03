@@ -163,16 +163,20 @@ surface stays a documented boundary in
   see [docs/windows.md](docs/windows.md).
 - [ ] **Windows API access (Win32, not syscalls).** First slice landed:
   selecting the Windows target (`syscalls("winAPI", "amd64")`, with `windows`
-  and `win32` as synonyms) enables the `winAPI.*` namespace —
-  `getProcessId`, `getCurrentDirectory`, `getComputerName`, `getTempPath`,
-  `getSystemDirectory`, `getWindowsDirectory`, `getModuleFileName`,
-  `getTickCount`, `getLastError`, `getEnvironmentVariable`,
-  `setEnvironmentVariable` and `sleep` — with the `winapi.lynx` fixture run by
-  the Windows job. The Win32 calls live in `lynxer/winapi.cpp`, so nothing else
-  includes `<windows.h>`. The named Linux syscalls stay Linux-only. Still to do:
-  - Grow the table: file, process and socket calls (`CreateFileW`, `ReadFile`,
-    `CreateProcessW`, ...), and decide whether the long tail goes through a
-    generic `windowsCall(dll, "Symbol", ...)` built on
+  and `win32` as synonyms) enables the `winAPI.*` namespace — all `kernel32`:
+  system information (`getProcessId`, `getCurrentDirectory`, `getComputerName`,
+  `getTempPath`, `getSystemDirectory`, `getWindowsDirectory`,
+  `getModuleFileName`, `getTickCount`, `getLastError`, `getDiskFreeBytes`),
+  environment (`getEnvironmentVariable`, `setEnvironmentVariable`,
+  `expandEnvironmentStrings`), file/handle access (`createFile`, `readFile`,
+  `writeFile`, `closeHandle`, `fileSize`, `seekFile`, `deleteFile`, `copyFile`,
+  `moveFile`, `createDirectory`, `removeDirectory`), `sleep`, `beep` and
+  `outputDebugString` — with the `winapi.lynx` fixture run by the Windows job.
+  The Win32 calls live in `lynxer/winapi.cpp`, so nothing else includes
+  `<windows.h>`. The named Linux syscalls stay Linux-only. Still to do:
+  - Grow the table further: process and socket calls (`CreateProcessW`,
+    `WSAStartup`, ...), console calls, and first-class `HANDLE` values. The long
+    tail is already reachable through
     `ffiLoadLibrary`/`ffiLookup`/`ffiCall` ([native-modules.md](docs/native-modules.md)).
   - Cover the Win32 specifics: the `__stdcall` calling convention on 32-bit
     (unified on x64), so the `cdecl:` signature grammar needs a `stdcall:` or

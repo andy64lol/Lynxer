@@ -29,14 +29,19 @@ fixture comparisons rely on. The console is also switched to ANSI escape
 processing (`platform::enableVirtualTerminal()`), so `tui` and `graphics`
 sequences render; a redirected stream has no console mode and is unaffected.
 
-**Windows API surface (first slice).** On Windows, selecting the Windows target
+**Windows API surface.** On Windows, selecting the Windows target
 (`syscalls("winAPI", "amd64")`, with `windows` and `win32` as synonyms) enables
-the `winAPI.*` namespace: `getProcessId`, `getCurrentDirectory`,
-`getComputerName`, `getTempPath`, `getSystemDirectory`, `getWindowsDirectory`,
-`getModuleFileName`, `getTickCount`, `getLastError`, `getEnvironmentVariable`,
-`setEnvironmentVariable` and `sleep`. The `winapi.lynx` fixture runs it in the
-Windows job; the Win32 calls live in `lynxer/winapi.cpp` so nothing else includes
-`<windows.h>`. See [syscalls.md](syscalls.md#windows-api-calls).
+the `winAPI.*` namespace — all `kernel32`: the system information calls
+(`getProcessId`, `getCurrentDirectory`, `getComputerName`, `getTempPath`,
+`getSystemDirectory`, `getWindowsDirectory`, `getModuleFileName`,
+`getTickCount`, `getLastError`, `getDiskFreeBytes`), the environment calls
+(`getEnvironmentVariable`, `setEnvironmentVariable`, `expandEnvironmentStrings`)
+and file/handle access (`createFile`, `readFile`, `writeFile`, `closeHandle`,
+`fileSize`, `seekFile`, `deleteFile`, `copyFile`, `moveFile`,
+`createDirectory`, `removeDirectory`), plus `sleep`, `beep` and
+`outputDebugString`. The `winapi.lynx` fixture runs it in the Windows job; the
+Win32 calls live in `lynxer/winapi.cpp` so nothing else includes `<windows.h>`.
+See [syscalls.md](syscalls.md#windows-api-calls).
 
 `--compile` works unchanged: the payload is appended to the running image and
 read back through `platform::executablePath()` (`GetModuleFileNameW`), and the

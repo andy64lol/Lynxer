@@ -20,4 +20,26 @@ global main(){
     println(winAPI.setEnvironmentVariable("LYNXER_WINAPI_TEST", "ok"));
     println(winAPI.getEnvironmentVariable("LYNXER_WINAPI_TEST"));
     println(returnLength(winAPI.getEnvironmentVariable("LYNXER_WINAPI_ABSENT")) is 0);
+    println(returnLength(winAPI.expandEnvironmentStrings("%TEMP%")) > 0);
+    println(winAPI.getDiskFreeBytes(winAPI.getTempPath()) > 0);
+
+    // Files and handles: write, size, seek, close, read back, delete.
+    str root = winAPI.getTempPath();
+    str path = root + "lynxer-winapi-fixture.txt";
+    int file = winAPI.createFile(path, "write");
+    println(file > 0);
+    println(winAPI.writeFile(file, "hello") is 5);
+    println(winAPI.fileSize(file) is 5);
+    println(winAPI.seekFile(file, 1) is 1);
+    println(winAPI.closeHandle(file));
+    int reader = winAPI.createFile(path, "read");
+    println(winAPI.readFile(reader, 5));
+    println(winAPI.closeHandle(reader));
+    println(winAPI.deleteFile(path));
+
+    // Directories: the first removal is best-effort and not asserted.
+    str directory = root + "lynxer-winapi-dir";
+    winAPI.removeDirectory(directory);
+    println(winAPI.createDirectory(directory));
+    println(winAPI.removeDirectory(directory));
 }
