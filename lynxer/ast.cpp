@@ -494,24 +494,28 @@ std::string resolveModulePath(const std::string& sourceDirectory,
         candidates.push_back(input.string() + ".lynx");
     }
 
+    // The resolved path is both opened and used as the module's display name in
+    // diagnostics, so return it in generic (forward-slash) form: a resolved
+    // module path then reads the same on Windows as on POSIX, and the Windows
+    // file and loader APIs accept `/`.
     if (!sourceDirectory.empty()) {
         for (const auto& candidate : candidates) {
             const auto path = std::filesystem::path(sourceDirectory) / candidate;
             if (std::filesystem::exists(path)) {
-                return path.string();
+                return path.generic_string();
             }
         }
     }
     for (const auto& candidate : candidates) {
         if (std::filesystem::exists(candidate)) {
-            return candidate.string();
+            return candidate.generic_string();
         }
     }
     const auto stdlib = std::filesystem::path("stdlib");
     for (const auto& candidate : candidates) {
         const auto path = stdlib / candidate.filename();
         if (std::filesystem::exists(path)) {
-            return path.string();
+            return path.generic_string();
         }
     }
     for (const auto& root : {std::filesystem::path("lynxer/stdlib"),
@@ -519,7 +523,7 @@ std::string resolveModulePath(const std::string& sourceDirectory,
         for (const auto& candidate : candidates) {
             const auto path = root / candidate.filename();
             if (std::filesystem::exists(path)) {
-                return path.string();
+                return path.generic_string();
             }
         }
     }
@@ -530,7 +534,7 @@ std::string resolveModulePath(const std::string& sourceDirectory,
     for (const auto& candidate : candidates) {
         const auto path = installedStdlib / candidate.filename();
         if (std::filesystem::exists(path)) {
-            return path.string();
+            return path.generic_string();
         }
     }
     return "";
