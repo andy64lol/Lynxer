@@ -2,7 +2,7 @@
 
 #include <cerrno>
 #include <chrono>
-#include <csignal>
+#include <signal.h>
 #include <fcntl.h>
 #include <poll.h>
 #include <string>

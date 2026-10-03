@@ -7,15 +7,16 @@
 
 #include "winapi.hpp"
 
+#include <string>
+#include <vector>
+
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#endif
-
+// `std::size_t` and `std::int64_t` appear only in the Win32 implementations.
 #include <cstddef>
 #include <cstdint>
-#include <string>
-#include <vector>
+#endif
 
 namespace lynxer::winapi {
 

@@ -7,10 +7,8 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
-#include <sstream>
 #include <string>
 #include <system_error>
-#include <vector>
 
 #include <pwd.h>
 #include <sys/statvfs.h>

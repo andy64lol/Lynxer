@@ -1,7 +1,6 @@
 // Lynxer `js` stdlib backend: run JavaScript through a Node.js subprocess.
 
 #include <cstdint>
-#include <cstdio>
 #include <cstdlib>
 #include <string>
 

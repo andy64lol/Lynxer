@@ -17,7 +17,6 @@
 #include <chrono>
 #include <atomic>
 #include <cstdint>
-#include <deque>
 #include <exception>
 #include <filesystem>
 #include <fstream>

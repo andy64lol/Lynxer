@@ -5,10 +5,6 @@
 #include "platform.hpp"
 
 #include <chrono>
-#include <cstddef>
-#include <cstdint>
-#include <cstdlib>
-#include <cstring>
 #include <filesystem>
 #include <string>
 #include <thread>
@@ -17,6 +13,9 @@
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+// `std::size_t` and `std::getenv` are used by the Win32 implementation only.
+#include <cstddef>
+#include <cstdlib>
 #include <fcntl.h>
 #include <io.h>
 #else
@@ -26,6 +25,8 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #if defined(__APPLE__)
+// `std::uint32_t` is used by the dyld self-path lookup only.
+#include <cstdint>
 #include <mach-o/dyld.h>
 #endif
 #endif
