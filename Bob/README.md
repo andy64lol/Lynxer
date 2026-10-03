@@ -89,6 +89,12 @@ $ make -C Bob test
 
 `cargo build --release` works from any shell; the `Makefile` is only a wrapper.
 
+The Windows build uses a **static CRT** (`-C target-feature=+crt-static`), so
+`bob.exe` is standalone: it runs from `cmd.exe` or PowerShell, not only from an
+MSYS2 shell. The Windows workflows verify that directly by running the freshly
+built binary natively (no MSYS2 on `PATH`) and checking it writes
+`bob\bob.toml`.
+
 Bob has its own CI, separate from the Lynxer jobs: four workflows
 (`build-bob-amd.yml`, `build-bob-arm.yml`, `build-bob-windows-amd.yml`,
 `build-bob-windows-arm.yml`) build it and run the self-check on Linux and

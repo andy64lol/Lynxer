@@ -49,6 +49,25 @@ jobs:
         shell: msys2 {0}
         run: make -C Bob test
 
+      - name: Run the Windows binary natively, outside MSYS2
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $bob = Join-Path $env:GITHUB_WORKSPACE "Bob\target\release\bob.exe"
+          if (-not (Test-Path $bob)) { throw "bob.exe was not built" }
+          $dir = Join-Path $env:RUNNER_TEMP "bob-native"
+          Remove-Item -Recurse -Force $dir -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path $dir | Out-Null
+          Push-Location $dir
+          & $bob --ver
+          & $bob --init
+          & $bob --init --module
+          foreach ($file in @("bob\bob.toml", "bob\bob-lock.toml", "module.toml", "src\main.lynx")) {
+            if (-not (Test-Path $file)) { throw "bob did not create $file" }
+          }
+          Pop-Location
+          Write-Host "bob.exe ran natively with Windows paths"
+
       - name: Upload the Bob binary
         uses: actions/upload-artifact@v4
         with:
