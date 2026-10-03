@@ -287,11 +287,16 @@ LYNXER_PARITY_FIXTURES := $(filter-out $(LYNXER_DISPLAY_FIXTURES),$(LYNXER_PARIT
 # importing `os` — can neither run nor `--compile`, so it is skipped. This list
 # is the examples' import closure over the excluded modules; keep it in step
 # when a fixture starts importing one. See docs/windows.md.
+# The last group renders through the `graphics`/`game` backend, which needs an
+# OpenGL context; the Windows runner has none (the Linux CI installs Mesa
+# llvmpipe, so those fixtures do run there).
 LYNXER_WINDOWS_SKIP_STEMS := \
 	stdlib_cli stdlib_compress stdlib_compress_limits stdlib_crypto \
 	stdlib_debug stdlib_fileIO stdlib_image_codecs stdlib_js \
 	stdlib_multiprocessing stdlib_os stdlib_path stdlib_sys stdlib_watch \
-	stdlib_xml_limits stdlibTestAll native_stdlibs program_args
+	stdlib_xml_limits stdlibTestAll native_stdlibs program_args \
+	stdlib_game_api stdlib_graphics_raster stdlib_graphics_raster_shapes \
+	stdlib_turtle
 
 ifeq ($(LYNXER_ON_WINDOWS),1)
 LYNXER_WINDOWS_SKIP_FILES := $(addprefix $(LYNXER_DIR)/examples/,$(addsuffix .lynx,$(LYNXER_WINDOWS_SKIP_STEMS)))
