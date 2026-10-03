@@ -8,9 +8,10 @@ so the only commands are `bob --ver` and `bob --init`.
   adding any download command.
 - [ ] **`bob add` / `bob install` / `bob update`.** Resolve `[dependencies]` in
   `bob/bob.toml`, write `bob/bob-lock.toml`, and populate `bob/packages/`.
-- [ ] **Project source scaffold.** `bob --init` writes `bob/bob.toml` and
-  `bob/bob-lock.toml`; add the source layout (a `main.lynx` entry point) once
-  the project model is settled.
+- [ ] **Application source scaffold.** `bob --init --module` now writes
+  `module.toml` and `src/main.lynx` for a reusable module; `bob --init` still
+  writes only `bob/bob.toml` and `bob/bob-lock.toml`. Add the application
+  entry-point layout (a `main.lynx`) once the project model is settled.
 - [ ] **Version pinning.** `bob --ver` reports a compile-time constant for the
   supported Lynxer version; derive it from the Lynxer release so the two cannot
   drift.

@@ -12,6 +12,7 @@ supports.
 | --- | --- |
 | `bob --ver` | Prints the Bob version and the Lynxer version it supports. |
 | `bob --init` | Creates `bob/bob.toml`, `bob/bob-lock.toml` and an empty `bob/packages/` in the current directory. |
+| `bob --init --module` | Creates `module.toml` and `src/main.lynx` in the current directory. |
 | `bob --help` | Usage. |
 
 ```console
@@ -23,6 +24,10 @@ $ bob --init
 Created bob/bob.toml
 Created bob/bob-lock.toml
 Created bob/packages/
+
+$ bob --init --module
+Created module.toml
+Created src/main.lynx
 ```
 
 ## Layout
@@ -37,6 +42,24 @@ bob/packages/       downloaded Lynxer packages (empty for now)
 
 `bob/bob.toml` and `bob/bob-lock.toml` use the same TOML model Cargo uses, so a
 manifest and lock file read the way a Rust developer expects.
+
+## Module projects
+
+`bob --init --module` scaffolds a reusable module instead of an application:
+
+```
+module.toml      the module manifest ([module], [dependencies])
+src/main.lynx    the module source
+```
+
+`src/main.lynx` uses the pure-module shape from
+[../docs/extending.md](../docs/extending.md): a `////` documentation header, an
+empty `global setup()`, and exported `global` functions. A module is imported by
+name, not run, so it has no `main()`:
+
+```lynx
+global add(int left, int right) -> int { return left + right; }
+```
 
 ## Status
 
