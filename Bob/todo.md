@@ -1,11 +1,15 @@
 # Bob — TODO
 
-Planned work for the Lynxer package manager. There is no package registry yet,
-so the only commands are `bob --ver` and `bob --init`.
+Planned work for the Lynxer package manager. Bob can scaffold modules and
+publish immutable module archives to the registry service in `../Server/`.
 
-- [ ] **Package registry and download.** Define the registry protocol, the
-  on-disk package layout under `bob/packages/`, and checksum/verification before
-  adding any download command.
+- [x] **Registry upload contract.** The `Server/` API defines the archive
+  format, private Supabase storage path, immutable `(name, version)` releases,
+  and SHA-256 verification; `bob publish` packages the current module and
+  uploads it.
+- [ ] **Package download and local layout.** Define installation under
+  `bob/packages/`; verify the downloaded archive digest against registry
+  metadata and the lock file before extracting any files.
 - [ ] **`bob add` / `bob install` / `bob update`.** Resolve `[dependencies]` in
   `bob/bob.toml`, write `bob/bob-lock.toml`, and populate `bob/packages/`.
 - [ ] **Application source scaffold.** `bob --init --module` now writes

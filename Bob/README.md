@@ -13,6 +13,7 @@ supports.
 | `bob --ver` | Prints the Bob version and the Lynxer version it supports. |
 | `bob --init` | Creates `bob/bob.toml`, `bob/bob-lock.toml` and an empty `bob/packages/` in the current directory. |
 | `bob --init --module` | Creates `module.toml` and `src/main.lynx` in the current directory. |
+| `bob publish` | Packages the current module as a validated ZIP and uploads it to the configured registry. |
 | `bob --help` | Usage. |
 
 ```console
@@ -63,9 +64,35 @@ global add(int left, int right) -> int { return left + right; }
 
 ## Status
 
-There is **no package registry yet**, so Bob cannot download anything: the
-dependency list is always empty and `bob/packages/` stays empty. Only `--ver`
-and `--init` exist. See [todo.md](todo.md).
+`bob publish` reads the current `module.toml`, packages it as `manifest.toml`
+alongside `src/`, and sends it to the Bob registry. The registry server, private
+Supabase Storage layout, version metadata schema, API, and setup steps are in
+[`../Server/README.md`](../Server/README.md).
+
+Set `BOB_REGISTRY_URL` and `BOB_PUBLISH_TOKEN` in the publishing environment.
+The token is sent only to the registry over HTTPS (HTTP is accepted for local
+development); never put it in `module.toml`.
+
+Bob does not yet download or install dependencies. `bob/packages/` remains
+empty until the download and dependency-resolution work in [todo.md](todo.md)
+is implemented.
+
+## Published module archive
+
+The upload contains only `manifest.toml` and files under `src/`:
+
+```text
+my-module-1.0.0.zip
+├── manifest.toml
+└── src/
+    └── main.lynx
+```
+
+The archive manifest has the same `[module]` metadata as `module.toml`:
+`name`, semantic `version`, and a `.lynx` `entry` under `src/`. The server
+rejects path traversal, symbolic links, mismatched names or versions, and
+archives at or above 10 MB. A `(name, version)` release cannot be replaced; the
+registry computes and reports its SHA-256 checksum.
 
 ## Build
 
@@ -76,9 +103,10 @@ Bob/target/release/bob --ver
 
 ## Platforms
 
-Bob is pure Rust standard library, with no dependencies, so it builds and runs
-on Linux, macOS and Windows. The project-relative paths it prints always use
-`/`, so `bob --init` reads the same everywhere.
+Bob is implemented in Rust and builds for Linux, macOS and Windows. Its
+registry-publishing support uses Rust dependencies for TOML/ZIP handling and
+HTTPS requests. The project-relative paths printed by `bob --init` always use
+`/`, so the scaffold reads the same everywhere.
 
 On Windows, build and test it from an MSYS2 or Git Bash shell, which provides the
 POSIX tools the `Makefile` uses:

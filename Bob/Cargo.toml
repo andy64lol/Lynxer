@@ -9,6 +9,11 @@ publish = false
 name = "bob"
 path = "src/main.rs"
 
-# No dependencies yet: `--ver` and `--init` are pure std, so bob builds offline
-# while it has no registry to talk to.
 [dependencies]
+semver = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+ureq = { version = "3", default-features = false, features = ["rustls"] }
+url = "2"
+zip = { version = "2.4", default-features = false, features = ["deflate"] }

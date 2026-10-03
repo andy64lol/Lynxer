@@ -2,8 +2,10 @@
 //!
 //! Named after the bobcat, a species of lynx. bob is deliberately **separate**
 //! from the Lynxer interpreter for now: it carries its own version and only
-//! knows which Lynxer version it supports. There is no package registry yet, so
-//! the only commands are `--ver` and `--init`.
+//! knows which Lynxer version it supports. It can scaffold projects and publish
+//! reusable modules to a configured Bob registry.
+
+mod package;
 
 use std::env;
 use std::fs;
@@ -18,8 +20,8 @@ const BOB_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// build so the two cannot drift.
 const SUPPORTED_LYNXER_VERSION: &str = "0.1.8.2";
 
-/// The project-relative directory that holds the manifest, the lock file and,
-/// once a registry exists, the downloaded packages.
+/// The project-relative directory that holds the manifest, lock file and,
+/// once installation is implemented, the downloaded packages.
 const BOB_DIRECTORY: &str = "bob";
 const MANIFEST_FILE: &str = "bob.toml";
 const LOCK_FILE: &str = "bob-lock.toml";
@@ -43,6 +45,7 @@ fn main() -> ExitCode {
             ExitCode::SUCCESS
         }
         Some("--init") => init(&arguments[1..]),
+        Some("publish") => publish(&arguments[1..]),
         Some(other) => {
             eprintln!("bob: unknown option '{other}'");
             eprintln!();
@@ -61,11 +64,33 @@ fn print_usage() {
     println!();
     println!("Usage:");
     println!("  bob --ver              Print the bob version and the Lynxer version it supports");
-    println!("  bob --init             Create bob/bob.toml and bob/bob-lock.toml in this directory");
+    println!(
+        "  bob --init             Create bob/bob.toml and bob/bob-lock.toml in this directory"
+    );
     println!("  bob --init --module    Create module.toml and src/main.lynx in this directory");
+    println!("  bob publish            Package and upload this module to the configured registry");
     println!("  bob --help             Show this help");
     println!();
-    println!("There is no package registry yet, so bob cannot fetch dependencies.");
+    println!("Publishing requires BOB_REGISTRY_URL and BOB_PUBLISH_TOKEN.");
+    println!("Dependency download and installation are not implemented yet.");
+}
+
+fn publish(rest: &[String]) -> ExitCode {
+    if !rest.is_empty() {
+        eprintln!("bob: 'publish' does not take arguments");
+        eprintln!("bob: usage: bob publish");
+        return ExitCode::FAILURE;
+    }
+    match package::publish_current_module() {
+        Ok(message) => {
+            println!("{message}");
+            ExitCode::SUCCESS
+        }
+        Err(error) => {
+            eprintln!("bob: {error}");
+            ExitCode::FAILURE
+        }
+    }
 }
 
 fn print_versions() {
@@ -124,7 +149,10 @@ fn init_module() -> ExitCode {
     }
 
     if let Err(error) = fs::create_dir_all(&source_directory) {
-        eprintln!("bob: cannot create '{}': {error}", source_directory.display());
+        eprintln!(
+            "bob: cannot create '{}': {error}",
+            source_directory.display()
+        );
         return ExitCode::FAILURE;
     }
     if let Err(error) = fs::write(&manifest, module_manifest_contents(&name)) {
@@ -217,8 +245,8 @@ fn manifest_contents(name: &str) -> String {
          version = \"0.1.0\"\n\
          edition = \"2026\"\n\
          \n\
-         # Lynxer packages are installed under bob/packages/ once a registry\n\
-         # exists. There is no registry yet, so this stays empty for now.\n\
+         # Lynxer packages will be installed under bob/packages/ once package\n\
+         # download and installation are implemented.\n\
          [dependencies]\n"
     )
 }
@@ -232,8 +260,8 @@ version = "0.1.0"
 edition = "2026"
 entry = "src/main.lynx"
 
-# Module dependencies are installed under bob/packages/ once a registry exists.
-# There is no registry yet, so this stays empty for now.
+# Module dependencies will be installed under bob/packages/ once package
+# download and installation are implemented.
 [dependencies]
 "#;
 
