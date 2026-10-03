@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <meta name="theme-color" content="#4a90e2">
+    <title>Windows API access - Lynxer</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<header>
+    <div class="header-content">
+        <h1><a href="../index.html">Lynxer</a></h1>
+        <p>Documentation</p>
+    </div>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3 class="sidebar-group-title">Overview</h3><ul class="sidebar-group">
+<li><a href="index.html">README</a></li>
+</ul>
+<h3 class="sidebar-group-title">Getting started</h3><ul class="sidebar-group">
+<li><a href="install.html">install</a></li>
+<li><a href="CLI.html">CLI</a></li>
+</ul>
+<h3 class="sidebar-group-title">Language</h3><ul class="sidebar-group">
+<li><a href="language.html">language</a></li>
+<li><a href="functions.html">functions</a></li>
+<li><a href="macros.html">macros</a></li>
+<li><a href="operators.html">operators</a></li>
+<li><a href="conditionals.html">conditionals</a></li>
+<li><a href="loops.html">loops</a></li>
+<li><a href="types.html">types</a></li>
+<li><a href="lists.html">lists</a></li>
+<li><a href="tuples.html">tuples</a></li>
+<li><a href="codeblocks.html">codeblocks</a></li>
+<li><a href="modules.html">modules</a></li>
+<li><a href="importAs.html">importAs</a></li>
+</ul>
+<h3 class="sidebar-group-title">Records</h3><ul class="sidebar-group">
+<li><a href="structs.html">structs</a></li>
+<li><a href="classes.html">classes</a></li>
+<li><a href="enums.html">enums</a></li>
+<li><a href="vargroups.html">vargroups</a></li>
+</ul>
+<h3 class="sidebar-group-title">Built-ins and modules</h3><ul class="sidebar-group">
+<li><a href="builtins.html">builtins</a></li>
+<li><a href="syscalls.html">syscalls</a></li>
+<li><a href="native-module-abi.html">native-module-abi</a></li>
+<li><a href="native-modules.html">native-modules</a></li>
+<li><a href="stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="extending.html">extending</a></li>
+</ul>
+<h3 class="sidebar-group-title">Runtime</h3><ul class="sidebar-group">
+<li><a href="async.html">async</a></li>
+<li><a href="native-memory.html">native-memory</a></li>
+<li><a href="filesystem.html">filesystem</a></li>
+<li><a href="networking.html">networking</a></li>
+<li><a href="process.html">process</a></li>
+</ul>
+<h3 class="sidebar-group-title">Reference</h3><ul class="sidebar-group">
+<li><a href="legacy-surface.html">legacy-surface</a></li>
+<li><a href="removed-features.html">removed-features</a></li>
+<li><a href="limitations.html">limitations</a></li>
+</ul>
+<h3 class="sidebar-group-title">Standard Library</h3><ul class="sidebar-group">
+<li><a href="stdlib/index.html">All modules</a></li>
+<li><a href="stdlib/cli.html">cli</a></li>
+<li><a href="stdlib/colorlib.html">colorlib</a></li>
+<li><a href="stdlib/compress.html">compress</a></li>
+<li><a href="stdlib/crypto.html">crypto</a></li>
+<li><a href="stdlib/csv.html">csv</a></li>
+<li><a href="stdlib/debug.html">debug</a></li>
+<li><a href="stdlib/encoding.html">encoding</a></li>
+<li><a href="stdlib/fileIO.html">fileIO</a></li>
+<li><a href="stdlib/game.html">game</a></li>
+<li><a href="stdlib/graphics.html">graphics</a></li>
+<li><a href="stdlib/image.html">image</a></li>
+<li><a href="stdlib/ini.html">ini</a></li>
+<li><a href="stdlib/js.html">js</a></li>
+<li><a href="stdlib/json.html">json</a></li>
+<li><a href="stdlib/lua.html">lua</a></li>
+<li><a href="stdlib/math.html">math</a></li>
+<li><a href="stdlib/multiprocessing.html">multiprocessing</a></li>
+<li><a href="stdlib/network.html">network</a></li>
+<li><a href="stdlib/os.html">os</a></li>
+<li><a href="stdlib/path.html">path</a></li>
+<li><a href="stdlib/random.html">random</a></li>
+<li><a href="stdlib/re.html">re</a></li>
+<li><a href="stdlib/regex.html">regex</a></li>
+<li><a href="stdlib/server.html">server</a></li>
+<li><a href="stdlib/shell.html">shell</a></li>
+<li><a href="stdlib/sound.html">sound</a></li>
+<li><a href="stdlib/sqldb.html">sqldb</a></li>
+<li><a href="stdlib/sys.html">sys</a></li>
+<li><a href="stdlib/text.html">text</a></li>
+<li><a href="stdlib/time.html">time</a></li>
+<li><a href="stdlib/toml.html">toml</a></li>
+<li><a href="stdlib/tui.html">tui</a></li>
+<li><a href="stdlib/turtle.html">turtle</a></li>
+<li><a href="stdlib/typing.html">typing</a></li>
+<li><a href="stdlib/uuid.html">uuid</a></li>
+<li><a href="stdlib/watch.html">watch</a></li>
+<li><a href="stdlib/xml.html">xml</a></li>
+<li><a href="stdlib/yaml.html">yaml</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+        <div class="breadcrumb">
+            <a href="../index.html">Home</a>
+            <a href="../docs/stdlib/index.html">Standard Library</a>
+            <span>Windows API access</span>
+        </div>
+        <div class="search-bar" data-search-index="../search-index.json" data-site-root="../">
+            <label class="visually-hidden" for="docs-search">Search documentation</label>
+            <input id="docs-search" type="search" placeholder="Search documentation..." aria-label="Search documentation" autocomplete="off">
+            <div class="search-results" aria-live="polite"></div>
+        </div>
+<h1 id="windows-api-access">Windows API access</h1>
+<p>On Windows, Lynxer calls the Win32 API through the built-in <code>winAPI.*</code> surface. It is <strong>not a module</strong> — there is no <code>import</code> — and it is gated by the same <code>syscalls(...)</code> target selector the named Linux syscalls use:</p>
+<pre><code>global setup(){ syscalls(&quot;winAPI&quot;, &quot;amd64&quot;); }
+
+global main(){
+    println(winAPI.getProcessId());
+    println(winAPI.getComputerName());
+    println(winAPI.getCurrentDirectory());
+}</code></pre>
+<p>Every call is <code>kernel32</code>, so nothing extra has to be installed or linked.</p>
+<h2 id="selecting-the-target">Selecting the target</h2>
+<p><code>syscalls(&quot;&lt;os&gt;&quot;, &quot;&lt;arch&gt;&quot;)</code> must run before any <code>winAPI.*</code> call.</p>
+<table>
+<tr><th>Keyword</th><th>Kind</th><th>Selects</th></tr>
+<tr><td><code>winAPI</code>, <code>windows</code>, <code>win32</code></td><td>operating system</td><td>the Win32 surface</td></tr>
+<tr><td><code>amd64</code>, <code>x86-64</code></td><td>architecture</td><td>x86-64</td></tr>
+<tr><td><code>arm64</code>, <code>aarch64</code></td><td>architecture</td><td>AArch64</td></tr>
+</table>
+<ul>
+<li>Both keywords must name the <strong>host</strong>. On Linux, <code>syscalls(&quot;winAPI&quot;, &quot;amd64&quot;)</code> fails with <code>syscalls(&quot;winAPI&quot;) selects Windows, but this machine is Linux</code>; on a host that is neither Linux nor Windows the selector reports that it is unavailable.</li>
+<li>Matching is case-insensitive, so <code>syscalls(sys.platform(), sys.architecture())</code> asserts the host — <code>platform()</code> returns <code>win32</code> on Windows.</li>
+<li>Calling <code>winAPI.*</code> before the selection is an error: <code>winAPI calls are not available yet; call syscalls(&quot;winAPI&quot;, &quot;&lt;arch&gt;&quot;) first</code>. A call after selecting a different target is an error too.</li>
+<li>The namespace prefix is matched case-insensitively, so <code>winAPI.getProcessId()</code> and <code>winapi.getProcessId()</code> are the same call. A misspelled function reports the closest match, e.g. <code>unknown winAPI function &#x27;getProcesId&#x27;. You meant: getProcessId?</code>.</li>
+</ul>
+<h2 id="conventions">Conventions</h2>
+<ul>
+<li>Failures use the standard-library <strong>scalar sentinels</strong>: <code>-1</code> for a handle, a size, a position, a byte count or a free-space figure; <code>false</code> for a predicate; <code>&quot;&quot;</code> for a failed read. <code>winAPI.getLastError()</code> returns the Win32 error code for the most recent call.</li>
+<li>A <strong>handle is an integer</strong>. Everything it refers to must be released with <code>winAPI.closeHandle()</code>.</li>
+<li>Wrong argument types are source-located errors, e.g. <code>winAPI.readFile() failed: expects an integer handle and length</code>.</li>
+<li>Text is UTF-8 at the Lynxer boundary; the <code>*W</code> calls are used internally.</li>
+</ul>
+<h2 id="system-information">System information</h2>
+<table>
+<tr><th>Function</th><th>Returns</th></tr>
+<tr><td><code>winAPI.getProcessId()</code></td><td>the current process id</td></tr>
+<tr><td><code>winAPI.getCurrentDirectory()</code></td><td>the current directory</td></tr>
+<tr><td><code>winAPI.getComputerName()</code></td><td>the computer name</td></tr>
+<tr><td><code>winAPI.getTempPath()</code></td><td>the temporary directory (with a trailing separator)</td></tr>
+<tr><td><code>winAPI.getSystemDirectory()</code></td><td>the system directory</td></tr>
+<tr><td><code>winAPI.getWindowsDirectory()</code></td><td>the Windows directory</td></tr>
+<tr><td><code>winAPI.getModuleFileName()</code></td><td>the running executable's full path</td></tr>
+<tr><td><code>winAPI.getTickCount()</code></td><td>milliseconds since the system started</td></tr>
+<tr><td><code>winAPI.getLastError()</code></td><td>the last Win32 error code</td></tr>
+<tr><td><code>winAPI.getDiskFreeBytes(path)</code></td><td>free bytes on the volume, or <code>-1</code></td></tr>
+<tr><td><code>winAPI.sleep(milliseconds)</code></td><td>—</td></tr>
+<tr><td><code>winAPI.beep(frequency, duration)</code></td><td>whether it played</td></tr>
+<tr><td><code>winAPI.outputDebugString(text)</code></td><td>— (goes to the debugger)</td></tr>
+</table>
+<h2 id="environment">Environment</h2>
+<table>
+<tr><th>Function</th><th>Returns</th></tr>
+<tr><td><code>winAPI.getEnvironmentVariable(name)</code></td><td>the variable's value, or <code>&quot;&quot;</code> when unset</td></tr>
+<tr><td><code>winAPI.setEnvironmentVariable(name, value)</code></td><td>whether it was set</td></tr>
+<tr><td><code>winAPI.expandEnvironmentStrings(text)</code></td><td><code>text</code> with <code>%VAR%</code> expanded</td></tr>
+</table>
+<h2 id="files-and-handles">Files and handles</h2>
+<table>
+<tr><th>Function</th><th>Returns</th></tr>
+<tr><td><code>winAPI.createFile(path, mode)</code></td><td>a handle, or <code>-1</code></td></tr>
+<tr><td><code>winAPI.readFile(handle, length)</code></td><td>up to <code>length</code> bytes, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>winAPI.writeFile(handle, text)</code></td><td>bytes written, or <code>-1</code></td></tr>
+<tr><td><code>winAPI.closeHandle(handle)</code></td><td>whether it closed</td></tr>
+<tr><td><code>winAPI.fileSize(handle)</code></td><td>size in bytes, or <code>-1</code></td></tr>
+<tr><td><code>winAPI.seekFile(handle, offset)</code></td><td>the new absolute position, or <code>-1</code></td></tr>
+<tr><td><code>winAPI.deleteFile(path)</code></td><td>whether it was removed</td></tr>
+<tr><td><code>winAPI.copyFile(source, destination, overwrite)</code></td><td>whether it was copied</td></tr>
+<tr><td><code>winAPI.moveFile(source, destination)</code></td><td>whether it was moved</td></tr>
+<tr><td><code>winAPI.createDirectory(path)</code></td><td>whether it was created</td></tr>
+<tr><td><code>winAPI.removeDirectory(path)</code></td><td>whether it was removed</td></tr>
+</table>
+<p><code>mode</code> is <code>&quot;read&quot;</code> (<code>OPEN_EXISTING</code>), <code>&quot;write&quot;</code> (<code>CREATE_ALWAYS</code>, truncated), <code>&quot;append&quot;</code> (<code>OPEN_ALWAYS</code>, seek to end) or <code>&quot;readwrite&quot;</code> (<code>OPEN_ALWAYS</code>). <code>seekFile</code> positions absolutely from the start of the file.</p>
+<pre><code>global setup(){ syscalls(&quot;winAPI&quot;, &quot;amd64&quot;); }
+
+global main(){
+    str path = winAPI.getTempPath() + &quot;demo.txt&quot;;
+
+    int file = winAPI.createFile(path, &quot;write&quot;);
+    if (file &lt; 0) {
+        println(&quot;cannot create: &quot; + winAPI.getLastError());
+        return;
+    }
+    winAPI.writeFile(file, &quot;hello&quot;);
+    winAPI.closeHandle(file);
+
+    int reader = winAPI.createFile(path, &quot;read&quot;);
+    println(winAPI.fileSize(reader));
+    println(winAPI.readFile(reader, 64));
+    winAPI.closeHandle(reader);
+    winAPI.deleteFile(path);
+}</code></pre>
+<h2 id="the-long-tail">The long tail</h2>
+<p>Anything not in the tables above — other DLLs, <code>user32</code>, <code>advapi32</code>, the <code>*A</code>/<code>*W</code> pairs, structs, <code>HANDLE</code>-typed parameters — is reachable through the FFI built-ins (<a href="native-modules.html">native-modules</a>). On 64-bit Windows the Win32 calling convention is the one <code>cdecl:</code> describes, so a Win32 call looks like any other:</p>
+<pre><code>global setup(){ syscalls(&quot;winAPI&quot;, &quot;amd64&quot;); }
+
+global main(){
+    int user32 = ffiLoadLibrary(&quot;user32.dll&quot;);
+    functionAddress box = ffiLookup(user32, &quot;MessageBoxA&quot;);
+    ffiCall(box, &quot;cdecl:int32(int64,cstring,cstring,int32)&quot;,
+            [int 0, str &quot;hello&quot;, str &quot;lynxer&quot;, int 0]);
+    ffiCloseLibrary(user32);
+}</code></pre>
+<p>A curated wrapper over that — more DLLs and first-class <code>HANDLE</code> values — is tracked in <a href="https://github.com/andy64lol/Lynxer/blob/main/todo.md">../todo</a>.</p>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="syscalls.html">syscalls</a> — the target selector and the named Linux syscalls</li>
+<li><a href="windows.html">windows</a> — the Windows port status and what it excludes</li>
+<li><a href="native-modules.html">native-modules</a> — <code>ffiLoadLibrary</code>/<code>ffiLookup</code>/<code>ffiCall</code></li>
+</ul>
+    </main>
+</div>
+
+<footer>
+    <a class="github" href="https://github.com/andy64lol/Lynxer" aria-label="Lynxer on GitHub" title="Lynxer on GitHub"><svg role="img" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" /></svg></a>
+    <span>Lynxer &middot; MIT License</span>
+</footer>
+
+<script src="../search.js" defer></script>
+</body>
+</html>

@@ -105,10 +105,12 @@ today through `ffiLoadLibrary`/`ffiLookup`/`ffiCall` with a `cdecl:` signature
 later.
 
 The namespace prefix is matched case-insensitively, an unknown function reports
-the closest match, and a `winAPI.*` call made before the selection (or after
-selecting another target) is a source-located error. Win32 handles, `*W`/`*A`
+        the closest match, and a `winAPI.*` call made before the selection (or after
+        selecting another target) is a source-located error. Win32 handles, `*W`/`*A`
 pairs and struct layouts are not exposed yet; see
-[windows.md](windows.md) and the tracker in [../todo.md](../todo.md).
+        [windows.md](windows.md) and the tracker in [../todo.md](../todo.md).
+        
+        For a complete reference, see [windows-api.md](windows-api.md).
 
 ## Calling convention
 

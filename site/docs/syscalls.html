@@ -189,6 +189,7 @@ global main(){
 </table>
 <p>Everything here is <code>kernel32</code>, so no extra import library is needed. The long tail — other DLLs, <code>user32</code>, <code>advapi32</code>, <code>*A</code>/<code>*W</code> pairs, structs — is reachable today through <code>ffiLoadLibrary</code>/<code>ffiLookup</code>/<code>ffiCall</code> with a <code>cdecl:</code> signature (see <a href="native-modules.html">native-modules</a>); a curated wrapper for it may come later.</p>
 <p>The namespace prefix is matched case-insensitively, an unknown function reports the closest match, and a <code>winAPI.*</code> call made before the selection (or after selecting another target) is a source-located error. Win32 handles, <code>*W</code>/<code>*A</code> pairs and struct layouts are not exposed yet; see <a href="windows.html">windows</a> and the tracker in <a href="https://github.com/andy64lol/Lynxer/blob/main/todo.md">../todo</a>.</p>
+<p>For a complete reference, see <a href="windows-api.html">windows-api</a>.</p>
 <h2 id="calling-convention">Calling convention</h2>
 <ul>
 <li>Arguments are positional <strong>integers</strong>, zero to six of them.</li>

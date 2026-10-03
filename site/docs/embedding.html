@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <meta name="theme-color" content="#4a90e2">
+    <title>Embedding and exporting to a C ABI - Lynxer</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<header>
+    <div class="header-content">
+        <h1><a href="../index.html">Lynxer</a></h1>
+        <p>Documentation</p>
+    </div>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3 class="sidebar-group-title">Overview</h3><ul class="sidebar-group">
+<li><a href="index.html">README</a></li>
+</ul>
+<h3 class="sidebar-group-title">Getting started</h3><ul class="sidebar-group">
+<li><a href="install.html">install</a></li>
+<li><a href="CLI.html">CLI</a></li>
+</ul>
+<h3 class="sidebar-group-title">Language</h3><ul class="sidebar-group">
+<li><a href="language.html">language</a></li>
+<li><a href="functions.html">functions</a></li>
+<li><a href="macros.html">macros</a></li>
+<li><a href="operators.html">operators</a></li>
+<li><a href="conditionals.html">conditionals</a></li>
+<li><a href="loops.html">loops</a></li>
+<li><a href="types.html">types</a></li>
+<li><a href="lists.html">lists</a></li>
+<li><a href="tuples.html">tuples</a></li>
+<li><a href="codeblocks.html">codeblocks</a></li>
+<li><a href="modules.html">modules</a></li>
+<li><a href="importAs.html">importAs</a></li>
+</ul>
+<h3 class="sidebar-group-title">Records</h3><ul class="sidebar-group">
+<li><a href="structs.html">structs</a></li>
+<li><a href="classes.html">classes</a></li>
+<li><a href="enums.html">enums</a></li>
+<li><a href="vargroups.html">vargroups</a></li>
+</ul>
+<h3 class="sidebar-group-title">Built-ins and modules</h3><ul class="sidebar-group">
+<li><a href="builtins.html">builtins</a></li>
+<li><a href="syscalls.html">syscalls</a></li>
+<li><a href="native-module-abi.html">native-module-abi</a></li>
+<li><a href="native-modules.html">native-modules</a></li>
+<li><a href="stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="extending.html">extending</a></li>
+</ul>
+<h3 class="sidebar-group-title">Runtime</h3><ul class="sidebar-group">
+<li><a href="async.html">async</a></li>
+<li><a href="native-memory.html">native-memory</a></li>
+<li><a href="filesystem.html">filesystem</a></li>
+<li><a href="networking.html">networking</a></li>
+<li><a href="process.html">process</a></li>
+</ul>
+<h3 class="sidebar-group-title">Reference</h3><ul class="sidebar-group">
+<li><a href="legacy-surface.html">legacy-surface</a></li>
+<li><a href="removed-features.html">removed-features</a></li>
+<li><a href="limitations.html">limitations</a></li>
+</ul>
+<h3 class="sidebar-group-title">Standard Library</h3><ul class="sidebar-group">
+<li><a href="stdlib/index.html">All modules</a></li>
+<li><a href="stdlib/cli.html">cli</a></li>
+<li><a href="stdlib/colorlib.html">colorlib</a></li>
+<li><a href="stdlib/compress.html">compress</a></li>
+<li><a href="stdlib/crypto.html">crypto</a></li>
+<li><a href="stdlib/csv.html">csv</a></li>
+<li><a href="stdlib/debug.html">debug</a></li>
+<li><a href="stdlib/encoding.html">encoding</a></li>
+<li><a href="stdlib/fileIO.html">fileIO</a></li>
+<li><a href="stdlib/game.html">game</a></li>
+<li><a href="stdlib/graphics.html">graphics</a></li>
+<li><a href="stdlib/image.html">image</a></li>
+<li><a href="stdlib/ini.html">ini</a></li>
+<li><a href="stdlib/js.html">js</a></li>
+<li><a href="stdlib/json.html">json</a></li>
+<li><a href="stdlib/lua.html">lua</a></li>
+<li><a href="stdlib/math.html">math</a></li>
+<li><a href="stdlib/multiprocessing.html">multiprocessing</a></li>
+<li><a href="stdlib/network.html">network</a></li>
+<li><a href="stdlib/os.html">os</a></li>
+<li><a href="stdlib/path.html">path</a></li>
+<li><a href="stdlib/random.html">random</a></li>
+<li><a href="stdlib/re.html">re</a></li>
+<li><a href="stdlib/regex.html">regex</a></li>
+<li><a href="stdlib/server.html">server</a></li>
+<li><a href="stdlib/shell.html">shell</a></li>
+<li><a href="stdlib/sound.html">sound</a></li>
+<li><a href="stdlib/sqldb.html">sqldb</a></li>
+<li><a href="stdlib/sys.html">sys</a></li>
+<li><a href="stdlib/text.html">text</a></li>
+<li><a href="stdlib/time.html">time</a></li>
+<li><a href="stdlib/toml.html">toml</a></li>
+<li><a href="stdlib/tui.html">tui</a></li>
+<li><a href="stdlib/turtle.html">turtle</a></li>
+<li><a href="stdlib/typing.html">typing</a></li>
+<li><a href="stdlib/uuid.html">uuid</a></li>
+<li><a href="stdlib/watch.html">watch</a></li>
+<li><a href="stdlib/xml.html">xml</a></li>
+<li><a href="stdlib/yaml.html">yaml</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+        <div class="breadcrumb">
+            <a href="../index.html">Home</a>
+            <a href="../docs/stdlib/index.html">Standard Library</a>
+            <span>Embedding and exporting to a C ABI</span>
+        </div>
+        <div class="search-bar" data-search-index="../search-index.json" data-site-root="../">
+            <label class="visually-hidden" for="docs-search">Search documentation</label>
+            <input id="docs-search" type="search" placeholder="Search documentation..." aria-label="Search documentation" autocomplete="off">
+            <div class="search-results" aria-live="polite"></div>
+        </div>
+<h1 id="embedding-and-exporting-to-a-c-abi">Embedding and exporting to a C ABI</h1>
+<p>Lynxer can build a shared library that exposes a program's functions as <strong>real C symbols</strong>, so any language that can link or <code>dlopen</code> a <code>.so</code> — C, C++, Python <code>ctypes</code>, … — can call Lynxer code. This is the reverse of the <a href="native-module-abi.html">native-module ABI</a>: there, Lynxer calls C; here C calls Lynxer.</p>
+<h2 id="declaring-exports">Declaring exports</h2>
+<p>An exported function is declared at the top level with a quoted C signature:</p>
+<pre><code>global setup(){ /* optional; runs at library init */ }
+
+export &quot;cdecl:int64(int64,int64)&quot; add(int a, int b) -&gt; int { return a + b; }
+export &quot;cdecl:double(double)&quot;     scale(float x)  -&gt; float { return x * 2.0; }
+export &quot;cdecl:cstring(cstring)&quot;   greet(str who)   -&gt; str   { return &quot;hi &quot; + who; }
+export &quot;cdecl:bytes(bytes)&quot;       echo(bytes b)    -&gt; bytes { return b; }
+export &quot;cdecl:void(int64)&quot;        sink(int n)      -&gt; none  { println(n); }</code></pre>
+<ul>
+<li><code>export &quot;&lt;signature&gt;&quot; name(params) -&gt; type { ... }</code> at the top level; <code>main()</code> is neither required nor run (a library is not a program).</li>
+<li><code>setup()</code> is optional. If present it must stay the first declaration and runs once, before the first exported call; it may call exports by name.</li>
+<li>The exported C symbol is exactly the Lynxer function name. Avoid names that collide with libc or with another loaded library (<code>read</code>, <code>open</code>, <code>main</code>, …).</li>
+<li>The signature string uses the same <code>cdecl:</code> grammar as native modules, with the same aliases: <code>int8/16/32/64</code>, <code>uint8/16/32/64</code>, <code>uintptr</code> are all <code>int64</code>; <code>double</code> is <code>float64</code>.</li>
+</ul>
+<h2 id="the-c-abi">The C ABI</h2>
+<table>
+<tr><th>Signature token</th><th>C type</th></tr>
+<tr><td><code>int64</code></td><td><code>int64_t</code></td></tr>
+<tr><td><code>float64</code></td><td><code>double</code></td></tr>
+<tr><td><code>cstring</code></td><td><code>const char*</code></td></tr>
+<tr><td><code>bytes</code> argument</td><td><code>const uint8_t* data, int64_t length</code></td></tr>
+<tr><td><code>bytes</code> return</td><td><code>const uint8_t*</code> to <code>[int64 little-endian length][payload]</code></td></tr>
+<tr><td><code>void</code> return</td><td><code>void</code></td></tr>
+</table>
+<p><code>cstring</code> and <code>bytes</code> results are valid only until the next exported call on the same thread; copy them if you need to keep them. On failure the wrapper returns <code>0</code> / <code>0.0</code> / <code>&quot;&quot;</code> / <code>nullptr</code>; the reason is available from <code>lynxer_embed_last_error()</code>.</p>
+<p>The Lynxer parameter and return types must be compatible with the signature: <code>int64</code>↔<code>int</code>-family, <code>float64</code>↔<code>float</code>/<code>num</code>, <code>cstring</code>↔<code>str</code>, <code>bytes</code>↔<code>bytes</code>, <code>void</code>↔omitted/<code>none</code>. Rejected at build time: defaults, codeblock parameters, <code>value</code>, packed (<code>...</code>) signatures, <code>v2:</code> prefixes, and arity or type mismatches.</p>
+<h2 id="building-the-library">Building the library</h2>
+<pre><code>lynxer --emit-library app.lynx -o libapp.so
+lynxer --emit-library app.lynx --include helpers.lynx -o libapp.so</code></pre>
+<table>
+<tr><th>Flag</th><th>Effect</th></tr>
+<tr><td><code>--emit-library &lt;a.lynx&gt;</code></td><td>build a <code>.so</code> exporting the program's <code>export</code>s</td></tr>
+<tr><td><code>--include &lt;file&gt;</code></td><td>embed an extra module, native library or data file</td></tr>
+<tr><td><code>-o &lt;path&gt;</code></td><td>name the output library (default: the input stem + <code>.so</code>)</td></tr>
+<tr><td><code>--runtime &lt;liblynxer.so&gt;</code></td><td>use an explicit embedding runtime</td></tr>
+<tr><td><code>--cc &lt;compiler&gt;</code></td><td>C++ compiler used to build the library</td></tr>
+</table>
+<p><code>--emit-library</code> needs a C++ compiler and the embedding runtime <code>liblynxer.so</code> (installed next to the interpreter, or passed with <code>--runtime</code>). The generated library links <code>liblynxer.so</code> and records an <code>rpath</code> to it plus <code>$ORIGIN</code>; set <code>LD_LIBRARY_PATH</code> only if you move the runtime.</p>
+<p>Alongside the library it writes a header with the exported prototypes: <code>libapp.so</code> produces <code>libapp.h</code>, a self-contained header declaring each exported function in <code>extern &quot;C&quot;</code> (it includes only <code>&lt;stdint.h&gt;</code>; include <code>lynxer.h</code> too if you need the embedding wire types). Consumers include that one header instead of declaring the prototypes by hand:</p>
+<pre><code>lynxer --emit-library app.lynx -o libapp.so
+# libapp.so and libapp.h
+c++ -I. -I&lt;dir-with-lynxer.h&gt; client.cpp libapp.so -o client</code></pre>
+<p>The library initializes the embedded program lazily, on the first exported call. A program can be embedded once per process; a second initialization is refused because the interpreter keeps process-global state.</p>
+<h2 id="staging-the-sdk">Staging the SDK</h2>
+<p><code>make sdk</code> (also run by <code>make buildLynxer</code>) stages the pieces a consumer needs under <code>lynxer/build/sdk/</code>:</p>
+<pre><code>lynxer/build/sdk/include/lynxer.h     the public C ABI
+lynxer/build/sdk/include/ffi_abi.h    the wire types
+lynxer/build/sdk/lib/liblynxer.so     the embedding runtime</code></pre>
+<h2 id="lynxer-must-be-built">Lynxer must be built</h2>
+<p><code>export</code> is a build feature: it only takes effect through a library produced by <code>--emit-library</code>, not when the file is run directly. Running <code>lynxer app.lynx</code> executes <code>main()</code> and never exposes the exports.</p>
+<p>Building the library requires the <strong>compiled</strong> interpreter and its runtime:</p>
+<pre><code>make buildLynxer      # builds lynxer/lynxer and lynxer/liblynxer.so</code></pre>
+<p>If <code>liblynxer.so</code> is missing (an unbuilt tree, or a binary installed without it), <code>--emit-library</code> fails with <code>build Lynxer first with make buildLynxer</code>, rather than a confusing compiler error. <code>make buildLynxer</code> is therefore a prerequisite for this feature; the interpreter alone is not enough.</p>
+<p>The emitted library is <strong>self-contained</strong>: it embeds the program archive (the source and every module it imports), so at run time it needs neither the original <code>.lynx</code> file nor the <code>lynxer</code> executable — only <code>liblynxer.so</code>, which carries the compiled interpreter. The test fixture builds from a temporary copy of the source, deletes it, and then runs the C++ and Python consumers from <code>/tmp</code> to prove this.</p>
+<h2 id="calling-from-c">Calling from C</h2>
+<pre><code>#include &quot;libapp.h&quot;   /* generated next to libapp.so */
+/* bytes return: read the 8-byte little-endian length prefix first */</code></pre>
+<h2 id="calling-from-python">Calling from Python</h2>
+<pre><code>import ctypes
+lib = ctypes.CDLL(&quot;./libapp.so&quot;)
+lib.add.restype = ctypes.c_int64
+lib.add.argtypes = [ctypes.c_int64, ctypes.c_int64]
+print(lib.add(2, 3))  # 5</code></pre>
+<p>See <code>lynxer/examples/export_basic.lynx</code>, <code>export_test.cpp</code> and <code>export_test.py</code> for a complete, tested example.</p>
+<h2 id="notes-and-limits">Notes and limits</h2>
+<ul>
+<li>POSIX only, matching the native-module policy.</li>
+<li>One embedded program per process (<code>liblynxer.so</code> is the interpreter core).</li>
+<li>A library does not run <code>main()</code>; put initialization in <code>setup()</code>.</li>
+<li><code>value</code>/v2 aggregate exports, packed exports, <code>as &lt;cname&gt;</code> renaming, and self-contained (statically linked) libraries are not supported yet.</li>
+</ul>
+    </main>
+</div>
+
+<footer>
+    <a class="github" href="https://github.com/andy64lol/Lynxer" aria-label="Lynxer on GitHub" title="Lynxer on GitHub"><svg role="img" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" /></svg></a>
+    <span>Lynxer &middot; MIT License</span>
+</footer>
+
+<script src="../search.js" defer></script>
+</body>
+</html>
