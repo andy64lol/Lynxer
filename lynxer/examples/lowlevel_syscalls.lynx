@@ -11,7 +11,7 @@ The `__ARCH__` token is replaced with the host's syscall architecture (`amd64`
 or `arm64`) before the fixture runs, so one source serves both targets.
 ////
 
-global setup() { syscalls("__ARCH__"); }
+global setup() { syscalls("__OS__", "__ARCH__"); }
 
 global main() {
     println("yield ", __ARCH__.syscallYieldProcessor());

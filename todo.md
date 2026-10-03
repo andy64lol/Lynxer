@@ -124,28 +124,33 @@ assume a POSIX/Linux host. This plan stages a port; the Linux-only syscall
 surface stays a documented boundary in
 [removed-features.md](docs/removed-features.md), not a Windows gap.
 
-- [ ] **Build system and toolchain.** Add a Windows build path (MSVC or
-  clang-cl plus the existing `cargo` backends) producing `lynxer.exe` and
-  `lynxer.dll`; replace the POSIX-only compile/link flags (`-fPIC`,
-  `-ftls-model=global-dynamic`, ELF version scripts) with their Windows
-  equivalents (`.def`/`/EXPORT:`, `__declspec`).
+- [ ] **Build system and toolchain.** The `Makefile` detects the host
+  (`LYNXER_HOST_OS`/`LYNXER_ON_WINDOWS`), builds `lynxer.exe`, drops the
+  POSIX-only flags and supplies the Rust staticlib's native imports; the MSYS2
+  MinGW-w64 and CLANGARM64 paths build and test green. Still to do: a
+  `lynxer.dll` embedding runtime, a native MSVC/clang-cl path, and the
+  `.def`/`__declspec` export definitions.
 - [x] **Portable host layer.** Added `lynxer/platform.hpp`/`platform.cpp`,
   which centralizes the running-executable path, dynamic loading, subprocess
   spawn, temporary directories, the executable bit and the install link, with
   POSIX and `_WIN32` implementations; the core calls it, and `.dll` is
   recognized as a native library. Linux behavior is unchanged. Process-group
   termination and path-separator normalization remain.
-- [ ] **Native-module ABI on Windows.** Load `.dll` modules with the same
-  `lynxer_module_init_v1` entry point and `cdecl:` grammar, exporting symbols
-  with `__declspec(dllexport)`/`.def`; keep the signature and host-API ABI
-  identical so existing modules recompile unchanged.
+- [x] **Native-module ABI on Windows.** `.dll` (and `.so`-named) modules load
+  through `platform::openLibrary` with the same `lynxer_module_init_v1` entry
+  point and `cdecl:` grammar, and the MinGW-w64/CLANGARM64 toolchains export the
+  symbols by default: `examples/native_signatures.cpp` builds and its fixture
+  passes on Windows. The `.def`/`__declspec` exports and the 32-bit `__stdcall`
+  convention ride with the MSVC path in the toolchain item.
 - [ ] **Embedding and `--emit-library`.** Build the runtime as `lynxer.dll`,
   emit `.dll` plus the generated header, and use a Windows export definition
   instead of the ELF version script; resolve the runtime through the DLL search
-  path rather than an `rpath`.
-- [ ] **`--compile` bundling.** Append the bundle payload to a PE image and
-  locate the running module with `GetModuleFileNameW`; keep the existing
-  materialize-to-temp-dir behavior for embedded modules and assets.
+  path rather than an `rpath`. Until then `--emit-library` fails cleanly on
+  Windows instead of emitting ELF-only link flags.
+- [x] **`--compile` bundling.** The payload is appended to the running image and
+  read back through `platform::executablePath()` (`GetModuleFileNameW`), keeping
+  the materialize-to-temp-dir behavior for embedded modules and assets; the
+  compiled-executable parity loop passes on Windows.
 - [ ] **Stdlib platform matrix.** Portable as-is: `json`, `toml`, `yaml`,
   `ini`, `xml`, `regex`, `text`, `math`, `csv`, `random`, `time`, `fileIO`,
   `shell`, …. Needs a Windows backend: `watch` (`ReadDirectoryChangesW`),
@@ -159,10 +164,11 @@ surface stays a documented boundary in
 - [ ] **Windows API access (Win32, not syscalls).** Windows exposes no stable
   per-call syscall numbers to programs; its supported interface is the Win32
   API surface in DLLs (`kernel32`, `advapi32`, `user32`, `bcrypt`, `ntdll`,
-  …). The named-syscall surface (`syscalls("<arch>")` plus `amd64.syscallX` /
-  `arm64.syscallX`, see [syscalls.md](docs/syscalls.md)) was designed for
-  portable syscall numbers and raw ABI calls, so it does not fit Windows and
-  may be reworked. Decide how Lynxer programs reach Windows APIs instead:
+  …). The named-syscall surface (`syscalls("<os>", "<arch>")` plus
+  `amd64.syscallX` / `arm64.syscallX`, see [syscalls.md](docs/syscalls.md)) is
+  target-gated and still Linux-only: it names an operating system now, so
+  selecting `"Windows"` is refused on a Linux host. Decide how Lynxer programs
+  reach Windows APIs instead:
   - Start from what already works — `ffiLoadLibrary`/`ffiLookup`/`ffiCall`
     ([native-modules.md](docs/native-modules.md)) and the native-module ABI.
   - Choose the surface: a curated `windows` stdlib module with typed wrappers
@@ -175,21 +181,24 @@ surface stays a documented boundary in
     `HANDLE`/`HWND`/`SOCKET` handles; `BOOL` results with a separate
     `GetLastError` code; and struct layout/packing for the `*W`-style calls.
   - Keep the Linux syscall surface a Linux-only boundary: do not emulate
-    syscall numbers on Windows. Revisit whether the `syscalls("<arch>")`
-    namespace shape should change now that a non-syscall platform is in scope.
-- [ ] **Windows terminal behavior.** Enable virtual-terminal processing for
-  `tui`/`graphics` output and cover TTY and redirected runs the way the Linux
-  fixtures do.
-- [ ] **Tests and CI.** An experimental, allowed-to-fail `windows-latest` job
-  now attempts the build and test on both architectures:
+    syscall numbers on Windows. The selector now takes the operating system as
+    well as the architecture; revisit whether the `amd64.syscallX` namespace
+    should gain the OS segment too.
+- [x] **Windows terminal behavior.** `platform::enableVirtualTerminal()` switches
+  the console to `ENABLE_VIRTUAL_TERMINAL_PROCESSING` at startup, so `tui` and
+  `graphics` escape sequences render. Redirection is unaffected: the console-mode
+  call is skipped when the stream is not a console.
+- [x] **Tests and CI.** Both Windows jobs are required (no
+  `continue-on-error`):
   [.github/workflows/build-lynxer-windows-amd.yml](.github/workflows/build-lynxer-windows-amd.yml)
   (MSYS2 MINGW64) and
   [.github/workflows/build-lynxer-windows-arm.yml](.github/workflows/build-lynxer-windows-arm.yml)
-  (MSYS2 CLANGARM64). Make them required jobs, skip the Linux-only fixtures
-  (`syscall*`, `lowlevel_*`) explicitly, and document every skipped case.
-- [ ] **Documentation.** Update `install.md`, `CLI.md`, `README.md` and the
-  platform notes for the Windows build, and record the syscall surface as an
-  explicit Linux-only boundary.
+  (MSYS2 CLANGARM64). Every skipped module and fixture is listed in
+  [docs/windows.md](docs/windows.md), and Bob has its own four workflows.
+- [x] **Documentation.** `docs/windows.md` records the port, its exclusions and
+  the skipped test groups; `install.md` and `CLI.md` carry the Windows install
+  notes; `README.md` links the Windows workflows; and the syscall surface is
+  documented as Linux-only and target-gated by operating system.
 
 ## Planning rule
 

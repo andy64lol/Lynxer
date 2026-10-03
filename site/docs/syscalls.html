@@ -119,25 +119,26 @@
             <div class="search-results" aria-live="polite"></div>
         </div>
 <h1 id="named-syscalls">Named syscalls</h1>
-<p>Lynxer exposes one named built-in per Linux syscall. They are <strong>raw ABI calls</strong>: argument layouts, flags, structures and pointer lifetimes are the caller's responsibility. Every wrapper is <strong>architecture-gated</strong> and reached through the architecture's namespace.</p>
-<pre><code>global setup(){ syscalls(&quot;amd64&quot;); }
+<p>Lynxer exposes one named built-in per Linux syscall. They are <strong>raw ABI calls</strong>: argument layouts, flags, structures and pointer lifetimes are the caller's responsibility. Every wrapper is <strong>target-gated</strong> and reached through the architecture's namespace.</p>
+<pre><code>global setup(){ syscalls(&quot;Linux&quot;, &quot;amd64&quot;); }
 
 global main(){
     println(amd64.syscallGetProcessId());
     println(amd64.syscallYieldProcessor());
 }</code></pre>
-<h2 id="selecting-an-architecture">Selecting an architecture</h2>
-<p><code>syscalls(&quot;&lt;keyword&gt;&quot;)</code> must run before any syscall call; it declares which architecture the program targets.</p>
+<h2 id="selecting-an-operating-system-and-architecture">Selecting an operating system and architecture</h2>
+<p><code>syscalls(&quot;&lt;os&gt;&quot;, &quot;&lt;arch&gt;&quot;)</code> must run before any syscall call; it declares which operating system and architecture the program targets.</p>
 <table>
-<tr><th>Keyword</th><th>Selects</th></tr>
-<tr><td><code>amd64</code>, <code>x86-64</code></td><td>x86-64</td></tr>
-<tr><td><code>arm64</code>, <code>aarch64</code></td><td>AArch64</td></tr>
+<tr><th>Keyword</th><th>Kind</th><th>Selects</th></tr>
+<tr><td><code>Linux</code></td><td>operating system</td><td>Linux, the only host with named syscalls</td></tr>
+<tr><td><code>amd64</code>, <code>x86-64</code></td><td>architecture</td><td>x86-64</td></tr>
+<tr><td><code>arm64</code>, <code>aarch64</code></td><td>architecture</td><td>AArch64</td></tr>
 </table>
 <ul>
-<li>The keyword must name the <strong>host</strong> machine. <code>syscalls(&quot;arm64&quot;)</code> on an amd64 machine is an error, not a cross-architecture dispatch.</li>
-<li>Only <strong>one architecture at a time</strong> may be selected; re-selecting the same one is a no-op, a different one is an error.</li>
+<li>Both keywords must name the <strong>host</strong>. <code>syscalls(&quot;Linux&quot;, &quot;arm64&quot;)</code> on an amd64 machine is an error, not a cross-target dispatch, and so is <code>syscalls(&quot;Linux&quot;, &quot;amd64&quot;)</code> on a non-Linux host.</li>
+<li>Matching is <strong>case-insensitive</strong>, and <code>Windows</code>/<code>win32</code> and <code>macOS</code>/<code>darwin</code> are recognised operating systems so the error is specific — but no host can select them today: named syscalls require a Linux runtime. This is what lets <code>syscalls(global.sys.platform(), global.sys.architecture())</code> assert the host (see <a href="stdlib/sys.html">stdlib/sys</a>).</li>
+<li>Only <strong>one target at a time</strong> may be selected; re-selecting the same one is a no-op, a different one is an error.</li>
 <li>A misspelled keyword or namespace prefix reports the closest match, e.g. <code>unknown syscall architecture &#x27;amd6&#x27;. You meant: amd64?</code>.</li>
-<li><code>global.sys.architecture()</code> (see <a href="stdlib/sys.html">stdlib/sys</a>) returns the keyword for this machine, so <code>syscalls(global.sys.architecture())</code> makes a program assert it is running on the architecture its call prefixes assume.</li>
 <li>The former flat <code>syscallRead(...)</code> spelling is gone; it fails with a pointer to the namespaced form.</li>
 </ul>
 <p>Calls then use the matching namespace — <code>amd64.syscallRead(...)</code> or <code>arm64.syscallRead(...)</code>. A call through the wrong namespace is an error.</p>

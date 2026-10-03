@@ -88,6 +88,26 @@ std::string quoteArgument(const std::string& argument) {
 
 } // namespace
 
+void enableVirtualTerminal() {
+#if defined(_WIN32)
+    const DWORD streams[] = {STD_OUTPUT_HANDLE, STD_ERROR_HANDLE};
+    for (const DWORD which : streams) {
+        const HANDLE stream = ::GetStdHandle(which);
+        if (stream == nullptr || stream == INVALID_HANDLE_VALUE) {
+            continue;
+        }
+        DWORD mode = 0;
+        // Fails when the stream is redirected rather than a console, which is
+        // fine: there is nothing to switch on.
+        if (::GetConsoleMode(stream, &mode) == 0) {
+            continue;
+        }
+        ::SetConsoleMode(stream, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING |
+                                     DISABLE_NEWLINE_AUTO_RETURN);
+    }
+#endif
+}
+
 void configureStandardStreams() {
 #if defined(_WIN32)
     // Text mode translates every `\n` written to stdout/stderr into `\r\n`.
@@ -95,6 +115,7 @@ void configureStandardStreams() {
     // comparisons (and any text processing) depend on it, so write LF.
     ::_setmode(::_fileno(stdout), _O_BINARY);
     ::_setmode(::_fileno(stderr), _O_BINARY);
+    enableVirtualTerminal();
 #endif
 }
 

@@ -309,26 +309,29 @@ crashes. 64-bit writes preserve the full signed and unsigned range (see
 
 ## Syscalls
 
-Named syscalls are **architecture-gated**. A program first declares the
-architecture it targets, then reaches every syscall through that architecture's
-namespace:
+Named syscalls are **target-gated**. A program first declares the operating
+system and architecture it targets, then reaches every syscall through that
+architecture's namespace:
 
 ```lynx
-global setup(){ syscalls("amd64"); }
+global setup(){ syscalls("Linux", "amd64"); }
 
 global main(){
     amd64.syscallRead(fd, buffer, 16);
 }
 ```
 
-`syscalls(...)` accepts `amd64` / `x86-64` and `arm64` / `aarch64`. The keyword
-must name the machine the program runs on, and only one architecture can be
-selected at a time: a different architecture, a second architecture, or a
-syscall call before `syscalls(...)` is a source-located error. An unknown
-keyword or namespace prefix reports the closest match, e.g.
-`unknown syscall architecture 'amd6'. You meant: amd64?`. The old flat
-`syscallRead(...)` spelling is gone; it fails with a pointer to the namespaced
-form. `global.sys.architecture()` returns the keyword to pass here.
+`syscalls(...)` takes an operating system and an architecture. The OS is
+`Linux` (case-insensitive; `Windows` and `macOS` are recognised but no host can
+select them while named syscalls require Linux), and the architecture is
+`amd64` / `x86-64` or `arm64` / `aarch64`. Both must name the machine the
+program runs on, and only one target can be selected at a time: a different
+target, a second target, or a syscall call before `syscalls(...)` is a
+source-located error. An unknown keyword or namespace prefix reports the closest
+match, e.g. `unknown syscall architecture 'amd6'. You meant: amd64?`. The old
+flat `syscallRead(...)` spelling is gone; it fails with a pointer to the
+namespaced form. `syscalls(global.sys.platform(), global.sys.architecture())`
+asserts the host.
 
 Syscall calls take integer arguments only (at most six).
 `syscallPollFileDescriptors` takes three arguments;

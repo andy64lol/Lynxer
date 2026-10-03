@@ -123,7 +123,7 @@
 <p><strong>Backend:</strong> native — <code>stdlib/toml.so</code>, built from the Rust crate <code>rust/toml</code> over <code>toml</code>.</p>
 <p><strong>Import:</strong> <code>import(&quot;toml&quot;)</code> → <code>global.toml.*</code></p>
 <h2 id="how-documents-travel">How documents travel</h2>
-<p>A TOML document crosses the module ABI as a <strong>JSON string</strong>, the shared structured-value bridge (see <a href="../native-module-abi.html">native-module-abi</a>). Pass the JSON to <code>jsonParse</code> or <code>jsonGet</code> to read it as Lynxer values, and build a JSON object to serialize back to TOML. A TOML datetime becomes a JSON string.</p>
+<p>A TOML document crosses the module ABI as a <strong>JSON string</strong>, the shared structured-value bridge (see <a href="../native-module-abi.html">native-module-abi</a>). Pass the JSON to <code>jsonParse</code> or <code>jsonGet</code> to read it as Lynxer values, and build a JSON object to serialize back to TOML. TOML datetimes use a tagged JSON object (<code>{&quot;$lynxer.toml.datetime&quot;:&quot;1979-05-27&quot;}</code> for a date) so parse/serialize round-trips preserve their TOML datetime type rather than turning them into quoted strings. The tag is reserved: a one-field object with a valid TOML datetime value under that key serializes as a TOML datetime. JSON null still cannot be represented in TOML.</p>
 <p>A failure is a scalar sentinel: a document operation yields <code>&quot;&quot;</code> and <code>tomlValid</code> yields <code>false</code>. A JSON value TOML cannot hold (a top-level non-table, or a <code>null</code>) makes <code>tomlSerialize</code> answer <code>&quot;&quot;</code>.</p>
 <h2 id="functions">Functions</h2>
 <table>
@@ -143,7 +143,7 @@ global main(){
     println(global.toml.tomlParse(text));
     println(global.toml.tomlGet(text, &quot;server.host&quot;));
 
-    // Build a document from JSON.
+    // Build a document from JSON, including tagged TOML datetimes.
     println(global.toml.tomlSerialize(&quot;{\&quot;answer\&quot;:42,\&quot;name\&quot;:\&quot;lynxer\&quot;}&quot;));
 }</code></pre>
 <hr>

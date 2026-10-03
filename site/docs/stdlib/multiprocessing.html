@@ -121,7 +121,7 @@
 <h1 id="multiprocessing">multiprocessing</h1>
 <p>Run shell commands in parallel.</p>
 <p><strong>Backend:</strong> native + pure — <code>stdlib/multiprocessing.so</code> (<code>stdlib/multiprocessing.cpp</code>) runs the commands; <code>stdlib/multiprocessing.lynx</code> reads the results back into Lynxer lists. <strong>Import:</strong> <code>import(&quot;multiprocessing&quot;)</code> → <code>global.multiprocessing.*</code></p>
-<p>Commands run in worker threads, each spawning its own shell subprocess. Results are always returned in input order, whatever order they finish in. A command's <code>stderr</code> is captured into its output, and a command that outlives the timeout (<code>LYNXER_MP_TIMEOUT</code> seconds, default <code>300</code>, <code>0</code> for no limit) is killed and reports exit code <code>124</code>.</p>
+<p>Commands run in worker threads, each spawning its own shell subprocess. Results are always returned in input order, whatever order they finish in. A command's <code>stderr</code> is captured into its output, and a command that outlives the timeout (<code>LYNXER_MP_TIMEOUT</code> seconds, default <code>300</code>, <code>0</code> for no limit) is killed and reports exit code <code>124</code>. The timeout kills the complete process group, not only the shell wrapper. Captured stdout and stderr are concatenated in their original pipe order.</p>
 <table>
 <tr><th>Function</th><th>Signature</th><th>Returns</th></tr>
 <tr><td><code>workerCount</code></td><td><code>() -&gt; int</code></td><td>Number of online CPUs, at least <code>1</code></td></tr>
@@ -130,8 +130,10 @@
 <tr><td><code>runParallelProcess</code></td><td><code>(list commands) -&gt; list</code></td><td>Alias of <code>runParallel</code></td></tr>
 <tr><td><code>mapShell</code></td><td><code>(str template, list items) -&gt; list</code></td><td>Replaces the first <code>{}</code> in <code>template</code> with each item, runs in parallel, returns stdout per item</td></tr>
 <tr><td><code>threadMap</code></td><td><code>(str template, list items) -&gt; list</code></td><td>Alias of <code>mapShell</code></td></tr>
+<tr><td><code>runParallelHandle</code></td><td><code>(list commands) -&gt; int</code></td><td>Low-level result handle for output/code queries</td></tr>
 </table>
-<p>Results are collected through a native handle registry rather than a joined string, because command output can contain any character. The wrappers release each handle automatically.</p>
+<p><code>resultCount(handle)</code>, <code>resultAt(handle, index)</code>, and <code>codeAt(handle, index)</code> read one handle. <code>release(handle)</code> frees it and returns <code>true</code>; subsequent queries return <code>0</code>, <code>&quot;&quot;</code>, or <code>-1</code>. The list-returning convenience functions release their handles automatically.</p>
+<p>Results are collected through a native handle registry rather than a joined string, because command output can contain any character. The wrappers release each handle automatically. Native callers that use the handle operations directly must call <code>release(handle)</code>; result queries on released or unknown handles return their invalid-handle sentinels.</p>
 <h2 id="example">Example</h2>
 <pre><code>global setup(){ import(&quot;multiprocessing&quot;); }
 

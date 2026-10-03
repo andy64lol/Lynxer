@@ -8,7 +8,7 @@ Every printed value is a property, so the expected output in
 arm64Syscalls.expected is stable.
 ////
 
-global setup() { syscalls("arm64"); }
+global setup() { syscalls("Linux", "arm64"); }
 
 global main() {
     println("== pipe ==");

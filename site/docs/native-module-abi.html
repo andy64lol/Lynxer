@@ -222,12 +222,22 @@ const char* function(const double* nums, int64_t num_count,
     void *context;
     int (*invoke)(void *context, const char *name, int has_arg, double arg);
     int (*interrupted)(void *context);
+    const char *(*program_args)(void *context);
+    int (*blocking)(void *context, void (*body)(void *user), void *user);
+    int (*request_exit)(void *context, int64_t code);
+    int (*invoke_threadsafe)(void *context, const char *name, int has_arg,
+                             double arg);
 } LynxerHostApi;</code></pre>
 <ul>
 <li><code>invoke</code> runs the Lynxer function <code>name</code> with no argument or one numeric argument, and returns <code>0</code> on success.</li>
+<li><code>invoke_threadsafe</code> does the same after acquiring the interpreter lock. Use it only from native worker threads; callbacks already on the interpreter thread use <code>invoke</code>.</li>
 <li><code>interrupted</code> returns non-zero once the process has received SIGINT.</li>
+<li><code>program_args</code> returns a thread-local JSON array of process arguments.</li>
+<li><code>blocking</code> releases the interpreter lock while running a native blocking operation, then reacquires it.</li>
+<li><code>request_exit</code> requests orderly shutdown with the supplied process status.</li>
 </ul>
 <p>The <code>context</code> pointer is opaque to the module. <code>invoke</code> resolves against the top-level program, so frame callbacks registered by a module imported from a source wrapper still reach the program's own functions. This entry point is optional; modules that do not export it behave as before.</p>
+<p>Modules that need <code>invoke_threadsafe</code> use the separate <code>lynxer_module_attach_v2(const LynxerHostApiV2 *)</code> symbol. The v2 struct repeats the v1 fields and appends the thread-safe callback, and the interpreter negotiates it independently so neither an old module nor an old host reads beyond the struct size it supports.</p>
 <h2 id="data-conventions">Data conventions</h2>
 <p>The ABI has one aggregate carrier — <code>bytes</code> — so modules follow these conventions.</p>
 <p><strong>Booleans</strong> are <code>int64</code> <code>0</code>/<code>1</code>; the <code>.lynx</code> wrapper converts with <code>!= 0</code>.</p>
@@ -296,6 +306,8 @@ global main(){
 <p>An additive change must not alter how existing shapes or signatures behave.</p>
 <h2 id="platform-support">Platform support</h2>
 <p>Native modules require a POSIX host. On other platforms every <code>.so</code> import fails with <code>native modules are only supported on POSIX hosts</code>.</p>
+<h2 id="the-reverse-direction-exporting-lynxer-functions">The reverse direction: exporting Lynxer functions</h2>
+<p>The mirror of this ABI lets a Lynxer program expose functions to C instead of calling C. A program declares <code>export &quot;cdecl:&lt;ret&gt;(&lt;args&gt;)&quot; name(...) { ... }</code> and <code>lynxer --emit-library</code> builds a <code>.so</code> whose typed <code>extern &quot;C&quot;</code> wrappers marshall through the embedding C API in <code>lynxer/lynxer.h</code> (<code>lynxer_embed_init</code> / <code>lynxer_embed_call</code> / <code>lynxer_embed_last_error</code>). It reuses the same <code>LynxerFfiArg</code>/<code>LynxerFfiResult</code> wire types and the same <code>cdecl:</code> signature grammar and aliases described above. See <a href="embedding.html">embedding</a> for the syntax, the C type mapping and the build flags.</p>
     </main>
 </div>
 

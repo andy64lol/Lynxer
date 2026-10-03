@@ -34,9 +34,6 @@ jobs:
       - name: Build Lynxer for ARM64
         run: make buildLynxerArm64
 
-      - name: Build and self-check Bob
-        run: make -C Bob test
-
       - name: Test Lynxer ARM64 binary
         run: make testLynxer LYNXER_SKIP_DISPLAY=1
       - name: Run the ARM64 syscall fixture

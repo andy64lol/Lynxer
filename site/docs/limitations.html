@@ -120,40 +120,7 @@
         </div>
 <h1 id="planned-implementation-gaps">Planned implementation gaps</h1>
 <p>This page summarizes known gaps that are intended to be addressed. Each entry has an implementation task in <a href="https://github.com/andy64lol/Lynxer/blob/main/todo.md">todo</a>. Intentional product boundaries, removed features and compatibility decisions are documented in <a href="removed-features.html">removed-features</a>.</p>
-<h2 id="graphics-and-game"><code>graphics</code> and <code>game</code></h2>
-<ul>
-<li>Context-dependent graphics operations may fail outside the frame callback instead of being queued or reporting one consistent error.</li>
-<li>The headless <code>uiWindowBegin</code> / <code>uiGroupBegin</code> layout supports one block level; nested groups are rejected.</li>
-<li>Game tilemaps read CSV layer data from the first tileset. Physics supports axis-aligned player boxes, walls, slopes and one-way platforms, but not rotation-aware collision or moving-platform carry.</li>
-<li>Game sound state is estimated from decoded duration rather than queried from the audio backend.</li>
-</ul>
-<h2 id="server"><code>server</code></h2>
-<ul>
-<li>Request-context readers such as <code>getArg</code>, <code>getHeader</code> and <code>getBody</code> describe the most recent request rather than the request currently being served.</li>
-<li>Templates lack inheritance, macros, includes and auto-escaping; unknown template keys render as an empty string.</li>
-<li>HTTPS certificate/key mismatch is detected only when a client connects.</li>
-</ul>
-<h2 id="native-modules">Native modules</h2>
-<ul>
-<li><code>compress</code> does not enable bzip2 or encrypted ZIP support; zstd builds vendored C sources and needs a C compiler.</li>
-<li><code>crypto</code> supports a fixed set of digest names and Ed25519 signatures only; conventional digest aliases are not all accepted.</li>
-<li>The kqueue <code>watch</code> backend reports the registered path rather than individual changed entries where the OS does not expose them, and is not covered by CI.</li>
-<li>TOML, INI, XML and YAML use a JSON document bridge. TOML datetimes become strings, and YAML mappings with non-string keys cannot be represented.</li>
-<li><code>regex</code> and <code>re</code> report byte offsets; callers needing Unicode character positions have no corresponding API.</li>
-<li>Text case conversion and <code>typing.isAlpha</code> / <code>isDigit</code> are ASCII-only.</li>
-<li><code>path</code> supports only UTF-8, Latin-1 and ASCII text encodings. The remaining system-information backends are not implemented on every POSIX target.</li>
-<li><code>js</code> requires Node.js on <code>PATH</code>; subprocess timeout, stderr and result-handle behavior need consistent cross-module tests.</li>
-<li>Timestamped debug log output has no deterministic fixture coverage.</li>
-<li>The TUI prints snapshots instead of animating live displays, and <code>printException</code> cannot show the original exception context.</li>
-<li>Image operations use inconsistent return/value representations; grayscale alpha, metadata formatting and format detection need compatibility coverage.</li>
-<li>SQLite BLOBs are rendered as base64 in JSON, and scalar/query result conventions need a documented, lossless value representation.</li>
-<li>Lua error output preserves engine diagnostics, but does not expose stable structured error classifications.</li>
-</ul>
-<h2 id="test-and-compatibility-coverage">Test and compatibility coverage</h2>
-<ul>
-<li>JSON and CSV edge cases lack one explicit compatibility contract and round-trip suite: non-finite numbers, key order, line endings, non-string values and ragged rows.</li>
-<li>The regex engines need cross-module tests for Unicode offsets, capture and replacement behavior, and malformed patterns.</li>
-</ul>
+<p>There are no open planned implementation gaps at this time. The native-module and test/coverage entries that were tracked here have been implemented; see the <strong>Native modules</strong> section of <a href="https://github.com/andy64lol/Lynxer/blob/main/todo.md">todo</a> for the completed work.</p>
     </main>
 </div>
 

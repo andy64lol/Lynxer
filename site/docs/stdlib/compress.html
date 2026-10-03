@@ -119,8 +119,8 @@
             <div class="search-results" aria-live="polite"></div>
         </div>
 <h1 id="compress">compress</h1>
-<p>gzip, zlib, zstd, brotli and lz4 streams, plus ZIP and TAR archives.</p>
-<p><strong>Backend:</strong> native — <code>stdlib/compress.so</code>, built from the Rust crate <code>rust/compress</code> over <code>flate2</code>, <code>zstd</code>, <code>brotli</code>, <code>lz4_flex</code>, <code>zip</code> and <code>tar</code>.</p>
+<p>gzip, zlib, zstd, bzip2, brotli and lz4 streams, plus ZIP and TAR archives.</p>
+<p><strong>Backend:</strong> native — <code>stdlib/compress.so</code>, built from the Rust crate <code>rust/compress</code> over <code>flate2</code>, <code>zstd</code>, <code>bzip2</code>, <code>brotli</code>, <code>lz4_flex</code>, <code>zip</code> and <code>tar</code>.</p>
 <p><strong>Import:</strong> <code>import(&quot;compress&quot;)</code> → <code>global.compress.*</code></p>
 <h2 id="how-bytes-travel">How bytes travel</h2>
 <p>An in-memory <strong><code>&lt;codec&gt;Compress</code></strong> takes <code>bytes</code> and returns <code>bytes</code>, and its <strong><code>&lt;codec&gt;Decompress</code></strong> does the same, so a payload that is not valid UTF-8 is representable. The <strong><code>*File</code></strong> operations work on paths and read and write the bytes themselves.</p>
@@ -128,7 +128,7 @@
 <h2 id="sentinels">Sentinels</h2>
 <p>The in-memory stream operations use an empty <code>bytes</code> sentinel: a malformed payload or an unknown stream yields an empty <code>bytes</code>. The file and archive operations answer with the status string <code>&quot;ok&quot;</code> / <code>&quot;ERROR: &lt;message&gt;&quot;</code>, because they can fail with a reason.</p>
 <h2 id="archives">Archives</h2>
-<p><code>zipCreate</code>, <code>tarCreate</code> and <code>tarGzCreate</code> take a JSON <strong>manifest</strong>: an array of entries, each <code>{&quot;name&quot;: &quot;&lt;path in archive&gt;&quot;, &quot;path&quot;: &quot;&lt;source file&gt;&quot;}</code> or <code>{&quot;name&quot;: &quot;...&quot;, &quot;base64&quot;: &quot;&lt;inline data&gt;&quot;}</code>. A name that is absolute or contains <code>..</code> is rejected when the archive is written.</p>
+<p><code>zipCreate</code>, <code>tarCreate</code> and <code>tarGzCreate</code> take a JSON <strong>manifest</strong>: an array of entries, each <code>{&quot;name&quot;: &quot;&lt;path in archive&gt;&quot;, &quot;path&quot;: &quot;&lt;source file&gt;&quot;}</code> or <code>{&quot;name&quot;: &quot;...&quot;, &quot;base64&quot;: &quot;&lt;inline data&gt;&quot;}</code>. Entries may also specify <code>&quot;password&quot;: &quot;...&quot;</code> to enable AES-128 encryption for that file. A name that is absolute or contains <code>..</code> is rejected when the archive is written.</p>
 <p><code>zipExtract</code> and <code>tarExtract</code> extract into a directory and refuse any entry whose name would escape it.</p>
 <h2 id="functions">Functions</h2>
 <table>
@@ -139,12 +139,15 @@
 <tr><td><code>gzipDecompressFile</code></td><td><code>(str input, str output)</code></td><td><code>&quot;ok&quot;</code> / <code>&quot;ERROR: ...&quot;</code></td></tr>
 <tr><td><code>zlibCompress</code> / <code>zlibDecompress</code> / <code>zlibCompressFile</code> / <code>zlibDecompressFile</code></td><td>as gzip</td><td>as gzip</td></tr>
 <tr><td><code>zstdCompress</code> / <code>zstdDecompress</code> / <code>zstdCompressFile</code> / <code>zstdDecompressFile</code></td><td>as gzip</td><td>as gzip</td></tr>
+<tr><td><code>bzip2Compress</code> / <code>bzip2Decompress</code> / <code>bzip2CompressFile</code> / <code>bzip2DecompressFile</code></td><td>as gzip</td><td>as gzip</td></tr>
 <tr><td><code>brotliCompress</code> / <code>brotliDecompress</code> / <code>brotliCompressFile</code> / <code>brotliDecompressFile</code></td><td>as gzip</td><td>as gzip</td></tr>
 <tr><td><code>lz4Compress</code> / <code>lz4Decompress</code> / <code>lz4CompressFile</code> / <code>lz4DecompressFile</code></td><td>as gzip</td><td>as gzip</td></tr>
 <tr><td><code>zipCreate</code></td><td><code>(str path, str manifest)</code></td><td><code>&quot;ok&quot;</code> / <code>&quot;ERROR: ...&quot;</code></td></tr>
 <tr><td><code>zipList</code></td><td><code>(str path)</code></td><td>JSON array of entry names, or <code>&quot;ERROR: ...&quot;</code></td></tr>
 <tr><td><code>zipRead</code></td><td><code>(str path, str entry)</code></td><td>the entry's bytes, or empty when absent</td></tr>
+<tr><td><code>zipReadWithPassword</code></td><td><code>(str path, str entry, str password)</code></td><td>the decrypted entry's bytes, or empty when absent or wrong</td></tr>
 <tr><td><code>zipExtract</code></td><td><code>(str path, str directory)</code></td><td><code>&quot;ok&quot;</code> / <code>&quot;ERROR: ...&quot;</code></td></tr>
+<tr><td><code>zipExtractWithPassword</code></td><td><code>(str path, str directory, str password)</code></td><td><code>&quot;ok&quot;</code> / <code>&quot;ERROR: ...&quot;</code></td></tr>
 <tr><td><code>tarCreate</code></td><td><code>(str path, str manifest)</code></td><td><code>&quot;ok&quot;</code> / <code>&quot;ERROR: ...&quot;</code></td></tr>
 <tr><td><code>tarList</code></td><td><code>(str path)</code></td><td>JSON array of entry names, or <code>&quot;ERROR: ...&quot;</code></td></tr>
 <tr><td><code>tarExtract</code></td><td><code>(str path, str directory)</code></td><td><code>&quot;ok&quot;</code> / <code>&quot;ERROR: ...&quot;</code></td></tr>
@@ -167,6 +170,10 @@ global main(){
     println(global.compress.zstdCompressFile(&quot;data.txt&quot;, &quot;data.zst&quot;));
     println(global.compress.zstdDecompressFile(&quot;data.zst&quot;, &quot;data.out&quot;));
     println(global.fileIO.readFile(&quot;data.out&quot;) is text);
+
+    // BZIP2 is supported too, when the dependency is compiled in.
+    bytes bzipPack = global.compress.bzip2Compress(bytesOf(text));
+    println(bytesToStr(global.compress.bzip2Decompress(bzipPack)) is text);
 
     // Build a ZIP containing a file and an inline entry.
     str manifest = &quot;[{\&quot;name\&quot;:\&quot;a.txt\&quot;,\&quot;path\&quot;:\&quot;data.txt\&quot;},{\&quot;name\&quot;:\&quot;b.txt\&quot;,\&quot;base64\&quot;:\&quot;aGVsbG8=\&quot;}]&quot;;

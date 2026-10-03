@@ -173,6 +173,8 @@ global main(){
 <li><a href="../builtins.html">builtins</a> — the functions the interpreter implements itself.</li>
 <li><a href="../limitations.html">limitations</a> — the full divergence register.</li>
 </ul>
+<h1 id="deterministic-log-tests">Deterministic log tests</h1>
+<p>The native backend accepts <code>LYNXER_DEBUG_TEST_EPOCH</code> (Unix seconds, rendered in UTC) and <code>LYNXER_DEBUG_TEST_CLOCK_MS</code> (milliseconds) as test clock overrides. They are unset by default; production logging and timers use the system wall clock and monotonic clock respectively.</p>
     </main>
 </div>
 

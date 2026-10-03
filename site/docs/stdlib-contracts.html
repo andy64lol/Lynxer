@@ -166,7 +166,7 @@
 <tr><td>Error string</td><td><code>&quot;Error: &lt;message&gt;&quot;</code></td><td><code>js</code>, <code>lua</code>, <code>tui</code></td></tr>
 <tr><td>Catchable runtime error</td><td>Raises a <code>SourceError</code> caught by <code>try</code>/<code>catch</code></td><td><code>sqldb</code> string-returning operations</td></tr>
 </table>
-<p><code>csv</code> mixes the first two: its table-returning operations answer with the status string (<code>&quot;ok&quot;</code> / <code>&quot;ERROR: ...&quot;</code>), and the rest use scalar sentinels. <code>compress</code> mixes them too: its in-memory stream operations use scalar sentinels (<code>&quot;&quot;</code>), while its file and archive operations answer with the status string. <code>sqldb</code> translates its native backend's internal error string into a catchable runtime error in the Lynxer wrapper; integer and boolean operations keep their documented sentinels. <code>colorlib</code>, <code>text</code> and <code>typing</code> are pure Lynxer and have no native boundary to report across.</p>
+<p><code>csv</code> mixes the first two: its table-returning operations answer with the status string (<code>&quot;ok&quot;</code> / <code>&quot;ERROR: ...&quot;</code>), and the rest use scalar sentinels. <code>compress</code> mixes them too: its in-memory stream operations use scalar sentinels (<code>&quot;&quot;</code>), while its file and archive operations answer with the status string. <code>sqldb</code> translates its native backend's internal error string into a catchable runtime error in the Lynxer wrapper; integer and boolean operations keep their documented sentinels. <code>colorlib</code> and <code>typing</code> are pure Lynxer and have no native boundary to report across.</p>
 <p>Operations returning a JSON document return <code>[]</code> or <code>{}</code> for an empty result and an error string for a failure — never an exception. <code>jsonParse</code> on malformed input yields the <strong>empty string</strong> (<code>&quot;&quot;</code>), not <code>[]</code>; test the result for <code>&quot;&quot;</code>.</p>
 <p>A failure sentinel is a result, not a diagnostic: a program checks it and decides what to do. No bundled module aborts the process, and none panics across the C boundary (Rust backends wrap every operation in a panic guard that yields the module's sentinel).</p>
 <h3 id="callbacks">Callbacks</h3>
@@ -220,7 +220,7 @@
 <tr><td><code>sound</code></td><td>Rust</td><td><strong>integer handles</strong> into a backend registry</td><td>caller: <code>releaseSound(handle)</code></td></tr>
 <tr><td><code>sqldb</code></td><td>Rust</td><td><strong>integer handles</strong> from <code>open()</code>; the <code>*On</code> forms reuse one connection</td><td>caller: <code>close(handle)</code> (the path forms open and close per call)</td></tr>
 <tr><td><code>sys</code></td><td>C++</td><td>none</td><td>none</td></tr>
-<tr><td><code>text</code></td><td>pure Lynxer</td><td>none</td><td>none</td></tr>
+<tr><td><code>text</code></td><td>Rust + Lynxer</td><td>string/integer</td><td>empty string / false</td></tr>
 <tr><td><code>time</code></td><td>C++</td><td>none</td><td>none</td></tr>
 <tr><td><code>toml</code></td><td>Rust</td><td>none — documents are strings</td><td>none</td></tr>
 <tr><td><code>tui</code></td><td>Rust</td><td><strong>integer handles</strong> into backend registries (tables, trees, layouts, progress, status, live)</td><td>none (registries live for the run)</td></tr>

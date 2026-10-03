@@ -140,6 +140,10 @@ first** (`make buildLynxer`); the feature is unavailable from an unbuilt tree
 and fails with `build Lynxer first` when the runtime is missing. The emitted
 library embeds the program and needs only `liblynxer.so` at run time.
 
+On Windows the embedding runtime is not built yet, so `--emit-library` fails
+with `exporting to a shared library is not supported on Windows yet` instead of
+a linker error. See [windows.md](windows.md).
+
 ```bash
 lynxer --emit-library app.lynx -o libapp.so
 lynxer --emit-library app.lynx --include helpers.lynx -o libapp.so
@@ -197,6 +201,10 @@ works with no build tree present. Set `LYNXER_PREFIX` to use a prefix other than
 `--uninstall`. Without write permission it prints the failure and a `sudo` hint
 and exits `1`. `--uninstall` removes the symlink and the tree; when neither is
 present it reports why and exits `1`.
+
+On Windows the default prefix is `%LOCALAPPDATA%\Programs\Lynxer`, the launcher
+is a copy (`bin\lynxer.exe`) rather than a symlink, and the installed binary is
+`lynxer.exe`. See [windows.md](windows.md).
 
 ## Removed with the bytecode backend
 

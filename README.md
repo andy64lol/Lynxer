@@ -6,6 +6,10 @@
 [![Build ARM64](https://github.com/andy64lol/Lynxer/actions/workflows/build-lynxer-arm.yml/badge.svg)](https://github.com/andy64lol/Lynxer/actions/workflows/build-lynxer-arm.yml)
 [![Build Windows AMD64](https://github.com/andy64lol/Lynxer/actions/workflows/build-lynxer-windows-amd.yml/badge.svg)](https://github.com/andy64lol/Lynxer/actions/workflows/build-lynxer-windows-amd.yml)
 [![Build Windows ARM64](https://github.com/andy64lol/Lynxer/actions/workflows/build-lynxer-windows-arm.yml/badge.svg)](https://github.com/andy64lol/Lynxer/actions/workflows/build-lynxer-windows-arm.yml)
+[![Build Bob AMD64](https://github.com/andy64lol/Lynxer/actions/workflows/build-bob-amd.yml/badge.svg)](https://github.com/andy64lol/Lynxer/actions/workflows/build-bob-amd.yml)
+[![Build Bob ARM64](https://github.com/andy64lol/Lynxer/actions/workflows/build-bob-arm.yml/badge.svg)](https://github.com/andy64lol/Lynxer/actions/workflows/build-bob-arm.yml)
+[![Build Bob Windows AMD64](https://github.com/andy64lol/Lynxer/actions/workflows/build-bob-windows-amd.yml/badge.svg)](https://github.com/andy64lol/Lynxer/actions/workflows/build-bob-windows-amd.yml)
+[![Build Bob Windows ARM64](https://github.com/andy64lol/Lynxer/actions/workflows/build-bob-windows-arm.yml/badge.svg)](https://github.com/andy64lol/Lynxer/actions/workflows/build-bob-windows-arm.yml)
 
 A statically-flavoured, C-style scripting language. Files use the `.lynx`
 extension and run on the standalone C++ interpreter in `lynxer/`.

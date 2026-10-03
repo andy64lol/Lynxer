@@ -121,7 +121,7 @@
 <h1 id="js">js</h1>
 <p>Run JavaScript through a Node.js subprocess.</p>
 <p><strong>Backend:</strong> native — <code>stdlib/js.so</code>, built from <code>stdlib/js.cpp</code>. <strong>Import:</strong> <code>import(&quot;js&quot;)</code> → <code>global.js.*</code></p>
-<p>Requires <code>node</code> on <code>PATH</code>; when it is missing, every runner returns <code>&quot;Error: node not found on PATH&quot;</code>. A program is killed after a timeout (<code>LYNXER_JS_TIMEOUT</code> seconds, default <code>30</code>) and answers <code>&quot;Error: node timed out after &lt;n&gt;s&quot;</code>; a program's <code>stderr</code> is captured into the result rather than inherited. A non-zero exit with no output reports <code>&quot;Error: node exited with status &lt;n&gt;&quot;</code>.</p>
+<p>Requires <code>node</code> on <code>PATH</code>; when it is missing, every runner returns <code>&quot;Error: node not found on PATH&quot;</code>. A program is killed after a timeout (<code>LYNXER_JS_TIMEOUT</code> seconds, default <code>30</code>) and answers <code>&quot;Error: node timed out after &lt;n&gt;s&quot;</code>; a program's <code>stderr</code> is captured into the result rather than inherited. A non-zero exit with no output reports <code>&quot;Error: node exited with status &lt;n&gt;&quot;</code>. Source strings run through <code>node -e</code> without creating a script file. The timeout kills the command's process group, including subprocesses it started.</p>
 <table>
 <tr><th>Function</th><th>Signature</th><th>Notes</th></tr>
 <tr><td><code>runJS</code></td><td><code>(str code) -&gt; str</code></td><td>Writes the code to a temporary <code>.js</code> file, runs it, returns stdout</td></tr>

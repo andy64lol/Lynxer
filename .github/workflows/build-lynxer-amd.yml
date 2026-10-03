@@ -32,9 +32,6 @@ jobs:
       - name: Build Lynxer for AMD64
         run: make buildLynxer
 
-      - name: Build and self-check Bob
-        run: make -C Bob test
-
       - name: Test Lynxer AMD64 binary
         run: make testLynxer LYNXER_SKIP_DISPLAY=1
       - name: Verify virtual OpenGL renderer

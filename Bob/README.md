@@ -88,5 +88,9 @@ $ make -C Bob test
 ```
 
 `cargo build --release` works from any shell; the `Makefile` is only a wrapper.
-Bob is exercised in the Lynxer CI on Linux AMD64 and, experimentally, on
-Windows AMD64/ARM64.
+
+Bob has its own CI, separate from the Lynxer jobs: four workflows
+(`build-bob-amd.yml`, `build-bob-arm.yml`, `build-bob-windows-amd.yml`,
+`build-bob-windows-arm.yml`) build it and run the self-check on Linux and
+Windows, AMD64 and ARM64. They are scoped to `Bob/**`, so a Lynxer-only change
+does not run them, and a Bob-only change does not run the Lynxer ones.

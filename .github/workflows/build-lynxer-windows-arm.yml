@@ -1,9 +1,9 @@
-name: Build Lynxer on Windows ARM64 (experimental)
+name: Build Lynxer on Windows ARM64
 
-# The Windows port is in progress (see docs/windows.md). This job attempts a
-# real build and test on an ARM64 Windows runner so progress and breakage stay
-# visible, and it is allowed to fail while the port is incomplete. Remove the
-# `continue-on-error` on the job once it is green.
+# Builds and tests Lynxer on an ARM64 Windows runner (see docs/windows.md). This
+# is a required job: the port's excluded surface (named syscalls, `sys`, the
+# POSIX stdlib modules, the embedding runtime) is skipped explicitly rather than
+# allowed to fail.
 #
 # It builds inside MSYS2 CLANGARM64, the ARM64 environment where the C++
 # compiler is clang, so the C++ build, `make` and the Rust toolchain share the
@@ -18,10 +18,9 @@ on:
 
 jobs:
   build:
-    name: Attempt build and test on Windows ARM64
+    name: Build and test on Windows ARM64
     runs-on: windows-11-arm
     timeout-minutes: 60
-    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v4
@@ -55,19 +54,15 @@ jobs:
           cargo --version
           pkg-config --modversion libffi || true
 
-      - name: Build Lynxer (attempt)
+      - name: Build Lynxer
         shell: msys2 {0}
         run: make buildLynxer LYNXER_CXX=clang++
 
-      - name: Build and self-check Bob (attempt)
-        shell: msys2 {0}
-        run: make -C Bob test
-
-      - name: Test Lynxer (attempt)
+      - name: Test Lynxer
         shell: msys2 {0}
         run: make testLynxer LYNXER_SKIP_DISPLAY=1 LYNXER_CXX=clang++
 
-      - name: Upload the Windows ARM64 binary (if it built)
+      - name: Upload the Windows ARM64 binary
         if: always()
         uses: actions/upload-artifact@v4
         with:

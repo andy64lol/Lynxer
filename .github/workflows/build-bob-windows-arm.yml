@@ -1,0 +1,57 @@
+name: Build Bob on Windows ARM64
+
+# Bob is the Lynxer package manager, a separate Rust component (see
+# Bob/README.md). It has its own workflows and is no longer built by the Lynxer
+# ones; these run only when Bob (or this workflow) changes.
+#
+# Bob needs no C toolchain, so this installs only `make` plus a Rust toolchain
+# from MSYS2 CLANGARM64 (its Makefile uses POSIX tools for the self-check).
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'Bob/**'
+      - '.github/workflows/build-bob-*.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'Bob/**'
+      - '.github/workflows/build-bob-*.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build and self-check Bob on Windows ARM64
+    runs-on: windows-11-arm
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up MSYS2 (CLANGARM64) with make and Rust
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: CLANGARM64
+          update: true
+          install: >-
+            make
+            coreutils
+            diffutils
+            mingw-w64-clang-aarch64-rust
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: Bob -> target
+
+      - name: Build and self-check Bob
+        shell: msys2 {0}
+        run: make -C Bob test
+
+      - name: Upload the Bob binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: bob-windows-arm64
+          path: Bob/target/release/bob.exe
+          if-no-files-found: error

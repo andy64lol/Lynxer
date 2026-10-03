@@ -127,6 +127,7 @@
 <tr><td><strong>Built-in</strong></td><td>C++ in <code>lynxer/builtins.cpp</code></td><td>The operation is a language primitive that must be available without <code>import</code>.</td></tr>
 </table>
 <p>Almost everything belongs in the middle row. A built-in is not available to a module author — it changes the language — and a pure Lynxer module is just a module with no backend, so both are covered by the same wrapper rules.</p>
+<p>The reverse direction — exposing your own Lynxer functions to C rather than adding to the stdlib — uses the <code>export</code> declaration and <code>lynxer --emit-library</code>; see <a href="embedding.html">embedding</a>.</p>
 <p>Read <a href="stdlib-contracts.html">stdlib-contracts</a> before you start: it states the conventions your module has to follow, and <a href="native-module-abi.html">native-module-abi</a> is the ABI reference.</p>
 <hr>
 <h2 id="1-choose-c-or-rust">1. Choose C++ or Rust</h2>
@@ -165,7 +166,7 @@ global join(str left, str right) -&gt; str { return global.nativeExample.join(le
 <li><strong>Do not add logic.</strong> If the wrapper starts computing, the calculation belongs in the backend where it can be tested and reused.</li>
 <li>Start the file with a <code>////</code> docstring. The first line is the module summary in <code>--list-stdlibs</code>; the rest is printed verbatim, so it is real documentation.</li>
 </ul>
-<p>If the module needs no native code, write the functions directly and skip <code>setup()</code> entirely — like <code>stdlib/text.lynx</code>.</p>
+<p>If the module needs no native code, write the functions directly and skip <code>setup()</code> entirely — like <code>stdlib/colorlib.lynx</code>. <code>text.lynx</code> is a wrapper around the Rust Unicode backend as well as a home for its string helpers.</p>
 <hr>
 <h2 id="3-write-the-backend">3. Write the backend</h2>
 <h3 id="3a-in-rust">3a. In Rust</h3>

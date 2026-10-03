@@ -1154,6 +1154,16 @@ int runProcess(const std::vector<std::string>& command) {
 
 // Builds a shared library that exposes a program's `export`s over a C ABI.
 int emitLibrary(const std::vector<std::string>& arguments) {
+#if defined(_WIN32)
+    // The embedding runtime is an ELF shared object, and `--emit-library` links
+    // against it with `-Wl,--version-script`/`-soname`. A Windows `lynxer.dll`
+    // and its export definition are not built yet (see docs/windows.md), so fail
+    // with that instead of a linker error.
+    return failWith("error.emit_library_failed",
+                    "lynxer: emit-library failed: {0}",
+                    "exporting to a shared library is not supported on Windows "
+                    "yet; the embedding runtime is built on Linux only");
+#endif
     std::vector<std::string> inputs;
     std::string outputName;
     std::string runtimeOption;

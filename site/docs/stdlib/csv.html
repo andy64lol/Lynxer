@@ -145,7 +145,8 @@
 <tr><td><code>readWithDelimiter</code></td><td><code>(str path, str delimiter)</code></td><td>Raw file content</td></tr>
 <tr><td><code>parseDelimited</code></td><td><code>(str csvStr, str delimiter)</code></td><td>JSON array of objects using a custom delimiter</td></tr>
 </table>
-<p>Dialect follows the standard <code>csv</code> format: <code>,</code> delimiter, <code>&quot;</code> quoting with <code>&quot;&quot;</code> escaping, and <code>\r\n</code> line terminators on output. Non-string JSON values are rendered as <code>&quot;&quot;</code> / <code>true</code> / <code>false</code>.</p>
+<p>Dialect follows the standard <code>csv</code> format: <code>,</code> delimiter, <code>&quot;</code> quoting with <code>&quot;&quot;</code> escaping, and <code>\r\n</code> line terminators on output. Non-string JSON values are rendered as compact JSON scalar text: <code>null</code> becomes an empty field, booleans become lowercase <code>true</code> / <code>false</code>, numbers use their JSON number text, and arrays/objects use compact JSON. Input accepts LF, CRLF, or bare CR record terminators; terminators embedded in quoted fields remain field data.</p>
+<p><code>buildCSV</code> and <code>writeCSV</code> use exactly the supplied header columns, in their given order. Missing object fields are empty and object fields not named in the header are ignored. Parsing into objects also follows header width: short rows are padded with empty strings and surplus cells are ignored; <code>parseRows</code> continues to preserve each input row's actual width.</p>
 <h2 id="legacy-aliases">Legacy aliases</h2>
 <p>Names from the earlier <code>csv</code> API, kept as forwarders:</p>
 <table>

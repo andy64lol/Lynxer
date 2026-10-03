@@ -1,0 +1,45 @@
+name: Build Bob on ARM64
+
+# Bob is the Lynxer package manager, a separate Rust component (see
+# Bob/README.md). It has its own workflows and is no longer built by the Lynxer
+# ones; these run only when Bob (or this workflow) changes.
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'Bob/**'
+      - '.github/workflows/build-bob-*.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'Bob/**'
+      - '.github/workflows/build-bob-*.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build and self-check Bob on ARM64
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: Bob -> target
+
+      - name: Build and self-check Bob
+        run: make -C Bob test
+
+      - name: Upload the Bob binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: bob-linux-arm64
+          path: Bob/target/release/bob
+          if-no-files-found: error

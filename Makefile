@@ -327,10 +327,11 @@ CLYX_TMP := $(LYNXER_DIR)/.lynxer
 # to touch the real /usr here, so the whole flow runs without root.
 LYNXER_INSTALL_PREFIX := $(CLYX_TMP)_install_prefix
 LYNXER_INSTALLED_BIN := $(LYNXER_INSTALL_PREFIX)/bin/$(notdir $(LYNXER_TARGET))
-# Canonical syscall architecture of this host. The architecture-agnostic syscall
-# fixtures carry a __ARCH__ token (syscalls("__ARCH__") plus __ARCH__.syscall*);
-# it is replaced with this word before they run, so one source serves both CI
-# jobs.
+# Canonical syscall target of this host. The portable syscall fixtures carry
+# __OS__/__ARCH__ tokens (syscalls("__OS__", "__ARCH__") plus __ARCH__.syscall*);
+# they are replaced with these words before the fixtures run, so one source
+# serves both CI jobs. Named syscalls are Linux-only, so the OS word is fixed.
+SYSCALL_OS := Linux
 SYSCALL_ARCH := $(shell uname -m | sed -e 's/^x86_64$$/amd64/' -e 's/^aarch64$$/arm64/')
 
 .PHONY: all cargo lynxerToolchain build buildAll buildLynxer buildLynxerArm64 test testLynxer testLynxerGui testLynxerInstall testLynxerAmd64Syscalls testLynxerArm64Syscalls check clean cleanLynxer cleanAll help
@@ -691,7 +692,7 @@ expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:23: charAt() index is out of rang
 	@for fixture in $(LYNXER_PARITY_FIXTURES); do \
 	run="$(LYNXER_DIR)/examples/$$fixture.lynx"; \
 	if grep -q '__ARCH__' "$$run"; then \
-	sed "s/__ARCH__/$(SYSCALL_ARCH)/g" "$$run" > $(CLYX_TMP)_arch.lynx; \
+	sed -e "s/__ARCH__/$(SYSCALL_ARCH)/g" -e "s/__OS__/$(SYSCALL_OS)/g" "$$run" > $(CLYX_TMP)_arch.lynx; \
 	run="$(CLYX_TMP)_arch.lynx"; fi; \
 	LYNXER_GAME_HEADLESS=1 LYNXER_GRAPHICS_HEADLESS=1 $(CLYX) "$$run" < /dev/null > $(CLYX_TMP)_direct.out 2>&1; \
 	direct_status=$$?; \
@@ -884,7 +885,7 @@ expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:23: charAt() index is out of rang
 	run="$$fixture"; \
 	if grep -q '__ARCH__' "$$fixture"; then \
 	run="$(CLYX_TMP)_arch.lynx"; \
-	sed "s/__ARCH__/$(SYSCALL_ARCH)/g" "$$fixture" > "$$run"; fi; \
+	sed -e "s/__ARCH__/$(SYSCALL_ARCH)/g" -e "s/__OS__/$(SYSCALL_OS)/g" "$$fixture" > "$$run"; fi; \
 	output="$$($(CLYX) "$$run" 2>&1)"; \
 	status=$$?; \
 	rm -f $(CLYX_TMP)_arch.lynx; \

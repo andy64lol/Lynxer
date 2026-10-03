@@ -136,12 +136,14 @@
 <ul>
 <li><code>queryArgs(path: string, sql: string, paramsJson: string) -&gt; string</code> Parameterized form of <code>query()</code>.</li>
 </ul>
+<p>Query output uses JSON-native <code>null</code>, numbers and strings. BLOB columns use a tagged object such as <code>{&quot;$bytes&quot;: &quot;AAH/gA==&quot;}</code>; the tag preserves their byte identity and the base64 payload preserves arbitrary bytes. Pass the same single-key object in <code>paramsJson</code> to bind those bytes back as a SQLite BLOB.</p>
 <ul>
 <li><code>scalar(path: string, sql: string) -&gt; string</code> Returns the first column of the first row as a string, or <code>&quot;&quot;</code> when absent.</li>
 </ul>
 <ul>
 <li><code>scalarArgs(path: string, sql: string, paramsJson: string) -&gt; string</code> Parameterized form of <code>scalar()</code>.</li>
 </ul>
+<p><code>scalar()</code> keeps the reference-compatible string result: NULL and no row return <code>&quot;&quot;</code>, numeric values use their decimal text, text is unchanged, and BLOBs use <code>bytes:&lt;base64&gt;</code> so they cannot be mistaken for ordinary text.</p>
 <ul>
 <li><code>lastInsertId(path: string, sql: string, paramsJson: string) -&gt; int</code> Executes an insert/update and returns SQLite's lastrowid. Returns <code>-1</code> on error.</li>
 </ul>

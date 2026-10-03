@@ -644,6 +644,15 @@ bool Environment::deprecationWarningSuppressed() const {
     return deprecationWarningSuppressed_;
 }
 
+void Environment::setSyscallOperatingSystem(
+    const std::string& operatingSystem) {
+    syscallOperatingSystem_ = operatingSystem;
+}
+
+const std::string& Environment::syscallOperatingSystem() const {
+    return syscallOperatingSystem_;
+}
+
 void Environment::setSyscallArchitecture(const std::string& architecture) {
     syscallArchitecture_ = architecture;
 }

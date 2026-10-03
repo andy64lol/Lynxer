@@ -94,6 +94,16 @@ without keeping the build tree around. See [embedding.md](embedding.md). Set
 `LYNXER_PREFIX` to install somewhere other than `/usr` — for example
 `LYNXER_PREFIX=$HOME/.local lynxer --install` needs no root — and pass the same
 value to `--uninstall`.
+
+On Windows, `--install` defaults to `%LOCALAPPDATA%\Programs\Lynxer` (a
+per-user install needs no elevation; override it with `LYNXER_PREFIX`) and lays
+out the same tree — `bin\lynxer.exe` plus
+`lib\lynxer\{lynxer.exe, stdlib, lynxer.config}` — except that the launcher is a
+copy rather than a symlink, so the stdlib is resolved from `lib\lynxer`. There
+is no `liblynxer.so` yet, so `--emit-library` is Linux-only. Add `<prefix>\bin`
+to `PATH` to run `lynxer` by name; the installer says so when it is missing. See
+[windows.md](windows.md).
+
 See [CLI.md](CLI.md#installing).
 
 ## Quick run

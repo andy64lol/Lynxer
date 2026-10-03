@@ -131,16 +131,20 @@
 </ul>
 <p>A failure is a scalar sentinel: an unknown algorithm, a malformed payload or an I/O error yields <code>&quot;&quot;</code> for a hex output and an empty <code>bytes</code> for a binary one, and a predicate yields <code>false</code>.</p>
 <h2 id="algorithms">Algorithms</h2>
-<p><code>hash</code> and <code>hmac</code> take an algorithm name from a fixed set:</p>
+<p><code>hash</code> and <code>hmac</code> accept a canonical name or the common aliases used by tools and scripts, case-insensitive and with spaces, underscores or dashes ignored. Supported families are:</p>
 <table>
 <tr><th>Name</th><th>Digest</th><th>HMAC</th></tr>
-<tr><td><code>sha1</code></td><td>yes</td><td>yes</td></tr>
-<tr><td><code>sha224</code>, <code>sha256</code>, <code>sha384</code>, <code>sha512</code></td><td>yes</td><td>yes</td></tr>
-<tr><td><code>sha3-256</code>, <code>sha3-512</code></td><td>yes</td><td>yes</td></tr>
+<tr><td><code>sha1</code> / <code>sha-1</code></td><td>yes</td><td>yes</td></tr>
+<tr><td><code>sha224</code> / <code>sha-224</code></td><td>yes</td><td>yes</td></tr>
+<tr><td><code>sha256</code> / <code>sha-256</code> / <code>sha2-256</code></td><td>yes</td><td>yes</td></tr>
+<tr><td><code>sha384</code> / <code>sha-384</code></td><td>yes</td><td>yes</td></tr>
+<tr><td><code>sha512</code> / <code>sha-512</code> / <code>sha2-512</code></td><td>yes</td><td>yes</td></tr>
+<tr><td><code>sha3-256</code> / <code>sha3_256</code></td><td>yes</td><td>yes</td></tr>
+<tr><td><code>sha3-512</code> / <code>sha3_512</code></td><td>yes</td><td>yes</td></tr>
 <tr><td><code>blake3</code></td><td>yes</td><td>no</td></tr>
-<tr><td><code>md5</code></td><td>yes</td><td>no</td></tr>
+<tr><td><code>md5</code> / <code>md-5</code></td><td>yes</td><td>no</td></tr>
 </table>
-<p>Any other name yields <code>&quot;&quot;</code>.</p>
+<p>Any other name yields <code>&quot;&quot;</code> as an explicit failure sentinel; this is not a valid digest of empty input.</p>
 <h2 id="randomness">Randomness</h2>
 <p><code>randomBytes</code>, <code>randomHex</code> and <code>randomToken</code> draw from the operating system's entropy source. The count is capped at 1 MiB; a negative or larger count yields an empty <code>bytes</code> (or <code>&quot;&quot;</code> for the hex and token forms). These are not reproducible, so a test asserts their shape, never their value.</p>
 <h2 id="ed25519">Ed25519</h2>

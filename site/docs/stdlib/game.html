@@ -263,8 +263,8 @@ global main(){
 <tr><td><code>spriteExists</code></td><td><code>(int idx) -&gt; bool</code></td><td>Live check.</td></tr>
 <tr><td><code>updateSprite</code></td><td><code>(int idx)</code></td><td>Apply velocity for one frame.</td></tr>
 <tr><td><code>drawSprite</code></td><td><code>(int idx)</code></td><td>Draw.</td></tr>
-<tr><td><code>spriteCollides</code></td><td><code>(int a, int b) -&gt; bool</code></td><td>Axis-aligned overlap.</td></tr>
-<tr><td><code>spriteCollidesWithList</code></td><td><code>(int spr, int list) -&gt; bool</code></td><td>Overlap with any list member.</td></tr>
+<tr><td><code>spriteCollides</code></td><td><code>(int a, int b) -&gt; bool</code></td><td>Oriented bounding-box overlap.</td></tr>
+<tr><td><code>spriteCollidesWithList</code></td><td><code>(int spr, int list) -&gt; bool</code></td><td>Oriented overlap with any list member.</td></tr>
 <tr><td><code>getCollidingSprites</code></td><td><code>(int spr, int list) -&gt; str</code></td><td><code>&quot;[1,2]&quot;</code>.</td></tr>
 <tr><td><code>spriteDistance</code></td><td><code>(int a, int b) -&gt; float</code></td><td>Centre distance.</td></tr>
 <tr><td><code>spriteNear</code></td><td><code>(int idx, float tx, float ty, float range) -&gt; bool</code></td><td>Within range.</td></tr>
@@ -325,7 +325,7 @@ global main(){
 <tr><td><code>destroyTextLabel(idx)</code></td><td>Release the slot</td></tr>
 </table>
 <h2 id="tilemap">Tilemap</h2>
-<p><code>loadTilemap(tmxPath, scaling)</code> reads a Tiled <code>.tmx</code> file and returns a <strong>scene</strong> index; <code>getTilemapLayer(sceneIdx, layerName)</code> returns the named layer as a <strong>sprite list</strong>. Only the first <code>&lt;tileset&gt;</code> and each <code>&lt;layer&gt;</code>'s comma-separated <code>&lt;data&gt;</code> are read — CSV payloads only. Nonzero global tile IDs are cropped from the tileset atlas using <code>firstgid</code>, <code>columns</code>, <code>margin</code> and <code>spacing</code>. The image path is resolved relative to the TMX file.</p>
+<p><code>loadTilemap(tmxPath, scaling)</code> reads a Tiled <code>.tmx</code> file and returns a <strong>scene</strong> index; <code>getTilemapLayer(sceneIdx, layerName)</code> returns the named layer as a <strong>sprite list</strong>. Inline and external TSX tilesets are supported, with global tile IDs mapped to their respective atlas by <code>firstgid</code>, <code>columns</code>, <code>margin</code> and <code>spacing</code>. CSV, XML <code>&lt;tile gid&gt;</code> and base64 layer data (raw, gzip or zlib) are supported. Atlas and TSX image paths are resolved relative to their source files; Tiled horizontal/vertical/diagonal flip flags are retained by tile sprites.</p>
 <p>Tiles become solid sprites on the grid, so a map carries geometry and collision (hand a layer to <code>makePhysicsEngine</code> as the wall list). When the atlas cannot be loaded or the module is headless, tiles fall back to shaded blocks.</p>
 <h2 id="physics">Physics</h2>
 <p>A small platformer engine: gravity, wall collision, slopes and one-way platforms.</p>
@@ -343,6 +343,7 @@ global main(){
 <li><strong>A wall sprite with a non-zero <code>angle</code> is a slope.</strong> Its surface runs from the box's bottom-left corner upward to the right by <code>tan(angle) * width</code>, never above the box's top. Slopes never block horizontal movement.</li>
 <li><strong>A sprite in the one-way list is a platform</strong>, solid only for a player who was above it on the previous step and is falling now — so a jump carries the player up through it.</li>
 </ul>
+<p>Sprite-to-sprite collision uses oriented bounding boxes based on each sprite's angle. Physics accounts for the rotated player's bounds while preserving the existing wall/slope rules. A grounded player is carried by the platform they landed on when it translates or rotates between physics steps.</p>
 <p>The player is snapped onto a slope or platform surface only from within two units of it, which bounds how far a ramp can lift them in one step.</p>
 <h2 id="animation">Animation</h2>
 <table>
@@ -360,7 +361,7 @@ global main(){
 <tr><td><code>setSoundVolume(idx, volume)</code></td><td>Volume from <code>0.0</code> to <code>1.0</code></td></tr>
 <tr><td><code>isSoundPlaying(idx)</code></td><td>Playback state tracked by the module</td></tr>
 </table>
-<p><code>isSoundPlaying</code> tracks a one-shot against its decoded duration and returns <code>false</code> after that duration; looping sounds stay active until stopped. This is duration-based state, not a playback-position query from the audio backend. If a duration cannot be probed, the sound remains marked as playing until <code>stopSound</code>. In headless mode <code>loadSound</code> returns <code>-1</code>.</p>
+<p><code>isSoundPlaying</code> queries the rodio sink for current playback state, so completed one-shots and stopped sounds return <code>false</code>, and a queued loop remains active until stopped. <code>loadSound</code> returns <code>-1</code> in headless mode or when the file or audio output device is unavailable.</p>
 <h2 id="notes-and-current-limitations">Notes and current limitations</h2>
 <p>The reference's shape batches, animated sprite-sheet helper, <code>setVSync</code> and <code>getDisplaySize</code> are not exposed. <code>makeAnimatedSprite</code> accepts a JSON array of separate image paths rather than a sprite sheet.</p>
 <p>Other deviations:</p>

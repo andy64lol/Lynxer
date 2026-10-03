@@ -123,7 +123,7 @@
 <p><strong>Backend:</strong> native — <code>stdlib/yaml.so</code>, built from the Rust crate <code>rust/yaml</code> over <code>serde_yml</code>, a maintained fork of the archived <code>serde_yaml</code> (the substitution is recorded here per <strong>D5</strong> in <a href="https://github.com/andy64lol/Lynxer/blob/main/todo.md">todo</a>).</p>
 <p><strong>Import:</strong> <code>import(&quot;yaml&quot;)</code> → <code>global.yaml.*</code></p>
 <h2 id="how-documents-travel">How documents travel</h2>
-<p>A YAML document crosses the module ABI as a <strong>JSON string</strong>, the shared structured-value bridge (see <a href="../native-module-abi.html">native-module-abi</a>): a mapping becomes an object and a sequence an array. A mapping whose key is not a string (which JSON cannot hold) is a failure.</p>
+<p>A YAML document crosses the module ABI as a <strong>JSON string</strong>, the shared structured-value bridge (see <a href="../native-module-abi.html">native-module-abi</a>): a mapping becomes an object and a sequence an array. Any mapping with a non-string key (including numeric, boolean, null, sequence, or mapping keys) fails as a whole document; such keys are never silently stringified or dropped. <code>yamlValid</code> returns false for these documents.</p>
 <p>Anchors and aliases are resolved while parsing, so the input is capped at 1 MiB to bound an alias-expansion payload; a larger input is a failure.</p>
 <p>A failure is a scalar sentinel: a document operation yields <code>&quot;&quot;</code> and <code>yamlValid</code> yields <code>false</code>.</p>
 <h2 id="functions">Functions</h2>

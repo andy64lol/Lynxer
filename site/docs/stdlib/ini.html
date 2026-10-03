@@ -123,7 +123,7 @@
 <p><strong>Backend:</strong> native — <code>stdlib/ini.so</code>, built from the Rust crate <code>rust/ini</code> over <code>rust-ini</code>.</p>
 <p><strong>Import:</strong> <code>import(&quot;ini&quot;)</code> → <code>global.ini.*</code></p>
 <h2 id="how-documents-travel">How documents travel</h2>
-<p>An INI document crosses the module ABI as a <strong>JSON string</strong>, the shared structured-value bridge (see <a href="../native-module-abi.html">native-module-abi</a>): an object of sections, each an object of <strong>string</strong> values. The unnamed leading section uses <code>&quot;&quot;</code> as its key. Values are strings in both directions.</p>
+<p>An INI document crosses the module ABI as a <strong>JSON string</strong>, the shared structured-value bridge (see <a href="../native-module-abi.html">native-module-abi</a>): an object of sections, each an object of <strong>string</strong> values. The unnamed leading section uses <code>&quot;&quot;</code> as its key. Values are strings in both directions. Serialization normalizes whitespace and discards comments; parsing a serialized document preserves the section/key/value data, not the original source formatting.</p>
 <p>A failure is a scalar sentinel: a document operation yields <code>&quot;&quot;</code> and <code>iniValid</code> yields <code>false</code>. An empty document is valid, so it parses to <code>{&quot;&quot;:{}}</code>.</p>
 <h2 id="functions">Functions</h2>
 <table>

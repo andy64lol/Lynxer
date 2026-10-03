@@ -232,8 +232,11 @@ public:
 
     bool deprecationWarningSuppressed() const;
 
-    // The syscall architecture selected by syscalls("..."); empty until a
-    // program selects one. Syscall calls are refused while it is empty.
+    // The syscall operating system and architecture selected by
+    // syscalls("<os>", "<arch>"); empty until a program selects them. Syscall
+    // calls are refused while they are empty.
+    void setSyscallOperatingSystem(const std::string& operatingSystem);
+    const std::string& syscallOperatingSystem() const;
     void setSyscallArchitecture(const std::string& architecture);
     const std::string& syscallArchitecture() const;
 
@@ -279,7 +282,9 @@ private:
     bool setupInProgress_ = false;
     bool foreverWarningSuppressed_ = false;
     bool deprecationWarningSuppressed_ = false;
-    // Canonical syscall architecture selected by syscalls("..."); "" until set.
+    // Canonical syscall target selected by syscalls("<os>", "<arch>"); "" until
+    // set.
+    std::string syscallOperatingSystem_;
     std::string syscallArchitecture_;
     // Source locations ("line:column") already warned about a bracketed-list
     // tuple, so a loop re-running one declaration warns only once.

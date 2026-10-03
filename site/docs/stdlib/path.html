@@ -122,9 +122,13 @@
 <p><code>pathlib</code>-style path manipulation and filesystem helpers.</p>
 <p><strong>Backend:</strong> native — <code>stdlib/path.so</code>, built from <code>stdlib/path.cpp</code> over <code>&lt;filesystem&gt;</code> and POSIX <code>stat</code>. <strong>Import:</strong> <code>import(&quot;path&quot;)</code> → <code>global.path.*</code></p>
 <p>Paths are plain strings. Functions return <code>&quot;&quot;</code>, an empty list, <code>false</code> or <code>-1</code> when the underlying operation fails.</p>
+<p><code>platform()</code> reports the POSIX host (<code>linux</code>, <code>darwin</code>, <code>freebsd</code>, <code>netbsd</code>, <code>openbsd</code> or <code>dragonfly</code>, otherwise <code>unknown</code>). <code>separator()</code> returns <code>/</code> and <code>listSeparator()</code> returns <code>:</code> for the supported POSIX hosts.</p>
 <h2 id="construction">Construction</h2>
 <table>
 <tr><th>Function</th><th>Signature</th><th>Notes</th></tr>
+<tr><td><code>platform</code></td><td><code>() -&gt; str</code></td><td>POSIX host name</td></tr>
+<tr><td><code>separator</code></td><td><code>() -&gt; str</code></td><td>Path-component separator (<code>/</code>)</td></tr>
+<tr><td><code>listSeparator</code></td><td><code>() -&gt; str</code></td><td>Search-path separator (<code>:</code>)</td></tr>
 <tr><td><code>cwd</code> / <code>home</code></td><td><code>() -&gt; str</code></td><td>Working directory / home directory</td></tr>
 <tr><td><code>absolute</code></td><td><code>(str path) -&gt; str</code></td><td>Absolute path without normalization or symlink resolution</td></tr>
 <tr><td><code>resolve</code></td><td><code>(str path) -&gt; str</code></td><td>Canonical path; missing components are allowed</td></tr>
@@ -174,9 +178,9 @@
 <table>
 <tr><th>Function</th><th>Signature</th><th>Notes</th></tr>
 <tr><td><code>readText</code></td><td><code>(str path) -&gt; str</code></td><td>UTF-8 contents, or <code>&quot;&quot;</code></td></tr>
-<tr><td><code>readTextEncoding</code></td><td><code>(str path, str encoding) -&gt; str</code></td><td>Reads <strong>as the named encoding</strong>: <code>utf-8</code> (the default), <code>latin-1</code>, <code>ascii</code>; <code>&quot;&quot;</code> for an unknown encoding or a byte the encoding cannot hold</td></tr>
+<tr><td><code>readTextEncoding</code></td><td><code>(str path, str encoding) -&gt; str</code></td><td>Reads <strong>as the named encoding</strong>: UTF-8 (including <code>&quot;&quot;</code>), ASCII, Latin-1, Windows-1252, UTF-16/32 (endianness variants), and host-supported <code>iconv</code> names; <code>&quot;&quot;</code> for an unknown encoding, missing file or invalid byte sequence</td></tr>
 <tr><td><code>writeText</code></td><td><code>(str path, str content) -&gt; bool</code></td><td>UTF-8 write</td></tr>
-<tr><td><code>writeTextEncoding</code></td><td><code>(str path, str content, str encoding) -&gt; bool</code></td><td>Writes <strong>in the named encoding</strong>: <code>utf-8</code> (the default), <code>latin-1</code>, <code>ascii</code>; <code>false</code> for an unknown encoding, or a character the encoding cannot represent (a code point above <code>U+00FF</code> for Latin-1, or any non-ASCII character for ASCII)</td></tr>
+<tr><td><code>writeTextEncoding</code></td><td><code>(str path, str content, str encoding) -&gt; bool</code></td><td>Writes <strong>in the named encoding</strong>: UTF-8 (including <code>&quot;&quot;</code>), ASCII, Latin-1, Windows-1252, UTF-16/32 (endianness variants), and host-supported <code>iconv</code> names; <code>false</code> for an unknown encoding or unrepresentable character</td></tr>
 <tr><td><code>appendText</code></td><td><code>(str path, str content) -&gt; bool</code></td><td>UTF-8 append</td></tr>
 <tr><td><code>size</code></td><td><code>(str path) -&gt; int</code></td><td>Bytes, or <code>-1</code></td></tr>
 <tr><td><code>modifiedTime</code></td><td><code>(str path) -&gt; float</code></td><td>Unix timestamp with sub-second precision, or <code>-1.0</code></td></tr>

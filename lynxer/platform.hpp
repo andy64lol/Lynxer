@@ -15,6 +15,11 @@ namespace lynxer::platform {
 // POSIX. Call once, before producing any output.
 void configureStandardStreams();
 
+// Enables ANSI escape-sequence processing on the Windows console, so `tui` and
+// `graphics` output renders instead of printing raw escape codes. A no-op on
+// POSIX and harmless when the stream is redirected.
+void enableVirtualTerminal();
+
 // The absolute path of the running executable, or "" when it cannot be
 // determined. POSIX reads `/proc/self/exe` (or the dyld path on macOS);
 // Windows calls `GetModuleFileNameW`.

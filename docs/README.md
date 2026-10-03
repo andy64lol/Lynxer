@@ -42,7 +42,7 @@ standard-library improvements.
 | Document | What it covers |
 | --- | --- |
 | [builtins.md](builtins.md) | Every function the interpreter implements itself |
-| [syscalls.md](syscalls.md) | The named Linux syscall wrappers: architecture gate, namespaces, full list |
+| [syscalls.md](syscalls.md) | The named Linux syscall wrappers: OS/architecture gate, namespaces, full list |
 | [async.md](async.md) | Local `async` sub-functions, `await`, and the `async*` builtins |
 | [native-memory.md](native-memory.md) | Typed raw memory, blocks/arrays/views, native struct layouts |
 | [filesystem.md](filesystem.md) | The handle-based `filesystem*` API |

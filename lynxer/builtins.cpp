@@ -152,6 +152,37 @@ std::string canonicalSyscallArch(const std::string& word) {
     return "";
 }
 
+std::string lowerAscii(const std::string& word) {
+    std::string lowered = word;
+    for (char& character : lowered) {
+        if (character >= 'A' && character <= 'Z') {
+            character = static_cast<char>(character - 'A' + 'a');
+        }
+    }
+    return lowered;
+}
+
+// Maps a syscalls() operating-system keyword to a canonical name, or "" when
+// unknown. Matching is case-insensitive so `sys.platform()` can be passed
+// directly: it returns "linux" here and "win32" on Windows.
+std::string canonicalSyscallOS(const std::string& word) {
+    const std::string lowered = lowerAscii(word);
+    if (lowered == "linux") return "Linux";
+    if (lowered == "windows" || lowered == "win32") return "Windows";
+    if (lowered == "macos" || lowered == "darwin") return "macOS";
+    return "";
+}
+
+// Canonical operating system for the host this binary was built for, or "" when
+// it has no named-syscall support.
+const char* hostSyscallOS() {
+#if defined(__linux__)
+    return "Linux";
+#else
+    return "";
+#endif
+}
+
 Value makeList(std::vector<Value> elements) {
     return std::make_shared<List>(List{std::move(elements)});
 }
@@ -1939,41 +1970,66 @@ Value builtinSuppressDeprecationWarning(const std::vector<Value>& args,
     return none();
 }
 
-// `syscalls("<kw>")` selects the architecture whose syscalls the program uses.
-// The keyword must name the host architecture, and the selection is what makes
-// the `<arch>.syscall*` calls available.
+// `syscalls("<os>", "<arch>")` selects the operating system and architecture
+// whose syscalls the program uses. Both keywords must name the host, and the
+// selection is what makes the `<arch>.syscall*` calls available.
 Value builtinSyscalls(const std::vector<Value>& args, Environment& env, int line,
                       int column) {
-    if (args.size() != 1) {
-        fail("syscalls() takes exactly one architecture keyword", line, column);
+    if (args.size() != 2) {
+        fail("syscalls() takes an operating system and an architecture keyword",
+             line, column);
     }
-    const auto* word = std::get_if<std::string>(&args[0]);
-    if (word == nullptr) {
+    const auto* osWord = std::get_if<std::string>(&args[0]);
+    if (osWord == nullptr) {
+        fail("syscalls() expects a string operating system keyword", line,
+             column);
+    }
+    const auto* archWord = std::get_if<std::string>(&args[1]);
+    if (archWord == nullptr) {
         fail("syscalls() expects a string architecture keyword", line, column);
     }
-    const std::string canonical = canonicalSyscallArch(*word);
-    if (canonical.empty()) {
-        fail("unknown syscall architecture '" + *word + "'. You meant: " +
-                 closestWord(*word, {"amd64", "arm64", "aarch64", "x86-64"}) +
+    const std::string canonicalOS = canonicalSyscallOS(*osWord);
+    if (canonicalOS.empty()) {
+        fail("unknown syscall operating system '" + *osWord + "'. You meant: " +
+                 closestWord(lowerAscii(*osWord), {"linux", "windows", "macos"}) +
                  "?",
              line, column);
     }
-    const std::string host = hostSyscallArch();
-    if (host.empty()) {
+    const std::string canonicalArch = canonicalSyscallArch(*archWord);
+    if (canonicalArch.empty()) {
+        fail("unknown syscall architecture '" + *archWord + "'. You meant: " +
+                 closestWord(*archWord, {"amd64", "arm64", "aarch64", "x86-64"}) +
+                 "?",
+             line, column);
+    }
+    const std::string hostOS = hostSyscallOS();
+    if (hostOS.empty()) {
+        fail("syscalls() is not available on this operating system", line,
+             column);
+    }
+    if (canonicalOS != hostOS) {
+        fail("syscalls(\"" + *osWord + "\") selects " + canonicalOS +
+                 ", but this machine is " + hostOS,
+             line, column);
+    }
+    const std::string hostArch = hostSyscallArch();
+    if (hostArch.empty()) {
         fail("syscalls() is not available on this architecture", line, column);
     }
-    if (canonical != host) {
-        fail("syscalls(\"" + *word + "\") selects " + canonical +
-                 ", but this machine is " + host,
+    if (canonicalArch != hostArch) {
+        fail("syscalls(\"" + *archWord + "\") selects " + canonicalArch +
+                 ", but this machine is " + hostArch,
              line, column);
     }
     const std::string& selected = env.syscallArchitecture();
-    if (!selected.empty() && selected != canonical) {
-        fail("this program already selected syscalls(\"" + selected +
-                 "\"); only one architecture can be used at a time",
+    if (!selected.empty() && selected != canonicalArch) {
+        fail("this program already selected syscalls(\"" +
+                 env.syscallOperatingSystem() + "\", \"" + selected +
+                 "\"); only one target can be used at a time",
              line, column);
     }
-    env.setSyscallArchitecture(canonical);
+    env.setSyscallOperatingSystem(canonicalOS);
+    env.setSyscallArchitecture(canonicalArch);
     return none();
 }
 
@@ -7577,8 +7633,8 @@ Value callBuiltin(const std::string& name, const std::vector<Value>& args,
         return handler->second(args, environment, line, column);
     }
     // Architecture-namespaced syscalls: "<arch>.syscallFoo". The prefix names the
-    // architecture; the call is refused until syscalls("<arch>") has run, and
-    // only the selected architecture's namespace is usable.
+    // architecture; the call is refused until syscalls("<os>", "<arch>") has run,
+    // and only the selected architecture's namespace is usable.
     const std::size_t dot = resolved.find('.');
     if (dot != std::string::npos &&
         resolved.compare(dot + 1, 7, "syscall") == 0) {
@@ -7593,16 +7649,20 @@ Value callBuiltin(const std::string& name, const std::vector<Value>& args,
                      closestWord(prefix, {"amd64", "arm64", "aarch64"}) + "?",
                  line, column);
         }
+        const std::string hostOS = hostSyscallOS();
+        const std::string osName = hostOS.empty() ? std::string("<os>") : hostOS;
         const std::string& selected = environment.syscallArchitecture();
         if (selected.empty()) {
             fail(std::string("syscalls are not available yet; call "
                              "syscalls(\"") +
-                     canonical + "\") first",
+                     osName + "\", \"" + canonical + "\") first",
                  line, column);
         }
         if (selected != canonical) {
-            fail(prefix + "." + function + "() needs syscalls(\"" + canonical +
-                     "\"), but this program selected \"" + selected + "\"",
+            fail(prefix + "." + function + "() needs syscalls(\"" + osName +
+                     "\", \"" + canonical + "\"), but this program selected "
+                     "\"" + environment.syscallOperatingSystem() + "\", \"" +
+                     selected + "\"",
                  line, column);
         }
         return builtinSyscall(function, args, line, column);
@@ -7613,8 +7673,10 @@ Value callBuiltin(const std::string& name, const std::vector<Value>& args,
         // architecture so the interpreter can check it against the host.
         const std::string host = hostSyscallArch();
         const std::string arch = host.empty() ? std::string("<arch>") : host;
+        const std::string osHost = hostSyscallOS();
+        const std::string os = osHost.empty() ? std::string("<os>") : osHost;
         fail(resolved + "() is not available; use " + arch + "." + resolved +
-                 "() after syscalls(\"" + arch + "\")",
+                 "() after syscalls(\"" + os + "\", \"" + arch + "\")",
              line, column);
     }
     if (unsupportedTable().find(resolved) != unsupportedTable().end()) {

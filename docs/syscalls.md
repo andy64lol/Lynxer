@@ -2,11 +2,11 @@
 
 Lynxer exposes one named built-in per Linux syscall. They are **raw ABI calls**:
 argument layouts, flags, structures and pointer lifetimes are the caller's
-responsibility. Every wrapper is **architecture-gated** and reached through the
+responsibility. Every wrapper is **target-gated** and reached through the
 architecture's namespace.
 
 ```lynx
-global setup(){ syscalls("amd64"); }
+global setup(){ syscalls("Linux", "amd64"); }
 
 global main(){
     println(amd64.syscallGetProcessId());
@@ -14,25 +14,29 @@ global main(){
 }
 ```
 
-## Selecting an architecture
+## Selecting an operating system and architecture
 
-`syscalls("<keyword>")` must run before any syscall call; it declares which
-architecture the program targets.
+`syscalls("<os>", "<arch>")` must run before any syscall call; it declares which
+operating system and architecture the program targets.
 
-| Keyword | Selects |
-| --- | --- |
-| `amd64`, `x86-64` | x86-64 |
-| `arm64`, `aarch64` | AArch64 |
+| Keyword | Kind | Selects |
+| --- | --- | --- |
+| `Linux` | operating system | Linux, the only host with named syscalls |
+| `amd64`, `x86-64` | architecture | x86-64 |
+| `arm64`, `aarch64` | architecture | AArch64 |
 
-- The keyword must name the **host** machine. `syscalls("arm64")` on an amd64
-  machine is an error, not a cross-architecture dispatch.
-- Only **one architecture at a time** may be selected; re-selecting the same one
-  is a no-op, a different one is an error.
+- Both keywords must name the **host**. `syscalls("Linux", "arm64")` on an amd64
+  machine is an error, not a cross-target dispatch, and so is
+  `syscalls("Linux", "amd64")` on a non-Linux host.
+- Matching is **case-insensitive**, and `Windows`/`win32` and `macOS`/`darwin`
+  are recognised operating systems so the error is specific — but no host can
+  select them today: named syscalls require a Linux runtime. This is what lets
+  `syscalls(global.sys.platform(), global.sys.architecture())` assert the host
+  (see [stdlib/sys.md](stdlib/sys.md)).
+- Only **one target at a time** may be selected; re-selecting the same one is a
+  no-op, a different one is an error.
 - A misspelled keyword or namespace prefix reports the closest match, e.g.
   `unknown syscall architecture 'amd6'. You meant: amd64?`.
-- `global.sys.architecture()` (see [stdlib/sys.md](stdlib/sys.md)) returns the
-  keyword for this machine, so `syscalls(global.sys.architecture())` makes a
-  program assert it is running on the architecture its call prefixes assume.
 - The former flat `syscallRead(...)` spelling is gone; it fails with a pointer to
   the namespaced form.
 

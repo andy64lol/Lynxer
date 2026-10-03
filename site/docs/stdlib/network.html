@@ -133,7 +133,7 @@
 <p>Built from the Rust crate <code>rust/network</code>.</p>
 <hr>
 <h2 id="http-client">HTTP Client</h2>
-<p>Perform HTTP requests with support for all standard methods.</p>
+<p>Perform HTTP requests with support for all standard methods. HTTP calls release the interpreter lock while waiting on the socket. This lets server callback routes and other Lynxer threads run while an HTTP request is in flight, then resumes the caller after the response arrives.</p>
 <table>
 <tr><th>Function</th><th>Description</th></tr>
 <tr><td><strong><code>get(url)</code></strong></td><td>Fetches the response body or returns an error.</td></tr>

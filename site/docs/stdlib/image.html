@@ -146,7 +146,7 @@ global main(){
 </table>
 <h2 id="transforms-and-pixels">Transforms and pixels</h2>
 <p><code>resize</code>, <code>thumbnail</code>, <code>scale</code>, <code>crop</code>, <code>rotate</code>, <code>flipH</code>, <code>flipV</code>, <code>pad</code>, <code>convert</code>, <code>grayscale</code>, <code>toRGB</code>, <code>toRGBA</code>, <code>toBinary</code>, <code>brightness</code>, <code>contrast</code>, <code>invert</code>, <code>blur</code>, <code>boxBlur</code>, <code>unsharpMask</code>, and <code>sharpen</code> return new handles.</p>
-<p><code>getPixel</code> returns a JSON array <code>[r,g,b,a]</code>. <code>setPixel</code>, <code>setPixelA</code>, and <code>fill</code> mutate the existing image. <code>paste</code> and <code>pasteWithAlpha</code> mutate the destination; <code>blend</code> returns a new image. <code>addAlpha</code>, <code>setAlpha</code>, and <code>removeAlpha</code> return new handles.</p>
+<p><code>getPixel</code>, <code>getAverageColor</code>, and <code>getDominantColor</code> return JSON arrays in <code>[r,g,b,a]</code> order; histogram and info results are JSON objects. <code>getPixel</code> returns <code>[]</code> for an invalid coordinate or handle. <code>setPixel</code>, <code>setPixelA</code>, and <code>fill</code> mutate the existing image. <code>paste</code> and <code>pasteWithAlpha</code> mutate the destination; <code>blend</code> returns a new image. <code>addAlpha</code>, <code>setAlpha</code>, and <code>removeAlpha</code> return new handles.</p>
 <h2 id="geometry-fitting">Geometry fitting</h2>
 <table>
 <tr><th>Function</th><th>Description</th></tr>
@@ -206,7 +206,7 @@ global main(){
 <h2 id="viewer">Viewer</h2>
 <p><code>show(idx)</code> writes the image to a temporary PNG and opens it with the system viewer (<code>xdg-open</code>, or <code>open</code> on macOS). It returns <code>true</code>/<code>false</code>; it is not usable headlessly.</p>
 <h2 id="analysis-and-encoding">Analysis and encoding</h2>
-<p><code>getAverageColor</code>, <code>getDominantColor</code>, and <code>getHistogram</code> return JSON strings. <code>tile</code> returns a tiled image. <code>toBase64</code> and <code>toDataUrl</code> encode an image, and <code>fromBase64</code> decodes an image into a new handle.</p>
+<p><code>getAverageColor</code>, <code>getDominantColor</code>, and <code>getHistogram</code> return JSON strings. <code>tile</code> returns a tiled image. <code>toBase64</code> and <code>toDataUrl</code> encode an image, and <code>fromBase64</code> decodes an image into a new handle. <code>getMode</code> reports <code>L</code>, <code>LA</code>, <code>RGB</code>, or <code>RGBA</code>; grayscale conversion preserves alpha and therefore returns <code>LA</code> when its input has transparency. <code>getFormat</code> and <code>info</code> report the detected source format for opened/decoded images and an empty format string for newly created or transformed images.</p>
 <hr>
 <h2 id="see-also">See also</h2>
 <ul>

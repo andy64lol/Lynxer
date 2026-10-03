@@ -121,7 +121,7 @@
 <h1 id="json">json</h1>
 <p>JSON encoding, decoding, querying and mutation.</p>
 <p><strong>Backend:</strong> native — <code>stdlib/json.so</code>, built from the Rust crate <code>rust/json</code> over <a href="https://docs.rs/serde_json"><code>serde_json</code></a> with the <code>preserve_order</code> feature so object keys keep their insertion order. Output spacing and the pretty-print indents match the previous nlohmann-based backend byte for byte. <strong>Import:</strong> <code>import(&quot;json&quot;)</code> → <code>global.json.*</code></p>
-<p>Objects preserve key insertion order, and non-finite numbers are written as <code>null</code> so output is always valid JSON.</p>
+<p>Objects preserve key insertion order, including when updated: replacing a key keeps its position and a new key is appended. JSON input follows the JSON number grammar; <code>NaN</code>, <code>Infinity</code>, <code>-Infinity</code>, and numbers outside the finite range accepted by the parser (for example <code>1e999</code>) are invalid and are not coerced to <code>null</code>. JSON output cannot contain non-finite numbers; native value serialization uses <code>null</code> for non-finite Lynxer numbers so the output remains valid JSON.</p>
 <table>
 <tr><th>Function</th><th>Signature</th><th>Returns</th></tr>
 <tr><td><code>jsonValid</code></td><td><code>(str s)</code></td><td><code>true</code> if <code>s</code> parses as JSON</td></tr>

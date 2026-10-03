@@ -166,6 +166,20 @@ lynxer --compile app.lynx helpers.lynx vendor/lib.so \
 </table>
 <p>The first <code>.lynx</code> input is the program; any further <code>.lynx</code> or <code>.so</code> input is embedded and importable by name. A <code>--include</code> file that is not <code>.lynx</code>/<code>.so</code> is embedded as data and read from the program with <code>bundledFile(name)</code> / <code>bundledFiles()</code>; see <a href="builtins.html#bundled-files">builtins</a>.</p>
 <p>Inside a compiled executable, <code>--no-opt</code> has no effect: the payload is always optimized.</p>
+<h2 id="emitting-a-c-abi-library">Emitting a C ABI library</h2>
+<p><code>--emit-library</code> builds a shared library (<code>.so</code>) that exposes a program's top-level <code>export</code>s as C symbols other languages can call. It needs a C++ compiler and the embedding runtime <code>liblynxer.so</code>, so <strong>Lynxer must be built first</strong> (<code>make buildLynxer</code>); the feature is unavailable from an unbuilt tree and fails with <code>build Lynxer first</code> when the runtime is missing. The emitted library embeds the program and needs only <code>liblynxer.so</code> at run time.</p>
+<p>On Windows the embedding runtime is not built yet, so <code>--emit-library</code> fails with <code>exporting to a shared library is not supported on Windows yet</code> instead of a linker error. See <a href="windows.html">windows</a>.</p>
+<pre><code>lynxer --emit-library app.lynx -o libapp.so
+lynxer --emit-library app.lynx --include helpers.lynx -o libapp.so</code></pre>
+<table>
+<tr><th>Flag</th><th>Aliases</th><th>Effect</th></tr>
+<tr><td><code>--emit-library</code></td><td><code>--shared-library</code>, <code>-emit-library</code></td><td>build an exporting shared library</td></tr>
+<tr><td><code>--include &lt;file&gt;</code></td><td><code>-i</code></td><td>embed an extra module, native library, or data file</td></tr>
+<tr><td><code>-o &lt;path&gt;</code></td><td><code>--output</code></td><td>name the output library</td></tr>
+<tr><td><code>--runtime &lt;path&gt;</code></td><td>—</td><td>use an explicit <code>liblynxer.so</code></td></tr>
+<tr><td><code>--cc &lt;compiler&gt;</code></td><td>—</td><td>C++ compiler used to build the library</td></tr>
+</table>
+<p>See <a href="embedding.html">embedding</a> for the <code>export</code> syntax and the C ABI mapping. Alongside the library, <code>--emit-library</code> writes a header with the exported prototypes (<code>libapp.so</code> → <code>libapp.h</code>); <code>make sdk</code> stages <code>lynxer.h</code>, <code>ffi_abi.h</code> and <code>liblynxer.so</code> under <code>lynxer/build/sdk/</code>.</p>
 <h2 id="listing-the-standard-library">Listing the standard library</h2>
 <pre><code>lynxer --list-stdlibs</code></pre>
 <p>Aliases: <code>--stdlibs</code>, <code>-stdlibs</code>, <code>-list-stdlibs</code>. It lists every module in the interpreter's <code>stdlib/</code> directory together with its <code>////</code> docstring, and exits <code>1</code> with <code>No stdlib directory found.</code> when that directory is missing. See <a href="modules.html">modules</a> for the docstring format.</p>
@@ -181,6 +195,7 @@ lynxer --compile app.lynx helpers.lynx vendor/lib.so \
 <pre><code>sudo lynxer --install      # install into /usr/lib/lynxer, link /usr/bin/lynxer
 sudo lynxer --uninstall    # remove the installed interpreter</code></pre>
 <p><code>--install</code> copies the running executable (resolved through <code>/proc/self/exe</code>), its <code>stdlib/</code> directory and <code>lynxer.config</code> into a self-contained tree under <code>/usr/lib/lynxer</code>, then creates the symlink <code>/usr/bin/lynxer</code> to the real binary. The symlink resolves through <code>/proc/self/exe</code>, so the installed interpreter finds its stdlib from any working directory — <code>lynxer app.lynx</code> works with no build tree present. Set <code>LYNXER_PREFIX</code> to use a prefix other than <code>/usr</code> (for example <code>LYNXER_PREFIX=$HOME/.local</code>), and pass the same value to <code>--uninstall</code>. Without write permission it prints the failure and a <code>sudo</code> hint and exits <code>1</code>. <code>--uninstall</code> removes the symlink and the tree; when neither is present it reports why and exits <code>1</code>.</p>
+<p>On Windows the default prefix is <code>%LOCALAPPDATA%\Programs\Lynxer</code>, the launcher is a copy (<code>bin\lynxer.exe</code>) rather than a symlink, and the installed binary is <code>lynxer.exe</code>. See <a href="windows.html">windows</a>.</p>
 <h2 id="removed-with-the-bytecode-backend">Removed with the bytecode backend</h2>
 <p>These are recognised and exit <code>1</code> with <code>lynxer: &#x27;&lt;flag&gt;&#x27; was removed with the bytecode backend; use lynxer --compile instead</code>:</p>
 <p><code>--view-bytecode</code> (aliases <code>--inspect-bytecode</code>, <code>--disasm</code>), <code>--benchmark-compile</code> (alias <code>--bench-compile</code>), <code>--no-cache</code>.</p>

@@ -25,7 +25,15 @@ unchanged and the Linux test suite is the regression gate.
 
 The standard streams are put in binary mode on Windows, so `\n` is not
 translated to `\r\n`: Lynxer's output is byte-identical to POSIX, which the
-fixture comparisons rely on.
+fixture comparisons rely on. The console is also switched to ANSI escape
+processing (`platform::enableVirtualTerminal()`), so `tui` and `graphics`
+sequences render; a redirected stream has no console mode and is unaffected.
+
+`--compile` works unchanged: the payload is appended to the running image and
+read back through `platform::executablePath()` (`GetModuleFileNameW`), and the
+compiled-executable parity loop passes on Windows. Native modules load through
+the same ABI too: `examples/native_signatures.cpp` builds and its fixture passes
+(the Rust `libffi` engine compiles under both Windows toolchains).
 
 One consequence of the copy-instead-of-symlink install: on POSIX
 `/proc/self/exe` resolves `$PREFIX/bin/lynxer` to the real binary, so
@@ -38,9 +46,10 @@ One consequence of the copy-instead-of-symlink install: on POSIX
 These features need work that is being done slowly and are **not** part of the
 Windows build yet:
 
-- **Named syscalls.** The `syscalls()` selector and the `syscall*`/`<arch>.*`
-  built-ins require a Linux runtime; on Windows they are unavailable rather
-  than emulated. Their tables and `<sys/syscall.h>` includes are Linux-only.
+- **Named syscalls.** The `syscalls("<os>", "<arch>")` selector and the
+  `syscall*`/`<arch>.*` built-ins require a Linux runtime; on Windows they are
+  unavailable rather than emulated. Their tables and `<sys/syscall.h>` includes
+  are Linux-only, and selecting `"Windows"` is refused on the (Linux) host.
 - **The `sys` stdlib module.** It is built on Linux system calls and is not
   compiled for Windows.
 - **The managed POSIX built-ins.** The `filesystem*`, `networking*` and
@@ -85,30 +94,29 @@ out of `LYNXER_RUST_MODULE_NAMES`.
   MINGW/MSYS/CYGWIN) and keys the compile flags, link libraries and artifact
   names off it: a Windows build gets no `-fPIC`/`-ftls-model=global-dynamic` and
   no `-ldl` (macOS no longer gets `-ldl` either), builds `lynxer.exe`, and finds
-  the Rust backends at cargo's `<name>.dll` rather than `lib<name>.so`/`.dylib`. The MSYS2 MinGW-w64 path compiles the
-  whole C++ core and every portable Rust backend. The staticlib's native imports
+  the Rust backends at cargo's `<name>.dll` rather than `lib<name>.so`/`.dylib`.
+  The MSYS2 MinGW-w64 path compiles the whole C++ core and every portable Rust
+  backend. The staticlib's native imports
   (the Windows system DLLs: `ntdll`, `ws2_32`, `userenv`, …) come from
   `rustc --print native-static-libs` (`LYNXER_FFI_NATIVE_LIBS`) and are added on
   Windows only, where nothing else supplies them — a Rust `staticlib` does not
   carry its dependencies' link directives; POSIX keeps the proven driver
-  defaults. Still to do: `lynxer.dll` and a native MSVC/clang-cl build, plus the
-  ELF version script for the shared-library step.
-- **libffi on Windows.** The Rust `libffi` engine compiles under the MinGW
-  toolchain; the C++ link now pulls its native imports. Native modules still
-  need to be validated on Windows.
+  defaults. Still to do: `lynxer.dll` and a native MSVC/clang-cl build (with the
+  `.def`/`__declspec` exports and the 32-bit `__stdcall` convention).
 - **Stdlib backends.** `watch` needs `ReadDirectoryChangesW`; `cli`/`debug`/
   `os`/`path` need Windows equivalents for their POSIX calls; `js`/
   `multiprocessing` need a `CreateProcess` subprocess backend; `tui`/`graphics`/
   `sound` need console and device handling. `fileIO`/`shell` and the data-format
   modules build as-is.
-- **`--compile` bundling.** The payload is appended to the running image; the
-  PE equivalent and `GetModuleFileNameW`-based self-read are still to do.
-- **CI.** An experimental, allowed-to-fail `windows-latest` job now attempts a
-  real build and test on both architectures, in
-  `.github/workflows/build-lynxer-windows-amd.yml` (MSYS2 MINGW64) and
-  `.github/workflows/build-lynxer-windows-arm.yml` (MSYS2 CLANGARM64). They
-  graduate to required jobs once green, and must skip the Linux-only fixtures
-  explicitly.
+- **Embedding and `--emit-library`.** The runtime is an ELF shared object today,
+  so `--emit-library` fails cleanly on Windows with a "not supported yet" message
+  rather than emitting ELF-only link flags. A `lynxer.dll` runtime, its export
+  definition and the DLL-search-path lookup are still to do.
+
+Both Windows jobs are **required** (no `continue-on-error`):
+`.github/workflows/build-lynxer-windows-amd.yml` (MSYS2 MINGW64) and
+`.github/workflows/build-lynxer-windows-arm.yml` (MSYS2 CLANGARM64). Bob, the
+package manager, is separate and has its own four workflows.
 
 See the **Windows support** section of [../todo.md](../todo.md) for the tracked
 items.

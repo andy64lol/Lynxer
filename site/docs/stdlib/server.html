@@ -158,6 +158,9 @@
 <tr><td><code>routePost(path, body)</code> / <code>post</code> / <code>htmlPost</code></td><td>Fixed POST response</td></tr>
 <tr><td><code>put(path, body)</code> / <code>delete(path, body)</code> / <code>patch(path, body)</code></td><td>The other verbs</td></tr>
 <tr><td><code>anyHttp(path, body)</code></td><td>One route answering GET, POST, PUT, DELETE and PATCH</td></tr>
+<tr><td><code>routeGetCallback(path, functionName)</code> / <code>routePostCallback(...)</code></td><td>Run a named Lynxer handler for each matching request</td></tr>
+<tr><td><code>routeCallback(path, functionName)</code></td><td>Run a named handler for GET, POST, PUT, DELETE or PATCH</td></tr>
+<tr><td><code>respond(status, contentType, body)</code></td><td>Set the current callback request's response</td></tr>
 <tr><td><code>getStatus(path, body, status)</code></td><td>HTML GET with a custom status code</td></tr>
 <tr><td><code>routeEcho(path)</code></td><td>POST that returns the request body as <code>text/plain</code></td></tr>
 <tr><td><code>jsonGet(path, json)</code> / <code>jsonPost(path, json)</code></td><td>JSON responses (<code>application/json</code>)</td></tr>
@@ -173,6 +176,16 @@
 <tr><td><code>clearRoutes()</code></td><td>Drop pending routes, WebSocket paths and static trees</td></tr>
 </table>
 <p><code>HEAD</code> is served by the matching <code>GET</code> route.</p>
+<p>Callback handlers take no parameters. They run for each request under the interpreter lock; use the request readers below and then call <code>respond</code>. A callback that omits <code>respond</code> returns <code>204</code>; a callback error returns <code>500</code>. Fixed-string route registration and responses remain unchanged.</p>
+<pre><code>global greetRequest(){
+    str name = global.server.getArg(&quot;name&quot;);
+    global.server.respond(200, &quot;text/plain&quot;, &quot;Hello &quot; + name);
+}
+
+global setup(){
+    import(&quot;server&quot;);
+    global.server.routeGetCallback(&quot;/greet&quot;, &quot;greetRequest&quot;);
+}</code></pre>
 <h3 id="templates">Templates</h3>
 <p><code>dataJson</code> is a JSON object whose keys become template variables, addressed as <code>{{ key }}</code> and <code>{{ nested.key }}</code>. A Jinja-compatible subset is implemented:</p>
 <ul>
@@ -182,7 +195,7 @@
 <li><code>{% set name = expression %}</code></li>
 <li><code>{# comment #}</code></li>
 </ul>
-<p>Expressions cover literals, dotted paths, <code>or</code>/<code>and</code>/<code>not</code>, <code>==</code>/<code>!=</code>/<code>&lt;</code>/ <code>&lt;=</code>/<code>&gt;</code>/<code>&gt;=</code>, <code>in</code>, <code>+</code>/<code>-</code>/<code>*</code>/<code>/</code>/<code>%</code>, <code>~</code> (concatenation), grouping and <code>range()</code>, plus the filters <code>upper</code>, <code>lower</code>, <code>trim</code>, <code>capitalize</code>, <code>title</code>, <code>length</code>, <code>first</code>, <code>last</code>, <code>reverse</code>, <code>join</code>, <code>default</code>, <code>int</code>, <code>float</code>, <code>round</code>, <code>replace</code> and <code>string</code>. Inheritance, macros and includes are not implemented, there is no auto-escaping, and an unknown key renders as the empty string. <code>setTemplateFolder(folder)</code> sets the directory that <code>template</code> / <code>templatePost</code> resolve file names against.</p>
+<p>Expressions cover literals, dotted paths, <code>or</code>/<code>and</code>/<code>not</code>, <code>==</code>/<code>!=</code>/<code>&lt;</code>/ <code>&lt;=</code>/<code>&gt;</code>/<code>&gt;=</code>, <code>in</code>, <code>+</code>/<code>-</code>/<code>*</code>/<code>/</code>/<code>%</code>, <code>~</code> (concatenation), grouping and <code>range()</code>, plus the filters <code>upper</code>, <code>lower</code>, <code>trim</code>, <code>capitalize</code>, <code>title</code>, <code>length</code>, <code>first</code>, <code>last</code>, <code>reverse</code>, <code>join</code>, <code>default</code>, <code>int</code>, <code>float</code>, <code>round</code>, <code>replace</code> and <code>string</code>. Templates support <code>{% include &quot;file&quot; %}</code>, <code>{% extends &quot;base&quot; %}</code> with named <code>{% block %}</code> sections, and <code>{% macro name(args) %}</code> definitions called as <code>{{ name(args) }}</code>. Output expressions are HTML-escaped by default; <code>{{ value | safe }}</code> opts out for trusted markup. Dynamic values inside <code>on*</code>, <code>style</code>, <code>srcdoc</code> and <code>srcset</code> attributes are omitted, and dangerous URL schemes in URL attributes are replaced with <code>#</code>. Unknown variables return a descriptive <code>500</code> template error instead of silently rendering as empty; use <code>default</code> for intentionally optional values. <code>setTemplateFolder(folder)</code> sets the directory used to resolve templates and included/extended files; those paths cannot escape the configured folder.</p>
 <p>A template renders <strong>inside</strong> the request, so it can read the request through the <code>request</code> object:</p>
 <table>
 <tr><th>Path</th><th>Value</th></tr>
@@ -197,7 +210,7 @@
 <pre><code>global.server.templateString(
     &quot;/greet&quot;,
     &quot;&lt;h1&gt;Hello, {{ name | upper }}!&lt;/h1&gt;&quot;
-    &quot;{% if request.args.n %}&lt;p&gt;n={{ request.args.n }}&lt;/p&gt;{% endif %}&quot;,
+    &quot;{% if request.args.n | default(\&quot;\&quot;) %}&lt;p&gt;n={{ request.args.n }}&lt;/p&gt;{% endif %}&quot;,
     &quot;{\&quot;name\&quot;:\&quot;World\&quot;}&quot;);</code></pre>
 <h2 id="middleware-and-error-bodies">Middleware and error bodies</h2>
 <table>
@@ -211,7 +224,7 @@
 </table>
 <p>With CORS enabled, an <code>OPTIONS</code> preflight is answered <code>204</code> with <code>Access-Control-Allow-Methods</code> and <code>-Headers</code>.</p>
 <h2 id="request-context">Request context</h2>
-<p>These read the <strong>most recently handled request</strong>. A Lynxer route is a fixed string rather than a callback, and the interpreter evaluates one frame at a time, so there is no point at which such a reader could run <em>inside</em> a request; the original's Flask request context has no equivalent here. Each returns <code>&quot;&quot;</code> when no request has been handled yet.</p>
+<p>Inside callback handlers, these read that handler's current request. Outside a callback they retain compatibility by describing the most recently handled request. Each returns <code>&quot;&quot;</code> when no request has been handled yet.</p>
 <table>
 <tr><th>Function</th><th>Description</th></tr>
 <tr><td><code>getMethod()</code> / <code>getPath()</code> / <code>getUrl()</code></td><td>Verb, path, and <code>http://host/path?query</code></td></tr>
@@ -231,10 +244,10 @@
 <tr><td><code>runHTTPS(cert, key)</code></td><td>Start a <strong>TLS</strong> listener on the <code>init</code> host/port from a PEM certificate and key</td></tr>
 <tr><td><code>runSSLAdhoc()</code></td><td>Start a TLS listener with a self-signed certificate generated in-process</td></tr>
 </table>
-<p><code>run()</code> blocks, matching the original. Use <code>start()</code> + <code>stop()</code> when the program has to keep running.</p>
+<p><code>run()</code> blocks, matching the original, and releases the interpreter lock while waiting so callback routes continue to run. With <code>start()</code> + <code>stop()</code>, a long-lived Lynxer loop should yield periodically (for example with <code>nativeThreadYield(0.01)</code>) to let request callbacks acquire the interpreter.</p>
 <h2 id="tls">TLS</h2>
 <p><code>runHTTPS(certPath, keyPath)</code> and <code>runSSLAdhoc()</code> start an HTTPS listener with the same routes, on the host and port recorded by <code>init(host, port)</code> — call that first, or the op answers <code>ERROR: call init(host, port) before …</code>. Unlike <code>run()</code> they do <strong>not</strong> block: they return <code>&quot;ok&quot;</code> once the socket is listening, and <code>stop()</code> shuts the listener down. Both bound the port before returning, so a port clash is reported by the call.</p>
-<p><code>runHTTPS</code> reads the PEM files and rejects one it cannot use <em>before</em> binding: a missing file reports <code>ERROR: cannot read &#x27;&lt;path&gt;&#x27;: …</code>, a file with no certificate reports <code>ERROR: the certificate file contains no PEM certificate</code>, and a key file with no key reports <code>ERROR: the key file contains no PEM private key</code>. The certificate and key must match; a mismatch fails the handshake, not the call.</p>
+<p><code>runHTTPS</code> reads the PEM files and rejects one it cannot use <em>before</em> binding: a missing file reports <code>ERROR: cannot read &#x27;&lt;path&gt;&#x27;: …</code>, a file with no certificate reports <code>ERROR: the certificate file contains no PEM certificate</code>, and a key file with no key reports <code>ERROR: the key file contains no PEM private key</code>. A certificate/key mismatch is rejected before binding with <code>ERROR: the certificate and private key do not match</code>.</p>
 <p><code>runSSLAdhoc()</code> mints a self-signed certificate for <code>localhost</code> and <code>127.0.0.1</code> with <code>rcgen</code>, so it needs no files at all — it is the quickest way to stand up HTTPS, and a client must skip verification (the certificate is not signed by any authority it trusts).</p>
 <p>TLS is <code>rustls</code> with the <code>ring</code> provider behind <code>axum-server</code> — pure Rust, no system OpenSSL — with <code>rustls-pemfile</code> for the PEM files and <code>rcgen</code> for the self-signed certificate. <code>docs/stdlib_server_tls.lynx</code> is the fixture: it mints a certificate, serves over HTTPS and completes a real handshake.</p>
 <hr>

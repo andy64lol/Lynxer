@@ -7,7 +7,7 @@ available on both architectures and are called directly here. Every printed
 value is a property, so the expected output in amd64Syscalls.expected is stable.
 ////
 
-global setup() { syscalls("amd64"); }
+global setup() { syscalls("Linux", "amd64"); }
 
 global main() {
     println("== pipe ==");

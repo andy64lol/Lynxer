@@ -123,15 +123,15 @@
 <p><strong>Backend:</strong> native — <code>stdlib/sys.so</code>, built from <code>stdlib/sys.cpp</code>. <strong>Import:</strong> <code>import(&quot;sys&quot;)</code> → <code>global.sys.*</code></p>
 <table>
 <tr><th>Function</th><th>Signature</th><th>Notes</th></tr>
-<tr><td><code>platform</code></td><td><code>() -&gt; str</code></td><td><code>linux</code>, <code>darwin</code>, <code>win32</code> or <code>unknown</code></td></tr>
-<tr><td><code>architecture</code></td><td><code>() -&gt; str</code></td><td>Canonical syscall architecture of this build: <code>amd64</code> or <code>arm64</code></td></tr>
+<tr><td><code>platform</code></td><td><code>() -&gt; str</code></td><td>Host operating system: <code>linux</code>, <code>darwin</code>, <code>freebsd</code>, <code>netbsd</code>, <code>openbsd</code>, <code>dragonfly</code> or <code>win32</code>; otherwise <code>unknown</code></td></tr>
+<tr><td><code>architecture</code></td><td><code>() -&gt; str</code></td><td>Canonical syscall architecture of this build: <code>amd64</code> or <code>arm64</code>; <code>&quot;&quot;</code> otherwise. Pass with <code>platform()</code> to <code>syscalls(...)</code></td></tr>
 <tr><td><code>cpuCount</code></td><td><code>() -&gt; int</code></td><td>Online processors (<code>0</code> when unknown)</td></tr>
 <tr><td><code>pageSize</code></td><td><code>() -&gt; int</code></td><td>Memory page size in bytes (<code>0</code> when unknown)</td></tr>
-<tr><td><code>memoryTotal</code></td><td><code>() -&gt; int</code></td><td>Total physical memory in bytes (<code>0</code> when unknown)</td></tr>
-<tr><td><code>memoryAvailable</code></td><td><code>() -&gt; int</code></td><td>Available physical memory in bytes</td></tr>
-<tr><td><code>uptime</code></td><td><code>() -&gt; int</code></td><td>Seconds since boot</td></tr>
-<tr><td><code>bootTime</code></td><td><code>() -&gt; int</code></td><td>Boot time as a Unix timestamp</td></tr>
-<tr><td><code>loadAverage</code></td><td><code>() -&gt; str</code></td><td>JSON array <code>[1m, 5m, 15m]</code></td></tr>
+<tr><td><code>memoryTotal</code></td><td><code>() -&gt; int</code></td><td>Total physical memory in bytes (<code>0</code> when unavailable)</td></tr>
+<tr><td><code>memoryAvailable</code></td><td><code>() -&gt; int</code></td><td>Available physical memory in bytes (<code>0</code> when unavailable)</td></tr>
+<tr><td><code>uptime</code></td><td><code>() -&gt; int</code></td><td>Seconds since boot (<code>0</code> when unavailable)</td></tr>
+<tr><td><code>bootTime</code></td><td><code>() -&gt; int</code></td><td>Boot time as a Unix timestamp (<code>0</code> when unavailable)</td></tr>
+<tr><td><code>loadAverage</code></td><td><code>() -&gt; str</code></td><td>JSON array <code>[1m, 5m, 15m]</code>; <code>[]</code> when unavailable</td></tr>
 <tr><td><code>version</code></td><td><code>() -&gt; str</code></td><td>Lynxer version, e.g. <code>Lynxer 0.1.8.2</code></td></tr>
 <tr><td><code>versionInfo</code></td><td><code>() -&gt; str</code></td><td>JSON <code>{major, minor, micro, patch, releaselevel, serial}</code></td></tr>
 <tr><td><code>implementation</code></td><td><code>() -&gt; str</code></td><td><code>Lynxer</code></td></tr>
@@ -144,8 +144,8 @@
 <tr><td><code>getFilesystemEncoding</code></td><td><code>() -&gt; str</code></td><td><code>utf-8</code></td></tr>
 <tr><td><code>isatty</code></td><td><code>() -&gt; bool</code></td><td>Whether stdout is a terminal</td></tr>
 <tr><td><code>stdinName</code> / <code>stdoutName</code></td><td><code>() -&gt; str</code></td><td><code>&lt;stdin&gt;</code> / <code>&lt;stdout&gt;</code></td></tr>
-<tr><td><code>executable</code></td><td><code>() -&gt; str</code></td><td>Path of the running executable</td></tr>
-<tr><td><code>prefix</code> / <code>execPrefix</code></td><td><code>() -&gt; str</code></td><td>Directory containing the executable</td></tr>
+<tr><td><code>executable</code></td><td><code>() -&gt; str</code></td><td>Path of the running executable, or <code>&quot;&quot;</code> when the host does not expose it</td></tr>
+<tr><td><code>prefix</code> / <code>execPrefix</code></td><td><code>() -&gt; str</code></td><td>Directory containing the executable, or <code>&quot;&quot;</code> when unavailable</td></tr>
 <tr><td><code>argv</code></td><td><code>() -&gt; str</code></td><td>The program's command line as a JSON array</td></tr>
 <tr><td><code>argCount</code></td><td><code>() -&gt; int</code></td><td>Number of program command-line entries</td></tr>
 <tr><td><code>getArg</code></td><td><code>(int index) -&gt; str</code></td><td>Entry at <code>index</code>, or <code>&quot;&quot;</code></td></tr>
@@ -153,6 +153,7 @@
 <tr><td><code>exitOk</code> / <code>exitError</code></td><td><code>()</code></td><td>Exits with <code>0</code> / <code>1</code></td></tr>
 </table>
 <p>Because Lynxer has no Python runtime, <code>version()</code> reports the Lynxer version and there is no <code>sys.path</code>, <code>sys.modules</code> or recursion-limit surface. <code>argv</code> describes the <strong>program's own</strong> command line: entry 0 is the script path (<code>lynxer prog.lynx a b</code> → <code>[&quot;prog.lynx&quot;, &quot;a&quot;, &quot;b&quot;]</code>), or the executable itself for a compiled program, followed by the arguments passed after it.</p>
+<p>CPU/page-size/load-average queries use POSIX facilities; physical memory and boot-time values use the host's system-information interfaces on Linux and the supported BSD/macOS targets. Any unavailable host value uses the sentinel in the table rather than fabricating a result.</p>
 <h2 id="example">Example</h2>
 <pre><code>global setup(){ import(&quot;sys&quot;); }
 

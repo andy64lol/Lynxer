@@ -136,7 +136,7 @@ global main(){
 <tr><td><code>luaVersion()</code></td><td>Return <code>Lua 5.4</code>.</td></tr>
 <tr><td><code>luaExists()</code></td><td>Return <code>true</code> when the embedded runtime is available.</td></tr>
 </table>
-<p>Lua <code>print</code> arguments are joined with tabs. Each captured output string ends with a newline when the script printed at least one line. Runtime and file errors are returned as strings beginning with <code>Error:</code>.</p>
+<p>Lua <code>print</code> arguments are joined with tabs. Each captured output string ends with a newline when the script printed at least one line. Runtime and file errors are returned as strings beginning with <code>Error[syntax]:</code>, <code>Error[runtime]:</code>, <code>Error[io]:</code>, or <code>Error[other]:</code>. The original mlua diagnostic, including the Lua traceback for runtime failures, follows the classification prefix.</p>
 <hr>
 <h2 id="see-also">See also</h2>
 <ul>

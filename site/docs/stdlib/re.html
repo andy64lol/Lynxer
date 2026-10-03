@@ -139,9 +139,12 @@
 <tr><td><code>split</code></td><td><code>(str pattern, str string)</code></td><td>JSON array of the split parts</td></tr>
 <tr><td><code>splitN</code></td><td><code>(str pattern, str string, int maxSplit)</code></td><td>Split at most <code>maxSplit</code> times</td></tr>
 <tr><td><code>escape</code></td><td><code>(str string)</code></td><td>Regex-escaped literal text</td></tr>
-<tr><td><code>matchStart</code></td><td><code>(str pattern, str string)</code></td><td>Start index of the first match, or <code>-1</code></td></tr>
-<tr><td><code>matchEnd</code></td><td><code>(str pattern, str string)</code></td><td>End index of the first match, or <code>-1</code></td></tr>
-<tr><td><code>findSpans</code></td><td><code>(str pattern, str string)</code></td><td>JSON array of <code>{start, end, match}</code></td></tr>
+<tr><td><code>matchStart</code></td><td><code>(str pattern, str string)</code></td><td>Byte start offset of the first match, or <code>-1</code></td></tr>
+<tr><td><code>matchEnd</code></td><td><code>(str pattern, str string)</code></td><td>Byte end offset of the first match, or <code>-1</code></td></tr>
+<tr><td><code>findSpans</code></td><td><code>(str pattern, str string)</code></td><td>JSON array of <code>{start, end, match}</code> with byte offsets</td></tr>
+<tr><td><code>matchStartChar</code></td><td><code>(str pattern, str string)</code></td><td>Unicode scalar-value start index, or <code>-1</code></td></tr>
+<tr><td><code>matchEndChar</code></td><td><code>(str pattern, str string)</code></td><td>Unicode scalar-value end index, or <code>-1</code></td></tr>
+<tr><td><code>findSpansChar</code></td><td><code>(str pattern, str string)</code></td><td>The same span list with character indices</td></tr>
 <tr><td><code>testIgnoreCase</code></td><td><code>(str pattern, str string)</code></td><td><code>test</code> with the <code>i</code> flag</td></tr>
 <tr><td><code>matchIgnoreCase</code></td><td><code>(str pattern, str string)</code></td><td><code>match</code> with the <code>i</code> flag</td></tr>
 <tr><td><code>searchIgnoreCase</code></td><td><code>(str pattern, str string)</code></td><td><code>search</code> with the <code>i</code> flag</td></tr>
@@ -163,7 +166,7 @@
 <li>inline flags anywhere in a pattern (<code>a(?i)bc</code> applies from where it appears) and <code>(?x)</code> verbose mode with <code>#</code> comments.</li>
 </ul>
 <p>An invalid pattern is not an error: <code>test</code> is <code>false</code>, a string result is <code>&quot;&quot;</code> and an index is <code>-1</code>.</p>
-<p>Index helpers (<code>matchStart</code>, <code>matchEnd</code>, <code>findSpans</code>) report <strong>byte</strong> offsets.</p>
+<p>Byte-index helpers report UTF-8 byte offsets. The <code>*Char</code> variants count Unicode scalar values (not grapheme clusters); all indexes are zero-based and end indexes are exclusive.</p>
 <h2 id="example">Example</h2>
 <pre><code>global setup(){ import(&quot;re&quot;); }
 
