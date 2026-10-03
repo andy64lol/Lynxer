@@ -6,7 +6,7 @@
 //! Values are strings in both directions. A failure is the scalar sentinel:
 //! `""` for a document op, `false` for `iniValid`.
 
-use ini::Ini;
+use ini::{Ini, LineSeparator, WriteOption};
 use lynxer_abi::{export_int, export_string, lynxer_module};
 use serde_json::{Map, Value};
 
@@ -42,8 +42,16 @@ fn json_to_ini(json: &str) -> Option<String> {
             document.with_section(section).set(key, text);
         }
     }
+    // `write_to` uses rust-ini's `SystemDefault` line separator, which is CRLF
+    // on Windows and LF elsewhere. Write LF explicitly so a serialized document
+    // is byte-identical on every host: the fixtures compare it exactly, and the
+    // interpreter's own output is LF everywhere.
+    let option = WriteOption {
+        line_separator: LineSeparator::CR,
+        ..WriteOption::default()
+    };
     let mut output = Vec::new();
-    document.write_to(&mut output).ok()?;
+    document.write_to_opt(&mut output, option).ok()?;
     String::from_utf8(output).ok()
 }
 
