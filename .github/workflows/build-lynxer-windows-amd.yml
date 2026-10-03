@@ -33,6 +33,8 @@ jobs:
           update: true
           install: >-
             make
+            coreutils
+            diffutils
             mingw-w64-x86_64-gcc
             mingw-w64-x86_64-libffi
             mingw-w64-x86_64-pkgconf

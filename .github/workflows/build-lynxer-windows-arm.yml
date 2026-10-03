@@ -33,6 +33,8 @@ jobs:
           update: true
           install: >-
             make
+            coreutils
+            diffutils
             mingw-w64-clang-aarch64-clang
             mingw-w64-clang-aarch64-libffi
             mingw-w64-clang-aarch64-pkgconf
