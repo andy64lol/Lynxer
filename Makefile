@@ -285,6 +285,23 @@ LYNXER_PARITY_FIXTURES += stdlib_sound
 endif
 LYNXER_PARITY_FIXTURES := $(filter-out $(LYNXER_DISPLAY_FIXTURES),$(LYNXER_PARITY_FIXTURES))
 
+# --- Checks that cannot run on Windows -------------------------------------
+# `sys`, `cli`, `debug`, `os`, `path`, `js` and `multiprocessing` are not built
+# there (LYNXER_WINDOWS_SKIP_MODULES), and the named syscalls and the native
+# memory/sync surface have no Windows backend yet, so the checks that use them
+# are skipped. See docs/windows.md.
+ifeq ($(LYNXER_ON_WINDOWS),1)
+LYNXER_EXIT_FIXTURES :=
+LYNXER_EXIT_THREAD_FIXTURES :=
+LYNXER_NATIVE_STDLIB_FIXTURE :=
+LYNXER_STDLIB_TEST_ALL :=
+LYNXER_LOWLEVEL_FIXTURES :=
+LYNXER_PARITY_FIXTURES := $(filter-out native_stdlibs stdlib_path stdlib_watch lowlevel_memory lowlevel_syscalls lowlevel_arch,$(LYNXER_PARITY_FIXTURES))
+else
+LYNXER_EXIT_FIXTURES := sys_exit cli_exit
+LYNXER_EXIT_THREAD_FIXTURES := sys_exit_thread sys_exit_worker
+endif
+
 # Recipe shorthands: the interpreter, and the temp-file prefix for the suite.
 CLYX := ./$(LYNXER_TARGET)
 CLYX_TMP := $(LYNXER_DIR)/.lynxer
@@ -613,7 +630,7 @@ expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:23: charAt() index is out of rang
 	exit 1; \
 	fi; \
 	done
-	@for fixture in sys_exit cli_exit; do \
+	@for fixture in $(LYNXER_EXIT_FIXTURES); do \
 	run="$(LYNXER_DIR)/examples/$$fixture.lynx"; \
 	for mode in direct compiled; do \
 	if [ "$$mode" = compiled ]; then \
@@ -632,7 +649,7 @@ expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:23: charAt() index is out of rang
 	done; \
 	done; \
 	rm -f $(CLYX_TMP)_exit.out $(CLYX_TMP)_exit_test
-	@for fixture in sys_exit_thread sys_exit_worker; do \
+	@for fixture in $(LYNXER_EXIT_THREAD_FIXTURES); do \
 	for mode in direct compiled; do \
 	run="$(LYNXER_DIR)/examples/$$fixture.lynx"; \
 	if [ "$$mode" = compiled ]; then \
@@ -786,11 +803,13 @@ expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:23: charAt() index is out of rang
 	if [ "$$output" != "$$expected" ]; then \
 	echo "expected native math output:"; printf '%s\n' "$$expected"; \
 	echo "received native math output:"; printf '%s\n' "$$output"; exit 1; fi
-	@output="$$($(CLYX) $(LYNXER_NATIVE_STDLIB_FIXTURE))"; \
+	@if [ -n "$(LYNXER_NATIVE_STDLIB_FIXTURE)" ]; then \
+	output="$$($(CLYX) $(LYNXER_NATIVE_STDLIB_FIXTURE))"; \
 	expected="$$(printf '3.141592653589793\n180\ntrue\ntrue\ntrue\nlinux')"; \
 	if [ "$$output" != "$$expected" ]; then \
 	echo "expected native stdlib output:"; printf '%s\n' "$$expected"; \
-	echo "received native stdlib output:"; printf '%s\n' "$$output"; exit 1; fi
+	echo "received native stdlib output:"; printf '%s\n' "$$output"; exit 1; fi; \
+	fi
 	@output="$$(LYNXER_GAME_HEADLESS=1 LYNXER_GRAPHICS_HEADLESS=1 $(CLYX) $(LYNXER_PROGRAM_ARGS_FIXTURE) alpha "beta gamma" 2>&1)"; \
 	expected="$$(cat $(LYNXER_PROGRAM_ARGS_FIXTURE:.lynx=.expected))"; \
 	if [ "$$output" != "$$expected" ]; then \
@@ -910,12 +929,14 @@ expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:23: charAt() index is out of rang
 	@$(CLYX) --validate-executeable > /dev/null || \
 	{ echo "lynxer --validate-executeable reported a failure:"; \
 	$(CLYX) --validate-executeable; exit 1; }
-	@LYNXER_GAME_HEADLESS=1 LYNXER_GRAPHICS_HEADLESS=1 LYNXER_SKIP_DISPLAY=$(LYNXER_SKIP_DISPLAY) $(CLYX) $(LYNXER_STDLIB_TEST_ALL) > $(CLYX_TMP)_stdlib_all.out 2>&1; \
+	@if [ -n "$(LYNXER_STDLIB_TEST_ALL)" ]; then \
+	LYNXER_GAME_HEADLESS=1 LYNXER_GRAPHICS_HEADLESS=1 LYNXER_SKIP_DISPLAY=$(LYNXER_SKIP_DISPLAY) $(CLYX) $(LYNXER_STDLIB_TEST_ALL) > $(CLYX_TMP)_stdlib_all.out 2>&1; \
 	if [ $$? -ne 0 ]; then \
 	echo "consolidated stdlib test failed: $(LYNXER_STDLIB_TEST_ALL)"; \
 	cat $(CLYX_TMP)_stdlib_all.out; \
 	rm -f $(CLYX_TMP)_stdlib_all.out; exit 1; fi; \
-	rm -f $(CLYX_TMP)_stdlib_all.out
+	rm -f $(CLYX_TMP)_stdlib_all.out; \
+	fi
 	@if [ "$(LYNXER_SKIP_DISPLAY)" = "1" ]; then \
 	echo "lynxer: skipping game_clicker.lynx: display tests disabled (LYNXER_SKIP_DISPLAY=1)"; \
 	else \

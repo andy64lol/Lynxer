@@ -57,6 +57,14 @@ Windows build yet:
   need a `CreateProcess` + pipe backend before they can be built.
 - **The `watch` Rust backend.** Its only backends are Linux (inotify) and
   macOS/BSD (kqueue); Windows needs `ReadDirectoryChangesW`.
+- **Test groups.** `testLynxer` skips the checks that need a module or surface
+  Windows does not build: the `sys_exit`/`cli_exit` and `sys_exit_thread`/
+  `sys_exit_worker` loops, the `native_stdlibs` check (it also asserts a Linux
+  host value), the consolidated `stdlibTestAll`, the low-level fixture group,
+  and the parity fixtures that import an excluded module or drive the
+  syscall/native surface (`native_stdlibs`, `stdlib_path`, `stdlib_watch`,
+  `lowlevel_*`). The `Makefile` variables default to the full lists off
+  Windows, so POSIX coverage is unchanged.
 
 `LYNXER_WINDOWS_SKIP_MODULES` in the `Makefile` names the C++ modules a Windows
 build skips (`sys cli debug os path js multiprocessing`), and `watch` is filtered
