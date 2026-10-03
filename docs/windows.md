@@ -29,6 +29,15 @@ fixture comparisons rely on. The console is also switched to ANSI escape
 processing (`platform::enableVirtualTerminal()`), so `tui` and `graphics`
 sequences render; a redirected stream has no console mode and is unaffected.
 
+**Windows API surface (first slice).** On Windows, selecting the Windows target
+(`syscalls("winAPI", "amd64")`, with `windows` and `win32` as synonyms) enables
+the `winAPI.*` namespace: `getProcessId`, `getCurrentDirectory`,
+`getComputerName`, `getTempPath`, `getSystemDirectory`, `getWindowsDirectory`,
+`getModuleFileName`, `getTickCount`, `getLastError`, `getEnvironmentVariable`,
+`setEnvironmentVariable` and `sleep`. The `winapi.lynx` fixture runs it in the
+Windows job; the Win32 calls live in `lynxer/winapi.cpp` so nothing else includes
+`<windows.h>`. See [syscalls.md](syscalls.md#windows-api-calls).
+
 `--compile` works unchanged: the payload is appended to the running image and
 read back through `platform::executablePath()` (`GetModuleFileNameW`), and the
 compiled-executable parity loop passes on Windows. Native modules load through
@@ -46,10 +55,11 @@ One consequence of the copy-instead-of-symlink install: on POSIX
 These features need work that is being done slowly and are **not** part of the
 Windows build yet:
 
-- **Named syscalls.** The `syscalls("<os>", "<arch>")` selector and the
-  `syscall*`/`<arch>.*` built-ins require a Linux runtime; on Windows they are
-  unavailable rather than emulated. Their tables and `<sys/syscall.h>` includes
-  are Linux-only, and selecting `"Windows"` is refused on the (Linux) host.
+- **Named Linux syscalls.** The `amd64.syscall*`/`arm64.syscall*` built-ins
+  require a Linux runtime; on Windows they are unavailable rather than emulated
+  (their tables and `<sys/syscall.h>` includes are Linux-only). Selecting
+  `"Linux"` is refused on a Windows host, and selecting `winAPI`/`"windows"` is
+  refused on Linux.
 - **The `sys` stdlib module.** It is built on Linux system calls and is not
   compiled for Windows.
 - **The managed POSIX built-ins.** The `filesystem*`, `networking*` and

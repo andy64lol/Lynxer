@@ -161,29 +161,28 @@ surface stays a documented boundary in
   `LYNXER_RUST_MODULE_NAMES`): `sys` and the syscall built-ins, the modules
   above, plus the `lowlevel_*` fixtures. Startup code lives on the host layer;
   see [docs/windows.md](docs/windows.md).
-- [ ] **Windows API access (Win32, not syscalls).** Windows exposes no stable
-  per-call syscall numbers to programs; its supported interface is the Win32
-  API surface in DLLs (`kernel32`, `advapi32`, `user32`, `bcrypt`, `ntdll`,
-  …). The named-syscall surface (`syscalls("<os>", "<arch>")` plus
-  `amd64.syscallX` / `arm64.syscallX`, see [syscalls.md](docs/syscalls.md)) is
-  target-gated and still Linux-only: it names an operating system now, so
-  selecting `"Windows"` is refused on a Linux host. Decide how Lynxer programs
-  reach Windows APIs instead:
-  - Start from what already works — `ffiLoadLibrary`/`ffiLookup`/`ffiCall`
-    ([native-modules.md](docs/native-modules.md)) and the native-module ABI.
-  - Choose the surface: a curated `windows` stdlib module with typed wrappers
-    (e.g. `getLastError`, `createFileW`, `readFile`), a general
-    `windowsCall(dll, "Symbol", ...)` primitive, or both — curated for the
-    common cases, the generic call for the long tail.
+- [ ] **Windows API access (Win32, not syscalls).** First slice landed:
+  selecting the Windows target (`syscalls("winAPI", "amd64")`, with `windows`
+  and `win32` as synonyms) enables the `winAPI.*` namespace —
+  `getProcessId`, `getCurrentDirectory`, `getComputerName`, `getTempPath`,
+  `getSystemDirectory`, `getWindowsDirectory`, `getModuleFileName`,
+  `getTickCount`, `getLastError`, `getEnvironmentVariable`,
+  `setEnvironmentVariable` and `sleep` — with the `winapi.lynx` fixture run by
+  the Windows job. The Win32 calls live in `lynxer/winapi.cpp`, so nothing else
+  includes `<windows.h>`. The named Linux syscalls stay Linux-only. Still to do:
+  - Grow the table: file, process and socket calls (`CreateFileW`, `ReadFile`,
+    `CreateProcessW`, ...), and decide whether the long tail goes through a
+    generic `windowsCall(dll, "Symbol", ...)` built on
+    `ffiLoadLibrary`/`ffiLookup`/`ffiCall` ([native-modules.md](docs/native-modules.md)).
   - Cover the Win32 specifics: the `__stdcall` calling convention on 32-bit
     (unified on x64), so the `cdecl:` signature grammar needs a `stdcall:` or
-    convention-aware counterpart; UTF-16 `*W` strings and the `A`/`W` pairs;
-    `HANDLE`/`HWND`/`SOCKET` handles; `BOOL` results with a separate
-    `GetLastError` code; and struct layout/packing for the `*W`-style calls.
+    convention-aware counterpart; UTF-16 `*W` strings (handled internally) and
+    the `A`/`W` pairs; `HANDLE`/`HWND`/`SOCKET` handles; `BOOL` results with a
+    separate `GetLastError` code; and struct layout/packing.
   - Keep the Linux syscall surface a Linux-only boundary: do not emulate
-    syscall numbers on Windows. The selector now takes the operating system as
-    well as the architecture; revisit whether the `amd64.syscallX` namespace
-    should gain the OS segment too.
+    syscall numbers on Windows. The selector takes the operating system as well
+    as the architecture; revisit whether the `amd64.syscallX` namespace should
+    gain the OS segment too.
 - [x] **Windows terminal behavior.** `platform::enableVirtualTerminal()` switches
   the console to `ENABLE_VIRTUAL_TERMINAL_PROCESSING` at startup, so `tui` and
   `graphics` escape sequences render. Redirection is unaffected: the console-mode

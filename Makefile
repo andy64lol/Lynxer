@@ -4,7 +4,7 @@ PYTHON   ?= $(shell command -v python3 2>/dev/null || command -v python 2>/dev/n
 # Every path is repo-root relative.
 LYNXER_DIR := lynxer
 LYNXER_TARGET := $(LYNXER_DIR)/lynxer
-LYNXER_SOURCES := $(addprefix $(LYNXER_DIR)/,main.cpp shell.cpp lexer.cpp runtime.cpp types.cpp builtins.cpp ops.cpp ast.cpp optimizer.cpp formatter.cpp parser.cpp config.cpp bundle.cpp interrupt.cpp native_value.cpp exports.cpp embed.cpp platform.cpp)
+LYNXER_SOURCES := $(addprefix $(LYNXER_DIR)/,main.cpp shell.cpp lexer.cpp runtime.cpp types.cpp builtins.cpp ops.cpp ast.cpp optimizer.cpp formatter.cpp parser.cpp config.cpp bundle.cpp interrupt.cpp native_value.cpp exports.cpp embed.cpp platform.cpp winapi.cpp)
 LYNXER_OBJECTS := $(LYNXER_SOURCES:.cpp=.o)
 LYNXER_OBJECTS_ARM64 := $(LYNXER_SOURCES:.cpp=.o-arm64)
 LYNXER_HEADERS := $(wildcard $(LYNXER_DIR)/*.hpp)
@@ -308,6 +308,9 @@ LYNXER_NATIVE_STDLIB_FIXTURE :=
 LYNXER_PROGRAM_ARGS_FIXTURE :=
 LYNXER_STDLIB_TEST_ALL :=
 LYNXER_LOWLEVEL_FIXTURES :=
+# The winAPI fixture selects the Windows target, which only a Windows host
+# accepts, so it runs there and nowhere else.
+LYNXER_WINAPI_FIXTURE := $(LYNXER_DIR)/examples/winapi.lynx
 # `builtin_ffi*` load `libc.so.6` by name and `ffiLoadLibrary` fails hard when
 # the library is absent; `builtin_async` drives `filesystemOpen`, part of the
 # POSIX-only managed built-in family. Neither can run on Windows.
@@ -318,6 +321,7 @@ HAVE_TLS_TOOLS :=
 else
 LYNXER_EXIT_FIXTURES := sys_exit cli_exit
 LYNXER_EXIT_THREAD_FIXTURES := sys_exit_thread sys_exit_worker
+LYNXER_WINAPI_FIXTURE :=
 endif
 
 # Recipe shorthands: the interpreter, and the temp-file prefix for the suite.
@@ -828,6 +832,14 @@ expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:23: charAt() index is out of rang
 	if [ "$$output" != "$$expected" ]; then \
 	echo "expected native stdlib output:"; printf '%s\n' "$$expected"; \
 	echo "received native stdlib output:"; printf '%s\n' "$$output"; exit 1; fi; \
+	fi
+	@if [ -n "$(LYNXER_WINAPI_FIXTURE)" ]; then \
+	output="$$($(CLYX) $(LYNXER_WINAPI_FIXTURE))"; \
+	expected_output="$$(cat $(LYNXER_WINAPI_FIXTURE:.lynx=.expected))"; \
+	if [ "$$output" != "$$expected_output" ]; then \
+	echo "winAPI fixture output mismatch"; \
+	echo "expected:"; printf '%s\n' "$$expected_output"; \
+	echo "received:"; printf '%s\n' "$$output"; exit 1; fi; \
 	fi
 	@if [ -n "$(LYNXER_PROGRAM_ARGS_FIXTURE)" ]; then \
 	output="$$(LYNXER_GAME_HEADLESS=1 LYNXER_GRAPHICS_HEADLESS=1 $(CLYX) $(LYNXER_PROGRAM_ARGS_FIXTURE) alpha "beta gamma" 2>&1)"; \

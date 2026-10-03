@@ -21,18 +21,20 @@ operating system and architecture the program targets.
 
 | Keyword | Kind | Selects |
 | --- | --- | --- |
-| `Linux` | operating system | Linux, the only host with named syscalls |
+| `Linux` | operating system | the Linux syscall surface (`amd64.syscallX`) |
+| `winAPI`, `windows`, `win32` | operating system | the Windows API surface (`winAPI.getX`) |
+| `macOS`, `darwin` | operating system | recognised, but not implemented |
 | `amd64`, `x86-64` | architecture | x86-64 |
 | `arm64`, `aarch64` | architecture | AArch64 |
 
 - Both keywords must name the **host**. `syscalls("Linux", "arm64")` on an amd64
-  machine is an error, not a cross-target dispatch, and so is
-  `syscalls("Linux", "amd64")` on a non-Linux host.
-- Matching is **case-insensitive**, and `Windows`/`win32` and `macOS`/`darwin`
-  are recognised operating systems so the error is specific — but no host can
-  select them today: named syscalls require a Linux runtime. This is what lets
-  `syscalls(global.sys.platform(), global.sys.architecture())` assert the host
-  (see [stdlib/sys.md](stdlib/sys.md)).
+  machine is an error, not a cross-target dispatch, and so are
+  `syscalls("Linux", "amd64")` on a non-Linux host and
+  `syscalls("winAPI", "amd64")` on a non-Windows host.
+- Matching is **case-insensitive**, and `winAPI`/`windows`/`win32` are synonyms,
+  so `syscalls(global.sys.platform(), global.sys.architecture())` asserts the
+  host (see [stdlib/sys.md](stdlib/sys.md)); `sys.platform()` returns `win32` on
+  Windows.
 - Only **one target at a time** may be selected; re-selecting the same one is a
   no-op, a different one is an error.
 - A misspelled keyword or namespace prefix reports the closest match, e.g.
@@ -42,6 +44,43 @@ operating system and architecture the program targets.
 
 Calls then use the matching namespace — `amd64.syscallRead(...)` or
 `arm64.syscallRead(...)`. A call through the wrong namespace is an error.
+
+## Windows API calls
+
+Selecting the Windows target (`winAPI`, `windows` or `win32`) is only possible on
+a Windows host. It makes the `winAPI.*` namespace available — the Win32 calls a
+program needs, in the camelCase Win32 naming:
+
+```lynx
+global setup(){ syscalls("winAPI", "amd64"); }
+
+global main(){
+    println(winAPI.getProcessId());
+    println(winAPI.getCurrentDirectory());
+    println(winAPI.getComputerName());
+}
+```
+
+| Function | Returns |
+| --- | --- |
+| `winAPI.getProcessId()` | the current process id |
+| `winAPI.getCurrentDirectory()` | the current directory |
+| `winAPI.getComputerName()` | the computer name |
+| `winAPI.getTempPath()` | the temporary directory |
+| `winAPI.getSystemDirectory()` | the system directory |
+| `winAPI.getWindowsDirectory()` | the Windows directory |
+| `winAPI.getModuleFileName()` | the running executable's path |
+| `winAPI.getTickCount()` | milliseconds since the system started |
+| `winAPI.getLastError()` | the last Win32 error code |
+| `winAPI.getEnvironmentVariable(name)` | the variable's value, or `""` |
+| `winAPI.setEnvironmentVariable(name, value)` | whether it was set |
+| `winAPI.sleep(milliseconds)` | — |
+
+The namespace prefix is matched case-insensitively, an unknown function reports
+the closest match, and a `winAPI.*` call made before the selection (or after
+selecting another target) is a source-located error. Win32 handles, `*W`/`*A`
+pairs and struct layouts are not exposed yet; see
+[windows.md](windows.md) and the tracker in [../todo.md](../todo.md).
 
 ## Calling convention
 

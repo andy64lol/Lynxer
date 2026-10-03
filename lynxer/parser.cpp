@@ -17,6 +17,25 @@ namespace lynxer {
 
 namespace {
 
+// Case-insensitive test for the `winAPI` namespace prefix, so
+// `winAPI.getProcessId()` and `winapi.getProcessId()` both fold to a flat call.
+bool isWinApiPrefix(const std::string& name) {
+    if (name.size() != 6) {
+        return false;
+    }
+    const char* expected = "winapi";
+    for (std::size_t index = 0; index < 6; ++index) {
+        char character = name[index];
+        if (character >= 'A' && character <= 'Z') {
+            character = static_cast<char>(character - 'A' + 'a');
+        }
+        if (character != expected[index]) {
+            return false;
+        }
+    }
+    return true;
+}
+
 struct MacroDefinition {
     std::string name;
     bool isPublic = false;
@@ -2114,6 +2133,17 @@ ExpressionPtr Parser::parsePostfix(ExpressionPtr expression,
                         parseArguments(field.text), start.line, start.column);
                     continue;
                 }
+            }
+            // Windows API namespace: `winAPI.getProcessId(...)` folds to the flat
+            // call name "winAPI.getProcessId", which the builtin router checks
+            // against the selected target.
+            if (const auto* receiver =
+                    dynamic_cast<const VariableExpression*>(expression.get());
+                receiver != nullptr && isWinApiPrefix(receiver->name())) {
+                expression = std::make_unique<CallExpression>(
+                    receiver->name() + "." + field.text,
+                    parseArguments(field.text), start.line, start.column);
+                continue;
             }
             std::function<bool(const Expression&, std::string&)> qualify =
                 [&](const Expression& node, std::string& result) {

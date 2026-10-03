@@ -24,6 +24,7 @@
 #include <sstream>
 #include <thread>
 #include "platform.hpp"
+#include "winapi.hpp"
 #include <unordered_map>
 #include <unordered_set>
 
@@ -168,7 +169,12 @@ std::string lowerAscii(const std::string& word) {
 std::string canonicalSyscallOS(const std::string& word) {
     const std::string lowered = lowerAscii(word);
     if (lowered == "linux") return "Linux";
-    if (lowered == "windows" || lowered == "win32") return "Windows";
+    // `winAPI` is the spelling the `winAPI.*` namespace uses; `windows` and
+    // `win32` (what `sys.platform()` returns) are synonyms, all matched
+    // case-insensitively.
+    if (lowered == "windows" || lowered == "win32" || lowered == "winapi") {
+        return "Windows";
+    }
     if (lowered == "macos" || lowered == "darwin") return "macOS";
     return "";
 }
@@ -178,6 +184,8 @@ std::string canonicalSyscallOS(const std::string& word) {
 const char* hostSyscallOS() {
 #if defined(__linux__)
     return "Linux";
+#elif defined(_WIN32)
+    return "Windows";
 #else
     return "";
 #endif
@@ -7666,6 +7674,37 @@ Value callBuiltin(const std::string& name, const std::vector<Value>& args,
                  line, column);
         }
         return builtinSyscall(function, args, line, column);
+    }
+    // Windows API surface: "<prefix>.<fn>" with the prefix `winAPI` in any
+    // casing. Refused until syscalls("<windows os>", "<arch>") has selected the
+    // Windows target, which only a Windows host accepts.
+    if (dot != std::string::npos &&
+        lowerAscii(resolved.substr(0, dot)) == "winapi") {
+        const std::string function = resolved.substr(dot + 1);
+        const std::string& selectedOS = environment.syscallOperatingSystem();
+        if (selectedOS.empty()) {
+            fail("winAPI calls are not available yet; call "
+                 "syscalls(\"winAPI\", \"<arch>\") first",
+                 line, column);
+        }
+        if (selectedOS != "Windows") {
+            fail("winAPI." + function + "() needs the Windows target, but this "
+                 "program selected " + selectedOS,
+                 line, column);
+        }
+        const std::vector<std::string>& supported = winapi::supportedNames();
+        if (std::find(supported.begin(), supported.end(), function) ==
+            supported.end()) {
+            fail("unknown winAPI function '" + function + "'. You meant: " +
+                     closestWord(function, supported) + "?",
+                 line, column);
+        }
+        std::string winError;
+        Value winResult;
+        if (!winapi::call(function, args, winResult, winError)) {
+            fail("winAPI." + function + "() failed: " + winError, line, column);
+        }
+        return winResult;
     }
     if (resolved.rfind("syscall", 0) == 0 &&
         unsupportedTable().find(resolved) != unsupportedTable().end()) {

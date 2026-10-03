@@ -130,18 +130,45 @@ global main(){
 <p><code>syscalls(&quot;&lt;os&gt;&quot;, &quot;&lt;arch&gt;&quot;)</code> must run before any syscall call; it declares which operating system and architecture the program targets.</p>
 <table>
 <tr><th>Keyword</th><th>Kind</th><th>Selects</th></tr>
-<tr><td><code>Linux</code></td><td>operating system</td><td>Linux, the only host with named syscalls</td></tr>
+<tr><td><code>Linux</code></td><td>operating system</td><td>the Linux syscall surface (<code>amd64.syscallX</code>)</td></tr>
+<tr><td><code>winAPI</code>, <code>windows</code>, <code>win32</code></td><td>operating system</td><td>the Windows API surface (<code>winAPI.getX</code>)</td></tr>
+<tr><td><code>macOS</code>, <code>darwin</code></td><td>operating system</td><td>recognised, but not implemented</td></tr>
 <tr><td><code>amd64</code>, <code>x86-64</code></td><td>architecture</td><td>x86-64</td></tr>
 <tr><td><code>arm64</code>, <code>aarch64</code></td><td>architecture</td><td>AArch64</td></tr>
 </table>
 <ul>
-<li>Both keywords must name the <strong>host</strong>. <code>syscalls(&quot;Linux&quot;, &quot;arm64&quot;)</code> on an amd64 machine is an error, not a cross-target dispatch, and so is <code>syscalls(&quot;Linux&quot;, &quot;amd64&quot;)</code> on a non-Linux host.</li>
-<li>Matching is <strong>case-insensitive</strong>, and <code>Windows</code>/<code>win32</code> and <code>macOS</code>/<code>darwin</code> are recognised operating systems so the error is specific — but no host can select them today: named syscalls require a Linux runtime. This is what lets <code>syscalls(global.sys.platform(), global.sys.architecture())</code> assert the host (see <a href="stdlib/sys.html">stdlib/sys</a>).</li>
+<li>Both keywords must name the <strong>host</strong>. <code>syscalls(&quot;Linux&quot;, &quot;arm64&quot;)</code> on an amd64 machine is an error, not a cross-target dispatch, and so are <code>syscalls(&quot;Linux&quot;, &quot;amd64&quot;)</code> on a non-Linux host and <code>syscalls(&quot;winAPI&quot;, &quot;amd64&quot;)</code> on a non-Windows host.</li>
+<li>Matching is <strong>case-insensitive</strong>, and <code>winAPI</code>/<code>windows</code>/<code>win32</code> are synonyms, so <code>syscalls(global.sys.platform(), global.sys.architecture())</code> asserts the host (see <a href="stdlib/sys.html">stdlib/sys</a>); <code>sys.platform()</code> returns <code>win32</code> on Windows.</li>
 <li>Only <strong>one target at a time</strong> may be selected; re-selecting the same one is a no-op, a different one is an error.</li>
 <li>A misspelled keyword or namespace prefix reports the closest match, e.g. <code>unknown syscall architecture &#x27;amd6&#x27;. You meant: amd64?</code>.</li>
 <li>The former flat <code>syscallRead(...)</code> spelling is gone; it fails with a pointer to the namespaced form.</li>
 </ul>
 <p>Calls then use the matching namespace — <code>amd64.syscallRead(...)</code> or <code>arm64.syscallRead(...)</code>. A call through the wrong namespace is an error.</p>
+<h2 id="windows-api-calls">Windows API calls</h2>
+<p>Selecting the Windows target (<code>winAPI</code>, <code>windows</code> or <code>win32</code>) is only possible on a Windows host. It makes the <code>winAPI.*</code> namespace available — the Win32 calls a program needs, in the camelCase Win32 naming:</p>
+<pre><code>global setup(){ syscalls(&quot;winAPI&quot;, &quot;amd64&quot;); }
+
+global main(){
+    println(winAPI.getProcessId());
+    println(winAPI.getCurrentDirectory());
+    println(winAPI.getComputerName());
+}</code></pre>
+<table>
+<tr><th>Function</th><th>Returns</th></tr>
+<tr><td><code>winAPI.getProcessId()</code></td><td>the current process id</td></tr>
+<tr><td><code>winAPI.getCurrentDirectory()</code></td><td>the current directory</td></tr>
+<tr><td><code>winAPI.getComputerName()</code></td><td>the computer name</td></tr>
+<tr><td><code>winAPI.getTempPath()</code></td><td>the temporary directory</td></tr>
+<tr><td><code>winAPI.getSystemDirectory()</code></td><td>the system directory</td></tr>
+<tr><td><code>winAPI.getWindowsDirectory()</code></td><td>the Windows directory</td></tr>
+<tr><td><code>winAPI.getModuleFileName()</code></td><td>the running executable's path</td></tr>
+<tr><td><code>winAPI.getTickCount()</code></td><td>milliseconds since the system started</td></tr>
+<tr><td><code>winAPI.getLastError()</code></td><td>the last Win32 error code</td></tr>
+<tr><td><code>winAPI.getEnvironmentVariable(name)</code></td><td>the variable's value, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>winAPI.setEnvironmentVariable(name, value)</code></td><td>whether it was set</td></tr>
+<tr><td><code>winAPI.sleep(milliseconds)</code></td><td>—</td></tr>
+</table>
+<p>The namespace prefix is matched case-insensitively, an unknown function reports the closest match, and a <code>winAPI.*</code> call made before the selection (or after selecting another target) is a source-located error. Win32 handles, <code>*W</code>/<code>*A</code> pairs and struct layouts are not exposed yet; see <a href="windows.html">windows</a> and the tracker in <a href="https://github.com/andy64lol/Lynxer/blob/main/todo.md">../todo</a>.</p>
 <h2 id="calling-convention">Calling convention</h2>
 <ul>
 <li>Arguments are positional <strong>integers</strong>, zero to six of them.</li>

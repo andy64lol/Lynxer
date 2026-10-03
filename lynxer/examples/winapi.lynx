@@ -1,0 +1,23 @@
+////
+Regression fixture for the `winAPI` surface.
+
+Windows-only: it selects the Windows target, which only a Windows host accepts.
+It asserts shape (`> 0`, lengths) rather than exact values, so the expected
+output is stable across machines.
+////
+
+global setup(){ syscalls("winAPI", "amd64"); }
+
+global main(){
+    println(winAPI.getProcessId() > 0);
+    println(returnLength(winAPI.getCurrentDirectory()) > 0);
+    println(returnLength(winAPI.getComputerName()) > 0);
+    println(returnLength(winAPI.getTempPath()) > 0);
+    println(returnLength(winAPI.getSystemDirectory()) > 0);
+    println(returnLength(winAPI.getWindowsDirectory()) > 0);
+    println(returnLength(winAPI.getModuleFileName()) > 0);
+    println(winAPI.getTickCount() > 0);
+    println(winAPI.setEnvironmentVariable("LYNXER_WINAPI_TEST", "ok"));
+    println(winAPI.getEnvironmentVariable("LYNXER_WINAPI_TEST"));
+    println(returnLength(winAPI.getEnvironmentVariable("LYNXER_WINAPI_ABSENT")) is 0);
+}
