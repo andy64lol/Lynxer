@@ -5,6 +5,10 @@
 # enables by default.
 * text=auto eol=lf
 
+# This expected file deliberately carries CRLF rows (RFC 4180), so it must stay
+# byte-exact instead of being normalized to LF.
+lynxer/examples/stdlib_csv.expected -text -eol
+
 # Binary fixtures and build outputs are never converted.
 *.png binary
 *.jpg binary

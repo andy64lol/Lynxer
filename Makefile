@@ -308,6 +308,10 @@ LYNXER_NATIVE_STDLIB_FIXTURE :=
 LYNXER_PROGRAM_ARGS_FIXTURE :=
 LYNXER_STDLIB_TEST_ALL :=
 LYNXER_LOWLEVEL_FIXTURES :=
+# `builtin_ffi*` load `libc.so.6` by name, and `ffiLoadLibrary` fails hard when
+# the library is absent, so they cannot run where that shared object does not
+# exist.
+LYNXER_MILESTONE7_NEW_FIXTURES := $(filter-out $(addprefix $(LYNXER_DIR)/examples/,builtin_ffi.lynx builtin_ffi_errors.lynx),$(LYNXER_MILESTONE7_NEW_FIXTURES))
 else
 LYNXER_EXIT_FIXTURES := sys_exit cli_exit
 LYNXER_EXIT_THREAD_FIXTURES := sys_exit_thread sys_exit_worker
