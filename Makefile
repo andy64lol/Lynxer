@@ -334,9 +334,18 @@ LYNXER_INSTALLED_BIN := $(LYNXER_INSTALL_PREFIX)/bin/$(notdir $(LYNXER_TARGET))
 # Canonical syscall target of this host. The portable syscall fixtures carry
 # __OS__/__ARCH__ tokens (syscalls("__OS__", "__ARCH__") plus __ARCH__.syscall*);
 # they are replaced with these words before the fixtures run, so one source
-# serves both CI jobs. Named syscalls are Linux-only, so the OS word is fixed.
+# serves every CI job. Named syscalls are Linux-only, so the OS word is fixed.
+#
+# The architecture comes from the C++ compiler's target triple rather than
+# `uname -m`: in MSYS2's CLANGARM64 environment the MSYS2 runtime is x86_64, so
+# `uname -m` reports `x86_64` even though the build targets AArch64. Falls back
+# to `uname` when the compiler cannot be queried (for example `make clean` on a
+# host without it).
 SYSCALL_OS := Linux
+SYSCALL_ARCH := $(shell $(LYNXER_CXX) -dumpmachine 2>/dev/null | sed -e 's/^x86_64.*/amd64/' -e 's/^aarch64.*/arm64/')
+ifeq ($(strip $(SYSCALL_ARCH)),)
 SYSCALL_ARCH := $(shell uname -m | sed -e 's/^x86_64$$/amd64/' -e 's/^aarch64$$/arm64/')
+endif
 
 .PHONY: all cargo lynxerToolchain build buildAll buildLynxer buildLynxerArm64 test testLynxer testLynxerGui testLynxerInstall testLynxerAmd64Syscalls testLynxerArm64Syscalls check clean cleanLynxer cleanAll help
 
