@@ -6,7 +6,7 @@ It asserts shape (`> 0`, lengths) rather than exact values, so the expected
 output is stable across machines.
 ////
 
-global setup(){ syscalls("winAPI", "amd64"); }
+global setup(){ syscalls("winAPI", "__ARCH__"); }
 
 global main(){
     println(winAPI.getProcessId() > 0);

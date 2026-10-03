@@ -834,8 +834,11 @@ expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:23: charAt() index is out of rang
 	echo "received native stdlib output:"; printf '%s\n' "$$output"; exit 1; fi; \
 	fi
 	@if [ -n "$(LYNXER_WINAPI_FIXTURE)" ]; then \
-	output="$$($(CLYX) $(LYNXER_WINAPI_FIXTURE))"; \
+	run="$(CLYX_TMP)_winapi.lynx"; \
+	sed -e "s/__ARCH__/$(SYSCALL_ARCH)/g" -e "s/__OS__/$(SYSCALL_OS)/g" "$(LYNXER_WINAPI_FIXTURE)" > "$$run"; \
+	output="$$($(CLYX) "$$run")"; \
 	expected_output="$$(cat $(LYNXER_WINAPI_FIXTURE:.lynx=.expected))"; \
+	rm -f "$$run"; \
 	if [ "$$output" != "$$expected_output" ]; then \
 	echo "winAPI fixture output mismatch"; \
 	echo "expected:"; printf '%s\n' "$$expected_output"; \
