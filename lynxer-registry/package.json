@@ -1,14 +1,10 @@
 {
   "name": "lynxer-registry",
   "version": "1.0.0",
-  "description": "A simple registry API for resolving Lynxer package names to GitHub repositories.",
-  "main": "index.js",
+  "private": true,
+  "description": "A simple registry API for resolving Lynxer package names to GitHub repositories (Netlify Functions).",
   "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js"
-  },
-  "dependencies": {
-    "express": "^4.18.2",
-    "body-parser": "^1.20.2"
+    "dev": "netlify dev",
+    "serve": "netlify functions:serve"
   }
 }

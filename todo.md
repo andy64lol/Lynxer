@@ -113,8 +113,10 @@ features are in [docs/removed-features.md](docs/removed-features.md).
 ## Bob (package manager)
 
 `Bob/` is the Lynxer package manager, a separate Rust component with its own
-version (`Bob/README.md`). It has no registry yet, so only `bob --ver` and
-`bob --init` exist. Its planned work is tracked in [Bob/todo.md](Bob/todo.md).
+version (`Bob/README.md`). It can scaffold projects (`--init`), publish modules
+to GitHub Releases, install them, and resolve package names through a
+configurable REST registry (`bob config set rest-api`). Its planned work is
+tracked in [Bob/todo.md](Bob/todo.md).
 
 ## Server (Bob Module Hosting)
 
@@ -131,6 +133,23 @@ version (`Bob/README.md`). It has no registry yet, so only `bob --ver` and
         └── main.lynx
     ```
   - Add a `todo.md` file in the `Server/` directory to track progress on module hosting and upload features.
+
+- [ ] **Host the registry on Netlify.** `lynxer-registry/` is now a Netlify
+  Function (`netlify/functions/resolve.js`) with the public `POST /api/resolve`
+  path mapped in `netlify.toml`; it runs locally under `netlify dev` and is
+  verified. Still to do:
+  - Create and link the Netlify site, then deploy (`netlify deploy --prod`)
+    with `lynxer-registry/` as the site base directory.
+  - Serve it on a stable HTTPS domain (for example
+    `https://registry.lynxer.dev`) and use that as the `rest-api` value; Bob
+    only allows `http://` for local development.
+  - Decide how `registry.json` is stored and edited — a committed file, Netlify
+    Blobs, or a database (see Supabase below) — and document how new
+    `name -> owner/repository` mappings get added.
+  - Version the endpoint (for example `/v1/resolve`) before it is public and
+    keep Bob's path in sync; the `health` function already exists.
+  - Publish the production link in `Bob/README.md` and consider a built-in
+    default so users do not have to run `bob config set rest-api` by hand.
 
 - [ ] **Supabase Integration**:
   - Define how Bob modules will be uploaded to Supabase for storage and distribution.

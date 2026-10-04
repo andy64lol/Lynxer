@@ -11,3 +11,6 @@ lynxer/build/
 lynxer/rust/target/
 lynxer/rust/*/target/
 Bob/target/
+
+# Local Netlify folder
+.netlify

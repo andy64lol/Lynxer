@@ -13,6 +13,12 @@ publish immutable module archives to GitHub Releases.
   overrides: `BOB_REST_API`, `GITHUB_TOKEN`). `bob install` resolves a package
   through the REST registry (`POST /api/resolve`) when one is configured.
 
+- [ ] **Registry hosting.** `lynxer-registry/` is now a Netlify Function
+  (`POST /api/resolve`) and runs locally under `netlify dev`; it still needs to
+  be deployed to a Netlify site (see the Server section of the root
+  [todo.md](../todo.md)). Publish the production link and consider a built-in
+  default for `rest-api`.
+
 - [ ] **Package download and local layout.** Define installation under
   `bob/packages/`; verify the downloaded archive digest against GitHub
   metadata and the lock file before extracting any files.

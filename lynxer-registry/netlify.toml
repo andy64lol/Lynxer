@@ -1,0 +1,14 @@
+# Netlify configuration for the Lynxer package registry.
+[build]
+  functions = "netlify/functions"
+
+# Keep the public API path stable so Bob can POST to /api/resolve unchanged.
+[[redirects]]
+  from = "/api/resolve"
+  to = "/.netlify/functions/resolve"
+  status = 200
+
+[[redirects]]
+  from = "/health"
+  to = "/.netlify/functions/health"
+  status = 200
