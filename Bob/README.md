@@ -13,7 +13,10 @@ supports.
 | `bob --ver` | Prints the Bob version and the Lynxer version it supports. |
 | `bob --init` | Creates `bob/bob.toml`, `bob/bob-lock.toml` and an empty `bob/packages/` in the current directory. |
 | `bob --init --module` | Creates `module.toml` and `src/main.lynx` in the current directory. |
-| `bob publish` | Packages the current module as a validated ZIP and uploads it to the configured registry. |
+| `bob publish` | Packages the current module as a ZIP and uploads it as a GitHub release asset. |
+| `bob install <name> <version>` | Resolves a package and downloads its release asset into `bob/packages/`. |
+| `bob registry add\|list\|config` | Manage local package→repository mappings in `~/.bob/registry.json`. |
+| `bob config set\|get\|show\|unset\|path` | Manage `~/.bob/config.json` (REST registry link and GitHub token). |
 | `bob --help` | Usage. |
 
 ```console
@@ -62,20 +65,48 @@ name, not run, so it has no `main()`:
 global add(int left, int right) -> int { return left + right; }
 ```
 
-## Status
+## Configuration
 
-`bob publish` reads the current `module.toml`, packages it as `manifest.toml`
-alongside `src/`, and sends it to the Bob registry. The registry server, private
-Supabase Storage layout, version metadata schema, API, and setup steps are in
-[`../Server/README.md`](../Server/README.md).
+Bob reads two settings, stored in `~/.bob/config.json`:
 
-Set `BOB_REGISTRY_URL` and `BOB_PUBLISH_TOKEN` in the publishing environment.
-The token is sent only to the registry over HTTPS (HTTP is accepted for local
-development); never put it in `module.toml`.
+| Key | Meaning |
+| --- | --- |
+| `rest-api` | Base link of the Bob REST registry (for example `http://localhost:3000`). Used to resolve a package name to its GitHub repository via `POST /api/resolve`. |
+| `github-token` | GitHub API token used to create releases (`publish`) and download assets (`install`). |
 
-Bob does not yet download or install dependencies. `bob/packages/` remains
-empty until the download and dependency-resolution work in [todo.md](todo.md)
-is implemented.
+```console
+$ bob config set rest-api http://localhost:3000
+Set rest-api in /home/you/.bob/config.json
+$ bob config set github-token ghp_...
+Set github-token in /home/you/.bob/config.json
+$ bob config show
+rest-api = http://localhost:3000
+github-token = ghp_****
+config file: /home/you/.bob/config.json
+```
+
+`bob config get <key>` prints one value (the token is masked), `bob config
+unset <key>` removes one, and `bob config path` prints the file location. On
+Unix the file is written with `0600` permissions because it can hold a token.
+
+Each setting can be overridden by an environment variable, which takes
+precedence over the file: `BOB_REST_API` for the registry link and
+`GITHUB_TOKEN` for the token. `BOB_CONFIG_DIR` overrides the directory that
+holds `config.json` (default `~/.bob`).
+
+## Publish and install
+
+`bob publish` reads `module.toml`, packages it as `manifest.toml` alongside
+`src/`, creates a GitHub release tagged with the module version, and uploads the
+archive as `{name}-{version}.zip`. `bob install <name> <version>` resolves the
+package to a GitHub repository, downloads the matching release asset into
+`bob/packages/{name}-{version}/`, and reports its SHA-256.
+
+A package name is resolved in this order: the REST registry (when `rest-api` is
+set), then the local `~/.bob/registry.json` mappings managed by `bob registry
+add`, then a small set of built-in defaults. Publishing and installing both need
+a GitHub token. Tokens are sent only to GitHub over HTTPS, never to the
+registry; never put a token in `module.toml`.
 
 ## Published module archive
 
@@ -88,11 +119,12 @@ my-module-1.0.0.zip
     └── main.lynx
 ```
 
-The archive manifest has the same `[module]` metadata as `module.toml`:
-`name`, semantic `version`, and a `.lynx` `entry` under `src/`. The server
-rejects path traversal, symbolic links, mismatched names or versions, and
-archives at or above 10 MB. A `(name, version)` release cannot be replaced; the
-registry computes and reports its SHA-256 checksum.
+The manifest is the current `module.toml`, so it carries the same `[module]`
+metadata: `name`, a semantic `version`, and a `.lynx` `entry` under `src/`. Bob
+validates the archive before upload: names and versions must match, source paths
+must stay under `src/` (no traversal, no symbolic links), and the archive must
+stay below the size and file-count limits. The release is tagged with the module
+version and the asset is named `{name}-{version}.zip`.
 
 ## Build
 

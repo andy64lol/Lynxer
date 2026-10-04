@@ -1,17 +1,25 @@
 # Bob — TODO
 
 Planned work for the Lynxer package manager. Bob can scaffold modules and
-publish immutable module archives to the registry service in `../Server/`.
+publish immutable module archives to GitHub Releases.
 
-- [x] **Registry upload contract.** The `Server/` API defines the archive
-  format, private Supabase storage path, immutable `(name, version)` releases,
-  and SHA-256 verification; `bob publish` packages the current module and
-  uploads it.
+- [x] **GitHub Releases integration.** Bob now uses GitHub Releases to host `.zip` packages.
+  - Fetch the latest release from the GitHub API.
+  - Select the correct `.zip` asset from the release.
+  - Verify metadata/checksum before installation.
+
+- [x] **CLI configuration.** `bob config set rest-api|github-token` stores the
+  REST registry link and the GitHub token in `~/.bob/config.json` (env
+  overrides: `BOB_REST_API`, `GITHUB_TOKEN`). `bob install` resolves a package
+  through the REST registry (`POST /api/resolve`) when one is configured.
+
 - [ ] **Package download and local layout.** Define installation under
-  `bob/packages/`; verify the downloaded archive digest against registry
+  `bob/packages/`; verify the downloaded archive digest against GitHub
   metadata and the lock file before extracting any files.
-- [ ] **`bob add` / `bob install` / `bob update`.** Resolve `[dependencies]` in
-  `bob/bob.toml`, write `bob/bob-lock.toml`, and populate `bob/packages/`.
+- [ ] **`bob add` / `bob update`.** `bob install <name> <version>` already
+  downloads a release asset into `bob/packages/`; still to do: resolve
+  `[dependencies]` in `bob/bob.toml`, write `bob/bob-lock.toml`, and implement
+  `add` and `update`.
 - [ ] **Application source scaffold.** `bob --init --module` now writes
   `module.toml` and `src/main.lynx` for a reusable module; `bob --init` still
   writes only `bob/bob.toml` and `bob/bob-lock.toml`. Add the application

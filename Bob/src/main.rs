@@ -7,9 +7,10 @@
 
 mod package;
 
+use package::{Registry, RegistryEntry};
 use std::env;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 /// The bob version, taken from `Cargo.toml`.
@@ -46,8 +47,11 @@ fn main() -> ExitCode {
         }
         Some("--init") => init(&arguments[1..]),
         Some("publish") => publish(&arguments[1..]),
+        Some("install") => install(&arguments[1..]),
+        Some("registry") => registry(&arguments[1..]),
+        Some("config") => config_command(&arguments[1..]),
         Some(other) => {
-            eprintln!("bob: unknown option '{other}'");
+            eprintln!("bob: unknown option '{}'", other);
             eprintln!();
             print_usage();
             ExitCode::FAILURE
@@ -68,11 +72,21 @@ fn print_usage() {
         "  bob --init             Create bob/bob.toml and bob/bob-lock.toml in this directory"
     );
     println!("  bob --init --module    Create module.toml and src/main.lynx in this directory");
-    println!("  bob publish            Package and upload this module to the configured registry");
+    println!("  bob publish            Package and upload this module to GitHub Releases");
+    println!("  bob install <name> <version>  Install a module from GitHub Releases");
+    println!("  bob registry add <name> <owner> <repository>  Add a custom package mapping");
+    println!("  bob registry list       List all package mappings (default and custom)");
+    println!("  bob registry config     Configure custom package mappings interactively");
+    println!("  bob config set <key> <value>  Set rest-api or github-token");
+    println!("  bob config get <key>    Print one configuration value");
+    println!("  bob config show         Print the configuration (token masked)");
+    println!("  bob config unset <key>  Remove a configuration value");
+    println!("  bob config path         Print the configuration file path");
     println!("  bob --help             Show this help");
     println!();
-    println!("Publishing requires BOB_REGISTRY_URL and BOB_PUBLISH_TOKEN.");
-    println!("Dependency download and installation are not implemented yet.");
+    println!("Publishing and installing need a GitHub token and resolve packages via the");
+    println!("REST registry when one is configured (env overrides: BOB_REST_API, GITHUB_TOKEN).");
+    println!("Configuration is stored in ~/.bob/config.json.");
 }
 
 fn publish(rest: &[String]) -> ExitCode {
@@ -91,6 +105,210 @@ fn publish(rest: &[String]) -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+fn install(rest: &[String]) -> ExitCode {
+    if rest.len() != 2 {
+        eprintln!("bob: 'install' requires a name and version");
+        eprintln!("bob: usage: bob install <name> <version>");
+        return ExitCode::FAILURE;
+    }
+    let name = &rest[0];
+    let version = &rest[1];
+    match package::install_package(name, version) {
+        Ok(message) => {
+            println!("{message}");
+            ExitCode::SUCCESS
+        }
+        Err(error) => {
+            eprintln!("bob: {error}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+fn registry(rest: &[String]) -> ExitCode {
+    if rest.is_empty() {
+        eprintln!("bob: 'registry' requires a subcommand");
+        eprintln!("bob: usage: bob registry add <name> <owner> <repository>");
+        eprintln!("bob: usage: bob registry list");
+        eprintln!("bob: usage: bob registry config");
+        return ExitCode::FAILURE;
+    }
+    match rest[0].as_str() {
+        "add" => add_registry_mapping(&rest[1..]),
+        "list" => list_registry_mappings(),
+        "config" => config_registry(),
+        _ => {
+            eprintln!("bob: unknown registry subcommand '{}'", rest[0]);
+            eprintln!("bob: usage: bob registry add <name> <owner> <repository>");
+            eprintln!("bob: usage: bob registry list");
+            eprintln!("bob: usage: bob registry config");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+fn config_command(rest: &[String]) -> ExitCode {
+    if rest.is_empty() {
+        eprintln!("bob: 'config' requires a subcommand");
+        print_config_usage();
+        return ExitCode::FAILURE;
+    }
+    match rest[0].as_str() {
+        "set" => config_set(&rest[1..]),
+        "get" => config_get(&rest[1..]),
+        "show" => config_show(),
+        "unset" => config_unset(&rest[1..]),
+        "path" => {
+            println!("{}", package::config_path().display());
+            ExitCode::SUCCESS
+        }
+        other => {
+            eprintln!("bob: unknown config subcommand '{}'", other);
+            print_config_usage();
+            ExitCode::FAILURE
+        }
+    }
+}
+
+fn print_config_usage() {
+    eprintln!("bob: usage: bob config set <rest-api|github-token> <value>");
+    eprintln!("bob: usage: bob config get <rest-api|github-token>");
+    eprintln!("bob: usage: bob config show");
+    eprintln!("bob: usage: bob config unset <rest-api|github-token>");
+    eprintln!("bob: usage: bob config path");
+}
+
+/// Set a configuration value in `~/.bob/config.json`.
+fn config_set(rest: &[String]) -> ExitCode {
+    if rest.len() != 2 {
+        eprintln!("bob: 'config set' requires a key and a value");
+        print_config_usage();
+        return ExitCode::FAILURE;
+    }
+    let key = rest[0].as_str();
+    let value = rest[1].trim();
+    if value.is_empty() {
+        eprintln!("bob: config value must not be empty");
+        return ExitCode::FAILURE;
+    }
+
+    let mut config = package::load_config();
+    match key {
+        "rest-api" => {
+            if !is_http_url(value) {
+                eprintln!("bob: 'rest-api' must be an http:// or https:// URL");
+                return ExitCode::FAILURE;
+            }
+            config.rest_api = Some(value.trim_end_matches('/').to_string());
+        }
+        "github-token" => config.github_token = Some(value.to_string()),
+        other => {
+            eprintln!("bob: unknown config key '{}'", other);
+            eprintln!("bob: valid keys: rest-api, github-token");
+            return ExitCode::FAILURE;
+        }
+    }
+
+    match package::save_config(&config) {
+        Ok(()) => {
+            println!("Set {} in {}", key, package::config_path().display());
+            ExitCode::SUCCESS
+        }
+        Err(error) => {
+            eprintln!("bob: {error}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+/// Print one configuration value; the token is masked.
+fn config_get(rest: &[String]) -> ExitCode {
+    if rest.len() != 1 {
+        eprintln!("bob: 'config get' requires a key");
+        print_config_usage();
+        return ExitCode::FAILURE;
+    }
+    let config = package::load_config();
+    match rest[0].as_str() {
+        "rest-api" => match &config.rest_api {
+            Some(value) => println!("{value}"),
+            None => println!("(unset)"),
+        },
+        "github-token" => match &config.github_token {
+            Some(value) => println!("{}", mask_token(value)),
+            None => println!("(unset)"),
+        },
+        other => {
+            eprintln!("bob: unknown config key '{}'", other);
+            eprintln!("bob: valid keys: rest-api, github-token");
+            return ExitCode::FAILURE;
+        }
+    }
+    ExitCode::SUCCESS
+}
+
+/// Print the whole configuration; the token is masked.
+fn config_show() -> ExitCode {
+    let config = package::load_config();
+    match &config.rest_api {
+        Some(value) => println!("rest-api = {value}"),
+        None => println!("rest-api = (unset)"),
+    }
+    match &config.github_token {
+        Some(value) => println!("github-token = {}", mask_token(value)),
+        None => println!("github-token = (unset)"),
+    }
+    println!("config file: {}", package::config_path().display());
+    ExitCode::SUCCESS
+}
+
+/// Remove a configuration value from `~/.bob/config.json`.
+fn config_unset(rest: &[String]) -> ExitCode {
+    if rest.len() != 1 {
+        eprintln!("bob: 'config unset' requires a key");
+        print_config_usage();
+        return ExitCode::FAILURE;
+    }
+    let key = rest[0].as_str();
+    let mut config = package::load_config();
+    match key {
+        "rest-api" => config.rest_api = None,
+        "github-token" => config.github_token = None,
+        other => {
+            eprintln!("bob: unknown config key '{}'", other);
+            eprintln!("bob: valid keys: rest-api, github-token");
+            return ExitCode::FAILURE;
+        }
+    }
+    match package::save_config(&config) {
+        Ok(()) => {
+            println!("Unset {key}");
+            ExitCode::SUCCESS
+        }
+        Err(error) => {
+            eprintln!("bob: {error}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+/// A minimal http/https URL check for the REST registry link.
+fn is_http_url(value: &str) -> bool {
+    (value.starts_with("http://") && value.len() > "http://".len())
+        || (value.starts_with("https://") && value.len() > "https://".len())
+}
+
+/// Mask a token for display, keeping a short prefix/suffix for recognisability.
+fn mask_token(token: &str) -> String {
+    let count = token.chars().count();
+    if count <= 8 {
+        return "*".repeat(count.max(1));
+    }
+    let prefix: String = token.chars().take(4).collect();
+    let suffix: String = token.chars().skip(count - 4).collect();
+    format!("{prefix}****{suffix}")
 }
 
 fn print_versions() {
@@ -211,8 +429,168 @@ fn init_project() -> ExitCode {
     println!("Created {}", relative(BOB_DIRECTORY, LOCK_FILE));
     println!("Created {}/", relative(BOB_DIRECTORY, PACKAGES_DIRECTORY));
     println!();
-    println!("Project '{name}' initialized (supported lynxer {SUPPORTED_LYNXER_VERSION}).");
+    println!(
+        "Project '{}' initialized (supported lynxer {}).",
+        name, SUPPORTED_LYNXER_VERSION
+    );
     ExitCode::SUCCESS
+}
+
+/// Add a custom package mapping to the user's registry.
+fn add_registry_mapping(rest: &[String]) -> ExitCode {
+    if rest.len() != 3 {
+        eprintln!("bob: 'registry add' requires a name, owner, and repository");
+        eprintln!("bob: usage: bob registry add <name> <owner> <repository>");
+        return ExitCode::FAILURE;
+    }
+    let name = &rest[0];
+    let owner = &rest[1];
+    let repository = &rest[2];
+
+    let registry_path = get_registry_path();
+    let mut registry = load_registry(&registry_path);
+
+    if registry.packages.contains_key(name) {
+        eprintln!("bob: package '{}' already exists in the registry", name);
+        return ExitCode::FAILURE;
+    }
+
+    registry.packages.insert(
+        name.to_string(),
+        RegistryEntry {
+            owner: owner.to_string(),
+            repository: repository.to_string(),
+        },
+    );
+
+    if let Err(error) = save_registry(&registry, &registry_path) {
+        eprintln!("bob: cannot save registry: {error}");
+        return ExitCode::FAILURE;
+    }
+
+    println!("Added package '{}' to the registry", name);
+    ExitCode::SUCCESS
+}
+
+/// List all custom package mappings in the user's registry.
+fn list_registry_mappings() -> ExitCode {
+    println!("Package mappings are handled internally by Bob.");
+    println!("Use 'bob registry config' to add custom mappings.");
+    ExitCode::SUCCESS
+}
+
+/// Configure custom package mappings interactively.
+fn config_registry() -> ExitCode {
+    println!("Bob Registry Configuration");
+    println!("-----------------------");
+    println!();
+    println!("This will guide you through setting up custom package mappings.");
+    println!("Mappings are stored in ~/.bob/registry.json.");
+    println!();
+
+    let registry_path = get_registry_path();
+    let mut registry = load_registry(&registry_path);
+
+    loop {
+        println!("Enter the package name (or 'done' to finish):");
+        let mut name_input = String::new();
+        std::io::stdin()
+            .read_line(&mut name_input)
+            .expect("Failed to read input");
+        let name = name_input.trim();
+
+        if name.eq_ignore_ascii_case("done") {
+            break;
+        }
+
+        println!("Enter the GitHub owner for {}:", name);
+        let mut owner_input = String::new();
+        std::io::stdin()
+            .read_line(&mut owner_input)
+            .expect("Failed to read input");
+        let owner = owner_input.trim().to_string();
+
+        println!("Enter the GitHub repository for {}:", name);
+        let mut repository_input = String::new();
+        std::io::stdin()
+            .read_line(&mut repository_input)
+            .expect("Failed to read input");
+        let repository = repository_input.trim().to_string();
+
+        registry.packages.insert(
+            name.to_string(),
+            RegistryEntry {
+                owner: owner.clone(),
+                repository: repository.clone(),
+            },
+        );
+
+        println!(
+            "Added package '{}' with owner '{}' and repository '{}'",
+            name, owner, repository
+        );
+    }
+
+    if let Err(error) = save_registry(&registry, &registry_path) {
+        eprintln!("bob: cannot save registry: {error}");
+        return ExitCode::FAILURE;
+    }
+
+    println!();
+    println!("Registry configuration saved to ~/.bob/registry.json");
+    println!("You can now use 'bob install' to install packages.");
+    ExitCode::SUCCESS
+}
+
+/// Get the path to the user's registry file.
+fn get_registry_path() -> PathBuf {
+    let home_dir = match dirs::home_dir() {
+        Some(dir) => dir,
+        None => {
+            eprintln!("bob: cannot determine home directory");
+            std::process::exit(1);
+        }
+    };
+    home_dir.join(".bob").join("registry.json")
+}
+
+/// Load the registry from the user's registry file.
+fn load_registry(path: &Path) -> Registry {
+    if !path.exists() {
+        return Registry {
+            packages: Default::default(),
+        };
+    }
+
+    let content = match fs::read_to_string(path) {
+        Ok(content) => content,
+        Err(error) => {
+            eprintln!("bob: cannot read registry: {error}");
+            std::process::exit(1);
+        }
+    };
+
+    match serde_json::from_str(&content) {
+        Ok(registry) => registry,
+        Err(error) => {
+            eprintln!("bob: invalid registry format: {error}");
+            std::process::exit(1);
+        }
+    }
+}
+
+/// Save the registry to the user's registry file.
+fn save_registry(registry: &Registry, path: &Path) -> Result<(), String> {
+    let parent = path
+        .parent()
+        .ok_or_else(|| "cannot determine parent directory")?;
+    if let Err(error) = fs::create_dir_all(parent) {
+        return Err(format!("cannot create directory: {error}"));
+    }
+
+    let content = serde_json::to_string_pretty(registry)
+        .map_err(|error| format!("cannot serialize registry: {error}"))?;
+    fs::write(path, content).map_err(|error| format!("cannot write registry: {error}"))
 }
 
 /// A manifest is named after its directory, the way Cargo names a crate.

@@ -42,6 +42,20 @@ test: $(TARGET)
 	grep -q 'entry = "src/main.lynx"' module.toml || { echo "module manifest is missing its entry"; exit 1; }; \
 	grep -q 'global setup' src/main.lynx || { echo "module source is missing global setup()"; exit 1; }
 	@rm -rf /tmp/bob-module
+	@rm -rf /tmp/bob-config && mkdir -p /tmp/bob-config
+	@BOB_CONFIG_DIR=/tmp/bob-config $(CURDIR)/$(TARGET) config set rest-api http://localhost:3000 > /dev/null
+	@BOB_CONFIG_DIR=/tmp/bob-config $(CURDIR)/$(TARGET) config set github-token ghp_secretvalue123 > /dev/null
+	@grep -q '"rest_api": "http://localhost:3000"' /tmp/bob-config/config.json || { echo "config.json is missing rest_api"; exit 1; }; \
+	grep -q '"github_token": "ghp_secretvalue123"' /tmp/bob-config/config.json || { echo "config.json is missing github_token"; exit 1; }
+	@out="$$(BOB_CONFIG_DIR=/tmp/bob-config $(CURDIR)/$(TARGET) config show)"; \
+	printf '%s\n' "$$out" | grep -q 'rest-api = http://localhost:3000' || { echo "config show is missing rest-api"; exit 1; }; \
+	printf '%s\n' "$$out" | grep -q 'ghp_\*\*\*\*' || { echo "config show did not mask the token"; exit 1; }; \
+	printf '%s\n' "$$out" | grep -q 'ghp_secretvalue123' && { echo "config show leaked the token"; exit 1; }; \
+	true
+	@BOB_CONFIG_DIR=/tmp/bob-config $(CURDIR)/$(TARGET) config unset github-token > /dev/null; \
+	grep -q '"github_token"' /tmp/bob-config/config.json && { echo "config unset left github_token"; exit 1; }; \
+	true
+	@rm -rf /tmp/bob-config
 	@echo "bob self-check passed"
 
 clean:
