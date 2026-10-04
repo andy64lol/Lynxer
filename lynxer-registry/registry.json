@@ -1,3 +1,5 @@
 {
-  "packages": {}
+  "packages": {
+    "foo": { "repository": "andy64lol/foo", "version": "0.1.0" }
+  }
 }
