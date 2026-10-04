@@ -1,0 +1,7 @@
+# Example module manifest (Node-style). The interpreter reads [module].entry.
+[module]
+name = "foo"
+version = "0.1.0"
+edition = "2026"
+
+entry = "src/main.lynx"

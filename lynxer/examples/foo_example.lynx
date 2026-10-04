@@ -1,0 +1,9 @@
+// Example project: import a directory module (modules/foo/) and call it.
+global setup(){
+    import("foo");
+    import("foo");   // importing the same module twice is a no-op
+}
+
+global main(){
+    println(global.foo.foo());
+}

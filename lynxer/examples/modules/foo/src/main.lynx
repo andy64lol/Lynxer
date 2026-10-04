@@ -1,0 +1,10 @@
+////
+foo: an example directory module, resolved from modules/foo/.
+////
+
+global setup(){}
+
+// Say foo bar!
+global foo() -> str { return "foo bar!"; }
+
+global main(){}

@@ -229,6 +229,9 @@ LYNXER_OWNERSHIP_FIXTURES := $(LYNXER_DIR)/examples/ownership.lynx
 LYNXER_TUPLE_FIXTURES := $(LYNXER_DIR)/examples/tuple_rebinding.lynx
 # Range `for` loop: for (int i = start (.. | ..=) end [.. step]).
 LYNXER_RANGE_FIXTURES := $(LYNXER_DIR)/examples/range_for.lynx
+# Module example: a program that imports a module and calls one of its
+# functions, showing how modules are loaded (and embedded under --compile).
+LYNXER_MODULE_EXAMPLE_FIXTURES := $(LYNXER_DIR)/examples/foo_example.lynx
 # Low-level fixtures: native-memory typed/endian access and the portable named
 # syscalls. They assert only host-independent behaviour, so the same expected
 # output holds on amd64 and arm64, and both CI jobs run them.
@@ -273,7 +276,7 @@ LYNXER_PARITY_FIXTURES := native_stdlibs native_aggregate milestone6_module test
 	stdlib_toml stdlib_ini stdlib_xml stdlib_yaml stdlib_watch \
 	stdlib_re stdlib_path stdlib_text stdlib_game stdlib_graphics stdlib_image stdlib_lua stdlib_sqldb stdlib_tui deprecated_operators optimizer \
 	lowlevel_memory lowlevel_syscalls lowlevel_arch language_fields ownership \
-	range_for
+	foo_example range_for
 ifeq ($(HAVE_AUDIO),1)
 LYNXER_PARITY_FIXTURES += stdlib_sound
 endif
@@ -902,7 +905,7 @@ expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:23: charAt() index is out of rang
 	echo "stdlib fixture output mismatch: $(LYNXER_SERVER_TLS_FIXTURE)"; \
 	rm -f $(CLYX_TMP)_tls.out; exit 1; fi; \
 	rm -f $(CLYX_TMP)_tls.out; fi
-	@for fixture in $(LYNXER_MILESTONE7_NEW_FIXTURES) $(LYNXER_OWNERSHIP_FIXTURES) $(LYNXER_TUPLE_FIXTURES) $(LYNXER_RANGE_FIXTURES) $(LYNXER_LOWLEVEL_FIXTURES); do \
+	@for fixture in $(LYNXER_MILESTONE7_NEW_FIXTURES) $(LYNXER_OWNERSHIP_FIXTURES) $(LYNXER_TUPLE_FIXTURES) $(LYNXER_RANGE_FIXTURES) $(LYNXER_LOWLEVEL_FIXTURES) $(LYNXER_MODULE_EXAMPLE_FIXTURES); do \
 	expected="$${fixture%.lynx}.expected"; \
 	if [ ! -f "$$expected" ]; then \
 	echo "missing expected output for $$fixture"; exit 1; fi; \

@@ -49,6 +49,32 @@ Both arguments must be **string literals**; an expression such as
 
 There is **no** `.lynxc` bytecode import in Lynxer.
 
+## Directory modules
+
+A bare import name can also load a **directory module**: a directory named after
+the module with a manifest that names its entry point. This mirrors Node's
+`node_modules/<name>/`.
+
+```text
+<project>/
+  modules/foo/
+    module.toml        # [module] ... entry = "src/main.lynx"
+    src/main.lynx      # the module source
+  main.lynx            # global setup(){ import("foo"); }
+```
+
+`import("foo")` searches for `modules/foo/` by walking up from the importing
+file's directory (and the current working directory) to the filesystem root, and
+takes the nearest match — so a project's own `modules/` shadows a stdlib module
+of the same name. Inside the directory it reads `entry` from the `[module]` table
+of `module.toml` and loads that file; without a manifest it falls back to
+`index.lynx`, then `main.lynx`.
+
+The namespace is always the requested name, so `import("foo")` binding
+`modules/foo/src/main.lynx` is reached as `global.foo.<function>()` — the entry
+filename does not matter. Relative paths and native (`.so`) imports are
+unaffected; only a bare, extensionless name looks in `modules/`.
+
 Source files may export compile-time macros with `pub macro`. Those macros are
 available to a file that imports the declaring source module; unprefixed macros
 remain private to their source file. See [macros.md](macros.md).

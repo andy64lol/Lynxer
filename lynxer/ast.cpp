@@ -14,6 +14,7 @@
 #include "stdlib/lynxer_native_abi.h"
 #include "types.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <atomic>
 #include <cstdint>
@@ -479,6 +480,68 @@ std::vector<ImportRecord> collectImports(const std::string& source,
     return parser.imports();
 }
 
+namespace {
+
+// Read `entry` from the `[module]` table of `<moduleDirectory>/module.toml`.
+// Deliberately minimal: the interpreter has no TOML library and only needs this
+// one key. Returns "" when the manifest is missing or has no usable entry.
+std::string moduleManifestEntry(const std::filesystem::path& moduleDirectory) {
+    std::ifstream manifest(moduleDirectory / "module.toml");
+    if (!manifest) {
+        return "";
+    }
+    const auto trim = [](std::string value) {
+        const auto first = value.find_first_not_of(" \t\r\n");
+        if (first == std::string::npos) {
+            return std::string();
+        }
+        const auto last = value.find_last_not_of(" \t\r\n");
+        return value.substr(first, last - first + 1);
+    };
+    bool inModuleTable = false;
+    std::string line;
+    while (std::getline(manifest, line)) {
+        const std::string trimmed = trim(line);
+        if (trimmed.empty() || trimmed[0] == '#') {
+            continue;
+        }
+        if (trimmed[0] == '[') {
+            const auto close = trimmed.find(']');
+            inModuleTable =
+                close != std::string::npos && trimmed.substr(0, close + 1) == "[module]";
+            continue;
+        }
+        if (!inModuleTable) {
+            continue;
+        }
+        const auto equals = trimmed.find('=');
+        if (equals == std::string::npos ||
+            trim(trimmed.substr(0, equals)) != "entry") {
+            continue;
+        }
+        std::string value = trim(trimmed.substr(equals + 1));
+        if (value.empty()) {
+            return "";
+        }
+        const char quote = value[0];
+        if (quote == '"' || quote == '\'') {
+            const auto close = value.find(quote, 1);
+            if (close == std::string::npos) {
+                return "";
+            }
+            return value.substr(1, close - 1);
+        }
+        const auto comment = value.find(" #");
+        if (comment != std::string::npos) {
+            value = trim(value.substr(0, comment));
+        }
+        return value;
+    }
+    return "";
+}
+
+}  // namespace
+
 std::string resolveModulePath(const std::string& sourceDirectory,
                               const std::string& requested) {
     const std::string embedded = findEmbeddedLibrary(requested);
@@ -508,6 +571,63 @@ std::string resolveModulePath(const std::string& sourceDirectory,
     for (const auto& candidate : candidates) {
         if (std::filesystem::exists(candidate)) {
             return candidate.generic_string();
+        }
+    }
+    // Project modules: `modules/<name>/` holding a `module.toml` that names its
+    // entry point, like Node's `node_modules/<name>/`. Only a bare,
+    // extensionless name triggers this, and it is searched before the stdlib so
+    // a project can shadow a stdlib module of the same name. The lookup walks up
+    // from the importing file's directory (and the working directory) to the
+    // filesystem root, so `import("foo")` finds the nearest `modules/foo/`.
+    if (!input.has_extension() && requested.find('/') == std::string::npos &&
+        requested.find('\\') == std::string::npos && requested != "." &&
+        requested != "..") {
+        std::vector<std::filesystem::path> moduleBases;
+        const auto addBaseChain = [&moduleBases](const std::filesystem::path& start) {
+            if (start.empty()) {
+                return;
+            }
+            std::error_code absoluteError;
+            std::filesystem::path base =
+                std::filesystem::absolute(start, absoluteError);
+            if (absoluteError) {
+                return;
+            }
+            for (;;) {
+                if (std::find(moduleBases.begin(), moduleBases.end(), base) ==
+                    moduleBases.end()) {
+                    moduleBases.push_back(base);
+                }
+                const auto parent = base.parent_path();
+                if (parent.empty() || parent == base) {
+                    break;
+                }
+                base = parent;
+            }
+        };
+        addBaseChain(sourceDirectory);
+        std::error_code cwdError;
+        addBaseChain(std::filesystem::current_path(cwdError));
+
+        for (const auto& base : moduleBases) {
+            const auto moduleDirectory = base / "modules" / requested;
+            std::error_code directoryError;
+            if (!std::filesystem::is_directory(moduleDirectory, directoryError)) {
+                continue;
+            }
+            const std::string entry = moduleManifestEntry(moduleDirectory);
+            if (!entry.empty()) {
+                const auto entryPath = moduleDirectory / entry;
+                if (std::filesystem::exists(entryPath)) {
+                    return entryPath.generic_string();
+                }
+            }
+            for (const auto* fallback : {"index.lynx", "main.lynx"}) {
+                const auto fallbackPath = moduleDirectory / fallback;
+                if (std::filesystem::exists(fallbackPath)) {
+                    return fallbackPath.generic_string();
+                }
+            }
         }
     }
     const auto stdlib = std::filesystem::path("stdlib");
