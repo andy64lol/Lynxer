@@ -85,6 +85,9 @@ github-token = ghp_****
 config file: /home/you/.bob/config.json
 ```
 
+`https://lynxer.netlify.app` is the public registry; use
+`http://localhost:3000` when running `lynxer-registry/` locally.
+
 `bob config get <key>` prints one value (the token is masked), `bob config
 unset <key>` removes one, and `bob config path` prints the file location. On
 Unix the file is written with `0600` permissions because it can hold a token.

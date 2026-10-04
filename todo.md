@@ -134,22 +134,21 @@ tracked in [Bob/todo.md](Bob/todo.md).
     ```
   - Add a `todo.md` file in the `Server/` directory to track progress on module hosting and upload features.
 
-- [ ] **Host the registry on Netlify.** `lynxer-registry/` is now a Netlify
+- [x] **Host the registry on Netlify.** `lynxer-registry/` is a Netlify
   Function (`netlify/functions/resolve.js`) with the public `POST /api/resolve`
-  path mapped in `netlify.toml`; it runs locally under `netlify dev` and is
-  verified. Still to do:
-  - Create and link the Netlify site, then deploy (`netlify deploy --prod`)
-    with `lynxer-registry/` as the site base directory.
-  - Serve it on a stable HTTPS domain (for example
-    `https://registry.lynxer.dev`) and use that as the `rest-api` value; Bob
-    only allows `http://` for local development.
+  path mapped in `netlify.toml`. Deployed to the `lynxer` site:
+  **https://lynxer.netlify.app** (`POST /api/resolve`, `GET /health`), and
+  Bob is wired to it with `bob config set rest-api https://lynxer.netlify.app`.
+- [ ] **Registry follow-ups.**
+  - Commit and push `lynxer-registry/` (still untracked) and the root
+    `netlify.toml` so the Git-connected site auto-deploys on pushes to `main`;
+    until then only `netlify deploy` from the CLI updates the site.
+  - Optionally set the site's base directory to `lynxer-registry` (then the root
+    `netlify.toml` is redundant) or serve on a custom HTTPS domain.
   - Decide how `registry.json` is stored and edited — a committed file, Netlify
     Blobs, or a database (see Supabase below) — and document how new
     `name -> owner/repository` mappings get added.
-  - Version the endpoint (for example `/v1/resolve`) before it is public and
-    keep Bob's path in sync; the `health` function already exists.
-  - Publish the production link in `Bob/README.md` and consider a built-in
-    default so users do not have to run `bob config set rest-api` by hand.
+  - Version the endpoint (for example `/v1/resolve`) before it is heavily used.
 
 - [ ] **Supabase Integration**:
   - Define how Bob modules will be uploaded to Supabase for storage and distribution.

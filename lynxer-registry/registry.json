@@ -1,24 +1,3 @@
 {
-  "packages": {
-    "lynxer": {
-      "owner": "lynxer-lang",
-      "repository": "lynxer"
-    },
-    "math-utils": {
-      "owner": "lynxer-lang",
-      "repository": "math-utils"
-    },
-    "game-engine": {
-      "owner": "lynxer-lang",
-      "repository": "game-engine"
-    },
-    "ui-components": {
-      "owner": "lynxer-lang",
-      "repository": "ui-components"
-    },
-    "networking": {
-      "owner": "lynxer-lang",
-      "repository": "networking"
-    }
-  }
+  "packages": {}
 }

@@ -1,6 +1,7 @@
 # Netlify configuration for the Lynxer package registry.
 [build]
   functions = "netlify/functions"
+  publish = "public"
 
 # Keep the public API path stable so Bob can POST to /api/resolve unchanged.
 [[redirects]]
