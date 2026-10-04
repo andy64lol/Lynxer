@@ -1,38 +1,39 @@
 # Bob — TODO
 
-Planned work for the Lynxer package manager. Bob can scaffold modules and
-publish immutable module archives to GitHub Releases.
+Planned work for the Lynxer package manager. Bob can scaffold a module project,
+publish immutable module archives to GitHub Releases, and install them by
+resolving a package name through the REST registry.
 
-- [x] **GitHub Releases integration.** Bob now uses GitHub Releases to host `.zip` packages.
-  - Fetch the latest release from the GitHub API.
-  - Select the correct `.zip` asset from the release.
-  - Verify metadata/checksum before installation.
+- [x] **GitHub Releases integration.** Bob hosts `.zip` packages on GitHub
+  Releases: `bob publish` creates the release asset, `bob install` fetches it by
+  tag and reports its SHA-256.
 
 - [x] **CLI configuration.** `bob config set rest-api|github-token` stores the
   REST registry link and the GitHub token in `~/.bob/config.json` (env
-  overrides: `BOB_REST_API`, `GITHUB_TOKEN`). `bob install` resolves a package
-  through the REST registry (`POST /api/resolve`) when one is configured.
+  overrides: `BOB_REST_API`, `GITHUB_TOKEN`, and the `BOB_CONFIG_DIR` location).
 
-- [x] **Registry hosting.** `lynxer-registry/` is a Netlify Function
-  (`POST /api/resolve`) deployed to <https://lynxer.netlify.app>; Bob is wired
-  to it with `bob config set rest-api`. Remaining (see the Server section of the
-  root [todo.md](../todo.md)): commit/push for Git auto-deploy, an optional
-  custom domain, and production storage for `registry.json`.
+- [x] **Registry.** `lynxer-registry/` is a Netlify Function (`POST
+  /api/resolve`) deployed to <https://lynxer.netlify.app> with Git auto-deploy
+  on pushes to `main`. Bob resolves a name through it before falling back to
+  `~/.bob/registry.json` and the built-in defaults.
 
-- [ ] **Package download and local layout.** Define installation under
-  `bob/packages/`; verify the downloaded archive digest against GitHub
-  metadata and the lock file before extracting any files.
-- [ ] **`bob add` / `bob update`.** `bob install <name> <version>` already
-  downloads a release asset into `bob/packages/`; still to do: resolve
-  `[dependencies]` in `bob/bob.toml`, write `bob/bob-lock.toml`, and implement
-  `add` and `update`.
-- [ ] **Application source scaffold.** `bob --init --module` now writes
-  `module.toml` and `src/main.lynx` for a reusable module; `bob --init` still
-  writes only `bob/bob.toml` and `bob/bob-lock.toml`. Add the application
-  entry-point layout (a `main.lynx`) once the project model is settled.
+- [ ] **Node-style install layout.** `bob install` currently writes the download
+  to `bob/packages/{name}-{version}/archive.zip`. Extract the archive into
+  `modules/<name>/` (renaming the archived `manifest.toml` to `module.toml`) so
+  the interpreter's `import("<name>")` finds it — rejecting entries that escape
+  the module directory and verifying the digest against the registry/lock first.
+
+- [ ] **`bob add` / `bob update`.** Resolve `[dependencies]` in `bob/bob.toml`,
+  write `bob/bob-lock.toml`, and implement `add` and `update` (`install` exists).
+
+- [ ] **Application source scaffold.** `bob --init` writes `bob/bob.toml` and
+  `bob/bob-lock.toml`; add the application entry-point layout (a `main.lynx`)
+  once the project model is settled.
+
 - [ ] **Version pinning.** `bob --ver` reports a compile-time constant for the
   supported Lynxer version; derive it from the Lynxer release so the two cannot
   drift.
+
 - [ ] **Release and CI.** Bob has its own workflows
   (`build-bob-{amd,arm,windows-amd,windows-arm}.yml`) that build it and run the
   self-check, scoped to `Bob/**` and separate from the Lynxer jobs. Still to do:

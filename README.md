@@ -134,7 +134,9 @@ README.md
 `Bob/` is a separate component with its own Makefile; build it with
 `make buildBob` then `Bob/target/release/bob --ver` (Bob's version and the
 Lynxer version it supports) or `bob --init` (scaffolds `bob/bob.toml` and
-`bob/bob-lock.toml`). There is no package registry yet — see [Bob/todo.md](Bob/todo.md).
+`bob/bob-lock.toml`). Bob can also publish a module to a GitHub Release (`bob publish`) and
+install one through the hosted registry (`bob install`) — see
+[Bob/README.md](Bob/README.md).
 
 ---
 

@@ -37,6 +37,14 @@ standard-library improvements.
 | [modules.md](modules.md) | `import`, search order, module member access |
 | [importAs.md](importAs.md) | Aliasing an imported module |
 
+**Packaging**
+
+| Document | What it covers |
+| --- | --- |
+| [bob.md](bob.md) | Bob, the Lynxer package manager: commands, configuration, publish and install |
+| [bob-modules.md](bob-modules.md) | The module directory, its `module.toml` manifest, and the published archive |
+| [bob-registry.md](bob-registry.md) | The REST registry: entries, `POST /api/resolve`, deployment |
+
 **Internals and reference**
 
 | Document | What it covers |

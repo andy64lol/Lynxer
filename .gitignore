@@ -14,3 +14,6 @@ Bob/target/
 
 # Local Netlify folder
 .netlify
+
+# enviromental variables
+.env
