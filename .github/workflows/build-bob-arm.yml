@@ -2,19 +2,13 @@ name: Build Bob on ARM64
 
 # Bob is the Lynxer package manager, a separate Rust component (see
 # Bob/README.md). It has its own workflows and is no longer built by the Lynxer
-# ones; these run only when Bob (or this workflow) changes.
+# ones; like the rest of CI they run on every push and pull request to main.
 
 on:
   push:
     branches: [ main ]
-    paths:
-      - 'Bob/**'
-      - '.github/workflows/build-bob-*.yml'
   pull_request:
     branches: [ main ]
-    paths:
-      - 'Bob/**'
-      - '.github/workflows/build-bob-*.yml'
   workflow_dispatch:
 
 jobs:
