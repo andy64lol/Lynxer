@@ -60,6 +60,12 @@
 <li><a href="networking.html">networking</a></li>
 <li><a href="process.html">process</a></li>
 </ul>
+<h3 class="sidebar-group-title">Packaging</h3><ul class="sidebar-group">
+<li><a href="bob.html">bob</a></li>
+<li><a href="bob-modules.html">bob-modules</a></li>
+<li><a href="bob-registry.html">bob-registry</a></li>
+<li><a href="bob-index.html">bob-index</a></li>
+</ul>
 <h3 class="sidebar-group-title">Reference</h3><ul class="sidebar-group">
 <li><a href="legacy-surface.html">legacy-surface</a></li>
 <li><a href="removed-features.html">removed-features</a></li>
@@ -145,6 +151,15 @@ global main(){}</code></pre>
 <li>A module that cannot be found reports <code>module &#x27;nope&#x27; was not found</code> with the importing source location.</li>
 </ul>
 <p>There is <strong>no</strong> <code>.lynxc</code> bytecode import in Lynxer.</p>
+<h2 id="directory-modules">Directory modules</h2>
+<p>A bare import name can also load a <strong>directory module</strong>: a directory named after the module with a manifest that names its entry point. This mirrors Node's <code>node_modules/&lt;name&gt;/</code>.</p>
+<pre><code>&lt;project&gt;/
+  modules/foo/
+    module.toml        # [module] ... entry = &quot;src/main.lynx&quot;
+    src/main.lynx      # the module source
+  main.lynx            # global setup(){ import(&quot;foo&quot;); }</code></pre>
+<p><code>import(&quot;foo&quot;)</code> searches for <code>modules/foo/</code> by walking up from the importing file's directory (and the current working directory) to the filesystem root, and takes the nearest match — so a project's own <code>modules/</code> shadows a stdlib module of the same name. Inside the directory it reads <code>entry</code> from the <code>[module]</code> table of <code>module.toml</code> and loads that file; without a manifest it falls back to <code>index.lynx</code>, then <code>main.lynx</code>.</p>
+<p>The namespace is always the requested name, so <code>import(&quot;foo&quot;)</code> binding <code>modules/foo/src/main.lynx</code> is reached as <code>global.foo.&lt;function&gt;()</code> — the entry filename does not matter. Relative paths and native (<code>.so</code>) imports are unaffected; only a bare, extensionless name looks in <code>modules/</code>.</p>
 <p>Source files may export compile-time macros with <code>pub macro</code>. Those macros are available to a file that imports the declaring source module; unprefixed macros remain private to their source file. See <a href="macros.html">macros</a>.</p>
 <h2 id="calling-module-members">Calling module members</h2>
 <p>Members are reached through the module namespace: <code>global.&lt;module&gt;.&lt;name&gt;(...)</code> (or <code>global.&lt;alias&gt;.&lt;name&gt;(...)</code> after <code>importAs</code>).</p>

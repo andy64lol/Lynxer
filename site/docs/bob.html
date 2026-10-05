@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <meta name="theme-color" content="#4a90e2">
-    <title>importAs - Lynxer</title>
+    <title>Bob — the package manager - Lynxer</title>
     <link rel="stylesheet" href="../style.css">
 </head>
 <body>
@@ -37,7 +37,7 @@
 <li><a href="tuples.html">tuples</a></li>
 <li><a href="codeblocks.html">codeblocks</a></li>
 <li><a href="modules.html">modules</a></li>
-<li><a href="importAs.html" class="active">importAs</a></li>
+<li><a href="importAs.html">importAs</a></li>
 </ul>
 <h3 class="sidebar-group-title">Records</h3><ul class="sidebar-group">
 <li><a href="structs.html">structs</a></li>
@@ -61,7 +61,7 @@
 <li><a href="process.html">process</a></li>
 </ul>
 <h3 class="sidebar-group-title">Packaging</h3><ul class="sidebar-group">
-<li><a href="bob.html">bob</a></li>
+<li><a href="bob.html" class="active">bob</a></li>
 <li><a href="bob-modules.html">bob-modules</a></li>
 <li><a href="bob-registry.html">bob-registry</a></li>
 <li><a href="bob-index.html">bob-index</a></li>
@@ -117,35 +117,74 @@
         <div class="breadcrumb">
             <a href="../index.html">Home</a>
             <a href="../docs/stdlib/index.html">Standard Library</a>
-            <span>importAs</span>
+            <span>Bob — the package manager</span>
         </div>
         <div class="search-bar" data-search-index="../search-index.json" data-site-root="../">
             <label class="visually-hidden" for="docs-search">Search documentation</label>
             <input id="docs-search" type="search" placeholder="Search documentation..." aria-label="Search documentation" autocomplete="off">
             <div class="search-results" aria-live="polite"></div>
         </div>
-<h1 id="importas">importAs</h1>
-<p><code>importAs(&quot;module&quot;, &quot;alias&quot;)</code> loads a module exactly like <code>import</code>, but binds it under a name you choose instead of the module's own name.</p>
-<h2 id="syntax">Syntax</h2>
-<pre><code>global setup(){
-    importAs(&quot;math&quot;, &quot;m&quot;);
-    importAs(&quot;network&quot;, &quot;net&quot;);
-    importAs(&quot;json.so&quot;, &quot;nativeJson&quot;);   // a native library under an alias
-}
+<h1 id="bob--the-package-manager">Bob — the package manager</h1>
+<p><strong>Bob</strong> is the package manager for the Lynxer language, named after the bobcat — a species of lynx. It is a standalone Rust component that lives in <code>Bob/</code>, deliberately <strong>kept separate from the interpreter</strong>: it has its own Makefile and version and only knows which Lynxer version it supports.</p>
+<p>Bob scaffolds a project or a reusable module, <strong>publishes</strong> a module to a GitHub Release, and <strong>installs</strong> a module by resolving its name through the Bob registry. See <a href="bob-modules.html">bob-modules</a> for the module format and <a href="bob-registry.html">bob-registry</a> for the registry.</p>
+<p>Build it with <code>make buildBob</code> (or <code>make -C Bob</code>) and run <code>Bob/target/release/bob</code>.</p>
+<h2 id="commands">Commands</h2>
+<table>
+<tr><th>Command</th><th>Effect</th></tr>
+<tr><td><code>bob --ver</code></td><td>Prints the Bob version and the Lynxer version it supports.</td></tr>
+<tr><td><code>bob --init</code></td><td>Creates <code>bob/bob.toml</code>, <code>bob/bob-lock.toml</code> and an empty <code>bob/packages/</code>.</td></tr>
+<tr><td><code>bob --init --module</code></td><td>Creates <code>module.toml</code> and <code>src/main.lynx</code> in a reusable module project.</td></tr>
+<tr><td><code>bob publish</code></td><td>Validates the current module, packages it as a ZIP, and uploads it as a GitHub release asset.</td></tr>
+<tr><td><code>bob install &lt;name&gt; &lt;version&gt;</code></td><td>Resolves a package and downloads its release asset.</td></tr>
+<tr><td><code>bob registry add|list|config</code></td><td>Manage local package→repository mappings in <code>~/.bob/registry.json</code>.</td></tr>
+<tr><td><code>bob config set|get|show|unset|path</code></td><td>Manage <code>~/.bob/config.json</code> (registry link and GitHub token).</td></tr>
+<tr><td><code>bob --help</code></td><td>Usage.</td></tr>
+</table>
+<pre><code>$ bob --ver
+bob 0.1.0
+supported lynxer 0.1.8.2
 
-global main(){
-    println(global.m.sqrt(9.0));         // 3
-}</code></pre>
-<h2 id="rules">Rules</h2>
-<ul>
-<li>Both arguments are <strong>string literals</strong>. An expression is rejected with <code>expected module path string</code>.</li>
-<li>The alias is used as <code>global.&lt;alias&gt;</code>, so <code>importAs(&quot;math&quot;, &quot;m&quot;)</code> is reached as <code>global.m.&lt;name&gt;(...)</code>.</li>
-<li>Like <code>import</code>, it is a statement and may appear in any function body, not only in <code>setup()</code>.</li>
-<li>Stdlib <code>.lynx</code> wrappers use <code>importAs(&quot;name.so&quot;, &quot;nativeName&quot;)</code> internally, then expose typed <code>global f(...) -&gt; T { ... }</code> forwards; that is how a module wraps a native backend.</li>
-</ul>
+$ bob --init
+Created bob/bob.toml
+Created bob/bob-lock.toml
+Created bob/packages/
+
+$ bob --init --module
+Created module.toml
+Created src/main.lynx</code></pre>
+<h2 id="configuration">Configuration</h2>
+<p>Bob reads two settings, stored in <code>~/.bob/config.json</code>:</p>
+<table>
+<tr><th>Key</th><th>Meaning</th></tr>
+<tr><td><code>rest-api</code></td><td>Base link of the Bob REST registry (for example <code>https://lynxer.netlify.app</code>). Resolves a package name to its GitHub repository.</td></tr>
+<tr><td><code>github-token</code></td><td>GitHub API token used to create releases (<code>publish</code>) and download assets (<code>install</code>).</td></tr>
+</table>
+<pre><code>$ bob config set rest-api https://lynxer.netlify.app
+$ bob config set github-token ghp_...
+$ bob config show
+rest-api = https://lynxer.netlify.app
+github-token = ghp_****
+config file: /home/you/.bob/config.json</code></pre>
+<p><code>bob config get &lt;key&gt;</code> prints one value (the token is masked), <code>bob config unset &lt;key&gt;</code> removes one, and <code>bob config path</code> prints the file location. On Unix the file is written with <code>0600</code> permissions because it can hold a token.</p>
+<p>Each setting can be overridden by an environment variable, which takes precedence over the file: <code>BOB_REST_API</code> for the registry link and <code>GITHUB_TOKEN</code> for the token. <code>BOB_CONFIG_DIR</code> overrides the directory that holds <code>config.json</code> (default <code>~/.bob</code>).</p>
+<h2 id="project-layout">Project layout</h2>
+<p>A Bob <strong>application</strong> keeps its manifest and lock file under a single <code>bob/</code> directory:</p>
+<pre><code>bob/bob.toml        the manifest ([package], [dependencies])
+bob/bob-lock.toml   the lock file, generated by Bob
+bob/packages/       downloaded package archives</code></pre>
+<p><code>bob/bob.toml</code> and <code>bob/bob-lock.toml</code> use the same TOML model Cargo uses.</p>
+<h2 id="publish-and-install">Publish and install</h2>
+<p><code>bob publish</code> reads <code>module.toml</code>, packages <code>manifest.toml</code> alongside <code>src/</code> into a ZIP, creates a GitHub release tagged with the module version, and uploads the archive as <code>{name}-{version}.zip</code>. <code>bob install &lt;name&gt; &lt;version&gt;</code> resolves the package to a GitHub repository, downloads the matching release asset into <code>bob/packages/{name}-{version}/</code>, and reports its SHA-256. The archive format and validation are described in <a href="bob-modules.html">bob-modules</a>.</p>
+<p>Both need a GitHub token (from <code>github-token</code> or <code>GITHUB_TOKEN</code>). Tokens are sent only to GitHub over HTTPS, never to the registry; never put a token in <code>module.toml</code>.</p>
+<blockquote><strong>Status.</strong> <code>bob install</code> currently writes the download to <code>bob/packages/{name}-{version}/archive.zip</code>; extracting it into <code>modules/&lt;name&gt;/</code> so the interpreter can <code>import</code> it is planned (see <a href="https://github.com/andy64lol/Lynxer/blob/main/Bob/todo.md">../Bob/todo</a>).</blockquote>
+<h2 id="platform-and-ci">Platform and CI</h2>
+<p>Bob builds for Linux, macOS and Windows. On Windows it uses a static CRT, so <code>bob.exe</code> is standalone and runs from <code>cmd.exe</code> or PowerShell. Bob has its own CI, separate from the Lynxer jobs: <code>build-bob-{amd,arm,windows-amd,windows-arm}.yml</code> build and self-check it, scoped to <code>Bob/**</code>.</p>
 <h2 id="see-also">See also</h2>
 <ul>
-<li><a href="modules.html">modules</a> — the search order, resolution, and compiled- executable behaviour.</li>
+<li><a href="bob-modules.html">bob-modules</a> — the module directory and manifest</li>
+<li><a href="bob-registry.html">bob-registry</a> — the REST registry</li>
+<li><a href="modules.html">modules</a> — how the interpreter resolves a module</li>
+<li><a href="https://github.com/andy64lol/Lynxer/blob/main/Bob/README.md">../Bob/README</a> — the component's own README</li>
 </ul>
     </main>
 </div>

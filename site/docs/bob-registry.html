@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <meta name="theme-color" content="#4a90e2">
-    <title>importAs - Lynxer</title>
+    <title>The Bob registry - Lynxer</title>
     <link rel="stylesheet" href="../style.css">
 </head>
 <body>
@@ -37,7 +37,7 @@
 <li><a href="tuples.html">tuples</a></li>
 <li><a href="codeblocks.html">codeblocks</a></li>
 <li><a href="modules.html">modules</a></li>
-<li><a href="importAs.html" class="active">importAs</a></li>
+<li><a href="importAs.html">importAs</a></li>
 </ul>
 <h3 class="sidebar-group-title">Records</h3><ul class="sidebar-group">
 <li><a href="structs.html">structs</a></li>
@@ -63,7 +63,7 @@
 <h3 class="sidebar-group-title">Packaging</h3><ul class="sidebar-group">
 <li><a href="bob.html">bob</a></li>
 <li><a href="bob-modules.html">bob-modules</a></li>
-<li><a href="bob-registry.html">bob-registry</a></li>
+<li><a href="bob-registry.html" class="active">bob-registry</a></li>
 <li><a href="bob-index.html">bob-index</a></li>
 </ul>
 <h3 class="sidebar-group-title">Reference</h3><ul class="sidebar-group">
@@ -117,35 +117,75 @@
         <div class="breadcrumb">
             <a href="../index.html">Home</a>
             <a href="../docs/stdlib/index.html">Standard Library</a>
-            <span>importAs</span>
+            <span>The Bob registry</span>
         </div>
         <div class="search-bar" data-search-index="../search-index.json" data-site-root="../">
             <label class="visually-hidden" for="docs-search">Search documentation</label>
             <input id="docs-search" type="search" placeholder="Search documentation..." aria-label="Search documentation" autocomplete="off">
             <div class="search-results" aria-live="polite"></div>
         </div>
-<h1 id="importas">importAs</h1>
-<p><code>importAs(&quot;module&quot;, &quot;alias&quot;)</code> loads a module exactly like <code>import</code>, but binds it under a name you choose instead of the module's own name.</p>
-<h2 id="syntax">Syntax</h2>
-<pre><code>global setup(){
-    importAs(&quot;math&quot;, &quot;m&quot;);
-    importAs(&quot;network&quot;, &quot;net&quot;);
-    importAs(&quot;json.so&quot;, &quot;nativeJson&quot;);   // a native library under an alias
-}
-
-global main(){
-    println(global.m.sqrt(9.0));         // 3
-}</code></pre>
-<h2 id="rules">Rules</h2>
+<h1 id="the-bob-registry">The Bob registry</h1>
+<p>The Bob registry tells <code>bob install &lt;name&gt; &lt;version&gt;</code> where a package lives. It is <strong>not</strong> a package host — the archives live on GitHub Releases. It is a small database plus a public resolve API and a browsable index.</p>
+<pre><code>bob install ──POST /api/resolve──▶ Netlify Function ──▶ Supabase (public.modules)
+                                      (the API)              ▲
+                                                             │
+                          browser ──▶ Bob Index (Render) ──────┘</code></pre>
 <ul>
-<li>Both arguments are <strong>string literals</strong>. An expression is rejected with <code>expected module path string</code>.</li>
-<li>The alias is used as <code>global.&lt;alias&gt;</code>, so <code>importAs(&quot;math&quot;, &quot;m&quot;)</code> is reached as <code>global.m.&lt;name&gt;(...)</code>.</li>
-<li>Like <code>import</code>, it is a statement and may appear in any function body, not only in <code>setup()</code>.</li>
-<li>Stdlib <code>.lynx</code> wrappers use <code>importAs(&quot;name.so&quot;, &quot;nativeName&quot;)</code> internally, then expose typed <code>global f(...) -&gt; T { ... }</code> forwards; that is how a module wraps a native backend.</li>
+<li><strong>Supabase</strong> (<code>andy64lol&#x27;s Project</code>) holds the <code>public.modules</code> table — one row per module. RLS allows public <code>SELECT</code>.</li>
+<li><strong>Netlify</strong> stays the API: <code>POST /api/resolve</code> (+ <code>/health</code>), reading Supabase with the public anon key.</li>
+<li><strong>Render</strong> hosts the <strong>Bob Index</strong>, a PyPI-like read-only page — see <a href="bob-index.html">bob-index</a>.</li>
 </ul>
+<h2 id="data">Data</h2>
+<p><code>public.modules</code>:</p>
+<table>
+<tr><th>Column</th><th>Meaning</th></tr>
+<tr><td><code>name</code></td><td>Primary key; the module name.</td></tr>
+<tr><td><code>repository</code></td><td>GitHub repository (<code>owner/repo</code>).</td></tr>
+<tr><td><code>version</code></td><td>Latest published version.</td></tr>
+<tr><td><code>description</code></td><td>Short summary for the index.</td></tr>
+<tr><td><code>created_at</code>, <code>updated_at</code></td><td>Timestamps.</td></tr>
+</table>
+<p>Schema and seed: <a href="../supabase/migrations/0001_modules.sql"><code>../supabase/migrations/0001_modules.sql</code></a>.</p>
+<h2 id="api">API</h2>
+<table>
+<tr><th>Method</th><th>Path</th><th>Body</th><th>Response</th></tr>
+<tr><td><code>POST</code></td><td><code>/api/resolve</code></td><td><code>{&quot;name&quot;:&quot;foo&quot;}</code></td><td><code>200 {&quot;owner&quot;, &quot;repository&quot;, &quot;version&quot;}</code></td></tr>
+<tr><td><code>GET</code></td><td><code>/health</code></td><td>—</td><td><code>200 {&quot;status&quot;:&quot;ok&quot;}</code></td></tr>
+</table>
+<p>Errors: <code>400</code> (missing name / bad JSON), <code>404</code> (unknown package), <code>405</code> (wrong method), <code>502</code> (database unreachable). The function is <code>lynxer-registry/netlify/functions/resolve.js</code>.</p>
+<pre><code>$ curl -sX POST https://lynxer.netlify.app/api/resolve \
+    -H &#x27;Content-Type: application/json&#x27; -d &#x27;{&quot;name&quot;:&quot;foo&quot;}&#x27;
+{&quot;repository&quot;:&quot;foo&quot;,&quot;owner&quot;:&quot;andy64lol&quot;,&quot;version&quot;:&quot;0.1.0&quot;}</code></pre>
+<h2 id="how-bob-uses-it">How Bob uses it</h2>
+<p><code>bob install</code> resolves a name in this order: the <strong>REST registry</strong> (when <code>rest-api</code> is configured), then the local <code>~/.bob/registry.json</code> mappings, then a small set of built-in defaults. Set the registry with <code>bob config set rest-api https://lynxer.netlify.app</code> (see <a href="bob.html">bob</a>).</p>
+<h2 id="deployment">Deployment</h2>
+<ul>
+<li><strong>Supabase</strong>: <code>supabase link --project-ref &lt;ref&gt;</code> then <code>supabase db push</code> applies everything under <code>supabase/migrations/</code>. Reads use the public anon/publishable key; the secret/service key is never sent to a client.</li>
+<li><strong>Netlify</strong>: the <code>lynxer</code> site. Set the environment and deploy:</li>
+</ul>
+<p>``<code>console $ netlify env:set SUPABASE_URL https://&lt;ref&gt;.supabase.co $ netlify env:set SUPABASE_ANON_KEY &lt;anon-key&gt; $ netlify deploy --prod </code>``</p>
+<ul>
+<li><strong>Render</strong>: the root <a href="../render.yaml"><code>../render.yaml</code></a> Blueprint defines the <code>BobI</code> service (see <a href="bob-index.html">bob-index</a>).</li>
+</ul>
+<h2 id="adding-a-package">Adding a package</h2>
+<p>There is no upload flow yet. Add a row to <code>public.modules</code> (SQL editor, or a migration):</p>
+<pre><code>insert into public.modules (name, repository, version, description)
+values (&#x27;mymod&#x27;, &#x27;owner/mymod&#x27;, &#x27;1.0.0&#x27;, &#x27;What it does&#x27;)
+on conflict (name) do update
+  set repository  = excluded.repository,
+      version     = excluded.version,
+      description = excluded.description,
+      updated_at  = now();</code></pre>
+<p>It then appears in the Bob Index and resolves for <code>bob install</code>.</p>
+<h2 id="local-development">Local development</h2>
+<pre><code>$ cd lynxer-registry &amp;&amp; netlify dev      # http://localhost:8888/api/resolve
+$ cd BobI &amp;&amp; npm install &amp;&amp; npm start     # http://localhost:3000
+$ bob config set rest-api http://localhost:8888</code></pre>
 <h2 id="see-also">See also</h2>
 <ul>
-<li><a href="modules.html">modules</a> — the search order, resolution, and compiled- executable behaviour.</li>
+<li><a href="bob.html">bob</a> — the Bob CLI and configuration</li>
+<li><a href="bob-modules.html">bob-modules</a> — the module format and publish flow</li>
+<li><a href="bob-index.html">bob-index</a> — the browsable Bob Index</li>
 </ul>
     </main>
 </div>

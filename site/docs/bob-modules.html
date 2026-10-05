@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <meta name="theme-color" content="#4a90e2">
-    <title>importAs - Lynxer</title>
+    <title>Bob modules - Lynxer</title>
     <link rel="stylesheet" href="../style.css">
 </head>
 <body>
@@ -37,7 +37,7 @@
 <li><a href="tuples.html">tuples</a></li>
 <li><a href="codeblocks.html">codeblocks</a></li>
 <li><a href="modules.html">modules</a></li>
-<li><a href="importAs.html" class="active">importAs</a></li>
+<li><a href="importAs.html">importAs</a></li>
 </ul>
 <h3 class="sidebar-group-title">Records</h3><ul class="sidebar-group">
 <li><a href="structs.html">structs</a></li>
@@ -62,7 +62,7 @@
 </ul>
 <h3 class="sidebar-group-title">Packaging</h3><ul class="sidebar-group">
 <li><a href="bob.html">bob</a></li>
-<li><a href="bob-modules.html">bob-modules</a></li>
+<li><a href="bob-modules.html" class="active">bob-modules</a></li>
 <li><a href="bob-registry.html">bob-registry</a></li>
 <li><a href="bob-index.html">bob-index</a></li>
 </ul>
@@ -117,35 +117,81 @@
         <div class="breadcrumb">
             <a href="../index.html">Home</a>
             <a href="../docs/stdlib/index.html">Standard Library</a>
-            <span>importAs</span>
+            <span>Bob modules</span>
         </div>
         <div class="search-bar" data-search-index="../search-index.json" data-site-root="../">
             <label class="visually-hidden" for="docs-search">Search documentation</label>
             <input id="docs-search" type="search" placeholder="Search documentation..." aria-label="Search documentation" autocomplete="off">
             <div class="search-results" aria-live="polite"></div>
         </div>
-<h1 id="importas">importAs</h1>
-<p><code>importAs(&quot;module&quot;, &quot;alias&quot;)</code> loads a module exactly like <code>import</code>, but binds it under a name you choose instead of the module's own name.</p>
-<h2 id="syntax">Syntax</h2>
-<pre><code>global setup(){
-    importAs(&quot;math&quot;, &quot;m&quot;);
-    importAs(&quot;network&quot;, &quot;net&quot;);
-    importAs(&quot;json.so&quot;, &quot;nativeJson&quot;);   // a native library under an alias
-}
+<h1 id="bob-modules">Bob modules</h1>
+<p>A Lynxer module is a <strong>directory with a manifest that names its entry point</strong>, mirroring Node's <code>node_modules/&lt;name&gt;/</code>. The interpreter finds it by walking up from the importing file for <code>modules/&lt;name&gt;/</code> and loading the manifest's <code>entry</code> — see <a href="modules.html">modules</a> for the resolution rules.</p>
+<pre><code>modules/foo/
+  module.toml        # [module] name, version, edition, entry
+  src/main.lynx      # the module source</code></pre>
+<p>The same directory is what <code>bob --init --module</code> scaffolds and what <code>bob publish</code> uploads.</p>
+<h2 id="the-manifest">The manifest</h2>
+<p><code>module.toml</code> carries the metadata the registry and the interpreter both use:</p>
+<pre><code>[module]
+name = &quot;foo&quot;
+version = &quot;0.1.0&quot;
+edition = &quot;2026&quot;
+entry = &quot;src/main.lynx&quot;
 
-global main(){
-    println(global.m.sqrt(9.0));         // 3
-}</code></pre>
-<h2 id="rules">Rules</h2>
-<ul>
-<li>Both arguments are <strong>string literals</strong>. An expression is rejected with <code>expected module path string</code>.</li>
-<li>The alias is used as <code>global.&lt;alias&gt;</code>, so <code>importAs(&quot;math&quot;, &quot;m&quot;)</code> is reached as <code>global.m.&lt;name&gt;(...)</code>.</li>
-<li>Like <code>import</code>, it is a statement and may appear in any function body, not only in <code>setup()</code>.</li>
-<li>Stdlib <code>.lynx</code> wrappers use <code>importAs(&quot;name.so&quot;, &quot;nativeName&quot;)</code> internally, then expose typed <code>global f(...) -&gt; T { ... }</code> forwards; that is how a module wraps a native backend.</li>
-</ul>
+[dependencies]</code></pre>
+<table>
+<tr><th>Field</th><th>Meaning</th></tr>
+<tr><td><code>name</code></td><td>The module name; must be letters, digits, <code>.</code>, <code>_</code> or <code>-</code>, and start with a letter or digit. <code>import(&quot;&lt;name&gt;&quot;)</code> uses it.</td></tr>
+<tr><td><code>version</code></td><td>Canonical semantic versioning (<code>1.2.3</code>), used as the release tag.</td></tr>
+<tr><td><code>entry</code></td><td>A safe <code>.lynx</code> path under <code>src/</code>; the file the interpreter loads.</td></tr>
+<tr><td><code>edition</code></td><td>The Lynxer edition the module targets.</td></tr>
+</table>
+<p>The interpreter reads only <code>[module].entry</code>; the rest is used by Bob and the registry.</p>
+<h2 id="source-shape">Source shape</h2>
+<p><code>src/main.lynx</code> uses the pure-module shape from <a href="extending.html">extending</a>: a <code>////</code> documentation header, an empty <code>global setup()</code>, and exported <code>global</code> functions. A module is imported by name, not run, so it has no <code>main()</code>:</p>
+<pre><code>////
+foo: an example module.
+////
+
+global setup(){}
+
+global foo() -&gt; str { return &quot;foo bar!&quot;; }
+
+global main(){}</code></pre>
+<p>The namespace is the imported name, so a program reaches this as <code>global.foo.foo()</code>:</p>
+<pre><code>global setup(){ import(&quot;foo&quot;); }
+global main(){ println(global.foo.foo()); }   // foo bar!</code></pre>
+<h2 id="scaffolding">Scaffolding</h2>
+<p><code>bob --init --module</code> writes <code>module.toml</code> and <code>src/main.lynx</code> in the current directory:</p>
+<pre><code>$ bob --init --module
+Created module.toml
+Created src/main.lynx</code></pre>
+<h2 id="published-archive">Published archive</h2>
+<p><code>bob publish</code> packs only the manifest and the files under <code>src/</code>:</p>
+<pre><code>my-module-1.0.0.zip
+├── manifest.toml    # a copy of module.toml
+└── src/
+    └── main.lynx</code></pre>
+<p>The release is tagged with the module version and the asset is named <code>{name}-{version}.zip</code>. Bob validates before upload: the name matches, the version is canonical semantic versioning, source paths stay under <code>src/</code> (no traversal, no symbolic links), and the archive stays below the size and file-count limits.</p>
+<h2 id="worked-example-foo">Worked example: <code>foo</code></h2>
+<pre><code># publish
+$ bob --init --module          # then edit src/main.lynx to add global foo()
+$ GITHUB_TOKEN=... bob publish
+Published foo@0.1.0(sha256:fTCAq0Eq...=)     # release 0.1.0, asset foo-0.1.0.zip
+
+# register the name → repository mapping (see bob-registry.md)
+#   &quot;foo&quot;: { &quot;repository&quot;: &quot;andy64lol/foo&quot;, &quot;version&quot;: &quot;0.1.0&quot; }
+
+# install
+$ bob install foo 0.1.0
+Installed foo@0.1.0(sha256:fTCAq0Eq...=)</code></pre>
+<blockquote><strong>Status.</strong> <code>bob install</code> currently stores the download at <code>bob/packages/foo-0.1.0/archive.zip</code>; extracting it into <code>modules/foo/</code> so the interpreter's <code>import(&quot;foo&quot;)</code> finds it is planned (see <a href="https://github.com/andy64lol/Lynxer/blob/main/Bob/todo.md">../Bob/todo</a>).</blockquote>
 <h2 id="see-also">See also</h2>
 <ul>
-<li><a href="modules.html">modules</a> — the search order, resolution, and compiled- executable behaviour.</li>
+<li><a href="modules.html">modules</a> — directory-module resolution in the interpreter</li>
+<li><a href="extending.html">extending</a> — writing a module end to end</li>
+<li><a href="bob.html">bob</a> — the Bob CLI</li>
+<li><a href="bob-registry.html">bob-registry</a> — resolving a name to a repository</li>
 </ul>
     </main>
 </div>

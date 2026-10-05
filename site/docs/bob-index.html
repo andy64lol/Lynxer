@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <meta name="theme-color" content="#4a90e2">
-    <title>importAs - Lynxer</title>
+    <title>Bob Index (BobI) - Lynxer</title>
     <link rel="stylesheet" href="../style.css">
 </head>
 <body>
@@ -37,7 +37,7 @@
 <li><a href="tuples.html">tuples</a></li>
 <li><a href="codeblocks.html">codeblocks</a></li>
 <li><a href="modules.html">modules</a></li>
-<li><a href="importAs.html" class="active">importAs</a></li>
+<li><a href="importAs.html">importAs</a></li>
 </ul>
 <h3 class="sidebar-group-title">Records</h3><ul class="sidebar-group">
 <li><a href="structs.html">structs</a></li>
@@ -64,7 +64,7 @@
 <li><a href="bob.html">bob</a></li>
 <li><a href="bob-modules.html">bob-modules</a></li>
 <li><a href="bob-registry.html">bob-registry</a></li>
-<li><a href="bob-index.html">bob-index</a></li>
+<li><a href="bob-index.html" class="active">bob-index</a></li>
 </ul>
 <h3 class="sidebar-group-title">Reference</h3><ul class="sidebar-group">
 <li><a href="legacy-surface.html">legacy-surface</a></li>
@@ -117,35 +117,63 @@
         <div class="breadcrumb">
             <a href="../index.html">Home</a>
             <a href="../docs/stdlib/index.html">Standard Library</a>
-            <span>importAs</span>
+            <span>Bob Index (BobI)</span>
         </div>
         <div class="search-bar" data-search-index="../search-index.json" data-site-root="../">
             <label class="visually-hidden" for="docs-search">Search documentation</label>
             <input id="docs-search" type="search" placeholder="Search documentation..." aria-label="Search documentation" autocomplete="off">
             <div class="search-results" aria-live="polite"></div>
         </div>
-<h1 id="importas">importAs</h1>
-<p><code>importAs(&quot;module&quot;, &quot;alias&quot;)</code> loads a module exactly like <code>import</code>, but binds it under a name you choose instead of the module's own name.</p>
-<h2 id="syntax">Syntax</h2>
-<pre><code>global setup(){
-    importAs(&quot;math&quot;, &quot;m&quot;);
-    importAs(&quot;network&quot;, &quot;net&quot;);
-    importAs(&quot;json.so&quot;, &quot;nativeJson&quot;);   // a native library under an alias
-}
-
-global main(){
-    println(global.m.sqrt(9.0));         // 3
-}</code></pre>
-<h2 id="rules">Rules</h2>
-<ul>
-<li>Both arguments are <strong>string literals</strong>. An expression is rejected with <code>expected module path string</code>.</li>
-<li>The alias is used as <code>global.&lt;alias&gt;</code>, so <code>importAs(&quot;math&quot;, &quot;m&quot;)</code> is reached as <code>global.m.&lt;name&gt;(...)</code>.</li>
-<li>Like <code>import</code>, it is a statement and may appear in any function body, not only in <code>setup()</code>.</li>
-<li>Stdlib <code>.lynx</code> wrappers use <code>importAs(&quot;name.so&quot;, &quot;nativeName&quot;)</code> internally, then expose typed <code>global f(...) -&gt; T { ... }</code> forwards; that is how a module wraps a native backend.</li>
-</ul>
+<h1 id="bob-index-bobi">Bob Index (BobI)</h1>
+<p>The <strong>Bob Index</strong> is the human-browsable front end for the Bob registry: a small <strong>PyPI-like</strong> page that lists the Lynxer modules, with a page per module. It is a Node.js service (Express + <code>@supabase/supabase-js</code>) hosted on <strong>Render</strong> and reading the same Supabase database the resolve API uses. It is <strong>read-only</strong> for now — there are no uploads. The public instance is live at <strong><a href="https://lynxer.onrender.com">https://lynxer.onrender.com</a></strong>.</p>
+<p>Source: <a href="../BobI/"><code>../BobI/</code></a>.</p>
+<h2 id="routes">Routes</h2>
+<table>
+<tr><th>Route</th><th>Serves</th></tr>
+<tr><td><code>GET /</code></td><td>Index page: a search box (<code>?q=</code>) and the module list (name, version, repository, description).</td></tr>
+<tr><td><code>GET /modules/:name</code></td><td>Module page: metadata, the GitHub link, and the <code>bob install &lt;name&gt; &lt;version&gt;</code> command.</td></tr>
+<tr><td><code>GET /api/modules</code></td><td>JSON list (<code>?q=</code> filters by name or description).</td></tr>
+<tr><td><code>GET /api/modules/:name</code></td><td>JSON for one module (<code>404</code> when unknown).</td></tr>
+<tr><td><code>GET /health</code></td><td><code>{&quot;status&quot;:&quot;ok&quot;}</code>.</td></tr>
+</table>
+<h2 id="data">Data</h2>
+<p>Reads <code>public.modules</code> from Supabase (see <a href="bob-registry.html">bob-registry</a> for the schema). The table allows public <code>SELECT</code>, so the service uses only the public anon/publishable key — never the service-role key.</p>
+<h2 id="configuration">Configuration</h2>
+<table>
+<tr><th>Variable</th><th>Meaning</th></tr>
+<tr><td><code>SUPABASE_URL</code></td><td><code>https://&lt;project-ref&gt;.supabase.co</code>.</td></tr>
+<tr><td><code>SUPABASE_ANON_KEY</code></td><td>The public anon (or <code>sb_publishable_...</code>) key.</td></tr>
+<tr><td><code>PORT</code></td><td>Port to listen on (Render sets this; defaults to <code>3000</code>).</td></tr>
+</table>
+<p>Copy <code>.env.example</code> to <code>.env</code> for local development; <code>.env</code> is gitignored.</p>
+<h2 id="run-locally">Run locally</h2>
+<pre><code>$ cd BobI
+$ npm install
+$ cp .env.example .env         # fill in SUPABASE_URL / SUPABASE_ANON_KEY
+$ npm start
+Bob Index listening on http://localhost:3000</code></pre>
+<h2 id="deploy-render">Deploy (Render)</h2>
+<p>The root <a href="../render.yaml"><code>../render.yaml</code></a> Blueprint defines the service:</p>
+<pre><code>services:
+  - type: web
+    name: bob-index
+    runtime: node
+    rootDir: BobI
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false</code></pre>
+<p>Create it once from the Render dashboard (<strong>New → Blueprint → this repository</strong>) and set <code>SUPABASE_URL</code> / <code>SUPABASE_ANON_KEY</code> in the service's environment. Render then builds and deploys on every push to <code>main</code>. Validate the Blueprint locally with <code>render blueprints validate ./render.yaml</code>.</p>
 <h2 id="see-also">See also</h2>
 <ul>
-<li><a href="modules.html">modules</a> — the search order, resolution, and compiled- executable behaviour.</li>
+<li><a href="bob-registry.html">bob-registry</a> — the registry database and resolve API</li>
+<li><a href="bob.html">bob</a> — the Bob CLI</li>
+<li><a href="bob-modules.html">bob-modules</a> — the module format</li>
 </ul>
     </main>
 </div>
