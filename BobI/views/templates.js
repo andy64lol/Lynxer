@@ -60,7 +60,7 @@ function layout(title, body, config = {}, page = '') {
 <body data-page="${escapeHtml(page)}">
 <header><div class="wrap header-inner"><h1><a href="/">Bob Index</a> <span class="sub">Lynxer package index</span></h1><nav class="account-nav" id="account-nav"><a href="/signup">Sign up</a><a href="/login">Log in</a></nav></div></header>
 <main>${body}</main>
-<footer>Bob Index — the module index for the Lynxer package manager.</footer>
+<footer>Bob Index — the module index for the Lynxer package manager. <a href="https://lynxer.onrender.com">Lynxer home</a></footer>
 <script>window.BOB_SUPABASE = ${JSON.stringify(injected)};</script>
 <script type="module" src="/auth.js"></script>
 </body></html>`;

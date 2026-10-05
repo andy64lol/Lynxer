@@ -10,9 +10,12 @@
 <body>
 
 <header>
-    <div class="header-content">
-        <h1><a href="../index.html">Lynxer</a></h1>
-        <p>Documentation</p>
+    <div class="wrap header-inner">
+        <img class="logo" src="../assets/lynxer.png" alt="Lynxer logo" width="48" height="48">
+        <div class="header-text">
+            <h1><a href="../index.html">Lynxer</a></h1>
+            <p>Documentation</p>
+        </div>
     </div>
 </header>
 
@@ -126,7 +129,7 @@
             <div class="search-results" aria-live="polite"></div>
         </div>
 <h1 id="bob-index-bobi">Bob Index (BobI)</h1>
-<p>The <strong>Bob Index</strong> is the human-browsable front end for the Bob registry: a small <strong>PyPI-like</strong> page that lists the Lynxer modules, with a page per module. It is a Node.js service (Express + <code>@supabase/supabase-js</code>) hosted on <strong>Render</strong> and reading the same Supabase database the resolve API uses. It is <strong>read-only</strong> for now — there are no uploads. The public instance is live at <strong><a href="https://lynxer.onrender.com">https://lynxer.onrender.com</a></strong>.</p>
+<p>The <strong>Bob Index</strong> is the human-browsable front end for the Bob registry: a small <strong>PyPI-like</strong> page that lists the Lynxer modules, with a page per module. It is a Node.js service (Express + <code>@supabase/supabase-js</code>) hosted on <strong>Render</strong> and reading the same Supabase database the resolve API uses. It is <strong>read-only</strong> for now — there are no uploads. The public instance is live at <strong><a href="https://bobi-index.onrender.com">https://bobi-index.onrender.com</a></strong>.</p>
 <p>Source: <a href="../BobI/"><code>../BobI/</code></a>.</p>
 <h2 id="routes">Routes</h2>
 <table>

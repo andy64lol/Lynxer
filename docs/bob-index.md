@@ -5,7 +5,7 @@ The **Bob Index** is the human-browsable front end for the Bob registry: a small
 Node.js service (Express + `@supabase/supabase-js`) hosted on **Render** and
 reading the same Supabase database the resolve API uses. It is **read-only** for
 now — there are no uploads. The public instance is live at
-**<https://lynxer.onrender.com>**.
+**<https://bobi-index.onrender.com>**.
 
 Source: [`../BobI/`](../BobI/).
 

@@ -3,50 +3,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Lynxer - Programming Language</title>
+    <title>Lynxer &mdash; a small, statically-flavoured programming language</title>
+    <meta name="description" content="Lynxer is a small, statically-flavoured C-style programming language with a standalone native runtime. Write .lynx programs that compile to a single executable.">
+    <link rel="icon" href="assets/lynxer.png">
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
 <header>
-    <h1>Lynxer</h1>
-    <p>A small, statically-flavoured C-style programming language</p>
+    <div class="wrap header-inner">
+        <img class="logo" src="assets/lynxer.png" alt="Lynxer logo" width="48" height="48">
+        <div class="header-text">
+            <h1><a href="index.html">Lynxer</a></h1>
+            <p>A small, statically-flavoured C-style programming language</p>
+        </div>
+    </div>
 </header>
 
 <nav>
-    <a href="index.html">Home</a>
-    <a href="docs/index.html">Docs</a>
-    <a href="#about">About</a>
-    <a href="#example">Example</a>
-    <a href="#features">Features</a>
-    <a href="#links">Links</a>
+    <div class="wrap">
+        <a href="index.html">Home</a>
+        <a href="docs/index.html">Docs</a>
+        <a href="#about">About</a>
+        <a href="#example">Example</a>
+        <a href="#community">Get involved</a>
+        <a href="#links">Links</a>
+    </div>
 </nav>
 
 <main>
 
     <section id="about">
-        <h2>About Lynxer</h2>
+        <h2>What is Lynxer?</h2>
 
         <p>
-            Lynxer is a statically-flavoured, C-style programming language with a
-            standalone native runtime. Source files use the <b>.lynx</b> extension,
+            Lynxer is a small, statically-flavoured, C-style programming language with a
+            standalone native runtime. Source files use the <code>.lynx</code> extension,
             and every program defines <code>global setup()</code> followed by
             <code>global main()</code>.
         </p>
 
         <p>
-            The interpreter is written in C++17 and runs programs without a Python
-            runtime. Its standard library ships as native shared libraries — C++ and
-            Rust backends behind one documented C ABI — so a program can open
-            sockets, decode images, play sound, query SQLite or drive a windowed game
-            loop without pulling in a scripting host.
+            The interpreter is written in C++17 and runs programs without a Python or
+            other host runtime. Its standard library ships as native shared libraries
+            &mdash; C++ and Rust backends behind one documented C ABI &mdash; so a program
+            can open sockets, decode images, play sound, query SQLite or drive a windowed
+            game loop without pulling in a scripting host.
         </p>
 
         <p>
             A single <code>--compile</code> command turns a program and everything it
-            imports into one standalone ELF executable that needs nothing from the
-            build tree.
+            imports into one standalone ELF executable that needs nothing from the build
+            tree.
         </p>
 
         <p>
@@ -59,7 +68,7 @@
 
 
     <section id="example">
-        <h2>Basic example</h2>
+        <h2>A first program</h2>
 
         <pre><code>global setup(){
     str name = input("What's your name? ");
@@ -88,20 +97,51 @@ global main(){
     </section>
 
 
-    <section id="features">
-        <h2>Features</h2>
+    <section id="community">
+        <h2>Help Lynxer get recognised</h2>
+
+        <p>
+            Lynxer is a young language, and the best thing you can do to help it grow is
+            to <b>use it in public</b>. GitHub decides which languages it highlights by
+            looking at how much code is written in them &mdash; so every open Lynxer
+            project is an argument for Lynxer earning its own place in GitHub's language
+            list (Linguist), with proper syntax highlighting and language statistics.
+        </p>
+
+        <p>If you build something with Lynxer, please:</p>
 
         <ul>
-            <li>C-style syntax with required <code>setup()</code> / <code>main()</code> entry points</li>
-            <li>Standalone native interpreter — no Python or other host runtime</li>
-            <li>Single-file <code>--compile</code> builds that embed the program and its modules</li>
-            <li>Semantics-preserving AST optimizer (<code>--no-opt</code> to disable)</li>
-            <li>38 standard-library modules, with native C++/Rust backends and pure Lynxer modules</li>
-            <li>Frozen native-module ABI for C++ and Rust extensions</li>
-            <li>Enums, structs, classes, vargroups, tuples, codeblocks and pattern matching</li>
-            <li>Tooling: <code>--lint</code>, <code>--ast</code>, <code>--format</code>, <code>--validate-executeable</code></li>
-            <li>Linux on amd64 and ARM64</li>
+            <li>
+                <b>Publish the source on GitHub</b> &mdash; anything from a small script to
+                a full project helps.
+            </li>
+            <li>
+                <b>Add the <code>lynxer</code> topic to the repository.</b> Open the repo,
+                click the gear next to <i>Topics</i>, and add <code>lynxer</code>. This is
+                how people (and GitHub) discover Lynxer projects.
+            </li>
+            <li>
+                <b>Tell GitHub that <code>.lynx</code> is Lynxer</b> by adding a
+                <code>.gitattributes</code> file at the root of your project:
+                <pre><code>*.lynx linguist-language=Lynxer</code></pre>
+                That stops your code being counted as another language while Lynxer is
+                still being added.
+            </li>
         </ul>
+
+        <p>
+            That's it &mdash; no sign-up, no ceremony. Make something, tag it
+            <code>lynxer</code>, and share it. The more Lynxer code that is visible on
+            GitHub, the stronger the case for Lynxer to be recognised as a language of
+            its own. If you maintain a project, you can also help by supporting the
+            language listing in <code>github/linguist</code>.
+        </p>
+
+        <p>
+            <a href="https://github.com/topics/lynxer">Browse the <code>lynxer</code> topic on GitHub</a>
+            &nbsp;&middot;&nbsp;
+            <a href="https://github.com/andy64lol/Lynxer">Star the repository</a>
+        </p>
     </section>
 
 
@@ -110,11 +150,12 @@ global main(){
 
         <p>
             The reference documentation covers the language, the command line, every
-            standard-library module and the native-module ABI.
+            standard-library module and the native-module ABI. It lives at
+            <a href="docs/index.html"><code>/docs/</code></a>.
         </p>
 
         <ul>
-            <li><a href="docs/index.html">Documentation overview</a> — start here</li>
+            <li><a href="docs/index.html">Documentation overview</a> &mdash; start here</li>
             <li><a href="docs/install.html">Installation</a></li>
             <li><a href="docs/language.html">Language reference</a></li>
             <li><a href="docs/CLI.html">CLI reference</a></li>
@@ -123,29 +164,25 @@ global main(){
             <li><a href="docs/native-module-abi.html">Native-module ABI</a></li>
             <li><a href="docs/limitations.html">Limitations and non-goals</a></li>
         </ul>
+
+        <p>
+            Looking for packages? The <b>Bob Index</b> lists the modules you can install
+            with Bob, the Lynxer package manager:
+            <a href="https://bobi.onrender.com">bobi.onrender.com</a>.
+        </p>
     </section>
 
 
     <section id="links">
         <h2>Links</h2>
 
-        <p>
-            <a href="https://github.com/andy64lol/Lynxer">
-                GitHub repository
-            </a>
-        </p>
-
-        <p>
-            <a href="https://github.com/andy64lol/Lynxer/blob/main/docs/install.md">
-                Installation
-            </a>
-        </p>
-
-        <p>
-            <a href="https://github.com/andy64lol/Lynxer/blob/main/LICENSE">
-                License (MIT)
-            </a>
-        </p>
+        <ul>
+            <li><a href="https://github.com/andy64lol/Lynxer">GitHub repository</a></li>
+            <li><a href="docs/index.html">Documentation</a></li>
+            <li><a href="https://bobi.onrender.com">Bob Index (package index)</a></li>
+            <li><a href="https://github.com/andy64lol/Lynxer/blob/main/docs/install.md">Installation</a></li>
+            <li><a href="https://github.com/andy64lol/Lynxer/blob/main/LICENSE">License (MIT)</a></li>
+        </ul>
     </section>
 
 </main>

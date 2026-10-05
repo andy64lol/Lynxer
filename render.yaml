@@ -1,13 +1,15 @@
 # Render Blueprint for the Lynxer web services.
 #
-# - `lynxer`      the Bob Index (BobI), a PyPI-like module index.
-# - `lynxer-docs` the documentation site, built from docs/*.md by site/build.py.
+# - `bobi-index` the Bob Index (BobI), a PyPI-like module index at
+#            https://bobi-index.onrender.com.
+# - `lynxer` the documentation site and home page, built from docs/*.md by
+#            site/build.py, at https://lynxer.onrender.com (docs under /docs/).
 #
 # Create them once from the Render dashboard: New -> Blueprint -> this
-# repository. Set SUPABASE_URL and SUPABASE_ANON_KEY in the `lynxer` service.
+# repository. Set SUPABASE_URL and SUPABASE_ANON_KEY in the `bobi-index` service.
 services:
   - type: web
-    name: lynxer
+    name: bobi-index
     runtime: node
     rootDir: BobI
     plan: free
@@ -21,11 +23,12 @@ services:
       - key: SUPABASE_ANON_KEY
         sync: false
 
-  # The documentation site: `python3 site/build.py` renders docs/*.md into
-  # site/, which is then served statically. A static site is `type: web` with
-  # `runtime: static` (see the Blueprint spec).
+  # The home page and documentation site: `python3 site/build.py` renders
+  # docs/*.md into site/ (and copies assets/), which is then served statically
+  # at the root, with the documentation under /docs/. A static site is
+  # `type: web` with `runtime: static` (see the Blueprint spec).
   - type: web
-    name: lynxer-docs
+    name: lynxer
     runtime: static
     buildCommand: python3 site/build.py
     staticPublishPath: site

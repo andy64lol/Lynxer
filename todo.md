@@ -129,17 +129,21 @@ The registry is a small database plus two front ends, documented in
 - **Netlify** stays the API: `POST /api/resolve` (+ `/health`) in
   `lynxer-registry/`, reading Supabase. Live at <https://lynxer.netlify.app>;
   Bob is wired to it with `bob config set rest-api https://lynxer.netlify.app`.
-- **Render** hosts the **Bob Index** (`BobI/`) — a PyPI-like page — via the root
-  `render.yaml` Blueprint.
+- **Render** hosts two things via the root `render.yaml` Blueprint: the home
+  page and docs at <https://lynxer.onrender.com> (docs under `/docs/`), and the
+  **Bob Index** (`BobI/`) — a PyPI-like page — at <https://bobi-index.onrender.com>.
 
 - [x] **Registry database (Supabase).** `andy64lol's Project` holds
   `public.modules`; the migration is applied and seeded with `foo`.
 - [x] **API on Supabase (Netlify).** `resolve.js` queries Supabase instead of
   `registry.json`; the site env is set and it is deployed.
 - [x] **Bob Index (Render).** `BobI/` Node service, deployed at
-  <https://lynxer.onrender.com> (created with `render services create`;
+  <https://bobi-index.onrender.com> (created with `render services create`;
   `render.yaml` remains the Blueprint). `SUPABASE_URL` / `SUPABASE_ANON_KEY`
   are set in its environment.
+- [x] **Home page and docs (Render static site).** Served at
+  <https://lynxer.onrender.com> (docs under `/docs/`), built by
+  `python3 site/build.py` from `docs/` and `assets/`.
 - [ ] **Registry follow-ups.**
   - Add a write path (an authenticated insert, or have `bob publish` register the
     name/version in Supabase) so rows are not added by hand.

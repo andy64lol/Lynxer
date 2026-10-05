@@ -51,8 +51,8 @@ The relevant keys:
 
 ```toml
 [auth]
-site_url = "https://lynxer.onrender.com"
-additional_redirect_urls = ["https://lynxer.onrender.com/**", "http://localhost:3000/**"]
+site_url = "https://bobi-index.onrender.com"
+additional_redirect_urls = ["https://bobi-index.onrender.com/**", "http://localhost:3000/**"]
 
 [auth.email]
 enable_confirmations = true

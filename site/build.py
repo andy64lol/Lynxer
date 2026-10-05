@@ -371,9 +371,12 @@ TEMPLATE = """<!DOCTYPE html>
 <body>
 
 <header>
-    <div class="header-content">
-        <h1><a href="{rel}index.html">Lynxer</a></h1>
-        <p>Documentation</p>
+    <div class="wrap header-inner">
+        <img class="logo" src="{rel}assets/lynxer.png" alt="Lynxer logo" width="48" height="48">
+        <div class="header-text">
+            <h1><a href="{rel}index.html">Lynxer</a></h1>
+            <p>Documentation</p>
+        </div>
     </div>
 </header>
 
@@ -497,6 +500,23 @@ def main() -> int:
         json.dumps(search_records, ensure_ascii=False, separators=(",", ":")) + "\n",
         encoding="utf-8",
     )
+
+    # Copy the repository's assets/ into site/assets/ so the published site can
+    # link them (the home page uses assets/lynxer.png).
+    assets_src = ROOT / "assets"
+    assets_dst = SITE / "assets"
+    if assets_src.is_dir():
+        assets_dst.mkdir(parents=True, exist_ok=True)
+        copied = 0
+        for source in sorted(assets_src.rglob("*")):
+            if source.is_file():
+                target = assets_dst / source.relative_to(assets_src)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(source.read_bytes())
+                copied += 1
+        if copied:
+            print(f"assets: copied {copied} file(s) to {assets_dst.relative_to(ROOT)}/")
+
     print(f"docs: wrote {count} page(s) to {OUT.relative_to(ROOT)}/")
     return 0
 
