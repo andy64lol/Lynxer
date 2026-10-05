@@ -71,6 +71,12 @@ and set `SUPABASE_URL` / `SUPABASE_ANON_KEY` in the service's environment. Rende
 then builds and deploys on every push to `main`. Validate the Blueprint locally
 with `render blueprints validate ./render.yaml`.
 
+## Accounts
+
+The index offers optional accounts — Supabase Auth with Resend email
+verification: `/signup`, `/login`, `/account`, `/auth/confirm`. See
+[bob-accounts.md](bob-accounts.md).
+
 ## See also
 
 - [bob-registry.md](bob-registry.md) — the registry database and resolve API

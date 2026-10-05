@@ -31,6 +31,7 @@ PAGES_LIST = [
     ("README.md", "index.html"),
     ("CLI.md", "CLI.html"),
     ("async.md", "async.html"),
+    ("bob-accounts.md", "bob-accounts.html"),
     ("bob-index.md", "bob-index.html"),
     ("bob-modules.md", "bob-modules.html"),
     ("bob-registry.md", "bob-registry.html"),
@@ -80,7 +81,7 @@ GROUPS: list[tuple[str, list[str]]] = [
     ("Runtime",
      ["async.md", "native-memory.md", "filesystem.md", "networking.md", "process.md"]),
     ("Packaging",
-     ["bob.md", "bob-modules.md", "bob-registry.md", "bob-index.md"]),
+     ["bob.md", "bob-modules.md", "bob-registry.md", "bob-index.md", "bob-accounts.md"]),
     ("Reference", ["legacy-surface.md", "removed-features.md", "limitations.md"]),
 ]
 

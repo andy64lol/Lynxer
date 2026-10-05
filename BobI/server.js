@@ -2,12 +2,28 @@
 
 require('dotenv').config();
 
+const path = require('path');
 const express = require('express');
 const { getClient } = require('./lib/supabase');
-const { renderIndex, renderModule, renderError } = require('./views/templates');
+const {
+  renderIndex,
+  renderModule,
+  renderError,
+  renderSignup,
+  renderLogin,
+  renderAccount,
+  renderConfirm,
+} = require('./views/templates');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// The public Supabase settings are injected into the browser for auth.js; the
+// anon key is a public client key, safe to expose.
+const authConfig = {
+  url: process.env.SUPABASE_URL || '',
+  anonKey: process.env.SUPABASE_ANON_KEY || '',
+};
 
 const COLUMNS = 'name,repository,version,description';
 
@@ -44,6 +60,15 @@ async function fetchModule(name) {
 
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
+// Account pages (client-side Supabase Auth; see views/auth.js).
+app.get('/auth.js', (_req, res) => {
+  res.type('application/javascript').sendFile(path.join(__dirname, 'views', 'auth.js'));
+});
+app.get('/signup', (_req, res) => res.send(renderSignup(authConfig)));
+app.get('/login', (_req, res) => res.send(renderLogin(authConfig)));
+app.get('/account', (_req, res) => res.send(renderAccount(authConfig)));
+app.get('/auth/confirm', (_req, res) => res.send(renderConfirm(authConfig)));
+
 app.get('/api/modules', async (req, res) => {
   try {
     res.json(await fetchModules((req.query.q || '').trim()));
@@ -67,9 +92,9 @@ app.get('/api/modules/:name', async (req, res) => {
 app.get('/', async (req, res) => {
   const query = (req.query.q || '').trim();
   try {
-    res.send(renderIndex(await fetchModules(query), query));
+    res.send(renderIndex(await fetchModules(query), query, authConfig));
   } catch (error) {
-    res.status(500).send(renderError(500, `Could not load modules: ${(error && error.message) || error}`));
+    res.status(500).send(renderError(500, `Could not load modules: ${(error && error.message) || error}`, authConfig));
   }
 });
 
@@ -77,15 +102,15 @@ app.get('/modules/:name', async (req, res) => {
   try {
     const mod = await fetchModule(req.params.name);
     if (!mod) {
-      return res.status(404).send(renderError(404, `Module '${req.params.name}' not found`));
+      return res.status(404).send(renderError(404, `Module '${req.params.name}' not found`, authConfig));
     }
-    res.send(renderModule(mod));
+    res.send(renderModule(mod, authConfig));
   } catch (error) {
-    res.status(500).send(renderError(500, `Could not load the module: ${(error && error.message) || error}`));
+    res.status(500).send(renderError(500, `Could not load the module: ${(error && error.message) || error}`, authConfig));
   }
 });
 
-app.use((_req, res) => res.status(404).send(renderError(404, 'Page not found')));
+app.use((_req, res) => res.status(404).send(renderError(404, 'Page not found', authConfig)));
 
 app.listen(PORT, () => {
   console.log(`Bob Index listening on http://localhost:${PORT}`);

@@ -65,6 +65,7 @@
 <li><a href="bob-modules.html">bob-modules</a></li>
 <li><a href="bob-registry.html">bob-registry</a></li>
 <li><a href="bob-index.html" class="active">bob-index</a></li>
+<li><a href="bob-accounts.html">bob-accounts</a></li>
 </ul>
 <h3 class="sidebar-group-title">Reference</h3><ul class="sidebar-group">
 <li><a href="legacy-surface.html">legacy-surface</a></li>
@@ -169,6 +170,8 @@ Bob Index listening on http://localhost:3000</code></pre>
       - key: SUPABASE_ANON_KEY
         sync: false</code></pre>
 <p>Create it once from the Render dashboard (<strong>New → Blueprint → this repository</strong>) and set <code>SUPABASE_URL</code> / <code>SUPABASE_ANON_KEY</code> in the service's environment. Render then builds and deploys on every push to <code>main</code>. Validate the Blueprint locally with <code>render blueprints validate ./render.yaml</code>.</p>
+<h2 id="accounts">Accounts</h2>
+<p>The index offers optional accounts — Supabase Auth with Resend email verification: <code>/signup</code>, <code>/login</code>, <code>/account</code>, <code>/auth/confirm</code>. See <a href="bob-accounts.html">bob-accounts</a>.</p>
 <h2 id="see-also">See also</h2>
 <ul>
 <li><a href="bob-registry.html">bob-registry</a> — the registry database and resolve API</li>

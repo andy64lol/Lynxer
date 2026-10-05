@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <meta name="theme-color" content="#4a90e2">
-    <title>Native modules - Lynxer</title>
+    <title>Bob Index accounts - Lynxer</title>
     <link rel="stylesheet" href="../style.css">
 </head>
 <body>
@@ -49,7 +49,7 @@
 <li><a href="builtins.html">builtins</a></li>
 <li><a href="syscalls.html">syscalls</a></li>
 <li><a href="native-module-abi.html">native-module-abi</a></li>
-<li><a href="native-modules.html" class="active">native-modules</a></li>
+<li><a href="native-modules.html">native-modules</a></li>
 <li><a href="stdlib-contracts.html">stdlib-contracts</a></li>
 <li><a href="extending.html">extending</a></li>
 </ul>
@@ -65,7 +65,7 @@
 <li><a href="bob-modules.html">bob-modules</a></li>
 <li><a href="bob-registry.html">bob-registry</a></li>
 <li><a href="bob-index.html">bob-index</a></li>
-<li><a href="bob-accounts.html">bob-accounts</a></li>
+<li><a href="bob-accounts.html" class="active">bob-accounts</a></li>
 </ul>
 <h3 class="sidebar-group-title">Reference</h3><ul class="sidebar-group">
 <li><a href="legacy-surface.html">legacy-surface</a></li>
@@ -118,74 +118,70 @@
         <div class="breadcrumb">
             <a href="../index.html">Home</a>
             <a href="../docs/stdlib/index.html">Standard Library</a>
-            <span>Native modules</span>
+            <span>Bob Index accounts</span>
         </div>
         <div class="search-bar" data-search-index="../search-index.json" data-site-root="../">
             <label class="visually-hidden" for="docs-search">Search documentation</label>
             <input id="docs-search" type="search" placeholder="Search documentation..." aria-label="Search documentation" autocomplete="off">
             <div class="search-results" aria-live="polite"></div>
         </div>
-<h1 id="native-modules">Native modules</h1>
-<p>A native module is a shared library that exports one stable registration entry point. On Linux the extension is <code>.so</code>; the loader is C++ (<code>dlopen</code>/<code>dlsym</code>) — there is no Python and <strong>no <code>libffi</code></strong>: calls dispatch through a hand-written fixed-shape table (see <a href="native-module-abi.html">native-module-abi</a>).</p>
-<h2 id="registration-abi">Registration ABI</h2>
-<pre><code>int lynxer_module_init_v1(
-    int (*register_function)(const char *name, const char *symbol,
-                             const char *signature),
-    int (*register_constant)(const char *name, int64_t value),
-    int (*register_type)(const char *name, const char *layout)
-);</code></pre>
-<p>Return <code>0</code> after all registrations succeed. A non-zero return, an invalid identifier, a duplicate registration, or a missing symbol rejects the module. Function signatures use the <code>cdecl:&lt;ret&gt;(&lt;args&gt;)</code> grammar.</p>
-<pre><code>#include &lt;cstdint&gt;
-
-using RegisterFunction = int (*)(const char *, const char *, const char *);
-using RegisterConstant = int (*)(const char *, std::int64_t);
-using RegisterType = int (*)(const char *, const char *);
-
-extern &quot;C&quot; std::int64_t add(std::int64_t left, std::int64_t right) {
-    return left + right;
-}
-
-extern &quot;C&quot; int lynxer_module_init_v1(RegisterFunction function,
-                                     RegisterConstant constant,
-                                     RegisterType type) {
-    if (!function(&quot;add&quot;, &quot;add&quot;, &quot;cdecl:int64(int64,int64)&quot;)) return 1;
-    if (!constant(&quot;version&quot;, 1)) return 2;
-    if (!type(&quot;pair&quot;, &quot;int64 left, int64 right&quot;)) return 3;
-    return 0;
-}</code></pre>
-<h2 id="importing">Importing</h2>
-<p>Import a shared library from <code>setup()</code> like any other module:</p>
-<pre><code>global setup() {
-    import(&quot;mylib.so&quot;);
-}
-
-global main() {
-    println(global.mylib.version);   // a registered constant
-    println(global.mylib.add(2, 3)); // a registered function
-}</code></pre>
-<p>Registered functions are callable, constants become integers, and registered type layouts become strings usable with the native-memory APIs. A module is initialised once per import and stays loaded for the lifetime of its namespace, so function pointers cannot become invalid while it is still in use.</p>
-<h2 id="explicit-handle-api">Explicit handle API</h2>
+<h1 id="bob-index-accounts">Bob Index accounts</h1>
+<p>The Bob Index has optional user accounts built on <strong>Supabase Auth</strong>, with <strong>email verification</strong> delivered by <strong>Resend</strong>. The index is still <strong>read-only</strong> — accounts are groundwork (no uploads or per-module permissions yet).</p>
+<h2 id="routes">Routes</h2>
 <table>
-<tr><th>Function</th><th>Notes</th></tr>
-<tr><td><code>nativeModuleLoad(path)</code></td><td>Loads and initialises a module; returns a handle.</td></tr>
-<tr><td><code>nativeModuleName(handle)</code></td><td>The filename-derived module name.</td></tr>
-<tr><td><code>nativeModuleFunction(handle, name)</code></td><td>Returns a <code>functionAddress</code>.</td></tr>
-<tr><td><code>nativeModuleConstant(handle, name)</code></td><td>Returns a registered integer.</td></tr>
-<tr><td><code>nativeModuleType(handle, name)</code></td><td>Returns a registered layout string.</td></tr>
-<tr><td><code>nativeModuleError(handle)</code></td><td>The module-local lifecycle error, or <code>&quot;&quot;</code>.</td></tr>
-<tr><td><code>nativeModuleDependencies(handle)</code></td><td>Discovered shared-library dependencies.</td></tr>
-<tr><td><code>nativeModuleClose(handle)</code></td><td>Releases an explicitly loaded module.</td></tr>
+<tr><th>Route</th><th>Page</th></tr>
+<tr><td><code>GET /signup</code></td><td>Create an account (email + password).</td></tr>
+<tr><td><code>GET /login</code></td><td>Sign in.</td></tr>
+<tr><td><code>GET /account</code></td><td>The signed-in user's details.</td></tr>
+<tr><td><code>GET /auth/confirm</code></td><td>Landing page for the email-confirmation link.</td></tr>
+<tr><td><code>GET /auth.js</code></td><td>The browser script that drives the above.</td></tr>
 </table>
-<p>An explicit handle can be combined with <code>ffiCall</code> and a returned <code>functionAddress</code>. Closing a handle invalidates it and releases its registration callbacks; retained function addresses then fail cleanly instead of calling unmapped code. Imported modules cannot be explicitly closed — their namespace owns their lifetime. Invalid handles and failed registrations raise normal runtime errors. <code>nativeModuleDependencies</code> is informational and returns an empty list when the host linker tooling cannot inspect a module.</p>
-<h2 id="ffi-entry-points">FFI entry points</h2>
-<p><code>ffiLoadLibrary</code>, <code>ffiLookup</code>, <code>ffiCall</code>, <code>ffiCallback</code>, <code>ffiFreeCallback</code> and <code>ffiCloseLibrary</code>. <code>ffiCall</code> describes and performs a native call through the same fixed-shape table as <code>nativeCall</code> (at most four typed parameters, or the packed <code>ret(...)</code> form).</p>
-<p><code>ffiCallback(signature, function)</code> does <strong>not</strong> produce a real native callable: it stores the pair under a handle, and <code>ffiCall</code> recognises that handle and re-invokes the Lynxer function. There is no trampoline, and the stored signature is not validated. The <code>ffi*</code> calling convention is still an <a href="https://github.com/andy64lol/Lynxer/blob/main/todo.md">open decision</a> for arbitrary signatures.</p>
-<h2 id="building-c-stdlib-backends">Building C++ stdlib backends</h2>
-<p>Every <code>lynxer/stdlib/*.cpp</code> file is built into its sibling <code>.so</code> by the <code>Makefile</code>; the matching <code>.lynx</code> file is the public wrapper where a Lynxer-friendly API or return-type conversion is useful. Adding a dependency-free stdlib module means adding a C++ backend and a wrapper — no Python packages.</p>
+<p>The header shows Sign up / Log in, or the signed-in email plus Sign out.</p>
+<h2 id="how-it-works">How it works</h2>
+<ol>
+<li><code>/signup</code> calls Supabase <code>signUp</code> with <code>emailRedirectTo = &lt;origin&gt;/auth/confirm</code>.</li>
+<li>Supabase Auth sends a "Confirm your email address" message through its custom SMTP — which is <strong>Resend</strong> (<code>smtp.resend.com</code>, user <code>resend</code>).</li>
+<li>The link returns to <code>/auth/confirm</code>; the browser session is established and <code>/account</code> shows the user.</li>
+</ol>
+<p>Sessions live in the browser (<code>localStorage</code>) via <code>@supabase/supabase-js</code>, and sign-in requires a confirmed address (<code>auth.email.enable_confirmations</code>).</p>
+<h2 id="configuration">Configuration</h2>
+<p>Supabase Auth settings live in <a href="../supabase/config.toml"><code>../supabase/config.toml</code></a> and are applied with the Supabase CLI (no dashboard needed):</p>
+<pre><code>$ supabase config diff                     # preview the changes
+$ RESEND_API_KEY=re_... supabase config push --yes</code></pre>
+<p>The relevant keys:</p>
+<pre><code>[auth]
+site_url = &quot;https://lynxer.onrender.com&quot;
+additional_redirect_urls = [&quot;https://lynxer.onrender.com/**&quot;, &quot;http://localhost:3000/**&quot;]
+
+[auth.email]
+enable_confirmations = true
+
+[auth.email.smtp]
+enabled = true
+host = &quot;smtp.resend.com&quot;
+port = 587
+user = &quot;resend&quot;
+pass = &quot;env(RESEND_API_KEY)&quot;     # the secret stays out of the file
+admin_email = &quot;onboarding@resend.dev&quot;
+sender_name = &quot;Bob Index&quot;</code></pre>
+<h2 id="resend">Resend</h2>
+<p>The SMTP password is a Resend API key. Create a sending-only key with the Resend CLI and test delivery:</p>
+<pre><code>$ resend login
+$ resend api-keys create --name supabase-smtp --permission sending_access
+$ resend emails send --from onboarding@resend.dev --to you@example.com \
+    --subject test --text hello
+$ resend emails list            # delivery status</code></pre>
+<blockquote><strong>Sender domain.</strong> No sending domain is verified yet, so mail is sent from <code>onboarding@resend.dev</code>, which reliably reaches only the Resend account owner. Verify a domain (<code>resend domains create ...</code>) before real sign-ups.</blockquote>
+<h2 id="security">Security</h2>
+<ul>
+<li>The Resend API key is a secret: it is referenced as <code>env(RESEND_API_KEY)</code> in <code>config.toml</code>, never committed.</li>
+<li><code>SUPABASE_ANON_KEY</code> is a public client key (safe in the browser); the service-role key is not used by the index.</li>
+<li>Sessions use <code>localStorage</code>; because the index is read-only this is not server-enforced authorization.</li>
+</ul>
 <h2 id="see-also">See also</h2>
 <ul>
-<li><a href="native-module-abi.html">native-module-abi</a> — the frozen ABI, signature shapes and data conventions.</li>
-<li><a href="extending.html">extending</a> — adding a stdlib module end to end.</li>
+<li><a href="bob-index.html">bob-index</a> — the index pages</li>
+<li><a href="bob-registry.html">bob-registry</a> — the resolve API and database</li>
 </ul>
     </main>
 </div>

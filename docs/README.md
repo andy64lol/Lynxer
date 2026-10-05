@@ -45,6 +45,7 @@ standard-library improvements.
 | [bob-modules.md](bob-modules.md) | The module directory, its `module.toml` manifest, and the published archive |
 | [bob-registry.md](bob-registry.md) | The REST registry: entries, `POST /api/resolve`, deployment |
 | [bob-index.md](bob-index.md) | The Bob Index — the PyPI-like module page on Render |
+| [bob-accounts.md](bob-accounts.md) | Accounts on the index: Supabase Auth + Resend email verification |
 
 **Internals and reference**
 
