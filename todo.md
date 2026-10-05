@@ -136,11 +136,11 @@ The registry is a small database plus two front ends, documented in
   `public.modules`; the migration is applied and seeded with `foo`.
 - [x] **API on Supabase (Netlify).** `resolve.js` queries Supabase instead of
   `registry.json`; the site env is set and it is deployed.
-- [x] **Bob Index (Render).** `BobI/` Node service + `render.yaml` Blueprint
-  (validated). Create the service once from the Render dashboard (New ->
-  Blueprint -> repo) and set `SUPABASE_URL` / `SUPABASE_ANON_KEY` in it.
+- [x] **Bob Index (Render).** `BobI/` Node service, deployed at
+  <https://lynxer.onrender.com> (created with `render services create`;
+  `render.yaml` remains the Blueprint). `SUPABASE_URL` / `SUPABASE_ANON_KEY`
+  are set in its environment.
 - [ ] **Registry follow-ups.**
-  - Record the deployed Bob Index URL in [docs/bob-index.md](docs/bob-index.md).
   - Add a write path (an authenticated insert, or have `bob publish` register the
     name/version in Supabase) so rows are not added by hand.
   - Consider a custom domain for the API, and version the resolve endpoint

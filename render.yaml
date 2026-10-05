@@ -3,7 +3,7 @@
 # Set SUPABASE_URL and SUPABASE_ANON_KEY in the service environment.
 services:
   - type: web
-    name: bob-index
+    name: lynxer
     runtime: node
     rootDir: BobI
     plan: free
