@@ -70,4 +70,6 @@ jobs:
           path: |
             lynxer/lynxer.exe
             lynxer/lynxer
+            lynxer/stdlib
+            lynxer/lynxer.config
           if-no-files-found: ignore

@@ -386,6 +386,27 @@ lynxerToolchain:
 	echo "lynxer: install a Rust toolchain (e.g. rustup) and run make again."; \
 	exit 1; }
 
+# A relocatable bundle of the whole runtime - the interpreter, every stdlib
+# module, the config, and (on Linux) the embedding runtime and public headers
+# beside the binary. A release asset should ship this, not the bare binary,
+# so a downloaded copy can import() its stdlib modules. dist/ is gitignored.
+DIST_DIR := dist
+LYNXER_VERSION := $(shell sed -n 's/^version *= *//p' $(LYNXER_DIR)/lynxer.config 2>/dev/null | head -n1)
+LYNXER_DIST_OS := $(if $(LYNXER_ON_WINDOWS),windows,$(shell uname -s 2>/dev/null | tr '[:upper:]' '[:lower:]'))
+LYNXER_DIST_ARCH := $(shell uname -m 2>/dev/null || echo unknown)
+LYNXER_DIST_NAME := lynxer-$(if $(LYNXER_VERSION),$(LYNXER_VERSION),dev)-$(LYNXER_DIST_OS)-$(LYNXER_DIST_ARCH)
+
+dist: buildLynxer
+	@rm -rf $(DIST_DIR)/$(LYNXER_DIST_NAME)
+	@mkdir -p $(DIST_DIR)/$(LYNXER_DIST_NAME)
+	@cp $(LYNXER_TARGET) $(DIST_DIR)/$(LYNXER_DIST_NAME)/
+	@cp -r $(LYNXER_DIR)/stdlib $(DIST_DIR)/$(LYNXER_DIST_NAME)/stdlib
+	@if [ -f $(LYNXER_DIR)/lynxer.config ]; then cp $(LYNXER_DIR)/lynxer.config $(DIST_DIR)/$(LYNXER_DIST_NAME)/; fi
+	@if [ -f $(LYNXER_SHARED) ]; then cp $(LYNXER_SHARED) $(DIST_DIR)/$(LYNXER_DIST_NAME)/; fi
+	@for header in $(LYNXER_PUBLIC_HEADERS); do if [ -f $$header ]; then cp $$header $(DIST_DIR)/$(LYNXER_DIST_NAME)/; fi; done
+	@tar -C $(DIST_DIR) -czf $(DIST_DIR)/$(LYNXER_DIST_NAME).tar.gz $(LYNXER_DIST_NAME)
+	@echo "OK: bundle at $(DIST_DIR)/$(LYNXER_DIST_NAME).tar.gz"
+
 # Binary plus every stdlib module, C++ and Rust alike.
 buildLynxer: lynxerToolchain $(LYNXER_TARGET) $(LYNXER_NATIVE_BUILT) $(LYNXER_SHARED_BUILT) sdk
 	@echo "✓ Lynxer build complete: $(LYNXER_TARGET)"
