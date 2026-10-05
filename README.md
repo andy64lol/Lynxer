@@ -39,7 +39,7 @@ global main(){
 }
 ```
 
-→ **[Installation](docs/install.md)** | **[Language reference](docs/language.md)** | **[Functions](docs/functions.md)** | **[Macros](docs/macros.md)** | **[Standard library](docs/stdlib/)**
+→ **[Website](https://lynxer.onrender.com)** | **[Documentation](https://lynxer.onrender.com/docs/)** | **[Installation](docs/install.md)** | **[Language reference](docs/language.md)** | **[Functions](docs/functions.md)** | **[Macros](docs/macros.md)** | **[Standard library](docs/stdlib/)**
 
 ---
 
@@ -91,10 +91,13 @@ global main(){
 
 ## Documentation
 
-The documentation lives in [`docs/`](docs/README.md). The project's home page
-is **https://lynxer.onrender.com**, with the documentation under
-**https://lynxer.onrender.com/docs/** (built from `docs/` by `site/build.py`
-and served as a Render static site).
+The documentation lives in [`docs/`](docs/README.md) and is published online:
+
+- **Home page** — <https://lynxer.onrender.com>
+- **Documentation** — <https://lynxer.onrender.com/docs/>
+
+Both are built from `docs/` by [`site/build.py`](site/build.py) and served as a
+Render static site.
 
 | Page | Contents |
 |------|----------|
@@ -116,6 +119,19 @@ and served as a Render static site).
 | [Classes](docs/classes.md) | Instances, constructors, fields, and methods |
 | [Enums](docs/enums.md) | Rust-style tagged unions, payloads, and pattern matching |
 | [Limitations](docs/limitations.md) | Planned implementation gaps |
+
+---
+
+## Links
+
+| Resource | Link |
+|----------|------|
+| Website (home page) | <https://lynxer.onrender.com> |
+| Documentation | <https://lynxer.onrender.com/docs/> |
+| Package index (Bob Index) | <https://bobi-index.onrender.com> |
+| Registry API | <https://lynxer.netlify.app> |
+| GitHub repository | <https://github.com/andy64lol/Lynxer> |
+| Bob (package manager) | [Bob/README.md](Bob/README.md) |
 
 ---
 
