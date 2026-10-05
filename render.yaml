@@ -1,0 +1,18 @@
+# Render Blueprint for the Bob Index (BobI), the PyPI-like module index.
+# Create it once from the Render dashboard: New -> Blueprint -> this repository.
+# Set SUPABASE_URL and SUPABASE_ANON_KEY in the service environment.
+services:
+  - type: web
+    name: bob-index
+    runtime: node
+    rootDir: BobI
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false

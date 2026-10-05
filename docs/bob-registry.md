@@ -1,37 +1,47 @@
 # The Bob registry
 
-The Bob registry maps a package **name** to the GitHub repository that hosts it,
-so `bob install <name> <version>` knows where to fetch the release from. It is a
-small REST service, not a package host — the archives themselves live on GitHub
-Releases.
+The Bob registry tells `bob install <name> <version>` where a package lives. It
+is **not** a package host — the archives live on GitHub Releases. It is a small
+database plus a public resolve API and a browsable index.
 
-## Entries
-
-The registry is a single JSON document: a `packages` map keyed by name, each
-entry giving the GitHub repository (`owner/repo`) and the published version.
-
-```json
-{
-  "packages": {
-    "foo": { "repository": "andy64lol/foo", "version": "0.1.0" }
-  }
-}
+```text
+bob install ──POST /api/resolve──▶ Netlify Function ──▶ Supabase (public.modules)
+                                      (the API)              ▲
+                                                             │
+                          browser ──▶ Bob Index (Render) ──────┘
 ```
 
-| Field | Meaning |
+- **Supabase** (`andy64lol's Project`) holds the `public.modules` table — one row
+  per module. RLS allows public `SELECT`.
+- **Netlify** stays the API: `POST /api/resolve` (+ `/health`), reading Supabase
+  with the public anon key.
+- **Render** hosts the **Bob Index**, a PyPI-like read-only page — see
+  [bob-index.md](bob-index.md).
+
+## Data
+
+`public.modules`:
+
+| Column | Meaning |
 | --- | --- |
-| `repository` | The GitHub repository (`owner/repo`). A full `github.com` URL also works. |
-| `version` | The published version. Optional, echoed back for the caller. |
+| `name` | Primary key; the module name. |
+| `repository` | GitHub repository (`owner/repo`). |
+| `version` | Latest published version. |
+| `description` | Short summary for the index. |
+| `created_at`, `updated_at` | Timestamps. |
+
+Schema and seed: [`../supabase/migrations/0001_modules.sql`](../supabase/migrations/0001_modules.sql).
 
 ## API
 
 | Method | Path | Body | Response |
 | --- | --- | --- | --- |
-| `POST` | `/api/resolve` | `{"name": "foo"}` | `200 {"owner", "repository", "version"}` |
-| `GET` | `/health` | — | `200 {"status": "ok"}` |
+| `POST` | `/api/resolve` | `{"name":"foo"}` | `200 {"owner", "repository", "version"}` |
+| `GET` | `/health` | — | `200 {"status":"ok"}` |
 
-Errors: `400` when `name` is missing or the body is not JSON, `404` for an
-unknown package, `405` for any method other than `POST`.
+Errors: `400` (missing name / bad JSON), `404` (unknown package), `405` (wrong
+method), `502` (database unreachable). The function is
+`lynxer-registry/netlify/functions/resolve.js`.
 
 ```console
 $ curl -sX POST https://lynxer.netlify.app/api/resolve \
@@ -44,39 +54,51 @@ $ curl -sX POST https://lynxer.netlify.app/api/resolve \
 `bob install` resolves a name in this order: the **REST registry** (when
 `rest-api` is configured), then the local `~/.bob/registry.json` mappings, then a
 small set of built-in defaults. Set the registry with
-`bob config set rest-api <url>` (see [bob.md](bob.md)); `bob registry add` only
-manages the local fallback.
+`bob config set rest-api https://lynxer.netlify.app` (see [bob.md](bob.md)).
 
 ## Deployment
 
-`lynxer-registry/` is the service: a Netlify Function
-(`netlify/functions/resolve.js`) with the public `POST /api/resolve` path mapped
-in `netlify.toml`. It is deployed to **<https://lynxer.netlify.app>**, and the
-Netlify site's Git integration rebuilds it on every push to `main`, so adding a
-package is just editing `lynxer-registry/registry.json` and committing.
+- **Supabase**: `supabase link --project-ref <ref>` then `supabase db push`
+  applies everything under `supabase/migrations/`. Reads use the public
+  anon/publishable key; the secret/service key is never sent to a client.
+- **Netlify**: the `lynxer` site. Set the environment and deploy:
 
-To run it locally:
+  ```console
+  $ netlify env:set SUPABASE_URL https://<ref>.supabase.co
+  $ netlify env:set SUPABASE_ANON_KEY <anon-key>
+  $ netlify deploy --prod
+  ```
 
-```console
-$ cd lynxer-registry
-$ netlify dev            # serves /api/resolve on http://localhost:3000
-$ bob config set rest-api http://localhost:3000
-```
+- **Render**: the root [`../render.yaml`](../render.yaml) Blueprint defines the
+  `BobI` service (see [bob-index.md](bob-index.md)).
 
 ## Adding a package
 
-1. Publish the module (see [bob-modules.md](bob-modules.md)) to get a GitHub
-   Release asset.
-2. Add an entry to `lynxer-registry/registry.json`:
+There is no upload flow yet. Add a row to `public.modules` (SQL editor, or a
+migration):
 
-   ```json
-   "foo": { "repository": "owner/foo", "version": "0.1.0" }
-   ```
+```sql
+insert into public.modules (name, repository, version, description)
+values ('mymod', 'owner/mymod', '1.0.0', 'What it does')
+on conflict (name) do update
+  set repository  = excluded.repository,
+      version     = excluded.version,
+      description = excluded.description,
+      updated_at  = now();
+```
 
-3. Commit and push; Netlify redeploys automatically.
-4. `bob install foo 0.1.0` now resolves through the registry.
+It then appears in the Bob Index and resolves for `bob install`.
+
+## Local development
+
+```console
+$ cd lynxer-registry && netlify dev      # http://localhost:8888/api/resolve
+$ cd BobI && npm install && npm start     # http://localhost:3000
+$ bob config set rest-api http://localhost:8888
+```
 
 ## See also
 
 - [bob.md](bob.md) — the Bob CLI and configuration
 - [bob-modules.md](bob-modules.md) — the module format and publish flow
+- [bob-index.md](bob-index.md) — the browsable Bob Index

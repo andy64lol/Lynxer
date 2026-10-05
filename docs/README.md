@@ -44,6 +44,7 @@ standard-library improvements.
 | [bob.md](bob.md) | Bob, the Lynxer package manager: commands, configuration, publish and install |
 | [bob-modules.md](bob-modules.md) | The module directory, its `module.toml` manifest, and the published archive |
 | [bob-registry.md](bob-registry.md) | The REST registry: entries, `POST /api/resolve`, deployment |
+| [bob-index.md](bob-index.md) | The Bob Index — the PyPI-like module page on Render |
 
 **Internals and reference**
 

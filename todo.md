@@ -118,41 +118,36 @@ to GitHub Releases, install them, and resolve package names through a
 configurable REST registry (`bob config set rest-api`). Its planned work is
 tracked in [Bob/todo.md](Bob/todo.md).
 
-## Server (Bob Module Hosting)
+## Server (Bob module hosting)
 
-- [ ] **Create a `Server/` directory** at the same level as `Lynxer/` and `Bob/` for hosting Bob modules.
-- [ ] **Bob Module Structure**:
-  - Modules should be distributed as `.zip` files containing:
-    - A `manifest.toml` file with metadata like `name`, `version`, and `entry`.
-    - A `src/` directory containing the module source files (e.g., `main.lynx`).
-  - Example structure:
-    ```
-    my-module.zip
-    ├── manifest.toml
-    └── src/
-        └── main.lynx
-    ```
-  - Add a `todo.md` file in the `Server/` directory to track progress on module hosting and upload features.
+The registry is a small database plus two front ends, documented in
+[docs/bob-registry.md](docs/bob-registry.md) and
+[docs/bob-index.md](docs/bob-index.md):
 
-- [x] **Host the registry on Netlify.** `lynxer-registry/` is a Netlify
-  Function (`netlify/functions/resolve.js`) with the public `POST /api/resolve`
-  path mapped in `netlify.toml`. Deployed to the `lynxer` site:
-  **https://lynxer.netlify.app** (`POST /api/resolve`, `GET /health`), and
+- **Supabase** holds `public.modules` (one row per module); schema + seed live in
+  `supabase/migrations/`. Reads use the public anon key.
+- **Netlify** stays the API: `POST /api/resolve` (+ `/health`) in
+  `lynxer-registry/`, reading Supabase. Live at <https://lynxer.netlify.app>;
   Bob is wired to it with `bob config set rest-api https://lynxer.netlify.app`.
-- [ ] **Registry follow-ups.**
-  - Commit and push `lynxer-registry/` (still untracked) and the root
-    `netlify.toml` so the Git-connected site auto-deploys on pushes to `main`;
-    until then only `netlify deploy` from the CLI updates the site.
-  - Optionally set the site's base directory to `lynxer-registry` (then the root
-    `netlify.toml` is redundant) or serve on a custom HTTPS domain.
-  - Decide how `registry.json` is stored and edited — a committed file, Netlify
-    Blobs, or a database (see Supabase below) — and document how new
-    `name -> owner/repository` mappings get added.
-  - Version the endpoint (for example `/v1/resolve`) before it is heavily used.
+- **Render** hosts the **Bob Index** (`BobI/`) — a PyPI-like page — via the root
+  `render.yaml` Blueprint.
 
-- [ ] **Supabase Integration**:
-  - Define how Bob modules will be uploaded to Supabase for storage and distribution.
-  - Ensure the platform supports module versioning and checksum verification.
+- [x] **Registry database (Supabase).** `andy64lol's Project` holds
+  `public.modules`; the migration is applied and seeded with `foo`.
+- [x] **API on Supabase (Netlify).** `resolve.js` queries Supabase instead of
+  `registry.json`; the site env is set and it is deployed.
+- [x] **Bob Index (Render).** `BobI/` Node service + `render.yaml` Blueprint
+  (validated). Create the service once from the Render dashboard (New ->
+  Blueprint -> repo) and set `SUPABASE_URL` / `SUPABASE_ANON_KEY` in it.
+- [ ] **Registry follow-ups.**
+  - Record the deployed Bob Index URL in [docs/bob-index.md](docs/bob-index.md).
+  - Add a write path (an authenticated insert, or have `bob publish` register the
+    name/version in Supabase) so rows are not added by hand.
+  - Consider a custom domain for the API, and version the resolve endpoint
+    (`/v1/resolve`) before it is heavily used.
+
+- [ ] **Module storage.** Archives are distributed from GitHub Releases today; a
+  future option is Supabase Storage, with versioning and checksum verification.
 
 ## Windows support
 

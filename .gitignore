@@ -17,3 +17,6 @@ Bob/target/
 
 # enviromental variables
 .env
+
+# Supabase CLI local state
+supabase/.temp/

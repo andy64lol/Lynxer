@@ -139,20 +139,19 @@ holds `config.json` (default `~/.bob`).
 
 ## The registry
 
-`lynxer-registry/` is a small REST service (a Netlify Function) whose only job is
-to map a package **name** to its GitHub repository and version:
+The registry maps a package **name** to its GitHub repository and version. It is
+a **Supabase** database (`public.modules`, one row per module) with two front
+ends:
 
-```json
-{ "packages": { "foo": { "repository": "andy64lol/foo", "version": "0.1.0" } } }
-```
+- the **API** — `POST /api/resolve` on Netlify (`lynxer-registry/`) — which
+  `bob` calls, and
+- the **Bob Index** — a PyPI-like page on Render (`BobI/`) for people.
 
-It exposes `POST /api/resolve` with `{"name": "..."}` and answers with
+`POST /api/resolve` takes `{"name": "..."}` and answers
 `{"owner": "...", "repository": "...", "version": "..."}` (or `404` when the
-package is unknown). The public instance is deployed at
-<https://lynxer.netlify.app>; run it locally with `netlify dev` inside
-`lynxer-registry/` and point Bob at it with `bob config set rest-api
-http://localhost:3000`. See the "Server (Bob Module Hosting)" section of the
-root [todo.md](../todo.md).
+package is unknown). The public API is at <https://lynxer.netlify.app>; see
+[docs/bob-registry.md](../docs/bob-registry.md) and
+[docs/bob-index.md](../docs/bob-index.md).
 
 A package name is resolved in this order: the **REST registry** (when `rest-api`
 is set), then the local `~/.bob/registry.json` mappings managed by `bob registry

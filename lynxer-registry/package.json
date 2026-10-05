@@ -2,7 +2,7 @@
   "name": "lynxer-registry",
   "version": "1.0.0",
   "private": true,
-  "description": "A simple registry API for resolving Lynxer package names to GitHub repositories (Netlify Functions).",
+  "description": "The Bob registry API: resolves Lynxer package names to GitHub repositories via Supabase, served as Netlify Functions.",
   "scripts": {
     "dev": "netlify dev",
     "serve": "netlify functions:serve"

@@ -1,43 +1,54 @@
 // Netlify Function: resolve a Lynxer package name to its GitHub repository.
-// Equivalent to the old Express `POST /api/resolve` endpoint (see netlify.toml).
 //
-// registry.json maps a package name to its GitHub repo and version:
+// The public API path is POST /api/resolve (see netlify.toml). The registry now
+// lives in Supabase (the public.modules table) instead of registry.json; the
+// response shape is unchanged, so the bob CLI needs no change:
 //
-//   { "packages": {
-//       "math-utils": { "repository": "lynxer-lang/math-utils", "version": "1.2.3" }
-//   } }
+//   { "owner": "...", "repository": "...", "version": "..." }
 //
-// `repository` is `owner/repo` (a full github.com URL also works); `owner` may
-// instead be given as a separate field. `version` is optional.
-const config = require('../../registry.json');
-
+// Requires SUPABASE_URL and SUPABASE_ANON_KEY in the site environment. The
+// module table allows public SELECT, so the anon/publishable key is enough.
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
 function respond(statusCode, payload) {
   return { statusCode, headers: JSON_HEADERS, body: JSON.stringify(payload) };
 }
 
-// Normalise an entry to { owner, repository }, or null when it is unusable.
-function splitRepository(entry) {
-  if (!entry || !entry.repository) {
+// "owner/repo" (a full github.com URL also works) -> { owner, repository }.
+function splitRepository(repository) {
+  if (!repository) {
     return null;
   }
-
-  let repository = String(entry.repository).trim();
+  let value = String(repository).trim();
   const marker = 'github.com/';
-  if (repository.includes(marker)) {
-    repository = repository.split(marker)[1];
+  if (value.includes(marker)) {
+    value = value.split(marker)[1];
   }
-  repository = repository.replace(/\.git$/, '').replace(/^\/+/, '');
-
-  const parts = repository.split('/').filter(Boolean);
+  value = value.replace(/\.git$/, '').replace(/^\/+/, '');
+  const parts = value.split('/').filter(Boolean);
   if (parts.length >= 2) {
-    return { owner: entry.owner || parts[0], repository: parts[1] };
-  }
-  if (entry.owner && parts.length === 1) {
-    return { owner: entry.owner, repository: parts[0] };
+    return { owner: parts[0], repository: parts[1] };
   }
   return null;
+}
+
+async function lookupModule(name) {
+  const base = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_ANON_KEY;
+  if (!base || !key) {
+    throw new Error('SUPABASE_URL and SUPABASE_ANON_KEY are not configured');
+  }
+  const endpoint =
+    `${base.replace(/\/+$/, '')}/rest/v1/modules` +
+    `?select=name,repository,version&name=eq.${encodeURIComponent(name)}`;
+  const response = await fetch(endpoint, {
+    headers: { apikey: key, Authorization: `Bearer ${key}` },
+  });
+  if (!response.ok) {
+    throw new Error(`registry database returned HTTP ${response.status}`);
+  }
+  const rows = await response.json();
+  return Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
 }
 
 exports.handler = async (event) => {
@@ -57,19 +68,24 @@ exports.handler = async (event) => {
     return respond(400, { error: 'Package name is required' });
   }
 
-  const entry = config.packages[name];
-  if (!entry) {
+  let row;
+  try {
+    row = await lookupModule(name);
+  } catch (error) {
+    return respond(502, { error: String((error && error.message) || error) });
+  }
+  if (!row) {
     return respond(404, { error: `Package '${name}' not found` });
   }
 
-  const resolved = splitRepository(entry);
-  if (!resolved) {
+  const split = splitRepository(row.repository);
+  if (!split) {
     return respond(500, { error: `Package '${name}' has an invalid registry entry` });
   }
 
-  const payload = { repository: resolved.repository, owner: resolved.owner };
-  if (entry.version) {
-    payload.version = entry.version;
+  const payload = { repository: split.repository, owner: split.owner };
+  if (row.version) {
+    payload.version = row.version;
   }
   return respond(200, payload);
 };
