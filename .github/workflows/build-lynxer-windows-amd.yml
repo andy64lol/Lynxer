@@ -12,8 +12,32 @@ name: Build Lynxer on Windows AMD64
 on:
   push:
     branches: [ main ]
+    paths-ignore:
+      - 'Bob/**'
+      - 'BobI/**'
+      - 'lynxer-registry/**'
+      - 'supabase/**'
+      - 'site/**'
+      - 'docs/**'
+      - 'README.md'
+      - 'todo.md'
+      - 'render.yaml'
+      - 'netlify.toml'
+      - '.github/workflows/build-bob-*.yml'
   pull_request:
     branches: [ main ]
+    paths-ignore:
+      - 'Bob/**'
+      - 'BobI/**'
+      - 'lynxer-registry/**'
+      - 'supabase/**'
+      - 'site/**'
+      - 'docs/**'
+      - 'README.md'
+      - 'todo.md'
+      - 'render.yaml'
+      - 'netlify.toml'
+      - '.github/workflows/build-bob-*.yml'
   workflow_dispatch:
 
 jobs:
