@@ -134,6 +134,8 @@
 <tr><td><code>GET /login</code></td><td>Sign in.</td></tr>
 <tr><td><code>GET /account</code></td><td>The signed-in user's details.</td></tr>
 <tr><td><code>GET /auth/confirm</code></td><td>Landing page for the email-confirmation link.</td></tr>
+<tr><td><code>GET /forgot-password</code></td><td>Request a password-reset link.</td></tr>
+<tr><td><code>GET /auth/reset-password</code></td><td>Set a new password (arrived from the reset link).</td></tr>
 <tr><td><code>GET /auth.js</code></td><td>The browser script that drives the above.</td></tr>
 </table>
 <p>The header shows Sign up / Log in, or the signed-in email plus Sign out.</p>
@@ -144,6 +146,8 @@
 <li>The link returns to <code>/auth/confirm</code>; the browser session is established and <code>/account</code> shows the user.</li>
 </ol>
 <p>Sessions live in the browser (<code>localStorage</code>) via <code>@supabase/supabase-js</code>, and sign-in requires a confirmed address (<code>auth.email.enable_confirmations</code>).</p>
+<h3 id="password-reset">Password reset</h3>
+<p><code>/forgot-password</code> calls <code>resetPasswordForEmail</code> with <code>redirectTo = &lt;origin&gt;/auth/reset-password</code>; Supabase emails a recovery link (again through Resend SMTP), which lands on <code>/auth/reset-password</code> where the user sets a new password with <code>updateUser({ password })</code>. The log-in page links to it under "Forgot password?".</p>
 <h2 id="configuration">Configuration</h2>
 <p>Supabase Auth settings live in <a href="../supabase/config.toml"><code>../supabase/config.toml</code></a> and are applied with the Supabase CLI (no dashboard needed):</p>
 <pre><code>$ supabase config diff                     # preview the changes
@@ -171,7 +175,7 @@ $ resend api-keys create --name supabase-smtp --permission sending_access
 $ resend emails send --from onboarding@resend.dev --to you@example.com \
     --subject test --text hello
 $ resend emails list            # delivery status</code></pre>
-<blockquote><strong>Sender domain.</strong> No sending domain is verified yet, so mail is sent from <code>onboarding@resend.dev</code>, which reliably reaches only the Resend account owner. Verify a domain (<code>resend domains create ...</code>) before real sign-ups.</blockquote>
+<blockquote><strong>Sender domain.</strong> No sending domain is verified yet, so <strong>both</strong> the confirmation and password-reset emails are sent from <code>onboarding@resend.dev</code>, which reliably reaches only the Resend account owner. Verify a domain (<code>resend domains create ...</code>) before real sign-ups.</blockquote>
 <h2 id="security">Security</h2>
 <ul>
 <li>The Resend API key is a secret: it is referenced as <code>env(RESEND_API_KEY)</code> in <code>config.toml</code>, never committed.</li>

@@ -100,6 +100,42 @@ if (page === 'login' && supabase) {
   });
 }
 
+if (page === 'forgot' && supabase) {
+  document.getElementById('forgot-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const email = event.target.email.value.trim();
+    setMessage('Sending a reset link…', '');
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + '/auth/reset-password',
+    });
+    if (error) {
+      setMessage(error.message, 'error');
+    } else {
+      setMessage('If an account exists for ' + email + ', a reset link is on its way.', 'ok');
+    }
+  });
+}
+
+if (page === 'reset' && supabase) {
+  const ready = session();
+  ready.then((current) => {
+    if (!current) {
+      setMessage('This reset link is invalid or has expired. Request a new one.', 'error');
+    }
+  });
+  document.getElementById('reset-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    setMessage('Updating your password…', '');
+    const { error } = await supabase.auth.updateUser({ password: event.target.password.value });
+    if (error) {
+      setMessage(error.message, 'error');
+    } else {
+      setMessage('Password updated. Redirecting…', 'ok');
+      setTimeout(() => { window.location.href = '/account'; }, 1200);
+    }
+  });
+}
+
 if (page === 'account' && supabase) {
   const box = document.getElementById('account');
   (async () => {

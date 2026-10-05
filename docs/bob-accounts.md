@@ -12,6 +12,8 @@ accounts are groundwork (no uploads or per-module permissions yet).
 | `GET /login` | Sign in. |
 | `GET /account` | The signed-in user's details. |
 | `GET /auth/confirm` | Landing page for the email-confirmation link. |
+| `GET /forgot-password` | Request a password-reset link. |
+| `GET /auth/reset-password` | Set a new password (arrived from the reset link). |
 | `GET /auth.js` | The browser script that drives the above. |
 
 The header shows Sign up / Log in, or the signed-in email plus Sign out.
@@ -26,6 +28,14 @@ The header shows Sign up / Log in, or the signed-in email plus Sign out.
 
 Sessions live in the browser (`localStorage`) via `@supabase/supabase-js`, and
 sign-in requires a confirmed address (`auth.email.enable_confirmations`).
+
+### Password reset
+
+`/forgot-password` calls `resetPasswordForEmail` with
+`redirectTo = <origin>/auth/reset-password`; Supabase emails a recovery link
+(again through Resend SMTP), which lands on `/auth/reset-password` where the
+user sets a new password with `updateUser({ password })`. The log-in page links
+to it under "Forgot password?".
 
 ## Configuration
 
@@ -70,9 +80,10 @@ $ resend emails send --from onboarding@resend.dev --to you@example.com \
 $ resend emails list            # delivery status
 ```
 
-> **Sender domain.** No sending domain is verified yet, so mail is sent from
-> `onboarding@resend.dev`, which reliably reaches only the Resend account owner.
-> Verify a domain (`resend domains create ...`) before real sign-ups.
+> **Sender domain.** No sending domain is verified yet, so **both** the
+> confirmation and password-reset emails are sent from `onboarding@resend.dev`,
+> which reliably reaches only the Resend account owner. Verify a domain
+> (`resend domains create ...`) before real sign-ups.
 
 ## Security
 

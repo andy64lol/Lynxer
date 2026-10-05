@@ -13,6 +13,8 @@ const {
   renderLogin,
   renderAccount,
   renderConfirm,
+  renderForgotPassword,
+  renderResetPassword,
 } = require('./views/templates');
 
 const app = express();
@@ -68,6 +70,8 @@ app.get('/signup', (_req, res) => res.send(renderSignup(authConfig)));
 app.get('/login', (_req, res) => res.send(renderLogin(authConfig)));
 app.get('/account', (_req, res) => res.send(renderAccount(authConfig)));
 app.get('/auth/confirm', (_req, res) => res.send(renderConfirm(authConfig)));
+app.get('/forgot-password', (_req, res) => res.send(renderForgotPassword(authConfig)));
+app.get('/auth/reset-password', (_req, res) => res.send(renderResetPassword(authConfig)));
 
 app.get('/api/modules', async (req, res) => {
   try {

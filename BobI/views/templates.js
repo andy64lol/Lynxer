@@ -137,7 +137,7 @@ function renderLogin(config) {
       <button type="submit">Log in</button>
     </form>
     <p id="auth-message" class="auth-message" role="status"></p>
-    <p class="muted">No account yet? <a href="/signup">Sign up</a>.</p>`;
+    <p class="muted">No account yet? <a href="/signup">Sign up</a>. <a href="/forgot-password">Forgot password?</a></p>`;
   return layout('Log in · Bob Index', body, config, 'login');
 }
 
@@ -155,6 +155,30 @@ function renderConfirm(config) {
   return layout('Confirm · Bob Index', body, config, 'confirm');
 }
 
+function renderForgotPassword(config) {
+  const body = `
+    <h2>Reset your password</h2>
+    <p class="muted">Enter your email and we'll send a link to set a new password.</p>
+    <form id="forgot-form" class="auth-form">
+      <label>Email<input type="email" name="email" autocomplete="email" required></label>
+      <button type="submit">Send reset link</button>
+    </form>
+    <p id="auth-message" class="auth-message" role="status"></p>
+    <p class="muted"><a href="/login">Back to log in</a></p>`;
+  return layout('Reset password · Bob Index', body, config, 'forgot');
+}
+
+function renderResetPassword(config) {
+  const body = `
+    <h2>Set a new password</h2>
+    <form id="reset-form" class="auth-form">
+      <label>New password<input type="password" name="password" autocomplete="new-password" minlength="6" required></label>
+      <button type="submit">Update password</button>
+    </form>
+    <p id="auth-message" class="auth-message" role="status"></p>`;
+  return layout('Set a new password · Bob Index', body, config, 'reset');
+}
+
 module.exports = {
   escapeHtml,
   layout,
@@ -165,4 +189,6 @@ module.exports = {
   renderLogin,
   renderAccount,
   renderConfirm,
+  renderForgotPassword,
+  renderResetPassword,
 };
