@@ -1,0 +1,36 @@
+# Maintainer: Andy <andy64lolxd@gmail.com>
+pkgname=lynxer
+pkgver=0.1.8.2
+pkgrel=1
+pkgdesc="A small, statically-flavoured C-style programming language with a standalone native runtime"
+arch=('x86_64' 'aarch64')
+url="https://github.com/andy64lol/Lynxer"
+license=('MIT')
+depends=('libffi' 'alsa-lib' 'bzip2')
+makedepends=('rust' 'pkgconf')
+source=("$pkgname-$pkgver.tar.gz::https://github.com/andy64lol/Lynxer/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('4d0e2071f4fcc66443dd10f6f89344320b70769ffe36fccb35ddf12b955d1deb')
+
+# The GitHub archive extracts to <Repo>-<version>, i.e. capitalised "Lynxer".
+_srcdir="Lynxer-$pkgver"
+
+build() {
+  cd "$_srcdir"
+  make buildLynxer
+}
+
+package() {
+  cd "$_srcdir"
+
+  # The project's own installer lays an interpreter out as one self-contained
+  # tree ($PREFIX/lib/lynxer: binary + stdlib + config + embedding runtime and
+  # headers) plus a $PREFIX/bin symlink.
+  LYNXER_PREFIX="$pkgdir/usr" ./lynxer/lynxer --install
+
+  # ...but it points the symlink at its absolute build-time path; repoint it at
+  # the real installed binary.
+  ln -sf /usr/lib/lynxer/lynxer "$pkgdir/usr/bin/lynxer"
+
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+}

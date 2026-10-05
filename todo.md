@@ -265,12 +265,13 @@ surface stays a documented boundary in
 
 ## Distribution
 
-- [ ] **Arch User Repository (AUR).** Publish Lynxer to the AUR (probably as
-  a `lynxer-bin` package for the prebuilt Linux/amd64 and ARM64 binaries, and/or
-  a `lynxer` package that builds from source), so Arch users can install it with
-  `yay -S lynxer` / `paru -S lynxer`. Needs a maintained `PKGBUILD` with the
-  release artifact and its checksum, plus a decision on source vs. binary
-  packaging. Tentative ("probably") — confirm the approach before publishing.
+- [ ] **Arch User Repository (AUR).** A source PKGBUILD for `lynxer` is in
+  [`packaging/aur/lynxer/`](packaging/aur/lynxer/) (builds from the `v<ver>`
+  release tarball, installs via `lynxer --install`); see
+  [`packaging/aur/README.md`](packaging/aur/README.md). Still to do: publish it
+  (needs an AUR account with a registered SSH key). A `lynxer-bin` package is
+  blocked until the release asset ships the whole install tree — today
+  `lynxer-linux-<arch>.zip` holds only the bare interpreter (no stdlib).
 
 ## Planning rule
 

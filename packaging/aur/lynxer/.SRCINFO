@@ -1,0 +1,17 @@
+pkgbase = lynxer
+	pkgdesc = A small, statically-flavoured C-style programming language with a standalone native runtime
+	pkgver = 0.1.8.2
+	pkgrel = 1
+	url = https://github.com/andy64lol/Lynxer
+	arch = x86_64
+	arch = aarch64
+	license = MIT
+	makedepends = rust
+	makedepends = pkgconf
+	depends = libffi
+	depends = alsa-lib
+	depends = bzip2
+	source = lynxer-0.1.8.2.tar.gz::https://github.com/andy64lol/Lynxer/archive/refs/tags/v0.1.8.2.tar.gz
+	sha256sums = 4d0e2071f4fcc66443dd10f6f89344320b70769ffe36fccb35ddf12b955d1deb
+
+pkgname = lynxer
