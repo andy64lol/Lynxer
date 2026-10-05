@@ -240,6 +240,15 @@ surface stays a documented boundary in
   notes; `README.md` links the Windows workflows; and the syscall surface is
   documented as Linux-only and target-gated by operating system.~~
 
+## Distribution
+
+- [ ] **Arch User Repository (AUR).** Publish Lynxer to the AUR (probably as
+  a `lynxer-bin` package for the prebuilt Linux/amd64 and ARM64 binaries, and/or
+  a `lynxer` package that builds from source), so Arch users can install it with
+  `yay -S lynxer` / `paru -S lynxer`. Needs a maintained `PKGBUILD` with the
+  release artifact and its checksum, plus a decision on source vs. binary
+  packaging. Tentative ("probably") — confirm the approach before publishing.
+
 ## Planning rule
 
 Keep a task only while implementation is intended. Keep hardware, security,
