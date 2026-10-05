@@ -9,6 +9,38 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
+const DEFAULT_PAGE_SIZE = 20;
+
+function fmtDate(value) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10);
+}
+
+// Build an index URL, keeping only non-default query parameters.
+function indexHref({ q, sort, pageSize }, page) {
+  const search = new URLSearchParams();
+  if (q) search.set('q', q);
+  if (sort && sort !== 'name') search.set('sort', sort);
+  if (pageSize && pageSize !== DEFAULT_PAGE_SIZE) search.set('pageSize', String(pageSize));
+  if (page && page > 1) search.set('page', String(page));
+  const query = search.toString();
+  return query ? `/?${query}` : '/';
+}
+
+// Page numbers to show, collapsed with '…': 1 … p-1 p p+1 … last
+function pageNumbers(page, totalPages) {
+  const wanted = new Set([1, totalPages, page - 1, page, page + 1]);
+  const sorted = [...wanted].filter((n) => n >= 1 && n <= totalPages).sort((a, b) => a - b);
+  const out = [];
+  let previous = 0;
+  for (const n of sorted) {
+    if (previous && n - previous > 1) out.push('…');
+    out.push(n);
+    previous = n;
+  }
+  return out;
+}
+
 const STYLE = `
   :root { color-scheme: light; }
   * { box-sizing: border-box; }
@@ -46,6 +78,27 @@ const STYLE = `
   .auth-message.error { color: #b3261e; }
   .auth-message.ok { color: #1a7f37; }
   footer { padding: 1.5rem; color: #6c757d; font-size: .85rem; }
+  .toolbar { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; flex-wrap: wrap; margin: 0 0 1rem; }
+  .summary { margin: 0; color: #6c757d; font-size: .95rem; }
+  .summary strong { color: #212529; }
+  .sort { font-size: .9rem; }
+  .sort a { margin-left: .6rem; text-decoration: none; }
+  .sort a:hover { text-decoration: underline; }
+  .sort a.active { color: #212529; font-weight: 600; }
+  .pkg-head { display: flex; align-items: baseline; gap: .4rem; flex-wrap: wrap; }
+  .pkg-meta { margin: .3rem 0 0; font-size: .85rem; color: #6c757d; display: flex; gap: 1rem; flex-wrap: wrap; }
+  .pkg-meta a { color: #6c757d; text-decoration: none; }
+  .pkg-meta a:hover { text-decoration: underline; }
+  .breadcrumb { font-size: .9rem; color: #6c757d; margin: 0 0 1rem; }
+  .breadcrumb a { text-decoration: none; }
+  .breadcrumb a:hover { text-decoration: underline; }
+  .breadcrumb .sep { margin: 0 .4rem; color: #ced4da; }
+  .pagination { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; margin: 1.5rem 0 0; font-size: .9rem; }
+  .pagination a, .pagination span { padding: .35rem .6rem; border: 1px solid #ced4da; border-radius: 6px; text-decoration: none; }
+  .pagination a:hover { text-decoration: underline; }
+  .pagination .page-current { background: #0b6bcb; border-color: #0b6bcb; color: #fff; }
+  .pagination .disabled { color: #a9b0b6; border-color: #eceff1; }
+  .pagination .ellipsis { border: 0; padding: .35rem .2rem; color: #6c757d; }
 `;
 
 function layout(title, body, config = {}, page = '') {
@@ -66,25 +119,62 @@ function layout(title, body, config = {}, page = '') {
 </body></html>`;
 }
 
-function renderIndex(modules, query, config) {
-  const rows = modules
+function renderPager({ q, sort, pageSize }, page, totalPages) {
+  if (totalPages <= 1) {
+    return '';
+  }
+  const parts = [];
+  parts.push(
+    page > 1
+      ? `<a href="${indexHref({ q, sort, pageSize }, page - 1)}" rel="prev">&larr; Prev</a>`
+      : '<span class="disabled">&larr; Prev</span>'
+  );
+  for (const item of pageNumbers(page, totalPages)) {
+    if (item === '…') {
+      parts.push('<span class="ellipsis">…</span>');
+    } else if (item === page) {
+      parts.push(`<span class="page-current" aria-current="page">${item}</span>`);
+    } else {
+      parts.push(`<a href="${indexHref({ q, sort, pageSize }, item)}">${item}</a>`);
+    }
+  }
+  parts.push(
+    page < totalPages
+      ? `<a href="${indexHref({ q, sort, pageSize }, page + 1)}" rel="next">Next &rarr;</a>`
+      : '<span class="disabled">Next &rarr;</span>'
+  );
+  return `<nav class="pagination" aria-label="Pagination">${parts.join('')}</nav>`;
+}
+
+function renderIndex({ rows, total, totalPages, page, q, sort, pageSize }, config) {
+  const nameHref = indexHref({ q, sort: 'name', pageSize }, 1);
+  const updatedHref = indexHref({ q, sort: 'updated', pageSize }, 1);
+
+  const list = rows
     .map((m) => {
       const version = m.version ? `<span class="pkg-version">${escapeHtml(m.version)}</span>` : '';
-      const repo = m.repository
-        ? ` <a class="pkg-repo" href="https://github.com/${escapeHtml(m.repository)}">${escapeHtml(m.repository)}</a>`
-        : '';
       const description = m.description ? `<p class="pkg-desc">${escapeHtml(m.description)}</p>` : '';
-      return `<li><div><a class="pkg-name" href="/modules/${encodeURIComponent(m.name)}">${escapeHtml(m.name)}</a>${version}${repo}</div>${description}</li>`;
+      const repository = m.repository
+        ? `<a href="https://github.com/${escapeHtml(m.repository)}">${escapeHtml(m.repository)}</a>`
+        : '';
+      const updatedSpan = m.updated_at ? `<span>Updated ${escapeHtml(fmtDate(m.updated_at))}</span>` : '';
+      const meta = repository || updatedSpan ? `<p class="pkg-meta">${repository}${updatedSpan}</p>` : '';
+      return `<li><div class="pkg-head"><a class="pkg-name" href="/modules/${encodeURIComponent(m.name)}">${escapeHtml(m.name)}</a>${version}</div>${description}${meta}</li>`;
     })
     .join('');
 
   const body = `
     <form class="search" method="get" action="/">
-      <input type="search" name="q" value="${escapeHtml(query || '')}" placeholder="Search modules" aria-label="Search modules">
+      <input type="search" name="q" value="${escapeHtml(q || '')}" placeholder="Search modules" aria-label="Search modules">
+      <input type="hidden" name="sort" value="${escapeHtml(sort)}">
       <button type="submit">Search</button>
     </form>
-    <p class="muted">${modules.length} module${modules.length === 1 ? '' : 's'}${query ? ` matching &ldquo;${escapeHtml(query)}&rdquo;` : ''}</p>
-    <ul class="packages">${rows || '<li class="muted">No modules found.</li>'}</ul>`;
+    <div class="toolbar">
+      <p class="summary"><strong>${total}</strong> package${total === 1 ? '' : 's'}${q ? ` matching &ldquo;${escapeHtml(q)}&rdquo;` : ''}${totalPages > 1 ? ` &middot; page ${page} of ${totalPages}` : ''}</p>
+      <div class="sort">Sort:<a href="${nameHref}"${sort === 'name' ? ' class="active"' : ''}>Name</a><a href="${updatedHref}"${sort === 'updated' ? ' class="active"' : ''}>Recently updated</a></div>
+    </div>
+    <ul class="packages">${list || '<li class="muted">No modules found.</li>'}</ul>
+    ${renderPager({ q, sort, pageSize }, page, totalPages)}`;
   return layout('Bob Index', body, config, 'index');
 }
 
@@ -92,12 +182,14 @@ function renderModule(mod, config) {
   const repoUrl = mod.repository ? `https://github.com/${mod.repository}` : null;
   const install = `bob install ${mod.name}${mod.version ? ` ${mod.version}` : ''}`;
   const body = `
+    <p class="breadcrumb"><a href="/">Bob Index</a><span class="sep">/</span>${escapeHtml(mod.name)}</p>
     <h2>${escapeHtml(mod.name)}${mod.version ? ` <span class="pkg-version">${escapeHtml(mod.version)}</span>` : ''}</h2>
     ${mod.description ? `<p>${escapeHtml(mod.description)}</p>` : ''}
     <table>
       <tr><th>Name</th><td>${escapeHtml(mod.name)}</td></tr>
       ${mod.version ? `<tr><th>Version</th><td>${escapeHtml(mod.version)}</td></tr>` : ''}
       ${repoUrl ? `<tr><th>Repository</th><td><a href="${repoUrl}">${escapeHtml(mod.repository)}</a></td></tr>` : ''}
+      ${mod.updated_at ? `<tr><th>Updated</th><td>${escapeHtml(fmtDate(mod.updated_at))}</td></tr>` : ''}
     </table>
     <h3>Install</h3>
     <pre>${escapeHtml(install)}</pre>

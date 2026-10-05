@@ -9,9 +9,9 @@ browsable front end for the same data `bob install` resolves against.
 
 | Route | What it serves |
 | --- | --- |
-| `GET /` | Index page: a search box (`?q=`) and the list of modules (name, version, repository, description). |
-| `GET /modules/:name` | Module page: metadata, GitHub link, and the `bob install <name> <version>` command. |
-| `GET /api/modules` | JSON list (`?q=` filters). |
+| `GET /` | Index page: search (`?q=`), sort (`?sort=name\|updated`) and pagination (`?page`, `?pageSize`; default 20, max 100). Lists each module's name, version, description, repository and updated date. |
+| `GET /modules/:name` | Module page: breadcrumb, metadata (including the updated date), the GitHub link, and the `bob install <name> <version>` command. |
+| `GET /api/modules` | JSON list of the current page — accepts `?q`, `?sort`, `?page`, `?pageSize`. |
 | `GET /api/modules/:name` | JSON for one module (`404` when unknown). |
 | `GET /health` | `{"status":"ok"}`. |
 

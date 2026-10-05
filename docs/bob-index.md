@@ -13,9 +13,9 @@ Source: [`../BobI/`](../BobI/).
 
 | Route | Serves |
 | --- | --- |
-| `GET /` | Index page: a search box (`?q=`) and the module list (name, version, repository, description). |
-| `GET /modules/:name` | Module page: metadata, the GitHub link, and the `bob install <name> <version>` command. |
-| `GET /api/modules` | JSON list (`?q=` filters by name or description). |
+| `GET /` | Index page: search (`?q=`), sort (`?sort=name\|updated`) and pagination (`?page`, `?pageSize`; default 20, max 100). |
+| `GET /modules/:name` | Module page: breadcrumb, metadata (including the updated date), the GitHub link, and the `bob install <name> <version>` command. |
+| `GET /api/modules` | JSON list of the current page (`?q`, `?sort`, `?page`, `?pageSize`). |
 | `GET /api/modules/:name` | JSON for one module (`404` when unknown). |
 | `GET /health` | `{"status":"ok"}`. |
 
@@ -52,7 +52,7 @@ The root [`../render.yaml`](../render.yaml) Blueprint defines the service:
 ```yaml
 services:
   - type: web
-    name: bob-index
+    name: bobi-index
     runtime: node
     rootDir: BobI
     plan: free

@@ -134,9 +134,9 @@
 <h2 id="routes">Routes</h2>
 <table>
 <tr><th>Route</th><th>Serves</th></tr>
-<tr><td><code>GET /</code></td><td>Index page: a search box (<code>?q=</code>) and the module list (name, version, repository, description).</td></tr>
-<tr><td><code>GET /modules/:name</code></td><td>Module page: metadata, the GitHub link, and the <code>bob install &lt;name&gt; &lt;version&gt;</code> command.</td></tr>
-<tr><td><code>GET /api/modules</code></td><td>JSON list (<code>?q=</code> filters by name or description).</td></tr>
+<tr><td><code>GET /</code></td><td>Index page: search (<code>?q=</code>), sort (<code>?sort=name|updated</code>) and pagination (<code>?page</code>, <code>?pageSize</code>; default 20, max 100).</td></tr>
+<tr><td><code>GET /modules/:name</code></td><td>Module page: breadcrumb, metadata (including the updated date), the GitHub link, and the <code>bob install &lt;name&gt; &lt;version&gt;</code> command.</td></tr>
+<tr><td><code>GET /api/modules</code></td><td>JSON list of the current page (<code>?q</code>, <code>?sort</code>, <code>?page</code>, <code>?pageSize</code>).</td></tr>
 <tr><td><code>GET /api/modules/:name</code></td><td>JSON for one module (<code>404</code> when unknown).</td></tr>
 <tr><td><code>GET /health</code></td><td><code>{&quot;status&quot;:&quot;ok&quot;}</code>.</td></tr>
 </table>
@@ -160,7 +160,7 @@ Bob Index listening on http://localhost:3000</code></pre>
 <p>The root <a href="../render.yaml"><code>../render.yaml</code></a> Blueprint defines the service:</p>
 <pre><code>services:
   - type: web
-    name: bob-index
+    name: bobi-index
     runtime: node
     rootDir: BobI
     plan: free

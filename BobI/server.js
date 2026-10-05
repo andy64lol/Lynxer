@@ -28,30 +28,72 @@ const authConfig = {
 };
 
 const COLUMNS = 'name,repository,version,description';
+const SELECT = COLUMNS + ',updated_at';
+const DEFAULT_PAGE_SIZE = 20;
+const MAX_PAGE_SIZE = 100;
 
-async function fetchModules(query) {
-  const { data, error } = await getClient()
-    .from('modules')
-    .select(COLUMNS)
-    .order('name', { ascending: true });
+// Parse and clamp the list query string.
+function normalizeParams(query) {
+  const clampInt = (value, fallback, min, max) => {
+    const parsed = parseInt(value, 10);
+    return Number.isFinite(parsed) ? Math.min(Math.max(parsed, min), max) : fallback;
+  };
+  return {
+    q: String(query.q || '').trim(),
+    sort: query.sort === 'updated' ? 'updated' : 'name',
+    page: clampInt(query.page, 1, 1, 1000000),
+    pageSize: clampInt(query.pageSize, DEFAULT_PAGE_SIZE, 1, MAX_PAGE_SIZE),
+  };
+}
+
+// `,`, `(`, `)` would break PostgREST's `.or()` grammar; `%`, `_` and `\\` are
+// LIKE wildcards, so escape them for a literal match.
+function searchTerm(value) {
+  return value.replace(/[(),]/g, ' ').replace(/[%_\\]/g, '\\$&');
+}
+
+// Returns { rows, total, totalPages, page } for the requested (clamped) page.
+async function fetchModules({ q, sort, page, pageSize }) {
+  const client = getClient();
+  const term = q ? searchTerm(q) : '';
+
+  // Count the matches first: PostgREST answers an offset past the end with a
+  // 416 ("Requested range not satisfiable"), so the page must be clamped before
+  // the ranged query runs.
+  let countQuery = client.from('modules').select('name', { count: 'exact', head: true });
+  if (term) {
+    countQuery = countQuery.or(`name.ilike.%${term}%,description.ilike.%${term}%`);
+  }
+  const { count, error: countError } = await countQuery;
+  if (countError) {
+    throw countError;
+  }
+  const total = count || 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const from = (safePage - 1) * pageSize;
+  const to = from + pageSize - 1;
+
+  let builder = client.from('modules').select(SELECT);
+  if (term) {
+    builder = builder.or(`name.ilike.%${term}%,description.ilike.%${term}%`);
+  }
+  builder =
+    sort === 'updated'
+      ? builder.order('updated_at', { ascending: false }).order('name', { ascending: true })
+      : builder.order('name', { ascending: true });
+
+  const { data, error } = await builder.range(from, to);
   if (error) {
     throw error;
   }
-  if (!query) {
-    return data;
-  }
-  const needle = query.toLowerCase();
-  return data.filter(
-    (m) =>
-      (m.name || '').toLowerCase().includes(needle) ||
-      (m.description || '').toLowerCase().includes(needle)
-  );
+  return { rows: data || [], total, totalPages, page: safePage };
 }
 
 async function fetchModule(name) {
   const { data, error } = await getClient()
     .from('modules')
-    .select(COLUMNS)
+    .select(SELECT)
     .eq('name', name)
     .maybeSingle();
   if (error) {
@@ -75,7 +117,8 @@ app.get('/auth/reset-password', (_req, res) => res.send(renderResetPassword(auth
 
 app.get('/api/modules', async (req, res) => {
   try {
-    res.json(await fetchModules((req.query.q || '').trim()));
+    const { rows } = await fetchModules(normalizeParams(req.query));
+    res.json(rows);
   } catch (error) {
     res.status(500).json({ error: String((error && error.message) || error) });
   }
@@ -94,9 +137,10 @@ app.get('/api/modules/:name', async (req, res) => {
 });
 
 app.get('/', async (req, res) => {
-  const query = (req.query.q || '').trim();
+  const params = normalizeParams(req.query);
   try {
-    res.send(renderIndex(await fetchModules(query), query, authConfig));
+    const result = await fetchModules(params);
+    res.send(renderIndex({ ...params, ...result }, authConfig));
   } catch (error) {
     res.status(500).send(renderError(500, `Could not load modules: ${(error && error.message) || error}`, authConfig));
   }
