@@ -91,7 +91,9 @@ global main(){
 
 ## Documentation
 
-The documentation lives in [`docs/`](docs/README.md).
+The documentation lives in [`docs/`](docs/README.md) and is published as a
+website at **https://lynxer-docs.onrender.com** (built from `docs/` by
+`site/build.py` and served as a Render static site).
 
 | Page | Contents |
 |------|----------|
