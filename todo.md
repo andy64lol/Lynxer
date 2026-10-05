@@ -240,6 +240,29 @@ surface stays a documented boundary in
   notes; `README.md` links the Windows workflows; and the syscall surface is
   documented as Linux-only and target-gated by operating system.~~
 
+- [ ] **Process control and groups.** Replace the remaining POSIX process-group
+  behavior with a Windows Job Object so a timed-out or killed child takes its
+  whole tree down, and land `js`/`multiprocessing` on `CreateProcess` (see the
+  stdlib platform matrix above).
+- [ ] **Path and long-path parity.** Normalize separators in `path`/`fileIO`,
+  support long paths (the `\\?\` prefix, beyond `MAX_PATH`), and accept CRLF and
+  lone-CR line endings on text reads, without changing the Linux behavior.
+- [ ] **Sockets and networking.** Back the networking surface with Winsock
+  (`WSAStartup`/`ws2_32`) behind the same Lynxer API, so `network`-style
+  programs run on Windows.
+- [ ] **Registry and services.** Add a Windows registry reader/writer
+  (a `winreg` module) and decide the service/daemon story the `server` module
+  would use in place of Linux units.
+- [ ] **Native-module authoring on Windows.** Make
+  `examples/native_signatures.cpp` build under MSVC/clang-cl (it currently
+  builds via MinGW) and document how to produce and load a `.dll` module.
+- [ ] **Packaging and distribution.** Ship prebuilt `lynxer.exe` (amd64 and
+  ARM64) as release assets and add `winget`/`Scoop` manifests, mirroring the
+  planned AUR package.
+- [ ] **Test parity.** Bring the Windows fixture set up to the Linux gate,
+  list every remaining skip in [docs/windows.md](docs/windows.md), and track the
+  amd64/ARM64 parity the port is aiming for.
+
 ## Distribution
 
 - [ ] **Arch User Repository (AUR).** Publish Lynxer to the AUR (probably as
