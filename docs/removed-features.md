@@ -6,8 +6,8 @@ replacement.
 
 ## Bytecode (`.lynxc`)
 
-The bytecode backend is gone. `--compile` (`-c`, `--bundle`) produces a
-standalone ELF executable instead, and there is no separate cache format.
+The bytecode backend is gone. `--compile` (`-c`) produces a standalone
+executable instead, and there is no separate cache format.
 
 | Input | Behaviour |
 | --- | --- |

@@ -164,9 +164,9 @@ covers the immediate-mode drawing/window/UI space with macroquad.
 
 ## Compiling a program
 
-`--compile` (alias `--bundle`) produces one standalone ELF executable that
-embeds the program, every transitively imported `.lynx` source and `.so`
-library, plus anything added with `--include`:
+`--compile` produces one self-contained executable that embeds the program,
+every transitively imported `.lynx` source and `.so` library, plus anything added
+with `--include`:
 
 ```bash
 lynxer/lynxer --compile app.lynx extras/helpers.lynx \

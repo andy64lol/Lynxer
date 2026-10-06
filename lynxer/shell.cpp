@@ -71,7 +71,6 @@ void printUsage() {
     std::cout << "  lynxer --format <file.lynx>                 Rewrite a file with canonical spacing\n";
     std::cout << "  lynxer --format-oneline <file.lynx>         Collapse a file onto one physical line\n";
     std::cout << "  lynxer --compile <a.lynx> [options] [name]  Compile input files into one executable\n";
-    std::cout << "  lynxer --bundle <a.lynx> [options] [name]   Alias of --compile\n";
     std::cout << "      --include <file>                         Embed a module, native library or data file\n";
     std::cout << "      -o, --output <name>                      Name the output executable\n";
     std::cout << "  lynxer --emit-library <a.lynx> [options] [out.so]\n";
@@ -1507,8 +1506,7 @@ int shellMain(int argc, char** argv) {
         return removedFlag(args[0], "lynxer --compile");
     }
     if (args[0] == "--compile" || args[0] == "-c" || args[0] == "--c" ||
-        args[0] == "-compile" || args[0] == "--bundle" ||
-        args[0] == "-bundle") {
+        args[0] == "-compile") {
         return compileProgramToExecutable(
             std::vector<std::string>(args.begin() + 1, args.end()));
     }

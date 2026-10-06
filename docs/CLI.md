@@ -107,9 +107,11 @@ from an installed binary. The alias `--validate-executable` is accepted.
 
 ## Compiling to an executable
 
-`--compile` builds one standalone ELF that embeds the program, every
-transitively imported `.lynx` module and `.so` library, and any additional
-inputs. `--bundle` is an exact alias. There is **no** `.lynxc` bytecode path.
+`--compile` produces one self-contained executable that embeds the program, every
+transitively imported `.lynx` module and `.so` library, and anything added with
+`--include`. It is the interpreter with the program embedded, so it runs on its
+own — the target machine does not need a separate Lynxer installation. There is
+**no** `.lynxc` bytecode path.
 
 ```bash
 lynxer --compile app.lynx -o app
@@ -119,17 +121,18 @@ lynxer --compile app.lynx helpers.lynx vendor/lib.so \
 
 | Flag | Aliases | Effect |
 |------|---------|--------|
-| `--compile` | `-c`, `--c`, `-compile`, `--bundle`, `-bundle` | compile the input files |
+| `--compile` | `-c`, `--c`, `-compile` | compile the input files |
 | `--include <file>` | `-i` | embed an extra module, native library, or data file |
 | `-o <name>` | `--output`, `-name`, `--name` | name the output executable |
 
 The first `.lynx` input is the program; any further `.lynx` or `.so` input is
 embedded and importable by name. A `--include` file that is not `.lynx`/`.so` is
 embedded as data and read from the program with `bundledFile(name)` /
-`bundledFiles()`; see [builtins.md](builtins.md#bundled-files).
+`bundledFiles()`; see [builtins.md](builtins.md#bundled-files). Without `-o`, the
+output is named after the program (`app.lynx` → `app`).
 
-Inside a compiled executable, `--no-opt` has no effect: the payload is always
-optimized.
+The result is a native executable for the host platform — on Linux, a standalone
+ELF. Inside it, `--no-opt` has no effect: the payload is always optimized.
 
 ## Emitting a C ABI library
 

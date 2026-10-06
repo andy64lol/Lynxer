@@ -136,7 +136,6 @@ Config::Config() {
                "lynxer: comprehensive validator is not available");
     setDefault("status.lint_ok", "Lint OK: {0}");
     setDefault("status.compile_ok", "Compiled: {0}");
-    setDefault("status.bundle_ok", "Bundled: {0}");
     setDefault("warning.forever_no_break",
                "forever() has no break; it will run until the process is "
                "stopped. Add break; or call suppressForeverWarning() in "

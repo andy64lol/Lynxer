@@ -745,7 +745,7 @@ expected="lynxer: $(LYNXER_MODULE_ERROR_LIB):7:23: charAt() index is out of rang
 	fi; \
 	rm -f $(CLYX_TMP)_arch.lynx; \
 	done
-	@$(CLYX) --bundle $(LYNXER_DIR)/examples/hello.lynx $(CLYX_TMP)_bundled > /dev/null; \
+	@$(CLYX) --compile $(LYNXER_DIR)/examples/hello.lynx $(CLYX_TMP)_bundled > /dev/null; \
 	bundled_output="$$($(CLYX_TMP)_bundled < $(CLYX_TMP)_stdin)"; \
 	case "$$bundled_output" in \
 	*"Hello, Lynxer!") ;; \

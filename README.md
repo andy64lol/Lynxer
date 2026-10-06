@@ -32,14 +32,13 @@ global main(){
 
 ## Platforms
 
-Lynxer currently supports **64-bit Linux** on `amd64` and `arm64`. The standalone
-bundler and the Linux-specific system calls in `os` require Linux. Builds on any
-other operating system or architecture **fail early** rather than mix syscall
-tables.
+Lynxer currently supports **64-bit Linux** on `amd64` and `arm64`. The
+Linux-specific system calls in `os` (and the `sys` module) are excluded on other
+platforms; builds **fail early** rather than mix syscall tables.
 
-**Windows** is a work in progress: the host layer exists, and the Linux-only
-surface (the named syscalls and the `sys` module) is excluded for now. See
-[docs/windows.md](docs/windows.md).
+**Windows** is a work in progress: the host layer exists and `--compile` already
+works there, but the Linux-only surface (the named syscalls and the `sys` module)
+is excluded for now. See [docs/windows.md](docs/windows.md).
 
 ---
 

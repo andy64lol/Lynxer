@@ -131,7 +131,7 @@
 <h1 id="removed-features">Removed features</h1>
 <p>Features the original <code>docs-legacy/</code> reference documented that the standalone runtime does not implement. Each entry records the current behaviour and the replacement.</p>
 <h2 id="bytecode-lynxc">Bytecode (<code>.lynxc</code>)</h2>
-<p>The bytecode backend is gone. <code>--compile</code> (<code>-c</code>, <code>--bundle</code>) produces a standalone ELF executable instead, and there is no separate cache format.</p>
+<p>The bytecode backend is gone. <code>--compile</code> (<code>-c</code>) produces a standalone executable instead, and there is no separate cache format.</p>
 <table>
 <tr><th>Input</th><th>Behaviour</th></tr>
 <tr><td><code>lynxer file.lynxc</code></td><td><code>lynxer: bytecode files are no longer supported; compile the .lynx source with --compile instead</code></td></tr>

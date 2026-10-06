@@ -170,8 +170,8 @@ The registry is a small database plus two front ends, documented in
 ## Windows support
 
 Lynxer currently targets Linux only: the interpreter, the native-module ABI
-(`dlopen`/`.so`), the `--compile` bundler and the syscall-facing modules all
-assume a POSIX/Linux host. This plan stages a port; the Linux-only syscall
+(`dlopen`/`.so`) and the syscall-facing modules all assume a POSIX/Linux host.
+This plan stages a port; the Linux-only syscall
 surface stays a documented boundary in
 [removed-features.md](docs/removed-features.md), not a Windows gap.
 

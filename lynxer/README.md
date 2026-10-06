@@ -42,7 +42,6 @@ The first slice intentionally stays small:
   modules and `.so` libraries become importable by name, and any other file
   becomes a data asset readable with `bundledFile(name)` and listed by
   `bundledFiles()`. Running the result needs nothing from the build tree.
-  `--bundle` is an alias
 - CLYXC bytecode, the stack-machine VM, `--view-bytecode`, `--benchmark-compile`,
   `--no-cache` and the `--compile` cache were removed in favour of the executable
   backend above
