@@ -256,12 +256,34 @@ surface stays a documented boundary in
 - [ ] **Native-module authoring on Windows.** Make
   `examples/native_signatures.cpp` build under MSVC/clang-cl (it currently
   builds via MinGW) and document how to produce and load a `.dll` module.
-- [ ] **Packaging and distribution.** Ship prebuilt `lynxer.exe` (amd64 and
-  ARM64) as release assets and add `winget`/`Scoop` manifests, mirroring the
-  planned AUR package.
+- [ ] **Release binaries, installer and signing.** The release already ships
+  prebuilt `lynxer-windows-amd64/arm64.zip`; add an MSI (or self-extracting
+  EXE) on top of the `--install` layout that adds `bin` to `PATH` and
+  registers an uninstall entry, and Authenticode-sign the binaries so a
+  download does not trip SmartScreen.
 - [ ] **Test parity.** Bring the Windows fixture set up to the Linux gate,
   list every remaining skip in [docs/windows.md](docs/windows.md), and track the
   amd64/ARM64 parity the port is aiming for.
+
+- [ ] **Package managers.** Publish `winget`, `Scoop` and `Chocolatey` manifests
+  for the released `lynxer-windows-*.zip` (mirroring the AUR packages).
+- [ ] **C runtime and minimum Windows version.** Decide UCRT static linking
+  versus the VC++ redistributable, confirm the MinGW/CLANGARM64 builds need no
+  DLLs the runner lacks, and record the minimum Windows version per target.
+- [ ] **Editor and shell tooling.** A VS Code extension (syntax highlighting plus
+  `--lint`/`--format`) and PowerShell/CMD argument completion.
+- [ ] **Console I/O and Unicode.** Use the wide console API (or a UTF-8 console
+  code page) so `cli`/`tui` round-trip non-ASCII input, colours and `beep` under
+  both Windows Terminal and the legacy console.
+- [ ] **Asynchronous I/O.** An IOCP backend where POSIX uses `epoll`/`poll`, for
+  the async task runtime and the networking paths.
+- [ ] **Named pipes and Shell integration.** Named pipes for IPC beside sockets,
+  and the Shell APIs (open, clipboard, notifications) behind the platform layer.
+- [ ] **Services and scheduled tasks.** A Windows Service Control Manager / Task
+  Scheduler story for `server` and background work.
+- [ ] **User data, configuration and diagnostics.** `%APPDATA%`/`%LOCALAPPDATA%`
+  and Known Folders plus the registry in place of `$HOME`/`/etc`, and a Windows
+  crash-trace path for the `debug` module.
 
 ## Distribution
 

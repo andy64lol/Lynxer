@@ -128,6 +128,41 @@ out of `LYNXER_RUST_MODULE_NAMES`.
   rather than emitting ELF-only link flags. A `lynxer.dll` runtime, its export
   definition and the DLL-search-path lookup are still to do.
 
+## The Windows ecosystem
+
+Making the interpreter run is only half of "Lynxer on Windows": it also has to
+install, update and tool the way Windows users expect.
+
+| Piece | State | Plan |
+| --- | --- | --- |
+| Prebuilt binaries | **done** | `lynxer-windows-amd64.zip` / `lynxer-windows-arm64.zip` on every release (CI) |
+| `--install` / `--uninstall` | **partial** | lays out `<prefix>/lib/lynxer` and a `bin` launcher (a copy), but does not touch `PATH` or register an uninstaller |
+| Package managers | todo | `winget`, `Scoop` and `Chocolatey` manifests for the release zips |
+| Installer | todo | an MSI (or self-extracting EXE) that sets `PATH` and registers an uninstall entry, built on the `--install` layout |
+| Editor and shell | todo | a VS Code extension (syntax highlighting, `--lint`/`--format`) and PowerShell/CMD completion |
+| Code signing | todo | Authenticode signatures so a download does not trip SmartScreen |
+| C runtime | todo | decide UCRT static linking vs. the VC++ redistributable, and record the minimum Windows version per target |
+
+## Runtime breadth
+
+Several host capabilities still ride the POSIX implementation and need a Win32
+backend behind `lynxer/platform.*`:
+
+- **Console I/O and Unicode.** `cli`/`tui` should read and write through the wide
+  console API (or a UTF-8 console code page), so non-ASCII input, colours and
+  `beep` behave under both Windows Terminal and the legacy console host.
+- **Asynchronous I/O.** An IOCP backend where POSIX uses `epoll`/`poll`, for the
+  async task runtime and the networking paths.
+- **Process control.** Job Objects for process-tree termination and resource
+  limits, replacing the POSIX process-group semantics.
+- **IPC.** Named pipes alongside sockets, behind the same surface.
+- **Services and tasks.** A Windows Service Control Manager / Task Scheduler
+  story for `server` and background work.
+- **User data and configuration.** `%APPDATA%`/`%LOCALAPPDATA%` and the Known
+  Folders in place of `$HOME`, and the registry in place of `/etc`.
+- **Diagnostics.** A crash handler that can print a readable trace (the
+  `debug`/`--debug` path is POSIX-only today) and `OutputDebugString` wiring.
+
 Both Windows jobs are **required** (no `continue-on-error`):
 `.github/workflows/build-lynxer-windows-amd64.yml` (MSYS2 MINGW64) and
 `.github/workflows/build-lynxer-windows-arm64.yml` (MSYS2 CLANGARM64). Bob, the

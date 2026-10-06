@@ -165,6 +165,29 @@
 <li><strong>Stdlib backends.</strong> <code>watch</code> needs <code>ReadDirectoryChangesW</code>; <code>cli</code>/<code>debug</code>/ <code>os</code>/<code>path</code> need Windows equivalents for their POSIX calls; <code>js</code>/ <code>multiprocessing</code> need a <code>CreateProcess</code> subprocess backend; <code>tui</code>/<code>graphics</code>/ <code>sound</code> need console and device handling. <code>fileIO</code>/<code>shell</code> and the data-format modules build as-is.</li>
 <li><strong>Embedding and <code>--emit-library</code>.</strong> The runtime is an ELF shared object today, so <code>--emit-library</code> fails cleanly on Windows with a "not supported yet" message rather than emitting ELF-only link flags. A <code>lynxer.dll</code> runtime, its export definition and the DLL-search-path lookup are still to do.</li>
 </ul>
+<h2 id="the-windows-ecosystem">The Windows ecosystem</h2>
+<p>Making the interpreter run is only half of "Lynxer on Windows": it also has to install, update and tool the way Windows users expect.</p>
+<table>
+<tr><th>Piece</th><th>State</th><th>Plan</th></tr>
+<tr><td>Prebuilt binaries</td><td><strong>done</strong></td><td><code>lynxer-windows-amd64.zip</code> / <code>lynxer-windows-arm64.zip</code> on every release (CI)</td></tr>
+<tr><td><code>--install</code> / <code>--uninstall</code></td><td><strong>partial</strong></td><td>lays out <code>&lt;prefix&gt;/lib/lynxer</code> and a <code>bin</code> launcher (a copy), but does not touch <code>PATH</code> or register an uninstaller</td></tr>
+<tr><td>Package managers</td><td>todo</td><td><code>winget</code>, <code>Scoop</code> and <code>Chocolatey</code> manifests for the release zips</td></tr>
+<tr><td>Installer</td><td>todo</td><td>an MSI (or self-extracting EXE) that sets <code>PATH</code> and registers an uninstall entry, built on the <code>--install</code> layout</td></tr>
+<tr><td>Editor and shell</td><td>todo</td><td>a VS Code extension (syntax highlighting, <code>--lint</code>/<code>--format</code>) and PowerShell/CMD completion</td></tr>
+<tr><td>Code signing</td><td>todo</td><td>Authenticode signatures so a download does not trip SmartScreen</td></tr>
+<tr><td>C runtime</td><td>todo</td><td>decide UCRT static linking vs. the VC++ redistributable, and record the minimum Windows version per target</td></tr>
+</table>
+<h2 id="runtime-breadth">Runtime breadth</h2>
+<p>Several host capabilities still ride the POSIX implementation and need a Win32 backend behind <code>lynxer/platform.*</code>:</p>
+<ul>
+<li><strong>Console I/O and Unicode.</strong> <code>cli</code>/<code>tui</code> should read and write through the wide console API (or a UTF-8 console code page), so non-ASCII input, colours and <code>beep</code> behave under both Windows Terminal and the legacy console host.</li>
+<li><strong>Asynchronous I/O.</strong> An IOCP backend where POSIX uses <code>epoll</code>/<code>poll</code>, for the async task runtime and the networking paths.</li>
+<li><strong>Process control.</strong> Job Objects for process-tree termination and resource limits, replacing the POSIX process-group semantics.</li>
+<li><strong>IPC.</strong> Named pipes alongside sockets, behind the same surface.</li>
+<li><strong>Services and tasks.</strong> A Windows Service Control Manager / Task Scheduler story for <code>server</code> and background work.</li>
+<li><strong>User data and configuration.</strong> <code>%APPDATA%</code>/<code>%LOCALAPPDATA%</code> and the Known Folders in place of <code>$HOME</code>, and the registry in place of <code>/etc</code>.</li>
+<li><strong>Diagnostics.</strong> A crash handler that can print a readable trace (the <code>debug</code>/<code>--debug</code> path is POSIX-only today) and <code>OutputDebugString</code> wiring.</li>
+</ul>
 <p>Both Windows jobs are <strong>required</strong> (no <code>continue-on-error</code>): <code>.github/workflows/build-lynxer-windows-amd64.yml</code> (MSYS2 MINGW64) and <code>.github/workflows/build-lynxer-windows-arm64.yml</code> (MSYS2 CLANGARM64). Bob, the package manager, is separate and has its own four workflows.</p>
 <p>See the <strong>Windows support</strong> section of <a href="https://github.com/andy64lol/Lynxer/blob/main/todo.md">../todo</a> for the tracked items.</p>
     </main>
