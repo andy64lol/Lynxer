@@ -153,6 +153,17 @@ The registry is a small database plus two front ends, documented in
 - [ ] **Module storage.** Archives are distributed from GitHub Releases today; a
   future option is Supabase Storage, with versioning and checksum verification.
 
+## Modules
+
+- [x] **First published module: `raylib`.** The raylib 6.0 bindings live in their own repo,
+  [`andy64lol/raylib`](https://github.com/andy64lol/raylib), developed at the gitignored
+  `modules/raylib/`. The surface is generated from raylib's `rlparser` API description
+  (1328 ops + 308 constants; only varargs and function-pointer callbacks are skipped) and
+  delivered through the Bob ecosystem: a `raylib-0.1.0.zip` release plus a `public.modules`
+  row, so `bob install raylib 0.1.0` resolves it and the Bob Index lists it.
+- [ ] **`bob install` layout.** `bob install` still only downloads the archive; extracting it
+  into `modules/<name>/` (so the interpreter finds the module) is the outstanding step.
+
 ## Windows support
 
 Lynxer currently targets Linux only: the interpreter, the native-module ABI

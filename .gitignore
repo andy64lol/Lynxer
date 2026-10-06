@@ -20,3 +20,6 @@ Bob/target/
 
 # Supabase CLI local state
 supabase/.temp/
+
+# Project modules (each is its own repository)
+modules/
