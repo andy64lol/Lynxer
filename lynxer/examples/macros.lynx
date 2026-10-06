@@ -1,7 +1,7 @@
-global setup(){}
-
 macro localPrint!(*args){println(*args)}
 macro punctuation!(*args){println("*args")}
+
+global setup(){}
 
 func invokeBlock(int value){body}{
     exec(value){{body}}
