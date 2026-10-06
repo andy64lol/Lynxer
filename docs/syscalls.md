@@ -98,6 +98,15 @@ rest of the stdlib, with `getLastError()` for the reason:
 | `winAPI.createDirectory(path)` | whether it was created |
 | `winAPI.removeDirectory(path)` | whether it was removed |
 
+Beyond files, the surface also covers **process control** (`getCurrentThreadId`,
+`openProcess`, `terminateProcess`, `getExitCodeProcess`, `createProcess`,
+`waitForSingleObject`), the **console session** (`getStdHandle`, `getConsoleMode`,
+`setConsoleMode`, `setConsoleTitle`, `getConsoleOutputCP`, `setConsoleOutputCP`),
+file attributes and paths (`getFileAttributes`, `setFileAttributes`,
+`getFullPathName`, `flushFileBuffers`) and the **high-resolution timer**
+(`queryPerformanceCounter`, `queryPerformanceFrequency`). The full reference is
+[windows-api.md](windows-api.md).
+
 Everything here is `kernel32`, so no extra import library is needed. The long
 tail — other DLLs, `user32`, `advapi32`, `*A`/`*W` pairs, structs — is reachable
 today through `ffiLoadLibrary`/`ffiLookup`/`ffiCall` with a `cdecl:` signature

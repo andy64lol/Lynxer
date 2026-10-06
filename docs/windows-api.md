@@ -94,6 +94,10 @@ Every call is `kernel32`, so nothing extra has to be installed or linked.
 | `winAPI.moveFile(source, destination)` | whether it was moved |
 | `winAPI.createDirectory(path)` | whether it was created |
 | `winAPI.removeDirectory(path)` | whether it was removed |
+| `winAPI.getFileAttributes(path)` | the attribute bits, or `-1` |
+| `winAPI.setFileAttributes(path, attributes)` | whether they were set |
+| `winAPI.getFullPathName(path)` | the absolute path, or `""` |
+| `winAPI.flushFileBuffers(handle)` | whether the buffers were flushed |
 
 `mode` is `"read"` (`OPEN_EXISTING`), `"write"` (`CREATE_ALWAYS`, truncated),
 `"append"` (`OPEN_ALWAYS`, seek to end) or `"readwrite"` (`OPEN_ALWAYS`).
@@ -120,6 +124,43 @@ global main(){
     winAPI.deleteFile(path);
 }
 ```
+
+## Processes and threads
+
+| Function | Returns |
+| --- | --- |
+| `winAPI.getCurrentThreadId()` | the calling thread's id |
+| `winAPI.openProcess(processId)` | a handle with query/terminate/synchronize access, or `-1` |
+| `winAPI.terminateProcess(handle, exitCode)` | whether it was terminated |
+| `winAPI.getExitCodeProcess(handle)` | the exit code, or `-1` (`259` while still alive) |
+| `winAPI.createProcess(commandLine)` | the new process's handle, or `-1` |
+| `winAPI.waitForSingleObject(handle, milliseconds)` | `0` when signalled, `258` on timeout, `-1` on failure |
+
+`createProcess` starts `commandLine` through `CreateProcessW` with the inherited
+environment and no redirection; the thread handle is closed for you, so only the
+returned process handle needs `closeHandle`.
+
+## Console
+
+These talk to the console the process is attached to; under a redirected stream
+or a non-interactive session they report `-1`/`false` rather than failing the
+call.
+
+| Function | Returns |
+| --- | --- |
+| `winAPI.getStdHandle(stream)` | the handle for `"input"`, `"output"` or `"error"`, or `-1` |
+| `winAPI.getConsoleMode(handle)` | the console mode, or `-1` |
+| `winAPI.setConsoleMode(handle, mode)` | whether it was set |
+| `winAPI.setConsoleTitle(text)` | whether the title was set |
+| `winAPI.getConsoleOutputCP()` | the console output code page |
+| `winAPI.setConsoleOutputCP(codePage)` | whether it was set |
+
+## Timing
+
+| Function | Returns |
+| --- | --- |
+| `winAPI.queryPerformanceCounter()` | the high-resolution counter, or `-1` |
+| `winAPI.queryPerformanceFrequency()` | ticks per second, or `-1` |
 
 ## The long tail
 

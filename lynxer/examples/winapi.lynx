@@ -42,4 +42,34 @@ global main(){
     winAPI.removeDirectory(directory);
     println(winAPI.createDirectory(directory));
     println(winAPI.removeDirectory(directory));
+
+    // Process control and the current thread.
+    println(winAPI.getCurrentThreadId() > 0);
+    int self = winAPI.openProcess(winAPI.getProcessId());
+    println(self > 0);
+    println(winAPI.getExitCodeProcess(self) >= 0);
+    println(winAPI.closeHandle(self));
+
+    // Spawn a child, wait for it, read its exit code.
+    int child = winAPI.createProcess("cmd /c exit 0");
+    println(child > 0);
+    println(winAPI.waitForSingleObject(child, 10000) is 0);
+    println(winAPI.getExitCodeProcess(child) is 0);
+    println(winAPI.closeHandle(child));
+
+    // Console session calls. A CI runner has no interactive console, so these
+    // assert shape (`>= 0` / `>= -1`) rather than success.
+    println(winAPI.getStdHandle("output") >= -1);
+    println(winAPI.getConsoleMode(winAPI.getStdHandle("output")) >= -1);
+    println(winAPI.getConsoleOutputCP() >= 0);
+
+    // Files by name, flushing, and the high-resolution timer.
+    println(winAPI.getFileAttributes(winAPI.getModuleFileName()) >= 0);
+    println(returnLength(winAPI.getFullPathName(".")) > 0);
+    int flushTarget = winAPI.createFile(root + "lynxer-winapi-flush.txt", "write");
+    println(winAPI.flushFileBuffers(flushTarget));
+    println(winAPI.closeHandle(flushTarget));
+    println(winAPI.deleteFile(root + "lynxer-winapi-flush.txt"));
+    println(winAPI.queryPerformanceCounter() > 0);
+    println(winAPI.queryPerformanceFrequency() > 0);
 }

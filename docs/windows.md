@@ -38,8 +38,14 @@ the `winAPI.*` namespace — all `kernel32`: the system information calls
 (`getEnvironmentVariable`, `setEnvironmentVariable`, `expandEnvironmentStrings`)
 and file/handle access (`createFile`, `readFile`, `writeFile`, `closeHandle`,
 `fileSize`, `seekFile`, `deleteFile`, `copyFile`, `moveFile`,
-`createDirectory`, `removeDirectory`), plus `sleep`, `beep` and
-`outputDebugString`. The `winapi.lynx` fixture runs it in the Windows job; the
+`createDirectory`, `removeDirectory`), process control (`getCurrentThreadId`,
+`openProcess`, `terminateProcess`, `getExitCodeProcess`, `createProcess`,
+`waitForSingleObject`), the console session (`getStdHandle`, `getConsoleMode`,
+`setConsoleMode`, `setConsoleTitle`, `getConsoleOutputCP`,
+`setConsoleOutputCP`), file attributes and paths (`getFileAttributes`,
+`setFileAttributes`, `getFullPathName`, `flushFileBuffers`), the high-resolution
+timer (`queryPerformanceCounter`, `queryPerformanceFrequency`), and `sleep`,
+`beep` and `outputDebugString`. The `winapi.lynx` fixture runs it in the Windows job; the
 Win32 calls live in `lynxer/winapi.cpp` so nothing else includes `<windows.h>`.
 See [syscalls.md](syscalls.md#windows-api-calls).
 

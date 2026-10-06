@@ -211,9 +211,17 @@ surface stays a documented boundary in
   `outputDebugString` — with the `winapi.lynx` fixture run by the Windows job.
   The Win32 calls live in `lynxer/winapi.cpp`, so nothing else includes
   `<windows.h>`. The named Linux syscalls stay Linux-only. Still to do:
-  - Grow the table further: process and socket calls (`CreateProcessW`,
-    `WSAStartup`, ...), console calls, and first-class `HANDLE` values. The long
-    tail is already reachable through
+  - Grow the table further: sockets (`WSAStartup`, `socket`, … — needs
+    `ws2_32`), other DLLs (`advapi32` registry, `user32`/`shell32`) and
+    first-class `HANDLE` values. Process control (`createProcess`,
+    `openProcess`, `terminateProcess`, `getExitCodeProcess`,
+    `waitForSingleObject`, `getCurrentThreadId`), the console session
+    (`getStdHandle`, `getConsoleMode`/`setConsoleMode`, `setConsoleTitle`,
+    `getConsoleOutputCP`/`setConsoleOutputCP`), file attributes/paths
+    (`getFileAttributes`, `setFileAttributes`, `getFullPathName`,
+    `flushFileBuffers`) and the high-resolution timer
+    (`queryPerformanceCounter`/`queryPerformanceFrequency`) have landed. The
+    long tail is already reachable through
     `ffiLoadLibrary`/`ffiLookup`/`ffiCall` ([native-modules.md](docs/native-modules.md)).
   - Cover the Win32 specifics: the `__stdcall` calling convention on 32-bit
     (unified on x64), so the `cdecl:` signature grammar needs a `stdcall:` or

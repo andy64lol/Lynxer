@@ -197,6 +197,10 @@ global main(){
 <tr><td><code>winAPI.moveFile(source, destination)</code></td><td>whether it was moved</td></tr>
 <tr><td><code>winAPI.createDirectory(path)</code></td><td>whether it was created</td></tr>
 <tr><td><code>winAPI.removeDirectory(path)</code></td><td>whether it was removed</td></tr>
+<tr><td><code>winAPI.getFileAttributes(path)</code></td><td>the attribute bits, or <code>-1</code></td></tr>
+<tr><td><code>winAPI.setFileAttributes(path, attributes)</code></td><td>whether they were set</td></tr>
+<tr><td><code>winAPI.getFullPathName(path)</code></td><td>the absolute path, or <code>&quot;&quot;</code></td></tr>
+<tr><td><code>winAPI.flushFileBuffers(handle)</code></td><td>whether the buffers were flushed</td></tr>
 </table>
 <p><code>mode</code> is <code>&quot;read&quot;</code> (<code>OPEN_EXISTING</code>), <code>&quot;write&quot;</code> (<code>CREATE_ALWAYS</code>, truncated), <code>&quot;append&quot;</code> (<code>OPEN_ALWAYS</code>, seek to end) or <code>&quot;readwrite&quot;</code> (<code>OPEN_ALWAYS</code>). <code>seekFile</code> positions absolutely from the start of the file.</p>
 <pre><code>global setup(){ syscalls(&quot;winAPI&quot;, &quot;amd64&quot;); }
@@ -218,6 +222,34 @@ global main(){
     winAPI.closeHandle(reader);
     winAPI.deleteFile(path);
 }</code></pre>
+<h2 id="processes-and-threads">Processes and threads</h2>
+<table>
+<tr><th>Function</th><th>Returns</th></tr>
+<tr><td><code>winAPI.getCurrentThreadId()</code></td><td>the calling thread's id</td></tr>
+<tr><td><code>winAPI.openProcess(processId)</code></td><td>a handle with query/terminate/synchronize access, or <code>-1</code></td></tr>
+<tr><td><code>winAPI.terminateProcess(handle, exitCode)</code></td><td>whether it was terminated</td></tr>
+<tr><td><code>winAPI.getExitCodeProcess(handle)</code></td><td>the exit code, or <code>-1</code> (<code>259</code> while still alive)</td></tr>
+<tr><td><code>winAPI.createProcess(commandLine)</code></td><td>the new process's handle, or <code>-1</code></td></tr>
+<tr><td><code>winAPI.waitForSingleObject(handle, milliseconds)</code></td><td><code>0</code> when signalled, <code>258</code> on timeout, <code>-1</code> on failure</td></tr>
+</table>
+<p><code>createProcess</code> starts <code>commandLine</code> through <code>CreateProcessW</code> with the inherited environment and no redirection; the thread handle is closed for you, so only the returned process handle needs <code>closeHandle</code>.</p>
+<h2 id="console">Console</h2>
+<p>These talk to the console the process is attached to; under a redirected stream or a non-interactive session they report <code>-1</code>/<code>false</code> rather than failing the call.</p>
+<table>
+<tr><th>Function</th><th>Returns</th></tr>
+<tr><td><code>winAPI.getStdHandle(stream)</code></td><td>the handle for <code>&quot;input&quot;</code>, <code>&quot;output&quot;</code> or <code>&quot;error&quot;</code>, or <code>-1</code></td></tr>
+<tr><td><code>winAPI.getConsoleMode(handle)</code></td><td>the console mode, or <code>-1</code></td></tr>
+<tr><td><code>winAPI.setConsoleMode(handle, mode)</code></td><td>whether it was set</td></tr>
+<tr><td><code>winAPI.setConsoleTitle(text)</code></td><td>whether the title was set</td></tr>
+<tr><td><code>winAPI.getConsoleOutputCP()</code></td><td>the console output code page</td></tr>
+<tr><td><code>winAPI.setConsoleOutputCP(codePage)</code></td><td>whether it was set</td></tr>
+</table>
+<h2 id="timing">Timing</h2>
+<table>
+<tr><th>Function</th><th>Returns</th></tr>
+<tr><td><code>winAPI.queryPerformanceCounter()</code></td><td>the high-resolution counter, or <code>-1</code></td></tr>
+<tr><td><code>winAPI.queryPerformanceFrequency()</code></td><td>ticks per second, or <code>-1</code></td></tr>
+</table>
 <h2 id="the-long-tail">The long tail</h2>
 <p>Anything not in the tables above — other DLLs, <code>user32</code>, <code>advapi32</code>, the <code>*A</code>/<code>*W</code> pairs, structs, <code>HANDLE</code>-typed parameters — is reachable through the FFI built-ins (<a href="native-modules.html">native-modules</a>). On 64-bit Windows the Win32 calling convention is the one <code>cdecl:</code> describes, so a Win32 call looks like any other:</p>
 <pre><code>global setup(){ syscalls(&quot;winAPI&quot;, &quot;amd64&quot;); }

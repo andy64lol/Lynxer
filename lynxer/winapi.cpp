@@ -109,6 +109,16 @@ const std::vector<std::string>& names() {
         "closeHandle",        "fileSize",            "seekFile",
         "deleteFile",         "copyFile",            "moveFile",
         "createDirectory",    "removeDirectory",
+        // Process control and the current thread.
+        "getCurrentThreadId", "openProcess",         "terminateProcess",
+        "getExitCodeProcess", "createProcess",       "waitForSingleObject",
+        // Console session.
+        "getStdHandle",       "getConsoleMode",      "setConsoleMode",
+        "setConsoleTitle",    "getConsoleOutputCP",  "setConsoleOutputCP",
+        // Files by name, flushing and the high-resolution timer.
+        "getFileAttributes",  "setFileAttributes",   "getFullPathName",
+        "flushFileBuffers",   "queryPerformanceCounter",
+        "queryPerformanceFrequency",
     };
     return all;
 }
@@ -145,6 +155,10 @@ bool call(const std::string& name, const std::vector<Value>& args, Value& result
     const auto wrong = [&](const std::string& shape) {
         error = "expects " + shape;
         return false;
+    };
+    const auto handleArg = [&](std::size_t index) -> HANDLE {
+        return reinterpret_cast<HANDLE>(
+            static_cast<std::intptr_t>(integerArg(index)));
     };
 
     if (name == "getProcessId") {
@@ -457,6 +471,215 @@ bool call(const std::string& name, const std::vector<Value>& args, Value& result
         result = ::MoveFileExW(utf8ToWide(stringArg(0)).c_str(),
                                utf8ToWide(stringArg(1)).c_str(),
                                MOVEFILE_REPLACE_EXISTING) != 0;
+        return true;
+    }
+    if (name == "getCurrentThreadId") {
+        if (!args.empty()) return wrong("no arguments");
+        result = static_cast<std::int64_t>(::GetCurrentThreadId());
+        return true;
+    }
+    if (name == "openProcess") {
+        if (args.size() != 1) return wrong("a process id");
+        if (std::get_if<std::int64_t>(&args[0]) == nullptr) {
+            return wrong("an integer process id");
+        }
+        const HANDLE handle = ::OpenProcess(
+            PROCESS_QUERY_INFORMATION | PROCESS_TERMINATE | SYNCHRONIZE, FALSE,
+            static_cast<DWORD>(integerArg(0)));
+        result = handle == nullptr
+                     ? static_cast<std::int64_t>(-1)
+                     : static_cast<std::int64_t>(
+                           reinterpret_cast<std::intptr_t>(handle));
+        return true;
+    }
+    if (name == "terminateProcess") {
+        if (args.size() != 2) return wrong("a handle and an exit code");
+        if (std::get_if<std::int64_t>(&args[0]) == nullptr ||
+            std::get_if<std::int64_t>(&args[1]) == nullptr) {
+            return wrong("an integer handle and exit code");
+        }
+        result =
+            ::TerminateProcess(handleArg(0),
+                               static_cast<UINT>(integerArg(1))) != 0;
+        return true;
+    }
+    if (name == "getExitCodeProcess") {
+        if (args.size() != 1) return wrong("a handle");
+        if (std::get_if<std::int64_t>(&args[0]) == nullptr) {
+            return wrong("an integer handle");
+        }
+        DWORD code = 0;
+        if (::GetExitCodeProcess(handleArg(0), &code) == 0) {
+            result = static_cast<std::int64_t>(-1);
+            return true;
+        }
+        result = static_cast<std::int64_t>(code);
+        return true;
+    }
+    if (name == "createProcess") {
+        if (args.size() != 1) return wrong("a command line");
+        if (std::get_if<std::string>(&args[0]) == nullptr) {
+            return wrong("a string command line");
+        }
+        // CreateProcessW may write into the command line, so keep a copy.
+        std::wstring command = utf8ToWide(stringArg(0));
+        STARTUPINFOW startup{};
+        startup.cb = sizeof(startup);
+        PROCESS_INFORMATION info{};
+        if (::CreateProcessW(nullptr, command.data(), nullptr, nullptr, FALSE, 0,
+                             nullptr, nullptr, &startup, &info) == 0) {
+            result = static_cast<std::int64_t>(-1);
+            return true;
+        }
+        ::CloseHandle(info.hThread);
+        result = static_cast<std::int64_t>(
+            reinterpret_cast<std::intptr_t>(info.hProcess));
+        return true;
+    }
+    if (name == "waitForSingleObject") {
+        if (args.size() != 2) return wrong("a handle and a timeout");
+        if (std::get_if<std::int64_t>(&args[0]) == nullptr ||
+            std::get_if<std::int64_t>(&args[1]) == nullptr) {
+            return wrong("an integer handle and timeout");
+        }
+        const DWORD status = ::WaitForSingleObject(
+            handleArg(0), static_cast<DWORD>(integerArg(1)));
+        result = status == WAIT_FAILED ? static_cast<std::int64_t>(-1)
+                                       : static_cast<std::int64_t>(status);
+        return true;
+    }
+    if (name == "getStdHandle") {
+        if (args.size() != 1) return wrong("a stream name");
+        if (std::get_if<std::string>(&args[0]) == nullptr) {
+            return wrong("a string stream name");
+        }
+        const std::string which = stringArg(0);
+        DWORD id = 0;
+        if (which == "input") {
+            id = STD_INPUT_HANDLE;
+        } else if (which == "output") {
+            id = STD_OUTPUT_HANDLE;
+        } else if (which == "error") {
+            id = STD_ERROR_HANDLE;
+        } else {
+            return wrong("stream \"input\", \"output\" or \"error\"");
+        }
+        const HANDLE handle = ::GetStdHandle(id);
+        result = (handle == nullptr || handle == INVALID_HANDLE_VALUE)
+                     ? static_cast<std::int64_t>(-1)
+                     : static_cast<std::int64_t>(
+                           reinterpret_cast<std::intptr_t>(handle));
+        return true;
+    }
+    if (name == "getConsoleMode") {
+        if (args.size() != 1) return wrong("a handle");
+        if (std::get_if<std::int64_t>(&args[0]) == nullptr) {
+            return wrong("an integer handle");
+        }
+        DWORD mode = 0;
+        result = ::GetConsoleMode(handleArg(0), &mode) != 0
+                     ? static_cast<std::int64_t>(mode)
+                     : static_cast<std::int64_t>(-1);
+        return true;
+    }
+    if (name == "setConsoleMode") {
+        if (args.size() != 2) return wrong("a handle and a mode");
+        if (std::get_if<std::int64_t>(&args[0]) == nullptr ||
+            std::get_if<std::int64_t>(&args[1]) == nullptr) {
+            return wrong("an integer handle and mode");
+        }
+        result = ::SetConsoleMode(handleArg(0),
+                                  static_cast<DWORD>(integerArg(1))) != 0;
+        return true;
+    }
+    if (name == "setConsoleTitle") {
+        if (args.size() != 1) return wrong("text");
+        if (std::get_if<std::string>(&args[0]) == nullptr) {
+            return wrong("string text");
+        }
+        result = ::SetConsoleTitleW(utf8ToWide(stringArg(0)).c_str()) != 0;
+        return true;
+    }
+    if (name == "getConsoleOutputCP") {
+        if (!args.empty()) return wrong("no arguments");
+        result = static_cast<std::int64_t>(::GetConsoleOutputCP());
+        return true;
+    }
+    if (name == "setConsoleOutputCP") {
+        if (args.size() != 1) return wrong("a code page");
+        if (std::get_if<std::int64_t>(&args[0]) == nullptr) {
+            return wrong("an integer code page");
+        }
+        result = ::SetConsoleOutputCP(static_cast<UINT>(integerArg(0))) != 0;
+        return true;
+    }
+    if (name == "getFileAttributes") {
+        if (args.size() != 1) return wrong("a path");
+        if (std::get_if<std::string>(&args[0]) == nullptr) {
+            return wrong("a string path");
+        }
+        const DWORD attributes =
+            ::GetFileAttributesW(utf8ToWide(stringArg(0)).c_str());
+        result = attributes == INVALID_FILE_ATTRIBUTES
+                     ? static_cast<std::int64_t>(-1)
+                     : static_cast<std::int64_t>(attributes);
+        return true;
+    }
+    if (name == "setFileAttributes") {
+        if (args.size() != 2) return wrong("a path and attributes");
+        if (std::get_if<std::string>(&args[0]) == nullptr ||
+            std::get_if<std::int64_t>(&args[1]) == nullptr) {
+            return wrong("a string path and integer attributes");
+        }
+        result = ::SetFileAttributesW(utf8ToWide(stringArg(0)).c_str(),
+                                      static_cast<DWORD>(integerArg(1))) != 0;
+        return true;
+    }
+    if (name == "getFullPathName") {
+        if (args.size() != 1) return wrong("a path");
+        if (std::get_if<std::string>(&args[0]) == nullptr) {
+            return wrong("a string path");
+        }
+        const std::wstring input = utf8ToWide(stringArg(0));
+        const DWORD needed =
+            ::GetFullPathNameW(input.c_str(), 0, nullptr, nullptr);
+        if (needed == 0) {
+            result = std::string();
+            return true;
+        }
+        std::wstring buffer(needed, L'\0');
+        const DWORD written =
+            ::GetFullPathNameW(input.c_str(), needed, buffer.data(), nullptr);
+        if (written == 0 || written >= needed) {
+            result = std::string();
+            return true;
+        }
+        buffer.resize(written);
+        result = wideToUtf8(buffer);
+        return true;
+    }
+    if (name == "flushFileBuffers") {
+        if (args.size() != 1) return wrong("a handle");
+        if (std::get_if<std::int64_t>(&args[0]) == nullptr) {
+            return wrong("an integer handle");
+        }
+        result = ::FlushFileBuffers(handleArg(0)) != 0;
+        return true;
+    }
+    if (name == "queryPerformanceCounter") {
+        if (!args.empty()) return wrong("no arguments");
+        LARGE_INTEGER value{};
+        result = ::QueryPerformanceCounter(&value) != 0
+                     ? static_cast<std::int64_t>(value.QuadPart)
+                     : static_cast<std::int64_t>(-1);
+        return true;
+    }
+    if (name == "queryPerformanceFrequency") {
+        if (!args.empty()) return wrong("no arguments");
+        LARGE_INTEGER value{};
+        result = ::QueryPerformanceFrequency(&value) != 0
+                     ? static_cast<std::int64_t>(value.QuadPart)
+                     : static_cast<std::int64_t>(-1);
         return true;
     }
     error = "unknown operation";
