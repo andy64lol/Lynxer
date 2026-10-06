@@ -44,11 +44,9 @@ The first push creates the package; users then install with
 Update `pkgver`, refresh the tarball `sha256sums`, reset `pkgrel=1`, regenerate
 `.SRCINFO`, commit, push.
 
-## `lynxer-bin` (not yet possible)
+## `lynxer-bin` (not written yet)
 
-A binary package would be much lighter for users. It is **not offered yet**
-because the GitHub release asset (`lynxer-linux-<arch>.zip`) contains only the
-`lynxer` executable — the stdlib modules are missing, so an installed copy
-cannot `import("math")`. A `lynxer-bin` package can be added once the release
-ships the whole install tree (interpreter + `stdlib/` + `liblynxer.so` +
-headers + `lynxer.config`).
+The release assets now ship the **complete runtime** — `lynxer-linux-<arch>.zip`
+contains the interpreter, `stdlib/`, `lynxer.config`, `liblynxer.so` and the
+public headers — so a `lynxer-bin` package is now possible (it would unpack
+`lynxer-linux-amd64.zip` from the GitHub release). It is not written yet.

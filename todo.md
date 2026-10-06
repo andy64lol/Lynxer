@@ -270,8 +270,8 @@ surface stays a documented boundary in
   release tarball, installs via `lynxer --install`); see
   [`packaging/aur/README.md`](packaging/aur/README.md). Still to do: publish it
   (needs an AUR account with a registered SSH key). A `lynxer-bin` package is
-  blocked until the release asset ships the whole install tree — today
-  `lynxer-linux-<arch>.zip` holds only the bare interpreter (no stdlib).
+  now possible: the release assets ship the whole install tree (interpreter +
+  stdlib + config + headers), so a `-bin` PKGBUILD can unpack one.
 
 ## Planning rule
 
