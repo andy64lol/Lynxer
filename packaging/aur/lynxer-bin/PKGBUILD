@@ -1,0 +1,35 @@
+# Maintainer: Andy <andy64lolxd@gmail.com>
+pkgname=lynxer-bin
+pkgver=0.1.8.2
+pkgrel=1
+pkgdesc="A small, statically-flavoured C-style programming language with a standalone native runtime (prebuilt)"
+arch=('x86_64' 'aarch64')
+url="https://github.com/andy64lol/Lynxer"
+license=('MIT')
+depends=('libffi' 'alsa-lib' 'bzip2')
+provides=('lynxer')
+conflicts=('lynxer')
+# Ship the released binaries byte-for-byte.
+options=('!strip')
+_gh="https://github.com/andy64lol/Lynxer/releases/download/v$pkgver"
+
+source=("LICENSE::https://raw.githubusercontent.com/andy64lol/Lynxer/v$pkgver/LICENSE")
+sha256sums=('d5cf34db43dd5e0b5619245028129dc169ca3a3d4adb6902025ee67d8635e92a')
+source_x86_64=("lynxer-linux-amd64.zip::$_gh/lynxer-linux-amd64.zip")
+sha256sums_x86_64=('b0dfdf8ff6cbe1c9a56509a28f058b031a2b820d9f874d6203120bd5ec8b26be')
+source_aarch64=("lynxer-linux-arm64.zip::$_gh/lynxer-linux-arm64.zip")
+sha256sums_aarch64=('a4b0dbc7b9288b2d09a461938817ff70c45efcba311ffb712c1f52bd1ee3684a')
+
+package() {
+  # The interpreter resolves its stdlib through the `<exe>/../lib/lynxer`
+  # fallback, so /usr/bin/lynxer needs no bin/lib symlink.
+  install -d "$pkgdir/usr/bin" "$pkgdir/usr/lib/lynxer"
+
+  install -m755 lynxer "$pkgdir/usr/bin/lynxer"
+  cp -r stdlib "$pkgdir/usr/lib/lynxer/stdlib"
+  install -m644 lynxer.config "$pkgdir/usr/lib/lynxer/lynxer.config"
+  install -m755 liblynxer.so "$pkgdir/usr/lib/lynxer/liblynxer.so"
+  install -m644 lynxer.h ffi_abi.h "$pkgdir/usr/lib/lynxer/"
+
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

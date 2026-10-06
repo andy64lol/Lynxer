@@ -265,13 +265,11 @@ surface stays a documented boundary in
 
 ## Distribution
 
-- [ ] **Arch User Repository (AUR).** A source PKGBUILD for `lynxer` is in
-  [`packaging/aur/lynxer/`](packaging/aur/lynxer/) (builds from the `v<ver>`
-  release tarball, installs via `lynxer --install`); see
-  [`packaging/aur/README.md`](packaging/aur/README.md). Still to do: publish it
-  (needs an AUR account with a registered SSH key). A `lynxer-bin` package is
-  now possible: the release assets ship the whole install tree (interpreter +
-  stdlib + config + headers), so a `-bin` PKGBUILD can unpack one.
+- [ ] **Arch User Repository (AUR).** Two PKGBUILDs are ready in
+  [`packaging/aur/`](packaging/aur/): `lynxer` (source build) and `lynxer-bin`
+  (prebuilt; unpacks the release zip). Still to do: publish them — blocked for
+  now, since AUR account registration is temporarily closed and publishing
+  needs an AUR account with a registered SSH key.
 
 ## Planning rule
 

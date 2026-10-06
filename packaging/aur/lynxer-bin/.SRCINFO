@@ -1,0 +1,22 @@
+pkgbase = lynxer-bin
+	pkgdesc = A small, statically-flavoured C-style programming language with a standalone native runtime (prebuilt)
+	pkgver = 0.1.8.2
+	pkgrel = 1
+	url = https://github.com/andy64lol/Lynxer
+	arch = x86_64
+	arch = aarch64
+	license = MIT
+	depends = libffi
+	depends = alsa-lib
+	depends = bzip2
+	provides = lynxer
+	conflicts = lynxer
+	options = !strip
+	source = LICENSE::https://raw.githubusercontent.com/andy64lol/Lynxer/v0.1.8.2/LICENSE
+	sha256sums = d5cf34db43dd5e0b5619245028129dc169ca3a3d4adb6902025ee67d8635e92a
+	source_x86_64 = lynxer-linux-amd64.zip::https://github.com/andy64lol/Lynxer/releases/download/v0.1.8.2/lynxer-linux-amd64.zip
+	sha256sums_x86_64 = b0dfdf8ff6cbe1c9a56509a28f058b031a2b820d9f874d6203120bd5ec8b26be
+	source_aarch64 = lynxer-linux-arm64.zip::https://github.com/andy64lol/Lynxer/releases/download/v0.1.8.2/lynxer-linux-arm64.zip
+	sha256sums_aarch64 = a4b0dbc7b9288b2d09a461938817ff70c45efcba311ffb712c1f52bd1ee3684a
+
+pkgname = lynxer-bin

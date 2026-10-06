@@ -44,9 +44,13 @@ The first push creates the package; users then install with
 Update `pkgver`, refresh the tarball `sha256sums`, reset `pkgrel=1`, regenerate
 `.SRCINFO`, commit, push.
 
-## `lynxer-bin` (not written yet)
+## `lynxer-bin` (binary)
 
-The release assets now ship the **complete runtime** — `lynxer-linux-<arch>.zip`
-contains the interpreter, `stdlib/`, `lynxer.config`, `liblynxer.so` and the
-public headers — so a `lynxer-bin` package is now possible (it would unpack
-`lynxer-linux-amd64.zip` from the GitHub release). It is not written yet.
+[`lynxer-bin/PKGBUILD`](lynxer-bin/PKGBUILD) unpacks the released
+`lynxer-linux-<arch>.zip` (interpreter + `stdlib/` + config + `liblynxer.so` +
+headers) and installs the binary to `/usr/bin/lynxer` with the runtime under
+`/usr/lib/lynxer` — the layout the interpreter resolves on its own. It
+`provides`/`conflicts` `lynxer`, so users pick one.
+
+This is the light option (no build): most users should prefer it over the source
+package. Publishing it works exactly like the source package below.
