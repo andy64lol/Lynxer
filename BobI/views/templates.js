@@ -48,7 +48,9 @@ const STYLE = `
   a { color: #0b6bcb; }
   header { background: #f8f9fa; border-bottom: 1px solid #e3e6e8; padding: 1rem 1.5rem; }
   header .wrap, main, footer { max-width: 60rem; margin: 0 auto; }
-  .header-inner { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+  .header-inner { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+  .brand { display: flex; align-items: center; gap: .5rem; }
+  .brand .logo { display: block; }
   h1 { font-size: 1.4rem; margin: 0; }
   h1 a { color: #212529; text-decoration: none; }
   h1 .sub { color: #6c757d; font-weight: 400; font-size: 1rem; }
@@ -109,9 +111,9 @@ function layout(title, body, config = {}, page = '') {
   return `<!doctype html>
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escapeHtml(title)}</title><style>${STYLE}</style></head>
+<title>${escapeHtml(title)}</title><link rel="icon" type="image/png" href="/lynxer.png"><style>${STYLE}</style></head>
 <body data-page="${escapeHtml(page)}">
-<header><div class="wrap header-inner"><h1><a href="/">Bob Index</a> <span class="sub">Lynxer package index</span></h1><nav class="account-nav" id="account-nav"><a href="/signup">Sign up</a><a href="/login">Log in</a></nav></div></header>
+<header><div class="wrap header-inner"><div class="brand"><img class="logo" src="/lynxer.png" alt="" width="28" height="28"><h1><a href="/">Bob Index</a> <span class="sub">Lynxer package index</span></h1></div><nav class="account-nav" id="account-nav"><a href="/signup">Sign up</a><a href="/login">Log in</a></nav></div></header>
 <main>${body}</main>
 <footer>Bob Index — the module index for the Lynxer package manager. <a href="https://lynxer.onrender.com">Lynxer home</a></footer>
 <script>window.BOB_SUPABASE = ${JSON.stringify(injected)};</script>

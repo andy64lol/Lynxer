@@ -20,6 +20,10 @@ const {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Static assets (the Lynxer icon) live in BobI/assets so the Render service,
+// whose root directory is BobI, stays self-contained.
+app.use(express.static(path.join(__dirname, 'assets')));
+
 // The public Supabase settings are injected into the browser for auth.js; the
 // anon key is a public client key, safe to expose.
 const authConfig = {
