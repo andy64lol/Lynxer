@@ -11,23 +11,10 @@
 [![Build Bob Windows AMD64](https://github.com/andy64lol/Lynxer/actions/workflows/build-bob-windows-amd64.yml/badge.svg)](https://github.com/andy64lol/Lynxer/actions/workflows/build-bob-windows-amd64.yml)
 [![Build Bob Windows ARM64](https://github.com/andy64lol/Lynxer/actions/workflows/build-bob-windows-arm64.yml/badge.svg)](https://github.com/andy64lol/Lynxer/actions/workflows/build-bob-windows-arm64.yml)
 
-A statically-flavoured, C-style scripting language. Files use the `.lynx`
-extension and run on the standalone C++ interpreter in `lynxer/`.
-
-> **Linux only:** Lynxer is currently supported for Linux users and Linux
-> distributions. The standalone bundler and the Linux system-level `os` calls
-> require Linux. Native builds support 64-bit x86-64 (`amd64`) and ARM64
-> (`aarch64`) hosts. Builds fail early on other operating systems or
-> architectures rather than mixing syscall tables.
-> **Windows:** a port is in progress; the host layer is in place and the
-> Linux-only surface (named syscalls, the `sys` module) is excluded for now.
-> See [docs/windows.md](docs/windows.md).
->
-> **Status (2026-09-24): Lynxer is a standalone C++ implementation.** It ships
-> standalone ELF executables, 34 natively backed stdlib modules, an AST
-> optimizer, a frozen native-module ABI, and a full test suite on both amd64 and
-> arm64. See [docs/limitations.md](docs/limitations.md) for planned runtime and
-> standard-library improvements.
+Lynxer is a small, statically-flavoured, C-style scripting language. Programs use
+the `.lynx` extension and run on the standalone native interpreter in `lynxer/` —
+no VM, no bytecode. The same interpreter can also compile a program into a single
+executable.
 
 ```c
 global setup(){
@@ -43,14 +30,50 @@ global main(){
 
 ---
 
+## Platforms
+
+Lynxer currently supports **64-bit Linux** on `amd64` and `arm64`. The standalone
+bundler and the Linux-specific system calls in `os` require Linux. Builds on any
+other operating system or architecture **fail early** rather than mix syscall
+tables.
+
+**Windows** is a work in progress: the host layer exists, and the Linux-only
+surface (the named syscalls and the `sys` module) is excluded for now. See
+[docs/windows.md](docs/windows.md).
+
+---
+
+## Status
+
+**v0.1.8.3** — a standalone C++ implementation with:
+
+- a native interpreter and an AST optimizer;
+- 38 standard-library modules, native (C++/Rust) backends included;
+- a frozen native-module ABI for third-party backends;
+- single-file executables via `--compile`;
+- a full test suite on `amd64` and `arm64`.
+
+Planned gaps are tracked in [docs/limitations.md](docs/limitations.md).
+
+---
+
 ## Quick start
 
 ```bash
-make                         # build the interpreter and every native module
-./lynxer/lynxer syntax.lynx  # run a source file
-./lynxer/lynxer --compile syntax.lynx -o syntax   # build a standalone executable
-./lynxer/lynxer --version    # print version
-./lynxer/lynxer --help       # print help
+make build                                       # build the interpreter and every stdlib module
+./lynxer/lynxer syntax.lynx                      # run a source file
+./lynxer/lynxer --compile syntax.lynx -o syntax  # compile to a standalone executable
+./lynxer/lynxer --version                        # print the version
+./lynxer/lynxer --help                           # list every command
+
+make test                                        # build and run the full test suite
+```
+
+To install the interpreter system-wide (default prefix `/usr`, override with
+`LYNXER_PREFIX`):
+
+```bash
+sudo ./lynxer/lynxer --install
 ```
 
 ---
@@ -86,6 +109,27 @@ global main(){
     println(global.m.sqrt(144));
 }
 ```
+
+---
+
+## Bob — the package manager
+
+**Bob** (`Bob/`) is Lynxer's package manager: a separate Rust component with its
+own Makefile and CI. Build it with `make buildBob`; the examples below use `bob`,
+which is `Bob/target/release/bob` (or install it onto your `PATH` first with
+`--install-exec`):
+
+```bash
+bob --ver            # Bob's version and the Lynxer version it supports
+bob --init           # scaffold a project (bob/bob.toml, lock file, packages/)
+bob --init-module    # scaffold a reusable module
+bob --install-exec   # install the bob executable (prefix: BOB_PREFIX)
+bob publish          # publish the current module to a GitHub Release
+bob install <name> <version>   # install a module through the hosted registry
+```
+
+Published modules are listed on the [Bob Index](https://bobi-index.onrender.com).
+See [Bob/README.md](Bob/README.md) for the full command set.
 
 ---
 
@@ -138,24 +182,23 @@ Render static site.
 ## Project layout
 
 ```
-lynxer/             The interpreter and its standard library
-  *.cpp, *.hpp      Lexer, parser, interpreter, optimizer, formatter, CLI
-  stdlib/           Native and pure stdlib modules
-  rust/             Rust-backed native modules
-Bob/                Bob — the Lynxer package manager (its own Rust component)
-docs/               Documentation (Markdown source)
-site/               Static website: home page plus `docs/` rendered to HTML
-syntax.lynx         Full syntax showcase
+lynxer/        The interpreter and its standard library
+  *.cpp, *.hpp   Lexer, parser, interpreter, optimizer, formatter, CLI
+  stdlib/        Native and pure stdlib modules
+  rust/          Rust-backed native modules
+Bob/           Bob — the package manager (a separate Rust component)
+BobI/          Bob Index — a read-only web index of published modules
+docs/          Documentation (Markdown source)
+site/          Static website: home page plus docs/ rendered to HTML
+packaging/     Distribution packaging (AUR)
+supabase/      Registry database migrations
+syntax.lynx    Full syntax showcase
 Makefile
 README.md
 ```
 
-`Bob/` is a separate component with its own Makefile; build it with
-`make buildBob` then `Bob/target/release/bob --ver` (Bob's version and the
-Lynxer version it supports) or `bob --init` (scaffolds `bob/bob.toml` and
-`bob/bob-lock.toml`). Bob can also publish a module to a GitHub Release (`bob publish`) and
-install one through the hosted registry (`bob install`) — see
-[Bob/README.md](Bob/README.md).
+`Bob/` builds separately with `make buildBob` (see above). `BobI/` is its own
+Node service; `packaging/` and `supabase/` support distribution and the registry.
 
 ---
 

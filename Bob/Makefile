@@ -50,6 +50,10 @@ test: $(TARGET)
 	"$$installed" --ver > /dev/null || { echo "the installed bob does not run"; exit 1; }
 	@cd /tmp/bob-install && BOB_PREFIX=prefix $(CURDIR)/$(TARGET) --install-exec bogus > /dev/null 2>&1 && { echo "bob --install-exec accepted an argument"; exit 1; }; \
 	true
+	@cd /tmp/bob-install && BOB_PREFIX=prefix $(CURDIR)/$(TARGET) --uninstall-exec > /dev/null || { echo "bob --uninstall-exec failed"; exit 1; }; \
+	test ! -e prefix/bin/bob && test ! -e prefix/bin/bob.exe || { echo "bob --uninstall-exec left the binary"; exit 1; }
+	@cd /tmp/bob-install && BOB_PREFIX=prefix $(CURDIR)/$(TARGET) --uninstall-exec > /dev/null 2>&1 && { echo "bob --uninstall-exec succeeded with nothing installed"; exit 1; }; \
+	true
 	@rm -rf /tmp/bob-install
 	@rm -rf /tmp/bob-config && mkdir -p /tmp/bob-config
 	@BOB_CONFIG_DIR=/tmp/bob-config $(CURDIR)/$(TARGET) config set rest-api http://localhost:3000 > /dev/null

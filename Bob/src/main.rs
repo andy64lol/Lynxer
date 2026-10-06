@@ -53,6 +53,7 @@ fn main() -> ExitCode {
         Some("--init") => init(&arguments[1..]),
         Some("--init-module") => init_module(&arguments[1..]),
         Some("--install-exec") => install_exec(&arguments[1..]),
+        Some("--uninstall-exec") => uninstall_exec(&arguments[1..]),
         Some("publish") => publish(&arguments[1..]),
         Some("install") => install(&arguments[1..]),
         Some("registry") => registry(&arguments[1..]),
@@ -80,6 +81,7 @@ fn print_usage() {
     );
     println!("  bob --init-module      Create module.toml and src/main.lynx in this directory");
     println!("  bob --install-exec     Install the bob executable under the prefix (BOB_PREFIX)");
+    println!("  bob --uninstall-exec   Remove the installed bob executable");
     println!("  bob publish            Package and upload this module to GitHub Releases");
     println!("  bob install <name> <version>  Install a module from GitHub Releases");
     println!("  bob registry add <name> <owner> <repository>  Add a custom package mapping");
@@ -274,6 +276,33 @@ fn directory_on_path(directory: &Path) -> bool {
         }
     }
     false
+}
+
+/// `--uninstall-exec` removes the executable `--install-exec` wrote, mirroring
+/// `lynxer --uninstall`.
+fn uninstall_exec(rest: &[String]) -> ExitCode {
+    if let Some(other) = rest.first() {
+        eprintln!("bob: unknown option '{other}' for --uninstall-exec");
+        eprintln!("bob: usage: bob --uninstall-exec");
+        return ExitCode::FAILURE;
+    }
+    let target = install_prefix().join("bin").join(executable_file_name());
+    match fs::remove_file(&target) {
+        Ok(()) => {
+            println!("Removed {}", target.display());
+            ExitCode::SUCCESS
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            eprintln!("bob: nothing to uninstall at {}", target.display());
+            ExitCode::FAILURE
+        }
+        Err(error) => {
+            eprintln!("bob: could not remove '{}': {error}", target.display());
+            #[cfg(not(windows))]
+            eprintln!("bob: re-run with permission to write the prefix (for example with sudo)");
+            ExitCode::FAILURE
+        }
+    }
 }
 
 fn registry(rest: &[String]) -> ExitCode {

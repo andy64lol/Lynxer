@@ -21,6 +21,7 @@ Build it with `make buildBob` (or `make -C Bob`) and run
 | `bob --init` | Creates `bob/bob.toml`, `bob/bob-lock.toml` and an empty `bob/packages/`. |
 | `bob --init-module` | Creates `module.toml` and `src/main.lynx` in a reusable module project. |
 | `bob --install-exec` | Installs the `bob` executable under the prefix (`BOB_PREFIX`; `/usr` on Unix, a per-user directory on Windows). |
+| `bob --uninstall-exec` | Removes the executable `--install-exec` wrote. |
 | `bob publish` | Validates the current module, packages it as a ZIP, and uploads it as a GitHub release asset. |
 | `bob install <name> <version>` | Resolves a package and downloads its release asset. |
 | `bob registry add\|list\|config` | Manage local package→repository mappings in `~/.bob/registry.json`. |
@@ -56,7 +57,8 @@ Installed /home/you/.local/bin/bob
 
 It prints a reminder to add the directory to `PATH` only when it is not already
 there. On Unix the installed binary is marked executable; on Windows it is
-copied (symlinks would need elevation).
+copied (symlinks would need elevation). `bob --uninstall-exec` removes it again
+(use the same `BOB_PREFIX`).
 
 ## Configuration
 
