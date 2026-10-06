@@ -74,8 +74,8 @@ small set of built-in defaults. Set the registry with
 
 ## Adding a package
 
-There is no upload flow yet. Add a row to `public.modules` (SQL editor, or a
-migration):
+There is no upload flow yet. Add a row to `public.modules` (SQL editor, a
+migration, or an authenticated insert — see below):
 
 ```sql
 insert into public.modules (name, repository, version, description)
@@ -88,6 +88,27 @@ on conflict (name) do update
 ```
 
 It then appears in the Bob Index and resolves for `bob install`.
+
+## Who may publish
+
+Writes to `public.modules` are restricted to a **publisher whitelist**; reads
+stay public so the index and the resolve API keep working with the anon key.
+
+- `public.publishers` lists the allowed accounts (one row per email). It is
+  readable by signed-in users only.
+- `public.is_publisher()` is a `SECURITY DEFINER` predicate that compares the
+  caller's JWT `email` claim against that list.
+- The RLS policies on `public.modules` allow `INSERT`/`UPDATE`/`DELETE` to the
+  `authenticated` role **only** when `is_publisher()` is true. The service-role
+  key (migrations, admin tooling) bypasses RLS as usual.
+
+Only `andy64lolxd@gmail.com` is on the list today. Add another account with:
+
+```sql
+insert into public.publishers (email, note) values ('someone@example.com', 'who');
+```
+
+The schema lives in [`../supabase/migrations/`](../supabase/migrations/).
 
 ## Local development
 

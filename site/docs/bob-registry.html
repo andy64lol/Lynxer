@@ -172,7 +172,7 @@
 <li><strong>Render</strong>: the root <a href="../render.yaml"><code>../render.yaml</code></a> Blueprint defines the <code>BobI</code> service (see <a href="bob-index.html">bob-index</a>).</li>
 </ul>
 <h2 id="adding-a-package">Adding a package</h2>
-<p>There is no upload flow yet. Add a row to <code>public.modules</code> (SQL editor, or a migration):</p>
+<p>There is no upload flow yet. Add a row to <code>public.modules</code> (SQL editor, a migration, or an authenticated insert — see below):</p>
 <pre><code>insert into public.modules (name, repository, version, description)
 values (&#x27;mymod&#x27;, &#x27;owner/mymod&#x27;, &#x27;1.0.0&#x27;, &#x27;What it does&#x27;)
 on conflict (name) do update
@@ -181,6 +181,16 @@ on conflict (name) do update
       description = excluded.description,
       updated_at  = now();</code></pre>
 <p>It then appears in the Bob Index and resolves for <code>bob install</code>.</p>
+<h2 id="who-may-publish">Who may publish</h2>
+<p>Writes to <code>public.modules</code> are restricted to a <strong>publisher whitelist</strong>; reads stay public so the index and the resolve API keep working with the anon key.</p>
+<ul>
+<li><code>public.publishers</code> lists the allowed accounts (one row per email). It is readable by signed-in users only.</li>
+<li><code>public.is_publisher()</code> is a <code>SECURITY DEFINER</code> predicate that compares the caller's JWT <code>email</code> claim against that list.</li>
+<li>The RLS policies on <code>public.modules</code> allow <code>INSERT</code>/<code>UPDATE</code>/<code>DELETE</code> to the <code>authenticated</code> role <strong>only</strong> when <code>is_publisher()</code> is true. The service-role key (migrations, admin tooling) bypasses RLS as usual.</li>
+</ul>
+<p>Only <code>andy64lolxd@gmail.com</code> is on the list today. Add another account with:</p>
+<pre><code>insert into public.publishers (email, note) values (&#x27;someone@example.com&#x27;, &#x27;who&#x27;);</code></pre>
+<p>The schema lives in <a href="../supabase/migrations/"><code>../supabase/migrations/</code></a>.</p>
 <h2 id="local-development">Local development</h2>
 <pre><code>$ cd lynxer-registry &amp;&amp; netlify dev      # http://localhost:8888/api/resolve
 $ cd BobI &amp;&amp; npm install &amp;&amp; npm start     # http://localhost:3000

@@ -145,8 +145,11 @@ The registry is a small database plus two front ends, documented in
   <https://lynxer.onrender.com> (docs under `/docs/`), built by
   `python3 site/build.py` from `docs/` and `assets/`.~~
 - [ ] **Registry follow-ups.**
-  - Add a write path (an authenticated insert, or have `bob publish` register the
-    name/version in Supabase) so rows are not added by hand.
+  - The registry now has a **publisher whitelist**: `public.publishers` +
+    `public.is_publisher()` gate `INSERT`/`UPDATE`/`DELETE` on `public.modules`
+    (only `andy64lolxd@gmail.com` for now). Still to do: have `bob publish`
+    register the name/version itself through that authenticated path, so rows
+    are not added by hand.
   - Consider a custom domain for the API, and version the resolve endpoint
     (`/v1/resolve`) before it is heavily used.
 
