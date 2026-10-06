@@ -2,14 +2,14 @@
 
 ![Lynxer logo](assets/lynxer.png)
 ![](https://img.shields.io/badge/-Custom%20programming%20language-blue?style=for-the-badge)
-[![Build AMD64](https://github.com/andy64lol/Lynxer/actions/workflows/build-lynxer-amd.yml/badge.svg)](https://github.com/andy64lol/Lynxer/actions/workflows/build-lynxer-amd.yml)
-[![Build ARM64](https://github.com/andy64lol/Lynxer/actions/workflows/build-lynxer-arm.yml/badge.svg)](https://github.com/andy64lol/Lynxer/actions/workflows/build-lynxer-arm.yml)
-[![Build Windows AMD64](https://github.com/andy64lol/Lynxer/actions/workflows/build-lynxer-windows-amd.yml/badge.svg)](https://github.com/andy64lol/Lynxer/actions/workflows/build-lynxer-windows-amd.yml)
-[![Build Windows ARM64](https://github.com/andy64lol/Lynxer/actions/workflows/build-lynxer-windows-arm.yml/badge.svg)](https://github.com/andy64lol/Lynxer/actions/workflows/build-lynxer-windows-arm.yml)
-[![Build Bob AMD64](https://github.com/andy64lol/Lynxer/actions/workflows/build-bob-amd.yml/badge.svg)](https://github.com/andy64lol/Lynxer/actions/workflows/build-bob-amd.yml)
-[![Build Bob ARM64](https://github.com/andy64lol/Lynxer/actions/workflows/build-bob-arm.yml/badge.svg)](https://github.com/andy64lol/Lynxer/actions/workflows/build-bob-arm.yml)
-[![Build Bob Windows AMD64](https://github.com/andy64lol/Lynxer/actions/workflows/build-bob-windows-amd.yml/badge.svg)](https://github.com/andy64lol/Lynxer/actions/workflows/build-bob-windows-amd.yml)
-[![Build Bob Windows ARM64](https://github.com/andy64lol/Lynxer/actions/workflows/build-bob-windows-arm.yml/badge.svg)](https://github.com/andy64lol/Lynxer/actions/workflows/build-bob-windows-arm.yml)
+[![Build Linux AMD64](https://github.com/andy64lol/Lynxer/actions/workflows/build-lynxer-linux-amd64.yml/badge.svg)](https://github.com/andy64lol/Lynxer/actions/workflows/build-lynxer-linux-amd64.yml)
+[![Build Linux ARM64](https://github.com/andy64lol/Lynxer/actions/workflows/build-lynxer-linux-arm64.yml/badge.svg)](https://github.com/andy64lol/Lynxer/actions/workflows/build-lynxer-linux-arm64.yml)
+[![Build Windows AMD64](https://github.com/andy64lol/Lynxer/actions/workflows/build-lynxer-windows-amd64.yml/badge.svg)](https://github.com/andy64lol/Lynxer/actions/workflows/build-lynxer-windows-amd64.yml)
+[![Build Windows ARM64](https://github.com/andy64lol/Lynxer/actions/workflows/build-lynxer-windows-arm64.yml/badge.svg)](https://github.com/andy64lol/Lynxer/actions/workflows/build-lynxer-windows-arm64.yml)
+[![Build Bob Linux AMD64](https://github.com/andy64lol/Lynxer/actions/workflows/build-bob-linux-amd64.yml/badge.svg)](https://github.com/andy64lol/Lynxer/actions/workflows/build-bob-linux-amd64.yml)
+[![Build Bob Linux ARM64](https://github.com/andy64lol/Lynxer/actions/workflows/build-bob-linux-arm64.yml/badge.svg)](https://github.com/andy64lol/Lynxer/actions/workflows/build-bob-linux-arm64.yml)
+[![Build Bob Windows AMD64](https://github.com/andy64lol/Lynxer/actions/workflows/build-bob-windows-amd64.yml/badge.svg)](https://github.com/andy64lol/Lynxer/actions/workflows/build-bob-windows-amd64.yml)
+[![Build Bob Windows ARM64](https://github.com/andy64lol/Lynxer/actions/workflows/build-bob-windows-arm64.yml/badge.svg)](https://github.com/andy64lol/Lynxer/actions/workflows/build-bob-windows-arm64.yml)
 
 A statically-flavoured, C-style scripting language. Files use the `.lynx`
 extension and run on the standalone C++ interpreter in `lynxer/`.

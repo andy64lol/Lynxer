@@ -1,4 +1,4 @@
-name: Build Lynxer on AMD64
+name: Build Lynxer on Linux AMD64
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    name: Build and Test Lynxer on AMD64
+    name: Build and Test Lynxer on Linux AMD64
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
@@ -46,7 +46,7 @@ jobs:
       - name: Upload AMD64 binary
         uses: actions/upload-artifact@v4
         with:
-          name: lynxer-amd64
+          name: lynxer-linux-amd64
           path: |
             lynxer/lynxer
             lynxer/stdlib

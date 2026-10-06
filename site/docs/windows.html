@@ -165,7 +165,7 @@
 <li><strong>Stdlib backends.</strong> <code>watch</code> needs <code>ReadDirectoryChangesW</code>; <code>cli</code>/<code>debug</code>/ <code>os</code>/<code>path</code> need Windows equivalents for their POSIX calls; <code>js</code>/ <code>multiprocessing</code> need a <code>CreateProcess</code> subprocess backend; <code>tui</code>/<code>graphics</code>/ <code>sound</code> need console and device handling. <code>fileIO</code>/<code>shell</code> and the data-format modules build as-is.</li>
 <li><strong>Embedding and <code>--emit-library</code>.</strong> The runtime is an ELF shared object today, so <code>--emit-library</code> fails cleanly on Windows with a "not supported yet" message rather than emitting ELF-only link flags. A <code>lynxer.dll</code> runtime, its export definition and the DLL-search-path lookup are still to do.</li>
 </ul>
-<p>Both Windows jobs are <strong>required</strong> (no <code>continue-on-error</code>): <code>.github/workflows/build-lynxer-windows-amd.yml</code> (MSYS2 MINGW64) and <code>.github/workflows/build-lynxer-windows-arm.yml</code> (MSYS2 CLANGARM64). Bob, the package manager, is separate and has its own four workflows.</p>
+<p>Both Windows jobs are <strong>required</strong> (no <code>continue-on-error</code>): <code>.github/workflows/build-lynxer-windows-amd64.yml</code> (MSYS2 MINGW64) and <code>.github/workflows/build-lynxer-windows-arm64.yml</code> (MSYS2 CLANGARM64). Bob, the package manager, is separate and has its own four workflows.</p>
 <p>See the <strong>Windows support</strong> section of <a href="https://github.com/andy64lol/Lynxer/blob/main/todo.md">../todo</a> for the tracked items.</p>
     </main>
 </div>

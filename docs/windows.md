@@ -129,8 +129,8 @@ out of `LYNXER_RUST_MODULE_NAMES`.
   definition and the DLL-search-path lookup are still to do.
 
 Both Windows jobs are **required** (no `continue-on-error`):
-`.github/workflows/build-lynxer-windows-amd.yml` (MSYS2 MINGW64) and
-`.github/workflows/build-lynxer-windows-arm.yml` (MSYS2 CLANGARM64). Bob, the
+`.github/workflows/build-lynxer-windows-amd64.yml` (MSYS2 MINGW64) and
+`.github/workflows/build-lynxer-windows-arm64.yml` (MSYS2 CLANGARM64). Bob, the
 package manager, is separate and has its own four workflows.
 
 See the **Windows support** section of [../todo.md](../todo.md) for the tracked

@@ -230,9 +230,9 @@ surface stays a documented boundary in
   call is skipped when the stream is not a console.~~
 - [x] ~~**Tests and CI.** Both Windows jobs are required (no
   `continue-on-error`):
-  [.github/workflows/build-lynxer-windows-amd.yml](.github/workflows/build-lynxer-windows-amd.yml)
+  [.github/workflows/build-lynxer-windows-amd64.yml](.github/workflows/build-lynxer-windows-amd64.yml)
   (MSYS2 MINGW64) and
-  [.github/workflows/build-lynxer-windows-arm.yml](.github/workflows/build-lynxer-windows-arm.yml)
+  [.github/workflows/build-lynxer-windows-arm64.yml](.github/workflows/build-lynxer-windows-arm64.yml)
   (MSYS2 CLANGARM64). Every skipped module and fixture is listed in
   [docs/windows.md](docs/windows.md), and Bob has its own four workflows.~~
 - [x] ~~**Documentation.** `docs/windows.md` records the port, its exclusions and

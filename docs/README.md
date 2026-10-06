@@ -91,8 +91,8 @@ The root `Makefile` builds both implementations; `make` alone builds everything.
    self-check.
 5. The bundled-executable, `--include`, and bytecode-removal checks.
 
-Both Lynxer CI workflows (`.github/workflows/build-lynxer-amd.yml` and
-`build-lynxer-arm.yml`) run `make testLynxer LYNXER_SKIP_DISPLAY=1`, which
+Both Lynxer CI workflows (`.github/workflows/build-lynxer-linux-amd64.yml` and
+`build-lynxer-linux-arm64.yml`) run `make testLynxer LYNXER_SKIP_DISPLAY=1`, which
 drops the fixtures that need a display or an audio device (a CI runner has
 neither, and the graphics backend crashes without a display).
 

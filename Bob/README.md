@@ -255,8 +255,8 @@ built binary natively (no MSYS2 on `PATH`) and checking it writes
 `bob\bob.toml`.
 
 Bob has its own CI, separate from the Lynxer jobs: four workflows
-(`build-bob-amd.yml`, `build-bob-arm.yml`, `build-bob-windows-amd.yml`,
-`build-bob-windows-arm.yml`) build it and run the self-check on Linux and
+(`build-bob-linux-amd64.yml`, `build-bob-linux-arm64.yml`, `build-bob-windows-amd64.yml`,
+`build-bob-windows-arm64.yml`) build it and run the self-check on Linux and
 Windows, AMD64 and ARM64. They are scoped to `Bob/**`, so a Lynxer-only change
 does not run them, and a Bob-only change does not run the Lynxer ones.
 

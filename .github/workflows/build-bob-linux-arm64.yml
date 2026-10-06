@@ -1,4 +1,4 @@
-name: Build Bob on ARM64
+name: Build Bob on Linux ARM64
 
 # Bob is the Lynxer package manager, a separate Rust component (see
 # Bob/README.md). It has its own workflows and is no longer built by the Lynxer
@@ -13,7 +13,7 @@ on:
 
 jobs:
   build:
-    name: Build and self-check Bob on ARM64
+    name: Build and self-check Bob on Linux ARM64
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
 
