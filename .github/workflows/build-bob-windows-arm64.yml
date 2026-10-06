@@ -55,7 +55,7 @@ jobs:
           Push-Location $dir
           & $bob --ver
           & $bob --init
-          & $bob --init --module
+          & $bob --init-module
           foreach ($file in @("bob\bob.toml", "bob\bob-lock.toml", "module.toml", "src\main.lynx")) {
             if (-not (Test-Path $file)) { throw "bob did not create $file" }
           }

@@ -137,7 +137,8 @@
 <tr><th>Command</th><th>Effect</th></tr>
 <tr><td><code>bob --ver</code></td><td>Prints the Bob version and the Lynxer version it supports.</td></tr>
 <tr><td><code>bob --init</code></td><td>Creates <code>bob/bob.toml</code>, <code>bob/bob-lock.toml</code> and an empty <code>bob/packages/</code>.</td></tr>
-<tr><td><code>bob --init --module</code></td><td>Creates <code>module.toml</code> and <code>src/main.lynx</code> in a reusable module project.</td></tr>
+<tr><td><code>bob --init-module</code></td><td>Creates <code>module.toml</code> and <code>src/main.lynx</code> in a reusable module project.</td></tr>
+<tr><td><code>bob --install-exec</code></td><td>Installs the <code>bob</code> executable under the prefix (<code>BOB_PREFIX</code>; <code>/usr</code> on Unix, a per-user directory on Windows).</td></tr>
 <tr><td><code>bob publish</code></td><td>Validates the current module, packages it as a ZIP, and uploads it as a GitHub release asset.</td></tr>
 <tr><td><code>bob install &lt;name&gt; &lt;version&gt;</code></td><td>Resolves a package and downloads its release asset.</td></tr>
 <tr><td><code>bob registry add|list|config</code></td><td>Manage local package→repository mappings in <code>~/.bob/registry.json</code>.</td></tr>
@@ -145,17 +146,22 @@
 <tr><td><code>bob --help</code></td><td>Usage.</td></tr>
 </table>
 <pre><code>$ bob --ver
-bob 0.1.0
-supported lynxer 0.1.8.2
+bob 0.1.1
+supported lynxer 0.1.8.3
 
 $ bob --init
 Created bob/bob.toml
 Created bob/bob-lock.toml
 Created bob/packages/
 
-$ bob --init --module
+$ bob --init-module
 Created module.toml
 Created src/main.lynx</code></pre>
+<h2 id="installing-bob">Installing bob</h2>
+<p><code>bob --install-exec</code> copies the running <code>bob</code> into <code>&lt;prefix&gt;/bin</code> so it can be run from any directory. The prefix defaults to <code>/usr</code> on Unix and to a per-user directory (<code>%LOCALAPPDATA%\Programs\Bob</code>) on Windows; <code>BOB_PREFIX</code> overrides it, so a no-root install is:</p>
+<pre><code>$ BOB_PREFIX=&quot;$HOME/.local&quot; bob --install-exec
+Installed /home/you/.local/bin/bob</code></pre>
+<p>It prints a reminder to add the directory to <code>PATH</code> only when it is not already there. On Unix the installed binary is marked executable; on Windows it is copied (symlinks would need elevation).</p>
 <h2 id="configuration">Configuration</h2>
 <p>Bob reads two settings, stored in <code>~/.bob/config.json</code>:</p>
 <table>

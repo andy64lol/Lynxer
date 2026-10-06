@@ -19,7 +19,8 @@ Build it with `make buildBob` (or `make -C Bob`) and run
 | --- | --- |
 | `bob --ver` | Prints the Bob version and the Lynxer version it supports. |
 | `bob --init` | Creates `bob/bob.toml`, `bob/bob-lock.toml` and an empty `bob/packages/`. |
-| `bob --init --module` | Creates `module.toml` and `src/main.lynx` in a reusable module project. |
+| `bob --init-module` | Creates `module.toml` and `src/main.lynx` in a reusable module project. |
+| `bob --install-exec` | Installs the `bob` executable under the prefix (`BOB_PREFIX`; `/usr` on Unix, a per-user directory on Windows). |
 | `bob publish` | Validates the current module, packages it as a ZIP, and uploads it as a GitHub release asset. |
 | `bob install <name> <version>` | Resolves a package and downloads its release asset. |
 | `bob registry add\|list\|config` | Manage local package→repository mappings in `~/.bob/registry.json`. |
@@ -28,18 +29,34 @@ Build it with `make buildBob` (or `make -C Bob`) and run
 
 ```console
 $ bob --ver
-bob 0.1.0
-supported lynxer 0.1.8.2
+bob 0.1.1
+supported lynxer 0.1.8.3
 
 $ bob --init
 Created bob/bob.toml
 Created bob/bob-lock.toml
 Created bob/packages/
 
-$ bob --init --module
+$ bob --init-module
 Created module.toml
 Created src/main.lynx
 ```
+
+## Installing bob
+
+`bob --install-exec` copies the running `bob` into `<prefix>/bin` so it can be
+run from any directory. The prefix defaults to `/usr` on Unix and to a per-user
+directory (`%LOCALAPPDATA%\Programs\Bob`) on Windows; `BOB_PREFIX` overrides it,
+so a no-root install is:
+
+```console
+$ BOB_PREFIX="$HOME/.local" bob --install-exec
+Installed /home/you/.local/bin/bob
+```
+
+It prints a reminder to add the directory to `PATH` only when it is not already
+there. On Unix the installed binary is marked executable; on Windows it is
+copied (symlinks would need elevation).
 
 ## Configuration
 

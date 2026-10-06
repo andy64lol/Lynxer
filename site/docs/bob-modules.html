@@ -133,7 +133,7 @@
 <pre><code>modules/foo/
   module.toml        # [module] name, version, edition, entry
   src/main.lynx      # the module source</code></pre>
-<p>The same directory is what <code>bob --init --module</code> scaffolds and what <code>bob publish</code> uploads.</p>
+<p>The same directory is what <code>bob --init-module</code> scaffolds and what <code>bob publish</code> uploads.</p>
 <h2 id="the-manifest">The manifest</h2>
 <p><code>module.toml</code> carries the metadata the registry and the interpreter both use:</p>
 <pre><code>[module]
@@ -166,8 +166,8 @@ global main(){}</code></pre>
 <pre><code>global setup(){ import(&quot;foo&quot;); }
 global main(){ println(global.foo.foo()); }   // foo bar!</code></pre>
 <h2 id="scaffolding">Scaffolding</h2>
-<p><code>bob --init --module</code> writes <code>module.toml</code> and <code>src/main.lynx</code> in the current directory:</p>
-<pre><code>$ bob --init --module
+<p><code>bob --init-module</code> writes <code>module.toml</code> and <code>src/main.lynx</code> in the current directory:</p>
+<pre><code>$ bob --init-module
 Created module.toml
 Created src/main.lynx</code></pre>
 <h2 id="published-archive">Published archive</h2>
@@ -179,7 +179,7 @@ Created src/main.lynx</code></pre>
 <p>The release is tagged with the module version and the asset is named <code>{name}-{version}.zip</code>. Bob validates before upload: the name matches, the version is canonical semantic versioning, source paths stay under <code>src/</code> (no traversal, no symbolic links), and the archive stays below the size and file-count limits.</p>
 <h2 id="worked-example-foo">Worked example: <code>foo</code></h2>
 <pre><code># publish
-$ bob --init --module          # then edit src/main.lynx to add global foo()
+$ bob --init-module          # then edit src/main.lynx to add global foo()
 $ GITHUB_TOKEN=... bob publish
 Published foo@0.1.0(sha256:fTCAq0Eq...=)     # release 0.1.0, asset foo-0.1.0.zip
 

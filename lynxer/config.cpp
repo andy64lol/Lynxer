@@ -115,7 +115,7 @@ const Config& Config::instance() {
 Config::Config() {
     // Compiled-in copy of lynxer.config; the external file overrides these.
     setDefault("name", "Lynxer");
-    setDefault("version", "0.1.8.2");
+    setDefault("version", "0.1.8.3");
     setDefault("version.line", "Lynxer {0}");
     setDefault("error.file_not_found", "lynxer: file not found: '{0}'");
     setDefault("error.could_not_read", "lynxer: could not read '{0}': {1}");

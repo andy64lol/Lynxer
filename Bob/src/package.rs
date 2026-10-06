@@ -78,7 +78,7 @@ fn archive_current_module() -> Result<(String, String, Vec<u8>), String> {
         env::current_dir().map_err(|error| format!("cannot read current directory: {error}"))?;
     let manifest_path = root.join("module.toml");
     let manifest = fs::read_to_string(&manifest_path)
-        .map_err(|_| "module.toml not found; run bob --init --module first".to_string())?;
+        .map_err(|_| "module.toml not found; run bob --init-module first".to_string())?;
     if manifest.len() > MAX_MANIFEST_BYTES {
         return Err("module.toml exceeds the 64 KiB registry limit".to_string());
     }

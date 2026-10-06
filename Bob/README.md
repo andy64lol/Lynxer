@@ -29,7 +29,7 @@ to `index.lynx`, then `main.lynx`). See [../docs/modules.md](../docs/modules.md)
   main.lynx            # global setup(){ import("foo"); }
 ```
 
-`bob --init --module` writes that same `module.toml` and `src/main.lynx` (as a
+`bob --init-module` writes that same `module.toml` and `src/main.lynx` (as a
 standalone module project), and `bob publish` packs them. The manifest's
 `entry` is exactly what the interpreter reads when the module is installed under
 `modules/<name>/`.
@@ -40,7 +40,8 @@ standalone module project), and `bob publish` packs them. The manifest's
 | --- | --- |
 | `bob --ver` | Prints the Bob version and the Lynxer version it supports. |
 | `bob --init` | Creates `bob/bob.toml`, `bob/bob-lock.toml` and an empty `bob/packages/`. |
-| `bob --init --module` | Creates `module.toml` and `src/main.lynx` in a reusable module project. |
+| `bob --init-module` | Creates `module.toml` and `src/main.lynx` in a reusable module project. |
+| `bob --install-exec` | Installs the `bob` executable under the prefix (`BOB_PREFIX`; `/usr` on Unix, a per-user directory on Windows). |
 | `bob publish` | Validates the current module, packages it as a ZIP, and uploads it as a GitHub release asset. |
 | `bob install <name> <version>` | Resolves a package and downloads its release asset. |
 | `bob registry add\|list\|config` | Manage local package→repository mappings in `~/.bob/registry.json`. |
@@ -49,17 +50,20 @@ standalone module project), and `bob publish` packs them. The manifest's
 
 ```console
 $ bob --ver
-bob 0.1.0
-supported lynxer 0.1.8.2
+bob 0.1.1
+supported lynxer 0.1.8.3
 
 $ bob --init
 Created bob/bob.toml
 Created bob/bob-lock.toml
 Created bob/packages/
 
-$ bob --init --module
+$ bob --init-module
 Created module.toml
 Created src/main.lynx
+
+$ bob --install-exec
+Installed /usr/bin/bob
 ```
 
 ## Project layout
@@ -78,7 +82,7 @@ manifest and lock file read the way a Rust developer expects.
 
 ## Module projects
 
-`bob --init --module` scaffolds a reusable module instead of an application:
+`bob --init-module` scaffolds a reusable module instead of an application:
 
 ```text
 module.toml      the module manifest ([module], [dependencies])
@@ -201,7 +205,7 @@ Publishing and installing the `foo` module end to end:
 
 ```console
 # 1. scaffold and edit the module
-$ bob --init --module
+$ bob --init-module
 $ cat src/main.lynx          # global foo() -> str { return "foo bar!"; }
 
 # 2. publish it as a GitHub release

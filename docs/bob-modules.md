@@ -11,7 +11,7 @@ modules/foo/
   src/main.lynx      # the module source
 ```
 
-The same directory is what `bob --init --module` scaffolds and what `bob
+The same directory is what `bob --init-module` scaffolds and what `bob
 publish` uploads.
 
 ## The manifest
@@ -66,11 +66,11 @@ global main(){ println(global.foo.foo()); }   // foo bar!
 
 ## Scaffolding
 
-`bob --init --module` writes `module.toml` and `src/main.lynx` in the current
+`bob --init-module` writes `module.toml` and `src/main.lynx` in the current
 directory:
 
 ```console
-$ bob --init --module
+$ bob --init-module
 Created module.toml
 Created src/main.lynx
 ```
@@ -96,7 +96,7 @@ file-count limits.
 
 ```console
 # publish
-$ bob --init --module          # then edit src/main.lynx to add global foo()
+$ bob --init-module          # then edit src/main.lynx to add global foo()
 $ GITHUB_TOKEN=... bob publish
 Published foo@0.1.0(sha256:fTCAq0Eq...=)     # release 0.1.0, asset foo-0.1.0.zip
 

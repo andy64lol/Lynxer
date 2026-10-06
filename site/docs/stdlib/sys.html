@@ -10,9 +10,12 @@
 <body>
 
 <header>
-    <div class="header-content">
-        <h1><a href="../../index.html">Lynxer</a></h1>
-        <p>Documentation</p>
+    <div class="wrap header-inner">
+        <img class="logo" src="../../assets/lynxer.png" alt="Lynxer logo" width="48" height="48">
+        <div class="header-text">
+            <h1><a href="../../index.html">Lynxer</a></h1>
+            <p>Documentation</p>
+        </div>
     </div>
 </header>
 
@@ -59,6 +62,13 @@
 <li><a href="../filesystem.html">filesystem</a></li>
 <li><a href="../networking.html">networking</a></li>
 <li><a href="../process.html">process</a></li>
+</ul>
+<h3 class="sidebar-group-title">Packaging</h3><ul class="sidebar-group">
+<li><a href="../bob.html">bob</a></li>
+<li><a href="../bob-modules.html">bob-modules</a></li>
+<li><a href="../bob-registry.html">bob-registry</a></li>
+<li><a href="../bob-index.html">bob-index</a></li>
+<li><a href="../bob-accounts.html">bob-accounts</a></li>
 </ul>
 <h3 class="sidebar-group-title">Reference</h3><ul class="sidebar-group">
 <li><a href="../legacy-surface.html">legacy-surface</a></li>
@@ -132,7 +142,7 @@
 <tr><td><code>uptime</code></td><td><code>() -&gt; int</code></td><td>Seconds since boot (<code>0</code> when unavailable)</td></tr>
 <tr><td><code>bootTime</code></td><td><code>() -&gt; int</code></td><td>Boot time as a Unix timestamp (<code>0</code> when unavailable)</td></tr>
 <tr><td><code>loadAverage</code></td><td><code>() -&gt; str</code></td><td>JSON array <code>[1m, 5m, 15m]</code>; <code>[]</code> when unavailable</td></tr>
-<tr><td><code>version</code></td><td><code>() -&gt; str</code></td><td>Lynxer version, e.g. <code>Lynxer 0.1.8.2</code></td></tr>
+<tr><td><code>version</code></td><td><code>() -&gt; str</code></td><td>Lynxer version, e.g. <code>Lynxer 0.1.8.3</code></td></tr>
 <tr><td><code>versionInfo</code></td><td><code>() -&gt; str</code></td><td>JSON <code>{major, minor, micro, patch, releaselevel, serial}</code></td></tr>
 <tr><td><code>implementation</code></td><td><code>() -&gt; str</code></td><td><code>Lynxer</code></td></tr>
 <tr><td><code>apiVersion</code></td><td><code>() -&gt; str</code></td><td><code>0.1</code></td></tr>

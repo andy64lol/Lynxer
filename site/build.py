@@ -27,50 +27,6 @@ OUT = SITE / "docs"
 # Page groups for the sidebar. Paths are relative to docs/.
 
 # List of all pages to build (Markdown files in docs/)
-PAGES_LIST = [
-    ("README.md", "index.html"),
-    ("CLI.md", "CLI.html"),
-    ("async.md", "async.html"),
-    ("bob-accounts.md", "bob-accounts.html"),
-    ("bob-index.md", "bob-index.html"),
-    ("bob-modules.md", "bob-modules.html"),
-    ("bob-registry.md", "bob-registry.html"),
-    ("bob.md", "bob.html"),
-    ("builtins.md", "builtins.html"),
-    ("classes.md", "classes.html"),
-    ("codeblocks.md", "codeblocks.html"),
-    ("conditionals.md", "conditionals.html"),
-    ("embedding.md", "embedding.html"),
-    ("enums.md", "enums.html"),
-    ("extending.md", "extending.html"),
-    ("filesystem.md", "filesystem.html"),
-    ("functions.md", "functions.html"),
-    ("importAs.md", "importAs.html"),
-    ("install.md", "install.html"),
-    ("language.md", "language.html"),
-    ("legacy-surface.md", "legacy-surface.html"),
-    ("limitations.md", "limitations.html"),
-    ("lists.md", "lists.html"),
-    ("loops.md", "loops.html"),
-    ("macros.md", "macros.html"),
-    ("modules.md", "modules.html"),
-    ("native-memory.md", "native-memory.html"),
-    ("native-module-abi.md", "native-module-abi.html"),
-    ("native-modules.md", "native-modules.html"),
-    ("networking.md", "networking.html"),
-    ("operators.md", "operators.html"),
-    ("process.md", "process.html"),
-    ("removed-features.md", "removed-features.html"),
-    ("stdlib-contracts.md", "stdlib-contracts.html"),
-    ("structs.md", "structs.html"),
-    ("syscalls.md", "syscalls.html"),
-    ("tuples.md", "tuples.html"),
-    ("types.md", "types.html"),
-    ("vargroups.md", "vargroups.html"),
-    ("windows.md", "windows.html"),
-    ("windows-api.md", "windows-api.html"),
-]
-
 GROUPS: list[tuple[str, list[str]]] = [
     ("Overview", ["README.md"]),
     ("Getting started", ["install.md", "CLI.md"]),
@@ -459,9 +415,7 @@ def module_summary(module: str) -> str:
 
 
 def main() -> int:
-    # Use the predefined list of pages
-    PAGES = PAGES_LIST
-
+    # Every page: the grouped docs plus the generated stdlib reference pages.
     count = 0
     search_records = []
     for md_rel, out_rel in PAGES:

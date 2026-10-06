@@ -35,13 +35,22 @@ test: $(TARGET)
 	test -d bob/packages || { echo "bob --init did not create bob/packages"; exit 1; }
 	@rm -rf /tmp/bob-selfcheck
 	@rm -rf /tmp/bob-module && mkdir -p /tmp/bob-module
-	@cd /tmp/bob-module && out="$$($(CURDIR)/$(TARGET) --init --module)"; \
-	printf '%s\n' "$$out" | grep -q 'Created module.toml' || { echo "bob --init --module did not report module.toml"; exit 1; }; \
-	printf '%s\n' "$$out" | grep -q 'Created src/main.lynx' || { echo "bob --init --module did not report src/main.lynx"; exit 1; }; \
+	@cd /tmp/bob-module && out="$$($(CURDIR)/$(TARGET) --init-module)"; \
+	printf '%s\n' "$$out" | grep -q 'Created module.toml' || { echo "bob --init-module did not report module.toml"; exit 1; }; \
+	printf '%s\n' "$$out" | grep -q 'Created src/main.lynx' || { echo "bob --init-module did not report src/main.lynx"; exit 1; }; \
 	grep -q 'name = "bob-module"' module.toml || { echo "module manifest is missing the module name"; exit 1; }; \
 	grep -q 'entry = "src/main.lynx"' module.toml || { echo "module manifest is missing its entry"; exit 1; }; \
 	grep -q 'global setup' src/main.lynx || { echo "module source is missing global setup()"; exit 1; }
 	@rm -rf /tmp/bob-module
+	@rm -rf /tmp/bob-install && mkdir -p /tmp/bob-install
+	@cd /tmp/bob-install && out="$$(BOB_PREFIX=prefix $(CURDIR)/$(TARGET) --install-exec)"; \
+	printf '%s\n' "$$out" | grep -q 'Installed' || { echo "bob --install-exec did not report an install"; exit 1; }; \
+	if test -x prefix/bin/bob; then installed=prefix/bin/bob; else installed=prefix/bin/bob.exe; fi; \
+	test -x "$$installed" || { echo "bob --install-exec did not install an executable"; exit 1; }; \
+	"$$installed" --ver > /dev/null || { echo "the installed bob does not run"; exit 1; }
+	@cd /tmp/bob-install && BOB_PREFIX=prefix $(CURDIR)/$(TARGET) --install-exec bogus > /dev/null 2>&1 && { echo "bob --install-exec accepted an argument"; exit 1; }; \
+	true
+	@rm -rf /tmp/bob-install
 	@rm -rf /tmp/bob-config && mkdir -p /tmp/bob-config
 	@BOB_CONFIG_DIR=/tmp/bob-config $(CURDIR)/$(TARGET) config set rest-api http://localhost:3000 > /dev/null
 	@BOB_CONFIG_DIR=/tmp/bob-config $(CURDIR)/$(TARGET) config set github-token ghp_secretvalue123 > /dev/null

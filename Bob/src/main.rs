@@ -19,7 +19,7 @@ const BOB_VERSION: &str = env!("CARGO_PKG_VERSION");
 /// The Lynxer version bob is written against. Hard-coded while bob stays
 /// separate from the interpreter; `todo.md` tracks deriving it from the Lynxer
 /// build so the two cannot drift.
-const SUPPORTED_LYNXER_VERSION: &str = "0.1.8.2";
+const SUPPORTED_LYNXER_VERSION: &str = "0.1.8.3";
 
 /// The project-relative directory that holds the manifest, lock file and,
 /// once installation is implemented, the downloaded packages.
@@ -34,6 +34,11 @@ const MODULE_FILE: &str = "module.toml";
 const SOURCE_DIRECTORY: &str = "src";
 const SOURCE_FILE: &str = "main.lynx";
 
+/// `--install-exec` writes the bob executable under this prefix; the
+/// `BOB_PREFIX` environment variable overrides the platform default, the way
+/// `LYNXER_PREFIX` does for Lynxer.
+const PREFIX_ENVIRONMENT: &str = "BOB_PREFIX";
+
 fn main() -> ExitCode {
     let arguments: Vec<String> = env::args().skip(1).collect();
     match arguments.first().map(String::as_str) {
@@ -46,6 +51,8 @@ fn main() -> ExitCode {
             ExitCode::SUCCESS
         }
         Some("--init") => init(&arguments[1..]),
+        Some("--init-module") => init_module(&arguments[1..]),
+        Some("--install-exec") => install_exec(&arguments[1..]),
         Some("publish") => publish(&arguments[1..]),
         Some("install") => install(&arguments[1..]),
         Some("registry") => registry(&arguments[1..]),
@@ -71,7 +78,8 @@ fn print_usage() {
     println!(
         "  bob --init             Create bob/bob.toml and bob/bob-lock.toml in this directory"
     );
-    println!("  bob --init --module    Create module.toml and src/main.lynx in this directory");
+    println!("  bob --init-module      Create module.toml and src/main.lynx in this directory");
+    println!("  bob --install-exec     Install the bob executable under the prefix (BOB_PREFIX)");
     println!("  bob publish            Package and upload this module to GitHub Releases");
     println!("  bob install <name> <version>  Install a module from GitHub Releases");
     println!("  bob registry add <name> <owner> <repository>  Add a custom package mapping");
@@ -125,6 +133,147 @@ fn install(rest: &[String]) -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+/// `--install-exec` installs the running bob binary, mirroring `lynxer
+/// --install`. bob is self-contained, so it is copied straight into
+/// `<prefix>/bin` (`BOB_PREFIX` overrides the platform default) where it can be
+/// run from any directory.
+fn install_exec(rest: &[String]) -> ExitCode {
+    if let Some(other) = rest.first() {
+        eprintln!("bob: unknown option '{other}' for --install-exec");
+        eprintln!("bob: usage: bob --install-exec");
+        return ExitCode::FAILURE;
+    }
+    match install_self() {
+        Ok(message) => {
+            println!("{message}");
+            ExitCode::SUCCESS
+        }
+        Err(error) => {
+            eprintln!("bob: install failed: {error}");
+            #[cfg(not(windows))]
+            eprintln!("bob: re-run with permission to write the prefix (for example with sudo)");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+fn install_self() -> Result<String, String> {
+    let source = env::current_exe()
+        .map_err(|error| format!("cannot locate the running executable: {error}"))?;
+    let prefix = install_prefix();
+    let bin_directory = prefix.join("bin");
+    let target = bin_directory.join(executable_file_name());
+
+    fs::create_dir_all(&bin_directory)
+        .map_err(|error| format!("cannot create '{}': {error}", bin_directory.display()))?;
+
+    // Re-installing over the same file (including the running one) is a no-op.
+    if !same_file(&source, &target) {
+        fs::copy(&source, &target).map_err(|error| {
+            format!(
+                "cannot copy '{}' to '{}': {error}",
+                source.display(),
+                target.display()
+            )
+        })?;
+    }
+    set_executable(&target)?;
+
+    let mut message = format!("Installed {}", target.display());
+    if !directory_on_path(&bin_directory) {
+        message.push_str(&format!(
+            "\nAdd {} to PATH to run `bob` from any directory",
+            bin_directory.display()
+        ));
+    }
+    Ok(message)
+}
+
+/// The prefix `--install-exec` writes into: `BOB_PREFIX` when set, else the
+/// platform default.
+fn install_prefix() -> PathBuf {
+    if let Ok(value) = env::var(PREFIX_ENVIRONMENT) {
+        if !value.is_empty() {
+            return PathBuf::from(value);
+        }
+    }
+    default_install_prefix()
+}
+
+/// `/usr` on Unix; on Windows a per-user directory that needs no elevation,
+/// the way Windows tools such as VS Code install themselves by default.
+fn default_install_prefix() -> PathBuf {
+    #[cfg(windows)]
+    {
+        if let Ok(local) = env::var("LOCALAPPDATA") {
+            if !local.is_empty() {
+                return PathBuf::from(local).join("Programs").join("Bob");
+            }
+        }
+        if let Ok(profile) = env::var("USERPROFILE") {
+            if !profile.is_empty() {
+                return PathBuf::from(profile).join("Bob");
+            }
+        }
+        PathBuf::from("Bob")
+    }
+    #[cfg(not(windows))]
+    {
+        PathBuf::from("/usr")
+    }
+}
+
+fn executable_file_name() -> &'static str {
+    if cfg!(windows) {
+        "bob.exe"
+    } else {
+        "bob"
+    }
+}
+
+fn same_file(left: &Path, right: &Path) -> bool {
+    match (fs::canonicalize(left), fs::canonicalize(right)) {
+        (Ok(left), Ok(right)) => left == right,
+        _ => false,
+    }
+}
+
+fn set_executable(path: &Path) -> Result<(), String> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(path, fs::Permissions::from_mode(0o755))
+            .map_err(|error| format!("cannot mark '{}' executable: {error}", path.display()))?;
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = path;
+    }
+    Ok(())
+}
+
+/// True when `directory` is one of the entries in `PATH`, so install only tells
+/// the user to update `PATH` when it actually needs to.
+fn directory_on_path(directory: &Path) -> bool {
+    let path = match env::var("PATH") {
+        Ok(value) => value,
+        Err(_) => return false,
+    };
+    let separator = if cfg!(windows) { ';' } else { ':' };
+    let wanted = fs::canonicalize(directory).ok();
+    for entry in path.split(separator) {
+        if entry.is_empty() {
+            continue;
+        }
+        if let Ok(candidate) = fs::canonicalize(entry) {
+            if Some(&candidate) == wanted.as_ref() {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 fn registry(rest: &[String]) -> ExitCode {
@@ -316,31 +465,25 @@ fn print_versions() {
     println!("supported lynxer {SUPPORTED_LYNXER_VERSION}");
 }
 
-/// `--init` scaffolding. `--module` selects a reusable module instead of an
-/// application-style project.
+/// `--init` scaffolding: an application-style project.
 fn init(rest: &[String]) -> ExitCode {
-    let mut module = false;
-    for argument in rest {
-        match argument.as_str() {
-            "--module" => module = true,
-            other => {
-                eprintln!("bob: unknown option '{other}' for --init");
-                eprintln!("bob: usage: bob --init [--module]");
-                return ExitCode::FAILURE;
-            }
-        }
+    if let Some(other) = rest.first() {
+        eprintln!("bob: unknown option '{other}' for --init");
+        eprintln!("bob: usage: bob --init");
+        return ExitCode::FAILURE;
     }
-    if module {
-        init_module()
-    } else {
-        init_project()
-    }
+    init_project()
 }
 
 /// The module scaffold: `module.toml` plus `src/main.lynx`. A module is
 /// imported by name rather than run, so it declares `global setup(){}` and
 /// exported `global` functions, with no `main()`.
-fn init_module() -> ExitCode {
+fn init_module(rest: &[String]) -> ExitCode {
+    if let Some(other) = rest.first() {
+        eprintln!("bob: unknown option '{other}' for --init-module");
+        eprintln!("bob: usage: bob --init-module");
+        return ExitCode::FAILURE;
+    }
     let directory = match env::current_dir() {
         Ok(directory) => directory,
         Err(error) => {

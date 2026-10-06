@@ -33,7 +33,7 @@ using RegisterConstant = int (*)(const char*, std::int64_t);
 using RegisterType = int (*)(const char*, const char*);
 
 // Keep in sync with the default `version` in lynxer/lynxer.config.
-#define LYNXER_VERSION_TEXT "Lynxer 0.1.8.2"
+#define LYNXER_VERSION_TEXT "Lynxer 0.1.8.3"
 #define LYNXER_VERSION_MAJOR 0
 #define LYNXER_VERSION_MINOR 1
 #define LYNXER_VERSION_MICRO 8
