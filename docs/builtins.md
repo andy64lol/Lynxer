@@ -67,7 +67,7 @@ so `bytesToStr` accepts any buffer (including one that is not valid UTF-8).
 | `listToBytes(list)` | Encodes a list of numbers as little-endian `f64` `bytes` |
 | `bytesToList(bytes)` | Decodes little-endian `f64` `bytes` into a list of `float` |
 
-`bytes + bytes` concatenates, and `is` / `==` compare contents.
+`bytes + bytes` concatenates, and `is` compares contents.
 `listToBytes` / `bytesToList` are the numeric-list bridge the `math` module
 uses — see [stdlib/math.md](stdlib/math.md).
 

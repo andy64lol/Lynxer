@@ -176,7 +176,7 @@ println(async.greet(&quot;Ada&quot;));   // hi Ada</code></pre>
 <h2 id="threads-and-interleaving">Threads and interleaving</h2>
 <p><code>nativeThreadStart</code> runs a function on a worker thread (see <a href="builtins.html">builtins</a>). Because of the GIL, a worker evaluates only while the thread that holds the GIL is not evaluating — which is exactly what happens during joins, blocking sync waits, <code>asyncSleep</code>, <code>asyncPollWait</code>, and the explicit <code>nativeThreadYield(seconds?)</code>. So a program that wants a worker to make progress while the main body is doing other work can yield:</p>
 <pre><code>int handle = nativeThreadStart(global.worker, []);
-while (!done) { nativeThreadYield(0.01); }
+while (not done) { nativeThreadYield(0.01); }
 nativeThreadJoin(handle);</code></pre>
 <p>The GIL is deliberate: global state is not synchronized, so letting two threads evaluate at once would be a data race. The trade-off is that CPU-bound tasks do not run in parallel; use <code>nativeThreadYield</code> to interleave them.</p>
 <h2 id="differences-from-the-original">Differences from the original</h2>

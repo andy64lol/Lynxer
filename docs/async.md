@@ -91,7 +91,7 @@ progress while the main body is doing other work can yield:
 
 ```lynx
 int handle = nativeThreadStart(global.worker, []);
-while (!done) { nativeThreadYield(0.01); }
+while (not done) { nativeThreadYield(0.01); }
 nativeThreadJoin(handle);
 ```
 
