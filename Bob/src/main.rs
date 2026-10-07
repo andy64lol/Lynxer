@@ -10,11 +10,31 @@ mod package;
 use package::{Registry, RegistryEntry};
 use std::env;
 use std::fs;
+use std::fs::File;
+use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::process::ExitCode;
+use std::process::{Command, ExitCode};
+use toml::Value;
 
 /// The bob version, taken from `Cargo.toml`.
 const BOB_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// Parse the `bob.toml` file to get the project name.
+fn read_bob_toml(path: &Path) -> Result<String, String> {
+    let mut file = File::open(path).map_err(|error| format!("cannot open bob.toml: {error}"))?;
+    let mut contents = String::new();
+    file.read_to_string(&mut contents)
+        .map_err(|error| format!("cannot read bob.toml: {error}"))?;
+    let value: Value = contents
+        .parse()
+        .map_err(|error| format!("cannot parse bob.toml: {error}"))?;
+    value
+        .get("package")
+        .and_then(|v| v.get("name"))
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+        .ok_or("no 'name' field in bob.toml".to_string())
+}
 
 /// The Lynxer version bob is written against. Hard-coded while bob stays
 /// separate from the interpreter; `todo.md` tracks deriving it from the Lynxer
@@ -27,6 +47,38 @@ const BOB_DIRECTORY: &str = "bob";
 const MANIFEST_FILE: &str = "bob.toml";
 const LOCK_FILE: &str = "bob-lock.toml";
 const PACKAGES_DIRECTORY: &str = "packages";
+
+/// The module manifest template. `{name}` is the only placeholder, so the template stays
+/// a plain string and never has to escape Lynxer's braces.
+const MODULE_MANIFEST_TEMPLATE: &str = r#"# bob module manifest. Managed by bob; see bob/README.md.
+[module]
+name = "{name}"
+version = "0.1.0"
+edition = "2026"
+entry = "src/main.lynx"
+
+# Module dependencies will be installed under bob/packages/ once package
+# download and installation are implemented.
+[dependencies]
+"#;
+
+/// The module source skeleton, in the shape a pure Lynxer stdlib module uses:
+/// a `////` documentation header, an empty `global setup()`, and exported
+/// `global` functions.
+const MODULE_SOURCE_TEMPLATE: &str = r#"////
+{name}: a Lynxer module.
+Replace this header with what the module does; `lynxer --list-stdlibs` prints
+it for an installed module.
+////
+
+global setup(){}
+
+// Add two integers. Returns the sum.
+global add(int left, int right) -> int { return left + right; }
+
+// Greet someone by name. Returns the greeting.
+global greet(str who) -> str { return "Hello, " + who + "!"; }
+"#;
 
 /// A module project keeps its manifest at the root and its source under `src/`,
 /// the way Cargo lays out a crate.
@@ -56,6 +108,7 @@ fn main() -> ExitCode {
         Some("--uninstall-exec") => uninstall_exec(&arguments[1..]),
         Some("publish") => publish(&arguments[1..]),
         Some("install") => install(&arguments[1..]),
+        Some("run") => run(&arguments[1..]),
         Some("registry") => registry(&arguments[1..]),
         Some("config") => config_command(&arguments[1..]),
         Some(other) => {
@@ -82,8 +135,13 @@ fn print_usage() {
     println!("  bob --init-module      Create module.toml and src/main.lynx in this directory");
     println!("  bob --install-exec     Install the bob executable under the prefix (BOB_PREFIX)");
     println!("  bob --uninstall-exec   Remove the installed bob executable");
+    println!("  bob run [command]       Compile and run the project");
+    println!("                          If no command is specified, defaults to src/main.lynx");
+    println!(
+        "                          Custom run commands can be defined in bob.toml under [run]"
+    );
     println!("  bob publish            Package and upload this module to GitHub Releases");
-    println!("  bob install <name> <version>  Install a module from GitHub Releases");
+    println!("  bob install <name> <version>  Install dependencies from bob.toml");
     println!("  bob registry add <name> <owner> <repository>  Add a custom package mapping");
     println!("  bob registry list       List all package mappings (default and custom)");
     println!("  bob registry config     Configure custom package mappings interactively");
@@ -135,6 +193,74 @@ fn install(rest: &[String]) -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+fn run(rest: &[String]) -> ExitCode {
+    // Check if the project has a bob.toml file
+    let bob_toml = Path::new("bob.toml");
+    if !bob_toml.exists() {
+        eprintln!("bob: no 'bob.toml' found in the project directory");
+        eprintln!("bob: run this command from the root of a Lynxer project");
+        return ExitCode::FAILURE;
+    }
+
+    // Parse bob.toml to get the project name
+    let _project_name = match read_bob_toml(bob_toml) {
+        Ok(name) => name,
+        Err(error) => {
+            eprintln!("bob: failed to parse bob.toml: {error}");
+            return ExitCode::FAILURE;
+        }
+    };
+
+    // Determine the entry point
+    let entry_point = if !rest.is_empty() {
+        rest[0].clone()
+    } else {
+        "src/main.lynx".to_string()
+    };
+
+    // Check if the entry point exists
+    let entry_path = Path::new(&entry_point);
+    if !entry_path.exists() {
+        eprintln!("bob: entry point '{}' not found", entry_point);
+        return ExitCode::FAILURE;
+    }
+
+    // Compile the project using lynxer
+    let compile_status = Command::new("lynxer").arg("build").status();
+    if compile_status.is_err() {
+        eprintln!("bob: failed to compile");
+        return ExitCode::FAILURE;
+    }
+
+    if !compile_status.unwrap().success() {
+        eprintln!("bob: compilation failed");
+        return ExitCode::FAILURE;
+    }
+
+    // Execute the compiled binary
+    let binary_path = Path::new("./target/debug/bob");
+    if !binary_path.exists() {
+        eprintln!(
+            "bob: compiled binary not found at: {}",
+            binary_path.display()
+        );
+        return ExitCode::FAILURE;
+    }
+
+    let run_status = Command::new(&binary_path).status();
+    if run_status.is_err() {
+        eprintln!("bob: failed to execute");
+        return ExitCode::FAILURE;
+    }
+
+    if !run_status.unwrap().success() {
+        eprintln!("bob: execution failed");
+        return ExitCode::FAILURE;
+    }
+
+    ExitCode::SUCCESS
 }
 
 /// `--install-exec` installs the running bob binary, mirroring `lynxer
@@ -189,6 +315,15 @@ fn install_self() -> Result<String, String> {
             "\nAdd {} to PATH to run `bob` from any directory",
             bin_directory.display()
         ));
+    }
+    if let Some(shadow) = first_bob_on_path() {
+        if !same_file(&shadow, &target) {
+            message.push_str(&format!(
+                "\nbob: warning: '{}' is earlier on PATH and will still be used; \
+remove it or adjust PATH (or reinstall with matching BOB_PREFIX)",
+                shadow.display()
+            ));
+        }
     }
     Ok(message)
 }
@@ -280,6 +415,11 @@ fn directory_on_path(directory: &Path) -> bool {
 
 /// `--uninstall-exec` removes the executable `--install-exec` wrote, mirroring
 /// `lynxer --uninstall`.
+///
+/// When `BOB_PREFIX` is unset and nothing is at the default prefix, also remove
+/// the running binary if it looks like an install (`…/bin/bob`). That clears a
+/// leftover from a previous `BOB_PREFIX=$HOME/.local` install without requiring
+/// the user to remember the prefix.
 fn uninstall_exec(rest: &[String]) -> ExitCode {
     if let Some(other) = rest.first() {
         eprintln!("bob: unknown option '{other}' for --uninstall-exec");
@@ -293,7 +433,39 @@ fn uninstall_exec(rest: &[String]) -> ExitCode {
             ExitCode::SUCCESS
         }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            if env::var_os(PREFIX_ENVIRONMENT).is_none() {
+                match remove_running_install(&target) {
+                    Ok(Some(path)) => {
+                        println!("Removed {}", path.display());
+                        println!(
+                            "bob: note: removed the running install; next time pass the same \
+BOB_PREFIX you used with --install-exec"
+                        );
+                        return ExitCode::SUCCESS;
+                    }
+                    Ok(None) => {}
+                    Err(error) => {
+                        eprintln!("bob: could not remove {error}");
+                        #[cfg(not(windows))]
+                        eprintln!(
+                            "bob: re-run with permission to write the install directory \
+(for example with sudo)"
+                        );
+                        return ExitCode::FAILURE;
+                    }
+                }
+            }
             eprintln!("bob: nothing to uninstall at {}", target.display());
+            if env::var_os(PREFIX_ENVIRONMENT).is_some() {
+                eprintln!(
+                    "bob: --uninstall-exec must use the same BOB_PREFIX as --install-exec"
+                );
+            } else {
+                eprintln!(
+                    "bob: if you installed with BOB_PREFIX (for example \"$HOME/.local\"), \
+pass the same value to --uninstall-exec"
+                );
+            }
             ExitCode::FAILURE
         }
         Err(error) => {
@@ -303,6 +475,51 @@ fn uninstall_exec(rest: &[String]) -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+/// Remove the running bob when it looks installed (`…/bin/bob`) and is not the
+/// prefix path already tried. Returns `Ok(Some(path))` when a file was removed.
+fn remove_running_install(prefix_target: &Path) -> Result<Option<PathBuf>, String> {
+    let running = match env::current_exe() {
+        Ok(path) => path,
+        Err(_) => return Ok(None),
+    };
+    let running = fs::canonicalize(&running).unwrap_or(running);
+    if same_file(&running, prefix_target) || !looks_like_installed_bob(&running) {
+        return Ok(None);
+    }
+    fs::remove_file(&running).map_err(|error| {
+        format!("{}: {error}", running.display())
+    })?;
+    Ok(Some(running))
+}
+
+/// True for `<prefix>/bin/bob` (or `bob.exe`) layouts produced by `--install-exec`.
+fn looks_like_installed_bob(path: &Path) -> bool {
+    let file_name = path.file_name().and_then(|name| name.to_str());
+    if file_name != Some(executable_file_name()) {
+        return false;
+    }
+    path.parent()
+        .and_then(|parent| parent.file_name())
+        .and_then(|name| name.to_str())
+        == Some("bin")
+}
+
+/// The first `bob` executable found on `PATH`, if any.
+fn first_bob_on_path() -> Option<PathBuf> {
+    let path = env::var_os("PATH")?;
+    let name = executable_file_name();
+    for entry in env::split_paths(&path) {
+        if entry.as_os_str().is_empty() {
+            continue;
+        }
+        let candidate = entry.join(name);
+        if candidate.is_file() {
+            return Some(candidate);
+        }
+    }
+    None
 }
 
 fn registry(rest: &[String]) -> ExitCode {
@@ -801,38 +1018,6 @@ fn manifest_contents(name: &str) -> String {
     )
 }
 
-/// The module manifest. `{name}` is the only placeholder, so the template stays
-/// a plain string and never has to escape Lynxer's braces.
-const MODULE_MANIFEST_TEMPLATE: &str = r#"# bob module manifest. Managed by bob; see bob/README.md.
-[module]
-name = "{name}"
-version = "0.1.0"
-edition = "2026"
-entry = "src/main.lynx"
-
-# Module dependencies will be installed under bob/packages/ once package
-# download and installation are implemented.
-[dependencies]
-"#;
-
-/// The module source skeleton, in the shape a pure Lynxer stdlib module uses:
-/// a `////` documentation header, an empty `global setup()`, and exported
-/// `global` functions.
-const MODULE_SOURCE_TEMPLATE: &str = r#"////
-{name}: a Lynxer module.
-Replace this header with what the module does; `lynxer --list-stdlibs` prints
-it for an installed module.
-////
-
-global setup(){}
-
-// Add two integers. Returns the sum.
-global add(int left, int right) -> int { return left + right; }
-
-// Greet someone by name. Returns the greeting.
-global greet(str who) -> str { return "Hello, " + who + "!"; }
-"#;
-
 fn module_manifest_contents(name: &str) -> String {
     MODULE_MANIFEST_TEMPLATE.replace("{name}", name)
 }
@@ -855,5 +1040,5 @@ fn lock_contents(name: &str) -> String {
 /// A project-relative path for display. Always uses `/`, so bob's output is the
 /// same on Linux, macOS and Windows.
 fn relative(directory: &str, file: &str) -> String {
-    format!("{directory}/{file}")
+    format!("{}/{}", directory, file)
 }

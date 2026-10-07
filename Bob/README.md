@@ -49,7 +49,7 @@ reads once the module is installed under `modules/<name>/`.
 
 ```console
 $ bob --ver
-bob 0.1.1
+bob 0.1.2
 supported lynxer 0.1.8.3
 
 $ bob --init

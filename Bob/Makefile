@@ -54,6 +54,12 @@ test: $(TARGET)
 	test ! -e prefix/bin/bob && test ! -e prefix/bin/bob.exe || { echo "bob --uninstall-exec left the binary"; exit 1; }
 	@cd /tmp/bob-install && BOB_PREFIX=prefix $(CURDIR)/$(TARGET) --uninstall-exec > /dev/null 2>&1 && { echo "bob --uninstall-exec succeeded with nothing installed"; exit 1; }; \
 	true
+	@# A leftover install under a non-default prefix must still be removable by
+	@# invoking that binary without BOB_PREFIX (the stuck-on-PATH case).
+	@cd /tmp/bob-install && BOB_PREFIX=prefix $(CURDIR)/$(TARGET) --install-exec > /dev/null; \
+	if test -x prefix/bin/bob; then installed=prefix/bin/bob; else installed=prefix/bin/bob.exe; fi; \
+	"$$installed" --uninstall-exec > /dev/null || { echo "bob --uninstall-exec did not remove the running install"; exit 1; }; \
+	test ! -e "$$installed" || { echo "bob --uninstall-exec left the running install"; exit 1; }
 	@rm -rf /tmp/bob-install
 	@rm -rf /tmp/bob-config && mkdir -p /tmp/bob-config
 	@BOB_CONFIG_DIR=/tmp/bob-config $(CURDIR)/$(TARGET) config set rest-api http://localhost:3000 > /dev/null

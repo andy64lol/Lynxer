@@ -30,7 +30,7 @@ Build it with `make buildBob` (or `make -C Bob`) and run
 
 ```console
 $ bob --ver
-bob 0.1.1
+bob 0.1.2
 supported lynxer 0.1.8.3
 
 $ bob --init
