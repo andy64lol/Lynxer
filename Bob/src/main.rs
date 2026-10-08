@@ -39,7 +39,7 @@ fn read_bob_toml(path: &Path) -> Result<String, String> {
 /// The Lynxer version bob is written against. Hard-coded while bob stays
 /// separate from the interpreter; `todo.md` tracks deriving it from the Lynxer
 /// build so the two cannot drift.
-const SUPPORTED_LYNXER_VERSION: &str = "0.1.9.0";
+const SUPPORTED_LYNXER_VERSION: &str = "0.1.8.3";
 
 /// The project-relative directory that holds the manifest, lock file and,
 /// once installation is implemented, the downloaded packages.
