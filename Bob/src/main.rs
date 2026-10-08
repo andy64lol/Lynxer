@@ -17,7 +17,7 @@ use std::process::{Command, ExitCode};
 use toml::Value;
 
 /// The bob version, taken from `Cargo.toml`.
-const BOB_VERSION: &str = env!("CARGO_PKG_VERSION");
+const BOB_VERSION: &str = "0.1.3";
 
 /// Parse the `bob.toml` file to get the project name.
 fn read_bob_toml(path: &Path) -> Result<String, String> {
@@ -39,7 +39,7 @@ fn read_bob_toml(path: &Path) -> Result<String, String> {
 /// The Lynxer version bob is written against. Hard-coded while bob stays
 /// separate from the interpreter; `todo.md` tracks deriving it from the Lynxer
 /// build so the two cannot drift.
-const SUPPORTED_LYNXER_VERSION: &str = "0.1.8.3";
+const SUPPORTED_LYNXER_VERSION: &str = "0.1.9.0";
 
 /// The project-relative directory that holds the manifest, lock file and,
 /// once installation is implemented, the downloaded packages.
@@ -73,11 +73,8 @@ it for an installed module.
 
 global setup(){}
 
-// Add two integers. Returns the sum.
-global add(int left, int right) -> int { return left + right; }
-
-// Greet someone by name. Returns the greeting.
-global greet(str who) -> str { return "Hello, " + who + "!"; }
+// Main entry point for the module.
+global main(){ println("Hello world!"); }
 "#;
 
 /// A module project keeps its manifest at the root and its source under `src/`,
@@ -93,12 +90,12 @@ const PREFIX_ENVIRONMENT: &str = "BOB_PREFIX";
 
 fn main() -> ExitCode {
     let arguments: Vec<String> = env::args().skip(1).collect();
-    match arguments.first().map(String::as_str) {
-        Some("-h") | Some("--help") => {
+    match arguments.first().map(|s| s.as_str()) {
+        Some("--help") => {
             print_usage();
             ExitCode::SUCCESS
         }
-        Some("-V") | Some("--ver") | Some("--version") => {
+        Some("--ver") | Some("--version") => {
             print_versions();
             ExitCode::SUCCESS
         }
@@ -399,20 +396,27 @@ fn directory_on_path(directory: &Path) -> bool {
         Err(_) => return false,
     };
     let separator = if cfg!(windows) { ';' } else { ':' };
-    let wanted = fs::canonicalize(directory).ok();
+    let wanted = match fs::canonicalize(directory) {
+        Ok(w) => Some(w),
+        Err(_) => None,
+    };
     for entry in path.split(separator) {
         if entry.is_empty() {
             continue;
         }
-        if let Ok(candidate) = fs::canonicalize(entry) {
-            if Some(&candidate) == wanted.as_ref() {
-                return true;
+        let candidate_path = PathBuf::from(entry);
+        if let Ok(candidate) = fs::canonicalize(&candidate_path) {
+            if let Some(wanted_path) = &wanted {
+                if candidate == *wanted_path {
+                    return true;
+                }
             }
         }
     }
     false
 }
 
+/// `--uninstall-exec` removes the executable `--install-exec` wrote, mirroring
 /// `--uninstall-exec` removes the executable `--install-exec` wrote, mirroring
 /// `lynxer --uninstall`.
 ///
@@ -437,36 +441,26 @@ fn uninstall_exec(rest: &[String]) -> ExitCode {
                 match remove_running_install(&target) {
                     Ok(Some(path)) => {
                         println!("Removed {}", path.display());
-                        println!(
-                            "bob: note: removed the running install; next time pass the same \
-BOB_PREFIX you used with --install-exec"
-                        );
-                        return ExitCode::SUCCESS;
+                        println!("bob: note: removed the running install; next time pass the same BOB_PREFIX you used with --install-exec");
+                        ExitCode::SUCCESS
                     }
-                    Ok(None) => {}
+                    Ok(None) => {
+                        eprintln!("bob: nothing to uninstall at {}", target.display());
+                        eprintln!("bob: if you installed with BOB_PREFIX (for example \"$HOME/.local\"), pass the same value to --uninstall-exec");
+                        ExitCode::FAILURE
+                    }
                     Err(error) => {
                         eprintln!("bob: could not remove {error}");
                         #[cfg(not(windows))]
-                        eprintln!(
-                            "bob: re-run with permission to write the install directory \
-(for example with sudo)"
-                        );
-                        return ExitCode::FAILURE;
+                        eprintln!("bob: re-run with permission to write the install directory (for example with sudo)");
+                        ExitCode::FAILURE
                     }
                 }
-            }
-            eprintln!("bob: nothing to uninstall at {}", target.display());
-            if env::var_os(PREFIX_ENVIRONMENT).is_some() {
-                eprintln!(
-                    "bob: --uninstall-exec must use the same BOB_PREFIX as --install-exec"
-                );
             } else {
-                eprintln!(
-                    "bob: if you installed with BOB_PREFIX (for example \"$HOME/.local\"), \
-pass the same value to --uninstall-exec"
-                );
+                eprintln!("bob: nothing to uninstall at {}", target.display());
+                eprintln!("bob: --uninstall-exec must use the same BOB_PREFIX as --install-exec");
+                ExitCode::FAILURE
             }
-            ExitCode::FAILURE
         }
         Err(error) => {
             eprintln!("bob: could not remove '{}': {error}", target.display());
@@ -488,9 +482,7 @@ fn remove_running_install(prefix_target: &Path) -> Result<Option<PathBuf>, Strin
     if same_file(&running, prefix_target) || !looks_like_installed_bob(&running) {
         return Ok(None);
     }
-    fs::remove_file(&running).map_err(|error| {
-        format!("{}: {error}", running.display())
-    })?;
+    fs::remove_file(&running).map_err(|error| format!("{}: {error}", running.display()))?;
     Ok(Some(running))
 }
 
@@ -508,7 +500,10 @@ fn looks_like_installed_bob(path: &Path) -> bool {
 
 /// The first `bob` executable found on `PATH`, if any.
 fn first_bob_on_path() -> Option<PathBuf> {
-    let path = env::var_os("PATH")?;
+    let path = match env::var_os("PATH") {
+        Some(p) => p,
+        None => return None,
+    };
     let name = executable_file_name();
     for entry in env::split_paths(&path) {
         if entry.as_os_str().is_empty() {
@@ -707,8 +702,8 @@ fn mask_token(token: &str) -> String {
 }
 
 fn print_versions() {
-    println!("bob {BOB_VERSION}");
-    println!("supported lynxer {SUPPORTED_LYNXER_VERSION}");
+    println!("bob {}", BOB_VERSION);
+    println!("supported lynxer {}", SUPPORTED_LYNXER_VERSION);
 }
 
 /// `--init` scaffolding: an application-style project.
@@ -792,6 +787,8 @@ fn init_project() -> ExitCode {
     let manifest = bob_directory.join(MANIFEST_FILE);
     let lock = bob_directory.join(LOCK_FILE);
     let packages = bob_directory.join(PACKAGES_DIRECTORY);
+    let source_directory = directory.join(SOURCE_DIRECTORY);
+    let source = source_directory.join(SOURCE_FILE);
 
     if manifest.exists() {
         eprintln!(
@@ -814,9 +811,23 @@ fn init_project() -> ExitCode {
         return ExitCode::FAILURE;
     }
 
+    // Create src/main.lynx for projects too
+    if let Err(error) = fs::create_dir_all(&source_directory) {
+        eprintln!(
+            "bob: cannot create '{}': {error}",
+            source_directory.display()
+        );
+        return ExitCode::FAILURE;
+    }
+    if let Err(error) = fs::write(&source, module_source_contents(&name)) {
+        eprintln!("bob: cannot write '{}': {error}", source.display());
+        return ExitCode::FAILURE;
+    }
+
     println!("Created {}", relative(BOB_DIRECTORY, MANIFEST_FILE));
     println!("Created {}", relative(BOB_DIRECTORY, LOCK_FILE));
     println!("Created {}/", relative(BOB_DIRECTORY, PACKAGES_DIRECTORY));
+    println!("Created {}/{}", SOURCE_DIRECTORY, SOURCE_FILE);
     println!();
     println!(
         "Project '{}' initialized (supported lynxer {}).",
@@ -1004,22 +1015,23 @@ fn project_name(directory: &Path) -> String {
     }
 }
 
-fn manifest_contents(name: &str) -> String {
-    format!(
-        "# bob project manifest. Managed by bob; see bob/README.md.\n\
-         [package]\n\
-         name = \"{name}\"\n\
-         version = \"0.1.0\"\n\
-         edition = \"2026\"\n\
-         \n\
-         # Lynxer packages will be installed under bob/packages/ once package\n\
-         # download and installation are implemented.\n\
-         [dependencies]\n"
-    )
-}
-
 fn module_manifest_contents(name: &str) -> String {
     MODULE_MANIFEST_TEMPLATE.replace("{name}", name)
+}
+
+fn manifest_contents(name: &str) -> String {
+    let mut content = String::new();
+    content.push_str("# bob project manifest. Managed by bob; see bob/README.md.\n");
+    content.push_str("[package]\n");
+    content.push_str(&format!("name = \"{}\"\n", name));
+    content.push_str("version = \"0.1.0\"\n");
+    content.push_str("edition = \"2026\"\n");
+    content.push_str("entry = \"src/main.lynx\"\n");
+    content.push_str("\n");
+    content.push_str("# Lynxer packages will be installed under bob/packages/ once package\n");
+    content.push_str("# download and installation are implemented.\n");
+    content.push_str("[dependencies]\n");
+    content
 }
 
 fn module_source_contents(name: &str) -> String {
