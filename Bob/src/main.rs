@@ -19,8 +19,8 @@ use toml::Value;
 /// The bob version, taken from `Cargo.toml`.
 const BOB_VERSION: &str = "0.1.3";
 
-/// Parse the `bob.toml` file to get the project name.
-fn read_bob_toml(path: &Path) -> Result<String, String> {
+/// Parse `bob/bob.toml` for the package name and entry path.
+fn read_project_manifest(path: &Path) -> Result<(String, String), String> {
     let mut file = File::open(path).map_err(|error| format!("cannot open bob.toml: {error}"))?;
     let mut contents = String::new();
     file.read_to_string(&mut contents)
@@ -28,12 +28,20 @@ fn read_bob_toml(path: &Path) -> Result<String, String> {
     let value: Value = contents
         .parse()
         .map_err(|error| format!("cannot parse bob.toml: {error}"))?;
-    value
+    let package = value
         .get("package")
-        .and_then(|v| v.get("name"))
+        .ok_or_else(|| "no [package] table in bob.toml".to_string())?;
+    let name = package
+        .get("name")
         .and_then(|v| v.as_str())
         .map(|s| s.to_string())
-        .ok_or("no 'name' field in bob.toml".to_string())
+        .ok_or_else(|| "no 'name' field in bob.toml".to_string())?;
+    let entry = package
+        .get("entry")
+        .and_then(|v| v.as_str())
+        .unwrap_or("src/main.lynx")
+        .to_string();
+    Ok((name, entry))
 }
 
 /// The Lynxer version bob is written against. Hard-coded while bob stays
@@ -151,13 +159,10 @@ fn print_usage() {
     println!("  bob --init-module      Create module.toml and src/main.lynx in this directory");
     println!("  bob --install-exec     Install the bob executable under the prefix (BOB_PREFIX)");
     println!("  bob --uninstall-exec   Remove installed bob (also ~/.local/bin and similar)");
-    println!("  bob run [command]       Compile and run the project");
-    println!("                          If no command is specified, defaults to src/main.lynx");
-    println!(
-        "                          Custom run commands can be defined in bob.toml under [run]"
-    );
+    println!("  bob run [file]          Run the project entry with lynxer");
+    println!("                          Defaults to package.entry from bob/bob.toml");
     println!("  bob publish            Package and upload this module to GitHub Releases");
-    println!("  bob install <name> <version>  Install dependencies from bob.toml");
+    println!("  bob install <name> <version>  Install dependencies from bob/bob.toml");
     println!("  bob registry add <name> <owner> <repository>  Add a custom package mapping");
     println!("  bob registry list       List all package mappings (default and custom)");
     println!("  bob registry config     Configure custom package mappings interactively");
@@ -212,71 +217,57 @@ fn install(rest: &[String]) -> ExitCode {
 }
 
 fn run(rest: &[String]) -> ExitCode {
-    // Check if the project has a bob.toml file
-    let bob_toml = Path::new("bob.toml");
+    // Manifest lives under bob/, next to the lock file and packages/.
+    let bob_toml = Path::new(BOB_DIRECTORY).join(MANIFEST_FILE);
     if !bob_toml.exists() {
-        eprintln!("bob: no 'bob.toml' found in the project directory");
-        eprintln!("bob: run this command from the root of a Lynxer project");
+        eprintln!(
+            "bob: no '{}' found",
+            relative(BOB_DIRECTORY, MANIFEST_FILE)
+        );
+        eprintln!("bob: run this command from the root of a Lynxer project (or run bob --init)");
         return ExitCode::FAILURE;
     }
 
-    // Parse bob.toml to get the project name
-    let _project_name = match read_bob_toml(bob_toml) {
-        Ok(name) => name,
+    let (_project_name, default_entry) = match read_project_manifest(&bob_toml) {
+        Ok(manifest) => manifest,
         Err(error) => {
-            eprintln!("bob: failed to parse bob.toml: {error}");
+            eprintln!(
+                "bob: failed to parse {}: {error}",
+                relative(BOB_DIRECTORY, MANIFEST_FILE)
+            );
             return ExitCode::FAILURE;
         }
     };
 
-    // Determine the entry point
-    let entry_point = if !rest.is_empty() {
-        rest[0].clone()
+    let entry_point = if let Some(override_entry) = rest.first() {
+        override_entry.clone()
     } else {
-        "src/main.lynx".to_string()
+        default_entry
     };
 
-    // Check if the entry point exists
     let entry_path = Path::new(&entry_point);
     if !entry_path.exists() {
         eprintln!("bob: entry point '{}' not found", entry_point);
         return ExitCode::FAILURE;
     }
 
-    // Compile the project using lynxer
-    let compile_status = Command::new("lynxer").arg("build").status();
-    if compile_status.is_err() {
-        eprintln!("bob: failed to compile");
-        return ExitCode::FAILURE;
-    }
+    // Lynxer runs .lynx sources directly; there is no `lynxer build`.
+    let status = match Command::new("lynxer").arg(&entry_point).status() {
+        Ok(status) => status,
+        Err(error) => {
+            eprintln!("bob: failed to run lynxer: {error}");
+            return ExitCode::FAILURE;
+        }
+    };
 
-    if !compile_status.unwrap().success() {
-        eprintln!("bob: compilation failed");
-        return ExitCode::FAILURE;
+    if status.success() {
+        ExitCode::SUCCESS
+    } else {
+        status
+            .code()
+            .map(|code| ExitCode::from(code as u8))
+            .unwrap_or(ExitCode::FAILURE)
     }
-
-    // Execute the compiled binary
-    let binary_path = Path::new("./target/debug/bob");
-    if !binary_path.exists() {
-        eprintln!(
-            "bob: compiled binary not found at: {}",
-            binary_path.display()
-        );
-        return ExitCode::FAILURE;
-    }
-
-    let run_status = Command::new(&binary_path).status();
-    if run_status.is_err() {
-        eprintln!("bob: failed to execute");
-        return ExitCode::FAILURE;
-    }
-
-    if !run_status.unwrap().success() {
-        eprintln!("bob: execution failed");
-        return ExitCode::FAILURE;
-    }
-
-    ExitCode::SUCCESS
 }
 
 /// `--install-exec` installs the running bob binary, mirroring `lynxer
