@@ -3,6 +3,7 @@
 name = "examples"
 version = "0.1.0"
 edition = "2026"
+entry = "src/main.lynx"
 
 # Lynxer packages will be installed under bob/packages/ once package
 # download and installation are implemented.

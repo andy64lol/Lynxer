@@ -28,11 +28,15 @@ test: $(TARGET)
 	@cd /tmp/bob-selfcheck && out="$$($(CURDIR)/$(TARGET) --init)"; \
 	printf '%s\n' "$$out" | grep -q 'Created bob/bob.toml' || { echo "bob --init did not report bob/bob.toml"; exit 1; }; \
 	printf '%s\n' "$$out" | grep -q 'Created bob/bob-lock.toml' || { echo "bob --init did not report bob/bob-lock.toml"; exit 1; }; \
+	printf '%s\n' "$$out" | grep -q 'Created src/main.lynx' || { echo "bob --init did not report src/main.lynx"; exit 1; }; \
 	grep -q '^\[package\]' bob/bob.toml || { echo "manifest is missing the [package] table"; exit 1; }; \
 	grep -q 'name = "bob-selfcheck"' bob/bob.toml || { echo "manifest is missing the project name"; exit 1; }; \
+	grep -q 'entry = "src/main.lynx"' bob/bob.toml || { echo "manifest is missing its entry"; exit 1; }; \
 	grep -q '^\[dependencies\]' bob/bob.toml || { echo "manifest is missing the [dependencies] table"; exit 1; }; \
 	grep -q '^version = 1' bob/bob-lock.toml || { echo "lock file is missing its version"; exit 1; }; \
-	test -d bob/packages || { echo "bob --init did not create bob/packages"; exit 1; }
+	test -d bob/packages || { echo "bob --init did not create bob/packages"; exit 1; }; \
+	grep -q 'global setup(){}' src/main.lynx || { echo "project source is missing global setup()"; exit 1; }; \
+	grep -q 'global main(){println("Hello world");}' src/main.lynx || { echo "project source is missing global main()"; exit 1; }
 	@rm -rf /tmp/bob-selfcheck
 	@rm -rf /tmp/bob-module && mkdir -p /tmp/bob-module
 	@cd /tmp/bob-module && out="$$($(CURDIR)/$(TARGET) --init-module)"; \
@@ -60,6 +64,16 @@ test: $(TARGET)
 	if test -x prefix/bin/bob; then installed=prefix/bin/bob; else installed=prefix/bin/bob.exe; fi; \
 	"$$installed" --uninstall-exec > /dev/null || { echo "bob --uninstall-exec did not remove the running install"; exit 1; }; \
 	test ! -e "$$installed" || { echo "bob --uninstall-exec left the running install"; exit 1; }
+	@# Without BOB_PREFIX, also sweep common locations such as $HOME/.local/bin.
+	@mkdir -p /tmp/bob-install/home/.local/bin; \
+	if test -f "$(CURDIR)/$(TARGET).exe"; then src="$(CURDIR)/$(TARGET).exe"; dst=bob.exe; \
+	elif test -f "$(CURDIR)/$(TARGET)"; then src="$(CURDIR)/$(TARGET)"; dst=bob; \
+	else echo "bob binary missing for ~/.local uninstall check"; exit 1; fi; \
+	cp "$$src" "/tmp/bob-install/home/.local/bin/$$dst"; \
+	chmod +x "/tmp/bob-install/home/.local/bin/$$dst"; \
+	HOME=/tmp/bob-install/home USERPROFILE=/tmp/bob-install/home "$(CURDIR)/$(TARGET)" --uninstall-exec > /tmp/bob-install/uninstall-local.out || { echo "bob --uninstall-exec failed to clear ~/.local/bin"; cat /tmp/bob-install/uninstall-local.out; exit 1; }; \
+	grep -q 'Removed' /tmp/bob-install/uninstall-local.out || { echo "bob --uninstall-exec did not report removing ~/.local/bin/bob"; cat /tmp/bob-install/uninstall-local.out; exit 1; }; \
+	test ! -e /tmp/bob-install/home/.local/bin/bob && test ! -e /tmp/bob-install/home/.local/bin/bob.exe || { echo "bob --uninstall-exec left ~/.local/bin/bob"; exit 1; }
 	@rm -rf /tmp/bob-install
 	@rm -rf /tmp/bob-config && mkdir -p /tmp/bob-config
 	@BOB_CONFIG_DIR=/tmp/bob-config $(CURDIR)/$(TARGET) config set rest-api http://localhost:3000 > /dev/null

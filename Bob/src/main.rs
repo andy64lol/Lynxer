@@ -48,6 +48,25 @@ const MANIFEST_FILE: &str = "bob.toml";
 const LOCK_FILE: &str = "bob-lock.toml";
 const PACKAGES_DIRECTORY: &str = "packages";
 
+/// The project manifest template. Same shape as a Cargo `[package]` table, with
+/// an explicit `entry` so the Lynxer entry point is never implicit.
+const PROJECT_MANIFEST_TEMPLATE: &str = r#"# bob project manifest. Managed by bob; see bob/README.md.
+[package]
+name = "{name}"
+version = "0.1.0"
+edition = "2026"
+entry = "src/main.lynx"
+
+# Lynxer packages will be installed under bob/packages/ once package
+# download and installation are implemented.
+[dependencies]
+"#;
+
+/// Default application source for `bob --init`.
+const PROJECT_SOURCE_TEMPLATE: &str = r#"global setup(){}
+global main(){println("Hello world");}
+"#;
+
 /// The module manifest template. `{name}` is the only placeholder, so the template stays
 /// a plain string and never has to escape Lynxer's braces.
 const MODULE_MANIFEST_TEMPLATE: &str = r#"# bob module manifest. Managed by bob; see bob/README.md.
@@ -74,7 +93,7 @@ it for an installed module.
 global setup(){}
 
 // Main entry point for the module.
-global main(){ println("Hello world!"); }
+global main(){println("Hello world");}
 "#;
 
 /// A module project keeps its manifest at the root and its source under `src/`,
@@ -127,11 +146,11 @@ fn print_usage() {
     println!("Usage:");
     println!("  bob --ver              Print the bob version and the Lynxer version it supports");
     println!(
-        "  bob --init             Create bob/bob.toml and bob/bob-lock.toml in this directory"
+        "  bob --init             Create bob/bob.toml, bob/bob-lock.toml, and src/main.lynx"
     );
     println!("  bob --init-module      Create module.toml and src/main.lynx in this directory");
     println!("  bob --install-exec     Install the bob executable under the prefix (BOB_PREFIX)");
-    println!("  bob --uninstall-exec   Remove the installed bob executable");
+    println!("  bob --uninstall-exec   Remove installed bob (also ~/.local/bin and similar)");
     println!("  bob run [command]       Compile and run the project");
     println!("                          If no command is specified, defaults to src/main.lynx");
     println!(
@@ -417,73 +436,127 @@ fn directory_on_path(directory: &Path) -> bool {
 }
 
 /// `--uninstall-exec` removes the executable `--install-exec` wrote, mirroring
-/// `--uninstall-exec` removes the executable `--install-exec` wrote, mirroring
 /// `lynxer --uninstall`.
 ///
-/// When `BOB_PREFIX` is unset and nothing is at the default prefix, also remove
-/// the running binary if it looks like an install (`…/bin/bob`). That clears a
-/// leftover from a previous `BOB_PREFIX=$HOME/.local` install without requiring
-/// the user to remember the prefix.
+/// With `BOB_PREFIX` set, only that prefix is touched. With it unset, bob also
+/// sweeps common install locations (`/usr/bin`, `/usr/local/bin`,
+/// `$HOME/.local/bin`, and a running `…/bin/bob`) so a leftover
+/// `BOB_PREFIX=$HOME/.local` install is cleared without remembering the prefix.
 fn uninstall_exec(rest: &[String]) -> ExitCode {
     if let Some(other) = rest.first() {
         eprintln!("bob: unknown option '{other}' for --uninstall-exec");
         eprintln!("bob: usage: bob --uninstall-exec");
         return ExitCode::FAILURE;
     }
-    let target = install_prefix().join("bin").join(executable_file_name());
-    match fs::remove_file(&target) {
-        Ok(()) => {
-            println!("Removed {}", target.display());
-            ExitCode::SUCCESS
-        }
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            if env::var_os(PREFIX_ENVIRONMENT).is_none() {
-                match remove_running_install(&target) {
-                    Ok(Some(path)) => {
-                        println!("Removed {}", path.display());
-                        println!("bob: note: removed the running install; next time pass the same BOB_PREFIX you used with --install-exec");
-                        ExitCode::SUCCESS
-                    }
-                    Ok(None) => {
-                        eprintln!("bob: nothing to uninstall at {}", target.display());
-                        eprintln!("bob: if you installed with BOB_PREFIX (for example \"$HOME/.local\"), pass the same value to --uninstall-exec");
-                        ExitCode::FAILURE
-                    }
-                    Err(error) => {
-                        eprintln!("bob: could not remove {error}");
-                        #[cfg(not(windows))]
-                        eprintln!("bob: re-run with permission to write the install directory (for example with sudo)");
-                        ExitCode::FAILURE
-                    }
-                }
-            } else {
-                eprintln!("bob: nothing to uninstall at {}", target.display());
-                eprintln!("bob: --uninstall-exec must use the same BOB_PREFIX as --install-exec");
-                ExitCode::FAILURE
+
+    let candidates = uninstall_candidate_paths();
+    let mut removed = Vec::new();
+    let mut permission_errors = Vec::new();
+
+    for target in &candidates {
+        match fs::remove_file(target) {
+            Ok(()) => removed.push(target.clone()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) if error.kind() == std::io::ErrorKind::PermissionDenied => {
+                permission_errors.push(format!("{}: {error}", target.display()));
+            }
+            Err(error) => {
+                eprintln!("bob: could not remove '{}': {error}", target.display());
+                #[cfg(not(windows))]
+                eprintln!(
+                    "bob: re-run with permission to write the install directory (for example with sudo)"
+                );
+                return ExitCode::FAILURE;
             }
         }
-        Err(error) => {
-            eprintln!("bob: could not remove '{}': {error}", target.display());
-            #[cfg(not(windows))]
-            eprintln!("bob: re-run with permission to write the prefix (for example with sudo)");
-            ExitCode::FAILURE
-        }
     }
+
+    if !removed.is_empty() {
+        for path in &removed {
+            println!("Removed {}", path.display());
+        }
+        return ExitCode::SUCCESS;
+    }
+
+    if !permission_errors.is_empty() {
+        for error in &permission_errors {
+            eprintln!("bob: could not remove {error}");
+        }
+        #[cfg(not(windows))]
+        eprintln!(
+            "bob: re-run with permission to write the install directory (for example with sudo)"
+        );
+        return ExitCode::FAILURE;
+    }
+
+    let primary = &candidates[0];
+    eprintln!("bob: nothing to uninstall at {}", primary.display());
+    if env::var_os(PREFIX_ENVIRONMENT).is_some() {
+        eprintln!("bob: --uninstall-exec must use the same BOB_PREFIX as --install-exec");
+    } else {
+        eprintln!(
+            "bob: also checked common locations (for example \"$HOME/.local/bin\"); \
+pass BOB_PREFIX if you installed elsewhere"
+        );
+    }
+    ExitCode::FAILURE
 }
 
-/// Remove the running bob when it looks installed (`…/bin/bob`) and is not the
-/// prefix path already tried. Returns `Ok(Some(path))` when a file was removed.
-fn remove_running_install(prefix_target: &Path) -> Result<Option<PathBuf>, String> {
-    let running = match env::current_exe() {
-        Ok(path) => path,
-        Err(_) => return Ok(None),
+/// Paths `--uninstall-exec` should try to remove.
+///
+/// Always includes the active prefix. When `BOB_PREFIX` is unset, also includes
+/// common user/system install locations and the running binary when it looks
+/// like an install (`…/bin/bob`).
+fn uninstall_candidate_paths() -> Vec<PathBuf> {
+    let name = executable_file_name();
+    let mut paths = Vec::new();
+    let push_unique = |paths: &mut Vec<PathBuf>, path: PathBuf| {
+        if !paths.iter().any(|existing| same_file(existing, &path) || existing == &path) {
+            paths.push(path);
+        }
     };
-    let running = fs::canonicalize(&running).unwrap_or(running);
-    if same_file(&running, prefix_target) || !looks_like_installed_bob(&running) {
-        return Ok(None);
+
+    push_unique(
+        &mut paths,
+        install_prefix().join("bin").join(name),
+    );
+
+    if env::var_os(PREFIX_ENVIRONMENT).is_none() {
+        #[cfg(not(windows))]
+        {
+            if let Some(home) = dirs::home_dir() {
+                push_unique(&mut paths, home.join(".local").join("bin").join(name));
+            }
+            push_unique(&mut paths, PathBuf::from("/usr/local/bin").join(name));
+        }
+        #[cfg(windows)]
+        {
+            if let Ok(local) = env::var("LOCALAPPDATA") {
+                if !local.is_empty() {
+                    push_unique(
+                        &mut paths,
+                        PathBuf::from(local)
+                            .join("Programs")
+                            .join("Bob")
+                            .join("bin")
+                            .join(name),
+                    );
+                }
+            }
+            if let Some(home) = dirs::home_dir() {
+                push_unique(&mut paths, home.join(".local").join("bin").join(name));
+            }
+        }
+
+        if let Ok(running) = env::current_exe() {
+            let running = fs::canonicalize(&running).unwrap_or(running);
+            if looks_like_installed_bob(&running) {
+                push_unique(&mut paths, running);
+            }
+        }
     }
-    fs::remove_file(&running).map_err(|error| format!("{}: {error}", running.display()))?;
-    Ok(Some(running))
+
+    paths
 }
 
 /// True for `<prefix>/bin/bob` (or `bob.exe`) layouts produced by `--install-exec`.
@@ -797,6 +870,13 @@ fn init_project() -> ExitCode {
         );
         return ExitCode::FAILURE;
     }
+    if source.exists() {
+        eprintln!(
+            "bob: '{}/{}' already exists; refusing to overwrite it",
+            SOURCE_DIRECTORY, SOURCE_FILE
+        );
+        return ExitCode::FAILURE;
+    }
 
     if let Err(error) = fs::create_dir_all(&packages) {
         eprintln!("bob: cannot create '{}': {error}", packages.display());
@@ -811,7 +891,6 @@ fn init_project() -> ExitCode {
         return ExitCode::FAILURE;
     }
 
-    // Create src/main.lynx for projects too
     if let Err(error) = fs::create_dir_all(&source_directory) {
         eprintln!(
             "bob: cannot create '{}': {error}",
@@ -819,7 +898,7 @@ fn init_project() -> ExitCode {
         );
         return ExitCode::FAILURE;
     }
-    if let Err(error) = fs::write(&source, module_source_contents(&name)) {
+    if let Err(error) = fs::write(&source, PROJECT_SOURCE_TEMPLATE) {
         eprintln!("bob: cannot write '{}': {error}", source.display());
         return ExitCode::FAILURE;
     }
@@ -1020,18 +1099,7 @@ fn module_manifest_contents(name: &str) -> String {
 }
 
 fn manifest_contents(name: &str) -> String {
-    let mut content = String::new();
-    content.push_str("# bob project manifest. Managed by bob; see bob/README.md.\n");
-    content.push_str("[package]\n");
-    content.push_str(&format!("name = \"{}\"\n", name));
-    content.push_str("version = \"0.1.0\"\n");
-    content.push_str("edition = \"2026\"\n");
-    content.push_str("entry = \"src/main.lynx\"\n");
-    content.push_str("\n");
-    content.push_str("# Lynxer packages will be installed under bob/packages/ once package\n");
-    content.push_str("# download and installation are implemented.\n");
-    content.push_str("[dependencies]\n");
-    content
+    PROJECT_MANIFEST_TEMPLATE.replace("{name}", name)
 }
 
 fn module_source_contents(name: &str) -> String {
