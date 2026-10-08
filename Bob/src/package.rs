@@ -1,8 +1,8 @@
 use std::{
-    env, fs,
-    io::{Cursor, Write},
-    path::{Component, Path, PathBuf},
     collections::HashMap,
+    env, fs,
+    io::{self, Cursor, Write},
+    path::{Component, Path, PathBuf},
 };
 
 use base64::engine::general_purpose::URL_SAFE;
@@ -10,7 +10,7 @@ use base64::Engine as _;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use ureq::Agent;
-use zip::{write::SimpleFileOptions, CompressionMethod, ZipWriter};
+use zip::{write::SimpleFileOptions, CompressionMethod, ZipArchive, ZipWriter};
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub(crate) struct RegistryEntry {
@@ -133,6 +133,38 @@ fn compute_sha256(bytes: &[u8]) -> String {
     URL_SAFE.encode(result)
 }
 
+/// Extract a ZIP archive into a target directory.
+fn extract_zip(zip_path: &PathBuf, target_dir: &PathBuf) -> Result<(), String> {
+    let file =
+        fs::File::open(zip_path).map_err(|error| format!("cannot open zip file: {error}"))?;
+    let mut archive =
+        ZipArchive::new(file).map_err(|error| format!("cannot read zip file: {error}"))?;
+
+    for i in 0..archive.len() {
+        let mut file = archive
+            .by_index(i)
+            .map_err(|error| format!("cannot read file in zip: {error}"))?;
+        let outpath = target_dir.join(file.mangled_name());
+
+        if file.name().ends_with('/') {
+            fs::create_dir_all(&outpath)
+                .map_err(|error| format!("cannot create directory: {error}"))?;
+        } else {
+            if let Some(p) = outpath.parent() {
+                if !p.exists() {
+                    fs::create_dir_all(p)
+                        .map_err(|error| format!("cannot create parent directory: {error}"))?;
+                }
+            }
+            let mut outfile = fs::File::create(&outpath)
+                .map_err(|error| format!("cannot create file: {error}"))?;
+            io::copy(&mut file, &mut outfile)
+                .map_err(|error| format!("cannot write file: {error}"))?;
+        }
+    }
+    Ok(())
+}
+
 /// Create a GitHub release for the module and upload its archive as an asset.
 fn create_github_release(
     token: &str,
@@ -148,7 +180,10 @@ fn create_github_release(
     // Resolve the GitHub repository for this package using the user's registry.
     let (repo_owner, repo_name) = resolve_repository(name)?;
 
-    let api_url = format!("https://api.github.com/repos/{}/{}/releases", repo_owner, repo_name);
+    let api_url = format!(
+        "https://api.github.com/repos/{}/{}/releases",
+        repo_owner, repo_name
+    );
 
     // Create the release.
     let release_body = format!("Module {} version {}", name, version);
@@ -158,7 +193,8 @@ fn create_github_release(
         "body": release_body,
         "draft": false,
         "prerelease": false,
-    })).unwrap();
+    }))
+    .unwrap();
     let mut response = agent
         .post(&api_url)
         .header("Authorization", &format!("token {}", token))
@@ -168,7 +204,9 @@ fn create_github_release(
 
     let status = response.status().as_u16();
     if !(200..300).contains(&status) {
-        let response_body = String::from_utf8_lossy(&response.body_mut().read_to_vec().unwrap_or_default()).into_owned();
+        let response_body =
+            String::from_utf8_lossy(&response.body_mut().read_to_vec().unwrap_or_default())
+                .into_owned();
         let message = serde_json::from_str::<serde_json::Value>(&response_body)
             .ok()
             .and_then(|value| {
@@ -207,7 +245,9 @@ fn create_github_release(
 
     let upload_status = upload_response.status().as_u16();
     if !(200..300).contains(&upload_status) {
-        let upload_body = String::from_utf8_lossy(&upload_response.body_mut().read_to_vec().unwrap_or_default()).into_owned();
+        let upload_body =
+            String::from_utf8_lossy(&upload_response.body_mut().read_to_vec().unwrap_or_default())
+                .into_owned();
         let message = serde_json::from_str::<serde_json::Value>(&upload_body)
             .ok()
             .and_then(|value| {
@@ -436,8 +476,11 @@ pub fn install_package(name: &str, version: &str) -> Result<String, String> {
         .map_err(|error| format!("cannot create package directory: {error}"))?;
 
     let archive_path = package_dir.join("archive.zip");
-    fs::write(&archive_path, &archive)
-        .map_err(|error| format!("cannot write archive: {error}"))?;
+    fs::write(&archive_path, &archive).map_err(|error| format!("cannot write archive: {error}"))?;
+
+    // Unzip the archive into the package directory
+    let _ = extract_zip(&archive_path, &package_dir)?;
+    fs::remove_file(&archive_path).map_err(|error| format!("cannot remove archive: {error}"))?;
 
     Ok(format!("Installed {}@{}(sha256:{})", name, version, sha256))
 }
@@ -453,7 +496,9 @@ fn resolve_repository(name: &str) -> Result<(String, String), String> {
         match resolve_via_rest(&base, name) {
             Ok(Some(repository)) => return Ok(repository),
             Ok(None) => {}
-            Err(warning) => eprintln!("bob: warning: {warning}; falling back to the local registry"),
+            Err(warning) => {
+                eprintln!("bob: warning: {warning}; falling back to the local registry")
+            }
         }
     }
 
@@ -660,8 +705,8 @@ fn resolve_endpoint(base: &str) -> String {
 
 /// Parse a `/api/resolve` response body into `(owner, repository)`.
 fn parse_resolve_body(bytes: &[u8]) -> Result<(String, String), String> {
-    let value: serde_json::Value =
-        serde_json::from_slice(bytes).map_err(|_| "registry API returned invalid JSON".to_string())?;
+    let value: serde_json::Value = serde_json::from_slice(bytes)
+        .map_err(|_| "registry API returned invalid JSON".to_string())?;
     let owner = value
         .get("owner")
         .and_then(|value| value.as_str())
@@ -709,7 +754,10 @@ fn fetch_asset_from_github(
     name: &str,
     version: &str,
 ) -> Result<String, String> {
-    let api_url = format!("https://api.github.com/repos/{}/{}/releases/tags/{}", repo_owner, repo_name, version);
+    let api_url = format!(
+        "https://api.github.com/repos/{}/{}/releases/tags/{}",
+        repo_owner, repo_name, version
+    );
 
     let agent_config = Agent::config_builder().http_status_as_error(false).build();
     let agent = Agent::new_with_config(agent_config);
@@ -723,7 +771,9 @@ fn fetch_asset_from_github(
 
     let status = response.status().as_u16();
     if !(200..300).contains(&status) {
-        let response_body = String::from_utf8_lossy(&response.body_mut().read_to_vec().unwrap_or_default()).into_owned();
+        let response_body =
+            String::from_utf8_lossy(&response.body_mut().read_to_vec().unwrap_or_default())
+                .into_owned();
         return Err(format!("GitHub returned HTTP {status}: {response_body}"));
     }
 
@@ -739,12 +789,16 @@ fn fetch_asset_from_github(
         .and_then(|assets| assets.as_array())
         .ok_or_else(|| "could not find assets in release")?;
 
-    let asset = assets.iter().find(|asset| {
-        asset.get("name")
-            .and_then(|name| name.as_str())
-            .map(|n| n == format!("{}-{}.zip", name, version))
-            .unwrap_or(false)
-    }).ok_or_else(|| format!("could not find asset for {}-{}", name, version))?;
+    let asset = assets
+        .iter()
+        .find(|asset| {
+            asset
+                .get("name")
+                .and_then(|name| name.as_str())
+                .map(|n| n == format!("{}-{}.zip", name, version))
+                .unwrap_or(false)
+        })
+        .ok_or_else(|| format!("could not find asset for {}-{}", name, version))?;
 
     let browser_download_url = asset
         .get("browser_download_url")
@@ -767,7 +821,9 @@ fn download_asset(url: &str) -> Result<Vec<u8>, String> {
 
     let status = response.status().as_u16();
     if !(200..300).contains(&status) {
-        let response_body = String::from_utf8_lossy(&response.body_mut().read_to_vec().unwrap_or_default()).into_owned();
+        let response_body =
+            String::from_utf8_lossy(&response.body_mut().read_to_vec().unwrap_or_default())
+                .into_owned();
         return Err(format!("Download returned HTTP {status}: {response_body}"));
     }
 
