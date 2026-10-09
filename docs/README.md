@@ -2,7 +2,7 @@
 
 Lynxer is a small, standalone C++ toolchain for the Lynxer language. It runs
 `.lynx` programs without a Python runtime and ships its standard library as
-native shared libraries. It provides standalone ELF executables, 36 natively
+native shared libraries. It provides standalone ELF executables, 40 natively
 backed modules, an AST optimizer, a frozen native-module ABI, and CI on amd64
 and arm64. See [limitations.md](limitations.md) for planned runtime and
 standard-library improvements.
@@ -94,7 +94,7 @@ scripts in the test suite.
 
 ## Standard library modules
 
-There are 39 bundled modules. A module is exposed to Lynxer by
+There are 43 bundled modules. A module is exposed to Lynxer by
 `stdlib/<name>.lynx` and backed by a `stdlib/<name>.so`. The backends marked
 *Rust* come from a crate under `rust/`; *pure* modules are written in Lynxer
 only and need no shared library.

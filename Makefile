@@ -97,7 +97,7 @@ LYNXER_RUST_MANIFEST := $(LYNXER_RUST_DIR)/Cargo.toml
 LYNXER_RUST_SOURCES := $(wildcard $(LYNXER_RUST_DIR)/*/src/*.rs) \
                         $(wildcard $(LYNXER_RUST_DIR)/*/Cargo.toml) \
                         $(LYNXER_RUST_MANIFEST) $(LYNXER_RUST_DIR)/Cargo.lock
-LYNXER_RUST_MODULE_NAMES := encoding crypto compress game graphics image ini json lua network raylib re regex server sound sqldb text toml tui uuid watch xml yaml
+LYNXER_RUST_MODULE_NAMES := email encoding crypto compress game graphics html image ini json lua markdown network pdf raylib re regex server sound sqldb text toml tui uuid watch xml yaml
 
 # `watch` has only Linux (inotify) and macOS/BSD (kqueue) backends; a Windows
 # build needs a `ReadDirectoryChangesW` backend (see docs/windows.md).
@@ -269,11 +269,11 @@ LYNXER_OPTIMIZER_DEPRECATED_FIXTURE := $(LYNXER_DIR)/examples/optimizer_deprecat
 # Formatter fixture: a deliberately messy source file and its canonical form.
 LYNXER_FORMATTER_INPUT := $(LYNXER_DIR)/examples/formatter_input.lynx
 LYNXER_FORMATTER_EXPECTED := $(LYNXER_DIR)/examples/formatter_expected.lynx
-LYNXER_LIST_STDLIB_MODULES := cli colorlib compress crypto csv debug encoding fileIO game graphics image js json lua math \
-	multiprocessing network os path random raylib re regex server shell sound sqldb sys text time toml tui turtle typing uuid watch xml yaml
+LYNXER_LIST_STDLIB_MODULES := cli colorlib compress crypto csv debug email encoding fileIO game graphics html image js json lua markdown math \
+	multiprocessing network os path pdf random raylib re regex server shell sound sqldb sys text time toml tui turtle typing uuid watch xml yaml
 # Import-parity fixtures (interpreted vs compiled). The sound one needs a device.
 LYNXER_PARITY_FIXTURES := native_stdlibs native_aggregate milestone6_module testPathImport macros milestone6_math_native stdlib_encoding stdlib_crypto stdlib_compress stdlib_json stdlib_uuid \
-	stdlib_toml stdlib_ini stdlib_xml stdlib_yaml stdlib_watch \
+ stdlib_toml stdlib_ini stdlib_xml stdlib_yaml stdlib_watch \
 	stdlib_re stdlib_path stdlib_text stdlib_game stdlib_graphics stdlib_image stdlib_image_svg stdlib_image_formats stdlib_lua stdlib_raylib stdlib_sqldb stdlib_tui deprecated_operators optimizer \
 	lowlevel_memory lowlevel_syscalls lowlevel_arch language_fields ownership \
 	foo_example range_for

@@ -12,3 +12,4 @@ crate-type = ["cdylib"]
 [dependencies]
 lynxer_abi = { path = "../abi" }
 scraper = "0.24"
+serde_json = "1"

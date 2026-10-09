@@ -1,0 +1,5 @@
+//// MIME message parsing and construction, backed by mailparse and mail-builder. Messages are raw RFC 5322 strings; structured results are JSON. ////
+global setup(){ importAs("email.so", "nativeEmail"); }
+global emailParse(str message) -> str { return global.nativeEmail.emailParse(message); }
+global emailBuild(str json) -> str { return global.nativeEmail.emailBuild(json); }
+global main(){}

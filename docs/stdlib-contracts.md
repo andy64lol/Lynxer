@@ -7,7 +7,7 @@ halves of one contract. This page states that contract once, so a second backend
 for an existing module — or a new module — can be written against it without
 re-deriving the conventions from the code.
 
-The conventions below apply to all 37 bundled modules. The per-module table
+The conventions below apply to all bundled modules. The per-module table
 records only the dimensions that actually vary between them. For an individual
 operation's argument list and return value, the authoritative sources are the
 wrapper itself (`stdlib/<name>.lynx`), `docs/stdlib/<name>.md`, and

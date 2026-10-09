@@ -1,0 +1,6 @@
+//// PDF generation, text extraction and metadata, backed by printpdf and lopdf. PDF values cross the ABI as base64 strings. ////
+global setup(){ importAs("pdf.so", "nativePdf"); }
+global pdfGenerate(str text) -> str { return global.nativePdf.pdfGenerate(text); }
+global pdfText(str base64Pdf) -> str { return global.nativePdf.pdfText(base64Pdf); }
+global pdfInfo(str base64Pdf) -> str { return global.nativePdf.pdfInfo(base64Pdf); }
+global main(){}

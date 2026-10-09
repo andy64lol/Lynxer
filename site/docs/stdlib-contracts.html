@@ -77,20 +77,24 @@
 <li><a href="stdlib/crypto.html">crypto</a></li>
 <li><a href="stdlib/csv.html">csv</a></li>
 <li><a href="stdlib/debug.html">debug</a></li>
+<li><a href="stdlib/email.html">email</a></li>
 <li><a href="stdlib/encoding.html">encoding</a></li>
 <li><a href="stdlib/fileIO.html">fileIO</a></li>
 <li><a href="stdlib/game.html">game</a></li>
 <li><a href="stdlib/graphics.html">graphics</a></li>
+<li><a href="stdlib/html.html">html</a></li>
 <li><a href="stdlib/image.html">image</a></li>
 <li><a href="stdlib/ini.html">ini</a></li>
 <li><a href="stdlib/js.html">js</a></li>
 <li><a href="stdlib/json.html">json</a></li>
 <li><a href="stdlib/lua.html">lua</a></li>
+<li><a href="stdlib/markdown.html">markdown</a></li>
 <li><a href="stdlib/math.html">math</a></li>
 <li><a href="stdlib/multiprocessing.html">multiprocessing</a></li>
 <li><a href="stdlib/network.html">network</a></li>
 <li><a href="stdlib/os.html">os</a></li>
 <li><a href="stdlib/path.html">path</a></li>
+<li><a href="stdlib/pdf.html">pdf</a></li>
 <li><a href="stdlib/random.html">random</a></li>
 <li><a href="stdlib/raylib.html">raylib</a></li>
 <li><a href="stdlib/re.html">re</a></li>
@@ -126,7 +130,7 @@
 <h1 id="standard-library-module-contracts">Standard library module contracts</h1>
 <p><strong>Frozen at Lynxer 0.1.8.1 — 2026-09-25.</strong></p>
 <p>Every <code>stdlib/&lt;name&gt;.lynx</code> wrapper and its <code>stdlib/&lt;name&gt;.so</code> backend are two halves of one contract. This page states that contract once, so a second backend for an existing module — or a new module — can be written against it without re-deriving the conventions from the code.</p>
-<p>The conventions below apply to all 37 bundled modules. The per-module table records only the dimensions that actually vary between them. For an individual operation's argument list and return value, the authoritative sources are the wrapper itself (<code>stdlib/&lt;name&gt;.lynx</code>), <code>docs/stdlib/&lt;name&gt;.md</code>, and <code>--list-stdlibs</code>, which prints each wrapper's docstring.</p>
+<p>The conventions below apply to all bundled modules. The per-module table records only the dimensions that actually vary between them. For an individual operation's argument list and return value, the authoritative sources are the wrapper itself (<code>stdlib/&lt;name&gt;.lynx</code>), <code>docs/stdlib/&lt;name&gt;.md</code>, and <code>--list-stdlibs</code>, which prints each wrapper's docstring.</p>
 <h2 id="the-module-pair">The module pair</h2>
 <p>A module is always two files with the same stem:</p>
 <table>

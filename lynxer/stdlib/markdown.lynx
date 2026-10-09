@@ -1,0 +1,5 @@
+//// Markdown parsing and HTML rendering, backed by pulldown-cmark. ////
+global setup(){ importAs("markdown.so", "nativeMarkdown"); }
+global markdownRender(str source, int extensions = 1) -> str { return global.nativeMarkdown.markdownRender(source, extensions); }
+global markdownParse(str source, int extensions = 1) -> str { return global.nativeMarkdown.markdownParse(source, extensions); }
+global main(){}

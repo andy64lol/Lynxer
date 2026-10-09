@@ -77,20 +77,24 @@
 <li><a href="stdlib/crypto.html">crypto</a></li>
 <li><a href="stdlib/csv.html">csv</a></li>
 <li><a href="stdlib/debug.html">debug</a></li>
+<li><a href="stdlib/email.html">email</a></li>
 <li><a href="stdlib/encoding.html">encoding</a></li>
 <li><a href="stdlib/fileIO.html">fileIO</a></li>
 <li><a href="stdlib/game.html">game</a></li>
 <li><a href="stdlib/graphics.html">graphics</a></li>
+<li><a href="stdlib/html.html">html</a></li>
 <li><a href="stdlib/image.html">image</a></li>
 <li><a href="stdlib/ini.html">ini</a></li>
 <li><a href="stdlib/js.html">js</a></li>
 <li><a href="stdlib/json.html">json</a></li>
 <li><a href="stdlib/lua.html">lua</a></li>
+<li><a href="stdlib/markdown.html">markdown</a></li>
 <li><a href="stdlib/math.html">math</a></li>
 <li><a href="stdlib/multiprocessing.html">multiprocessing</a></li>
 <li><a href="stdlib/network.html">network</a></li>
 <li><a href="stdlib/os.html">os</a></li>
 <li><a href="stdlib/path.html">path</a></li>
+<li><a href="stdlib/pdf.html">pdf</a></li>
 <li><a href="stdlib/random.html">random</a></li>
 <li><a href="stdlib/raylib.html">raylib</a></li>
 <li><a href="stdlib/re.html">re</a></li>
@@ -124,7 +128,7 @@
             <div class="search-results" aria-live="polite"></div>
         </div>
 <h1 id="lynxer-documentation">Lynxer documentation</h1>
-<p>Lynxer is a small, standalone C++ toolchain for the Lynxer language. It runs <code>.lynx</code> programs without a Python runtime and ships its standard library as native shared libraries. It provides standalone ELF executables, 36 natively backed modules, an AST optimizer, a frozen native-module ABI, and CI on amd64 and arm64. See <a href="limitations.html">limitations</a> for planned runtime and standard-library improvements.</p>
+<p>Lynxer is a small, standalone C++ toolchain for the Lynxer language. It runs <code>.lynx</code> programs without a Python runtime and ships its standard library as native shared libraries. It provides standalone ELF executables, 40 natively backed modules, an AST optimizer, a frozen native-module ABI, and CI on amd64 and arm64. See <a href="limitations.html">limitations</a> for planned runtime and standard-library improvements.</p>
 <h2 id="contents">Contents</h2>
 <p><strong>Getting started</strong></p>
 <table>
@@ -189,7 +193,7 @@ lynxer/lynxer --list-stdlibs</code></pre>
 <p>Both Lynxer CI workflows (<code>.github/workflows/build-lynxer-linux-amd64.yml</code> and <code>build-lynxer-linux-arm64.yml</code>) run <code>make testLynxer LYNXER_SKIP_DISPLAY=1</code>, which drops the fixtures that need a display or an audio device (a CI runner has neither, and the graphics backend crashes without a display).</p>
 <p>A Rust toolchain is required: every Rust-backed module and the native-call engine are built by <code>cargo</code>, and a missing toolchain or a failed build fails <code>make</code> instead of dropping a backend. <code>python3</code> is required for the two check scripts in the test suite.</p>
 <h2 id="standard-library-modules">Standard library modules</h2>
-<p>There are 39 bundled modules. A module is exposed to Lynxer by <code>stdlib/&lt;name&gt;.lynx</code> and backed by a <code>stdlib/&lt;name&gt;.so</code>. The backends marked <em>Rust</em> come from a crate under <code>rust/</code>; <em>pure</em> modules are written in Lynxer only and need no shared library.</p>
+<p>There are 43 bundled modules. A module is exposed to Lynxer by <code>stdlib/&lt;name&gt;.lynx</code> and backed by a <code>stdlib/&lt;name&gt;.so</code>. The backends marked <em>Rust</em> come from a crate under <code>rust/</code>; <em>pure</em> modules are written in Lynxer only and need no shared library.</p>
 <table>
 <tr><th>Module</th><th>Backend</th><th>Implementation</th></tr>
 <tr><td><a href="stdlib/cli.html">cli</a></td><td>native</td><td>POSIX process/env/terminal APIs</td></tr>

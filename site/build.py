@@ -40,10 +40,10 @@ GROUPS: list[tuple[str, list[str]]] = [
 ]
 
 STDLIB_MODULES = [
-    "cli", "colorlib", "compress", "crypto", "csv", "debug", "encoding", "fileIO", "game", "graphics",
+    "cli", "colorlib", "compress", "crypto", "csv", "debug", "email", "encoding", "fileIO", "game", "graphics", "html",
     "image", "ini",
     "js", "json",
-    "lua", "math", "multiprocessing", "network", "os", "path", "random", "raylib", "re",
+    "lua", "markdown", "math", "multiprocessing", "network", "os", "path", "pdf", "random", "raylib", "re",
     "regex", "server", "shell", "sound", "sqldb", "sys", "text", "time", "toml", "tui",
     "turtle", "typing", "uuid", "watch", "xml", "yaml",
 ]

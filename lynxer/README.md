@@ -29,12 +29,13 @@ The first slice intentionally stays small:
   helpers formerly in `mathPlus`), `json`, `re`, `regex`, `os`,
   `path`, `fileIO`, `csv`, `time`, `debug`, `multiprocessing`, `cli`, `js`,
   `shell`, `sys`, `random`, `image`, `lua`, `game`, `network`, `server`,
-  `sound`, `sqldb`, `tui` and `text`/`typing`/`colorlib`. Native modules are
+  `sound`, `sqldb`, `tui`, `html`, `markdown`, `pdf`, `email` and
+  `text`/`typing`/`colorlib`. Native modules are
   built from either `stdlib/<name>.cpp` or the Rust crates under `rust/` into
   `stdlib/<name>.so` and wrapped by `stdlib/<name>.lynx`; see `../docs/README.md`
   for the full reference and `../docs/native-module-abi.md` for the shared C ABI
-- Rust-backed modules (`game`, `image`, `json`, `lua`, `network`, `server`,
-  `sound`, `sqldb`, `tui`) are skipped with a warning when `cargo` is missing, so
+- Rust-backed modules (`email`, `game`, `html`, `image`, `json`, `lua`,
+  `markdown`, `network`, `pdf`, `server`, `sound`, `sqldb`, `tui`) require Cargo, so
   a plain `make` never depends on a Rust toolchain
 - `--compile <a.lynx> [more.lynx|lib.so ...] [--include <file> ...] [-o name]`
   builds one standalone ELF executable. The program's **imported modules are

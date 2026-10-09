@@ -1,0 +1,7 @@
+//// HTML parsing and CSS selector queries, backed by scraper. Documents return JSON trees and selected elements. ////
+global setup(){ importAs("html.so", "nativeHtml"); }
+global htmlParse(str source) -> str { return global.nativeHtml.htmlParse(source); }
+global htmlSelect(str source, str selector) -> str { return global.nativeHtml.htmlSelect(source, selector); }
+global htmlText(str source, str selector) -> str { return global.nativeHtml.htmlText(source, selector); }
+global htmlAttr(str source, str selector, str name) -> str { return global.nativeHtml.htmlAttr(source, selector, name); }
+global main(){}
