@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <meta name="theme-color" content="#4a90e2">
-    <title>Classes - Lynxer</title>
+    <title>try / catch - Lynxer</title>
     <link rel="stylesheet" href="../style.css">
 </head>
 <body>
@@ -35,7 +35,7 @@
 <li><a href="operators.html">operators</a></li>
 <li><a href="conditionals.html">conditionals</a></li>
 <li><a href="loops.html">loops</a></li>
-<li><a href="try-catch.html">try-catch</a></li>
+<li><a href="try-catch.html" class="active">try-catch</a></li>
 <li><a href="types.html">types</a></li>
 <li><a href="lists.html">lists</a></li>
 <li><a href="tuples.html">tuples</a></li>
@@ -45,7 +45,7 @@
 </ul>
 <h3 class="sidebar-group-title">Records</h3><ul class="sidebar-group">
 <li><a href="structs.html">structs</a></li>
-<li><a href="classes.html" class="active">classes</a></li>
+<li><a href="classes.html">classes</a></li>
 <li><a href="enums.html">enums</a></li>
 <li><a href="vargroups.html">vargroups</a></li>
 </ul>
@@ -116,86 +116,95 @@
         <div class="breadcrumb">
             <a href="../index.html">Home</a>
             <a href="../docs/stdlib/index.html">Standard Library</a>
-            <span>Classes</span>
+            <span>try / catch</span>
         </div>
         <div class="search-bar" data-search-index="../search-index.json" data-site-root="../">
             <label class="visually-hidden" for="docs-search">Search documentation</label>
             <input id="docs-search" type="search" placeholder="Search documentation..." aria-label="Search documentation" autocomplete="off">
             <div class="search-results" aria-live="polite"></div>
         </div>
-<h1 id="classes">Classes</h1>
-<p>A <code>class</code> is a named type with typed fields and <code>local</code> methods, constructed with <code>new</code>. Declare it between <code>global setup()</code> and <code>global main()</code>.</p>
-<h2 id="declaration">Declaration</h2>
-<pre><code>class Counter {
-    int value = 0;
-    const int step = 1;
-
-    local init(int initial) {
-        this.value = initial;
-    }
-
-    local increment() {
-        this.value += this.step;
-    }
-
-    local get() {
-        return this.value;
-    }
+<h1 id="try--catch"><code>try</code> / <code>catch</code></h1>
+<p>Lynxer handles runtime errors with a <code>try</code> / <code>catch</code> statement. There is no <code>except</code>, <code>finally</code> or <code>throw</code> keyword, and no hierarchy of exception types: every handler catches every catchable runtime error, and the caught value is always a <code>str</code> message.</p>
+<h2 id="syntax">Syntax</h2>
+<pre><code>try {
+    int value = intOf(&quot;not a number&quot;);   // raises a runtime error
+} catch (str error) {
+    println(&quot;caught &quot;, error);
 }</code></pre>
+<p>The binding clause is optional — <code>catch</code> may take no variable:</p>
+<pre><code>try {
+    raise(&quot;something went wrong&quot;);
+} catch {
+    println(&quot;failed&quot;);
+}</code></pre>
+<p>A <code>try</code> must be followed by exactly one <code>catch</code>; there is no <code>finally</code> and no second <code>catch</code> clause.</p>
+<h2 id="what-a-handler-catches">What a handler catches</h2>
+<p>A <code>catch</code> block runs only for a <strong>catchable runtime error</strong>: the failures the interpreter and its builtins raise (a division by zero, an out-of-range index, a bad argument shape, a missing file where the builtin raises rather than returns a sentinel, …), and any error you raise yourself with <a href="#raise"><code>raise</code></a>. Native modules may also raise a catchable error; this is the <em>Catchable runtime error</em> family in <a href="stdlib-contracts.html">stdlib-contracts</a>, used by <code>sqldb</code>.</p>
+<p>An error raised inside an <a href="modules.html">imported module</a> is caught by the importer's handler. <code>exceptionInfo()</code> then names the module file, so the diagnostic is not misattributed to the importing program.</p>
+<p>A <code>catch</code> does <strong>not</strong> intercept:</p>
 <ul>
-<li>Fields are <code>type name = initialValue;</code>. A field may be <code>const</code>, which makes later writes an error: <code>Field &#x27;step&#x27; of instance &#x27;Counter&#x27; is const and cannot be changed</code>.</li>
-<li><code>local init(...)</code> is the constructor. It runs on <code>new</code> and receives the constructor arguments through <code>this</code>.</li>
-<li>Methods use <code>this.field</code> to read and write fields.</li>
+<li><code>sys.exit</code> / <code>sys.exitCode</code> — the process exit runs to completion;</li>
+<li>an interrupt (Ctrl-C);</li>
+<li>an internal interpreter failure that is not a Lynxer runtime error — the run aborts with <code>lynxer: interpreter failure in &#x27;&lt;file&gt;&#x27;: …</code>;</li>
+<li>control flow. <code>return</code>, <code>break</code>, <code>continue</code> and <code>restart</code> inside a <code>try</code> body behave exactly as they do outside one and are never routed to <code>catch</code>.</li>
 </ul>
-<h2 id="construction">Construction</h2>
-<pre><code>Counter first = new Counter(1);</code></pre>
-<p><code>new</code> runs <code>init</code> with the given arguments. A typed variable (<code>Counter first</code>) enforces the class: assigning an unrelated value fails with <code>value cannot be assigned to type &#x27;Counter&#x27;</code>.</p>
-<h2 id="methods">Methods</h2>
-<p>Call a method on an instance with <code>instance.method(...)</code>:</p>
-<pre><code>first.increment();
-println(first.get());   // 2</code></pre>
-<p>Two restrictions distinguish methods from <a href="language.html#functions">ordinary functions</a>:</p>
+<h2 id="the-caught-value">The caught value</h2>
+<p>The bound variable receives the error <strong>message</strong>, not the traceback. For the example above it is <code>division by zero</code>. The variable is a <code>str</code>:</p>
 <ul>
-<li>Methods take <strong>no</strong> return annotation. <code>local get() -&gt; int { ... }</code> fails with <code>expected &#x27;{&#x27; before method body</code>. Return the value with a bare <code>return</code>.</li>
-<li>Method parameters may be typed but may <strong>not</strong> have default values. <code>local set(int x = 2)</code> fails with <code>expected &#x27;)&#x27; after parameters</code>.</li>
+<li>if the name does not exist yet, it is declared as <code>str</code> in the current scope;</li>
+<li>if it already exists, it must be an existing <code>str</code> (or <code>any</code>) variable and not <code>const</code>, and is reassigned;</li>
+<li>otherwise the <code>catch</code> clause itself fails with a runtime error explaining the conflict, which propagates to an enclosing handler.</li>
 </ul>
-<h2 id="fields-and-assignment">Fields and assignment</h2>
-<p>Reading and writing a field on an instance needs no type prefix, and compound assignment works on fields as well as on plain variables:</p>
-<pre><code>first.value = 90;
-first.value += 10;         // 100</code></pre>
-<p>Inside a method, use <code>this</code>:</p>
-<pre><code>this.value += this.step;</code></pre>
-<h2 id="full-example">Full example</h2>
-<pre><code>global setup(){}
-
-class Counter {
-    int value = 0;
-    const int step = 1;
-
-    local init(int initial) {
-        this.value = initial;
+<h2 id="raise"><code>raise</code></h2>
+<pre><code>raise(message)</code></pre>
+<p>Raises a catchable runtime error with the given string message. The argument must be a string; anything else is itself reported as <code>raise(message) expects one string</code>. Because only the message is carried, re-raising a caught error is written <code>raise(error)</code>.</p>
+<h2 id="exceptioninfo"><code>exceptionInfo()</code></h2>
+<pre><code>exceptionInfo() -&gt; str</code></pre>
+<p>Returns the formatted traceback for the <strong>active</strong> handler, or <code>&quot;&quot;</code> outside a <code>catch</code> block:</p>
+<pre><code>Traceback (most recent call last):
+  File &quot;&lt;program&gt;&quot;, line 4, column 18
+division by zero</code></pre>
+<p>The <code>File</code> line names the module path when the error was raised inside an imported module, and <code>&lt;program&gt;</code> otherwise. <code>exceptionInfo()</code> is only meaningful inside the matching <code>catch</code>: a handler that calls another handler restores the outer value when the inner one finishes.</p>
+<h2 id="nesting">Nesting</h2>
+<p>Handlers nest. The inner handler's <code>exceptionInfo()</code> is scoped to the inner error, and the outer handler's information is restored afterwards — an outer <code>catch</code> sees <code>&quot;&quot;</code> again if nothing is propagating:</p>
+<pre><code>try {
+    try {
+        raise(&quot;inner&quot;);
+    } catch (str error) {
+        println(error);                 // inner
     }
+    println(exceptionInfo() is &quot;&quot;);      // true
+} catch (str error) {
+    println(&quot;not reached&quot;);
+}</code></pre>
+<p>To let an error continue past a handler, raise it again with <code>raise(error)</code>; the enclosing <code>catch</code> then receives the new message.</p>
+<h2 id="uncaught-errors">Uncaught errors</h2>
+<p>An error with no matching handler ends the run: the interpreter prints</p>
+<pre><code>lynxer: &lt;file&gt;:&lt;line&gt;:&lt;column&gt;: &lt;message&gt;</code></pre>
+<p>to standard error and exits with status <code>1</code>. (An interrupt exits <code>130</code>.)</p>
+<h2 id="example">Example</h2>
+<pre><code>global setup(){ }
 
-    local increment() {
-        this.value += this.step;
-    }
-
-    local get() {
-        return this.value;
-    }
+global divide(int a, int b) -&gt; int {
+    if(b is 0){ raise(&quot;cannot divide by zero&quot;); }
+    return a /% b;
 }
 
 global main(){
-    Counter first = new Counter(1);
-    first.increment();
-    println(first.get());     // 2
-    println(first.value);     // 2
+    try {
+        println(global.divide(10, 2));   // 5
+        println(global.divide(10, 0));   // raises
+    } catch (str error) {
+        println(&quot;error: &quot;, error);
+        println(exceptionInfo());
+    }
 }</code></pre>
-<h2 id="see-also">See also</h2>
+<h2 id="limitations">Limitations</h2>
 <ul>
-<li><a href="structs.html">structs</a> — data-only records, positionally constructed.</li>
-<li><a href="vargroups.html">vargroups</a> — records with defaulted fields.</li>
-<li><a href="enums.html">enums</a> — tagged unions.</li>
+<li><strong>No <code>finally</code>.</strong> Put cleanup in the handler and after the statement, or wrap it in a helper function.</li>
+<li><strong>One untyped handler.</strong> There is no way to catch only some errors, to declare several <code>catch</code> clauses, or to define your own error types — a <code>catch</code> catches every catchable runtime error.</li>
+<li><strong>String messages only.</strong> The caught variable is a <code>str</code>; there is no structured error object.</li>
+<li><strong>Catching everything hides bugs.</strong> A handler around a large block also catches mistakes such as an unknown variable or a wrong argument type. Keep the <code>try</code> body around the specific operation you expect to fail.</li>
 </ul>
     </main>
 </div>

@@ -119,6 +119,7 @@ static site by [`site/build.py`](site/build.py) (output under `site/`).
 | [Language reference](docs/language.md) | Types, variables, control flow, functions |
 | [Functions](docs/functions.md) | `global`, `func` and `local` declaration forms and caller-supplied codeblocks |
 | [Operators](docs/operators.md) | Arithmetic, comparison, boolean and bitwise operators, precedence, deprecated spellings |
+| [Errors](docs/try-catch.md) | The `try`/`catch` statement, `raise`, and `exceptionInfo()` |
 | [Type reference](docs/types.md) | Primitive, fixed-width integer, and fixed-width float types |
 | [Built-ins](docs/builtins.md) | Core language functions and unmanaged memory operations |
 | [Lists](docs/lists.md) | `list` and `tuple` values and their builtins |

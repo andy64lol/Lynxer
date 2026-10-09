@@ -224,6 +224,7 @@ println(n bitand 3);   // 2
   `switch` / `case` / `default`.
 - [loops.md](loops.md) — `while`, `for` (both the C style and the range form),
   `doWhile`, `iterate`, `forever`, and `break` / `continue` / `restart`.
+- [try-catch.md](try-catch.md) — `try` / `catch`, `raise`, and `exceptionInfo()`.
 
 ### `try` / `catch`
 
@@ -235,8 +236,11 @@ try {
 }
 ```
 
-The catch clause requires a type, normally `(str error)`. The caught value is
-the message string.
+`try` handles runtime errors. The binding clause is optional; the caught value
+is the message string. `raise(message)` raises one, and `exceptionInfo()` returns
+the traceback inside a handler.
+
+→ **[Full `try` / `catch` reference: `raise`, `exceptionInfo()`, nesting, and what is not caught](try-catch.md)**
 
 ### `return`
 

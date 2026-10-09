@@ -35,6 +35,7 @@
 <li><a href="operators.html">operators</a></li>
 <li><a href="conditionals.html">conditionals</a></li>
 <li><a href="loops.html">loops</a></li>
+<li><a href="try-catch.html">try-catch</a></li>
 <li><a href="types.html">types</a></li>
 <li><a href="lists.html">lists</a></li>
 <li><a href="tuples.html">tuples</a></li>
@@ -242,6 +243,7 @@ println(n bitand 3);   // 2</code></pre>
 <ul>
 <li><a href="conditionals.html">conditionals</a> — <code>if</code> / <code>elif</code> / <code>else</code> and <code>switch</code> / <code>case</code> / <code>default</code>.</li>
 <li><a href="loops.html">loops</a> — <code>while</code>, <code>for</code> (both the C style and the range form), <code>doWhile</code>, <code>iterate</code>, <code>forever</code>, and <code>break</code> / <code>continue</code> / <code>restart</code>.</li>
+<li><a href="try-catch.html">try-catch</a> — <code>try</code> / <code>catch</code>, <code>raise</code>, and <code>exceptionInfo()</code>.</li>
 </ul>
 <h3 id="try--catch"><code>try</code> / <code>catch</code></h3>
 <pre><code>try {
@@ -249,7 +251,8 @@ println(n bitand 3);   // 2</code></pre>
 } catch (str error) {
     println(&quot;caught &quot;, error);   // caught division by zero
 }</code></pre>
-<p>The catch clause requires a type, normally <code>(str error)</code>. The caught value is the message string.</p>
+<p><code>try</code> handles runtime errors. The binding clause is optional; the caught value is the message string. <code>raise(message)</code> raises one, and <code>exceptionInfo()</code> returns the traceback inside a handler.</p>
+<p>→ <strong><a href="try-catch.html">Full <code>try</code> / <code>catch</code> reference: <code>raise</code>, <code>exceptionInfo()</code>, nesting, and what is not caught</a></strong></p>
 <h3 id="return"><code>return</code></h3>
 <p><code>return expr;</code> returns a value; a bare <code>return;</code> returns nothing. The value is checked against the function's return annotation, if any.</p>
 <h2 id="functions">Functions</h2>

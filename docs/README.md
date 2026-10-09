@@ -26,6 +26,7 @@ standard-library improvements.
 | [operators.md](operators.md) | The operator set and precedence |
 | [conditionals.md](conditionals.md) | `if`/`elif`/`else` and `switch`/`case`/`default` |
 | [loops.md](loops.md) | `while`, `for` (C style and range), `doWhile`, `iterate`, `forever` |
+| [try-catch.md](try-catch.md) | The `try`/`catch` statement, `raise`, and `exceptionInfo()` |
 | [types.md](types.md) | Every type name, ranges, and conversion rules |
 | [lists.md](lists.md) | `list` and `tuple` values and their builtins |
 | [tuples.md](tuples.md) | Immutable ordered sequences |
