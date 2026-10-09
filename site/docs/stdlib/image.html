@@ -125,7 +125,7 @@
         </div>
 <h1 id="image">image</h1>
 <p>Image loading, creation, transforms, pixels, and encoding. The backend is a Rust <code>cdylib</code> built with the <code>image</code> crate and installed as <code>stdlib/image.so</code>. Images are process-local integer handles; <code>-1</code> indicates a failed operation.</p>
-<blockquote><strong>Requires:</strong> a Rust toolchain (<code>cargo</code>). Build it with <code>make cargo</code> or <code>make buildLynxer</code>. The module supports PNG, JPEG, GIF, BMP, TIFF, and WebP.</blockquote>
+<blockquote><strong>Requires:</strong> a Rust toolchain (<code>cargo</code>). Build it with <code>make cargo</code> or <code>make buildLynxer</code>. The module supports PNG, JPEG, GIF, BMP, TIFF, WebP, ICO, QOI, TGA, PNM, HDR, OpenEXR, and farbfeld, and rasterises SVG.</blockquote>
 <pre><code>global setup(){ import(&quot;image&quot;); }
 
 global main(){
@@ -139,7 +139,9 @@ global main(){
 <h2 id="handles-and-metadata">Handles and metadata</h2>
 <table>
 <tr><th>Function</th><th>Description</th></tr>
-<tr><td><code>open(path)</code></td><td>Decode an image file and return a handle.</td></tr>
+<tr><td><code>open(path)</code></td><td>Decode an image file and return a handle. An <code>.svg</code>/<code>.svgz</code> path is rasterised.</td></tr>
+<tr><td><code>openSvg(path)</code></td><td>Rasterise an SVG at its intrinsic size.</td></tr>
+<tr><td><code>openSvgSize(path, width, height)</code></td><td>Rasterise an SVG scaled to fit inside <code>width</code>×<code>height</code>, preserving aspect ratio.</td></tr>
 <tr><td><code>create(width, height, mode, r, g, b)</code></td><td>Create an image in <code>L</code>, <code>RGB</code>, or <code>RGBA</code> mode.</td></tr>
 <tr><td><code>copy(handle)</code></td><td>Clone an image into a new handle.</td></tr>
 <tr><td><code>close(handle)</code></td><td>Release a handle.</td></tr>
@@ -149,6 +151,10 @@ global main(){
 <tr><td><code>save(handle, path)</code></td><td>Encode using the path extension.</td></tr>
 <tr><td><code>saveQuality(handle, path, quality)</code></td><td>Save JPEG with quality from 1 to 95.</td></tr>
 </table>
+<h3 id="formats">Formats</h3>
+<p><code>open</code> and <code>save</code> handle PNG, JPEG, GIF, BMP, TIFF, WebP, ICO, QOI, TGA, PNM (PBM/PGM/PPM/PAM), Radiance HDR, OpenEXR, and farbfeld. The format is chosen from the file extension; <code>getFormat</code> reports the codec a handle was decoded with, and <code>save</code> picks the encoder from the destination extension.</p>
+<h3 id="svg">SVG</h3>
+<p>SVG is vector, so it is rasterised rather than decoded through a codec. <code>openSvg</code>/<code>openSvgSize</code> (and <code>open</code> on a <code>.svg</code>/<code>.svgz</code> path) produce an ordinary <code>RGBA</code> handle: <code>getMode</code> returns <code>RGBA</code>, <code>getFormat</code> returns <code>SVG</code>, and every transform, pixel, drawing and encoding function accepts it. Rasterising is one-way — there is no SVG encoder, so <code>save(handle, &quot;x.svg&quot;)</code> fails. Text uses the host's system fonts, and relative <code>&lt;image&gt;</code> references resolve against the SVG's own directory.</p>
 <h2 id="transforms-and-pixels">Transforms and pixels</h2>
 <p><code>resize</code>, <code>thumbnail</code>, <code>scale</code>, <code>crop</code>, <code>rotate</code>, <code>flipH</code>, <code>flipV</code>, <code>pad</code>, <code>convert</code>, <code>grayscale</code>, <code>toRGB</code>, <code>toRGBA</code>, <code>toBinary</code>, <code>brightness</code>, <code>contrast</code>, <code>invert</code>, <code>blur</code>, <code>boxBlur</code>, <code>unsharpMask</code>, and <code>sharpen</code> return new handles.</p>
 <p><code>getPixel</code>, <code>getAverageColor</code>, and <code>getDominantColor</code> return JSON arrays in <code>[r,g,b,a]</code> order; histogram and info results are JSON objects. <code>getPixel</code> returns <code>[]</code> for an invalid coordinate or handle. <code>setPixel</code>, <code>setPixelA</code>, and <code>fill</code> mutate the existing image. <code>paste</code> and <code>pasteWithAlpha</code> mutate the destination; <code>blend</code> returns a new image. <code>addAlpha</code>, <code>setAlpha</code>, and <code>removeAlpha</code> return new handles.</p>

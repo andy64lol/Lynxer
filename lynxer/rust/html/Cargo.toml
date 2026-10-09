@@ -1,0 +1,14 @@
+[package]
+name = "lynxer_html"
+version = "0.1.0"
+edition = "2021"
+description = "HTML parsing and querying backend for Lynxer"
+publish = false
+
+[lib]
+name = "lynxer_html"
+crate-type = ["cdylib"]
+
+[dependencies]
+lynxer_abi = { path = "../abi" }
+scraper = "0.24"
