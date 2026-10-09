@@ -14,10 +14,18 @@ base64 = "0.22"
 lynxer_abi = { path = "../abi" }
 image = { version = "0.25", default-features = false, features = [
     "bmp",
+    "exr",
+    "ff",
     "gif",
+    "hdr",
+    "ico",
     "jpeg",
     "png",
+    "pnm",
+    "qoi",
+    "tga",
     "tiff",
     "webp",
 ] }
 fontdue = "0.9"
+resvg = "0.48"

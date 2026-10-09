@@ -3,13 +3,21 @@ Lynxer standard library: image.
 Image loading, creation, transforms, pixels and encoding backed by Rust's
 `image` crate. Image values are integer handles owned by the native module.
 
-The backend supports PNG, JPEG, GIF, BMP, TIFF and WebP through the enabled
-Rust codecs. Transform functions return new handles unless documented as
+The backend supports PNG, JPEG, GIF, BMP, TIFF, WebP, ICO, QOI, TGA, PNM, HDR,
+OpenEXR, and farbfeld through the enabled Rust codecs, and rasterises SVG
+(`openSvg`). Transform functions return new handles unless documented as
 mutating (`setPixel`, `setPixelA`, `fill`, `paste`, and `pasteWithAlpha`).
 ////
 global setup(){ importAs("image.so", "nativeImage"); }
 
 global open(str path) -> int { return global.nativeImage.open(path); }
+
+// Rasterise an SVG (or SVGZ) at its intrinsic size.
+global openSvg(str path) -> int { return global.nativeImage.openSvg(path, 0, 0); }
+// Rasterise an SVG scaled to fit inside width x height, preserving aspect ratio.
+global openSvgSize(str path, int width, int height) -> int {
+    return global.nativeImage.openSvg(path, width, height);
+}
 global create(int width, int height, str mode, int r, int g, int b) -> int {
     return global.nativeImage.create(width, height, mode, r, g, b);
 }

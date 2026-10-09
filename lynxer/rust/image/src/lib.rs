@@ -10,11 +10,22 @@ use image::imageops::{self, FilterType};
 use image::{DynamicImage, GenericImage, GenericImageView, ImageFormat, ImageReader, Rgba};
 use std::fs::File;
 use std::io::Cursor;
-use std::sync::{Mutex, OnceLock};
+use std::path::Path;
+use std::sync::{Arc, Mutex, OnceLock};
+
+/// How a stored image was decoded, for `getFormat` / `info`.
+///
+/// Raster images carry the codec that produced them. Vector SVGs have no
+/// `ImageFormat`, so they get their own variant and report `"SVG"`.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum StoredFormat {
+    Codec(ImageFormat),
+    Svg,
+}
 
 struct Entry {
     image: DynamicImage,
-    format: Option<ImageFormat>,
+    format: Option<StoredFormat>,
 }
 
 static IMAGES: OnceLock<Mutex<Vec<Option<Entry>>>> = OnceLock::new();
@@ -23,7 +34,7 @@ fn images() -> &'static Mutex<Vec<Option<Entry>>> {
     IMAGES.get_or_init(|| Mutex::new(Vec::new()))
 }
 
-fn store(image: DynamicImage, format: Option<ImageFormat>) -> i64 {
+fn store(image: DynamicImage, format: Option<StoredFormat>) -> i64 {
     let mut table = images()
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
@@ -42,7 +53,7 @@ fn get(index: i64) -> Option<DynamicImage> {
         .map(|entry| entry.image.clone())
 }
 
-fn get_format(index: i64) -> Option<ImageFormat> {
+fn get_format(index: i64) -> Option<StoredFormat> {
     if index < 0 {
         return None;
     }
@@ -50,7 +61,7 @@ fn get_format(index: i64) -> Option<ImageFormat> {
     table.get(index as usize)?.as_ref()?.format
 }
 
-fn update(index: i64, image: DynamicImage, format: Option<ImageFormat>) -> bool {
+fn update(index: i64, image: DynamicImage, format: Option<StoredFormat>) -> bool {
     if index < 0 {
         return false;
     }
@@ -80,18 +91,93 @@ fn mode(image: &DynamicImage) -> &'static str {
     }
 }
 
-fn format_name(format: Option<ImageFormat>) -> String {
+fn format_name(format: Option<StoredFormat>) -> String {
     match format {
-        Some(ImageFormat::Png) => "PNG",
-        Some(ImageFormat::Jpeg) => "JPEG",
-        Some(ImageFormat::Gif) => "GIF",
-        Some(ImageFormat::Bmp) => "BMP",
-        Some(ImageFormat::Ico) => "ICO",
-        Some(ImageFormat::Tiff) => "TIFF",
-        Some(ImageFormat::WebP) => "WEBP",
+        Some(StoredFormat::Svg) => "SVG",
+        Some(StoredFormat::Codec(ImageFormat::Png)) => "PNG",
+        Some(StoredFormat::Codec(ImageFormat::Jpeg)) => "JPEG",
+        Some(StoredFormat::Codec(ImageFormat::Gif)) => "GIF",
+        Some(StoredFormat::Codec(ImageFormat::Bmp)) => "BMP",
+        Some(StoredFormat::Codec(ImageFormat::Ico)) => "ICO",
+        Some(StoredFormat::Codec(ImageFormat::Tiff)) => "TIFF",
+        Some(StoredFormat::Codec(ImageFormat::WebP)) => "WEBP",
+        Some(StoredFormat::Codec(ImageFormat::Tga)) => "TGA",
+        Some(StoredFormat::Codec(ImageFormat::Pnm)) => "PNM",
+        Some(StoredFormat::Codec(ImageFormat::Hdr)) => "HDR",
+        Some(StoredFormat::Codec(ImageFormat::OpenExr)) => "EXR",
+        Some(StoredFormat::Codec(ImageFormat::Farbfeld)) => "FARBFELD",
+        Some(StoredFormat::Codec(ImageFormat::Qoi)) => "QOI",
         _ => "",
     }
     .to_string()
+}
+
+/// Decodes a raster SVG's bytes into a dynamic image, scaling it to `width`×
+/// `height` when both are positive and preserving the aspect ratio (centred, on
+/// a transparent canvas). With a non-positive target the SVG's intrinsic size
+/// is used and it is rendered at a scale of 1.
+fn render_svg_bytes(bytes: &[u8], resources_dir: Option<&Path>, width: i64, height: i64) -> Option<DynamicImage> {
+    let mut options = resvg::usvg::Options::default();
+    options.resources_dir = resources_dir.map(Path::to_path_buf);
+    options.fontdb = font_database();
+    let tree = resvg::usvg::Tree::from_data(bytes, &options).ok()?;
+    let size = tree.size();
+    let (canvas_width, canvas_height, transform) = if width > 0 && height > 0 {
+        let target_w = width as f32;
+        let target_h = height as f32;
+        let scale = (target_w / size.width()).min(target_h / size.height());
+        let translate_x = (target_w - size.width() * scale) / 2.0;
+        let translate_y = (target_h - size.height() * scale) / 2.0;
+        (
+            width as u32,
+            height as u32,
+            resvg::tiny_skia::Transform::from_scale(scale, scale)
+                .post_translate(translate_x, translate_y),
+        )
+    } else {
+        (
+            size.width().ceil().max(1.0) as u32,
+            size.height().ceil().max(1.0) as u32,
+            resvg::tiny_skia::Transform::default(),
+        )
+    };
+    let mut pixmap = resvg::tiny_skia::Pixmap::new(canvas_width, canvas_height)?;
+    resvg::render(&tree, transform, &mut pixmap.as_mut());
+    let buffer = image::RgbaImage::from_raw(canvas_width, canvas_height, pixmap.take_demultiplied())?;
+    Some(DynamicImage::ImageRgba8(buffer))
+}
+
+/// System fonts, loaded once and shared with every SVG parse so text renders.
+fn font_database() -> Arc<resvg::usvg::fontdb::Database> {
+    static FONTS: OnceLock<Arc<resvg::usvg::fontdb::Database>> = OnceLock::new();
+    FONTS
+        .get_or_init(|| {
+            let mut database = resvg::usvg::fontdb::Database::new();
+            database.load_system_fonts();
+            Arc::new(database)
+        })
+        .clone()
+}
+
+fn has_svg_extension(path: &str) -> bool {
+    Path::new(path)
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| {
+            extension.eq_ignore_ascii_case("svg") || extension.eq_ignore_ascii_case("svgz")
+        })
+}
+
+fn open_svg(path: &str, width: i64, height: i64) -> i64 {
+    let bytes = match std::fs::read(path) {
+        Ok(bytes) => bytes,
+        Err(_) => return -1,
+    };
+    let resources = Path::new(path).parent().map(Path::to_path_buf);
+    match render_svg_bytes(&bytes, resources.as_deref(), width, height) {
+        Some(image) => store(image, Some(StoredFormat::Svg)),
+        None => -1,
+    }
 }
 
 fn path_format(path: &str) -> Option<ImageFormat> {
@@ -126,13 +212,19 @@ fn encode_image(image: &DynamicImage, format: ImageFormat, quality: Option<u8>) 
 
 fn format_from_text(text: &str) -> Option<ImageFormat> {
     match text.to_ascii_lowercase().as_str() {
-        "png" => Some(ImageFormat::Png),
-        "jpg" | "jpeg" => Some(ImageFormat::Jpeg),
+        "png" | "apng" => Some(ImageFormat::Png),
+        "jpg" | "jpeg" | "jfif" => Some(ImageFormat::Jpeg),
         "gif" => Some(ImageFormat::Gif),
         "bmp" => Some(ImageFormat::Bmp),
         "ico" => Some(ImageFormat::Ico),
         "tif" | "tiff" => Some(ImageFormat::Tiff),
         "webp" => Some(ImageFormat::WebP),
+        "tga" => Some(ImageFormat::Tga),
+        "pbm" | "pam" | "ppm" | "pgm" | "pnm" => Some(ImageFormat::Pnm),
+        "hdr" => Some(ImageFormat::Hdr),
+        "exr" => Some(ImageFormat::OpenExr),
+        "ff" | "farbfeld" => Some(ImageFormat::Farbfeld),
+        "qoi" => Some(ImageFormat::Qoi),
         _ => None,
     }
 }
@@ -179,9 +271,13 @@ fn set_channels(image: &mut DynamicImage, factor: f64, alpha: bool) {
 
 export_int!(image_open, args, {
     let path = args.string(0);
+    // SVG is vector, so it is rasterised instead of decoded by a codec.
+    if has_svg_extension(path) {
+        return open_svg(path, 0, 0);
+    }
     match ImageReader::open(path) {
         Ok(reader) => {
-            let format = reader.format();
+            let format = reader.format().map(StoredFormat::Codec);
             match reader.decode() {
                 Ok(image) => store(image, format),
                 Err(_) => -1,
@@ -189,6 +285,10 @@ export_int!(image_open, args, {
         }
         Err(_) => -1,
     }
+});
+
+export_int!(image_open_svg, args, {
+    open_svg(args.string(0), args.int(0), args.int(1))
 });
 
 export_int!(image_create, args, {
@@ -208,12 +308,26 @@ export_int!(image_create, args, {
     }
 });
 
+/// A few `image` encoders only accept one colour type (farbfeld needs RGBA16,
+/// Radiance HDR needs RGB32F, OpenEXR needs RGBA32F). Convert first so callers
+/// can `save` any handle to any supported extension.
+fn write_image(image: &DynamicImage, path: &str) -> bool {
+    let converted = match path_format(path) {
+        Some(ImageFormat::Farbfeld) => DynamicImage::ImageRgba16(image.to_rgba16()),
+        Some(ImageFormat::Hdr) => DynamicImage::ImageRgb32F(image.to_rgb32f()),
+        Some(ImageFormat::OpenExr) => DynamicImage::ImageRgba32F(image.to_rgba32f()),
+        Some(ImageFormat::Ico) => DynamicImage::ImageRgba8(image.to_rgba8()),
+        _ => return image.save(path).is_ok(),
+    };
+    converted.save(path).is_ok()
+}
+
 export_int!(image_save, args, {
     let Some(image) = get(args.int(0)) else {
         return -1;
     };
     let path = args.string(0);
-    if image.save(path).is_ok() {
+    if write_image(&image, path) {
         0
     } else {
         -1
@@ -239,7 +353,7 @@ export_int!(image_save_quality, args, {
             }
             Err(_) => -1,
         }
-    } else if image.save(path).is_ok() {
+    } else if write_image(&image, path) {
         0
     } else {
         -1
@@ -735,7 +849,10 @@ export_string!(image_base64, args, {
         return String::new();
     };
     let format = format_from_text(args.string(0))
-        .or_else(|| get_format(args.int(0)))
+        .or_else(|| match get_format(args.int(0)) {
+            Some(StoredFormat::Codec(codec)) => Some(codec),
+            _ => None,
+        })
         .unwrap_or(ImageFormat::Png);
     STANDARD.encode(encode_image(&image, format, None))
 });
@@ -747,7 +864,7 @@ export_int!(image_from_base64, args, {
     };
     // The bytes carry their format, so record it rather than storing `None`:
     // `getFormat` and `info` report it, and the reference does too.
-    let format = image::guess_format(&bytes).ok();
+    let format = image::guess_format(&bytes).ok().map(StoredFormat::Codec);
     match image::load_from_memory(&bytes) {
         Ok(image) => store(image, format),
         Err(_) => -1,
@@ -1861,6 +1978,7 @@ export_int!(image_show, args, { show_image(args.int(0)) });
 
 const OPS: &[(&str, &str, &str)] = &[
     ("open", "image_open", "cdecl:int64(...)"),
+    ("openSvg", "image_open_svg", "cdecl:int64(...)"),
     ("create", "image_create", "cdecl:int64(...)"),
     ("save", "image_save", "cdecl:int64(...)"),
     ("saveQuality", "image_save_quality", "cdecl:int64(...)"),
@@ -1977,10 +2095,56 @@ mod tests {
         ));
         image.put_pixel(0, 0, color_from([8, 9, 10, 255]));
         assert_eq!(json_pixel(image.get_pixel(0, 0)), "[8,9,10,255]");
-        assert_eq!(format_name(Some(ImageFormat::Png)), "PNG");
-        assert_eq!(format_name(Some(ImageFormat::Jpeg)), "JPEG");
+        assert_eq!(format_name(Some(StoredFormat::Codec(ImageFormat::Png))), "PNG");
+        assert_eq!(format_name(Some(StoredFormat::Codec(ImageFormat::Jpeg))), "JPEG");
+        assert_eq!(format_name(Some(StoredFormat::Svg)), "SVG");
         assert_eq!(format_name(None), "");
         assert_eq!(format_from_text("JpG"), Some(ImageFormat::Jpeg));
+        assert_eq!(format_from_text("qoi"), Some(ImageFormat::Qoi));
+        assert_eq!(format_from_text("exr"), Some(ImageFormat::OpenExr));
+    }
+
+    #[test]
+    fn svg_bytes_rasterise_at_intrinsic_and_scaled_sizes() {
+        let svg = br##"<svg xmlns="http://www.w3.org/2000/svg" width="4" height="2">
+            <rect width="4" height="2" fill="#ff0000"/>
+        </svg>"##;
+        let intrinsic = render_svg_bytes(svg, None, 0, 0).unwrap();
+        assert_eq!((intrinsic.width(), intrinsic.height()), (4, 2));
+        assert_eq!(format!("{:?}", intrinsic.to_rgba8().get_pixel(1, 1)), "Rgba([255, 0, 0, 255])");
+
+        // A 4x4 request centres the 4x2 artwork, letterboxing top and bottom.
+        let scaled = render_svg_bytes(svg, None, 4, 4).unwrap();
+        assert_eq!((scaled.width(), scaled.height()), (4, 4));
+        let rgba = scaled.to_rgba8();
+        assert_eq!(rgba.get_pixel(1, 0)[3], 0);
+        assert_eq!(rgba.get_pixel(1, 1)[3], 255);
+        assert_eq!(rgba.get_pixel(1, 3)[3], 0);
+    }
+
+    #[test]
+    fn extra_codecs_round_trip_through_files() {
+        let source = DynamicImage::ImageRgb8(image::RgbImage::from_pixel(3, 2, image::Rgb([128, 64, 32])));
+        let cases: [(&str, ImageFormat); 8] = [
+            ("qoi", ImageFormat::Qoi),
+            ("tga", ImageFormat::Tga),
+            ("ppm", ImageFormat::Pnm),
+            ("ico", ImageFormat::Ico),
+            ("hdr", ImageFormat::Hdr),
+            ("exr", ImageFormat::OpenExr),
+            ("ff", ImageFormat::Farbfeld),
+            ("png", ImageFormat::Png),
+        ];
+        let dir = std::env::temp_dir();
+        for (extension, format) in cases {
+            let path = dir.join(format!("lynxer_image_roundtrip.{extension}"));
+            let path_str = path.to_str().unwrap();
+            assert!(write_image(&source, path_str), "save {extension}");
+            let opened = image::open(path_str).unwrap_or_else(|e| panic!("open {extension}: {e}"));
+            assert_eq!((opened.width(), opened.height()), (3, 2), "{extension}");
+            assert_eq!(ImageFormat::from_path(path_str).ok(), Some(format), "{extension}");
+            let _ = std::fs::remove_file(&path);
+        }
     }
 
     fn color_from(channels: [u8; 4]) -> Rgba<u8> {

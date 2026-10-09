@@ -1,0 +1,50 @@
+////
+Fixture for SVG rasterisation through the `image` module. It loads a committed
+SVG asset at its intrinsic and scaled sizes, checks the quadrant colours, mode
+and format metadata, re-saves the rasterised handle as PNG, and confirms there
+is no SVG encoder.
+////
+global setup(){ import("image"); import("os"); }
+
+global main(){
+    // The fixture runs from `lynxer/` under `make test` and from the
+    // repository root by hand, so resolve the asset against both layouts.
+    str asset = "examples/assets/shapes.svg";
+    if(not global.os.exists(asset)){ asset = "lynxer/examples/assets/shapes.svg"; }
+
+    int svg = global.image.openSvg(asset);
+    println(svg >= 0);
+    println(global.image.getFormat(svg));
+    println(global.image.getMode(svg));
+    println(global.image.getWidth(svg), "x", global.image.getHeight(svg));
+    println(global.image.getPixel(svg, 0, 0));
+    println(global.image.getPixel(svg, 3, 0));
+    println(global.image.getPixel(svg, 0, 3));
+    println(global.image.getPixel(svg, 3, 3));
+
+    int scaled = global.image.openSvgSize(asset, 8, 8);
+    println(scaled >= 0);
+    println(global.image.getWidth(scaled), "x", global.image.getHeight(scaled));
+    println(global.image.getPixel(scaled, 1, 1));
+    println(global.image.getPixel(scaled, 6, 1));
+    println(global.image.getPixel(scaled, 1, 6));
+    println(global.image.getPixel(scaled, 6, 6));
+
+    int viaOpen = global.image.open(asset);
+    println(global.image.getFormat(viaOpen));
+
+    str root = ".lynxer_image_svg";
+    if(global.os.exists(root)){ global.os.rmTree(root); }
+    global.os.mkdir(root);
+    println(global.image.save(svg, root + "/shapes.png"));
+    int encoded = global.image.open(root + "/shapes.png");
+    println(global.image.getFormat(encoded));
+    println(global.image.getPixel(encoded, 3, 3));
+    println(global.image.save(svg, root + "/shapes.svg"));
+    println(global.os.rmTree(root));
+
+    println(global.image.close(svg));
+    println(global.image.close(scaled));
+    println(global.image.close(viaOpen));
+    println(global.image.close(encoded));
+}

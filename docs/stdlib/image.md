@@ -6,7 +6,8 @@ Rust `cdylib` built with the `image` crate and installed as
 failed operation.
 
 > **Requires:** a Rust toolchain (`cargo`). Build it with `make cargo` or
-> `make buildLynxer`. The module supports PNG, JPEG, GIF, BMP, TIFF, and WebP.
+> `make buildLynxer`. The module supports PNG, JPEG, GIF, BMP, TIFF, WebP, ICO,
+> QOI, TGA, PNM, HDR, OpenEXR, and farbfeld, and rasterises SVG.
 
 ```lynx
 global setup(){ import("image"); }
@@ -25,7 +26,9 @@ global main(){
 
 | Function | Description |
 |---|---|
-| `open(path)` | Decode an image file and return a handle. |
+| `open(path)` | Decode an image file and return a handle. An `.svg`/`.svgz` path is rasterised. |
+| `openSvg(path)` | Rasterise an SVG at its intrinsic size. |
+| `openSvgSize(path, width, height)` | Rasterise an SVG scaled to fit inside `width`×`height`, preserving aspect ratio. |
 | `create(width, height, mode, r, g, b)` | Create an image in `L`, `RGB`, or `RGBA` mode. |
 | `copy(handle)` | Clone an image into a new handle. |
 | `close(handle)` | Release a handle. |
@@ -34,6 +37,23 @@ global main(){
 | `info(handle)` | Return JSON metadata containing width, height, mode, and format. |
 | `save(handle, path)` | Encode using the path extension. |
 | `saveQuality(handle, path, quality)` | Save JPEG with quality from 1 to 95. |
+
+### Formats
+
+`open` and `save` handle PNG, JPEG, GIF, BMP, TIFF, WebP, ICO, QOI, TGA, PNM
+(PBM/PGM/PPM/PAM), Radiance HDR, OpenEXR, and farbfeld. The format is chosen from
+the file extension; `getFormat` reports the codec a handle was decoded with, and
+`save` picks the encoder from the destination extension.
+
+### SVG
+
+SVG is vector, so it is rasterised rather than decoded through a codec.
+`openSvg`/`openSvgSize` (and `open` on a `.svg`/`.svgz` path) produce an ordinary
+`RGBA` handle: `getMode` returns `RGBA`, `getFormat` returns `SVG`, and every
+transform, pixel, drawing and encoding function accepts it. Rasterising is
+one-way — there is no SVG encoder, so `save(handle, "x.svg")` fails. Text uses
+the host's system fonts, and relative `<image>` references resolve against the
+SVG's own directory.
 
 ## Transforms and pixels
 

@@ -1,0 +1,73 @@
+////
+Fixture for the raster codecs added alongside SVG: QOI, TGA, PNM (PPM), ICO,
+farbfeld, Radiance HDR and OpenEXR. It round-trips one RGB image through each
+format and reports the decoded format, size, and a pixel.
+////
+global setup(){ import("image"); import("os"); }
+
+global main(){
+    str root = ".lynxer_image_formats";
+    if(global.os.exists(root)){ global.os.rmTree(root); }
+    global.os.mkdir(root);
+
+    int source = global.image.create(3, 2, "RGB", 10, 20, 30);
+
+    str qoi = root + "/roundtrip.qoi";
+    println(global.image.save(source, qoi));
+    int qoiImage = global.image.open(qoi);
+    println(global.image.getFormat(qoiImage));
+    println(global.image.getWidth(qoiImage), "x", global.image.getHeight(qoiImage));
+    println(global.image.getPixel(qoiImage, 1, 1));
+    global.image.close(qoiImage);
+
+    str tga = root + "/roundtrip.tga";
+    println(global.image.save(source, tga));
+    int tgaImage = global.image.open(tga);
+    println(global.image.getFormat(tgaImage));
+    println(global.image.getWidth(tgaImage), "x", global.image.getHeight(tgaImage));
+    println(global.image.getPixel(tgaImage, 1, 1));
+    global.image.close(tgaImage);
+
+    str pnm = root + "/roundtrip.ppm";
+    println(global.image.save(source, pnm));
+    int pnmImage = global.image.open(pnm);
+    println(global.image.getFormat(pnmImage));
+    println(global.image.getWidth(pnmImage), "x", global.image.getHeight(pnmImage));
+    println(global.image.getPixel(pnmImage, 1, 1));
+    global.image.close(pnmImage);
+
+    str ico = root + "/roundtrip.ico";
+    println(global.image.save(source, ico));
+    int icoImage = global.image.open(ico);
+    println(global.image.getFormat(icoImage));
+    println(global.image.getWidth(icoImage), "x", global.image.getHeight(icoImage));
+    println(global.image.getPixel(icoImage, 1, 1));
+    global.image.close(icoImage);
+
+    str ff = root + "/roundtrip.ff";
+    println(global.image.save(source, ff));
+    int ffImage = global.image.open(ff);
+    println(global.image.getFormat(ffImage));
+    println(global.image.getWidth(ffImage), "x", global.image.getHeight(ffImage));
+    println(global.image.getPixel(ffImage, 1, 1));
+    global.image.close(ffImage);
+
+    str hdr = root + "/roundtrip.hdr";
+    println(global.image.save(source, hdr));
+    int hdrImage = global.image.open(hdr);
+    println(global.image.getFormat(hdrImage));
+    println(global.image.getWidth(hdrImage), "x", global.image.getHeight(hdrImage));
+    println(global.image.getPixel(hdrImage, 1, 1));
+    global.image.close(hdrImage);
+
+    str exr = root + "/roundtrip.exr";
+    println(global.image.save(source, exr));
+    int exrImage = global.image.open(exr);
+    println(global.image.getFormat(exrImage));
+    println(global.image.getWidth(exrImage), "x", global.image.getHeight(exrImage));
+    println(global.image.getPixel(exrImage, 1, 1));
+    global.image.close(exrImage);
+
+    println(global.image.close(source));
+    println(global.os.rmTree(root));
+}

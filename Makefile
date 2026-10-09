@@ -274,7 +274,7 @@ LYNXER_LIST_STDLIB_MODULES := cli colorlib compress crypto csv debug encoding fi
 # Import-parity fixtures (interpreted vs compiled). The sound one needs a device.
 LYNXER_PARITY_FIXTURES := native_stdlibs native_aggregate milestone6_module testPathImport macros milestone6_math_native stdlib_encoding stdlib_crypto stdlib_compress stdlib_json stdlib_uuid \
 	stdlib_toml stdlib_ini stdlib_xml stdlib_yaml stdlib_watch \
-	stdlib_re stdlib_path stdlib_text stdlib_game stdlib_graphics stdlib_image stdlib_lua stdlib_raylib stdlib_sqldb stdlib_tui deprecated_operators optimizer \
+	stdlib_re stdlib_path stdlib_text stdlib_game stdlib_graphics stdlib_image stdlib_image_svg stdlib_image_formats stdlib_lua stdlib_raylib stdlib_sqldb stdlib_tui deprecated_operators optimizer \
 	lowlevel_memory lowlevel_syscalls lowlevel_arch language_fields ownership \
 	foo_example range_for
 ifeq ($(HAVE_AUDIO),1)
@@ -295,7 +295,7 @@ LYNXER_PARITY_FIXTURES := $(filter-out $(LYNXER_DISPLAY_FIXTURES),$(LYNXER_PARIT
 # llvmpipe, so those fixtures do run there).
 LYNXER_WINDOWS_SKIP_STEMS := \
 	stdlib_cli stdlib_compress stdlib_compress_limits stdlib_crypto \
-	stdlib_debug stdlib_fileIO stdlib_image_codecs stdlib_js \
+	stdlib_debug stdlib_fileIO stdlib_image_codecs stdlib_image_svg stdlib_image_formats stdlib_js \
 	stdlib_multiprocessing stdlib_os stdlib_path stdlib_sys stdlib_watch \
 	stdlib_xml_limits stdlibTestAll native_stdlibs program_args \
 	stdlib_game_api stdlib_graphics_raster stdlib_graphics_raster_shapes \
