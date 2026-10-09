@@ -10,16 +10,9 @@ lynxer/lynxer
 lynxer/build/
 lynxer/rust/target/
 lynxer/rust/*/target/
-Bob/target/
-
-# Local Netlify folder
-.netlify
 
 # enviromental variables
 .env
-
-# Supabase CLI local state
-supabase/.temp/
 
 # Project modules (each is its own repository)
 modules/

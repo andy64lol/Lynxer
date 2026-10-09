@@ -110,63 +110,6 @@ features are in [docs/removed-features.md](docs/removed-features.md).
   while retaining the engine diagnostic and traceback, with syntax and runtime
   failure tests.~~
 
-## Bob (package manager)
-
-`Bob/` is the Lynxer package manager, a separate Rust component with its own
-version (`Bob/README.md`). It can scaffold projects (`--init`), publish modules
-to GitHub Releases, install them, and resolve package names through a
-configurable REST registry (`bob config set rest-api`). Its planned work is
-tracked in [Bob/todo.md](Bob/todo.md).
-
-## Server (Bob module hosting)
-
-The registry is a small database plus two front ends, documented in
-[docs/bob-registry.md](docs/bob-registry.md) and
-[docs/bob-index.md](docs/bob-index.md):
-
-- **Supabase** holds `public.modules` (one row per module); schema + seed live in
-  `supabase/migrations/`. Reads use the public anon key.
-- **Netlify** stays the API: `POST /api/resolve` (+ `/health`) in
-  `lynxer-registry/`, reading Supabase. Live at <https://lynxer.netlify.app>;
-  Bob is wired to it with `bob config set rest-api https://lynxer.netlify.app`.
-- **Render** hosts two things via the root `render.yaml` Blueprint: the home
-  page and docs at <https://lynxer.onrender.com> (docs under `/docs/`), and the
-  **Bob Index** (`BobI/`) — a PyPI-like page — at <https://bobi-index.onrender.com>.
-
-- [x] ~~**Registry database (Supabase).** `andy64lol's Project` holds
-  `public.modules`; the migration is applied and seeded with `foo`.~~
-- [x] ~~**API on Supabase (Netlify).** `resolve.js` queries Supabase instead of
-  `registry.json`; the site env is set and it is deployed.~~
-- [x] ~~**Bob Index (Render).** `BobI/` Node service, deployed at
-  <https://bobi-index.onrender.com> (created with `render services create`;
-  `render.yaml` remains the Blueprint). `SUPABASE_URL` / `SUPABASE_ANON_KEY`
-  are set in its environment.~~
-- [x] ~~**Home page and docs (Render static site).** Served at
-  <https://lynxer.onrender.com> (docs under `/docs/`), built by
-  `python3 site/build.py` from `docs/` and `assets/`.~~
-- [ ] **Registry follow-ups.**
-  - The registry now has a **publisher whitelist**: `public.publishers` +
-    `public.is_publisher()` gate `INSERT`/`UPDATE`/`DELETE` on `public.modules`
-    (only `andy64lolxd@gmail.com` for now). Still to do: have `bob publish`
-    register the name/version itself through that authenticated path, so rows
-    are not added by hand.
-  - Consider a custom domain for the API, and version the resolve endpoint
-    (`/v1/resolve`) before it is heavily used.
-
-- [ ] **Module storage.** Archives are distributed from GitHub Releases today; a
-  future option is Supabase Storage, with versioning and checksum verification.
-
-## Modules
-
-- [x] **First published module: `raylib`.** The raylib 6.0 bindings live in their own repo,
-  [`andy64lol/raylib`](https://github.com/andy64lol/raylib), developed at the gitignored
-  `modules/raylib/`. The surface is generated from raylib's `rlparser` API description
-  (1328 ops + 308 constants; only varargs and function-pointer callbacks are skipped) and
-  delivered through the Bob ecosystem: a `raylib-0.1.0.zip` release plus a `public.modules`
-  row, so `bob install raylib 0.1.0` resolves it and the Bob Index lists it.
-- [ ] **`bob install` layout.** `bob install` still only downloads the archive; extracting it
-  into `modules/<name>/` (so the interpreter finds the module) is the outstanding step.
-
 ## Windows support
 
 Lynxer currently targets Linux only: the interpreter, the native-module ABI
@@ -256,7 +199,7 @@ surface stays a documented boundary in
   (MSYS2 MINGW64) and
   [.github/workflows/build-lynxer-windows-arm64.yml](.github/workflows/build-lynxer-windows-arm64.yml)
   (MSYS2 CLANGARM64). Every skipped module and fixture is listed in
-  [docs/windows.md](docs/windows.md), and Bob has its own four workflows.~~
+  [docs/windows.md](docs/windows.md).~~
 - [x] ~~**Documentation.** `docs/windows.md` records the port, its exclusions and
   the skipped test groups; `install.md` and `CLI.md` carry the Windows install
   notes; `README.md` links the Windows workflows; and the syscall surface is

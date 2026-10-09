@@ -6,10 +6,6 @@
 [![Build Linux ARM64](https://github.com/andy64lol/Lynxer/actions/workflows/build-lynxer-linux-arm64.yml/badge.svg)](https://github.com/andy64lol/Lynxer/actions/workflows/build-lynxer-linux-arm64.yml)
 [![Build Windows AMD64](https://github.com/andy64lol/Lynxer/actions/workflows/build-lynxer-windows-amd64.yml/badge.svg)](https://github.com/andy64lol/Lynxer/actions/workflows/build-lynxer-windows-amd64.yml)
 [![Build Windows ARM64](https://github.com/andy64lol/Lynxer/actions/workflows/build-lynxer-windows-arm64.yml/badge.svg)](https://github.com/andy64lol/Lynxer/actions/workflows/build-lynxer-windows-arm64.yml)
-[![Build Bob Linux AMD64](https://github.com/andy64lol/Lynxer/actions/workflows/build-bob-linux-amd64.yml/badge.svg)](https://github.com/andy64lol/Lynxer/actions/workflows/build-bob-linux-amd64.yml)
-[![Build Bob Linux ARM64](https://github.com/andy64lol/Lynxer/actions/workflows/build-bob-linux-arm64.yml/badge.svg)](https://github.com/andy64lol/Lynxer/actions/workflows/build-bob-linux-arm64.yml)
-[![Build Bob Windows AMD64](https://github.com/andy64lol/Lynxer/actions/workflows/build-bob-windows-amd64.yml/badge.svg)](https://github.com/andy64lol/Lynxer/actions/workflows/build-bob-windows-amd64.yml)
-[![Build Bob Windows ARM64](https://github.com/andy64lol/Lynxer/actions/workflows/build-bob-windows-arm64.yml/badge.svg)](https://github.com/andy64lol/Lynxer/actions/workflows/build-bob-windows-arm64.yml)
 
 Lynxer is a small, statically-flavoured, C-style scripting language. Programs use
 the `.lynx` extension and run on the standalone native interpreter in `lynxer/` —
@@ -26,7 +22,7 @@ global main(){
 }
 ```
 
-→ **[Website](https://lynxer.onrender.com)** | **[Documentation](https://lynxer.onrender.com/docs/)** | **[Installation](docs/install.md)** | **[Language reference](docs/language.md)** | **[Functions](docs/functions.md)** | **[Macros](docs/macros.md)** | **[Standard library](docs/stdlib/)**
+→ **[Documentation](docs/README.md)** | **[Installation](docs/install.md)** | **[Language reference](docs/language.md)** | **[Functions](docs/functions.md)** | **[Macros](docs/macros.md)** | **[Standard library](docs/stdlib/)**
 
 ---
 
@@ -111,36 +107,10 @@ global main(){
 
 ---
 
-## Bob — the package manager
-
-**Bob** (`Bob/`) is Lynxer's package manager: a separate Rust component with its
-own Makefile and CI. Build it with `make buildBob`; the examples below use `bob`,
-which is `Bob/target/release/bob` (or install it onto your `PATH` first with
-`--install-exec`):
-
-```bash
-bob --ver            # Bob's version and the Lynxer version it supports
-bob --init           # scaffold a project (bob/bob.toml, lock file, packages/)
-bob --init-module    # scaffold a reusable module
-bob --install-exec   # install the bob executable (prefix: BOB_PREFIX)
-bob publish          # publish the current module to a GitHub Release
-bob install <name> <version>   # install a module through the hosted registry
-```
-
-Published modules are listed on the [Bob Index](https://bobi-index.onrender.com).
-See [Bob/README.md](Bob/README.md) for the full command set.
-
----
-
 ## Documentation
 
-The documentation lives in [`docs/`](docs/README.md) and is published online:
-
-- **Home page** — <https://lynxer.onrender.com>
-- **Documentation** — <https://lynxer.onrender.com/docs/>
-
-Both are built from `docs/` by [`site/build.py`](site/build.py) and served as a
-Render static site.
+The documentation lives in [`docs/`](docs/README.md) and is rendered into a
+static site by [`site/build.py`](site/build.py) (output under `site/`).
 
 | Page | Contents |
 |------|----------|
@@ -169,12 +139,7 @@ Render static site.
 
 | Resource | Link |
 |----------|------|
-| Website (home page) | <https://lynxer.onrender.com> |
-| Documentation | <https://lynxer.onrender.com/docs/> |
-| Package index (Bob Index) | <https://bobi-index.onrender.com> |
-| Registry API | <https://lynxer.netlify.app> |
 | GitHub repository | <https://github.com/andy64lol/Lynxer> |
-| Bob (package manager) | [Bob/README.md](Bob/README.md) |
 
 ---
 
@@ -185,19 +150,15 @@ lynxer/        The interpreter and its standard library
   *.cpp, *.hpp   Lexer, parser, interpreter, optimizer, formatter, CLI
   stdlib/        Native and pure stdlib modules
   rust/          Rust-backed native modules
-Bob/           Bob — the package manager (a separate Rust component)
-BobI/          Bob Index — a read-only web index of published modules
 docs/          Documentation (Markdown source)
 site/          Static website: home page plus docs/ rendered to HTML
 packaging/     Distribution packaging (AUR)
-supabase/      Registry database migrations
 syntax.lynx    Full syntax showcase
 Makefile
 README.md
 ```
 
-`Bob/` builds separately with `make buildBob` (see above). `BobI/` is its own
-Node service; `packaging/` and `supabase/` support distribution and the registry.
+`packaging/` supports distribution and installation.
 
 ---
 

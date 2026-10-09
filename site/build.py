@@ -36,8 +36,6 @@ GROUPS: list[tuple[str, list[str]]] = [
      ["builtins.md", "syscalls.md", "native-module-abi.md", "native-modules.md", "stdlib-contracts.md", "extending.md"]),
     ("Runtime",
      ["async.md", "native-memory.md", "filesystem.md", "networking.md", "process.md"]),
-    ("Packaging",
-     ["bob.md", "bob-modules.md", "bob-registry.md", "bob-index.md", "bob-accounts.md"]),
     ("Reference", ["legacy-surface.md", "removed-features.md", "limitations.md"]),
 ]
 
