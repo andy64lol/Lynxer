@@ -29,6 +29,7 @@ fn parse_message(raw: &str) -> Option<String> {
 }
 
 fn build(input: &str) -> Option<String> {
+    if input.len() > MAX_MESSAGE { return None; }
     let v: Value = serde_json::from_str(input).ok()?;
     let from = v["from"].as_str()?;
     let to = v["to"].as_str()?;
@@ -67,7 +68,7 @@ fn build(input: &str) -> Option<String> {
         }
     }
     output.push_str(&format!("--{boundary}--\r\n"));
-    Some(output)
+    (output.len() <= MAX_MESSAGE).then_some(output)
 }
 
 export_string!(email_parse, args, { parse_message(args.string(0)).unwrap_or_default() });
