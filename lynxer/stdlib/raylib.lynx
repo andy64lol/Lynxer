@@ -1,0 +1,1348 @@
+////
+Lynxer standard library: raylib.
+Bindings for (almost) every raylib 6.0 function, generated from raylib's own
+API description by `lynxer/rust/raylib/codegen/generate.py` and backed by the
+Rust crate `lynxer_raylib` (`lynxer/rust/raylib`).
+
+Every raylib function keeps its name, lower-camel-cased (DrawText ->
+drawText), and raylib's enum values and #defines are exposed as getters
+(flagWindowHidden(), keySpace()). Scalar-only structs (Vector2/3/4, Color,
+Rectangle, Camera3D, Ray, BoundingBox, Texture, ...) are passed by value as
+flattened scalars; every other struct (Image, Model, Sound, Music, Font, ...)
+is an opaque int handle made with <struct>New, read/written with
+<struct>Get<Field>/<struct>Set<Field>, and released with <struct>Free.
+Requires a Rust toolchain (cargo) to build the backend; see docs/stdlib/raylib.md.
+////
+
+global setup(){
+    importAs("raylib.so", "nativeRaylib");
+}
+
+global initWindow(int a0, int a1, str a2) { global.nativeRaylib.initWindow(a0, a1, a2); }
+global closeWindow() { global.nativeRaylib.closeWindow(); }
+global windowShouldClose() -> int { return global.nativeRaylib.windowShouldClose(); }
+global isWindowReady() -> int { return global.nativeRaylib.isWindowReady(); }
+global isWindowFullscreen() -> int { return global.nativeRaylib.isWindowFullscreen(); }
+global isWindowHidden() -> int { return global.nativeRaylib.isWindowHidden(); }
+global isWindowMinimized() -> int { return global.nativeRaylib.isWindowMinimized(); }
+global isWindowMaximized() -> int { return global.nativeRaylib.isWindowMaximized(); }
+global isWindowFocused() -> int { return global.nativeRaylib.isWindowFocused(); }
+global isWindowResized() -> int { return global.nativeRaylib.isWindowResized(); }
+global isWindowState(int a0) -> int { return global.nativeRaylib.isWindowState(a0); }
+global setWindowState(int a0) { global.nativeRaylib.setWindowState(a0); }
+global clearWindowState(int a0) { global.nativeRaylib.clearWindowState(a0); }
+global toggleFullscreen() { global.nativeRaylib.toggleFullscreen(); }
+global toggleBorderlessWindowed() { global.nativeRaylib.toggleBorderlessWindowed(); }
+global maximizeWindow() { global.nativeRaylib.maximizeWindow(); }
+global minimizeWindow() { global.nativeRaylib.minimizeWindow(); }
+global restoreWindow() { global.nativeRaylib.restoreWindow(); }
+global setWindowIcon(int a0) { global.nativeRaylib.setWindowIcon(a0); }
+global setWindowIcons(int a0, int a1) { global.nativeRaylib.setWindowIcons(a0, a1); }
+global setWindowTitle(str a0) { global.nativeRaylib.setWindowTitle(a0); }
+global setWindowPosition(int a0, int a1) { global.nativeRaylib.setWindowPosition(a0, a1); }
+global setWindowMonitor(int a0) { global.nativeRaylib.setWindowMonitor(a0); }
+global setWindowMinSize(int a0, int a1) { global.nativeRaylib.setWindowMinSize(a0, a1); }
+global setWindowMaxSize(int a0, int a1) { global.nativeRaylib.setWindowMaxSize(a0, a1); }
+global setWindowSize(int a0, int a1) { global.nativeRaylib.setWindowSize(a0, a1); }
+global setWindowOpacity(float a0) { global.nativeRaylib.setWindowOpacity(a0); }
+global setWindowFocused() { global.nativeRaylib.setWindowFocused(); }
+global getWindowHandle() { global.nativeRaylib.getWindowHandle(); }
+global getScreenWidth() -> int { return global.nativeRaylib.getScreenWidth(); }
+global getScreenHeight() -> int { return global.nativeRaylib.getScreenHeight(); }
+global getRenderWidth() -> int { return global.nativeRaylib.getRenderWidth(); }
+global getRenderHeight() -> int { return global.nativeRaylib.getRenderHeight(); }
+global getMonitorCount() -> int { return global.nativeRaylib.getMonitorCount(); }
+global getCurrentMonitor() -> int { return global.nativeRaylib.getCurrentMonitor(); }
+global getMonitorPosition(int a0) -> int { return global.nativeRaylib.getMonitorPosition(a0); }
+global getMonitorWidth(int a0) -> int { return global.nativeRaylib.getMonitorWidth(a0); }
+global getMonitorHeight(int a0) -> int { return global.nativeRaylib.getMonitorHeight(a0); }
+global getMonitorPhysicalWidth(int a0) -> int { return global.nativeRaylib.getMonitorPhysicalWidth(a0); }
+global getMonitorPhysicalHeight(int a0) -> int { return global.nativeRaylib.getMonitorPhysicalHeight(a0); }
+global getMonitorRefreshRate(int a0) -> int { return global.nativeRaylib.getMonitorRefreshRate(a0); }
+global getWindowPosition() -> int { return global.nativeRaylib.getWindowPosition(); }
+global getWindowScaleDPI() -> int { return global.nativeRaylib.getWindowScaleDPI(); }
+global getMonitorName(int a0) -> str { return global.nativeRaylib.getMonitorName(a0); }
+global setClipboardText(str a0) { global.nativeRaylib.setClipboardText(a0); }
+global getClipboardText() -> str { return global.nativeRaylib.getClipboardText(); }
+global getClipboardImage() -> int { return global.nativeRaylib.getClipboardImage(); }
+global enableEventWaiting() { global.nativeRaylib.enableEventWaiting(); }
+global disableEventWaiting() { global.nativeRaylib.disableEventWaiting(); }
+global showCursor() { global.nativeRaylib.showCursor(); }
+global hideCursor() { global.nativeRaylib.hideCursor(); }
+global isCursorHidden() -> int { return global.nativeRaylib.isCursorHidden(); }
+global enableCursor() { global.nativeRaylib.enableCursor(); }
+global disableCursor() { global.nativeRaylib.disableCursor(); }
+global isCursorOnScreen() -> int { return global.nativeRaylib.isCursorOnScreen(); }
+global clearBackground(int a0_r, int a0_g, int a0_b, int a0_a) { global.nativeRaylib.clearBackground(a0_r, a0_g, a0_b, a0_a); }
+global beginDrawing() { global.nativeRaylib.beginDrawing(); }
+global endDrawing() { global.nativeRaylib.endDrawing(); }
+global beginMode2D(float a0_offset_x, float a0_offset_y, float a0_target_x, float a0_target_y, float a0_rotation, float a0_zoom) { global.nativeRaylib.beginMode2D(a0_offset_x, a0_offset_y, a0_target_x, a0_target_y, a0_rotation, a0_zoom); }
+global endMode2D() { global.nativeRaylib.endMode2D(); }
+global beginMode3D(float a0_position_x, float a0_position_y, float a0_position_z, float a0_target_x, float a0_target_y, float a0_target_z, float a0_up_x, float a0_up_y, float a0_up_z, float a0_fovy, int a0_projection) { global.nativeRaylib.beginMode3D(a0_position_x, a0_position_y, a0_position_z, a0_target_x, a0_target_y, a0_target_z, a0_up_x, a0_up_y, a0_up_z, a0_fovy, a0_projection); }
+global endMode3D() { global.nativeRaylib.endMode3D(); }
+global beginTextureMode(int a0_id, int a0_texture_id, int a0_texture_width, int a0_texture_height, int a0_texture_mipmaps, int a0_texture_format, int a0_depth_id, int a0_depth_width, int a0_depth_height, int a0_depth_mipmaps, int a0_depth_format) { global.nativeRaylib.beginTextureMode(a0_id, a0_texture_id, a0_texture_width, a0_texture_height, a0_texture_mipmaps, a0_texture_format, a0_depth_id, a0_depth_width, a0_depth_height, a0_depth_mipmaps, a0_depth_format); }
+global endTextureMode() { global.nativeRaylib.endTextureMode(); }
+global beginShaderMode(int a0) { global.nativeRaylib.beginShaderMode(a0); }
+global endShaderMode() { global.nativeRaylib.endShaderMode(); }
+global beginBlendMode(int a0) { global.nativeRaylib.beginBlendMode(a0); }
+global endBlendMode() { global.nativeRaylib.endBlendMode(); }
+global beginScissorMode(int a0, int a1, int a2, int a3) { global.nativeRaylib.beginScissorMode(a0, a1, a2, a3); }
+global endScissorMode() { global.nativeRaylib.endScissorMode(); }
+global beginVrStereoMode(int a0) { global.nativeRaylib.beginVrStereoMode(a0); }
+global endVrStereoMode() { global.nativeRaylib.endVrStereoMode(); }
+global loadVrStereoConfig(int a0) -> int { return global.nativeRaylib.loadVrStereoConfig(a0); }
+global unloadVrStereoConfig(int a0) { global.nativeRaylib.unloadVrStereoConfig(a0); }
+global loadShader(str a0, str a1) -> int { return global.nativeRaylib.loadShader(a0, a1); }
+global loadShaderFromMemory(str a0, str a1) -> int { return global.nativeRaylib.loadShaderFromMemory(a0, a1); }
+global isShaderValid(int a0) -> int { return global.nativeRaylib.isShaderValid(a0); }
+global getShaderLocation(int a0, str a1) -> int { return global.nativeRaylib.getShaderLocation(a0, a1); }
+global getShaderLocationAttrib(int a0, str a1) -> int { return global.nativeRaylib.getShaderLocationAttrib(a0, a1); }
+global setShaderValue(int a0, int a1, int a2, int a3) { global.nativeRaylib.setShaderValue(a0, a1, a2, a3); }
+global setShaderValueV(int a0, int a1, int a2, int a3, int a4) { global.nativeRaylib.setShaderValueV(a0, a1, a2, a3, a4); }
+global setShaderValueMatrix(int a0, int a1, float a2_m0, float a2_m4, float a2_m8, float a2_m12, float a2_m1, float a2_m5, float a2_m9, float a2_m13, float a2_m2, float a2_m6, float a2_m10, float a2_m14, float a2_m3, float a2_m7, float a2_m11, float a2_m15) { global.nativeRaylib.setShaderValueMatrix(a0, a1, a2_m0, a2_m4, a2_m8, a2_m12, a2_m1, a2_m5, a2_m9, a2_m13, a2_m2, a2_m6, a2_m10, a2_m14, a2_m3, a2_m7, a2_m11, a2_m15); }
+global setShaderValueTexture(int a0, int a1, int a2_id, int a2_width, int a2_height, int a2_mipmaps, int a2_format) { global.nativeRaylib.setShaderValueTexture(a0, a1, a2_id, a2_width, a2_height, a2_mipmaps, a2_format); }
+global unloadShader(int a0) { global.nativeRaylib.unloadShader(a0); }
+global getScreenToWorldRay(float a0_x, float a0_y, float a1_position_x, float a1_position_y, float a1_position_z, float a1_target_x, float a1_target_y, float a1_target_z, float a1_up_x, float a1_up_y, float a1_up_z, float a1_fovy, int a1_projection) -> int { return global.nativeRaylib.getScreenToWorldRay(a0_x, a0_y, a1_position_x, a1_position_y, a1_position_z, a1_target_x, a1_target_y, a1_target_z, a1_up_x, a1_up_y, a1_up_z, a1_fovy, a1_projection); }
+global getScreenToWorldRayEx(float a0_x, float a0_y, float a1_position_x, float a1_position_y, float a1_position_z, float a1_target_x, float a1_target_y, float a1_target_z, float a1_up_x, float a1_up_y, float a1_up_z, float a1_fovy, int a1_projection, int a2, int a3) -> int { return global.nativeRaylib.getScreenToWorldRayEx(a0_x, a0_y, a1_position_x, a1_position_y, a1_position_z, a1_target_x, a1_target_y, a1_target_z, a1_up_x, a1_up_y, a1_up_z, a1_fovy, a1_projection, a2, a3); }
+global getWorldToScreen(float a0_x, float a0_y, float a0_z, float a1_position_x, float a1_position_y, float a1_position_z, float a1_target_x, float a1_target_y, float a1_target_z, float a1_up_x, float a1_up_y, float a1_up_z, float a1_fovy, int a1_projection) -> int { return global.nativeRaylib.getWorldToScreen(a0_x, a0_y, a0_z, a1_position_x, a1_position_y, a1_position_z, a1_target_x, a1_target_y, a1_target_z, a1_up_x, a1_up_y, a1_up_z, a1_fovy, a1_projection); }
+global getWorldToScreenEx(float a0_x, float a0_y, float a0_z, float a1_position_x, float a1_position_y, float a1_position_z, float a1_target_x, float a1_target_y, float a1_target_z, float a1_up_x, float a1_up_y, float a1_up_z, float a1_fovy, int a1_projection, int a2, int a3) -> int { return global.nativeRaylib.getWorldToScreenEx(a0_x, a0_y, a0_z, a1_position_x, a1_position_y, a1_position_z, a1_target_x, a1_target_y, a1_target_z, a1_up_x, a1_up_y, a1_up_z, a1_fovy, a1_projection, a2, a3); }
+global getWorldToScreen2D(float a0_x, float a0_y, float a1_offset_x, float a1_offset_y, float a1_target_x, float a1_target_y, float a1_rotation, float a1_zoom) -> int { return global.nativeRaylib.getWorldToScreen2D(a0_x, a0_y, a1_offset_x, a1_offset_y, a1_target_x, a1_target_y, a1_rotation, a1_zoom); }
+global getScreenToWorld2D(float a0_x, float a0_y, float a1_offset_x, float a1_offset_y, float a1_target_x, float a1_target_y, float a1_rotation, float a1_zoom) -> int { return global.nativeRaylib.getScreenToWorld2D(a0_x, a0_y, a1_offset_x, a1_offset_y, a1_target_x, a1_target_y, a1_rotation, a1_zoom); }
+global getCameraMatrix(float a0_position_x, float a0_position_y, float a0_position_z, float a0_target_x, float a0_target_y, float a0_target_z, float a0_up_x, float a0_up_y, float a0_up_z, float a0_fovy, int a0_projection) -> int { return global.nativeRaylib.getCameraMatrix(a0_position_x, a0_position_y, a0_position_z, a0_target_x, a0_target_y, a0_target_z, a0_up_x, a0_up_y, a0_up_z, a0_fovy, a0_projection); }
+global getCameraMatrix2D(float a0_offset_x, float a0_offset_y, float a0_target_x, float a0_target_y, float a0_rotation, float a0_zoom) -> int { return global.nativeRaylib.getCameraMatrix2D(a0_offset_x, a0_offset_y, a0_target_x, a0_target_y, a0_rotation, a0_zoom); }
+global setTargetFPS(int a0) { global.nativeRaylib.setTargetFPS(a0); }
+global getFrameTime() -> float { return global.nativeRaylib.getFrameTime(); }
+global getTime() -> float { return global.nativeRaylib.getTime(); }
+global getFPS() -> int { return global.nativeRaylib.getFPS(); }
+global swapScreenBuffer() { global.nativeRaylib.swapScreenBuffer(); }
+global pollInputEvents() { global.nativeRaylib.pollInputEvents(); }
+global waitTime(float a0) { global.nativeRaylib.waitTime(a0); }
+global setRandomSeed(int a0) { global.nativeRaylib.setRandomSeed(a0); }
+global getRandomValue(int a0, int a1) -> int { return global.nativeRaylib.getRandomValue(a0, a1); }
+global loadRandomSequence(int a0, int a1, int a2) -> int { return global.nativeRaylib.loadRandomSequence(a0, a1, a2); }
+global unloadRandomSequence(int a0) { global.nativeRaylib.unloadRandomSequence(a0); }
+global takeScreenshot(str a0) { global.nativeRaylib.takeScreenshot(a0); }
+global setConfigFlags(int a0) { global.nativeRaylib.setConfigFlags(a0); }
+global openURL(str a0) { global.nativeRaylib.openURL(a0); }
+global setTraceLogLevel(int a0) { global.nativeRaylib.setTraceLogLevel(a0); }
+global memAlloc(int a0) { global.nativeRaylib.memAlloc(a0); }
+global memRealloc(int a0, int a1) { global.nativeRaylib.memRealloc(a0, a1); }
+global memFree(int a0) { global.nativeRaylib.memFree(a0); }
+global loadFileData(str a0, int a1) -> int { return global.nativeRaylib.loadFileData(a0, a1); }
+global unloadFileData(int a0) { global.nativeRaylib.unloadFileData(a0); }
+global saveFileData(str a0, int a1, int a2) -> int { return global.nativeRaylib.saveFileData(a0, a1, a2); }
+global exportDataAsCode(int a0, int a1, str a2) -> int { return global.nativeRaylib.exportDataAsCode(a0, a1, a2); }
+global loadFileText(str a0) -> str { return global.nativeRaylib.loadFileText(a0); }
+global unloadFileText(str a0) { global.nativeRaylib.unloadFileText(a0); }
+global saveFileText(str a0, str a1) -> int { return global.nativeRaylib.saveFileText(a0, a1); }
+global fileRename(str a0, str a1) -> int { return global.nativeRaylib.fileRename(a0, a1); }
+global fileRemove(str a0) -> int { return global.nativeRaylib.fileRemove(a0); }
+global fileCopy(str a0, str a1) -> int { return global.nativeRaylib.fileCopy(a0, a1); }
+global fileMove(str a0, str a1) -> int { return global.nativeRaylib.fileMove(a0, a1); }
+global fileTextReplace(str a0, str a1, str a2) -> int { return global.nativeRaylib.fileTextReplace(a0, a1, a2); }
+global fileTextFindIndex(str a0, str a1) -> int { return global.nativeRaylib.fileTextFindIndex(a0, a1); }
+global fileExists(str a0) -> int { return global.nativeRaylib.fileExists(a0); }
+global directoryExists(str a0) -> int { return global.nativeRaylib.directoryExists(a0); }
+global isFileExtension(str a0, str a1) -> int { return global.nativeRaylib.isFileExtension(a0, a1); }
+global getFileLength(str a0) -> int { return global.nativeRaylib.getFileLength(a0); }
+global getFileModTime(str a0) -> int { return global.nativeRaylib.getFileModTime(a0); }
+global getFileExtension(str a0) -> str { return global.nativeRaylib.getFileExtension(a0); }
+global getFileName(str a0) -> str { return global.nativeRaylib.getFileName(a0); }
+global getFileNameWithoutExt(str a0) -> str { return global.nativeRaylib.getFileNameWithoutExt(a0); }
+global getDirectoryPath(str a0) -> str { return global.nativeRaylib.getDirectoryPath(a0); }
+global getPrevDirectoryPath(str a0) -> str { return global.nativeRaylib.getPrevDirectoryPath(a0); }
+global getWorkingDirectory() -> str { return global.nativeRaylib.getWorkingDirectory(); }
+global getApplicationDirectory() -> str { return global.nativeRaylib.getApplicationDirectory(); }
+global makeDirectory(str a0) -> int { return global.nativeRaylib.makeDirectory(a0); }
+global changeDirectory(str a0) -> int { return global.nativeRaylib.changeDirectory(a0); }
+global isPathFile(str a0) -> int { return global.nativeRaylib.isPathFile(a0); }
+global isFileNameValid(str a0) -> int { return global.nativeRaylib.isFileNameValid(a0); }
+global loadDirectoryFiles(str a0) -> int { return global.nativeRaylib.loadDirectoryFiles(a0); }
+global loadDirectoryFilesEx(str a0, str a1, int a2) -> int { return global.nativeRaylib.loadDirectoryFilesEx(a0, a1, a2); }
+global unloadDirectoryFiles(int a0) { global.nativeRaylib.unloadDirectoryFiles(a0); }
+global isFileDropped() -> int { return global.nativeRaylib.isFileDropped(); }
+global loadDroppedFiles() -> int { return global.nativeRaylib.loadDroppedFiles(); }
+global unloadDroppedFiles(int a0) { global.nativeRaylib.unloadDroppedFiles(a0); }
+global getDirectoryFileCount(str a0) -> int { return global.nativeRaylib.getDirectoryFileCount(a0); }
+global getDirectoryFileCountEx(str a0, str a1, int a2) -> int { return global.nativeRaylib.getDirectoryFileCountEx(a0, a1, a2); }
+global compressData(int a0, int a1, int a2) -> int { return global.nativeRaylib.compressData(a0, a1, a2); }
+global decompressData(int a0, int a1, int a2) -> int { return global.nativeRaylib.decompressData(a0, a1, a2); }
+global encodeDataBase64(int a0, int a1, int a2) -> str { return global.nativeRaylib.encodeDataBase64(a0, a1, a2); }
+global decodeDataBase64(str a0, int a1) -> int { return global.nativeRaylib.decodeDataBase64(a0, a1); }
+global computeCRC32(int a0, int a1) -> int { return global.nativeRaylib.computeCRC32(a0, a1); }
+global computeMD5(int a0, int a1) -> int { return global.nativeRaylib.computeMD5(a0, a1); }
+global computeSHA1(int a0, int a1) -> int { return global.nativeRaylib.computeSHA1(a0, a1); }
+global computeSHA256(int a0, int a1) -> int { return global.nativeRaylib.computeSHA256(a0, a1); }
+global loadAutomationEventList(str a0) -> int { return global.nativeRaylib.loadAutomationEventList(a0); }
+global unloadAutomationEventList(int a0) { global.nativeRaylib.unloadAutomationEventList(a0); }
+global exportAutomationEventList(int a0, str a1) -> int { return global.nativeRaylib.exportAutomationEventList(a0, a1); }
+global setAutomationEventList(int a0) { global.nativeRaylib.setAutomationEventList(a0); }
+global setAutomationEventBaseFrame(int a0) { global.nativeRaylib.setAutomationEventBaseFrame(a0); }
+global startAutomationEventRecording() { global.nativeRaylib.startAutomationEventRecording(); }
+global stopAutomationEventRecording() { global.nativeRaylib.stopAutomationEventRecording(); }
+global playAutomationEvent(int a0) { global.nativeRaylib.playAutomationEvent(a0); }
+global isKeyPressed(int a0) -> int { return global.nativeRaylib.isKeyPressed(a0); }
+global isKeyPressedRepeat(int a0) -> int { return global.nativeRaylib.isKeyPressedRepeat(a0); }
+global isKeyDown(int a0) -> int { return global.nativeRaylib.isKeyDown(a0); }
+global isKeyReleased(int a0) -> int { return global.nativeRaylib.isKeyReleased(a0); }
+global isKeyUp(int a0) -> int { return global.nativeRaylib.isKeyUp(a0); }
+global getKeyPressed() -> int { return global.nativeRaylib.getKeyPressed(); }
+global getCharPressed() -> int { return global.nativeRaylib.getCharPressed(); }
+global getKeyName(int a0) -> str { return global.nativeRaylib.getKeyName(a0); }
+global setExitKey(int a0) { global.nativeRaylib.setExitKey(a0); }
+global isGamepadAvailable(int a0) -> int { return global.nativeRaylib.isGamepadAvailable(a0); }
+global getGamepadName(int a0) -> str { return global.nativeRaylib.getGamepadName(a0); }
+global isGamepadButtonPressed(int a0, int a1) -> int { return global.nativeRaylib.isGamepadButtonPressed(a0, a1); }
+global isGamepadButtonDown(int a0, int a1) -> int { return global.nativeRaylib.isGamepadButtonDown(a0, a1); }
+global isGamepadButtonReleased(int a0, int a1) -> int { return global.nativeRaylib.isGamepadButtonReleased(a0, a1); }
+global isGamepadButtonUp(int a0, int a1) -> int { return global.nativeRaylib.isGamepadButtonUp(a0, a1); }
+global getGamepadButtonPressed() -> int { return global.nativeRaylib.getGamepadButtonPressed(); }
+global getGamepadAxisCount(int a0) -> int { return global.nativeRaylib.getGamepadAxisCount(a0); }
+global getGamepadAxisMovement(int a0, int a1) -> float { return global.nativeRaylib.getGamepadAxisMovement(a0, a1); }
+global setGamepadMappings(str a0) -> int { return global.nativeRaylib.setGamepadMappings(a0); }
+global setGamepadVibration(int a0, float a1, float a2, float a3) { global.nativeRaylib.setGamepadVibration(a0, a1, a2, a3); }
+global isMouseButtonPressed(int a0) -> int { return global.nativeRaylib.isMouseButtonPressed(a0); }
+global isMouseButtonDown(int a0) -> int { return global.nativeRaylib.isMouseButtonDown(a0); }
+global isMouseButtonReleased(int a0) -> int { return global.nativeRaylib.isMouseButtonReleased(a0); }
+global isMouseButtonUp(int a0) -> int { return global.nativeRaylib.isMouseButtonUp(a0); }
+global getMouseX() -> int { return global.nativeRaylib.getMouseX(); }
+global getMouseY() -> int { return global.nativeRaylib.getMouseY(); }
+global getMousePosition() -> int { return global.nativeRaylib.getMousePosition(); }
+global getMouseDelta() -> int { return global.nativeRaylib.getMouseDelta(); }
+global setMousePosition(int a0, int a1) { global.nativeRaylib.setMousePosition(a0, a1); }
+global setMouseOffset(int a0, int a1) { global.nativeRaylib.setMouseOffset(a0, a1); }
+global setMouseScale(float a0, float a1) { global.nativeRaylib.setMouseScale(a0, a1); }
+global getMouseWheelMove() -> float { return global.nativeRaylib.getMouseWheelMove(); }
+global getMouseWheelMoveV() -> int { return global.nativeRaylib.getMouseWheelMoveV(); }
+global setMouseCursor(int a0) { global.nativeRaylib.setMouseCursor(a0); }
+global getTouchX() -> int { return global.nativeRaylib.getTouchX(); }
+global getTouchY() -> int { return global.nativeRaylib.getTouchY(); }
+global getTouchPosition(int a0) -> int { return global.nativeRaylib.getTouchPosition(a0); }
+global getTouchPointId(int a0) -> int { return global.nativeRaylib.getTouchPointId(a0); }
+global getTouchPointCount() -> int { return global.nativeRaylib.getTouchPointCount(); }
+global setGesturesEnabled(int a0) { global.nativeRaylib.setGesturesEnabled(a0); }
+global isGestureDetected(int a0) -> int { return global.nativeRaylib.isGestureDetected(a0); }
+global getGestureDetected() -> int { return global.nativeRaylib.getGestureDetected(); }
+global getGestureHoldDuration() -> float { return global.nativeRaylib.getGestureHoldDuration(); }
+global getGestureDragVector() -> int { return global.nativeRaylib.getGestureDragVector(); }
+global getGestureDragAngle() -> float { return global.nativeRaylib.getGestureDragAngle(); }
+global getGesturePinchVector() -> int { return global.nativeRaylib.getGesturePinchVector(); }
+global getGesturePinchAngle() -> float { return global.nativeRaylib.getGesturePinchAngle(); }
+global updateCamera(int a0, int a1) { global.nativeRaylib.updateCamera(a0, a1); }
+global updateCameraPro(int a0, float a1_x, float a1_y, float a1_z, float a2_x, float a2_y, float a2_z, float a3) { global.nativeRaylib.updateCameraPro(a0, a1_x, a1_y, a1_z, a2_x, a2_y, a2_z, a3); }
+global setShapesTexture(int a0_id, int a0_width, int a0_height, int a0_mipmaps, int a0_format, float a1_x, float a1_y, float a1_width, float a1_height) { global.nativeRaylib.setShapesTexture(a0_id, a0_width, a0_height, a0_mipmaps, a0_format, a1_x, a1_y, a1_width, a1_height); }
+global getShapesTexture() -> int { return global.nativeRaylib.getShapesTexture(); }
+global getShapesTextureRectangle() -> int { return global.nativeRaylib.getShapesTextureRectangle(); }
+global drawPixel(int a0, int a1, int a2_r, int a2_g, int a2_b, int a2_a) { global.nativeRaylib.drawPixel(a0, a1, a2_r, a2_g, a2_b, a2_a); }
+global drawPixelV(float a0_x, float a0_y, int a1_r, int a1_g, int a1_b, int a1_a) { global.nativeRaylib.drawPixelV(a0_x, a0_y, a1_r, a1_g, a1_b, a1_a); }
+global drawLine(int a0, int a1, int a2, int a3, int a4_r, int a4_g, int a4_b, int a4_a) { global.nativeRaylib.drawLine(a0, a1, a2, a3, a4_r, a4_g, a4_b, a4_a); }
+global drawLineV(float a0_x, float a0_y, float a1_x, float a1_y, int a2_r, int a2_g, int a2_b, int a2_a) { global.nativeRaylib.drawLineV(a0_x, a0_y, a1_x, a1_y, a2_r, a2_g, a2_b, a2_a); }
+global drawLineEx(float a0_x, float a0_y, float a1_x, float a1_y, float a2, int a3_r, int a3_g, int a3_b, int a3_a) { global.nativeRaylib.drawLineEx(a0_x, a0_y, a1_x, a1_y, a2, a3_r, a3_g, a3_b, a3_a); }
+global drawLineStrip(int a0, int a1, int a2_r, int a2_g, int a2_b, int a2_a) { global.nativeRaylib.drawLineStrip(a0, a1, a2_r, a2_g, a2_b, a2_a); }
+global drawLineBezier(float a0_x, float a0_y, float a1_x, float a1_y, float a2, int a3_r, int a3_g, int a3_b, int a3_a) { global.nativeRaylib.drawLineBezier(a0_x, a0_y, a1_x, a1_y, a2, a3_r, a3_g, a3_b, a3_a); }
+global drawLineDashed(float a0_x, float a0_y, float a1_x, float a1_y, int a2, int a3, int a4_r, int a4_g, int a4_b, int a4_a) { global.nativeRaylib.drawLineDashed(a0_x, a0_y, a1_x, a1_y, a2, a3, a4_r, a4_g, a4_b, a4_a); }
+global drawCircle(int a0, int a1, float a2, int a3_r, int a3_g, int a3_b, int a3_a) { global.nativeRaylib.drawCircle(a0, a1, a2, a3_r, a3_g, a3_b, a3_a); }
+global drawCircleV(float a0_x, float a0_y, float a1, int a2_r, int a2_g, int a2_b, int a2_a) { global.nativeRaylib.drawCircleV(a0_x, a0_y, a1, a2_r, a2_g, a2_b, a2_a); }
+global drawCircleGradient(float a0_x, float a0_y, float a1, int a2_r, int a2_g, int a2_b, int a2_a, int a3_r, int a3_g, int a3_b, int a3_a) { global.nativeRaylib.drawCircleGradient(a0_x, a0_y, a1, a2_r, a2_g, a2_b, a2_a, a3_r, a3_g, a3_b, a3_a); }
+global drawCircleSector(float a0_x, float a0_y, float a1, float a2, float a3, int a4, int a5_r, int a5_g, int a5_b, int a5_a) { global.nativeRaylib.drawCircleSector(a0_x, a0_y, a1, a2, a3, a4, a5_r, a5_g, a5_b, a5_a); }
+global drawCircleSectorLines(float a0_x, float a0_y, float a1, float a2, float a3, int a4, int a5_r, int a5_g, int a5_b, int a5_a) { global.nativeRaylib.drawCircleSectorLines(a0_x, a0_y, a1, a2, a3, a4, a5_r, a5_g, a5_b, a5_a); }
+global drawCircleLines(int a0, int a1, float a2, int a3_r, int a3_g, int a3_b, int a3_a) { global.nativeRaylib.drawCircleLines(a0, a1, a2, a3_r, a3_g, a3_b, a3_a); }
+global drawCircleLinesV(float a0_x, float a0_y, float a1, int a2_r, int a2_g, int a2_b, int a2_a) { global.nativeRaylib.drawCircleLinesV(a0_x, a0_y, a1, a2_r, a2_g, a2_b, a2_a); }
+global drawEllipse(int a0, int a1, float a2, float a3, int a4_r, int a4_g, int a4_b, int a4_a) { global.nativeRaylib.drawEllipse(a0, a1, a2, a3, a4_r, a4_g, a4_b, a4_a); }
+global drawEllipseV(float a0_x, float a0_y, float a1, float a2, int a3_r, int a3_g, int a3_b, int a3_a) { global.nativeRaylib.drawEllipseV(a0_x, a0_y, a1, a2, a3_r, a3_g, a3_b, a3_a); }
+global drawEllipseLines(int a0, int a1, float a2, float a3, int a4_r, int a4_g, int a4_b, int a4_a) { global.nativeRaylib.drawEllipseLines(a0, a1, a2, a3, a4_r, a4_g, a4_b, a4_a); }
+global drawEllipseLinesV(float a0_x, float a0_y, float a1, float a2, int a3_r, int a3_g, int a3_b, int a3_a) { global.nativeRaylib.drawEllipseLinesV(a0_x, a0_y, a1, a2, a3_r, a3_g, a3_b, a3_a); }
+global drawRing(float a0_x, float a0_y, float a1, float a2, float a3, float a4, int a5, int a6_r, int a6_g, int a6_b, int a6_a) { global.nativeRaylib.drawRing(a0_x, a0_y, a1, a2, a3, a4, a5, a6_r, a6_g, a6_b, a6_a); }
+global drawRingLines(float a0_x, float a0_y, float a1, float a2, float a3, float a4, int a5, int a6_r, int a6_g, int a6_b, int a6_a) { global.nativeRaylib.drawRingLines(a0_x, a0_y, a1, a2, a3, a4, a5, a6_r, a6_g, a6_b, a6_a); }
+global drawRectangle(int a0, int a1, int a2, int a3, int a4_r, int a4_g, int a4_b, int a4_a) { global.nativeRaylib.drawRectangle(a0, a1, a2, a3, a4_r, a4_g, a4_b, a4_a); }
+global drawRectangleV(float a0_x, float a0_y, float a1_x, float a1_y, int a2_r, int a2_g, int a2_b, int a2_a) { global.nativeRaylib.drawRectangleV(a0_x, a0_y, a1_x, a1_y, a2_r, a2_g, a2_b, a2_a); }
+global drawRectangleRec(float a0_x, float a0_y, float a0_width, float a0_height, int a1_r, int a1_g, int a1_b, int a1_a) { global.nativeRaylib.drawRectangleRec(a0_x, a0_y, a0_width, a0_height, a1_r, a1_g, a1_b, a1_a); }
+global drawRectanglePro(float a0_x, float a0_y, float a0_width, float a0_height, float a1_x, float a1_y, float a2, int a3_r, int a3_g, int a3_b, int a3_a) { global.nativeRaylib.drawRectanglePro(a0_x, a0_y, a0_width, a0_height, a1_x, a1_y, a2, a3_r, a3_g, a3_b, a3_a); }
+global drawRectangleGradientV(int a0, int a1, int a2, int a3, int a4_r, int a4_g, int a4_b, int a4_a, int a5_r, int a5_g, int a5_b, int a5_a) { global.nativeRaylib.drawRectangleGradientV(a0, a1, a2, a3, a4_r, a4_g, a4_b, a4_a, a5_r, a5_g, a5_b, a5_a); }
+global drawRectangleGradientH(int a0, int a1, int a2, int a3, int a4_r, int a4_g, int a4_b, int a4_a, int a5_r, int a5_g, int a5_b, int a5_a) { global.nativeRaylib.drawRectangleGradientH(a0, a1, a2, a3, a4_r, a4_g, a4_b, a4_a, a5_r, a5_g, a5_b, a5_a); }
+global drawRectangleGradientEx(float a0_x, float a0_y, float a0_width, float a0_height, int a1_r, int a1_g, int a1_b, int a1_a, int a2_r, int a2_g, int a2_b, int a2_a, int a3_r, int a3_g, int a3_b, int a3_a, int a4_r, int a4_g, int a4_b, int a4_a) { global.nativeRaylib.drawRectangleGradientEx(a0_x, a0_y, a0_width, a0_height, a1_r, a1_g, a1_b, a1_a, a2_r, a2_g, a2_b, a2_a, a3_r, a3_g, a3_b, a3_a, a4_r, a4_g, a4_b, a4_a); }
+global drawRectangleLines(int a0, int a1, int a2, int a3, int a4_r, int a4_g, int a4_b, int a4_a) { global.nativeRaylib.drawRectangleLines(a0, a1, a2, a3, a4_r, a4_g, a4_b, a4_a); }
+global drawRectangleLinesEx(float a0_x, float a0_y, float a0_width, float a0_height, float a1, int a2_r, int a2_g, int a2_b, int a2_a) { global.nativeRaylib.drawRectangleLinesEx(a0_x, a0_y, a0_width, a0_height, a1, a2_r, a2_g, a2_b, a2_a); }
+global drawRectangleRounded(float a0_x, float a0_y, float a0_width, float a0_height, float a1, int a2, int a3_r, int a3_g, int a3_b, int a3_a) { global.nativeRaylib.drawRectangleRounded(a0_x, a0_y, a0_width, a0_height, a1, a2, a3_r, a3_g, a3_b, a3_a); }
+global drawRectangleRoundedLines(float a0_x, float a0_y, float a0_width, float a0_height, float a1, int a2, int a3_r, int a3_g, int a3_b, int a3_a) { global.nativeRaylib.drawRectangleRoundedLines(a0_x, a0_y, a0_width, a0_height, a1, a2, a3_r, a3_g, a3_b, a3_a); }
+global drawRectangleRoundedLinesEx(float a0_x, float a0_y, float a0_width, float a0_height, float a1, int a2, float a3, int a4_r, int a4_g, int a4_b, int a4_a) { global.nativeRaylib.drawRectangleRoundedLinesEx(a0_x, a0_y, a0_width, a0_height, a1, a2, a3, a4_r, a4_g, a4_b, a4_a); }
+global drawTriangle(float a0_x, float a0_y, float a1_x, float a1_y, float a2_x, float a2_y, int a3_r, int a3_g, int a3_b, int a3_a) { global.nativeRaylib.drawTriangle(a0_x, a0_y, a1_x, a1_y, a2_x, a2_y, a3_r, a3_g, a3_b, a3_a); }
+global drawTriangleLines(float a0_x, float a0_y, float a1_x, float a1_y, float a2_x, float a2_y, int a3_r, int a3_g, int a3_b, int a3_a) { global.nativeRaylib.drawTriangleLines(a0_x, a0_y, a1_x, a1_y, a2_x, a2_y, a3_r, a3_g, a3_b, a3_a); }
+global drawTriangleFan(int a0, int a1, int a2_r, int a2_g, int a2_b, int a2_a) { global.nativeRaylib.drawTriangleFan(a0, a1, a2_r, a2_g, a2_b, a2_a); }
+global drawTriangleStrip(int a0, int a1, int a2_r, int a2_g, int a2_b, int a2_a) { global.nativeRaylib.drawTriangleStrip(a0, a1, a2_r, a2_g, a2_b, a2_a); }
+global drawPoly(float a0_x, float a0_y, int a1, float a2, float a3, int a4_r, int a4_g, int a4_b, int a4_a) { global.nativeRaylib.drawPoly(a0_x, a0_y, a1, a2, a3, a4_r, a4_g, a4_b, a4_a); }
+global drawPolyLines(float a0_x, float a0_y, int a1, float a2, float a3, int a4_r, int a4_g, int a4_b, int a4_a) { global.nativeRaylib.drawPolyLines(a0_x, a0_y, a1, a2, a3, a4_r, a4_g, a4_b, a4_a); }
+global drawPolyLinesEx(float a0_x, float a0_y, int a1, float a2, float a3, float a4, int a5_r, int a5_g, int a5_b, int a5_a) { global.nativeRaylib.drawPolyLinesEx(a0_x, a0_y, a1, a2, a3, a4, a5_r, a5_g, a5_b, a5_a); }
+global drawSplineLinear(int a0, int a1, float a2, int a3_r, int a3_g, int a3_b, int a3_a) { global.nativeRaylib.drawSplineLinear(a0, a1, a2, a3_r, a3_g, a3_b, a3_a); }
+global drawSplineBasis(int a0, int a1, float a2, int a3_r, int a3_g, int a3_b, int a3_a) { global.nativeRaylib.drawSplineBasis(a0, a1, a2, a3_r, a3_g, a3_b, a3_a); }
+global drawSplineCatmullRom(int a0, int a1, float a2, int a3_r, int a3_g, int a3_b, int a3_a) { global.nativeRaylib.drawSplineCatmullRom(a0, a1, a2, a3_r, a3_g, a3_b, a3_a); }
+global drawSplineBezierQuadratic(int a0, int a1, float a2, int a3_r, int a3_g, int a3_b, int a3_a) { global.nativeRaylib.drawSplineBezierQuadratic(a0, a1, a2, a3_r, a3_g, a3_b, a3_a); }
+global drawSplineBezierCubic(int a0, int a1, float a2, int a3_r, int a3_g, int a3_b, int a3_a) { global.nativeRaylib.drawSplineBezierCubic(a0, a1, a2, a3_r, a3_g, a3_b, a3_a); }
+global drawSplineSegmentLinear(float a0_x, float a0_y, float a1_x, float a1_y, float a2, int a3_r, int a3_g, int a3_b, int a3_a) { global.nativeRaylib.drawSplineSegmentLinear(a0_x, a0_y, a1_x, a1_y, a2, a3_r, a3_g, a3_b, a3_a); }
+global drawSplineSegmentBasis(float a0_x, float a0_y, float a1_x, float a1_y, float a2_x, float a2_y, float a3_x, float a3_y, float a4, int a5_r, int a5_g, int a5_b, int a5_a) { global.nativeRaylib.drawSplineSegmentBasis(a0_x, a0_y, a1_x, a1_y, a2_x, a2_y, a3_x, a3_y, a4, a5_r, a5_g, a5_b, a5_a); }
+global drawSplineSegmentCatmullRom(float a0_x, float a0_y, float a1_x, float a1_y, float a2_x, float a2_y, float a3_x, float a3_y, float a4, int a5_r, int a5_g, int a5_b, int a5_a) { global.nativeRaylib.drawSplineSegmentCatmullRom(a0_x, a0_y, a1_x, a1_y, a2_x, a2_y, a3_x, a3_y, a4, a5_r, a5_g, a5_b, a5_a); }
+global drawSplineSegmentBezierQuadratic(float a0_x, float a0_y, float a1_x, float a1_y, float a2_x, float a2_y, float a3, int a4_r, int a4_g, int a4_b, int a4_a) { global.nativeRaylib.drawSplineSegmentBezierQuadratic(a0_x, a0_y, a1_x, a1_y, a2_x, a2_y, a3, a4_r, a4_g, a4_b, a4_a); }
+global drawSplineSegmentBezierCubic(float a0_x, float a0_y, float a1_x, float a1_y, float a2_x, float a2_y, float a3_x, float a3_y, float a4, int a5_r, int a5_g, int a5_b, int a5_a) { global.nativeRaylib.drawSplineSegmentBezierCubic(a0_x, a0_y, a1_x, a1_y, a2_x, a2_y, a3_x, a3_y, a4, a5_r, a5_g, a5_b, a5_a); }
+global getSplinePointLinear(float a0_x, float a0_y, float a1_x, float a1_y, float a2) -> int { return global.nativeRaylib.getSplinePointLinear(a0_x, a0_y, a1_x, a1_y, a2); }
+global getSplinePointBasis(float a0_x, float a0_y, float a1_x, float a1_y, float a2_x, float a2_y, float a3_x, float a3_y, float a4) -> int { return global.nativeRaylib.getSplinePointBasis(a0_x, a0_y, a1_x, a1_y, a2_x, a2_y, a3_x, a3_y, a4); }
+global getSplinePointCatmullRom(float a0_x, float a0_y, float a1_x, float a1_y, float a2_x, float a2_y, float a3_x, float a3_y, float a4) -> int { return global.nativeRaylib.getSplinePointCatmullRom(a0_x, a0_y, a1_x, a1_y, a2_x, a2_y, a3_x, a3_y, a4); }
+global getSplinePointBezierQuad(float a0_x, float a0_y, float a1_x, float a1_y, float a2_x, float a2_y, float a3) -> int { return global.nativeRaylib.getSplinePointBezierQuad(a0_x, a0_y, a1_x, a1_y, a2_x, a2_y, a3); }
+global getSplinePointBezierCubic(float a0_x, float a0_y, float a1_x, float a1_y, float a2_x, float a2_y, float a3_x, float a3_y, float a4) -> int { return global.nativeRaylib.getSplinePointBezierCubic(a0_x, a0_y, a1_x, a1_y, a2_x, a2_y, a3_x, a3_y, a4); }
+global checkCollisionRecs(float a0_x, float a0_y, float a0_width, float a0_height, float a1_x, float a1_y, float a1_width, float a1_height) -> int { return global.nativeRaylib.checkCollisionRecs(a0_x, a0_y, a0_width, a0_height, a1_x, a1_y, a1_width, a1_height); }
+global checkCollisionCircles(float a0_x, float a0_y, float a1, float a2_x, float a2_y, float a3) -> int { return global.nativeRaylib.checkCollisionCircles(a0_x, a0_y, a1, a2_x, a2_y, a3); }
+global checkCollisionCircleRec(float a0_x, float a0_y, float a1, float a2_x, float a2_y, float a2_width, float a2_height) -> int { return global.nativeRaylib.checkCollisionCircleRec(a0_x, a0_y, a1, a2_x, a2_y, a2_width, a2_height); }
+global checkCollisionCircleLine(float a0_x, float a0_y, float a1, float a2_x, float a2_y, float a3_x, float a3_y) -> int { return global.nativeRaylib.checkCollisionCircleLine(a0_x, a0_y, a1, a2_x, a2_y, a3_x, a3_y); }
+global checkCollisionPointRec(float a0_x, float a0_y, float a1_x, float a1_y, float a1_width, float a1_height) -> int { return global.nativeRaylib.checkCollisionPointRec(a0_x, a0_y, a1_x, a1_y, a1_width, a1_height); }
+global checkCollisionPointCircle(float a0_x, float a0_y, float a1_x, float a1_y, float a2) -> int { return global.nativeRaylib.checkCollisionPointCircle(a0_x, a0_y, a1_x, a1_y, a2); }
+global checkCollisionPointTriangle(float a0_x, float a0_y, float a1_x, float a1_y, float a2_x, float a2_y, float a3_x, float a3_y) -> int { return global.nativeRaylib.checkCollisionPointTriangle(a0_x, a0_y, a1_x, a1_y, a2_x, a2_y, a3_x, a3_y); }
+global checkCollisionPointLine(float a0_x, float a0_y, float a1_x, float a1_y, float a2_x, float a2_y, int a3) -> int { return global.nativeRaylib.checkCollisionPointLine(a0_x, a0_y, a1_x, a1_y, a2_x, a2_y, a3); }
+global checkCollisionPointPoly(float a0_x, float a0_y, int a1, int a2) -> int { return global.nativeRaylib.checkCollisionPointPoly(a0_x, a0_y, a1, a2); }
+global checkCollisionLines(float a0_x, float a0_y, float a1_x, float a1_y, float a2_x, float a2_y, float a3_x, float a3_y, int a4) -> int { return global.nativeRaylib.checkCollisionLines(a0_x, a0_y, a1_x, a1_y, a2_x, a2_y, a3_x, a3_y, a4); }
+global getCollisionRec(float a0_x, float a0_y, float a0_width, float a0_height, float a1_x, float a1_y, float a1_width, float a1_height) -> int { return global.nativeRaylib.getCollisionRec(a0_x, a0_y, a0_width, a0_height, a1_x, a1_y, a1_width, a1_height); }
+global loadImage(str a0) -> int { return global.nativeRaylib.loadImage(a0); }
+global loadImageRaw(str a0, int a1, int a2, int a3, int a4) -> int { return global.nativeRaylib.loadImageRaw(a0, a1, a2, a3, a4); }
+global loadImageAnim(str a0, int a1) -> int { return global.nativeRaylib.loadImageAnim(a0, a1); }
+global loadImageAnimFromMemory(str a0, int a1, int a2, int a3) -> int { return global.nativeRaylib.loadImageAnimFromMemory(a0, a1, a2, a3); }
+global loadImageFromMemory(str a0, int a1, int a2) -> int { return global.nativeRaylib.loadImageFromMemory(a0, a1, a2); }
+global loadImageFromTexture(int a0_id, int a0_width, int a0_height, int a0_mipmaps, int a0_format) -> int { return global.nativeRaylib.loadImageFromTexture(a0_id, a0_width, a0_height, a0_mipmaps, a0_format); }
+global loadImageFromScreen() -> int { return global.nativeRaylib.loadImageFromScreen(); }
+global isImageValid(int a0) -> int { return global.nativeRaylib.isImageValid(a0); }
+global unloadImage(int a0) { global.nativeRaylib.unloadImage(a0); }
+global exportImage(int a0, str a1) -> int { return global.nativeRaylib.exportImage(a0, a1); }
+global exportImageToMemory(int a0, str a1, int a2) -> int { return global.nativeRaylib.exportImageToMemory(a0, a1, a2); }
+global exportImageAsCode(int a0, str a1) -> int { return global.nativeRaylib.exportImageAsCode(a0, a1); }
+global genImageColor(int a0, int a1, int a2_r, int a2_g, int a2_b, int a2_a) -> int { return global.nativeRaylib.genImageColor(a0, a1, a2_r, a2_g, a2_b, a2_a); }
+global genImageGradientLinear(int a0, int a1, int a2, int a3_r, int a3_g, int a3_b, int a3_a, int a4_r, int a4_g, int a4_b, int a4_a) -> int { return global.nativeRaylib.genImageGradientLinear(a0, a1, a2, a3_r, a3_g, a3_b, a3_a, a4_r, a4_g, a4_b, a4_a); }
+global genImageGradientRadial(int a0, int a1, float a2, int a3_r, int a3_g, int a3_b, int a3_a, int a4_r, int a4_g, int a4_b, int a4_a) -> int { return global.nativeRaylib.genImageGradientRadial(a0, a1, a2, a3_r, a3_g, a3_b, a3_a, a4_r, a4_g, a4_b, a4_a); }
+global genImageGradientSquare(int a0, int a1, float a2, int a3_r, int a3_g, int a3_b, int a3_a, int a4_r, int a4_g, int a4_b, int a4_a) -> int { return global.nativeRaylib.genImageGradientSquare(a0, a1, a2, a3_r, a3_g, a3_b, a3_a, a4_r, a4_g, a4_b, a4_a); }
+global genImageChecked(int a0, int a1, int a2, int a3, int a4_r, int a4_g, int a4_b, int a4_a, int a5_r, int a5_g, int a5_b, int a5_a) -> int { return global.nativeRaylib.genImageChecked(a0, a1, a2, a3, a4_r, a4_g, a4_b, a4_a, a5_r, a5_g, a5_b, a5_a); }
+global genImageWhiteNoise(int a0, int a1, float a2) -> int { return global.nativeRaylib.genImageWhiteNoise(a0, a1, a2); }
+global genImagePerlinNoise(int a0, int a1, int a2, int a3, float a4) -> int { return global.nativeRaylib.genImagePerlinNoise(a0, a1, a2, a3, a4); }
+global genImageCellular(int a0, int a1, int a2) -> int { return global.nativeRaylib.genImageCellular(a0, a1, a2); }
+global genImageText(int a0, int a1, str a2) -> int { return global.nativeRaylib.genImageText(a0, a1, a2); }
+global imageCopy(int a0) -> int { return global.nativeRaylib.imageCopy(a0); }
+global imageFromImage(int a0, float a1_x, float a1_y, float a1_width, float a1_height) -> int { return global.nativeRaylib.imageFromImage(a0, a1_x, a1_y, a1_width, a1_height); }
+global imageFromChannel(int a0, int a1) -> int { return global.nativeRaylib.imageFromChannel(a0, a1); }
+global imageText(str a0, int a1, int a2_r, int a2_g, int a2_b, int a2_a) -> int { return global.nativeRaylib.imageText(a0, a1, a2_r, a2_g, a2_b, a2_a); }
+global imageTextEx(int a0, str a1, float a2, float a3, int a4_r, int a4_g, int a4_b, int a4_a) -> int { return global.nativeRaylib.imageTextEx(a0, a1, a2, a3, a4_r, a4_g, a4_b, a4_a); }
+global imageFormat(int a0, int a1) { global.nativeRaylib.imageFormat(a0, a1); }
+global imageToPOT(int a0, int a1_r, int a1_g, int a1_b, int a1_a) { global.nativeRaylib.imageToPOT(a0, a1_r, a1_g, a1_b, a1_a); }
+global imageCrop(int a0, float a1_x, float a1_y, float a1_width, float a1_height) { global.nativeRaylib.imageCrop(a0, a1_x, a1_y, a1_width, a1_height); }
+global imageAlphaCrop(int a0, float a1) { global.nativeRaylib.imageAlphaCrop(a0, a1); }
+global imageAlphaClear(int a0, int a1_r, int a1_g, int a1_b, int a1_a, float a2) { global.nativeRaylib.imageAlphaClear(a0, a1_r, a1_g, a1_b, a1_a, a2); }
+global imageAlphaMask(int a0, int a1) { global.nativeRaylib.imageAlphaMask(a0, a1); }
+global imageAlphaPremultiply(int a0) { global.nativeRaylib.imageAlphaPremultiply(a0); }
+global imageBlurGaussian(int a0, int a1) { global.nativeRaylib.imageBlurGaussian(a0, a1); }
+global imageKernelConvolution(int a0, int a1, int a2) { global.nativeRaylib.imageKernelConvolution(a0, a1, a2); }
+global imageResize(int a0, int a1, int a2) { global.nativeRaylib.imageResize(a0, a1, a2); }
+global imageResizeNN(int a0, int a1, int a2) { global.nativeRaylib.imageResizeNN(a0, a1, a2); }
+global imageResizeCanvas(int a0, int a1, int a2, int a3, int a4, int a5_r, int a5_g, int a5_b, int a5_a) { global.nativeRaylib.imageResizeCanvas(a0, a1, a2, a3, a4, a5_r, a5_g, a5_b, a5_a); }
+global imageMipmaps(int a0) { global.nativeRaylib.imageMipmaps(a0); }
+global imageDither(int a0, int a1, int a2, int a3, int a4) { global.nativeRaylib.imageDither(a0, a1, a2, a3, a4); }
+global imageFlipVertical(int a0) { global.nativeRaylib.imageFlipVertical(a0); }
+global imageFlipHorizontal(int a0) { global.nativeRaylib.imageFlipHorizontal(a0); }
+global imageRotate(int a0, int a1) { global.nativeRaylib.imageRotate(a0, a1); }
+global imageRotateCW(int a0) { global.nativeRaylib.imageRotateCW(a0); }
+global imageRotateCCW(int a0) { global.nativeRaylib.imageRotateCCW(a0); }
+global imageColorTint(int a0, int a1_r, int a1_g, int a1_b, int a1_a) { global.nativeRaylib.imageColorTint(a0, a1_r, a1_g, a1_b, a1_a); }
+global imageColorInvert(int a0) { global.nativeRaylib.imageColorInvert(a0); }
+global imageColorGrayscale(int a0) { global.nativeRaylib.imageColorGrayscale(a0); }
+global imageColorContrast(int a0, float a1) { global.nativeRaylib.imageColorContrast(a0, a1); }
+global imageColorBrightness(int a0, int a1) { global.nativeRaylib.imageColorBrightness(a0, a1); }
+global imageColorReplace(int a0, int a1_r, int a1_g, int a1_b, int a1_a, int a2_r, int a2_g, int a2_b, int a2_a) { global.nativeRaylib.imageColorReplace(a0, a1_r, a1_g, a1_b, a1_a, a2_r, a2_g, a2_b, a2_a); }
+global loadImageColors(int a0) -> int { return global.nativeRaylib.loadImageColors(a0); }
+global loadImagePalette(int a0, int a1, int a2) -> int { return global.nativeRaylib.loadImagePalette(a0, a1, a2); }
+global unloadImageColors(int a0) { global.nativeRaylib.unloadImageColors(a0); }
+global unloadImagePalette(int a0) { global.nativeRaylib.unloadImagePalette(a0); }
+global getImageAlphaBorder(int a0, float a1) -> int { return global.nativeRaylib.getImageAlphaBorder(a0, a1); }
+global getImageColor(int a0, int a1, int a2) -> int { return global.nativeRaylib.getImageColor(a0, a1, a2); }
+global imageClearBackground(int a0, int a1_r, int a1_g, int a1_b, int a1_a) { global.nativeRaylib.imageClearBackground(a0, a1_r, a1_g, a1_b, a1_a); }
+global imageDrawPixel(int a0, int a1, int a2, int a3_r, int a3_g, int a3_b, int a3_a) { global.nativeRaylib.imageDrawPixel(a0, a1, a2, a3_r, a3_g, a3_b, a3_a); }
+global imageDrawPixelV(int a0, float a1_x, float a1_y, int a2_r, int a2_g, int a2_b, int a2_a) { global.nativeRaylib.imageDrawPixelV(a0, a1_x, a1_y, a2_r, a2_g, a2_b, a2_a); }
+global imageDrawLine(int a0, int a1, int a2, int a3, int a4, int a5_r, int a5_g, int a5_b, int a5_a) { global.nativeRaylib.imageDrawLine(a0, a1, a2, a3, a4, a5_r, a5_g, a5_b, a5_a); }
+global imageDrawLineV(int a0, float a1_x, float a1_y, float a2_x, float a2_y, int a3_r, int a3_g, int a3_b, int a3_a) { global.nativeRaylib.imageDrawLineV(a0, a1_x, a1_y, a2_x, a2_y, a3_r, a3_g, a3_b, a3_a); }
+global imageDrawLineEx(int a0, float a1_x, float a1_y, float a2_x, float a2_y, int a3, int a4_r, int a4_g, int a4_b, int a4_a) { global.nativeRaylib.imageDrawLineEx(a0, a1_x, a1_y, a2_x, a2_y, a3, a4_r, a4_g, a4_b, a4_a); }
+global imageDrawCircle(int a0, int a1, int a2, int a3, int a4_r, int a4_g, int a4_b, int a4_a) { global.nativeRaylib.imageDrawCircle(a0, a1, a2, a3, a4_r, a4_g, a4_b, a4_a); }
+global imageDrawCircleV(int a0, float a1_x, float a1_y, int a2, int a3_r, int a3_g, int a3_b, int a3_a) { global.nativeRaylib.imageDrawCircleV(a0, a1_x, a1_y, a2, a3_r, a3_g, a3_b, a3_a); }
+global imageDrawCircleLines(int a0, int a1, int a2, int a3, int a4_r, int a4_g, int a4_b, int a4_a) { global.nativeRaylib.imageDrawCircleLines(a0, a1, a2, a3, a4_r, a4_g, a4_b, a4_a); }
+global imageDrawCircleLinesV(int a0, float a1_x, float a1_y, int a2, int a3_r, int a3_g, int a3_b, int a3_a) { global.nativeRaylib.imageDrawCircleLinesV(a0, a1_x, a1_y, a2, a3_r, a3_g, a3_b, a3_a); }
+global imageDrawRectangle(int a0, int a1, int a2, int a3, int a4, int a5_r, int a5_g, int a5_b, int a5_a) { global.nativeRaylib.imageDrawRectangle(a0, a1, a2, a3, a4, a5_r, a5_g, a5_b, a5_a); }
+global imageDrawRectangleV(int a0, float a1_x, float a1_y, float a2_x, float a2_y, int a3_r, int a3_g, int a3_b, int a3_a) { global.nativeRaylib.imageDrawRectangleV(a0, a1_x, a1_y, a2_x, a2_y, a3_r, a3_g, a3_b, a3_a); }
+global imageDrawRectangleRec(int a0, float a1_x, float a1_y, float a1_width, float a1_height, int a2_r, int a2_g, int a2_b, int a2_a) { global.nativeRaylib.imageDrawRectangleRec(a0, a1_x, a1_y, a1_width, a1_height, a2_r, a2_g, a2_b, a2_a); }
+global imageDrawRectangleLines(int a0, float a1_x, float a1_y, float a1_width, float a1_height, int a2, int a3_r, int a3_g, int a3_b, int a3_a) { global.nativeRaylib.imageDrawRectangleLines(a0, a1_x, a1_y, a1_width, a1_height, a2, a3_r, a3_g, a3_b, a3_a); }
+global imageDrawTriangle(int a0, float a1_x, float a1_y, float a2_x, float a2_y, float a3_x, float a3_y, int a4_r, int a4_g, int a4_b, int a4_a) { global.nativeRaylib.imageDrawTriangle(a0, a1_x, a1_y, a2_x, a2_y, a3_x, a3_y, a4_r, a4_g, a4_b, a4_a); }
+global imageDrawTriangleEx(int a0, float a1_x, float a1_y, float a2_x, float a2_y, float a3_x, float a3_y, int a4_r, int a4_g, int a4_b, int a4_a, int a5_r, int a5_g, int a5_b, int a5_a, int a6_r, int a6_g, int a6_b, int a6_a) { global.nativeRaylib.imageDrawTriangleEx(a0, a1_x, a1_y, a2_x, a2_y, a3_x, a3_y, a4_r, a4_g, a4_b, a4_a, a5_r, a5_g, a5_b, a5_a, a6_r, a6_g, a6_b, a6_a); }
+global imageDrawTriangleLines(int a0, float a1_x, float a1_y, float a2_x, float a2_y, float a3_x, float a3_y, int a4_r, int a4_g, int a4_b, int a4_a) { global.nativeRaylib.imageDrawTriangleLines(a0, a1_x, a1_y, a2_x, a2_y, a3_x, a3_y, a4_r, a4_g, a4_b, a4_a); }
+global imageDrawTriangleFan(int a0, int a1, int a2, int a3_r, int a3_g, int a3_b, int a3_a) { global.nativeRaylib.imageDrawTriangleFan(a0, a1, a2, a3_r, a3_g, a3_b, a3_a); }
+global imageDrawTriangleStrip(int a0, int a1, int a2, int a3_r, int a3_g, int a3_b, int a3_a) { global.nativeRaylib.imageDrawTriangleStrip(a0, a1, a2, a3_r, a3_g, a3_b, a3_a); }
+global imageDraw(int a0, int a1, float a2_x, float a2_y, float a2_width, float a2_height, float a3_x, float a3_y, float a3_width, float a3_height, int a4_r, int a4_g, int a4_b, int a4_a) { global.nativeRaylib.imageDraw(a0, a1, a2_x, a2_y, a2_width, a2_height, a3_x, a3_y, a3_width, a3_height, a4_r, a4_g, a4_b, a4_a); }
+global imageDrawText(int a0, str a1, int a2, int a3, int a4, int a5_r, int a5_g, int a5_b, int a5_a) { global.nativeRaylib.imageDrawText(a0, a1, a2, a3, a4, a5_r, a5_g, a5_b, a5_a); }
+global imageDrawTextEx(int a0, int a1, str a2, float a3_x, float a3_y, float a4, float a5, int a6_r, int a6_g, int a6_b, int a6_a) { global.nativeRaylib.imageDrawTextEx(a0, a1, a2, a3_x, a3_y, a4, a5, a6_r, a6_g, a6_b, a6_a); }
+global loadTexture(str a0) -> int { return global.nativeRaylib.loadTexture(a0); }
+global loadTextureFromImage(int a0) -> int { return global.nativeRaylib.loadTextureFromImage(a0); }
+global loadTextureCubemap(int a0, int a1) -> int { return global.nativeRaylib.loadTextureCubemap(a0, a1); }
+global loadRenderTexture(int a0, int a1) -> int { return global.nativeRaylib.loadRenderTexture(a0, a1); }
+global isTextureValid(int a0_id, int a0_width, int a0_height, int a0_mipmaps, int a0_format) -> int { return global.nativeRaylib.isTextureValid(a0_id, a0_width, a0_height, a0_mipmaps, a0_format); }
+global unloadTexture(int a0_id, int a0_width, int a0_height, int a0_mipmaps, int a0_format) { global.nativeRaylib.unloadTexture(a0_id, a0_width, a0_height, a0_mipmaps, a0_format); }
+global isRenderTextureValid(int a0_id, int a0_texture_id, int a0_texture_width, int a0_texture_height, int a0_texture_mipmaps, int a0_texture_format, int a0_depth_id, int a0_depth_width, int a0_depth_height, int a0_depth_mipmaps, int a0_depth_format) -> int { return global.nativeRaylib.isRenderTextureValid(a0_id, a0_texture_id, a0_texture_width, a0_texture_height, a0_texture_mipmaps, a0_texture_format, a0_depth_id, a0_depth_width, a0_depth_height, a0_depth_mipmaps, a0_depth_format); }
+global unloadRenderTexture(int a0_id, int a0_texture_id, int a0_texture_width, int a0_texture_height, int a0_texture_mipmaps, int a0_texture_format, int a0_depth_id, int a0_depth_width, int a0_depth_height, int a0_depth_mipmaps, int a0_depth_format) { global.nativeRaylib.unloadRenderTexture(a0_id, a0_texture_id, a0_texture_width, a0_texture_height, a0_texture_mipmaps, a0_texture_format, a0_depth_id, a0_depth_width, a0_depth_height, a0_depth_mipmaps, a0_depth_format); }
+global updateTexture(int a0_id, int a0_width, int a0_height, int a0_mipmaps, int a0_format, int a1) { global.nativeRaylib.updateTexture(a0_id, a0_width, a0_height, a0_mipmaps, a0_format, a1); }
+global updateTextureRec(int a0_id, int a0_width, int a0_height, int a0_mipmaps, int a0_format, float a1_x, float a1_y, float a1_width, float a1_height, int a2) { global.nativeRaylib.updateTextureRec(a0_id, a0_width, a0_height, a0_mipmaps, a0_format, a1_x, a1_y, a1_width, a1_height, a2); }
+global genTextureMipmaps(int a0) { global.nativeRaylib.genTextureMipmaps(a0); }
+global setTextureFilter(int a0_id, int a0_width, int a0_height, int a0_mipmaps, int a0_format, int a1) { global.nativeRaylib.setTextureFilter(a0_id, a0_width, a0_height, a0_mipmaps, a0_format, a1); }
+global setTextureWrap(int a0_id, int a0_width, int a0_height, int a0_mipmaps, int a0_format, int a1) { global.nativeRaylib.setTextureWrap(a0_id, a0_width, a0_height, a0_mipmaps, a0_format, a1); }
+global drawTexture(int a0_id, int a0_width, int a0_height, int a0_mipmaps, int a0_format, int a1, int a2, int a3_r, int a3_g, int a3_b, int a3_a) { global.nativeRaylib.drawTexture(a0_id, a0_width, a0_height, a0_mipmaps, a0_format, a1, a2, a3_r, a3_g, a3_b, a3_a); }
+global drawTextureV(int a0_id, int a0_width, int a0_height, int a0_mipmaps, int a0_format, float a1_x, float a1_y, int a2_r, int a2_g, int a2_b, int a2_a) { global.nativeRaylib.drawTextureV(a0_id, a0_width, a0_height, a0_mipmaps, a0_format, a1_x, a1_y, a2_r, a2_g, a2_b, a2_a); }
+global drawTextureEx(int a0_id, int a0_width, int a0_height, int a0_mipmaps, int a0_format, float a1_x, float a1_y, float a2, float a3, int a4_r, int a4_g, int a4_b, int a4_a) { global.nativeRaylib.drawTextureEx(a0_id, a0_width, a0_height, a0_mipmaps, a0_format, a1_x, a1_y, a2, a3, a4_r, a4_g, a4_b, a4_a); }
+global drawTextureRec(int a0_id, int a0_width, int a0_height, int a0_mipmaps, int a0_format, float a1_x, float a1_y, float a1_width, float a1_height, float a2_x, float a2_y, int a3_r, int a3_g, int a3_b, int a3_a) { global.nativeRaylib.drawTextureRec(a0_id, a0_width, a0_height, a0_mipmaps, a0_format, a1_x, a1_y, a1_width, a1_height, a2_x, a2_y, a3_r, a3_g, a3_b, a3_a); }
+global drawTexturePro(int a0_id, int a0_width, int a0_height, int a0_mipmaps, int a0_format, float a1_x, float a1_y, float a1_width, float a1_height, float a2_x, float a2_y, float a2_width, float a2_height, float a3_x, float a3_y, float a4, int a5_r, int a5_g, int a5_b, int a5_a) { global.nativeRaylib.drawTexturePro(a0_id, a0_width, a0_height, a0_mipmaps, a0_format, a1_x, a1_y, a1_width, a1_height, a2_x, a2_y, a2_width, a2_height, a3_x, a3_y, a4, a5_r, a5_g, a5_b, a5_a); }
+global drawTextureNPatch(int a0_id, int a0_width, int a0_height, int a0_mipmaps, int a0_format, float a1_source_x, float a1_source_y, float a1_source_width, float a1_source_height, int a1_left, int a1_top, int a1_right, int a1_bottom, int a1_layout, float a2_x, float a2_y, float a2_width, float a2_height, float a3_x, float a3_y, float a4, int a5_r, int a5_g, int a5_b, int a5_a) { global.nativeRaylib.drawTextureNPatch(a0_id, a0_width, a0_height, a0_mipmaps, a0_format, a1_source_x, a1_source_y, a1_source_width, a1_source_height, a1_left, a1_top, a1_right, a1_bottom, a1_layout, a2_x, a2_y, a2_width, a2_height, a3_x, a3_y, a4, a5_r, a5_g, a5_b, a5_a); }
+global colorIsEqual(int a0_r, int a0_g, int a0_b, int a0_a, int a1_r, int a1_g, int a1_b, int a1_a) -> int { return global.nativeRaylib.colorIsEqual(a0_r, a0_g, a0_b, a0_a, a1_r, a1_g, a1_b, a1_a); }
+global fade(int a0_r, int a0_g, int a0_b, int a0_a, float a1) -> int { return global.nativeRaylib.fade(a0_r, a0_g, a0_b, a0_a, a1); }
+global colorToInt(int a0_r, int a0_g, int a0_b, int a0_a) -> int { return global.nativeRaylib.colorToInt(a0_r, a0_g, a0_b, a0_a); }
+global colorNormalize(int a0_r, int a0_g, int a0_b, int a0_a) -> int { return global.nativeRaylib.colorNormalize(a0_r, a0_g, a0_b, a0_a); }
+global colorFromNormalized(float a0_x, float a0_y, float a0_z, float a0_w) -> int { return global.nativeRaylib.colorFromNormalized(a0_x, a0_y, a0_z, a0_w); }
+global colorToHSV(int a0_r, int a0_g, int a0_b, int a0_a) -> int { return global.nativeRaylib.colorToHSV(a0_r, a0_g, a0_b, a0_a); }
+global colorFromHSV(float a0, float a1, float a2) -> int { return global.nativeRaylib.colorFromHSV(a0, a1, a2); }
+global colorTint(int a0_r, int a0_g, int a0_b, int a0_a, int a1_r, int a1_g, int a1_b, int a1_a) -> int { return global.nativeRaylib.colorTint(a0_r, a0_g, a0_b, a0_a, a1_r, a1_g, a1_b, a1_a); }
+global colorBrightness(int a0_r, int a0_g, int a0_b, int a0_a, float a1) -> int { return global.nativeRaylib.colorBrightness(a0_r, a0_g, a0_b, a0_a, a1); }
+global colorContrast(int a0_r, int a0_g, int a0_b, int a0_a, float a1) -> int { return global.nativeRaylib.colorContrast(a0_r, a0_g, a0_b, a0_a, a1); }
+global colorAlpha(int a0_r, int a0_g, int a0_b, int a0_a, float a1) -> int { return global.nativeRaylib.colorAlpha(a0_r, a0_g, a0_b, a0_a, a1); }
+global colorAlphaBlend(int a0_r, int a0_g, int a0_b, int a0_a, int a1_r, int a1_g, int a1_b, int a1_a, int a2_r, int a2_g, int a2_b, int a2_a) -> int { return global.nativeRaylib.colorAlphaBlend(a0_r, a0_g, a0_b, a0_a, a1_r, a1_g, a1_b, a1_a, a2_r, a2_g, a2_b, a2_a); }
+global colorLerp(int a0_r, int a0_g, int a0_b, int a0_a, int a1_r, int a1_g, int a1_b, int a1_a, float a2) -> int { return global.nativeRaylib.colorLerp(a0_r, a0_g, a0_b, a0_a, a1_r, a1_g, a1_b, a1_a, a2); }
+global getColor(int a0) -> int { return global.nativeRaylib.getColor(a0); }
+global getPixelColor(int a0, int a1) -> int { return global.nativeRaylib.getPixelColor(a0, a1); }
+global setPixelColor(int a0, int a1_r, int a1_g, int a1_b, int a1_a, int a2) { global.nativeRaylib.setPixelColor(a0, a1_r, a1_g, a1_b, a1_a, a2); }
+global getPixelDataSize(int a0, int a1, int a2) -> int { return global.nativeRaylib.getPixelDataSize(a0, a1, a2); }
+global getFontDefault() -> int { return global.nativeRaylib.getFontDefault(); }
+global loadFont(str a0) -> int { return global.nativeRaylib.loadFont(a0); }
+global loadFontEx(str a0, int a1, int a2, int a3) -> int { return global.nativeRaylib.loadFontEx(a0, a1, a2, a3); }
+global loadFontFromImage(int a0, int a1_r, int a1_g, int a1_b, int a1_a, int a2) -> int { return global.nativeRaylib.loadFontFromImage(a0, a1_r, a1_g, a1_b, a1_a, a2); }
+global loadFontFromMemory(str a0, int a1, int a2, int a3, int a4, int a5) -> int { return global.nativeRaylib.loadFontFromMemory(a0, a1, a2, a3, a4, a5); }
+global isFontValid(int a0) -> int { return global.nativeRaylib.isFontValid(a0); }
+global loadFontData(int a0, int a1, int a2, int a3, int a4, int a5, int a6) -> int { return global.nativeRaylib.loadFontData(a0, a1, a2, a3, a4, a5, a6); }
+global genImageFontAtlas(int a0, int a1, int a2, int a3, int a4, int a5) -> int { return global.nativeRaylib.genImageFontAtlas(a0, a1, a2, a3, a4, a5); }
+global unloadFontData(int a0, int a1) { global.nativeRaylib.unloadFontData(a0, a1); }
+global unloadFont(int a0) { global.nativeRaylib.unloadFont(a0); }
+global exportFontAsCode(int a0, str a1) -> int { return global.nativeRaylib.exportFontAsCode(a0, a1); }
+global drawFPS(int a0, int a1) { global.nativeRaylib.drawFPS(a0, a1); }
+global drawText(str a0, int a1, int a2, int a3, int a4_r, int a4_g, int a4_b, int a4_a) { global.nativeRaylib.drawText(a0, a1, a2, a3, a4_r, a4_g, a4_b, a4_a); }
+global drawTextEx(int a0, str a1, float a2_x, float a2_y, float a3, float a4, int a5_r, int a5_g, int a5_b, int a5_a) { global.nativeRaylib.drawTextEx(a0, a1, a2_x, a2_y, a3, a4, a5_r, a5_g, a5_b, a5_a); }
+global drawTextPro(int a0, str a1, float a2_x, float a2_y, float a3_x, float a3_y, float a4, float a5, float a6, int a7_r, int a7_g, int a7_b, int a7_a) { global.nativeRaylib.drawTextPro(a0, a1, a2_x, a2_y, a3_x, a3_y, a4, a5, a6, a7_r, a7_g, a7_b, a7_a); }
+global drawTextCodepoint(int a0, int a1, float a2_x, float a2_y, float a3, int a4_r, int a4_g, int a4_b, int a4_a) { global.nativeRaylib.drawTextCodepoint(a0, a1, a2_x, a2_y, a3, a4_r, a4_g, a4_b, a4_a); }
+global drawTextCodepoints(int a0, int a1, int a2, float a3_x, float a3_y, float a4, float a5, int a6_r, int a6_g, int a6_b, int a6_a) { global.nativeRaylib.drawTextCodepoints(a0, a1, a2, a3_x, a3_y, a4, a5, a6_r, a6_g, a6_b, a6_a); }
+global setTextLineSpacing(int a0) { global.nativeRaylib.setTextLineSpacing(a0); }
+global measureText(str a0, int a1) -> int { return global.nativeRaylib.measureText(a0, a1); }
+global measureTextEx(int a0, str a1, float a2, float a3) -> int { return global.nativeRaylib.measureTextEx(a0, a1, a2, a3); }
+global measureTextCodepoints(int a0, int a1, int a2, float a3, float a4) -> int { return global.nativeRaylib.measureTextCodepoints(a0, a1, a2, a3, a4); }
+global getGlyphIndex(int a0, int a1) -> int { return global.nativeRaylib.getGlyphIndex(a0, a1); }
+global getGlyphInfo(int a0, int a1) -> int { return global.nativeRaylib.getGlyphInfo(a0, a1); }
+global getGlyphAtlasRec(int a0, int a1) -> int { return global.nativeRaylib.getGlyphAtlasRec(a0, a1); }
+global loadUTF8(int a0, int a1) -> str { return global.nativeRaylib.loadUTF8(a0, a1); }
+global unloadUTF8(str a0) { global.nativeRaylib.unloadUTF8(a0); }
+global loadCodepoints(str a0, int a1) -> int { return global.nativeRaylib.loadCodepoints(a0, a1); }
+global unloadCodepoints(int a0) { global.nativeRaylib.unloadCodepoints(a0); }
+global getCodepointCount(str a0) -> int { return global.nativeRaylib.getCodepointCount(a0); }
+global getCodepoint(str a0, int a1) -> int { return global.nativeRaylib.getCodepoint(a0, a1); }
+global getCodepointNext(str a0, int a1) -> int { return global.nativeRaylib.getCodepointNext(a0, a1); }
+global getCodepointPrevious(str a0, int a1) -> int { return global.nativeRaylib.getCodepointPrevious(a0, a1); }
+global codepointToUTF8(int a0, int a1) -> str { return global.nativeRaylib.codepointToUTF8(a0, a1); }
+global loadTextLines(str a0, int a1) -> int { return global.nativeRaylib.loadTextLines(a0, a1); }
+global unloadTextLines(int a0, int a1) { global.nativeRaylib.unloadTextLines(a0, a1); }
+global textCopy(str a0, str a1) -> int { return global.nativeRaylib.textCopy(a0, a1); }
+global textIsEqual(str a0, str a1) -> int { return global.nativeRaylib.textIsEqual(a0, a1); }
+global textLength(str a0) -> int { return global.nativeRaylib.textLength(a0); }
+global textSubtext(str a0, int a1, int a2) -> str { return global.nativeRaylib.textSubtext(a0, a1, a2); }
+global textRemoveSpaces(str a0) -> str { return global.nativeRaylib.textRemoveSpaces(a0); }
+global getTextBetween(str a0, str a1, str a2) -> str { return global.nativeRaylib.getTextBetween(a0, a1, a2); }
+global textReplace(str a0, str a1, str a2) -> str { return global.nativeRaylib.textReplace(a0, a1, a2); }
+global textReplaceAlloc(str a0, str a1, str a2) -> str { return global.nativeRaylib.textReplaceAlloc(a0, a1, a2); }
+global textReplaceBetween(str a0, str a1, str a2, str a3) -> str { return global.nativeRaylib.textReplaceBetween(a0, a1, a2, a3); }
+global textReplaceBetweenAlloc(str a0, str a1, str a2, str a3) -> str { return global.nativeRaylib.textReplaceBetweenAlloc(a0, a1, a2, a3); }
+global textInsert(str a0, str a1, int a2) -> str { return global.nativeRaylib.textInsert(a0, a1, a2); }
+global textInsertAlloc(str a0, str a1, int a2) -> str { return global.nativeRaylib.textInsertAlloc(a0, a1, a2); }
+global textJoin(int a0, int a1, str a2) -> str { return global.nativeRaylib.textJoin(a0, a1, a2); }
+global textSplit(str a0, int a1, int a2) -> int { return global.nativeRaylib.textSplit(a0, a1, a2); }
+global textAppend(str a0, str a1, int a2) { global.nativeRaylib.textAppend(a0, a1, a2); }
+global textFindIndex(str a0, str a1) -> int { return global.nativeRaylib.textFindIndex(a0, a1); }
+global textToUpper(str a0) -> str { return global.nativeRaylib.textToUpper(a0); }
+global textToLower(str a0) -> str { return global.nativeRaylib.textToLower(a0); }
+global textToPascal(str a0) -> str { return global.nativeRaylib.textToPascal(a0); }
+global textToSnake(str a0) -> str { return global.nativeRaylib.textToSnake(a0); }
+global textToCamel(str a0) -> str { return global.nativeRaylib.textToCamel(a0); }
+global textToInteger(str a0) -> int { return global.nativeRaylib.textToInteger(a0); }
+global textToFloat(str a0) -> float { return global.nativeRaylib.textToFloat(a0); }
+global drawLine3D(float a0_x, float a0_y, float a0_z, float a1_x, float a1_y, float a1_z, int a2_r, int a2_g, int a2_b, int a2_a) { global.nativeRaylib.drawLine3D(a0_x, a0_y, a0_z, a1_x, a1_y, a1_z, a2_r, a2_g, a2_b, a2_a); }
+global drawPoint3D(float a0_x, float a0_y, float a0_z, int a1_r, int a1_g, int a1_b, int a1_a) { global.nativeRaylib.drawPoint3D(a0_x, a0_y, a0_z, a1_r, a1_g, a1_b, a1_a); }
+global drawCircle3D(float a0_x, float a0_y, float a0_z, float a1, float a2_x, float a2_y, float a2_z, float a3, int a4_r, int a4_g, int a4_b, int a4_a) { global.nativeRaylib.drawCircle3D(a0_x, a0_y, a0_z, a1, a2_x, a2_y, a2_z, a3, a4_r, a4_g, a4_b, a4_a); }
+global drawTriangle3D(float a0_x, float a0_y, float a0_z, float a1_x, float a1_y, float a1_z, float a2_x, float a2_y, float a2_z, int a3_r, int a3_g, int a3_b, int a3_a) { global.nativeRaylib.drawTriangle3D(a0_x, a0_y, a0_z, a1_x, a1_y, a1_z, a2_x, a2_y, a2_z, a3_r, a3_g, a3_b, a3_a); }
+global drawTriangleStrip3D(int a0, int a1, int a2_r, int a2_g, int a2_b, int a2_a) { global.nativeRaylib.drawTriangleStrip3D(a0, a1, a2_r, a2_g, a2_b, a2_a); }
+global drawCube(float a0_x, float a0_y, float a0_z, float a1, float a2, float a3, int a4_r, int a4_g, int a4_b, int a4_a) { global.nativeRaylib.drawCube(a0_x, a0_y, a0_z, a1, a2, a3, a4_r, a4_g, a4_b, a4_a); }
+global drawCubeV(float a0_x, float a0_y, float a0_z, float a1_x, float a1_y, float a1_z, int a2_r, int a2_g, int a2_b, int a2_a) { global.nativeRaylib.drawCubeV(a0_x, a0_y, a0_z, a1_x, a1_y, a1_z, a2_r, a2_g, a2_b, a2_a); }
+global drawCubeWires(float a0_x, float a0_y, float a0_z, float a1, float a2, float a3, int a4_r, int a4_g, int a4_b, int a4_a) { global.nativeRaylib.drawCubeWires(a0_x, a0_y, a0_z, a1, a2, a3, a4_r, a4_g, a4_b, a4_a); }
+global drawCubeWiresV(float a0_x, float a0_y, float a0_z, float a1_x, float a1_y, float a1_z, int a2_r, int a2_g, int a2_b, int a2_a) { global.nativeRaylib.drawCubeWiresV(a0_x, a0_y, a0_z, a1_x, a1_y, a1_z, a2_r, a2_g, a2_b, a2_a); }
+global drawSphere(float a0_x, float a0_y, float a0_z, float a1, int a2_r, int a2_g, int a2_b, int a2_a) { global.nativeRaylib.drawSphere(a0_x, a0_y, a0_z, a1, a2_r, a2_g, a2_b, a2_a); }
+global drawSphereEx(float a0_x, float a0_y, float a0_z, float a1, int a2, int a3, int a4_r, int a4_g, int a4_b, int a4_a) { global.nativeRaylib.drawSphereEx(a0_x, a0_y, a0_z, a1, a2, a3, a4_r, a4_g, a4_b, a4_a); }
+global drawSphereWires(float a0_x, float a0_y, float a0_z, float a1, int a2, int a3, int a4_r, int a4_g, int a4_b, int a4_a) { global.nativeRaylib.drawSphereWires(a0_x, a0_y, a0_z, a1, a2, a3, a4_r, a4_g, a4_b, a4_a); }
+global drawCylinder(float a0_x, float a0_y, float a0_z, float a1, float a2, float a3, int a4, int a5_r, int a5_g, int a5_b, int a5_a) { global.nativeRaylib.drawCylinder(a0_x, a0_y, a0_z, a1, a2, a3, a4, a5_r, a5_g, a5_b, a5_a); }
+global drawCylinderEx(float a0_x, float a0_y, float a0_z, float a1_x, float a1_y, float a1_z, float a2, float a3, int a4, int a5_r, int a5_g, int a5_b, int a5_a) { global.nativeRaylib.drawCylinderEx(a0_x, a0_y, a0_z, a1_x, a1_y, a1_z, a2, a3, a4, a5_r, a5_g, a5_b, a5_a); }
+global drawCylinderWires(float a0_x, float a0_y, float a0_z, float a1, float a2, float a3, int a4, int a5_r, int a5_g, int a5_b, int a5_a) { global.nativeRaylib.drawCylinderWires(a0_x, a0_y, a0_z, a1, a2, a3, a4, a5_r, a5_g, a5_b, a5_a); }
+global drawCylinderWiresEx(float a0_x, float a0_y, float a0_z, float a1_x, float a1_y, float a1_z, float a2, float a3, int a4, int a5_r, int a5_g, int a5_b, int a5_a) { global.nativeRaylib.drawCylinderWiresEx(a0_x, a0_y, a0_z, a1_x, a1_y, a1_z, a2, a3, a4, a5_r, a5_g, a5_b, a5_a); }
+global drawCapsule(float a0_x, float a0_y, float a0_z, float a1_x, float a1_y, float a1_z, float a2, int a3, int a4, int a5_r, int a5_g, int a5_b, int a5_a) { global.nativeRaylib.drawCapsule(a0_x, a0_y, a0_z, a1_x, a1_y, a1_z, a2, a3, a4, a5_r, a5_g, a5_b, a5_a); }
+global drawCapsuleWires(float a0_x, float a0_y, float a0_z, float a1_x, float a1_y, float a1_z, float a2, int a3, int a4, int a5_r, int a5_g, int a5_b, int a5_a) { global.nativeRaylib.drawCapsuleWires(a0_x, a0_y, a0_z, a1_x, a1_y, a1_z, a2, a3, a4, a5_r, a5_g, a5_b, a5_a); }
+global drawPlane(float a0_x, float a0_y, float a0_z, float a1_x, float a1_y, int a2_r, int a2_g, int a2_b, int a2_a) { global.nativeRaylib.drawPlane(a0_x, a0_y, a0_z, a1_x, a1_y, a2_r, a2_g, a2_b, a2_a); }
+global drawRay(float a0_position_x, float a0_position_y, float a0_position_z, float a0_direction_x, float a0_direction_y, float a0_direction_z, int a1_r, int a1_g, int a1_b, int a1_a) { global.nativeRaylib.drawRay(a0_position_x, a0_position_y, a0_position_z, a0_direction_x, a0_direction_y, a0_direction_z, a1_r, a1_g, a1_b, a1_a); }
+global drawGrid(int a0, float a1) { global.nativeRaylib.drawGrid(a0, a1); }
+global loadModel(str a0) -> int { return global.nativeRaylib.loadModel(a0); }
+global loadModelFromMesh(int a0) -> int { return global.nativeRaylib.loadModelFromMesh(a0); }
+global isModelValid(int a0) -> int { return global.nativeRaylib.isModelValid(a0); }
+global unloadModel(int a0) { global.nativeRaylib.unloadModel(a0); }
+global getModelBoundingBox(int a0) -> int { return global.nativeRaylib.getModelBoundingBox(a0); }
+global drawModel(int a0, float a1_x, float a1_y, float a1_z, float a2, int a3_r, int a3_g, int a3_b, int a3_a) { global.nativeRaylib.drawModel(a0, a1_x, a1_y, a1_z, a2, a3_r, a3_g, a3_b, a3_a); }
+global drawModelEx(int a0, float a1_x, float a1_y, float a1_z, float a2_x, float a2_y, float a2_z, float a3, float a4_x, float a4_y, float a4_z, int a5_r, int a5_g, int a5_b, int a5_a) { global.nativeRaylib.drawModelEx(a0, a1_x, a1_y, a1_z, a2_x, a2_y, a2_z, a3, a4_x, a4_y, a4_z, a5_r, a5_g, a5_b, a5_a); }
+global drawModelWires(int a0, float a1_x, float a1_y, float a1_z, float a2, int a3_r, int a3_g, int a3_b, int a3_a) { global.nativeRaylib.drawModelWires(a0, a1_x, a1_y, a1_z, a2, a3_r, a3_g, a3_b, a3_a); }
+global drawModelWiresEx(int a0, float a1_x, float a1_y, float a1_z, float a2_x, float a2_y, float a2_z, float a3, float a4_x, float a4_y, float a4_z, int a5_r, int a5_g, int a5_b, int a5_a) { global.nativeRaylib.drawModelWiresEx(a0, a1_x, a1_y, a1_z, a2_x, a2_y, a2_z, a3, a4_x, a4_y, a4_z, a5_r, a5_g, a5_b, a5_a); }
+global drawBoundingBox(float a0_min_x, float a0_min_y, float a0_min_z, float a0_max_x, float a0_max_y, float a0_max_z, int a1_r, int a1_g, int a1_b, int a1_a) { global.nativeRaylib.drawBoundingBox(a0_min_x, a0_min_y, a0_min_z, a0_max_x, a0_max_y, a0_max_z, a1_r, a1_g, a1_b, a1_a); }
+global drawBillboard(float a0_position_x, float a0_position_y, float a0_position_z, float a0_target_x, float a0_target_y, float a0_target_z, float a0_up_x, float a0_up_y, float a0_up_z, float a0_fovy, int a0_projection, int a1_id, int a1_width, int a1_height, int a1_mipmaps, int a1_format, float a2_x, float a2_y, float a2_z, float a3, int a4_r, int a4_g, int a4_b, int a4_a) { global.nativeRaylib.drawBillboard(a0_position_x, a0_position_y, a0_position_z, a0_target_x, a0_target_y, a0_target_z, a0_up_x, a0_up_y, a0_up_z, a0_fovy, a0_projection, a1_id, a1_width, a1_height, a1_mipmaps, a1_format, a2_x, a2_y, a2_z, a3, a4_r, a4_g, a4_b, a4_a); }
+global drawBillboardRec(float a0_position_x, float a0_position_y, float a0_position_z, float a0_target_x, float a0_target_y, float a0_target_z, float a0_up_x, float a0_up_y, float a0_up_z, float a0_fovy, int a0_projection, int a1_id, int a1_width, int a1_height, int a1_mipmaps, int a1_format, float a2_x, float a2_y, float a2_width, float a2_height, float a3_x, float a3_y, float a3_z, float a4_x, float a4_y, int a5_r, int a5_g, int a5_b, int a5_a) { global.nativeRaylib.drawBillboardRec(a0_position_x, a0_position_y, a0_position_z, a0_target_x, a0_target_y, a0_target_z, a0_up_x, a0_up_y, a0_up_z, a0_fovy, a0_projection, a1_id, a1_width, a1_height, a1_mipmaps, a1_format, a2_x, a2_y, a2_width, a2_height, a3_x, a3_y, a3_z, a4_x, a4_y, a5_r, a5_g, a5_b, a5_a); }
+global drawBillboardPro(float a0_position_x, float a0_position_y, float a0_position_z, float a0_target_x, float a0_target_y, float a0_target_z, float a0_up_x, float a0_up_y, float a0_up_z, float a0_fovy, int a0_projection, int a1_id, int a1_width, int a1_height, int a1_mipmaps, int a1_format, float a2_x, float a2_y, float a2_width, float a2_height, float a3_x, float a3_y, float a3_z, float a4_x, float a4_y, float a4_z, float a5_x, float a5_y, float a6_x, float a6_y, float a7, int a8_r, int a8_g, int a8_b, int a8_a) { global.nativeRaylib.drawBillboardPro(a0_position_x, a0_position_y, a0_position_z, a0_target_x, a0_target_y, a0_target_z, a0_up_x, a0_up_y, a0_up_z, a0_fovy, a0_projection, a1_id, a1_width, a1_height, a1_mipmaps, a1_format, a2_x, a2_y, a2_width, a2_height, a3_x, a3_y, a3_z, a4_x, a4_y, a4_z, a5_x, a5_y, a6_x, a6_y, a7, a8_r, a8_g, a8_b, a8_a); }
+global uploadMesh(int a0, int a1) { global.nativeRaylib.uploadMesh(a0, a1); }
+global updateMeshBuffer(int a0, int a1, int a2, int a3, int a4) { global.nativeRaylib.updateMeshBuffer(a0, a1, a2, a3, a4); }
+global unloadMesh(int a0) { global.nativeRaylib.unloadMesh(a0); }
+global drawMesh(int a0, int a1, float a2_m0, float a2_m4, float a2_m8, float a2_m12, float a2_m1, float a2_m5, float a2_m9, float a2_m13, float a2_m2, float a2_m6, float a2_m10, float a2_m14, float a2_m3, float a2_m7, float a2_m11, float a2_m15) { global.nativeRaylib.drawMesh(a0, a1, a2_m0, a2_m4, a2_m8, a2_m12, a2_m1, a2_m5, a2_m9, a2_m13, a2_m2, a2_m6, a2_m10, a2_m14, a2_m3, a2_m7, a2_m11, a2_m15); }
+global drawMeshInstanced(int a0, int a1, int a2, int a3) { global.nativeRaylib.drawMeshInstanced(a0, a1, a2, a3); }
+global getMeshBoundingBox(int a0) -> int { return global.nativeRaylib.getMeshBoundingBox(a0); }
+global genMeshTangents(int a0) { global.nativeRaylib.genMeshTangents(a0); }
+global exportMesh(int a0, str a1) -> int { return global.nativeRaylib.exportMesh(a0, a1); }
+global exportMeshAsCode(int a0, str a1) -> int { return global.nativeRaylib.exportMeshAsCode(a0, a1); }
+global genMeshPoly(int a0, float a1) -> int { return global.nativeRaylib.genMeshPoly(a0, a1); }
+global genMeshPlane(float a0, float a1, int a2, int a3) -> int { return global.nativeRaylib.genMeshPlane(a0, a1, a2, a3); }
+global genMeshCube(float a0, float a1, float a2) -> int { return global.nativeRaylib.genMeshCube(a0, a1, a2); }
+global genMeshSphere(float a0, int a1, int a2) -> int { return global.nativeRaylib.genMeshSphere(a0, a1, a2); }
+global genMeshHemiSphere(float a0, int a1, int a2) -> int { return global.nativeRaylib.genMeshHemiSphere(a0, a1, a2); }
+global genMeshCylinder(float a0, float a1, int a2) -> int { return global.nativeRaylib.genMeshCylinder(a0, a1, a2); }
+global genMeshCone(float a0, float a1, int a2) -> int { return global.nativeRaylib.genMeshCone(a0, a1, a2); }
+global genMeshTorus(float a0, float a1, int a2, int a3) -> int { return global.nativeRaylib.genMeshTorus(a0, a1, a2, a3); }
+global genMeshKnot(float a0, float a1, int a2, int a3) -> int { return global.nativeRaylib.genMeshKnot(a0, a1, a2, a3); }
+global genMeshHeightmap(int a0, float a1_x, float a1_y, float a1_z) -> int { return global.nativeRaylib.genMeshHeightmap(a0, a1_x, a1_y, a1_z); }
+global genMeshCubicmap(int a0, float a1_x, float a1_y, float a1_z) -> int { return global.nativeRaylib.genMeshCubicmap(a0, a1_x, a1_y, a1_z); }
+global loadMaterials(str a0, int a1) -> int { return global.nativeRaylib.loadMaterials(a0, a1); }
+global loadMaterialDefault() -> int { return global.nativeRaylib.loadMaterialDefault(); }
+global isMaterialValid(int a0) -> int { return global.nativeRaylib.isMaterialValid(a0); }
+global unloadMaterial(int a0) { global.nativeRaylib.unloadMaterial(a0); }
+global setMaterialTexture(int a0, int a1, int a2_id, int a2_width, int a2_height, int a2_mipmaps, int a2_format) { global.nativeRaylib.setMaterialTexture(a0, a1, a2_id, a2_width, a2_height, a2_mipmaps, a2_format); }
+global setModelMeshMaterial(int a0, int a1, int a2) { global.nativeRaylib.setModelMeshMaterial(a0, a1, a2); }
+global loadModelAnimations(str a0, int a1) -> int { return global.nativeRaylib.loadModelAnimations(a0, a1); }
+global updateModelAnimation(int a0, int a1, float a2) { global.nativeRaylib.updateModelAnimation(a0, a1, a2); }
+global updateModelAnimationEx(int a0, int a1, float a2, int a3, float a4, float a5) { global.nativeRaylib.updateModelAnimationEx(a0, a1, a2, a3, a4, a5); }
+global unloadModelAnimations(int a0, int a1) { global.nativeRaylib.unloadModelAnimations(a0, a1); }
+global isModelAnimationValid(int a0, int a1) -> int { return global.nativeRaylib.isModelAnimationValid(a0, a1); }
+global checkCollisionSpheres(float a0_x, float a0_y, float a0_z, float a1, float a2_x, float a2_y, float a2_z, float a3) -> int { return global.nativeRaylib.checkCollisionSpheres(a0_x, a0_y, a0_z, a1, a2_x, a2_y, a2_z, a3); }
+global checkCollisionBoxes(float a0_min_x, float a0_min_y, float a0_min_z, float a0_max_x, float a0_max_y, float a0_max_z, float a1_min_x, float a1_min_y, float a1_min_z, float a1_max_x, float a1_max_y, float a1_max_z) -> int { return global.nativeRaylib.checkCollisionBoxes(a0_min_x, a0_min_y, a0_min_z, a0_max_x, a0_max_y, a0_max_z, a1_min_x, a1_min_y, a1_min_z, a1_max_x, a1_max_y, a1_max_z); }
+global checkCollisionBoxSphere(float a0_min_x, float a0_min_y, float a0_min_z, float a0_max_x, float a0_max_y, float a0_max_z, float a1_x, float a1_y, float a1_z, float a2) -> int { return global.nativeRaylib.checkCollisionBoxSphere(a0_min_x, a0_min_y, a0_min_z, a0_max_x, a0_max_y, a0_max_z, a1_x, a1_y, a1_z, a2); }
+global getRayCollisionSphere(float a0_position_x, float a0_position_y, float a0_position_z, float a0_direction_x, float a0_direction_y, float a0_direction_z, float a1_x, float a1_y, float a1_z, float a2) -> int { return global.nativeRaylib.getRayCollisionSphere(a0_position_x, a0_position_y, a0_position_z, a0_direction_x, a0_direction_y, a0_direction_z, a1_x, a1_y, a1_z, a2); }
+global getRayCollisionBox(float a0_position_x, float a0_position_y, float a0_position_z, float a0_direction_x, float a0_direction_y, float a0_direction_z, float a1_min_x, float a1_min_y, float a1_min_z, float a1_max_x, float a1_max_y, float a1_max_z) -> int { return global.nativeRaylib.getRayCollisionBox(a0_position_x, a0_position_y, a0_position_z, a0_direction_x, a0_direction_y, a0_direction_z, a1_min_x, a1_min_y, a1_min_z, a1_max_x, a1_max_y, a1_max_z); }
+global getRayCollisionMesh(float a0_position_x, float a0_position_y, float a0_position_z, float a0_direction_x, float a0_direction_y, float a0_direction_z, int a1, float a2_m0, float a2_m4, float a2_m8, float a2_m12, float a2_m1, float a2_m5, float a2_m9, float a2_m13, float a2_m2, float a2_m6, float a2_m10, float a2_m14, float a2_m3, float a2_m7, float a2_m11, float a2_m15) -> int { return global.nativeRaylib.getRayCollisionMesh(a0_position_x, a0_position_y, a0_position_z, a0_direction_x, a0_direction_y, a0_direction_z, a1, a2_m0, a2_m4, a2_m8, a2_m12, a2_m1, a2_m5, a2_m9, a2_m13, a2_m2, a2_m6, a2_m10, a2_m14, a2_m3, a2_m7, a2_m11, a2_m15); }
+global getRayCollisionTriangle(float a0_position_x, float a0_position_y, float a0_position_z, float a0_direction_x, float a0_direction_y, float a0_direction_z, float a1_x, float a1_y, float a1_z, float a2_x, float a2_y, float a2_z, float a3_x, float a3_y, float a3_z) -> int { return global.nativeRaylib.getRayCollisionTriangle(a0_position_x, a0_position_y, a0_position_z, a0_direction_x, a0_direction_y, a0_direction_z, a1_x, a1_y, a1_z, a2_x, a2_y, a2_z, a3_x, a3_y, a3_z); }
+global getRayCollisionQuad(float a0_position_x, float a0_position_y, float a0_position_z, float a0_direction_x, float a0_direction_y, float a0_direction_z, float a1_x, float a1_y, float a1_z, float a2_x, float a2_y, float a2_z, float a3_x, float a3_y, float a3_z, float a4_x, float a4_y, float a4_z) -> int { return global.nativeRaylib.getRayCollisionQuad(a0_position_x, a0_position_y, a0_position_z, a0_direction_x, a0_direction_y, a0_direction_z, a1_x, a1_y, a1_z, a2_x, a2_y, a2_z, a3_x, a3_y, a3_z, a4_x, a4_y, a4_z); }
+global initAudioDevice() { global.nativeRaylib.initAudioDevice(); }
+global closeAudioDevice() { global.nativeRaylib.closeAudioDevice(); }
+global isAudioDeviceReady() -> int { return global.nativeRaylib.isAudioDeviceReady(); }
+global setMasterVolume(float a0) { global.nativeRaylib.setMasterVolume(a0); }
+global getMasterVolume() -> float { return global.nativeRaylib.getMasterVolume(); }
+global loadWave(str a0) -> int { return global.nativeRaylib.loadWave(a0); }
+global loadWaveFromMemory(str a0, int a1, int a2) -> int { return global.nativeRaylib.loadWaveFromMemory(a0, a1, a2); }
+global isWaveValid(int a0) -> int { return global.nativeRaylib.isWaveValid(a0); }
+global loadSound(str a0) -> int { return global.nativeRaylib.loadSound(a0); }
+global loadSoundFromWave(int a0) -> int { return global.nativeRaylib.loadSoundFromWave(a0); }
+global loadSoundAlias(int a0) -> int { return global.nativeRaylib.loadSoundAlias(a0); }
+global isSoundValid(int a0) -> int { return global.nativeRaylib.isSoundValid(a0); }
+global updateSound(int a0, int a1, int a2) { global.nativeRaylib.updateSound(a0, a1, a2); }
+global unloadWave(int a0) { global.nativeRaylib.unloadWave(a0); }
+global unloadSound(int a0) { global.nativeRaylib.unloadSound(a0); }
+global unloadSoundAlias(int a0) { global.nativeRaylib.unloadSoundAlias(a0); }
+global exportWave(int a0, str a1) -> int { return global.nativeRaylib.exportWave(a0, a1); }
+global exportWaveAsCode(int a0, str a1) -> int { return global.nativeRaylib.exportWaveAsCode(a0, a1); }
+global playSound(int a0) { global.nativeRaylib.playSound(a0); }
+global stopSound(int a0) { global.nativeRaylib.stopSound(a0); }
+global pauseSound(int a0) { global.nativeRaylib.pauseSound(a0); }
+global resumeSound(int a0) { global.nativeRaylib.resumeSound(a0); }
+global isSoundPlaying(int a0) -> int { return global.nativeRaylib.isSoundPlaying(a0); }
+global setSoundVolume(int a0, float a1) { global.nativeRaylib.setSoundVolume(a0, a1); }
+global setSoundPitch(int a0, float a1) { global.nativeRaylib.setSoundPitch(a0, a1); }
+global setSoundPan(int a0, float a1) { global.nativeRaylib.setSoundPan(a0, a1); }
+global waveCopy(int a0) -> int { return global.nativeRaylib.waveCopy(a0); }
+global waveCrop(int a0, int a1, int a2) { global.nativeRaylib.waveCrop(a0, a1, a2); }
+global waveFormat(int a0, int a1, int a2, int a3) { global.nativeRaylib.waveFormat(a0, a1, a2, a3); }
+global loadWaveSamples(int a0) -> int { return global.nativeRaylib.loadWaveSamples(a0); }
+global unloadWaveSamples(int a0) { global.nativeRaylib.unloadWaveSamples(a0); }
+global loadMusicStream(str a0) -> int { return global.nativeRaylib.loadMusicStream(a0); }
+global loadMusicStreamFromMemory(str a0, int a1, int a2) -> int { return global.nativeRaylib.loadMusicStreamFromMemory(a0, a1, a2); }
+global isMusicValid(int a0) -> int { return global.nativeRaylib.isMusicValid(a0); }
+global unloadMusicStream(int a0) { global.nativeRaylib.unloadMusicStream(a0); }
+global playMusicStream(int a0) { global.nativeRaylib.playMusicStream(a0); }
+global isMusicStreamPlaying(int a0) -> int { return global.nativeRaylib.isMusicStreamPlaying(a0); }
+global updateMusicStream(int a0) { global.nativeRaylib.updateMusicStream(a0); }
+global stopMusicStream(int a0) { global.nativeRaylib.stopMusicStream(a0); }
+global pauseMusicStream(int a0) { global.nativeRaylib.pauseMusicStream(a0); }
+global resumeMusicStream(int a0) { global.nativeRaylib.resumeMusicStream(a0); }
+global seekMusicStream(int a0, float a1) { global.nativeRaylib.seekMusicStream(a0, a1); }
+global setMusicVolume(int a0, float a1) { global.nativeRaylib.setMusicVolume(a0, a1); }
+global setMusicPitch(int a0, float a1) { global.nativeRaylib.setMusicPitch(a0, a1); }
+global setMusicPan(int a0, float a1) { global.nativeRaylib.setMusicPan(a0, a1); }
+global getMusicTimeLength(int a0) -> float { return global.nativeRaylib.getMusicTimeLength(a0); }
+global getMusicTimePlayed(int a0) -> float { return global.nativeRaylib.getMusicTimePlayed(a0); }
+global loadAudioStream(int a0, int a1, int a2) -> int { return global.nativeRaylib.loadAudioStream(a0, a1, a2); }
+global isAudioStreamValid(int a0) -> int { return global.nativeRaylib.isAudioStreamValid(a0); }
+global unloadAudioStream(int a0) { global.nativeRaylib.unloadAudioStream(a0); }
+global updateAudioStream(int a0, int a1, int a2) { global.nativeRaylib.updateAudioStream(a0, a1, a2); }
+global isAudioStreamProcessed(int a0) -> int { return global.nativeRaylib.isAudioStreamProcessed(a0); }
+global playAudioStream(int a0) { global.nativeRaylib.playAudioStream(a0); }
+global pauseAudioStream(int a0) { global.nativeRaylib.pauseAudioStream(a0); }
+global resumeAudioStream(int a0) { global.nativeRaylib.resumeAudioStream(a0); }
+global isAudioStreamPlaying(int a0) -> int { return global.nativeRaylib.isAudioStreamPlaying(a0); }
+global stopAudioStream(int a0) { global.nativeRaylib.stopAudioStream(a0); }
+global setAudioStreamVolume(int a0, float a1) { global.nativeRaylib.setAudioStreamVolume(a0, a1); }
+global setAudioStreamPitch(int a0, float a1) { global.nativeRaylib.setAudioStreamPitch(a0, a1); }
+global setAudioStreamPan(int a0, float a1) { global.nativeRaylib.setAudioStreamPan(a0, a1); }
+global setAudioStreamBufferSizeDefault(int a0) { global.nativeRaylib.setAudioStreamBufferSizeDefault(a0); }
+global vector2New(float x, float y) -> int { return global.nativeRaylib.vector2New(x, y); }
+global vector2Free(int handle) { global.nativeRaylib.vector2Free(handle); }
+global vector2GetX(int handle) -> float { return global.nativeRaylib.vector2GetX(handle); }
+global vector2SetX(int handle, float value) { global.nativeRaylib.vector2SetX(handle, value); }
+global vector2GetY(int handle) -> float { return global.nativeRaylib.vector2GetY(handle); }
+global vector2SetY(int handle, float value) { global.nativeRaylib.vector2SetY(handle, value); }
+global vector3New(float x, float y, float z) -> int { return global.nativeRaylib.vector3New(x, y, z); }
+global vector3Free(int handle) { global.nativeRaylib.vector3Free(handle); }
+global vector3GetX(int handle) -> float { return global.nativeRaylib.vector3GetX(handle); }
+global vector3SetX(int handle, float value) { global.nativeRaylib.vector3SetX(handle, value); }
+global vector3GetY(int handle) -> float { return global.nativeRaylib.vector3GetY(handle); }
+global vector3SetY(int handle, float value) { global.nativeRaylib.vector3SetY(handle, value); }
+global vector3GetZ(int handle) -> float { return global.nativeRaylib.vector3GetZ(handle); }
+global vector3SetZ(int handle, float value) { global.nativeRaylib.vector3SetZ(handle, value); }
+global vector4New(float x, float y, float z, float w) -> int { return global.nativeRaylib.vector4New(x, y, z, w); }
+global vector4Free(int handle) { global.nativeRaylib.vector4Free(handle); }
+global vector4GetX(int handle) -> float { return global.nativeRaylib.vector4GetX(handle); }
+global vector4SetX(int handle, float value) { global.nativeRaylib.vector4SetX(handle, value); }
+global vector4GetY(int handle) -> float { return global.nativeRaylib.vector4GetY(handle); }
+global vector4SetY(int handle, float value) { global.nativeRaylib.vector4SetY(handle, value); }
+global vector4GetZ(int handle) -> float { return global.nativeRaylib.vector4GetZ(handle); }
+global vector4SetZ(int handle, float value) { global.nativeRaylib.vector4SetZ(handle, value); }
+global vector4GetW(int handle) -> float { return global.nativeRaylib.vector4GetW(handle); }
+global vector4SetW(int handle, float value) { global.nativeRaylib.vector4SetW(handle, value); }
+global matrixNew(float m0, float m4, float m8, float m12, float m1, float m5, float m9, float m13, float m2, float m6, float m10, float m14, float m3, float m7, float m11, float m15) -> int { return global.nativeRaylib.matrixNew(m0, m4, m8, m12, m1, m5, m9, m13, m2, m6, m10, m14, m3, m7, m11, m15); }
+global matrixFree(int handle) { global.nativeRaylib.matrixFree(handle); }
+global matrixGetM0(int handle) -> float { return global.nativeRaylib.matrixGetM0(handle); }
+global matrixSetM0(int handle, float value) { global.nativeRaylib.matrixSetM0(handle, value); }
+global matrixGetM4(int handle) -> float { return global.nativeRaylib.matrixGetM4(handle); }
+global matrixSetM4(int handle, float value) { global.nativeRaylib.matrixSetM4(handle, value); }
+global matrixGetM8(int handle) -> float { return global.nativeRaylib.matrixGetM8(handle); }
+global matrixSetM8(int handle, float value) { global.nativeRaylib.matrixSetM8(handle, value); }
+global matrixGetM12(int handle) -> float { return global.nativeRaylib.matrixGetM12(handle); }
+global matrixSetM12(int handle, float value) { global.nativeRaylib.matrixSetM12(handle, value); }
+global matrixGetM1(int handle) -> float { return global.nativeRaylib.matrixGetM1(handle); }
+global matrixSetM1(int handle, float value) { global.nativeRaylib.matrixSetM1(handle, value); }
+global matrixGetM5(int handle) -> float { return global.nativeRaylib.matrixGetM5(handle); }
+global matrixSetM5(int handle, float value) { global.nativeRaylib.matrixSetM5(handle, value); }
+global matrixGetM9(int handle) -> float { return global.nativeRaylib.matrixGetM9(handle); }
+global matrixSetM9(int handle, float value) { global.nativeRaylib.matrixSetM9(handle, value); }
+global matrixGetM13(int handle) -> float { return global.nativeRaylib.matrixGetM13(handle); }
+global matrixSetM13(int handle, float value) { global.nativeRaylib.matrixSetM13(handle, value); }
+global matrixGetM2(int handle) -> float { return global.nativeRaylib.matrixGetM2(handle); }
+global matrixSetM2(int handle, float value) { global.nativeRaylib.matrixSetM2(handle, value); }
+global matrixGetM6(int handle) -> float { return global.nativeRaylib.matrixGetM6(handle); }
+global matrixSetM6(int handle, float value) { global.nativeRaylib.matrixSetM6(handle, value); }
+global matrixGetM10(int handle) -> float { return global.nativeRaylib.matrixGetM10(handle); }
+global matrixSetM10(int handle, float value) { global.nativeRaylib.matrixSetM10(handle, value); }
+global matrixGetM14(int handle) -> float { return global.nativeRaylib.matrixGetM14(handle); }
+global matrixSetM14(int handle, float value) { global.nativeRaylib.matrixSetM14(handle, value); }
+global matrixGetM3(int handle) -> float { return global.nativeRaylib.matrixGetM3(handle); }
+global matrixSetM3(int handle, float value) { global.nativeRaylib.matrixSetM3(handle, value); }
+global matrixGetM7(int handle) -> float { return global.nativeRaylib.matrixGetM7(handle); }
+global matrixSetM7(int handle, float value) { global.nativeRaylib.matrixSetM7(handle, value); }
+global matrixGetM11(int handle) -> float { return global.nativeRaylib.matrixGetM11(handle); }
+global matrixSetM11(int handle, float value) { global.nativeRaylib.matrixSetM11(handle, value); }
+global matrixGetM15(int handle) -> float { return global.nativeRaylib.matrixGetM15(handle); }
+global matrixSetM15(int handle, float value) { global.nativeRaylib.matrixSetM15(handle, value); }
+global colorNew(int r, int g, int b, int a) -> int { return global.nativeRaylib.colorNew(r, g, b, a); }
+global colorFree(int handle) { global.nativeRaylib.colorFree(handle); }
+global colorGetR(int handle) -> float { return global.nativeRaylib.colorGetR(handle); }
+global colorSetR(int handle, float value) { global.nativeRaylib.colorSetR(handle, value); }
+global colorGetG(int handle) -> float { return global.nativeRaylib.colorGetG(handle); }
+global colorSetG(int handle, float value) { global.nativeRaylib.colorSetG(handle, value); }
+global colorGetB(int handle) -> float { return global.nativeRaylib.colorGetB(handle); }
+global colorSetB(int handle, float value) { global.nativeRaylib.colorSetB(handle, value); }
+global colorGetA(int handle) -> float { return global.nativeRaylib.colorGetA(handle); }
+global colorSetA(int handle, float value) { global.nativeRaylib.colorSetA(handle, value); }
+global rectangleNew(float x, float y, float width, float height) -> int { return global.nativeRaylib.rectangleNew(x, y, width, height); }
+global rectangleFree(int handle) { global.nativeRaylib.rectangleFree(handle); }
+global rectangleGetX(int handle) -> float { return global.nativeRaylib.rectangleGetX(handle); }
+global rectangleSetX(int handle, float value) { global.nativeRaylib.rectangleSetX(handle, value); }
+global rectangleGetY(int handle) -> float { return global.nativeRaylib.rectangleGetY(handle); }
+global rectangleSetY(int handle, float value) { global.nativeRaylib.rectangleSetY(handle, value); }
+global rectangleGetWidth(int handle) -> float { return global.nativeRaylib.rectangleGetWidth(handle); }
+global rectangleSetWidth(int handle, float value) { global.nativeRaylib.rectangleSetWidth(handle, value); }
+global rectangleGetHeight(int handle) -> float { return global.nativeRaylib.rectangleGetHeight(handle); }
+global rectangleSetHeight(int handle, float value) { global.nativeRaylib.rectangleSetHeight(handle, value); }
+global imageNew(int width, int height, int mipmaps, int format) -> int { return global.nativeRaylib.imageNew(width, height, mipmaps, format); }
+global imageFree(int handle) { global.nativeRaylib.imageFree(handle); }
+global imageGetWidth(int handle) -> float { return global.nativeRaylib.imageGetWidth(handle); }
+global imageSetWidth(int handle, float value) { global.nativeRaylib.imageSetWidth(handle, value); }
+global imageGetHeight(int handle) -> float { return global.nativeRaylib.imageGetHeight(handle); }
+global imageSetHeight(int handle, float value) { global.nativeRaylib.imageSetHeight(handle, value); }
+global imageGetMipmaps(int handle) -> float { return global.nativeRaylib.imageGetMipmaps(handle); }
+global imageSetMipmaps(int handle, float value) { global.nativeRaylib.imageSetMipmaps(handle, value); }
+global imageGetFormat(int handle) -> float { return global.nativeRaylib.imageGetFormat(handle); }
+global imageSetFormat(int handle, float value) { global.nativeRaylib.imageSetFormat(handle, value); }
+global textureNew(int id, int width, int height, int mipmaps, int format) -> int { return global.nativeRaylib.textureNew(id, width, height, mipmaps, format); }
+global textureFree(int handle) { global.nativeRaylib.textureFree(handle); }
+global textureGetId(int handle) -> float { return global.nativeRaylib.textureGetId(handle); }
+global textureSetId(int handle, float value) { global.nativeRaylib.textureSetId(handle, value); }
+global textureGetWidth(int handle) -> float { return global.nativeRaylib.textureGetWidth(handle); }
+global textureSetWidth(int handle, float value) { global.nativeRaylib.textureSetWidth(handle, value); }
+global textureGetHeight(int handle) -> float { return global.nativeRaylib.textureGetHeight(handle); }
+global textureSetHeight(int handle, float value) { global.nativeRaylib.textureSetHeight(handle, value); }
+global textureGetMipmaps(int handle) -> float { return global.nativeRaylib.textureGetMipmaps(handle); }
+global textureSetMipmaps(int handle, float value) { global.nativeRaylib.textureSetMipmaps(handle, value); }
+global textureGetFormat(int handle) -> float { return global.nativeRaylib.textureGetFormat(handle); }
+global textureSetFormat(int handle, float value) { global.nativeRaylib.textureSetFormat(handle, value); }
+global renderTextureNew(int id, int texture_id, int texture_width, int texture_height, int texture_mipmaps, int texture_format, int depth_id, int depth_width, int depth_height, int depth_mipmaps, int depth_format) -> int { return global.nativeRaylib.renderTextureNew(id, texture_id, texture_width, texture_height, texture_mipmaps, texture_format, depth_id, depth_width, depth_height, depth_mipmaps, depth_format); }
+global renderTextureFree(int handle) { global.nativeRaylib.renderTextureFree(handle); }
+global renderTextureGetId(int handle) -> float { return global.nativeRaylib.renderTextureGetId(handle); }
+global renderTextureSetId(int handle, float value) { global.nativeRaylib.renderTextureSetId(handle, value); }
+global renderTextureGetTextureId(int handle) -> float { return global.nativeRaylib.renderTextureGetTextureId(handle); }
+global renderTextureSetTextureId(int handle, float value) { global.nativeRaylib.renderTextureSetTextureId(handle, value); }
+global renderTextureGetTextureWidth(int handle) -> float { return global.nativeRaylib.renderTextureGetTextureWidth(handle); }
+global renderTextureSetTextureWidth(int handle, float value) { global.nativeRaylib.renderTextureSetTextureWidth(handle, value); }
+global renderTextureGetTextureHeight(int handle) -> float { return global.nativeRaylib.renderTextureGetTextureHeight(handle); }
+global renderTextureSetTextureHeight(int handle, float value) { global.nativeRaylib.renderTextureSetTextureHeight(handle, value); }
+global renderTextureGetTextureMipmaps(int handle) -> float { return global.nativeRaylib.renderTextureGetTextureMipmaps(handle); }
+global renderTextureSetTextureMipmaps(int handle, float value) { global.nativeRaylib.renderTextureSetTextureMipmaps(handle, value); }
+global renderTextureGetTextureFormat(int handle) -> float { return global.nativeRaylib.renderTextureGetTextureFormat(handle); }
+global renderTextureSetTextureFormat(int handle, float value) { global.nativeRaylib.renderTextureSetTextureFormat(handle, value); }
+global renderTextureGetDepthId(int handle) -> float { return global.nativeRaylib.renderTextureGetDepthId(handle); }
+global renderTextureSetDepthId(int handle, float value) { global.nativeRaylib.renderTextureSetDepthId(handle, value); }
+global renderTextureGetDepthWidth(int handle) -> float { return global.nativeRaylib.renderTextureGetDepthWidth(handle); }
+global renderTextureSetDepthWidth(int handle, float value) { global.nativeRaylib.renderTextureSetDepthWidth(handle, value); }
+global renderTextureGetDepthHeight(int handle) -> float { return global.nativeRaylib.renderTextureGetDepthHeight(handle); }
+global renderTextureSetDepthHeight(int handle, float value) { global.nativeRaylib.renderTextureSetDepthHeight(handle, value); }
+global renderTextureGetDepthMipmaps(int handle) -> float { return global.nativeRaylib.renderTextureGetDepthMipmaps(handle); }
+global renderTextureSetDepthMipmaps(int handle, float value) { global.nativeRaylib.renderTextureSetDepthMipmaps(handle, value); }
+global renderTextureGetDepthFormat(int handle) -> float { return global.nativeRaylib.renderTextureGetDepthFormat(handle); }
+global renderTextureSetDepthFormat(int handle, float value) { global.nativeRaylib.renderTextureSetDepthFormat(handle, value); }
+global nPatchInfoNew(float source_x, float source_y, float source_width, float source_height, int left, int top, int right, int bottom, int layout) -> int { return global.nativeRaylib.nPatchInfoNew(source_x, source_y, source_width, source_height, left, top, right, bottom, layout); }
+global nPatchInfoFree(int handle) { global.nativeRaylib.nPatchInfoFree(handle); }
+global nPatchInfoGetSourceX(int handle) -> float { return global.nativeRaylib.nPatchInfoGetSourceX(handle); }
+global nPatchInfoSetSourceX(int handle, float value) { global.nativeRaylib.nPatchInfoSetSourceX(handle, value); }
+global nPatchInfoGetSourceY(int handle) -> float { return global.nativeRaylib.nPatchInfoGetSourceY(handle); }
+global nPatchInfoSetSourceY(int handle, float value) { global.nativeRaylib.nPatchInfoSetSourceY(handle, value); }
+global nPatchInfoGetSourceWidth(int handle) -> float { return global.nativeRaylib.nPatchInfoGetSourceWidth(handle); }
+global nPatchInfoSetSourceWidth(int handle, float value) { global.nativeRaylib.nPatchInfoSetSourceWidth(handle, value); }
+global nPatchInfoGetSourceHeight(int handle) -> float { return global.nativeRaylib.nPatchInfoGetSourceHeight(handle); }
+global nPatchInfoSetSourceHeight(int handle, float value) { global.nativeRaylib.nPatchInfoSetSourceHeight(handle, value); }
+global nPatchInfoGetLeft(int handle) -> float { return global.nativeRaylib.nPatchInfoGetLeft(handle); }
+global nPatchInfoSetLeft(int handle, float value) { global.nativeRaylib.nPatchInfoSetLeft(handle, value); }
+global nPatchInfoGetTop(int handle) -> float { return global.nativeRaylib.nPatchInfoGetTop(handle); }
+global nPatchInfoSetTop(int handle, float value) { global.nativeRaylib.nPatchInfoSetTop(handle, value); }
+global nPatchInfoGetRight(int handle) -> float { return global.nativeRaylib.nPatchInfoGetRight(handle); }
+global nPatchInfoSetRight(int handle, float value) { global.nativeRaylib.nPatchInfoSetRight(handle, value); }
+global nPatchInfoGetBottom(int handle) -> float { return global.nativeRaylib.nPatchInfoGetBottom(handle); }
+global nPatchInfoSetBottom(int handle, float value) { global.nativeRaylib.nPatchInfoSetBottom(handle, value); }
+global nPatchInfoGetLayout(int handle) -> float { return global.nativeRaylib.nPatchInfoGetLayout(handle); }
+global nPatchInfoSetLayout(int handle, float value) { global.nativeRaylib.nPatchInfoSetLayout(handle, value); }
+global glyphInfoNew(int value, int offsetX, int offsetY, int advanceX) -> int { return global.nativeRaylib.glyphInfoNew(value, offsetX, offsetY, advanceX); }
+global glyphInfoFree(int handle) { global.nativeRaylib.glyphInfoFree(handle); }
+global glyphInfoGetValue(int handle) -> float { return global.nativeRaylib.glyphInfoGetValue(handle); }
+global glyphInfoSetValue(int handle, float value) { global.nativeRaylib.glyphInfoSetValue(handle, value); }
+global glyphInfoGetOffsetX(int handle) -> float { return global.nativeRaylib.glyphInfoGetOffsetX(handle); }
+global glyphInfoSetOffsetX(int handle, float value) { global.nativeRaylib.glyphInfoSetOffsetX(handle, value); }
+global glyphInfoGetOffsetY(int handle) -> float { return global.nativeRaylib.glyphInfoGetOffsetY(handle); }
+global glyphInfoSetOffsetY(int handle, float value) { global.nativeRaylib.glyphInfoSetOffsetY(handle, value); }
+global glyphInfoGetAdvanceX(int handle) -> float { return global.nativeRaylib.glyphInfoGetAdvanceX(handle); }
+global glyphInfoSetAdvanceX(int handle, float value) { global.nativeRaylib.glyphInfoSetAdvanceX(handle, value); }
+global fontNew(int baseSize, int glyphCount, int glyphPadding, int texture_id, int texture_width, int texture_height, int texture_mipmaps, int texture_format) -> int { return global.nativeRaylib.fontNew(baseSize, glyphCount, glyphPadding, texture_id, texture_width, texture_height, texture_mipmaps, texture_format); }
+global fontFree(int handle) { global.nativeRaylib.fontFree(handle); }
+global fontGetBaseSize(int handle) -> float { return global.nativeRaylib.fontGetBaseSize(handle); }
+global fontSetBaseSize(int handle, float value) { global.nativeRaylib.fontSetBaseSize(handle, value); }
+global fontGetGlyphCount(int handle) -> float { return global.nativeRaylib.fontGetGlyphCount(handle); }
+global fontSetGlyphCount(int handle, float value) { global.nativeRaylib.fontSetGlyphCount(handle, value); }
+global fontGetGlyphPadding(int handle) -> float { return global.nativeRaylib.fontGetGlyphPadding(handle); }
+global fontSetGlyphPadding(int handle, float value) { global.nativeRaylib.fontSetGlyphPadding(handle, value); }
+global fontGetTextureId(int handle) -> float { return global.nativeRaylib.fontGetTextureId(handle); }
+global fontSetTextureId(int handle, float value) { global.nativeRaylib.fontSetTextureId(handle, value); }
+global fontGetTextureWidth(int handle) -> float { return global.nativeRaylib.fontGetTextureWidth(handle); }
+global fontSetTextureWidth(int handle, float value) { global.nativeRaylib.fontSetTextureWidth(handle, value); }
+global fontGetTextureHeight(int handle) -> float { return global.nativeRaylib.fontGetTextureHeight(handle); }
+global fontSetTextureHeight(int handle, float value) { global.nativeRaylib.fontSetTextureHeight(handle, value); }
+global fontGetTextureMipmaps(int handle) -> float { return global.nativeRaylib.fontGetTextureMipmaps(handle); }
+global fontSetTextureMipmaps(int handle, float value) { global.nativeRaylib.fontSetTextureMipmaps(handle, value); }
+global fontGetTextureFormat(int handle) -> float { return global.nativeRaylib.fontGetTextureFormat(handle); }
+global fontSetTextureFormat(int handle, float value) { global.nativeRaylib.fontSetTextureFormat(handle, value); }
+global camera3DNew(float position_x, float position_y, float position_z, float target_x, float target_y, float target_z, float up_x, float up_y, float up_z, float fovy, int projection) -> int { return global.nativeRaylib.camera3DNew(position_x, position_y, position_z, target_x, target_y, target_z, up_x, up_y, up_z, fovy, projection); }
+global camera3DFree(int handle) { global.nativeRaylib.camera3DFree(handle); }
+global camera3DGetPositionX(int handle) -> float { return global.nativeRaylib.camera3DGetPositionX(handle); }
+global camera3DSetPositionX(int handle, float value) { global.nativeRaylib.camera3DSetPositionX(handle, value); }
+global camera3DGetPositionY(int handle) -> float { return global.nativeRaylib.camera3DGetPositionY(handle); }
+global camera3DSetPositionY(int handle, float value) { global.nativeRaylib.camera3DSetPositionY(handle, value); }
+global camera3DGetPositionZ(int handle) -> float { return global.nativeRaylib.camera3DGetPositionZ(handle); }
+global camera3DSetPositionZ(int handle, float value) { global.nativeRaylib.camera3DSetPositionZ(handle, value); }
+global camera3DGetTargetX(int handle) -> float { return global.nativeRaylib.camera3DGetTargetX(handle); }
+global camera3DSetTargetX(int handle, float value) { global.nativeRaylib.camera3DSetTargetX(handle, value); }
+global camera3DGetTargetY(int handle) -> float { return global.nativeRaylib.camera3DGetTargetY(handle); }
+global camera3DSetTargetY(int handle, float value) { global.nativeRaylib.camera3DSetTargetY(handle, value); }
+global camera3DGetTargetZ(int handle) -> float { return global.nativeRaylib.camera3DGetTargetZ(handle); }
+global camera3DSetTargetZ(int handle, float value) { global.nativeRaylib.camera3DSetTargetZ(handle, value); }
+global camera3DGetUpX(int handle) -> float { return global.nativeRaylib.camera3DGetUpX(handle); }
+global camera3DSetUpX(int handle, float value) { global.nativeRaylib.camera3DSetUpX(handle, value); }
+global camera3DGetUpY(int handle) -> float { return global.nativeRaylib.camera3DGetUpY(handle); }
+global camera3DSetUpY(int handle, float value) { global.nativeRaylib.camera3DSetUpY(handle, value); }
+global camera3DGetUpZ(int handle) -> float { return global.nativeRaylib.camera3DGetUpZ(handle); }
+global camera3DSetUpZ(int handle, float value) { global.nativeRaylib.camera3DSetUpZ(handle, value); }
+global camera3DGetFovy(int handle) -> float { return global.nativeRaylib.camera3DGetFovy(handle); }
+global camera3DSetFovy(int handle, float value) { global.nativeRaylib.camera3DSetFovy(handle, value); }
+global camera3DGetProjection(int handle) -> float { return global.nativeRaylib.camera3DGetProjection(handle); }
+global camera3DSetProjection(int handle, float value) { global.nativeRaylib.camera3DSetProjection(handle, value); }
+global camera2DNew(float offset_x, float offset_y, float target_x, float target_y, float rotation, float zoom) -> int { return global.nativeRaylib.camera2DNew(offset_x, offset_y, target_x, target_y, rotation, zoom); }
+global camera2DFree(int handle) { global.nativeRaylib.camera2DFree(handle); }
+global camera2DGetOffsetX(int handle) -> float { return global.nativeRaylib.camera2DGetOffsetX(handle); }
+global camera2DSetOffsetX(int handle, float value) { global.nativeRaylib.camera2DSetOffsetX(handle, value); }
+global camera2DGetOffsetY(int handle) -> float { return global.nativeRaylib.camera2DGetOffsetY(handle); }
+global camera2DSetOffsetY(int handle, float value) { global.nativeRaylib.camera2DSetOffsetY(handle, value); }
+global camera2DGetTargetX(int handle) -> float { return global.nativeRaylib.camera2DGetTargetX(handle); }
+global camera2DSetTargetX(int handle, float value) { global.nativeRaylib.camera2DSetTargetX(handle, value); }
+global camera2DGetTargetY(int handle) -> float { return global.nativeRaylib.camera2DGetTargetY(handle); }
+global camera2DSetTargetY(int handle, float value) { global.nativeRaylib.camera2DSetTargetY(handle, value); }
+global camera2DGetRotation(int handle) -> float { return global.nativeRaylib.camera2DGetRotation(handle); }
+global camera2DSetRotation(int handle, float value) { global.nativeRaylib.camera2DSetRotation(handle, value); }
+global camera2DGetZoom(int handle) -> float { return global.nativeRaylib.camera2DGetZoom(handle); }
+global camera2DSetZoom(int handle, float value) { global.nativeRaylib.camera2DSetZoom(handle, value); }
+global meshNew(int vertexCount, int triangleCount, int boneCount, int vaoId) -> int { return global.nativeRaylib.meshNew(vertexCount, triangleCount, boneCount, vaoId); }
+global meshFree(int handle) { global.nativeRaylib.meshFree(handle); }
+global meshGetVertexCount(int handle) -> float { return global.nativeRaylib.meshGetVertexCount(handle); }
+global meshSetVertexCount(int handle, float value) { global.nativeRaylib.meshSetVertexCount(handle, value); }
+global meshGetTriangleCount(int handle) -> float { return global.nativeRaylib.meshGetTriangleCount(handle); }
+global meshSetTriangleCount(int handle, float value) { global.nativeRaylib.meshSetTriangleCount(handle, value); }
+global meshGetBoneCount(int handle) -> float { return global.nativeRaylib.meshGetBoneCount(handle); }
+global meshSetBoneCount(int handle, float value) { global.nativeRaylib.meshSetBoneCount(handle, value); }
+global meshGetVaoId(int handle) -> float { return global.nativeRaylib.meshGetVaoId(handle); }
+global meshSetVaoId(int handle, float value) { global.nativeRaylib.meshSetVaoId(handle, value); }
+global shaderNew(int id) -> int { return global.nativeRaylib.shaderNew(id); }
+global shaderFree(int handle) { global.nativeRaylib.shaderFree(handle); }
+global shaderGetId(int handle) -> float { return global.nativeRaylib.shaderGetId(handle); }
+global shaderSetId(int handle, float value) { global.nativeRaylib.shaderSetId(handle, value); }
+global materialMapNew(int texture_id, int texture_width, int texture_height, int texture_mipmaps, int texture_format, int color_r, int color_g, int color_b, int color_a, float value) -> int { return global.nativeRaylib.materialMapNew(texture_id, texture_width, texture_height, texture_mipmaps, texture_format, color_r, color_g, color_b, color_a, value); }
+global materialMapFree(int handle) { global.nativeRaylib.materialMapFree(handle); }
+global materialMapGetTextureId(int handle) -> float { return global.nativeRaylib.materialMapGetTextureId(handle); }
+global materialMapSetTextureId(int handle, float value) { global.nativeRaylib.materialMapSetTextureId(handle, value); }
+global materialMapGetTextureWidth(int handle) -> float { return global.nativeRaylib.materialMapGetTextureWidth(handle); }
+global materialMapSetTextureWidth(int handle, float value) { global.nativeRaylib.materialMapSetTextureWidth(handle, value); }
+global materialMapGetTextureHeight(int handle) -> float { return global.nativeRaylib.materialMapGetTextureHeight(handle); }
+global materialMapSetTextureHeight(int handle, float value) { global.nativeRaylib.materialMapSetTextureHeight(handle, value); }
+global materialMapGetTextureMipmaps(int handle) -> float { return global.nativeRaylib.materialMapGetTextureMipmaps(handle); }
+global materialMapSetTextureMipmaps(int handle, float value) { global.nativeRaylib.materialMapSetTextureMipmaps(handle, value); }
+global materialMapGetTextureFormat(int handle) -> float { return global.nativeRaylib.materialMapGetTextureFormat(handle); }
+global materialMapSetTextureFormat(int handle, float value) { global.nativeRaylib.materialMapSetTextureFormat(handle, value); }
+global materialMapGetColorR(int handle) -> float { return global.nativeRaylib.materialMapGetColorR(handle); }
+global materialMapSetColorR(int handle, float value) { global.nativeRaylib.materialMapSetColorR(handle, value); }
+global materialMapGetColorG(int handle) -> float { return global.nativeRaylib.materialMapGetColorG(handle); }
+global materialMapSetColorG(int handle, float value) { global.nativeRaylib.materialMapSetColorG(handle, value); }
+global materialMapGetColorB(int handle) -> float { return global.nativeRaylib.materialMapGetColorB(handle); }
+global materialMapSetColorB(int handle, float value) { global.nativeRaylib.materialMapSetColorB(handle, value); }
+global materialMapGetColorA(int handle) -> float { return global.nativeRaylib.materialMapGetColorA(handle); }
+global materialMapSetColorA(int handle, float value) { global.nativeRaylib.materialMapSetColorA(handle, value); }
+global materialMapGetValue(int handle) -> float { return global.nativeRaylib.materialMapGetValue(handle); }
+global materialMapSetValue(int handle, float value) { global.nativeRaylib.materialMapSetValue(handle, value); }
+global materialNew() -> int { return global.nativeRaylib.materialNew(); }
+global materialFree(int handle) { global.nativeRaylib.materialFree(handle); }
+global transformNew(float translation_x, float translation_y, float translation_z, float rotation_x, float rotation_y, float rotation_z, float rotation_w, float scale_x, float scale_y, float scale_z) -> int { return global.nativeRaylib.transformNew(translation_x, translation_y, translation_z, rotation_x, rotation_y, rotation_z, rotation_w, scale_x, scale_y, scale_z); }
+global transformFree(int handle) { global.nativeRaylib.transformFree(handle); }
+global transformGetTranslationX(int handle) -> float { return global.nativeRaylib.transformGetTranslationX(handle); }
+global transformSetTranslationX(int handle, float value) { global.nativeRaylib.transformSetTranslationX(handle, value); }
+global transformGetTranslationY(int handle) -> float { return global.nativeRaylib.transformGetTranslationY(handle); }
+global transformSetTranslationY(int handle, float value) { global.nativeRaylib.transformSetTranslationY(handle, value); }
+global transformGetTranslationZ(int handle) -> float { return global.nativeRaylib.transformGetTranslationZ(handle); }
+global transformSetTranslationZ(int handle, float value) { global.nativeRaylib.transformSetTranslationZ(handle, value); }
+global transformGetRotationX(int handle) -> float { return global.nativeRaylib.transformGetRotationX(handle); }
+global transformSetRotationX(int handle, float value) { global.nativeRaylib.transformSetRotationX(handle, value); }
+global transformGetRotationY(int handle) -> float { return global.nativeRaylib.transformGetRotationY(handle); }
+global transformSetRotationY(int handle, float value) { global.nativeRaylib.transformSetRotationY(handle, value); }
+global transformGetRotationZ(int handle) -> float { return global.nativeRaylib.transformGetRotationZ(handle); }
+global transformSetRotationZ(int handle, float value) { global.nativeRaylib.transformSetRotationZ(handle, value); }
+global transformGetRotationW(int handle) -> float { return global.nativeRaylib.transformGetRotationW(handle); }
+global transformSetRotationW(int handle, float value) { global.nativeRaylib.transformSetRotationW(handle, value); }
+global transformGetScaleX(int handle) -> float { return global.nativeRaylib.transformGetScaleX(handle); }
+global transformSetScaleX(int handle, float value) { global.nativeRaylib.transformSetScaleX(handle, value); }
+global transformGetScaleY(int handle) -> float { return global.nativeRaylib.transformGetScaleY(handle); }
+global transformSetScaleY(int handle, float value) { global.nativeRaylib.transformSetScaleY(handle, value); }
+global transformGetScaleZ(int handle) -> float { return global.nativeRaylib.transformGetScaleZ(handle); }
+global transformSetScaleZ(int handle, float value) { global.nativeRaylib.transformSetScaleZ(handle, value); }
+global boneInfoNew(int parent) -> int { return global.nativeRaylib.boneInfoNew(parent); }
+global boneInfoFree(int handle) { global.nativeRaylib.boneInfoFree(handle); }
+global boneInfoGetParent(int handle) -> float { return global.nativeRaylib.boneInfoGetParent(handle); }
+global boneInfoSetParent(int handle, float value) { global.nativeRaylib.boneInfoSetParent(handle, value); }
+global modelSkeletonNew(int boneCount) -> int { return global.nativeRaylib.modelSkeletonNew(boneCount); }
+global modelSkeletonFree(int handle) { global.nativeRaylib.modelSkeletonFree(handle); }
+global modelSkeletonGetBoneCount(int handle) -> float { return global.nativeRaylib.modelSkeletonGetBoneCount(handle); }
+global modelSkeletonSetBoneCount(int handle, float value) { global.nativeRaylib.modelSkeletonSetBoneCount(handle, value); }
+global modelNew(float transform_m0, float transform_m4, float transform_m8, float transform_m12, float transform_m1, float transform_m5, float transform_m9, float transform_m13, float transform_m2, float transform_m6, float transform_m10, float transform_m14, float transform_m3, float transform_m7, float transform_m11, float transform_m15, int meshCount, int materialCount) -> int { return global.nativeRaylib.modelNew(transform_m0, transform_m4, transform_m8, transform_m12, transform_m1, transform_m5, transform_m9, transform_m13, transform_m2, transform_m6, transform_m10, transform_m14, transform_m3, transform_m7, transform_m11, transform_m15, meshCount, materialCount); }
+global modelFree(int handle) { global.nativeRaylib.modelFree(handle); }
+global modelGetTransformM0(int handle) -> float { return global.nativeRaylib.modelGetTransformM0(handle); }
+global modelSetTransformM0(int handle, float value) { global.nativeRaylib.modelSetTransformM0(handle, value); }
+global modelGetTransformM4(int handle) -> float { return global.nativeRaylib.modelGetTransformM4(handle); }
+global modelSetTransformM4(int handle, float value) { global.nativeRaylib.modelSetTransformM4(handle, value); }
+global modelGetTransformM8(int handle) -> float { return global.nativeRaylib.modelGetTransformM8(handle); }
+global modelSetTransformM8(int handle, float value) { global.nativeRaylib.modelSetTransformM8(handle, value); }
+global modelGetTransformM12(int handle) -> float { return global.nativeRaylib.modelGetTransformM12(handle); }
+global modelSetTransformM12(int handle, float value) { global.nativeRaylib.modelSetTransformM12(handle, value); }
+global modelGetTransformM1(int handle) -> float { return global.nativeRaylib.modelGetTransformM1(handle); }
+global modelSetTransformM1(int handle, float value) { global.nativeRaylib.modelSetTransformM1(handle, value); }
+global modelGetTransformM5(int handle) -> float { return global.nativeRaylib.modelGetTransformM5(handle); }
+global modelSetTransformM5(int handle, float value) { global.nativeRaylib.modelSetTransformM5(handle, value); }
+global modelGetTransformM9(int handle) -> float { return global.nativeRaylib.modelGetTransformM9(handle); }
+global modelSetTransformM9(int handle, float value) { global.nativeRaylib.modelSetTransformM9(handle, value); }
+global modelGetTransformM13(int handle) -> float { return global.nativeRaylib.modelGetTransformM13(handle); }
+global modelSetTransformM13(int handle, float value) { global.nativeRaylib.modelSetTransformM13(handle, value); }
+global modelGetTransformM2(int handle) -> float { return global.nativeRaylib.modelGetTransformM2(handle); }
+global modelSetTransformM2(int handle, float value) { global.nativeRaylib.modelSetTransformM2(handle, value); }
+global modelGetTransformM6(int handle) -> float { return global.nativeRaylib.modelGetTransformM6(handle); }
+global modelSetTransformM6(int handle, float value) { global.nativeRaylib.modelSetTransformM6(handle, value); }
+global modelGetTransformM10(int handle) -> float { return global.nativeRaylib.modelGetTransformM10(handle); }
+global modelSetTransformM10(int handle, float value) { global.nativeRaylib.modelSetTransformM10(handle, value); }
+global modelGetTransformM14(int handle) -> float { return global.nativeRaylib.modelGetTransformM14(handle); }
+global modelSetTransformM14(int handle, float value) { global.nativeRaylib.modelSetTransformM14(handle, value); }
+global modelGetTransformM3(int handle) -> float { return global.nativeRaylib.modelGetTransformM3(handle); }
+global modelSetTransformM3(int handle, float value) { global.nativeRaylib.modelSetTransformM3(handle, value); }
+global modelGetTransformM7(int handle) -> float { return global.nativeRaylib.modelGetTransformM7(handle); }
+global modelSetTransformM7(int handle, float value) { global.nativeRaylib.modelSetTransformM7(handle, value); }
+global modelGetTransformM11(int handle) -> float { return global.nativeRaylib.modelGetTransformM11(handle); }
+global modelSetTransformM11(int handle, float value) { global.nativeRaylib.modelSetTransformM11(handle, value); }
+global modelGetTransformM15(int handle) -> float { return global.nativeRaylib.modelGetTransformM15(handle); }
+global modelSetTransformM15(int handle, float value) { global.nativeRaylib.modelSetTransformM15(handle, value); }
+global modelGetMeshCount(int handle) -> float { return global.nativeRaylib.modelGetMeshCount(handle); }
+global modelSetMeshCount(int handle, float value) { global.nativeRaylib.modelSetMeshCount(handle, value); }
+global modelGetMaterialCount(int handle) -> float { return global.nativeRaylib.modelGetMaterialCount(handle); }
+global modelSetMaterialCount(int handle, float value) { global.nativeRaylib.modelSetMaterialCount(handle, value); }
+global modelAnimationNew(int boneCount, int keyframeCount) -> int { return global.nativeRaylib.modelAnimationNew(boneCount, keyframeCount); }
+global modelAnimationFree(int handle) { global.nativeRaylib.modelAnimationFree(handle); }
+global modelAnimationGetBoneCount(int handle) -> float { return global.nativeRaylib.modelAnimationGetBoneCount(handle); }
+global modelAnimationSetBoneCount(int handle, float value) { global.nativeRaylib.modelAnimationSetBoneCount(handle, value); }
+global modelAnimationGetKeyframeCount(int handle) -> float { return global.nativeRaylib.modelAnimationGetKeyframeCount(handle); }
+global modelAnimationSetKeyframeCount(int handle, float value) { global.nativeRaylib.modelAnimationSetKeyframeCount(handle, value); }
+global rayNew(float position_x, float position_y, float position_z, float direction_x, float direction_y, float direction_z) -> int { return global.nativeRaylib.rayNew(position_x, position_y, position_z, direction_x, direction_y, direction_z); }
+global rayFree(int handle) { global.nativeRaylib.rayFree(handle); }
+global rayGetPositionX(int handle) -> float { return global.nativeRaylib.rayGetPositionX(handle); }
+global raySetPositionX(int handle, float value) { global.nativeRaylib.raySetPositionX(handle, value); }
+global rayGetPositionY(int handle) -> float { return global.nativeRaylib.rayGetPositionY(handle); }
+global raySetPositionY(int handle, float value) { global.nativeRaylib.raySetPositionY(handle, value); }
+global rayGetPositionZ(int handle) -> float { return global.nativeRaylib.rayGetPositionZ(handle); }
+global raySetPositionZ(int handle, float value) { global.nativeRaylib.raySetPositionZ(handle, value); }
+global rayGetDirectionX(int handle) -> float { return global.nativeRaylib.rayGetDirectionX(handle); }
+global raySetDirectionX(int handle, float value) { global.nativeRaylib.raySetDirectionX(handle, value); }
+global rayGetDirectionY(int handle) -> float { return global.nativeRaylib.rayGetDirectionY(handle); }
+global raySetDirectionY(int handle, float value) { global.nativeRaylib.raySetDirectionY(handle, value); }
+global rayGetDirectionZ(int handle) -> float { return global.nativeRaylib.rayGetDirectionZ(handle); }
+global raySetDirectionZ(int handle, float value) { global.nativeRaylib.raySetDirectionZ(handle, value); }
+global rayCollisionNew(int hit, float distance, float point_x, float point_y, float point_z, float normal_x, float normal_y, float normal_z) -> int { return global.nativeRaylib.rayCollisionNew(hit, distance, point_x, point_y, point_z, normal_x, normal_y, normal_z); }
+global rayCollisionFree(int handle) { global.nativeRaylib.rayCollisionFree(handle); }
+global rayCollisionGetHit(int handle) -> float { return global.nativeRaylib.rayCollisionGetHit(handle); }
+global rayCollisionSetHit(int handle, float value) { global.nativeRaylib.rayCollisionSetHit(handle, value); }
+global rayCollisionGetDistance(int handle) -> float { return global.nativeRaylib.rayCollisionGetDistance(handle); }
+global rayCollisionSetDistance(int handle, float value) { global.nativeRaylib.rayCollisionSetDistance(handle, value); }
+global rayCollisionGetPointX(int handle) -> float { return global.nativeRaylib.rayCollisionGetPointX(handle); }
+global rayCollisionSetPointX(int handle, float value) { global.nativeRaylib.rayCollisionSetPointX(handle, value); }
+global rayCollisionGetPointY(int handle) -> float { return global.nativeRaylib.rayCollisionGetPointY(handle); }
+global rayCollisionSetPointY(int handle, float value) { global.nativeRaylib.rayCollisionSetPointY(handle, value); }
+global rayCollisionGetPointZ(int handle) -> float { return global.nativeRaylib.rayCollisionGetPointZ(handle); }
+global rayCollisionSetPointZ(int handle, float value) { global.nativeRaylib.rayCollisionSetPointZ(handle, value); }
+global rayCollisionGetNormalX(int handle) -> float { return global.nativeRaylib.rayCollisionGetNormalX(handle); }
+global rayCollisionSetNormalX(int handle, float value) { global.nativeRaylib.rayCollisionSetNormalX(handle, value); }
+global rayCollisionGetNormalY(int handle) -> float { return global.nativeRaylib.rayCollisionGetNormalY(handle); }
+global rayCollisionSetNormalY(int handle, float value) { global.nativeRaylib.rayCollisionSetNormalY(handle, value); }
+global rayCollisionGetNormalZ(int handle) -> float { return global.nativeRaylib.rayCollisionGetNormalZ(handle); }
+global rayCollisionSetNormalZ(int handle, float value) { global.nativeRaylib.rayCollisionSetNormalZ(handle, value); }
+global boundingBoxNew(float min_x, float min_y, float min_z, float max_x, float max_y, float max_z) -> int { return global.nativeRaylib.boundingBoxNew(min_x, min_y, min_z, max_x, max_y, max_z); }
+global boundingBoxFree(int handle) { global.nativeRaylib.boundingBoxFree(handle); }
+global boundingBoxGetMinX(int handle) -> float { return global.nativeRaylib.boundingBoxGetMinX(handle); }
+global boundingBoxSetMinX(int handle, float value) { global.nativeRaylib.boundingBoxSetMinX(handle, value); }
+global boundingBoxGetMinY(int handle) -> float { return global.nativeRaylib.boundingBoxGetMinY(handle); }
+global boundingBoxSetMinY(int handle, float value) { global.nativeRaylib.boundingBoxSetMinY(handle, value); }
+global boundingBoxGetMinZ(int handle) -> float { return global.nativeRaylib.boundingBoxGetMinZ(handle); }
+global boundingBoxSetMinZ(int handle, float value) { global.nativeRaylib.boundingBoxSetMinZ(handle, value); }
+global boundingBoxGetMaxX(int handle) -> float { return global.nativeRaylib.boundingBoxGetMaxX(handle); }
+global boundingBoxSetMaxX(int handle, float value) { global.nativeRaylib.boundingBoxSetMaxX(handle, value); }
+global boundingBoxGetMaxY(int handle) -> float { return global.nativeRaylib.boundingBoxGetMaxY(handle); }
+global boundingBoxSetMaxY(int handle, float value) { global.nativeRaylib.boundingBoxSetMaxY(handle, value); }
+global boundingBoxGetMaxZ(int handle) -> float { return global.nativeRaylib.boundingBoxGetMaxZ(handle); }
+global boundingBoxSetMaxZ(int handle, float value) { global.nativeRaylib.boundingBoxSetMaxZ(handle, value); }
+global waveNew(int frameCount, int sampleRate, int sampleSize, int channels) -> int { return global.nativeRaylib.waveNew(frameCount, sampleRate, sampleSize, channels); }
+global waveFree(int handle) { global.nativeRaylib.waveFree(handle); }
+global waveGetFrameCount(int handle) -> float { return global.nativeRaylib.waveGetFrameCount(handle); }
+global waveSetFrameCount(int handle, float value) { global.nativeRaylib.waveSetFrameCount(handle, value); }
+global waveGetSampleRate(int handle) -> float { return global.nativeRaylib.waveGetSampleRate(handle); }
+global waveSetSampleRate(int handle, float value) { global.nativeRaylib.waveSetSampleRate(handle, value); }
+global waveGetSampleSize(int handle) -> float { return global.nativeRaylib.waveGetSampleSize(handle); }
+global waveSetSampleSize(int handle, float value) { global.nativeRaylib.waveSetSampleSize(handle, value); }
+global waveGetChannels(int handle) -> float { return global.nativeRaylib.waveGetChannels(handle); }
+global waveSetChannels(int handle, float value) { global.nativeRaylib.waveSetChannels(handle, value); }
+global audioStreamNew(int sampleRate, int sampleSize, int channels) -> int { return global.nativeRaylib.audioStreamNew(sampleRate, sampleSize, channels); }
+global audioStreamFree(int handle) { global.nativeRaylib.audioStreamFree(handle); }
+global audioStreamGetSampleRate(int handle) -> float { return global.nativeRaylib.audioStreamGetSampleRate(handle); }
+global audioStreamSetSampleRate(int handle, float value) { global.nativeRaylib.audioStreamSetSampleRate(handle, value); }
+global audioStreamGetSampleSize(int handle) -> float { return global.nativeRaylib.audioStreamGetSampleSize(handle); }
+global audioStreamSetSampleSize(int handle, float value) { global.nativeRaylib.audioStreamSetSampleSize(handle, value); }
+global audioStreamGetChannels(int handle) -> float { return global.nativeRaylib.audioStreamGetChannels(handle); }
+global audioStreamSetChannels(int handle, float value) { global.nativeRaylib.audioStreamSetChannels(handle, value); }
+global soundNew(int frameCount) -> int { return global.nativeRaylib.soundNew(frameCount); }
+global soundFree(int handle) { global.nativeRaylib.soundFree(handle); }
+global soundGetFrameCount(int handle) -> float { return global.nativeRaylib.soundGetFrameCount(handle); }
+global soundSetFrameCount(int handle, float value) { global.nativeRaylib.soundSetFrameCount(handle, value); }
+global musicNew(int frameCount, int looping, int ctxType) -> int { return global.nativeRaylib.musicNew(frameCount, looping, ctxType); }
+global musicFree(int handle) { global.nativeRaylib.musicFree(handle); }
+global musicGetFrameCount(int handle) -> float { return global.nativeRaylib.musicGetFrameCount(handle); }
+global musicSetFrameCount(int handle, float value) { global.nativeRaylib.musicSetFrameCount(handle, value); }
+global musicGetLooping(int handle) -> float { return global.nativeRaylib.musicGetLooping(handle); }
+global musicSetLooping(int handle, float value) { global.nativeRaylib.musicSetLooping(handle, value); }
+global musicGetCtxType(int handle) -> float { return global.nativeRaylib.musicGetCtxType(handle); }
+global musicSetCtxType(int handle, float value) { global.nativeRaylib.musicSetCtxType(handle, value); }
+global vrDeviceInfoNew(int hResolution, int vResolution, float hScreenSize, float vScreenSize, float eyeToScreenDistance, float lensSeparationDistance, float interpupillaryDistance) -> int { return global.nativeRaylib.vrDeviceInfoNew(hResolution, vResolution, hScreenSize, vScreenSize, eyeToScreenDistance, lensSeparationDistance, interpupillaryDistance); }
+global vrDeviceInfoFree(int handle) { global.nativeRaylib.vrDeviceInfoFree(handle); }
+global vrDeviceInfoGetHResolution(int handle) -> float { return global.nativeRaylib.vrDeviceInfoGetHResolution(handle); }
+global vrDeviceInfoSetHResolution(int handle, float value) { global.nativeRaylib.vrDeviceInfoSetHResolution(handle, value); }
+global vrDeviceInfoGetVResolution(int handle) -> float { return global.nativeRaylib.vrDeviceInfoGetVResolution(handle); }
+global vrDeviceInfoSetVResolution(int handle, float value) { global.nativeRaylib.vrDeviceInfoSetVResolution(handle, value); }
+global vrDeviceInfoGetHScreenSize(int handle) -> float { return global.nativeRaylib.vrDeviceInfoGetHScreenSize(handle); }
+global vrDeviceInfoSetHScreenSize(int handle, float value) { global.nativeRaylib.vrDeviceInfoSetHScreenSize(handle, value); }
+global vrDeviceInfoGetVScreenSize(int handle) -> float { return global.nativeRaylib.vrDeviceInfoGetVScreenSize(handle); }
+global vrDeviceInfoSetVScreenSize(int handle, float value) { global.nativeRaylib.vrDeviceInfoSetVScreenSize(handle, value); }
+global vrDeviceInfoGetEyeToScreenDistance(int handle) -> float { return global.nativeRaylib.vrDeviceInfoGetEyeToScreenDistance(handle); }
+global vrDeviceInfoSetEyeToScreenDistance(int handle, float value) { global.nativeRaylib.vrDeviceInfoSetEyeToScreenDistance(handle, value); }
+global vrDeviceInfoGetLensSeparationDistance(int handle) -> float { return global.nativeRaylib.vrDeviceInfoGetLensSeparationDistance(handle); }
+global vrDeviceInfoSetLensSeparationDistance(int handle, float value) { global.nativeRaylib.vrDeviceInfoSetLensSeparationDistance(handle, value); }
+global vrDeviceInfoGetInterpupillaryDistance(int handle) -> float { return global.nativeRaylib.vrDeviceInfoGetInterpupillaryDistance(handle); }
+global vrDeviceInfoSetInterpupillaryDistance(int handle, float value) { global.nativeRaylib.vrDeviceInfoSetInterpupillaryDistance(handle, value); }
+global vrStereoConfigNew() -> int { return global.nativeRaylib.vrStereoConfigNew(); }
+global vrStereoConfigFree(int handle) { global.nativeRaylib.vrStereoConfigFree(handle); }
+global filePathListNew(int count) -> int { return global.nativeRaylib.filePathListNew(count); }
+global filePathListFree(int handle) { global.nativeRaylib.filePathListFree(handle); }
+global filePathListGetCount(int handle) -> float { return global.nativeRaylib.filePathListGetCount(handle); }
+global filePathListSetCount(int handle, float value) { global.nativeRaylib.filePathListSetCount(handle, value); }
+global automationEventNew(int frame, int type) -> int { return global.nativeRaylib.automationEventNew(frame, type); }
+global automationEventFree(int handle) { global.nativeRaylib.automationEventFree(handle); }
+global automationEventGetFrame(int handle) -> float { return global.nativeRaylib.automationEventGetFrame(handle); }
+global automationEventSetFrame(int handle, float value) { global.nativeRaylib.automationEventSetFrame(handle, value); }
+global automationEventGetType(int handle) -> float { return global.nativeRaylib.automationEventGetType(handle); }
+global automationEventSetType(int handle, float value) { global.nativeRaylib.automationEventSetType(handle, value); }
+global automationEventListNew(int capacity, int count) -> int { return global.nativeRaylib.automationEventListNew(capacity, count); }
+global automationEventListFree(int handle) { global.nativeRaylib.automationEventListFree(handle); }
+global automationEventListGetCapacity(int handle) -> float { return global.nativeRaylib.automationEventListGetCapacity(handle); }
+global automationEventListSetCapacity(int handle, float value) { global.nativeRaylib.automationEventListSetCapacity(handle, value); }
+global automationEventListGetCount(int handle) -> float { return global.nativeRaylib.automationEventListGetCount(handle); }
+global automationEventListSetCount(int handle, float value) { global.nativeRaylib.automationEventListSetCount(handle, value); }
+global flagVsyncHint() -> int { return global.nativeRaylib.flagVsyncHint(); }
+global flagFullscreenMode() -> int { return global.nativeRaylib.flagFullscreenMode(); }
+global flagWindowResizable() -> int { return global.nativeRaylib.flagWindowResizable(); }
+global flagWindowUndecorated() -> int { return global.nativeRaylib.flagWindowUndecorated(); }
+global flagWindowHidden() -> int { return global.nativeRaylib.flagWindowHidden(); }
+global flagWindowMinimized() -> int { return global.nativeRaylib.flagWindowMinimized(); }
+global flagWindowMaximized() -> int { return global.nativeRaylib.flagWindowMaximized(); }
+global flagWindowUnfocused() -> int { return global.nativeRaylib.flagWindowUnfocused(); }
+global flagWindowTopmost() -> int { return global.nativeRaylib.flagWindowTopmost(); }
+global flagWindowAlwaysRun() -> int { return global.nativeRaylib.flagWindowAlwaysRun(); }
+global flagWindowTransparent() -> int { return global.nativeRaylib.flagWindowTransparent(); }
+global flagWindowHighdpi() -> int { return global.nativeRaylib.flagWindowHighdpi(); }
+global flagWindowMousePassthrough() -> int { return global.nativeRaylib.flagWindowMousePassthrough(); }
+global flagBorderlessWindowedMode() -> int { return global.nativeRaylib.flagBorderlessWindowedMode(); }
+global flagMsaa4xHint() -> int { return global.nativeRaylib.flagMsaa4xHint(); }
+global flagInterlacedHint() -> int { return global.nativeRaylib.flagInterlacedHint(); }
+global logAll() -> int { return global.nativeRaylib.logAll(); }
+global logTrace() -> int { return global.nativeRaylib.logTrace(); }
+global logDebug() -> int { return global.nativeRaylib.logDebug(); }
+global logInfo() -> int { return global.nativeRaylib.logInfo(); }
+global logWarning() -> int { return global.nativeRaylib.logWarning(); }
+global logError() -> int { return global.nativeRaylib.logError(); }
+global logFatal() -> int { return global.nativeRaylib.logFatal(); }
+global logNone() -> int { return global.nativeRaylib.logNone(); }
+global keyNull() -> int { return global.nativeRaylib.keyNull(); }
+global keyApostrophe() -> int { return global.nativeRaylib.keyApostrophe(); }
+global keyComma() -> int { return global.nativeRaylib.keyComma(); }
+global keyMinus() -> int { return global.nativeRaylib.keyMinus(); }
+global keyPeriod() -> int { return global.nativeRaylib.keyPeriod(); }
+global keySlash() -> int { return global.nativeRaylib.keySlash(); }
+global keyZero() -> int { return global.nativeRaylib.keyZero(); }
+global keyOne() -> int { return global.nativeRaylib.keyOne(); }
+global keyTwo() -> int { return global.nativeRaylib.keyTwo(); }
+global keyThree() -> int { return global.nativeRaylib.keyThree(); }
+global keyFour() -> int { return global.nativeRaylib.keyFour(); }
+global keyFive() -> int { return global.nativeRaylib.keyFive(); }
+global keySix() -> int { return global.nativeRaylib.keySix(); }
+global keySeven() -> int { return global.nativeRaylib.keySeven(); }
+global keyEight() -> int { return global.nativeRaylib.keyEight(); }
+global keyNine() -> int { return global.nativeRaylib.keyNine(); }
+global keySemicolon() -> int { return global.nativeRaylib.keySemicolon(); }
+global keyEqual() -> int { return global.nativeRaylib.keyEqual(); }
+global keyA() -> int { return global.nativeRaylib.keyA(); }
+global keyB() -> int { return global.nativeRaylib.keyB(); }
+global keyC() -> int { return global.nativeRaylib.keyC(); }
+global keyD() -> int { return global.nativeRaylib.keyD(); }
+global keyE() -> int { return global.nativeRaylib.keyE(); }
+global keyF() -> int { return global.nativeRaylib.keyF(); }
+global keyG() -> int { return global.nativeRaylib.keyG(); }
+global keyH() -> int { return global.nativeRaylib.keyH(); }
+global keyI() -> int { return global.nativeRaylib.keyI(); }
+global keyJ() -> int { return global.nativeRaylib.keyJ(); }
+global keyK() -> int { return global.nativeRaylib.keyK(); }
+global keyL() -> int { return global.nativeRaylib.keyL(); }
+global keyM() -> int { return global.nativeRaylib.keyM(); }
+global keyN() -> int { return global.nativeRaylib.keyN(); }
+global keyO() -> int { return global.nativeRaylib.keyO(); }
+global keyP() -> int { return global.nativeRaylib.keyP(); }
+global keyQ() -> int { return global.nativeRaylib.keyQ(); }
+global keyR() -> int { return global.nativeRaylib.keyR(); }
+global keyS() -> int { return global.nativeRaylib.keyS(); }
+global keyT() -> int { return global.nativeRaylib.keyT(); }
+global keyU() -> int { return global.nativeRaylib.keyU(); }
+global keyV() -> int { return global.nativeRaylib.keyV(); }
+global keyW() -> int { return global.nativeRaylib.keyW(); }
+global keyX() -> int { return global.nativeRaylib.keyX(); }
+global keyY() -> int { return global.nativeRaylib.keyY(); }
+global keyZ() -> int { return global.nativeRaylib.keyZ(); }
+global keyLeftBracket() -> int { return global.nativeRaylib.keyLeftBracket(); }
+global keyBackslash() -> int { return global.nativeRaylib.keyBackslash(); }
+global keyRightBracket() -> int { return global.nativeRaylib.keyRightBracket(); }
+global keyGrave() -> int { return global.nativeRaylib.keyGrave(); }
+global keySpace() -> int { return global.nativeRaylib.keySpace(); }
+global keyEscape() -> int { return global.nativeRaylib.keyEscape(); }
+global keyEnter() -> int { return global.nativeRaylib.keyEnter(); }
+global keyTab() -> int { return global.nativeRaylib.keyTab(); }
+global keyBackspace() -> int { return global.nativeRaylib.keyBackspace(); }
+global keyInsert() -> int { return global.nativeRaylib.keyInsert(); }
+global keyDelete() -> int { return global.nativeRaylib.keyDelete(); }
+global keyRight() -> int { return global.nativeRaylib.keyRight(); }
+global keyLeft() -> int { return global.nativeRaylib.keyLeft(); }
+global keyDown() -> int { return global.nativeRaylib.keyDown(); }
+global keyUp() -> int { return global.nativeRaylib.keyUp(); }
+global keyPageUp() -> int { return global.nativeRaylib.keyPageUp(); }
+global keyPageDown() -> int { return global.nativeRaylib.keyPageDown(); }
+global keyHome() -> int { return global.nativeRaylib.keyHome(); }
+global keyEnd() -> int { return global.nativeRaylib.keyEnd(); }
+global keyCapsLock() -> int { return global.nativeRaylib.keyCapsLock(); }
+global keyScrollLock() -> int { return global.nativeRaylib.keyScrollLock(); }
+global keyNumLock() -> int { return global.nativeRaylib.keyNumLock(); }
+global keyPrintScreen() -> int { return global.nativeRaylib.keyPrintScreen(); }
+global keyPause() -> int { return global.nativeRaylib.keyPause(); }
+global keyF1() -> int { return global.nativeRaylib.keyF1(); }
+global keyF2() -> int { return global.nativeRaylib.keyF2(); }
+global keyF3() -> int { return global.nativeRaylib.keyF3(); }
+global keyF4() -> int { return global.nativeRaylib.keyF4(); }
+global keyF5() -> int { return global.nativeRaylib.keyF5(); }
+global keyF6() -> int { return global.nativeRaylib.keyF6(); }
+global keyF7() -> int { return global.nativeRaylib.keyF7(); }
+global keyF8() -> int { return global.nativeRaylib.keyF8(); }
+global keyF9() -> int { return global.nativeRaylib.keyF9(); }
+global keyF10() -> int { return global.nativeRaylib.keyF10(); }
+global keyF11() -> int { return global.nativeRaylib.keyF11(); }
+global keyF12() -> int { return global.nativeRaylib.keyF12(); }
+global keyLeftShift() -> int { return global.nativeRaylib.keyLeftShift(); }
+global keyLeftControl() -> int { return global.nativeRaylib.keyLeftControl(); }
+global keyLeftAlt() -> int { return global.nativeRaylib.keyLeftAlt(); }
+global keyLeftSuper() -> int { return global.nativeRaylib.keyLeftSuper(); }
+global keyRightShift() -> int { return global.nativeRaylib.keyRightShift(); }
+global keyRightControl() -> int { return global.nativeRaylib.keyRightControl(); }
+global keyRightAlt() -> int { return global.nativeRaylib.keyRightAlt(); }
+global keyRightSuper() -> int { return global.nativeRaylib.keyRightSuper(); }
+global keyKbMenu() -> int { return global.nativeRaylib.keyKbMenu(); }
+global keyKp0() -> int { return global.nativeRaylib.keyKp0(); }
+global keyKp1() -> int { return global.nativeRaylib.keyKp1(); }
+global keyKp2() -> int { return global.nativeRaylib.keyKp2(); }
+global keyKp3() -> int { return global.nativeRaylib.keyKp3(); }
+global keyKp4() -> int { return global.nativeRaylib.keyKp4(); }
+global keyKp5() -> int { return global.nativeRaylib.keyKp5(); }
+global keyKp6() -> int { return global.nativeRaylib.keyKp6(); }
+global keyKp7() -> int { return global.nativeRaylib.keyKp7(); }
+global keyKp8() -> int { return global.nativeRaylib.keyKp8(); }
+global keyKp9() -> int { return global.nativeRaylib.keyKp9(); }
+global keyKpDecimal() -> int { return global.nativeRaylib.keyKpDecimal(); }
+global keyKpDivide() -> int { return global.nativeRaylib.keyKpDivide(); }
+global keyKpMultiply() -> int { return global.nativeRaylib.keyKpMultiply(); }
+global keyKpSubtract() -> int { return global.nativeRaylib.keyKpSubtract(); }
+global keyKpAdd() -> int { return global.nativeRaylib.keyKpAdd(); }
+global keyKpEnter() -> int { return global.nativeRaylib.keyKpEnter(); }
+global keyKpEqual() -> int { return global.nativeRaylib.keyKpEqual(); }
+global keyBack() -> int { return global.nativeRaylib.keyBack(); }
+global keyMenu() -> int { return global.nativeRaylib.keyMenu(); }
+global keyVolumeUp() -> int { return global.nativeRaylib.keyVolumeUp(); }
+global keyVolumeDown() -> int { return global.nativeRaylib.keyVolumeDown(); }
+global mouseButtonLeft() -> int { return global.nativeRaylib.mouseButtonLeft(); }
+global mouseButtonRight() -> int { return global.nativeRaylib.mouseButtonRight(); }
+global mouseButtonMiddle() -> int { return global.nativeRaylib.mouseButtonMiddle(); }
+global mouseButtonSide() -> int { return global.nativeRaylib.mouseButtonSide(); }
+global mouseButtonExtra() -> int { return global.nativeRaylib.mouseButtonExtra(); }
+global mouseButtonForward() -> int { return global.nativeRaylib.mouseButtonForward(); }
+global mouseButtonBack() -> int { return global.nativeRaylib.mouseButtonBack(); }
+global mouseCursorDefault() -> int { return global.nativeRaylib.mouseCursorDefault(); }
+global mouseCursorArrow() -> int { return global.nativeRaylib.mouseCursorArrow(); }
+global mouseCursorIbeam() -> int { return global.nativeRaylib.mouseCursorIbeam(); }
+global mouseCursorCrosshair() -> int { return global.nativeRaylib.mouseCursorCrosshair(); }
+global mouseCursorPointingHand() -> int { return global.nativeRaylib.mouseCursorPointingHand(); }
+global mouseCursorResizeEw() -> int { return global.nativeRaylib.mouseCursorResizeEw(); }
+global mouseCursorResizeNs() -> int { return global.nativeRaylib.mouseCursorResizeNs(); }
+global mouseCursorResizeNwse() -> int { return global.nativeRaylib.mouseCursorResizeNwse(); }
+global mouseCursorResizeNesw() -> int { return global.nativeRaylib.mouseCursorResizeNesw(); }
+global mouseCursorResizeAll() -> int { return global.nativeRaylib.mouseCursorResizeAll(); }
+global mouseCursorNotAllowed() -> int { return global.nativeRaylib.mouseCursorNotAllowed(); }
+global gamepadButtonUnknown() -> int { return global.nativeRaylib.gamepadButtonUnknown(); }
+global gamepadButtonLeftFaceUp() -> int { return global.nativeRaylib.gamepadButtonLeftFaceUp(); }
+global gamepadButtonLeftFaceRight() -> int { return global.nativeRaylib.gamepadButtonLeftFaceRight(); }
+global gamepadButtonLeftFaceDown() -> int { return global.nativeRaylib.gamepadButtonLeftFaceDown(); }
+global gamepadButtonLeftFaceLeft() -> int { return global.nativeRaylib.gamepadButtonLeftFaceLeft(); }
+global gamepadButtonRightFaceUp() -> int { return global.nativeRaylib.gamepadButtonRightFaceUp(); }
+global gamepadButtonRightFaceRight() -> int { return global.nativeRaylib.gamepadButtonRightFaceRight(); }
+global gamepadButtonRightFaceDown() -> int { return global.nativeRaylib.gamepadButtonRightFaceDown(); }
+global gamepadButtonRightFaceLeft() -> int { return global.nativeRaylib.gamepadButtonRightFaceLeft(); }
+global gamepadButtonLeftTrigger1() -> int { return global.nativeRaylib.gamepadButtonLeftTrigger1(); }
+global gamepadButtonLeftTrigger2() -> int { return global.nativeRaylib.gamepadButtonLeftTrigger2(); }
+global gamepadButtonRightTrigger1() -> int { return global.nativeRaylib.gamepadButtonRightTrigger1(); }
+global gamepadButtonRightTrigger2() -> int { return global.nativeRaylib.gamepadButtonRightTrigger2(); }
+global gamepadButtonMiddleLeft() -> int { return global.nativeRaylib.gamepadButtonMiddleLeft(); }
+global gamepadButtonMiddle() -> int { return global.nativeRaylib.gamepadButtonMiddle(); }
+global gamepadButtonMiddleRight() -> int { return global.nativeRaylib.gamepadButtonMiddleRight(); }
+global gamepadButtonLeftThumb() -> int { return global.nativeRaylib.gamepadButtonLeftThumb(); }
+global gamepadButtonRightThumb() -> int { return global.nativeRaylib.gamepadButtonRightThumb(); }
+global gamepadAxisLeftX() -> int { return global.nativeRaylib.gamepadAxisLeftX(); }
+global gamepadAxisLeftY() -> int { return global.nativeRaylib.gamepadAxisLeftY(); }
+global gamepadAxisRightX() -> int { return global.nativeRaylib.gamepadAxisRightX(); }
+global gamepadAxisRightY() -> int { return global.nativeRaylib.gamepadAxisRightY(); }
+global gamepadAxisLeftTrigger() -> int { return global.nativeRaylib.gamepadAxisLeftTrigger(); }
+global gamepadAxisRightTrigger() -> int { return global.nativeRaylib.gamepadAxisRightTrigger(); }
+global materialMapAlbedo() -> int { return global.nativeRaylib.materialMapAlbedo(); }
+global materialMapMetalness() -> int { return global.nativeRaylib.materialMapMetalness(); }
+global materialMapNormal() -> int { return global.nativeRaylib.materialMapNormal(); }
+global materialMapRoughness() -> int { return global.nativeRaylib.materialMapRoughness(); }
+global materialMapOcclusion() -> int { return global.nativeRaylib.materialMapOcclusion(); }
+global materialMapEmission() -> int { return global.nativeRaylib.materialMapEmission(); }
+global materialMapHeight() -> int { return global.nativeRaylib.materialMapHeight(); }
+global materialMapCubemap() -> int { return global.nativeRaylib.materialMapCubemap(); }
+global materialMapIrradiance() -> int { return global.nativeRaylib.materialMapIrradiance(); }
+global materialMapPrefilter() -> int { return global.nativeRaylib.materialMapPrefilter(); }
+global materialMapBrdf() -> int { return global.nativeRaylib.materialMapBrdf(); }
+global shaderLocVertexPosition() -> int { return global.nativeRaylib.shaderLocVertexPosition(); }
+global shaderLocVertexTexcoord01() -> int { return global.nativeRaylib.shaderLocVertexTexcoord01(); }
+global shaderLocVertexTexcoord02() -> int { return global.nativeRaylib.shaderLocVertexTexcoord02(); }
+global shaderLocVertexNormal() -> int { return global.nativeRaylib.shaderLocVertexNormal(); }
+global shaderLocVertexTangent() -> int { return global.nativeRaylib.shaderLocVertexTangent(); }
+global shaderLocVertexColor() -> int { return global.nativeRaylib.shaderLocVertexColor(); }
+global shaderLocMatrixMvp() -> int { return global.nativeRaylib.shaderLocMatrixMvp(); }
+global shaderLocMatrixView() -> int { return global.nativeRaylib.shaderLocMatrixView(); }
+global shaderLocMatrixProjection() -> int { return global.nativeRaylib.shaderLocMatrixProjection(); }
+global shaderLocMatrixModel() -> int { return global.nativeRaylib.shaderLocMatrixModel(); }
+global shaderLocMatrixNormal() -> int { return global.nativeRaylib.shaderLocMatrixNormal(); }
+global shaderLocVectorView() -> int { return global.nativeRaylib.shaderLocVectorView(); }
+global shaderLocColorDiffuse() -> int { return global.nativeRaylib.shaderLocColorDiffuse(); }
+global shaderLocColorSpecular() -> int { return global.nativeRaylib.shaderLocColorSpecular(); }
+global shaderLocColorAmbient() -> int { return global.nativeRaylib.shaderLocColorAmbient(); }
+global shaderLocMapAlbedo() -> int { return global.nativeRaylib.shaderLocMapAlbedo(); }
+global shaderLocMapMetalness() -> int { return global.nativeRaylib.shaderLocMapMetalness(); }
+global shaderLocMapNormal() -> int { return global.nativeRaylib.shaderLocMapNormal(); }
+global shaderLocMapRoughness() -> int { return global.nativeRaylib.shaderLocMapRoughness(); }
+global shaderLocMapOcclusion() -> int { return global.nativeRaylib.shaderLocMapOcclusion(); }
+global shaderLocMapEmission() -> int { return global.nativeRaylib.shaderLocMapEmission(); }
+global shaderLocMapHeight() -> int { return global.nativeRaylib.shaderLocMapHeight(); }
+global shaderLocMapCubemap() -> int { return global.nativeRaylib.shaderLocMapCubemap(); }
+global shaderLocMapIrradiance() -> int { return global.nativeRaylib.shaderLocMapIrradiance(); }
+global shaderLocMapPrefilter() -> int { return global.nativeRaylib.shaderLocMapPrefilter(); }
+global shaderLocMapBrdf() -> int { return global.nativeRaylib.shaderLocMapBrdf(); }
+global shaderLocVertexBoneids() -> int { return global.nativeRaylib.shaderLocVertexBoneids(); }
+global shaderLocVertexBoneweights() -> int { return global.nativeRaylib.shaderLocVertexBoneweights(); }
+global shaderLocMatrixBonetransforms() -> int { return global.nativeRaylib.shaderLocMatrixBonetransforms(); }
+global shaderLocVertexInstancetransform() -> int { return global.nativeRaylib.shaderLocVertexInstancetransform(); }
+global shaderUniformFloat() -> int { return global.nativeRaylib.shaderUniformFloat(); }
+global shaderUniformVec2() -> int { return global.nativeRaylib.shaderUniformVec2(); }
+global shaderUniformVec3() -> int { return global.nativeRaylib.shaderUniformVec3(); }
+global shaderUniformVec4() -> int { return global.nativeRaylib.shaderUniformVec4(); }
+global shaderUniformInt() -> int { return global.nativeRaylib.shaderUniformInt(); }
+global shaderUniformIvec2() -> int { return global.nativeRaylib.shaderUniformIvec2(); }
+global shaderUniformIvec3() -> int { return global.nativeRaylib.shaderUniformIvec3(); }
+global shaderUniformIvec4() -> int { return global.nativeRaylib.shaderUniformIvec4(); }
+global shaderUniformUint() -> int { return global.nativeRaylib.shaderUniformUint(); }
+global shaderUniformUivec2() -> int { return global.nativeRaylib.shaderUniformUivec2(); }
+global shaderUniformUivec3() -> int { return global.nativeRaylib.shaderUniformUivec3(); }
+global shaderUniformUivec4() -> int { return global.nativeRaylib.shaderUniformUivec4(); }
+global shaderUniformSampler2d() -> int { return global.nativeRaylib.shaderUniformSampler2d(); }
+global shaderAttribFloat() -> int { return global.nativeRaylib.shaderAttribFloat(); }
+global shaderAttribVec2() -> int { return global.nativeRaylib.shaderAttribVec2(); }
+global shaderAttribVec3() -> int { return global.nativeRaylib.shaderAttribVec3(); }
+global shaderAttribVec4() -> int { return global.nativeRaylib.shaderAttribVec4(); }
+global pixelformatUncompressedGrayscale() -> int { return global.nativeRaylib.pixelformatUncompressedGrayscale(); }
+global pixelformatUncompressedGrayAlpha() -> int { return global.nativeRaylib.pixelformatUncompressedGrayAlpha(); }
+global pixelformatUncompressedR5g6b5() -> int { return global.nativeRaylib.pixelformatUncompressedR5g6b5(); }
+global pixelformatUncompressedR8g8b8() -> int { return global.nativeRaylib.pixelformatUncompressedR8g8b8(); }
+global pixelformatUncompressedR5g5b5a1() -> int { return global.nativeRaylib.pixelformatUncompressedR5g5b5a1(); }
+global pixelformatUncompressedR4g4b4a4() -> int { return global.nativeRaylib.pixelformatUncompressedR4g4b4a4(); }
+global pixelformatUncompressedR8g8b8a8() -> int { return global.nativeRaylib.pixelformatUncompressedR8g8b8a8(); }
+global pixelformatUncompressedR32() -> int { return global.nativeRaylib.pixelformatUncompressedR32(); }
+global pixelformatUncompressedR32g32b32() -> int { return global.nativeRaylib.pixelformatUncompressedR32g32b32(); }
+global pixelformatUncompressedR32g32b32a32() -> int { return global.nativeRaylib.pixelformatUncompressedR32g32b32a32(); }
+global pixelformatUncompressedR16() -> int { return global.nativeRaylib.pixelformatUncompressedR16(); }
+global pixelformatUncompressedR16g16b16() -> int { return global.nativeRaylib.pixelformatUncompressedR16g16b16(); }
+global pixelformatUncompressedR16g16b16a16() -> int { return global.nativeRaylib.pixelformatUncompressedR16g16b16a16(); }
+global pixelformatCompressedDxt1Rgb() -> int { return global.nativeRaylib.pixelformatCompressedDxt1Rgb(); }
+global pixelformatCompressedDxt1Rgba() -> int { return global.nativeRaylib.pixelformatCompressedDxt1Rgba(); }
+global pixelformatCompressedDxt3Rgba() -> int { return global.nativeRaylib.pixelformatCompressedDxt3Rgba(); }
+global pixelformatCompressedDxt5Rgba() -> int { return global.nativeRaylib.pixelformatCompressedDxt5Rgba(); }
+global pixelformatCompressedEtc1Rgb() -> int { return global.nativeRaylib.pixelformatCompressedEtc1Rgb(); }
+global pixelformatCompressedEtc2Rgb() -> int { return global.nativeRaylib.pixelformatCompressedEtc2Rgb(); }
+global pixelformatCompressedEtc2EacRgba() -> int { return global.nativeRaylib.pixelformatCompressedEtc2EacRgba(); }
+global pixelformatCompressedPvrtRgb() -> int { return global.nativeRaylib.pixelformatCompressedPvrtRgb(); }
+global pixelformatCompressedPvrtRgba() -> int { return global.nativeRaylib.pixelformatCompressedPvrtRgba(); }
+global pixelformatCompressedAstc4x4Rgba() -> int { return global.nativeRaylib.pixelformatCompressedAstc4x4Rgba(); }
+global pixelformatCompressedAstc8x8Rgba() -> int { return global.nativeRaylib.pixelformatCompressedAstc8x8Rgba(); }
+global textureFilterPoint() -> int { return global.nativeRaylib.textureFilterPoint(); }
+global textureFilterBilinear() -> int { return global.nativeRaylib.textureFilterBilinear(); }
+global textureFilterTrilinear() -> int { return global.nativeRaylib.textureFilterTrilinear(); }
+global textureFilterAnisotropic4x() -> int { return global.nativeRaylib.textureFilterAnisotropic4x(); }
+global textureFilterAnisotropic8x() -> int { return global.nativeRaylib.textureFilterAnisotropic8x(); }
+global textureFilterAnisotropic16x() -> int { return global.nativeRaylib.textureFilterAnisotropic16x(); }
+global textureWrapRepeat() -> int { return global.nativeRaylib.textureWrapRepeat(); }
+global textureWrapClamp() -> int { return global.nativeRaylib.textureWrapClamp(); }
+global textureWrapMirrorRepeat() -> int { return global.nativeRaylib.textureWrapMirrorRepeat(); }
+global textureWrapMirrorClamp() -> int { return global.nativeRaylib.textureWrapMirrorClamp(); }
+global cubemapLayoutAutoDetect() -> int { return global.nativeRaylib.cubemapLayoutAutoDetect(); }
+global cubemapLayoutLineVertical() -> int { return global.nativeRaylib.cubemapLayoutLineVertical(); }
+global cubemapLayoutLineHorizontal() -> int { return global.nativeRaylib.cubemapLayoutLineHorizontal(); }
+global cubemapLayoutCrossThreeByFour() -> int { return global.nativeRaylib.cubemapLayoutCrossThreeByFour(); }
+global cubemapLayoutCrossFourByThree() -> int { return global.nativeRaylib.cubemapLayoutCrossFourByThree(); }
+global fontDefault() -> int { return global.nativeRaylib.fontDefault(); }
+global fontBitmap() -> int { return global.nativeRaylib.fontBitmap(); }
+global fontSdf() -> int { return global.nativeRaylib.fontSdf(); }
+global blendAlpha() -> int { return global.nativeRaylib.blendAlpha(); }
+global blendAdditive() -> int { return global.nativeRaylib.blendAdditive(); }
+global blendMultiplied() -> int { return global.nativeRaylib.blendMultiplied(); }
+global blendAddColors() -> int { return global.nativeRaylib.blendAddColors(); }
+global blendSubtractColors() -> int { return global.nativeRaylib.blendSubtractColors(); }
+global blendAlphaPremultiply() -> int { return global.nativeRaylib.blendAlphaPremultiply(); }
+global blendCustom() -> int { return global.nativeRaylib.blendCustom(); }
+global blendCustomSeparate() -> int { return global.nativeRaylib.blendCustomSeparate(); }
+global gestureNone() -> int { return global.nativeRaylib.gestureNone(); }
+global gestureTap() -> int { return global.nativeRaylib.gestureTap(); }
+global gestureDoubletap() -> int { return global.nativeRaylib.gestureDoubletap(); }
+global gestureHold() -> int { return global.nativeRaylib.gestureHold(); }
+global gestureDrag() -> int { return global.nativeRaylib.gestureDrag(); }
+global gestureSwipeRight() -> int { return global.nativeRaylib.gestureSwipeRight(); }
+global gestureSwipeLeft() -> int { return global.nativeRaylib.gestureSwipeLeft(); }
+global gestureSwipeUp() -> int { return global.nativeRaylib.gestureSwipeUp(); }
+global gestureSwipeDown() -> int { return global.nativeRaylib.gestureSwipeDown(); }
+global gesturePinchIn() -> int { return global.nativeRaylib.gesturePinchIn(); }
+global gesturePinchOut() -> int { return global.nativeRaylib.gesturePinchOut(); }
+global cameraCustom() -> int { return global.nativeRaylib.cameraCustom(); }
+global cameraFree() -> int { return global.nativeRaylib.cameraFree(); }
+global cameraOrbital() -> int { return global.nativeRaylib.cameraOrbital(); }
+global cameraFirstPerson() -> int { return global.nativeRaylib.cameraFirstPerson(); }
+global cameraThirdPerson() -> int { return global.nativeRaylib.cameraThirdPerson(); }
+global cameraPerspective() -> int { return global.nativeRaylib.cameraPerspective(); }
+global cameraOrthographic() -> int { return global.nativeRaylib.cameraOrthographic(); }
+global npatchNinePatch() -> int { return global.nativeRaylib.npatchNinePatch(); }
+global npatchThreePatchVertical() -> int { return global.nativeRaylib.npatchThreePatchVertical(); }
+global npatchThreePatchHorizontal() -> int { return global.nativeRaylib.npatchThreePatchHorizontal(); }
+global raylibVersionMajor() -> int { return global.nativeRaylib.raylibVersionMajor(); }
+global raylibVersionMinor() -> int { return global.nativeRaylib.raylibVersionMinor(); }
+global raylibVersionPatch() -> int { return global.nativeRaylib.raylibVersionPatch(); }

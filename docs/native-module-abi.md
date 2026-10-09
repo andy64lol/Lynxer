@@ -7,12 +7,13 @@ as it applies to third-party modules.
 
 A module may be written in C++ (`stdlib/<name>.cpp`) or in Rust. The Rust
 backends — `compress`, `crypto`, `encoding`, `game`, `graphics`, `image`, `ini`,
-`json`, `lua`, `network`, `server`, `sound`, `sqldb`, `toml`, `tui`, `uuid`,
-`watch`, `xml` and `yaml` — live under `rust/` and are all `cdylib`s that export
-`lynxer_module_init_v1`, their ops, and (for `game`)
+`json`, `lua`, `network`, `raylib`, `server`, `sound`, `sqldb`, `toml`, `tui`,
+`uuid`, `watch`, `xml` and `yaml` — live under `rust/` and are all `cdylib`s that
+export `lynxer_module_init_v1`, their ops, and (for `game`)
 `lynxer_module_attach_v1` directly; there is no C++ shim. The `lynxer_abi`
 crate provides the shared FFI plumbing (packed-argument view, panic guards,
-string result buffer, host API, and the registration helper).
+string result buffer, host API, and the registration helper). The generated
+`raylib` backend registers its ops by hand instead of through `lynxer_abi`.
 
 The workspace has one more member, `rust/ffi`, which is different in kind: a
 `staticlib` that is **linked into the interpreter**, not a `cdylib` module. It

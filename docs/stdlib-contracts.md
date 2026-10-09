@@ -94,6 +94,11 @@ runtime error in the Lynxer wrapper; integer and boolean operations keep their
 documented sentinels.
 `colorlib` and `typing` are pure Lynxer and have no native boundary to
 report across.
+`raylib` is the exception to the sentinel families: its struct handles are raw
+boxed pointers with no registry and no validation, so an invalid, stale or
+double-freed handle is undefined behaviour rather than a result. A raylib
+program owns each handle and must free it exactly once (see
+[limitations.md](limitations.md#raylib-handles-are-unvalidated)).
 
 Operations returning a JSON document return `[]` or `{}` for an empty result
 and an error string for a failure — never an exception. `jsonParse` on malformed
@@ -167,6 +172,7 @@ Any future callback must be declared here before the module ships.
 | `os` | C++ | none | none |
 | `path` | C++ | none — paths are strings | none |
 | `random` | C++ | none — seeded generator lives in the backend | none |
+| `raylib` | Rust | **raw pointer handles** for non-scalar structs (no registry); scalar-only structs are flattened by value | caller: `<struct>Free(handle)` (exactly once) |
 | `re` | Rust | none | none |
 | `regex` | Rust | none — the named-pattern cache lives in the backend | none |
 | `server` | Rust | routes keyed by path, in registration order | caller: `clearRoutes()` / `stop()` |

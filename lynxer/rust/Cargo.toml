@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["abi", "compress", "crypto", "encoding", "game", "graphics", "image", "ini", "json", "lua", "network", "re", "regex", "regex_engine", "server", "sound", "sqldb", "text", "toml", "tui", "uuid", "watch", "xml", "yaml", "ffi"]
+members = ["abi", "compress", "crypto", "encoding", "game", "graphics", "image", "ini", "json", "lua", "network", "raylib", "re", "regex", "regex_engine", "server", "sound", "sqldb", "text", "toml", "tui", "uuid", "watch", "xml", "yaml", "ffi"]
 
 # Every module is built by the lynxer Makefile with an explicit --target-dir
 # (lynxer/build/rust), so this profile applies to the whole workspace.

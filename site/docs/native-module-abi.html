@@ -91,6 +91,7 @@
 <li><a href="stdlib/os.html">os</a></li>
 <li><a href="stdlib/path.html">path</a></li>
 <li><a href="stdlib/random.html">random</a></li>
+<li><a href="stdlib/raylib.html">raylib</a></li>
 <li><a href="stdlib/re.html">re</a></li>
 <li><a href="stdlib/regex.html">regex</a></li>
 <li><a href="stdlib/server.html">server</a></li>
@@ -123,7 +124,7 @@
         </div>
 <h1 id="native-module-abi">Native module ABI</h1>
 <p>Lynxer's standard libraries are shared libraries (<code>.so</code> on Linux, <code>.dylib</code> on macOS) loaded at runtime with <code>dlopen</code>. This document is the contract a native module must implement. It applies to the bundled <code>stdlib/*.so</code> modules exactly as it applies to third-party modules.</p>
-<p>A module may be written in C++ (<code>stdlib/&lt;name&gt;.cpp</code>) or in Rust. The Rust backends — <code>compress</code>, <code>crypto</code>, <code>encoding</code>, <code>game</code>, <code>graphics</code>, <code>image</code>, <code>ini</code>, <code>json</code>, <code>lua</code>, <code>network</code>, <code>server</code>, <code>sound</code>, <code>sqldb</code>, <code>toml</code>, <code>tui</code>, <code>uuid</code>, <code>watch</code>, <code>xml</code> and <code>yaml</code> — live under <code>rust/</code> and are all <code>cdylib</code>s that export <code>lynxer_module_init_v1</code>, their ops, and (for <code>game</code>) <code>lynxer_module_attach_v1</code> directly; there is no C++ shim. The <code>lynxer_abi</code> crate provides the shared FFI plumbing (packed-argument view, panic guards, string result buffer, host API, and the registration helper).</p>
+<p>A module may be written in C++ (<code>stdlib/&lt;name&gt;.cpp</code>) or in Rust. The Rust backends — <code>compress</code>, <code>crypto</code>, <code>encoding</code>, <code>game</code>, <code>graphics</code>, <code>image</code>, <code>ini</code>, <code>json</code>, <code>lua</code>, <code>network</code>, <code>raylib</code>, <code>server</code>, <code>sound</code>, <code>sqldb</code>, <code>toml</code>, <code>tui</code>, <code>uuid</code>, <code>watch</code>, <code>xml</code> and <code>yaml</code> — live under <code>rust/</code> and are all <code>cdylib</code>s that export <code>lynxer_module_init_v1</code>, their ops, and (for <code>game</code>) <code>lynxer_module_attach_v1</code> directly; there is no C++ shim. The <code>lynxer_abi</code> crate provides the shared FFI plumbing (packed-argument view, panic guards, string result buffer, host API, and the registration helper). The generated <code>raylib</code> backend registers its ops by hand instead of through <code>lynxer_abi</code>.</p>
 <p>The workspace has one more member, <code>rust/ffi</code>, which is different in kind: a <code>staticlib</code> that is <strong>linked into the interpreter</strong>, not a <code>cdylib</code> module. It implements the shared native-call engine (see <a href="#the-native-call-engine">The native call engine</a>) and is never installed into <code>stdlib/</code>; because the interpreter links it, <code>cargo</code> is a required build tool.</p>
 <h2 id="entry-point">Entry point</h2>
 <p>Every module exports one C symbol:</p>

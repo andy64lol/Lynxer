@@ -229,6 +229,8 @@ class Backend:
 RUST_OPS_ENTRY = re.compile(
     r'\(\s*"([^"]+)"\s*,\s*"([^"]+)"\s*,\s*"cdecl:([A-Za-z0-9]+)\(([^)]*)\)"\s*,?\s*\)'
 )
+# A backend may pull its registration table from a sibling file.
+RUST_INCLUDE = re.compile(r'include!\(\s*"([^"]+)"\s*\)')
 # Every op macro expands to the packed prototype, including the buffered
 # variants the `bytes` channel added.
 RUST_EXPORT = re.compile(
@@ -244,7 +246,15 @@ CPP_OPS_ENTRY = re.compile(
 
 def parse_rust_backend(path: Path) -> Backend:
     backend = Backend(path)
-    text = strip_line_comments(path.read_text())
+    # A backend may keep its registration table in a sibling file pulled in with
+    # `include!("...")` (raylib generates `generated_ops.rs` this way). Follow
+    # those includes so the ops are visible to the check.
+    texts = [path.read_text()]
+    for included in RUST_INCLUDE.findall(texts[0]):
+        include_path = path.parent / included
+        if include_path.is_file():
+            texts.append(include_path.read_text())
+    text = strip_line_comments("\n".join(texts))
     for match in RUST_OPS_ENTRY.finditer(text):
         name, symbol, _return, params = match.groups()
         backend.ops[name] = {

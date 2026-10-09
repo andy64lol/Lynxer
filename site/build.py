@@ -43,7 +43,7 @@ STDLIB_MODULES = [
     "cli", "colorlib", "compress", "crypto", "csv", "debug", "encoding", "fileIO", "game", "graphics",
     "image", "ini",
     "js", "json",
-    "lua", "math", "multiprocessing", "network", "os", "path", "random", "re",
+    "lua", "math", "multiprocessing", "network", "os", "path", "random", "raylib", "re",
     "regex", "server", "shell", "sound", "sqldb", "sys", "text", "time", "toml", "tui",
     "turtle", "typing", "uuid", "watch", "xml", "yaml",
 ]

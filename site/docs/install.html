@@ -91,6 +91,7 @@
 <li><a href="stdlib/os.html">os</a></li>
 <li><a href="stdlib/path.html">path</a></li>
 <li><a href="stdlib/random.html">random</a></li>
+<li><a href="stdlib/raylib.html">raylib</a></li>
 <li><a href="stdlib/re.html">re</a></li>
 <li><a href="stdlib/regex.html">regex</a></li>
 <li><a href="stdlib/server.html">server</a></li>
@@ -151,7 +152,7 @@ make buildLynxerArm64  # the ARM64 interpreter (needs an aarch64 host)</code></p
 <ul>
 <li><code>lynxer/liblynxer.so</code> — the embedding runtime: the interpreter core (minus <code>main.cpp</code>) linked as a shared library, exporting only the <code>lynxer_embed_*</code> entry points. Libraries built by <code>lynxer --emit-library</code> link against it. <code>lynxer/lynxer.h</code> and <code>lynxer/ffi_abi.h</code> are its public headers.</li>
 </ul>
-<p>The Rust workspace has twenty-five member crates: the twenty-two stdlib module backends listed in <code>LYNXER_RUST_MODULE_NAMES</code> (<code>compress</code>, <code>crypto</code>, <code>encoding</code>, <code>game</code>, <code>graphics</code>, <code>image</code>, <code>ini</code>, <code>json</code>, <code>lua</code>, <code>network</code>, <code>re</code>, <code>regex</code>, <code>server</code>, <code>sound</code>, <code>sqldb</code>, <code>text</code>, <code>toml</code>, <code>tui</code>, <code>uuid</code>, <code>watch</code>, <code>xml</code>, <code>yaml</code>), the two crates they share (<code>rust/abi</code>, and <code>rust/regex_engine</code>, the <code>fancy-regex</code> engine behind <code>re</code>/<code>regex</code>), and <code>rust/ffi</code>, the required native-call engine described in <a href="native-module-abi.html#the-native-call-engine">native-module-abi</a>.</p>
+<p>The Rust workspace has twenty-six member crates: the twenty-three stdlib module backends listed in <code>LYNXER_RUST_MODULE_NAMES</code> (<code>compress</code>, <code>crypto</code>, <code>encoding</code>, <code>game</code>, <code>graphics</code>, <code>image</code>, <code>ini</code>, <code>json</code>, <code>lua</code>, <code>network</code>, <code>raylib</code>, <code>re</code>, <code>regex</code>, <code>server</code>, <code>sound</code>, <code>sqldb</code>, <code>text</code>, <code>toml</code>, <code>tui</code>, <code>uuid</code>, <code>watch</code>, <code>xml</code>, <code>yaml</code>), the two crates they share (<code>rust/abi</code>, and <code>rust/regex_engine</code>, the <code>fancy-regex</code> engine behind <code>re</code>/<code>regex</code>), and <code>rust/ffi</code>, the required native-call engine described in <a href="native-module-abi.html#the-native-call-engine">native-module-abi</a>.</p>
 <h2 id="install">Install</h2>
 <pre><code>sudo ./lynxer/lynxer --install      # install into /usr/lib/lynxer, link /usr/bin/lynxer
 sudo ./lynxer/lynxer --uninstall    # remove the installed interpreter</code></pre>

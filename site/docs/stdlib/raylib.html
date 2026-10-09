@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <meta name="theme-color" content="#4a90e2">
+    <title>Raylib Module - Lynxer</title>
+    <link rel="stylesheet" href="../../style.css">
+</head>
+<body>
+
+<header>
+    <div class="wrap header-inner">
+        <img class="logo" src="../../assets/lynxer.png" alt="Lynxer logo" width="48" height="48">
+        <div class="header-text">
+            <h1><a href="../../index.html">Lynxer</a></h1>
+            <p>Documentation</p>
+        </div>
+    </div>
+</header>
+
+<div class="layout">
+    <nav class="sidebar">
+<h3 class="sidebar-group-title">Overview</h3><ul class="sidebar-group">
+<li><a href="../index.html">README</a></li>
+</ul>
+<h3 class="sidebar-group-title">Getting started</h3><ul class="sidebar-group">
+<li><a href="../install.html">install</a></li>
+<li><a href="../CLI.html">CLI</a></li>
+</ul>
+<h3 class="sidebar-group-title">Language</h3><ul class="sidebar-group">
+<li><a href="../language.html">language</a></li>
+<li><a href="../functions.html">functions</a></li>
+<li><a href="../macros.html">macros</a></li>
+<li><a href="../operators.html">operators</a></li>
+<li><a href="../conditionals.html">conditionals</a></li>
+<li><a href="../loops.html">loops</a></li>
+<li><a href="../types.html">types</a></li>
+<li><a href="../lists.html">lists</a></li>
+<li><a href="../tuples.html">tuples</a></li>
+<li><a href="../codeblocks.html">codeblocks</a></li>
+<li><a href="../modules.html">modules</a></li>
+<li><a href="../importAs.html">importAs</a></li>
+</ul>
+<h3 class="sidebar-group-title">Records</h3><ul class="sidebar-group">
+<li><a href="../structs.html">structs</a></li>
+<li><a href="../classes.html">classes</a></li>
+<li><a href="../enums.html">enums</a></li>
+<li><a href="../vargroups.html">vargroups</a></li>
+</ul>
+<h3 class="sidebar-group-title">Built-ins and modules</h3><ul class="sidebar-group">
+<li><a href="../builtins.html">builtins</a></li>
+<li><a href="../syscalls.html">syscalls</a></li>
+<li><a href="../native-module-abi.html">native-module-abi</a></li>
+<li><a href="../native-modules.html">native-modules</a></li>
+<li><a href="../stdlib-contracts.html">stdlib-contracts</a></li>
+<li><a href="../extending.html">extending</a></li>
+</ul>
+<h3 class="sidebar-group-title">Runtime</h3><ul class="sidebar-group">
+<li><a href="../async.html">async</a></li>
+<li><a href="../native-memory.html">native-memory</a></li>
+<li><a href="../filesystem.html">filesystem</a></li>
+<li><a href="../networking.html">networking</a></li>
+<li><a href="../process.html">process</a></li>
+</ul>
+<h3 class="sidebar-group-title">Reference</h3><ul class="sidebar-group">
+<li><a href="../legacy-surface.html">legacy-surface</a></li>
+<li><a href="../removed-features.html">removed-features</a></li>
+<li><a href="../limitations.html">limitations</a></li>
+</ul>
+<h3 class="sidebar-group-title">Standard Library</h3><ul class="sidebar-group">
+<li><a href="index.html">All modules</a></li>
+<li><a href="cli.html">cli</a></li>
+<li><a href="colorlib.html">colorlib</a></li>
+<li><a href="compress.html">compress</a></li>
+<li><a href="crypto.html">crypto</a></li>
+<li><a href="csv.html">csv</a></li>
+<li><a href="debug.html">debug</a></li>
+<li><a href="encoding.html">encoding</a></li>
+<li><a href="fileIO.html">fileIO</a></li>
+<li><a href="game.html">game</a></li>
+<li><a href="graphics.html">graphics</a></li>
+<li><a href="image.html">image</a></li>
+<li><a href="ini.html">ini</a></li>
+<li><a href="js.html">js</a></li>
+<li><a href="json.html">json</a></li>
+<li><a href="lua.html">lua</a></li>
+<li><a href="math.html">math</a></li>
+<li><a href="multiprocessing.html">multiprocessing</a></li>
+<li><a href="network.html">network</a></li>
+<li><a href="os.html">os</a></li>
+<li><a href="path.html">path</a></li>
+<li><a href="random.html">random</a></li>
+<li><a href="raylib.html" class="active">raylib</a></li>
+<li><a href="re.html">re</a></li>
+<li><a href="regex.html">regex</a></li>
+<li><a href="server.html">server</a></li>
+<li><a href="shell.html">shell</a></li>
+<li><a href="sound.html">sound</a></li>
+<li><a href="sqldb.html">sqldb</a></li>
+<li><a href="sys.html">sys</a></li>
+<li><a href="text.html">text</a></li>
+<li><a href="time.html">time</a></li>
+<li><a href="toml.html">toml</a></li>
+<li><a href="tui.html">tui</a></li>
+<li><a href="turtle.html">turtle</a></li>
+<li><a href="typing.html">typing</a></li>
+<li><a href="uuid.html">uuid</a></li>
+<li><a href="watch.html">watch</a></li>
+<li><a href="xml.html">xml</a></li>
+<li><a href="yaml.html">yaml</a></li>
+</ul>
+    </nav>
+    <main class="doc">
+        <div class="breadcrumb">
+            <a href="../../index.html">Home</a>
+            <a href="../../docs/stdlib/index.html">Standard Library</a>
+            <span>Raylib Module</span>
+        </div>
+        <div class="search-bar" data-search-index="../../search-index.json" data-site-root="../../">
+            <label class="visually-hidden" for="docs-search">Search documentation</label>
+            <input id="docs-search" type="search" placeholder="Search documentation..." aria-label="Search documentation" autocomplete="off">
+            <div class="search-results" aria-live="polite"></div>
+        </div>
+<h1 id="raylib-module">Raylib Module</h1>
+<p>The <code>raylib</code> module exposes (almost) every function of <a href="https://www.raylib.com/">raylib</a> 6.0 to Lynxer. It is a Rust backend that binds <code>raylib-sys</code>, with the Lynxer-facing wrappers generated from raylib's own API description.</p>
+<blockquote><strong>Requires:</strong> a Rust toolchain (<code>cargo</code>) to build the backend, and a display plus OpenGL to open a window. Everything that does not call <code>initWindow</code> — the math and color helpers, the enum constants, struct allocation and field access — works headless, which is what <code>stdlib_raylib.lynx</code> covers.</blockquote>
+<p>There are <strong>1328 operations</strong> (family functions, struct constructors/accessors and enum/#define getters) and <strong>308 constants</strong>. The wrapper <code>lynxer/stdlib/raylib.lynx</code> is generated; its one-line-per-op listing is the complete reference. This page describes the shapes and the conventions.</p>
+<h2 id="naming-and-shapes">Naming and shapes</h2>
+<ul>
+<li>Every raylib function keeps its name, lower-camel-cased: <code>DrawText</code> → <code>drawText</code>, <code>InitWindow</code> → <code>initWindow</code>, <code>GetRandomValue</code> → <code>getRandomValue</code>.</li>
+<li>raylib's enum values and <code>#define</code>s are exposed as <strong>getter functions</strong>, not constants: <code>flagWindowHidden()</code> is <code>128</code>, <code>keySpace()</code> is <code>32</code>, <code>mouseButtonLeft()</code> is <code>0</code>.</li>
+<li><code>float</code> parameters and returns become Lynxer <code>float</code>; <code>int</code>/<code>bool</code> become <code>int</code>; <code>char*</code> becomes <code>str</code>.</li>
+</ul>
+<h3 id="scalar-only-structs-are-flattened">Scalar-only structs are flattened</h3>
+<p>Structs made only of scalars (<code>Vector2</code>/<code>Vector3</code>/<code>Vector4</code>, <code>Color</code>, <code>Rectangle</code>, <code>Camera3D</code>, <code>Ray</code>, <code>BoundingBox</code>, <code>Texture</code>, <code>Matrix</code>, …) are passed <strong>by value as flattened scalars</strong>, so a function taking one takes its fields:</p>
+<pre><code>// DrawRectangleRec(Rectangle, Color) becomes eight scalars.
+global.raylib.drawRectangleRec(x, y, w, h, r, g, b, a);</code></pre>
+<p>A function returning one returns an <strong>opaque <code>int</code> handle</strong> you read with the struct's field accessors and release with <code>&lt;struct&gt;Free</code>:</p>
+<pre><code>int c = global.raylib.colorFromHSV(0.0, 1.0, 1.0); // Color handle
+float red = global.raylib.colorGetR(c);            // 255.0
+global.raylib.colorFree(c);</code></pre>
+<h3 id="other-structs-are-handles">Other structs are handles</h3>
+<p>Every other struct (<code>Image</code>, <code>Model</code>, <code>Sound</code>, <code>Music</code>, <code>Font</code>, <code>RenderTexture</code>, <code>Shader</code>, <code>Mesh</code>, …) is an opaque <code>int</code> handle:</p>
+<ul>
+<li><code>&lt;struct&gt;New(...)</code> allocates one (not all structs have a <code>New</code>);</li>
+<li><code>&lt;struct&gt;Get&lt;Field&gt;(h)</code> / <code>&lt;struct&gt;Set&lt;Field&gt;(h, value)</code> read and write its scalar fields;</li>
+<li><code>&lt;struct&gt;Free(h)</code> releases it (<code>h</code> of <code>0</code> is ignored).</li>
+</ul>
+<h2 id="handles-are-unvalidated-pointers">Handles are unvalidated pointers</h2>
+<p>A handle is the raw address of a heap-allocated value, and the accessors dereference it directly. There is <strong>no registry and no validation</strong>, so passing a wrong, stale or already-freed handle — or freeing one twice — is undefined behaviour and will usually crash the process. Treat every handle as owned and single-use, and <code>Free</code> it exactly once. This differs from most other modules, which return a sentinel instead; see <a href="../limitations.html#raylib-handles-are-unvalidated">limitations</a>.</p>
+<h2 id="representative-operations">Representative operations</h2>
+<p>The table is illustrative, not exhaustive — see the generated wrapper for all 1328 names.</p>
+<table>
+<tr><th>Area</th><th>Examples</th></tr>
+<tr><td>Window</td><td><code>initWindow(w, h, title)</code>, <code>closeWindow()</code>, <code>windowShouldClose()</code>, <code>setTargetFPS(fps)</code>, <code>setWindowState(flags)</code></td></tr>
+<tr><td>Drawing</td><td><code>beginDrawing()</code>, <code>endDrawing()</code>, <code>clearBackground(r, g, b, a)</code>, <code>drawPixel(x, y, r, g, b, a)</code>, <code>drawLine(...)</code>, <code>beginMode2D(...)</code>, <code>beginMode3D(...)</code></td></tr>
+<tr><td>Shapes</td><td><code>drawRectangle(...)</code>, <code>drawRectangleRec(...)</code>, <code>drawCircle(...)</code>, <code>drawTriangle(...)</code>, <code>drawPoly(...)</code></td></tr>
+<tr><td>Text</td><td><code>drawText(text, x, y, size, r, g, b, a)</code>, <code>measureText(text, size)</code>, <code>loadFont(path)</code>, <code>drawTextEx(font, text, …)</code></td></tr>
+<tr><td>Textures and images</td><td><code>loadTexture(path)</code>, <code>loadImage(path)</code>, <code>loadRenderTexture(w, h)</code>, <code>imageResize(image, w, h)</code>, <code>updateTexture(texture, pixels)</code></td></tr>
+<tr><td>3D</td><td><code>drawCube(...)</code>, <code>loadModel(path)</code>, <code>drawModel(model, …)</code>, <code>loadShader(vs, fs)</code>, <code>updateCamera(camera)</code></td></tr>
+<tr><td>Audio</td><td><code>initAudioDevice()</code>, <code>loadSound(path)</code>, <code>playSound(sound)</code>, <code>loadMusicStream(path)</code>, <code>updateMusicStream(music)</code></td></tr>
+<tr><td>Input</td><td><code>isKeyDown(key)</code>, <code>isKeyPressed(key)</code>, <code>getMousePosition()</code>, <code>getMouseWheelMove()</code>, <code>isGamepadButtonDown(gamepad, button)</code></td></tr>
+<tr><td>Math and misc</td><td><code>getRandomValue(min, max)</code>, <code>clamp(value, min, max)</code>, <code>lerp(start, end, amount)</code>, <code>getTime()</code>, <code>colorFromHSV(h, s, v)</code>, <code>fade(color, alpha)</code></td></tr>
+</table>
+<h2 id="example">Example</h2>
+<pre><code>import(&quot;raylib&quot;)
+
+global main(){
+    global.raylib.initWindow(800, 450, &quot;Lynxer + raylib&quot;);
+    global.raylib.setTargetFPS(60);
+    while(not global.raylib.windowShouldClose()){
+        global.raylib.beginDrawing();
+        global.raylib.clearBackground(245, 245, 245, 255);
+        global.raylib.drawText(&quot;hello from Lynxer&quot;, 20, 20, 20, 0, 0, 0, 255);
+        global.raylib.endDrawing();
+    }
+    global.raylib.closeWindow();
+}</code></pre>
+<h2 id="regenerating">Regenerating</h2>
+<p>The bindings are generated from raylib 6.0's API description, vendored so the generator runs offline:</p>
+<pre><code>$ python3 lynxer/rust/raylib/codegen/generate.py   # rewrites generated_ops.rs + raylib.lynx
+$ make lynxer/stdlib/raylib.so</code></pre>
+<p><code>generate.py</code> reads <code>codegen/raylib_api.json</code> (raylib's own <code>rlparser</code> output) and writes both the Rust shims (<code>rust/raylib/src/generated_ops.rs</code>) and the Lynxer wrapper (<code>stdlib/raylib.lynx</code>). Do not edit the generated files by hand.</p>
+<h2 id="not-included">Not included</h2>
+<p>12 raylib functions are skipped because their shape cannot cross the native-module ABI: <code>TraceLog</code>/<code>TextFormat</code> (variadic) and the <code>Set*Callback</code> / <code>Attach</code>/<code>Detach*Processor</code> family (raw function pointers).</p>
+    </main>
+</div>
+
+<footer>
+    <a class="github" href="https://github.com/andy64lol/Lynxer" aria-label="Lynxer on GitHub" title="Lynxer on GitHub"><svg role="img" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" /></svg></a>
+    <span>Lynxer &middot; MIT License</span>
+</footer>
+
+<script src="../../search.js" defer></script>
+</body>
+</html>

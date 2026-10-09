@@ -43,7 +43,7 @@ is excluded for now. See [docs/windows.md](docs/windows.md).
 **v0.1.8.3** — a standalone C++ implementation with:
 
 - a native interpreter and an AST optimizer;
-- 38 standard-library modules, native (C++/Rust) backends included;
+- 39 standard-library modules, native (C++/Rust) backends included;
 - a frozen native-module ABI for third-party backends;
 - single-file executables via `--compile`;
 - a full test suite on `amd64` and `arm64`.

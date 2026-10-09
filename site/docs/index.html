@@ -91,6 +91,7 @@
 <li><a href="stdlib/os.html">os</a></li>
 <li><a href="stdlib/path.html">path</a></li>
 <li><a href="stdlib/random.html">random</a></li>
+<li><a href="stdlib/raylib.html">raylib</a></li>
 <li><a href="stdlib/re.html">re</a></li>
 <li><a href="stdlib/regex.html">regex</a></li>
 <li><a href="stdlib/server.html">server</a></li>
@@ -122,7 +123,7 @@
             <div class="search-results" aria-live="polite"></div>
         </div>
 <h1 id="lynxer-documentation">Lynxer documentation</h1>
-<p>Lynxer is a small, standalone C++ toolchain for the Lynxer language. It runs <code>.lynx</code> programs without a Python runtime and ships its standard library as native shared libraries. It provides standalone ELF executables, 34 natively backed modules, an AST optimizer, a frozen native-module ABI, and CI on amd64 and arm64. See <a href="limitations.html">limitations</a> for planned runtime and standard-library improvements.</p>
+<p>Lynxer is a small, standalone C++ toolchain for the Lynxer language. It runs <code>.lynx</code> programs without a Python runtime and ships its standard library as native shared libraries. It provides standalone ELF executables, 36 natively backed modules, an AST optimizer, a frozen native-module ABI, and CI on amd64 and arm64. See <a href="limitations.html">limitations</a> for planned runtime and standard-library improvements.</p>
 <h2 id="contents">Contents</h2>
 <p><strong>Getting started</strong></p>
 <table>
@@ -186,7 +187,7 @@ lynxer/lynxer --list-stdlibs</code></pre>
 <p>Both Lynxer CI workflows (<code>.github/workflows/build-lynxer-linux-amd64.yml</code> and <code>build-lynxer-linux-arm64.yml</code>) run <code>make testLynxer LYNXER_SKIP_DISPLAY=1</code>, which drops the fixtures that need a display or an audio device (a CI runner has neither, and the graphics backend crashes without a display).</p>
 <p>A Rust toolchain is required: every Rust-backed module and the native-call engine are built by <code>cargo</code>, and a missing toolchain or a failed build fails <code>make</code> instead of dropping a backend. <code>python3</code> is required for the two check scripts in the test suite.</p>
 <h2 id="standard-library-modules">Standard library modules</h2>
-<p>There are 37 bundled modules. A module is exposed to Lynxer by <code>stdlib/&lt;name&gt;.lynx</code> and backed by a <code>stdlib/&lt;name&gt;.so</code>. The backends marked <em>Rust</em> come from a crate under <code>rust/</code>; <em>pure</em> modules are written in Lynxer only and need no shared library.</p>
+<p>There are 39 bundled modules. A module is exposed to Lynxer by <code>stdlib/&lt;name&gt;.lynx</code> and backed by a <code>stdlib/&lt;name&gt;.so</code>. The backends marked <em>Rust</em> come from a crate under <code>rust/</code>; <em>pure</em> modules are written in Lynxer only and need no shared library.</p>
 <table>
 <tr><th>Module</th><th>Backend</th><th>Implementation</th></tr>
 <tr><td><a href="stdlib/cli.html">cli</a></td><td>native</td><td>POSIX process/env/terminal APIs</td></tr>
@@ -210,6 +211,7 @@ lynxer/lynxer --list-stdlibs</code></pre>
 <tr><td><a href="stdlib/os.html">os</a></td><td>native</td><td><code>&lt;filesystem&gt;</code>, POSIX</td></tr>
 <tr><td><a href="stdlib/path.html">path</a></td><td>native</td><td><code>&lt;filesystem&gt;</code>, POSIX <code>stat</code></td></tr>
 <tr><td><a href="stdlib/random.html">random</a></td><td>native</td><td>seeded linear congruential generator in C++</td></tr>
+<tr><td><a href="stdlib/raylib.html">raylib</a></td><td>Rust</td><td><code>raylib</code> 6.0 via <code>raylib-sys</code> (<code>rust/raylib</code>)</td></tr>
 <tr><td><a href="stdlib/re.html">re</a></td><td>Rust</td><td><code>fancy-regex</code> (<code>rust/re</code>)</td></tr>
 <tr><td><a href="stdlib/regex.html">regex</a></td><td>Rust</td><td><code>fancy-regex</code> with a named-pattern cache (<code>rust/regex</code>)</td></tr>
 <tr><td><a href="stdlib/server.html">server</a></td><td>Rust</td><td><code>axum</code> + <code>tokio</code></td></tr>
@@ -227,7 +229,7 @@ lynxer/lynxer --list-stdlibs</code></pre>
 <tr><td><a href="stdlib/xml.html">xml</a></td><td>Rust</td><td><code>quick-xml</code> (<code>rust/xml</code>)</td></tr>
 <tr><td><a href="stdlib/yaml.html">yaml</a></td><td>Rust</td><td><code>serde_yml</code> (<code>rust/yaml</code>)</td></tr>
 </table>
-<p>The Rust workspace has twenty-four member crates: the twenty-one module <code>cdylib</code> backends listed above (<code>LYNXER_RUST_MODULE_NAMES</code> in the Makefile), the two crates they share (<code>abi</code>, and <code>regex_engine</code>, the <code>fancy-regex</code> engine behind <code>re</code>/<code>regex</code>), and <code>ffi</code>, the required native-call engine — a <code>staticlib</code> linked into the interpreter through <code>lynxer/ffi_abi.h</code>, not a stdlib module. It is built on the <code>libffi</code> crate, so <code>cargo</code> and <code>libffi</code> headers are required to build the interpreter; see <a href="native-module-abi.html#the-native-call-engine">native-module-abi</a>. There is no CMake staging step and no <code>third_party/</code> directory: TLS is <code>rustls</code> (no system OpenSSL) and the HTTP/WebSocket stack is pure Rust.</p>
+<p>The Rust workspace has twenty-six member crates: the twenty-three module <code>cdylib</code> backends listed above (<code>LYNXER_RUST_MODULE_NAMES</code> in the Makefile), the two crates they share (<code>abi</code>, and <code>regex_engine</code>, the <code>fancy-regex</code> engine behind <code>re</code>/<code>regex</code>), and <code>ffi</code>, the required native-call engine — a <code>staticlib</code> linked into the interpreter through <code>lynxer/ffi_abi.h</code>, not a stdlib module. It is built on the <code>libffi</code> crate, so <code>cargo</code> and <code>libffi</code> headers are required to build the interpreter; see <a href="native-module-abi.html#the-native-call-engine">native-module-abi</a>. There is no CMake staging step and no <code>third_party/</code> directory: TLS is <code>rustls</code> (no system OpenSSL) and the HTTP/WebSocket stack is pure Rust.</p>
 <p><code>venv</code> and the OS-native GUI/turtle modules are intentionally excluded — see <a href="limitations.html">limitations</a>. The <a href="stdlib/graphics.html">graphics</a> module covers the immediate-mode drawing/window/UI space with macroquad.</p>
 <h2 id="compiling-a-program">Compiling a program</h2>
 <p><code>--compile</code> produces one self-contained executable that embeds the program, every transitively imported <code>.lynx</code> source and <code>.so</code> library, plus anything added with <code>--include</code>:</p>

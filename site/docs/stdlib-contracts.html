@@ -91,6 +91,7 @@
 <li><a href="stdlib/os.html">os</a></li>
 <li><a href="stdlib/path.html">path</a></li>
 <li><a href="stdlib/random.html">random</a></li>
+<li><a href="stdlib/raylib.html">raylib</a></li>
 <li><a href="stdlib/re.html">re</a></li>
 <li><a href="stdlib/regex.html">regex</a></li>
 <li><a href="stdlib/server.html">server</a></li>
@@ -169,7 +170,7 @@
 <tr><td>Error string</td><td><code>&quot;Error: &lt;message&gt;&quot;</code></td><td><code>js</code>, <code>lua</code>, <code>tui</code></td></tr>
 <tr><td>Catchable runtime error</td><td>Raises a <code>SourceError</code> caught by <code>try</code>/<code>catch</code></td><td><code>sqldb</code> string-returning operations</td></tr>
 </table>
-<p><code>csv</code> mixes the first two: its table-returning operations answer with the status string (<code>&quot;ok&quot;</code> / <code>&quot;ERROR: ...&quot;</code>), and the rest use scalar sentinels. <code>compress</code> mixes them too: its in-memory stream operations use scalar sentinels (<code>&quot;&quot;</code>), while its file and archive operations answer with the status string. <code>sqldb</code> translates its native backend's internal error string into a catchable runtime error in the Lynxer wrapper; integer and boolean operations keep their documented sentinels. <code>colorlib</code> and <code>typing</code> are pure Lynxer and have no native boundary to report across.</p>
+<p><code>csv</code> mixes the first two: its table-returning operations answer with the status string (<code>&quot;ok&quot;</code> / <code>&quot;ERROR: ...&quot;</code>), and the rest use scalar sentinels. <code>compress</code> mixes them too: its in-memory stream operations use scalar sentinels (<code>&quot;&quot;</code>), while its file and archive operations answer with the status string. <code>sqldb</code> translates its native backend's internal error string into a catchable runtime error in the Lynxer wrapper; integer and boolean operations keep their documented sentinels. <code>colorlib</code> and <code>typing</code> are pure Lynxer and have no native boundary to report across. <code>raylib</code> is the exception to the sentinel families: its struct handles are raw boxed pointers with no registry and no validation, so an invalid, stale or double-freed handle is undefined behaviour rather than a result. A raylib program owns each handle and must free it exactly once (see <a href="limitations.html#raylib-handles-are-unvalidated">limitations</a>).</p>
 <p>Operations returning a JSON document return <code>[]</code> or <code>{}</code> for an empty result and an error string for a failure — never an exception. <code>jsonParse</code> on malformed input yields the <strong>empty string</strong> (<code>&quot;&quot;</code>), not <code>[]</code>; test the result for <code>&quot;&quot;</code>.</p>
 <p>A failure sentinel is a result, not a diagnostic: a program checks it and decides what to do. No bundled module aborts the process, and none panics across the C boundary (Rust backends wrap every operation in a panic guard that yields the module's sentinel).</p>
 <h3 id="callbacks">Callbacks</h3>
@@ -216,6 +217,7 @@
 <tr><td><code>os</code></td><td>C++</td><td>none</td><td>none</td></tr>
 <tr><td><code>path</code></td><td>C++</td><td>none — paths are strings</td><td>none</td></tr>
 <tr><td><code>random</code></td><td>C++</td><td>none — seeded generator lives in the backend</td><td>none</td></tr>
+<tr><td><code>raylib</code></td><td>Rust</td><td><strong>raw pointer handles</strong> for non-scalar structs (no registry); scalar-only structs are flattened by value</td><td>caller: <code>&lt;struct&gt;Free(handle)</code> (exactly once)</td></tr>
 <tr><td><code>re</code></td><td>Rust</td><td>none</td><td>none</td></tr>
 <tr><td><code>regex</code></td><td>Rust</td><td>none — the named-pattern cache lives in the backend</td><td>none</td></tr>
 <tr><td><code>server</code></td><td>Rust</td><td>routes keyed by path, in registration order</td><td>caller: <code>clearRoutes()</code> / <code>stop()</code></td></tr>

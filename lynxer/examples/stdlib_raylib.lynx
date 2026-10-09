@@ -1,0 +1,32 @@
+////
+Window-free smoke test for the raylib stdlib: it exercises constants, scalar
+calls, a flat-struct return (Color handle) and a constructed struct
+round-trip, none of which need `InitWindow`. The fixture is hermetic, so it
+runs wherever the backend does not need a display.
+////
+
+global setup(){ import("raylib"); }
+
+global main(){
+    // Constants come from raylib's enums (FLAG_WINDOW_HIDDEN = 128).
+    println(global.raylib.flagWindowHidden() is 128);
+    println(global.raylib.mouseButtonLeft() is 0);
+
+    // A scalar function.
+    println(global.raylib.getRandomValue(3, 3) is 3);
+
+    // ColorFromHSV(0, 1, 1) is pure red; the returned Color is a handle.
+    int red = global.raylib.colorFromHSV(0.0, 1.0, 1.0);
+    println(global.raylib.colorGetR(red) is 255.0);
+    println(global.raylib.colorGetG(red) is 0.0);
+    println(global.raylib.colorGetA(red) is 255.0);
+    global.raylib.colorFree(red);
+
+    // Build a Vector2 handle and read it back.
+    int v = global.raylib.vector2New(1.5, 2.5);
+    println(global.raylib.vector2GetX(v) is 1.5);
+    println(global.raylib.vector2GetY(v) is 2.5);
+    global.raylib.vector2SetX(v, 9.0);
+    println(global.raylib.vector2GetX(v) is 9.0);
+    global.raylib.vector2Free(v);
+}

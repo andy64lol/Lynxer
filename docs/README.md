@@ -2,7 +2,7 @@
 
 Lynxer is a small, standalone C++ toolchain for the Lynxer language. It runs
 `.lynx` programs without a Python runtime and ships its standard library as
-native shared libraries. It provides standalone ELF executables, 34 natively
+native shared libraries. It provides standalone ELF executables, 36 natively
 backed modules, an AST optimizer, a frozen native-module ABI, and CI on amd64
 and arm64. See [limitations.md](limitations.md) for planned runtime and
 standard-library improvements.
@@ -93,7 +93,7 @@ scripts in the test suite.
 
 ## Standard library modules
 
-There are 37 bundled modules. A module is exposed to Lynxer by
+There are 39 bundled modules. A module is exposed to Lynxer by
 `stdlib/<name>.lynx` and backed by a `stdlib/<name>.so`. The backends marked
 *Rust* come from a crate under `rust/`; *pure* modules are written in Lynxer
 only and need no shared library.
@@ -121,6 +121,7 @@ only and need no shared library.
 | [os](stdlib/os.md) | native | `<filesystem>`, POSIX |
 | [path](stdlib/path.md) | native | `<filesystem>`, POSIX `stat` |
 | [random](stdlib/random.md) | native | seeded linear congruential generator in C++ |
+| [raylib](stdlib/raylib.md) | Rust | `raylib` 6.0 via `raylib-sys` (`rust/raylib`) |
 | [re](stdlib/re.md) | Rust | `fancy-regex` (`rust/re`) |
 | [regex](stdlib/regex.md) | Rust | `fancy-regex` with a named-pattern cache (`rust/regex`) |
 | [server](stdlib/server.md) | Rust | `axum` + `tokio` |
@@ -138,7 +139,7 @@ only and need no shared library.
 | [xml](stdlib/xml.md) | Rust | `quick-xml` (`rust/xml`) |
 | [yaml](stdlib/yaml.md) | Rust | `serde_yml` (`rust/yaml`) |
 
-The Rust workspace has twenty-four member crates: the twenty-one module `cdylib`
+The Rust workspace has twenty-six member crates: the twenty-three module `cdylib`
 backends listed above (`LYNXER_RUST_MODULE_NAMES` in the Makefile), the two
 crates they share (`abi`, and `regex_engine`, the `fancy-regex` engine behind
 `re`/`regex`), and `ffi`, the required native-call engine — a `staticlib` linked into the interpreter through

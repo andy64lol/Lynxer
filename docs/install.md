@@ -59,13 +59,13 @@ The Makefile lives at the repository root; there is no separate
   entry points. Libraries built by `lynxer --emit-library` link against it.
   `lynxer/lynxer.h` and `lynxer/ffi_abi.h` are its public headers.
 
-The Rust workspace has twenty-five member crates: the twenty-two stdlib module
+The Rust workspace has twenty-six member crates: the twenty-three stdlib module
 backends listed in `LYNXER_RUST_MODULE_NAMES` (`compress`, `crypto`, `encoding`,
-`game`, `graphics`, `image`, `ini`, `json`, `lua`, `network`, `re`, `regex`,
-`server`, `sound`, `sqldb`, `text`, `toml`, `tui`, `uuid`, `watch`, `xml`,
-`yaml`), the two crates they share (`rust/abi`, and `rust/regex_engine`, the
-`fancy-regex` engine behind `re`/`regex`), and `rust/ffi`, the required native-call engine
-described in
+`game`, `graphics`, `image`, `ini`, `json`, `lua`, `network`, `raylib`, `re`,
+`regex`, `server`, `sound`, `sqldb`, `text`, `toml`, `tui`, `uuid`, `watch`,
+`xml`, `yaml`), the two crates they share (`rust/abi`, and `rust/regex_engine`,
+the `fancy-regex` engine behind `re`/`regex`), and `rust/ffi`, the required
+native-call engine described in
 [native-module-abi.md](native-module-abi.md#the-native-call-engine).
 
 ## Install
