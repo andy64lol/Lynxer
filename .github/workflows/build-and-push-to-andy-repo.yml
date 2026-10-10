@@ -1,0 +1,57 @@
+# Build Lynxer Arch package and push to andy-repo
+name: Build and Push to Andy-Repo
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Lynxer repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            cmake \
+            pkg-config \
+            libx11-dev \
+            libxext-dev \
+            libxrandr-dev \
+            libxi-dev \
+            libgl1-mesa-dev \
+            libglu1-mesa-dev \
+            libwayland-dev \
+            wayland-protocols \
+            xorg-dev \
+            git
+
+      - name: Build Lynxer package
+        run: |
+          cd packaging/aur/lynxer
+          makepkg --noconfirm --nobuild
+
+      - name: Checkout andy-repo
+        uses: actions/checkout@v4
+        with:
+          repository: andy64lol/andy-repo
+          token: ${{ secrets.ANDY_REPO_TOKEN }}
+          path: andy-repo
+
+      - name: Copy package to andy-repo
+        run: |
+          cp packaging/aur/lynxer/*.pkg.tar.zst andy-repo/
+
+      - name: Commit and push package to andy-repo
+        run: |
+          cd andy-repo
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add lynxer-*.pkg.tar.zst
+          git commit -m "Update Lynxer package to latest version"
+          git push

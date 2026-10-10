@@ -29,7 +29,8 @@ jobs:
           python-version: "3.14"
 
       - name: Install ARM64 toolchain
-        run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu libasound2-dev libffi-dev pkg-config
+        run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu libasound2-dev libffi-dev pkg-config \
+          libx11-dev libxext-dev libxrandr-dev libxi-dev
 
       - name: Build Lynxer for ARM64
         run: make buildLynxerArm64
