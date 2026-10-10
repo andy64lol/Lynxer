@@ -17,6 +17,7 @@ pub fn now_millis() -> u64 {
         .unwrap_or(0)
 }
 
+#[allow(dead_code)] // Used by the platform-specific directory polling backends.
 pub fn join_path(root: &str, name: &str) -> String {
     if name.is_empty() {
         return root.to_string();
@@ -39,6 +40,7 @@ pub fn directory_snapshot(path: &str) -> std::collections::HashSet<String> {
         .collect()
 }
 
+#[allow(dead_code)] // Used by backends that detect changes through directory snapshots.
 pub fn changed_entry_paths(path: &str, before: &std::collections::HashSet<String>, after: &std::collections::HashSet<String>) -> Vec<String> {
     let mut changed = Vec::new();
     let mut added: Vec<String> = after.difference(before).cloned().collect();
