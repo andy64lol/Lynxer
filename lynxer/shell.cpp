@@ -61,6 +61,91 @@ std::string describeSourceError(const std::string& display,
            std::to_string(error.column);
 }
 
+std::string sourceErrorTip(const SourceError& error) {
+    const std::string message = error.what();
+    if (message.rfind("unknown variable ", 0) == 0) {
+        return "Check the spelling and make sure the variable is declared in this scope before it is used.";
+    }
+    if (message.rfind("unknown function ", 0) == 0) {
+        return "Check the function name and confirm its module is imported, if it is not a builtin.";
+    }
+    if (message.rfind("unknown class ", 0) == 0 ||
+        message.rfind("unknown type ", 0) == 0) {
+        return "Check the name's spelling and make sure the declaration or module that defines it is in scope.";
+    }
+    if (message.rfind("unknown macro ", 0) == 0) {
+        return "Check the macro name and import the file that declares it. Macro calls must include '!'.";
+    }
+    if (message.rfind("module '", 0) == 0 &&
+        message.find(" was not found") != std::string::npos) {
+        return "Check the module path and extension, then verify the file is in the current directory or Lynxer's module search path.";
+    }
+    if (message.find("division by zero") != std::string::npos) {
+        return "Check the divisor before dividing; use a condition or try/catch if zero is a valid input.";
+    }
+    if (message.rfind("expected ", 0) == 0 ||
+        message.find("expected") != std::string::npos) {
+        return "Check the nearby syntax, especially matching parentheses, braces, quotes, and statement terminators.";
+    }
+    if (message.find("expects ") != std::string::npos ||
+        message.find("argument") != std::string::npos) {
+        return "Compare the call with the function signature and check each argument's type and order.";
+    }
+    if (message.find("requires ") != std::string::npos ||
+        message.find(" must be ") != std::string::npos) {
+        return "Check the value types and constraints required by this operation.";
+    }
+    return {};
+}
+
+std::string formatSourceError(const std::string& display,
+                              const std::string& source,
+                              const SourceError& error) {
+    std::ostringstream message;
+    message << "lynxer: " << describeSourceError(display, error) << ": "
+            << error.what();
+
+    const std::string tip = sourceErrorTip(error);
+    if (error.line <= 0 || error.column <= 0) {
+        if (!tip.empty()) message << "\nhelp: " << tip;
+        return message.str();
+    }
+
+    std::string errorSource;
+    if (error.source.empty() || error.source == display) {
+        errorSource = source;
+    } else {
+        std::ifstream input(error.source, std::ios::binary);
+        if (input) {
+            std::ostringstream contents;
+            contents << input.rdbuf();
+            errorSource = contents.str();
+        }
+    }
+
+    std::istringstream lines(errorSource);
+    std::string sourceLine;
+    for (int current = 1; current <= error.line; ++current) {
+        if (!std::getline(lines, sourceLine)) {
+            if (!tip.empty()) message << "\nhelp: " << tip;
+            return message.str();
+        }
+    }
+    if (!sourceLine.empty() && sourceLine.back() == '\r') sourceLine.pop_back();
+
+    std::string caret;
+    for (int column = 1; column < error.column; ++column) {
+        caret += column <= static_cast<int>(sourceLine.size()) &&
+                         sourceLine[static_cast<std::size_t>(column - 1)] == '\t'
+                     ? "    "
+                     : " ";
+    }
+    message << "\n  |\n" << error.line << " | " << sourceLine << "\n  | "
+            << caret << '^';
+    if (!tip.empty()) message << "\nhelp: " << tip;
+    return message.str();
+}
+
 void printUsage() {
     std::cout << "\n";
     std::cout << "Usage:\n";
@@ -204,13 +289,12 @@ int listStdlibs() {
 }
 
 int lintFile(const std::string& display, const std::string& source) {
-    Lexer lexer(source, display);
-    Parser parser(lexer.scan(), display);
     try {
+        Lexer lexer(source, display);
+        Parser parser(lexer.scan(), display);
         parser.parseProgram();
     } catch (const SourceError& error) {
-        std::cerr << "lynxer: " << describeSourceError(display, error) << ": "
-                  << error.what() << '\n';
+        std::cerr << formatSourceError(display, source, error) << '\n';
         return 1;
     }
     std::cout << Config::instance().format("status.lint_ok", "Lint OK: {0}",
@@ -237,8 +321,7 @@ int astFile(const std::string& display, const std::string& source) {
         std::cout << "Lynxer AST\n===========\n";
         dumpProgram(std::cout, ordered);
     } catch (const SourceError& error) {
-        std::cerr << "lynxer: " << describeSourceError(display, error) << ": "
-                  << error.what() << '\n';
+        std::cerr << formatSourceError(display, source, error) << '\n';
         return 1;
     }
     return 0;
@@ -257,8 +340,7 @@ int formatFile(const std::string& display, const std::string& source,
             return 1;
         }
     } catch (const SourceError& error) {
-        std::cerr << "lynxer: " << describeSourceError(display, error) << ": "
-                  << error.what() << '\n';
+        std::cerr << formatSourceError(display, source, error) << '\n';
         return 1;
     }
     std::cout << Config::instance().format("status.format_ok", "Formatted {0}",
@@ -601,8 +683,7 @@ int runProgram(const std::string& display, const std::string& source) {
     } catch (const InterruptError&) {
         return 130;
     } catch (const SourceError& error) {
-        std::cerr << "lynxer: " << describeSourceError(display, error) << ": "
-                  << error.what() << '\n';
+        std::cerr << formatSourceError(display, source, error) << '\n';
         return 1;
     } catch (const std::exception& error) {
         std::cerr << Config::instance().format(
