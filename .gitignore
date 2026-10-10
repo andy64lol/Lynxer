@@ -16,3 +16,4 @@ lynxer/rust/*/target/
 
 # Project modules (each is its own repository)
 modules/
+full_conversation_detailed.json
